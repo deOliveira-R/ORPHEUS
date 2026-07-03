@@ -30,8 +30,7 @@ import pytest
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
-    BoundaryRealizerRegistry,
-    BoundaryRealizerRegistryError,
+    BoundaryRealizer,
     PeriodicBoundary,
     ReflectiveBoundary,
     VacuumInflow,
@@ -424,30 +423,30 @@ class TestRealizePeriodic:
 # realizer no longer dispatches on a "mixed" type.  Rank-N compositions
 # are now built via Wave-0 ``OperatorSum``/``ScaledOperator`` algebra
 # over already-realised leaves; the tree-walking helper
-# :func:`orpheus.sn.boundary.realizer.realize_recursively` realises a
+# :func:`orpheus.geometry.boundary.realize_recursively` realises a
 # ``BoundaryTraceLaw``-rooted expression by recursing through the
 # Wave-0 composers (its tests live in
-# ``tests/sn/test_boundary_realize.py``).
+# ``tests/geometry/test_law_composition.py``).
 # ─────────────────────────────────────────────────────────────────────
 
 
 # ─────────────────────────────────────────────────────────────────────
-# 7. Registry lookup
+# 7. Realizer identity
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.l1
-class TestRegistryLookup:
-    """The SN realizer self-registers under ``method_name="SN"``."""
+class TestRealizerIdentity:
+    """The structural pins that replaced the registry-lookup pins when
+    #290 P7b dissolved ``BoundaryRealizerRegistry``."""
 
-    def test_get_sn_returns_sn_realizer(self):
-        # Import side-effect: importing ``orpheus.sn.boundary.realizer``
-        # already triggered the @register decorator at module load.
-        assert BoundaryRealizerRegistry.get("SN") is SNBoundaryRealizer
+    def test_method_name_attribute(self):
+        assert SNBoundaryRealizer.method_name == "SN"
 
-    def test_unknown_method_name_raises(self):
-        with pytest.raises(BoundaryRealizerRegistryError):
-            BoundaryRealizerRegistry.get("__no_such_method__")
+    def test_conforms_to_the_boundary_realizer_protocol(self):
+        # The Protocol the walker and ``SNMesh.realize_boundary_law``
+        # dispatch through.
+        assert isinstance(SNBoundaryRealizer(), BoundaryRealizer)
 
 
 # ─────────────────────────────────────────────────────────────────────

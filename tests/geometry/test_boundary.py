@@ -17,7 +17,7 @@ lives outside the protocol), and albedo is scalar multiplication.
 Rank-N compositions are tested through the Wave-0 operator algebra
 acting on realised primitives (the Wave-11 replacement for the
 removed ``MixedBoundaryOperator`` composer); see
-``tests/sn/test_boundary_realize.py`` for the tree-walker tests.
+``tests/geometry/test_law_composition.py`` for the tree-walker tests.
 """
 
 from __future__ import annotations

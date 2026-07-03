@@ -9,8 +9,11 @@ in tests, so this shim is now strict 1-arg. Its purpose is to add
 two thin surfaces to a realized operator:
 
 * **String-equality compatibility** (``bc == "vacuum"``) via the
-  :attr:`kind` attribute. Several SN-side tests + the BC-resolution
-  diagnostic in :mod:`orpheus.sn.solver` rely on this comparison.
+  :attr:`kind` attribute. Several SN-side tests rely on this
+  comparison. Since #290 P7b the tag is read off the LAW's own
+  registry key (``law.key`` — the single source of the kind string;
+  equal to the declared ``BC.kind`` because every admission-table
+  entry maps a tag to the law registered under that same key).
 
 * **Structural-predicate delegation** to the wrapped operator so
   consumers composing the shim with other Wave-0 primitives inherit
@@ -37,7 +40,8 @@ Internal — not re-exported
 ==========================
 
 This module is internal to the SN-side wiring at
-:meth:`SNMesh._resolve_bcs`. It is NOT re-exported from
+``SNMesh.realize_boundary_law`` (the SN arm of the #290 P7b
+``TransportMethod`` hook). It is NOT re-exported from
 :mod:`orpheus.geometry.boundary` because no consumer outside that
 construction site should wrap operators in this shim.
 
@@ -83,10 +87,12 @@ class _BoundBoundaryOperator(LinearOperator):
 
     The structural predicates, ``apply_transpose``, and the
     :class:`LinearOperator` dunders delegate to :attr:`inner`.
-    The optional :attr:`kind` tag carries the originating
-    :class:`~orpheus.geometry.mesh.BC` kind string and is the basis
-    for the ``sn_mesh.bc["xmin"] == "reflective"`` style comparisons that
-    several SN tests and the BC-resolution diagnostic rely on.
+    The optional :attr:`kind` tag carries the realized law's registry
+    key (``law.key`` — identical to the declared
+    :class:`~orpheus.geometry.mesh.BC` kind string, see the module
+    docstring) and is the basis for the
+    ``sn_mesh.bc["xmin"] == "reflective"`` style comparisons that
+    several SN tests rely on.
 
     Parameters
     ----------

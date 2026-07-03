@@ -56,8 +56,9 @@ first consumer; the diffusion integration (#290) is the anticipated
 SECOND consumer — the scalar composite
 ``FullField(bulk=ScalarFlux, boundary=ScalarBoundaryFlux)`` is the
 diffusion operator family's carrier. With method #2 live, the
-deferred ``TransportMethod`` protocol trigger FIRES (the #290 P7
-phase; see ``.claude/plans/realize_recursively_move_spec.md``).
+deferred protocol trigger FIRED: the
+:class:`~orpheus.transport.method.TransportMethod` Protocol is minted
+over both method-meshes (#290 P7b).
 
 Units (B.4 — declared as the ``UNITS`` class constant)
 ======================================================

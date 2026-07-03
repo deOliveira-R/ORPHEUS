@@ -13,10 +13,12 @@ The §15.2 sum-of-tensor-products form
 
     R \;=\; \sum_\alpha c_\alpha \, G_\alpha
 
-is realized at the SN level by walking the descriptor tree via
-:func:`orpheus.sn.boundary.realizer.realize_recursively`, which turns
-each leaf into a 1-arg Wave-0 :class:`LinearOperator` and re-assembles
-them under Wave-0 :class:`~orpheus.numerics.operator.OperatorSum` /
+is realized by walking the descriptor tree via
+:func:`~orpheus.geometry.boundary.realize_recursively` (the
+method-blind walker in :mod:`._realizer`; the method's realizer is
+passed explicitly), which turns each leaf into a 1-arg Wave-0
+:class:`LinearOperator` and re-assembles them under Wave-0
+:class:`~orpheus.numerics.operator.OperatorSum` /
 :class:`~orpheus.numerics.operator.ScaledOperator` composers. The
 descriptor → operator transformation is the **only** place an
 unrealized law becomes callable.

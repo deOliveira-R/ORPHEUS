@@ -3,8 +3,10 @@ r"""DiffusionBoundaryRealizer — the albedo-family realization (#290 P3).
 This file FLIPPED from the Wave-5 stub-invariant tests (the realizer
 raised ``NotImplementedError`` by design) to positive realization
 tests when the functional body shipped (#290 P3, closes #182). The
-registration pins survive from the stub era; everything else pins the
-now-real physics:
+identity pins (``method_name``; :class:`BoundaryRealizer` Protocol
+conformance — the successor of the registry-lookup pin after the
+#290 P7b registry dissolution) open the file; everything else pins
+the now-real physics:
 
 * the law → 𝒜 table of :math:`J^- = \mathcal{A}\,J^+` (#290 ruling 2),
 * the ruling-3 semantics — vacuum IS Marshak zero-incoming
@@ -38,13 +40,14 @@ from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
-    BoundaryRealizerRegistry,
+    BoundaryRealizer,
     PeriodicBoundary,
     PrescribedInflow,
     ReflectiveBoundary,
     VacuumInflow,
     WhiteBoundary,
     ZeroFluxBoundary,
+    realize_recursively,
 )
 from orpheus.numerics.operator import (
     BlockRole,
@@ -53,7 +56,6 @@ from orpheus.numerics.operator import (
     ZeroOperator,
 )
 from orpheus.geometry.mesh import Mesh1D
-from orpheus.sn.boundary.realizer import realize_recursively
 
 pytestmark = [pytest.mark.foundation]
 
@@ -84,11 +86,12 @@ class TestRegistration:
     def test_method_name_attribute(self):
         assert DiffusionBoundaryRealizer.method_name == "diffusion"
 
-    def test_registered_in_registry(self):
-        assert (
-            BoundaryRealizerRegistry.get("diffusion")
-            is DiffusionBoundaryRealizer
-        )
+    def test_conforms_to_the_boundary_realizer_protocol(self):
+        """The structural pin that replaced the registry-lookup pin
+        when #290 P7b dissolved ``BoundaryRealizerRegistry``: the
+        realizer satisfies the :class:`BoundaryRealizer` Protocol the
+        walker and the method-mesh hook dispatch through."""
+        assert isinstance(DiffusionBoundaryRealizer(), BoundaryRealizer)
 
     def test_realize_is_functional(self, realizer, minimal_ms):
         """The stub-era ``NotImplementedError`` contract is GONE —

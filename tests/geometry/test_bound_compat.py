@@ -151,9 +151,9 @@ def test_shim_remains_hashable():
 def test_shim_is_not_re_exported_from_package():
     """The shim is internal to the SN-side wiring — it MUST NOT appear
     in :mod:`orpheus.geometry.boundary`'s public surface, since no
-    consumer outside ``SNMesh._resolve_bcs`` has a legitimate reason
-    to wrap operators in it. Pinning the lack of re-export prevents
-    accidental promotion to public API.
+    consumer outside ``SNMesh.realize_boundary_law`` has a legitimate
+    reason to wrap operators in it. Pinning the lack of re-export
+    prevents accidental promotion to public API.
     """
     import orpheus.geometry.boundary as boundary_pkg
 
@@ -185,9 +185,11 @@ def test_shim_has_no_quadrature_attribute_after_176():
 
 
 class Test188WiringContracts:
-    """Curvilinear ``SNMesh._resolve_one`` + 1-D y-placeholder contracts."""
+    """Curvilinear ``SNMesh.realize_boundary_law`` + 1-D y-placeholder
+    contracts (the per-face arm was named ``_resolve_one`` until the
+    #290 P7b ``TransportMethod`` carve)."""
 
-    def test_curvilinear_resolve_one_routes_through_realizer(self):
+    def test_curvilinear_realize_boundary_law_routes_through_realizer(self):
         """A 1-D spherical :class:`SNMesh` has exactly ONE boundary —
         the outer radius (``xmax`` / ``bc_right``) — realized through
         :class:`SNBoundaryRealizer` to a 1-arg operator. The pole r=0

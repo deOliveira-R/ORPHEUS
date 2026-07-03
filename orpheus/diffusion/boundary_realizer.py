@@ -1,9 +1,13 @@
 r"""Diffusion BoundaryRealizer — the albedo-family realization.
 
 Functional realizer for diffusion (#290 P3; closes issue #182 — the
-Wave-5 stub this file carried until 2026-07-03). Registered in
-:class:`~orpheus.geometry.boundary.BoundaryRealizerRegistry` under
-``method_name = "diffusion"``.
+Wave-5 stub this file carried until 2026-07-03). Owned by its
+method-mesh:
+:meth:`DiffusionMesh.realize_boundary_law
+<orpheus.diffusion.augmented_mesh.DiffusionMesh.realize_boundary_law>`
+— the diffusion arm of the
+:class:`~orpheus.transport.method.TransportMethod` hook — instantiates
+it directly (#290 P7b dissolved the Wave-5 realizer registry).
 
 Every diffusion boundary condition is an albedo
 ================================================
@@ -86,15 +90,15 @@ Refusals
 Rank-N composition (Marshak mixes, partial reflection) goes through
 the descriptor-tree walker with this realizer at the leaves::
 
-    from orpheus.sn.boundary.realizer import realize_recursively
+    from orpheus.geometry.boundary import realize_recursively
     op = realize_recursively(
         0.3 * ReflectiveBoundary(axis="x") + 0.7 * AlbedoBoundary(albedo=0.5),
         DiffusionMethodSpace.minimal(),
         realizer=DiffusionBoundaryRealizer(),
     )
 
-(The walker generalizes over leaf realizers since #290 P3; its move to
-``geometry/boundary/`` with registry routing is the #290 P7
+(The walker generalized over leaf realizers at #290 P3 and moved to
+its method-blind home in ``geometry/boundary/`` at the #290 P7b
 ``TransportMethod`` mint.)
 
 References
@@ -114,7 +118,6 @@ from __future__ import annotations
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
-    BoundaryRealizerRegistry,
     BoundaryTraceLaw,
     PeriodicBoundary,
     PrescribedInflow,
@@ -154,7 +157,6 @@ def _albedo_operator(albedo: float) -> LinearOperator:
     return float(albedo) * IdentityOperator()
 
 
-@BoundaryRealizerRegistry.register("diffusion")
 class DiffusionBoundaryRealizer:
     r"""Functional realizer for diffusion BCs (#290 P3, closes #182).
 
@@ -241,7 +243,7 @@ class DiffusionBoundaryRealizer:
             f"(𝒜=α), WhiteBoundary (𝒜=α, P1-coincident with "
             f"reflective), AlbedoBoundary (𝒜=α), ZeroFluxBoundary "
             f"(𝒜=−1). For rank-N compositions use "
-            f"orpheus.sn.boundary.realizer.realize_recursively with "
+            f"orpheus.geometry.boundary.realize_recursively with "
             f"realizer=DiffusionBoundaryRealizer().",
             law=type(law).__name__,
         )

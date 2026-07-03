@@ -24,8 +24,10 @@ It is the structural sibling of
 :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (mesh + materials +
 quadrature + sweep machinery): ONE method-agnostic data carrier, one
 method layer per transport method. The two method-meshes are the
-witnesses over which the ``TransportMethod`` Protocol is minted
-(#290 P7b) — conformance structural, never imported here.
+witnesses of the :class:`~orpheus.transport.method.TransportMethod`
+Protocol (minted #290 P7b) — conformance is structural, checked where
+the shared :func:`~orpheus.transport.method.resolve_boundary_conditions`
+body is applied below; the Protocol class is never imported here.
 
 The data/behavior axis (the P7a restoration)
 ============================================
@@ -75,9 +77,10 @@ assembles on the promoted mesh, sharing the geometry with the SN sweep
 it accelerates.
 
 Layer (``tests/test_layer_imports.py``): L3 ``diffusion``. Imports
-``geometry`` (laws + BC tags), ``numerics`` (spaces), ``transport``
-(the MaterialMesh base + axis helpers), and its ``diffusion`` siblings
-(realizer + method space).
+``geometry`` (laws), ``numerics`` (spaces), ``transport`` (the
+MaterialMesh base + axis helpers + the shared
+:func:`~orpheus.transport.method.resolve_boundary_conditions` body),
+and its ``diffusion`` siblings (realizer + method space).
 """
 
 from __future__ import annotations
@@ -95,9 +98,9 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     ZeroFluxBoundary,
 )
-from orpheus.geometry.mesh import BC, Mesh1D, Mesh2D
-from orpheus.numerics.face_layout import AXIS_NAMES
+from orpheus.geometry.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
+from orpheus.transport.method import resolve_boundary_conditions
 from orpheus.transport.mesh.axis import (
     axes_from_legacy_mesh,
     face_labels as _face_labels,
@@ -110,7 +113,7 @@ if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryTraceLaw
     from orpheus.numerics.operator import LinearOperator
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-    from orpheus.transport.mesh.axis import Axis1D, FaceLabel
+    from orpheus.transport.mesh.axis import Axis1D
 
 
 __all__ = ["DiffusionMesh"]
@@ -233,8 +236,17 @@ class DiffusionMesh(MaterialMesh):
             faces, self.ng, face_areas,
         )
 
-        # Resolve boundary conditions from the per-axis declarations.
-        self._resolve_bcs()
+        # Resolve the per-axis BC declarations through the ONE shared
+        # TransportMethod body (#290 P7b): the face loop over the SAME
+        # ``face_labels`` inventory the trace was built from, the
+        # ``BC("reflective")`` infinite-lattice default, and the
+        # tag → law parse are method-generic;
+        # :meth:`realize_boundary_law` below is the diffusion arm. Law
+        # coverage ≡ trace-face coverage by construction, with no
+        # separate validation to drift.
+        self.bc: "dict[str, LinearOperator]" = (
+            resolve_boundary_conditions(self)
+        )
 
     # ── Promotion (the data/behavior join) ────────────────────────────
 
@@ -268,33 +280,29 @@ class DiffusionMesh(MaterialMesh):
         return obj
 
     # ── Boundary condition resolution ──────────────────────────────────
+    #
+    # The face loop, the reflective default, and the tag → law parse
+    # (ruling-3 semantics: ``"vacuum"`` → :class:`VacuumInflow`, the
+    # Marshak :math:`J^- = 0`; ``"zero_flux"`` → the honestly-named
+    # Dirichlet idealization :math:`\mathcal{A} = -1`) live in the ONE
+    # shared TransportMethod body,
+    # :func:`~orpheus.transport.method.resolve_boundary_conditions`
+    # (#290 P7b — it replaced the twin ``SNMesh._resolve_bcs`` /
+    # ``DiffusionMesh._resolve_bcs`` loops). Only the genuinely
+    # diffusion-specific arm remains here:
 
-    def _resolve_bcs(self) -> None:
-        r"""Resolve per-axis-declared BCs into realized albedo operators.
+    def realize_boundary_law(
+        self,
+        law: "BoundaryTraceLaw",
+        face: str,
+    ) -> "LinearOperator":
+        r"""Realize one typed boundary law on ``face`` — the diffusion arm
+        of the :class:`~orpheus.transport.method.TransportMethod` hook.
 
-        ONE loop over the same ``face_labels`` inventory the trace was
-        built from (``SNMesh._resolve_bcs`` parity): the BC declaration
-        for each label comes from its axis
-        (``axes[label.axis_index].bc[label.endpoint]``; ``None``
-        defaults to ``BC("reflective")`` — the infinite-lattice /
-        eigenvalue convention), is realized by :meth:`_resolve_one`,
-        and lands in :attr:`bc` under the label's face name. The face
-        inventory IS the BC inventory by construction: law coverage ≡
-        trace-face coverage, with no separate validation to drift.
-        """
-        default = BC("reflective")
-        self.bc: "dict[str, LinearOperator]" = {
-            label.face_name: self._resolve_one(
-                self.axes[label.axis_index].bc[label.endpoint] or default,
-                label,
-            )
-            for label in _face_labels(self.axes)
-        }
-
-    def _resolve_one(self, bc: BC, label: "FaceLabel") -> "LinearOperator":
-        r"""Realize one face's BC tag: tag → typed law → albedo operator.
-
-        Builds the :class:`~orpheus.diffusion.method_space.DiffusionMethodSpace`
+        Called per face by the shared
+        :func:`~orpheus.transport.method.resolve_boundary_conditions`
+        body. Builds the
+        :class:`~orpheus.diffusion.method_space.DiffusionMethodSpace`
         for the face (validated against the trace's inventory) and
         hands the typed law to
         :meth:`DiffusionBoundaryRealizer.realize
@@ -303,45 +311,8 @@ class DiffusionMesh(MaterialMesh):
         outflow partial current (1-arg ``apply`` — consumed by
         :class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`).
         """
-        law = self._law_from_tag(bc, label)
-        method_space = DiffusionMethodSpace.for_face(
-            mesh=self, face=label.face_name,
-        )
+        method_space = DiffusionMethodSpace.for_face(mesh=self, face=face)
         return DiffusionBoundaryRealizer().realize(law, method_space)
-
-    def _law_from_tag(self, bc: BC, label: "FaceLabel") -> "BoundaryTraceLaw":
-        r"""Construct the typed boundary law a :class:`BC` tag declares.
-
-        Ruling-3 semantics: ``"vacuum"`` → :class:`VacuumInflow`
-        (Marshak :math:`J^- = 0`, :math:`\mathcal{A} = 0`);
-        ``"zero_flux"`` → the honestly-named Dirichlet idealization
-        (:math:`\mathcal{A} = -1`). A reflective law reflects across
-        the face's own axis (the SN convention); at the P1 level only
-        the albedo = 1 scalar survives.
-        """
-        law_cls = self.BOUNDARY_OPERATOR_REGISTRY.get(bc.kind)
-        if law_cls is None:
-            supported = ", ".join(
-                f"'{k}'" for k in sorted(self.BOUNDARY_OPERATOR_REGISTRY)
-            )
-            raise ValueError(
-                f"DiffusionMesh does not support boundary condition "
-                f"'{bc.kind}' on face '{label.face_name}'. "
-                f"Supported: {supported}."
-            )
-        if law_cls is ReflectiveBoundary:
-            return ReflectiveBoundary(
-                axis=AXIS_NAMES[label.axis_index], albedo=1.0,
-            )
-        if law_cls is AlbedoBoundary:
-            try:
-                return AlbedoBoundary(albedo=float(bc.params["albedo"]))
-            except KeyError as exc:
-                raise ValueError(
-                    f"BC('albedo') on face '{label.face_name}' requires an "
-                    f"'albedo' parameter; got params={bc.params!r}."
-                ) from exc
-        return law_cls()
 
     # ── The method layer's spaces ──────────────────────────────────────
 

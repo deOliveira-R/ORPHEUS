@@ -3670,9 +3670,10 @@ tree. Two distinct algebras are layered:
      - Realiser code at face-resolution time
 
 The user writes ``0.3 * spec + 0.7 * white`` — a descriptor tree.
-:func:`~orpheus.sn.boundary.realizer.realize_recursively` walks the
-tree, realises each leaf via
-:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`, and
+:func:`~orpheus.geometry.boundary.realize_recursively` (method-blind
+since #290 P7b) walks the tree, realises each leaf via the
+explicitly-passed realizer (e.g.
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`), and
 re-assembles the result through the matching Wave-0 composers
 (:class:`OperatorSum` ↔ :class:`LawSum`,
 :class:`ScaledOperator` ↔ :class:`LawScaled`). The output is the
@@ -5513,7 +5514,7 @@ are now consumed, not merely minted.
 
 
 The two-hat tension and why ``AngularBoundarySourceSink`` dissolves it
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The earlier in-flight plan
 (``.claude/plans/b52_boundary_residual_retype.md``) proposed typing the
@@ -5591,7 +5592,7 @@ output) closes both sums, while the OPT-BR choice
 
 
 Why the Krylov path is safe with a ``AngularBoundarySourceSink`` matvec output
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The matvec output never escapes scipy as a :class:`AngularBoundarySourceSink`,
 so the *solution* side stays :class:`AngularBoundaryFlux`. The mechanism is the

@@ -11492,7 +11492,7 @@ descriptor** with no callable interface. Rank-N composition uses
 the descriptor-tree algebra
 (:class:`~orpheus.geometry.boundary.LawSum` /
 :class:`~orpheus.geometry.boundary.LawScaled`) with
-:func:`~orpheus.sn.boundary.realizer.realize_recursively` as the
+:func:`~orpheus.geometry.boundary.realize_recursively` as the
 sole descriptor→operator type transformer. See
 :ref:`bc-trace-law-descriptor-model` for the design rationale.
 
@@ -19065,6 +19065,35 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-07-03
+     - **The ``TransportMethod`` Protocol minted over the method-meshes;
+       BC resolution unified into ONE shared body; the rank-N walker
+       moved to geometry; the Wave-5 realizer registry dissolved
+       (#290 P7b)** — the two recorded witnesses (the homogenization
+       method-layer note on
+       :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` and
+       the boundary-realizer seam) are discharged by the structural
+       :class:`~orpheus.transport.method.TransportMethod` Protocol over
+       ``SNMesh`` / ``DiffusionMesh`` (instance surface only; neither
+       mesh imports it — conformance is checked where each calls the
+       shared body). The twin ``_resolve_bcs`` loops collapse into
+       :func:`~orpheus.transport.method.resolve_boundary_conditions`
+       (face loop + reflective default + tag → law parse, method-generic
+       over each mesh's ``BOUNDARY_OPERATOR_REGISTRY``); each mesh keeps
+       only its ``realize_boundary_law`` arm, and ``SNMesh`` builds its
+       unified trace in the construction body (the trace-inside-BC-
+       resolution wart retired). ``realize_recursively`` moved to its
+       method-blind home :mod:`orpheus.geometry.boundary` (leaf realizer
+       REQUIRED); the ``_BoundBoundaryOperator`` kind tag now reads the
+       law's own registry key. ``BoundaryRealizerRegistry`` + the
+       MoC/MC/CP ``NotImplementedError`` stub realizers deleted — no
+       consumer ever resolved a realizer by name (you hold the
+       method-mesh → you have its realizer), and the import-side-effect
+       registration hazard class dies with the indirection. See
+       :ref:`bc-dual-registry` and the walker-placement retrospective at
+       :ref:`bc-realize-recursively`.
+     - #290
+     - ``feature/diffusion-integration`` (P7b)
    * - 2026-07-03
      - **The Morel–Montry unbound legacy mode retired — every
        pole-angular closure is mesh-bound by construction; the sweep

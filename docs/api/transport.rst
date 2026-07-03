@@ -10,6 +10,24 @@ suffix law; the full mathematical narrative — the integral-kernel /
 multiplication / functional partition, the fission rank-1 dyad, and the
 scattering spectral sum — lives at :ref:`operator-algebra` (theory page).
 
+The TransportMethod Protocol
+----------------------------
+
+The structural Protocol over the **method-mesh layer** (#290 P7b):
+``SNMesh`` and ``DiffusionMesh`` conform without importing it, and the
+ONE shared ``resolve_boundary_conditions`` body turns each mesh's
+per-axis :class:`~orpheus.geometry.mesh.BC` declarations into realized
+boundary operators through the per-method ``realize_boundary_law``
+hook. The module docstring carries the full design record (the
+two-witness genesis, the instance-surface-only ruling, and the
+realizer-registry dissolution rationale); the boundary-architecture
+narrative lives at :doc:`/theory/boundary_conditions`.
+
+.. automodule:: orpheus.transport.method
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 The reaction-rate functionals
 -----------------------------
 

@@ -92,9 +92,11 @@ albedo operator :math:`J^- = \mathcal{A} J^+` in ``mesh.bc``
 deliberate ``"white"`` absence are documented on
 :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`). ``B`` reads
 ``mesh.bc``; a solver on a phase space with unresolved BCs is
-unrepresentable. The two remaining per-method resolution spellings
-(``SNMesh._resolve_bcs`` / ``DiffusionMesh._resolve_bcs``) unify into
-ONE shared body at P7b under the ``TransportMethod`` Protocol.
+unrepresentable. The resolution itself is the ONE shared
+:func:`~orpheus.transport.method.resolve_boundary_conditions` body
+under the :class:`~orpheus.transport.method.TransportMethod` Protocol
+(#290 P7b — it replaced the twin per-method ``_resolve_bcs`` loops;
+each mesh keeps only its ``realize_boundary_law`` arm).
 
 **Normalization**: :func:`power_iteration` renormalizes each iterate to
 unit production rate (:meth:`compute_production_rate` — the

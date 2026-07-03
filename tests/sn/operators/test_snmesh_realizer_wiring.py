@@ -1,17 +1,20 @@
-r"""Tests for ``SNMesh._resolve_bcs`` Wave-8 + C188.3 + C4 realizer wiring.
+r"""Tests for the SNMesh BC-resolution wiring (Wave 8 + C188.3 + C4 + #290 P7b).
 
 The Wave-8 SNMesh routes BC resolution through
 :class:`SNBoundaryRealizer` for every supported mesh. C4 (#220) made
-the resolution surface dimension-generic: ONE loop over
-:attr:`SNMesh.face_labels` populates the face-name-keyed
-:attr:`SNMesh.bc` dict (``sn.bc["xmin"]`` …), whose keys equal
+the resolution surface dimension-generic: ONE loop over the face
+labels populates the face-name-keyed :attr:`SNMesh.bc` dict
+(``sn.bc["xmin"]`` …), whose keys equal
 ``boundary_face_layout.faces`` by construction (both derived from
 ``face_labels`` through the single-sourced
-:attr:`FaceLabel.face_name` crosswalk). Each entry is a
-:class:`_BoundBoundaryOperator` shim wrapping the 1-arg realized
-:class:`LinearOperator`. The pre-C4 named attributes (``bc_xmin`` …
-``bc_ymax``, ``bc_left`` / ``bc_right`` aliases, degenerate 1-D
-y-placeholders) are retired — negatives pinned below.
+:attr:`FaceLabel.face_name` crosswalk). Since #290 P7b that loop is
+the ONE shared ``TransportMethod`` body
+(:func:`orpheus.transport.method.resolve_boundary_conditions`), and
+``SNMesh.realize_boundary_law`` is the SN arm it dispatches. Each
+entry is a :class:`_BoundBoundaryOperator` shim wrapping the 1-arg
+realized :class:`LinearOperator`. The pre-C4 named attributes
+(``bc_xmin`` … ``bc_ymax``, ``bc_left`` / ``bc_right`` aliases,
+degenerate 1-D y-placeholders) are retired — negatives pinned below.
 
 Issue #188 / C188.3: the curvilinear bypass branch in
 ``_resolve_one`` is gone. With the unified

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6203**
+Total tests collected: **6196**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1179, 19.0%
+   L0, 1170, 18.9%
    L1, 1065, 17.2%
    L2, 49, 0.8%
    L3, 0, 0.0%
-   foundation, 3900, 62.9%
+   foundation, 3902, 63.0%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6114
+   explicit, 6107
    verify, 0
    class-name, 46
    func-name, 0
@@ -83,7 +83,6 @@ Module × level grid
    core/test_transport_sweep_ng2_layout_guard, 0, 0, 0, 0, 2, 0
    core/test_unified_sweep_dispatch, 0, 0, 0, 0, 28, 0
    core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 4, 0
-   cp/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    cp/test_cylinder, 0, 9, 0, 0, 0, 0
    cp/test_cylinder_pss, 0, 0, 0, 0, 16, 0
    cp/test_diagnostics, 8, 28, 0, 0, 0, 0
@@ -250,7 +249,6 @@ Module × level grid
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 14, 0, 0, 0, 0
-   mc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
    mc/test_gaps, 7, 9, 0, 0, 0, 0
@@ -270,7 +268,6 @@ Module × level grid
    mms/test_mms_ld_2d, 0, 11, 0, 0, 12, 1
    mms/test_mms_ld_slab, 0, 5, 0, 0, 2, 0
    mms/test_space_angle_separability, 0, 6, 0, 0, 0, 0
-   moc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
    moc/test_moc, 0, 3, 0, 0, 0, 0
    moc/test_properties, 4, 0, 0, 0, 0, 0
@@ -399,7 +396,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 312, 0
+   test_layer_imports, 0, 0, 0, 0, 310, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -409,6 +406,7 @@ Module × level grid
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 6, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
+   transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 22, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0

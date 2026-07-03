@@ -66,8 +66,9 @@ class DiffusionMethodSpace:
     space — works on a :meth:`minimal` instance, exactly like SN's
     albedo branch on ``SNMethodSpace.minimal(quad)``. The canonical
     construction site is :meth:`for_face` (the
-    ``DiffusionMesh._resolve_one`` wiring, #290 P7a), which reads the
-    trace off the mesh and validates the face against its inventory.
+    ``DiffusionMesh.realize_boundary_law`` wiring — the diffusion arm
+    of the #290 P7b ``TransportMethod`` hook), which reads the trace
+    off the mesh and validates the face against its inventory.
     """
 
     mesh: "Optional[DiffusionMesh]" = None
@@ -94,9 +95,11 @@ class DiffusionMethodSpace:
         r"""Build the method space for one of ``mesh``'s boundary faces.
 
         The standard construction site — one method space per boundary
-        face, mirroring ``SNMethodSpace.for_face`` at
-        ``SNMesh._resolve_bcs`` time (the diffusion caller is
-        ``DiffusionMesh._resolve_one``, #290 P7a). The trace is READ
+        face, mirroring ``SNMethodSpace.for_face`` (each method-mesh's
+        ``realize_boundary_law`` arm builds its method space here,
+        driven by the shared
+        :func:`~orpheus.transport.method.resolve_boundary_conditions`
+        body, #290 P7b). The trace is READ
         OFF the mesh (``mesh.scalar_trace`` — the single source; no
         separate ``trace=`` parameter to drift). Where SN's
         ``for_face`` *derives* the per-face inflow indices from its

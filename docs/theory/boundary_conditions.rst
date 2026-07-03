@@ -23,22 +23,24 @@ Key Facts
   average), :math:`R` is a response amplitude (albedo, sub-Markov
   kernel), and :math:`q` is an optional prescribed inflow source.
   See :eq:`affine-bc-form`.
-- The architecture has **three concrete layers**, defined in three
-  files and connected by two registries:
+- The architecture has **three concrete layers**, connected by the
+  kind-keyed law registry (#290 P7b dissolved the Wave-5 realizer
+  registry — realizers are owned by their method-meshes):
 
-  +-------+-----------------------+---------------------------------------------+
-  | Layer | What                  | Where                                       |
-  +=======+=======================+=============================================+
+  +-------+-----------------------+-----------------------------------------------------+
+  | Layer | What                  | Where                                               |
+  +=======+=======================+=====================================================+
   | 1     | Trace structure       | :mod:`orpheus.numerics.spaces.angular_trace_space`  |
-  |       | (Γ\_-, Γ\_+ + mask)   | (all Mesh1D coord systems + 2-D Cartesian;  |
-  |       |                       | 2-D cylindrical Mesh2D deferred)            |
-  +-------+-----------------------+---------------------------------------------+
-  | 2     | Boundary law          | :mod:`orpheus.geometry.boundary` (ABC +     |
-  |       | (method-agnostic)     | 6 concrete laws, dual-registry: kind-keyed) |
-  +-------+-----------------------+---------------------------------------------+
-  | 3     | Method realizer       | :mod:`orpheus.sn.boundary.realizer`         |
-  |       | (per-method strategy) | (SN functional) + 4 method stubs            |
-  +-------+-----------------------+---------------------------------------------+
+  |       | (Γ\_-, Γ\_+ + mask)   | (all Mesh1D coord systems + 2-D Cartesian;          |
+  |       |                       | 2-D cylindrical Mesh2D deferred)                    |
+  +-------+-----------------------+-----------------------------------------------------+
+  | 2     | Boundary law          | :mod:`orpheus.geometry.boundary` (ABC +             |
+  |       | (method-agnostic)     | 7 concrete laws, kind-keyed law registry)           |
+  +-------+-----------------------+-----------------------------------------------------+
+  | 3     | Method realizer       | per-method packages (SN + diffusion,                |
+  |       | (per-method strategy) | #290 P3), each owned by its method-mesh             |
+  |       |                       | via the ``TransportMethod`` hook (P7b)              |
+  +-------+-----------------------+-----------------------------------------------------+
 
 - Rank-N boundary conditions (Marshak, partial-current mixes) are
   expressed via a **descriptor-tree algebra** on the unrealised laws
@@ -48,22 +50,34 @@ Key Facts
   :class:`~orpheus.geometry.boundary.LawScaled` nodes — a closed
   algebra over ``BoundaryTraceLaw | LawSum | LawScaled``. The tree is
   a **pure descriptor** with no ``apply`` method; the
-  :func:`~orpheus.sn.boundary.realizer.realize_recursively` type
-  transformer walks it once per face and emits an operator tree of
+  :func:`~orpheus.geometry.boundary.realize_recursively` type
+  transformer (method-blind, in ``geometry/boundary/`` since #290
+  P7b; the leaf realizer is a required argument) walks it once per
+  face and emits an operator tree of
   :class:`~orpheus.numerics.operator.OperatorSum` /
   :class:`~orpheus.numerics.operator.ScaledOperator` composers around
   realised 1-arg leaves. See :ref:`bc-trace-law-descriptor-model` and
   :ref:`bc-rank-n-algebra`. There is no dedicated
   ``MixedBoundaryOperator`` class (retired Wave 11); there is also no
   ``apply`` method on the raw law (retired Issue #186, B3 + β2).
-- The :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` is the
-  **only** functional realizer today. ``MoCBoundaryRealizer``,
-  ``MCBoundaryRealizer``, ``CPBoundaryRealizer``, and
-  ``DiffusionBoundaryRealizer`` are stubs that self-register at
-  import time and raise :class:`NotImplementedError` from
-  ``realize()``. The stubs hold the dispatch architecture in place
-  so a future MoC / MC / CP / diffusion modernization session can
-  bolt on a functional body without touching the SN side.
+- TWO functional realizers exist:
+  :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` and
+  :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+  (#290 P3 — every diffusion law collapses to the albedo-family
+  scalar :math:`\mathcal{A}` in :math:`J^- = \mathcal{A} J^+`). Each
+  is OWNED by its method-mesh: ``realize_boundary_law`` — the
+  per-method arm of the
+  :class:`~orpheus.transport.method.TransportMethod` Protocol —
+  instantiates it directly, and the shared
+  :func:`~orpheus.transport.method.resolve_boundary_conditions` body
+  drives the per-face resolution for every method. The Wave-5
+  ``BoundaryRealizerRegistry`` + the MoC/MC/CP
+  ``NotImplementedError`` stub realizers were **dissolved at #290
+  P7b**: no consumer ever resolved a realizer by name (you hold the
+  method-mesh → you have its realizer), and the string indirection
+  carried registration-timing hazards for zero payoff. A future
+  MoC / MC / CP modernization mints its method-mesh + realizer pair
+  directly — no central registration step.
 - The :attr:`creates_sweep_cycle` ``ClassVar`` flag on each
   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` subclass
   signals to the SN sweep planner (§15A.2) which boundary types
@@ -296,11 +310,12 @@ describes the physics at the boundary but is **not** by itself
 ready for consumption by a transport sweep. The conversion from
 method-agnostic law to method-specific
 :class:`~orpheus.numerics.operator.LinearOperator` is the job of a
-:class:`~orpheus.geometry.boundary.BoundaryRealizer`. For each
-transport method (``"SN"``, ``"MoC"``, ``"MC"``, ``"CP"``,
-``"diffusion"``) there is one realizer class, registered in the
-:class:`~orpheus.geometry.boundary.BoundaryRealizerRegistry` under
-the method name.
+:class:`~orpheus.geometry.boundary.BoundaryRealizer`. Each transport
+method that has adopted the unified BC architecture (SN; diffusion
+since #290 P3) ships one realizer class, owned by its method-mesh:
+the mesh's ``realize_boundary_law`` arm — the per-method hook of the
+:class:`~orpheus.transport.method.TransportMethod` Protocol (#290
+P7b) — instantiates it directly.
 
 The realizer's :meth:`realize` method takes the law plus a
 **method space** — a method-specific container holding the
@@ -325,8 +340,9 @@ method:
 
 Splitting the realizer out of the law makes each piece independently
 testable and gives every method a single bolt-in point for its BC
-treatment — see :ref:`bc-cross-method-stubs` for the four stubs
-that hold the architecture today.
+treatment — see :ref:`bc-cross-method-stubs` for how a future method
+adopts the architecture (and for the Wave-5 stub scaffolding that was
+dissolved at #290 P7b).
 
 
 .. _bc-trace-structure:
@@ -455,9 +471,8 @@ The ABC ships:
    concrete laws override the relevant ones) and four **specific**
    invariants on the BCs that need them — see
    :ref:`bc-universal-invariants`.
-4. A :meth:`realize` hook that defers to the
-   :class:`~orpheus.geometry.boundary.BoundaryRealizerRegistry` —
-   see :ref:`bc-realizer-layer-detail`.
+4. A :meth:`realize` hook that raises with guidance (route through a
+   method realizer) — see :ref:`bc-realizer-layer-detail`.
 5. **No ``apply`` method at all** (Issue #186 / B3 + β2,
    2026-05-11). The descriptor model that survived the C176.3
    Option A interim was retired in favour of a pure-descriptor
@@ -534,7 +549,7 @@ and Marshak / partial-current boundaries are rank-N via the
 **descriptor-tree algebra** on the unrealised laws (:class:`LawSum`
 / :class:`LawScaled` over :class:`BoundaryTraceLaw` leaves) —
 realised once per face by
-:func:`~orpheus.sn.boundary.realizer.realize_recursively`. See
+:func:`~orpheus.geometry.boundary.realize_recursively`. See
 :ref:`bc-rank-n-algebra` below.
 
 
@@ -741,121 +756,118 @@ realizer's second argument. It carries:
   with no legacy mesh adapter passes ``None``.
 
 The :meth:`SNMethodSpace.for_face` factory is the standard
-construction site at
-:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh._resolve_bcs` time; the
-:meth:`SNMethodSpace.minimal` factory returns a quadrature-only
-method space for unit tests that don't need mesh + face metadata.
+construction site inside ``SNMesh.realize_boundary_law`` (per face,
+driven by the shared
+:func:`~orpheus.transport.method.resolve_boundary_conditions` body,
+#290 P7b); the :meth:`SNMethodSpace.minimal` factory returns a
+quadrature-only method space for unit tests that don't need mesh +
+face metadata.
 
 
 .. _bc-dual-registry:
 
-Dual registry (``BoundaryLawRegistry`` + ``BoundaryRealizerRegistry``)
-======================================================================
+The law registry (and the realizer registry that was dissolved)
+===============================================================
 
-Two registries serve two independent lookup keys:
+ONE registry connects the tag layer to the law layer:
 
-1. **Law registry** — keyed by ``BC.kind`` string
-   (``"vacuum"``, ``"reflective"``, ``"white"``, ``"periodic"``,
-   ``"albedo"``, ``"prescribed_inflow"``). The registry IS
-   :attr:`BoundaryTraceLaw.registry` (a class-level dict
-   maintained by :class:`~orpheus.numerics.registry.RegistryMixin`).
-   Concrete laws self-register at module import time via the
-   ``key=`` class-creation kwarg:
+**Law registry** — keyed by ``BC.kind`` string
+(``"vacuum"``, ``"reflective"``, ``"white"``, ``"periodic"``,
+``"albedo"``, ``"prescribed_inflow"``, ``"zero_flux"``). The
+registry IS :attr:`BoundaryTraceLaw.registry` (a class-level dict
+maintained by :class:`~orpheus.numerics.registry.RegistryMixin`).
+Concrete laws self-register at module import time via the
+``key=`` class-creation kwarg:
 
-   .. code-block:: python
+.. code-block:: python
 
-      class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
-          ...
+   class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
+       ...
 
-   Lookup is :meth:`BoundaryTraceLaw.create("vacuum")` or direct
-   dictionary access ``BoundaryTraceLaw.registry["vacuum"]``.
-   :meth:`orpheus.sn.mesh.augmented_mesh.SNMesh._resolve_one` uses the
-   second form to recover the law class from a mesh-declared
-   :class:`~orpheus.geometry.mesh.BC`.
+Lookup is :meth:`BoundaryTraceLaw.create("vacuum")` or direct
+dictionary access ``BoundaryTraceLaw.registry["vacuum"]``. Each
+method-mesh additionally carries its own **admission table**
+(``BOUNDARY_OPERATOR_REGISTRY: dict[str, type[BoundaryTraceLaw]]``
+— the subset of laws its realizer can honestly realize, e.g.
+``zero_flux`` is diffusion-only), and the shared
+:func:`~orpheus.transport.method.resolve_boundary_conditions` body
+uses THAT table to recover the law class from a mesh-declared
+:class:`~orpheus.geometry.mesh.BC` — an unsupported tag refuses at
+phase-space construction with the method's supported list.
 
-2. **Realizer registry** — keyed by method name (``"SN"``,
-   ``"MoC"``, ``"MC"``, ``"CP"``, ``"diffusion"``). The registry is
-   :class:`~orpheus.geometry.boundary.BoundaryRealizerRegistry`, a
-   stand-alone class with a class-level ``_registry`` dict. The
-   :meth:`~orpheus.geometry.boundary.BoundaryRealizerRegistry.register`
-   decorator and :meth:`~orpheus.geometry.boundary.BoundaryRealizerRegistry.get`
-   classmethod are the canonical add / lookup surface.
+**The realizer registry was dissolved at #290 P7b.** The Grand
+Report §16A.11 design (lines 3252–3257) paired the law registry
+with a second, method-name-keyed ``BoundaryRealizerRegistry``
+(``"SN"``, ``"MoC"``, …; realizers self-registered via a decorator
+at import time). It shipped in Wave 5 and was retired when the
+second functional realizer (diffusion, #290 P3) made the real
+consumption pattern visible: **no consumer ever resolved a realizer
+by method name**. Production holds a method-mesh, and the mesh's
+``realize_boundary_law`` arm — the per-method hook of the
+:class:`~orpheus.transport.method.TransportMethod` Protocol —
+instantiates its own realizer directly; the rank-N walker takes the
+realizer as an explicit argument. The string indirection carried a
+real hazard class for zero payoff: a registry populated by import
+side-effects is EMPTY in a fresh process until the right module
+happens to be imported, a timing miss invisible to in-suite tests
+(process-global state masks it). Dissolving the registry deleted
+the hazard class instead of gating it.
 
-The two registries are **disjoint by design** (§16A.11 lines
-3252–3257 of the Grand Report). They could not collide on a
-shared key — laws are keyed by physical-name strings, realizers by
-transport-method-name strings — but more importantly they describe
-two orthogonal extension axes:
+The two extension axes the dual-registry design named survive
+without it:
 
 * Adding a new BC type means adding one
-  :class:`BoundaryTraceLaw` subclass and registering it under one
-  ``BC.kind`` string. **N** new realizer cases need to be added
-  (one per method), but no existing realizer needs to change.
-* Adding a new transport method means adding one
-  :class:`BoundaryRealizer` and registering it under one method
-  name. **M** new realizer branches need to be implemented (one
-  per existing BC), but no existing law needs to change.
-
-The realizer registry uses a **stand-alone** registry class instead
-of :class:`RegistryMixin` because realizers are independent
-strategies keyed by string — not a class hierarchy with a shared
-base. Collisions at
-:meth:`BoundaryRealizerRegistry.register` raise
-:class:`~orpheus.geometry.boundary.BoundaryRealizerRegistryError`
-at import time rather than silently overriding; this surfaces
-duplicate-registration bugs during package import.
+  :class:`BoundaryTraceLaw` subclass with a ``key=`` registration
+  (+ the admission-table entries of the methods that support it).
+  Each existing realizer adds a dispatch branch; no existing law
+  changes.
+* Adding a new transport method means minting one method-mesh
+  (structurally conforming to ``TransportMethod``), one
+  :class:`BoundaryRealizer`, and one admission table. **M** realizer
+  branches need to be implemented (one per admitted BC), but no
+  existing law changes — and no central registration step exists.
 
 
 .. _bc-cross-method-stubs:
 
-Cross-method realizer stubs
----------------------------
+Adopting the architecture in a new method (and the retired stubs)
+-----------------------------------------------------------------
+
+A method adopts the unified BC architecture by shipping three
+pieces (the diffusion adoption at #290 P3–P7b is the worked
+example):
+
+1. a **method-mesh** (``DiffusionMesh(MaterialMesh)``) carrying the
+   method's trace + an admission table + the
+   ``realize_boundary_law`` arm — it conforms structurally to
+   :class:`~orpheus.transport.method.TransportMethod` and gets the
+   whole tag → law → realized-``bc``-dict pipeline from the shared
+   :func:`~orpheus.transport.method.resolve_boundary_conditions`
+   body;
+2. a **realizer** (``DiffusionBoundaryRealizer``) mapping each
+   admitted law onto the method's operators;
+3. a **method space** (``DiffusionMethodSpace``) carrying whatever
+   discretization metadata the realizer reads.
 
 .. note::
 
-   The cross-method realizers are **scaffolding for future
-   modernization**, not a mature shared abstraction. The
-   :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` is the
-   single functional realizer today. ``MoCBoundaryRealizer``,
-   ``MCBoundaryRealizer``, ``CPBoundaryRealizer``, and
-   ``DiffusionBoundaryRealizer`` are stubs that hold the dispatch
-   table in place — they self-register at module import time so
-   :meth:`BoundaryRealizerRegistry.get("MoC")` returns the class,
-   but the class's :meth:`realize` raises :class:`NotImplementedError`
-   with a grep-able message pointing at the follow-up issue.
+   **Historical: the Wave-5 stub scaffolding (retired #290 P7b).**
+   Between Wave 5 and #290, ``MoCBoundaryRealizer`` /
+   ``MCBoundaryRealizer`` / ``CPBoundaryRealizer`` (and, until #290
+   P3, ``DiffusionBoundaryRealizer``) existed as
+   ``NotImplementedError`` stubs auto-registered by each method's
+   ``__init__.py``, "holding the dispatch architecture in place."
+   With the registry dissolved there is no dispatch table to hold a
+   place in — a stub realizer that cannot realize anything serves no
+   consumer — so the three stub modules, their auto-import lines,
+   and their stub-invariant tests were deleted. MoC / MC / CP keep
+   their legacy solver-side BC validation until each adopts the
+   architecture per the recipe above.
 
-   When the second functional realizer ships (whichever of MoC / MC
-   / CP / diffusion adopts the unified BC architecture first), the
-   shared abstraction that the realizers form will become
-   discoverable; until then, building a ``BoundaryRealizerBase``
-   ABC would violate the "Unify after two instances" architectural
-   discipline (Cardinal Rule 2 generalization). Each stub is its
-   own ~30-line class with explicit ``method_name`` and ``realize``
-   method.
-
-The four stub files are:
-
-* :mod:`orpheus.moc.boundary_realizer` — ``MoCBoundaryRealizer``.
-  Follow-up: "BC: MoCBoundaryRealizer functional implementation"
-  (label ``module:moc, type:feature``).
-* :mod:`orpheus.mc.boundary_realizer` — ``MCBoundaryRealizer``.
-  Follow-up: "BC: MCBoundaryRealizer functional implementation"
-  (label ``module:mc, type:feature``).
-* :mod:`orpheus.cp.boundary_realizer` — ``CPBoundaryRealizer``.
-  Follow-up: "BC: CPBoundaryRealizer functional implementation"
-  (label ``module:cp, type:feature``).
-* :mod:`orpheus.diffusion.boundary_realizer` —
-  ``DiffusionBoundaryRealizer``. Follow-up:
-  "BC: DiffusionBoundaryRealizer functional implementation"
-  (label ``module:diffusion, type:feature``).
-
-Each method's ``__init__.py`` imports the boundary-realizer
-submodule unconditionally so plain ``import orpheus.<method>``
-auto-registers the stub. The SN realizer is **not**
-auto-imported by ``orpheus.sn.__init__`` (it's a heavy module
-that every SN consumer pays for); the
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` constructor imports it
-explicitly when it needs it.
+The SN realizer is **not** auto-imported by ``orpheus.sn.__init__``
+(it's a heavy module that every SN consumer pays for); the
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` construction imports
+it explicitly when it needs it.
 
 
 .. _bc-worked-example:
@@ -999,18 +1011,17 @@ adapter passes ``None`` (C5.3, #225).
 Step 4 — realization
 --------------------
 
-The :class:`SNBoundaryRealizer` is now invoked. Looking up by
-method name produces the realizer class; instantiation is
-stateless:
+The :class:`SNBoundaryRealizer` is now invoked — directly, by the
+method-mesh that owns it (``SNMesh.realize_boundary_law``, the SN
+arm of the :class:`~orpheus.transport.method.TransportMethod` hook;
+#290 P7b removed the registry lookup that used to sit here).
+Instantiation is stateless:
 
 .. code-block:: python
 
-   from orpheus.geometry.boundary import BoundaryRealizerRegistry
+   from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 
-   realizer_cls = BoundaryRealizerRegistry.get("SN")
-   # realizer_cls is SNBoundaryRealizer
-   realizer = realizer_cls()
-   realized = realizer.realize(law, method_space)
+   realized = SNBoundaryRealizer().realize(law, method_space)
 
 The realizer's vacuum branch fires:
 
@@ -1042,12 +1053,13 @@ surface to the face-name-keyed :attr:`~SNMesh.bc` dict — see
 shim is a **strict 1-arg passthrough** that adds two pieces of
 metadata to the realized operator:
 
-* a free-form ``kind`` string tag carrying the originating
-  :class:`~orpheus.geometry.mesh.BC` kind (``"vacuum"`` /
-  ``"reflective"`` / ...) — load-bearing for the
+* a free-form ``kind`` string tag — since #290 P7b read off the
+  realized LAW's own registry key (``law.key``; identical to the
+  declared :class:`~orpheus.geometry.mesh.BC` kind because every
+  admission-table entry maps a tag to the law registered under that
+  same key) — load-bearing for the
   ``sn_mesh.bc["xmin"] == "vacuum"`` string-equality surface that
-  several SN tests and the BC-resolution diagnostic rely
-  on;
+  several SN tests rely on;
 * :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
   delegation to the wrapped inner operator so consumers composing the
@@ -1065,7 +1077,7 @@ strict 1-arg.
 
    from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 
-   return _BoundBoundaryOperator(realized, kind=bc.kind)
+   return _BoundBoundaryOperator(realized, kind=law.key)
 
 The shim is **internal** to the package (not in :attr:`__all__`)
 — a test pins its private status.
@@ -1081,7 +1093,8 @@ since C5.3 the geometry-blind
 :meth:`AngularTraceSpace.from_quadrature_and_layout
 <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`)
 raised :class:`NotImplementedError` for curvilinear ``Mesh1D``, which
-forced :meth:`SNMesh._resolve_one` to bypass the realizer for
+forced the per-face resolution (then ``SNMesh._resolve_one``, since
+#290 P7b ``SNMesh.realize_boundary_law``) to bypass the realizer for
 spherical / cylindrical meshes. Issue #188 lifted that
 deferral; Issue #176 (C176.1) dropped the bound-quadrature mode
 here because no production-issued shim carried
@@ -1290,8 +1303,9 @@ The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` algebra
 dunders (``+``, ``-``, ``*``, ``/``, unary ``-``) return
 :class:`~orpheus.geometry.boundary.LawSum` /
 :class:`~orpheus.geometry.boundary.LawScaled` instances, never
-operators. The :func:`~orpheus.sn.boundary.realizer.realize_recursively`
-type transformer is the **sole** path from descriptor tree to
+operators. The :func:`~orpheus.geometry.boundary.realize_recursively`
+type transformer (method-blind since #290 P7b — the leaf realizer is
+an explicit argument) is the **sole** path from descriptor tree to
 operator tree.
 
 The §15.2 sum-of-tensor-products form
@@ -1317,8 +1331,9 @@ white reflection (weight :math:`c_2`) — is:
    from orpheus.geometry.boundary import (
        LawScaled, LawSum,
        ReflectiveBoundary, WhiteBoundary,
+       realize_recursively,
    )
-   from orpheus.sn.boundary.realizer import realize_recursively
+   from orpheus.sn.boundary.realizer import SNBoundaryRealizer
    from orpheus.sn.mesh.method_space import SNMethodSpace
 
    # Build the descriptor tree — no realization yet.
@@ -1337,8 +1352,9 @@ white reflection (weight :math:`c_2`) — is:
    # Realize the tree at one face. realize_recursively walks
    # LawSum / LawScaled / leaf-law nodes and emits the matching
    # Wave-0 operator-tree composers around realized 1-arg leaves.
+   # The walker is method-blind — pass the method's own realizer.
    ms = SNMethodSpace.for_face(...)
-   marshak_op = realize_recursively(marshak_law, ms)
+   marshak_op = realize_recursively(marshak_law, ms, SNBoundaryRealizer())
    # marshak_op is:
    #   OperatorSum(
    #       ScaledOperator(0.3, PermutationOperator(...)),
@@ -1443,7 +1459,7 @@ algebraically identical.
 The ``realize_recursively`` walker — a descriptor → operator type transformer
 =============================================================================
 
-:func:`~orpheus.sn.boundary.realizer.realize_recursively` is the
+:func:`~orpheus.geometry.boundary.realize_recursively` is the
 **type transformer** from the descriptor-tree algebra
 (``BoundaryTraceLaw | LawSum | LawScaled``) to the operator-tree
 algebra (``LinearOperator`` with
@@ -1482,9 +1498,9 @@ Usage on the descriptor tree:
 .. code-block:: python
 
    from orpheus.geometry.boundary import (
-       ReflectiveBoundary, WhiteBoundary,
+       ReflectiveBoundary, WhiteBoundary, realize_recursively,
    )
-   from orpheus.sn.boundary.realizer import realize_recursively
+   from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 
    # Build the descriptor tree.
    law = (
@@ -1493,8 +1509,9 @@ Usage on the descriptor tree:
    )
    # law is LawSum(LawScaled(0.3, ...), LawScaled(0.7, ...)).
 
-   # Realize once, at face resolution time.
-   realized = realize_recursively(law, method_space)
+   # Realize once, at face resolution time — the walker is
+   # method-blind, so the method's realizer is passed explicitly.
+   realized = realize_recursively(law, method_space, SNBoundaryRealizer())
    # realized is:
    #   OperatorSum(
    #       ScaledOperator(0.3, PermutationOperator(...)),
@@ -1538,61 +1555,59 @@ the in-tree Wave-0 algebra. Removing them clarified the walker's
 role: it is **exactly** the type transformer between the two
 algebras, nothing more.
 
-Placement and the deferred cross-method generalization
-------------------------------------------------------
+Placement — the deferral that fired at method #2 (#290 P7b)
+-----------------------------------------------------------
 
-The walker lives in :mod:`orpheus.sn.boundary.realizer`,
-**co-located with the** :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
-it dispatches to at every leaf. (It previously sat in a separate
-``boundary_realize`` module — the near-twin filename next to
-``boundary_realizer`` was a standing legibility hazard; merging the
-two retired it.)
-
-The walker is **honestly SN-specific today**: it threads an
-:class:`~orpheus.sn.mesh.method_space.SNMethodSpace` and hardcodes
-:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` at the
-leaf. It is *not* on the production single-BC path — production
-realizes one BC directly
-(:meth:`SNMesh._resolve_one <orpheus.sn.mesh.augmented_mesh.SNMesh._resolve_one>`
-→ ``SNBoundaryRealizer().realize``). This walker is the **rank-N
+The walker lives in :mod:`orpheus.geometry.boundary` (the
+``_realizer`` module — the realization seam, next to the
+:class:`~orpheus.geometry.boundary.BoundaryRealizer` Protocol it
+dispatches through), and it is **method-blind**: the leaf realizer
+is a REQUIRED argument, and ``method_space`` is threaded verbatim to
+that realizer without inspection. It is *not* on the production
+single-BC path — production realizes one BC directly (each
+method-mesh's ``realize_boundary_law`` arm →
+``<Method>BoundaryRealizer().realize``). The walker is the **rank-N
 composition entry point**: the only thing that realizes a
 *descriptor tree* (the Marshak ``0.3 * Reflective + 0.7 * White``
 partial-current BC of :eq:`affine-bc-form`) rather than a single
 leaf law. Production does not yet wire a rank-N BC, so the walker
 runs only from the rank-N tests.
 
-The method-agnostic generalization — a walker that resolves its
-leaf realizer through :class:`~orpheus.geometry.boundary.BoundaryRealizerRegistry`
-and threads a ``MethodSpace`` Protocol instead of a concrete
-:class:`~orpheus.sn.mesh.method_space.SNMethodSpace`, living next to the
-registry in ``geometry/boundary/`` — is **deferred until the second
-functional realizer ships**. MoC, MC, CP, and diffusion are
-``NotImplementedError`` stubs today, so the registry has **zero
-production consumers** (only tests call
-:meth:`BoundaryRealizerRegistry.get`); generalizing now would mint a
-method-agnostic seam with exactly one method behind it, against the
-defer-until-two-instances rule (see :ref:`bc-rank-n-algebra`). Only
-the **leaf** dispatch (:class:`BoundaryTraceLaw` → realized op) is
-SN-bound; the **composer** dispatch (:class:`LawSum` /
-:class:`LawScaled` → operator composers) is already method-agnostic
-and would survive the move unchanged.
+**How it got here is a worked example of the
+defer-until-two-instances rule.** Until #290 the walker lived in
+:mod:`orpheus.sn.boundary.realizer`, honestly SN-specific: it
+threaded an :class:`~orpheus.sn.mesh.method_space.SNMethodSpace` and
+hardcoded ``SNBoundaryRealizer`` at the leaf. (Before that it sat in
+a separate ``boundary_realize`` module — the near-twin filename next
+to ``boundary_realizer`` was a standing legibility hazard; merging
+the two retired it.) The cross-method generalization was explicitly
+**deferred until the second functional realizer ships**, with the
+recorded insight that the deferral trigger was not local to boundary
+realization: the same event — a second transport method arriving —
+would also mint the ``TransportMethod`` Protocol flagged in
+:mod:`orpheus.transport.mesh.material_mesh`, because the
+**boundary-realizer seam** and the **homogenization method-layer**
+were two independent witnesses to one missing type, to be typed
+*together* at method #2 rather than as string-keyed half-steps.
 
-The architectural insight worth recording is *why* this deferral
-trigger is not local to boundary realization. The exact event that
-unblocks the generalization here — a second transport method
-arriving — is the **same** event that mints the future
-``TransportMethod`` Protocol flagged in
-:mod:`orpheus.transport.mesh.material_mesh` (the typed *behavior*
-half of the mesh + materials split, currently a bare comment because
-SN is the only method). The **boundary-realizer seam** (this walker's
-``method_space`` and hardcoded leaf) and the **homogenization
-method-layer** (the missing ``TransportMethod`` behind ``MaterialMesh``)
-are **two independent witnesses to one missing type**. They should
-therefore be typed *together* at method #2 — when the registry gains
-its first production consumer, this walker moves to
-``geometry/boundary/``, and ``method_space`` becomes a typed
-``TransportMethod`` Protocol — not as three separate, string-keyed
-half-steps that each re-discover the same abstraction.
+That trigger fired when diffusion adopted the architecture (#290
+P3), and the landing (#290 P7b) matched the prophecy on every point
+but one: the deferral-era sketch had the walker "resolving its leaf
+realizer through ``BoundaryRealizerRegistry``" — the actual carve
+**dissolved the registry instead**. With a real second method in
+hand, the consumption pattern was visible: production holds a
+method-mesh and therefore holds its realizer; nobody resolves
+realizers by name. The
+:class:`~orpheus.transport.method.TransportMethod` Protocol landed
+on the **method-mesh layer** (``SNMesh`` / ``DiffusionMesh`` — the
+user ruling: the method-mesh IS the method's behavior carrier, not a
+stateless singleton), the twin per-mesh ``_resolve_bcs`` loops
+collapsed into the ONE shared
+:func:`~orpheus.transport.method.resolve_boundary_conditions` body,
+and the walker moved here with an explicit-realizer signature. Only
+the **leaf** dispatch was ever method-bound; the **composer**
+dispatch (:class:`LawSum` / :class:`LawScaled` → operator composers)
+survived the move byte-identically, exactly as recorded.
 
 
 .. _bc-vacuum-semantic-correction:
@@ -1939,12 +1954,12 @@ For descriptor-tree composition:
 
 .. code-block:: python
 
-   from orpheus.sn.boundary.realizer import realize_recursively
+   from orpheus.geometry.boundary import realize_recursively
 
    tree = 0.3 * ReflectiveBoundary(axis="x") + 0.7 * WhiteBoundary(
        axis="x", outward_sign=+1,
    )
-   op_tree = realize_recursively(tree, ms)
+   op_tree = realize_recursively(tree, ms, SNBoundaryRealizer())
    psi_in = op_tree.apply(psi_out)
 
 No call site routes through a putative ``law.apply(psi)`` — that
@@ -3368,13 +3383,16 @@ re-attempt them:
    second realization path with no semantic difference. See
    :ref:`bc-rank-n-algebra`.
 3. **Shared ``BoundaryRealizerBase`` ABC for cross-method
-   realizers.** Considered Wave 5. Rejected per the "Unify after
-   two instances" architectural discipline: only one functional
-   realizer ships today. Building the abstraction on a single
+   realizers.** Considered Wave 5, when only one functional
+   realizer existed. Rejected per the "Unify after two instances"
+   architectural discipline: building the abstraction on a single
    instance would force a particular shape on every future method
-   based on SN's current dispatch idiom (``isinstance``); MoC
-   might want a different dispatch shape (e.g. registry-keyed by
-   law class name) that the ABC would foreclose.
+   based on SN's dispatch idiom (``isinstance``). Vindicated at
+   method #2: the diffusion realizer (#290 P3) chose a DIFFERENT
+   shape (law → albedo scalar → structure-keyed collapse, not an
+   isinstance ladder over per-law primitives), and the structural
+   :class:`~orpheus.geometry.boundary.BoundaryRealizer` Protocol
+   remains the only shared contract — no ABC was ever needed.
 4. **Adding ``face`` to ``VacuumInflow``'s constructor for
    semantic correctness on the standalone-apply path.** Option (b)
    in :ref:`bc-vacuum-semantic-correction`. Rejected because it
@@ -3382,14 +3400,15 @@ re-attempt them:
    path that the refactor was retiring anyway. The transitional
    legacy-vacuum body is the right cost.
 5. **Auto-importing every cross-method realizer at
-   :mod:`orpheus.geometry.boundary` import time.** Considered to
-   make :meth:`BoundaryRealizerRegistry.get("MoC")` work without
-   the caller having to ``import orpheus.moc`` first. Rejected
-   because :mod:`orpheus.sn` is a heavy module that every consumer
-   of the boundary package would then pay for. The current rule
-   (each method's :mod:`__init__.py` imports its own realizer; the
-   SN realizer is imported explicitly by
-   :class:`SNMesh.__init__`) is the right cost-localization.
+   :mod:`orpheus.geometry.boundary` import time.** Considered in
+   the registry era to make ``BoundaryRealizerRegistry.get("MoC")``
+   work without the caller having to ``import orpheus.moc`` first.
+   Rejected because :mod:`orpheus.sn` is a heavy module that every
+   consumer of the boundary package would then pay for. #290 P7b
+   made the whole question moot by dissolving the registry: each
+   method-mesh imports its own realizer explicitly, so there is no
+   name-lookup to keep populated and no import-side-effect timing
+   to defend.
 6. **Cartesian-vs-curvilinear bypass in
    :meth:`SNMesh._resolve_one` + dual-mode shim.** Pre Issue #188
    shape: curvilinear ``Mesh1D`` bypassed the realizer and wrapped

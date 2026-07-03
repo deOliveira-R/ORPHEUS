@@ -5,16 +5,18 @@ The L3 layer that turns a geometry-declared
 :class:`~orpheus.numerics.operator.LinearOperator`:
 
 * :mod:`~orpheus.sn.boundary.realizer` — :class:`SNBoundaryRealizer`
-  (isinstance-dispatch realizing each ``BoundaryTraceLaw`` concrete) + the
-  ``realize_recursively`` walker for composed (rank-N) laws.
+  (isinstance-dispatch realizing each ``BoundaryTraceLaw`` concrete).
 * :mod:`~orpheus.sn.boundary.angular` — the angular primitives the realizer
   consumes: :class:`AngularAverageOperator` (white BC) and
   :class:`IncomingSourceOperator` (prescribed inflow).
 
-This is one of the two witnesses to the not-yet-minted ``TransportMethod``
-Protocol (the other is the homogenization method-layer in
-:mod:`orpheus.transport.mesh.material_mesh`); when a second method's realizer
-ships, the walker moves to ``geometry/boundary/`` and the realizer registry
-gains its first production consumer (deferred — #219, defer-until-2). Mirrors
-the role-keyed layout of :mod:`orpheus.transport`.
+This seam was one of the two recorded witnesses of the
+:class:`~orpheus.transport.method.TransportMethod` Protocol (the other:
+the homogenization method-layer in
+:mod:`orpheus.transport.mesh.material_mesh`) — minted at #290 P7b when
+the second method's realizer shipped. The rank-N composition walker
+moved to :func:`orpheus.geometry.boundary.realize_recursively`
+(method-blind; pass ``realizer=SNBoundaryRealizer()``), and the Wave-5
+realizer registry dissolved (you hold the method-mesh → you have its
+realizer). Mirrors the role-keyed layout of :mod:`orpheus.transport`.
 """

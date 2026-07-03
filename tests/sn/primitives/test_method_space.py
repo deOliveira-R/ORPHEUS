@@ -91,7 +91,8 @@ def test_legacy_constructor_with_explicit_inflow_indices():
 
 def test_for_face_derives_inflow_indices_from_trace():
     """``for_face`` extracts the per-face inflow indices from the trace
-    space — load-bearing for ``SNMesh._resolve_one`` Cartesian path.
+    space — load-bearing for the ``SNMesh.realize_boundary_law``
+    Cartesian path (#290 P7b; formerly ``_resolve_one``).
     """
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 2.0, 5), edges_y=np.linspace(0.0, 1.5, 4),

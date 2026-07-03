@@ -19,9 +19,11 @@ The abstraction axis is **data vs behavior**:
   **is a** :class:`MaterialMesh` that adds that behavior:
   ``SNMesh(MaterialMesh)`` (quadrature + sweep machinery + angular
   trace) and ``DiffusionMesh(MaterialMesh)`` (scalar trace + realized
-  boundary laws; #290 P7a), each conforming structurally to a future
-  ``TransportMethod`` Protocol for the behavior (the 2nd method-mesh
-  now exists — the Protocol is minted at #290 P7b over both).
+  boundary laws; #290 P7a), each conforming **structurally** to the
+  :class:`~orpheus.transport.method.TransportMethod` Protocol (minted
+  at #290 P7b over both witnesses; the shared
+  :func:`~orpheus.transport.method.resolve_boundary_conditions` body
+  resolves every method-mesh's BC declarations through it).
 
 This is the layer where cross-section **homogenization** lands: a
 fine-mesh :class:`~orpheus.sn.solution.Solution` plus a coarse

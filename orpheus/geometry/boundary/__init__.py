@@ -50,12 +50,13 @@ The §16A.3 decomposition splits this map into three concrete layers:
    two functional implementations
    (:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` and, since
    #290 P3 / issue #182,
-   :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`)
-   plus three stubs (``MoCBoundaryRealizer``, ``MCBoundaryRealizer``,
-   ``CPBoundaryRealizer``) holding the dispatch architecture in place
-   for future modernisation of each method.
+   :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`),
+   each OWNED by its method-mesh: the mesh's ``realize_boundary_law``
+   arm — the per-method hook of the
+   :class:`~orpheus.transport.method.TransportMethod` Protocol —
+   instantiates its own realizer directly.
 
-Two registries connect the layers:
+One registry connects the tag layer to the law layer:
 
 * **Law registry** — :attr:`BoundaryTraceLaw.registry` (a class-level
   dict maintained by
@@ -64,18 +65,16 @@ Two registries connect the layers:
   ``"periodic"``, ``"albedo"``, ``"prescribed_inflow"``,
   ``"zero_flux"``). Concrete laws self-register at import time via
   the ``key=`` class-creation kwarg.
-* **Realizer registry** — :class:`BoundaryRealizerRegistry` (a
-  stand-alone class with a class-level ``_registry`` dict). Keyed
-  by method name (``"SN"``, ``"MoC"``, ``"MC"``, ``"CP"``,
-  ``"diffusion"``). Each realizer self-registers via the
-  :meth:`BoundaryRealizerRegistry.register` decorator at module
-  import time.
 
-The two are **disjoint by design** (§16A.11). They describe two
-orthogonal extension axes: adding a new BC type is one law class +
-one registry entry (every existing realizer adds a dispatch branch);
-adding a new transport method is one realizer class + one registry
-entry (every existing law gets one new realisation branch).
+(The Wave-5 *realizer registry* — string-keyed ``method_name →
+realizer`` with ``NotImplementedError`` stubs for MoC/MC/CP — was
+dissolved at #290 P7b: no consumer ever resolved a realizer by name.
+You hold the method-mesh, therefore you hold its realizer. The two
+extension axes survive without it: adding a new BC type is one law
+class + a ``key=`` registration (every realizer adds a dispatch
+branch); adding a new transport method is one method-mesh + one
+realizer + one per-method admission table
+(``BOUNDARY_OPERATOR_REGISTRY``) — no central registration step.)
 
 
 Concrete laws (Wave 7 vocabulary, post-#186 descriptor model)
@@ -165,16 +164,17 @@ Rank-N (Marshak, partial-current) boundary conditions are
 :class:`~orpheus.geometry.boundary._composition.LawSum` /
 :class:`~orpheus.geometry.boundary._composition.LawScaled` nodes —
 pure descriptor structures with **no** ``apply`` method. The
-:func:`~orpheus.sn.boundary.realizer.realize_recursively` walker is
+:func:`realize_recursively` walker (in :mod:`._realizer` since
+#290 P7b; method-blind — the leaf realizer is the caller's) is
 the **sole** type transformer from descriptor tree to operator
 tree (Issue #186 / B3 + β2, 2026-05-11):
 
 .. code-block:: python
 
     from orpheus.geometry.boundary import (
-        ReflectiveBoundary, WhiteBoundary,
+        ReflectiveBoundary, WhiteBoundary, realize_recursively,
     )
-    from orpheus.sn.boundary.realizer import realize_recursively
+    from orpheus.sn.boundary.realizer import SNBoundaryRealizer
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
     # Build the descriptor tree (no realisation yet).
@@ -185,9 +185,9 @@ tree (Issue #186 / B3 + β2, 2026-05-11):
     #                       LawScaled(0.7, WhiteBoundary(...))).
     # Not callable: marshak_law.apply does NOT exist.
 
-    # Realise the tree at one face.
+    # Realise the tree at one face, with the method's own realizer.
     ms = SNMethodSpace.for_face(...)
-    marshak_op = realize_recursively(marshak_law, ms)
+    marshak_op = realize_recursively(marshak_law, ms, SNBoundaryRealizer())
     # marshak_op is:
     #   OperatorSum(ScaledOperator(0.3, PermutationOperator(...)),
     #               ScaledOperator(0.7, AngularAverageOperator(...)))
@@ -335,8 +335,11 @@ Package layout (Wave 4 source-layout split, post-#186 descriptor cleanup)
   (Wave 3 / ERR-040..ERR-047).
 * :mod:`_source` -- :class:`InflowSourceSpec` Protocol +
   :class:`NoSource` + :class:`ConstantInflowSource` (Wave 3).
-* :mod:`_realizer` -- :class:`BoundaryRealizer` Protocol +
-  :class:`BoundaryRealizerRegistry` (Wave 5).
+* :mod:`_realizer` -- the realization seam: :class:`BoundaryRealizer`
+  Protocol + :func:`stamp_boundary_role` + the
+  :func:`realize_recursively` rank-N walker (Wave 5; the walker moved
+  in from ``orpheus.sn.boundary`` and the Wave-5
+  ``BoundaryRealizerRegistry`` dissolved at #290 P7b).
 * :mod:`_bound_compat` -- ``_BoundBoundaryOperator`` shim wrapping
   the realised operator with a ``kind`` string tag (Wave 8
   introduced; Wave 9 added curvilinear bound-quadrature path,
@@ -373,10 +376,12 @@ Cross-references
   worked end-to-end example, and the Cartesian / curvilinear
   split.
 * :doc:`/theory/discrete_ordinates` § "Boundary Conditions" —
-  the SN-side consumption: how :class:`SNMesh._resolve_bcs` reads
-  the law registry, builds the method space, and dispatches
-  through :class:`SNBoundaryRealizer` to produce the resolved
-  1-arg :class:`~orpheus.numerics.operator.LinearOperator`.
+  the SN-side consumption: the shared
+  :func:`~orpheus.transport.method.resolve_boundary_conditions` body
+  walks the mesh axes' declarations and dispatches each parsed law
+  through ``SNMesh.realize_boundary_law`` →
+  :class:`SNBoundaryRealizer` to produce the resolved 1-arg
+  :class:`~orpheus.numerics.operator.LinearOperator`.
 * :doc:`/theory/operator_algebra` § "Boundary conditions as
   Wave-0 / Wave-1 primitives" — the operator-algebra view of the
   realisation: every realised BC IS a Wave-0
@@ -395,7 +400,7 @@ Cross-references
 * :mod:`orpheus.sn.boundary.realizer` —
   :class:`SNBoundaryRealizer` (functional realizer dispatching by
   ``isinstance``; the leaf descriptor → operator transformer).
-* :mod:`orpheus.sn.boundary.realizer` —
+* :mod:`._realizer` —
   :func:`realize_recursively` walker, the **type transformer**
   from a descriptor tree
   (``BoundaryTraceLaw | LawSum | LawScaled``) to an operator tree
@@ -441,8 +446,8 @@ from ._base import BoundaryTraceLaw
 # Issue #186 (B3 + β2) -- descriptor-tree composition. LawSum / LawScaled
 # form a closed algebra over BoundaryTraceLaw | LawSum | LawScaled, used
 # for rank-N boundary composition (e.g. ``0.3 * spec + 0.7 * white``).
-# Realised to a Wave-0 operator tree via
-# :func:`orpheus.sn.boundary.realizer.realize_recursively`.
+# Realised to a Wave-0 operator tree via :func:`realize_recursively`
+# (in ._realizer since #290 P7b).
 # ---------------------------------------------------------------------------
 
 from ._composition import LawNode, LawScaled, LawSum
@@ -470,13 +475,14 @@ from ._errors import (
 from ._source import InflowSourceSpec, ConstantInflowSource, NoSource
 
 # ---------------------------------------------------------------------------
-# Wave 5 -- BoundaryRealizer Protocol + per-method registry.
+# The realization seam (Wave 5 Protocol + role stamp; the rank-N walker
+# moved in from ``orpheus.sn.boundary`` and the Wave-5 registry
+# dissolved at #290 P7b).
 # ---------------------------------------------------------------------------
 
 from ._realizer import (
     BoundaryRealizer,
-    BoundaryRealizerRegistry,
-    BoundaryRealizerRegistryError,
+    realize_recursively,
     stamp_boundary_role,
 )
 
@@ -517,10 +523,9 @@ __all__ = [
     "InflowSourceSpec",
     "ConstantInflowSource",
     "NoSource",
-    # Wave 5 -- realizer Protocol + registry (+ the shared role stamp)
+    # The realization seam: Protocol + rank-N walker + role stamp
     "BoundaryRealizer",
-    "BoundaryRealizerRegistry",
-    "BoundaryRealizerRegistryError",
+    "realize_recursively",
     "stamp_boundary_role",
     # Concrete BCs (Wave 7 canonical names + the #290 P3 addition)
     "AlbedoBoundary",

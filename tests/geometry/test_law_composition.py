@@ -18,7 +18,9 @@ These tests pin:
     invariant).
 
 * **L1 / realisation** —
-  :func:`~orpheus.sn.boundary.realizer.realize_recursively`
+  :func:`~orpheus.geometry.boundary.realize_recursively` (the
+  method-blind walker; its home since #290 P7b, with the leaf
+  realizer — here :class:`SNBoundaryRealizer` — passed explicitly)
   transforms a descriptor tree into an operator tree:
   - The output type family matches the input (LawSum → OperatorSum,
     LawScaled → ScaledOperator, leaf → realized 1-arg LinearOperator).
@@ -45,9 +47,10 @@ from orpheus.geometry.boundary import (
     ReflectiveBoundary,
     VacuumInflow,
     WhiteBoundary,
+    realize_recursively,
 )
 from orpheus.numerics.operator import OperatorSum, ScaledOperator
-from orpheus.sn.boundary.realizer import SNBoundaryRealizer, realize_recursively
+from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 
@@ -208,7 +211,7 @@ def test_realize_recursively_leaf_dispatches_to_sn_realizer() -> None:
     quad = Quadrature.gauss_legendre(8)
     ms = SNMethodSpace.minimal(quad)
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
-    walker_op = realize_recursively(spec, ms)
+    walker_op = realize_recursively(spec, ms, SNBoundaryRealizer())
     direct_op = SNBoundaryRealizer().realize(spec, ms)
     rng = np.random.default_rng(0)
     psi = rng.standard_normal((quad.N, 3))
@@ -222,7 +225,7 @@ def test_realize_recursively_lawscaled_wraps_in_scaled_operator() -> None:
     ms = SNMethodSpace.minimal(quad)
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     tree = 0.5 * spec
-    op = realize_recursively(tree, ms)
+    op = realize_recursively(tree, ms, SNBoundaryRealizer())
     assert isinstance(op, ScaledOperator)
     assert op.scalar == 0.5
     # The inner is the realised leaf (PermutationOperator at α=1).
@@ -242,7 +245,7 @@ def test_realize_recursively_lawsum_returns_operator_sum() -> None:
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     tree = 0.3 * spec + 0.7 * white
-    op = realize_recursively(tree, ms)
+    op = realize_recursively(tree, ms, SNBoundaryRealizer())
     assert isinstance(op, OperatorSum)
     assert isinstance(op.a, ScaledOperator)
     assert isinstance(op.b, ScaledOperator)
@@ -266,7 +269,9 @@ def test_realize_recursively_apply_matches_pointwise_weighted_sum() -> None:
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     spec_realised = SNBoundaryRealizer().realize(spec, ms)
     white_realised = SNBoundaryRealizer().realize(white, ms)
-    composed = realize_recursively(0.3 * spec + 0.7 * white, ms)
+    composed = realize_recursively(
+        0.3 * spec + 0.7 * white, ms, SNBoundaryRealizer(),
+    )
     rng = np.random.default_rng(3)
     psi = rng.uniform(0.0, 2.0, size=(quad.N, 5, 3))
     expected = 0.3 * spec_realised.apply(psi) + 0.7 * white_realised.apply(psi)
@@ -288,7 +293,7 @@ def test_realize_recursively_walks_nested_depth_first() -> None:
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     tree = 0.5 * (0.3 * spec + 0.7 * white)
-    op = realize_recursively(tree, ms)
+    op = realize_recursively(tree, ms, SNBoundaryRealizer())
     assert isinstance(op, ScaledOperator)
     assert op.scalar == 0.5
     inner_sum = op.op
@@ -314,7 +319,9 @@ def test_realize_recursively_nested_apply_matches_distributive_form() -> None:
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     spec_realised = SNBoundaryRealizer().realize(spec, ms)
     white_realised = SNBoundaryRealizer().realize(white, ms)
-    composed = realize_recursively(0.5 * (0.3 * spec + 0.7 * white), ms)
+    composed = realize_recursively(
+        0.5 * (0.3 * spec + 0.7 * white), ms, SNBoundaryRealizer(),
+    )
     rng = np.random.default_rng(5)
     psi = rng.uniform(0.0, 2.0, size=(quad.N, 4))
     expected = 0.5 * (
@@ -342,7 +349,7 @@ def test_realize_recursively_raises_type_error_on_unknown_node() -> None:
         pass
 
     with pytest.raises(TypeError, match="LawSum | LawScaled"):
-        realize_recursively(_NotALaw(), ms)
+        realize_recursively(_NotALaw(), ms, SNBoundaryRealizer())  # type: ignore[arg-type]
 
 
 @pytest.mark.foundation
@@ -352,4 +359,4 @@ def test_realize_recursively_raises_on_ndarray_leaf() -> None:
     quad = Quadrature.gauss_legendre(4)
     ms = SNMethodSpace.minimal(quad)
     with pytest.raises(TypeError, match="LawSum | LawScaled"):
-        realize_recursively(np.eye(3), ms)
+        realize_recursively(np.eye(3), ms, SNBoundaryRealizer())  # type: ignore[arg-type]

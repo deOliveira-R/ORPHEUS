@@ -124,8 +124,9 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
 
         composed = 0.3 * ReflectiveBoundary(axis="x") + 0.7 * WhiteBoundary(...)
         # composed is LawSum(LawScaled(0.3, ...), LawScaled(0.7, ...))
-        # Still NOT callable. Realize the tree:
-        op_tree = realize_recursively(composed, ms)
+        # Still NOT callable. Realize the tree (the walker is
+        # method-blind — pass the method's own realizer):
+        op_tree = realize_recursively(composed, ms, SNBoundaryRealizer())
         # op_tree is OperatorSum(ScaledOperator(0.3, ...), ...).
 
     Registry
@@ -267,7 +268,8 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         """
 
     # ------------------------------------------------------------------
-    # Method realisation hook -- delegates to BoundaryRealizerRegistry.
+    # Method realisation hook -- guidance raise; the realizers are the
+    # bridge (each owned by its method-mesh since #290 P7b).
     # ------------------------------------------------------------------
 
     def realize(self, method_space: Any) -> "LinearOperator":
@@ -286,8 +288,9 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         Concrete laws MAY override to delegate to a specific
         realizer when the method space's ``method_name`` is known,
         but no current production caller routes through this hook —
-        callers invoke :meth:`SNBoundaryRealizer.realize` directly
-        (or :func:`realize_recursively` for rank-N composition).
+        each method-mesh's ``realize_boundary_law`` arm invokes its
+        own realizer directly (or :func:`realize_recursively` with an
+        explicit realizer for rank-N composition).
         """
         raise NotImplementedError(
             f"{type(self).__name__}.realize: route through a "
