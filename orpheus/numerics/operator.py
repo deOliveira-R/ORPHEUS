@@ -1393,11 +1393,14 @@ class ScaledOperator(LinearOperator[Domain, Codomain]):
         # the scaled operator is invertible iff the operand is.
         return self.op.is_invertible
 
-    def inverse(self) -> "ScaledOperator":
+    def inverse(self) -> "ScaledOperator[Codomain, Domain]":
         r"""Return :math:`(\alpha L)^{-1} = (1/\alpha)\,L^{-1}` (taxonomy §13 I2).
 
         The natural structural inverse: a scaled operator's inverse IS a
-        scaled operator. ``1/α`` is exact whenever ``α`` is a power of two
+        scaled operator — on the SWAPPED carriers (an inverse maps the
+        forward's codomain back to its domain), so the return type is
+        ``ScaledOperator[Codomain, Domain]`` (carve P5 — composition
+        return types). ``1/α`` is exact whenever ``α`` is a power of two
         (the dominant −1.0 case); the action is bit-identical to
         :meth:`solve` given the operand's own ``inverse().apply ≡ solve``
         identity (both spell ``(1/α) * op_solve(b)``).

@@ -12239,8 +12239,10 @@ resolvent :math:`A_{\rm loss}^{-1}M` (so the loop is *literally*
 K/α-agnostic) is the α-eigenvalue wave's first step — see the
 :ref:`eigenvalue-posing` honest-scope note.
 
-The ``inverter`` parameter (the Wave-E ERR-026 reconciliation hook)
--------------------------------------------------------------------
+.. _choosing-inverse-realisation:
+
+Choosing the :math:`A^{-1}` realisation (the inverse-operator family)
+---------------------------------------------------------------------
 
 .. note:: **Re-framed (2026-06-12, Issue #195).**
 
@@ -12252,46 +12254,119 @@ The ``inverter`` parameter (the Wave-E ERR-026 reconciliation hook)
    family; once the seeds are fixed the sweep and the matvec are ONE
    discrete system and SI ``A.solve`` :math:`\equiv` Krylov-on-``apply``
    bit-identical (see :ref:`sn-err-058-closure-seed-closeout`).  The
-   ``inverter`` hook **remains a real, retained generality** — it lets
-   the iteration primitives swap :math:`A^{-1}` realisation (direct
-   solve, sweep, Krylov-on-apply with a preconditioner) without
-   re-implementation — but it is no longer *required* to obtain the
-   correct curvilinear fixed point.  Read the WDD-bias-vs-Krylov
-   contrast below as Wave-E-era history.
+   generality that hook named **survives** — the caller still chooses
+   how :math:`A^{-1}` is realised (direct sweep, Green splitting, dense
+   factorisation, or Krylov-on-apply preconditioned by the sweep)
+   without re-implementing the driver — but since the #226 taxonomy
+   **step 3** that choice is a **type** (which inverse-operator family
+   member ``A.inverse()`` builds), not a caller-supplied ``inverter``
+   callable, and it is no longer *required* to obtain the correct
+   curvilinear fixed point.  Read the WDD-bias-vs-Krylov contrast below
+   as Wave-E-era history.
 
-Both primitives accept an ``inverter: Callable[[ndarray], ndarray]``
-that supplies :math:`A^{-1}`.  When ``None``, the primitive routes
-through :meth:`A.solve`.  When supplied, the caller controls how
-:math:`A^{-1}` is realised — the load-bearing design choice in the
-Wave-E reconciliation of ERR-026.
+Since the #226 taxonomy **step 3** neither iteration primitive takes an
+``inverter`` callable.  The *solver* layer builds the inverse **once** —
+as an operator, ``A.inverse()`` (or an explicit family member) — and the
+drivers **apply** it:
 
-* ``inverter = None`` (default):  :math:`A^{-1}\,q = A.solve(q)`.
-  For an SN sweep this is the WDD asymmetric closure — which has a
-  closure-bias-driven self-consistent fixed point on curvilinear
-  meshes that is **not** the fine-mesh-limit transport solution
-  (ERR-026).
-* ``inverter = lambda q: KrylovAcceleration(A, ...).solve(q)[0]``:
-  Krylov-on-:meth:`apply` (the symmetric closure of
-  :class:`~orpheus.sn.operators.streaming.InvertibleOperator`), with the
-  sweep injected as a preconditioner :math:`M`.  The ORPHEUS↔scipy
-  boundary is internal to
-  :class:`~orpheus.numerics.iteration.KrylovAcceleration` (a single
-  ravel-aware adapter wraps :meth:`apply` for scipy's GMRES).  This is the
-  Wave E Round 2 reconciliation that closes ERR-026 for
-  curvilinear SN: the converged solution comes from the symmetric
-  :meth:`apply` closure (the one that agrees with analytical
-  references) while the sweep accelerates the iteration as a
-  preconditioner only — its closure bias does not poison the
-  converged solution.
+* :class:`SourceIteration` receives the pre-inverted step operator
+  ``A_inv`` directly and calls
+  ``A_inv.apply(rhs, initial_guess=psi_prev)`` each step — the inverse
+  family's canonical seeded-apply signature
+  (:class:`~orpheus.numerics.iteration.SupportsSeededApply`).  The former
+  caller-supplied ``inverter`` callable — and its per-type
+  ``inspect.signature`` dispatch on a duck-typed ``solve`` — dissolved
+  into that one contract.
+* :class:`~orpheus.numerics.iteration.KrylovAcceleration`'s ``inverter``
+  parameter was **renamed** ``preconditioner``: a GMRES *left
+  preconditioner* :math:`M \approx (A - S - F)^{-1}` approximates the
+  FULL within-group system inverse, a different object from the
+  iteration's :math:`A^{-1}` step (the old name was a category mistake).
+  Its default is ``A.inverse().apply`` (the sweep) when ``A`` is
+  invertible.
 
-By making :math:`A^{-1}` a caller-supplied hook, the iteration
-primitives do not need to be re-implemented when the inversion
-strategy changes.  The same :class:`SourceIteration` runs in the
-synthetic L0 case (where ``A`` is a plain dense matrix and
-``inverter`` defaults to a direct solve), in the L1 SN case (where
-``inverter`` defaults to the WDD sweep), and in the Wave E
-Krylov-on-:meth:`apply` SN case (where ``inverter`` is supplied
-explicitly by the caller).
+The load-bearing principle of the Wave-E reconciliation of ERR-026 —
+*the caller controls how* :math:`A^{-1}` *is realised* — therefore
+**survives**, but as a **type choice, not a callable injection**: the
+caller picks *which inverse-operator-family member* realises
+:math:`A^{-1}`, and the driver never changes.  This is the inverse axis
+of the :ref:`three-layer operator surface <capability-set-semantics>`
+(runtime predicate
+:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` →
+operator-returning method ``inverse()`` → realisation verb ``solve``):
+inverting *with* an operator IS applying its inverse **object**,
+``A.inverse().apply(b)``.
+
+The realisations are **sibling KINDS of** :math:`A^{-1}`, keyed by the
+operand's mathematical structure (historically selected by the
+``inverter`` argument; now by the type the caller constructs, or that
+``A.inverse()`` returns):
+
+* :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` — the
+  **direct triangular WDD sweep** of the streaming–collision composite
+  :math:`(L+C)`.  Its :meth:`apply` delegates to
+  :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`
+  (bit-identical), so this IS the historical ``inverter = None`` /
+  ``A.solve`` default — the WDD asymmetric closure — now reached as
+  ``(L+C).inverse()``.
+* :class:`~orpheus.numerics.green_operator.GreenOperator` — the
+  **preconditioned-splitting** inverse of a general
+  :class:`~orpheus.numerics.operator.OperatorSum` (the Neumann /
+  multiple-scattering series :math:`\sum_k (A^{-1}B)^{k} A^{-1}`, wrapping
+  the SAME :class:`SourceIteration` driver as its application engine).
+  See :ref:`green-operator` (:doc:`operator_algebra`).
+* :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+  — the **dense direct LU factorisation** (materialise :math:`[A]`,
+  factor once, back-solve per :meth:`apply`).  The natural realisation
+  for the synthetic L0 case (``A`` a small dense matrix) and any small
+  exactly-solvable block.  See :ref:`matrix-inverse-operator`
+  (:doc:`operator_algebra`).
+* :class:`~orpheus.numerics.operator.InverseOperator` — the **generic
+  solve-backed wrapper** for a value-bearing leaf (a diagonal or
+  cross-section multiplier), whose :meth:`apply` delegates to the leaf's
+  own ``solve``.
+* :meth:`A.inverse() <orpheus.numerics.operator.OperatorSum.inverse>` —
+  the **structure-keyed factory** that lets the operand's structure
+  choose for you: a general sum returns the
+  :class:`~orpheus.numerics.green_operator.GreenOperator`, while the
+  sweep-invertible :math:`(L+C)`
+  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` subclass
+  **shadows by MRO** and returns the direct
+  :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`.
+
+Read as inverse KINDS, the old WDD-bias-vs-Krylov contrast is the
+choice between two of these siblings on curvilinear SN:
+
+* The **sweep-inverse** (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`,
+  the WDD asymmetric closure) has a closure-bias-driven self-consistent
+  fixed point on curvilinear meshes that — *before the ERR-058 seed
+  fix* — was **not** the fine-mesh-limit transport solution (ERR-026).
+* The **Krylov/Green-inverse** solves the symmetric :meth:`apply`
+  closure of
+  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` with the
+  sweep injected only as the GMRES ``preconditioner`` :math:`M` — so the
+  converged solution comes from the closure that agrees with analytical
+  references, while the sweep merely accelerates the iteration.  This
+  was the Wave-E Round 2 path that closed ERR-026 for curvilinear SN.
+
+Since ERR-058 (#195) the two are no longer a *correctness* fork: once
+the closure **seeds** are fixed, the sweep and the matvec are ONE
+discrete system and SI :math:`\equiv` Krylov-on-:meth:`apply`
+bit-identical, so the sweep-inverse and the Krylov/Green-inverse
+converge to the same fixed point.  The remaining distinction is one of
+**rate** (the standard transport-Krylov win as :math:`c \to 1`;
+Adams & Larsen 2002).
+
+Because every family member conforms to the ONE seeded-apply contract
+(:class:`~orpheus.numerics.iteration.SupportsSeededApply`), the driver
+is **inversion-strategy-agnostic**: the same :class:`SourceIteration`
+runs the synthetic L0 case (``A`` a dense matrix →
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`),
+the L1 SN case (``(L+C).inverse()`` → the WDD
+:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`), and the
+Wave-E Krylov-on-:meth:`apply` case — with **no re-implementation**,
+because the inversion strategy now rides the *type* of ``A_inv``, not a
+branch inside the driver.
 
 Operand requirements
 --------------------
@@ -12320,19 +12395,6 @@ Constructor failure raises ``TypeError`` (a missing ``apply``) or
 :class:`~orpheus.numerics.operator.NotInvertible` (a non-invertible
 ``A`` where the posing layer needs its inverse), naming the operand at
 fault.
-
-.. note::
-
-   The ``inverter``-hook framing in the subsections above predates the
-   #226 taxonomy **step-3 pre-inversion redesign**:
-   :class:`SourceIteration` now consumes a pre-inverted ``A_inv``
-   directly (the former caller-supplied ``inverter`` callable dissolved
-   into the inverse family's canonical seeded ``apply``), and
-   :class:`~orpheus.numerics.iteration.KrylovAcceleration`'s ``inverter``
-   parameter was renamed ``preconditioner``.  A full refresh of that
-   posing narrative to the pre-inversion model is a separate
-   documentation task (out of scope for the capability-frozenset
-   retirement pass).
 
 Forward hook: FEAST and beyond
 -------------------------------
@@ -12440,7 +12502,7 @@ References for iteration primitives
 * Adams, M. L., & Larsen, E. W. (2002).  *Fast iterative methods
   for discrete-ordinates particle transport calculations.*
   Progress in Nuclear Energy 40 (1), 3–159.  Reviews
-  Krylov-on-apply with sweep preconditioning (the ``inverter``
+  Krylov-on-apply with sweep preconditioning (the ``preconditioner``
   hook's use case — the ERR-026-closing curvilinear Krylov path).
 
 
@@ -17845,6 +17907,48 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - in dev
+       (2026-07-02)
+     - **Operator-inverse taxonomy step 6 tail (carve P5) —
+       composition-algebra return types pinned statically; the
+       ``inverter`` posing narrative refreshed; #280 redesigned onto
+       ``A.H.inverse()`` (#226)** — the composition surfaces now carry
+       **precise static return types**, closing the taxonomy's
+       type-legibility charter:
+       :meth:`ScaledOperator.inverse() <orpheus.numerics.operator.ScaledOperator.inverse>`
+       is parametrised on the **swapped carriers**
+       ``ScaledOperator[Codomain, Domain]`` (an inverse maps the
+       forward's codomain back to its domain), joining the sum / scaled
+       / product / ``.H``-swap annotations. A **pyright-only pin bank**
+       ``_composition_algebra_return_type_static_pins``
+       (``tests/sn/operators/test_operators_apply_typed.py``)
+       ``assert_type``-pins what *every* composition surface returns —
+       sums, scaled, products, the ``.H`` adjoint carrier-swap, and the
+       **algebra-closed vs wrap-delegate** inverse kinds (permutation /
+       identity / scaled / tensor invert into their own forward type;
+       product / diagonal return the wrap-delegate
+       :class:`~orpheus.numerics.operator.InverseOperator`) — with
+       **M-SCALED-BARE** ``reportAssertTypeFailure`` teeth:
+       un-parametrising the ``ScaledOperator`` swap to a bare
+       ``LinearOperator`` reddens the matching pin. The ``inverter``
+       posing narrative on this page was **refreshed to the
+       pre-inversion model** — the drivers no longer take an
+       ``inverter`` callable
+       (:class:`~orpheus.numerics.iteration.SourceIteration` applies a
+       pre-inverted ``A_inv``;
+       :class:`~orpheus.numerics.iteration.KrylovAcceleration`'s
+       ``inverter`` → ``preconditioner``), the surviving "caller
+       controls :math:`A^{-1}`" principle recast as an
+       inverse-operator-family **type choice**
+       (:ref:`choosing-inverse-realisation`). And **GitHub #280** (the
+       deferred adjoint-inverse) was **redesigned** onto the now-live
+       ``A.H.inverse()`` spelling — the swap law
+       :math:`(A^{H})^{-1} = (A^{-1})^{H}` with
+       ``SweepOperator.apply_transpose`` (the reverse-scan
+       solve-transpose) as its concrete deliverable.
+     - #226 / #280
+     - *(in development)*
+       ``refactor/inverse-as-operator``
    * - in dev
        (2026-07-02)
      - **Operator-inverse taxonomy step 5b — homogeneous spells the full
