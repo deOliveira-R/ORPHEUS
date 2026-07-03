@@ -267,3 +267,55 @@ explorer `campaign_290_diffusion_integration_map.md` §B/§C for the typing
 shape + mirror pattern; attacker `diffusion_integration_frames.md` Q2/Q3).
 
 **Open questions**: none blocking.
+
+---
+
+## P2.5 — Trace naming coherence (USER RULING 5, 2026-07-03 post-C1; execute FIRST after compaction, before P3)
+
+**The vocabulary partition (binding):** **Trace = the SPACE world; Boundary = the
+FIELD world** (matches the composite's `bulk × boundary` intuition), both
+family-qualified; **role tokens uniform across families** — the SN trace is
+angular-resolved current data under `|Ω·n|w`, so there is no principled ground
+for "Flux" in one family and "Current" in the other (user). The state leaf is
+`<Family>BoundaryFlux` in BOTH families (the HarmonicMomentFlux precedent: Flux
+= the ROLE; the storage — ψ_Γ per-ordinate vs the (J⁺,J⁻) pair — is docstring
+content). The rep-keyed `Displacement._BY_REP` pairing mechanism stays as-is;
+the renames make its keys read coherently.
+
+**Rename table (single `refactor(transport)` commit, bit-identical):**
+
+| Current (post-P2) | New |
+|---|---|
+| `TraceSpace` + string `"sn_trace"` | `AngularTraceSpace` + `"angular_trace"` |
+| `ScalarTraceSpace` + `"scalar_trace"` | (stays) |
+| `TraceField` (locus base) | `BoundaryField` (the locus base RECLAIMS the name, now method-agnostic) |
+| `BoundaryField` (angular family) | `AngularBoundaryField` |
+| `ScalarTraceField` | `ScalarBoundaryField` |
+| `BoundaryFlux` / `BoundarySourceSink` / `BoundaryResidual` / `BoundaryDisplacement` | `AngularBoundaryFlux` / `AngularBoundarySourceSink` / `AngularBoundaryResidual` / `AngularBoundaryDisplacement` |
+| `PartialCurrent` | `ScalarBoundaryFlux` (class retires the quantity name; the partial-current vocabulary LIVES ON in the accessors `outflow_view`/`inflow_view`/`net_current`/`boundary_scalar_flux` + docstrings) |
+| `PartialCurrentDisplacement` | `ScalarBoundaryDisplacement` |
+| `SNMesh.trace` | `SNMesh.angular_trace` (Q2 Option 1 — pairs with the inherited `scalar_trace`; kills the same-object polysemy before DSA) |
+| `MaterialMesh.scalar_trace` | (stays) |
+| module files | follow the classes: `trace_space.py`→`angular_trace_space.py`, `partial_current*.py`→`scalar_boundary_flux.py`/`scalar_boundary_displacement.py`, `boundary_flux.py`→`angular_boundary_flux.py`, etc. + test files |
+
+**Also in the same commit:** role-grid docstrings rewritten to the honest 3-axis
+grid — locus {Bulk, Boundary(field)/Trace(space)} × family {Angular, Scalar,
+Moment} × role {Flux, SourceSink, Residual, Displacement} ("Boundary" stops
+being listed as a fourth rep family); `FullField`/`TimedFullField` isinstance
+messages + the two `test_timed_full_field` match-pins flip to the reclaimed
+`BoundaryField`; crosswalk file updated; the two `#290 P2` memos' class names
+(MEMORY.md campaign entry) updated.
+
+**Hazards:** (a) `"sn_trace"` string pins in tests — grep; (b) docs/ xrefs
+render silently on stale targets — run the 3-search sweep (graph callers +
+text-grep code/tests/docs + direct constructors) per rename target; (c)
+`Displacement._BY_REP` keys derive from direct bases — verify
+`sibling_of(AngularBoundaryFlux) is AngularBoundaryDisplacement` and the scalar
+pair in a probe; (d) `BoundaryFlux` is referenced throughout sn/ + tests —
+mechanical, nexus `rename` assists; (e) gates after: full serial walls
+(transport/numerics/data + sn/geometry) + `npx pyright orpheus/` = 1 + Sphinx
+`-W` if docs touched.
+
+**Why now:** zero external consumers of the P2 scalar names exist yet, and
+P3/P4 (realizer, method space, both B operators) multiply references to exactly
+these names — clean-before-extend.
