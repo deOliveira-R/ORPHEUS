@@ -1,6 +1,6 @@
 ---
 name: operator-classes → frame-faces re-homing doc sweep
-description: Doc-sweep recipe when a refactor retires two STANDALONE operator classes (a projection M + a reconstruction R) into the TWO FACES of one generic abstraction (a discrete Frame) — re-home onto the abstraction, don't find-replace names; add the harmonic-analysis framing the new abstraction earns; KEEP the documented-only eq-labels by name. Instance: Frame/Basis carve (refactor/operator-inverse-algebra), MomentProjection/HarmonicMomentReconstruction → frame.analysis/frame.reconstruction. Also: the concurrent-code-carve vindication of re-verify-live, and the co-located-separate-retirement scoping discipline.
+description: Doc-sweep recipe when a refactor retires standalone operator classes (a projection M + a reconstruction R) into the TWO FACES of one abstraction (a discrete frame) — re-home onto the abstraction, don't find-replace; add the harmonic-analysis framing it earns; KEEP documented-only eq-labels by name. NOW ALSO the canonical record of the #268 REVERSAL: discipline is a TYPE (FrameBase→PetrovGalerkinFrame→GalerkinFrame), NOT a property/role-marker; homogenization/condensation are PETROV-GALERKIN (test=φ/φ*-weighted basis), NOT "Galerkin in L²(φV)"; measure carries axis+fixed-L²-metric, never discipline. Plus: sibling-page-staleness-FLAG-not-silent-flip when prose contradicts the new ruling (repoint to discipline-neutral FrameBase, flag the substantive reversal as a separate task); M-not-Π total relabel; auto-regen-from-concurrent-tests is not my drift.
 type: feedback
 ---
 
@@ -16,15 +16,33 @@ FACES of one generic abstraction** — the discrete
 `ProjectionOperator`→`AnalysisOperator` were RENAMED (kept as
 forward-looking discipline vocabulary alongside the new mechanism).
 
+**SUPERSEDED RULING (2026-06-24, #268): discipline is a TYPE, not a
+PROPERTY.** The entry below originally recorded "discipline becomes a
+PROPERTY of the frame". The P1 discipline-type carve REVERSED that: the
+shipped architecture is a Liskov hierarchy `FrameBase → PetrovGalerkinFrame
+→ GalerkinFrame` (the single `Frame` class was retired). The
+`GalerkinProjection`/`PetrovGalerkinProjection` marker ABCs on the operator
+ROLE were retired too; `projection.py` keeps ONLY the two discipline-free
+operator roles `AnalysisOperator`/`ReconstructionOperator`. AND:
+**homogenization/condensation are PETROV-GALERKIN, not "Galerkin in
+L²(φV)"** — the L²(φV) reading folds the solution into the metric, legit
+only for forward-flux reaction-rate reduction, breaks under eigenvalue-
+consistent (adjoint-weighted) homogenization. So **the measure carries the
+axis + the FIXED L² metric, NEVER the discipline; the solution-weighting
+(φ, φ*) is a first-class TEST BASIS on the frame TYPE.** The eigenvalue-
+consistent (φ*-weighted) case is the headline future PG consumer. The
+re-home-onto-the-abstraction rule (next paragraph) STILL HOLDS; only the
+discipline-as-property ruling flipped.
+
 **Rule: re-home onto the abstraction, do NOT find-replace names.** The
 brief said "MomentProjection → frame.analysis". A mechanical swap would
 have left the prose describing two unrelated operator classes that happen
 to be spelled differently. The correct move (Cardinal Rule 3) is to
 re-narrate the page so the NEW abstraction's concept is the spine: the
-(R, Π) pair IS one frame's reconstruction/analysis faces; the discipline
-(Galerkin vs Petrov-Galerkin) becomes a PROPERTY of the frame (which dual
-it uses: canonical-dual vs oblique-dual), not a fact baked into a class
-name. ADD the framing the new abstraction earns and the old classes
+(R, M) pair IS one frame's reconstruction/analysis faces; the discipline
+(Galerkin vs Petrov-Galerkin) is carried by the frame TYPE (test=trial vs
+test≠trial), not baked into a class name and NOT a property. ADD the
+framing the new abstraction earns and the old classes
 lacked — here, discrete-frame theory (Christensen 2016): analysis operator
 T, synthesis operator T* = S₀, frame operator S = T*T, tight frame
 (the 4π-tightness IS the Π R = 4π I identity, c_V = the tightness
@@ -93,6 +111,48 @@ code-spans in an explicit old→new mapping
 retired symbols showing ONLY these literal code-spans (zero live
 `:class:`/`:meth:`) is the correct end-state — the history record names
 what was retired; the live cross-refs all point at the survivors.
+
+**SIBLING-PAGE STALENESS FLAG, not silent-flip, when the substantive
+prose contradicts the new ruling (P1 #268 correctness pass).** The dead
+`:class:`Frame`` xref sweep (retirement-audit search #2) reached the
+`discrete_ordinates.rst` HOMOGENIZATION section, whose entire prose still
+argues the WRONG "Galerkin in L²(φV)" framing (a `.. _sn-homogenization-
+galerkin-frame:` section with its own eq-labels + vv-status directives).
+The correct xref type per the new ruling is `PetrovGalerkinFrame`, BUT
+flipping the xref to PG while leaving prose that says "it sees the Galerkin
+case" creates an internal contradiction. DISCIPLINE: repoint the dead
+symbol to the GENERIC base `FrameBase` (accurate regardless of which
+discipline the surrounding prose argues — the binding mechanism IS
+FrameBase) and FLAG the homogenization-section prose reversal as a distinct
+follow-up, do NOT scope-creep a whole-section correctness rewrite into a
+P1 xref+single-page pass. The brief scoped the correctness rewrite to ONE
+page (`galerkin_projection.rst`); the sibling page's stale derivation is
+its own task (Issue #268). Generalizes the co-located-separate-retirement
+discriminator below: when a dead-symbol hit lands in prose that makes a
+SUBSTANTIVE claim the new ruling reverses, the minimal-correct fix is the
+discipline-NEUTRAL base type, and the substantive reversal gets a flag +
+forward-pointer (I added a cross-link from the rewritten page's status note
+to the stale sibling section). On the rewritten page itself, the two
+rejected framings (marker-ABC-on-role; discipline-as-property) BOTH get a
+named "Rejected (a)/(b)" subsection in the discipline-as-type section —
+preserve the WHY of each dead path (L-007), don't just delete them.
+
+**M-not-Π relabel must be TOTAL.** The new code names the analysis face
+`M` (= `frame.analysis`); the old page used `Π` throughout. Relabeled
+EVERY `\Pi` → `M` (analysis operator) and `\Pi^*` → `M^*` (Hilbert
+adjoint), kept `R` (reconstruction). Final `grep '\\Pi'` on the page = zero
+is the consistency gate — a stray `Π` would read as a different operator
+than the code's `M`. The Galerkin promise stays `M^* = R`; PG stays
+`M^* ≠ R`.
+
+**Auto-regen of matrix.rst from CONCURRENT test changes is NOT my drift.**
+`matrix.rst` showed ` M` post-build — but the +4 rows were the user's
+new `test_frame.py` PG-hierarchy tests (8→12 foundation), picked up by the
+`-E` regen, NOT from my label edits (I preserved all 4 documented labels by
+name). Per L-008, report the real regen number; do NOT revert a generated
+artifact. Same for `frame.py`/`projection.py`/test files showing ` M`:
+those are the user's P1 carve (the brief told me to READ them as ground
+truth), NOT my edits — I touched only docstrings in OTHER files + the RST.
 
 **Title-rename underline (L-009).** Renamed the galerkin page title
 (58 code points) but its overline/underline were 60 (from the longer old

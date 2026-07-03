@@ -148,6 +148,26 @@ How to apply: when asked property-vs-type, do not argue aesthetics — count the
 coexisting non-iso reps and the applied morphisms. Zero applied non-id morphisms
 ⇒ PROPERTY. Pairs with the project's unify-after-two-instances rule.
 
+Corollary — an axis that changes the ARITHMETIC INTERFACE cannot be a phantom
+type PARAMETER; it MUST be a distinct CLASS. A `Generic[Tag]` parameter is erased
+at runtime and does NOT specialize dunders — so two instantiations
+(`Field[Rep,Flux]` vs `Field[Rep,Source]`) share ONE `__add__` body. If the two
+"values" of the axis have DIFFERENT `__add__` signatures (a torsor `A×V→A` that
+forbids `A×A`, vs a vector `V×V→V`), no shared body satisfies both — the only
+encoding is a distinct class per value (a mixin). This is a HARD refutation, not
+a taste call: it killed the phantom `Field[Rep,Role]` carrier outright (the
+(Rep×Role) grid attack). The decision lattice for a 2-axis carrier grid:
+axis-changes-arithmetic ⇒ class; axis-changes-SHAPE ⇒ class; only an axis that
+changes NEITHER (a true index/tag) can be a phantom param. When BOTH axes change
+arithmetic-or-shape, the unique elegant form is the orthogonal-factor MULTIPLE
+INHERITANCE `Leaf(RoleMixin, RepBase)` — and that parametrization, if wanted on a
+type at all, belongs on the OPERATOR contract `[Din,Cout]` (where the axis values
+are leaf TYPES, the genericity is APPLIED, and role-preservation is a fibration
+theorem), NOT duplicated onto the carrier. The NEGATIVE discriminator: a
+phantom-param impl that "passes" only by branching on a stored `role` field at
+runtime is the stringly-typed anti-pattern — `replace(f, role=Other)` type-checks
+and bypasses the gate; that bypass test REDs it.
+
 ---
 
 ## L-005 -- Read the WORKTREE, distrust Nexus on a feature branch
@@ -246,3 +266,113 @@ How to apply: before enriching an MMS ansatz, check the operator's linearity. If
 linear, a non-constant input suffices — spend the degree budget on quadrature
 exactness, and on a curvilinear geometry check the `1/r` pole-regularity of every
 redistribution term and the measure-weighting of the error norm.
+
+---
+
+## L-009 -- A change-of-basis frame's OWNER and its Galerkin-vs-PG discipline are predicted by the operator's SYMMETRY (commutant membership / Funk–Hecke), not by which subsystem calls it first
+
+A recurring architectural question on this project: when a method projects to
+coefficients, acts there, reconstructs (`R∘A∘M`), WHO owns the frame `(M,R)` and is
+it Galerkin or Petrov-Galerkin? The durable detection kernel — distinct from the
+resolvent backbone (L-007, which is about solve/iteration LAYERING; this is about
+projection-frame OWNERSHIP and DISCIPLINE):
+
+> A frame `(M,R)` is OWNED by the operator `A` whose EIGENBASIS it is, and it is
+> GALERKIN iff that eigenbasis is ORTHOGONAL — both decided by `A`'s symmetry. If
+> `A` commutes with a group action (is in the commutant), Schur's lemma forces it
+> block-diagonal-per-irrep in the isotypic basis, that basis IS `M`'s codomain, and
+> a SELF-ADJOINT `A` (real kernel) diagonalizes ORTHOGONALLY ⟹ M*=R up to the
+> Plancherel metric ⟹ Galerkin. No symmetry ⟹ no eigenbasis ⟹ the frame is a
+> SOLUTION-WEIGHTED projection (test≠trial) ⟹ Petrov-Galerkin, owned by no operator.
+
+Worked (the angular SH frame): Σ_s(Ω·Ω') is SO(3)-zonal ⟹ Funk–Hecke diagonalizes it
+in {Y_ℓ^m} with eigenvalues = the Legendre moments (= the diagonal of the in-code
+`Λ`); so M is LITERALLY the change-of-basis into scattering's eigenspace, the frame
+is scattering-OWNED, and it is a `GalerkinFrame` BECAUSE Σ_s is self-adjoint-zonal
+(orthogonal eigenbasis). Streaming `Ω·∇` is the ℓ=1 tensor operator (Clebsch–Gordan
+⟹ ℓ↔ℓ±1 PN recurrence), does NOT diagonalize, so it does NOT own the basis. The
+DISANALOGY that confirms the rule: energy condensation's G×G group-transfer matrix
+has NO symmetry / no Funk–Hecke ⟹ its frame is a flux-weighted `PetrovGalerkinFrame`,
+owned by no operator. ONE principle (operator symmetry) thus explains an entire
+campaign's Galerkin-vs-PG split that prior memos had ASSERTED axis-by-axis.
+
+Two corollaries that drop out:
+- **Falsifiability of "subsystem X owns the frame":** the claim is structurally
+  CONFIRMED (not non-falsifiable) when X's operator is the one whose eigenbasis the
+  frame is. The genuine falsifier is a SECOND consumer whose TRUNCATION ORDER is set
+  independently of X's operator (an output detector-functional of order L_d, or a
+  flux expansion L_flux ≠ X's order) — that consumer makes the frame a general
+  L²-tool with ≥2 independent consumers, flipping ownership. "Any function is
+  X-basis-expandable" is NOT such a falsifier: the INFINITE expansion is basis-
+  agnostic, but the TRUNCATED frame the code actually has is dimensioned by X's
+  spectrum support (the operator's moments vanish above its order).
+- **Placement:** the eigenbasis-owner is the canonical CONSTRUCTOR + the L-binding,
+  NOT a private field — the generic frame machinery (analysis/reconstruct/conjugate)
+  stays in the neutral layer (shared with the no-symmetry PG consumers); only the
+  CONSTRUCTOR `owner.frame = neutral_factory(owner_order)` records ownership, and it
+  relocates to the neutral factory the instant a second independent-L consumer lands.
+
+How to apply: for any `R∘A∘M` ownership/discipline question, ask "what symmetry does
+A have?" before reading call sites. Rotationally-invariant/zonal/convolution kernel
+⟹ Funk–Hecke/Schur eigenbasis ⟹ A owns a GALERKIN frame. No symmetry ⟹ solution-
+weighted PETROV-GALERKIN, owned by none. The first test that discriminates: assert
+the owned frame is `GalerkinFrame` (M*=R up to the Plancherel/Gram metric) while a
+no-symmetry sibling is a genuine `PetrovGalerkinFrame` (M*≠R, test=solution·trial).
+SKILL-PROMOTION STATUS: a STRONG candidate for skill Part C (a new smell:
+"eigenbasis-blind frame placement" / "operational-pipeline vocabulary for a spectral
+decomposition") — the `harmonic_moment_flux.py:6` "natural data carrier of the
+Galerkin pipeline" is the tell that the native Funk–Hecke frame is unnamed. Held for
+a SECOND sighting (a non-angular eigenbasis frame, or a second symmetry-owned R∘A∘M)
+before promotion; until then fire it inline.
+
+---
+
+## L-010 -- A conserved-quantity COLLAPSE splits by WHAT is conserved (rate vs probability/mass), which fixes the MORPHISM (average vs marginalize) — NOT by a weight
+
+When two coarsening/reduction operations look like "the same projection with vs
+without a weight" (a 1-frame-vs-2-frame asymmetry, a "bare sum vs weighted
+average" asymmetry), DO NOT accept the weight framing. Ask first: **what
+functional does each collapse preserve?** A reaction RATE `⟨T·w, Σ⟩` is preserved
+by an AVERAGE = `G⁻¹·M` (the projection `frame.project`, normalize=True). A
+PROBABILITY or MASS (`Σχ=1`; a particle count) is preserved by a MARGINALIZE =
+`M` alone (the un-normalized analysis `frame.analysis` / a bare `@T` against a
+partition-of-unity table, normalize=False). These are DIFFERENT MORPHISMS that
+differ by the `G⁻¹` factor — a weight=1 `project` would divide by the bin COUNT
+and BREAK `Σχ=1`, so the "weight=1 degenerate of project" framing is provably
+wrong. The honest unification is ONE machinery `(test_weight, normalize?)`:
+`average = analysis ∘ G⁻¹` vs `marginalize = analysis`. Exposing both DISSOLVES
+the frame-count asymmetry — it was never about how many frames, it was about
+whether each channel's collapse axis carries a conserved RATE or a conserved
+MASS.
+
+Two corollaries that recurred in the same attack (XS coarsening: spatial
+homogenize ∥ energy condense):
+- **A "same slot ± weight" comparison can be hiding an AXIS category error.** χ
+  in spatial homogenization collapses the SPATIAL axis (average); χ in energy
+  condensation collapses the BIRTH-ENERGY axis (marginalize). Comparing them as
+  one slot conflates two operations on orthogonal axes. Before unifying two
+  collapses, confirm they act on the SAME axis; if not, the "asymmetry" is just
+  two different reductions wearing the same channel name.
+- **A precondition spelled as a 30-line docstring caveat on a 3-line method body
+  wants to be a TYPE.** `FrameBase.gram` hardcodes a row-sum probe valid only for
+  disjoint (diagonal Gram) or partition-of-unity (`R·1=1`) bases, then documents
+  the third (tapered/dense) case it silently gets wrong. The Gram structure is a
+  property of the BASIS (declare DIAGONAL / POU / DENSE), and `project` should
+  dispatch on the declaration and RAISE on the unhandled case — the same
+  "no-consumer ⟹ raise, don't silently delegate a half-consistent op" discipline
+  a test-only basis already uses for its unbuilt synthesis side. A silent wrong
+  number is the landmine; the declared-type + negative-test (a DENSE-declaring
+  stub makes `.project` RAISE) closes it.
+
+How to apply: at any "reduce/coarsen/collapse a container, preserving X"
+question, name X (rate? probability? mass? current?) for EACH channel before
+reaching for a frame. Rate → average (`G⁻¹M`); probability/mass → marginalize
+(`M`); a second functional (surface current, leakage — GET/Smith) → a second
+test space. The morphism follows from the conserved functional, and the
+discriminating first test is the order-non-commutativity of a multi-axis channel
+(`project(Σ@T) ≠ (project Σ)@T` because the normalization is keyed on one axis).
+SKILL-PROMOTION STATUS: strong Part C candidate ("collapse-morphism-blind:
+treating a marginalization as a weight=1 average"). Held for a SECOND sighting
+(a non-XS conserved-collapse — e.g. a probability/measure reduction in MC tally
+binning or a flux-to-current marginalization) before promotion; fire inline
+until then.

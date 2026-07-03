@@ -61,6 +61,256 @@ is an explicit **EXIT back to the pyright burndown** in §8.
 
 ---
 
+## 0.5 Report-aligned decisions (LOCKED 2026-06-29, user-steered)
+
+The grand report's operator-algebra sections (§1, §3.1, §5.7, §6.3, §21–22, §30–31, §38)
+were read to guide this carve; it validates the direction wholesale and locks these:
+
+1. **Inverse-operator naming = HYBRID.** `.inverse()` returns the report's math-canonical
+   concretes — **`SweepOperator`** (structured/triangular direct inverse of `(L+C)`; the
+   sweep IS the inverse application, §5.7), **`GreenOperator`** (general resolvent,
+   Krylov-applied, §5.7/§22), future **`ResolventOperator`** (parametrized `(sT+A).inverse()`,
+   α-work). The **greppable family marker is a `SupportsInverse` Protocol** (`def inverse(self)
+   -> LinearOperator`), matching the report's §3.1 `Supports*` family (`SupportsApply`,
+   `SupportsAdjoint`); `grep SupportsInverse` finds every inverse-producer. (Name `SupportsInverse`
+   preferred over `Invertible` to avoid collision with the concrete `InvertibleOperator` = `(L+C)`,
+   and to sit in the `Supports*` family. SUPERSEDES the plan body's `SweepInverseOperator`/
+   `KrylovInverseOperator`.)
+2. **Capability retirement is SOLVE-AXIS-ONLY, Protocol-based (§3.1 + test-architect
+   CORRECTION).** Phase 4 retires the **`CAP_SOLVE` axis** → the structural `SupportsInverse`
+   Protocol; invertibility = `isinstance(op, SupportsInverse)` / having `.inverse()`. **KEEP
+   `CAP_APPLY_TRANSPOSE` as a runtime frozenset SoT** — it gates the `OperatorSum/Product.
+   apply_transpose` "propagates iff both" law (operator.py:762-763/841-842) that the LANDED
+   #276 S† rests on; making `apply_transpose` universal-on-base would let a half-transposable
+   sum forge a wrong adjoint (breaks `test_isotropic_scattering.py:219`, `test_capability_
+   survival.py:139`, the S† bit-id twin). Delete the `solve` AND `apply_transpose` `# type:
+   ignore`s by **declaring** both methods on the Protocol (optional-presence, RC4 spelling)
+   while the transpose RUNTIME gate stays the frozenset. The honest solve residue (value-
+   dependent singular: `DiagonalOperator`/`MultiplicationOperator` zero-coefficient,
+   `min|f|=0`) → an **eager RUNTIME RAISE inside `.inverse()`** (raise, not bare-assert, for
+   `-O`; positive+negative gated), NOT a surviving solve frozenset. (§6.3 resolved; static
+   `ScaledOperator(0.0)` is already a ctor `ValueError`.)
+   **`CAP_SOLVE` consumer surface (Phase 3, wider than first mapped):** SourceIteration +
+   `_GaussSeidelResolvent`/`_MomentWindowedResolvent` (the real `L` on curvilinear paths) +
+   KrylovAcceleration preconditioner-selection (`_has(L, CAP_SOLVE)`, iteration.py:712) +
+   DiagonalOperator/MultiplicationOperator/every composer. Full table: verification spec §1a.
+3. **`solve(A, b)` free-fn KEPT as call-site sugar** ≡ `A.inverse() @ b` (§6.4 fork → keep;
+   §21.2 power iteration uses it alongside `loss.inverse() @ F`).
+4. **`.H` vs `.T` (§6.3) — already landed by the adjoint campaign (now on main).** `.T` =
+   Euclidean representation transpose (`loss_action_transpose`); `.H` = Hilbert adjoint
+   (`G⁻¹AᵀG` wrapper). The coherence identity **`A.H.inverse() == A.inverse().H`**
+   (adjoint-of-inverse = inverse-of-adjoint) IS #280's transpose-solve — the inverse carve
+   SUBSUMES A3, no `CAP_SOLVE_TRANSPOSE`. (test-architect gate #4 pins it.)
+5. **Operator ≠ context (§38).** `SweepOperator` is the *semantic* inverse; the sweep
+   coefficient cache is its application *context*, not part of the semantic object.
+6. **§6.5 fork → `SupportsInverse` Protocol (structural) + concrete `SweepOperator`/
+   `GreenOperator`.** The concrete `InvertibleOperator` (= `(L+C)`, `OperatorSum["FullField"]`)
+   STAYS concrete AND satisfies `SupportsInverse` structurally; `.inverse()` on it returns a
+   `SweepOperator`. Gate the no-inverse residue STRUCTURALLY (`hasattr(op,"inverse")`, not
+   `isinstance(InvertibleOperator)`) so it survives either shape.
+7. **Phase 2 ships `SweepOperator` ONLY; `GreenOperator` DEFERRED (§4c new fork, Pattern 6).**
+   `(L+C).inverse() → SweepOperator` has the real consumer (SourceIteration's inner solve).
+   The general-sum inverse `A_loss.inverse() = (L+C−S).inverse()` (= `GreenOperator`, Krylov-
+   on-sum) has NO current consumer (the k-eigenvalue path is power-iteration-with-SI-inner,
+   not a literal `A_loss.inverse()` operator) → defer until a consumer (α-resolvent / Krylov
+   eigenvalue). Do NOT ship `OperatorSum.inverse()` now.
+8. **`A.H.inverse()` (the transpose-solve) is #280, NOT this carve.** The carve makes it
+   CONSTRUCTIBLE (the `.H`/`.inverse()` algebra composes) but does NOT implement the reverse-DAG
+   `sweep_transpose`; `(L+C).H` correctly has no `.inverse()` until #280 (redesigned onto
+   `A.H.inverse()`). The adjoint-coherence gate (spec §5) rides `xfail(strict=False, "#280")`
+   until then — the algebra is proven coherent, the transpose-solve impl stays paused per the
+   "Full carve, redesign #280" scope.
+
+> Where the plan body below says `SweepInverseOperator`/`KrylovInverseOperator`, read
+> `SweepOperator`/`GreenOperator`; where it says "retire `CAP_SOLVE` via isinstance/Protocol",
+> the Protocol is `SupportsInverse`.
+
+**`SweepOperator` location:** its own file `orpheus/sn/operators/sweep_operator.py` (user, 2026-06-29)
+— out of `streaming.py` until a generic `numerics` home earns itself.
+
+---
+
+## 0.6 Unified inverse + adjoint materialization — NO twin-path (user directive 2026-06-29)
+
+**The hazard the user blocked.** test-architect's "retire `CAP_SOLVE`, KEEP `CAP_APPLY_TRANSPOSE`"
+is a correct LOCAL fix (don't break the landed S† "propagate iff both") but, left as-is, splits the
+architecture into a **twin-path**: invertibility queried via the `SupportsInverse` Protocol / `.inverse()`,
+adjointability via the `CAP_APPLY_TRANSPOSE` string. Two mechanisms for the identical structural
+question — the stringly-typed anti-pattern surviving on one axis while the other modernizes (Cardinal
+Rule 2). FORBIDDEN: the carve must materialize the adjoint via the SAME direction as the inverse.
+
+**The realization that dissolves it: the "propagate iff both" LAW already lives in the method bodies,
+NOT the frozenset.** `OperatorSum.apply_transpose(x)` IS `a.apply_transpose(x) + b.apply_transpose(x)`
+(operator.py:787) — the adjoint of a sum is the sum of adjoints, by construction; a summand without a
+transpose makes the expression raise. Identically `(AB)⁻¹ = B⁻¹A⁻¹` IS `OperatorProduct.solve`
+(operator.py:858). Both axes already propagate structurally. The `frozenset[str]` is only a redundant,
+stringly-typed, axis-conflating ADVERTISEMENT ("will it work?" pre-check). It retires for BOTH axes via
+ONE mechanism:
+
+| Concern | Solve axis | Adjoint axis |
+|---|---|---|
+| The operator | `.inverse() -> SweepOperator/GreenOperator` | `.H -> _AdjointOperator` |
+| Static contract | `SupportsInverse(Protocol)` | `SupportsAdjoint(Protocol)` (report §3.1) |
+| Composition law | `(AB).inverse()=B⁻¹@A⁻¹` (method body) | `(A+B).H=A.H+B.H`, `(AB).H=B.H@A.H` (method body, already) |
+| "iff both" QUERY | derived `@property is_invertible` (recursive `a.is_invertible and b.is_invertible`) | derived `@property is_adjointable` (recursive) |
+| Undefined leaf | eager raise `NotInvertible` at `.inverse()` | raise `MissingAdjoint` at `.H` |
+
+`apply` is universal (the base method — no CAP). So the **entire `capabilities: frozenset[str]` retires**:
+CAP_APPLY → the base `apply`; CAP_SOLVE → `SupportsInverse` + `is_invertible`; CAP_APPLY_TRANSPOSE →
+`SupportsAdjoint` + `is_adjointable`. Per-axis, typed, structurally COMPUTED (not a stored set that can
+drift), each paired with its operator-returning method. "Propagate iff both" = the derived predicate's
+recursive `and`, NOT a frozenset intersection. EAFP (try `.H`/`.inverse()`, catch the typed exception) is
+the alternative for consumers that don't pre-query; the genuine pre-query consumer is
+KrylovAcceleration's preconditioner-selection (`_has(L, CAP_SOLVE)` → `L.is_invertible`).
+
+**Safe for the landed #276 S†:** the reciprocity LAW is the method body (`a.H + b.H`), untouched; only the
+ADVERTISEMENT moves from `CAP_APPLY_TRANSPOSE ∈ caps` to `is_adjointable`. Gates: the S† bit-id twin +
+`test_g_adjoint_reciprocity` (+ wrong-metric L11 control) stay green, AND a new gate pins
+`is_adjointable == (old CAP_APPLY_TRANSPOSE membership)` for every operator (advertisement faithful) with
+an M-mutation (drop a summand's adjoint → composite `is_adjointable` False, the sum's `.H` raises).
+
+**Sub-decision (settle with test-architect / elegance-enforcer):** the runtime QUERY form — a derived
+`@property is_invertible`/`is_adjointable` (instance-accurate on composites, my lean) vs. `isinstance(op,
+SupportsInverse/SupportsAdjoint)` + EAFP (Protocol presence is class-uniform, so not instance-accurate on
+composites — insufficient alone for the pre-query consumer). The Protocols carry the STATIC contract
+either way; the derived predicate carries the RUNTIME instance truth.
+
+---
+
+## 0.7 IMPLEMENTATION STATUS — cold-pickup resume point (2026-06-29)
+
+> **⚠ SUPERSEDED IN PART (2026-07-01):** the P3+ phases below are RE-SCOPED by the
+> taxonomy design `.claude/plans/operator_machinery_taxonomy.md` (§12 phase order;
+> §13 name-earning invariants; §14 the sphere-seed #282 + CP #283 rulings). The
+> committed P2a/P2b/P2c foundation stands unchanged. Resume from the TAXONOMY plan,
+> not from the P3 block below — the duck-typed resolvents dissolve into configured
+> SweepOperators, and SourceIteration consumes an already-inverse operator via
+> `.apply` (no per-consumer `.solve→.inverse().apply` rollout).
+
+> A fresh post-compaction session resumes HERE. Branch `refactor/inverse-as-operator` off
+> `main` @ `f903686` (**adjoint-inclusive** — the #276 K_iso / F† / S† campaign is now ON
+> main; trust git: `git log --oneline -5`). Surgical, **main-agent-direct, user-steered, NO
+> method-implementer**. Per-phase ff-commit WHEN THE USER ASKS; `main` always green. Oracle
+> `npx pyright orpheus/` = **410** (count-neutral target; the carve drives it DOWN at P4).
+> Canonical gate `.venv/bin/python -O -m pytest <paths> -m "not slow" -q -p no:xdist -p
+> no:cacheprovider --timeout=300`. NO `# type: ignore`; NEVER `git checkout/restore/stash` on
+> uncommitted files.
+
+### DONE — Phase 2a, the predicate foundation (committed, verified)
+- `32314cc` chore: ratchet re-baseline 420→410 (the adjoint merge's −10, never re-tightened).
+- `c1126c5` feat: **Phase 2a** in `orpheus/numerics/operator.py` — ADDITIVE, count-neutral,
+  faithfulness-gated. Frozenset path UNTOUCHED, nothing retired.
+  - `SupportsInverse`/`SupportsAdjoint` Protocols (NON-`runtime_checkable` — static contract
+    only; in `__all__`).
+  - base `LinearOperator.is_invertible`/`is_adjointable` `@property` (default `False`, after
+    `codomain`).
+  - composer recursion: `OperatorSum` (is_adjointable=a∧b; is_invertible inherits False),
+    `OperatorProduct` (both=a∧b), `ScaledOperator` (pass-through, α≠0 by ctor), `IdentityOperator`
+    (both True), `_AdjointOperator` (inherits False/False — correct, no CAP_SOLVE/CAP_APPLY_TRANSPOSE).
+  - leaves: `Zero`/`IncomingOrdinateMaskTensor`/`PeriodicWrap` (adjointable-only),
+    `Permutation` (both), `TensorProduct`/`SumOfTensorProducts` (recurse `self.ops`/`self.summands`),
+    `Diagonal` (is_invertible=`np.all(coeff!=0)`, adjointable=True), `RankOne` (NONE — {apply} only).
+  - gate `tests/numerics/test_operator_capability_predicates.py`: `is_X≡CAP_X∈caps` for every op
+    + asymmetry fixtures (`ZeroOperator` adj-not-inv, `_ApplyOnly` neither) + recursive pins. 12 green.
+
+### DONE — Phase 2b, the transport + SN leaf predicates (committed `d36507b`, verified)
+ADDITIVE; frozenset path UNTOUCHED. CLI pyright **410 → 409** (a −1 WIN, not just neutral),
+faithfulness-gated, all canaries green. The comprehensive `grep -rn capabilities orpheus/`
+surfaced advertisers the original P2b note MISSED — the real scope:
+- **transport energy ops** (all `{APPLY,APPLY_TRANSPOSE}` → `is_adjointable=True`, is_invertible
+  inherits False): `scattering.py` `LegendreMomentScattering`/`N2NMomentOperator`/`ScatteringOperator`,
+  `fission.py` `FissionOperator`, `isotropic_scattering.py` `IsotropicScattering`/`IsotropicN2N`.
+- **`multiplication_operator.py` `MultiplicationOperator`** → **DELEGATE** to `self.engine`
+  (`is_invertible=engine.is_invertible` value-dependent min|f|>0; `is_adjointable=engine.is_adjointable`).
+- **numerics faces**: `projection.py` `AnalysisOperator` ABC → `is_adjointable=True` (`_FrameAnalysis`
+  inherits); `frame.py` `_FrameReconstruction` → `is_adjointable=True` (OVERRIDE — its ABC
+  `ReconstructionOperator` advertises only `{APPLY}`, so the predicate follows the FACE's caps, not the ABC).
+- **sn**: `streaming.py` `StreamingOperator` → `is_adjointable=True`; `InvertibleOperator` →
+  `is_invertible=True` (is_adjointable inherits OperatorSum a∧b); `operators/boundary.py`
+  `SNBoundaryOperator` → `is_adjointable = bool(laws) and all(law.is_adjointable for law in laws)`
+  (mirrors the caps intersection rule).
+- **BUG FOUND + FIXED** (the comprehensive grep's payoff): `geometry/boundary/_bound_compat.py`
+  `_BoundBoundaryOperator` delegated `capabilities` to `self.inner` but NOT the predicates → it
+  inherited base `False`, which would have made the `SNBoundaryOperator` aggregator UNFAITHFUL
+  (caps via inner = True, is_adjointable = base False). Added `is_invertible`/`is_adjointable`
+  delegation. Also typed `boundary.py:_face_laws -> dict[str, LinearOperator]` (was `object`) — this
+  is the −1 pyright win (resolved the pre-existing `object`-attribute-access at the `.capabilities` read).
+- **gate** (single-source helper `tests/_harness/predicates.py::assert_capability_faithful`, explicit
+  `raise` so it fires under `-O` — a helper module is NOT pytest-assert-rewritten, Mode-8 trap):
+  retrofit `tests/numerics/test_operator_capability_predicates.py` to import it; ADD frame-face
+  faithfulness to `tests/numerics/test_frame.py`; ADD `TestPredicateFaithfulness` (transport energy +
+  SN streaming/boundary + the `_BoundBoundaryOperator` wrappers + the value-dependent zero-coeff
+  asymmetry) to `tests/sn/operators/test_capability_survival.py`. 42 + 132 green.
+- **DEFERRED to P3 (correct phase boundary):** the `sn/solver.py` duck-typed resolvents
+  (`_GaussSeidelResolvent`/`_MomentWindowedResolvent`) advertise `CAP_SOLVE` but are NOT
+  `LinearOperator` subclasses (no base predicate to inherit). Their `is_invertible` declaration lands
+  WITH their consumer migration (`SourceIteration` guard `_has(L,CAP_SOLVE)`→`L.is_invertible`) and its
+  pinning gate (`test_keff_curvilinear`), so the predicate + consumer + gate land together at P3.
+
+### DONE — Phase 2c, the SweepOperator (the inverse OPERATOR) (uncommitted, verified)
+CLI pyright **409** (count-neutral), keystone gate green + **teeth proven** (M-EQ in-process).
+- NEW FILE `orpheus/sn/operators/sweep_operator.py`: `SweepOperator(LinearOperator["FullField"])`
+  (plain wrapper, like `_GaussSeidelResolvent` — avoids dataclass hash on the mutable inner).
+  `apply(rhs, *, initial_guess=None)` → `self.inner.solve(rhs, initial_guess=...)` (BIT-IDENTICAL);
+  `domain=inner.codomain`/`codomain=inner.domain` (the inverse SWAPS; equal here — endomorphic);
+  `capabilities={CAP_APPLY}`; `.H`/`.inverse()`/`is_*` DEFER → inherit base False (adjoint-inverse =
+  #280). Docstring carries the operator-vs-context (§38) + sweep-vs-Krylov (§5.7) rationale.
+- `InvertibleOperator.inverse()` → `return SweepOperator(self)` (runtime LATE import to break the
+  SweepOperator↔InvertibleOperator cycle) + a `TYPE_CHECKING` import of `SweepOperator` so the
+  `-> "SweepOperator"` annotation resolves (the +1 pyright the late-import-alone caused). `__init__`
+  docstring bullet added for the new operator.
+- KEYSTONE gate `tests/sn/operators/test_inverse_operator_equivalence.py` (`foundation`,
+  `verifies("inverse-as-operator")`): `inverse().apply(b) == solve(b)` `assert_array_equal` on
+  bulk+boundary, slab+sphere+cyl ≥2G/vacuum; the curvilinear seed on sphere+cyl PAIRED with a Mode-11
+  in-process `solve`-spy (the EXACT seed object threads through); + a SweepOperator-structure pin.
+  **M-EQ teeth**: monkeypatching `apply`→forward `inner.apply` reddens the value gate (proven). 7 green.
+- **DEFERRED to P5** (composition return-type algebra, spec Gate 2.2): `OperatorProduct.inverse()`
+  (`(AB)⁻¹=B⁻¹A⁻¹`) + `ScaledOperator.inverse()` (`(αL)⁻¹=(1/α)L⁻¹`). No Phase-3 consumer calls
+  `.solve` on those composites (only InvertibleOperator + the resolvents), so they ride P5.
+
+**P3 — consumer migration** (`.solve`→`.inverse().apply`; `_has(CAP_X)`→`.is_X`; full §1a table in
+the spec):
+- `numerics/iteration.py`: `:435` SourceIteration guard `_has(L,CAP_SOLVE)`→`L.is_invertible`;
+  `:712` KrylovAccel preconditioner `elif _has(L,CAP_SOLVE)`→`L.is_invertible` (the genuine pre-query
+  consumer); `:467/468` `L.solve(...)`→`L.inverse().apply(...)` + DELETE the `_solve_accepts_seed`
+  inspect probe.
+- `numerics/operator.py` composer transpose reads {646,669,762,841,900,1333,1356,1437,1448,1601,1819}
+  `_has(op,CAP_APPLY_TRANSPOSE)`→`op.is_adjointable`; `sn/operators/boundary.py:141`.
+- `sn/solver.py` `_GaussSeidelResolvent`/`_MomentWindowedResolvent` (the real curvilinear `L`) +
+  `base_resolvent.solve(:2347)`.
+
+**P4 — FULL frozenset retirement, BOTH axes (gated — CHECKPOINT THE USER FIRST)**:
+- delete `capabilities` frozenset (all leaves+composers), both `_has` (operator.py:594,
+  iteration.py:154), `MissingCapability` solve+transpose, `.solve()` methods, the ~10
+  `# type: ignore[attr-defined]`. CAP_APPLY→base `apply`; KEEP a one-line `hasattr(op,"apply")`
+  eager composition guard (§4e, test-architect rec).
+- eager `.H` raise: `_AdjointOperator.apply` MissingCapability (operator.py:669) → raise eagerly at
+  `.H`/`adjoint()`; :669 dead. BEHAVIOR CHANGE (lazy→eager) — re-grep tests for lazy-`.H`-raise.
+- **THE TRAP (test-architect): literal-string test preconditions** `"apply_transpose" not in
+  A.capabilities` at `test_g_adjoint_reciprocity.py:210` + `test_removal_form_matvec_sweep.py:308`
+  (the very S† canaries) + `test_scattering_operator:176`/`test_fission_operator:79`/
+  `test_bc_universal_invariants:419`/`test_boundary:439` → rewire to `not A.is_adjointable`. **"S†
+  stays green" REQUIRES this rewire.** (`tests/sn/solve/conftest.py:4 cap("solve")` = vv marker — LEAVE.)
+- the S† reciprocity LAW is the method body (`a.H+b.H`), UNTOUCHED; gates stay green: the S† bit-id
+  twin + `test_g_adjoint_reciprocity` + wrong-metric L11 control; M-mutations per spec §7.
+
+**P5 — docs + #280 redesign**: operator-algebra theory + SN dev-history changelog
+(`discrete_ordinates.rst`: inverse-as-operator, why CAP retired, sweep-vs-Krylov as inverse kinds);
+update GH **#280** to drop `CAP_SOLVE_TRANSPOSE` → `A.H.inverse()`; **EXIT** to the pyright burndown
+(`pyright_signal_cleanup.md`, mark B4 DONE-via-carve).
+
+### Pointers
+- **Verification spec (gate authority):** `.claude/plans/issue_226_inverse_operator_verification.md`
+  (§2 keystone equivalence, §2.3 faithfulness, §3b eager-raise, §4 retirement delete/rewire/keep map,
+  §5 adjoint-coherence `A.H.inverse()` = `xfail("#280")`, §7 M-mutations, §8 zero-scaling residue).
+  Phase-0/1 (landed): `issue_226_b4_operator_generics_verification.md`.
+- **test-architect instances** (resume via SendMessage if needed): `a484bc0c04f169b42` (solve-axis net),
+  `a8e56b7736037102b` (both-axes extension).
+- **Tasks:** #132 (P2, in_progress), #133 (P3), #134 (P4 full retirement), #135 (P5).
+- **Decisions locked** in §0.5 (naming/Protocol/solve-sugar) + §0.6 (the unified no-twin-path mechanism).
+
+---
+
 ## 1. The architectural thesis (the WHY)
 
 The current operator algebra reimplements **at runtime** three things the type system

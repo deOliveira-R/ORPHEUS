@@ -285,3 +285,57 @@ This is L7's "matvec self-consistency ≠ correct fixed point" generalized to an
 offline-isolated quantity, and pairs with vv Mode-10 (activated-but-unconstrained):
 the resolution is structural teeth + a no-op control, never a tightened value band.
 See [[curvilinear-tau-clamp-vs-pole-floor]], [[issue-257-s9-ld-boundary-slope-optical-verdict]].
+
+## L13: "Diverges/crashes for LD (or any spectator trailing axis)" = a greedy `(Ellipsis, *idx)` fancy-index that mis-targets axes
+
+When a moment-tensor / einsum path is bit-identical for the scalar (single-moment)
+case but DIVERGES or raises `IndexError` once a trailing spatial-moment (LD's 2^d φ̂
+axis) — or any spectator broadcast axis — is present, the prime suspect is a per-cell
+fancy index built as `cells = (Ellipsis, *idx)`. `Ellipsis` is GREEDY from the front:
+it absorbs the leading (m, g, …) axes, so the spatial cell indices `*idx` land on the
+LAST k axes — which under a trailing φ̂ axis are `(…, last-spatial, φ̂)` instead of the
+two spatial axes. Symptom is geometry-dependent: rectangular grid (nx≠ny) → `IndexError:
+index N out of bounds for axis … with size M` (the spatial index over-runs the smaller
+wrong axis); square grid + asymmetric material map → SILENT wrong value (cells scattered
+to wrong positions, e.g. 43% rel error). The fix is to pin the leading axes EXPLICITLY:
+`cells = (slice(None), slice(None), *idx)` so `*idx` targets the spatial axes and the
+trailing spectator broadcasts. Bit-identical when no trailing axis (Ellipsis ≡
+(slice,slice) then), so non-LD tests are BLIND — the gate must use an LD flux
+(`spatial_moments=2`). This is vv failure-mode #2 (variable/axis swap) gated by a
+spectator-axis presence; the catalog signature is "frame/moment path OK for scalar,
+breaks for LD". Isolation = monkeypatch the verb back to `(Ellipsis,*idx)` (NEVER git
+checkout) and confirm it reddens on a RECTANGULAR LD flux. ORPHEUS instance: #276 A2
+commit `0b3275d` fixed all four `MaterialXSField` moment-scatter verbs
+(`apply_legendre_scattering_moments`{,`_transpose`}, `apply_n2n_moments`{,`_transpose`});
+diagnostic `derivations/diagnostics/diag_276_full_scatter_kernel_ld_trailing_axis.py`.
+
+## L14: The curvilinear `(L+C).solve` is a direct inverse for slab+CYLINDER but a SEED-LAGGED iteration for SPHERE — and the whole MMS ladder is blind to it
+
+`(L+C).solve` (the WDD sweep) is seed-independent + machine-precision ONLY where the
+angular-redistribution seed cancels. Measured (removal-form `InvertibleOperator`, ≥2G,
+random non-flat ψ): SLAB seedΔ=0.0 / residual 8e-16; CYLINDER seedΔ=0.0 / residual 7e-16
+(the per-μ-level α-dome telescopes → seed irrelevant); SPHERE seedΔ(X1,X2)=4.6e-2 /
+`‖Aψ−b‖∞/‖b‖∞ = 5e5`, localizing to the outer |μ|-level. So a curvilinear inverse is NOT
+uniformly a `SweepOperator` — cylinder honestly is, **sphere is a lagged/preconditioned
+iteration, exact ONLY at the SI fixed point** (probe `solve(apply(ψ0),ig=ψ0)≈ψ0` at
+5e-13; cold seed 24–3900× off). The SOLE lagged element is the M-M half-angle starting
+seed ψ_{1/2} per level, read from `initial_guess.bulk.values` (`_initial_guess_values` →
+`closure.psi_half_seed(psi_level,ctx)` in `loss_representation/__init__.py:3162/3197`;
+`None`→zero). Default seed is `AngularEdgeExtrapolation` (NOT `CarlsonInwardSweep` —
+ERR-058 superseded it), exact on flat AND linear-in-μ. **It creates a LOCAL CYCLE**: the
+seed reads the two most-inward ordinate cell-AVERAGES, and ordinate-0's redistribution
+consumes the seed — so the sweep breaks the cycle by lagging (everything else — pole
+r=0 continuity capture, the M-M recurrence — is feed-forward within the sweep). Seed-dep
+is therefore a FORMULATION choice, not intrinsic: the μ=±1 equation is CLOSED ((1−μ²)=0,
+`carlson_inward_sweep_from_source` already implements it) → a direct sphere sweep needs
+only to resolve that cycle (explicit ψ(·,μ=−1) state / per-level block-solve / source-
+driven seed) = exactly issue #200's block-inverse face preconditioner. **V&V punchline
+(Mode-7):** every curvilinear MMS ansatz is ≤ linear-in-μ (isotropic `sin(πr/R)`, or
+`(A(r)+B(r)μ)/W`) — precisely the seed's EXACT regime — so SI converges O(h²) on the
+whole ladder and the seed-lag instability is INVISIBLE. A genuinely higher-order-in-μ
+field (a plain uniform-source sphere) makes the seed-iteration DIVERGE (→NaN under SI at
+every c∈[0,0.99]); production dodges it by shipping GMRES with the IDENTITY precond
+(`_within_group_krylov`, `solver.py:332`, #200) and by keff being shape-independent. This
+is L6 ("curvilinear needs a NON-FLAT per-ordinate reference") realized end-to-end.
+Diagnostics: `/Users/rodrigo/.claude/jobs/84fd66f8/tmp/diag_curvilinear_seed_sensitivity.py`
+(+ `diag_sphere_fixedpoint_consistency.py`). See [[curvilinear-inverse-seed-taxonomy]].

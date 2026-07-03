@@ -7,7 +7,7 @@ diagnostic references. Bug-campaign play-by-play lives in the topic
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 12 diagnostic-cascade lessons (L1–L12).
+- [lessons.md](lessons.md) — 13 diagnostic-cascade lessons (L1–L13).
   The spine: never guess, isolate in cascade order, and a single mesh /
   flat flux / homogeneous case / two-probe agreement proves nothing.
   L1 cascade order · L2 curvilinear redistribution is the prime suspect ·
@@ -21,7 +21,10 @@ diagnostic references. Bug-campaign play-by-play lives in the topic
   with refinement" + a discarded library info-flag = an unconverged inner
   solve, not a discretization bug · L11 measure the residual r=Aψ−q for a
   ρ-honest stop, not the increment ‖Δψ‖ · L12 an offline-isolated error
-  is THE floor only after an end-to-end swap + silent control + amplify.
+  is THE floor only after an end-to-end swap + silent control + amplify ·
+  L13 "diverges/crashes for LD (spectator trailing axis)" = a greedy
+  `(Ellipsis, *idx)` fancy-index mis-targeting axes (fix: pin leading axes
+  `(slice,slice,*idx)`; non-LD tests are blind).
 
 ## 2. Active / in-flight state
 
@@ -47,6 +50,20 @@ bare-critical). Their breadcrumb files are in section 3.
 
 ## 3. Durable reference (reusable diagnostic recipes)
 
+- [curvilinear_inverse_seed_taxonomy.md](curvilinear_inverse_seed_taxonomy.md)
+  — #226 ruling: is 1-D curvilinear `(L+C).solve` an honest `SweepOperator`? SLAB/CYLINDER
+  YES (seedΔ=0, machine residual — cyl α-dome telescopes); SPHERE NO (seed-lagged, residual
+  5e5, exact only at FP). Seed-entry map, the seed↔first-ordinate LOCAL CYCLE, feasibility
+  (μ=±1 closed → #200 block-inverse precond), Mode-7 MMS-blindness (ansätze ≤linear-in-μ =
+  seed's exact regime). Backs L14.
+- [cp_matrix_density_and_sphere_conservation.md](cp_matrix_density_and_sphere_conservation.md)
+  — CP [P] is structurally DENSE (0 exact zeros in every geom/tau config →
+  #226 name is storage-agnostic `MatrixInverseOperator`; sparse interface-current
+  variant = OPEN #56, not built). Probe: isolate [P] via
+  `compute_pinf_group(sig_t_g)`, vacuum→P_cell / white→P_inf, reciprocity =
+  `diag(SigT·V)@P` symmetric, conservation = rowsums. **Bonus OPEN DEFECT**:
+  spherical CP violates the proven row-sum=1 above tau~3 (rowsum saturates at
+  1/pi; grows with refinement, flat in n_quad_y), invisible to the tau≤2 suite.
 - [issue_208_flux_displacement_residual_typing_debug_value.md](issue_208_flux_displacement_residual_typing_debug_value.md)
   — the convergence-diagnostic method catalogue. FluxDisplacement (Δψ
   tangent — `contraction_ratio` >1 diverges / ≈1 stalls / <1 healthy,

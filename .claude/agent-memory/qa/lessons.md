@@ -2050,3 +2050,29 @@ normal↔adjoint operator-algebra change:
    reference. Choosing the per-term fold over post-scaling is a bit-FAITHFULNESS choice, NOT a
    tolerance relaxation. Cross-ref [[lessons-L011]] (per-term-fold = structural independence),
    [[lessons-L051]] (recompute the einsum on a structurally-independent table for bit-id).
+
+## L-053 -- migration-review of a `.solve -> .inverse().apply` rewire: the keystone pins the WRAPPER, the migration rewires the LOOP; and the strong catcher may be slow-deselected
+
+(Taxonomy re-evaluation 2026-07-01, branch refactor/inverse-as-operator @ 69ed531 -- F4/W5/W2
+legs; distilled by the qa leg, persisted by the main agent.)
+
+1. **Wrapper-surface vs loop-surface.** A keystone gate pinning `inverse().apply(b) == solve(b)`
+   covers only the single-call WRAPPER delegation -- bit-identical BY CONSTRUCTION (both sides
+   share the same, possibly-buggy, sweep), hence robust to / orthogonal to sweep-correctness
+   bugs (#282). It does NOT cover the ITERATION-LOOP per-iterate seed threading -- the surface
+   a `.solve -> .inverse().apply(rhs, initial_guess=psi_prev)` migration actually rewires.
+2. **Test the loop surface by simulating the exact regression under the ACTUAL run config.**
+   Patch the seed-threading helper to drop `initial_guess` in-process and run the canonical
+   `-m "not slow"` invocation -- do NOT trust a plan's "test_X must red" claim: the strong
+   end-to-end catcher here was `@pytest.mark.slow` and thus DESELECTED (a slow-marker sibling
+   of Mode-8: a gate that cannot fire under the run config). The het-2G sphere seed-drop
+   (|dk| = 3.46e-2) reddened only a fragile 1G monotone margin under `-m "not slow"`.
+3. **A seed-insensitive geometry makes its seeded VALUE gate vacuous for seed-drop detection**
+   (cylinder telescopes -- the seed cancels identically). The Mode-11 path-spy on the
+   `initial_guess` threading is the load-bearing guarantee there, not any value assertion.
+4. **A "fold-config identity" inverse realized as a SCHEDULE** (`B_lower` = octant-group edge
+   set, not an algebra operator) **has NO exact round-trip pin** -- no forward `.apply` exists
+   to invert against, and the converged-SI-equivalence fallback is Mode-9-DEGENERATE (the
+   fixed point is splitting-invariant by construction: it cannot distinguish the fold, or even
+   G-S from Jacobi). Minting the forward matvec of the SAME restricted operator (reify
+   `M = (L+C-B_lower)`) is the only way to make the round-trip exact.

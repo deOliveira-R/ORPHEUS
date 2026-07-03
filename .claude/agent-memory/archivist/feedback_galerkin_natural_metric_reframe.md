@@ -1,9 +1,22 @@
 ---
 name: galerkin-natural-metric-reframe
-description: Doc-recipe for documenting a "flux-weighted average is Galerkin-in-natural-metric, NOT Petrov-Galerkin" carve — the L²(weighted) projection reframe + the sibling-page staleness tombstone.
+description: SUPERSEDED 2026-06-24 (#268 P3) — the "Galerkin-in-L²(φV)" reading was FORWARD-ONLY and is RETIRED; homogenization is PETROV-GALERKIN. Kept for the WHY. Live recipe → [[petrov-galerkin-homogenization-reframe]].
 metadata:
   type: feedback
 ---
+
+.. SUPERSEDED (2026-06-24, Issue #268 P3). The recipe below documented a
+   carve that derived homogenization as "Galerkin in the natural L²(φV)
+   metric, NOT Petrov-Galerkin". That derivation was itself the
+   forward-only (φ*=φ) reading and was REVERSED: homogenization is
+   PETROV-GALERKIN (test=φ·1_R ≠ trial=1_R), the L²(φV)-fold is the
+   Galerkin DEGENERATE of the eigenvalue-consistent adjoint-weighted
+   (φ*≠φ) case, and the measure NEVER carries the discipline. The live
+   doc-recipe is [[petrov-galerkin-homogenization-reframe]]. This entry is
+   kept ONLY for the WHY-it-was-tried logic (the metric-fold IS a real
+   identity for φ*=φ, which is why the forward draft looked right) — do
+   NOT follow its "Galerkin" framing.
+
 
 When a refactor reroutes a hand-rolled weighted-average collapse
 (cross-section homogenization, energy condensation) through the project's

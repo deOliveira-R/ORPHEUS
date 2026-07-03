@@ -22,6 +22,7 @@ Section 3 = git-true active state.
 - [multi_d_ld_closure.md](multi_d_ld_closure.md) — Cartesian multi-D LD = BILINEAR/TRILINEAR DG-P1 (UBLD, 2^d corner moments, MRM-2016 NSE), NOT simplex-P1; Adams 2001 proved simplex fails thick-diffusion-limit on quads.
 - [sphere_sn_pole_closure_canonical.md](sphere_sn_pole_closure_canonical.md) — Hébert §3.9.4 (3.418)-(3.439) IS the canonical sphere-SN pole stencil; the `reduced_operator.py` Bailey docstring cites the WRONG paper (see L3).
 - [phase_d_carlson_coupled_pole.md](phase_d_carlson_coupled_pole.md) — Hébert (3.432)-(3.435) coupled-pole sweep verbatim; inward µ=−1 seed is on-the-fly; outward cascade reads full radial profile. Cyl analog (3.407)-(3.410).
+- [curvilinear_sweep_directness_ruling.md](curvilinear_sweep_directness_ruling.md) — RULING: 1-D curv-SN sweep is DIRECT one-pass (Hébert/BMC-17,42,55/Lathrop-2000 "sequential"); NO published lagged-pole formulation (lag = verdict (c)); only std lag locus = albedo/white OUTER BC (Hébert 3.415-3.417 shooting = direct alt); α-recursion ×2/sign normalization table.
 - [spherical_sn_central_cell_spatial_order.md](spherical_sn_central_cell_spatial_order.md) — Hébert §3.9.4 + Stacey §9.9 BOTH use plain arithmetic-midpoint diamond at r=0; Hébert (3.430) defines φ as VOLUME-AVERAGE (the O(h) MMS gap source).
 - [sphere_sn_spatial_order_at_origin.md](sphere_sn_spatial_order_at_origin.md) — NO canonical ref gives an O(h²) central-cell SPATIAL closure; Lathrop 2000 + Bailey-Morel-Chang study ANGULAR error only. Remedy lead = Wu 1999 NSE99-A2095.
 - [space_angle_discretization_separability.md](space_angle_discretization_separability.md) — diffusion-limit lit SPLITS into spatial (Larsen-Morel-Miller JCP 69 1987) + angular (Bailey-Morel-Chang NSE 165 2010) per-axis conditions; factorize but jointly required → tensor-product architecture.
@@ -32,6 +33,12 @@ Section 3 = git-true active state.
 
 ### Multi-group source indexing
 - [peierls_mg_fission_source_chi_indexing.md](peierls_mg_fission_source_chi_indexing.md) — Hébert (3.57)/(3.58): fission emission χ is purely LOCAL, shares the SOURCE point with νΣ_f and φ; χ is a property of the fissioning nuclide.
+
+### Energy condensation / group collapse (vectors, 2-axis scattering, χ; nesting; IWT; projection)
+- [energy_condensation_collapse_formulas.md](energy_condensation_collapse_formulas.md) — Hébert §3.5 (3.103)/(3.104 src-flux-wt sink-summed)/(3.105)/(3.112 χ plain-sum) ≡ Stammler Ch.VI(6a-6d) [both LOCAL]; MALOCS REQUIRES nesting (correspondence array) vs GROUPR/OpenMC re-integrate continuum (any structure); NJOY IWT w(E) taxonomy; GEC (Rahnema-Douglass-Forget 2008 NSE160:41)=projection whose rank-0=flux-wt avg. Memo `.claude/plans/p5_condensation_literature.md`. For #274.
+
+### SH angular flux→moment projection (M/R) — root cause
+- [sh_flux_moment_projection_root_cause.md](sh_flux_moment_projection_root_cause.md) — claim "M (ψ→φ_ℓ) exists BECAUSE of anisotropic scattering" STANDS (no falsifier). Hébert (3.55)→(3.54), Brockmann (47), Ahrens LDO (7)+abstract; PN basis DIAGONALIZES scattering (Fletcher (7)), streaming tridiagonal. FCS Eq.(6) q_1st=HΨ_u is scattering op; external/BC sources SPECIFIED in SH (input) or ordinate-space. → HarmonicFrame on Scattering operator, NOT angular phase-space.
 
 ### Interface currents (rank-N / DP_N), curvilinear
 - [rank_n_interface_current_canonical.md](rank_n_interface_current_canonical.md) — Sanchez-McCormick 1982 §III.F is the LONE rank-N source in the textbook corpus; Ligou/Sanchez-2002/Stamm'ler/Stacey all use scalar DP-0.

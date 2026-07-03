@@ -49,6 +49,21 @@ a guarded type) AND a doc-node scan. Four searches, not one. (Reinforces the
 proactive-explorer-before-retirement trigger; sibling to method-implementer
 L-004.)
 
+**Sharpening (two graph-blinding patterns endemic to the operator algebra).**
+Two constructs make `callers()` systematically lie in this codebase, and BOTH
+appeared in the W-F scope audit — when an `apply`-dispatch arm's liveness is the
+question, grep is not a cross-check, it is the *primary* evidence:
+(a) **runtime-aliased dispatch** — `apply = _apply_impl` with `@singledispatchmethod`
+arms means the graph attributes calls to the alias, not to the per-type arm; a
+`@_apply_impl.register` leaf shows near-zero callers while a whole solver feeds it.
+(b) **Protocol-typed receivers** — a call `solver.compute_fission_source(...)` where
+`solver: EigenvalueSolver` (a Protocol) is unresolvable to the concrete `SNSolver`
+method, so the concrete method reads `callers==0` even though `power_iteration`
+drives it every outer step. The liveness of a dispatch arm is decided by the
+ACTUAL input TYPE at the production call site — trace `power_iteration →
+solver.compute_X → op.apply(<what type?>)` by READING the chain, and let grep, not
+the graph, enumerate the `op.apply` sites.
+
 ---
 
 ## L-002 -- The issue text is a stale premise; verify it against the current tree FIRST
@@ -126,6 +141,23 @@ in-flight X" against `git merge-base --is-ancestor <hash> HEAD` (or
 `... <branch> main`) before acting. Active-state in MEMORY.md should say only
 what git confirms; when in doubt, the answer is "check git." (Now an always-on
 rule: `.claude/rules/process-discipline.md` §"Trust git for merge-status".)
+
+---
+
+## L-007 -- On a branch under ACTIVE edit, re-run the census immediately before reporting
+
+During the F2 cast-family recon (2026-07-02, `refactor/pyright-burndown`), a cast
+site moved 1532 → 1552 BETWEEN two of my greps: the main session was editing the
+same files concurrently (uncommitted C3 carve in flight), and part of my brief
+(the scattering `apply_transpose` item) was being FIXED while I explored. This is
+intra-session drift — a different failure shape from L-002's stale-issue drift.
+
+How to apply: when `git status` shows uncommitted edits in the subsystem being
+audited, (1) re-run the position census as the LAST step before writing the
+report, (2) diff the uncommitted hunks against the brief's items — an item may
+already be mid-fix, flipping that deliverable to "confirm the in-flight fix +
+report the alternative," and (3) timestamp reported line numbers as "at final
+read; tree moving."
 
 ---
 

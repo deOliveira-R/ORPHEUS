@@ -220,3 +220,51 @@ diff their guard clauses — a guard present in N-1 and absent in 1 is the laten
 populated" refuted by the same commit's heterogeneous-union `merge_runs`) — a false-
 invariant doc IS the bug habitat (anti-#11), and "it's just a docstring" makes it more
 insidious, not less, because it is the contract the next agent reads. (nexus #26 overlay.)
+
+---
+
+## L-011 -- The briefing's SCOPE is a claim to verify against live `git status`, not authority — a stale snapshot of WHICH files changed manufactures false "missing-gate" findings
+
+Leg-3 of the VIOLATION standard ("verify the live tree, not the docstring") extends to
+the DIFF SCOPE itself. On #226 inverse-as-operator the dispatch brief (and the harness
+session-start `git status` snapshot it echoed) said "only production + ONE test file
+changed." Trusting that, I built a near-certain SHOULD-FIX: "8 inverse types delivered,
+0 round-trip/involution gates — violates §12 step-1's own 'pinned by the round-trip
+gate'." Then I re-ran `git status` LIVE: three test files modified + an UNTRACKED
+`test_inverse_universal.py` — the full §12 keystone suite (I1 both-ways + closed-form
+anchor + `inverse().apply≡solve` bit-id + I2 per-type + negatives + the shim), with
+deliberate mutation-teeth fixtures. The "ungated" finding was pure snapshot-staleness;
+I retracted it and it became a PASS callout.
+
+How to apply: at scope-identification, run `git status --short` + `git diff --stat HEAD`
+FRESH — never trust the harness's session-start snapshot (it is frozen at launch) nor the
+briefing's file list. Untracked test files (`??`) do NOT appear in `git diff` and are the
+easiest coverage to miss — grep the working tree for the tested SYMBOLS (`grep -rn
+InverseOperator tests/`), not just the diff. A "promise not backed by a test" verdict is
+only earned after enumerating the LIVE test tree, including untracked files. Same family
+as trust-git-not-a-frozen-claim (process-discipline) but for change-scope, not
+merge-status. (#226 step-1 review, 2026-07-01.)
+
+---
+
+## L-012 -- To PROVE a `# type: ignore` is dead, enable `reportUnnecessaryTypeIgnoreComment` against the LIVE tree — the error-count ratchet is BLIND to it
+
+A pyright retirement carve that tightens an Optional-away (`inflow_full: NDArray|None →
+NDArray` by moving its binding into a narrowed scope) makes the site's `# type: ignore[index]`
+UNNECESSARY — but the campaign's error-count ratchet (`pyright_ratchet`) counts errors, and
+`reportUnnecessaryTypeIgnoreComment` defaults to OFF, so a dead ignore is INVISIBLE to the
+ratchet and survives silently. On C5 the brief AND the dev-history doc both claimed "two
+stale `type: ignore` retired"; the LIVE tree had only ONE removed (`quad.level_indices`) and
+TWO `inflow_full[...]  # type: ignore[index]` survivors (loss_representation:3359,3389) that
+the restructure had just made dead. Leg-3 catch (verify live tree, not the campaign's
+self-description of what it retired).
+
+How to apply: when a carve narrows a type such that an ignore SHOULD have become removable,
+do NOT eyeball it — write a throwaway config at the repo ROOT (so `venvPath`/`ignore` resolve)
+mirroring `pyrightconfig.json` + `"reportUnnecessaryTypeIgnoreComment": "error"` +
+`"include": ["<the one file>"]`, run `npx pyright -p <tmp>.json`, grep the lines, then `rm`
+the config. Read-only — never edit the file under review. Bug habitat = anti-#19: a dead
+`[index]` ignore silences `reportIndexIssue` at that exact site, so the day a future edit
+re-introduces an Optional there the real error is swallowed. Coextensive-today ⟹ NIT, but a
+do-now NIT: the campaign's whole purpose is removing dead suppressions, and the doc that
+CLAIMS they were retired is itself now false. (#226 C5 pyright-burndown review, 2026-07-03.)

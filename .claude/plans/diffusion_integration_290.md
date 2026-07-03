@@ -221,3 +221,49 @@ close-out list + the archivist brief; docs work is dispatch-heavy, not context-h
   cross-refs — `-W` misses coincidentally-resolving stale refs); Nexus auto-reloads.
 - `npx pyright` — total ≤ 1 (the accepted #288 transport residual) with diffusion at 0.
 - `python -m tests._harness.audit` clean.
+
+---
+
+## CHECKPOINT C1 (2026-07-03, session 1)
+
+**Statuses**: P1 DONE @ `836f424` (data seam; 5 gates; legacy D bit-identical
+`[1.52835091, 0.42462845]`). P2 DONE @ `78d1431` (scalar trace substrate).
+Branch `feature/diffusion-integration`, 2 commits ahead of main @ `d2a2a0c`.
+
+**P2 deviations from plan (all rationale-carrying, none scope-changing):**
+1. `TraceField` locus base EXTRACTED from `BoundaryField` (plan said "mint the
+   leaf"; `FullField`'s isinstance check + single-substrate honesty forced the
+   two-family hierarchy: `TraceField → {BoundaryField angular, ScalarTraceField
+   scalar}`). `_trace_space_of` classmethod hook = the per-family trace source.
+2. `PartialCurrentDisplacement` minted (NOT in plan): the #208 torsor registry
+   (`Displacement._BY_REP`, keyed by the shared Rep = direct Field base) demands
+   a displacement sibling the moment `state ⊖ state` runs — drivers will
+   subtract composites, so the scalar role grid had to complete now. Rep key =
+   `ScalarTraceField` (why the family ABC exists).
+3. Four #289-style seam parses added (`fission.py` composite arm,
+   `multiplication_operator.py` apply+solve arms, `sn/solver.evaluate_residual`
+   trace legs): pre-existing ANGULAR-ONLY composite arms leaned statically on
+   the SN-typed boundary slot; they now parse the family loudly and read the
+   mesh off the parsed (SNMesh-typed) leaf. The scalar arms land in P4 through
+   these exact seams.
+4. `FullField.mesh` now types `MaterialMesh` (method-generic); `TimedFullField`
+   overrides widened to `TraceField` (Liskov).
+
+**Convention contract**: `.claude/plans/diffusion_crosswalk.md` (slot layout
+`(2, ng, *face_spatial)`; rows J⁺=0/J⁻=1 owned by `ScalarTraceSpace`; albedo
+family incl. zero-flux 𝒜=−1; face-local outward-normal signs; area metric).
+
+**Verification state**: `npx pyright orpheus/` = **1** (exactly the accepted
+#288 transport residual — baseline unchanged); `tests/{transport,numerics,data}`
+1361 green; `tests/{sn,geometry}` 2212 green (serial `-O`) — TraceField
+extraction behavior-neutral for SN. Intrinsic suite:
+`tests/transport/fields/test_partial_current.py` (15 tests incl. torsor laws).
+
+**Next**: P3 — `ZeroFluxBoundary` law (geometry), `DiffusionMethodSpace`,
+`DiffusionBoundaryRealizer` functional (#182): vacuum→𝒜=0, reflective→𝒜=1,
+albedo(α)→𝒜=α, zero-flux→𝒜=−1, white→𝒜=1 (P1-coincident, document); flip the
+stub test. Then P4 operators (read the crosswalk + agent memos first:
+explorer `campaign_290_diffusion_integration_map.md` §B/§C for the typing
+shape + mirror pattern; attacker `diffusion_integration_frames.md` Q2/Q3).
+
+**Open questions**: none blocking.

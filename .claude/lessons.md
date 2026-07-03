@@ -843,3 +843,113 @@ that is, by policy, NOT in git — so the usual "git can undo it" safety net doe
 
 Cross-reference: `[[lessons-L12]]` (paste-back — here it was the ONLY backup); the standing
 forbidden-to-commit set (`.claude/skills/*`).
+
+## L29 — Re-anchoring an invariant during a refactor: the new check must be AS STRONG; a downstream guard's WEAKER property does NOT subsume it (2026-06-26)
+
+#261 collapsed `CollisionOperator` into `MultiplicationOperator`, removing the held `sn_mesh` and forcing
+a re-expression of the `InvertibleOperator` mesh-identity invariant `streaming.sn_mesh is diagonal.sn_mesh`.
+The tempting move — "the W-D `OperatorSum` composition guard already checks `domain`/`codomain` equality, so
+the explicit invariant is redundant; downgrade it to that" — was WRONG, and an independent cross-domain-attacker
+challenge caught it BEFORE it shipped a latent wrong-physics bug.
+
+The invariant's possible strengths **nest**: `object-identity ⊋ geometric-consistency ⊋ shape-equality`. The
+guard checks only the WEAKEST (`FullFieldSpace.__eq__` is `(name, shape)`), so two equal-shape /
+different-volume meshes pass the guard yet compute wrong physics (the WDD sweep threads the diagonal's σ
+against the STREAMING geometry — they must be the SAME mesh, not merely same-shaped). The essential
+requirement was the MIDDLE tier. The correct re-anchor kept that strength through a handle that SURVIVED the
+refactor: `streaming.sn_mesh is diagonal.coefficient.mesh` (the `CrossSectionField` still carries `.mesh`).
+
+**How to apply:** when a refactor deletes the field an invariant checked and you must re-express it — do NOT
+relax it to whatever a nearby guard happens to verify. (1) Enumerate the property's strength tiers
+(identity / value-equality / shape / …). (2) Determine which tier the invariant ACTUALLY needs by tracing
+what BREAKS on violation (here: the σ↔geometry pairing in the sweep). (3) Re-anchor AT that tier through a
+surviving handle. (4) Mutation-verify the re-anchored check still REDS on a real violation (here
+`test_mismatched_mesh_rejected` still fires). A guard checking a weaker property is never a substitute for a
+stronger invariant — "redundant with X" is false whenever X is strictly weaker.
+
+Cross-reference: `[[lessons-L24]]` (re-characterise sub-steps when the ground moves — same "don't mechanically
+assume redundancy" spirit); `[[lessons-L23]]` ("redundant" is a layer claim — check binding-generality before
+retiring); the independent-challenge discipline (dispatch an adversarial reviewer for your own
+about-to-relax-an-invariant reasoning — it caught this).
+
+## L30 — Before folding N call-sites onto ONE typed abstraction, verify they share the same OPERATION, not just the same data (2026-06-26)
+
+A "unify the seven untyped `compute_keff` functionals onto one `ReactionRateFunctional`" plan (a
+cross-domain-attacker re-seat recommendation) survived design review but COLLAPSED on contact with the actual
+code: the fission **row-factor** `⟨νΣf,φ⟩` contracts the **group** axis (per-cell density, keeps space), while
+the keff estimators `∫νΣf·φ dV` contract the **space** axis (per-group rate, keeps groups). They are DIFFERENT
+functionals — reconciling only at the fully-contracted scalar total (Fubini). "Seven copies of the same
+co-vector" was an illusion: same DATA (νΣf), different OPERATION (which axis). Forcing the fold would have
+either duplicated the production computation (the Cardinal-Rule-2 smell the whole carve REMOVED) or retired
+meaningful per-group diagnostics. Compounding it: each solver's keff is BESPOKE (SN (n,2n), CP net-removal,
+diffusion leakage, MoC per-region, homogeneous 0-D) — not a uniform fold at all.
+
+**How to apply:** when a plan says "type/unify these N call-sites with one abstraction," BEFORE building it
+(1) READ each call-site's actual reduction — which axis does it contract, what is the output shape/units? Two
+sites sharing a coefficient field are NOT the same functional if one contracts groups and the other contracts
+space. (2) The honest unit is the SHARED operation, not the shared data; if the sites differ, the abstraction
+is `⟨w,·⟩`-the-row-factor for some and `∫⟨w,·⟩dV`-the-scalar for others — possibly RELATED (one the degenerate
+or volume-integral of the other) but DISTINCT types. (3) Mid-execution, when reading the real bodies
+contradicts the plan's "uniform fold," STOP and reshape — don't force it (here: minted `IntegratedReactionRate
+= ∫⟨Σx,φ⟩dV` as the volume-integral of the density — a distinct type composing the row-factor + the measure —
+and routed only SN; the other four deferred as bespoke, #270). A structural reviewer judges the plan; only
+reading the code judges the fit.
+
+Cross-reference: `[[lessons-L24]]` (re-characterise sub-steps when the ground moves — same spirit, here
+triggered by reading the bodies); the test-architect "read all five `compute_keff` bodies first" reshaping is
+the concrete instance.
+
+## L31 — A sub-agent's VERDICT and its CAUSAL ATTRIBUTION are separable; verify the attribution against git/issues, not just the verdict (2026-06-26)
+
+The numerics-investigator correctly verified the current curvilinear sphere matvec is CORRECT and the red
+snapshot tests merely STALE (the VERDICT — backed by L0/L1 references + a mutation-proven probe), but
+MIS-ATTRIBUTED the cause to ERR-058 `3b088ee`. A `git log -- <fixture>` plus issue #250 showed the two
+snapshot stores were refreshed AT the ERR-058 fixed point (`798372f`) and again at #240; the true
+uncaptured diverging commit was the LATER `b2d8a6d` (spherical Morel–Montry τ-unclamp, Bailey Eq. 43,
+Refs #229). The investigator read the ORIGINAL capture commit and missed the refresh history — its verdict
+was unaffected, only the "why" was wrong.
+
+The discipline: "current is correct / the snapshot is stale" (verdict) and "commit X caused the drift"
+(attribution) are DIFFERENT claims with DIFFERENT evidence; a rock-solid verdict does NOT co-validate the
+attribution. Before writing a root-cause into a docstring/commit (Cardinal Rule 1), verify it with
+`git log -- <file>` (the fixture's refresh history settled it in one command), `git show --stat <commit>`,
+and the tracking issue — never transcribe a sub-agent's "because commit X" verbatim. Same session, the same
+`trust git` reflex caught origin/main sitting 64 commits behind a "ff-merged to main" memory claim.
+
+Cross-reference: `[[lessons-L12]]` (sub-agent closeouts — here honest-but-incomplete forensics, NOT
+fabrication); `[[lessons-L11]]` (verify, don't trust); `.claude/rules/process-discipline.md` (trust git,
+not frozen memory).
+
+## L32 — Dedup a shared concern at the container's OWN lowest layer; never route the lower-layer verb through the higher one (2026-06-27)
+
+P5.5 (energy-condensation reshape): two verbs assemble the same `Mixture` container from collapsed
+cross-section channels — `Mixture.condense` (the ENERGY collapse, a `data`-layer method) and
+`MaterialXSField.project_through` (the SPATIAL collapse, a `transport`-layer method). They DUPLICATED the
+channel-assembly taxonomy (the `csr`-wrap + `eg`-thread of SigT/SigC/.../SigS/Sig2/χ → a `Mixture`). An
+elegance review's shape ruling said "dissolve `Mixture.condense`; the single home is `project_through`." That
+was **layer-illegal**: `Mixture` is `data`, `project_through` is `transport`, and `data ↛ transport`, so a
+`data`-layer verb CANNOT route through a `transport`-layer verb. The correct refinement (which a fresh
+elegance pass then ruled SOUND): extract the shared assembler at the container's OWN lowest layer —
+`Mixture.from_dense_channels(...)` in `data` — and have BOTH verbs call DOWN to it (`condense` in data;
+`project_through` transport→data, allowed). The lower verb stays where it lives.
+
+The generalizable rule: when N verbs at DIFFERENT layers share a concern, the dedup target is a primitive at
+the **deepest** layer any of them sits in (or below), called by all — NOT the verb at the highest layer
+absorbing the others. "Single home = the existing verb that happens to do it" is wrong whenever that verb
+sits ABOVE a consumer; the home is the shared primitive at/below the lowest consumer. Corollary on what to
+extract: factor out only the part that is genuinely layer-and-axis-INVARIANT (here the assembly mechanics —
+`csr`-wrap + `eg`-thread), and leave the part that legitimately differs per verb (here the weighting
+taxonomy: energy marginalize-vs-average vs spatial flux-vs-production frames) in each verb — that asymmetry
+is real domain content, not a twin.
+
+**How to apply:** when a plan/review says "dissolve X into Y" or "Y is the single home," (1) check the LAYER
+of X, Y, and every consumer; (2) if Y is above any consumer of the shared concern, reject "route through Y"
+— site the shared primitive at the deepest consumer's layer instead; (3) verify the extracted unit is the
+invariant slice (mechanics), not the per-verb-varying slice (the weighting/axis). Generalises to every future
+cross-method coarsening verb (CP region-averaging, MoC FSR-merging, GEC rank>0) that assembles a shared
+container from a higher and a lower layer.
+
+Cross-reference: `[[lessons-L29]]` (don't relax an invariant to a weaker downstream check — same "scrutinize
+the tempting simplification" spirit); `[[lessons-L24]]` (re-characterise a plan's verb when the ground —
+here the layering — contradicts it); `.claude/rules/coding-standards.md` ("clean before extending" — the
+assembler is the single generic body both verbs extend through).
