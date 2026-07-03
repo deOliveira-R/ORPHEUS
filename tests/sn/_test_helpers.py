@@ -46,6 +46,26 @@ SN_TESTS_ROOT = Path(__file__).resolve().parent
 """Absolute path to ``tests/sn/`` — the anchor for shared test data."""
 
 
+def volume_weighted_l2(
+    values: np.ndarray, reference: np.ndarray, volumes: np.ndarray
+) -> float:
+    r"""Discrete measure-weighted L2 norm of a field error,
+    :math:`\lVert v - v_{\rm ref}\rVert_{2,V} = \sqrt{\sum_i V_i\,(v_i - v_{{\rm ref},i})^2}`.
+
+    The single source of truth for the MMS / convergence gates' error norm.
+    ``volumes`` is the cell measure of the mesh: cell widths for a slab,
+    radial shell volumes for curvilinear 1-D, cell areas/volumes in 2-D — in
+    every case the discrete measure that makes the sum a quadrature of
+    :math:`\int (v-v_{\rm ref})^2\,\mathrm{d}V`. Several
+    ``tests/sn/verification/mms/`` modules carry byte-identical private copies
+    of this norm (``_l2_1d`` / ``_l2`` / ``_l2_2d``); new gates consume THIS
+    primitive, and the legacy copies migrate here (the ``module:tests``
+    single-source follow-up).
+    """
+    diff = values - reference
+    return float(np.sqrt(np.sum(volumes * diff * diff)))
+
+
 def stamp_capability_marker(items, conftest_file: str, capability: str) -> None:
     """Apply ``@pytest.mark.cap(<capability>)`` to every test under a dir.
 
