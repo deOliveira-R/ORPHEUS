@@ -102,12 +102,12 @@ from typing import TYPE_CHECKING, TypeVar
 
 import numpy as np
 
-from orpheus.transport.fields._bases import BoundaryField, BulkField
+from orpheus.transport.fields._bases import BulkField, TraceField
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
 __all__ = ["FullField"]
@@ -134,10 +134,13 @@ class FullField:
         typically :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
         for SN, :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
         for CP / diffusion, ``RayField`` for MoC.
-    boundary : BoundaryField
+    boundary : TraceField
         The boundary partner field on the trace of ``bulk``'s domain.
-        Typically :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
-        for SN; method-specific for other methods.
+        Any :class:`~orpheus.transport.fields._bases.TraceField` family —
+        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        (angular) for SN,
+        :class:`~orpheus.transport.fields.partial_current.PartialCurrent`
+        (scalar ``(J⁺, J⁻)``) for diffusion / CP.
 
     Notes
     -----
@@ -164,7 +167,7 @@ class FullField:
     """
 
     bulk: BulkField
-    boundary: BoundaryField
+    boundary: TraceField
 
     # ── Construction ─────────────────────────────────────────────────
 
@@ -173,7 +176,7 @@ class FullField:
         cls,
         *,
         bulk: type[BulkField],
-        boundary: type[BoundaryField],
+        boundary: type[TraceField],
         mesh: "object",
     ) -> "FullField":
         r"""Allocate a zero timeless composite from the bulk + boundary leaf TYPES.
@@ -192,7 +195,7 @@ class FullField:
         bulk : type[BulkField]
             The bulk leaf CLASS to instantiate (must expose
             ``zeros_on(mesh)``).
-        boundary : type[BoundaryField]
+        boundary : type[TraceField]
             The boundary leaf CLASS to instantiate (must expose
             ``zeros_on(mesh)``).
         mesh : object
@@ -213,9 +216,10 @@ class FullField:
                 f"{type(self).__name__}: bulk must be a BulkField; got "
                 f"{type(self.bulk).__name__}"
             )
-        if not isinstance(self.boundary, BoundaryField):
+        if not isinstance(self.boundary, TraceField):
             raise TypeError(
-                f"{type(self).__name__}: boundary must be a BoundaryField; "
+                f"{type(self).__name__}: boundary must be a TraceField "
+                f"(a BoundaryField / PartialCurrent family leaf); "
                 f"got {type(self.boundary).__name__}"
             )
         # Mesh-identity check (where both members carry a ``mesh``
@@ -236,26 +240,26 @@ class FullField:
     # ── The composite's single mesh ───────────────────────────────────
 
     @property
-    def mesh(self) -> "SNMesh":
+    def mesh(self) -> "MaterialMesh":
         r"""The one mesh both leaves are bound to — the ``__post_init__``
         mesh-identity invariant made readable.
 
-        Read off the BOUNDARY leaf because its declaration carries the
-        narrow method-mesh type
-        (:class:`~orpheus.transport.fields._bases.BoundaryField` declares
-        ``mesh: SNMesh``); the ``bulk`` slot is deliberately the
-        cross-method :class:`~orpheus.transport.fields._bases.BulkField`,
-        whose ``mesh`` was widened to the method-agnostic
+        Read off the BOUNDARY leaf (kept from the pre-#290 SN-only
+        composite; either leaf works — the invariant guarantees
+        identity). The static type is the method-agnostic
         :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`
-        (#267), so reading through it would erase what the composite
-        invariant guarantees. Retires the operator-arm
-        ``cast("SNMesh", psi.bulk.mesh)`` family (#226 F2).
+        base: each trace family narrows its OWN ``mesh`` declaration
+        (:class:`~orpheus.transport.fields._bases.BoundaryField` →
+        ``SNMesh``), so an SN consumer that needs quadrature / sweep
+        data reads it off the SNMesh its operator was constructed with
+        (the #226 F2 pattern) or off the family-typed boundary leaf —
+        never through this method-generic surface.
         """
         return self.boundary.mesh
 
     # ── Polymorphic recombine hook (Pattern 2 — the algebra lives once) ─
 
-    def _recombine(self: T, *, bulk: BulkField, boundary: BoundaryField) -> T:
+    def _recombine(self: T, *, bulk: BulkField, boundary: TraceField) -> T:
         r"""Rebuild a composite of the SAME concrete type from a recombined pair.
 
         The single polymorphic hook the six vector-space dunders route

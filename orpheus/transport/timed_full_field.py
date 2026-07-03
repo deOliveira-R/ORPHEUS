@@ -133,7 +133,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from orpheus.transport.fields._bases import BoundaryField, BulkField
+from orpheus.transport.fields._bases import BulkField, TraceField
 from orpheus.transport.full_field import FullField
 
 __all__ = ["TimedFullField"]
@@ -196,7 +196,7 @@ class TimedFullField(FullField):
         cls,
         *,
         bulk: type[BulkField],
-        boundary: type[BoundaryField],
+        boundary: type[TraceField],
         mesh: "object",
         history_depth: int = 2,
     ) -> "TimedFullField":
@@ -215,7 +215,7 @@ class TimedFullField(FullField):
         bulk : type[BulkField]
             The bulk leaf CLASS to instantiate (must expose
             ``zeros_on(mesh)``).
-        boundary : type[BoundaryField]
+        boundary : type[TraceField]
             The boundary leaf CLASS to instantiate (must expose
             ``zeros_on(mesh)``).
         mesh : object
@@ -250,7 +250,7 @@ class TimedFullField(FullField):
     # ── Polymorphic recombine hook (carries history metadata) ────────
 
     def _recombine(
-        self, *, bulk: BulkField, boundary: BoundaryField,
+        self, *, bulk: BulkField, boundary: TraceField,
     ) -> "TimedFullField":
         r"""Rebuild a ``TimedFullField`` with empty history + preserved depth.
 
@@ -274,7 +274,7 @@ class TimedFullField(FullField):
     def advance(
         self,
         new_bulk: BulkField,
-        new_boundary: BoundaryField,
+        new_boundary: TraceField,
     ) -> "TimedFullField":
         r"""Push current ``(bulk, boundary)`` into history; install new as current.
 

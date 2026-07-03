@@ -265,7 +265,7 @@ def evaluate_residual(
         (the timed iterate would pass via inheritance, but the residual output is
         history-free regardless).
     """
-    from orpheus.transport.fields._bases import AngularField
+    from orpheus.transport.fields._bases import AngularField, BoundaryField
     from orpheus.transport.residuals import AngularResidual, BoundaryResidual
 
     lhs = loss_op.apply(psi)  # (L+C−S−B)·ψ — a source-role composite
@@ -279,13 +279,26 @@ def evaluate_residual(
             f"evaluate_residual: q_ext.bulk must be an angular-family "
             f"per-ordinate source; got {type(q_bulk).__name__}."
         )
+    # Same parse on the trace legs: the widened ``FullField.boundary`` slot
+    # (a TraceField since #290 P2) erases the family; the SN residual builder
+    # demands the ANGULAR trace on both sides.
+    lhs_boundary = lhs.boundary
+    q_boundary = q_ext.boundary
+    if not isinstance(lhs_boundary, BoundaryField) or not isinstance(
+        q_boundary, BoundaryField
+    ):
+        raise TypeError(
+            f"evaluate_residual: both composites must carry angular "
+            f"(BoundaryField-family) traces; got lhs "
+            f"{type(lhs_boundary).__name__}, rhs {type(q_boundary).__name__}."
+        )
     # A residual is a one-shot balance defect, not an iterate — it carries no
     # history, so it is the timeless FullField (the history_depth=0 degenerate
     # of TimedFullField; W-C confines the timed type to the driver iterate).
     return FullField(
         bulk=AngularResidual.from_balance(lhs=lhs.bulk, rhs=q_bulk),
         boundary=BoundaryResidual.from_balance(
-            lhs=lhs.boundary, rhs=q_ext.boundary,
+            lhs=lhs_boundary, rhs=q_boundary,
         ),
     )
 

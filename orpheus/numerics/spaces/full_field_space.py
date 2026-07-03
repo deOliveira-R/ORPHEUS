@@ -163,15 +163,21 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         ``G_bulk = V_cell · w_n`` as its ``inner_product_weights`` (shape
         broadcast against the ``(N, ng, nx, ny)`` bulk tensor). ``compare
         =False`` leaf metadata (not part of the ``(name, shape)`` identity).
-    trace_space : TraceSpace
-        The boundary leaf space, carrying the partial-current metric
-        ``G_trace = |Ω·n|·w_n``. ``compare=False`` leaf metadata.
+    trace_space : FunctionSpace
+        The boundary leaf space — the angular
+        :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+        (partial-current metric ``G_trace = |Ω·n|·w_n``) for SN, the
+        :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
+        (face-area metric over ``(J⁺, J⁻)`` pairs) for diffusion / CP
+        (#290 P2). The composite reads only the carrier-generic
+        FunctionSpace metric surface, so the block dispatch is
+        family-blind. ``compare=False`` leaf metadata.
     """
 
     bulk_space: Optional[FunctionSpace] = field(
         default=None, repr=False, compare=False,
     )
-    trace_space: "Optional[TraceSpace]" = field(
+    trace_space: Optional[FunctionSpace] = field(
         default=None, repr=False, compare=False,
     )
 
@@ -196,7 +202,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
     def from_blocks(
         cls,
         bulk_space: FunctionSpace,
-        trace_space: "TraceSpace",
+        trace_space: FunctionSpace,
     ) -> "FullFieldSpace":
         r"""Build the composite from its bulk and trace leaf spaces.
 
@@ -218,7 +224,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
     # Direct-sum metric dispatch (per-block, on a composite field)
     # ------------------------------------------------------------------
 
-    def _require_blocks(self) -> tuple[FunctionSpace, TraceSpace]:
+    def _require_blocks(self) -> tuple[FunctionSpace, FunctionSpace]:
         r"""Return the ``(bulk_space, trace_space)`` pair, guarding the bare-constructor footgun.
 
         The ``bulk_space`` / ``trace_space`` fields default to ``None`` (the

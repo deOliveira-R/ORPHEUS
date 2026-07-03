@@ -48,10 +48,12 @@ from __future__ import annotations
 
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
+from orpheus.transport.fields.partial_current import PartialCurrent
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 __all__ = [
     "CrossSectionField",
     "HarmonicMomentFlux",
+    "PartialCurrent",
     "ScalarFlux",
 ]

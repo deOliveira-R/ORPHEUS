@@ -114,7 +114,7 @@ class TestConstruction:
     def test_rejects_non_field_boundary(self) -> None:
         m = _slab_mesh()
         psi = AngularFlux.zeros_on(m)
-        with pytest.raises(TypeError, match="boundary must be a BoundaryField"):
+        with pytest.raises(TypeError, match="boundary must be a TraceField"):
             TimedFullField(bulk=psi, boundary="not a field")  # type: ignore[arg-type]
 
     def test_rejects_boundary_field_as_bulk(self) -> None:
@@ -141,7 +141,7 @@ class TestConstruction:
         """
         m = _slab_mesh()
         psi = AngularFlux.zeros_on(m)
-        with pytest.raises(TypeError, match="boundary must be a BoundaryField"):
+        with pytest.raises(TypeError, match="boundary must be a TraceField"):
             TimedFullField(bulk=psi, boundary=psi)  # type: ignore[arg-type]
 
     def test_rejects_mismatched_mesh(self) -> None:

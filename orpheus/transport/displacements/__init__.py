@@ -40,6 +40,9 @@ from orpheus.transport.displacements.angular_displacement import AngularDisplace
 from orpheus.transport.displacements.scalar_displacement import ScalarDisplacement
 from orpheus.transport.displacements.moment_displacement import MomentDisplacement
 from orpheus.transport.displacements.boundary_displacement import BoundaryDisplacement
+from orpheus.transport.displacements.partial_current_displacement import (
+    PartialCurrentDisplacement,
+)
 
 
 __all__ = [
@@ -48,4 +51,5 @@ __all__ = [
     "ScalarDisplacement",
     "MomentDisplacement",
     "BoundaryDisplacement",
+    "PartialCurrentDisplacement",
 ]

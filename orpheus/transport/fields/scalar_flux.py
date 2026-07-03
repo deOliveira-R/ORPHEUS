@@ -36,30 +36,28 @@ hand-coded dunder skeleton. The migration:
   single-region mesh of the homogeneous solver). Runtime-wise the
   ``mesh`` field is duck-typed; TYPE_CHECKING-only imports keep the
   layer contract clean.
-* Preserves the existing strict semantics: arithmetic across two
-  :class:`ScalarFlux` instances with DIFFERENT :class:`SNMesh`
-  identities is forbidden, even when the meshes have matching
-  shapes. This is enforced via a :meth:`_check_partner` override
-  that adds the mesh-identity check on top of Field's class-and-
-  space gate. See the docstring of :meth:`_check_partner` for the
-  full enforcement story.
+* Preserves the strict semantics: arithmetic across two
+  :class:`ScalarFlux` instances with DIFFERENT mesh identities is
+  forbidden, even when the meshes have matching shapes — enforced by
+  the inherited
+  :meth:`~orpheus.transport.fields._bases.BulkField._check_partner`
+  (the mesh-identity guard lives on the storage base, not this leaf).
 * Introduces :meth:`from_mesh` and :meth:`from_ndarray` classmethods
   for ergonomic 2-arg construction (the new dataclass is
   ``kw_only=True`` per Depth B plan §8 risk #1; positional
   construction is no longer available on the raw constructor).
 
-Why "SN-bound for now"
-======================
+Method-agnostic — and consumed as such since #290
+=================================================
 
-Conceptually :class:`ScalarFlux` is method-agnostic — a scalar flux
-distribution on a discretized phase space is a concept shared by
-SN, CP, MoC, and diffusion. But today the ONLY consumer is the SN
-solver chain; CP / MoC / diffusion still carry their own field
-representations. Per ``feedback_unify_after_two_instances``, the
-abstract :class:`TransportMesh` Protocol is DEFERRED until a second
-consumer arrives. Until then ``mesh: SNMesh`` is the most honest
-annotation: ScalarFlux is SN-bound by usage, even though its
-algebra is method-agnostic.
+A scalar flux distribution on a discretized phase space is a concept
+shared by SN, CP, MoC, and diffusion. The SN solver chain was the
+first consumer; the diffusion integration (#290) is the anticipated
+SECOND consumer — the scalar composite
+``FullField(bulk=ScalarFlux, boundary=PartialCurrent)`` is the
+diffusion operator family's carrier. With method #2 live, the
+deferred ``TransportMethod`` protocol trigger FIRES (the #290 P7
+phase; see ``.claude/plans/realize_recursively_move_spec.md``).
 
 Units (B.4 — declared as the ``UNITS`` class constant)
 ======================================================
@@ -89,16 +87,13 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 from numpy.typing import NDArray
 
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarField
 from orpheus.transport.fields._flux_role import FluxRole
-
-if TYPE_CHECKING:
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 __all__ = ["ScalarFlux"]
@@ -111,33 +106,33 @@ class ScalarFlux(FluxRole, ScalarField):
     Parameters
     ----------
     values : NDArray
-        Field values of shape ``(ng, nx, ny)`` (the principled
-        layout — Issue #196 PR-INDEX-7).
+        Field values of shape ``(ng, *spatial)`` — rank-adaptive
+        (``(ng, nx)`` on a 1-D mesh, ``(ng, nx, ny)`` on 2-D; the
+        principled group-leading layout, Issue #196 PR-INDEX-7).
     space : FunctionSpace
         The function space this flux lives on. Must satisfy
         ``space.shape == (mesh.ng, *mesh.spatial_shape)``. Construction
         via :meth:`from_mesh` is the canonical path; direct kw-only
         construction is for callers that already hold a constructed
         space.
-    mesh : SNMesh
-        The SN discretisation handle. Carries the per-cell volumes,
-        coordinate system, and angular quadrature reference that
-        downstream operators read.
+    mesh : MaterialMesh
+        The method-agnostic mesh+materials carrier (#267). Carries the
+        per-cell volumes and coordinate system downstream operators
+        read; SN callers pass their :class:`SNMesh` (a
+        :class:`MaterialMesh` subclass), diffusion / CP pass the plain
+        material mesh.
 
     Notes
     -----
     Algebra is inherited from :class:`~orpheus.numerics.field.Field`
     (dunders ``+``, ``-``, unary ``-``, scalar ``*``, scalar ``/``,
     plus diagnostics ``linf``, ``l2``, ``inner_product``, ``copy``).
-    The :meth:`_check_partner` override adds the SN-specific
-    mesh-identity check on top of Field's class-and-space gate.
+    The inherited
+    :meth:`~orpheus.transport.fields._bases.BulkField._check_partner`
+    adds the mesh-identity check on top of Field's class-and-space gate.
 
     Per-group selectors (:meth:`at_group`) return ``np.ndarray``
     VIEWS into ``values`` — downstream callers must not mutate them.
-
-    The ``mesh`` annotation is a ``TYPE_CHECKING``-guarded forward
-    reference because :class:`SNMesh` lives at L3 and this class
-    lives at L2. At runtime ``mesh`` is duck-typed.
     """
 
     #: The :class:`FunctionSpace` name for this leaf (preserves the

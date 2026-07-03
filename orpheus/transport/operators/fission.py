@@ -500,9 +500,11 @@ class FissionOperator(LinearOperator):
             AngularSourceSink,
             BoundarySourceSink,
         )
-        # The composite's one mesh (``FullField.mesh`` — read off the
-        # boundary leaf, which carries the SNMesh declaration).
-        mesh = psi.mesh
+        # The composite's one mesh, read off the PARSED angular bulk —
+        # ``AngularField.mesh`` carries the SNMesh declaration the widened
+        # composite surfaces erase (#290 P2; same object by the composite's
+        # mesh-identity invariant).
+        mesh = bulk.mesh
         per_ord = AngularSourceSink.from_isotropic(
             fission_iso.values, mesh,
         )

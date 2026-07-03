@@ -40,7 +40,7 @@ L3 method package — which is exactly what let it be promoted out of
 
 from __future__ import annotations
 
-from functools import reduce
+from functools import cached_property, reduce
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -51,12 +51,15 @@ from orpheus.transport.mesh.axis import (
     AxisMesh,
     axes_from_legacy_mesh,
     coord_system as _axis_coord_system,
+    face_labels as _face_labels,
+    face_shape as _face_shape,
     spatial_shape as _axis_spatial_shape,
 )
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.geometry import CoordSystem
+    from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
@@ -415,6 +418,39 @@ class MaterialMesh:
                 "face-area data lives in the underlying Mesh2D directly."
             )
         return self._areas
+
+    @cached_property
+    def scalar_trace(self) -> "ScalarTraceSpace":
+        r"""The scalar boundary-trace space — per-face ``(J⁺, J⁻)`` pairs.
+
+        Built ONCE from this mesh's own axis data (the SNMesh ``.trace``
+        precedent, quadrature-free): the face inventory comes from
+        :func:`~orpheus.transport.mesh.axis.face_labels` (the pole of a
+        radial axis is not a face and never appears), each face's
+        surface measure from :attr:`areas` (slab 1, cylinder
+        :math:`2\pi R`, sphere :math:`4\pi R^2`) as the trace metric.
+        Consumed by the scalar trace family
+        (:class:`~orpheus.transport.fields.partial_current.PartialCurrent`)
+        and the diffusion boundary machinery (#290 P2–P4).
+
+        1-D meshes only today (mirrors :attr:`areas` — 2-D face areas
+        live in the underlying ``Mesh2D``; extend when a 2-D scalar
+        trace consumer arrives).
+        """
+        from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
+
+        labels = _face_labels(self.axes)
+        faces = [
+            (label.face_name, _face_shape(self.axes, label))
+            for label in labels
+        ]
+        face_areas = {
+            label.face_name: float(
+                self.areas[0] if label.endpoint == "min" else self.areas[-1]
+            )
+            for label in labels
+        }
+        return ScalarTraceSpace.for_faces(faces, self.ng, face_areas)
 
     @property
     def ndim(self) -> int:

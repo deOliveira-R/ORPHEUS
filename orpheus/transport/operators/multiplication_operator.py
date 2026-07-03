@@ -340,16 +340,27 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         (a multiplier has no face-trace action — the cell-balance
         :math:`f\,\psi` term is a CELL quantity).
         """
+        from orpheus.transport.fields._bases import AngularField
         from orpheus.transport.source_sinks import (
             AngularSourceSink,
             BoundarySourceSink,
         )
 
-        # SN arm: builds per-ordinate AngularSourceSink on the composite's one
-        # mesh — ``FullField.mesh`` reads it off the boundary leaf, whose
-        # declaration carries the SNMesh type the widened bulk slot erases.
-        mesh = psi.mesh
-        out_bulk = self.engine.apply(psi.bulk.values)
+        # Angular arm ONLY today: the output broadcast (per-ordinate
+        # AngularSourceSink) is meaningless for a scalar composite — parse
+        # the family loudly at the seam (#289 discipline; the scalar arm
+        # lands with the diffusion operator family, #290 P4). The mesh is
+        # read off the PARSED bulk, whose AngularField declaration carries
+        # the SNMesh type the widened composite surfaces erase.
+        bulk = psi.bulk
+        if not isinstance(bulk, AngularField):
+            raise TypeError(
+                f"MultiplicationOperator composite apply: angular-family "
+                f"bulk required (the per-ordinate broadcast arm); got "
+                f"{type(bulk).__name__}."
+            )
+        mesh = bulk.mesh
+        out_bulk = self.engine.apply(bulk.values)
         return FullField(
             bulk=AngularSourceSink.from_mesh(out_bulk, mesh),
             boundary=BoundarySourceSink.zeros_on(mesh),
@@ -394,13 +405,20 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         boundary the implicit-zero
         :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`.
         """
+        from orpheus.transport.fields._bases import AngularField
         from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
-        # SN arm (see :meth:`apply`): the inverse returns a flux on the
-        # composite's one mesh (``FullField.mesh``).
-        mesh = q.mesh
-        out_bulk = self.engine.solve(q.bulk.values)
+        # Angular arm ONLY today (see :meth:`apply` — same #289 seam parse);
+        # the mesh comes off the parsed bulk's SNMesh-typed declaration.
+        bulk = q.bulk
+        if not isinstance(bulk, AngularField):
+            raise TypeError(
+                f"MultiplicationOperator composite solve: angular-family "
+                f"bulk required; got {type(bulk).__name__}."
+            )
+        mesh = bulk.mesh
+        out_bulk = self.engine.solve(bulk.values)
         return FullField(
             bulk=AngularFlux.from_mesh(out_bulk, mesh),
             boundary=BoundaryFlux.zeros_on(mesh),
