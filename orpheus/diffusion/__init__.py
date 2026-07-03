@@ -15,7 +15,9 @@ shared engines (P5):
 * ``DiffusionBoundaryRealizer`` / ``DiffusionMethodSpace`` — the
   albedo-family law realization ``J⁻ = 𝒜·J⁺`` (closes #182).
 
-Importing the package auto-registers the realizer.
+``DiffusionMesh`` realizes its boundary laws at construction through the
+shared :func:`orpheus.transport.method.resolve_boundary_conditions` body
+(the string-keyed realizer registry was dissolved at #290 P7b).
 
 The legacy MATLAB-port island (``CoreGeometry`` / ``TwoGroupXS`` / the
 BiCGSTAB solver) was retired at #290 P6; ``orpheus.diffusion.solver``
@@ -32,7 +34,8 @@ from .solver import DiffusionResult, DiffusionSolver, solve_diffusion_1d
 
 # #290 P3 (closes #182) -- the FUNCTIONAL DiffusionBoundaryRealizer
 # (albedo family J⁻ = 𝒜·J⁺ on the scalar partial-current trace) +
-# its method space. Importing the module auto-registers the realizer.
+# its method space. Owned directly by DiffusionMesh (P7b dissolved the
+# realizer registry — no import-side-effect registration remains).
 from .boundary_realizer import DiffusionBoundaryRealizer
 from .method_space import DiffusionMethodSpace
 

@@ -1949,14 +1949,21 @@ Petrov–Galerkin bilinear :math:`\langle\phi^\dagger, M[\Sigma_x]\,\phi
 
 .. note::
 
-   **Scope.** Only the SN :math:`k`-eigenvalue is routed through
+   **Scope.** The SN :math:`k`-eigenvalue routes through
    :class:`IntegratedReactionRate
    <orpheus.transport.reaction_rate_functional.IntegratedReactionRate>`
-   today. The CP, MoC, and diffusion eigenvalues are **not yet** routed
-   (deferred); the homogeneous 0-D case has no spatial integral to fold,
-   so it does not participate. Do not read this section as a claim that
-   every solver's :math:`k` flows through the typed functional — it is the
-   SN path, with the others a documented follow-on.
+   for **both** its numerator and denominator. Diffusion (#290) routes
+   its **production** rate through the same functional (the #270
+   diffusion arm — see :doc:`/theory/diffusion_1d`), but poses its
+   denominator as the integrated loss-operator action
+   :math:`\langle 1, (A\psi)_{\rm bulk}\rangle_V` (= absorption +
+   leakage by the column-sum theorem), not a second reaction-rate
+   contraction. The CP and MoC eigenvalues are **not yet** routed;
+   the homogeneous 0-D case has no spatial integral to fold, so it
+   does not participate. Do not read this section as a claim that every
+   solver's :math:`k` flows through the typed functional in the same
+   way — it is the SN path, with diffusion's production numerator the
+   one other current consumer.
 
 .. (vv-status rationale) Structural / decomposition label: the SN
    eigenvalue expressed as a ratio of integrated reaction rates. Not a new
@@ -4212,12 +4219,19 @@ what actually happened, is:
      - A diffusion-synthetic accelerator was expected to consume an
        isolated spatial-streaming leaf as the operator to precondition.
      - DSA consumes the **fused residual** of :math:`(L+C-S)` plus a
-       *separate* diffusion operator :math:`A_{\rm diff} = L + C - S`
-       built in-algebra; it never needs the streaming term split from
+       *separate* diffusion operator :math:`A_{\rm diff}` built
+       in-algebra; it never needs the streaming term split from
        collision, let alone the forward direction split from the
-       backward. The accelerator (Issue #2) never landed, and the
-       architecture decided on its issue is the in-algebra diffusion
-       operator, not a per-direction streaming leaf.
+       backward. That diffusion operator now **exists** —
+       :math:`A_{\rm diff} = L + C - S - B` on the scalar composite
+       (:mod:`orpheus.diffusion.operators`, #290 P4;
+       :doc:`/theory/diffusion_1d`), inverted by an explicit
+       :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+       and correctness-safe by construction (its low-order correction
+       :math:`\to 0` at convergence). The accelerator (Issue #2) itself
+       is still unbuilt, but the architecture it decided on is this
+       in-algebra diffusion operator, not a per-direction streaming
+       leaf.
    * - **#200 block-inverse preconditioner**
      - A per-direction leaf was expected to feed a block-inverse Krylov
        preconditioner that addressed each direction block.
@@ -4302,9 +4316,12 @@ and verified end-to-end by the anisotropic curvilinear MMS
    ``_MSpatialOperatorSum``. The structural obstruction above — that the
    forward-backward coupling makes the directions inseparable — has to be
    addressed first: the consumer would need a formulation in which the
-   coupling itself is the object being preconditioned (e.g. an in-algebra
-   diffusion operator for DSA, per the architecture decided on Issue #2),
-   not a re-split of the sweep into directions that secretly share state.
+   coupling itself is the object being preconditioned (e.g. the
+   in-algebra diffusion operator for DSA — now built as
+   :math:`A_{\rm diff} = L + C - S - B`, #290 P4,
+   :doc:`/theory/diffusion_1d` — per the architecture decided on
+   Issue #2), not a re-split of the sweep into directions that secretly
+   share state.
    The fused
    :meth:`~orpheus.sn.loss_representation._OneDimScanWalk.loss_action`
    /
@@ -6225,9 +6242,11 @@ GMRES defect stays the *flat* :math:`b - A\psi` on the raveled vector
 (never typed as a field). The typed residual is also the literal
 substrate the **consistent DSA** low-order correction (Issue #2) will
 consume — DSA computes the transport residual, then a diffusion
-correction; :eq:`affine-typed-residual-eq` is that transport residual,
-typed. (``as_dsa_source`` lands WITH DSA #2, per the
-build-the-genuine-primitive-defer-the-speculative-tail discipline.)
+correction through the in-algebra diffusion operator
+:math:`A_{\rm diff} = L + C - S - B` (now built, #290 P4;
+:doc:`/theory/diffusion_1d`); :eq:`affine-typed-residual-eq` is that
+transport residual, typed. (``as_dsa_source`` lands WITH DSA #2, per
+the build-the-genuine-primitive-defer-the-speculative-tail discipline.)
 
 
 Numerical evidence
@@ -9919,7 +9938,8 @@ The four layers
      - the fixed-source inner solve. SN:
        :class:`~orpheus.numerics.iteration.SourceIteration` /
        :class:`~orpheus.numerics.iteration.KrylovAcceleration`. CP:
-       BiCGSTAB. Diffusion: FD solve. Inverts *whatever*
+       BiCGSTAB. Diffusion: direct FD inverse (exact LU of the fused
+       :math:`A`, no inner iteration — #290). Inverts *whatever*
        :math:`A_{\rm loss}` the posing produced; independent of problem
        type.
    * - 4
@@ -10124,15 +10144,22 @@ different layers:
   via an inner :class:`~orpheus.numerics.iteration.SourceIteration`.
 
 The late-bound layer is **strictly more general**: it admits *both* the
-operator-triple resolvent (SN, MoC) *and* the **monolithic-matrix
-resolvent** (CP, diffusion, homogeneous) that has no :math:`(A, S, F)`
-factorization. The early-bound layer can only express methods whose
-resolvent factors as :math:`(A-S)^{-1}` from a triple — strictly
-narrower. The general layer cannot be expressed in terms of the narrow
-one without *manufacturing fictitious* :math:`A`, :math:`S` operators
-for CP/diffusion (which have no sweep). Therefore the **Protocol layer
-is canonical** and the **triple layer is a specialization that adapts
-into it**.
+sweep-posed operator-triple resolvent (SN, MoC — where the inner
+:math:`(A-S)^{-1}` is a source iteration over the sweep :math:`A^{-1}`)
+*and* the **monolithic-matrix resolvent** (CP, diffusion, homogeneous —
+a single direct inverse). The early-bound layer can only express
+methods whose resolvent factors as :math:`(A-S)^{-1}` from a triple via
+that inner sweep — strictly narrower. Diffusion is the instructive case:
+it *does* now carry an in-algebra :math:`(L, C, S, F)` family (#290;
+:doc:`/theory/diffusion_1d`), yet it still belongs to the monolithic
+camp, because it has **no sweep** — its resolvent is the explicit
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+of the *fused* :math:`A = L + C - S - B` (the scattering already
+subtracted in), not an :math:`(A-S)^{-1}` iterated over a within-group
+solve. Forcing CP or diffusion into the narrow layer would mean
+manufacturing a fictitious sweep they do not have. Therefore the
+**Protocol layer is canonical** and the **triple layer is a
+specialization that adapts into it**.
 
 .. list-table:: ``power_iteration`` vs ``KEigenvalue`` — same morphism, two layers
    :header-rows: 1
@@ -10192,7 +10219,8 @@ homogeneous all drive the same loop directly via the Protocol; the
    outer iterations (dropping the angular moments), not of
    ``KEigenvalue``. The decisive — and sufficient — reason
    ``KEigenvalue`` cannot be the universal engine is the
-   CP/diffusion/homogeneous **no-triple** fact alone.
+   CP/diffusion/homogeneous **monolithic-resolvent (no-sweep)** fact
+   alone.
 
 
 The metric lives at the leaf, not the posing

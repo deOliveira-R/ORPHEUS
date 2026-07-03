@@ -234,6 +234,25 @@ NEW warning; it is BLIND to staleness.
   rest of the package stays plain. The `:class:` ref staying plain-text
   is NOT a regression to fix — it is the convention; repoint a dead one
   to the LIVE module path (still plain-text, but now correct) and move on.
+- **`:noindex:`-automodule'd is xref-invisible too — a WHOLE package can
+  be plain-text page-wide even though it IS `automodule`'d.** An api page
+  that `automodule`s every module of a package with `:noindex:`
+  (`docs/api/diffusion_1d.rst` does this for all of `orpheus.diffusion.*`)
+  registers NO cross-reference targets, so EVERY `:class:`/`:func:` to
+  that package renders plain-text everywhere, while sibling packages
+  automodule'd WITHOUT `:noindex:` (transport.method, numerics.eigenvalue,
+  data.macro_xs.mixture) link normally. Diagnose by HTML link-audit
+  (`grep 'href="[^"]*Symbol"' built.html` — empty ⇒ plain-text) + read the
+  api page's automodule options; the module appearing in Sphinx's
+  "highlighting module code" list means viewcode processed it, NOT that it
+  has an xref target. This is NOT a defect to fix by editing the api page
+  (often out of scope / forbidden) — keep the semantically-correct
+  `:class:` markup (greppable, import-verified, auto-links if `:noindex:`
+  is ever lifted), and FLAG the package-wide `:noindex:` as a candidate
+  infra fix. The grep/import gate (symbol EXISTS) is the real cross-ref
+  check; the link is governed by the untouchable api page. (Worked: #290
+  P8 — all diffusion `:class:` refs plain-text via the api page's
+  `:noindex:`; all 31 cited symbols import-resolved regardless.)
 - **`automodule`-readiness is a MULTI-gate test; the 0-`:label:` check is
   necessary but NOT sufficient.** A leaf with NO `.. math:: :label:` is
   safe from the *duplicate-label* collision — but automodule RENDERS the

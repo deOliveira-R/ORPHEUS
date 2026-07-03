@@ -198,6 +198,13 @@ These hold a reusable doc-design RECIPE, not a campaign log:
   6-subsection shape; the method-implementer-stubs / archivist-expands
   separation. (Generalised in `lessons.md` L5 + the `algebra-of-record`
   skill.)
+- [solver-replacement campaign close-out](feedback_solver_replacement_campaign_closeout.md)
+  — P8 recipe when a legacy "island" solver is REPLACED by the operator-algebra family:
+  theory overhaul (+ rejected-alternative `.. warning::`, refs untouched) · mis-named-law
+  re-attribution (rename the LAW word, KEEP math+labels) · investigation-history LIVE/MOOT
+  split · sibling forward-ref "expected→now real, consumer still unbuilt" · brief-vs-live
+  registry catch · per-phase Dev-history table. Instance #290. Traps: verifies-targets grep
+  TREE-WIDE; `:noindex:`-whole-package plain-text (L-002).
 - [type-confinement docstring sync](feedback_type_confinement_docstring_sync.md)
   — code-FINAL docstring/comment/error-string sync to a surgical carve
   that CONFINES a subtype to one role (the driver iterate OUTPUT) while

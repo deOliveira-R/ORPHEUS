@@ -11,11 +11,30 @@ solver in the strict sense — it discards angular information
 beyond the current — but it is the workhorse of reactor design and
 its verification is a mathematical problem in its own right.
 
-This page carries the continuous reference solutions for the
-ORPHEUS diffusion module and the equation labels the verification
-tests point at. It is deliberately scoped to **1D plane geometry**:
-multi-dimensional diffusion and cylindrical/spherical variants are
-tracked as follow-ups.
+This page documents the ORPHEUS diffusion module on two levels. It
+carries the **production operator-family architecture** (#290 — how
+the solver poses and inverts the multigroup diffusion criticality
+problem in the shared operator algebra
+:math:`(L + C - S - B)\psi = \tfrac1k F\psi`) *and* the **continuous
+reference solutions** with the equation labels the verification tests
+point at. The operators are 1-D but coordinate-general (slab /
+cylinder / sphere through the mesh's own face areas and cell volumes);
+a multi-dimensional stencil is a deliberate extension seam, refused at
+mesh construction. The analytical references below are plane-slab.
+
+.. note::
+
+   **The MATLAB-port island is gone.** Until #290 the module was a
+   443-line MATLAB port — raw ``(2, n_cells)`` arrays, a scipy
+   BiCGSTAB inner solver, its own ``TwoGroupXS`` / ``CoreGeometry``
+   containers, string boundary keys, and a hardcoded 2-group
+   ``sig_s[::-1]`` down-scatter flip. It was retired at #290 P6;
+   ``orpheus.diffusion.solver`` now *is* the modern operator-algebra
+   solver (family-naming parity with ``sn`` / ``cp`` / ``homogeneous``).
+   The :ref:`diffusion-2rg-investigation-history` section below is the
+   preserved post-mortem of the *reference-solution* dead ends — the
+   island-specific solver dead end (#4) is flagged as history that no
+   longer applies to the exact-LU modern path.
 
 .. contents::
    :local:
@@ -25,9 +44,9 @@ tracked as follow-ups.
 Key Facts
 =========
 
-- The 1D multigroup diffusion equation in plane geometry is a
-  second-order elliptic boundary-value problem in :math:`\phi_g(x)`
-  with vacuum Dirichlet conditions at the slab edges:
+- **Classical form.** The 1-D multigroup diffusion equation in plane
+  geometry is a second-order elliptic boundary-value problem in
+  :math:`\phi_g(x)`:
 
   .. math::
      :label: diffusion-operator
@@ -37,60 +56,529 @@ Key Facts
        = \sum_{g' \ne g} \Sigma_{s,g' \to g}\,\phi_{g'}
        + \frac{1}{k}\,\chi_g\sum_{g'}\nu\Sigma_{f,g'}\,\phi_{g'}.
 
-- The diffusion coefficient in each region is computed from the
+- **Operator-family form (production, #290).** ORPHEUS does *not*
+  discretise :eq:`diffusion-operator` term-by-term. It poses the
+  criticality problem in the shared operator algebra — the same
+  :math:`(L + C - S - F/k)` form the S\ :sub:`N` solver introduced — as
+
+  .. math::
+     :label: diffusion-operator-family
+
+     \underbrace{(L + C - S - B)}_{A}\,\psi \;=\; \frac{1}{k}\,F\,\psi ,
+
+  acting on the scalar composite field :math:`\psi`. Here :math:`L` is
+  the elliptic **leakage** leaf :math:`-\nabla\!\cdot D\nabla`,
+  :math:`C` the **collision** multiplication by :math:`\Sigma_t`,
+  :math:`S` the **scattering** kernels, :math:`B` the realized
+  **boundary** albedo block, and :math:`F` the rank-1 fission
+  production :math:`\chi\otimes\nu\Sigma_f`. The removal cross section
+
+  .. math::
+
+     \Sigma_{r,g} \;=\; \Sigma_{t,g} - \Sigma_{s,g\to g}
+
+  is then a **theorem** — the in-group cancellation between :math:`C`
+  and :math:`S`, :math:`\mathbf 1^{\mathsf T}(C - S) = \Sigma_a` — never
+  an assembled input. See :ref:`diffusion-operator-family-section`.
+
+- **Diffusion coefficient.** In each region :math:`D` is built from the
   transport cross section:
 
   .. math::
      :label: diffusion-coefficient
 
-     D_g(x) \;=\; \frac{1}{3\,\Sigma_{\text{tr},g}(x)}.
+     D_g(x) \;=\; \frac{1}{3\,\Sigma_{\text{tr},g}(x)} ,
+     \qquad
+     \Sigma_{\text{tr},g} = \Sigma_{t,g}
+       - \sum_{g'}\Sigma_{s1,\,g\to g'} .
 
-- The removal cross section is the total minus in-group
-  scattering:
+  The transport correction is the *outflow* P1 approximation; when the
+  mixture carries no P1 moment, :math:`\Sigma_{\text{tr}} = \Sigma_t`
+  **exactly** — the correct isotropic-scattering limit, not a fallback.
+  See :ref:`diffusion-data-seam`.
+
+- **Discretisation.** Cell-centred finite difference with harmonic-mean
+  face conductance (equivalent to lowest-order Raviart–Thomas with mass
+  lumping); the design spatial order is :math:`\mathcal O(h^{2})` for
+  smooth cross sections and :math:`\mathcal O(h)` at material interfaces
+  that do not lie on cell faces.
+
+- **Boundary conditions are the albedo family on the partial-current
+  trace.** The boundary state is the per-face, per-group pair of
+  half-range partial currents :math:`(J^+, J^-)` (outflow, inflow); a
+  linear homogeneous diffusion boundary law collapses to a single
+  scalar response per face,
 
   .. math::
 
-     \Sigma_{r,g} \;=\; \Sigma_{t,g} - \Sigma_{s,g\to g}.
+     J^- \;=\; \mathcal{A}\,J^+ .
 
-- Standard discretisation is central finite difference on a
-  uniform mesh; the design spatial order is
-  :math:`\mathcal O(h^{2})` for smooth cross sections and
-  :math:`\mathcal O(h)` at material interfaces that do not lie on
-  cell faces.
-
-- Boundary conditions are configurable via
-  :attr:`DiffusionSolver.BC_REGISTRY` and declared on the geometry
-  through :class:`~diffusion.solver.CoreGeometry`'s ``bc_bottom`` and
-  ``bc_top`` fields (both default to ``"vacuum"``).  Two kinds are
-  supported:
-
-  .. list-table:: Diffusion Boundary Conditions
+  .. list-table:: Diffusion boundary laws (the albedo family)
      :header-rows: 1
-     :widths: 15 35 35
+     :widths: 20 10 70
 
-     * - Kind
+     * - Law (``BC`` tag)
+       - :math:`\mathcal{A}`
        - Physics
-       - Gradient at face
-     * - ``"vacuum"`` (default)
-       - Hard Dirichlet :math:`\phi = 0`
-       - :math:`\partial\phi/\partial z = \phi_{\text{cell}} / (0.5\,\Delta z)`
+     * - ``"vacuum"``
+       - :math:`0`
+       - **Marshak**: zero incoming current :math:`J^- = 0`. In
+         :math:`(\phi, J)` variables this is the Robin condition
+         :math:`\phi + 2 D\,\partial_n\phi = 0` (Marshak 1947).
      * - ``"reflective"``
-       - Neumann :math:`\partial\phi/\partial n = 0` (zero net current)
-       - :math:`\partial\phi/\partial z = 0`
+       - :math:`1`
+       - zero net current :math:`J^+ = J^-` — a symmetry plane.
+     * - ``"albedo"`` (:math:`\alpha`)
+       - :math:`\alpha`
+       - partial return :math:`J^- = \alpha J^+`, physical range
+         :math:`\alpha \in [0, 1]`.
+     * - ``"zero_flux"``
+       - :math:`-1`
+       - Dirichlet :math:`\phi_\Gamma = 0` (since
+         :math:`\phi_\Gamma = 2(J^+ + J^-)`, this is
+         :math:`J^- = -J^+`) — a mathematical idealisation, deliberately
+         outside the physical :math:`[0, 1]` range.
+     * - ``"white"``
+       - :math:`1`
+       - coincides with reflective at the P1 level (the angular
+         redistribution distinguishing them integrates out of the
+         half-range moments); deliberately **absent** from the diffusion
+         registry — declare ``reflective``.
 
-  The vacuum condition uses the zero-flux variant (contrast with the
-  extrapolation-distance Marshak form).  This choice is intentional:
-  it lets the analytical reference solutions below be pure sinusoids
-  without an extrapolation-length fudge, so the spatial convergence
-  test isolates finite-difference error.  The reflective condition
-  enforces zero net current at the boundary, useful for symmetry
-  planes or quarter-core calculations.
+  .. important::
 
-  Both BCs are applied in the shared :meth:`DiffusionSolver._boundary_gradient`
-  method, which consolidates the gradient computation for all faces.
-  The BC kind is resolved from the registry at solver construction::
+     **Vacuum means** :math:`J^- = 0` **(Marshak), not**
+     :math:`\phi = 0`. The retired MATLAB island registered a
+     hard-Dirichlet :math:`\phi = 0` wall under the key ``"vacuum"`` —
+     unfaithful naming (a zero-flux wall returns a *negative* incoming
+     current, which no vacuum does). Ruling 3 of #290 corrected this:
+     vacuum IS the Marshak zero-incoming-current condition, and the
+     zero-flux Dirichlet idealisation became its own honestly-named law
+     ``BC("zero_flux")`` (:math:`\mathcal{A} = -1`). The analytical
+     sine references on this page satisfy :math:`\phi = 0` and are
+     therefore **zero-flux** references — re-attributed accordingly at
+     #290 P6, with the mathematics unchanged (see
+     :ref:`diffusion-1g-bare-slab`). The faithful vacuum (Marshak
+     :math:`J^- = 0`) is verified today by property-level gates
+     (:math:`J^- = 0` at the solution, :math:`k` strictly bracketed
+     between the zero-flux and reflective values); an analytical
+     Robin-face reference is the close-out follow-up **#293**.
 
-      solver = DiffusionSolver(CoreGeometry(bc_bottom="reflective", bc_top="vacuum"))
+  Boundary conditions are **declared on the mesh axes** — each endpoint
+  carries a :class:`~orpheus.geometry.mesh.BC` tag — and **realized at
+  construction**: promoting a mesh to a
+  :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` resolves each
+  face's tag into its typed law and then the albedo operator, through
+  the same shared
+  :func:`~orpheus.transport.method.resolve_boundary_conditions` body the
+  S\ :sub:`N` mesh uses (#290 P7). A solver never carries a boundary
+  registry; a diffusion phase space with unresolved boundary conditions
+  is unrepresentable. The three-layer decomposition (trace structure /
+  physical law / method realisation) is documented on
+  :doc:`/theory/boundary_conditions`.
+
+
+.. _diffusion-operator-family-section:
+
+Operator-family architecture (production)
+=========================================
+
+The production solver (#290) does not carry a diffusion-specific matvec.
+It composes the loss :math:`A = L + C - S - B` and the gain :math:`F`
+from the shared operator algebra of :doc:`/theory/operator_algebra`,
+inverts :math:`A` exactly, and drives the outer power iteration through
+the *same* :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver`
+protocol boundary the S\ :sub:`N`, CP, and homogeneous solvers plug
+into. This section is the design record: what each leaf is, why the
+resolvent is an explicit inverse rather than an operator splitting, how
+the phase space and the boundary laws are layered onto the mesh, and the
+gates that pin it.
+
+The scalar composite
+--------------------
+
+Diffusion acts on the **scalar composite** field
+
+.. math::
+
+   \psi \;=\; \text{FullField}\bigl(\text{bulk}=\phi,\;
+              \text{boundary}=(J^+, J^-)\bigr),
+
+whose bulk is the group-resolved scalar flux
+:class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` and whose
+boundary is the per-face partial-current trace
+:class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`.
+The trace degrees of freedom are honestly **part of the eigenvector**:
+the converged mode carries its boundary partial currents, typed and
+inspectable, rather than reconstructing them by a post-processing
+gradient (the island's approach). Bulk and trace couple through the
+half-range P1 dictionary
+
+.. math::
+   :label: diffusion-partial-current-dictionary
+
+   J^\pm \;=\; \frac{\phi_\Gamma}{4} \pm \frac{J}{2},
+   \qquad
+   \phi_\Gamma = 2(J^+ + J^-),
+   \qquad
+   J = J^+ - J^- ,
+
+under the same :math:`\lvert\Omega\cdot\hat n\rvert\,w` half-range
+metric as the S\ :sub:`N` angular trace — degenerated here to the bare
+face **area** because the currents are already angle-integrated. (This
+shared metric is exactly what makes the future DSA restriction
+well-posed; see :ref:`diffusion-dsa-seam`.) Within the pair
+:math:`J = J^+ - J^-` is **exact** for any angular distribution, while
+:math:`\phi_\Gamma = 2(J^+ + J^-)` holds only under the P1 closure —
+the reason the flux accessor is fenced ``p1_boundary_scalar_flux`` while
+``net_current`` is unprefixed.
+
+.. _diffusion-leakage-boundary-leaves:
+
+The leakage leaf L and the boundary block B
+-------------------------------------------
+
+:math:`L` (:class:`~orpheus.diffusion.operators.LeakageOperator`,
+``BlockRole.FULL``) is the elliptic sibling of the S\ :sub:`N` streaming
+operator: the **one** leaf that couples bulk :math:`\leftrightarrow`
+boundary. Its bulk rows are the conservative finite-difference
+divergence :math:`[(A_f J)_{i+1/2} - (A_f J)_{i-1/2}]/V_i` with the
+current-continuous interior face current
+
+.. math::
+   :label: diffusion-interior-conductance
+
+   J_f \;=\; -\,g_f\,(\phi_R - \phi_L),
+   \qquad
+   g_f \;=\; \Bigl(\frac{h_L}{2 D_L} + \frac{h_R}{2 D_R}\Bigr)^{-1} ,
+
+the series sum of two half-cell resistances (the harmonic-mean-of-\
+:math:`D` form). Interior currents stay **condensed** — never trace
+degrees of freedom — and the same
+:meth:`~orpheus.diffusion.operators.LeakageOperator.face_currents`
+reconstruction that :meth:`~orpheus.diffusion.operators.LeakageOperator.apply`
+consumes for the divergence is what serves the production current
+profile (a single source, bit-identical). Written with the mesh's own
+face areas :math:`A_f` and cell volumes :math:`V_i`, the *same* body is
+correct on slab (:math:`A_f \equiv 1`, :math:`V = h`), cylinder, and
+sphere (whose pole is not a face — the :math:`r = 0` slot simply carries
+no trace flow, :math:`A(0)\,J = 0`).
+
+Only the boundary :math:`(J^+, J^-)` pair survives as trace unknowns.
+:math:`L`'s trace rows carry the **outflow-definition defect** on the
+outflow row and the **inflow identity** on the inflow row,
+
+.. math::
+   :label: diffusion-boundary-closure
+
+   \text{outflow:}\quad J^+ - c_\phi\,\phi_e - c_{J^-}\,J^- = 0,
+   \qquad
+   \text{inflow:}\quad J^- ,
+   \qquad
+   c_\phi = \frac{1}{\rho + 2},\;\;
+   c_{J^-} = \frac{\rho - 2}{\rho + 2},\;\;
+   \rho = \frac{h_e}{2 D_e},
+
+from Fick's law between the edge-cell centre and the face plus the
+dictionary :eq:`diffusion-partial-current-dictionary`. :math:`B`
+(:class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`,
+``BlockRole.BOUNDARY``) is the realized albedo block: it emits
+:math:`\mathcal{A}\,J^+` on the inflow row and nothing else, so that
+:math:`(L - B)` reads the boundary law :math:`J^- - \mathcal{A}\,J^+ = 0`
+exactly. Eliminating :math:`(J^+, J^-)` by a Schur complement onto the
+bulk recovers the classic condensed closures: zero-flux
+(:math:`\mathcal{A} = -1`) gives :math:`J_{\rm net} = \phi_e/\rho` — the
+island's ``φ_0/(0.5·Δz)`` "vacuum" arm — reflective (:math:`\mathcal{A}
+= 1`) gives :math:`J_{\rm net} = 0`, and Marshak vacuum
+(:math:`\mathcal{A} = 0`) the :math:`d = 2D` extrapolation. The
+composite is the **un-condensed** spelling of the same algebra, with the
+boundary law factored into its own operator.
+
+The shared C / S / F arms
+-------------------------
+
+Everything except :math:`L` and :math:`B` is the shared transport
+algebra, given scalar-composite arms at #290 P4 — *not* re-implemented:
+
+- :math:`C` — the collision leaf, a
+  :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+  over :math:`\Sigma_t`;
+- :math:`S` — the isotropic scattering **K_iso** kernels
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+  and
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+  (the single source of :math:`\Sigma_{s0}^{\mathsf T}\phi` across every
+  solver — never a diffusion-local reimplementation);
+- :math:`F` — the shared rank-1 dyad
+  :class:`~orpheus.transport.operators.fission.FissionOperator`,
+  :math:`\chi \otimes \nu\Sigma_f`.
+
+The removal cross section is therefore a **theorem, not an input**: the
+in-group cancellation :math:`\mathbf 1^{\mathsf T}(C - S) = \Sigma_a`
+reproduces :math:`\Sigma_r = \Sigma_t - \Sigma_{s,gg}` by column-sum,
+gated directly (:ref:`diffusion-operator-family-verification`). The
+:math:`(n,2n)` channel is **loss-side** — :math:`S` carries the full
+K_iso pair :math:`\Sigma_{s0}^{\mathsf T} + 2\Sigma_2^{\mathsf T}` while
+:math:`F` and the production rate are :math:`\nu\Sigma_f` only, mirroring
+the homogeneous solver (:doc:`/theory/homogeneous`); S\ :sub:`N` poses
+:math:`(n,2n)` production-side instead — both are consistent posings of
+the same balance. Because the group coupling lives entirely in the
+shared kernels, the solver is **ng-generic by construction**: the
+island's hardcoded 2-group ``sig_s[::-1]`` down-scatter flip is
+structurally dead, which unblocks arbitrary-group diffusion (#33 / #34).
+
+The resolvent — exact inverse, not operator splitting
+-----------------------------------------------------
+
+The within-outer inner solve is the campaign-ruled **explicit dense
+inverse**
+
+.. code-block:: python
+
+   template  = FullField.zeros(bulk=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh)
+   resolvent = MatrixInverseOperator(FlattenedOperator(A, template))
+
+— one eager LU factorisation of the flattened composite operator at
+construction, one back-substitution per outer iteration. No scattering
+inner iteration exists at all: the loss :math:`A` already carries the
+full multigroup coupling (:math:`S` is subtracted *into* it), so
+``solve_fixed_source`` is a single application of :math:`A^{-1}`. The
+:class:`~orpheus.numerics.flat_operator.FlattenedOperator` bridges the
+typed composite to the flat vector the dense
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+needs; the composite space's flat ``shape`` feeds ``as_matrix`` its
+basis dimension for free.
+
+.. warning::
+
+   **Do not route the diffusion resolvent through the structure-keyed**
+   ``A.inverse()``. The taxonomy's structure-keyed inverse realises
+   :math:`A^{-1}` for a sum :math:`A = M - N` as a Green / Neumann
+   splitting :math:`\sum_k (M^{-1}N)^k M^{-1}` — a *stationary
+   iteration* that converges only when the spectral radius
+   :math:`\rho(M^{-1}N) < 1`. For the triangular **sweep** inverses (S\
+   :sub:`N`, MoC) that splitting is nilpotent (:math:`\rho = 0`) and
+   exact in one pass. A symmetric-**elliptic** (discrete-Laplacian)
+   diffusion operator admits no such convergent split: the discrete
+   Laplacian is ill-conditioned (condition number :math:`\sim h^{-2}`)
+   and the loss splitting is not a contraction, so the campaign found
+   the Neumann series **diverges** on fine meshes. The explicit dense
+   inverse is exact regardless of conditioning — the same choice, and
+   the same ``MatrixInverseOperator(loss) @ F`` precedent, the 0-D
+   homogeneous solver makes (:doc:`/theory/homogeneous`).
+
+.. _diffusion-data-seam:
+
+The data seam — D from the transport cross section
+--------------------------------------------------
+
+:math:`L` reads its per-cell diffusion coefficient through the #290 P1
+data seam: :attr:`Mixture.diffusion_coefficient
+<orpheus.data.macro_xs.mixture.Mixture.diffusion_coefficient>`
+:math:`= 1/(3\,\Sigma_{\text{tr}})` built on the outflow transport cross
+section :attr:`Mixture.transport_xs
+<orpheus.data.macro_xs.mixture.Mixture.transport_xs>`
+:math:`\Sigma_{\text{tr},g} = \Sigma_{t,g} - \sum_{g'}\Sigma_{s1,g\to g'}`
+(:eq:`diffusion-coefficient`). When a mixture carries no P1 moment the
+out-scatter row sum is identically zero and :math:`\Sigma_{\text{tr}} =
+\Sigma_t` **exactly** — the correct isotropic limit.
+
+Legacy diffusion tables (the MATLAB ``CORE1D`` schema — per-group
+``transport`` / ``absorption`` / ``fission`` / ``chi`` / ``scattering``
+vectors) are mapped onto the canonical
+:class:`~orpheus.data.macro_xs.mixture.Mixture` by the **one** encoder
+:func:`~orpheus.derivations.common.xs_library.mixture_from_diffusion_tables`.
+Ruling 4 of #290 fixed this encoding to be **bit-identical**:
+``SigT := transport`` with **no** P1 moment, so
+:math:`\Sigma_{\text{tr}} = \Sigma_t` and :math:`D = 1/(3\cdot\text{transport})`
+reproduces the island's coefficient to the last bit, leaving every
+analytical reference unmoved; in-group scatter is back-filled so removal
+= absorption + down-scatter. The physical alternative
+(:math:`\Sigma_{s1} = \bar\mu\,\Sigma_{s0}` with the *true* :math:`\Sigma_t`)
+re-baselines :math:`D` and every downstream reference — a deliberate
+close-out follow-up (**#292**), not this encoder.
+
+Mesh and Protocol layering
+--------------------------
+
+The phase space is a
+:class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` (#290 P7a): a
+:class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (method-\
+agnostic mesh + materials **data**) augmented with the diffusion method's
+**behaviour** — the scalar trace, the composite carrier
+``full_field_space``, and the per-face boundary laws **realized at
+construction**. It is the structural sibling of
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (mesh + quadrature +
+sweep machinery + angular trace): one method-agnostic data carrier, one
+method layer per transport method. Every admission gate (1-D, bounded
+geometry, supported BC tags) fires at construction — an operator built
+on a bad phase space is action-at-a-distance otherwise — so a diffusion
+phase space with unresolved or unrealizable boundary conditions is
+**unrepresentable**.
+
+Both method-meshes are the two witnesses of the
+:class:`~orpheus.transport.method.TransportMethod` Protocol (#290 P7b),
+and BC resolution flows through the **one** shared
+:func:`~orpheus.transport.method.resolve_boundary_conditions` body — the
+same face-loop, reflective-default, and tag-to-law parse for S\ :sub:`N`
+and diffusion alike; only each mesh's ``realize_boundary_law`` arm
+differs (the diffusion arm builds the albedo operator via
+:class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`).
+Conformance is structural — neither mesh imports the Protocol. The
+realizer mechanics (the three-layer descriptor / law / realizer
+decomposition and the rank-N composition walker) live on
+:doc:`/theory/boundary_conditions`.
+
+.. _diffusion-solver-engines:
+
+The k-eigenvalue solver on the shared engines
+---------------------------------------------
+
+:class:`~orpheus.diffusion.solver.DiffusionSolver` implements the shared
+:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` +
+``ProductionRateSolver`` protocol over the **flat composite vector** (the
+trace is part of the eigenvector; conversion happens at exactly two
+sites). The public driver
+:func:`~orpheus.diffusion.solver.solve_diffusion_1d` takes
+``materials`` + a ``Mesh1D`` — a zoned core is just a ``Mesh1D`` with
+multi-valued ``mat_ids`` (the island's ``CoreGeometry`` container had no
+independent content) — promotes it to a
+:class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`, assembles the
+family, and drives
+:func:`~orpheus.numerics.eigenvalue.power_iteration`.
+
+- **The k-update is the integrated eigenvalue relation**
+  :math:`k = P(\psi)/\langle 1, (A\psi)_{\rm bulk}\rangle_V` — production
+  over the volume-integrated bulk loss rate. By the column-sum theorem
+  :math:`\mathbf 1^{\mathsf T}(C-S)=\Sigma_a` and the telescoping of
+  :math:`L`'s conservative divergence (interior flows cancel; boundary
+  flows survive as leakage), the denominator decomposes as absorption +
+  leakage :math:`-` net :math:`(n,2n)` gain — the island's
+  ``p_rate/(a_rate + leakage)``, but derived *through* the loss operator
+  that defines the fixed point, so no term can be forgotten (the leakage
+  is structural, not hand-added).
+- **Normalisation** rides the typed
+  :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+  (the #270 diffusion arm; the ERR-052 renormalisation anchor):
+  :func:`~orpheus.numerics.eigenvalue.power_iteration` renormalises each
+  iterate to unit production rate, so the returned mode carries
+  :math:`\int_V \nu\Sigma_f\,\phi\,dV = 1`. The island's hardcoded
+  ``e_per_fission`` power window and its ``fi /= max`` conditioning hack
+  are both retired by this contract.
+- **Cross-engine gate.** The dense
+  :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
+  (:math:`k = \lambda_{\max}(A^{-1}F)`) and the iterative
+  :func:`~orpheus.numerics.eigenvalue.power_iteration` are cross-checked
+  at :math:`10^{-10}` on the materialised :math:`(A, F)` pair, across the
+  albedo family — the committed catcher for all protocol plumbing.
+
+The RT0 equivalence and the mixed-form seam
+-------------------------------------------
+
+The cell-centred finite-difference stencil above **is** lowest-order
+Raviart–Thomas (RT0) with mass lumping (the Baliga–Patankar
+equivalence): the harmonic-mean face conductance
+:eq:`diffusion-interior-conductance` is the series half-cell resistance
+an RT0 flux space produces, and mass-lumping the RT0 mass matrix
+collapses the mixed system back to the two-point scalar stencil. The
+full (un-lumped) mixed form — carrying the interior face currents as
+live degrees of freedom rather than condensing them — is a documented
+extension seam (**#294**); its trigger is off-face material interfaces
+that need :math:`\mathcal O(h^2)` accuracy, where the mass-lumped
+approximation drops to :math:`\mathcal O(h)`.
+
+.. _diffusion-dsa-seam:
+
+The DSA seam
+------------
+
+This operator family *is* the :math:`A_{\rm diff}` that a consistent
+**diffusion-synthetic accelerator** for S\ :sub:`N` (Issue #2, the named
+high-priority DSA consumer) will precondition: an in-algebra
+:class:`~orpheus.numerics.operator.LinearOperator` on the scalar
+composite, invertible by the explicit
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`,
+whose low-order correction :math:`\to 0` at convergence (so DSA is
+correctness-safe *by construction*, changing only the iteration rate).
+The construction path is direct: an
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` promotes straight to a
+:class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
+(``DiffusionMesh.from_material_mesh(sn_mesh)`` — an SNMesh *is a*
+MaterialMesh), so :math:`A_{\rm diff}` assembles over the **same** axes,
+materials, and BC declarations as the SN sweep it accelerates. The
+SN\ :math:`\to`\ diffusion boundary restriction is the :math:`\ell = 0`
+half-range moment of the angular trace under the shared
+:math:`\lvert\Omega\cdot\hat n\rvert\,w` metric — the reason ruling 2
+posed the trace in partial-current variables. See
+:doc:`/theory/operator_algebra` for the DSA-consumer discussion and the
+seam contract.
+
+.. _diffusion-operator-family-verification:
+
+Numerical evidence (the operator-family gates)
+----------------------------------------------
+
+The architecture is pinned by object-level and cross-engine gates in
+``tests/diffusion/`` (the continuous-reference convergence study and the
+MMS gate are in :ref:`diffusion-2rg-verification` and
+:ref:`diffusion-mms-section`):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - Gate
+     - What it pins
+   * - **Object-level stencil gate** (Mode-12 companion)
+     - :math:`A`\ ``.as_matrix()`` :math:`\equiv` an independently
+       hand-posed finite-difference matrix on a heterogeneous,
+       non-uniform, 2-group slab — mutation-verified **RED** under a
+       D-face pairing swap, :math:`\Sigma_a`-for-:math:`\Sigma_t`
+       confusion, a scatter transpose, and a closure-coefficient sign
+       flip. Pins the *object*, not just its spectrum.
+   * - **Cross-engine consistency**
+     - :math:`\lvert\Delta k\rvert < 10^{-10}` between
+       ``direct_eigenvalue`` and ``power_iteration`` (and the full
+       composite eigenvector), across the albedo family.
+   * - **L2 infinite medium**
+     - reflective diffusion :math:`k \equiv` the homogeneous
+       :math:`k_\infty` — itself the closed-form multigroup
+       infinite-medium eigenvalue :math:`\lambda_{\max}(\Sigma_a^{-1}F)`,
+       not merely another solver — at 2G **and** 3G asymmetric; the
+       3-group case is the flip-trick discriminator the island
+       structurally could not represent (ng-generic multigroup coupling).
+   * - **CORE1D legacy bridge**
+     - modern :math:`k \equiv` island :math:`k` at :math:`10^{-8}` under
+       the ruling-4 bit-identical encoding (the exact-LU solver drove the
+       retired island *past* its 200-outer cap to a converged
+       comparison; the island's own driver never converged the PWR
+       dominance ratio).
+   * - **Per-law trace semantics**
+     - at the solution, vacuum :math:`J^- = 0`, albedo
+       :math:`J^- = \alpha J^+`, reflective :math:`J_{\rm net} = 0`,
+       zero-flux :math:`\phi_\Gamma = 0` — all LU-exact; :math:`k`
+       strictly monotone in :math:`\mathcal{A}`; the integrated balance
+       identity :math:`P/k =` absorption + leakage.
+   * - **Demo**
+     - :func:`~orpheus.diffusion.solver.solve_diffusion_1d` reproduces
+       the MATLAB reference :math:`k = 1.022173` (at print precision)
+       under ``BC("zero_flux")``.
+
+.. (vv-status rationale) The four #290 operator-family labels are
+   representational / definitional, NOT solver claims: the posing
+   identity (diffusion-operator-family), the P1 half-range partial-current
+   dictionary (diffusion-partial-current-dictionary), and the two
+   discretization formulas (diffusion-interior-conductance /
+   diffusion-boundary-closure). Their verifiable content is pinned by the
+   object-level stencil gate (which monkeypatches the module-level
+   ``_interior_conductance`` / ``_boundary_closure`` kernels), the
+   cross-engine consistency gate, and the per-law trace-semantics gates
+   in the table above; the k-value carries no new claim here (it is
+   verified by those gates plus the L1 / L2 anchors below).
+.. vv-status: diffusion-operator-family documented
+.. vv-status: diffusion-partial-current-dictionary documented
+.. vv-status: diffusion-interior-conductance documented
+.. vv-status: diffusion-boundary-closure documented
 
 
 .. _diffusion-1g-bare-slab:
@@ -99,8 +587,10 @@ Key Facts
 =================
 
 The simplest verification configuration: a homogeneous slab of
-thickness :math:`L` with zero-flux vacuum boundaries and a
-single energy group. The diffusion equation collapses to
+thickness :math:`L` with **zero-flux** boundaries
+(``BC("zero_flux")``, :math:`\phi = 0` — the honestly-named Dirichlet
+law of ruling 3, *not* the Marshak vacuum) and a single energy group.
+The diffusion equation collapses to
 
 .. math::
 
@@ -159,8 +649,9 @@ multigroup eigenfunction callable.
 =============================
 
 A more demanding verification problem: fuel surrounded by a
-reflector, both treated with 2-group diffusion, with vacuum
-boundaries on the outer faces. The eigenfunction is no longer
+reflector, both treated with 2-group diffusion, with **zero-flux**
+boundaries (:math:`\phi = 0`, ``BC("zero_flux")``) on the outer faces.
+The eigenfunction is no longer
 a single sine — it is a linear combination of region-local
 exponential and/or trigonometric modes, matched across the
 fuel/reflector interface.
@@ -248,20 +739,21 @@ does not suffer catastrophic cancellation. See
 :ref:`diffusion-2rg-investigation-history` for the earlier
 approach that got this wrong.
 
-Interface matching and vacuum boundary conditions
--------------------------------------------------
+Interface matching and zero-flux boundary conditions
+-----------------------------------------------------
 
 With the mode basis above, the solution in each region is a
 linear combination of 4 basis functions (2 eigenvalues × 2
 modes per eigenvalue). For the fuel + reflector slab we have
 8 unknown mode coefficients total — 4 in fuel, 4 in reflector.
 
-The 8 constraints that close the system:
+The 8 constraints that close the system (the outer faces carry the
+zero-flux Dirichlet law :math:`\phi = 0`, ruling 3):
 
 .. math::
 
    \boldsymbol\phi_{\text{fuel}}(0) \;=\; \mathbf 0
-   \quad (\text{vacuum left, 2 equations}),
+   \quad (\text{zero-flux left, 2 equations}),
 
 .. math::
    :label: diffusion-interface-matching
@@ -275,7 +767,7 @@ The 8 constraints that close the system:
 .. math::
 
    \boldsymbol\phi_{\text{refl}}(H_f + H_r) \;=\; \mathbf 0
-   \quad (\text{vacuum right, 2 equations}),
+   \quad (\text{zero-flux right, 2 equations}),
 
 where the group current
 :math:`\mathbf J_g(x) = -D_g\,\phi_g'(x)` is derived from the
@@ -435,14 +927,21 @@ see the :ref:`diffusion-2rg-verification` section below.
 
 .. _diffusion-2rg-investigation-history:
 
-Investigation history — two abandoned approaches
--------------------------------------------------
+Investigation history — abandoned approaches
+--------------------------------------------
 
-This section exists **on purpose** (Cardinal Rule 2: Sphinx
-is the LLM's brain). The implementation above went through
-two serious dead ends before converging. Both failure modes
-would otherwise be repeated by any future session that reads
-the textbooks and writes the "obvious" code.
+This section exists **on purpose** (Cardinal Rule 3: Sphinx is the
+LLM's brain). It records two distinct pieces of machinery. **Dead ends
+#1–#3 are the continuous reference solver** — the transcendental /
+mode-basis eigenvalue reference in
+:func:`~orpheus.derivations.continuous.cases.diffusion.derive_2rg_continuous`,
+which is **live**. These failure modes are exactly why that reference
+is built the way it is; any future session extending it (e.g. adding
+Robin faces for the analytic Marshak reference, #293) must not repeat
+them. **Dead end #4 is the retired MATLAB-port island** finite-\
+difference solver: it is preserved because it teaches a real lesson,
+but the specific bug is **moot** for the modern exact-LU path (which
+has no inner iteration to mis-tolerance) — flagged in place below.
 
 **Dead end #1 — First-order ODE state-vector composition
 with** :func:`scipy.linalg.expm`.
@@ -462,7 +961,7 @@ propagate it through each region by the matrix exponential
 
 Continuity of :math:`\phi` and :math:`J` at the fuel/reflector
 interface is then automatic because the state vector is the
-continuous quantity. Vacuum BCs
+continuous quantity. Zero-flux BCs
 :math:`\phi(0) = \phi(L) = 0` pick out the upper-right
 :math:`ng \times ng` block of the composed transfer matrix,
 and the eigenvalue condition is
@@ -471,7 +970,7 @@ and the eigenvalue condition is
 This was implemented, the determinant brentq converged, and
 the resulting "null vector" gave
 :math:`|\phi_g(L)| \approx 5 \times 10^{-4}` relative to peak
-flux — far from the machine-precision zero the vacuum BC
+flux — far from the machine-precision zero the zero-flux BC
 demands. Investigation of the intermediate quantities
 revealed:
 
@@ -595,17 +1094,29 @@ reconstruct :math:`\phi(0)`, the interface continuity, and
 :math:`\phi(L)` from the null vector and check whether they
 actually vanish. Genuine eigenvalues pass to machine
 precision; crossings fail to :math:`\sim 10^{-7}`. This is
-the load-bearing filter in :func:`_solve_2region_vacuum_eigenvalue`.
+the load-bearing filter in
+:func:`~orpheus.derivations.continuous.cases.diffusion._solve_2region_zero_flux_eigenvalue`
+(renamed from ``_solve_2region_vacuum`` at #290 P6, when the
+:math:`\phi = 0` references were re-attributed to the zero-flux law).
 
-**Dead end #4 (solver-side) — Hardcoded outer-iteration
+**Dead end #4 (retired island, solver-side) — Hardcoded outer-iteration
 tolerance masked quadratic convergence.**
 
-Once the reference was correct, the finite-difference solver
-:func:`orpheus.diffusion.solver.solve_diffusion_1d` was run
-at four mesh refinements to measure convergence order. The
-expected :math:`\mathcal{O}(h^{2})` order of central finite
-differences produced this embarrassing error sequence on the
-bare slab:
+.. note::
+
+   This dead end belonged to the **retired MATLAB-port island**'s
+   finite-difference solver, not to the continuous reference. It is
+   preserved for its lesson, but the modern exact-LU solver (#290 P5)
+   **cannot** exhibit it: there is no inner iteration to mis-tolerance
+   and no hardcoded outer floor. The ``DiffusionSolver`` /
+   ``solve_diffusion_1d`` names in this dead end refer to the island
+   implementation, now deleted; the paragraphs are past-tense history.
+
+Once the reference was correct, the island finite-difference solver
+``solve_diffusion_1d`` was run at four mesh refinements to measure
+convergence order. The expected :math:`\mathcal{O}(h^{2})` order of
+central finite differences produced this embarrassing error sequence on
+the bare slab:
 
 .. code-block:: text
 
@@ -618,38 +1129,46 @@ The finest-mesh error plateaus at :math:`\sim 10^{-5}`, not
 the :math:`\sim 10^{-6}` that would extend the quadratic
 trend. Initial misdiagnosis: BiCGSTAB inner solver tolerance
 (``errtol=1e-6``). Raising ``errtol=1e-12`` did not move the
-plateau. Correct diagnosis: the outer power iteration in
-:class:`DiffusionSolver` had a **hardcoded** convergence
-criterion ``rel_change < 1e-5`` on the flux relative change
-between outer iterations. That threshold is the floor — the
-outer solve stops as soon as the flux is within :math:`10^{-5}`
-of its own previous iterate, which is exactly where the
-convergence tests were plateauing. The finite-difference
-discretisation error was *below* the outer-iteration noise at
-the finest meshes.
+plateau. Correct diagnosis: the outer power iteration in the island's
+``DiffusionSolver`` had a **hardcoded** convergence criterion
+``rel_change < 1e-5`` on the flux relative change between outer
+iterations. That threshold was the floor — the outer solve stopped as
+soon as the flux was within :math:`10^{-5}` of its own previous
+iterate, which is exactly where the convergence tests were plateauing.
+The finite-difference discretisation error was *below* the
+outer-iteration noise at the finest meshes.
 
-The fix is a two-line change to
-:class:`orpheus.diffusion.solver.DiffusionSolver`: add an
-``outer_tol`` keyword (default ``1e-5``, preserving legacy
-behaviour) and replace the hardcoded ``< 1e-5`` with
-``< self.outer_tol``. The Phase-1.2 convergence-order tests
-then pass ``outer_tol=1e-11`` and see the quadratic
-convergence they were looking for. General-purpose callers
-see no change.
+At the time the fix was a two-line change to the island's
+``DiffusionSolver``: add an ``outer_tol`` keyword and replace the
+hardcoded ``< 1e-5``. **The modern solver retired the question
+entirely.** :class:`~orpheus.diffusion.solver.DiffusionSolver` (#290
+P5) has no BiCGSTAB inner solver and no hardcoded outer floor: the
+inner solve is the *exact* resolvent :math:`A^{-1}` (one LU
+back-substitution, converged by construction), and the outer power
+iteration converges on ``keff_tol`` (default :math:`10^{-10}`) and the
+relative flux change. There is no inner-iteration noise to sit below
+the discretisation error, so the :math:`\mathcal{O}(h^2)` order is
+recovered at the default tolerances with no knob to tune.
 
-The lesson is **not** specific to this problem. Any time a
-convergence-order verification test plateaus, check both the
-inner and outer solver tolerances before blaming the
-reference solution. Finite-difference diffusion is well
-understood; if the measured order is pathological, the
-solver's own convergence machinery is the first suspect, not
-the reference.
+The general lesson **transfers** to any iterative solver even though
+this specific bug is now moot: when a convergence-order verification
+test plateaus, check both the inner and outer solver tolerances before
+blaming the reference solution. If the measured order is pathological
+for a well-understood discretisation, the solver's own convergence
+machinery is the first suspect, not the reference.
 
 
 .. _diffusion-2rg-verification:
 
 Verification
 ============
+
+Both continuous references are solved under ``BC("zero_flux")`` (the
+ruling-3 re-attribution of the analytic :math:`\phi = 0` references —
+the mathematics is unchanged; only the law's name is corrected). The
+tests were rewired to the modern
+:func:`~orpheus.diffusion.solver.solve_diffusion_1d` at #290 P6 at
+**unchanged** tolerances.
 
 - **Bare slab L1 eigenvalue** — the Phase-0 continuous reference
   ``dif_slab_2eg_1rg`` pulls :math:`k` from the analytical matrix
@@ -672,12 +1191,14 @@ Verification
   role (see the verification-campaign audit in
   :doc:`/verification/reference_solutions`).
 
-  Note the solver's outer-iteration tolerance matters: the
-  Phase-1.2 tests pass ``outer_tol=1e-11`` to push the outer
-  power-iteration residual well below the finite-difference
-  discretisation error at every refinement. See dead end #4 in
-  :ref:`diffusion-2rg-investigation-history` for why the default
-  ``outer_tol=1e-5`` masked the quadratic convergence.
+  With the modern exact-LU solver there is no inner-iteration floor to
+  tune: the outer iteration converges on the default ``keff_tol`` /
+  ``flux_tol`` and the :math:`\mathcal{O}(h^2)` order is recovered
+  directly. (The island required an ``outer_tol`` knob to push its
+  outer power-iteration residual below the discretisation error — see
+  dead end #4 in :ref:`diffusion-2rg-investigation-history` for why its
+  hardcoded floor masked the quadratic convergence; that knob is moot
+  now.)
 
 Both cases live under ``operator_form="diffusion"`` in the
 Phase-0 registry and are tested in
@@ -804,6 +1325,105 @@ Measured evidence (``tests/diffusion/test_mms.py``, cells
 orders :math:`2.004, 2.001, 2.000`.
 
 
+.. _diffusion-development-history:
+
+Development history
+===================
+
+Reverse-chronological changelog of the **#290 diffusion-integration
+campaign** (branch ``feature/diffusion-integration``, 2026-07-03),
+which replaced the MATLAB-port island with the operator-algebra solver
+documented above. Each phase is a gated commit; the branch is unmerged
+at the time of writing (P8, this documentation pass). See the campaign
+plan ``.claude/plans/diffusion_integration_290.md`` and the GitHub
+issues for finer granularity.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 9 67 24
+
+   * - Phase
+     - Architectural milestone (what + why)
+     - Commit
+   * - **P7b**
+     - **The** :class:`~orpheus.transport.method.TransportMethod`
+       **Protocol + shared BC-resolution body + registry dissolution**
+       — minted the structural Protocol over the two method-meshes and
+       collapsed the twin ``_resolve_bcs`` loops into one
+       :func:`~orpheus.transport.method.resolve_boundary_conditions`
+       body; deleted the string-keyed realizer registry (you hold the
+       method-mesh, therefore you hold its realizer). Discharges the
+       second ``TransportMethod`` witness.
+     - ``44d583e``
+   * - **P7a**
+     - **The** :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
+       **method-mesh** — reclaimed the scalar trace and composite
+       carrier off ``MaterialMesh`` onto a diffusion method-mesh (the
+       ``SNMesh`` sibling), realizing boundary laws at construction and
+       restoring the data/behaviour axis (a ``MaterialMesh`` does not
+       know what a trace is).
+     - ``738e355``
+   * - **P6**
+     - **Island retirement + reference re-attribution + MMS (#93)** —
+       deleted the MATLAB-port island (``CoreGeometry`` / ``TwoGroupXS``
+       / BiCGSTAB); ``k_eigenvalue.py`` became ``solver.py``; the
+       analytic :math:`\phi = 0` references were re-attributed to
+       ``BC("zero_flux")`` at unchanged tolerances (ruling 3); the
+       heterogeneous-\ :math:`D` multigroup MMS gate landed (closes #93).
+     - ``9104233``
+   * - **P5**
+     - **The modern k-eigenvalue solver on the shared engines** —
+       :class:`~orpheus.diffusion.solver.DiffusionSolver` on the
+       ``EigenvalueSolver`` protocol over the flat composite; the
+       exact-LU resolvent; ``power_iteration`` :math:`\equiv`
+       ``direct_eigenvalue`` at :math:`10^{-10}`; #270 production
+       normalisation; the 3-group discriminator that kills the flip
+       trick.
+     - ``9470266``
+   * - **P4**
+     - **The operator family** — the two new leaves
+       :class:`~orpheus.diffusion.operators.LeakageOperator` (``L``) and
+       :class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`
+       (``B``) on the scalar composite; ``C`` / ``S`` / ``F`` gained
+       scalar-composite arms on the shared kernels; the object-level
+       stencil gate with four RED mutations.
+     - ``db14643``
+   * - **P3**
+     - **Boundary laws + functional realizer (closes #182)** — the
+       ``ZeroFluxBoundary`` law and the
+       :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+       (law :math:`\to \mathcal{A} \to` operator), realizing every
+       diffusion BC as an albedo-family scalar :math:`J^- = \mathcal{A}
+       J^+`.
+     - ``6672e7a``
+   * - **P2.5**
+     - **Trace naming coherence** — the angular / scalar trace family
+       split (``AngularTraceSpace`` / ``ScalarTraceSpace``,
+       ``ScalarBoundaryFlux``), so the composite's bulk :math:`\times`
+       boundary vocabulary reads coherently across both methods.
+     - ``1cd8d32``
+   * - **P2**
+     - **Scalar trace substrate** — the ``ScalarTraceSpace`` and the
+       ``(J^+, J^-)`` partial-current trace leaf; ``FullField`` widened
+       to admit the scalar family (the anticipated second consumer of
+       scalar-flux composites, now arrived).
+     - ``78d1431``
+   * - **P1**
+     - **The data seam** — ``Mixture.transport_xs`` +
+       :attr:`Mixture.diffusion_coefficient
+       <orpheus.data.macro_xs.mixture.Mixture.diffusion_coefficient>`,
+       so :math:`D = 1/(3\Sigma_{\text{tr}})` reads through the
+       canonical XS type; the legacy tables encode bit-identically
+       (ruling 4).
+     - ``836f424``
+   * - pre-#290
+     - **MATLAB-port island (retired)** — the original 443-line port:
+       raw ``(2, n_cells)`` arrays, scipy BiCGSTAB, ``TwoGroupXS`` /
+       ``CoreGeometry``, string BC keys, and a hardcoded 2-group
+       ``sig_s[::-1]`` down-scatter flip. Superseded entirely by #290.
+     - (deleted at P6)
+
+
 References
 ==========
 
@@ -817,4 +1437,14 @@ References
 - Duderstadt, J. J. and Hamilton, L. J., *Nuclear Reactor
   Analysis*, Wiley, 1976. Ch. 5 (one-group) and Ch. 7
   (multigroup) — the transfer matrix formulation is
-  spelled out explicitly.
+  spelled out explicitly. §5.2 gives the Marshak / extrapolation
+  boundary algebra.
+- Marshak, R. E., "Note on the spherical harmonic method as applied to
+  the Milne problem for a sphere", *Phys. Rev.* **71**, 443 (1947) —
+  the zero-incoming-partial-current (Marshak) vacuum boundary condition
+  :math:`J^- = 0`.
+- Baliga, B. R. and Patankar, S. V., "A control-volume finite-element
+  method for two-dimensional fluid flow and heat transfer",
+  *Numer. Heat Transfer* **6**, 245 (1983) — the finite-difference /
+  lowest-order Raviart–Thomas (mass-lumped) equivalence for the
+  diffusion stencil.

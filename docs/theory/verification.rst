@@ -62,47 +62,65 @@ Reference-Values Registry (Eager vs Lazy)
 ------------------------------------------
 
 ``orpheus/derivations/reference_values.py`` is the central registry
-that every test and every Sphinx page reads from. Its loader is
-split into two tiers to avoid a circular import that would otherwise
-make ``import orpheus.derivations`` pull in the entire solver
-package:
+that every test and every Sphinx page reads from. It holds two
+registries — the legacy ``VerificationCase`` table (retrieved by
+``get("name")``) and the Phase-0 ``ContinuousReferenceSolution`` table
+(``continuous_get("name")``) — both populated by walking the
+``orpheus.derivations.*`` modules. **Every case is now analytical or
+semi-analytical** (NumPy / SciPy / SymPy only, no solver imports), so
+the walk is cheap. The one refinement is that a reference whose
+*construction* is expensive is deferred until it is actually
+requested:
 
-**Eager tier — analytical cases**
-   Loaded at import time by walking
-   ``homogeneous.py``, ``cp_slab.py``, ``cp_cylinder.py``,
-   ``cp_sphere.py``, and ``diffusion.py``. These modules use only
-   NumPy, SciPy, and SymPy — no solver imports — so loading them
-   is free and fast. The 9-case CP grids (:ref:`nine-case-cp-grid`),
-   the homogeneous matrix eigenvalues, and the diffusion buckling
-   cases all land here.
+**Eager tier — cheap analytical / semi-analytical cases**
+   Built when the registry is first touched, by walking
+   ``homogeneous.py``, ``sn.py``, ``cp_slab.py`` / ``cp_cylinder.py``
+   / ``cp_sphere.py``, ``moc.py``, ``mc.py``, and ``diffusion.py``
+   (the legacy table) plus every module exposing a
+   ``continuous_cases()`` producer (the Phase-0 table). These use only
+   NumPy, SciPy, and SymPy, so building them all is fast. The 9-case
+   CP grids (:ref:`nine-case-cp-grid`), the homogeneous matrix
+   eigenvalues, the diffusion buckling and transcendental cases, and
+   the MMS gates all land here.
 
-**Lazy tier — Richardson-extrapolated cases**
-   Deferred until first ``get("case_name")`` call. These are the
-   SN heterogeneous slab, the MOC heterogeneous pin cell, and the
-   diffusion fuel + reflector reference — each of which requires
-   running the actual solver at four mesh levels to estimate a
-   converged :math:`k` (see :ref:`richardson-extrapolation`).
-   Loading them eagerly would force
-   ``import orpheus.derivations`` to transitively import
-   ``orpheus.sn``, ``orpheus.moc``, and ``orpheus.diffusion_1d``,
-   creating a circular dependency (because those modules, in turn,
-   import from ``orpheus.derivations`` to read their reference
-   values).
+**Lazy tier — expensive continuous references**
+   A reference whose *construction* costs
+   :math:`\mathcal{O}(\text{minutes})` — an adaptive-mpmath eigenvalue
+   solve such as the Peierls Nyström references — opts into the
+   ``continuous_case_builders()`` contract, registering a
+   ``name -> thunk`` in ``_CONTINUOUS_BUILDERS`` instead of an
+   eagerly-built solution. The thunk runs (and memoises) only when
+   that exact name is first requested, so fetching *any* other
+   reference does not pay the expensive build (Issue #212 — the full
+   Peierls build previously fired on every lookup and looked like a
+   solver hang).
 
-The mechanism is a module-level dict ``_LAZY_LOADERS`` keyed by
-case name. ``get("case_name")`` checks the eager table first; if
-absent, it looks up a loader in ``_LAZY_LOADERS``, calls it once,
-caches the result, and returns it. Subsequent calls hit the cache.
+``continuous_get("name")`` checks the eager ``_CONTINUOUS`` table
+first; if the name is absent it calls the thunk from
+``_CONTINUOUS_BUILDERS`` once, memoises the result, and returns it.
+The practical effect is that **every test pays only for the reference
+values it actually uses**.
 
-The practical effect is that **every test pays only for the
-reference values it actually uses**.
+.. note::
 
-(Historically this tier also carried Richardson-extrapolated
-references computed by the production solvers themselves, persisted
-in a JSON-backed on-disk cache. That entire side-channel — the last
-member being the diffusion 2-region case — was retired at #290 P6;
-see the historical note below. Every registry entry is now
-analytical or semi-analytical.)
+   **Historical — the retired Richardson side-channel.** Before #290
+   the lazy tier had a different tenant: Richardson-extrapolated
+   references computed *by the production solvers themselves* — the SN
+   heterogeneous slab, the MOC pin cell, and the diffusion fuel +
+   reflector case — keyed in a ``_LAZY_LOADERS`` dict and persisted in
+   a JSON-backed on-disk cache. Those loaders imported the solver
+   packages lazily precisely to dodge the circular dependency they
+   created (a solver imports ``orpheus.derivations`` to read its own
+   reference values). The side-channel was retired in stages: the SN
+   arm at Phase 2.1a (superseded by MMS), MOC never regrew one, and
+   the last member — the diffusion 2-region case — at #290 P6,
+   together with the MATLAB-port island that computed it.
+   ``_LAZY_LOADERS`` no longer exists; **no reference is now derived
+   from a production solver under test.** The diffusion 2-region
+   reference's successor is the transcendental
+   :func:`~orpheus.derivations.continuous.cases.diffusion.derive_2rg_continuous`
+   (see the retired-Richardson record at
+   :ref:`diffusion-2region-richardson`).
 
 .. _synthetic-xs-library:
 
