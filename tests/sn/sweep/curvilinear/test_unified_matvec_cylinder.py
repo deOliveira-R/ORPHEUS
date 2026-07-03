@@ -135,11 +135,6 @@ def _hand_reference_cyl_matvec(
     mu_x = quad.mu_x
 
     bc_outer = sn_mesh.bc["xmax"]
-    # A cylindrical SNMesh always binds a MorelMontryAngularSweep(self) (the
-    # default-by-coord-system closure — see SNMesh._init_core); it is the SAME
-    # mesh-bound instance the production matvec's ``precompute_psi_state``
-    # drives.
-    pac = sn_mesh.pole_angular_closure
 
     out = np.zeros((N, ng, nx))
 
@@ -168,12 +163,14 @@ def _hand_reference_cyl_matvec(
 
     # Issue #248: the dead legacy ``MorelMontryAngularSweep.__call__`` bundle
     # was retired.  Reconstruct the per-level redistribution through the LIVE
-    # production surface (the shared ``redistribution_via_live_path`` helper:
-    # the ``compute_psi_half_per_level`` recurrence kernel the matvec's
-    # ``precompute_psi_state`` consumes, composed with the explicit α/ΔA/w/V
-    # fold).  This mirrors how production drives cylindrical — ``precompute_
-    # psi_state`` loops ``level_indices`` running the SAME single-level
-    # recurrence per μ-level with that level's Carlson coupled-pole seed.
+    # production algebra (the shared ``redistribution_via_live_path`` helper:
+    # the module-level ``compute_psi_half_per_level`` recurrence kernel the
+    # matvec's ``precompute_psi_state`` consumes — same default
+    # AngularEdgeExtrapolation seed as the mesh-bound closure — composed with
+    # the explicit α/ΔA/w/V fold).  This mirrors how production drives
+    # cylindrical — ``precompute_psi_state`` loops ``level_indices`` running
+    # the SAME single-level recurrence per μ-level with that level's Carlson
+    # coupled-pole seed.
     #
     # The hand reference's structural-independence claim is about the
     # ROUTING/scatter (each ordinate processed in its own scalar pass, no
@@ -190,7 +187,6 @@ def _hand_reference_cyl_matvec(
         level_idx_arr = np.asarray(level_idx)
         psi_level = psi_g_first[:, level_idx_arr, :]  # (ng, M_p, nx)
         redist_full[:, level_idx_arr, :] = redistribution_via_live_path(
-            pac,
             psi_level,
             reduced.alpha_per_level[p],
             reduced.redist_dAw_per_level[p],

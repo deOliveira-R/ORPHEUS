@@ -492,7 +492,9 @@ class TestMorelMontryDefaultSeed:
         from orpheus.sn.spatial.psi_half_angle_seed import (
             AngularEdgeExtrapolation,
         )
-        instance = MorelMontryAngularSweep()
+        from tests.sn._test_helpers import make_tiny_spherical_sn_mesh
+
+        instance = MorelMontryAngularSweep(make_tiny_spherical_sn_mesh())
         assert isinstance(instance.psi_half_seed, AngularEdgeExtrapolation)
 
     @pytest.mark.foundation
@@ -510,5 +512,9 @@ class TestMorelMontryDefaultSeed:
         from orpheus.sn.spatial.pole_angular_closure import (
             MorelMontryAngularSweep,
         )
-        instance = MorelMontryAngularSweep(psi_half_seed=ZeroSeed())
+        from tests.sn._test_helpers import make_tiny_spherical_sn_mesh
+
+        instance = MorelMontryAngularSweep(
+            make_tiny_spherical_sn_mesh(), psi_half_seed=ZeroSeed(),
+        )
         assert isinstance(instance.psi_half_seed, ZeroSeed)

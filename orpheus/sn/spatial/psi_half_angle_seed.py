@@ -2,7 +2,7 @@ r"""Half-angle face flux seed strategies for the M-M angular recurrence.
 
 Issue #168 Phase D — closes ERR-026 on sphere SN MMS by replacing the
 hardcoded ``psi_half_left = 0`` seed in
-:meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep._psi_half_grid_single_level`
+:func:`~orpheus.sn.spatial.pole_angular_closure._psi_half_grid_single_level`
 with the canonical Hébert §3.9.4 Carlson coupled-pole inward μ = −1
 sweep.
 
@@ -241,7 +241,7 @@ class PsiHalfAngleSeed(Protocol):
     r"""Strategy contract for the M-M recurrence's half-angle face flux seed.
 
     Produces the initial ``ψ_{1/2,i,g}`` value for
-    :meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep._psi_half_grid_single_level`.
+    :func:`~orpheus.sn.spatial.pole_angular_closure._psi_half_grid_single_level`.
 
     The recurrence consumes this seed as ``psi_half_left`` at
     ``m = 0`` and propagates it forward across ordinates.
@@ -266,14 +266,19 @@ class PsiHalfAngleSeed(Protocol):
 
     Attributes
     ----------
-    is_linear : bool
+    is_linear : ClassVar[bool]
         Whether the seed is linear in ``psi_level``.  Both ZeroSeed
         and CarlsonInwardSweep are linear; required by the operator
         algebra (the M-M closure is linear, and a non-linear seed
         would propagate non-linearity through the recurrence).
+        Declared ``ClassVar`` to match the concrete strategies (the
+        ``PsiHalfAngleSeedBase`` ABC and every implementation declare
+        it ``ClassVar[bool]``) — a plain instance-attribute
+        declaration here makes every concrete strategy fail the
+        Protocol under pyright's ClassVar-compatibility rule.
     """
 
-    is_linear: bool
+    is_linear: ClassVar[bool]
 
     def __call__(
         self,

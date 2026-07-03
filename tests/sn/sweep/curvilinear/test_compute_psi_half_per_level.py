@@ -1,30 +1,34 @@
-r"""Foundation + L0 tests for ``MorelMontryAngularSweep.compute_psi_half_per_level``.
+r"""Foundation + L0 tests for the module-level ``compute_psi_half_per_level``.
 
-Issue #197 PR-TYPED-6b — the public method that exposes the
+Issue #197 PR-TYPED-6b — the public surface that exposes the
 :math:`\phi_{m\pm 1/2, i, g}` half-angle grid the unified matvec
-needs to consume.  The method is the load-bearing exposure of the
+needs to consume.  It is the load-bearing exposure of the
 M-M recurrence's intermediate state; this test gate pins:
 
-* **Foundation**: the method exists on
-  :class:`MorelMontryAngularSweep` and is invocable.
+* **Foundation**: the function exists at module level and is
+  invocable (C5, 2026-07-03: the unbound ``MorelMontryAngularSweep()``
+  legacy mode was retired, and the pure-algebra surface moved off the
+  class to :func:`orpheus.sn.spatial.pole_angular_closure.compute_psi_half_per_level`
+  — hand-built-coefficient verification needs no closure instance).
 * **L0 — shape contract**: returns ``(ng, M+1, nx)``.
 * **L0 — recurrence formula**: the half-angle grid satisfies the
   Hébert §3.9.4 Eqs. 3.437 / 3.439 recurrence
   :math:`\phi_{m+1/2,i,g} = (\phi_{m,i,g} - (1-\tau_m)\,
   \phi_{m-1/2,i,g})/\tau_m` exactly.
 * **L0 — seed contract**: ``carlson_context=None`` reproduces the
-  Phase B zero seed; ``carlson_context=ctx`` invokes
-  :attr:`psi_half_seed` to build the recurrence's :math:`\phi_{1/2}`.
-* **L0 — redistribution consistency**: composing the public method
+  Phase B zero seed; ``carlson_context=ctx`` invokes the
+  ``psi_half_seed`` strategy to build the recurrence's
+  :math:`\phi_{1/2}`.
+* **L0 — redistribution consistency**: composing the public function
   with the geometry-redistribution coefficient ``(ΔA/w)/V``
-  reproduces the redistribution output of the existing ``__call__``
+  reproduces the redistribution output of the retired ``__call__``
   bit-for-bit (Pattern 2 round-trip).
-* **L0 — linearity in input ψ**: the method is linear in
+* **L0 — linearity in input ψ**: the function is linear in
   ``psi_level`` (when ``carlson_context`` is held fixed) — preserves
   operator linearity for the matvec's consumption.
 
-These tests live in ``tests/sn/spatial/`` next to the existing
-``test_psi_half_angle_seed.py`` foundation gates.
+These tests live in ``tests/sn/sweep/curvilinear/`` next to the
+existing ``test_psi_half_angle_seed.py`` foundation gates.
 """
 from __future__ import annotations
 
@@ -32,52 +36,40 @@ import numpy as np
 import pytest
 
 from orpheus.sn.spatial.pole_angular_closure import (
-    MorelMontryAngularSweep,
     _MMHalfGrid,
-)
-
-# Phase 2.2 (PR-TYPED-6.5): the M-M half-angle recurrence kernel lives as
-# a private staticmethod on the strategy class.  Tests reach it via class
-# attribute access (Pattern 4 — illegal access patterns unrepresentable
-# for external code; tests inspect the private surface deliberately).
-# Issue #248 retired the dead ``_weighted_angular_recurrence_single_level``
-# bundle helper alongside the legacy ``__call__``; only the surviving
-# half-angle-grid kernel is aliased here.
-_mm_psi_half_grid_single_level = (
-    MorelMontryAngularSweep._psi_half_grid_single_level
+    _psi_half_grid_single_level,
+    compute_psi_half_per_level,
 )
 from orpheus.sn.spatial.psi_half_angle_seed import (
-    CarlsonInwardSweep,
     CarlsonSweepContext,
     ZeroSeed,
 )
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Foundation tests — method exists, signature contract
+# Foundation tests — function exists, signature contract
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestMethodExists:
-    """The public method is a stable public surface."""
+class TestFunctionExists:
+    """The public function is a stable public surface."""
 
     @pytest.mark.foundation
-    def test_method_attached_to_morel_montry(self) -> None:
-        sweep = MorelMontryAngularSweep()
-        assert hasattr(sweep, "compute_psi_half_per_level")
-        assert callable(sweep.compute_psi_half_per_level)
+    def test_function_at_module_level(self) -> None:
+        assert callable(compute_psi_half_per_level)
 
     @pytest.mark.foundation
-    def test_method_consumes_keyword_only_carlson_context(self) -> None:
-        """``carlson_context`` MUST be keyword-only so future positional
-        args (e.g. spatial-axis stride) do not collide with it."""
+    def test_function_consumes_keyword_only_carlson_context(self) -> None:
+        """``carlson_context`` (and the ``psi_half_seed`` strategy slot)
+        MUST be keyword-only so future positional args (e.g.
+        spatial-axis stride) do not collide with them."""
         import inspect
 
-        sweep = MorelMontryAngularSweep()
-        sig = inspect.signature(sweep.compute_psi_half_per_level)
-        carlson_param = sig.parameters.get("carlson_context")
-        assert carlson_param is not None
-        assert carlson_param.kind == inspect.Parameter.KEYWORD_ONLY
+        sig = inspect.signature(compute_psi_half_per_level)
+        for name in ("carlson_context", "psi_half_seed"):
+            param = sig.parameters.get(name)
+            assert param is not None
+            assert param.kind == inspect.Parameter.KEYWORD_ONLY
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -92,11 +84,10 @@ class TestShapeContract:
     @pytest.mark.parametrize("ng,M,nx", [(1, 4, 8), (2, 6, 16), (3, 8, 32)])
     @pytest.mark.l0
     def test_shape_no_carlson(self, ng: int, M: int, nx: int) -> None:
-        sweep = MorelMontryAngularSweep()
         rng = np.random.default_rng(seed=42)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
-        psi_half = sweep.compute_psi_half_per_level(
+        psi_half = compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=None,
         )
         # PR-TYPED-6c Step 1.5: return is _MMHalfGrid; underlying faces
@@ -109,7 +100,6 @@ class TestShapeContract:
     @pytest.mark.parametrize("ng,M,nx", [(1, 4, 8), (2, 6, 16)])
     @pytest.mark.l0
     def test_shape_with_carlson(self, ng: int, M: int, nx: int) -> None:
-        sweep = MorelMontryAngularSweep()
         rng = np.random.default_rng(seed=43)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
@@ -121,7 +111,7 @@ class TestShapeContract:
             weights=np.full(M, 2.0 / M),
             bc_outer_value=np.zeros(ng),
             mu_start=-1.0,)
-        psi_half = sweep.compute_psi_half_per_level(
+        psi_half = compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=ctx,
         )
         assert psi_half.faces.shape == (ng, M + 1, nx)
@@ -143,12 +133,11 @@ class TestMMHalfGridAccessors:
     """
 
     def _build_grid(self) -> tuple[_MMHalfGrid, int, int, int]:
-        sweep = MorelMontryAngularSweep()
         ng, M, nx = 2, 5, 10
         rng = np.random.default_rng(seed=100)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.7)
-        grid = sweep.compute_psi_half_per_level(
+        grid = compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=None,
         )
         return grid, ng, M, nx
@@ -244,12 +233,11 @@ class TestRecurrenceFormula:
     def test_recurrence_at_tau_half_zero_seed(self) -> None:
         """At τ=1/2 (Hébert canonical) the recurrence is pure DD:
         ``ψ_{m+1/2} = 2·ψ_m − ψ_{m-1/2}``."""
-        sweep = MorelMontryAngularSweep()
         ng, M, nx = 1, 4, 8
         rng = np.random.default_rng(seed=1)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
-        psi_half = sweep.compute_psi_half_per_level(
+        psi_half = compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=None,
         )
         # Zero seed: φ_{1/2} = 0.
@@ -264,12 +252,11 @@ class TestRecurrenceFormula:
     def test_recurrence_at_arbitrary_tau(self, tau_value: float) -> None:
         """For any τ ∈ [1/2, 1] the M-M weighted DD recurrence
         holds: ``ψ_{m+1/2} = (ψ_m − (1−τ)·ψ_{m-1/2})/τ``."""
-        sweep = MorelMontryAngularSweep()
         ng, M, nx = 2, 6, 12
         rng = np.random.default_rng(seed=2)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, tau_value)
-        psi_half = sweep.compute_psi_half_per_level(
+        psi_half = compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=None,
         )
         for m in range(M):
@@ -293,12 +280,11 @@ class TestSeedContract:
 
     @pytest.mark.l0
     def test_none_context_gives_zero_seed(self) -> None:
-        sweep = MorelMontryAngularSweep()
         ng, M, nx = 2, 4, 8
         rng = np.random.default_rng(seed=3)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
-        psi_half = sweep.compute_psi_half_per_level(
+        psi_half = compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=None,
         )
         # Phase B zero seed: ψ_{1/2} = 0.
@@ -308,13 +294,11 @@ class TestSeedContract:
 
     @pytest.mark.l0
     def test_carlson_context_uses_psi_half_seed_strategy(self) -> None:
-        """``carlson_context=ctx`` triggers
-        ``self.psi_half_seed(psi_level, ctx)`` for the seed."""
-        sweep = MorelMontryAngularSweep()
-        # Use ZeroSeed in this sweep so the carlson-context path also
-        # produces zero (sanity-check the wiring without depending on
+        """``carlson_context=ctx`` triggers ``psi_half_seed(psi_level,
+        ctx)`` for the seed."""
+        # Use ZeroSeed so the carlson-context path also produces zero
+        # (sanity-check the wiring without depending on
         # CarlsonInwardSweep numerical specifics).
-        sweep_zero = MorelMontryAngularSweep(psi_half_seed=ZeroSeed())
         ng, M, nx = 1, 4, 8
         rng = np.random.default_rng(seed=4)
         psi_level = rng.random((ng, M, nx))
@@ -326,11 +310,13 @@ class TestSeedContract:
             weights=np.full(M, 2.0 / M),
             bc_outer_value=np.zeros(ng),
             mu_start=-1.0,)
-        psi_half_with_ctx = sweep_zero.compute_psi_half_per_level(
-            psi_level, tau_level, carlson_context=ctx,
+        psi_half_with_ctx = compute_psi_half_per_level(
+            psi_level, tau_level,
+            psi_half_seed=ZeroSeed(), carlson_context=ctx,
         )
-        psi_half_without_ctx = sweep_zero.compute_psi_half_per_level(
-            psi_level, tau_level, carlson_context=None,
+        psi_half_without_ctx = compute_psi_half_per_level(
+            psi_level, tau_level,
+            psi_half_seed=ZeroSeed(), carlson_context=None,
         )
         # ZeroSeed returns zero regardless of context, so both branches
         # produce the same seed → bit-identical recurrence output.
@@ -340,42 +326,41 @@ class TestSeedContract:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# L0 tests — Pattern 2 round-trip: __call__ output ≡ method composition
+# L0 tests — Pattern 2 round-trip: public function ≡ recurrence kernel
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestPattern2Roundtrip:
-    """The public ``compute_psi_half_per_level`` method routes through the
-    SAME recurrence kernel ``_mm_psi_half_grid_single_level`` that the
+    """The public ``compute_psi_half_per_level`` function routes through
+    the SAME recurrence kernel ``_psi_half_grid_single_level`` that the
     matvec's ``precompute_psi_state`` consumes.
 
     Issue #248 — dropped ``test_redistribution_from_psi_half_matches_call``
     (a vacuous ``__call__``-vs-helper cross-check: both dead/helper paths
     were ``_weighted_angular_recurrence_single_level``, retired with the
     legacy bundle ``__call__``).  The surviving pin below asserts the
-    method returns the same half-angle grid as the kept recurrence kernel,
-    which is the load-bearing Pattern 2 equivalence.
+    function returns the same half-angle grid as the kept recurrence
+    kernel, which is the load-bearing Pattern 2 equivalence.
     """
 
     @pytest.mark.l0
-    def test_method_delegates_to_psi_half_grid_helper(self) -> None:
+    def test_function_delegates_to_psi_half_grid_kernel(self) -> None:
         """``compute_psi_half_per_level`` returns the same grid as
-        ``_mm_psi_half_grid_single_level``.  Pattern 2 — same kernel.
+        ``_psi_half_grid_single_level``.  Pattern 2 — same kernel.
         """
-        sweep = MorelMontryAngularSweep(psi_half_seed=ZeroSeed())
         ng, M, nx = 1, 4, 8
         rng = np.random.default_rng(seed=6)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
-        from_method = sweep.compute_psi_half_per_level(
+        from_function = compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=None,
         )
-        from_helper = _mm_psi_half_grid_single_level(
+        from_kernel = _psi_half_grid_single_level(
             psi_level, tau_level, psi_half_seed=None,
         )
         # _MMHalfGrid wraps an ndarray; .faces returns the raw grid which
-        # MUST be bit-identical to the free-function helper's output.
-        np.testing.assert_array_equal(from_method.faces, from_helper)
+        # MUST be bit-identical to the kernel's output.
+        np.testing.assert_array_equal(from_function.faces, from_kernel)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -384,13 +369,12 @@ class TestPattern2Roundtrip:
 
 
 class TestLinearity:
-    """The method is linear in ``psi_level`` when ``carlson_context``
+    """The function is linear in ``psi_level`` when ``carlson_context``
     is held fixed.  Required because the matvec consumes this output
     in a linear operator chain (the streaming + collision algebra)."""
 
     @pytest.mark.l0
     def test_linearity_in_psi_level_no_context(self) -> None:
-        sweep = MorelMontryAngularSweep()
         ng, M, nx = 2, 4, 8
         rng = np.random.default_rng(seed=7)
         psi_a = rng.random((ng, M, nx))
@@ -399,13 +383,13 @@ class TestLinearity:
         tau_level = np.full(M, 0.5)
         # ψ_combined = α·ψ_a + β·ψ_b
         psi_combined = alpha * psi_a + beta * psi_b
-        result_combined = sweep.compute_psi_half_per_level(
+        result_combined = compute_psi_half_per_level(
             psi_combined, tau_level, carlson_context=None,
         )
-        result_a = sweep.compute_psi_half_per_level(
+        result_a = compute_psi_half_per_level(
             psi_a, tau_level, carlson_context=None,
         )
-        result_b = sweep.compute_psi_half_per_level(
+        result_b = compute_psi_half_per_level(
             psi_b, tau_level, carlson_context=None,
         )
         expected = alpha * result_a.faces + beta * result_b.faces
@@ -422,10 +406,9 @@ class TestCallOutputUnchanged:
     an accidental reordering of the recurrence formula or an off-by-one in
     the half-angle storage.
 
-    Issue #248 — re-pinned onto the LIVE
-    :meth:`MorelMontryAngularSweep.compute_psi_half_per_level` (the public
-    PR-TYPED-6b method the matvec's ``precompute_psi_state`` shares its
-    recurrence kernel with) after the dead legacy
+    Issue #248 — re-pinned onto the LIVE ``compute_psi_half_per_level``
+    (the public PR-TYPED-6b surface the matvec's ``precompute_psi_state``
+    shares its recurrence kernel with) after the dead legacy
     ``_weighted_angular_recurrence_single_level`` helper was retired.  The
     half-angle ψ-thread is asserted against the verbatim Hébert §3.9.4
     recurrence ``ψ_{m+1/2} = (ψ_m − (1−τ_m)ψ_{m-1/2})/τ_m``, and the
@@ -435,7 +418,6 @@ class TestCallOutputUnchanged:
     @pytest.mark.parametrize("seed", [10, 11, 12])
     def test_recurrence_output_random_seed(self, seed: int) -> None:
         """Random-seed sanity probe — the recurrence body is unchanged."""
-        sweep = MorelMontryAngularSweep(psi_half_seed=ZeroSeed())
         rng = np.random.default_rng(seed=seed)
         ng, M, nx = 2, 6, 16
         psi_level = rng.random((ng, M, nx))
@@ -448,14 +430,15 @@ class TestCallOutputUnchanged:
         dAw_level = rng.random((nx, M))
         volume = rng.uniform(0.5, 1.5, nx)
 
-        # Live path: the half-angle ψ-thread from the public method.
-        grid = sweep.compute_psi_half_per_level(
+        # Live path: the half-angle ψ-thread from the public function
+        # (carlson_context=None → the Phase B zero seed).
+        grid = compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=None,
         )
         faces = grid.faces  # (ng, M+1, nx); faces[:, m, :] = ψ_{m-1/2}
 
         # Pin the recurrence formula directly (verbatim Hébert §3.9.4):
-        # ψ_{1/2} = 0 (ZeroSeed) and
+        # ψ_{1/2} = 0 (zero seed) and
         # ψ_{m+1/2} = (ψ_m − (1−τ_m)ψ_{m-1/2})/τ_m.
         np.testing.assert_array_equal(faces[:, 0, :], np.zeros((ng, nx)))
         for m in range(M):

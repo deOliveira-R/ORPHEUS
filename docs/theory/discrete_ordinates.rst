@@ -6741,11 +6741,16 @@ Half-angle grid exposure (Issue #197 PR-TYPED-6b)
 
 .. todo:: Archivist expansion needed.
 
-   The Issue #197 PR-TYPED-6b dispatch added the public method
-   :meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.compute_psi_half_per_level`
+   The Issue #197 PR-TYPED-6b dispatch added the public surface
+   :func:`~orpheus.sn.spatial.pole_angular_closure.compute_psi_half_per_level`
    exposing the M-M recurrence's half-angle grid
-   :math:`\phi_{m\pm 1/2,i,g}` for one level.  The method is the
-   intermediate exposure that lets the unified SN matvec
+   :math:`\phi_{m\pm 1/2,i,g}` for one level.  (Originally an instance
+   method on ``MorelMontryAngularSweep``, served by the unbound
+   ``sn_mesh=None`` legacy mode; the C5 retirement of that mode,
+   2026-07-03, moved it to module level — the surface takes all data
+   via arguments and the seed strategy as a keyword, so it never
+   needed an instance.)  It is the intermediate exposure that lets the
+   unified SN matvec
    (:class:`~orpheus.sn.operators.streaming.StreamingOperator`) consume
    :math:`\phi_{m\pm 1/2}` as
    :func:`~orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`'s
@@ -6753,13 +6758,13 @@ Half-angle grid exposure (Issue #197 PR-TYPED-6b)
    twin path on the curvilinear angular branch.
 
    Pattern 2 (Single source of truth).  The :eq:`pole-mm-recurrence`
-   recurrence body lives once, in the staticmethod
-   ``MorelMontryAngularSweep._psi_half_grid_single_level``.  Both the
+   recurrence body lives once, in the module-level kernel
+   ``pole_angular_closure._psi_half_grid_single_level``.  Both the
    public ``compute_psi_half_per_level`` AND the live production path
    route through it: the matvec/sweep call
    :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.precompute_psi_state`,
    which dispatches per level through ``_psi_half_grid_for_level``,
-   which calls the same staticmethod.  (Phase B / Phase C drove the
+   which calls the same kernel.  (Phase B / Phase C drove the
    redistribution through a single ``__call__`` bundle that also routed
    through this kernel; Issue #248 deleted the bundle, so the
    single-source-of-truth invariant now binds
@@ -6768,12 +6773,12 @@ Half-angle grid exposure (Issue #197 PR-TYPED-6b)
 
    Test gate:
    :file:`tests/sn/sweep/curvilinear/test_compute_psi_half_per_level.py`
-   — foundation + L0 tests pinning method existence, shape contract,
+   — foundation + L0 tests pinning function existence, shape contract,
    the verbatim Hébert recurrence formula
    :math:`\phi_{m+1/2} = (\phi_m - (1-\tau_m)\phi_{m-1/2})/\tau_m`,
    Carlson-context seed contract, the Pattern-2 round-trip
    (``compute_psi_half_per_level`` against the
-   ``_psi_half_grid_single_level`` staticmethod), and linearity. After
+   ``_psi_half_grid_single_level`` kernel), and linearity. After
    Issue #248 these gates drive the recurrence through the **live**
    surface the matvec consumes, rather than the retired ``__call__``
    bundle.
@@ -19060,6 +19065,34 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-07-03
+     - **The Morel–Montry unbound legacy mode retired — every
+       pole-angular closure is mesh-bound by construction; the sweep
+       output mode split into types (pyright burn-down C5)** — the
+       ``MorelMontryAngularSweep(sn_mesh=None)`` test-compatibility mode
+       (and the ``| None`` widenings it forced on the whole
+       :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
+       state contract, plus four runtime "unbound" guards) is deleted:
+       ``sn_mesh`` is REQUIRED, the family's ``cls(sn_mesh)`` construction
+       contract is total, and the pure-algebra recurrence surface moved
+       back to module level
+       (:func:`~orpheus.sn.spatial.pole_angular_closure.compute_psi_half_per_level`
+       — hand-built-coefficient verification needs no instance).  The
+       ``SNMesh`` closure override became a **class** parameter
+       (``pole_angular_closure: type[PoleAngularClosureBase]``) — an
+       instance could only ever be unbound or foreign-bound, since the
+       mesh it must bind to does not exist yet (Pattern 4).  The matvec's
+       dead ``is None`` closure fallback and four stale ``type: ignore``
+       comments retired with it.  Companion split: the solve-direction
+       output DI ``_SweepEmit`` became a closed type family
+       (``_SweepEmitAngular`` / ``_SweepEmitMoment`` with REQUIRED
+       buffers, polymorphic ``pure_z``), the sweep chain's return became
+       the honest mode-keyed pair ``(angular, scalar) | (moments,
+       None)``, and the 1-D scan walk binds each geometry arm's face
+       views inside its own arm (no cross-arm Optionals).  Landed the SN
+       tree at ZERO pyright errors.
+     - #226
+     - ``refactor/pyright-burndown`` (C5)
    * - in dev
        (2026-07-02)
      - **The (spatial ⊗ angular) product — closure-owned :math:`\tau`,

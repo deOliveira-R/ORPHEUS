@@ -120,7 +120,10 @@ class CellBalanceTerms:
 def cell_balance_for_streaming(
     *,
     abs_mu: np.ndarray,                # (n_mask,)  |μ_n| for ordinates in the mask
-    A_downstream: np.ndarray,          # (n_mask,)  sweep-resolved outgoing face area
+    A_downstream: "np.ndarray | float",  # (n_mask,)  sweep-resolved outgoing face
+    #                                      area; broadcast-scalar 0.0 for the
+    #                                      degenerate pure-z / pole cell (no
+    #                                      outgoing face), like A_total
     A_total: np.ndarray,               # (n_mask,)  A_inner + A_outer  (broadcast scalar OK)
     total_xs: np.ndarray,              # (ng,)      per-group total cross section
     volume: float,                     # scalar     cell volume V_i

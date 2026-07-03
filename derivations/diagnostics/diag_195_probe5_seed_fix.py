@@ -44,7 +44,6 @@ from orpheus.sn.solver import (
     SNSolver, _within_group_triple, _build_fixed_source_rhs, _as_sn_mesh,
 )
 from orpheus.sn.spatial.cell_balance import cell_balance_for_streaming
-from orpheus.sn.spatial.pole_angular_closure import MorelMontryAngularSweep
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -77,7 +76,7 @@ def _operator_residual_with_seed(case, nc, seed_mode):
     quad = sn_mesh.quad
     mu_x = quad.mu_x
     eps = 1e-15
-    pole = sn_mesh.pole_angular_closure or MorelMontryAngularSweep()
+    pole = sn_mesh.pole_angular_closure
     level_indices = pole.level_indices
     A_face = sn_mesh.areas
     V = sn_mesh.volumes

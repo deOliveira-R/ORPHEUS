@@ -119,6 +119,7 @@ See also
 """
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
@@ -275,8 +276,14 @@ class LossRepresentation(Protocol):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
-    ) -> "tuple[np.ndarray, np.ndarray]":
+    ) -> "tuple[np.ndarray, np.ndarray | None]":
         """Perform one within-group transport sweep on this strategy's mesh.
+
+        Returns the mode-keyed pair: ``(angular_flux, scalar_flux)`` for the
+        full-angular default, ``(moment_buf, None)`` when a ``moment_frame``
+        is given (the windowed-SI moment path; the scalar is subsumed as
+        ``moment_buf[0, 0]``).  Strategies that reject moment output
+        (``CumprodScan``) declare the narrower always-angular pair.
 
         ``schedule``/``reflect`` (#226 step 2): ``None`` (default) is the
         bare Jacobi sweep; a given schedule runs the SAME uniform
@@ -543,7 +550,7 @@ class _LossRepresentation:
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
-    ) -> "tuple[np.ndarray, np.ndarray]":
+    ) -> "tuple[np.ndarray, np.ndarray | None]":
         """One within-group sweep — every concrete strategy implements it."""
         raise NotImplementedError(
             f"{type(self).__name__} must implement sweep()"
@@ -694,71 +701,36 @@ def _moment_broadcast_sigma(
 
 
 @dataclass(frozen=True)
-class _SweepEmit:
+class _SweepEmit(ABC):
     r"""Solve-direction OUTPUT mode — angular field XOR harmonic moments.
 
     The Phase 5c output DI (which buffers are given selects the mode —
-    mirroring the windowed walk's historical output contract), made
-    a TYPE: the construction guard rejects a mixed or empty mode, so an
-    illegal half-wired output is unrepresentable.
+    mirroring the windowed walk's historical output contract), made a
+    closed TYPE family (C5, 2026-07-03 — the ``_CellSolve`` precedent):
+    each mode is a subclass with REQUIRED buffers, so a mixed or
+    half-wired output is unrepresentable by construction (the former
+    Optional fields + exactly-one runtime guard + ``*_buffers()``
+    narrowing accessors all retired with the split).
 
-    * **angular** — ``angular_flux`` ``(N, ng, *spatial)`` written per
-      octant + ``scalar_flux`` ``(ng, *spatial)`` accumulated
+    * :class:`_SweepEmitAngular` — ``angular_flux`` ``(N, ng, *spatial)``
+      written per octant + ``scalar_flux`` ``(ng, *spatial)`` accumulated
       :math:`\sum_n w_n \psi_n`.
-    * **moment** — ``moment_buf`` ``(L+1, 2L+1, ng, *spatial)`` accumulated
+    * :class:`_SweepEmitMoment` — ``moment_buf``
+      ``(L+1, 2L+1, ng, *spatial)`` accumulated
       :math:`\phi_\ell^m \mathrel{+}= \sum_n w_n Y_\ell^m \psi_n` with the
       octant harmonics ``Y`` ``(N, L+1, 2L+1)``; the full angular field is
       never materialized (the ~3× peak-memory win; the scalar is subsumed,
       ``moment_buf[0, 0]``).
 
-    The pure-z volumetric balance emits through :meth:`pure_z`; the
-    interior kernels accumulate at their own granularity (per
-    anti-hyperplane for the window, per row for the scan-march) reading the
-    mode off these buffers.
+    The pure-z volumetric balance emits through the polymorphic
+    :meth:`pure_z`; the interior kernels accumulate at their own
+    granularity (per anti-hyperplane for the window, per row for the
+    scan-march) dispatching on the emit's TYPE.
     """
 
     weights: "np.ndarray"                       # (N,)
-    angular_flux: "np.ndarray | None" = None    # (N, ng, *spatial)
-    scalar_flux: "np.ndarray | None" = None     # (ng, *spatial)
-    moment_buf: "np.ndarray | None" = None      # (L+1, 2L+1, ng, *spatial)
-    Y: "np.ndarray | None" = None               # (N, L+1, 2L+1)
 
-    def __post_init__(self) -> None:
-        angular = (self.angular_flux is not None) and (self.scalar_flux is not None)
-        moment = (self.moment_buf is not None) and (self.Y is not None)
-        if angular == moment:
-            raise ValueError(
-                "_SweepEmit: exactly ONE output mode must be wired — either "
-                "(angular_flux AND scalar_flux) or (moment_buf AND Y)."
-            )
-
-    def angular_buffers(self) -> "tuple[np.ndarray, np.ndarray]":
-        """The angular-mode pair ``(angular_flux, scalar_flux)``.
-
-        Raises if this emit is moment-mode — the narrowing accessor a
-        mode-specific consumer (e.g. the walker wiring a
-        :class:`~orpheus.sn.loss_representation.sweep_graph._CellSolveAngular`)
-        parses through, so a walker/emit mode mismatch fails loudly at
-        the wiring site rather than deep inside the walk.
-
-        (Transitional: the C5 candidate is splitting ``_SweepEmit`` into
-        mode subclasses the way C4 split ``_CellSolve`` — these accessors
-        and the Optional pair retire together then.)
-        """
-        if self.angular_flux is None or self.scalar_flux is None:
-            raise TypeError(
-                "_SweepEmit is moment-mode; angular buffers unavailable."
-            )
-        return self.angular_flux, self.scalar_flux
-
-    def moment_buffers(self) -> "tuple[np.ndarray, np.ndarray]":
-        """The moment-mode pair ``(moment_buf, Y)`` — raises on angular-mode."""
-        if self.moment_buf is None or self.Y is None:
-            raise TypeError(
-                "_SweepEmit is angular-mode; moment buffers unavailable."
-            )
-        return self.moment_buf, self.Y
-
+    @abstractmethod
     def pure_z(self, oct_idx: "np.ndarray", psi_avg: "np.ndarray") -> None:
         """Emit the pure-z volumetric balance ``ψ = Q/Σ_t`` (no faces).
 
@@ -766,18 +738,34 @@ class _SweepEmit:
         same ufunc as a bare ``+=``) — a bare ``self.buf +=`` would rebind
         the attribute and trip the frozen dataclass.
         """
-        if self.moment_buf is None:
-            angular_flux, scalar_flux = self.angular_buffers()
-            angular_flux[oct_idx] = psi_avg
-            scalar_flux[...] += np.einsum(
-                "ng...,n->g...", psi_avg, self.weights[oct_idx],
-            )
-        else:
-            moment_buf, Y = self.moment_buffers()
-            moment_buf[...] += np.einsum(
-                "nlm,ng...,n->lmg...", Y[oct_idx], psi_avg,
-                self.weights[oct_idx],
-            )
+
+
+@dataclass(frozen=True)
+class _SweepEmitAngular(_SweepEmit):
+    """Angular-field output mode — per-octant ψ + accumulated scalar."""
+
+    angular_flux: "np.ndarray"                  # (N, ng, *spatial)
+    scalar_flux: "np.ndarray"                   # (ng, *spatial)
+
+    def pure_z(self, oct_idx: "np.ndarray", psi_avg: "np.ndarray") -> None:
+        self.angular_flux[oct_idx] = psi_avg
+        self.scalar_flux[...] += np.einsum(
+            "ng...,n->g...", psi_avg, self.weights[oct_idx],
+        )
+
+
+@dataclass(frozen=True)
+class _SweepEmitMoment(_SweepEmit):
+    """Harmonic-moment output mode — accumulated φ_ℓ^m, no angular field."""
+
+    moment_buf: "np.ndarray"                    # (L+1, 2L+1, ng, *spatial)
+    Y: "np.ndarray"                             # (N, L+1, 2L+1)
+
+    def pure_z(self, oct_idx: "np.ndarray", psi_avg: "np.ndarray") -> None:
+        self.moment_buf[...] += np.einsum(
+            "nlm,ng...,n->lmg...", self.Y[oct_idx], psi_avg,
+            self.weights[oct_idx],
+        )
 
 
 @dataclass(frozen=True)
@@ -1221,7 +1209,7 @@ class MovingFrontierWindow(_DAGWavefront):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
-    ) -> "tuple[np.ndarray, np.ndarray]":
+    ) -> "tuple[np.ndarray, np.ndarray | None]":
         if schedule is None:
             return _sweep_jacobi(
                 Q, sig_t, self.mesh, boundary_flux,
@@ -1274,11 +1262,12 @@ class MovingFrontierWindow(_DAGWavefront):
         # field is materialized (the Phase 5c peak-memory win).  At a
         # multi-moment closure (LD) the angular buffer carries the trailing 2^d
         # spatial-moment axis (the φ̂ iterate, #240 D5b-S3); DD/Step → ``()``.
-        # The emit's mode selects the level-op SUBCLASS (C4 — the mode is a
-        # type); the ``*_buffers()`` parse pins the walker/emit mode match.
+        # The emit's TYPE selects the level-op subclass (C4/C5 — the mode is
+        # a type on both ends; the isinstance dispatch pins the walker/emit
+        # mode match by construction).
         frame_signs = self._moment_frame_signs(signs_eff)
-        if emit.moment_buf is None:
-            angular_flux, scalar_flux = emit.angular_buffers()
+        if isinstance(emit, _SweepEmitAngular):
+            angular_flux = emit.angular_flux
             angular_flux_oct = np.zeros(
                 (oct_idx.size, ng, *spatial, *self._spatial_moment_tail)
             )
@@ -1286,19 +1275,20 @@ class MovingFrontierWindow(_DAGWavefront):
                 scheme=self.mesh.scheme,
                 weights_octant=emit.weights[oct_idx],
                 angular_flux_octant=angular_flux_oct,
-                scalar_flux_buf=scalar_flux,
+                scalar_flux_buf=emit.scalar_flux,
                 moment_frame_signs=frame_signs,
             )
-        else:
-            moment_buf, Y = emit.moment_buffers()
+        elif isinstance(emit, _SweepEmitMoment):
             angular_flux, angular_flux_oct = None, None
             level_op = _CellSolveMoment(
                 scheme=self.mesh.scheme,
                 weights_octant=emit.weights[oct_idx],
-                moment_buf=moment_buf,
-                Y_octant=Y[oct_idx],
+                moment_buf=emit.moment_buf,
+                Y_octant=emit.Y[oct_idx],
                 moment_frame_signs=frame_signs,
             )
+        else:
+            raise TypeError(f"unknown _SweepEmit mode: {type(emit).__name__}")
         graph.walk_windowed(
             level_op=level_op,
             inflow=inflow,
@@ -1468,7 +1458,7 @@ class FullFieldWavefront(_DAGWavefront):
             face_shape = list(spatial)
             face_shape[a] += 1
             buf = np.zeros((N_oct, ng, *face_shape, *tail))
-            in_edge = [slice(None)] * (2 + ndim)
+            in_edge: "list[slice | int]" = [slice(None)] * (2 + ndim)
             in_edge[2 + a] = 0 if signs_eff[a] >= 0 else spatial[a]
             if n_face_moments == 1:
                 buf[tuple(in_edge)] = inflow[a]
@@ -1507,7 +1497,7 @@ class FullFieldWavefront(_DAGWavefront):
         ndim = len(spatial)
         capture = []
         for a in range(ndim):
-            out_edge = [slice(None)] * (2 + ndim)
+            out_edge: "list[slice | int]" = [slice(None)] * (2 + ndim)
             out_edge[2 + a] = spatial[a] if signs_eff[a] >= 0 else 0
             capture.append(psi_faces_oct[a][tuple(out_edge)])
         return tuple(capture)
@@ -1524,7 +1514,7 @@ class FullFieldWavefront(_DAGWavefront):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
-    ) -> "tuple[np.ndarray, np.ndarray]":
+    ) -> "tuple[np.ndarray, np.ndarray | None]":
         if moment_frame is not None:
             raise ValueError(
                 "FullFieldWavefront.sweep: the full-field oracle does not "
@@ -1577,10 +1567,15 @@ class FullFieldWavefront(_DAGWavefront):
         )
         # The angular octant buffer carries the trailing 2^d spatial-moment axis
         # at a multi-moment closure (the φ̂ iterate, #240 D5b-S3); DD/Step →
-        # ``()`` tail, byte-identical.  ``angular_buffers()`` parses the
+        # ``()`` tail, byte-identical.  The isinstance parse pins the
         # angular-only contract loudly (a moment-mode emit here is a caller
         # error — the oracle has no moment mode, guarded in :meth:`sweep`).
-        angular_flux, scalar_flux = emit.angular_buffers()
+        if not isinstance(emit, _SweepEmitAngular):
+            raise TypeError(
+                "full-field oracle _sweep_interior emits angular only; got "
+                f"{type(emit).__name__}."
+            )
+        angular_flux, scalar_flux = emit.angular_flux, emit.scalar_flux
         angular_oct = np.zeros((oct_idx.size, ng, *spatial, *self._spatial_moment_tail))
         graph.walk_full(
             level_op=_CellSolveAngular(
@@ -1768,7 +1763,7 @@ class ScanMarch(_LossRepresentation):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
-    ) -> "tuple[np.ndarray, np.ndarray]":
+    ) -> "tuple[np.ndarray, np.ndarray | None]":
         if self.mesh.is_1d:
             # d=1 ⇒ ``scan(x)`` with no transverse march: the unified 1-D body
             # (slab + curvilinear via the two-stratum cache; the Morel–Montry
@@ -1843,14 +1838,43 @@ class ScanMarch(_LossRepresentation):
         s_x, s_y = (s[oct_idx] for s in operands.str_axes)
         Q_oct = operands.Q[oct_idx]                 # (N_oct, ng, nx, ny)
         w_oct = emit.weights[oct_idx]               # (N_oct,)
-        Y_oct = None if emit.Y is None else emit.Y[oct_idx]
         N_oct = oct_idx.size
 
         x_reverse = sx_eff < 0
         capture_x = np.empty((N_oct, ng, ny))       # domain x-outflow, per y-row
-        angular_oct = (
-            np.zeros((N_oct, ng, nx, ny)) if emit.moment_buf is None else None
-        )
+
+        # Per-mode row emission, bound ONCE before the march (C5 — the emit
+        # mode is a TYPE; the row loop below is mode-blind).  Angular mode
+        # stages a per-octant buffer and scatters it into the global field
+        # in ``finish_octant`` (one block store instead of ny per-row
+        # advanced-index scatters); moment mode accumulates directly into
+        # the shared tensor per row (no angular field materialized).
+        if isinstance(emit, _SweepEmitAngular):
+            angular_oct = np.zeros((N_oct, ng, nx, ny))
+            angular_flux, scalar_flux = emit.angular_flux, emit.scalar_flux
+
+            def emit_row(j: int, psi_avg_row: "np.ndarray") -> None:
+                angular_oct[:, :, :, j] = psi_avg_row
+                scalar_flux[:, :, j] += np.einsum(
+                    "ngi,n->gi", psi_avg_row, w_oct,
+                )
+
+            def finish_octant() -> None:
+                angular_flux[oct_idx] = angular_oct
+
+        elif isinstance(emit, _SweepEmitMoment):
+            moment_buf, Y_oct = emit.moment_buf, emit.Y[oct_idx]
+
+            def emit_row(j: int, psi_avg_row: "np.ndarray") -> None:
+                moment_buf[:, :, :, :, j] += np.einsum(
+                    "nlm,ngi,n->lmgi", Y_oct, psi_avg_row, w_oct,
+                )
+
+            def finish_octant() -> None:
+                return None
+
+        else:
+            raise TypeError(f"unknown _SweepEmit mode: {type(emit).__name__}")
 
         # March the y-rows in the octant's y-sweep order, threading ψ_y.
         scheme = self.mesh.scheme
@@ -1880,18 +1904,9 @@ class ScanMarch(_LossRepresentation):
             )
             psi_y_in = out_y
             capture_x[:, :, j] = x_outflow
-            if emit.moment_buf is None:
-                angular_oct[:, :, :, j] = psi_avg_row
-                emit.scalar_flux[:, :, j] += np.einsum(
-                    "ngi,n->gi", psi_avg_row, w_oct,
-                )
-            else:
-                emit.moment_buf[:, :, :, :, j] += np.einsum(
-                    "nlm,ngi,n->lmgi", Y_oct, psi_avg_row, w_oct,
-                )
+            emit_row(j, psi_avg_row)
 
-        if emit.moment_buf is None:
-            emit.angular_flux[oct_idx] = angular_oct
+        finish_octant()
         # x-outflow is each row's last x-scan value (captured above); the
         # y-outflow is the LAST-marched row's out_y.
         return (capture_x, out_y)
@@ -2105,7 +2120,7 @@ def transport_sweep(
     *,
     initial_guess: "FullField | None" = None,
     moment_frame: "FrameBase | None" = None,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> "tuple[np.ndarray, np.ndarray | None]":
     """Perform one full transport sweep.
 
     Boundary conditions are read from ``sn_mesh`` (resolved at
@@ -2461,7 +2476,6 @@ class _OneDimScanWalk:
         """
         from orpheus.transport.source_sinks import BoundarySourceSink
         from ..spatial.cell_balance import cell_balance_for_streaming
-        from ..spatial.pole_angular_closure import MorelMontryAngularSweep
 
         sn_mesh = self.mesh
         psi_view = psi.bulk.values
@@ -2483,9 +2497,9 @@ class _OneDimScanWalk:
                 "not this frame."
             )
 
+        # The mesh ALWAYS binds a closure at construction (Cartesian gets
+        # IdentityAngularClosure) — no ``is None`` fallback (Pattern 4).
         pole_angular_closure = sn_mesh.pole_angular_closure
-        if pole_angular_closure is None and curvature != "cartesian":
-            pole_angular_closure = MorelMontryAngularSweep()
 
         mu_x = quad.mu_x
         level_indices: tuple[np.ndarray, ...] = pole_angular_closure.level_indices
@@ -2826,11 +2840,13 @@ class _OneDimScanWalk:
 
         out_bar = phi.bulk.values.swapaxes(0, 1)   # (ng, N, nx)
         fo = phi.boundary.face_view("xmax")                       # (N, ng)
-        fi = phi.boundary.face_view("xmin") if has_inner_face else None
 
         psi_bar = np.zeros((ng, N, nx))
         fo_bar = np.zeros((N, ng))
-        fi_bar = np.zeros((N, ng)) if has_inner_face else None
+        # xmin-face cotangent: written by the slab arms below; on curvilinear
+        # the pole is structurally NOT a face (#220), so it stays zero and is
+        # never written back — same discard idiom as ``outflow_inner_bar``.
+        fi_bar = np.zeros((N, ng))
         numer_bar = [
             np.zeros((ng, np.asarray(li).size, nx))
             for li in closure.level_indices
@@ -2848,6 +2864,7 @@ class _OneDimScanWalk:
         if oi.size:
             fo_bar[oi] += fo[oi]
         if has_inner_face:
+            fi = phi.boundary.face_view("xmin")                   # (N, ng)
             io = trace.outflow_indices_for_face("xmin")
             ii = trace.inflow_indices_for_face("xmin")
             if io.size:
@@ -3033,7 +3050,7 @@ class _OneDimScanWalk:
         V = self.mesh.volumes                                      # (nx,) — no group axis
         scheme = self.mesh.scheme
 
-        coord = self.mesh.reduced.coord  # type: ignore[union-attr]
+        coord = self.mesh.reduced.coord
         is_slab = coord is CoordSystem.CARTESIAN
         is_sphere = coord is CoordSystem.SPHERICAL
 
@@ -3091,7 +3108,15 @@ class _OneDimScanWalk:
         # face view ARE the inflow seed, and the outgoing-ordinate slots are
         # persisted in place after the sweep. Reading the inflow ords (before)
         # and writing the outflow ords (after) touch DISJOINT ordinate sets,
-        # so aliasing the face view is safe.
+        # so aliasing the face view is safe.  (Each geometry arm below binds
+        # its OWN face views — the two arms consume disjoint variable sets,
+        # so no cross-arm Optionals exist; C5, 2026-07-03.)
+
+        # ── SLAB joint-batch fast path ────────────────────────────────────
+        #
+        # Slab has no M-M angular thread, no degenerate ordinates, and one
+        # chain per direction.  Group ordinates by chain direction and run
+        # ONE ordinate_scan per chain.  Exactly 2 scan calls per sweep.
         if is_slab:
             # D-H.2-C2: L2 :class:`BoundaryFlux` provides writable per-face
             # views via :meth:`face_view`.  Slab layout has both ``xmin``
@@ -3103,48 +3128,7 @@ class _OneDimScanWalk:
             xmax_face = boundary_flux.face_view("xmax")  # (N, ng)
             inflow_left = xmin_face    # incoming-ord slots = seeded inflow
             inflow_right = xmax_face  # incoming-ord slots = seeded inflow
-            levels = [None]
-            level_ordinates_list = [list(range(N))]
-            bc_outer = None
-            sigma_t_gx = None
-            dr = None
-            inflow_full = None
-        else:
-            # D-H.2-C2: 1-D curvilinear layout has only the outer radial
-            # ``xmax`` face (the geometric pole at r=0 is a regularity
-            # condition, not a BC face).  Writable view into the L2 flat
-            # backing buffer.
-            bc_outer = boundary_flux.face_view("xmax")  # (N, ng)
-            inflow_full = bc_outer  # incoming-ord slots = seeded inflow (bare sweep)
 
-            # Per-level Carlson coupled-pole seed delegates to the M-M
-            # closure's ``psi_half_seed`` strategy — the SAME strategy the
-            # matvec uses (Pattern 2 single source of truth).  Pre-amble
-            # only stashes the (σ_t, Δr) bundle the per-level context
-            # needs; the level loop builds the per-level CarlsonSweepContext
-            # and calls ``closure.psi_half_seed(psi_level, context)``.
-            # See ``MorelMontryAngularSweep.precompute_psi_state`` (the
-            # matvec entry point) for the symmetric routing.
-            sigma_t_gx = sig_t_p                                  # (ng, nx)
-            dr = self.mesh.axis_widths[0]
-
-            if is_sphere:
-                levels = [None]
-                level_ordinates_list = [list(range(N))]
-            else:
-                level_indices = quad.level_indices  # type: ignore[attr-defined]
-                levels = list(range(len(level_indices)))
-                level_ordinates_list = [list(level_indices[p]) for p in levels]
-
-            inflow_left = inflow_right = None
-            xmin_face = xmax_face = None
-
-        # ── SLAB joint-batch fast path ────────────────────────────────────
-        #
-        # Slab has no M-M angular thread, no degenerate ordinates, and one
-        # chain per direction.  Group ordinates by chain direction and run
-        # ONE ordinate_scan per chain.  Exactly 2 scan calls per sweep.
-        if is_slab:
             # Partition ordinates by direction sign (μ ≥ 0 → forward chain).
             forward_mask = mu >= 0
             forward_ords = np.where(forward_mask)[0]
@@ -3309,6 +3293,24 @@ class _OneDimScanWalk:
         # (psi_angle[chain] is updated by ordinate m → consumed by m+1).
         # Joint-batch over ordinates is blocked; loop stays per-ordinate.
         else:
+            # D-H.2-C2: 1-D curvilinear layout has only the outer radial
+            # ``xmax`` face (the geometric pole at r=0 is a regularity
+            # condition, not a BC face).  Writable view into the L2 flat
+            # backing buffer.
+            bc_outer = boundary_flux.face_view("xmax")  # (N, ng)
+            inflow_full = bc_outer  # incoming-ord slots = seeded inflow (bare sweep)
+            sigma_t_gx = sig_t_p                                  # (ng, nx)
+            dr = self.mesh.axis_widths[0]
+            if is_sphere:
+                # Sphere is the single-level case with NO μ-level index
+                # (``mu_level_idx=None`` on the walk below).
+                levels: "list[int | None]" = [None]
+                level_ordinates_list = [list(range(N))]
+            else:
+                level_indices = quad.level_indices
+                levels = list(range(len(level_indices)))
+                level_ordinates_list = [list(li) for li in level_indices]
+
             # M-M closure owns the per-level Carlson coupled-pole seed
             # (Pattern 2 single source of truth — the matvec consumes the
             # SAME ``psi_half_seed`` strategy via
@@ -3317,7 +3319,19 @@ class _OneDimScanWalk:
             # iterate when ``initial_guess`` is supplied; zeros on cold
             # start) and emits the cell-centred half-angle face flux
             # ``φ̄_{1/2,i,g}`` per Hébert §3.9.4 Eqs. (3.432)-(3.435).
+            # The whole curvilinear scan IS the Morel–Montry thread (the
+            # per-level Carlson seed + the in-sweep angular recurrence), so
+            # the closure is parsed to the M-M type loudly — a different
+            # curvilinear closure would need its own scan choreography.
+            from ..spatial.pole_angular_closure import MorelMontryAngularSweep
+
             closure = self.mesh.pole_angular_closure
+            if not isinstance(closure, MorelMontryAngularSweep):
+                raise TypeError(
+                    "_OneDimScanWalk curvilinear scan requires the "
+                    "Morel-Montry closure (its Carlson coupled-pole seed "
+                    f"thread); got {type(closure).__name__}."
+                )
             # D-H.1c stage 4 — container-agnostic bulk extraction: the
             # FullField composite (and its TimedFullField subclass) exposes
             # the per-ordinate iterate under ``.bulk.values``; history-blind.
@@ -3342,7 +3356,7 @@ class _OneDimScanWalk:
                 ords_arr = np.asarray(ordinates_in_level)
                 mu_in_level = mu[ords_arr]
                 most_inward_global = int(ords_arr[int(np.argmin(mu_in_level))])
-                bc_outer_value = inflow_full[most_inward_global, :]  # type: ignore[index]
+                bc_outer_value = inflow_full[most_inward_global, :]
                 level_weights = weights[ords_arr]
                 if psi_g_first is not None:
                     psi_level = psi_g_first[:, ords_arr, :]          # (ng, M_p, nx)
@@ -3372,7 +3386,7 @@ class _OneDimScanWalk:
 
                     # Per-ordinate spatial-upstream inflow (ng,).
                     if mu_n < 0:
-                        psi_in = inflow_full[global_n]               # type: ignore[index]
+                        psi_in = inflow_full[global_n]
                     elif geom.is_degenerate[global_n]:
                         # Degenerate (μ_r = 0) ordinate: no radial streaming —
                         # the spatial-upstream slot is inert.
@@ -3495,7 +3509,7 @@ def _sweep_scheduled(
     reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
     moment_frame: "FrameBase | None" = None,
     interior: "Callable" ,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> "tuple[np.ndarray, np.ndarray | None]":
     r"""Polymorphic schedule-driven 2-D sweep (Phase 3 sub-step 3c; S6.4(b)
     kernel-parameterized).
 
@@ -3580,12 +3594,12 @@ def _sweep_scheduled(
     moment_tail = face_moment_tail(
         sn_mesh.scheme.spatial_basis_per_axis ** sn_mesh.ndim
     )
+    emit: "_SweepEmitAngular | _SweepEmitMoment"
     if moment_frame is None:
-        angular_flux = np.zeros((N, ng, *spatial, *moment_tail))
-        scalar_flux = np.zeros((ng, *spatial, *moment_tail))
-        moment_buf = None
-        emit = _SweepEmit(
-            weights=weights, angular_flux=angular_flux, scalar_flux=scalar_flux,
+        emit = _SweepEmitAngular(
+            weights=weights,
+            angular_flux=np.zeros((N, ng, *spatial, *moment_tail)),
+            scalar_flux=np.zeros((ng, *spatial, *moment_tail)),
         )
     else:
         # The moment buffer carries the frame table's (L+1, 2L+1) harmonic
@@ -3594,9 +3608,10 @@ def _sweep_scheduled(
         # basis-agnostic (it reads the order off the table it already consumes,
         # not a basis-specific attribute).
         n_l, n_m = moment_frame.table.shape[1:3]
-        moment_buf = np.zeros((n_l, n_m, ng, *spatial, *moment_tail))
-        emit = _SweepEmit(
-            weights=weights, moment_buf=moment_buf, Y=moment_frame.table,
+        emit = _SweepEmitMoment(
+            weights=weights,
+            moment_buf=np.zeros((n_l, n_m, ng, *spatial, *moment_tail)),
+            Y=moment_frame.table,
         )
 
     operands = _SolveOperands(
@@ -3620,14 +3635,14 @@ def _sweep_scheduled(
             # reads the fresh current-iterate reflected inflow off the trace.
             reflect(boundary_flux, group.reflect_faces)
 
-    if moment_frame is None:
-        return angular_flux, scalar_flux
+    if isinstance(emit, _SweepEmitAngular):
+        return emit.angular_flux, emit.scalar_flux
     # Moment mode: (moments, None).  The scalar IS φ_0^0 = ``moments[0, 0]``
     # (Y_0^0 = 1), read off the tensor by the caller — NOT returned separately
     # (returning the live ``moment_buf[0, 0]`` view invites aliasing; the
     # angular-mode scalar is an independent array, so a None here keeps the two
     # modes' second slot from being mistaken for the same kind of value).
-    return moment_buf, None
+    return emit.moment_buf, None
 
 
 def _sweep_jacobi(
@@ -3638,7 +3653,7 @@ def _sweep_jacobi(
     *,
     moment_frame: "FrameBase | None" = None,
     interior: "Callable",
-) -> tuple[np.ndarray, np.ndarray]:
+) -> "tuple[np.ndarray, np.ndarray | None]":
     r"""The bare multi-D sweep = the **Jacobi** octant schedule × one
     interior kernel (renamed from ``_sweep_2d_wavefront`` at C3.6 — the
     body has been d-generic since S6.4(d), and it is the JACOBI spelling,

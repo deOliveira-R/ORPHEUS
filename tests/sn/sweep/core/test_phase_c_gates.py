@@ -252,25 +252,31 @@ def _flat_psi_composite(
 @pytest.mark.catches("ERR-026")
 @pytest.mark.parametrize("sigma_t_value", [0.0, 0.5])
 @pytest.mark.parametrize(
-    "pole_closure_factory",
+    "pole_closure_cls",
     [
         pytest.param(
             MorelMontryAngularSweep,
             id="mms",
             marks=pytest.mark.xfail(
-                strict=False,
+                strict=True,
                 reason=(
-                    "Empirical Gate 1.1 outcome (Phase C, 2026-05-12): "
                     "MorelMontryAngularSweep does NOT preserve the "
-                    "per-ordinate flat-flux invariant by design. "
-                    "Cylindrical levels happen to telescope cleanly "
-                    "(α-dome cancellation across pure-azimuthal "
-                    "degenerate ordinates); spherical does NOT — "
-                    "see Phase B closeout for the structural rationale. "
+                    "per-ordinate flat-flux invariant by design (Phase B "
+                    "closeout has the structural rationale).  LIVE "
+                    "observation (C5, 2026-07-03, bound closure): BOTH "
+                    "sphere AND cylinder legs fail — the Phase-C "
+                    "(2026-05-12) claim that cylindrical levels telescope "
+                    "cleanly was recorded through the since-retired "
+                    "unbound path (the factory call built an UNBOUND "
+                    "instance whose matvec crashed on missing state, so "
+                    "the non-strict xfail leg was inert, not a physics "
+                    "observation).  strict=True pins today's behaviour: "
+                    "a closure change that starts preserving the "
+                    "invariant must update this gate deliberately.  "
                     "PR-TYPED-6c Step 7 (2026-05-18) retired the "
                     "``LegacyTauSymmetricInterpolation`` and "
                     "``BaileyFlatFluxRedist`` ablation strategies that "
-                    "previously paramerised this gate; MMS is the only "
+                    "previously parametrised this gate; MMS is the only "
                     "surviving curvilinear closure."
                 ),
             ),
@@ -285,7 +291,7 @@ def _flat_psi_composite(
     ],
 )
 def test_apply_curvilinear_per_ordinate_flat_flux_residual(
-    sigma_t_value, pole_closure_factory, geom,
+    sigma_t_value, pole_closure_cls, geom,
 ):
     r"""ψ constant per ordinate on reflective BC → apply(ψ) = Σ_t·ψ.
 
@@ -309,11 +315,10 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     block; the per-ordinate flat-ψ invariant collapses the matvec to
     ``Σ_t·ψ`` cell-wise.
     """
-    pole = pole_closure_factory()
     if geom == "sphere":
-        sn_mesh, sig_t = _make_spherical_sn_mesh(pole_closure=pole)
+        sn_mesh, sig_t = _make_spherical_sn_mesh(pole_closure=pole_closure_cls)
     else:
-        sn_mesh, sig_t = _make_cylindrical_sn_mesh(pole_closure=pole)
+        sn_mesh, sig_t = _make_cylindrical_sn_mesh(pole_closure=pole_closure_cls)
     sig_t = np.full_like(sig_t, sigma_t_value)
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
@@ -799,11 +804,11 @@ def test_sweep_curvilinear_per_ordinate_flat_flux_residual(
 
     if geom == "sphere":
         sn_mesh, sig_t = _make_spherical_sn_mesh(
-            pole_closure=MorelMontryAngularSweep(),
+            pole_closure=MorelMontryAngularSweep,
         )
     else:
         sn_mesh, sig_t = _make_cylindrical_sn_mesh(
-            pole_closure=MorelMontryAngularSweep(),
+            pole_closure=MorelMontryAngularSweep,
         )
     sig_t_arr = np.full_like(sig_t, sigma_t_value)
     nx = sn_mesh.nx

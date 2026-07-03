@@ -167,12 +167,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import ClassVar, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 
 from orpheus.geometry.reduced_operator import StreamingTerms
 from orpheus.numerics.registry import RegistryMixin
+
+if TYPE_CHECKING:  # pragma: no cover
+    from ._ubld import D1ClosedForm
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1226,6 +1229,31 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement reflect_scan_coefficients "
             "(transverse_coupling_is_facewise is False)."
+        )
+
+    def moment_scan_closure(
+        self,
+        *,
+        abs_mu: np.ndarray,
+        A_down: np.ndarray,
+        V: np.ndarray,
+        reaction_xs: np.ndarray,
+    ) -> "D1ClosedForm":
+        r"""Per-cell closed form for the 1-D multi-moment SCAN (#240 D5b-S3).
+
+        The slope-source-aware companion of
+        :meth:`affine_scan_coefficients`, consumed by the scan-march's
+        multi-moment branch (gated on :attr:`is_multi_moment`) to fold the
+        threaded scattering-slope source ``Σ_s·φ̂`` into the face-chain
+        affine source and reconstruct the ``(ψ̄, ψ̂)`` cell moments.  Only a
+        multi-moment scheme overrides it (LD today; see
+        :meth:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous.moment_scan_closure`);
+        the default raises — the same capability-method idiom as
+        :meth:`affine_scan_coefficients` / :meth:`reflect_scan_coefficients`.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement moment_scan_closure "
+            "(is_multi_moment is False)."
         )
 
     # ── Generic affine reconstruction ops (#158 Inc B / #240 D2) ─────────────

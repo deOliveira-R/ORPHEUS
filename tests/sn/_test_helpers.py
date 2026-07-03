@@ -258,6 +258,28 @@ def curvilinear_two_region_mesh(
     ))
 
 
+def make_tiny_spherical_sn_mesh(n_cells: int = 2, sn_order: int = 2) -> "SNMesh":
+    """Minimal bound-closure host: an ``n_cells``-cell reflective sphere.
+
+    The cheapest SNMesh satisfying the pole-angular-closure family's
+    ``cls(sn_mesh)`` construction contract (C5, 2026-07-03, retired the
+    unbound ``MorelMontryAngularSweep()`` legacy mode) — for foundation
+    tests of strategy construction, registry ``create``, repr, and seed
+    wiring that need a real bound instance but never read its
+    coefficients.
+    """
+    from orpheus.geometry import CoordSystem
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
+
+    mesh = curvilinear_homogeneous_mesh(
+        n_cells, 1.0, coord=CoordSystem.SPHERICAL,
+    )
+    return SNMesh(
+        mesh, Quadrature.gauss_legendre(sn_order), placeholder_materials(),
+    )
+
+
 def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNMesh":
     """2-D Cartesian, reflective, 2G, NON-SQUARE (the x↔y-swap moat).
 
@@ -417,13 +439,13 @@ def make_scalar_flux_zero(sn_mesh: "SNMesh") -> "ScalarFlux":
 
 
 def redistribution_via_live_path(
-    closure,
     psi_level: "np.ndarray",    # (ng, M, nx)
     alpha: "np.ndarray",        # (M+1,)
     dAw: "np.ndarray",          # (nx, M)
     tau: "np.ndarray",          # (M,)
     V: "np.ndarray",            # (nx,)
     *,
+    psi_half_seed=None,         # PsiHalfAngleSeed | None
     carlson_context=None,       # CarlsonSweepContext | None
 ) -> "np.ndarray":
     r"""Single-level M-M redistribution :math:`R_{m,i,g}` via the LIVE surface.
@@ -431,15 +453,20 @@ def redistribution_via_live_path(
     Issue #248 — the dead legacy ``MorelMontryAngularSweep.__call__`` bundle
     (and its private ``_weighted_angular_recurrence_single_level`` kernel) was
     retired.  This helper reconstructs the SAME redistribution that bundle
-    returned for one level, but through the production path:
+    returned for one level, but through the production algebra:
 
-    * the half-angle ψ-thread :math:`\phi_{m\pm 1/2,i,g}` comes from
-      :meth:`MorelMontryAngularSweep.compute_psi_half_per_level` — the live
-      PR-TYPED-6b method whose recurrence kernel
+    * the half-angle ψ-thread :math:`\phi_{m\pm 1/2,i,g}` comes from the
+      module-level
+      :func:`~orpheus.sn.spatial.pole_angular_closure.compute_psi_half_per_level`
+      — the pure-algebra surface whose recurrence kernel
       (``_psi_half_grid_single_level``) is the SAME one the matvec's
-      :meth:`~MorelMontryAngularSweep.precompute_psi_state` consumes.  When a
-      ``carlson_context`` is supplied the recurrence seeds at the Carlson
-      coupled-pole value (exactly as ``precompute_psi_state`` does);
+      :meth:`~MorelMontryAngularSweep.precompute_psi_state` consumes (the C5
+      unbound-mode retirement, 2026-07-03, moved this surface off the class;
+      no closure instance is needed).  When a ``carlson_context`` is supplied
+      the recurrence seeds at the Carlson coupled-pole value (exactly as
+      ``precompute_psi_state`` does), through the same default
+      ``AngularEdgeExtrapolation`` seed strategy as the M-M constructor —
+      pass ``psi_half_seed`` to override;
     * the geometry redistribution fold
       :math:`R_m = (\Delta A/w)_{i,m}/V_i\,(\alpha_{m+1/2}\phi_{m+1/2}
       - \alpha_{m-1/2}\phi_{m-1/2})` is applied here explicitly (the caller
@@ -458,9 +485,14 @@ def redistribution_via_live_path(
     calling this once per μ-level with that level's α/ΔA/w/τ/V slice and
     Carlson context — mirroring how ``precompute_psi_state`` loops levels.
     """
+    from orpheus.sn.spatial.pole_angular_closure import (
+        compute_psi_half_per_level,
+    )
+
     ng, M, nx = psi_level.shape
-    grid = closure.compute_psi_half_per_level(
-        psi_level, tau, carlson_context=carlson_context,
+    grid = compute_psi_half_per_level(
+        psi_level, tau,
+        psi_half_seed=psi_half_seed, carlson_context=carlson_context,
     )
     faces = grid.faces  # (ng, M+1, nx); faces[:, m, :] = φ_{m-1/2}
     redist = np.empty((ng, M, nx))
