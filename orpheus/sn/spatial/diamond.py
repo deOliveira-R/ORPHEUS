@@ -163,6 +163,27 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     1st-order slope moment (bilinear), leaves this trait at its ``False``
     default and rides the DAG wavefront instead (#240 D5b / #38)."""
 
+    diffusion_limit_consistent: ClassVar[bool] = True
+    r"""DD's thick-diffusion limit IS a consistent diffusion discretization for
+    the leading-order scalar flux (Larsen–Morel–Miller 1987 Eq. (4.24): the
+    cell-average flux limits to :math:`\tfrac12(\Phi_{j+1/2}+\Phi_{j-1/2})` where
+    :math:`\Phi` satisfies the edge-differenced diffusion Eq. (4.22); the
+    intermediate limit Eqs. (4.33)/(4.34) hold too — LMM-1987 Table I "Diamond"
+    row).  The only DD "maybe" is the thick-regime cell-EDGE flux under an
+    anisotropic incident boundary (the cell-to-cell edge oscillation, Eq. 4.23),
+    which is an edge-flux artefact, NOT a failure of the leading-order
+    scalar-flux limit.  ⚠ This is the SPATIAL axis: DD-in-ANGLE's first-order
+    :math:`\beta`-failure (the curvilinear flux dip, Bailey–Morel–Chang 2010) is
+    a DISTINCT, angular result — do NOT read it as a spatial-DD deficiency.  The
+    angular condition lives on the pole-angular closure; the PAIR validity is
+    :func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`."""
+
+    supports_curvilinear: ClassVar[bool] = True
+    r"""DD has a curvilinear cell closure: :meth:`update` runs the Morel–Montry
+    angular redistribution (the ``angular_upstream is not None`` branch) for
+    sphere/cylinder, and DD rides ``CumprodScan`` on every 1-D geometry.  So a
+    curvilinear mesh may select a DD scheme (the default for sphere/cylinder)."""
+
     def update(
         self,
         visit: CellVisit,

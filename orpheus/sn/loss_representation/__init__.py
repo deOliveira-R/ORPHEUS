@@ -225,6 +225,31 @@ class IncompatibleRepresentation(ValueError):
     """
 
 
+def _curvilinear_capability(mesh: "SNMesh") -> Compatibility:
+    r"""The (scheme × geometry) curvilinear-capability gate — single source.
+
+    A curvilinear (sphere/cylinder) mesh needs a scheme whose cell closure
+    handles the Morel–Montry angular-redistribution thread; a slab/Cartesian-
+    only scheme (Linear-Discontinuous today — the curvilinear LD closure is
+    unpublished, #158/#6) must be rejected at SELECTION, not raised mid-sweep.
+    Cartesian meshes are unconstrained (every scheme handles :math:`\mu\partial_x`).
+
+    Consumed by the 1-D scan selectors (:meth:`CumprodScan.supports` /
+    :meth:`ScanMarch.supports`) and :func:`default_for` so that
+    ``mesh.scheme.is_affine_scannable`` — a geometry-blind 1-D trait — cannot
+    license a curvilinear sweep the scheme has no closure for (#236 ST2; the
+    dishonest-selection fix).
+    """
+    if mesh.is_cartesian or mesh.scheme.supports_curvilinear:
+        return Compatibility(True, "")
+    return Compatibility(
+        False,
+        f"{type(mesh.scheme).__name__} has no curvilinear cell closure "
+        "(slab/Cartesian only); the curvilinear (sphere/cylinder) closure for "
+        "this scheme is unpublished (Issue #158 curvilinear arm / #6)",
+    )
+
+
 @runtime_checkable
 class LossRepresentation(Protocol):
     r"""One algorithm for the within-group transport solve and its twin.
@@ -996,9 +1021,17 @@ class CumprodScan(_LossRepresentation):
 
     @classmethod
     def supports(cls, mesh: "SNMesh") -> Compatibility:
+        if not mesh.is_1d:
+            return Compatibility(False, "requires a 1-D mesh")
+        # #236 ST2: a curvilinear mesh needs a curvilinear-capable scheme —
+        # ``is_affine_scannable`` (a geometry-blind 1-D trait) is NOT sufficient
+        # (LD is affine-scannable in slab but has no curvilinear closure).
+        geometry = _curvilinear_capability(mesh)
+        if not geometry.ok:
+            return geometry
         return Compatibility(
-            mesh.is_1d and mesh.scheme.is_affine_scannable,
-            "requires a 1-D mesh with an affine-scannable cell-update scheme",
+            mesh.scheme.is_affine_scannable,
+            "requires an affine-scannable cell-update scheme on a 1-D mesh",
         )
 
     def sweep(
@@ -1655,6 +1688,12 @@ class ScanMarch(_LossRepresentation):
         # mesh into the inline-DD row-march (#240 D5-0); the split keeps the
         # selection honest.
         if mesh.is_1d:
+            # #236 ST2: the same curvilinear-capability gate as CumprodScan —
+            # a slab-only scheme on a curvilinear mesh is rejected here, not
+            # raised mid-sweep.
+            geometry = _curvilinear_capability(mesh)
+            if not geometry.ok:
+                return geometry
             return Compatibility(
                 mesh.scheme.is_affine_scannable,
                 "requires an affine-scannable cell-update scheme on a "
@@ -1964,12 +2003,25 @@ def default_for(mesh: "SNMesh") -> LossRepresentation:
     Raises
     ------
     IncompatibleRepresentation
-        If no strategy applies.  Unreachable for any constructible mesh
-        (every 1-D mesh → ``CumprodScan``; every 2-D Cartesian mesh →
-        ``ScanMarch``; a d≥3 Cartesian mesh — axis-native via
-        ``SNMesh.from_axes`` since C5.5 (#225) —
-        → ``FullFieldWavefront``, the never-stuck any-d spine).
+        If no strategy applies.  Reachable for a curvilinear (sphere/cylinder)
+        mesh paired with a slab-only scheme (Linear-Discontinuous; #236 ST2):
+        the curvilinear-capability gate rejects it up front with a specific
+        reason.  Otherwise unreachable for a constructible mesh whose scheme is
+        geometry-capable (every 1-D mesh → ``CumprodScan``; every 2-D Cartesian
+        mesh → ``ScanMarch``; a d≥3 Cartesian mesh — axis-native via
+        ``SNMesh.from_axes`` since C5.5 (#225) — → ``FullFieldWavefront``, the
+        never-stuck any-d spine).
     """
+    # #236 ST2: reject a (scheme × geometry) pairing the scheme has no closure
+    # for UP FRONT, with the SPECIFIC reason.  NOT redundant with the loop: the
+    # loop's supports() reject it via the SAME gate, but exhaust to the GENERIC
+    # "no sweep strategy supports this mesh (ndim=…)" fall-through — which reads
+    # as a dimensionality problem, not a scheme-geometry one.  Do NOT drop this
+    # as a "DRY cleanup"; the specific reason is pinned by
+    # ``test_unified_sweep_dispatch.py::TestHonestCurvilinearSchemeSelection``.
+    geometry = _curvilinear_capability(mesh)
+    if not geometry.ok:
+        raise IncompatibleRepresentation(geometry.reason)
     for cls in LOSS_REPRESENTATIONS:
         if cls.supports(mesh).ok:
             return cls(mesh)

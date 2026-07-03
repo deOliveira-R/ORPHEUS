@@ -56,6 +56,7 @@ from orpheus.sn.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.sn.loss_representation import transport_sweep
 from orpheus.sn.loss_representation import (
     CumprodScan,
+    IncompatibleRepresentation,
     MovingFrontierWindow,
     ScanMarch,
     FullFieldWavefront,
@@ -220,6 +221,109 @@ class TestDispatchSelectsStrategy:
             )
 
 
+class TestHonestCurvilinearSchemeSelection:
+    """#236 ST2: a curvilinear mesh with a slab-only scheme is rejected at
+    SELECTION (a clear ``Compatibility`` reason / a fail-fast
+    ``IncompatibleRepresentation``), NOT passed on the geometry-blind
+    ``is_affine_scannable`` trait and raised mid-sweep.
+
+    Before this fix, ``CumprodScan.supports`` gated only on
+    ``is_1d and is_affine_scannable``; Linear-Discontinuous IS affine-scannable
+    (its 1-D Schur reduction), so a sphere/cylinder-LD mesh PASSED ``supports``
+    and only failed later via the ``_require_slab`` raise inside the kernel —
+    dishonest selection.  The ``supports_curvilinear`` trait
+    (``DiamondDifference`` True, ``LinearDiscontinuous`` False) closes it.
+    ``pytest.fail`` / ``pytest.raises`` fire under ``python -O``.
+    """
+
+    @staticmethod
+    def _curvilinear_mesh(coord: CoordSystem, *, scheme=None) -> SNMesh:
+        # Cylinder needs a genuine azimuthal quadrature; sphere is polar-only.
+        quad = (
+            Quadrature.gauss_legendre(n_ordinates=8)
+            if coord is CoordSystem.SPHERICAL
+            else Quadrature.level_symmetric(sn_order=4)
+        )
+        mesh = Mesh1D(
+            edges=np.linspace(0.0, 1.0, 9),
+            mat_ids=np.zeros(8, dtype=int),
+            coord=coord,
+            bc_left=BC("reflective"),
+            bc_right=BC("vacuum"),
+        )
+        kwargs = {} if scheme is None else {"scheme": scheme}
+        return SNMesh(mesh, quad, placeholder_materials(), **kwargs)
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize(
+        "coord", [CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL],
+    )
+    def test_curvilinear_ld_rejected_at_selection(self, coord):
+        """default_for(curvilinear-LD) raises with a SPECIFIC curvilinear reason
+        — not the generic 'no strategy' fall-through, not a mid-sweep raise."""
+        sn_mesh = self._curvilinear_mesh(coord, scheme=LinearDiscontinuous())
+        with pytest.raises(IncompatibleRepresentation) as exc:
+            default_for(sn_mesh)
+        reason = str(exc.value).lower()
+        if "curvilinear" not in reason or "no sweep strategy supports" in reason:
+            pytest.fail(
+                f"{coord.name}-LD rejection is not the specific "
+                f"curvilinear-capability reason: {exc.value!r}"
+            )
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize(
+        "coord", [CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL],
+    )
+    def test_cumprod_supports_reports_curvilinear_reason(self, coord):
+        """Frontend-queryable contract: ``CumprodScan.supports(curvilinear-LD)``
+        is False with a gray-out reason, instead of True-then-raise-mid-sweep."""
+        sn_mesh = self._curvilinear_mesh(coord, scheme=LinearDiscontinuous())
+        compat = CumprodScan.supports(sn_mesh)
+        if compat.ok:
+            pytest.fail(
+                f"CumprodScan.supports({coord.name}-LD).ok is True — the "
+                "dishonest selection the supports_curvilinear trait closes"
+            )
+        if "curvilinear" not in compat.reason.lower():
+            pytest.fail(f"reason not curvilinear-specific: {compat.reason!r}")
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize(
+        "coord", [CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL],
+    )
+    def test_curvilinear_dd_still_selects_cumprod_scan(self, coord):
+        """Negative control: curvilinear-DD (the default) is UNAFFECTED — DD has
+        a curvilinear closure (``supports_curvilinear=True``)."""
+        sn_mesh = self._curvilinear_mesh(coord)  # default DiamondDifference
+        strategy = default_for(sn_mesh)
+        if not isinstance(strategy, CumprodScan):
+            pytest.fail(
+                f"{coord.name}-DD → {type(strategy).__name__}, expected CumprodScan"
+            )
+
+    @pytest.mark.foundation
+    def test_slab_ld_still_selects_cumprod_scan(self):
+        """Negative control: slab-LD is UNAFFECTED — the gate excludes only
+        CURVILINEAR meshes; LD on a Cartesian (slab) mesh is fully supported."""
+        mesh = Mesh1D(
+            edges=np.linspace(0.0, 1.0, 9),
+            mat_ids=np.zeros(8, dtype=int),
+            coord=CoordSystem.CARTESIAN,
+            bc_left=BC("vacuum"),
+            bc_right=BC("vacuum"),
+        )
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
+        sn_mesh = SNMesh(
+            mesh, quad, placeholder_materials(), scheme=LinearDiscontinuous(),
+        )
+        strategy = default_for(sn_mesh)
+        if not isinstance(strategy, CumprodScan):
+            pytest.fail(
+                f"slab-LD → {type(strategy).__name__}, expected CumprodScan"
+            )
+
+
 class TestD3SupportsMatrix:
     """C3.6 honest-supports pins at d=3 (test-architect G-c1..c4).
 
@@ -239,7 +343,8 @@ class TestD3SupportsMatrix:
     """
 
     @staticmethod
-    def _fake(ndim: int, *, cartesian: bool = True, facewise: bool = True):
+    def _fake(ndim: int, *, cartesian: bool = True, facewise: bool = True,
+              curv_capable: bool = True):
         from types import SimpleNamespace
         return SimpleNamespace(
             is_1d=(ndim == 1), is_cartesian=cartesian, ndim=ndim,
@@ -258,6 +363,10 @@ class TestD3SupportsMatrix:
             scheme=SimpleNamespace(
                 is_affine_scannable=True,
                 transverse_coupling_is_facewise=facewise,
+                # #236 ST2: the 1-D scan selectors gate on curvilinear
+                # capability; the DD-shaped fake is curvilinear-capable so the
+                # "1-D curvilinear admitted" coverage pin still passes.
+                supports_curvilinear=curv_capable,
             ),
         )
 

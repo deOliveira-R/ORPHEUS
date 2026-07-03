@@ -402,6 +402,41 @@ class DiscretizationScheme(Protocol):
         ``ClassVar[int]`` would be WRONG for LD (its count is
         dimension-dependent); the per-axis basis size encodes the tensor-product
         structure UBLD is built on.  Read-only class attribute.
+    diffusion_limit_consistent : bool
+        Whether the scheme's THICK-DIFFUSION limit is a *consistent*
+        diffusion discretization for the leading-order scalar flux — the
+        SPATIAL half of the (spatial ⊗ angular) diffusion-limit condition
+        (Larsen–Morel–Miller 1987).  ``True`` for Diamond Difference
+        (LMM-1987 Eq. (4.24), leading-order) and full Linear-Discontinuous
+        (Larsen–Morel 1989 Part II Eq. (4.16), which requires the slope
+        SOURCE moment :math:`\hat Q` threaded); ``False`` for Step
+        (LMM-1987 Eq. (5.20) — no intermediate limit for :math:`\sigma_a
+        \neq 0`).  This is the SPATIAL axis ONLY; the ANGULAR first-order
+        condition (the Bailey–Morel–Chang :math:`\beta = 0` weight) lives
+        on the redistribution closure as ``beta_first_order_consistent``,
+        and the validity of a (scheme, closure) PAIR is their conjunction
+        (:func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`).
+        ⚠ Do NOT conflate the spatial DD verdict (``True``, leading-order)
+        with DD-in-ANGLE's first-order :math:`\beta`-failure (the
+        curvilinear flux dip): that is an angular-axis result, not a
+        spatial-DD one.  ``False`` is the conservative default (a scheme is
+        not assumed consistent until it declares so with a citation).
+        Read-only class attribute.
+    supports_curvilinear : bool
+        Whether the scheme has a CURVILINEAR (sphere/cylinder) cell closure —
+        i.e. whether its :meth:`update` / :meth:`residual` handle the
+        Morel–Montry angular-redistribution thread (a non-``None``
+        ``angular_upstream``).  Diamond Difference does (``True``);
+        Linear-Discontinuous does NOT (``False`` — the curvilinear LD closure
+        is unpublished, Issue #158 curvilinear arm / #6) and is slab/Cartesian
+        only.  The 1-D sweep-strategy selection
+        (:meth:`~orpheus.sn.loss_representation.CumprodScan.supports` /
+        :meth:`~orpheus.sn.loss_representation.ScanMarch.supports`) reads this
+        so a curvilinear mesh paired with a slab-only scheme is rejected at
+        SELECTION with a clear reason, rather than passing ``supports()`` on
+        ``is_affine_scannable`` (a geometry-blind 1-D trait) and raising
+        mid-sweep.  ``False`` is the conservative default.  Read-only class
+        attribute.
 
     Notes
     -----
@@ -420,6 +455,8 @@ class DiscretizationScheme(Protocol):
     is_affine_scannable: bool
     transverse_coupling_is_facewise: bool
     spatial_basis_per_axis: int
+    diffusion_limit_consistent: bool
+    supports_curvilinear: bool
 
     def update(
         self,
@@ -852,6 +889,35 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     Source: Maginot, Ragusa & Morel (2016) §2 Eqs. (8)-(12) — the
     tensor-product bilinear basis; the d=1 reduction lives in
     :mod:`orpheus.sn.spatial._ubld` (``d1_closed_form``)."""
+
+    diffusion_limit_consistent: ClassVar[bool] = False
+    r"""Whether the scheme's thick-diffusion limit is a consistent diffusion
+    discretization for the leading-order scalar flux — the SPATIAL half of the
+    (spatial ⊗ angular) diffusion-limit condition.  Opt-in (``False`` default):
+    a scheme is NOT assumed diffusion-limit-consistent until it declares so with
+    a literature citation (mirroring ``is_affine_scannable`` /
+    ``transverse_coupling_is_facewise``).  ``True`` for Diamond Difference
+    (Larsen–Morel–Miller 1987 Eq. (4.24)) and full Linear-Discontinuous
+    (Larsen–Morel 1989 Part II Eq. (4.16) — requires the slope SOURCE moment);
+    ``False`` for Step (LMM-1987 Eq. (5.20)).  The ANGULAR first-order condition
+    is the redistribution closure's ``beta_first_order_consistent`` (Bailey–
+    Morel–Chang 2010 Eq. (42)); the PAIR's validity is their conjunction
+    (:func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`).  ⚠ The
+    spatial DD verdict (``True``, leading-order) is NOT the DD-in-angle
+    :math:`\beta`-failure (the curvilinear flux dip is an ANGULAR artefact —
+    BMC 2010, not LMM 1987).  Read-only class attribute."""
+
+    supports_curvilinear: ClassVar[bool] = False
+    r"""Whether the scheme has a curvilinear (sphere/cylinder) cell closure
+    (handles the Morel–Montry angular-redistribution thread).  Opt-in
+    (``False`` default — slab/Cartesian only until a curvilinear closure is
+    declared, mirroring ``is_affine_scannable`` /
+    ``transverse_coupling_is_facewise``).  The 1-D sweep-strategy selection
+    reads this so a curvilinear mesh with a slab-only scheme is rejected at
+    SELECTION (a clear ``Compatibility`` reason), not passed on the
+    geometry-blind ``is_affine_scannable`` trait and raised mid-sweep.  ``True``
+    for Diamond Difference; ``False`` for Linear-Discontinuous (the curvilinear
+    LD closure is unpublished — #158/#6).  Read-only class attribute."""
 
     @property
     def is_multi_moment(self) -> bool:

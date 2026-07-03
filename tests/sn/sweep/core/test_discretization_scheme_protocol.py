@@ -67,6 +67,13 @@ class IdentityDiscretizationScheme:
     # #240 D5b-S2: the Protocol gained a fifth class-level trait (the per-axis
     # spatial-moment basis size); a slopeless cell-average scheme declares 1.
     spatial_basis_per_axis: ClassVar[int] = 1
+    # #236 Phase 1a: the Protocol gained a sixth class-level trait (the spatial
+    # diffusion-limit condition); a conforming scheme must declare it.  This
+    # synthetic stand-in makes no physics claim, so the conservative ``False``.
+    diffusion_limit_consistent: ClassVar[bool] = False
+    # #236 Phase 1b: the Protocol gained a seventh trait (curvilinear
+    # capability); this slab-only stand-in (returns angular=None) declares False.
+    supports_curvilinear: ClassVar[bool] = False
 
     def update(
         self,
@@ -130,6 +137,12 @@ class FakeCurvilinearStrategy:
     # #240 D5b-S2: the Protocol gained a fifth class-level trait (the per-axis
     # spatial-moment basis size); a slopeless cell-average scheme declares 1.
     spatial_basis_per_axis: ClassVar[int] = 1
+    # #236 Phase 1a: the Protocol gained a sixth class-level trait (the spatial
+    # diffusion-limit condition); a conforming scheme must declare it.
+    diffusion_limit_consistent: ClassVar[bool] = False
+    # #236 Phase 1b: the Protocol gained a seventh trait (curvilinear
+    # capability); this curvilinear stand-in handles angular_upstream → True.
+    supports_curvilinear: ClassVar[bool] = True
 
     def update(
         self,
@@ -282,6 +295,13 @@ class TestCapabilityTraitsAreGenuineBools:
         "is_positivity_preserving",
         "is_affine_scannable",
         "transverse_coupling_is_facewise",
+        # #236 Phase 1a: the spatial diffusion-limit condition is a bool
+        # capability trait too — subject to the same #240 D5-0 truthy-non-bool
+        # footgun, so the genuine-bool teeth must cover it.
+        "diffusion_limit_consistent",
+        # #236 Phase 1b: curvilinear capability is read in a boolean context
+        # by the selection layer (`_curvilinear_capability`) — same footgun.
+        "supports_curvilinear",
     )
 
     @pytest.mark.foundation
