@@ -200,6 +200,51 @@ close-out list + the archivist brief; docs work is dispatch-heavy, not context-h
   unblocked); file follow-ups: physical-P1 re-baseline (ruling 4 part 2), analytic
   Marshak reference (if deferred), mixed-form/RT0 lift seam.
 
+**STATUS: DONE (2026-07-03, session 6 — the campaign close-out).** Executed per the
+list; record:
+
+1. **Pyright lift @ `38551cf`**: `orpheus/diffusion` out of the pyproject ignore;
+   baseline gains `diffusion: 0`. CLI total = **1** (the accepted #288 transport
+   residual only). The lift's first full analysis of DiffusionMesh's structural
+   `TransportMethod` conformance at its resolve call site: **0 new errors** — the P7b
+   prediction held exactly.
+2. **Docs overhaul @ `44829cb`** (archivist, main-agent reviewed line-by-line —
+   boundary-closure coefficients re-derived by hand, all 9 dev-history hashes checked):
+   `diffusion_1d.rst` +838/−90 (Key Facts → operator-family posing + albedo-family law
+   table + ruling-3 important-box; new "Operator-family architecture (production)"
+   section with the interior-conductance/boundary-closure equations, rejected
+   Green-splitting warning, #292/#293/#294 seams, gate table; Development history
+   seeded P1→P7b + island row; investigation history reframed island-dead-end-as-
+   history; 4 new representational labels vv-status=documented, matrix 275→279);
+   `verification.rst` registry section rewritten to the LIVE mechanism (the archivist
+   CAUGHT a brief error: the registry is NOT all-eager — the #212 `_CONTINUOUS_BUILDERS`
+   build-cost lazy tier is live; Richardson side-channel + the wrong `orpheus.
+   diffusion_1d` name folded into the historical note); `operator_algebra.rst` surgical
+   (A_diff-is-real cross-refs ×4; #270 scope note SN-vs-diffusion honest split;
+   "no-triple" camp renamed **monolithic-resolvent (no-sweep)** — diffusion HAS the
+   family, lacks the sweep, thesis stands). Plus `orpheus/diffusion/__init__.py`
+   stale "auto-registers" claims (pre-P7b) fixed.
+3. **The stale-TODO item self-discharged**: both files (`tests/diffusion/
+   test_diffusion.py`, derivations `diffusion.py`) were deleted WITH the island at P6.
+   `docs/api/diffusion_1d.rst` verified already-modern (untouched). Infra observation
+   banked (archivist lessons L-002): the api page's `:noindex:` leaves diffusion xrefs
+   plain-text page-wide — candidate future fix, out of #290 scope.
+4. **Follow-ups filed**: **#292** (physical-P1 re-baseline, ruling 4 part 2), **#293**
+   (analytic Marshak k reference — Robin faces on the transfer matrix), **#294**
+   (RT0/mixed-form lift seam). #291 (SN compute_keff leakage omission) filed at P5.
+5. **Gates (final tree)**: full serial `-O` tree **5934 passed / 0 failed** (19 skip /
+   54 xfail, 50:58); pyright = 1 (#288 only); sphinx `-E -W` exit 0, 0 warnings;
+   audit exit 0; demo k = 1.022173 ≡ MATLAB (Match: YES); retired-symbol grep clean.
+6. **Close-out**: ff-merge to main (this commit = the merge tip), branch deleted;
+   pushes held by the user — `Closes #290` (@ `44829cb`), `#182` (@ `6672e7a`),
+   `#93` (@ `9104233`) fire at push. Comments posted on #2 (A_diff ready + seams +
+   the Mode-9 #215 gate trap), #279 + #270 (diffusion arms landed), #33/#34
+   (structurally unblocked). MEMORY.md campaign entry compressed to terminal.
+
+THE CAMPAIGN IS COMPLETE — all 8 phases + P2.5/P7a/P7b sub-phases, 20 commits,
+bit-identical throughout (demo 1.022173 preserved from the island's first breath to
+its retirement).
+
 ## DSA (#2) seams left behind (named, not built)
 - `A_diff` contract: `LinearOperator` on the scalar composite, invertible via
   `MatrixInverseOperator`, consumes the moment-0 reduction of `evaluate_residual`'s
