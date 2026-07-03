@@ -292,7 +292,8 @@ the renames make its keys read coherently.
 | `BoundaryField` (angular family) | `AngularBoundaryField` |
 | `ScalarTraceField` | `ScalarBoundaryField` |
 | `BoundaryFlux` / `BoundarySourceSink` / `BoundaryResidual` / `BoundaryDisplacement` | `AngularBoundaryFlux` / `AngularBoundarySourceSink` / `AngularBoundaryResidual` / `AngularBoundaryDisplacement` |
-| `PartialCurrent` | `ScalarBoundaryFlux` (class retires the quantity name; the partial-current vocabulary LIVES ON in the accessors `outflow_view`/`inflow_view`/`net_current`/`boundary_scalar_flux` + docstrings) |
+| `PartialCurrent` | `ScalarBoundaryFlux` (CONFIRMED post-analysis, ruling 5b: Flux = the state ROLE whatever the rep stores — the HarmonicMomentFlux precedent; the DSA restriction then reads state→state in the operator algebra. The partial-current vocabulary LIVES ON in the accessors `outflow_view`/`inflow_view`/`net_current` + docstrings) |
+| accessor `boundary_scalar_flux(face)` | `p1_boundary_scalar_flux(face)` (the φ_Γ-misreading fence: `φ_Γ = 2(J⁺+J⁻)` holds ONLY under the P1 closure — the name carries the model-dependence at the one site φ_Γ is derived; `net_current` stays unprefixed because `J = J⁺−J⁻` is EXACT for any angular distribution) |
 | `PartialCurrentDisplacement` | `ScalarBoundaryDisplacement` |
 | `SNMesh.trace` | `SNMesh.angular_trace` (Q2 Option 1 — pairs with the inherited `scalar_trace`; kills the same-object polysemy before DSA) |
 | `MaterialMesh.scalar_trace` | (stays) |
@@ -319,3 +320,24 @@ mechanical, nexus `rename` assists; (e) gates after: full serial walls
 **Why now:** zero external consumers of the P2 scalar names exist yet, and
 P3/P4 (realizer, method space, both B operators) multiply references to exactly
 these names — clean-before-extend.
+
+**Ruling 5b rationale (2026-07-03 boundary-convention analysis — feed to the P8
+archivist for the theory page):** the boundary object is flux-VALUED but
+current-MEASURED (transport trace theorem: traces live in
+L²(Γ, |Ω·n̂| dΩ dA) — the cosine weight is not optional). SN stores the values
+(raw per-ordinate ψ — the sweep's upwind data, uncosined) and keeps the measure
+in the space metric `G_s`; the scalar family stores the already-contracted
+value·measure products — its components genuinely ARE currents, which is also
+why its space metric correctly degenerated to bare AREA. The BCs never
+reconstruct a flux: the albedo family `J⁻ = 𝒜J⁺` is closed in current
+variables; within the pair `J = J⁺−J⁻` is EXACT (any angular distribution)
+while `φ_Γ = 2(J⁺+J⁻)` is P1-closure-dependent (hence the `p1_` accessor
+prefix). The UNIFYING frame that justifies ONE family pattern: both families
+store the inflow/outflow decomposition of their model's boundary state — SN
+per-ordinate (BCs ordinate-diagonal via reflection pairing), scalar
+per-half-range (BCs albedo-diagonal); the (J⁺,J⁻) rows are the same structural
+split as SN's inflow/outflow ordinate selectors, post-integration. Basis note:
+the Marshak pair (crossing-exact bookkeeping, φ ± 2J direction) was chosen over
+the P1 CHARACTERISTIC basis φ ± √3J (the Mark conditions ψ(∓1/√3) = 0 — the S2
+Gauss points): conservation-natural over PDE-characteristic, right for BC
+bookkeeping + DSA current-consistency.
