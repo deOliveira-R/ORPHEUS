@@ -845,6 +845,66 @@ grows), `class DiffusionMesh(MaterialMesh)`:
 
 ### P7b — TransportMethod Protocol (after P7a; the original §P7 payload, updated)
 
+**STATUS: DONE @ `44d583e` (2026-07-03, session 5).** Executed per the
+list below; deviations + rulings-of-record:
+
+1. **Protocol members as minted** (the "minted at carve time" rule
+   applied): `axes` + `BOUNDARY_OPERATOR_REGISTRY` + `bc` +
+   `realize_boundary_law(law, face)`; generic `Protocol[OpT_co]` over
+   the method's realized-operator type (SN conforms as
+   `TransportMethod[_BoundBoundaryOperator]`, diffusion as
+   `TransportMethod[LinearOperator]` — the leg-generic discipline).
+   **`full_field_space` NOT declared**: the current pyright rejects
+   `cached_property[T]` against a Protocol property member (probe
+   verified both property + plain-attr spellings fail) and it has no
+   generic consumer yet — recorded in the Protocol docstring; declare
+   at the first generic consumer (DSA #2). **No `name` member**: the
+   one error-text consumer uses `type(method).__name__` (self-truthing,
+   never dispatchable). Static conformance runs today through the SN
+   call site only (diffusion is pyright-ignored until P8's lift — P8's
+   pyright gate covers the second witness).
+2. The tag → law parse is fully shared (incl. the albedo-param
+   refusal); SN's unsupported-kind message changed "SN solver …" →
+   "SNMesh …" (no test pinned the old text; the new
+   `tests/transport/test_method.py` pins the new one through the SN
+   witness). SN's kind tag = `law.key` (single source; ≡ `bc.kind`
+   because no admission table aliases — noted in
+   `realize_boundary_law`'s docstring).
+3. SN trace build moved into `_init_core` (the trace-inside-
+   `_resolve_bcs` wart retired; the diffusion ordering was always
+   right).
+4. Banked-spec disposition: §1 composition wall rewired + teeth
+   mutation-proven RED via a pytest `-p` plugin (direct `-O` function
+   calls strip bare asserts — Mode 8 in the PROOF harness, not the
+   gate; pytest AST-rewrite fires them); §2 registry-routing +
+   fresh-process gates MOOT (dissolution); §3 layer gate green + zero
+   sn modules pulled by `import orpheus.geometry.boundary`; H2 avoided
+   (no sn import in the new home — the 2 grep hits are docstring
+   example lines, the spec's explicitly-fine category); H4 grep of
+   built HTML clean.
+5. Retirement extras: stub TESTS deleted with the stubs;
+   `TestRegistryLookup` → `TestRealizerIdentity` (method_name +
+   `BoundaryRealizer`-Protocol conformance); diffusion's
+   registration pin → Protocol-conformance pin.
+6. Docs beyond the list: `boundary_conditions.rst` dual-registry /
+   stub / walker-placement sections rewritten to the landed state
+   (the fired-deferral retrospective records the one delta vs the
+   banked sketch: dissolve, not registry-route);
+   `discrete_ordinates.rst` P7b Development-history row; THREE latent
+   RST defects fixed in passing (Key-Facts grid-table overflow from
+   the P2.5 `angular_trace_space` rename; 2 short underlines in
+   `operator_algebra.rst` — both exposed by first re-parse since,
+   would have blocked any future `-W` build touching those files).
+7. Gates: walls 706 (diffusion+geometry+transport; +4 = the new
+   conformance file) / 1349 (numerics+data+layer) / 1937 sn (≡ P7a) /
+   304 (moc+mc+cp+homogeneous) serial `-O`; CLI pyright = 1 (#288
+   residual only); sphinx `-W` 0; audit 0; demo = MATLAB 1.022173.
+
+NEXT = ⏸ C4 compaction, then P8 (docs overhaul + pyright lift +
+close-out). P8 note: the diffusion pyright-ignore lift now also
+re-checks DiffusionMesh's structural conformance at its resolve call
+site — expect 0 new errors (same member shapes as the SN witness).
+
 - Protocol in `transport/method.py` (L2; conformance is STRUCTURAL —
   sn/diffusion never import it; consumers type against it via
   TYPE_CHECKING). **Instance surface only** (promotion stays
