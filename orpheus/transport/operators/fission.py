@@ -479,43 +479,59 @@ class FissionOperator(LinearOperator):
         :meth:`TimedFullField.__sub__` once all four operators expose
         the composite branch (D-H.1c).
         """
-        # Parse the arm's real contract: fission's composite arm consumes the
-        # PER-ORDINATE bulk (it needs ``integrate_angular``), so it is
-        # AngularFlux-only — deliberately NARROWER than scattering's
-        # composite arm (which also accepts a windowed HarmonicMomentFlux
-        # bulk). Reject anything else here, at the boundary, instead of an
-        # AttributeError deep in the reduction.
+        # Parse the arm's real contract per family (#289 discipline). The
+        # ANGULAR arm consumes the PER-ORDINATE bulk (it needs
+        # ``integrate_angular``) and is AngularFlux-only — deliberately
+        # NARROWER than scattering's composite arm (which also accepts a
+        # windowed HarmonicMomentFlux bulk). The SCALAR arm (#290 P4) is
+        # the diffusion / CP composite: the bulk IS already the scalar
+        # flux, so the reduction is the identity and the iso source needs
+        # no per-ordinate projection. Both arms reuse the ScalarFlux
+        # branch — single source of truth for the per-cell
+        # production-rate × emission-spectrum contraction.
         bulk = psi.bulk
-        if not isinstance(bulk, AngularFlux):
-            raise TypeError(
-                f"FissionOperator's composite arm requires an AngularFlux "
-                f"bulk (the angular reduction φ = ∫ψ dΩ); got "
-                f"{type(bulk).__name__}."
+        if isinstance(bulk, AngularFlux):
+            phi_scalar = bulk.integrate_angular()
+            fission_iso: ScalarSourceSink = self.apply(phi_scalar)
+            from orpheus.transport.source_sinks import (
+                AngularSourceSink,
+                AngularBoundarySourceSink,
             )
-        phi_scalar = bulk.integrate_angular()
-        # Reuse the ScalarFlux branch — single source of truth for the
-        # per-cell production-rate × emission-spectrum contraction.
-        fission_iso: ScalarSourceSink = self.apply(phi_scalar)
-        from orpheus.transport.source_sinks import (
-            AngularSourceSink,
-            AngularBoundarySourceSink,
-        )
-        # The composite's one mesh, read off the PARSED angular bulk —
-        # ``AngularField.mesh`` carries the SNMesh declaration the widened
-        # composite surfaces erase (#290 P2; same object by the composite's
-        # mesh-identity invariant).
-        mesh = bulk.mesh
-        per_ord = AngularSourceSink.from_isotropic(
-            fission_iso.values, mesh,
-        )
-        return FullField(
-            # B.5.2: the operator output IS a source (Fψ rate density) — emit
-            # the AngularSourceSink directly, not a re-wrap into AngularFlux.
-            # #257 S8a: history-free (the matvec leaf is a base arrow; the
-            # comonad lives on the driver, which reattaches the timed type when
-            # this source is added to the timed rhs).
-            bulk=per_ord,
-            boundary=AngularBoundarySourceSink.zeros_on(mesh),
+            # The composite's one mesh, read off the PARSED angular bulk —
+            # ``AngularField.mesh`` carries the SNMesh declaration the widened
+            # composite surfaces erase (#290 P2; same object by the composite's
+            # mesh-identity invariant).
+            mesh = bulk.mesh
+            per_ord = AngularSourceSink.from_isotropic(
+                fission_iso.values, mesh,
+            )
+            return FullField(
+                # B.5.2: the operator output IS a source (Fψ rate density) — emit
+                # the AngularSourceSink directly, not a re-wrap into AngularFlux.
+                # #257 S8a: history-free (the matvec leaf is a base arrow; the
+                # comonad lives on the driver, which reattaches the timed type when
+                # this source is added to the timed rhs).
+                bulk=per_ord,
+                boundary=AngularBoundarySourceSink.zeros_on(mesh),
+            )
+        if isinstance(bulk, ScalarFlux):
+            # Scalar composite arm (#290 P4): fission emission in iso
+            # scalar magnitude on the (J⁺, J⁻)-trace composite — the
+            # ScalarFlux branch supplies the bulk, the boundary is the
+            # implicit-zero scalar source/sink (fission has no boundary
+            # action; χ lives on cell-centred volumes).
+            from orpheus.transport.source_sinks import ScalarBoundarySourceSink
+
+            scalar_iso: ScalarSourceSink = self.apply(bulk)
+            return FullField(
+                bulk=scalar_iso,
+                boundary=ScalarBoundarySourceSink.zeros_on(bulk.mesh),
+            )
+        raise TypeError(
+            f"FissionOperator's composite arm requires an AngularFlux "
+            f"bulk (the angular reduction φ = ∫ψ dΩ) or a ScalarFlux "
+            f"bulk (the scalar composite, #290 P4); got "
+            f"{type(bulk).__name__}."
         )
 
     @_apply_impl.register

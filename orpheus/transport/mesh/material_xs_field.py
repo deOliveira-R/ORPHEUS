@@ -169,6 +169,7 @@ class MaterialXSField:
     _sig_a_cell: np.ndarray | None = field(default=None, init=False, repr=False)
     _sig_p_cell: np.ndarray | None = field(default=None, init=False, repr=False)
     _chi_cell: np.ndarray | None = field(default=None, init=False, repr=False)
+    _diffusion_cell: np.ndarray | None = field(default=None, init=False, repr=False)
     # Variadic index tuple: ``np.where`` yields one index array PER MESH
     # AXIS, so the arity is the mesh ndim (a 1-tuple on a 1-D mesh, a
     # 2-tuple on 2-D) — declaring a fixed 2-tuple would lie for 1-D.
@@ -475,6 +476,35 @@ class MaterialXSField:
         if self._chi_cell is None:
             self._ensure_cell_views()
         return self._chi_cell  # type: ignore[return-value]
+
+    @property
+    def diffusion_coefficient(self) -> np.ndarray:
+        r""":math:`D = 1/(3\Sigma_{\rm tr})` per-cell view, shape ``(ng, *spatial)``.
+
+        The per-cell gather of the #290 P1 data seam
+        (:attr:`~orpheus.data.macro_xs.mixture.Mixture.diffusion_coefficient`
+        — the outflow transport approximation
+        :math:`\Sigma_{\rm tr} = \Sigma_t - \sum_{g'}\Sigma_{s,1}(g\to g')`,
+        with the P0-only limit :math:`\Sigma_{\rm tr} = \Sigma_t`
+        EXACTLY). Units: ``cm``. Consumed by the diffusion
+        :class:`~orpheus.diffusion.operators.LeakageOperator` (#290 P4)
+        — the single per-cell read path for D, so the seam's arithmetic
+        lives once on :class:`Mixture` and the spatial distribution once
+        here (Pattern 2). Lazy + cached like the sibling views.
+        """
+        if self._diffusion_cell is None:
+            ng = self.mesh.ng
+            spatial = self.mesh.spatial_shape
+            per_material = {
+                mid: np.asarray(mix.diffusion_coefficient, dtype=float)
+                for mid, mix in self.materials.items()
+            }
+            flat_ids = np.asarray(self.mesh.mat_map, dtype=int).ravel()
+            # (N_cells, ng) gather → the principled (ng, *spatial) layout
+            # (the ``_ensure_cell_views`` .T.reshape convention).
+            gathered = np.array([per_material[int(m)] for m in flat_ids])
+            self._diffusion_cell = gathered.T.reshape(ng, *spatial)
+        return self._diffusion_cell
 
     def _ensure_cell_views(self) -> None:
         """Populate the four per-cell views via :func:`assemble_cell_xs`.

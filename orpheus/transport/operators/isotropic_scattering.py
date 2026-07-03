@@ -78,6 +78,11 @@ from orpheus.numerics.operator import (
     BlockRole,
     LinearOperator,
 )
+# Runtime import for the composite-arm isinstance parse (mirrors
+# fission.py / multiplication_operator.py): ``FullField`` is a leaf in
+# the transport dependency graph (it imports no operators), so this
+# module-level import is cycle-free.
+from orpheus.transport.full_field import FullField
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
@@ -90,6 +95,44 @@ __all__ = ["IsotropicScattering", "IsotropicN2N"]
 def _values_of(phi: "np.ndarray | object") -> np.ndarray:
     """Read the bare ``(ng, *spatial[, 2^d])`` array off a flux carrier or ndarray."""
     return np.asarray(getattr(phi, "values", phi))
+
+
+def _scalar_composite_source(op: "LinearOperator", psi: FullField) -> FullField:
+    r"""The shared scalar-composite arm of the two iso energy operators (#290 P4).
+
+    Parses the composite's bulk as the SCALAR family (the iso operators
+    are scalar-flux operators — an angular composite routes through
+    :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
+    never here), runs the operator's own bare-ndarray kernel on the bulk
+    values (single source of truth — the SAME per-cell energy matmul),
+    and wraps the result as the closed scalar source composite:
+    :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+    bulk ⊕ implicit-zero
+    :class:`~orpheus.transport.source_sinks.scalar_boundary_source_sink.ScalarBoundarySourceSink`
+    boundary (an energy-transfer operator has no face-trace action —
+    the in-scatter term is a CELL quantity). Shared by
+    :class:`IsotropicScattering` and :class:`IsotropicN2N` (Pattern 2:
+    one arm body, two kernels through ``op.apply``).
+    """
+    from orpheus.transport.fields._bases import ScalarField
+    from orpheus.transport.source_sinks import (
+        ScalarBoundarySourceSink,
+        ScalarSourceSink,
+    )
+
+    bulk = psi.bulk
+    if not isinstance(bulk, ScalarField):
+        raise TypeError(
+            f"{type(op).__name__} composite apply: scalar-family bulk "
+            f"required (the iso energy operators act on the scalar flux; "
+            f"an angular composite's in-scatter routes through "
+            f"ScatteringOperator); got {type(bulk).__name__}."
+        )
+    mesh = bulk.mesh
+    return FullField(
+        bulk=ScalarSourceSink.from_mesh(op.apply(bulk.values), mesh),
+        boundary=ScalarBoundarySourceSink.zeros_on(mesh),
+    )
 
 
 @dataclass(frozen=True)
@@ -127,15 +170,36 @@ class IsotropicScattering(LinearOperator):
         # apply_transpose. is_invertible inherits base False.
         return True
 
-    def apply(self, phi: "np.ndarray | object") -> np.ndarray:
-        r""":math:`\Sigma_{s,0}^{T}\phi` — the per-cell P0 in-scatter source (bare ndarray)."""
+    def apply(self, phi: "np.ndarray | FullField | object") -> "np.ndarray | FullField":
+        r""":math:`\Sigma_{s,0}^{T}\phi` — the per-cell P0 in-scatter source.
+
+        Bare ndarray / flux-carrier in → bare ndarray out (the
+        model-portable contract). A scalar :class:`FullField` composite
+        in → the closed scalar source composite out (#290 P4 — see
+        :func:`_scalar_composite_source`; the kernel is the SAME bare
+        arm either way).
+        """
+        if isinstance(phi, FullField):
+            return _scalar_composite_source(self, phi)
         arr = _values_of(phi)
         out = np.zeros_like(arr)
         self.mat_xs.apply_p0_in_scatter(out, arr)
         return out
 
     def apply_transpose(self, chi: "np.ndarray | object") -> np.ndarray:
-        r""":math:`\Sigma_{s,0}\chi` — the group-flip transpose (the bare Euclidean :math:`A^{T}`)."""
+        r""":math:`\Sigma_{s,0}\chi` — the group-flip transpose (the bare Euclidean :math:`A^{T}`).
+
+        Bare-ndarray surface only: the composite transpose arm lands
+        with its first consumer (the adjoint diffusion chain, #281) —
+        refuse a composite loudly rather than mis-reading it.
+        """
+        if isinstance(chi, FullField):
+            raise TypeError(
+                f"{type(self).__name__}.apply_transpose: composite "
+                f"FullField transpose is not yet wired (lands with the "
+                f"adjoint diffusion consumer, #281); pass the bulk "
+                f"values."
+            )
         arr = _values_of(chi)
         out = np.zeros_like(arr)
         self.mat_xs.apply_p0_in_scatter_transpose(out, arr)
@@ -205,15 +269,34 @@ class IsotropicN2N(LinearOperator):
         # apply_transpose. is_invertible inherits base False.
         return True
 
-    def apply(self, phi: "np.ndarray | object") -> np.ndarray:
-        r""":math:`2\Sigma_{2n}^{T}\phi` — the per-cell (n,2n) source (bare ndarray)."""
+    def apply(self, phi: "np.ndarray | FullField | object") -> "np.ndarray | FullField":
+        r""":math:`2\Sigma_{2n}^{T}\phi` — the per-cell (n,2n) source.
+
+        Bare ndarray / flux-carrier in → bare ndarray out; a scalar
+        :class:`FullField` composite in → the closed scalar source
+        composite out (#290 P4 — the shared
+        :func:`_scalar_composite_source` arm over this kernel).
+        """
+        if isinstance(phi, FullField):
+            return _scalar_composite_source(self, phi)
         arr = _values_of(phi)
         out = np.zeros_like(arr)
         self.mat_xs.apply_n2n(out, arr)
         return out
 
     def apply_transpose(self, chi: "np.ndarray | object") -> np.ndarray:
-        r""":math:`2\Sigma_{2n}\chi` — the group-flip transpose."""
+        r""":math:`2\Sigma_{2n}\chi` — the group-flip transpose.
+
+        Bare-ndarray surface only (composite transpose lands with #281 —
+        see :meth:`IsotropicScattering.apply_transpose`).
+        """
+        if isinstance(chi, FullField):
+            raise TypeError(
+                f"{type(self).__name__}.apply_transpose: composite "
+                f"FullField transpose is not yet wired (lands with the "
+                f"adjoint diffusion consumer, #281); pass the bulk "
+                f"values."
+            )
         arr = _values_of(chi)
         out = np.zeros_like(arr)
         self.mat_xs.apply_n2n_transpose(out, arr)

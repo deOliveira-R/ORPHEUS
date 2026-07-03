@@ -59,6 +59,7 @@ from orpheus.transport.mesh.axis import (
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.geometry import CoordSystem
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
@@ -452,6 +453,45 @@ class MaterialMesh:
             for label in labels
         }
         return ScalarTraceSpace.for_faces(faces, self.ng, face_areas)
+
+    @cached_property
+    def scalar_full_field_space(self) -> "FullFieldSpace":
+        r"""The scalar composite carrier :math:`V_{\rm bulk} \oplus V_{\rm trace}` (#290 P4).
+
+        The function space of the scalar-composite operator family —
+        diffusion's :math:`(L + C - S - B)` and every bulk ⊕ boundary
+        composite whose bulk is a
+        :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` and
+        whose boundary is the ``(J⁺, J⁻)`` scalar trace. The exact
+        mirror of :attr:`SNMesh.full_field_space
+        <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>` with
+        the angular measure integrated out — the block-diagonal Hilbert
+        metric :math:`G` is
+
+        * **bulk** :math:`G_{\rm bulk} = V_{\rm cell}` — the spatial
+          volume measure, stored ``(1, *spatial)`` so it broadcasts
+          across the energy-group axis of the ``(ng, *spatial)`` bulk
+          (the scalar flux is already angle-integrated: no ``w_n``);
+        * **trace** — the face-AREA metric already carried by
+          :attr:`scalar_trace` (the surface measure of
+          angle-integrated partial currents).
+
+        Method-agnostic (like :attr:`scalar_trace`): diffusion consumes
+        it natively; the DSA restriction (#2) consumes it ON an
+        ``SNMesh`` (which inherits both composites — the angular
+        ``full_field_space`` for transport and this one for
+        :math:`A_{\rm diff}`). Cached: immutable for a given mesh.
+        """
+        from orpheus.numerics.space import FunctionSpace
+        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+
+        V = np.asarray(self.volumes, dtype=float)  # (*spatial)
+        bulk_space = FunctionSpace(
+            name="scalar_bulk",
+            shape=(self.ng, *self.spatial_shape),
+            inner_product_weights=V.reshape((1, *V.shape)),
+        )
+        return FullFieldSpace.from_blocks(bulk_space, self.scalar_trace)
 
     @property
     def ndim(self) -> int:

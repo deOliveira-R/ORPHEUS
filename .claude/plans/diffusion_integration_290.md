@@ -439,3 +439,92 @@ all green (serial `-O`); CLI pyright = 1 (the accepted #288 residual);
 `sphinx -W` exit 0 (matrix.rst regenerated, 6141 collected); harness audit
 EXIT=0 (9 MISSING ERR pre-existing, 54/63). NEXT = P4 (operator family; read
 the crosswalk + explorer memo §B/§C + attacker memo Q2/Q3 first per C1).
+
+### P4 status (2026-07-03, session 3 — EXECUTED; hash = this commit)
+
+Spec executed in full: `A = L + C − S − B` composes on the scalar composite,
+`MatrixInverseOperator` resolvent works over the composite flat, all
+foundation gates + the Mode-12 stencil gate landed with 4 RED mutations.
+Design decisions beyond the spec letter:
+
+1. **`FlattenedOperator` minted** (`orpheus/numerics/flat_operator.py`) —
+   the composite→flat serialization bridge (`flat ∘ A ∘ unflat` over the
+   duck-typed `to_flat`/`from_flat` pair). The resolvent spelling is
+   `MatrixInverseOperator(FlattenedOperator(A, template))`; `as_matrix`
+   derives its basis dimension for FREE because `FullFieldSpace.shape` IS
+   the flat direct-sum dim. Unparameterized (ndarray-carrier family
+   convention — the TypeVar bounds reject bare ndarrays).
+2. **S = composite arms ON the K_iso kernels** — no wrapper type minted
+   (type-vs-property: `OperatorSum` already expresses `S_iso + S_n2n`).
+   One shared `_scalar_composite_source` helper; each kernel's composite
+   arm routes through its OWN bare `apply` (single source). Composite
+   `apply_transpose` REFUSED with a #281 pointer (no consumer yet).
+3. **C scalar arms via the degenerate 1-ordinate engine lift**
+   (`engine.apply(values[None])[0]`) — bit-identical to the direct
+   multiply, ONE broadcast engine + its frozen spectrum gate for both
+   families (probe-verified). F's composite arm widened to ScalarFlux
+   bulk, reusing its ScalarFlux branch verbatim.
+4. **`ScalarBoundarySourceSink` minted** (consumer-driven: the L/B
+   codomains demanded it now) — thin role leaf, SCALAR_FLUX_UNITS
+   ("the trace is all-current"), closing the loss sum as
+   `ScalarSourceSink ⊕ ScalarBoundarySourceSink` composites.
+5. **`MaterialXSField.diffusion_coefficient`** per-cell channel (the P1
+   seam's spatial gather, single-source) +
+   **`MaterialMesh.scalar_full_field_space`** (bulk metric = V_cell
+   broadcast over groups; method-agnostic — an SNMesh inherits BOTH
+   composites, exactly what the DSA restriction #2 wants).
+6. **L's blocks mirror SN streaming exactly**: bulk = conservative
+   `(A·J)/V` divergence with condensed interior currents (series
+   half-cell resistance = the RT0/harmonic form ≡ the island's
+   arithmetic-mean-of-Σtr in reals); edge rows read the trace's net
+   outward current; trace block = outflow-definition defect
+   (`J⁺ − c_φφ_e − c_JJ⁻`, from Fick + the P1 dictionary,
+   ρ = h/(2D), c_φ = 1/(ρ+2), c_J = (ρ−2)/(ρ+2)) + the inflow IDENTITY,
+   so `(L−B)` inflow rows read `J⁻ − 𝒜J⁺`. Coord-general by
+   construction (face_labels-driven; a curvilinear pole is not a face →
+   zero flow slot). Multi-D refused at construction. The two
+   discretization kernels are module-level pure functions
+   (`_interior_conductance`, `_boundary_closure`) — mutation-patchable.
+7. **Verified equivalences** (session probes + gates): the
+   Schur-condensed zero-flux closure ≡ the island's `φ/(0.5·dz)` vacuum
+   arm at 1e-12; `(L − B_reflective)` annihilates `[φ₀, φ₀/4]` (bulk
+   bit-exact, closure row ULP); matrix action ≡ typed action at 1e-12.
+8. **Gate file** `tests/diffusion/test_operators.py` (32 tests):
+   stencil gate `[A] ≡ hand-posed` (plain-loop independent realization;
+   heterogeneous 2-mat, non-uniform 4-cell, 2G, ASYMMETRIC Σs) across
+   zero-flux/reflective+Marshak/albedo(0.3) configs; 4 mutations RED
+   (D-face pairing swap, Σ_a-for-Σ_t, scatter transpose via the
+   MaterialXSField kernel swap, closure c_J sign flip); column-sum
+   theorem `1ᵀ(C−S) = Σ_a` (removal DERIVED); M-matrix sign pattern;
+   per-group SPD of the bulk Schur complement **under the volume
+   metric** (`diag(V)@block` — the raw FD row-scaling is V-similar on
+   non-uniform h; the metric IS the composite bulk weights); resolvent
+   M-materialise both ways + seed independence; substrate + arm pins
+   (each composite arm ≡ its own bare kernel).
+
+Gates: diffusion+geometry 352 / transport+numerics+data 1361 / sn 1937 —
+all green (serial `-O`); CLI pyright = 1 (#288 residual; the 2
+FlattenedOperator TypeVar errors fixed by unparameterizing); `sphinx -W`
+exit 0; audit EXIT=0 (54/63 pre-existing). NEXT = P5 (solver + engines:
+`solve_diffusion_1d` on mesh+laws → MaterialMesh → realized B → operators
+→ `direct_eigenvalue` ⊗ `power_iteration` cross-gated 1e-10 +
+`compute_production_rate` #270 arm + 3-group discriminator + demo rewire).
+
+## CHECKPOINT C2 (2026-07-03, session 3 — post-P4)
+
+- **Statuses:** P1 `836f424` / P2 `78d1431` / P2.5 `1cd8d32` / P3
+  `6672e7a` / **P4 = this commit** (statuses above). Branch
+  `feature/diffusion-integration`, 11 ahead of main @ `d2a2a0c`.
+- **Deviations:** none scope-changing; the 8 design decisions in the P4
+  status block (FlattenedOperator mint, K_iso-arms-not-wrapper, engine
+  lift, ScalarBoundarySourceSink, D channel, scalar composite space, L
+  block conventions, V-metric SPD).
+- **Open questions:** none for P5 — its spec is §P5 + the P4 status
+  block's NEXT line. The island (`solver.py`) is UNTOUCHED so far;
+  P5 builds the modern path beside it, P6 retires it.
+- **Re-anchor:** this plan + `git log --oneline -12` + the crosswalk.
+  The P4 API surface: `orpheus.diffusion` exports `LeakageOperator`,
+  `DiffusionBoundaryOperator` (+ P3's realizer/method-space);
+  `orpheus.numerics.flat_operator.FlattenedOperator`;
+  `mesh.scalar_full_field_space`; `mat_xs.diffusion_coefficient`;
+  `ScalarBoundarySourceSink` in transport.source_sinks.

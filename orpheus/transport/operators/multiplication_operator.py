@@ -328,42 +328,61 @@ class MultiplicationOperator(LinearOperator["FullField"]):
     def _(self, psi: FullField) -> "FullField":
         r"""Forward action :math:`M[f]\,\psi = f \cdot \psi` on the composite.
 
-        The pointwise multiply :math:`f\,\psi` is per-cell per-group,
-        broadcast across every ordinate (the engine's leading-axis
-        broadcast). The codomain is a *source* — multiplying a flux by a
-        cross section yields a collision-rate density (units gain
-        :data:`~orpheus.numerics.units.ANGULAR_RATE_UNITS`), so the bulk
-        is an
-        :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`;
-        the boundary is the implicit-zero
-        :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
-        (a multiplier has no face-trace action — the cell-balance
-        :math:`f\,\psi` term is a CELL quantity).
+        The pointwise multiply :math:`f\,\psi` is per-cell per-group.
+        The codomain is a *source* — multiplying a flux by a cross
+        section yields a collision-rate density — and the boundary is
+        the implicit-zero source/sink of the input's family (a
+        multiplier has no face-trace action — the cell-balance
+        :math:`f\,\psi` term is a CELL quantity). Two family arms
+        (parsed loudly at the seam, #289 discipline):
+
+        * **angular** bulk (SN, the ~206-caller path) — the engine's
+          leading-ordinate-axis broadcast; out =
+          :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+          ⊕ zero
+          :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`.
+        * **scalar** bulk (diffusion / CP, #290 P4) — the direct
+          per-cell-per-group multiply (no ordinate axis; the engine's
+          broadcast axis is degenerate over the leading ``ng`` axis, so
+          the coefficient is applied directly); out =
+          :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+          ⊕ zero
+          :class:`~orpheus.transport.source_sinks.scalar_boundary_source_sink.ScalarBoundarySourceSink`.
         """
-        from orpheus.transport.fields._bases import AngularField
+        from orpheus.transport.fields._bases import AngularField, ScalarField
         from orpheus.transport.source_sinks import (
             AngularSourceSink,
             AngularBoundarySourceSink,
+            ScalarSourceSink,
+            ScalarBoundarySourceSink,
         )
 
-        # Angular arm ONLY today: the output broadcast (per-ordinate
-        # AngularSourceSink) is meaningless for a scalar composite — parse
-        # the family loudly at the seam (#289 discipline; the scalar arm
-        # lands with the diffusion operator family, #290 P4). The mesh is
-        # read off the PARSED bulk, whose AngularField declaration carries
-        # the SNMesh type the widened composite surfaces erase.
+        # Parse the family loudly at the seam (#289 discipline). The mesh
+        # is read off the PARSED bulk, whose family declaration carries
+        # the mesh type the widened composite surfaces erase (#290 P2).
         bulk = psi.bulk
-        if not isinstance(bulk, AngularField):
-            raise TypeError(
-                f"MultiplicationOperator composite apply: angular-family "
-                f"bulk required (the per-ordinate broadcast arm); got "
-                f"{type(bulk).__name__}."
+        if isinstance(bulk, AngularField):
+            mesh = bulk.mesh
+            out_bulk = self.engine.apply(bulk.values)
+            return FullField(
+                bulk=AngularSourceSink.from_mesh(out_bulk, mesh),
+                boundary=AngularBoundarySourceSink.zeros_on(mesh),
             )
-        mesh = bulk.mesh
-        out_bulk = self.engine.apply(bulk.values)
-        return FullField(
-            bulk=AngularSourceSink.from_mesh(out_bulk, mesh),
-            boundary=AngularBoundarySourceSink.zeros_on(mesh),
+        if isinstance(bulk, ScalarField):
+            # Scalar arm (#290 P4): the (ng, *spatial) bulk has NO
+            # ordinate axis — lift it onto a degenerate 1-ordinate
+            # leading axis so the ONE broadcast engine (and its frozen
+            # spectrum gate) serves both families, then drop the axis.
+            # Bit-identical to the direct ``coefficient.values * values``.
+            mesh = bulk.mesh
+            out_bulk = self.engine.apply(bulk.values[None])[0]
+            return FullField(
+                bulk=ScalarSourceSink.from_mesh(out_bulk, mesh),
+                boundary=ScalarBoundarySourceSink.zeros_on(mesh),
+            )
+        raise TypeError(
+            f"MultiplicationOperator composite apply: angular- or "
+            f"scalar-family bulk required; got {type(bulk).__name__}."
         )
 
     @_apply_impl.register
@@ -400,28 +419,43 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         the engine raises
         :class:`~orpheus.numerics.operator.NotInvertible` otherwise.
         The codomain returns to a flux (the inverse of "flux → source" is
-        "source → flux"), so the bulk is an
-        :class:`~orpheus.transport.fields.angular_flux.AngularFlux` and the
-        boundary the implicit-zero
-        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`.
+        "source → flux") in the input's family (the same two-arm parse as
+        :meth:`apply`): an angular bulk returns
+        :class:`~orpheus.transport.fields.angular_flux.AngularFlux` ⊕ zero
+        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`;
+        a scalar bulk (#290 P4) returns
+        :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` ⊕ zero
+        :class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`.
         """
-        from orpheus.transport.fields._bases import AngularField
+        from orpheus.transport.fields._bases import AngularField, ScalarField
         from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+        from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 
-        # Angular arm ONLY today (see :meth:`apply` — same #289 seam parse);
-        # the mesh comes off the parsed bulk's SNMesh-typed declaration.
+        # Same #289 seam parse as :meth:`apply`; the mesh comes off the
+        # parsed bulk's family-typed declaration.
         bulk = q.bulk
-        if not isinstance(bulk, AngularField):
-            raise TypeError(
-                f"MultiplicationOperator composite solve: angular-family "
-                f"bulk required; got {type(bulk).__name__}."
+        if isinstance(bulk, AngularField):
+            mesh = bulk.mesh
+            out_bulk = self.engine.solve(bulk.values)
+            return FullField(
+                bulk=AngularFlux.from_mesh(out_bulk, mesh),
+                boundary=AngularBoundaryFlux.zeros_on(mesh),
             )
-        mesh = bulk.mesh
-        out_bulk = self.engine.solve(bulk.values)
-        return FullField(
-            bulk=AngularFlux.from_mesh(out_bulk, mesh),
-            boundary=AngularBoundaryFlux.zeros_on(mesh),
+        if isinstance(bulk, ScalarField):
+            # Scalar arm (#290 P4): the typed division q/f through the
+            # ONE engine (degenerate 1-ordinate lift — see apply), which
+            # gates the spectrum law exactly as on the angular arm.
+            mesh = bulk.mesh
+            out_bulk = self.engine.solve(bulk.values[None])[0]
+            return FullField(
+                bulk=ScalarFlux.from_mesh(out_bulk, mesh),
+                boundary=ScalarBoundaryFlux.zeros_on(mesh),
+            )
+        raise TypeError(
+            f"MultiplicationOperator composite solve: angular- or "
+            f"scalar-family bulk required; got {type(bulk).__name__}."
         )
 
     @overload
