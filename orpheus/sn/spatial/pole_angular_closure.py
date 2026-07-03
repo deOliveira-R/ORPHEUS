@@ -283,8 +283,9 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     # angular weight from which ``c_out = α_out/τ`` and
     # ``c_in = (1−τ)/τ·α_out + α_in`` are derived; the live sweep
     # (``DiamondDifference.update``) and the CumprodScan fast path consume τ
-    # (the closure's owned weight) rather than the geometry factory's
-    # ``StreamingTerms.tau_mm``.  Same caching rationale as the c-caches: the
+    # (the closure's owned weight) rather than the former geometry-factory
+    # ``StreamingTerms.tau_mm`` (retired in Step C).  Same caching rationale
+    # as the c-caches: the
     # per-level→global gather is a pure permutation, computed ONCE in each
     # concrete ``__init__`` (via ``_build_per_ordinate_cache``).  ``None`` in
     # the unbound legacy mode (``_tau_per_level is None``).
@@ -369,8 +370,9 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
 
         Issue #236 Phase 2 B3 adds the τ gather alongside the two c gathers:
         the FUNDAMENTAL angular weight ``τ`` is the closure's owned primitive,
-        and the live sweep + scan paths consume it (instead of the geometry
-        factory's ``StreamingTerms.tau_mm``) via :attr:`tau_per_ordinate`.
+        and the live sweep + scan paths consume it (instead of the former
+        geometry-factory ``StreamingTerms.tau_mm``, retired in Step C) via
+        :attr:`tau_per_ordinate`.
 
         Precondition: the per-level constants are bound (mesh-bound mode);
         the unbound legacy path sets the caches to ``None`` directly and never
@@ -444,9 +446,10 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update` angular
         recurrence via :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau`, and
         the ``GeometryCoefficients`` populator's ``tau_inv`` / ``mm_a_in_coeff``
-        scan split) read THIS τ instead of the geometry factory's
-        ``StreamingTerms.tau_mm`` (bit-identical: the closure's τ is 0-ULP
-        equal to the factory's, pinned by the Leg-1 producer-equivalence gate).
+        scan split) read THIS τ instead of the FORMER geometry-factory
+        ``StreamingTerms.tau_mm`` (retired in Step C; the closure's τ equalled
+        it at 0 ULP through the carve, and the Leg-1 gate now pins this
+        producer against the independent ``contamination.morel_montry_weights``).
         """
         if self._tau_per_ordinate_cache is None:
             raise RuntimeError(
@@ -946,11 +949,11 @@ class MorelMontryAngularSweep(
         # Issue #236 Phase 2 (Step A): the angular closure OWNS τ.  It is
         # produced HERE from the quadrature ``(μ, w, levels)`` the closure
         # already binds — an angular-scheme property — instead of read back
-        # from the streaming-geometry factory (``reduced.tau_mm`` /
-        # ``reduced.tau_mm_per_level``).  ``morel_montry_tau_per_level``
-        # replicates the factory arithmetic 0-ULP, so this is bit-identical
-        # to HEAD (the geometry factory still produces an identical τ for
-        # the sweep path; the Leg-1 gate pins the producer equivalence).
+        # from the streaming-geometry factory (whose ``reduced.tau_mm`` /
+        # ``reduced.tau_mm_per_level`` producers Step C RETIRED).
+        # ``morel_montry_tau_per_level`` replicated the factory arithmetic
+        # 0-ULP through the carve; the Leg-1 gate now pins this producer
+        # against the independent ``contamination.morel_montry_weights``.
         tau_per_level = morel_montry_tau_per_level(quad, coord)
         if coord is CoordSystem.SPHERICAL:
             assert reduced.mu_start is not None  # set by spherical_streaming

@@ -487,7 +487,7 @@ class DiscretizationScheme(Protocol):
 
     Notes
     -----
-    All five traits are class-level so they can be inspected without
+    All seven traits are class-level so they can be inspected without
     instantiating the strategy.  Code that selects a closure based on
     cell-thickness or stiffness criteria reads ``is_linear``;
     diagnostics that gate on whether negative fluxes can appear read

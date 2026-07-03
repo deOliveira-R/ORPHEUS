@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6062**
+Total tests collected: **6087**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1171, 19.3%
-   L1, 1059, 17.5%
+   L0, 1170, 19.2%
+   L1, 1065, 17.5%
    L2, 46, 0.8%
    L3, 0, 0.0%
-   foundation, 3776, 62.3%
+   foundation, 3796, 62.4%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5973
+   explicit, 5998
    verify, 0
    class-name, 46
    func-name, 0
@@ -64,6 +64,7 @@ Module × level grid
    core/test_affine_carve_baseline, 0, 0, 0, 0, 6, 0
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
    core/test_cell_kernel_batch, 11, 0, 0, 0, 1, 2
+   core/test_cell_visit_c_stamp, 0, 0, 0, 0, 3, 0
    core/test_dag_walk, 0, 0, 0, 0, 7, 0
    core/test_diamond, 0, 0, 0, 0, 53, 0
    core/test_discretization_scheme_protocol, 0, 0, 0, 0, 17, 0
@@ -80,7 +81,7 @@ Module × level grid
    core/test_sweep_schedule_nd, 0, 0, 0, 0, 9, 0
    core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
    core/test_transport_sweep_ng2_layout_guard, 0, 0, 0, 0, 2, 0
-   core/test_unified_sweep_dispatch, 0, 0, 0, 0, 21, 0
+   core/test_unified_sweep_dispatch, 0, 0, 0, 0, 28, 0
    core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 4, 0
    cp/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    cp/test_cylinder, 0, 9, 0, 0, 0, 0
@@ -97,7 +98,7 @@ Module × level grid
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
-   curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
+   curvilinear/test_compute_psi_half_per_level, 26, 0, 0, 0, 2, 0
    curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 12, 0
    curvilinear/test_cyl_sweep_regression, 4, 0, 4, 0, 0, 0
    curvilinear/test_pole_angular_closure, 0, 0, 0, 0, 13, 0
@@ -105,6 +106,7 @@ Module × level grid
    curvilinear/test_si_cyl_20cell_nan_regression, 0, 0, 0, 0, 4, 0
    curvilinear/test_sph_sweep_regression, 13, 0, 0, 0, 0, 0
    curvilinear/test_streaming_equilibrium_curvilinear, 27, 0, 0, 0, 0, 0
+   curvilinear/test_tau_producer_equivalence, 0, 0, 0, 0, 5, 0
    curvilinear/test_unified_matvec_cylinder, 29, 2, 0, 0, 0, 0
    curvilinear/test_unified_matvec_sphere, 2, 0, 0, 0, 0, 0
    curvilinear/test_w1_clamp_silent_on_flat, 0, 2, 0, 0, 2, 0
@@ -239,7 +241,7 @@ Module × level grid
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
-   geometry/test_reduced_operator, 0, 0, 0, 0, 49, 0
+   geometry/test_reduced_operator, 0, 0, 0, 0, 47, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 14, 0, 0, 0, 0
@@ -262,6 +264,7 @@ Module × level grid
    mms/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    mms/test_mms_ld_2d, 0, 11, 0, 0, 12, 1
    mms/test_mms_ld_slab, 0, 5, 0, 0, 2, 0
+   mms/test_space_angle_separability, 0, 6, 0, 0, 0, 0
    moc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
    moc/test_moc, 0, 3, 0, 0, 0, 0
@@ -387,10 +390,11 @@ Module × level grid
    spatial/test_linear_discontinuous, 0, 0, 0, 0, 20, 1
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 6, 0
    spatial/test_ordinate_scan_reset, 3, 2, 0, 0, 0, 0
+   spatial/test_pairing_diffusion_limit, 0, 0, 0, 0, 6, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 303, 0
+   test_layer_imports, 0, 0, 0, 0, 304, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -562,6 +566,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``ld-cartesian-1d``, 6
    ``peierls-greens-slab-T``, 6
    ``singular-eigenfunction-eq54``, 6
+   ``sn-space-angle-separability``, 6
    ``cp-outer-integral-antiderivative``, 5
    ``dd-cartesian-2d``, 5
    ``en-kernel-special-values``, 5
@@ -604,6 +609,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-homogenization-rate-preservation``, 3
    ``sn-mms-nonvacuum-psi``, 3
    ``sn-mms-nonvacuum-qext``, 3
+   ``sn-space-angle-cross-term``, 3
    ``cp-second-difference-operator``, 2
    ``harmonic-moment-projection``, 2
    ``hilbert-adjoint-equals-metric-times-S0``, 2
@@ -682,7 +688,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **109** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **111** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -701,6 +707,8 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``billiard-resolvent-neumann``
 - ``billiard-transfer-operator``
 - ``billiard-variant-alpha-rank1``
+- ``dd-mm-angular-recurrence``
+- ``dd-mm-scan-split``
 - ``eigen-alpha-derivation``
 - ``eigen-k-posing``
 - ``eigen-resolvent``
@@ -797,7 +805,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **273** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **275** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -1037,6 +1045,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-homogenization-vector-collapse``
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``
+- ``sn-space-angle-cross-term``
+- ``sn-space-angle-separability``
 - ``solve-does-not-distribute``
 - ``sood-eq18-1g-balance``
 - ``sood-eq19-kinf-1g``
@@ -1107,7 +1117,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 5
-   ``ERR-026``, 96
+   ``ERR-026``, 98
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6
