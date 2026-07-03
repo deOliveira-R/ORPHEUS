@@ -729,3 +729,131 @@ USER may strike/defer) → P8 (docs overhaul + pyright lift + close-out:
 close #290/#182/#93, comment #2/#279/#270/#33/#34, file follow-ups:
 physical-P1 re-baseline, analytic Marshak reference, RT0 lift seam).
 ⏸ C4 after P7 (or straight to P8 if struck).
+
+---
+
+## P7 REDESIGN (2026-07-03, session 4 — USER RULING at the design discussion; SUPERSEDES the §P7 section above)
+
+**Ruling.** `TransportMethod` is a Protocol implemented by the
+**method-mesh layer** — `SNMesh` and a new `DiffusionMesh` — NOT by
+stateless per-method singletons and NOT by `DiffusionSolver`. Diffusion
+is missing its `augmented_mesh.py`; **create `DiffusionMesh` FIRST
+(P7a)**, augmenting `MaterialMesh` with the diffusion-specific
+behavior, then mint the Protocol over the two now-symmetric
+method-meshes (P7b). This matches witness #1's original wording
+(`material_mesh.py` module docstring: "a method-specific mesh IS a
+MaterialMesh that adds behavior … conforming structurally to a future
+TransportMethod Protocol … minted when a 2nd method-mesh exists") —
+fix the missing piece, don't contort the abstraction around its
+absence.
+
+**The P4 contradiction this resolves.** `material_mesh.py`'s module
+docstring declares the axis (MaterialMesh = mesh+materials DATA; the
+method layer — quadrature, stencil, **boundary trace**, closures — is
+BEHAVIOR), yet the P4-added property at `material_mesh.py:479` claims
+`scalar_full_field_space` is "Method-agnostic (like scalar_trace)".
+Same file, opposite claims. P4 had no diffusion method-mesh to put
+them on. DiffusionMesh reclaims both — **MaterialMesh should not know
+what a trace is** (SNMesh knows angular traces; DiffusionMesh knows
+scalar traces). Type-vs-property check passes: 2 non-isomorphic
+augmentations (quadrature-machinery vs trace+realized-BCs), real
+morphisms (promotion, BC realization, solver/operator/field
+consumption), and "a diffusion phase space with unresolved BCs"
+becomes unrepresentable.
+
+### P7a — the DiffusionMesh carve (surgical; do FIRST)
+
+New `orpheus/diffusion/augmented_mesh.py` (flat file — name-parity
+with `sn/mesh/augmented_mesh.py`; subpackage only when diffusion/
+grows), `class DiffusionMesh(MaterialMesh)`:
+
+1. **`from_material_mesh(mm) -> DiffusionMesh`** classmethod (the
+   promotion arm). NO extra params — BCs come from the axes' own `BC`
+   tags (contrast `SNMesh.from_material_mesh(mm, quadrature, scheme)`;
+   honest asymmetry, promotion signatures don't unify and shouldn't).
+2. Construction mirrors `SNMesh.__init__` order: the **1-D refusal
+   moves here** (from LeakageOperator-by-ordering — DELETE the P5
+   "L constructs FIRST" hack + comment, solver.py:249-253); build
+   `scalar_trace` (constructor body from the reclaimed
+   `MaterialMesh.scalar_trace`, material_mesh.py:424-456; NAME KEPT —
+   locus-family parity `SNMesh.angular_trace`/`DiffusionMesh.scalar_trace`);
+   build **`full_field_space`** (reclaimed from
+   `MaterialMesh.scalar_full_field_space` :458-494, **RENAMED** for
+   `SNMesh.full_field_space` parity — the future Protocol member);
+   realize **`bc: dict[str, LinearOperator]`** at construction
+   (`SNMesh.bc` parity, augmented_mesh.py:452) — move
+   `_resolve_bcs` + `_law_from_tag` + `BOUNDARY_OPERATOR_REGISTRY`
+   OFF `DiffusionSolver` (solver.py:230-327).
+3. **MaterialMesh reclamation**: DELETE `scalar_trace` +
+   `scalar_full_field_space` properties (material_mesh.py:424-494);
+   fix the module/property docstrings (drop the "method-agnostic"
+   P4 claims; note the axis restoration). Blast radius = the grep
+   captured 2026-07-03 (session 4): diffusion solver.py:254/:296,
+   operators.py:318/:322/:444/:461/:465, method_space.py docstrings,
+   transport/fields/_bases.py:988-992 + the 3 scalar leaf modules'
+   docstring contracts, tests/diffusion/test_operators.py (+:613-617),
+   tests/transport/fields/test_scalar_boundary_flux.py:50-242.
+4. **Solver diet** (solver.py): `__init__(mesh: DiffusionMesh)`;
+   `space = mesh.full_field_space`; `DiffusionBoundaryOperator(mesh)`
+   reads `mesh.bc` (drops the realized-dict param); driver
+   `solve_diffusion_1d`: `MaterialMesh(mesh1d, materials)` →
+   `DiffusionMesh.from_material_mesh` → solver (PUBLIC SIGNATURE
+   UNCHANGED). Solver = operators + engines only (the SNSolver split).
+5. **Operators** take `DiffusionMesh` (IS-A keeps MaterialMesh-typed
+   internals working); `domain`/`codomain` read `mesh.full_field_space`.
+6. **Scalar field family** (transport L2): repoint the TYPE_CHECKING
+   mesh annotation `MaterialMesh → DiffusionMesh` — the ANGULAR-family
+   precedent (`_bases.py:685` annotates SNMesh from L2; the layer gate
+   TC-exempts numerics/transport); duck read `mesh.scalar_trace`
+   unchanged at runtime; update the `MaterialMesh.scalar_trace`
+   docstring refs.
+7. `DiffusionMethodSpace.for_face`: drop the explicit `trace=` param
+   (read off the mesh) — adopted.
+8. **Tests**: test_operators.py + test_scalar_boundary_flux.py
+   construct DiffusionMesh; TestProtocolAndRefusals `pytest.raises`
+   moves to MESH construction (albedo-sans-param, unsupported-kind,
+   multi-D — sharper surface); test_solver.py direct
+   `DiffusionSolver(MaterialMesh(...))` sites → DiffusionMesh; suites
+   driven through `solve_diffusion_1d` unchanged. NEW intrinsic tests:
+   DiffusionMesh construction laws (bc realized per-face, default
+   reflective, trace/space identity, promotion round-trip,
+   refusals-at-construction).
+9. **Gates (bit-identical carve — zero value drift expected):** the
+   full P4–P6 diffusion wall re-runs green (stencil, cross-engine,
+   trace semantics LU-exact, L2 k∞, balance, MMS orders
+   2.004/2.001/2.000, demo = MATLAB 1.022173); walls
+   diffusion+geometry / transport+numerics+data / sn; CLI pyright = 1;
+   sphinx -W 0; audit 0. Re-run the 3-search audit on the two
+   reclaimed properties at execution.
+
+### P7b — TransportMethod Protocol (after P7a; the original §P7 payload, updated)
+
+- Protocol in `transport/method.py` (L2; conformance is STRUCTURAL —
+  sn/diffusion never import it; consumers type against it via
+  TYPE_CHECKING). **Instance surface only** (promotion stays
+  per-method-typed classmethods). Member list minted at carve time
+  from what the witnesses actually consume — candidates:
+  `full_field_space`, `bc`, the law-admission registry surface,
+  method-space-for-face; `name` for error text ONLY (never dispatch).
+- ONE shared `resolve_boundary_conditions` generic body replaces the
+  twin `SNMesh._resolve_bcs`/`DiffusionMesh` loops (the 3rd spelling
+  died at P7a when the solver's copy moved to the mesh).
+- Walker `realize_recursively` moves `sn/boundary/realizer.py:317` →
+  `geometry/boundary/`, typed against the existing `BoundaryRealizer`
+  Protocol (geometry stays method-blind).
+- **`BoundaryRealizerRegistry` + string keys + the MoC/MC/CP
+  NotImplementedError stub realizers DISSOLVE** (aggressive
+  retirement; you hold the method-mesh → you have its realizer). The
+  banked spec's dominant hazards (H1/H3 registration timing, §2b
+  fresh-process gate) are import-side-effect artifacts — the dissolve
+  DELETES the hazard class; §2b becomes moot.
+- Banked verification structure reused (§1 composition wall rewires
+  its import; §3 layer-imports tripwire = the structural gate; H4
+  doc-xref grep). L24 re-characterization: re-measure the spec's
+  pre-state table (stale: pyright 412→1, the 7-red era is over, the
+  walker's file moved in the sn/ reorg).
+- Homogenization witness #1 discharges: `material_mesh.py:21`'s
+  "future TransportMethod Protocol" comment updates to point at the
+  real Protocol.
+
+⏸ **COMPACTION C4** after P7a+P7b commit (P8 as before).
