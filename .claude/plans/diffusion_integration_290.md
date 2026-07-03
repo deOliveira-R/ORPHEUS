@@ -371,3 +371,25 @@ NEVER idempotent — never re-run over transformed files. (2) zsh builtin
 `echo` interprets `\b` as a BACKSPACE byte when appending a perl rule —
 the appended article rule silently never matched; use `print -r` /
 heredocs for regex text.
+
+## CHECKPOINT C1.5 (2026-07-03, session 2 — post-P2.5, pre-P3)
+
+- **Statuses:** P1 @ `836f424`, P2 @ `78d1431`, C1 @ `5355057`, rulings 5/5b
+  @ `c1321b0`+`1353030`, **P2.5 @ `1cd8d32`** (full rename table + role
+  grids + gates — see "P2.5 status" block above), diagnostics triage @
+  `6d2035c` (7 session probes promoted to tracked post-P2.5-name
+  diagnostics, 6 captured ones retired; #282/#283/#276 carry the tracked
+  probe paths as comments).
+- **Deviations from plan:** none. Scope notes (SNMethodSpace.trace kept,
+  FullFieldSpace.trace_space kept) in the P2.5 status block.
+- **Open questions:** none for P3 — its spec is self-contained (§P3:
+  ZeroFluxBoundary law in geometry/boundary/, DiffusionMethodSpace
+  mirroring SNMethodSpace.for_face, functional DiffusionBoundaryRealizer
+  replacing the stub, albedo table vacuum→𝒜=0 / reflective→𝒜=1 /
+  albedo(α)→𝒜=α / zero-flux→𝒜=−1 / white→𝒜=1-documented-P1-coincident,
+  flip test_boundary_realizer_stub.py negative → positive, Closes #182).
+- **Re-anchor for the fresh context:** this plan + `git log --oneline -8`
+  + the L17 crosswalk (`.claude/plans/diffusion_crosswalk.md`, now in
+  post-P2.5 vocabulary). The live trace vocabulary is in the P2.5 status
+  block and MEMORY.md's campaign entry. Branch
+  `feature/diffusion-integration`, 8 ahead of main @ `d2a2a0c`.
