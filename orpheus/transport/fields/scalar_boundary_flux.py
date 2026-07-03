@@ -36,8 +36,9 @@ The full convention contract is ``.claude/plans/diffusion_crosswalk.md``.
 Storage follows the :class:`~orpheus.transport.fields._bases.BoundaryField`
 locus discipline: ONE flat backing buffer on the mesh's cached
 :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
-(:attr:`MaterialMesh.scalar_trace
-<orpheus.transport.mesh.material_mesh.MaterialMesh.scalar_trace>`), face
+(:attr:`DiffusionMesh.scalar_trace
+<orpheus.diffusion.augmented_mesh.DiffusionMesh.scalar_trace>` — a
+boundary trace is method behavior, #290 P7a), face
 slots of shape ``(2, ng, *face_spatial)`` with the component-row
 convention owned by
 :attr:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace.OUTFLOW_ROW`
@@ -82,15 +83,15 @@ class ScalarBoundaryFlux(FluxRole, ScalarBoundaryField):
         Flat backing buffer of shape ``(layout.total_size,)``.
     space : ScalarTraceSpace
         The mesh's cached scalar trace
-        (:attr:`MaterialMesh.scalar_trace
-        <orpheus.transport.mesh.material_mesh.MaterialMesh.scalar_trace>`);
+        (:attr:`DiffusionMesh.scalar_trace
+        <orpheus.diffusion.augmented_mesh.DiffusionMesh.scalar_trace>`);
         construction via :meth:`zeros_on` / :meth:`from_mesh` /
         :meth:`from_face_arrays` is the canonical path.
-    mesh : MaterialMesh
-        The method-agnostic mesh+materials carrier the trace belongs to
-        (inherited annotation — this family does NOT narrow it; the
-        scalar trace is meaningful on any material mesh, including an
-        :class:`SNMesh` when DSA restricts onto it).
+    mesh : DiffusionMesh
+        The diffusion phase space the trace belongs to (the family's
+        covariant narrowing, #290 P7a — a boundary trace is method
+        behavior; for DSA an :class:`SNMesh` promotes via
+        ``DiffusionMesh.from_material_mesh``).
 
     Notes
     -----

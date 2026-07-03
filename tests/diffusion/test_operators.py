@@ -22,10 +22,16 @@ spectrally invisible — so the committed catcher is the matrix itself):
   \phi_0/4] = 0` EXACTLY, and the dense resolvent
   (``MatrixInverseOperator`` over the flattened loss);
 * **the scalar-composite substrate + shared-operator arms** minted /
-  widened in P4 (``ScalarBoundarySourceSink``,
-  ``scalar_full_field_space``, the per-cell ``D`` gather, and the
-  C/S/F scalar arms — each pinned against its own bare-kernel arm,
+  widened in P4 (``ScalarBoundarySourceSink``, the composite carrier
+  ``DiffusionMesh.full_field_space``, the per-cell ``D`` gather, and
+  the C/S/F scalar arms — each pinned against its own bare-kernel arm,
   the single-source cross-arm discipline).
+
+Boundary laws enter through the MESH (#290 P7a): every config's laws
+are declared as ``BC`` tags on the ``Mesh1D`` and realized at
+``DiffusionMesh`` construction (``mesh.bc``); the boundary operator
+``B`` reads them off the mesh. Mesh-construction laws themselves are
+gated in ``test_augmented_mesh.py``.
 
 Conventions: ``.claude/plans/diffusion_crosswalk.md``. Fixture flat
 layout (ng=2, nx=4): bulk ``g*nx + i`` → indices 0–7; trace xmin slot
@@ -40,17 +46,10 @@ import pytest
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.diffusion import (
     DiffusionBoundaryOperator,
-    DiffusionBoundaryRealizer,
-    DiffusionMethodSpace,
+    DiffusionMesh,
     LeakageOperator,
 )
 from orpheus.geometry import BC
-from orpheus.geometry.boundary import (
-    AlbedoBoundary,
-    ReflectiveBoundary,
-    VacuumInflow,
-    ZeroFluxBoundary,
-)
 from orpheus.geometry.mesh import Mesh1D
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
@@ -63,7 +62,6 @@ from orpheus.numerics.operator import (
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
-from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
@@ -120,13 +118,21 @@ def _fixture_materials() -> dict[int, object]:
     return {0: mix_a, 1: mix_b}
 
 
-@pytest.fixture
-def mesh() -> MaterialMesh:
+def _diffusion_mesh(
+    bc_left: BC = BC("reflective"), bc_right: BC = BC("vacuum"),
+) -> DiffusionMesh:
+    """The fixture phase space; boundary laws declared as mesh BC tags
+    and realized at construction (#290 P7a)."""
     mesh1d = Mesh1D(
         edges=_EDGES, mat_ids=_MAT_IDS,
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
+        bc_left=bc_left, bc_right=bc_right,
     )
-    return MaterialMesh(mesh1d, _fixture_materials())
+    return DiffusionMesh(mesh1d, _fixture_materials())
+
+
+@pytest.fixture
+def mesh() -> DiffusionMesh:
+    return _diffusion_mesh()
 
 
 @pytest.fixture
@@ -152,24 +158,25 @@ def flux(mesh) -> FullField:
     )
 
 
-def _realized_laws(mesh, laws: dict) -> dict:
-    realizer = DiffusionBoundaryRealizer()
-    return {
-        face: realizer.realize(
-            law,
-            DiffusionMethodSpace.for_face(face=face, trace=mesh.scalar_trace),
-        )
-        for face, law in laws.items()
-    }
+def _random_flux(mesh: DiffusionMesh) -> FullField:
+    """The ``flux`` fixture's composite on an arbitrary mesh instance
+    (fields and operators must share the ONE mesh — identity guard)."""
+    rng = np.random.default_rng(42)
+    return FullField(
+        bulk=ScalarFlux.from_mesh(rng.random((2, 4)) + 0.5, mesh),
+        boundary=ScalarBoundaryFlux.from_mesh(
+            rng.random(mesh.scalar_trace.shape[0]) + 0.1, mesh,
+        ),
+    )
 
 
-def _loss(mesh, mat_xs, laws: dict):
-    """Assemble A = L + C − S − B with the given per-face BC laws."""
-    ffs = mesh.scalar_full_field_space
+def _loss(mesh, mat_xs):
+    """Assemble A = L + C − S − B; B reads the mesh's own realized laws."""
+    ffs = mesh.full_field_space
     L = LeakageOperator(mesh)
     C = MultiplicationOperator(mat_xs.total_cross_section_field, space=ffs)
     S = IsotropicScattering(mat_xs, space=ffs)
-    B = DiffusionBoundaryOperator(mesh, _realized_laws(mesh, laws))
+    B = DiffusionBoundaryOperator(mesh)
     return L + C - S - B
 
 
@@ -237,20 +244,34 @@ def _hand_posed_loss(albedo_by_face: dict[str, float]) -> np.ndarray:
     return A
 
 
+# Config → (BC tags declared on the mesh, expected 𝒜 per face in the
+# hand-posed matrix). The laws travel through DiffusionMesh
+# construction — the production path, not a parallel realization.
 _CONFIGS = {
     "zero_flux/zero_flux": (
-        {"xmin": ZeroFluxBoundary(), "xmax": ZeroFluxBoundary()},
+        (BC("zero_flux"), BC("zero_flux")),
         {"xmin": -1.0, "xmax": -1.0},
     ),
     "reflective/marshak_vacuum": (
-        {"xmin": ReflectiveBoundary(axis="x"), "xmax": VacuumInflow()},
+        (BC("reflective"), BC("vacuum")),
         {"xmin": 1.0, "xmax": 0.0},
     ),
     "albedo(0.3)/reflective": (
-        {"xmin": AlbedoBoundary(albedo=0.3), "xmax": ReflectiveBoundary(axis="x")},
+        (BC("albedo", {"albedo": 0.3}), BC("reflective")),
         {"xmin": 0.3, "xmax": 1.0},
     ),
 }
+
+
+def _config_setup(config: str):
+    """(mesh, mat_xs, template, albedos) for one BC config — the
+    composite template must live on the config's own mesh instance."""
+    (bc_left, bc_right), albedos = _CONFIGS[config]
+    mesh = _diffusion_mesh(bc_left, bc_right)
+    template = FullField.zeros(
+        bulk=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh,
+    )
+    return mesh, mesh.material_xs_field(), template, albedos
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -261,11 +282,9 @@ _CONFIGS = {
 @pytest.mark.l0
 class TestStencilGate:
     @pytest.mark.parametrize("config", list(_CONFIGS), ids=list(_CONFIGS))
-    def test_assembled_loss_matches_hand_posed_stencil(
-        self, mesh, mat_xs, template, config,
-    ):
-        laws, albedos = _CONFIGS[config]
-        A = _loss(mesh, mat_xs, laws)
+    def test_assembled_loss_matches_hand_posed_stencil(self, config):
+        mesh, mat_xs, template, albedos = _config_setup(config)
+        A = _loss(mesh, mat_xs)
         produced = FlattenedOperator(A, template).as_matrix()
         expected = _hand_posed_loss(albedos)
         np.testing.assert_allclose(produced, expected, rtol=1e-13, atol=1e-16)
@@ -273,9 +292,9 @@ class TestStencilGate:
     def test_matrix_action_equals_typed_action(
         self, mesh, mat_xs, template, flux,
     ):
-        """The functor honesty check: [A] @ x.to_flat() == A.apply(x).to_flat()."""
-        laws, _ = _CONFIGS["reflective/marshak_vacuum"]
-        A = _loss(mesh, mat_xs, laws)
+        """The functor honesty check: [A] @ x.to_flat() == A.apply(x).to_flat().
+        (The fixture mesh IS the reflective/marshak_vacuum config.)"""
+        A = _loss(mesh, mat_xs)
         M = FlattenedOperator(A, template).as_matrix()
         np.testing.assert_allclose(
             M @ flux.to_flat(), A.apply(flux).to_flat(),
@@ -284,18 +303,16 @@ class TestStencilGate:
 
     # ── Mutation teeth (the plan's three named error classes + the
     #    closure sign): each mutation must RED the stencil gate. The
-    #    monkeypatch is in-process; operators are built AFTER patching
-    #    (process-discipline: never git-checkout to revert). ──────────
+    #    monkeypatch is in-process; mesh AND operators are built AFTER
+    #    patching (process-discipline: never git-checkout to revert). ──
 
-    def _stencil_delta(self, mesh, mat_xs, template) -> float:
-        laws, albedos = _CONFIGS["zero_flux/zero_flux"]
-        A = _loss(mesh, mat_xs, laws)
+    def _stencil_delta(self) -> float:
+        mesh, mat_xs, template, albedos = _config_setup("zero_flux/zero_flux")
+        A = _loss(mesh, mat_xs)
         produced = FlattenedOperator(A, template).as_matrix()
         return float(np.abs(produced - _hand_posed_loss(albedos)).max())
 
-    def test_mutation_d_face_pairing_swap_reds(
-        self, mesh, mat_xs, template, monkeypatch,
-    ):
+    def test_mutation_d_face_pairing_swap_reds(self, monkeypatch):
         """Crossing the half-cell pairing (h_L with D_R) moves the
         interior conductances on the heterogeneous fixture — O(1) red."""
         import orpheus.diffusion.operators as ops
@@ -304,39 +321,35 @@ class TestStencilGate:
             return 1.0 / (h[:-1] / (2.0 * D[:, 1:]) + h[1:] / (2.0 * D[:, :-1]))
 
         monkeypatch.setattr(ops, "_interior_conductance", swapped)
-        assert self._stencil_delta(mesh, mat_xs, template) > 1e-3
+        assert self._stencil_delta() > 1e-3
 
-    def test_mutation_sigma_a_for_sigma_t_reds(self, mesh, mat_xs, template):
+    def test_mutation_sigma_a_for_sigma_t_reds(self):
         """Building C from Σ_a instead of Σ_t (the removal-vs-total
         confusion) breaks the in-group cancellation theorem — red."""
-        laws, albedos = _CONFIGS["zero_flux/zero_flux"]
-        ffs = mesh.scalar_full_field_space
+        mesh, mat_xs, template, albedos = _config_setup("zero_flux/zero_flux")
+        ffs = mesh.full_field_space
         wrong_C = MultiplicationOperator(
             mat_xs.absorption_cross_section_field, space=ffs,
         )
         A = (
             LeakageOperator(mesh) + wrong_C
             - IsotropicScattering(mat_xs, space=ffs)
-            - DiffusionBoundaryOperator(mesh, _realized_laws(mesh, laws))
+            - DiffusionBoundaryOperator(mesh)
         )
         produced = FlattenedOperator(A, template).as_matrix()
         delta = np.abs(produced - _hand_posed_loss(albedos)).max()
         assert delta > 1e-3
 
-    def test_mutation_scatter_transpose_reds(
-        self, mesh, mat_xs, template, monkeypatch,
-    ):
+    def test_mutation_scatter_transpose_reds(self, monkeypatch):
         """Swapping the P0 in-scatter kernel for its transpose is
         observable on the ASYMMETRIC fixture Σ_s — red."""
         monkeypatch.setattr(
             MaterialXSField, "apply_p0_in_scatter",
             MaterialXSField.apply_p0_in_scatter_transpose,
         )
-        assert self._stencil_delta(mesh, mat_xs, template) > 1e-3
+        assert self._stencil_delta() > 1e-3
 
-    def test_mutation_boundary_closure_sign_reds(
-        self, mesh, mat_xs, template, monkeypatch,
-    ):
+    def test_mutation_boundary_closure_sign_reds(self, monkeypatch):
         """Flipping the c_J sign in the P1 face closure — red."""
         import orpheus.diffusion.operators as ops
 
@@ -345,7 +358,7 @@ class TestStencilGate:
             return 1.0 / (rho + 2.0), -(rho - 2.0) / (rho + 2.0)
 
         monkeypatch.setattr(ops, "_boundary_closure", flipped)
-        assert self._stencil_delta(mesh, mat_xs, template) > 1e-3
+        assert self._stencil_delta() > 1e-3
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -358,7 +371,7 @@ class TestFamilyLaws:
     def test_column_sum_conservation(self, mesh, mat_xs, template):
         """1ᵀ(C − S) = Σ_a per cell per group — the in-group
         cancellation theorem: removal is DERIVED, never an input."""
-        ffs = mesh.scalar_full_field_space
+        ffs = mesh.full_field_space
         CS = (
             MultiplicationOperator(mat_xs.total_cross_section_field, space=ffs)
             - IsotropicScattering(mat_xs, space=ffs)
@@ -370,12 +383,12 @@ class TestFamilyLaws:
             col_sums, mat_xs.absorption_cross_section, rtol=1e-13,
         )
 
-    def test_m_matrix_sign_pattern(self, mesh, mat_xs, template):
+    def test_m_matrix_sign_pattern(self):
         """The bulk block of the loss: positive diagonal, non-positive
         off-diagonal (spatial coupling AND group transfer) — the
         M-matrix structure behind flux positivity."""
-        laws, _ = _CONFIGS["zero_flux/zero_flux"]
-        A = _loss(mesh, mat_xs, laws)
+        mesh, mat_xs, template, _ = _config_setup("zero_flux/zero_flux")
+        A = _loss(mesh, mat_xs)
         bulk = FlattenedOperator(A, template).as_matrix()[:_N_BULK, :_N_BULK]
         assert np.all(np.diag(bulk) > 0.0)
         off = bulk - np.diag(np.diag(bulk))
@@ -384,9 +397,7 @@ class TestFamilyLaws:
     @pytest.mark.parametrize(
         "config", ["zero_flux/zero_flux", "reflective/marshak_vacuum"],
     )
-    def test_per_group_spd_of_bulk_schur_complement(
-        self, mesh, mat_xs, template, config,
-    ):
+    def test_per_group_spd_of_bulk_schur_complement(self, config):
         """Per-group −∇·D_g∇ + Σ_r,g (the bulk Schur complement's
         group-diagonal block) is symmetric positive definite **under the
         volume metric** — the conservative divergence divides each row
@@ -396,8 +407,8 @@ class TestFamilyLaws:
         space's ``inner_product_weights``). The FULL multigroup loss is
         NOT symmetric (down-scatter is lower-triangular) — the SPD
         claim is per-group only."""
-        laws, _ = _CONFIGS[config]
-        A = _loss(mesh, mat_xs, laws)
+        mesh, mat_xs, template, _ = _config_setup(config)
+        A = _loss(mesh, mat_xs)
         M = FlattenedOperator(A, template).as_matrix()
         A_bb = M[:_N_BULK, :_N_BULK]
         A_bt = M[:_N_BULK, _N_BULK:]
@@ -410,14 +421,14 @@ class TestFamilyLaws:
             np.testing.assert_allclose(block, block.T, rtol=1e-12, atol=1e-15)
             assert np.all(np.linalg.eigvalsh(0.5 * (block + block.T)) > 0.0), config
 
-    def test_reflective_annihilates_constant_mode_exactly(self, mesh, mat_xs):
+    def test_reflective_annihilates_constant_mode_exactly(self):
         """(L − B_reflective) on [φ = const, J± = φ/4] is EXACTLY zero:
         interior currents vanish, the net trace current vanishes, the
         outflow defect closes (c_φ = (1 − c_J)/4 algebraically), and
         the inflow row reads J⁻ − J⁺ = 0."""
-        laws = {f: ReflectiveBoundary(axis="x") for f in ("xmin", "xmax")}
+        mesh = _diffusion_mesh(BC("reflective"), BC("reflective"))
         L = LeakageOperator(mesh)
-        B = DiffusionBoundaryOperator(mesh, _realized_laws(mesh, laws))
+        B = DiffusionBoundaryOperator(mesh)
         const = FullField(
             bulk=ScalarFlux.from_mesh(np.full((_NG, _NX), 3.7), mesh),
             boundary=ScalarBoundaryFlux.from_mesh(
@@ -432,14 +443,12 @@ class TestFamilyLaws:
         np.testing.assert_array_equal(out.bulk.values, 0.0)
         np.testing.assert_allclose(out.boundary.values, 0.0, atol=1e-15)
 
-    def test_dense_resolvent_over_flattened_loss(
-        self, mesh, mat_xs, template,
-    ):
+    def test_dense_resolvent_over_flattened_loss(self):
         """The #290 resolvent spelling: MatrixInverseOperator over the
         flattened loss — M-materialise both ways at machine·cond grain,
         and seed-independent apply."""
-        laws, _ = _CONFIGS["zero_flux/zero_flux"]
-        A = _loss(mesh, mat_xs, laws)
+        mesh, mat_xs, template, _ = _config_setup("zero_flux/zero_flux")
+        A = _loss(mesh, mat_xs)
         A_flat = FlattenedOperator(A, template)
         A_inv = MatrixInverseOperator(A_flat)
         M = A_flat.as_matrix()
@@ -453,18 +462,16 @@ class TestFamilyLaws:
         np.testing.assert_array_equal(np.asarray(x0), np.asarray(x1))
 
     def test_loss_block_role_joins_to_full(self, mesh, mat_xs):
-        laws, _ = _CONFIGS["zero_flux/zero_flux"]
-        A = _loss(mesh, mat_xs, laws)
+        A = _loss(mesh, mat_xs)
         assert A.block_role is BlockRole.FULL
         assert isinstance(A, FullOperator)
 
     def test_composition_guard_validates_shared_space(self, mesh, mat_xs):
         """Every member advertises the SAME scalar composite space, so
         the OperatorSum guard actually validates the build."""
-        laws, _ = _CONFIGS["zero_flux/zero_flux"]
-        A = _loss(mesh, mat_xs, laws)
-        assert A.domain == mesh.scalar_full_field_space
-        assert A.codomain == mesh.scalar_full_field_space
+        A = _loss(mesh, mat_xs)
+        assert A.domain == mesh.full_field_space
+        assert A.codomain == mesh.full_field_space
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -477,17 +484,9 @@ class TestLeakageOperator:
     def test_block_role_full(self, mesh):
         assert LeakageOperator(mesh).block_role is BlockRole.FULL
 
-    def test_refuses_multi_d_mesh(self):
-        from orpheus.geometry import Mesh2D
-
-        mesh2d = Mesh2D(
-            edges_x=np.linspace(0.0, 1.0, 3),
-            edges_y=np.linspace(0.0, 1.0, 3),
-            mat_map=np.zeros((2, 2), dtype=int),
-        )
-        mm = MaterialMesh(mesh2d, _fixture_materials())
-        with pytest.raises(ValueError, match="1-D"):
-            LeakageOperator(mm)
+    # (The multi-D refusal moved to the PHASE SPACE at #290 P7a — a
+    # multi-D DiffusionMesh is unrepresentable; gated in
+    # test_augmented_mesh.py.)
 
     def test_role_parses_and_mesh_identity(self, mesh, flux):
         L = LeakageOperator(mesh)
@@ -499,11 +498,7 @@ class TestLeakageOperator:
         with pytest.raises(TypeError, match="ScalarFlux"):
             L.apply(bad_bulk)
         # Wrong mesh instance:
-        other = MaterialMesh(
-            Mesh1D(edges=_EDGES, mat_ids=_MAT_IDS,
-                   bc_left=BC("reflective"), bc_right=BC("vacuum")),
-            _fixture_materials(),
-        )
+        other = _diffusion_mesh()
         foreign = FullField(
             bulk=ScalarFlux.from_mesh(np.ones((_NG, _NX)), other),
             boundary=ScalarBoundaryFlux.zeros_on(other),
@@ -519,7 +514,7 @@ class TestLeakageOperator:
             edges=np.linspace(0.0, 4.0, 5), mat_ids=np.zeros(4, dtype=int),
             bc_left=BC("reflective"), bc_right=BC("reflective"),
         )
-        mm = MaterialMesh(mesh1d, {0: mats[0]})
+        mm = DiffusionMesh(mesh1d, {0: mats[0]})
         L = LeakageOperator(mm)
         rng = np.random.default_rng(3)
         phi = rng.random((_NG, 4))
@@ -561,9 +556,12 @@ class TestLeakageOperator:
 
 @pytest.mark.foundation
 class TestDiffusionBoundaryOperator:
-    def test_inflow_row_carries_albedo_action_zero_elsewhere(self, mesh, flux):
-        laws = {"xmin": AlbedoBoundary(albedo=0.3), "xmax": ZeroFluxBoundary()}
-        B = DiffusionBoundaryOperator(mesh, _realized_laws(mesh, laws))
+    def test_inflow_row_carries_albedo_action_zero_elsewhere(self):
+        mesh = _diffusion_mesh(
+            BC("albedo", {"albedo": 0.3}), BC("zero_flux"),
+        )
+        flux = _random_flux(mesh)
+        B = DiffusionBoundaryOperator(mesh)
         out = B.apply(flux)
         np.testing.assert_array_equal(out.bulk.values, 0.0)
         for face, alb in (("xmin", 0.3), ("xmax", -1.0)):
@@ -574,22 +572,13 @@ class TestDiffusionBoundaryOperator:
             )
         assert isinstance(out.boundary, ScalarBoundarySourceSink)
 
-    def test_face_law_coverage_is_exact(self, mesh):
-        realizer = DiffusionBoundaryRealizer()
-        one_law = {
-            "xmin": realizer.realize(VacuumInflow(), DiffusionMethodSpace.minimal()),
-        }
-        with pytest.raises(ValueError, match="xmax"):
-            DiffusionBoundaryOperator(mesh, one_law)
-        extra = dict(one_law)
-        extra["xmax"] = extra["xmin"]
-        extra["ymax"] = extra["xmin"]
-        with pytest.raises(ValueError, match="ymax"):
-            DiffusionBoundaryOperator(mesh, extra)
+    # (Face-law coverage is STRUCTURAL since #290 P7a — mesh.bc and the
+    # trace share the one face_labels inventory; the positive invariant
+    # is gated in test_augmented_mesh.py. The pre-P7a mismatched-dict
+    # refusals guarded a state that is no longer representable.)
 
     def test_block_role_boundary(self, mesh):
-        laws = {f: ReflectiveBoundary(axis="x") for f in ("xmin", "xmax")}
-        B = DiffusionBoundaryOperator(mesh, _realized_laws(mesh, laws))
+        B = DiffusionBoundaryOperator(mesh)
         assert B.block_role is BlockRole.BOUNDARY
         assert isinstance(B, BoundaryOperator)
 
@@ -610,8 +599,8 @@ class TestScalarCompositeSubstrate:
             expected[:, i] = 1.0 / (3.0 * (_SIG_T_A if m == 0 else _SIG_T_B))
         np.testing.assert_array_equal(D, expected)
 
-    def test_scalar_full_field_space_blocks_and_metric(self, mesh):
-        ffs = mesh.scalar_full_field_space
+    def test_full_field_space_blocks_and_metric(self, mesh):
+        ffs = mesh.full_field_space
         assert ffs.shape == (_NG * _NX + 2 * 2 * _NG,)
         assert ffs.bulk_space is not None
         assert ffs.trace_space is mesh.scalar_trace

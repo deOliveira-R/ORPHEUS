@@ -31,6 +31,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.diffusion.augmented_mesh import DiffusionMesh
 from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
 from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.geometry.boundary import (
@@ -50,7 +52,7 @@ from orpheus.numerics.operator import (
     IdentityOperator,
     ZeroOperator,
 )
-from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
+from orpheus.geometry.mesh import Mesh1D
 from orpheus.sn.boundary.realizer import realize_recursively
 
 pytestmark = [pytest.mark.foundation]
@@ -348,37 +350,30 @@ class TestComposition:
 
 
 class TestDiffusionMethodSpace:
+    @staticmethod
+    def _mesh() -> DiffusionMesh:
+        mesh1d = Mesh1D(np.linspace(0.0, 10.0, 5), np.zeros(4, dtype=int))
+        return DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
+
     def test_minimal_is_metadata_free(self):
         ms = DiffusionMethodSpace.minimal()
         assert ms.mesh is None and ms.face is None and ms.trace is None
 
-    def test_for_face_stores_fields(self):
-        trace = ScalarTraceSpace.for_faces(
-            [("xmin", ()), ("xmax", ())], ng=2,
-            face_areas={"xmin": 1.0, "xmax": 1.0},
-        )
-        ms = DiffusionMethodSpace.for_face(face="xmax", trace=trace)
+    def test_for_face_reads_the_mesh_trace(self):
+        """#290 P7a: for_face reads the trace OFF the mesh — the single
+        source; the stored trace IS the mesh's cached scalar trace."""
+        mesh = self._mesh()
+        ms = DiffusionMethodSpace.for_face(mesh=mesh, face="xmax")
         assert ms.face == "xmax"
-        assert ms.trace is trace
-        assert ms.mesh is None
+        assert ms.trace is mesh.scalar_trace
+        assert ms.mesh is mesh
 
     def test_for_face_validates_face_against_trace_inventory(self):
         """A method space for a nonexistent face is unrepresentable —
         the mirror of SN's for_face deriving (and thereby validating)
         per-face indices from its trace."""
-        trace = ScalarTraceSpace.for_faces(
-            [("xmin", ()), ("xmax", ())], ng=2,
-            face_areas={"xmin": 1.0, "xmax": 1.0},
-        )
         with pytest.raises(ValueError, match="ymax"):
-            DiffusionMethodSpace.for_face(face="ymax", trace=trace)
-
-    def test_for_face_without_trace_skips_validation(self):
-        """Mirror of SN: trace-less construction is legal (the
-        realizer's albedo family reads nothing) — validation is the
-        trace's presence-gated bonus, not a gate on minimal use."""
-        ms = DiffusionMethodSpace.for_face(face="xmax")
-        assert ms.face == "xmax" and ms.trace is None
+            DiffusionMethodSpace.for_face(mesh=self._mesh(), face="ymax")
 
     def test_frozen(self):
         ms = DiffusionMethodSpace.minimal()

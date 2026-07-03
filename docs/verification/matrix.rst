@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6195**
+Total tests collected: **6203**
 
 V&V level distribution
 ----------------------
@@ -20,7 +20,7 @@ V&V level distribution
    L1, 1065, 17.2%
    L2, 49, 0.8%
    L3, 0, 0.0%
-   foundation, 3892, 62.8%
+   foundation, 3900, 62.9%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6106
+   explicit, 6114
    verify, 0
    class-name, 46
    func-name, 0
@@ -220,12 +220,13 @@ Module × level grid
    derivations/test_trajectory_resolvent_chord_oracle, 0, 0, 0, 0, 21, 0
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
    derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
-   diffusion/test_boundary_realizer, 4, 0, 0, 0, 28, 0
+   diffusion/test_augmented_mesh, 0, 0, 0, 0, 12, 0
+   diffusion/test_boundary_realizer, 4, 0, 0, 0, 27, 0
    diffusion/test_continuous_reference, 0, 7, 0, 0, 0, 0
    diffusion/test_mms, 0, 2, 0, 0, 0, 0
-   diffusion/test_operators, 8, 0, 0, 0, 24, 0
+   diffusion/test_operators, 8, 0, 0, 0, 22, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
-   diffusion/test_solver, 0, 0, 3, 0, 18, 0
+   diffusion/test_solver, 0, 0, 3, 0, 15, 0
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
    eigenvalue/test_keff_curvilinear, 0, 19, 12, 0, 0, 0
@@ -234,7 +235,7 @@ Module × level grid
    fields/test_angular_boundary_source_sink_residual, 0, 0, 0, 0, 30, 0
    fields/test_angular_flux, 0, 0, 0, 0, 24, 0
    fields/test_coefficient_fields, 0, 0, 0, 0, 9, 0
-   fields/test_scalar_boundary_flux, 0, 0, 0, 0, 14, 0
+   fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
    frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
@@ -398,7 +399,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 311, 0
+   test_layer_imports, 0, 0, 0, 0, 312, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0

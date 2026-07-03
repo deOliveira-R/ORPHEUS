@@ -150,8 +150,8 @@ from orpheus.transport.source_sinks import (
 )
 
 if TYPE_CHECKING:
+    from orpheus.diffusion.augmented_mesh import DiffusionMesh
     from orpheus.numerics.space import FunctionSpace
-    from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
 __all__ = ["DiffusionBoundaryOperator", "LeakageOperator"]
@@ -261,28 +261,22 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
       ``(L − B)`` reads :math:`J^- - \mathcal{A} J^+` (the SN
       streaming-operator convention, mirrored).
 
-    1-D meshes only today (slab / cylinder / sphere through the mesh's
-    own areas + volumes); a multi-D mesh is refused at construction —
-    the N-D stencil is a genuine extension, not a broadcast.
+    1-D by construction: the phase-space admission (1-D, bounded) is
+    :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`'s OWN
+    construction contract (#290 P7a) — a multi-D diffusion phase space
+    is unrepresentable, so no operator-side refusal exists to drift.
 
     Parameters
     ----------
-    mesh : MaterialMesh
-        The mesh + materials carrier; supplies ``D`` (through its XS
+    mesh : DiffusionMesh
+        The diffusion phase space; supplies ``D`` (through its XS
         field), the widths / areas / volumes, and the scalar trace the
         composite is bound to.
     """
 
     block_role = BlockRole.FULL
 
-    def __init__(self, mesh: "MaterialMesh") -> None:
-        if mesh.ndim != 1:
-            raise ValueError(
-                f"LeakageOperator supports 1-D meshes today (slab / "
-                f"cylinder / sphere); got a {mesh.ndim}-D mesh. The N-D "
-                f"diffusion stencil is a deliberate extension seam, not "
-                f"a broadcast."
-            )
+    def __init__(self, mesh: "DiffusionMesh") -> None:
         self.mesh = mesh
         D = np.asarray(mesh.material_xs_field().diffusion_coefficient, float)
         h = np.asarray(mesh.axis_widths[0], float)
@@ -315,11 +309,11 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
 
     @property
     def domain(self) -> "Optional[FunctionSpace]":
-        return self.mesh.scalar_full_field_space
+        return self.mesh.full_field_space
 
     @property
     def codomain(self) -> "Optional[FunctionSpace]":
-        return self.mesh.scalar_full_field_space
+        return self.mesh.full_field_space
 
     def _parse(self, psi: "FullField") -> "tuple[np.ndarray, ScalarBoundaryFlux]":
         r"""Guard + unpack a scalar composite → ``(φ values, trace)``.
@@ -342,7 +336,7 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
         if bulk.mesh is not self.mesh:
             raise ValueError(
                 "LeakageOperator: input field and operator must "
-                "share the same MaterialMesh instance (mesh-identity "
+                "share the same DiffusionMesh instance (mesh-identity "
                 f"invariant); got field mesh {bulk.mesh!r} vs operator "
                 f"mesh {self.mesh!r}."
             )
@@ -421,48 +415,37 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
     (``L`` supplies the identity — the block-matrix table in
     :mod:`orpheus.diffusion.operators`).
 
+    The per-face laws are read off the mesh's own realized :attr:`bc
+    <orpheus.diffusion.augmented_mesh.DiffusionMesh.bc>` dict (#290
+    P7a — ``SNMesh.bc`` parity). Law coverage ≡ face coverage holds BY
+    CONSTRUCTION: the mesh builds ``bc`` and the trace from the ONE
+    ``face_labels`` inventory, so the pre-P7a coverage validation
+    guarded a state that is no longer representable.
+
     Parameters
     ----------
-    mesh : MaterialMesh
-        The mesh the trace (and the composite carrier) is bound to.
-    face_laws : Mapping[str, LinearOperator]
-        Per-face REALIZED boundary laws — the
-        :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
-        outputs, keyed by face name. Must cover exactly the mesh's
-        boundary faces (a face without a law, or a law without a face,
-        is an unrepresentable-by-construction error — the SN precedent
-        where ``sn_mesh.bc`` and the trace layout share keys).
+    mesh : DiffusionMesh
+        The diffusion phase space — supplies the realized per-face
+        laws (``mesh.bc``) and the composite carrier the operator is
+        bound to.
     """
 
     block_role = BlockRole.BOUNDARY
 
-    def __init__(
-        self,
-        mesh: "MaterialMesh",
-        face_laws: "Mapping[str, LinearOperator]",
-    ) -> None:
-        trace_faces = set(mesh.scalar_trace.face_names)
-        given = set(face_laws)
-        if given != trace_faces:
-            raise ValueError(
-                f"DiffusionBoundaryOperator: face_laws must cover exactly "
-                f"the mesh's boundary faces {sorted(trace_faces)}; got "
-                f"{sorted(given)} (missing: {sorted(trace_faces - given)}, "
-                f"extra: {sorted(given - trace_faces)})."
-            )
+    def __init__(self, mesh: "DiffusionMesh") -> None:
         self.mesh = mesh
-        self.face_laws = dict(face_laws)
+        self.face_laws: "Mapping[str, LinearOperator]" = dict(mesh.bc)
 
     @property
     def domain(self) -> "Optional[FunctionSpace]":
         # The composite carrier (NOT the bare trace) — matching the
         # L/C/S siblings for the OperatorSum composition guard (the
         # SNBoundaryOperator O.2b R5 precedent).
-        return self.mesh.scalar_full_field_space
+        return self.mesh.full_field_space
 
     @property
     def codomain(self) -> "Optional[FunctionSpace]":
-        return self.mesh.scalar_full_field_space
+        return self.mesh.full_field_space
 
     def apply(self, psi: "FullField", /) -> "FullField":
         r"""Return :math:`B\,\psi` — per-face :math:`\mathcal{A} J^+` on the
@@ -477,7 +460,7 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
         if psi.bulk.mesh is not self.mesh:
             raise ValueError(
                 "DiffusionBoundaryOperator.apply: input field and "
-                "operator must share the same MaterialMesh instance "
+                "operator must share the same DiffusionMesh instance "
                 f"(mesh-identity invariant); got field mesh "
                 f"{psi.bulk.mesh!r} vs operator mesh {self.mesh!r}."
             )

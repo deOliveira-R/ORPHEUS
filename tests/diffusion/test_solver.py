@@ -31,13 +31,12 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.diffusion import DiffusionSolver, solve_diffusion_1d
+from orpheus.diffusion import DiffusionMesh, DiffusionSolver, solve_diffusion_1d
 from orpheus.geometry import BC
-from orpheus.geometry.mesh import Mesh1D, Mesh2D
+from orpheus.geometry.mesh import Mesh1D
 from orpheus.homogeneous import solve_homogeneous_infinite
 from orpheus.numerics.eigenvalue import ProductionRateSolver, direct_eigenvalue
 from orpheus.numerics.flat_operator import FlattenedOperator
-from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -139,7 +138,7 @@ class TestEngineCrossGate:
 
         result = _solve_tight(materials, mesh)
 
-        solver = DiffusionSolver(MaterialMesh(mesh, materials))
+        solver = DiffusionSolver(DiffusionMesh(mesh, materials))
         A_mat = FlattenedOperator(solver.loss, solver.template).as_matrix()
         F_mat = FlattenedOperator(solver.fission, solver.template).as_matrix()
         k_direct, phi_direct = direct_eigenvalue(A_mat, F_mat)
@@ -368,35 +367,18 @@ class TestBalanceAndOrdering:
 
 
 @pytest.mark.foundation
-class TestProtocolAndRefusals:
+class TestProtocolAndDefaults:
     def test_solver_satisfies_the_production_rate_contract(self):
         solver = DiffusionSolver(
-            MaterialMesh(
+            DiffusionMesh(
                 _het_mesh(BC("reflective"), BC("vacuum")), _het_materials(),
             )
         )
         assert isinstance(solver, ProductionRateSolver)
 
-    def test_unsupported_bc_kind_is_refused_with_the_supported_list(self):
-        # "white" is DELIBERATELY absent: at P1 it coincides with
-        # reflective (the P3 realizer's coincidence note).
-        mesh = _het_mesh(BC("white"), BC("vacuum"))
-        with pytest.raises(ValueError, match="'white'.*Supported.*albedo"):
-            DiffusionSolver(MaterialMesh(mesh, _het_materials()))
-
-    def test_albedo_without_parameter_is_refused(self):
-        mesh = _het_mesh(BC("albedo"), BC("vacuum"))
-        with pytest.raises(ValueError, match="albedo.*parameter"):
-            DiffusionSolver(MaterialMesh(mesh, _het_materials()))
-
-    def test_multi_dimensional_mesh_is_refused(self):
-        mesh2d = Mesh2D(
-            edges_x=np.array([0.0, 1.0, 2.0]),
-            edges_y=np.array([0.0, 1.0]),
-            mat_map=np.zeros((2, 1), dtype=int),
-        )
-        with pytest.raises(ValueError, match="1-D"):
-            DiffusionSolver(MaterialMesh(mesh2d, {0: _fuel_2g()}))
+    # (BC-tag / albedo-parameter / multi-D refusals moved to the PHASE
+    # SPACE at #290 P7a — they fire at DiffusionMesh construction and
+    # are gated in test_augmented_mesh.py.)
 
     def test_undeclared_bcs_default_to_reflective(self):
         """The infinite-lattice convention (the SN default, mirrored)."""

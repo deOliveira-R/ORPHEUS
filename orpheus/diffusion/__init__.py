@@ -5,6 +5,8 @@ The CANONICAL diffusion API — the scalar-composite operator family
 shared engines (P5):
 
 * ``solve_diffusion_1d(materials, mesh)`` — the modern driver;
+* ``DiffusionMesh`` — the diffusion phase space (P7a): MaterialMesh +
+  scalar ``(J⁺, J⁻)`` trace + boundary laws realized at construction;
 * ``DiffusionSolver`` / ``DiffusionResult`` — the
   ``EigenvalueSolver``-protocol implementer and its typed result;
 * ``LeakageOperator`` (``L``, FULL) / ``DiffusionBoundaryOperator``
@@ -19,6 +21,10 @@ The legacy MATLAB-port island (``CoreGeometry`` / ``TwoGroupXS`` / the
 BiCGSTAB solver) was retired at #290 P6; ``orpheus.diffusion.solver``
 now IS the modern module (family naming parity with sn/cp/homogeneous).
 """
+
+# #290 P7a -- the diffusion method-mesh (MaterialMesh + scalar trace +
+# realized boundary laws; the SNMesh sibling).
+from .augmented_mesh import DiffusionMesh
 
 # #290 P5 — the modern k-eigenvalue solver on the operator algebra
 # (renamed k_eigenvalue.py → solver.py at P6 when the island retired).
@@ -40,6 +46,7 @@ from .operators import DiffusionBoundaryOperator, LeakageOperator
 __all__ = [
     "DiffusionBoundaryOperator",
     "DiffusionBoundaryRealizer",
+    "DiffusionMesh",
     "DiffusionMethodSpace",
     "DiffusionResult",
     "DiffusionSolver",

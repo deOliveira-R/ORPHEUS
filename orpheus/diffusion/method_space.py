@@ -7,15 +7,16 @@ The :class:`DiffusionMethodSpace` is the diffusion-specific argument to
 ``trace`` field name — the per-method protocol surface kept at #290
 P2.5). What it carries differs because the method does:
 
-* :attr:`mesh` -- the :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`
-  the solve lives on. OPTIONAL metadata, mirroring SN's C5.3 ruling:
-  nothing in the realizer chain reads it.
+* :attr:`mesh` -- the :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
+  the solve lives on. Metadata, mirroring SN's C5.3 ruling: nothing in
+  the realizer chain reads it.
 * :attr:`face` -- the face label (``"xmin"`` / ``"xmax"`` / …).
   Identifies WHICH face the realized BC operates on.
 * :attr:`trace` -- the
   :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
-  precomputed for the mesh (``MaterialMesh.scalar_trace``). Carries the
-  face inventory, the ``(2, ng, *face_spatial)`` slot shapes, and the
+  (``DiffusionMesh.scalar_trace`` — :meth:`for_face` reads it off the
+  mesh, #290 P7a). Carries the face inventory, the
+  ``(2, ng, *face_spatial)`` slot shapes, and the
   :attr:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace.OUTFLOW_ROW`
   / ``INFLOW_ROW`` component convention the P4 boundary operator
   assembles against.
@@ -45,8 +46,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
+    from orpheus.diffusion.augmented_mesh import DiffusionMesh
     from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
-    from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
 __all__ = ["DiffusionMethodSpace"]
@@ -64,11 +65,12 @@ class DiffusionMethodSpace:
     albedo-family dispatch — which reads nothing from the method
     space — works on a :meth:`minimal` instance, exactly like SN's
     albedo branch on ``SNMethodSpace.minimal(quad)``. The canonical
-    construction site is :meth:`for_face` (the P5 solver wiring),
-    which validates the face against the trace's inventory.
+    construction site is :meth:`for_face` (the
+    ``DiffusionMesh._resolve_one`` wiring, #290 P7a), which reads the
+    trace off the mesh and validates the face against its inventory.
     """
 
-    mesh: "Optional[MaterialMesh]" = None
+    mesh: "Optional[DiffusionMesh]" = None
     face: Optional[str] = None
     trace: "Optional[ScalarTraceSpace]" = None
 
@@ -86,46 +88,42 @@ class DiffusionMethodSpace:
     def for_face(
         cls,
         *,
-        mesh: "Optional[MaterialMesh]" = None,
+        mesh: "DiffusionMesh",
         face: str,
-        trace: "Optional[ScalarTraceSpace]" = None,
     ) -> "DiffusionMethodSpace":
-        r"""Build a method space for a specific face.
+        r"""Build the method space for one of ``mesh``'s boundary faces.
 
-        The standard construction site for the P5 solver wiring — one
-        method space per boundary face, mirroring
-        ``SNMethodSpace.for_face`` at ``SNMesh._resolve_bcs`` time.
-        Where SN's ``for_face`` *derives* the per-face inflow indices
-        from its trace, the scalar trace has nothing to derive (the
-        ``(J⁺, J⁻)`` rows are fixed); instead the face is VALIDATED
-        against the trace's face inventory so a method space for a
-        nonexistent face is unrepresentable.
+        The standard construction site — one method space per boundary
+        face, mirroring ``SNMethodSpace.for_face`` at
+        ``SNMesh._resolve_bcs`` time (the diffusion caller is
+        ``DiffusionMesh._resolve_one``, #290 P7a). The trace is READ
+        OFF the mesh (``mesh.scalar_trace`` — the single source; no
+        separate ``trace=`` parameter to drift). Where SN's
+        ``for_face`` *derives* the per-face inflow indices from its
+        trace, the scalar trace has nothing to derive (the ``(J⁺,
+        J⁻)`` rows are fixed); instead the face is VALIDATED against
+        the trace's face inventory so a method space for a nonexistent
+        face is unrepresentable.
 
         Parameters
         ----------
         mesh
-            The material mesh — optional metadata (nothing in the
-            realizer chain reads it).
+            The :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
+            whose trace supplies the face inventory.
         face
             Face name (``"{axis}{min|max}"`` — e.g. ``"xmin"``; a
             radial outer face renders ``"xmax"``; the pole is not a
             face).
-        trace
-            Optional precomputed
-            :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
-            (canonically ``mesh.scalar_trace``). When given, ``face``
-            must be one of its faces.
 
         Raises
         ------
         ValueError
-            If ``trace`` is given and ``face`` is not in its face
-            inventory.
+            If ``face`` is not in the mesh trace's face inventory.
         """
-        if trace is not None and face not in trace.face_names:
+        if face not in mesh.scalar_trace.face_names:
             raise ValueError(
                 f"DiffusionMethodSpace.for_face: face {face!r} is not a "
-                f"boundary face of the supplied ScalarTraceSpace; "
-                f"available: {trace.face_names}."
+                f"boundary face of the mesh's ScalarTraceSpace; "
+                f"available: {mesh.scalar_trace.face_names}."
             )
-        return cls(mesh=mesh, face=face, trace=trace)
+        return cls(mesh=mesh, face=face, trace=mesh.scalar_trace)

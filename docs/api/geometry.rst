@@ -71,36 +71,37 @@ means "use the solver's default," which varies by method (e.g.
 reflective for SN eigenvalue, white for CP).
 
 The geometry module makes **no assumptions** about what a given
-``kind`` means physically. Semantics are resolved by each solver's
-augmented mesh (``SNMesh``, ``CPMesh``, ``MOCMesh``, ``MCMesh``,
-``DiffusionSolver``) at construction time via a class-level
-registry (``BC_REGISTRY: dict[str, Callable]`` on CP / MC /
-diffusion; ``BOUNDARY_OPERATOR_REGISTRY: dict[str,
-type[BoundaryTraceLaw]]`` on ``SNMesh``, whose values are realized
-into per-face operators in the face-name-keyed ``SNMesh.bc`` dict).
-This registry maps kind
-strings to factory functions that translate the abstract declaration
-into solver-specific internal state (e.g. setting incoming angular
-flux to zero for SN vacuum, or choosing a collision-probability
-transform for CP white). If a mesh carries a ``kind`` that the
-solver does not support, construction raises ``ValueError`` listing
-the supported kinds.
+``kind`` means physically. Semantics are resolved by each method's
+augmented mesh (``SNMesh``, ``DiffusionMesh``, and the future
+``CPMesh`` / ``MOCMesh`` / ``MCMesh``) at construction time via a
+class-level ``BOUNDARY_OPERATOR_REGISTRY: dict[str,
+type[BoundaryTraceLaw]]`` mapping kind strings to typed boundary
+LAWS, whose realized per-face operators land in the face-name-keyed
+``bc`` dict each method-mesh carries (``SNMesh.bc`` /
+``DiffusionMesh.bc`` — #290 P7a moved the diffusion resolution off
+the solver onto the phase space, the SN pattern). The realization
+translates the abstract declaration into method-specific operator
+state (e.g. zeroing the incoming angular flux for SN vacuum, or the
+scalar albedo row :math:`J^- = \mathcal{A} J^+` for diffusion). If a
+mesh carries a ``kind`` that the method does not support,
+construction raises ``ValueError`` listing the supported kinds.
 
 This pattern has three advantages:
 
 1. **Solver-agnostic problem setup.** The same ``Mesh1D`` with
    ``bc_right=BC.vacuum`` can be passed to SN, CP, or diffusion
-   solvers without modification — each resolves the tag through
-   its own registry.
+   solvers without modification — each method-mesh resolves the tag
+   through its own registry.
 2. **Extensibility.** Adding a new BC type (e.g. albedo, periodic)
-   requires only a new factory function and a one-line addition
-   to the solver's ``BC_REGISTRY``. No geometry code changes.
-3. **Discoverability.** Each factory function carries a docstring
+   requires only a boundary-law class and a one-line addition to the
+   method-mesh's ``BOUNDARY_OPERATOR_REGISTRY``. No geometry code
+   changes.
+3. **Discoverability.** Each boundary-law class carries a docstring
    that serves as a human-readable description, queryable at
-   runtime via
-   ``{k: v.__doc__ for k, v in SolverMesh.BC_REGISTRY.items()}``.
+   runtime via ``{k: v.__doc__ for k, v in
+   SNMesh.BOUNDARY_OPERATOR_REGISTRY.items()}``.
 
-The current ``BC_REGISTRY`` contents per solver are:
+The current registry contents per method are:
 
 .. list-table:: Supported boundary conditions by solver
    :header-rows: 1
@@ -121,9 +122,9 @@ The current ``BC_REGISTRY`` contents per solver are:
    * - MC
      - ``periodic``
      - ``periodic``
-   * - Diffusion
-     - ``vacuum``, ``reflective``
-     - ``vacuum``
+   * - Diffusion (``DiffusionMesh``)
+     - ``vacuum``, ``reflective``, ``albedo``, ``zero_flux``
+     - ``reflective``
 
 
 Boundary Conditions

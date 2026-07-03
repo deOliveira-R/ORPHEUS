@@ -67,10 +67,11 @@ class ScalarBoundarySourceSink(ScalarBoundaryField):
         Flat backing buffer, shape ``(space.layout.total_size,)``.
     space : ScalarTraceSpace
         The mesh's cached scalar trace
-        (:attr:`MaterialMesh.scalar_trace
-        <orpheus.transport.mesh.material_mesh.MaterialMesh.scalar_trace>`).
-    mesh : MaterialMesh
-        The method-agnostic mesh+materials carrier (cross-mesh guard).
+        (:attr:`DiffusionMesh.scalar_trace
+        <orpheus.diffusion.augmented_mesh.DiffusionMesh.scalar_trace>`).
+    mesh : DiffusionMesh
+        The diffusion phase space (cross-mesh guard; the family's
+        covariant narrowing, #290 P7a).
 
     Notes
     -----

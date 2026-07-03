@@ -17,10 +17,11 @@ The abstraction axis is **data vs behavior**:
 * The **method layer** (angular quadrature + sweep/streaming stencil +
   boundary trace + closures) is *behavior*.  A method-specific mesh
   **is a** :class:`MaterialMesh` that adds that behavior:
-  ``SNMesh(MaterialMesh)`` for the data, conforming structurally to a
-  future ``TransportMethod`` Protocol for the behavior (minted when a
-  2nd method-mesh — ``MoCMesh`` / ``CPMesh`` — exists to share the
-  contract; deferred per the defer-until-2-instances rule).
+  ``SNMesh(MaterialMesh)`` (quadrature + sweep machinery + angular
+  trace) and ``DiffusionMesh(MaterialMesh)`` (scalar trace + realized
+  boundary laws; #290 P7a), each conforming structurally to a future
+  ``TransportMethod`` Protocol for the behavior (the 2nd method-mesh
+  now exists — the Protocol is minted at #290 P7b over both).
 
 This is the layer where cross-section **homogenization** lands: a
 fine-mesh :class:`~orpheus.sn.solution.Solution` plus a coarse
@@ -40,7 +41,7 @@ L3 method package — which is exactly what let it be promoted out of
 
 from __future__ import annotations
 
-from functools import cached_property, reduce
+from functools import reduce
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -51,16 +52,12 @@ from orpheus.transport.mesh.axis import (
     AxisMesh,
     axes_from_legacy_mesh,
     coord_system as _axis_coord_system,
-    face_labels as _face_labels,
-    face_shape as _face_shape,
     spatial_shape as _axis_spatial_shape,
 )
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.geometry import CoordSystem
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-    from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
@@ -419,79 +416,6 @@ class MaterialMesh:
                 "face-area data lives in the underlying Mesh2D directly."
             )
         return self._areas
-
-    @cached_property
-    def scalar_trace(self) -> "ScalarTraceSpace":
-        r"""The scalar boundary-trace space — per-face ``(J⁺, J⁻)`` pairs.
-
-        Built ONCE from this mesh's own axis data (the SNMesh
-        ``.angular_trace`` precedent, quadrature-free): the face
-        inventory comes from
-        :func:`~orpheus.transport.mesh.axis.face_labels` (the pole of a
-        radial axis is not a face and never appears), each face's
-        surface measure from :attr:`areas` (slab 1, cylinder
-        :math:`2\pi R`, sphere :math:`4\pi R^2`) as the trace metric.
-        Consumed by the scalar trace family
-        (:class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`)
-        and the diffusion boundary machinery (#290 P2–P4).
-
-        1-D meshes only today (mirrors :attr:`areas` — 2-D face areas
-        live in the underlying ``Mesh2D``; extend when a 2-D scalar
-        trace consumer arrives).
-        """
-        from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
-
-        labels = _face_labels(self.axes)
-        faces = [
-            (label.face_name, _face_shape(self.axes, label))
-            for label in labels
-        ]
-        face_areas = {
-            label.face_name: float(
-                self.areas[0] if label.endpoint == "min" else self.areas[-1]
-            )
-            for label in labels
-        }
-        return ScalarTraceSpace.for_faces(faces, self.ng, face_areas)
-
-    @cached_property
-    def scalar_full_field_space(self) -> "FullFieldSpace":
-        r"""The scalar composite carrier :math:`V_{\rm bulk} \oplus V_{\rm trace}` (#290 P4).
-
-        The function space of the scalar-composite operator family —
-        diffusion's :math:`(L + C - S - B)` and every bulk ⊕ boundary
-        composite whose bulk is a
-        :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` and
-        whose boundary is the ``(J⁺, J⁻)`` scalar trace. The exact
-        mirror of :attr:`SNMesh.full_field_space
-        <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>` with
-        the angular measure integrated out — the block-diagonal Hilbert
-        metric :math:`G` is
-
-        * **bulk** :math:`G_{\rm bulk} = V_{\rm cell}` — the spatial
-          volume measure, stored ``(1, *spatial)`` so it broadcasts
-          across the energy-group axis of the ``(ng, *spatial)`` bulk
-          (the scalar flux is already angle-integrated: no ``w_n``);
-        * **trace** — the face-AREA metric already carried by
-          :attr:`scalar_trace` (the surface measure of
-          angle-integrated partial currents).
-
-        Method-agnostic (like :attr:`scalar_trace`): diffusion consumes
-        it natively; the DSA restriction (#2) consumes it ON an
-        ``SNMesh`` (which inherits both composites — the angular
-        ``full_field_space`` for transport and this one for
-        :math:`A_{\rm diff}`). Cached: immutable for a given mesh.
-        """
-        from orpheus.numerics.space import FunctionSpace
-        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-
-        V = np.asarray(self.volumes, dtype=float)  # (*spatial)
-        bulk_space = FunctionSpace(
-            name="scalar_bulk",
-            shape=(self.ng, *self.spatial_shape),
-            inner_product_weights=V.reshape((1, *V.shape)),
-        )
-        return FullFieldSpace.from_blocks(bulk_space, self.scalar_trace)
 
     @property
     def ndim(self) -> int:

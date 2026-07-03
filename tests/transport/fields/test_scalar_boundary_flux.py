@@ -12,6 +12,11 @@ the albedo-family identities ``J⁻ = 𝒜·J⁺`` (vacuum 𝒜=0 / reflective
 contract, the field-algebra guards inherited from ``BoundaryField``, and
 the widened ``FullField``/``FullFieldSpace`` composite admission.
 
+The carrier is the :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
+phase space (#290 P7a): a boundary trace is method behavior, so the
+scalar trace family binds to the diffusion method-mesh (a bare
+``MaterialMesh`` owns no trace — the negative gate below).
+
 Convention contract: ``.claude/plans/diffusion_crosswalk.md``.
 Foundation tier — software invariants on the new types; no
 ``verifies(...)``.
@@ -23,6 +28,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.diffusion import DiffusionMesh
 from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import FullFieldSpace, ScalarTraceSpace
@@ -34,9 +40,9 @@ from orpheus.transport.mesh.material_mesh import MaterialMesh
 pytestmark = [pytest.mark.foundation]
 
 
-def _slab_mesh(nx: int = 4, width: float = 10.0) -> MaterialMesh:
+def _slab_mesh(nx: int = 4, width: float = 10.0) -> DiffusionMesh:
     mesh1d = Mesh1D(np.linspace(0.0, width, nx + 1), np.zeros(nx, dtype=int))
-    return MaterialMesh(mesh1d, {0: get_mixture("A", "2g")})
+    return DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -65,7 +71,7 @@ class TestScalarTraceSpace:
             np.linspace(0.0, r_outer, 4), np.zeros(3, dtype=int),
             coord=CoordSystem.SPHERICAL,
         )
-        mm = MaterialMesh(mesh1d, {0: get_mixture("A", "2g")})
+        mm = DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
         ts = mm.scalar_trace
         if ts.face_names != ("xmax",):
             pytest.fail(f"sphere trace must have only xmax; got {ts.face_names}")
@@ -172,11 +178,21 @@ class TestPartialCurrentGuards:
             )
 
     def test_mesh_identity_guard(self):
-        """Differencing across distinct MaterialMesh instances is forbidden."""
+        """Differencing across distinct DiffusionMesh instances is forbidden."""
         a = ScalarBoundaryFlux.zeros_on(_slab_mesh())
         b = ScalarBoundaryFlux.zeros_on(_slab_mesh())
-        with pytest.raises(ValueError, match="distinct MaterialMesh"):
+        with pytest.raises(ValueError, match="distinct DiffusionMesh"):
             _ = a - b
+
+    def test_bare_material_mesh_is_refused(self):
+        """A boundary trace is method BEHAVIOR (#290 P7a): the bare
+        MaterialMesh data carrier owns no scalar trace, so a trace
+        field cannot be built on one — the family diagnosis points at
+        the promotion."""
+        mesh1d = Mesh1D(np.linspace(0.0, 10.0, 5), np.zeros(4, dtype=int))
+        mm = MaterialMesh(mesh1d, {0: get_mixture("A", "2g")})
+        with pytest.raises(ValueError, match="no scalar trace.*DiffusionMesh"):
+            ScalarBoundaryFlux.zeros_on(mm)
 
     def test_torsor_algebra(self):
         """The #208 affine discipline on the scalar trace: state ⊖ state →
@@ -219,7 +235,7 @@ class TestScalarComposite:
             bulk=ScalarFlux.zeros_on(mm), boundary=ScalarBoundaryFlux.zeros_on(mm),
         )
         if full.mesh is not mm:
-            pytest.fail("composite mesh must be the shared MaterialMesh")
+            pytest.fail("composite mesh must be the shared DiffusionMesh")
 
     def test_mixed_mesh_composite_rejected(self):
         """The existing mesh-identity invariant is the angular/scalar

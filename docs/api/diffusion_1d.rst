@@ -12,6 +12,15 @@ verified against the analytical / semi-analytical references built by
 
 See :ref:`theory-verification` for the verification-case philosophy.
 
+Method mesh
+-----------
+
+.. automodule:: orpheus.diffusion.augmented_mesh
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
 Solver
 ------
 

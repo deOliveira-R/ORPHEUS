@@ -38,7 +38,7 @@ provides the *locus + family* axes as ABCs; the *role* leaves
          │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.source_sinks)
          │   ├─ AngularBoundaryResidual      role leaf  (residual; B.3 — orpheus.transport.residuals)
          │   └─ AngularBoundaryDisplacement  role leaf  (displacement — orpheus.transport.displacements)
-         └─ ScalarBoundaryField (ABC)    ScalarTraceSpace contract (mesh.scalar_trace; #290 P2)
+         └─ ScalarBoundaryField (ABC)    ScalarTraceSpace contract (DiffusionMesh.scalar_trace; #290 P2/P7a)
              ├─ ScalarBoundaryFlux           role leaf  (flux — the per-face (J⁺, J⁻) pair)
              └─ ScalarBoundaryDisplacement   role leaf  (displacement — orpheus.transport.displacements)
 
@@ -90,6 +90,7 @@ from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 
 if TYPE_CHECKING:
+    from orpheus.diffusion.augmented_mesh import DiffusionMesh
     from orpheus.numerics.face_layout import FaceLayout
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.mesh.material_mesh import MaterialMesh
@@ -696,15 +697,18 @@ class BoundaryField(Field):
     * :class:`AngularBoundaryField` — the ANGULAR family (``mesh`` narrowed to
       :class:`SNMesh`, space narrowed to the quadrature-coupled
       :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`).
-    * :class:`ScalarBoundaryField` — the SCALAR family (``mesh:
-      MaterialMesh``, space narrowed to
+    * :class:`ScalarBoundaryField` — the SCALAR family (``mesh``
+      narrowed to :class:`DiffusionMesh`, space narrowed to
       :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`;
       per-face ``(J⁺, J⁻)`` partial-current pairs).
 
     The base ``mesh`` annotation is the method-agnostic
-    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`; the
-    angular family covariantly NARROWS it to :class:`SNMesh` — the exact
-    #267 ``BulkField → AngularField`` discipline. Storage is a SINGLE
+    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`; EACH
+    family covariantly NARROWS it to its method-mesh (:class:`SNMesh` /
+    :class:`DiffusionMesh`) — the exact #267 ``BulkField →
+    AngularField`` discipline. A boundary trace is method BEHAVIOR
+    (#290 P7a): the bare MaterialMesh data carrier owns no trace, so a
+    boundary field on one is unrepresentable. Storage is a SINGLE
     flat backing buffer; per-face access is slice-view, no copies.
     Inherits Field's same-class/same-space dunder algebra. Abstract —
     instantiate a concrete role leaf of one of the families.
@@ -721,9 +725,11 @@ class BoundaryField(Field):
 
         The single hook the three factories construct through: the
         angular family reads ``mesh.angular_trace`` (raising on the trace-less
-        2-D cylindrical mesh), the scalar family ``mesh.scalar_trace``.
-        MUST return a layout-bearing space or raise :class:`ValueError`
-        with the family's own diagnosis.
+        2-D cylindrical mesh), the scalar family ``mesh.scalar_trace``
+        (a :class:`DiffusionMesh` member — raising on a bare
+        MaterialMesh, which owns no trace; #290 P7a). MUST return a
+        layout-bearing space or raise :class:`ValueError` with the
+        family's own diagnosis.
         """
         raise NotImplementedError
 
@@ -954,13 +960,15 @@ class ScalarBoundaryField(BoundaryField):
 
     Carries what is SCALAR about the locus: the space narrowing to
     :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
-    (per-face partial-current pairs under the face-AREA metric) and the
-    trace-space source ``mesh.scalar_trace``. The ``mesh`` annotation
-    stays the inherited method-agnostic
-    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` — the
-    scalar trace is meaningful on ANY material mesh (diffusion / CP
-    natively; an :class:`SNMesh` when DSA restricts onto it). The
-    concrete role leaves are
+    (per-face partial-current pairs under the face-AREA metric), the
+    :class:`DiffusionMesh` binding (covariant narrowing of the base
+    ``mesh: MaterialMesh`` — the exact :class:`AngularBoundaryField` /
+    ``SNMesh`` discipline; #290 P7a), and the trace-space source
+    ``mesh.scalar_trace``. A scalar trace lives on the DIFFUSION phase
+    space — when DSA (#2) restricts an SN solve, the SN mesh promotes
+    (``DiffusionMesh.from_material_mesh(sn_mesh)`` — an ``SNMesh`` IS a
+    ``MaterialMesh``) and :math:`A_{\rm diff}`'s fields bind to the
+    promoted mesh. The concrete role leaves are
     :class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`
     (flux/state) and
     :class:`~orpheus.transport.displacements.scalar_boundary_displacement.ScalarBoundaryDisplacement`
@@ -968,6 +976,8 @@ class ScalarBoundaryField(BoundaryField):
     operator codomains demand them (#290 P4). Abstract — instantiate a
     role leaf.
     """
+
+    mesh: "DiffusionMesh"
 
     # ── Construction validation (scalar narrowing) ────────────────────
 
@@ -989,5 +999,15 @@ class ScalarBoundaryField(BoundaryField):
 
     @classmethod
     def _trace_space_of(cls, mesh: "MaterialMesh") -> ScalarTraceSpace:
-        return mesh.scalar_trace
+        space = getattr(mesh, "scalar_trace", None)
+        if space is None:
+            raise ValueError(
+                f"{cls.__name__}: mesh carries no scalar trace "
+                f"(mesh.scalar_trace) — a bare MaterialMesh is the "
+                f"method-agnostic DATA carrier; the (J⁺, J⁻) boundary "
+                f"trace is diffusion method BEHAVIOR (#290 P7a). Build "
+                f"the field on a DiffusionMesh "
+                f"(DiffusionMesh.from_material_mesh promotes)."
+            )
+        return space
 
