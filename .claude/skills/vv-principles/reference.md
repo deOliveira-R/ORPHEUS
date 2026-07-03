@@ -393,13 +393,14 @@ evidence class would have caught this" sharply — entries that
 cannot answer that question are catalog material, not skill
 material.
 
-The five canonical cases, ordered by epistemic abstraction:
+The six canonical cases, ordered by epistemic abstraction:
 
 1. **[err006_convergence_to_wrong_limit.md](scripts/err006_convergence_to_wrong_limit.md)** — convergence at the right order is necessary, not sufficient (cylindrical/spherical SN, redistribution + α-recursion).
 2. **[err032_shared_algebra_crosscheck.md](scripts/err032_shared_algebra_crosscheck.md)** — procedural independence is not structural independence (slab white-BC ∫E₂ antiderivative).
 3. **[issue100_routing_localisation.md](scripts/issue100_routing_localisation.md)** — falsification is not localisation; mode-routing bugs require an internal algebraic invariant (Class-B sphere normalisation).
 4. **[issue123_quadrature_crossing.md](scripts/issue123_quadrature_crossing.md)** — single-quadrature signal is not closure quality; require ≥2-quadrature signed-error stability (Direction-C/Q/N falsifications).
 5. **[issue132_reference_contamination.md](scripts/issue132_reference_contamination.md)** — agreement with the reference is not agreement with the physics; audit the BC translation step (Davison image series solving the wrong BC).
+6. **[issue226_spectral_invisibility.md](scripts/issue226_spectral_invisibility.md)** — agreement in the eigenvalue is not agreement in the operator; a value gate is exactly blind to its functional's invariance group — pin the OBJECT, not just its spectrum (homogeneous `K = A⁻¹F` factor-swap/transpose mutations, |Δk| = 0.0 exactly while ‖ΔK‖ = O(1); SKILL.md Mode 12).
 
 ---
 
