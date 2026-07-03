@@ -136,6 +136,61 @@ class Mixture:
         return np.array(self.Sig2.sum(axis=1)).ravel()
 
     @property
+    def transport_xs(self) -> np.ndarray:
+        r"""(NG,) transport cross section (outflow approximation) in 1/cm.
+
+        .. math::
+
+           \Sigma_{tr,g} \;=\; \Sigma_{t,g} \;-\; \sum_{g'} \Sigma_{s1,\,g\to g'}
+
+        — the total XS minus the P1 out-scatter row sum: the *outflow*
+        (out-scatter) transport approximation (Stamm'ler & Abbate 1983).
+        For a single medium with :math:`\Sigma_{s1} = \bar\mu\,\Sigma_{s0}`
+        this is the textbook :math:`\Sigma_{tr} = \Sigma_t - \bar\mu\,
+        \Sigma_s` (Duderstadt & Hamilton 1976). The flux-weighted *inflow*
+        (in-scatter) refinement needs a solved spectrum and is therefore
+        deliberately NOT a static data property.
+
+        When the mixture carries no P1 moment (``len(SigS) == 1`` — the
+        synthetic / Sood-style P0-only path), the out-scatter row sum is
+        identically zero and :math:`\Sigma_{tr} = \Sigma_t` EXACTLY: the
+        correct isotropic-scattering limit, not a fallback.
+
+        Consumers: :attr:`diffusion_coefficient` (the diffusion data seam,
+        #290); any future transport-corrected P0 treatment (CP/MoC).
+        """
+        if len(self.SigS) > 1:
+            p1_out = np.array(self.SigS[1].sum(axis=1)).ravel()
+        else:
+            p1_out = np.zeros(self.ng)
+        return self.SigT - p1_out
+
+    @property
+    def diffusion_coefficient(self) -> np.ndarray:
+        r"""(NG,) diffusion coefficient :math:`D_g = 1/(3\,\Sigma_{tr,g})` in cm.
+
+        The Fick's-law coefficient of the multigroup diffusion model
+        (:eq:`diffusion-coefficient`), built on the outflow
+        :attr:`transport_xs`.
+
+        Raises
+        ------
+        ValueError
+            If any group's :math:`\Sigma_{tr} \le 0` — a P1 out-scatter
+            exceeding the total XS is unphysical data, and the reciprocal
+            would silently produce a negative diffusion coefficient.
+        """
+        sig_tr = self.transport_xs
+        if np.any(sig_tr <= 0.0):
+            bad_group = int(np.argmin(sig_tr))
+            raise ValueError(
+                f"diffusion_coefficient requires transport_xs > 0 in every "
+                f"group; got transport_xs[{bad_group}] = {sig_tr[bad_group]:g} "
+                f"(P1 out-scatter row sum >= total XS is unphysical data)."
+            )
+        return 1.0 / (3.0 * sig_tr)
+
+    @property
     def balance_residual(self) -> np.ndarray:
         r"""(NG,) per-group total-XS balance residual.
 
