@@ -118,8 +118,6 @@ ignore = [
     "orpheus/derivations",
     "orpheus/diffusion",
     "orpheus/fuel",
-    "orpheus/geometry",
-    "orpheus/homogeneous",
     "orpheus/kinetics",
     "orpheus/mc",
     "orpheus/moc",
