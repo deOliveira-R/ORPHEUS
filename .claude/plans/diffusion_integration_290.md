@@ -528,3 +528,88 @@ exit 0; audit EXIT=0 (54/63 pre-existing). NEXT = P5 (solver + engines:
   `orpheus.numerics.flat_operator.FlattenedOperator`;
   `mesh.scalar_full_field_space`; `mat_xs.diffusion_coefficient`;
   `ScalarBoundarySourceSink` in transport.source_sinks.
+
+### P5 status (2026-07-03, session 3 — EXECUTED; hash = this commit)
+
+**DONE.** The modern solver + engines, built BESIDE the untouched island
+(P6 retires it). New module `orpheus/diffusion/k_eigenvalue.py`:
+`DiffusionSolver` (the `EigenvalueSolver` + `ProductionRateSolver`
+implementer), modern `DiffusionResult` (typed composite flux + current
+profile + history), `solve_diffusion_1d(materials, mesh, ...)` driver on
+the ONE `power_iteration`. Design decisions (the P5 record — full
+rationale in the module docstring):
+
+1. **Protocol carrier = the flat composite vector** — the trace (J⁺,J⁻)
+   is honestly part of the eigenvector; conversion at exactly two sites
+   (`unflatten` + the template-frozen FlattenedOperator).
+2. **Exact inner solve** — `MatrixInverseOperator(FlattenedOperator(A,
+   template))`, one eager LU, one back-substitution per outer; NO
+   scattering inner iteration exists.
+3. **k-update = the integrated eigenvalue relation** `k = P(ψ)/⟨1,
+   (Aψ)_bulk⟩_V` — decomposes to absorption + leakage by the P4
+   column-sum theorem + divergence telescoping; derived through THE loss
+   operator so no term can be forgotten (the island hand-added leakage;
+   SN's P/A omits it — flagged, see follow-up note below).
+4. **(n,2n) loss-side** (homogeneous convention): S = IsotropicScattering
+   + IsotropicN2N; F and `compute_production_rate` are νΣf ONLY.
+5. **BCs resolve from the MESH's declarations** — tag→law→realize loop
+   over `face_labels` mirroring `SNMesh._resolve_bcs` (None → reflective
+   default); registry: vacuum/reflective/albedo/zero_flux; "white"
+   DELIBERATELY absent (≡ reflective at P1). This is the 3rd spelling of
+   the per-method resolution pattern — P7's TransportMethod unifies.
+6. **Normalization**: returned mode carries ∫νΣf·φ dV = 1 (#270 arm;
+   `fi /= max` conditioning + hardcoded e_per_fission power window
+   retired from the modern path).
+7. **`LeakageOperator.face_currents(psi)`** added: the current-profile
+   reconstruction (interior condensed + boundary trace, axis-signed);
+   `apply` now CONSUMES it (single source — flow = areas × currents,
+   bit-identical, P4 stencil gates re-verified green); dead
+   `_FaceClosure.area` field retired.
+8. **Package exports flipped to modern** — island importable ONLY via
+   `orpheus.diffusion.solver` submodule for one merge cycle (verified:
+   all island consumers — tests, derivations `diffusion.py:152`, demo —
+   already import the submodule).
+
+Gates (`tests/diffusion/test_solver.py`, 22 tests): cross-engine
+`power_iteration` ≡ `direct_eigenvalue` |Δk| < 1e-10 + full composite
+eigenvector, 4 BC configs (foundation); **L2 infinite-medium** reflective
+diffusion k ≡ homogeneous k∞ at 1e-11, 2G + **3G asymmetric (the
+flip-trick discriminator — skip-scatter 1→3, split χ; ng-generic by
+construction)**; **legacy bridge** modern ≡ island on CORE1D at 1e-8
+(island driven through power_iteration directly — its driver's
+max_iter=200 does NOT converge the PWR dominance ratio; the observed
+9.5e-7 first-run delta was island non-convergence, not discretization);
+trace semantics per law at the solution (vacuum J⁻=0, albedo J⁻=αJ⁺,
+reflective J_net=0, zero-flux φ_Γ=0, all LU-exact 1e-12·scale) + the
+asymmetric-BC face-mapping pin; balance identity P/k = absorption +
+leakage at 1e-10; k monotone in 𝒜 (zero_flux < vacuum < albedo(0.6) <
+reflective); production-normalization pin; ProductionRateSolver
+isinstance; refusals (white with supported-list, albedo-sans-param,
+multi-D — L constructs FIRST in the solver so ITS 1-D refusal fires, not
+the trace's AttributeError).
+
+**Mutation teeth probed in-process** (monkeypatch + revert, not
+committed): M1 volume-weight drop in the k-update → balance RED 4.3e-1 +
+cross-engine RED 2.7e-2; M2 registry swap vacuum→reflective → vacuum
+trace gate RED at full scale; controls ~1e-15. (The fission /k scale is
+spectrally invisible under production renormalization — genuinely
+non-load-bearing, no gate possible or needed; the cross-engine gate is
+the committed catcher for ALL protocol plumbing.)
+
+Demo `examples/diffusion/demo_diffusion_1d.py` rewired to the modern API
+(BC("zero_flux") — the ruling-3 honest name for the MATLAB "vacuum"):
+**keff = 1.022173 = the MATLAB reference at print precision** (391
+outers; the island's 200-cap driver never converged this).
+
+Gates: diffusion+geometry 374 / transport+numerics+data 1361 / sn 1937 —
+all green (serial `-O`); CLI pyright = 1 (#288 residual only); `sphinx
+-W` exit 0; audit EXIT=0.
+
+Follow-up flags for later phases: (a) P6 — `git mv k_eigenvalue.py →
+solver.py` after the island deletes (family naming parity with
+sn/cp/homogeneous); the bridge test class DELETES with the island. (b)
+SN's `compute_keff = P/A` omits leakage — verified real-but-latent (all
+tight SN k anchors are reflective; vacuum configs smoke-banded only) —
+**FILED as #291** (NOT #290 scope).
+
+NEXT = P6 (retirements + suite rewire + MMS #93; ⏸ C3 after).

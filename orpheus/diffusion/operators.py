@@ -228,8 +228,6 @@ class _FaceClosure:
     #: Axis sign of the OUTWARD normal (``-1`` at min, ``+1`` at max) —
     #: the one site converting face-local net current to the axis vector.
     axis_sign: float
-    #: Face area (slab 1, cylinder ``2πR``, sphere ``4πR²``).
-    area: float
     #: P1 closure coefficient on the edge-cell flux, ``(ng,)``.
     c_phi: np.ndarray
     #: P1 closure coefficient on the inflow partial current, ``(ng,)``.
@@ -310,7 +308,6 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
                 edge=edge,
                 flow_slot=0 if is_min else nx,
                 axis_sign=-1.0 if is_min else +1.0,
-                area=float(areas[0] if is_min else areas[-1]),
                 c_phi=c_phi,
                 c_inflow=c_inflow,
             )
@@ -324,8 +321,11 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
     def codomain(self) -> "Optional[FunctionSpace]":
         return self.mesh.scalar_full_field_space
 
-    def apply(self, psi: "FullField", /) -> "FullField":
-        r"""Return :math:`L\,\psi` — leakage rate density ⊕ trace defect rows."""
+    def _parse(self, psi: "FullField") -> "tuple[np.ndarray, ScalarBoundaryFlux]":
+        r"""Guard + unpack a scalar composite → ``(φ values, trace)``.
+
+        The shared entry of :meth:`apply` and :meth:`face_currents`
+        (single source of the composite parses — Pattern 2)."""
         bulk = psi.bulk
         if not isinstance(bulk, ScalarFlux):
             raise TypeError(
@@ -341,26 +341,50 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
             )
         if bulk.mesh is not self.mesh:
             raise ValueError(
-                "LeakageOperator.apply: input field and operator must "
+                "LeakageOperator: input field and operator must "
                 "share the same MaterialMesh instance (mesh-identity "
                 f"invariant); got field mesh {bulk.mesh!r} vs operator "
                 f"mesh {self.mesh!r}."
             )
+        return bulk.values, trace
 
-        phi = bulk.values                                # (ng, nx)
+    def face_currents(self, psi: "FullField") -> np.ndarray:
+        r"""Reconstruct the axis-signed net-current profile, ``(ng, nx+1)``.
+
+        The current-density counterpart of :meth:`apply`'s flow assembly
+        — and its single source (``apply`` consumes THIS reconstruction
+        times the face areas): interior faces carry the condensed
+        two-point current :math:`J_f = -g_f\,(\phi_R - \phi_L)`,
+        boundary faces the trace's net outward current converted to the
+        axis sign (the one vector-form consumer site — the crosswalk
+        orientation row). Interior currents are never trace DOFs; this
+        reconstruction is how the production current-profile output is
+        served (#290 P5 — the modern successor of the legacy island's
+        ``DiffusionResult.current``).
+        """
+        phi, trace = self._parse(psi)
+        return self._face_currents_from(phi, trace)
+
+    def _face_currents_from(
+        self, phi: np.ndarray, trace: "ScalarBoundaryFlux",
+    ) -> np.ndarray:
         ng, nx = phi.shape
+        current = np.zeros((ng, nx + 1))
+        current[:, 1:-1] = -self._conductance * (phi[:, 1:] - phi[:, :-1])
+        for face, c in self._face_closures.items():
+            current[:, c.flow_slot] = c.axis_sign * trace.net_current(face)
+        return current
+
+    def apply(self, psi: "FullField", /) -> "FullField":
+        r"""Return :math:`L\,\psi` — leakage rate density ⊕ trace defect rows."""
+        phi, trace = self._parse(psi)
 
         # ── Bulk block: the conservative divergence ────────────────────
-        # Axis-signed area-weighted flow at every face; interior faces
-        # carry the condensed current J_f = −g_f Δφ, boundary slots the
-        # trace's net outward current converted to the axis sign.
-        flow = np.zeros((ng, nx + 1))
-        flow[:, 1:-1] = self._areas[1:-1] * (
-            -self._conductance * (phi[:, 1:] - phi[:, :-1])
-        )
-        for face, c in self._face_closures.items():
-            net_outward = trace.net_current(face)        # (ng,)
-            flow[:, c.flow_slot] = c.axis_sign * c.area * net_outward
+        # Area-weighted, axis-signed flow at every face — the face-current
+        # reconstruction (single source: :meth:`face_currents`) times the
+        # face areas; interior slots carry the condensed currents,
+        # boundary slots the trace's net outward current.
+        flow = self._areas * self._face_currents_from(phi, trace)
         out_bulk = np.diff(flow, axis=1) / self._volumes  # (ng, nx)
 
         # ── Trace block: outflow-definition defect + inflow identity ──
