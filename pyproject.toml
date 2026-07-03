@@ -116,7 +116,6 @@ pythonVersion = "3.13"
 ignore = [
     "orpheus/cp",
     "orpheus/derivations",
-    "orpheus/diffusion",
     "orpheus/fuel",
     "orpheus/kinetics",
     "orpheus/mc",
