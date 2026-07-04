@@ -230,6 +230,7 @@ def _loss_operator(sn: SNMesh, sig_t: np.ndarray):
 
 
 @pytest.mark.foundation
+@pytest.mark.catches("ERR-066")
 @pytest.mark.parametrize("case", list(_BUILDERS))
 def test_g_adjoint_reciprocity_full_block(case):
     r"""``⟨Aψ,φ⟩_G = ⟨ψ, A.H φ⟩_G`` for ``A = L + C - B`` (G = bulk V·w_n ⊕ trace |Ω·n|·w_n).
@@ -238,6 +239,11 @@ def test_g_adjoint_reciprocity_full_block(case):
     ``_g_inner`` (anti-R1). Random non-flat ψ, φ on both blocks so the
     partial-current trace metric (which varies across ordinates as
     :math:`|\mu_n|`) is not degenerate.
+
+    The ``cyl_product_2g`` row is the ERR-066 catcher: it activates the
+    degenerate pure-azimuthal class every ``level_symmetric`` row nulls by
+    rule choice, so a transpose that drops the volumetric branch reds here
+    at O(1).
     """
     sn, sig_t = _BUILDERS[case]()
     A = _loss_operator(sn, sig_t)
