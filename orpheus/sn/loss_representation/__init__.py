@@ -120,7 +120,7 @@ See also
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
@@ -2315,6 +2315,62 @@ def _initial_guess_values(
     return initial_guess.values  # type: ignore[union-attr]
 
 
+#: The one μ-direction trichotomy threshold of the 1-D walk: an ordinate is a
+#: FORWARD leg member at ``μ > +eps``, a BACKWARD leg member at ``μ < −eps``,
+#: and DEGENERATE (pure-azimuthal — no radial streaming, not on any leg) at
+#: ``|μ| ≤ eps``.  Single source for the leg masks (:meth:`_OneDimScanWalk.
+#: _dag_legs`) and the degenerate set (:meth:`_OneDimScanWalk.
+#: _degenerate_positions`) so the three classes PARTITION the quadrature by
+#: construction — two thresholds could silently drop or double-count an
+#: ordinate.  (``_run``'s slab ``μ >= 0`` split is a separate micro-seam no
+#: GL ordinate hits; it re-poses at 2.5b.)
+_MU_DIRECTION_EPS = 1e-15
+
+
+@dataclass(frozen=True)
+class _WalkLeg:
+    r"""One (μ-level × direction) chain of the 1-D walk DAG.
+
+    The 1-D sweep DAG's node set factorizes into LEGS: for each quadrature
+    μ-level ``p`` and each direction class (``μ > +eps`` outward,
+    ``μ < −eps`` inward) the member ordinates march the SAME cell chain in
+    the SAME order, carrying one face flux (forward) or one face cotangent
+    (adjoint).  A leg is that chain with its ordinate bundle — the unit
+    :meth:`_OneDimScanWalk._loop_walk` traverses.
+
+    ``cells`` is in TRAVERSAL order for the orientation at hand: the
+    builder (:meth:`_OneDimScanWalk._dag_legs`) materializes the DOWNWIND
+    (``dag_walk``) order; :func:`_reverse_traversal` reverses it for the
+    adjoint (reverse-mode is reverse program order).  ``within`` (positions
+    inside the level) and ``ordinates`` (global indices) are the SAME
+    selection in the two indexing vocabularies the kernels consume
+    (``pole_angular_closure.cell_contribution`` is level-positional; the
+    flux buffers are global-ordinate-indexed).
+    """
+
+    mu_level_idx: int
+    direction_sign: int
+    within: "np.ndarray"       # (K,) positions within the μ-level
+    ordinates: "np.ndarray"    # (K,) global ordinate indices
+    abs_mu: "np.ndarray"       # (K,) |μ| per leg ordinate
+    cells: tuple[int, ...]     # the cell chain, in traversal order
+
+
+def _reverse_traversal(legs: "tuple[_WalkLeg, ...]") -> "tuple[_WalkLeg, ...]":
+    r"""The exact-reverse traversal of a leg schedule — reverse-mode order.
+
+    Reverse-mode AD retraces the primal program backwards: the legs in
+    reverse schedule order AND each leg's cell chain reversed.  The pole
+    handoff reverses with it — the primal pole edge (inward legs seed their
+    mirror outward legs, ERR-058a) becomes the outward-legs-feed-inward-legs
+    cotangent edge, which is exactly why every reversed ``+1`` leg precedes
+    every reversed ``−1`` leg in the output.
+    """
+    return tuple(
+        replace(leg, cells=leg.cells[::-1]) for leg in reversed(legs)
+    )
+
+
 @dataclass(frozen=True)
 class _OneDimScanWalk:
     r"""The shared 1-D-scan frame — the 1-D analogue of :class:`_OctantWalk`.
@@ -2326,12 +2382,140 @@ class _OneDimScanWalk:
     / ``_run_1d_sweep`` into this frame, bit-identical). Like ``_OctantWalk``
     it is a frozen ``mesh`` holder; the per-ordinate cache stash, the slab
     joint-batch + curvilinear per-ordinate bodies, and the two-stratum cache
-    ensure/stash live here. The MATVEC (apply direction) attaches in Phase C
-    as the per-ordinate apply-kernel (the α=−1, β=2ψ̄ scan), mirroring
-    ``_OctantWalk``'s cell-kernel injection.
+    ensure/stash live here.
+
+    Two frames, each shared across ORIENTATION (#280, Phase 2.5):
+
+    * the **apply-loop frame** — :meth:`loss_action` (forward matvec
+      :math:`(L+C)\psi`) and :meth:`loss_action_transpose` (adjoint matvec
+      :math:`(L+C)^{\mathsf T}\varphi`) are ONE orientation-parametrized
+      per-cell loop over the one DAG: both route their marches through
+      :meth:`_loop_walk` on :meth:`_dag_legs`-built legs, forking only at
+      the per-cell kernel closures (the ``_OctantWalk._interior_walk``
+      cell-kernel-injection discipline, realized here at 2.5a).  The
+      adjoint traverses :func:`_reverse_traversal` of the SAME legs —
+      reverse-mode is reverse program order, never a twin frame.
+    * the **solve-scan frame** — :meth:`sweep` → :meth:`_run` rides the
+      Blelloch affine scan, NOT the per-cell loop; its transpose (2.5b)
+      is the REVERSE-SCAN coherent with ``_run``, not a reverse loop.
+
+    Execution {scan (solve) / cell loop (apply)} is thus a non-free third
+    axis keyed by the kernel, while orientation (fwd ↔ adj) is the
+    coherence axis each frame shares — the #280 shape.
     """
 
     mesh: "SNMesh"
+
+    def _dag_legs(self) -> "tuple[_WalkLeg, ...]":
+        r"""Every non-empty leg of the 1-D walk DAG, in DEPENDENCY order.
+
+        Dependency order = all ``−1`` (inward) legs, then all ``+1``
+        (outward) legs, μ-levels ascending within each class.  The ONLY
+        inter-leg edge of the 1-D DAG is the curvilinear pole continuation
+        :math:`\psi(0, +\mu) = \psi(0, -\mu)` (ERR-058a — the Carlson
+        coupled-pole seed), which makes every inward leg a predecessor of
+        its mirror outward leg; slab legs are independent (both faces are
+        given traces).  The FORWARD orientation traverses this order; the
+        ADJOINT traverses :func:`_reverse_traversal` of it.
+
+        The ±eps direction masks and the ``dag_walk_cell_indices`` order
+        are materialized HERE ONCE for both orientations — the leg
+        decomposition can no longer drift between the forward and adjoint
+        walks (the pre-2.5a lockstep duplication).  Ordinates with
+        :math:`|\mu| \le` ``_MU_DIRECTION_EPS`` are on NO leg — they are
+        the :meth:`_degenerate_positions` set (volumetric balance, no
+        face march).
+        """
+        sn_mesh = self.mesh
+        mu_x = sn_mesh.quad.mu_x
+        level_indices = sn_mesh.pole_angular_closure.level_indices
+        legs: list[_WalkLeg] = []
+        for direction_sign in (-1, +1):
+            for p, level_idx in enumerate(level_indices):
+                level_idx_arr = np.asarray(level_idx)
+                mu_level = mu_x[level_idx_arr]
+                within_mask = (
+                    mu_level > +_MU_DIRECTION_EPS if direction_sign > 0
+                    else mu_level < -_MU_DIRECTION_EPS
+                )
+                if not np.any(within_mask):
+                    continue
+                ordinates = level_idx_arr[within_mask]
+                cells = tuple(sn_mesh.dag_walk_cell_indices(
+                    direction_sign=direction_sign, mu_level_idx=p,
+                ))
+                if not cells:
+                    continue
+                legs.append(_WalkLeg(
+                    mu_level_idx=p,
+                    direction_sign=direction_sign,
+                    within=np.where(within_mask)[0],
+                    ordinates=ordinates,
+                    abs_mu=np.abs(mu_x[ordinates]),
+                    cells=cells,
+                ))
+        return tuple(legs)
+
+    def _loop_walk(
+        self,
+        legs: "tuple[_WalkLeg, ...]",
+        *,
+        open_leg: "Callable[[_WalkLeg], np.ndarray]",
+        visit: "Callable[[_WalkLeg, int, np.ndarray], np.ndarray]",
+        close_leg: "Callable[[_WalkLeg, np.ndarray], None]",
+    ) -> None:
+        r"""THE shared 1-D per-cell loop frame (#280 2.5a — the one-loop seam).
+
+        For each leg: bind the marching carry off the leg's upwind endpoint
+        (``open_leg`` — the forward's face-flux seed, the adjoint's outflow
+        cotangent), advance it through the leg's cells (``visit`` — the
+        per-cell kernel, returning the updated carry), and deposit it at
+        the downwind endpoint (``close_leg`` — the forward's outflow shed,
+        the adjoint's seed-cotangent routing).  Both matvec orientations
+        route through here, so "the adjoint walks the SAME DAG, reversed"
+        is a code fact, not a test-maintained coincidence (spy + AST
+        tripwire: ``tests/sn/sweep/core/test_one_dim_loop_walk.py``).
+
+        Orientation is carried by the DATA, never by a flag: the leg
+        schedule and each leg's ``cells`` arrive already in traversal
+        order (forward = :meth:`_dag_legs` as built, downwind; adjoint =
+        :func:`_reverse_traversal` of it), and the endpoint bindings are
+        the injected callables — the ``_ApplyOperands`` /
+        ``_SolveOperands`` / ``_SweepEmit`` object discipline's sibling.
+        """
+        for leg in legs:
+            carry = open_leg(leg)
+            for i in leg.cells:
+                carry = visit(leg, i, carry)
+            close_leg(leg, carry)
+
+    def _degenerate_positions(self) -> "tuple[np.ndarray, list[int], list[int]]":
+        r"""The degenerate pure-azimuthal ordinates + their level positions.
+
+        Global indices ``global_deg`` with :math:`|\mu_x| \le`
+        ``_MU_DIRECTION_EPS`` (no radial streaming — e.g. the
+        :math:`\varphi = \pi/2,\,3\pi/2` samples of an equispaced product
+        quadrature), each resolved to its ``(level, within-level position)``
+        pair for the closure's positional API.  These ordinates sit on NO
+        leg of the walk DAG: their cell balance is volumetric (zero face
+        coupling, ``A_downstream = 0``), so both orientations handle them
+        in a dedicated per-cell block OUTSIDE :meth:`_loop_walk` — the 1-D
+        sibling of ``_OctantWalk``'s ``pure_z`` branch.
+        """
+        mu_x = self.mesh.quad.mu_x
+        level_indices = self.mesh.pole_angular_closure.level_indices
+        global_deg = np.where(np.abs(mu_x) < _MU_DIRECTION_EPS)[0]
+        deg_level: list[int] = []
+        deg_within: list[int] = []
+        for n_global in global_deg:
+            for p, lvl in enumerate(level_indices):
+                lvl_arr = np.asarray(lvl)
+                pos = np.where(lvl_arr == n_global)[0]
+                if pos.size > 0:
+                    deg_level.append(p)
+                    deg_within.append(int(pos[0]))
+                    break
+        return global_deg, deg_level, deg_within
 
     def sweep(
         self,
@@ -2482,7 +2666,6 @@ class _OneDimScanWalk:
         N = quad.N
         ng = psi_view.shape[1]
         nx = sn_mesh.nx
-        eps = 1e-15
         curvature_raw = getattr(sn_mesh, "curvature", None)
         curvature = curvature_raw if curvature_raw is not None else "cartesian"
 
@@ -2501,7 +2684,6 @@ class _OneDimScanWalk:
         pole_angular_closure = sn_mesh.pole_angular_closure
 
         mu_x = quad.mu_x
-        level_indices: tuple[np.ndarray, ...] = pole_angular_closure.level_indices
         A = sn_mesh.areas
 
         psi_g_first = psi_view.swapaxes(0, 1)
@@ -2548,6 +2730,8 @@ class _OneDimScanWalk:
         # binding (:func:`frame_signs_for`) as the d≥2 sites (``None`` for
         # DD/Step → byte-identical).
 
+        dag_legs = self._dag_legs()
+
         def _sweep_direction(
             direction_sign: int,
             psi_face_in_init: np.ndarray,
@@ -2558,103 +2742,99 @@ class _OneDimScanWalk:
             # the reframe is a short-circuit no-op regardless).
             is_moment_valued = sn_mesh.scheme.is_multi_moment
             outflow_at_end = np.zeros((ng, N))
-            for p, level_idx in enumerate(level_indices):
-                level_idx_arr = np.asarray(level_idx)
-                mu_level = mu_x[level_idx_arr]
-                within_mask = (
-                    mu_level > +eps if direction_sign > 0
-                    else mu_level < -eps
-                )
-                if not np.any(within_mask):
-                    continue
-                global_dir = level_idx_arr[within_mask]
-                abs_mu = np.abs(mu_x[global_dir])
-                within_positions = np.where(within_mask)[0]
 
-                cell_indices = list(
-                    sn_mesh.dag_walk_cell_indices(
-                        direction_sign=direction_sign, mu_level_idx=p,
+            def open_leg(leg: _WalkLeg) -> np.ndarray:
+                return psi_face_in_init[leg.ordinates, :].T
+
+            def visit(
+                leg: _WalkLeg, i: int, psi_face_in: np.ndarray,
+            ) -> np.ndarray:
+                psi_cell = psi_g_first[:, leg.ordinates, i]
+                if curvature == "cartesian":
+                    # Coefficient model (#158/#240): the Cartesian matvec rides
+                    # the scheme's group-2 ÷V kernel ``residual_kernel_batch``
+                    # UNIFORMLY — DD reproduces its diamond march, LD its
+                    # bilinear UBLD residual, with NO scheme branch (the kernel
+                    # returns BOTH the moment residual and the outgoing face,
+                    # the apply twin of the scan solve).  ``s_axes`` is the RAW
+                    # down-face streaming ``g = |μ|·A_down/V = |μ|/Δ`` (slab
+                    # A_down=1, V=Δ).  Source-free apply (``Q_cells = 0``).
+                    # Cartesian has no Morel–Montry angular redistribution
+                    # thread (the curvilinear arm below carries it).
+                    # NOTE(#240): ``leg.abs_mu / V[i]`` re-derives the raw ``g``
+                    # that ``SNMesh.streaming(0)`` already produces — a Pattern-2
+                    # dup; single-sourcing it (``streaming(0)[leg.ordinates, i]``)
+                    # is a deferred follow-up pending a widths-vs-volumes bit-id
+                    # check.
+                    #
+                    # The unified moment matvec (#240 D5b-S3): the probe carries
+                    # the trailing 2^d moment axis (``moment_tail``); the d=1
+                    # FACE is scalar (2^{d-1} = 1).  ``swapaxes(0, 1)[:, :, None]``
+                    # maps ``(ng, K[, 2^d]) → (K, ng, 1[, 2^d])`` (the ``[None]``
+                    # inserts the n_diag axis BEFORE the moment axis) — agnostic
+                    # over the trailing pack (DD scalar → byte-identical).
+                    probe_cell = _reframe(
+                        np.swapaxes(psi_cell, 0, 1)[:, :, None], frame_signs,
+                        is_moment_valued=is_moment_valued,
+                    )
+                    resid, (psi_out_cell,) = (
+                        sn_mesh.scheme.residual_kernel_batch(
+                            psi_bar=probe_cell,
+                            psi_in=(psi_face_in.T[:, :, None],),
+                            s_axes=((leg.abs_mu / V[i])[:, None, None],),
+                            reaction_xs=sigma_gx[:, i][None, :, None],
+                            Q_cells=_MATVEC_ZERO_SOURCE,   # source-free apply
+                        )
+                    )
+                    resid = _reframe(
+                        resid, frame_signs, is_moment_valued=is_moment_valued,
+                    )
+                    # resid (K, ng, 1[, 2^d]) → (ng, K[, 2^d]); the outgoing
+                    # face is scalar (K, ng, 1) → (ng, K).
+                    out_g_first[:, leg.ordinates, i] = np.swapaxes(
+                        resid[:, :, 0], 0, 1,
+                    )
+                    return psi_out_cell[:, :, 0].T                    # (ng, K)
+                # Curvilinear matvec — the ``cell_balance`` density path
+                # carrying the Morel–Montry angular thread (NOT a pure
+                # (a, inverse_denom, w) coefficient, so it cannot ride the
+                # coefficient-model kernel above).  Curvilinear SN is DD-only
+                # (the LD curvilinear closure is unpublished — guarded in
+                # ``LinearDiscontinuous.affine_scan_coefficients``), so DD's
+                # diamond march ``out = 2ψ̄ − in`` inlined here is a
+                # single-occupant geometry, NOT a polymorphism gap.
+                angular_denom_term, angular_numer_upstream = (
+                    pole_angular_closure.cell_contribution(
+                        psi_state, i, leg.mu_level_idx, leg.within,
                     )
                 )
-                if not cell_indices:
-                    continue
-                psi_face_in = psi_face_in_init[global_dir, :].T
+                A_downstream = A[i + 1] if direction_sign > 0 else A[i]
+                denom, numer_upstream = cell_balance_for_streaming(
+                    abs_mu=leg.abs_mu,
+                    A_downstream=A_downstream,
+                    A_total=A[i] + A[i + 1],
+                    total_xs=sigma_gx[:, i],
+                    volume=V[i],
+                    psi_face_in=psi_face_in,
+                    angular_denom_term=angular_denom_term,
+                    angular_numer_upstream=angular_numer_upstream,
+                )
+                m_full = (denom * psi_cell - numer_upstream) / V[i]
+                out_g_first[:, leg.ordinates, i] = m_full
+                return 2.0 * psi_cell - psi_face_in   # DD diamond march
 
-                for i in cell_indices:
-                    psi_cell = psi_g_first[:, global_dir, i]
-                    if curvature == "cartesian":
-                        # Coefficient model (#158/#240): the Cartesian matvec rides
-                        # the scheme's group-2 ÷V kernel ``residual_kernel_batch``
-                        # UNIFORMLY — DD reproduces its diamond march, LD its
-                        # bilinear UBLD residual, with NO scheme branch (the kernel
-                        # returns BOTH the moment residual and the outgoing face,
-                        # the apply twin of the scan solve).  ``s_axes`` is the RAW
-                        # down-face streaming ``g = |μ|·A_down/V = |μ|/Δ`` (slab
-                        # A_down=1, V=Δ).  Source-free apply (``Q_cells = 0``).
-                        # Cartesian has no Morel–Montry angular redistribution
-                        # thread (the curvilinear arm below carries it).
-                        # NOTE(#240): ``abs_mu / V[i]`` re-derives the raw ``g`` that
-                        # ``SNMesh.streaming(0)`` already produces — a Pattern-2 dup;
-                        # single-sourcing it (``streaming(0)[global_dir, i]``) is a
-                        # deferred follow-up pending a widths-vs-volumes bit-id check.
-                        #
-                        # The unified moment matvec (#240 D5b-S3): the probe carries
-                        # the trailing 2^d moment axis (``moment_tail``); the d=1
-                        # FACE is scalar (2^{d-1} = 1).  ``swapaxes(0, 1)[:, :, None]``
-                        # maps ``(ng, K[, 2^d]) → (K, ng, 1[, 2^d])`` (the ``[None]``
-                        # inserts the n_diag axis BEFORE the moment axis) — agnostic
-                        # over the trailing pack (DD scalar → byte-identical).
-                        probe_cell = _reframe(
-                            np.swapaxes(psi_cell, 0, 1)[:, :, None], frame_signs,
-                            is_moment_valued=is_moment_valued,
-                        )
-                        resid, (psi_out_cell,) = (
-                            sn_mesh.scheme.residual_kernel_batch(
-                                psi_bar=probe_cell,
-                                psi_in=(psi_face_in.T[:, :, None],),
-                                s_axes=((abs_mu / V[i])[:, None, None],),
-                                reaction_xs=sigma_gx[:, i][None, :, None],
-                                Q_cells=_MATVEC_ZERO_SOURCE,   # source-free apply
-                            )
-                        )
-                        resid = _reframe(
-                            resid, frame_signs, is_moment_valued=is_moment_valued,
-                        )
-                        # resid (K, ng, 1[, 2^d]) → (ng, K[, 2^d]); the outgoing
-                        # face is scalar (K, ng, 1) → (ng, K).
-                        out_g_first[:, global_dir, i] = np.swapaxes(
-                            resid[:, :, 0], 0, 1,
-                        )
-                        psi_face_in = psi_out_cell[:, :, 0].T             # (ng, K)
-                        continue
-                    # Curvilinear matvec — the ``cell_balance`` density path
-                    # carrying the Morel–Montry angular thread (NOT a pure
-                    # (a, inverse_denom, w) coefficient, so it cannot ride the
-                    # coefficient-model kernel above).  Curvilinear SN is DD-only
-                    # (the LD curvilinear closure is unpublished — guarded in
-                    # ``LinearDiscontinuous.affine_scan_coefficients``), so DD's
-                    # diamond march ``out = 2ψ̄ − in`` inlined here is a
-                    # single-occupant geometry, NOT a polymorphism gap.
-                    angular_denom_term, angular_numer_upstream = (
-                        pole_angular_closure.cell_contribution(
-                            psi_state, i, p, within_positions,
-                        )
-                    )
-                    A_downstream = A[i + 1] if direction_sign > 0 else A[i]
-                    denom, numer_upstream = cell_balance_for_streaming(
-                        abs_mu=abs_mu,
-                        A_downstream=A_downstream,
-                        A_total=A[i] + A[i + 1],
-                        total_xs=sigma_gx[:, i],
-                        volume=V[i],
-                        psi_face_in=psi_face_in,
-                        angular_denom_term=angular_denom_term,
-                        angular_numer_upstream=angular_numer_upstream,
-                    )
-                    m_full = (denom * psi_cell - numer_upstream) / V[i]
-                    out_g_first[:, global_dir, i] = m_full
-                    psi_face_in = 2.0 * psi_cell - psi_face_in   # DD diamond march
-                outflow_at_end[:, global_dir] = psi_face_in
+            def close_leg(leg: _WalkLeg, psi_face_in: np.ndarray) -> None:
+                outflow_at_end[:, leg.ordinates] = psi_face_in
+
+            self._loop_walk(
+                tuple(
+                    leg for leg in dag_legs
+                    if leg.direction_sign == direction_sign
+                ),
+                open_leg=open_leg,
+                visit=visit,
+                close_leg=close_leg,
+            )
             return outflow_at_end
 
         # Wave O O.4a.2 — KEYSTONE DELETED. The backward sweep seeds from the
@@ -2686,20 +2866,11 @@ class _OneDimScanWalk:
             pole_face_seed = face_inner
         outflow_at_boundary = _sweep_direction(+1, pole_face_seed)
 
-        # Degenerate-ordinate branch (cylinder).
-        degenerate_mask = np.abs(mu_x) < eps
-        if np.any(degenerate_mask):
-            global_deg = np.where(degenerate_mask)[0]
-            deg_level: list[int] = []
-            deg_within: list[int] = []
-            for n_global in global_deg:
-                for p, lvl in enumerate(level_indices):
-                    lvl_arr = np.asarray(lvl)
-                    pos = np.where(lvl_arr == n_global)[0]
-                    if pos.size > 0:
-                        deg_level.append(p)
-                        deg_within.append(int(pos[0]))
-                        break
+        # Degenerate-ordinate branch (cylinder) — the pure-azimuthal set, on
+        # no leg of the DAG (volumetric balance, zero face coupling; the 1-D
+        # sibling of ``_OctantWalk``'s pure-z branch).
+        global_deg, deg_level, deg_within = self._degenerate_positions()
+        if global_deg.size:
             n_deg = global_deg.size
             abs_mu_deg = np.abs(mu_x[global_deg])
             zero_face = np.zeros((ng, n_deg))
@@ -2800,6 +2971,13 @@ class _OneDimScanWalk:
         Every coefficient is ψ-independent (geometry + σ_t): ``denom`` is
         recomputed through the SAME ``cell_balance_for_streaming`` /
         ``cell_contribution`` the forward uses (Pattern 2 — no twin algebra).
+        Since 2.5a (#280) the reversal itself is STRUCTURAL: the adjoint
+        marches :func:`_reverse_traversal` of :meth:`_dag_legs` through the
+        SAME :meth:`_loop_walk` frame the forward matvec uses — the leg
+        decomposition and traversal topology cannot drift from the
+        forward's; only the per-cell kernel (the hand-transposed DD march)
+        and the endpoint bindings (outflow cotangent in, seed cotangent
+        out) differ.
         Returns ``(L+C)ᵀφ``;
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
         subtracts ``σ_t·φ`` ONCE (Resolution A, ``C`` a self-adjoint diagonal).
@@ -2816,7 +2994,6 @@ class _OneDimScanWalk:
         N = quad.N
         ng = phi.bulk.values.shape[1]
         nx = sn_mesh.nx
-        eps = 1e-15
         curvature_raw = getattr(sn_mesh, "curvature", None)
         curvature = curvature_raw if curvature_raw is not None else "cartesian"
         if curvature == "cartesian" and not sn_mesh.is_1d:
@@ -2844,7 +3021,6 @@ class _OneDimScanWalk:
             )
 
         closure = sn_mesh.pole_angular_closure
-        mu_x = quad.mu_x
         # Mirror-ordinate permutation for the coupled-pole seed adjoint
         # (curvilinear only; cheap to build unconditionally).
         mirror = quad.reflection_index("x")
@@ -2896,65 +3072,74 @@ class _OneDimScanWalk:
             bc_outer_inflow_estimate=np.zeros((N, ng)),
         )
 
-        # ── reverse the spatial DD sweeps (both directions, per level) ──
-        for p, level_idx in enumerate(closure.level_indices):
-            level_idx = np.asarray(level_idx)
-            mu_level = mu_x[level_idx]
-            for s in (+1, -1):
-                within = np.where(
-                    mu_level > +eps if s > 0 else mu_level < -eps
-                )[0]
-                if within.size == 0:
-                    continue
-                gd = level_idx[within]
-                abs_mu = np.abs(mu_x[gd])
-                cells = list(sn_mesh.dag_walk_cell_indices(
-                    direction_sign=s, mu_level_idx=p,
-                ))
-                if not cells:
-                    continue
-                f_bar = (
-                    outflow_boundary_bar[:, gd] if s > 0
-                    else outflow_inner_bar[:, gd]
-                ).copy()
-                for i in reversed(cells):
-                    A_downstream = A[i + 1] if s > 0 else A[i]
-                    A_total = A[i] + A[i + 1]
-                    angular_denom_term, _ = closure.cell_contribution(
-                        psi_state_coef, i, p, within,
-                    )
-                    denom, _ = cell_balance_for_streaming(
-                        abs_mu=abs_mu,
-                        A_downstream=A_downstream,
-                        A_total=A_total,
-                        total_xs=sgx[:, i],
-                        volume=V[i],
-                        psi_face_in=np.zeros((ng, within.size)),
-                        angular_denom_term=angular_denom_term,
-                        angular_numer_upstream=np.zeros((ng, within.size)),
-                    )                                       # (ng, n_mask)
-                    ob = out_bar[:, gd, i]
-                    # reverse psi_face_in = 2·psi_cell − psi_face_in_old
-                    psi_bar[:, gd, i] += 2.0 * f_bar
-                    f_bar = -f_bar
-                    # reverse m = (denom·ψ − |μ|A_total·psi_face_in − angular_numer)/V
-                    psi_bar[:, gd, i] += denom * ob / V[i]
-                    f_bar += -(abs_mu * A_total)[None, :] * ob / V[i]
-                    numer_bar[p][:, within, i] += -ob / V[i]
-                # reverse the sweep seed
-                if s > 0:
-                    if curvature != "cartesian":
-                        # adjoint of the Carlson coupled-pole seed: the
-                        # forward +1 seed reads the −1 sweep's pole-face
-                        # outflow at the mirror ordinate, so the seed
-                        # cotangent routes into the −1 reversal's INITIAL
-                        # outflow cotangent (mirror partners live in the
-                        # same level; the s=−1 pass below reads it).
-                        outflow_inner_bar[:, mirror[gd]] += f_bar
-                    else:
-                        fi_bar[gd] += f_bar.T               # slab +1 seed = ψ.inflow[xmin]
+        # ── reverse the spatial DD marches — the SAME legs, exact-reverse
+        # order (#280 2.5a).  Reverse-mode retraces the primal walk
+        # backwards: the adjoint marches ``_reverse_traversal(_dag_legs())``
+        # through the SAME ``_loop_walk`` frame the forward matvec uses, so
+        # every reversed +1 leg (whose close routes the pole-seed cotangent)
+        # precedes every reversed −1 leg (whose open reads it), and each
+        # leg's cells run upwind.  Leg slots are disjoint and the mirror
+        # handoff is level-local, so this linearization is value-identical
+        # to the pre-2.5a per-level (+1, −1) nesting — pinned by the frozen
+        # ``walk_matvec_*`` adjoint baselines. ──
+
+        def open_leg(leg: _WalkLeg) -> np.ndarray:
+            return (
+                outflow_boundary_bar[:, leg.ordinates]
+                if leg.direction_sign > 0
+                else outflow_inner_bar[:, leg.ordinates]
+            ).copy()
+
+        def visit(leg: _WalkLeg, i: int, f_bar: np.ndarray) -> np.ndarray:
+            A_downstream = A[i + 1] if leg.direction_sign > 0 else A[i]
+            A_total = A[i] + A[i + 1]
+            angular_denom_term, _ = closure.cell_contribution(
+                psi_state_coef, i, leg.mu_level_idx, leg.within,
+            )
+            denom, _ = cell_balance_for_streaming(
+                abs_mu=leg.abs_mu,
+                A_downstream=A_downstream,
+                A_total=A_total,
+                total_xs=sgx[:, i],
+                volume=V[i],
+                psi_face_in=np.zeros((ng, leg.within.size)),
+                angular_denom_term=angular_denom_term,
+                angular_numer_upstream=np.zeros((ng, leg.within.size)),
+            )                                       # (ng, n_mask)
+            ob = out_bar[:, leg.ordinates, i]
+            # reverse psi_face_in = 2·psi_cell − psi_face_in_old
+            psi_bar[:, leg.ordinates, i] += 2.0 * f_bar
+            f_bar = -f_bar
+            # reverse m = (denom·ψ − |μ|A_total·psi_face_in − angular_numer)/V
+            psi_bar[:, leg.ordinates, i] += denom * ob / V[i]
+            f_bar += -(leg.abs_mu * A_total)[None, :] * ob / V[i]
+            numer_bar[leg.mu_level_idx][:, leg.within, i] += -ob / V[i]
+            return f_bar
+
+        def close_leg(leg: _WalkLeg, f_bar: np.ndarray) -> None:
+            # reverse the sweep seed
+            if leg.direction_sign > 0:
+                if curvature != "cartesian":
+                    # adjoint of the Carlson coupled-pole seed: the
+                    # forward +1 seed reads the −1 sweep's pole-face
+                    # outflow at the mirror ordinate, so the seed
+                    # cotangent routes into the −1 reversal's INITIAL
+                    # outflow cotangent (mirror partners live in the
+                    # same level; the reversed −1 legs read it AFTER
+                    # every +1 leg has closed — the reversed pole edge).
+                    outflow_inner_bar[:, mirror[leg.ordinates]] += f_bar
                 else:
-                    fo_bar[gd] += f_bar.T                   # −1 seed = ψ.inflow[xmax]
+                    # slab +1 seed = ψ.inflow[xmin]
+                    fi_bar[leg.ordinates] += f_bar.T
+            else:
+                fo_bar[leg.ordinates] += f_bar.T    # −1 seed = ψ.inflow[xmax]
+
+        self._loop_walk(
+            _reverse_traversal(self._dag_legs()),
+            open_leg=open_leg,
+            visit=visit,
+            close_leg=close_leg,
+        )
 
         # ── reverse the angular factor (delegated; zero for the slab closure) ──
         psi_ang_bar, bc_ang_bar = closure.angular_adjoint(
