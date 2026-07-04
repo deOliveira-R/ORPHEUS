@@ -120,20 +120,27 @@ def _ref_add_n2n(solver, Q, phi):
 
 
 def _ref_compute_keff(solver, flux):
-    """Original per-cell keff computation (reference).
+    """Per-cell restatement of the UNIFIED estimator (#259 P1 / R7).
+
+    Fission-only production over net removal (absorption − the (n,2n)
+    EMISSION); leakage ≡ 0 on the all-reflective fixtures this reference
+    serves (a structural zero in production too).  On Σ₂ = 0 mixtures
+    this is bit-identical to the historical production/absorption
+    restatement it replaces.
 
     PR-INDEX-5: ``solver.mat_xs.fission_production`` / ``solver.mat_xs.absorption_cross_section`` / ``flux`` are all
     principled ``(ng, nx, ny)``.
     """
     vol = solver.volume  # (nx, ny)
     production = float(np.einsum("gxy,gxy,xy->", solver.mat_xs.fission_production, flux, vol))
+    emission = 0.0
     for ix in range(solver.sn_mesh.nx):
         for iy in range(solver.sn_mesh.spatial_shape[1]):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
             sig2_sum = np.array({mid: solver.mat_xs.n2n_matrix(mid) for mid in solver.mat_xs.materials}[mid].sum(axis=1)).ravel()
-            production += 2.0 * np.dot(sig2_sum, flux[:, ix, iy]) * solver.volume[ix, iy]
+            emission += 2.0 * np.dot(sig2_sum, flux[:, ix, iy]) * solver.volume[ix, iy]
     absorption = float(np.einsum("gxy,gxy,xy->", solver.mat_xs.absorption_cross_section, flux, vol))
-    return float(production / absorption)
+    return float(production / (absorption - emission))
 
 
 # ── Component tests ──────────────────────────────────────────────────

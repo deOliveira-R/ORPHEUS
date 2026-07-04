@@ -767,7 +767,13 @@ class TestSphereP1DirectionalEigenvalue:
         the gap is bounded into a physical band (a runaway gap would
         signal a sign-flipped / absorption-mimicking P1).
 
-        Measured (GL8): keff_P0=0.8648, keff_P1=0.8508, Δ=1.40e-2.
+        Measured (GL8, post-#291 leakage-inclusive reported k —
+        principled re-baseline 2026-07-03; the pre-fix functional read
+        0.8648/0.8508 by omitting the ~25% leakage fraction):
+        keff_P0=0.7060, keff_P1=0.6788, Δ=2.73e-2 — the Δ roughly
+        doubles under the corrected functional because the P1
+        leakage-enhancement now enters k directly, and stays inside the
+        same physical band.
         """
         materials = {0: get_mixture("A", "2g"), 1: get_mixture("C", "2g")}
         mesh = _two_region_mesh(
@@ -804,7 +810,16 @@ class TestSphereP1DirectionalEigenvalue:
         A P1 that mimicked absorption (volumetric, not surface) would
         instead grow with VOLUME — violating this monotonicity.
 
-        Measured (GL8): Δ(R=4)=3.75e-3 > Δ(R=25)=2.89e-4 > 0.
+        Measured (GL8, post-#291 leakage-inclusive reported k —
+        principled re-baseline 2026-07-03):
+        Δ(R=4)=9.74e-3 > Δ(R=25)=7.93e-3 > 0.  The ordering margin
+        NARROWED vs the pre-fix functional (which read 3.75e-3 vs
+        2.89e-4): the corrected k carries the leakage term directly at
+        BOTH radii, where the old absorption-only k saw just its
+        spectral shadow at R=25.  If refinement ever flips this
+        ordering, re-examine the physics claim — do NOT widen a
+        tolerance (the assertion is an ordering, and the vv rule
+        forbids relaxing contracts to fit).
         """
         materials = {0: get_mixture("A", "2g")}
         deltas = {}
