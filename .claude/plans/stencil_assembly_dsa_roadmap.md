@@ -340,6 +340,37 @@ Draft split (P0 verifies; verified inventory @ `3a19133`):
   (registry-keyed classes exist) — sharpen contracts/docstrings at the new home,
   close or comment #158 honestly per what's left.
 
+**2a STATUS — COMPLETE (2026-07-04):**
+- `5b6598f` — the relocation: 5 modules `git mv`'d (rename similarity 92–99% — the
+  bit-identity witness), production rewires per the P0 list, the #245 `_ubld`
+  moment-helper re-export RETIRED (consumers → `numerics.moment_layout` directly),
+  5 solver-independent unit-test files → `tests/transport/spatial/`, 169 docs
+  role-refs swapped (history literals preserved), `matrix.rst` regenerated (the
+  layer-import tripwire auto-adopted the new package: 310→311 cases, all green —
+  the structural proof `transport/spatial` imports cleanly).
+- `11f14f0` — #253: `cell_moment_count` minted as `face_moment_count`'s
+  codimension-0 sibling (deviation from the issue's `moment_count` strawman:
+  family-pattern naming); all ~20 executable spellings routed through it (2 LD
+  face-count bypasses included); the `octant_moment_frame_signs` Kronecker STRIDE
+  deliberately exempt (layout indexing, not a count); solver.py's function-local
+  moment_layout imports hoisted (the late-import rationale died with #245).
+- Deviations, both deliberate: (1) test migration ruled by DEPENDENCY DIRECTION,
+  not module ownership — only the 5 solver-independent unit files moved; the
+  SN-integration surface (`test_ld_slope_frame`, `test_moment_axis_predicates`,
+  `test_spatial_moment_field_space`) and the `cap("sweep_core")`-stamped
+  `tests/sn/sweep/core/` unit tests stayed with import rewires. (2) The `_ubld`
+  re-export retirement went one hop further than the plan's "keep or point
+  directly" — every consumer (incl. LD intra-package + 2 tests) now imports from
+  the canonical home; the re-export block + its two `__all__` entries deleted.
+- Pre-existing findings parked for 2c: the `ld-slab` verifies-marker has no
+  matching equation label (build-time info, predates the carve); 23 dangling
+  `boundary_face_flux` doc lines + stale `_modules/` HTML for retired modules
+  (build-dir archaeology — consider a clean docs/_build rebuild at close-out).
+- Walls: ring-1 549; ring-2 2012; layer tripwire 311; pyright CLI = 1 (the #288
+  residual) after BOTH commits; sphinx `-W` exit 0; harness audit exit 0; import
+  smoke OK. Full `tests/sn` + `tests/diffusion` serial wall at the 2a→2b seam:
+  **1996 passed / 0 failed** (5 skipped, 36 xfailed — baseline shapes; 9:00).
+
 ### 2b — The assembly mode (the reification)
 1. **Numerics home**: an assembled-sparse operator (scipy CSR/COO carrier) in
    `orpheus/numerics/` conforming to `LinearOperator` (apply = sparse matvec;
