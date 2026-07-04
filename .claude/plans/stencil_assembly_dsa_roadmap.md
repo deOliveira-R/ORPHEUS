@@ -652,10 +652,21 @@ multi-D Cartesian adjoint faces (existing raises); LD-slab adjoint faces
 Operator` transpose; 2-D LD (pre-existing); Green/MatrixInverse/InverseOperator
 `apply_transpose` (per-sibling, until consumers).
 
-**PENDING RULINGS at open: R10 (#282 scope split) + R11 (predicate honesty —
-comment recommends (b) with (a)'s spelling).**
+**RULINGS COLLECTED at open (2026-07-04): R10 = FULL route (a) in-phase; R11 =
+(b) with (a)'s spelling — see the Rulings section. EXECUTION ORDER under R10:
+S0 → 2.5a → 2.5d → 2.5b → 2.5c → 2.5e** (the #282 fix lands on the unified
+apply-loop substrate — one seed-treatment change in the shared frame instead of
+three bodies — and the reverse-scan is built once, against the fixed
+formulation). Consequences threaded: the S0.5 frozen baselines pin the LAGGED
+formulation for 2.5a's bit-identity, then the CURVILINEAR rows re-capture at
+2.5d (principled re-baseline; Cartesian rows stay bitwise); 2.5b's sphere leg
+gains the probed/assembled triangular-`Mᵀ` oracle the fix unblocks (the §12
+successor gate built from matvec probes of the augmented system — extending the
+2b assembly EMITTER to curvilinear stays an optional follow-up, not a 2.5
+deliverable).
 
-⏸ **C2.5** at the 2.5b→2.5c seam or after 2.5d, whichever lands first.
+⏸ **C2.5** after 2.5d (post-fix, pre-reverse-scan) or at the 2.5b→2.5c seam,
+whichever the session boundary hits first.
 
 ---
 
@@ -776,6 +787,20 @@ assembly on the same mesh:
   implements BY DESIGN; the seam is dead by design, not by missed wiring, and
   post-unification an injection could only introduce an inconsistent functional
   (Pattern-4 retire).
+- **R10 (#282 scope, ruled 2026-07-04)**: **FULL route (a) inside Phase 2.5** —
+  the in-pass direct starting-direction solve AND the typed per-level ψ(·,μ=−1)
+  carrier augmentation both land this phase (unblocks the spherical
+  triangular-G2 gate and the curvilinear transpose oracle this campaign). The
+  fix runs ON the unified substrate — execution order re-sequenced:
+  S0 → 2.5a (bit-identical; the lagged treatment rides the relocation) → 2.5d
+  (the #282 fix; principled re-baseline on curvilinear, Cartesian bitwise
+  unmoved — the seed exists only on curvilinear) → 2.5b (the reverse-scan,
+  built once against the FIXED formulation) → 2.5c → 2.5e.
+- **R11 (adjoint-inverse predicate honesty, ruled 2026-07-04)**: **(b) with
+  (a)'s spelling** — `_AdjointOperator.is_invertible` + `.inverse()` land
+  TOGETHER with `SweepOperator.apply_transpose` (honest on arrival); the
+  predicate is spelled generally: `inner.is_invertible and
+  inner.inverse().is_adjointable`.
 
 ## Issue map
 
