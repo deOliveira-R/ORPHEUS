@@ -16,9 +16,11 @@ Role grid (field vocabulary, issues #205 / #201 / #208; axes per the
 
 Three orthogonal axes — "Boundary" is a LOCUS qualifier, never a fourth
 family (bulk leaf ``<Family><Role>``, boundary leaf
-``<Family>Boundary<Role>``)::
+``<Family>Boundary<Role>``; the third locus — the angular-domain
+boundary ``StartingDirection<Role>``, #282 route (a) — is family-fixed
+angular by construction)::
 
-    locus {Bulk, Boundary} × family {Angular, Scalar, Moment}
+    locus {Bulk, Boundary, StartingDirection} × family {Angular, Scalar, Moment}
                            × role {Flux, SourceSink, Residual, Displacement}
 
        flux         →  orpheus.transport.fields         (…Flux)
@@ -48,6 +50,9 @@ from orpheus.transport.displacements.angular_boundary_displacement import Angula
 from orpheus.transport.displacements.scalar_boundary_displacement import (
     ScalarBoundaryDisplacement,
 )
+from orpheus.transport.displacements.starting_direction_displacement import (
+    StartingDirectionDisplacement,
+)
 
 
 __all__ = [
@@ -57,4 +62,5 @@ __all__ = [
     "MomentDisplacement",
     "AngularBoundaryDisplacement",
     "ScalarBoundaryDisplacement",
+    "StartingDirectionDisplacement",
 ]

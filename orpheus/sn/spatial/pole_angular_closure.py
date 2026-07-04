@@ -665,6 +665,92 @@ class _MMHalfGrid:
 # (reference contamination).  The closure replicates the factory directly.
 
 
+def morel_montry_tau_raw_per_level(
+    quad: Any,
+    coord: CoordSystem,
+) -> tuple[np.ndarray, ...]:
+    r"""Produce the **UNCLAMPED** Morel–Montry raw weight :math:`\tau_{\rm raw}` per μ-level.
+
+    :math:`\tau_{\rm raw,m} = (\mu_m - \mu_{m-1/2})/(\mu_{m+1/2} -
+    \mu_{m-1/2})` — the raw Bailey–Morel–Chang Eq. 43 value BEFORE the
+    cylinder's structural :math:`[\tfrac12, 1]` clamp. Split out of
+    :func:`morel_montry_tau_per_level` (2.5d) because the raw value
+    carries structure the clamped one destroys — it is the single
+    source for BOTH:
+
+    * the production τ (:func:`morel_montry_tau_per_level` = this,
+      then the cylinder clamp), and
+    * the **R12a seed-presence predicate**
+      (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`):
+      a level carries independent starting-direction state iff its
+      first-ordinate ``τ_raw ∈ (0, 1)`` exclusive. The trichotomy is
+      bit-exact on the production rules: ``τ_raw,0 = 0`` on cylinder
+      *product* rules (node ON the starting edge, #229 — the seed is a
+      rank-duplicate of ψ₀); ``τ_raw,0 = 1`` on cylinder
+      *level-symmetric* rules (duplicate-η nodes collapse the midpoint
+      edge onto η₀, so the seed's thread weight :math:`(1-\tau_0)`
+      vanishes — dead value); ``τ_raw,0 ∈ (0,1)`` on the sphere-GL
+      dome (≈ 0.39–0.42 — genuine independent state, the #282 block).
+      The clamp maps 0 → ½, erasing exactly the 0-vs-(0,1) distinction
+      the predicate needs — hence the raw producer is first-class.
+
+    Parameters and per-geometry edge conventions are those of
+    :func:`morel_montry_tau_per_level` (weight-sum edges from −1.0 for
+    the sphere; η-midpoint edges with ±sinθ endpoints per level for the
+    cylinder; the ½ degenerate fallback where an angular cell has zero
+    width belongs to the RAW value — it is a 0/0 regularization, not
+    the clamp).
+    """
+    if coord is CoordSystem.SPHERICAL:
+        # Sphere τ (the former spherical_streaming producer, retired in
+        # Step C): weight-sum edges from −1.0, unclamped τ_raw, ½ fallback.
+        mu = quad.mu_x
+        w = quad.weights
+        N = quad.N
+        mu_edge = np.zeros(N + 1)
+        mu_edge[0] = -1.0
+        for n in range(N):
+            mu_edge[n + 1] = mu_edge[n] + w[n]
+        tau_mm = np.empty(N)
+        for n in range(N):
+            dmu = mu_edge[n + 1] - mu_edge[n]
+            tau_mm[n] = (
+                (mu[n] - mu_edge[n]) / dmu if abs(dmu) > 1e-15 else 0.5
+            )
+        return (tau_mm,)
+
+    if coord is CoordSystem.CYLINDRICAL:
+        # Cylinder raw τ (the former cylindrical_streaming producer,
+        # retired in Step C): η-midpoint edges with ±sinθ endpoints,
+        # per μ-level.  The structural [½, 1] clamp is applied by
+        # morel_montry_tau_per_level, NOT here.
+        mu_z = quad.mu_z
+        tau_per_level: list[np.ndarray] = []
+        for level_idx in quad.level_indices:
+            eta = quad.mu_x[level_idx]
+            M = len(level_idx)
+            sin_theta = np.sqrt(1.0 - mu_z[level_idx[0]] ** 2)
+            eta_edge = np.zeros(M + 1)
+            eta_edge[0] = -sin_theta
+            for m in range(M - 1):
+                eta_edge[m + 1] = 0.5 * (eta[m] + eta[m + 1])
+            eta_edge[M] = sin_theta
+            tau = np.empty(M)
+            for m in range(M):
+                deta = eta_edge[m + 1] - eta_edge[m]
+                tau[m] = (
+                    (eta[m] - eta_edge[m]) / deta if abs(deta) > 1e-15 else 0.5
+                )
+            tau_per_level.append(tau)
+        return tuple(tau_per_level)
+
+    raise ValueError(
+        f"morel_montry_tau_raw_per_level supports SPHERICAL or CYLINDRICAL "
+        f"coordinate systems; got {coord!r}. Cartesian uses the neutral "
+        f"τ = 1.0 supplied by IdentityAngularClosure."
+    )
+
+
 def morel_montry_tau_per_level(
     quad: Any,
     coord: CoordSystem,
@@ -676,6 +762,11 @@ def morel_montry_tau_per_level(
     flux linear in :math:`\mu`.  This is a property of the angular
     quadrature only; it is produced HERE on the angular closure rather
     than on the streaming-geometry factory (Issue #236 Phase 2).
+
+    The raw (unclamped) value comes from
+    :func:`morel_montry_tau_raw_per_level` — the single source shared
+    with the R12a seed-presence predicate (2.5d); this function applies
+    the cylinder's structural clamp on top.
 
     Parameters
     ----------
@@ -698,60 +789,24 @@ def morel_montry_tau_per_level(
     The sphere weight is **UNCLAMPED** (W1; the sphere dome is
     non-singular on GL, :math:`\tau_\text{raw} \in \sim[0.39, 0.61]`).
     The cylinder weight is **CLAMPED** to :math:`[\tfrac12, 1]` — the
-    most-inward azimuthal ordinate sits exactly on the level boundary
-    (:math:`\eta_0 = \eta_{1/2} = -\sin\theta`) so its raw weight is
-    :math:`\tau_\text{raw} = 0` bit-exactly; the recurrence
-    :math:`(\psi - (1-\tau)\psi)/\tau` would divide by zero unclamped
-    (structural; #229).
+    most-inward azimuthal ordinate of a *product* rule sits exactly on
+    the level boundary (:math:`\eta_0 = \eta_{1/2} = -\sin\theta`) so
+    its raw weight is :math:`\tau_\text{raw} = 0` bit-exactly; the
+    recurrence :math:`(\psi - (1-\tau)\psi)/\tau` would divide by zero
+    unclamped (structural; #229).
     """
+    raw = morel_montry_tau_raw_per_level(quad, coord)
     if coord is CoordSystem.SPHERICAL:
-        # Sphere τ (the former spherical_streaming producer, retired in
-        # Step C): weight-sum edges from −1.0, unclamped τ_raw, ½ fallback.
-        mu = quad.mu_x
-        w = quad.weights
-        N = quad.N
-        mu_edge = np.zeros(N + 1)
-        mu_edge[0] = -1.0
-        for n in range(N):
-            mu_edge[n + 1] = mu_edge[n] + w[n]
-        tau_mm = np.empty(N)
-        for n in range(N):
-            dmu = mu_edge[n + 1] - mu_edge[n]
-            tau_mm[n] = (
-                (mu[n] - mu_edge[n]) / dmu if abs(dmu) > 1e-15 else 0.5
-            )
-        return (tau_mm,)
-
-    if coord is CoordSystem.CYLINDRICAL:
-        # Cylinder τ (the former cylindrical_streaming producer, retired
-        # in Step C): η-midpoint edges with ±sinθ endpoints, per μ-level,
-        # then the structural [½, 1] clamp.
-        mu_z = quad.mu_z
-        tau_per_level: list[np.ndarray] = []
-        for level_idx in quad.level_indices:
-            eta = quad.mu_x[level_idx]
-            M = len(level_idx)
-            sin_theta = np.sqrt(1.0 - mu_z[level_idx[0]] ** 2)
-            eta_edge = np.zeros(M + 1)
-            eta_edge[0] = -sin_theta
-            for m in range(M - 1):
-                eta_edge[m + 1] = 0.5 * (eta[m] + eta[m + 1])
-            eta_edge[M] = sin_theta
-            tau = np.empty(M)
-            for m in range(M):
-                deta = eta_edge[m + 1] - eta_edge[m]
-                tau_raw = (
-                    (eta[m] - eta_edge[m]) / deta if abs(deta) > 1e-15 else 0.5
-                )
-                tau[m] = max(0.5, min(1.0, tau_raw))
-            tau_per_level.append(tau)
-        return tuple(tau_per_level)
-
-    raise ValueError(
-        f"morel_montry_tau_per_level supports SPHERICAL or CYLINDRICAL "
-        f"coordinate systems; got {coord!r}. Cartesian uses the neutral "
-        f"τ = 1.0 supplied by IdentityAngularClosure."
-    )
+        return raw
+    # Cylinder: the structural [½, 1] clamp, element-wise (bit-identical
+    # to the pre-split inline ``max(0.5, min(1.0, tau_raw))``).
+    clamped: list[np.ndarray] = []
+    for tau_raw_level in raw:
+        tau = np.empty_like(tau_raw_level)
+        for m in range(tau_raw_level.size):
+            tau[m] = max(0.5, min(1.0, float(tau_raw_level[m])))
+        clamped.append(tau)
+    return tuple(clamped)
 
 
 # ═══════════════════════════════════════════════════════════════════════

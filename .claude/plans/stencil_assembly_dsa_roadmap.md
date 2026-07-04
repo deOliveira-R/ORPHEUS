@@ -860,24 +860,45 @@ test-architect lessons). Branch `refactor/sn-walk-unification` @ the
 checkpoint commit after `ba16c4c` (2.5a complete + this plan; pushes
 held). Harness task #25 carries the ruled scope. Diagnostics
 re-confirmed pre-fix: sphere 5.18e5 / 4.57e-2; slab+cyl machine-exact.
-**NEXT ACTION = 2.5d d1 (the carrier):** mint `StartingDirectionSpace`
-(flat backing: per seed level, both directions' cells (ng,nx) + corners
-(ng,); ALL metric weights zero; shaped views `cells(level, sign)` /
-`corner(level, sign)`) + the `StartingDirectionFlux` /
-`StartingDirectionSourceSink` role leaves + `FullField.starting_direction:
-... | None = None` (Optional; `_recombine`/dunders/zeros/to_flat/
-from_flat/copy + TimedFullField advance) + FullFieldSpace third-block
-dispatch (from_blocks/apply_metric/apply_inverse_metric/inner_product/
-_rebuild) + the SNMesh presence predicate (per-level μ_start ∉ μ-nodes;
-sphere-GL → 1 seed level, cylinder/Cartesian → None) feeding
-`full_field_space` — then the §16.A gates
-(`tests/sn/mesh/test_starting_direction_carrier.py`: A1 presence both
-ways per R12, A2 flat round-trip + length pin + drop-slice mutation,
-A3 algebra closure, A4 honest-scope note; the A4 positive Mode-12 pin
-waits for d3's transpose). Then d2 (fold helper + source/C/B arms +
-§16.B), d3 (walk triple + retirement + §16.C/E/F + baselines), d4
-(estate rewires), d5 (STATUS). Walls per commit: sn + transport +
-numerics serial; pyright CLI = 1.
+**d1 LANDED (the commit carrying this edit; 2026-07-04):** everything
+the d1 NEXT ACTION specified, with TWO in-execution deltas ruled/forced:
+(1) **R12a** — the presence predicate re-spelled to "first-ordinate raw
+τ_raw ∈ (0,1) exclusive" (user-ruled; see the Rulings entry — the R12
+letter mis-decides LS cylinders; `morel_montry_tau_raw_per_level` split
+out of the clamped producer, bit-identical, as the single source);
+(2) **`StartingDirectionDisplacement` minted alongside Flux/SourceSink**
+— FORCED by the composite torsor algebra (flux−flux mints a displacement
+PER LEAF through the Rep-keyed registry; without it every seeded
+composite subtraction crashes). Deliverables: `StartingDirectionSpace`
+(numerics/spaces/, flat layout level→sign(−1≺+1)→cells⊕corner, ghost
+metric, typed views) + `StartingDirectionField` locus base (_bases.py)
++ 3 role leaves + FullField third member (REQUIRED-kwarg `_recombine`,
+mixed-presence raises, mesh-keyed zeros presence, flat tail) +
+TimedFullField (zeros/advance presence law/_recombine) + FullFieldSpace
+third-block field-driven dispatch (illegal pairing raises) +
+`SNMesh.starting_direction_levels`/`starting_direction_space` feeding
+`full_field_space` + the §16.A gates (26, incl. the A2 drop-slice teeth
++ the cyl-LS discriminator row; A4 positive Mode-12 pin deferred to d3
+as spec'd). Production call sites untouched — d1 is
+bitwise-by-construction (fields stay 2-block until d3; the space may
+carry the third block, dispatch is FIELD-driven — the one forbidden
+quadrant, seeded-field-on-seedless-space, raises). Walls: pyright CLI
+= 1 (#288); sn+transport+numerics serial green + DriftWarning-strict.
+**NEXT ACTION = d2 (fold helper + source/C/B seed arms + §16.B):** ONE
+`Q̄(μ=±1) = Σ_ℓ (2ℓ+1)/2·Q_ℓ·P_ℓ(±1)` fold helper (R14, full (−1)^ℓ;
+B2b 2-term pin live); q_ext factories + S composite arm (+ S0.2
+transpose arm) + F arm populate q½ on seed-carrying inputs; C = M[σ]
+gains the σ·ψ½-cells arm (corners trace-like — C skips); B gains the
+corner arm (reflective corner-out→corner-in; vacuum 0). Arms are
+FIELD-presence-gated (input carries the block ⇒ output emits) — dormant
+in production until d3 flips the birth sites, so d2 stays bitwise. §16.B
+gates: B1 `carlson_inward_sweep_from_source` L0 flat + L1 O(Δr²)
+convergence to `φ(r)=q/σ+(φ_R−q/σ)e^{−σ(R−r)}` (uniform AND graded
+mesh, 4 mutations); B2a/B2b fold pins. Then d3 (walk triple +
+retirement + §16.C/E/F + baselines — NOTE the banked product-cylinder
+ig-consumption hazard in the Rulings section), d4 (estate rewires), d5
+(STATUS). Walls per commit: sn + transport + numerics serial; pyright
+CLI = 1.
 
 ---
 
@@ -1022,6 +1043,35 @@ assembly on the same mesh:
   uniform "per-level" wording and §16.A A1's cylinder-HAS-block leg. Ghost
   (all-zero) metric — a structural fact ((1−μ²)|₋₁ = 0 ≡ α_{1/2} = 0), never
   a fabricated volume weight.
+- **R12a (predicate spelling refinement, ruled 2026-07-04 at d1 execution)**:
+  presence per level iff the level's FIRST-ORDINATE **raw M-M weight
+  τ_raw ∈ (0, 1) EXCLUSIVE** — "the recurrence consumes independent
+  starting-direction state". The R12 letter's μ-node-membership spelling and
+  its claimed ⟺ with τ_raw ≠ 0 are empirically FALSE on level-symmetric
+  cylinder rules: their duplicate-η nodes collapse the midpoint edge onto η₀,
+  giving **τ_raw,0 = 1.0 bit-exact** (μ_start ∉ nodes, gaps ~0.1) — the
+  seed's only consumption path, the recurrence weight (1−τ₀), vanishes (the
+  direct read is always α_{1/2} = 0), so the letter would mint DEAD blocks
+  (and it is WHY the measured cyl-LS seedΔ is 0.0-bit). The bit-exact
+  trichotomy: τ_raw,0 = 0 (product rules — seed ≡ ψ₀ rank-duplicate, #229) /
+  = 1 (LS rules — dead) / ∈ (0,1) (sphere-GL ≈ 0.39–0.42 — genuine state).
+  Single-sourced from the NEW `morel_montry_tau_raw_per_level` (the clamp's
+  own input, split out in d1; clamped producer bit-identical); implemented as
+  `SNMesh.starting_direction_levels` (+ `_SEED_TAU_EPS = 1e-12` FP-noise
+  guard — never decides a real case); the A1 gate's cyl-LS row is the
+  discriminator pin. Every named R12 instance decides identically.
+- **d3 HAZARD banked at d1 (product-cylinder ig-consumption)**: TODAY the
+  cylinder solve seeds its per-level thread from the extrapolation ON THE
+  INITIAL GUESS (LR `_run` builds the ctx from ig for every curvilinear
+  level; product rules: stencil t = 0 exactly ⟹ seed = the ig's ψ₀ row —
+  formally a lag, harmless at the fixed point, and the product-cyl MATVEC is
+  lag-free/triangular since apply extrapolates from the input). d3's
+  strategy-zoo retirement MUST preserve the non-carrying levels' seed
+  data-flow BIT-EXACTLY (solve: from ig; apply: from input — inline the t=0
+  stencil read, do not "simplify" to the marched ψ₀) or the §16.D cylinder
+  assert-unmoved gate HALTS the phase. The LS-cylinder seed value is dead
+  (τ₀ = 1), so any spelling is bitwise there; the PRODUCT cylinder is the
+  binding row.
 - **R13 (seed outer BC, ruled 2026-07-04)**: **mint the corner slots NOW** —
   the (R, μ=∓1) corner pair lands this phase (inflow corner = given-data /
   identity row; outflow corner = defect row; B's reflective arm maps

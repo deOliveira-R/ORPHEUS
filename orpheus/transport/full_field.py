@@ -1,4 +1,4 @@
-r"""The timeless composite carrier: bulk field ⊕ boundary field.
+r"""The timeless composite carrier: bulk ⊕ boundary (⊕ starting-direction).
 
 L2 (transport, method-agnostic). :class:`FullField` is the **timeless**
 ``bulk ⊕ boundary`` carrier that the transport operator algebra acts on:
@@ -7,6 +7,22 @@ picture. It is the object-image of the operator algebra
 :math:`(L + C - S - F - B)\,\psi = q` — every operator leaf maps a
 :class:`FullField` to a :class:`FullField` (the codomain inner role may
 change, flux → source, but the composite carrier type does not).
+
+The optional starting-direction block (#282 route (a), 2.5d)
+============================================================
+
+On a mesh whose Morel–Montry thread genuinely consumes independent
+starting-direction state (the R12a predicate — the 1-D sphere; see
+:mod:`orpheus.numerics.spaces.starting_direction_space`), the composite
+carries a THIRD block: the per-level half-angle flux ψ½ as a typed
+:class:`~orpheus.transport.fields._bases.StartingDirectionField` leaf.
+This is what dissolves the #282 back edge — the seed stops being a
+lagged solver-internal estimate and becomes state the operator reads
+and the solve produces. ``starting_direction`` is ``None`` exactly when
+the mesh carries no seed level (Cartesian; every production cylinder
+rule), presence is resolved MESH-side by :meth:`FullField.zeros`, and
+mixed-presence arithmetic raises — three spellings of the same
+illegal-states-unrepresentable discipline.
 
 The cofree-comonad framing (the #217 split)
 ============================================
@@ -98,11 +114,15 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Callable, TypeVar
 
 import numpy as np
 
-from orpheus.transport.fields._bases import BulkField, BoundaryField
+from orpheus.transport.fields._bases import (
+    BulkField,
+    BoundaryField,
+    StartingDirectionField,
+)
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -141,6 +161,19 @@ class FullField:
         (angular) for SN,
         :class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`
         (scalar ``(J⁺, J⁻)``) for diffusion / CP.
+    starting_direction : StartingDirectionField or None
+        The OPTIONAL third block (#282 route (a), campaign #280 phase
+        2.5d): the per-μ-level starting-direction flux ψ½ of a
+        curvilinear Morel–Montry thread, typed as composite state.
+        ``None`` ⟺ the mesh has NO seed-carrying level (the R12a
+        predicate on
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`
+        — Cartesian always; every production cylinder rule; only the
+        sphere carries it today). Presence is MESH-keyed, never
+        caller-keyed: :meth:`zeros` consults the mesh predicate, so a
+        seed block on a Cartesian composite is unrepresentable through
+        the factory. Mixed-presence arithmetic raises (a partner
+        without the block cannot silently drop it).
 
     Notes
     -----
@@ -168,6 +201,10 @@ class FullField:
 
     bulk: BulkField
     boundary: BoundaryField
+    #: The optional starting-direction block (#282 route (a)). ``None`` ⟺
+    #: the mesh carries no seed-carrying level (R12a) — absence is a
+    #: structural fact of the phase space, not a lazily-unfilled slot.
+    starting_direction: StartingDirectionField | None = None
 
     # ── Construction ─────────────────────────────────────────────────
 
@@ -178,6 +215,7 @@ class FullField:
         bulk: type[BulkField],
         boundary: type[BoundaryField],
         mesh: "object",
+        starting_direction: type[StartingDirectionField] | None = None,
     ) -> "FullField":
         r"""Allocate a zero timeless composite from the bulk + boundary leaf TYPES.
 
@@ -202,10 +240,27 @@ class FullField:
             The phase-space carrier passed through to each leaf's
             ``zeros_on`` (duck-typed — no transport→mesh hard
             dependency).
+        starting_direction : type[StartingDirectionField], optional
+            The starting-direction leaf CLASS (SN passes
+            :class:`~orpheus.transport.fields.starting_direction_flux.StartingDirectionFlux`
+            for a flux composite, its SourceSink sibling for a source).
+            Presence is MESH-keyed, not caller-keyed: the block is
+            allocated iff ``mesh.starting_direction_space`` is
+            non-``None`` (the R12a predicate), so SN call sites pass
+            the class UNIFORMLY across geometries and a Cartesian /
+            cylinder composite still (correctly) carries ``None``.
+            Methods without the concept (CP / MoC / diffusion) omit it.
         """
+        seed_leaf: StartingDirectionField | None = None
+        if (
+            starting_direction is not None
+            and getattr(mesh, "starting_direction_space", None) is not None
+        ):
+            seed_leaf = starting_direction.zeros_on(mesh)  # type: ignore[arg-type]
         return cls(
             bulk=bulk.zeros_on(mesh),  # type: ignore[attr-defined]
             boundary=boundary.zeros_on(mesh),  # type: ignore[attr-defined]
+            starting_direction=seed_leaf,
         )
 
     # ── Construction validation ──────────────────────────────────────
@@ -222,10 +277,19 @@ class FullField:
                 f"(an AngularBoundaryField / ScalarBoundaryField family leaf); "
                 f"got {type(self.boundary).__name__}"
             )
+        if self.starting_direction is not None and not isinstance(
+            self.starting_direction, StartingDirectionField
+        ):
+            raise TypeError(
+                f"{type(self).__name__}: starting_direction must be a "
+                f"StartingDirectionField leaf or None; got "
+                f"{type(self.starting_direction).__name__}"
+            )
         # Mesh-identity check (where both members carry a ``mesh``
         # attribute — the cross-method generic contract). For SN both
         # AngularFlux and AngularBoundaryFlux carry ``mesh: SNMesh``; other
-        # methods follow the same convention.
+        # methods follow the same convention. The optional
+        # starting-direction block joins the same invariant.
         bulk_mesh = getattr(self.bulk, "mesh", None)
         boundary_mesh = getattr(self.boundary, "mesh", None)
         if bulk_mesh is not None and boundary_mesh is not None:
@@ -234,6 +298,15 @@ class FullField:
                     f"{type(self).__name__}: bulk and boundary must share "
                     "mesh identity (both bound to the same mesh instance); "
                     f"got bulk.mesh={bulk_mesh!r}, "
+                    f"boundary.mesh={boundary_mesh!r}"
+                )
+        if self.starting_direction is not None and boundary_mesh is not None:
+            if self.starting_direction.mesh is not boundary_mesh:
+                raise ValueError(
+                    f"{type(self).__name__}: starting_direction must share "
+                    "mesh identity with bulk/boundary; got "
+                    f"starting_direction.mesh="
+                    f"{self.starting_direction.mesh!r}, "
                     f"boundary.mesh={boundary_mesh!r}"
                 )
 
@@ -259,21 +332,39 @@ class FullField:
 
     # ── Polymorphic recombine hook (Pattern 2 — the algebra lives once) ─
 
-    def _recombine(self: T, *, bulk: BulkField, boundary: BoundaryField) -> T:
-        r"""Rebuild a composite of the SAME concrete type from a recombined pair.
+    def _recombine(
+        self: T,
+        *,
+        bulk: BulkField,
+        boundary: BoundaryField,
+        starting_direction: StartingDirectionField | None,
+    ) -> T:
+        r"""Rebuild a composite of the SAME concrete type from recombined blocks.
 
         The single polymorphic hook the six vector-space dunders route
         their result through. The base spelling is ``replace(self, ...)``
         — provably ``T`` (a :class:`FullField` recombines to a
-        :class:`FullField`, no history to drop).
+        :class:`FullField`, no history to drop), and ``replace`` re-runs
+        ``__post_init__`` so the block invariants re-fire for free.
         :class:`TimedFullField` OVERRIDES this to rebuild a
         ``TimedFullField`` carrying its ``history_depth`` and an EMPTY
         history (#217: algebra results carry empty history — ``replace``
         would copy the history, which is wrong for the timed subclass).
         This keeps the dunders defined ONCE while preserving the correct
         concrete return type per subclass (DRY + Liskov-correct).
+
+        ``starting_direction`` is a REQUIRED keyword (no default): every
+        caller must state the recombined third block explicitly, so a
+        caller that forgets it fails loudly instead of silently dropping
+        the seed — the silent-drop bug class the 2.5d carrier gates pin
+        (§16.A A3).
         """
-        return replace(self, bulk=bulk, boundary=boundary)
+        return replace(
+            self,
+            bulk=bulk,
+            boundary=boundary,
+            starting_direction=starting_direction,
+        )
 
     # ── Algebra (propagates to bulk + boundary via _recombine) ───────
 
@@ -312,6 +403,36 @@ class FullField:
                 f"partner; got {type(other).__name__}."
             )
 
+    def _combine_starting_direction(
+        self,
+        other: "FullField",
+        combine: "Callable[[StartingDirectionField, StartingDirectionField], object]",
+    ) -> StartingDirectionField | None:
+        r"""Combine the two operands' starting-direction blocks, or ``None``.
+
+        Presence must MATCH: a seeded ⊕ unseeded pair raises — silently
+        dropping (or fabricating) the ψ½ block is exactly the bug class
+        the carrier gates pin (§16.A A3; the whole 2.5d algebra rides on
+        the block threading through every composite sum). When both are
+        absent the result is absent; when both are present the combined
+        leaf comes from the member-level algebra (which enforces role /
+        mesh / space exactly as for bulk and boundary — e.g. seed
+        ``flux − flux`` mints a ``StartingDirectionDisplacement``).
+        """
+        mine, theirs = self.starting_direction, other.starting_direction
+        if (mine is None) != (theirs is None):
+            raise ValueError(
+                f"{type(self).__name__} arithmetic with MIXED "
+                f"starting-direction presence: one operand carries the ψ½ "
+                f"block and the other does not (self: "
+                f"{mine is not None}, other: {theirs is not None}). On a "
+                f"seed-carrying mesh (R12a) every composite must carry the "
+                f"block — a partner without it cannot silently drop it."
+            )
+        if mine is None:
+            return None
+        return combine(mine, theirs)  # type: ignore[arg-type, return-value]
+
     # ``other`` is deliberately the BASE ``FullField`` (not ``T``): the
     # partner rule is "any FullField flavor" (see ``_check_partner`` —
     # load-bearing for the timed − timeless time-derivative stencil), and
@@ -321,6 +442,9 @@ class FullField:
         return self._recombine(
             bulk=self.bulk + other.bulk,
             boundary=self.boundary + other.boundary,
+            starting_direction=self._combine_starting_direction(
+                other, lambda a, b: a + b,
+            ),
         )
 
     def __sub__(self: T, other: "FullField") -> T:
@@ -328,24 +452,36 @@ class FullField:
         return self._recombine(
             bulk=self.bulk - other.bulk,
             boundary=self.boundary - other.boundary,
+            starting_direction=self._combine_starting_direction(
+                other, lambda a, b: a - b,
+            ),
         )
 
     def __neg__(self: T) -> T:
-        return self._recombine(bulk=-self.bulk, boundary=-self.boundary)
+        sd = self.starting_direction
+        return self._recombine(
+            bulk=-self.bulk,
+            boundary=-self.boundary,
+            starting_direction=None if sd is None else -sd,
+        )
 
     def __mul__(self: T, scalar: float) -> T:
+        sd = self.starting_direction
         return self._recombine(
             bulk=self.bulk * float(scalar),
             boundary=self.boundary * float(scalar),
+            starting_direction=None if sd is None else sd * float(scalar),
         )
 
     def __rmul__(self: T, scalar: float) -> T:
         return self.__mul__(scalar)
 
     def __truediv__(self: T, scalar: float) -> T:
+        sd = self.starting_direction
         return self._recombine(
             bulk=self.bulk / float(scalar),
             boundary=self.boundary / float(scalar),
+            starting_direction=None if sd is None else sd / float(scalar),
         )
 
     # ── Flat-vector protocol (Krylov / scipy.gmres adapter) ──────────
@@ -365,21 +501,26 @@ class FullField:
     # ``coding-elegance`` Pattern 6 — one boundary leaf today).
 
     def to_flat(self) -> "NDArray":
-        r"""Pack ``(bulk, boundary)`` into a flat 1-D vector.
+        r"""Pack the composite blocks into a flat 1-D vector.
 
-        The packed layout is ``[bulk.values.ravel(), boundary.values]``
-        — the direct-sum representation of the composite.
+        The packed layout is ``[bulk.values.ravel(), boundary.values
+        [, starting_direction.values]]`` — the direct-sum representation
+        of the composite, with the optional ψ½ tail present exactly when
+        the composite carries the block (seed-carrying meshes, R12a).
 
         Returns
         -------
         np.ndarray
-            1-D ``float64`` ndarray of size
-            ``bulk.values.size + boundary.values.size``.
+            1-D ``float64`` ndarray of size ``bulk.values.size +
+            boundary.values.size (+ starting_direction.values.size)``.
         """
-        return np.concatenate([
+        parts = [
             self.bulk.values.ravel(),
             self.boundary.values,  # already 1-D (AngularBoundaryFlux flat storage)
-        ])
+        ]
+        if self.starting_direction is not None:
+            parts.append(self.starting_direction.values)  # already 1-D (flat backing)
+        return np.concatenate(parts)
 
     @classmethod
     def from_flat(
@@ -416,31 +557,42 @@ class FullField:
         """
         n_bulk = template.bulk.values.size
         n_boundary = template.boundary.values.size
-        expected_total = n_bulk + n_boundary
+        template_seed = template.starting_direction
+        n_seed = 0 if template_seed is None else template_seed.values.size
+        expected_total = n_bulk + n_boundary + n_seed
         if flat.size != expected_total:
             raise ValueError(
                 f"{cls.__name__}.from_flat: flat.size = {flat.size} "
                 f"does not match template total size "
-                f"{n_bulk} + {n_boundary} = {expected_total}"
+                f"{n_bulk} + {n_boundary} + {n_seed} = {expected_total}"
             )
         bulk_values = flat[:n_bulk].reshape(template.bulk.values.shape)
-        boundary_values = flat[n_bulk:]
+        boundary_values = flat[n_bulk : n_bulk + n_boundary]
         new_bulk = replace(template.bulk, values=bulk_values)
         new_boundary = replace(template.boundary, values=boundary_values)
-        return template._recombine(bulk=new_bulk, boundary=new_boundary)
+        new_seed = (
+            None
+            if template_seed is None
+            else replace(template_seed, values=flat[n_bulk + n_boundary :])
+        )
+        return template._recombine(
+            bulk=new_bulk, boundary=new_boundary, starting_direction=new_seed,
+        )
 
     # ── Diagnostics ──────────────────────────────────────────────────
 
     def copy(self: T) -> T:
         r"""Return a deep copy with owned ndarrays.
 
-        Snapshots ``(bulk, boundary)`` with owned ndarrays. Used by
+        Snapshots every carried block with owned ndarrays. Used by
         callers that need a stable iterate without aliasing. Routes
         through :meth:`_recombine`, so a :class:`TimedFullField` copy is a
         :class:`TimedFullField` with EMPTY history (the existing
         ``copy`` drops history — bit-identical behaviour).
         """
+        sd = self.starting_direction
         return self._recombine(
             bulk=self.bulk.copy(),
             boundary=self.boundary.copy(),
+            starting_direction=None if sd is None else sd.copy(),
         )

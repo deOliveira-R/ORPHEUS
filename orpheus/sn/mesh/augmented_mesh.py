@@ -61,6 +61,7 @@ from ..spatial.pole_angular_closure import (
     MorelMontryAngularSweep,
     PoleAngularClosureBase,
     default_angular_closure_class,
+    morel_montry_tau_raw_per_level,
 )
 
 if TYPE_CHECKING:
@@ -68,6 +69,9 @@ if TYPE_CHECKING:
     from orpheus.numerics.face_layout import FaceLayout
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.spaces.starting_direction_space import (
+        StartingDirectionSpace,
+    )
     # NOTE (B.5.A): the transport-field TYPE_CHECKING imports retired with the
     # SNMesh.zeros_* factory family. Zero-allocation now lives on the field
     # types (``Field.zeros`` / ``<Leaf>.zeros_on`` /
@@ -774,6 +778,78 @@ class SNMesh(MaterialMesh):
         """
         return self._trace
 
+    #: FP-noise guard for the R12a strict-interior test on the first-ordinate
+    #: raw M-M weight. The production instances are BIT-EXACT members of
+    #: {0, 1} (product rules: node ON the starting edge → τ_raw = 0;
+    #: level-symmetric rules: duplicate-η midpoint edge collapses onto η₀ →
+    #: τ_raw = 1) or safely interior (sphere-GL ≈ 0.39–0.42), so the guard
+    #: never decides a real case — it exists so a future quadrature whose
+    #: coincidence arithmetic differs by ULPs cannot flip presence, mirroring
+    #: the closure's own ``abs(dμ) > 1e-15`` degenerate-cell guard.
+    _SEED_TAU_EPS: ClassVar[float] = 1e-12
+
+    @cached_property
+    def starting_direction_levels(self) -> tuple[int, ...]:
+        r"""μ-level indices that consume INDEPENDENT starting-direction state (R12a).
+
+        The seed-presence predicate of #282 route (a): a level carries a
+        ψ½ block iff its first-ordinate raw Morel–Montry weight
+        :math:`\tau_{\rm raw,0}` lies strictly in :math:`(0, 1)` — i.e.
+        the M-M half-angle recurrence genuinely consumes a seed value
+        that is neither a rank-duplicate of the level's first node
+        (:math:`\tau_{\rm raw} = 0`, cylinder product rules — the #229
+        clamp fact) nor dead under the recurrence's :math:`(1-\tau_0)`
+        thread weight (:math:`\tau_{\rm raw} = 1`, cylinder
+        level-symmetric rules — duplicate-η midpoint edges). Sphere-GL
+        is the carrying instance (one level, the whole quadrature,
+        :math:`\tau_{\rm raw,0} \approx 0.39\text{–}0.42`); Cartesian
+        never carries.
+
+        R12a refines the R12 letter ("μ_start ∉ the level's μ-nodes"),
+        whose claimed ⟺ with ``τ_raw ≠ 0`` fails on level-symmetric
+        cylinder rules (μ_start ∉ nodes there, yet the seed is dead —
+        measured 0.0-bit solve insensitivity). Single-sourced from
+        :func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_raw_per_level`
+        — the SAME edge construction the production τ clamp consumes.
+        Level indexing matches the closure's: the sphere's single M-M
+        level is index ``0``; cylinder levels index
+        ``quad.level_indices``.
+        """
+        if self.curvature is None:
+            return ()
+        assert self.reduced is not None  # curvilinear ⇒ reduced populated
+        raw = morel_montry_tau_raw_per_level(self.quad, self.reduced.coord)
+        eps = self._SEED_TAU_EPS
+        return tuple(
+            p for p, tau_level in enumerate(raw)
+            if eps < float(tau_level[0]) < 1.0 - eps
+        )
+
+    @cached_property
+    def starting_direction_space(self) -> "StartingDirectionSpace | None":
+        r"""The R12a-keyed ψ½ carrier space, or ``None`` if no level carries.
+
+        The phase-space machinery the starting-direction field leaves
+        (``StartingDirectionFlux`` / ``...SourceSink`` /
+        ``...Displacement``) and the composite factory
+        (:meth:`~orpheus.transport.full_field.FullField.zeros`) read —
+        the seed sibling of :attr:`angular_trace`. ``None`` ⟺
+        :attr:`starting_direction_levels` is empty (absence is spelled
+        ``None``, never a zero-DOF space). Cached: one space per mesh,
+        so every leaf of every role shares the same instance (the
+        layout + ghost-metric single source).
+        """
+        levels = self.starting_direction_levels
+        if not levels:
+            return None
+        from orpheus.numerics.spaces.starting_direction_space import (
+            StartingDirectionSpace,
+        )
+
+        return StartingDirectionSpace.for_levels(
+            levels, ng=self.ng, nx=int(self.spatial_shape[0]),
+        )
+
     @cached_property
     def full_field_space(self) -> "FullFieldSpace":
         r"""The composite carrier :math:`V_{\rm bulk} \oplus V_{\rm trace}` (Wave O / O.2b).
@@ -793,11 +869,16 @@ class SNMesh(MaterialMesh):
           tensor;
         * **trace** :math:`G_{\rm trace} = |\Omega\cdot\hat n_f|\,w_n` — the
           partial-current surface metric already carried by
-          :attr:`angular_trace`.
+          :attr:`angular_trace`;
+        * **starting-direction** (present iff the mesh carries R12a seed
+          levels — the sphere): :math:`G_{\rm sd} = 0` identically — the
+          ghost metric of :attr:`starting_direction_space` (the μ = ±1
+          rays carry zero quadrature measure; see the space's module
+          docstring for the Mode-12 honest-scope note).
 
-        Both factors carry :math:`w_n`; they differ only in the spatial
-        measure (cell volume vs. oriented face). Cached: the composite is
-        immutable for a given mesh + quadrature.
+        The bulk/trace factors carry :math:`w_n`; they differ only in the
+        spatial measure (cell volume vs. oriented face). Cached: the
+        composite is immutable for a given mesh + quadrature.
         """
         from orpheus.numerics.space import FunctionSpace
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
@@ -818,7 +899,11 @@ class SNMesh(MaterialMesh):
             shape=(N, self.ng, *self.spatial_shape),
             inner_product_weights=g_bulk,
         )
-        return FullFieldSpace.from_blocks(bulk_space, self.angular_trace)
+        return FullFieldSpace.from_blocks(
+            bulk_space,
+            self.angular_trace,
+            starting_direction_space=self.starting_direction_space,
+        )
 
     @property
     def boundary_face_layout(self) -> "FaceLayout":

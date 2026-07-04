@@ -31,16 +31,23 @@ provides the *locus + family* axes as ABCs; the *role* leaves
      │   │   └─ ScalarSourceSink       role leaf  (source; renamed from IsotropicSource in B.2)
      │   └─ MomentField (ABC)     family marker; the moment shape is leaf-specific
      │       └─ HarmonicMomentFlux   role leaf  (flux-only for now)
-     └─ BoundaryField (ABC)       method-agnostic boundary locus: flat-buffer contract
-         │                        + layout/face_view + factories via _trace_space_of
-         ├─ AngularBoundaryField (ABC)   mesh: SNMesh + AngularTraceSpace contract (mesh.angular_trace)
-         │   ├─ AngularBoundaryFlux          role leaf  (flux)
-         │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.source_sinks)
-         │   ├─ AngularBoundaryResidual      role leaf  (residual; B.3 — orpheus.transport.residuals)
-         │   └─ AngularBoundaryDisplacement  role leaf  (displacement — orpheus.transport.displacements)
-         └─ ScalarBoundaryField (ABC)    ScalarTraceSpace contract (DiffusionMesh.scalar_trace; #290 P2/P7a)
-             ├─ ScalarBoundaryFlux           role leaf  (flux — the per-face (J⁺, J⁻) pair)
-             └─ ScalarBoundaryDisplacement   role leaf  (displacement — orpheus.transport.displacements)
+     ├─ BoundaryField (ABC)       method-agnostic boundary locus: flat-buffer contract
+     │   │                        + layout/face_view + factories via _trace_space_of
+     │   ├─ AngularBoundaryField (ABC)   mesh: SNMesh + AngularTraceSpace contract (mesh.angular_trace)
+     │   │   ├─ AngularBoundaryFlux          role leaf  (flux)
+     │   │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.source_sinks)
+     │   │   ├─ AngularBoundaryResidual      role leaf  (residual; B.3 — orpheus.transport.residuals)
+     │   │   └─ AngularBoundaryDisplacement  role leaf  (displacement — orpheus.transport.displacements)
+     │   └─ ScalarBoundaryField (ABC)    ScalarTraceSpace contract (DiffusionMesh.scalar_trace; #290 P2/P7a)
+     │       ├─ ScalarBoundaryFlux           role leaf  (flux — the per-face (J⁺, J⁻) pair)
+     │       └─ ScalarBoundaryDisplacement   role leaf  (displacement — orpheus.transport.displacements)
+     └─ StartingDirectionField (ABC)  the angular-domain boundary locus (μ = μ_start; #282
+         │                        route (a), 2.5d): mesh: SNMesh + StartingDirectionSpace
+         │                        contract (mesh.starting_direction_space, R12a-keyed) +
+         │                        cells/corner (level, sign) views over one flat buffer
+         ├─ StartingDirectionFlux          role leaf  (flux — the ψ½ state)
+         ├─ StartingDirectionSourceSink    role leaf  (source — q½ cells + corner data)
+         └─ StartingDirectionDisplacement  role leaf  (displacement — orpheus.transport.displacements)
 
 Parametrization (no twin paths)
 ===============================
@@ -89,6 +96,7 @@ from orpheus.numerics.spaces.spherical_harmonic_space import (
 )
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
+from orpheus.numerics.spaces.starting_direction_space import StartingDirectionSpace
 
 if TYPE_CHECKING:
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
@@ -105,6 +113,7 @@ __all__ = [
     "BoundaryField",
     "AngularBoundaryField",
     "ScalarBoundaryField",
+    "StartingDirectionField",
 ]
 
 
@@ -1017,4 +1026,148 @@ class ScalarBoundaryField(BoundaryField):
                 f"(DiffusionMesh.from_material_mesh promotes)."
             )
         return space
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Starting-direction locus (#282 route (a), campaign #280 phase 2.5d)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
+class StartingDirectionField(Field):
+    r"""Starting-direction storage base — the angular-domain boundary locus.
+
+    Carries the per-μ-level half-angle flux :math:`\psi_{1/2}` of the
+    curvilinear Morel–Montry thread as TYPED STATE (#282 route (a)):
+    per seed-carrying level, BOTH direction legs (inward μ = μ_start
+    and the pole-continued outward leg — ruling R13) as ``(ng, nx)``
+    cell blocks plus the ``(ng,)`` r = R corner slots, on ONE flat
+    backing buffer (the :class:`BoundaryField` flat-storage discipline;
+    layout arithmetic lives on the
+    :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`).
+
+    This is a THIRD locus, not a face trace: the starting direction is
+    the boundary of the ANGULAR domain (:math:`\mu = \mu_{\rm start}`,
+    where the through-flux weight :math:`(1-\mu^2)` vanishes — the
+    ghost metric), while :class:`BoundaryField` is the boundary of the
+    SPATIAL domain. A starting-direction field is meaningless without a
+    quadrature and its M-M level structure, so ``mesh`` is
+    :class:`SNMesh` (the :class:`AngularField` narrowing discipline)
+    and the space source is the R12a-keyed
+    ``mesh.starting_direction_space`` — construction on a mesh with no
+    seed-carrying level is unrepresentable (the factory raises; the
+    composite spells absence as ``None``).
+
+    The concrete role leaves are ``StartingDirectionFlux`` (the ψ½
+    state), ``StartingDirectionSourceSink`` (the q½ source block), and
+    ``StartingDirectionDisplacement`` (the iterate increment). Abstract
+    — instantiate a role leaf.
+    """
+
+    mesh: "SNMesh"
+    # The static twin of the __post_init__ isinstance gate below (the
+    # AngularBoundaryField/AngularTraceSpace idiom): consumers of the
+    # layout atoms (cells_view / corner_view / levels) type-check
+    # without re-narrowing.
+    space: StartingDirectionSpace
+
+    # ── Construction validation ──────────────────────────────────────
+
+    def __post_init__(self) -> None:
+        # The family narrowing runs FIRST so the family-specific message
+        # fires for the common misuse (a bare FunctionSpace, or an
+        # AngularTraceSpace, passed where the starting-direction space
+        # belongs).
+        if not isinstance(self.space, StartingDirectionSpace):
+            raise TypeError(
+                f"{type(self).__name__} requires a StartingDirectionSpace "
+                f"(built via StartingDirectionSpace.for_levels / read off "
+                f"mesh.starting_direction_space); got space={self.space!r}."
+            )
+        super().__post_init__()  # Field: values.shape == space.shape.
+
+    # ── Algebra extension (over Field) ───────────────────────────────
+
+    def _check_partner(self, other: Field) -> Self:
+        r"""Add the mesh-binding guard on top of Field's class/space gate.
+
+        Two starting-direction fields on DISTINCT :class:`SNMesh`
+        instances are non-additive even when same-class and same-shape —
+        the seed-level selection (R12a) and the cell geometry are
+        mesh-bound.
+        """
+        partner = super()._check_partner(other)
+        if self.mesh is not partner.mesh:
+            raise ValueError(
+                f"{type(self).__name__} arithmetic across distinct SNMesh "
+                f"instances is forbidden — the field is mesh-bound."
+            )
+        return partner
+
+    # ── The space source (``mesh.starting_direction_space``) ─────────
+
+    @classmethod
+    def _space_of(cls, mesh: "SNMesh") -> StartingDirectionSpace:
+        r"""Return ``mesh``'s cached starting-direction space, or raise.
+
+        The single hook the factories construct through — the
+        starting-direction sibling of
+        :meth:`BoundaryField._trace_space_of`. Raises on a mesh with no
+        seed-carrying level (R12a: no level's first-ordinate raw M-M
+        weight lies in (0, 1) — Cartesian always; every production
+        cylinder rule; see
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`).
+        """
+        space = getattr(mesh, "starting_direction_space", None)
+        if space is None:
+            raise ValueError(
+                f"{cls.__name__}: mesh carries no starting-direction "
+                f"space — no μ-level consumes independent "
+                f"starting-direction state (R12a predicate: first-ordinate "
+                f"raw M-M weight τ_raw ∈ (0,1) on no level; Cartesian and "
+                f"the production cylinder rules land here). The composite "
+                f"spells this as starting_direction=None, never a "
+                f"zero-DOF field."
+            )
+        return space
+
+    # ── Construction factories (via ``cls`` — build the subclass) ────
+
+    @classmethod
+    def from_mesh(cls, values: NDArray, mesh: "SNMesh"):
+        r"""Construct from a flat backing buffer + mesh, sourcing the
+        R12a-keyed ``mesh.starting_direction_space``."""
+        return cls(values=values, space=cls._space_of(mesh), mesh=mesh)
+
+    @classmethod
+    def zeros_on(cls, mesh: "SNMesh"):
+        r"""Construct a zero starting-direction field sized to ``mesh`` (B.5.A).
+
+        The uniform leaf-side allocator (the ``zeros_on(mesh)`` surface
+        every composite-slot leaf exposes). Raises on a mesh with no
+        seed-carrying level — presence-aware allocation lives on the
+        composite factory
+        (:meth:`~orpheus.transport.full_field.FullField.zeros`), which
+        consults the mesh predicate and passes ``None`` through.
+        """
+        return cls.zeros(cls._space_of(mesh), mesh=mesh)
+
+    # ── Shaped views (delegate to the space's layout arithmetic) ─────
+
+    @property
+    def levels(self) -> tuple[int, ...]:
+        r"""The seed-carrying μ-level indices (read off the space)."""
+        return self.space.levels
+
+    def cells(self, level: int, sign: int) -> NDArray:
+        r"""The ``(ng, nx)`` ψ½ cells view for ``(level, sign)`` — memory-shared."""
+        return self.space.cells_view(self.values, level, sign)
+
+    def corner(self, level: int, sign: int) -> NDArray:
+        r"""The ``(ng,)`` r = R corner view for ``(level, sign)`` — memory-shared.
+
+        Inflow corner (``sign = -1``): the given-data / identity row;
+        outflow corner (``sign = +1``): the defect row (ruling R13).
+        """
+        return self.space.corner_view(self.values, level, sign)
 

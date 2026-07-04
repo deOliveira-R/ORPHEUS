@@ -133,7 +133,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from orpheus.transport.fields._bases import BulkField, BoundaryField
+from orpheus.transport.fields._bases import (
+    BulkField,
+    BoundaryField,
+    StartingDirectionField,
+)
 from orpheus.transport.full_field import FullField
 
 __all__ = ["TimedFullField"]
@@ -199,6 +203,7 @@ class TimedFullField(FullField):
         boundary: type[BoundaryField],
         mesh: "object",
         history_depth: int = 2,
+        starting_direction: type[StartingDirectionField] | None = None,
     ) -> "TimedFullField":
         r"""Allocate a zero composite from the bulk + boundary leaf TYPES (B.5.A).
 
@@ -224,15 +229,26 @@ class TimedFullField(FullField):
             dependency).
         history_depth : int, optional
             History buffer depth (default 2; see the class docstring).
+        starting_direction : type[StartingDirectionField], optional
+            The starting-direction leaf CLASS; presence is MESH-keyed
+            (allocated iff ``mesh.starting_direction_space`` is
+            non-``None`` — the R12a predicate). See
+            :meth:`FullField.zeros`.
         """
         # Delegate leaf zero-allocation to the timeless base (the SINGLE
-        # source of the duck-typed ``zeros_on`` calls), then re-wrap with
-        # the history metadata — so the only ``zeros_on`` access lives on
-        # FullField, not duplicated here.
-        base = FullField.zeros(bulk=bulk, boundary=boundary, mesh=mesh)
+        # source of the duck-typed ``zeros_on`` calls AND of the
+        # mesh-keyed seed-presence resolution), then re-wrap with the
+        # history metadata — so neither lives duplicated here.
+        base = FullField.zeros(
+            bulk=bulk,
+            boundary=boundary,
+            mesh=mesh,
+            starting_direction=starting_direction,
+        )
         return cls(
             bulk=base.bulk,
             boundary=base.boundary,
+            starting_direction=base.starting_direction,
             _history=(),
             history_depth=history_depth,
         )
@@ -250,7 +266,11 @@ class TimedFullField(FullField):
     # ── Polymorphic recombine hook (carries history metadata) ────────
 
     def _recombine(
-        self, *, bulk: BulkField, boundary: BoundaryField,
+        self,
+        *,
+        bulk: BulkField,
+        boundary: BoundaryField,
+        starting_direction: StartingDirectionField | None,
     ) -> "TimedFullField":
         r"""Rebuild a ``TimedFullField`` with empty history + preserved depth.
 
@@ -260,11 +280,13 @@ class TimedFullField(FullField):
         a :class:`TimedFullField` for a ``TimedFullField`` operand —
         carrying ``history_depth`` and an EMPTY history (#217: algebra
         results carry empty history; history is iteration metadata, not
-        algebraic state).
+        algebraic state). ``starting_direction`` is the REQUIRED keyword
+        of the base hook — see the base docstring's silent-drop note.
         """
         return TimedFullField(
             bulk=bulk,
             boundary=boundary,
+            starting_direction=starting_direction,
             _history=(),
             history_depth=self.history_depth,
         )
@@ -275,12 +297,15 @@ class TimedFullField(FullField):
         self,
         new_bulk: BulkField,
         new_boundary: BoundaryField,
+        new_starting_direction: StartingDirectionField | None = None,
     ) -> "TimedFullField":
-        r"""Push current ``(bulk, boundary)`` into history; install new as current.
+        r"""Push the current frame into history; install the new one as current.
 
         Returns a fresh :class:`TimedFullField` with:
 
-        * ``bulk = new_bulk``, ``boundary = new_boundary`` (current frame)
+        * ``bulk = new_bulk``, ``boundary = new_boundary`` (and, on a
+          seed-carrying composite, ``starting_direction =
+          new_starting_direction``) — the current frame;
         * ``_history = (current_snapshot, *self._history)[: history_depth]``
           where ``current_snapshot`` is the pre-advance timeless frame.
 
@@ -288,7 +313,7 @@ class TimedFullField(FullField):
         frame is NOT counted in the depth — depth=2 means current +
         2 lags). A historical frame is a timeless
         :class:`~orpheus.transport.full_field.FullField` snapshot of the
-        bulk + boundary at that step.
+        blocks at that step.
 
         Parameters
         ----------
@@ -297,6 +322,12 @@ class TimedFullField(FullField):
         new_boundary : AngularBoundaryField
             The new current boundary field. Must match
             ``type(self.boundary)``.
+        new_starting_direction : StartingDirectionField, optional
+            The new current ψ½ block. Presence must MATCH the current
+            frame's (a seed-carrying iterate cannot silently drop its
+            block, an unseeded one cannot grow it — R12a presence is a
+            structural fact of the mesh, not of the step), and the type
+            must match when present.
 
         Returns
         -------
@@ -315,14 +346,32 @@ class TimedFullField(FullField):
                 f"{type(new_boundary).__name__} does not match current "
                 f"boundary type {type(self.boundary).__name__}."
             )
+        if (self.starting_direction is None) != (new_starting_direction is None):
+            raise TypeError(
+                f"TimedFullField.advance: starting-direction presence must "
+                f"match the current frame (current: "
+                f"{self.starting_direction is not None}, new: "
+                f"{new_starting_direction is not None}) — presence is a "
+                f"structural fact of the mesh (R12a), not of the step."
+            )
+        if new_starting_direction is not None and type(
+            new_starting_direction
+        ) is not type(self.starting_direction):
+            raise TypeError(
+                f"TimedFullField.advance: new_starting_direction type "
+                f"{type(new_starting_direction).__name__} does not match "
+                f"current type {type(self.starting_direction).__name__}."
+            )
         current_snapshot = FullField(
             bulk=self.bulk,
             boundary=self.boundary,
+            starting_direction=self.starting_direction,
         )
         new_history = (current_snapshot, *self._history)[: self.history_depth]
         return TimedFullField(
             bulk=new_bulk,
             boundary=new_boundary,
+            starting_direction=new_starting_direction,
             _history=new_history,
             history_depth=self.history_depth,
         )

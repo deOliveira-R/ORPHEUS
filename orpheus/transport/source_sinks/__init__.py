@@ -55,6 +55,9 @@ from orpheus.transport.source_sinks.scalar_boundary_source_sink import (
 from orpheus.transport.source_sinks.harmonic_moment_source_sink import (
     HarmonicMomentSourceSink,
 )
+from orpheus.transport.source_sinks.starting_direction_source_sink import (
+    StartingDirectionSourceSink,
+)
 
 __all__ = [
     "ScalarSourceSink",
@@ -62,4 +65,5 @@ __all__ = [
     "AngularBoundarySourceSink",
     "ScalarBoundarySourceSink",
     "HarmonicMomentSourceSink",
+    "StartingDirectionSourceSink",
 ]

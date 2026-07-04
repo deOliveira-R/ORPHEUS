@@ -127,7 +127,8 @@ class _CompositeLeaf(Protocol):
 class CompositeField(Protocol):
     """The composite-field contract (see module docstring) made static.
 
-    The carrier of :class:`FullFieldSpace` — a bulk ⊕ boundary pair with
+    The carrier of :class:`FullFieldSpace` — a bulk ⊕ boundary
+    (⊕ optional starting-direction, #282 route (a)) block tuple with
     the polymorphic ``_recombine`` rebuild hook. Structural, so the
     transport carriers (``FullField`` / ``TimedFullField``) satisfy it
     without an import edge out of the numerics layer.
@@ -139,8 +140,15 @@ class CompositeField(Protocol):
     @property
     def boundary(self) -> _CompositeLeaf: ...
 
+    @property
+    def starting_direction(self) -> Optional[_CompositeLeaf]: ...
+
     def _recombine(
-        self, *, bulk: _CompositeLeaf, boundary: _CompositeLeaf,
+        self,
+        *,
+        bulk: _CompositeLeaf,
+        boundary: _CompositeLeaf,
+        starting_direction: Optional[_CompositeLeaf],
     ) -> "CompositeField": ...
 
 
@@ -172,12 +180,25 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         (#290 P2). The composite reads only the carrier-generic
         FunctionSpace metric surface, so the block dispatch is
         family-blind. ``compare=False`` leaf metadata.
+    starting_direction_space : FunctionSpace, optional
+        The OPTIONAL third block (#282 route (a), 2.5d): the
+        :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`
+        carrying the per-level ψ½ layout and the ALL-ZERO ghost metric
+        (``G_sd = 0`` — the starting-direction rays carry no quadrature
+        measure; the masked pseudo-inverse and the zero inner-product
+        contribution follow from the leaf space's zero weights, no
+        composite-level arithmetic). ``None`` on meshes with no
+        seed-carrying level (R12a) and for non-SN methods.
+        ``compare=False`` leaf metadata.
     """
 
     bulk_space: Optional[FunctionSpace] = field(
         default=None, repr=False, compare=False,
     )
     trace_space: Optional[FunctionSpace] = field(
+        default=None, repr=False, compare=False,
+    )
+    starting_direction_space: Optional[FunctionSpace] = field(
         default=None, repr=False, compare=False,
     )
 
@@ -203,21 +224,31 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         cls,
         bulk_space: FunctionSpace,
         trace_space: FunctionSpace,
+        starting_direction_space: Optional[FunctionSpace] = None,
     ) -> "FullFieldSpace":
-        r"""Build the composite from its bulk and trace leaf spaces.
+        r"""Build the composite from its bulk and trace (and optional seed) leaf spaces.
 
         Derives the flat direct-sum ``shape`` from the leaf shapes:
-        ``(prod(bulk_space.shape) + prod(trace_space.shape),)`` — ``prod`` on
-        both blocks so the identity dimension is robust to a future
-        multi-axis trace (today ``trace_space.shape == (total_size,)``).
+        ``(prod(bulk) + prod(trace) [+ prod(starting_direction)],)`` —
+        ``prod`` on every block so the identity dimension is robust to a
+        future multi-axis trace (today ``trace_space.shape ==
+        (total_size,)``). The starting-direction block is present
+        exactly when the mesh predicate supplies a space (R12a — see
+        :attr:`starting_direction_space`).
         """
         n_bulk = int(np.prod(bulk_space.shape))
         n_trace = int(np.prod(trace_space.shape))
+        n_seed = (
+            0
+            if starting_direction_space is None
+            else int(np.prod(starting_direction_space.shape))
+        )
         return cls(
             name="full_field",
-            shape=(n_bulk + n_trace,),
+            shape=(n_bulk + n_trace + n_seed,),
             bulk_space=bulk_space,
             trace_space=trace_space,
+            starting_direction_space=starting_direction_space,
         )
 
     # ------------------------------------------------------------------
@@ -242,17 +273,43 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             )
         return self.bulk_space, self.trace_space
 
+    def _seed_space_for(self, x: CompositeField) -> Optional[FunctionSpace]:
+        r"""The starting-direction leaf space for ``x``'s seed block, or ``None``.
+
+        Field-driven dispatch (2.5d transitional discipline): the seed
+        arithmetic runs exactly when the FIELD carries the block. A
+        field WITHOUT the block on a space WITH one is legal (the space
+        grew at d1; production fields adopt the block at d3) — the seed
+        paths are simply not exercised. The REVERSE — a field carrying a
+        ψ½ block through a composite space that has no seed leaf space —
+        is an illegal pairing and raises.
+        """
+        if getattr(x, "starting_direction", None) is None:
+            return None
+        if self.starting_direction_space is None:
+            raise RuntimeError(
+                "FullFieldSpace: the composite field carries a "
+                "starting_direction block but this space has no "
+                "starting_direction_space — the field/space pairing is "
+                "inconsistent (build the space via "
+                "FullFieldSpace.from_blocks(..., starting_direction_space=...) "
+                "/ SNMesh.full_field_space)."
+            )
+        return self.starting_direction_space
+
     @staticmethod
     def _rebuild(
         x: CompositeField,
         bulk_values: np.ndarray,
         boundary_values: np.ndarray,
+        starting_direction_values: Optional[np.ndarray] = None,
     ) -> CompositeField:
         r"""Return a copy of composite field ``x`` with new block ``values``.
 
-        Rebuilds the frozen leaves (``x.bulk`` / ``x.boundary``) via
+        Rebuilds the frozen leaves (``x.bulk`` / ``x.boundary`` / the
+        optional ``x.starting_direction``) via
         :func:`dataclasses.replace` — preserving each leaf's ``space`` /
-        ``mesh`` — then routes the recombined pair through the composite's
+        ``mesh`` — then routes the recombined blocks through the composite's
         polymorphic :meth:`_recombine` hook.  The hook gives the correct
         concrete type for either carrier: a timeless
         :class:`~orpheus.transport.full_field.FullField` rebuilds a
@@ -264,10 +321,26 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         arrows), the G-adjoint metric path receives either carrier; routing
         through ``_recombine`` (not a hardcoded ``_history=()``) handles both.
         No concrete type import (duck-typed on the ``_recombine`` hook).
+        ``starting_direction_values`` must be supplied exactly when ``x``
+        carries the seed block (the callers thread it from
+        :meth:`_seed_space_for`'s field-driven dispatch).
         """
+        seed = x.starting_direction
+        if seed is not None and starting_direction_values is None:
+            raise RuntimeError(
+                "FullFieldSpace._rebuild: the composite carries a "
+                "starting_direction block but no rebuilt seed values were "
+                "supplied — a metric path silently dropping the ψ½ block "
+                "is the silent-drop bug class (§16.A A3)."
+            )
         return x._recombine(
             bulk=replace(x.bulk, values=bulk_values),
             boundary=replace(x.boundary, values=boundary_values),
+            starting_direction=(
+                None
+                if seed is None
+                else replace(seed, values=starting_direction_values)
+            ),
         )
 
     def apply_metric(self, x: CompositeField) -> CompositeField:
@@ -275,13 +348,23 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
 
         ``x`` is a composite field; the bulk block is weighted by
         ``G_bulk = V·w_n`` and the trace block by ``G_trace = |Ω·n|·w_n``,
-        each delegated to the matching leaf space.
+        each delegated to the matching leaf space. A carried
+        starting-direction block is weighted by its ALL-ZERO ghost
+        metric — the output seed block is identically zero (the
+        Mode-12 metric-blindness mechanism, documented on
+        :mod:`orpheus.numerics.spaces.starting_direction_space`).
         """
         bulk_space, trace_space = self._require_blocks()
+        seed_space = self._seed_space_for(x)
         return self._rebuild(
             x,
             bulk_space.apply_metric(x.bulk.values),
             trace_space.apply_metric(x.boundary.values),
+            None
+            if seed_space is None
+            else seed_space.apply_metric(
+                x.starting_direction.values  # type: ignore[union-attr]
+            ),
         )
 
     def apply_inverse_metric(self, x: CompositeField) -> CompositeField:
@@ -289,23 +372,53 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
 
         Plain ``1/G`` on the strictly-positive bulk block; the
         Moore–Penrose masked inverse on the trace block (zero on the
-        tangential null space ``|Ω·n| = 0``). Delegated per block.
+        tangential null space ``|Ω·n| = 0``) and on the ENTIRE
+        starting-direction block (its ghost metric is all-zero, so the
+        whole block is metric null space). Delegated per block.
         """
         bulk_space, trace_space = self._require_blocks()
+        seed_space = self._seed_space_for(x)
         return self._rebuild(
             x,
             bulk_space.apply_inverse_metric(x.bulk.values),
             trace_space.apply_inverse_metric(x.boundary.values),
+            None
+            if seed_space is None
+            else seed_space.apply_inverse_metric(
+                x.starting_direction.values  # type: ignore[union-attr]
+            ),
         )
 
     def inner_product(self, x: CompositeField, y: CompositeField) -> float:
         r"""Return the direct-sum inner product
         :math:`\langle x, y\rangle_G = \langle x_{\rm bulk}, y_{\rm bulk}\rangle_{G_{\rm bulk}}
-        + \langle x_{\rm trace}, y_{\rm trace}\rangle_{G_{\rm trace}}`."""
+        + \langle x_{\rm trace}, y_{\rm trace}\rangle_{G_{\rm trace}}
+        \;(+\;0)`.
+
+        A carried starting-direction block contributes EXACTLY zero
+        (all-zero ghost metric) — the term is still evaluated through
+        the leaf space so the accounting is visible, and presence must
+        MATCH between ``x`` and ``y`` (mixed presence is the silent-drop
+        bug class).
+        """
         bulk_space, trace_space = self._require_blocks()
+        x_seed = getattr(x, "starting_direction", None)
+        y_seed = getattr(y, "starting_direction", None)
+        if (x_seed is None) != (y_seed is None):
+            raise ValueError(
+                "FullFieldSpace.inner_product: mixed starting-direction "
+                "presence between the two composite operands — on a "
+                "seed-carrying mesh every composite must carry the block."
+            )
+        seed_term = 0.0
+        if x_seed is not None:
+            seed_space = self._seed_space_for(x)
+            assert seed_space is not None  # narrowed by _seed_space_for
+            seed_term = seed_space.inner_product(x_seed.values, y_seed.values)  # type: ignore[union-attr]
         return (
             bulk_space.inner_product(x.bulk.values, y.bulk.values)
             + trace_space.inner_product(
                 x.boundary.values, y.boundary.values
             )
+            + seed_term
         )
