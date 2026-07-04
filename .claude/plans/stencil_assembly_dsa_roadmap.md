@@ -1,8 +1,9 @@
 # Stencil-assembly + DSA roadmap — k-estimator → spatial reification → DSA (#2)
 
-**Status: IN EXECUTION — Phase 1 opened 2026-07-03 on `refactor/k-estimator-unification`
-(off main @ `3a19133`); rulings R1–R6 COLLECTED (see the Rulings section). Campaign
-chain amended per R1.**
+**Status: IN EXECUTION — Phase 1 COMPLETE, merged to main @ `a4952c3`. Phase 2 opened
+2026-07-04 on `refactor/spatial-promotion-assembly` (off main @ `a4952c3`); the three
+2-P0 dispatches are COMPLETE (distillation in the Phase-2 section); R9 ruled. Rulings
+R1–R9 collected.**
 
 Campaign chain: **Phase 1** k-estimator unification (#259 + #291) → **Phase 2** spatial
 substrate promotion + the ASSEMBLY third mode (#272 + #158 + #253, user ruling below) →
@@ -252,6 +253,75 @@ merged per the checkpoint below):**
   functor; block structure (per-ordinate triangular streaming blocks, moment-coupled
   scattering); whether the (row,col,value) emission wants its own algebraic type.
 
+**2-P0 FINDINGS (2026-07-04, dispatches complete — durable distillation; full reports
+ephemeral):**
+- **Split VERIFIED as drafted; the carve is import-clean**: all five PROMOTE modules have
+  ZERO `orpheus.sn.*` imports (not even TYPE_CHECKING). `pairing.py` = **STAY** (its
+  second argument type `PoleAngularClosureBase` is SN angular machinery; zero production
+  callers — its docstring's "production calls pass…" is a latent-consumer overclaim).
+- `CellVisit` promotes WHOLESALE with scheme.py (its c_in/c_out/tau are plain floats with
+  Cartesian-neutral defaults per #236; graph degree 132). Its "SN-specific by design"
+  docstring paragraph is wording drift — archivist fixes at 2c, NOT in the bit-identical mv.
+- Production imports are direct-module-path ONLY; package-path imports are tests-only
+  (13 files); `sn/__init__` re-exports nothing from spatial. Production rewire list:
+  `solver.py:50-51,1991,2022`; `augmented_mesh.py:57-64`;
+  `loss_representation/__init__.py:138-146,198,2478,2813`; `sweep_graph.py:85-86`;
+  stay-side cross-package imports `scan.py:79`, `sweep_cache.py:109`, `pairing.py:49`.
+- The `_ubld` moment-helper hop (#245 re-export at `_ubld.py:84-87`): cross-package
+  consumers rewire DIRECTLY to `numerics.moment_layout` for
+  `AVERAGE_MOMENT`/`face_moment_tail`; `octant_moment_frame_signs` is genuinely `_ubld`'s.
+- **#253 census: ~20 open-coded sites** (the issue's 5-site list is stale; its
+  `loss_representation.py:802` address is dead). Canonical home
+  `numerics/moment_layout.py` has `face_moment_count`; the CELL-count helper
+  `moment_count(per_axis, ndim)` does NOT exist — mint at promotion. 19-site cell-count
+  migration list + 2 LD face-count bypasses (`linear_discontinuous.py:557,598` hardcode
+  `2**(d-1)`); Kronecker STRIDES (`_ubld.py:154`) and derivations twins exempt.
+- #158 disposition: DD+LD registry-keyed = satisfied for the landed arms. REMAINING:
+  ExponentialCharacteristic; Step (the first real `(False,·)` pairing occupant, needs the
+  LMM 1987 Eq. 5.20 citation); the curvilinear-LD arm (`_require_slab` cites #158).
+  Comment at 2c with a state refresh (its comment-2 file addresses are dead), keep open.
+- Docs blast radius: **169 promote-side xrefs across 7 rst files**. PRE-EXISTING dangles
+  found (fold into the 2c sweep): 23 lines → the retired `sn.spatial.boundary_face_flux`
+  (6 live-role), ~15 stale `tests/sn/spatial/` path refs (files long since in `sweep/`),
+  `cell_balance.py:64-65` stale test pointer (fix at mv).
+- **Test-migration ruling (dependency direction decides):** MOVE to
+  `tests/transport/spatial/` = the 5 solver-independent unit files (`test_affine_closure`,
+  `test_ld_ubld_primitive`, `test_ld_ubld_symbolic`, `test_linear_discontinuous`,
+  `test_scheme_reaction_rate_contract` — zero `orpheus.sn` imports post-rewire). STAY =
+  the SN-integration surface (`test_ld_slope_frame`, `test_moment_axis_predicates`,
+  `test_spatial_moment_field_space` drive `solve_sn`/`SNMesh`; `test_ordinate_scan_reset`,
+  `test_pairing_diffusion_limit`). The `tests/sn/sweep/core/` unit tests STAY
+  (directory-stamped `cap("sweep_core")` + `_c_surrogate` shared with genuine
+  stay-tests) — import rewires only.
+- **Test-architect crux (binds 2b):** NO assembly gate is 0-ULP (CSR summation order ≠
+  einsum order): G1 `assembled@x ≡ apply(x)` at rtol≈1e-11, het + asymmetric-SigS +
+  non-uniform-h configs, non-flat seeded x, never a scalar functional; G2
+  `solve_triangular(assembled L+C) ≡ sweep` at rtol — LAPACK's structural independence
+  EARNS the #284 discharge its L2 status; the triangularity leg
+  `triu(PᵀMP, k=1) == 0` is the one exact structural zero; G3 anti-tautology — once
+  `as_matrix` delegates, the oracle pins the RETAINED probing loop vs assembled (exactly
+  ONE probed≡assembled pin per family); #282 = a POSITIVE back-edge assertion with an
+  actionable message, never xfail; one-source teeth: a monkeypatched sign-flip in the
+  SHARED coefficient source must red BOTH the new gates AND the existing sweep suites
+  (DD = the higher twin risk — fused scalar kernel, no dense block today; LD's apply
+  already consumes `assemble_ubld` blocks). Full spec: test-architect memory L16.
+- **Cross-domain-attacker crux (binds 2b):** `assemble` = the SAME additive-monoidal
+  functor `Op → Mat` (already named in the `as_matrix` docstring) into a sparse carrier —
+  leaves override `assemble()`, composites recurse via the homomorphism laws (Sum→`+`,
+  Product→`@`, Scaled→`*`, TensorProduct→`kron`); `as_matrix` delegates to
+  `assemble().toarray()` when available. The C-ravel order IS the Kronecker factor order
+  — express as the typed product order, don't inherit it silently. Per-ordinate block
+  assembly + lift is math-demanded (triangularity is per-octant; DSA's `R·A·P` becomes a
+  clean triple product on the angle block). NO new emission type (a COO-builder with laws
+  would twin the operator algebra one layer down): scipy.sparse carrier + a thin
+  `SparseAssembledOperator(LinearOperator)` wrapper (`FlattenedOperator`'s parallel);
+  consume the carrier's ravel / `FlattenedOperator` template — NEVER re-derive the
+  local-to-global map (a reified `LocalToGlobalMap` type is DEFERRED until an
+  unstructured consumer — MoC rays / DG connectivity). Negative test: with every leaf
+  `apply` monkeypatched to raise, `assemble()` must still succeed. Diffusion's
+  `LeakageOperator` = the FIRST emitter (small, elliptic, bit-gateable vs the probed
+  matrix; makes the abstraction two-consumer-justified from birth).
+
 ### 2a — Relocation: `sn/spatial/` → `transport/spatial/` (discharges #272)
 Draft split (P0 verifies; verified inventory @ `3a19133`):
 - **PROMOTE** (method-generic trial-space/closure layer): `scheme.py`
@@ -419,6 +489,11 @@ assembly on the same mesh:
   convention, not the eigenproblem's). Rationale: every inner solve poses the
   eigenproblem with ONLY fission scaled by 1/k; the SN/MoC numerator spelling equals
   that eigenvalue only when Σ₂=0 or k=1 (same failure class as #291).
+- **R9 (residual package fate, ruled 2026-07-04)**: **keep the `sn/spatial/` name for
+  the residual this phase** (`pole_angular_closure`, `psi_half_angle_seed`,
+  `sweep_cache`, `scan`, `pairing` — sweep-walk + angular machinery; the name goes stale
+  but Phase 2.5's #280 walk unification owns the sweep-layer layout, and renaming now
+  would churn the same modules twice, incl. 129 stay-side docs refs).
 - **R8 (KEigenvalue seam shape, ruled 2026-07-03)**: **hardwire defaults, drop
   kwargs** — the injection kwargs/aliases/default-factories retire; KEigenvalue
   keeps `compute_keff`/`compute_production_rate` as plain methods (the leakage-
