@@ -75,7 +75,7 @@ def test_ld_slab_mesh_routes_to_cumprod_scan() -> None:
 
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.verifies("ld-cartesian-1d", "ld-slab", "transport-cartesian")
+@pytest.mark.verifies("ld-cartesian-1d", "ld-ubld-d1-reduction", "transport-cartesian")
 def test_sn_1d_slab_ld_mms_converges_second_order() -> None:
     r"""LD SN on a 1-D slab shows measured :math:`\mathcal{O}(h^2)` end-to-end.
 
@@ -222,7 +222,7 @@ def test_ld_curvilinear_scan_rejected() -> None:
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("ld-cartesian-1d", "ld-slab")
+@pytest.mark.verifies("ld-cartesian-1d", "ld-ubld-slope-angular-reduction")
 @pytest.mark.catches("ERR-061")
 def test_ld_thick_diffusive_limit() -> None:
     r"""Thick diffusive slab: LD recovers the diffusion limit (≈ DD interior).
@@ -282,7 +282,7 @@ def test_ld_thick_diffusive_limit() -> None:
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("ld-cartesian-1d", "ld-slab")
+@pytest.mark.verifies("ld-cartesian-1d", "ld-ubld-slope-angular-reduction")
 @pytest.mark.catches("ERR-061")
 def test_ld_thick_diffusive_limit_2g() -> None:
     r"""2G-het companion of the thick-diffusion limit (Mode-6 — group coupling).

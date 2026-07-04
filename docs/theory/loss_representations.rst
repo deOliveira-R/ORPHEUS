@@ -56,6 +56,21 @@ Key Facts
      **schedule** for traversing that triangular structure, not a
      different operator.
 
+   * **A third consumption mode — ASSEMBLE** (stencil-assembly 2b,
+     :ref:`loss-rep-three-modes`). Beside *solve* (sweep) and *apply*
+     (matvec), the same per-cell closure coefficients can be emitted as
+     ``(row, col, value)`` triplets and scattered into a global
+     :mod:`scipy.sparse` matrix —
+     :func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`.
+     The assembler carries **no stencil spelling of its own**: it reads
+     every coefficient by unit probes of the production matvec kernel
+     (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`,
+     exact because the closure is ``is_linear``), so *solve*, *apply*
+     and *assemble* share ONE coefficient source by construction. The
+     assembled block is **lower-triangular in walk order** — the
+     object-level statement that *the sweep IS forward substitution*
+     (the #284 discharge). Cartesian only; curvilinear waits on #282.
+
    * **The four representations**
      (:mod:`orpheus.sn.loss_representation`), each a stateless frozen
      ``@dataclass`` carrying only the mesh:
@@ -143,14 +158,15 @@ WDD difference relations) and :math:`C` is the collision diagonal
    only on faces that are *already known* — the domain inflow, or the
    outflow of strictly-upstream cells. In that ordering the matrix of
    :math:`(L+C)` is **lower-triangular** (block-lower-triangular over
-   groups). A lower-triangular system has two canonical operations,
-   and they are the same operator viewed two ways:
+   groups). A lower-triangular system has **three** canonical
+   consumptions, and they are the same operator viewed three ways
+   (:ref:`loss-rep-three-modes` develops the third):
 
    .. list-table::
       :header-rows: 1
-      :widths: 14 30 30 26
+      :widths: 14 34 26 26
 
-      * - Operation
+      * - Consumption
         - Linear-algebra name
         - S\ :sub:`N` name
         - Code entry
@@ -162,6 +178,10 @@ WDD difference relations) and :math:`C` is the collision diagonal
         - the row action :math:`(L+C)\psi`
         - the **Krylov matvec**
         - ``LossRepresentation.loss_action``
+      * - :math:`ASSEMBLE`
+        - materialize :math:`[L+C]` as ``(row, col, value)`` triplets
+        - the **structural sparse emission**
+        - ``assemble_ordinate_blocks``
 
 This is the **L21 invariant** referenced throughout the SN code: *the
 sweep and the matvec are two actions of the SAME operator* — they are
@@ -533,6 +553,258 @@ pure kernel pair** on
 with the explicit **left fold**
 :math:`((\Sigma_t + s_0) + s_1) + \cdots` as the IEEE-754 reduction
 tree of record (see :ref:`loss-rep-bit-vs-principled`).
+
+
+.. _loss-rep-three-modes:
+
+The three consumption modes — solve, apply, assemble
+====================================================
+
+The native frame gives one triangular operator :math:`(L+C)` with three
+canonical consumptions. *Solve* and *apply* are the two developed by the
+four representations below; **assemble** is the third — realised in the
+stencil-assembly campaign (Phase 2b) — and it is the sharpest expression
+of the L21 invariant, because it emits the *same per-cell coefficients*
+in a third layout and lets a structurally-independent linear-algebra
+routine consume them:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 12 46 42
+
+   * - Mode
+     - Consumer
+     - Walk
+   * - :math:`SOLVE`
+     - the sweep — forward / triangular substitution
+     - cells in walk order
+   * - :math:`APPLY`
+     - the Krylov matvec — the row action
+     - cells in **any** order
+   * - :math:`ASSEMBLE`
+     - emit the SAME coefficients as ``(row, col, value)`` and scatter
+       into a global :mod:`scipy.sparse` matrix
+     - cells in walk order, threading the face rows
+
+The assembler is
+:func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`;
+it lands its output in a numerics carrier,
+:class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`,
+which is a *serialization* of the operator, **not** a fifth
+:class:`~orpheus.sn.loss_representation.LossRepresentation` (the
+operator-algebra view of the assemble functor — the three-layer
+``assemble()`` surface, the composer homomorphism laws, and the
+``as_matrix`` delegation — is documented at
+:ref:`operator-algebra-assembly-axis`). The mode is **Cartesian only**
+in 2b; the curvilinear obstruction is a walk-order back edge (#282,
+below).
+
+The one-source guardrail — assemble reads the coefficients solve/apply read
+---------------------------------------------------------------------------
+
+The load-bearing design constraint is the **Phase-F twin-path lesson**:
+a second spelling of a discretisation is a latent divergence bug, so
+``assemble()`` MUST NOT carry its own copy of the diamond fold, the UBLD
+cell system, or the trace reconstruction. It reads **the same
+coefficient source** ``apply`` reads — for the diffusion emitters, the
+precomputed conductance / closure attributes and the production einsum
+kernels; for the SN block, the scheme's own production matvec kernel
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
+(the identical body ``apply`` runs, fed by the same
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.streaming` raw per-axis
+data). The consequence is that a sign flip *anywhere* in the shared
+kernel algebra moves solve, apply, AND assemble **together** — the
+one-source teeth (:ref:`loss-rep-assembly-verification`) bite by
+construction, with zero parallel spelling to drift. A leaf whose
+``apply`` is monkeypatched to *raise* still assembles: emission and
+action share coefficients, not call paths.
+
+Coefficient extraction by kernel probing
+----------------------------------------
+
+The SN emitter owns no stencil spelling because it recovers every
+coefficient by **unit probes of the production kernel**, exploiting the
+scheme's declared linearity (``is_linear``, which DD and LD both
+assert). The within-cell residual and the outgoing-face reconstruction
+are **affine** in the cell moments :math:`\bar\psi`, the inflow face
+traces :math:`\psi^{\rm in}_b`, and the source :math:`\bar Q`:
+
+.. math::
+
+   r \;=\; \bar A\,\vec\psi \;-\; \sum_b C_b\,\psi^{\rm in}_b \;-\; \bar Q,
+   \qquad
+   \psi^{\rm out}_a \;=\; T_a\,\vec\psi \;+\; \sum_b \alpha_{ab}\,\psi^{\rm in}_b .
+
+Because these maps are affine, a **unit** input reads a coefficient
+block *exactly* — there is no summation error to accumulate, so the
+extraction is not a fit but an algebraic identity:
+
+* a cell probe :math:`\bar\psi = e_m \otimes \mathbf{1}_{\rm cells}` (one
+  per cell-moment slot) returns column :math:`m` of the per-cell
+  diagonal block :math:`\bar A` (in :math:`r`) and column :math:`m` of
+  the outgoing-trace map :math:`T_a` (in :math:`\psi^{\rm out}_a`);
+* a face probe :math:`\psi^{\rm in}_b = e_f \otimes \mathbf{1}_{\rm cells}`
+  (one per face-moment slot) returns :math:`-` column :math:`f` of the
+  inflow coupling :math:`C_b` and column :math:`f` of the face-memory
+  map :math:`\alpha_{ab}`.
+
+The **same** extraction serves every batched-kernel closure. DD's scalar
+faces give :math:`1\times1` blocks — :math:`\bar A` is the diamond
+denominator, :math:`C` the :math:`2|\mu|/\Delta x` coupling,
+:math:`T = 1/w = 2`, and :math:`\alpha = -1`, the face **memory** that
+makes DD's assembled block carry dense upstream chains. LD's bilinear
+faces give the :math:`2^d\times 2^d` UBLD cell system with an **upwind**
+outgoing trace, so :math:`\alpha = 0` — no memory, a block tri-diagonal
+sparsity. The moment stride is the #253 single-sourced
+``cell_moment_count`` / ``face_moment_count`` (DD's ``cm = 1``
+degenerates to the plain cell ravel).
+
+The walk-order triangularity theorem
+------------------------------------
+
+With the blocks in hand, the emitter walks the octant's
+:class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`
+in the **same topological order** the sweep and matvec use, carrying per
+in-flight face its trace **row block** — the face trace's linear map
+from the bulk DOFs (a dense :math:`(f_m, n_{\rm dof})` matrix; a boundary
+inflow face is the zero block, the zero-inflow posing below). Per cell
+:math:`c`:
+
+.. math::
+
+   \operatorname{rows}(c) \;=\; \bar A_c\,E_c \;-\; \sum_b C_{b,c}\,R^{\rm in}_b,
+   \qquad
+   R^{\rm out}_a \;=\; T_{a,c}\,E_c \;+\; \sum_b \alpha_{ab,c}\,R^{\rm in}_b,
+
+where :math:`E_c` selects cell :math:`c`'s own DOF columns. Each cell's
+rows depend only on **already-emitted** upstream face rows, so the
+assembled block is **(block-)lower-triangular in walk order** — which is
+the object-level content of the theorem *the sweep IS forward
+substitution*. This is precisely #284's sweep-inverse question, answered
+as a matrix fact: on the source subspace (bulk source, zero inflow trace
+— every production right-hand side today) the production sweep and
+LAPACK's triangular back-solve are the *same* linear map. The all-zero
+degenerate label (a pure-:math:`z` ordinate over a lower-dimensional
+mesh — the :math:`Q/\Sigma_t` short-circuit) has no graph and no face
+threading; its block is the cell-probe diagonal alone.
+
+The two face closures print two triangular shapes: DD's :math:`\alpha=-1`
+memory propagates each face row down the whole upstream chain (dense
+lower-triangular in 1-D — the honest matrix of the marching
+reconstruction; per-axis chains, :math:`O(n_x+n_y)` per row, in 2-D);
+LD's :math:`\alpha=0` upwind trace forgets, giving a block tri-diagonal
+matrix.
+
+The sweep ⇄ global moment-frame conjugation
+-------------------------------------------
+
+A multi-moment closure (LD) produces and consumes its :math:`2^d` moment
+vector in the per-ordinate **sweep frame** (each axis oriented so the
+downstream face is at local :math:`+1`), but the assembled block must be
+the operator over the **global**-frame bulk field. The walks convert
+with the single-sourced sign involution
+:func:`~orpheus.transport.spatial._ubld.octant_moment_frame_signs`
+(:eq:`ld-ubld-octant-moment-frame-signs`), and the assembler applies the
+*same* involution as a similarity conjugation of the whole block,
+
+.. math::
+
+   M_{\rm global} \;=\; \Phi\,M_{\rm sweep}\,\Phi,
+   \qquad
+   \Phi \;=\; \operatorname{diag}\bigl(\text{signs per cell}\bigr),
+
+with :math:`\Phi` the per-DOF sign vector tiled over cells (``None`` for
+a single-moment closure, where the sweep and global frames coincide and
+the conjugation is the identity). This is the assembly-mode analogue of
+the ERR-061 root cause: the slope moment must be lifted to the global
+frame *before* it enters a frame-agnostic consumer, whether that
+consumer is the scattering source (:eq:`ld-ubld-slope-angular-reduction`)
+or, here, the global sparse matrix.
+
+Zero-inflow posing — the trace coupling is a separate block
+-----------------------------------------------------------
+
+The per-ordinate block emits the bulk-to-bulk action :math:`A_{bb}` at
+**zero boundary inflow**: the Cartesian :math:`L+C` is per-ordinate,
+per-group block-diagonal on the bulk (no angular or energy coupling
+lives in it), and the trace coupling :math:`A_{bs}` — the inflow seed —
+is a *separate composite block* deliberately NOT emitted here. Every
+consumer of this block (the triangularity gates, the #284
+forward-substitution discharge, DSA's :math:`R\,A\,P` moment reduction
+for #2 / #200) poses the problem at zero inflow, so the bulk block is
+exactly what they need; the boundary law :math:`B` is the sibling
+operator that supplies the trace coupling in the full
+:math:`(L+C-S-F-B)` algebra (:doc:`operator_algebra`).
+
+.. _loss-rep-assembly-cartesian-scope:
+
+Cartesian-only scope and the #282 back edge
+-------------------------------------------
+
+The per-ordinate block factorisation exists only in Cartesian geometry.
+A curvilinear ordinate couples its angular neighbour through the
+Morel–Montry half-angle closure, and the lagged :math:`\psi_{1/2}` pole
+seed is precisely a **walk-order back edge**: the seed row reads
+*later*-ordinate columns, so no cell ordering makes the block triangular.
+The mesh enforces the scope honestly —
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.streaming` is the Cartesian
+gate the assembler consumes.
+
+Rather than hide the obstruction, 2b **characterises it positively**: a
+gate probes the spherical within-group operator from the production
+matvec (well-defined on a sphere; only the sweep's inversion lags) and
+asserts the back edge is present (``np.any(triu ≠ 0)``), never an
+``xfail`` (L16 discipline — a silent xfail cannot alert on repair). The
+cylinder control shows exact triangularity (its :math:`\alpha`-dome
+telescopes the seed away). When the closed starting-direction solve of
+Hébert §3.432–3.435 lands (#282), that gate flips RED and is rewritten
+as a triangular sphere gate — the doc-level tripwire for curvilinear
+assembly.
+
+.. _loss-rep-assembly-verification:
+
+Verification — the gates and the #284 discharge
+-----------------------------------------------
+
+The assembly mode is pinned by three gate families (in
+``tests/sn/sweep/test_assembly_mode.py`` and the diffusion
+``TestAssemblyMode`` class in ``tests/diffusion/test_operators.py``):
+
+* **G1 — object-level matvec equivalence.** ``assembled @ x ≡ apply(x)``
+  per ordinate × group × geometry, on heterogeneous, non-uniform-mesh,
+  :math:`\ge 2`-group fixtures with a non-flat seeded random :math:`x`.
+  It is compared at ``rtol ≈ 1e-11`` (never ``array_equal`` — the CSR
+  duplicate-summing order differs from ``apply``'s grouping — and never a
+  scalar functional, whose invariance group could hide a block error,
+  vv Mode 12); the measured agreement is :math:`\sim 6\times10^{-16}`.
+* **G2 — the #284 discharge.**
+  ``scipy.linalg.solve_triangular(PᵀMP, Pᵀq) ≡ (L+C).solve(q)``. LAPACK's
+  ``dtrtrs`` is a **structurally independent** forward substitution — it
+  is not the ORPHEUS sweep recurrence — so its agreement (again
+  :math:`\sim 6\times10^{-16}`) *earns* the L2 cross-check status and
+  discharges #284 at the object level: on the source subspace the sweep
+  IS forward substitution on the walk-order-triangular matrix. The
+  triangularity leg ``triu(PᵀMP, 1) == 0`` is the one **exact**
+  (0-tolerance) assertion in the family — triangularity is a structural
+  zero, not a numerical near-zero.
+* **One-source teeth.** A sign flip monkeypatched into the *shared*
+  coefficient source (``_cartesian_streaming_diagonal`` for SN,
+  ``_interior_conductance`` / ``_boundary_closure`` for diffusion) must
+  move the sweep, the matvec, AND the assembly together: both absolute
+  values leave their hand-posed baselines :math:`O(1)` while the
+  cross-mode equivalence *persists*. Divergence under a shared-source
+  mutation would be the twin-path signature — a STOP-and-catalogue
+  condition.
+
+For diffusion the same discipline holds bit-for-bit where the reduction
+order matches: the probed-versus-assembled densification (the retained
+fuller-view pathway, :ref:`operator-algebra-assembly-axis`) measured a
+max :math:`|\Delta| = 0.0` on the heterogeneous fixture, and the
+production resolvent
+(``MatrixInverseOperator(FlattenedOperator(A, template))``) now
+LU-factors the assembled matrix automatically through the ``as_matrix``
+delegation — the entire existing diffusion suite becomes the assembled
+path's regression net.
 
 
 .. _loss-rep-four:
@@ -1905,17 +2177,34 @@ remaining valid theory) — survives in two realisations: the rolling
 :ref:`wavefront-flux-cochain` is **kept**; its derivation is preserved as
 the theory of both realisations.
 
-The deferred extension point
-----------------------------
+The realised extension point (2b)
+---------------------------------
 
-The designed-but-deferred fifth representation is an **ExplicitMatrix**:
-the sparse-assembled :math:`(L+C)`, whose ``sweep`` is
-``scipy.sparse.linalg.spsolve_triangular``. It is the proof that the
+The designed-but-deferred fifth representation *was* envisioned as an
+**ExplicitMatrix**: the sparse-assembled :math:`(L+C)`, whose ``sweep``
+would be a triangular direct solve. It was expected to prove that the
 representation abstraction is genuinely a *set of schedules over one
 operator* — an assembled lower-triangular matrix is the most literal
-realisation of the native frame. It slots into the registry with one
-``supports`` predicate when a use case (e.g. a teaching demonstration of
-the triangular structure, or a direct-solve cross-check) motivates it.
+realisation of the native frame.
+
+Stencil-assembly 2b **realised that reasoning**, but *not* as a fifth
+:class:`~orpheus.sn.loss_representation.LossRepresentation`. The assembled
+matrix landed instead as the third **consumption mode**
+(:ref:`loss-rep-three-modes`) — a numerics carrier
+:class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`
+emitted by
+:func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`
+— rather than a new schedule in the registry, because assemble **reuses**
+the four schedules' machinery (it walks the same
+:class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`)
+rather than adding a fifth traversal. There was no fifth ``supports``
+predicate to write. And the anticipated *direct-solve cross-check* is
+exactly the G2 gate: ``scipy.linalg.solve_triangular`` on the assembled
+walk-order-triangular matrix reproduces the production sweep at
+:math:`\sim 6\times10^{-16}`, discharging #284 at the object level
+(:ref:`loss-rep-assembly-verification`). The teaching use case — a
+literal display of the triangular structure — is served by the carrier's
+``matrix`` attribute / ``as_matrix()`` directly.
 
 
 Literature

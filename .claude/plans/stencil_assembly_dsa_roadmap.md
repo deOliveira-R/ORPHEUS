@@ -407,6 +407,56 @@ Draft split (P0 verifies; verified inventory @ `3a19133`):
      equivalence gate and (via the shared source) the sweep gates — proving there is
      ONE source. If only the equivalence gate reds, a twin path exists → stop, fix.
 
+**2b STATUS — COMPLETE (2026-07-04):**
+- Commit chain: `83a0db7` (numerics home) → `3238651` (diffusion emitters) →
+  `ba26644` (SN closure-generic walk + gates). Design contract:
+  `.claude/plans/assembly_mode_crosswalk.md` (the L16-cited convention file).
+- `83a0db7`: `SparseAssembledOperator` (CSR carrier, flat-1-D apply, exact
+  transpose, densifying `as_matrix`, idempotent `assemble`; COO duplicate-sum =
+  the FEM scatter); the assembly axis joins inverse/adjoint as the third
+  three-layer surface (`is_assemblable` / `SupportsAssembly` / `assemblable()`;
+  `MissingAssembly` refusal); composer laws Sum→`+` Product→`@` Scaled→`*`;
+  **R2 realized**: the probing loop extracted byte-identical to
+  `_as_matrix_by_probing` (the retained fuller-view pathway), `as_matrix`
+  delegates to densified assembly when assemblable; `FlattenedOperator`
+  passthrough. Cast ledger +1 (the scipy `.shape → None` inline-typing gap,
+  one documented boundary freeze).
+- `3238651`: every diffusion loss leaf emits (L direct-structural from the
+  SAME precomputed conductance/closure attributes; B via law-probing; C the
+  coefficient array bit-exact; S/N2N by group-impulse probing through the
+  production einsum kernels — `dense_per_material` stays the untouched L11
+  oracle); the production resolvent materializes THROUGH assembly (Mode-11
+  dimension-discriminating sentinel: law-sized probes expected,
+  composite-sized forbidden); trace DOF numbering single-spelled
+  (`_trace_dof_columns`). Probed≡assembled measured BIT-IDENTICAL on the het
+  fixture (max |Δ| = 0.0, nnz 50 = 50); gates at the ruled nulp/rtol anyway.
+- `ba26644`: the SN per-ordinate walk assembler — ONE generic body for DD and
+  LD (**coefficient extraction by unit probes of the production
+  `residual_kernel_batch`**, valid by `is_linear`; zero stencil spelling to
+  drift ⟹ the one-source teeth hold by construction); the #253 moment counts
+  as DOF strides; `octant_moment_frame_signs` conjugates sweep→global frame
+  (the LD negative-octant lesson — raw sweep-frame blocks are wrong by slope
+  signs); `ordinate_walk_order` = the gates' P.
+- Gate results: **G2 = the #284 discharge** — LAPACK forward substitution ≡
+  the production sweep at ~6e-16 (DD slab + 2-D; LD via LU), triangularity
+  EXACT; **#282 characterized** — the spherical back edge positively asserted
+  (probe-matrix `triu ≠ 0` in sweep order, loud-flip message; cylindrical
+  control exactly triangular); one-source teeth green on the 2-D fixture
+  (all three modes move together, equivalences persist).
+- Deviations, all deliberate: (1) DD+LD landed as ONE closure-generic walk
+  (plan had them as separate emitters) — the batched-kernel contract made the
+  block walk subsume DD as `cm = 1`; (2) the sparse-LU resolvent switch NOT
+  taken (the roadmap's \"optionally\"; probing→assembled-LU already landed via
+  the delegation); (3) no O(N)-probe twin test gates existed to replace (the
+  640s gate was already retired) — nothing to swap; (4) SN gates live at
+  `tests/sn/sweep/test_assembly_mode.py` (dependency direction — they drive
+  SNMesh/solve; supersedes L16's `tests/transport/spatial/` placement note),
+  diffusion gates beside the stencil gate they extend.
+- Parked for later phases: TensorProduct→kron law (no 2b consumer);
+  per-octant batched emission (a vectorization for the first large-scale
+  consumer); `Identity`/`Zero`/`Diagonal` leaf assembly (defer-until-consumer);
+  the #242 dual-form diagonal seam noted in the teeth docstring.
+
 ### 2c — Docs + close-out
 - Theory: `loss_representations.rst` / `discrete_ordinates.rst` — the three-modes
   section (solve/apply/assemble as consumption modes of one closure algebra);

@@ -184,9 +184,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 @dataclass(frozen=True, slots=True)
 class CellVisit:
-    r"""One visit to one cell during an SN sweep.
+    r"""One visit to one cell during a transport sweep.
 
-    The SN sweep is a topological sort of the **directed cell graph**
+    A cell-graph transport sweep (S\ :sub:`N` is the producer today) is
+    a topological sort of the **directed cell graph**
     for a given ordinate, where edges are oriented by
     :math:`\mathrm{sign}(\Omega \cdot \hat n_{\text{face}})`.  This
     dataclass is the per-visit packet a
@@ -195,14 +196,22 @@ class CellVisit:
     upstream/downstream view of this cell, never the geometric
     inner/outer view.
 
-    SN-specific by design.  Produced by
-    :meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`.  MoC will
-    define its own analog (per-ray traversal) — different DAG shape,
-    different mathematical structure (fiber bundles + solution
-    sheaves rather than a topological sort over a cell graph).
-    Premature abstraction across SN/MoC is avoided per Cardinal Rule
-    2 — there is no shared ``SweepGraph`` Protocol because there is
-    no shared structure.
+    A **transport-layer** per-cell visit packet — method-generic, not
+    SN-only.  It lives in :mod:`orpheus.transport.spatial`, and its
+    sweep-resolved angular-closure fields are plain floats with
+    **Cartesian-neutral defaults** (:attr:`c_in` / :attr:`c_out`
+    ``= 0.0``, :attr:`tau` ``= 1.0``), so a cell-graph sweep in
+    Cartesian geometry populates only ``cell_idx`` +
+    ``streaming_terms`` and inherits the neutral rest.  SN's mesh is
+    the producer today
+    (:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` stamps
+    it); any other cell-graph transport method may stamp the same
+    packet.  MoC is deliberately **not** such a consumer — its
+    per-ray traversal has a different mathematical structure (fiber
+    bundles + solution sheaves rather than a topological sort over a
+    cell graph), so there is no shared ``SweepGraph`` Protocol; the
+    abstraction stays minimal per Cardinal Rule 2, spanning only the
+    cell-graph-sweep family that actually shares this packet, no wider.
 
     Attributes
     ----------

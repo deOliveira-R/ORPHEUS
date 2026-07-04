@@ -2364,7 +2364,7 @@ The first concrete strategy is
 (:mod:`orpheus.transport.spatial.diamond`).  It implements the **same**
 algebra as the existing inlined sweep — Round 2 of Wave C is a
 bit-identical extraction, gated by ``np.array_equal`` hand-calc tests
-in ``tests/sn/spatial/test_diamond.py`` against the sweep's scalar
+in ``tests/sn/sweep/core/test_diamond.py`` against the sweep's scalar
 formulas at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``).
 
 Per Wave C decision **D5** (one geometry-polymorphic class), the
@@ -6627,7 +6627,7 @@ Eqs. 3.428 + 3.437/3.439 — exact when :math:`\psi` is constant in
 angularly-varying :math:`\psi`.  Phase B lifts this evaluation into
 a :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
 strategy ABC — analogous to Phase A's
-:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux` —
+``BoundaryFaceFlux`` —
 and ships **three concrete strategies** trading off bit-identity,
 flat-flux invariance, and asymptotic accuracy:
 
@@ -6808,7 +6808,7 @@ Sweep-frame apply matvec (Issue #168 Phase C)
      :math:`0`. The Carlson seed is the unique anchor that preserves
      the per-ordinate flat-flux invariant under the WDD recurrence.
    * Phase A's
-     :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+     ``BoundaryFaceFlux``
      Protocol (415 LOC + 21 foundation tests) **retires entirely**
      — the boundary-face closure is now inside the WDD propagation
      chain, owned by the BC trace law at the boundary edge.
@@ -6854,11 +6854,11 @@ resumed:
    over the cell-visit DAG, with the BC trace law at the boundary
    edge owning the inflow trace.
 3. The Phase A
-   :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+   ``BoundaryFaceFlux``
    Protocol — built to second-order-accuratise the curvilinear
    outer face — was re-classified as **a patch on top of the wrong
    architecture**. Phase A's
-   :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`
+   ``DDExtrapolation``
    produces a face-flux extrapolant
    :math:`\psi^{\text{face}}_{N-1/2} = \tfrac{3}{2}\,\psi_{N-1} -
    \tfrac{1}{2}\,\psi_{N-2}` that ignores the BC entirely; Phase B's
@@ -7050,7 +7050,7 @@ What retires
 ^^^^^^^^^^^^
 
 Phase A's
-:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+``BoundaryFaceFlux``
 Protocol — five symbols, the
 :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` field, and the 21 foundation
 tests — retires entirely. The architectural reasoning is "two paths
@@ -7693,7 +7693,7 @@ Phase B's ``pole-mm-recurrence`` label (:eq:`pole-mm-recurrence`)
 xpass, the canonical Hébert §3.9.4 angular recurrence is exercised
 by the apply matvec and pinned by an L1 test chain. Through Phase C
 the label remains tested only via the Phase B foundation suite
-(:file:`tests/sn/spatial/test_pole_angular_closure.py`); the L1
+(:file:`tests/sn/sweep/curvilinear/test_pole_angular_closure.py`); the L1
 upgrade is Phase D's responsibility.
 
 Empirical Gate 1.1 finding: spherical-vs-cylindrical structural asymmetry
@@ -7813,7 +7813,7 @@ ERR-026 closure status (Phase C — sweep-frame matvec aligned)
 Phase C ships the architectural alignment — sweep-frame matvec
 with WDD spatial closure + BC trace law at the boundary edge +
 retired Phase A
-:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+``BoundaryFaceFlux``
 Protocol — but per the empirical Gate 1.1 finding above the
 curvilinear default stays
 :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
@@ -8120,7 +8120,7 @@ cell centre :math:`\rightarrow \ldots \rightarrow` pole face
    as source-of-truth.  The
    ``@pytest.mark.verifies("hebert-3-43X")`` wiring on the L0
    algebraic-identity tests in
-   :file:`tests/sn/spatial/test_psi_half_angle_seed.py` is tracked
+   :file:`tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py` is tracked
    at Issue #194; without that wiring the labels appear in the V&V
    audit as "documented but not tested" (orphan labels).
 
@@ -8814,7 +8814,7 @@ The full Phase D footprint (per the closeout memo at
 * :mod:`orpheus.sn.spatial.psi_half_angle_seed` — Protocol family
   + ABC + 2 strategies (:class:`ZeroSeed` + :class:`CarlsonInwardSweep`)
   + :class:`CarlsonSweepContext` dataclass.
-* :file:`tests/sn/spatial/test_psi_half_angle_seed.py` — 25
+* :file:`tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py` — 25
   foundation + L0 + L1 tests covering Protocol conformance,
   registry/self-registration, immutability, shape contract,
   bit-identity for :class:`ZeroSeed`, L0 algebraic identities
@@ -9440,7 +9440,7 @@ Files touched by Phase F
   ``@pytest.mark.catches("ERR-026")`` — see
   :ref:`sn-phase-f-test-wiring` for the proposed extension to
   the Phase F equation labels.
-* :file:`tests/sn/spatial/test_sweep_vs_apply_consistency.py` —
+* :file:`tests/sn/sweep/core/test_sweep_vs_apply_consistency.py` —
   NEW file, **57 foundation tests** pinning:
 
   #. Apply-path vs sweep-path Carlson seed bit-equivalence on
@@ -19487,6 +19487,33 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-07-04
+     - **The assembly mode landed — the sweep's per-cell closure algebra
+       emitted a third way, as a sparse matrix** (stencil-assembly
+       campaign, Phase 2b). Beside *solve* (sweep) and *apply* (matvec),
+       the same per-ordinate ``L(+C)`` coefficients are emitted as
+       ``(row, col, value)`` by a **closure-generic symbolic walk** of the
+       :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`
+       (:func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`;
+       DD + LD). The emitter owns **no** stencil spelling — it extracts
+       every coefficient by unit probes of the production kernel
+       (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`,
+       exact by ``is_linear``), so solve/apply/assemble share ONE source;
+       the LD multi-moment block is conjugated sweep→global by the
+       :func:`~orpheus.transport.spatial._ubld.octant_moment_frame_signs`
+       involution (:eq:`ld-ubld-octant-moment-frame-signs`). The assembled
+       block is lower-triangular in walk order, so LAPACK
+       ``solve_triangular`` reproduces the production sweep at
+       :math:`\sim 6\times10^{-16}` — **#284 discharged object-level** (the
+       sweep IS forward substitution on the source subspace). Curvilinear
+       assembly stays OUT (**#282 characterized** as a walk-order back
+       edge — the lagged pole seed reads later-ordinate columns). Numerics
+       carrier + three-layer ``assemble()`` surface + composer laws land
+       in :doc:`operator_algebra`; every diffusion loss leaf emits and the
+       resolvent runs assembled (bit-identical). See
+       :ref:`loss-rep-three-modes`.
+     - #272 #284
+     - ``refactor/spatial-promotion-assembly`` *(in development)*
    * - 2026-07-03
      - **The unified k-estimator law: the reported :math:`k` IS the
        eigenvalue of the fixed-source map every method scales only

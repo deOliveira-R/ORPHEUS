@@ -46,7 +46,7 @@ THETA = 1.0 / 3.0
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("ld-cartesian-1d", "ld-slab")
+@pytest.mark.verifies("ld-cartesian-1d", "ld-ubld-slope-angular-reduction")
 @pytest.mark.catches("ERR-061")
 def test_ld_slope_moment_global_frame_consistency() -> None:
     """Forward and backward ordinates store the SAME-sign global-x slope.

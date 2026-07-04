@@ -72,8 +72,11 @@ def pair_diffusion_limit_consistent(
     ``beta_first_order_consistent = True``, not by a branch here).
 
     Both arguments are read for a class-level trait only, so either the class or
-    an instance may be passed; production calls pass the instances
-    ``mesh.scheme`` and ``mesh.pole_angular_closure``.
+    an instance may be passed.  This is the validity predicate for a
+    ``(scheme × closure)`` pair; it is currently exercised by its tests
+    (``tests/sn/spatial/test_pairing_diffusion_limit.py``) — production wiring of
+    the check (against the instances ``mesh.scheme`` / ``mesh.pole_angular_closure``
+    at mesh construction) is pending, so it has no production call site today.
 
     Parameters
     ----------

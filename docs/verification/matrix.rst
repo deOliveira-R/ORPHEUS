@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6203**
+Total tests collected: **6251**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1170, 18.9%
-   L1, 1065, 17.2%
-   L2, 49, 0.8%
+   L0, 1186, 19.0%
+   L1, 1065, 17.0%
+   L2, 53, 0.8%
    L3, 0, 0.0%
-   foundation, 3909, 63.0%
-   unmarked, 10, 0.2%
+   foundation, 3916, 62.6%
+   unmarked, 31, 0.5%
 
 Tagging source
 --------------
@@ -32,12 +32,12 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6114
+   explicit, 6141
    verify, 0
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 10
+   unmarked, 31
 
 Module × level grid
 -------------------
@@ -223,7 +223,7 @@ Module × level grid
    diffusion/test_boundary_realizer, 4, 0, 0, 0, 27, 0
    diffusion/test_continuous_reference, 0, 7, 0, 0, 0, 0
    diffusion/test_mms, 0, 2, 0, 0, 0, 0
-   diffusion/test_operators, 8, 0, 0, 0, 22, 0
+   diffusion/test_operators, 17, 0, 0, 0, 22, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    diffusion/test_solver, 0, 0, 3, 0, 15, 0
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
@@ -277,6 +277,7 @@ Module × level grid
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
+   numerics/test_assembled_operator, 0, 0, 0, 0, 0, 21
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 4, 0
@@ -396,8 +397,9 @@ Module × level grid
    spatial/test_pairing_diffusion_limit, 0, 0, 0, 0, 6, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
+   sweep/test_assembly_mode, 7, 0, 4, 0, 5, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 311, 0
+   test_layer_imports, 0, 0, 0, 0, 313, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -584,7 +586,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``dd-slab-scalar``, 4
    ``en-kernel-integral``, 4
    ``hebert-3-323``, 4
-   ``ld-slab``, 4
    ``loss-rep-LpC``, 4
    ``macro-sum``, 4
    ``peierls-greens-V-alpha-1``, 4
@@ -601,6 +602,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``delta-psi``, 3
    ``hetero-tolerance``, 3
    ``isotropic-source``, 3
+   ``ld-ubld-slope-angular-reduction``, 3
    ``moc-keff-update``, 3
    ``moc-mms-psi-ref``, 3
    ``moc-mms-qext``, 3
@@ -648,6 +650,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``branching``, 1
    ``collision-estimator``, 1
    ``e1-decomposition``, 1
+   ``ld-ubld-d1-reduction``, 1
    ``majorant``, 1
    ``moment-projection-transpose-T``, 1
    ``nm1980-eq15-critical-condition``, 1
@@ -693,7 +696,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **112** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **110** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -743,7 +746,6 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``ld-cartesian-2d-face-slot-shape``
 - ``ld-cartesian-2d-projection-coeff``
 - ``ld-ubld-cell-system``
-- ``ld-ubld-d1-reduction``
 - ``ld-ubld-divv-scale-free-kernel``
 - ``ld-ubld-exact-on-bilinear``
 - ``ld-ubld-kronecker-assembly``
@@ -757,7 +759,6 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``ld-ubld-s2-s3-operators``
 - ``ld-ubld-scale-free-invariants``
 - ``ld-ubld-scattering-moment-lift``
-- ``ld-ubld-slope-angular-reduction``
 - ``ld-ubld-unified-moment-residual``
 - ``ld-ubld-weak-form``
 - ``loss-rep-affine``
@@ -1172,7 +1173,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
 Unmarked tests
 --------------
 
-**10 tests** have no V&V level marker.
+**31 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1184,6 +1185,7 @@ equations. See ``docs/testing/architecture.rst``
    :header: File, Unmarked tests
    :widths: 60, 10
 
+   ``tests/numerics/test_assembled_operator.py``, 21
    ``tests/derivations/test_atkinson_product_nystrom.py``, 3
    ``tests/derivations/test_fn_projection_vs_kll_flux.py``, 2
    ``tests/sn/sweep/core/test_cell_kernel_batch.py``, 2
