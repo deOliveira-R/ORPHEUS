@@ -643,6 +643,59 @@ distillation; full memos in agent memory)
   cell order fwd/reversed, boundary in↔out swap, Carlson mirror routing, the
   angular_adjoint second factor). Proof = frozen-baseline array_equal both
   orientations + the new spy/AST-tripwire pins + all forward canaries green.
+
+  **2.5a STATUS — COMPLETE (2026-07-04): `b1a4c78` → `1cf07ed` → `c439ed1`.**
+  - `b1a4c78` (the fold — bit-identical BOTH orientations): the frame =
+    `_WalkLeg` (one (μ-level × direction) chain: within/ordinates/abs_mu
+    bundles + cells in traversal order) + `_dag_legs()` (DEPENDENCY order —
+    all −1 legs then all +1; the ±eps masks + `dag_walk_cell_indices` order
+    materialize ONCE for both orientations; `_MU_DIRECTION_EPS` single-
+    sources the direction trichotomy) + `_reverse_traversal()` (exact
+    reverse-mode order; the pole edge reverses with it) +
+    `_OneDimScanWalk._loop_walk(legs, *, open_leg, visit, close_leg)` (the
+    `_OctantWalk._interior_walk` sibling) + `_degenerate_positions()`.
+    Kernels stayed VERBATIM closures. The adjoint's leg schedule re-nested
+    per-level (+1,−1) → the exact reverse — value-identical (disjoint leg
+    slots; level-local mirror handoff), held 0-ULP on the frozen baselines
+    under `-W error::DriftWarning`. New pins
+    `tests/sn/sweep/core/test_one_dim_loop_walk.py`: wrap-spy (both
+    orientations execute the ONE `_loop_walk`, slab+sphere), AST tripwire
+    (octant ∪ orientation smell sets), the reversal law, the dependency
+    order, the leg/degenerate trichotomy partition. Teeth dev-verified
+    in-process (monkeypatch): M1 cells-unreversed → adj moves O(10) all
+    geometries, fwd untouched; M2 legs-unreversed → slab adj BIT-IDENTICAL
+    while sphere/cyl move O(10) — the geometry-selective pole-handoff
+    discriminator, exactly the DAG analysis's prediction.
+  - `1cf07ed` (**ERR-066** fix-now, the FLAG-2 silent-garbage class, found
+    while carving): `loss_action_transpose` had NO degenerate volumetric
+    branch — `.H.apply` on any 4|n_phi product-quad cylinder (the DEFAULT
+    `product(8,8)` included; φ = π/2, 3π/2 ⇒ |μ_x| ≈ 6e-17) silently
+    DROPPED those rows; every cylinder gate rode `level_symmetric` (empty
+    degenerate class — vv Mode 7 in the QUADRATURE dimension). Fix = the
+    degenerate reversal block in the frame (a `_degenerate_positions`
+    consumer; zero participation on empty class → all baselines bitwise).
+    Gate = the `cyl_product_2g` G-reciprocity row (`_make_cyl_product`;
+    RED O(1) pre-fix → GREEN rel<1e-12 post-fix, dev-verified in that
+    order) + `catches("ERR-066")`; catalog entry appended.
+  - `c439ed1` (the S0-deferred multi-D predicate honesty, resolved in the
+    frame design): `is_adjointable = scheme.has_transpose_kernel ∧
+    rep.has_transpose_walk` — the predicate FACTORIZES along the #280
+    kernel×orientation axes. New protocol property `has_transpose_walk`
+    (base opt-in False; CumprodScan True; ScanMarch mesh-keyed 1-D/2-D;
+    the DAG-wavefront family inherits False). Eager `.H` on DD cart2d now
+    raises MissingAdjoint at CONSTRUCTION; the representations' loud
+    raises stay the direct-Euclidean-call backstop (the S0.1 layering).
+    `TestMultiDOrientationHonesty` pins; deferral file 17/17.
+  - Walls: sn+transport+numerics **3170/0** (~9 min serial); pyright CLI =
+    1 throughout (the accepted #288 residual). Scope note: the angular
+    SECOND factor stays method-level in both orientations (forward:
+    `psi_state` precompute + in-visit `cell_contribution`; adjoint:
+    in-visit `numer_bar` accumulation + ONE `angular_adjoint` close) — the
+    loop frame unifies the SPATIAL march; the closure delegation was
+    already single-sourced (never re-inlined, ERR-058/#195).
+  - NEXT per R10: **2.5d** — the #282 direct starting-direction seed +
+    carrier augmentation, landing ONCE on this unified frame; the
+    curvilinear baseline rows re-capture there (Cartesian stays bitwise).
 - **2.5b — `sweep_transpose` as the REVERSE-SCAN** (re-baseline, NOT bit-id):
   the transposed affine recurrence over the reversed chain, coherent with
   `_run`. Gates: G1 round-trip + G2 dense-`Mᵀ` (SPHERE keystone; iterate-thread
