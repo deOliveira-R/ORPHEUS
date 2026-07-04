@@ -108,10 +108,44 @@ sites:**
   estimator-injection seam is DEAD in production — retirement candidate (3-search
   audit; rewire-not-delete for behavioral tests).
 
+**P0 findings (explorer, 2026-07-03 — durable distillation; full report ephemeral):**
+- Single production consumer of ALL six sites = `power_iteration`
+  (`numerics/eigenvalue.py:225,228`). SN's flux trajectory + fixed point are
+  estimator-INDEPENDENT (unit-production renormalization cancels the k scaling) ⟹
+  #291 shifts the REPORTED k only; `converged()` consumes dk — unaffected.
+- NO tight vacuum absolute-k anchor exists in tests/sn; every SN k assertion consumes
+  the `compute_keff` functional (no `direct_eigenvalue` use outside
+  tests/homogeneous + tests/diffusion — the P1.4 cross-engine gate fills a real gap).
+  Movers under the fix: `tests/sn/eigenvalue/test_keff_curvilinear.py:757-792`
+  (P1-effect band — re-measure), `:794-827` (ordering, wide margin — re-measure);
+  `tests/sn/operators/test_boundary_conditions.py:145-200` STRENGTHENS. All
+  reflective anchors unmoved (leakage ≡ 0 ⟹ the fixed functional degenerates to P/A).
+- n2n fork → R7: SN numerator +2Σ₂ (`sn/solver.py:959-964`) over Σa incl.
+  rowsum(Σ₂) (`data/macro_xs/mixture.py:111`); MoC same + the L0 pin to re-derive
+  (`tests/moc/test_verification.py:379-408`); CP/diffusion already operator-
+  consistent (CP L1-pinned `tests/cp/test_verification.py:558-580`).
+- Seam (site 6): DEAD in production, alive-via-tests (4 constructors; the single
+  injection @ `tests/numerics/test_iteration.py:718`; default-formula pins in
+  `tests/numerics/test_estimators_as_functionals.py`). Retirement blast radius:
+  `iteration.py:192-206,423-472,1063-1069,1097-1098,1129-1136,1217-1237`; docs
+  `discrete_ordinates.rst:13385-13394,13762`, `operator_algebra.rst:2042-2043`
+  (+~30 render-silent refs — grep pass at close-out).
+- ⚠ Load-bearing: SN's outer `power_iteration` iterate MUST stay a bare ndarray —
+  `tests/sn/operators/test_fission_kernel_crosscheck.py:369-375` sentinel reds BY
+  DESIGN on a typed-carrier retype. Leakage data comes from solver-held state
+  (trace of the last inner solve), scale-consistent with the renormalized φ (check
+  the renormalize-vs-report order at `eigenvalue.py:224-228`).
+- CP: numerator fold mechanical-with-a-transpose ((N,ng) group-LAST arrays); NO
+  loss operator exists — denominator stays the explicit additive spelling (#270
+  pattern). MoC: substrate work first (no measure object; MOCMesh is not a Mesh).
+- Doc drift for close-out: `docs/theory/monte_carlo.rst:281` (phantom MC
+  `compute_keff`), `tests/cp/test_verification.py:523-527` (stale docstring).
+
 **Steps:**
 1. **P0 dispatch — explorer**: per-site map (who calls each estimator in production;
    which tests pin each; whether SN's L1 vacuum anchors are sensitive to the #291
    bias or reflective-dominated). Output: rewire table + expected-shift table.
+   **DONE — findings above.**
 2. **Characterize #291 FIRST** (before fixing): run a vacuum-bounded SN anchor, log
    reported-k vs `direct_eigenvalue`-style ground truth (or balance-identity defect).
    Decide bit-identical vs principled-re-baseline per vv-principles BEFORE the carve.
@@ -119,10 +153,15 @@ sites:**
    `IntegratedReactionRate`; denominator derived through each method's loss operator
    (per-method wiring, ONE shared spelling where the algebra permits — extract the
    helper only if ≥2 sites are literally isomorphic; no premature abstraction).
-   SN gains the leakage term structurally (#291). CP/MoC rewired to the same
-   discipline (mark OPTIONAL — drop to a follow-up if friction; they are outside the
-   six-folder focus).
-4. **Retire** the dead iteration.py estimator-injection seam (#259) — 3-search audit.
+   SN gains the leakage term structurally (#291). Per R7 the n2n placement flips
+   operator-consistent in SN + MoC (νΣf-only numerator; 2Σ₂ on the loss side; the
+   MoC L0 expected value re-derived). CP/MoC rewired to the same discipline (mark
+   OPTIONAL — drop to a follow-up if friction; they are outside the six-folder
+   focus; per P0, MoC's missing measure substrate makes its drop-branch likely).
+4. **Retire** the dead iteration.py estimator-injection seam (#259) — 3-search audit
+   done at P0; shape per R8 (hardwire the Rayleigh defaults as plain methods; drop
+   kwargs/aliases/default-factories; rewire the `:718` injection test to the
+   fixed-point-agreement assertion).
 5. **Gates**: per-method balance identity `P/k = absorption + leakage`; SN
    reported-k ≡ eigen-solve k on a vacuum anchor (tolerance from step 2); teeth: a
    leakage-drop mutation must go RED on a vacuum case and stay GREEN on reflective
@@ -305,6 +344,24 @@ assembly on the same mesh:
   present the measured-ρ c→1 × optical-thickness sweep at Phase 3, rule then.
 - **R6 (2a delegation)**: **full surgical** — the mechanical relocation is main-agent
   work too; no delegation exception.
+- **R7 (n2n convention — from the P0 finding, ruled 2026-07-03)**: **operator-
+  consistent everywhere** — νΣf-only numerator; the (n,2n) gain enters through the
+  loss-side denominator (the CP/diffusion convention, L1-pinned vs a dense
+  eigensolver). MoC's L0 expected value is RE-DERIVED to the posed problem's
+  eigenvalue — principled re-baseline (the old reference encoded the estimator's
+  convention, not the eigenproblem's). Rationale: every inner solve poses the
+  eigenproblem with ONLY fission scaled by 1/k; the SN/MoC numerator spelling equals
+  that eigenvalue only when Σ₂=0 or k=1 (same failure class as #291).
+- **R8 (KEigenvalue seam shape, ruled 2026-07-03)**: **hardwire defaults, drop
+  kwargs** — the injection kwargs/aliases/default-factories retire; KEigenvalue
+  keeps `compute_keff`/`compute_production_rate` as plain methods (the leakage-
+  inclusive Rayleigh spelling `Σ(Fψ)/(Σ(Aψ)−Σ(Sψ))` is its fixed estimator); the
+  `test_iteration.py:718` injection test rewires to assert adapter-k ≡ solve_sn-k
+  at the fixed point directly (the theorem: all consistent estimators agree at a
+  converged eigenpair). The protocol is the wiring point — production self-
+  implements BY DESIGN; the seam is dead by design, not by missed wiring, and
+  post-unification an injection could only introduce an inconsistent functional
+  (Pattern-4 retire).
 
 ## Issue map
 
