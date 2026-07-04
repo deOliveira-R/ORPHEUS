@@ -1,9 +1,11 @@
 # Stencil-assembly + DSA roadmap — k-estimator → spatial reification → DSA (#2)
 
-**Status: IN EXECUTION — Phase 1 COMPLETE, merged to main @ `a4952c3`. Phase 2 opened
-2026-07-04 on `refactor/spatial-promotion-assembly` (off main @ `a4952c3`); the three
-2-P0 dispatches are COMPLETE (distillation in the Phase-2 section); R9 ruled. Rulings
-R1–R9 collected.**
+**Status: Phases 1 AND 2 COMPLETE, both merged to main (P1 @ `a4952c3`; P2 =
+the `f6079be…` chain ff-merged 2026-07-04 — trust `git log`, this note is a
+snapshot). Full-tree merge gate 5990/0 not-slow serial. Rulings R1–R9
+collected. NEXT = Phase 2.5 (the #280 orientation×kernel walk unification,
+its own branch per R1), then Phase 3 (DSA #2, opening with the 3-P0
+dispatches — the literature brief checks `scratch/literature/` FIRST).**
 
 Campaign chain: **Phase 1** k-estimator unification (#259 + #291) → **Phase 2** spatial
 substrate promotion + the ASSEMBLY third mode (#272 + #158 + #253, user ruling below) →
