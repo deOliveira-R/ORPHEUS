@@ -1706,7 +1706,11 @@ class ScatteringOperator(LinearOperator):
     else:
         apply = _apply_impl
 
-    def apply_transpose(self, chi: "np.ndarray | object") -> np.ndarray:
+    @overload
+    def apply_transpose(self, chi: "FullField", /) -> "FullField": ...
+    @overload
+    def apply_transpose(self, chi: np.ndarray, /) -> np.ndarray: ...
+    def apply_transpose(self, chi: "Any") -> "Any":
         r"""The adjoint scattering source :math:`S^{T}\chi =
         (1/W)\,\mathrm{full\_scatter\_kernel}^{T}\chi` (campaign #276 A2b, closes
         `#118 <https://github.com/deOliveira-R/ORPHEUS/issues/118>`_).
@@ -1741,14 +1745,36 @@ class ScatteringOperator(LinearOperator):
         S.\mathrm{apply}` holds to ~1e-12
         (``test_reproduces_forward_scattering_source``).
 
+        The COMPOSITE arm (Phase 2.5 S0.2, #280): a
+        :class:`~orpheus.transport.full_field.FullField` cotangent mirrors the
+        forward FullField lift — scattering is volumetric, so :math:`S^{T}`
+        reads ONLY the bulk cotangent (the full-angular ``chi.bulk``) and
+        emits the implicit-zero trace
+        (:class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`).
+        This is what lets the full within-group loss ``(L + C - S - B).H``
+        compose through ``OperatorSum.apply_transpose`` (pinned by the
+        full-loss rows of ``test_g_adjoint_reciprocity``).
+
         Parameters
         ----------
-        chi : np.ndarray or carrier
+        chi : np.ndarray, carrier, or FullField
             The daggered per-ordinate field :math:`\chi` of shape
-            ``(N, ng, *spatial)``; a typed carrier's ``.values`` are unwrapped.
-            Returns a bare ``ndarray`` — the typed adjoint-source carrier
-            (``AdjointFlux`` / ``Solution.adjoint``) arrives in #116 (A5).
+            ``(N, ng, *spatial)`` — a typed carrier's ``.values`` are
+            unwrapped and a bare ``ndarray`` returns (the typed adjoint-source
+            carrier — ``AdjointFlux`` / ``Solution.adjoint`` — arrives in #116
+            (A5)); or the composite ``FullField``, returning a composite with
+            bulk-only content.
         """
+        if isinstance(chi, FullField):
+            bulk_bar = self.apply_transpose(np.asarray(chi.bulk.values))
+            # The composite's mesh is the SN phase-space mesh at runtime (an
+            # angular FullField only arises on an SNMesh) — the same
+            # runtime-truth cast as the forward arm's bulk dispatch (#257 S8c).
+            sn_mesh = cast("SNMesh", chi.mesh)
+            return FullField(
+                bulk=AngularSourceSink.from_mesh(bulk_bar, sn_mesh),
+                boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+            )
         chi_values = np.asarray(getattr(chi, "values", chi))
         return self.full_scatter_kernel.apply_transpose(chi_values) / float(
             self.weights.sum()

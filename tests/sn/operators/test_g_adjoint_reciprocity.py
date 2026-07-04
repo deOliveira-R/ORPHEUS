@@ -1,4 +1,6 @@
-r"""G-adjoint reciprocity for the SN composite ``(L + C - B)`` (Wave O / O.2b R5).
+r"""G-adjoint reciprocity for the SN composites ``(L + C - B)`` and the full
+within-group loss ``(L + C - S - B)`` (Wave O / O.2b R5; full-loss rows Phase
+2.5 S0.2, #280).
 
 The Hilbert adjoint ``A.H`` is the **G-adjoint** :math:`A^\dagger = G^{-1}
 A^{\mathsf T} G`, NOT the plain Euclidean transpose. For the SN within-group
@@ -56,9 +58,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from scipy.sparse import csr_matrix
+
+from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.solver import SNSolver
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
@@ -303,4 +309,221 @@ def test_wrong_trace_metric_breaks_reciprocity(case):
             f"[{case}] wrong metric (drop |Ω·n|) did NOT break reciprocity "
             f"(rel={rel_wrong:.2e}); the |Ω·n|·w_n weighting is NOT load-bearing — "
             f"§2 proves nothing."
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# §4 — G3: the FULL within-group loss ``(L + C - S - B)`` (Phase 2.5 S0.2)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# S† landed at 15185e5 (#276 A2b / #118) and F† with it, so composite ``.H``
+# reachability extends to the full within-group loss. These rows harden the
+# adjoint-matvec surface the #280 apply-loop unification (2.5a) rebuilds —
+# the pre-carve composite canary (gate-spec §13, S0 row).
+#
+# Config discipline (vv §0.6): the group-transfer transpose lives in S, so
+# the mixtures carry ASYMMETRIC SigS (strong downscatter, weak upscatter —
+# symmetric SigS ⟹ S† = S and the gate is blind, the ERR-002 family). The
+# 2G rows additionally carry asymmetric P1 blocks + Sig2 ≠ 0 (the n2n arm
+# rides S's kernel, scattering_order=1); the 4G rows are P0-only (the pure
+# group-axis trap at width 4). Heterogeneous 2-material meshes; slab +
+# sphere (the curvilinear trace metric is the non-degenerate one).
+#
+# Mode-12 honesty: a POSING-sign mutation (+S for −S) is INVISIBLE to
+# reciprocity BY CONSTRUCTION — ⟨Aψ,φ⟩_G = ⟨ψ,A.Hφ⟩_G holds for whatever A
+# was posed, so this gate is NEVER credited against posing errors (those
+# are pinned by the solver-level k anchors). The S-specific tooth here is
+# the transpose-drop (S wired where Sᵀ belongs inside .H) — O(1) under
+# asymmetric SigS.
+
+_P0_2G_A = np.array([[0.38, 0.10], [0.05, 0.90]])
+_P1_2G_A = np.array([[0.02, 0.01], [0.00, 0.04]])
+_P0_2G_B = np.array([[0.55, 0.03], [0.12, 0.40]])
+_P1_2G_B = np.array([[0.06, 0.02], [0.01, 0.03]])
+
+# 4G [g_from, g_to]: strong downscatter above the diagonal, weak upscatter
+# below — strongly non-normal group transfer at width 4.
+_P0_4G_A = np.array(
+    [
+        [0.30, 0.15, 0.05, 0.01],
+        [0.01, 0.35, 0.20, 0.04],
+        [0.00, 0.02, 0.40, 0.25],
+        [0.00, 0.00, 0.01, 0.50],
+    ]
+)
+_P0_4G_B = np.array(
+    [
+        [0.45, 0.08, 0.02, 0.00],
+        [0.03, 0.28, 0.30, 0.02],
+        [0.01, 0.01, 0.35, 0.18],
+        [0.00, 0.02, 0.03, 0.42],
+    ]
+)
+
+
+def _mix_2g(p0: np.ndarray, p1: np.ndarray, sig2: np.ndarray):
+    m = make_mixture(
+        sig_t=np.array([0.5, 1.0]), sig_c=np.array([0.01, 0.02]),
+        sig_f=np.array([0.0, 0.0]), nu=np.array([0.0, 0.0]),
+        chi=np.zeros(2), sig_s=p0,
+    )
+    m.SigS = [csr_matrix(p0), csr_matrix(p1)]
+    m.Sig2 = csr_matrix(sig2)
+    return m
+
+
+def _mix_4g(p0: np.ndarray):
+    ng = 4
+    return make_mixture(
+        sig_t=np.array([0.6, 0.9, 1.1, 1.4]), sig_c=np.full(ng, 0.02),
+        sig_f=np.zeros(ng), nu=np.zeros(ng), chi=np.zeros(ng), sig_s=p0,
+    )
+
+
+def _full_loss_case(coord: CoordSystem, ng: int):
+    r"""Het 2-material mesh + the full loss ``A = (L + C) - S - B``.
+
+    ``S`` is the PRODUCTION scattering operator off a real :class:`SNSolver`
+    (never a re-implementation); σ_t comes off the same material field the
+    solver consumes (one source).
+    """
+    quad = Quadrature.gauss_legendre(4)
+    edges = np.linspace(0.0, 1.0, 5)
+    mat_ids = np.array([0, 1, 1, 0])
+    if coord is CoordSystem.CARTESIAN:
+        mesh = Mesh1D(
+            edges=edges, mat_ids=mat_ids, coord=coord,
+            bc_left=BC("reflective"), bc_right=BC("reflective"),
+        )
+    else:
+        mesh = Mesh1D(
+            edges=edges, mat_ids=mat_ids, coord=coord,
+            bc_right=BC("reflective"),
+        )
+    if ng == 2:
+        mixtures = {
+            0: _mix_2g(_P0_2G_A, _P1_2G_A, np.array([[0.0, 0.03], [0.01, 0.0]])),
+            1: _mix_2g(_P0_2G_B, _P1_2G_B, np.array([[0.0, 0.02], [0.02, 0.0]])),
+        }
+        order = 1
+    else:
+        mixtures = {0: _mix_4g(_P0_4G_A), 1: _mix_4g(_P0_4G_B)}
+        order = 0
+    sn = SNMesh(mesh, quad, mixtures)
+    S = SNSolver(sn, scattering_order=order).scattering_op
+    sig_t = np.asarray(
+        sn.material_xs_field().total_cross_section_field.values, dtype=float
+    )
+    A = (
+        StreamingOperator(sn)
+        + MultiplicationOperator.from_mesh(sig_t, sn)
+    ) - S - SNBoundaryOperator(sn)
+    return sn, A, S
+
+
+_FULL_LOSS_BUILDERS = {
+    "slab_2g": lambda: _full_loss_case(CoordSystem.CARTESIAN, 2),
+    "sphere_2g": lambda: _full_loss_case(CoordSystem.SPHERICAL, 2),
+    "slab_4g": lambda: _full_loss_case(CoordSystem.CARTESIAN, 4),
+    "sphere_4g": lambda: _full_loss_case(CoordSystem.SPHERICAL, 4),
+}
+
+
+def _one_hot_group_composite(
+    sn: SNMesh, rng: np.random.Generator, g: int,
+) -> TimedFullField:
+    r"""A composite supported ONLY in group ``g`` (bulk random, trace zero).
+
+    The S group-transfer transpose lives in the BULK group axis (S is
+    trace-silent), so the one-hot bulk isolates the g-restricted residual;
+    the trace blocks are group-diagonal and fully covered by the random-φ
+    row above.
+    """
+    N, ng = sn.quad.N, sn.ng
+    bulk_vals = np.zeros((N, ng, *sn.spatial_shape))
+    bulk_vals[:, g] = rng.standard_normal((N, *sn.spatial_shape))
+    boundary = AngularBoundaryFlux(
+        values=np.zeros(int(sn.angular_trace.layout.total_size)),
+        space=sn.angular_trace,
+        mesh=sn,
+    )
+    return TimedFullField(
+        bulk=AngularFlux.from_mesh(bulk_vals, sn),
+        boundary=boundary, _history=(), history_depth=2,
+    )
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("case", list(_FULL_LOSS_BUILDERS))
+def test_full_loss_g_adjoint_reciprocity(case):
+    r"""``⟨Aψ,φ⟩_G = ⟨ψ, A.H φ⟩_G`` for the FULL loss ``A = (L+C) - S - B``.
+
+    The composite claim (beyond the leaf-level Euclidean S† gates in
+    ``test_scattering_adjoint``): S† COMPOSES into the full-loss G-adjoint
+    through ``OperatorSum.H`` WITH the block metric.
+    """
+    sn, A, _ = _FULL_LOSS_BUILDERS[case]()
+    if not A.is_adjointable:
+        pytest.fail(
+            f"[{case}] full-loss adjoint unreachable — S†/F† landed (#276), "
+            f"so the a∧b chain must propagate is_adjointable."
+        )
+    rng = np.random.default_rng(20260704)
+    psi = _random_composite(sn, rng)
+    phi = _random_composite(sn, rng)
+    lhs = _g_inner(A.apply(psi), phi, sn)
+    rhs = _g_inner(psi, A.H.apply(phi), sn)
+    rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+    if not rel < 1e-12:
+        pytest.fail(
+            f"[{case}] full-loss G-reciprocity broken: ⟨Aψ,φ⟩_G={lhs:.6e} vs "
+            f"⟨ψ,A.Hφ⟩_G={rhs:.6e} (rel={rel:.2e})"
+        )
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("case", list(_FULL_LOSS_BUILDERS))
+def test_full_loss_reciprocity_per_group_one_hot(case):
+    r"""Per-group rows (vv L27): ``φ_g`` one-hot in each group ``g``.
+
+    A g'→g group-transfer transpose swap shows in the g-restricted residual
+    — the weight-summed scalar of the random-φ row could partially mask it
+    (anti-pattern #8's group-axis sibling).
+    """
+    sn, A, _ = _FULL_LOSS_BUILDERS[case]()
+    rng = np.random.default_rng(97)
+    psi = _random_composite(sn, rng)
+    for g in range(sn.ng):
+        phi_g = _one_hot_group_composite(sn, rng, g)
+        lhs = _g_inner(A.apply(psi), phi_g, sn)
+        rhs = _g_inner(psi, A.H.apply(phi_g), sn)
+        rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+        if not rel < 1e-12:
+            pytest.fail(
+                f"[{case}] per-group reciprocity broken in group {g}: "
+                f"lhs={lhs:.6e} rhs={rhs:.6e} (rel={rel:.2e}) — a "
+                f"group-transfer transpose defect restricted to g={g}."
+            )
+
+
+@pytest.mark.foundation
+def test_tooth_s_transpose_drop_reds(monkeypatch):
+    r"""TOOTH: wiring S (not Sᵀ) into the adjoint breaks full-loss
+    reciprocity O(1) under asymmetric SigS — the gate SEES the
+    group-transfer transpose. In-process monkeypatch; ``-O``-safe."""
+    sn, A, S = _FULL_LOSS_BUILDERS["slab_2g"]()
+    monkeypatch.setattr(
+        type(S), "apply_transpose", lambda self, chi: self.apply(chi),
+    )
+    rng = np.random.default_rng(11)
+    psi = _random_composite(sn, rng)
+    phi = _random_composite(sn, rng)
+    lhs = _g_inner(A.apply(psi), phi, sn)
+    rhs = _g_inner(psi, A.H.apply(phi), sn)
+    rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+    if not rel > 1e-6:
+        pytest.fail(
+            f"transpose-drop mutation NOT caught (rel={rel:.2e}) — the "
+            f"full-loss gate is blind to the S group-transfer transpose; "
+            f"check the mixture asymmetry has not degraded."
         )
