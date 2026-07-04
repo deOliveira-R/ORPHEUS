@@ -698,6 +698,30 @@ successor gate built from matvec probes of the augmented system — extending th
 2b assembly EMITTER to curvilinear stays an optional follow-up, not a 2.5
 deliverable).
 
+⏸ **C2.4 — COMPACTION TAKEN 2026-07-04 at the S0→2.5a seam.** Re-anchor
+from: this section (shape + surface reconciliation + P0 findings + R10/R11 +
+the S0 STATUS) → the gate spec `a3_solve_transpose_verification.md` §§9–15
+(2.5a plan = §10, incl. the spy/AST-tripwire specs; scaffold order §13) →
+the fragmentation map `a3_sweep_fragmentation_map.md` (structural claims
+durable; line anchors re-derive by grep — the explorer's refreshed anchor
+table lives in `.claude/agent-memory/explorer/campaign_280_phase25_p0a_map.md`,
+transient until 2.5 merges). Branch `refactor/sn-walk-unification` @
+`a3b8b38`, 7 ahead of main `28dbaee` (pushes held); harness tasks #22–#26
+carry the sub-phase specs with R10 sequencing. **NEXT ACTION = 2.5a**: fold
+`_apply_walk` (LR ~:2426) + `loss_action_transpose` (LR ~:2777, now behind
+the S0.1 scheme guard) into ONE orientation-parametrized per-cell loop frame
+over the one DAG — bit-identical BOTH orientations (the frozen
+`walk_matvec_*` snapshots are the anchor; removal-form `array_equal` stays
+the override-not-leak guard); mint
+`tests/sn/sweep/core/test_one_dim_loop_walk.py` (wrap-spy proving both
+orientations execute the ONE frame + the AST tripwire banning
+`is_adjoint`/`is_forward`/`is_transpose`/`is_reverse` — orientation is an
+OBJECT, the `_ApplyOperands`/`_SolveOperands`/`_SweepEmit` discipline's
+sibling); the orientation object carries {cell order fwd/reversed, boundary
+in↔out swap, Carlson mirror routing, `angular_adjoint` second factor};
+resolve the S0-deferred multi-D predicate-honesty question in the frame
+design. Then 2.5d → 2.5b → 2.5c → 2.5e per R10.
+
 ⏸ **C2.5** after 2.5d (post-fix, pre-reverse-scan) or at the 2.5b→2.5c seam,
 whichever the session boundary hits first.
 
