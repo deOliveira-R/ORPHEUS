@@ -605,6 +605,39 @@ distillation; full memos in agent memory)
   matvec baselines (`--capture-baseline`, slab/sphere/cyl 2G); the LD-slab
   transpose loud guard (the FLAG-2 fix-now); the `dag_walk_cell_indices ≡
   dag_walk` pin.
+
+  **S0 STATUS — COMPLETE (2026-07-04): `368cbbe` → `d9a6881` → `f869806`.**
+  - `368cbbe` (S0.1, the FLAG-2 fix-now): scheme trait `has_transpose_kernel`
+    (base False / DD True / LD False-with-citation);
+    `StreamingOperator.is_adjointable` scheme-honest (a∧b propagates; eager
+    `.H` on LD → MissingAdjoint at construction); the reverse-walk entry
+    guard backstops direct Euclidean calls; the stale "S/F advertise no
+    apply_transpose" domain paragraph retired; gates =
+    `test_ld_adjoint_deferral.py` (trait pins / predicate flips / eager
+    refusal / guard raises / DD positive controls).
+  - `d9a6881` (S0.2): `ScatteringOperator.apply_transpose` gained the
+    composite FullField arm (mirrors the forward lift — bulk cotangent only,
+    implicit-zero trace; +1 documented cast, the #257 S8c runtime-truth
+    precedent; overloads per the MultiplicationOperator pattern) — WITHOUT it
+    the full-loss `.H` was predicate-reachable but crashed at the S leaf. G3
+    rows: full-loss G-reciprocity rel<1e-12 on het 2-material slab+sphere ×
+    {2G asym P0/P1/Sig2, 4G asym P0}; per-group one-hot rows (vv L27); the
+    S-transpose-drop tooth (O(1) red). Mode-12 honesty in-file: a
+    posing-sign (+S/−S) mutation is INVISIBLE to reciprocity by construction
+    — never credited to this gate.
+  - `f869806` (S0.3): the frozen pre-carve baselines (`walk_matvec_{slab,
+    sphere,cyl}_2g.npz`, both orientations, nulp=1 + DriftWarning tripwire;
+    captured + re-verified 0-ULP; curvilinear rows re-capture at 2.5d per
+    R10) + the `dag_walk_cell_indices ≡ dag_walk` twin pin (inference (b)
+    closed as a GATE — zero prior test refs to the twin).
+  - Walls: S0 closing wall (sn operators+sweep+regression, transport/spatial,
+    numerics) **2245/0** (~4 min serial); pyright CLI = 1 throughout (two
+    transient overload/typing errors caught by the CLI mid-S0.2 and fixed
+    pre-commit).
+  - Deferred DELIBERATELY to 2.5a: the multi-D predicate-honesty question
+    (`is_adjointable` stays True for DD multi-D whose transpose raises — the
+    loud-raise deferral; the kernel-pair/orientation-frame registration is
+    the structural place to key the predicate on dimensionality too).
 - **2.5a — the apply-loop frame** (bit-identical BOTH orientations): ONE
   orientation-parametrized per-cell loop over the one DAG (orientation carries:
   cell order fwd/reversed, boundary in↔out swap, Carlson mirror routing, the
