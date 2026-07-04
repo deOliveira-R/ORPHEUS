@@ -3,9 +3,11 @@
 **Status: Phases 1 AND 2 COMPLETE, both merged to main (P1 @ `a4952c3`; P2 =
 the `f6079be…` chain ff-merged 2026-07-04 — trust `git log`, this note is a
 snapshot). Full-tree merge gate 5990/0 not-slow serial. Rulings R1–R9
-collected. NEXT = Phase 2.5 (the #280 orientation×kernel walk unification,
-its own branch per R1), then Phase 3 (DSA #2, opening with the 3-P0
-dispatches — the literature brief checks `scratch/literature/` FIRST).**
+collected. Phase 2.5 (the #280 orientation×kernel walk unification) is OPEN
+on branch `refactor/sn-walk-unification` (2026-07-04; P0 findings + the
+plan-of-record in its section below). Then Phase 3 (DSA #2, opening with
+the 3-P0 dispatches — the literature brief checks `scratch/literature/`
+FIRST).**
 
 Campaign chain: **Phase 1** k-estimator unification (#259 + #291) → **Phase 2** spatial
 substrate promotion + the ASSEMBLY third mode (#272 + #158 + #253, user ruling below) →
@@ -494,6 +496,166 @@ Draft split (P0 verifies; verified inventory @ `3a19133`):
   recorded below at the merge.
 
 ⏸ **C2**.
+
+---
+
+## Phase 2.5 — the #280 orientation×kernel walk unification (own branch per R1)
+
+**Branch `refactor/sn-walk-unification` off main @ `28dbaee` (opened 2026-07-04).
+Scope = GitHub #280; the issue COMMENT ("Redesign onto the landed #226 taxonomy")
+is the AUTHORITATIVE spelling — the a3 plan files' operator vocabulary is DEAD
+(reconciliation below). Gate chain = `a3_solve_transpose_verification.md` §§9–15
+(the 2026-07-04 extension, landed with this section). Full surgical mode.**
+
+**The shape (#280 body, unchanged by the redesign):** the coherence axis is
+ORIENTATION (fwd↔adj), NOT kernel; execution {scan(solve) / cell-loop(apply) /
+wavefront(multi-D)} is a non-free third axis determined by (kernel,
+dimensionality) — scan/loop/wavefront stay DISTINCT. Two frames, each shared
+across orientation: (1) the **apply-loop frame** `{_apply_walk (fwd),
+loss_action_transpose (adj)}` → ONE orientation-parametrized per-cell loop over
+the one DAG; (2) the **solve-scan frame** `{_run (fwd), sweep_transpose (adj)}` —
+the REVERSE-SCAN coherent with `_run`'s Blelloch scan, NOT a reverse-loop bolted
+onto `loss_action_transpose`.
+
+**The post-#226 surface (redesign comment, P0-verified vs the tree):** no CAP
+tags exist to flip; the live spelling of the deliverable is —
+- `sweep_transpose` lands as **`SweepOperator.apply_transpose`** — the EUCLIDEAN
+  reverse-scan `(L+C)ᵀx = b` on the inverse-family sibling
+  (`orpheus/sn/operators/sweep_operator.py`; `SweepOperator = (L+C).inverse()`).
+- `SweepOperator.is_adjointable` flips True; `_AdjointOperator.inverse() =
+  inner.inverse().H` + `is_invertible` make the swap law `A.H.inverse() ≡
+  A.inverse().H` an identity of the algebra. Predicate honesty: the comment
+  recommends **(b) with (a)'s spelling** — land predicate + method together with
+  the sweep arm; predicate = `inner.is_invertible and
+  inner.inverse().is_adjointable` (→ ruling R11).
+- The METRIC adjoint-solve `A.inverse().H.apply(b) = G⁺·apply_transpose(G·b)`
+  falls out of the EXISTING `_AdjointOperator.apply` for free — the a3
+  "Deliverable 3" (`_AdjointOperator.solve` + CAP_SOLVE) DISSOLVES. Metric code
+  never enters the sweep.
+- Sibling scope: ONLY the Sweep arm this issue; GreenOperator (transposed
+  splitting) / MatrixInverseOperator (`lu_solve(trans=1)`) / generic
+  InverseOperator transposes defer until consumers.
+
+### 2.5-P0 FINDINGS (2026-07-04, explorer + test-architect — durable
+distillation; full memos in agent memory)
+
+- **Inference (a) CONFIRMED + SHARPENED:** the 1-D adjoint
+  `loss_action_transpose` is DD/scalar-only (buffers `(ng,N,nx)` with no moment
+  tail; no `_reframe`/frame-signs; a hand-transposed DD diamond march) — AND the
+  gap is **UNGUARDED**: the Protocol promises a loud NotImplementedError
+  (LR:344-346) but `CumprodScan.supports` admits LD slab,
+  `StreamingOperator.is_adjointable` is unconditionally True, and an LD-slab
+  `.H.apply` broadcast-crashes or silently mis-computes on shape coincidence.
+  S0 lands the loud guard (fix-now); the unified frame then replaces it
+  STRUCTURALLY (kernel-PAIR registration: DD registers fwd+transpose, LD
+  forward-only → typed deferral). CLOSING is rejected — the UBLD Schur VJP is
+  new kernel math with zero consumers (A4 needs slab/sphere DD).
+- **Inference (b) CONFIRMED:** `geom.chain_idx` ≡ `dag_walk_cell_indices` BY
+  CONSTRUCTION — both materialize `dag_walk`'s order (sweep_cache.py:260-270
+  iterates dag_walk; both iterators resolve `_representative_ordinate`;
+  representative-invariance test-pinned). Residual gap: no direct pin on the
+  `dag_walk_cell_indices` twin (zero test refs) — S0 adds the one-liner gate.
+- **Cell-ordering materializations now SIX** (the map counted four): + the
+  assembly `ordinate_walk_order` + the test-local `_curvilinear_sweep_order` —
+  strengthens the map's Pattern-2 consolidation argument for the one-DAG walk.
+- **The existing matvec `array_equal` canaries are SELF-REFERENTIAL**
+  (removal-form gates compare against the SAME `loss_action[_transpose]` body on
+  a fresh instance — override-not-leak discriminators, blind to a relocation
+  that moves both paths together) ⟹ 2.5a's bit-identity claim rides FROZEN
+  pre-carve `assert_regression --capture-baseline` snapshots (fwd + adj,
+  slab/sphere/cyl, 2G, `_random_composite`). And the 1-D walk has NO one-walk
+  spy today — 2.5a mints `tests/sn/sweep/core/test_one_dim_loop_walk.py`
+  (wrap-spy proving BOTH orientations execute the ONE frame + an AST tripwire
+  banning `is_adjoint`/`is_forward`/`is_transpose`/`is_reverse` identifiers —
+  orientation is an OBJECT, the `_SweepEmit` discipline's sibling).
+- **Assembly gives a NEW transpose oracle (Cartesian only):**
+  `solve_triangular(assembled.T, b[order], lower=False)` — LAPACK back-sub,
+  independent of the reverse-walk AND of the ORPHEUS scan (catches a wrong
+  transposed scan coefficient a'/b'). Instantiates on the DD SLAB this phase
+  (2.5's transpose scope is 1-D DD); the SPHERE keystone stays G2's dense
+  forward-apply oracle (assembly refuses curvilinear until #282's structure
+  fix).
+- **#282 entanglement split (→ ruling R10):** the in-pass DIRECT
+  starting-direction solve — route (a)'s dynamics; the direct solver
+  `carlson_inward_sweep_from_source` EXISTS (psi_half_angle_seed.py:433);
+  plumbing gap = `CarlsonSweepContext` carries no source field — touches exactly
+  the bodies 2.5 rebuilds (`_run` seed block, `_apply_walk` seed consumption,
+  the transpose seed adjoint, the two moment_frame guard rationales that cite
+  the lag) = rides the carve. The literal CARRIER augmentation (per-level
+  ψ(·,μ=−1) DOFs on FullField/to_flat/metrics + every flat consumer) = a genuine
+  scope extension OUTSIDE the walk modules. Sequencing fact: `sweep_transpose`
+  on sphere must reverse WHATEVER seed treatment the forward has — landing the
+  directness first/together avoids building the reverse-scan against the lagged
+  formulation twice.
+- **R9 correction (the estate):** R9 keeps the `sn/spatial/` NAME; 2.5 owns the
+  LAYOUT DECISION. Priced: 17 test files import `orpheus.sn.spatial.*`; ~150
+  docs refs (grep-driven migration — the build does not warn on dangled roles);
+  `pairing.py` has ZERO production call sites (test/V&V-facing predicate);
+  hidden coupling: `_run` stashes `mesh._geom_cache`/`_coll_cache`.
+- Doc-fix riders for 2.5e: `pole_angular_closure.py:963-971` stale default-seed
+  docstring (says CarlsonInwardSweep; C5 default is AngularEdgeExtrapolation);
+  issue-body line drifts (LR:3197→:3372, seed solver :428→:433).
+
+### Steps
+
+- **S0 — pre-carve scaffold:** G3 full-loss `(L+C−S−B)` G-reciprocity (S† live
+  @ `15185e5`; asymmetric SigS ≥2G real mixture, per-group one-hot φ per vv L27,
+  slab + sphere — extends `test_g_adjoint_reciprocity.py`, the composite
+  adjoint-matvec canary hardening the surface 2.5a rebuilds); FROZEN fwd+adj
+  matvec baselines (`--capture-baseline`, slab/sphere/cyl 2G); the LD-slab
+  transpose loud guard (the FLAG-2 fix-now); the `dag_walk_cell_indices ≡
+  dag_walk` pin.
+- **2.5a — the apply-loop frame** (bit-identical BOTH orientations): ONE
+  orientation-parametrized per-cell loop over the one DAG (orientation carries:
+  cell order fwd/reversed, boundary in↔out swap, Carlson mirror routing, the
+  angular_adjoint second factor). Proof = frozen-baseline array_equal both
+  orientations + the new spy/AST-tripwire pins + all forward canaries green.
+- **2.5b — `sweep_transpose` as the REVERSE-SCAN** (re-baseline, NOT bit-id):
+  the transposed affine recurrence over the reversed chain, coherent with
+  `_run`. Gates: G1 round-trip + G2 dense-`Mᵀ` (SPHERE keystone; iterate-thread
+  the Carlson seed) + the assembled-`Mᵀ` LAPACK oracle (DD slab) + mutations
+  (forward-DAG order; ±μ mirror on sphere; wrong a'/b'; the ×V/÷V two-denom
+  seam). Scope: 1-D DD all geometries; LD-slab = typed deferral; multi-D +
+  `ScheduledInvertibleOperator` (schedule-folded reflect-transpose) = explicit
+  defers.
+- **2.5c — the inverse-adjoint wiring** (the redesign comment's spec):
+  `SweepOperator.apply_transpose` exposure + `is_adjointable` True;
+  `_AdjointOperator.inverse()` + `is_invertible` (per R11). Gates =
+  `tests/sn/operators/test_inverse_adjoint_coherence.py` (comment Gates 1–3:
+  the forward-matvec G-reciprocity pin `⟨A ψ, x⟩_G = ⟨ψ, b⟩_G` for
+  `x = A.H.inverse().apply(b)` — never calls the transpose path; the swap-law
+  value gate rtol 1e-12; the `A.H.apply∘A.H.inverse ≈ I` round-trip) + Mode-11
+  wrap sentinel (the reverse scan EXECUTES; forward solve counter 0) + M-ADJ-swap
+  / M-ADJ-metric mutations (metric one reds on sphere/cyl ONLY — the
+  `.H`≠Euclidean discriminator) + predicate flips (InverseOperator/GreenOperator
+  STAY non-adjointable) + the `assert_type(A.H.inverse(), LinearOperator[D,C])`
+  static pin.
+- **2.5d — #282 per ruling R10.** If directness rides: solve/apply/transpose all
+  adopt the direct starting-direction treatment (principled re-baseline where
+  the fixed point moves); the characterization gate flips LOUD by design → its
+  successor per the conditional spec (spherical G2: triangularity + LAPACK ≡
+  sweep over the [seed-rows-first, ordinate-blocks] order; teeth = coupling-
+  direction swap + Hébert 3.432–3.435 sign flip).
+- **2.5e — layout ruling (the R9 estate) + docs + close-out:** the sweep-layer
+  layout decision from the carve's end-state; theory pages
+  (`loss_representations.rst` the two-frames story + the orientation×kernel×
+  execution table; `discrete_ordinates.rst` dev-history row); the doc-fix
+  riders; close #280; comment #276 (A4 unblocked: the daggered posing consumes
+  `A.H.inverse()`), #200 (curvilinear posture), #282 per ruling; the frozen
+  baselines' disposition (keep as permanent canaries or retire post-carve —
+  decide explicitly per the fuller-view rule).
+
+### Deferral ledger (every entry must SURVIVE the unification, typed/loud)
+
+multi-D Cartesian adjoint faces (existing raises); LD-slab adjoint faces
+(kernel-pair registration — LD registers forward-only); `ScheduledInvertible
+Operator` transpose; 2-D LD (pre-existing); Green/MatrixInverse/InverseOperator
+`apply_transpose` (per-sibling, until consumers).
+
+**PENDING RULINGS at open: R10 (#282 scope split) + R11 (predicate honesty —
+comment recommends (b) with (a)'s spelling).**
+
+⏸ **C2.5** at the 2.5b→2.5c seam or after 2.5d, whichever lands first.
 
 ---
 
