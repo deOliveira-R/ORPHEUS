@@ -336,11 +336,16 @@ class StreamingOperator(LinearOperator["FullField"]):
 
     @property
     def is_adjointable(self) -> bool:
-        # The analytic reverse-direction adjoint matvec L^T landed (Wave O /
-        # O.2b — see :meth:`apply_transpose`).
+        # Scheme-honest (Phase 2.5 S0, #280): the analytic reverse-direction
+        # adjoint matvec L^T (Wave O / O.2b — see :meth:`apply_transpose`)
+        # exists ONLY where the scheme's cell relation has a transpose
+        # realization — DD yes (the hand-transposed reverse walk), LD no (the
+        # UBLD Schur VJP is the #280 kernel-pair deferral). An eager ``.H`` on
+        # an LD mesh therefore raises MissingAdjoint at construction instead
+        # of reaching the DD-only reverse walk with moment-tailed cotangents.
         # is_invertible inherits base False — pure streaming L is not
         # sweep-invertible; only the (L+C) InvertibleOperator is.
-        return True
+        return type(self.sn_mesh.scheme).has_transpose_kernel
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -362,20 +367,22 @@ class StreamingOperator(LinearOperator["FullField"]):
         ``(L + C) - S - B`` :class:`~orpheus.numerics.operator.OperatorSum`
         guard VALIDATES the build rather than silently skipping the formerly
         ``None``-spaced summands. ``L``'s composite domain therefore agrees
-        with every summand, and the **transpose-closed** sub-sums whose ``.H``
-        is actually reachable — ``(L + C)`` and ``(L + C - B)`` — G-conjugate
+        with every summand, and the **transpose-closed** sub-sums G-conjugate
         every bulk leaf for free via the op-level
-        :math:`G^{-1}(\sum \text{leaf}^{\mathsf T})G`. The full prompt loss
-        ``(L + C - S - F - B).H`` stays **intentionally unreachable**, and W-D
-        does NOT change that — the unreachability is enforced by the CAPABILITY
-        lattice, not by ``None`` spaces: ``S`` / ``F`` advertise no
-        ``apply_transpose``, so ``OperatorSum`` does not propagate
-        a working ``apply_transpose`` and
-        :class:`~orpheus.numerics.operator._AdjointOperator` raises
-        :class:`MissingAdjoint` (fails loud, never silently Euclidean —
-        the capability lattice makes the metric-blind state unrepresentable).
-        The foldable scattering / fission contributions are handled at the
-        eigenvalue / DSA outer layer, not via this within-group adjoint.
+        :math:`G^{-1}(\sum \text{leaf}^{\mathsf T})G`. Since campaign #276
+        (S† via ``full_scatter_kernel``:sup:`T` — A2b / #118; F† via the
+        rank-1 dyad) every within-group leaf transposes, so ``.H``
+        reachability extends beyond ``(L + C)`` / ``(L + C - B)`` to the full
+        within-group loss ``(L + C - S - B)`` — pinned by
+        ``test_g_adjoint_reciprocity``. Reachability stays predicate-gated
+        per leaf (fails loud via
+        :class:`~orpheus.numerics.operator.MissingAdjoint`, never silently
+        Euclidean): ``L.is_adjointable`` is SCHEME-honest — ``True`` iff the
+        scheme carries a transpose kernel
+        (:attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.has_transpose_kernel`:
+        DD yes; LD no, the #280 kernel-pair deferral). The daggered
+        eigenvalue posing that CONSUMES the full-loss adjoint is the #276 A4
+        chain, fed by the #280 reverse solve.
         """
         return self.sn_mesh.full_field_space
 

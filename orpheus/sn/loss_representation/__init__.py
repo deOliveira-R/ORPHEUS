@@ -2825,6 +2825,23 @@ class _OneDimScanWalk:
                 "adjoint is deferred (O.2b lands the 1-D reverse sweep first; "
                 "the multi-D reverse sweep is a later Wave-O sub-step)."
             )
+        if not type(sn_mesh.scheme).has_transpose_kernel:
+            # Phase 2.5 S0 (#280): the reverse walk below hand-transposes the
+            # Diamond-Difference face-flux chain and allocates SCALAR buffers
+            # (no spatial-moment tail) — a moment-tailed LD cotangent must
+            # refuse loudly here, never broadcast silently. The honest front
+            # door is StreamingOperator.is_adjointable (eager ``.H`` raises
+            # MissingAdjoint); this guard is the backstop for direct Euclidean
+            # apply_transpose calls that bypass ``.H``.
+            raise NotImplementedError(
+                "_OneDimScanWalk.loss_action_transpose: scheme "
+                f"{type(sn_mesh.scheme).__name__} carries no transpose kernel "
+                "— the 1-D reverse walk hand-transposes the Diamond-"
+                "Difference face-flux chain only; the LD/UBLD Schur-residual "
+                "adjoint (cell-moment cotangents + the reverse moment-frame "
+                "involution) is a typed deferral to the #280 kernel-pair "
+                "registration."
+            )
 
         closure = sn_mesh.pole_angular_closure
         mu_x = quad.mu_x

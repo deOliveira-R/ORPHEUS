@@ -978,6 +978,26 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     for Diamond Difference; ``False`` for Linear-Discontinuous (the curvilinear
     LD closure is unpublished — #158/#6).  Read-only class attribute."""
 
+    has_transpose_kernel: ClassVar[bool] = False
+    r"""Whether the scheme's cell relation has a TRANSPOSE realization the 1-D
+    reverse walk can consume (the adjoint matvec
+    ``LossRepresentation.loss_action_transpose``).  Opt-in (``False`` default —
+    a scheme is NOT assumed transposable until a reverse-mode realization of
+    its cell relation exists, mirroring ``is_affine_scannable`` /
+    ``supports_curvilinear``).  ``True`` for Diamond Difference — the 1-D
+    reverse walk hand-transposes the DD face-flux chain
+    :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}` (Wave O / O.2b);
+    ``False`` for Linear-Discontinuous — the UBLD Schur-residual VJP
+    (cell-moment cotangents + the reverse moment-frame involution) is
+    unimplemented, a typed deferral to the #280 kernel-pair registration.
+    Consumers:
+    :attr:`~orpheus.sn.operators.streaming.StreamingOperator.is_adjointable`
+    (the scheme-honest adjoint predicate — an eager ``.H`` on a
+    non-transposable scheme raises ``MissingAdjoint`` at construction, Pattern
+    4) and the reverse walk's entry guard (a typed ``NotImplementedError``,
+    never a silent scalar-buffer broadcast against moment-tailed cotangents).
+    Read-only class attribute."""
+
     @property
     def is_multi_moment(self) -> bool:
         r"""``True`` iff this closure carries within-cell spatial moments.

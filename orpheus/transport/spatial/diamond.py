@@ -184,6 +184,14 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     sphere/cylinder, and DD rides ``CumprodScan`` on every 1-D geometry.  So a
     curvilinear mesh may select a DD scheme (the default for sphere/cylinder)."""
 
+    has_transpose_kernel: ClassVar[bool] = True
+    r"""The 1-D reverse walk carries DD's transpose: the adjoint matvec
+    hand-transposes the diamond face-flux chain (reversed cell traversal,
+    ``psi_bar += 2·f_bar; f_bar = −f_bar`` — Wave O / O.2b), reusing the SAME
+    ψ-independent ``cell_balance_for_streaming`` coefficients as the forward
+    (Pattern 2 — no twin algebra).  Pinned by ``test_g_adjoint_reciprocity``
+    (slab / sphere / cylinder)."""
+
     def update(
         self,
         visit: CellVisit,

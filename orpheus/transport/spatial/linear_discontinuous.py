@@ -347,6 +347,20 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     passing on ``is_affine_scannable`` (a geometry-blind 1-D trait) and raising
     mid-sweep."""
 
+    has_transpose_kernel: ClassVar[bool] = False
+    r"""The LD adjoint faces are a TYPED DEFERRAL (#280): the reverse-mode VJP
+    of the UBLD Schur residual (cell-moment cotangents + the reverse
+    moment-frame involution) is unimplemented — the 1-D reverse walk
+    hand-transposes the DD face-flux chain only, and its buffers carry no
+    spatial-moment tail.  The ``False`` (= the base default, declared
+    explicitly for the citation) makes
+    :attr:`~orpheus.sn.operators.streaming.StreamingOperator.is_adjointable`
+    honest on an LD mesh (an eager ``.H`` raises ``MissingAdjoint`` at
+    construction) and arms the reverse walk's entry guard — never a silent
+    scalar-buffer broadcast against moment-tailed cotangents.  Unblocks with
+    the #280 kernel-pair registration (DD registers forward + transpose
+    kernels; LD forward-only)."""
+
     theta: ClassVar[float] = 1.0 / 3.0
     r"""The slope-moment weight :math:`\theta` (LM-1989 Eq. 4.3b).  The value
     :math:`\theta = 1/3` is the SN-exact linear-discontinuous closure (LM-1989
