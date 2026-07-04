@@ -19,6 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar
 
+from orpheus.numerics.moment_layout import cell_moment_count
 from orpheus.numerics.spaces.spatial_moment_space import spatial_moment_tail
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
 from orpheus.transport.displacements._displacement import Displacement
@@ -58,7 +59,7 @@ class MomentDisplacement(Displacement, MomentField):
         gate is single-sourced from
         :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`.
         """
-        n_moments = self.spatial_moments ** self.mesh.ndim
+        n_moments = cell_moment_count(self.spatial_moments, self.mesh.ndim)
         return (
             self.L + 1, 2 * self.L + 1,
             self.mesh.ng, *self.mesh.spatial_shape,

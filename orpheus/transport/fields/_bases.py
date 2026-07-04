@@ -78,6 +78,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.field import Field
+from orpheus.numerics.moment_layout import cell_moment_count
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.spatial_moment_space import (
     SpatialMomentSpace,
@@ -221,7 +222,7 @@ class BulkField(Field):
         before the consumers that fill the axis exist — a Pattern-4
         violation (an axis no producer fills is an illegal state).
         """
-        n_moments = spatial_moments_per_axis ** mesh.ndim
+        n_moments = cell_moment_count(spatial_moments_per_axis, mesh.ndim)
         # "append iff > 1" — single-sourced; () at n==1 → no factor, byte-id.
         if spatial_moment_tail(n_moments) == ():
             return space
@@ -571,7 +572,7 @@ class MomentField(BulkField):
         so the default ``1`` leaves the shape byte-identical and AGREES with
         the factor :meth:`from_mesh_and_L` composes).
         """
-        n_moments = self.spatial_moments ** self.mesh.ndim
+        n_moments = cell_moment_count(self.spatial_moments, self.mesh.ndim)
         return (
             self.L + 1, 2 * self.L + 1,
             self.mesh.ng, *self.mesh.spatial_shape,
@@ -650,7 +651,7 @@ class MomentField(BulkField):
         sizes the optional within-cell spatial-moment axis to match
         :meth:`from_mesh_and_L`.
         """
-        n_moments = spatial_moments ** mesh.ndim
+        n_moments = cell_moment_count(spatial_moments, mesh.ndim)
         values = np.zeros(
             (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape,
              *spatial_moment_tail(n_moments)),

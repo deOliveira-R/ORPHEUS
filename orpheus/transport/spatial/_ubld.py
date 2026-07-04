@@ -74,6 +74,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from orpheus.numerics.moment_layout import cell_moment_count
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # The 1-D LD factor operators (Legendre moment basis {1, P₁} on width h)
@@ -134,7 +136,7 @@ def octant_moment_frame_signs(
     if spatial_basis_per_axis == 1:
         return None
     d = len(octant_signs)
-    size = spatial_basis_per_axis ** d
+    size = cell_moment_count(spatial_basis_per_axis, d)
     signs = np.ones(size)
     for flat in range(size):
         factor = 1
@@ -227,7 +229,7 @@ def assemble_ubld(
     for k in range(1, d):
         M = _batched_kron(M, masses[k])
 
-    size = 2**d
+    size = cell_moment_count(2, d)
     batch_shape = M.shape[:-2]
     G = np.zeros(batch_shape + (size, size), dtype=np.float64)
     F_out = np.zeros(batch_shape + (size, size), dtype=np.float64)

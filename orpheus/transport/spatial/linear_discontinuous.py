@@ -175,7 +175,12 @@ from typing import ClassVar
 
 import numpy as np
 
-from orpheus.numerics.moment_layout import AVERAGE_MOMENT, face_moment_tail
+from orpheus.numerics.moment_layout import (
+    AVERAGE_MOMENT,
+    cell_moment_count,
+    face_moment_count,
+    face_moment_tail,
+)
 
 from ._ubld import (
     D1ClosedForm,
@@ -501,7 +506,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         average-moment slot index is the single-sourced :data:`AVERAGE_MOMENT`.
         """
         d = len(s_axes)
-        size = 2**d
+        size = cell_moment_count(2, d)
         # g_a = s_axes[a] (N_oct, 1, n_diag); broadcast to (N_oct, ng, n_diag)
         # against reaction_xs (ng, n_diag).
         sig_b = np.asarray(reaction_xs)
@@ -554,7 +559,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         """
         d = len(s_axes)
         # The walk omits the moment axis exactly when its tail is empty (d=1).
-        needs_moment_axis = face_moment_tail(2 ** (d - 1)) == ()
+        needs_moment_axis = face_moment_tail(face_moment_count(2, d)) == ()
         ones = [np.ones_like(g) for g in s_axes]
         gs = [np.asarray(g) for g in s_axes]
         faces = [
@@ -595,7 +600,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         # walk's scalar d=1 face cochain).  This mirrors _ubld_inflow's d=1
         # axis-append, keeping out-of-cell == in-of-next-cell consistent (#240
         # D5b-S3 — the unified moment matvec).
-        tail = face_moment_tail(2 ** (d - 1))
+        tail = face_moment_tail(face_moment_count(2, d))
         tensor = psi_moments.reshape(*batch, *([2] * d))
         faces = []
         for a in range(d):

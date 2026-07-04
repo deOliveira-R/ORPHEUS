@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "AVERAGE_MOMENT",
+    "cell_moment_count",
     "face_moment_count",
     "face_moment_tail",
     "is_moment_valued_by_flat_rank",
@@ -61,6 +62,26 @@ __all__ = [
 AVERAGE_MOMENT = 0
 
 
+def cell_moment_count(per_axis: int, ndim: int) -> int:
+    r"""Per-cell spatial-moment count :math:`(\text{per\_axis})^{d}`.
+
+    A cell is codimension-0, so it carries the full tensor-Legendre product
+    over all ``d`` axes: ``1`` for the cell-average closures (DD/Step) and
+    ``2^d`` for the bilinear UBLD Linear-Discontinuous closure (d=2: ``4`` —
+    ``[ψ̄, ψ̂_y, ψ̂_x, ψ̂_xy]``).  Single source of the cell-count policy —
+    the ``d`` exponent — shared by the typed space
+    (:meth:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace.from_per_axis`),
+    the field/displacement shape builders, the UBLD cell assembler, the SN
+    solver's lift/reduce helpers, and the loss representation (#253: these
+    were ~20 open-coded ``per_axis ** ndim`` spellings — a layout-policy
+    change now lands HERE, not at scattered call sites).  ``per_axis``
+    itself single-sources at the scheme trait
+    ``DiscretizationScheme.spatial_basis_per_axis``; the codimension-1 FACE
+    sibling is :func:`face_moment_count` (``d-1`` exponent).
+    """
+    return per_axis ** ndim
+
+
 def face_moment_count(per_axis: int, ndim: int) -> int:
     r"""Per-face transverse spatial-moment count :math:`(\text{per\_axis})^{d-1}`.
 
@@ -73,7 +94,7 @@ def face_moment_count(per_axis: int, ndim: int) -> int:
     (:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`) and the interior
     face cochain (``orpheus.sn.loss_representation._LossRepresentation._n_face_moments``),
     which MUST agree on the face width or the capture↔shed seam mis-shapes (#251).
-    The CELL count is the sibling ``per_axis ** ndim`` (no ``-1``).
+    The CELL count is the sibling :func:`cell_moment_count` (no ``-1``).
     """
     return per_axis ** (ndim - 1)
 

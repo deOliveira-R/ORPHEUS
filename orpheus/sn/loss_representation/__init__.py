@@ -131,6 +131,7 @@ import numpy as np
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.moment_layout import (
     AVERAGE_MOMENT,
+    cell_moment_count,
     face_moment_count,
     face_moment_tail,
     is_moment_valued_by_flat_rank,
@@ -484,7 +485,7 @@ class _LossRepresentation:
         "append iff > 1" policy ``spatial_moment_tail`` delegates to), fed the
         per-CELL count ``per_axis^d``."""
         per_axis = self.mesh.scheme.spatial_basis_per_axis
-        return face_moment_tail(per_axis ** self.mesh.ndim)
+        return face_moment_tail(cell_moment_count(per_axis, self.mesh.ndim))
 
     def _inflow_to_moments(
         self, inflow: tuple["np.ndarray", ...],
@@ -955,7 +956,7 @@ class _OctantWalk:
         # is read OFF the probe (its space already carries the SpatialMomentSpace
         # factor — the iterate is the single source of truth for the width).
         per_axis = sn_mesh.scheme.spatial_basis_per_axis
-        moment_tail = face_moment_tail(per_axis ** ndim)
+        moment_tail = face_moment_tail(cell_moment_count(per_axis, ndim))
         operands = _ApplyOperands(
             probe=probe,
             sig_t=sigma,
@@ -2511,7 +2512,7 @@ class _OneDimScanWalk:
         # (per_axis == 1) → ``()`` tail, every buffer byte-identical.  The width
         # is read OFF the iterate's space (the single source of truth).
         per_axis = sn_mesh.scheme.spatial_basis_per_axis
-        moment_tail = face_moment_tail(per_axis ** sn_mesh.ndim)
+        moment_tail = face_moment_tail(cell_moment_count(per_axis, sn_mesh.ndim))
         out_g_first = np.zeros((ng, N, nx, *moment_tail))
 
         V = sn_mesh.volumes
@@ -3061,7 +3062,7 @@ class _OneDimScanWalk:
         # negative control).  Single source via ``face_moment_tail`` (the same
         # "append iff > 1" policy the rest of the carve keys on).
         per_axis = scheme.spatial_basis_per_axis
-        moment_tail = face_moment_tail(per_axis ** self.mesh.ndim)
+        moment_tail = face_moment_tail(cell_moment_count(per_axis, self.mesh.ndim))
         is_moment = moment_tail != ()
 
         # A multi-moment closure lifts a FLAT scalar source onto the average
@@ -3590,7 +3591,7 @@ def _sweep_scheduled(
     # harmonic-moment tensor (windowed production).  DD/Step (per_axis == 1) →
     # ``()`` tail, every buffer byte-identical (the negative control).
     moment_tail = face_moment_tail(
-        sn_mesh.scheme.spatial_basis_per_axis ** sn_mesh.ndim
+        cell_moment_count(sn_mesh.scheme.spatial_basis_per_axis, sn_mesh.ndim)
     )
     emit: "_SweepEmitAngular | _SweepEmitMoment"
     if moment_frame is None:

@@ -97,7 +97,11 @@ from orpheus.numerics.space import FunctionSpace
 # module ``orpheus.numerics.moment_layout`` (#245).  A top-level import is
 # safe — ``moment_layout`` is leaf (stdlib only), so it cannot re-introduce
 # the numerics → SN cycle the old deferred ``_ubld`` import worked around.
-from orpheus.numerics.moment_layout import AVERAGE_MOMENT, face_moment_tail
+from orpheus.numerics.moment_layout import (
+    AVERAGE_MOMENT,
+    cell_moment_count,
+    face_moment_tail,
+)
 
 
 __all__ = ["SpatialMomentSpace", "spatial_moment_tail"]
@@ -203,7 +207,7 @@ class SpatialMomentSpace(FunctionSpace):
             raise ValueError(
                 f"SpatialMomentSpace: ndim={self.ndim} must be >= 0."
             )
-        expected = (self.per_axis ** self.ndim,)
+        expected = (cell_moment_count(self.per_axis, self.ndim),)
         if self.shape != expected:
             raise ValueError(
                 f"SpatialMomentSpace: shape={self.shape} inconsistent with "
@@ -253,7 +257,7 @@ class SpatialMomentSpace(FunctionSpace):
         """
         return cls(
             name="spatial_moment_space",
-            shape=(per_axis ** ndim,),
+            shape=(cell_moment_count(per_axis, ndim),),
             per_axis=per_axis,
             ndim=ndim,
         )

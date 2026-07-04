@@ -51,6 +51,12 @@ from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
+from orpheus.numerics.moment_layout import (
+    AVERAGE_MOMENT,
+    cell_moment_count,
+    face_moment_tail,
+    is_moment_valued_by_flat_rank,
+)
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.mesh.axis import Axis1D
@@ -1916,7 +1922,9 @@ def _build_fixed_source_rhs(
     # 2^d moment axis).  Reject everything else, INCLUDING a moment axis whose
     # length ≠ per_axis**ndim, and (for DD/Step where there is no moment axis) a
     # moment-resolved input outright (only flat is valid at per_axis == 1).
-    n_cell_moments = sn_mesh.scheme.spatial_basis_per_axis ** sn_mesh.ndim
+    n_cell_moments = cell_moment_count(
+        sn_mesh.scheme.spatial_basis_per_axis, sn_mesh.ndim
+    )
     moment_expected = (*expected, n_cell_moments)
     is_flat = bulk_values.shape == expected
     is_moment_resolved = (
@@ -1987,14 +1995,8 @@ def _lift_external_source_to_moments(
       slope-sign reframe (``sweep_graph._CellSolve`` /
       ``octant_moment_frame_signs``) re-signs the external slopes global→sweep
       EXACTLY as it does the scattering slopes — no new cell branch."""
-    from orpheus.numerics.moment_layout import (
-        AVERAGE_MOMENT,
-        face_moment_tail,
-        is_moment_valued_by_flat_rank,
-    )
-
     per_axis = sn_mesh.scheme.spatial_basis_per_axis
-    n_cell_moments = per_axis ** sn_mesh.ndim
+    n_cell_moments = cell_moment_count(per_axis, sn_mesh.ndim)
     tail = face_moment_tail(n_cell_moments)
     if tail == ():
         return bulk_values, per_axis
@@ -2022,10 +2024,8 @@ def _average_moment_scalar(phi: "np.ndarray", sn_mesh: SNMesh) -> "np.ndarray":
     structure (#240 D5b-S3).  ``phi`` from a multi-moment closure carries a
     trailing ``2^d`` axis — take slot ``AVERAGE_MOMENT``; DD/Step (per_axis ==
     1) → no axis → return unchanged."""
-    from orpheus.numerics.moment_layout import AVERAGE_MOMENT, face_moment_tail
-
     per_axis = sn_mesh.scheme.spatial_basis_per_axis
-    if face_moment_tail(per_axis ** sn_mesh.ndim) == ():
+    if face_moment_tail(cell_moment_count(per_axis, sn_mesh.ndim)) == ():
         return phi
     return phi[..., AVERAGE_MOMENT]
 
@@ -2472,7 +2472,7 @@ def _solve_fixed_source_krylov(
     # grows by per_axis^d (the ravel reads the template's full bulk shape, so it
     # tracks automatically — n_dof is the explicit cross-check).  DD/Step → 1.
     per_axis = sn_mesh.scheme.spatial_basis_per_axis
-    n_moments = per_axis ** sn_mesh.ndim
+    n_moments = cell_moment_count(per_axis, sn_mesh.ndim)
     krylov = _within_group_krylov(
         LC, S, B,
         n_dof=N * ng * int(np.prod(sn_mesh.spatial_shape)) * n_moments,
