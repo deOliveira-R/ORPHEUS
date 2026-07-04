@@ -464,6 +464,33 @@ Draft split (P0 verifies; verified inventory @ `3a19133`):
   rows. Close/comment #272, #253, #158, #284; comment #282 with the
   characterization; comment #200 (blocks now assemblable).
 
+**2c STATUS — COMPLETE (2026-07-04):**
+- `e066297` — the archivist-authored (main-reviewed) theory record: the
+  three-modes section (`loss_representations.rst`, incl. the reconciliation of
+  its own 'deferred extension point' prose — it had anticipated exactly this
+  mode), the assembly axis (`operator_algebra.rst`), dev-history rows; the
+  parked 2a dangles repaired (6 dead `boundary_face_flux` ROLES → literals,
+  5 stale test paths); the CellVisit "SN-specific" drift + the pairing.py
+  latent-consumer overclaim fixed; the `ld-slab` phantom verifies-marker
+  resolved by per-test repoint to the real `ld-ubld-*` equations (ALSO
+  covered two former orphan equations); `matrix.rst` regenerated.
+- Issue dispositions: **#284 CLOSED** (the object-level discharge — comment
+  records the G2 evidence + the honest non-source-rhs scope note); **#282
+  commented** (the back-edge characterization + the loud-flip gate contract);
+  **#200 commented** (blocks assemblable — the preconditioner's structural
+  blocker removed); **#158 commented** (state refresh: new paths, the
+  assembly-for-free property of the scheme contract, the three remaining
+  arms). **#272 + #253 close via this commit's trailers** (fire at push —
+  pushes held).
+- Parked (pre-existing hygiene, out of campaign scope): the
+  `ld-cartesian-1d` sibling phantom verifies-marker (6 tests, no equation
+  home — repoint per-test like `ld-slab`, or mint the 1-D LD umbrella
+  equation); a clean `docs/_build` wipe-rebuild for the stale `_modules/`
+  pages of long-retired modules (build-dir archaeology only).
+- Walls at close-out: sphinx `-W` exit 0 (×2 — archivist + main); harness
+  audit exit 0; broad seam wall 3245/0; FULL not-slow tree + ff-merge gate
+  recorded below at the merge.
+
 ⏸ **C2**.
 
 ---
