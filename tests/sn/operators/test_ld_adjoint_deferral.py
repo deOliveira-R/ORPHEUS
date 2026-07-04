@@ -23,7 +23,13 @@ This file pins the honest surface landed in S0:
   call (bypassing ``.H``) raises the typed deferral, never a silent
   broadcast;
 * the DD positive control (vv anti-pattern #11: paired positive+negative —
-  the honest surface must not over-refuse).
+  the honest surface must not over-refuse);
+* the ORIENTATION factor (2.5a — the S0-deferred multi-D question):
+  ``is_adjointable = scheme.has_transpose_kernel ∧
+  representation.has_transpose_walk``, so a multi-D Cartesian mesh (whose
+  walks carry no reverse traversal — the #280 deferral) refuses the eager
+  ``.H`` at construction exactly like LD, with the representations' loud
+  raises as the direct-call backstop.
 
 The deferral lifts with the #280 kernel-pair registration (DD registers
 forward + transpose kernels; LD forward-only → the deferral becomes
@@ -38,6 +44,11 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.operator import MissingAdjoint
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.sn.loss_representation import (
+    CumprodScan,
+    MovingFrontierWindow,
+    ScanMarch,
+)
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.operators.streaming import StreamingOperator
@@ -48,7 +59,11 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
-from tests.sn._test_helpers import placeholder_materials
+from tests.sn._test_helpers import (
+    cart2d_2g_nonsquare,
+    het_operands,
+    placeholder_materials,
+)
 from tests.sn.operators.test_g_adjoint_reciprocity import _random_composite
 
 pytestmark = pytest.mark.foundation
@@ -207,4 +222,83 @@ class TestWalkEntryGuard:
         require(
             bool(np.all(np.isfinite(out.bulk.values))),
             "DD (L+C)ᵀφ produced non-finite bulk values.",
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The ORIENTATION factor — multi-D honesty (2.5a; the S0-deferred question)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestMultiDOrientationHonesty:
+    r"""``is_adjointable`` factorizes along the #280 axes: KERNEL
+    (``scheme.has_transpose_kernel``) ∧ ORIENTATION
+    (``representation.has_transpose_walk``).  A DD multi-D Cartesian mesh
+    passes the kernel factor but its walks carry no reverse traversal —
+    pre-2.5a the predicate LIED (``True`` while ``apply_transpose``
+    raised); now the eager ``.H`` refuses at construction and the
+    representations' raises are the direct-call backstop."""
+
+    def test_rep_trait_declarations(self) -> None:
+        sn1, _ = _slab(scheme=DiamondDifference())
+        require(
+            CumprodScan(sn1).has_transpose_walk is True,
+            "CumprodScan (1-D only) must declare has_transpose_walk=True — "
+            "the shared 1-D loop walk reverses (2.5a).",
+        )
+        require(
+            ScanMarch(sn1).has_transpose_walk is True,
+            "ScanMarch on a 1-D mesh must declare has_transpose_walk=True "
+            "— its 1-D branch delegates to the same reverse loop walk.",
+        )
+        sn2 = cart2d_2g_nonsquare()
+        require(
+            ScanMarch(sn2).has_transpose_walk is False,
+            "ScanMarch on a 2-D mesh must declare has_transpose_walk=False "
+            "— the multi-D reverse walk is the #280 deferral.",
+        )
+        require(
+            MovingFrontierWindow(sn2).has_transpose_walk is False,
+            "The DAG-wavefront family must inherit has_transpose_walk="
+            "False (base opt-in default) — its adjoint is deferred.",
+        )
+
+    def test_cart2d_dd_streaming_is_not_adjointable(self) -> None:
+        sn = cart2d_2g_nonsquare()
+        require(
+            not StreamingOperator(sn).is_adjointable,
+            "L on a 2-D Cartesian DD mesh must NOT advertise the adjoint "
+            "axis — the kernel factor passes but the orientation factor "
+            "fails (no multi-D reverse walk); a True here is the predicate "
+            "lie the S0 STATUS deferred to 2.5a.",
+        )
+
+    def test_cart2d_H_raises_missing_adjoint_at_construction(self) -> None:
+        sn = cart2d_2g_nonsquare()
+        sig_t, _psi = het_operands(sn)
+        with pytest.raises(MissingAdjoint):
+            _ = StreamingOperator(sn).H
+        with pytest.raises(MissingAdjoint):
+            _ = _lc(sn, sig_t).H
+
+    def test_cart2d_direct_transpose_still_raises_typed_deferral(self) -> None:
+        r"""The backstop behind the predicate: a DIRECT Euclidean
+        ``apply_transpose`` (bypassing ``.H``) still hits the
+        representation's loud multi-D deferral raise."""
+        sn = cart2d_2g_nonsquare()
+        sig_t, psi = het_operands(sn)
+        with pytest.raises(NotImplementedError, match="multi-D Cartesian adjoint"):
+            _lc(sn, sig_t).apply_transpose(psi)
+
+    def test_1d_dd_positive_control_unmoved(self) -> None:
+        r"""The orientation factor must not over-refuse (anti-pattern #11):
+        1-D DD keeps the full adjoint surface."""
+        sn, sig_t = _slab(scheme=DiamondDifference())
+        require(
+            StreamingOperator(sn).is_adjointable,
+            "1-D DD L must stay adjointable under the two-factor predicate.",
+        )
+        require(
+            _lc(sn, sig_t).H is not None,
+            "1-D DD (L+C).H must still construct.",
         )

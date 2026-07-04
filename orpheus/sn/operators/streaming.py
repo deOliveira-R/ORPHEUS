@@ -336,16 +336,23 @@ class StreamingOperator(LinearOperator["FullField"]):
 
     @property
     def is_adjointable(self) -> bool:
-        # Scheme-honest (Phase 2.5 S0, #280): the analytic reverse-direction
-        # adjoint matvec L^T (Wave O / O.2b — see :meth:`apply_transpose`)
-        # exists ONLY where the scheme's cell relation has a transpose
-        # realization — DD yes (the hand-transposed reverse walk), LD no (the
-        # UBLD Schur VJP is the #280 kernel-pair deferral). An eager ``.H`` on
-        # an LD mesh therefore raises MissingAdjoint at construction instead
-        # of reaching the DD-only reverse walk with moment-tailed cotangents.
+        # Two-factor honest (Phase 2.5 S0 + 2.5a, #280) — the predicate
+        # factorizes along the #280 axes: the KERNEL factor
+        # (scheme.has_transpose_kernel — the cell relation has a transpose
+        # realization: DD yes, LD no, the kernel-pair deferral) AND the
+        # ORIENTATION factor (representation.has_transpose_walk — the walk
+        # itself reverses: the 1-D loop walk yes, the multi-D octant/
+        # wavefront walks are the #280 deferral). An eager ``.H`` on an LD
+        # mesh OR a multi-D Cartesian mesh therefore raises MissingAdjoint
+        # at construction instead of reaching a raising (or DD-only)
+        # reverse walk at apply time; the representations' loud raises stay
+        # as the direct-call backstop.
         # is_invertible inherits base False — pure streaming L is not
         # sweep-invertible; only the (L+C) InvertibleOperator is.
-        return type(self.sn_mesh.scheme).has_transpose_kernel
+        return (
+            type(self.sn_mesh.scheme).has_transpose_kernel
+            and self.loss_representation.has_transpose_walk
+        )
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -377,12 +384,15 @@ class StreamingOperator(LinearOperator["FullField"]):
         ``test_g_adjoint_reciprocity``. Reachability stays predicate-gated
         per leaf (fails loud via
         :class:`~orpheus.numerics.operator.MissingAdjoint`, never silently
-        Euclidean): ``L.is_adjointable`` is SCHEME-honest — ``True`` iff the
-        scheme carries a transpose kernel
+        Euclidean): ``L.is_adjointable`` is TWO-FACTOR honest along the #280
+        axes — the KERNEL factor
         (:attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.has_transpose_kernel`:
-        DD yes; LD no, the #280 kernel-pair deferral). The daggered
-        eigenvalue posing that CONSUMES the full-loss adjoint is the #276 A4
-        chain, fed by the #280 reverse solve.
+        DD yes; LD no, the kernel-pair deferral) AND the ORIENTATION factor
+        (:meth:`~orpheus.sn.loss_representation.LossRepresentation.has_transpose_walk`:
+        the 1-D loop walk reverses; the multi-D octant/wavefront walks are
+        the #280 deferral). The daggered eigenvalue posing that CONSUMES
+        the full-loss adjoint is the #276 A4 chain, fed by the #280 reverse
+        solve.
         """
         return self.sn_mesh.full_field_space
 

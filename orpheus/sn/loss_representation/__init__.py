@@ -360,6 +360,23 @@ class LossRepresentation(Protocol):
         """
         ...
 
+    @property
+    def has_transpose_walk(self) -> bool:
+        r"""Whether THIS representation can walk its traversal in reverse.
+
+        The ORIENTATION factor of the adjoint-reachability predicate (#280,
+        Phase 2.5a): ``is_adjointable = scheme.has_transpose_kernel ∧
+        representation.has_transpose_walk`` — the scheme trait says the
+        per-cell relation has a transpose realization (the KERNEL axis);
+        this trait says the walk itself reverses (the ORIENTATION axis —
+        the 1-D loop walk does, the multi-D octant/wavefront walks are the
+        #280 deferral).  ``False`` here makes the eager ``.H`` refuse at
+        construction (:class:`~orpheus.numerics.operator.MissingAdjoint`);
+        the representations' :meth:`loss_action_transpose` raises stay as
+        the loud backstop for direct Euclidean calls.
+        """
+        ...
+
     @classmethod
     def supports(cls, mesh: "SNMesh") -> Compatibility:
         """Whether this strategy can sweep ``mesh`` (the selection layer)."""
@@ -579,6 +596,18 @@ class _LossRepresentation:
         raise NotImplementedError(
             f"{type(self).__name__} must implement loss_action_transpose()"
         )
+
+    @property
+    def has_transpose_walk(self) -> bool:
+        """Reverse-walk capability — opt-in ``False`` (the orientation factor).
+
+        See :meth:`LossRepresentation.has_transpose_walk`.  Concrete leaves
+        whose transpose walk EXISTS override to ``True`` (the 1-D scan
+        family); every walk whose reversal is a #280 deferral inherits this
+        honest ``False`` so the eager ``.H`` refuses at construction rather
+        than reaching a raising ``loss_action_transpose`` at apply time.
+        """
+        return False
 
     def __post_init__(self) -> None:
         compat = type(self).supports(self.mesh)
@@ -1112,6 +1141,16 @@ class CumprodScan(_LossRepresentation):
         """
         return _OneDimScanWalk(self.mesh).loss_action_transpose(sigma, phi)
 
+    @property
+    def has_transpose_walk(self) -> bool:
+        """``True`` — the 1-D scan family walks in reverse (#280 2.5a).
+
+        ``supports`` confines this leaf to 1-D, where the shared
+        ``_OneDimScanWalk`` frame traverses ``_reverse_traversal`` of the
+        same legs the forward marches.
+        """
+        return True
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # _DAGWavefront — the Cartesian anti-hyperplane DAG family
@@ -1169,6 +1208,10 @@ class _DAGWavefront(_LossRepresentation):
         reverse sweep first).  Raises :class:`NotImplementedError` — the mesh
         is compatible, only the adjoint *feature* is deferred (so this is NOT
         an :class:`IncompatibleRepresentation`).  Never a silent wrong answer.
+        Since 2.5a the honest front door is the predicate: the family
+        inherits ``has_transpose_walk = False``, so the eager ``.H`` refuses
+        at construction — this raise is the backstop for direct Euclidean
+        ``apply_transpose`` calls that bypass ``.H`` (the S0.1 layering).
         """
         raise NotImplementedError(
             "StreamingOperator.apply_transpose: the multi-D Cartesian adjoint "
@@ -2023,6 +2066,17 @@ class ScanMarch(_LossRepresentation):
             "deferred (O.2b lands the 1-D reverse sweep first; the multi-D "
             "adjoint follows the forward scan-march matvec, S5.1b+)."
         )
+
+    @property
+    def has_transpose_walk(self) -> bool:
+        """1-D ``True`` (the shared reverse loop walk); multi-D the #280 deferral.
+
+        The one representation spanning both dimensionalities, so the
+        orientation factor is mesh-dependent: the eager ``.H`` on a 2-D
+        scan-march mesh refuses at construction (the raise above stays as
+        the direct-call backstop).
+        """
+        return self.mesh.is_1d
 
 
 # ═══════════════════════════════════════════════════════════════════════
