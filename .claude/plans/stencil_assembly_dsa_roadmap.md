@@ -149,6 +149,38 @@ sites:**
 2. **Characterize #291 FIRST** (before fixing): run a vacuum-bounded SN anchor, log
    reported-k vs `direct_eigenvalue`-style ground truth (or balance-identity defect).
    Decide bit-identical vs principled-re-baseline per vv-principles BEFORE the carve.
+
+   **STATUS — DONE (2026-07-03, pre-fix @ `d1daaac`).** Harness: converged-fixed-
+   point map ratio k* = P(Mφ*)/P(φ*) with M = solve_fixed_source∘F — structurally
+   independent of the estimator under test; noise ≤ 2e-11 (second-application
+   drift); reflective control bias 1.2e-10 confirms the estimator-independent
+   fixed point. Numbers (GL8, tight tols):
+
+   | case | k_reported | k* (true) | bias |
+   |---|---|---|---|
+   | homog. 2G VACUUM slab w=8, 40c | 1.83767525 | 0.98163269 | **+87.2%** (L/A=0.872) |
+   | het vacuum sphere P0 (`test_p1_lowers` cfg) | 0.86484694 | 0.70601977 | +22.5% |
+   | het vacuum sphere P1 | 0.85080423 | 0.67876772 | +25.3% |
+   | reflective control | 1.87500000 | 1.87500000 | 1.2e-10 ✓ |
+   | reflective Σ₂≠0 (R7 exhibit) | 1.92857143 | 2.61278195 | **−26.2%** (zero leakage) |
+
+   Sphere Δ(P0−P1): reported 1.404e-2 → true 2.725e-2 — STAYS inside the
+   (1e-3, 5e-2) band ⟹ `test_p1_lowers` survives (docstring measured-values
+   re-measured post-fix); the monotone test re-measured post-fix. The R7 exhibit
+   confirms the n2n defect numerically at zero leakage (k* = P_fis/(A_xs−E_n2n)
+   checks exactly: 0.78/(0.5185−0.2200) = 2.61278).
+
+   **vv decision: PRINCIPLED RE-BASELINE.** The old reported k is a DIFFERENT
+   functional from the posed problem's eigenvalue (coincides only when L=0 ∧
+   Σ₂=0); the corrected value is pinned by the map-ratio harness now and the
+   P1.4 cross-engine gate permanently. **Bit-identity design constraint for the
+   carve:** reflective Σ₂=0 anchors (incl. the regression-snapshot suite) stay
+   BITWISE unmoved — spell L as a STRUCTURAL zero over reflective faces (only
+   vacuum faces contribute outflow) and keep the IRR P/A spellings (the n2n
+   term is exact 0.0 on Σ₂=0, so the float arithmetic is unchanged:
+   `P/(A + 0.0 − 0.0)` ≡ `P/A`). The reported-k contract change is confined to
+   vacuum-bounded and Σ₂≠0 problems. Harness script ephemeral (job tmp); the
+   map-ratio spelling graduates into the P1.4 gate.
 3. **The carve**: one estimator discipline — production via the typed
    `IntegratedReactionRate`; denominator derived through each method's loss operator
    (per-method wiring, ONE shared spelling where the algebra permits — extract the
