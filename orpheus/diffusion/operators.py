@@ -137,7 +137,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Mapping, Optional
 
 import numpy as np
+from scipy import sparse
 
+from orpheus.numerics.assembled_operator import SparseAssembledOperator
+from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.operator import BlockRole, LinearOperator
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
@@ -213,6 +216,38 @@ def _boundary_closure(
     """
     rho = h_edge / (2.0 * D_edge)
     return 1.0 / (rho + 2.0), (rho - 2.0) / (rho + 2.0)
+
+
+def _require_trace_layout(space: ScalarTraceSpace) -> FaceLayout:
+    r"""The trace's :class:`~orpheus.numerics.face_layout.FaceLayout`, guarded.
+
+    ``layout`` is an optional dataclass field (the ``compare=False``
+    convention); a trace built by :meth:`ScalarTraceSpace.for_faces` — the
+    only production path — always carries one. Fail with intent on the
+    bare-constructor footgun (the ``face_names`` guard's sibling)."""
+    if space.layout is None:
+        raise RuntimeError(
+            "ScalarTraceSpace has no FaceLayout; build it via "
+            "ScalarTraceSpace.for_faces, not the bare constructor."
+        )
+    return space.layout
+
+
+def _trace_dof_columns(
+    n_bulk: int, layout: FaceLayout, face: str, row: int, ng: int,
+) -> np.ndarray:
+    r"""Flat composite DOF indices of one trace component row on ``face``.
+
+    The single spelling of the trace half of the global DOF numbering
+    (crosswalk "Global DOF numbering"): the composite flat vector is
+    ``[bulk C-ravel | trace buffer]``, and a face's ``(2, ng)`` slot sits
+    at its :class:`FaceLayout` offset with component-major C-order — so
+    component ``row`` (:attr:`ScalarTraceSpace.OUTFLOW_ROW` = J⁺ /
+    ``INFLOW_ROW`` = J⁻), group ``g`` lives at
+    ``n_bulk + offset(face) + row·ng + g``. Returns the ``(ng,)`` index
+    vector for all groups of that component.
+    """
+    return n_bulk + layout.faces[face].offset + row * ng + np.arange(ng)
 
 
 @dataclass(frozen=True)
@@ -397,6 +432,114 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
             boundary=out_boundary,
         )
 
+    # ── The assembly mode (stencil-assembly 2b — the FIRST emitter) ────
+
+    @property
+    def is_assemblable(self) -> bool:
+        return True  # the FD stencil is structural — always emittable
+
+    def assemble(self) -> SparseAssembledOperator:
+        r"""Emit the FD stencil as ``(row, col, value)`` — the third
+        consumption mode of the SAME coefficient algebra :meth:`apply`
+        marches.
+
+        One-source discipline (the Phase-F twin-path guardrail): every
+        value below reads the SAME precomputed attributes ``apply``
+        consumes — :attr:`_conductance` / :attr:`_areas` /
+        :attr:`_volumes` / :attr:`_face_closures` (themselves produced
+        by :func:`_interior_conductance` / :func:`_boundary_closure`) —
+        never a re-derived stencil. A sign flip monkeypatched into
+        those sources must red the assembled gates AND the existing
+        apply/stencil suites together (the L16 teeth).
+
+        Emission (the module docstring's block table, row by row; DOF
+        numbering per :func:`_trace_dof_columns`):
+
+        * **interior face** ``f`` (conductance :math:`g_f`, area
+          :math:`A_f`): the condensed current couples the two adjacent
+          bulk rows — four scatter families
+          :math:`\pm A_f g_f / V_{f-1}`, :math:`\pm A_f g_f / V_f`
+          (the bulk diagonal receives one contribution per touching
+          face; the CSR duplicate-summing performs the assembly sum —
+          nulp vs ``apply``'s diff-then-divide grouping, per the gate
+          spec).
+        * **boundary face**: the edge bulk row reads the trace's net
+          outward current, :math:`\pm A_s / V_e` on (J⁺, J⁻); the
+          outflow trace row is the P1 defect
+          ``(1, −c_φ, −c_{J⁻})`` on (J⁺, φ_e, J⁻); the inflow trace
+          row is the identity on J⁻ (the ``(L − B)`` algebra —
+          ``B`` supplies :math:`-\mathcal{A} J^+` on the same row).
+        """
+        ng, _n_interior = self._conductance.shape
+        nx = self._volumes.size
+        n_bulk = ng * nx
+        space = self.mesh.full_field_space
+        layout = _require_trace_layout(self.mesh.scalar_trace)
+        n_total = int(space.shape[0])
+
+        rows: list[np.ndarray] = []
+        cols: list[np.ndarray] = []
+        vals: list[np.ndarray] = []
+
+        # ── Interior faces f = 1..nx−1: the condensed two-point current ──
+        if nx > 1:
+            groups = np.arange(ng)
+            interior_area = self._areas[1:-1]                    # (nx−1,) A_f
+            #: A_f·g_f — the SAME product chain apply's ``areas * current``
+            #: realizes (two-operand multiply; sign applied per family).
+            face_weight = interior_area[None, :] * self._conductance
+            left_over_v = face_weight / self._volumes[None, :-1]   # /V_{f−1}
+            right_over_v = face_weight / self._volumes[None, 1:]   # /V_f
+            g_idx = np.repeat(groups, nx - 1)
+            f_idx = np.tile(np.arange(1, nx), ng)
+            left_cell = g_idx * nx + (f_idx - 1)
+            right_cell = g_idx * nx + f_idx
+            vl = left_over_v.ravel()
+            vr = right_over_v.ravel()
+            # out[f−1] += flow[f]/V_{f−1};  out[f] −= flow[f]/V_f;
+            # flow[f] = −A_f g_f (φ_f − φ_{f−1}).
+            rows += [left_cell, left_cell, right_cell, right_cell]
+            cols += [right_cell, left_cell, right_cell, left_cell]
+            vals += [-vl, vl, vr, -vr]
+
+        # ── Boundary faces: trace coupling + the P1 closure rows ─────────
+        for face, c in self._face_closures.items():
+            j_plus = _trace_dof_columns(
+                n_bulk, layout, face, ScalarTraceSpace.OUTFLOW_ROW, ng,
+            )
+            j_minus = _trace_dof_columns(
+                n_bulk, layout, face, ScalarTraceSpace.INFLOW_ROW, ng,
+            )
+            edge_cell = np.arange(ng) * nx + c.edge
+            # Edge bulk row: A_s (J⁺ − J⁻)/V_e — the axis_sign squares
+            # away against the diff orientation (module docstring).
+            area_over_volume = (
+                self._areas[c.flow_slot] / self._volumes[c.edge]
+            )
+            rows += [edge_cell, edge_cell]
+            cols += [j_plus, j_minus]
+            vals += [
+                np.full(ng, area_over_volume),
+                np.full(ng, -area_over_volume),
+            ]
+            # Outflow-definition defect row: J⁺ − c_φ φ_e − c_{J⁻} J⁻.
+            rows += [j_plus, j_plus, j_plus]
+            cols += [j_plus, edge_cell, j_minus]
+            vals += [np.ones(ng), -c.c_phi, -c.c_inflow]
+            # Inflow identity row: J⁻.
+            rows += [j_minus]
+            cols += [j_minus]
+            vals += [np.ones(ng)]
+
+        matrix = sparse.coo_array(
+            (
+                np.concatenate(vals),
+                (np.concatenate(rows), np.concatenate(cols)),
+            ),
+            shape=(n_total, n_total),
+        )
+        return SparseAssembledOperator(matrix, domain=space, codomain=space)
+
 
 class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
     r"""The whole-trace boundary law ``B`` — the ``A_ss`` block of the
@@ -473,3 +616,53 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
             bulk=ScalarSourceSink.zeros_on(self.mesh),
             boundary=out_boundary,
         )
+
+    # ── The assembly mode (stencil-assembly 2b) ────────────────────────
+
+    @property
+    def is_assemblable(self) -> bool:
+        return True  # the realized albedo block is structural
+
+    def assemble(self) -> SparseAssembledOperator:
+        r"""Emit the ``A_ss`` albedo block: per face, the law's matrix on
+        the inflow row against the outflow columns.
+
+        One-source discipline: each face's ``(ng × ng)`` block is
+        extracted THROUGH the realized law's own ``as_matrix`` (ng
+        probes of ``law.apply`` — the identical operator ``apply``
+        consumes), never a re-read of the albedo scalar — so a law
+        swapped or re-realized upstream changes both modes together.
+        The laws are tiny (Zero / Identity / α·Identity on ``(ng,)``),
+        so the probing extraction is exact coefficient reads.
+        """
+        ng = int(self.mesh.ng)
+        space = self.mesh.full_field_space
+        layout = _require_trace_layout(self.mesh.scalar_trace)
+        n_bulk = int(space.shape[0]) - layout.total_size
+        n_total = int(space.shape[0])
+
+        rows: list[np.ndarray] = []
+        cols: list[np.ndarray] = []
+        vals: list[np.ndarray] = []
+        for face, law in self.face_laws.items():
+            law_matrix = law.as_matrix(basis_shape=(ng,))     # (ng, ng)
+            j_plus = _trace_dof_columns(
+                n_bulk, layout, face, ScalarTraceSpace.OUTFLOW_ROW, ng,
+            )
+            j_minus = _trace_dof_columns(
+                n_bulk, layout, face, ScalarTraceSpace.INFLOW_ROW, ng,
+            )
+            to_row, from_col = np.nonzero(law_matrix)
+            rows.append(j_minus[to_row])
+            cols.append(j_plus[from_col])
+            vals.append(law_matrix[to_row, from_col])
+
+        if rows:
+            triplets = (
+                np.concatenate(vals),
+                (np.concatenate(rows), np.concatenate(cols)),
+            )
+        else:  # a trace with no faces is unrepresentable, but stay total
+            triplets = (np.zeros(0), (np.zeros(0, int), np.zeros(0, int)))
+        matrix = sparse.coo_array(triplets, shape=(n_total, n_total))
+        return SparseAssembledOperator(matrix, domain=space, codomain=space)

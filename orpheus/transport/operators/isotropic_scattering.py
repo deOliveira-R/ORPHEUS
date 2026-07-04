@@ -85,6 +85,7 @@ from orpheus.numerics.operator import (
 from orpheus.transport.full_field import FullField
 
 if TYPE_CHECKING:
+    from orpheus.numerics.assembled_operator import SparseAssembledOperator
     from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
@@ -133,6 +134,95 @@ def _scalar_composite_source(op: "LinearOperator", psi: FullField) -> FullField:
         bulk=ScalarSourceSink.from_mesh(op.apply(bulk.values), mesh),
         boundary=ScalarBoundarySourceSink.zeros_on(mesh),
     )
+
+
+def _iso_is_assemblable(op: "IsotropicScattering | IsotropicN2N") -> bool:
+    r"""Shared assembly-axis predicate of the two iso energy operators.
+
+    Emittable iff the composite flat layout is known AND the declared
+    bulk is the SCALAR family's ``(ng, *cells)`` energy-first tensor —
+    the same contract the bare-ndarray kernel arm assumes (a
+    block-bearing :class:`FullFieldSpace` whose bulk leading axis is
+    the group axis). A space-anonymous instance (the SN / homogeneous
+    bare-array consumers) honestly refuses: no DOF numbering to emit
+    into.
+    """
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+
+    space = op.space
+    return (
+        isinstance(space, FullFieldSpace)
+        and space.bulk_space is not None
+        and len(space.bulk_space.shape) >= 1
+        and int(space.bulk_space.shape[0]) == int(op.mat_xs.ng)
+    )
+
+
+def _assemble_iso_energy_operator(
+    op: "IsotropicScattering | IsotropicN2N",
+) -> "SparseAssembledOperator":
+    r"""Shared assembly arm of the two iso energy operators (Pattern 2 —
+    one body, two kernels through ``op.apply``, the
+    :func:`_scalar_composite_source` sibling).
+
+    **Group-impulse extraction — one source with the production
+    kernel.** The per-cell energy blocks are read THROUGH the
+    operator's own bare-ndarray ``apply`` (the einsum kernels
+    ``apply_p0_in_scatter`` / ``apply_n2n``): impulse ``g'`` is the
+    field ``e_{g'} ⊗ 1_cells``, whose image column IS every cell's
+    block column ``M_cell[:, g']`` exactly (unit inputs make the
+    kernel's products coefficient reads — no summation error). ng
+    kernel calls emit the whole cell-block-diagonal bulk. Deliberately
+    NOT ``dense_per_material()`` — that is the storage-side
+    transpose-convention ORACLE (vv L11) and must stay
+    realization-independent of production consumption.
+
+    The emission is bulk-only (an energy-transfer operator has no
+    face-trace action — the same zero-boundary fact the composite arm
+    encodes), scattered into the composite flat layout ``[bulk C-ravel
+    | trace]``.
+    """
+    from scipy import sparse
+
+    from orpheus.numerics.assembled_operator import SparseAssembledOperator
+    from orpheus.numerics.operator import MissingAssembly
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+
+    space = op.space
+    if not _iso_is_assemblable(op):
+        raise MissingAssembly(
+            f"{type(op).__name__}.assemble requires a block-bearing "
+            f"FullFieldSpace with the scalar (ng, *cells) energy-first "
+            f"bulk; this instance is space-anonymous or its bulk leading "
+            f"axis is not the group axis."
+        )
+    assert isinstance(space, FullFieldSpace)  # narrowed by the predicate
+    assert space.bulk_space is not None
+    bulk_shape = tuple(space.bulk_space.shape)
+    ng = bulk_shape[0]
+    n_cells = int(np.prod(bulk_shape[1:])) if len(bulk_shape) > 1 else 1
+    n_bulk = ng * n_cells
+    n_total = int(space.shape[0])
+
+    bulk_rows = np.arange(n_bulk)
+    cell_of_row = bulk_rows % n_cells
+    rows: list[np.ndarray] = []
+    cols: list[np.ndarray] = []
+    vals: list[np.ndarray] = []
+    for g_from in range(ng):
+        impulse = np.zeros(bulk_shape)
+        impulse[g_from] = 1.0
+        image = np.asarray(op.apply(impulse)).ravel()   # (n_bulk,) g-major
+        nonzero = image != 0.0
+        rows.append(bulk_rows[nonzero])
+        cols.append((g_from * n_cells + cell_of_row)[nonzero])
+        vals.append(image[nonzero])
+
+    matrix = sparse.coo_array(
+        (np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))),
+        shape=(n_total, n_total),
+    )
+    return SparseAssembledOperator(matrix, domain=space, codomain=space)
 
 
 @dataclass(frozen=True)
@@ -204,6 +294,18 @@ class IsotropicScattering(LinearOperator):
         out = np.zeros_like(arr)
         self.mat_xs.apply_p0_in_scatter_transpose(out, arr)
         return out
+
+    # ── The assembly mode (stencil-assembly 2b) ────────────────────────
+
+    @property
+    def is_assemblable(self) -> bool:
+        # Shared predicate — see :func:`_iso_is_assemblable`.
+        return _iso_is_assemblable(self)
+
+    def assemble(self) -> "SparseAssembledOperator":
+        r""":math:`[\Sigma_{s,0}^{T}]` — cell-block-diagonal bulk emission
+        through the production kernel (:func:`_assemble_iso_energy_operator`)."""
+        return _assemble_iso_energy_operator(self)
 
     def dense_per_material(self) -> dict[int, np.ndarray]:
         r"""Per-material operator matrix :math:`\Sigma_{s,0}^{T}` (``[g_to, g_from]``)
@@ -301,6 +403,18 @@ class IsotropicN2N(LinearOperator):
         out = np.zeros_like(arr)
         self.mat_xs.apply_n2n_transpose(out, arr)
         return out
+
+    # ── The assembly mode (stencil-assembly 2b) ────────────────────────
+
+    @property
+    def is_assemblable(self) -> bool:
+        # Shared predicate — see :func:`_iso_is_assemblable`.
+        return _iso_is_assemblable(self)
+
+    def assemble(self) -> "SparseAssembledOperator":
+        r""":math:`[2\,\Sigma_{2n}^{T}]` — cell-block-diagonal bulk emission
+        through the production kernel (:func:`_assemble_iso_energy_operator`)."""
+        return _assemble_iso_energy_operator(self)
 
     def dense_per_material(self) -> dict[int, np.ndarray]:
         r"""Per-material operator matrix :math:`2\Sigma_{2n}^{T}` — ``M @ φ == apply(φ)``.

@@ -118,6 +118,7 @@ from orpheus.numerics.operator import (
 from orpheus.transport.full_field import FullField
 
 if TYPE_CHECKING:
+    from orpheus.numerics.assembled_operator import SparseAssembledOperator
     from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.fields.cross_section_field import CrossSectionField
 
@@ -237,6 +238,62 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # Diagonal multiplication is its own structural transpose; delegate to
         # the engine (always adjointable).
         return self.engine.is_adjointable
+
+    # ── The assembly mode (stencil-assembly 2b) ────────────────────────
+
+    @property
+    def is_assemblable(self) -> bool:
+        r"""``True`` iff the composite flat layout is known — a block-bearing
+        :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+        was threaded at construction. A space-anonymous multiplier (the
+        mesh-free / bare-ndarray consumers) honestly refuses: there is
+        no global DOF numbering to emit into."""
+        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+
+        return (
+            isinstance(self.space, FullFieldSpace)
+            and self.space.bulk_space is not None
+        )
+
+    def assemble(self) -> "SparseAssembledOperator":
+        r"""Emit the bulk diagonal :math:`\mathrm{diag}(f)` in the composite
+        flat layout (zero trace rows — a multiplier has no face action).
+
+        One-source discipline: the diagonal IS
+        ``self.coefficient.values`` broadcast over the bulk shape — the
+        SAME array (and the same prepend-broadcast semantics) the
+        engine multiplies at apply time, with NO arithmetic performed
+        on it, so ``assembled @ x`` reproduces ``apply``'s per-entry
+        multiply bit-for-bit. Family-blind: the scalar ``(ng, nx)``
+        bulk broadcasts identically and an angular ``(N, ng, …)`` bulk
+        gains the leading ordinate axis, exactly as the engine's
+        ``broadcast_axes=(0,)``.
+        """
+        from orpheus.numerics.assembled_operator import SparseAssembledOperator
+        from orpheus.numerics.operator import MissingAssembly
+        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+        from scipy import sparse
+
+        space = self.space
+        if not isinstance(space, FullFieldSpace) or space.bulk_space is None:
+            raise MissingAssembly(
+                "MultiplicationOperator.assemble requires a block-bearing "
+                "FullFieldSpace (the composite flat layout); this "
+                "multiplier is space-anonymous."
+            )
+        bulk_shape = tuple(space.bulk_space.shape)
+        n_bulk = int(np.prod(bulk_shape))
+        n_total = int(space.shape[0])
+        diagonal = np.ascontiguousarray(
+            np.broadcast_to(self.coefficient.values, bulk_shape)
+        ).ravel()
+        nonzero = diagonal != 0.0
+        indices = np.arange(n_bulk)[nonzero]
+        matrix = sparse.coo_array(
+            (diagonal[nonzero], (indices, indices)),
+            shape=(n_total, n_total),
+        )
+        return SparseAssembledOperator(matrix, domain=space, codomain=space)
 
     @classmethod
     def from_mesh(

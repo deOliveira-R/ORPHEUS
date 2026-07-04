@@ -669,3 +669,191 @@ class TestSharedOperatorScalarArms:
         S = IsotropicScattering(mat_xs)
         with pytest.raises(TypeError, match="#281"):
             S.apply_transpose(flux)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The assembly mode (stencil-assembly 2b — the diffusion family is the
+# FIRST emitter consumer). Gates per the L16 spec: G1 assembled@x ≡
+# apply(x) (never a scalar functional — Mode 12); G3 = THE diffusion
+# family's ONE probed≡assembled pin (the fuller-view-oracle keep
+# decision — forcing the RETAINED _as_matrix_by_probing pathway, since
+# as_matrix itself now DELEGATES to assembly and would compare assembly
+# with itself); a Mode-11 sentinel proving the resolvent path actually
+# executes the delegation; and the one-source teeth (a sign flip in the
+# SHARED coefficient source must red BOTH absolute gates while the
+# cross-mode equivalence PERSISTS — divergence under a shared-source
+# mutation is precisely the twin-path signature).
+#
+# The B / C / S emitters are one-source BY CONSTRUCTION (they extract
+# coefficients THROUGH their own production apply/kernels — law probing,
+# the coefficient array, group-impulse probing), so the mutation teeth
+# target the one DIRECT emitter: LeakageOperator's conductance +
+# boundary-closure sources.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l0
+class TestAssemblyMode:
+    _RTOL = 1e-11   # L16: CSR summation order ≠ apply order — never 0-ULP
+
+    @pytest.mark.parametrize("config", list(_CONFIGS), ids=list(_CONFIGS))
+    def test_g1_assembled_matvec_equals_typed_apply(self, config):
+        """G1 on the full loss, per BC config: the assembled sparse
+        matvec reproduces the typed composite action on a non-flat
+        seeded random composite."""
+        mesh, mat_xs, template, _ = _config_setup(config)
+        A = _loss(mesh, mat_xs)
+        x = _random_flux(mesh)
+        np.testing.assert_allclose(
+            A.assemble().apply(x.to_flat()),
+            np.asarray(A.apply(x).to_flat()),
+            rtol=self._RTOL, atol=1e-14,
+        )
+
+    def test_g1_per_leaf(self, mesh, mat_xs, flux):
+        """G1 leaf-localized: each emitter's sparse matvec reproduces
+        its own typed action (failure here names the broken emitter
+        before the composite gate smears it)."""
+        ffs = mesh.full_field_space
+        leaves = {
+            "L": LeakageOperator(mesh),
+            "B": DiffusionBoundaryOperator(mesh),
+            "C": MultiplicationOperator(
+                mat_xs.total_cross_section_field, space=ffs,
+            ),
+            "S": IsotropicScattering(mat_xs, space=ffs),
+            "N2N": IsotropicN2N(mat_xs, space=ffs),
+        }
+        for name, leaf in leaves.items():
+            np.testing.assert_allclose(
+                leaf.assemble().apply(flux.to_flat()),
+                np.asarray(leaf.apply(flux).to_flat()),
+                rtol=self._RTOL, atol=1e-14,
+                err_msg=f"leaf {name}: assembled matvec != typed apply",
+            )
+
+    def test_g3_probed_equals_assembled_pin(self, mesh, mat_xs, template):
+        """G3 — the diffusion family's ONE permanent probed≡assembled
+        oracle: the RETAINED apply-to-basis loop (forced explicitly —
+        as_matrix now delegates) against the densified emission."""
+        A = _loss(mesh, mat_xs)
+        flat = FlattenedOperator(A, template)
+        probed = flat._as_matrix_by_probing((flat.n_flat,))
+        np.testing.assert_allclose(
+            A.assemble().as_matrix(), probed,
+            rtol=self._RTOL, atol=1e-15,
+        )
+
+    def test_resolvent_materializes_through_assembly(
+        self, mesh, mat_xs, template, monkeypatch,
+    ):
+        """Mode-11 sentinel: the production resolvent construction
+        (MatrixInverseOperator over the flattened loss) must EXECUTE the
+        assembly delegation — no probing at the COMPOSITE flat dimension
+        may fire. (Probes at the tiny law dimension ng ARE expected: the
+        B emitter extracts each realized law's (ng × ng) matrix THROUGH
+        the law's own apply — that in-emitter probing is the one-source
+        discipline, not a delegation escape.) A green equivalence gate
+        proves values; only this sentinel proves the consumer is
+        actually on the new path."""
+        from orpheus.numerics.operator import LinearOperator
+
+        probe_dims: list[tuple[str, int]] = []
+        original = LinearOperator._as_matrix_by_probing
+
+        def counting(self, shape):
+            probe_dims.append((type(self).__name__, int(np.prod(shape))))
+            return original(self, shape)
+
+        monkeypatch.setattr(
+            LinearOperator, "_as_matrix_by_probing", counting,
+        )
+        A = _loss(mesh, mat_xs)
+        n_flat = int(np.asarray(template.to_flat()).size)
+        resolvent = MatrixInverseOperator(FlattenedOperator(A, template))
+        composite_probes = [d for d in probe_dims if d[1] == n_flat]
+        assert composite_probes == [], (
+            f"the resolvent probed the composite instead of assembling: "
+            f"{composite_probes}"
+        )
+        assert all(dim <= _NG for _, dim in probe_dims), (
+            f"unexpected large probe (neither law-sized nor delegated): "
+            f"{probe_dims}"
+        )
+        # And the inverse is real: A⁻¹(A x) round-trips.
+        x = _random_flux(mesh).to_flat()
+        forward = A.assemble().apply(x)
+        np.testing.assert_allclose(
+            np.asarray(resolvent.apply(forward)).ravel(), x,
+            rtol=1e-10, atol=1e-12,
+        )
+
+    # ── One-source teeth (L16): mutate the SHARED source — both
+    #    absolute gates red, the cross-mode equivalence persists. ──────
+
+    def _mutated_deltas_and_equivalence(self) -> tuple[float, float]:
+        """(assembled-vs-hand-posed delta, apply-vs-hand-posed delta)
+        under the CURRENT (possibly monkeypatched) coefficient sources;
+        asserts the cross-mode equivalence G1 inside."""
+        mesh, mat_xs, template, albedos = _config_setup("zero_flux/zero_flux")
+        A = _loss(mesh, mat_xs)
+        hand = _hand_posed_loss(albedos)
+        x = _random_flux(mesh)
+        x_flat = x.to_flat()
+        assembled = A.assemble()
+        asm_delta = float(np.abs(assembled.as_matrix() - hand).max())
+        apply_delta = float(
+            np.abs(np.asarray(A.apply(x).to_flat()) - hand @ x_flat).max()
+        )
+        # The one-source signature: both modes moved TOGETHER.
+        np.testing.assert_allclose(
+            assembled.apply(x_flat), np.asarray(A.apply(x).to_flat()),
+            rtol=self._RTOL, atol=1e-14,
+        )
+        return asm_delta, apply_delta
+
+    def test_teeth_conductance_sign_flip_reds_both_modes(self, monkeypatch):
+        """−g_f in the SHARED interior-conductance source: the assembled
+        matrix AND the typed apply BOTH leave the hand-posed reference
+        O(1), while assembled@x ≡ apply(x) persists — one coefficient
+        source, no twin stencil."""
+        import orpheus.diffusion.operators as ops
+
+        original = ops._interior_conductance
+        monkeypatch.setattr(
+            ops, "_interior_conductance",
+            lambda D, h: -original(D, h),
+        )
+        asm_delta, apply_delta = self._mutated_deltas_and_equivalence()
+        assert asm_delta > 1e-2, "assembly blind to the shared-source flip"
+        assert apply_delta > 1e-2, "apply blind to the shared-source flip"
+
+    def test_teeth_boundary_closure_sign_flip_reds_both_modes(
+        self, monkeypatch,
+    ):
+        """−c_J in the SHARED P1 face-closure source: same one-source
+        signature on the trace-row emission family."""
+        import orpheus.diffusion.operators as ops
+
+        def flipped(D_edge, h_edge):
+            rho = h_edge / (2.0 * D_edge)
+            return 1.0 / (rho + 2.0), -(rho - 2.0) / (rho + 2.0)
+
+        monkeypatch.setattr(ops, "_boundary_closure", flipped)
+        asm_delta, apply_delta = self._mutated_deltas_and_equivalence()
+        assert asm_delta > 1e-2, "assembly blind to the closure flip"
+        assert apply_delta > 1e-2, "apply blind to the closure flip"
+
+    def test_space_anonymous_leaves_refuse(self, mat_xs):
+        """A space-anonymous multiplier / iso operator has no flat
+        layout to emit into — honest refusal, not a guessed numbering."""
+        from orpheus.numerics.operator import MissingAssembly
+
+        for op in (
+            MultiplicationOperator(mat_xs.total_cross_section_field),
+            IsotropicScattering(mat_xs),
+            IsotropicN2N(mat_xs),
+        ):
+            assert not op.is_assemblable
+            with pytest.raises(MissingAssembly):
+                op.assemble()
