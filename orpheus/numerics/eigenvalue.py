@@ -123,11 +123,16 @@ class EigenvalueSolver(Protocol):
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
         """Compute the eigenvalue from the neutron balance.
 
-        k_eff = production / (absorption + leakage)
+        k_eff = fission production / (absorption + leakage − (n,2n) emission)
 
-        For lattice models with reflective boundary conditions the leakage
-        term is zero.  For whole-core models with vacuum boundary conditions
-        (e.g. diffusion) it is non-zero.
+        The estimator MUST be the eigenvalue of the problem
+        ``solve_fixed_source`` poses (#259 P1 / R7): every implementer
+        scales ONLY fission by 1/k — scattering and the (n,2n) emission
+        enter the inner solve as plain gains — so the numerator is
+        fission-only and the (n,2n) gain sits on the net-removal side.
+        For lattice models with reflective boundary conditions the
+        leakage term is a structural zero; for vacuum-bounded models
+        (diffusion, vacuum-bounded SN) it is non-zero (#291).
         """
         ...
 

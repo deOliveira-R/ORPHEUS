@@ -921,6 +921,12 @@ class AngularBoundaryField(BoundaryField):
     """
 
     mesh: "SNMesh"
+    # The static twin of the __post_init__ isinstance gate below (the
+    # ``mesh: SNMesh`` covariant-narrowing idiom): an angular boundary
+    # field's space IS the quadrature-coupled AngularTraceSpace, so
+    # consumers of its atoms (``omega_dot_n``, the face layout, the
+    # partial-current metric) type-check without re-narrowing.
+    space: AngularTraceSpace
 
     # ── Construction validation (angular narrowing) ──────────────────
 

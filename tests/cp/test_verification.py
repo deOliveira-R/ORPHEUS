@@ -520,14 +520,16 @@ class TestUpscatter:
 class TestN2N:
     """[C-2, G-3, W-3] Tests for (n,2n) reactions.
 
-    C-2: compute_keff ignores (n,2n) neutron production.  The current
-    formula is k = nuSigF*phi*V / SigA*phi*V.  With (n,2n), the
-    numerator should include the extra neutron production from (n,2n),
-    OR the denominator should exclude (n,2n) from absorption.
-
-    The solve_fixed_source correctly includes 2*Sig2 in the source,
-    so the transport is right — but the keff estimate is wrong.  This
-    means the power iteration may converge to the wrong eigenvalue.
+    History: C-2 found compute_keff ignoring (n,2n) entirely
+    (k = nuSigF*phi*V / SigA*phi*V).  The LANDED formula is the
+    operator-consistent net-removal spelling
+    ``k = nuSigF·phi·V / (SigT − SigS − 2·Sig2)·phi·V`` — fission-only
+    production over absorption minus the (n,2n) EMISSION — which is the
+    eigenvalue of the problem ``solve_fixed_source`` actually poses
+    (only fission scaled by 1/k; the 2·Sig2 gain unscaled).  #259 P1 /
+    R7 (2026-07-03) unified SN and MoC onto this same convention; CP
+    was already consistent and pins it below at L1 against a dense
+    eigensolver with ``SigS_eff = SigS + 2·Sig2``.
     """
 
     def test_n2n_changes_eigenvalue(self):

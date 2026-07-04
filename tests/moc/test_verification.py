@@ -377,14 +377,28 @@ class TestL0N2nReaction:
         )
 
     def test_n2n_1g_analytical_keff(self):
-        """[L0] 1G with (n,2n): keff = (nuSigF + 2*Sig2) / (SigC + SigF + Sig2).
+        """[L0] 1G with (n,2n): keff = nuSigF / (SigC + SigF - Sig2).
 
-        The solver defines keff = production/absorption where:
-        - production = nuSigF + 2*Sig2 (fission + (n,2n) outgoing)
-        - absorption = SigC + SigF + Sig2 (capture + fission + (n,2n) reaction)
+        The POSED eigenproblem scales only fission by 1/k — the (n,2n)
+        emission enters the sweep source as a plain (unscaled) gain — so
+        the 1G homogeneous reflective balance is
 
-        This is the steady-state production/loss ratio. For homogeneous 1G,
-        the MOC must reproduce this exactly (flux shape is uniform).
+            (1/k)*nuSigF*phi + 2*Sig2*phi + SigS*phi = SigT*phi
+            =>  k = nuSigF / (SigC + SigF - Sig2)
+
+        (SigT = SigC + SigS + SigF + Sig2; the (n,2n) collision removes
+        one neutron and the emission returns two, a net gain of Sig2).
+        The estimator computes fission production over NET removal
+        (absorption - 2*Sig2 emission), which equals this eigenvalue for
+        ANY flux shape in 1G homogeneous.
+
+        RE-BASELINED (#259 P1 / R7, 2026-07-03; principled per
+        vv-principles): the previous expected value
+        (nuSigF + 2*Sig2)/(SigC + SigF + Sig2) = 1.125 was the OLD
+        estimator's own convention restated — not the eigenvalue of the
+        problem the solver actually poses (they coincide only when
+        Sig2 = 0 or k = 1). The reference is now derived from the posed
+        problem's balance: k = 0.25/0.2 = 1.25.
         """
         sig_c_val = 0.2
         sig_s_val = 0.4
@@ -397,10 +411,11 @@ class TestL0N2nReaction:
             sig_f=sig_f_val, nu=nu_val, sig2_val=sig2_val,
         )
 
-        # Expected keff from the solver's production/absorption definition
-        production = nu_val * sig_f_val + 2.0 * sig2_val
-        absorption = sig_c_val + sig_f_val + sig2_val
-        k_expected = production / absorption
+        # Expected keff from the POSED problem's 1G balance (fission-only
+        # scaled by 1/k; n2n a plain gain): nuSigF / (SigC + SigF - Sig2).
+        production = nu_val * sig_f_val
+        net_removal = sig_c_val + sig_f_val - sig2_val
+        k_expected = production / net_removal
 
         mesh = _homogeneous_ws_mesh(pitch=3.0)
         result = _quick_solve({0: mat}, mesh, n_azi=8, max_outer=200)

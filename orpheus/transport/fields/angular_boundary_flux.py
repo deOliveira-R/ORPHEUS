@@ -72,6 +72,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar
 
+import numpy as np
+from numpy.typing import NDArray
+
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import AngularBoundaryField
 from orpheus.transport.fields._flux_role import FluxRole
@@ -103,10 +106,14 @@ class AngularBoundaryFlux(FluxRole, AngularBoundaryField):
     -----
     All storage, validation, algebra, per-face access, and construction
     machinery is inherited from
-    :class:`~orpheus.transport.fields._bases.AngularBoundaryField` (B.1). This
-    leaf carries no flux-specific behaviour beyond its class identity —
-    which is exactly what Field's Layer-1 gate uses to keep boundary
-    flux, source, and residual arithmetic from silently mixing. Build
+    :class:`~orpheus.transport.fields._bases.AngularBoundaryField` (B.1). The
+    one flux-specific behaviour this leaf carries is :meth:`net_current`
+    — a *current* is an angle-weighted flux moment, so the reduction is
+    flux-role semantics (mirroring
+    :meth:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux.net_current`
+    on the scalar sibling); the class identity otherwise remains what
+    Field's Layer-1 gate uses to keep boundary flux, source, and
+    residual arithmetic from silently mixing. Build
     via :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.zeros_on`
     / :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`.
     """
@@ -117,3 +124,39 @@ class AngularBoundaryFlux(FluxRole, AngularBoundaryField):
     #: ``AngularFlux`` and the sibling boundary leaves (the boundary is
     #: all-flux). Metadata, not the arithmetic gate.
     UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS
+
+    def net_current(self, face: str) -> NDArray:
+        r"""Net OUTWARD current on ``face`` — shape ``(ng, *face_spatial)``, a copy.
+
+        The angular-to-scalar reduction
+
+        .. math::
+
+            J_g \;=\; \sum_m (\Omega_m\cdot\hat n_f)\, w_m\, \psi_{m,g}
+
+        — the angular sibling of
+        :meth:`ScalarBoundaryFlux.net_current
+        <orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux.net_current>`
+        (``J = J⁺ − J⁻``), under the same face-local outward-normal
+        convention: positive = leakage out of the domain.
+
+        Spelled through the trace space's own atoms — the signed
+        projection table
+        (:attr:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.omega_dot_n`)
+        and the :math:`|\Omega\cdot\hat n|\odot w` partial-current metric
+        (``sign(Ω·n̂) · metric = Ω·n̂ · w``) — so no consumer re-derives
+        the cosine weighting (the #291 leakage term and the future DSA
+        boundary restriction both read THIS reduction). Tangential
+        ordinates carry zero weight and drop out.
+        """
+        view = self.face_view(face)  # validates the face name
+        space = self.space
+        row = space.omega_dot_n[space.face_names.index(face)]
+        slot = space.layout.faces[face]
+        metric = space.inner_product_weights[
+            slot.offset : slot.offset + slot.flat_size
+        ].reshape(slot.shape)
+        sign_axis0 = np.sign(row).reshape(
+            (row.shape[0],) + (1,) * (len(slot.shape) - 1)
+        )
+        return np.einsum("m...,m...->...", sign_axis0 * metric, view)

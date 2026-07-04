@@ -331,6 +331,13 @@ class AngularTraceSpace(FunctionSpace):
     # :meth:`from_quadrature_and_layout`.
     layout: "FaceLayout" = field(kw_only=True, repr=False, compare=False)
     omega_dot_n: NDArray = field(kw_only=True, repr=False, compare=False)
+    # The partial-current metric G_s = |Ω·n̂|⊙w is REQUIRED on a trace
+    # space (never the Euclidean ``None`` — the module docstring's Wave-O
+    # decision; :meth:`from_quadrature_and_layout` always builds it), so
+    # the base's ``Optional`` narrows away and metric consumers
+    # (``AngularBoundaryFlux.net_current``) subscript it without a
+    # can't-happen guard.
+    inner_product_weights: NDArray = field(kw_only=True, repr=False, compare=False)
 
     @property
     def face_names(self) -> tuple[str, ...]:

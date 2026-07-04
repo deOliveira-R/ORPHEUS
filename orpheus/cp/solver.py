@@ -463,17 +463,17 @@ class CPSolver:
         inner_tol: float = 1e-8,
         max_inner: int = 100,
         *,
-        mesh: Mesh1D | None = None,
+        mesh: Mesh1D,
     ) -> None:
         self.P_inf = P_inf        # (N, N, ng)
         self.xs = xs
         self.volumes = volumes    # (N,)
         self.mat_ids = mat_ids
-        # Optional: full mesh for the per-group rate methods that wire
-        # through ``mesh.volume_measure`` (Issue 9.6).  When ``mesh`` is
-        # ``None``, the per-group rate methods build a DiscreteMeasure
-        # ad-hoc from ``self.volumes``.
-        self._mesh: Mesh1D | None = mesh
+        # The full mesh: the per-group rate methods wire through
+        # ``mesh.volume_measure`` (Issue 9.6).  REQUIRED since #259 P1 —
+        # the mesh-less ad-hoc DiscreteMeasure fallback had zero callers
+        # (every constructor passes the mesh) and was retired.
+        self._mesh: Mesh1D = mesh
         self.ng = xs.sig_t.shape[1]
         self.N = xs.sig_t.shape[0]
         self.keff_tol = keff_tol
@@ -638,25 +638,10 @@ class CPSolver:
         return float(np.linalg.norm(collision - transported))
 
     def _volume_measure(self):
-        """Volume measure for per-group rate methods.
-
-        Prefers ``self._mesh.volume_measure`` (set when the solver is
-        constructed with the mesh, the typical path through ``solve_cp``).
-        Falls back to an ad-hoc ``DiscreteMeasure`` built from
-        ``self.volumes`` for legacy callers that constructed CPSolver
-        directly without passing the mesh.
-        """
-        if self._mesh is not None:
-            return self._mesh.volume_measure
-        from orpheus.numerics.measure import DiscreteMeasure
-        # Ad-hoc: nodes = cell indices (placeholder — only weights are used
-        # in the integration).  ``space="cells"`` flags this as a non-spatial
-        # measure built from the volumes alone.
-        return DiscreteMeasure(
-            nodes=np.arange(self.N, dtype=np.float64),
-            weights=self.volumes,
-            support="cells",
-        )
+        """The mesh's volume measure — the single spatial-integration
+        source for the per-group rate methods (Issue 9.6 wiring; the
+        mesh-less ad-hoc fallback was retired at #259 P1)."""
+        return self._mesh.volume_measure
 
     def compute_group_production_rate(
         self, flux_distribution: np.ndarray,
@@ -701,6 +686,19 @@ class CPSolver:
         kept as scalar accumulators because the per-material loop runs
         ``self._scat_mats[mid].T @ flux[k, :]`` cell-by-cell and the
         material-keyed structure isn't naturally a measure operation.
+
+        Discipline note (#259 P1 / R7, 2026-07-03): this functional IS
+        the unified k estimator — fission-only numerator over net
+        removal, ``Σt − Σs − 2Σ₂ ≡ Σa + L − E_{2n}`` with the leakage
+        ``L`` structurally zero (``P_inf`` is the infinite-lattice
+        kernel) and the (n,2n) EMISSION on the removal side — matching
+        the eigenproblem the inner solve poses (only fission scaled by
+        ``1/k``; the (n,2n) gain enters :meth:`solve_fixed_source`
+        unscaled).  CP was already operator-consistent when SN (#291)
+        and MoC were unified onto this convention; only the SUBSTRATE
+        differs (group-last ``CellXS`` arrays vs the typed
+        ``IntegratedReactionRate`` fields — that unification is the
+        follow-up filed at #259 close-out).
         """
         production = float(self.compute_group_production_rate(flux_distribution).sum())
         total = float(self.compute_group_total_rate(flux_distribution).sum())

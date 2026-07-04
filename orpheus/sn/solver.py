@@ -925,7 +925,9 @@ class SNSolver:
         Component :math:`a_g = \int_V \Sigma_{a,g}(\mathbf{r})\,\phi_g(\mathbf{r})\,dV`.
 
         Volume-integrated via ``mesh.volume_measure`` (Issue 9.6 wiring).
-        The denominator of ``compute_keff`` is ``.sum()`` of this vector.
+        ``.sum()`` of this vector is the ABSORPTION term of the
+        ``compute_keff`` denominator (net removal = absorption + leakage
+        − (n,2n) emission since #291/R7).
 
         Issue #196 PR-INDEX-5: ``flux_distribution`` is principled
         ``(ng, nx, ny)``.
@@ -955,6 +957,12 @@ class SNSolver:
         This is the canonical scale anchor for the SN eigenmode:
         :func:`orpheus.numerics.eigenvalue.power_iteration` renormalises
         :math:`\phi` to unit production rate at each outer step (ERR-052).
+
+        Role split (R7, #259): this TOTAL physical production — fission
+        plus the (n,2n) emission — is the renormalisation scale anchor
+        ONLY. The k numerator in :meth:`compute_keff` is fission-only,
+        because the posed eigenproblem scales only fission by
+        :math:`1/k`; the (n,2n) gain sits on the net-removal side there.
         """
         fission = IntegratedReactionRate(
             self.mat_xs.fission_production_field
@@ -964,21 +972,165 @@ class SNSolver:
         return float(fission + n2n_rate.sum())
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
-        r"""k = production / absorption (volume-weighted).
+        r"""k of the POSED eigenproblem: fission production over net removal.
 
-        Both rates are the typed volume-integrated reaction rate
-        :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
-        — ``k = (∫_V ⟨νΣf,φ⟩ dV + (n,2n)) / ∫_V ⟨Σa,φ⟩ dV`` — the
-        :math:`\phi^\dagger\!=\!1` degenerate of the homogenization PG bilinear
-        ``⟨φ†, M[Σx]φ⟩``. The per-group
-        :meth:`compute_group_production_rate` / :meth:`compute_group_absorption_rate`
-        remain available as spectral diagnostics (not on the keff path).
+        .. math::
+
+            k \;=\; \frac{R_{\nu\Sigma_f}(\phi)}
+                    {R_{\Sigma_a}(\phi) \;+\; L \;-\; E_{2n}(\phi)}
+
+        Every inner solve poses the eigenproblem with ONLY fission scaled
+        by :math:`1/k` — scattering and the (n,2n) emission are plain
+        gains inside :meth:`solve_fixed_source` — so the reported k must
+        be the eigenvalue of exactly that problem (#291 leakage omission
+        + the R7 (n,2n) convention, 2026-07-03; an estimator that
+        disagrees with its own posed problem converges cleanly to a
+        non-eigenvalue ratio):
+
+        * **numerator** — the typed volume-integrated FISSION production
+          :math:`R_{\nu\Sigma_f}(\phi)`
+          (:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`,
+          the :math:`\phi^\dagger\!=\!1` degenerate of the homogenization
+          PG bilinear). The (n,2n) emission is NOT production here —
+          contrast :meth:`compute_production_rate`, the ERR-052 scale
+          anchor, which keeps total physical production.
+        * **denominator** — net removal, assembled so no term CAN be
+          forgotten: absorption :math:`R_{\Sigma_a}` (``absorption_xs``
+          counts the (n,2n) COLLISION once), **plus** the net
+          vacuum-boundary leakage :math:`L` (#291 — the historically
+          omitted term; see :meth:`_boundary_leakage_rate`), **minus**
+          the (n,2n) EMISSION :math:`E_{2n}(\phi) = \int_V \sum_{g,g'}
+          2\,\Sigma_{2,g'\to g}\,\phi_{g'}\,dV` (a gain reduces net
+          removal).
+
+        Balance identity at any converged eigenpair:
+        :math:`R_{\nu\Sigma_f}/k = R_{\Sigma_a} + L - E_{2n}`.
+
+        On an all-reflective (lattice) problem :math:`L` is a STRUCTURAL
+        zero, and on a Σ₂-free mixture :math:`E_{2n}` is exactly ``0.0``
+        — so this reduces **bit-identically** to the historical lattice
+        functional ``production / absorption``.
+
+        The per-group :meth:`compute_group_production_rate` /
+        :meth:`compute_group_absorption_rate` remain available as
+        spectral diagnostics (not on the keff path).
         """
-        production = self.compute_production_rate(flux_distribution)
+        production = IntegratedReactionRate(
+            self.mat_xs.fission_production_field
+        ).evaluate(flux_distribution)
         absorption = IntegratedReactionRate(
             self.mat_xs.absorption_cross_section_field
         ).evaluate(flux_distribution)
-        return production / absorption
+        emission_n2n = np.zeros(self.ng)
+        self.mat_xs.add_n2n_to_group_rate(
+            emission_n2n, flux_distribution, self.volume,
+        )
+        leakage = self._boundary_leakage_rate(production)
+        return production / (absorption + leakage - emission_n2n.sum())
+
+    def _boundary_leakage_rate(self, fission_production: float) -> float:
+        r"""Net neutron outflow rate through the vacuum boundary faces [1/s].
+
+        .. math::
+
+            L \;=\; \sum_{f\,\in\,\text{vacuum}} \oint_{f} dA\,
+                    \sum_g J_g(\mathbf{r}_f)
+            \,, \qquad
+            J_g \;=\; \sum_m (\Omega_m\cdot\hat n_f)\, w_m\, \psi_{m,g}
+
+        — the face-area integral of the boundary trace's net outward
+        current (:meth:`AngularBoundaryFlux.net_current
+        <orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux.net_current>`,
+        the single source of the :math:`\Omega\cdot\hat n\,w`
+        contraction), read from the trace of the last inner solve
+        (``self._psi_typed.boundary``). On the converged trace a vacuum
+        face's inflow slots are zero, so net = outflow; the signed form
+        stays honest if a prescribed-inflow law ever lands.
+
+        Reflective faces are a **structural zero**: the reflective law
+        equates inflow to the reflected outflow exactly, so their net
+        current vanishes by construction — they are SKIPPED, never
+        accumulated, which keeps all-reflective problems' float
+        arithmetic bit-identical to the lattice functional (no
+        ±cancelling angular-sum noise enters the denominator).
+
+        Scale bridge: the stored trace belongs to the UN-renormalised
+        last inner iterate, while the estimator's :math:`\phi` may be
+        its renormalised multiple
+        (:func:`~orpheus.numerics.eigenvalue.power_iteration` divides by
+        the production rate between the solve and the k-update). Leakage
+        is degree-1 homogeneous in :math:`\psi`, so it is rescaled by
+        the fission-production ratio of the two — exactly ``1.0`` when
+        the caller passes the returned flux itself. Contract: the flux
+        handed to :meth:`compute_keff` must be a scalar multiple of the
+        last inner solve's flux (true for ``power_iteration`` and for
+        every manual solve-then-estimate loop).
+
+        Raises
+        ------
+        RuntimeError
+            If a vacuum face exists but no inner solve has stored a
+            boundary trace yet — the leakage term cannot be answered
+            honestly, and answering without it would silently reproduce
+            the #291 omission (fail loud; never return a non-eigenvalue).
+        """
+        vacuum_faces = [
+            name for name, op in self.sn_mesh.bc.items()
+            if op.kind == "vacuum"
+        ]
+        if not vacuum_faces:
+            return 0.0
+        psi = getattr(self, "_psi_typed", None)
+        phi_of_trace = getattr(self, "_phi_of_trace", None)
+        if psi is None or phi_of_trace is None:
+            raise RuntimeError(
+                "compute_keff on a vacuum-bounded problem needs the "
+                "boundary trace of an inner solve (call "
+                "solve_fixed_source first): the leakage term of the k "
+                "denominator is read from psi.boundary, and answering "
+                "without it would silently drop leakage (#291)."
+            )
+        rate = 0.0
+        for face in vacuum_faces:
+            net_current = psi.boundary.net_current(face)  # (ng, *face_spatial)
+            rate += float(np.sum(net_current * self._face_area_of(face)))
+        reference = IntegratedReactionRate(
+            self.mat_xs.fission_production_field
+        ).evaluate(phi_of_trace)
+        if reference <= 0.0:
+            raise RuntimeError(
+                "leakage scale bridge is degenerate: the last inner "
+                "solve's flux carries non-positive fission production."
+            )
+        return rate * (fission_production / reference)
+
+    def _face_area_of(self, face: str) -> "float | np.ndarray":
+        r"""Spatial measure of a boundary face, matching ``volume_measure``.
+
+        1-D: the scalar face area from
+        :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.areas`
+        — ``1.0`` (slab, per unit cross-section), :math:`2\pi R`
+        (cylinder, per unit height), :math:`4\pi R^2` (sphere) — the
+        same geometric convention the cell volumes integrate under, so
+        the balance identity closes. 2-D Cartesian: the per-edge-cell
+        transverse widths (unit depth), broadcast against the
+        ``(ng, n_edge)`` net current. 3-D vacuum leakage has no consumer
+        yet and fails loud rather than guessing the transverse-area
+        product's cell ordering.
+        """
+        mesh = self.sn_mesh
+        if mesh.ndim == 1:
+            areas = mesh.areas
+            return float(areas[0] if face == "xmin" else areas[-1])
+        if mesh.ndim == 2:
+            axis_index = {"x": 0, "y": 1}[face[0]]
+            transverse = mesh.axes[1 - axis_index]
+            return np.diff(np.asarray(transverse.edges, dtype=float))
+        raise NotImplementedError(
+            f"boundary leakage for a {mesh.ndim}-D vacuum face "
+            f"({face!r}): wire the transverse-area product when the "
+            f"first 3-D vacuum eigenvalue consumer arrives."
+        )
 
     def converged(
         self, keff: float, keff_old: float,
@@ -1183,13 +1335,20 @@ class SNSolver:
                     f"windowed SI iterate must carry a HarmonicMomentFlux "
                     f"bulk (the moment template); got {type(bulk).__name__}."
                 )
-            return bulk.scalar_flux().values
-        if not isinstance(bulk, AngularFlux):
-            raise TypeError(
-                f"un-windowed SI iterate must carry an AngularFlux bulk "
-                f"(the flux template); got {type(bulk).__name__}."
-            )
-        return bulk.integrate_angular().values
+            phi = bulk.scalar_flux().values
+        else:
+            if not isinstance(bulk, AngularFlux):
+                raise TypeError(
+                    f"un-windowed SI iterate must carry an AngularFlux bulk "
+                    f"(the flux template); got {type(bulk).__name__}."
+                )
+            phi = bulk.integrate_angular().values
+        # The scale partner of the stored boundary trace (#291): the
+        # leakage term of ``compute_keff`` rescales the trace's net
+        # current by the fission-production ratio of the estimator's
+        # flux to THIS flux (exactly 1.0 when the caller passes it back).
+        self._phi_of_trace = phi
+        return phi
 
     # ── Inner solver: Krylov on (L+C-S)·ψ = q_ext (R-1 Step D carve) ──
 
@@ -1312,7 +1471,11 @@ class SNSolver:
                 f"eigenvalue Krylov iterate must carry an AngularFlux bulk "
                 f"(the flux template); got {type(bulk).__name__}."
             )
-        return bulk.integrate_angular().values
+        # The scale partner of the stored boundary trace (#291) — see the
+        # SI path's twin store.
+        phi = bulk.integrate_angular().values
+        self._phi_of_trace = phi
+        return phi
 
     # D-J (2026-05-29): ``_make_sweep_preconditioner`` retired —
     # the method built a scipy LinearOperator wrapping the sweep as

@@ -209,19 +209,35 @@ class MOCSolver:
         return phi
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
-        """k_eff = production / absorption (zero leakage, reflective BCs)."""
+        r"""k of the posed eigenproblem: fission production / net removal.
+
+        .. math::
+
+            k \;=\; \frac{\sum_i A_i\, \nu\Sigma_{f,i}\cdot\phi_i}
+                    {\sum_i A_i\, (\Sigma_{a,i} - 2\Sigma_{2,\mathrm{out},i})
+                     \cdot\phi_i}
+
+        R7 (#259, 2026-07-03): the MoC inner solve poses the eigenproblem
+        with ONLY fission scaled by :math:`1/k` — the (n,2n) emission is
+        a plain gain in the sweep source — so the estimator is
+        fission-only production over NET removal (``absorption_xs``
+        counts the (n,2n) collision once; the emission ``2Σ₂`` is a gain
+        that reduces net removal). The previous spelling
+        ``(νΣf + 2Σ₂)/Σa`` equals the posed problem's eigenvalue only
+        when ``Σ₂ = 0`` or ``k = 1``. Leakage is structurally zero
+        (reflective track-linked pin cell). On ``Σ₂ = 0`` mixtures the
+        float arithmetic is unchanged (adding/subtracting exact zeros).
+        """
         nr = self.geom.n_regions
         p_rate = 0.0
-        a_rate = 0.0
+        removal_rate = 0.0
         for i in range(nr):
             A_i = self.geom.region_areas[i]
             phi_i = flux_distribution[i, :]
             sig2_out = np.array(self.sig2[i].sum(axis=1)).ravel()
-            p_rate += (self.sig_p[i, :] + 2 * sig2_out) @ phi_i * A_i
-            a_rate += self.sig_a[i, :] @ phi_i * A_i
-        keff = p_rate / a_rate if a_rate > 0 else 1.0
-        print(f"  keff = {keff:9.5f}")
-        return keff
+            p_rate += self.sig_p[i, :] @ phi_i * A_i
+            removal_rate += (self.sig_a[i, :] - 2.0 * sig2_out) @ phi_i * A_i
+        return p_rate / removal_rate if removal_rate > 0 else 1.0
 
     def converged(
         self,
