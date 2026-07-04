@@ -1,45 +1,35 @@
-r"""#257 S5 — Spec C: the keff / production estimators as ``Functional``s.
+r"""#257 S5 → #259 P1 R8 — the KEigenvalue estimators, hardwired.
 
-``iteration.py`` carries two estimators threaded into ``KEigenvalue``:
+History: ``iteration.py`` used to carry two injectable estimator
+callables threaded into ``KEigenvalue`` (``keff_estimator`` /
+``production_estimator`` kwargs with ``_default_*`` module-function
+defaults). #257 S5 examined their category (bare 4-arg callables, NOT
+``Functional[V]``s) and kept the lighter-touch layout. **#259 P1 / R8
+(2026-07-03) retired the injection seam entirely**: production solvers
+implement the ``EigenvalueSolver`` protocol directly by design (the seam
+had zero production consumers), and at a converged eigenpair every
+estimator CONSISTENT with the posed problem agrees — so injection could
+only introduce an inconsistent functional. The default spellings were
+folded into the methods, arithmetic unchanged:
 
-* ``_default_production_estimator(L,S,F,ψ) = float(np.sum(F.apply(ψ)))``
-* ``_default_keff_estimator(L,S,F,ψ)`` = the Rayleigh quotient
-  ``Σ(Fψ) / (Σ(Lψ) − Σ(Sψ))``.
+* ``KEigenvalue.compute_production_rate(ψ) = float(np.sum(F.apply(ψ)))``
+* ``KEigenvalue.compute_keff(ψ)`` = the leakage-inclusive Rayleigh
+  quotient ``Σ(Fψ) / (Σ(Aψ) − Σ(Sψ))`` — the operator-form spelling of
+  the unified k discipline (when ``A`` carries streaming, the
+  denominator IS absorption + leakage − scattering-family gains).
 
-S5 narrows their TYPE contract toward the ``Functional`` category; the
-ARITHMETIC is UNCHANGED (bit-identical).
+This module is the **bit-identity pin of the surviving spellings**: on a
+synthetic L0 operator triple with a numpy ground truth, the hardwired
+methods return the EXACT float the documented formulas give. The S5
+category leg retired with the callables it examined (a method is plainly
+not a mislabeled ``Functional``; there is nothing left to classify).
 
-Two legs:
+vv claim layer: regression/value claims (bit-identity against the
+literal documented formula — a structurally trivial reference because
+the formula is the spec). Zero eigenvalue claims here (KEigenvalue
+eigenvalue correctness is pinned by the ``test_iteration.py`` gates).
 
-1. **Unchanged-arithmetic invariant (the load-bearing leg).** On a
-   synthetic L0 operator triple with a numpy ground truth, the
-   estimators return the EXACT same float they returned before S5.
-   This is a regression pin: S5 must not perturb a single bit of the
-   estimator output.
-
-2. **Category-honesty leg (tolerant of the chosen layout).** The brief
-   asks whether the bare ``Callable`` aliases are kept or wrapped in a
-   ``Functional`` object, and recommends the lighter-touch option that
-   still makes the category honest. RECOMMENDATION (see the module-level
-   note): keep the bare ``(L,S,F,ψ)->float`` callables — they are NOT
-   ``Functional[V]`` (whose surface is ``evaluate(x: V) -> float | V``,
-   a ONE-argument field→scalar map; the estimators take the operator
-   triple too). The honest ``Functional`` is the field→scalar CORE
-   ``ψ -> Σ(Fψ)`` once ``F`` is bound. IF the method-implementer ships
-   such a bound wrapper, this leg asserts it satisfies the Protocol AND
-   reproduces the bare callable's float. IF no wrapper is shipped (the
-   lighter touch), the leg SKIPS with a clear reason — the category is
-   still honest because the estimators were never claimed to be
-   ``Functional``s; they remain plain renormalisation callables.
-
-vv claim layer (1.5 gate): leg 1 is a regression/value claim
-(bit-identity inherited from the pre-S5 arithmetic — a structurally
-trivial reference because the formula is unchanged); leg 2 is a
-CATEGORY claim (Protocol membership). Zero eigenvalue claims here (the
-KEigenvalue eigenvalue correctness is pinned by the EXISTING
-``test_iteration.py`` gates, listed in the gate list).
-
-vv Mode-8: structural assertions via ``require``; value assertions via
+vv Mode-8: structural assertions via ``_require``; value assertions via
 ``np.testing.*`` — both fire under ``python -O``.
 
 ``foundation`` — software invariants on the estimator surface.
@@ -49,10 +39,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.iteration import (
-    _default_keff_estimator,
-    _default_production_estimator,
-)
+from orpheus.numerics.iteration import KEigenvalue
 from orpheus.numerics.operator import (
     LinearOperator,
     ZeroOperator,
@@ -74,151 +61,98 @@ def _require(condition: bool, message: str) -> None:
 
 
 class _MatrixOperator(LinearOperator):
-    """Dense-matrix apply-only test operator.
+    """Dense-matrix test operator with an honest invertibility pair.
 
-    Inherits the base ``False`` predicates — the estimators consume
-    ONLY ``.apply``, so no invertibility/adjointability advertisement
-    is needed (the pre-carve ``can_solve`` capability flag was pure
-    advertisement over a class with no ``solve`` body; retired with
-    the frozenset at carve P4).
+    The estimators consume ``.apply``; ``KEigenvalue`` CONSTRUCTION
+    additionally builds ``A.inverse()`` for its inner driver (taxonomy
+    step 3 — the posing layer builds the inverse), so the A slot needs
+    the ``is_invertible`` + ``inverse()`` pair. Diagonal test matrices
+    make the inverse exact and trivial.
     """
 
     def __init__(self, matrix: np.ndarray) -> None:
         self.matrix = np.asarray(matrix, dtype=float)
+
+    @property
+    def is_invertible(self) -> bool:
+        return True
+
+    def inverse(self) -> "_MatrixOperator":
+        return _MatrixOperator(np.linalg.inv(self.matrix))
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         return self.matrix @ x
 
 
 def _synthetic_triple():
-    """An (L, S, F, ψ) quadruple with a hand-computable estimator value."""
-    L = _MatrixOperator(np.diag([3.0, 5.0, 7.0]))
+    """An (A, S, F, ψ) quadruple with a hand-computable estimator value."""
+    A = _MatrixOperator(np.diag([3.0, 5.0, 7.0]))
     S = _MatrixOperator(np.diag([0.5, 0.25, 0.1]))
     F = _MatrixOperator(np.diag([2.0, 1.0, 0.5]))
     psi = np.array([1.0, 2.0, 4.0])
-    return L, S, F, psi
+    return A, S, F, psi
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# C.1 — Unchanged-arithmetic invariant (bit-identity, the regression pin).
+# The bit-identity pins — the hardwired methods ARE the documented
+# formulas (the R8 fold must not perturb a single bit vs the retired
+# module-function defaults, whose arithmetic these references restate).
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestEstimatorArithmeticUnchanged:
-    """S5 narrows the type, not the arithmetic — every bit is preserved."""
+class TestHardwiredEstimatorArithmetic:
+    """R8 folded the defaults into methods — every bit is preserved."""
 
-    def test_production_estimator_value_bit_identical(self):
-        """``_default_production_estimator`` == ``float(np.sum(F.apply(ψ)))``.
+    def test_production_rate_bit_identical(self):
+        """``compute_production_rate(ψ)`` == ``float(np.sum(F.apply(ψ)))``.
 
-        The reference is the literal documented formula recomputed inline
-        (the arithmetic S5 must not touch). 0 ULP expected — same
-        ``np.sum`` over the same array.
+        The reference is the literal documented formula recomputed
+        inline. 0 ULP expected — same ``np.sum`` over the same array.
         """
-        L, S, F, psi = _synthetic_triple()
-        got = _default_production_estimator(L, S, F, psi)
+        A, S, F, psi = _synthetic_triple()
+        ke = KEigenvalue(A, S, F)
+        got = ke.compute_production_rate(psi)
         ref = float(np.sum(F.apply(psi)))  # F = diag(2,1,0.5); ψ=(1,2,4)
         # = 2·1 + 1·2 + 0.5·4 = 6.0
-        _require(got == ref, f"production estimator {got} != formula {ref}.")
-        _require(got == 6.0, f"production estimator {got} != hand value 6.0.")
+        _require(got == ref, f"production rate {got} != formula {ref}.")
+        _require(got == 6.0, f"production rate {got} != hand value 6.0.")
 
-    def test_keff_estimator_value_bit_identical(self):
-        """``_default_keff_estimator`` == ``Σ(Fψ)/(Σ(Lψ)−Σ(Sψ))``.
+    def test_keff_bit_identical(self):
+        """``compute_keff(ψ)`` == ``Σ(Fψ)/(Σ(Aψ)−Σ(Sψ))``.
 
-        Hand value: Σ(Fψ)=6.0; Σ(Lψ)=3+10+28=41; Σ(Sψ)=0.5+0.5+0.4=1.4;
+        Hand value: Σ(Fψ)=6.0; Σ(Aψ)=3+10+28=41; Σ(Sψ)=0.5+0.5+0.4=1.4;
         k = 6.0/(41−1.4) = 6.0/39.6.
         """
-        L, S, F, psi = _synthetic_triple()
-        got = _default_keff_estimator(L, S, F, psi)
+        A, S, F, psi = _synthetic_triple()
+        ke = KEigenvalue(A, S, F)
+        got = ke.compute_keff(psi)
         num = float(np.sum(F.apply(psi)))
-        den = float(np.sum(L.apply(psi))) - float(np.sum(S.apply(psi)))
+        den = float(np.sum(A.apply(psi))) - float(np.sum(S.apply(psi)))
         ref = num / den
         _require(got == ref, f"keff estimator {got} != formula {ref}.")
         np.testing.assert_array_almost_equal_nulp(
             np.array(got), np.array(6.0 / 39.6), nulp=4
         )
 
-    def test_production_estimator_with_zero_S_unchanged(self):
-        """The ``S = ZeroOperator`` path (the KEigenvalue default) is unchanged."""
-        L, _, F, psi = _synthetic_triple()
-        S = ZeroOperator()
-        got = _default_keff_estimator(L, S, F, psi)
+    def test_keff_with_zero_S_unchanged(self):
+        """The ``S = ZeroOperator`` path (the KEigenvalue default posture)."""
+        A, _, F, psi = _synthetic_triple()
+        ke = KEigenvalue(A, ZeroOperator(), F)
+        got = ke.compute_keff(psi)
         num = float(np.sum(F.apply(psi)))
-        den = float(np.sum(L.apply(psi)))  # Σ(Sψ)=0
+        den = float(np.sum(A.apply(psi)))  # Σ(Sψ)=0
         _require(got == num / den, f"keff with ZeroOperator S drifted: {got}.")
 
+    def test_injection_kwargs_are_gone(self):
+        """R8 teeth: the retired kwargs are NOT silently accepted.
 
-# ═══════════════════════════════════════════════════════════════════════
-# C.2 — Category-honesty leg (tolerant of the chosen layout).
-# ═══════════════════════════════════════════════════════════════════════
-
-
-class TestEstimatorCategoryHonesty:
-    """Make the category honest WITHOUT over-coupling to a layout choice.
-
-    The recommended lighter-touch design keeps the bare ``(L,S,F,ψ)``
-    callables (they are not field→scalar ``Functional[V]``s). This leg
-    only fires if the method-implementer ALSO shipped a bound
-    field→scalar wrapper; otherwise it skips, documenting that the
-    category remains honest because the estimators never claimed to be
-    Functionals.
-    """
-
-    def test_bare_callables_are_not_functionals(self):
-        """A bare ``(L,S,F,ψ)`` callable does NOT satisfy ``Functional[V]``.
-
-        ``Functional.evaluate`` is a ONE-argument field→scalar map; the
-        estimators take the operator triple. So a runtime ``isinstance``
-        against the Protocol must be False — confirming we did NOT
-        mislabel a 4-arg renormalisation callable as a Functional.
-        Skips if ``Functional`` is not yet on the tree.
+        A ``keff_estimator=`` caller must get a loud ``TypeError`` — the
+        seam is retired, not deprecated-and-ignored (a silently swallowed
+        kwarg would let an inconsistent-estimator call site believe it
+        took effect).
         """
-        functional_mod = pytest.importorskip(
-            "orpheus.numerics.functional",
-            reason="#257 S5 PRE-IMPL: Functional Protocol not yet written.",
-        )
-        Functional = getattr(functional_mod, "Functional", None)
-        if Functional is None:
-            pytest.skip("#257 S5 PRE-IMPL: `Functional` symbol not defined.")
-        # The bare module-level callables are plain functions — they
-        # carry no ``evaluate`` method, so they are not Functionals.
-        _require(
-            not isinstance(_default_production_estimator, Functional),
-            "A bare (L,S,F,ψ) estimator callable must NOT be classified as "
-            "a Functional[V] (whose surface is the 1-arg evaluate(x)->scalar).",
-        )
-
-    def test_bound_production_functional_if_shipped(self):
-        """IF a bound ``ψ->Σ(Fψ)`` Functional wrapper exists, it is honest.
-
-        The recommended optional wrapper binds ``F`` so the surface
-        becomes the genuine field→scalar map ``evaluate(ψ) = Σ(Fψ)``.
-        If shipped (probed below), assert it (a) satisfies the Functional
-        Protocol AND (b) reproduces the bare callable's float bit-for-bit.
-        If NOT shipped, skip — the lighter-touch design is the accepted
-        recommendation and leaves nothing to assert here.
-        """
-        functional_mod = pytest.importorskip(
-            "orpheus.numerics.functional",
-            reason="#257 S5 PRE-IMPL: Functional Protocol not yet written.",
-        )
-        Functional = getattr(functional_mod, "Functional", None)
-        wrapper_cls = getattr(functional_mod, "ProductionFunctional", None)
-        if Functional is None or wrapper_cls is None:
-            pytest.skip(
-                "Optional bound ProductionFunctional wrapper not shipped — "
-                "the recommended lighter-touch design keeps bare callables; "
-                "nothing to assert."
-            )
-        L, S, F, psi = _synthetic_triple()
-        wrapper = wrapper_cls(F)
-        _require(
-            isinstance(wrapper, Functional),
-            "A bound ProductionFunctional must satisfy the Functional Protocol.",
-        )
-        bound_value = wrapper.evaluate(psi)
-        bare_value = _default_production_estimator(L, S, F, psi)
-        _require(
-            float(bound_value) == bare_value,
-            f"Bound Functional value {bound_value} must bit-match the bare "
-            f"callable {bare_value}.",
-        )
+        A, S, F, _ = _synthetic_triple()
+        with pytest.raises(TypeError):
+            KEigenvalue(A, S, F, keff_estimator=lambda a, s, f, p: 1.0)
+        with pytest.raises(TypeError):
+            KEigenvalue(A, S, F, production_estimator=lambda a, s, f, p: 1.0)

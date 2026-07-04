@@ -189,16 +189,12 @@ class SupportsSeededApply(Protocol[V]):
 
 # Type alias for the GMRES left-preconditioner hook M ≈ A⁻¹.
 Preconditioner = Callable[[np.ndarray], np.ndarray]
-KeffEstimator = Callable[
-    [LinearOperator, LinearOperator, LinearOperator, np.ndarray], float,
-]
-# Production-rate estimator: returns the volume-integrated fission
-# production ``∫νΣ_f·φ·dV`` (scalar).  Used by :class:`KEigenvalue` to
-# renormalise the iterate to unit production rate each outer step so
-# subcritical eigenmodes do not underflow to denormalised FP — ERR-052.
-ProductionEstimator = Callable[
-    [LinearOperator, LinearOperator, LinearOperator, np.ndarray], float,
-]
+# The KeffEstimator / ProductionEstimator injection aliases retired at
+# #259 P1 / R8 (2026-07-03): KEigenvalue's estimators are hardwired
+# methods now — at a converged eigenpair every CONSISTENT estimator
+# agrees, so an injected alternative could only disagree by being
+# inconsistent with the posed problem (Pattern 4: the illegal
+# estimator/problem pairing is no longer representable).
 
 
 class _SeededExactApply:
@@ -420,56 +416,12 @@ def _flux_displacement_leaf(displacement) -> "_DisplacementLeaf | None":
     return None
 
 
-def _default_production_estimator(
-    A: LinearOperator,
-    S: LinearOperator,
-    F: LinearOperator,
-    psi: np.ndarray,
-) -> float:
-    r"""Generic production-rate estimator: :math:`P(\psi) = \sum (F\,\psi)`.
-
-    The :math:`F` operator already carries any volume weights its
-    domain advertises; the unweighted sum over array entries is the
-    discrete analog of :math:`\int \nu\Sigma_f\,\phi\,dV` when the
-    operator's action absorbs the measure (as ORPHEUS's typed
-    operators do).
-
-    SN consumers that need explicit volume weighting (matching
-    :meth:`orpheus.sn.solver.SNSolver.compute_production_rate`) should
-    supply a custom :pydata:`production_estimator`.
-    """
-    return float(np.sum(F.apply(psi)))
-
-
-def _default_keff_estimator(
-    A: LinearOperator,
-    S: LinearOperator,
-    F: LinearOperator,
-    psi: np.ndarray,
-) -> float:
-    r"""Generic Rayleigh-quotient :math:`k`-estimator.
-
-    Computes
-
-    .. math::
-
-        k \;=\; \frac{\sum (F\,\psi)}{\sum (A\,\psi) - \sum (S\,\psi)}
-
-    which is the operator-form analogue of the production/absorption
-    ratio for the homogeneous infinite-medium balance.  Each term is
-    summed over every entry of the array; the ratio is dimensionless
-    so any consistent reduction works.
-
-    For SN problems with explicit volume weighting in the production /
-    loss balance (see :meth:`orpheus.sn.solver.SNSolver.compute_keff`)
-    the caller should supply a custom :pydata:`keff_estimator` that
-    matches the existing math; otherwise the generic ratio above is
-    correct for synthetic L0 cases and for any operator triple where
-    the action already carries the volume measure.
-    """
-    num = np.sum(F.apply(psi))
-    den = np.sum(A.apply(psi)) - np.sum(S.apply(psi))
-    return float(num / den)
+# The module-level ``_default_production_estimator`` /
+# ``_default_keff_estimator`` functions were folded into
+# :meth:`KEigenvalue.compute_production_rate` /
+# :meth:`KEigenvalue.compute_keff` at #259 P1 / R8 — the injection seam
+# they were the defaults OF is retired, so the spellings now live where
+# they are consumed (arithmetic unchanged, bit-identical).
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -1060,15 +1012,16 @@ class KEigenvalue:
         #163 acceptance criterion).  Currently only ``"power"`` is
         implemented; other values raise :class:`NotImplementedError`
         at construction time.
-    keff_estimator : callable or None, optional
-        ``(A, S, F, psi) -> keff`` function used to update the outer
-        eigenvalue.  When ``None`` (default), uses the generic
-        Rayleigh-quotient :func:`_default_keff_estimator`.  SN
-        consumers that need explicit volume weighting (matching
-        :meth:`SNSolver.compute_keff`) should supply a custom
-        ``keff_estimator``; the SN-aware estimator is the load-
-        bearing way Round 2 preserves bit-identity with the legacy
-        :func:`power_iteration` path.
+    Notes
+    -----
+    The pre-R8 ``keff_estimator`` / ``production_estimator`` injection
+    kwargs were retired at #259 P1 (2026-07-03): the estimators are
+    hardwired methods (see :meth:`compute_keff` /
+    :meth:`compute_production_rate`). At a converged eigenpair every
+    estimator CONSISTENT with the posed problem agrees, so injection
+    could only introduce an inconsistent functional; the method-layer
+    solvers implement the :class:`EigenvalueSolver` protocol directly
+    by design and never routed through this class.
 
     Raises
     ------
@@ -1094,8 +1047,6 @@ class KEigenvalue:
         max_inner: int = 1000,
         inner_tol: float = 1e-8,
         eigenvalue_method: str = "power",
-        keff_estimator: KeffEstimator | None = None,
-        production_estimator: ProductionEstimator | None = None,
     ) -> None:
         if eigenvalue_method != "power":
             raise NotImplementedError(
@@ -1126,14 +1077,6 @@ class KEigenvalue:
         self.max_inner = int(max_inner)
         self.inner_tol = float(inner_tol)
         self.eigenvalue_method = eigenvalue_method
-        self._keff_estimator = (
-            keff_estimator if keff_estimator is not None
-            else _default_keff_estimator
-        )
-        self._production_estimator = (
-            production_estimator if production_estimator is not None
-            else _default_production_estimator
-        )
 
         # Build the inner fixed-source step ONCE: the SOLVER (this posing
         # layer) builds the inverse operator, the driver applies it (#226
@@ -1215,7 +1158,7 @@ class KEigenvalue:
         return psi
 
     def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
-        r"""Production-rate normalisation (the injected ``production_estimator``).
+        r"""Production-rate normalisation: :math:`P(\psi) = \sum (F\,\psi)`.
 
         Power iteration renormalises ψ to unit production each outer step so the
         iterate stays at :math:`O(1)` regardless of super/subcriticality
@@ -1225,16 +1168,46 @@ class KEigenvalue:
         carries the canonical convention :math:`\int \nu\Sigma_f\,\phi\,dV = 1`,
         which makes rescaling to absolute flux at a target power a single
         multiplication by :math:`P_{\text{target}} / \kappa`.
+
+        The ``F`` operator already carries any volume weights its domain
+        advertises; the unweighted sum over array entries is the discrete
+        :math:`\int \nu\Sigma_f\,\phi\,dV` when the operator's action
+        absorbs the measure (as ORPHEUS's typed operators do).  Hardwired
+        since #259 P1 / R8 — this operator-level adapter's estimator is
+        not injectable (arithmetic identical to the retired default).
         """
-        return float(
-            self._production_estimator(self.A, self.S, self.F, flux_distribution)
-        )
+        return float(np.sum(self.F.apply(flux_distribution)))
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
-        """Dominant-eigenvalue estimate (the injected ``keff_estimator``)."""
-        return float(
-            self._keff_estimator(self.A, self.S, self.F, flux_distribution)
+        r"""Operator-form Rayleigh :math:`k` estimator (hardwired; #259 P1 / R8).
+
+        .. math::
+
+            k \;=\; \frac{\sum (F\,\psi)}{\sum (A\,\psi) - \sum (S\,\psi)}
+
+        — the operator-level spelling of the unified k discipline
+        (fission production over net removal): when ``A`` carries
+        streaming + collision, :math:`\sum(A\psi) - \sum(S\psi)` is
+        absorption + leakage − scattering-family gains, term-for-term
+        the method-layer functional
+        (:meth:`orpheus.sn.solver.SNSolver.compute_keff` / diffusion's
+        loss action) with the volume measure absorbed into the
+        operators' action.  This spelling is leakage-inclusive through
+        ``A`` — it never had the #291 omission.
+
+        Contract: requires an HONEST ``A.apply`` — an adapter whose
+        ``apply`` is a stub yields a non-eigenvalue here.  The retired
+        injection seam used to let such adapters substitute their own
+        functional; post-R8 the posed triple IS the estimator's source,
+        and at a converged eigenpair every consistent estimator agrees
+        with this one.
+        """
+        num = np.sum(self.F.apply(flux_distribution))
+        den = (
+            np.sum(self.A.apply(flux_distribution))
+            - np.sum(self.S.apply(flux_distribution))
         )
+        return float(num / den)
 
     def converged(
         self, keff: float, keff_old: float,

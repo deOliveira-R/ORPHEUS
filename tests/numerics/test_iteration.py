@@ -574,10 +574,24 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     Assert recovered keff agrees to 1e-9.  Both paths use the SAME
     underlying operators — the only difference is whether the iteration
     primitive is the legacy ``power_iteration(solver)`` (Wave-E pre-
-    Round-1) or the new ``KEigenvalue`` (Wave-E Round 1).  Bit-identity
-    is not required (the new primitive's keff_estimator may differ
-    from the legacy ``compute_keff`` at the last few digits); equality
-    to 1e-9 is the operational test that the algebra is consistent.
+    Round-1) or the new ``KEigenvalue`` (Wave-E Round 1).
+
+    R8 rewire (#259 P1, 2026-07-03 — the estimator-injection seam
+    retired): the pre-R8 version injected ``solver.compute_keff`` as
+    KEigenvalue's ``keff_estimator``.  Post-R8 the k assertion routes
+    through the THEOREM instead: the eigen-FLUX fixed point is
+    estimator-independent (unit-production renormalisation cancels the
+    k scaling), and at a converged eigenpair every CONSISTENT estimator
+    agrees — so evaluating the SN method-layer functional
+    ``solver.compute_keff`` at KEigenvalue's converged flux must
+    reproduce ``solve_sn``'s reported k.  KEigenvalue's OWN reported k
+    is deliberately NOT asserted on this stack: the scalar-level
+    ``A_inv_adapter`` cannot advertise an honest ``.apply`` (the true
+    within-group loss action is angular), so the hardwired Rayleigh
+    denominator ``Σ(Aψ)−Σ(Sψ)`` is off-contract here — a limitation the
+    injection seam used to paper over, exposed (by design) at R8.  The
+    honest-triple version of the reported-k leg lives with the
+    operator-level pins in ``test_estimators_as_functionals.py``.
     """
     # Suppress the eigenvalue.py deprecation warning for this test —
     # we are deliberately exercising the legacy path as a reference.
@@ -706,11 +720,6 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     S_adapt = S_scalar_adapter()
     F_adapt = F_scalar_adapter()
 
-    # SN-aware keff estimator — matches SNSolver.compute_keff so the
-    # outer-iteration math is the same as the legacy reference path.
-    def sn_keff_estimator(A_, S_, F_, phi):
-        return solver.compute_keff(phi)
-
     ng = solver.ng
     # Issue #196 PR-INDEX-5: principled initial guess.
     initial = np.ones((ng, *sn_mesh.spatial_shape))
@@ -719,12 +728,19 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         A_adapt, S_adapt, F_adapt,
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
-        keff_estimator=sn_keff_estimator,
     )
-    keff, keff_history, _phi = ke.solve(initial_guess=initial)
+    _keff_rayleigh, keff_history, phi_ke = ke.solve(initial_guess=initial)
 
-    assert abs(keff - expected_keff) < 1e-9, (
-        f"KEigenvalue keff={keff!r} differs from solve_sn "
-        f"keff={expected_keff!r} by {abs(keff-expected_keff):.2e}; "
-        f"history[-3:]={keff_history[-3:]}"
+    # The theorem-form assertion (R8): the flux fixed point is shared, so
+    # the SN method-layer functional evaluated at KEigenvalue's converged
+    # flux reproduces solve_sn's reported k.  (All-reflective slab —
+    # solver.compute_keff needs no boundary trace; the functional is a
+    # scale-invariant ratio, so KEigenvalue's unit-production
+    # normalisation drops out.)
+    keff_at_ke_flux = solver.compute_keff(phi_ke)
+    assert abs(keff_at_ke_flux - expected_keff) < 1e-9, (
+        f"SN functional at KEigenvalue's converged flux "
+        f"keff={keff_at_ke_flux!r} differs from solve_sn "
+        f"keff={expected_keff!r} by {abs(keff_at_ke_flux-expected_keff):.2e}; "
+        f"Rayleigh history[-3:]={keff_history[-3:]}"
     )
