@@ -165,6 +165,7 @@ from orpheus.numerics.operator import (
     BlockRole,
     LinearOperator,
     OperatorProduct,
+    OperatorSum,
 )
 
 # Runtime imports of the flux / source types — required at module load
@@ -908,9 +909,16 @@ class ScatteringOperator(LinearOperator):
         )
 
     @cached_property
-    def isotropic_kernel(self) -> LinearOperator:
+    def isotropic_kernel(self) -> "OperatorSum":
         r"""The model-shared isotropic in-scatter energy operator
         :math:`\Sigma_{s,0} + 2\,\Sigma_{2n}` on the scalar flux.
+
+        Annotated as the :class:`~orpheus.numerics.operator.OperatorSum`
+        it concretely is (2.5d): the sum surface carries
+        ``apply_transpose`` (leaf-forwarded — both K_iso leaves implement
+        it, #276 P3), which the starting-direction seed arm's transpose
+        consumes; the bare ``LinearOperator`` erasure would hide that
+        capability from the checker.
 
         The :math:`\ell=0` energy source — P0 in-scatter plus the :math:`(n,2n)`
         doubling — as the cross-model
@@ -1551,12 +1559,51 @@ class ScatteringOperator(LinearOperator):
         # HarmonicMomentFlux — both dispatch arms return AngularSourceSink)
         # so the typed ``apply`` overloads resolve.
         combined = self.apply(cast("AngularFlux | HarmonicMomentFlux", psi.bulk))
+        # #282 route (a) seed arm (2.5d, dormant until the d3 birth-site
+        # flip): a seed-carrying input emits the scattering q½ on the cells
+        # legs — the ISO (ℓ = 0) emission K_iso·φ₀ folded to μ = ±1 through
+        # the ONE R14 fold helper (½·Q₀, both signs — P₀ ≡ 1). Corners stay
+        # zero (trace-like rows; scattering is volumetric). HONEST SCOPE:
+        # the fold helper accepts ℓ ≥ 1, but this arm feeds ℓ = 0 ONLY —
+        # the curvilinear operator's production reach (§16.B B2b scope
+        # note); the anisotropic seed fold activates with the >linear-in-μ
+        # companion gate.
+        sd_out = None
+        if psi.starting_direction is not None:
+            from orpheus.numerics.spaces.starting_direction_space import (
+                fold_moments_to_starting_direction,
+            )
+            from orpheus.transport.fields.angular_flux import AngularFlux as _AF
+            from orpheus.transport.source_sinks import (
+                StartingDirectionSourceSink,
+            )
+
+            if not isinstance(psi.bulk, _AF):
+                raise TypeError(
+                    "ScatteringOperator seed arm: a starting-direction-"
+                    "carrying composite must have a full-angular "
+                    "AngularFlux bulk (1-D curvilinear); got "
+                    f"{type(psi.bulk).__name__}."
+                )
+            phi0 = psi.bulk.integrate_angular().values          # (ng, nx)
+            q0_iso = self.isotropic_kernel.apply(phi0)          # (ng, nx)
+            seed = psi.starting_direction
+            sd_values = np.zeros_like(seed.values)
+            for level in seed.space.levels:
+                for sign in (-1, +1):
+                    seed.space.cells_view(sd_values, level, sign)[:] = (
+                        fold_moments_to_starting_direction(q0_iso[None], sign)
+                    )
+            sd_out = StartingDirectionSourceSink(
+                values=sd_values, space=seed.space, mesh=seed.mesh,
+            )
         # #257 S8a: history-free (the matvec leaf is a base arrow
         # ``FullField -> FullField``; the comonad lives on the driver, which
         # reattaches the timed type when this source is added to the timed rhs).
         return FullField(
             bulk=combined,
             boundary=AngularBoundarySourceSink.zeros_on(psi.mesh),
+            starting_direction=sd_out,
         )
 
     @_apply_impl.register
@@ -1771,9 +1818,48 @@ class ScatteringOperator(LinearOperator):
             # angular FullField only arises on an SNMesh) — the same
             # runtime-truth cast as the forward arm's bulk dispatch (#257 S8c).
             sn_mesh = cast("SNMesh", chi.mesh)
+            # #282 seed arm, TRANSPOSE (2.5d): the forward seed emission is
+            # cells(level, ±1) = ½·K_iso·(Σ_n w_n ψ_n) per carried leg
+            # (ℓ = 0 fold — P₀(±1) ≡ 1, so the ½ is sign-free here), so its
+            # Euclidean transpose scatters the seed-cells cotangent back
+            # into the BULK: ψ̄_n += w_n · K_isoᵀ(½·Σ_{level,sign} χ̄_cells).
+            # Corner cotangents are ignored (the forward emits zero
+            # corners) and the OUTPUT seed block is the PRESENT ZERO
+            # (∂S/∂ψ½ = 0 — scattering never reads the seed; presence must
+            # match the input per the composite's mixed-presence law).
+            # NOTE this transpose is METRIC-INVISIBLE to G3 (the ghost
+            # metric zeroes seed cotangents before the wrap reaches here) —
+            # its committed catchers are the Euclidean Mᵀ chain at 2.5b and
+            # the §16.C round-trip (the §16.A A4 honest scope).
+            sd_bar_out = None
+            chi_seed = chi.starting_direction
+            if chi_seed is not None:
+                from orpheus.transport.source_sinks import (
+                    StartingDirectionSourceSink,
+                )
+
+                cells_bar_sum = np.zeros(
+                    (sn_mesh.ng, *sn_mesh.spatial_shape),
+                )
+                for level in chi_seed.space.levels:
+                    for sign in (-1, +1):
+                        cells_bar_sum += 0.5 * chi_seed.cells(level, sign)
+                phi0_bar = self.isotropic_kernel.apply_transpose(
+                    cells_bar_sum,
+                )
+                w = np.asarray(self.weights, dtype=float)
+                bulk_bar = bulk_bar + (
+                    w.reshape((w.size,) + (1,) * phi0_bar.ndim) * phi0_bar
+                )
+                sd_bar_out = StartingDirectionSourceSink(
+                    values=np.zeros_like(chi_seed.values),
+                    space=chi_seed.space,
+                    mesh=chi_seed.mesh,
+                )
             return FullField(
                 bulk=AngularSourceSink.from_mesh(bulk_bar, sn_mesh),
                 boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+                starting_direction=sd_bar_out,
             )
         chi_values = np.asarray(getattr(chi, "values", chi))
         return self.full_scatter_kernel.apply_transpose(chi_values) / float(

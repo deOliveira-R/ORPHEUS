@@ -884,19 +884,54 @@ bitwise-by-construction (fields stay 2-block until d3; the space may
 carry the third block, dispatch is FIELD-driven — the one forbidden
 quadrant, seeded-field-on-seedless-space, raises). Walls: pyright CLI
 = 1 (#288); sn+transport+numerics serial green + DriftWarning-strict.
-**NEXT ACTION = d2 (fold helper + source/C/B seed arms + §16.B):** ONE
-`Q̄(μ=±1) = Σ_ℓ (2ℓ+1)/2·Q_ℓ·P_ℓ(±1)` fold helper (R14, full (−1)^ℓ;
-B2b 2-term pin live); q_ext factories + S composite arm (+ S0.2
-transpose arm) + F arm populate q½ on seed-carrying inputs; C = M[σ]
-gains the σ·ψ½-cells arm (corners trace-like — C skips); B gains the
-corner arm (reflective corner-out→corner-in; vacuum 0). Arms are
-FIELD-presence-gated (input carries the block ⇒ output emits) — dormant
-in production until d3 flips the birth sites, so d2 stays bitwise. §16.B
-gates: B1 `carlson_inward_sweep_from_source` L0 flat + L1 O(Δr²)
-convergence to `φ(r)=q/σ+(φ_R−q/σ)e^{−σ(R−r)}` (uniform AND graded
-mesh, 4 mutations); B2a/B2b fold pins. Then d3 (walk triple +
-retirement + §16.C/E/F + baselines — NOTE the banked product-cylinder
-ig-consumption hazard in the Rulings section), d4 (estate rewires), d5
+**d2 LANDED (the commit carrying this edit):** the R14 fold helper
+`fold_moments_to_starting_direction(moments, sign)` — HOME =
+`numerics/spaces/starting_direction_space.py` (NOT sn/spatial: the
+transport-layer emitters consume it; sn→transport layering forbids the
+reverse — the one in-execution relocation) — + the four operator seed
+arms, ALL field-presence-gated (unseeded input ⇒ unseeded output —
+verified dormant; d2 is bitwise): **C** = M[σ] apply σ·cells / solve
+cells∕σ (post spectrum-gate) / transpose = apply (self-adjoint free),
+corners zero both ways (trace-like, R13); **F** iso fold ½Q₀ both legs
+through the helper; **S** forward = K_iso(φ₀) folded (ℓ=0 production
+reach — honest-scope note; helper accepts ℓ≥1) + the S0.2 transpose
+arm (seed-cells cotangent → ψ̄ₙ += wₙ·K_isoᵀ(½Σχ̄); output seed =
+present-zero; measured Euclidean reciprocity 0.0 EXACT); **B** the R13
+corner arm keyed on the law KIND tag (the realized operator is a
+quadrature-row object and cannot act on the off-quadrature ray):
+reflective = specular corner swap (μ=+1 ↦ μ=−1, its own mirror),
+vacuum = zero, white/albedo/periodic = loud-deferred
+NotImplementedError; transpose = the mirror image (reciprocity 0.0).
+**Deviation (forced, banked):** the q_ext-FACTORY population moved
+d2 → d3 — a 3-block q_ext against 2-block iterates raises the
+mixed-presence law, so factories flip WITH the birth sites in d3's
+atomic activation. §16.B gates in
+`test_psi_half_angle_seed.py` (+9): B1b uniform+graded O(Δr²) to the
+exponential closed form (measured ratios 3.75→3.93; smallness 2e-4 vs
+the true 7.4e-5@nx64, wrong-limit plateau O(1e-1)) + the 4-mutation
+matrix (index-drift: uniform-blind-by-construction GREEN, graded RED —
+the Mode-5 keystone); B2a ½Q₀ exact; B2b 2-term ½Q₀−(3/2)Q₁ live +
+sign-drop teeth. Walls: pyright CLI = 1; sn+transport+numerics serial
+green.
+**NEXT ACTION = d3 (the walk triple + retirement + §16.C/E/F +
+baselines):** solve marches seed⁻ FIRST per level via
+`carlson_inward_sweep_from_source` on the TRUE q½ (LR `_run` lag block
+:3654-3674 dies; `_initial_guess_values`' seed role dies, kwarg
+survives per #285); apply reads the GIVEN ψ.starting_direction (the
+extrapolation closure LEAVES the operator — `precompute_psi_state`'s
+strategy call becomes a carrier read); transpose reverses both legs +
+`angular_adjoint` STOPS at the seed cotangent; the ATOMIC birth-site
+flip (TimedFullField.zeros SN call sites + q_ext factories + solve
+output wrap :1119-1126 + matvec output wraps 1-D fwd/adj) — sphere
+activates, slab bitwise, cylinder assert-unmoved-FIRST (the banked
+product-cyl ig-consumption hazard: preserve the non-carrying levels'
+seed data-flow bit-exactly or HALT); strategy-zoo retirement
+(3-search audit; `carlson_inward_sweep_from_source` + the fold helper
+survive); §16.C fixed-point classifiers (new
+`test_282_direct_seed_fixed_point.py`); §16.E characterization flip →
+the augmented triangularity certificate; §16.F Mode-7/10/11/12 audit +
+the A4 positive Mode-12 pin; §16.D re-baselines (sphere 3-criteria
+re-capture; slab+cyl unmoved-first). Then d4 (estate rewires), d5
 (STATUS). Walls per commit: sn + transport + numerics serial; pyright
 CLI = 1.
 

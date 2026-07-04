@@ -505,6 +505,32 @@ class FissionOperator(LinearOperator):
             per_ord = AngularSourceSink.from_isotropic(
                 fission_iso.values, mesh,
             )
+            # #282 route (a) seed arm (2.5d, dormant until the d3 birth-site
+            # flip): a seed-carrying input emits the fission q½ on the cells
+            # legs — the isotropic emission folded to μ = ±1 through the ONE
+            # R14 fold helper (ℓ = 0: Q̄ = ½·Q₀, both signs — P₀ ≡ 1).
+            # Corners stay zero (trace-like rows; fission is volumetric).
+            sd_out = None
+            if psi.starting_direction is not None:
+                from orpheus.numerics.spaces.starting_direction_space import (
+                    fold_moments_to_starting_direction,
+                )
+                from orpheus.transport.source_sinks import (
+                    StartingDirectionSourceSink,
+                )
+
+                seed = psi.starting_direction
+                sd_values = np.zeros_like(seed.values)
+                for level in seed.space.levels:
+                    for sign in (-1, +1):
+                        seed.space.cells_view(sd_values, level, sign)[:] = (
+                            fold_moments_to_starting_direction(
+                                fission_iso.values[None], sign,
+                            )
+                        )
+                sd_out = StartingDirectionSourceSink(
+                    values=sd_values, space=seed.space, mesh=seed.mesh,
+                )
             return FullField(
                 # B.5.2: the operator output IS a source (Fψ rate density) — emit
                 # the AngularSourceSink directly, not a re-wrap into AngularFlux.
@@ -513,6 +539,7 @@ class FissionOperator(LinearOperator):
                 # this source is added to the timed rhs).
                 bulk=per_ord,
                 boundary=AngularBoundarySourceSink.zeros_on(mesh),
+                starting_direction=sd_out,
             )
         if isinstance(bulk, ScalarFlux):
             # Scalar composite arm (#290 P4): fission emission in iso

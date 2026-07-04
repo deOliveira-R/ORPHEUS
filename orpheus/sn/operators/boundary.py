@@ -60,9 +60,13 @@ if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
     from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.transport.fields._bases import StartingDirectionField
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.source_sinks import AngularBoundarySourceSink
+    from orpheus.transport.source_sinks import (
+        AngularBoundarySourceSink,
+        StartingDirectionSourceSink,
+    )
 
 
 __all__ = ["BoundarySplit", "SNBoundaryOperator", "SNMaskedBoundaryOperator"]
@@ -286,6 +290,80 @@ class SNBoundaryOperator(LinearOperator):
                 mesh, spatial_moments=mesh.scheme.spatial_basis_per_axis,
             ),
             boundary=self._reflect_trace(trace, method, rows=rows),
+            starting_direction=self._reflect_starting_direction(
+                psi.starting_direction, method,
+            ),
+        )
+
+    def _reflect_starting_direction(
+        self, seed: "StartingDirectionField | None", method: str,
+    ) -> "StartingDirectionSourceSink | None":
+        r"""The ``A_ss`` CORNER arm on the starting-direction block (R13, 2.5d).
+
+        The (R, μ = ∓1) corner pair completes the boundary block on a
+        seed-carrying mesh: the inward seed leg's r = R inflow is BC data,
+        and for a specular-reflective outer face the reflected partner of
+        the outward starting direction μ = +1 is EXACTLY the inward one
+        μ = −1 (its own mirror — an off-quadrature ray, so the per-face
+        law OPERATOR cannot act on it; the specular fact is applied
+        directly). Forward: ``out.corner(level, −1) = ψ½.corner(level, +1)``
+        per carried level; Euclidean transpose: ``out.corner(level, +1) =
+        χ̄.corner(level, −1)``. The cells legs and the opposite corners
+        stay ZERO (``B`` touches only the inflow row / its transpose
+        image — the exact `_reflect_trace` projection discipline).
+
+        Law dispatch — on the declared law KIND (the #186 shim's ``kind``
+        tag, the same registry key ``sn_mesh.bc[face] == "reflective"``
+        comparisons read), NOT on the realized operator's composition
+        tree: the realized law is an (ordinate ⊗ group) operator over the
+        QUADRATURE rows and structurally cannot act on the off-quadrature
+        μ = ±1 ray — the corner action is a per-KIND angular fact:
+
+        * ``"vacuum"`` — no corner emission (the block stays all-zero).
+        * ``"reflective"`` — the specular corner swap above (the mirror
+          of μ = +1 is exactly μ = −1).
+        * anything else (white / albedo / periodic / prescribed) —
+          **loud-deferred** (`NotImplementedError`) per the 2.5d
+          plan-of-record: e.g. the white re-emission at the
+          off-quadrature ray needs the |Ω·n|-weighted outflow average
+          evaluated for μ = −1, a design decision not yet ruled.
+
+        ``None`` passes through (a seedless composite — Cartesian /
+        cylinder, R12a). NOTE the metric-invisibility honest scope
+        (§16.A A4): G3 cannot see this arm; the Euclidean Mᵀ chain at
+        2.5b and the §16.C round-trip are its catchers.
+        """
+        if seed is None:
+            return None
+        from orpheus.transport.source_sinks import StartingDirectionSourceSink
+
+        # A seed-carrying mesh is 1-D curvilinear: exactly ONE boundary
+        # face (the outer radius renders as ``xmax``) carries the law.
+        law = self._face_laws["xmax"]
+        kind = getattr(law, "kind", None)
+        out = np.zeros_like(seed.values)
+        space = seed.space
+        if kind == "vacuum":
+            pass  # zero corner emission.
+        elif kind == "reflective":
+            for level in space.levels:
+                if method == "apply":
+                    space.corner_view(out, level, -1)[:] = (
+                        space.corner_view(seed.values, level, +1)
+                    )
+                else:  # apply_transpose — the Euclidean mirror image
+                    space.corner_view(out, level, +1)[:] = (
+                        space.corner_view(seed.values, level, -1)
+                    )
+        else:
+            raise NotImplementedError(
+                f"SNBoundaryOperator starting-direction corner arm: the "
+                f"outer-face law kind {kind!r} has no ruled corner action "
+                f"yet (white / albedo / periodic at the off-quadrature "
+                f"μ = ±1 ray — loud-deferred, 2.5d plan-of-record)."
+            )
+        return StartingDirectionSourceSink(
+            values=out, space=space, mesh=seed.mesh,  # type: ignore[attr-defined]
         )
 
     def apply(self, psi: "FullField") -> "FullField":

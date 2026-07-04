@@ -111,7 +111,7 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.space import FunctionSpace
 
-__all__ = ["StartingDirectionSpace"]
+__all__ = ["StartingDirectionSpace", "fold_moments_to_starting_direction"]
 
 #: The two starting-direction legs, in flat-layout (and DAG) order:
 #: the inward leg first (seed⁻ ≺ seed⁺ — the outward leg is
@@ -277,3 +277,70 @@ class StartingDirectionSpace(FunctionSpace):
         Shares memory with ``buffer``.
         """
         return buffer[self.corner_slice(level, sign)]
+
+
+def fold_moments_to_starting_direction(
+    moments: np.ndarray,
+    sign: int,
+) -> np.ndarray:
+    r"""Fold angular source moments to a starting direction: :math:`\bar Q(\mu=\pm 1)`.
+
+    The Hébert (3.432) Legendre fold evaluated at the closed rays
+    :math:`\mu = \pm 1` (ruling R14 — the FULL :math:`(-1)^\ell` fold
+    from day one):
+
+    .. math::
+
+        \bar Q(\mu = \pm 1)
+        \;=\; \sum_{\ell} \frac{2\ell + 1}{2}\, Q_\ell \, P_\ell(\pm 1)
+        \;=\; \sum_{\ell} \frac{2\ell + 1}{2}\, Q_\ell \, (\pm 1)^\ell ,
+
+    the exact 1-D addition-theorem weight :math:`(2\ell+1)/2` with
+    :math:`P_\ell(\pm 1) = (\pm 1)^\ell`. The single source of the q½
+    source construction for the starting-direction carrier blocks
+    (#282 route (a)): the seed-arm emitters (the S composite arm, the
+    F arm, the q_ext factories) all fold through HERE — the
+    :math:`P_1(-1)` sign is spelled ONCE (vv Mode 1/6; the §16.B B2b
+    2-term pin is live on this function).
+
+    At :math:`\ell = 0` this reduces to :math:`\bar Q = \tfrac12 Q_0`
+    — the same convention :func:`carlson_inward_sweep_from_source`'s
+    ``Q_bar`` parameter documents (§16.B B2a). The helper accepts any
+    number of moments; the CURRENT production emitters feed
+    :math:`\ell = 0` only (the curvilinear operator's reach — the
+    anisotropic seed fold activates with the >linear-in-μ companion
+    gate), so :math:`\ell \ge 1` is manufactured-before-needed per
+    §0.6's isotropic-snapshot-blindness discipline.
+
+    Parameters
+    ----------
+    moments : np.ndarray, shape ``(n_moments, ...)``
+        The source moments :math:`Q_\ell`, ℓ-leading (``moments[l]`` is
+        :math:`Q_\ell`; any trailing shape — typically ``(ng, nx)``).
+    sign : int
+        ``-1`` (the inward starting direction) or ``+1`` (the
+        pole-continued outward leg, R13).
+
+    Returns
+    -------
+    np.ndarray
+        :math:`\bar Q(\mu = \mathrm{sign})`, the trailing shape of
+        ``moments``.
+    """
+    if sign not in (-1, +1):
+        raise ValueError(
+            f"fold_moments_to_starting_direction: sign must be -1 or +1; "
+            f"got {sign!r}."
+        )
+    moments = np.asarray(moments)
+    if moments.ndim < 1 or moments.shape[0] < 1:
+        raise ValueError(
+            f"fold_moments_to_starting_direction: moments must carry a "
+            f"leading ℓ axis with at least the ℓ = 0 moment; got shape "
+            f"{moments.shape!r}."
+        )
+    n_moments = moments.shape[0]
+    ell = np.arange(n_moments)
+    # (2ℓ+1)/2 · sign^ℓ, broadcast down the trailing axes.
+    coeff = ((2.0 * ell + 1.0) / 2.0) * np.float64(sign) ** ell
+    return np.tensordot(coeff, moments, axes=(0, 0))
