@@ -125,12 +125,40 @@ def _make_cyl(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
     return sn, sig_t
 
 
+def _make_cyl_product(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
+    r"""Cylinder on the equispaced PRODUCT rule — the DEGENERATE-class row.
+
+    ``Quadrature.product(n_mu=2, n_phi=4)`` samples φ ∈ {0, π/2, π, 3π/2},
+    so the φ = π/2, 3π/2 ordinates carry :math:`|\mu_x| \approx 6\cdot
+    10^{-17}` — genuinely degenerate pure-azimuthal ordinates whose cell
+    balance is volumetric (the matvec's degenerate branch, no face march).
+    The :func:`_make_cyl` ``level_symmetric`` rule has NO such ordinates,
+    so every pre-2.5a reciprocity row was structurally BLIND to the
+    degenerate rows of the transpose (which silently dropped them —
+    the #280 2.5a completion; vv Mode 7: this builder ACTIVATES the term
+    the level-symmetric rows null by quadrature choice).
+    """
+    quad = Quadrature.product(n_mu=2, n_phi=4)
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, R, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CYLINDRICAL,
+        bc_right=BC("reflective"),
+    )
+    sn = SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    sig_t = np.stack(
+        [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
+    )
+    return sn, sig_t
+
+
 _BUILDERS = {
     "slab": lambda: _make_slab(ng=1),
     "sphere": lambda: _make_sphere(ng=1),
     "cyl": lambda: _make_cyl(ng=1),
     "slab_2g": lambda: _make_slab(ng=2),
     "sphere_2g": lambda: _make_sphere(ng=2),
+    "cyl_product_2g": lambda: _make_cyl_product(ng=2),
 }
 
 

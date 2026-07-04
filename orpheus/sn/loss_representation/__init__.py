@@ -3141,6 +3141,51 @@ class _OneDimScanWalk:
             close_leg=close_leg,
         )
 
+        # ── reverse the degenerate-ordinate branch (cylinder) — the
+        # pure-azimuthal set, on no leg (volumetric balance, zero face
+        # coupling, ``A_downstream = 0``).  The forward writes
+        # ``m[deg, i] = (denom·ψ_cell − angular_numer)/V`` with NO face
+        # march, so its transpose is slot-local: the ψ-diagonal lands on
+        # ``psi_bar``, the angular-numerator cotangent on ``numer_bar``
+        # (``angular_adjoint`` below reverses the M-M thread's
+        # ψ-dependence).  Slot order vs the leg walk is free — degenerate
+        # ordinates sit on no leg (the trichotomy partition pin).
+        # MISSING pre-2.5a: an equispaced product quadrature
+        # (φ = π/2, 3π/2 ⇒ |μ_x| ≈ 6e-17) silently DROPPED these rows
+        # from the adjoint — every ``level_symmetric`` reciprocity row was
+        # blind; caught by the ``cyl_product_2g`` G-reciprocity row that
+        # landed with this block (red pre-fix, green post-fix).
+        global_deg, deg_level, deg_within = self._degenerate_positions()
+        if global_deg.size:
+            n_deg = global_deg.size
+            abs_mu_deg = np.abs(quad.mu_x[global_deg])
+            zero_face = np.zeros((ng, n_deg))
+            for i in range(nx):
+                angular_denom_term = np.empty(n_deg)
+                for col_idx in range(n_deg):
+                    denom_one, _ = closure.cell_contribution(
+                        psi_state_coef, i, deg_level[col_idx],
+                        np.array([deg_within[col_idx]]),
+                    )
+                    angular_denom_term[col_idx] = denom_one[0]
+                denom, _ = cell_balance_for_streaming(
+                    abs_mu=abs_mu_deg,
+                    A_downstream=0.0,
+                    A_total=A[i] + A[i + 1],
+                    total_xs=sgx[:, i],
+                    volume=V[i],
+                    psi_face_in=zero_face,
+                    angular_denom_term=angular_denom_term,
+                    angular_numer_upstream=zero_face,
+                )
+                ob = out_bar[:, global_deg, i]
+                # reverse m = (denom·ψ − angular_numer)/V  (no face terms)
+                psi_bar[:, global_deg, i] += denom * ob / V[i]
+                for col_idx in range(n_deg):
+                    numer_bar[deg_level[col_idx]][
+                        :, deg_within[col_idx], i,
+                    ] += -ob[:, col_idx] / V[i]
+
         # ── reverse the angular factor (delegated; zero for the slab closure) ──
         psi_ang_bar, bc_ang_bar = closure.angular_adjoint(
             tuple(numer_bar), sigma_t=sgx,

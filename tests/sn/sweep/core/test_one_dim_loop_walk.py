@@ -29,12 +29,10 @@ import textwrap
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem, Mesh1D
-from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
-from tests.sn._test_helpers import placeholder_materials
 from tests.sn.operators.test_g_adjoint_reciprocity import (
+    _make_cyl_product,
     _make_slab,
     _make_sphere,
     _random_composite,
@@ -44,22 +42,12 @@ pytestmark = pytest.mark.foundation
 
 
 def _product_cylinder(ng: int = 1) -> SNMesh:
-    """A cylindrical mesh on the equispaced PRODUCT quadrature.
-
-    ``Quadrature.product(n_mu=2, n_phi=4)`` samples φ ∈ {0, π/2, π, 3π/2},
-    so the φ = π/2, 3π/2 ordinates are genuinely DEGENERATE
-    (|μ_x| ≈ 6e-17 < the trichotomy eps) — the partition pin below needs a
-    quadrature where all three direction classes are non-empty.  (The
-    ``level_symmetric`` rule the reciprocity builders use has NO degenerate
-    ordinates.)
-    """
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.5, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-    )
-    return SNMesh(mesh, Quadrature.product(n_mu=2, n_phi=4),
-                  placeholder_materials(ng=ng))
+    """The degenerate-class cylinder (φ = π/2, 3π/2 ⇒ |μ_x| ≈ 6e-17) —
+    the reciprocity file's :func:`_make_cyl_product` builder, mesh only.
+    The partition pin below needs a quadrature where all three direction
+    classes are non-empty (the ``level_symmetric`` rule has no degenerate
+    ordinates)."""
+    return _make_cyl_product(ng=ng)[0]
 
 
 def test_apply_and_apply_transpose_hit_one_loop_walk(monkeypatch):
