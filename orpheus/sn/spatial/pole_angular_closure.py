@@ -63,7 +63,7 @@ guaranteed positive M-M weighting (Bailey-Morel-Chang 2010).
 
 The recursion runs once per (cell, group) across the GL-sorted
 ordinates :math:`n = 1, \ldots, N` — the same algebra the
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference` cell-update
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference` cell-update
 runs inside the sweep, lifted up to operator level so the apply
 matvec and the sweep solve the **same** discrete fixed point.
 
@@ -160,10 +160,10 @@ See also
   boundary-flux Protocol whose architecture this module mirrors; the
   sweep-frame matvec rewrite subsumed it.  Retained as a
   cross-reference for the architectural-mirror pattern only.
-* :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` —
+* :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` —
   per-cell-update strategy contract; the curvilinear sweep also runs
   the DD angular recurrence inside its
-  :class:`~orpheus.sn.spatial.diamond.DiamondDifference` strategy
+  :class:`~orpheus.transport.spatial.diamond.DiamondDifference` strategy
   (with :math:`\tau = 1/2`).  Phase B aligns the apply matvec with
   the sweep's math at the operator level.
 """
@@ -436,8 +436,8 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         weight: the recurrence :math:`(\bar\psi - (1-\tau)\psi_{\rm in})/\tau`
         is then the identity).  Returns the read-only cache built once at
         construction (Issue #236 Phase 2 B3).  Consumers (the live
-        :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update` angular
-        recurrence via :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau`, and
+        :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` angular
+        recurrence via :attr:`~orpheus.transport.spatial.scheme.CellVisit.tau`, and
         the ``GeometryCoefficients`` populator's ``tau_inv`` / ``mm_a_in_coeff``
         scan split) read THIS τ instead of the FORMER geometry-factory
         ``StreamingTerms.tau_mm`` (retired in Step C; the closure's τ equalled
@@ -452,7 +452,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     # ``sn_mesh.pole_angular_closure`` typed against THIS ABC and drives the
     # angular path through these three methods.  Declaring them abstract here
     # makes the ABC the COMPLETE strategy contract — exactly as
-    # :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase` declares
+    # :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase` declares
     # ``update`` / ``residual`` abstract so ``mesh.scheme`` consumers (typed
     # against that ABC) see the full contract.  Without these declarations the
     # matvec tripped pyright on "unknown attribute for PoleAngularClosureBase"
@@ -933,7 +933,7 @@ class MorelMontryAngularSweep(
     (Hébert Eqs. 3.437 / 3.439); the M-M clamp :math:`\tau \in [1/2,
     1]` keeps the M-M weighting positive (Bailey-Morel-Chang 2010).
     The same recurrence runs inside
-    :class:`~orpheus.sn.spatial.diamond.DiamondDifference` (the sweep's
+    :class:`~orpheus.transport.spatial.diamond.DiamondDifference` (the sweep's
     cell update); applying this strategy in the matvec and running
     the sweep solve the **same** discrete fixed point — pinned by
     :file:`tests/sn/l1_analytical/test_pole_closure_sweep_equivalence.py`.

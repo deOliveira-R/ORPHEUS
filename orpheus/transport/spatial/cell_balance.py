@@ -5,7 +5,7 @@ computes the algebraic intermediates of the per-cell DD balance for
 slab, sphere, cylinder (non-degenerate), and cylindrical pure-azimuthal
 degenerate cells.  Geometry is data carried by
 :class:`~orpheus.geometry.reduced_operator.StreamingTerms` and
-:class:`~orpheus.sn.spatial.scheme.CellVisit`; the helper does NOT
+:class:`~orpheus.transport.spatial.scheme.CellVisit`; the helper does NOT
 branch on geometry kind.
 
 Mathematical content
@@ -61,8 +61,8 @@ denom``; the apply branch returns ``denom · cell_avg − (source +
 numer_upstream)``.  Same algebra, two consumers (Pattern 2 — no
 twin paths).
 
-See :mod:`orpheus.sn.spatial.cell_balance` test gate at
-``tests/sn/spatial/test_cell_balance.py``.
+See :mod:`orpheus.transport.spatial.cell_balance` test gate at
+``tests/sn/sweep/core/test_cell_balance_for_streaming.py``.
 """
 
 from __future__ import annotations
@@ -83,7 +83,7 @@ class CellBalanceTerms:
     r"""Algebraic intermediates of the unified per-cell balance.
 
     Constructed by :func:`cell_balance_terms`; consumed by both
-    :class:`~orpheus.sn.spatial.diamond.DiamondDifference.update`
+    :class:`~orpheus.transport.spatial.diamond.DiamondDifference.update`
     (solve branch — divides ``(source + numer_upstream) / denom``)
     and :meth:`DiamondDifference.residual` (apply branch —
     computes ``denom · cell_avg − (source + numer_upstream)``).

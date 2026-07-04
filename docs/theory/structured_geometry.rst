@@ -365,7 +365,7 @@ sheaves), CP / diffusion / MC do not have a sweep at all.
 
 Per Cardinal Rule 2, the geometry layer therefore stays geometric.
 Sweep-direction resolution lives in the SN module:
-:class:`~orpheus.sn.spatial.scheme.CellVisit` is the
+:class:`~orpheus.transport.spatial.scheme.CellVisit` is the
 SN-specific per-visit packet that composes the geometric
 :class:`StreamingTerms` together with the sweep-resolved
 ``face_area_downstream``.  The SN sweep iterates

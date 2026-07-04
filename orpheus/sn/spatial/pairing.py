@@ -2,7 +2,7 @@ r"""Pairing-validity predicates for the (spatial ⊗ angular) discretization pro
 
 Issue #236 realizes the SN discretization as a tensor product of two
 independently-selectable axes — a SPATIAL closure
-(:class:`~orpheus.sn.spatial.scheme.DiscretizationScheme`) and an ANGULAR
+(:class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`) and an ANGULAR
 redistribution closure
 (:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`).
 Some properties of the discretization are properties of the *pair*, not of
@@ -45,8 +45,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from orpheus.transport.spatial.scheme import DiscretizationScheme
+
     from .pole_angular_closure import PoleAngularClosureBase
-    from .scheme import DiscretizationScheme
 
 
 def pair_diffusion_limit_consistent(

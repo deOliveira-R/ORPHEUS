@@ -27,9 +27,9 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, slab_streaming
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.spatial import LinearDiscontinuous, UpstreamState
-from orpheus.sn.spatial._ubld import AVERAGE_MOMENT
-from orpheus.sn.spatial.scheme import CellResult, DiscretizationSchemeBase, CellVisit
+from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
+from orpheus.numerics.moment_layout import AVERAGE_MOMENT
+from orpheus.transport.spatial.scheme import CellResult, DiscretizationSchemeBase, CellVisit
 
 cell_average = DiscretizationSchemeBase.cell_average
 source_emission = DiscretizationSchemeBase.source_emission

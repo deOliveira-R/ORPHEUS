@@ -1,8 +1,8 @@
 r"""Linear-Discontinuous (LD) cell-update strategy — slab / Cartesian (Issue #158).
 
 The first higher-order, O(h²) occupant of the swappable per-cell
-spatial-strategy contract (:mod:`orpheus.sn.spatial.scheme`), sibling to
-the shipping :class:`~orpheus.sn.spatial.diamond.DiamondDifference` (DD).
+spatial-strategy contract (:mod:`orpheus.transport.spatial.scheme`), sibling to
+the shipping :class:`~orpheus.transport.spatial.diamond.DiamondDifference` (DD).
 **Full** LD (with the slope SOURCE moment :math:`\hat Q` carried) is
 diffusion-limit-consistent — Larsen-Morel-Miller 1987 proves Step has **no**
 valid intermediate diffusion limit while LD has all four, the load-bearing
@@ -72,7 +72,7 @@ inconsistent); the system above was regenerated symbolically with SymPy and
 validated against the strongest oracle: **LD is exact on a linear-in-x flux**
 (``ψ̄, ψ̂, ψ_out`` recovered to machine precision for any
 :math:`\psi=a+bx`).  See the derivation in the theory page and the foundation
-tests in ``tests/sn/spatial/test_linear_discontinuous.py``.
+tests in ``tests/transport/spatial/test_linear_discontinuous.py``.
 
 The Schur-complement scalar contract
 ====================================
@@ -134,9 +134,9 @@ Traits
   three per-cell coefficients ``(a, inverse_denom, w)`` through
   :meth:`~LinearDiscontinuous.affine_scan_coefficients` and the generic base
   reconstruction staticmethods
-  (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission` /
-  :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average` /
-  :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`)
+  (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission` /
+  :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average` /
+  :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`)
   do the rest.  (The polymorphic
   ``FullFieldWavefront`` DAG oracle — Increment A — still backs the group-2
   kernel; the two-paths gate pins ``CumprodScan``-LD ≡ ``FullFieldWavefront``-LD.)
@@ -160,8 +160,8 @@ References
 See also
 ========
 
-* :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` — the Protocol this
-  strategy satisfies; :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
+* :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` — the Protocol this
+  strategy satisfies; :class:`~orpheus.transport.spatial.diamond.DiamondDifference`
   — the single-moment sibling whose ``update`` / ``residual`` shape this
   mirrors.
 * :doc:`/theory/discrete_ordinates`, "Cell update strategies" → "Linear
@@ -175,13 +175,13 @@ from typing import ClassVar
 
 import numpy as np
 
+from orpheus.numerics.moment_layout import AVERAGE_MOMENT, face_moment_tail
+
 from ._ubld import (
-    AVERAGE_MOMENT,
     D1ClosedForm,
     assemble_inflow_axis,
     assemble_ubld,
     d1_closed_form,
-    face_moment_tail,
     per_cell_solve,
 )
 from .scheme import (
@@ -277,7 +277,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     Two spatial moments per (group, ordinate) cell: the cell-average flux and
     the cell-average slope, with the upwind-discontinuous face closure.  The
     slope is eliminated locally by the Schur complement so the update fits the
-    scalar :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` contract.  See
+    scalar :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` contract.  See
     the module docstring for the derivation, the SymPy-verified 2×2, and the
     Schur-complement scalar form.
 
@@ -313,7 +313,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     ``{face-bar, face-slope}``).  The ``per_axis > 1`` gate routes LD onto the
     multi-moment face-cochain + the moment-reducing emit (#240 D5b);
     DiamondDifference at ``per_axis == 1`` keeps the scalar path byte-identical.
-    See :mod:`orpheus.sn.spatial._ubld` for the d-generic Kronecker primitive."""
+    See :mod:`orpheus.transport.spatial._ubld` for the d-generic Kronecker primitive."""
 
     diffusion_limit_consistent: ClassVar[bool] = True
     r"""Full LD's thick-diffusion limit IS a consistent diffusion discretization
@@ -473,7 +473,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     # receives) and ``Σ_t``, so the dense assembler is fed unit widths
     # ``hs = [1, …]`` and ``mus = [g_0, …]``.  At d=1 this is EXACTLY
     # ``d1_closed_form``'s 2×2 (the closed form is its analytic Schur, proven ==
-    # by ``tests/sn/spatial/test_ld_ubld_primitive.py``), so the moment matvec
+    # by ``tests/transport/spatial/test_ld_ubld_primitive.py``), so the moment matvec
     # and the closed-form scan agree at the solved state.
 
     def _ubld_system(
@@ -485,7 +485,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         r"""Assemble the batched ÷V UBLD dense system + the source-moment RHS.
 
         Returns ``(assembled, R_source)`` where ``assembled`` is the
-        :func:`~orpheus.sn.spatial._ubld.assemble_ubld` dict (``A`` of shape
+        :func:`~orpheus.transport.spatial._ubld.assemble_ubld` dict (``A`` of shape
         ``(N_oct, ng, n_diag, 2^d, 2^d)``) and ``R_source`` the source
         contribution ``M·S⃗_moments`` of shape ``(N_oct, ng, n_diag, 2^d)``.  The
         upwind-inflow face contributions are added by the SOLVE / APPLY arms
@@ -536,7 +536,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
 
         Each ``psi_in[a]`` is the upstream neighbour's outflow trace on axis
         ``a`` — a ``2^{d-1}``-moment transverse object (the widened face
-        cochain).  :func:`~orpheus.sn.spatial._ubld.assemble_inflow_axis`
+        cochain).  :func:`~orpheus.transport.spatial._ubld.assemble_inflow_axis`
         weights it into the active-axis test functions ``B(-1)=[1,-1]`` and the
         transverse mass, times ``g_a`` (the ÷V streaming, ``mus[axis]``).
 
@@ -617,14 +617,14 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         Assembles the batched ÷V ``2^d × 2^d`` dense UBLD system
         (``A ψ⃗ = M·S⃗ + Σ_a F_in^{(a)}``) over the level's anti-diagonal cell
         stack and solves it with one batched
-        :func:`~orpheus.sn.spatial._ubld.per_cell_solve`.  Returns the full
+        :func:`~orpheus.transport.spatial._ubld.per_cell_solve`.  Returns the full
         ``2^d``-moment ``psi_avg`` ``(N_oct, ng, n_diag, 2^d)`` — the cell-average
         in slot 0, the slope moments after — and the d-tuple of
         ``2^{d-1}``-moment downstream faces (one per axis).  ONE moment path for
         every d (#240 D5b-S3): at d=1 the system is the LD ``2×2`` whose Schur
-        complement is :func:`~orpheus.sn.spatial._ubld.d1_closed_form` (the L16
+        complement is :func:`~orpheus.transport.spatial._ubld.d1_closed_form` (the L16
         production scan's fast path), proven equal by
-        ``tests/sn/spatial/test_ld_ubld_primitive.py``.
+        ``tests/transport/spatial/test_ld_ubld_primitive.py``.
 
         STORAGE-FREE by contract: the WALK gathers ``psi_in`` (per-axis
         ``2^{d-1}``-moment faces; a scalar at d=1) and scatters the outgoing
@@ -763,19 +763,19 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         V: np.ndarray,
         reaction_xs: np.ndarray,
     ) -> D1ClosedForm:
-        r"""The per-cell :class:`~orpheus.sn.spatial._ubld.D1ClosedForm` for the
+        r"""The per-cell :class:`~orpheus.transport.spatial._ubld.D1ClosedForm` for the
         1-D moment SCAN (#240 D5b-S3 OWED-2).
 
         The slope-source-aware companion of :meth:`affine_scan_coefficients`: the
         flat-source scan reads only ``(a, inverse_denom, w)`` (source-independent,
         cached), but the FULL LD with the threaded scattering-slope source
         ``Σ_s·φ̂`` needs the slope fold too — the face-chain affine-source
-        contribution (:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_slope_face_source`)
+        contribution (:meth:`~orpheus.transport.spatial._ubld.D1ClosedForm.scan_slope_face_source`)
         and the per-cell ``(ψ̄, ψ̂)`` reconstruction
-        (:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_reconstruct`).  Both
+        (:meth:`~orpheus.transport.spatial._ubld.D1ClosedForm.scan_reconstruct`).  Both
         ride the SAME ``D1ClosedForm`` the flat scan's ``(a, inverse_denom, w)``
         come from (Pattern 2 — ONE LD algebra site; the slope fold is shared with
-        the per-cell Schur :meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.schur_xV`
+        the per-cell Schur :meth:`~orpheus.transport.spatial._ubld.D1ClosedForm.schur_xV`
         via ``_slope_fold``).
 
         Inputs are broadcastable per-ordinate-per-cell-per-group arrays

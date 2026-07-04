@@ -273,7 +273,7 @@ class CellVisit:
         recurrence :math:`(\bar\psi - (1-\tau)\psi^{\theta}_{\rm in})/\tau`
         the identity and keeping :math:`c_{\rm out} = \alpha_{\rm out}/\tau`
         well-defined (a ``0.0`` default would be a divide-by-zero landmine
-        in :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update`'s
+        in :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`'s
         angular thread).  τ is angular-closure-owned, NOT geometry-produced
         (Issue #236 Step C retired the former geometry-side
         ``StreamingTerms.tau_mm``); the spatial scheme
@@ -938,7 +938,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
 
     Source: Maginot, Ragusa & Morel (2016) §2 Eqs. (8)-(12) — the
     tensor-product bilinear basis; the d=1 reduction lives in
-    :mod:`orpheus.sn.spatial._ubld` (``d1_closed_form``)."""
+    :mod:`orpheus.transport.spatial._ubld` (``d1_closed_form``)."""
 
     diffusion_limit_consistent: ClassVar[bool] = False
     r"""Whether the scheme's thick-diffusion limit is a consistent diffusion
@@ -984,7 +984,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         rather than re-spelling ``spatial_basis_per_axis > 1`` (single
         source of truth).  It is exactly equivalent to ``frame_signs is not
         None`` at a streaming octant (the
-        :func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs`
+        :func:`~orpheus.transport.spatial._ubld.octant_moment_frame_signs`
         involution is ``None`` iff ``per_axis == 1``), and to the 1-D scan's
         ``moment_tail != ()`` width-presence test."""
         return self.spatial_basis_per_axis > 1
@@ -1247,7 +1247,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         threaded scattering-slope source ``Σ_s·φ̂`` into the face-chain
         affine source and reconstruct the ``(ψ̄, ψ̂)`` cell moments.  Only a
         multi-moment scheme overrides it (LD today; see
-        :meth:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous.moment_scan_closure`);
+        :meth:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.moment_scan_closure`);
         the default raises — the same capability-method idiom as
         :meth:`affine_scan_coefficients` / :meth:`reflect_scan_coefficients`.
         """

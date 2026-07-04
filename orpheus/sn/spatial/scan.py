@@ -76,7 +76,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .scheme import DiscretizationSchemeBase
+from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
 
 def ordinate_scan(
@@ -323,13 +323,13 @@ def _scanmarch_row(
     Solves the in-row x-face recurrence via :func:`_x_scan_faces` (the scheme's
     *solve* coefficients ``α = a``, ``β = source_emission(Q + c_y ψ_{y,in}, …)``
     from
-    :meth:`~orpheus.sn.spatial.scheme.DiscretizationScheme.cartesian_scan_coefficients`),
+    :meth:`~orpheus.transport.spatial.scheme.DiscretizationScheme.cartesian_scan_coefficients`),
     then closes the cell **generically in the blend weight** ``w`` via the base
     reconstruction staticmethods:
     :math:`\bar\psi = (1-w)\,\mathrm{in}_x + w\,\mathrm{out}_x`
-    (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average`)
+    (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average`)
     and :math:`\mathrm{out}_y = (\bar\psi - (1-w)\,\psi_{y,\mathrm{in}})/w`
-    (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`).
+    (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`).
 
     .. note::
 

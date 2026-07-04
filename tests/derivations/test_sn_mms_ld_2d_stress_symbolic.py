@@ -280,7 +280,7 @@ def test_ld2d_stress_prescribed_inflow_is_nonvanishing():
     bare transverse face-slope); ``max|trace|`` is dominated by the non-vanishing
     average, so the non-vanishing assertion holds shape-agnostically."""
     from orpheus.sn.mesh.augmented_mesh import SNMesh
-    from orpheus.sn.spatial import LinearDiscontinuous
+    from orpheus.transport.spatial import LinearDiscontinuous
 
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(8)

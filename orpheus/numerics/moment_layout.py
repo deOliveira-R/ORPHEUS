@@ -18,11 +18,11 @@ DG basis; they carry no transport physics (no :math:`\Sigma`, no
 * the typed :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
   (the CAPABILITY half — surfaces ``average_moment_index`` and the cell
   tail ``spatial_moment_tail``), and
-* the SN-side UBLD cell assembler :mod:`orpheus.sn.spatial._ubld` (the
+* the UBLD cell assembler :mod:`orpheus.transport.spatial._ubld` (the
   REALIZATION half — buffers, sweeps, the face cochain).
 
-``numerics`` sits *below* ``sn``, so homing the policy here lets both
-import it in the correct (downward) direction. Previously the constants
+``numerics`` sits *below* the transport/method layers, so homing the
+policy here lets both import it in the correct (downward) direction. Previously the constants
 lived in ``sn.spatial._ubld`` and ``SpatialMomentSpace`` reached UP into
 ``sn.spatial`` for them via a *deferred* (call-time) import — a band-aid
 over a layering inversion (a ``numerics`` space depending on the SN

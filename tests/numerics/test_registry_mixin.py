@@ -173,7 +173,7 @@ def test_registries_disjoint_across_codebase():
     """BoundaryTraceLaw and DiscretizationSchemeBase registries don't share keys
     just because they both use RegistryMixin."""
     from orpheus.geometry.boundary import BoundaryTraceLaw
-    from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
+    from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
     # The two registries are distinct dicts.
     assert BoundaryTraceLaw.registry is not DiscretizationSchemeBase.registry

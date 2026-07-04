@@ -523,11 +523,11 @@ physics.
 
 The two actions bottom out, for every Cartesian representation, in **one
 pure kernel pair** on
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference`:
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference`:
 
-* :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`
+* :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`
   (solve) — :math:`\bar\psi = \mathrm{numer}/\mathrm{denom}`;
-* :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`
+* :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`
   (apply) — :math:`r = \mathrm{denom}\cdot\bar\psi - \mathrm{numer}`,
 
 with the explicit **left fold**
@@ -655,15 +655,15 @@ where the diagonal :math:`S`, its reciprocal
 :math:`\mathrm{inverse\_denom}`, the diamond transmission :math:`\alpha`,
 the blend weight :math:`w`, and the transverse coupling :math:`c_y` all
 come from a single scheme call,
-:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`;
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`;
 the affine source :math:`\beta` is the generic
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission`
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission`
 (:math:`\beta = QV_{\rm eff}\cdot\mathrm{inverse\_denom}/w` with
 :math:`QV_{\rm eff} = Q + c_y\,\psi_{y,\rm in}`). The :math:`\times
 \mathrm{inverse\_denom}` reciprocal form — never a :math:`\div S`
 division — is the same coefficient model the 1-D
 :class:`~orpheus.sn.loss_representation.CumprodScan` rides
-(:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.affine_scan_coefficients`),
+(:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients`),
 so the row-march **unifies** the 1-D scan (its degenerate
 :math:`c_y = 0` case) and the 2-D row-march in one primitive, is DAG-free
 (no graph is built), and is now scheme-generic over every
@@ -673,20 +673,20 @@ inline DD values byte-for-byte (:math:`\alpha = 2c_x/S - 1`,
 :math:`\beta = 2(Q + c_y\psi_{y,\rm in})/S`), :math:`\div\tfrac12` being an
 exact power-of-2 :math:`\times 2`; the cell then closes generically in
 the blend weight via
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average`
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average`
 (:math:`\bar\psi = (1-w)\psi^{\rm in}_x + w\,\psi^{\rm out}_x`) and
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
 (:math:`\psi^{\rm out}_y = (\bar\psi - (1-w)\psi^{\rm in}_y)/w`).
 
 The matvec twin reconstructs the interior x-faces from the *known*
 probe :math:`\bar\psi` through the scheme's apply-direction **reflection
 scan**
-(:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.reflect_scan_coefficients`):
+(:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.reflect_scan_coefficients`):
 because :math:`\bar\psi` is known, the WDD closure
 :math:`\psi^{\rm out}_x = 2\bar\psi - \psi^{\rm in}_x` is itself a
 first-order recurrence — a **pure-reflection scan** with the recurrence
 form of
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
 at :math:`w = \tfrac12`,
 
 .. math::
@@ -699,7 +699,7 @@ at :math:`w = \tfrac12`,
 
 evaluated by :func:`~orpheus.sn.spatial.scan._x_scan_faces`. The per-cell
 residual then rides the uniform :math:`\div V` matvec kernel
-:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`
 that every facewise closure shares,
 
 .. math::
@@ -765,7 +765,7 @@ Both interior kernels go through one scheme door per direction:
      - Scheme producer
      - Returns / consumes
    * - SOLVE
-     - :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
+     - :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
        ``(s_scan, s_transverse, sig_t)``
      - the affine x-scan tuple
        :math:`(a,\ \mathrm{inverse\_denom},\ w,\ \text{transverse\_couplings})`
@@ -775,24 +775,24 @@ Both interior kernels go through one scheme door per direction:
        :math:`a = 2\,\mathrm{scan\_diag}\cdot\mathrm{inverse\_denom} - 1`,
        :math:`w = \tfrac12`
    * - APPLY
-     - :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.reflect_scan_coefficients`
+     - :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.reflect_scan_coefficients`
        ``(psi_bar)``
      - the pure-reflection :math:`(\alpha = -1,\ \beta = 2\bar\psi)`
        recurrence (:eq:`loss-rep-scanmarch-apply`) — the :math:`(\alpha,\beta)`
        form of
-       :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
+       :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
        at :math:`w = \tfrac12`, :math:`w`-generic via
-       :meth:`~orpheus.sn.spatial.diamond.DiamondDifference._reflection_coeffs`
+       :meth:`~orpheus.transport.spatial.diamond.DiamondDifference._reflection_coeffs`
 
 **SOLVE — the row asks, the scheme answers, the cell closes generically.**
 Per y-row, ``ScanMarch._sweep_interior`` calls
-:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
 to obtain :math:`(a, \mathrm{inverse\_denom}, w, (c_y,))`. The transverse-y
 coupling :math:`c_y` does **not** stay separate — it folds into the affine
 source: the effective volumetric source is
 :math:`QV_{\rm eff} = Q + c_y\,\psi_{y,\rm in}`, and the additive scan
 coefficient is the generic
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission`,
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission`,
 :math:`\beta = \mathrm{source\_emission}(QV_{\rm eff}, \mathrm{inverse\_denom},
 w) = QV_{\rm eff}\cdot\mathrm{inverse\_denom}/w`, while
 :math:`\alpha = a`. The in-row x-face recurrence
@@ -800,9 +800,9 @@ w) = QV_{\rm eff}\cdot\mathrm{inverse\_denom}/w`, while
 Blelloch scan** (:func:`~orpheus.sn.spatial.scan._x_scan_faces`) the 1-D
 ``CumprodScan`` runs; the cell then closes **generically in the blend weight**
 :math:`w` via the base reconstruction staticmethods —
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average`
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average`
 recovers :math:`\bar\psi = (1-w)\psi^{\rm in}_x + w\,\psi^{\rm out}_x` and
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
 sheds the downstream y-face :math:`\psi^{\rm out}_y = (\bar\psi -
 (1-w)\psi^{\rm in}_y)/w` (the next row's :math:`\psi_{y,\rm in}`). This entire
 closure runs through
@@ -814,10 +814,10 @@ blend.
 matvec kernel.** Per y-row, ``ScanMarch._loss_action_interior`` reconstructs
 the interior x-faces from the *known* probe :math:`\bar\psi` via the scheme's
 reflection scan
-:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.reflect_scan_coefficients`
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.reflect_scan_coefficients`
 (:eq:`loss-rep-scanmarch-apply`), then evaluates the per-cell residual **and**
 the transverse-y outflow through the uniform :math:`\div V` matvec kernel
-:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`
 (:eq:`loss-rep-scanmarch-apply-residual`) — the same batched kernel the
 anti-diagonal wavefront family uses for its apply direction. This kernel is the
 natural home for the matvec because the apply direction has a *concrete*
@@ -840,25 +840,25 @@ structural, not incidental:
      - :math:`\bar\psi` is the **input** → per-cell residual is independent →
        a batched ÷V kernel applies directly
      - reuse the existing
-       :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`
+       :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`
    * - SOLVE
      - :math:`\bar\psi` is the **unknown**, x-coupled cell-to-cell → cannot
        use an independent-batch kernel
      - new closed-form scan producer
-       :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
+       :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
 
 **Single-sourcing the DD constants.** The fold rests on three pieces of
 single-source-of-truth plumbing on
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference`:
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference`:
 
 * the cell-balance diagonal :math:`S = \Sigma_t + \sum_a 2 g_a` is built once
   by the shared private
-  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference._cartesian_streaming_diagonal`,
+  :meth:`~orpheus.transport.spatial.diamond.DiamondDifference._cartesian_streaming_diagonal`,
   consumed by **all three** Cartesian producers —
-  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`,
-  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`,
+  :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`,
+  :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`,
   and the new
-  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
+  :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
   — as an **explicit left fold** :math:`((\Sigma_t + 2 g_0) + 2 g_1) + \cdots`
   (NOT ``sum()``), the IEEE-754 reduction tree of record
   (:ref:`loss-rep-bit-vs-principled`);
@@ -867,9 +867,9 @@ single-source-of-truth plumbing on
   it;
 * the apply-direction reflection arithmetic
   :math:`\alpha = -(1-w)/w,\ \beta = \bar\psi/w` is the :math:`w`-generic
-  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference._reflection_coeffs`,
+  :meth:`~orpheus.transport.spatial.diamond.DiamondDifference._reflection_coeffs`,
   which DD's
-  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.reflect_scan_coefficients`
+  :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.reflect_scan_coefficients`
   calls at ``_DD_W``, so the future Step closure inherits it for free.
 
 The curvilinear ``affine_scan_coefficients`` merge — unifying the 1-D-chain
@@ -1095,9 +1095,9 @@ scheme's capability traits** — **not** the ``sweep_graphs is None``
 substrate proxy that the pre-carve code keyed on. The two scan
 representations read a *scheme* trait, not just geometry:
 ``CumprodScan`` and the 1-D arm of ``ScanMarch`` require
-:attr:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.is_affine_scannable`,
+:attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.is_affine_scannable`,
 and the :math:`d \ge 2` arm of ``ScanMarch`` requires the **distinct**
-:attr:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.transverse_coupling_is_facewise`
+:attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.transverse_coupling_is_facewise`
 — the split that closes the silent 2-D Linear-Discontinuous misroute
 (:ref:`loss-rep-scanmarch-facewise`).
 :class:`~orpheus.sn.loss_representation.Compatibility` is an
@@ -1216,7 +1216,7 @@ The scan-march scheme gate: facewise vs slope-wise transverse coupling
 The :math:`d \ge 2` arm of
 :meth:`~orpheus.sn.loss_representation.ScanMarch.supports` reads a **scheme**
 trait,
-:attr:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.transverse_coupling_is_facewise`,
+:attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.transverse_coupling_is_facewise`,
 not just geometry. This subsection records *why* the row-march needs a
 genuinely different qualification than the 1-D scan does, and how a single
 conflated predicate silently misrouted a 2-D Linear-Discontinuous mesh into
@@ -1251,12 +1251,12 @@ answer **two** structurally distinct questions. They look similar — both are
    * - Trait
      - The question it answers
      - What it licenses
-   * - :attr:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.is_affine_scannable`
+   * - :attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.is_affine_scannable`
      - **Single-axis**: is the cell-average an affine function of a *single*
        upstream face flux, :math:`\psi_{\rm out} = a\,\psi_{\rm in} + b`
        (Blelloch §1.5)?
      - The 1-D prefix scan (``CumprodScan``; the 1-D arm of ``ScanMarch``).
-   * - :attr:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.transverse_coupling_is_facewise`
+   * - :attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.transverse_coupling_is_facewise`
      - **Cross-axis**: in :math:`d \ge 2`, does a NON-swept axis couple
        through a *0th-order face value* (so the :math:`d`-D closure is
        tensor-product separable into independent per-axis scans)?
@@ -1322,14 +1322,14 @@ transverse axis :math:`y` is the **single 0th-order face value**
 :math:`c_y\,\psi_{y,\rm in}` (:math:`c_y = 2 g_y`) that folds straight into the
 scan source. In the
 batched DD kernel
-(:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`) this
+(:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`) this
 is the explicit per-axis left fold
 :math:`\mathrm{numer} = Q + \sum_a 2 g_a\,\psi^{\rm in}_a` — every axis
 contributes one additive face term, exactly the separable form
 :eq:`loss-rep-facewise-separable`. So a row-march along :math:`x` that carries
 each :math:`y`-face value into the source is **exact** for DD/Step, and the
 scheme declares ``transverse_coupling_is_facewise = True``
-(:class:`~orpheus.sn.spatial.diamond.DiamondDifference`).
+(:class:`~orpheus.transport.spatial.diamond.DiamondDifference`).
 
 Linear Discontinuous: slope-wise (non-separable)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1339,7 +1339,7 @@ Linear Discontinuous (DG-P1-upwind) represents the in-cell angular flux as a
 spatial moment, the slope :math:`\hat\psi`, alongside the average
 :math:`\bar\psi` (the 1-D two-moment system and its Schur-complement
 reduction are derived in the
-:class:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous`
+:class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous`
 docstring). In **1-D** that slope is a *local* quantity:
 the Schur complement of the per-cell :math:`2\times2` eliminates
 :math:`\hat\psi` analytically, leaving the clean single-upstream affine
@@ -1357,7 +1357,7 @@ complement does **not** diagonalize across axes — it fails the separability
 can fold into the scan source that would carry the transverse slope. LD
 therefore declares ``transverse_coupling_is_facewise = False`` (it inherits
 the conservative default;
-:class:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous`), and a
+:class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous`), and a
 multi-dimensional LD problem must ride the **DAG wavefront**, which resolves
 the genuine joint cell dependencies, not the scan-march.
 
@@ -1390,9 +1390,9 @@ it and the construction guard (``__post_init__``) rejects an explicit
 ``ScanMarch(2-D LD mesh)``. The pairing is gone by construction.
 
 The trait is declared on **both** the concrete base
-:class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase` (the typed-and-
+:class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase` (the typed-and-
 defaulted single source of truth) and the
-``@runtime_checkable`` :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme`
+``@runtime_checkable`` :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`
 Protocol (kept symmetric with the other three capability traits). The
 ``@runtime_checkable`` Protocol carries a known footgun: on Python 3.12+,
 ``isinstance`` validates member *presence*, not type — so a scheme declaring
@@ -1494,7 +1494,7 @@ kernel — so a 2-D LD mesh, having been correctly diverted to the wavefront,
 hits the wavefront's LD ``cell_kernel_batch``, which is itself d=1-only and
 raises the existing ``NotImplementedError("…supports d=1 (slab/1-D) only;
 got d=2…")`` from
-:class:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous`. This is
+:class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous`. This is
 the **correct interim state**: a loud "not yet implemented" is strictly better
 than a silent wrong answer (a different scheme's values returned under LD's
 name). The follow-on:
@@ -1534,9 +1534,9 @@ interior traversal, and sheds the outflow. The two directions fork
 * the **cell kernel** — the per-octant interior traversal the calling
   representation supplies (the window's frontier walk, the scan-march's
   row-march, the oracle's full cochain), in its solve
-  (:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`)
+  (:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`)
   or apply
-  (:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`)
+  (:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`)
   direction; and
 * the **emit policy** — what the direction accumulates (the sweep's
   angular/moment output via ``_SweepEmit``; the matvec's
@@ -1791,9 +1791,9 @@ oracles:
 * **the kernel pair is the FP reduction tree of record** —
   ``test_cell_kernel_batch.py::TestKernelSourceOfRecord`` freezes a
   ``sha256`` of the source of
-  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`
+  :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`
   and
-  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`.
+  :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`.
   Their explicit left fold ``((Σ_t + s_0) + s_1) + …`` is
   bit-identity-load-bearing: an algebraically-equivalent rearrangement
   (a ``sum()`` instead of the fold) passes every value-tolerance test yet
@@ -1923,7 +1923,7 @@ Literature
 
 The cell-level mathematics these representations *schedule* is sourced
 from the standard discrete-ordinates references, anchored in the
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference` docstring and
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference` docstring and
 :doc:`discrete_ordinates`:
 
 .. list-table::

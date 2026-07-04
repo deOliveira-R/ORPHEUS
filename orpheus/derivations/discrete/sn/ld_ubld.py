@@ -61,7 +61,7 @@ The assembled per-cell system (MRM-2016 Eq. 12) is
 
 a ``2^d × 2^d`` dense non-symmetric solve.  ``d=1`` is the
 "Kronecker-with-one-factor" identity — it reduces EXACTLY to the
-production slab 2×2 (``orpheus.sn.spatial.linear_discontinuous``), the
+production slab 2×2 (``orpheus.transport.spatial.linear_discontinuous``), the
 ``xy`` coupling falls out of the algebra for ``d≥2``, and NO 4×4/8×8
 entry is hand-transcribed.
 
@@ -105,7 +105,7 @@ References
 See also
 ========
 
-* :mod:`orpheus.sn.spatial.linear_discontinuous` — the production 1-D LD
+* :mod:`orpheus.transport.spatial.linear_discontinuous` — the production 1-D LD
   this module's d=1 reduction is proven equal to.
 * :mod:`orpheus.derivations.discrete.sn.balance` — the sibling discrete-SN
   symbolic derivation (DD / WDD / cumprod).
@@ -315,7 +315,7 @@ def derive_d1_reduction_to_production() -> dict:
 
     Proves: the Kronecker-with-one-factor assembly reproduces the
     production ``A`` / ``R`` / Schur ``S`` / slope ``ψ̂`` / ``D₂'`` closed
-    forms (``orpheus.sn.spatial.linear_discontinuous._LDCellTerms`` /
+    forms (``orpheus.transport.spatial.linear_discontinuous._LDCellTerms`` /
     ``_schur_terms``) symbolically.
     """
     mu, h, sig_t = sp.symbols("mu h Sigma_t", positive=True)

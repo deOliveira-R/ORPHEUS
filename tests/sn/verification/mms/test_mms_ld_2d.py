@@ -3,7 +3,7 @@ r"""D5b — multi-D (2-D Cartesian) Linear-Discontinuous on the DAG wavefront.
 Sub-step **D5b-S2** of #240 / #38 / #37: the bilinear (UBLD) LD cell kernel now
 runs in d≥2 on the wavefront (``FullFieldWavefront`` / ``MovingFrontierWindow``),
 consuming the verified d-generic primitive
-(:mod:`orpheus.sn.spatial._ubld`).  This module carries the END-TO-END 2-D LD
+(:mod:`orpheus.transport.spatial._ubld`).  This module carries the END-TO-END 2-D LD
 gates that need a full solve:
 
 * **D5b.2 (smoke)** — the 2-D LD kernel produces a CONVERGENT O(h²) solution on
@@ -23,7 +23,7 @@ gates that need a full solve:
 D5b.0 (the INVERTED raise pin), D5b.1 (the kernel round-trip), and the
 D5b.4 kernel-level matvec twin (``residual_kernel_batch`` faces reconstruct
 identically to ``cell_kernel_batch``, both directions per axis) live with the
-kernel in ``tests/sn/spatial/test_linear_discontinuous.py``
+kernel in ``tests/transport/spatial/test_linear_discontinuous.py``
 (``TestLDKernel``).  The FULL ``loss_action`` / Krylov 2-D LD matvec needs the
 ``2^d``-moment spatial iterate (S3); at S2 the production driver is the
 within-group source-iteration sweep.
@@ -54,7 +54,7 @@ from orpheus.sn.loss_representation import (
     MovingFrontierWindow,
     default_for,
 )
-from orpheus.sn.spatial import DiamondDifference, LinearDiscontinuous
+from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 from tests.sn._test_helpers import volume_weighted_l2
@@ -981,7 +981,7 @@ def test_moment_resolved_bulk_still_rejects_wrong_trailing_axis():
     shape bugs.  Also pins that DD/Step (``per_axis == 1``, no moment axis)
     rejects ANY moment-resolved bulk (only flat is valid there).  ``-O``-safe
     (``pytest.raises``)."""
-    from orpheus.sn.spatial import DiamondDifference
+    from orpheus.transport.spatial import DiamondDifference
 
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(8)

@@ -510,9 +510,9 @@ Why the matvec is affine in :math:`\sigma`
 
 The discrete within-group cell balance is the single source of the
 affine structure. In the geometry-agnostic 1-D scan
-(:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.affine_scan_coefficients`)
+(:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.affine_scan_coefficients`)
 and in the curvilinear cell update
-(:func:`~orpheus.sn.spatial.diamond.cell_balance_for_streaming`) the
+(:func:`~orpheus.transport.spatial.diamond.cell_balance_for_streaming`) the
 WDD cell-average solves
 
 .. math::
@@ -526,12 +526,12 @@ WDD cell-average solves
 where the cell-balance diagonal :math:`S` is the **sum** of a purely
 geometric streaming term :math:`S_{\rm stream}` and the collision
 volume term :math:`\sigma_t\,V`. In the production code
-(:func:`~orpheus.sn.spatial.diamond.DiamondDifference._cartesian_streaming_diagonal`)
+(:func:`~orpheus.transport.spatial.diamond.DiamondDifference._cartesian_streaming_diagonal`)
 the Cartesian scan denominator is literally
 ``denom = reaction_xs + Σ_axes (2 g_axis)`` with ``reaction_xs`` the
 collision term and ``2 g_axis = 2|μ_axis|/Δ_axis`` the geometric
 streaming term; the curvilinear form
-(:func:`~orpheus.sn.spatial.diamond.DiamondDifference.affine_scan_coefficients`)
+(:func:`~orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients`)
 is ``denom = geometric_streaming_term + collision_volume_term`` with
 ``geometric_streaming_term = 2|μ|·A_down + (ΔA/w)·c_out``. The
 collision cross section enters the diagonal **purely additively** —
@@ -793,8 +793,8 @@ so the resolvent (the per-cell ``solve``) **divides by the SUM**
 :math:`S = S_{\rm stream} + \sigma_t\,V`. In the production code this is
 literally ``inverse_denom = 1.0 / denom`` with ``denom = streaming_term
 + collision_term``
-(:func:`~orpheus.sn.spatial.diamond.DiamondDifference.affine_scan_coefficients`,
-:func:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`).
+(:func:`~orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients`,
+:func:`~orpheus.transport.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`).
 Now compare the three inverses on this single cell:
 
 - :math:`L^{-1}` would divide by :math:`S_{\rm stream}` **alone**
@@ -4107,7 +4107,7 @@ denominators. The spatial factor and the angular index are entangled
 inside the recurrence — the disjoint-axes contract of
 :class:`TensorProductOperator` (:eq:`wave-t-ma-q1-master-condition`)
 fails. The cell-balance algebra at
-:func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
+:func:`orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
 hides this recurrence inside the named denom-numer primitives, but
 the recurrence is the load-bearing structure that makes the streaming
 matvec a sweep rather than a broadcast.
@@ -4429,7 +4429,7 @@ form with no notion of one axis's recurrence running *inside* another's.
 **Per-cell algebra**. The walk visits every :math:`(p,\,i)` pair
 (μ-level × spatial cell) and calls
 :meth:`PoleAngularClosureBase.cell_contribution`. The cell-balance algebra
-at :func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
+at :func:`orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
 decomposes additively into three terms:
 
 .. math::
@@ -4704,7 +4704,7 @@ Cross-references
     public surface is :meth:`StreamingOperator.apply`.
   - :class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
     — the M-M closure data and per-cell algebra primitive.
-  - :func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
+  - :func:`orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
     — the three-term cell-balance primitive.
 
 

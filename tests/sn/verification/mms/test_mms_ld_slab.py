@@ -24,10 +24,10 @@ This file pins:
   via ``_apply_walk``) matches the SI sweep.
 
 The per-cell exactness-on-linears (the strong structurally-independent
-correctness oracle) lives in ``tests/sn/spatial/test_linear_discontinuous.py``.
+correctness oracle) lives in ``tests/transport/spatial/test_linear_discontinuous.py``.
 
-Related: ``orpheus.sn.spatial.linear_discontinuous`` (the occupant);
-``orpheus.sn.spatial.scheme.DiscretizationSchemeBase`` (the generic coefficient-model
+Related: ``orpheus.transport.spatial.linear_discontinuous`` (the occupant);
+``orpheus.transport.spatial.scheme.DiscretizationSchemeBase`` (the generic coefficient-model
 reconstruction staticmethods);
 ``orpheus.sn.loss_representation.{CumprodScan, FullFieldWavefront}``;
 ``.claude/plans/mellow-swinging-breeze.md`` (Increment B).
@@ -46,7 +46,7 @@ from orpheus.sn.loss_representation import (
     FullFieldWavefront,
     default_for,
 )
-from orpheus.sn.spatial import LinearDiscontinuous
+from orpheus.transport.spatial import LinearDiscontinuous
 
 from tests.sn._test_helpers import volume_weighted_l2
 

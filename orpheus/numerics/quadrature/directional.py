@@ -90,7 +90,7 @@ from .rules_sphere import LevelStructure, lebedev_sphere, level_symmetric_sn
 
 # Threshold below which a direction-cosine component is treated as
 # zero for octant labelling. Matches the pure-z degenerate-ordinate
-# threshold in ``orpheus.sn.sweep`` and ``orpheus.sn.spatial.diamond``
+# threshold in ``orpheus.sn.sweep`` and ``orpheus.transport.spatial.diamond``
 # (``_DEGENERATE_ABS_MU_THRESHOLD``); keep in lockstep.
 _OCTANT_SIGN_EPS = 1e-15
 

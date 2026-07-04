@@ -27,7 +27,7 @@ What this gate pins
 
 1. **POSITIVE — the closed form holds at an ARBITRARY reaction-rate.**  For
    ``DiamondDifference`` AND ``LinearDiscontinuous``, calling
-   :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.affine_scan_coefficients`
+   :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.affine_scan_coefficients`
    with an arbitrary ``sig_t`` (a removal-like ``Σ_r < Σ_t`` value, a
    near-zero pure-advection ``Σ → 0`` value) returns ``(a, inverse_denom, w)``
    matching the closed form evaluated at that ``sig_t``:
@@ -77,8 +77,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.sn.spatial.diamond import DiamondDifference
-from orpheus.sn.spatial.linear_discontinuous import LinearDiscontinuous
+from orpheus.transport.spatial.diamond import DiamondDifference
+from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 
 
 # ── Slab-neutral geometry fixtures (the wave-speed / geometry inputs held

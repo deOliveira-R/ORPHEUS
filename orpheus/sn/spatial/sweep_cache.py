@@ -78,7 +78,7 @@ and ``b = 2·q/denom``.  The same three tensor ops in
 Pattern 2 anchor — single source of truth
 =========================================
 
-The cache populator derives from :func:`~orpheus.sn.spatial.cell_balance.cell_balance_terms`
+The cache populator derives from :func:`~orpheus.transport.spatial.cell_balance.cell_balance_terms`
 indirectly via the per-cell :class:`~orpheus.geometry.reduced_operator.StreamingTerms`
 factory.  The L1 dual-view validator
 (``test_cache_populator_matches_cell_balance_terms``) asserts that for any
@@ -106,7 +106,7 @@ import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
     from orpheus.sn.mesh.augmented_mesh import SNMesh
-    from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
+    from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -400,9 +400,9 @@ class CollisionCache:
     everywhere; LD is ``w=1/(1+k)``.  Stored chain-ordered alongside
     ``a_attenuation`` / ``inverse_denom`` so the scan body and the matvec apply
     the generic base reconstruction staticmethods
-    (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission` /
-    :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average` /
-    :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`)
+    (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission` /
+    :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average` /
+    :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`)
     without re-deriving any per-scheme cell math."""
 
     _build_count: ClassVar[int] = 0
@@ -435,7 +435,7 @@ class CollisionCache:
         ``(a_attenuation, inverse_denom)`` are owned by the cell-update
         scheme (Issue #236 §2): this method delegates their three numpy
         ops to :meth:`scheme.affine_scan_coefficients
-        <orpheus.sn.spatial.scheme.DiscretizationScheme.affine_scan_coefficients>`
+        <orpheus.transport.spatial.scheme.DiscretizationScheme.affine_scan_coefficients>`
         so the cache reflects whichever spatial closure ``SNMesh`` selected
         — the cache keeps storage + lifetime; the scheme owns the math
         (Cardinal Rule 2 / Pattern 2, single source of truth).  This cache
@@ -458,7 +458,7 @@ class CollisionCache:
             ``.claude/plans/principled_index_migration.md``.
         scheme : DiscretizationSchemeBase
             The selected spatial closure scheme (e.g.
-            :class:`~orpheus.sn.spatial.diamond.DiamondDifference`).  Must
+            :class:`~orpheus.transport.spatial.diamond.DiamondDifference`).  Must
             be ``is_affine_scannable``; supplies the closed-form recurrence
             coefficients via :meth:`affine_scan_coefficients`.
 

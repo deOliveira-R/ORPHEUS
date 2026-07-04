@@ -46,7 +46,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.sn.spatial._ubld import octant_moment_frame_signs
+from orpheus.transport.spatial._ubld import octant_moment_frame_signs
 
 # NOTE: import the production helper once the signature is settled. Until then
 # this import pins the symbol under test.

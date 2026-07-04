@@ -42,7 +42,7 @@ For ``ndim`` spatial axes the total within-cell moment count is
 :attr:`per_axis` :sup:`ndim` (DD: ``1``; LD-1D: ``2``; LD-2D: ``4``;
 LD-3D: ``8``). The ordering is the Kronecker product of the per-axis
 bases, **x-outer / y-inner** (matching
-:func:`orpheus.sn.spatial._ubld.assemble_ubld`), so the slot-0 entry is
+:func:`orpheus.transport.spatial._ubld.assemble_ubld`), so the slot-0 entry is
 always the all-:math:`P_0` cell average:
 
 * d = 1 (``per_axis = 2``): :math:`[\bar\psi,\ \hat\psi_x]`
@@ -74,9 +74,9 @@ References
 * :mod:`orpheus.numerics.moment_layout` — the physics-free moment-layout
   policy (``AVERAGE_MOMENT`` slot-0 + the "append iff > 1" tail) this space
   surfaces; single-sourced there (#245).
-* :mod:`orpheus.sn.spatial._ubld` — the UBLD cell assembler; the Kronecker
+* :mod:`orpheus.transport.spatial._ubld` — the UBLD cell assembler; the Kronecker
   moment ordering this space's slot layout mirrors.
-* :class:`orpheus.sn.spatial.scheme.DiscretizationSchemeBase` — carries
+* :class:`orpheus.transport.spatial.scheme.DiscretizationSchemeBase` — carries
   ``spatial_basis_per_axis`` (DD/Step = 1, LD = 2), the per-axis basis
   size this space's :attr:`per_axis` is derived from.
 * :class:`~orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace`

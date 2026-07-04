@@ -40,7 +40,7 @@ from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.spatial import LinearDiscontinuous
+from orpheus.transport.spatial import LinearDiscontinuous
 
 THETA = 1.0 / 3.0
 

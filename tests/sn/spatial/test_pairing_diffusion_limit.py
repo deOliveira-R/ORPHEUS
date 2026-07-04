@@ -18,15 +18,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from orpheus.sn.spatial.diamond import DiamondDifference
-from orpheus.sn.spatial.linear_discontinuous import LinearDiscontinuous
+from orpheus.transport.spatial.diamond import DiamondDifference
+from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.sn.spatial.pairing import pair_diffusion_limit_consistent
 from orpheus.sn.spatial.pole_angular_closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
     PoleAngularClosureBase,
 )
-from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
+from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
 
 @pytest.mark.foundation

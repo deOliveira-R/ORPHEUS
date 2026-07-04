@@ -130,17 +130,15 @@ import numpy as np
 # bodies share one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.moment_layout import (
+    AVERAGE_MOMENT,
     face_moment_count,
+    face_moment_tail,
     is_moment_valued_by_flat_rank,
     is_moment_valued_by_rank,
 )
 
-from ..spatial._ubld import (
-    AVERAGE_MOMENT,
-    face_moment_tail,
-    octant_moment_frame_signs,
-)
-from ..spatial.scheme import UpstreamState
+from orpheus.transport.spatial._ubld import octant_moment_frame_signs
+from orpheus.transport.spatial.scheme import UpstreamState
 from ..spatial.psi_half_angle_seed import CarlsonSweepContext
 from ..spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
 from ..spatial.sweep_cache import CollisionCache, GeometryCoefficients
@@ -170,7 +168,7 @@ def frame_signs_for(
 
     The ONE binding of an octant's ``signs`` and the scheme's
     ``spatial_basis_per_axis`` to the single-source involution
-    :func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs` (#240 D5b-S3 —
+    :func:`~orpheus.transport.spatial._ubld.octant_moment_frame_signs` (#240 D5b-S3 —
     the diffusion-limit root cause; the primitive owns the ``None``-for-DD/Step
     no-op convention).  Hoisted to module level so BOTH the
     :class:`_LossRepresentation` cell-op frames (via
@@ -195,7 +193,7 @@ if TYPE_CHECKING:
 
     from ..mesh.augmented_mesh import SNMesh
     from ..operators.streaming import StreamingOperator
-    from ..spatial.scheme import DiscretizationSchemeBase
+    from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
     from .sweep_schedule import OctantSweep, OctantSweepGroup
 
 
@@ -782,9 +780,9 @@ class _OctantWalk:
     * the **cell kernel** — the per-octant interior traversal the calling
       representation supplies: the window's frontier walk, the scan-march's
       row-march, the oracle's full cochain — each in its solve
-      (:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`)
+      (:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`)
       or apply
-      (:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`)
+      (:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`)
       direction; and
     * the **emit policy** — what the direction accumulates: the sweep's
       angular/moment output; the matvec's :math:`(L+C)\psi` bulk + the O.4b
@@ -1242,7 +1240,7 @@ class MovingFrontierWindow(_DAGWavefront):
         :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
         with the ``_CellSolve`` level operation (the windowed walk of the
         solve cell kernel
-        :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`)
+        :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`)
         over this octant's DAG, emitting per anti-hyperplane into the
         :class:`_SweepEmit` mode buffers.  Returns the per-axis domain-edge
         outflow ``capture``.
@@ -1341,7 +1339,7 @@ class MovingFrontierWindow(_DAGWavefront):
         :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
         with the ``_CellResidual`` level operation (the windowed walk of the
         apply cell kernel
-        :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`)
+        :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`)
         over this octant's DAG.  Returns ``(LpC_octant, capture)`` — the
         octant's ``(L+C)ψ̄`` block and the per-axis domain-edge outflow.
         """
@@ -1631,7 +1629,7 @@ class FullFieldWavefront(_DAGWavefront):
         Drives :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`
         with the ``_CellResidual`` level operation (the full-field walk of
         the apply cell kernel
-        :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`)
+        :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`)
         over the octant's complete face cochain.  Returns
         ``(LpC_octant, capture)``.
         """
@@ -1819,11 +1817,11 @@ class ScanMarch(_LossRepresentation):
         x-face recurrence is the first-order linear scan
         (:func:`~orpheus.sn.spatial.scan._scanmarch_row`) whose coefficients
         come from the scheme's
-        :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cartesian_scan_coefficients`
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cartesian_scan_coefficients`
         — the row body carries NO inline diamond ``2`` or blend ``w`` (the
         scheme owns them; #240 D5a / #239 the coefficient-model lift).  The
         transverse-y coupling ``c_y · ψ_{y,in}`` rides the affine source via
-        :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission`.
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission`.
         Emits per row into the :class:`_SweepEmit` mode buffers.  Returns the
         per-axis domain-edge outflow ``(capture_x, out_y)``.
 
@@ -2475,7 +2473,7 @@ class _OneDimScanWalk:
         handle.
         """
         from orpheus.transport.source_sinks import AngularBoundarySourceSink
-        from ..spatial.cell_balance import cell_balance_for_streaming
+        from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 
         sn_mesh = self.mesh
         psi_view = psi.bulk.values
@@ -2810,7 +2808,7 @@ class _OneDimScanWalk:
         """
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
-        from ..spatial.cell_balance import cell_balance_for_streaming
+        from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 
         sn_mesh = self.mesh
         quad = sn_mesh.quad

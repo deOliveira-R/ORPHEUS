@@ -47,7 +47,7 @@ from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .mesh.augmented_mesh import SNMesh
-from .spatial.scheme import DiscretizationSchemeBase
+from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -1987,8 +1987,11 @@ def _lift_external_source_to_moments(
       slope-sign reframe (``sweep_graph._CellSolve`` /
       ``octant_moment_frame_signs``) re-signs the external slopes global→sweep
       EXACTLY as it does the scattering slopes — no new cell branch."""
-    from orpheus.numerics.moment_layout import is_moment_valued_by_flat_rank
-    from orpheus.sn.spatial._ubld import AVERAGE_MOMENT, face_moment_tail
+    from orpheus.numerics.moment_layout import (
+        AVERAGE_MOMENT,
+        face_moment_tail,
+        is_moment_valued_by_flat_rank,
+    )
 
     per_axis = sn_mesh.scheme.spatial_basis_per_axis
     n_cell_moments = per_axis ** sn_mesh.ndim
@@ -2019,7 +2022,7 @@ def _average_moment_scalar(phi: "np.ndarray", sn_mesh: SNMesh) -> "np.ndarray":
     structure (#240 D5b-S3).  ``phi`` from a multi-moment closure carries a
     trailing ``2^d`` axis — take slot ``AVERAGE_MOMENT``; DD/Step (per_axis ==
     1) → no axis → return unchanged."""
-    from orpheus.sn.spatial._ubld import AVERAGE_MOMENT, face_moment_tail
+    from orpheus.numerics.moment_layout import AVERAGE_MOMENT, face_moment_tail
 
     per_axis = sn_mesh.scheme.spatial_basis_per_axis
     if face_moment_tail(per_axis ** sn_mesh.ndim) == ():

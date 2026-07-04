@@ -1,37 +1,29 @@
-"""Per-cell spatial-update strategies for the SN sweep.
+"""SN sweep-walk support: angular closures, seeds, caches, and the scan.
 
-This package hosts the strategy contract and the concrete
-strategies — Diamond Difference (here) and (Wave C-extension)
-Linear Discontinuous, Exponential Characteristic, Step — that a
-1-D SN sweep uses to march through a cell and produce its
-average flux + outgoing states.
+What remains here after #272 promoted the method-generic spatial
+closure layer (the ``DiscretizationScheme`` contract, Diamond
+Difference, Linear Discontinuous, the UBLD kernels, and the per-cell
+WDD balance) to :mod:`orpheus.transport.spatial` is the
+discrete-ordinates sweep machinery proper:
 
-The contract itself lives in :mod:`orpheus.sn.spatial.scheme`:
+* :mod:`~orpheus.sn.spatial.pole_angular_closure` — the curvilinear
+  angular-redistribution closure family (Morel–Montry, identity).
+* :mod:`~orpheus.sn.spatial.psi_half_angle_seed` — starting-direction
+  seed strategies for the curvilinear half-angle level.
+* :mod:`~orpheus.sn.spatial.sweep_cache` — the two-stratum hot-path
+  cache keyed to solver/mesh × quadrature lifecycles.
+* :mod:`~orpheus.sn.spatial.scan` — the 1-D Blelloch ordinate scan and
+  the Cartesian row-march.
+* :mod:`~orpheus.sn.spatial.pairing` — pairing-validity predicates for
+  the (spatial ⊗ angular) discretization product (#236).
 
-* :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` — the
-  ``@runtime_checkable Protocol``.
-* :class:`~orpheus.sn.spatial.scheme.UpstreamState` —
-  per-cell input state (spatial face flux + optional angular
-  half-flux).
-* :class:`~orpheus.sn.spatial.scheme.CellResult` — per-cell
-  output state (average flux, outgoing spatial flux, outgoing
-  angular state).
-
-Round 1 (Issue #157) shipped the contract.
-Round 2 (Issue #158, this file's ``DiamondDifference`` re-export)
-ships the first concrete strategy as a bit-identical extraction of
-the existing inlined sweep math at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``).  Wave
-C-extension will add Linear Discontinuous, Step, and Exponential
-Characteristic.
-
-See the SN reshape campaign plan at
-``.claude/plans/sn_reshape.md`` and the Wave C plan at
-``.claude/plans/mossy-mapping-pine.md`` for context.
+NOTE (R9, 2026-07-04): the package NAME is stale for this residual —
+what lives here is sweep-walk + angular machinery, not spatial trial
+space.  The rename is deliberately deferred to the #280
+orientation×kernel walk unification (Phase 2.5), which owns the
+sweep-layer layout.
 """
 
-from .scheme import CellResult, DiscretizationScheme, UpstreamState
-from .diamond import DiamondDifference
-from .linear_discontinuous import LinearDiscontinuous
 from .pairing import pair_diffusion_limit_consistent
 from .pole_angular_closure import (
     IdentityAngularClosure,
@@ -67,16 +59,11 @@ __all__ = [
     "AngularEdgeExtrapolation",
     "CarlsonInwardSweep",
     "CarlsonSweepContext",
-    "CellResult",
-    "DiscretizationScheme",
-    "DiamondDifference",
     "IdentityAngularClosure",
-    "LinearDiscontinuous",
     "MorelMontryAngularSweep",
     "PoleAngularClosureBase",
     "PsiHalfAngleSeed",
     "PsiHalfAngleSeedBase",
-    "UpstreamState",
     "ZeroSeed",
     "default_angular_closure_class",
     "ordinate_scan",

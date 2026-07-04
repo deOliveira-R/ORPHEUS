@@ -51,8 +51,8 @@ from orpheus.geometry import (
 )
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.spatial.diamond import DiamondDifference
-from orpheus.sn.spatial.linear_discontinuous import LinearDiscontinuous
+from orpheus.transport.spatial.diamond import DiamondDifference
+from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.sn.loss_representation import transport_sweep
 from orpheus.sn.loss_representation import (
     CumprodScan,
@@ -521,7 +521,7 @@ class TestD3SupportsMatrix:
         import numpy as np
         from orpheus.derivations.common.xs_library import make_mixture
         from orpheus.sn import solve_sn_fixed_source
-        from orpheus.sn.spatial import DiamondDifference
+        from orpheus.transport.spatial import DiamondDifference
 
         mix = make_mixture(
             sig_t=np.array([1.0]), sig_c=np.array([0.5]),

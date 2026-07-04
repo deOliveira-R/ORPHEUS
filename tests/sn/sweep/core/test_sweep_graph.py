@@ -23,7 +23,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.sn.spatial.diamond import DiamondDifference
+from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.sn.loss_representation.sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,

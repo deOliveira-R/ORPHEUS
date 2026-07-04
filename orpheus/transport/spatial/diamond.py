@@ -4,7 +4,7 @@ Issue #196 Phase G Step 2.5 collapses the historical 3-branch
 :class:`DiamondDifference` (slab, curvilinear, cylindrical-degenerate)
 into ONE polymorphic body.  Geometry is data carried by
 :class:`~orpheus.geometry.reduced_operator.StreamingTerms` and
-:class:`~orpheus.sn.spatial.scheme.CellVisit`; the strategy does
+:class:`~orpheus.transport.spatial.scheme.CellVisit`; the strategy does
 NOT branch on geometry kind.
 
 Architectural shift (Step 2.5)
@@ -68,7 +68,7 @@ References
 See also
 ========
 
-* :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` — the
+* :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` — the
   Protocol this strategy satisfies.
 * :func:`cell_balance_terms` — the unified algebra (Step 2.5).
 * :doc:`/theory/discrete_ordinates`, "Cell update strategies (the
@@ -140,9 +140,9 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     so the DAG-free scan schedules (``CumprodScan``, ``ScanMarch``) consume DD
     via its per-cell coefficient triple :meth:`affine_scan_coefficients`
     ``(a, inverse_denom, w)`` and the generic base reconstruction staticmethods
-    (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission` /
-    :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average` /
-    :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`;
+    (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission` /
+    :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average` /
+    :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`;
     #158 the coefficient model);
     DD's blend weight is ``w = ½`` (the symmetric diamond mean).
     (Linear-Discontinuous couples two face moments, but its slope is eliminated
@@ -157,7 +157,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     d-D DD closure factors into independent per-axis 1-D scans chained by
     scalar face traces.  DD is therefore admitted to the :math:`d \ge 2`
     scan-march (``ScanMarch``); see
-    :attr:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.transverse_coupling_is_facewise`
+    :attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.transverse_coupling_is_facewise`
     for the trait contract and the contrast with the (single-axis)
     ``is_affine_scannable``.  Linear-Discontinuous, whose multi-D coupling is a
     1st-order slope moment (bilinear), leaves this trait at its ``False``
@@ -553,9 +553,9 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         ``w = ½`` (broadcast; the symmetric diamond mean
         :math:`\bar\psi = \tfrac12(\psi_{\rm in}+\psi_{\rm out})`) — #158 the
         coefficient model.  The generic base reconstruction staticmethods
-        (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average` /
-        :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
-        / :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission`)
+        (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average` /
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
+        / :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission`)
         consume it; DD carries no cell-average / outgoing-face / source-
         emission method of its own.
 
@@ -762,7 +762,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     #      (CumprodScan / ScanMarch), consumed by the generic base
     #      reconstruction staticmethods (``source_emission`` / ``cell_average``
     #      / ``outgoing_face_from_average`` on
-    #      :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase`; #158 the
+    #      :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`; #158 the
     #      coefficient model; the per-scheme ``cell_average_from_faces`` /
     #      ``outgoing_face_from_average`` closure methods are RETIRED — the
     #      operations are now generic in ``w``).

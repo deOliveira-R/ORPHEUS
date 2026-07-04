@@ -2,9 +2,9 @@
 
 These tests exercise the **strategy contract** shipped in Round 1 of
 Wave C of the SN reshape campaign — the
-:class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` ``Protocol`` plus
-the :class:`~orpheus.sn.spatial.scheme.UpstreamState` and
-:class:`~orpheus.sn.spatial.scheme.CellResult` dataclasses.  The
+:class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` ``Protocol`` plus
+the :class:`~orpheus.transport.spatial.scheme.UpstreamState` and
+:class:`~orpheus.transport.spatial.scheme.CellResult` dataclasses.  The
 L1 transport math is verified transitively via the existing sweep
 MMS suite; these tests are software-contract claims (runtime
 checkability, immutability, slab vs curvilinear discrimination) and
@@ -32,7 +32,7 @@ from orpheus.geometry import (
     spherical_streaming,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.spatial.scheme import (
+from orpheus.transport.spatial.scheme import (
     CellResult,
     DiscretizationScheme,
     CellVisit,
@@ -309,9 +309,9 @@ class TestCapabilityTraitsAreGenuineBools:
     @pytest.mark.foundation
     def test_registered_schemes_declare_genuine_bool_traits(self):
         # Force-import the concrete schemes so they populate the registry.
-        import orpheus.sn.spatial.diamond  # noqa: F401
-        import orpheus.sn.spatial.linear_discontinuous  # noqa: F401
-        from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
+        import orpheus.transport.spatial.diamond  # noqa: F401
+        import orpheus.transport.spatial.linear_discontinuous  # noqa: F401
+        from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
         registry = DiscretizationSchemeBase.registry
         if not registry:

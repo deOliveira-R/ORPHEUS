@@ -54,8 +54,8 @@ from orpheus.transport.mesh.material_mesh import (
 from ..boundary.realizer import SNBoundaryRealizer
 from .method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
-from ..spatial.scheme import DiscretizationSchemeBase, CellVisit
-from ..spatial.diamond import DiamondDifference
+from orpheus.transport.spatial.scheme import DiscretizationSchemeBase, CellVisit
+from orpheus.transport.spatial.diamond import DiamondDifference
 from ..spatial.pole_angular_closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
@@ -1042,7 +1042,7 @@ class SNMesh(MaterialMesh):
         Consumers that build their own per-cell algebra from primitives
         (the unified matvec ``transport_operator_matvec_unified``) only
         need the cell traversal order, not the full
-        :class:`~orpheus.sn.spatial.scheme.CellVisit` packet.
+        :class:`~orpheus.transport.spatial.scheme.CellVisit` packet.
 
         Eliminates per-cell-per-call ``ReducedStreamingOperator.streaming_terms()``
         construction + frozen-dataclass overhead.  PR-TYPED-6c profiling

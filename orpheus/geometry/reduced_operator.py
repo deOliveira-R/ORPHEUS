@@ -263,7 +263,7 @@ class StreamingTerms:
     outer face is the upstream / incoming face.  The
     sweep-direction resolution — *which* of the two faces is
     "downstream" for a given visit — lives in the SN module
-    (:class:`~orpheus.sn.spatial.scheme.CellVisit` packs the
+    (:class:`~orpheus.transport.spatial.scheme.CellVisit` packs the
     geometric :class:`StreamingTerms` together with the
     sweep-resolved :attr:`face_area_downstream`).  This module is
     geometry-only and is reusable by future MoC / CP / diffusion,
@@ -271,7 +271,7 @@ class StreamingTerms:
 
     The trailing ``volume`` and ``abs_mu`` fields are populated by
     **all three factories** so that a downstream
-    :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` strategy
+    :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` strategy
     receives a self-contained per-cell, per-direction packet and need
     not reach back into ``SNMesh`` or the ``AngularQuadrature``.  Every
     surviving curvature field is populated for **every** geometry
@@ -325,7 +325,7 @@ class StreamingTerms:
     # angular weight :math:`\\tau` is an angular-scheme property owned by the
     # MorelMontryAngularSweep angular closure; the derived constants
     # ``c_in`` / ``c_out`` and ``tau`` are stamped on
-    # :class:`~orpheus.sn.spatial.scheme.CellVisit`.  The α-dome itself
+    # :class:`~orpheus.transport.spatial.scheme.CellVisit`.  The α-dome itself
     # survives on :class:`ReducedStreamingOperator` (``alpha_half`` /
     # ``alpha_per_level``).
 
@@ -350,7 +350,7 @@ class StreamingTerms:
     :math:`\\tfrac{4}{3}\\pi(r_{i+1}^3 - r_i^3)`; cylinder uses
     :math:`\\pi(r_{i+1}^2 - r_i^2)` (per unit axial length).  Carried
     on the streaming-terms packet so that the
-    :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` cell-update
+    :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` cell-update
     contract receives :math:`V_i` directly without needing access to
     the underlying ``SNMesh``.
     """
@@ -373,7 +373,7 @@ class StreamingTerms:
 
     The cylindrical pure-azimuthal degenerate case (``abs_mu <
     1e-15``) is signalled by cell-update strategies via
-    :attr:`~orpheus.sn.spatial.scheme.CellResult.outgoing_spatial_flux`
+    :attr:`~orpheus.transport.spatial.scheme.CellResult.outgoing_spatial_flux`
     set to ``None`` (no radial face flow on the cell).
     """
 
@@ -494,7 +494,7 @@ class ReducedStreamingOperator:
         the cell relative to :math:`r = 0`.  Sweep-direction
         resolution (which face is downstream for a given visit) lives
         in the SN module — see
-        :class:`orpheus.sn.spatial.scheme.CellVisit`.
+        :class:`orpheus.transport.spatial.scheme.CellVisit`.
         """
         chord = float(self.mesh.widths[cell_idx])
         # Common per-(cell, direction) volume.

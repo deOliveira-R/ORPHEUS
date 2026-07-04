@@ -1,7 +1,7 @@
 r"""Branch-2 gate — the production (numpy) d-generic UBLD primitive + d=1 link.
 
 Pins the numpy production primitive
-(:mod:`orpheus.sn.spatial._ubld`) — sub-step **D5b-S1 Branch 2** of issues
+(:mod:`orpheus.transport.spatial._ubld`) — sub-step **D5b-S1 Branch 2** of issues
 #240 / #38 / #37 — against the SymPy algebra-of-record
 (:mod:`orpheus.derivations.discrete.sn.ld_ubld`, the Branch-1 reference) and
 against the LIVE production
@@ -44,15 +44,15 @@ import sympy as sp
 from orpheus.derivations.discrete.sn import ld_ubld as sym
 from orpheus.geometry import BC, CoordSystem, Mesh1D, slab_streaming
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.spatial import LinearDiscontinuous, UpstreamState
-from orpheus.sn.spatial._ubld import (
-    AVERAGE_MOMENT,
+from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
+from orpheus.numerics.moment_layout import AVERAGE_MOMENT
+from orpheus.transport.spatial._ubld import (
     assemble_inflow_axis,
     assemble_ubld,
     d1_closed_form,
     per_cell_solve,
 )
-from orpheus.sn.spatial.scheme import CellVisit, DiscretizationSchemeBase
+from orpheus.transport.spatial.scheme import CellVisit, DiscretizationSchemeBase
 
 THETA = 1.0 / 3.0
 

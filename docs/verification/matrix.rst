@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6202**
+Total tests collected: **6203**
 
 V&V level distribution
 ----------------------
@@ -20,7 +20,7 @@ V&V level distribution
    L1, 1065, 17.2%
    L2, 49, 0.8%
    L3, 0, 0.0%
-   foundation, 3908, 63.0%
+   foundation, 3909, 63.0%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6113
+   explicit, 6114
    verify, 0
    class-name, 46
    func-name, 0
@@ -397,7 +397,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 310, 0
+   test_layer_imports, 0, 0, 0, 0, 311, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -593,6 +593,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-white-bc-slab``, 4
    ``phase-f-carlson-seed-source-driven``, 4
    ``phase-f-q-bar-twin-forms``, 4
+   ``sn-keff-update``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``cp-escape-from-p-cell``, 3
@@ -1187,6 +1188,6 @@ equations. See ``docs/testing/architecture.rst``
    ``tests/derivations/test_fn_projection_vs_kll_flux.py``, 2
    ``tests/sn/sweep/core/test_cell_kernel_batch.py``, 2
    ``tests/derivations/test_fn_la13511_slab_reflected.py``, 1
-   ``tests/sn/spatial/test_linear_discontinuous.py``, 1
    ``tests/sn/verification/mms/test_mms_ld_2d.py``, 1
+   ``tests/transport/spatial/test_linear_discontinuous.py``, 1
 

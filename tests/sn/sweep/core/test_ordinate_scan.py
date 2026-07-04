@@ -38,9 +38,9 @@ from orpheus.geometry import (
     spherical_streaming,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.spatial import DiamondDifference, UpstreamState
-from orpheus.sn.spatial.cell_balance import cell_balance_terms
-from orpheus.sn.spatial.scheme import CellVisit
+from orpheus.transport.spatial import DiamondDifference, UpstreamState
+from orpheus.transport.spatial.cell_balance import cell_balance_terms
+from orpheus.transport.spatial.scheme import CellVisit
 from orpheus.sn.spatial.scan import ordinate_scan
 from tests.sn.sweep.core._c_surrogate import (
     c_from_constants,

@@ -25,9 +25,9 @@ truth:
    cell / ordinate / group stack (no per-cell dense solve), so the production
    ``d = 1`` SCAN stays on the fast path (L16).  This is the ONE place the slab
    LD ``2×2`` SCAN/per-cell algebra lives: the two ×V production views
-   (:meth:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous._schur_terms`
+   (:meth:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous._schur_terms`
    — ×V per-cell ``update``/``residual``;
-   :meth:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous.affine_scan_coefficients`
+   :meth:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.affine_scan_coefficients`
    — ×V ``CumprodScan`` coefficients) derive their coefficients from this
    helper, applying their ×V scaling at the call site.  The DAG-wavefront kernel
    pair (``cell_kernel_batch`` / ``residual_kernel_batch``) does NOT use the
@@ -36,7 +36,7 @@ truth:
    moment matvec); at d=1 the dense ``2×2`` IS this closed form's Schur, proven
    ``==`` (symbolically by
    :mod:`orpheus.derivations.discrete.sn.ld_ubld`, in code by
-   ``tests/sn/spatial/test_ld_ubld_primitive.py``).
+   ``tests/transport/spatial/test_ld_ubld_primitive.py``).
 
 The scale-free invariants
 =========================
@@ -61,7 +61,7 @@ References
 * :mod:`orpheus.derivations.discrete.sn.ld_ubld` — the SymPy algebra-of-record
   this module is the numpy Branch-2 of (the symbolic ``simplify(diff) == 0``
   proofs of the d=1 reduction + the three-view equality).
-* :mod:`orpheus.sn.spatial.linear_discontinuous` — the production LD scheme
+* :mod:`orpheus.transport.spatial.linear_discontinuous` — the production LD scheme
   whose two ×V 1-D views (per-cell + scan) single-source through
   :func:`d1_closed_form`; its DAG kernel rides the d-generic dense primitive.
 * Larsen & Morel (1989). JCP 83(1):212-236 — the slab-LD moment system.
@@ -73,18 +73,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-
-# ``AVERAGE_MOMENT`` and ``face_moment_tail`` are the physics-free
-# moment-layout policy; their canonical home is the leaf numerics module
-# ``orpheus.numerics.moment_layout`` (#245 — relocated DOWN so the typed
-# ``SpatialMomentSpace`` no longer reaches UP into ``sn.spatial`` for them).
-# Re-exported here (kept in ``__all__``) so SN consumers keep importing them
-# next to the UBLD primitives they name — the
-# ``numerics.face_layout.AXIS_NAMES`` precedent.
-from orpheus.numerics.moment_layout import (  # noqa: F401
-    AVERAGE_MOMENT,
-    face_moment_tail,
-)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -424,7 +412,7 @@ class D1ClosedForm:
         r"""The ×V per-cell Schur intermediates (the ``_LDCellTerms`` fields).
 
         Reproduces the production
-        :class:`~orpheus.sn.spatial.linear_discontinuous._LDCellTerms` fields in
+        :class:`~orpheus.transport.spatial.linear_discontinuous._LDCellTerms` fields in
         the ×V contract (``source`` = ``Q·V`` moments).  With ``|μ|A_down = g·V``
         the ×V streaming and the ×V slope denominator
 
@@ -462,7 +450,7 @@ class D1ClosedForm:
         r"""The ×V scan coefficients ``(a, inverse_denom, w)`` (transmission form).
 
         Reproduces
-        :meth:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous.affine_scan_coefficients`:
+        :meth:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.affine_scan_coefficients`:
         with ``m = |μ|A_down = g·V``, ``S_×V = V·eff_denom``,
 
         .. math::
@@ -506,7 +494,7 @@ class D1ClosedForm:
         outgoing face (``ψ_out = ψ̄ + ψ̂``); the second is the slope source's pull
         on the average-row effective source (``−eff_source_shift`` run through the
         emission ``inv/w``).  The flat-source ``b`` stays the existing
-        :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission`
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission`
         call (DD/Step never reach here — ``s_hat`` is the LD-only slope moment),
         so this is a pure ADDITION, never a re-baseline of the average path.  The
         fold is single-sourced through :meth:`_slope_fold`.
@@ -550,7 +538,7 @@ def d1_closed_form(
     ``eff_denom``.  This is the analytic Schur complement of the primitive's
     ``d = 1`` ``2×2`` — vectorized (no dense solve), so it is the production
     fast path (L16).  Proven ``== `` the dense :func:`per_cell_solve` at
-    ``d = 1`` by ``tests/sn/spatial/test_ld_ubld_primitive.py``.
+    ``d = 1`` by ``tests/transport/spatial/test_ld_ubld_primitive.py``.
     """
     g = np.asarray(g, dtype=np.float64)
     sig_t = np.asarray(sig_t, dtype=np.float64)
@@ -566,12 +554,10 @@ def d1_closed_form(
 
 
 __all__ = [
-    "AVERAGE_MOMENT",
     "D1ClosedForm",
     "assemble_inflow_axis",
     "assemble_ubld",
     "d1_closed_form",
-    "face_moment_tail",
     "mass_1d",
     "octant_moment_frame_signs",
     "per_cell_solve",

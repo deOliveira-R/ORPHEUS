@@ -424,7 +424,7 @@ class TestStreamingTermsGeometricLabels:
     sweep's marching direction.  The same cell yields the same
     inner / outer values regardless of which ordinate is queried.
     Sweep-direction resolution lives in the SN module
-    (:class:`orpheus.sn.spatial.scheme.CellVisit`).
+    (:class:`orpheus.transport.spatial.scheme.CellVisit`).
     """
 
     @pytest.mark.foundation

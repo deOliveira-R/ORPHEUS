@@ -47,8 +47,8 @@ from orpheus.derivations.discrete.sn.ld_ubld import (
 )
 from orpheus.geometry import BC, CoordSystem, Mesh1D, slab_streaming
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.spatial import LinearDiscontinuous, UpstreamState
-from orpheus.sn.spatial.scheme import CellVisit
+from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
+from orpheus.transport.spatial.scheme import CellVisit
 
 
 # ─────────────────────────────────────────────────────────────────────────

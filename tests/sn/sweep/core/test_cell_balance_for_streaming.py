@@ -42,11 +42,11 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.reduced_operator import StreamingTerms
-from orpheus.sn.spatial.cell_balance import (
+from orpheus.transport.spatial.cell_balance import (
     cell_balance_for_streaming,
     cell_balance_terms,
 )
-from orpheus.sn.spatial.scheme import UpstreamState
+from orpheus.transport.spatial.scheme import UpstreamState
 
 # Issue #236 Phase 2 B2 Fix 3 / Step C — the ONE shared hand-transcribed
 # surrogate for the M-M ``(c_in, c_out)`` constants (was a private
@@ -461,8 +461,8 @@ def test_diamond_residual_consumes_cell_balance_for_streaming(
 ):
     """Verify :meth:`DiamondDifference.residual` produces the same
     output as direct delegation to :func:`cell_balance_for_streaming`."""
-    from orpheus.sn.spatial.scheme import CellVisit
-    from orpheus.sn.spatial.diamond import DiamondDifference
+    from orpheus.transport.spatial.scheme import CellVisit
+    from orpheus.transport.spatial.diamond import DiamondDifference
 
     tau, alpha_in, alpha_out = triple
     st = st_factory()
@@ -505,8 +505,8 @@ def test_diamond_residual_round_trip_at_converged_cell_avg():
     """At the converged cell_avg (from update), the residual is zero
     to FP rounding — the canonical DiscretizationScheme apply-solve consistency
     contract (Issue #196 Phase G Step 1)."""
-    from orpheus.sn.spatial.scheme import CellVisit
-    from orpheus.sn.spatial.diamond import DiamondDifference
+    from orpheus.transport.spatial.scheme import CellVisit
+    from orpheus.transport.spatial.diamond import DiamondDifference
 
     st = _curvilinear_streaming_terms()
     c_in, c_out = c_from_constants(

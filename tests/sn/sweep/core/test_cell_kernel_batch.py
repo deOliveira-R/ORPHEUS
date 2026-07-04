@@ -38,13 +38,13 @@ from typing import ClassVar
 import numpy as np
 import pytest
 
-from orpheus.sn.spatial.scheme import (
+from orpheus.transport.spatial.scheme import (
     CellResult,
     DiscretizationSchemeBase,
     CellVisit,
     UpstreamState,
 )
-from orpheus.sn.spatial.diamond import DiamondDifference
+from orpheus.transport.spatial.diamond import DiamondDifference
 
 
 # ─────────────────────────────────────────────────────────────────────

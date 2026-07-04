@@ -1,15 +1,15 @@
 r"""Unit gate for the generic affine-scheme reconstruction ops (#240 Phase 2 D1/D2).
 
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
 is the INVERSE of
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average`: given the
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average`: given the
 cell-average ``ψ̄`` and the upstream face ``ψ_in``, recover the downstream face
 ``ψ_out = (ψ̄ − (1−w)·ψ_in)/w``.  The two together form the affine cell-average
 blend ``ψ̄ = (1−w)·ψ_in + w·ψ_out``.  This is the single-source reconstruction
 that DD (``w=½``) and LD (``w=1/(1+k)``) both route through (D1 collapses the
 inlined ``2ψ̄ − ψ_in`` / ``ψ̄ + (g/θ)(ψ̄ − ψ_in)/D₂`` duplicates).  D2 homed
 these ops as ``@staticmethod``\\s onto the
-:class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase` (the generic
+:class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase` (the generic
 advection–reaction reconstruction belongs on the DiscretizationScheme base).
 
 The gate pins three facts:
@@ -28,7 +28,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
+from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
 cell_average = DiscretizationSchemeBase.cell_average
 outgoing_face_from_average = DiscretizationSchemeBase.outgoing_face_from_average

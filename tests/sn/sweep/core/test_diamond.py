@@ -59,8 +59,8 @@ from orpheus.geometry import (
 )
 from orpheus.geometry.reduced_operator import StreamingTerms
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.spatial import DiamondDifference, UpstreamState
-from orpheus.sn.spatial.scheme import CellVisit
+from orpheus.transport.spatial import DiamondDifference, UpstreamState
+from orpheus.transport.spatial.scheme import CellVisit
 
 # Issue #236 Phase 2 B2 Fix 3 / Step C — the ONE shared independent
 # surrogate for the M-M ``(c_in, c_out)`` constants and the ``(τ, α)``
@@ -790,8 +790,8 @@ class TestDiscretizationSchemeBaseRegistry:
 
     @pytest.mark.foundation
     def test_diamond_difference_registered(self) -> None:
-        from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
-        from orpheus.sn.spatial.diamond import DiamondDifference
+        from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
+        from orpheus.transport.spatial.diamond import DiamondDifference
 
         assert "diamond_difference" in DiscretizationSchemeBase.registry
         assert (
@@ -800,8 +800,8 @@ class TestDiscretizationSchemeBaseRegistry:
 
     @pytest.mark.foundation
     def test_diamond_difference_factory_returns_concrete(self) -> None:
-        from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
-        from orpheus.sn.spatial.diamond import DiamondDifference
+        from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
+        from orpheus.transport.spatial.diamond import DiamondDifference
 
         instance = DiscretizationSchemeBase.create("diamond_difference")
         assert isinstance(instance, DiamondDifference)
@@ -1332,7 +1332,7 @@ class TestResidual:
         any probe point is the closed-form rearrangement of the
         balance equation the helper produces.
         """
-        from orpheus.sn.spatial.cell_balance import cell_balance_terms
+        from orpheus.transport.spatial.cell_balance import cell_balance_terms
 
         visit, total_xs, source, upstream = _sphere_visit_inputs()
         strat = DiamondDifference()
@@ -1372,7 +1372,7 @@ class TestResidual:
         helper, which handles ``2|μ|·A_down = 0`` via
         ``visit.face_area_downstream = 0.0``).
         """
-        from orpheus.sn.spatial.cell_balance import cell_balance_terms
+        from orpheus.transport.spatial.cell_balance import cell_balance_terms
 
         visit, total_xs, source, upstream = (
             _cylinder_degenerate_visit_inputs()

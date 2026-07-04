@@ -54,8 +54,8 @@ References
   ``assert_cycles_are_declared``).
 * Wave 2 plan ``.claude/plans/transient-giggling-cake.md`` C2.3 —
   this module's design + dispatch boundary with ``DiscretizationScheme``.
-* :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
-  / :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
+* :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
+  / :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
   — the closure-pluggable kernel pair the level operations dispatch
   (since S6.4(e); historically the ``SweepCellSlice``-packeted
   ``update_batch``, Wave 2 / C2.2).
@@ -81,9 +81,9 @@ from types import MappingProxyType
 
 import numpy as np
 
-from orpheus.numerics.moment_layout import is_moment_valued_by_rank
-from orpheus.sn.spatial._ubld import face_moment_tail, octant_moment_frame_signs
-from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
+from orpheus.numerics.moment_layout import face_moment_tail, is_moment_valued_by_rank
+from orpheus.transport.spatial._ubld import octant_moment_frame_signs
+from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
 
 def _reframe(
@@ -97,7 +97,7 @@ def _reframe(
     Reframe iff this is a moment buffer at a non-trivial closure.
 
     ``frame_signs`` is the ``2^d``-length involution from
-    :func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs` (#240 D5b-S3),
+    :func:`~orpheus.transport.spatial._ubld.octant_moment_frame_signs` (#240 D5b-S3),
     and is ``None`` for a single-moment closure (DD/Step) — the
     already-typed ``frame_signs is None ⟺ DD/Step`` gate.  ``is_moment_valued``
     states, from the array's TYPED ORIGIN, whether ``arr`` actually carries the
@@ -394,7 +394,7 @@ class SweepDependencyGraph:
     operation dispatches the strategy's kernel pair
     (``cell_kernel_batch`` / ``residual_kernel_batch``), so the
     WDD / LD / EC / Step closure is pluggable. This aligns with the
-    strategy contract in :mod:`orpheus.sn.spatial.scheme`.
+    strategy contract in :mod:`orpheus.transport.spatial.scheme`.
 
     Attributes
     ----------

@@ -30,7 +30,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import SpatialMomentSpace, SphericalHarmonicSpace
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.spatial import DiamondDifference, LinearDiscontinuous
+from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
 from orpheus.transport.fields import HarmonicMomentFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux

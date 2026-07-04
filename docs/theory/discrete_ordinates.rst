@@ -47,8 +47,8 @@ Key Facts
   (rolling-frontier production) — each parameterised by a LEVEL
   OPERATION object (``_CellSolve`` | ``_CellResidual``); the cell math
   is the discretization's storage-free kernel pair
-  (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
-  / :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`).
+  (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
+  / :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`).
   See :ref:`sweep-octant-dependency-graph`.
 - **Both the 1-D and 2-D sweeps are BARE** (Wave O steps O.4a.2 +
   O.4b, Issue #208): :func:`~orpheus.sn.loss_representation.transport_sweep` (1-D)
@@ -1054,7 +1054,7 @@ c_in / c_out are angular-closure constants — Step B1 (one site folded)
    permutation (no arithmetic).  The anchor gate
    ``tests/sn/sweep/core/test_sweep_cache.py::test_cache_populator_matches_cell_balance_terms``
    pins the cache ``denom`` (which carries :math:`(\Delta A/w)\,c_{\rm out}`)
-   to :func:`~orpheus.sn.spatial.cell_balance.cell_balance_terms` at
+   to :func:`~orpheus.transport.spatial.cell_balance.cell_balance_terms` at
    ``rtol=1e-14``, and the curvilinear regression snapshots stay unmoved.
 
    The remaining THREE inline ``c`` rebuild sites (they need CellVisit
@@ -1072,25 +1072,25 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
 
    Step B2 folds the SECOND of the four inline ``c_in`` / ``c_out``
    rebuild sites — the matvec-twin residual
-   :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual`
+   :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual`
    (formerly rebuilding :math:`c_{\rm out} = \alpha_{\rm out}/\tau`,
    :math:`c_{\rm in} = (1-\tau)/\tau\,\alpha_{\rm out} + \alpha_{\rm in}`
    inline from the geometry-owned :class:`StreamingTerms`).
 
-   The architectural crux: :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
+   The architectural crux: :class:`~orpheus.transport.spatial.diamond.DiamondDifference`
    is deliberately STATELESS — it reads only the
-   :class:`~orpheus.sn.spatial.scheme.CellVisit` packet + the
-   :class:`~orpheus.sn.spatial.scheme.UpstreamState`, never the mesh or
+   :class:`~orpheus.transport.spatial.scheme.CellVisit` packet + the
+   :class:`~orpheus.transport.spatial.scheme.UpstreamState`, never the mesh or
    the angular closure.  So the closure-owned :math:`c` cannot reach
    ``DD.residual`` by coupling DD to the closure object (that would break
    the spatial :math:`\otimes` angular separation — the SPATIAL scheme
    must not see the ANGULAR closure's type).  Instead the constants travel
-   as DATA: the :class:`~orpheus.sn.spatial.scheme.CellVisit` gains two
+   as DATA: the :class:`~orpheus.transport.spatial.scheme.CellVisit` gains two
    angular-closure-owned fields
-   (:attr:`~orpheus.sn.spatial.scheme.CellVisit.c_in` /
-   :attr:`~orpheus.sn.spatial.scheme.CellVisit.c_out`, distinct in
+   (:attr:`~orpheus.transport.spatial.scheme.CellVisit.c_in` /
+   :attr:`~orpheus.transport.spatial.scheme.CellVisit.c_out`, distinct in
    provenance from the geometry-owned
-   :attr:`~orpheus.sn.spatial.scheme.CellVisit.streaming_terms`), and the
+   :attr:`~orpheus.transport.spatial.scheme.CellVisit.streaming_terms`), and the
    single production site
    :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh._make_cell_visit` — through which
    ALL four ``dag_walk`` yield paths funnel (Pattern 2, no per-site
@@ -1116,7 +1116,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.angular_adjoint`.
    These were declared ``@abstractmethod`` on the ABC (matching the
    precedent where
-   :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase` declares
+   :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase` declares
    ``update`` / ``residual`` abstract so ``mesh.scheme`` consumers see the
    full contract) — making the ABC the COMPLETE strategy contract instead
    of declaring only ``__call__``.
@@ -1131,9 +1131,9 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    twin and on the DriftWarning-escalating
    ``tests/sn/sweep/core`` + ``tests/sn/solve`` snapshots.  The remaining
    TWO ``c`` rebuild sites
-   (:func:`~orpheus.sn.spatial.cell_balance.cell_balance_terms` for the
+   (:func:`~orpheus.transport.spatial.cell_balance.cell_balance_terms` for the
    ``DD.update`` solve path; the geometry-side :math:`\tau` producer) are
-   Step B3 / C.  See :mod:`orpheus.sn.spatial.scheme` for the CellVisit
+   Step B3 / C.  See :mod:`orpheus.transport.spatial.scheme` for the CellVisit
    fields and :mod:`orpheus.sn.mesh.augmented_mesh` for the production stamp.
 
    B2 review fixes (finishing pass).  THREE follow-ups landed after the
@@ -1185,7 +1185,7 @@ The live sweep + scan consume closure-owned τ / c — Step B3
 
 Step B1 folded the one free seam (the cache populator); Step B2 carried
 the redistribution constants :math:`c_{\rm in}` / :math:`c_{\rm out}`
-onto the :class:`~orpheus.sn.spatial.scheme.CellVisit` so the
+onto the :class:`~orpheus.transport.spatial.scheme.CellVisit` so the
 *apply-direction* residual could read them as data.  Step B3 is the
 step that makes the **live** paths consume the closure-owned weight:
 the per-cell sweep solve, the matvec solve, and the CumprodScan
@@ -1282,10 +1282,10 @@ object to the cell-update scheme so it can ask for
 :math:`\tau`.  That move is **forbidden by design**, and the reason is
 the load-bearing architectural fact of the SN sweep.
 
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference` is a **stateless
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference` is a **stateless
 spatial discretization scheme**.  It reads only the per-cell
-:class:`~orpheus.sn.spatial.scheme.CellVisit` packet and the
-sweep-resolved :class:`~orpheus.sn.spatial.scheme.UpstreamState`; it
+:class:`~orpheus.transport.spatial.scheme.CellVisit` packet and the
+sweep-resolved :class:`~orpheus.transport.spatial.scheme.UpstreamState`; it
 never sees the mesh, the quadrature, or the angular closure.  The whole
 point of the spatial :math:`\otimes` angular product is that the
 spatial scheme is interchangeable (diamond difference, linear
@@ -1293,19 +1293,19 @@ discontinuous, ...) without knowing *which* angular treatment sits on
 the other axis of the tensor product, and the angular closure is
 interchangeable (Morel--Montry, identity, a future Carlson variant)
 without knowing the spatial scheme.  Coupling
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference` to
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference` to
 :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
 would collapse that product into a Cartesian-vs-curvilinear conditional
 inside the spatial scheme — exactly the geometry dispatch the unified
 body was built to delete.
 
 So the constants travel as **data**, not as a **dependency**.  The
-:class:`~orpheus.sn.spatial.scheme.CellVisit` packet — which the
+:class:`~orpheus.transport.spatial.scheme.CellVisit` packet — which the
 orchestrator already populates per cell and per ordinate — carries the
 angular-closure-owned numbers as plain ``float`` fields:
-:attr:`~orpheus.sn.spatial.scheme.CellVisit.c_in` and
-:attr:`~orpheus.sn.spatial.scheme.CellVisit.c_out` (added in B2) and now
-:attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` (B3).  They are stamped
+:attr:`~orpheus.transport.spatial.scheme.CellVisit.c_in` and
+:attr:`~orpheus.transport.spatial.scheme.CellVisit.c_out` (added in B2) and now
+:attr:`~orpheus.transport.spatial.scheme.CellVisit.tau` (B3).  They are stamped
 at exactly **one** production site,
 :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh._make_cell_visit`, through which all
 four ``dag_walk`` yield paths (slab, sphere, cylinder, cylindrical
@@ -1331,14 +1331,14 @@ resolves it (``direction_idx`` for slab / sphere,
 downstream sees only ``visit.tau`` / ``visit.c_in`` / ``visit.c_out``;
 it has no idea a closure produced them.  The provenance is recorded in
 the field docstrings (the constants are distinct in origin from the
-geometry-owned :attr:`~orpheus.sn.spatial.scheme.CellVisit.streaming_terms`),
+geometry-owned :attr:`~orpheus.transport.spatial.scheme.CellVisit.streaming_terms`),
 but the *type system* never lets the spatial axis reach across to the
 angular axis.
 
 Why the CellVisit.tau default is 1.0, not 0.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` defaults to
+:attr:`~orpheus.transport.spatial.scheme.CellVisit.tau` defaults to
 :math:`1.0`, not the zero a numeric field usually defaults to.  The
 default is the value the slab / Cartesian path leaves in place — the
 identity closure supplies it through ``tau_per_ordinate`` — and the
@@ -1367,7 +1367,7 @@ respectively, since :math:`\alpha = 0` on the slab).
 
 A :math:`0.0` default, by contrast, is a **divide-by-zero landmine**.
 Every consumer of :math:`\tau` divides by it:
-:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update`'s angular
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`'s angular
 thread divides :math:`(\bar\psi - (1-\tau)\psi^a_{\rm in})` by
 :math:`\tau`; the cache derives ``tau_inv = 1/tau``.  A visit that
 reached the curvilinear branch with an un-stamped :math:`\tau = 0`
@@ -1390,12 +1390,12 @@ duality this page calls the **L21 twin-path** (two applications of the
 apply-direction matvec that is the twin of the curvilinear sweep).
 
 **(1) The scalar solve helper.**
-:func:`~orpheus.sn.spatial.cell_balance.cell_balance_terms` — the
-:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update` solve
+:func:`~orpheus.transport.spatial.cell_balance.cell_balance_terms` — the
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` solve
 direction — no longer rebuilds :math:`c_{\rm in}` / :math:`c_{\rm out}`
 from ``st.alpha_* / st.tau_mm``.  Its signature now takes them as
 keyword inputs, and
-:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update` supplies
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` supplies
 them straight off the visit::
 
    terms = cell_balance_terms(
@@ -1411,7 +1411,7 @@ needs :math:`(\Delta A_i / w_n)\,c_{\rm in}\,\psi_{n-\frac12}`, neither
 of which references :math:`\tau` once :math:`c` is in hand.
 
 **(2) The angular recurrence.** The other half of
-:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update` — the
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` — the
 Morel--Montry outgoing-angular-face thread — *does* need the raw
 :math:`\tau`:
 
@@ -1421,7 +1421,7 @@ Morel--Montry outgoing-angular-face thread — *does* need the raw
    \psi^a_{\rm out}
    = \frac{\bar\psi - (1 - \tau)\,\psi^a_{\rm in}}{\tau}
 
-and reads it from :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau`
+and reads it from :attr:`~orpheus.transport.spatial.scheme.CellVisit.tau`
 (stamped by
 :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh._make_cell_visit` from
 :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`)
@@ -1530,7 +1530,7 @@ Step C) cannot silently break them:
   it geometry-:math:`\tau`-free and still structurally independent of
   the closure under test.  This arm was added specifically because B3
   made the
-  :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` stamp **live** while
+  :attr:`~orpheus.transport.spatial.scheme.CellVisit.tau` stamp **live** while
   the existing named twins never call the rewired reader (vv L11
   Mode 11): a mutation stamping ``tau = ... * 1.1`` drifts the converged
   cylinder scalar flux by :math:`\sim 0.2\,\%` with **no** other test
@@ -1557,8 +1557,8 @@ retired), ``ReducedStreamingOperator.tau_mm``, and
 dropped — confident that nothing live depended on them.
 See :mod:`orpheus.sn.spatial.pole_angular_closure` for the
 ``tau_per_ordinate`` accessor and the three-constant cache,
-:mod:`orpheus.sn.spatial.scheme` for the
-:attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` field,
+:mod:`orpheus.transport.spatial.scheme` for the
+:attr:`~orpheus.transport.spatial.scheme.CellVisit.tau` field,
 :mod:`orpheus.sn.mesh.augmented_mesh` for the single production stamp, and
 :mod:`orpheus.sn.spatial.sweep_cache` for the scan split.
 
@@ -2142,7 +2142,7 @@ change.  Lifting the closure into a strategy contract makes the
 sweep driver thin and lets each closure be unit-tested in isolation.
 
 The strategy contract is owned by
-:mod:`orpheus.sn.spatial.scheme`.
+:mod:`orpheus.transport.spatial.scheme`.
 
 The Protocol
 ------------
@@ -2151,7 +2151,7 @@ The contract is a ``@runtime_checkable`` ``typing.Protocol`` —
 satisfied by structural typing, not inheritance — exposing two class-
 level traits and a single :meth:`update` method:
 
-* :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme`
+* :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`
 
   - ``is_linear: bool`` — whether the closure is linear in its inputs.
     Diamond Difference is linear; Step's positivity-fixup, weighted-DD
@@ -2164,7 +2164,7 @@ level traits and a single :meth:`update` method:
     the choice of Step or weighted-DD in stiff cells); Step is.
   - ``update(visit, total_xs, source, upstream_state) ->
     CellResult`` — the cell update itself.  ``visit`` is a
-    :class:`~orpheus.sn.spatial.scheme.CellVisit` packet (see
+    :class:`~orpheus.transport.spatial.scheme.CellVisit` packet (see
     next subsection) that combines the geometric
     :class:`~orpheus.geometry.reduced_operator.StreamingTerms` with
     sweep-direction-resolved data.
@@ -2172,7 +2172,7 @@ level traits and a single :meth:`update` method:
 The two helper dataclasses (frozen, slotted) carry the per-cell
 state:
 
-* :class:`~orpheus.sn.spatial.scheme.UpstreamState`
+* :class:`~orpheus.transport.spatial.scheme.UpstreamState`
 
   - ``spatial_upstream: np.ndarray`` — shape ``(ng,)``.  Face flux
     entering the cell from the upstream face (always populated).
@@ -2180,7 +2180,7 @@ state:
     sphere/cylinder; ``None`` for slab.  :math:`\psi_{n-1/2,\,i}`,
     the half-flux at the upstream half-angle.
 
-* :class:`~orpheus.sn.spatial.scheme.CellResult`
+* :class:`~orpheus.transport.spatial.scheme.CellResult`
 
   - ``cell_average_flux: np.ndarray`` — shape ``(ng,)``.  The cell-
     average flux :math:`\overline{\psi}_i = \mathrm{numer}/\mathrm{denom}`
@@ -2211,7 +2211,7 @@ all.  Per Cardinal Rule 2 (architecture), no shared
 lives in :mod:`orpheus.sn`.
 
 The contract's :meth:`update` consumes a
-:class:`~orpheus.sn.spatial.scheme.CellVisit` packet rather
+:class:`~orpheus.transport.spatial.scheme.CellVisit` packet rather
 than a raw
 :class:`~orpheus.geometry.reduced_operator.StreamingTerms`.
 The :class:`CellVisit` composes:
@@ -2347,7 +2347,7 @@ geometry, it is the curvilinear DD form combining the
 :math:`\Delta A/w` redistribution with the M-M angular closure.  The
 sweep driver inlines this math today; Wave D (Issue #159) will
 rewrite the driver to dispatch through a
-:class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` strategy.
+:class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` strategy.
 
 The first concrete strategy — :class:`DiamondDifference` — is shipped
 in Round 2 of Wave C (Issue #158) as a bit-identical extraction of
@@ -2360,8 +2360,8 @@ Diamond Difference
 ------------------
 
 The first concrete strategy is
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference`
-(:mod:`orpheus.sn.spatial.diamond`).  It implements the **same**
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference`
+(:mod:`orpheus.transport.spatial.diamond`).  It implements the **same**
 algebra as the existing inlined sweep — Round 2 of Wave C is a
 bit-identical extraction, gated by ``np.array_equal`` hand-calc tests
 in ``tests/sn/spatial/test_diamond.py`` against the sweep's scalar
@@ -2398,7 +2398,7 @@ cell solver (``_solve_recurrence`` (the dissolved ``sweep.py``) lines 208–
 arrives at the cell update **already weight-normalised** by the
 sweep — for slab, ``source = Q · Δx / W`` (and slab cell volume is
 ``V = Δx``).  For slab, the strategy sets
-:attr:`~orpheus.sn.spatial.scheme.CellResult.outgoing_angular_state`
+:attr:`~orpheus.transport.spatial.scheme.CellResult.outgoing_angular_state`
 to ``None`` — slab geometry has no angular redistribution.
 
 **Curvilinear branch** (``streaming_terms.alpha_in is not None`` and
@@ -2460,16 +2460,16 @@ contributions drop out:
 
 mirroring ``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``) lines
 533–543 verbatim.  The strategy returns
-:attr:`~orpheus.sn.spatial.scheme.CellResult.outgoing_spatial_flux`
+:attr:`~orpheus.transport.spatial.scheme.CellResult.outgoing_spatial_flux`
 ``= None`` to signal "no face-flux write" to the sweep driver; the
 M-M angular closure remains active.
 
 **Traits and forward references.**  Diamond Difference has
 
-* :attr:`~orpheus.sn.spatial.diamond.DiamondDifference.is_linear`
+* :attr:`~orpheus.transport.spatial.diamond.DiamondDifference.is_linear`
   ``= True`` — the cell average and downstream states are affine
   combinations of ``source`` and ``upstream_state``;
-* :attr:`~orpheus.sn.spatial.diamond.DiamondDifference.is_positivity_preserving`
+* :attr:`~orpheus.transport.spatial.diamond.DiamondDifference.is_positivity_preserving`
   ``= False`` — Lewis & Miller §5.3 exhibits the canonical thin-
   cell / large-source counter-example where DD's
   :math:`\psi_{\rm out} = 2\overline{\psi} - \psi_{\rm in}` produces
@@ -2500,9 +2500,9 @@ References
 See also
 --------
 
-* :mod:`orpheus.sn.spatial.scheme` — the contract module.
-* :mod:`orpheus.sn.spatial.diamond` — the
-  :class:`~orpheus.sn.spatial.diamond.DiamondDifference` concrete
+* :mod:`orpheus.transport.spatial.scheme` — the contract module.
+* :mod:`orpheus.transport.spatial.diamond` — the
+  :class:`~orpheus.transport.spatial.diamond.DiamondDifference` concrete
   strategy.
 * :doc:`structured_geometry`, "Connection coefficients (reduced
   streaming operator)" — the upstream side of the contract: where the
@@ -2604,17 +2604,17 @@ downstream-face reconstruction for *every* affine 1-D spatial scheme.  It is
 homed (with its forward partner, the cell-average blend
 :math:`\bar\psi = (1-w)\psi_{\rm in} + w\,\psi_{\rm out}`, and the source
 emission) as a ``@staticmethod`` on the
-:class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase`, so the per-scheme
-classes (:class:`~orpheus.sn.spatial.diamond.DiamondDifference`,
-:class:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous`, Step)
+:class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`, so the per-scheme
+classes (:class:`~orpheus.transport.spatial.diamond.DiamondDifference`,
+:class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous`, Step)
 carry NO inlined reconstruction of their own — they differ only by the value
 they pass for the blend weight :math:`w`.  The #240 Phase 2 Step D1 carve
 collapsed the previously-duplicated inline forms (Diamond Difference's
 :math:`2\bar\psi - \psi_{\rm in}`, Linear Discontinuous's
 :math:`(1+k)\bar\psi - k\,\psi_{\rm in}`) onto this one op
-(:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`),
+(:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`),
 the algebraic inverse of
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average`; Step D2
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average`; Step D2
 made the trio (``source_emission`` / ``cell_average`` /
 ``outgoing_face_from_average``) generic advection–reaction reconstructions
 (diffusion-consumable, retiring the dangling ``affine_closure`` module).  The
@@ -2870,7 +2870,7 @@ The module proves the construction with two structurally distinct oracles
 * **Oracle (i) — the :math:`d=1` reduction.**
   ``derive_d1_reduction_to_production`` shows the assembled :math:`d=1` system
   equals the production
-  :mod:`orpheus.sn.spatial.linear_discontinuous` 2×2 entry-for-entry, with the
+  :mod:`orpheus.transport.spatial.linear_discontinuous` 2×2 entry-for-entry, with the
   Schur complement :math:`S` and the effective slope denominator
   :math:`D_2' = \Sigma_t h\theta + |\mu|` recovered as the production closed
   forms.  Two further reductions
@@ -2920,7 +2920,7 @@ The Branch-2 production primitive + the single-sourced d=1 fast path
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The numpy production counterpart of the symbolic algebra-of-record above
-is :mod:`orpheus.sn.spatial._ubld`, in two layers that share ONE source
+is :mod:`orpheus.transport.spatial._ubld`, in two layers that share ONE source
 of truth.  Layer 1 is the :math:`d`-generic dense primitive
 (``assemble_ubld`` / ``per_cell_solve``): a batched-over-cells Kronecker
 build of the :math:`2^d \times 2^d` system :eq:`ld-ubld-cell-system`,
@@ -2957,7 +2957,7 @@ production view's coefficients are an algebraic function of
    \;\longleftarrow\; \texttt{d1\_closed\_form}
 
 The three production 1-D views in
-:mod:`orpheus.sn.spatial.linear_discontinuous` — the ×V per-cell Schur
+:mod:`orpheus.transport.spatial.linear_discontinuous` — the ×V per-cell Schur
 (``_schur_terms``), the ÷V DAG kernel (``_kernel_terms``), and the ×V
 scan (``affine_scan_coefficients``) — now ALL derive their coefficients
 from ``d1_closed_form``, applying their ×V / ÷V / ×V-scan scaling at the
@@ -2980,7 +2980,7 @@ on measured cost**:
   (S2 wires the bilinear cell batch onto it), :math:`d = 3` (trilinear).
 
 * **Select narrow — the :math:`d=1` closed form.**  ``d1_closed_form`` /
-  :class:`~orpheus.sn.spatial._ubld.D1ClosedForm` is the analytic Schur
+  :class:`~orpheus.transport.spatial._ubld.D1ClosedForm` is the analytic Schur
   complement of the primitive's :math:`d=1` 2×2, VECTORIZED over the stack with
   no dense solve.  Both scale-free invariants of :eq:`ld-ubld-scale-free-invariants`
   drive it.
@@ -3005,7 +3005,7 @@ site — the Cardinal-Rule-2 / `coding-elegance` Pattern-2 single-source collaps
    :header-rows: 1
    :widths: 30 16 54
 
-   * - Production view (in :mod:`orpheus.sn.spatial.linear_discontinuous`)
+   * - Production view (in :mod:`orpheus.transport.spatial.linear_discontinuous`)
      - Scaling
      - Consumer
    * - ``_schur_terms``
@@ -3082,7 +3082,7 @@ byte-identical:
    \begin{cases} 1 & \text{DD / Step} \\ 2 & \text{LD} \end{cases}
 
 The class-level trait
-:attr:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.spatial_basis_per_axis`
+:attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.spatial_basis_per_axis`
 (the 1-D moment-basis size) indexes the whole contract via the
 tensor-product structure: the per-cell unknown is
 :math:`(\text{per\_axis})^d` (LD-2D: 4) and each downstream face carries
@@ -3123,7 +3123,7 @@ cell volume leaves a system depending only on the per-axis ÷V streaming
 ``d1_closed_form`` (the ÷V view of the Rule-of-Three above), and at
 :math:`d \ge 2` it is the same dense object the Branch-1 oracle proves
 exact-on-bilinear.  The kernel dispatch lives in
-:mod:`orpheus.sn.spatial.linear_discontinuous` (``cell_kernel_batch`` /
+:mod:`orpheus.transport.spatial.linear_discontinuous` (``cell_kernel_batch`` /
 ``residual_kernel_batch``): the :math:`d=1` closed-form fast path vs the
 :math:`d \ge 2` dense ``_ubld_system`` / ``per_cell_solve``.
 
@@ -3159,7 +3159,7 @@ the ``_CellSolve`` / ``_CellResidual`` moment-reducing emit), and the window
 zero-pad (:mod:`orpheus.sn.loss_representation`
 ``FullFieldWavefront._octant_face_cochain``, the ``_inflow_to_moments`` pad) —
 are GATED on the single scheme trait
-:attr:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.spatial_basis_per_axis`
+:attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.spatial_basis_per_axis`
 of :eq:`ld-ubld-n-spatial-moments`.  At ``per_axis == 1`` (DD / Step) the tail
 is the EMPTY tuple (:eq:`spatial-moment-append-policy`), so the scalar face and
 the rank-3 ``psi_avg`` emit are kept byte-identical — DD backward-compatibility
@@ -3571,7 +3571,7 @@ PRODUCES one.  Filling the slope rows requires (all S3-A proper, owed):
 * The **two source seams** — the :math:`d \ge 2` wavefront genuine
   :math:`(2^d, ng)` moment source through the dense ``_ubld_system``, and the
   :math:`d = 1` scan slope source threaded via
-  :meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.kernel_rhs` and the Schur
+  :meth:`~orpheus.transport.spatial._ubld.D1ClosedForm.kernel_rhs` and the Schur
   ``schur_xV`` term.
 
 The verification chain for the completed S3 is the thick-diffusion-limit
@@ -3625,7 +3625,7 @@ appends the factor **iff the within-cell count exceeds 1** — the
 "append iff > 1" gate single-sourced from
 :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`
 (the cell analogue that delegates to
-:func:`orpheus.sn.spatial._ubld.face_moment_tail`, so the cell-moment tail
+:func:`orpheus.numerics.moment_layout.face_moment_tail`, so the cell-moment tail
 and the per-face cochain tail can never disagree).  At the default the
 field space is BYTE-IDENTICAL to its pre-S3 shape for EVERY scheme (DD,
 Step, AND LD): this step builds the CAPABILITY only (construct-general /
@@ -3705,7 +3705,7 @@ The Kronecker moment ordering
 
 The within-cell basis is the tensor (Kronecker) product of the per-axis 1-D
 Legendre basis, ordered **x-outer / y-inner** (matching the UBLD assembler
-:func:`orpheus.sn.spatial._ubld.assemble_ubld`).  The convention is fixed so
+:func:`orpheus.transport.spatial._ubld.assemble_ubld`).  The convention is fixed so
 that the all-:math:`P_0` cell average is ALWAYS slot 0:
 
 .. math::
@@ -3719,7 +3719,7 @@ that the all-:math:`P_0` cell average is ALWAYS slot 0:
                   \hat\psi_x,\ \hat\psi_{xz},\ \hat\psi_{xy},\ \hat\psi_{xyz}\,]
 
 The slot-0 (cell-average) convention is single-sourced from
-:data:`orpheus.sn.spatial._ubld.AVERAGE_MOMENT` (the constant every moment
+:data:`orpheus.numerics.moment_layout.AVERAGE_MOMENT` (the constant every moment
 consumer reduces on) — the :class:`SpatialMomentSpace` surfaces it via
 :attr:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace.average_moment_index`
 rather than re-spelling the literal ``0`` (so a layout change happens in ONE
@@ -3750,7 +3750,7 @@ The critical detail is that ``n == 1`` returns the EMPTY tuple, NOT
 broadcast-equal the old shape numerically but would change ``ndarray.shape``
 and ``ndim``, breaking every byte-identity gate and every consumer that reads
 ``.ndim``.  The empty-tuple branch keeps the DD/Step field space *literally
-identical* to its pre-S3 self.  :func:`orpheus.sn.spatial._ubld.face_moment_tail`
+identical* to its pre-S3 self.  :func:`orpheus.numerics.moment_layout.face_moment_tail`
 owns the policy; the cell analogue
 :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`
 delegates to it (Pattern 7 — normalise the convention at one site), and
@@ -3804,7 +3804,7 @@ assertion), in two test modules:
   (and the :exc:`KeyError`-when-absent assertion), the composition shape, the
   ``per_axis == 1`` no-widening case, and
   :attr:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace.average_moment_index`
-  :math:`==` :data:`~orpheus.sn.spatial._ubld.AVERAGE_MOMENT`.
+  :math:`==` :data:`~orpheus.numerics.moment_layout.AVERAGE_MOMENT`.
 
 * ``tests/sn/spatial/test_spatial_moment_field_space.py`` — the factory
   widening: the **byte-identity-at-default negative control** for DD AND LD on
@@ -3830,7 +3830,7 @@ vector is intrinsically moment-valued, so the matvec carries the full
 architectural payoff is a branch removal; the *physics* payoff is the recovery
 of the thick-cell diffusion limit, which hinges on a single
 frame-consistency identity (ERR-061) that the rest of this subsection derives.
-The source files are :mod:`orpheus.sn.spatial.linear_discontinuous`
+The source files are :mod:`orpheus.transport.spatial.linear_discontinuous`
 (``cell_kernel_batch`` / ``residual_kernel_batch`` — now ONE :math:`d`-generic
 moment path), :mod:`orpheus.sn.loss_representation.sweep_graph` (``_CellSolve`` / ``_CellResidual``
 — the ``len(s_axes) > 1`` moment gate retired), and
@@ -3923,7 +3923,7 @@ source was under-driven, and the discrete diffusion limit was the wrong
 diffusion operator.
 
 The fix is a single-sourced :math:`2^d` moment-frame **involution**,
-:func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs`,
+:func:`~orpheus.transport.spatial._ubld.octant_moment_frame_signs`,
 
 .. math::
    :label: ld-ubld-octant-moment-frame-signs
@@ -4109,11 +4109,11 @@ contribution :math:`\theta\hat S/D_2' - (\theta|\mu|A_{\rm down}\hat S/D_2')\,\m
 that carries :math:`\Sigma_s\hat\phi` into the recurrence.  Then it reconstructs
 the per-cell :math:`(\bar\psi, \hat\psi)` moments from the chained upstream face.
 The slope-row :math:`\hat S` algebra is single-sourced through
-:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm._slope_fold`, shared by the
-per-cell matvec Schur (:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.schur_xV`)
+:meth:`~orpheus.transport.spatial._ubld.D1ClosedForm._slope_fold`, shared by the
+per-cell matvec Schur (:meth:`~orpheus.transport.spatial._ubld.D1ClosedForm.schur_xV`)
 AND the scan
-(:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_slope_face_source` for the
-face-chain term, :meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_reconstruct`
+(:meth:`~orpheus.transport.spatial._ubld.D1ClosedForm.scan_slope_face_source` for the
+face-chain term, :meth:`~orpheus.transport.spatial._ubld.D1ClosedForm.scan_reconstruct`
 for the per-cell moments).
 
 Why the face/cell split is necessary (the load-bearing math)
@@ -4147,7 +4147,7 @@ The same global-frame involution as the matvec
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Like the matvec, the scan applies the SAME
-:func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs` involution
+:func:`~orpheus.transport.spatial._ubld.octant_moment_frame_signs` involution
 (:eq:`ld-ubld-octant-moment-frame-signs`) through the shared ``_reframe``
 helper: the source moments are mapped global :math:`\to` sweep on INPUT and the
 reconstructed :math:`(\bar\psi, \hat\psi)` sweep :math:`\to` global on OUTPUT, so
@@ -4164,9 +4164,9 @@ same involution powers the DAG and the scan.  DD/Step (``per_axis == 1``) get no
 moment axis, so the scan runs the existing flat slab body verbatim and stays
 byte-identical (the negative control).
 
-The SymPy module / live scheme is :mod:`orpheus.sn.spatial._ubld`
+The SymPy module / live scheme is :mod:`orpheus.transport.spatial._ubld`
 (``D1ClosedForm``),
-:meth:`orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous.moment_scan_closure`,
+:meth:`orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.moment_scan_closure`,
 and :meth:`orpheus.sn.loss_representation._OneDimScanWalk._run` (the slab
 joint-batch moment branch); the gates are
 ``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_two_paths_scan_equals_dag_oracle``
@@ -4489,7 +4489,7 @@ projection's concern.  Production reframes the source global→sweep per octant 
 :meth:`~orpheus.sn.loss_representation.sweep_graph._CellSolve.cell` via the slope-sign involution
 :math:`\mathrm{octant\_moment\_frame\_signs}`
 (Eq. :eq:`ld-ubld-octant-moment-frame-signs`,
-:func:`orpheus.sn.spatial._ubld.octant_moment_frame_signs`), exactly as it
+:func:`orpheus.transport.spatial._ubld.octant_moment_frame_signs`), exactly as it
 reframes the scattering slope source.  So the external :math:`\hat Q` rides the
 SAME global→sweep machinery the scattering moments already use — the
 :ref:`ld-ubld-sweep-global-frame` involution that the S3 unified matvec had to
@@ -4498,7 +4498,7 @@ get right (ERR-061) is reused unchanged, with no new cell branch.
 The projector is structurally independent of production (L11): it evaluates
 :math:`\int q\,P_k` with :func:`numpy.polynomial.legendre.leggauss` directly and
 NEVER calls ``_lift_external_source_to_moments`` nor any
-:class:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous` cell op.
+:class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous` cell op.
 The reference (Eq. :eq:`ld-cartesian-2d-bilinear-coeffs`) is hand-laid
 polynomial algebra, so "the projector matches the reference" is not a production
 echo.  One subtlety, pinned by its own sub-gate: the projector returns the cell
@@ -4873,9 +4873,9 @@ The transverse face-moment normalization (apples-to-apples with the cochain)
 The same normalization decision that locked Leg A (Eq.
 :eq:`ld-cartesian-2d-projection-coeff`) recurs, transposed to the transverse
 axis.  The cochain consumes the upstream face's moments through
-:func:`orpheus.sn.spatial._ubld.assemble_inflow_axis`, which weights the
+:func:`orpheus.transport.spatial._ubld.assemble_inflow_axis`, which weights the
 :math:`2^{d-1}`-moment face vector by the **transverse mass** — the Kronecker
-product of the per-transverse-axis :func:`~orpheus.sn.spatial._ubld.mass_1d`
+product of the per-transverse-axis :func:`~orpheus.transport.spatial._ubld.mass_1d`
 :math:`= \mathrm{diag}(h_t,\,\theta h_t)`, :math:`\theta = 1/3` — before applying
 the active-axis trace :math:`B(-1) = [1, -1]` and :math:`|\mu_{\rm axis}|`.  The
 mass therefore ALREADY supplies the transverse :math:`h_t` and :math:`\theta`
@@ -5549,8 +5549,8 @@ the algebraic framing; the primitives that realise it
 :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph` and its two
 storage walks, the level-operation pair ``_CellSolve`` /
 ``_CellResidual``, and the discretization's kernel pair
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
-/ :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`)
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
+/ :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`)
 are documented in detail at
 :ref:`sweep-octant-dependency-graph` immediately below.
 
@@ -5675,8 +5675,8 @@ range(N)`` loop in :func:`~orpheus.sn.loss_representation._sweep_jacobi` with
 a per-octant batched dispatch, lifting the per-call ``_diag_cache``
 build to mesh-time work, and isolating the per-cell DD algebra in the
 discretization's pure kernel pair
-(:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`
-/ :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`)
+(:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`
+/ :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`)
 that LD / EC / Step closures can override later.
 
 .. note::
@@ -5765,11 +5765,11 @@ primitives plus a mesh-time precompute step.
        bit-identity-load-bearing — relocated verbatim from the four
        retired walk methods.
    * - The kernel pair
-       :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
-       / :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
-     - :mod:`orpheus.sn.spatial.scheme`
+       :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
+       / :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
+     - :mod:`orpheus.transport.spatial.scheme`
      - The **storage-free extension point** on the
-       :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase` ABC
+       :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase` ABC
        (S6.4(e); historically the ``SweepCellSlice``-packeted
        ``update_batch`` / ``residual_batch``).  Each takes the per-axis
        incoming face fluxes + streaming coefficients + the level's cross
@@ -5777,10 +5777,10 @@ primitives plus a mesh-time precompute step.
        ``(residual, psi_out)`` (apply) — PURE cell algebra, no
        gather/scatter (that is the walk's job).  Default raises
        :exc:`NotImplementedError` — additive capability, not a contract
-       change.  :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
+       change.  :class:`~orpheus.transport.spatial.diamond.DiamondDifference`
        overrides the pair; LD / EC / Step closures override it later to
        join the batched wavefront walks (their per-cell
-       :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.update`
+       :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.update`
        stays the canonical reference contract).
 
 Per-shape precompute pattern (family-owned since S6.4(c))
@@ -5892,9 +5892,9 @@ to algebra (S6.4(e)):
    Direction is an OBJECT, never a boolean flag passed down the walk.
 
 #. **The kernel pair** —
-   :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`
+   :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`
    /
-   :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`.
+   :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`.
    Owns the **pure cell algebra** and nothing else — no gather, no
    scatter, no storage. This is the ONLY direction-aware math left in
    the SN spatial stack.
@@ -5930,7 +5930,7 @@ branching.
 
 The DD ``cell_kernel_batch`` reproduces the legacy 2-D wavefront DD
 math **bit-identically** (operation order matters; see
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference` docstring on
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference` docstring on
 bit-identity).  The math is the **balance form** of WDD on a 2-D
 Cartesian cell:
 
@@ -6260,14 +6260,14 @@ References and pointers
   composition — the parallel "metric knows its iterative structure"
   refactor for the scattering source build.  See
   :ref:`sn-scattering-fission-operators`.
-* :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase` — the
+* :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase` — the
   strategy ABC carrying the per-cell :meth:`update` reference contract
   and the storage-free batched kernel pair
-  :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
-  / :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
+  :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
+  / :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
   (S6.4(e); was the ``SweepCellSlice``-packeted ``update_batch`` /
   ``residual_batch``).
-* :class:`~orpheus.sn.spatial.diamond.DiamondDifference` — the only
+* :class:`~orpheus.transport.spatial.diamond.DiamondDifference` — the only
   shipping closure that overrides the kernel pair; the reference for
   the bit-identity contract (pure cell algebra — the ONLY
   direction-aware math in the SN spatial stack since S6.4(e) lifted
@@ -6363,7 +6363,7 @@ Cell update strategy parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The curvilinear sweep dispatches per-cell to
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationScheme.update`:
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationScheme.update`:
 
 .. code-block:: python
 
@@ -6385,13 +6385,13 @@ The curvilinear sweep dispatches per-cell to
 The cell-update strategy lives on
 :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.scheme` (introduced in
 this round as a constructor argument with default
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference`).  The
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference`).  The
 default reproduces the inlined sweep math bit-identically — every
 regression snapshot at ``tests/sn/regression/snapshots/`` was
 generated with DD and continues to match bit-for-bit when the
 unified sweep dispatches via ``scheme.update(...)``.  See
 :ref:`cell-update-strategies` for the strategy contract and
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference` for the
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference` for the
 DD scalar form.
 
 Wave C-extension will ship :class:`Step`, :class:`LinearDiscontinuous`,
@@ -6423,8 +6423,8 @@ sub-millisecond sweep time for typical 1-D problems.
 
 The 2-D wavefront sweep dispatches its DD per-cell algebra
 through the storage-free kernel pair
-:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
-/ :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
+/ :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
 on the strategy attached to the
 :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (Wave 2 of the SN
 performance plan; closes Issue #4 — see
@@ -6432,7 +6432,7 @@ performance plan; closes Issue #4 — see
 :ref:`sweep-dispatch-relayering` for the S6.4(e) re-layering).
 The "inlined DD math" formerly carried inside
 :func:`~orpheus.sn.loss_representation._sweep_jacobi` was lifted into
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference` as a single
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference` as a single
 bit-identical extraction, vectorised across the
 ``(N_oct, n_diag, ng)`` slice — the ordinate axis, anti-diagonal
 axis, and group axis simultaneously.  Wave C-extension's LD / EC
@@ -6668,7 +6668,7 @@ flat-flux invariance, and asymptotic accuracy:
   - \phi_{n-1/2,i,g}` (Hébert Eqs. 3.437 / 3.439).  The
   :math:`\tau \in (1/2, 1]` clamp gives weighted-DD with positive M-M
   weighting per Bailey-Morel-Chang 2010.  The same recurrence runs
-  inside :class:`~orpheus.sn.spatial.diamond.DiamondDifference` (the
+  inside :class:`~orpheus.transport.spatial.diamond.DiamondDifference` (the
   sweep's cell update); applying this strategy in the apply matvec
   brings the apply and sweep to the same angular closure, but the
   **spatial** closures still differ (apply uses arithmetic averages
@@ -6708,7 +6708,7 @@ Diffusion-Limit Accuracy of Sn Angular Differencing Schemes"
 (LLNL preprint LLNL-JRNL-420356; OA at
 https://www.osti.gov/servlets/purl/1020346).  Phase B corrects the
 citations in :mod:`orpheus.geometry.reduced_operator`,
-``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``), :mod:`orpheus.sn.spatial.diamond`, and the
+``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``), :mod:`orpheus.transport.spatial.diamond`, and the
 new :mod:`orpheus.sn.spatial.pole_angular_closure` module.  Hébert
 (2009) §3.9.4 is the **primary source** for the curvilinear S\ :sub:`N`
 discretization in this codebase; Bailey-Morel-Chang 2010 is the
@@ -6753,7 +6753,7 @@ Half-angle grid exposure (Issue #197 PR-TYPED-6b)
    unified SN matvec
    (:class:`~orpheus.sn.operators.streaming.StreamingOperator`) consume
    :math:`\phi_{m\pm 1/2}` as
-   :func:`~orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`'s
+   :func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`'s
    ``psi_angular_upstream`` argument — closing the apply-vs-sweep
    twin path on the curvilinear angular branch.
 
@@ -12383,8 +12383,8 @@ for different consumers:
 
 * The **sweep operator**
   (:func:`~orpheus.sn.loss_representation.transport_sweep`, dispatching through
-  the Wave D Round 2 :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme`
-  Protocol with :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
+  the Wave D Round 2 :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`
+  Protocol with :class:`~orpheus.transport.spatial.diamond.DiamondDifference`
   as the default strategy) uses the **WDD asymmetric closure**
   :math:`\psi_{n+1/2} = (\overline\psi - (1-\tau)\,\psi_{n-1/2})/\tau`.
   This is the historical SN sweep's closure: the upper-triangular
@@ -19586,7 +19586,7 @@ branch and have no landed hash yet.
        (:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`);
        :math:`\tau` and the derived redistribution constants
        :math:`c_{\rm in}` / :math:`c_{\rm out}` travel to the stateless
-       diamond scheme as :class:`~orpheus.sn.spatial.scheme.CellVisit`
+       diamond scheme as :class:`~orpheus.transport.spatial.scheme.CellVisit`
        *data* (never a closure dependency), stamped at the single
        production site
        :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh._make_cell_visit`;
