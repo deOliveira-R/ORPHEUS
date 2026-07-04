@@ -83,6 +83,7 @@ import numpy as np
 from orpheus.numerics.vector import Vector
 
 if TYPE_CHECKING:
+    from orpheus.numerics.assembled_operator import SparseAssembledOperator
     from orpheus.numerics.functional import Functional
     from orpheus.numerics.space import FunctionSpace
 
@@ -150,14 +151,17 @@ __all__ = [
     "LinearOperator",
     "SupportsInverse",
     "SupportsAdjoint",
+    "SupportsAssembly",
     "BlockRole",
     "BulkOperator",
     "FullOperator",
     "BoundaryOperator",
     "NotInvertible",
     "MissingAdjoint",
+    "MissingAssembly",
     "invertible",
     "adjointable",
+    "assemblable",
     "IncompatibleOperatorComposition",
     "MatrixTooLarge",
     "InverseWrapMixin",
@@ -338,6 +342,23 @@ class MissingAdjoint(TypeError):
     behaviour). Also the refusal of the raw-transpose realization verb
     (``apply_transpose``) on composites whose operands cannot all
     transpose. ``TypeError`` parentage mirrors :class:`NotInvertible`.
+    """
+
+
+class MissingAssembly(TypeError):
+    r"""Asked for the sparse assembly of an operator that has none.
+
+    The ASSEMBLY-axis refusal — the third sibling of
+    :class:`NotInvertible` (inverse axis) and :class:`MissingAdjoint`
+    (adjoint axis): raised **eagerly** by the composer ``assemble()``
+    bodies when an operand is not :attr:`~LinearOperator.is_assemblable`
+    — a structural emission exists only where a leaf declared one, and a
+    composite can recurse (Sum → ``+``, Product → ``@``, Scaled →
+    scalar ``*``) only when every leg emits. Operators without a
+    stencil realization simply do not declare :meth:`assemble` (misuse
+    is a *static* error); the probing
+    :meth:`~LinearOperator.as_matrix` remains their total (dense)
+    Mat-functor. ``TypeError`` parentage mirrors the sibling refusals.
     """
 
 
@@ -524,6 +545,26 @@ class LinearOperator(Protocol[Domain, Codomain]):
         ``(A+B).is_adjointable == A.is_adjointable and B.is_adjointable`` —
         structurally computed rather than cached in a string set. Default
         ``False``; an operator with a working ``apply_transpose`` overrides.
+        """
+        return False
+
+    @property
+    def is_assemblable(self) -> bool:
+        r"""Whether this operator can emit its sparse assembly (:meth:`assemble`).
+
+        The ASSEMBLY axis — the third structural surface beside
+        :attr:`is_invertible` / :attr:`is_adjointable`: ``True`` iff a
+        structural ``(row, col, value)`` emission of this operator
+        exists (the stencil-assembly third consumption mode of the
+        per-cell closure algebra; see
+        :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`).
+        Composites derive it recursively (a sum/product assembles iff
+        both legs do — the homomorphism laws in their ``assemble()``
+        bodies); the default is ``False`` — an operator is assemblable
+        only by explicit override, and the probing :meth:`as_matrix`
+        remains the total dense Mat-functor for everything else. The
+        static bridge is :func:`assemblable` (narrowing to
+        :class:`SupportsAssembly`).
         """
         return False
 
@@ -820,6 +861,17 @@ class LinearOperator(Protocol[Domain, Codomain]):
         maps). Typed-carrier operators (``FullField`` SN composites)
         are not constructible from ndarray basis columns — and sit far
         above any sane gate; they stay matrix-free.
+
+        **Assembly delegation (stencil-assembly 2b, ruling R2)**: when
+        this operator is :func:`assemblable`, the densification routes
+        through the structural sparse emission
+        (``assemble().as_matrix(...)`` — same gate contract, same
+        dimension checks) instead of :math:`n` probing applications.
+        The probing loop is RETAINED as :meth:`_as_matrix_by_probing` —
+        the fallback for assembly-less operators AND the permanent
+        fuller-view oracle the probed≡assembled equivalence gates pin
+        (an assembly bug must never be able to hide inside its own
+        densification).
         """
         shape = _resolve_basis_shape(self, basis_shape)
         n = int(np.prod(shape)) if shape else 1
@@ -832,6 +884,29 @@ class LinearOperator(Protocol[Domain, Codomain]):
                 f"applications. Raise max_dimension= if this size is "
                 f"intended, or keep the operator matrix-free."
             )
+        if assemblable(self):
+            # The R2 delegation: densified structural assembly, with the
+            # assembled column dimension checked against the resolved
+            # basis shape (SparseAssembledOperator.as_matrix enforces it).
+            return self.assemble().as_matrix(
+                basis_shape=shape, max_dimension=max_dimension,
+            )
+        return self._as_matrix_by_probing(shape)
+
+    def _as_matrix_by_probing(self, shape: tuple[int, ...]) -> np.ndarray:
+        r"""The apply-to-basis probing loop — the RETAINED fuller-view pathway.
+
+        Column :math:`j` = ``apply(e_j)`` raveled (the pre-assembly
+        ``as_matrix`` body, byte-identical). Kept as its own named
+        method — NOT inlined in :meth:`as_matrix` — for two consumers:
+        the delegation fallback (assembly-less operators), and the
+        probed≡assembled equivalence gates, which MUST be able to force
+        this pathway on an *assemblable* operator (otherwise
+        ``as_matrix ≡ assemble().to_dense()`` is assembly compared with
+        itself — vacuous). Size/shape gating is the caller's job
+        (:meth:`as_matrix` resolves and gates before delegating here).
+        """
+        n = int(np.prod(shape)) if shape else 1
         columns = []
         for j in range(n):
             e_flat = np.zeros(n)
@@ -920,6 +995,23 @@ class SupportsAdjoint(LinearOperator[Domain, Codomain], Protocol):
     def apply_transpose(self, x: Codomain, /) -> Domain: ...
 
 
+class SupportsAssembly(LinearOperator[Domain, Codomain], Protocol):
+    r"""Narrowing target: an operator whose :meth:`assemble` may be called.
+
+    Extends :class:`LinearOperator`; the branch narrowed by
+    :func:`assemblable` may call the structural sparse emission
+    :meth:`assemble` — the ASSEMBLY-axis sibling of
+    :class:`SupportsInverse` / :class:`SupportsAdjoint`, with the same
+    discipline: never ``isinstance`` this (class-level method presence
+    is class-uniform on composites — every ``OperatorSum`` defines
+    ``assemble`` even when a summand cannot emit); never annotate a
+    parameter with it to *demand* assemblability — guard with
+    :func:`assemblable` instead.
+    """
+
+    def assemble(self) -> "SparseAssembledOperator": ...
+
+
 def invertible(
     op: "LinearOperator[Domain, Codomain]",
 ) -> "TypeGuard[SupportsInverse[Domain, Codomain]]":
@@ -957,6 +1049,23 @@ def adjointable(
     gates the eager :attr:`~LinearOperator.H` construction.
     """
     return op.is_adjointable
+
+
+def assemblable(
+    op: "LinearOperator[Domain, Codomain]",
+) -> "TypeGuard[SupportsAssembly[Domain, Codomain]]":
+    r"""Checked bridge: narrow ``op`` to :class:`SupportsAssembly` iff assemblable.
+
+    The assembly-axis member of the bridge family — same one-directional
+    ``TypeGuard`` semantics, same free-function necessity, same
+    guard-at-``LinearOperator``-typed-sites discipline as
+    :func:`invertible` / :func:`adjointable`. Licenses the structural
+    :meth:`~SupportsAssembly.assemble` emission in the composer
+    homomorphism-law bodies (Sum → ``+``, Product → ``@``, Scaled →
+    scalar ``*``) and the
+    :meth:`~LinearOperator.as_matrix` densification delegation (R2).
+    """
+    return op.is_assemblable
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -1232,6 +1341,37 @@ class OperatorSum(
     # sweep-invertible ``(L+C)`` subclass overrides with its own direct
     # sweep ``solve`` (streaming.py), untouched by this deletion.
 
+    @property
+    def is_assemblable(self) -> bool:
+        # [A+B] = [A] + [B] (the law in :meth:`assemble`) — the sum
+        # assembles iff BOTH summands emit.
+        return self.a.is_assemblable and self.b.is_assemblable
+
+    def assemble(self) -> "SparseAssembledOperator":
+        r"""Return :math:`[A+B] = [A] + [B]` — the additive homomorphism law.
+
+        The assembly functor is additive-monoidal (the ``as_matrix``
+        docstring's ``Op → Mat``, sparse carrier): a sum's structural
+        emission is the SPARSE SUM of its summands' emissions —
+        realized by the carrier's own CSR addition, never a re-walk of
+        the stencils. The guard-narrow licenses the operand calls
+        (Design C) and raises the assembly-axis refusal eagerly.
+        """
+        if not assemblable(self.a) or not assemblable(self.b):
+            raise MissingAssembly(
+                f"OperatorSum.assemble requires both summands to emit "
+                f"([A+B] = [A] + [B]); got {type(self.a).__name__} / "
+                f"{type(self.b).__name__} with is_assemblable "
+                f"{self.a.is_assemblable} / {self.b.is_assemblable}."
+            )
+        from orpheus.numerics.assembled_operator import SparseAssembledOperator
+
+        return SparseAssembledOperator(
+            self.a.assemble().matrix + self.b.assemble().matrix,
+            domain=self.domain,
+            codomain=self.codomain,
+        )
+
 
 class OperatorProduct(
     LinearOperator[Domain, Codomain],
@@ -1404,6 +1544,35 @@ class OperatorProduct(
         # iff BOTH factors are.
         return self.a.is_adjointable and self.b.is_adjointable
 
+    @property
+    def is_assemblable(self) -> bool:
+        # [AB] = [A] @ [B] (the law in :meth:`assemble`) — the product
+        # assembles iff BOTH factors emit.
+        return self.a.is_assemblable and self.b.is_assemblable
+
+    def assemble(self) -> "SparseAssembledOperator":
+        r"""Return :math:`[AB] = [A]\,[B]` — the multiplicative homomorphism law.
+
+        The composition's structural emission is the SPARSE PRODUCT of
+        its factors' emissions (dimension compatibility enforced by the
+        carrier's own matmul). Same eager guard-narrow discipline as
+        :meth:`OperatorSum.assemble`.
+        """
+        if not assemblable(self.a) or not assemblable(self.b):
+            raise MissingAssembly(
+                f"OperatorProduct.assemble requires both factors to emit "
+                f"([AB] = [A][B]); got {type(self.a).__name__} / "
+                f"{type(self.b).__name__} with is_assemblable "
+                f"{self.a.is_assemblable} / {self.b.is_assemblable}."
+            )
+        from orpheus.numerics.assembled_operator import SparseAssembledOperator
+
+        return SparseAssembledOperator(
+            self.a.assemble().matrix @ self.b.assemble().matrix,
+            domain=self.domain,
+            codomain=self.codomain,
+        )
+
 
 class ScaledOperator(
     LinearOperator[Domain, Codomain],
@@ -1508,6 +1677,33 @@ class ScaledOperator(
     def is_adjointable(self) -> bool:
         # (αL)^T = α L^T — scaling preserves adjointability.
         return self.op.is_adjointable
+
+    @property
+    def is_assemblable(self) -> bool:
+        # [αL] = α[L] (the law in :meth:`assemble`) — scaling preserves
+        # assemblability.
+        return self.op.is_assemblable
+
+    def assemble(self) -> "SparseAssembledOperator":
+        r"""Return :math:`[\alpha L] = \alpha\,[L]` — the scalar homomorphism law.
+
+        The scaled emission is the carrier's own scalar multiply of the
+        operand's emission. Same eager guard-narrow discipline as the
+        other composer laws.
+        """
+        if not assemblable(self.op):
+            raise MissingAssembly(
+                f"ScaledOperator.assemble requires an assemblable operand "
+                f"([αL] = α[L]); {type(self.op).__name__}.is_assemblable "
+                f"is False."
+            )
+        from orpheus.numerics.assembled_operator import SparseAssembledOperator
+
+        return SparseAssembledOperator(
+            self.scalar * self.op.assemble().matrix,
+            domain=self.domain,
+            codomain=self.codomain,
+        )
 
 
 class IdentityOperator(LinearOperator[Domain]):

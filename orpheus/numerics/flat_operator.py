@@ -126,6 +126,54 @@ class FlattenedOperator(LinearOperator):
         carrier = type(self.template).from_flat(flat, self.template)
         return np.asarray(self.inner.apply(carrier).to_flat())
 
+    # ── Assembly passthrough (stencil-assembly 2b) ────────────────────
+    #
+    # The flat serialization is TRANSPARENT to structural assembly: a
+    # typed operator's sparse emission is ALREADY in the flat layout
+    # (the emitters scatter into the carrier's own ``to_flat`` DOF
+    # numbering — the 2-P0 never-re-derive rule), so the flattened
+    # view's assembly IS the inner operator's, dimension-checked against
+    # the template. Through this passthrough the ``as_matrix``
+    # delegation (R2) reaches the diffusion resolvent: once every loss
+    # leaf emits, ``MatrixInverseOperator(FlattenedOperator(A, t))``
+    # LU-factors the assembled matrix instead of probing n columns.
+
+    @property
+    def is_assemblable(self) -> bool:
+        return self.inner.is_assemblable
+
+    def assemble(self) -> "Any":
+        r"""Return the inner operator's assembly (the flat layouts coincide).
+
+        Raises
+        ------
+        MissingAssembly
+            Propagated from composer recursion when a leg of ``inner``
+            cannot emit (guarded here via the checked bridge).
+        ValueError
+            The inner emission's dimensions contradict the template's
+            flat size — a layout drift between an emitter and the
+            carrier's ``to_flat`` (must be impossible by construction;
+            checked because silence here would corrupt every consumer).
+        """
+        from orpheus.numerics.operator import MissingAssembly, assemblable
+
+        if not assemblable(self.inner):
+            raise MissingAssembly(
+                f"FlattenedOperator.assemble: the wrapped "
+                f"{type(self.inner).__name__} is not assemblable."
+            )
+        assembled = self.inner.assemble()
+        rows, cols = assembled.shape
+        if rows != self.n_flat or cols != self.n_flat:
+            raise ValueError(
+                f"FlattenedOperator.assemble: the inner emission is "
+                f"{rows}×{cols} but the template's flat size is "
+                f"{self.n_flat} — an emitter drifted from the carrier's "
+                f"to_flat layout."
+            )
+        return assembled
+
     def __repr__(self) -> str:
         return (
             f"FlattenedOperator({self.inner!r}, n_flat={self.n_flat})"
