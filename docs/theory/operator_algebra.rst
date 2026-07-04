@@ -2039,18 +2039,40 @@ Why the estimators are NOT Functionals
 ---------------------------------------
 
 The criticality eigenvalue and production-rate **estimators**
-(:func:`orpheus.numerics.iteration._default_keff_estimator` and
-:func:`orpheus.numerics.iteration._default_production_estimator`) are the
-obvious candidates to wrap as ``Functional`` objects — and they are
-deliberately **not**. An estimator consumes the *operator triple*
-:math:`(A, S, F)` together with the iterate :math:`\psi`, not a lone
-field; its signature is ``(A, S, F, ψ)``, which is not the
-``evaluate(x) -> R`` shape of a co-vector acting on a single vector. The
-category simply now *names* what their field-to-scalar **core** is (the
-production-rate contraction), without forcing them into a wrapper that
-would misrepresent their arity. They stay bare callables, bit-identical
-(pinned by ``tests/numerics/test_estimators_as_functionals.py``), and the
-honesty of *not* wrapping them is itself a category-correctness claim.
+(:meth:`~orpheus.numerics.iteration.KEigenvalue.compute_keff` and
+:meth:`~orpheus.numerics.iteration.KEigenvalue.compute_production_rate`)
+are the obvious candidates to wrap as ``Functional`` objects — and they
+are deliberately **not**. The eigenvalue estimator is a **ratio** of two
+triple-dependent contractions,
+:math:`\sum(F\psi)\,/\,(\sum(A\psi) - \sum(S\psi))` — it consumes the
+whole operator triple :math:`(A, S, F)` (carried on the ``KEigenvalue``
+instance) together with the iterate :math:`\psi`, not a lone field acted
+on by a single co-vector. That ratio-of-triple-contractions shape is not
+the ``evaluate(x) -> R`` shape of a
+:class:`~orpheus.numerics.functional.Functional` (a linear co-vector on
+one vector space). The category simply now *names* what their
+field-to-scalar **core** is (the production-rate contraction
+:math:`\sum(F\psi)`), without forcing the estimators into a wrapper that
+would misrepresent their arity. They stay bare (hardwired) methods,
+arithmetic bit-identical to the pre-R8 module-level defaults they
+replaced (pinned by ``tests/numerics/test_estimators_as_functionals.py``),
+and the honesty of *not* wrapping them is itself a category-correctness
+claim.
+
+.. note:: **Injection seam retired (R8, #259 P1, 2026-07-03).** Before
+   this, these estimators were injectable *callables* — the
+   ``_default_keff_estimator`` / ``_default_production_estimator`` module
+   functions were the **defaults** of ``KEigenvalue``'s ``keff_estimator``
+   / ``production_estimator`` kwargs, which a caller could override.  The
+   kwargs, the ``KeffEstimator`` / ``ProductionEstimator`` aliases, and
+   the ``_default_*`` functions are gone; the spellings moved verbatim
+   onto the hardwired methods above.  The seam was dead **by design** —
+   at a converged eigenpair every estimator consistent with the posed
+   problem agrees, so an injected *different* estimator could only be
+   inconsistent (illegal states unrepresentable).  See the full R8
+   rationale — the consistency theorem and the honest-``A.apply``
+   contract — in the *KEigenvalue: outer power iteration* section of
+   :doc:`discrete_ordinates`.
 
 .. note::
 
@@ -10192,9 +10214,12 @@ triple — :meth:`compute_fission_source <orpheus.numerics.iteration.KEigenvalue
 :math:`= F\psi/k`,
 :meth:`solve_fixed_source <orpheus.numerics.iteration.KEigenvalue.solve_fixed_source>`
 :math:`= (A-S)^{-1} q` via the warm-started inner
-:class:`~orpheus.numerics.iteration.SourceIteration`, the injected
-:math:`k`- and production-estimators, and the :math:`\ge 3`-iteration
-:math:`dk`/:math:`d\phi` convergence test — then
+:class:`~orpheus.numerics.iteration.SourceIteration`, the **hardwired**
+:math:`k`- and production-estimators
+(:meth:`~orpheus.numerics.iteration.KEigenvalue.compute_keff` /
+:meth:`~orpheus.numerics.iteration.KEigenvalue.compute_production_rate`;
+the pre-R8 injection kwargs retired at #259 P1), and the
+:math:`\ge 3`-iteration :math:`dk`/:math:`d\phi` convergence test — then
 :meth:`solve <orpheus.numerics.iteration.KEigenvalue.solve>` simply
 calls ``power_iteration(self, max_iter=self.max_outer)``. SN production
 (:func:`~orpheus.sn.solver.solve_sn`), CP, diffusion, MoC, and

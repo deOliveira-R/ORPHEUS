@@ -13371,7 +13371,8 @@ fixed-source solve:
 
 .. math::
 
-    k_{n+1} \;=\; {\rm keff\_estimator}(A, S, F, \psi_{n+1})
+    k_{n+1} \;=\; \frac{\sum (F\,\psi_{n+1})}
+                       {\sum (A\,\psi_{n+1}) - \sum (S\,\psi_{n+1})}
 
 The dominance ratio :math:`|k_1/k_0|` governs outer-loop
 convergence (Trefethen & Bau §27).  The inner solve uses
@@ -13382,20 +13383,76 @@ Every outer iteration warms up its inner :class:`SourceIteration`
 from :math:`\psi_n` (the previous outer iterate); this is the same
 amortisation pattern :class:`SNSolver` uses today.
 
-The default ``keff_estimator`` is the generic Rayleigh quotient
+The :math:`k`-update is the **hardwired** operator-form Rayleigh
+quotient (:meth:`KEigenvalue.compute_keff
+<orpheus.numerics.iteration.KEigenvalue.compute_keff>`)
 
 .. math::
 
     k \;=\; \frac{\sum (F\,\psi)}{\sum (A\,\psi) - \sum (S\,\psi)}
 
-which holds for any operator triple where the action carries the
-volume measure.  SN consumers that need explicit volume weighting
-(matching :meth:`SNSolver.compute_keff`) supply a custom
-``keff_estimator`` callable.  This is the K-specific volume-weighting
-hook: relocating it into the algorithm as a Rayleigh update on the
-resolvent :math:`A_{\rm loss}^{-1}M` (so the loop is *literally*
-K/α-agnostic) is the α-eigenvalue wave's first step — see the
-:ref:`eigenvalue-posing` honest-scope note.
+— the operator-level spelling of the unified :math:`k` discipline,
+fission production over net removal (see :ref:`sn-keff-estimator`).
+When ``A`` carries streaming + collision,
+:math:`\sum(A\psi) - \sum(S\psi)` is absorption + leakage − the
+neutron-multiplying :math:`(n,2n)` emission (the in- and out-group
+scatter cancel into :math:`\Sigma_a` via :math:`\Sigma_t - \Sigma_s`),
+term-for-term the method-layer functional :eq:`sn-keff-update` with
+the volume measure absorbed into the operators' action.  Because the
+leakage rides **inside** :math:`A`, this spelling never had the #291
+omission.
+
+.. note:: **Estimator injection retired (R8, #259 P1, 2026-07-03).**
+
+   Pre-R8, :class:`KEigenvalue` accepted ``keff_estimator`` /
+   ``production_estimator`` *callables* (defaulting to module-level
+   ``_default_*`` functions) so a caller could substitute its own
+   field-to-scalar functional.  Those kwargs, the ``KeffEstimator`` /
+   ``ProductionEstimator`` aliases, and the ``_default_*`` module
+   functions are **gone**: the estimators are now hardwired methods
+   (:meth:`~orpheus.numerics.iteration.KEigenvalue.compute_keff` /
+   :meth:`~orpheus.numerics.iteration.KEigenvalue.compute_production_rate`),
+   arithmetic bit-identical to the retired defaults.
+
+   The seam was **dead by design, not dead by being unwired.**  The
+   five method-layer solver families (SN / CP / diffusion / MoC /
+   homogeneous) implement the
+   :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol
+   *directly* and never routed through ``KEigenvalue`` at all; and by
+   the consistency theorem below, injection could only ever have
+   introduced an *inconsistent* functional.  Removing the hook makes
+   that illegal estimator/problem pairing unrepresentable
+   (``coding-elegance`` Pattern 4 — illegal states unrepresentable).
+
+   **Consistency theorem.**  The loop poses
+   :math:`(A - S)\,\psi = F\psi/k` and converges to the fixed point
+   :math:`\psi^\star` with
+   :math:`(A-S)\,\psi^\star = F\psi^\star/k^\star`.  Applying the
+   all-ones covector :math:`\mathbf 1^\top` (the ``\sum``) to both
+   sides gives
+   :math:`\sum(A\psi^\star) - \sum(S\psi^\star)
+   = \sum(F\psi^\star)/k^\star`, so the hardwired ratio returns
+   **exactly** :math:`k^\star`.  Every functional that agrees with the
+   posed balance at the fixed point returns the same number; the
+   "freedom" the injection seam advertised was illusory — all
+   *consistent* choices collapse to one value, and any *different*
+   injected estimator is by construction inconsistent with the problem
+   the loop solves.
+
+   **Honest-**\ ``A.apply``\ **contract.**  The theorem needs
+   :math:`\sum(A\psi)` to be the true net-removal rate — i.e.
+   ``A.apply`` must compute the real streaming + collision action, not
+   a stub.  The injection seam had historically existed to paper over
+   a *scalar-level test adapter* whose ``A.apply`` was dishonest; R8
+   removes the paper and requires the honest action.  An adapter with
+   a stubbed ``A.apply`` now yields a visible non-eigenvalue here — the
+   correct failure, surfaced by design rather than masked by a
+   substituted functional.
+
+Relocating the :math:`k`-update into the algorithm itself — a Rayleigh
+step on the resolvent :math:`A_{\rm loss}^{-1}M` so the loop is
+*literally* K/α-agnostic — is the α-eigenvalue wave's first step; see
+the :ref:`eigenvalue-posing` honest-scope note.
 
 .. _choosing-inverse-realisation:
 
@@ -13755,12 +13812,18 @@ framing organises the solver's outer API surface:
     sweep as preconditioner.  Reflective-BC equation map only
     (Round 3 owns the vacuum-BC extension).
 
-* :meth:`SNSolver.compute_keff` returns
-  :math:`\sum F\,\phi\,V / \sum \Sigma_a\,\phi\,V` (the volume-
-  weighted production / absorption ratio); the SN-specific volume
-  weighting lives here rather than in the generic
-  :meth:`KEigenvalue.solve` default Rayleigh-quotient estimator, which
-  is volume-blind.
+* :meth:`SNSolver.compute_keff` returns **fission production over net
+  removal**, :eq:`sn-keff-update` — the volume-weighted method-layer
+  functional :math:`R_{\nu\Sigma_f}(\phi) / (R_{\Sigma_a}(\phi) + L -
+  E_{2n}(\phi))`, derived in :ref:`sn-keff-estimator` below.  The
+  SN-specific volume weighting lives here (in the typed
+  :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+  fields) — one honest realization of the same discipline the
+  operator-form :meth:`KEigenvalue.compute_keff` spells with the
+  measure absorbed into the operators' action.  (Pre-#291 this method
+  returned the leakage-blind :math:`\sum F\phi V / \sum \Sigma_a\phi V`
+  ratio; see :ref:`sn-keff-estimator` for why that was a
+  non-eigenvalue on any vacuum-bounded problem.)
 
 The solver-level :math:`1/k` scaling (in
 :meth:`~SNSolver.compute_fission_source`) and the volume-weighted
@@ -13774,8 +13837,367 @@ algorithm is the first step of the α-wave (see the honest-scope caveat
 in :ref:`eigenvalue-posing`).
 
 The eigenvalue :math:`\keff` is determined by **power iteration**: an
-outer loop updates :math:`k` from the production/absorption ratio, with
-an inner loop that solves the within-group scattering problem.
+outer loop updates :math:`k` from the net-removal balance
+:eq:`sn-keff-update` (fission production over absorption + leakage −
+:math:`(n,2n)` emission), with an inner loop that solves the
+within-group scattering problem.
+
+.. _sn-keff-estimator:
+
+The reported eigenvalue: fission production over net removal
+------------------------------------------------------------
+
+:meth:`~orpheus.sn.solver.SNSolver.compute_keff` reports the eigenvalue
+of the problem the inner solve **actually poses**.  This is the SN
+symptom (#291) and the MoC/CP/homogeneous root (#259) of a single
+discipline: *the reported* :math:`k` *must be the eigenvalue of the
+fixed-source map every method scales only fission by* :math:`1/k`
+*through* — scattering and the :math:`(n,2n)` emission are plain gains
+assembled **inside** :meth:`~orpheus.sn.solver.SNSolver.solve_fixed_source`,
+never scaled by :math:`1/k`.  An estimator that disagrees with its own
+posed problem converges cleanly and silently to a **non-eigenvalue
+ratio**.
+
+.. math::
+   :label: sn-keff-update
+
+   k \;=\; \frac{R_{\nu\Sigma_f}(\phi)}
+                {R_{\Sigma_a}(\phi) \;+\; L \;-\; E_{2n}(\phi)}
+
+.. (vv-status rationale) Governing/definitional identity: the reported k
+   IS the eigenvalue of the posed fixed-source map, not a solver
+   eigenvalue-correctness claim against an external analytical reference
+   (that rests on the multi-group heterogeneous L1/L2 references
+   elsewhere on this page). The verifiable content is the cross-engine
+   consistency gate tests/sn/eigenvalue/test_keff_estimator_gate.py
+   (reported k == the converged fixed-point map ratio k* = P(Mφ*)/P(φ*),
+   map-ratio ground-truth noise ≤ 2e-11) with in-file mutation teeth.
+   Wiring @pytest.mark.verifies("sn-keff-update") onto that gate is a
+   test-side follow-up (this docs pass could not touch tests/).
+.. vv-status: sn-keff-update documented
+
+The three terms are typed volume-integrated reaction-rate functionals
+and one boundary functional:
+
+* **Numerator** :math:`R_{\nu\Sigma_f}(\phi) = \int_V \nu\Sigma_f\,\phi\,dV`
+  — the fission production, the typed
+  :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+  over :math:`\nu\Sigma_f` (the :math:`\phi^\dagger\!=\!1` degenerate of
+  the homogenization Petrov–Galerkin bilinear).  The :math:`(n,2n)`
+  emission is **not** production here — contrast
+  :meth:`~orpheus.sn.solver.SNSolver.compute_production_rate`, the
+  ERR-052 renormalisation scale anchor, which keeps *total* physical
+  production (fission **plus** the :math:`(n,2n)` emission).  The role
+  split is the load-bearing #259 correction: the same physical
+  :math:`(n,2n)` neutrons are a **scale** quantity for the outer
+  renormalisation but a **removal-reduction** in the eigenvalue balance.
+* **Absorption** :math:`R_{\Sigma_a}(\phi) = \int_V \Sigma_a\,\phi\,dV`,
+  with :math:`\Sigma_a = \Sigma_f + \Sigma_c + \Sigma_L +
+  \sum_{g'}\Sigma_{2,g\to g'}` — i.e. ``absorption_xs`` counts the
+  :math:`(n,2n)` **collision once** (the neutron is removed from its
+  incident group by the collision).  See
+  :attr:`~orpheus.data.macro_xs.mixture.Mixture.absorption_xs`.
+* **Leakage** :math:`L` — the net vacuum-boundary outflow (below).  On a
+  reflective (lattice) problem it is a **structural zero**.
+* **Emission** :math:`E_{2n}(\phi) = \int_V \sum_{g,g'} 2\,\Sigma_{2,g'\to
+  g}\,\phi_{g'}\,dV` — the :math:`(n,2n)` **emission** (two neutrons out
+  per collision; the factor 2).  A gain, so it **reduces** net removal.
+
+The net :math:`(n,2n)` effect on removal is therefore
+:math:`\underbrace{\sum_{g'}\Sigma_{2,g\to g'}}_{\text{collision, in }\Sigma_a}
+- \underbrace{2\Sigma_2}_{E_{2n}} = -\Sigma_2` — **one extra neutron
+gained** per collision, exactly the physics of a neutron-doubling
+reaction.
+
+**Balance identity (divergence-telescoping).**  The angle- and
+group-summed discrete cell balance for cell :math:`i` in the posed
+eigenproblem is
+
+.. math::
+
+   \underbrace{\sum_{f\in\partial i}\!\bigl(\textstyle\sum_g J_g\bigr)\,\Delta A_f}
+              _{\text{net face flow}}
+   \;+\; \Sigma_{t,i}\,\phi_i\,V_i
+   \;=\; \frac{1}{k}\,R_{\nu\Sigma_f,i}
+        \;+\; \Sigma_{s,i}\,\phi_i\,V_i
+        \;+\; E_{2n,i}
+
+(streaming + total collision on the left; the isotropic fission source
+scaled by :math:`1/k`, plus the *unscaled* scatter and :math:`(n,2n)`
+gains, on the right).  Summing over **all** cells, every interior face
+is shared by two cells with opposite outward normals and equal current
+(continuity), so the interior face-flow terms **telescope to zero** —
+only the domain-boundary faces survive, and their sum is the net
+leakage :math:`L`.  With :math:`\Sigma_t - \Sigma_s = \Sigma_a` this
+collapses to
+
+.. math::
+
+   \frac{R_{\nu\Sigma_f}(\phi)}{k} \;=\; R_{\Sigma_a}(\phi) \;+\; L
+                                        \;-\; E_{2n}(\phi),
+
+which is :eq:`sn-keff-update` rearranged.  This is the same discrete
+divergence discipline the diffusion page states as
+:math:`\mathbf 1^{\mathsf T}(C-S)=\Sigma_a` with interior-face
+telescoping (see :ref:`diffusion-leakage-boundary-leaves`); SN and
+diffusion report the *same* balance-law eigenvalue, differing only in
+how the streaming operator is discretised.
+
+The leakage functional
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. math::
+
+   L \;=\; \sum_{f\,\in\,\text{vacuum}} \oint_{f} dA\,
+           \sum_g J_g(\mathbf{r}_f)\,,
+   \qquad
+   J_g \;=\; \sum_m (\Omega_m\cdot\hat n_f)\, w_m\, \psi_{m,g}
+
+is the face-area integral of the boundary trace's **net outward
+current**.  The angular-to-scalar reduction :math:`J_g` is
+:meth:`AngularBoundaryFlux.net_current
+<orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux.net_current>`
+— the single source of the :math:`\Omega\cdot\hat n\,w` contraction, the
+angular sibling of the scalar trace's :math:`J = J^+ - J^-`
+(:meth:`ScalarBoundaryFlux.net_current
+<orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux.net_current>`).
+It is spelled through the trace space's own atoms — the signed
+projection table
+:attr:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.omega_dot_n`
+and the :math:`|\Omega\cdot\hat n|\odot w` partial-current metric (using
+the identity :math:`\operatorname{sign}(\Omega\cdot\hat n)\cdot
+|\Omega\cdot\hat n|\,w = \Omega\cdot\hat n\,w`) — so no consumer
+re-derives the cosine weighting.  Tangential ordinates carry zero weight
+and drop out.
+
+The face measure :math:`dA` is supplied by
+:meth:`SNSolver._face_area_of`, matching the cell
+``volume_measure`` exactly so the balance identity closes:
+
+.. list-table:: Boundary-face measure by geometry
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - Geometry
+     - Face measure :math:`\Delta A`
+     - Source
+   * - 1-D slab
+     - :math:`1` (per unit cross-section)
+     - :attr:`MaterialMesh.areas <orpheus.transport.mesh.material_mesh.MaterialMesh.areas>`
+   * - 1-D cylinder
+     - :math:`2\pi R` (per unit height)
+     - ``MaterialMesh.areas``
+   * - 1-D sphere
+     - :math:`4\pi R^2`
+     - ``MaterialMesh.areas``
+   * - 2-D Cartesian
+     - transverse edge-cell widths (unit depth)
+     - ``mesh.axes`` transverse extent
+   * - 3-D
+     - **fails loud** (``NotImplementedError``)
+     - no vacuum-eigenvalue consumer yet
+
+The 3-D case raises rather than guess a transverse-area product's cell
+ordering — the leakage term cannot be answered honestly, and Cardinal
+Rule 1 forbids returning a wrong-but-plausible number.
+
+Reflective faces are a structural zero
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The reflective law equates a face's inflow to its reflected outflow
+**exactly**, so the net current there vanishes *by construction*.
+:meth:`~orpheus.sn.solver.SNSolver._boundary_leakage_rate` therefore
+**skips** reflective faces — it never accumulates them, rather than
+accumulating a value that ought to be zero but carries
+:math:`\pm`-cancelling angular-sum floating-point noise.
+
+This is a deliberate design choice with a bit-level payoff.  On an
+all-reflective (lattice) problem :math:`L` is a structural ``0.0``, and
+on a :math:`\Sigma_2`-free mixture :math:`E_{2n}` is exactly ``0.0`` (the
+per-material :math:`(n,2n)` loop adds nothing), so
+:eq:`sn-keff-update` reduces **bit-identically** to the historical
+lattice functional ``production / absorption``.  Every pre-existing
+reflective eigenvalue anchor is preserved to the last ULP — the
+unification adds terms that vanish structurally, not numerically, on the
+cases it must not perturb.
+
+The scale bridge: trace of the last inner solve
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The leakage term reads the **typed** boundary trace of the last inner
+solve (``self._psi_typed.boundary``), whereas the numerator/denominator
+reaction rates consume the bare-array flux :math:`\phi` the estimator is
+handed.  These two representations can be at **different scales**:
+:func:`~orpheus.numerics.eigenvalue.power_iteration` renormalises
+:math:`\phi` to unit production rate *between* the inner solve and the
+:math:`k`-update (ERR-052), so the stored trace belongs to the
+**un-renormalised** last iterate while the estimator's :math:`\phi` is
+its renormalised multiple.
+
+Leakage is degree-1 homogeneous in :math:`\psi`, so the fix is a single
+rescale by the fission-production ratio of the two fluxes
+(``self._phi_of_trace``, stored alongside the trace at **both**
+inner-path returns) — exactly ``1.0`` when the caller passes the
+returned flux itself.  The **contract** is therefore: the flux handed to
+:meth:`~orpheus.sn.solver.SNSolver.compute_keff` must be a scalar
+multiple of the last inner solve's flux (true for ``power_iteration`` and
+for every manual solve-then-estimate loop).
+
+If a vacuum face exists but **no** inner solve has stored a trace,
+:meth:`~orpheus.sn.solver.SNSolver._boundary_leakage_rate` raises
+``RuntimeError`` — the leakage cannot be answered honestly, and silently
+returning it as zero would *reproduce the #291 omission*.  Fail loud;
+never return a non-eigenvalue.
+
+The R7 :math:`(n,2n)` convention fork
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The historical spelling put the :math:`(n,2n)` emission in the
+**numerator** as production,
+
+.. math::
+
+   k_{\text{old}} \;=\; \frac{R_{\nu\Sigma_f} + E_{2n}}{R_{\Sigma_a}},
+
+which is a **non-eigenvalue** of the posed map whenever
+:math:`\Sigma_2 \neq 0` *and* :math:`k \neq 1`.  The reason is exactly
+the posing asymmetry: the inner solve scales **only** fission by
+:math:`1/k`; the :math:`(n,2n)` emission is an *unscaled* gain in the
+sweep source.  So the eigenvalue of that map is
+:math:`k^\star = R_{\nu\Sigma_f}/(R_{\Sigma_a} - E_{2n})` (reflective,
+:math:`L=0`), and putting the *unscaled* emission in the numerator does
+not recover it.  Writing :math:`f = R_{\nu\Sigma_f}`,
+:math:`a = R_{\Sigma_a}`, :math:`e = E_{2n} = 2s_2` and substituting
+:math:`f = k^\star (a - e)`:
+
+.. math::
+
+   k_{\text{old}}
+   \;=\; \frac{k^\star (a - e) + e}{a}
+   \;=\; k^\star \;+\; \frac{2 s_2\,(1 - k^\star)}{a}.
+
+The two agree only when :math:`s_2 = 0` (no :math:`(n,2n)`) or
+:math:`k^\star = 1` (critical).  For a supercritical
+:math:`k^\star > 1` the correction is negative
+(:math:`k_{\text{old}} < k^\star`); for subcritical, positive.  The MoC
+and CP pages carry the same fork
+(:eq:`moc-keff-update`, :eq:`cp-keff-update`); CP was the one member
+already spelled on net removal.
+
+What was tried and found
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The #291 bias was characterised pre-fix (commit ``d1daaac``, Gauss–
+Legendre :math:`n=8`, map-ratio ground truth noise :math:`\le 2\times
+10^{-11}`) across the five gate configurations:
+
+.. list-table:: Pre-fix reported :math:`k` vs the posed-problem eigenvalue :math:`k^\star`
+   :header-rows: 1
+   :widths: 40 18 18 24
+
+   * - Configuration
+     - Pre-fix reported
+     - Posed :math:`k^\star`
+     - Bias
+   * - homog. 2G vacuum slab (width 8)
+     - 1.83767525
+     - 0.98163269
+     - :math:`+87.2\%` (:math:`L/A = 0.872`)
+   * - het. vacuum sphere P\ :sub:`0`
+     - 0.86484694
+     - 0.70601977
+     - :math:`+22.5\%`
+   * - het. vacuum sphere P\ :sub:`1`
+     - 0.85080423
+     - 0.67876772
+     - :math:`+25.3\%`
+   * - reflective control (:math:`\Sigma_2=0`)
+     - 1.87500000
+     - 1.87500000
+     - :math:`\equiv` (bias :math:`1.2\times 10^{-10}`)
+   * - reflective :math:`\Sigma_2\neq 0`
+     - 1.92857143
+     - 2.61278195
+     - :math:`-26.2\%` (R7 defect)
+
+The two failure classes are visible in one table: the vacuum rows are
+the **leakage omission** (#291) — the reported :math:`k` overshoots by
+the leakage-to-absorption ratio :math:`L/A`; the last row is the **R7
+:math:`(n,2n)` convention** — zero leakage, yet a
+:math:`-26.2\%` error because the emission was mis-posed as production.
+The reflective-control row is exactly the bit-identity guarantee above.
+The exact check on the R7 row is
+:math:`0.78/(0.5185 - 0.2200) = 2.61278`, and
+:math:`(0.78 + 0.2200)/0.5185 = 1.92857` reproduces the old value —
+matching :math:`k_{\text{old}} = k^\star + 2s_2(1-k^\star)/a` term for
+term.
+
+Post-fix, reported :math:`k` and the map-ratio :math:`k^\star` agree to
+:math:`\le 6\times 10^{-10}` on all five.  The P\ :sub:`0`\ –P\ :sub:`1`
+sphere gap :math:`\Delta` roughly **doubled** (:math:`1.404\times
+10^{-2} \to 2.725\times 10^{-2}`) but stays inside the diagnostic
+:math:`(10^{-3}, 5\times 10^{-2})` band — the P\ :sub:`1` anisotropic
+correction is now measured against the correct eigenvalue on both
+solves.
+
+The V&V decision was a **principled re-baseline** (per ``vv-principles``
+bit-identity-vs-principled-equivalence): the old reported :math:`k` was a
+*different functional* from the posed problem's eigenvalue, so the new
+value is not a regression to be tolerance-matched but a correction to be
+verified against a structurally-independent reference (the fixed-point
+map ratio).
+
+Gotchas
+~~~~~~~
+
+* **Renormalise-then-report ordering.**
+  :func:`~orpheus.numerics.eigenvalue.power_iteration` renormalises
+  :math:`\phi` to unit production **between**
+  :meth:`~orpheus.sn.solver.SNSolver.solve_fixed_source` and
+  :meth:`~orpheus.sn.solver.SNSolver.compute_keff`.  So
+  ``compute_keff`` sees the *renormalised* :math:`\phi`, while the stored
+  ``_psi_typed.boundary`` is the *un-renormalised* trace — the scale
+  bridge above is what makes the leakage term consistent across that
+  boundary.  Reordering the two (report before renormalise) would break
+  the bridge's ``1.0`` shortcut.
+* **The outer iterate must stay a bare** ``np.ndarray``.  The Mode-11
+  live-arm sentinel in
+  ``tests/sn/operators/test_fission_kernel_crosscheck.py`` proves that
+  ``power_iteration`` feeds a **bare** :class:`numpy.ndarray` flux to
+  :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`, so the
+  bare-``np.ndarray`` dispatch arm of
+  :meth:`FissionOperator.apply
+  <orpheus.transport.operators.fission.FissionOperator>` is the *live
+  production arm* (the sentinel wraps that registered leaf in-process and
+  asserts the counter advances).  The estimator's
+  :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+  evaluations read the same bare array.  Routing the outer iterate
+  through a typed carrier would dark the arm (redding the sentinel) and
+  break the estimator's evaluate path — the bare-array outer iterate is
+  a load-bearing contract, not an implementation accident.
+
+Verification
+~~~~~~~~~~~~
+
+The permanent gate is
+``tests/sn/eigenvalue/test_keff_estimator_gate.py``: it asserts the
+reported :math:`k` equals the converged fixed-point map ratio
+:math:`k^\star = P(M\phi^\star)/P(\phi^\star)` across the four physics
+regimes — {vacuum slab, vacuum sphere (pinning the :math:`4\pi R^2`
+face-area convention), reflective bitwise-degenerate, reflective
+:math:`\Sigma_2\neq 0`} — with **in-file mutation teeth**: a
+leakage-drop mutation reds the vacuum legs while staying bitwise-green
+on reflective; a leakage sign-flip crash-reds through the scale-bridge
+guard; and the old :math:`(n,2n)`-in-numerator convention reds the
+:math:`\Sigma_2\neq 0` leg.
+
+This is a **consistency** gate: the map ratio is the structurally-
+independent ground truth for "does the estimator return the eigenvalue
+of its own posed map", and is blind by construction to *which*
+eigenvalue that is.  The SN solver's eigenvalue **correctness** — that
+the posed map's eigenvalue is the *physically right* :math:`k` — rests
+on the multi-group heterogeneous L1/L2 references elsewhere on this
+page, not on this gate.
 
 Two Inner Solvers
 -----------------
@@ -19065,6 +19487,29 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-07-03
+     - **The unified k-estimator law: the reported :math:`k` IS the
+       eigenvalue of the fixed-source map every method scales only
+       fission by :math:`1/k` through (#259 root / #291 SN symptom).**
+       SN's :meth:`~orpheus.sn.solver.SNSolver.compute_keff` gained the
+       #291 boundary-leakage term :math:`L` (the
+       :meth:`AngularBoundaryFlux.net_current
+       <orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux.net_current>`
+       :math:`\sum_m(\Omega_m\cdot\hat n)w_m\psi_m` face-integral, a
+       structural zero on reflective faces so lattice anchors stay
+       bit-identical) and the R7 :math:`(n,2n)` convention (emission on
+       the removal side, ``absorption_xs`` counts the collision once) —
+       see :ref:`sn-keff-estimator` (:eq:`sn-keff-update`).  MoC flipped
+       to the same net-removal spelling (:eq:`moc-keff-update`;
+       principled re-baseline 1.125 → 1.25 on the L0 case); CP was
+       already the operator-consistent member (:eq:`cp-keff-update`).
+       The ``KEigenvalue`` estimator-**injection** seam (``keff_estimator``
+       / ``production_estimator`` kwargs, ``_default_*`` functions)
+       retired (R8): the estimators are hardwired methods, dead by design
+       because every estimator consistent with the posed problem agrees
+       at a converged eigenpair.
+     - #259 #291
+     - ``refactor/k-estimator-unification`` *(in development)*
    * - 2026-07-03
      - **The ``TransportMethod`` Protocol minted over the method-meshes;
        BC resolution unified into ONE shared body; the rank-N walker

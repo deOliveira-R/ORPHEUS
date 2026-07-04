@@ -747,35 +747,65 @@ After the sweep, the scalar flux is updated as::
 Eigenvalue Update
 -----------------
 
-For reflective boundary conditions (zero leakage), the eigenvalue is:
+The MoC inner solve poses the eigenproblem with **only fission scaled**
+by :math:`1/k` — the :math:`(n,2n)` emission enters the sweep source as a
+plain (unscaled) gain — so the reported eigenvalue is fission-only
+production over **net removal** (the track-linked reflective pin cell has
+zero leakage):
 
 .. math::
    :label: moc-keff-update
 
-   k_{\text{eff}} = \frac{\text{production}}{\text{absorption}}
-   = \frac{\sum_i \sum_g (\nSigf{i,g} + 2 \Sigma_{2,i,g}^{\text{out}})
-     \phi_{i,g} \, A_i}
-     {\sum_i \sum_g \Siga{i,g} \, \phi_{i,g} \, A_i}
+   \keff \;=\; \frac{\sum_i \sum_g \nSigf{i,g}\,\phi_{i,g}\,A_i}
+                    {\sum_i \sum_g \bigl(\Siga{i,g}
+                     - 2\,\Sigma_{2,i,g}^{\text{out}}\bigr)\,
+                     \phi_{i,g}\,A_i}
 
 where :math:`\Sigma_{2,i,g}^{\text{out}} = \sum_{g'} \Sigma_{2,g \to g'}`
-is the total (n,2n) transfer out of group :math:`g`.
+is the total (n,2n) transfer out of group :math:`g`, and the absorption
+:math:`\Siga{} = \Sigma_c + \Sigma_f + \Sigma_L + \Sigma_2^{\text{out}}`
+already counts the :math:`(n,2n)` **collision once**.
 
-**Derivation.**  Each (n,2n) reaction absorbs one neutron and produces
-two.  In the eigenvalue balance:
+**Derivation (R7, #259).**  Each :math:`(n,2n)` reaction removes one
+neutron (the collision, counted in :math:`\Siga{}`) and returns two (the
+emission :math:`2\Sigma_2^{\text{out}}`) — a net gain of
+:math:`\Sigma_2^{\text{out}}` per reaction.  Because the posed map scales
+only fission by :math:`1/k`, the emission must sit on the **removal**
+side as a gain, not in the production numerator:
 
-- **Production** (numerator): :math:`\nSigf{}` (fission) + :math:`2\Sigma_2^{\text{out}}`
-  (two neutrons from each (n,2n))
-- **Absorption** (denominator): :math:`\Siga{} = \Sigma_c + \Sigma_f + \Sigma_L +
-  \Sigma_2^{\text{out}}` (capture + fission + leakage + (n,2n) removal)
-
-The (n,2n) appears in BOTH numerator (2×, production) and denominator
-(1×, removal).  The net contribution per (n,2n) reaction is +1 neutron.
+- **Production** (numerator): :math:`\nSigf{}` only — the sole term the
+  map scales by :math:`1/k`.
+- **Net removal** (denominator): :math:`\Siga{} - 2\Sigma_2^{\text{out}}`
+  — absorption minus the two emitted neutrons (equivalently
+  :math:`\Sigma_c + \Sigma_f + \Sigma_L - \Sigma_2^{\text{out}}`, the
+  net :math:`-\Sigma_2` gain made explicit).
 
 When :math:`\Sigma_2 = 0`, :eq:`moc-keff-update` reduces to the standard
 :math:`k = \nSigf{}\phi A / \Siga{}\phi A`.
 
+.. note:: **Principled re-baseline (R7, #259 P1, 2026-07-03).**
+
+   The previous spelling put the emission in the **numerator** as
+   production, :math:`k_{\text{old}} = (\nSigf{} + 2\Sigma_2^{\text{out}})
+   / \Siga{}`.  That is a *non-eigenvalue* of the posed map whenever
+   :math:`\Sigma_2 \neq 0` **and** :math:`k \neq 1`: writing
+   :math:`f = \nSigf{}\phi`, :math:`a = \Siga{}\phi`, :math:`e =
+   2\Sigma_2^{\text{out}}\phi` and using :math:`f = k^\star(a-e)` for the
+   posed eigenvalue :math:`k^\star`, one finds
+   :math:`k_{\text{old}} = k^\star + e(1-k^\star)/a`, equal to
+   :math:`k^\star` only when :math:`e=0` or :math:`k^\star=1`.  The L0
+   1-group analytical expectation was therefore re-derived from the posed
+   balance, :math:`k = \nSigf{} / (\Sigma_c + \Sigma_f - \Sigma_2)`, and
+   re-baselined **1.125 → 1.25** on the standard case
+   (:math:`\nu\Sigma_f = 0.25`, :math:`\Sigma_c + \Sigma_f - \Sigma_2 =
+   0.2`).  The old value was not a regression to tolerance-match but a
+   different functional; see the SN close-out of the same discipline
+   (:ref:`sn-keff-estimator` in :doc:`discrete_ordinates`).  The MoC
+   diagnostic ``print`` of the old ratio was retired with the fix.
+
 Implemented in :meth:`MOCSolver.compute_keff`.  Verified by
-``test_moc_verification.py::TestL0N2nReaction::test_n2n_1g_analytical_keff``.
+``tests/moc/test_verification.py::TestL0N2nReaction::test_n2n_1g_analytical_keff``
+(the docstring carries the full posed-balance re-derivation).
 
 
 Power Iteration

@@ -1722,6 +1722,24 @@ Implemented by :func:`~numerics.eigenvalue.power_iteration` via the
    For lattice models with reflective (or white) boundary conditions,
    the leakage term is zero, so this balance is exact.
 
+   .. note:: **Discipline linkage (#259 P1, 2026-07-03).**
+
+      CP was already the **operator-consistent member** when the unified
+      k-estimator discipline landed.  :eq:`cp-keff-update` is fission-only
+      production over net removal,
+      :math:`\Sigma_t - \Sigma_s^{\text{out}} - 2\Sigma_2^{\text{out}}
+      \equiv \Sigma_a + L - E_{2n}`, with the leakage :math:`L`
+      structurally zero (:math:`P^{\infty}` is the infinite-lattice
+      kernel) and the :math:`(n,2n)` emission on the removal side —
+      exactly the eigenvalue of the map the inner solve poses (only
+      fission scaled by :math:`1/k`).  The same discipline was
+      retrofitted onto SN (the #291 boundary-leakage term) and MoC (the
+      R7 numerator/denominator flip); see :ref:`sn-keff-estimator` in
+      :doc:`discrete_ordinates`.  Only the **substrate** still differs —
+      CP contracts group-last ``CellXS`` arrays where SN uses the typed
+      :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+      fields — and unifying that is the #259 close-out follow-up.
+
 4. **Converge** (:meth:`CPSolver.converged`) when :math:`|\Delta k| <`
    ``keff_tol`` and :math:`\|\Delta\phi\|_\infty <` ``flux_tol``.
 

@@ -117,11 +117,13 @@ def _mixture_with_n2n():
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.verifies("sn-keff-update")
 class TestReportedKeffIsThePosedEigenvalue:
     """reported k ≡ map-ratio k* across the BC × Σ₂ defect matrix."""
 
     RTOL = 5e-8  # measured post-fix agreement ≤ 6e-10; ~80× headroom
 
+    @pytest.mark.catches("ERR-064")
     def test_vacuum_slab(self):
         """[#291] Vacuum-bounded slab — the leakage term is load-bearing.
 
@@ -136,6 +138,7 @@ class TestReportedKeffIsThePosedEigenvalue:
         k_star = _map_ratio_kstar(solver, phi)
         np.testing.assert_allclose(keff, k_star, rtol=self.RTOL)
 
+    @pytest.mark.catches("ERR-064")
     def test_vacuum_sphere_curvilinear_face_area(self):
         """[#291] Vacuum sphere — pins the 4πR² face-area convention.
 
@@ -184,6 +187,7 @@ class TestReportedKeffIsThePosedEigenvalue:
             keff, _map_ratio_kstar(solver, phi), rtol=self.RTOL,
         )
 
+    @pytest.mark.catches("ERR-065")
     def test_reflective_n2n_convention(self):
         """[R7] Σ₂≠0, zero leakage — the (n,2n) placement is load-bearing.
 

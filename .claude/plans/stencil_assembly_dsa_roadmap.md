@@ -200,6 +200,41 @@ sites:**
    (that asymmetry IS the #291 catcher).
 6. Close #291 + #259 via trailers; comment #270 (CP/MoC arms status).
 
+**PHASE 1 STATUS — COMPLETE (2026-07-03, branch `refactor/k-estimator-unification`;
+merged per the checkpoint below):**
+- Commit chain: `f9a7171` (roadmap + R1–R6) → `d1daaac` (P0 findings + R7/R8) →
+  `308f92c` (P1.1 characterization) → `1247677` (the carve; **Closes #291**) →
+  `40e2528` (R8 seam retirement) → `da9c942` (gate + teeth) → `a3ada82`
+  (`partial_current_metric` accessor) → the close-out commit (docs + catalog +
+  markers; **Closes #259**).
+- Delivered: the ONE estimator law `k = R_νΣf/(R_Σa + L − E_2n)` across
+  SN/CP/MoC/diffusion; `AngularBoundaryFlux.net_current(face)` minted (the angular
+  sibling of the scalar `J⁺−J⁻` — the SAME family DSA's restriction consumes later);
+  SN leakage from the solver-held trace, reflective = STRUCTURAL zero (bitwise
+  preservation, pinned by the gate's reflective bit-pin); R7 n2n flip (MoC L0
+  re-derived 1.125→1.25); R8 hardwired KEigenvalue estimators (injection kwargs
+  gone; loud-TypeError tooth); CP mesh-required (dead fallback retired);
+  ERR-064 + ERR-065 catalogued with `catches()` wiring; the permanent cross-engine
+  gate (`tests/sn/eigenvalue/test_keff_estimator_gate.py`, reported ≡ map-ratio k*,
+  mutation teeth in-file, `verifies("sn-keff-update")`).
+- Docs (archivist, reviewed): `sn-keff-update` equation + the `sn-keff-estimator`
+  derivation section (divergence-telescoping balance, the R7 fork algebra, the
+  characterization table); KEigenvalue injection sections rewritten to R8;
+  `moc-keff-update` re-derived; `cp-keff-update` verified + linkage note;
+  `monte_carlo.rst` phantom-member drift fixed; sphinx `-W` exit 0; dead-xref
+  grep 0.
+- Deviations from the plan, both deliberate: (1) CP's IRR-numerator rewire NOT
+  done — it would mint an INTERNAL twin of the ⟨Σx,φ⟩ contraction against CP's
+  measure-based per-group diagnostics; the R3 friction branch fired and #270
+  (commented) remains the substrate follow-up for CP+MoC. (2) MoC got the R7
+  formula flip only; IRR substrate blocked on the fiber-bundle architecture ruling.
+- Walls: sn eigenvalue+operators + transport + iteration 1006; cp+moc 242;
+  numerics 825; the new gate 7/7 incl. teeth; pyright CLI = 1 (the accepted #288
+  residual — the `space: AngularTraceSpace` narrowing and the G_s accessor kept
+  the ratchet taut); `tests._harness.audit` exit 0 (ERR-064/065 covered); FULL
+  serial not-slow tree **5941 passed / 0 failed** (18 skipped, 54 xfailed —
+  baseline; 50:33); sphinx `-W` exit 0.
+
 ⏸ **C1** (small phase — compaction optional; checkpoint block regardless).
 
 ---

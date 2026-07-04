@@ -274,16 +274,39 @@ layers together:
 
        return MCResult(...)
 
-**Comparison with deterministic solvers.**  The CP and SN solvers use a
-shared :func:`~numerics.eigenvalue.power_iteration` loop that calls the
+**Comparison with deterministic solvers.**  The deterministic solvers
+(SN, CP, MoC, diffusion, homogeneous) drive the shared
+:func:`~numerics.eigenvalue.power_iteration` loop through the
 :class:`~numerics.eigenvalue.EigenvalueSolver` protocol (five methods:
 ``initial_flux_distribution``, ``compute_fission_source``,
-``solve_fixed_source``, ``compute_keff``, ``converged``).  The MC solver
-**cannot** satisfy this protocol because :math:`k_{\text{eff}}` emerges
-stochastically from cycle-to-cycle weight ratios, not from a deterministic
-flux/source iteration.  Instead, the MC orchestrator implements its own
-cycle loop with population control (roulette, splitting) that has no
-deterministic analogue.
+``solve_fixed_source``, ``compute_keff``, ``converged``).  Since #259 the
+protocol's ``compute_keff`` member is the **unified balance-law
+estimator** — fission production over net removal,
+
+.. math::
+
+   k \;=\; \frac{\text{fission production}}
+                {\text{absorption} \;+\; \text{leakage} \;-\;
+                 (n,2n)\ \text{emission}},
+
+the eigenvalue of the fixed-source map that scales only fission by
+:math:`1/k` (derived in :ref:`sn-keff-estimator` in
+:doc:`discrete_ordinates`).
+
+The MC solver (:mod:`orpheus.mc`) has **no** ``compute_keff`` member and
+does not implement this deterministic protocol: its
+:math:`k_{\text{eff}}` emerges **stochastically** from the cycle-to-cycle
+weight ratio :math:`k_{\text{cycle}} = \sum w_{\text{end}} / \sum
+w_{\text{start}}` (the pseudocode above), and the orchestrator runs its
+own cycle loop with population control (roulette, splitting) that has no
+deterministic analogue.  The two estimate the **same** neutron-balance
+eigenvalue: the deterministic ``compute_keff`` assembles it term by term
+from reaction-rate integrals, while the MC weight ratio tallies it in
+expectation (at criticality, production balances net removal).  Were an
+MC k-eigenvalue mode ever to expose ``compute_keff`` for cross-
+comparison, it would report that *same* unified balance from its
+collision-estimator tallies — the protocol contract such a mode *would*
+implement, not a member the MC solver carries today.
 
 
 .. _mc-geometry-mismatch:
