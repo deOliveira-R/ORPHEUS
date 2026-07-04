@@ -722,6 +722,78 @@ distillation; full memos in agent memory)
   successor per the conditional spec (spherical G2: triangularity + LAPACK ≡
   sweep over the [seed-rows-first, ordinate-blocks] order; teeth = coupling-
   direction swap + Hébert 3.432–3.435 sign flip).
+
+  **2.5d PLAN-OF-RECORD (2026-07-04, post-P0; rulings R12–R14 collected).**
+  P0 corpus: explorer carrier map (`.claude/agent-memory/explorer/
+  campaign_280_phase25d_carrier_map.md`, transient), cross-domain-attacker
+  framing memo (`.claude/agent-memory/cross-domain-attacker/
+  psi_half_seed_angular_trace_frames.md`), test-architect gate plan =
+  **§16 of `a3_solve_transpose_verification.md`** (the 2.5d gate spec;
+  its §16.A A1 cylinder-HAS-block leg is superseded by R12 — cylinder
+  carries NO block; the gates' `# FRAMING` notes bind to Frame A).
+  Diagnostics re-confirmed @ `ba16c4c`: sphere cold residual 5.18e5 /
+  seedΔ 4.57e-2; slab 8.11e-16 / cyl 6.88e-16 both Δ=0.0-bit.
+
+  The design (Frame A per R12 + the R13 corner completion):
+  - **Carrier**: `FullField.starting_direction: StartingDirectionFlux | None
+    = None` (Optional — all ~69 existing ctor sites compile; None ⟺ no
+    seed-carrying levels). Presence per level by the STRUCTURAL predicate
+    "μ_start ∉ the level's μ-nodes" (⟺ τ_raw ≠ 0): sphere-GL yes (1
+    level), cylinder-product NO (its starting direction IS ψ₀ — the #229
+    τ-clamp fact), Cartesian no. The leaf mirrors the
+    `AngularBoundaryFlux` precedent: ONE flat backing buffer + shaped
+    views — per seed level, BOTH directions (inward μ=−1 state + the
+    OUTWARD starting direction, forced as state by R13: the corner
+    outflow row must be linear in state), `cells(level, sign)` →
+    ``(ng, nx)`` and `corner(level, sign)` → ``(ng,)`` (the (R,∓1)
+    corner slots — inflow corner = given data / identity row; outflow
+    corner = defect row). Role siblings: `StartingDirectionFlux` +
+    `StartingDirectionSourceSink` on ONE `StartingDirectionSpace`
+    (metric ZERO everywhere — the ghost treatment; the angular
+    through-flux (1−μ²) vanishes at μ=±1, the SAME fact as α_{1/2}=0;
+    masked-pseudo-inverse rides; the honest-scope note per §16.A A4:
+    metric-invisible YET ACTIVE — constrained by B1 + C(i) + 2.5b's
+    Euclidean Mᵀ, NEVER credited to G3 reciprocity).
+  - **Dynamics**: the seed sub-system = per-seed-level ±1 SLAB-form legs
+    on the 2.5a frame (Hébert 3.434 is the plain slab DD — the μ=±1 rays
+    are straight characteristics; |μ_s|=1 on the sphere; the |μ_s|<1
+    generalization documented as a seam for any future seed-carrying
+    cylinder level). DAG order: seed⁻ ≺ ordinate legs (the ψ̃ chain
+    consumes ψ½⁻ cells) and seed⁻ ≺ seed⁺ (pole continuation ψ½⁺(0) =
+    ψ½⁻(0) — the SAME r=0 edge ordinates use); solve marches seed⁻ FIRST
+    via `carlson_inward_sweep_from_source` on the TRUE q½ (the lag +
+    `initial_guess`'s seed role die; kwarg survives per #285); apply
+    evaluates seed rows on the GIVEN block (the extrapolation closure
+    LEAVES the operator — the back edge vanishes); transpose reverses
+    both legs + `angular_adjoint` STOPS at the seed cotangent (the
+    strategy `seed_adjoint` delegation dies).
+  - **Sources (R14)**: ONE fold helper `Q̄(μ=±1) = Σ_ℓ (2ℓ+1)/2·Q_ℓ·
+    P_ℓ(±1)` (full (−1)^ℓ, B2b pin live); q_ext factories + S composite
+    arm (+its S0.2 transpose arm) + F arm populate q½ on seed-carrying
+    meshes; C = M[σ] gains the σ·ψ½-cells arm (the additive (L+C)
+    decomposition pins force it — corners are trace-like, C skips them);
+    B gains the corner arm (reflective: corner-out → corner-in via the
+    seed pair; vacuum 0; albedo α·; white loud-deferred if unclear).
+  - **Retirement** (aggressive-retirement + test migration per §16.D):
+    the seed-strategy zoo (`PsiHalfAngleSeed` Protocol + ABC/registry +
+    `ZeroSeed` + `CarlsonInwardSweep.__call__` + `AngularEdgeExtrapolation`
+    + `seed_adjoint`s + `CarlsonSweepContext` + the closure's
+    `psi_half_seed` field) — `carlson_inward_sweep_from_source` SURVIVES
+    as the engine; 3-search audit (graph + code/tests/docs grep + direct
+    ctors) before deletion.
+  - **Commits**: d1 carrier + §16.A gates → d2 fold helper + source/C/B
+    arms + §16.B gates → d3 the walk triple + retirement + §16.C/E/F
+    gates + baselines (sphere re-captures with the 3-criteria record;
+    slab AND cylinder assert-unmoved-first — a cylinder move HALTS; the
+    characterization flips RED → the augmented triangularity certificate
+    lands, LAPACK≡sweep leg stays 2.5b) → d4 estate rewires
+    (`test_seed_threading_spy` → seed-independence;
+    `test_inverse_operator_equivalence` premise rewrite; removal-form
+    sphere JOINS; decomposition σ-arm update; dd_regression sphere
+    re-capture; MMS/L1 absorb-gates confirmed) → d5 STATUS + memory.
+    Acceptance = §16.G; keystone: sphere cold residual **5.18e5 →
+    <1e-11**, seed-insensitivity **4.57e-2 → bitwise**, coarse-LS
+    end-to-end **NaN → finite+positive** (both drivers).
 - **2.5e — layout ruling (the R9 estate) + docs + close-out:** the sweep-layer
   layout decision from the carve's end-state; theory pages
   (`loss_representations.rst` the two-frames story + the orientation×kernel×
@@ -775,8 +847,37 @@ in↔out swap, Carlson mirror routing, `angular_adjoint` second factor};
 resolve the S0-deferred multi-D predicate-honesty question in the frame
 design. Then 2.5d → 2.5b → 2.5c → 2.5e per R10.
 
-⏸ **C2.5** after 2.5d (post-fix, pre-reverse-scan) or at the 2.5b→2.5c seam,
-whichever the session boundary hits first.
+⏸ **C2.4b — COMPACTION TAKEN 2026-07-04 at the 2.5d plan→execution seam**
+(user-called; the P0 corpus + rulings are banked, no 2.5d code yet).
+Re-anchor from: the **2.5d PLAN-OF-RECORD block above** (design + commit
+plan d1–d5 + acceptance numbers) + **rulings R12/R13/R14** (Rulings
+section) → the gate spec **§16** of `a3_solve_transpose_verification.md`
+(the full 2.5d gate plan; §16.A A1's cylinder-HAS leg superseded by R12)
+→ the three P0 memos in agent memory (explorer
+`campaign_280_phase25d_carrier_map.md` — the file:line consumer map,
+TRANSIENT; cross-domain-attacker `psi_half_seed_angular_trace_frames.md`;
+test-architect lessons). Branch `refactor/sn-walk-unification` @ the
+checkpoint commit after `ba16c4c` (2.5a complete + this plan; pushes
+held). Harness task #25 carries the ruled scope. Diagnostics
+re-confirmed pre-fix: sphere 5.18e5 / 4.57e-2; slab+cyl machine-exact.
+**NEXT ACTION = 2.5d d1 (the carrier):** mint `StartingDirectionSpace`
+(flat backing: per seed level, both directions' cells (ng,nx) + corners
+(ng,); ALL metric weights zero; shaped views `cells(level, sign)` /
+`corner(level, sign)`) + the `StartingDirectionFlux` /
+`StartingDirectionSourceSink` role leaves + `FullField.starting_direction:
+... | None = None` (Optional; `_recombine`/dunders/zeros/to_flat/
+from_flat/copy + TimedFullField advance) + FullFieldSpace third-block
+dispatch (from_blocks/apply_metric/apply_inverse_metric/inner_product/
+_rebuild) + the SNMesh presence predicate (per-level μ_start ∉ μ-nodes;
+sphere-GL → 1 seed level, cylinder/Cartesian → None) feeding
+`full_field_space` — then the §16.A gates
+(`tests/sn/mesh/test_starting_direction_carrier.py`: A1 presence both
+ways per R12, A2 flat round-trip + length pin + drop-slice mutation,
+A3 algebra closure, A4 honest-scope note; the A4 positive Mode-12 pin
+waits for d3's transpose). Then d2 (fold helper + source/C/B arms +
+§16.B), d3 (walk triple + retirement + §16.C/E/F + baselines), d4
+(estate rewires), d5 (STATUS). Walls per commit: sn + transport +
+numerics serial; pyright CLI = 1.
 
 ---
 
@@ -911,6 +1012,28 @@ assembly on the same mesh:
   TOGETHER with `SweepOperator.apply_transpose` (honest on arrival); the
   predicate is spelled generally: `inner.is_invertible and
   inner.inverse().is_adjointable`.
+- **R12 (seed-carrier framing, ruled 2026-07-04 at 2.5d open)**: **Frame A**
+  (the cross-domain-attacker recommendation) — the `starting_direction` block's
+  presence is keyed PER LEVEL by the STRUCTURAL predicate "μ_start ∉ the
+  level's μ-nodes" (⟺ τ_raw ≠ 0), NOT by geometry name: sphere-GL carries it
+  (1 level); cylinder-product does NOT (its starting direction coincides with
+  its first azimuthal ordinate — the #229 τ-clamp fact; a block would be a
+  dead rank-duplicate of ψ₀); Cartesian never. Supersedes the R10 letter's
+  uniform "per-level" wording and §16.A A1's cylinder-HAS-block leg. Ghost
+  (all-zero) metric — a structural fact ((1−μ²)|₋₁ = 0 ≡ α_{1/2} = 0), never
+  a fabricated volume weight.
+- **R13 (seed outer BC, ruled 2026-07-04)**: **mint the corner slots NOW** —
+  the (R, μ=∓1) corner pair lands this phase (inflow corner = given-data /
+  identity row; outflow corner = defect row; B's reflective arm maps
+  corner-out → corner-in). Forced consequence: the OUTWARD starting-direction
+  leg becomes STATE (the corner outflow row must be linear in state),
+  pole-continued from the inward leg — the seed leaf carries per level BOTH
+  directions' cells + corners on one flat backing (the `AngularBoundaryFlux`
+  precedent), all at zero metric weight.
+- **R14 (q½ source fold, ruled 2026-07-04)**: **the full (−1)^ℓ fold helper
+  from day one** — one helper `Q̄(μ=±1) = Σ_ℓ (2ℓ+1)/2·Q_ℓ·P_ℓ(±1)` with the
+  §16 B2b 2-term Legendre sign pin LIVE (production reach may stay ℓ=0;
+  the anisotropic case is manufactured before it is needed).
 
 ## Issue map
 

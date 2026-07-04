@@ -648,3 +648,451 @@ AST tripwire are green-on-clean; **the SPHERE leg is present in G1/G2/G3**
 dense-apply `Mᵀ` oracle on the SPHERE** (the only structurally-independent ground
 where assembly cannot reach); the assembled-`Mᵀ` oracle is the Cartesian L2
 cross-check that additionally catches a wrong transposed-scan coefficient.
+
+---
+
+# §16. 2.5d route-(a) gate plan (2026-07-04, test-architect)
+
+The #282 fix (ruling R10, FULL route (a)) lands the DIRECT starting-direction
+treatment on the 2.5a unified frame. §§9–15 above stay the base; this section
+is the 2.5d-specific gate spec. **The §12 conditional is now UNCONDITIONAL** —
+route (a) rides the carve. Canonical gate as §0 (`.venv/bin/python -O -m pytest
+… -p no:xdist`); monkeypatch-only mutations; never relax an existing tolerance;
+the SPHERE leg is mandatory everywhere (slab-only REJECTED).
+
+## §16.0 — scope, sequencing, framing, and the surface reconciliation
+
+**What 2.5d changes (verified against the tree @ `ba16c4c`):**
+1. **Carrier augmentation** — the composite gains a typed per-**starting-
+   direction-level** block ψ½, curvature-keyed (sphere: 1 level ⟹ `(ng, nx)`;
+   cylinder: `n_polar` levels ⟹ `(n_levels, ng, nx)`; slab/cart2d: ABSENT).
+2. **solve/apply/transpose adopt the direct treatment on the unified frame** —
+   `solve` marches the seed rows FIRST per level via
+   `carlson_inward_sweep_from_source` (psi_half_angle_seed.py:433) on the
+   CURRENT source's q½ block (the lag dies; `solve(initial_guess=)`'s seed role
+   dies, kwarg survives per #285); `apply` evaluates the seed-row equation on
+   the GIVEN ψ½ carrier component (the extrapolation closure **leaves the
+   operator**); `transpose` reverses both.
+3. **The sphere fixed point MOVES** (principled re-baseline, [[feedback-principled-over-bit-identical]]);
+   the cylinder is EXPECTED bitwise-unmoved (seed weightless — §16.D makes this a
+   TESTED assertion, not an assumption); the slab is bitwise (no seed).
+
+**Surface reconciliation (retire the stale vocabulary):** the CURRENT matvec seed
+is `AngularEdgeExtrapolation` (psi_half_angle_seed.py:733, the #195/ERR-058b
+operator-consistent default), NOT `CarlsonInwardSweep`. Route (a) does NOT
+revert the default — it removes the *extrapolation closure* from `apply`
+entirely (apply reads the carrier ψ½), and drives `solve` with the
+source-driven `carlson_inward_sweep_from_source` on the TRUE within-group
+source. The seed-STRATEGY `__call__` machinery (`AngularEdgeExtrapolation`,
+`ZeroSeed`, `CarlsonInwardSweep.__call__`) is thereby SUPERSEDED for the
+production path; the `carlson_inward_sweep_from_source` FUNCTION survives as the
+direct solver. This drives a retirement audit (§16.D).
+
+**Sequencing (R10):** S0 → 2.5a → **2.5d (this section)** → 2.5b → 2.5c → 2.5e.
+2.5d lands BEFORE the reverse-scan. Consequence for the gate split:
+- **2.5d lands NOW:** the carrier gates (A), the direct-seed value gates (B),
+  the four fixed-point gates (C), the re-baseline (D), the characterization
+  flip + the **triangularity-only** successor (E, matvec-probed, NO
+  assembly-emitter extension).
+- **2.5b lands the sphere G1/G2 `Mᵀ` chain** (base §11) against the FIXED
+  (direct) formulation — so the base §11 sphere gates are written EXACT
+  single-pass (rtol 1e-11, **no iterate-threading**): the a3 §0.3 "sphere loose
+  1e-9 seed-convergence floor" is SUPERSEDED for the post-2.5d world — the fix
+  makes the sphere solve a genuine triangular inverse. The spherical
+  LAPACK-≡-sweep `Mᵀ` leg (the §12 successor's second half) also lands at 2.5b.
+
+**Claim-layer + pillar table (vv §1.5, MANDATORY):**
+
+| Gate | Layer | Pillar | Reference (structurally independent of the SUT) |
+|------|-------|--------|--------------------------------------------------|
+| **A** carrier intrinsic | structural | closed-form / algebraic | carrier-algebra laws (round-trip = id; add/sub/scalar closure; curvature-keyed presence) |
+| **B1** direct-solve | L0 (flat) + **L1** (conv) | closed-form | the μ=−1 exponential ODE `φ(r)=q/σ+(φ_R−q/σ)e^{−σ(R−r)}` — NOT the recurrence hand-trace |
+| **B2** q½ source fold | L0 term | closed-form | Legendre identity `P_ℓ(−1)=(−1)^ℓ` (2-term hand calc) |
+| **C(i)** cold-residual | structural (solve↔apply consistency) | closed-form | `A·A⁻¹=I` — the lag-death acceptance (5.18e5 → machine) |
+| **C(ii)** seed-insensitivity | structural | — (bitwise self-consistency) | solve seed-independence (Δ 4.57e-2 → 0) |
+| **C(iii)** end-to-end coarse | flux-shape (physicality) | — (finite + positive) | production robustness (NaN/neg → physical); NOT precision, NOT keff |
+| **C(iv)** c=0 pure-absorber | flux-shape | closed-form | direct attenuation, no SI loop (the no-outer-iteration degenerate) |
+| **E** successor triangularity | structural | closed-form | `triu(Pᵀ M_aug P, 1) == 0` EXACT (walk-order certificate, augmented) |
+| **E** successor LAPACK≡sweep (**2.5b**) | flux-shape | closed-form | `solve_triangular(M_aug.T, …, lower=False)` LAPACK back-sub |
+
+**Pillar discipline:** every row is closed-form / algebraic-identity /
+physicality. **No MMS for the inverse/seed claims** (MMS proves neither the
+inverse identity nor the seed COEFFICIENTS — it is a source-driven flux-shape
+pillar; the curvilinear MMS anchors STAY as absorb-gates per §16.D, not as
+seed-correctness evidence). **No eigenvalue claim in 2.5d** — `eig(Kᵀ)=eig(K)`
+by construction makes keff Mode-12-blind to the seed/adjoint; the daggered
+eigenvalue is A4 downstream. Every seed gate compares FULL FIELDS or the
+direct-solver OUTPUT, NEVER a scalar functional.
+
+**Framing note (write gates framing-agnostic where possible).** A concurrent
+cross-domain-attacker dispatch weighs three framings for the ψ½ block —
+**F1** third storage block, **F2** angular-boundary-trace (μ=−1 as an angular
+face), **F3** zero-weight extra ordinate (`N→N+1` per level). All three give the
+seed DOFs **zero G-metric weight** (Carlson zero-weight starting direction,
+α₁ᐟ₂ = 0), so the metric-blindness honest-scope note (§16.A) is
+framing-AGNOSTIC. The gates below are written against the carrier's PUBLIC
+contract (presence / round-trip / closure / metric-weight / residual over the
+full field); each carries a `# FRAMING:` sub-note ONLY where the storage LAYOUT
+(which block/face/ordinate the seed occupies) enters the assertion.
+
+## §16.A — CARRIER intrinsic gates (framing-agnostic core)
+
+**New file:** `tests/sn/mesh/test_starting_direction_carrier.py` (or extend the
+FullField composite-space suite). `@pytest.mark.foundation` (algebraic carrier
+laws, no theory `:label:`). vv Mode-8: `np.testing.assert_*` / `pytest.fail`
+only.
+
+- **A1 — curvature-keyed presence (illegal-state pinned BOTH ways).**
+  - Sphere composite AND cylinder composite HAVE the ψ½ block; its shape is
+    `(n_levels, ng, nx)` with `n_levels == 1` (sphere) / `== n_polar`
+    (cylinder). `# FRAMING F1/F3:` assert the block/extra-ordinate EXISTS and is
+    curvature-shaped; `# FRAMING F2:` assert the μ=−1 angular-boundary DOFs exist.
+  - Slab composite AND cart2d composite MUST NOT carry a ψ½ block: constructing
+    the augmented carrier on a Cartesian mesh either omits the block (shape
+    carries no seed axis) OR raises — pin whichever the implementer chooses with
+    a POSITIVE assertion (`pytest.raises` or a shape/`hasattr` check), so a
+    future leak of the seed onto Cartesian REDS. (This is the illegal-state
+    "both ways" — present-on-curvilinear AND absent-on-Cartesian.)
+- **A2 — to_flat/from_flat round-trip INCLUDING the seed block.**
+  `from_flat(to_flat(x)) == x` (`array_equal`) for a `_random_composite`-with-
+  seed on sphere + cylinder; the flat vector length equals
+  `bulk.size + trace.size + seed.size` (`# FRAMING F1`) / includes the extra
+  ordinate columns (`# FRAMING F3`) / is unchanged in structure but the trace
+  carries the μ=−1 face (`# FRAMING F2`). **Mutation:** drop the seed slice from
+  `to_flat` → the length pin and the round-trip both RED (proves the block is
+  actually serialized, not silently truncated).
+- **A3 — zeros / algebra closure preserves the seed block.**
+  `zeros(...).seed` is all-zero and curvature-shaped; `(a + b).seed == a.seed +
+  b.seed`, `(a - b).seed == a.seed - b.seed`, `(α·a).seed == α·a.seed`
+  (`array_equal` / `assert_array_almost_equal_nulp`) for random a, b on
+  sphere+cyl. This pins that the composite's vector-space operations (consumed by
+  the OperatorSum algebra and by `_random_composite`) thread the new block —
+  a block that `__add__` forgets is a silent-drop bug the whole 2.5d algebra
+  rides on.
+- **A4 — the metric-blindness HONEST-SCOPE note (classify per L11 + Mode 12).**
+  The seed DOFs carry **zero G-metric weight** (α₁ᐟ₂ = 0 in every framing). So
+  the G-adjoint reciprocity functional `⟨Aψ,φ⟩_G = ⟨ψ,A.Hφ⟩_G` contributes
+  **exactly 0** from the seed block → it is IDENTICALLY blind to any error in
+  the seed-row transpose (Mode 12: the seed rows sit in the reciprocity
+  functional's invariance group; the zero weight annihilates them at every
+  tolerance, in every regime — NOT a sub-floor Mode-10 miss). **This is not a
+  defect of G3** (the reciprocity gate is correct on the metric-weighted
+  subspace); it is a structural boundary. **WHICH gate constrains the seed rows,
+  then?** Three, none of them G3:
+  1. **B1** — the direct-solver L0/L1 pin fixes the seed-row COEFFICIENTS against
+     a structurally-independent closed form (the exponential ODE), not against
+     apply/solve consistency.
+  2. **The Euclidean G1/G2 chain at 2.5b** — the dense `Mᵀ` / assembled-`Mᵀ`
+     oracle uses the UNWEIGHTED Euclidean transpose, which DOES see the seed
+     rows (no metric zeroing).
+  3. **The solve∘apply round-trip C(i) NOW** — the residual is measured over the
+     FULL augmented field (bulk ⊕ trace ⊕ seed), so a wrong seed-row breaks it
+     — BUT this is NECESSARY-not-sufficient alone (if `apply` and `solve` share
+     the SAME wrong seed coefficient the round-trip still holds — the base §11.3
+     two-sided-inverse invariance hole). B1 + the Euclidean oracle close it.
+  **Add a POSITIVE Mode-12 pin** (documents the blindness so a future reviewer
+  cannot over-credit G3): monkeypatch a sign flip into the seed-row transpose,
+  run the G3 sphere reciprocity row, and assert it STAYS GREEN (the seed is
+  G-invisible) WHILE the C(i) round-trip / B1 pin REDS — the two-gate asymmetry
+  IS the honest-scope proof.
+
+## §16.B — the DIRECT-SEED value gates
+
+### B1 — L0/L1 pin for `carlson_inward_sweep_from_source` (the direct solver)
+
+The μ=−1 starting-direction equation is `−dφ/dr + σφ = q` (the angular
+redistribution `1−μ²` vanishes at μ=−1; Hébert §3.9.4). Its closed attenuation-
+integral solution for constant σ, q with outer BC `φ(R)=φ_R` is
+
+```
+φ(r) = q/σ + (φ_R − q/σ)·exp(−σ·(R − r))          [structurally-independent ref]
+```
+
+**Extend** `tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py` (do NOT
+duplicate). What is ALREADY pinned there — and its LIMIT: `test_carlson_
+flat_psi_identity_*` (L0, exact flat identity — but flat NULLS the direct-solve
+dynamics per §0.6), `test_carlson_vacuum_BC_flat_source_nx_3` and
+`test_carlson_multi_region_sigma_t_step` (hand-traces that **re-execute the SAME
+recurrence** → procedurally, NOT structurally independent — the ERR-032 hazard).
+B1 ADDS the structural pillar those lack, and pins the DIRECT function on an
+ARBITRARY `Q_bar` (the existing pins all route through `CarlsonInwardSweep.
+__call__`'s PROXY `Q̄=Σ_tφ₀/Σw`, never the true-source direct entry).
+
+- **B1a (L0, exact — cite, do not duplicate):** the flat identity `φ_R=q/σ ⟹
+  output ≡ q/σ` is already pinned; reference it in the docstring as the exact leg.
+- **B1b (L1 flux-shape, closed-form — THE new structural pin):** constant σ, q,
+  `φ_R ≠ q/σ` (so the solution is genuinely exponential, not flat).
+  `carlson_inward_sweep_from_source(Q_bar=q·ones, σ·ones, dr, bc=φ_R)` →
+  `‖φ_DD − φ_exact(r_i)‖_∞` shrinks at **O(Δr²)** across `nx ∈ {8, 16, 32, 64}`
+  (DD is 2nd-order; assert `err(2h)/err(h) → 4` within a band, e.g. ratio ∈
+  [3.4, 4.6]). Two rows:
+  - **uniform mesh** — the tight convergence leg.
+  - **graded (non-uniform) mesh** `dr = geometric/quadratic grading` — the
+    MANDATORY per-cell `dr[k]` indexing leg (Mode 5). A uniform mesh is BLIND to
+    a `dr[k]→dr[k±1]` index drift (all widths equal); the graded row REDS it.
+- **Mutations (each RED under `-O`, monkeypatch `carlson_inward_sweep_from_source`):**
+  1. Hébert (3.435) closure sign `phi_face = 2·phi_cell + phi_face` (drop the
+     `−`) → convergence to the WRONG limit → both rows RED.
+  2. denom sign `dr·σ − 2` → RED.
+  3. the diamond `2.0` factor → `1.0` → RED (wrong limit).
+  4. `dr[k] → dr[k-1]` index drift → **uniform GREEN, graded RED** (the
+     config-blindness keystone for B1).
+
+### B2 — the q½ source-construction fold (`P_ℓ(−1) = (−1)^ℓ`)
+
+Wherever the μ=−1 source component is built from the angular source moments
+`Q_ℓ(r)`, the fold is `Q̄_i = Σ_ℓ (2ℓ+1)/2 · Q_ℓ(r_i) · P_ℓ(−1) = Σ_ℓ
+(2ℓ+1)/2 · Q_ℓ(r_i) · (−1)^ℓ`. **This is the isotropic-snapshot-blindness trap
+(§0.6): an all-isotropic suite is silently blind to a dropped/mis-signed φ_ℓ≥1.**
+Manufacture the anisotropic case FIRST.
+
+- **B2a — ℓ=0 present pin (production reach today):** an isotropic source →
+  `Q̄ = Q₀/2 · P₀(−1) = Q₀/2`. Assert the source-construction path yields
+  `Q̄ = ½ Q₀` (matches the current `Q_bar = σ_t·φ₀/Σw` with `P₀(−1)=1`).
+- **B2b — 2-term Legendre hand-check (the anisotropic future-proof, foundation
+  pin on the fold helper):** feed `Q₀, Q₁` (ℓ=0 and ℓ=1 moments) → the fold at
+  μ=−1 is `Q̄ = ½Q₀·(+1) + (3/2)Q₁·(−1) = ½Q₀ − (3/2)Q₁`. Hand-check to
+  `rtol=1e-14`. **Mutation:** drop the `(−1)^ℓ` (use `P_ℓ(−1)=+1`) → `Q̄ =
+  ½Q₀ + (3/2)Q₁` → RED (Mode 1/6 — the P₁(−1) sign). **`# FRAMING`:** F3
+  (zero-weight-ordinate) evaluates the fold intrinsically at the extra ordinate's
+  μ=−1; F1/F2 fold upstream when the seed-block source is populated — the gate
+  is on the fold identity WHEREVER it lives.
+  - **Scope note (honest):** the current operator is ℓ=0-only (scattering
+    external to L; the `carlson_inward_sweep_from_source` warning at
+    psi_half_angle_seed.py:592 is load-bearing). If route (a)'s source
+    construction does NOT yet expose ℓ≥1, B2b is a **foundation unit pin on the
+    fold helper** (not production-reached yet) — KEEP it (it manufactures the
+    anisotropic case the isotropic suite is blind to, per §0.6), and mark it
+    `xfail(strict=False, reason="P1 source fold reached when anisotropic
+    scattering enters L")` ONLY if the helper does not yet accept ℓ≥1 moments;
+    otherwise land it live.
+
+## §16.C — the FIXED-POINT gates (the decisive classifiers, promoted)
+
+Promoted from `derivations/diagnostics/diag_curvilinear_seed_sensitivity.py`
+(Probes 1/2/4) and `diag_sphere_fixedpoint_consistency.py` (Probes 6/8). **New
+file** `tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py`
+(`@pytest.mark.regression`; the acceptance gates for #282). Reproduce the
+diagnostic constructions via the PUBLIC operator API (`InvertibleOperator`,
+`StreamingOperator + MultiplicationOperator`), het σ_t, ≥2G, `_random_composite`
+volumetric source with a ZEROED inflow trace (the diagnostics' `_zero_boundary`).
+
+- **C(i) — cold-residual (THE acceptance number).** `r = ‖A·solve(b) − b‖_∞ /
+  ‖b‖_∞` measured over the FULL augmented field (bulk ⊕ seed), COLD start
+  (`initial_guess=None`).
+  - **sphere:** today **5.18e5**; post-fix assert `r < 1e-11` (slab-level exact
+    single-pass — the seed-lag is gone; NO iterate-threading, NO sphere slack).
+    This is the LAG-DEATH acceptance (solve↔apply consistency), NOT seed
+    correctness (B1 + the 2.5b Euclidean oracle own that).
+  - **slab + cylinder controls:** today `8.11e-16` / `6.88e-16`; assert
+    `r < 1e-11` (they were already exact — must STAY).
+  - `# FRAMING:` the residual MUST include the seed block, else a wrong seed row
+    is invisible (Mode-12 self-inflicted). In F3 the extra-ordinate rows are in
+    `A.apply`'s output already; in F1/F2 add the seed/trace block to the norm.
+- **C(ii) — seed-INSENSITIVITY (the lag signature dies).** `solve(b,
+  initial_guess=X1)` vs `solve(b, initial_guess=X2)` for two random seeds.
+  - **sphere:** today `Δ = 4.57e-2`; post-fix assert **bitwise** (`array_equal`,
+    the seed role in the solve is dead — the direct march does not read the
+    guess for the ψ½ rows). Slab/cyl: already `0.0`; STAY.
+  - **Decisive-classifier corroboration (Probe 6):** `psi0` arbitrary →
+    `b = A.apply(psi0)` → assert `A.solve(b)` (COLD) recovers `psi0` to
+    `rtol=1e-11` (pre-fix only `A.solve(b, initial_guess=psi0)` recovered it —
+    the fixed point was correct, the seed-lag was the sole defect; post-fix the
+    cold solve reaches it directly). This gate ALSO pins that the fix did not
+    MOVE the fixed point away from the correct one (`psi0` is the exact
+    pre-image).
+- **C(iii) — end-to-end coarse `level_symmetric` S4, 16-cell fixed-source
+  sphere** (the #282 comment explicitly requests this companion). Via
+  `solve_sn_fixed_source(materials, sphere Mesh1D nx=16, Quadrature.
+  level_symmetric(4), uniform-isotropic external_source, boundary="vacuum")`.
+  - today: SI → **NaN**, Krylov → **negative flux** (−163…+205).
+  - post-fix assert: `np.all(np.isfinite(sol.flux))` AND `np.all(sol.flux >= 0)`
+    AND (converged: `sol` non-degenerate). This is a **physicality/robustness**
+    gate (flux-shape layer), NOT a precision claim and NOT keff — the precision
+    is C(i); pair it with a GL-S16-40-cell control row (today physical
+    [0.84,1.99]) that must STAY physical. Run BOTH inner drivers (SI and
+    Krylov): both must produce finite+positive.
+- **C(iv) — pure-absorber c=0 sphere fixed-source** (the no-outer-iteration
+  degenerate). `Σ_s0 = 0` ⟹ single sweep, no SI loop → the cold solve IS the
+  answer; today it NaNs (the seed-lag with no outer iteration to mask it).
+  Post-fix assert: finite + positive AND the C(i) cold residual `< 1e-11` (with
+  c=0 the direct solve is a genuine single-pass exact inverse; the interior flux
+  matches the closed-form direct attenuation — a closed-form corroboration row).
+
+## §16.D — the RE-BASELINE protocol (what moves, what MUST NOT)
+
+Route (a) re-poses the curvilinear seed → a principled re-baseline per
+[[feedback-principled-over-bit-identical]] (the three criteria: named-
+intermediate, structurally-independent reference, FP-explainable drift — here
+the drift is NOT FP, it is a genuine formulation change, so criterion 3 reads
+"the value change is the documented direct-treatment re-pose, bounded by the
+seed's O(1) contribution", and criterion 2 is B1 + C(i)). Each re-capture
+carries this record in the snapshot generator docstring.
+
+**MOVES (re-capture, with the 3-criteria record):**
+- `walk_matvec_sphere_2g.npz` (fwd + adj) — `apply` now reads the carrier ψ½
+  instead of extrapolating; the input `_random_composite` now carries a seed
+  block; the matvec value moves. Re-capture at nulp=1, `-W error::DriftWarning`.
+  Update `_generate_walk_baselines.py` (the CASES already flag "curvilinear rows
+  re-capture at 2.5d"). Record: reference = C(i) machine residual + B1.
+- `tests/sn/sweep/curvilinear/test_sph_sweep_regression.py` (snapshot-based
+  solve output) — RE-CAPTURE; the sphere solve output moves to the correct
+  fixed point.
+- The **sphere G1/G2 tolerance** (base §11, lands 2.5b): written EXACT
+  single-pass (1e-11, no iterate-threading) — a TIGHTENING vs the a3 §0.3
+  loose-1e-9. A tightening is always allowed; record that the fix EARNED it.
+
+**MUST NOT MOVE (assert-unmoved; if it moves, STOP):**
+- **slab** `walk_matvec_slab_2g.npz` (fwd+adj) — no seed block; `array_equal`
+  under `-W error::DriftWarning`. A slab move ⟹ the fix leaked into Cartesian
+  (scope violation) → STOP.
+- **cylinder** `walk_matvec_cyl_2g.npz` (fwd+adj) — **EXPECTED bitwise-unmoved
+  (the seed is weightless: α₁ᐟ₂=0 AND the per-level α-dome telescopes the seed
+  away — the #282 0.0-bit table row).** Make this a TESTED assertion, NOT a
+  silent re-capture: assert `array_equal` of the PHYSICAL (non-seed) ordinate
+  output against the frozen baseline (captured on the old carrier). **This is
+  the brief's "VERIFY this expectation is testable":** the mechanism is that a
+  DIFFERENT ψ½ carrier value (the random seed block) produces the SAME physical
+  output iff the seed is truly annihilated. `# FRAMING F3:` compare the
+  physical-ordinate slice (drop the zero-weight extra ordinate); F1/F2: compare
+  bulk⊕trace, excluding the seed block. **If the cylinder row MOVES: STOP and
+  investigate** — either (a) an FP-reduction-order change (then re-capture WITH a
+  3-criteria record AND a note that "seed-weightless" was too strong a claim), or
+  (b) the fix leaked (a bug). Do NOT default to the roadmap's conservative
+  "curvilinear re-captures" for the cylinder — the sharper assert-unmoved-first
+  pins the seed-weightless INVARIANT, which a silent re-capture would discard.
+
+**STAY GREEN (laws + absorb-gates — run post-fix, do not pre-relax):**
+- `tests/sn/operators/test_g_adjoint_reciprocity.py` sphere+cyl rows —
+  reciprocity is a LAW at `rel<1e-12` on the NEW operator; the seed's zero
+  G-weight leaves the metric-weighted reciprocity unchanged (§16.A A4). Green.
+- the curvilinear **MMS / L1 analytic anchors** (`test_streaming_equilibrium_
+  curvilinear.py`, the sphere MMS gates) — analytic-tolerance ABSORB gates; the
+  direct treatment is ≥ as accurate (it kills the ERR-058b proxy floor on the
+  SOLVE side). Run post-fix; any move beyond tolerance ⟹ investigate (the fix
+  degraded accuracy = bug, OR the anchor was lag-compensating = re-baseline with
+  3 criteria) — NEVER pre-emptively loosen.
+
+**Retirement audit (the extrapolation closure leaves the operator):**
+- `test_psi_half_angle_seed.py::TestMorelMontryDefaultSeed::test_default_seed_
+  is_angular_edge_extrapolation` (line 488) — the apply no longer extrapolates;
+  this pin RETIRES or rewires to "apply reads the carrier ψ½". Design-choice-
+  dependent: if the whole `PsiHalfAngleSeed` strategy family is retired, rewire
+  its behavioral pins to the carrier-component treatment and delete the
+  API-smoke pins (`_satisfies_protocol`, `_registered`, `_repr`) per the
+  retirement rule (test migration, not deletion). The `carlson_inward_sweep_
+  from_source` value pins (B1a existing + B1b new) STAY (the function survives).
+- grep `AngularEdgeExtrapolation`, `ZeroSeed`, `psi_half_seed`, `PsiHalfAngleSeed`
+  across `tests/` AND `docs/` (the three-search retirement audit) before deleting
+  — an unresolved `:class:`/`:func:` doc xref renders as plain text with NO `-W`
+  warning.
+
+## §16.E — the characterization-flip protocol + the 2.5d-lite successor
+
+**The expected RED (the acceptance evidence).** `test_assembly_mode.py::
+test_282_characterization_spherical_seed_is_a_back_edge` asserts (sphere arm,
+line 596) `above > 1e-12 * scale` — a POSITIVE back-edge assertion. Route (a)
+computes the seed from the SOURCE (not the input ψ's moments), so the ordinate-
+only bulk matrix loses its back edge → `above ≈ 0` → the assertion FAILS → RED
+with its actionable message ("the closed starting-direction fix has landed.
+Rewrite this characterization as a spherical triangular G2 gate…"). **That flip
+IS the fix's acceptance evidence — NOT a regression** (L16 loud-flip contract).
+The cylinder control arm (`triu==0` exact) MUST stay GREEN (the fix does not
+touch the already-triangular cylinder). Note: the sphere-arm `assert` is a
+test-file assert (pytest AST-rewrites → fires under `-O`); the successor below
+uses `np.testing`/`pytest.fail` per the established project discipline (the
+g_adjoint file migrated off bare assert for exactly this robustness).
+
+**The 2.5d-lite successor (lands NOW — triangularity ONLY, matvec-probed, NO
+assembly-emitter extension).** Replace the RED characterization with a POSITIVE
+triangularity certificate on the **AUGMENTED** one-group bulk matrix:
+- Probe the augmented bulk matrix `M_aug` (seed rows + ordinate blocks) by
+  column probes of the production `apply` (extend `_probe_bulk_matrix_one_group`
+  to the augmented carrier — it stays matvec-probed; assembly is NOT extended to
+  curvilinear this phase).
+- Permutation order `P` = `[seed-rows-first-per-level, ordinate-blocks in
+  increasing μ]` (extend `_curvilinear_sweep_order` to prepend the per-level
+  seed DOFs). The current back edge (ordinate → seed at the μ-reversal `mirror`)
+  becomes a within-level FORWARD edge (seed → first-ordinate inflow).
+- **Gate:** `np.testing.assert_array_equal(np.triu(P·M_aug·Pᵀ, 1), 0.0)` —
+  `M_aug` is block-lower-triangular in the augmented sweep order (the walk-order
+  certificate; the transpose analog of the #284 discharge).
+- **The spherical LAPACK-≡-sweep leg is DEFERRED to 2.5b** (base §12 second
+  half): `solve_triangular(M_aug.T, b[order], lower=False)` ≡
+  `SweepOperator.apply_transpose(b)` — it needs the reverse-scan, which is 2.5b.
+
+**Teeth (each RED under `-O`, monkeypatch — NEVER `git checkout`):**
+1. **Coupling-direction swap** — feed the LAST ordinate instead of the μ=−1
+   starting direction into the seed row → the `triu==0` triangularity leg REDS
+   (a back edge reappears) AND C(i) round-trip REDS.
+2. **Hébert (3.432–3.435) sign flip** in `carlson_inward_sweep_from_source` →
+   B1 REDS (the direct-solve convergence) AND C(i) cold-residual REDS AND (at
+   2.5b) the LAPACK-≡-sweep leg REDS.
+3. **Seed-source dropped (`q½ = 0`)** — zero the source's seed block before the
+   solve → assert `solve(b_with_q½) ≠ solve(b_with_q½=0)` on the sphere (the
+   seed source MOVES the solve). **If they are EQUAL the seed block is DEAD**
+   (the carrier augmentation is inert — a Mode-11-adjacent vacuity: the whole
+   route-(a) machinery would be un-exercised). This is the term-ACTIVATION check
+   (§0.6): after adding the seed block, PROVE it is consumed. Pair with the
+   Mode-11 wrap sentinel (§16.F).
+
+## §16.F — Mode-7/10/11/12 audit + failure-mode table rows
+
+- **Mode 7 (MMS/config simplification bias).** Flat-flux NULLS the direct-solve
+  dynamics (the seed is exact at flat — the `test_carlson_flat_psi_identity_*`
+  pins sit exactly in the proxy's exactness regime). ⟹ every direct-solve gate
+  (B1b, C(i), the teeth) uses a NON-FLAT source (`_random_composite` / the
+  exponential). The isotropic-snapshot blindness (B2) is answered by
+  manufacturing the anisotropic 2-term case FIRST.
+- **Mode 10 (activated-but-unconstrained).** The seed block being ADDED must be
+  CONSTRAINED, not merely activated: teeth #3 (q½=0 moves the solve) is the
+  ACTIVATION proof; teeth #2 (Hébert sign flip REDS B1/C(i)) is the CONSTRAINT
+  proof. Both required — an activated-but-unconstrained seed is the third state.
+- **Mode 11 (gate-never-executes-the-rewired-path).** The direct solver
+  `carlson_inward_sweep_from_source` must be EXECUTED by the sphere `solve` path
+  (the `_run` seed block). **Wrap sentinel:** monkeypatch a counter that wraps
+  `carlson_inward_sweep_from_source`; run the sphere cold `solve`; assert
+  `counter > 0` (the direct solver IS on the solve's call graph) AND — the dual
+  — that on the slab it is `== 0` (Cartesian has no seed). In-process wrap, not a
+  file-write probe; `np.testing`/`pytest.fail`.
+- **Mode 12 (invariant-functional).** Three prohibitions, all enforced above:
+  (a) G3 reciprocity is zero-weight-blind to the seed rows → NEVER credit it as
+  the seed catcher (§16.A A4 positive pin); (b) the C(i) residual is measured
+  over the FULL field (a bulk-only norm would be seed-blind); (c) NEVER credit
+  the seed on keff — `eig(Kᵀ)=eig(K)`; C(iii) measures FLUX physicality, not
+  keff. Every 2.5d gate compares full fields / the direct-solver output.
+
+**Failure-mode table rows (append to base §7 / §14; promote to ERR-NNN if a real
+bug is caught in 2.5d implementation):**
+
+| Failure mode | Test-design row that catches it |
+|--------------|---------------------------------|
+| Direct seed solves the wrong μ=−1 ODE (Hébert 3.434/3.435 sign/factor) | B1b convergence to the closed-form exponential (uniform + graded), non-flat |
+| Per-cell `dr[k]` index drift in the inward recurrence | B1b GRADED-mesh row (uniform is blind — Mode 5) |
+| Dropped `P_ℓ(−1)=(−1)^ℓ` sign in the q½ source fold | B2b 2-term Legendre hand-check (isotropic suite is blind — §0.6) |
+| The seed-lag survives (solve not made a direct inverse) | C(i) cold-residual sphere `<1e-11` (5.18e5 acceptance) + C(ii) seed-insensitivity bitwise |
+| The carrier seed block is INERT (added but not consumed) | teeth #3 (q½=0 moves the solve) + Mode-11 wrap sentinel on `carlson_inward_sweep_from_source` |
+| The fix leaks onto Cartesian / cylinder | slab `array_equal` (STOP) + cylinder assert-unmoved-first (STOP) |
+| Seed-row transpose error credited to the (zero-weight-blind) reciprocity gate | Mode-12 positive pin: G3 STAYS green under a seed-transpose sign flip WHILE C(i)/B1 RED |
+| Coarse `level_symmetric` sphere fixed-source NaN/negative | C(iii) end-to-end finite+positive, both inner drivers (the #282-comment companion) |
+
+## §16.G — done criterion (extends §8/§15)
+
+2.5d is DONE only when: **(A)** the carrier gates green on sphere+cyl and the
+Cartesian illegal-state pin holds; **(B1)** the direct-solve converges O(Δr²) to
+the exponential on uniform AND graded meshes; **(B2)** the q½ fold pin holds
+(ℓ=0 live; the 2-term anisotropic pin landed or `xfail(strict=False)`); **(C)**
+the sphere cold-residual `<1e-11`, seed-insensitivity bitwise, the coarse
+`level_symmetric` end-to-end finite+positive on both drivers, c=0 physical;
+**(D)** the sphere baselines re-captured with the 3-criteria record, the slab
+AND cylinder rows assert-unmoved (a cylinder move HALTS the carve), the
+reciprocity + MMS anchors green, the seed-strategy retirement audited across
+code+tests+docs; **(E)** the characterization flips RED-then-rewritten to the
+augmented triangularity certificate, the cylinder control stays green, all three
+teeth RED under `-O`; **(F)** the Mode-11 wrap sentinel fires on sphere / stays
+0 on slab, the Mode-12 positive pin holds. **The SPHERE leg is present in every
+gate** (slab-only REJECTED — blind to the μ-reversal and to the entire seed
+mechanism, which does not exist on Cartesian). The keystone acceptance number is
+**C(i): the sphere cold residual 5.18e5 → `<1e-11`** — the single measurement
+that certifies the lag is dead; B1 + the 2.5b Euclidean `Mᵀ` oracle certify the
+seed COEFFICIENTS are correct, not merely consistent.
