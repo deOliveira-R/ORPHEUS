@@ -331,13 +331,28 @@ class AngularTraceSpace(FunctionSpace):
     # :meth:`from_quadrature_and_layout`.
     layout: "FaceLayout" = field(kw_only=True, repr=False, compare=False)
     omega_dot_n: NDArray = field(kw_only=True, repr=False, compare=False)
-    # The partial-current metric G_s = |Ω·n̂|⊙w is REQUIRED on a trace
-    # space (never the Euclidean ``None`` — the module docstring's Wave-O
-    # decision; :meth:`from_quadrature_and_layout` always builds it), so
-    # the base's ``Optional`` narrows away and metric consumers
-    # (``AngularBoundaryFlux.net_current``) subscript it without a
-    # can't-happen guard.
-    inner_product_weights: NDArray = field(kw_only=True, repr=False, compare=False)
+
+    @property
+    def partial_current_metric(self) -> NDArray:
+        r"""The installed boundary metric :math:`G_s = |\Omega\cdot\hat n|\odot w` (flat).
+
+        A trace space ALWAYS carries the partial-current metric — never
+        the Euclidean ``None`` (the Wave-O decision;
+        :meth:`from_quadrature_and_layout` installs it unconditionally) —
+        so this named accessor narrows the base's ``Optional`` ONCE, with
+        the construction guarantee spelled as a loud parse rather than a
+        silent assumption at every consumer
+        (``AngularBoundaryFlux.net_current`` reads THIS, not the generic
+        ``inner_product_weights``).
+        """
+        weights = self.inner_product_weights
+        if weights is None:
+            raise TypeError(
+                "AngularTraceSpace without its partial-current metric G_s — "
+                "construct via from_quadrature_and_layout (the metric is "
+                "not optional on a boundary trace)."
+            )
+        return weights
 
     @property
     def face_names(self) -> tuple[str, ...]:

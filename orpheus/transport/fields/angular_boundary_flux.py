@@ -153,7 +153,7 @@ class AngularBoundaryFlux(FluxRole, AngularBoundaryField):
         space = self.space
         row = space.omega_dot_n[space.face_names.index(face)]
         slot = space.layout.faces[face]
-        metric = space.inner_product_weights[
+        metric = space.partial_current_metric[
             slot.offset : slot.offset + slot.flat_size
         ].reshape(slot.shape)
         sign_axis0 = np.sign(row).reshape(
