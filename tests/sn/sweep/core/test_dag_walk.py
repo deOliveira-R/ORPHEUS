@@ -114,6 +114,69 @@ def test_dag_walk_slab_matches_per_ordinate():
 
 
 @pytest.mark.foundation
+def test_dag_walk_cell_indices_matches_dag_walk_all_geometries():
+    r"""The lightweight twin yields EXACTLY ``dag_walk``'s cell order.
+
+    Phase 2.5 S0.3 (#280, P0 inference (b) closure): ``chain_idx`` (the scan
+    permutation) is MATERIALIZED from ``dag_walk`` (``sweep_cache.py``), and
+    ``dag_walk_cell_indices`` is its documented shortcut twin — but no test
+    compared the twin to the canonical walk directly (zero prior references
+    to ``dag_walk_cell_indices`` under ``tests/``). This pin makes the
+    "one total order, three materializations" claim a GATE instead of a
+    reading, before the #280 unification leans on it.
+    """
+    geometries = {
+        "slab": (CoordSystem.CARTESIAN, Quadrature.gauss_legendre(6)),
+        "sphere": (CoordSystem.SPHERICAL, Quadrature.gauss_legendre(8)),
+    }
+    for name, (coord, quad) in geometries.items():
+        mesh = Mesh1D(
+            edges=np.linspace(0.0, 2.0, 11),
+            mat_ids=np.zeros(10, dtype=int),
+            coord=coord,
+        )
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        for sign in (+1, -1):
+            twin = list(sn_mesh.dag_walk_cell_indices(direction_sign=sign))
+            canonical = [
+                v.cell_idx for v in sn_mesh.dag_walk(direction_sign=sign)
+            ]
+            if not np.array_equal(twin, canonical):
+                pytest.fail(
+                    f"[{name}, sign={sign:+d}] dag_walk_cell_indices "
+                    f"{twin} != dag_walk order {canonical}"
+                )
+
+    # Cylinder: per-μ-level, both signs (the degenerate pure-azimuthal
+    # ordinates take the forward-order branch in BOTH twins by contract).
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 1.5, 9),
+        mat_ids=np.zeros(8, dtype=int),
+        coord=CoordSystem.CYLINDRICAL,
+    )
+    quad = Quadrature.product(n_mu=2, n_phi=4)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+    for level_p in range(len(quad.level_indices)):
+        for sign in (+1, -1):
+            twin = list(
+                sn_mesh.dag_walk_cell_indices(
+                    direction_sign=sign, mu_level_idx=level_p,
+                )
+            )
+            canonical = [
+                v.cell_idx
+                for v in sn_mesh.dag_walk(
+                    direction_sign=sign, mu_level_idx=level_p,
+                )
+            ]
+            if not np.array_equal(twin, canonical):
+                pytest.fail(
+                    f"[cyl level {level_p}, sign={sign:+d}] "
+                    f"dag_walk_cell_indices {twin} != dag_walk {canonical}"
+                )
+
+
+@pytest.mark.foundation
 def test_dag_walk_cylindrical_per_level_matches():
     """Cylindrical per-level direction yields same cell sequence as level ordinates."""
     mesh = Mesh1D(
