@@ -32,10 +32,17 @@ inverse is the forward matvec ``inner.apply`` (solving
 :math:`(L+C)^{-1} y = b` IS applying :math:`(L+C)`), keeping the faithfulness
 contract (``is_invertible=True``, a working ``solve``) honest here too.
 
-**Still deferred (no consumer).** The adjoint-inverse
-``A.H.inverse() == A.inverse().H`` (the transpose-solve) is issue #280 —
-``.H`` / ``is_adjointable`` inherit the base
-:class:`~orpheus.numerics.operator.LinearOperator` defaults until then.
+**The adjoint-inverse (#280 Phase 2.5c).** :meth:`~SweepOperator.apply_transpose`
+is the reverse-scan transpose-solve ``(A⁻¹)ᵀ = (Aᵀ)⁻¹`` (delegating to the
+inner ``(L+C)``'s :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`,
+the 2.5b reverse-scan), and ``is_adjointable`` flips ``True`` on the
+``InvertibleOperator`` arm. This is what makes the swap law
+``A.H.inverse() ≡ A.inverse().H`` (via
+:meth:`~orpheus.numerics.operator._AdjointOperator.inverse`) an identity of
+the algebra. The schedule-folded
+:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+arm keeps the base ``is_adjointable = False`` (its reverse-scan is the #280
+sibling deferral — no consumer).
 
 **Wrap-delegate back-half.** The back-half (domain↔codomain swap /
 domain↔codomain swap / ``solve→inner.apply`` / ``is_invertible`` /
@@ -53,7 +60,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Union
 
-from orpheus.numerics.operator import InverseWrapMixin, LinearOperator
+from orpheus.numerics.operator import (
+    InverseWrapMixin,
+    LinearOperator,
+    MissingAdjoint,
+)
 
 if TYPE_CHECKING:
     from orpheus.sn.operators.scheduled_invertible import (
@@ -82,11 +93,12 @@ class SweepOperator(
     domain/codomain, which are equal here because the forward is endomorphic).
 
     The wrap-delegate back-half — (``apply`` inverts,
-    ``solve`` un-inverts; ``apply_transpose`` stays deferred, the
-    adjoint-inverse is #280), the domain↔codomain swap, ``solve`` = the
+    ``solve`` un-inverts), the domain↔codomain swap, ``solve`` = the
     forward matvec, and the object-identity involution ``inverse() →
     inner`` — is inherited from
     :class:`~orpheus.numerics.operator.InverseWrapMixin`.
+    :meth:`apply_transpose` / :attr:`is_adjointable` are the #280 Phase 2.5c
+    adjoint-inverse wiring (the reverse-scan ``(A⁻¹)ᵀ``), added here.
     """
 
     def apply(
@@ -100,6 +112,64 @@ class SweepOperator(
         (the curvilinear Morel–Montry Carlson coupled-pole start) through.
         """
         return self.inner.solve(rhs, initial_guess=initial_guess)
+
+    @property
+    def is_adjointable(self) -> bool:
+        r"""Whether the reverse-scan transpose-solve ``(A⁻¹)ᵀ = (Aᵀ)⁻¹`` exists.
+
+        ``True`` iff the inner forward is the ``(L+C)``
+        :class:`~orpheus.sn.operators.streaming.InvertibleOperator` — which
+        carries :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`
+        (the 2.5b reverse-scan) — AND that forward is itself adjointable, so
+        the two-factor geometry gate rides ``inner.is_adjointable`` (DD-1D
+        yes; LD / multi-D Cartesian defer). The schedule-folded
+        :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+        arm has no ``solve_transpose`` (its reverse-scan is the #280 sibling
+        deferral — no consumer), so a ``SweepOperator`` over it stays
+        non-adjointable.
+        """
+        from orpheus.sn.operators.streaming import InvertibleOperator
+
+        return (
+            isinstance(self.inner, InvertibleOperator)
+            and self.inner.is_adjointable
+        )
+
+    def apply_transpose(self, b: "FullField") -> "FullField":
+        r"""Return ``(L+C)⁻ᵀ b`` — the reverse-scan transpose-solve (#280 2.5c).
+
+        ``SweepOperator`` is the inverse operator ``A⁻¹ = (L+C)⁻¹`` (endomorphic
+        on the composite), so its Euclidean transpose is
+        ``(A⁻¹)ᵀ = (Aᵀ)⁻¹`` — exactly the inner's
+        :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`
+        (the 2.5b reverse-scan of the forward WDD sweep-scan). Wiring this is
+        what makes the swap law ``A.H.inverse() ≡ A.inverse().H`` (via
+        :meth:`~orpheus.numerics.operator._AdjointOperator.inverse`) an
+        object identity of the algebra, and the metric adjoint-solve
+        ``A.inverse().H.apply(b) = G⁺·apply_transpose(G·b)`` fall out of
+        :meth:`~orpheus.numerics.operator._AdjointOperator.apply` for free.
+
+        This is the plain EUCLIDEAN transpose; the metric conjugation of the
+        physical G-adjoint ``.H`` is applied AROUND it by
+        :class:`~orpheus.numerics.operator._AdjointOperator`.
+
+        The ``isinstance`` narrowing is the direct-call backstop (the eager
+        ``.H`` gate already refuses via :attr:`is_adjointable`): a
+        ``SweepOperator`` over the schedule-folded
+        :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+        raises :class:`~orpheus.numerics.operator.MissingAdjoint` rather than
+        an ``AttributeError`` on the missing ``solve_transpose``.
+        """
+        from orpheus.sn.operators.streaming import InvertibleOperator
+
+        if not isinstance(self.inner, InvertibleOperator):
+            raise MissingAdjoint(
+                f"SweepOperator over {type(self.inner).__name__} has no "
+                f"reverse-scan transpose-solve — #280 sibling scope wires only "
+                f"the (L+C) InvertibleOperator arm; the schedule-folded "
+                f"M = (L+C−B_lower) reverse-scan is deferred (no consumer)."
+            )
+        return self.inner.solve_transpose(b)
 
     def __repr__(self) -> str:
         return f"SweepOperator({self.inner!r})"

@@ -299,7 +299,7 @@ class TestPredicateFaithfulness:
             (L + C, True, True, INVERTIBLE),        # sweep-invertible
             (L + C - B, True, True, INVERTIBLE),    # plain sum → Green
             (B, False, True, STRUCTURAL_ABSENT),
-            ((L + C).inverse(), True, False, INVERTIBLE),  # SweepOperator
+            ((L + C).inverse(), True, True, INVERTIBLE),   # SweepOperator (#280 2.5c: adj)
         ]
         # The realized face-law wrappers: forwarded inverse() + guard.
         rows += [

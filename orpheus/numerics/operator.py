@@ -1158,6 +1158,43 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
             "of the original inner operator's transpose directly."
         )
 
+    @property
+    def is_invertible(self) -> bool:
+        r"""Whether the adjoint's inverse operator exists — the swap law (#280).
+
+        The inverse of the adjoint IS the adjoint of the inverse:
+        :math:`(A^{*})^{-1} = (A^{-1})^{*}` (Phase 2.5c, ruling R11). Honest
+        iff the inner :math:`A` is invertible AND its inverse operator is
+        adjointable (so ``.H`` on that inverse is well-posed) — spelled
+        generally over the inner, no leaf specifics. :func:`invertible`
+        narrows ``self.inner`` to :class:`SupportsInverse` for the RHS call;
+        the ``and`` short-circuits so ``inner.inverse()`` is never built for a
+        non-invertible inner.
+        """
+        return invertible(self.inner) and adjointable(self.inner.inverse())
+
+    def inverse(self) -> "LinearOperator[Domain, Codomain]":
+        r"""The inverse of the adjoint = the adjoint of the inverse (#280 2.5c).
+
+        :math:`(A^{*})^{-1} = (A^{-1})^{*}` — the operator-algebra swap law,
+        an OBJECT IDENTITY here (not a computed numerical equivalence): this
+        wrapper IS ``A.H``, so its inverse routes to ``A.inverse().H``. Gated
+        by :attr:`is_invertible` (``A`` invertible and ``A.inverse()``
+        adjointable). The metric adjoint-solve
+        :math:`A^{-1\,*} b = G_V^{+}\,\mathrm{apply\_transpose}(G_W\,b)` then
+        falls out of :meth:`apply` (which already routes
+        ``inner.apply_transpose``) FOR FREE — no ``_AdjointOperator.solve`` /
+        no metric code enters the sweep.
+        """
+        if not invertible(self.inner):
+            raise NotInvertible(
+                f"_AdjointOperator.inverse(): the inner "
+                f"{type(self.inner).__name__} is not invertible, so the "
+                f"adjoint-inverse swap law (A.H).inverse() = (A.inverse()).H "
+                f"does not apply (is_invertible is False)."
+            )
+        return self.inner.inverse().H
+
 
 class OperatorSum(
     LinearOperator[Domain, Codomain],
