@@ -141,7 +141,12 @@ from orpheus.numerics.moment_layout import (
 from orpheus.transport.spatial._ubld import octant_moment_frame_signs
 from orpheus.transport.spatial.scheme import UpstreamState
 from ..spatial.psi_half_angle_seed import carlson_inward_sweep_from_source
-from ..spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
+from ..spatial.scan import (
+    _scanmarch_row,
+    _x_scan_faces,
+    ordinate_scan,
+    ordinate_scan_transpose,
+)
 from ..spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from orpheus.transport.mesh.axis import AXIS_NAMES
 from .sweep_graph import (
@@ -256,7 +261,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     from orpheus.numerics.frame import FrameBase
-    from orpheus.transport.fields._bases import StartingDirectionField
+    from orpheus.transport.fields._bases import BoundaryField, StartingDirectionField
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
@@ -377,6 +382,30 @@ class LossRepresentation(Protocol):
         ``None`` on a mesh with no carrying levels (R12a); a 1-D
         curvilinear carrying mesh REQUIRES both.  Multi-D strategies
         raise on a non-``None`` pair (no curvature ⇒ no seed).
+        """
+        ...
+
+    def sweep_transpose(
+        self,
+        bulk_cot: "np.ndarray",
+        sigma: "np.ndarray",
+        boundary_cot: "BoundaryField",
+        *,
+        seed_cot: "StartingDirectionField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
+        r"""The transpose-solve :math:`(L+C)^{-\mathsf T}` — the REVERSE-SCAN.
+
+        The solve-scan frame's adjoint (#280 Phase 2.5b): the transpose sibling
+        of :meth:`sweep`, exactly as :meth:`loss_action_transpose` is the adjoint
+        sibling of :meth:`loss_action`.  Consumes the composite cotangent
+        (``bulk_cot`` on :math:`\bar\psi`, ``boundary_cot``, ``seed_cot``) and
+        returns ``(Q_bar, m_boundary, m_seed)`` — the reverse-mode adjoint of the
+        forward sweep-scan, sharing its ``ordinate_scan`` substrate via
+        :func:`~orpheus.sn.spatial.scan.ordinate_scan_transpose`.  Raises
+        :class:`NotImplementedError` for representations / geometries whose
+        reverse-scan is deferred (multi-D Cartesian; LD moment-tail; the
+        lagged-seed cylinder until its forward fundamental fix).  Never a silent
+        wrong answer.
         """
         ...
 
@@ -534,6 +563,29 @@ class _LossRepresentation:
         deferral contract of :meth:`loss_action_transpose`.
         """
         return self.loss_action_transpose(self._zero_sigma_for(phi), phi)
+
+    def sweep_transpose(
+        self,
+        bulk_cot: "np.ndarray",
+        sigma: "np.ndarray",
+        boundary_cot: "BoundaryField",
+        *,
+        seed_cot: "StartingDirectionField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
+        r"""Reverse-scan default — DEFERRED (the #280 2.5b kernel-pair contract).
+
+        The transpose-solve :math:`(L+C)^{-\mathsf T}` is realised only by the
+        1-D scan family (:class:`CumprodScan` overrides this).  Every other
+        representation (multi-D Cartesian wavefront / windowed) inherits this
+        loud deferral — the reverse-scan of a wavefront is a later Wave-O
+        sub-step; never a silent wrong answer (mirrors the multi-D
+        :meth:`loss_action_transpose` raise).
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__}.sweep_transpose: the transpose-solve "
+            "(L+C)⁻ᵀ reverse-scan is 1-D-scan-only (#280 Phase 2.5b); the "
+            "multi-D wavefront reverse-scan is a deferred kernel-pair arm."
+        )
 
     def _zero_sigma_for(self, field: "FullField") -> "np.ndarray":
         r"""The zero diagonal coefficient :math:`\sigma = 0` matching ``field``'s
@@ -1205,6 +1257,27 @@ class CumprodScan(_LossRepresentation):
             Q, sig_t, boundary_flux, initial_guess=initial_guess,
             starting_direction_source=starting_direction_source,
             starting_direction_flux=starting_direction_flux,
+        )
+
+    def sweep_transpose(
+        self,
+        bulk_cot: "np.ndarray",
+        sigma: "np.ndarray",
+        boundary_cot: "BoundaryField",
+        *,
+        seed_cot: "StartingDirectionField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
+        r"""The transpose-solve ``(L+C)⁻ᵀ`` — the REVERSE-SCAN (#280 2.5b).
+
+        The solve-scan frame's adjoint: the transpose sibling of :meth:`sweep`
+        (as :meth:`loss_action_transpose` is of :meth:`loss_action`).  The
+        reverse-scan LIVES in :meth:`._OneDimScanWalk.sweep_transpose` (the
+        reverse-mode adjoint of :meth:`._OneDimScanWalk._run`), sharing
+        ``_run``'s ``ordinate_scan`` substrate via
+        :func:`~orpheus.sn.spatial.scan.ordinate_scan_transpose`.
+        """
+        return _OneDimScanWalk(self.mesh).sweep_transpose(
+            bulk_cot, sigma, boundary_cot, seed_cot=seed_cot,
         )
 
     def loss_action(
@@ -2903,6 +2976,30 @@ class _OneDimScanWalk:
             starting_direction_flux=starting_direction_flux,
         )
 
+    def sweep_transpose(
+        self,
+        bulk_cot: np.ndarray,
+        sigma: np.ndarray,
+        boundary_cot: "BoundaryField",
+        *,
+        seed_cot: "StartingDirectionField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
+        r"""The transpose-solve :math:`(L+C)^{-\mathsf T}` — the REVERSE-SCAN.
+
+        The solve-scan frame's adjoint (#280 Phase 2.5b): the transpose sibling
+        of :meth:`sweep`, exactly as :meth:`loss_action_transpose` is the
+        adjoint sibling of :meth:`loss_action` in the apply-loop frame.  Drives
+        the two-stratum cache into :meth:`_run_transpose` (the reverse-mode
+        adjoint of :meth:`_run`), so the transposed recurrence shares ``_run``'s
+        ``ordinate_scan`` substrate (via :func:`ordinate_scan_transpose`) rather
+        than duplicating a reverse loop.
+        """
+        geom = self._ensure_geom_cache()
+        coll = self._ensure_coll_cache(sigma, geom)
+        return self._run_transpose(
+            bulk_cot, sigma, boundary_cot, geom, coll, seed_cot=seed_cot,
+        )
+
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
     ) -> "FullField":
@@ -4174,6 +4271,278 @@ class _OneDimScanWalk:
         # angular_flux is (N, ng, nx); scalar_flux is (ng, nx) — the principled
         # (N, ng, *spatial) / (ng, *spatial) public contract (no phantom ny).
         return angular_flux, scalar_flux
+
+    def _run_transpose(
+        self,
+        bulk_cot: np.ndarray,
+        sigma: np.ndarray,
+        boundary_cot: "BoundaryField",
+        geom: GeometryCoefficients,
+        coll: CollisionCache,
+        *,
+        seed_cot: "StartingDirectionField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
+        r"""The REVERSE-SCAN — :math:`(L+C)^{-\mathsf T}` on the composite cotangent.
+
+        The Euclidean transpose-solve (#280 Phase 2.5b): the reverse-mode
+        adjoint of :meth:`_run` (which realises :math:`(L+C)^{-1}`).  By
+        linearity the adjoint of the solve IS the transpose-solve
+        (:math:`(M^{-1})^{\mathsf T} = M^{-\mathsf T}`), so every linear step
+        of :meth:`_run` transposes in reverse program order — the affine
+        :func:`ordinate_scan` becoming the REVERSE
+        :func:`ordinate_scan_transpose` (coherent with ``_run``'s Blelloch
+        scan; never a reverse loop bolted onto :meth:`loss_action_transpose`).
+
+        The augmented :math:`(L+C)` is block-lower-triangular
+        ``[[A_ss, 0], [A_bs, A_bb]]`` in ``[seed, bulk]`` order (the #282
+        route-(a) certificate), so its transpose is block-UPPER-triangular
+        and the transpose-solve marches **bulk-first (the reverse scan) then
+        seed** — the reverse of ``_run``'s seed-first march.
+
+        Consumes the SAME ``geom`` / ``coll`` caches ``_run`` does (the
+        ``×V`` ``affine_scan`` coefficient form — NOT the matvec's ``÷V``
+        ``residual_kernel_batch``; the #242 two-denom seam, pinned by G1).
+        Returns ``(Q_bar, m_boundary, m_seed)`` mirroring :meth:`_apply_walk`:
+        the bulk source cotangent + the trace cotangent + (carrying meshes)
+        the ψ½ source cotangent.  DD/scalar-1-D only — the LD moment-tailed
+        transpose-solve is the #280 kernel-pair deferral (same guard the
+        adjoint matvec raises).
+        """
+        from orpheus.transport.source_sinks import AngularBoundarySourceSink
+
+        quad = self.mesh.quad
+        N = quad.N
+        nx = self.mesh.nx
+        ng = bulk_cot.shape[1]
+        mu = quad.mu_x
+        scheme = self.mesh.scheme
+
+        # ── the R12a starting-direction contract (mirror _run) ──
+        seed_levels = frozenset(self.mesh.starting_direction_levels)
+        if seed_levels:
+            if seed_cot is None:
+                raise ValueError(
+                    "_OneDimScanWalk._run_transpose: this mesh carries "
+                    "starting-direction levels (R12a) but the transpose-solve "
+                    "was called without a seed cotangent — the rhs cotangent "
+                    "composite must carry its ψ½ block (#282 route (a))."
+                )
+        elif seed_cot is not None:
+            raise ValueError(
+                "_OneDimScanWalk._run_transpose: a starting-direction "
+                "cotangent is 1-D curvilinear only — this mesh carries no "
+                "starting-direction levels (R12a)."
+            )
+
+        # ── DD/scalar scope (LD moment-tail = the #280 kernel-pair deferral) ──
+        per_axis = scheme.spatial_basis_per_axis
+        if cell_moment_count(per_axis, self.mesh.ndim) > 1:
+            raise NotImplementedError(
+                "_OneDimScanWalk._run_transpose: the reverse-scan is "
+                f"DD/scalar-only; scheme {type(scheme).__name__} carries a "
+                "spatial-moment tail — the LD reverse-scan is the #280 "
+                "kernel-pair deferral (mirrors loss_action_transpose's guard)."
+            )
+
+        V = self.mesh.volumes
+        coord = self.mesh.reduced.coord
+        is_slab = coord is CoordSystem.CARTESIAN
+
+        Q_bar = np.zeros((N, ng, nx))
+        m_boundary = AngularBoundarySourceSink.zeros_on(self.mesh)
+
+        # ── SLAB reverse-scan (no angular thread, no seed) ────────────────
+        if is_slab:
+            xmin_cot = boundary_cot.face_view("xmin")            # (N, ng)
+            xmax_cot = boundary_cot.face_view("xmax")
+            xmin_bar = m_boundary.face_view("xmin")
+            xmax_bar = m_boundary.face_view("xmax")
+            forward_ords = np.where(mu >= 0)[0]
+            backward_ords = np.where(mu < 0)[0]
+
+            for direction_sign, ords in ((+1, forward_ords), (-1, backward_ords)):
+                if ords.size == 0:
+                    continue
+                chain = geom.chain_idx[ords[0]]                  # (nx,)
+                inv = geom.chain_idx_inv[ords[0]]                # (nx,)
+                inv_denom_chain = coll.inverse_denom[ords]       # (K, ng, nx)
+                w_chain = coll.face_blend_weight[ords]           # (K, ng, nx)
+                a_atten_chain = coll.a_attenuation[ords]         # (K, ng, nx)
+
+                # ψ̄ cotangent, cell → chain order (transpose of the [:,:,inv]
+                # scatter — ``_run`` line ``psi_avg_cell_order = …[:,:,inv]``).
+                psi_avg_per_ord_bar = bulk_cot[ords][:, :, chain]      # (K,ng,nx)
+                psi_avg_scan_bar = np.transpose(
+                    psi_avg_per_ord_bar, (2, 0, 1),
+                )                                                # (nx, K, ng)
+                w_scan = np.transpose(w_chain, (2, 0, 1))        # (nx, K, ng)
+                a_scan = np.transpose(a_atten_chain, (2, 0, 1))  # (nx, K, ng)
+
+                # cell_averageᵀ: ψ̄ = (1−w)·face_in + w·face_out.
+                psi_face_in_bar = (1.0 - w_scan) * psi_avg_scan_bar
+                psi_face_bar = w_scan * psi_avg_scan_bar
+                # shiftᵀ: face_in[0]=ψ_in; face_in[i]=face_out[i−1].
+                psi_in_bar = psi_face_in_bar[0].copy()           # (K, ng)
+                psi_face_bar[:-1] += psi_face_in_bar[1:]
+                # outflow persistence: face_out[−1] is the boundary outflow
+                # slot — its cotangent enters the last face.
+                out_cot = xmax_cot if direction_sign > 0 else xmin_cot
+                psi_face_bar[-1] += out_cot[ords]                # (K, ng)
+
+                # reverse the affine scan (the 2.5b keystone op).
+                b_scan_bar, psi_in_bar_scan = ordinate_scan_transpose(
+                    a_scan, psi_face_bar,
+                )
+                psi_in_bar += psi_in_bar_scan                    # (K, ng)
+
+                # b = source_emission(QV, inv_denom, w) is diagonal → self-Tᵀ;
+                # QV = Q·V → Q_bar = QV_bar·V.
+                b_bar = np.transpose(b_scan_bar, (1, 2, 0))      # (K, ng, nx)
+                QV_bar = scheme.source_emission(
+                    b_bar, inv_denom_chain, w_chain,
+                )
+                Q_bar_chain = QV_bar * V[chain][None, None, :]   # (K, ng, nx)
+                Q_bar[ords] = Q_bar_chain[:, :, inv]             # scatter → cells
+
+                # boundary inflow-slot cotangent: the identity passthrough of
+                # the given inflow trace PLUS the scan-seed cotangent (the
+                # inflow slot is read as ψ_in AND passed through to the output).
+                in_cot = xmin_cot if direction_sign > 0 else xmax_cot
+                in_bar = xmin_bar if direction_sign > 0 else xmax_bar
+                in_bar[ords] = in_cot[ords] + psi_in_bar
+            return Q_bar, m_boundary, None
+
+        # ── CURVILINEAR reverse-scan (sphere: carrying, M-M thread) ───────
+        from ..spatial.pole_angular_closure import MorelMontryAngularSweep
+        from ..spatial.psi_half_angle_seed import carlson_inward_sweep_transpose
+        from orpheus.transport.source_sinks import StartingDirectionSourceSink
+
+        is_sphere = coord is CoordSystem.SPHERICAL
+        if not is_sphere:
+            raise NotImplementedError(
+                "_OneDimScanWalk._run_transpose: the cylindrical reverse-scan "
+                "lands AFTER the cyl forward-solve fundamental fix ('route (a) "
+                "for the non-carrying cylinder', #280 2.5b-cyl-fwd): the cyl "
+                "forward solve currently LAGS its M-M seed via the edge-"
+                "extrapolated read of the iterate, so a single-pass transpose "
+                "is ill-posed until the forward is made direct (fold the "
+                "product ψ_{m0} self-coupling into the m0 cell diagonal). The "
+                "sphere (route (a), direct seed) + slab keystones land first."
+            )
+        closure = self.mesh.pole_angular_closure
+        if not isinstance(closure, MorelMontryAngularSweep):
+            raise TypeError(
+                "_OneDimScanWalk._run_transpose curvilinear scan requires the "
+                f"Morel-Montry closure; got {type(closure).__name__}."
+            )
+        weights = quad.weights
+        sigma_gx = sigma                                         # (ng, nx)
+        dr = self.mesh.axis_widths[0]
+        mirror = quad.reflection_index("x")
+        bc_outer_cot = boundary_cot.face_view("xmax")            # (N, ng)
+        bc_outer_bar = m_boundary.face_view("xmax")              # (N, ng) — written
+        pole_outflow_bar = np.zeros((mu.size, ng))               # reverse coupled-pole
+        assert seed_cot is not None                              # R12a on the sphere
+        seed_space = seed_cot.space
+        seed_vals = seed_cot.values
+        seed_bar_vals = np.zeros_like(seed_vals)
+
+        # Sphere = the single level, all N ordinates in μ-increasing order.
+        levels: "list[int | None]" = [None]
+        level_ordinates_list = [list(range(N))]
+        for p_idx, level in enumerate(levels):
+            ordinates_in_level = level_ordinates_list[p_idx]
+            # ψ½ recurrence-thread cotangent, accumulated in cell order.
+            psi_angle_bar = np.zeros((ng, nx))
+            # ── reverse the ordinate loop (reverse-μ order) ──
+            for global_n in reversed(ordinates_in_level):
+                mu_n = mu[global_n]
+                chain = geom.chain_idx[global_n]
+                inv = geom.chain_idx_inv[global_n]
+                inv_denom_p = coll.inverse_denom[global_n]       # (ng, nx)
+                a_atten_p = coll.a_attenuation[global_n]
+                w_p = coll.face_blend_weight[global_n]
+
+                # reverse: psi_angle[:,chain] = psi_angle_out_chain_p.
+                out_bar_chain = psi_angle_bar[:, chain]          # (ng, nx)
+                # M-M thread: out = tau_inv·psi_avg_p − mm_a_in·psi_a_in.
+                psi_avg_chain_p_bar = geom.tau_inv[global_n] * out_bar_chain
+                psi_a_in_chain_bar = (
+                    -geom.mm_a_in_coeff[global_n] * out_bar_chain
+                )
+                # angular_flux[global_n] = psi_avg_chain_p[:, inv].
+                psi_avg_chain_p_bar = (
+                    psi_avg_chain_p_bar + bulk_cot[global_n][:, chain]
+                )
+                psi_avg_chain_bar = psi_avg_chain_p_bar.T        # (nx, ng)
+                # cell_averageᵀ (w = w_p.T).
+                w_pT = w_p.T                                     # (nx, ng)
+                psi_face_in_chain_bar = (1.0 - w_pT) * psi_avg_chain_bar
+                psi_face_chain_bar = w_pT * psi_avg_chain_bar
+                # shiftᵀ.
+                psi_in_bar = psi_face_in_chain_bar[0].copy()     # (ng,)
+                psi_face_chain_bar[:-1] += psi_face_in_chain_bar[1:]
+                # coupled-pole capture (μ<0) / outer-outflow persist (μ≥0).
+                if mu_n < 0:
+                    psi_face_chain_bar[-1] += pole_outflow_bar[global_n]
+                else:
+                    psi_face_chain_bar[-1] += bc_outer_cot[global_n]
+                # reverse the per-ordinate affine scan.
+                b_scan_bar, psi_in_bar_scan = ordinate_scan_transpose(
+                    a_atten_p.T, psi_face_chain_bar,
+                )
+                psi_in_bar += psi_in_bar_scan
+                # source_emissionᵀ (diagonal): s = QV_chain + ang_contrib.
+                b_chain_bar = b_scan_bar.T                       # (ng, nx)
+                s_bar = scheme.source_emission(b_chain_bar, inv_denom_p, w_p)
+                # QV_chain = QV_full[:,chain]; QV_full = Q·V.
+                Q_bar[global_n] += s_bar[:, inv] * V[None, :]
+                # ang_contrib = (dA_w·c_in)·psi_a_in_chain.
+                ang_coeff = geom.dA_w[global_n] * geom.c_in[global_n]  # (nx,) chain
+                psi_a_in_chain_bar = (
+                    psi_a_in_chain_bar + ang_coeff[None, :] * s_bar
+                )
+                # psi_a_in_chain = psi_angle[:,chain]; chain is a full perm, so
+                # the OVERWRITE means the previous-state cotangent IS this read's
+                # (scatter to cell order).
+                psi_angle_bar = psi_a_in_chain_bar[:, inv]
+                # inflow: μ<0 = outer trace (passthrough + ψ_in cot); μ>0 = the
+                # mirror pole-continuation (reverse coupled-pole).
+                if mu_n < 0:
+                    bc_outer_bar[global_n] = bc_outer_cot[global_n] + psi_in_bar
+                else:
+                    pole_outflow_bar[mirror[global_n]] += psi_in_bar
+
+            # ── reverse the direct ψ½ seed march (carrying level) ──
+            # phi_aux = cells_minus, so the M-M thread cotangent lands on the
+            # inward seed cells; the carrier is ALSO an output (its cotangent is
+            # b.starting_direction).
+            cells_minus_bar = (
+                seed_space.cells_view(seed_vals, p_idx, -1) + psi_angle_bar
+            )
+            cells_plus_bar = seed_space.cells_view(seed_vals, p_idx, +1).copy()
+            corner_in_bar = seed_space.corner_view(seed_vals, p_idx, -1).copy()
+            corner_out_bar = seed_space.corner_view(seed_vals, p_idx, +1)
+            # reverse the OUTWARD (+1) leg — marched on reversed data.
+            q_plus_rev_bar, pole_face_bar = carlson_inward_sweep_transpose(
+                cells_plus_bar[:, ::-1], corner_out_bar,
+                sigma_gx[:, ::-1], dr[::-1],
+            )
+            q_plus_bar = q_plus_rev_bar[:, ::-1]
+            # reverse the INWARD (−1) leg — the pole face is its exit.
+            q_minus_bar, corner_in_from_minus = carlson_inward_sweep_transpose(
+                cells_minus_bar, pole_face_bar, sigma_gx, dr,
+            )
+            corner_in_bar = corner_in_bar + corner_in_from_minus
+            # assemble the seed source cotangent (corner(+1) unused by q½ → 0).
+            seed_space.cells_view(seed_bar_vals, p_idx, -1)[...] = q_minus_bar
+            seed_space.cells_view(seed_bar_vals, p_idx, +1)[...] = q_plus_bar
+            seed_space.corner_view(seed_bar_vals, p_idx, -1)[...] = corner_in_bar
+
+        m_seed = StartingDirectionSourceSink(
+            values=seed_bar_vals, space=seed_space, mesh=seed_cot.mesh,
+        )
+        return Q_bar, m_boundary, m_seed
 
 
 def _sweep_scheduled(

@@ -155,6 +155,59 @@ def carlson_inward_sweep_from_source(
     return phi_aux, phi_face
 
 
+def carlson_inward_sweep_transpose(
+    cells_bar: np.ndarray,
+    final_face_bar: np.ndarray,
+    sigma_t: np.ndarray,
+    dr: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Euclidean adjoint of :func:`carlson_inward_sweep_from_source`.
+
+    The forward march :math:`(\bar Q, f_{\rm entry}) \mapsto (\bar\phi_{\rm cells},
+    f_{\rm exit})` is the linear inward DD recurrence (Hébert 3.434/3.435).  This
+    is its transpose — the reverse-mode adjoint (#280 Phase 2.5b): given
+    cotangents on the marched cells (:math:`\bar\phi_{\rm cells}`-cotangent
+    ``cells_bar``) and the exit face (``final_face_bar``), return the cotangents
+    on the source (``Q_bar``) and the entry face (``bc_outer_bar``).
+
+    The forward marches ``k = nx-1 → 0`` (inward); the adjoint retraces
+    ``k = 0 → nx-1`` (outward), threading the running face cotangent ``f_bar``
+    from the exit face back to the entry face — the seed-block sibling of the
+    bulk reverse-scan :func:`ordinate_scan_transpose`.
+
+    Parameters
+    ----------
+    cells_bar : ndarray, shape ``(ng, nx)``
+        Cotangent on the marched cell fluxes :math:`\bar\phi_i`.
+    final_face_bar : ndarray, shape ``(ng,)``
+        Cotangent on the exit (``phi_face_final``) face.
+    sigma_t, dr : ndarray
+        The SAME ``(ng, nx)`` cross-section and ``(nx,)`` widths the forward
+        march consumed.
+
+    Returns
+    -------
+    Q_bar : ndarray, shape ``(ng, nx)``
+        Cotangent on the cell-averaged source ``Q_bar`` (the forward's input).
+    bc_outer_bar : ndarray, shape ``(ng,)``
+        Cotangent on the entry face ``bc_outer_value``.
+    """
+    ng, nx = cells_bar.shape
+    Q_bar = np.zeros((ng, nx), dtype=cells_bar.dtype)
+    f_bar = final_face_bar.copy()               # cotangent on f[0] = exit face
+    for k in range(nx):
+        denom = dr[k] * sigma_t[:, k] + 2.0     # (ng,)
+        # forward: phi_cell[k] = (dr[k]·Q[k] + 2·f_in)/denom; f_out = 2·phi_cell − f_in.
+        # f_bar here is the cotangent on f_out (= the face AFTER cell k).
+        c_bar = cells_bar[:, k] + 2.0 * f_bar
+        f_in_bar = -f_bar
+        Q_bar[:, k] = (dr[k] / denom) * c_bar
+        f_in_bar = f_in_bar + (2.0 / denom) * c_bar
+        f_bar = f_in_bar                        # cotangent on f_in = f[k+1], next step
+    return Q_bar, f_bar
+
+
 __all__ = [
     "carlson_inward_sweep_from_source",
+    "carlson_inward_sweep_transpose",
 ]

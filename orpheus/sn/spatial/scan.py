@@ -236,7 +236,61 @@ def _pair_monoid_scan(
     return alpha * psi_0 + beta
 
 
-__all__ = ["ordinate_scan"]
+def ordinate_scan_transpose(
+    a: np.ndarray,
+    v: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Euclidean adjoint of :func:`ordinate_scan` w.r.t. its additive input.
+
+    The forward scan :math:`\psi = \mathrm{scan}(a, b, \psi_0)` realises the
+    lower-bidiagonal solve :math:`\psi[i] = a[i]\,\psi[i-1] + b[i]`
+    (:math:`\psi[-1] = \psi_0`), i.e. a linear map :math:`(b, \psi_0)
+    \mapsto \psi`.  Its transpose maps a face cotangent
+    :math:`v = \bar\psi` back to :math:`(\bar b, \bar\psi_0)`:
+
+    .. math::
+
+        \bar b[i] \;=\; v[i] \;+\; a[i+1]\,\bar b[i+1]
+        \quad(\bar b[n_x-1] = v[n_x-1],\ a[n_x]\equiv 0),
+        \qquad
+        \bar\psi_0 \;=\; a[0]\,\bar b[0].
+
+    This is the **reverse-SCAN** of #280 Phase 2.5b — the exact-reverse of the
+    forward affine recurrence, coherent with :func:`ordinate_scan` (not a
+    hand-rolled reverse loop).  Because
+    :math:`\bar b[i] = \sum_{j\ge i}\bigl(\prod_{k=i+1}^{j} a[k]\bigr) v[j]`
+    is itself a first-order linear recurrence (multiplier :math:`a[i+1]`,
+    additive :math:`v[i]`), it is computed as ONE forward
+    :func:`ordinate_scan` on the reversed–shifted coefficients — so the
+    transpose inherits the Blelloch closed form AND the division-free
+    pair-monoid fallback (exact through resets / the denormal band) for free.
+
+    Parameters
+    ----------
+    a : ndarray, shape ``(nx, ...)``
+        The SAME per-cell multiplier sequence the forward scan consumed
+        (leading axis = the chain/cell axis).
+    v : ndarray, shape ``(nx, ...)``
+        Per-cell face cotangent :math:`\bar\psi` (same shape as ``a``).
+
+    Returns
+    -------
+    b_bar : ndarray, shape ``(nx, ...)``
+        Additive-input cotangent :math:`\bar b`.
+    psi0_bar : ndarray, shape ``(...)``
+        Chain-seed cotangent :math:`\bar\psi_0 = a[0]\,\bar b[0]`.
+    """
+    a_shift_rev = np.empty_like(a)
+    a_shift_rev[0] = 0.0                    # a[nx] ≡ 0 — the reversed chain's seed
+    a_shift_rev[1:] = a[1:][::-1]           # a_shift_rev[m] = a[nx-m], m ≥ 1
+    b_bar = ordinate_scan(
+        a_shift_rev, v[::-1], np.zeros_like(v[0]),
+    )[::-1]
+    psi0_bar = a[0] * b_bar[0]
+    return b_bar, psi0_bar
+
+
+__all__ = ["ordinate_scan", "ordinate_scan_transpose"]
 
 
 # ═══════════════════════════════════════════════════════════════════════

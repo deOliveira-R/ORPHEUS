@@ -1147,3 +1147,48 @@ class InvertibleOperator(
                 rhs.history_depth if isinstance(rhs, TimedFullField) else 0
             ),
         )
+
+    def solve_transpose(self, b: "FullField") -> "FullField":
+        r"""Invert :math:`(L + C)^{\mathsf T}\,x = b` via the REVERSE-SCAN.
+
+        The transpose-solve :math:`(L+C)^{-\mathsf T}` (#280 Phase 2.5b): the
+        adjoint sibling of :meth:`solve`, exactly as :meth:`apply_transpose`
+        (the matvec transpose :math:`(L+C)^{\mathsf T}`) is the sibling of
+        :meth:`apply`.  Delegates to the representation's
+        :meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep_transpose`
+        (the reverse-mode adjoint of the forward sweep-scan) and packs the
+        transposed composite; the input ``b`` is a cotangent on the solve's
+        codomain (flux-space) and the output a cotangent on its domain
+        (source-space) — the SAME composite geometry ``apply_transpose``
+        emits.
+
+        This is the reverse-scan primitive the #280 comment names; Phase 2.5c
+        wires it to ``SweepOperator.apply_transpose`` / the ``.H.inverse()``
+        swap law (``A.H.inverse() ≡ A.inverse().H``) and flips the adjoint
+        predicates.  DD/scalar-1-D only — the LD / multi-D reverse-scans are
+        the #280 kernel-pair deferrals (the representation raises).
+        """
+        from orpheus.transport.full_field import FullField
+        from orpheus.transport.source_sinks import AngularSourceSink
+
+        sn_mesh = self.sn_mesh
+        if b.bulk.mesh is not sn_mesh:
+            raise ValueError(
+                "InvertibleOperator.solve_transpose(FullField): b and "
+                "operator must share the same SNMesh instance "
+                "(mesh-identity invariant)."
+            )
+        q_bar, m_boundary, m_seed = self.loss_representation.sweep_transpose(
+            b.bulk.values,
+            self.sigma,
+            b.boundary,
+            seed_cot=b.starting_direction,
+        )
+        return FullField(
+            bulk=AngularSourceSink.from_mesh(
+                q_bar, sn_mesh,
+                spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
+            ),
+            boundary=m_boundary,
+            starting_direction=m_seed,
+        )
