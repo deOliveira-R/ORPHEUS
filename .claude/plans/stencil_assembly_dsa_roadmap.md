@@ -1102,8 +1102,10 @@ fix ("route (a) for the non-carrying cylinder") over defer/thread.
   `.claude/agent-memory/explorer/campaign_280_phase25b_product_cyl_seed_map.md`.
 
 **NEW SEQUENCE (user-ruled):** ✓ primitive+slab+sphere reverse-scan (done) →
-✓ **2.5b-cyl-fwd DONE @ `ba202a1`** → cyl reverse-scan (NEXT) → full gates
-(test-architect) → 2.5c wiring → 2.5e docs + close #280.
+✓ **2.5b-cyl-fwd DONE @ `ba202a1`** → ✓ **cyl reverse-scan DONE @ `f1ddeb6`** →
+2.5c wiring (NEXT) → 2.5e docs + close #280.  (The #29 "full gate suite" folded
+INTO `f1ddeb6`: G1–G5 + the (a)/(b)/bdry mutation matrix were built + teeth-
+verified inline, so #29 is discharged — no separate test-architect pass owed.)
 
 **2.5b-cyl-fwd LANDED @ `ba202a1` (2026-07-05):** the product-cyl direct-seed
 fold. For a product quad ψ½ ≡ ψ̄_{m0} (t=0, #229 — first-swept ordinate's own
@@ -1131,16 +1133,55 @@ threading — `_initial_guess_values` (0 callers) + the `_run`/`sweep`/solve
 `initial_guess` param — retires WITH the SweepOperator direct-inverse predicates
 (`is_invertible`, `apply_transpose`). The curvilinear solve no longer reads it.
 
-⏸ **C2.4e — compaction point at the cyl-fwd→cyl-reverse seam.** Re-anchor after
-/compact from: this block + `git log` (ba202a1) + the gate
-`test_cyl_direct_seed_fold.py` + the forward cyl arm (`_run`, now clean) + the
-reverse-scan cyl deferral in `_run_transpose` (raises NotImplementedError today).
-**NEXT ACTION = cyl reverse-scan (#28)**: extend `_OneDimScanWalk._run_transpose`
-to the cylinder — the transpose of the multi-level M-M thread + the now-direct m0
-seed fold (the forward fold's transpose is the reverse arm's seed treatment) +
-degenerate pure-azimuthal ordinates; retire the cyl NotImplementedError guard.
-Then #29 full gate suite (test-architect). Pushes HELD (branch
-`refactor/sn-walk-unification`).
+**2.5b cyl reverse-scan LANDED @ `f1ddeb6` (2026-07-05):** `(L+C)⁻ᵀ` for the
+cylinder — `_OneDimScanWalk._run_transpose` extended as the transpose of `_run`'s
+unified curvilinear body (the sphere-only block generalised to sphere+cyl,
+Pattern 2; sphere path bit-identical since `seed_fold` is empty ⇒ `is_seed_ord`
+always False). Three cyl-specific structures: (1) the multi-level M-M thread
+transpose (sphere is single-level `[None]`; cyl multi-level, each independent,
+`psi_angle_bar` re-init per level); (2) the m0 direct-seed-fold transpose — the
+seed ord routes `−mm_a_in` to `psi_avg` (ψ½≡ψ̄_{m0}, its OWN average), folded
+coeffs `(c_out−c_in)`, no ang_contrib, `m_seed=None` (non-carrying, no carrier);
+(3) the pure-azimuthal DEGENERATE ords (product quad, 8 for `product(4,8)`) as
+slot-local DIAGONAL transposes — the caches are VALID at A_down=0 (`inverse_denom
+= 1/(dA_w·c_out+Σ_t·V)`, probe-confirmed 0-ULP), so NO scan / NO recompute (a=−1
+would wrongly couple cells — the reason the forward uses `dag_walk` not the scan).
+Retired the cyl `NotImplementedError` guard.
+
+**The G3 catch (a real bug G1/G2-bulk missed):** the degenerate ord does NOT
+overwrite its `bc_outer` slot (no face march), so the forward passes
+`sol.boundary[deg] = q.boundary[deg]` (identity); μ<0 degenerate ords ALSO read
+that slot as the `|μ|`-weighted spatial upstream. The first cut DROPPED both —
+G1 round-trip + G2 dense-Mᵀ (bulk-only for the non-carrying cyl) stayed GREEN, but
+G3 full-field Euclidean solve-reciprocity (bulk⊕boundary) reddened at 2.77e-2.
+Adding the passthrough + the `|μ|·A_total` spatial cotangent made it **EXACT
+(0.0)** — the #284 boundary-subspace lesson, live.
+
+Gates (`tests/sn/operators/test_loss_transpose_solve.py`, +`cyl_product`/`cyl_ls`
+in `_MESHES`): G1 round-trip, G2 dense-Mᵀ oracle (structurally independent from
+the forward apply), G3 full-field reciprocity (all EXACT on cyl), G4 `m_seed=None`
+contract, G5 the mandatory-config activation sentinel. **Teeth mutation-verified**
+(committed baseline → mutate → RED → `git checkout` revert): (a) seed misroute →
+G2+G3 RED; (b) degenerate DROP → G3 RED / `cyl_ls` control GREEN; (bdry)
+passthrough DROP → G3 RED / G2 bulk GREEN (blind) / `cyl_ls` GREEN — the
+product-RED/ls-GREEN asymmetry IS the evidence the product config is mandatory
+(the ERR-066 blindness pin). Verified: reverse-scan gate 15/15; SN
+operators+sweep -m "not slow" 1315/0; pyright ratchet sn 0 (total 1 = #288).
+
+DEFERRED to 2.5c (unchanged): the vestigial iterate threading
+(`_initial_guess_values` + the `initial_guess` param) retires WITH the
+SweepOperator direct-inverse predicates.
+
+⏸ **C2.4f — compaction point at the cyl-reverse→2.5c seam.** Re-anchor after
+/compact from: this block + `git log` (`f1ddeb6`) + the gate
+`test_loss_transpose_solve.py` (now slab+sphere+cyl_product+cyl_ls) + the unified
+curvilinear `_run_transpose` (sphere+cyl, no cyl guard). **NEXT ACTION = 2.5c
+(#24) inverse-adjoint wiring**: `SweepOperator.apply_transpose` → the reverse-scan
+`solve_transpose`; `is_adjointable`/`is_invertible` predicates; `_AdjointOperator.
+inverse()`; the swap law `A.H.inverse() ≡ A.inverse().H`; AND the deferred
+retirement of the vestigial `initial_guess` param + `_initial_guess_values`
+(coherent with the direct-inverse predicates). Then 2.5e docs + close #280.
+Pushes HELD (branch `refactor/sn-walk-unification`).
 
 ---
 
