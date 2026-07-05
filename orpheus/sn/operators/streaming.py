@@ -1069,6 +1069,26 @@ class InvertibleOperator(
                     seed_boundary.face_view(face_name)
                 )
 
+        # ── the ψ½ carrier for the sweep (#282 route (a), 2.5d) ────────
+        # A carrying mesh (R12a — the sphere) solves the starting-
+        # direction legs DIRECTLY: the rhs composite must carry the TRUE
+        # q½ block, and the sweep fills a fresh ψ½ carrier in place (the
+        # boundary_buf discipline — the inflow corner passes through as
+        # the seeded given-data slot; the marched cells + outflow corner
+        # are the solved state).  Non-carrying meshes stay 2-block.
+        starting_direction_buf = None
+        if sn_mesh.starting_direction_space is not None:
+            from orpheus.sn.loss_representation import _require_starting_direction
+            from orpheus.transport.fields.starting_direction_flux import (
+                StartingDirectionFlux,
+            )
+
+            _require_starting_direction(
+                "InvertibleOperator.solve", sn_mesh, rhs.starting_direction,
+                role="rhs",
+            )
+            starting_direction_buf = StartingDirectionFlux.zeros_on(sn_mesh)
+
         # ── Sweep on the operator's ONE representation (S6.5, #222) —
         # the SAME :class:`LossRepresentation` instance the matvec
         # (:meth:`StreamingOperator.apply`) consumes, so L21 ("matvec ≡
@@ -1097,6 +1117,8 @@ class InvertibleOperator(
             moment_frame=moment_frame,
             schedule=schedule,
             reflect=reflect,
+            starting_direction_source=rhs.starting_direction,
+            starting_direction_flux=starting_direction_buf,
         )
         # The sweep output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
@@ -1119,6 +1141,7 @@ class InvertibleOperator(
         return TimedFullField(
             bulk=bulk,
             boundary=boundary_buf,
+            starting_direction=starting_direction_buf,
             _history=(),
             history_depth=(
                 rhs.history_depth if isinstance(rhs, TimedFullField) else 0

@@ -15,17 +15,24 @@ M-M recurrence's intermediate state; this test gate pins:
   Hébert §3.9.4 Eqs. 3.437 / 3.439 recurrence
   :math:`\phi_{m+1/2,i,g} = (\phi_{m,i,g} - (1-\tau_m)\,
   \phi_{m-1/2,i,g})/\tau_m` exactly.
-* **L0 — seed contract**: ``carlson_context=None`` reproduces the
-  Phase B zero seed; ``carlson_context=ctx`` invokes the
-  ``psi_half_seed`` strategy to build the recurrence's
-  :math:`\phi_{1/2}`.
+* **L0 — seed contract**: ``psi_half_seed=None`` reproduces the
+  Phase B zero seed; a supplied ``(ng, nx)`` array seeds the
+  recurrence's :math:`\phi_{1/2}` directly.
 * **L0 — redistribution consistency**: composing the public function
   with the geometry-redistribution coefficient ``(ΔA/w)/V``
-  reproduces the redistribution output of the retired ``__call__``
-  bit-for-bit (Pattern 2 round-trip).
+  reproduces the redistribution output bit-for-bit (Pattern 2
+  round-trip).
 * **L0 — linearity in input ψ**: the function is linear in
-  ``psi_level`` (when ``carlson_context`` is held fixed) — preserves
+  ``psi_level`` (when ``psi_half_seed`` is held fixed) — preserves
   operator linearity for the matvec's consumption.
+
+#282 route (a) (#280 Phase 2.5d, 2026-07-04) retired the seed-strategy
+zoo: ``compute_psi_half_per_level`` no longer accepts a context or a
+strategy-object seed; the seed is now a plain ``(ng, nx)`` array (or
+``None`` for the zero seed).  Production seeds are either the
+composite's ψ½ STATE (carrying levels) or the inlined angular-edge
+extrapolation (non-carrying levels); hand-built tests pass the array
+they mean.
 
 These tests live in ``tests/sn/sweep/curvilinear/`` next to the
 existing ``test_psi_half_angle_seed.py`` foundation gates.
@@ -41,8 +48,7 @@ from orpheus.sn.spatial.pole_angular_closure import (
     compute_psi_half_per_level,
 )
 from orpheus.sn.spatial.psi_half_angle_seed import (
-    CarlsonSweepContext,
-    ZeroSeed,
+    carlson_inward_sweep_from_source,
 )
 
 
@@ -59,17 +65,18 @@ class TestFunctionExists:
         assert callable(compute_psi_half_per_level)
 
     @pytest.mark.foundation
-    def test_function_consumes_keyword_only_carlson_context(self) -> None:
-        """``carlson_context`` (and the ``psi_half_seed`` strategy slot)
-        MUST be keyword-only so future positional args (e.g.
-        spatial-axis stride) do not collide with them."""
+    def test_psi_half_seed_is_keyword_only(self) -> None:
+        """``psi_half_seed`` MUST be keyword-only so future positional
+        args (e.g. a spatial-axis stride) do not collide with it.
+
+        (#282 route (a) retired the context/strategy seed slot; the
+        surviving seed kwarg is a plain ``(ng, nx)`` array.)"""
         import inspect
 
         sig = inspect.signature(compute_psi_half_per_level)
-        for name in ("carlson_context", "psi_half_seed"):
-            param = sig.parameters.get(name)
-            assert param is not None
-            assert param.kind == inspect.Parameter.KEYWORD_ONLY
+        param = sig.parameters.get("psi_half_seed")
+        assert param is not None
+        assert param.kind == inspect.Parameter.KEYWORD_ONLY
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -79,17 +86,15 @@ class TestFunctionExists:
 
 class TestShapeContract:
     """The half-angle grid is shape ``(ng, M+1, nx)`` regardless of
-    the carlson_context branch."""
+    the seed branch."""
 
     @pytest.mark.parametrize("ng,M,nx", [(1, 4, 8), (2, 6, 16), (3, 8, 32)])
     @pytest.mark.l0
-    def test_shape_no_carlson(self, ng: int, M: int, nx: int) -> None:
+    def test_shape_no_seed(self, ng: int, M: int, nx: int) -> None:
         rng = np.random.default_rng(seed=42)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
-        psi_half = compute_psi_half_per_level(
-            psi_level, tau_level, carlson_context=None,
-        )
+        psi_half = compute_psi_half_per_level(psi_level, tau_level)
         # PR-TYPED-6c Step 1.5: return is _MMHalfGrid; underlying faces
         # ndarray has the same (ng, M+1, nx) shape.
         assert psi_half.faces.shape == (ng, M + 1, nx)
@@ -99,20 +104,22 @@ class TestShapeContract:
 
     @pytest.mark.parametrize("ng,M,nx", [(1, 4, 8), (2, 6, 16)])
     @pytest.mark.l0
-    def test_shape_with_carlson(self, ng: int, M: int, nx: int) -> None:
+    def test_shape_with_carlson_seed(self, ng: int, M: int, nx: int) -> None:
+        """Shape contract holds when a genuine Carlson starting-direction
+        seed array is supplied (#282 route (a): seed is a ``(ng, nx)``
+        array, no longer a strategy object)."""
         rng = np.random.default_rng(seed=43)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
-        # Build a valid carlson context.
-        ctx = CarlsonSweepContext(
+        # Build a real Carlson starting-direction seed array (ng, nx).
+        seed, _ = carlson_inward_sweep_from_source(
+            Q_bar=np.full((ng, nx), 0.5),
             sigma_t=np.full((ng, nx), 1.0),
             dr=np.full(nx, 0.1),
-            mu_quad=np.linspace(-1.0, 1.0, M),
-            weights=np.full(M, 2.0 / M),
             bc_outer_value=np.zeros(ng),
-            mu_start=-1.0,)
+        )
         psi_half = compute_psi_half_per_level(
-            psi_level, tau_level, carlson_context=ctx,
+            psi_level, tau_level, psi_half_seed=seed,
         )
         assert psi_half.faces.shape == (ng, M + 1, nx)
 
@@ -137,9 +144,7 @@ class TestMMHalfGridAccessors:
         rng = np.random.default_rng(seed=100)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.7)
-        grid = compute_psi_half_per_level(
-            psi_level, tau_level, carlson_context=None,
-        )
+        grid = compute_psi_half_per_level(psi_level, tau_level)
         return grid, ng, M, nx
 
     @pytest.mark.l0
@@ -237,9 +242,7 @@ class TestRecurrenceFormula:
         rng = np.random.default_rng(seed=1)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
-        psi_half = compute_psi_half_per_level(
-            psi_level, tau_level, carlson_context=None,
-        )
+        psi_half = compute_psi_half_per_level(psi_level, tau_level)
         # Zero seed: φ_{1/2} = 0.
         assert np.array_equal(psi_half.faces[:, 0, :], np.zeros((ng, nx)))
         # Verify pure-DD recurrence φ_{m+1/2} = 2φ_m − φ_{m-1/2}.
@@ -256,9 +259,7 @@ class TestRecurrenceFormula:
         rng = np.random.default_rng(seed=2)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, tau_value)
-        psi_half = compute_psi_half_per_level(
-            psi_level, tau_level, carlson_context=None,
-        )
+        psi_half = compute_psi_half_per_level(psi_level, tau_level)
         for m in range(M):
             expected = (
                 psi_level[:, m, :] - (1.0 - tau_value) * psi_half.faces[:, m, :]
@@ -269,60 +270,60 @@ class TestRecurrenceFormula:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# L0 tests — seed contract (carlson_context vs None)
+# L0 tests — seed contract (array seed vs None)
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestSeedContract:
-    """The ``carlson_context`` parameter switches between Phase B
-    zero seed (when ``None``) and the Carlson coupled-pole seed
-    (when supplied)."""
+    """The ``psi_half_seed`` parameter switches between the Phase B
+    zero seed (when ``None``) and an explicit ``(ng, nx)`` seed array
+    (#282 route (a): the strategy indirection is retired — the seed is
+    the raw array)."""
 
     @pytest.mark.l0
-    def test_none_context_gives_zero_seed(self) -> None:
+    def test_none_seed_gives_zero_seed(self) -> None:
         ng, M, nx = 2, 4, 8
         rng = np.random.default_rng(seed=3)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
-        psi_half = compute_psi_half_per_level(
-            psi_level, tau_level, carlson_context=None,
-        )
+        psi_half = compute_psi_half_per_level(psi_level, tau_level)
         # Phase B zero seed: ψ_{1/2} = 0.
         np.testing.assert_array_equal(
             psi_half.faces[:, 0, :], np.zeros((ng, nx)),
         )
 
     @pytest.mark.l0
-    def test_carlson_context_uses_psi_half_seed_strategy(self) -> None:
-        """``carlson_context=ctx`` triggers ``psi_half_seed(psi_level,
-        ctx)`` for the seed."""
-        # Use ZeroSeed so the carlson-context path also produces zero
-        # (sanity-check the wiring without depending on
-        # CarlsonInwardSweep numerical specifics).
+    def test_explicit_zero_array_seed_equals_none_seed(self) -> None:
+        """An explicit ``np.zeros((ng, nx))`` seed reproduces the ``None``
+        (zero) seed bit-for-bit — the zero-seed-equivalent contract."""
         ng, M, nx = 1, 4, 8
         rng = np.random.default_rng(seed=4)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
-        ctx = CarlsonSweepContext(
-            sigma_t=np.full((ng, nx), 1.0),
-            dr=np.full(nx, 0.1),
-            mu_quad=np.linspace(-1.0, 1.0, M),
-            weights=np.full(M, 2.0 / M),
-            bc_outer_value=np.zeros(ng),
-            mu_start=-1.0,)
-        psi_half_with_ctx = compute_psi_half_per_level(
-            psi_level, tau_level,
-            psi_half_seed=ZeroSeed(), carlson_context=ctx,
+        psi_half_zeros = compute_psi_half_per_level(
+            psi_level, tau_level, psi_half_seed=np.zeros((ng, nx)),
         )
-        psi_half_without_ctx = compute_psi_half_per_level(
-            psi_level, tau_level,
-            psi_half_seed=ZeroSeed(), carlson_context=None,
+        psi_half_none = compute_psi_half_per_level(
+            psi_level, tau_level, psi_half_seed=None,
         )
-        # ZeroSeed returns zero regardless of context, so both branches
-        # produce the same seed → bit-identical recurrence output.
         np.testing.assert_array_equal(
-            psi_half_with_ctx.faces, psi_half_without_ctx.faces,
+            psi_half_zeros.faces, psi_half_none.faces,
         )
+
+    @pytest.mark.l0
+    def test_nonzero_seed_lands_at_face_zero(self) -> None:
+        """A supplied ``(ng, nx)`` seed array is placed VERBATIM at the
+        recurrence's leading half-face ``faces[:, 0, :]`` (Hébert φ_{1/2}
+        initial condition)."""
+        ng, M, nx = 2, 4, 8
+        rng = np.random.default_rng(seed=5)
+        psi_level = rng.random((ng, M, nx))
+        tau_level = np.full(M, 0.5)
+        seed = rng.random((ng, nx))
+        psi_half = compute_psi_half_per_level(
+            psi_level, tau_level, psi_half_seed=seed,
+        )
+        np.testing.assert_array_equal(psi_half.faces[:, 0, :], seed)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -352,9 +353,7 @@ class TestPattern2Roundtrip:
         rng = np.random.default_rng(seed=6)
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
-        from_function = compute_psi_half_per_level(
-            psi_level, tau_level, carlson_context=None,
-        )
+        from_function = compute_psi_half_per_level(psi_level, tau_level)
         from_kernel = _psi_half_grid_single_level(
             psi_level, tau_level, psi_half_seed=None,
         )
@@ -369,12 +368,12 @@ class TestPattern2Roundtrip:
 
 
 class TestLinearity:
-    """The function is linear in ``psi_level`` when ``carlson_context``
+    """The function is linear in ``psi_level`` when ``psi_half_seed``
     is held fixed.  Required because the matvec consumes this output
     in a linear operator chain (the streaming + collision algebra)."""
 
     @pytest.mark.l0
-    def test_linearity_in_psi_level_no_context(self) -> None:
+    def test_linearity_in_psi_level_no_seed(self) -> None:
         ng, M, nx = 2, 4, 8
         rng = np.random.default_rng(seed=7)
         psi_a = rng.random((ng, M, nx))
@@ -383,15 +382,9 @@ class TestLinearity:
         tau_level = np.full(M, 0.5)
         # ψ_combined = α·ψ_a + β·ψ_b
         psi_combined = alpha * psi_a + beta * psi_b
-        result_combined = compute_psi_half_per_level(
-            psi_combined, tau_level, carlson_context=None,
-        )
-        result_a = compute_psi_half_per_level(
-            psi_a, tau_level, carlson_context=None,
-        )
-        result_b = compute_psi_half_per_level(
-            psi_b, tau_level, carlson_context=None,
-        )
+        result_combined = compute_psi_half_per_level(psi_combined, tau_level)
+        result_a = compute_psi_half_per_level(psi_a, tau_level)
+        result_b = compute_psi_half_per_level(psi_b, tau_level)
         expected = alpha * result_a.faces + beta * result_b.faces
         np.testing.assert_allclose(result_combined.faces, expected, rtol=1e-13)
 
@@ -431,10 +424,8 @@ class TestCallOutputUnchanged:
         volume = rng.uniform(0.5, 1.5, nx)
 
         # Live path: the half-angle ψ-thread from the public function
-        # (carlson_context=None → the Phase B zero seed).
-        grid = compute_psi_half_per_level(
-            psi_level, tau_level, carlson_context=None,
-        )
+        # (psi_half_seed=None → the Phase B zero seed).
+        grid = compute_psi_half_per_level(psi_level, tau_level)
         faces = grid.faces  # (ng, M+1, nx); faces[:, m, :] = ψ_{m-1/2}
 
         # Pin the recurrence formula directly (verbatim Hébert §3.9.4):

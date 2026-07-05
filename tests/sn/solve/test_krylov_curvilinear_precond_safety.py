@@ -134,7 +134,13 @@ def _krylov_power_iteration_kinf(
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
     from orpheus.sn.solver import SNSolver
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.source_sinks import (
+        AngularSourceSink,
+        StartingDirectionSourceSink,
+    )
+    from orpheus.transport.fields.starting_direction_flux import (
+        StartingDirectionFlux,
+    )
     from orpheus.transport.timed_full_field import TimedFullField
 
     case = _get_continuous_case(ng_key)
@@ -191,12 +197,25 @@ def _krylov_power_iteration_kinf(
         # D-H.2-C1: build the per-ordinate external source as a
         # :class:`TimedFullField` composite — bulk = L2 AngularFlux
         # carrying ``q_ext_per_ord.values``; boundary = implicit zero.
-        zero = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        zero = TimedFullField.zeros(
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            starting_direction=StartingDirectionFlux,
+        )
         # B.5.2: q_ext IS a source (AngularSourceSink), emitted directly — no
         # re-wrap into AngularFlux.  The iterate/return is a flux, so bootstrap
         # a flux initial_guess on the cold start (psi_typed_warm is None on the
         # first outer), mirroring SNSolver._solve_krylov.
-        q_ext_typed = replace(zero, bulk=q_ext_per_ord)
+        # #282 route (a): on a carrying mesh (sphere) the eigenvalue RHS carries
+        # the SOURCE fold of the (isotropic) fission source — the TRUE q½ source
+        # the direct ψ½ solve consumes (the SAME ``from_angular_source`` factory
+        # ``SNSolver._solve_krylov`` uses).  The reflective B corner arm is folded
+        # by ``KrylovAcceleration`` internally (B is in the gains).
+        q_ext_typed = replace(
+            zero, bulk=q_ext_per_ord,
+            starting_direction=StartingDirectionSourceSink.from_angular_source(
+                q_ext_per_ord.values, sn_mesh,
+            ),
+        )
         psi_typed, _residuals = krylov.solve(
             q_ext_typed,
             initial_guess=psi_typed_warm if psi_typed_warm is not None else zero,
@@ -281,3 +300,62 @@ def test_default_sweep_preconditioner_recovers_kinf_on_slab() -> None:
         f"strong evidence that the structural fix has been reverted — "
         f"see L19 + ERR-050."
     )
+
+
+@pytest.mark.parametrize("n_cells", [5, 10, 20])
+def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
+    r"""ERR-053-family regression gate (#282/#280 route (a)): the within-group
+    GMRES ``restart`` MUST be sized from the FULL composite ravel
+    (bulk ⊕ trace ⊕ ψ½-seed), NOT the bulk alone.
+
+    Route (a) grew the Krylov state to a 3-block ``TimedFullField`` on a
+    carrying mesh (R12a).  The pre-fix ``n_dof = N·ng·∏spatial`` formula
+    (``solver.py`` eigenvalue + fixed-source Krylov drivers) counts only the
+    bulk, so on the sphere it is STRICTLY LESS than the raveled ``to_flat``
+    dimension — restarted GMRES then cannot span the augmented Krylov
+    subspace and the poorly-conditioned curvilinear-eigenvalue inner STALLS
+    (residual plateau, scipy ``info > 0``; measured 868 s vs SI ~1 s, and at
+    a realistic outer cap it returns a WRONG keff).  The production solver now
+    sizes ``n_dof = initial_guess.to_flat().size`` — this gate pins the
+    deficit the fix closes so a revert reddens here (fast) instead of
+    stalling the sphere eigenvalue wall.  Distinct from issue #200 (the
+    identity preconditioner).  numerics-investigator 2026-07-04.
+    """
+    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.geometry import CoordSystem
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.transport.fields.starting_direction_flux import (
+        StartingDirectionFlux,
+    )
+    from orpheus.transport.timed_full_field import TimedFullField
+    from tests.sn._test_helpers import curvilinear_two_region_mesh
+
+    mesh = curvilinear_two_region_mesh(
+        outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(n_cells, n_cells),
+        coord=CoordSystem.SPHERICAL,
+    )
+    sn = SNMesh(
+        mesh, Quadrature.gauss_legendre(8),
+        {2: get_mixture("A", "1g"), 0: get_mixture("B", "1g")},
+    )
+    bulk_only = sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape))
+    composite = TimedFullField.zeros(
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        starting_direction=StartingDirectionFlux,
+    )
+    composite_dim = int(composite.to_flat().size)
+    # The pre-fix bulk-only restart under-sizes on a carrying mesh — the
+    # deficit is exactly the trace + ψ½-seed blocks.  The production sizing
+    # (composite ``to_flat``) covers it BY CONSTRUCTION; a revert to the bulk
+    # formula re-opens this deficit and re-triggers the stall.
+    assert bulk_only < composite_dim, (
+        "the sphere composite ravel no longer exceeds the bulk DOF count — "
+        "if the seed block was removed this gate is stale; otherwise the "
+        "premise of the #282 Krylov-restart fix changed."
+    )
+    deficit = composite_dim - bulk_only
+    assert deficit == (
+        int(sn.angular_trace.layout.total_size)
+        + int(sn.starting_direction_space.shape[0])
+    ), f"restart deficit {deficit} ≠ trace+seed — the ravel layout drifted"

@@ -140,7 +140,7 @@ from orpheus.numerics.moment_layout import (
 
 from orpheus.transport.spatial._ubld import octant_moment_frame_signs
 from orpheus.transport.spatial.scheme import UpstreamState
-from ..spatial.psi_half_angle_seed import CarlsonSweepContext
+from ..spatial.psi_half_angle_seed import carlson_inward_sweep_from_source
 from ..spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
 from ..spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from orpheus.transport.mesh.axis import AXIS_NAMES
@@ -160,6 +160,76 @@ from .sweep_schedule import SweepSchedule
 #: into ``residual_kernel_batch`` — the kernel only READS ``Q_cells`` (it never
 #: mutates it), so one shared instance is safe and avoids a per-cell allocation.
 _MATVEC_ZERO_SOURCE = np.zeros((1, 1, 1))
+
+
+def _seed_residual_march(
+    sigma: "np.ndarray", cells: "np.ndarray", two_over_dr: "np.ndarray",
+    f_entry: "np.ndarray",
+) -> "tuple[np.ndarray, np.ndarray]":
+    r"""ONE starting-direction DD-residual march (the seed-block analogue of
+    :func:`carlson_inward_sweep_from_source`, forward-direction).
+
+    Marches the Hébert (3.434) residual ``mᵢ = σᵢ·cᵢ + (2/Δrᵢ)·(cᵢ − fᵢ)``
+    with the DD face chain ``f ← 2·cᵢ − f`` in ASCENDING cell order from
+    the entry face ``f_entry``; returns ``(rows, f_exit)``.  Both seed legs
+    route through this one body — the inward (μ = −1) leg marches its
+    REVERSED data (orientation is DATA, never a flag).
+
+    ``sigma`` / ``cells`` are ``(ng, n)``; ``two_over_dr`` is ``(n,)``;
+    ``f_entry`` / ``f_exit`` are ``(ng,)``.
+    """
+    rows = np.empty_like(cells)
+    f = f_entry.copy()
+    for i in range(cells.shape[1]):
+        rows[:, i] = sigma[:, i] * cells[:, i] + two_over_dr[i] * (cells[:, i] - f)
+        f = 2.0 * cells[:, i] - f
+    return rows, f
+
+
+def _refuse_starting_direction(
+    where: str,
+    starting_direction_source: "StartingDirectionField | None",
+    starting_direction_flux: "StartingDirectionFlux | None",
+) -> None:
+    """Loud refusal of a ψ½ seed pair on a strategy that cannot carry one.
+
+    The starting-direction block is 1-D curvilinear only (R12a: multi-D
+    Cartesian has no carrying levels — the field cannot even be built on
+    such a mesh, so a non-``None`` pair here is a caller wiring error).
+    """
+    if starting_direction_source is not None or starting_direction_flux is not None:
+        raise ValueError(
+            f"{where}: a starting-direction seed pair is 1-D curvilinear "
+            f"only — this strategy's meshes carry no starting-direction "
+            f"levels (R12a)."
+        )
+
+
+def _require_starting_direction(
+    where: str, sn_mesh: "SNMesh", block: "StartingDirectionField | None",
+    *, role: str,
+) -> None:
+    """The positive half of the R12a biconditional — a carrying mesh REQUIRES
+    the ψ½ block on the composite (#282 route (a); Pattern 2 with
+    :func:`_refuse_starting_direction` — one spelling of "carrying ⟺ block
+    present", so the forward emit and the transpose consume cannot drift
+    onto different domains).
+
+    ``block`` is the composite's ``.starting_direction`` slot (role-erased
+    to :class:`StartingDirectionField`); ``role`` names the composite for
+    the message (``"input"`` / ``"cotangent"`` / ``"rhs"``).
+    """
+    if (
+        getattr(sn_mesh, "starting_direction_space", None) is not None
+        and block is None
+    ):
+        raise ValueError(
+            f"{where}: this mesh carries starting-direction levels (R12a) "
+            f"but the {role} composite has no starting_direction block — "
+            f"build it via the seed-aware factory / FullField.zeros(..., "
+            f"starting_direction=<leaf>) or thread the solve output "
+            f"(#282 route (a))."
+        )
 
 
 def frame_signs_for(
@@ -186,10 +256,16 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     from orpheus.numerics.frame import FrameBase
+    from orpheus.transport.fields._bases import StartingDirectionField
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+    from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
+    from orpheus.transport.source_sinks import (
+        AngularSourceSink,
+        AngularBoundarySourceSink,
+        StartingDirectionSourceSink,
+    )
     from orpheus.transport.timed_full_field import TimedFullField
 
     from ..mesh.augmented_mesh import SNMesh
@@ -275,6 +351,8 @@ class LossRepresentation(Protocol):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
+        starting_direction_source: "StartingDirectionField | None" = None,
+        starting_direction_flux: "StartingDirectionFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         """Perform one within-group transport sweep on this strategy's mesh.
 
@@ -289,6 +367,16 @@ class LossRepresentation(Protocol):
         sweep-and-reflect loop with the inter-group ``reflect`` — the
         forward substitution of the reified ``M = (L+C−B_lower)``.
         Multi-D only; the 1-D scan raises (not a wavefront).
+
+        ``starting_direction_source``/``starting_direction_flux`` (#282
+        route (a), 2.5d): the ψ½ analogue of the ``(Q, boundary_flux)``
+        pair — the TRUE starting-direction source q½ (read) and the
+        ψ½ carrier the sweep fills in place (the marched cells + the
+        outflow corner; the inflow corner passes through as the seeded
+        given-data slot, exactly like the trace inflow).  Both are
+        ``None`` on a mesh with no carrying levels (R12a); a 1-D
+        curvilinear carrying mesh REQUIRES both.  Multi-D strategies
+        raise on a non-``None`` pair (no curvature ⇒ no seed).
         """
         ...
 
@@ -566,6 +654,8 @@ class _LossRepresentation:
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
+        starting_direction_source: "StartingDirectionField | None" = None,
+        starting_direction_flux: "StartingDirectionFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         """One within-group sweep — every concrete strategy implements it."""
         raise NotImplementedError(
@@ -1091,6 +1181,8 @@ class CumprodScan(_LossRepresentation):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
+        starting_direction_source: "StartingDirectionField | None" = None,
+        starting_direction_flux: "StartingDirectionFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if moment_frame is not None:
             # Moment output is the 2-D windowed-SI peak-memory optimization;
@@ -1111,6 +1203,8 @@ class CumprodScan(_LossRepresentation):
             )
         return _OneDimScanWalk(self.mesh).sweep(
             Q, sig_t, boundary_flux, initial_guess=initial_guess,
+            starting_direction_source=starting_direction_source,
+            starting_direction_flux=starting_direction_flux,
         )
 
     def loss_action(
@@ -1251,7 +1345,13 @@ class MovingFrontierWindow(_DAGWavefront):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
+        starting_direction_source: "StartingDirectionField | None" = None,
+        starting_direction_flux: "StartingDirectionFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
+        _refuse_starting_direction(
+            "MovingFrontierWindow.sweep",
+            starting_direction_source, starting_direction_flux,
+        )
         if schedule is None:
             return _sweep_jacobi(
                 Q, sig_t, self.mesh, boundary_flux,
@@ -1556,7 +1656,13 @@ class FullFieldWavefront(_DAGWavefront):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
+        starting_direction_source: "StartingDirectionField | None" = None,
+        starting_direction_flux: "StartingDirectionFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
+        _refuse_starting_direction(
+            "FullFieldWavefront.sweep",
+            starting_direction_source, starting_direction_flux,
+        )
         if moment_frame is not None:
             raise ValueError(
                 "FullFieldWavefront.sweep: the full-field oracle does not "
@@ -1805,6 +1911,8 @@ class ScanMarch(_LossRepresentation):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
+        starting_direction_source: "StartingDirectionField | None" = None,
+        starting_direction_flux: "StartingDirectionFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         if self.mesh.is_1d:
             # d=1 ⇒ ``scan(x)`` with no transverse march: the unified 1-D body
@@ -1825,7 +1933,13 @@ class ScanMarch(_LossRepresentation):
                 )
             return _OneDimScanWalk(self.mesh).sweep(
                 Q, sig_t, boundary_flux, initial_guess=initial_guess,
+                starting_direction_source=starting_direction_source,
+                starting_direction_flux=starting_direction_flux,
             )
+        _refuse_starting_direction(
+            "ScanMarch.sweep",
+            starting_direction_source, starting_direction_flux,
+        )
         # multi-D ⇒ the row-march sweep = the schedule × the scan-march
         # interior kernel on the SAME schedule loop the window uses (S6.4(b):
         # the former private ``_sweep_2d_scanmarch`` frame dissolved into the
@@ -2173,6 +2287,8 @@ def transport_sweep(
     *,
     initial_guess: "FullField | None" = None,
     moment_frame: "FrameBase | None" = None,
+    starting_direction_source: "StartingDirectionField | None" = None,
+    starting_direction_flux: "StartingDirectionFlux | None" = None,
 ) -> "tuple[np.ndarray, np.ndarray | None]":
     """Perform one full transport sweep.
 
@@ -2298,12 +2414,35 @@ def transport_sweep(
     literals until then.)
     """
     Q = _unwrap_source(source)
+    # #282 route (a): on a carrying mesh (R12a) the operator-free entry is
+    # self-sufficient — it folds the source's ℓ=0 moment into the q½ block
+    # and allocates the ψ½ carrier (the ONE fold factory,
+    # ``StartingDirectionSourceSink.from_angular_source``) unless the caller
+    # supplied the pair.  This mirrors ``InvertibleOperator.solve`` reading
+    # ``rhs.starting_direction`` — transport_sweep has no composite rhs, so
+    # it derives the pair from the source it DOES have.
+    if (
+        getattr(sn_mesh, "starting_direction_space", None) is not None
+        and starting_direction_source is None
+        and starting_direction_flux is None
+    ):
+        from orpheus.transport.fields.starting_direction_flux import (
+            StartingDirectionFlux,
+        )
+        from orpheus.transport.source_sinks import StartingDirectionSourceSink
+
+        starting_direction_source = (
+            StartingDirectionSourceSink.from_angular_source(Q, sn_mesh)
+        )
+        starting_direction_flux = StartingDirectionFlux.zeros_on(sn_mesh)
     # S6.4(f): selector and orchestration share this module — the historical
     # sweep ↔ loss_representation lazy-import cycle is GONE.
     return default_for(sn_mesh).sweep(
         Q, sig_t, boundary_flux,
         initial_guess=initial_guess,
         moment_frame=moment_frame,
+        starting_direction_source=starting_direction_source,
+        starting_direction_flux=starting_direction_flux,
     )
 
 
@@ -2571,6 +2710,133 @@ class _OneDimScanWalk:
                     break
         return global_deg, deg_level, deg_within
 
+    # ── The starting-direction (ψ½) block of (L+C) — #282 route (a) ────
+    #
+    # On a carrying mesh (R12a: the sphere) the composite carries the
+    # per-level starting-direction legs as FIRST-CLASS STATE, and (L+C)
+    # gains their rows: per carrying level, the μ = −1 leg's DD residual
+    # (marched inward from the outer corner), the pole continuation
+    # ψ½⁺(0) = ψ½⁻(0), the μ = +1 leg's DD residual (marched outward),
+    # and the two corner rows — inflow corner = identity (the trace
+    # r_inflow discipline), outflow corner = streamed − stored (the
+    # trace r_outflow discipline).  The rows are SELF-CONTAINED in the
+    # seed state (no bulk/trace reads): the seed→bulk coupling is the
+    # M-M recurrence (``precompute_psi_state`` reads ``cells(p, -1)``),
+    # which lands in the BULK rows' ``angular_numer`` — one-directional,
+    # so the augmented walk order (seed⁻ ≺ seed⁺ ≺ ordinate legs) stays
+    # lower-triangular: the #282 back edge is dead by construction.
+
+    def _seed_rows_forward(
+        self, sigma: "np.ndarray", seed: "StartingDirectionField",
+    ) -> "np.ndarray":
+        r"""Forward ``(L+C)`` action on the starting-direction block.
+
+        Per carrying level: the Hébert (3.434)-residual of each leg —
+        ``m½ᵢ = σᵢ·ψ½ᵢ + (2/Δrᵢ)·(ψ½ᵢ − f_in,i)`` with the DD face
+        chain ``f ← 2·ψ½ᵢ − f`` reconstructed from the STATE cells
+        (entry face: the inflow corner for the − leg, the − leg's
+        pole face for the + leg) — plus the two corner rows.  Both legs
+        run through ONE march (:func:`_seed_residual_march`); the inward
+        (μ = −1) leg reverses its cell data so the SAME march covers both
+        orientations (orientation is DATA — the discipline
+        ``carlson_inward_sweep_from_source`` uses for the SOLVE).  The
+        face chains replay the solve's march arithmetic on the stored
+        cells (same ops, same order), so ``apply ∘ solve`` closes the
+        corner defect to 0.0 bit-exactly.
+
+        ``sigma`` is the caller's diagonal (σ_t for the fused (L+C),
+        ZERO for the σ-free ``streaming_action`` — the seed rows are
+        affine in σ exactly like the bulk walk).  Returns the flat
+        seed-space buffer of the emitted rows.
+        """
+        values = seed.values
+        space = seed.space
+        dr = self.mesh.axis_widths[0]                     # (nx,)
+        two_over_dr = 2.0 / dr                            # (nx,)
+        out = np.zeros_like(values)
+        for p in space.levels:
+            c_minus = space.cells_view(values, p, -1)     # (ng, nx)
+            k_minus = space.corner_view(values, p, -1)    # (ng,)
+            c_plus = space.cells_view(values, p, +1)
+            k_plus = space.corner_view(values, p, +1)
+            # ── inward (μ = −1) leg: enter at the outer corner — march the
+            # reversed data so the ascending helper covers the outer→inner
+            # direction; the exit face IS the pole datum. ──
+            rows_rev, f_pole = _seed_residual_march(
+                sigma[:, ::-1], c_minus[:, ::-1], two_over_dr[::-1], k_minus,
+            )
+            space.cells_view(out, p, -1)[:] = rows_rev[:, ::-1]
+            # ── outward (μ = +1) leg: pole continuation ψ½⁺(0) = ψ½⁻(0) ──
+            rows_plus, f_outer = _seed_residual_march(
+                sigma, c_plus, two_over_dr, f_pole,
+            )
+            space.cells_view(out, p, +1)[:] = rows_plus
+            # ── corner rows (the trace diagonals' discipline) ──
+            # inflow corner: identity row I·ψ½.corner(−1);
+            # outflow corner: streamed − stored (computed-minus-stored,
+            # the same free-sign convention as the trace outflow slots).
+            space.corner_view(out, p, -1)[:] = k_minus
+            space.corner_view(out, p, +1)[:] = f_outer - k_plus
+        return out
+
+    def _seed_rows_transpose(
+        self,
+        sigma: "np.ndarray",
+        chi_seed: "StartingDirectionField",
+        seed_cells_bar: "dict[int, np.ndarray]",
+    ) -> "np.ndarray":
+        r"""Euclidean transpose of :meth:`_seed_rows_forward` (+ the
+        recurrence-coupling cotangent).
+
+        Exact reverse-mode of the forward straight-line program: the
+        corner rows reverse first, then the + leg's chain (cells
+        descending — the reverse of its outward march), the pole
+        continuation hands the running face cotangent to the − leg's
+        reversal (cells ascending), and the − chain's final face
+        cotangent lands on the inflow corner (the forward's entry
+        read).  ``seed_cells_bar`` (from
+        ``closure.angular_adjoint`` — the reverse M-M recurrence
+        STOPPING at the seed) adds onto the − leg's cells cotangent:
+        the transpose of the seed→bulk recurrence coupling.
+        """
+        values = chi_seed.values
+        space = chi_seed.space
+        dr = self.mesh.axis_widths[0]
+        two_over_dr = 2.0 / dr
+        out = np.zeros_like(values)
+        for p in space.levels:
+            mb_minus = space.cells_view(values, p, -1)    # m̄½⁻ (ng, nx)
+            kb_minus = space.corner_view(values, p, -1)   # m̄k⁻ (ng,)
+            mb_plus = space.cells_view(values, p, +1)
+            kb_plus = space.corner_view(values, p, +1)
+            cb_minus = space.cells_view(out, p, -1)
+            cb_plus = space.cells_view(out, p, +1)
+            # ── reverse the corner rows ──
+            # mk⁺ = f_R⁺ − k⁺  ⟹  f̄ = m̄k⁺, k̄⁺ = −m̄k⁺;  mk⁻ = k⁻ ⟹ k̄⁻ += m̄k⁻.
+            space.corner_view(out, p, +1)[:] = -kb_plus
+            f_bar = kb_plus.copy()
+            corner_minus_bar = kb_minus.copy()
+            # ── reverse the + (outward) leg: cells descending ──
+            for i in range(dr.size - 1, -1, -1):
+                cb_plus[:, i] += 2.0 * f_bar
+                f_bar = -f_bar
+                cb_plus[:, i] += (sigma[:, i] + two_over_dr[i]) * mb_plus[:, i]
+                f_bar += -two_over_dr[i] * mb_plus[:, i]
+            # ── pole continuation: f̄ flows into the − leg's final face ──
+            # ── reverse the − (inward) leg: cells ascending ──
+            for i in range(dr.size):
+                cb_minus[:, i] += 2.0 * f_bar
+                f_bar = -f_bar
+                cb_minus[:, i] += (sigma[:, i] + two_over_dr[i]) * mb_minus[:, i]
+                f_bar += -two_over_dr[i] * mb_minus[:, i]
+            # the − chain's entry face was the inflow corner.
+            corner_minus_bar += f_bar
+            space.corner_view(out, p, -1)[:] = corner_minus_bar
+            # ── the seed→bulk M-M recurrence coupling, transposed ──
+            if p in seed_cells_bar:
+                cb_minus += seed_cells_bar[p]
+        return out
+
     def sweep(
         self,
         Q: np.ndarray,
@@ -2578,6 +2844,8 @@ class _OneDimScanWalk:
         boundary_flux: "AngularBoundaryFlux",
         *,
         initial_guess: "FullField | None" = None,
+        starting_direction_source: "StartingDirectionField | None" = None,
+        starting_direction_flux: "StartingDirectionFlux | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         r"""Geometry-blind 1-D SN sweep — three numpy tensor ops per ordinate.
 
@@ -2631,6 +2899,8 @@ class _OneDimScanWalk:
         return self._run(
             Q, sig_t, boundary_flux, geom, coll,
             initial_guess=initial_guess,
+            starting_direction_source=starting_direction_source,
+            starting_direction_flux=starting_direction_flux,
         )
 
     def loss_action(
@@ -2649,7 +2919,7 @@ class _OneDimScanWalk:
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
 
-        m_cell, m_boundary = self._apply_walk(sigma, psi)
+        m_cell, m_boundary, m_seed = self._apply_walk(sigma, psi)
         # The matvec output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
         # selects the SpatialMomentSpace factor.  DD/Step → no factor, byte-id.
@@ -2659,11 +2929,12 @@ class _OneDimScanWalk:
                 spatial_moments=self.mesh.scheme.spatial_basis_per_axis,
             ),
             boundary=m_boundary,
+            starting_direction=m_seed,
         )
 
     def _apply_walk(
         self, sigma: "np.ndarray", psi: "FullField",
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
         r"""The 1-D apply-direction walk — the fused ``(L+C)ψ`` single emission.
 
         #206 Phase C: relocated verbatim off
@@ -2766,13 +3037,19 @@ class _OneDimScanWalk:
                 "populated."
             )
 
-        # Wave O O.4a.2: the pole-closure inflow estimate is the GIVEN outer
-        # inflow trace (``precompute_psi_state`` reads its μ<0 / inward
-        # ordinates), not the reflected forward outflow.
-        outer_inflow_estimate = face_outer
+        # #282 route (a) (2.5d): a carrying mesh (R12a — the sphere)
+        # REQUIRES the composite's starting-direction block: the M-M
+        # recurrence seed is first-class STATE read off the carrier, and
+        # the (L+C) matvec emits the seed rows below.  A 2-block field on
+        # a carrying mesh is an illegal state post-activation (Pattern 4)
+        # — the pre-2.5d extrapolate-from-the-iterate treatment (the #282
+        # back edge) is retired, not silently reproduced.
+        seed_field = psi.starting_direction
+        _require_starting_direction(
+            "_OneDimScanWalk._apply_walk", sn_mesh, seed_field, role="input",
+        )
         psi_state = pole_angular_closure.precompute_psi_state(
-            psi_view, sigma_t=sigma_gx,
-            bc_outer_inflow_estimate=outer_inflow_estimate,
+            psi_view, starting_direction=seed_field,
         )
 
         # The d=1 matvec probe (the iterate) is GLOBAL-frame; the residual
@@ -2997,7 +3274,18 @@ class _OneDimScanWalk:
                     face_inner[inner_inflow, :]
                 )
 
-        return m_cell, m_boundary
+        # ── the starting-direction (ψ½) rows — #282 route (a) ──
+        m_seed = None
+        if seed_field is not None:
+            from orpheus.transport.source_sinks import StartingDirectionSourceSink
+
+            m_seed = StartingDirectionSourceSink(
+                values=self._seed_rows_forward(sigma_gx, seed_field),
+                space=seed_field.space,
+                mesh=seed_field.mesh,
+            )
+
+        return m_cell, m_boundary, m_seed
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
@@ -3084,6 +3372,16 @@ class _OneDimScanWalk:
         trace = sn_mesh.angular_trace
         has_inner_face = "xmin" in phi.boundary.layout.faces
 
+        # #282 route (a): the transpose of the augmented operator needs the
+        # cotangent's starting-direction block on a carrying mesh (the
+        # forward emits seed rows, so the transpose consumes their
+        # cotangents) — the SAME R12a requirement as the forward walk.
+        chi_seed = phi.starting_direction
+        _require_starting_direction(
+            "_OneDimScanWalk.loss_action_transpose", sn_mesh, chi_seed,
+            role="cotangent",
+        )
+
         out_bar = phi.bulk.values.swapaxes(0, 1)   # (ng, N, nx)
         fo = phi.boundary.face_view("xmax")                       # (N, ng)
 
@@ -3120,11 +3418,10 @@ class _OneDimScanWalk:
                 fi_bar[ii] += fi[ii]
 
         # ── ψ-independent angular_denom_term source (dummy state) ──
-        psi_state_coef = closure.precompute_psi_state(
-            np.zeros((N, ng, nx)),
-            sigma_t=sgx,
-            bc_outer_inflow_estimate=np.zeros((N, ng)),
-        )
+        # Coefficient-only use: ``cell_contribution`` reads ONLY the
+        # denom leg off this state, so the zero seed of the ``None``
+        # starting_direction is never consumed (documented on the ABC).
+        psi_state_coef = closure.precompute_psi_state(np.zeros((N, ng, nx)))
 
         # ── reverse the spatial DD marches — the SAME legs, exact-reverse
         # order (#280 2.5a).  Reverse-mode retraces the primal walk
@@ -3241,11 +3538,25 @@ class _OneDimScanWalk:
                     ] += -ob[:, col_idx] / V[i]
 
         # ── reverse the angular factor (delegated; zero for the slab closure) ──
-        psi_ang_bar, bc_ang_bar = closure.angular_adjoint(
-            tuple(numer_bar), sigma_t=sgx,
-        )
+        # #282 route (a): the reverse M-M recurrence STOPS at the seed on
+        # carrying levels — ``seed_cells_bar`` is the per-level seed-cells
+        # cotangent the seed-block reversal below consumes; non-carrying
+        # levels were scattered onto ``psi_ang_bar`` inside the closure.
+        psi_ang_bar, seed_cells_bar = closure.angular_adjoint(tuple(numer_bar))
         psi_bar += psi_ang_bar
-        fo_bar += bc_ang_bar
+
+        # ── reverse the starting-direction rows (#282 route (a)) ──
+        m_seed_bar = None
+        if chi_seed is not None:
+            from orpheus.transport.source_sinks import StartingDirectionSourceSink
+
+            m_seed_bar = StartingDirectionSourceSink(
+                values=self._seed_rows_transpose(
+                    sgx, chi_seed, seed_cells_bar,
+                ),
+                space=chi_seed.space,
+                mesh=chi_seed.mesh,
+            )
 
         # ── assemble the typed composite ──
         m_boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
@@ -3257,6 +3568,7 @@ class _OneDimScanWalk:
                 psi_bar.swapaxes(0, 1), sn_mesh,
             ),
             boundary=m_boundary,
+            starting_direction=m_seed_bar,
         )
 
     def _ensure_geom_cache(self) -> GeometryCoefficients:
@@ -3301,6 +3613,8 @@ class _OneDimScanWalk:
         coll: CollisionCache,
         *,
         initial_guess: "FullField | None" = None,
+        starting_direction_source: "StartingDirectionField | None" = None,
+        starting_direction_flux: "StartingDirectionFlux | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Inner body of the unified 1-D sweep.
 
@@ -3342,6 +3656,29 @@ class _OneDimScanWalk:
         ng = Q.shape[1]                                          # (N, ng, nx, ny=1)
         weights = quad.weights
         mu = quad.mu_x
+
+        # ── #282 route (a): the starting-direction contract (R12a) ──
+        # A carrying mesh (the sphere) REQUIRES the seed pair — the solve
+        # marches the ψ½ legs directly from the TRUE q½ source and fills
+        # the carrier in place (the boundary_flux discipline).  A
+        # non-carrying mesh must NOT receive one (the typed field cannot
+        # even exist on it; a non-None pair is a caller wiring error).
+        seed_levels = frozenset(self.mesh.starting_direction_levels)
+        if seed_levels:
+            if starting_direction_source is None or starting_direction_flux is None:
+                raise ValueError(
+                    "_OneDimScanWalk._run: this mesh carries starting-"
+                    "direction levels (R12a) but the sweep was called "
+                    "without the (starting_direction_source, "
+                    "starting_direction_flux) pair — the rhs composite "
+                    "must carry its q½ block and the solve wrap must "
+                    "allocate the ψ½ carrier (#282 route (a))."
+                )
+        else:
+            _refuse_starting_direction(
+                "_OneDimScanWalk._run",
+                starting_direction_source, starting_direction_flux,
+            )
 
         # ── Entry layout — the public contract is the principled
         # (N, ng, *spatial) = (N, ng, nx) for 1-D (no phantom ny axis).
@@ -3611,18 +3948,29 @@ class _OneDimScanWalk:
                 levels = list(range(len(level_indices)))
                 level_ordinates_list = [list(li) for li in level_indices]
 
-            # M-M closure owns the per-level Carlson coupled-pole seed
-            # (Pattern 2 single source of truth — the matvec consumes the
-            # SAME ``psi_half_seed`` strategy via
-            # :meth:`MorelMontryAngularSweep.precompute_psi_state`).  The
-            # strategy reads ψ at the level's ordinates (the previous
-            # iterate when ``initial_guess`` is supplied; zeros on cold
-            # start) and emits the cell-centred half-angle face flux
-            # ``φ̄_{1/2,i,g}`` per Hébert §3.9.4 Eqs. (3.432)-(3.435).
             # The whole curvilinear scan IS the Morel–Montry thread (the
-            # per-level Carlson seed + the in-sweep angular recurrence), so
+            # per-level ψ½ seed + the in-sweep angular recurrence), so
             # the closure is parsed to the M-M type loudly — a different
             # curvilinear closure would need its own scan choreography.
+            #
+            # #282 route (a) (2.5d) — the per-level seed dispatch:
+            #
+            # * CARRYING level (R12a — the sphere): the ψ½ legs are
+            #   solved DIRECTLY, before the level's ordinate loop, by the
+            #   Hébert (3.434)-(3.435) DD march on the TRUE q½ source
+            #   (``carlson_inward_sweep_from_source`` — inward from the
+            #   seeded inflow corner, pole-continued, outward to the
+            #   outflow corner), and the marched inward cells ARE the
+            #   recurrence seed.  The iterate plays NO role — the #282
+            #   seed LAG (extrapolate-from-``initial_guess``) is dead,
+            #   so the cold solve is a single-pass exact inverse.
+            # * NON-carrying level (every production cylinder): the seed
+            #   is the 2-point angular-edge extrapolation of the ITERATE
+            #   (``closure.edge_extrapolated_seed`` — the banked product-
+            #   cylinder hazard: the t = 0 stencil read of the initial
+            #   guess is a formal lag that is harmless at the fixed point
+            #   and bit-exactly preserves the pre-2.5d data flow; the
+            #   level-symmetric seed weight is exactly zero).
             from ..spatial.pole_angular_closure import MorelMontryAngularSweep
 
             closure = self.mesh.pole_angular_closure
@@ -3654,23 +4002,52 @@ class _OneDimScanWalk:
             for p_idx, level in enumerate(levels):
                 ordinates_in_level = level_ordinates_list[p_idx]
                 ords_arr = np.asarray(ordinates_in_level)
-                mu_in_level = mu[ords_arr]
-                most_inward_global = int(ords_arr[int(np.argmin(mu_in_level))])
-                bc_outer_value = inflow_full[most_inward_global, :]
-                level_weights = weights[ords_arr]
-                if psi_g_first is not None:
-                    psi_level = psi_g_first[:, ords_arr, :]          # (ng, M_p, nx)
+                if p_idx in seed_levels:
+                    # ── the DIRECT ψ½ solve (#282 route (a)) ──
+                    # Marches BOTH starting-direction legs from the TRUE
+                    # q½ source before any ordinate of the level: inward
+                    # from the seeded inflow corner (the given-data slot,
+                    # copied through to the carrier — the trace-inflow
+                    # discipline), pole continuation ψ½⁺(0) = ψ½⁻(0)
+                    # (the march's exit face IS the pole datum), outward
+                    # to the outflow corner.  The outward leg rides the
+                    # SAME engine on reversed cell data (orientation is
+                    # data, never a flag — the 2.5a discipline).
+                    assert starting_direction_source is not None
+                    assert starting_direction_flux is not None
+                    src_vals = starting_direction_source.values
+                    buf_vals = starting_direction_flux.values
+                    seed_space = starting_direction_flux.space
+                    q_minus = seed_space.cells_view(src_vals, p_idx, -1)
+                    q_plus = seed_space.cells_view(src_vals, p_idx, +1)
+                    corner_in = seed_space.corner_view(src_vals, p_idx, -1)
+                    cells_minus, pole_face = carlson_inward_sweep_from_source(
+                        q_minus, sigma_t_gx, dr, corner_in,
+                    )
+                    cells_plus_rev, corner_out = carlson_inward_sweep_from_source(
+                        q_plus[:, ::-1], sigma_t_gx[:, ::-1], dr[::-1],
+                        pole_face,
+                    )
+                    seed_space.cells_view(buf_vals, p_idx, -1)[...] = cells_minus
+                    seed_space.corner_view(buf_vals, p_idx, -1)[...] = corner_in
+                    seed_space.cells_view(buf_vals, p_idx, +1)[...] = (
+                        cells_plus_rev[:, ::-1]
+                    )
+                    seed_space.corner_view(buf_vals, p_idx, +1)[...] = corner_out
+                    # The marched inward cells ARE the M-M recurrence seed
+                    # — first-class state, no iterate read (C(ii) bitwise
+                    # seed-insensitivity is this line).
+                    phi_aux = cells_minus
                 else:
-                    psi_level = np.zeros((ng, ords_arr.size, nx))
-                carlson_ctx = CarlsonSweepContext(
-                    sigma_t=sigma_t_gx,
-                    dr=dr,
-                    mu_quad=mu_in_level.copy(),
-                    weights=level_weights.copy(),
-                    bc_outer_value=bc_outer_value,
-                    mu_start=float(geom.mu_start[most_inward_global]),
-                )
-                phi_aux = closure.psi_half_seed(psi_level, carlson_ctx)  # (ng, nx)
+                    # ── the edge-extrapolation seed (non-carrying) ──
+                    # Reads the ITERATE exactly as pre-2.5d (zeros on cold
+                    # start) — the product-cylinder ig-consumption hazard's
+                    # bit-exact preservation clause.
+                    if psi_g_first is not None:
+                        psi_level = psi_g_first[:, ords_arr, :]      # (ng, M_p, nx)
+                    else:
+                        psi_level = np.zeros((ng, ords_arr.size, nx))
+                    phi_aux = closure.edge_extrapolated_seed(psi_level, p_idx)
                 psi_angle = phi_aux.copy()                            # (ng, nx) — principled
 
                 for m_local, global_n in enumerate(ordinates_in_level):

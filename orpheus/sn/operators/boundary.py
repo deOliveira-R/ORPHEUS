@@ -401,6 +401,8 @@ class SNBoundaryOperator(LinearOperator):
     def reflect_inflow_inplace(
         self, boundary_flux: "AngularBoundaryFlux",
         faces: "Iterable[str] | None" = None,
+        *,
+        starting_direction: "StartingDirectionField | None" = None,
     ) -> None:
         r"""In place: overwrite each face's inflow rows with the reflected
         outflow — ``ψ.inflow ← (B·ψ)|_{\rm inflow}``, face-restrictable.
@@ -415,6 +417,14 @@ class SNBoundaryOperator(LinearOperator):
         and the whole-trace form (``faces=None``) serves the direct
         fixed-source SI loop + the eigenvalue reconstruction sweep via
         :func:`orpheus.sn.solver._reflect_outflow_into_inflow`.
+
+        ``starting_direction`` (#282 route (a)): a ψ½ carrier whose
+        inflow-corner slots are overwritten with the law's corner action
+        on its OUTFLOW corners — ``ψ½.corner(p, −1) ← (B·ψ½).corner(p,
+        −1)`` through the SAME :meth:`_reflect_starting_direction` arm
+        the matvec uses (vacuum ⇒ 0, reflective ⇒ the specular corner
+        swap).  The seed analogue of the trace overwrite above, for the
+        reconstruction sweep's given-data corner seeding.
         """
         reflected = self.reflect_into_inflow(boundary_flux, faces=faces)
         trace = self.sn_mesh.angular_trace
@@ -426,6 +436,16 @@ class SNBoundaryOperator(LinearOperator):
             boundary_flux.face_view(face)[inflow] = (
                 reflected.face_view(face)[inflow]
             )
+        if starting_direction is not None:
+            corner_reflected = self._reflect_starting_direction(
+                starting_direction, "apply",
+            )
+            assert corner_reflected is not None  # seed given ⇒ arm emits
+            space = starting_direction.space
+            for level in space.levels:
+                space.corner_view(
+                    starting_direction.values, level, -1,
+                )[...] = space.corner_view(corner_reflected.values, level, -1)
 
     def split(self, schedule: "SweepSchedule") -> "BoundarySplit":
         r"""Split ``B = B_lower + B_upper`` under ``schedule``'s octant order

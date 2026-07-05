@@ -28,7 +28,10 @@ family; #290 P2.5)::
        residual →  orpheus.transport.residuals      (…Residual)
 
     bulk leaves here: AngularResidual, ScalarResidual;
-    boundary leaf: AngularBoundaryResidual.
+    boundary leaf: AngularBoundaryResidual;
+    starting-direction leaf: StartingDirectionResidual (#282 route (a) —
+    the ψ½ block of the augmented residual, the third locus's fourth
+    role member).
 
 The boundary residual :class:`AngularBoundaryResidual` IS the already-computed
 matvec face-defect (the residual of ``γ₋ψ = R·G·γ₊ψ + q``), today
@@ -46,5 +49,13 @@ from __future__ import annotations
 from orpheus.transport.residuals.angular_residual import AngularResidual
 from orpheus.transport.residuals.scalar_residual import ScalarResidual
 from orpheus.transport.residuals.angular_boundary_residual import AngularBoundaryResidual
+from orpheus.transport.residuals.starting_direction_residual import (
+    StartingDirectionResidual,
+)
 
-__all__ = ["AngularResidual", "ScalarResidual", "AngularBoundaryResidual"]
+__all__ = [
+    "AngularResidual",
+    "ScalarResidual",
+    "AngularBoundaryResidual",
+    "StartingDirectionResidual",
+]

@@ -550,28 +550,55 @@ class TestMultiGroupMultiRegionSpherical:
             f"Flux spike at origin: max={phi[0, :].max():.4f}"
         )
 
+    def _sphere_1g_keff(self, n_cells: int, n_gl: int) -> float:
+        materials = {2: get_mixture("A", "1g"), 0: get_mixture("B", "1g")}
+        mesh = _two_region_mesh(
+            outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(n_cells, n_cells),
+            coord=CoordSystem.SPHERICAL,
+        )
+        return solve_sn(
+            materials, mesh, Quadrature.gauss_legendre(n_gl),
+            max_inner=500, inner_tol=1e-10,
+        ).keff
+
     def test_heterogeneous_1g_spatial_convergence(self):
-        """keff must converge with mesh refinement for fuel+moderator."""
-        mix_fuel = get_mixture("A", "1g")
-        mix_mod = get_mixture("B", "1g")
-        materials = {2: mix_fuel, 0: mix_mod}
-        quad = Quadrature.gauss_legendre(8)
+        """keff converges under h-refinement (spatial), from n=10.
 
-        keffs = []
-        for n_cells in [5, 10, 20]:
-            mesh = _two_region_mesh(
-                outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(n_cells, n_cells),
-                coord=CoordSystem.SPHERICAL,
-            )
-            result = solve_sn(materials, mesh, quad,
-                              max_inner=500, inner_tol=1e-10)
-            keffs.append(result.keff)
-
+        #282 route (a): the spatial ladder is measured from n=10 (n∈[10,20,40])
+        — the coarser n=5→10 increment is a REAL near-coincidence of this
+        two-region config (Δ≈8e-7, not a solver artifact — it survives
+        keff_tol=1e-12), so the legacy n∈[5,10,20] `diff_2 < diff_1` check
+        tripped on it.  From n=10 the increments shrink monotonically.
+        (numerics-investigator 2026-07-04; the pole cell is O(h^~1.4), so the
+        global rate is sub-quadratic but genuinely convergent.)"""
+        keffs = [self._sphere_1g_keff(n, 8) for n in (10, 20, 40)]
         diff_1 = abs(keffs[1] - keffs[0])
         diff_2 = abs(keffs[2] - keffs[1])
         assert diff_2 < diff_1, (
-            f"keff not converging: Δ(10−5)={diff_1:.6f}, Δ(20−10)={diff_2:.6f}, "
-            f"keffs={[f'{k:.6f}' for k in keffs]}"
+            f"keff not converging from n=10: Δ(20−10)={diff_1:.6e}, "
+            f"Δ(40−20)={diff_2:.6e}, keffs={[f'{k:.8f}' for k in keffs]}"
+        )
+
+    def test_heterogeneous_1g_angular_order_consistency(self):
+        """The route-(a) ψ½ seed is a CONSISTENT angular closure (#282).
+
+        The seed IS an angular closure, so it changes the O(N) truncation
+        (the direct Carlson march and the retired edge-extrapolation differ
+        by ~1.7e-3 at GL8 but converge to the SAME transport eigenvalue as
+        N→∞ — agreeing to ~1e-6 by GL32).  This gate pins that the NEW seed
+        converges in angular order N at a fixed mesh; a seed that did NOT
+        converge in N would be an INCONSISTENT closure (a genuine
+        regression).  This — NOT the MMS (blind: every curvilinear ansatz is
+        ≤ linear-in-μ, the seed's EXACT regime, vv Mode 7) — is what
+        certifies the seed re-pose is principled.  (numerics-investigator
+        2026-07-04; the dd_regression sphere_2g_3reg N=8 snapshot move is the
+        matching §16.D re-baseline.)"""
+        keffs = [self._sphere_1g_keff(20, n_gl) for n_gl in (8, 16, 32)]
+        diff_1 = abs(keffs[1] - keffs[0])
+        diff_2 = abs(keffs[2] - keffs[1])
+        assert diff_2 < diff_1 and diff_2 < 5e-4, (
+            f"keff not converging in angular order N: Δ(16−8)={diff_1:.3e}, "
+            f"Δ(32−16)={diff_2:.3e}, keffs={[f'{k:.8f}' for k in keffs]}"
         )
 
 

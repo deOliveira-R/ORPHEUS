@@ -314,15 +314,29 @@ def het_operands(sn: "SNMesh"):
     activated (nothing nulled by a flat or zero state).
     """
     from orpheus.transport.fields.angular_flux import AngularFlux
+    from orpheus.transport.fields.starting_direction_flux import (
+        StartingDirectionFlux,
+    )
     from orpheus.transport.timed_full_field import TimedFullField
 
     rng = np.random.default_rng(20260611)
     sig_t = rng.uniform(0.3, 3.0, size=(sn.ng, *sn.spatial_shape))
-    psi = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+    # #282 route (a): pass the seed leaf UNIFORMLY — the R12a predicate
+    # allocates the ψ½ block iff the mesh carries levels (sphere yes,
+    # slab/cyl no).  A RANDOM seed activates the augmented seed rows in
+    # the frozen baseline (nothing nulled by a zero block).
+    psi = TimedFullField.zeros(
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        starting_direction=StartingDirectionFlux,
+    )
     psi.bulk.values[...] = rng.standard_normal(psi.bulk.values.shape)
     for face in psi.boundary.layout.faces:
         fv = psi.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
+    if psi.starting_direction is not None:
+        psi.starting_direction.values[...] = rng.standard_normal(
+            psi.starting_direction.values.shape
+        )
     return sig_t, psi
 
 
@@ -381,9 +395,20 @@ def legacy_proxy_matvec(
     boundary.face_view("xmax")[:] = psi_view[:, :, -1]
     if "xmin" in boundary.layout.faces:
         boundary.face_view("xmin")[:] = psi_view[:, :, 0]
+    # #282 route (a): the "legacy proxy" pins the PRE-route-(a) matvec
+    # convention (seed = the input field extrapolated in μ to the level's
+    # edge — the retired AngularEdgeExtrapolation-of-the-iterate).  On a
+    # carrying mesh (sphere, R12a) route (a) reads the seed as STATE, so
+    # to reproduce the old convention bit-exactly for the L0 hand-
+    # reference tests, fill the ψ½ block with the closure's edge
+    # extrapolation of ``psi_view`` (the cells legs; corners = the same
+    # edge value so a constant field telescopes to σ_t·ψ).  Non-carrying
+    # meshes (slab/cyl) → None, byte-identical to the pre-2.5d helper.
+    starting_direction = starting_direction_edge_seed(psi_view, sn_mesh)
     composite = TimedFullField(
         bulk=AngularFlux.from_mesh(psi_view, sn_mesh),
         boundary=boundary,
+        starting_direction=starting_direction,
         _history=(),
         history_depth=2,
     )
@@ -391,6 +416,38 @@ def legacy_proxy_matvec(
     C_op = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     result = (L_op + C_op).apply(composite)
     return result.bulk.values
+
+
+def starting_direction_edge_seed(psi_view, sn_mesh):
+    """The pre-route-(a) ψ½ seed: the input field extrapolated in μ to each
+    carrying level's starting-direction edge (the retired
+    ``AngularEdgeExtrapolation``-of-the-iterate convention), so an
+    augmented matvec fed THIS seed reproduces the old seed-from-iterate
+    value.  ``None`` on non-carrying meshes.
+
+    Shared by :func:`legacy_proxy_matvec` (the L0 hand-reference bridge)
+    and the phase-C composite builder — a CONSISTENT, LINEAR-in-``psi``
+    seed (a constant field extrapolates to the same constant, so
+    ``(L+C)·const = σ_t·const`` still holds, and the augmented apply
+    stays a linear operator)."""
+    space = getattr(sn_mesh, "starting_direction_space", None)
+    if space is None:
+        return None
+    from orpheus.transport.fields.starting_direction_flux import (
+        StartingDirectionFlux,
+    )
+
+    closure = sn_mesh.pole_angular_closure
+    psi_g_first = psi_view[..., 0].swapaxes(0, 1) if psi_view.ndim == 4 else psi_view.swapaxes(0, 1)
+    seed = StartingDirectionFlux.zeros_on(sn_mesh)
+    for p in space.levels:
+        level_idx = closure.level_indices[p]
+        psi_level = psi_g_first[:, level_idx, :]          # (ng, M_p, nx)
+        edge = closure.edge_extrapolated_seed(psi_level, p)  # (ng, nx)
+        for sign in (-1, +1):
+            space.cells_view(seed.values, p, sign)[...] = edge
+            space.corner_view(seed.values, p, sign)[...] = edge[:, -1]
+    return seed
 
 
 def _LC_matvec(
@@ -445,8 +502,7 @@ def redistribution_via_live_path(
     tau: "np.ndarray",          # (M,)
     V: "np.ndarray",            # (nx,)
     *,
-    psi_half_seed=None,         # PsiHalfAngleSeed | None
-    carlson_context=None,       # CarlsonSweepContext | None
+    psi_half_seed=None,         # (ng, nx) starting-direction seed array | None
 ) -> "np.ndarray":
     r"""Single-level M-M redistribution :math:`R_{m,i,g}` via the LIVE surface.
 
@@ -462,11 +518,13 @@ def redistribution_via_live_path(
       (``_psi_half_grid_single_level``) is the SAME one the matvec's
       :meth:`~MorelMontryAngularSweep.precompute_psi_state` consumes (the C5
       unbound-mode retirement, 2026-07-03, moved this surface off the class;
-      no closure instance is needed).  When a ``carlson_context`` is supplied
-      the recurrence seeds at the Carlson coupled-pole value (exactly as
-      ``precompute_psi_state`` does), through the same default
-      ``AngularEdgeExtrapolation`` seed strategy as the M-M constructor —
-      pass ``psi_half_seed`` to override;
+      no closure instance is needed).  The optional ``psi_half_seed`` is a
+      plain ``(ng, nx)`` starting-direction seed array (``None`` ⇒ the Phase B
+      zero seed); #282 route (a) (2026-07-04) retired the seed-strategy zoo
+      and its context object, so the
+      seed is now the raw array the closure would itself compute (the
+      angular-edge extrapolation on non-carrying levels, the composite ψ½
+      state on carrying levels);
     * the geometry redistribution fold
       :math:`R_m = (\Delta A/w)_{i,m}/V_i\,(\alpha_{m+1/2}\phi_{m+1/2}
       - \alpha_{m-1/2}\phi_{m-1/2})` is applied here explicitly (the caller
@@ -478,12 +536,13 @@ def redistribution_via_live_path(
     with the SAME ``psi_half_seed`` and applied the IDENTICAL α-weighted fold
     loop.
 
-    Single source of truth (Cardinal Rule 2): both the foundation closure
-    test (``tests/sn/sweep/curvilinear/test_pole_angular_closure.py``) and the
-    L0 cylinder hand-reference (``test_unified_matvec_cylinder.py``) import
-    this helper.  The cylinder reference loops ``level_indices`` itself,
-    calling this once per μ-level with that level's α/ΔA/w/τ/V slice and
-    Carlson context — mirroring how ``precompute_psi_state`` loops levels.
+    Single source of truth (Cardinal Rule 2): the foundation closure test
+    (``tests/sn/sweep/curvilinear/test_pole_angular_closure.py``) imports this
+    helper for the α/ΔA/w/τ/V redistribution fold under hand-built coefficient
+    arrays.  (The L0 cylinder hand-reference in
+    ``test_unified_matvec_cylinder.py`` was migrated off this helper in #282
+    route (a) — it now consumes the mesh-bound closure's ``precompute_psi_state``
+    per-level half-angle grid directly.)
     """
     from orpheus.sn.spatial.pole_angular_closure import (
         compute_psi_half_per_level,
@@ -491,8 +550,7 @@ def redistribution_via_live_path(
 
     ng, M, nx = psi_level.shape
     grid = compute_psi_half_per_level(
-        psi_level, tau,
-        psi_half_seed=psi_half_seed, carlson_context=carlson_context,
+        psi_level, tau, psi_half_seed=psi_half_seed,
     )
     faces = grid.faces  # (ng, M+1, nx); faces[:, m, :] = φ_{m-1/2}
     redist = np.empty((ng, M, nx))

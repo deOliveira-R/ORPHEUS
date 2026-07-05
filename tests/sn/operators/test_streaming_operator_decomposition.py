@@ -87,7 +87,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.sn._test_helpers import placeholder_materials
+from tests.sn._test_helpers import placeholder_materials, starting_direction_edge_seed
 
 pytestmark = pytest.mark.l0
 
@@ -160,11 +160,16 @@ class TestResolutionADecomposition:
         N = sn_mesh.quad.N
 
         rng = np.random.default_rng(seed)
+        bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
-            bulk=AngularFlux.from_mesh(
-                rng.standard_normal((N, ng, *sn_mesh.spatial_shape)), sn_mesh,
-            ),
+            bulk=AngularFlux.from_mesh(bulk_arr, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed on a
+            # carrying mesh (SPH); None on non-carrying (CART/CYL).  The
+            # decomposition identity (L+C ≡ L + C) holds for ANY seed since
+            # both apply paths consume the SAME state — the consistent seed
+            # additionally exercises the augmented seed rows in both paths.
+            starting_direction=starting_direction_edge_seed(bulk_arr, sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -253,11 +258,16 @@ class TestSubtractiveDefinition:
         N = sn_mesh.quad.N
 
         rng = np.random.default_rng(seed)
+        bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
-            bulk=AngularFlux.from_mesh(
-                rng.standard_normal((N, ng, *sn_mesh.spatial_shape)), sn_mesh,
-            ),
+            bulk=AngularFlux.from_mesh(bulk_arr, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed on a
+            # carrying mesh (SPH); None on non-carrying (CART/CYL).  The
+            # decomposition identity (L+C ≡ L + C) holds for ANY seed since
+            # both apply paths consume the SAME state — the consistent seed
+            # additionally exercises the augmented seed rows in both paths.
+            starting_direction=starting_direction_edge_seed(bulk_arr, sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -323,11 +333,16 @@ class TestPureLIsLossActionAtZeroSigma:
         N = sn_mesh.quad.N
 
         rng = np.random.default_rng(0)
+        bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
-            bulk=AngularFlux.from_mesh(
-                rng.standard_normal((N, ng, *sn_mesh.spatial_shape)), sn_mesh,
-            ),
+            bulk=AngularFlux.from_mesh(bulk_arr, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed on a
+            # carrying mesh (SPH); None on non-carrying (CART/CYL).  The
+            # decomposition identity (L+C ≡ L + C) holds for ANY seed since
+            # both apply paths consume the SAME state — the consistent seed
+            # additionally exercises the augmented seed rows in both paths.
+            starting_direction=starting_direction_edge_seed(bulk_arr, sn_mesh),
             _history=(),
             history_depth=2,
         )

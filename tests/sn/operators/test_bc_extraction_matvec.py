@@ -131,7 +131,11 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.sn._test_helpers import SN_TESTS_ROOT, placeholder_materials
+from tests.sn._test_helpers import (
+    SN_TESTS_ROOT,
+    placeholder_materials,
+    starting_direction_edge_seed,
+)
 from tests.sn.regression._regression_assert import assert_regression
 
 # ─────────────────────────────────────────────────────────────────────
@@ -223,11 +227,15 @@ def _random_state(sn_mesh: SNMesh, seed: int, *, zero_boundary: bool = True) -> 
         for face in boundary.layout.faces:
             view = boundary.face_view(face)
             view[:] = rng.standard_normal(view.shape)
+    bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
     return TimedFullField(
-        bulk=AngularFlux.from_mesh(
-            rng.standard_normal((N, ng, *sn_mesh.spatial_shape)), sn_mesh,
-        ),
+        bulk=AngularFlux.from_mesh(bulk_arr, sn_mesh),
         boundary=boundary,
+        # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed reproduces
+        # the pre-route-(a) internally-computed seed, so the extracted matvec
+        # reproduces the frozen baseline bit-identically (SPH); None on
+        # non-carrying (SLB/CYL) — byte-identical to the pre-2.5d helper.
+        starting_direction=starting_direction_edge_seed(bulk_arr, sn_mesh),
         _history=(),
         history_depth=2,
     )
@@ -512,6 +520,11 @@ class TestStreamingEquilibriumValue:
         state = TimedFullField(
             bulk=AngularFlux.from_mesh(flat, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            # #282 route (a): a per-ordinate FLAT field's consistent ψ½ seed is
+            # the same constant (edge-extrap is constant-preserving), so the
+            # pole march reproduces the flat field and the no-spike invariant
+            # holds; None on non-carrying (SLB).
+            starting_direction=starting_direction_edge_seed(flat, sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -613,7 +626,12 @@ class TestLFullReadsInflow:
                 face[inflow, :] = inflow_scale
             return TimedFullField(
                 bulk=AngularFlux.from_mesh(bulk.copy(), sn_mesh),
-                boundary=b, _history=(), history_depth=2,
+                boundary=b,
+                # #282 route (a): the seed is derived from the (shared) bulk, so
+                # both states carry the SAME ψ½ — the ONLY difference is the
+                # outer inflow, isolating its effect on the bulk output.
+                starting_direction=starting_direction_edge_seed(bulk, sn_mesh),
+                _history=(), history_depth=2,
             )
 
         out_zero = _LpC_apply(sn_mesh, _state(0.0), sigma_t)
@@ -666,6 +684,12 @@ class TestLFullOutflowDefectKept:
         state2 = TimedFullField(
             bulk=AngularFlux.from_mesh(state.bulk.values.copy(), sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            # #282 route (a): SAME bulk ⇒ SAME ψ½ seed as ``state`` (edge-extrap
+            # depends only on the bulk), so ``streamed`` is identical and the
+            # output outflow differs by EXACTLY the stored-outflow defect.
+            starting_direction=starting_direction_edge_seed(
+                state.bulk.values, sn_mesh,
+            ),
             _history=(), history_depth=2,
         )
         trace = sn_mesh.angular_trace
@@ -737,7 +761,12 @@ class TestVacuumBoundaryDefectKept:
                 b.face_view("xmax")[outflow, :] = outflow_fill
             st = TimedFullField(
                 bulk=AngularFlux.from_mesh(bulk.copy(), sn_mesh),
-                boundary=b, _history=(), history_depth=2,
+                boundary=b,
+                # #282 route (a): the seed derives from the (shared) bulk, so
+                # both runs carry the SAME ψ½ — the output outflow differs by
+                # EXACTLY the stored-outflow defect (the ``−ψ.outflow`` term).
+                starting_direction=starting_direction_edge_seed(bulk, sn_mesh),
+                _history=(), history_depth=2,
             )
             out = _LpC_apply(sn_mesh, st, sigma_t)
             outflow_idx = trace.outflow_indices_for_face("xmax")

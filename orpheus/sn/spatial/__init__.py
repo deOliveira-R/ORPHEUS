@@ -8,8 +8,8 @@ discrete-ordinates sweep machinery proper:
 
 * :mod:`~orpheus.sn.spatial.pole_angular_closure` — the curvilinear
   angular-redistribution closure family (Morel–Montry, identity).
-* :mod:`~orpheus.sn.spatial.psi_half_angle_seed` — starting-direction
-  seed strategies for the curvilinear half-angle level.
+* :mod:`~orpheus.sn.spatial.psi_half_angle_seed` — the Hébert §3.9.4
+  starting-direction DD march (the #282 route-(a) direct ψ½ solver).
 * :mod:`~orpheus.sn.spatial.sweep_cache` — the two-stratum hot-path
   cache keyed to solver/mesh × quadrature lifecycles.
 * :mod:`~orpheus.sn.spatial.scan` — the 1-D Blelloch ordinate scan and
@@ -31,40 +31,28 @@ from .pole_angular_closure import (
     PoleAngularClosureBase,
     default_angular_closure_class,
 )
-from .psi_half_angle_seed import (
-    AngularEdgeExtrapolation,
-    CarlsonInwardSweep,
-    CarlsonSweepContext,
-    PsiHalfAngleSeed,
-    PsiHalfAngleSeedBase,
-    ZeroSeed,
-)
+from .psi_half_angle_seed import carlson_inward_sweep_from_source
 from .scan import ordinate_scan
 
 # Issue #168 Phase C retired the BoundaryFaceFlux Protocol entirely;
 # the sweep-frame apply matvec subsumed the boundary closure into
 # the WDD propagation chain.
 #
-# Issue #168 Phase D shipped the PsiHalfAngleSeed strategy family —
-# composed into MorelMontryAngularSweep via Option α (composition,
-# not sibling Protocol).  ERR-058 (#195, 2026-06-12) flipped the
-# default from CarlsonInwardSweep (proxy-source seed, exact only at
-# flat-flux equilibrium) to AngularEdgeExtrapolation (the input
-# field extrapolated in μ to the level's angular edge — the
-# operator-consistent seed).  CarlsonInwardSweep stays registered as
-# the Hébert §3.9.4 recurrence host for future TRUE-source-driven
-# sweep-side seeding.
+# Issue #168 Phase D shipped a PsiHalfAngleSeed strategy family;
+# ERR-058 (#195) flipped its default to the angular-edge
+# extrapolation.  #282 route (a) (#280 Phase 2.5d, 2026-07-04)
+# RETIRED the whole strategy zoo: the starting-direction flux is
+# first-class composite STATE (R12a presence predicate), the solve
+# marches it directly via ``carlson_inward_sweep_from_source`` on the
+# TRUE q½ source, the apply reads the given carrier block, and the
+# non-carrying cylinder levels inline the edge extrapolation on the
+# closure (``MorelMontryAngularSweep.edge_extrapolated_seed``).
 
 __all__ = [
-    "AngularEdgeExtrapolation",
-    "CarlsonInwardSweep",
-    "CarlsonSweepContext",
     "IdentityAngularClosure",
     "MorelMontryAngularSweep",
     "PoleAngularClosureBase",
-    "PsiHalfAngleSeed",
-    "PsiHalfAngleSeedBase",
-    "ZeroSeed",
+    "carlson_inward_sweep_from_source",
     "default_angular_closure_class",
     "ordinate_scan",
     "pair_diffusion_limit_consistent",

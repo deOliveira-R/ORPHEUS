@@ -62,7 +62,9 @@ from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.mesh.axis import Axis1D
 from .loss_representation import transport_sweep
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
 from orpheus.transport.full_field import FullField
+from orpheus.transport.source_sinks import StartingDirectionSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
 if TYPE_CHECKING:
@@ -298,6 +300,27 @@ def evaluate_residual(
             f"(AngularBoundaryField-family) traces; got lhs "
             f"{type(lhs_boundary).__name__}, rhs {type(q_boundary).__name__}."
         )
+    # #282 route (a): the ψ½ block of the augmented residual (Mode 12 (b)
+    # — a bulk⊕trace-only residual would be structurally blind to a wrong
+    # seed row; the full-field norm needs the typed third member).  The
+    # composite algebra's presence law holds here too: both sides carry
+    # the block or neither does (a mixed pairing is a wiring error).
+    from orpheus.transport.residuals import StartingDirectionResidual
+
+    lhs_seed = lhs.starting_direction
+    q_seed = q_ext.starting_direction
+    if (lhs_seed is None) != (q_seed is None):
+        raise ValueError(
+            "evaluate_residual: MIXED starting-direction presence between "
+            f"the operator output ({lhs_seed is not None}) and q_ext "
+            f"({q_seed is not None}) — on a carrying mesh (R12a) both "
+            "composites must carry the ψ½ block."
+        )
+    seed_residual = (
+        StartingDirectionResidual.from_balance(lhs=lhs_seed, rhs=q_seed)
+        if lhs_seed is not None and q_seed is not None
+        else None
+    )
     # A residual is a one-shot balance defect, not an iterate — it carries no
     # history, so it is the timeless FullField (the history_depth=0 degenerate
     # of TimedFullField; W-C confines the timed type to the driver iterate).
@@ -306,6 +329,7 @@ def evaluate_residual(
         boundary=AngularBoundaryResidual.from_balance(
             lhs=lhs_boundary, rhs=q_boundary,
         ),
+        starting_direction=seed_residual,
     )
 
 
@@ -431,6 +455,9 @@ def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
             spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
         boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+        # Windowed SI is 2-D Cartesian (never seed-carrying, R12a); the
+        # mesh-keyed predicate spells that None uniformly.
+        starting_direction=_starting_direction_zeros(sn_mesh),
         _history=(),
         history_depth=history_depth,
     )
@@ -444,7 +471,10 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
     multi-moment closure (LD) carries the φ̂ axis end-to-end — composing with the
     moment-carrying ``q_ext`` + ``S.apply(ψ)`` in the SI rhs.  DD/Step
     (per_axis == 1) → no factor (byte-identical to the prior ``TimedFullField.zeros``).
-    The un-windowed sibling of :func:`_windowed_cold_start` (Pattern 2)."""
+    The un-windowed sibling of :func:`_windowed_cold_start` (Pattern 2).
+    On a seed-carrying mesh (R12a — #282 route (a)) the iterate carries the
+    zero ψ½ block so every operator arm and the composite algebra see a
+    presence-consistent 3-block state from the first iterate."""
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.timed_full_field import TimedFullField
@@ -454,8 +484,33 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
             sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
         boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+        starting_direction=_starting_direction_zeros(sn_mesh),
         _history=(),
         history_depth=history_depth,
+    )
+
+
+def _starting_direction_zeros(sn_mesh) -> "StartingDirectionFlux | None":
+    r"""The mesh-keyed zero ψ½ FLUX block (``None`` on non-carrying meshes).
+
+    The birth-site presence predicate of #282 route (a): every SN
+    composite FLUX birth site calls this so presence is decided by the
+    ONE R12a source (``SNMesh.starting_direction_space``), never by the
+    call site."""
+    if sn_mesh.starting_direction_space is None:
+        return None
+    return StartingDirectionFlux.zeros_on(sn_mesh)
+
+
+def _starting_direction_source_from_per_ordinate(
+    per_ordinate_values: "np.ndarray", sn_mesh,
+) -> "StartingDirectionSourceSink | None":
+    r"""Thin alias for :meth:`StartingDirectionSourceSink.from_angular_source`
+    (the ONE q½-fold factory, Pattern 2 — the solver, the fixed-source
+    rhs, and the operator-free ``transport_sweep`` all route through it).
+    """
+    return StartingDirectionSourceSink.from_angular_source(
+        per_ordinate_values, sn_mesh,
     )
 
 
@@ -1265,8 +1320,14 @@ class SNSolver:
             # the AngularBoundarySourceSink inflow trace (zero for vacuum/reflective;
             # prescribed inflow otherwise). The SI rhs q_ext + S.apply + B.apply
             # closes on AngularBoundarySourceSink (operator outputs are sources).
+            # #282 route (a): on a carrying mesh the composite also carries
+            # the q½ fold of the (isotropic) fission source — the TRUE
+            # starting-direction source the direct ψ½ solve consumes.
             bulk=q_ext_per_ord,
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
+            starting_direction=_starting_direction_source_from_per_ordinate(
+                q_ext_per_ord.values, self.sn_mesh,
+            ),
             _history=(),
             history_depth=2,
         )
@@ -1429,24 +1490,19 @@ class SNSolver:
             # the AngularBoundarySourceSink inflow trace (zero for vacuum/reflective;
             # prescribed inflow otherwise). The SI rhs q_ext + S.apply + B.apply
             # closes on AngularBoundarySourceSink (operator outputs are sources).
+            # #282 route (a): the q½ fold rides along on carrying meshes
+            # (the Krylov matvec + preconditioner run on 3-block state).
             bulk=q_ext_per_ord,
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
+            starting_direction=_starting_direction_source_from_per_ordinate(
+                q_ext_per_ord.values, self.sn_mesh,
+            ),
             _history=(),
             history_depth=2,
         )
 
-        # ── Build the within-group operator triple + Krylov driver
-        # (single source of truth — ``_within_group_triple`` /
-        # ``_within_group_krylov``; shared with the SI and fixed-source
-        # paths). ─────────────────────────────────────────────────────
-        LC, S, B = _within_group_triple(self)
-        krylov = _within_group_krylov(
-            LC, S, B,
-            n_dof=self.quad.N * self.ng * int(np.prod(self.sn_mesh.spatial_shape)),
-            max_iter=self.max_inner, tol=self.inner_tol,
-        )
-
-        # ── Warm start (composite) ──────────────────────────────────
+        # ── Warm start (composite) — built BEFORE the driver so the
+        # GMRES restart is sized from the FULL composite ravel. ───────
         # Post-D-H.1c stage 2: ``self._psi_typed`` is a TimedFullField;
         # the Krylov ravellable protocol detects the composite via
         # ``to_flat`` / ``from_flat`` (D-H.1b.1) and threads it through
@@ -1458,7 +1514,24 @@ class SNSolver:
             # (bit-identical); the flux template fixes the Krylov return type.
             initial_guess = TimedFullField.zeros(
                 bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=self.sn_mesh,
+                starting_direction=StartingDirectionFlux,
             )
+
+        # ── Build the within-group operator triple + Krylov driver
+        # (single source of truth — ``_within_group_triple`` /
+        # ``_within_group_krylov``; shared with the SI and fixed-source
+        # paths). ─────────────────────────────────────────────────────
+        # ERR-053 (#282 route (a)): ``restart`` MUST cover the FULL composite
+        # ravel — bulk ⊕ trace ⊕ ψ½-seed — NOT the bulk alone.  The seed
+        # block (R12a curvilinear) grows ``to_flat`` past the bulk count, and
+        # a bulk-sized restart re-truncates GMRES on the trace+seed DOFs (the
+        # sphere Krylov stall).  Size it from the composite the driver ravels.
+        LC, S, B = _within_group_triple(self)
+        krylov = _within_group_krylov(
+            LC, S, B,
+            n_dof=int(initial_guess.to_flat().size),
+            max_iter=self.max_inner, tol=self.inner_tol,
+        )
 
         psi_typed, _residuals = krylov.solve(
             q_ext_composite, initial_guess=initial_guess,
@@ -1589,6 +1662,8 @@ def _is_curvilinear(mesh: Mesh1D | Mesh2D) -> bool:
 
 def _reflect_outflow_into_inflow(
     boundary_flux, sn_mesh: SNMesh, faces: "Iterable[str] | None" = None,
+    *,
+    starting_direction: "StartingDirectionFlux | None" = None,
 ) -> None:
     r"""In-place: fill each face's inflow ordinate slots with the realized
     boundary law applied to that face's outflow trace — the ``−B`` reflective
@@ -1638,7 +1713,12 @@ def _reflect_outflow_into_inflow(
     # onto the operator so the scheduled sweep's inter-group reflect and this
     # helper share ONE body); it routes through ``_reflect_trace`` with
     # ``B.apply``, so the helper and the matvec / SI driver cannot drift.
-    SNBoundaryOperator(sn_mesh).reflect_inflow_inplace(boundary_flux, faces=faces)
+    # ``starting_direction`` (#282 route (a)): the ψ½ carrier whose
+    # inflow-corner slots get the law's corner action — the seed analogue,
+    # through ``B``'s SAME corner arm.
+    SNBoundaryOperator(sn_mesh).reflect_inflow_inplace(
+        boundary_flux, faces=faces, starting_direction=starting_direction,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1780,17 +1860,44 @@ def solve_sn(
         converged.boundary if converged is not None
         else _BoundaryFlux.zeros_on(sn_mesh)
     )
+    # #282 route (a): the reconstruction sweep's ψ½ pair on a carrying
+    # mesh — q½ = the ℓ = 0 fold of the converged total source; the
+    # carrier pre-loads the converged outflow corner so the corner
+    # reflect below can seed the inflow corner (vacuum ⇒ 0).
+    q_final_per_ord = AngularSourceSink.from_isotropic(Q_final, sn_mesh)
+    final_seed_src = _starting_direction_source_from_per_ordinate(
+        q_final_per_ord.values, sn_mesh,
+    )
+    final_seed_buf = _starting_direction_zeros(sn_mesh)
+    if final_seed_buf is not None and converged is not None and (
+        converged.starting_direction is not None
+    ):
+        final_seed_buf.values[...] = converged.starting_direction.values
     # Wave O #208 O.4b Phase E2 — the 2-D wavefront is now BARE (reads the
     # given inflow, no in-sweep bc.apply), so the reflective coupling is the
     # external -B for 2-D too.  The guard is lifted: _reflect_outflow_into_inflow
     # is geometry-agnostic (iterates boundary_flux.layout.faces via the canonical
     # SNBoundaryOperator — verified 2-D-ready) and idempotent here (the converged
-    # inflow already equals B·ψ.outflow); vacuum stays a no-op (B = 0).
-    _reflect_outflow_into_inflow(final_boundary, sn_mesh)
+    # inflow already equals B·ψ.outflow); vacuum stays a no-op (B = 0).  The
+    # seed carrier's inflow corner rides the same reflect (#282 route (a)).
+    _reflect_outflow_into_inflow(
+        final_boundary, sn_mesh, starting_direction=final_seed_buf,
+    )
+    # The corner datum is GIVEN data for the sweep: thread it into the q½
+    # source's corner slot (the sweep reads the SOURCE corner as the
+    # inward march's entry — the trace's seeded-inflow discipline).
+    if final_seed_src is not None and final_seed_buf is not None:
+        space = final_seed_src.space
+        for _p in space.levels:
+            space.corner_view(final_seed_src.values, _p, -1)[...] = (
+                space.corner_view(final_seed_buf.values, _p, -1)
+            )
     angular_flux, _ = transport_sweep(
-        AngularSourceSink.from_isotropic(Q_final, sn_mesh),
+        q_final_per_ord,
         solver.mat_xs.total_cross_section, sn_mesh,
         final_boundary,
+        starting_direction_source=final_seed_src,
+        starting_direction_flux=final_seed_buf,
     )
 
     elapsed = time.perf_counter() - t_start
@@ -1824,6 +1931,9 @@ def solve_sn(
             # Wave O #208 O.4a.2: the converged boundary trace from the final
             # bare sweep (inflow = B·ψ.outflow, outflow = streamed).
             boundary=final_boundary,
+            # #282 route (a): the marched ψ½ carrier from the final sweep
+            # (None on non-carrying meshes).
+            starting_direction=final_seed_buf,
             _history=(),
             history_depth=2,
         ),
@@ -1958,11 +2068,28 @@ def _build_fixed_source_rhs(
     # the slope rows Q̂ (the caller projected them — #247): thread them through
     # unchanged.  DD/Step (per_axis == 1) → no lift, byte-identical.
     bulk_values, per_axis = _lift_external_source_to_moments(bulk_values, sn_mesh)
+    # #282 route (a): the q½ block on carrying meshes.  A composite input
+    # that already carries one is re-homed values-exactly (same
+    # deterministic-layout argument as the trace copy above); otherwise
+    # the ℓ = 0 fold of the per-ordinate bulk populates it.  Carrying
+    # meshes are 1-D curvilinear DD (never moment-resolved), so the flat
+    # bulk is the only live shape here.
+    if (
+        isinstance(external_source, TimedFullField)
+        and external_source.starting_direction is not None
+    ):
+        seed_src = StartingDirectionSourceSink.zeros_on(sn_mesh)
+        seed_src.values[...] = external_source.starting_direction.values
+    else:
+        seed_src = _starting_direction_source_from_per_ordinate(
+            bulk_values, sn_mesh,
+        )
     return TimedFullField(
         bulk=AngularSourceSink.from_mesh(
             bulk_values, sn_mesh, spatial_moments=per_axis,
         ),
         boundary=boundary,
+        starting_direction=seed_src,
     )
 
 
@@ -2463,31 +2590,33 @@ def _solve_fixed_source_krylov(
     # operator-output sources; q_ext is raveled type-agnostically as the
     # GMRES rhs ``b``.
 
+    # B.5.2: the FLUX initial_guess (built FIRST so the GMRES restart is sized
+    # from the FULL composite ravel) fixes the Krylov solution_template (the
+    # return type); x0 stays all-zeros (bit-identical to the prior cold start).
+    # The template carries the φ̂ moment axis at a multi-moment closure AND the
+    # ψ½-seed tail on a carrying mesh (the ravel keys on its ``to_flat``).
+    krylov_cold_start = _unwindowed_cold_start(
+        sn_mesh, history_depth=q_ext_composite.history_depth,
+    )
+
     # ── Build the within-group operator triple + Krylov driver (single
     # source of truth — ``_within_group_triple`` / ``_within_group_krylov``;
     # shared with the eigenvalue Krylov + SI paths). ──────────────────
+    # ERR-053 (#282 route (a)): ``restart`` MUST cover the FULL composite
+    # ravel — bulk ⊕ trace ⊕ ψ½-seed — NOT the bulk alone (the seed block
+    # grows ``to_flat`` past the bulk count on a carrying mesh; a bulk-sized
+    # restart re-truncates GMRES on the trace+seed DOFs).  Size it from the
+    # cold-start composite the driver ravels (the multi-moment φ̂ axis + the
+    # trace + the seed all track automatically through ``to_flat``).
     LC, S, B = _within_group_triple(solver)
-    # The Krylov unknown carries the trailing 2^d spatial-moment axis at a
-    # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the flat dof count
-    # grows by per_axis^d (the ravel reads the template's full bulk shape, so it
-    # tracks automatically — n_dof is the explicit cross-check).  DD/Step → 1.
-    per_axis = sn_mesh.scheme.spatial_basis_per_axis
-    n_moments = cell_moment_count(per_axis, sn_mesh.ndim)
     krylov = _within_group_krylov(
         LC, S, B,
-        n_dof=N * ng * int(np.prod(sn_mesh.spatial_shape)) * n_moments,
+        n_dof=int(krylov_cold_start.to_flat().size),
         max_iter=max_inner, tol=inner_tol,
     )
 
-    # B.5.2: pass a FLUX initial_guess so the Krylov solution_template (the
-    # return type) is a flux; x0 stays all-zeros (bit-identical to the prior
-    # initial_guess=None cold start).  The template carries the φ̂ moment axis at
-    # a multi-moment closure (the ravel keys on its shape).
     psi_typed, residuals = krylov.solve(
-        q_ext_composite,
-        initial_guess=_unwindowed_cold_start(
-            sn_mesh, history_depth=q_ext_composite.history_depth,
-        ),
+        q_ext_composite, initial_guess=krylov_cold_start,
     )
     # D-H.1c stage 2 — the Krylov ravellable protocol unravels back to the
     # SOLUTION TEMPLATE (the flux ``initial_guess``), so the driver's static

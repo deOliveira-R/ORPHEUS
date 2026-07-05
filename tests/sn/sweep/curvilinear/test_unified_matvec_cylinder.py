@@ -45,14 +45,9 @@ from orpheus.sn import solve_sn
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.spatial.pole_angular_closure import (
-    morel_montry_tau_per_level,
-)
-from orpheus.sn.spatial.psi_half_angle_seed import CarlsonSweepContext
 from tests.sn._test_helpers import (
     legacy_proxy_matvec,
     placeholder_materials,
-    redistribution_via_live_path,
 )
 
 
@@ -139,61 +134,41 @@ def _hand_reference_cyl_matvec(
     out = np.zeros((N, ng, nx))
 
     sigma_t_gx = sigma_t
-    dr = sn_mesh.axis_widths[0]
     psi_g_first = psi_view.transpose(1, 0, 2)
-    outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1])
     level_indices = quad.level_indices
 
-    carlson_ctx_per_level = []
-    for level_idx in level_indices:
-        level_idx_arr = np.asarray(level_idx)
-        mu_level = mu_x[level_idx_arr]
-        weights_level = quad.weights[level_idx_arr]
-        within_idx_most_inward = int(np.argmin(mu_level))
-        global_idx_most_inward = int(level_idx_arr[within_idx_most_inward])
-        bc_outer_value_level = outer_inflow_estimate[global_idx_most_inward, :]
-        carlson_ctx_per_level.append(
-            CarlsonSweepContext(
-                sigma_t=sigma_t_gx, dr=dr,
-                mu_quad=mu_level.copy(),
-                weights=weights_level.copy(),
-                bc_outer_value=bc_outer_value_level,
-                mu_start=-1.0,)
-        )
-
-    # Issue #248: the dead legacy ``MorelMontryAngularSweep.__call__`` bundle
-    # was retired.  Reconstruct the per-level redistribution through the LIVE
-    # production algebra (the shared ``redistribution_via_live_path`` helper:
-    # the module-level ``compute_psi_half_per_level`` recurrence kernel the
-    # matvec's ``precompute_psi_state`` consumes — same default
-    # AngularEdgeExtrapolation seed as the mesh-bound closure — composed with
-    # the explicit α/ΔA/w/V fold).  This mirrors how production drives
-    # cylindrical — ``precompute_psi_state`` loops ``level_indices`` running
-    # the SAME single-level recurrence per μ-level with that level's Carlson
-    # coupled-pole seed.
+    # #282 route (a) (#280 Phase 2.5d, 2026-07-04): the seed-strategy zoo
+    # + its per-level context object were retired.  The cylinder
+    # is a NON-carrying mesh (R12a: every production cylinder level has
+    # first-ordinate raw τ₀ ∈ {0, 1}, so ``starting_direction_space`` is
+    # None), and the mesh-bound closure's ``precompute_psi_state`` inlines
+    # the 2-point angular-edge-extrapolation seed internally — no context,
+    # no ``starting_direction``.  Consume that LIVE per-level half-angle
+    # grid (the SAME state the unified matvec reads via the walk), then
+    # apply the α·ΔA/w/V redistribution fold explicitly here.
     #
     # The hand reference's structural-independence claim is about the
     # ROUTING/scatter (each ordinate processed in its own scalar pass, no
     # bool-mask scatter into the legacy's misrouting ``ks``), NOT about the
-    # redistribution closure — so consuming the live redistribution is
-    # consistent.  Source the M-M ``τ`` clamp from the surviving closure
-    # producer (the geometry-side cylinder τ producer was retired in #236
-    # Step C).
-    tau_mm_per_level = list(
-        morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)
-    )
+    # redistribution closure — so consuming the live seed grid is
+    # consistent (it mirrors the pre-#248 design, now driven directly off
+    # ``precompute_psi_state`` instead of the retired
+    # ``redistribution_via_live_path`` helper).
+    closure = sn_mesh.pole_angular_closure
+    psi_state = closure.precompute_psi_state(psi_view)
     redist_full = np.zeros((ng, N, nx))
     for p, level_idx in enumerate(level_indices):
         level_idx_arr = np.asarray(level_idx)
-        psi_level = psi_g_first[:, level_idx_arr, :]  # (ng, M_p, nx)
-        redist_full[:, level_idx_arr, :] = redistribution_via_live_path(
-            psi_level,
-            reduced.alpha_per_level[p],
-            reduced.redist_dAw_per_level[p],
-            tau_mm_per_level[p],
-            V,
-            carlson_context=carlson_ctx_per_level[p],
-        )
+        faces = psi_state[p].faces              # (ng, M_p+1, nx)
+        alpha = reduced.alpha_per_level[p]       # (M_p+1,)
+        dAw = reduced.redist_dAw_per_level[p]    # (nx, M_p)
+        for m in range(level_idx_arr.size):
+            redist_full[:, level_idx_arr[m], :] = (
+                dAw[:, m].reshape(1, nx)
+                * (alpha[m + 1] * faces[:, m + 1, :]
+                   - alpha[m] * faces[:, m, :])
+                / V.reshape(1, nx)
+            )
 
     outflow_at_boundary = np.zeros((ng, N))
 

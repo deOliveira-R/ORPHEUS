@@ -913,27 +913,80 @@ matrix (index-drift: uniform-blind-by-construction GREEN, graded RED —
 the Mode-5 keystone); B2a ½Q₀ exact; B2b 2-term ½Q₀−(3/2)Q₁ live +
 sign-drop teeth. Walls: pyright CLI = 1; sn+transport+numerics serial
 green.
-**NEXT ACTION = d3 (the walk triple + retirement + §16.C/E/F +
-baselines):** solve marches seed⁻ FIRST per level via
-`carlson_inward_sweep_from_source` on the TRUE q½ (LR `_run` lag block
-:3654-3674 dies; `_initial_guess_values`' seed role dies, kwarg
-survives per #285); apply reads the GIVEN ψ.starting_direction (the
-extrapolation closure LEAVES the operator — `precompute_psi_state`'s
-strategy call becomes a carrier read); transpose reverses both legs +
-`angular_adjoint` STOPS at the seed cotangent; the ATOMIC birth-site
-flip (TimedFullField.zeros SN call sites + q_ext factories + solve
-output wrap :1119-1126 + matvec output wraps 1-D fwd/adj) — sphere
-activates, slab bitwise, cylinder assert-unmoved-FIRST (the banked
-product-cyl ig-consumption hazard: preserve the non-carrying levels'
-seed data-flow bit-exactly or HALT); strategy-zoo retirement
-(3-search audit; `carlson_inward_sweep_from_source` + the fold helper
-survive); §16.C fixed-point classifiers (new
-`test_282_direct_seed_fixed_point.py`); §16.E characterization flip →
-the augmented triangularity certificate; §16.F Mode-7/10/11/12 audit +
-the A4 positive Mode-12 pin; §16.D re-baselines (sphere 3-criteria
-re-capture; slab+cyl unmoved-first). Then d4 (estate rewires), d5
-(STATUS). Walls per commit: sn + transport + numerics serial; pyright
-CLI = 1.
+**d3 IMPLEMENTED (uncommitted, 2026-07-04) — the walk triple + retirement
++ §16.C/E/F + baselines + the 3-wave test migration + the elegance fixes.**
+KEYSTONE VERIFIED: **sphere cold residual 5.18e5 → 2.5e-16, seedΔ
+4.57e-2 → 0.0 bitwise** (`test_282_direct_seed_fixed_point.py` 12/12 —
+§16.C C(i)/C(ii)/C(iii)/C(iv) + §16.F Mode-11 wrap sentinel / Mode-12 A4
+positive pin / Mode-10 activation). Delivered:
+- **The walk triple.** `_run` marches seed⁻ directly per carrying level
+  via `carlson_inward_sweep_from_source` on the TRUE q½ (the LR lag
+  block is gone); `_apply_walk`/`loss_action` emit the seed rows
+  (`_seed_rows_forward`); `loss_action_transpose` reverses them
+  (`_seed_rows_transpose`) + `closure.angular_adjoint` STOPS at the
+  seed cotangent (returns `(psi_bar, seed_cells_bar: dict)`); non-carrying
+  cylinder levels inline `edge_extrapolated_seed` (the banked product-cyl
+  ig-consumption preserved bit-exactly — cyl frozen baseline UNMOVED).
+- **Strategy-zoo RETIRED.** `psi_half_angle_seed.py` 851→161 lines (ONE
+  `carlson_inward_sweep_from_source` engine, now returns `(cells, face)`);
+  `PsiHalfAngleSeed`/`ZeroSeed`/`CarlsonInwardSweep`/`AngularEdgeExtrapolation`/
+  `CarlsonSweepContext`/`seed_adjoint` all gone; 3-search audit clean.
+- **Atomic birth-site flip** (solver SI/Krylov cold-starts + q_ext
+  factories + reconstruction sweep + `transport_sweep` self-sufficiency;
+  `streaming.solve` allocates the ψ½ carrier). The FOURTH role member
+  `StartingDirectionResidual` minted (forced by `evaluate_residual`).
+- **§16.D re-baselines:** sphere `walk_matvec_sphere_2g.npz` +
+  `affine_carve_baseline/*_SPH.npy` re-captured (git-verified slab+cyl
+  BYTE-UNMOVED); the §16.E characterization flipped RED→the augmented
+  triangularity certificate (`test_282_augmented_walk_order_is_triangular`,
+  probed `triu==0` EXACT + teeth).
+- **The R14 FULL (−1)^ℓ fold LANDED** (`StartingDirectionSourceSink.
+  from_angular_source` now folds ALL Legendre moments — REQUIRED: an
+  isotropic trial streams to a μ-linear source `q=μA'+σ_t A`, so the
+  ℓ=1 term carries `−A'` at μ=−1; ℓ=0-only floored the anisotropic
+  curvilinear MMS. Isotropic sources collapse to ½q₀ bit-exactly ⟹
+  eigenvalue path unchanged). The anisotropic pole-cell MMS now
+  converges O(h²)-to-exact — route (a) VERIFIED correct.
+- **Elegance review (clean, no blockers) fixes applied:** single-source
+  `_require_starting_direction` guard, `_seed_residual_march` collapses
+  the forward legs ("orientation is data"), 8 `# type: ignore` dropped.
+- **3-wave test migration** (test-architect ×2 + main agent): the whole
+  sphere-consumer estate rewired to the 3-block composite (uniform
+  `starting_direction=StartingDirectionFlux`; value tests use the
+  consistent `starting_direction_edge_seed`; Euclidean reciprocity uses
+  random-seed + full-space dot; G-reciprocity uses present-zero seed).
+- **pyright CLI = 1** (the accepted #288 residual — the carve added zero
+  new type errors).
+- **The sphere EIGENVALUE re-pose — RESOLVED (numerics-investigator, ruled
+  PRINCIPLED).** The decisive discriminator for a seed/angular-CLOSURE
+  change is NOT h→0 (which differs — a seed IS a closure, so it changes the
+  O(N) truncation) but an **angular-order N-sweep at fixed mesh**: the OLD
+  edge-extrapolation and the NEW direct Carlson seed both converge to the
+  SAME transport eigenvalue as N→∞ (agree ~1e-6 by GL32; the ~1.7e-3 gap at
+  GL8 is pure low-N seed truncation). The MMS is BLIND to this (every
+  curvilinear ansatz is ≤ linear-in-μ = the seed's EXACT regime, Mode 7),
+  so MMS-O(h²) does NOT certify the seed — the N-sweep does (new gate
+  `test_heterogeneous_1g_angular_order_consistency`). **HONESTY:** route (a)
+  is justified STRUCTURALLY (the honest single-pass direct inverse — cold
+  residual 5.18e5→2.5e-16, for #200/#280), NOT by angular accuracy — at the
+  tests' GL8 the OLD seed is actually CLOSER to the N-limit; NEVER frame the
+  re-baseline as "more accurate". Landed: `dd_regression[sphere_2g_3reg_dd_n40]`
+  §16.D re-captured (sphere-only, git-verified); the fragile n∈[5,10,20]
+  `diff_2<diff_1` ladder robustified to n∈[10,20,40] (the n=5→10
+  near-coincidence Δ≈8e-7 is a REAL coarse-mesh feature; the pole cell is
+  O(h^~1.4) ⟹ global rate sub-quadratic but convergent).
+- **The Krylov INNER stall — FIXED (NEW route-(a) regression, ERR-053
+  family, NOT #200).** Root cause: `n_dof` (→ scipy-gmres `restart`) was
+  sized from the BULK (`N·ng·∏spatial`) at both solver Krylov drivers, but
+  route (a) grew the composite to 3 blocks (bulk⊕trace⊕ψ½-seed), so
+  `restart < to_flat` on the sphere ⟹ restarted GMRES truncated the
+  augmented subspace and STALLED (info>0, 868 s, WRONG keff under an outer
+  cap). Fixed: both sites size `n_dof = initial_guess.to_flat().size`.
+  Regression gate promoted: `test_krylov_restart_covers_augmented_composite`
+  (the trace+seed deficit pin). SI≡Krylov sphere equivalence now green.
+- **pyright CLI = 1** (accepted #288; zero new). **NEXT = full canonical
+  wall green → COMMIT d3 → d4 (residual estate polish) / d5 (STATUS +
+  memory + theory-doc §16 close-out under 2.5e).**
 
 ---
 

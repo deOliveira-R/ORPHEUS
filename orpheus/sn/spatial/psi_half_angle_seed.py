@@ -1,60 +1,18 @@
-r"""Half-angle face flux seed strategies for the M-M angular recurrence.
+r"""The Hébert §3.9.4 starting-direction DD march — the direct ψ½ solver.
 
-Issue #168 Phase D — closes ERR-026 on sphere SN MMS by replacing the
-hardcoded ``psi_half_left = 0`` seed in
-:func:`~orpheus.sn.spatial.pole_angular_closure._psi_half_grid_single_level`
-with the canonical Hébert §3.9.4 Carlson coupled-pole inward μ = −1
-sweep.
+This module hosts :func:`carlson_inward_sweep_from_source`, the Hébert
+(3.434)–(3.435) diamond-difference march along the starting direction
+:math:`\mu = \mp 1` — the ENGINE of the #282 route-(a) direct
+starting-direction treatment (#280 Phase 2.5d).
 
-The bug
-=======
+The starting-direction transport equation
+=========================================
 
-The Phase B :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
-recurrence runs Hébert Eqs. 3.437 / 3.439 forward across ordinates
-:math:`m = 1, \ldots, N`:
-
-.. math::
-
-   \phi_{m+1/2,i,g} \;=\;
-   \frac{\phi_{m,i,g} \;-\; (1 - \tau_m)\,\phi_{m-1/2,i,g}}{\tau_m}
-
-The recurrence needs a seed :math:`\phi_{1/2,i,g}` at the auxiliary
-inward starting direction μ = −1.  Phase B hardcoded
-:math:`\phi_{1/2,i,g} = 0` (the "Carlson zero-weight starting
-direction" convention with α\ :sub:`1/2` = 0 by Hébert Eq. 3.423),
-reasoning that the term ``α_{1/2}·ψ_{1/2,i,g}`` in the redistribution
-formula vanishes regardless of the seed value because
-α\ :sub:`1/2` = 0 by GL antisymmetry.
-
-That reasoning is WRONG.  The seed ``ψ_{1/2,i,g}`` enters the
-recurrence's denominator through the propagation chain — every
-subsequent half-angle face flux ``ψ_{m+1/2,i,g}`` depends on
-``ψ_{m-1/2,i,g}`` recursively, and the chain inherits the seed
-through the M-M weighting ``(1 - τ_m)``.  Setting the seed to zero
-when the canonical Hébert §3.9.4 form says ``ψ_{1/2,i,g} = φ̄_{1/2,i}``
-(the cell-centred output of the inward μ = −1 sweep) is a **wrong
-term initialization** (Mode 3 per :doc:`/.claude/skills/numerical-bug-signatures/SKILL`).
-
-This wrong seed survives Phase B's flat-ψ-identity test
-(``tests/sn/spatial/test_pole_angular_closure.py``) because that
-test only compares the three strategies against each other on flat
-ψ — it does NOT compare against the closed-form fixed-point
-identity ``L·ψ = Σ_t·ψ``.  Cylindrical Gate 1.1 MMS passes despite
-the wrong seed because each μ-level's α-dome telescopes back to
-zero at the level's edges, absorbing the wrong seed via cancellation.
-Spherical Gate 1.1 MMS FAILS because the sphere cascade is more
-rigid (no per-level telescoping) — the wrong seed propagates to a
-wrong fixed point.  See ERR-026 in
-:file:`.claude/skills/vv-principles/error_catalog.md`.
-
-The fix
-=======
-
-Hébert §3.9.4 Eqs. (3.432)–(3.435) give the **inward μ = −1
-"Carlson coupled-pole" sweep**.  At μ = −1 the angular redistribution
-coefficient :math:`1 - \mu^2 = 0`, so the streaming–collision balance
-decouples from the α-cascade and reduces to a plain DD inward
-recurrence in radius:
+At the angular edge :math:`\mu_{\rm start}` of a curvilinear μ-level the
+angular redistribution coefficient :math:`1 - \mu^2` vanishes
+(:math:`\alpha_{1/2} = 0`, Hébert Eq. 3.423), so the streaming–collision
+balance DECOUPLES from the α-cascade and reduces to a plain DD recurrence
+in radius:
 
 .. math::
    :label: hebert-3-434
@@ -70,69 +28,44 @@ recurrence in radius:
    \bar\phi_{i-1/2} \;=\; 2 \cdot \bar\phi_i - \bar\phi_{i+1/2}
    \quad\text{Hébert Eq. (3.435)}
 
-The cell-averaged source at μ = −1 is the Legendre-moment-folded
-source built from the input ψ's angular moments evaluated at μ = −1
-via :math:`P_\ell(-1) = (-1)^\ell`:
+with the cell-averaged source at the starting direction folded from the
+Legendre moments via :math:`P_\ell(\pm 1) = (\pm 1)^\ell`:
 
 .. math::
    :label: hebert-3-432-source
 
-   \bar Q_i \;=\; \sum_\ell \frac{2\ell+1}{2}\,Q_\ell(r_i)\,(-1)^\ell
+   \bar Q_i \;=\; \sum_\ell \frac{2\ell+1}{2}\,Q_\ell(r_i)\,(\pm 1)^\ell
 
-The boundary value :math:`\bar\phi_{nx+1/2}` is the angular flux at
-the outer face at μ = −1.  For vacuum BC this is 0; for reflective
-BC it is the outgoing-face value at μ = +1 (mirror reflection).
+(the fold lives in
+:func:`~orpheus.numerics.spaces.starting_direction_space.fold_moments_to_starting_direction`
+— the R14 helper the operator seed arms and the source factories share).
 
-The sweep proceeds **INWARD** from ``i = nx-1`` down to ``i = 0``,
-returning the cell-centred profile :math:`\bar\phi_i \equiv
-\phi_{1/2,i}` per cell.  The resulting array seeds the M-M angular
-recurrence's ``psi_half_left`` initialisation — replacing the
-hardcoded zero with the structurally-correct Hébert value.
+Development history — the seed-strategy zoo (retired 2026-07-04, 2.5d d3)
+=========================================================================
 
-Two concrete strategies
-=======================
+The recurrence seed :math:`\psi_{1/2,i}` was historically produced by a
+swappable ``PsiHalfAngleSeed`` strategy family on the M-M closure:
 
-* :class:`ZeroSeed` (key ``"zero"``) — reproduces Phase B's hardcoded
-  ``psi_half_left = 0`` behaviour.  Used as the regression-safety
-  ablation against the Carlson canonical form, and to A/B test the
-  Phase D fix.
-* :class:`CarlsonInwardSweep` (key ``"carlson_inward_sweep"``) —
-  the canonical Hébert §3.9.4 (3.432)-(3.435) inward sweep.  Phase D
-  default.
+* ``ZeroSeed`` — the pre-ERR-026 hardcoded zero (wrong term
+  initialization, Mode 3);
+* ``CarlsonInwardSweep`` — this module's march driven by the PROXY
+  source :math:`\bar Q = \Sigma_t\phi_0/\!\sum w`, exact only at the
+  flat-flux equilibrium (ERR-058 b — O(1) wrong off equilibrium, floored
+  the curvilinear MMS at ~0.04 L2 independent of mesh, Issue #195);
+* ``AngularEdgeExtrapolation`` — the operator-consistent 2-point angular
+  extrapolation of the ITERATE, which fixed the matvec (#195) but left
+  the SOLVE seeded from the PREVIOUS iterate — the #282 seed LAG (sphere
+  cold residual 5.18e5, seed-sensitivity 4.57e-2).
 
-Architectural choice — Option α (composition, not sibling Protocol)
-====================================================================
-
-The seed is **M-M-specific**: the
-:class:`~orpheus.sn.spatial.pole_angular_closure.IdentityAngularClosure`
-(Cartesian) does not have a ``psi_half_left`` variable to seed — its
-contribution is zero (no curvature → no Hébert §3.9.4 redistribution).
-Composing the seed strategy as a field on
-:class:`MorelMontryAngularSweep` keeps the abstraction local to where
-the seed is consumed.  Phase D's Step 3a evaluation against an
-alternative "sibling Protocol on ``SNMesh``" architecture (per the
-original plan) showed that the sibling Protocol would force every
-geometry consumer to handle an "irrelevant for non-M-M" Protocol,
-violating SRP.
-
-Linear-operator preservation
-============================
-
-Both strategies are LINEAR in the input ``psi_cells`` (verified by
-:attr:`is_linear` ClassVar = True).  This is the load-bearing
-property: the apply matvec must be a linear operator, otherwise
-the operator-algebra capabilities of
-:class:`~orpheus.sn.operators.streaming.StreamingOperator` /
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` (apply,
-apply_transpose, dense matrix probing) break.  The
-:class:`CarlsonInwardSweep` is linear because:
-
-* The moment-folded source :math:`Q_\ell` is linear in ``psi_cells``
-  (Legendre projection is linear).
-* The BC trace value :math:`\bar\phi_{nx+1/2}` is linear in ``psi_cells``
-  (BC realisation is linear).
-* The inward recurrence is an affine function of (source, BC) with
-  constant coefficients (depends on ``Σ_t``, ``Δr`` only).
+Route (a) (#282, ruling R10) retired the whole strategy family: the
+starting-direction flux is now first-class STATE (the
+``StartingDirectionField`` block of the composite, present per level
+under the R12a predicate), the SOLVE marches it directly from the TRUE
+q½ source through this function, and the APPLY reads the given carrier
+block.  On the non-carrying cylinder levels (R12a: product rules
+τ_raw = 0, level-symmetric rules τ_raw = 1) the closure inlines the
+2-point angular-edge extrapolation — see
+:meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`.
 
 References
 ==========
@@ -144,290 +77,11 @@ References
   Geometry*.  NSE 101:330-340 p. 339.  Cross-reference for the
   structural singularity at r = 0 in curvilinear geometry.
 * Literature memo: ``.claude/agent-memory/literature-researcher/phase_d_carlson_coupled_pole.md``.
-* Diagnosis memo: ``.claude/agent-memory/numerics-investigator/phase_d_gate_1_1_sphere_mms_diagnosis.md``.
-* Diagnostic script: ``tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py``.
 """
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import ClassVar, Protocol, runtime_checkable
-
 import numpy as np
-
-from orpheus.numerics.registry import RegistryMixin
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# CarlsonSweepContext — bundle of inputs the Carlson seed strategy needs
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@dataclass(frozen=True)
-class CarlsonSweepContext:
-    r"""Bundle of external inputs the Carlson inward sweep needs.
-
-    The :class:`CarlsonInwardSweep` strategy operates on the
-    Hébert §3.9.4 inward μ = −1 sweep equation, which requires
-    information NOT present in the standard
-    :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
-    strategy contract (cross-sections, BC at the outer face,
-    radial widths).  This context object bundles those inputs so the
-    seed strategy receives them via a single kwarg.
-
-    The :class:`ZeroSeed` strategy IGNORES the context entirely
-    (Protocol-shape compatibility only); :class:`CarlsonInwardSweep`
-    READS every field.
-
-    Parameters
-    ----------
-    sigma_t : np.ndarray
-        Cell-centred total cross-section, shape ``(ng, nx)``.
-        Per-group, per-cell.
-    dr : np.ndarray
-        Radial cell widths, shape ``(nx,)``.  For uniform meshes this
-        is constant; for non-uniform meshes the per-cell value enters
-        the recurrence's denominator.
-    mu_quad : np.ndarray
-        Quadrature direction cosines, shape ``(N,)``.  Used to build
-        Legendre moments of the input ψ.  GL1D for sphere; for
-        cylindrical the level's μ-axis cosines.
-    weights : np.ndarray
-        Quadrature weights, shape ``(N,)``.  Used in moment integration.
-    bc_outer_value : np.ndarray
-        Outer-face angular flux value at μ = −1, shape ``(ng,)``.
-        For vacuum BC: zeros.  For reflective BC: the outgoing-face
-        flux at μ = +1 (mirrored).  For white / albedo: see literature
-        memo §8 design decisions; default to 0 with documented
-        treatment.
-    mu_start : float
-        Starting-direction angular edge of the level — the direction
-        the seed flux lives at.  Sphere: ``-1.0``; cylinder:
-        :math:`-\\sqrt{1-\\xi_p^2}` (the level's most-inward azimuthal
-        edge).  Sourced from the SAME construction site as the α-dome
-        and τ (``orpheus.geometry.reduced_operator``) — single source
-        of truth for the angular cell partition.  REQUIRED (no
-        default) so a forgotten cylinder site cannot silently fall
-        back to the sphere value.  Consumed by
-        :class:`AngularEdgeExtrapolation`; ignored by
-        :class:`ZeroSeed` and :class:`CarlsonInwardSweep`.
-
-    Notes
-    -----
-    The context is constructed once per matvec at the call site
-    (:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
-    and ``_cylindrical``) and passed through to the M-M closure.
-    Carrying the context as a dataclass keeps the call-signature
-    expansion local: only one new kwarg on the pole-angular-closure
-    Protocol's ``__call__`` instead of four.
-    """
-
-    sigma_t: np.ndarray
-    dr: np.ndarray
-    mu_quad: np.ndarray
-    weights: np.ndarray
-    bc_outer_value: np.ndarray
-    mu_start: float
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# PsiHalfAngleSeed Protocol
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@runtime_checkable
-class PsiHalfAngleSeed(Protocol):
-    r"""Strategy contract for the M-M recurrence's half-angle face flux seed.
-
-    Produces the initial ``ψ_{1/2,i,g}`` value for
-    :func:`~orpheus.sn.spatial.pole_angular_closure._psi_half_grid_single_level`.
-
-    The recurrence consumes this seed as ``psi_half_left`` at
-    ``m = 0`` and propagates it forward across ordinates.
-
-    Parameters
-    ----------
-    psi_level : np.ndarray
-        Cell-centred angular flux at the level's ordinates, shape
-        ``(ng, M, nx)``.  Linear in the matvec's INPUT ψ vector;
-        used by :class:`CarlsonInwardSweep` to build the moment-folded
-        source at μ = −1.
-    context : CarlsonSweepContext
-        Bundle of external inputs (Σ_t, Δr, μ_quad, weights,
-        bc_outer_value).  See :class:`CarlsonSweepContext` for shapes.
-
-    Returns
-    -------
-    np.ndarray
-        Cell-centred half-angle face flux seed, shape ``(ng, nx)``.
-        Returned per the M-M recurrence's expectation: one value per
-        radial cell, per group.
-
-    Attributes
-    ----------
-    is_linear : ClassVar[bool]
-        Whether the seed is linear in ``psi_level``.  Both ZeroSeed
-        and CarlsonInwardSweep are linear; required by the operator
-        algebra (the M-M closure is linear, and a non-linear seed
-        would propagate non-linearity through the recurrence).
-        Declared ``ClassVar`` to match the concrete strategies (the
-        ``PsiHalfAngleSeedBase`` ABC and every implementation declare
-        it ``ClassVar[bool]``) — a plain instance-attribute
-        declaration here makes every concrete strategy fail the
-        Protocol under pyright's ClassVar-compatibility rule.
-    """
-
-    is_linear: ClassVar[bool]
-
-    def __call__(
-        self,
-        psi_level: np.ndarray,
-        context: CarlsonSweepContext,
-    ) -> np.ndarray:
-        ...
-
-    def seed_adjoint(
-        self,
-        seed_bar: np.ndarray,
-        context: CarlsonSweepContext,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        ...
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# PsiHalfAngleSeedBase — concrete ABC with self-registration
-# ═══════════════════════════════════════════════════════════════════════
-
-
-class PsiHalfAngleSeedBase(RegistryMixin, ABC):
-    r"""Concrete abstract base for self-registering half-angle seed strategies.
-
-    Subclasses inherit this ABC and pass ``key="..."`` in the class
-    statement to self-register; the registry is consulted via
-    :meth:`PsiHalfAngleSeedBase.create("carlson_inward_sweep")` (or
-    any other registered key).
-
-    Mirrors
-    :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`'s
-    Protocol + ABC + RegistryMixin design.
-
-    Subclasses MUST declare:
-
-    * ``is_linear: ClassVar[bool]`` — whether the seed is linear in
-      ``psi_level``.
-    * :meth:`__call__` — the seed-computation algorithm.
-    """
-
-    registry: ClassVar[dict[str, type["PsiHalfAngleSeedBase"]]] = {}
-
-    is_linear: ClassVar[bool]
-
-    @classmethod
-    def _registry_base(cls) -> type:
-        return PsiHalfAngleSeedBase
-
-    @abstractmethod
-    def __call__(
-        self,
-        psi_level: np.ndarray,
-        context: CarlsonSweepContext,
-    ) -> np.ndarray:
-        ...
-
-    @abstractmethod
-    def seed_adjoint(
-        self,
-        seed_bar: np.ndarray,
-        context: CarlsonSweepContext,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        r"""Reverse-mode adjoint of :meth:`__call__`.
-
-        Every seed strategy is linear in ``(psi_level,
-        bc_outer_value)`` (the ``is_linear`` contract), so its adjoint
-        is a fixed linear scatter of the seed cotangent.  The strategy
-        OWNS its adjoint — co-locating forward map and reverse map so
-        a strategy swap on
-        :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
-        swaps both sides at once (no hardcoded twin in
-        ``angular_adjoint``; the Hilbert-transpose oracle
-        ``derivations/diagnostics/diag_p42_adjoint_oracle.py`` pins
-        the pairing).
-
-        Parameters
-        ----------
-        seed_bar : np.ndarray
-            Cotangent of the returned seed, shape ``(ng, nx)``.
-        context : CarlsonSweepContext
-            The SAME context the forward call received.
-            ``bc_outer_value``'s content is never read (the adjoint
-            needs only the linear-map coefficients).
-
-        Returns
-        -------
-        (psi_level_bar, bc_outer_bar) : tuple of np.ndarray
-            Cotangents of the forward inputs: ``(ng, M, nx)`` for
-            ``psi_level`` and ``(ng,)`` for ``bc_outer_value``.
-        """
-        ...
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# ZeroSeed — regression-safety ablation
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@dataclass(frozen=True, slots=True)
-class ZeroSeed(PsiHalfAngleSeedBase, key="zero"):
-    r"""Hardcoded zero seed — reproduces Phase B's pre-fix behaviour.
-
-    Returns ``np.zeros((ng, nx))`` regardless of input.  Exists as
-    the regression-safety ablation against
-    :class:`CarlsonInwardSweep` (the Phase D canonical fix), and to
-    A/B test the Phase D fix's empirical evidence on Gate 1.1.
-
-    **Not a production strategy.**  This reproduces the wrong
-    behaviour ERR-026 diagnoses (per
-    :doc:`/.claude/skills/numerical-bug-signatures/SKILL` Signature 1
-    and Mode 3 failure mode).  Phase D's default-flip activates
-    :class:`CarlsonInwardSweep`; :class:`ZeroSeed` is reachable only
-    by explicit user opt-in.
-
-    Notes
-    -----
-    Frozen + slotted: instances are immutable and lightweight.
-    """
-
-    is_linear: ClassVar[bool] = True
-    """Trivially linear: constant-zero function of input is linear."""
-
-    def __call__(
-        self,
-        psi_level: np.ndarray,
-        context: CarlsonSweepContext,
-    ) -> np.ndarray:
-        """Return ``np.zeros((ng, nx))`` — the Phase B hardcoded seed."""
-        del context  # unused — Protocol-shape compatibility only
-        ng, _M, nx = psi_level.shape
-        return np.zeros((ng, nx), dtype=psi_level.dtype)
-
-    def seed_adjoint(
-        self,
-        seed_bar: np.ndarray,
-        context: CarlsonSweepContext,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Constant-zero forward map → zero cotangents."""
-        ng, nx = seed_bar.shape
-        M = context.mu_quad.size
-        return np.zeros((ng, M, nx)), np.zeros(ng)
-
-    def __repr__(self) -> str:
-        return "ZeroSeed()"
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# CarlsonInwardSweep — Hébert §3.9.4 (3.432)-(3.435) canonical seed
-# ═══════════════════════════════════════════════════════════════════════
 
 
 def carlson_inward_sweep_from_source(
@@ -435,409 +89,72 @@ def carlson_inward_sweep_from_source(
     sigma_t: np.ndarray,
     dr: np.ndarray,
     bc_outer_value: np.ndarray,
-) -> np.ndarray:
-    r"""Run the Hébert §3.9.4 (3.434)-(3.435) inward μ = −1 DD sweep.
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Run the Hébert §3.9.4 (3.434)-(3.435) starting-direction DD march.
 
-    Source-driven entry point for the Carlson coupled-pole sweep —
-    factored from :meth:`CarlsonInwardSweep.__call__` so the SI/sweep
-    path (Phase F) can invoke the same recurrence math without going
-    through the ψ-input Legendre-moment fold.  At the converged
-    eigenmode ``Σ_t·φ_0 = Q̄``, so the matvec path (which builds
-    ``Q̄`` from ``Σ_t·Σ_n w_n ψ_n``) and the sweep path (which uses
-    ``Q̄`` directly from the within-group source) produce the same
-    seed on the fixed point.
+    The direct solver of the :math:`\mu = -1` starting-direction ODE —
+    marches INWARD from ``i = nx-1`` down to ``i = 0``, entering each
+    cell through its OUTER face.  The same recurrence marches the
+    OUTWARD :math:`\mu = +1` leg by reversing the cell axis of every
+    input and un-reversing the output (orientation is carried by the
+    DATA, never a flag — the 2.5a discipline):
+
+    .. code-block:: python
+
+       cells_rev, face_out = carlson_inward_sweep_from_source(
+           Q_plus[:, ::-1], sigma_t[:, ::-1], dr[::-1], pole_face,
+       )
+       cells_plus = cells_rev[:, ::-1]      # outward-marched ψ½⁺ cells
+       # face_out is the outer-face (r = R) value — the outflow corner.
 
     Parameters
     ----------
     Q_bar : np.ndarray, shape ``(ng, nx)``
-        Cell-averaged source at :math:`\mu = -1`.  For an L = 0
-        isotropic operator: ``Q_bar = (1/2) · Q̄_iso`` where ``Q̄_iso``
-        is the angle-averaged within-group source.  The factor ``1/2``
-        comes from the Hébert (3.432) Legendre fold at ``ℓ = 0``
-        (``(2·0 + 1)/2 = 1/2``) with ``P_0(-1) = 1``.
+        Cell-averaged TRUE source at the starting direction — the
+        Legendre fold :eq:`hebert-3-432-source` of the within-group
+        source moments (``fold_moments_to_starting_direction``).  For an
+        isotropic source this is :math:`\tfrac12 \bar Q_{\rm iso}`.
     sigma_t : np.ndarray, shape ``(ng, nx)``
         Cell-centred total cross-section, per-group, per-cell.
     dr : np.ndarray, shape ``(nx,)``
         Radial cell widths.
     bc_outer_value : np.ndarray, shape ``(ng,)``
-        Outer-face angular flux at :math:`\mu = -1`.  Vacuum BC: 0.
-        Reflective BC: the outgoing-face flux at :math:`\mu = +1`
-        (mirrored), evaluated via the BC operator on the current
-        outflow estimate.
+        The ENTRY face value — for the inward leg the outer-face
+        (r = R) angular flux at :math:`\mu = -1` (the inflow corner:
+        0 for vacuum, the reflected outflow corner for reflective);
+        for the reversed outward call the pole-continuation value
+        :math:`\psi^+_{1/2}(0) = \psi^-_{1/2}(0)`.
 
     Returns
     -------
-    np.ndarray, shape ``(ng, nx)``
-        Cell-centred half-angle face flux seed
-        :math:`\bar\phi_i \equiv \phi_{1/2,i}`.
+    phi_cells : np.ndarray, shape ``(ng, nx)``
+        Cell-centred starting-direction flux
+        :math:`\bar\phi_i \equiv \psi_{1/2,i}` (the M-M recurrence seed
+        on the inward leg).
+    phi_face_final : np.ndarray, shape ``(ng,)``
+        The EXIT face value after the last marched cell — the r = 0
+        pole face on the inward leg (the pole-continuation datum the
+        outward leg starts from), the r = R outer face on the reversed
+        outward call (the outflow corner).
 
     Notes
     -----
     The recurrence is sequential in cells (each step depends on its
-    outer neighbour's face value) and vectorised across groups via
+    upwind neighbour's face value) and vectorised across groups via
     NumPy broadcasting.
     """
     ng, nx = Q_bar.shape
     phi_aux = np.zeros((ng, nx), dtype=Q_bar.dtype)
-    phi_face = bc_outer_value.copy()  # (ng,) — outer face at i = nx
+    phi_face = bc_outer_value.copy()  # (ng,) — entry face at i = nx
     for k in range(nx - 1, -1, -1):
         denom = dr[k] * sigma_t[:, k] + 2.0       # (ng,)
         phi_cell = (dr[k] * Q_bar[:, k] + 2.0 * phi_face) / denom
         phi_aux[:, k] = phi_cell
-        # Hébert (3.435): step inward to the next face.
+        # Hébert (3.435): step to the next (downwind) face.
         phi_face = 2.0 * phi_cell - phi_face
-    return phi_aux
-
-
-@dataclass(frozen=True, slots=True)
-class CarlsonInwardSweep(
-    PsiHalfAngleSeedBase, key="carlson_inward_sweep",
-):
-    r"""Hébert §3.9.4 Eqs. (3.432)-(3.435) inward μ = −1 sweep.
-
-    Canonical Phase D fix for the M-M angular recurrence's half-angle
-    seed.  Solves the streaming–collision balance at μ = −1
-    (where the angular redistribution coefficient :math:`1 - \mu^2`
-    vanishes and the equation decouples from the α-cascade) and
-    returns the cell-centred output as the M-M recurrence seed.
-
-    Algorithm
-    ---------
-
-    1. Build Legendre moments of the input ψ at L = 0 (isotropic
-       only — the operator's collision term is isotropic in the
-       current implementation):
-
-       .. math::
-
-          \phi_0[g, i] \;=\; \sum_n w_n \cdot \psi[g, n, i]
-
-    2. Build the cell-averaged source at μ = −1:
-
-       .. math::
-
-          \bar Q[g, i] \;=\; \frac{1}{2} \cdot \Sigma_t[g, i]
-                              \cdot \phi_0[g, i]
-
-       (only the ℓ = 0 term survives for an isotropic operator;
-       :math:`P_0(-1) = 1`.)
-
-    3. Run the Hébert (3.434)-(3.435) recurrence INWARD from
-       :math:`i = n_x - 1` to :math:`i = 0`:
-
-       .. math::
-
-          \bar\phi_i &= \frac{\Delta r_i \cdot \bar Q_i
-                                + 2 \cdot \bar\phi_{i+1/2}}
-                              {\Delta r_i \cdot \Sigma_i + 2} \\
-          \bar\phi_{i-1/2} &= 2 \cdot \bar\phi_i - \bar\phi_{i+1/2}
-
-    The result :math:`\{\bar\phi_i\}_{i=0..n_x-1}` is returned as
-    the M-M recurrence's seed.
-
-    Why this is linear in ``psi_level``
-    -----------------------------------
-
-    * :math:`\phi_0` is a linear projection of ``psi_level``.
-    * :math:`\bar Q` is :math:`\Sigma_t / 2 \cdot \phi_0` — linear
-      in ``psi_level`` (Σ_t is constant input).
-    * The Hébert (3.434)-(3.435) recurrence is an affine function of
-      :math:`(\bar Q, \bar\phi_{i+1/2})` with constant coefficients
-      depending only on (Σ_t, Δr).  Composition of linear maps is
-      linear.
-    * ``bc_outer_value`` is linear in ``psi_level`` (the matvec
-      builds it via cell-centred extraction at the outer face).
-
-    Multi-group: per-group sweep is independent; vectorised across
-    groups via broadcasting.  The per-cell inward sweep is genuinely
-    sequential (each cell depends on its outer neighbour's face
-    value), but the per-group axis is vectorised.
-
-    Notes
-    -----
-    For multi-region σ_t step discontinuities (different Σ_t per
-    cell), the recurrence's denominator ``dr · Σ_t + 2`` is computed
-    per cell so the discontinuity is handled trivially (no special
-    treatment required as long as the radial mesh respects material
-    boundaries).
-
-    The current implementation evaluates only the L = 0 (isotropic)
-    Legendre moment.  Anisotropic operators (P1+ scattering) would
-    require additional moments :math:`\phi_\ell` and the full
-    moment-folded sum :math:`\bar Q = \Sigma_\ell (2\ell+1)/2 \cdot
-    \Sigma_t \cdot \phi_\ell \cdot (-1)^\ell`.  Since the
-    :class:`~orpheus.sn.operators.streaming.StreamingOperator` apply matvec
-    carries only the isotropic collision term (the per-cell
-    :math:`\Sigma_t \psi` cancellation in Resolution A), the L = 0
-    truncation is consistent with the operator's structure.
-
-    .. warning::
-
-       **NOT operator-consistent off equilibrium (ERR-058 b).** The
-       :math:`\bar Q = \Sigma_t\phi_0/\!\sum w` proxy source equals the
-       true within-group source ONLY at the flat-flux equilibrium
-       :math:`\Sigma_t\phi_0 = \bar Q` (the docstring's "at the
-       converged eigenmode" premise).  On any non-equilibrium field
-       the seed solves the wrong starting-direction ODE — O(1) wrong
-       in data — and the resulting per-ordinate redistribution
-       residual is invisible to every scalar-flux check (the α-dome
-       telescopes; vv-principles anti-pattern #8).  This floored the
-       curvilinear MMS at ~0.04 L2 independent of mesh (Issue #195).
-       Superseded as the default by
-       :class:`AngularEdgeExtrapolation`; retained as the registered
-       host of the Hébert recurrence
-       (:func:`carlson_inward_sweep_from_source`) for future
-       TRUE-source-driven sweep-side seeding.
-
-    .. warning::
-
-       **L = 0 isotropic-only assumption is load-bearing.** This
-       strategy assumes the apply matvec's L operator carries ONLY
-       the isotropic collision term :math:`\Sigma_t \psi` — scattering
-       (including anisotropic P1+ moments) is composed externally
-       via the ``SCATTERING`` operator, NOT included in L.  If a
-       future refactor moves scattering INTO L (e.g., to enable
-       a "monolithic" SN apply that includes within-group scattering),
-       this Carlson seed becomes WRONG: the source at :math:`\mu = -1`
-       (Hébert Eq. 3.432) needs the full Legendre-moment sum
-       :math:`\bar Q_i = \sum_\ell (2\ell+1)/2 \cdot Q_\ell(r) \cdot (-1)^\ell`,
-       not just :math:`\Sigma_t \phi_0`.  This is a Mode-6
-       convention-drift risk per :ref:`vv-principles
-       <vv-principles>`.  A foundation test pinning the
-       isotropic-only assumption (e.g., asserting the apply matvec
-       does NOT couple to ``self_scattering``) would catch a future
-       drift; in its absence, this WARNING block is the only
-       safeguard.
-
-    See Also
-    --------
-    :func:`tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py
-    <tests.sn.diagnostics.gate_1_1_sphere_mms_failure>` —
-    the diagnostic script that empirically validates this
-    intervention (intervention ``[B]``) collapses the Gate 1.1 sphere
-    MMS residual to machine precision.
-    """
-
-    is_linear: ClassVar[bool] = True
-    """Linear in ``psi_level`` — see class docstring §"Why this is linear"."""
-
-    def __call__(
-        self,
-        psi_level: np.ndarray,
-        context: CarlsonSweepContext,
-    ) -> np.ndarray:
-        r"""Run the Hébert §3.9.4 inward μ = −1 sweep.
-
-        Parameters
-        ----------
-        psi_level : np.ndarray, shape ``(ng, M, nx)``
-            Cell-centred angular flux at the level's ordinates.
-        context : CarlsonSweepContext
-            Bundle of external inputs (σ_t, Δr, μ_quad, weights,
-            bc_outer_value).
-
-        Returns
-        -------
-        np.ndarray, shape ``(ng, nx)``
-            Cell-centred half-angle face flux seed φ̄_{1/2,i}.
-        """
-        sigma_t = context.sigma_t          # (ng, nx)
-        dr = context.dr                    # (nx,)
-        weights = context.weights          # (M,)
-        bc_outer = context.bc_outer_value  # (ng,)
-
-        # ── Step 1: Legendre ℓ = 0 moment (scalar flux) ─────────────
-        # φ_0[g, i] = Σ_n w_n · ψ[g, n, i]
-        # einsum keeps the operation vectorised across (g, i); the
-        # M axis is contracted.
-        phi_0 = np.einsum("m,gmx->gx", weights, psi_level)  # (ng, nx)
-
-        # ── Step 2: cell-averaged source at μ = −1 ──────────────────
-        # Q̄[g, i] = (1/Σw_level) · Σ_t[g, i] · φ_0[g, i] · P_0(−1)
-        #
-        # P_0(−1) = 1; the normalisation factor is the *per-level
-        # quadrature weight sum* ``weights.sum() = Σw_level`` so that
-        # the isotropic Carlson seed reproduces ``ψ_flat = φ_0 / Σw``
-        # under Pomraning structural-singularity isotropy.
-        #
-        # Phase G Step 2 (Issue #196): the previous form ``0.5 · Σ_t
-        # · φ_0`` hardcoded the sphere quadrature convention `Σw = 2`
-        # (Hébert §3.9.4's `(2ℓ+1)/2 = 1/2` for ℓ = 0 on the
-        # sphere-1D angular measure `dμ` on [−1, 1]).  For 3D
-        # quadratures (ProductQuadrature, LevelSymmetric, Lebedev)
-        # the per-level weight sum is `2π` and the factor `0.5` is
-        # wrong by `2π`, producing a 580% L0 error on the cylinder
-        # homogeneous streaming-equilibrium gauntlet (ERR-048
-        # manifestation #3).
-        #
-        # ``1.0 / weights.sum()`` reduces bit-identically to ``0.5``
-        # for sphere (single level over `(−1, 1)`, GL-N weights sum
-        # to 2) and to ``1/(2π)`` for cylinder ProductQuadrature
-        # azimuthal levels — the geometry-general normalisation that
-        # restores Pomraning isotropy on flat ψ for any quadrature
-        # family.  Per ``coding-elegance`` Pattern 7 (normalise at
-        # the definition site, not at every consumer) the literal
-        # is replaced with the typed source ``context.weights``.
-        Q_bar = sigma_t * phi_0 / weights.sum()  # (ng, nx)
-
-        # ── Step 3: Hébert (3.434)-(3.435) inward DD recurrence ─────
-        # Delegated to :func:`carlson_inward_sweep_from_source` so the
-        # SI/sweep path (Phase F) can reuse the same recurrence.
-        return carlson_inward_sweep_from_source(
-            Q_bar=Q_bar,
-            sigma_t=sigma_t,
-            dr=dr,
-            bc_outer_value=bc_outer,
-        )
-
-    def seed_adjoint(
-        self,
-        seed_bar: np.ndarray,
-        context: CarlsonSweepContext,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        r"""Reverse the (φ₀ fold → Q̄ → inward DD recurrence) chain.
-
-        Moved verbatim from the formerly-hardcoded block in
-        :meth:`MorelMontryAngularSweep.angular_adjoint` (Wave O O.2b)
-        when the seed adjoint became strategy-owned (ERR-058 fix).
-        Verified against the dense-probe transpose oracle
-        (``diag_p42_adjoint_oracle.py``).
-        """
-        sigma_t = context.sigma_t
-        dr = context.dr
-        weights = context.weights
-        ng, nx = seed_bar.shape
-        M = weights.size
-        denomC = dr[None, :] * sigma_t + 2.0           # (ng, nx)
-        # ── reverse the inward DD sweep (ascending k = reverse descent)
-        Qbar_bar = np.zeros((ng, nx))
-        gk_bar = np.zeros(ng)
-        for k in range(nx):
-            phi_cell_bar = seed_bar[:, k] + 2.0 * gk_bar
-            Qbar_bar[:, k] += (dr[k] / denomC[:, k]) * phi_cell_bar
-            gk_bar = -gk_bar + (2.0 / denomC[:, k]) * phi_cell_bar
-        # ── reverse Q̄ = σ_t·φ₀/Σw and φ₀ = Σ_m w[m]·ψ[m] ──────────
-        phi0_bar = (sigma_t / weights.sum()) * Qbar_bar  # (ng, nx)
-        psi_level_bar = weights[None, :, None] * phi0_bar[:, None, :]
-        return psi_level_bar, gk_bar
-
-    def __repr__(self) -> str:
-        return "CarlsonInwardSweep()"
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# AngularEdgeExtrapolation — the operator-consistent iterate seed
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@dataclass(frozen=True, slots=True)
-class AngularEdgeExtrapolation(
-    PsiHalfAngleSeedBase, key="angular_edge_extrapolation",
-):
-    r"""Seed = the INPUT FIELD extrapolated in angle to the level's edge.
-
-    The M-M recurrence's seed :math:`\psi_{1/2,i}` is, definitionally,
-    the angular flux at the level's starting-direction edge
-    :math:`\mu_{\text{start}}` (sphere: −1; cylinder:
-    :math:`-\sqrt{1-\xi_p^2}`).  For the **operator** (matvec) to be
-    consistent, the seed must approximate the *input field's* value at
-    that direction — a pure angular-extrapolation problem.  This
-    strategy extrapolates linearly in :math:`\mu` through the level's
-    two most-inward ordinates:
-
-    .. math::
-
-       \psi_{1/2,i} \;=\; (1-t)\,\psi_{m_0,i} + t\,\psi_{m_1,i},
-       \qquad
-       t = \frac{\mu_{\text{start}} - \mu_{m_0}}{\mu_{m_1} - \mu_{m_0}} .
-
-    Properties (ERR-058 closure):
-
-    * **Exact on angle-flat fields** (:math:`(1-t)+t = 1`) — every
-      per-ordinate flat-flux identity gate is untouched.
-    * **Exact on linear-in-:math:`\mu` fields** — and the M-M
-      recurrence with unclamped :math:`\tau` weights then threads the
-      ENTIRE half-angle grid exactly
-      (:math:`\psi_{m+1/2} = a + b\,\mu_{m+1/2}`), so the P1-class
-      anisotropic MMS references are admitted by the operator.
-    * **O(Δμ²)-consistent** on smooth angular profiles — the same
-      class as the angular discretisation itself.
-    * **Linear in the input** with NO dependence on σ_t, sources, or
-      the boundary trace.
-
-    Why this replaces :class:`CarlsonInwardSweep` as the default
-    -------------------------------------------------------------
-
-    The Carlson strategy solves the Hébert §3.9.4 starting-direction
-    transport equation — the canonical *sweep-side* construction — but
-    drives it with the **proxy source** :math:`\bar Q = \Sigma_t
-    \phi_0/\!\sum w`, exact only at the flat-flux equilibrium
-    :math:`\Sigma_t\phi_0 = \bar Q`.  On any non-equilibrium field
-    (every MMS reference, any vacuum/heterogeneous problem) the proxy
-    solves the wrong ODE: the seed is O(1)-in-data wrong, the
-    per-ordinate redistribution residual is O(1) at every cell, and —
-    because the α-dome telescopes under the angular weight sum —
-    every scalar-flux balance check is structurally blind to it
-    (vv-principles anti-pattern #8; the flat-flux gates sit exactly in
-    the proxy's exactness regime, Mode 7).  Empirically this floored
-    the curvilinear MMS solution error at ~0.04–0.05 independent of
-    mesh (Issue #195).  Extrapolation replaces the wrong linear map
-    with a correct one; the canonical source-driven Carlson recurrence
-    (:func:`carlson_inward_sweep_from_source` with the TRUE
-    within-group source) remains available to the sweep path as a
-    future refinement.
-    """
-
-    is_linear: ClassVar[bool] = True
-    """Fixed linear combination of two input ordinate slices."""
-
-    @staticmethod
-    def _stencil(context: CarlsonSweepContext) -> tuple[int, int, float]:
-        """(m0, m1, t): the two most-inward distinct-μ ordinates + weight."""
-        mu = context.mu_quad
-        order = np.argsort(mu)
-        m0 = int(order[0])
-        # First ordinate with μ distinct from μ_{m0} (cylinder levels
-        # carry azimuthal duplicates); degenerate single-direction
-        # levels fall back to constant extrapolation (t = 0).
-        for cand in order[1:]:
-            if abs(mu[int(cand)] - mu[m0]) > 1e-14:
-                m1 = int(cand)
-                t = float((context.mu_start - mu[m0]) / (mu[m1] - mu[m0]))
-                return m0, m1, t
-        return m0, m0, 0.0
-
-    def __call__(
-        self,
-        psi_level: np.ndarray,
-        context: CarlsonSweepContext,
-    ) -> np.ndarray:
-        m0, m1, t = self._stencil(context)
-        return (1.0 - t) * psi_level[:, m0, :] + t * psi_level[:, m1, :]
-
-    def seed_adjoint(
-        self,
-        seed_bar: np.ndarray,
-        context: CarlsonSweepContext,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Scatter the seed cotangent onto the two stencil ordinates."""
-        m0, m1, t = self._stencil(context)
-        ng, nx = seed_bar.shape
-        M = context.mu_quad.size
-        psi_level_bar = np.zeros((ng, M, nx))
-        psi_level_bar[:, m0, :] += (1.0 - t) * seed_bar
-        psi_level_bar[:, m1, :] += t * seed_bar
-        return psi_level_bar, np.zeros(ng)
-
-    def __repr__(self) -> str:
-        return "AngularEdgeExtrapolation()"
+    return phi_aux, phi_face
 
 
 __all__ = [
-    "CarlsonInwardSweep",
-    "CarlsonSweepContext",
-    "PsiHalfAngleSeed",
-    "PsiHalfAngleSeedBase",
-    "ZeroSeed",
     "carlson_inward_sweep_from_source",
 ]

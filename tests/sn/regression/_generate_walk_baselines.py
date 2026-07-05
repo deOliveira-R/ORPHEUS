@@ -75,8 +75,10 @@ def _build(mesh_builder, seed: int):
     sig_t = _per_group_sigma(sn)
     lc = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
     rng = np.random.default_rng(seed)
-    psi = _random_composite(sn, rng)   # forward-matvec input
-    phi = _random_composite(sn, rng)   # adjoint-matvec input
+    # ``seed_block="random"`` freezes the ψ½ matvec rows too (#282 route (a));
+    # the object-level anchor pins them independent of the zero-weight metric.
+    psi = _random_composite(sn, rng, seed_block="random")   # forward-matvec input
+    phi = _random_composite(sn, rng, seed_block="random")   # adjoint-matvec input
     return sn, lc, psi, phi
 
 

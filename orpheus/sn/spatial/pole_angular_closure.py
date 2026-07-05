@@ -179,14 +179,9 @@ import numpy as np
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.registry import RegistryMixin
 
-from .psi_half_angle_seed import (
-    AngularEdgeExtrapolation,
-    CarlsonInwardSweep,
-    CarlsonSweepContext,
-    PsiHalfAngleSeed,
-)
-
 if TYPE_CHECKING:  # pragma: no cover
+    from orpheus.transport.fields._bases import StartingDirectionField
+
     from ..mesh.augmented_mesh import SNMesh
 
 
@@ -239,15 +234,15 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         class MyClosure(PoleAngularClosureBase, key="my_closure"):
             is_linear: ClassVar[bool] = True
 
-            def precompute_psi_state(self, psi_view, *, sigma_t,
-                                     bc_outer_inflow_estimate):
+            def precompute_psi_state(self, psi_view, *,
+                                     starting_direction=None):
                 ...
 
             def cell_contribution(self, psi_state, cell_idx, level_idx,
                                   within_positions):
                 ...
 
-            def angular_adjoint(self, numer_bar, *, sigma_t):
+            def angular_adjoint(self, numer_bar):
                 ...
 
     No registry insert; ``PoleAngularClosureBase.create("my_closure")``
@@ -328,10 +323,9 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         default-closure dispatch
         (``default_angular_closure_class(coord)(mesh)``) instantiates
         through this signature. Concretes may WIDEN it with extra
-        keyword strategy slots (``psi_half_seed``) — but the
-        one-positional-mesh call must stay valid. Abstract: declares
-        the signature only; concrete ``__init__`` bodies do not chain
-        here.
+        keyword slots — but the one-positional-mesh call must stay
+        valid. Abstract: declares the signature only; concrete
+        ``__init__`` bodies do not chain here.
         """
     # The Morel–Montry weighted-diamond closure derives two algebraic
     # constants per μ-level from its α-dome and τ weight:
@@ -468,17 +462,22 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         self,
         psi_view: np.ndarray,
         *,
-        sigma_t: np.ndarray,
-        bc_outer_inflow_estimate: np.ndarray,
+        starting_direction: "StartingDirectionField | None" = None,
     ) -> object:
         r"""Precompute per-level closure state for one matvec pass.
 
         Returns opaque per-level state (M-M: a ``_MMHalfGrid`` tuple of
-        Carlson-seeded half-angle grids; Identity: ``None``) that
+        seeded half-angle grids; Identity: ``None``) that
         :meth:`cell_contribution` consumes.  See the concrete overrides.
-        (The Cartesian identity closure widens ``sigma_t`` /
-        ``bc_outer_inflow_estimate`` to optional — a contravariant-safe
-        param widening — since it ignores both.)
+
+        ``starting_direction`` (#282 route (a), 2.5d): the composite's
+        typed ψ½ block.  On a CARRYING level (R12a) the recurrence seed
+        is read from its ``cells(level, -1)`` leg; ``None`` seeds those
+        levels at zero (legitimate only for the ψ-independent
+        COEFFICIENT use — the transpose walk's ``denom``-only state).
+        Non-carrying levels inline the 2-point angular-edge
+        extrapolation of ``psi_view`` regardless
+        (:meth:`MorelMontryAngularSweep.edge_extrapolated_seed`).
         """
         ...
 
@@ -503,14 +502,19 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     def angular_adjoint(
         self,
         numer_bar: "tuple[np.ndarray, ...]",
-        *,
-        sigma_t: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> "tuple[np.ndarray, dict[int, np.ndarray]]":
         r"""Reverse-mode adjoint of the matvec angular coupling (Wave O O.2b).
 
-        Returns the bulk and outer-trace cotangents of the forward angular
-        path.  Zero arrays for the Cartesian identity closure (no curvature
-        coupling).  See :meth:`MorelMontryAngularSweep.angular_adjoint`.
+        Returns ``(psi_view_bar, seed_cells_bar)``: the ``(ng, N, nx)``
+        bulk cotangent plus — #282 route (a) — one ``(ng, nx)``
+        seed-cells cotangent per CARRYING level (keyed by level index),
+        where the reverse recurrence STOPS: the seed is first-class
+        state, so its cotangent lands on the output composite's
+        ``starting_direction`` block instead of being scattered back
+        onto the bulk (the retired strategy ``seed_adjoint``
+        delegation).  Non-carrying levels scatter their (edge-
+        extrapolation) seed cotangent onto the bulk internally.  Empty
+        dict + zero array for the Cartesian identity closure.
         """
         ...
 
@@ -864,8 +868,7 @@ def compute_psi_half_per_level(
     psi_level: np.ndarray,
     tau_level: np.ndarray,
     *,
-    psi_half_seed: PsiHalfAngleSeed | None = None,
-    carlson_context: "CarlsonSweepContext | None" = None,
+    psi_half_seed: np.ndarray | None = None,
 ) -> _MMHalfGrid:
     r"""Return the half-angle grid :math:`\phi_{m\pm 1/2, i, g}`
     for one level under the M-M recurrence, wrapped in the private
@@ -892,21 +895,12 @@ def compute_psi_half_per_level(
         Shape ``(M_p,)``: Morel-Montry :math:`\tau` clamp values
         for the level.
     psi_half_seed :
-        Strategy producing the half-angle face flux seed
-        :math:`\phi_{1/2,i,g}`.  Consulted ONLY when a
-        ``carlson_context`` is supplied (without a context the
-        recurrence seeds at the Phase B hardcoded zero, and the
-        strategy is unused).  Defaults to
-        :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`
-        — the operator-consistent default (ERR-058 (b) / Issue #195),
-        mirroring :class:`MorelMontryAngularSweep`'s constructor
-        default.
-    carlson_context :
-        Optional Phase D Carlson coupled-pole seed context.  When
-        supplied, the recurrence seeds at
-        :math:`\phi_{1/2, i, g} = \mathrm{seed}(\psi_{\rm level},
-        \mathrm{ctx})` via ``psi_half_seed``.  When ``None`` the
-        recurrence falls back to the Phase B hardcoded zero seed.
+        The half-angle face flux seed VALUES :math:`\phi_{1/2,i,g}`,
+        shape ``(ng, nx)``.  ``None`` seeds the recurrence at zero.
+        (#282 route (a) retired the strategy indirection: production
+        seeds are either the composite's ψ½ STATE — carrying levels —
+        or the inlined angular-edge extrapolation — non-carrying
+        levels; hand-built tests pass the array they mean.)
 
     Returns
     -------
@@ -914,15 +908,8 @@ def compute_psi_half_per_level(
         Typed accessor wrapping the half-angle grid
         ``faces`` of shape ``(ng, M_p+1, nx)``.
     """
-    psi_half_seed_arr: np.ndarray | None = None
-    if carlson_context is not None:
-        seed = (
-            psi_half_seed if psi_half_seed is not None
-            else AngularEdgeExtrapolation()
-        )
-        psi_half_seed_arr = seed(psi_level, carlson_context)
     faces = _psi_half_grid_single_level(
-        psi_level, tau_level, psi_half_seed=psi_half_seed_arr,
+        psi_level, tau_level, psi_half_seed=psi_half_seed,
     )
     return _MMHalfGrid(faces=faces)
 
@@ -942,16 +929,19 @@ def compute_psi_half_per_level(
 
 class MorelMontryAngularSweep(
     PoleAngularClosureBase, key="morel_montry_angular_sweep",
-):  # noqa: E501  (Phase D notes:)
-    # Phase D (Issue #168, ERR-026 closure): the M-M recurrence's
-    # half-angle seed ``ψ_{1/2,i,g}`` is now sourced from a
-    # :class:`~orpheus.sn.spatial.psi_half_angle_seed.PsiHalfAngleSeed`
-    # strategy field.  The Phase D default :class:`CarlsonInwardSweep`
-    # runs Hébert §3.9.4 Eqs. (3.432)-(3.435) inward μ = −1 sweep,
-    # giving the canonical Carlson coupled-pole seed that makes the
-    # M-M recurrence consistent with the apply matvec on sphere Gate
-    # 1.1 MMS.  See the module docstring of
-    # :mod:`orpheus.sn.spatial.psi_half_angle_seed` for the rationale.
+):  # noqa: E501  (#282 route (a) notes:)
+    # #282 route (a) (#280 Phase 2.5d, 2026-07-04): the M-M recurrence's
+    # half-angle seed ``ψ_{1/2,i,g}`` is no longer produced by a
+    # swappable strategy (the ``PsiHalfAngleSeed`` zoo is retired).  On
+    # a CARRYING level (R12a: first-ordinate raw τ ∈ (0,1) exclusive —
+    # the sphere) the seed is the composite's ψ½ STATE, read from the
+    # given ``starting_direction`` block; on the non-carrying cylinder
+    # levels the 2-point angular-edge extrapolation of the input field
+    # is inlined (:meth:`edge_extrapolated_seed` — bit-identical to the
+    # retired ``AngularEdgeExtrapolation`` default: product rules hit
+    # its t = 0 degenerate exactly, level-symmetric rules have a DEAD
+    # seed weight (1−τ₀) = 0).  See the module docstring of
+    # :mod:`orpheus.sn.spatial.psi_half_angle_seed` for the history.
     r"""Canonical Hébert §3.9.4 per-cell M-M weighted DD angular recurrence.
 
     PR-TYPED-6.5 Phase 2.3: the strategy is now **bound to an SNMesh at
@@ -1015,15 +1005,6 @@ class MorelMontryAngularSweep(
         ``sn_mesh=None`` legacy mode was retired (C5, 2026-07-03;
         Issue #248 had already retired its legacy ``__call__``
         bundle).
-    psi_half_seed : PsiHalfAngleSeed, optional
-        Strategy producing the half-angle face flux seed
-        :math:`\phi_{1/2,i,g}` for the M-M recurrence.  Default is
-        :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
-        — the canonical Hébert §3.9.4 (3.432)-(3.435) inward μ = −1
-        sweep that closes ERR-026 on sphere Gate 1.1 MMS.  Set to
-        :class:`~orpheus.sn.spatial.psi_half_angle_seed.ZeroSeed` for
-        the regression-safety ablation reproducing Phase B's
-        hardcoded zero behaviour.
     """
 
     is_linear: ClassVar[bool] = True
@@ -1042,37 +1023,36 @@ class MorelMontryAngularSweep(
 
     # ── M-M-only mesh-bound state (beyond the base's shared contract) ──
     # The α-dome / ΔA/w redistribution geometry per μ-level, the per-level
-    # starting directions, and the Carlson-sweep machinery (quadrature +
-    # mesh data the per-matvec ``CarlsonSweepContext`` is assembled from).
-    # All bound eagerly in ``__init__`` from the mesh's
-    # ``ReducedStreamingOperator``.
+    # starting directions, and the R12a carrying-level set (which levels
+    # own a first-class ψ½ STATE block — the seed-read dispatch of
+    # ``precompute_psi_state`` / ``angular_adjoint``).  All bound eagerly
+    # in ``__init__`` from the mesh's ``ReducedStreamingOperator``.
     _alpha_per_level: "tuple[np.ndarray, ...]"
     _dAw_per_level: "tuple[np.ndarray, ...]"
     _mu_start_per_level: "tuple[float, ...]"
     _mu_x: np.ndarray
-    _weights: np.ndarray
-    _dr: np.ndarray
+    _carrying_levels: frozenset[int]
 
     def __init__(
         self,
         sn_mesh: "SNMesh",
-        *,
-        psi_half_seed: PsiHalfAngleSeed | None = None,
     ) -> None:
-        # Strategy state.  The mesh binding is REQUIRED (the family's
-        # ``cls(sn_mesh)`` construction contract): all M-M coefficients
-        # are precomputed here and the strategy methods read them from
-        # ``self`` — no M-M data ships through arguments.  The pure-algebra
-        # recurrence kernel lives at module level
+        # The mesh binding is REQUIRED (the family's ``cls(sn_mesh)``
+        # construction contract): all M-M coefficients are precomputed
+        # here and the strategy methods read them from ``self`` — no M-M
+        # data ships through arguments.  The pure-algebra recurrence
+        # kernel lives at module level
         # (:func:`compute_psi_half_per_level`) for hand-built-coefficient
         # verification — there are no unbound instances.
-        self.psi_half_seed: PsiHalfAngleSeed = (
-            psi_half_seed if psi_half_seed is not None
-            # ERR-058 (b): the Carlson proxy-source seed is exact only
-            # at flat-flux equilibrium; the edge extrapolation is the
-            # operator-consistent default (Issue #195).
-            else AngularEdgeExtrapolation()
-        )
+        #
+        # R12a (#282 route (a)): the carrying-level set — the levels
+        # whose recurrence consumes independent starting-direction STATE
+        # (first-ordinate raw M-M weight τ_raw ∈ (0,1) exclusive).
+        # Single-sourced from the mesh predicate (which reads the raw
+        # producer ``morel_montry_tau_raw_per_level``); safe at this
+        # construction point because the predicate needs only
+        # ``(quad, coord)``, both bound before the closure is built.
+        self._carrying_levels = frozenset(sn_mesh.starting_direction_levels)
 
         coord = sn_mesh.coord
         quad = sn_mesh.quad
@@ -1144,17 +1124,18 @@ class MorelMontryAngularSweep(
         # Gathers c_in / c_out AND the owned τ (Issue #236 Phase 2 B3).
         self._build_per_ordinate_cache()
 
-        # ── Carlson-sweep machinery (psi-independent mesh + quad data)
+        # ── Angular-edge geometry (ψ-independent quadrature data) ──
+        # μ_x feeds the per-level edge-extrapolation stencil (non-carrying
+        # levels) and the level-slice views of the adjoint.
         self._mu_x = quad.mu_x
-        self._weights = quad.weights
-        self._dr = sn_mesh.axis_widths[0]
 
     # ── Recurrence kernels (PR-TYPED-6.5 Phase 2.3) ──────────────────
     # Mesh-bound instance methods. They read ``tau`` / ``alpha`` / ``dAw``
     # / ``V`` from ``self`` — no shipping of mesh data through
-    # arguments. The only call-time input that varies across matvec
-    # calls is ``psi_level`` (the angular-flux slice for one level)
-    # and the optional ``psi_half_seed`` produced by the Carlson sweep.
+    # arguments. The only call-time inputs that vary across matvec
+    # calls are ``psi_level`` (the angular-flux slice for one level)
+    # and the seed VALUES ``psi_half_seed`` (carrier state on carrying
+    # levels, the inlined edge extrapolation otherwise — #282 route (a)).
 
     def _psi_half_grid_for_level(
         self,
@@ -1185,48 +1166,111 @@ class MorelMontryAngularSweep(
     # to read M-M contributions per-cell without naming any M-M algebra
     # or coefficient (Pattern 1 — operator algebra reads as composition).
 
+    def edge_extrapolated_seed(
+        self,
+        psi_level: np.ndarray,                      # (ng, M_p, nx)
+        level_idx_p: int,
+    ) -> np.ndarray:
+        r"""The 2-point angular-edge extrapolation of a NON-carrying level.
+
+        The recurrence seed :math:`\psi_{1/2,i}` is definitionally the
+        field's value at the level's starting-direction edge
+        :math:`\mu_{\rm start}`; on a level that carries NO independent
+        ψ½ state (R12a: raw τ₀ ∈ {0, 1} — every production cylinder
+        level) the operator-consistent seed is the input field
+        extrapolated linearly in :math:`\mu` through the level's two
+        most-inward distinct-μ ordinates:
+
+        .. math::
+
+           \psi_{1/2,i} \;=\; (1-t)\,\psi_{m_0,i} + t\,\psi_{m_1,i},
+           \qquad
+           t = \frac{\mu_{\rm start} - \mu_{m_0}}{\mu_{m_1} - \mu_{m_0}} .
+
+        Inlined VERBATIM from the retired ``AngularEdgeExtrapolation``
+        strategy (#282 route (a) — the zoo died, the arithmetic
+        survives): exact on angle-flat and linear-in-μ fields,
+        O(Δμ²)-consistent, linear in the input.  The R12a trichotomy
+        makes this bit-identical to the retired default on every
+        production cylinder: PRODUCT rules have
+        :math:`\mu_{\rm start} \equiv \mu_{m_0}` bit-exactly (t = 0 —
+        the seed is the first-ordinate row, consumed at clamped
+        weight (1−τ₀) = ½), and LEVEL-SYMMETRIC rules have a DEAD seed
+        ((1−τ₀) = 0 exactly, any finite value annihilates).  Degenerate
+        single-direction levels fall back to constant extrapolation
+        (t = 0).
+        """
+        m0, m1, t = self._edge_seed_stencil(level_idx_p)
+        return (1.0 - t) * psi_level[:, m0, :] + t * psi_level[:, m1, :]
+
+    def _edge_seed_stencil(self, level_idx_p: int) -> tuple[int, int, float]:
+        r"""The ``(m0, m1, t)`` stencil of :meth:`edge_extrapolated_seed`.
+
+        Shared by the forward read and its adjoint scatter (Pattern 2 —
+        the linear map and its transpose read ONE coefficient source).
+        Degenerate single-direction levels return ``(m0, m0, 0.0)``.
+        """
+        mu = self._mu_x[np.asarray(self.level_indices[level_idx_p])]
+        order = np.argsort(mu)
+        m0 = int(order[0])
+        for cand in order[1:]:
+            if abs(mu[int(cand)] - mu[m0]) > 1e-14:
+                m1 = int(cand)
+                t = float(
+                    (self._mu_start_per_level[level_idx_p] - mu[m0])
+                    / (mu[m1] - mu[m0])
+                )
+                return m0, m1, t
+        return m0, m0, 0.0
+
     def precompute_psi_state(
         self,
         psi_view: np.ndarray,                       # (N, ng, nx, 1) canonical
         *,
-        sigma_t: np.ndarray,                        # (ng, nx)
-        bc_outer_inflow_estimate: np.ndarray,       # (N, ng)
+        starting_direction: "StartingDirectionField | None" = None,
     ) -> "tuple[_MMHalfGrid, ...]":
-        r"""Build per-level half-angle grids with Carlson coupled-pole seeds.
+        r"""Build per-level half-angle grids from the ψ½ state / edge seed.
 
         One ``_MMHalfGrid`` per level (sphere: 1 element; cylinder:
         ``n_levels`` elements).  Matvec consumes via :meth:`cell_contribution`.
+
+        Seed dispatch (#282 route (a), R12a):
+
+        * **carrying level** — the recurrence seed is the composite's
+          FIRST-CLASS ψ½ state: ``starting_direction.cells(p, -1)``
+          (the inward starting-direction leg).  The retired-strategy
+          extrapolation of the ITERATE — the #282 back edge — is gone:
+          the seed is upstream STATE in the augmented walk order.
+          ``starting_direction=None`` seeds carrying levels at ZERO —
+          legitimate ONLY for the ψ-independent coefficient use (the
+          transpose walk's ``denom``-only state); value paths on a
+          carrying mesh must hand the block in (the walk guards this).
+        * **non-carrying level** — the inlined 2-point angular-edge
+          extrapolation of ``psi_view`` (:meth:`edge_extrapolated_seed`)
+          — bit-identical to the retired default (t = 0 exact on
+          product rules; dead seed weight on level-symmetric rules).
 
         Parameters
         ----------
         psi_view :
             Current angular-flux iterate, canonical layout.
-        sigma_t :
-            Per-group per-cell total cross section ``(ng, nx)``.
-            Needed by the Carlson coupled-pole sweep.
-        bc_outer_inflow_estimate :
-            Boundary-trace estimate at the outer face, ``(N, ng)``.
-            One row per ordinate; ``CarlsonSweepContext.bc_outer_value``
-            consumes the row matching the level's most-inward ordinate.
+        starting_direction :
+            The composite's typed ψ½ block (``None`` on non-carrying
+            meshes and for coefficient-only state).
         """
         # (N, ng, nx) → (ng, N, nx) — reorder for level access.
         psi_g_first = psi_view.swapaxes(0, 1)
         per_level: list[_MMHalfGrid] = []
         for p, level_idx in enumerate(self.level_indices):
-            mu_level = self._mu_x[level_idx]
-            within_inward = int(np.argmin(mu_level))
-            global_inward = int(level_idx[within_inward])
-            bc_value = bc_outer_inflow_estimate[global_inward, :]
             psi_level = psi_g_first[:, level_idx, :]  # (ng, M_p, nx)
-            carlson_ctx = CarlsonSweepContext(
-                sigma_t=sigma_t,
-                dr=self._dr,
-                mu_quad=mu_level.copy(),
-                weights=self._weights[level_idx].copy(),
-                bc_outer_value=bc_value,
-                mu_start=self._mu_start_per_level[p],
-            )
-            psi_half_seed_arr = self.psi_half_seed(psi_level, carlson_ctx)
+            if p in self._carrying_levels:
+                if starting_direction is not None:
+                    psi_half_seed_arr = starting_direction.cells(p, -1)
+                else:
+                    ng, _M, nx = psi_level.shape
+                    psi_half_seed_arr = np.zeros((ng, nx))
+            else:
+                psi_half_seed_arr = self.edge_extrapolated_seed(psi_level, p)
             faces = self._psi_half_grid_for_level(
                 psi_level, p, psi_half_seed=psi_half_seed_arr,
             )
@@ -1272,9 +1316,7 @@ class MorelMontryAngularSweep(
     def angular_adjoint(
         self,
         numer_bar: "tuple[np.ndarray, ...]",
-        *,
-        sigma_t: np.ndarray,                        # (ng, nx)
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> "tuple[np.ndarray, dict[int, np.ndarray]]":
         r"""Adjoint of the matvec angular coupling (Wave O O.2b, #208).
 
         The Hilbert transpose ``Lᵀ`` of :meth:`StreamingOperator.apply`
@@ -1284,21 +1326,30 @@ class MorelMontryAngularSweep(
 
         .. math::
 
-            \phi_0 = \textstyle\sum_n w_n\,\psi \;\to\;
-            \bar Q = \Sigma_t\,\phi_0/\!\sum w \;\to\;
-            \text{Carlson inward seed} \;\to\;
+            \text{seed } \psi_{1/2} \;\to\;
             \text{M-M recurrence } \psi_{m-1/2} \;\to\;
             \text{angular\_numer} = (\Delta A/w)\,c_{\rm in}\,\psi_{m-1/2}.
 
         Given the cotangent of every ``angular_numer_upstream`` contribution
         (collected by the spatial reverse sweep, one ``(ng, M_p, nx)`` array
-        per μ-level), return the bulk and outer-trace cotangents.  This is the
-        exact reverse-mode adjoint of the three triangular factors above — the
-        ``c_in``/``c_out`` roles do NOT change (the diagonal ``c_out`` lives in
-        ``denom``, handled by the spatial diagonal); the recurrence and the
-        Carlson sweep run in reverse.  Verified bit-for-bit against a
-        dense-probe transpose oracle (slab/sphere/cyl, ``derivations/
-        diagnostics/diag_p42_adjoint_oracle.py``).
+        per μ-level), reverse the level scatter and the recurrence down to
+        the SEED cotangent, then route it by the R12a dispatch (#282
+        route (a)):
+
+        * **carrying level** — the seed is first-class ψ½ STATE, so the
+          reverse recurrence STOPS here: the seed cotangent is returned
+          in ``seed_cells_bar[p]`` and the caller lands it on the output
+          composite's ``starting_direction`` block (the retired-strategy
+          ``seed_adjoint`` delegation is gone with the zoo).
+        * **non-carrying level** — the forward seed was the inlined
+          edge extrapolation of the INPUT, so its cotangent scatters
+          back onto the two stencil ordinates of the bulk
+          (:meth:`_edge_seed_stencil` — the same coefficients as the
+          forward, Pattern 2).  Bit-identical to the retired
+          ``AngularEdgeExtrapolation.seed_adjoint``.
+
+        The ``c_in``/``c_out`` roles do NOT change (the diagonal
+        ``c_out`` lives in ``denom``, handled by the spatial diagonal).
 
         Parameters
         ----------
@@ -1306,26 +1357,27 @@ class MorelMontryAngularSweep(
             One array per μ-level (matching :attr:`level_indices`), each shape
             ``(ng, M_p, nx)`` — the cotangent of that level's
             ``angular_numer_upstream``.
-        sigma_t :
-            ``(ng, nx)`` total cross section (the Carlson ``Q̄`` coefficient).
 
         Returns
         -------
         psi_view_bar : np.ndarray
             ``(ng, N, nx)`` g-first bulk cotangent.
-        bc_outer_bar : np.ndarray
-            ``(N, ng)`` outer-trace cotangent (the Carlson seed reads the outer
-            inflow at each level's most-inward ordinate).
+        seed_cells_bar : dict[int, np.ndarray]
+            Per CARRYING level (keyed by level index) the ``(ng, nx)``
+            cotangent of the level's inward starting-direction cells —
+            the walk adds it into the output seed block's ``cells(p, -1)``
+            rows.  Empty on non-carrying meshes.
         """
-        ng, nx = int(sigma_t.shape[0]), int(sigma_t.shape[1])
+        # Shapes from the cotangent arrays themselves (level partition
+        # covers the quadrature; ``numer_bar`` matches ``level_indices``).
+        ng = int(numer_bar[0].shape[0])
+        nx = int(numer_bar[0].shape[2])
         N = int(self._mu_x.shape[0])
         psi_bar = np.zeros((ng, N, nx))
-        bc_bar = np.zeros((N, ng))
-        dr = self._dr
+        seed_cells_bar: dict[int, np.ndarray] = {}
         for p, level_idx in enumerate(self.level_indices):
             level_idx = np.asarray(level_idx)
             M = level_idx.size
-            mu_level = self._mu_x[level_idx]
             # ── reverse the dAw·c_in level-scatter: upstream_bar = (ΔA/w)·c_in·numer_bar
             dAw_p = self._dAw_per_level[p]               # (nx, M)
             c_in_p = np.asarray(self._c_in_per_level[p])  # (M,)
@@ -1341,25 +1393,18 @@ class MorelMontryAngularSweep(
                 psi_bar[:, level_idx[m], :] += phb / tau_m
                 psi_half_bar[:, m, :] += -((1.0 - tau_m) / tau_m) * phb
             seed_bar = psi_half_bar[:, 0, :]              # (ng, nx) seed cotangent
-            # ── reverse the seed map — DELEGATED to the strategy (it
-            # owns the forward map AND its adjoint; ERR-058 made the
-            # seed strategy swappable, so the adjoint must swap with it).
-            global_inward = int(level_idx[int(np.argmin(mu_level))])
-            ctx = CarlsonSweepContext(
-                sigma_t=sigma_t,
-                dr=dr,
-                mu_quad=mu_level.copy(),
-                weights=self._weights[level_idx].copy(),
-                bc_outer_value=np.zeros((ng,)),  # content unread by adjoints
-                mu_start=self._mu_start_per_level[p],
-            )
-            psi_level_bar, bc_value_bar = self.psi_half_seed.seed_adjoint(
-                seed_bar, ctx,
-            )
-            for m in range(M):
-                psi_bar[:, level_idx[m], :] += psi_level_bar[:, m, :]
-            bc_bar[global_inward, :] += bc_value_bar
-        return psi_bar, bc_bar
+            # ── route the seed cotangent (R12a dispatch, #282 route (a)) ──
+            if p in self._carrying_levels:
+                # First-class ψ½ state: STOP — the caller lands this on
+                # the output composite's starting_direction block.
+                seed_cells_bar[p] = seed_bar
+            else:
+                # Inlined edge-extrapolation adjoint: scatter onto the
+                # two stencil ordinates (the forward's coefficients).
+                m0, m1, t = self._edge_seed_stencil(p)
+                psi_bar[:, level_idx[m0], :] += (1.0 - t) * seed_bar
+                psi_bar[:, level_idx[m1], :] += t * seed_bar
+        return psi_bar, seed_cells_bar
 
     def __repr__(self) -> str:
         # The "()" repr is contractual: tests assert
@@ -1470,11 +1515,15 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         self,
         psi_view: np.ndarray,
         *,
-        sigma_t: np.ndarray | None = None,
-        bc_outer_inflow_estimate: np.ndarray | None = None,
+        starting_direction: "StartingDirectionField | None" = None,
     ) -> None:
-        """No state — Cartesian has no curvature half-grid to precompute."""
-        del psi_view, sigma_t, bc_outer_inflow_estimate
+        """No state — Cartesian has no curvature half-grid to precompute.
+
+        ``starting_direction`` is structurally ``None`` on Cartesian
+        (R12a: no curvature ⇒ no starting-direction levels ⇒ the field
+        cannot even be constructed on this mesh).
+        """
+        del psi_view, starting_direction
         return None
 
     def cell_contribution(
@@ -1492,13 +1541,14 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
     def angular_adjoint(
         self,
         numer_bar: "tuple[np.ndarray, ...]",
-        *,
-        sigma_t: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Zero angular adjoint — Cartesian has no curvature coupling (O.2b)."""
-        del numer_bar
-        nx = int(sigma_t.shape[1])
-        return np.zeros((self._ng, self._N, nx)), np.zeros((self._N, self._ng))
+    ) -> "tuple[np.ndarray, dict[int, np.ndarray]]":
+        """Zero angular adjoint — Cartesian has no curvature coupling (O.2b).
+
+        The seed-cotangent dict is empty by construction (no carrying
+        levels on Cartesian, R12a).
+        """
+        nx = int(numer_bar[0].shape[2])
+        return np.zeros((self._ng, self._N, nx)), {}
 
     def __repr__(self) -> str:
         return f"IdentityAngularClosure(sn_mesh=<{self._sn_mesh!r}>)"
@@ -1531,11 +1581,11 @@ def default_angular_closure_class(coord: CoordSystem) -> "type[PoleAngularClosur
 
 
 __all__ = [
-    "CarlsonInwardSweep",
-    "CarlsonSweepContext",
     "IdentityAngularClosure",
     "MorelMontryAngularSweep",
     "PoleAngularClosureBase",
-    "PsiHalfAngleSeed",
+    "compute_psi_half_per_level",
     "default_angular_closure_class",
+    "morel_montry_tau_per_level",
+    "morel_montry_tau_raw_per_level",
 ]

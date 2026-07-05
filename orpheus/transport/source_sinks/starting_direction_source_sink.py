@@ -35,10 +35,17 @@ sums are closed) — no role mixin, like every SourceSink leaf.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+import numpy as np
 
 from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import StartingDirectionField
+
+if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray
+
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 __all__ = ["StartingDirectionSourceSink"]
 
@@ -72,3 +79,85 @@ class StartingDirectionSourceSink(StartingDirectionField):
     #: datum) — see the module docstring's units note. Metadata, not the
     #: arithmetic gate.
     UNITS: ClassVar[Unit] = ANGULAR_RATE_UNITS
+
+    @classmethod
+    def from_angular_source(
+        cls, angular_source_values: "NDArray", mesh: "SNMesh",
+    ) -> "StartingDirectionSourceSink | None":
+        r"""Fold a per-ordinate volumetric source into its q½ seed block.
+
+        The ONE source-side birth factory of #282 route (a) (Pattern 2 —
+        the solver cold-starts, the fixed-source rhs, and the operator-
+        free :func:`~orpheus.sn.loss_representation.transport_sweep` all
+        route through here): ``None`` on a non-carrying mesh; on a
+        carrying mesh (1-D curvilinear, R12a) the starting-direction legs
+        receive the value of the source at the starting direction
+        :math:`\mu = \pm 1`, reconstructed from ALL its Legendre moments
+        (Hébert Eq. 3.432, the R14 full :math:`(-1)^\ell` fold):
+
+        .. math::
+
+           \bar q_{1/2}(\mu = \pm 1)
+             \;=\; \sum_\ell \tfrac{2\ell+1}{2}\,q_\ell\,(\pm 1)^\ell,
+           \qquad
+           q_\ell(r) \;=\; \sum_n w_n\,P_\ell(\mu_n)\,q_n(r),
+
+        via the R14 helper
+        (:func:`~orpheus.numerics.spaces.starting_direction_space.fold_moments_to_starting_direction`).
+        The full fold is REQUIRED for an anisotropic source: even an
+        isotropic trial flux :math:`\psi = A(r)` streams to a
+        :math:`\mu`-linear source :math:`q = \mu A'(r) + \sigma_t A(r)`,
+        whose value at :math:`\mu = -1` is :math:`\sigma_t A - A'` — the
+        :math:`\ell = 1` term carries the :math:`-A'` that an
+        :math:`\ell = 0`-only fold drops (which floored the anisotropic
+        curvilinear MMS; #282 route (a)).  For an isotropic source the
+        higher moments vanish and the fold collapses to
+        :math:`\tfrac12 q_0` bit-exactly (so the isotropic eigenvalue /
+        fixed-source paths are unchanged).  The corner slots stay zero:
+        the inflow-corner datum is the BOUNDARY's job (vacuum ⇒ 0;
+        reflective ⇒ the ``B`` corner arm into the SI rhs).
+
+        Parameters
+        ----------
+        angular_source_values : NDArray
+            The per-ordinate source in principled 1-D ``(N, ng, nx)``
+            layout (carrying meshes are 1-D curvilinear).
+        mesh : SNMesh
+            The phase-space carrier (its ``starting_direction_space``
+            is the R12a presence predicate + the flat layout; its
+            ``pole_angular_closure.level_indices`` give each level's
+            ordinate bundle for the per-level moment integration).
+        """
+        from orpheus.numerics.spaces.starting_direction_space import (
+            fold_moments_to_starting_direction,
+        )
+
+        space = mesh.starting_direction_space
+        if space is None:
+            return None
+        vals = np.asarray(angular_source_values)
+        if vals.ndim != 3:
+            raise ValueError(
+                "StartingDirectionSourceSink.from_angular_source expects the "
+                f"principled 1-D (N, ng, nx) per-ordinate layout; got shape "
+                f"{vals.shape} (carrying meshes are 1-D curvilinear, R12a)."
+            )
+        mu = mesh.quad.mu_x
+        weights = mesh.quad.weights
+        level_indices = mesh.pole_angular_closure.level_indices
+        seed = cls.zeros_on(mesh)
+        for p in space.levels:
+            ords = np.asarray(level_indices[p])
+            mu_p = mu[ords]
+            w_p = weights[ords]
+            q_p = vals[ords]                                  # (M_p, ng, nx)
+            # Legendre moments of the source over the level's μ-nodes:
+            # q_ℓ = Σ_n w_n P_ℓ(μ_n) q_n, ℓ = 0 … M_p−1 (the full angular
+            # content the level resolves; the fold reconstructs q(μ=±1)).
+            legendre = np.polynomial.legendre.legvander(mu_p, ords.size - 1)
+            moments = np.einsum("n,nl,ngx->lgx", w_p, legendre, q_p)
+            for sign in (-1, +1):
+                space.cells_view(seed.values, p, sign)[...] = (
+                    fold_moments_to_starting_direction(moments, sign)
+                )
+        return seed

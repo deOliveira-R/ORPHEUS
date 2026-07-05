@@ -70,6 +70,7 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -204,8 +205,28 @@ def _g_inner(a: TimedFullField, b: TimedFullField, sn: SNMesh, *,
     return bulk + trace
 
 
-def _random_composite(sn: SNMesh, rng: np.random.Generator) -> TimedFullField:
-    r"""Random NON-FLAT composite (bulk + boundary both random per ordinate)."""
+def _random_composite(
+    sn: SNMesh, rng: np.random.Generator, *, seed_block: str = "zero",
+) -> TimedFullField:
+    r"""Random NON-FLAT composite (bulk + boundary both random per ordinate).
+
+    On a seed-carrying mesh (R12a — sphere GL / non-degenerate curvilinear;
+    #282 route (a)) the ψ½ block is PRESENT (the augmented operator's
+    Pattern-4 guard rejects a 2-block state), with content keyed by
+    ``seed_block``:
+
+    * ``"zero"`` (default) — a present-but-ZERO ψ½ block.  This is the
+      G-reciprocity law's regime: the augmented operator is block-triangular
+      with a ZERO-metric-weight seed↔bulk coupling, so ⟨Aψ,φ⟩_G = ⟨ψ,A.Hφ⟩_G
+      holds ONLY on the physical bulk⊕trace subspace (ψ½ = 0).  With random
+      ψ½ the coupling term ``ψ½ᵀ A_bs^T G_b φ_b`` is un-balanceable by the
+      pseudo-inverse metric — reciprocity is DESIGNED-blind to the seed
+      (vv-principles Mode 12; the seed's catcher is the C(i) cold residual +
+      the Euclidean Mᵀ oracle, NOT G-reciprocity).
+    * ``"random"`` — a random ψ½ block (the frozen-baseline generator's
+      choice: it freezes the seed-row matvec VALUES, which the object-level
+      anchor pins independent of any metric).
+    """
     N, ng = sn.quad.N, sn.ng
     bulk = AngularFlux.from_mesh(rng.standard_normal((N, ng, *sn.spatial_shape)), sn)
     boundary = AngularBoundaryFlux(
@@ -213,7 +234,21 @@ def _random_composite(sn: SNMesh, rng: np.random.Generator) -> TimedFullField:
         space=sn.angular_trace,
         mesh=sn,
     )
-    return TimedFullField(bulk=bulk, boundary=boundary, _history=(), history_depth=2)
+    starting_direction = None
+    if sn.starting_direction_space is not None:
+        n_seed = sn.starting_direction_space.shape[0]
+        seed_vals = (
+            rng.standard_normal(n_seed) if seed_block == "random"
+            else np.zeros(n_seed)
+        )
+        starting_direction = StartingDirectionFlux(
+            values=seed_vals, space=sn.starting_direction_space, mesh=sn,
+        )
+    return TimedFullField(
+        bulk=bulk, boundary=boundary,
+        starting_direction=starting_direction,
+        _history=(), history_depth=2,
+    )
 
 
 def _loss_operator(sn: SNMesh, sig_t: np.ndarray):
@@ -481,9 +516,20 @@ def _one_hot_group_composite(
         space=sn.angular_trace,
         mesh=sn,
     )
+    # #282 route (a): a present-but-ZERO ψ½ block on carrying meshes (the
+    # augmented operator's Pattern-4 guard; G-reciprocity is zero-weight-
+    # blind to it, so zero is the law's regime — see _random_composite).
+    starting_direction = None
+    if sn.starting_direction_space is not None:
+        starting_direction = StartingDirectionFlux(
+            values=np.zeros(sn.starting_direction_space.shape[0]),
+            space=sn.starting_direction_space, mesh=sn,
+        )
     return TimedFullField(
         bulk=AngularFlux.from_mesh(bulk_vals, sn),
-        boundary=boundary, _history=(), history_depth=2,
+        boundary=boundary,
+        starting_direction=starting_direction,
+        _history=(), history_depth=2,
     )
 
 

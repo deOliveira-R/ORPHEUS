@@ -67,6 +67,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
@@ -509,65 +510,124 @@ def test_curvilinear_refuses_the_cartesian_walk():
         assemble_ordinate_blocks(sn_mesh, 0)
 
 
-# ── #282 characterization: the spherical back edge, made visible ──────
+# ── #282 route (a): the AUGMENTED walk-order triangularity certificate ──
+#
+# The #280 Phase 2.5d fix retired the lagged Morel–Montry ψ½ pole seed
+# (a walk-order BACK edge that made the spherical operator non-triangular
+# in sweep order) and replaced it with a first-class ψ½ STATE block whose
+# rows the augmented (L+C) emits.  The pre-fix characterization asserted
+# the spherical back edge EXISTED (`above > 0`); route (a) makes the
+# augmented one-group matrix EXACTLY block-lower-triangular in the
+# augmented sweep order — the transpose analog of the #284 discharge and
+# the acceptance evidence for #282 (L16 loud-flip: this replaces, not
+# relaxes, the RED characterization).
 
 
-def _probe_bulk_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
-    """The (N·nx × N·nx) one-group bulk matrix of the PRODUCTION matvec,
-    by column probes (well-defined on curvilinear meshes — #282: the
-    forward matvec builds its seed from ITS input; only the sweep's
-    inversion lags). Ordinate-major DOF order."""
+def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
+    r"""The one-group AUGMENTED matrix of the production matvec by column
+    probes — the ψ½ seed DOFs stacked BEFORE the ordinate DOFs.
+
+    DOF order (rows == cols): per carrying level, the seed leg
+    ``[corner_in(−1), cells⁻ (nx−1..0), cells⁺ (0..nx−1), corner_out(+1)]``
+    (the seed's own march order), then the ``N·nx`` ordinate-bulk DOFs.
+    On a NON-carrying mesh (cylinder — R12a) the seed block is empty and
+    this reduces to the plain ordinate-bulk probe (the pre-fix
+    ``_probe_bulk_matrix_one_group``).
+    """
     A = _loss(sn_mesh)
     N = sn_mesh.quad.n_ordinates
     nx = int(np.prod(sn_mesh.spatial_shape))
-    n_dof = N * nx
-    columns = np.empty((n_dof, n_dof))
+    space = sn_mesh.starting_direction_space
+    levels = () if space is None else space.levels
+
+    def _seed_leg_view(seed_values, level):
+        # The seed leg in march order, one group.
+        return np.concatenate([
+            [space.corner_view(seed_values, level, -1)[g]],
+            space.cells_view(seed_values, level, -1)[g][::-1],
+            space.cells_view(seed_values, level, +1)[g],
+            [space.corner_view(seed_values, level, +1)[g]],
+        ])
+
+    def _read(out) -> np.ndarray:
+        bulk = np.asarray(out.bulk.values)[:, g].ravel()   # (N·nx,)
+        if space is None:
+            return bulk
+        seed = np.concatenate(
+            [_seed_leg_view(out.starting_direction.values, p) for p in levels]
+        )
+        return np.concatenate([seed, bulk])
+
+    def _fresh():
+        return FullField.zeros(
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            starting_direction=(
+                None if space is None else StartingDirectionFlux
+            ),
+        )
+
+    n_seed_per_level = 2 * nx + 2
+    columns: list[np.ndarray] = []
+    # ── seed columns (per level, in the same march order as _read) ──
+    for p in levels:
+        for local in range(n_seed_per_level):
+            st = _fresh()
+            s = st.starting_direction.values
+            if local == 0:
+                space.corner_view(s, p, -1)[g] = 1.0
+            elif local <= nx:
+                space.cells_view(s, p, -1)[g][nx - local] = 1.0
+            elif local <= 2 * nx:
+                space.cells_view(s, p, +1)[g][local - nx - 1] = 1.0
+            else:
+                space.corner_view(s, p, +1)[g] = 1.0
+            columns.append(_read(A.apply(st)))
+    # ── ordinate-bulk columns ──
     for n in range(N):
         for i in range(nx):
-            state = FullField.zeros(
-                bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-            )
-            state.bulk.values[n, g, i] = 1.0
-            out = np.asarray(A.apply(state).bulk.values)[:, g]  # (N, nx)
-            columns[:, n * nx + i] = out.ravel()
-    return columns
+            st = _fresh()
+            st.bulk.values[n, g, i] = 1.0
+            columns.append(_read(A.apply(st)))
+    return np.array(columns).T
 
 
-def _curvilinear_sweep_order(sn_mesh: SNMesh) -> np.ndarray:
-    """The documented curvilinear visitation order, ordinate-major:
-    ordinates in increasing μ (the M-M recursion order — quadrature
-    order for Gauss–Legendre), cells marching WITH each ordinate's
-    direction (inward for μ<0, outward for μ>0)."""
+def _augmented_sweep_order(sn_mesh: SNMesh) -> np.ndarray:
+    """The augmented walk order: seed DOFs first (their march order, as
+    stacked by the probe), then the ordinate-bulk DOFs in increasing μ
+    (cells marching WITH each ordinate's direction — inward for μ<0)."""
     mu = np.asarray(sn_mesh.quad.mu_x)
     nx = int(np.prod(sn_mesh.spatial_shape))
-    order: list[int] = []
+    space = sn_mesh.starting_direction_space
+    n_seed = 0 if space is None else space.shape[0] // sn_mesh.ng
+    order: list[int] = list(range(n_seed))   # seed DOFs already march-ordered
     for n in np.argsort(mu, kind="stable"):
         cells = range(nx - 1, -1, -1) if mu[n] < 0.0 else range(nx)
-        order.extend(int(n) * nx + i for i in cells)
+        order.extend(n_seed + int(n) * nx + i for i in cells)
     return np.asarray(order, dtype=np.intp)
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("coord, expects_back_edge", [
-    (CoordSystem.SPHERICAL, True),
-    (CoordSystem.CYLINDRICAL, False),
+@pytest.mark.parametrize("coord", [
+    CoordSystem.SPHERICAL,
+    CoordSystem.CYLINDRICAL,
 ])
-def test_282_characterization_spherical_seed_is_a_back_edge(
-    coord, expects_back_edge,
-):
-    """POSITIVE characterization of #282 (never xfail — L16): the
-    spherical one-group bulk operator, permuted to the sweep's own
-    visitation order, has entries ABOVE the diagonal — the lagged
-    Morel–Montry ψ½ pole seed IS a walk-order back edge (the seed row
-    reads later-ordinate columns), which is exactly why the spherical
-    sweep is not a direct inverse and why curvilinear ASSEMBLY is out
-    of 2b's scope. The cylinder control is exactly triangular (its
-    α-dome telescopes the seed away — the #282 table's 0.0-bit row).
+def test_282_augmented_walk_order_is_triangular(coord):
+    r"""The #282 route-(a) acceptance certificate (L16 loud-flip of the
+    former back-edge characterization): the one-group AUGMENTED (L+C)
+    matrix, permuted to the augmented sweep order, is EXACTLY
+    block-lower-triangular (``triu == 0``).
 
-    WHEN #282's fix lands (the closed starting-direction solve, Hébert
-    3.432–3.435), the spherical arm of this test goes RED: rewrite it
-    as a triangular G2 gate for the sphere — that flip is the fix's
-    acceptance evidence, not a regression.
+    * **sphere** — the FLIP: pre-fix the spherical operator had a
+      walk-order back edge (the lagged ψ½ pole seed read later-ordinate
+      columns); route (a) makes the ψ½ block first-class STATE, so the
+      augmented matrix ``[[A_ss, 0], [A_bs, A_bb]]`` is triangular in
+      ``[seed⁻ march, seed⁺ march, ordinates↑μ]`` order — a genuine
+      forward-substitution certificate (the 2.5b LAPACK-≡-sweep leg
+      builds on it).
+    * **cylinder** — the CONTROL: non-carrying (R12a), so the augmented
+      matrix is just the ordinate-bulk matrix, exactly triangular as
+      before (its α-dome telescopes the seed away — the #282 0.0-bit
+      row); route (a) does NOT touch it.
     """
     mesh1d = Mesh1D(
         edges=np.array([0.0, 0.3, 0.8, 1.0]),
@@ -575,10 +635,6 @@ def test_282_characterization_spherical_seed_is_a_back_edge(
         bc_left=BC("reflective"), bc_right=BC("vacuum"),
         coord=coord,
     )
-    # Sphere sweeps the polar μ chain (a 1-D quadrature suffices);
-    # cylinder's M-M recursion runs per ξ-level over the azimuth and
-    # REQUIRES a level-structured quadrature (the production factory
-    # pairing the curvilinear suites use).
     quad = (
         Quadrature.gauss_legendre(n_ordinates=4)
         if coord is CoordSystem.SPHERICAL
@@ -587,24 +643,71 @@ def test_282_characterization_spherical_seed_is_a_back_edge(
     sn_mesh = SNMesh(
         mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
-    M = _probe_bulk_matrix_one_group(sn_mesh, g=0)
-    order = _curvilinear_sweep_order(sn_mesh)
+    M = _probe_augmented_matrix_one_group(sn_mesh, g=0)
+    order = _augmented_sweep_order(sn_mesh)
     permuted = M[np.ix_(order, order)]
-    above = np.abs(np.triu(permuted, k=1)).max()
-    scale = np.abs(M).max()
-    if expects_back_edge:
-        assert above > 1e-12 * scale, (
-            "#282's back edge has VANISHED: the spherical operator is "
-            "now triangular in sweep order — the closed starting-"
-            "direction fix has landed. Rewrite this characterization "
-            "as a spherical triangular G2 gate (assembled ≡ sweep via "
-            "solve_triangular) and close the loop on #282."
+    # np.testing (fires under -O — the g_adjoint discipline), not bare assert.
+    np.testing.assert_array_equal(
+        np.triu(permuted, k=1), 0.0,
+        err_msg=(
+            f"[{coord}] the augmented walk order is NOT lower-triangular — "
+            "a back edge survives the #282 route-(a) seed carve "
+            "(sphere: the ψ½ block leaked a later-column read; "
+            "cylinder: the α-dome cancellation broke)."
+        ),
+    )
+
+
+@pytest.mark.foundation
+def test_282_teeth_coupling_direction_swap_reds():
+    r"""§16.E teeth #1 — feed the LAST ordinate (not the μ=−1 starting
+    direction) into the seed row → the triangularity leg REDS.
+
+    The certificate has teeth: monkeypatch the closure's seed read to
+    pull from an ordinate column that comes AFTER the seed in the walk
+    order (a back edge), and confirm ``triu != 0``.  Reverts by
+    in-process monkeypatch (never git checkout).
+    """
+    from orpheus.sn.spatial.pole_angular_closure import MorelMontryAngularSweep
+
+    mesh1d = Mesh1D(
+        edges=np.array([0.0, 0.3, 0.8, 1.0]),
+        mat_ids=np.array([0, 1, 0]),
+        bc_left=BC("reflective"), bc_right=BC("vacuum"),
+        coord=CoordSystem.SPHERICAL,
+    )
+    sn_mesh = SNMesh(
+        mesh1d, Quadrature.gauss_legendre(n_ordinates=4),
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+    )
+    # Mutant: the recurrence seed reads the LAST ordinate's cells (a
+    # walk-order back edge) instead of the starting-direction STATE.
+    orig = MorelMontryAngularSweep.precompute_psi_state
+
+    def _mutant(self, psi_view, *, starting_direction=None):
+        # Inject a bulk read: overwrite the given seed state with a slice
+        # of psi_view's last ordinate (the back-edge coupling under test).
+        if starting_direction is not None:
+            import numpy as _np
+            psi_g_first = psi_view.swapaxes(0, 1)
+            for p in self._carrying_levels:
+                cells = starting_direction.space.cells_view(
+                    starting_direction.values, p, -1,
+                )
+                cells += psi_g_first[:, -1, :]   # + last-ordinate column
+        return orig(self, psi_view, starting_direction=starting_direction)
+
+    import pytest as _pytest
+    with _pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            MorelMontryAngularSweep, "precompute_psi_state", _mutant,
         )
-    else:
-        np.testing.assert_array_equal(
-            np.triu(permuted, k=1), 0.0,
-            err_msg=(
-                "the cylindrical control grew a back edge — the α-dome "
-                "seed cancellation (#282 table, 0.0-bit) no longer holds"
-            ),
+        M = _probe_augmented_matrix_one_group(sn_mesh, g=0)
+    order = _augmented_sweep_order(sn_mesh)
+    above = np.abs(np.triu(M[np.ix_(order, order)], k=1)).max()
+    if above <= 1e-12 * np.abs(M).max():
+        _pytest.fail(
+            "§16.E teeth #1 has NO teeth: a back-edge seed read left the "
+            "augmented matrix triangular — the certificate cannot catch "
+            "a coupling-direction swap."
         )

@@ -64,8 +64,12 @@ from orpheus.sn.spatial.pole_angular_closure import (
 from orpheus.sn.loss_representation import transport_sweep
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.sn._test_helpers import placeholder_materials
+from tests.sn._test_helpers import (
+    placeholder_materials,
+    starting_direction_edge_seed,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -132,6 +136,8 @@ def _build_composite(
     sn_mesh: SNMesh,
     bulk_values: np.ndarray,
     boundary_values: np.ndarray | None = None,
+    *,
+    starting_direction_values: np.ndarray | None = None,
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` from raw bulk + optional boundary arrays.
 
@@ -147,6 +153,17 @@ def _build_composite(
         ``None``, an all-zero boundary is used (the typical migration
         target — Gate 1.1/1.4 etc. zero the boundary because they
         compute the cell-block residual only).
+    starting_direction_values : np.ndarray, optional
+        #282 route (a): the flat ψ½ block ``(space.shape[0],)`` on a
+        carrying mesh (R12a).  ``None`` (default) fills it with the
+        CONSISTENT edge-extrapolation of ``bulk_values``
+        (:func:`~tests.sn._test_helpers.starting_direction_edge_seed`),
+        which is linear in the bulk (so the apply stays a linear
+        operator) and constant-preserving (so ``(L+C)·const = σ_t·const``
+        still holds).  The reciprocity gate overrides with a RANDOM block
+        (exercising the seed rows under the FULL-space Euclidean dot).
+        Non-carrying meshes (slab/cyl) ignore this — the block is
+        structurally ``None``.
     """
     if boundary_values is None:
         boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
@@ -156,9 +173,22 @@ def _build_composite(
         boundary = AngularBoundaryFlux(
             values=boundary_values, space=sn_mesh.angular_trace, mesh=sn_mesh,
         )
+    if starting_direction_values is None:
+        starting_direction = starting_direction_edge_seed(bulk_values, sn_mesh)
+    elif sn_mesh.starting_direction_space is not None:
+        from orpheus.transport.fields.starting_direction_flux import (
+            StartingDirectionFlux,
+        )
+        starting_direction = StartingDirectionFlux(
+            values=starting_direction_values,
+            space=sn_mesh.starting_direction_space, mesh=sn_mesh,
+        )
+    else:
+        starting_direction = None
     return TimedFullField(
         bulk=AngularFlux.from_mesh(bulk_values, sn_mesh),
         boundary=boundary,
+        starting_direction=starting_direction,
         _history=(),
         history_depth=2,
     )
@@ -382,19 +412,38 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = L + C
     n_trace = int(sn_mesh.angular_trace.layout.total_size)
+    # #282 route (a): a RANDOM ψ½ block (not the edge-extrap default) so the
+    # augmented seed rows are independently exercised — the Euclidean
+    # transpose is exact over the FULL space, so ``full_dot`` (below) MUST
+    # include the seed block for reciprocity to hold (a bulk⊕trace-only dot
+    # is blind to the seed↔bulk coupling — the Euclidean sibling of the
+    # G-reciprocity's zero-weight blindness, vv Mode 12).
+    seed_space = sn_mesh.starting_direction_space
+    n_seed = 0 if seed_space is None else seed_space.shape[0]
     psi_state = _build_composite(
         sn_mesh, _random_bulk(sn_mesh, rng), rng.standard_normal(n_trace),
+        starting_direction_values=(
+            rng.standard_normal(n_seed) if n_seed else None
+        ),
     )
     phi_state = _build_composite(
         sn_mesh, _random_bulk(sn_mesh, rng), rng.standard_normal(n_trace),
+        starting_direction_values=(
+            rng.standard_normal(n_seed) if n_seed else None
+        ),
     )
 
     def full_dot(a, b):
-        """Euclidean inner product over the whole bulk⊕trace composite."""
-        return float(
+        """Euclidean inner product over the whole bulk⊕trace⊕seed composite."""
+        total = (
             np.sum(a.bulk.values * b.bulk.values)
             + np.sum(a.boundary.values * b.boundary.values)
         )
+        if a.starting_direction is not None and b.starting_direction is not None:
+            total += np.sum(
+                a.starting_direction.values * b.starting_direction.values
+            )
+        return float(total)
 
     lhs = full_dot(op.apply(psi_state), phi_state)
     rhs = full_dot(psi_state, op.apply_transpose(phi_state))
@@ -500,7 +549,12 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     # property. apply(0) MUST be 0 even with vacuum BC. If the BC
     # consumed cell-centres rather than face values, a nonzero ψ
     # could pollute the inflow even when the cell-centres are zero.
-    state_zero = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    # #282 route (a): pass the seed leaf UNIFORMLY (the R12a predicate
+    # allocates it iff the mesh carries levels — here the sphere does).
+    state_zero = TimedFullField.zeros(
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        starting_direction=StartingDirectionFlux,
+    )
     result = op.apply(state_zero)
     assert np.array_equal(
         result.bulk.values, np.zeros_like(result.bulk.values),
@@ -534,7 +588,12 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = L + C
-    state_zero = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    # #282 route (a): pass the seed leaf UNIFORMLY (the R12a predicate
+    # allocates it iff the mesh carries levels — here the sphere does).
+    state_zero = TimedFullField.zeros(
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        starting_direction=StartingDirectionFlux,
+    )
     result = op.apply(state_zero)
     np.testing.assert_array_equal(result.bulk.values, 0.0)
     np.testing.assert_array_equal(result.boundary.values, 0.0)
@@ -779,26 +838,15 @@ def test_sweep_curvilinear_per_ordinate_flat_flux_residual(
     Verification: SI converges to a uniform scalar flux equal to
     ``Σw · ψ_const`` to numerical precision.
     """
-    # Structural alignment claim: the Carlson seed value computed by
-    # the sweep path's ``carlson_inward_sweep_from_source`` helper
-    # MUST agree with what the apply-matvec path's
-    # :class:`CarlsonInwardSweep` strategy produces, given the same
-    # underlying flat-ψ field.
-    #
-    # On a flat-ψ field with reflective BC:
-    #   * Apply path: ``CarlsonInwardSweep(psi_level, ctx)`` folds
-    #     ``psi_level`` to ``φ_0 = Σw · ψ_const``, builds
-    #     ``Q̄ = (1/2) · Σ_t · φ_0``, runs the inward sweep with
-    #     ``bc_outer_value = ψ_const`` (reflective mirror).
-    #   * Sweep path: ``carlson_inward_sweep_from_source`` consumes
-    #     ``Q̄ = (1/2) · Q_1d`` where ``Q_1d = Σ_t · Σw · ψ_const``
-    #     (the within-group source built by SI from φ_0 at the prior
-    #     iteration).  Same Q̄.
-    #
-    # Both produce the same φ̄_{1/2,i} per cell — pinned here.
+    # #282 route (a): the seed-strategy zoo is retired.  The sweep path's
+    # direct starting-direction solver IS
+    # ``carlson_inward_sweep_from_source`` (the ONE recurrence host); the
+    # old test compared it against the retired ``CarlsonInwardSweep``
+    # STRATEGY wrapper on a flat-ψ probe — a self-comparison (the wrapper
+    # folded φ₀ = Σw·ψ then called the SAME function with Q̄ = Σ_t·ψ_const).
+    # It reduces to the flat-ψ algebraic identity of the surviving
+    # function, pinned directly below.
     from orpheus.sn.spatial.psi_half_angle_seed import (
-        CarlsonInwardSweep,
-        CarlsonSweepContext,
         carlson_inward_sweep_from_source,
     )
 
@@ -812,78 +860,32 @@ def test_sweep_curvilinear_per_ordinate_flat_flux_residual(
         )
     sig_t_arr = np.full_like(sig_t, sigma_t_value)
     nx = sn_mesh.nx
-    quad = sn_mesh.quad
-    sum_w = float(quad.weights.sum())
     psi_const = 1.0
-
-    # Build the apply-path Carlson seed (the reference) using the same
-    # Hébert §3.9.4 algebra as the apply-matvec consumes.  We pass
-    # ``weights`` that sum to 2 (GL convention) so the apply-path's
-    # ``Q̄ = 0.5 · Σ_t · φ_0 = 0.5 · Σ_t · Σw · ψ_const = Σ_t · ψ_const``
-    # matches the canonical flat-ψ source.  For cylindrical full-
-    # ordinate Σw = 4π, the apply-path's convention is per-LEVEL
-    # weights and per-level mu_quad — but for this STRUCTURAL test
-    # we want to pin that the sweep-path's helper produces the same
-    # seed as the apply-path helper, given identical inputs.
     sigma_t_gx = sig_t_arr  # (ng, nx) — rank-d
     dr = sn_mesh.axis_widths[0]
+    bc_outer_value = np.full((1,), psi_const)
 
-    # GL-2 surrogate weights summing to 2 — for this structural-
-    # alignment probe we use a 2-ordinate quadrature with weights
-    # ``[1, 1]`` so the canonical Q̄ = Σ_t · ψ_const on flat ψ holds.
-    # This pins the algebra of Hébert (3.434)-(3.435), not the
-    # geometry-specific quadrature normalization.
-    M_apply = 2
-    weights_apply = np.array([1.0, 1.0])
-    mu_apply = np.array([-1.0, 1.0])
-    psi_level_flat = np.full((1, M_apply, nx), psi_const)
-    bc_outer_value_apply = np.full((1,), psi_const)
-    ctx = CarlsonSweepContext(
-        sigma_t=sigma_t_gx,
-        dr=dr,
-        mu_quad=mu_apply,
-        weights=weights_apply,
-        bc_outer_value=bc_outer_value_apply,
-        mu_start=-1.0,)
-    seed_apply = CarlsonInwardSweep()(psi_level_flat, ctx)  # (1, nx)
-
-    # Build the sweep-path Carlson seed (under test) — matching the
-    # Hébert convention with Σw = 2 (Q̄ = Σ_t · ψ_const).
+    # Flat-ψ algebraic identity of the direct solver: with the canonical
+    # flat-ψ source ``Q̄ = Σ_t · ψ_const`` and the reflective mirror
+    # ``bc_outer = ψ_const``, the Hébert (3.434)-(3.435) inward march
+    # reproduces ``ψ_const`` at every cell (the fixed-point seed), and its
+    # exit face is likewise ``ψ_const``.  (The route-(a) function returns
+    # the ``(cells, face)`` tuple — the walk's exit face is the pole datum.)
     Q_bar = np.full((1, nx), sigma_t_value * psi_const)
-    seed_sweep = carlson_inward_sweep_from_source(
-        Q_bar=Q_bar,
-        sigma_t=sigma_t_gx,
-        dr=dr,
-        bc_outer_value=bc_outer_value_apply,
+    seed_cells, seed_face = carlson_inward_sweep_from_source(
+        Q_bar, sigma_t_gx, dr, bc_outer_value,
     )
-
-    # The two seeds MUST be identical — they solve the same Hébert
-    # §3.9.4 inward sweep with the same source and BC.  This is the
-    # structural alignment Phase F closes between the apply path
-    # (Phase D) and the sweep path (Phase F).
-    np.testing.assert_allclose(
-        seed_sweep, seed_apply, rtol=1e-13, atol=1e-13,
-        err_msg=(
-            "Phase F sweep-path Carlson seed structural alignment "
-            "regression: sweep-path and apply-path Carlson seeds "
-            "DIVERGE on a flat-ψ probe.  Both should solve Hébert "
-            "(3.434)-(3.435) with identical inputs and produce "
-            "bit-identical (up to FP-non-associativity) output.  "
-            "A divergence here indicates the Phase F backport drifted "
-            "from the canonical math."
-        ),
-    )
-
-    # Algebraic flat-ψ identity: with Σw = 2 (Hébert convention),
-    # Q̄ = Σ_t · ψ_const, bc_outer = ψ_const → φ̄_i = ψ_const at every
-    # cell.
     expected_const = np.full((1, nx), psi_const)
     np.testing.assert_allclose(
-        seed_apply, expected_const, rtol=1e-13, atol=1e-13,
+        seed_cells, expected_const, rtol=1e-13, atol=1e-13,
         err_msg=(
-            "Carlson seed flat-ψ algebraic identity: on reflective "
-            "homogeneous probe with bc_outer=ψ_const and Q̄ = Σ_t·"
-            "ψ_const (Σw=2 Hébert convention), the inward sweep "
-            "should reproduce ψ_const at every cell."
+            "direct starting-direction solver flat-ψ identity: on a "
+            "reflective homogeneous probe with bc_outer=ψ_const and "
+            "Q̄ = Σ_t·ψ_const, the Hébert (3.434)-(3.435) inward march "
+            "must reproduce ψ_const at every cell."
         ),
+    )
+    np.testing.assert_allclose(
+        seed_face, np.full((1,), psi_const), rtol=1e-13, atol=1e-13,
+        err_msg="the inward march's exit (pole) face must also be ψ_const.",
     )
