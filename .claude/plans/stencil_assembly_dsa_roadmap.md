@@ -1011,14 +1011,18 @@ full-fold gotcha, the N-sweep discriminator, the ERR-053 Krylov fix) +
 triangularity certificate now unblocks). Durable memory: the N-sweep
 discriminator is banked at
 `~/.claude/.../memory/feedback_nsweep_discriminator_closure_repose.md`.
-**Two follow-ons queued for the FRESH session:** (1) the archivist's
-theory-doc §282 close-out was dispatched at compaction (background); if its
-`docs/theory/*.rst` edits are uncommitted on resume, REVIEW + commit them
-(Cardinal Rule 3) + rebuild Sphinx `-W` clean before 2.5b. (2) the
-FullField construction-invariant issue the elegance reviewer flagged
-(make "carrying mesh ⟹ ψ½ block present" a `__post_init__` invariant so the
-`_require_starting_direction` guards can retire) — FILE as a `module:sn` +
-`module:transport` `type:improvement` GitHub issue. **NEXT ACTION = 2.5b**
+**d3 fully landed** — the theory-doc §282 close-out committed @ `5b03a37`
+(Cardinal Rule 3: discrete_ordinates.rst +753 lines — back edge, augmented
+triangular normal form + certificate, R12a trichotomy, R14 full fold,
+retired-zoo rationale, the N-sweep methodology + the "structural NOT
+accuracy" `.. warning::`; Sphinx `-W` clean), the investigation diagnostics
+archived @ `e71c225`. Branch @ `5b03a37`, **19 ahead of main**, pushes HELD;
+tree clean except agent-memory (sub-agents' own) + scratch/. **ONE follow-on
+for the fresh session:** FILE the FullField construction-invariant issue the
+elegance reviewer flagged (make "carrying mesh ⟹ ψ½ block present" a
+`__post_init__` invariant so the `_require_starting_direction` guards can
+retire) — a `module:sn` + `module:transport` `type:improvement` GitHub
+issue. **NEXT ACTION = 2.5b**
 (the reverse-scan `sweep_transpose`: G1 round-trip, G2 dense `(L+C)ᵀ⁻¹`
 oracle, the spherical LAPACK≡sweep successor leg on the augmented system,
 `SweepOperator.apply_transpose` per 2.5c/R11) → 2.5c → 2.5e (R9 layout +
