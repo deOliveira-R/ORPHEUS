@@ -984,9 +984,45 @@ positive pin / Mode-10 activation). Delivered:
   cap). Fixed: both sites size `n_dof = initial_guess.to_flat().size`.
   Regression gate promoted: `test_krylov_restart_covers_augmented_composite`
   (the trace+seed deficit pin). SI≡Krylov sphere equivalence now green.
-- **pyright CLI = 1** (accepted #288; zero new). **NEXT = full canonical
-  wall green → COMMIT d3 → d4 (residual estate polish) / d5 (STATUS +
-  memory + theory-doc §16 close-out under 2.5e).**
+- **pyright CLI = 1** (accepted #288; zero new). **d3 COMMITTED @ `a29ab2d`
+  (2026-07-04) — full sn+transport+numerics wall GREEN (3149 passed).** The
+  3-wave sphere-consumer test migration (test-architect ×2 + main agent),
+  the elegance fixes, the full-fold, and the Krylov+eigenvalue resolutions
+  all in that commit. d4 estate rewires were ABSORBED into the migration
+  (test_invertible_operator / decomposition / dd_regression re-capture all
+  landed green); d5 memory banked ([[feedback-nsweep-discriminator-closure-repose]]).
+  **NEXT: theory-doc §16/#282 close-out (Cardinal Rule 3 — dispatched to
+  archivist) → then 2.5b (reverse-scan sweep_transpose) per R10.** Pushes
+  HELD (branch `refactor/sn-walk-unification`).
+
+⏸ **C2.4c — COMPACTION TAKEN 2026-07-04 at the 2.5d→2.5b seam (d3 landed).**
+**2.5d is COMPLETE** — d1 `9fc066d` (carrier) + d2 `5170f20` (fold helper +
+arms) + **d3 `a29ab2d`** (the walk triple + retirement + §16 gates +
+baselines + the 3-wave migration + the full-fold + the Krylov/eigenvalue
+resolutions). Branch `refactor/sn-walk-unification` @ `a29ab2d` (through
+d3), **pushes HELD**; the tree is clean EXCEPT (a) the sub-agents'
+`.claude/agent-memory/*` updates (NOT main-agent's to commit) and (b)
+`scratch/` (the user's). **Re-anchor after /compact from:** this C2.4b/c
+block (the full d3 record above — keystones, the R12a predicate, the
+full-fold gotcha, the N-sweep discriminator, the ERR-053 Krylov fix) +
+`git log` (trust git, not the summary — d3 = `a29ab2d`) + the gate spec
+`a3_solve_transpose_verification.md` §16 (verified) and, for 2.5b, §§11–12
+(the reverse-SCAN G1/G2 + the spherical LAPACK-≡-sweep leg the augmented
+triangularity certificate now unblocks). Durable memory: the N-sweep
+discriminator is banked at
+`~/.claude/.../memory/feedback_nsweep_discriminator_closure_repose.md`.
+**Two follow-ons queued for the FRESH session:** (1) the archivist's
+theory-doc §282 close-out was dispatched at compaction (background); if its
+`docs/theory/*.rst` edits are uncommitted on resume, REVIEW + commit them
+(Cardinal Rule 3) + rebuild Sphinx `-W` clean before 2.5b. (2) the
+FullField construction-invariant issue the elegance reviewer flagged
+(make "carrying mesh ⟹ ψ½ block present" a `__post_init__` invariant so the
+`_require_starting_direction` guards can retire) — FILE as a `module:sn` +
+`module:transport` `type:improvement` GitHub issue. **NEXT ACTION = 2.5b**
+(the reverse-scan `sweep_transpose`: G1 round-trip, G2 dense `(L+C)ᵀ⁻¹`
+oracle, the spherical LAPACK≡sweep successor leg on the augmented system,
+`SweepOperator.apply_transpose` per 2.5c/R11) → 2.5c → 2.5e (R9 layout +
+docs + close #280).
 
 ---
 
