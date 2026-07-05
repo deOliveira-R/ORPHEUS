@@ -14,9 +14,12 @@ seed-drop on the het-2G sphere moves the eigenvalue by |Δk| ≈ 3.46e-2 — yet
 under the canonical ``-m "not slow"`` run the strong value catcher
 (``test_si_krylov_eigenvalue_equivalence_sphere``, GL-8 het-2G, marked
 ``@catches("M-SEED-DROP")``) is DESELECTED as ``@slow``; the only fast
-reddening is a fragile 1G monotone margin, and cylinder's seeded-value gates
-are structurally VACUOUS for seed-drops (the per-level α-dome telescopes —
-the seed cancels exactly).  A fast sphere VALUE gate does not exist: the
+reddening is a fragile 1G monotone margin, and cylinder's **level-symmetric**
+seeded-value gates are structurally VACUOUS for seed-drops (the first-swept
+ordinate's seed weight is *dead* — ``c_in[m0]=(1-τ)/τ=0`` at raw ``τ=1`` — so
+the drop is annihilated at source; NOT α-dome "telescoping cancellation", a
+level-symmetric-only reading false for a product quadrature, #280 Phase 2.5b).
+A fast sphere VALUE gate does not exist: the
 config that activates the drop (GL-S16 / 40 cells) is slow, and a small
 sphere either NaNs (LS-S4 / 16-cell fixed-source SI) or nulls the
 sensitivity — a sub-floor value gate would be Mode-10 false confidence,

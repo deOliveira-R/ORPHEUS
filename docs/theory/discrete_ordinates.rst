@@ -7207,10 +7207,13 @@ anchors each level's :math:`\alpha`-cascade.
 
 The cylindrical analogue uses the identical Carlson seed per level:
 :math:`\psi^{\text{face}}_{\text{in,level}}(\text{pole}) =
-\psi^{\text{cell}}(\text{first cell at level})`. The cylindrical
-per-level :math:`\alpha`-dome telescoping then absorbs the
-half-angle face flux discrepancy in a way the spherical case does
-not — see the Gate 1.1 finding below.
+\psi^{\text{cell}}(\text{first cell at level})`. For a
+level-symmetric quadrature the cylinder tolerates a wrong seed via
+the **dead first-ordinate weight** (:math:`c_{\rm in}[m_0]=0`) in a
+way the spherical case does not — see the Gate 1.1 finding below
+(and its #280 Phase 2.5b correction: this is level-symmetric-only,
+NOT :math:`\alpha`-dome telescoping, and false for a product
+quadrature).
 
 .. _phase-c-apply-sweep-equivalence:
 
@@ -7783,6 +7786,21 @@ recurrence's half-angle face flux at the pole:
   and the level-to-level coupling at the level boundaries is
   through pole-azimuth-degenerate ordinates that carry no spatial
   flow. The cancellation is automatic.
+
+  .. warning::
+
+     **Level-symmetric-only (corrected #280 Phase 2.5b).**  This
+     "the cylinder absorbs the seed discrepancy" mechanism holds
+     ONLY for a level-symmetric quadrature, where the first-swept
+     ordinate's seed weight is exactly zero
+     (:math:`c_{\rm in}[m_0]=(1-\tau)/\tau=0` at raw :math:`\tau=1`)
+     — a **dead** seed annihilated at source, not a cancellation
+     across the azimuthal cascade.  For a **product** quadrature
+     the starting direction coincides with the first-swept ordinate
+     (:math:`t=0`, #229), so :math:`c_{\rm in}[m_0]\ne 0`, the seed
+     is a **live self-coupling**, and the cold cylinder
+     ``(L+C).solve`` was seed-**lagged** until the #280 2.5b
+     direct-seed fold.  See the ERR-026 crosstab correction note.
 
 * **Spherical case** has **no equivalent telescoping**. The
   spherical pole-face is a single point (the centre :math:`r=0`),
@@ -8416,13 +8434,18 @@ immediately.
 
 The cylindrical case ALSO carries the zero seed in production but
 :ref:`Cylindrical Gate 1.1 <sn-phase-d-gate-1-1-empirical>`
-**passes** empirically.  The mechanism is per-:math:`\mu`-level
-:math:`\alpha`-dome telescoping: each level's
-:math:`\alpha`-cascade ends at :math:`\alpha = 0` by antisymmetry
-at the level edges, so the wrong ``psi_half_left = 0`` seed
-cancels cleanly per level via the level boundary closure.  The
-sphere cascade has no equivalent telescoping — a wrong seed
-propagates directly to a wrong fixed point.  Phase D's fix
+**passes** empirically.  The mechanism is the **dead first-ordinate
+seed** of the level-symmetric quadrature exercised here: the
+first-swept ordinate's seed weight is zero
+(:math:`c_{\rm in}[m_0]=(1-\tau)/\tau=0` at raw :math:`\tau=1`), so
+the wrong ``psi_half_left = 0`` seed is annihilated at source per
+level.  (This was originally read as per-:math:`\mu`-level
+:math:`\alpha`-dome telescoping "cancelling" the seed; #280 Phase
+2.5b corrected that — it is a dead weight, level-symmetric-only, and
+**false for a product quadrature**, where the seed is a live
+self-coupling and the cold solve was seed-lagged until the
+direct-seed fold.)  The sphere cascade has no equivalent dead-seed
+weight — a wrong seed propagates directly to a wrong fixed point.  Phase D's fix
 updates the cylindrical path too for **structural alignment with
 the canonical form** (architectural correctness), but cylindrical
 behaviour is empirically a regression-stability check, not a new
@@ -8694,9 +8717,38 @@ the Phase C (cylinder PASS / sphere FAIL) and Phase D
 (both PASS) crosstabs is the diagnostic mark of the Phase D
 intervention: the sphere case required the Carlson seed because
 its single-cascade structure has no telescoping; the cylinder case
-already passed under Phase C because per-:math:`\mu`-level
-:math:`\alpha`-dome telescoping absorbed the zero-seed
-inconsistency.
+already passed under Phase C because — for the **level-symmetric**
+quadrature exercised here — the first-swept ordinate's seed weight
+is exactly zero (:math:`c_{\rm in}[m_0] = (1-\tau)/\tau = 0` at raw
+:math:`\tau = 1`), so the zero-seed inconsistency was annihilated at
+source (a **dead** seed), not "absorbed" by any telescoping of the
+solve.
+
+.. note::
+
+   **Correction (#280 Phase 2.5b, 2026-07-05).**  An earlier reading
+   of this crosstab attributed the cylinder's Phase-C pass to
+   ":math:`\alpha`-dome telescoping absorbing the zero-seed
+   inconsistency" and generalised it to "the cylinder solve is
+   seed-insensitive / was already exact."  That is a **level-symmetric-
+   only** artefact and is **false for a product quadrature**: there the
+   starting direction coincides with the first-swept ordinate
+   (:math:`\mu_{\rm start} \equiv \mu_{m_0}`, :math:`t = 0`, #229), so
+   :math:`c_{\rm in}[m_0] \ne 0` and the seed is a **live per-ordinate
+   self-coupling** that contributes :math:`O(1)` to the :math:`m_0`
+   cell diagonal.  The product-cylinder cold ``(L+C).solve`` was in
+   fact seed-**lagged** (cold error :math:`\approx 0.57`) until the
+   #280 2.5b direct-seed fold folded that self-coupling into the
+   :math:`m_0` diagonal (:math:`c_{\rm out} \to c_{\rm out} -
+   c_{\rm in}`), making the cold solve a single-pass direct inverse.
+   The augmented :math:`(L+C)` is block-lower-triangular because the
+   seed contribution lands **on the block diagonal** (forward
+   substitution resolves it) — *not* because the seed "telescopes
+   away."  Distinct claim, still valid: the :math:`\alpha`-dome
+   telescopes under the angular weight sum
+   :math:`\sum_n w_n \psi_n`, which is why **scalar / balance** V&V
+   gates are blind to a wrong per-ordinate seed (anti-pattern #8) —
+   that blindness statement is unaffected by this correction.
 
 .. _sn-phase-d-gate-1-5-capture-and-compare:
 
@@ -9002,10 +9054,15 @@ to seed the M-M half-angle recurrence:
 The cylindrical site has its own per-:math:`\mu`-level twin —
 each level's azimuthal recurrence enters with the same hardcoded
 zero.  Cylindrical Gate 1.1 passed empirically pre-Phase-D
-because each level's :math:`\alpha`-dome ends at :math:`\alpha = 0`
-by GL antisymmetry, **absorbing** the wrong seed through
-level-edge cancellation — but Cardinal Rule 2 (architecture)
-demands the structural fix on the sister path even when the
+because — for the **level-symmetric** quadrature exercised here — the
+first-swept ordinate's seed weight is the **dead** first-ordinate weight
+(:math:`c_{\rm in}[m_0]=(1-\tau)/\tau=0` at raw :math:`\tau=1`), which
+annihilates the wrong seed at source.  (This is **not**
+:math:`\alpha`-dome ':math:`\alpha=0`' level-edge cancellation
+*absorbing* the seed — a level-symmetric-only reading, false for a
+product quadrature; see the #280 Phase 2.5b correction at
+:ref:`sn-phase-d-gate-1-1-empirical`.)  Cardinal Rule 2 (architecture)
+nonetheless demands the structural fix on the sister path even when the
 empirical signature is invisible there.
 
 Phase F-Step-2 mesh-refinement evidence (sphere)
@@ -9296,11 +9353,14 @@ automatically.
 Why the cylindrical site needed the fix too
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Cylindrical Gate 1.1 passes empirically pre-Phase-F (the
-per-:math:`\mu`-level :math:`\alpha`-domes telescope back to
-:math:`\alpha = 0` at the level boundary, absorbing the wrong
-zero seed via cancellation — see the
-:ref:`sn-phase-d-gate-1-1-empirical` discussion for the
+Cylindrical Gate 1.1 passes empirically pre-Phase-F (for the
+**level-symmetric** quadrature exercised here the first-swept
+ordinate's seed weight is the **dead** first-ordinate weight
+:math:`c_{\rm in}[m_0]=(1-\tau)/\tau=0` at raw :math:`\tau=1`, which
+annihilates the wrong zero seed at source — **not** :math:`\alpha`-dome
+telescoping "absorbing" it, a level-symmetric-only reading false for a
+product quadrature; see the :ref:`sn-phase-d-gate-1-1-empirical`
+discussion and its #280 Phase 2.5b correction for the
 sphere-vs-cylinder asymmetry).  Phase F nonetheless fixes
 both sites for two reasons:
 
@@ -9310,12 +9370,11 @@ both sites for two reasons:
    sphere catches.  The sweep-path helper is the same code
    regardless of geometry; consuming it consistently from
    both geometries is the architecturally clean choice.
-#. **Defense in depth against future stress probes**: if a
-   future anisotropic cylindrical case were to break the
-   level-edge telescoping (e.g., :math:`L \ge 1` MMS with
-   non-trivial azimuthal modes), the wrong zero seed would
-   reappear as a failure mode in cylinder.  Fixing it now is
-   cheap insurance.
+#. **Defense in depth against future stress probes**: on any
+   cylinder rule where the first-ordinate seed weight is **live**
+   (a **product** quadrature already is — :math:`c_{\rm in}[m_0]\ne 0`,
+   #280 Phase 2.5b), the wrong zero seed enters the fixed point.
+   Fixing both sites now is cheap insurance.
 
 The cylindrical fix sits inside the per-:math:`\mu`-level
 loop (lines 678–714 of :file:`orpheus/sn/sweep.py`).  The
@@ -10806,11 +10865,31 @@ Consequences, all measured on a 4-cell homogeneous sphere:
   returns ``NaN`` under source iteration and **negative flux** under
   Krylov.
 
-The **cylinder was already exact** (cold residual :math:`0` bit).  Its
-:math:`\alpha`-dome telescopes the starting-direction weight to zero on
-every production rule (the R12a trichotomy below), so the lagged seed
-never entered the cylinder's fixed point — the #282 "0.0-bit" row.  The
-defect is spherical-only.
+The **#282 back edge is spherical-only**: the lagged two-point
+extrapolation reads *later* ordinate columns only on the sphere's
+Gauss–Legendre cascade (:math:`\tau_{{\rm raw},0}\in(0,1)`, the R12a
+trichotomy below).  On a cylinder the starting direction carries **no
+independent state** — a *dead* first-ordinate weight on a level-symmetric
+rule (:math:`\tau_{{\rm raw},0}=1`, :math:`c_{\rm in}[m_0]=0`), a
+:math:`\psi_0` rank-duplicate on a product rule
+(:math:`\tau_{{\rm raw},0}=0`) — so no seed row lands **above** the
+diagonal (the #282 "0.0-bit" row).  Route (a) therefore touches only the
+sphere.
+
+.. note::
+
+   **Not** ':math:`\alpha`-dome telescoping' (#280 Phase 2.5b).  The
+   cylinder's seed-insensitivity is the *dead first-ordinate weight* of
+   the level-symmetric rule, a level-symmetric-only artefact (see
+   :ref:`sn-phase-d-gate-1-1-empirical`).  On a **product** rule the seed
+   :math:`\psi_0` is a **live self-coupling** on the :math:`m_0` diagonal
+   (:math:`c_{\rm in}[m_0]\ne 0`), and the cold product-cylinder
+   ``(L+C).solve`` was itself seed-**lagged** (cold error :math:`\approx
+   0.57`) until the #280 Phase 2.5b direct-seed fold
+   (:math:`c_{\rm out}\to c_{\rm out}-c_{\rm in}`) folded it onto the
+   diagonal, making it a single-pass direct inverse — resolved by the
+   SAME forward substitution the sphere route (a) certifies, not by any
+   telescoping.
 
 ψ½ as first-class state — the augmented (bulk ⊕ trace ⊕ seed) composite
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -20103,6 +20182,27 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-07-05
+     - **The product-cylinder cold solve became a single-pass direct
+       inverse — the direct-seed fold** (#280 Phase 2.5b). For a **product**
+       quadrature the starting direction coincides with the first-swept
+       ordinate (:math:`\tau_{{\rm raw},0}=0`, the #229 clamp fact), so the
+       Morel–Montry seed is a **live self-coupling** on the :math:`m_0`
+       diagonal (:math:`c_{\rm in}[m_0]\ne 0`) and the cold ``(L+C).solve``
+       was seed-**lagged** (cold error :math:`\approx 0.57`). The fold folds
+       :math:`\kappa=(\Delta A/w)\,c_{\rm in}` into the diagonal
+       (:math:`c_{\rm out}\to c_{\rm out}-c_{\rm in}`), so the cold solve is
+       now a single-pass direct inverse for **every** geometry (cold error
+       :math:`\to 4.4\times10^{-16}`; scattering-fixed-point
+       baseline-neutral). This also **corrected** the long-standing
+       "cylinder :math:`\alpha`-dome telescoping absorbs the wrong seed"
+       mis-attribution — a level-symmetric-only artefact (the *dead*
+       first-ordinate weight :math:`c_{\rm in}[m_0]=0` at raw
+       :math:`\tau=1`), **false for a product quadrature**. Companion to the
+       sphere route-(a) fix (#282/2.5d) directly below; see
+       :ref:`sn-phase-d-gate-1-1-empirical`.
+     - #280
+     - ``refactor/sn-walk-unification`` *(in development, ba202a1)*
    * - 2026-07-04
      - **The curvilinear starting-direction ψ½ seed became first-class
        typed state — the spherical solve is now a single-pass direct

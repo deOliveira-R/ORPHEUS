@@ -826,8 +826,10 @@ def test_sweep_curvilinear_per_ordinate_flat_flux_residual(
     M-M recurrence stayed at the wrong fixed point even on a
     flat-source homogeneous reflective probe, because the seed
     perturbed the first ordinate's face flux at every iteration.
-    Cylindrical telescoping (α-dome ends at α=0 per level) hid the
-    bug there.
+    On a level-symmetric cylinder the *dead* first-ordinate seed weight
+    (``c_in[m0]=0`` at raw ``τ=1``) hid the bug there — NOT α-dome
+    telescoping (a level-symmetric-only reading, false for a product
+    quadrature; #280 Phase 2.5b).
 
     Phase F backports the Carlson coupled-pole seed via
     :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`

@@ -1102,20 +1102,45 @@ fix ("route (a) for the non-carrying cylinder") over defer/thread.
   `.claude/agent-memory/explorer/campaign_280_phase25b_product_cyl_seed_map.md`.
 
 **NEW SEQUENCE (user-ruled):** ✓ primitive+slab+sphere reverse-scan (done) →
-**2.5b-cyl-fwd** (the direct cyl forward solve: fold κ into m0's diagonal, retire
-the iterate read; correct the false theory claim; N-sweep re-baseline proof —
-fixed point unmoved) → cyl reverse-scan (extend `_run_transpose`: multi-level +
-degenerate ordinates + the now-direct m0 seed) → full gates (test-architect:
-slab+sphere+cyl G1/G2/assembled + §11/§14 mutations) → 2.5c wiring → 2.5e docs
-(incl. the #284 source-subspace note + the corrected cyl theory) + close #280.
+✓ **2.5b-cyl-fwd DONE @ `ba202a1`** → cyl reverse-scan (NEXT) → full gates
+(test-architect) → 2.5c wiring → 2.5e docs + close #280.
 
-⏸ **C2.4d — COMPACTION TAKEN 2026-07-05 at the reverse-scan→cyl-fwd seam.**
-Re-anchor after /compact from: this 2.5b EXECUTION STATUS block + `git log` (the
-reverse-scan commit) + the two agent memos (explorer cyl map; numerics-investigator
-verdict in its diagnostics) + the gate `test_loss_transpose_solve.py`. **NEXT
-ACTION = 2.5b-cyl-fwd** (the pure-diagonal fold per the feasibility POC; the
-strict-xfail `diag_280_cyl_product_seed_lag.py::test_cold_single_pass_equals_matvec_inverse`
-is the acceptance gate). Pushes HELD (branch `refactor/sn-walk-unification`).
+**2.5b-cyl-fwd LANDED @ `ba202a1` (2026-07-05):** the product-cyl direct-seed
+fold. For a product quad ψ½ ≡ ψ̄_{m0} (t=0, #229 — first-swept ordinate's own
+average) is a per-ordinate SELF-reference; its coupling κ=(ΔA/w)·c_in folds
+into m0's cell diagonal (`c_out → c_out − c_in`, precomputed as `seed_fold` via
+the single-source `affine_scan_coefficients`) with NO angular-upstream source,
+and m0 reads its own average as the M-M upstream. Cold cyl solve 0.57 → 4.4e-16
+(single-pass = M⁻¹). Iterate read RETIRED (both geometries direct-inverse now).
+LS is a no-op (c_in=0); matvec UNCHANGED; a t≠0-and-live-c_in level raises loud.
+Baseline-neutral (cold ≡ SI-converged, machine-identical). Gate
+`tests/sn/sweep/test_cyl_direct_seed_fold.py` (6 gates, promoted from the retired
+`diag_280_*` diagnostics; mutation-verified RED under -O on c_out+c_in). Verified:
+sweep+operators -m "not slow" 1305/0; pyright 0 on the file; slow L1 cyl
+cross-check `test_unified_cylinder_l1_mr_2g_trajectory_resolvent` 618s PASS (a
+`@slow` test right at the 600s cap — not a regression). Theory-claim correction
+LANDED (follow-on docs commit): the false "cylinder α-dome telescoping absorbs
+the wrong seed / was already exact" (a level-symmetric-only mis-attribution)
+corrected across 9 theory sites + 4 test docstrings + a Development-history
+changelog row; the VALID scalar-blindness claim (anti-pattern #8) preserved;
+Sphinx -W -E clean. The correct framing: seed-insensitivity is the LS dead
+first-ordinate weight (c_in[m0]=0), NOT telescoping, and false for product.
+
+DEFERRED to 2.5c (coherent carve, not fragmented): the now-vestigial iterate
+threading — `_initial_guess_values` (0 callers) + the `_run`/`sweep`/solve
+`initial_guess` param — retires WITH the SweepOperator direct-inverse predicates
+(`is_invertible`, `apply_transpose`). The curvilinear solve no longer reads it.
+
+⏸ **C2.4e — compaction point at the cyl-fwd→cyl-reverse seam.** Re-anchor after
+/compact from: this block + `git log` (ba202a1) + the gate
+`test_cyl_direct_seed_fold.py` + the forward cyl arm (`_run`, now clean) + the
+reverse-scan cyl deferral in `_run_transpose` (raises NotImplementedError today).
+**NEXT ACTION = cyl reverse-scan (#28)**: extend `_OneDimScanWalk._run_transpose`
+to the cylinder — the transpose of the multi-level M-M thread + the now-direct m0
+seed fold (the forward fold's transpose is the reverse arm's seed treatment) +
+degenerate pure-azimuthal ordinates; retire the cyl NotImplementedError guard.
+Then #29 full gate suite (test-architect). Pushes HELD (branch
+`refactor/sn-walk-unification`).
 
 ---
 

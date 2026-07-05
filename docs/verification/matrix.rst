@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6273**
+Total tests collected: **6284**
 
 V&V level distribution
 ----------------------
@@ -20,7 +20,7 @@ V&V level distribution
    L1, 1074, 17.1%
    L2, 54, 0.9%
    L3, 0, 0.0%
-   foundation, 3927, 62.6%
+   foundation, 3938, 62.7%
    unmarked, 31, 0.5%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6163
+   explicit, 6174
    verify, 0
    class-name, 46
    func-name, 0
@@ -338,6 +338,7 @@ Module × level grid
    operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 17, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
+   operators/test_loss_transpose_solve, 0, 0, 0, 0, 5, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
@@ -403,6 +404,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
+   sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_layer_imports, 0, 0, 0, 0, 318, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0

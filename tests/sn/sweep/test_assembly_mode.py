@@ -37,8 +37,10 @@ Stencil-assembly campaign 2b (the L16 gate spec):
   gate asserts the defect POSITIVELY (never xfail — L16: when the
   closed starting-direction solve of Hébert 3.432–3.435 lands, this
   test goes RED and MUST be rewritten as a triangular G2 gate for the
-  sphere). The cylinder control shows exact triangularity (its α-dome
-  telescopes the seed away — the #282 table's 0.0-bit row).
+  sphere). The cylinder control shows exact triangularity (non-carrying
+  per R12a — no seed row lands above the diagonal; NOT α-dome "telescoping
+  the seed away", corrected in #280 Phase 2.5b — the #282 table's 0.0-bit
+  row).
 
 The degenerate all-zero octant branch (pure-z ordinates over a lower-D
 mesh — the ``Q/Σ_t`` diagonal) has no fixture here: no shipped
@@ -626,8 +628,10 @@ def test_282_augmented_walk_order_is_triangular(coord):
       builds on it).
     * **cylinder** — the CONTROL: non-carrying (R12a), so the augmented
       matrix is just the ordinate-bulk matrix, exactly triangular as
-      before (its α-dome telescopes the seed away — the #282 0.0-bit
-      row); route (a) does NOT touch it.
+      before (no seed row lands above the diagonal — NOT α-dome
+      "telescoping the seed away", a level-symmetric-only misreading
+      corrected in #280 Phase 2.5b; the #282 0.0-bit row); route (a)
+      does NOT touch it.
     """
     mesh1d = Mesh1D(
         edges=np.array([0.0, 0.3, 0.8, 1.0]),
