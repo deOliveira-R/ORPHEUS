@@ -1028,6 +1028,95 @@ oracle, the spherical LAPACK≡sweep successor leg on the augmented system,
 `SweepOperator.apply_transpose` per 2.5c/R11) → 2.5c → 2.5e (R9 layout +
 docs + close #280).
 
+### 2.5b EXECUTION STATUS (2026-07-05) — reverse-scan slab+sphere DONE; cyl reframed
+
+**The reverse-scan `(L+C)⁻ᵀ` for SLAB + SPHERE is implemented + verified to
+machine precision** (uncommitted → commit imminent). Deliverables:
+- `ordinate_scan_transpose` (`sn/spatial/scan.py`) — the affine scan's adjoint,
+  itself an `ordinate_scan` on reversed-shifted coefficients (inherits the
+  Blelloch/pair-monoid denormal robustness; single source of truth). Unit-verified
+  vs a dense transpose (2e-16, scalar + vector lanes).
+- `carlson_inward_sweep_transpose` (`sn/spatial/psi_half_angle_seed.py`) — the
+  Hébert §3.9.4 seed-march adjoint. Unit-verified 2e-16.
+- `_OneDimScanWalk._run_transpose` + `.sweep_transpose` + `CumprodScan.sweep_transpose`
+  (`sn/loss_representation/__init__.py`) — the reverse-mode adjoint of `_run`. SLAB
+  arm (scan transpose + boundary) + SPHERE arm (M-M thread reverse + coupled-pole
+  mirror reverse + seed-march transpose). Curvilinear-non-sphere (cyl) `raise
+  NotImplementedError` — the typed deferral until the cyl-fwd fix (below).
+- `InvertibleOperator.solve_transpose(b)` (`sn/operators/streaming.py`) — the
+  FullField packer (mirror of `.solve`; 2.5c wires `SweepOperator.apply_transpose`
+  + the swap law to it).
+- Gate `tests/sn/operators/test_loss_transpose_solve.py` — G1 bulk round-trip +
+  G2 augmented dense-`Mᵀ` (source-carried slots) + assembled-`Mᵀ` LAPACK (slab),
+  slab + sphere. (Full §11/§14 mutation suite + cyl = the test-architect pass.)
+
+**KEY FINDING — the #284 outflow subtlety (extends to the transpose).** `solve`
+COMPUTES the outflow slots (slab boundary-outflow / sphere seed `corner_out`)
+while `apply` treats them as FREE DOFs, so `solve = (L+C)⁻¹` only on the SOURCE
+SUBSPACE (`M_solve·M_apply = I` on bulk rows to 5e-16; the outflow slots differ
+O(1)). `sweep_transpose` is the FAITHFUL transpose of the solve — verified
+`matrix(solve_transpose) = M_solveᵀ` to 2e-16 (slab AND sphere augmented) — so it
+matches the structurally-independent apply-oracle `M⁻ᵀ` on EVERY source-carried
+slot and deviates ONLY on the outflow slot (where `M_solve`'s outflow column is
+provably 0). ⟹ every reverse-solve gate compares source-carried slots (bulk ⊕
+seed cells ⊕ inflow corner), NOT the full `to_flat` (the base gate spec §3's
+full-`to_flat` oracle is WRONG on the outflow — superseded by the memo's augmented
+`_probe_augmented_matrix_one_group` oracle). Document in 2.5e.
+
+**CYLINDER — user ruled "fix it FUNDAMENTALLY first" (2026-07-05).** The cyl is
+NON-carrying (R12a), so route (a) never gave it a direct seed: its forward solve
+seeds the M-M thread from `edge_extrapolated_seed(ITERATE)` — a lag (cold cyl
+solve ≠ `(L+C)⁻¹`, 0.57 bulk err; threaded → 6.7e-16). So a cyl transpose-solve
+cannot be single-pass until the FORWARD is fixed. The user chose the fundamental
+fix ("route (a) for the non-carrying cylinder") over defer/thread.
+
+**Feasibility CONFIRMED (numerics-investigator + explorer, 2026-07-05):**
+- **FEASIBLE — a PURE-DIAGONAL fold.** For a PRODUCT quad, R12a `τ_raw=0` ⟹ the
+  seed is `t=0` = the first-swept ordinate ψ_{m0}'s own flux (#229 "starting
+  direction ≡ ψ₀"). Probed: m0's output couples to NO other ordinate, its
+  self-block is triangular, and the seed's contribution is EXACTLY diagonal —
+  coefficient `κ_c = dA_w[m0,c]·c_in[m0]` (the #229 τ-clamp `max(0.5,·)` DEFINES
+  the live `(1−τ)/τ=1`). POC: fold κ into m0's cell diagonal → single-pass =
+  `M_aug⁻¹` (5e-16). LEVEL-SYMMETRIC is the dead case (`c_in[m0]=0` — the fold is a
+  no-op). Degenerate pure-azimuthal ordinates sit downstream of m0 — no interaction.
+- **SOLVE-ONLY + BASELINE-NEUTRAL.** The matvec is ALREADY lag-free/triangular
+  (needs NO change). Unlike the sphere route (a) (which moved keff(N)), the cyl
+  converged seed IS ψ_{m0} either way, so the FIXED POINT is machine-identical:
+  keff/MMS/matvec `walk_matvec_cyl_2g`/converged snapshots do NOT move. Only a cold
+  single-sweep value moves (no fixture captures it) — a principled cold-correctness
+  + preconditioner improvement (positive #200 cyl-half implication).
+- **CORRECTS A FALSE THEORY CLAIM (Cardinal Rule 1/3).** `docs/theory/
+  discrete_ordinates.rst:10809-13` states "the cylinder was already exact… α-dome
+  telescopes… spherical-only" — FALSE for the product cyl (it genuinely lags). The
+  claim propagated from a diagnostic (`diag_curvilinear_seed_sensitivity.py:72`)
+  that measured ONLY the LS (dead-seed) rule. This mis-attribution (also in
+  `test_282` docstring:629 + ERR-026 docs + the old L14 taxonomy) is WHY the carve
+  was never scheduled. The archivist must correct it when the fold lands.
+- Minimal change site: `_run` non-carrying `else` branch (the iterate reads at
+  `sn/loss_representation/__init__.py` ~lines 4036/4039/4096-4100); fold κ into m0's
+  WDD denom (like `inverse_denom` carries `dA_w·c_out`). Investigation diagnostics
+  banked: `derivations/diagnostics/diag_280_cyl_{product_seed_lag,fold_feasibility}.py`
+  (the feasibility proofs are permanent triangularity/routing gates → promote to
+  `tests/sn/sweep/`; the strict-xfail `test_cold_single_pass_equals_matvec_inverse`
+  is the acceptance certificate — flips GREEN when the fold lands). Explorer map:
+  `.claude/agent-memory/explorer/campaign_280_phase25b_product_cyl_seed_map.md`.
+
+**NEW SEQUENCE (user-ruled):** ✓ primitive+slab+sphere reverse-scan (done) →
+**2.5b-cyl-fwd** (the direct cyl forward solve: fold κ into m0's diagonal, retire
+the iterate read; correct the false theory claim; N-sweep re-baseline proof —
+fixed point unmoved) → cyl reverse-scan (extend `_run_transpose`: multi-level +
+degenerate ordinates + the now-direct m0 seed) → full gates (test-architect:
+slab+sphere+cyl G1/G2/assembled + §11/§14 mutations) → 2.5c wiring → 2.5e docs
+(incl. the #284 source-subspace note + the corrected cyl theory) + close #280.
+
+⏸ **C2.4d — COMPACTION TAKEN 2026-07-05 at the reverse-scan→cyl-fwd seam.**
+Re-anchor after /compact from: this 2.5b EXECUTION STATUS block + `git log` (the
+reverse-scan commit) + the two agent memos (explorer cyl map; numerics-investigator
+verdict in its diagnostics) + the gate `test_loss_transpose_solve.py`. **NEXT
+ACTION = 2.5b-cyl-fwd** (the pure-diagonal fold per the feasibility POC; the
+strict-xfail `diag_280_cyl_product_seed_lag.py::test_cold_single_pass_equals_matvec_inverse`
+is the acceptance gate). Pushes HELD (branch `refactor/sn-walk-unification`).
+
 ---
 
 ## Phase 3 — DSA for SN (#2; folds #200's Krylov posture; runs AFTER the #280 walk
