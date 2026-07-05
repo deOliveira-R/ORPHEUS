@@ -35,6 +35,20 @@ Key Facts
   "anisotropic" paths: geometric α-dome redistribution (P0) vs Legendre
   P1+ scattering (#9).  Full treatment:
   :ref:`sn-curvilinear-aniso-norm-reconciliation`.
+- **Curvilinear starting-direction seed** (Issue #282 route (a)): the
+  Morel–Montry recurrence's half-angle seed :math:`\psi_{1/2}` at
+  :math:`\mu_{\rm start}` is **first-class typed state**
+  (:class:`~orpheus.transport.fields.starting_direction_flux.StartingDirectionFlux`),
+  NOT a lagged extrapolation of the iterate.  The spherical within-group
+  **solve marches it directly** from the true q½ source
+  (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`,
+  the **full** Legendre fold — an :math:`\ell=0`-only fold drops the
+  :math:`-A'` term streaming manufactures), so the cold solve is a
+  single-pass exact inverse (residual :math:`5.18\times10^5 \to
+  2.5\times10^{-16}`).  Only levels with first-ordinate raw
+  :math:`\tau \in (0,1)` carry the block (**R12a** — the sphere;
+  cylinders inline the bit-exact edge extrapolation).  Full treatment:
+  :ref:`sn-282-direct-starting-direction-solve`.
 - Verification uses :ref:`synthetic cross sections <synthetic-xs-library>`, not real nuclear data
 - 2-D wavefront sweep (Wave 2): per-octant batched dispatch via
   :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`; mesh-time
@@ -7905,9 +7919,9 @@ Phase D scope (shipped 2026-05-12 — Carlson coupled-pole seed)
    falsified — the error PLATEAUED, the dominant defect was the
    *angular* closure seed, and ERR-058 made the isotropic MMS a clean
    :math:`\mathcal{O}(h^2)` ladder.  The
-   :class:`CarlsonInwardSweep` *half-angle* seed described here is also
+   ``CarlsonInwardSweep`` *half-angle* seed described here is also
    superseded as the default by
-   :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`.
+   ``AngularEdgeExtrapolation``.
    The production resolution is at
    :ref:`sn-err-058-closure-seed-closeout`; this section's per-step
    claims are tombstoned inline where they bear on those decisions.
@@ -7968,6 +7982,24 @@ CLOSED while keeping the **magnitude** scope open per
 Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
 -------------------------------------------------------
 
+.. attention:: **Superseded by Issue #282 route (a) (2026-07-04).**
+
+   The swappable ``PsiHalfAngleSeed`` strategy family
+   (``ZeroSeed`` / ``CarlsonInwardSweep`` / ``AngularEdgeExtrapolation``)
+   whose design this section — and the Phase F and ERR-058 sections that
+   follow — build up was **retired** by Issue #282 route (a).  The
+   starting-direction half-angle flux :math:`\psi_{1/2}` is now
+   **first-class typed state** the sweep marches *directly* from the true
+   within-group source, not a functional of the previous iterate.  Any
+   "current default / retained strategy / the seed lives as a strategy
+   field" claim in the three sections below is **historical** — read them
+   for the *why* (what was tried and the diagnoses that narrowed the
+   defect), but for the CURRENT design see
+   :ref:`sn-282-direct-starting-direction-solve`.  In particular the
+   ``AngularEdgeExtrapolation`` "iterate extrapolation" seed those
+   sections land on was itself the #282 walk-order back edge that route
+   (a) removes.
+
 .. admonition:: Key Facts
    :class: important
 
@@ -7989,7 +8021,7 @@ Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
      half-angle seed replacement).
    * Architectural choice is **Option α (composition)**: the
      seed lives as a
-     :class:`~orpheus.sn.spatial.psi_half_angle_seed.PsiHalfAngleSeed`
+     ``PsiHalfAngleSeed``
      strategy field on :class:`MorelMontryAngularSweep`, not as a
      sibling Protocol on :class:`SNMesh`. The Legacy / Bailey
      closures have no ``psi_half_left`` variable to seed; a
@@ -8047,11 +8079,14 @@ apply matvec) the source collapses to
    \frac{1}{2}\,\Sigma_t(r_i)\,\phi_0(r_i),
 
 where :math:`\phi_0` is the scalar-flux Legendre :math:`\ell = 0`
-moment of the input :math:`\psi`.  See the **L = 0 isotropic-only**
-WARNING in the
-:class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
-class docstring for the failure mode if scattering moves into the
-operator.
+moment of the input :math:`\psi`.  The :math:`L = 0` collapse is the
+*apply matvec's* reach (isotropic scattering); the **source** side is
+NOT collapsed — Issue #282 route (a) folds **all** Legendre moments of
+the true within-group source, because streaming manufactures angular
+structure an isotropic flux does not have (an :math:`\ell = 0`-only
+fold floored the anisotropic curvilinear MMS).  See
+:ref:`sn-282-source-fold` for the full fold and the load-bearing
+:math:`\ell = 1` term.
 
 Discretising Eq. :eq:`hebert-3-432` on a sub-mesh of cell width
 :math:`\Delta r_i` gives the DD cell-balance Hébert Eq. (3.433):
@@ -8457,7 +8492,7 @@ evaluation collapses to cell-centre values unconditionally.  Two
 architectures were considered:
 
 * **Option α (composition, shipped)** — the seed strategy lives as
-  a :class:`~orpheus.sn.spatial.psi_half_angle_seed.PsiHalfAngleSeed`
+  a ``PsiHalfAngleSeed``
   field on
   :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`.
   The abstraction stays local to the closure that consumes it.
@@ -8472,7 +8507,7 @@ architectures were considered:
   thread the Protocol through call signatures.
 
 The
-:class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext`
+``CarlsonSweepContext``
 dataclass bundles the four inputs the Carlson sweep needs that
 are NOT in the
 :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
@@ -8485,15 +8520,15 @@ documented closure contract.
 Linear-operator preservation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Both seed strategies — :class:`ZeroSeed` and
-:class:`CarlsonInwardSweep` — are **linear in the input** ``psi_cells``
+Both seed strategies — ``ZeroSeed`` and
+``CarlsonInwardSweep`` — are **linear in the input** ``psi_cells``
 (verified by the ``is_linear: ClassVar[bool] = True`` trait, pinned
 by foundation tests).  Linearity is the load-bearing property:
 the apply matvec must be a linear operator, otherwise the
 operator-algebra operations of
 :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
 (apply, apply_transpose, dense matrix probing) break.  The
-:class:`CarlsonInwardSweep` is linear because:
+``CarlsonInwardSweep`` is linear because:
 
 * The :math:`\phi_0` moment is a linear projection of input
   :math:`\psi` (Legendre integration is linear).
@@ -8522,7 +8557,7 @@ The L = 0 isotropic-only limitation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The current
-:class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
+``CarlsonInwardSweep``
 evaluates only the :math:`\ell = 0` (isotropic) Legendre moment
 when building the moment-folded source in
 :eq:`hebert-3-432-source`.  This is **consistent with the apply
@@ -8571,8 +8606,8 @@ canonical curvilinear closure path:
    to
    :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`.
    :class:`MorelMontryAngularSweep`'s own constructor default for
-   :attr:`psi_half_seed` is
-   :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`,
+   ``psi_half_seed`` is
+   ``CarlsonInwardSweep``,
    so the single :class:`SNMesh` flip activates the full Phase D
    fix (canonical M-M closure + canonical Carlson seed) without
    requiring downstream call sites to thread the new strategy
@@ -8689,7 +8724,7 @@ The strengthening matters because the Phase D matvec now calls
 
 #. **Phase D Carlson context call** — applied to cell-centred
    outer-cell :math:`\psi` to build ``bc_outer_value`` for the
-   :class:`CarlsonSweepContext`.  See the BC companion section
+   ``CarlsonSweepContext``.  See the BC companion section
    :ref:`bc-phase-d-two-bc-applies-per-matvec`.
 #. **Phase C BC trace law call** — applied to the WDD-propagated
    outflow face value at the boundary edge, per the
@@ -8812,12 +8847,12 @@ The full Phase D footprint (per the closeout memo at
 **New modules**
 
 * :mod:`orpheus.sn.spatial.psi_half_angle_seed` — Protocol family
-  + ABC + 2 strategies (:class:`ZeroSeed` + :class:`CarlsonInwardSweep`)
-  + :class:`CarlsonSweepContext` dataclass.
+  + ABC + 2 strategies (``ZeroSeed`` + ``CarlsonInwardSweep``)
+  + ``CarlsonSweepContext`` dataclass.
 * :file:`tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py` — 25
   foundation + L0 + L1 tests covering Protocol conformance,
   registry/self-registration, immutability, shape contract,
-  bit-identity for :class:`ZeroSeed`, L0 algebraic identities
+  bit-identity for ``ZeroSeed``, L0 algebraic identities
   (flat-:math:`\psi` at varying C, vacuum-BC nx=3 hand
   calculation, multi-region :math:`\Sigma_t` step), linearity, and
   L1 structural-independence (Carlson vs Zero on vacuum-BC probe).
@@ -8826,7 +8861,7 @@ The full Phase D footprint (per the closeout memo at
 
 * :mod:`orpheus.sn.spatial.pole_angular_closure` —
   :class:`MorelMontryAngularSweep` gains a
-  :attr:`psi_half_seed: PsiHalfAngleSeed` field;
+  ``psi_half_seed: PsiHalfAngleSeed`` field;
   :func:`_mm_weighted_angular_recurrence_single_level` accepts an
   optional ``psi_half_seed`` array; Protocol signatures extended
   with an optional ``carlson_context`` kwarg (Legacy + Bailey
@@ -8835,7 +8870,7 @@ The full Phase D footprint (per the closeout memo at
   symbols.
 * :mod:`orpheus.sn.operators.streaming` — spherical + cylindrical matvecs
   build the
-  :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext`
+  ``CarlsonSweepContext``
   before calling ``pole_angular_closure``.
 * :mod:`orpheus.sn.mesh.augmented_mesh` — :class:`SNMesh` default flipped to
   :class:`MorelMontryAngularSweep`.
@@ -8878,7 +8913,7 @@ Phase F Carlson seed sweep-path backport (Issue #168 Phase F)
    * Phase F (commit chain landed 2026-05-12 on
      ``refactor/sn-operator-algebra``, atop Phase E ``6708a4a``)
      backports the Phase D Carlson coupled-pole seed
-     (:class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`,
+     (``CarlsonInwardSweep``,
      Hébert §3.9.4 Eqs. (3.432)–(3.435)) from the apply-matvec path
      (:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
      / ``_cylindrical``, fixed in Phase D Step 3) into the SI/sweep
@@ -8899,7 +8934,7 @@ Phase F Carlson seed sweep-path backport (Issue #168 Phase F)
      :eq:`hebert-3-434`–:eq:`hebert-3-435` driven by the SI
      within-group source ``Q_1d`` rather than by an apply-path
      :math:`\psi` Legendre fold.
-     :class:`CarlsonInwardSweep.__call__` is refactored to delegate
+     ``CarlsonInwardSweep.__call__`` is refactored to delegate
      to the same helper after folding ``psi_level → Q̄ = 0.5 ·
      Σ_t · φ_0``.  **One helper, two consumers** — Cardinal Rule 2
      (architecture) enforced via reuse without duplication.
@@ -8933,7 +8968,7 @@ The twin-path bug Phase D left open
 Phase D's fix lived entirely in the **apply-matvec path**.  The
 Phase D Carlson seed is invoked by
 :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` via the
-:attr:`MorelMontryAngularSweep.psi_half_seed` composition; that
+``MorelMontryAngularSweep.psi_half_seed`` composition; that
 covers every Krylov-driven call.  But ORPHEUS's curvilinear
 production default is **source iteration**, which dispatches
 through :func:`~orpheus.sn.loss_representation.transport_sweep` rather than
@@ -8950,8 +8985,8 @@ to seed the M-M half-angle recurrence:
    * - Apply matvec (Krylov)
      - :func:`~orpheus.sn.spatial.pole_angular_closure._mm_weighted_angular_recurrence_single_level`
        :math:`\to`
-       :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
-       via :attr:`MorelMontryAngularSweep.psi_half_seed`
+       ``CarlsonInwardSweep``
+       via ``MorelMontryAngularSweep.psi_half_seed``
      - **CORRECT** — Phase D Carlson seed installed; Gate 1.1
        XPASS on the per-ordinate flat-flux residual probe
        (residual :math:`\le 10^{-15}`).
@@ -9153,7 +9188,7 @@ The factor :math:`\tfrac{1}{2}` is the Legendre fold weight
 :math:`P_0(-1) = 1`.  For an :math:`L \ge 1` anisotropic
 operator (not currently in scope for ORPHEUS's apply
 matvec, but flagged in the
-:class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
+``CarlsonInwardSweep``
 class docstring's L=0 WARNING block), additional terms
 :math:`(2\ell + 1) Q_\ell \cdot (-1)^\ell / 2` for
 :math:`\ell \ge 1` would enter — the source-driven helper
@@ -9194,7 +9229,7 @@ within-group source built by SI from
 ``φ_0 = Σw · ψ_const``), the two helpers return
 **bit-identical seeds** (up to FP non-associativity).
 Apply-path:
-:class:`CarlsonInwardSweep`
+``CarlsonInwardSweep``
 ``(psi_level=ψ_const·ones, ctx)`` produces ``Q̄ = 0.5 · Σ_t · Σw
 · ψ_const``; sweep-path:
 :func:`carlson_inward_sweep_from_source`
@@ -9209,7 +9244,7 @@ Phase F's structural choice is **factor the helper, delegate
 from the strategy** — the Cardinal Rule 2 (architecture)
 imperative.  The pre-Phase-F implementation had Eqs.
 :eq:`hebert-3-434`–:eq:`hebert-3-435` open-coded inside
-:meth:`CarlsonInwardSweep.__call__`.  Naive options for the
+``CarlsonInwardSweep.__call__``.  Naive options for the
 backport:
 
 * **Option 1 (REJECTED) — duplicate the recurrence loop in
@@ -9221,7 +9256,7 @@ backport:
   audited against the sister — exactly the failure mode that
   produced the Phase F bug in the first place.
 * **Option 2 (REJECTED) — invoke**
-  :class:`CarlsonInwardSweep`
+  ``CarlsonInwardSweep``
   **directly from the sweep path with a synthesized**
   ``psi_level``
   **array.**  The strategy's ``__call__(psi_level,
@@ -9235,7 +9270,7 @@ backport:
   **as a free function that takes** ``Q̄``
   **directly, and have the strategy delegate.**
 
-:meth:`CarlsonInwardSweep.__call__` now reads (in essence):
+``CarlsonInwardSweep.__call__`` now reads (in essence):
 
 .. code-block:: python
 
@@ -9414,7 +9449,7 @@ Files touched by Phase F
 
 * :mod:`orpheus.sn.spatial.psi_half_angle_seed` — NEW free
   function :func:`carlson_inward_sweep_from_source` (lines
-  358–419 of the module); :meth:`CarlsonInwardSweep.__call__`
+  358–419 of the module); ``CarlsonInwardSweep.__call__``
   refactored to delegate after folding ``psi_level → Q̄``;
   ``__all__`` extended.
 * ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) —
@@ -9520,7 +9555,7 @@ ERR-026 manifestation #7 — CLOSED by ERR-058 (#195), verified + pinned by #196
    * **ERR-058** (Issue #195, 2026-06-12) was the TERMINAL fix: it
      replaced the shared closure seeds with correct ones — the
      coupled-pole spatial seed :math:`\psi(0,+\mu)=\psi(0,-\mu)` and the
-     :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`
+     ``AngularEdgeExtrapolation``
      half-angle seed — so BOTH inner solvers operate on the SAME correct
      discrete operator.
    * **#196** (2026-06-13) VERIFIED the eigenvalue-path equivalence and
@@ -9708,11 +9743,11 @@ ERR-058 — the curvilinear closure-seed fix (Issue #195 CLOSED)
    production:
 
    * The **half-angle thread seed** is
-     :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`
+     ``AngularEdgeExtrapolation``
      (the new
      :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
      ``psi_half_seed`` default).  It replaces
-     :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`,
+     ``CarlsonInwardSweep``,
      whose proxy source :math:`\bar Q = \Sigma_t\phi_0/\!\sum w` was the
      dominant defect.
    * The **spatial pole-face seed** of the outward (:math:`\mu>0`)
@@ -9731,13 +9766,25 @@ ERR-058 — the curvilinear closure-seed fix (Issue #195 CLOSED)
      :ref:`sn-issue-196-bit-identical-vs-floor`).  SI is
      :math:`\sim 10^2\times` faster than GMRES (no restart, ERR-053).
 
-   :class:`CarlsonInwardSweep` is **retained** (not deleted) as the
+   ``CarlsonInwardSweep`` is **retained** (not deleted) as the
    registered host of the canonical Hébert §3.9.4 recurrence
    (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`),
    reachable only by explicit opt-in.  Its class docstring carries a
    ``.. warning::`` block recording the proxy-source caveat by design,
    so a future session cannot re-activate it as a default unaware of
    the falsification.
+
+   .. note:: **Retraction (2026-07-04, Issue #282 route (a)).**  The
+      ``CarlsonInwardSweep`` *strategy class* was NOT ultimately
+      retained — route (a) deleted the whole ``PsiHalfAngleSeed``
+      family.  What survives is the pure Hébert recurrence
+      :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+      (a free function, now the SOLVE engine driven by the **true** q½
+      source rather than the falsified proxy, no opt-in), plus the
+      inlined
+      :meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
+      for non-carrying cylinder levels.  See
+      :ref:`sn-282-seed-strategy-zoo`.
 
    The **anisotropic** curvilinear MMS gates improved :math:`\sim 50\times`
    and are now limited by a *fixed-quadrature angular floor* of the
@@ -9980,7 +10027,7 @@ The Morel–Montry angular recurrence (Hébert §3.9.4 Eqs. 3.437/3.439)
 threads the half-angle face fluxes
 :math:`\psi_{m\pm 1/2,i}` across a :math:`\mu`-level and needs a starting
 seed :math:`\psi_{1/2,i}` at the level's most-inward angular edge.  The
-Phase D / Phase F :class:`CarlsonInwardSweep` solved the canonical
+Phase D / Phase F ``CarlsonInwardSweep`` solved the canonical
 *sweep-side* starting-direction ODE (Hébert Eqs. 3.432–3.435) for that
 seed, but drove it with the **proxy source**
 
@@ -10010,7 +10057,7 @@ continuous streaming of :math:`\pm 0.31`.  **This was the dominant
 defect.**
 
 **The fix —**
-:class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`.
+``AngularEdgeExtrapolation``.
 For the *operator* (matvec) to be consistent, the seed must approximate
 the *input field's* own value at the level edge :math:`\mu_{\rm start}`
 — a pure angular-extrapolation problem with NO dependence on
@@ -10039,7 +10086,7 @@ azimuthal edge) is single-sourced from the SAME
 :math:`\alpha`/:math:`\tau` construction site as the
 :math:`\alpha`-dome (``orpheus.geometry.reduced_operator``) and threaded
 to the strategy via the REQUIRED
-:attr:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext.mu_start`
+``CarlsonSweepContext.mu_start``
 field — no default, so a forgotten cylinder site cannot silently fall
 back to the sphere value.
 
@@ -10071,7 +10118,7 @@ back to the sphere value.
 * **linear in the input**, so the operator-algebra operations
   (:meth:`apply`, :meth:`apply_transpose`, dense probing) are
   preserved.  The strategy OWNS its adjoint
-  (:meth:`~orpheus.sn.spatial.psi_half_angle_seed.PsiHalfAngleSeedBase.seed_adjoint`),
+  (``PsiHalfAngleSeedBase.seed_adjoint``),
   a fixed linear scatter of the seed cotangent onto the two stencil
   ordinates, so a strategy swap on
   :class:`MorelMontryAngularSweep` swaps both the forward and reverse
@@ -10327,17 +10374,17 @@ oracle), ERR-058 deletes no correct machinery:
    * - Primitive
      - Status
      - Why kept
-   * - :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`
+   * - ``AngularEdgeExtrapolation``
      - **production**
      - The new ``psi_half_seed`` default; operator-consistent on
        non-flat fields.
-   * - :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
+   * - ``CarlsonInwardSweep``
        + :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
      - retained, opt-in
      - Correct *source-driven* Hébert §3.9.4 recurrence; would seed a
        future TRUE-source sweep-side closure.  Proxy-source caveat
        pinned in its docstring ``warning`` block.
-   * - :class:`~orpheus.sn.spatial.psi_half_angle_seed.ZeroSeed`
+   * - ``ZeroSeed``
      - retained, ablation
      - Reproduces the Phase B behaviour for A/B regression-safety
        comparison.
@@ -10348,24 +10395,42 @@ oracle), ERR-058 deletes no correct machinery:
      - The :math:`\psi(0,+\mu)=\psi(0,-\mu)` continuity; matvec + sweep
        share it (one discrete system).
 
+.. note:: **Retraction (2026-07-04, Issue #282 route (a)).**  The three
+   ``PsiHalfAngleSeed`` strategy rows above (``AngularEdgeExtrapolation``
+   / ``CarlsonInwardSweep`` / ``ZeroSeed``) are superseded: route (a)
+   **deleted** the whole strategy family — including the
+   ``AngularEdgeExtrapolation`` "production default", which was itself
+   the #282 walk-order back edge.  What is genuinely retained is the
+   free-function Hébert engine
+   :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+   (now the SOLVE driver, on the **true** q½ source) and the inlined
+   :meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
+   (non-carrying cylinder levels).  The coupled-pole spatial seed row is
+   unaffected.  See :ref:`sn-282-seed-strategy-zoo`.
+
 Open research paths
 ~~~~~~~~~~~~~~~~~~~~~
 
 Two paths could lift the anisotropic angular floor without changing the
 isotropic O(h²) result:
 
-#. **TRUE-source-driven sweep-side seed.**  Replace the
-   :class:`AngularEdgeExtrapolation` *input-field* extrapolation with the
-   canonical Hébert recurrence
+#. **TRUE-source-driven sweep-side seed** — **LANDED as Issue #282 route
+   (a) (2026-07-04).**  This path predicted the resolution exactly:
+   replace the ``AngularEdgeExtrapolation`` *input-field* extrapolation
+   with the canonical Hébert recurrence
    :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
    driven by the genuine within-group source
    :math:`\bar Q_i = \sum_\ell \tfrac{2\ell+1}{2}Q_\ell(r_i)(-1)^\ell`
-   (the full Legendre fold, not the :math:`\Sigma_t\phi_0` proxy).  On
-   the sweep path the true source is available; this would make the
-   *starting-direction transport* exact rather than the *input-field
-   value* exact.  Likely diagnostic probe: the per-ordinate residual at
-   the most-inward ordinate of an aniso ansatz, holding spatial mesh
-   fixed and sweeping quadrature order.
+   (the full Legendre fold, not the :math:`\Sigma_t\phi_0` proxy), making
+   the *starting-direction transport* exact rather than the *input-field
+   value* exact.  Route (a) shipped precisely this — and the "likely
+   diagnostic probe" proposed here (holding spatial mesh fixed and
+   sweeping quadrature order) is exactly the **angular-order N-sweep**
+   that certified the re-pose principled.  The one refinement over the
+   prediction: the seed also had to become **first-class typed state**
+   (not just a better strategy) to kill the walk-order back edge that
+   made the *solve* non-direct.  See
+   :ref:`sn-282-direct-starting-direction-solve`.
 #. **Unclamped-:math:`\tau` threading on a linear-in-:math:`\mu` shell.**
    The exact linear-:math:`\mu` threading (above) holds only for
    unclamped :math:`\tau`; quantify the clamp's contribution to the
@@ -10467,7 +10532,7 @@ them:
 * **ERR-058** (Issue #195, 2026-06-12) was the TERMINAL fix.  It
   replaced the shared closure seeds with correct ones (the coupled-pole
   spatial seed :math:`\psi(0,+\mu)=\psi(0,-\mu)` and the
-  :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`
+  ``AngularEdgeExtrapolation``
   half-angle seed), making BOTH inner solvers operate on the SAME
   correct discrete operator.
 
@@ -10659,6 +10724,557 @@ arithmetic differed.  The terminal diagnosis (ERR-058) showed the shared
 fixed point **itself** was wrong on non-flat fields; once the seeds were
 fixed, both inner solvers reach the same *correct* fixed point and the
 "choose between them" framing dissolves — SI is restored on speed alone.
+
+
+.. _sn-282-direct-starting-direction-solve:
+
+Route (a) — the direct starting-direction ψ½ solve (Issue #282)
+---------------------------------------------------------------
+
+.. admonition:: Status banner
+   :class: important
+
+   **Issue #282 — CLOSED by route (a)** (#280 Phase 2.5d, committed
+   ``a29ab2d`` on branch ``refactor/sn-walk-unification``, 2026-07-04).
+   The lagged Morel–Montry half-angle pole seed — a two-point
+   extrapolation of the *previous* source-iteration iterate — was a
+   **walk-order back edge**: it made the spherical within-group SOLVE a
+   *non-direct* inverse.  Route (a) promotes the starting-direction flux
+   :math:`\psi_{1/2}` to **first-class typed state** (the
+   :class:`~orpheus.transport.fields._bases.StartingDirectionField` role
+   family on a ghost-metric
+   :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`)
+   and marches it **directly** from the true within-group source
+   :math:`\bar q_{1/2}` through the Hébert §3.9.4
+   :eq:`hebert-3-434`–:eq:`hebert-3-435` recurrence
+   (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`).
+
+   **Keystone:** the sphere cold-start residual
+   :math:`\lVert A\cdot\mathrm{solve}(b) - b\rVert_\infty / \lVert b\rVert_\infty`
+   collapses from :math:`5.18\times10^{5}` to
+   :math:`2.5\times10^{-16}`, and the seed-insensitivity
+   :math:`\Delta` from :math:`4.57\times10^{-2}` to :math:`0` **bitwise**.
+   The cold solve is now a genuine single-pass exact inverse — the
+   posture the DSA program (#2) and the curvilinear Krylov
+   preconditioner (#200) require, and the deliverable that lets the
+   #280 unified walk build a spherical ``sweep_transpose`` against a
+   triangular forward operator.
+
+   This section is the **resolution chapter** of the seed-strategy saga
+   documented above (:ref:`sn-phase-d-carlson-coupled-pole-sweep`,
+   :ref:`sn-phase-f-carlson-sweep-path-backport`,
+   :ref:`sn-err-058-closure-seed-closeout`).  Those sections are
+   preserved as the record of *what was tried and why it fell short*;
+   the ``PsiHalfAngleSeed`` strategy family they built is **retired**
+   here (see :ref:`sn-282-seed-strategy-zoo`).
+
+The lagged pole seed was a walk-order back edge (the #282 defect)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The curvilinear Morel–Montry angular recurrence :eq:`pole-mm-recurrence`
+marches half-angle face fluxes :math:`\phi_{n+1/2,i}` up the
+:math:`\alpha`-cascade from a **seed** at the level's starting direction
+:math:`\mu_{\rm start}` (sphere: :math:`\mu = -1`).  The seed
+:math:`\phi_{1/2,i} \equiv \psi_{1/2,i}` is the input field's value at
+that closed ray.  Through Phase D–F (:ref:`sn-err-058-manifestation-b`)
+the seed was produced by extrapolating the field **linearly in**
+:math:`\mu` through the level's two most-inward ordinates —
+operator-consistent for the forward *apply*, but structurally poisonous
+for the *solve*.
+
+The poison is a **directed-graph** fact.  A within-group solve
+:math:`A\psi = q` is a single-pass direct inverse **iff** the operator is
+triangular in the sweep-order permutation — every unknown depends only on
+already-computed unknowns (:ref:`loss-rep-three-modes`; the #284
+object-level discharge).  The two-point extrapolation seed reads
+ordinate columns that the sweep visits **later** in the walk (the
+inward-marching :math:`\mu<0` sweep needs the seed *before* it has swept
+the :math:`\mu` neighbours the extrapolation samples).  In the sweep-order
+permutation that places one entry **above the diagonal** — a back edge.
+Consequences, all measured on a 4-cell homogeneous sphere:
+
+* the spherical solve is **not** single-pass: the cold-start residual
+  :math:`\lVert A\cdot\mathrm{solve}(b) - b\rVert_\infty/\lVert b\rVert_\infty`
+  sits at :math:`5.18\times10^{5}` (a direct inverse must be
+  :math:`\sim 10^{-16}`);
+* the solve is **sensitive to the initial guess** — two random guesses
+  give solutions differing by :math:`\Delta = 4.57\times10^{-2}` — because
+  the seed reads the *previous iterate*, a lag that is harmless **at** the
+  scattering fixed point but pollutes the cold, no-outer-iteration solve;
+* a coarse pure-absorber (:math:`c = 0`, no scattering outer loop to mask
+  the lag) returns ``NaN``; a coarse S\ :sub:`8` 16-cell fixed source
+  returns ``NaN`` under source iteration and **negative flux** under
+  Krylov.
+
+The **cylinder was already exact** (cold residual :math:`0` bit).  Its
+:math:`\alpha`-dome telescopes the starting-direction weight to zero on
+every production rule (the R12a trichotomy below), so the lagged seed
+never entered the cylinder's fixed point — the #282 "0.0-bit" row.  The
+defect is spherical-only.
+
+ψ½ as first-class state — the augmented (bulk ⊕ trace ⊕ seed) composite
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Route (a) kills the back edge by making the seed a **state variable the
+solve computes**, not a functional of the iterate it reads.  The
+within-group phase space grows a third summand:
+
+.. math::
+   :label: sn-282-augmented-composite
+
+   V \;=\; V_{\rm bulk} \,\oplus\, V_{\rm trace} \,\oplus\, V_{\rm sd},
+   \qquad
+   V_{\rm sd} \;=\;
+   \bigoplus_{p\,\in\,\mathcal{P}_{\rm carry}}
+   \bigl(\underbrace{V_{1/2,p}^{-}}_{\mu=-1\ \rm leg}
+         \oplus\, V_{1/2,p}^{+}\bigr),
+
+one starting-direction block :math:`V_{1/2,p}^{\pm}` per **carrying**
+:math:`\mu`-level :math:`p` (R12a; on production meshes only the sphere
+carries — one level).  Each block holds the level's half-angle flux at
+every radial cell plus its two :math:`r = R` corner slots
+(:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`,
+a flat backing buffer with typed ``(level, sign)`` views, mirroring the
+:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
+trace layout).  Like every typed phase-space quantity in this codebase
+the seed is realised by a **role family** — here a quadruple keyed by the
+composite torsor algebra (flux, source/sink, displacement, residual):
+
+.. list-table:: The ``StartingDirectionField`` role quadruple (#282 route (a))
+   :header-rows: 1
+   :widths: 34 30 36
+
+   * - Role leaf
+     - Realises
+     - Forced by
+   * - :class:`~orpheus.transport.fields.starting_direction_flux.StartingDirectionFlux`
+     - the ψ½ state :math:`\psi_{1/2}` itself
+     - the carrier promotion (2.5d d1)
+   * - :class:`~orpheus.transport.source_sinks.starting_direction_source_sink.StartingDirectionSourceSink`
+     - the q½ source block :math:`\bar q_{1/2}` (the fold below) and any
+       operator ``.apply`` output on the seed rows
+     - the augmented source composite
+   * - :class:`~orpheus.transport.displacements.starting_direction_displacement.StartingDirectionDisplacement`
+     - the affine displacement between two ψ½ states
+     - the composite torsor algebra (2.5d d1)
+   * - :class:`~orpheus.transport.residuals.starting_direction_residual.StartingDirectionResidual`
+     - the seed block of the typed residual :math:`r = A\psi - q`
+     - :func:`~orpheus.sn.solver.evaluate_residual` (2.5d d3)
+
+**The ghost metric.**  Every inner-product weight of
+:math:`V_{\rm sd}` is **exactly zero**.  The angular through-flux factor
+:math:`(1-\mu^2)` vanishes at :math:`\mu = \pm 1` — the *same* structural
+fact as the :math:`\alpha`-dome endpoints
+:math:`\alpha_{1/2} = \alpha_{N+1/2} = 0` — so the starting-direction
+rays carry **zero quadrature measure**.  A nonzero weight would be a
+fabricated volume.  The metric is therefore inherited unmodified from
+:class:`~orpheus.numerics.space.FunctionSpace` with an all-zero weight
+vector: :meth:`~orpheus.numerics.space.FunctionSpace.apply_metric`
+zeroes the block,
+:meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric` is the
+masked Moore–Penrose pseudo-inverse (zero on the whole block), and the
+block contributes exactly ``0.0`` to the composite inner product.  This zero measure has a sharp V&V
+consequence — see :ref:`sn-282-gotchas` (Mode 12).
+
+.. (vv-status rationale) Structural / representational identity: the
+.. named-field-typed decomposition of the augmented within-group phase
+.. space.  Not a solver claim — the verifiable content is the
+.. StartingDirectionSpace layout / role-quadruple class-identity
+.. arithmetic (Field Layer-1 gate) + the §16.A carrier gates.
+.. vv-status: sn-282-augmented-composite documented
+
+The walk triple — solve marches, apply reads, transpose reverses
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The augmented loss operator :math:`A = L + C` acts on the seed block
+through three orientation-coherent paths of the **one** 1-D scan/loop
+walk (:class:`~orpheus.sn.loss_representation._OneDimScanWalk`; the #280
+unification).  Ordering the unknowns **seed⁻ ≺ seed⁺ ≺ ordinate legs**
+makes the augmented operator block-lower-triangular:
+
+.. math::
+   :label: sn-282-block-triangular
+
+   A \;=\;
+   \begin{bmatrix} A_{\rm ss} & 0 \\[2pt] A_{\rm bs} & A_{\rm bb} \end{bmatrix},
+   \qquad
+   \begin{aligned}
+   A_{\rm ss} &: \text{the seed rows (Hébert DD residual + corner rows),} \\
+   A_{\rm bs} &: \text{the seed} \to \text{bulk M-M recurrence coupling,} \\
+   A_{\rm bb} &: \text{the bulk} (L+C)\ \text{walk (}A_{\rm sb} = 0\text{).}
+   \end{aligned}
+
+The zero upper-right block :math:`A_{\rm sb} = 0` **is** the death of the
+back edge: the seed rows are *self-contained* in the seed state (they read
+no bulk or trace unknown), and the seed → bulk coupling is one-directional
+(the M-M recurrence reads :math:`\psi_{1/2}` into the bulk rows'
+``angular_numer``, never the reverse).  The three orientations:
+
+* **SOLVE** (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`).
+  Before any ordinate of a carrying level, the two ψ½ legs are solved
+  **directly** from the true q½ source: march inward from the seeded
+  :math:`r = R` inflow corner (vacuum ⇒ 0; reflective ⇒ the mirror
+  outflow corner) via the Hébert :eq:`hebert-3-434`–:eq:`hebert-3-435`
+  DD recurrence, pole-continue :math:`\psi^{+}_{1/2}(0) = \psi^{-}_{1/2}(0)`
+  (the inward march's exit face **is** the pole datum), then march the
+  :math:`\mu = +1` leg outward to the :math:`r = R` outflow corner on the
+  **reversed** cell data (orientation is carried by the data, never a
+  flag — the 2.5a discipline).  The marched inward cells **are** the M-M
+  recurrence seed; the iterate plays no role.
+* **APPLY** (the matvec).  Reads the *given* ψ½ carrier and **emits** the
+  seed-block rows: per leg the Hébert (3.434) residual
+  :math:`m_{1/2,i} = \sigma_i\psi_{1/2,i} + (2/\Delta r_i)(\psi_{1/2,i} - f_{{\rm in},i})`
+  reconstructed from the stored cells (the DD face chain replays the
+  solve's arithmetic), plus the inflow-corner *identity* row and the
+  outflow-corner *streamed − stored* defect row.  Because the apply
+  replays the solve's ops in the same order, ``apply ∘ solve`` closes the
+  corner defect to :math:`0` bit.
+* **TRANSPOSE** (``loss_action_transpose``).  The exact reverse-mode of
+  the forward straight-line program: reverse the corner rows, the +
+  leg's chain (descending), the pole continuation, the − leg's chain
+  (ascending); the reverse M-M recurrence
+  (:meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.angular_adjoint`)
+  **stops** at the seed cotangent and lands it on the output composite's
+  seed block, rather than scattering it back onto the bulk.
+
+The triangularity is not asserted — it is **certified** by a probed
+``triu == 0`` check on the assembled augmented block (the transpose
+analogue of the #284 object-level discharge): the sweep is LAPACK forward
+substitution on the source subspace.
+
+.. (vv-status rationale) Structural / representational identity: the
+.. block-triangular normal form of the augmented (L+C) in the augmented
+.. walk order.  The verifiable content is the triu==0 triangularity
+.. certificate + the apply∘solve corner-defect=0-bit gate (§16.C), not a
+.. flux/eigenvalue claim.
+.. vv-status: sn-282-block-triangular documented
+
+.. _sn-282-source-fold:
+
+The starting-direction source fold — why ALL Legendre moments (R14)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The direct solve needs the true within-group source **at the starting
+direction**, :math:`\bar q_{1/2}(\mu = \pm 1)` — the value the anisotropic
+source :math:`q(r,\mu)` takes at the closed ray, reconstructed from **all**
+its Legendre moments (Hébert Eq. (3.432); the "R14 full fold",
+:func:`~orpheus.numerics.spaces.starting_direction_space.fold_moments_to_starting_direction`):
+
+.. math::
+
+   \bar q_{1/2}(\mu = \pm 1)
+   \;=\; \sum_{\ell} \frac{2\ell+1}{2}\, q_\ell\,(\pm 1)^\ell,
+   \qquad
+   q_\ell(r) \;=\; \sum_n w_n\,P_\ell(\mu_n)\,q_n(r),
+
+the exact 1-D addition-theorem weight :math:`(2\ell+1)/2` with
+:math:`P_\ell(\pm 1) = (\pm 1)^\ell` — this is Eq. :eq:`hebert-3-432-source`
+kept at **full order**, not collapsed to :math:`L = 0`.  The single q½
+fold factory
+:meth:`~orpheus.transport.source_sinks.starting_direction_source_sink.StartingDirectionSourceSink.from_angular_source`
+folds every moment the level resolves; the solver cold-start, the
+fixed-source right-hand side, and the operator-free
+:func:`~orpheus.sn.loss_representation.transport_sweep` all route through
+it (Pattern 2 — the :math:`P_1(-1)` sign is spelled **once**).
+
+**The full fold is load-bearing, and this is the subtle part.**  It is
+tempting to fold only :math:`\ell = 0` (the apply matvec's isotropic
+scattering reach is P0).  That is *wrong for the source*, because
+**streaming manufactures angular structure the flux does not have**.
+Take an isotropic trial flux :math:`\psi = A(r)` (no :math:`\mu`
+dependence).  Applying the spherical streaming–collision operator
+(:math:`\Omega\cdot\nabla + \sigma_t`, with
+:math:`\Omega\cdot\nabla\psi = \mu\,\partial_r\psi + \tfrac{1-\mu^2}{r}\partial_\mu\psi`
+and :math:`\partial_\mu\psi = 0`) gives a source that is **linear in**
+:math:`\mu`:
+
+.. math::
+   :label: sn-282-anisotropic-source
+
+   q(r,\mu) \;=\; \mu\,A'(r) \;+\; \sigma_t(r)\,A(r),
+   \qquad
+   q(r,\mu = -1) \;=\; \sigma_t A - A'.
+
+.. (vv-status rationale) Literature-grounded derivation identity: the
+.. spherical streaming-collision operator applied to an isotropic trial
+.. flux A(r).  Not a solver claim — it is the analytical basis for the
+.. full-fold requirement, whose verifiable content is the fold's ℓ=0
+.. collapse to ½q₀ bit-identity (isotropic paths unchanged) + the
+.. anisotropic-MMS O(h²) convergence gate.
+.. vv-status: sn-282-anisotropic-source documented
+
+The value at :math:`\mu = -1` carries the :math:`-A'` term — and that
+term lives **entirely in the** :math:`\ell = 1` **moment**.  Working the
+fold explicitly on a Gauss–Legendre level
+(:math:`\sum_n w_n\mu_n = 0`, :math:`\sum_n w_n = 2`,
+:math:`\sum_n w_n\mu_n^2 = 2/3`):
+
+.. math::
+
+   q_0 = 2\sigma_t A, \quad q_1 = \tfrac{2}{3}A',
+   \qquad
+   \underbrace{\tfrac12 q_0 P_0(-1)}_{\sigma_t A}
+   + \underbrace{\tfrac32 q_1 P_1(-1)}_{-A'}
+   \;=\; \sigma_t A - A' \;\checkmark
+
+An :math:`\ell = 0`-only fold keeps only the :math:`\tfrac12 q_0 = \sigma_t A`
+piece and **drops** the :math:`-A'`.  That dropped term is exactly what
+**floored the anisotropic curvilinear MMS**: with the ℓ=0-only seed the
+manufactured-solution error refused to converge; with the full fold the
+sphere MMS converges :math:`\mathcal{O}(h^2)`-to-exact.
+
+**For an isotropic source the full fold is a no-op.**  The higher moments
+vanish (:math:`q_\ell = 0` for :math:`\ell \ge 1`), the fold collapses to
+:math:`\tfrac12 q_0` **bit-exactly**, and the eigenvalue and
+isotropic-fixed-source paths are **unchanged** by route (a).  The full
+fold only "activates" when a >linear-in-:math:`\mu` source is present
+(the companion anisotropic-MMS gate); in current production runs — all
+isotropic sources — :math:`\ell \ge 1` is manufactured-before-needed and
+identically zero (the isotropic-snapshot-blindness discipline: the
+machinery is correct for the case the snapshots cannot exercise).
+
+.. _sn-282-r12a:
+
+Which levels carry a ψ½ block — the R12a predicate
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A :math:`\mu`-level carries an **independent** starting-direction state
+block **iff** the M-M half-angle recurrence genuinely *consumes* it — a
+structural predicate on the level's first-ordinate **raw** (unclamped)
+Morel–Montry weight
+(:func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_raw_per_level`,
+read by :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`):
+
+.. math::
+
+   \text{level } p \text{ carries a ψ½ block}
+   \quad\Longleftrightarrow\quad
+   \tau_{{\rm raw},0}^{(p)} \,\in\, (0, 1)\ \text{exclusive.}
+
+The trichotomy is **bit-exact** on the production quadratures:
+
+.. list-table:: The R12a carrying-level trichotomy
+   :header-rows: 1
+   :widths: 18 30 52
+
+   * - :math:`\tau_{{\rm raw},0}`
+     - Rule
+     - Why the seed is (not) independent state
+   * - :math:`= 0`
+     - cylinder **product** rules
+     - the starting direction coincides with the first ordinate
+       (:math:`\eta_0 = \eta_{1/2} = -\sin\theta` bit-exactly, the #229
+       clamp fact) — the seed is a rank-duplicate of :math:`\psi_0`.
+       **No block.**
+   * - :math:`= 1`
+     - cylinder **level-symmetric** rules
+     - duplicate-:math:`\eta` nodes collapse the midpoint edge onto
+       :math:`\eta_0`, so the seed's only consumption path — the
+       recurrence weight :math:`(1-\tau_0)` — vanishes.  Dead state.
+       **No block.** (This is why the measured cylinder-LS seed
+       sensitivity is :math:`0.0` bit.)
+   * - :math:`\in (0,1)`
+     - sphere **Gauss–Legendre**
+     - the recurrence consumes the seed with a genuine weight
+       (:math:`\tau_{{\rm raw},0} \approx 0.39\text{–}0.42`).  **Carries.**
+
+So on production meshes **only the sphere carries the block**; every
+cylinder inlines the 2-point angular-edge extrapolation
+(:meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
+— harmless and bit-exact by the trichotomy above).  R12a **refines** the
+earlier R12 letter ("μ_start ∉ the level's μ-nodes"), whose claimed
+equivalence to :math:`\tau_{\rm raw} \ne 0` is empirically **false** on
+level-symmetric cylinder rules (μ_start ∉ nodes there, yet
+:math:`\tau_{\rm raw} = 1` — dead).  The clamp
+:math:`0 \mapsto \tfrac12` erases exactly the 0-vs-(0,1) distinction the
+predicate needs, which is why the **raw** producer is first-class.
+
+.. _sn-282-seed-strategy-zoo:
+
+What was tried and failed — the seed-strategy zoo (retired)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Three swappable ``PsiHalfAngleSeed`` strategies preceded route (a).  All
+three are **retired** (2026-07-04); the module
+:mod:`~orpheus.sn.spatial.psi_half_angle_seed` shrank from 851 lines to
+161 — one engine.  The history matters because it prevents a future
+session from re-attempting a known-dead seed:
+
+.. list-table:: The retired seed strategies and why each fell short
+   :header-rows: 1
+   :widths: 26 40 34
+
+   * - Retired strategy (literal — class deleted)
+     - What it did
+     - Why it failed
+   * - ``ZeroSeed``
+     - hardcoded :math:`\psi_{1/2} = 0`
+     - the pre-ERR-026 term-initialisation bug (vv-principles failure
+       Mode 3, a missing term); wrong off flat flux.
+   * - ``CarlsonInwardSweep``
+     - this module's Hébert march driven by the **proxy** source
+       :math:`\bar Q = \sigma_t\phi_0/\!\sum w`
+     - exact only at the flat-flux equilibrium; :math:`\mathcal{O}(1)`
+       wrong off equilibrium — **floored the curvilinear MMS at ≈ 0.04**
+       L2 independent of mesh (ERR-058b, Issue #195).
+   * - ``AngularEdgeExtrapolation``
+     - the operator-consistent 2-point angular extrapolation of the
+       **iterate**
+     - fixed the forward *apply* (#195) but left the *solve* seeded from
+       the **previous iterate** — the #282 walk-order **back edge**
+       (sphere cold residual :math:`5.18\times10^5`, seed sensitivity
+       :math:`4.57\times10^{-2}`).
+
+Route (a) retired the whole family.  The **arithmetic survives** in two
+places, both correct on their own:
+
+* :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+  — the Hébert :eq:`hebert-3-434`–:eq:`hebert-3-435` recurrence, now
+  driven by the **true** q½ source (:ref:`sn-282-source-fold`) instead of
+  the falsified proxy, and used as the SOLVE engine (not a strategy);
+* :meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
+  — the 2-point angular-edge extrapolation, inlined **verbatim** for the
+  non-carrying cylinder levels (where the R12a trichotomy makes it
+  bit-identical to the retired default: :math:`t = 0` exact on product
+  rules, dead seed weight on level-symmetric rules).
+
+Numerical evidence — the lag death
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The acceptance gates live in
+:file:`tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py`
+(the §16.C fixed-point classifiers); every gate measures the **full
+augmented field** (bulk ⊕ trace ⊕ seed), because a bulk-only norm would
+be seed-blind (Mode 12, below).
+
+.. list-table:: #282 route-(a) acceptance evidence
+   :header-rows: 1
+   :widths: 16 44 40
+
+   * - Gate
+     - Measurement
+     - Before → after (route a)
+   * - **C(i)** cold residual
+     - :math:`\lVert A\cdot\mathrm{solve}(b)-b\rVert_\infty/\lVert b\rVert_\infty`
+       on a cold start (the keystone: the solve is a single-pass exact
+       inverse)
+     - sphere :math:`5.18\times10^{5} \to 2.5\times10^{-16}`; slab & cyl
+       already :math:`< 10^{-11}` (must **stay**)
+   * - **C(ii)** seed-insensitivity
+     - two random ``initial_guess`` seeds → bitwise-identical sphere
+       solve (the lag signature)
+     - :math:`\Delta = 4.57\times10^{-2} \to 0` **bitwise**
+   * - **C(ii)** Probe-6
+     - :math:`\psi_0` arbitrary, :math:`b = A\psi_0`, cold
+       :math:`\mathrm{solve}(b)` recovers :math:`\psi_0`
+     - pre-fix only the **warm** sphere solve recovered it; now the cold
+       solve does (``rtol`` :math:`10^{-11}`)
+   * - **C(iii)** coarse physicality
+     - S\ :sub:`8` 16-cell sphere fixed source, finite **and**
+       non-negative on **both** inner drivers
+     - SI → ``NaN`` / Krylov → negative flux :math:`\to` finite + positive
+       on both
+   * - **C(iv)** pure absorber
+     - :math:`c = 0` sphere (no scattering outer loop to mask the lag) —
+       the cold solve **is** the answer
+     - ``NaN`` :math:`\to` single-pass exact inverse
+       (:math:`< 10^{-11}`, finite, positive)
+
+Three teeth pin that the evidence is not vacuous: **Mode 11** —
+a wrap-sentinel confirms the sphere cold solve *executes*
+:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+while the slab does **not** (no carrying levels); **Mode 10** — zeroing
+the q½ source block **moves** the sphere solve (the carrier is not inert);
+**Mode 12** — see the gotcha below.
+
+The eigenvalue re-pose — an N-sweep, not h→0
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Route (a) changed the ψ½ **angular closure**, so it re-posed the sphere
+:math:`k`-eigenvalue — by :math:`\sim 4.66\times10^{-4}` at :math:`n = 40`
+cells.  Judging whether such a re-pose is **principled** requires the
+right discriminator, and this is a genuinely teachable subtlety.
+
+**The** :math:`h \to 0` **continuum test is invalid here.**  A seed *is*
+an angular closure: it changes the :math:`\mathcal{O}(N)` **angular
+truncation** of the discrete operator.  So the mesh-refinement
+(:math:`h \to 0`) limits *at fixed angular order* :math:`N` genuinely
+differ between the old and new seed — that difference is not an error, it
+is two consistent-but-distinct closures converging to two distinct fixed
+angular truncations.  Refining :math:`h` cannot tell them apart.
+
+**The correct discriminator is an angular-order** :math:`N`-**sweep at
+fixed mesh** (gate
+``test_heterogeneous_1g_angular_order_consistency``).  The retired
+edge-extrapolation and the new direct Carlson seed **both converge to the
+same transport eigenvalue as** :math:`N \to \infty`: they differ by
+:math:`\sim 1.7\times10^{-3}` at Gauss–Legendre order 8 but agree to
+:math:`\sim 10^{-6}` by GL32.  A seed that did **not** converge in
+:math:`N` would be an *inconsistent* closure (a genuine regression); both
+do, so the re-pose is principled.
+
+.. warning::
+
+   **Route (a) is NOT "more accurate" — it is justified structurally.**
+   At the *low* angular orders the tests use (GL8), the retired seed is
+   actually **closer** to the :math:`N`-limit.  Do **not** frame the
+   re-baseline as an accuracy improvement.  Route (a) is justified by
+   **structure** — the honest single-pass direct inverse (cold residual
+   :math:`5.18\times10^5 \to 2.5\times10^{-16}`) required by the DSA (#2),
+   curvilinear-Krylov (#200), and unified-walk (#280) programs — not by
+   angular accuracy.
+
+   And the **MMS is blind to the seed**.  Every curvilinear manufactured
+   solution in this codebase is :math:`\le` linear-in-:math:`\mu`, which
+   is exactly the seed's *exact* regime (:eq:`sn-282-anisotropic-source`
+   is the boundary of what the seed can get wrong; vv-principles Mode 7).
+   So the MMS-:math:`\mathcal{O}(h^2)` convergence does **not** certify
+   the seed — only the :math:`N`-sweep gate does.  (Eigenvalue claims
+   need a closed-form or semi-analytical reference regardless; MMS is a
+   flux-shape / convergence-order pillar, never an eigenvalue one.)
+
+.. _sn-282-gotchas:
+
+Gotchas
+~~~~~~~
+
+**The Krylov restart must be sized from the composite, not the bulk
+(ERR-053 family).**  A carve that grows the Krylov composite (adds a
+block) **must** resize the GMRES ``restart`` / ``n_dof`` from the
+composite ``to_flat().size``, not the bulk :math:`N\cdot n_g\cdot n_x`.
+Route (a)'s third (seed) block pushed ``to_flat`` past the bulk count, so
+a bulk-sized ``restart`` re-truncated GMRES on the trace **and** seed
+degrees of freedom — the restarted subspace could not represent the
+augmented iterate and the sphere within-group inner **stalled** (wrong
+:math:`k` under an outer cap, :math:`\sim 868` s).  Fixed at **both**
+solver Krylov drivers by sizing ``n_dof = initial_guess.to_flat().size``.
+Distinct from #200 (the identity preconditioner); this is a pure
+sizing bug.
+
+**The product-cylinder solve consumes the iterate through the
+edge-extrapolation stencil — preserve that data flow bit-exactly.**  On a
+non-carrying level the seed is still the 2-point extrapolation of the
+*iterate* (:math:`t = 0` on product rules: the stencil reads the first
+ordinate's iterate column).  That is a *formal* lag, harmless at the fixed
+point, and the retirement of the strategy zoo had to keep the
+non-carrying data flow **byte-identical** to the pre-2.5d path — a
+diverging cylinder solve would trip the §16.D cylinder-unmoved baseline.
+
+**G-reciprocity is identically blind to the seed rows (Mode 12) — never
+credit it as the seed catcher.**  The seed block is zero-weight (the ghost
+metric), so its rows lie inside the metric-weighted G-adjoint reciprocity
+functional's **invariance group**: a gross sign flip on *every* seed row
+leaves :math:`\langle A\psi,\chi\rangle_G = \langle\psi, A^{\dagger}\chi\rangle_G`
+**exactly** unchanged, at every tolerance, in every regime (the A4
+positive pin,
+``test_mode12_g_reciprocity_is_blind_to_a_seed_row_flip``).  The catcher
+is the **object-level** C(i) cold residual (forward) and the 2.5b
+Euclidean :math:`M^{\mathsf T}` oracle (transpose) — a functional
+**outside** the stabiliser — never the invariant reciprocity gate.  This
+is the canonical lesson that a zero-measure state block needs an
+object-level, not a spectral/energy-functional, verification (pin the
+object, not just its invariants).
+
 
 
 .. _sn-curvilinear-aniso-norm-reconciliation:
@@ -19487,6 +20103,35 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-07-04
+     - **The curvilinear starting-direction ψ½ seed became first-class
+       typed state — the spherical solve is now a single-pass direct
+       inverse** (Issue #282 route (a), #280 Phase 2.5d). The lagged
+       Morel–Montry half-angle pole seed (a two-point extrapolation of the
+       *previous* source-iteration iterate) was a **walk-order back
+       edge** that made the spherical within-group SOLVE a *non-direct*
+       inverse (cold residual :math:`5.18\times10^5`). Route (a) promotes
+       :math:`\psi_{1/2}` to a typed
+       :class:`~orpheus.transport.fields._bases.StartingDirectionField`
+       role quadruple (flux / source / displacement / residual) on a
+       zero-metric
+       :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`,
+       and the sweep marches it **directly** from the true q½ source (the
+       Hébert §3.9.4 recurrence
+       :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+       + the **full** Legendre fold
+       :func:`~orpheus.numerics.spaces.starting_direction_space.fold_moments_to_starting_direction`,
+       :eq:`sn-282-anisotropic-source`). The augmented :math:`(L+C)` is
+       block-lower-triangular in the seed-first walk order
+       (:eq:`sn-282-block-triangular`), so the back edge is dead by
+       construction (cold residual :math:`\to 2.5\times10^{-16}`; seed
+       insensitivity :math:`4.57\times10^{-2}\to 0` bitwise). The whole
+       ``PsiHalfAngleSeed`` strategy zoo retired (851 → 161 lines). The
+       eigenvalue re-pose is principled by an angular-order N-sweep (a
+       seed is a closure — h→0 is the wrong test). See
+       :ref:`sn-282-direct-starting-direction-solve`.
+     - #282 #280
+     - ``refactor/sn-walk-unification`` *(in development, a29ab2d)*
    * - 2026-07-04
      - **The assembly mode landed — the sweep's per-cell closure algebra
        emitted a third way, as a sparse matrix** (stencil-assembly

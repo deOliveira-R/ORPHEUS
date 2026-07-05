@@ -2083,7 +2083,10 @@ post-Phase-D code path:
        linear-in-:math:`\psi` ``bc_outer_value`` scalar at
        :math:`\mu = -1`)
      - Extract the most-inward-ordinate row; scalar feeds into
-       :class:`CarlsonSweepContext.bc_outer_value`
+       ``CarlsonSweepContext.bc_outer_value`` (this Phase-D context
+       object was later retired by Issue #282 route (a) — the
+       starting-direction inflow corner is now a typed carrier slot; see
+       :ref:`sn-282-direct-starting-direction-solve`)
    * - **#2**
      - Phase C BC trace law application (at the boundary edge after
        the WDD sweep completes)

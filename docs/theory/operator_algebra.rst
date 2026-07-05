@@ -573,9 +573,14 @@ invariant. Before that fix, the curvilinear Carlson seed used a
 :math:`\sigma_t`-dependence in the redistribution; the decomposition
 test's top docstring still carried the now-stale claim that
 ``matvec(σ=0)`` was "3–13 % wrong for curvilinear". ERR-058 replaced the
-seed with a :math:`\sigma_t`-independent :class:`AngularEdgeExtrapolation`,
+seed with a :math:`\sigma_t`-independent ``AngularEdgeExtrapolation``,
 which made the curvilinear matvec genuinely affine in :math:`\sigma_t` —
-and that is the precondition the pure-L carve depends on. The lesson
+and that is the precondition the pure-L carve depends on. (Issue #282
+route (a) later retired that strategy *class*, but the
+:math:`\sigma_t`-affinity invariant survives — the direct
+starting-direction march and the inlined ``edge_extrapolated_seed`` are
+both affine in :math:`\sigma_t` exactly like the bulk walk; see
+:ref:`sn-282-direct-starting-direction-solve`.) The lesson
 catalogued in :mod:`orpheus.sn.loss_representation` is to probe the live
 behaviour rather than trust the prose: the affinity is an *empirical*
 fact that must be re-verified, not a transcribed claim.

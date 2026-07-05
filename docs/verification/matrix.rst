@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6251**
+Total tests collected: **6273**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1186, 19.0%
-   L1, 1065, 17.0%
-   L2, 53, 0.8%
+   L0, 1187, 18.9%
+   L1, 1074, 17.1%
+   L2, 54, 0.9%
    L3, 0, 0.0%
-   foundation, 3916, 62.6%
+   foundation, 3927, 62.6%
    unmarked, 31, 0.5%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6141
+   explicit, 6163
    verify, 0
    class-name, 46
    func-name, 0
@@ -65,9 +65,10 @@ Module × level grid
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
    core/test_cell_kernel_batch, 11, 0, 0, 0, 1, 2
    core/test_cell_visit_c_stamp, 0, 0, 0, 0, 3, 0
-   core/test_dag_walk, 0, 0, 0, 0, 7, 0
+   core/test_dag_walk, 0, 0, 0, 0, 8, 0
    core/test_diamond, 0, 0, 0, 0, 53, 0
    core/test_discretization_scheme_protocol, 0, 0, 0, 0, 17, 0
+   core/test_one_dim_loop_walk, 0, 0, 0, 0, 5, 0
    core/test_ordinate_scan, 52, 0, 0, 0, 0, 0
    core/test_ordinate_scan_joint_batch, 5, 0, 0, 0, 0, 0
    core/test_phase_c_gates, 8, 0, 0, 0, 9, 0
@@ -79,7 +80,7 @@ Module × level grid
    core/test_sweep_regression, 10, 0, 0, 0, 0, 0
    core/test_sweep_schedule, 0, 0, 0, 0, 9, 0
    core/test_sweep_schedule_nd, 0, 0, 0, 0, 9, 0
-   core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
+   core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 3, 0
    core/test_transport_sweep_ng2_layout_guard, 0, 0, 0, 0, 2, 0
    core/test_unified_sweep_dispatch, 0, 0, 0, 0, 28, 0
    core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 4, 0
@@ -96,12 +97,13 @@ Module × level grid
    cp/test_verification, 4, 25, 5, 0, 0, 0
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
+   curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
-   curvilinear/test_compute_psi_half_per_level, 26, 0, 0, 0, 2, 0
+   curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
    curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 12, 0
    curvilinear/test_cyl_sweep_regression, 4, 0, 4, 0, 0, 0
    curvilinear/test_pole_angular_closure, 0, 0, 0, 0, 13, 0
-   curvilinear/test_psi_half_angle_seed, 4, 1, 0, 0, 20, 0
+   curvilinear/test_psi_half_angle_seed, 4, 6, 0, 0, 5, 0
    curvilinear/test_si_cyl_20cell_nan_regression, 0, 0, 0, 0, 4, 0
    curvilinear/test_sph_sweep_regression, 13, 0, 0, 0, 0, 0
    curvilinear/test_streaming_equilibrium_curvilinear, 27, 0, 0, 0, 0, 0
@@ -228,7 +230,7 @@ Module × level grid
    diffusion/test_solver, 0, 0, 3, 0, 15, 0
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
-   eigenvalue/test_keff_curvilinear, 0, 19, 12, 0, 0, 0
+   eigenvalue/test_keff_curvilinear, 0, 19, 13, 0, 0, 0
    eigenvalue/test_keff_estimator_gate, 0, 0, 0, 0, 7, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    fields/test_angular_boundary_flux, 0, 0, 0, 0, 36, 0
@@ -255,6 +257,7 @@ Module × level grid
    mc/test_gaps, 7, 9, 0, 0, 0, 0
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
+   mesh/test_starting_direction_carrier, 0, 0, 0, 0, 26, 0
    mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
    mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
    mms/test_curvilinear_operator_admits_anisotropic_mms, 0, 2, 0, 0, 0, 0
@@ -327,11 +330,12 @@ Module × level grid
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
-   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 12, 0
+   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 23, 0
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
    operators/test_invertible_operator, 1, 10, 0, 0, 22, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
+   operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 17, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
@@ -367,6 +371,7 @@ Module × level grid
    primitives/test_solution, 0, 0, 0, 0, 31, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 37, 0
    regression/test_dd_regression, 0, 0, 0, 0, 13, 0
+   regression/test_walk_matvec_baselines, 0, 0, 0, 0, 3, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
@@ -381,7 +386,7 @@ Module × level grid
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
    solve/test_flux_displacement_diagnostics, 0, 4, 0, 0, 0, 0
    solve/test_gauss_seidel_reification, 0, 0, 0, 0, 7, 0
-   solve/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
+   solve/test_krylov_curvilinear_precond_safety, 0, 7, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
    solve/test_seed_threading_spy, 0, 0, 0, 0, 1, 0
@@ -397,9 +402,9 @@ Module × level grid
    spatial/test_pairing_diffusion_limit, 0, 0, 0, 0, 6, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
-   sweep/test_assembly_mode, 7, 0, 4, 0, 5, 0
+   sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 313, 0
+   test_layer_imports, 0, 0, 0, 0, 318, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -423,17 +428,17 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``matrix-eigenvalue``, 227
-   ``mg-balance``, 182
+   ``matrix-eigenvalue``, 228
+   ``mg-balance``, 183
    ``peierls-unified``, 158
-   ``one-group-kinf``, 146
+   ``one-group-kinf``, 147
    ``peierls-rank-n-bc-closure``, 124
-   ``reflective-bc``, 112
-   ``alpha-recursion``, 102
-   ``wdd-closure``, 102
-   ``wdd-face``, 102
+   ``reflective-bc``, 113
+   ``alpha-recursion``, 103
+   ``wdd-closure``, 103
+   ``wdd-face``, 103
    ``collision-rate``, 94
-   ``multigroup``, 81
+   ``multigroup``, 82
    ``alpha-cylindrical``, 75
    ``mm-weights``, 75
    ``ki3-def``, 64
@@ -442,14 +447,14 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``e3-def``, 61
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
+   ``balance-general``, 54
    ``hebert-3-432``, 54
    ``self-cyl``, 54
-   ``balance-general``, 53
+   ``transport-cartesian``, 54
    ``p-inf``, 53
    ``self-sph``, 52
    ``chord-length``, 51
    ``flux-moments``, 51
-   ``transport-cartesian``, 51
    ``wigner-seitz``, 49
    ``attenuation``, 48
    ``optical-thickness``, 48
@@ -469,17 +474,17 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``self-double-integral``, 34
    ``surface-to-region``, 34
    ``surface-to-surface``, 34
+   ``transport-spherical``, 34
    ``keff-mean``, 33
    ``peierls-equation``, 33
    ``sigma-keff``, 33
-   ``transport-spherical``, 33
    ``dd-slab``, 32
    ``free-flight``, 31
+   ``sn-curvilinear-homogeneous-kinf-recovery``, 31
    ``transport-cylindrical``, 30
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
-   ``sn-curvilinear-homogeneous-kinf-recovery``, 28
    ``cp-flat-source-derivation``, 27
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
@@ -500,11 +505,11 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``pn-scatter``, 22
    ``ray-circle``, 22
    ``singular-eigenfunction-eq46``, 21
-   ``dd-curvilinear-scalar``, 20
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
    ``peierls-rank-n-stability``, 20
    ``dd-cartesian-1d``, 19
+   ``dd-curvilinear-scalar``, 19
    ``energy-condensation-rate-preservation``, 17
    ``direction-sampling``, 16
    ``discrete-measure-integrate``, 16
@@ -620,6 +625,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``cp-second-difference-operator``, 2
    ``diffusion-mms``, 2
    ``harmonic-moment-projection``, 2
+   ``hebert-3-432-source``, 2
+   ``hebert-3-434``, 2
+   ``hebert-3-435``, 2
    ``hilbert-adjoint-equals-metric-times-S0``, 2
    ``peierls-greens-cylinder-mr-kinf``, 2
    ``peierls-greens-cylinder-mr-piecewise-tau``, 2
@@ -696,7 +704,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **110** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **107** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -736,9 +744,6 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``galerkin-spectral-carlvik-integral``
 - ``galerkin-spectral-eq4``
 - ``galerkin-spectral-orthogonality``
-- ``hebert-3-432-source``
-- ``hebert-3-434``
-- ``hebert-3-435``
 - ``inflow-mask-discrete``
 - ``ld-cartesian-2d-bilinear-coeffs``
 - ``ld-cartesian-2d-face-bilinear-coeffs``
@@ -812,7 +817,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **280** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **283** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -1035,6 +1040,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``si-within-group-fixed-point``
 - ``sigs-convention``
 - ``singular-eigenfunction-eq5``
+- ``sn-282-anisotropic-source``
+- ``sn-282-augmented-composite``
+- ``sn-282-block-triangular``
 - ``sn-coupled-pole-mu-level-invariant-eq``
 - ``sn-err-058-coupled-pole-continuity``
 - ``sn-err-058-edge-extrapolation``
@@ -1129,7 +1137,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 5
-   ``ERR-026``, 98
+   ``ERR-026``, 43
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6
@@ -1153,7 +1161,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-047``, **0 (MISSING)**
    ``ERR-048``, 51
    ``ERR-049``, 15
-   ``ERR-050``, 4
+   ``ERR-050``, 7
    ``ERR-051``, **0 (MISSING)**
    ``ERR-052``, 1
    ``ERR-053``, 7
@@ -1169,6 +1177,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-063``, 3
    ``ERR-064``, 2
    ``ERR-065``, 1
+   ``ERR-066``, 6
 
 Unmarked tests
 --------------
