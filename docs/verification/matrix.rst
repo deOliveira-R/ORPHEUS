@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6284**
+Total tests collected: **6310**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1187, 18.9%
-   L1, 1074, 17.1%
+   L0, 1187, 18.8%
+   L1, 1074, 17.0%
    L2, 54, 0.9%
    L3, 0, 0.0%
-   foundation, 3938, 62.7%
+   foundation, 3964, 62.8%
    unmarked, 31, 0.5%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6174
+   explicit, 6200
    verify, 0
    class-name, 46
    func-name, 0
@@ -332,13 +332,14 @@ Module × level grid
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
    operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 23, 0
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
+   operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
-   operators/test_invertible_operator, 1, 10, 0, 0, 22, 0
+   operators/test_invertible_operator, 1, 10, 0, 0, 20, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
    operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 17, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
-   operators/test_loss_transpose_solve, 0, 0, 0, 0, 5, 0
+   operators/test_loss_transpose_solve, 0, 0, 0, 0, 15, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
@@ -390,7 +391,6 @@ Module × level grid
    solve/test_krylov_curvilinear_precond_safety, 0, 7, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
-   solve/test_seed_threading_spy, 0, 0, 0, 0, 1, 0
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    spatial/test_affine_closure, 0, 0, 0, 0, 3, 0
@@ -706,7 +706,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **107** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **109** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -768,10 +768,12 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``ld-ubld-scattering-moment-lift``
 - ``ld-ubld-unified-moment-residual``
 - ``ld-ubld-weak-form``
+- ``loss-rep-adjoint-inverse-swap``
 - ``loss-rep-affine``
 - ``loss-rep-affine-cell``
 - ``loss-rep-facewise-separable``
 - ``loss-rep-leaf-sum``
+- ``loss-rep-metric-adjoint-solve``
 - ``loss-rep-removal-sigma``
 - ``loss-rep-scanmarch-apply-residual``
 - ``loss-rep-scanmarch-solve-affine``

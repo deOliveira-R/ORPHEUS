@@ -1212,15 +1212,65 @@ folded in (broad-run catch): `_AdjointOperator.inverse()` guard matched to
 non-adjointable); AdjointWrapper keystone row STRUCTURAL_ABSENT→VALUE_RAISE. Net
 −151 LoC. Full inverse-family blast radius 2271/0; pyright transport:1.
 
-⏸ **C2.4g — compaction point at the 2.5c→2.5e seam.** Re-anchor after /compact
-from: this block + `git log` (`45529c2` wiring, `8cf5215` retirement) + the gate
-`test_inverse_adjoint_coherence.py`. **NEXT ACTION = 2.5e (#26)** — the R9
-layout ruling (the `sn/spatial/` estate) + docs (the SN theory
-Development-history changelog row for the unified orientation×kernel walk + the
-#284 source-subspace note) + close #280 (comment the swap law + the walk
-unification + the initial_guess/warm-start architecture split; #282
-characterization). Then P3 DSA #2. Pushes HELD (branch
-`refactor/sn-walk-unification`, 29 ahead of main).
+✅ **2.5e LANDED — campaign #280 walk-unification COMPLETE (2026-07-05).** Docs +
+the retired-ref cleanup + close-out committed on branch `refactor/sn-walk-
+unification` (pushes HELD). Delivered:
+
+- **Theory docs (archivist).** `loss_representations.rst` (+366): the new section
+  *"The orientation axis — the adjoint completes the 2×2"* — the two frames
+  (apply-loop `{loss_action, loss_action_transpose}`, bit-identical both
+  orientations via 2.5a; solve-scan `{sweep, sweep_transpose}`, the coherent
+  reverse-scan via 2.5b), the **orientation×kernel×execution taxonomy** table
+  (coherence axis = ORIENTATION; execution the NON-free third axis pinned by
+  `(kernel,dim)`), the discrete-Euclidean-transpose `.. warning::` (not μ-reversal,
+  not the continuous adjoint), the deferral ledger, the **swap law**
+  `A.H.inverse() ≡ A.inverse().H` as object identity (+ the free metric
+  adjoint-solve, no metric code in the sweep), the `initial_guess`/warm-start
+  architecture split (direct inverses accept-and-drop; the warm start lives at the
+  iteration layer). `discrete_ordinates.rst` (+53): dev-history rows for 2.5b
+  (reverse-scan `sweep_transpose` — the empty 2×2 cell filled) + 2.5c (swap-law
+  wiring onto the #226 taxonomy). Sphinx `-W` exit 0 / 0 warnings.
+- **Retired-ref cleanup (main-agent — the 3-search text-grep leg the 2.5d audit
+  missed).** 3 live-framed refs to the retired seed-zoo classes repointed at the
+  route-(a) treatment: `solver.py:2287` + `augmented_mesh.py:285` (→
+  `carlson_inward_sweep_from_source`), `reduced_operator.py:338` (mu_start →
+  `MorelMontryAngularSweep` seed treatment). Full grep now clean — only historical
+  tombstones (`psi_half_angle_seed.py` dev-history, `spatial/__init__.py`,
+  `pole_angular_closure.py:1361`) remain. The archivist also corrected the
+  `pole_angular_closure.py` module/class docstrings (they described the retired
+  proxy-source seed as live).
+- **R9 estate — CONFIRMED (the layout decision).** `sn/spatial/` (`pairing`,
+  `pole_angular_closure`, `psi_half_angle_seed`, `scan`, `sweep_cache`) KEEPS its
+  name this campaign per R9 — renaming churns ~150 docs refs + 17 test imports, and
+  Phase 2.5 already touched every module twice. The name is STALE (sweep-walk +
+  angular machinery, not "spatial"); the rename is DEFERRED to a follow-up issue.
+- **Frozen baselines — KEEP (fuller-view rule, explicit).**
+  `test_walk_matvec_baselines.py` + `walk_matvec_{slab,sphere,cyl}_2g.npz` stay as
+  permanent regression canaries: they pin the FORWARD-walk matvec output
+  byte-for-byte across all 3 geometries — distinct coverage from the 2.5b G2
+  transpose oracle and the augmented-triangularity certificate; the cheapest
+  forward-walk-drift tripwire; 2.5d already re-captured the sphere snapshot
+  (principled). NOT procedural redundancy — a genuine structural reference.
+
+**Issue close-out (prepared — outward `gh` writes gated on the user's go-ahead,
+pushes HELD):** the 2.5e commit carries `Closes #280` + `Closes #282` (fire at
+push/merge; #282's fix landed @ `a29ab2d` without a trailer, so the campaign
+close-out commit carries it — go-forward, no history rewrite). Comments prepared:
+**#280** (swap law + walk unification + warm-start split), **#276** (A4 unblocked —
+the daggered posing consumes `A.H.inverse()`; `sweep_transpose` is A4's first
+consumer), **#200** (curvilinear posture), **#282** (route (a) fix landed, keystone
+5.18e5→2.5e-16 — closing as fixed). Two follow-ups to FILE: (1) the FullField
+construction-invariant (make "carrying mesh ⟹ ψ½ block present" a `__post_init__`
+invariant so the `_require_starting_direction` guards retire) — `module:sn` +
+`module:transport`, `type:improvement`; (2) the R9 `sn/spatial/` rename —
+`module:sn`, `type:improvement`.
+
+**CAMPAIGN #280 COMPLETE.** sn+numerics wall GREEN (2809 passed / 5 skipped / 36
+xfailed @ 2.5e); pyright ratchet `transport:1` (accepted #288, zero new). **NEXT =
+P3 DSA #2** — opens with the 3-P0 dispatches (literature-researcher checks
+`scratch/literature/` FIRST; test-architect FP-invariance/⚠#215 Mode-9;
+cross-domain-attacker R/P Petrov–Galerkin frame). Branch
+`refactor/sn-walk-unification`, pushes HELD.
 
 ---
 

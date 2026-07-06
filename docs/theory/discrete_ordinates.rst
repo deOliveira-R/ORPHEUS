@@ -20183,6 +20183,59 @@ branch and have no landed hash yet.
      - Issue
      - Where
    * - 2026-07-05
+     - **The adjoint-inverse swap law wired the reverse-scan into the
+       operator algebra** (#280 Phase 2.5c). With the reverse-scan in
+       hand, the missing adjoint was surfaced through the landed #226
+       inverse-as-operator taxonomy *without new solve machinery*:
+       :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
+       (:math:`(L+C)^{-1}`) gained
+       :meth:`apply_transpose <orpheus.sn.operators.sweep_operator.SweepOperator.apply_transpose>`
+       delegating to the inner's
+       :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`
+       (the 2.5b reverse-scan), and
+       :meth:`_AdjointOperator.inverse() <orpheus.numerics.operator._AdjointOperator.inverse>`
+       returns ``inner.inverse().H`` — making the **swap law**
+       :math:`(A^{*})^{-1}=(A^{-1})^{*}`
+       (``A.H.inverse() ≡ A.inverse().H``,
+       :eq:`loss-rep-adjoint-inverse-swap`) an **object identity** of
+       the algebra, not a numerical coincidence. The metric
+       adjoint-solve then falls out of the existing
+       :meth:`_AdjointOperator.apply <orpheus.numerics.operator._AdjointOperator.apply>`
+       **for free** — no ``_AdjointOperator.solve``, no metric code in
+       the sweep (the A3 "Deliverable 3" dissolved). Companion: the
+       vestigial ``initial_guess`` seed-threading retired — direct exact
+       inverses accept-and-drop it, the genuine warm start lives at the
+       iteration layer. See
+       :ref:`loss-rep-inverse-adjoint-swap` and
+       :ref:`loss-rep-initial-guess-warm-start`.
+     - #280 #226
+     - ``refactor/sn-walk-unification`` *(in development, 8cf5215)*
+   * - 2026-07-05
+     - **The adjoint inner solve** :math:`(L+C)^{-\mathsf T}` **landed —
+       the empty cell of the 2×2 filled** (#280 Phase 2.5b). The four
+       faces ``{forward, transpose} × {solve, apply}`` are a 2×2 whose
+       transpose-solve cell never existed;
+       :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep_transpose`
+       fills it as the coherent **reverse-scan** of the forward
+       sweep-scan — built on
+       :func:`~orpheus.sn.spatial.scan.ordinate_scan_transpose` (the
+       affine scan's own adjoint, one source of truth — *not* a
+       reverse-loop bolted onto the apply path) plus the Hébert §3.9.4
+       seed-march adjoint
+       :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_transpose`.
+       1-D DD, all geometries (slab / sphere / cylinder); the keystone
+       catcher is the dense :math:`(L+C)^{-\mathsf T}` oracle built from
+       the **forward** ``apply`` alone (structurally independent of the
+       reverse-walk code). It carries the #284 **source-subspace**
+       faithfulness — matching :math:`M_{\rm solve}^{\mathsf T}` on
+       every source-carried slot, deviating only on the provably-zero
+       outflow column. LD-slab and multi-D adjoint stay typed
+       deferrals. This is the substrate for the adjoint campaign A3
+       (#276): A4's daggered eigenvalue is the first consumer of
+       ``sweep_transpose``. See :ref:`loss-rep-two-frames`.
+     - #280 #276
+     - ``refactor/sn-walk-unification`` *(in development, f1ddeb6)*
+   * - 2026-07-05
      - **The product-cylinder cold solve became a single-pass direct
        inverse — the direct-seed fold** (#280 Phase 2.5b). For a **product**
        quadrature the starting direction coincides with the first-swept

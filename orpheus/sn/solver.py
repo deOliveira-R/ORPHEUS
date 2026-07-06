@@ -2284,10 +2284,14 @@ def solve_sn_fixed_source(
     #   the SNMesh-default :class:`PoleAngularClosureBase`.
     # * Phase C (sweep-frame matvec): the apply matvec is one sweep
     #   iteration semantically, with WDD spatial closure.
-    # * Phase D (Carlson coupled-pole seed):
-    #   :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
-    #   seeds the M-M angular recurrence's half-angle face flux, making
-    #   per-ordinate flat-flux balance hold on sphere Gate 1.1 MMS.
+    # * Phase D (Carlson coupled-pole seed): the M-M angular
+    #   recurrence's half-angle face flux is seeded so per-ordinate
+    #   flat-flux balance holds on sphere Gate 1.1 MMS.  (Since #282
+    #   route (a) / #280 Phase 2.5d the seed is first-class composite
+    #   STATE, marched directly from the true q½ source by
+    #   :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`;
+    #   the original ``CarlsonInwardSweep`` proxy-source strategy is
+    #   retired.)
     #
     # **ERR-058 default restoration (2026-06-12, Issue #195)**: every
     # geometry defaults to ``"source_iteration"``.  The Phase D

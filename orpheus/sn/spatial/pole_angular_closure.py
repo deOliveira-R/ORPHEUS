@@ -47,15 +47,25 @@ the Morel--Montry :math:`\tau` clamp,
 
    \phi_{n+1/2,i} \;=\;
    \frac{\phi_{n,i} \;-\; (1 - \tau_n)\,\phi_{n-1/2,i}}{\tau_n},
-   \qquad \phi_{1/2,i} = 0,
+   \qquad \phi_{1/2,i} = \psi_{1/2,i},
 
-initialised at the Carlson zero-weight starting direction
-:math:`\mu = -1` (Hébert Eqs. 3.432-3.435 give the source-driven
-sweep that fixes :math:`\phi_{1/2,i}` for the **inverse** problem;
-for the **forward apply** matvec we adopt :math:`\phi_{1/2,i} = 0`,
-the unique choice that makes the recursion's seed consistent with
-:math:`\alpha_{1/2} = 0` and that the sweep converges to under
-fixed-point iteration).  At :math:`\tau_n = 1/2` the recurrence
+seeded at the Carlson starting direction :math:`\mu = -1`, where the
+angular redistribution weight vanishes (:math:`\alpha_{1/2} = 0`).
+Since Issue #282 route (a) (#280 Phase 2.5d) the seed
+:math:`\psi_{1/2,i}` is computed **directly from the source** by the
+Hébert Eqs. 3.432-3.435 starting-direction march
+(:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`)
+and carried as first-class STATE on the composite's
+``starting_direction`` block (the carrying levels — the sphere), or
+inlined as the operator-consistent 2-point angular-edge extrapolation
+on the non-carrying cylinder levels
+(:meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`).
+The pre-route-(a) treatment — adopting :math:`\phi_{1/2,i} = 0` for the
+**forward apply** matvec and letting the SOLVE reach it under
+fixed-point iteration — was a walk-order back edge and is **retired**;
+:math:`\phi_{1/2,i} = 0` now survives only as the
+:math:`\psi`-independent coefficient state (a ``None`` seed).  At
+:math:`\tau_n = 1/2` the recurrence
 reduces to the pure DD form :math:`\phi_{n+1/2,i} = 2\,\phi_{n,i}
 - \phi_{n-1/2,i}` (Hébert Eqs. 3.437 / 3.439).  For
 :math:`\tau_n \in (1/2, 1]` the M-M clamp gives weighted-DD with
@@ -957,9 +967,11 @@ class MorelMontryAngularSweep(
 
     Phase B default for the curvilinear FD operator's angular
     redistribution.  Implements Hébert Eqs. 3.437 / 3.439 with the
-    Morel--Montry :math:`\tau` clamp: initialise :math:`\phi_{1/2,i,g}
-    = 0` (Carlson zero-weight starting direction), then for :math:`n =
-    1, \ldots, N`:
+    Morel--Montry :math:`\tau` clamp: seed the recurrence at the
+    Carlson starting direction :math:`\phi_{1/2,i,g} = \psi_{1/2,i,g}`
+    — the #282 route-(a) direct seed (see the class-level note above;
+    :math:`\phi_{1/2,i,g} = 0` only for a ``None`` coefficient-state
+    seed) — then for :math:`n = 1, \ldots, N`:
 
     .. math::
 

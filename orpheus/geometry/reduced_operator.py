@@ -336,8 +336,14 @@ class StreamingTerms:
     sphere ``-1.0``; cylinder :math:`-\\sqrt{1-\\xi_p^2}` (the level's
     most-inward azimuthal edge); slab ``-1.0`` (neutral — the identity
     closure never reads it).  Constant within a level.  Consumed by
-    :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`
-    via :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext`.
+    :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+    for the starting-direction seed — the direct route-(a) march
+    (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`)
+    on carrying levels, the inline 2-point angular-edge extrapolation
+    (:meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`)
+    on non-carrying cylinder levels (#282 route (a), #280 Phase 2.5d;
+    the ``AngularEdgeExtrapolation`` / ``CarlsonSweepContext`` zoo is
+    retired).
     """
 
     volume: float

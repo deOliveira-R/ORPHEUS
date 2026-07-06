@@ -106,6 +106,23 @@ Key Facts
      representation instance consumed by ``apply``, ``solve``, and the
      Gauss–Seidel resolvent. Both are *type facts*, pinned by spy tests.
 
+   * **The orientation axis — two frames complete the 2×2** (#280,
+     :ref:`loss-rep-orientation-two-frames`). The four faces
+     ``{forward, transpose} × {solve, apply}`` unify into TWO frames,
+     each shared across **orientation** (the free axis): the
+     *apply-loop* frame ``{loss_action, loss_action_transpose}`` and the
+     *solve-scan* frame ``{sweep, sweep_transpose}`` (the reverse-scan
+     :math:`(L+C)^{-\mathsf T}`, the previously-empty cell). Execution
+     strategy ``{scan, cell-loop, wavefront-graph}`` is a **non-free
+     third axis** pinned by ``(kernel, dim)`` — the coherence axis is
+     ORIENTATION, not kernel. The transpose is the **discrete Euclidean
+     transpose** (reversed DAG + face in↔out swap), NOT
+     :math:`\mu`-reversal and NOT the continuous adjoint; the physical
+     ``.H`` rides on top via the metrics. The **swap law**
+     ``A.H.inverse() ≡ A.inverse().H`` (:eq:`loss-rep-adjoint-inverse-swap`)
+     then holds by object identity, so the metric adjoint-solve is free
+     — no metric code in the sweep.
+
    * **The Fork-B2 decision (the WHY of the default).** ScanMarch is
      **0.55–0.84×** the window's per-sweep time at **identical** peak
      memory; the window's memory claim only ever held against the
@@ -1873,6 +1890,355 @@ consume the operator's one instance.
    post-convergence reconstruction) has no operator in scope. The
    one-instance theorem is about the *operator's* doors; an
    operator-free functional caller legitimately mints its own.
+
+
+.. _loss-rep-orientation-two-frames:
+
+The orientation axis — the adjoint completes the 2×2
+====================================================
+
+The one-walk theorem above unified the two **forward** faces —
+:math:`SOLVE` and :math:`APPLY` — for the multi-D representations. It
+said nothing about the *adjoint* direction, because when it landed
+(#222 S6.4) the transpose did not yet exist. Issue #280 completes the
+picture: it adds the missing inner solve
+:math:`(L+C)^{-\mathsf T}b` and, in doing so, resolves
+:math:`(L+C)`'s actions into a clean **2×2 with a non-free third
+axis**, from which a *shared, coherent adjoint frame* falls out the way
+the forward frame already had one.
+
+The four faces are ``{forward, transpose} × {solve, apply}``:
+
+.. list-table:: The four faces of :math:`(L+C)`
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * -
+     - **solve** (invert the triangular cell system)
+     - **apply** (the matvec / row action)
+   * - **forward** (topological DAG order)
+     - :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep`
+       — forward substitution :math:`(L+C)^{-1}q`
+     - :meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action`
+       — :math:`(L+C)\psi`
+   * - **transpose** (reversed DAG order + face in↔out swap)
+     - :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep_transpose`
+       — :math:`(L+C)^{-\mathsf T}b` (**#280 2.5b** — the
+       previously-empty cell)
+     - :meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action_transpose`
+       — :math:`(L+C)^{\mathsf T}\varphi`
+
+The reverse-DAG transpose is verified against the *same* per-ordinate
+cell DAG the forward walks
+(:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk_cell_indices`):
+the adjoint walks ``dag_walk_cell_indices(direction_sign=s)`` and then
+``reversed(cells)``. This is the **discrete Euclidean transpose**, NOT
+:math:`\mu`-reversal and NOT the continuous adjoint (see the warning
+below — it is the #1 landmine of this whole carve).
+
+Why it fragmented — the honest story
+------------------------------------
+
+The forward unification (#222 S6.4) *was* real: it genuinely fused
+``{sweep, matvec}`` for the multi-D representations into one
+``_OctantWalk._interior_walk`` (the one-walk theorem above). But its
+scope was ``{forward} × {multi-D}`` and it **stopped there** — the
+adjoint did not exist yet, and the 1-D solve is a parallel-prefix scan
+that does not fit a per-cell octant frame. The adjoint
+(:meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action_transpose`,
+Wave O / #208) and the 1-D matvec (#206 Phase C) arrived **later, as
+verbatim relocations of pre-existing procedural bodies**, each a
+standalone method because there was no shared frame to inject them
+into. So the fragmentation was **a real-but-partial unification that
+was never extended across the adjoint axis or the 1-D scan band** —
+``L21`` ("matvec ≡ sweep, one operator") was *achieved* for multi-D
+forward but only *claimed* for the 1-D walk and the adjoint direction.
+
+.. _loss-rep-two-frames:
+
+The two frames — each shared across orientation
+-----------------------------------------------
+
+The clean-2×2 hypothesis is overturned by a **third axis — execution
+strategy** ``{scan, cell-loop, wavefront-graph}`` — but that axis is
+**not free**; it is determined by ``(kernel, dimensionality)``:
+
+* **solve → scan.** The 1-D forward
+  :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep`
+  (``_OneDimScanWalk._run``) is a **Blelloch parallel-prefix scan**:
+  inverting the linear cell recurrence is *what a scan is for*. Forcing
+  it into a per-cell loop would lose the cache vectorisation the
+  precomputed two-stratum cache exists to provide (a measured
+  regression; the scan-vs-wavefront wrong-fit lesson).
+* **apply → cell-loop.** The 1-D
+  :meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action`
+  (``_apply_walk``) and its adjoint are **per-cell loops** over
+  ``dag_walk_cell_indices`` — a matvec has a concrete probe
+  :math:`\bar\psi`, so it recomputes coefficients cell-by-cell.
+* **multi-D → wavefront-graph.** ``_OctantWalk._interior_walk`` over
+  the anti-diagonal
+  :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`.
+
+.. admonition:: The coherence axis is ORIENTATION, not kernel
+   :class: important
+
+   Because the execution strategy is pinned by ``(kernel, dim)``, the
+   forward ``_run`` (scan) and ``_apply_walk`` (loop) are **NOT
+   redundant twins to merge** — they are *solve-scan* vs *apply-loop*,
+   legitimately different algorithms. The genuine unification runs
+   along the **orientation** axis (forward ↔ adjoint), the one *free*
+   axis: **two frames, each shared across orientation**.
+
+The **apply-loop frame** =
+``{_apply_walk (forward matvec), loss_action_transpose (adjoint
+matvec)}`` — ONE orientation-parametrised per-cell loop over the one
+DAG, forking **only** at orientation:
+
+* reversed cell order (``reversed(cells)``);
+* the boundary **in↔out swap** (forward reads inflow / writes outflow;
+  the adjoint reads *outflow* cotangents / writes *inflow* cotangents);
+* the curvilinear **Carlson coupled-pole mirror routing** (the
+  :math:`\pm 1` sweeps couple cross-wise through
+  ``quad.reflection_index("x")``; the adjoint reverses that
+  cross-direction dependency); and
+* the **second triangular factor** —
+  :meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.angular_adjoint`,
+  the reverse of the Morel–Montry angular recurrence (zero for slab).
+
+Phase 2.5a landed this frame, **bit-identical in BOTH orientations**
+(the frozen ``walk_matvec_*`` snapshots are the anchor;
+``tests/sn/sweep/core/test_one_dim_loop_walk.py`` carries a wrap-spy
+proving both orientations execute the *one* frame, plus an **AST
+tripwire** banning ``is_adjoint`` / ``is_forward`` / ``is_transpose``
+/ ``is_reverse`` identifiers — orientation is an **OBJECT**, never a
+boolean flag, the same discipline the one-walk theorem enforces for the
+solve/apply fork).
+
+The **solve-scan frame** =
+``{_run (forward solve — the Blelloch scan), sweep_transpose (adjoint
+solve — the reverse-scan)}``. Phase 2.5b landed
+:meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep_transpose`
+as the **coherent reverse-scan** — *not* a reverse-loop bolted onto the
+apply path. Its substrate is
+:func:`~orpheus.sn.spatial.scan.ordinate_scan_transpose`, the affine
+scan's own adjoint (an ``ordinate_scan`` on reversed-shifted
+coefficients), so it inherits ``_run``'s Blelloch pair-monoid substrate
+and denormal robustness — one source of truth, not a duplicated reverse
+loop. The seed-block sibling is
+:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_transpose`
+(the Hébert §3.9.4 starting-direction march's adjoint).
+
+The orientation × kernel × execution taxonomy
+---------------------------------------------
+
+Reading the axes together: **orientation** is free (forward and
+transpose share one frame within each band); **execution strategy** is
+the non-free third axis, pinned by ``(kernel, dimensionality)``. These
+bands stay distinct by *algorithmic necessity*, not debt:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 26 26 22
+
+   * - Frame (kernel × dim)
+     - Forward
+     - Transpose (adjoint)
+     - Execution
+   * - **solve, 1-D**
+     - ``_run`` (``sweep``)
+     - ``_run_transpose`` (``sweep_transpose``)
+     - prefix-**scan** / reverse-scan
+   * - **apply, 1-D**
+     - ``_apply_walk`` (``loss_action``)
+     - ``loss_action_transpose``
+     - per-cell **loop** over ``dag_walk_cell_indices``
+   * - **solve/apply, multi-D**
+     - ``_OctantWalk._interior_walk``
+     - *deferred* (raises)
+     - anti-diagonal **wavefront-graph**
+
+The empty-looking symmetry of the 2×2 is thus *honest*: the coherence
+axis (orientation) is shared everywhere it is implemented, and the
+execution axis is a genuine structural fork that a unified walk must
+**express**, not erase.
+
+.. admonition:: The transpose is the discrete EUCLIDEAN transpose
+   :class: warning
+
+   :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep_transpose`
+   and
+   :meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action_transpose`
+   compute :math:`(L+C)^{\mathsf T}` — **reversed DAG order + face
+   in↔out swap over the SAME per-ordinate DAG**. This is **NOT**
+   :math:`\mu`-reversal (reflecting the angular quadrature) and **NOT**
+   the continuous transport adjoint. ``direction_sign`` picks the
+   physical octant DAG; *reversing the within-octant cell order* is
+   what gives the transpose. The physical Hilbert **G-adjoint**
+   :math:`A^{*} = G_V^{-1}A^{\mathsf T}G_W` rides *on top of* this bare
+   Euclidean transpose through the function spaces' metrics (see the
+   swap law below) — the sweep itself carries **no metric code**. This
+   is the #1 landmine of the carve; conflating the three transposes is
+   the fastest way to a plausible-but-wrong adjoint.
+
+The deferral ledger — what still raises, by design
+--------------------------------------------------
+
+The unified walk must **express** a partial/deferred grid, not a full
+symmetric 2×2. Every entry below is a typed, loud
+``NotImplementedError`` that the unification **preserves** — an honest
+deferral, not a coverage gap:
+
+* **multi-D Cartesian adjoint faces** —
+  ``ScanMarch.loss_action_transpose`` (2-D) and the ``_DAGWavefront``
+  transpose raise; the adjoint of the anti-diagonal wavefront walk has
+  no consumer yet.
+* **LD-slab adjoint** — the Linear-Discontinuous cell kernel registers
+  **forward-only**; the 1-D adjoint carries no trailing spatial-moment
+  axis, so ``loss_action_transpose`` is DD/scalar in 1-D.
+* :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+  **transpose** — the schedule-folded ``M = (L+C-B_lower)`` reverse-scan
+  is the #280 sibling deferral (no consumer), so a
+  :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` over it
+  stays non-adjointable.
+* **2-D LD** — pre-existing (``ScanMarch`` refuses LD's non-separable
+  transverse coupling; the wavefront LD cell kernel is 1-D-only).
+
+.. _loss-rep-inverse-adjoint-swap:
+
+The inverse-adjoint wiring — the swap law
+-----------------------------------------
+
+Phase 2.5c surfaces the reverse-scan through the operator algebra
+without adding a single line of new solve machinery, by reading the
+#226 inverse-as-operator taxonomy literally.
+:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` **is**
+:math:`(L+C)^{-1} = A^{-1}` (the object
+:meth:`(L+C).inverse() <orpheus.sn.operators.streaming.InvertibleOperator.inverse>`
+returns). Since the composite is endomorphic, its Euclidean transpose
+is :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}` — so
+:meth:`SweepOperator.apply_transpose <orpheus.sn.operators.sweep_operator.SweepOperator.apply_transpose>`
+is *exactly* the inner's
+:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`
+(the 2.5b reverse-scan). Nothing else is needed.
+
+The consequence is the **swap law**, an *object identity of the
+algebra* rather than a numerical coincidence of two implementations:
+
+.. math::
+   :label: loss-rep-adjoint-inverse-swap
+
+   (A^{*})^{-1} \;=\; (A^{-1})^{*}
+   \qquad\Longleftrightarrow\qquad
+   \texttt{A.H.inverse()} \;\equiv\; \texttt{A.inverse().H}.
+
+It holds by construction because
+:meth:`_AdjointOperator.inverse() <orpheus.numerics.operator._AdjointOperator.inverse>`
+returns ``self.inner.inverse().H`` — the wrapper *is* ``A.H``, so its
+inverse routes to ``A.inverse().H``. The **metric** adjoint-solve then
+falls out **for free**:
+
+.. math::
+   :label: loss-rep-metric-adjoint-solve
+
+   \bigl(A^{-1}\bigr)^{*} b
+     \;=\; G^{+}\,\bigl(A^{-1}\bigr)^{\mathsf T}\!\bigl(G\,b\bigr)
+     \;=\; G^{+}\;\texttt{solve\_transpose}\!\bigl(G\,b\bigr)
+
+(the composite is endomorphic, so its domain and codomain metrics are
+one and the same :math:`G` — the direct-sum bulk ⊕ trace ⊕ seed metric,
+pseudo-inverted on the singular partial-current trace), because the
+existing
+:meth:`_AdjointOperator.apply <orpheus.numerics.operator._AdjointOperator.apply>`
+already conjugates ``inner.apply_transpose`` with the domain/codomain
+metrics. So there is **no** ``_AdjointOperator.solve`` and **no** metric
+code in the sweep — the original A3 plan's "Deliverable 3" (a separate
+metric transpose-solve) *dissolved*. The honest two-factor predicates
+guard it (ruling R11):
+
+* :attr:`SweepOperator.is_adjointable <orpheus.sn.operators.sweep_operator.SweepOperator.is_adjointable>`
+  ``= isinstance(inner, InvertibleOperator) and inner.is_adjointable``
+  (the schedule-folded arm has no ``solve_transpose`` → stays
+  non-adjointable; LD / multi-D Cartesian defer via
+  ``inner.is_adjointable``);
+* :attr:`_AdjointOperator.is_invertible <orpheus.numerics.operator._AdjointOperator.is_invertible>`
+  ``= invertible(inner) and adjointable(inner.inverse())`` — a name
+  earns its invariant: ``.inverse()`` cannot promise more than
+  ``inner.inverse().H`` can deliver.
+
+The swap law is verified structurally, not by asserting the two sides
+agree: the load-bearing gate is a **G-metric reciprocity pin** using
+only the *forward* matvec — for :math:`x = A.H.inverse().apply(b)`,
+:math:`\langle A\psi, x\rangle_G = \langle\psi, b\rangle_G` — which
+never calls the transpose-solve path, so it is structurally independent
+of the code it checks. The dense :math:`(L+C)^{-\mathsf T}` oracle
+(built from the forward ``apply`` alone via ``to_flat``/``from_flat``)
+is the keystone catcher against a bug copied into both
+``apply_transpose`` and ``sweep_transpose``.
+
+.. note::
+
+   **The source-subspace subtlety (#284, carried into the transpose).**
+   ``solve`` *computes* the outflow slots (the slab boundary-outflow /
+   the sphere seed ``corner_out``) while ``apply`` treats them as free
+   DOFs, so ``solve = (L+C)⁻¹`` only on the **source subspace**
+   (``M_solve · M_apply = I`` on bulk rows to :math:`\sim 5\times
+   10^{-16}`; the outflow slots differ :math:`\mathcal O(1)`).
+   ``sweep_transpose`` is the *faithful* transpose of the solve — it
+   matches the apply-oracle :math:`M^{-\mathsf T}` on every
+   source-carried slot and deviates **only** on the outflow column
+   (where ``M_solve``'s outflow column is provably zero). Every
+   reverse-solve gate therefore compares source-carried slots
+   (bulk ⊕ seed cells ⊕ inflow corner), NOT the full ``to_flat``.
+
+.. _loss-rep-initial-guess-warm-start:
+
+The ``initial_guess`` / warm-start architecture split
+-----------------------------------------------------
+
+Wiring the adjoint made the last dependence on the old seed lag visible,
+and 2.5c retired it. The principle is a clean layering:
+
+* **A direct, exact inverse has nothing to seed.**
+  :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` and
+  :meth:`InvertibleOperator.solve <orpheus.sn.operators.streaming.InvertibleOperator.solve>`
+  **accept-and-drop** the canonical seeded ``apply(x, /, *,
+  initial_guess=None)`` keyword (#285). The keyword stays uniform across
+  the inverse family (``SupportsSeededApply``) so a driver threads the
+  previous iterate the same way every step — but on an exact sweep it is
+  discarded, exactly as
+  :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+  and :class:`~orpheus.sn.operators.windowing.WindowedSweep` discard it.
+* **The genuine warm start lives at the iteration layer.** A learned or
+  previous-outer :math:`x_0` — the "3 vs 30 iterations" lever, real
+  because the solution manifold is lower-dimensional than the full
+  problem space — belongs to
+  :meth:`SourceIteration.solve(initial_guess=x_0) <orpheus.numerics.iteration.SourceIteration.solve>`
+  and the iterative
+  :class:`~orpheus.numerics.green_operator.GreenOperator` (its
+  Richardson splitting), never on a direct sweep.
+
+This split is only *possible* because Issue #282 route (a) (Phase 2.5d)
+made the curvilinear :math:`\psi_{1/2}` starting direction a
+**direct** computation from the source
+(:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`),
+retiring the old two-point extrapolation of the *previous* iterate —
+which was precisely the last thing the SN sweep *used* an
+``initial_guess`` for.
+
+.. warning::
+
+   Route (a) is justified **structurally** — it is the honest
+   single-pass direct inverse (spherical cold within-group residual
+   :math:`5.18\times10^5 \to 2.5\times10^{-16}`), which is what makes
+   ``sweep_transpose`` and the assembled triangularity certificate
+   well-posed. It is **NOT** justified by angular accuracy: a seed *is*
+   an angular closure, so it changes the :math:`\mathcal O(N)`
+   truncation, and at the tests' GL8 order the old extrapolated seed is
+   in fact marginally *closer* to the :math:`N\to\infty` limit. Do NOT
+   read the re-baseline as "more accurate" — the eigenvalue re-pose is
+   certified by an angular-order :math:`N`-sweep at fixed mesh (both
+   seeds converge to the same transport eigenvalue), never by an MMS
+   convergence rate (which is blind to the seed by construction).
 
 
 .. _loss-rep-fork-b2:

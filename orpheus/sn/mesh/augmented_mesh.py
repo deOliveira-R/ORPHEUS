@@ -282,9 +282,12 @@ class SNMesh(MaterialMesh):
         # the default angular closure is now
         # :class:`MorelMontryAngularSweep` — the canonical Hébert §3.9.4
         # per-cell M-M weighted DD angular recurrence with the Carlson
-        # coupled-pole seed (Eqs. 3.432-3.435) supplied by
-        # :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`.
-        # The Carlson seed closes the M-M recurrence's pole-face
+        # coupled-pole seed (Eqs. 3.432-3.435).  Since #282 route (a)
+        # (#280 Phase 2.5d) the seed is first-class composite STATE,
+        # marched directly from the true q½ source by
+        # :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+        # (the retired ``CarlsonInwardSweep`` proxy-source strategy).
+        # The seed closes the M-M recurrence's pole-face
         # initialisation gap, making the per-ordinate flat-flux
         # residual identically zero on sphere Gate 1.1 MMS (per
         # ``tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual``).
