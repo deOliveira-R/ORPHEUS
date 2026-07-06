@@ -24,6 +24,44 @@ FaceField structural verdicts (§4) are by explorer + cross-domain-attacker
 
 ---
 
+## ⏸ Status & compaction checkpoint (2026-07-06)
+
+**Design is CAPTURED and COMMITTED @ `d0e3dbb`** (this note + the theory-page
+physics + the roadmap sequencing). **DESIGN ONLY — no production code exists yet.**
+Branch `refactor/sn-walk-unification`, **32 ahead of main, pushes HELD**.
+
+**NEXT = IMPLEMENT this plan** (user go-ahead 2026-07-06). Re-anchor after
+`/compact` from **this note + `git log`** (trust git, not the summary —
+process-discipline). Start at **§7 Phase A**, whose FIRST action is a **proactive
+`test-architect` dispatch** — the `FaceField` / mesh-derived-presence carve crosses
+subsystem boundaries (numerics spaces ↔ transport fields ↔ sn mesh), a MUST
+proactive trigger.
+
+**Standing constraints for the implementation session:**
+- **Surgical mode** — the main agent writes the operator/type carve DIRECTLY, user
+  steers step-by-step; NO `method-implementer`. `test-architect` (proactive),
+  `explorer`, `qa`, `elegance-enforcer`, `archivist` allowed/encouraged.
+- **Tests** — canonical `.venv/bin/python -O -m pytest -p no:xdist --timeout=300
+  -p no:cacheprovider` SERIAL (xdist unstable for tests/sn + tests/numerics). Host
+  env: `.venv/bin/python`.
+- **pyright** — oracle is `npx pyright` / the ratchet CLI (baseline `transport:1` =
+  accepted #288); streamed `<new-diagnostics>` = documented #226 LSP artifact,
+  IGNORE.
+- **Pushes HELD** (never `git push`); `scratch/` + `.claude/agent-memory/*` are NOT
+  the main agent's to commit; never `git checkout`/`restore` on files with
+  uncommitted work (mutation-revert via monkeypatch).
+- **Model attribution** — commits stamp the model doing the commit, from session
+  context (go-forward; this session = Opus 4.8).
+- **Sphinx** must build `-W` clean; the theory pages carry the design direction
+  (marked PLANNED) — flip each to current-truth as its phase lands.
+
+**Untracked (on disk, safe across compaction; user's to keep or bin):** the
+declined Gauss–Lobatto study — `derivations/diagnostics/diag_glob_0{1..5}_*.py`
+(33 green diagnostics) + `scratch/experimental/glob_sphere_study/` (driver). NOT
+committed (promote-only-if-adopted; the pole-node direction was DECLINED, §3.5/§4).
+
+---
+
 ## 1. The problem
 
 `FullField` is the **generic cross-method composite** — diffusion builds
