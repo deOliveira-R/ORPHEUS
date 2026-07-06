@@ -1266,8 +1266,24 @@ invariant so the `_require_starting_direction` guards retire) — `module:sn` +
 `module:sn`, `type:improvement`.
 
 **CAMPAIGN #280 COMPLETE.** sn+numerics wall GREEN (2809 passed / 5 skipped / 36
-xfailed @ 2.5e); pyright ratchet `transport:1` (accepted #288, zero new). **NEXT =
-P3 DSA #2** — opens with the 3-P0 dispatches (literature-researcher checks
+xfailed @ 2.5e); pyright ratchet `transport:1` (accepted #288, zero new).
+
+**NEXT = the codim-1 `FaceField` substrate carve — BEFORE P3 DSA** (user ruling
+2026-07-06). Design note: **`.claude/plans/facefield_codim1_design.md`** (a full
+design-only session dug the ψ½ pole-seed physics + the `BulkField`/`FaceField`
+duality). It: names the one `face_streaming_normal` measure (collapsing the twin
+trace-metric constructions); typed-keys `FaceLayout`; introduces the `FaceField`
+codim-1 parent + re-parents the trace/starting-direction fields; makes the
+composite's block-list mesh-derived (retiring the 7 `_require`/`_refuse`
+starting-direction guards, subsuming the banked `FullField.__post_init__`
+follow-up). Lobatto fold-in of the pole was measured **affordable but declined**
+(keeps the cell-centered bulk clean). Rationale for sequencing (clean-before-
+extend): DSA's R/P consume the composite + trace under the shared metric, so a
+clean codim-1 substrate + unified face measure benefits the DSA boundary
+restriction. Deferred-with-triggers: `SaddlePointOperator` ← diffusion mixed-form
+(#294); structured *spatial* `FaceField` ← #294 / CP-2D.
+
+**THEN P3 DSA #2** — opens with the 3-P0 dispatches (literature-researcher checks
 `scratch/literature/` FIRST; test-architect FP-invariance/⚠#215 Mode-9;
 cross-domain-attacker R/P Petrov–Galerkin frame). Branch
 `refactor/sn-walk-unification`, pushes HELD.

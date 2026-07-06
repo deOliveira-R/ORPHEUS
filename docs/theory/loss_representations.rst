@@ -767,16 +767,25 @@ The mesh enforces the scope honestly —
 :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.streaming` is the Cartesian
 gate the assembler consumes.
 
-Rather than hide the obstruction, 2b **characterises it positively**: a
-gate probes the spherical within-group operator from the production
-matvec (well-defined on a sphere; only the sweep's inversion lags) and
-asserts the back edge is present (``np.any(triu ≠ 0)``), never an
+Rather than hide the obstruction, 2b **characterised it positively**: a
+gate probed the spherical within-group operator from the production
+matvec (well-defined on a sphere; only the sweep's inversion lagged) and
+asserted the back edge was present (``np.any(triu ≠ 0)``), never an
 ``xfail`` (L16 discipline — a silent xfail cannot alert on repair). The
-cylinder control shows exact triangularity (its :math:`\alpha`-dome
-telescopes the seed away). When the closed starting-direction solve of
-Hébert §3.432–3.435 lands (#282), that gate flips RED and is rewritten
-as a triangular sphere gate — the doc-level tripwire for curvilinear
-assembly.
+cylinder control shows exact triangularity because its first-ordinate
+seed is a rank-duplicate of :math:`\psi_0` (:math:`\tau_{{\rm raw},0} =
+0`; see :ref:`sn-282-circle-vs-interval`), so there is no independent
+seed row to order. The closed starting-direction solve of Hébert
+§3.432–3.435 has since **landed** (#282 route (a), #280 Phase 2.5d): the
+:math:`\psi_{1/2}` pole seed is now a first-class STATE block whose rows
+the augmented :math:`(L+C)` emits, and the gate **flipped** — it now
+certifies the augmented one-group matrix is *exactly* block-lower-
+triangular in the augmented sweep order
+(``test_282_augmented_walk_order_is_triangular``, the transpose analog of
+the #284 discharge; L16 loud-flip — it replaces, not relaxes, the RED
+characterisation). The bulk per-ordinate assembler itself stays
+Cartesian-only; the augmented triangularity is a matvec-probe
+certificate, not an assembler capability.
 
 .. _loss-rep-assembly-verification:
 
@@ -2240,6 +2249,141 @@ which was precisely the last thing the SN sweep *used* an
    seeds converge to the same transport eigenvalue), never by an MMS
    convergence rate (which is blind to the seed by construction).
 
+
+.. _loss-rep-facefield-codim1:
+
+The starting-direction ψ½ as a codim-1 face object
+==================================================
+
+Every representation on this page acts on the augmented within-group
+composite
+
+.. math::
+
+   V \;=\; V_{\rm bulk} \,\oplus\, V_{\rm trace} \,\oplus\, V_{\rm sd}
+
+(the same three-block direct sum whose metric :math:`G` is
+:eq:`loss-rep-metric-adjoint-solve`; the canonical statement is the
+augmented composite :eq:`sn-282-augmented-composite` on the discrete-
+ordinates page).  The first two summands are familiar — the cell-centred
+bulk and the spatial boundary trace.  This section is about the third,
+:math:`V_{\rm sd}`, the starting-direction ψ½ block (#282 route (a); the
+physics and the direct solve are on
+:ref:`sn-282-direct-starting-direction-solve`), and about the
+**architectural** fact it exposes: ψ½ is a **codim-1 face object**, a
+sibling of the spatial trace, and it does **not** belong in the
+cell-centred bulk.
+
+Current truth — a face object, not a bulk passenger
+---------------------------------------------------
+
+:math:`V_{\rm sd}` is the angular flux :math:`\psi_{1/2}` at the
+:math:`\mu = \pm 1` **angular edge** of each carrying level.  Three facts
+make it a face object — sibling to the spatial boundary trace, distinct
+from the bulk:
+
+* **It lives on a codim-1 locus.**  The bulk is codim-0 (cell centres,
+  the full :math:`(N, n_g, n_x)` phase space); the spatial trace is
+  codim-1 (the :math:`r`-faces); ψ½ is codim-1 too — the angular-domain
+  edge :math:`\mu = \mu_{\rm start}`.  Its storage
+  (:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`)
+  deliberately mirrors the spatial trace's flat-buffer
+  :class:`~orpheus.numerics.face_layout.FaceLayout` discipline (typed
+  ``(level, sign)`` views in place of ``FaceLabel`` views).
+* **Its metric is the ghost metric** — the entirely-grazing angular face
+  (:math:`(1-\mu^2)\,w \equiv 0`), the exact analog of a spatial face at
+  grazing incidence (:math:`\lvert\Omega\cdot n\rvert = 0`).  The physics
+  of this one face measure is on
+  :ref:`the discrete-ordinates page <sn-282-ghost-metric-face>`.
+* **It is present per level by the R12a predicate**
+  (:ref:`sn-282-r12a`; :math:`\tau_{\rm raw} \in (0,1)`), **not** per
+  geometry — sphere-GL carries one block; every cylinder and every
+  Cartesian mesh carries none.
+
+The clean-bulk consequence is the load-bearing architecture.  The bulk
+:math:`V_{\rm bulk}` is what homogenization, condensation, and moment
+extraction consume, and they must see an **untouched** cell-centred
+field.  Folding ψ½ into the bulk — for instance via a pole-node
+Gauss–Lobatto quadrature, which is *numerically affordable*
+(:ref:`sn-282-lobatto-study`) — would make the bulk a *mixed* field
+carrying an inert, redistribution-special pole passenger that every bulk
+consumer would have to demux back out.  Keeping ψ½ a **separate** face
+object is the Cardinal-Rule-2 choice that keeps the bulk clean; the
+Lobatto study is what makes that separation a *chosen* architecture
+rather than a forced one.
+
+.. admonition:: Design direction — the ``FaceField`` codim-1 duality (PLANNED, not built)
+   :class: note
+
+   The following is a **design direction**, recorded so a future
+   implementation session inherits the reasoning rather than re-deriving
+   it.  It is **not** implemented — no ``FaceField`` type,
+   ``face_streaming_normal`` measure, or ``PhaseSpaceCarrier`` protocol
+   exists yet.  The *current* state is the ``Optional`` block + guards
+   described under the next heading; the durable synthesis is
+   ``.claude/plans/facefield_codim1_design.md`` (§5).
+
+   **The missing codim-1 parent.**  Today the typed-field hierarchy
+   (:mod:`orpheus.transport.fields`) has the spatial-trace family
+   (:class:`~orpheus.transport.fields._bases.BoundaryField`) and the ψ½
+   family
+   (:class:`~orpheus.transport.fields._bases.StartingDirectionField`) as
+   **separate siblings** off :class:`~orpheus.numerics.field.Field` —
+   ``StartingDirectionField`` *hand-copies* the flat-buffer discipline
+   rather than inheriting it.  The design introduces the missing **codim-1
+   parent** they should share::
+
+       Field
+       ├── BulkField    — codim-0 (cell centres);  metric = cell/volume measure
+       └── FaceField    — codim-1 (faces/edges);   metric = face_streaming_normal
+            ├── AngularBoundaryField / ScalarBoundaryField  (spatial faces)  |Ω·n|·w
+            └── StartingDirectionField (ψ½)                 (angular edges)   (1−μ²)·w ≡ 0
+
+   ``FaceField`` would own the ``FaceLayout`` flat-buffer discipline and
+   the presence-invariant **once**, so the face families stop being
+   siblings-by-accident.
+
+   **One ``face_streaming_normal`` measure.**  The two codim-1 metrics —
+   the spatial trace's :math:`\lvert\Omega\cdot n\rvert\,w` and the pole
+   seed's :math:`(1-\mu^2)\,w` — are instances of *one* function: the
+   normal streaming flux through a face, which vanishes when the
+   characteristic is tangent to it (:ref:`sn-282-ghost-metric-face`).  A
+   single ``face_streaming_normal`` would reproduce both — the falsifiable
+   substrate win being that one function yields ``G_trace == |Ω·n|·w``
+   *and* ``G_sd == 0`` at 0 ULP — retiring the two current constructions
+   (``AngularTraceSpace`` builds :math:`\lvert\Omega\cdot n\rvert`;
+   ``StartingDirectionSpace`` hard-codes zeros).
+
+   **Mesh-enumerated blocks / mesh-derived presence.**  The composite's
+   block list would be *the mesh's phase-space DOF structure, reified* —
+   the mesh enumerates its blocks (bulk always; spatial trace always;
+   angular trace iff :math:`\tau_{\rm raw} \in (0,1)` on that level) and
+   the composite mirrors it, via a ``PhaseSpaceCarrier`` protocol in
+   ``transport`` that ``SNMesh`` (in ``sn``) satisfies — sn → transport,
+   never the reverse.  Presence becomes a *derived reading of the mesh*,
+   and the consistency guards (below) become
+   **unconstructable-by-design** rather than runtime-checked.
+
+Current state — the ``Optional`` block and the 7 guards
+-------------------------------------------------------
+
+Until the design above lands, presence is a **free constructor argument**
+kept consistent with a fact only the mesh knows.
+:class:`~orpheus.transport.full_field.FullField` carries the
+starting-direction block as an ``Optional`` third summand
+(``starting_direction: StartingDirectionField | None = None``), and
+**7 runtime guard call sites** police presence-vs-mesh consistency: a
+positive half (``_require_starting_direction``, "carrying ⟹ present", at
+3 sites — one of them in
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator`) and a
+negative half (``_refuse_starting_direction``, "non-carrying ⟹ absent",
+at 4 sites).  Both guard functions live in
+:mod:`orpheus.sn.loss_representation`.  The mesh already authoritatively
+computes presence
+(:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`),
+so there are **two sources of truth** for one fact and the guards are the
+machinery reconciling them — the Pattern-2 smell the
+mesh-derived-presence design (above) is meant to dissolve.
 
 .. _loss-rep-fork-b2:
 

@@ -10891,6 +10891,63 @@ sphere.
    SAME forward substitution the sphere route (a) certifies, not by any
    telescoping.
 
+The pole is a straight characteristic — the physics beneath the direct solve
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The direct solve is not a numerical trick — it is a **physical property
+of the closed rays**, and framing it that way (not as a storage choice)
+is what makes the rest of route (a) inevitable.  In curvilinear geometry
+the streaming operator carries an angular-redistribution term whose
+strength is the factor :math:`(1-\mu^2)`:
+
+.. math::
+
+   \Omega\cdot\nabla\psi
+   \;=\; \mu\,\frac{\partial\psi}{\partial r}
+       \;+\; \frac{1-\mu^2}{r}\,\frac{\partial\psi}{\partial\mu}
+   \qquad(\text{sphere}).
+
+At the poles :math:`\mu = \pm 1` the coefficient :math:`(1-\mu^2)`
+vanishes.  These are the **radial** directions: a particle at
+:math:`\mu = \pm 1` streams straight through the origin, never changing
+angular cell.  The redistribution term switches off — equivalently the
+:math:`\alpha`-dome endpoints are :math:`\alpha_{1/2} = \alpha_{N+1/2} =
+0` — and the transport equation at the pole collapses to a **pure 1-D
+spatial ODE in radius alone**:
+
+.. math::
+   :label: sn-282-pole-straight-characteristic
+
+   \mu\,\frac{d\psi_{1/2}}{dr} \;+\; \sigma_t(r)\,\psi_{1/2}(r)
+   \;=\; \bar q_{1/2}(r),
+   \qquad \mu = \mp 1,
+
+with **no coupling to any other ordinate** (Hébert §3.9.4, the Carlson
+inward march :eq:`hebert-3-434`–:eq:`hebert-3-435`).  The pole flux is
+therefore computable *by itself*, before and independently of the angular
+cascade it goes on to seed.
+
+.. (vv-status rationale) Literature-transcribed derivation identity: the
+.. sphere transport equation restricted to the straight-characteristic
+.. pole μ=∓1, where (1-μ²)=0 kills angular redistribution.  Not a solver
+.. claim — the verifiable content is the C(i) direct-solve residual
+.. collapse and the block-triangular A_sb=0 certificate (§16.C), tabled
+.. under the route-(a) evidence below.
+.. vv-status: sn-282-pole-straight-characteristic documented
+
+This is the physics that makes route (a) possible and the augmented
+operator triangular.  The seed rows of :eq:`sn-282-block-triangular` are
+self-contained (:math:`A_{\rm sb} = 0`) **because** the pole ODE reads no
+bulk and no trace unknown — a straight characteristic couples to nothing
+downstream.  The representation choice — promote :math:`\psi_{1/2}` to
+first-class state — is *downstream* of the physics: any storage would
+inherit the same decoupling.  What the lagged seed got wrong was never
+the physics; it was reading the *iterate* for a quantity the pole ODE can
+solve **directly** from the source (:ref:`sn-282-source-fold`).  The
+deeper structural reason :math:`\mu = \pm 1` is the *only* admissible
+starting direction in any curvilinear geometry is set out under
+:ref:`sn-phase-d-pomraning-structural-singularity`.
+
 ψ½ as first-class state — the augmented (bulk ⊕ trace ⊕ seed) composite
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -10961,6 +11018,67 @@ consequence — see :ref:`sn-282-gotchas` (Mode 12).
 .. StartingDirectionSpace layout / role-quadruple class-identity
 .. arithmetic (Field Layer-1 gate) + the §16.A carrier gates.
 .. vv-status: sn-282-augmented-composite documented
+
+.. _sn-282-ghost-metric-face:
+
+The ghost metric is the μ = ±1 angular face at full grazing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The all-zero seed metric introduced above is not an ad-hoc convenience —
+it is the **angular** instance of the *same* face measure that gives the
+spatial boundary trace its metric.  A codim-1 face carries one physically
+meaningful weight: the **normal component of the streaming flux through
+the face**, which vanishes exactly when the characteristic runs *tangent*
+to the face.  Two faces, one measure:
+
+.. list-table:: One face measure, two codim-1 traces
+   :header-rows: 1
+   :widths: 30 34 36
+
+   * - Codim-1 face
+     - Face weight :math:`\propto` normal streaming
+     - Vanishes when…
+   * - **spatial** :math:`r`-face — the boundary trace
+       (:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`)
+     - :math:`\lvert\Omega\cdot n\rvert\,w`
+     - :math:`\Omega` is **tangent to the surface**
+       (:math:`\lvert\Omega\cdot n\rvert = 0`, grazing incidence)
+   * - **angular** :math:`\mu = \pm 1` edge — the ψ½ seed
+       (:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`)
+     - :math:`(1-\mu^2)\,w`
+     - the ray is a **straight characteristic**
+       (:math:`(1-\mu^2) = 0`, the pole)
+
+The pole's :math:`(1-\mu^2)\,w \equiv 0` is therefore the *exact analog*
+of a spatial face at grazing incidence :math:`\lvert\Omega\cdot n\rvert =
+0`: the :math:`\mu = \pm 1` angular face is **entirely grazing**, so no
+flux streams *across* it and its through-flux measure is identically
+zero.  The zero weight is thus **structural, not fabricated** — a nonzero
+weight would invent a volume the geometry does not have.  Naming this one
+face measure once is the substrate direction taken up on the loss-operator
+page (:ref:`loss-rep-facefield-codim1`), where it collapses the two
+current constructions (:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
+builds :math:`\lvert\Omega\cdot n\rvert`;
+:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`
+hard-codes zeros) into one function.
+
+.. important::
+
+   **There are two different pole measures; do not conflate them.**  The
+   ghost metric is the *through-flux / redistribution* measure — the one
+   the operator's angular-derivative term and the block's inner product
+   use.  It is **not** the *scalar-flux moment* measure
+   :math:`\int\psi\,d\mu`, for which the poles are perfectly ordinary
+   endpoints of a 1-D integral.  Under the sphere's *open* Gauss–Legendre
+   rule (:ref:`sn-282-circle-vs-interval`) the pole has **no interior
+   node**, so it contributes zero *moment* weight and the seed is a pure
+   auxiliary DOF.  Under a pole-*including* rule (Gauss–Lobatto,
+   :ref:`sn-282-lobatto-study`) the
+   pole would carry a genuine nonzero *moment* weight while its
+   *through-flux* weight :math:`(1-\mu^2)` stays exactly zero.  The two
+   measures answer two different questions — "how much streams *across*
+   this face" (zero at the pole, always) versus "how much does this ray
+   contribute to :math:`\phi = \int\psi\,d\mu`" (rule-dependent).
 
 The walk triple — solve marches, apply reads, transpose reverses
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -11167,6 +11285,167 @@ level-symmetric cylinder rules (μ_start ∉ nodes there, yet
 :math:`\tau_{\rm raw} = 1` — dead).  The clamp
 :math:`0 \mapsto \tfrac12` erases exactly the 0-vs-(0,1) distinction the
 predicate needs, which is why the **raw** producer is first-class.
+
+.. _sn-282-circle-vs-interval:
+
+Why the sphere pays for the pole and the cylinder does not — circle vs interval
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The R12a trichotomy raises a deeper question: *why* does the sphere carry
+an independent seed while the cylinder never does?  The answer is neither
+"sphere vs cylinder" nor "curvilinear vs Cartesian" — it is the
+**topology of the redistribution axis**, and it is the single most
+clarifying fact about the whole ψ½ apparatus.
+
+Two orthogonal questions must be kept apart:
+
+#. *Does the geometry have an angular-redistribution term*
+   :math:`\tfrac{1-\mu^2}{r}\,\partial_\mu`? — this is
+   **curvilinear vs Cartesian** (sphere **and** cylinder: yes;
+   Cartesian: no).
+#. *Does the angular sweep need a separate, off-node starting DOF?* — this
+   is the τ_raw predicate (:ref:`sn-282-r12a`), which is
+   **quadrature-structural, not geometric**.
+
+ψ½ answers question 2, and the deciding fact is what the redistribution
+axis *is*.
+
+**Cylinder — the redistribution axis is a circle.**  At a fixed polar
+cosine :math:`\mu_z = \cos\theta`, the cylinder redistributes across the
+**azimuthal angle** :math:`\varphi`, which lives on a **circle**
+:math:`[0, 2\pi)` — a *periodic* domain.  The production rule
+(:func:`~orpheus.numerics.quadrature.rules_product.product_mu_phi`) is
+Gauss–Legendre in :math:`\mu_z` **×** *equispaced* in :math:`\varphi`
+(``np.linspace(0, 2π, n_φ, endpoint=False)``).  Equispaced sampling of a
+smooth periodic function is the trapezoidal rule, which on a circle is
+**spectrally accurate** (its error decays faster than any power of
+:math:`1/n_\varphi`) — there is no accuracy penalty for the choice.  And
+crucially, for **even** :math:`n_\varphi` the grid hits
+:math:`\varphi = \pi` exactly (partition node :math:`k = n_\varphi/2`),
+where
+
+.. math::
+
+   \mu_x = \sin\theta\cos\pi = -\sin\theta, \qquad
+   \mu_y = \sin\theta\sin\pi = 0,
+
+i.e. the **most-inward radial direction** of that level.  The
+starting-edge ordinate :math:`\eta_0 = -\sin\theta` therefore lands
+*exactly on a quadrature node* — :math:`\tau_{{\rm raw},0} = 0` — and the
+seed is a **bulk ordinate for free, at no accuracy cost**.  This is the
+structural content of #229: the cylinder's edge-inclusion is a property
+of the *circle*, **not** the :math:`[\tfrac12, 1]` Morel–Montry clamp
+(the clamp is a separate recurrence-weight stabiliser; the R12a predicate
+reads the *un*clamped :math:`\tau_{\rm raw}`).  It is contingent on
+**even** :math:`n_\varphi` — an odd azimuthal count would miss
+:math:`\varphi = \pi`, and the cylinder *would* then carry a seed.
+
+**Sphere — the redistribution axis is an interval.**  The sphere
+redistributes across the **polar cosine** :math:`\mu \in [-1, 1]`, an
+**interval** whose two endpoints :math:`\mu = \pm 1` *are* the physical
+poles.  The optimal rule on an interval with a smooth integrand is
+Gauss–Legendre — but Gauss–Legendre is an **open** rule: it places *no*
+node at the endpoints.  So the sphere structurally *cannot* put an
+ordinate on :math:`\mu = \pm 1`; the starting edge falls strictly between
+nodes (:math:`\tau_{{\rm raw},0} \approx 0.39\text{–}0.42`), and a
+**separate off-node seed DOF is unavoidable**.
+
+.. list-table:: The redistribution axis decides the seed
+   :header-rows: 1
+   :widths: 16 26 24 17 17
+
+   * - Geometry
+     - Redistribution axis
+     - Optimal rule
+     - Edge-inclusive?
+     - Seed?
+   * - **Cylinder**
+     - azimuth :math:`\varphi` — a **circle** (periodic)
+     - equispaced (trapezoidal, spectral)
+     - **yes** (even :math:`n_\varphi` hits :math:`\varphi=\pi`)
+     - no — :math:`\tau_{\rm raw}=0`
+   * - **Sphere**
+     - polar :math:`\mu` — an **interval** :math:`[-1,1]`
+     - Gauss–Legendre (open)
+     - **no** (open rule, no endpoint node)
+     - yes — :math:`\tau_{\rm raw}\in(0,1)`
+
+The principle in one line: **a periodic redistribution axis gives
+edge-inclusion for free; an interval axis makes you pay for it with a
+separate seed.**  The cylinder is the existence proof that "seed = a bulk
+edge-ordinate" *works* — it works there precisely because the axis is a
+circle.  The sphere pays because its axis has physical endpoints and the
+best interior rule refuses to stand on them.
+
+.. _sn-282-lobatto-study:
+
+Could the sphere put a node at the pole? — the Gauss–Lobatto study
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The circle-vs-interval framing suggests an obvious question: could the
+sphere *buy* the cylinder's free edge-inclusion by switching from
+Gauss–Legendre to **Gauss–Lobatto** — a rule that *does* place nodes at
+the interval endpoints :math:`\mu = \pm 1` (at the cost of exactness
+:math:`2n-3` versus GL's :math:`2n-1`)?  A pole node would give
+:math:`\tau_{{\rm raw},0} = 0`, making the seed a bulk ordinate exactly as
+on the cylinder — dissolving the whole ψ½ block.  A dedicated empirical
+study (scratch, uncommitted — see the note below) answered both halves of
+the question.
+
+**Affordable.**  At resolved angular order (:math:`N \ge 8`, and
+:math:`N > L` for a :math:`P_L` scattering source) Gauss–Lobatto tracks
+Gauss–Legendre at a bounded :math:`\sim 1.2\times` error penalty —
+:math:`\sim 1.3\text{–}1.4\times` at S\ :sub:`8`, tightening to
+:math:`\sim 1.2\times` at S\ :sub:`16` — i.e. **one to two extra
+ordinates** to match GL.  The penalty is **not amplified by anisotropy**
+(P0 through P5 all sit at :math:`\sim 1.2\text{–}1.3\times`) and is
+**insensitive to the scattering ratio** :math:`c`.  The eigenvalue offset
+is :math:`\sim 30\text{–}140` pcm at S\ :sub:`16`, and fine-:math:`N` GL
+and GLob agree to :math:`< 6` pcm — the two rules converge to the **same**
+:math:`N \to \infty` transport limit (the pole weighting is unbiased; the
+straight-characteristic pole handling is redistribution-consistent, with a
+per-ordinate flat-flux residual :math:`\sim 10^{-15}`).  Only the
+under-resolved :math:`N \lesssim L` corner breaks, and there GL is
+rank-deficient too.
+
+**But not a drop-in.**  A pole node lands on the level's lower edge, so
+the first-ordinate weight :math:`\tau_{{\rm raw},0} = 0` — and the
+production Morel–Montry recurrence :eq:`pole-mm-recurrence` **divides its
+first step by that weight**, so the recurrence is *singular*; separately,
+the R12a presence predicate keys on :math:`\tau_{\rm raw} \in (0,1)`,
+which a pole node also fails.  Adopting a pole-node quadrature is
+therefore **not** a quadrature swap — it *requires* the same
+seed→bulk-ordinate restructure the cylinder already uses (make the pole
+node the seed, straight-characteristic-solved, and start the recurrence
+*from* it).
+
+**Ruling: affordable but architecturally declined.**  The fold-in was
+**not** adopted, and the reason is architectural, not numerical.  The bulk
+is **cell-centred**; a pole ordinate would make it a *mixed* field — an
+inert, zero-through-flux, straight-characteristic-solved,
+redistribution-special passenger that *every* bulk consumer
+(homogenization, condensation, moment extraction, every
+``for ordinate in bulk`` loop) would have to know about and skip.  That is
+the Cardinal-Rule-2 smell of two concepts in one type forcing a demux
+downstream; the zero weight prevents *numerical* corruption but not the
+*conceptual* pollution.  The value of the study is precisely that it makes
+keeping ψ½ a **separate** object a *chosen* architecture — the pole seed
+is kept out of the bulk **because the bulk stays clean**, not because a
+pole-node scheme is infeasible.  The clean-bulk / ``FaceField``
+architecture this decides is set out on the loss-operator page
+(:ref:`loss-rep-facefield-codim1`).
+
+.. note::
+
+   The Gauss–Lobatto study is a set of scratch diagnostics
+   (``scratch/experimental/glob_sphere_study/`` and
+   ``derivations/diagnostics/diag_glob_0{1..5}_*.py`` — 33 green
+   diagnostics covering moment integration, per-ordinate consistency,
+   end-to-end penalty, the :math:`\tau_0 = 0` recurrence break, and the
+   :math:`k_\infty` anchor).  They are **uncommitted** and are promotion
+   targets *only if* a pole-node scheme is ever adopted; do not promote
+   them otherwise.  The durable synthesis is
+   ``.claude/plans/facefield_codim1_design.md`` §3.5.
 
 .. _sn-282-seed-strategy-zoo:
 
