@@ -1172,16 +1172,55 @@ DEFERRED to 2.5c (unchanged): the vestigial iterate threading
 (`_initial_guess_values` + the `initial_guess` param) retires WITH the
 SweepOperator direct-inverse predicates.
 
-⏸ **C2.4f — compaction point at the cyl-reverse→2.5c seam.** Re-anchor after
-/compact from: this block + `git log` (`f1ddeb6`) + the gate
-`test_loss_transpose_solve.py` (now slab+sphere+cyl_product+cyl_ls) + the unified
-curvilinear `_run_transpose` (sphere+cyl, no cyl guard). **NEXT ACTION = 2.5c
-(#24) inverse-adjoint wiring**: `SweepOperator.apply_transpose` → the reverse-scan
-`solve_transpose`; `is_adjointable`/`is_invertible` predicates; `_AdjointOperator.
-inverse()`; the swap law `A.H.inverse() ≡ A.inverse().H`; AND the deferred
-retirement of the vestigial `initial_guess` param + `_initial_guess_values`
-(coherent with the direct-inverse predicates). Then 2.5e docs + close #280.
-Pushes HELD (branch `refactor/sn-walk-unification`).
+**2.5c LANDED — inverse-adjoint wiring + the `initial_guess` retirement
+(2026-07-05):**
+
+*Part A+B @ `45529c2`* — the swap law `A.H.inverse() ≡ A.inverse().H` as an
+OBJECT IDENTITY of the algebra: `SweepOperator.apply_transpose(b) =
+inner.solve_transpose(b)` (the 2.5b reverse-scan `(A⁻¹)ᵀ = (Aᵀ)⁻¹`) +
+`is_adjointable = isinstance(inner, InvertibleOperator) and inner.is_adjointable`
+(schedule-folded sibling stays deferred); `_AdjointOperator.inverse() =
+inner.inverse().H` + `is_invertible = invertible(inner) and
+adjointable(inner.inverse())` (R11). The metric adjoint-solve
+`A.inverse().H.apply(b) = G⁺·solveᵀ(G·b)` falls out of the EXISTING
+`_AdjointOperator.apply` FOR FREE (the a3 "Deliverable 3" dissolved). Gates
+`test_inverse_adjoint_coherence.py` (19, test-architect): G1 forward-matvec
+G-reciprocity / G2 swap-law value bit-identical / G3 round-trip / Mode-11 wrap
+sentinel / M-ADJ-swap+metric mutations RED-verified / predicate flips /
+assert_type. **Spec refinement:** M-ADJ-metric reds on ALL geometries (the
+non-uniform slab metric `G = V·wₙ ⊕ |Ω·n|·wₙ` is non-trivial) — stronger than
+§13's sphere/cyl-only prediction; the `.H`≠Euclidean claim holds universally.
+
+*Part C @ `8cf5215`* — the `initial_guess` seed retirement, scoped by the
+USER's warm-start insight (a NN-learned x₀ is the 3-vs-30-iterations lever; it
+lives at the ITERATION layer, NEVER on a direct exact sweep). Post-2.5d the
+curvilinear ψ½ is the DIRECT #282 seed, so the SN sweep's seed-USE is dead:
+DELETE `_initial_guess_values` (0-caller orphan) + drop the dead param/threading
+from `_solve_timed_full_field` (Invertible+Scheduled) + the loss_representation
+`sweep`/`_run`/`transport_sweep` kernels. The inverse family's `.solve`/`.apply`
+KEEP `initial_guess` as the uniform `SupportsSeededApply` kwarg (#285) but
+ACCEPT-AND-DROP (joining `WindowedSweep`/`MatrixInverseOperator`/
+`_SeededExactApply`). **The surviving warm-start is untouched + separately
+gated** — Green's `M-GRN-SEED` (the iterative inverse's genuine warm start) +
+`SourceIteration.solve(initial_guess=x₀)`. Test migration: `test_seed_threading_
+spy.py` RETIRED (dead premise — "dropped seed = wrong FP" is FALSE post-2.5d);
+seed-INDEPENDENCE + accept-drop path pins replace the thread pins; the extractor
++ seed-mesh-validation pins retired; `test_rhs_boundary_seeds_the_sweep_inflow`
+migrated (the rhs.boundary→boundary_buf contract stays). Part-A completion
+folded in (broad-run catch): `_AdjointOperator.inverse()` guard matched to
+`is_invertible` (NotInvertible not MissingAdjoint when the inner's inverse is
+non-adjointable); AdjointWrapper keystone row STRUCTURAL_ABSENT→VALUE_RAISE. Net
+−151 LoC. Full inverse-family blast radius 2271/0; pyright transport:1.
+
+⏸ **C2.4g — compaction point at the 2.5c→2.5e seam.** Re-anchor after /compact
+from: this block + `git log` (`45529c2` wiring, `8cf5215` retirement) + the gate
+`test_inverse_adjoint_coherence.py`. **NEXT ACTION = 2.5e (#26)** — the R9
+layout ruling (the `sn/spatial/` estate) + docs (the SN theory
+Development-history changelog row for the unified orientation×kernel walk + the
+#284 source-subspace note) + close #280 (comment the swap law + the walk
+unification + the initial_guess/warm-start architecture split; #282
+characterization). Then P3 DSA #2. Pushes HELD (branch
+`refactor/sn-walk-unification`, 29 ahead of main).
 
 ---
 
