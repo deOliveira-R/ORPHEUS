@@ -108,10 +108,23 @@ class SweepOperator(
 
         Delegates to
         :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`
-        (bit-identical); ``initial_guess`` threads the previous-iterate seed
-        (the curvilinear Morel–Montry Carlson coupled-pole start) through.
+        (bit-identical). ``initial_guess`` is the inverse family's canonical
+        :class:`~orpheus.numerics.iteration.SupportsSeededApply` keyword — the
+        driver threads the previous iterate UNIFORMLY every step (#285) — but
+        the WDD sweep is a DIRECT, exact inverse: there is nothing to seed (the
+        curvilinear :math:`\psi_{1/2}` starting direction is computed DIRECTLY
+        from the source since #282 route (a), 2.5d). So it is accepted and
+        DROPPED, exactly as the other exact inverses do
+        (:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+        / :class:`~orpheus.sn.operators.windowing.WindowedSweep` /
+        the numerics ``_SeededExactApply``). The warm start lives at the
+        ITERATION layer (:meth:`~orpheus.numerics.iteration.SourceIteration.solve`'s
+        ``initial_guess`` :math:`x_0`) and the ITERATIVE
+        :class:`~orpheus.numerics.green_operator.GreenOperator`, never on a
+        direct sweep.
         """
-        return self.inner.solve(rhs, initial_guess=initial_guess)
+        del initial_guess  # direct exact inverse — nothing to seed (#282/2.5d)
+        return self.inner.solve(rhs)
 
     @property
     def is_adjointable(self) -> bool:

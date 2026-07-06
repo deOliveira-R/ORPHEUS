@@ -352,7 +352,6 @@ class LossRepresentation(Protocol):
         sig_t: "np.ndarray",
         boundary_flux: "AngularBoundaryFlux",
         *,
-        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
@@ -702,7 +701,6 @@ class _LossRepresentation:
         sig_t: "np.ndarray",
         boundary_flux: "AngularBoundaryFlux",
         *,
-        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
@@ -1229,7 +1227,6 @@ class CumprodScan(_LossRepresentation):
         sig_t: "np.ndarray",
         boundary_flux: "AngularBoundaryFlux",
         *,
-        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
@@ -1254,7 +1251,7 @@ class CumprodScan(_LossRepresentation):
                 "the 1-D scan is not a wavefront."
             )
         return _OneDimScanWalk(self.mesh).sweep(
-            Q, sig_t, boundary_flux, initial_guess=initial_guess,
+            Q, sig_t, boundary_flux,
             starting_direction_source=starting_direction_source,
             starting_direction_flux=starting_direction_flux,
         )
@@ -1414,7 +1411,6 @@ class MovingFrontierWindow(_DAGWavefront):
         sig_t: "np.ndarray",
         boundary_flux: "AngularBoundaryFlux",
         *,
-        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
@@ -1725,7 +1721,6 @@ class FullFieldWavefront(_DAGWavefront):
         sig_t: "np.ndarray",
         boundary_flux: "AngularBoundaryFlux",
         *,
-        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
@@ -1980,7 +1975,6 @@ class ScanMarch(_LossRepresentation):
         sig_t: "np.ndarray",
         boundary_flux: "AngularBoundaryFlux",
         *,
-        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
@@ -2005,7 +1999,7 @@ class ScanMarch(_LossRepresentation):
                     "the 1-D scan is not a wavefront."
                 )
             return _OneDimScanWalk(self.mesh).sweep(
-                Q, sig_t, boundary_flux, initial_guess=initial_guess,
+                Q, sig_t, boundary_flux,
                 starting_direction_source=starting_direction_source,
                 starting_direction_flux=starting_direction_flux,
             )
@@ -2358,7 +2352,6 @@ def transport_sweep(
     sn_mesh: "SNMesh",
     boundary_flux: "AngularBoundaryFlux",
     *,
-    initial_guess: "FullField | None" = None,
     moment_frame: "FrameBase | None" = None,
     starting_direction_source: "StartingDirectionField | None" = None,
     starting_direction_flux: "StartingDirectionFlux | None" = None,
@@ -2409,9 +2402,11 @@ def transport_sweep(
     * Issue #197 PR-TYPED-3: typed :class:`ScalarSourceSink` /
       :class:`AngularSourceSink` inputs.
     * Issue #197 PR-TYPED-4: bare-``np.ndarray`` overload retired.
-    * R-1 Step 0 (2026-05-19): curvilinear Carlson seed derives from
-      ``initial_guess`` (= previous iterate; ``None`` fallback uses
-      the in-iteration source angular average).
+    * R-1 Step 0 (2026-05-19): curvilinear Carlson seed derived from
+      ``initial_guess`` (= previous iterate) — SUPERSEDED by the #282
+      route (a) direct seed (2.5d): the ψ½ starting direction is now
+      computed DIRECTLY from the source, and the vestigial ``initial_guess``
+      param was retired (#280 2.5c). The WDD sweep is an exact direct inverse.
     * R-1 Step 4 A1 (2026-05-21): ``iso_source`` parameter retired;
       sweep takes one :class:`AngularSourceSink` carrying the combined
       per-ordinate source magnitude.  Producer-side ``/W`` projection
@@ -2431,20 +2426,6 @@ def transport_sweep(
     boundary_flux : AngularBoundaryFlux
         Persistent :class:`AngularBoundaryFlux` (mutated in place).  Build a
         zero-initialised instance via ``AngularBoundaryFlux.zeros_on(sn_mesh)``.
-    initial_guess : FullField or None, optional
-        Previous-iteration angular flux estimate, used for the
-        curvilinear Carlson coupled-pole seed and the per-ordinate
-        spatial-upstream inflow at the pole cell.  Ignored on slab.
-        ``None`` (default) selects the in-iteration fallback seed.
-
-        The timeless
-        :class:`~orpheus.transport.full_field.FullField` composite (the
-        history-bearing
-        :class:`~orpheus.transport.timed_full_field.TimedFullField`
-        iterate passes via inheritance).  The kernel reads only the
-        per-ordinate bulk ndarray ``.bulk.values`` via the
-        container-agnostic :func:`_initial_guess_values` extractor — it
-        is history-blind.
     moment_frame : FrameBase or None, optional
         Phase 5c moment OUTPUT mode (2-D Cartesian ONLY — raises on a 1-D
         mesh).  ``None`` (default) returns the full per-ordinate angular flux
@@ -2512,7 +2493,6 @@ def transport_sweep(
     # sweep ↔ loss_representation lazy-import cycle is GONE.
     return default_for(sn_mesh).sweep(
         Q, sig_t, boundary_flux,
-        initial_guess=initial_guess,
         moment_frame=moment_frame,
         starting_direction_source=starting_direction_source,
         starting_direction_flux=starting_direction_flux,
@@ -2535,50 +2515,6 @@ def _unwrap_source(source: "AngularSourceSink") -> np.ndarray:
             f"{type(source).__name__}"
         )
     return source.values
-
-
-def _initial_guess_values(
-    initial_guess: "FullField | None",
-) -> "np.ndarray | None":
-    """Extract the per-ordinate bulk ndarray from either container type.
-
-    D-H.1c stage 4 — the sweep kernel reads only the per-ordinate bulk
-    values (shape ``(N, ng, nx, ny)``) at two sites: the M-M Carlson
-    coupled-pole seed (transposed slice at level p) and the pole-cell
-    spatial-upstream inflow (single-cell slice at ordinate global_n).
-
-    The :class:`~orpheus.transport.full_field.FullField` composite (and
-    its :class:`~orpheus.transport.timed_full_field.TimedFullField`
-    subclass) exposes the ndarray under ``.bulk.values``.  This helper
-    centralises the access so the kernel stays container-agnostic and
-    history-blind.
-
-    Parameters
-    ----------
-    initial_guess : FullField or None
-        Container carrying the previous iterate, OR ``None`` for
-        cold-start.
-
-    Returns
-    -------
-    np.ndarray or None
-        The per-ordinate ``(N, ng, nx, ny)`` ndarray, or ``None``
-        when ``initial_guess`` is ``None``.
-
-    Notes
-    -----
-    Uses duck-typing on ``.bulk`` to detect the composite — avoids a
-    runtime import of :class:`TimedFullField` (which would create a
-    circular-dependency risk through transport↔sn).
-    """
-    if initial_guess is None:
-        return None
-    # Composite container exposes ``.bulk`` (an L2 AngularFlux); the
-    # legacy bundle does not.
-    bulk = getattr(initial_guess, "bulk", None)
-    if bulk is not None:
-        return bulk.values
-    return initial_guess.values  # type: ignore[union-attr]
 
 
 #: The one μ-direction trichotomy threshold of the 1-D walk: an ordinate is a
@@ -2916,7 +2852,6 @@ class _OneDimScanWalk:
         sig_t: np.ndarray,
         boundary_flux: "AngularBoundaryFlux",
         *,
-        initial_guess: "FullField | None" = None,
         starting_direction_source: "StartingDirectionField | None" = None,
         starting_direction_flux: "StartingDirectionFlux | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -2971,7 +2906,6 @@ class _OneDimScanWalk:
         coll = self._ensure_coll_cache(sig_t, geom)
         return self._run(
             Q, sig_t, boundary_flux, geom, coll,
-            initial_guess=initial_guess,
             starting_direction_source=starting_direction_source,
             starting_direction_flux=starting_direction_flux,
         )
@@ -3709,7 +3643,6 @@ class _OneDimScanWalk:
         geom: GeometryCoefficients,
         coll: CollisionCache,
         *,
-        initial_guess: "FullField | None" = None,
         starting_direction_source: "StartingDirectionField | None" = None,
         starting_direction_flux: "StartingDirectionFlux | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -4323,10 +4256,10 @@ class _OneDimScanWalk:
                         bc_outer[global_n] = psi_face_chain[-1]      # (ng,)
 
         # ── Exit — PR-INDEX-5: caller consumes principled layout ──────────
-        # R-1 Step 0: NO iteration-cache write-back.  The caller threads the
-        # returned ``angular_flux`` as ``initial_guess`` to the NEXT sweep —
-        # that's all the "history" needed.  The matvec already operates this
-        # way; the sweep now mirrors it.
+        # NO iteration-cache write-back: the sweep is a stateless EXACT
+        # inverse.  Any warm start (the previous iterate) lives at the
+        # ITERATION layer (SourceIteration / GreenOperator), never threaded
+        # into this direct sweep (the vestigial seed retired, #280 2.5c).
         # angular_flux is (N, ng, nx); scalar_flux is (ng, nx) — the principled
         # (N, ng, *spatial) / (ng, *spatial) public contract (no phantom ny).
         return angular_flux, scalar_flux

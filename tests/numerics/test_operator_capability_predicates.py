@@ -117,9 +117,11 @@ def test_product_predicates_recursive_and_faithful():
 
 
 def test_scaled_and_adjoint_predicates_faithful():
-    """Scaling (α≠0) passes the predicates through; the adjoint wrapper
-    advertises neither solve nor transpose (the ``A.H.inverse()`` /
-    ``A.H.H`` directions are deferred to #280)."""
+    """Scaling (α≠0) passes the predicates through; the adjoint wrapper's
+    ``A.H.inverse()`` swap law landed (#280 2.5c) but is CONDITIONAL — False
+    HERE because ``DiagonalOperator``'s inverse (``InverseOperator``) is
+    non-adjointable (#280-deferred), so ``(A⁻¹).H`` does not exist; the
+    ``A.H.H`` (adjoint-of-adjoint) direction stays deferred."""
     sc = ScaledOperator(2.0, DiagonalOperator(_C))
     assert sc.is_invertible is True and sc.is_adjointable is True
 
@@ -191,9 +193,13 @@ _CONTRACT_ROWS = [
     ("Scaled-singular", ScaledOperator(2.0, DiagonalOperator(_CZ)), False, True, VALUE_RAISE),
     ("TensorProduct-both", TensorProductOperator((DiagonalOperator(_C), IdentityOperator())), True, True, INVERTIBLE),
     ("TensorProduct-singular", TensorProductOperator((DiagonalOperator(_CZ), IdentityOperator())), False, True, VALUE_RAISE),
-    # The adjoint wrapper itself: no inverse (#280 deferred), and A.H.H
-    # now raises MissingAdjoint EAGERLY (was: lazy wrapper construction).
-    ("AdjointWrapper", DiagonalOperator(_C).H, False, False, STRUCTURAL_ABSENT),
+    # The adjoint wrapper: the swap law (A.H)⁻¹ = (A⁻¹).H is now DECLARED
+    # (#280 2.5c), but THIS instance is not invertible — DiagonalOperator's
+    # inverse (InverseOperator) is #280-deferred on the adjoint axis, so
+    # is_invertible=False and inverse() RAISES NotInvertible (VALUE_RAISE, not
+    # STRUCTURAL_ABSENT — the method now exists). A.H.H still raises
+    # MissingAdjoint EAGERLY (adjoint-of-adjoint deferred).
+    ("AdjointWrapper", DiagonalOperator(_C).H, False, False, VALUE_RAISE),
     # The wrap-delegate inverse family (SweepOperator = SN side, pinned
     # in tests/sn/operators/test_capability_survival.py):
     *[

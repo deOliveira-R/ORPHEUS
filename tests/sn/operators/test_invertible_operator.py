@@ -498,59 +498,6 @@ class TestSolve:
             ),
         )
 
-    def test_solve_forwards_explicit_initial_guess_to_sweep(self) -> None:
-        r"""``InvertibleOperator.solve`` forwards the explicit ``initial_guess``
-        kwarg to the representation sweep (the S6.5 solve seam).
-
-        Phase 1.2 — the curvilinear Carlson coupled-pole seed travels
-        through an explicit ``initial_guess`` argument; the lag-1 frame
-        machinery (``rhs(1)``, ``.stash``) is reserved for future
-        time-derivative tracking and no longer load-bearing for the
-        seed path.  The previous ``previous = rhs(1)`` plumbing was
-        retired together with the sweep's inline Q_bar derivation —
-        the M-M closure's ``psi_half_seed`` strategy reads
-        ``initial_guess`` directly (or zeros on cold start).
-
-        Spy on the representation's ``sweep`` to capture the
-        ``initial_guess`` argument on both the explicit-seed and
-        cold-start paths.
-        """
-        sn = _sphere_mesh()
-        sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
-            sigma_t, sn,
-        )
-
-        psi_prev = _const_state(sn, value=0.7)
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, starting_direction=StartingDirectionFlux)
-
-        # Spy on the representation sweep — capture initial_guess.
-        captured = []
-
-        from orpheus.sn.loss_representation import CumprodScan
-        original = CumprodScan.sweep
-
-        def spy(self, *args, **kwargs):
-            captured.append(kwargs.get("initial_guess"))
-            return original(self, *args, **kwargs)
-
-        with patch.object(CumprodScan, "sweep", spy):
-            invertible.solve(rhs, initial_guess=psi_prev)
-        assert len(captured) == 1
-        seed = captured[0]
-        assert seed is not None
-        # The composite branch forwards the TimedFullField directly; the
-        # sweep's :func:`_initial_guess_values` extractor reads
-        # ``seed.bulk.values`` from the composite.
-        np.testing.assert_array_equal(seed.bulk.values, psi_prev.bulk.values)
-
-        # Cold start — no explicit seed → initial_guess should be None.
-        captured.clear()
-        with patch.object(CumprodScan, "sweep", spy):
-            invertible.solve(rhs)
-        assert len(captured) == 1
-        assert captured[0] is None
-
 
 # ── D-H.2-C1: TimedFullField composite-only solve invariants ───────────
 
@@ -588,8 +535,7 @@ class TestSolveTimedFullField:
 
         # Build rhs with a non-zero boundary trace (the inflow source) —
         # verify it makes it into the sweep's boundary_buf.  Slab has both
-        # xmin and xmax faces.  ``initial_guess`` carries the bulk warm
-        # start only (its boundary is no longer the inflow seed).
+        # xmin and xmax faces.
         rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
         rhs_boundary = rhs.boundary
         layout = rhs_boundary.layout
@@ -597,7 +543,6 @@ class TestSolveTimedFullField:
             rhs_boundary.face_view("xmax")[:] = 0.7
         if "xmin" in layout.faces:
             rhs_boundary.face_view("xmin")[:] = 0.3
-        ig = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
 
         # Outcome-level spy: capture the boundary_buf as the
         # representation sweep sees it.  The seed must already be in
@@ -610,30 +555,30 @@ class TestSolveTimedFullField:
 
         def spy(
             self, Q, sigma, boundary_flux, *,
-            initial_guess=None, moment_frame=None,
+            moment_frame=None,
             schedule=None, reflect=None,
             starting_direction_source=None, starting_direction_flux=None,
         ):
             # D-H.2-C2: L2 AngularBoundaryFlux exposes per-face writable views
-            # via face_view; copy them out at entry to snapshot the seed.
+            # via face_view; copy them out at entry to snapshot the inflow.
             # (#226 step 2: the door signature grew schedule/reflect —
             # None here, the Jacobi path; #282 route (a) grew the two
             # starting_direction seed args — None on the non-carrying slab;
             # mirror them all so the spy stays signature-compatible with the
-            # production call.)
+            # production call.  The vestigial ``initial_guess`` kwarg retired
+            # with the dead seed threading, #280 2.5c.)
             captured.append((
                 boundary_flux.face_view("xmax").copy(),
                 boundary_flux.face_view("xmin").copy(),
             ))
             return original(
                 self, Q, sigma, boundary_flux,
-                initial_guess=initial_guess,
                 starting_direction_source=starting_direction_source,
                 starting_direction_flux=starting_direction_flux,
             )
 
         with patch.object(CumprodScan, "sweep", spy):
-            invertible.solve(rhs, initial_guess=ig)
+            invertible.solve(rhs)
 
         assert len(captured) == 1
         np.testing.assert_array_equal(captured[0][0], 0.7)
@@ -662,18 +607,6 @@ class TestSolveTimedFullField:
         rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn2)
         with pytest.raises(ValueError, match="mesh-identity"):
             invertible.solve(rhs)
-
-    def test_rejects_mismatched_mesh_on_initial_guess(self) -> None:
-        sn1 = _slab_mesh()
-        sn2 = _slab_mesh()
-        sigma_t1 = np.ones((sn1.ng, *sn1.spatial_shape))
-        invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
-            sigma_t1, sn1,
-        )
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn1)
-        ig = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn2)
-        with pytest.raises(ValueError, match="mesh-identity"):
-            invertible.solve(rhs, initial_guess=ig)
 
 
 # ── Convention-bridge regression catchers (R-1 Step 4 A5 promotion) ────

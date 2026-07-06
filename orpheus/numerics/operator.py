@@ -1193,7 +1193,20 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
                 f"adjoint-inverse swap law (A.H).inverse() = (A.inverse()).H "
                 f"does not apply (is_invertible is False)."
             )
-        return self.inner.inverse().H
+        inner_inverse = self.inner.inverse()
+        if not adjointable(inner_inverse):
+            # The swap law needs the inverse to be adjointable so ``.H`` exists
+            # — matches :attr:`is_invertible`'s second clause. Raise
+            # NotInvertible (NOT MissingAdjoint from the ``.H`` below): the
+            # adjoint-INVERSE is what is absent here.
+            raise NotInvertible(
+                f"_AdjointOperator.inverse(): the inner's inverse "
+                f"{type(inner_inverse).__name__} is not adjointable, so "
+                f"(A.inverse()).H does not exist — the swap law needs an "
+                f"adjointable inverse (e.g. an SN SweepOperator, #280 2.5c). "
+                f"is_invertible is False."
+            )
+        return inner_inverse.H
 
 
 class OperatorSum(

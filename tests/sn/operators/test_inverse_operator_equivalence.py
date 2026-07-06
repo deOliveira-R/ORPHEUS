@@ -71,34 +71,42 @@ def test_inverse_apply_equals_solve(case):
 
 
 @pytest.mark.parametrize("case", _SEEDED_CASES)
-def test_inverse_apply_threads_seed_equals_solve(case):
-    """The curvilinear Carlson seed: ``inverse().apply(b, initial_guess=seed)``
-    equals ``solve(b, initial_guess=seed)`` (slab is blind to the seed path)."""
+def test_inverse_apply_accepts_and_drops_seed(case):
+    """The WDD sweep is an EXACT direct inverse — nothing to seed. #282 route
+    (a) computes the curvilinear ψ½ starting direction DIRECTLY from the source
+    (2.5d), so #280 2.5c retired the vestigial threading: ``inverse().apply``
+    ACCEPTS ``initial_guess`` (the uniform ``SupportsSeededApply`` contract,
+    #285) but DROPS it. The result is seed-INDEPENDENT — bit-identical to the
+    un-seeded apply. The warm start lives at the iteration layer
+    (``SourceIteration`` / ``GreenOperator``), never on a direct sweep."""
     sn, A, b = _build(_SEEDED_CASES[case])
-    seed = _random_state(sn, seed=99)  # a FullField seed != the default Carlson sweep
+    seed = _random_state(sn, seed=99)  # an arbitrary state that MUST NOT matter
     _assert_fields_equal(
         A.inverse().apply(b, initial_guess=seed),
-        A.solve(b, initial_guess=seed),
-        f"{case}: inverse().apply dropped the initial_guess seed",
+        A.inverse().apply(b),
+        f"{case}: inverse().apply CONSUMED the initial_guess — a direct "
+        f"exact inverse must drop it",
     )
 
 
-def test_inverse_threads_initial_guess_object_to_solve(monkeypatch):
-    """Mode-11 belt-and-braces: pin the PATH, not just the value. The EXACT seed
-    object must thread ``inverse().apply`` -> ``inner.solve``, so a seed-
-    insensitive converged fixed point cannot hide a dropped ``initial_guess``."""
+def test_inverse_apply_drops_seed_before_inner_solve(monkeypatch):
+    """Mode-11 path pin: ``inverse().apply`` drops the seed and enters
+    ``inner.solve`` with the rhs ALONE (the exact-inverse accept-and-drop,
+    #280 2.5c). The STRICT spy signature ``spy(rhs)`` would ``TypeError`` if
+    ``apply`` re-forwarded ``initial_guess`` — so a resurrected thread reddens
+    here, it does not pass silently."""
     sn, A, b = _build(_sphere)
     seed = _random_state(sn, seed=99)
     captured = {}
     real_solve = A.solve
 
-    def spy(rhs, *, initial_guess=None):
-        captured["seed"] = initial_guess
-        return real_solve(rhs, initial_guess=initial_guess)
+    def spy(rhs):  # strict: NO initial_guess kwarg — apply must not forward one
+        captured["reached"] = True
+        return real_solve(rhs)
 
     monkeypatch.setattr(A, "solve", spy)
     A.inverse().apply(b, initial_guess=seed)
-    assert captured["seed"] is seed  # the EXACT object threaded through
+    assert captured.get("reached")  # inner.solve entered, seed dropped, no crash
 
 
 def test_inverse_returns_sweep_operator_surface():

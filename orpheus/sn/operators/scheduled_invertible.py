@@ -197,21 +197,20 @@ class ScheduledInvertibleOperator(
         ``q.boundary + B_upper·ψ_k`` there, exactly as the Jacobi path folds
         ``q.boundary + B·ψ_k``.  The ``B_lower`` rows need NO seed: each is
         read only by octant groups swept after its face's reflect, which
-        writes the fresh current-iterate reflection in-sweep.
-
-        ``initial_guess`` is accepted for driver-contract uniformity with
-        :meth:`InvertibleOperator.solve` and threads to the sweep, where the
-        multi-D Cartesian walk ignores the bulk seed (the kwarg is
-        identity-bearing only on the 1-D curvilinear scan, which never
-        constructs this operator).
+        writes the fresh current-iterate reflection in-sweep.  This is a
+        multi-D Cartesian walk — an EXACT direct inverse with no
+        previous-iterate seed. ``initial_guess`` is the uniform
+        :class:`~orpheus.numerics.iteration.SupportsSeededApply` keyword
+        (#285), ACCEPTED and DROPPED; the warm start lives at the iteration
+        layer, never on a direct sweep (#280 2.5c).
         """
-        return self._solve_timed_full_field(rhs, initial_guess=initial_guess)
+        del initial_guess  # accept-and-drop: exact direct inverse, nothing to seed (#280 2.5c)
+        return self._solve_timed_full_field(rhs)
 
     def _solve_timed_full_field(
         self,
         rhs: "FullField",
         *,
-        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
     ) -> "TimedFullField":
         r"""The uniform private solve surface (duck-shared with
@@ -226,7 +225,6 @@ class ScheduledInvertibleOperator(
         """
         return self.invertible._solve_timed_full_field(
             rhs,
-            initial_guess=initial_guess,
             moment_frame=moment_frame,
             schedule=self.schedule,
             # The row-masked ADDITIVE update ``bf[lower] += (B·bf)[lower]`` —

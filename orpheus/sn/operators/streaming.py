@@ -635,16 +635,16 @@ class InvertibleOperator(
       zero for volumetric SI/Krylov sources (which carry no face
       contribution); the persistent reflective-BC state lives on the
       :class:`SNMesh` and is handled inside the sweep.  It seeds the
-      sweep's mutable boundary buffer (per-face copy) and falls back
-      as the inflow seed when no ``initial_guess`` is supplied.
+      sweep's mutable boundary buffer (per-face copy).
 
-    The previous iterate :math:`\psi^{(k-1)}` is passed via the explicit
-    ``initial_guess`` keyword (NOT piggy-backed on a lag-1 frame of
-    ``rhs``).  The curvilinear sweep reads the Carlson coupled-pole seed
-    from its ``.bulk.values`` (container-agnostically — see
-    :func:`~orpheus.sn.loss_representation._initial_guess_values`).
-    ``None`` (cold start) → the sweep falls back to its
-    in-iteration-source default.
+    The curvilinear starting-direction :math:`\psi_{1/2}` is computed
+    DIRECTLY from the source (the #282 route (a) direct seed, 2.5d) — the
+    WDD sweep is an EXACT direct inverse with no previous-iterate seed. A
+    warm start, when useful, lives at the ITERATION layer
+    (:meth:`~orpheus.numerics.iteration.SourceIteration.solve`'s
+    ``initial_guess`` :math:`x_0`) or the ITERATIVE
+    :class:`~orpheus.numerics.green_operator.GreenOperator`, never on this
+    direct sweep.
 
     Parameters
     ----------
@@ -901,29 +901,11 @@ class InvertibleOperator(
             * ``bulk.values`` — per-ordinate source
               :math:`Q^{\rm aniso}`, shape ``(N, ng, nx, ny)``.
             * ``boundary`` — BC inflow trace (typically zero for
-              SI/Krylov volumetric sources; falls back as the seed when
-              no ``initial_guess`` is supplied).
+              SI/Krylov volumetric sources; seeds the sweep's mutable
+              boundary buffer).
 
             The legacy :class:`AngularFlux` arm is retired (it is NOT a
             ``FullField``, so the guard rejects it).
-        initial_guess : FullField or None, optional
-            Previous iterate :math:`\psi^{(k-1)}` for the curvilinear
-            Carlson coupled-pole seed (M-M reads its ``.bulk.values`` as
-            the level's angular flux to derive :math:`\bar Q` at
-            :math:`\mu = -1`).  ``None`` (default) → cold start: M-M's
-            Carlson seed degenerates to the zero-input result (same
-            as ``ZeroSeed`` ablation).
-
-            Explicit kwarg (post-Phase-1.2) — the seed is no longer
-            piggy-backed on a lag-1 frame of ``rhs`` (history threading
-            is the driver iterate's concern, an unrelated matter).
-            Outer iterators (:class:`SourceIteration`,
-            :class:`KEigenvalue`) pass the previous iterate
-            explicitly; GMRES residual calls pass ``None`` so the
-            preconditioner doesn't silently route through stateful
-            seed state (closes the R-1 Step D silent-fallback bug
-            class).
-
         Returns
         -------
         TimedFullField
@@ -935,10 +917,19 @@ class InvertibleOperator(
             ``rhs.history_depth`` (0 when ``rhs`` is a bare
             ``FullField``), and ``_history`` is empty — the outer
             SI / Krylov loop owns history threading.
+
+        The uniform inverse-family
+        :class:`~orpheus.numerics.iteration.SupportsSeededApply` keyword
+        ``initial_guess`` (#285) is ACCEPTED and DROPPED — the WDD sweep is an
+        EXACT direct inverse with nothing to seed (the curvilinear ψ½ starting
+        direction is the direct #282 seed, 2.5d). It is kept so the driver's
+        uniform threading and the seed-INDEPENDENCE gates express the
+        accept-and-drop contract; a warm start lives at the iteration layer
+        (:class:`~orpheus.numerics.iteration.SourceIteration` /
+        :class:`~orpheus.numerics.green_operator.GreenOperator`), never here.
         """
-        return self._solve_timed_full_field(
-            rhs, initial_guess=initial_guess,
-        )
+        del initial_guess  # accept-and-drop: exact direct inverse, nothing to seed (#280 2.5c)
+        return self._solve_timed_full_field(rhs)
 
     # ``solve_moments`` (Phase 5c) retired in #226 step 2 (§17 W1): a public
     # method whose output-mode argument silently changed the operator's
@@ -952,7 +943,6 @@ class InvertibleOperator(
         self,
         rhs: "FullField",
         *,
-        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
@@ -981,9 +971,6 @@ class InvertibleOperator(
             Per-ordinate source on the composite carrier (the timed
             iterate passes via inheritance; a bare ``FullField`` is the
             ``history_depth = 0`` degenerate).
-        initial_guess : FullField or None
-            Previous iterate (carries the curvilinear Carlson seed via
-            its ``.bulk.values``).  ``None`` → cold start.
 
         Returns
         -------
@@ -1019,26 +1006,11 @@ class InvertibleOperator(
                 f"got {type(rhs).__name__}.  Legacy AngularFlux retired "
                 f"in D-H.2-C3."
             )
-        if initial_guess is not None and not isinstance(
-            initial_guess, FullField,
-        ):
-            raise TypeError(
-                f"InvertibleOperator: 'initial_guess' must be "
-                f"FullField or None; got "
-                f"{type(initial_guess).__name__}."
-            )
-
         sn_mesh = self.sn_mesh
         if rhs.bulk.mesh is not sn_mesh:
             raise ValueError(
                 "InvertibleOperator.solve(FullField): rhs and "
                 "operator must share the same SNMesh instance "
-                "(mesh-identity invariant)."
-            )
-        if initial_guess is not None and initial_guess.bulk.mesh is not sn_mesh:
-            raise ValueError(
-                "InvertibleOperator.solve(FullField): initial_guess "
-                "and operator must share the same SNMesh instance "
                 "(mesh-identity invariant)."
             )
 
@@ -1052,13 +1024,11 @@ class InvertibleOperator(
         # Wave O (#208) O.4a.2 — BARE SWEEP: the inflow seed is the
         # boundary SOURCE ``rhs.boundary`` (the inflow slots carry
         # ``q.boundary + B·ψ.outflow`` — the SI driver folds ``S + B`` so
-        # the ``Bψ`` reflective inflow rides in ``rhs.boundary``).  This
-        # REPLACES the pre-extraction seed-from-``initial_guess.boundary``:
-        # the bare sweep no longer re-applies ``bc`` to the iterate's
-        # outflow, so the iterate's boundary is NOT the inflow seed.  The
-        # iterate (``initial_guess``) still threads the BULK Carlson /
-        # angular warm-start through the representation sweep below —
-        # that path reads ``initial_guess.bulk``, not its boundary.
+        # the ``Bψ`` reflective inflow rides in ``rhs.boundary``).  The bare
+        # sweep no longer re-applies ``bc`` to any iterate's outflow; the
+        # curvilinear ψ½ starting direction is the sweep's OWN direct
+        # computation from the source (#282 route (a), 2.5d), not a threaded
+        # previous-iterate seed — the WDD sweep is an exact direct inverse.
         boundary_buf = AngularBoundaryFlux.zeros_on(sn_mesh)  # L2 after C2
         seed_boundary = rhs.boundary
         # Per-face copy via L2 face_view — works for slab (xmin, xmax),
@@ -1099,21 +1069,15 @@ class InvertibleOperator(
         # (the module-level :func:`transport_sweep` keeps that typed
         # boundary for operator-free callers).
         #
-        # The composite ``initial_guess`` passes straight through —
-        # D-H.1c stage 4: the sweep kernels read ``.bulk.values`` via the
-        # container-agnostic :func:`_initial_guess_values` extractor.
-        #
         # Phase 5c: ONE sweep for BOTH output modes — the moment
         # frame rides as an optional kwarg (the 1-D representation
-        # raises on it, since moment output is 2-D Cartesian only;
-        # ``moment_*`` and ``initial_guess`` are mutually 2-D-vs-1-D, so
-        # the 2-D branch harmlessly drops the unused seed).  Only the
-        # OUTPUT WRAP differs: full angular field vs harmonic moments.
+        # raises on it, since moment output is 2-D Cartesian only).
+        # Only the OUTPUT WRAP differs: full angular field vs harmonic
+        # moments.
         bulk_values, _scalar = self.loss_representation.sweep(
             rhs.bulk.values,
             self.sigma,
             boundary_buf,
-            initial_guess=initial_guess,
             moment_frame=moment_frame,
             schedule=schedule,
             reflect=reflect,
