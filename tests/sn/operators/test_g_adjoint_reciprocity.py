@@ -188,11 +188,24 @@ def _trace_cosine_weight(sn: SNMesh, face_idx: int, *, with_cosine: bool) -> np.
 
 def _g_inner(a: TimedFullField, b: TimedFullField, sn: SNMesh, *,
              with_cosine: bool = True) -> float:
-    r"""``⟨a,b⟩_G = Σ_bulk a·b·(V·w_n) + Σ_trace a·b·(|Ω·n|·w_n)``.
+    r"""``⟨a,b⟩_G = Σ_bulk a·b·(V·w_n) + Σ_trace a·b·(|Ω·n|·w_n) + Σ_seed a·b·V_cell``.
 
-    Built directly from ``omega_dot_n`` / ``quad.weights`` / ``volumes`` — the
-    structurally-independent reference inner product. ``with_cosine=False``
-    drops the ``|Ω·n|`` factor (the L11 wrong-metric control).
+    Built directly from ``omega_dot_n`` / ``quad.weights`` / ``volumes`` for
+    the bulk+trace blocks — the structurally-independent reference inner
+    product. ``with_cosine=False`` drops the ``|Ω·n|`` factor (the L11
+    wrong-metric control).
+
+    The seed (ψ½) block (#282 route (a), present on carrying meshes) carries
+    the state metric ``G_sd = V_cell``, read from
+    ``sn.starting_direction_space.inner_product_weights``.  ``G_sd`` is a
+    GAUGE (any SPD is a valid adjoint metric — diag_gsd_03 R2), so the
+    reference MUST use production's chosen gauge for the reciprocity identity
+    to close; reusing it is NOT reference contamination because the seed
+    metric is not load-bearing like ``|Ω·n|`` (it verifies no *value*, only
+    non-degeneracy). The load-bearing seed content — the TRANSPOSE of the
+    ``A_ss`` self-block and the ``A_bs`` coupling — is still caught by
+    reciprocity (an error in ``Aᵀ``, not in ``G``): see the Mode-12 closure
+    gate ``test_282_direct_seed_fixed_point.py``.
     """
     bulk = float(np.sum(_bulk_measure(sn) * a.bulk.values * b.bulk.values))
     trace = 0.0
@@ -202,11 +215,20 @@ def _g_inner(a: TimedFullField, b: TimedFullField, sn: SNMesh, *,
         w_face = _trace_cosine_weight(sn, f_idx, with_cosine=with_cosine)
         w_b = w_face.reshape((w_face.shape[0],) + (1,) * (af.ndim - 1))
         trace += float(np.sum(af * bf * w_b))
-    return bulk + trace
+    seed = 0.0
+    a_sd, b_sd = a.starting_direction, b.starting_direction
+    if (a_sd is None) != (b_sd is None):
+        raise ValueError("_g_inner: mixed starting-direction presence between operands")
+    if a_sd is not None and b_sd is not None:
+        w_seed = np.asarray(
+            sn.starting_direction_space.inner_product_weights, dtype=float,
+        )
+        seed = float(np.sum(w_seed * a_sd.values * b_sd.values))
+    return bulk + trace + seed
 
 
 def _random_composite(
-    sn: SNMesh, rng: np.random.Generator, *, seed_block: str = "zero",
+    sn: SNMesh, rng: np.random.Generator, *, seed_block: str = "random",
 ) -> TimedFullField:
     r"""Random NON-FLAT composite (bulk + boundary both random per ordinate).
 
@@ -215,17 +237,18 @@ def _random_composite(
     Pattern-4 guard rejects a 2-block state), with content keyed by
     ``seed_block``:
 
-    * ``"zero"`` (default) — a present-but-ZERO ψ½ block.  This is the
-      G-reciprocity law's regime: the augmented operator is block-triangular
-      with a ZERO-metric-weight seed↔bulk coupling, so ⟨Aψ,φ⟩_G = ⟨ψ,A.Hφ⟩_G
-      holds ONLY on the physical bulk⊕trace subspace (ψ½ = 0).  With random
-      ψ½ the coupling term ``ψ½ᵀ A_bs^T G_b φ_b`` is un-balanceable by the
-      pseudo-inverse metric — reciprocity is DESIGNED-blind to the seed
-      (vv-principles Mode 12; the seed's catcher is the C(i) cold residual +
-      the Euclidean Mᵀ oracle, NOT G-reciprocity).
-    * ``"random"`` — a random ψ½ block (the frozen-baseline generator's
-      choice: it freezes the seed-row matvec VALUES, which the object-level
-      anchor pins independent of any metric).
+    * ``"random"`` (default, since the ``G_sd = V_cell`` fix) — a random ψ½
+      block.  With the SPD state metric ``G_sd = V_cell`` the augmented
+      ``A.H = G⁻¹AᵀG`` is the HONEST adjoint for arbitrary seed data, so
+      ⟨Aψ,φ⟩_G = ⟨ψ,A.Hφ⟩_G holds on the FULL bulk⊕trace⊕seed space
+      (production random-seed defect ~1e-15).  This is the §0.6 activation
+      choice: the random seed drives the ``A_ss`` self-block and the
+      ``A_bs`` seed→bulk coupling OUT of cancellation, so the reciprocity
+      gate actually exercises the fix (the pre-fix ghost ``G_sd = 0`` made
+      this the 1.3e-2 wrong-adjoint regime — a zero-seed probe was blind).
+    * ``"zero"`` — a present-but-ZERO ψ½ block (retained for the legacy
+      zero-seed regime; the reciprocity identity holds here too, but it does
+      NOT exercise the seed metric).
     """
     N, ng = sn.quad.N, sn.ng
     bulk = AngularFlux.from_mesh(rng.standard_normal((N, ng, *sn.spatial_shape)), sn)

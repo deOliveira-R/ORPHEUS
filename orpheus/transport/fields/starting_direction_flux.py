@@ -50,8 +50,8 @@ class StartingDirectionFlux(FluxRole, StartingDirectionField):
         The R12a-keyed
         :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`
         (canonically ``mesh.starting_direction_space``) — carries the
-        seed levels, the layout arithmetic, and the all-zero ghost
-        metric.
+        seed levels, the layout arithmetic, and the SPD ``G_sd = V_cell``
+        state metric.
     mesh : SNMesh
         The SN phase-space carrier (the cross-mesh-arithmetic guard).
     """

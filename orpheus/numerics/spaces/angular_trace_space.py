@@ -135,7 +135,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.face_layout import AXIS_NAMES
+from orpheus.numerics.face_layout import AXIS_NAMES, face_streaming_normal
 from orpheus.numerics.space import FunctionSpace
 
 if TYPE_CHECKING:
@@ -278,7 +278,7 @@ def _build_trace_metric_weights(
     w_n = np.asarray(quad_weights, dtype=float)  # (N,)
     for f_idx, face_name in enumerate(layout.faces):
         slot = layout.faces[face_name]
-        face_w = np.abs(omega_dot_n[f_idx]) * w_n  # (N,) = |Ω·n_f| · w_n
+        face_w = face_streaming_normal(omega_dot_n[f_idx], w_n)  # (N,) = |Ω·n_f| · w_n
         # Ordinate is axis 0 of the slot; reshape to (N, 1, 1, …) so the
         # per-ordinate cosine weight broadcasts across every trailing axis
         # (group, and — in 2-D — the cells along the boundary edge).

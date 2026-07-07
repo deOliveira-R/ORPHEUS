@@ -1048,9 +1048,11 @@ class StartingDirectionField(Field):
 
     This is a THIRD locus, not a face trace: the starting direction is
     the boundary of the ANGULAR domain (:math:`\mu = \mu_{\rm start}`,
-    where the through-flux weight :math:`(1-\mu^2)` vanishes — the
-    ghost metric), while :class:`BoundaryField` is the boundary of the
-    SPATIAL domain. A starting-direction field is meaningless without a
+    where the angular through-flux coefficient :math:`(1-\mu^2)` vanishes
+    — the straight characteristic; its Hilbert **state** metric is
+    nonetheless the SPD radial cell volume :math:`G_{\rm sd} =
+    V_{\rm cell}`, set by its operator role, not that coefficient), while
+    :class:`BoundaryField` is the boundary of the SPATIAL domain. A starting-direction field is meaningless without a
     quadrature and its M-M level structure, so ``mesh`` is
     :class:`SNMesh` (the :class:`AngularField` narrowing discipline)
     and the space source is the R12a-keyed

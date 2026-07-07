@@ -305,32 +305,36 @@ def _g_inner(a, b, sn) -> float:
 
 
 @pytest.mark.foundation
-def test_mode12_g_reciprocity_is_blind_to_a_seed_row_flip():
-    r"""Mode 12 (a) — the A4 POSITIVE pin: a seed-row sign flip leaves the
-    metric-weighted G-reciprocity EXACTLY green (the seed block is
-    zero-weight, so its rows are outside the functional's stabiliser)
-    WHILE the object-level C(i) cold residual REDS.
+def test_mode12_g_reciprocity_catches_a_seed_row_flip():
+    r"""Mode 12 (a) — CLOSED (INVERTED).  With the state metric ``G_sd =
+    V_cell`` (SPD) and a NONZERO ψ½ seed, a seed-row (``A_ss``) sign flip
+    makes the metric-weighted G-reciprocity RED — the seed rows now carry
+    metric weight, so they lie OUTSIDE the functional's invariance group.
+    Pre-fix the ghost ``G_sd = 0`` put them INSIDE it and the flip was
+    invisible (the standing false-green this gate replaces).
 
-    This is the standing proof that G-reciprocity is NOT the seed catcher
-    (never credit it): the invariant functional annihilates the seed-row
-    error class algebraically, at every tolerance.  The catcher is C(i)
-    (forward) + the 2.5b Euclidean Mᵀ oracle (transpose)."""
+    Mechanism (diag_gsd_02/03): the mutation flips ``_seed_rows_forward``
+    (the forward ``A_ss``) but NOT ``_seed_rows_transpose`` (``A.H``'s
+    independently-coded reverse mode), creating an apply-vs-transpose
+    inconsistency.  With ``G_sd = V_cell`` the seed contributes
+    ``Σ V_cell·(A_ss ψ_seed)·φ_seed`` to ⟨Aψ,φ⟩_G that ``A.H``'s unflipped
+    transpose cannot match → RED (diag measured 1.000).
+
+    Two legs, BOTH required (this is the subtlety that keeps the gate
+    honest): the CONTROL leg — unmutated nonzero-seed reciprocity HOLDS
+    (< 1e-12) — proves the baseline adjoint is the honest V_cell one, so the
+    mutated RED is attributable to the FLIP.  Without the control leg a
+    reverted ghost ``G_sd = 0`` would ALSO give a mutated defect ~0.107 > tol
+    (a broken baseline mimicking "caught") and fool the gate."""
     from orpheus.sn.loss_representation import _OneDimScanWalk
 
     sn, A = _operator(CoordSystem.SPHERICAL, nx=4, sigma=0.5)
-    orig_rows = _OneDimScanWalk._seed_rows_forward
-
-    def _flipped(self, sigma, seed):
-        out = orig_rows(self, sigma, seed)
-        return -out    # a gross sign flip on EVERY seed row
-
     rng = np.random.default_rng(12)
-    # G-reciprocity feeds a PRESENT-ZERO seed (the law's regime); the
-    # flip cannot move a zero-weighted zero-input block.
     n_seed = sn.starting_direction_space.shape[0]
     n_trace = int(sn.angular_trace.layout.total_size)
 
-    def _zero_seed_composite():
+    def _random_seed_composite():
+        # NONZERO seed — activates the V_cell metric AND the A_ss self-block.
         return FullField(
             bulk=AngularFlux.from_mesh(
                 rng.standard_normal((sn.quad.N, sn.ng, sn.nx)), sn,
@@ -340,33 +344,41 @@ def test_mode12_g_reciprocity_is_blind_to_a_seed_row_flip():
                 space=sn.angular_trace, mesh=sn,
             ),
             starting_direction=StartingDirectionFlux(
-                values=np.zeros(n_seed),
+                values=rng.standard_normal(n_seed),
                 space=sn.starting_direction_space, mesh=sn,
             ),
         )
 
-    psi, phi = _zero_seed_composite(), _zero_seed_composite()
+    psi, phi = _random_seed_composite(), _random_seed_composite()
+
+    # ── CONTROL leg: UNMUTATED nonzero-seed reciprocity HOLDS (V_cell is the
+    #    honest adjoint for seed data — pre-fix the ghost broke this ~1.3e-2). ──
+    lhs0 = _g_inner(A.apply(psi), phi, sn)
+    rhs0 = _g_inner(psi, A.H.apply(phi), sn)
+    rel0 = abs(lhs0 - rhs0) / (abs(lhs0) + abs(rhs0) + 1e-300)
+    if not rel0 < 1e-12:
+        pytest.fail(
+            f"UNMUTATED nonzero-seed reciprocity broke (rel={rel0:.2e}) — "
+            "G_sd=V_cell is not the honest adjoint for seed data (is the ghost "
+            "G_sd=0 back?); the mutated RED below would be un-attributable."
+        )
+
+    # ── Mode-12 CLOSURE: the seed-row flip now REDS reciprocity. ──
+    orig_rows = _OneDimScanWalk._seed_rows_forward
+
+    def _flipped(self, sigma, seed):
+        return -orig_rows(self, sigma, seed)   # flip the forward A_ss only
+
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(_OneDimScanWalk, "_seed_rows_forward", _flipped)
         lhs = _g_inner(A.apply(psi), phi, sn)
         rhs = _g_inner(psi, A.H.apply(phi), sn)
-        recip_rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
-        # C(i) with a REAL seed source: the flipped forward seed rows make
-        # the augmented apply inconsistent with the solve → the FULL-field
-        # residual reds.
-        bvals, b = _random_source(sn, rng)
-        sol = A.solve(b, initial_guess=None)
-        ci = _full_residual_inf(A, sol, b, bvals)
-    if not recip_rel < 1e-12:
+    recip_rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+    if not recip_rel > 1e-6:
         pytest.fail(
-            f"G-reciprocity MOVED under a seed-row flip (rel={recip_rel:.2e}) "
-            "— the zero-weight-blindness claim is false; re-derive §16.A A4."
-        )
-    if not ci > 1e-6:
-        pytest.fail(
-            f"C(i) stayed green (residual {ci:.3e}) under a seed-row flip — "
-            "the seed rows are NOT constrained by the object-level gate "
-            "(Mode 10: activated-but-unconstrained)."
+            f"G-reciprocity did NOT move under a seed-row flip "
+            f"(rel={recip_rel:.2e}) — Mode-12 is NOT closed; the seed rows are "
+            "still in the functional's invariance group (is G_sd the ghost 0?)."
         )
 
 

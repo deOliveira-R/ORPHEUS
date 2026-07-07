@@ -840,7 +840,7 @@ class SNMesh(MaterialMesh):
         :attr:`starting_direction_levels` is empty (absence is spelled
         ``None``, never a zero-DOF space). Cached: one space per mesh,
         so every leaf of every role shares the same instance (the
-        layout + ghost-metric single source).
+        layout + state-metric single source).
         """
         levels = self.starting_direction_levels
         if not levels:
@@ -850,7 +850,12 @@ class SNMesh(MaterialMesh):
         )
 
         return StartingDirectionSpace.for_levels(
-            levels, ng=self.ng, nx=int(self.spatial_shape[0]),
+            levels,
+            ng=self.ng,
+            nx=int(self.spatial_shape[0]),
+            # G_sd = V_cell — the same radial cell-volume measure the bulk
+            # metric G_bulk = V_cell·w_n reads (full_field_space below).
+            cell_volumes=np.asarray(self.volumes, dtype=float).ravel(),
         )
 
     @cached_property
@@ -874,10 +879,13 @@ class SNMesh(MaterialMesh):
           partial-current surface metric already carried by
           :attr:`angular_trace`;
         * **starting-direction** (present iff the mesh carries R12a seed
-          levels — the sphere): :math:`G_{\rm sd} = 0` identically — the
-          ghost metric of :attr:`starting_direction_space` (the μ = ±1
-          rays carry zero quadrature measure; see the space's module
-          docstring for the Mode-12 honest-scope note).
+          levels — the sphere): :math:`G_{\rm sd} = V_{\rm cell}` — the
+          SPD radial cell-volume **state metric** of
+          :attr:`starting_direction_space` (ψ½ is a first-class radial
+          state field: the same spatial measure as the bulk, restricted
+          to the μ = ±1 ray, without the angular factor :math:`w_n`). See
+          the space's module docstring for the derivation and the
+          Mode-12 closure.
 
         The bulk/trace factors carry :math:`w_n`; they differ only in the
         spatial measure (cell volume vs. oriented face). Cached: the

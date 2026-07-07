@@ -10801,7 +10801,7 @@ Route (a) — the direct starting-direction ψ½ solve (Issue #282)
    *non-direct* inverse.  Route (a) promotes the starting-direction flux
    :math:`\psi_{1/2}` to **first-class typed state** (the
    :class:`~orpheus.transport.fields._bases.StartingDirectionField` role
-   family on a ghost-metric
+   family on a :math:`V_{\rm cell}`-state-metric
    :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`)
    and marches it **directly** from the true within-group source
    :math:`\bar q_{1/2}` through the Hébert §3.9.4
@@ -10997,20 +10997,75 @@ composite torsor algebra (flux, source/sink, displacement, residual):
      - the seed block of the typed residual :math:`r = A\psi - q`
      - :func:`~orpheus.sn.solver.evaluate_residual` (2.5d d3)
 
-**The ghost metric.**  Every inner-product weight of
-:math:`V_{\rm sd}` is **exactly zero**.  The angular through-flux factor
-:math:`(1-\mu^2)` vanishes at :math:`\mu = \pm 1` — the *same* structural
-fact as the :math:`\alpha`-dome endpoints
-:math:`\alpha_{1/2} = \alpha_{N+1/2} = 0` — so the starting-direction
-rays carry **zero quadrature measure**.  A nonzero weight would be a
-fabricated volume.  The metric is therefore inherited unmodified from
-:class:`~orpheus.numerics.space.FunctionSpace` with an all-zero weight
-vector: :meth:`~orpheus.numerics.space.FunctionSpace.apply_metric`
-zeroes the block,
-:meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric` is the
-masked Moore–Penrose pseudo-inverse (zero on the whole block), and the
-block contributes exactly ``0.0`` to the composite inner product.  This zero measure has a sharp V&V
-consequence — see :ref:`sn-282-gotchas` (Mode 12).
+**The state metric.**  The inner-product weight of :math:`V_{\rm sd}`
+is the SPD **state metric** :math:`G_{\rm sd} = V_{\rm cell}` — the
+radial cell-volume measure, mirroring the bulk metric
+:math:`G_{\rm bulk} = V_{\rm cell}\,w_n` (the SAME spatial measure,
+restricted to the single :math:`\mu = \pm 1` ray, without the angular
+factor :math:`w_n`).  ψ½ is a **first-class radial state field**, not a
+face trace: its operator self-block :math:`A_{\rm ss}` is a *banded
+radial transport operator* :math:`\mu\,\partial_r + \sigma_t` (Hébert
+Eqs. 3.434–3.435), so — like any state — its Hilbert metric is set by its
+**operator role**, not by an integration weight.
+
+Three pole-vanishing quantities were historically conflated into one
+"ghost" zero; keep them apart — only the operator coefficient is zero:
+
+.. list-table:: The three pole-vanishing quantities at :math:`\mu = \pm 1`
+   :header-rows: 1
+   :widths: 8 34 58
+
+   * - Tag
+     - Quantity
+     - Where it lives / what it governs
+   * - **M1**
+     - moment / output weight :math:`= 0`
+     - the *open* Gauss–Legendre rule has **no node** at the pole, so ψ½
+       carries zero weight in :math:`\phi = \sum_n w_n\psi_n` — it lives
+       in the **moment reducer** and correctly excludes ψ½ from the
+       scalar flux.
+   * - **M2**
+     - angular through-flux coefficient
+       :math:`(1-\mu^2)\big|_{\mu=\pm 1} = 0` (the :math:`\alpha`-dome
+       endpoints :math:`\alpha_{1/2} = \alpha_{N+1/2} = 0`)
+     - an **operator coefficient inside** :math:`A` — the
+       angular-redistribution strength that makes the pole a straight
+       characteristic (:eq:`sn-282-pole-straight-characteristic`).
+       Correctly zero.
+   * - **M3**
+     - **state metric** :math:`G_{\rm sd} = V_{\rm cell} \neq 0`
+     - *this block's* inner product — governs the G-adjoint reciprocity
+       :math:`\langle A\psi,\chi\rangle_G =
+       \langle\psi, A^{\dagger}\chi\rangle_G`.
+
+The retired **"ghost metric" bug** installed **M2** (an operator
+coefficient) as **M3** (the state metric): it read the angular
+through-flux weight :math:`(1-\mu^2)|_{\rm pole} = 0` as the Hilbert
+metric and set :math:`G_{\rm sd} \equiv 0`.  Because
+:meth:`~orpheus.numerics.operator.SupportsAdjoint.apply_transpose` is the
+*exact* Euclidean transpose (:math:`\lVert T - A^{\mathsf T}\rVert =
+3.6\times10^{-16}`), the relation :math:`A^{\mathsf T}G = G A^{\dagger}`
+behind :math:`A^{\dagger} = G^{-1}A^{\mathsf T}G` holds for **every** SPD
+:math:`G_{\rm sd}` (the reciprocity is gauge-free among SPD choices), and
+:math:`0` is the **one forbidden value** — it puts the seed rows in
+:math:`\ker G`, severing the seed :math:`\to` bulk coupling
+:math:`A_{\rm bs}` from :math:`A^{\dagger}` (a wrong adjoint the instant
+the seed carries data — a production reciprocity defect of
+:math:`1.3\times10^{-2}`, green only on a present-but-zero seed).  We
+gauge-fix to :math:`V_{\rm cell}` (dropping the angular :math:`w` — a
+single :math:`\mu=\pm 1` ray has no canonical quadrature weight) so the
+adjoint's seed block is the physical **backward radial march** and all
+bulk/trace observables (:math:`\phi^{\dagger}`, adjoint reaction rates)
+are bitwise **gauge-invariant** (the block-upper-triangular
+:math:`A^{\dagger}` seats the seed at the top, so only
+:math:`\phi^{\dagger}_{\rm seed}` moves with the gauge).  Consequently
+:meth:`~orpheus.numerics.space.FunctionSpace.apply_metric` **scales** the
+block by :math:`V_{\rm cell}`, its inverse **divides** (empty null
+space), and the block contributes :math:`\sum V_{\rm cell}\,x\,y` to the
+composite inner product.  This closes a sharp V&V gap — see
+:ref:`sn-282-gotchas` (Mode 12, ERR-067).  The gauge derivation of record
+is
+``.claude/agent-memory/numerics-investigator/starting_direction_metric_gauge_derivation.md``.
 
 .. (vv-status rationale) Structural / representational identity: the
 .. named-field-typed decomposition of the augmented within-group phase
@@ -11019,66 +11074,92 @@ consequence — see :ref:`sn-282-gotchas` (Mode 12).
 .. arithmetic (Field Layer-1 gate) + the §16.A carrier gates.
 .. vv-status: sn-282-augmented-composite documented
 
-.. _sn-282-ghost-metric-face:
+.. _sn-282-pole-state-metric:
 
-The ghost metric is the μ = ±1 angular face at full grazing
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The through-flux coefficient is not the state metric
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The all-zero seed metric introduced above is not an ad-hoc convenience —
-it is the **angular** instance of the *same* face measure that gives the
-spatial boundary trace its metric.  A codim-1 face carries one physically
-meaningful weight: the **normal component of the streaming flux through
-the face**, which vanishes exactly when the characteristic runs *tangent*
-to the face.  Two faces, one measure:
+The M1/M2/M3 table above turns on one structural fact worth spelling out,
+because getting it wrong is exactly what produced the retired ghost
+metric.  A codim-1 face carries a **through-flux** coefficient (M2) — the
+normal component of the streaming flux across the face, which vanishes
+when the characteristic runs *tangent* to it.  Both codim-1 traces have
+one, and for one of them the through-flux coincides with the state
+metric while for the other it does not:
 
-.. list-table:: One face measure, two codim-1 traces
+.. list-table:: The through-flux coefficient (M2) is an OPERATOR coefficient on both faces
    :header-rows: 1
-   :widths: 30 34 36
+   :widths: 26 22 28 24
 
    * - Codim-1 face
-     - Face weight :math:`\propto` normal streaming
+     - Through-flux M2
      - Vanishes when…
+     - State metric M3
    * - **spatial** :math:`r`-face — the boundary trace
        (:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`)
      - :math:`\lvert\Omega\cdot n\rvert\,w`
-     - :math:`\Omega` is **tangent to the surface**
+     - :math:`\Omega` is **tangent** to the surface
        (:math:`\lvert\Omega\cdot n\rvert = 0`, grazing incidence)
+     - **equals** the through-flux
+       :math:`\lvert\Omega\cdot n\rvert\,w`
    * - **angular** :math:`\mu = \pm 1` edge — the ψ½ seed
        (:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`)
-     - :math:`(1-\mu^2)\,w`
+     - :math:`(1-\mu^2)\,w = 0`
      - the ray is a **straight characteristic**
        (:math:`(1-\mu^2) = 0`, the pole)
+     - :math:`V_{\rm cell}` (radial cell volume) — **NOT** the
+       through-flux
 
-The pole's :math:`(1-\mu^2)\,w \equiv 0` is therefore the *exact analog*
-of a spatial face at grazing incidence :math:`\lvert\Omega\cdot n\rvert =
-0`: the :math:`\mu = \pm 1` angular face is **entirely grazing**, so no
-flux streams *across* it and its through-flux measure is identically
-zero.  The zero weight is thus **structural, not fabricated** — a nonzero
-weight would invent a volume the geometry does not have.  Naming this one
-face measure once is the substrate direction taken up on the loss-operator
-page (:ref:`loss-rep-facefield-codim1`), where it collapses the two
-current constructions (:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
-builds :math:`\lvert\Omega\cdot n\rvert`;
-:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`
-hard-codes zeros) into one function.
+For the pole, :math:`(1-\mu^2)\,w \equiv 0` correctly captures the M2
+through-flux: the :math:`\mu = \pm 1` angular face is *entirely grazing*,
+so no flux streams *across* it.  That is the straight-characteristic
+physics of :eq:`sn-282-pole-straight-characteristic`, and it is exactly
+why the augmented operator is triangular.  **What is wrong is reading that
+through-flux coefficient as the block's Hilbert STATE metric.**
+
+The through-flux coefficient equals the state metric only when the face's
+**operator self-block is trivial**.  The spatial trace's self-block
+:math:`A_{\rm tt}` is a pure restriction / reflection map (measured
+off-diagonal norm :math:`\approx 2` on a 6-cell sphere, diagonal in
+:math:`[-1, 1]` — no interior dynamics), so there the through-flux, the
+state metric, and the partial current all coincide.  The pole's
+self-block :math:`A_{\rm ss}` is a **banded radial transport operator**
+:math:`\mu\,\partial_r + \sigma_t` (off-diagonal norm :math:`\approx 71`,
+about :math:`35\times` the trace's, diagonal in :math:`[-1, 3.65]`) with
+genuine interior radial dynamics — so its through-flux (:math:`0`) and its
+state metric (:math:`V_{\rm cell}`) are *different objects*.  Installing
+the M2 through-flux as the M3 state metric is a **category error** — an
+operator coefficient placed where the inner product belongs — and that is
+precisely the retired ghost :math:`G_{\rm sd} \equiv 0`.  The state metric
+is the radial cell volume :math:`V_{\rm cell}` (derived, gauged, and
+V&V-consequential above).
 
 .. important::
 
-   **There are two different pole measures; do not conflate them.**  The
-   ghost metric is the *through-flux / redistribution* measure — the one
-   the operator's angular-derivative term and the block's inner product
-   use.  It is **not** the *scalar-flux moment* measure
-   :math:`\int\psi\,d\mu`, for which the poles are perfectly ordinary
-   endpoints of a 1-D integral.  Under the sphere's *open* Gauss–Legendre
-   rule (:ref:`sn-282-circle-vs-interval`) the pole has **no interior
-   node**, so it contributes zero *moment* weight and the seed is a pure
-   auxiliary DOF.  Under a pole-*including* rule (Gauss–Lobatto,
-   :ref:`sn-282-lobatto-study`) the
-   pole would carry a genuine nonzero *moment* weight while its
-   *through-flux* weight :math:`(1-\mu^2)` stays exactly zero.  The two
-   measures answer two different questions — "how much streams *across*
-   this face" (zero at the pole, always) versus "how much does this ray
-   contribute to :math:`\phi = \int\psi\,d\mu`" (rule-dependent).
+   **Three measures at the pole; do not conflate them.**  M1, M2, M3 (the
+   first table) answer three different questions, and only the operator
+   coefficient M2 is zero:
+
+   * **M1 — the scalar-flux moment** :math:`\int\psi\,d\mu`: "how much
+     does this ray contribute to :math:`\phi`?"  *Rule-dependent* — under
+     the sphere's *open* Gauss–Legendre rule
+     (:ref:`sn-282-circle-vs-interval`) the pole has **no interior node**,
+     so its moment weight is zero and the seed is a pure auxiliary DOF;
+     under a pole-*including* rule (Gauss–Lobatto,
+     :ref:`sn-282-lobatto-study`) it would carry a genuine nonzero moment
+     weight.
+   * **M2 — the angular through-flux** :math:`(1-\mu^2)`: "how much
+     streams *across* this angular face?"  Zero at the pole **always**
+     (independent of the quadrature) — an operator coefficient, never a
+     state metric.
+   * **M3 — the state metric** :math:`G_{\rm sd} = V_{\rm cell}`: "what
+     is the inner product on the ψ½ state?"  Nonzero **always** — set by
+     the operator role.
+
+   The retired bug conflated **M2 with M3** (an operator coefficient read
+   as the Hilbert metric).  The moment-vs-through-flux distinction (**M1
+   vs M2**) is a *separate* trap — both are quadrature/operator facts, and
+   neither is the state metric.
 
 The walk triple — solve marches, apply reads, transpose reverses
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -11503,7 +11584,8 @@ The acceptance gates live in
 :file:`tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py`
 (the §16.C fixed-point classifiers); every gate measures the **full
 augmented field** (bulk ⊕ trace ⊕ seed), because a bulk-only norm would
-be seed-blind (Mode 12, below).
+be blind to any seed error (a Mode-12 functional-invariance point,
+independent of the metric closure in the gotcha below).
 
 .. list-table:: #282 route-(a) acceptance evidence
    :header-rows: 1
@@ -11543,7 +11625,8 @@ a wrap-sentinel confirms the sphere cold solve *executes*
 :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
 while the slab does **not** (no carrying levels); **Mode 10** — zeroing
 the q½ source block **moves** the sphere solve (the carrier is not inert);
-**Mode 12** — see the gotcha below.
+**Mode 12** — with the :math:`V_{\rm cell}` state metric the G-reciprocity
+gate now *catches* a seed-row flip (the closure, ERR-067; gotcha below).
 
 The eigenvalue re-pose — an N-sweep, not h→0
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -11618,20 +11701,36 @@ point, and the retirement of the strategy zoo had to keep the
 non-carrying data flow **byte-identical** to the pre-2.5d path — a
 diverging cylinder solve would trip the §16.D cylinder-unmoved baseline.
 
-**G-reciprocity is identically blind to the seed rows (Mode 12) — never
-credit it as the seed catcher.**  The seed block is zero-weight (the ghost
-metric), so its rows lie inside the metric-weighted G-adjoint reciprocity
-functional's **invariance group**: a gross sign flip on *every* seed row
-leaves :math:`\langle A\psi,\chi\rangle_G = \langle\psi, A^{\dagger}\chi\rangle_G`
-**exactly** unchanged, at every tolerance, in every regime (the A4
-positive pin,
-``test_mode12_g_reciprocity_is_blind_to_a_seed_row_flip``).  The catcher
-is the **object-level** C(i) cold residual (forward) and the 2.5b
-Euclidean :math:`M^{\mathsf T}` oracle (transpose) — a functional
-**outside** the stabiliser — never the invariant reciprocity gate.  This
-is the canonical lesson that a zero-measure state block needs an
-object-level, not a spectral/energy-functional, verification (pin the
-object, not just its invariants).
+**G-reciprocity catches a seed-row error (Mode 12 — CLOSED, ERR-067).**
+Under the *retired* **ghost** :math:`G_{\rm sd} = 0` the seed block
+carried zero metric weight, so its rows lay **inside** the
+metric-weighted G-adjoint reciprocity functional's **invariance group**:
+a sign flip on the seed rows left
+:math:`\langle A\psi,\chi\rangle_G = \langle\psi, A^{\dagger}\chi\rangle_G`
+**exactly** unchanged, at every tolerance, in every regime — a false
+green (the classic Mode-12 instance).  The state metric
+:math:`G_{\rm sd} = V_{\rm cell}` moves the seed rows **out** of that
+invariance group.  With a nonzero ψ½ seed, a seed-row
+(:math:`A_{\rm ss}`) sign flip on the forward operator — but not on
+:math:`A^{\dagger}`'s independently-coded reverse mode — perturbs
+:math:`\langle A\psi,\chi\rangle_G` by
+:math:`\sum V_{\rm cell}\,(A_{\rm ss}\psi_{\rm seed})\,\chi_{\rm seed}`
+that the unflipped adjoint cannot match, so **reciprocity now REDs** (the
+Mode-12-closure gate
+``test_mode12_g_reciprocity_catches_a_seed_row_flip``).  The gate carries
+**both legs**: a control leg — the *unmutated* nonzero-seed reciprocity
+holds :math:`< 10^{-12}`, proving the baseline is the honest
+:math:`V_{\rm cell}` adjoint, so the mutated RED is attributable to the
+flip (a reverted ghost :math:`G_{\rm sd} = 0` would *also* leave a defect
+:math:`\approx 0.107`, a broken baseline mimicking "caught") — and the
+mutated leg (:math:`> 10^{-6}`).  This metric-level catch **complements**,
+and does not replace, the **object-level** pins that fix the seed
+*coefficients*: the C(i) cold residual (forward) and the 2.5b Euclidean
+:math:`M^{\mathsf T}` oracle (transpose).  The lesson stands, now
+positively — a Mode-12 blindness closes either by gating the object OR by
+repairing the functional's **metric** so the error class leaves its
+invariance group; here the metric *was itself the bug*, so the correctness
+fix and the Mode-12 closure are one and the same.
 
 
 

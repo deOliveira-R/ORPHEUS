@@ -21,21 +21,25 @@ weight ``τ_raw ∈ (0, 1)`` exclusive — supersedes both the R12 letter's
   composite operation (additive source algebra; the flux torsor triple
   ``ψ⊖ψ → Δ`` / ``ψ⊕Δ → ψ`` / ``ψ+ψ → ⊥``; mixed presence raises —
   the anti-silent-drop law; ``advance`` presence law; ``copy``).
-* **A4** — the ghost-metric HONEST-SCOPE gates: all seed weights are
-  exactly zero, ``apply_metric`` / ``apply_inverse_metric`` zero the
-  block while leaving bulk/trace bit-identical to the unseeded twin,
-  and ``inner_product`` receives EXACTLY zero seed contribution.
+* **A4** — the STATE-METRIC gates (INVERTED from the former
+  ghost-metric scope): the seed weights ARE ``G_sd = V_cell`` (SPD),
+  ``apply_metric`` SCALES the block by ``V_cell`` and
+  ``apply_inverse_metric`` DIVIDES by it (no masking — empty null
+  space) while leaving bulk/trace bit-identical to the unseeded twin,
+  and ``inner_product`` receives a NONZERO ``Σ V_cell·x·y`` seed term.
 
-.. note:: **A4's positive Mode-12 pin is deferred to d3** (gate spec
-   §16.A A4 final leg): the "sign-flip the seed-row transpose → G3
-   reciprocity STAYS GREEN while the C(i) round-trip REDS" asymmetry
-   proof needs a transpose that READS the block — that lands with the
-   d3 walk triple. Until then the blindness is documented here and on
-   :mod:`orpheus.numerics.spaces.starting_direction_space`: the zero
-   G-weight puts the seed rows inside the reciprocity functional's
-   invariance group — G3 can NEVER be credited for seed-row
-   correctness (the catchers are §16.B B1, §16.C C(i), and 2.5b's
-   Euclidean :math:`M^{\mathsf T}` oracle).
+.. note:: **Mode-12 is CLOSED for the seed rows.** The ghost
+   ``G_sd = 0`` put the seed rows inside the G-reciprocity functional's
+   invariance group (identically blind to a seed-row transpose error —
+   the false-green this A4 class used to pin); the ``G_sd = V_cell``
+   fix moves them OUT of it. The Mode-12-CLOSURE gate — a seed-row flip
+   now REDS G-reciprocity while the UNMUTATED nonzero-seed reciprocity
+   holds — lives at
+   :func:`tests.sn.sweep.curvilinear.test_282_direct_seed_fixed_point.test_mode12_g_reciprocity_catches_a_seed_row_flip`
+   (production path) and the promoted ``diag_gsd_02`` dense sweep
+   (canonical). See the derivation-of-record
+   ``starting_direction_metric_gauge_derivation.md`` and
+   :mod:`orpheus.numerics.spaces.starting_direction_space`.
 
 vv Mode-8 discipline: ``np.testing.assert_*`` / ``pytest.raises`` only
 (no bare ``assert`` on numerical claims — the canonical invocation is
@@ -272,9 +276,17 @@ class TestA1PresenceR12a:
             space.corner_view(buf, 0, 0)
 
     def test_empty_levels_space_unrepresentable(self):
-        """Absence is spelled None, never a zero-DOF phantom space."""
+        """Absence is spelled None, never a zero-DOF phantom space.
+
+        ``cell_volumes`` is now a REQUIRED kwarg (the state metric G_sd =
+        V_cell), but irrelevant here — the empty-``levels`` guard fires
+        first; a valid dummy keeps the call well-formed so the ValueError
+        (not a TypeError from the missing kwarg) is what we pin.
+        """
         with pytest.raises(ValueError, match="levels is empty"):
-            StartingDirectionSpace.for_levels((), ng=2, nx=4)
+            StartingDirectionSpace.for_levels(
+                (), ng=2, nx=4, cell_volumes=np.ones(4),
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -468,20 +480,50 @@ class TestA3AlgebraClosure:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestA4GhostMetricHonestScope:
-    def test_all_seed_weights_exactly_zero(self):
+class TestA4SeedStateMetricVcell:
+    r"""A4 (INVERTED) — the ψ½ STATE metric is ``G_sd = V_cell`` (SPD), NOT
+    the ghost zero.  The starting-direction ray is a first-class radial STATE
+    field (its self-block ``A_ss`` is a banded radial transport operator, not
+    a grazing angular face — diag_gsd_05), so its Hilbert metric is the radial
+    cell volume, mirroring the bulk ``G_bulk = V_cell·w_n``.  The ghost
+    ``G_sd = 0`` was the single FORBIDDEN value: it puts the seed in null(G),
+    severing the seed→bulk ``A_bs`` coupling from ``A.H`` — a WRONG adjoint
+    for any nonzero seed (production defect 1.3e-2; derivation-of-record +
+    diag_gsd_02/03).  These four gates were the green-but-blind ghost gates;
+    inverted to the V_cell reality.
+
+    Object-level (vv Mode-12): assert on the weight ARRAY and the scaled
+    block values directly — NEVER via a downstream scalar (a scalar
+    functional can lie in the metric's invariance group).
+    """
+
+    def test_seed_weights_are_v_cell_spd(self):
+        r"""The state metric IS ``V_cell``: every ``(level, sign)`` leg's
+        cells == ``V_cell`` (group-broadcast), corner == ``V[-1]`` (the gauge
+        slot); strictly positive (SPD — the ghost 0 is the forbidden value)."""
         sn = _sphere()
         space = sn.starting_direction_space
         assert space is not None
         w = space.inner_product_weights
         if w is None:
-            pytest.fail("the ghost metric must be EXPLICIT zeros, not None "
-                        "(None selects the Euclidean inner product)")
-        np.testing.assert_array_equal(w, 0.0)
+            pytest.fail("the state metric must be EXPLICIT V_cell weights, "
+                        "not None (None selects the Euclidean inner product)")
+        V = np.asarray(sn.volumes, dtype=float).ravel()
+        for p in space.levels:
+            for sign in (-1, +1):
+                np.testing.assert_array_equal(
+                    space.cells_view(w, p, sign),
+                    np.broadcast_to(V, (space.ng, space.nx)),
+                )
+                np.testing.assert_array_equal(space.corner_view(w, p, sign), V[-1])
+        if not np.all(w > 0.0):
+            pytest.fail(f"state metric must be SPD (strictly positive); got "
+                        f"min {float(w.min()):.3e} — the forbidden ghost value")
 
-    def test_apply_metric_zeroes_seed_and_matches_unseeded_twin(self):
-        """G⊙x zeroes the ψ½ block; bulk/trace are BIT-IDENTICAL to the
-        unseeded twin's — the seed changes nothing outside its block."""
+    def test_apply_metric_scales_seed_by_v_cell_and_leaves_bulk_trace(self):
+        r"""``G⊙x`` SCALES the ψ½ block by ``V_cell`` (not zero); bulk/trace
+        stay BIT-IDENTICAL to the unseeded twin's (the metric is
+        block-diagonal — the seed block changes nothing outside itself)."""
         sn = _sphere()
         ffs = sn.full_field_space
         x = _seeded_flux_composite(sn, 51)
@@ -489,35 +531,65 @@ class TestA4GhostMetricHonestScope:
         gx = ffs.apply_metric(x)
         g_twin = ffs.apply_metric(twin)
         assert gx.starting_direction is not None
-        np.testing.assert_array_equal(gx.starting_direction.values, 0.0)
+        w = sn.starting_direction_space.inner_product_weights
+        np.testing.assert_array_equal(
+            gx.starting_direction.values, w * x.starting_direction.values,
+        )
+        if not np.any(gx.starting_direction.values != 0.0):
+            pytest.fail("G⊙x zeroed the seed block — the ghost metric lives")
         np.testing.assert_array_equal(gx.bulk.values, g_twin.bulk.values)
         np.testing.assert_array_equal(gx.boundary.values, g_twin.boundary.values)
 
-    def test_apply_inverse_metric_masked_zero_on_seed(self):
-        """The Moore–Penrose masked inverse: the whole seed block is metric
-        null space — zeroed, never divided."""
+    def test_apply_inverse_metric_divides_seed_by_v_cell(self):
+        r"""``G⁺⊙x`` DIVIDES the ψ½ block by ``V_cell`` (no masking — the SPD
+        metric has empty null space); the round-trip ``G⁺(G⊙x) = x`` holds on
+        the seed (inverted from the ghost's masked-zero whole-block)."""
         sn = _sphere()
         ffs = sn.full_field_space
         x = _seeded_flux_composite(sn, 52)
-        gx = ffs.apply_inverse_metric(x)
-        assert gx.starting_direction is not None
-        np.testing.assert_array_equal(gx.starting_direction.values, 0.0)
-        if not np.all(np.isfinite(gx.to_flat())):
-            pytest.fail("masked pseudo-inverse must never divide by the "
-                        "zero seed weights")
+        w = sn.starting_direction_space.inner_product_weights
+        ginv_x = ffs.apply_inverse_metric(x)
+        assert ginv_x.starting_direction is not None
+        np.testing.assert_array_equal(
+            ginv_x.starting_direction.values, x.starting_direction.values / w,
+        )
+        if not np.all(np.isfinite(ginv_x.to_flat())):
+            pytest.fail("inverse metric produced non-finite values")
+        round_trip = ffs.apply_inverse_metric(ffs.apply_metric(x))
+        assert round_trip.starting_direction is not None
+        np.testing.assert_allclose(
+            round_trip.starting_direction.values,
+            x.starting_direction.values, rtol=0.0, atol=1e-14,
+        )
 
-    def test_inner_product_seed_contribution_exactly_zero(self):
-        """⟨x, y⟩_G is UNCHANGED by arbitrary seed values — the Mode-12
-        blindness mechanism, asserted as an exact identity."""
+    def test_inner_product_seed_contribution_is_v_cell_weighted(self):
+        r"""``⟨x,y⟩_G`` now CHANGES with the seed values (inverted from the
+        ghost's seed-blindness): the seed term = ``Σ V_cell·x_seed·y_seed``,
+        NONZERO for a nonzero seed — the Mode-12 CLOSURE mechanism (the seed
+        rows carry metric weight, so a seed-transpose error is visible)."""
         sn = _sphere()
         ffs = sn.full_field_space
         x = _seeded_flux_composite(sn, 53)
         y = _seeded_flux_composite(sn, 54)
         x_twin = FullField(bulk=x.bulk, boundary=x.boundary)
         y_twin = FullField(bulk=y.bulk, boundary=y.boundary)
-        np.testing.assert_array_equal(
-            ffs.inner_product(x, y), ffs.inner_product(x_twin, y_twin),
+        w = np.asarray(
+            sn.starting_direction_space.inner_product_weights, dtype=float,
         )
+        assert x.starting_direction is not None and y.starting_direction is not None
+        seed_term = float(np.sum(
+            w * x.starting_direction.values * y.starting_direction.values
+        ))
+        full = ffs.inner_product(x, y)
+        bulk_trace = ffs.inner_product(x_twin, y_twin)
+        # the composite routes EXACTLY the V_cell-weighted seed term into
+        # the total (inverted from "seed contributes 0"):
+        np.testing.assert_allclose(
+            full - bulk_trace, seed_term, rtol=1e-11, atol=1e-12,
+        )
+        if abs(seed_term) < 1e-9:
+            pytest.fail(f"seed inner-product term ~0 ({seed_term:.2e}) — the "
+                        f"ghost metric lives (expected Σ V_cell·x·y ≠ 0)")
 
     def test_inner_product_mixed_presence_raises(self):
         sn = _sphere()

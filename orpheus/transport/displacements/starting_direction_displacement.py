@@ -35,8 +35,8 @@ class StartingDirectionDisplacement(Displacement, StartingDirectionField):
 
     Like every displacement leaf it shares its flux sibling's space
     (the tangent vector lives in the flux's own function space — here
-    the all-zero ghost metric rides along); the CLASS identity is the
-    role gate.
+    the SPD ``G_sd = V_cell`` state metric rides along); the CLASS
+    identity is the role gate.
     """
 
     #: Same units as :class:`StartingDirectionFlux` (``1/(cm²·s·sr)`` —

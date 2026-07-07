@@ -1,4 +1,4 @@
-r"""The starting-direction space — per-level ψ½ carrier with the ghost metric.
+r"""The starting-direction space — per-level ψ½ carrier with the V_cell state metric.
 
 The function space of the **starting-direction block** of the augmented
 transport composite :math:`V = V_{\rm bulk} \oplus V_{\rm trace} \oplus
@@ -63,33 +63,99 @@ views into the flat buffer, no copies (the exact
 :class:`~orpheus.numerics.face_layout.FaceLayout` discipline, with the
 ``(level, sign)`` key typed instead of stringly).
 
-The ghost metric — ALL weights zero (structural, not fabricated)
+The state metric — radial cell volume :math:`V_{\rm cell}` (SPD)
 ================================================================
 
-Every inner-product weight of this space is **exactly zero**: the
-angular through-flux factor :math:`(1-\mu^2)` vanishes at
-:math:`\mu = \pm 1` — the SAME structural fact as the α-dome endpoints
-:math:`\alpha_{1/2} = \alpha_{N+1/2} = 0`. The starting-direction rays
-carry zero quadrature measure; a nonzero weight would be a fabricated
-volume. Consequences (all inherited from
-:class:`~orpheus.numerics.space.FunctionSpace` with zero weights — no
-overrides):
+The inner-product weight of this space is the **state metric**
+:math:`G_{\rm sd} = V_{\rm cell}` — the radial cell-volume measure,
+strictly positive and therefore symmetric positive-definite (SPD),
+group-broadcast across the cells and gauge-extended to the corners. It
+mirrors the bulk metric :math:`G_{\rm bulk} = V_{\rm cell}\,w_n`: the
+SAME spatial measure, restricted to the single :math:`\mu = \pm 1` ray
+(the angular factor :math:`w` is dropped — see the gauge argument).
 
-* :meth:`~orpheus.numerics.space.FunctionSpace.apply_metric` zeroes the
-  block (:math:`G\odot x = 0`);
-* :meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric` is
-  the masked Moore–Penrose pseudo-inverse — zero on the whole block;
-* :meth:`~orpheus.numerics.space.FunctionSpace.inner_product`
-  contributes exactly ``0.0``.
+**ψ½ is a first-class radial STATE field, not a face trace.** Its
+operator self-block :math:`A_{\rm ss}` is a *banded radial transport
+operator* :math:`\mu\,\partial_r + \sigma_t` (Hébert Eqs. 3.434–3.435;
+measured off-diagonal norm :math:`\approx 71` on a 6-cell sphere — a
+genuine interior radial dynamics, unlike the spatial trace's pure
+restriction map). **A state's Hilbert metric is set by its OPERATOR
+ROLE, not by its integration weight** — so ψ½'s metric is the bulk's
+spatial measure, made nonzero by the radial-field volume.
 
-**Honest-scope note (vv-principles Mode 12, gate spec §16.A A4):** the
-zero weight puts the seed rows inside the G-adjoint reciprocity
-functional's invariance group — the G3 reciprocity gate is IDENTICALLY
-blind to any error in the seed-row transpose, at every tolerance, in
-every regime. The seed rows are metric-invisible YET ACTIVE; they are
-constrained by the §16.B direct-solver closed-form pin, the §16.C
-solve∘apply residual over the FULL augmented field, and 2.5b's
-Euclidean :math:`M^{\mathsf T}` oracle — NEVER by G3.
+Three pole-vanishing quantities, historically conflated — keep them apart:
+
+* **M1 — the moment / output weight** :math:`= 0`. The *open*
+  Gauss–Legendre rule has no node at the pole, so ψ½ carries zero weight
+  in the scalar-flux moment :math:`\phi = \sum_n w_n\psi_n`. This
+  correctly *excludes* ψ½ from the flux; it lives in the moment reducer,
+  not in this space.
+* **M2 — the angular through-flux coefficient**
+  :math:`(1-\mu^2)\big|_{\mu=\pm 1} = 0` (the α-dome endpoints
+  :math:`\alpha_{1/2} = \alpha_{N+1/2} = 0`). This is an **operator
+  coefficient** *inside* :math:`A` — the strength of the
+  angular-derivative redistribution term — governing the
+  straight-characteristic / triangular structure. Correctly zero, and it
+  lives in the operator, not in the state inner product.
+* **M3 — the state metric** :math:`G_{\rm sd} = V_{\rm cell} \neq 0`.
+  *This space's* inner product; it governs the G-adjoint reciprocity
+  :math:`\langle A\psi,\chi\rangle_G = \langle\psi, A^\dagger\chi\rangle_G`.
+
+The retired **"ghost metric" bug** installed **M2** (an operator
+coefficient) as **M3** (the state metric): it read the angular
+through-flux weight :math:`(1-\mu^2)|_{\rm pole} = 0` as the Hilbert
+metric and set :math:`G_{\rm sd} \equiv 0`.
+
+**Why 0 is the one forbidden value, and why** :math:`V_{\rm cell}`.
+Because :meth:`~orpheus.numerics.operator.SupportsAdjoint.apply_transpose`
+is the *exact* Euclidean transpose (:math:`T = A^{\mathsf T}`, measured
+:math:`\lVert T - A^{\mathsf T}\rVert = 3.6\times10^{-16}`), the
+determining relation :math:`A^{\mathsf T}G = G A^\dagger` behind
+:math:`A^\dagger = G^{-1}A^{\mathsf T}G` holds for **every** SPD
+:math:`G_{\rm sd}` — the reciprocity is gauge-free among SPD choices, so
+the metric is fixed only up to an SPD gauge. The single **forbidden**
+value is :math:`0`: it puts the seed rows in :math:`\ker G`, which
+severs the seed → bulk coupling :math:`A_{\rm bs}` from
+:math:`A^\dagger = G^{-1}A^{\mathsf T}G` (the adjoint's seed block goes
+identically zero). The shipped :math:`G_{\rm sd} = 0` was therefore a
+**wrong adjoint the instant the seed carries data** — a production
+reciprocity defect of :math:`1.3\times10^{-2}`, green only because the
+gate fed a present-but-zero seed. We gauge-fix to
+:math:`G_{\rm sd} = V_{\rm cell}` (dropping :math:`w` — a single
+:math:`\mu=\pm 1` ray has no canonical quadrature weight) so the
+adjoint's seed block is the **physical backward radial march**, and all
+bulk/trace observables (:math:`\phi^\dagger`, adjoint reaction rates)
+are **bitwise gauge-invariant** (the block-upper-triangular
+:math:`A^\dagger` seats the seed at the top, so only
+:math:`\phi^\dagger_{\rm seed}` moves with the gauge). Derivation of
+record:
+``.claude/agent-memory/numerics-investigator/starting_direction_metric_gauge_derivation.md``.
+
+Consequences (inherited from
+:class:`~orpheus.numerics.space.FunctionSpace` with the SPD weight
+vector — no overrides):
+:meth:`~orpheus.numerics.space.FunctionSpace.apply_metric` **scales** the
+block by :math:`V_{\rm cell}`;
+:meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric`
+**divides** by it (no masking — the null space is empty); and
+:meth:`~orpheus.numerics.space.FunctionSpace.inner_product` contributes
+:math:`\sum V_{\rm cell}\,x\,y`.
+
+**vv-principles Mode 12 — CLOSED (ERR-067).** Under the ghost
+:math:`G_{\rm sd} = 0` the seed rows lay inside the G-adjoint
+reciprocity functional's invariance group, so the G3 reciprocity gate
+was *identically blind* to any seed-row transpose error (a false green,
+at every tolerance, in every regime). With
+:math:`G_{\rm sd} = V_{\rm cell}` the seed rows carry metric weight and
+move **out** of that invariance group: a seed-row (:math:`A_{\rm ss}`)
+sign flip now REDs G-reciprocity — the Mode-12-closure gate
+:func:`tests.sn.sweep.curvilinear.test_282_direct_seed_fixed_point.test_mode12_g_reciprocity_catches_a_seed_row_flip`
+— while the unmutated nonzero-seed reciprocity holds
+:math:`< 10^{-12}`. The direct-solver closed-form pin (§16.B), the
+solve∘apply residual over the full augmented field (§16.C), and 2.5b's
+Euclidean :math:`M^{\mathsf T}` oracle pin the seed *coefficients* —
+orthogonal to, and now complemented by, this metric-level reciprocity
+catch.
 
 References
 ==========
@@ -121,15 +187,16 @@ _SIGNS: tuple[int, int] = (-1, +1)
 
 @dataclass(frozen=True)
 class StartingDirectionSpace(FunctionSpace):
-    r"""Flat per-level ψ½ space with typed ``(level, sign)`` views and zero metric.
+    r"""Flat per-level ψ½ space with typed ``(level, sign)`` views and the V_cell metric.
 
     Parameters
     ----------
     name, shape, inner_product_weights
         Inherited from :class:`~orpheus.numerics.space.FunctionSpace`.
         ``name`` is ``"starting_direction"``; ``shape`` is the flat
-        total ``(n_levels · 2 · (ng·nx + ng),)``; the weights are
-        **all-zero** (the ghost metric — see the module docstring).
+        total ``(n_levels · 2 · (ng·nx + ng),)``; the weights are the
+        SPD **state metric** :math:`G_{\rm sd} = V_{\rm cell}` (see the
+        module docstring's "The state metric" section).
         Build via :meth:`for_levels`, never the bare constructor.
     levels : tuple[int, ...]
         The seed-carrying μ-level indices (ascending), as selected by
@@ -166,12 +233,17 @@ class StartingDirectionSpace(FunctionSpace):
 
     @classmethod
     def for_levels(
-        cls, levels: tuple[int, ...], *, ng: int, nx: int,
+        cls,
+        levels: tuple[int, ...],
+        *,
+        ng: int,
+        nx: int,
+        cell_volumes: NDArray,
     ) -> "StartingDirectionSpace":
         r"""Build the space for the given seed-carrying levels.
 
         The ONLY construction path (the bare constructor cannot derive
-        the flat shape or the zero weights). An EMPTY ``levels`` is
+        the flat shape or the state metric). An EMPTY ``levels`` is
         rejected: absence of the block is spelled ``None`` at the
         carrier/mesh layer, never a zero-DOF phantom space.
 
@@ -182,6 +254,12 @@ class StartingDirectionSpace(FunctionSpace):
             canonical layout order; also the DAG order).
         ng, nx : int
             Group / radial-cell counts of the owning mesh.
+        cell_volumes : NDArray, shape ``(nx,)``
+            The radial cell volumes :math:`V_{\rm cell}` of the owning
+            mesh — the state metric :math:`G_{\rm sd} = V_{\rm cell}` (see
+            the module docstring "The state metric" section). The SAME
+            array the bulk metric :math:`G_{\rm bulk} = V_{\rm cell}\,w_n`
+            reads (``SNMesh.full_field_space``).
         """
         levels = tuple(int(p) for p in levels)
         if not levels:
@@ -200,13 +278,45 @@ class StartingDirectionSpace(FunctionSpace):
                 f"StartingDirectionSpace.for_levels: ng and nx must be "
                 f"positive; got ng={ng}, nx={nx}."
             )
+        cell_volumes = np.asarray(cell_volumes, dtype=float)
+        if cell_volumes.shape != (nx,):
+            raise ValueError(
+                f"StartingDirectionSpace.for_levels: cell_volumes must have "
+                f"shape ({nx},) to match nx; got {cell_volumes.shape}."
+            )
+        if np.any(cell_volumes <= 0.0):
+            raise ValueError(
+                "StartingDirectionSpace.for_levels: cell_volumes must be "
+                "strictly positive — the state metric G_sd = V_cell must be "
+                "SPD (a zero weight is the forbidden ghost metric that severs "
+                "the seed from the G-adjoint; see the module docstring)."
+            )
+        # The STATE metric G_sd = V_cell — the radial cell-volume measure.
+        # The pole ray ψ½ is a first-class radial STATE field (its self-block
+        # A_ss is a banded radial transport operator μ∂_r + σ_t — Hébert
+        # 3.434–3.435), so its Hilbert metric is the bulk's spatial measure
+        # restricted to the ray: G_sd = V_cell, mirroring the bulk
+        # G_bulk = V_cell·w_n. The angular factor w is a FREE GAUGE (a single
+        # μ=±1 ray carries no quadrature weight); gauge-fixed to V_cell so
+        # A.H's seed block is the physical backward radial march, and so
+        # bulk/trace observables are bitwise gauge-invariant. This is NOT the
+        # angular through-flux (1−μ²)|_pole = 0 — that is an OPERATOR
+        # coefficient (it correctly excludes ψ½ from the moment φ = Σ w_n ψ_n),
+        # not the state inner product. Setting G_sd = 0 severs the seed→bulk
+        # A_bs coupling from A.H, making it a WRONG adjoint for any nonzero
+        # seed (derivation: [[starting-direction-metric-gauge-derivation]]).
+        per_leg = np.concatenate(
+            [
+                np.tile(cell_volumes, ng),  # cells (ng, nx): V_cell per group
+                np.full(ng, float(cell_volumes[-1])),  # corner (ng,) r=R: V (gauge)
+            ]
+        )
+        metric = np.tile(per_leg, len(levels) * 2)  # every (level, sign) leg
         total = len(levels) * 2 * (ng * nx + ng)
         return cls(
             name="starting_direction",
             shape=(total,),
-            # The ghost metric: every seed DOF carries zero measure —
-            # (1-μ²)|_{μ=±1} = 0, the α_{1/2} = 0 fact (module docstring).
-            inner_product_weights=np.zeros(total),
+            inner_product_weights=metric,
             levels=levels,
             ng=int(ng),
             nx=int(nx),

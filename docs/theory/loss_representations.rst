@@ -2290,11 +2290,16 @@ from the bulk:
   deliberately mirrors the spatial trace's flat-buffer
   :class:`~orpheus.numerics.face_layout.FaceLayout` discipline (typed
   ``(level, sign)`` views in place of ``FaceLabel`` views).
-* **Its metric is the ghost metric** — the entirely-grazing angular face
-  (:math:`(1-\mu^2)\,w \equiv 0`), the exact analog of a spatial face at
-  grazing incidence (:math:`\lvert\Omega\cdot n\rvert = 0`).  The physics
-  of this one face measure is on
-  :ref:`the discrete-ordinates page <sn-282-ghost-metric-face>`.
+* **Its metric is a STATE metric, not the through-flux.**  ψ½ is a
+  first-class radial state field, so its Hilbert metric is the SPD radial
+  cell volume :math:`G_{\rm sd} = V_{\rm cell}` (mirroring the bulk's
+  :math:`V\,w`, restricted to the :math:`\mu = \pm 1` ray).  The
+  through-flux coefficient :math:`(1-\mu^2)|_{\rm pole} = 0` that vanishes
+  at the pole is an *operator coefficient* (the angular-redistribution
+  strength — the straight-characteristic physics), **not** the state
+  metric; conflating the two was the retired "ghost metric" bug
+  (ERR-067).  The full M1/M2/M3 distinction is on
+  :ref:`the discrete-ordinates page <sn-282-pole-state-metric>`.
 * **It is present per level by the R12a predicate**
   (:ref:`sn-282-r12a`; :math:`\tau_{\rm raw} \in (0,1)`), **not** per
   geometry — sphere-GL carries one block; every cylinder and every
@@ -2312,16 +2317,22 @@ object is the Cardinal-Rule-2 choice that keeps the bulk clean; the
 Lobatto study is what makes that separation a *chosen* architecture
 rather than a forced one.
 
-.. admonition:: Design direction — the ``FaceField`` codim-1 duality (PLANNED, not built)
+.. admonition:: Design direction — the structural ``FaceField`` codim-1 parent (PLANNED, not built)
    :class: note
 
    The following is a **design direction**, recorded so a future
    implementation session inherits the reasoning rather than re-deriving
-   it.  It is **not** implemented — no ``FaceField`` type,
-   ``face_streaming_normal`` measure, or ``PhaseSpaceCarrier`` protocol
-   exists yet.  The *current* state is the ``Optional`` block + guards
-   described under the next heading; the durable synthesis is
-   ``.claude/plans/facefield_codim1_design.md`` (§5).
+   it.  Only the **structural** half is planned — no ``FaceField`` ABC or
+   ``PhaseSpaceCarrier`` protocol exists yet.  (The
+   :func:`~orpheus.numerics.face_layout.face_streaming_normal` measure
+   *does* exist, but as the spatial-trace partial-current metric **only**
+   — see the refuted-unification note below.)  The per-leaf **metrics are
+   already correct and LANDED**: the spatial trace carries
+   :math:`\lvert\Omega\cdot n\rvert\,w` and the ψ½ block carries its SPD
+   state metric :math:`G_{\rm sd} = V_{\rm cell}`.  The *current* state is
+   the ``Optional`` block + guards described under the next heading; the
+   durable synthesis is ``.claude/plans/facefield_codim1_design.md`` (§5),
+   read against the ERR-067 metric correction.
 
    **The missing codim-1 parent.**  Today the typed-field hierarchy
    (:mod:`orpheus.transport.fields`) has the spatial-trace family
@@ -2334,25 +2345,33 @@ rather than a forced one.
    parent** they should share::
 
        Field
-       ├── BulkField    — codim-0 (cell centres);  metric = cell/volume measure
-       └── FaceField    — codim-1 (faces/edges);   metric = face_streaming_normal
-            ├── AngularBoundaryField / ScalarBoundaryField  (spatial faces)  |Ω·n|·w
-            └── StartingDirectionField (ψ½)                 (angular edges)   (1−μ²)·w ≡ 0
+       ├── BulkField    — codim-0 (cell centres);  metric = per-leaf  V·w
+       └── FaceField    — codim-1 (faces/edges);   STRUCTURE only (flat layout + presence)
+            ├── AngularBoundaryField / ScalarBoundaryField  (spatial faces)  metric |Ω·n|·w
+            └── StartingDirectionField (ψ½)                 (angular edges)   metric V_cell (SPD)
 
    ``FaceField`` would own the ``FaceLayout`` flat-buffer discipline and
    the presence-invariant **once**, so the face families stop being
-   siblings-by-accident.
+   siblings-by-accident.  It unifies **structure only** — the metric stays
+   per-leaf (next note).
 
-   **One ``face_streaming_normal`` measure.**  The two codim-1 metrics —
-   the spatial trace's :math:`\lvert\Omega\cdot n\rvert\,w` and the pole
-   seed's :math:`(1-\mu^2)\,w` — are instances of *one* function: the
-   normal streaming flux through a face, which vanishes when the
-   characteristic is tangent to it (:ref:`sn-282-ghost-metric-face`).  A
-   single ``face_streaming_normal`` would reproduce both — the falsifiable
-   substrate win being that one function yields ``G_trace == |Ω·n|·w``
-   *and* ``G_sd == 0`` at 0 ULP — retiring the two current constructions
-   (``AngularTraceSpace`` builds :math:`\lvert\Omega\cdot n\rvert`;
-   ``StartingDirectionSpace`` hard-codes zeros).
+   **The metric does NOT unify — it is per-leaf (refuted unification,
+   ERR-067).**  An earlier draft proposed collapsing both codim-1 metrics
+   into one ``face_streaming_normal`` kernel, reading the pole's angular
+   through-flux coefficient :math:`(1-\mu^2)|_{\rm pole} = 0` as the ψ½
+   block's Hilbert metric (the "``G_sd == 0`` at 0 ULP" win).  That is
+   **refuted**: :math:`(1-\mu^2)|_{\rm pole}` is an *operator coefficient*,
+   not a state metric, and the correct ψ½ metric is the SPD
+   :math:`G_{\rm sd} = V_{\rm cell}` (:ref:`sn-282-pole-state-metric`).
+   The through-flux equals the state metric only when the face's operator
+   self-block is trivial — true for the spatial trace (a restriction map),
+   false for ψ½ (a banded radial transport operator :math:`A_{\rm ss}`).
+   So :func:`~orpheus.numerics.face_layout.face_streaming_normal` stays the
+   spatial-trace measure **only**, and the ``FaceField`` unification is
+   **structural** (flat layout + presence), **not** metric: the metric is
+   a per-leaf property (spatial trace → partial current; pole →
+   :math:`V_{\rm cell}`), exactly as the bulk's metric is its own per-leaf
+   :math:`V\,w`.
 
    **Mesh-enumerated blocks / mesh-derived presence.**  The composite's
    block list would be *the mesh's phase-space DOF structure, reified* —

@@ -26,16 +26,47 @@ FaceField structural verdicts (§4) are by explorer + cross-domain-attacker
 
 ## ⏸ Status & compaction checkpoint (2026-07-06)
 
-**Design is CAPTURED and COMMITTED @ `d0e3dbb`** (this note + the theory-page
-physics + the roadmap sequencing). **DESIGN ONLY — no production code exists yet.**
-Branch `refactor/sn-walk-unification`, **32 ahead of main, pushes HELD**.
+**⚠ RESHAPED 2026-07-06 (implementation session) — the metric-unification
+premise (§3.2, §5.2) is REFUTED; §4 dead-end table row 3 and §5 stand corrected.**
+A rigorous derivation + a numerics↔structure dialectic (both seats → the same
+verdict) established:
 
-**NEXT = IMPLEMENT this plan** (user go-ahead 2026-07-06). Re-anchor after
-`/compact` from **this note + `git log`** (trust git, not the summary —
-process-discipline). Start at **§7 Phase A**, whose FIRST action is a **proactive
-`test-architect` dispatch** — the `FaceField` / mesh-derived-presence carve crosses
-subsystem boundaries (numerics spaces ↔ transport fields ↔ sn mesh), a MUST
-proactive trigger.
+- **ψ½'s Hilbert metric is `G_sd = V_cell`** (radial cell volume, SPD), NOT the
+  through-flux zero. The shipped ghost `G_sd = 0` was a **real latent adjoint bug**
+  (it severs the seed→bulk coupling from `A.H = G⁻¹AᵀG` — a wrong adjoint for any
+  nonzero seed, production defect 1.3e-2; green only because every gate fed a zero
+  seed). **ERR-067**, vv Mode-12. The three pole-vanishing quantities were conflated:
+  **M1** moment weight (0, lives in φ) / **M2** through-flux `(1−µ²)` (0, an OPERATOR
+  coefficient) / **M3** state metric (`V_cell`, the inner product). The bug installed
+  M2 where M3 belongs. A state's metric is set by its operator role, not its
+  integration weight.
+- **`face_streaming_normal` does NOT unify the two codim-1 metrics** — it is the
+  *spatial-trace* partial-current measure `|Ω·n|·w` ONLY. The pole is metrically
+  BULK-like (`V_cell`); it does not route through the kernel. The through-flux equals
+  the state metric only when the face's operator self-block is trivial (trace `A_tt`
+  ≈ restriction map ‖2‖; pole `A_ss` ≈ banded radial transport ‖71‖).
+- **Converged type design = option (c):** a `FaceField` ABC unifies **STRUCTURE ONLY**
+  (FaceLayout flat buffer + presence-invariant); the **metric descends per-leaf**
+  (spatial trace → `|Ω·n|·w`; pole → `V_cell`), exactly as `BulkField`'s `V·w` is
+  per-leaf. The user's "trace = reduced in SPACE / pole = reduced in ANGLE, both
+  grazing faces, pole is a face IN the bulk" harmonization is this design.
+- **Rename ruled:** `StartingDirection*` → **`RadialCharacteristicFlux`** (retire the
+  forward-sweep-role name + "ghost metric"). Lands in commit 2+, NOT commit 1.
+
+**Execution = "correctness fix first" (user ruling):**
+- **Commit 1 (THIS session) = the `G_sd = 0 → V_cell` correctness fix + Mode-12
+  closure.** DONE (metric install; reciprocity/Mode-12/TestA4 gates inverted;
+  diag_gsd promoted → `tests/sn/operators/test_starting_direction_metric.py`, the
+  ERR-067 catcher; `face_streaming_normal` re-scoped to trace; docstrings + theory
+  rewritten, anchor `sn-282-ghost-metric-face` → `sn-282-pole-state-metric`). Forward
+  path bit-identical. Full wall + pyright `transport:1` + `sphinx -W` green.
+- **Commit 2+ = the structural carve:** `FaceField` ABC (structure-only) + re-parent
+  + the typed-key `FaceLayout` (old A(ii)) + mesh-derived presence retiring the 7
+  guards + the `RadialCharacteristicFlux` rename. Then P3 DSA.
+
+Re-anchor after `/compact` from **this note + `git log`** (trust git). The FIRST
+action of the structural carve is still a **proactive `test-architect` dispatch**
+(numerics spaces ↔ transport fields ↔ sn mesh — a MUST proactive trigger).
 
 **Standing constraints for the implementation session:**
 - **Surgical mode** — the main agent writes the operator/type carve DIRECTLY, user

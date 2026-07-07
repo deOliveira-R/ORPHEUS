@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6310**
+Total tests collected: **6334**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1187, 18.8%
+   L0, 1187, 18.7%
    L1, 1074, 17.0%
    L2, 54, 0.9%
    L3, 0, 0.0%
-   foundation, 3964, 62.8%
+   foundation, 3988, 63.0%
    unmarked, 31, 0.5%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6200
+   explicit, 6224
    verify, 0
    class-name, 46
    func-name, 0
@@ -285,6 +285,7 @@ Module × level grid
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 4, 0
    numerics/test_face_layout, 0, 0, 0, 0, 15, 0
+   numerics/test_face_streaming_normal, 0, 0, 0, 0, 5, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
    numerics/test_frame, 0, 0, 0, 0, 18, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
@@ -354,6 +355,7 @@ Module × level grid
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
+   operators/test_starting_direction_metric, 0, 0, 0, 0, 19, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
    operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
    operators/test_typed_residual_evaluation, 1, 0, 0, 0, 6, 0
@@ -1183,6 +1185,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-064``, 2
    ``ERR-065``, 1
    ``ERR-066``, 6
+   ``ERR-067``, 1
 
 Unmarked tests
 --------------

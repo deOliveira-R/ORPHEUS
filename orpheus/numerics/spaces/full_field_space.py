@@ -183,12 +183,12 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
     starting_direction_space : FunctionSpace, optional
         The OPTIONAL third block (#282 route (a), 2.5d): the
         :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`
-        carrying the per-level ψ½ layout and the ALL-ZERO ghost metric
-        (``G_sd = 0`` — the starting-direction rays carry no quadrature
-        measure; the masked pseudo-inverse and the zero inner-product
-        contribution follow from the leaf space's zero weights, no
-        composite-level arithmetic). ``None`` on meshes with no
-        seed-carrying level (R12a) and for non-SN methods.
+        carrying the per-level ψ½ layout and the SPD **state metric**
+        ``G_sd = V_cell`` (the radial cell-volume measure — ψ½ is a
+        first-class radial state field; the scaling metric, its inverse,
+        and the ``Σ V_cell·x·y`` inner-product term all follow from the
+        leaf space's weights, no composite-level arithmetic). ``None`` on
+        meshes with no seed-carrying level (R12a) and for non-SN methods.
         ``compare=False`` leaf metadata.
     """
 
@@ -349,9 +349,10 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         ``x`` is a composite field; the bulk block is weighted by
         ``G_bulk = V·w_n`` and the trace block by ``G_trace = |Ω·n|·w_n``,
         each delegated to the matching leaf space. A carried
-        starting-direction block is weighted by its ALL-ZERO ghost
-        metric — the output seed block is identically zero (the
-        Mode-12 metric-blindness mechanism, documented on
+        starting-direction block is scaled by its SPD **state metric**
+        ``G_sd = V_cell`` (the radial cell volume — ψ½ is a first-class
+        radial state field, so its metric is set by its operator role,
+        not its angular integration weight; documented on
         :mod:`orpheus.numerics.spaces.starting_direction_space`).
         """
         bulk_space, trace_space = self._require_blocks()
@@ -370,11 +371,12 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
     def apply_inverse_metric(self, x: CompositeField) -> CompositeField:
         r"""Apply the block-diagonal pseudo-inverse metric :math:`G^{+}\odot x`.
 
-        Plain ``1/G`` on the strictly-positive bulk block; the
-        Moore–Penrose masked inverse on the trace block (zero on the
-        tangential null space ``|Ω·n| = 0``) and on the ENTIRE
-        starting-direction block (its ghost metric is all-zero, so the
-        whole block is metric null space). Delegated per block.
+        Plain ``1/G`` on the strictly-positive bulk block AND on the
+        starting-direction block (its state metric ``G_sd = V_cell`` is
+        strictly positive — an empty null space, so ``G^{+} = 1/G``
+        exactly there). The Moore–Penrose masked inverse is needed only
+        on the trace block (zero on the tangential null space
+        ``|Ω·n| = 0``). Delegated per block.
         """
         bulk_space, trace_space = self._require_blocks()
         seed_space = self._seed_space_for(x)
@@ -393,13 +395,13 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         r"""Return the direct-sum inner product
         :math:`\langle x, y\rangle_G = \langle x_{\rm bulk}, y_{\rm bulk}\rangle_{G_{\rm bulk}}
         + \langle x_{\rm trace}, y_{\rm trace}\rangle_{G_{\rm trace}}
-        \;(+\;0)`.
+        \;(+\;\langle x_{\rm sd}, y_{\rm sd}\rangle_{G_{\rm sd}})`.
 
-        A carried starting-direction block contributes EXACTLY zero
-        (all-zero ghost metric) — the term is still evaluated through
-        the leaf space so the accounting is visible, and presence must
-        MATCH between ``x`` and ``y`` (mixed presence is the silent-drop
-        bug class).
+        A carried starting-direction block contributes the nonzero
+        ``Σ V_cell·x·y`` seed term (its SPD state metric
+        ``G_sd = V_cell``) — the term is evaluated through the leaf
+        space, and presence must MATCH between ``x`` and ``y`` (mixed
+        presence is the silent-drop bug class).
         """
         bulk_space, trace_space = self._require_blocks()
         x_seed = getattr(x, "starting_direction", None)
