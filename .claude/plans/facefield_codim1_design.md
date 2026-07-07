@@ -68,6 +68,56 @@ Re-anchor after `/compact` from **this note + `git log`** (trust git). The FIRST
 action of the structural carve is still a **proactive `test-architect` dispatch**
 (numerics spaces ↔ transport fields ↔ sn mesh — a MUST proactive trigger).
 
+### ⏸ COMPACTION CHECKPOINT (2026-07-06) — commit 1 DONE, commit 2+ next
+
+**Commit 1 LANDED @ `eb5943d`** (branch `refactor/sn-walk-unification`, **34
+ahead of main, pushes HELD**): the `G_sd = 0 → V_cell` correctness fix + Mode-12
+closure. Full wall **3211 passed**, pyright `transport:1`, `sphinx -W`=0. The
+by-policy-uncommitted durable knowledge persists on disk across `/compact`:
+**ERR-067** (`error_catalog.md`), the **vv-principles Mode-12 second-closure-
+mechanism** uplift (`SKILL.md` — "repair the metric"), and the sub-agent memory
+updates. Nothing commit-1 lives only in conversation.
+
+**Commit 2+ phase plan (the structural carve — confirm ordering at plan time).**
+Clean-before-extend, each step bit-identical on its own gates:
+
+- **C2 — `FaceField(Field)` ABC + typed-key `FaceLayout`.** Introduce
+  `FaceField(Field)` owning the `FaceLayout` flat-buffer discipline + the
+  presence-invariant — **STRUCTURE ONLY, NO metric** (metric stays per-leaf:
+  trace `|Ω·n|·w`, pole `V_cell`). Re-parent `AngularBoundaryField` /
+  `ScalarBoundaryField` / the pole field under it. Generalize
+  `FaceLayout`/`FaceSlot` to a typed key `[K]` so the pole space stops
+  re-implementing `_leg_offset` / `cells_slice` / `corner_slice`
+  (`(level,sign)` keys) and shares the ONE impl with the trace (`str` keys).
+  Bit-identical offsets + metric. (This is the old A(ii) + Phase B, minus the
+  refuted metric-unification.)
+- **C3 — mesh-derived presence + retire the 7 guards.** A `PhaseSpaceCarrier`
+  Protocol in `transport` (SNMesh satisfies it — sn→transport only) + mesh
+  block-enumeration; the composite derives `starting_direction` presence from
+  the mesh (never a free `Optional` arg); retire `_require_starting_direction`
+  / `_refuse_starting_direction` (7 sites, `sn/loss_representation/__init__.py`
+  + callers); migrate their negative tests to the construction-time invariant.
+  Retirement audit = the 3-search (graph callers / text-grep code+tests+docs /
+  direct constructors).
+- **C4 — rename `StartingDirection*` → `RadialCharacteristicFlux`.** Broad
+  mechanical rename (nexus `rename` + 3-search audit); retire the "starting
+  direction" (forward-sweep-role) + residual "ghost metric" vocabulary. Its
+  OWN commit (high blast radius, easy review).
+- **C5 — docs + verification close-out.** Flip the theory PLANNED admonitions
+  (`loss-rep-facefield-codim1`) to LANDED; full SN+numerics+transport wall;
+  pyright ≤ 1; `sphinx -W`. **Then P3 DSA** (#2) — its restriction/prolongation
+  ride the composite + trace metric, so the clean codim-1 substrate benefits it.
+
+**Standing constraints (unchanged):** surgical mode (main agent writes; NO
+`method-implementer`; `test-architect`/`explorer`/`qa`/`elegance-enforcer`/
+`archivist` encouraged); canonical `.venv/bin/python -O -m pytest -p no:xdist
+--timeout=300 -p no:cacheprovider` SERIAL; pyright oracle = `npx pyright` / the
+ratchet CLI (`transport:1` baseline), streamed `<new-diagnostics>` = #226 LSP
+artifact IGNORE; pushes HELD; `.claude/agent-memory/*` + `scratch/*` + the
+`.claude/skills/*` accumulators NOT the main agent's to commit; never
+`git checkout`/`restore` on uncommitted files (monkeypatch to revert mutations);
+commits stamp **Opus 4.8** (session model); `sphinx -W` must stay clean.
+
 **Standing constraints for the implementation session:**
 - **Surgical mode** — the main agent writes the operator/type carve DIRECTLY, user
   steers step-by-step; NO `method-implementer`. `test-architect` (proactive),
