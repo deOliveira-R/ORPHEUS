@@ -94,8 +94,8 @@ class FaceSlot(Generic[K]):
 
     Parameters
     ----------
-    name : K
-        The slot's **key** — its identity in the owning :class:`FaceLayout`.
+    key : K
+        The slot's identity in the owning :class:`FaceLayout`.
         A ``str`` face name (``"xmin"`` / ``"xmax"`` / ``"ymin"`` / ``"ymax"``
         for SN Cartesian spatial traces; arbitrary tokens for other methods)
         in the ``FaceLayout[str]`` case, or a structured key when the faces
@@ -116,7 +116,7 @@ class FaceSlot(Generic[K]):
     construction. Consumers may rely on this without re-checking.
     """
 
-    name: K
+    key: K
     offset: int
     shape: tuple[int, ...]
     flat_size: int
@@ -125,12 +125,12 @@ class FaceSlot(Generic[K]):
         expected = int(np.prod(self.shape))
         if self.flat_size != expected:
             raise ValueError(
-                f"FaceSlot({self.name!r}): flat_size={self.flat_size} does "
+                f"FaceSlot({self.key!r}): flat_size={self.flat_size} does "
                 f"not match prod(shape={self.shape!r}) = {expected}"
             )
         if self.offset < 0:
             raise ValueError(
-                f"FaceSlot({self.name!r}): offset must be non-negative; "
+                f"FaceSlot({self.key!r}): offset must be non-negative; "
                 f"got {self.offset}"
             )
 
@@ -184,7 +184,7 @@ class FaceLayout(Generic[K]):
         for slot in sorted_slots:
             if slot.offset != cursor:
                 raise ValueError(
-                    f"FaceLayout: slot {slot.name!r} starts at offset "
+                    f"FaceLayout: slot {slot.key!r} starts at offset "
                     f"{slot.offset} but cursor is at {cursor} "
                     f"(gap or overlap with previous slot)"
                 )
@@ -234,10 +234,10 @@ class FaceLayout(Generic[K]):
         """
         faces: dict[K, FaceSlot[K]] = {}
         cursor = 0
-        for name, shape in named_shapes:
+        for key, shape in named_shapes:
             flat_size = int(np.prod(shape))
-            faces[name] = FaceSlot(
-                name=name, offset=cursor, shape=shape, flat_size=flat_size,
+            faces[key] = FaceSlot(
+                key=key, offset=cursor, shape=shape, flat_size=flat_size,
             )
             cursor += flat_size
         return cls(faces=faces, total_size=cursor)

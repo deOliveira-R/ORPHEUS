@@ -187,7 +187,7 @@ def test_face_view_raises_on_unknown_face_name() -> None:
     r"""``face_view`` MUST reject unknown face names at the API boundary."""
     mesh = _slab_mesh()
     boundary = AngularBoundaryFlux.zeros_on(mesh)
-    with pytest.raises(KeyError, match="no face named"):
+    with pytest.raises(KeyError, match="no face keyed"):
         boundary.face_view("not_a_real_face")
 
 

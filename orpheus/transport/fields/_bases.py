@@ -22,32 +22,36 @@ provides the *locus + family* axes as ABCs; the *role* leaves
 (``AngularFlux``, ``AngularSourceSink``, ...) sit beneath them::
 
     Field (numerics, L1 — values + space + dunder algebra)
-     ├─ BulkField (ABC)           mesh + mesh-binding + ng/nx/ny + abstract _phase_space_shape
-     │   ├─ AngularField (ABC)    + N + (N,ng,nx,ny) from_mesh/_ndarray, parametrized by _SPACE_NAME
+     ├─ BulkField (ABC)           codim-0 (cell centres): mesh-binding + ng + _phase_space_shape
+     │   ├─ AngularField (ABC)    + N + (N,ng,*spatial) from_mesh/_ndarray, parametrized by _SPACE_NAME
      │   │   ├─ AngularFlux           role leaf  (flux)
      │   │   └─ AngularSourceSink     role leaf  (source; renamed from PerOrdinateSource in B.2)
-     │   ├─ ScalarField (ABC)     + (ng,nx,ny) from_mesh/_ndarray, parametrized by _SPACE_NAME
+     │   ├─ ScalarField (ABC)     + (ng,*spatial) from_mesh/_ndarray, parametrized by _SPACE_NAME
      │   │   ├─ ScalarFlux            role leaf  (flux)
      │   │   └─ ScalarSourceSink       role leaf  (source; renamed from IsotropicSource in B.2)
      │   └─ MomentField (ABC)     family marker; the moment shape is leaf-specific
      │       └─ HarmonicMomentFlux   role leaf  (flux-only for now)
-     ├─ BoundaryField (ABC)       method-agnostic boundary locus: flat-buffer contract
-     │   │                        + layout/face_view + factories via _trace_space_of
-     │   ├─ AngularBoundaryField (ABC)   mesh: SNMesh + AngularTraceSpace contract (mesh.angular_trace)
-     │   │   ├─ AngularBoundaryFlux          role leaf  (flux)
-     │   │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.source_sinks)
-     │   │   ├─ AngularBoundaryResidual      role leaf  (residual; B.3 — orpheus.transport.residuals)
-     │   │   └─ AngularBoundaryDisplacement  role leaf  (displacement — orpheus.transport.displacements)
-     │   └─ ScalarBoundaryField (ABC)    ScalarTraceSpace contract (DiffusionMesh.scalar_trace; #290 P2/P7a)
-     │       ├─ ScalarBoundaryFlux           role leaf  (flux — the per-face (J⁺, J⁻) pair)
-     │       └─ ScalarBoundaryDisplacement   role leaf  (displacement — orpheus.transport.displacements)
-     └─ StartingDirectionField (ABC)  the angular-domain boundary locus (μ = μ_start; #282
-         │                        route (a), 2.5d): mesh: SNMesh + StartingDirectionSpace
-         │                        contract (mesh.starting_direction_space, R12a-keyed) +
-         │                        cells/corner (level, sign) views over one flat buffer
-         ├─ StartingDirectionFlux          role leaf  (flux — the ψ½ state)
-         ├─ StartingDirectionSourceSink    role leaf  (source — q½ cells + corner data)
-         └─ StartingDirectionDisplacement  role leaf  (displacement — orpheus.transport.displacements)
+     └─ FaceField[K] (ABC)        codim-1 (faces/edges): flat single-buffer + FaceLayout[K]
+         │                        slice-views + mesh/layout guards + from_mesh/zeros_on via
+         │                        _face_space_of. STRUCTURE only — the metric descends PER LEAF
+         │                        (spatial |Ω·n̂|·w; pole V_cell), never on this ABC (ERR-067).
+         ├─ BoundaryField (ABC, FaceField[str])   SPATIAL faces (keyed by name) + from_face_arrays;
+         │   │                    the FullField boundary-slot discriminator (the pole is NOT one)
+         │   ├─ AngularBoundaryField (ABC)   mesh: SNMesh + AngularTraceSpace (mesh.angular_trace)
+         │   │   ├─ AngularBoundaryFlux          role leaf  (flux)
+         │   │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.source_sinks)
+         │   │   ├─ AngularBoundaryResidual      role leaf  (residual; B.3 — orpheus.transport.residuals)
+         │   │   └─ AngularBoundaryDisplacement  role leaf  (displacement — orpheus.transport.displacements)
+         │   └─ ScalarBoundaryField (ABC)    ScalarTraceSpace (DiffusionMesh.scalar_trace; #290 P2/P7a)
+         │       ├─ ScalarBoundaryFlux           role leaf  (flux — the per-face (J⁺, J⁻) pair)
+         │       └─ ScalarBoundaryDisplacement   role leaf  (displacement — orpheus.transport.displacements)
+         └─ StartingDirectionField (ABC, FaceField[(level,sign,part)])  ANGULAR edge — the ψ½
+             │                    pole seed (μ = μ_start; #282 route (a), 2.5d): mesh: SNMesh +
+             │                    StartingDirectionSpace (mesh.starting_direction_space, R12a-keyed);
+             │                    a FaceField SIBLING of BoundaryField, never a child
+             ├─ StartingDirectionFlux          role leaf  (flux — the ψ½ state)
+             ├─ StartingDirectionSourceSink    role leaf  (source — q½ cells + corner data)
+             └─ StartingDirectionDisplacement  role leaf  (displacement — orpheus.transport.displacements)
 
 Parametrization (no twin paths)
 ===============================
@@ -62,7 +66,7 @@ preserving the pre-B.1 space identities bit-for-bit). ``MomentField`` and the
 ``BoundaryField`` families build their spaces differently (a
 TensorProductSpace keyed on ``L``; the mesh's cached trace —
 ``mesh.angular_trace`` / ``mesh.scalar_trace`` via
-:meth:`BoundaryField._trace_space_of`) and so do not use
+:meth:`FaceField._face_space_of`) and so do not use
 ``_SPACE_NAME``.
 
 References
@@ -79,7 +83,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Mapping, Self
+from typing import TYPE_CHECKING, ClassVar, Generic, Mapping, Self, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -105,11 +109,19 @@ if TYPE_CHECKING:
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
+#: The face-key type of a :class:`FaceField` and its
+#: :class:`~orpheus.numerics.face_layout.FaceLayout`: ``str`` face names for
+#: the spatial :class:`BoundaryField`, the ``(level, sign, part)`` tuple for
+#: the ψ½ :class:`StartingDirectionField`.
+K = TypeVar("K")
+
+
 __all__ = [
     "BulkField",
     "AngularField",
     "ScalarField",
     "MomentField",
+    "FaceField",
     "BoundaryField",
     "AngularBoundaryField",
     "ScalarBoundaryField",
@@ -683,83 +695,93 @@ class MomentField(BulkField):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Boundary locus
+# Face locus (codim-1) — the shared flat-buffer discipline
 # ═══════════════════════════════════════════════════════════════════════
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class BoundaryField(Field):
-    r"""Boundary-locus storage base — a mesh-bound :class:`Field` on a
-    layout-bearing boundary-trace space (method-agnostic).
+class FaceField(Field, Generic[K]):
+    r"""Codim-1 face storage base — a mesh-bound flat-buffer :class:`Field`
+    on a layout-bearing face space (method- and locus-agnostic).
 
-    Carries the machinery shared by EVERY boundary trace family, angular
-    or scalar: the flat single-buffer storage contract
-    (``values.shape == (layout.total_size,)``), the cross-mesh /
-    cross-layout arithmetic guards, the read-through :attr:`layout`
-    property, per-face :meth:`face_view` access, and the
-    :meth:`from_mesh` / :meth:`zeros_on` / :meth:`from_face_arrays`
-    factories (all via ``cls`` + the :meth:`_trace_space_of` hook so
-    they construct the concrete subclass on ITS mesh's cached trace).
+    The single parent of every **codim-1** transport field — the faces and
+    edges bounding a phase-space cell, as opposed to :class:`BulkField`'s
+    codim-0 cell centres. It owns, ONCE, the flat-buffer discipline the two
+    codim-1 loci share: the single-buffer storage contract
+    (``values.shape == (layout.total_size,)``), per-face slice-view access
+    keyed by the layout key ``K`` (a ``str`` face name for the spatial trace,
+    a ``(level, sign, part)`` tuple for the ψ½ pole edge), the cross-mesh /
+    cross-layout arithmetic guards, the read-through :attr:`layout` property,
+    and the :meth:`from_mesh` / :meth:`zeros_on` factories (via the single
+    :meth:`_face_space_of` hook, so they build the concrete subclass on ITS
+    mesh's cached face space).
 
-    Two storage families realize the locus (#290 P2; named per the P2.5
-    axis-coherence ruling — family-qualified, uniform role tokens):
+    **STRUCTURE only — no metric on this ABC.** Exactly as :class:`BulkField`
+    carries no metric (each bulk leaf's ``V·w`` lives on its own space), a
+    face field's Hilbert metric descends **per leaf**, on the leaf's face
+    space: the spatial trace carries the partial-current ``|Ω·n̂|·w`` metric
+    (:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`),
+    the ψ½ pole the SPD radial cell-volume STATE metric :math:`V_{\rm cell}`
+    (:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`).
+    The through-flux coefficient is NOT the state metric (ERR-067, vv Mode 12)
+    — so this ABC deliberately unifies the *layout*, never the *measure*.
 
-    * :class:`AngularBoundaryField` — the ANGULAR family (``mesh`` narrowed to
-      :class:`SNMesh`, space narrowed to the quadrature-coupled
-      :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`).
-    * :class:`ScalarBoundaryField` — the SCALAR family (``mesh``
-      narrowed to :class:`DiffusionMesh`, space narrowed to
-      :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`;
-      per-face ``(J⁺, J⁻)`` partial-current pairs).
+    Two codim-1 loci realize the base as **siblings** (NOT parent/child — the
+    :class:`~orpheus.transport.full_field.FullField` composite discriminates
+    its boundary slot by ``isinstance(·, BoundaryField)``, a test the ψ½ pole
+    must FAIL):
+
+    * :class:`BoundaryField` — the **spatial** faces (``FaceField[str]``): the
+      boundary of the SPATIAL domain, keyed by face name.
+    * :class:`StartingDirectionField` — the **angular** edge
+      (``FaceField[tuple[int, int, str]]``): the ψ½ pole seed, the boundary of
+      the ANGULAR domain (:math:`\mu = \mu_{\rm start}`), keyed by
+      ``(level, sign, part)``.
 
     The base ``mesh`` annotation is the method-agnostic
-    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`; EACH
-    family covariantly NARROWS it to its method-mesh (:class:`SNMesh` /
-    :class:`DiffusionMesh`) — the exact #267 ``BulkField →
-    AngularField`` discipline. A boundary trace is method BEHAVIOR
-    (#290 P7a): the bare MaterialMesh data carrier owns no trace, so a
-    boundary field on one is unrepresentable. Storage is a SINGLE
-    flat backing buffer; per-face access is slice-view, no copies.
-    Inherits Field's same-class/same-space dunder algebra. Abstract —
-    instantiate a concrete role leaf of one of the families.
+    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`; each family
+    covariantly NARROWS it to its method-mesh (:class:`SNMesh` /
+    :class:`DiffusionMesh`) — the #267 ``BulkField → AngularField``
+    discipline. Storage is a SINGLE flat backing buffer; per-face access is
+    slice-view, no copies. Inherits Field's same-class/same-space dunder
+    algebra. Abstract — instantiate a concrete role leaf of one of the loci.
     """
 
     mesh: "MaterialMesh"
 
-    # ── The per-family trace-space source ────────────────────────────
+    # ── The per-family face-space source ─────────────────────────────
 
     @classmethod
     @abstractmethod
-    def _trace_space_of(cls, mesh: "MaterialMesh") -> FunctionSpace:
-        r"""Return ``mesh``'s cached trace space for this family.
+    def _face_space_of(cls, mesh: "MaterialMesh") -> FunctionSpace:
+        r"""Return ``mesh``'s cached face space for this family.
 
-        The single hook the three factories construct through: the
-        angular family reads ``mesh.angular_trace`` (raising on the trace-less
-        2-D cylindrical mesh), the scalar family ``mesh.scalar_trace``
-        (a :class:`DiffusionMesh` member — raising on a bare
-        MaterialMesh, which owns no trace; #290 P7a). MUST return a
-        layout-bearing space or raise :class:`ValueError` with the
-        family's own diagnosis.
+        The single hook the factories construct through: the spatial
+        families read ``mesh.angular_trace`` (raising on the trace-less 2-D
+        cylindrical mesh) / ``mesh.scalar_trace`` (a :class:`DiffusionMesh`
+        member, raising on a bare MaterialMesh — #290 P7a); the
+        starting-direction family reads ``mesh.starting_direction_space``
+        (R12a-keyed). MUST return a layout-bearing space or raise
+        :class:`ValueError` with the family's own diagnosis.
         """
         raise NotImplementedError
 
     # ── Construction validation ──────────────────────────────────────
 
     def __post_init__(self) -> None:
-        super().__post_init__()
-        # The space IS the trace and carries the FaceLayout (A.5 re-home;
-        # illegal-states-unrepresentable): a trace field on a layout-less
-        # space cannot do face_view. Families ADD their space-type
-        # narrowing (AngularTraceSpace / ScalarTraceSpace) on top of this
-        # structural floor.
+        super().__post_init__()  # Field: values.shape == space.shape.
+        # The space IS the face space and carries the FaceLayout
+        # (illegal-states-unrepresentable): a face field on a layout-less
+        # space cannot do face_view. Families ADD their space-type narrowing
+        # (AngularTraceSpace / ScalarTraceSpace / StartingDirectionSpace) on
+        # top of this structural floor.
         layout = getattr(self.space, "layout", None)
         if layout is None:
             raise TypeError(
-                f"{type(self).__name__} requires a layout-bearing trace "
-                f"space (an AngularTraceSpace / ScalarTraceSpace built via its "
+                f"{type(self).__name__} requires a layout-bearing face "
+                f"space (a trace / starting-direction space built via its "
                 f"factory); got space={self.space!r}. Build via "
-                f"{type(self).__name__}.zeros_on / from_face_arrays / "
-                f"from_mesh."
+                f"{type(self).__name__}.zeros_on / from_mesh."
             )
         expected = (layout.total_size,)
         if self.values.shape != expected:
@@ -777,11 +799,11 @@ class BoundaryField(Field):
 
     def _check_partner(self, other: Field) -> Self:
         partner = super()._check_partner(other)
-        # Mesh-binding override — two trace fields can share a space
-        # (same name, same total_size — trace-space __eq__ is on
-        # ``(name, shape)``) but differ in mesh identity. The message
-        # names the operand's own mesh type (SNMesh for the angular
-        # family, MaterialMesh for the scalar one).
+        # Mesh-binding override — two face fields can share a space (same
+        # name, same total_size — space __eq__ is on ``(name, shape)``) but
+        # differ in mesh identity. The message names the operand's own mesh
+        # type (SNMesh for the angular families, DiffusionMesh for the scalar
+        # trace).
         if self.mesh is not partner.mesh:
             raise ValueError(
                 f"{type(self).__name__} arithmetic across distinct "
@@ -789,10 +811,10 @@ class BoundaryField(Field):
                 f"field is mesh-bound."
             )
         if self.layout is not partner.layout:
-            # Belt-and-suspenders: operands sourced from the same mesh
-            # share the cached trace (one layout identity), so this
-            # fires only for hand-built operands. Fall back to
-            # structural equality — same face names + shapes + offsets.
+            # Belt-and-suspenders: operands sourced from the same mesh share
+            # the cached space (one layout identity), so this fires only for
+            # hand-built operands. Fall back to structural equality — same
+            # keys + shapes + offsets.
             if self.layout != partner.layout:
                 raise ValueError(
                     f"{type(self).__name__} layout mismatch — operands have "
@@ -803,17 +825,17 @@ class BoundaryField(Field):
     # ── Per-face access (slice views into the flat buffer) ───────────
 
     @property
-    def layout(self) -> "FaceLayout":
+    def layout(self) -> "FaceLayout[K]":
         r"""The per-geometry :class:`FaceLayout`, read off the space.
 
-        A.5 re-home: the layout lives on the trace space
-        (``space.layout``), not as a separate field attribute. This
-        read-through property preserves the ``boundary.layout`` access
-        surface (``boundary.layout.faces``, ``.total_size``).
+        The layout lives on the face space (``space.layout``), not as a
+        separate field attribute. This read-through property preserves the
+        ``field.layout`` access surface (``field.layout.faces``,
+        ``.total_size``).
         """
         return self.space.layout  # type: ignore[attr-defined]
 
-    def face_view(self, name: str) -> NDArray:
+    def face_view(self, key: K) -> NDArray:
         r"""Return a per-face slice view into the flat backing buffer.
 
         The returned ndarray shares memory with :attr:`values`.
@@ -821,53 +843,91 @@ class BoundaryField(Field):
         Raises
         ------
         KeyError
-            If ``name`` is not a face in this layout.
+            If ``key`` is not a face in this layout.
         """
-        if name not in self.layout.faces:
+        if key not in self.layout.faces:
             raise KeyError(
-                f"{type(self).__name__}: no face named {name!r} in layout; "
-                f"available faces: {list(self.layout.faces)!r}"
+                f"{type(self).__name__}: no face keyed {key!r} in layout; "
+                f"available: {list(self.layout.faces)!r}"
             )
-        return self.layout.faces[name].slice_view(self.values)
+        return self.layout.faces[key].slice_view(self.values)
 
     @property
-    def face_views(self) -> Mapping[str, NDArray]:
-        r"""Mapping ``{face_name: slice_view}`` for every face in the layout.
+    def face_views(self) -> Mapping[K, NDArray]:
+        r"""Mapping ``{face_key: slice_view}`` for every face in the layout.
 
         All views memory-shared with :attr:`values`.
         """
-        return {name: self.face_view(name) for name in self.layout.faces}
+        return {key: self.face_view(key) for key in self.layout.faces}
 
     # ── Construction factories (via ``cls`` — build the subclass) ────
 
     @classmethod
     def from_mesh(cls, values: NDArray, mesh: "MaterialMesh"):
-        r"""Construct from a flat trace buffer + mesh, sourcing the
-        family's cached trace space (:meth:`_trace_space_of`).
+        r"""Construct from a flat face buffer + mesh, sourcing the family's
+        cached face space (:meth:`_face_space_of`).
 
-        The boundary-locus counterpart to the bulk families'
-        ``from_mesh``, giving every locus the SAME "construct this leaf
-        from raw ``values`` + ``mesh``" surface. Unlike
-        :meth:`from_face_arrays` (a per-face dict, packed into the flat
-        layout) it takes the already-packed ``(layout.total_size,)``
+        The codim-1 counterpart to the bulk families' ``from_mesh``, giving
+        every locus the SAME "construct this leaf from raw ``values`` +
+        ``mesh``" surface. It takes the already-packed ``(layout.total_size,)``
         buffer directly. This is the reconstruction path the named
-        composition :meth:`~orpheus.numerics.field.Field._from_balance`
-        uses to re-wrap a differenced trace buffer in the residual role —
-        so a trace residual lands on the same cached trace space as
-        every other leaf of its family.
+        composition :meth:`~orpheus.numerics.field.Field._from_balance` uses
+        to re-wrap a differenced face buffer in the residual role — so a face
+        residual lands on the same cached face space as every other leaf of
+        its family.
         """
-        return cls(values=values, space=cls._trace_space_of(mesh), mesh=mesh)
+        return cls(values=values, space=cls._face_space_of(mesh), mesh=mesh)
 
     @classmethod
     def zeros_on(cls, mesh: "MaterialMesh"):
-        r"""Construct a zero trace field sized to ``mesh`` (B.5.A).
+        r"""Construct a zero face field sized to ``mesh`` (B.5.A).
 
-        Sources the space from :meth:`_trace_space_of` (the family's
-        cached trace) and delegates to
-        :meth:`~orpheus.numerics.field.Field.zeros` — the uniform
-        leaf-side allocator.
+        Sources the space from :meth:`_face_space_of` (the family's cached
+        face space) and delegates to
+        :meth:`~orpheus.numerics.field.Field.zeros` — the uniform leaf-side
+        allocator.
         """
-        return cls.zeros(cls._trace_space_of(mesh), mesh=mesh)
+        return cls.zeros(cls._face_space_of(mesh), mesh=mesh)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Boundary locus (spatial faces)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
+class BoundaryField(FaceField[str]):
+    r"""Spatial-face storage base — the SPATIAL locus of :class:`FaceField`.
+
+    The boundary of the SPATIAL domain: codim-1 faces keyed by name
+    (``"xmin"`` / ``"xmax"`` / ...), under the partial-current
+    ``|Ω·n̂|·w`` metric. The flat-buffer discipline (storage, slice views,
+    mesh/layout guards, :meth:`~FaceField.from_mesh` /
+    :meth:`~FaceField.zeros_on`) is inherited from :class:`FaceField`; this
+    intermediate (a) adds the spatial-only :meth:`from_face_arrays` per-face
+    packer, and (b) is the type the
+    :class:`~orpheus.transport.full_field.FullField` composite discriminates
+    its boundary slot by — the ψ½ pole (:class:`StartingDirectionField`, a
+    :class:`FaceField` SIBLING) is deliberately NOT a ``BoundaryField``.
+
+    Two storage families realize the SPATIAL locus (#290 P2; named per the
+    P2.5 axis-coherence ruling — family-qualified, uniform role tokens):
+
+    * :class:`AngularBoundaryField` — the ANGULAR family (``mesh`` narrowed to
+      :class:`SNMesh`, space to the quadrature-coupled
+      :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`).
+    * :class:`ScalarBoundaryField` — the SCALAR family (``mesh`` narrowed to
+      :class:`DiffusionMesh`, space to
+      :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`;
+      per-face ``(J⁺, J⁻)`` partial-current pairs).
+
+    A boundary trace is method BEHAVIOR (#290 P7a): the bare MaterialMesh
+    data carrier owns no trace, so a boundary field on one is
+    unrepresentable (:meth:`~FaceField._face_space_of` raises). Abstract —
+    instantiate a concrete role leaf of one of the families.
+    """
+
+    # ── The spatial-only per-face packer (str-keyed) ─────────────────
 
     @classmethod
     def from_face_arrays(
@@ -876,7 +936,9 @@ class BoundaryField(Field):
         r"""Construct from per-face ndarrays, packing into the flat layout.
 
         ``face_arrays`` must cover EVERY face in the mesh's layout; each
-        per-face ndarray's shape must match the layout slot's shape.
+        per-face ndarray's shape must match the layout slot's shape. Spatial
+        faces only — the ψ½ pole builds through its role factories, not a
+        per-face dict.
 
         Raises
         ------
@@ -884,7 +946,7 @@ class BoundaryField(Field):
             If ``face_arrays`` keys differ from the mesh's layout faces,
             or any per-face ndarray's shape mismatches the layout slot.
         """
-        space = cls._trace_space_of(mesh)
+        space = cls._face_space_of(mesh)
         layout = getattr(space, "layout", None)
         if layout is None:
             raise ValueError(
@@ -957,7 +1019,7 @@ class AngularBoundaryField(BoundaryField):
     # ── The angular trace-space source (``mesh.angular_trace``) ──────────────
 
     @classmethod
-    def _trace_space_of(cls, mesh: "MaterialMesh") -> AngularTraceSpace:
+    def _face_space_of(cls, mesh: "MaterialMesh") -> AngularTraceSpace:
         space = getattr(mesh, "angular_trace", None)
         if space is None:
             raise ValueError(
@@ -1014,7 +1076,7 @@ class ScalarBoundaryField(BoundaryField):
     # ── The scalar trace-space source (``mesh.scalar_trace``) ─────────
 
     @classmethod
-    def _trace_space_of(cls, mesh: "MaterialMesh") -> ScalarTraceSpace:
+    def _face_space_of(cls, mesh: "MaterialMesh") -> ScalarTraceSpace:
         space = getattr(mesh, "scalar_trace", None)
         if space is None:
             raise ValueError(
@@ -1034,28 +1096,34 @@ class ScalarBoundaryField(BoundaryField):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class StartingDirectionField(Field):
-    r"""Starting-direction storage base — the angular-domain boundary locus.
+class StartingDirectionField(FaceField[tuple[int, int, str]]):
+    r"""Starting-direction storage base — the ANGULAR-domain edge of :class:`FaceField`.
 
     Carries the per-μ-level half-angle flux :math:`\psi_{1/2}` of the
     curvilinear Morel–Montry thread as TYPED STATE (#282 route (a)):
     per seed-carrying level, BOTH direction legs (inward μ = μ_start
     and the pole-continued outward leg — ruling R13) as ``(ng, nx)``
     cell blocks plus the ``(ng,)`` r = R corner slots, on ONE flat
-    backing buffer (the :class:`BoundaryField` flat-storage discipline;
-    layout arithmetic lives on the
+    backing buffer keyed by ``(level, sign, part)`` — the
+    :class:`FaceField` flat-storage discipline (the layout, slice views,
+    mesh/layout guards, and ``from_mesh`` / ``zeros_on`` are all inherited;
+    the layout arithmetic lives on the
     :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`).
 
-    This is a THIRD locus, not a face trace: the starting direction is
-    the boundary of the ANGULAR domain (:math:`\mu = \mu_{\rm start}`,
-    where the angular through-flux coefficient :math:`(1-\mu^2)` vanishes
-    — the straight characteristic; its Hilbert **state** metric is
-    nonetheless the SPD radial cell volume :math:`G_{\rm sd} =
-    V_{\rm cell}`, set by its operator role, not that coefficient), while
-    :class:`BoundaryField` is the boundary of the SPATIAL domain. A starting-direction field is meaningless without a
-    quadrature and its M-M level structure, so ``mesh`` is
-    :class:`SNMesh` (the :class:`AngularField` narrowing discipline)
-    and the space source is the R12a-keyed
+    A :class:`FaceField` **sibling** of the spatial :class:`BoundaryField`,
+    NOT a child — the :class:`~orpheus.transport.full_field.FullField`
+    boundary-slot discriminator ``isinstance(·, BoundaryField)`` must REJECT
+    the pole. Where :class:`BoundaryField` is the codim-1 boundary of the
+    SPATIAL domain, this is the codim-1 boundary of the ANGULAR domain
+    (:math:`\mu = \mu_{\rm start}`, where the angular through-flux
+    coefficient :math:`(1-\mu^2)` vanishes — the straight characteristic).
+    Its Hilbert **state** metric is nonetheless the SPD radial cell volume
+    :math:`G_{\rm sd} = V_{\rm cell}` — set by its operator role, not that
+    coefficient (ERR-067) — carried per-leaf on its space exactly as the
+    spatial trace carries ``|Ω·n̂|·w``. A starting-direction field is
+    meaningless without a quadrature and its M-M level structure, so
+    ``mesh`` is :class:`SNMesh` (the :class:`AngularField` narrowing
+    discipline) and the space source is the R12a-keyed
     ``mesh.starting_direction_space`` — construction on a mesh with no
     seed-carrying level is unrepresentable (the factory raises; the
     composite spells absence as ``None``).
@@ -1086,38 +1154,28 @@ class StartingDirectionField(Field):
                 f"(built via StartingDirectionSpace.for_levels / read off "
                 f"mesh.starting_direction_space); got space={self.space!r}."
             )
-        super().__post_init__()  # Field: values.shape == space.shape.
+        super().__post_init__()  # FaceField: Field shape + layout-bearing check.
 
-    # ── Algebra extension (over Field) ───────────────────────────────
-
-    def _check_partner(self, other: Field) -> Self:
-        r"""Add the mesh-binding guard on top of Field's class/space gate.
-
-        Two starting-direction fields on DISTINCT :class:`SNMesh`
-        instances are non-additive even when same-class and same-shape —
-        the seed-level selection (R12a) and the cell geometry are
-        mesh-bound.
-        """
-        partner = super()._check_partner(other)
-        if self.mesh is not partner.mesh:
-            raise ValueError(
-                f"{type(self).__name__} arithmetic across distinct SNMesh "
-                f"instances is forbidden — the field is mesh-bound."
-            )
-        return partner
+    # The mesh + layout arithmetic guards are inherited from
+    # :class:`FaceField._check_partner` (the pole space is cached per mesh,
+    # so same-mesh operands share one layout identity — the layout check is
+    # a no-op for valid operands, a loud reject for hand-built cross-layout
+    # ones); the retired override only spelled the mesh half.
 
     # ── The space source (``mesh.starting_direction_space``) ─────────
 
     @classmethod
-    def _space_of(cls, mesh: "SNMesh") -> StartingDirectionSpace:
+    def _face_space_of(cls, mesh: "MaterialMesh") -> StartingDirectionSpace:
         r"""Return ``mesh``'s cached starting-direction space, or raise.
 
-        The single hook the factories construct through — the
-        starting-direction sibling of
-        :meth:`BoundaryField._trace_space_of`. Raises on a mesh with no
-        seed-carrying level (R12a: no level's first-ordinate raw M-M
-        weight lies in (0, 1) — Cartesian always; every production
-        cylinder rule; see
+        The :class:`FaceField` face-space hook for the ψ½ locus — the
+        angular-edge counterpart of the spatial families'
+        ``mesh.angular_trace`` / ``mesh.scalar_trace`` sources. Reads
+        ``mesh.starting_direction_space`` duck-typed, so the override keeps
+        the base ``mesh: MaterialMesh`` signature (no contravariant narrowing
+        to :class:`SNMesh`). Raises on a mesh with no seed-carrying level
+        (R12a: no level's first-ordinate raw M-M weight lies in (0, 1) —
+        Cartesian always; every production cylinder rule; see
         :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`).
         """
         space = getattr(mesh, "starting_direction_space", None)
@@ -1133,26 +1191,12 @@ class StartingDirectionField(Field):
             )
         return space
 
-    # ── Construction factories (via ``cls`` — build the subclass) ────
-
-    @classmethod
-    def from_mesh(cls, values: NDArray, mesh: "SNMesh"):
-        r"""Construct from a flat backing buffer + mesh, sourcing the
-        R12a-keyed ``mesh.starting_direction_space``."""
-        return cls(values=values, space=cls._space_of(mesh), mesh=mesh)
-
-    @classmethod
-    def zeros_on(cls, mesh: "SNMesh"):
-        r"""Construct a zero starting-direction field sized to ``mesh`` (B.5.A).
-
-        The uniform leaf-side allocator (the ``zeros_on(mesh)`` surface
-        every composite-slot leaf exposes). Raises on a mesh with no
-        seed-carrying level — presence-aware allocation lives on the
-        composite factory
-        (:meth:`~orpheus.transport.full_field.FullField.zeros`), which
-        consults the mesh predicate and passes ``None`` through.
-        """
-        return cls.zeros(cls._space_of(mesh), mesh=mesh)
+    # ``from_mesh`` / ``zeros_on`` are inherited from :class:`FaceField`
+    # (sourcing the space via :meth:`_face_space_of`); both RAISE on a mesh
+    # with no seed-carrying level (R12a). Presence-aware allocation — passing
+    # ``None`` through for a non-carrying mesh — lives on the composite
+    # factory :meth:`~orpheus.transport.full_field.FullField.zeros`, which
+    # consults the mesh predicate.
 
     # ── Shaped views (delegate to the space's layout arithmetic) ─────
 
