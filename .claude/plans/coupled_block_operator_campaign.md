@@ -289,3 +289,48 @@ corner) from one face law, extending the existing `SNBoundaryRealizer` to be car
 today the ray realization is a ~2-line specular-swap kind-fact). B_b relocates the hand-coded
 kind-dispatch for now. NOT a risk-defer — the abstraction genuinely doesn't yet pay at 2
 carriers; the RULING (P1) captures the shape so DSA builds it.
+
+### 1b implementation map — SCOPED, ready to execute (2026-07-07, `f9e4c4a`)
+
+The variadic-gains driver makes this a clean slot-in (B_b is a lagged gain, exactly as B was
+separated from S in Wave O #208). Consumption audit (post-rename): the boundary op is consumed
+three ways — (1) as a `.apply` gain (matvec `−Σgᵢ.apply` + rhs `+Σgᵢ.apply`); (2) `.split()`
+ONLY in the seedless multi-D-Cartesian G-S branch (`_select_si_resolvent`, `solver.py:558-564`
+— `sn_mesh.is_cartesian and not is_1d`, never a seed-carrying mesh); (3) `reflect_inflow_inplace`
+at the reconstruction (`solver.py:1719`) on a FRESH `SNBoundaryOperator(sn_mesh)`, decoupled from
+the triple.
+
+**boundary.py:**
+- `SNBoundaryOperator` STAYS = **B_a** (System A trace boundary). Drop `_reflect_radial_
+  characteristic` from `_apply_faces` (`:293-295`); B_a emits a **present-but-ZERO** ray corner
+  (`RadialCharacteristicSourceSink.zeros_on(mesh)` when the input carries a seed, `None` when
+  not) — NOT bare `None` on a seed-carrying input (the d1 mixed-presence law raises under
+  `FullField.__add__`; cross-domain-attacker refutation). Remove the `radial_characteristic`
+  kwarg from `reflect_inflow_inplace` (`:401-448`). `split()`, `reflect_into_inflow`,
+  `is_adjointable` (already trace-only) unchanged.
+- NEW `RadialCharacteristicBoundaryOperator` = **B_b** (System B ray boundary): `apply` = zero
+  bulk + **present-zero trace** (`AngularBoundarySourceSink.zeros_on`) + `_reflect_radial_
+  characteristic(seed)` (the method MOVES here); `apply_transpose` = the Euclidean mirror;
+  `is_adjointable` per-leaf (reflective/vacuum → True, white/albedo/periodic → False);
+  `domain=codomain=full_field_space`; `block_role=BOUNDARY`. Add `reflect_corner_inplace(seed)`
+  (the in-place ray seeding the reconstruction needs).
+- `B = B_a + B_b` via `OperatorSum` reproduces today's welded `SNBoundaryOperator.apply`
+  BIT-IDENTICALLY (disjoint present-zero blocks sum exactly).
+
+**solver.py:**
+- `_within_group_triple` (`:224-228`): `B_a = SNBoundaryOperator(sn_mesh)`; return
+  `B = B_a + RadialCharacteristicBoundaryOperator(sn_mesh)` iff
+  `sn_mesh.radial_characteristic_space is not None`, else `B_a`. Widen the return annotation to
+  `SNBoundaryOperator | OperatorSum` (the split-only-seedless invariant guarantees `.split()`
+  sees B_a; seed-carrying ⟹ Jacobi ⟹ B is the composite gain, never split).
+- Reconstruction ray seeding (`:1719`): split into `B_a.reflect_inflow_inplace(bf)` (trace) +
+  `B_b.reflect_corner_inplace(seed)` (ray).
+
+**LATENT BUG auto-fixed:** B_a's masked `split()` halves now emit ZERO ray corner (the arm is
+gone from `_apply_faces`), so `B_lower + B_upper + B_b = B` with no ray double-count.
+
+**Gates (extend `test_psi_half_coupling.py`):** `TestBoundaryUnweld` (per-block byte-id vacuum +
+reflective), `TestB_b_RayBoundary` (corner swap ± transpose, vacuum-zero, white/albedo
+`NotImplementedError` `match=`, block-locality, **the G_sd-reciprocity gate** control=0 + 2 teeth
+0.96/0.33), `TestSplitInteraction` (split lives on B_a; B_b unaffected). Mutation ledger + the
+measured teeth are in the test-architect memo `a5e2bdff`.
