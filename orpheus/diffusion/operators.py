@@ -218,7 +218,7 @@ def _boundary_closure(
     return 1.0 / (rho + 2.0), (rho - 2.0) / (rho + 2.0)
 
 
-def _require_trace_layout(space: ScalarTraceSpace) -> FaceLayout:
+def _require_trace_layout(space: ScalarTraceSpace) -> FaceLayout[str]:
     r"""The trace's :class:`~orpheus.numerics.face_layout.FaceLayout`, guarded.
 
     ``layout`` is an optional dataclass field (the ``compare=False``
@@ -234,7 +234,7 @@ def _require_trace_layout(space: ScalarTraceSpace) -> FaceLayout:
 
 
 def _trace_dof_columns(
-    n_bulk: int, layout: FaceLayout, face: str, row: int, ng: int,
+    n_bulk: int, layout: FaceLayout[str], face: str, row: int, ng: int,
 ) -> np.ndarray:
     r"""Flat composite DOF indices of one trace component row on ``face``.
 

@@ -252,7 +252,7 @@ def _build_omega_dot_n(
 def _build_trace_metric_weights(
     omega_dot_n: NDArray,
     quad_weights: NDArray,
-    layout: "FaceLayout",
+    layout: "FaceLayout[str]",
 ) -> NDArray:
     r"""Build the partial-current boundary metric :math:`G_s = |\Omega\cdot\hat n_f|\odot w_n`.
 
@@ -329,7 +329,7 @@ class AngularTraceSpace(FunctionSpace):
     # missing either is an illegal state); kw_only sidesteps the
     # inherited-defaults field-ordering rule. Construct via
     # :meth:`from_quadrature_and_layout`.
-    layout: "FaceLayout" = field(kw_only=True, repr=False, compare=False)
+    layout: "FaceLayout[str]" = field(kw_only=True, repr=False, compare=False)
     omega_dot_n: NDArray = field(kw_only=True, repr=False, compare=False)
 
     @property
@@ -363,7 +363,7 @@ class AngularTraceSpace(FunctionSpace):
     def from_quadrature_and_layout(
         cls,
         quadrature: "Quadrature",
-        layout: "FaceLayout",
+        layout: "FaceLayout[str]",
     ) -> "AngularTraceSpace":
         r"""Build the trace space from a quadrature and a face layout.
 

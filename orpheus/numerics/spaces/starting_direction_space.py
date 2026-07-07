@@ -59,9 +59,12 @@ flat-backing precedent::
             corner (ng,)      — ψ½ at r = R (inflow: given data / outflow: defect)
 
 Access goes through :meth:`cells_view` / :meth:`corner_view` — slice
-views into the flat buffer, no copies (the exact
-:class:`~orpheus.numerics.face_layout.FaceLayout` discipline, with the
-``(level, sign)`` key typed instead of stringly).
+views into the flat buffer, no copies. The offsets are sourced from a
+real :class:`~orpheus.numerics.face_layout.FaceLayout` carried on the
+space (:attr:`~StartingDirectionSpace.layout`), keyed by the structured
+``(level, sign, part)`` tuple — the SAME flat-buffer discipline the
+spatial trace uses with ``str`` face-name keys (``FaceLayout[str]``), the
+key merely typed instead of stringly.
 
 The state metric — radial cell volume :math:`V_{\rm cell}` (SPD)
 ================================================================
@@ -175,6 +178,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from numpy.typing import NDArray
 
+from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.space import FunctionSpace
 
 __all__ = ["StartingDirectionSpace", "fold_moments_to_starting_direction"]
@@ -210,6 +214,15 @@ class StartingDirectionSpace(FunctionSpace):
     levels: tuple[int, ...] = field(kw_only=True, compare=False, repr=False)
     ng: int = field(kw_only=True, compare=False, repr=False)
     nx: int = field(kw_only=True, compare=False, repr=False)
+    #: The flat-buffer :class:`~orpheus.numerics.face_layout.FaceLayout`
+    #: keyed by the structured ``(level, sign, part)`` tuple — the single
+    #: source of the per-``(level, sign)`` cells/corner offsets (the same
+    #: discipline the spatial trace carries via ``str`` keys). Metadata
+    #: (``compare=False`` — space identity stays ``(name, shape)``); built
+    #: unconditionally by :meth:`for_levels`.
+    layout: FaceLayout[tuple[int, int, str]] = field(
+        kw_only=True, compare=False, repr=False,
+    )
 
     # ── Equality / hashing inherited from FunctionSpace ───────────────
     #
@@ -312,72 +325,74 @@ class StartingDirectionSpace(FunctionSpace):
             ]
         )
         metric = np.tile(per_leg, len(levels) * 2)  # every (level, sign) leg
-        total = len(levels) * 2 * (ng * nx + ng)
+        # The flat-buffer layout — the single source of the per-(level, sign)
+        # cells/corner offsets (retiring the hand-rolled _leg_offset). Cells
+        # then corner within each leg; legs in (level ascending, sign ∈
+        # (-1, +1)) order — the SAME walk the metric tiling above follows, so
+        # offsets and weights agree by construction.
+        named_shapes: list[tuple[tuple[int, int, str], tuple[int, ...]]] = []
+        for level in levels:
+            for sign in _SIGNS:
+                named_shapes.append(((level, sign, "cells"), (ng, nx)))
+                named_shapes.append(((level, sign, "corner"), (ng,)))
+        layout = FaceLayout.from_named_shapes(named_shapes)
         return cls(
             name="starting_direction",
-            shape=(total,),
+            shape=(layout.total_size,),
             inner_product_weights=metric,
             levels=levels,
             ng=int(ng),
             nx=int(nx),
+            layout=layout,
         )
 
-    # ── Layout arithmetic (single source of the flat offsets) ─────────
+    # ── Layout access (offsets sourced from the FaceLayout) ───────────
 
     @property
     def n_levels(self) -> int:
         r"""Number of seed-carrying levels."""
         return len(self.levels)
 
-    @property
-    def _per_sign(self) -> int:
-        r"""Flat size of one ``(level, sign)`` leg: cells ⊕ corner."""
-        return self.ng * self.nx + self.ng
+    def _slot_key(
+        self, level: int, sign: int, part: str,
+    ) -> tuple[int, int, str]:
+        r"""Validate ``(level, sign)`` and return the ``(level, sign, part)`` layout key.
 
-    def _leg_offset(self, level: int, sign: int) -> int:
-        r"""Flat offset of the ``(level, sign)`` leg (cells first, corner after).
+        The flat offsets themselves live on :attr:`layout` (the
+        single-source :class:`~orpheus.numerics.face_layout.FaceLayout`);
+        this reproduces the retired ``_leg_offset``'s error contract so the
+        view accessors reject the same misuse.
 
         Raises
         ------
-        KeyError
-            If ``level`` is not a seed-carrying level of this space.
         ValueError
             If ``sign`` is not ``-1`` or ``+1``.
+        KeyError
+            If ``level`` is not a seed-carrying level of this space.
         """
         if sign not in _SIGNS:
             raise ValueError(
                 f"StartingDirectionSpace: sign must be -1 (inward) or +1 "
                 f"(outward); got {sign!r}."
             )
-        try:
-            pos = self.levels.index(level)
-        except ValueError:
+        if level not in self.levels:
             raise KeyError(
                 f"StartingDirectionSpace: level {level!r} carries no "
                 f"starting-direction block; seed-carrying levels are "
                 f"{self.levels!r} (R12a predicate)."
-            ) from None
-        sign_pos = _SIGNS.index(sign)
-        return (2 * pos + sign_pos) * self._per_sign
+            )
+        return (level, sign, part)
 
-    def cells_slice(self, level: int, sign: int) -> slice:
-        r"""Flat slice of the ``(level, sign)`` cells block (``ng·nx`` entries)."""
-        base = self._leg_offset(level, sign)
-        return slice(base, base + self.ng * self.nx)
-
-    def corner_slice(self, level: int, sign: int) -> slice:
-        r"""Flat slice of the ``(level, sign)`` corner slot (``ng`` entries)."""
-        base = self._leg_offset(level, sign) + self.ng * self.nx
-        return slice(base, base + self.ng)
-
-    # ── Shaped views (no copies) ──────────────────────────────────────
+    # ── Shaped views (no copies — slice views into the flat buffer) ───
 
     def cells_view(self, buffer: NDArray, level: int, sign: int) -> NDArray:
         r"""The ``(ng, nx)`` ψ½ cells view of ``buffer`` for ``(level, sign)``.
 
-        A reshaped slice view — shares memory with ``buffer``.
+        A reshaped slice view through the :attr:`layout` slot — shares
+        memory with ``buffer``.
         """
-        return buffer[self.cells_slice(level, sign)].reshape(self.ng, self.nx)
+        slot = self.layout.faces[self._slot_key(level, sign, "cells")]
+        return slot.slice_view(buffer)
 
     def corner_view(self, buffer: NDArray, level: int, sign: int) -> NDArray:
         r"""The ``(ng,)`` r = R corner view of ``buffer`` for ``(level, sign)``.
@@ -386,7 +401,8 @@ class StartingDirectionSpace(FunctionSpace):
         Outflow corner (``sign = +1``): the defect row (ruling R13).
         Shares memory with ``buffer``.
         """
-        return buffer[self.corner_slice(level, sign)]
+        slot = self.layout.faces[self._slot_key(level, sign, "corner")]
+        return slot.slice_view(buffer)
 
 
 def fold_moments_to_starting_direction(

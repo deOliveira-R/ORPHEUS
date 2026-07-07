@@ -52,13 +52,23 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Generic, Mapping, Sequence, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
 
 
 __all__ = ["AXIS_NAMES", "FaceSlot", "FaceLayout", "face_streaming_normal"]
+
+#: The slot-key type of a :class:`FaceLayout` / :class:`FaceSlot`. The
+#: descriptor is key-generic: SN Cartesian spatial traces key faces by
+#: ``str`` name (``FaceLayout[str]``); the ψ½ starting-direction space keys
+#: each ``(level, sign)`` leg's ``cells`` / ``corner`` slots by the
+#: structured tuple ``(level, sign, part)``
+#: (``FaceLayout[tuple[int, int, str]]``). The flat-buffer discipline
+#: (offset assignment, slice views, gap/overlap validation) is identical
+#: across key regimes — only the key's *type* differs.
+K = TypeVar("K")
 
 
 #: Spatial axis names, positional-by-axis — the single source of the
@@ -79,14 +89,18 @@ AXIS_NAMES = ("x", "y", "z")
 
 
 @dataclass(frozen=True)
-class FaceSlot:
+class FaceSlot(Generic[K]):
     r"""Per-face slot in a flat boundary buffer.
 
     Parameters
     ----------
-    name : str
-        Face name (e.g. ``"xmin"``, ``"xmax"``, ``"ymin"``, ``"ymax"``
-        for SN Cartesian geometries; arbitrary tokens for other methods).
+    name : K
+        The slot's **key** — its identity in the owning :class:`FaceLayout`.
+        A ``str`` face name (``"xmin"`` / ``"xmax"`` / ``"ymin"`` / ``"ymax"``
+        for SN Cartesian spatial traces; arbitrary tokens for other methods)
+        in the ``FaceLayout[str]`` case, or a structured key when the faces
+        are not stringly named — the ψ½ starting-direction space keys each
+        slot by ``(level, sign, part)`` (a ``FaceLayout[tuple[int, int, str]]``).
     offset : int
         Start index of this face's flat region in the backing buffer.
     shape : tuple[int, ...]
@@ -102,7 +116,7 @@ class FaceSlot:
     construction. Consumers may rely on this without re-checking.
     """
 
-    name: str
+    name: K
     offset: int
     shape: tuple[int, ...]
     flat_size: int
@@ -132,13 +146,13 @@ class FaceSlot:
 
 
 @dataclass(frozen=True)
-class FaceLayout:
-    r"""Descriptor mapping face names to slices in a flat backing buffer.
+class FaceLayout(Generic[K]):
+    r"""Descriptor mapping face keys to slices in a flat backing buffer.
 
     Parameters
     ----------
-    faces : Mapping[str, FaceSlot]
-        Ordered mapping from face name to :class:`FaceSlot`. Iteration
+    faces : Mapping[K, FaceSlot[K]]
+        Ordered mapping from face key to :class:`FaceSlot`. Iteration
         order determines flat-buffer concatenation order (which matters
         for reproducible serialization and snapshot comparison).
     total_size : int
@@ -154,7 +168,7 @@ class FaceLayout:
     identity ⟹ compatible algebra).
     """
 
-    faces: Mapping[str, FaceSlot]
+    faces: Mapping[K, FaceSlot[K]]
     total_size: int
 
     def __post_init__(self) -> None:
@@ -183,24 +197,26 @@ class FaceLayout:
 
     @classmethod
     def from_named_shapes(
-        cls, named_shapes: "list[tuple[str, tuple[int, ...]]]",
-    ) -> "FaceLayout":
-        r"""Build a :class:`FaceLayout` from an ordered list of ``(name, shape)`` pairs.
+        cls, named_shapes: "Sequence[tuple[K, tuple[int, ...]]]",
+    ) -> "FaceLayout[K]":
+        r"""Build a :class:`FaceLayout` from an ordered list of ``(key, shape)`` pairs.
 
         Iteration order of ``named_shapes`` determines the flat-buffer
         offset assignment (first face gets offset 0, second face gets
         offset = first face's flat_size, etc.). Use this constructor
         when the per-method mesh has a natural face ordering it wants
-        to expose.
+        to expose. Key-generic: the SN spatial trace passes ``str`` face
+        names (``FaceLayout[str]``); the ψ½ starting-direction space passes
+        ``(level, sign, part)`` tuples (``FaceLayout[tuple[int, int, str]]``).
 
         Parameters
         ----------
-        named_shapes : list[tuple[str, tuple[int, ...]]]
-            Ordered list of ``(face_name, per_face_shape)`` pairs.
+        named_shapes : Sequence[tuple[K, tuple[int, ...]]]
+            Ordered list of ``(face_key, per_face_shape)`` pairs.
 
         Returns
         -------
-        FaceLayout
+        FaceLayout[K]
             The constructed layout.
 
         Examples
@@ -216,7 +232,7 @@ class FaceLayout:
         >>> layout.faces["xmax"].offset
         2
         """
-        faces: dict[str, FaceSlot] = {}
+        faces: dict[K, FaceSlot[K]] = {}
         cursor = 0
         for name, shape in named_shapes:
             flat_size = int(np.prod(shape))

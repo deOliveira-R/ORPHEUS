@@ -917,7 +917,7 @@ class SNMesh(MaterialMesh):
         )
 
     @property
-    def boundary_face_layout(self) -> "FaceLayout":
+    def boundary_face_layout(self) -> "FaceLayout[str]":
         r"""Flat :class:`~orpheus.numerics.face_layout.FaceLayout` of boundary faces.
 
         Depth B step D-G primitive. Returns the per-geometry boundary

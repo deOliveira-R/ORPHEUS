@@ -87,7 +87,7 @@ class ScalarTraceSpace(FunctionSpace):
     OUTFLOW_ROW: ClassVar[int] = 0
     INFLOW_ROW: ClassVar[int] = 1
 
-    layout: Optional[FaceLayout] = field(
+    layout: Optional[FaceLayout[str]] = field(
         default=None, kw_only=True, repr=False, compare=False,
     )
 
