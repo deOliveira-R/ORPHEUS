@@ -82,6 +82,7 @@ References
 from __future__ import annotations
 
 from abc import abstractmethod
+from collections.abc import Hashable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Generic, Mapping, Self, TypeVar
 
@@ -112,8 +113,9 @@ if TYPE_CHECKING:
 #: The face-key type of a :class:`FaceField` and its
 #: :class:`~orpheus.numerics.face_layout.FaceLayout`: ``str`` face names for
 #: the spatial :class:`BoundaryField`, the ``(level, sign, part)`` tuple for
-#: the ψ½ :class:`StartingDirectionField`.
-K = TypeVar("K")
+#: the ψ½ :class:`StartingDirectionField`. Bounded by
+#: :class:`~collections.abc.Hashable` — the face key is a mapping key.
+K = TypeVar("K", bound=Hashable)
 
 
 __all__ = [

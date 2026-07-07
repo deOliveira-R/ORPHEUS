@@ -51,6 +51,7 @@ References
 
 from __future__ import annotations
 
+from collections.abc import Hashable
 from dataclasses import dataclass
 from typing import Generic, Mapping, Sequence, TypeVar
 
@@ -67,8 +68,10 @@ __all__ = ["AXIS_NAMES", "FaceSlot", "FaceLayout", "face_streaming_normal"]
 #: structured tuple ``(level, sign, part)``
 #: (``FaceLayout[tuple[int, int, str]]``). The flat-buffer discipline
 #: (offset assignment, slice views, gap/overlap validation) is identical
-#: across key regimes — only the key's *type* differs.
-K = TypeVar("K")
+#: across key regimes — only the key's *type* differs. Bounded by
+#: :class:`~collections.abc.Hashable`: the key is a mapping key, so an
+#: unhashable realization (``FaceLayout[list[int]]``) is unspellable.
+K = TypeVar("K", bound=Hashable)
 
 
 #: Spatial axis names, positional-by-axis — the single source of the

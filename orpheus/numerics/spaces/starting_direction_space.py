@@ -318,24 +318,24 @@ class StartingDirectionSpace(FunctionSpace):
         # not the state inner product. Setting G_sd = 0 severs the seed→bulk
         # A_bs coupling from A.H, making it a WRONG adjoint for any nonzero
         # seed (derivation: [[starting-direction-metric-gauge-derivation]]).
-        per_leg = np.concatenate(
-            [
-                np.tile(cell_volumes, ng),  # cells (ng, nx): V_cell per group
-                np.full(ng, float(cell_volumes[-1])),  # corner (ng,) r=R: V (gauge)
-            ]
-        )
-        metric = np.tile(per_leg, len(levels) * 2)  # every (level, sign) leg
-        # The flat-buffer layout — the single source of the per-(level, sign)
-        # cells/corner offsets (retiring the hand-rolled _leg_offset). Cells
-        # then corner within each leg; legs in (level ascending, sign ∈
-        # (-1, +1)) order — the SAME walk the metric tiling above follows, so
-        # offsets and weights agree by construction.
+        # ONE walk over the (level, sign, part) legs emits BOTH the layout
+        # shapes AND the state-metric weights, so the flat-buffer offsets and
+        # the G_sd = V_cell weights cannot diverge — a single source of the leg
+        # order (retiring the hand-rolled _leg_offset). Cells then corner within
+        # each leg; legs in (level ascending, sign ∈ (-1, +1)) order. Per leg:
+        # V_cell per group over the cells, and V(r = R) = cell_volumes[-1] on
+        # the corner (the free-gauge weight).
+        corner_gauge = float(cell_volumes[-1])
         named_shapes: list[tuple[tuple[int, int, str], tuple[int, ...]]] = []
+        metric_pieces: list[NDArray] = []
         for level in levels:
             for sign in _SIGNS:
                 named_shapes.append(((level, sign, "cells"), (ng, nx)))
+                metric_pieces.append(np.tile(cell_volumes, ng))
                 named_shapes.append(((level, sign, "corner"), (ng,)))
+                metric_pieces.append(np.full(ng, corner_gauge))
         layout = FaceLayout.from_named_shapes(named_shapes)
+        metric = np.concatenate(metric_pieces)
         return cls(
             name="starting_direction",
             shape=(layout.total_size,),

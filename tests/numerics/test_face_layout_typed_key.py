@@ -121,6 +121,32 @@ def test_multilevel_offsets_match_closed_form():
     np.testing.assert_equal(space.shape, (3 * 2 * (_NG * _NX + _NG),))
 
 
+def test_multilevel_metric_weights_correspond_to_the_layout_slots():
+    r"""Each slot's G_sd = V_cell weights sit at the slot's flat region.
+
+    The layout offsets AND the state-metric weights are emitted in ONE walk
+    over the legs (C2c single-source), so a slot's flat region and its V_cell
+    weights must correspond: cells → ``V_cell`` per group; corner → ``V(r=R)``.
+    A regression that re-derived the metric order independently of the layout
+    walk (the retired parallel ``np.tile``) would break this correspondence
+    without moving any offset — so the offset golden alone cannot catch it.
+    """
+    space = _multilevel_space()
+    weights = np.asarray(space.inner_product_weights)
+    for level in _LEVELS:
+        for sign in _SIGN_ORDER:
+            cells = space.layout.faces[(level, sign, "cells")]
+            corner = space.layout.faces[(level, sign, "corner")]
+            cells_w = weights[cells.offset : cells.offset + cells.flat_size]
+            corner_w = weights[corner.offset : corner.offset + corner.flat_size]
+            # cells: V_cell per group (ng tiled copies of the nx-vector).
+            np.testing.assert_array_equal(cells_w, np.tile(_CELL_VOLUMES, _NG))
+            # corner: the r = R gauge weight V[-1] on every group.
+            np.testing.assert_array_equal(
+                corner_w, np.full(_NG, float(_CELL_VOLUMES[-1])),
+            )
+
+
 def test_multilevel_views_roundtrip_without_aliasing():
     r"""Per-leg writes through ``cells_view``/``corner_view`` do not alias.
 
