@@ -78,6 +78,31 @@ by-policy-uncommitted durable knowledge persists on disk across `/compact`:
 mechanism** uplift (`SKILL.md` — "repair the metric"), and the sub-agent memory
 updates. Nothing commit-1 lives only in conversation.
 
+**C2 LANDED (2026-07-06) — the FaceField codim-1 carve, THREE bit-identical
+commits on `refactor/sn-walk-unification`:**
+- **C2a `c637407`** — typed-key `FaceLayout[K]` (`FaceSlot`/`FaceLayout` →
+  `Generic[K]`); ψ½ `StartingDirectionSpace` migrated onto a real
+  `FaceLayout[tuple[int,int,str]]`, the hand-rolled
+  `_leg_offset`/`cells_slice`/`corner_slice`/`_per_sign` retired; the 6 str
+  consumers annotated `FaceLayout[str]`.
+- **C2b `4081c0d`** — `FaceField(Field, Generic[K])` ABC owns the flat-buffer
+  discipline ONCE; `BoundaryField(FaceField[str])` & `StartingDirectionField(
+  FaceField[(level,sign,part)])` re-parented as **SIBLINGS** (the pole is NOT a
+  `BoundaryField` — the `full_field.py:274` discriminator holds); `_trace_space_of`
+  + `_space_of` unified to one `_face_space_of` hook; `FaceSlot.name → key`.
+- **C2c `be5e7f8`** — single-walk ψ½ metric (offsets + `V_cell` weights emitted
+  in ONE loop, no parallel re-derivation) + `K` bound to `Hashable` (elegance-
+  review polish).
+
+Elegance-enforcer PASS (0 must-fix). Deferred `LayoutBearingSpace` Protocol →
+**#295** (`module:numerics`; retires the `FaceField.space` `# type: ignore` +
+getattr-guards). Gates: transport+numerics+diffusion 1352, full tests/sn 1982,
+the new `test_facefield_hierarchy.py` + `test_face_layout_typed_key.py`; pyright
+`transport:1`; sphinx -W clean. **NEXT = C3** (mesh-derived presence via a
+`PhaseSpaceCarrier` Protocol + retire the 7 `_require/_refuse_starting_direction`
+guards) → C4 (`StartingDirection* → RadialCharacteristicFlux` rename) → C5 (docs
+→ DSA).
+
 **Commit 2+ phase plan (the structural carve — confirm ordering at plan time).**
 Clean-before-extend, each step bit-identical on its own gates:
 
