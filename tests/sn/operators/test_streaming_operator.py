@@ -38,10 +38,10 @@ from orpheus.sn.operators.streaming import (
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.sn.regression._regression_assert import assert_regression
 from orpheus.numerics.quadrature import Quadrature
-from tests.sn._test_helpers import placeholder_materials, starting_direction_edge_seed
+from tests.sn._test_helpers import placeholder_materials, radial_characteristic_edge_seed
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 pytestmark = pytest.mark.foundation
@@ -137,7 +137,7 @@ def _random_composite(sn_mesh, seed=171):
     from dataclasses import replace
 
     rng = np.random.default_rng(seed)
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
     bulk_values = rng.standard_normal(state.bulk.values.shape)
     boundary_values = 0.1 + rng.random(state.boundary.values.shape)
     state = replace(state, bulk=replace(state.bulk, values=bulk_values))
@@ -266,7 +266,7 @@ class TestLinearity:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh, ng=2)
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         out = L.apply(state)
         np.testing.assert_allclose(out.bulk.values, 0.0, atol=1e-14)
         np.testing.assert_allclose(out.boundary.values, 0.0, atol=1e-14)
@@ -420,7 +420,7 @@ class TestCompositeInvariants:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         out = L.apply(state)
         np.testing.assert_array_equal(out.bulk.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -442,7 +442,7 @@ class TestCompositeInvariants:
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth, starting_direction=StartingDirectionFlux)
+            state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth, radial_characteristic=RadialCharacteristicFlux)
             out = L.apply(state)
             if type(out) is not FullField or isinstance(out, TimedFullField):
                 pytest.fail(
@@ -482,7 +482,7 @@ class TestCompositeInvariants:
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
 
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         out = L.apply(state)
 
         # base-arrow codomain: a timeless FullField, NOT the timed subclass.
@@ -679,7 +679,7 @@ class TestT4bPreT4RegressionSnapshot:
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
@@ -692,9 +692,9 @@ class TestT4bPreT4RegressionSnapshot:
         # extrapolated ψ½ seed reproduces the pre-route-(a) internally-computed
         # seed, so L.apply reproduces the frozen snapshot value; None on
         # non-carrying meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
-        sd = starting_direction_edge_seed(state.bulk.values, sn_mesh)
+        sd = radial_characteristic_edge_seed(state.bulk.values, sn_mesh)
         if sd is not None:
-            state = replace(state, starting_direction=sd)
+            state = replace(state, radial_characteristic=sd)
         out = L.apply(state)
         return out.bulk.values.copy(), out.boundary.values.copy()
 
@@ -884,7 +884,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
@@ -897,9 +897,9 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         # extrapolated ψ½ seed reproduces the pre-route-(a) internally-computed
         # seed, so L.apply reproduces the frozen snapshot value; None on
         # non-carrying meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
-        sd = starting_direction_edge_seed(state.bulk.values, sn_mesh)
+        sd = radial_characteristic_edge_seed(state.bulk.values, sn_mesh)
         if sd is not None:
-            state = replace(state, starting_direction=sd)
+            state = replace(state, radial_characteristic=sd)
         out = L.apply(state)
         return out.bulk.values.copy(), out.boundary.values.copy()
 

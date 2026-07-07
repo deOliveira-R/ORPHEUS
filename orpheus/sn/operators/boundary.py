@@ -60,12 +60,12 @@ if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
     from orpheus.sn.mesh.augmented_mesh import SNMesh
-    from orpheus.transport.fields._bases import StartingDirectionField
+    from orpheus.transport.fields._bases import RadialCharacteristicField
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.full_field import FullField
     from orpheus.transport.source_sinks import (
         AngularBoundarySourceSink,
-        StartingDirectionSourceSink,
+        RadialCharacteristicSourceSink,
     )
 
 
@@ -290,14 +290,14 @@ class SNBoundaryOperator(LinearOperator):
                 mesh, spatial_moments=mesh.scheme.spatial_basis_per_axis,
             ),
             boundary=self._reflect_trace(trace, method, rows=rows),
-            starting_direction=self._reflect_starting_direction(
-                psi.starting_direction, method,
+            radial_characteristic=self._reflect_radial_characteristic(
+                psi.radial_characteristic, method,
             ),
         )
 
-    def _reflect_starting_direction(
-        self, seed: "StartingDirectionField | None", method: str,
-    ) -> "StartingDirectionSourceSink | None":
+    def _reflect_radial_characteristic(
+        self, seed: "RadialCharacteristicField | None", method: str,
+    ) -> "RadialCharacteristicSourceSink | None":
         r"""The ``A_ss`` CORNER arm on the starting-direction block (R13, 2.5d).
 
         The (R, μ = ∓1) corner pair completes the boundary block on a
@@ -335,7 +335,7 @@ class SNBoundaryOperator(LinearOperator):
         """
         if seed is None:
             return None
-        from orpheus.transport.source_sinks import StartingDirectionSourceSink
+        from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
 
         # A seed-carrying mesh is 1-D curvilinear: exactly ONE boundary
         # face (the outer radius renders as ``xmax``) carries the law.
@@ -362,7 +362,7 @@ class SNBoundaryOperator(LinearOperator):
                 f"yet (white / albedo / periodic at the off-quadrature "
                 f"μ = ±1 ray — loud-deferred, 2.5d plan-of-record)."
             )
-        return StartingDirectionSourceSink(
+        return RadialCharacteristicSourceSink(
             values=out, space=space, mesh=seed.mesh,  # type: ignore[attr-defined]
         )
 
@@ -402,7 +402,7 @@ class SNBoundaryOperator(LinearOperator):
         self, boundary_flux: "AngularBoundaryFlux",
         faces: "Iterable[str] | None" = None,
         *,
-        starting_direction: "StartingDirectionField | None" = None,
+        radial_characteristic: "RadialCharacteristicField | None" = None,
     ) -> None:
         r"""In place: overwrite each face's inflow rows with the reflected
         outflow — ``ψ.inflow ← (B·ψ)|_{\rm inflow}``, face-restrictable.
@@ -418,10 +418,10 @@ class SNBoundaryOperator(LinearOperator):
         fixed-source SI loop + the eigenvalue reconstruction sweep via
         :func:`orpheus.sn.solver._reflect_outflow_into_inflow`.
 
-        ``starting_direction`` (#282 route (a)): a ψ½ carrier whose
+        ``radial_characteristic`` (#282 route (a)): a ψ½ carrier whose
         inflow-corner slots are overwritten with the law's corner action
         on its OUTFLOW corners — ``ψ½.corner(p, −1) ← (B·ψ½).corner(p,
-        −1)`` through the SAME :meth:`_reflect_starting_direction` arm
+        −1)`` through the SAME :meth:`_reflect_radial_characteristic` arm
         the matvec uses (vacuum ⇒ 0, reflective ⇒ the specular corner
         swap).  The seed analogue of the trace overwrite above, for the
         reconstruction sweep's given-data corner seeding.
@@ -436,15 +436,15 @@ class SNBoundaryOperator(LinearOperator):
             boundary_flux.face_view(face)[inflow] = (
                 reflected.face_view(face)[inflow]
             )
-        if starting_direction is not None:
-            corner_reflected = self._reflect_starting_direction(
-                starting_direction, "apply",
+        if radial_characteristic is not None:
+            corner_reflected = self._reflect_radial_characteristic(
+                radial_characteristic, "apply",
             )
             assert corner_reflected is not None  # seed given ⇒ arm emits
-            space = starting_direction.space
+            space = radial_characteristic.space
             for level in space.levels:
                 space.corner_view(
-                    starting_direction.values, level, -1,
+                    radial_characteristic.values, level, -1,
                 )[...] = space.corner_view(corner_reflected.values, level, -1)
 
     def split(self, schedule: "SweepSchedule") -> "BoundarySplit":

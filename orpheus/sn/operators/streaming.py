@@ -1046,18 +1046,18 @@ class InvertibleOperator(
         # boundary_buf discipline — the inflow corner passes through as
         # the seeded given-data slot; the marched cells + outflow corner
         # are the solved state).  Non-carrying meshes stay 2-block.
-        starting_direction_buf = None
-        if sn_mesh.starting_direction_space is not None:
-            from orpheus.sn.loss_representation import _require_starting_direction
-            from orpheus.transport.fields.starting_direction_flux import (
-                StartingDirectionFlux,
+        radial_characteristic_buf = None
+        if sn_mesh.radial_characteristic_space is not None:
+            from orpheus.sn.loss_representation import _require_radial_characteristic
+            from orpheus.transport.fields.radial_characteristic_flux import (
+                RadialCharacteristicFlux,
             )
 
-            _require_starting_direction(
-                "InvertibleOperator.solve", sn_mesh, rhs.starting_direction,
+            _require_radial_characteristic(
+                "InvertibleOperator.solve", sn_mesh, rhs.radial_characteristic,
                 role="rhs",
             )
-            starting_direction_buf = StartingDirectionFlux.zeros_on(sn_mesh)
+            radial_characteristic_buf = RadialCharacteristicFlux.zeros_on(sn_mesh)
 
         # ── Sweep on the operator's ONE representation (S6.5, #222) —
         # the SAME :class:`LossRepresentation` instance the matvec
@@ -1081,8 +1081,8 @@ class InvertibleOperator(
             moment_frame=moment_frame,
             schedule=schedule,
             reflect=reflect,
-            starting_direction_source=rhs.starting_direction,
-            starting_direction_flux=starting_direction_buf,
+            radial_characteristic_source=rhs.radial_characteristic,
+            radial_characteristic_flux=radial_characteristic_buf,
         )
         # The sweep output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
@@ -1105,7 +1105,7 @@ class InvertibleOperator(
         return TimedFullField(
             bulk=bulk,
             boundary=boundary_buf,
-            starting_direction=starting_direction_buf,
+            radial_characteristic=radial_characteristic_buf,
             _history=(),
             history_depth=(
                 rhs.history_depth if isinstance(rhs, TimedFullField) else 0
@@ -1146,7 +1146,7 @@ class InvertibleOperator(
             b.bulk.values,
             self.sigma,
             b.boundary,
-            seed_cot=b.starting_direction,
+            seed_cot=b.radial_characteristic,
         )
         return FullField(
             bulk=AngularSourceSink.from_mesh(
@@ -1154,5 +1154,5 @@ class InvertibleOperator(
                 spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
             ),
             boundary=m_boundary,
-            starting_direction=m_seed,
+            radial_characteristic=m_seed,
         )

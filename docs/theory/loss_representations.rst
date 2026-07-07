@@ -2286,7 +2286,7 @@ from the bulk:
   the full :math:`(N, n_g, n_x)` phase space); the spatial trace is
   codim-1 (the :math:`r`-faces); ψ½ is codim-1 too — the angular-domain
   edge :math:`\mu = \mu_{\rm start}`.  Its storage
-  (:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`)
+  (:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`)
   deliberately mirrors the spatial trace's flat-buffer
   :class:`~orpheus.numerics.face_layout.FaceLayout` discipline (typed
   ``(level, sign)`` views in place of ``FaceLabel`` views).
@@ -2338,9 +2338,9 @@ rather than a forced one.
    (:mod:`orpheus.transport.fields`) has the spatial-trace family
    (:class:`~orpheus.transport.fields._bases.BoundaryField`) and the ψ½
    family
-   (:class:`~orpheus.transport.fields._bases.StartingDirectionField`) as
+   (:class:`~orpheus.transport.fields._bases.RadialCharacteristicField`) as
    **separate siblings** off :class:`~orpheus.numerics.field.Field` —
-   ``StartingDirectionField`` *hand-copies* the flat-buffer discipline
+   ``RadialCharacteristicField`` *hand-copies* the flat-buffer discipline
    rather than inheriting it.  The design introduces the missing **codim-1
    parent** they should share::
 
@@ -2348,7 +2348,7 @@ rather than a forced one.
        ├── BulkField    — codim-0 (cell centres);  metric = per-leaf  V·w
        └── FaceField    — codim-1 (faces/edges);   STRUCTURE only (flat layout + presence)
             ├── AngularBoundaryField / ScalarBoundaryField  (spatial faces)  metric |Ω·n|·w
-            └── StartingDirectionField (ψ½)                 (angular edges)   metric V_cell (SPD)
+            └── RadialCharacteristicField (ψ½)                 (angular edges)   metric V_cell (SPD)
 
    ``FaceField`` would own the ``FaceLayout`` flat-buffer discipline and
    the presence-invariant **once**, so the face families stop being
@@ -2390,16 +2390,16 @@ Until the design above lands, presence is a **free constructor argument**
 kept consistent with a fact only the mesh knows.
 :class:`~orpheus.transport.full_field.FullField` carries the
 starting-direction block as an ``Optional`` third summand
-(``starting_direction: StartingDirectionField | None = None``), and
+(``radial_characteristic: RadialCharacteristicField | None = None``), and
 **7 runtime guard call sites** police presence-vs-mesh consistency: a
-positive half (``_require_starting_direction``, "carrying ⟹ present", at
+positive half (``_require_radial_characteristic``, "carrying ⟹ present", at
 3 sites — one of them in
 :class:`~orpheus.sn.operators.streaming.InvertibleOperator`) and a
-negative half (``_refuse_starting_direction``, "non-carrying ⟹ absent",
+negative half (``_refuse_radial_characteristic``, "non-carrying ⟹ absent",
 at 4 sites).  Both guard functions live in
 :mod:`orpheus.sn.loss_representation`.  The mesh already authoritatively
 computes presence
-(:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`),
+(:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`),
 so there are **two sources of truth** for one fact and the guards are the
 machinery reconciling them — the Pattern-2 smell the
 mesh-derived-presence design (above) is meant to dissolve.

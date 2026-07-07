@@ -41,7 +41,7 @@ R12a refines the R12 letter ("μ_start ∉ the level's μ-nodes"), whose
 claimed equivalence to ``τ_raw ≠ 0`` is empirically false on
 level-symmetric cylinder rules (μ_start ∉ nodes there, yet τ_raw = 1 —
 dead). The predicate is evaluated by
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`;
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`;
 this space is deliberately quadrature-blind (pure layout + metric).
 
 Layout — one flat backing buffer, shaped views (R13)
@@ -61,7 +61,7 @@ flat-backing precedent::
 Access goes through :meth:`cells_view` / :meth:`corner_view` — slice
 views into the flat buffer, no copies. The offsets are sourced from a
 real :class:`~orpheus.numerics.face_layout.FaceLayout` carried on the
-space (:attr:`~StartingDirectionSpace.layout`), keyed by the structured
+space (:attr:`~RadialCharacteristicSpace.layout`), keyed by the structured
 ``(level, sign, part)`` tuple — the SAME flat-buffer discipline the
 spatial trace uses with ``str`` face-name keys (``FaceLayout[str]``), the
 key merely typed instead of stringly.
@@ -132,7 +132,7 @@ are **bitwise gauge-invariant** (the block-upper-triangular
 :math:`A^\dagger` seats the seed at the top, so only
 :math:`\phi^\dagger_{\rm seed}` moves with the gauge). Derivation of
 record:
-``.claude/agent-memory/numerics-investigator/starting_direction_metric_gauge_derivation.md``.
+``.claude/agent-memory/numerics-investigator/radial_characteristic_metric_gauge_derivation.md``.
 
 Consequences (inherited from
 :class:`~orpheus.numerics.space.FunctionSpace` with the SPD weight
@@ -181,7 +181,7 @@ from numpy.typing import NDArray
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.space import FunctionSpace
 
-__all__ = ["StartingDirectionSpace", "fold_moments_to_starting_direction"]
+__all__ = ["RadialCharacteristicSpace", "fold_moments_to_radial_characteristic"]
 
 #: The two starting-direction legs, in flat-layout (and DAG) order:
 #: the inward leg first (seed⁻ ≺ seed⁺ — the outward leg is
@@ -190,14 +190,14 @@ _SIGNS: tuple[int, int] = (-1, +1)
 
 
 @dataclass(frozen=True)
-class StartingDirectionSpace(FunctionSpace):
+class RadialCharacteristicSpace(FunctionSpace):
     r"""Flat per-level ψ½ space with typed ``(level, sign)`` views and the V_cell metric.
 
     Parameters
     ----------
     name, shape, inner_product_weights
         Inherited from :class:`~orpheus.numerics.space.FunctionSpace`.
-        ``name`` is ``"starting_direction"``; ``shape`` is the flat
+        ``name`` is ``"radial_characteristic"``; ``shape`` is the flat
         total ``(n_levels · 2 · (ng·nx + ng),)``; the weights are the
         SPD **state metric** :math:`G_{\rm sd} = V_{\rm cell}` (see the
         module docstring's "The state metric" section).
@@ -238,7 +238,7 @@ class StartingDirectionSpace(FunctionSpace):
 
     def __repr__(self) -> str:
         return (
-            f"StartingDirectionSpace(levels={self.levels}, ng={self.ng}, "
+            f"RadialCharacteristicSpace(levels={self.levels}, ng={self.ng}, "
             f"nx={self.nx}, shape={self.shape})"
         )
 
@@ -252,7 +252,7 @@ class StartingDirectionSpace(FunctionSpace):
         ng: int,
         nx: int,
         cell_volumes: NDArray,
-    ) -> "StartingDirectionSpace":
+    ) -> "RadialCharacteristicSpace":
         r"""Build the space for the given seed-carrying levels.
 
         The ONLY construction path (the bare constructor cannot derive
@@ -277,29 +277,29 @@ class StartingDirectionSpace(FunctionSpace):
         levels = tuple(int(p) for p in levels)
         if not levels:
             raise ValueError(
-                "StartingDirectionSpace.for_levels: levels is empty — a mesh "
+                "RadialCharacteristicSpace.for_levels: levels is empty — a mesh "
                 "with no seed-carrying levels has NO starting-direction "
                 "space (spelled None), not an empty one."
             )
         if any(b <= a for a, b in zip(levels, levels[1:])):
             raise ValueError(
-                f"StartingDirectionSpace.for_levels: levels must be strictly "
+                f"RadialCharacteristicSpace.for_levels: levels must be strictly "
                 f"ascending (the canonical layout order); got {levels!r}."
             )
         if ng <= 0 or nx <= 0:
             raise ValueError(
-                f"StartingDirectionSpace.for_levels: ng and nx must be "
+                f"RadialCharacteristicSpace.for_levels: ng and nx must be "
                 f"positive; got ng={ng}, nx={nx}."
             )
         cell_volumes = np.asarray(cell_volumes, dtype=float)
         if cell_volumes.shape != (nx,):
             raise ValueError(
-                f"StartingDirectionSpace.for_levels: cell_volumes must have "
+                f"RadialCharacteristicSpace.for_levels: cell_volumes must have "
                 f"shape ({nx},) to match nx; got {cell_volumes.shape}."
             )
         if np.any(cell_volumes <= 0.0):
             raise ValueError(
-                "StartingDirectionSpace.for_levels: cell_volumes must be "
+                "RadialCharacteristicSpace.for_levels: cell_volumes must be "
                 "strictly positive — the state metric G_sd = V_cell must be "
                 "SPD (a zero weight is the forbidden ghost metric that severs "
                 "the seed from the G-adjoint; see the module docstring)."
@@ -337,7 +337,7 @@ class StartingDirectionSpace(FunctionSpace):
         layout = FaceLayout.from_named_shapes(named_shapes)
         metric = np.concatenate(metric_pieces)
         return cls(
-            name="starting_direction",
+            name="radial_characteristic",
             shape=(layout.total_size,),
             inner_product_weights=metric,
             levels=levels,
@@ -372,12 +372,12 @@ class StartingDirectionSpace(FunctionSpace):
         """
         if sign not in _SIGNS:
             raise ValueError(
-                f"StartingDirectionSpace: sign must be -1 (inward) or +1 "
+                f"RadialCharacteristicSpace: sign must be -1 (inward) or +1 "
                 f"(outward); got {sign!r}."
             )
         if level not in self.levels:
             raise KeyError(
-                f"StartingDirectionSpace: level {level!r} carries no "
+                f"RadialCharacteristicSpace: level {level!r} carries no "
                 f"starting-direction block; seed-carrying levels are "
                 f"{self.levels!r} (R12a predicate)."
             )
@@ -405,7 +405,7 @@ class StartingDirectionSpace(FunctionSpace):
         return slot.slice_view(buffer)
 
 
-def fold_moments_to_starting_direction(
+def fold_moments_to_radial_characteristic(
     moments: np.ndarray,
     sign: int,
 ) -> np.ndarray:
@@ -455,13 +455,13 @@ def fold_moments_to_starting_direction(
     """
     if sign not in (-1, +1):
         raise ValueError(
-            f"fold_moments_to_starting_direction: sign must be -1 or +1; "
+            f"fold_moments_to_radial_characteristic: sign must be -1 or +1; "
             f"got {sign!r}."
         )
     moments = np.asarray(moments)
     if moments.ndim < 1 or moments.shape[0] < 1:
         raise ValueError(
-            f"fold_moments_to_starting_direction: moments must carry a "
+            f"fold_moments_to_radial_characteristic: moments must carry a "
             f"leading ℓ axis with at least the ℓ = 0 moment; got shape "
             f"{moments.shape!r}."
         )

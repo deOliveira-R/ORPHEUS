@@ -37,7 +37,7 @@ Legendre moments via :math:`P_\ell(\pm 1) = (\pm 1)^\ell`:
    \bar Q_i \;=\; \sum_\ell \frac{2\ell+1}{2}\,Q_\ell(r_i)\,(\pm 1)^\ell
 
 (the fold lives in
-:func:`~orpheus.numerics.spaces.starting_direction_space.fold_moments_to_starting_direction`
+:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`
 — the R14 helper the operator seed arms and the source factories share).
 
 Development history — the seed-strategy zoo (retired 2026-07-04, 2.5d d3)
@@ -59,7 +59,7 @@ swappable ``PsiHalfAngleSeed`` strategy family on the M-M closure:
 
 Route (a) (#282, ruling R10) retired the whole strategy family: the
 starting-direction flux is now first-class STATE (the
-``StartingDirectionField`` block of the composite, present per level
+``RadialCharacteristicField`` block of the composite, present per level
 under the R12a predicate), the SOLVE marches it directly from the TRUE
 q½ source through this function, and the APPLY reads the given carrier
 block.  On the non-carrying cylinder levels (R12a: product rules
@@ -112,7 +112,7 @@ def carlson_inward_sweep_from_source(
     Q_bar : np.ndarray, shape ``(ng, nx)``
         Cell-averaged TRUE source at the starting direction — the
         Legendre fold :eq:`hebert-3-432-source` of the within-group
-        source moments (``fold_moments_to_starting_direction``).  For an
+        source moments (``fold_moments_to_radial_characteristic``).  For an
         isotropic source this is :math:`\tfrac12 \bar Q_{\rm iso}`.
     sigma_t : np.ndarray, shape ``(ng, nx)``
         Cell-centred total cross-section, per-group, per-cell.

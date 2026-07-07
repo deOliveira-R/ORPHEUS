@@ -1,14 +1,14 @@
 r"""Starting-direction flux displacement :math:`\Delta\psi_{1/2}`.
 
 The difference-space (tangent) sibling of
-:class:`~orpheus.transport.fields.starting_direction_flux.StartingDirectionFlux`
-— the increment between two ψ½ iterates (the ``starting_direction``
+:class:`~orpheus.transport.fields.radial_characteristic_flux.RadialCharacteristicFlux`
+— the increment between two ψ½ iterates (the ``radial_characteristic``
 member of an augmented iterate's
 :class:`~orpheus.transport.timed_full_field.TimedFullField`). Stored on
 the shared R12a-keyed
-:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`
-(``mesh.starting_direction_space``); a DISTINCT class. Born ONLY from
-``StartingDirectionFlux ⊖ StartingDirectionFlux`` (the
+:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`
+(``mesh.radial_characteristic_space``); a DISTINCT class. Born ONLY from
+``RadialCharacteristicFlux ⊖ RadialCharacteristicFlux`` (the
 :class:`~orpheus.transport.fields._flux_role.FluxRole` mint, resolved
 through the Rep-keyed
 :meth:`~orpheus.transport.displacements._displacement.Displacement.sibling_of`
@@ -24,13 +24,13 @@ from typing import ClassVar
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.displacements._displacement import Displacement
-from orpheus.transport.fields._bases import StartingDirectionField
+from orpheus.transport.fields._bases import RadialCharacteristicField
 
-__all__ = ["StartingDirectionDisplacement"]
+__all__ = ["RadialCharacteristicDisplacement"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class StartingDirectionDisplacement(Displacement, StartingDirectionField):
+class RadialCharacteristicDisplacement(Displacement, RadialCharacteristicField):
     r"""L2 starting-direction flux displacement on the shared seed space.
 
     Like every displacement leaf it shares its flux sibling's space
@@ -39,6 +39,6 @@ class StartingDirectionDisplacement(Displacement, StartingDirectionField):
     identity is the role gate.
     """
 
-    #: Same units as :class:`StartingDirectionFlux` (``1/(cm²·s·sr)`` —
+    #: Same units as :class:`RadialCharacteristicFlux` (``1/(cm²·s·sr)`` —
     #: a ψ½ flux-difference).
     UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS

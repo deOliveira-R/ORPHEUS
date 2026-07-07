@@ -5,7 +5,7 @@ codim-1 parent that owns the flat-buffer / :class:`FaceLayout` discipline ONCE �
 and re-parented the two codim-1 loci under it as **siblings**:
 
 * :class:`BoundaryField` (``FaceField[str]``) — the SPATIAL faces;
-* :class:`StartingDirectionField` (``FaceField[tuple[int, int, str]]``) — the ψ½
+* :class:`RadialCharacteristicField` (``FaceField[tuple[int, int, str]]``) — the ψ½
   ANGULAR-edge pole seed.
 
 This module pins the two load-bearing structural facts the carve must preserve:
@@ -13,7 +13,7 @@ This module pins the two load-bearing structural facts the carve must preserve:
 1. **Sibling, NOT child.** The :class:`~orpheus.transport.full_field.FullField`
    composite discriminates its boundary slot by ``isinstance(·, BoundaryField)``;
    the ψ½ pole MUST FAIL that test. If a refactor made
-   :class:`StartingDirectionField` a *child* of :class:`BoundaryField` (or
+   :class:`RadialCharacteristicField` a *child* of :class:`BoundaryField` (or
    collapsed :class:`BoundaryField` into :class:`FaceField`), the composite would
    silently accept a pole field in its boundary slot — a wrong-slot bug invisible
    to every value gate.
@@ -38,10 +38,10 @@ from orpheus.transport.fields._bases import (
     BoundaryField,
     AngularBoundaryField,
     ScalarBoundaryField,
-    StartingDirectionField,
+    RadialCharacteristicField,
 )
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from tests.sn._test_helpers import make_tiny_spherical_sn_mesh
 
 
@@ -61,7 +61,7 @@ class TestFaceFieldIsTheCodim1Parent:
     def test_every_face_family_descends_from_facefield(self):
         for family in (
             BoundaryField,
-            StartingDirectionField,
+            RadialCharacteristicField,
             AngularBoundaryField,
             ScalarBoundaryField,
         ):
@@ -84,11 +84,11 @@ class TestPoleIsSiblingNotChild:
         # If this flips, isinstance(pole, BoundaryField) in FullField.__post_init__
         # starts returning True and the composite accepts the pole in its
         # boundary slot — silently wrong.
-        np.testing.assert_(not issubclass(StartingDirectionField, BoundaryField))
-        np.testing.assert_(not issubclass(BoundaryField, StartingDirectionField))
+        np.testing.assert_(not issubclass(RadialCharacteristicField, BoundaryField))
+        np.testing.assert_(not issubclass(BoundaryField, RadialCharacteristicField))
 
     def test_pole_and_boundary_share_the_facefield_parent(self):
-        np.testing.assert_(issubclass(StartingDirectionField, FaceField))
+        np.testing.assert_(issubclass(RadialCharacteristicField, FaceField))
         np.testing.assert_(issubclass(BoundaryField, FaceField))
 
 
@@ -98,7 +98,7 @@ class TestPoleIsSiblingNotChild:
 class TestConstructedInstancesDiscriminate:
     def test_constructed_pole_fails_the_boundary_isinstance(self):
         mesh = _sphere_mesh()
-        pole = StartingDirectionFlux.zeros_on(mesh)
+        pole = RadialCharacteristicFlux.zeros_on(mesh)
         boundary = AngularBoundaryFlux.zeros_on(mesh)
         # The exact test FullField.__post_init__ runs on its boundary slot.
         np.testing.assert_(not isinstance(pole, BoundaryField))  # the guarded fact
@@ -130,7 +130,7 @@ class TestPostInitFiresOnce:
 
         monkeypatch.setattr(FaceField, "__post_init__", counting_post_init)
 
-        StartingDirectionFlux.zeros_on(mesh)
+        RadialCharacteristicFlux.zeros_on(mesh)
         np.testing.assert_equal(calls["n"], 1, err_msg="pole: post_init != once")
 
         calls["n"] = 0
@@ -153,7 +153,7 @@ class TestMetricIsPerLeaf:
         would collapse them to equal — this reddens.
         """
         mesh = _sphere_mesh()
-        pole_w = StartingDirectionFlux.zeros_on(mesh).space.inner_product_weights
+        pole_w = RadialCharacteristicFlux.zeros_on(mesh).space.inner_product_weights
         trace_w = AngularBoundaryFlux.zeros_on(mesh).space.inner_product_weights
 
         # The pole's state metric exists and is SPD (nonzero) — NOT the ghost 0.

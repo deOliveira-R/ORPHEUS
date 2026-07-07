@@ -69,8 +69,8 @@ if TYPE_CHECKING:
     from orpheus.numerics.face_layout import FaceLayout
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-    from orpheus.numerics.spaces.starting_direction_space import (
-        StartingDirectionSpace,
+    from orpheus.numerics.spaces.radial_characteristic_space import (
+        RadialCharacteristicSpace,
     )
     # NOTE (B.5.A): the transport-field TYPE_CHECKING imports retired with the
     # SNMesh.zeros_* factory family. Zero-allocation now lives on the field
@@ -792,7 +792,7 @@ class SNMesh(MaterialMesh):
     _SEED_TAU_EPS: ClassVar[float] = 1e-12
 
     @cached_property
-    def starting_direction_levels(self) -> tuple[int, ...]:
+    def radial_characteristic_levels(self) -> tuple[int, ...]:
         r"""μ-level indices that consume INDEPENDENT starting-direction state (R12a).
 
         The seed-presence predicate of #282 route (a): a level carries a
@@ -829,27 +829,27 @@ class SNMesh(MaterialMesh):
         )
 
     @cached_property
-    def starting_direction_space(self) -> "StartingDirectionSpace | None":
+    def radial_characteristic_space(self) -> "RadialCharacteristicSpace | None":
         r"""The R12a-keyed ψ½ carrier space, or ``None`` if no level carries.
 
         The phase-space machinery the starting-direction field leaves
-        (``StartingDirectionFlux`` / ``...SourceSink`` /
+        (``RadialCharacteristicFlux`` / ``...SourceSink`` /
         ``...Displacement``) and the composite factory
         (:meth:`~orpheus.transport.full_field.FullField.zeros`) read —
         the seed sibling of :attr:`angular_trace`. ``None`` ⟺
-        :attr:`starting_direction_levels` is empty (absence is spelled
+        :attr:`radial_characteristic_levels` is empty (absence is spelled
         ``None``, never a zero-DOF space). Cached: one space per mesh,
         so every leaf of every role shares the same instance (the
         layout + state-metric single source).
         """
-        levels = self.starting_direction_levels
+        levels = self.radial_characteristic_levels
         if not levels:
             return None
-        from orpheus.numerics.spaces.starting_direction_space import (
-            StartingDirectionSpace,
+        from orpheus.numerics.spaces.radial_characteristic_space import (
+            RadialCharacteristicSpace,
         )
 
-        return StartingDirectionSpace.for_levels(
+        return RadialCharacteristicSpace.for_levels(
             levels,
             ng=self.ng,
             nx=int(self.spatial_shape[0]),
@@ -881,7 +881,7 @@ class SNMesh(MaterialMesh):
         * **starting-direction** (present iff the mesh carries R12a seed
           levels — the sphere): :math:`G_{\rm sd} = V_{\rm cell}` — the
           SPD radial cell-volume **state metric** of
-          :attr:`starting_direction_space` (ψ½ is a first-class radial
+          :attr:`radial_characteristic_space` (ψ½ is a first-class radial
           state field: the same spatial measure as the bulk, restricted
           to the μ = ±1 ray, without the angular factor :math:`w_n`). See
           the space's module docstring for the derivation and the
@@ -913,7 +913,7 @@ class SNMesh(MaterialMesh):
         return FullFieldSpace.from_blocks(
             bulk_space,
             self.angular_trace,
-            starting_direction_space=self.starting_direction_space,
+            radial_characteristic_space=self.radial_characteristic_space,
         )
 
     @property

@@ -43,7 +43,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
@@ -123,10 +123,10 @@ def _loss(sn_mesh: SNMesh):
 
 
 def _fresh(sn_mesh: SNMesh) -> FullField:
-    space = sn_mesh.starting_direction_space
+    space = sn_mesh.radial_characteristic_space
     return FullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-        starting_direction=None if space is None else StartingDirectionFlux,
+        radial_characteristic=None if space is None else RadialCharacteristicFlux,
     )
 
 
@@ -134,15 +134,15 @@ def _read_augmented(out, sn_mesh, g) -> np.ndarray:
     """The full augmented probe layout (incl. the outflow corner) — for the
     dense oracle's index bookkeeping."""
     bulk = np.asarray(out.bulk.values)[:, g].ravel()
-    space = sn_mesh.starting_direction_space
+    space = sn_mesh.radial_characteristic_space
     if space is None:
         return bulk
     seed = np.concatenate([
         np.concatenate([
-            [space.corner_view(out.starting_direction.values, p, -1)[g]],
-            space.cells_view(out.starting_direction.values, p, -1)[g][::-1],
-            space.cells_view(out.starting_direction.values, p, +1)[g],
-            [space.corner_view(out.starting_direction.values, p, +1)[g]],
+            [space.corner_view(out.radial_characteristic.values, p, -1)[g]],
+            space.cells_view(out.radial_characteristic.values, p, -1)[g][::-1],
+            space.cells_view(out.radial_characteristic.values, p, +1)[g],
+            [space.corner_view(out.radial_characteristic.values, p, +1)[g]],
         ]) for p in space.levels
     ])
     return np.concatenate([seed, bulk])
@@ -151,7 +151,7 @@ def _read_augmented(out, sn_mesh, g) -> np.ndarray:
 def _source_carried_mask(sn_mesh) -> np.ndarray:
     """Boolean mask (augmented layout) selecting source-carried slots — every
     slot EXCEPT each seed leg's trailing outflow corner."""
-    space = sn_mesh.starting_direction_space
+    space = sn_mesh.radial_characteristic_space
     N = sn_mesh.quad.n_ordinates
     nx = int(np.prod(sn_mesh.spatial_shape))
     if space is None:
@@ -178,8 +178,8 @@ def test_g1_round_trip_bulk(geom):
     rng = np.random.default_rng(20260705)
     x = _fresh(sn)
     x.bulk.values[:] = rng.random(x.bulk.values.shape)
-    if sn.starting_direction_space is not None:
-        x.starting_direction.values[:] = rng.random(x.starting_direction.values.shape)
+    if sn.radial_characteristic_space is not None:
+        x.radial_characteristic.values[:] = rng.random(x.radial_characteristic.values.shape)
     back = A.solve_transpose(A.apply_transpose(x))
     np.testing.assert_allclose(
         np.asarray(back.bulk.values), np.asarray(x.bulk.values),
@@ -213,9 +213,9 @@ def test_g2_dense_transpose_oracle(geom):
         M = _probe_augmented_matrix_one_group(sn, g)
         b = _fresh(sn)
         b.bulk.values[:, g] = rng.random((sn.quad.n_ordinates, *sn.spatial_shape))
-        if sn.starting_direction_space is not None:
-            b.starting_direction.values[:] = rng.random(
-                b.starting_direction.values.shape
+        if sn.radial_characteristic_space is not None:
+            b.radial_characteristic.values[:] = rng.random(
+                b.radial_characteristic.values.shape
             )
         b_vec = _read_augmented(b, sn, g)
         got = _read_augmented(A.solve_transpose(b), sn, g)
@@ -281,19 +281,19 @@ def test_g3_full_field_solve_reciprocity(geom):
 @pytest.mark.parametrize("geom", ["cyl_product", "cyl_ls"])
 def test_g4_cyl_returns_no_seed_cotangent(geom):
     """The non-carrying cylinder's transpose-solve returns
-    ``starting_direction = None`` (``m_seed = None``) — the R12a contract, the
+    ``radial_characteristic = None`` (``m_seed = None``) — the R12a contract, the
     mirror of the forward's non-carrying refusal."""
     sn = _MESHES[geom]()
-    if sn.starting_direction_space is not None:
+    if sn.radial_characteristic_space is not None:
         pytest.fail(f"{geom} unexpectedly carries a starting-direction space")
     A = _loss(sn)
     p = _fresh(sn)
     p.bulk.values[:] = np.random.default_rng(1).random(p.bulk.values.shape)
     out = A.solve_transpose(p)
-    if out.starting_direction is not None:
+    if out.radial_characteristic is not None:
         pytest.fail(
             f"{geom}: non-carrying cyl solve_transpose must return "
-            f"starting_direction=None, got {type(out.starting_direction).__name__}"
+            f"radial_characteristic=None, got {type(out.radial_characteristic).__name__}"
         )
 
 

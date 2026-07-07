@@ -62,7 +62,7 @@ from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.sn._test_helpers import starting_direction_edge_seed
+from tests.sn._test_helpers import radial_characteristic_edge_seed
 
 
 def _lc_apply_on_psi_ref(case, nc: int):
@@ -99,7 +99,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
         # NON-FLAT-in-μ trial (its own μ = −1 datum, A − B for the linear
         # A + Bμ ansatz), so (L+C).apply reproduces the operator action the
         # continuous hand reference is compared against; None on non-carrying.
-        starting_direction=starting_direction_edge_seed(vals, sn_mesh),
+        radial_characteristic=radial_characteristic_edge_seed(vals, sn_mesh),
     )
 
     # ── Production (L+C).apply on ψ_ref ──

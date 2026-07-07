@@ -8,7 +8,7 @@ The full retirement narrative lives in the production module docstring of
 
 #282 route (a) (#280 Phase 2.5d, 2026-07-04) **retired the whole strategy
 zoo**: the starting-direction flux is now first-class STATE (the
-``StartingDirectionField`` block of the augmented composite), the SOLVE
+``RadialCharacteristicField`` block of the augmented composite), the SOLVE
 marches it directly from the TRUE q½ source, and the APPLY reads the given
 carrier.  What SURVIVES as the direct engine is the free function
 :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
@@ -35,8 +35,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.spaces.starting_direction_space import (
-    fold_moments_to_starting_direction,
+from orpheus.numerics.spaces.radial_characteristic_space import (
+    fold_moments_to_radial_characteristic,
 )
 from orpheus.sn.spatial.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
@@ -245,7 +245,7 @@ class TestSeedLinearity:
 # (§0.6 isotropic-snapshot blindness).
 
 
-def _starting_direction_exact(r, q, sigma, phi_R, R):
+def _radial_characteristic_exact(r, q, sigma, phi_R, R):
     r"""φ(r) = q/σ + (φ_R − q/σ)·exp(−σ·(R − r)) — the closed attenuation
     integral of −dφ/dr + σφ = q with φ(R) = φ_R (constant σ, q).
     Structurally independent of the DD recurrence (no marching)."""
@@ -278,7 +278,7 @@ def _direct_solver_inf_error(solver, edges, *, q=0.7, sigma=1.3, phi_R=2.0):
     sig = np.full((1, nx), sigma)
     bc = np.array([phi_R])
     cells, _face = solver(Q_bar, sig, dr, bc)
-    exact = _starting_direction_exact(centers, q, sigma, phi_R, R)
+    exact = _radial_characteristic_exact(centers, q, sigma, phi_R, R)
     return float(np.max(np.abs(cells[0] - exact)))
 
 
@@ -398,7 +398,7 @@ class TestB1DirectSolverClosedForm:
         )
 
 
-class TestB2StartingDirectionSourceFold:
+class TestB2RadialCharacteristicSourceFold:
     r"""§16.B B2 — the R14 fold helper ``Q̄(±1) = Σ_ℓ (2ℓ+1)/2·Q_ℓ·(±1)^ℓ``.
 
     The single source of the q½ construction (the S/F seed arms and the
@@ -417,10 +417,10 @@ class TestB2StartingDirectionSourceFold:
         rng = np.random.default_rng(20260704)
         Q0 = rng.normal(size=(2, 5))
         np.testing.assert_array_equal(
-            fold_moments_to_starting_direction(Q0[None], -1), 0.5 * Q0,
+            fold_moments_to_radial_characteristic(Q0[None], -1), 0.5 * Q0,
         )
         np.testing.assert_array_equal(
-            fold_moments_to_starting_direction(Q0[None], +1), 0.5 * Q0,
+            fold_moments_to_radial_characteristic(Q0[None], +1), 0.5 * Q0,
         )
 
     @pytest.mark.foundation
@@ -431,12 +431,12 @@ class TestB2StartingDirectionSourceFold:
         rng = np.random.default_rng(7)
         Q = rng.normal(size=(2, 3, 4))  # (ℓ=0..1, ng, nx)
         np.testing.assert_allclose(
-            fold_moments_to_starting_direction(Q, -1),
+            fold_moments_to_radial_characteristic(Q, -1),
             0.5 * Q[0] - 1.5 * Q[1],
             rtol=1e-14,
         )
         np.testing.assert_allclose(
-            fold_moments_to_starting_direction(Q, +1),
+            fold_moments_to_radial_characteristic(Q, +1),
             0.5 * Q[0] + 1.5 * Q[1],
             rtol=1e-14,
         )
@@ -462,6 +462,6 @@ class TestB2StartingDirectionSourceFold:
     @pytest.mark.foundation
     def test_fold_input_validation(self) -> None:
         with pytest.raises(ValueError, match="sign must be"):
-            fold_moments_to_starting_direction(np.ones((1, 2, 2)), 0)
+            fold_moments_to_radial_characteristic(np.ones((1, 2, 2)), 0)
         with pytest.raises(ValueError, match="leading ℓ axis"):
-            fold_moments_to_starting_direction(np.float64(1.0), -1)
+            fold_moments_to_radial_characteristic(np.float64(1.0), -1)

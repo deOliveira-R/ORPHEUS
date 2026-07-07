@@ -1,18 +1,18 @@
 r"""Starting-direction residual field — the ψ½ block's balance defect.
 
 The *residual* role leaf of
-:class:`~orpheus.transport.fields._bases.StartingDirectionField` (#282
+:class:`~orpheus.transport.fields._bases.RadialCharacteristicField` (#282
 route (a), #280 Phase 2.5d): the starting-direction slice of the typed
 equation residual :math:`r = A\,\psi - q`.  On a carrying mesh (R12a)
 the augmented operator :math:`A = L + C - S - B` emits ψ½ rows (the
 μ = ∓1 DD residuals + the corner rows), the source composite carries a
 q½ block, and their difference is THIS leaf — completing the fourth
 member of the role triple minted at 2.5d d1
-(:class:`~orpheus.transport.fields.starting_direction_flux.StartingDirectionFlux`
+(:class:`~orpheus.transport.fields.radial_characteristic_flux.RadialCharacteristicFlux`
 /
-:class:`~orpheus.transport.source_sinks.starting_direction_source_sink.StartingDirectionSourceSink`
+:class:`~orpheus.transport.source_sinks.radial_characteristic_source_sink.RadialCharacteristicSourceSink`
 /
-:class:`~orpheus.transport.displacements.starting_direction_displacement.StartingDirectionDisplacement`),
+:class:`~orpheus.transport.displacements.radial_characteristic_displacement.RadialCharacteristicDisplacement`),
 forced by :func:`orpheus.sn.solver.evaluate_residual` exactly as the
 Displacement was forced by the composite torsor algebra.
 
@@ -28,7 +28,7 @@ cannot be silently dropped in the composite rebuild.
 
 Units — the cells legs are volumetric rate densities (the μ = ∓1 DD
 balance rows, same dimensional signature as the bulk residual /
-``StartingDirectionSourceSink``); the two corner slots are trace-like
+``RadialCharacteristicSourceSink``); the two corner slots are trace-like
 flux-matching rows (the same deviation the SourceSink leaf documents).
 The gate is class identity, not units.
 """
@@ -39,13 +39,13 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
-from orpheus.transport.fields._bases import StartingDirectionField
+from orpheus.transport.fields._bases import RadialCharacteristicField
 
-__all__ = ["StartingDirectionResidual"]
+__all__ = ["RadialCharacteristicResidual"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class StartingDirectionResidual(StartingDirectionField):
+class RadialCharacteristicResidual(RadialCharacteristicField):
     r"""The starting-direction block of a typed equation residual.
 
     Formed ONLY by the named balance :meth:`from_balance` (the residual
@@ -54,7 +54,7 @@ class StartingDirectionResidual(StartingDirectionField):
     taken).  Same-class arithmetic is closed by the Field Layer-1 gate.
     """
 
-    _SPACE_NAME: ClassVar[str] = "starting_direction_residual"
+    _SPACE_NAME: ClassVar[str] = "radial_characteristic_residual"
 
     #: Per-cells-leg rate density (shared with the SourceSink leaf; the
     #: corner slots are trace-like flux rows — documented deviation).
@@ -62,12 +62,12 @@ class StartingDirectionResidual(StartingDirectionField):
 
     @classmethod
     def from_balance(
-        cls, lhs: StartingDirectionField, rhs: StartingDirectionField,
-    ) -> "StartingDirectionResidual":
+        cls, lhs: RadialCharacteristicField, rhs: RadialCharacteristicField,
+    ) -> "RadialCharacteristicResidual":
         r"""The ψ½-block balance defect ``r½ = (A·ψ)½ − q½``.
 
         ``lhs`` is the operator output's starting-direction block (a
-        :class:`StartingDirectionSourceSink`), ``rhs`` the source
+        :class:`RadialCharacteristicSourceSink`), ``rhs`` the source
         composite's q½ block — the same three guards (same-class
         operands, units-exact, same space + mesh) as the bulk/boundary
         ``from_balance`` factories, via

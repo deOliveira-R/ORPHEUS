@@ -38,8 +38,8 @@ weight ``τ_raw ∈ (0, 1)`` exclusive — supersedes both the R12 letter's
    :func:`tests.sn.sweep.curvilinear.test_282_direct_seed_fixed_point.test_mode12_g_reciprocity_catches_a_seed_row_flip`
    (production path) and the promoted ``diag_gsd_02`` dense sweep
    (canonical). See the derivation-of-record
-   ``starting_direction_metric_gauge_derivation.md`` and
-   :mod:`orpheus.numerics.spaces.starting_direction_space`.
+   ``radial_characteristic_metric_gauge_derivation.md`` and
+   :mod:`orpheus.numerics.spaces.radial_characteristic_space`.
 
 vv Mode-8 discipline: ``np.testing.assert_*`` / ``pytest.raises`` only
 (no bare ``assert`` on numerical claims — the canonical invocation is
@@ -55,17 +55,17 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.spaces.starting_direction_space import StartingDirectionSpace
+from orpheus.numerics.spaces.radial_characteristic_space import RadialCharacteristicSpace
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
-from orpheus.transport.displacements import StartingDirectionDisplacement
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
+from orpheus.transport.displacements import RadialCharacteristicDisplacement
 from orpheus.transport.full_field import FullField
 from orpheus.transport.source_sinks import (
     AngularBoundarySourceSink,
     AngularSourceSink,
-    StartingDirectionSourceSink,
+    RadialCharacteristicSourceSink,
 )
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import cart2d_2g_nonsquare, placeholder_materials
@@ -124,18 +124,18 @@ def _seeded_flux_composite(sn: SNMesh, seed: int = 20260704) -> TimedFullField:
         bulk=AngularFlux,
         boundary=AngularBoundaryFlux,
         mesh=sn,
-        starting_direction=StartingDirectionFlux,
+        radial_characteristic=RadialCharacteristicFlux,
     )
     rng = np.random.default_rng(seed)
-    assert z.starting_direction is not None  # builder precondition, not a gate
+    assert z.radial_characteristic is not None  # builder precondition, not a gate
     return z._recombine(
         bulk=replace(z.bulk, values=rng.normal(size=z.bulk.values.shape)),
         boundary=replace(
             z.boundary, values=rng.normal(size=z.boundary.values.shape),
         ),
-        starting_direction=replace(
-            z.starting_direction,
-            values=rng.normal(size=z.starting_direction.values.shape),
+        radial_characteristic=replace(
+            z.radial_characteristic,
+            values=rng.normal(size=z.radial_characteristic.values.shape),
         ),
     )
 
@@ -146,18 +146,18 @@ def _seeded_source_composite(sn: SNMesh, seed: int) -> FullField:
         bulk=AngularSourceSink,
         boundary=AngularBoundarySourceSink,
         mesh=sn,
-        starting_direction=StartingDirectionSourceSink,
+        radial_characteristic=RadialCharacteristicSourceSink,
     )
     rng = np.random.default_rng(seed)
-    assert z.starting_direction is not None
+    assert z.radial_characteristic is not None
     return z._recombine(
         bulk=replace(z.bulk, values=rng.normal(size=z.bulk.values.shape)),
         boundary=replace(
             z.boundary, values=rng.normal(size=z.boundary.values.shape),
         ),
-        starting_direction=replace(
-            z.starting_direction,
-            values=rng.normal(size=z.starting_direction.values.shape),
+        radial_characteristic=replace(
+            z.radial_characteristic,
+            values=rng.normal(size=z.radial_characteristic.values.shape),
         ),
     )
 
@@ -170,8 +170,8 @@ def _seeded_source_composite(sn: SNMesh, seed: int) -> FullField:
 class TestA1PresenceR12a:
     def test_sphere_carries_one_seed_level(self):
         sn = _sphere()
-        np.testing.assert_array_equal(sn.starting_direction_levels, (0,))
-        space = sn.starting_direction_space
+        np.testing.assert_array_equal(sn.radial_characteristic_levels, (0,))
+        space = sn.radial_characteristic_space
         if space is None:
             pytest.fail("sphere-GL mesh must carry a starting-direction space")
         # 1 level × 2 signs × (ng·nx cells + ng corner)
@@ -194,25 +194,25 @@ class TestA1PresenceR12a:
         this gate.
         """
         sn = builder()
-        np.testing.assert_array_equal(sn.starting_direction_levels, ())
-        if sn.starting_direction_space is not None:
+        np.testing.assert_array_equal(sn.radial_characteristic_levels, ())
+        if sn.radial_characteristic_space is not None:
             pytest.fail(
                 f"{builder.__name__}: non-carrying mesh must have "
-                f"starting_direction_space None (R12a)"
+                f"radial_characteristic_space None (R12a)"
             )
         z = TimedFullField.zeros(
             bulk=AngularFlux,
             boundary=AngularBoundaryFlux,
             mesh=sn,
-            starting_direction=StartingDirectionFlux,  # passed UNIFORMLY
+            radial_characteristic=RadialCharacteristicFlux,  # passed UNIFORMLY
         )
-        if z.starting_direction is not None:
+        if z.radial_characteristic is not None:
             pytest.fail(
                 "composite factory must omit the ψ½ block on a "
                 "non-carrying mesh even when the leaf class is passed"
             )
         with pytest.raises(ValueError, match="no starting-direction"):
-            StartingDirectionFlux.zeros_on(sn)
+            RadialCharacteristicFlux.zeros_on(sn)
 
     def test_sphere_composite_zeros_carry_typed_block(self):
         sn = _sphere()
@@ -220,11 +220,11 @@ class TestA1PresenceR12a:
             bulk=AngularFlux,
             boundary=AngularBoundaryFlux,
             mesh=sn,
-            starting_direction=StartingDirectionFlux,
+            radial_characteristic=RadialCharacteristicFlux,
         )
-        sd = z.starting_direction
-        if not isinstance(sd, StartingDirectionFlux):
-            pytest.fail(f"expected StartingDirectionFlux, got {type(sd)}")
+        sd = z.radial_characteristic
+        if not isinstance(sd, RadialCharacteristicFlux):
+            pytest.fail(f"expected RadialCharacteristicFlux, got {type(sd)}")
         np.testing.assert_array_equal(sd.values, 0.0)
         np.testing.assert_array_equal(sd.cells(0, -1).shape, (sn.ng, 4))
         np.testing.assert_array_equal(sd.cells(0, +1).shape, (sn.ng, 4))
@@ -235,7 +235,7 @@ class TestA1PresenceR12a:
         """The composite SPACE grows by exactly the seed size on the sphere
         and is unchanged on non-carrying meshes."""
         sn = _sphere()
-        seed_space = sn.starting_direction_space
+        seed_space = sn.radial_characteristic_space
         assert seed_space is not None  # narrowing (A1 sphere gate above pins it)
         n_bulk = sn.quad.N * sn.ng * 4
         n_trace = sn.angular_trace.shape[0]
@@ -253,7 +253,7 @@ class TestA1PresenceR12a:
         """cells/corner are slice VIEWS — writing through them mutates the
         flat buffer (the AngularBoundaryFlux flat-storage discipline)."""
         sn = _sphere(ng=1)
-        space = sn.starting_direction_space
+        space = sn.radial_characteristic_space
         assert space is not None
         buf = np.zeros(space.shape)
         space.cells_view(buf, 0, -1)[:] = 1.0
@@ -267,7 +267,7 @@ class TestA1PresenceR12a:
 
     def test_unknown_level_and_sign_rejected(self):
         sn = _sphere()
-        space = sn.starting_direction_space
+        space = sn.radial_characteristic_space
         assert space is not None
         buf = np.zeros(space.shape)
         with pytest.raises(KeyError, match="no starting-direction block"):
@@ -284,7 +284,7 @@ class TestA1PresenceR12a:
         (not a TypeError from the missing kwarg) is what we pin.
         """
         with pytest.raises(ValueError, match="levels is empty"):
-            StartingDirectionSpace.for_levels(
+            RadialCharacteristicSpace.for_levels(
                 (), ng=2, nx=4, cell_volumes=np.ones(4),
             )
 
@@ -298,20 +298,20 @@ class TestA2FlatRoundTrip:
     def test_round_trip_identity_and_length(self):
         sn = _sphere()
         x = _seeded_flux_composite(sn)
-        assert x.starting_direction is not None
+        assert x.radial_characteristic is not None
         flat = x.to_flat()
         expected_len = (
             x.bulk.values.size
             + x.boundary.values.size
-            + x.starting_direction.values.size
+            + x.radial_characteristic.values.size
         )
         np.testing.assert_array_equal(flat.size, expected_len)
         y = FullField.from_flat(flat, x)
         np.testing.assert_array_equal(y.bulk.values, x.bulk.values)
         np.testing.assert_array_equal(y.boundary.values, x.boundary.values)
-        assert y.starting_direction is not None
+        assert y.radial_characteristic is not None
         np.testing.assert_array_equal(
-            y.starting_direction.values, x.starting_direction.values,
+            y.radial_characteristic.values, x.radial_characteristic.values,
         )
         if type(y) is not TimedFullField:
             pytest.fail("template type must be preserved through from_flat")
@@ -320,11 +320,11 @@ class TestA2FlatRoundTrip:
         """The flat layout is [bulk, trace, seed] — pin the tail slice."""
         sn = _sphere()
         x = _seeded_flux_composite(sn)
-        assert x.starting_direction is not None
+        assert x.radial_characteristic is not None
         flat = x.to_flat()
         n_head = x.bulk.values.size + x.boundary.values.size
         np.testing.assert_array_equal(
-            flat[n_head:], x.starting_direction.values,
+            flat[n_head:], x.radial_characteristic.values,
         )
 
     def test_mutation_teeth_dropped_seed_slice_reds_both_legs(self, monkeypatch):
@@ -334,7 +334,7 @@ class TestA2FlatRoundTrip:
         serialized, not decorative."""
         sn = _sphere()
         x = _seeded_flux_composite(sn)
-        assert x.starting_direction is not None
+        assert x.radial_characteristic is not None
 
         def _two_block_to_flat(self):  # the pre-2.5d serializer
             return np.concatenate([
@@ -346,7 +346,7 @@ class TestA2FlatRoundTrip:
         expected_len = (
             x.bulk.values.size
             + x.boundary.values.size
-            + x.starting_direction.values.size
+            + x.radial_characteristic.values.size
         )
         if mutated.size == expected_len:
             pytest.fail("mutation did not bite — the teeth probe is broken")
@@ -366,58 +366,58 @@ class TestA3AlgebraClosure:
         sn = _sphere()
         a = _seeded_source_composite(sn, 1)
         b = _seeded_source_composite(sn, 2)
-        assert a.starting_direction is not None
-        assert b.starting_direction is not None
-        av, bv = a.starting_direction.values, b.starting_direction.values
+        assert a.radial_characteristic is not None
+        assert b.radial_characteristic is not None
+        av, bv = a.radial_characteristic.values, b.radial_characteristic.values
         s = a + b
-        assert s.starting_direction is not None
-        np.testing.assert_array_equal(s.starting_direction.values, av + bv)
+        assert s.radial_characteristic is not None
+        np.testing.assert_array_equal(s.radial_characteristic.values, av + bv)
         d = a - b
-        assert d.starting_direction is not None
-        np.testing.assert_array_equal(d.starting_direction.values, av - bv)
+        assert d.radial_characteristic is not None
+        np.testing.assert_array_equal(d.radial_characteristic.values, av - bv)
         n = -a
-        assert n.starting_direction is not None
-        np.testing.assert_array_equal(n.starting_direction.values, -av)
+        assert n.radial_characteristic is not None
+        np.testing.assert_array_equal(n.radial_characteristic.values, -av)
         m = 2.5 * a
-        assert m.starting_direction is not None
-        np.testing.assert_array_equal(m.starting_direction.values, 2.5 * av)
+        assert m.radial_characteristic is not None
+        np.testing.assert_array_equal(m.radial_characteristic.values, 2.5 * av)
         q = a / 4.0
-        assert q.starting_direction is not None
-        np.testing.assert_array_equal(q.starting_direction.values, av / 4.0)
+        assert q.radial_characteristic is not None
+        np.testing.assert_array_equal(q.radial_characteristic.values, av / 4.0)
         # role closure: the summed block keeps the SourceSink role
-        if type(s.starting_direction) is not StartingDirectionSourceSink:
+        if type(s.radial_characteristic) is not RadialCharacteristicSourceSink:
             pytest.fail("source algebra must stay in the SourceSink role")
 
     def test_flux_torsor_triple_threads_the_seed(self):
         sn = _sphere()
         psi1 = _seeded_flux_composite(sn, 11)
         psi2 = _seeded_flux_composite(sn, 12)
-        assert psi1.starting_direction is not None
-        assert psi2.starting_direction is not None
+        assert psi1.radial_characteristic is not None
+        assert psi2.radial_characteristic is not None
         # ψ ⊖ ψ → displacement composite (seed block mints its sibling)
         delta = psi2 - psi1
-        if type(delta.starting_direction) is not StartingDirectionDisplacement:
+        if type(delta.radial_characteristic) is not RadialCharacteristicDisplacement:
             pytest.fail(
-                f"flux ⊖ flux must mint StartingDirectionDisplacement; got "
-                f"{type(delta.starting_direction).__name__}"
+                f"flux ⊖ flux must mint RadialCharacteristicDisplacement; got "
+                f"{type(delta.radial_characteristic).__name__}"
             )
         np.testing.assert_array_equal(
-            delta.starting_direction.values,
-            psi2.starting_direction.values - psi1.starting_direction.values,
+            delta.radial_characteristic.values,
+            psi2.radial_characteristic.values - psi1.radial_characteristic.values,
         )
         # ψ ⊕ Δ → flux. The THREADING pin is bitwise (the block computes
         # exactly ψ₁ ⊕ Δ leaf-wise); the torsor LAW ψ₁ ⊕ (ψ₂ ⊖ ψ₁) = ψ₂
         # holds to FP round-off only (a + (b − a) ≠ b bitwise).
         recovered = psi1 + delta
-        if type(recovered.starting_direction) is not StartingDirectionFlux:
+        if type(recovered.radial_characteristic) is not RadialCharacteristicFlux:
             pytest.fail("torsor action must return the flux role")
         np.testing.assert_array_equal(
-            recovered.starting_direction.values,
-            psi1.starting_direction.values + delta.starting_direction.values,
+            recovered.radial_characteristic.values,
+            psi1.radial_characteristic.values + delta.radial_characteristic.values,
         )
         np.testing.assert_allclose(
-            recovered.starting_direction.values,
-            psi2.starting_direction.values,
+            recovered.radial_characteristic.values,
+            psi2.radial_characteristic.values,
             rtol=0.0, atol=1e-15,
         )
         # ψ + ψ → ⊥ (the affine gate — raised by the leaf algebra)
@@ -439,18 +439,18 @@ class TestA3AlgebraClosure:
     def test_advance_presence_law_and_snapshot(self):
         sn = _sphere()
         psi = _seeded_flux_composite(sn, 31)
-        assert psi.starting_direction is not None
+        assert psi.radial_characteristic is not None
         new = _seeded_flux_composite(sn, 32)
-        assert new.starting_direction is not None
-        adv = psi.advance(new.bulk, new.boundary, new.starting_direction)
-        assert adv.starting_direction is not None
+        assert new.radial_characteristic is not None
+        adv = psi.advance(new.bulk, new.boundary, new.radial_characteristic)
+        assert adv.radial_characteristic is not None
         np.testing.assert_array_equal(
-            adv.starting_direction.values, new.starting_direction.values,
+            adv.radial_characteristic.values, new.radial_characteristic.values,
         )
         lag1 = adv.at_lag(1)
-        assert lag1.starting_direction is not None
+        assert lag1.radial_characteristic is not None
         np.testing.assert_array_equal(
-            lag1.starting_direction.values, psi.starting_direction.values,
+            lag1.radial_characteristic.values, psi.radial_characteristic.values,
         )
         with pytest.raises(TypeError, match="presence must match"):
             psi.advance(new.bulk, new.boundary)  # dropping the block
@@ -458,19 +458,19 @@ class TestA3AlgebraClosure:
     def test_copy_owns_the_seed_block(self):
         sn = _sphere()
         x = _seeded_flux_composite(sn, 41)
-        assert x.starting_direction is not None
+        assert x.radial_characteristic is not None
         c = x.copy()
-        assert c.starting_direction is not None
+        assert c.radial_characteristic is not None
         np.testing.assert_array_equal(
-            c.starting_direction.values, x.starting_direction.values,
+            c.radial_characteristic.values, x.radial_characteristic.values,
         )
-        if np.shares_memory(c.starting_direction.values, x.starting_direction.values):
+        if np.shares_memory(c.radial_characteristic.values, x.radial_characteristic.values):
             pytest.fail("copy must own its seed ndarray (no aliasing)")
 
     def test_cross_mesh_seed_arithmetic_rejected(self):
         """Mesh-bound discipline on the new leaf (the BulkField guard law)."""
-        a = StartingDirectionFlux.zeros_on(_sphere())
-        b = StartingDirectionFlux.zeros_on(_sphere())
+        a = RadialCharacteristicFlux.zeros_on(_sphere())
+        b = RadialCharacteristicFlux.zeros_on(_sphere())
         with pytest.raises(ValueError, match="distinct SNMesh"):
             a - b
 
@@ -502,7 +502,7 @@ class TestA4SeedStateMetricVcell:
         cells == ``V_cell`` (group-broadcast), corner == ``V[-1]`` (the gauge
         slot); strictly positive (SPD — the ghost 0 is the forbidden value)."""
         sn = _sphere()
-        space = sn.starting_direction_space
+        space = sn.radial_characteristic_space
         assert space is not None
         w = space.inner_product_weights
         if w is None:
@@ -530,12 +530,12 @@ class TestA4SeedStateMetricVcell:
         twin = FullField(bulk=x.bulk, boundary=x.boundary)
         gx = ffs.apply_metric(x)
         g_twin = ffs.apply_metric(twin)
-        assert gx.starting_direction is not None
-        w = sn.starting_direction_space.inner_product_weights
+        assert gx.radial_characteristic is not None
+        w = sn.radial_characteristic_space.inner_product_weights
         np.testing.assert_array_equal(
-            gx.starting_direction.values, w * x.starting_direction.values,
+            gx.radial_characteristic.values, w * x.radial_characteristic.values,
         )
-        if not np.any(gx.starting_direction.values != 0.0):
+        if not np.any(gx.radial_characteristic.values != 0.0):
             pytest.fail("G⊙x zeroed the seed block — the ghost metric lives")
         np.testing.assert_array_equal(gx.bulk.values, g_twin.bulk.values)
         np.testing.assert_array_equal(gx.boundary.values, g_twin.boundary.values)
@@ -547,19 +547,19 @@ class TestA4SeedStateMetricVcell:
         sn = _sphere()
         ffs = sn.full_field_space
         x = _seeded_flux_composite(sn, 52)
-        w = sn.starting_direction_space.inner_product_weights
+        w = sn.radial_characteristic_space.inner_product_weights
         ginv_x = ffs.apply_inverse_metric(x)
-        assert ginv_x.starting_direction is not None
+        assert ginv_x.radial_characteristic is not None
         np.testing.assert_array_equal(
-            ginv_x.starting_direction.values, x.starting_direction.values / w,
+            ginv_x.radial_characteristic.values, x.radial_characteristic.values / w,
         )
         if not np.all(np.isfinite(ginv_x.to_flat())):
             pytest.fail("inverse metric produced non-finite values")
         round_trip = ffs.apply_inverse_metric(ffs.apply_metric(x))
-        assert round_trip.starting_direction is not None
+        assert round_trip.radial_characteristic is not None
         np.testing.assert_allclose(
-            round_trip.starting_direction.values,
-            x.starting_direction.values, rtol=0.0, atol=1e-14,
+            round_trip.radial_characteristic.values,
+            x.radial_characteristic.values, rtol=0.0, atol=1e-14,
         )
 
     def test_inner_product_seed_contribution_is_v_cell_weighted(self):
@@ -574,11 +574,11 @@ class TestA4SeedStateMetricVcell:
         x_twin = FullField(bulk=x.bulk, boundary=x.boundary)
         y_twin = FullField(bulk=y.bulk, boundary=y.boundary)
         w = np.asarray(
-            sn.starting_direction_space.inner_product_weights, dtype=float,
+            sn.radial_characteristic_space.inner_product_weights, dtype=float,
         )
-        assert x.starting_direction is not None and y.starting_direction is not None
+        assert x.radial_characteristic is not None and y.radial_characteristic is not None
         seed_term = float(np.sum(
-            w * x.starting_direction.values * y.starting_direction.values
+            w * x.radial_characteristic.values * y.radial_characteristic.values
         ))
         full = ffs.inner_product(x, y)
         bulk_trace = ffs.inner_product(x_twin, y_twin)
@@ -606,5 +606,5 @@ class TestA4SeedStateMetricVcell:
         sn = _sphere()
         slab = _slab()
         x = _seeded_flux_composite(sn, 56)
-        with pytest.raises(RuntimeError, match="no.*starting_direction_space"):
+        with pytest.raises(RuntimeError, match="no.*radial_characteristic_space"):
             slab.full_field_space.apply_metric(x)

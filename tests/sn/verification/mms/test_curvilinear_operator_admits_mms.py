@@ -58,7 +58,7 @@ from orpheus.sn.solver import (
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.sn._test_helpers import starting_direction_edge_seed
+from tests.sn._test_helpers import radial_characteristic_edge_seed
 
 
 def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
@@ -89,7 +89,7 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
         # trial (the trial's own μ = −1 starting datum), so LC.apply reproduces
         # the pre-route-(a) operator action and the residual decays as before;
         # None on non-carrying meshes.
-        starting_direction=starting_direction_edge_seed(vals, sn_mesh),
+        radial_characteristic=radial_characteristic_edge_seed(vals, sn_mesh),
     )
 
     rv = (

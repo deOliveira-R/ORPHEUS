@@ -191,10 +191,10 @@ def _seed_residual_march(
     return rows, f
 
 
-def _refuse_starting_direction(
+def _refuse_radial_characteristic(
     where: str,
-    starting_direction_source: "StartingDirectionField | None",
-    starting_direction_flux: "StartingDirectionFlux | None",
+    radial_characteristic_source: "RadialCharacteristicField | None",
+    radial_characteristic_flux: "RadialCharacteristicFlux | None",
 ) -> None:
     """Loud refusal of a ψ½ seed pair on a strategy that cannot carry one.
 
@@ -202,7 +202,7 @@ def _refuse_starting_direction(
     Cartesian has no carrying levels — the field cannot even be built on
     such a mesh, so a non-``None`` pair here is a caller wiring error).
     """
-    if starting_direction_source is not None or starting_direction_flux is not None:
+    if radial_characteristic_source is not None or radial_characteristic_flux is not None:
         raise ValueError(
             f"{where}: a starting-direction seed pair is 1-D curvilinear "
             f"only — this strategy's meshes carry no starting-direction "
@@ -210,29 +210,29 @@ def _refuse_starting_direction(
         )
 
 
-def _require_starting_direction(
-    where: str, sn_mesh: "SNMesh", block: "StartingDirectionField | None",
+def _require_radial_characteristic(
+    where: str, sn_mesh: "SNMesh", block: "RadialCharacteristicField | None",
     *, role: str,
 ) -> None:
     """The positive half of the R12a biconditional — a carrying mesh REQUIRES
     the ψ½ block on the composite (#282 route (a); Pattern 2 with
-    :func:`_refuse_starting_direction` — one spelling of "carrying ⟺ block
+    :func:`_refuse_radial_characteristic` — one spelling of "carrying ⟺ block
     present", so the forward emit and the transpose consume cannot drift
     onto different domains).
 
-    ``block`` is the composite's ``.starting_direction`` slot (role-erased
-    to :class:`StartingDirectionField`); ``role`` names the composite for
+    ``block`` is the composite's ``.radial_characteristic`` slot (role-erased
+    to :class:`RadialCharacteristicField`); ``role`` names the composite for
     the message (``"input"`` / ``"cotangent"`` / ``"rhs"``).
     """
     if (
-        getattr(sn_mesh, "starting_direction_space", None) is not None
+        getattr(sn_mesh, "radial_characteristic_space", None) is not None
         and block is None
     ):
         raise ValueError(
             f"{where}: this mesh carries starting-direction levels (R12a) "
-            f"but the {role} composite has no starting_direction block — "
+            f"but the {role} composite has no radial_characteristic block — "
             f"build it via the seed-aware factory / FullField.zeros(..., "
-            f"starting_direction=<leaf>) or thread the solve output "
+            f"radial_characteristic=<leaf>) or thread the solve output "
             f"(#282 route (a))."
         )
 
@@ -261,15 +261,15 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     from orpheus.numerics.frame import FrameBase
-    from orpheus.transport.fields._bases import BoundaryField, StartingDirectionField
+    from orpheus.transport.fields._bases import BoundaryField, RadialCharacteristicField
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-    from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+    from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
     from orpheus.transport.full_field import FullField
     from orpheus.transport.source_sinks import (
         AngularSourceSink,
         AngularBoundarySourceSink,
-        StartingDirectionSourceSink,
+        RadialCharacteristicSourceSink,
     )
     from orpheus.transport.timed_full_field import TimedFullField
 
@@ -355,8 +355,8 @@ class LossRepresentation(Protocol):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        starting_direction_source: "StartingDirectionField | None" = None,
-        starting_direction_flux: "StartingDirectionFlux | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         """Perform one within-group transport sweep on this strategy's mesh.
 
@@ -372,7 +372,7 @@ class LossRepresentation(Protocol):
         forward substitution of the reified ``M = (L+C−B_lower)``.
         Multi-D only; the 1-D scan raises (not a wavefront).
 
-        ``starting_direction_source``/``starting_direction_flux`` (#282
+        ``radial_characteristic_source``/``radial_characteristic_flux`` (#282
         route (a), 2.5d): the ψ½ analogue of the ``(Q, boundary_flux)``
         pair — the TRUE starting-direction source q½ (read) and the
         ψ½ carrier the sweep fills in place (the marched cells + the
@@ -390,8 +390,8 @@ class LossRepresentation(Protocol):
         sigma: "np.ndarray",
         boundary_cot: "BoundaryField",
         *,
-        seed_cot: "StartingDirectionField | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
+        seed_cot: "RadialCharacteristicField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicSourceSink | None]":
         r"""The transpose-solve :math:`(L+C)^{-\mathsf T}` — the REVERSE-SCAN.
 
         The solve-scan frame's adjoint (#280 Phase 2.5b): the transpose sibling
@@ -569,8 +569,8 @@ class _LossRepresentation:
         sigma: "np.ndarray",
         boundary_cot: "BoundaryField",
         *,
-        seed_cot: "StartingDirectionField | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
+        seed_cot: "RadialCharacteristicField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicSourceSink | None]":
         r"""Reverse-scan default — DEFERRED (the #280 2.5b kernel-pair contract).
 
         The transpose-solve :math:`(L+C)^{-\mathsf T}` is realised only by the
@@ -704,8 +704,8 @@ class _LossRepresentation:
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        starting_direction_source: "StartingDirectionField | None" = None,
-        starting_direction_flux: "StartingDirectionFlux | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         """One within-group sweep — every concrete strategy implements it."""
         raise NotImplementedError(
@@ -1230,8 +1230,8 @@ class CumprodScan(_LossRepresentation):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        starting_direction_source: "StartingDirectionField | None" = None,
-        starting_direction_flux: "StartingDirectionFlux | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if moment_frame is not None:
             # Moment output is the 2-D windowed-SI peak-memory optimization;
@@ -1252,8 +1252,8 @@ class CumprodScan(_LossRepresentation):
             )
         return _OneDimScanWalk(self.mesh).sweep(
             Q, sig_t, boundary_flux,
-            starting_direction_source=starting_direction_source,
-            starting_direction_flux=starting_direction_flux,
+            radial_characteristic_source=radial_characteristic_source,
+            radial_characteristic_flux=radial_characteristic_flux,
         )
 
     def sweep_transpose(
@@ -1262,8 +1262,8 @@ class CumprodScan(_LossRepresentation):
         sigma: "np.ndarray",
         boundary_cot: "BoundaryField",
         *,
-        seed_cot: "StartingDirectionField | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
+        seed_cot: "RadialCharacteristicField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicSourceSink | None]":
         r"""The transpose-solve ``(L+C)⁻ᵀ`` — the REVERSE-SCAN (#280 2.5b).
 
         The solve-scan frame's adjoint: the transpose sibling of :meth:`sweep`
@@ -1414,12 +1414,12 @@ class MovingFrontierWindow(_DAGWavefront):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        starting_direction_source: "StartingDirectionField | None" = None,
-        starting_direction_flux: "StartingDirectionFlux | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
-        _refuse_starting_direction(
+        _refuse_radial_characteristic(
             "MovingFrontierWindow.sweep",
-            starting_direction_source, starting_direction_flux,
+            radial_characteristic_source, radial_characteristic_flux,
         )
         if schedule is None:
             return _sweep_jacobi(
@@ -1724,12 +1724,12 @@ class FullFieldWavefront(_DAGWavefront):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        starting_direction_source: "StartingDirectionField | None" = None,
-        starting_direction_flux: "StartingDirectionFlux | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
-        _refuse_starting_direction(
+        _refuse_radial_characteristic(
             "FullFieldWavefront.sweep",
-            starting_direction_source, starting_direction_flux,
+            radial_characteristic_source, radial_characteristic_flux,
         )
         if moment_frame is not None:
             raise ValueError(
@@ -1978,8 +1978,8 @@ class ScanMarch(_LossRepresentation):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        starting_direction_source: "StartingDirectionField | None" = None,
-        starting_direction_flux: "StartingDirectionFlux | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicFlux | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         if self.mesh.is_1d:
             # d=1 ⇒ ``scan(x)`` with no transverse march: the unified 1-D body
@@ -2000,12 +2000,12 @@ class ScanMarch(_LossRepresentation):
                 )
             return _OneDimScanWalk(self.mesh).sweep(
                 Q, sig_t, boundary_flux,
-                starting_direction_source=starting_direction_source,
-                starting_direction_flux=starting_direction_flux,
+                radial_characteristic_source=radial_characteristic_source,
+                radial_characteristic_flux=radial_characteristic_flux,
             )
-        _refuse_starting_direction(
+        _refuse_radial_characteristic(
             "ScanMarch.sweep",
-            starting_direction_source, starting_direction_flux,
+            radial_characteristic_source, radial_characteristic_flux,
         )
         # multi-D ⇒ the row-march sweep = the schedule × the scan-march
         # interior kernel on the SAME schedule loop the window uses (S6.4(b):
@@ -2353,8 +2353,8 @@ def transport_sweep(
     boundary_flux: "AngularBoundaryFlux",
     *,
     moment_frame: "FrameBase | None" = None,
-    starting_direction_source: "StartingDirectionField | None" = None,
-    starting_direction_flux: "StartingDirectionFlux | None" = None,
+    radial_characteristic_source: "RadialCharacteristicField | None" = None,
+    radial_characteristic_flux: "RadialCharacteristicFlux | None" = None,
 ) -> "tuple[np.ndarray, np.ndarray | None]":
     """Perform one full transport sweep.
 
@@ -2471,31 +2471,31 @@ def transport_sweep(
     # #282 route (a): on a carrying mesh (R12a) the operator-free entry is
     # self-sufficient — it folds the source's ℓ=0 moment into the q½ block
     # and allocates the ψ½ carrier (the ONE fold factory,
-    # ``StartingDirectionSourceSink.from_angular_source``) unless the caller
+    # ``RadialCharacteristicSourceSink.from_angular_source``) unless the caller
     # supplied the pair.  This mirrors ``InvertibleOperator.solve`` reading
-    # ``rhs.starting_direction`` — transport_sweep has no composite rhs, so
+    # ``rhs.radial_characteristic`` — transport_sweep has no composite rhs, so
     # it derives the pair from the source it DOES have.
     if (
-        getattr(sn_mesh, "starting_direction_space", None) is not None
-        and starting_direction_source is None
-        and starting_direction_flux is None
+        getattr(sn_mesh, "radial_characteristic_space", None) is not None
+        and radial_characteristic_source is None
+        and radial_characteristic_flux is None
     ):
-        from orpheus.transport.fields.starting_direction_flux import (
-            StartingDirectionFlux,
+        from orpheus.transport.fields.radial_characteristic_flux import (
+            RadialCharacteristicFlux,
         )
-        from orpheus.transport.source_sinks import StartingDirectionSourceSink
+        from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
 
-        starting_direction_source = (
-            StartingDirectionSourceSink.from_angular_source(Q, sn_mesh)
+        radial_characteristic_source = (
+            RadialCharacteristicSourceSink.from_angular_source(Q, sn_mesh)
         )
-        starting_direction_flux = StartingDirectionFlux.zeros_on(sn_mesh)
+        radial_characteristic_flux = RadialCharacteristicFlux.zeros_on(sn_mesh)
     # S6.4(f): selector and orchestration share this module — the historical
     # sweep ↔ loss_representation lazy-import cycle is GONE.
     return default_for(sn_mesh).sweep(
         Q, sig_t, boundary_flux,
         moment_frame=moment_frame,
-        starting_direction_source=starting_direction_source,
-        starting_direction_flux=starting_direction_flux,
+        radial_characteristic_source=radial_characteristic_source,
+        radial_characteristic_flux=radial_characteristic_flux,
     )
 
 
@@ -2736,7 +2736,7 @@ class _OneDimScanWalk:
     # lower-triangular: the #282 back edge is dead by construction.
 
     def _seed_rows_forward(
-        self, sigma: "np.ndarray", seed: "StartingDirectionField",
+        self, sigma: "np.ndarray", seed: "RadialCharacteristicField",
     ) -> "np.ndarray":
         r"""Forward ``(L+C)`` action on the starting-direction block.
 
@@ -2791,7 +2791,7 @@ class _OneDimScanWalk:
     def _seed_rows_transpose(
         self,
         sigma: "np.ndarray",
-        chi_seed: "StartingDirectionField",
+        chi_seed: "RadialCharacteristicField",
         seed_cells_bar: "dict[int, np.ndarray]",
     ) -> "np.ndarray":
         r"""Euclidean transpose of :meth:`_seed_rows_forward` (+ the
@@ -2852,8 +2852,8 @@ class _OneDimScanWalk:
         sig_t: np.ndarray,
         boundary_flux: "AngularBoundaryFlux",
         *,
-        starting_direction_source: "StartingDirectionField | None" = None,
-        starting_direction_flux: "StartingDirectionFlux | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicFlux | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         r"""Geometry-blind 1-D SN sweep — three numpy tensor ops per ordinate.
 
@@ -2906,8 +2906,8 @@ class _OneDimScanWalk:
         coll = self._ensure_coll_cache(sig_t, geom)
         return self._run(
             Q, sig_t, boundary_flux, geom, coll,
-            starting_direction_source=starting_direction_source,
-            starting_direction_flux=starting_direction_flux,
+            radial_characteristic_source=radial_characteristic_source,
+            radial_characteristic_flux=radial_characteristic_flux,
         )
 
     def sweep_transpose(
@@ -2916,8 +2916,8 @@ class _OneDimScanWalk:
         sigma: np.ndarray,
         boundary_cot: "BoundaryField",
         *,
-        seed_cot: "StartingDirectionField | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
+        seed_cot: "RadialCharacteristicField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicSourceSink | None]":
         r"""The transpose-solve :math:`(L+C)^{-\mathsf T}` — the REVERSE-SCAN.
 
         The solve-scan frame's adjoint (#280 Phase 2.5b): the transpose sibling
@@ -2960,12 +2960,12 @@ class _OneDimScanWalk:
                 spatial_moments=self.mesh.scheme.spatial_basis_per_axis,
             ),
             boundary=m_boundary,
-            starting_direction=m_seed,
+            radial_characteristic=m_seed,
         )
 
     def _apply_walk(
         self, sigma: "np.ndarray", psi: "FullField",
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicSourceSink | None]":
         r"""The 1-D apply-direction walk — the fused ``(L+C)ψ`` single emission.
 
         #206 Phase C: relocated verbatim off
@@ -3075,12 +3075,12 @@ class _OneDimScanWalk:
         # a carrying mesh is an illegal state post-activation (Pattern 4)
         # — the pre-2.5d extrapolate-from-the-iterate treatment (the #282
         # back edge) is retired, not silently reproduced.
-        seed_field = psi.starting_direction
-        _require_starting_direction(
+        seed_field = psi.radial_characteristic
+        _require_radial_characteristic(
             "_OneDimScanWalk._apply_walk", sn_mesh, seed_field, role="input",
         )
         psi_state = pole_angular_closure.precompute_psi_state(
-            psi_view, starting_direction=seed_field,
+            psi_view, radial_characteristic=seed_field,
         )
 
         # The d=1 matvec probe (the iterate) is GLOBAL-frame; the residual
@@ -3308,9 +3308,9 @@ class _OneDimScanWalk:
         # ── the starting-direction (ψ½) rows — #282 route (a) ──
         m_seed = None
         if seed_field is not None:
-            from orpheus.transport.source_sinks import StartingDirectionSourceSink
+            from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
 
-            m_seed = StartingDirectionSourceSink(
+            m_seed = RadialCharacteristicSourceSink(
                 values=self._seed_rows_forward(sigma_gx, seed_field),
                 space=seed_field.space,
                 mesh=seed_field.mesh,
@@ -3407,8 +3407,8 @@ class _OneDimScanWalk:
         # cotangent's starting-direction block on a carrying mesh (the
         # forward emits seed rows, so the transpose consumes their
         # cotangents) — the SAME R12a requirement as the forward walk.
-        chi_seed = phi.starting_direction
-        _require_starting_direction(
+        chi_seed = phi.radial_characteristic
+        _require_radial_characteristic(
             "_OneDimScanWalk.loss_action_transpose", sn_mesh, chi_seed,
             role="cotangent",
         )
@@ -3451,7 +3451,7 @@ class _OneDimScanWalk:
         # ── ψ-independent angular_denom_term source (dummy state) ──
         # Coefficient-only use: ``cell_contribution`` reads ONLY the
         # denom leg off this state, so the zero seed of the ``None``
-        # starting_direction is never consumed (documented on the ABC).
+        # radial_characteristic is never consumed (documented on the ABC).
         psi_state_coef = closure.precompute_psi_state(np.zeros((N, ng, nx)))
 
         # ── reverse the spatial DD marches — the SAME legs, exact-reverse
@@ -3579,9 +3579,9 @@ class _OneDimScanWalk:
         # ── reverse the starting-direction rows (#282 route (a)) ──
         m_seed_bar = None
         if chi_seed is not None:
-            from orpheus.transport.source_sinks import StartingDirectionSourceSink
+            from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
 
-            m_seed_bar = StartingDirectionSourceSink(
+            m_seed_bar = RadialCharacteristicSourceSink(
                 values=self._seed_rows_transpose(
                     sgx, chi_seed, seed_cells_bar,
                 ),
@@ -3599,7 +3599,7 @@ class _OneDimScanWalk:
                 psi_bar.swapaxes(0, 1), sn_mesh,
             ),
             boundary=m_boundary,
-            starting_direction=m_seed_bar,
+            radial_characteristic=m_seed_bar,
         )
 
     def _ensure_geom_cache(self) -> GeometryCoefficients:
@@ -3643,8 +3643,8 @@ class _OneDimScanWalk:
         geom: GeometryCoefficients,
         coll: CollisionCache,
         *,
-        starting_direction_source: "StartingDirectionField | None" = None,
-        starting_direction_flux: "StartingDirectionFlux | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicFlux | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Inner body of the unified 1-D sweep.
 
@@ -3693,21 +3693,21 @@ class _OneDimScanWalk:
         # the carrier in place (the boundary_flux discipline).  A
         # non-carrying mesh must NOT receive one (the typed field cannot
         # even exist on it; a non-None pair is a caller wiring error).
-        seed_levels = frozenset(self.mesh.starting_direction_levels)
+        seed_levels = frozenset(self.mesh.radial_characteristic_levels)
         if seed_levels:
-            if starting_direction_source is None or starting_direction_flux is None:
+            if radial_characteristic_source is None or radial_characteristic_flux is None:
                 raise ValueError(
                     "_OneDimScanWalk._run: this mesh carries starting-"
                     "direction levels (R12a) but the sweep was called "
-                    "without the (starting_direction_source, "
-                    "starting_direction_flux) pair — the rhs composite "
+                    "without the (radial_characteristic_source, "
+                    "radial_characteristic_flux) pair — the rhs composite "
                     "must carry its q½ block and the solve wrap must "
                     "allocate the ψ½ carrier (#282 route (a))."
                 )
         else:
-            _refuse_starting_direction(
+            _refuse_radial_characteristic(
                 "_OneDimScanWalk._run",
-                starting_direction_source, starting_direction_flux,
+                radial_characteristic_source, radial_characteristic_flux,
             )
 
         # ── Entry layout — the public contract is the principled
@@ -4089,11 +4089,11 @@ class _OneDimScanWalk:
                     # to the outflow corner.  The outward leg rides the
                     # SAME engine on reversed cell data (orientation is
                     # data, never a flag — the 2.5a discipline).
-                    assert starting_direction_source is not None
-                    assert starting_direction_flux is not None
-                    src_vals = starting_direction_source.values
-                    buf_vals = starting_direction_flux.values
-                    seed_space = starting_direction_flux.space
+                    assert radial_characteristic_source is not None
+                    assert radial_characteristic_flux is not None
+                    src_vals = radial_characteristic_source.values
+                    buf_vals = radial_characteristic_flux.values
+                    seed_space = radial_characteristic_flux.space
                     q_minus = seed_space.cells_view(src_vals, p_idx, -1)
                     q_plus = seed_space.cells_view(src_vals, p_idx, +1)
                     corner_in = seed_space.corner_view(src_vals, p_idx, -1)
@@ -4272,8 +4272,8 @@ class _OneDimScanWalk:
         geom: GeometryCoefficients,
         coll: CollisionCache,
         *,
-        seed_cot: "StartingDirectionField | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, StartingDirectionSourceSink | None]":
+        seed_cot: "RadialCharacteristicField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicSourceSink | None]":
         r"""The REVERSE-SCAN — :math:`(L+C)^{-\mathsf T}` on the composite cotangent.
 
         The Euclidean transpose-solve (#280 Phase 2.5b): the reverse-mode
@@ -4310,7 +4310,7 @@ class _OneDimScanWalk:
         scheme = self.mesh.scheme
 
         # ── the R12a starting-direction contract (mirror _run) ──
-        seed_levels = frozenset(self.mesh.starting_direction_levels)
+        seed_levels = frozenset(self.mesh.radial_characteristic_levels)
         if seed_levels:
             if seed_cot is None:
                 raise ValueError(
@@ -4414,7 +4414,7 @@ class _OneDimScanWalk:
         # DEGENERATE ordinates as slot-local diagonal transposes.
         from ..spatial.pole_angular_closure import MorelMontryAngularSweep
         from ..spatial.psi_half_angle_seed import carlson_inward_sweep_transpose
-        from orpheus.transport.source_sinks import StartingDirectionSourceSink
+        from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
 
         is_sphere = coord is CoordSystem.SPHERICAL
         closure = self.mesh.pole_angular_closure
@@ -4615,7 +4615,7 @@ class _OneDimScanWalk:
             if is_sphere:
                 # phi_aux = cells_minus, so the M-M thread cotangent lands on the
                 # inward seed cells; the carrier is ALSO an output (its cotangent
-                # is b.starting_direction).
+                # is b.radial_characteristic).
                 assert seed_cot is not None and seed_bar_vals is not None
                 seed_space = seed_cot.space
                 seed_vals = seed_cot.values
@@ -4644,7 +4644,7 @@ class _OneDimScanWalk:
         # ── the seed cotangent: sphere carries it, cylinder does not ──
         if is_sphere:
             assert seed_cot is not None and seed_bar_vals is not None
-            m_seed = StartingDirectionSourceSink(
+            m_seed = RadialCharacteristicSourceSink(
                 values=seed_bar_vals, space=seed_cot.space, mesh=seed_cot.mesh,
             )
         else:

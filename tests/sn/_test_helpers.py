@@ -314,8 +314,8 @@ def het_operands(sn: "SNMesh"):
     activated (nothing nulled by a flat or zero state).
     """
     from orpheus.transport.fields.angular_flux import AngularFlux
-    from orpheus.transport.fields.starting_direction_flux import (
-        StartingDirectionFlux,
+    from orpheus.transport.fields.radial_characteristic_flux import (
+        RadialCharacteristicFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
 
@@ -327,15 +327,15 @@ def het_operands(sn: "SNMesh"):
     # the frozen baseline (nothing nulled by a zero block).
     psi = TimedFullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
-        starting_direction=StartingDirectionFlux,
+        radial_characteristic=RadialCharacteristicFlux,
     )
     psi.bulk.values[...] = rng.standard_normal(psi.bulk.values.shape)
     for face in psi.boundary.layout.faces:
         fv = psi.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
-    if psi.starting_direction is not None:
-        psi.starting_direction.values[...] = rng.standard_normal(
-            psi.starting_direction.values.shape
+    if psi.radial_characteristic is not None:
+        psi.radial_characteristic.values[...] = rng.standard_normal(
+            psi.radial_characteristic.values.shape
         )
     return sig_t, psi
 
@@ -404,11 +404,11 @@ def legacy_proxy_matvec(
     # extrapolation of ``psi_view`` (the cells legs; corners = the same
     # edge value so a constant field telescopes to σ_t·ψ).  Non-carrying
     # meshes (slab/cyl) → None, byte-identical to the pre-2.5d helper.
-    starting_direction = starting_direction_edge_seed(psi_view, sn_mesh)
+    radial_characteristic = radial_characteristic_edge_seed(psi_view, sn_mesh)
     composite = TimedFullField(
         bulk=AngularFlux.from_mesh(psi_view, sn_mesh),
         boundary=boundary,
-        starting_direction=starting_direction,
+        radial_characteristic=radial_characteristic,
         _history=(),
         history_depth=2,
     )
@@ -418,7 +418,7 @@ def legacy_proxy_matvec(
     return result.bulk.values
 
 
-def starting_direction_edge_seed(psi_view, sn_mesh):
+def radial_characteristic_edge_seed(psi_view, sn_mesh):
     """The pre-route-(a) ψ½ seed: the input field extrapolated in μ to each
     carrying level's starting-direction edge (the retired
     ``AngularEdgeExtrapolation``-of-the-iterate convention), so an
@@ -430,16 +430,16 @@ def starting_direction_edge_seed(psi_view, sn_mesh):
     seed (a constant field extrapolates to the same constant, so
     ``(L+C)·const = σ_t·const`` still holds, and the augmented apply
     stays a linear operator)."""
-    space = getattr(sn_mesh, "starting_direction_space", None)
+    space = getattr(sn_mesh, "radial_characteristic_space", None)
     if space is None:
         return None
-    from orpheus.transport.fields.starting_direction_flux import (
-        StartingDirectionFlux,
+    from orpheus.transport.fields.radial_characteristic_flux import (
+        RadialCharacteristicFlux,
     )
 
     closure = sn_mesh.pole_angular_closure
     psi_g_first = psi_view[..., 0].swapaxes(0, 1) if psi_view.ndim == 4 else psi_view.swapaxes(0, 1)
-    seed = StartingDirectionFlux.zeros_on(sn_mesh)
+    seed = RadialCharacteristicFlux.zeros_on(sn_mesh)
     for p in space.levels:
         level_idx = closure.level_indices[p]
         psi_level = psi_g_first[:, level_idx, :]          # (ng, M_p, nx)

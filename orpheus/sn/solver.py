@@ -62,9 +62,9 @@ from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.mesh.axis import Axis1D
 from .loss_representation import transport_sweep
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
-from orpheus.transport.source_sinks import StartingDirectionSourceSink
+from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
 if TYPE_CHECKING:
@@ -305,10 +305,10 @@ def evaluate_residual(
     # seed row; the full-field norm needs the typed third member).  The
     # composite algebra's presence law holds here too: both sides carry
     # the block or neither does (a mixed pairing is a wiring error).
-    from orpheus.transport.residuals import StartingDirectionResidual
+    from orpheus.transport.residuals import RadialCharacteristicResidual
 
-    lhs_seed = lhs.starting_direction
-    q_seed = q_ext.starting_direction
+    lhs_seed = lhs.radial_characteristic
+    q_seed = q_ext.radial_characteristic
     if (lhs_seed is None) != (q_seed is None):
         raise ValueError(
             "evaluate_residual: MIXED starting-direction presence between "
@@ -317,7 +317,7 @@ def evaluate_residual(
             "composites must carry the ψ½ block."
         )
     seed_residual = (
-        StartingDirectionResidual.from_balance(lhs=lhs_seed, rhs=q_seed)
+        RadialCharacteristicResidual.from_balance(lhs=lhs_seed, rhs=q_seed)
         if lhs_seed is not None and q_seed is not None
         else None
     )
@@ -329,7 +329,7 @@ def evaluate_residual(
         boundary=AngularBoundaryResidual.from_balance(
             lhs=lhs_boundary, rhs=q_boundary,
         ),
-        starting_direction=seed_residual,
+        radial_characteristic=seed_residual,
     )
 
 
@@ -457,7 +457,7 @@ def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
         boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
         # Windowed SI is 2-D Cartesian (never seed-carrying, R12a); the
         # mesh-keyed predicate spells that None uniformly.
-        starting_direction=_starting_direction_zeros(sn_mesh),
+        radial_characteristic=_radial_characteristic_zeros(sn_mesh),
         _history=(),
         history_depth=history_depth,
     )
@@ -484,32 +484,32 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
             sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
         boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
-        starting_direction=_starting_direction_zeros(sn_mesh),
+        radial_characteristic=_radial_characteristic_zeros(sn_mesh),
         _history=(),
         history_depth=history_depth,
     )
 
 
-def _starting_direction_zeros(sn_mesh) -> "StartingDirectionFlux | None":
+def _radial_characteristic_zeros(sn_mesh) -> "RadialCharacteristicFlux | None":
     r"""The mesh-keyed zero ψ½ FLUX block (``None`` on non-carrying meshes).
 
     The birth-site presence predicate of #282 route (a): every SN
     composite FLUX birth site calls this so presence is decided by the
-    ONE R12a source (``SNMesh.starting_direction_space``), never by the
+    ONE R12a source (``SNMesh.radial_characteristic_space``), never by the
     call site."""
-    if sn_mesh.starting_direction_space is None:
+    if sn_mesh.radial_characteristic_space is None:
         return None
-    return StartingDirectionFlux.zeros_on(sn_mesh)
+    return RadialCharacteristicFlux.zeros_on(sn_mesh)
 
 
-def _starting_direction_source_from_per_ordinate(
+def _radial_characteristic_source_from_per_ordinate(
     per_ordinate_values: "np.ndarray", sn_mesh,
-) -> "StartingDirectionSourceSink | None":
-    r"""Thin alias for :meth:`StartingDirectionSourceSink.from_angular_source`
+) -> "RadialCharacteristicSourceSink | None":
+    r"""Thin alias for :meth:`RadialCharacteristicSourceSink.from_angular_source`
     (the ONE q½-fold factory, Pattern 2 — the solver, the fixed-source
     rhs, and the operator-free ``transport_sweep`` all route through it).
     """
-    return StartingDirectionSourceSink.from_angular_source(
+    return RadialCharacteristicSourceSink.from_angular_source(
         per_ordinate_values, sn_mesh,
     )
 
@@ -1325,7 +1325,7 @@ class SNSolver:
             # starting-direction source the direct ψ½ solve consumes.
             bulk=q_ext_per_ord,
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
-            starting_direction=_starting_direction_source_from_per_ordinate(
+            radial_characteristic=_radial_characteristic_source_from_per_ordinate(
                 q_ext_per_ord.values, self.sn_mesh,
             ),
             _history=(),
@@ -1494,7 +1494,7 @@ class SNSolver:
             # (the Krylov matvec + preconditioner run on 3-block state).
             bulk=q_ext_per_ord,
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
-            starting_direction=_starting_direction_source_from_per_ordinate(
+            radial_characteristic=_radial_characteristic_source_from_per_ordinate(
                 q_ext_per_ord.values, self.sn_mesh,
             ),
             _history=(),
@@ -1514,7 +1514,7 @@ class SNSolver:
             # (bit-identical); the flux template fixes the Krylov return type.
             initial_guess = TimedFullField.zeros(
                 bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=self.sn_mesh,
-                starting_direction=StartingDirectionFlux,
+                radial_characteristic=RadialCharacteristicFlux,
             )
 
         # ── Build the within-group operator triple + Krylov driver
@@ -1663,7 +1663,7 @@ def _is_curvilinear(mesh: Mesh1D | Mesh2D) -> bool:
 def _reflect_outflow_into_inflow(
     boundary_flux, sn_mesh: SNMesh, faces: "Iterable[str] | None" = None,
     *,
-    starting_direction: "StartingDirectionFlux | None" = None,
+    radial_characteristic: "RadialCharacteristicFlux | None" = None,
 ) -> None:
     r"""In-place: fill each face's inflow ordinate slots with the realized
     boundary law applied to that face's outflow trace — the ``−B`` reflective
@@ -1713,11 +1713,11 @@ def _reflect_outflow_into_inflow(
     # onto the operator so the scheduled sweep's inter-group reflect and this
     # helper share ONE body); it routes through ``_reflect_trace`` with
     # ``B.apply``, so the helper and the matvec / SI driver cannot drift.
-    # ``starting_direction`` (#282 route (a)): the ψ½ carrier whose
+    # ``radial_characteristic`` (#282 route (a)): the ψ½ carrier whose
     # inflow-corner slots get the law's corner action — the seed analogue,
     # through ``B``'s SAME corner arm.
     SNBoundaryOperator(sn_mesh).reflect_inflow_inplace(
-        boundary_flux, faces=faces, starting_direction=starting_direction,
+        boundary_flux, faces=faces, radial_characteristic=radial_characteristic,
     )
 
 
@@ -1865,14 +1865,14 @@ def solve_sn(
     # carrier pre-loads the converged outflow corner so the corner
     # reflect below can seed the inflow corner (vacuum ⇒ 0).
     q_final_per_ord = AngularSourceSink.from_isotropic(Q_final, sn_mesh)
-    final_seed_src = _starting_direction_source_from_per_ordinate(
+    final_seed_src = _radial_characteristic_source_from_per_ordinate(
         q_final_per_ord.values, sn_mesh,
     )
-    final_seed_buf = _starting_direction_zeros(sn_mesh)
+    final_seed_buf = _radial_characteristic_zeros(sn_mesh)
     if final_seed_buf is not None and converged is not None and (
-        converged.starting_direction is not None
+        converged.radial_characteristic is not None
     ):
-        final_seed_buf.values[...] = converged.starting_direction.values
+        final_seed_buf.values[...] = converged.radial_characteristic.values
     # Wave O #208 O.4b Phase E2 — the 2-D wavefront is now BARE (reads the
     # given inflow, no in-sweep bc.apply), so the reflective coupling is the
     # external -B for 2-D too.  The guard is lifted: _reflect_outflow_into_inflow
@@ -1881,7 +1881,7 @@ def solve_sn(
     # inflow already equals B·ψ.outflow); vacuum stays a no-op (B = 0).  The
     # seed carrier's inflow corner rides the same reflect (#282 route (a)).
     _reflect_outflow_into_inflow(
-        final_boundary, sn_mesh, starting_direction=final_seed_buf,
+        final_boundary, sn_mesh, radial_characteristic=final_seed_buf,
     )
     # The corner datum is GIVEN data for the sweep: thread it into the q½
     # source's corner slot (the sweep reads the SOURCE corner as the
@@ -1896,8 +1896,8 @@ def solve_sn(
         q_final_per_ord,
         solver.mat_xs.total_cross_section, sn_mesh,
         final_boundary,
-        starting_direction_source=final_seed_src,
-        starting_direction_flux=final_seed_buf,
+        radial_characteristic_source=final_seed_src,
+        radial_characteristic_flux=final_seed_buf,
     )
 
     elapsed = time.perf_counter() - t_start
@@ -1933,7 +1933,7 @@ def solve_sn(
             boundary=final_boundary,
             # #282 route (a): the marched ψ½ carrier from the final sweep
             # (None on non-carrying meshes).
-            starting_direction=final_seed_buf,
+            radial_characteristic=final_seed_buf,
             _history=(),
             history_depth=2,
         ),
@@ -2076,12 +2076,12 @@ def _build_fixed_source_rhs(
     # bulk is the only live shape here.
     if (
         isinstance(external_source, TimedFullField)
-        and external_source.starting_direction is not None
+        and external_source.radial_characteristic is not None
     ):
-        seed_src = StartingDirectionSourceSink.zeros_on(sn_mesh)
-        seed_src.values[...] = external_source.starting_direction.values
+        seed_src = RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+        seed_src.values[...] = external_source.radial_characteristic.values
     else:
-        seed_src = _starting_direction_source_from_per_ordinate(
+        seed_src = _radial_characteristic_source_from_per_ordinate(
             bulk_values, sn_mesh,
         )
     return TimedFullField(
@@ -2089,7 +2089,7 @@ def _build_fixed_source_rhs(
             bulk_values, sn_mesh, spatial_moments=per_axis,
         ),
         boundary=boundary,
-        starting_direction=seed_src,
+        radial_characteristic=seed_src,
     )
 
 

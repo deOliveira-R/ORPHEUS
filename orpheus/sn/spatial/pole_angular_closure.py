@@ -56,7 +56,7 @@ Since Issue #282 route (a) (#280 Phase 2.5d) the seed
 Hébert Eqs. 3.432-3.435 starting-direction march
 (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`)
 and carried as first-class STATE on the composite's
-``starting_direction`` block (the carrying levels — the sphere), or
+``radial_characteristic`` block (the carrying levels — the sphere), or
 inlined as the operator-consistent 2-point angular-edge extrapolation
 on the non-carrying cylinder levels
 (:meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`).
@@ -190,7 +190,7 @@ from orpheus.geometry import CoordSystem
 from orpheus.numerics.registry import RegistryMixin
 
 if TYPE_CHECKING:  # pragma: no cover
-    from orpheus.transport.fields._bases import StartingDirectionField
+    from orpheus.transport.fields._bases import RadialCharacteristicField
 
     from ..mesh.augmented_mesh import SNMesh
 
@@ -245,7 +245,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
             is_linear: ClassVar[bool] = True
 
             def precompute_psi_state(self, psi_view, *,
-                                     starting_direction=None):
+                                     radial_characteristic=None):
                 ...
 
             def cell_contribution(self, psi_state, cell_idx, level_idx,
@@ -472,7 +472,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         self,
         psi_view: np.ndarray,
         *,
-        starting_direction: "StartingDirectionField | None" = None,
+        radial_characteristic: "RadialCharacteristicField | None" = None,
     ) -> object:
         r"""Precompute per-level closure state for one matvec pass.
 
@@ -480,7 +480,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         seeded half-angle grids; Identity: ``None``) that
         :meth:`cell_contribution` consumes.  See the concrete overrides.
 
-        ``starting_direction`` (#282 route (a), 2.5d): the composite's
+        ``radial_characteristic`` (#282 route (a), 2.5d): the composite's
         typed ψ½ block.  On a CARRYING level (R12a) the recurrence seed
         is read from its ``cells(level, -1)`` leg; ``None`` seeds those
         levels at zero (legitimate only for the ψ-independent
@@ -520,7 +520,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         seed-cells cotangent per CARRYING level (keyed by level index),
         where the reverse recurrence STOPS: the seed is first-class
         state, so its cotangent lands on the output composite's
-        ``starting_direction`` block instead of being scattered back
+        ``radial_characteristic`` block instead of being scattered back
         onto the bulk (the retired strategy ``seed_adjoint``
         delegation).  Non-carrying levels scatter their (edge-
         extrapolation) seed cotangent onto the bulk internally.  Empty
@@ -695,7 +695,7 @@ def morel_montry_tau_raw_per_level(
     * the production τ (:func:`morel_montry_tau_per_level` = this,
       then the cylinder clamp), and
     * the **R12a seed-presence predicate**
-      (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`):
+      (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`):
       a level carries independent starting-direction state iff its
       first-ordinate ``τ_raw ∈ (0, 1)`` exclusive. The trichotomy is
       bit-exact on the production rules: ``τ_raw,0 = 0`` on cylinder
@@ -945,7 +945,7 @@ class MorelMontryAngularSweep(
     # swappable strategy (the ``PsiHalfAngleSeed`` zoo is retired).  On
     # a CARRYING level (R12a: first-ordinate raw τ ∈ (0,1) exclusive —
     # the sphere) the seed is the composite's ψ½ STATE, read from the
-    # given ``starting_direction`` block; on the non-carrying cylinder
+    # given ``radial_characteristic`` block; on the non-carrying cylinder
     # levels the 2-point angular-edge extrapolation of the input field
     # is inlined (:meth:`edge_extrapolated_seed` — bit-identical to the
     # retired ``AngularEdgeExtrapolation`` default: product rules hit
@@ -1064,7 +1064,7 @@ class MorelMontryAngularSweep(
         # producer ``morel_montry_tau_raw_per_level``); safe at this
         # construction point because the predicate needs only
         # ``(quad, coord)``, both bound before the closure is built.
-        self._carrying_levels = frozenset(sn_mesh.starting_direction_levels)
+        self._carrying_levels = frozenset(sn_mesh.radial_characteristic_levels)
 
         coord = sn_mesh.coord
         quad = sn_mesh.quad
@@ -1239,7 +1239,7 @@ class MorelMontryAngularSweep(
         self,
         psi_view: np.ndarray,                       # (N, ng, nx, 1) canonical
         *,
-        starting_direction: "StartingDirectionField | None" = None,
+        radial_characteristic: "RadialCharacteristicField | None" = None,
     ) -> "tuple[_MMHalfGrid, ...]":
         r"""Build per-level half-angle grids from the ψ½ state / edge seed.
 
@@ -1249,11 +1249,11 @@ class MorelMontryAngularSweep(
         Seed dispatch (#282 route (a), R12a):
 
         * **carrying level** — the recurrence seed is the composite's
-          FIRST-CLASS ψ½ state: ``starting_direction.cells(p, -1)``
+          FIRST-CLASS ψ½ state: ``radial_characteristic.cells(p, -1)``
           (the inward starting-direction leg).  The retired-strategy
           extrapolation of the ITERATE — the #282 back edge — is gone:
           the seed is upstream STATE in the augmented walk order.
-          ``starting_direction=None`` seeds carrying levels at ZERO —
+          ``radial_characteristic=None`` seeds carrying levels at ZERO —
           legitimate ONLY for the ψ-independent coefficient use (the
           transpose walk's ``denom``-only state); value paths on a
           carrying mesh must hand the block in (the walk guards this).
@@ -1266,7 +1266,7 @@ class MorelMontryAngularSweep(
         ----------
         psi_view :
             Current angular-flux iterate, canonical layout.
-        starting_direction :
+        radial_characteristic :
             The composite's typed ψ½ block (``None`` on non-carrying
             meshes and for coefficient-only state).
         """
@@ -1276,8 +1276,8 @@ class MorelMontryAngularSweep(
         for p, level_idx in enumerate(self.level_indices):
             psi_level = psi_g_first[:, level_idx, :]  # (ng, M_p, nx)
             if p in self._carrying_levels:
-                if starting_direction is not None:
-                    psi_half_seed_arr = starting_direction.cells(p, -1)
+                if radial_characteristic is not None:
+                    psi_half_seed_arr = radial_characteristic.cells(p, -1)
                 else:
                     ng, _M, nx = psi_level.shape
                     psi_half_seed_arr = np.zeros((ng, nx))
@@ -1351,7 +1351,7 @@ class MorelMontryAngularSweep(
         * **carrying level** — the seed is first-class ψ½ STATE, so the
           reverse recurrence STOPS here: the seed cotangent is returned
           in ``seed_cells_bar[p]`` and the caller lands it on the output
-          composite's ``starting_direction`` block (the retired-strategy
+          composite's ``radial_characteristic`` block (the retired-strategy
           ``seed_adjoint`` delegation is gone with the zoo).
         * **non-carrying level** — the forward seed was the inlined
           edge extrapolation of the INPUT, so its cotangent scatters
@@ -1408,7 +1408,7 @@ class MorelMontryAngularSweep(
             # ── route the seed cotangent (R12a dispatch, #282 route (a)) ──
             if p in self._carrying_levels:
                 # First-class ψ½ state: STOP — the caller lands this on
-                # the output composite's starting_direction block.
+                # the output composite's radial_characteristic block.
                 seed_cells_bar[p] = seed_bar
             else:
                 # Inlined edge-extrapolation adjoint: scatter onto the
@@ -1527,15 +1527,15 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         self,
         psi_view: np.ndarray,
         *,
-        starting_direction: "StartingDirectionField | None" = None,
+        radial_characteristic: "RadialCharacteristicField | None" = None,
     ) -> None:
         """No state — Cartesian has no curvature half-grid to precompute.
 
-        ``starting_direction`` is structurally ``None`` on Cartesian
+        ``radial_characteristic`` is structurally ``None`` on Cartesian
         (R12a: no curvature ⇒ no starting-direction levels ⇒ the field
         cannot even be constructed on this mesh).
         """
-        del psi_view, starting_direction
+        del psi_view, radial_characteristic
         return None
 
     def cell_contribution(

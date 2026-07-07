@@ -29,7 +29,7 @@ family; #290 P2.5)::
 
     bulk leaves here: AngularResidual, ScalarResidual;
     boundary leaf: AngularBoundaryResidual;
-    starting-direction leaf: StartingDirectionResidual (#282 route (a) —
+    starting-direction leaf: RadialCharacteristicResidual (#282 route (a) —
     the ψ½ block of the augmented residual, the third locus's fourth
     role member).
 
@@ -49,13 +49,13 @@ from __future__ import annotations
 from orpheus.transport.residuals.angular_residual import AngularResidual
 from orpheus.transport.residuals.scalar_residual import ScalarResidual
 from orpheus.transport.residuals.angular_boundary_residual import AngularBoundaryResidual
-from orpheus.transport.residuals.starting_direction_residual import (
-    StartingDirectionResidual,
+from orpheus.transport.residuals.radial_characteristic_residual import (
+    RadialCharacteristicResidual,
 )
 
 __all__ = [
     "AngularResidual",
     "ScalarResidual",
     "AngularBoundaryResidual",
-    "StartingDirectionResidual",
+    "RadialCharacteristicResidual",
 ]

@@ -38,13 +38,13 @@ from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.source_sinks import (
     AngularBoundarySourceSink,
     AngularSourceSink,
-    StartingDirectionSourceSink,
+    RadialCharacteristicSourceSink,
 )
 
 pytestmark = [pytest.mark.regression]
@@ -98,7 +98,7 @@ def _random_source(sn, rng, ng: int = 2):
     return bvals, FullField(
         bulk=AngularSourceSink.from_mesh(bvals, sn),
         boundary=AngularBoundarySourceSink.zeros_on(sn),
-        starting_direction=StartingDirectionSourceSink.from_angular_source(
+        radial_characteristic=RadialCharacteristicSourceSink.from_angular_source(
             bvals, sn,
         ),
     )
@@ -108,15 +108,15 @@ def _random_iterate(sn, rng, ng: int = 2):
     """A random 3-block flux composite (an ``initial_guess``)."""
     N, nx = sn.quad.N, sn.nx
     seed = None
-    if sn.starting_direction_space is not None:
-        seed = StartingDirectionFlux(
-            values=rng.standard_normal(sn.starting_direction_space.shape[0]),
-            space=sn.starting_direction_space, mesh=sn,
+    if sn.radial_characteristic_space is not None:
+        seed = RadialCharacteristicFlux(
+            values=rng.standard_normal(sn.radial_characteristic_space.shape[0]),
+            space=sn.radial_characteristic_space, mesh=sn,
         )
     return FullField(
         bulk=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux.zeros_on(sn),
-        starting_direction=seed,
+        radial_characteristic=seed,
     )
 
 
@@ -124,10 +124,10 @@ def _full_residual_inf(A, sol, source_composite, bvals) -> float:
     """‖A·solve(b) − b‖_∞ / ‖b‖_∞ over the FULL augmented field."""
     r = A.apply(sol)
     num = np.max(np.abs(r.bulk.values - bvals))
-    if r.starting_direction is not None:
+    if r.radial_characteristic is not None:
         num = max(num, np.max(np.abs(
-            r.starting_direction.values
-            - source_composite.starting_direction.values
+            r.radial_characteristic.values
+            - source_composite.radial_characteristic.values
         )))
     # boundary source is zeroed; r.boundary is the trace defect (≈0 too).
     num = max(num, np.max(np.abs(r.boundary.values)))
@@ -330,7 +330,7 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
 
     sn, A = _operator(CoordSystem.SPHERICAL, nx=4, sigma=0.5)
     rng = np.random.default_rng(12)
-    n_seed = sn.starting_direction_space.shape[0]
+    n_seed = sn.radial_characteristic_space.shape[0]
     n_trace = int(sn.angular_trace.layout.total_size)
 
     def _random_seed_composite():
@@ -343,9 +343,9 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
                 values=rng.standard_normal(n_trace),
                 space=sn.angular_trace, mesh=sn,
             ),
-            starting_direction=StartingDirectionFlux(
+            radial_characteristic=RadialCharacteristicFlux(
                 values=rng.standard_normal(n_seed),
-                space=sn.starting_direction_space, mesh=sn,
+                space=sn.radial_characteristic_space, mesh=sn,
             ),
         )
 
@@ -396,7 +396,7 @@ def test_mode10_seed_source_activation_q_half_moves_the_sphere_solve():
     b_zero = FullField(
         bulk=b.bulk,
         boundary=b.boundary,
-        starting_direction=StartingDirectionSourceSink.zeros_on(sn),
+        radial_characteristic=RadialCharacteristicSourceSink.zeros_on(sn),
     )
     sol_without = A.solve(b_zero, initial_guess=None)
     delta = np.max(np.abs(sol_with.bulk.values - sol_without.bulk.values))

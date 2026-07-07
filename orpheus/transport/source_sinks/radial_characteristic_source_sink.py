@@ -1,5 +1,5 @@
 r"""The q½ starting-direction source block — the *source* role leaf of
-:class:`~orpheus.transport.fields._bases.StartingDirectionField`.
+:class:`~orpheus.transport.fields._bases.RadialCharacteristicField`.
 
 The typed per-level source/sink block driving the starting-direction
 equation (Hébert §3.9.4, Eq. 3.432: closed :math:`\mu = \mu_{\rm start}`
@@ -28,7 +28,7 @@ Cells vs corner semantics (units note)
 
 All storage, validation, algebra, ``cells``/``corner`` views, and the
 ``zeros_on`` / ``from_mesh`` factories are inherited from
-:class:`StartingDirectionField`. Plain vector-space algebra (source
+:class:`RadialCharacteristicField`. Plain vector-space algebra (source
 sums are closed) — no role mixin, like every SourceSink leaf.
 """
 
@@ -40,27 +40,27 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 
 from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
-from orpheus.transport.fields._bases import StartingDirectionField
+from orpheus.transport.fields._bases import RadialCharacteristicField
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray
 
     from orpheus.sn.mesh.augmented_mesh import SNMesh
 
-__all__ = ["StartingDirectionSourceSink"]
+__all__ = ["RadialCharacteristicSourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class StartingDirectionSourceSink(StartingDirectionField):
+class RadialCharacteristicSourceSink(RadialCharacteristicField):
     r"""L2 starting-direction source/sink — the q½ block of an augmented source composite.
 
     Parameters
     ----------
     values : NDArray
         Flat backing buffer, shape ``(space.shape[0],)``.
-    space : StartingDirectionSpace
+    space : RadialCharacteristicSpace
         The R12a-keyed space (canonically
-        ``mesh.starting_direction_space``).
+        ``mesh.radial_characteristic_space``).
     mesh : SNMesh
         The SN phase-space carrier (the cross-mesh-arithmetic guard).
 
@@ -68,7 +68,7 @@ class StartingDirectionSourceSink(StartingDirectionField):
     -----
     A thin role leaf — the class identity is what keeps seed source,
     flux, and displacement arithmetic from silently mixing (all three
-    share the SAME ``mesh.starting_direction_space``, so it is the
+    share the SAME ``mesh.radial_characteristic_space``, so it is the
     class gate, not the space gate, that rejects cross-role sums).
     """
 
@@ -83,7 +83,7 @@ class StartingDirectionSourceSink(StartingDirectionField):
     @classmethod
     def from_angular_source(
         cls, angular_source_values: "NDArray", mesh: "SNMesh",
-    ) -> "StartingDirectionSourceSink | None":
+    ) -> "RadialCharacteristicSourceSink | None":
         r"""Fold a per-ordinate volumetric source into its q½ seed block.
 
         The ONE source-side birth factory of #282 route (a) (Pattern 2 —
@@ -103,7 +103,7 @@ class StartingDirectionSourceSink(StartingDirectionField):
            q_\ell(r) \;=\; \sum_n w_n\,P_\ell(\mu_n)\,q_n(r),
 
         via the R14 helper
-        (:func:`~orpheus.numerics.spaces.starting_direction_space.fold_moments_to_starting_direction`).
+        (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`).
         The full fold is REQUIRED for an anisotropic source: even an
         isotropic trial flux :math:`\psi = A(r)` streams to a
         :math:`\mu`-linear source :math:`q = \mu A'(r) + \sigma_t A(r)`,
@@ -123,22 +123,22 @@ class StartingDirectionSourceSink(StartingDirectionField):
             The per-ordinate source in principled 1-D ``(N, ng, nx)``
             layout (carrying meshes are 1-D curvilinear).
         mesh : SNMesh
-            The phase-space carrier (its ``starting_direction_space``
+            The phase-space carrier (its ``radial_characteristic_space``
             is the R12a presence predicate + the flat layout; its
             ``pole_angular_closure.level_indices`` give each level's
             ordinate bundle for the per-level moment integration).
         """
-        from orpheus.numerics.spaces.starting_direction_space import (
-            fold_moments_to_starting_direction,
+        from orpheus.numerics.spaces.radial_characteristic_space import (
+            fold_moments_to_radial_characteristic,
         )
 
-        space = mesh.starting_direction_space
+        space = mesh.radial_characteristic_space
         if space is None:
             return None
         vals = np.asarray(angular_source_values)
         if vals.ndim != 3:
             raise ValueError(
-                "StartingDirectionSourceSink.from_angular_source expects the "
+                "RadialCharacteristicSourceSink.from_angular_source expects the "
                 f"principled 1-D (N, ng, nx) per-ordinate layout; got shape "
                 f"{vals.shape} (carrying meshes are 1-D curvilinear, R12a)."
             )
@@ -158,6 +158,6 @@ class StartingDirectionSourceSink(StartingDirectionField):
             moments = np.einsum("n,nl,ngx->lgx", w_p, legendre, q_p)
             for sign in (-1, +1):
                 space.cells_view(seed.values, p, sign)[...] = (
-                    fold_moments_to_starting_direction(moments, sign)
+                    fold_moments_to_radial_characteristic(moments, sign)
                 )
         return seed

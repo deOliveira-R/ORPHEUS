@@ -8,7 +8,7 @@ introduced AND fixed within #282 route (a) (commit ``a29ab2d``):
 * THE BUG (pre-fix working tree): ``_solve_krylov`` sized the gmres ``restart`` from
   the BULK formula ``N*ng*prod(spatial_shape)`` (solver.py ``n_dof=...``).  Route (a)
   grew the Krylov state to a 3-block ``TimedFullField(bulk ⊕ trace ⊕
-  starting_direction)`` whose ``to_flat`` is LARGER (n=10 sphere GL8 1g: bulk 160 <
+  radial_characteristic)`` whose ``to_flat`` is LARGER (n=10 sphere GL8 1g: bulk 160 <
   composite 210 = +42 seed +8 trace).  Restarted GMRES(160) STAGNATED on the 210-dim
   augmented system (info=300, residual plateau, 868 s; keff best-effort — WRONG=0.865
   under a bounded outer cap).  Bit the eigenvalue path (moderator c=0.95 reflective =
@@ -36,7 +36,7 @@ from orpheus.sn.solver import solve_sn
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from tests.sn._test_helpers import curvilinear_two_region_mesh as _two_region_mesh
 
 
@@ -44,7 +44,7 @@ def _composite_dim_and_bulk(sn):
     bulk = sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape))
     composite = TimedFullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
-        starting_direction=StartingDirectionFlux,
+        radial_characteristic=RadialCharacteristicFlux,
     )
     return bulk, len(composite.to_flat())
 

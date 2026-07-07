@@ -1,5 +1,5 @@
 r"""The ψ½ starting-direction flux state — the *flux* role leaf of
-:class:`~orpheus.transport.fields._bases.StartingDirectionField`.
+:class:`~orpheus.transport.fields._bases.RadialCharacteristicField`.
 
 The typed per-level half-angle angular flux :math:`\psi_{1/2}` of the
 curvilinear Morel–Montry thread, promoted from a lagged solver-internal
@@ -7,7 +7,7 @@ estimate to composite STATE (#282 route (a), campaign #280 phase 2.5d):
 the third block of the augmented carrier
 :class:`~orpheus.transport.full_field.FullField` on seed-carrying meshes
 (R12a: the sphere; see the
-:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`
+:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`
 module docstring for the presence trichotomy).
 
 Per ruling R13 the leaf carries BOTH direction legs per level — the
@@ -18,7 +18,7 @@ corner = given data; outflow corner = the defect row).
 
 Storage, validation, algebra, the ``cells(level, sign)`` /
 ``corner(level, sign)`` views, and the ``zeros_on`` / ``from_mesh``
-factories are inherited from :class:`StartingDirectionField`; the
+factories are inherited from :class:`RadialCharacteristicField`; the
 affine-point flux algebra (``flux ⊖ flux → displacement``, torsor
 ``flux ⊕ displacement``, ``flux + flux → TypeError``) from
 :class:`~orpheus.transport.fields._flux_role.FluxRole` — identical to
@@ -31,14 +31,14 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
-from orpheus.transport.fields._bases import StartingDirectionField
+from orpheus.transport.fields._bases import RadialCharacteristicField
 from orpheus.transport.fields._flux_role import FluxRole
 
-__all__ = ["StartingDirectionFlux"]
+__all__ = ["RadialCharacteristicFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class StartingDirectionFlux(FluxRole, StartingDirectionField):
+class RadialCharacteristicFlux(FluxRole, RadialCharacteristicField):
     r"""L2 starting-direction flux — the ψ½ state block of the augmented composite.
 
     Parameters
@@ -46,10 +46,10 @@ class StartingDirectionFlux(FluxRole, StartingDirectionField):
     values : NDArray
         Flat backing buffer, shape ``(space.shape[0],)`` — per level and
         direction sign, cells ``(ng, nx)`` ⊕ corner ``(ng,)``.
-    space : StartingDirectionSpace
+    space : RadialCharacteristicSpace
         The R12a-keyed
-        :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`
-        (canonically ``mesh.starting_direction_space``) — carries the
+        :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`
+        (canonically ``mesh.radial_characteristic_space``) — carries the
         seed levels, the layout arithmetic, and the SPD ``G_sd = V_cell``
         state metric.
     mesh : SNMesh

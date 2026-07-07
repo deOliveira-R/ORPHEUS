@@ -511,24 +511,24 @@ class FissionOperator(LinearOperator):
             # R14 fold helper (ℓ = 0: Q̄ = ½·Q₀, both signs — P₀ ≡ 1).
             # Corners stay zero (trace-like rows; fission is volumetric).
             sd_out = None
-            if psi.starting_direction is not None:
-                from orpheus.numerics.spaces.starting_direction_space import (
-                    fold_moments_to_starting_direction,
+            if psi.radial_characteristic is not None:
+                from orpheus.numerics.spaces.radial_characteristic_space import (
+                    fold_moments_to_radial_characteristic,
                 )
                 from orpheus.transport.source_sinks import (
-                    StartingDirectionSourceSink,
+                    RadialCharacteristicSourceSink,
                 )
 
-                seed = psi.starting_direction
+                seed = psi.radial_characteristic
                 sd_values = np.zeros_like(seed.values)
                 for level in seed.space.levels:
                     for sign in (-1, +1):
                         seed.space.cells_view(sd_values, level, sign)[:] = (
-                            fold_moments_to_starting_direction(
+                            fold_moments_to_radial_characteristic(
                                 fission_iso.values[None], sign,
                             )
                         )
-                sd_out = StartingDirectionSourceSink(
+                sd_out = RadialCharacteristicSourceSink(
                     values=sd_values, space=seed.space, mesh=seed.mesh,
                 )
             return FullField(
@@ -539,7 +539,7 @@ class FissionOperator(LinearOperator):
                 # this source is added to the timed rhs).
                 bulk=per_ord,
                 boundary=AngularBoundarySourceSink.zeros_on(mesh),
-                starting_direction=sd_out,
+                radial_characteristic=sd_out,
             )
         if isinstance(bulk, ScalarFlux):
             # Scalar composite arm (#290 P4): fission emission in iso

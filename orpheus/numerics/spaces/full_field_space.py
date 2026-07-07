@@ -141,14 +141,14 @@ class CompositeField(Protocol):
     def boundary(self) -> _CompositeLeaf: ...
 
     @property
-    def starting_direction(self) -> Optional[_CompositeLeaf]: ...
+    def radial_characteristic(self) -> Optional[_CompositeLeaf]: ...
 
     def _recombine(
         self,
         *,
         bulk: _CompositeLeaf,
         boundary: _CompositeLeaf,
-        starting_direction: Optional[_CompositeLeaf],
+        radial_characteristic: Optional[_CompositeLeaf],
     ) -> "CompositeField": ...
 
 
@@ -180,9 +180,9 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         (#290 P2). The composite reads only the carrier-generic
         FunctionSpace metric surface, so the block dispatch is
         family-blind. ``compare=False`` leaf metadata.
-    starting_direction_space : FunctionSpace, optional
+    radial_characteristic_space : FunctionSpace, optional
         The OPTIONAL third block (#282 route (a), 2.5d): the
-        :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`
+        :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`
         carrying the per-level ψ½ layout and the SPD **state metric**
         ``G_sd = V_cell`` (the radial cell-volume measure — ψ½ is a
         first-class radial state field; the scaling metric, its inverse,
@@ -198,7 +198,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
     trace_space: Optional[FunctionSpace] = field(
         default=None, repr=False, compare=False,
     )
-    starting_direction_space: Optional[FunctionSpace] = field(
+    radial_characteristic_space: Optional[FunctionSpace] = field(
         default=None, repr=False, compare=False,
     )
 
@@ -224,31 +224,31 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         cls,
         bulk_space: FunctionSpace,
         trace_space: FunctionSpace,
-        starting_direction_space: Optional[FunctionSpace] = None,
+        radial_characteristic_space: Optional[FunctionSpace] = None,
     ) -> "FullFieldSpace":
         r"""Build the composite from its bulk and trace (and optional seed) leaf spaces.
 
         Derives the flat direct-sum ``shape`` from the leaf shapes:
-        ``(prod(bulk) + prod(trace) [+ prod(starting_direction)],)`` —
+        ``(prod(bulk) + prod(trace) [+ prod(radial_characteristic)],)`` —
         ``prod`` on every block so the identity dimension is robust to a
         future multi-axis trace (today ``trace_space.shape ==
         (total_size,)``). The starting-direction block is present
         exactly when the mesh predicate supplies a space (R12a — see
-        :attr:`starting_direction_space`).
+        :attr:`radial_characteristic_space`).
         """
         n_bulk = int(np.prod(bulk_space.shape))
         n_trace = int(np.prod(trace_space.shape))
         n_seed = (
             0
-            if starting_direction_space is None
-            else int(np.prod(starting_direction_space.shape))
+            if radial_characteristic_space is None
+            else int(np.prod(radial_characteristic_space.shape))
         )
         return cls(
             name="full_field",
             shape=(n_bulk + n_trace + n_seed,),
             bulk_space=bulk_space,
             trace_space=trace_space,
-            starting_direction_space=starting_direction_space,
+            radial_characteristic_space=radial_characteristic_space,
         )
 
     # ------------------------------------------------------------------
@@ -284,30 +284,30 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         ψ½ block through a composite space that has no seed leaf space —
         is an illegal pairing and raises.
         """
-        if getattr(x, "starting_direction", None) is None:
+        if getattr(x, "radial_characteristic", None) is None:
             return None
-        if self.starting_direction_space is None:
+        if self.radial_characteristic_space is None:
             raise RuntimeError(
                 "FullFieldSpace: the composite field carries a "
-                "starting_direction block but this space has no "
-                "starting_direction_space — the field/space pairing is "
+                "radial_characteristic block but this space has no "
+                "radial_characteristic_space — the field/space pairing is "
                 "inconsistent (build the space via "
-                "FullFieldSpace.from_blocks(..., starting_direction_space=...) "
+                "FullFieldSpace.from_blocks(..., radial_characteristic_space=...) "
                 "/ SNMesh.full_field_space)."
             )
-        return self.starting_direction_space
+        return self.radial_characteristic_space
 
     @staticmethod
     def _rebuild(
         x: CompositeField,
         bulk_values: np.ndarray,
         boundary_values: np.ndarray,
-        starting_direction_values: Optional[np.ndarray] = None,
+        radial_characteristic_values: Optional[np.ndarray] = None,
     ) -> CompositeField:
         r"""Return a copy of composite field ``x`` with new block ``values``.
 
         Rebuilds the frozen leaves (``x.bulk`` / ``x.boundary`` / the
-        optional ``x.starting_direction``) via
+        optional ``x.radial_characteristic``) via
         :func:`dataclasses.replace` — preserving each leaf's ``space`` /
         ``mesh`` — then routes the recombined blocks through the composite's
         polymorphic :meth:`_recombine` hook.  The hook gives the correct
@@ -321,25 +321,25 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         arrows), the G-adjoint metric path receives either carrier; routing
         through ``_recombine`` (not a hardcoded ``_history=()``) handles both.
         No concrete type import (duck-typed on the ``_recombine`` hook).
-        ``starting_direction_values`` must be supplied exactly when ``x``
+        ``radial_characteristic_values`` must be supplied exactly when ``x``
         carries the seed block (the callers thread it from
         :meth:`_seed_space_for`'s field-driven dispatch).
         """
-        seed = x.starting_direction
-        if seed is not None and starting_direction_values is None:
+        seed = x.radial_characteristic
+        if seed is not None and radial_characteristic_values is None:
             raise RuntimeError(
                 "FullFieldSpace._rebuild: the composite carries a "
-                "starting_direction block but no rebuilt seed values were "
+                "radial_characteristic block but no rebuilt seed values were "
                 "supplied — a metric path silently dropping the ψ½ block "
                 "is the silent-drop bug class (§16.A A3)."
             )
         return x._recombine(
             bulk=replace(x.bulk, values=bulk_values),
             boundary=replace(x.boundary, values=boundary_values),
-            starting_direction=(
+            radial_characteristic=(
                 None
                 if seed is None
-                else replace(seed, values=starting_direction_values)
+                else replace(seed, values=radial_characteristic_values)
             ),
         )
 
@@ -353,7 +353,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         ``G_sd = V_cell`` (the radial cell volume — ψ½ is a first-class
         radial state field, so its metric is set by its operator role,
         not its angular integration weight; documented on
-        :mod:`orpheus.numerics.spaces.starting_direction_space`).
+        :mod:`orpheus.numerics.spaces.radial_characteristic_space`).
         """
         bulk_space, trace_space = self._require_blocks()
         seed_space = self._seed_space_for(x)
@@ -364,7 +364,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             None
             if seed_space is None
             else seed_space.apply_metric(
-                x.starting_direction.values  # type: ignore[union-attr]
+                x.radial_characteristic.values  # type: ignore[union-attr]
             ),
         )
 
@@ -387,7 +387,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             None
             if seed_space is None
             else seed_space.apply_inverse_metric(
-                x.starting_direction.values  # type: ignore[union-attr]
+                x.radial_characteristic.values  # type: ignore[union-attr]
             ),
         )
 
@@ -404,8 +404,8 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         presence is the silent-drop bug class).
         """
         bulk_space, trace_space = self._require_blocks()
-        x_seed = getattr(x, "starting_direction", None)
-        y_seed = getattr(y, "starting_direction", None)
+        x_seed = getattr(x, "radial_characteristic", None)
+        y_seed = getattr(y, "radial_characteristic", None)
         if (x_seed is None) != (y_seed is None):
             raise ValueError(
                 "FullFieldSpace.inner_product: mixed starting-direction "

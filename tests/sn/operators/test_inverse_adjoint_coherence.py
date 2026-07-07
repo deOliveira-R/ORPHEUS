@@ -236,8 +236,8 @@ def test_gate2_swap_law_bit_identical(geom):
         np.asarray(lhs.boundary.values), np.asarray(rhs.boundary.values),
         err_msg=f"[{geom}] swap-law boundary not bit-identical",
     )
-    seed_lhs = lhs.starting_direction
-    seed_rhs = rhs.starting_direction
+    seed_lhs = lhs.radial_characteristic
+    seed_rhs = rhs.radial_characteristic
     if seed_lhs is not None and seed_rhs is not None:
         np.testing.assert_array_equal(
             np.asarray(seed_lhs.values), np.asarray(seed_rhs.values),

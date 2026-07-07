@@ -72,7 +72,7 @@ from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.sn.operators.windowing import BulkAnalysisOperator, WindowedSweep
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 
 
 pytestmark = [pytest.mark.foundation]
@@ -119,7 +119,7 @@ def _random_state(sn: SNMesh, seed: int) -> TimedFullField:
     rng_bnd = np.random.default_rng(seed + 1000)
     state = TimedFullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
-        starting_direction=StartingDirectionFlux,
+        radial_characteristic=RadialCharacteristicFlux,
     )
     bulk_values = rng_bulk.standard_normal(state.bulk.values.shape)
     boundary_values = rng_bnd.standard_normal(state.boundary.values.shape)

@@ -136,10 +136,10 @@ def _krylov_power_iteration_kinf(
     from orpheus.transport.full_field import FullField
     from orpheus.transport.source_sinks import (
         AngularSourceSink,
-        StartingDirectionSourceSink,
+        RadialCharacteristicSourceSink,
     )
-    from orpheus.transport.fields.starting_direction_flux import (
-        StartingDirectionFlux,
+    from orpheus.transport.fields.radial_characteristic_flux import (
+        RadialCharacteristicFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
 
@@ -199,7 +199,7 @@ def _krylov_power_iteration_kinf(
         # carrying ``q_ext_per_ord.values``; boundary = implicit zero.
         zero = TimedFullField.zeros(
             bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-            starting_direction=StartingDirectionFlux,
+            radial_characteristic=RadialCharacteristicFlux,
         )
         # B.5.2: q_ext IS a source (AngularSourceSink), emitted directly — no
         # re-wrap into AngularFlux.  The iterate/return is a flux, so bootstrap
@@ -212,7 +212,7 @@ def _krylov_power_iteration_kinf(
         # by ``KrylovAcceleration`` internally (B is in the gains).
         q_ext_typed = replace(
             zero, bulk=q_ext_per_ord,
-            starting_direction=StartingDirectionSourceSink.from_angular_source(
+            radial_characteristic=RadialCharacteristicSourceSink.from_angular_source(
                 q_ext_per_ord.values, sn_mesh,
             ),
         )
@@ -325,8 +325,8 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
     from orpheus.geometry import CoordSystem
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.mesh.augmented_mesh import SNMesh
-    from orpheus.transport.fields.starting_direction_flux import (
-        StartingDirectionFlux,
+    from orpheus.transport.fields.radial_characteristic_flux import (
+        RadialCharacteristicFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
     from tests.sn._test_helpers import curvilinear_two_region_mesh
@@ -342,7 +342,7 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
     bulk_only = sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape))
     composite = TimedFullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
-        starting_direction=StartingDirectionFlux,
+        radial_characteristic=RadialCharacteristicFlux,
     )
     composite_dim = int(composite.to_flat().size)
     # The pre-fix bulk-only restart under-sizes on a carrying mesh — the
@@ -357,5 +357,5 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
     deficit = composite_dim - bulk_only
     assert deficit == (
         int(sn.angular_trace.layout.total_size)
-        + int(sn.starting_direction_space.shape[0])
+        + int(sn.radial_characteristic_space.shape[0])
     ), f"restart deficit {deficit} ≠ trace+seed — the ravel layout drifted"

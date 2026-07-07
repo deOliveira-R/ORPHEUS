@@ -45,13 +45,13 @@ provides the *locus + family* axes as ABCs; the *role* leaves
          │   └─ ScalarBoundaryField (ABC)    ScalarTraceSpace (DiffusionMesh.scalar_trace; #290 P2/P7a)
          │       ├─ ScalarBoundaryFlux           role leaf  (flux — the per-face (J⁺, J⁻) pair)
          │       └─ ScalarBoundaryDisplacement   role leaf  (displacement — orpheus.transport.displacements)
-         └─ StartingDirectionField (ABC, FaceField[(level,sign,part)])  ANGULAR edge — the ψ½
+         └─ RadialCharacteristicField (ABC, FaceField[(level,sign,part)])  ANGULAR edge — the ψ½
              │                    pole seed (μ = μ_start; #282 route (a), 2.5d): mesh: SNMesh +
-             │                    StartingDirectionSpace (mesh.starting_direction_space, R12a-keyed);
+             │                    RadialCharacteristicSpace (mesh.radial_characteristic_space, R12a-keyed);
              │                    a FaceField SIBLING of BoundaryField, never a child
-             ├─ StartingDirectionFlux          role leaf  (flux — the ψ½ state)
-             ├─ StartingDirectionSourceSink    role leaf  (source — q½ cells + corner data)
-             └─ StartingDirectionDisplacement  role leaf  (displacement — orpheus.transport.displacements)
+             ├─ RadialCharacteristicFlux          role leaf  (flux — the ψ½ state)
+             ├─ RadialCharacteristicSourceSink    role leaf  (source — q½ cells + corner data)
+             └─ RadialCharacteristicDisplacement  role leaf  (displacement — orpheus.transport.displacements)
 
 Parametrization (no twin paths)
 ===============================
@@ -101,7 +101,7 @@ from orpheus.numerics.spaces.spherical_harmonic_space import (
 )
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
-from orpheus.numerics.spaces.starting_direction_space import StartingDirectionSpace
+from orpheus.numerics.spaces.radial_characteristic_space import RadialCharacteristicSpace
 
 if TYPE_CHECKING:
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
@@ -113,7 +113,7 @@ if TYPE_CHECKING:
 #: The face-key type of a :class:`FaceField` and its
 #: :class:`~orpheus.numerics.face_layout.FaceLayout`: ``str`` face names for
 #: the spatial :class:`BoundaryField`, the ``(level, sign, part)`` tuple for
-#: the ψ½ :class:`StartingDirectionField`. Bounded by
+#: the ψ½ :class:`RadialCharacteristicField`. Bounded by
 #: :class:`~collections.abc.Hashable` — the face key is a mapping key.
 K = TypeVar("K", bound=Hashable)
 
@@ -127,7 +127,7 @@ __all__ = [
     "BoundaryField",
     "AngularBoundaryField",
     "ScalarBoundaryField",
-    "StartingDirectionField",
+    "RadialCharacteristicField",
 ]
 
 
@@ -724,7 +724,7 @@ class FaceField(Field, Generic[K]):
     space: the spatial trace carries the partial-current ``|Ω·n̂|·w`` metric
     (:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`),
     the ψ½ pole the SPD radial cell-volume STATE metric :math:`V_{\rm cell}`
-    (:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`).
+    (:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`).
     The through-flux coefficient is NOT the state metric (ERR-067, vv Mode 12)
     — so this ABC deliberately unifies the *layout*, never the *measure*.
 
@@ -735,7 +735,7 @@ class FaceField(Field, Generic[K]):
 
     * :class:`BoundaryField` — the **spatial** faces (``FaceField[str]``): the
       boundary of the SPATIAL domain, keyed by face name.
-    * :class:`StartingDirectionField` — the **angular** edge
+    * :class:`RadialCharacteristicField` — the **angular** edge
       (``FaceField[tuple[int, int, str]]``): the ψ½ pole seed, the boundary of
       the ANGULAR domain (:math:`\mu = \mu_{\rm start}`), keyed by
       ``(level, sign, part)``.
@@ -762,7 +762,7 @@ class FaceField(Field, Generic[K]):
         families read ``mesh.angular_trace`` (raising on the trace-less 2-D
         cylindrical mesh) / ``mesh.scalar_trace`` (a :class:`DiffusionMesh`
         member, raising on a bare MaterialMesh — #290 P7a); the
-        starting-direction family reads ``mesh.starting_direction_space``
+        starting-direction family reads ``mesh.radial_characteristic_space``
         (R12a-keyed). MUST return a layout-bearing space or raise
         :class:`ValueError` with the family's own diagnosis.
         """
@@ -775,7 +775,7 @@ class FaceField(Field, Generic[K]):
         # The space IS the face space and carries the FaceLayout
         # (illegal-states-unrepresentable): a face field on a layout-less
         # space cannot do face_view. Families ADD their space-type narrowing
-        # (AngularTraceSpace / ScalarTraceSpace / StartingDirectionSpace) on
+        # (AngularTraceSpace / ScalarTraceSpace / RadialCharacteristicSpace) on
         # top of this structural floor.
         layout = getattr(self.space, "layout", None)
         if layout is None:
@@ -909,7 +909,7 @@ class BoundaryField(FaceField[str]):
     intermediate (a) adds the spatial-only :meth:`from_face_arrays` per-face
     packer, and (b) is the type the
     :class:`~orpheus.transport.full_field.FullField` composite discriminates
-    its boundary slot by — the ψ½ pole (:class:`StartingDirectionField`, a
+    its boundary slot by — the ψ½ pole (:class:`RadialCharacteristicField`, a
     :class:`FaceField` SIBLING) is deliberately NOT a ``BoundaryField``.
 
     Two storage families realize the SPATIAL locus (#290 P2; named per the
@@ -1098,7 +1098,7 @@ class ScalarBoundaryField(BoundaryField):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class StartingDirectionField(FaceField[tuple[int, int, str]]):
+class RadialCharacteristicField(FaceField[tuple[int, int, str]]):
     r"""Starting-direction storage base — the ANGULAR-domain edge of :class:`FaceField`.
 
     Carries the per-μ-level half-angle flux :math:`\psi_{1/2}` of the
@@ -1110,7 +1110,7 @@ class StartingDirectionField(FaceField[tuple[int, int, str]]):
     :class:`FaceField` flat-storage discipline (the layout, slice views,
     mesh/layout guards, and ``from_mesh`` / ``zeros_on`` are all inherited;
     the layout arithmetic lives on the
-    :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`).
+    :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`).
 
     A :class:`FaceField` **sibling** of the spatial :class:`BoundaryField`,
     NOT a child — the :class:`~orpheus.transport.full_field.FullField`
@@ -1126,13 +1126,13 @@ class StartingDirectionField(FaceField[tuple[int, int, str]]):
     meaningless without a quadrature and its M-M level structure, so
     ``mesh`` is :class:`SNMesh` (the :class:`AngularField` narrowing
     discipline) and the space source is the R12a-keyed
-    ``mesh.starting_direction_space`` — construction on a mesh with no
+    ``mesh.radial_characteristic_space`` — construction on a mesh with no
     seed-carrying level is unrepresentable (the factory raises; the
     composite spells absence as ``None``).
 
-    The concrete role leaves are ``StartingDirectionFlux`` (the ψ½
-    state), ``StartingDirectionSourceSink`` (the q½ source block), and
-    ``StartingDirectionDisplacement`` (the iterate increment). Abstract
+    The concrete role leaves are ``RadialCharacteristicFlux`` (the ψ½
+    state), ``RadialCharacteristicSourceSink`` (the q½ source block), and
+    ``RadialCharacteristicDisplacement`` (the iterate increment). Abstract
     — instantiate a role leaf.
     """
 
@@ -1141,7 +1141,7 @@ class StartingDirectionField(FaceField[tuple[int, int, str]]):
     # AngularBoundaryField/AngularTraceSpace idiom): consumers of the
     # layout atoms (cells_view / corner_view / levels) type-check
     # without re-narrowing.
-    space: StartingDirectionSpace
+    space: RadialCharacteristicSpace
 
     # ── Construction validation ──────────────────────────────────────
 
@@ -1150,11 +1150,11 @@ class StartingDirectionField(FaceField[tuple[int, int, str]]):
         # fires for the common misuse (a bare FunctionSpace, or an
         # AngularTraceSpace, passed where the starting-direction space
         # belongs).
-        if not isinstance(self.space, StartingDirectionSpace):
+        if not isinstance(self.space, RadialCharacteristicSpace):
             raise TypeError(
-                f"{type(self).__name__} requires a StartingDirectionSpace "
-                f"(built via StartingDirectionSpace.for_levels / read off "
-                f"mesh.starting_direction_space); got space={self.space!r}."
+                f"{type(self).__name__} requires a RadialCharacteristicSpace "
+                f"(built via RadialCharacteristicSpace.for_levels / read off "
+                f"mesh.radial_characteristic_space); got space={self.space!r}."
             )
         super().__post_init__()  # FaceField: Field shape + layout-bearing check.
 
@@ -1164,23 +1164,23 @@ class StartingDirectionField(FaceField[tuple[int, int, str]]):
     # a no-op for valid operands, a loud reject for hand-built cross-layout
     # ones); the retired override only spelled the mesh half.
 
-    # ── The space source (``mesh.starting_direction_space``) ─────────
+    # ── The space source (``mesh.radial_characteristic_space``) ─────────
 
     @classmethod
-    def _face_space_of(cls, mesh: "MaterialMesh") -> StartingDirectionSpace:
+    def _face_space_of(cls, mesh: "MaterialMesh") -> RadialCharacteristicSpace:
         r"""Return ``mesh``'s cached starting-direction space, or raise.
 
         The :class:`FaceField` face-space hook for the ψ½ locus — the
         angular-edge counterpart of the spatial families'
         ``mesh.angular_trace`` / ``mesh.scalar_trace`` sources. Reads
-        ``mesh.starting_direction_space`` duck-typed, so the override keeps
+        ``mesh.radial_characteristic_space`` duck-typed, so the override keeps
         the base ``mesh: MaterialMesh`` signature (no contravariant narrowing
         to :class:`SNMesh`). Raises on a mesh with no seed-carrying level
         (R12a: no level's first-ordinate raw M-M weight lies in (0, 1) —
         Cartesian always; every production cylinder rule; see
-        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`).
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`).
         """
-        space = getattr(mesh, "starting_direction_space", None)
+        space = getattr(mesh, "radial_characteristic_space", None)
         if space is None:
             raise ValueError(
                 f"{cls.__name__}: mesh carries no starting-direction "
@@ -1188,7 +1188,7 @@ class StartingDirectionField(FaceField[tuple[int, int, str]]):
                 f"starting-direction state (R12a predicate: first-ordinate "
                 f"raw M-M weight τ_raw ∈ (0,1) on no level; Cartesian and "
                 f"the production cylinder rules land here). The composite "
-                f"spells this as starting_direction=None, never a "
+                f"spells this as radial_characteristic=None, never a "
                 f"zero-DOF field."
             )
         return space

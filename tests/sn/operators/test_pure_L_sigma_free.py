@@ -42,7 +42,7 @@ from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -87,7 +87,7 @@ def _random_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
 
     state = TimedFullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=2,
-        starting_direction=StartingDirectionFlux,
+        radial_characteristic=RadialCharacteristicFlux,
     )
     rng = np.random.default_rng(seed)
     state = replace(

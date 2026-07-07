@@ -53,8 +53,8 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
-from orpheus.transport.source_sinks import StartingDirectionSourceSink
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
+from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
 
 
 def _random_state(
@@ -69,7 +69,7 @@ def _random_state(
     """
     rng = np.random.default_rng(seed)
     N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth, starting_direction=StartingDirectionFlux)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth, radial_characteristic=RadialCharacteristicFlux)
     return replace(
         state,
         bulk=replace(
@@ -83,7 +83,7 @@ def _const_state(
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` whose bulk is uniformly ``value``."""
     N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth, starting_direction=StartingDirectionFlux)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth, radial_characteristic=RadialCharacteristicFlux)
     return replace(
         state,
         bulk=replace(state.bulk, values=np.full((N, ng, *sn_mesh.spatial_shape), value)),
@@ -557,13 +557,13 @@ class TestSolveTimedFullField:
             self, Q, sigma, boundary_flux, *,
             moment_frame=None,
             schedule=None, reflect=None,
-            starting_direction_source=None, starting_direction_flux=None,
+            radial_characteristic_source=None, radial_characteristic_flux=None,
         ):
             # D-H.2-C2: L2 AngularBoundaryFlux exposes per-face writable views
             # via face_view; copy them out at entry to snapshot the inflow.
             # (#226 step 2: the door signature grew schedule/reflect —
             # None here, the Jacobi path; #282 route (a) grew the two
-            # starting_direction seed args — None on the non-carrying slab;
+            # radial_characteristic seed args — None on the non-carrying slab;
             # mirror them all so the spy stays signature-compatible with the
             # production call.  The vestigial ``initial_guess`` kwarg retired
             # with the dead seed threading, #280 2.5c.)
@@ -573,8 +573,8 @@ class TestSolveTimedFullField:
             ))
             return original(
                 self, Q, sigma, boundary_flux,
-                starting_direction_source=starting_direction_source,
-                starting_direction_flux=starting_direction_flux,
+                radial_characteristic_source=radial_characteristic_source,
+                radial_characteristic_flux=radial_characteristic_flux,
             )
 
         with patch.object(CumprodScan, "sweep", spy):
@@ -890,7 +890,7 @@ class TestInvertibleSolveBridgeRegression:
             # ``from_angular_source`` factory the production
             # ``solve_sn_fixed_source`` q_ext uses).  Without it the pole march
             # is seeded wrong and ψ ≠ q/Σ_t; None on non-carrying (slab/cyl).
-            starting_direction=StartingDirectionSourceSink.from_angular_source(
+            radial_characteristic=RadialCharacteristicSourceSink.from_angular_source(
                 q_per_ord, sn_mesh,
             ),
             _history=(),
@@ -920,11 +920,11 @@ class TestInvertibleSolveBridgeRegression:
                 # must be added to the q½ source too, else the pole ψ½ march is
                 # under-driven and ψ ≠ q/Σ_t (the observed non-flat profile).
                 B_out = B.apply(psi_typed)
-                seed_n = rhs.starting_direction
-                if seed_n is not None and B_out.starting_direction is not None:
-                    seed_n = seed_n + B_out.starting_direction
+                seed_n = rhs.radial_characteristic
+                if seed_n is not None and B_out.radial_characteristic is not None:
+                    seed_n = seed_n + B_out.radial_characteristic
                 rhs_n = replace(
-                    rhs, boundary=B_out.boundary, starting_direction=seed_n,
+                    rhs, boundary=B_out.boundary, radial_characteristic=seed_n,
                 )
                 psi_new = LC.solve(rhs_n, initial_guess=psi_typed)
             if psi_typed is not None and np.abs(

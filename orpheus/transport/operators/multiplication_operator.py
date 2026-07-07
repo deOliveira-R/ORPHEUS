@@ -126,7 +126,7 @@ if TYPE_CHECKING:
 __all__ = ["MultiplicationOperator"]
 
 
-def _starting_direction_scaled(
+def _radial_characteristic_scaled(
     seed: "Any",
     coefficient_values: np.ndarray,
     *,
@@ -150,11 +150,11 @@ def _starting_direction_scaled(
     """
     if seed is None:
         return None
-    from orpheus.transport.fields.starting_direction_flux import (
-        StartingDirectionFlux,
+    from orpheus.transport.fields.radial_characteristic_flux import (
+        RadialCharacteristicFlux,
     )
-    from orpheus.transport.source_sinks.starting_direction_source_sink import (
-        StartingDirectionSourceSink,
+    from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
+        RadialCharacteristicSourceSink,
     )
 
     space = seed.space
@@ -167,7 +167,7 @@ def _starting_direction_scaled(
                 cells_out[:] = cells_in / coefficient_values
             else:
                 cells_out[:] = coefficient_values * cells_in
-    out_cls = StartingDirectionFlux if invert else StartingDirectionSourceSink
+    out_cls = RadialCharacteristicFlux if invert else RadialCharacteristicSourceSink
     return out_cls(values=out, space=space, mesh=seed.mesh)
 
 
@@ -471,8 +471,8 @@ class MultiplicationOperator(LinearOperator["FullField"]):
                 boundary=AngularBoundarySourceSink.zeros_on(mesh),
                 # #282 route (a) seed arm: σ·ψ½ on the carried cells legs
                 # (dormant until the d3 birth-site flip populates inputs).
-                starting_direction=_starting_direction_scaled(
-                    psi.starting_direction,
+                radial_characteristic=_radial_characteristic_scaled(
+                    psi.radial_characteristic,
                     self.coefficient.values,
                     invert=False,
                 ),
@@ -554,8 +554,8 @@ class MultiplicationOperator(LinearOperator["FullField"]):
                 # #282 seed arm: cells ← q½/σ AFTER the engine's bulk solve
                 # has gated the spectrum law (min|σ| > 0); corners mirror
                 # the trace's zeros-discard (not in M's range).
-                starting_direction=_starting_direction_scaled(
-                    q.starting_direction,
+                radial_characteristic=_radial_characteristic_scaled(
+                    q.radial_characteristic,
                     self.coefficient.values,
                     invert=True,
                 ),

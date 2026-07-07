@@ -48,7 +48,7 @@ from tests.sn._test_helpers import _LC_matvec
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.quadrature import Quadrature
@@ -114,7 +114,7 @@ def _zero_flux(sn_mesh: SNMesh) -> TimedFullField:
     # (sphere yes; slab/cyl stay None).  apply(0)=0 holds on every block.
     return TimedFullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-        starting_direction=StartingDirectionFlux,
+        radial_characteristic=RadialCharacteristicFlux,
     )
 
 
@@ -127,7 +127,7 @@ def _uniform_flux(sn_mesh: SNMesh, value: float = 1.0) -> TimedFullField:
     """
     state = TimedFullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-        starting_direction=StartingDirectionFlux,
+        radial_characteristic=RadialCharacteristicFlux,
     )
     state.bulk.values[:] = value
     for face in ("xmin", "xmax"):
@@ -138,8 +138,8 @@ def _uniform_flux(sn_mesh: SNMesh, value: float = 1.0) -> TimedFullField:
     # preserving), so the pole march reproduces ``value`` at every cell and the
     # flat-flux invariant ``(L+C)·ψ = σ_t·ψ`` still holds.  A present-ZERO seed
     # would inject a wrong pole datum and break the value assertion (rule 2).
-    if state.starting_direction is not None:
-        state.starting_direction.values[:] = value
+    if state.radial_characteristic is not None:
+        state.radial_characteristic.values[:] = value
     return state
 
 
@@ -271,7 +271,7 @@ class TestLinearity:
         rng = np.random.default_rng(seed=42)
 
         def _random_state() -> TimedFullField:
-            state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+            state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
             state.bulk.values[:] = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
             state.boundary.face_view("xmax")[:] = rng.standard_normal((N, ng))
             if "xmin" in state.boundary.layout.faces:
@@ -286,7 +286,7 @@ class TestLinearity:
         alpha, beta = 1.7, -0.3
 
         # M(αψ + βφ)
-        sum_psi = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+        sum_psi = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         sum_psi.bulk.values[:] = alpha * psi.bulk.values + beta * phi.bulk.values
         sum_psi.boundary.face_view("xmax")[:] = (
             alpha * psi.boundary.face_view("xmax")
@@ -393,7 +393,7 @@ class TestFaceResidualMask:
         # Random ψ — the inflow-ordinate output is the I·ψ.inflow identity
         # row (the consistency-residual diagonal), so it tracks the input.
         rng = np.random.default_rng(seed=11)
-        psi = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+        psi = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         psi.bulk.values[:] = rng.standard_normal(
             (sn_mesh.quad.N, ng, *sn_mesh.spatial_shape),
         )
@@ -431,7 +431,7 @@ class TestFaceResidualMask:
         sigma_t = np.full((ng, *sn_mesh.spatial_shape), 1.0)
 
         rng = np.random.default_rng(seed=22)
-        psi = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+        psi = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         psi.bulk.values[:] = rng.standard_normal(
             (sn_mesh.quad.N, ng, *sn_mesh.spatial_shape),
         )
@@ -501,7 +501,7 @@ class TestTwoDCartesianRaises:
         quad = Quadrature.level_symmetric(sn_order=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
-        psi = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+        psi = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         result = _LC_matvec(psi, sigma_t)
         # #257 S8a — base arrow output is the TIMELESS FullField.
         assert isinstance(result, FullField)

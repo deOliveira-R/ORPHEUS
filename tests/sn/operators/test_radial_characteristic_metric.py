@@ -3,11 +3,11 @@ r"""The SN curvilinear starting-direction (ψ½) block Hilbert metric ``G_sd``.
 Foundation gates pinning the state metric of the starting-direction block of
 the augmented loss composite :math:`A = L + C` acting on
 :math:`V = V_{\rm bulk}(\text{AngularFlux}) \oplus V_{\rm trace}
-(\text{AngularBoundaryFlux}) \oplus V_{\rm sd}(\text{StartingDirectionFlux})`
+(\text{AngularBoundaryFlux}) \oplus V_{\rm sd}(\text{RadialCharacteristicFlux})`
 (#282 route (a) / #280 phase 2.5d).
 
 The derivation of record
-(``.claude/agent-memory/numerics-investigator/starting_direction_metric_gauge_derivation.md``)
+(``.claude/agent-memory/numerics-investigator/radial_characteristic_metric_gauge_derivation.md``)
 established, from the adjoint constraint :math:`A^{\mathsf T} G = G A^\dagger`:
 
 * ``apply_transpose`` is the **EXACT Euclidean transpose** :math:`A^{\mathsf T}`
@@ -24,7 +24,7 @@ established, from the adjoint constraint :math:`A^{\mathsf T} G = G A^\dagger`:
   gate historically fed a present-but-ZERO seed (**vv-principles Mode 12**,
   ERR-067).
 
-The shipped fix (``StartingDirectionSpace.for_levels`` builds ``G_sd = V_cell``,
+The shipped fix (``RadialCharacteristicSpace.for_levels`` builds ``G_sd = V_cell``,
 the radial cell volume — mirroring ``G_bulk = V_cell·w_n``; the angular ``w`` is a
 free gauge, a single :math:`\mu=\pm 1` ray carries no canonical quadrature weight)
 moves the seed rows OUT of the reciprocity functional's invariance group, closing
@@ -64,7 +64,7 @@ from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
 from orpheus.derivations.common.xs_library import make_mixture
 
@@ -132,16 +132,16 @@ def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
     """
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
-    n_sd = sn.starting_direction_space.shape[0]
+    n_sd = sn.radial_characteristic_space.shape[0]
     return FullField(
         bulk=AngularFlux.from_mesh(
             rng.standard_normal((N, ng, nx)) if bulk else np.zeros((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux(
             values=rng.standard_normal(n_tr) if trace else np.zeros(n_tr),
             space=sn.angular_trace, mesh=sn),
-        starting_direction=StartingDirectionFlux(
+        radial_characteristic=RadialCharacteristicFlux(
             values=rng.standard_normal(n_sd) if seed else np.zeros(n_sd),
-            space=sn.starting_direction_space, mesh=sn),
+            space=sn.radial_characteristic_space, mesh=sn),
     )
 
 
@@ -166,7 +166,7 @@ def _blocks(sn):
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     nb = N * ng * nx
     nt = int(sn.angular_trace.layout.total_size)
-    ns = sn.starting_direction_space.shape[0]
+    ns = sn.radial_characteristic_space.shape[0]
     return slice(0, nb), slice(nb, nb + nt), slice(nb + nt, nb + nt + ns), (nb, nt, ns)
 
 
@@ -181,10 +181,10 @@ def _v_cell_seed(sn):
     radial cell volume group-broadcast, corner (ng,) = outer-cell volume (gauge).
 
     Built through the space's own ``cells_view`` / ``corner_view`` — the SAME
-    layout ``StartingDirectionSpace.for_levels`` populates — so it reproduces the
+    layout ``RadialCharacteristicSpace.for_levels`` populates — so it reproduces the
     shipped seed block bit-for-bit.
     """
-    space = sn.starting_direction_space
+    space = sn.radial_characteristic_space
     V = np.asarray(sn.volumes, dtype=float).ravel()
     g = np.zeros(space.shape[0])
     for p in space.levels:
@@ -197,7 +197,7 @@ def _v_cell_seed(sn):
 def _seed_vw(sn):
     """A ``G_sd = V_cell · w_start`` seed diagonal — the "fold an angular weight
     in" gauge variant. Also SPD, also valid (the ``w`` is a free gauge)."""
-    space = sn.starting_direction_space
+    space = sn.radial_characteristic_space
     V = np.asarray(sn.volumes, dtype=float).ravel()
     w0 = float(np.asarray(sn.quad.weights, dtype=float)[0])
     g = np.zeros(space.shape[0])
@@ -657,7 +657,7 @@ def test_r4_gauge_perturbing_gsd_leaves_forward_bit_identical(nx, ng, sigma):
     # A non-vacuous GAUGE change on the (cached) seed metric: an explicit 2·V_cell
     # (includes the corner V[-1]→2·V[-1]). The forward path must never read the
     # metric, so the result is byte-for-byte unchanged.
-    space = sn.starting_direction_space
+    space = sn.radial_characteristic_space
     perturbed = 2.0 * _v_cell_seed(sn)
     object.__setattr__(space, "inner_product_weights", perturbed)
 

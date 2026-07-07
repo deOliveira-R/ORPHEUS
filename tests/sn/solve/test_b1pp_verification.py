@@ -40,11 +40,11 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import (
     placeholder_materials,
-    starting_direction_edge_seed,
+    radial_characteristic_edge_seed,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 
 # Per-test V&V level markers (see individual @pytest.mark.lN decorators).
 
@@ -138,7 +138,7 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
-    template = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+    template = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
     n_flat = template.to_flat().size
 
     def matvec_flat(flat: np.ndarray) -> np.ndarray:
@@ -230,7 +230,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # face_view = 1 at every face slot (the "ψ = const at every B1''
     # slot" condition the docstring describes).  The face-flat buffer
     # is filled by assigning to every face_view in turn.
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
     bulk_values = np.ones_like(state.bulk.values)
     new_bulk = replace(state.bulk, values=bulk_values)
     new_boundary = state.boundary
@@ -242,7 +242,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # present-ZERO seed would break the collapse.  None on non-carrying meshes.
     state = replace(
         state, bulk=new_bulk, boundary=new_boundary,
-        starting_direction=starting_direction_edge_seed(bulk_values, sn_mesh),
+        radial_characteristic=radial_characteristic_edge_seed(bulk_values, sn_mesh),
     )
 
     out = L.apply(state) + C.apply(state)
@@ -320,7 +320,7 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
-    template = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, starting_direction=StartingDirectionFlux)
+    template = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
     n_flat = template.to_flat().size
 
     def matvec(flat: np.ndarray) -> np.ndarray:

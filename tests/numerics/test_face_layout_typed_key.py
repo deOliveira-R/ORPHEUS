@@ -1,7 +1,7 @@
 r"""The typed-key ``FaceLayout[K]`` — the ψ½ space's ``(level, sign, part)`` layout.
 
 C2a of the codim-1 ``FaceField`` carve migrated
-:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`
+:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`
 off its hand-rolled ``_leg_offset``/``cells_slice``/``corner_slice`` arithmetic
 onto a real :class:`~orpheus.numerics.face_layout.FaceLayout`, keyed by the
 structured ``(level, sign, part)`` tuple instead of the spatial trace's ``str``
@@ -19,7 +19,7 @@ every single-level test. This module pins the layout at a **multi-level**
 synthetic (``levels = (0, 2, 5)``), where ``pos`` runs ``0, 1, 2`` and the stride
 term is live — and mutation-proves the golden has teeth.
 
-Pure numerics — no mesh: :meth:`StartingDirectionSpace.for_levels` needs only
+Pure numerics — no mesh: :meth:`RadialCharacteristicSpace.for_levels` needs only
 ``levels``, ``ng``, ``nx``, ``cell_volumes``. All assertions are
 ``np.testing.assert_*`` / :func:`pytest.fail` (function calls — they fire under
 the canonical ``python -O``, unlike bare ``assert``; vv Mode 8).
@@ -30,8 +30,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-import orpheus.numerics.spaces.starting_direction_space as sds_mod
-from orpheus.numerics.spaces.starting_direction_space import StartingDirectionSpace
+import orpheus.numerics.spaces.radial_characteristic_space as sds_mod
+from orpheus.numerics.spaces.radial_characteristic_space import RadialCharacteristicSpace
 
 # The canonical layout conventions, hard-coded HERE (independent of the
 # production module) so a production emission-order mutation diverges from the
@@ -63,7 +63,7 @@ def _closed_form_slot(
 
 
 def _assert_layout_matches_closed_form(
-    space: StartingDirectionSpace, levels: tuple[int, ...], ng: int, nx: int,
+    space: RadialCharacteristicSpace, levels: tuple[int, ...], ng: int, nx: int,
 ) -> None:
     r"""Assert every ``(level, sign, part)`` slot matches the closed form.
 
@@ -97,8 +97,8 @@ _NG, _NX = 2, 4
 _CELL_VOLUMES = np.array([1.5, 2.5, 3.5, 4.5])  # shape (nx,), SPD
 
 
-def _multilevel_space() -> StartingDirectionSpace:
-    return StartingDirectionSpace.for_levels(
+def _multilevel_space() -> RadialCharacteristicSpace:
+    return RadialCharacteristicSpace.for_levels(
         _LEVELS, ng=_NG, nx=_NX, cell_volumes=_CELL_VOLUMES,
     )
 

@@ -87,7 +87,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.sn._test_helpers import placeholder_materials, starting_direction_edge_seed
+from tests.sn._test_helpers import placeholder_materials, radial_characteristic_edge_seed
 
 pytestmark = pytest.mark.l0
 
@@ -169,7 +169,7 @@ class TestResolutionADecomposition:
             # decomposition identity (L+C ≡ L + C) holds for ANY seed since
             # both apply paths consume the SAME state — the consistent seed
             # additionally exercises the augmented seed rows in both paths.
-            starting_direction=starting_direction_edge_seed(bulk_arr, sn_mesh),
+            radial_characteristic=radial_characteristic_edge_seed(bulk_arr, sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -267,7 +267,7 @@ class TestSubtractiveDefinition:
             # decomposition identity (L+C ≡ L + C) holds for ANY seed since
             # both apply paths consume the SAME state — the consistent seed
             # additionally exercises the augmented seed rows in both paths.
-            starting_direction=starting_direction_edge_seed(bulk_arr, sn_mesh),
+            radial_characteristic=radial_characteristic_edge_seed(bulk_arr, sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -342,7 +342,7 @@ class TestPureLIsLossActionAtZeroSigma:
             # decomposition identity (L+C ≡ L + C) holds for ANY seed since
             # both apply paths consume the SAME state — the consistent seed
             # additionally exercises the augmented seed rows in both paths.
-            starting_direction=starting_direction_edge_seed(bulk_arr, sn_mesh),
+            radial_characteristic=radial_characteristic_edge_seed(bulk_arr, sn_mesh),
             _history=(),
             history_depth=2,
         )

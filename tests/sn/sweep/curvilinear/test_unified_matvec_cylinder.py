@@ -140,10 +140,10 @@ def _hand_reference_cyl_matvec(
     # #282 route (a) (#280 Phase 2.5d, 2026-07-04): the seed-strategy zoo
     # + its per-level context object were retired.  The cylinder
     # is a NON-carrying mesh (R12a: every production cylinder level has
-    # first-ordinate raw τ₀ ∈ {0, 1}, so ``starting_direction_space`` is
+    # first-ordinate raw τ₀ ∈ {0, 1}, so ``radial_characteristic_space`` is
     # None), and the mesh-bound closure's ``precompute_psi_state`` inlines
     # the 2-point angular-edge-extrapolation seed internally — no context,
-    # no ``starting_direction``.  Consume that LIVE per-level half-angle
+    # no ``radial_characteristic``.  Consume that LIVE per-level half-angle
     # grid (the SAME state the unified matvec reads via the walk), then
     # apply the α·ΔA/w/V redistribution fold explicitly here.
     #

@@ -1569,13 +1569,13 @@ class ScatteringOperator(LinearOperator):
         # note); the anisotropic seed fold activates with the >linear-in-μ
         # companion gate.
         sd_out = None
-        if psi.starting_direction is not None:
-            from orpheus.numerics.spaces.starting_direction_space import (
-                fold_moments_to_starting_direction,
+        if psi.radial_characteristic is not None:
+            from orpheus.numerics.spaces.radial_characteristic_space import (
+                fold_moments_to_radial_characteristic,
             )
             from orpheus.transport.fields.angular_flux import AngularFlux as _AF
             from orpheus.transport.source_sinks import (
-                StartingDirectionSourceSink,
+                RadialCharacteristicSourceSink,
             )
 
             if not isinstance(psi.bulk, _AF):
@@ -1587,14 +1587,14 @@ class ScatteringOperator(LinearOperator):
                 )
             phi0 = psi.bulk.integrate_angular().values          # (ng, nx)
             q0_iso = self.isotropic_kernel.apply(phi0)          # (ng, nx)
-            seed = psi.starting_direction
+            seed = psi.radial_characteristic
             sd_values = np.zeros_like(seed.values)
             for level in seed.space.levels:
                 for sign in (-1, +1):
                     seed.space.cells_view(sd_values, level, sign)[:] = (
-                        fold_moments_to_starting_direction(q0_iso[None], sign)
+                        fold_moments_to_radial_characteristic(q0_iso[None], sign)
                     )
-            sd_out = StartingDirectionSourceSink(
+            sd_out = RadialCharacteristicSourceSink(
                 values=sd_values, space=seed.space, mesh=seed.mesh,
             )
         # #257 S8a: history-free (the matvec leaf is a base arrow
@@ -1603,7 +1603,7 @@ class ScatteringOperator(LinearOperator):
         return FullField(
             bulk=combined,
             boundary=AngularBoundarySourceSink.zeros_on(psi.mesh),
-            starting_direction=sd_out,
+            radial_characteristic=sd_out,
         )
 
     @_apply_impl.register
@@ -1832,10 +1832,10 @@ class ScatteringOperator(LinearOperator):
             # its committed catchers are the Euclidean Mᵀ chain at 2.5b and
             # the §16.C round-trip (the §16.A A4 honest scope).
             sd_bar_out = None
-            chi_seed = chi.starting_direction
+            chi_seed = chi.radial_characteristic
             if chi_seed is not None:
                 from orpheus.transport.source_sinks import (
-                    StartingDirectionSourceSink,
+                    RadialCharacteristicSourceSink,
                 )
 
                 cells_bar_sum = np.zeros(
@@ -1851,7 +1851,7 @@ class ScatteringOperator(LinearOperator):
                 bulk_bar = bulk_bar + (
                     w.reshape((w.size,) + (1,) * phi0_bar.ndim) * phi0_bar
                 )
-                sd_bar_out = StartingDirectionSourceSink(
+                sd_bar_out = RadialCharacteristicSourceSink(
                     values=np.zeros_like(chi_seed.values),
                     space=chi_seed.space,
                     mesh=chi_seed.mesh,
@@ -1859,7 +1859,7 @@ class ScatteringOperator(LinearOperator):
             return FullField(
                 bulk=AngularSourceSink.from_mesh(bulk_bar, sn_mesh),
                 boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
-                starting_direction=sd_bar_out,
+                radial_characteristic=sd_bar_out,
             )
         chi_values = np.asarray(getattr(chi, "values", chi))
         return self.full_scatter_kernel.apply_transpose(chi_values) / float(

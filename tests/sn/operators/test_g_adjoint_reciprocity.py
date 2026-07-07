@@ -70,7 +70,7 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -197,7 +197,7 @@ def _g_inner(a: TimedFullField, b: TimedFullField, sn: SNMesh, *,
 
     The seed (ψ½) block (#282 route (a), present on carrying meshes) carries
     the state metric ``G_sd = V_cell``, read from
-    ``sn.starting_direction_space.inner_product_weights``.  ``G_sd`` is a
+    ``sn.radial_characteristic_space.inner_product_weights``.  ``G_sd`` is a
     GAUGE (any SPD is a valid adjoint metric — diag_gsd_03 R2), so the
     reference MUST use production's chosen gauge for the reciprocity identity
     to close; reusing it is NOT reference contamination because the seed
@@ -216,12 +216,12 @@ def _g_inner(a: TimedFullField, b: TimedFullField, sn: SNMesh, *,
         w_b = w_face.reshape((w_face.shape[0],) + (1,) * (af.ndim - 1))
         trace += float(np.sum(af * bf * w_b))
     seed = 0.0
-    a_sd, b_sd = a.starting_direction, b.starting_direction
+    a_sd, b_sd = a.radial_characteristic, b.radial_characteristic
     if (a_sd is None) != (b_sd is None):
         raise ValueError("_g_inner: mixed starting-direction presence between operands")
     if a_sd is not None and b_sd is not None:
         w_seed = np.asarray(
-            sn.starting_direction_space.inner_product_weights, dtype=float,
+            sn.radial_characteristic_space.inner_product_weights, dtype=float,
         )
         seed = float(np.sum(w_seed * a_sd.values * b_sd.values))
     return bulk + trace + seed
@@ -257,19 +257,19 @@ def _random_composite(
         space=sn.angular_trace,
         mesh=sn,
     )
-    starting_direction = None
-    if sn.starting_direction_space is not None:
-        n_seed = sn.starting_direction_space.shape[0]
+    radial_characteristic = None
+    if sn.radial_characteristic_space is not None:
+        n_seed = sn.radial_characteristic_space.shape[0]
         seed_vals = (
             rng.standard_normal(n_seed) if seed_block == "random"
             else np.zeros(n_seed)
         )
-        starting_direction = StartingDirectionFlux(
-            values=seed_vals, space=sn.starting_direction_space, mesh=sn,
+        radial_characteristic = RadialCharacteristicFlux(
+            values=seed_vals, space=sn.radial_characteristic_space, mesh=sn,
         )
     return TimedFullField(
         bulk=bulk, boundary=boundary,
-        starting_direction=starting_direction,
+        radial_characteristic=radial_characteristic,
         _history=(), history_depth=2,
     )
 
@@ -542,16 +542,16 @@ def _one_hot_group_composite(
     # #282 route (a): a present-but-ZERO ψ½ block on carrying meshes (the
     # augmented operator's Pattern-4 guard; G-reciprocity is zero-weight-
     # blind to it, so zero is the law's regime — see _random_composite).
-    starting_direction = None
-    if sn.starting_direction_space is not None:
-        starting_direction = StartingDirectionFlux(
-            values=np.zeros(sn.starting_direction_space.shape[0]),
-            space=sn.starting_direction_space, mesh=sn,
+    radial_characteristic = None
+    if sn.radial_characteristic_space is not None:
+        radial_characteristic = RadialCharacteristicFlux(
+            values=np.zeros(sn.radial_characteristic_space.shape[0]),
+            space=sn.radial_characteristic_space, mesh=sn,
         )
     return TimedFullField(
         bulk=AngularFlux.from_mesh(bulk_vals, sn),
         boundary=boundary,
-        starting_direction=starting_direction,
+        radial_characteristic=radial_characteristic,
         _history=(), history_depth=2,
     )
 

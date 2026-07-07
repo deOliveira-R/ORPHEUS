@@ -13,7 +13,7 @@ Scope note: this is the SPATIAL-trace measure only. The angular pole
 metric is the radial cell volume ``V_cell`` (a STATE metric), not the
 angular through-flux coefficient. The two codim-1 metrics do not unify
 through one kernel; see
-:mod:`orpheus.numerics.spaces.starting_direction_space` and ERR-067.
+:mod:`orpheus.numerics.spaces.radial_characteristic_space` and ERR-067.
 
 Foundation gates: the kernel definition, the trace-metric reproduction
 at 0 ULP, the drop-abs mutation tooth, and the Mode-11 execution

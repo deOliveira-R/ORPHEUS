@@ -64,11 +64,11 @@ from orpheus.sn.spatial.pole_angular_closure import (
 from orpheus.sn.loss_representation import transport_sweep
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import (
     placeholder_materials,
-    starting_direction_edge_seed,
+    radial_characteristic_edge_seed,
 )
 
 
@@ -137,7 +137,7 @@ def _build_composite(
     bulk_values: np.ndarray,
     boundary_values: np.ndarray | None = None,
     *,
-    starting_direction_values: np.ndarray | None = None,
+    radial_characteristic_values: np.ndarray | None = None,
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` from raw bulk + optional boundary arrays.
 
@@ -153,11 +153,11 @@ def _build_composite(
         ``None``, an all-zero boundary is used (the typical migration
         target — Gate 1.1/1.4 etc. zero the boundary because they
         compute the cell-block residual only).
-    starting_direction_values : np.ndarray, optional
+    radial_characteristic_values : np.ndarray, optional
         #282 route (a): the flat ψ½ block ``(space.shape[0],)`` on a
         carrying mesh (R12a).  ``None`` (default) fills it with the
         CONSISTENT edge-extrapolation of ``bulk_values``
-        (:func:`~tests.sn._test_helpers.starting_direction_edge_seed`),
+        (:func:`~tests.sn._test_helpers.radial_characteristic_edge_seed`),
         which is linear in the bulk (so the apply stays a linear
         operator) and constant-preserving (so ``(L+C)·const = σ_t·const``
         still holds).  The reciprocity gate overrides with a RANDOM block
@@ -173,22 +173,22 @@ def _build_composite(
         boundary = AngularBoundaryFlux(
             values=boundary_values, space=sn_mesh.angular_trace, mesh=sn_mesh,
         )
-    if starting_direction_values is None:
-        starting_direction = starting_direction_edge_seed(bulk_values, sn_mesh)
-    elif sn_mesh.starting_direction_space is not None:
-        from orpheus.transport.fields.starting_direction_flux import (
-            StartingDirectionFlux,
+    if radial_characteristic_values is None:
+        radial_characteristic = radial_characteristic_edge_seed(bulk_values, sn_mesh)
+    elif sn_mesh.radial_characteristic_space is not None:
+        from orpheus.transport.fields.radial_characteristic_flux import (
+            RadialCharacteristicFlux,
         )
-        starting_direction = StartingDirectionFlux(
-            values=starting_direction_values,
-            space=sn_mesh.starting_direction_space, mesh=sn_mesh,
+        radial_characteristic = RadialCharacteristicFlux(
+            values=radial_characteristic_values,
+            space=sn_mesh.radial_characteristic_space, mesh=sn_mesh,
         )
     else:
-        starting_direction = None
+        radial_characteristic = None
     return TimedFullField(
         bulk=AngularFlux.from_mesh(bulk_values, sn_mesh),
         boundary=boundary,
-        starting_direction=starting_direction,
+        radial_characteristic=radial_characteristic,
         _history=(),
         history_depth=2,
     )
@@ -418,17 +418,17 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     # include the seed block for reciprocity to hold (a bulk⊕trace-only dot
     # is blind to the seed↔bulk coupling — the Euclidean sibling of the
     # G-reciprocity's zero-weight blindness, vv Mode 12).
-    seed_space = sn_mesh.starting_direction_space
+    seed_space = sn_mesh.radial_characteristic_space
     n_seed = 0 if seed_space is None else seed_space.shape[0]
     psi_state = _build_composite(
         sn_mesh, _random_bulk(sn_mesh, rng), rng.standard_normal(n_trace),
-        starting_direction_values=(
+        radial_characteristic_values=(
             rng.standard_normal(n_seed) if n_seed else None
         ),
     )
     phi_state = _build_composite(
         sn_mesh, _random_bulk(sn_mesh, rng), rng.standard_normal(n_trace),
-        starting_direction_values=(
+        radial_characteristic_values=(
             rng.standard_normal(n_seed) if n_seed else None
         ),
     )
@@ -439,9 +439,9 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
             np.sum(a.bulk.values * b.bulk.values)
             + np.sum(a.boundary.values * b.boundary.values)
         )
-        if a.starting_direction is not None and b.starting_direction is not None:
+        if a.radial_characteristic is not None and b.radial_characteristic is not None:
             total += np.sum(
-                a.starting_direction.values * b.starting_direction.values
+                a.radial_characteristic.values * b.radial_characteristic.values
             )
         return float(total)
 
@@ -553,7 +553,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     # allocates it iff the mesh carries levels — here the sphere does).
     state_zero = TimedFullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-        starting_direction=StartingDirectionFlux,
+        radial_characteristic=RadialCharacteristicFlux,
     )
     result = op.apply(state_zero)
     assert np.array_equal(
@@ -592,7 +592,7 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     # allocates it iff the mesh carries levels — here the sphere does).
     state_zero = TimedFullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-        starting_direction=StartingDirectionFlux,
+        radial_characteristic=RadialCharacteristicFlux,
     )
     result = op.apply(state_zero)
     np.testing.assert_array_equal(result.bulk.values, 0.0)

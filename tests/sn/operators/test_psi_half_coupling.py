@@ -63,14 +63,14 @@ from orpheus.sn.solver import SNSolver, _within_group_triple
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
 from orpheus.derivations.common.xs_library import make_mixture
 
 pytestmark = pytest.mark.foundation
 
 
-# ── compact dense-probe helpers (mirror test_starting_direction_metric) ──
+# ── compact dense-probe helpers (mirror test_radial_characteristic_metric) ──
 
 
 def _mixture(sig_t: float, sig_s: float, ng: int):
@@ -106,12 +106,12 @@ def _template(sn):
     """A zero :class:`FullField` (bulk ⊕ trace ⊕ ψ½ seed) to seed dense probes."""
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
-    n_sd = sn.starting_direction_space.shape[0]
+    n_sd = sn.radial_characteristic_space.shape[0]
     return FullField(
         bulk=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
-        starting_direction=StartingDirectionFlux(
-            values=np.zeros(n_sd), space=sn.starting_direction_space, mesh=sn))
+        radial_characteristic=RadialCharacteristicFlux(
+            values=np.zeros(n_sd), space=sn.radial_characteristic_space, mesh=sn))
 
 
 def _dense(fn, tpl):
@@ -130,7 +130,7 @@ def _blocks(sn):
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     nb = N * ng * nx
     nt = int(sn.angular_trace.layout.total_size)
-    ns = sn.starting_direction_space.shape[0]
+    ns = sn.radial_characteristic_space.shape[0]
     return slice(0, nb), slice(nb, nb + nt), slice(nb + nt, nb + nt + ns), (nb, nt, ns)
 
 

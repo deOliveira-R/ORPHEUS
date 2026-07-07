@@ -38,7 +38,7 @@ Key Facts
 - **Curvilinear starting-direction seed** (Issue #282 route (a)): the
   Morel–Montry recurrence's half-angle seed :math:`\psi_{1/2}` at
   :math:`\mu_{\rm start}` is **first-class typed state**
-  (:class:`~orpheus.transport.fields.starting_direction_flux.StartingDirectionFlux`),
+  (:class:`~orpheus.transport.fields.radial_characteristic_flux.RadialCharacteristicFlux`),
   NOT a lagged extrapolation of the iterate.  The spherical within-group
   **solve marches it directly** from the true q½ source
   (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`,
@@ -10800,9 +10800,9 @@ Route (a) — the direct starting-direction ψ½ solve (Issue #282)
    **walk-order back edge**: it made the spherical within-group SOLVE a
    *non-direct* inverse.  Route (a) promotes the starting-direction flux
    :math:`\psi_{1/2}` to **first-class typed state** (the
-   :class:`~orpheus.transport.fields._bases.StartingDirectionField` role
+   :class:`~orpheus.transport.fields._bases.RadialCharacteristicField` role
    family on a :math:`V_{\rm cell}`-state-metric
-   :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`)
+   :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`)
    and marches it **directly** from the true within-group source
    :math:`\bar q_{1/2}` through the Hébert §3.9.4
    :eq:`hebert-3-434`–:eq:`hebert-3-435` recurrence
@@ -10969,31 +10969,31 @@ one starting-direction block :math:`V_{1/2,p}^{\pm}` per **carrying**
 :math:`\mu`-level :math:`p` (R12a; on production meshes only the sphere
 carries — one level).  Each block holds the level's half-angle flux at
 every radial cell plus its two :math:`r = R` corner slots
-(:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`,
+(:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`,
 a flat backing buffer with typed ``(level, sign)`` views, mirroring the
 :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
 trace layout).  Like every typed phase-space quantity in this codebase
 the seed is realised by a **role family** — here a quadruple keyed by the
 composite torsor algebra (flux, source/sink, displacement, residual):
 
-.. list-table:: The ``StartingDirectionField`` role quadruple (#282 route (a))
+.. list-table:: The ``RadialCharacteristicField`` role quadruple (#282 route (a))
    :header-rows: 1
    :widths: 34 30 36
 
    * - Role leaf
      - Realises
      - Forced by
-   * - :class:`~orpheus.transport.fields.starting_direction_flux.StartingDirectionFlux`
+   * - :class:`~orpheus.transport.fields.radial_characteristic_flux.RadialCharacteristicFlux`
      - the ψ½ state :math:`\psi_{1/2}` itself
      - the carrier promotion (2.5d d1)
-   * - :class:`~orpheus.transport.source_sinks.starting_direction_source_sink.StartingDirectionSourceSink`
+   * - :class:`~orpheus.transport.source_sinks.radial_characteristic_source_sink.RadialCharacteristicSourceSink`
      - the q½ source block :math:`\bar q_{1/2}` (the fold below) and any
        operator ``.apply`` output on the seed rows
      - the augmented source composite
-   * - :class:`~orpheus.transport.displacements.starting_direction_displacement.StartingDirectionDisplacement`
+   * - :class:`~orpheus.transport.displacements.radial_characteristic_displacement.RadialCharacteristicDisplacement`
      - the affine displacement between two ψ½ states
      - the composite torsor algebra (2.5d d1)
-   * - :class:`~orpheus.transport.residuals.starting_direction_residual.StartingDirectionResidual`
+   * - :class:`~orpheus.transport.residuals.radial_characteristic_residual.RadialCharacteristicResidual`
      - the seed block of the typed residual :math:`r = A\psi - q`
      - :func:`~orpheus.sn.solver.evaluate_residual` (2.5d d3)
 
@@ -11065,12 +11065,12 @@ space), and the block contributes :math:`\sum V_{\rm cell}\,x\,y` to the
 composite inner product.  This closes a sharp V&V gap — see
 :ref:`sn-282-gotchas` (Mode 12, ERR-067).  The gauge derivation of record
 is
-``.claude/agent-memory/numerics-investigator/starting_direction_metric_gauge_derivation.md``.
+``.claude/agent-memory/numerics-investigator/radial_characteristic_metric_gauge_derivation.md``.
 
 .. (vv-status rationale) Structural / representational identity: the
 .. named-field-typed decomposition of the augmented within-group phase
 .. space.  Not a solver claim — the verifiable content is the
-.. StartingDirectionSpace layout / role-quadruple class-identity
+.. RadialCharacteristicSpace layout / role-quadruple class-identity
 .. arithmetic (Field Layer-1 gate) + the §16.A carrier gates.
 .. vv-status: sn-282-augmented-composite documented
 
@@ -11103,7 +11103,7 @@ metric while for the other it does not:
      - **equals** the through-flux
        :math:`\lvert\Omega\cdot n\rvert\,w`
    * - **angular** :math:`\mu = \pm 1` edge — the ψ½ seed
-       (:class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`)
+       (:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`)
      - :math:`(1-\mu^2)\,w = 0`
      - the ray is a **straight characteristic**
        (:math:`(1-\mu^2) = 0`, the pole)
@@ -11236,7 +11236,7 @@ The direct solve needs the true within-group source **at the starting
 direction**, :math:`\bar q_{1/2}(\mu = \pm 1)` — the value the anisotropic
 source :math:`q(r,\mu)` takes at the closed ray, reconstructed from **all**
 its Legendre moments (Hébert Eq. (3.432); the "R14 full fold",
-:func:`~orpheus.numerics.spaces.starting_direction_space.fold_moments_to_starting_direction`):
+:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`):
 
 .. math::
 
@@ -11249,7 +11249,7 @@ the exact 1-D addition-theorem weight :math:`(2\ell+1)/2` with
 :math:`P_\ell(\pm 1) = (\pm 1)^\ell` — this is Eq. :eq:`hebert-3-432-source`
 kept at **full order**, not collapsed to :math:`L = 0`.  The single q½
 fold factory
-:meth:`~orpheus.transport.source_sinks.starting_direction_source_sink.StartingDirectionSourceSink.from_angular_source`
+:meth:`~orpheus.transport.source_sinks.radial_characteristic_source_sink.RadialCharacteristicSourceSink.from_angular_source`
 folds every moment the level resolves; the solver cold-start, the
 fixed-source right-hand side, and the operator-free
 :func:`~orpheus.sn.loss_representation.transport_sweep` all route through
@@ -11321,7 +11321,7 @@ block **iff** the M-M half-angle recurrence genuinely *consumes* it — a
 structural predicate on the level's first-ordinate **raw** (unclamped)
 Morel–Montry weight
 (:func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_raw_per_level`,
-read by :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`):
+read by :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`):
 
 .. math::
 
@@ -20643,15 +20643,15 @@ branch and have no landed hash yet.
        edge** that made the spherical within-group SOLVE a *non-direct*
        inverse (cold residual :math:`5.18\times10^5`). Route (a) promotes
        :math:`\psi_{1/2}` to a typed
-       :class:`~orpheus.transport.fields._bases.StartingDirectionField`
+       :class:`~orpheus.transport.fields._bases.RadialCharacteristicField`
        role quadruple (flux / source / displacement / residual) on a
        zero-metric
-       :class:`~orpheus.numerics.spaces.starting_direction_space.StartingDirectionSpace`,
+       :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`,
        and the sweep marches it **directly** from the true q½ source (the
        Hébert §3.9.4 recurrence
        :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
        + the **full** Legendre fold
-       :func:`~orpheus.numerics.spaces.starting_direction_space.fold_moments_to_starting_direction`,
+       :func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`,
        :eq:`sn-282-anisotropic-source`). The augmented :math:`(L+C)` is
        block-lower-triangular in the seed-first walk order
        (:eq:`sn-282-block-triangular`), so the back edge is dead by

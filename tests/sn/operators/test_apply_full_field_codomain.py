@@ -61,7 +61,7 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from orpheus.sn.solver import SNSolver, solve_sn
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.starting_direction_flux import StartingDirectionFlux
+from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 
@@ -114,7 +114,7 @@ def _timed_random_state(sn_mesh: SNMesh, *, history_depth: int, seed: int) -> Ti
     state = TimedFullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         history_depth=history_depth,
-        starting_direction=StartingDirectionFlux,
+        radial_characteristic=RadialCharacteristicFlux,
     )
     from dataclasses import replace
 

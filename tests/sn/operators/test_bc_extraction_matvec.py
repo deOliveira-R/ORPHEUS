@@ -134,7 +134,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import (
     SN_TESTS_ROOT,
     placeholder_materials,
-    starting_direction_edge_seed,
+    radial_characteristic_edge_seed,
 )
 from tests.sn.regression._regression_assert import assert_regression
 
@@ -235,7 +235,7 @@ def _random_state(sn_mesh: SNMesh, seed: int, *, zero_boundary: bool = True) -> 
         # the pre-route-(a) internally-computed seed, so the extracted matvec
         # reproduces the frozen baseline bit-identically (SPH); None on
         # non-carrying (SLB/CYL) — byte-identical to the pre-2.5d helper.
-        starting_direction=starting_direction_edge_seed(bulk_arr, sn_mesh),
+        radial_characteristic=radial_characteristic_edge_seed(bulk_arr, sn_mesh),
         _history=(),
         history_depth=2,
     )
@@ -524,7 +524,7 @@ class TestStreamingEquilibriumValue:
             # the same constant (edge-extrap is constant-preserving), so the
             # pole march reproduces the flat field and the no-spike invariant
             # holds; None on non-carrying (SLB).
-            starting_direction=starting_direction_edge_seed(flat, sn_mesh),
+            radial_characteristic=radial_characteristic_edge_seed(flat, sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -630,7 +630,7 @@ class TestLFullReadsInflow:
                 # #282 route (a): the seed is derived from the (shared) bulk, so
                 # both states carry the SAME ψ½ — the ONLY difference is the
                 # outer inflow, isolating its effect on the bulk output.
-                starting_direction=starting_direction_edge_seed(bulk, sn_mesh),
+                radial_characteristic=radial_characteristic_edge_seed(bulk, sn_mesh),
                 _history=(), history_depth=2,
             )
 
@@ -687,7 +687,7 @@ class TestLFullOutflowDefectKept:
             # #282 route (a): SAME bulk ⇒ SAME ψ½ seed as ``state`` (edge-extrap
             # depends only on the bulk), so ``streamed`` is identical and the
             # output outflow differs by EXACTLY the stored-outflow defect.
-            starting_direction=starting_direction_edge_seed(
+            radial_characteristic=radial_characteristic_edge_seed(
                 state.bulk.values, sn_mesh,
             ),
             _history=(), history_depth=2,
@@ -765,7 +765,7 @@ class TestVacuumBoundaryDefectKept:
                 # #282 route (a): the seed derives from the (shared) bulk, so
                 # both runs carry the SAME ψ½ — the output outflow differs by
                 # EXACTLY the stored-outflow defect (the ``−ψ.outflow`` term).
-                starting_direction=starting_direction_edge_seed(bulk, sn_mesh),
+                radial_characteristic=radial_characteristic_edge_seed(bulk, sn_mesh),
                 _history=(), history_depth=2,
             )
             out = _LpC_apply(sn_mesh, st, sigma_t)

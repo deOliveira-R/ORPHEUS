@@ -13,12 +13,12 @@ The optional starting-direction block (#282 route (a), 2.5d)
 
 On a mesh whose Morel–Montry thread genuinely consumes independent
 starting-direction state (the R12a predicate — the 1-D sphere; see
-:mod:`orpheus.numerics.spaces.starting_direction_space`), the composite
+:mod:`orpheus.numerics.spaces.radial_characteristic_space`), the composite
 carries a THIRD block: the per-level half-angle flux ψ½ as a typed
-:class:`~orpheus.transport.fields._bases.StartingDirectionField` leaf.
+:class:`~orpheus.transport.fields._bases.RadialCharacteristicField` leaf.
 This is what dissolves the #282 back edge — the seed stops being a
 lagged solver-internal estimate and becomes state the operator reads
-and the solve produces. ``starting_direction`` is ``None`` exactly when
+and the solve produces. ``radial_characteristic`` is ``None`` exactly when
 the mesh carries no seed level (Cartesian; every production cylinder
 rule), presence is resolved MESH-side by :meth:`FullField.zeros`, and
 mixed-presence arithmetic raises — three spellings of the same
@@ -121,7 +121,7 @@ import numpy as np
 from orpheus.transport.fields._bases import (
     BulkField,
     BoundaryField,
-    StartingDirectionField,
+    RadialCharacteristicField,
 )
 
 if TYPE_CHECKING:
@@ -161,13 +161,13 @@ class FullField:
         (angular) for SN,
         :class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`
         (scalar ``(J⁺, J⁻)``) for diffusion / CP.
-    starting_direction : StartingDirectionField or None
+    radial_characteristic : RadialCharacteristicField or None
         The OPTIONAL third block (#282 route (a), campaign #280 phase
         2.5d): the per-μ-level starting-direction flux ψ½ of a
         curvilinear Morel–Montry thread, typed as composite state.
         ``None`` ⟺ the mesh has NO seed-carrying level (the R12a
         predicate on
-        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.starting_direction_levels`
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`
         — Cartesian always; every production cylinder rule; only the
         sphere carries it today). Presence is MESH-keyed, never
         caller-keyed: :meth:`zeros` consults the mesh predicate, so a
@@ -204,7 +204,7 @@ class FullField:
     #: The optional starting-direction block (#282 route (a)). ``None`` ⟺
     #: the mesh carries no seed-carrying level (R12a) — absence is a
     #: structural fact of the phase space, not a lazily-unfilled slot.
-    starting_direction: StartingDirectionField | None = None
+    radial_characteristic: RadialCharacteristicField | None = None
 
     # ── Construction ─────────────────────────────────────────────────
 
@@ -215,7 +215,7 @@ class FullField:
         bulk: type[BulkField],
         boundary: type[BoundaryField],
         mesh: "object",
-        starting_direction: type[StartingDirectionField] | None = None,
+        radial_characteristic: type[RadialCharacteristicField] | None = None,
     ) -> "FullField":
         r"""Allocate a zero timeless composite from the bulk + boundary leaf TYPES.
 
@@ -240,27 +240,27 @@ class FullField:
             The phase-space carrier passed through to each leaf's
             ``zeros_on`` (duck-typed — no transport→mesh hard
             dependency).
-        starting_direction : type[StartingDirectionField], optional
+        radial_characteristic : type[RadialCharacteristicField], optional
             The starting-direction leaf CLASS (SN passes
-            :class:`~orpheus.transport.fields.starting_direction_flux.StartingDirectionFlux`
+            :class:`~orpheus.transport.fields.radial_characteristic_flux.RadialCharacteristicFlux`
             for a flux composite, its SourceSink sibling for a source).
             Presence is MESH-keyed, not caller-keyed: the block is
-            allocated iff ``mesh.starting_direction_space`` is
+            allocated iff ``mesh.radial_characteristic_space`` is
             non-``None`` (the R12a predicate), so SN call sites pass
             the class UNIFORMLY across geometries and a Cartesian /
             cylinder composite still (correctly) carries ``None``.
             Methods without the concept (CP / MoC / diffusion) omit it.
         """
-        seed_leaf: StartingDirectionField | None = None
+        seed_leaf: RadialCharacteristicField | None = None
         if (
-            starting_direction is not None
-            and getattr(mesh, "starting_direction_space", None) is not None
+            radial_characteristic is not None
+            and getattr(mesh, "radial_characteristic_space", None) is not None
         ):
-            seed_leaf = starting_direction.zeros_on(mesh)  # type: ignore[arg-type]
+            seed_leaf = radial_characteristic.zeros_on(mesh)  # type: ignore[arg-type]
         return cls(
             bulk=bulk.zeros_on(mesh),  # type: ignore[attr-defined]
             boundary=boundary.zeros_on(mesh),  # type: ignore[attr-defined]
-            starting_direction=seed_leaf,
+            radial_characteristic=seed_leaf,
         )
 
     # ── Construction validation ──────────────────────────────────────
@@ -277,13 +277,13 @@ class FullField:
                 f"(an AngularBoundaryField / ScalarBoundaryField family leaf); "
                 f"got {type(self.boundary).__name__}"
             )
-        if self.starting_direction is not None and not isinstance(
-            self.starting_direction, StartingDirectionField
+        if self.radial_characteristic is not None and not isinstance(
+            self.radial_characteristic, RadialCharacteristicField
         ):
             raise TypeError(
-                f"{type(self).__name__}: starting_direction must be a "
-                f"StartingDirectionField leaf or None; got "
-                f"{type(self.starting_direction).__name__}"
+                f"{type(self).__name__}: radial_characteristic must be a "
+                f"RadialCharacteristicField leaf or None; got "
+                f"{type(self.radial_characteristic).__name__}"
             )
         # Mesh-identity check (where both members carry a ``mesh``
         # attribute — the cross-method generic contract). For SN both
@@ -300,13 +300,13 @@ class FullField:
                     f"got bulk.mesh={bulk_mesh!r}, "
                     f"boundary.mesh={boundary_mesh!r}"
                 )
-        if self.starting_direction is not None and boundary_mesh is not None:
-            if self.starting_direction.mesh is not boundary_mesh:
+        if self.radial_characteristic is not None and boundary_mesh is not None:
+            if self.radial_characteristic.mesh is not boundary_mesh:
                 raise ValueError(
-                    f"{type(self).__name__}: starting_direction must share "
+                    f"{type(self).__name__}: radial_characteristic must share "
                     "mesh identity with bulk/boundary; got "
-                    f"starting_direction.mesh="
-                    f"{self.starting_direction.mesh!r}, "
+                    f"radial_characteristic.mesh="
+                    f"{self.radial_characteristic.mesh!r}, "
                     f"boundary.mesh={boundary_mesh!r}"
                 )
 
@@ -337,7 +337,7 @@ class FullField:
         *,
         bulk: BulkField,
         boundary: BoundaryField,
-        starting_direction: StartingDirectionField | None,
+        radial_characteristic: RadialCharacteristicField | None,
     ) -> T:
         r"""Rebuild a composite of the SAME concrete type from recombined blocks.
 
@@ -353,7 +353,7 @@ class FullField:
         This keeps the dunders defined ONCE while preserving the correct
         concrete return type per subclass (DRY + Liskov-correct).
 
-        ``starting_direction`` is a REQUIRED keyword (no default): every
+        ``radial_characteristic`` is a REQUIRED keyword (no default): every
         caller must state the recombined third block explicitly, so a
         caller that forgets it fails loudly instead of silently dropping
         the seed — the silent-drop bug class the 2.5d carrier gates pin
@@ -363,7 +363,7 @@ class FullField:
             self,
             bulk=bulk,
             boundary=boundary,
-            starting_direction=starting_direction,
+            radial_characteristic=radial_characteristic,
         )
 
     # ── Algebra (propagates to bulk + boundary via _recombine) ───────
@@ -403,11 +403,11 @@ class FullField:
                 f"partner; got {type(other).__name__}."
             )
 
-    def _combine_starting_direction(
+    def _combine_radial_characteristic(
         self,
         other: "FullField",
-        combine: "Callable[[StartingDirectionField, StartingDirectionField], object]",
-    ) -> StartingDirectionField | None:
+        combine: "Callable[[RadialCharacteristicField, RadialCharacteristicField], object]",
+    ) -> RadialCharacteristicField | None:
         r"""Combine the two operands' starting-direction blocks, or ``None``.
 
         Presence must MATCH: a seeded ⊕ unseeded pair raises — silently
@@ -417,9 +417,9 @@ class FullField:
         absent the result is absent; when both are present the combined
         leaf comes from the member-level algebra (which enforces role /
         mesh / space exactly as for bulk and boundary — e.g. seed
-        ``flux − flux`` mints a ``StartingDirectionDisplacement``).
+        ``flux − flux`` mints a ``RadialCharacteristicDisplacement``).
         """
-        mine, theirs = self.starting_direction, other.starting_direction
+        mine, theirs = self.radial_characteristic, other.radial_characteristic
         if (mine is None) != (theirs is None):
             raise ValueError(
                 f"{type(self).__name__} arithmetic with MIXED "
@@ -442,7 +442,7 @@ class FullField:
         return self._recombine(
             bulk=self.bulk + other.bulk,
             boundary=self.boundary + other.boundary,
-            starting_direction=self._combine_starting_direction(
+            radial_characteristic=self._combine_radial_characteristic(
                 other, lambda a, b: a + b,
             ),
         )
@@ -452,36 +452,36 @@ class FullField:
         return self._recombine(
             bulk=self.bulk - other.bulk,
             boundary=self.boundary - other.boundary,
-            starting_direction=self._combine_starting_direction(
+            radial_characteristic=self._combine_radial_characteristic(
                 other, lambda a, b: a - b,
             ),
         )
 
     def __neg__(self: T) -> T:
-        sd = self.starting_direction
+        sd = self.radial_characteristic
         return self._recombine(
             bulk=-self.bulk,
             boundary=-self.boundary,
-            starting_direction=None if sd is None else -sd,
+            radial_characteristic=None if sd is None else -sd,
         )
 
     def __mul__(self: T, scalar: float) -> T:
-        sd = self.starting_direction
+        sd = self.radial_characteristic
         return self._recombine(
             bulk=self.bulk * float(scalar),
             boundary=self.boundary * float(scalar),
-            starting_direction=None if sd is None else sd * float(scalar),
+            radial_characteristic=None if sd is None else sd * float(scalar),
         )
 
     def __rmul__(self: T, scalar: float) -> T:
         return self.__mul__(scalar)
 
     def __truediv__(self: T, scalar: float) -> T:
-        sd = self.starting_direction
+        sd = self.radial_characteristic
         return self._recombine(
             bulk=self.bulk / float(scalar),
             boundary=self.boundary / float(scalar),
-            starting_direction=None if sd is None else sd / float(scalar),
+            radial_characteristic=None if sd is None else sd / float(scalar),
         )
 
     # ── Flat-vector protocol (Krylov / scipy.gmres adapter) ──────────
@@ -504,7 +504,7 @@ class FullField:
         r"""Pack the composite blocks into a flat 1-D vector.
 
         The packed layout is ``[bulk.values.ravel(), boundary.values
-        [, starting_direction.values]]`` — the direct-sum representation
+        [, radial_characteristic.values]]`` — the direct-sum representation
         of the composite, with the optional ψ½ tail present exactly when
         the composite carries the block (seed-carrying meshes, R12a).
 
@@ -512,14 +512,14 @@ class FullField:
         -------
         np.ndarray
             1-D ``float64`` ndarray of size ``bulk.values.size +
-            boundary.values.size (+ starting_direction.values.size)``.
+            boundary.values.size (+ radial_characteristic.values.size)``.
         """
         parts = [
             self.bulk.values.ravel(),
             self.boundary.values,  # already 1-D (AngularBoundaryFlux flat storage)
         ]
-        if self.starting_direction is not None:
-            parts.append(self.starting_direction.values)  # already 1-D (flat backing)
+        if self.radial_characteristic is not None:
+            parts.append(self.radial_characteristic.values)  # already 1-D (flat backing)
         return np.concatenate(parts)
 
     @classmethod
@@ -557,7 +557,7 @@ class FullField:
         """
         n_bulk = template.bulk.values.size
         n_boundary = template.boundary.values.size
-        template_seed = template.starting_direction
+        template_seed = template.radial_characteristic
         n_seed = 0 if template_seed is None else template_seed.values.size
         expected_total = n_bulk + n_boundary + n_seed
         if flat.size != expected_total:
@@ -576,7 +576,7 @@ class FullField:
             else replace(template_seed, values=flat[n_bulk + n_boundary :])
         )
         return template._recombine(
-            bulk=new_bulk, boundary=new_boundary, starting_direction=new_seed,
+            bulk=new_bulk, boundary=new_boundary, radial_characteristic=new_seed,
         )
 
     # ── Diagnostics ──────────────────────────────────────────────────
@@ -590,9 +590,9 @@ class FullField:
         :class:`TimedFullField` with EMPTY history (the existing
         ``copy`` drops history — bit-identical behaviour).
         """
-        sd = self.starting_direction
+        sd = self.radial_characteristic
         return self._recombine(
             bulk=self.bulk.copy(),
             boundary=self.boundary.copy(),
-            starting_direction=None if sd is None else sd.copy(),
+            radial_characteristic=None if sd is None else sd.copy(),
         )

@@ -289,7 +289,7 @@ def face_streaming_normal(
        metric is a per-leaf property (spatial trace → this partial
        current; pole → :math:`V_{\rm cell}`), exactly as the bulk's metric
        is its own per-leaf :math:`V\,w`.  See
-       :mod:`orpheus.numerics.spaces.starting_direction_space`.
+       :mod:`orpheus.numerics.spaces.radial_characteristic_space`.
 
     Parameters
     ----------
