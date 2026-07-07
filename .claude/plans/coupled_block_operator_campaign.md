@@ -135,3 +135,72 @@ user it is safe to `/compact`. Re-anchor from this plan + `git log` (trust git).
 - **RQI** — KKT/indefinite saddle-point (`SaddlePointOperator`, trigger #294 mixed-form) —
   different machinery.
 - **Multiphysics** — nonlinear (Newton/JFNK) — different machinery.
+
+---
+
+## Invariant suite (test-architect blueprint, 2026-07-07) — "what invariant tests it?"
+
+**Home:** NEW `tests/sn/operators/test_psi_half_coupling.py` (`pytest.mark.foundation`), reusing
+anchor helpers from `test_starting_direction_metric.py` (`_recip_defect`, `_v_cell_seed`,
+`_build_sphere`, `_composite`, `_dense`, `_blocks`) + `test_loss_transpose_solve.py`
+(`_probe_augmented_matrix_one_group`). Extends `test_inverse_adjoint_coherence.py` (the swap
+law on the coupled operator). **Carrying member = sphere-GL S4 ONLY**; cylinder/slab are the
+non-carrying **control** (step 6). **≥2G mandatory** on every value row.
+
+**Step 0 (LAND FIRST — the regression floor):** promote `derivations/diagnostics/
+diag_coupled_0{1,2}_*.py` verbatim → `TestRegressionFloor` (6 tests: block-triangular #284
+certificate `A_sb=0`; bulk→ray coupling lives in the lagged S-gain `S_sb≠0`/`S_bs=0`;
+`ρ(M⁻¹N)≤c`; folded-seed nilpotent ρ=0; welded-sweep = exact inverse 3.5e-16; **extract =
+principled-equiv vs dense-LU of assembled (L+C), 5.5e-16** — the oracle every EXTRACT step
+pins against). Land BEFORE touching production.
+
+**Per-step invariant classes** (each: defining law + in-process monkeypatch tooth + oracle):
+- **Step 1 `TestA_BB_RadialBVP`:** march `solve∘apply=id`; ≡ closed-form ODE `φ=q/σ+(φ_R−q/σ)
+  e^{−σ(R−r)}` O(Δr²) **on a GRADED mesh**; r=R Dirichlet data propagates (nonzero inflow); r=0
+  pole-continuation `ψ½⁺(0)=ψ½⁻(0)`; reflective corner swap; fixed-source `Q/Σ_t`. WRAP→bit-id.
+- **Step 2 `TestA_BA_SchurFold`:** the fold `Σ_ℓ (2ℓ+1)/2·(±1)^ℓ` on a **MANUFACTURED
+  anisotropic ≥2-moment** input (iso is blind to `P_ℓ(±1)`); ℓ=0 ⇒ ½Q₀; A_BA ≡ the S arm AND
+  the F arm (fissile `A/2g`) single-sourced (Mode-11 wrap-counter on the fold helper).
+  WRAP→bit-id.
+- **Step 3 `TestA_AB_SeedInjection`:** ≡ in-sweep injection; `A_AB.H`=`seed_cells_bar`
+  (Euclidean transpose, per-group); `A_sb=0` triangular; seed-is-consumed asymmetry. WRAP→bit-id.
+- **Step 4 `TestCoupledOperator`:** block matvec ≡ current apply (0-ULP view); **`.H` V_cell
+  reciprocity stays Mode-12-closed** (the HIGHEST-value row — a Euclidean block adjoint on
+  System B silently REOPENS Mode-12); swap law extends; `SystemRole` set-union join.
+- **Step 5 `TestCoupledSolve`:** ≡ current fixed-source (`Q/Σ_t`, non-fissile) AND k_eff
+  (fissile `A/2g`); EXTRACT ≡ dense-LU (principled); **ρ-honest block residual `r=Aψ−q` via
+  `evaluate_residual` as the STOP test, not `‖Δψ‖`**; cold-residual lag-death classifier.
+- **Step 6 `TestPresenceStructural`:** carrying-mesh-missing-seed → unconstructable; non-
+  carrying-carrying-seed → unconstructable (`match=` the specific message, + positive control
+  — the 7 guards have ZERO negative tests today, teeth NET-NEW); mixed-presence no-silent-drop.
+
+**The 6 load-bearing refutations (fire before the ink dries):** (1) matvec≡current is bit-id
+only for WRAP; EXTRACT is principled-equiv (split the gate). (2) block `.H` does NOT inherit
+the metric automatically — a Euclidean block adjoint on System B reopens Mode-12 (ERR-067);
+the V_cell-reciprocity gate on the assembled `.H` is mandatory. (3) the fold gate MUST
+manufacture an anisotropic case (both S/F arms feed ℓ=0 only → iso blind to `P_ℓ(±1)`). (4)
+non-fissile configs → k_inf is a `nan` dead gate; use fixed-source `Q/Σ_t` + a SEPARATE
+fissile `A/2g` for the F arm. (5) presence guards have ZERO negative tests → net-new teeth,
+`match=` the specific message (a downstream crash false-greens). (6) cylinder/slab are the
+non-carrying CONTROL, not "other geometries."
+
+**Mutation targets (monkeypatch-only, never `git checkout`):** `psi_half_angle_seed.py:148/150/
+154`, `starting_direction_space.py:471` (fold sign), `loss_representation/__init__.py:2846`
+(`_seed_rows_transpose`), `boundary.py:298` (`_reflect_starting_direction`), `{scattering,
+fission}.py` (the `sd_out` arms).
+
+---
+
+## ⏸ CHECKPOINT — design phase complete (2026-07-07)
+
+**Committed:** the FaceField C2 carve (`c637407`/`4081c0d`/`be5e7f8`), the C2-done design-note
+checkpoint (`cc5a809`), this campaign plan (`e5713a3`) — branch `refactor/sn-walk-unification`,
+**40 ahead of main, pushes HELD, tree clean.** The philosophy [[feedback-build-the-machinery-
+operator-algebra]] + the #295 LayoutBearingSpace follow-up are saved. The 3 coupled-system
+specialist memos persist in `.claude/agent-memory/{cross-domain-attacker,numerics-investigator}/`;
+the numerics-investigator's `diag_coupled_0{1,2}` are on disk in `derivations/diagnostics/`.
+The invariant suite above is the durable verification blueprint.
+
+**NEXT (execution phase):** Step 0 — promote `diag_coupled_0{1,2}` → `test_psi_half_coupling.py::
+TestRegressionFloor` (the floor, land first) → then Step 1 (pose System B: `RadialCharacteristic
+Flux` rename + the 2-BC `RayOp`). Re-anchor after `/compact` from THIS plan + `git log`.
