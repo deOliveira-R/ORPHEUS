@@ -204,3 +204,88 @@ The invariant suite above is the durable verification blueprint.
 **NEXT (execution phase):** Step 0 — promote `diag_coupled_0{1,2}` → `test_psi_half_coupling.py::
 TestRegressionFloor` (the floor, land first) → then Step 1 (pose System B: `RadialCharacteristic
 Flux` rename + the 2-BC `RayOp`). Re-anchor after `/compact` from THIS plan + `git log`.
+
+---
+
+## Step 1 design — SETTLED + EXECUTING (2026-07-07)
+
+**Step 0 DONE @ `2834b90`** (regression floor 6/6 green; the 2 scratch diagnostics retired).
+**Step 1 IN PROGRESS.** Specialist memos: explorer `a17685c8…` (march + rename map),
+cross-domain-attacker `ad3b7c3f…` (composition frame + precedent), test-architect `a5e2bdff…`
+(12-gate suite + mutation ledger).
+
+**Decomposition — 3 bit-identical commits, RENAME FIRST ("clean before extending": name the
+substrate, then extend it with the new operators):**
+
+- **1a — Rename `StartingDirection → RadialCharacteristic`.** 550 refs / 24 prod + 27 test + 17
+  doc. Atomicity-pinned on the `FullField.starting_direction` dataclass field (+39 constructor
+  sites) + `FullFieldSpace`. 7 CamelCase symbols (`…Field/Flux/SourceSink/Residual/Displacement/
+  Space` + bare `StartingDirection` role-grid) + snake `starting_direction*`. 5 prod module
+  `git mv` + 2 test-module `git mv`. **18 silent-render doc `:class:`/`:func:` cross-refs**
+  (`discrete_ordinates.rst`, `loss_representations.rst`, …) — `-W` does NOT catch these; rename
+  in lockstep + grep-verify. Space-separated physics prose ("starting direction" μ=±1, Hébert
+  citations) is NOT renamed (sed hits only underscore/CamelCase symbols). Mechanical, bit-id.
+- **1b — Un-weld `SNBoundaryOperator → B_a + B_b`.** B_a = the trace arm (`_reflect_trace`),
+  B_b = the ray-corner arm (`_reflect_starting_direction` extracted into its own operator).
+  `B = B_a + B_b` via `OperatorSum`, bit-identical (disjoint composite blocks). **`split()`
+  relocates onto B_a** (B_b schedule-atomic — closes the LATENT BUG below); **per-leaf
+  `is_adjointable`** (B_b: reflective/vacuum → yes, white/albedo/periodic → no); **exact-zero
+  sibling blocks** (NOT `None` — the d1 mixed-presence law raises under `FullField.__add__`).
+  Gates: `TestBoundaryUnweld` (per-block byte-id, vacuum + reflective), `TestB_b_RayBoundary`
+  (+ the G_sd reciprocity gate), `TestSplitInteraction`.
+- **1c — Pose `RayOp = A_BB`.** The radial straight-characteristic march — a WRAP of the
+  standalone `carlson_inward_sweep_from_source` (+ `…_transpose`) at `psi_half_angle_seed.py:
+  87-207`; production sites `loss_representation/__init__.py:4092-4117` (solve, 2 legs) +
+  `:4614-4643` (transpose). Reads r=R corner as GIVEN data; r=0 pole internal (inward-exit-face
+  → outward-entry-face leg-chaining). Gates: `TestA_BB_RadialBVP` (foundation: solve∘apply=id,
+  WRAP bit-id via a Mode-11 call-counter sentinel, pole-thread, Dirichlet propagation, fixed-
+  source Q/Σ) + the L1 closed-form-ODE convergence gate `φ=q/σ+(φ_R−q/σ)e^{−σ(R−r)}` on a GRADED
+  mesh (measured orders 1.71→1.85→1.92) in a sibling `tests/sn/operators/test_ray_operator.py`
+  (`pytest.mark.l1` — L9: don't conflate foundation + verifies). ⚠ `RayOp.apply` (banded matvec)
+  vs the composite `A_ss` block is the ONE non-bit-id Step-1 spot — gate at `rtol`, not
+  `array_equal`, unless it calls literally the same code.
+
+### RULING P1 — the boundary-composition precedent (cross-domain-attacker, DURABLE)
+
+A block-composed system's boundary is the **direct sum of per-system boundary blocks over the
+composite biproduct carrier**, `B = Σ_x ι_x∘B_x∘π_x`. Each `B_x` is produced by a single
+**carrier-indexed realization** of the one physical face law (`realize(law, carrier)`), never
+hand-coded per carrier. The **off-diagonal structure is keyed to the face physics, not fixed**:
+reflection/albedo/vacuum are per-system endomorphisms ⇒ block-diagonal `diag(B_a, B_b)`; a face
+that **transmits/converts** one system's outflow into another's inflow (CP/MoC interface
+currents, Schwarz transmission, mode-coupling albedo) is an off-diagonal `B_ab` ⇒ **never assume
+diagonal**. **DSA is block-diagonal** (its SN↔diffusion coupling is interior volumetric R/P, not
+boundary) — so this precedent + the carrier-indexed realizer pays for DSA directly. **Corollary
+— grading:** any solver-internal grading of a boundary (Gauss-Seidel schedule, octant, group)
+is a refinement of exactly ONE system's block `B_x` and MUST live on that leaf, never on the
+composite `Σ_x B_x` (a grading on the composite silently replicates every un-graded sibling).
+
+### RULING P2 — B_b.H is Mode-12-SAFE: Euclidean = Hilbert (test-architect, measured)
+
+The ray corner gauge is **symmetric** (`g₊ = g₋ = V(R)` — both corners at r=R; measured
+130.82 exact), so `B_b.H = G_sd⁻¹ B_bᵀ G_sd = B_bᵀ`. B_b advertises the **Euclidean
+`apply_transpose` ONLY** — no per-leaf `.H` (`.H` is realized once at the composite via
+`G⁺·apply_transpose·G`, L19). It is a metric PROPERTY, not a triviality → land a **B_b-isolated
+G_sd-reciprocity gate** (control = 0 + two teeth: transpose-flip → 0.96 RED, corner-gauge
+asymmetry → 0.33 RED). This CLOSES the §16.A A4 honest-scope gap ("G3 cannot see this arm") the
+welded corner arm always carried.
+
+### LATENT BUG (closed by 1b, not a separate fix)
+
+`split()` doubles the ray corner: `SNMaskedBoundaryOperator.apply → _apply_faces` restricts only
+`_reflect_trace(rows=…)` but calls `_reflect_starting_direction` UNRESTRICTED, so
+`B_lower.apply + B_upper.apply ≠ B.apply` on System B's block (corner emitted by BOTH halves).
+Latent today — `split()`'s only consumer (`ScheduledInvertibleOperator`) is seedless multi-D
+Cartesian G-S; the seed-carrying sphere runs the Jacobi degenerate (`B_lower=0`). Goes LIVE on
+curvilinear multi-D (a mesh with BOTH a ψ½ seed AND an octant schedule — **#22**, this
+campaign's path). The un-weld fixes it structurally (`split()`→B_a; B_b schedule-atomic);
+`TestSplitInteraction` pins it.
+
+### SEAM — carrier-indexed realizer (DEFERRED, user-ruled 2026-07-07)
+
+The precedent's *production* half — `realize(law, carrier)` producing B_a (trace) + B_b (ray
+corner) from one face law, extending the existing `SNBoundaryRealizer` to be carrier-aware.
+**Built when DSA's diffusion-albedo adds the 3rd carrier** (≥3 makes `realize(law, carrier)` pay;
+today the ray realization is a ~2-line specular-swap kind-fact). B_b relocates the hand-coded
+kind-dispatch for now. NOT a risk-defer — the abstraction genuinely doesn't yet pay at 2
+carriers; the RULING (P1) captures the shape so DSA builds it.
