@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6334**
+Total tests collected: **6346**
 
 V&V level distribution
 ----------------------
@@ -17,11 +17,11 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1187, 18.7%
-   L1, 1074, 17.0%
+   L1, 1074, 16.9%
    L2, 54, 0.9%
    L3, 0, 0.0%
-   foundation, 3988, 63.0%
-   unmarked, 31, 0.5%
+   foundation, 3995, 63.0%
+   unmarked, 36, 0.6%
 
 Tagging source
 --------------
@@ -32,12 +32,12 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6224
+   explicit, 6231
    verify, 0
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 31
+   unmarked, 36
 
 Module × level grid
 -------------------
@@ -237,6 +237,7 @@ Module × level grid
    fields/test_angular_boundary_source_sink_residual, 0, 0, 0, 0, 30, 0
    fields/test_angular_flux, 0, 0, 0, 0, 24, 0
    fields/test_coefficient_fields, 0, 0, 0, 0, 9, 0
+   fields/test_facefield_hierarchy, 0, 0, 0, 0, 7, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
    frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
@@ -285,6 +286,7 @@ Module × level grid
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 4, 0
    numerics/test_face_layout, 0, 0, 0, 0, 15, 0
+   numerics/test_face_layout_typed_key, 0, 0, 0, 0, 0, 5
    numerics/test_face_streaming_normal, 0, 0, 0, 0, 5, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
    numerics/test_frame, 0, 0, 0, 0, 18, 0
@@ -1185,12 +1187,12 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-064``, 2
    ``ERR-065``, 1
    ``ERR-066``, 6
-   ``ERR-067``, 1
+   ``ERR-067``, 2
 
 Unmarked tests
 --------------
 
-**31 tests** have no V&V level marker.
+**36 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1203,6 +1205,7 @@ equations. See ``docs/testing/architecture.rst``
    :widths: 60, 10
 
    ``tests/numerics/test_assembled_operator.py``, 21
+   ``tests/numerics/test_face_layout_typed_key.py``, 5
    ``tests/derivations/test_atkinson_product_nystrom.py``, 3
    ``tests/derivations/test_fn_projection_vs_kll_flux.py``, 2
    ``tests/sn/sweep/core/test_cell_kernel_batch.py``, 2
