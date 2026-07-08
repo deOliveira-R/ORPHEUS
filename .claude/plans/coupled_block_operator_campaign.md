@@ -294,14 +294,59 @@ campaign's path). The un-weld fixes it structurally (`split()`→B_a; B_b schedu
   mutation-proven orthogonal teeth (reciprocity control=0 + wrong-transpose=1.00 /
   gauge-asymmetry=0.33). elegance-enforcer PASS (no violations; all fixes applied). 2 tests
   rewired to the successor API (reflective-sphere Q/Σ recovery + SI/eig single-primitive).
-- **1c NEXT** — pose `RayOp = A_BB` (the radial straight-characteristic march). WRAP of
-  `carlson_inward_sweep_from_source` (+ `…_transpose`) at `psi_half_angle_seed.py:87-207`;
-  production sites `loss_representation/__init__.py:4092-4117` (solve) + `:4614-4643`
-  (transpose). Gates: `TestA_BB_RadialBVP` (foundation: solve∘apply=id, WRAP bit-id via a
-  Mode-11 call-counter sentinel, pole-thread, Dirichlet propagation, fixed-source Q/Σ) + the
-  L1 closed-form-ODE convergence gate `φ=q/σ+(φ_R−q/σ)e^{−σ(R−r)}` on a GRADED mesh (measured
-  1.71→1.85→1.92) in sibling `tests/sn/operators/test_ray_operator.py` (`pytest.mark.l1`).
-  ⚠ `RayOp.apply` vs the composite `A_ss` block is the ONE non-bit-id spot — gate at `rtol`.
+- **1c NEXT — DESIGN RECONNAISSANCE DONE (2026-07-07), build on fresh context.** Pose
+  `RayOp = A_BB` (System B's radial straight-characteristic transport operator). Full recon
+  below; a correctness question (⚠ P-IDX-VS-LEVEL) gates the build.
+
+  **Home + name:** NEW `orpheus/sn/operators/radial_characteristic.py`; class
+  `RadialCharacteristicOperator` (A_BB interior; the boundary sibling `RadialCharacteristic
+  BoundaryOperator` = B_b landed in 1b). `domain = codomain = sn_mesh.radial_characteristic_space`.
+
+  **The WRAP source (verbatim, lift into `RayOp.solve`):** the two-leg march + pole-chaining is
+  `loss_representation/__init__.py:4092-4117` — read `q_minus=cells_view(src,·,-1)`,
+  `q_plus=cells_view(src,·,+1)`, `corner_in=corner_view(src,·,-1)`; inward
+  `cells_minus,pole_face = carlson_inward_sweep_from_source(q_minus, σ_t, dr, corner_in)`;
+  outward (reversed data) `cells_plus_rev,corner_out = carlson_inward_sweep_from_source(
+  q_plus[:,::-1], σ_t[:,::-1], dr[::-1], pole_face)`; write cells(-1)=cells_minus,
+  corner(-1)=corner_in, cells(+1)=cells_plus_rev[:,::-1], corner(+1)=corner_out. The engine
+  `carlson_inward_sweep_from_source` (+ transpose `…_transpose`) is `psi_half_angle_seed.py:
+  87-207` (already tested in `test_psi_half_angle_seed.py`; Hébert 3.434/3.435, `:label:
+  hebert-3-434`). RayOp WRAPS it — single source, does NOT re-implement.
+
+  **σ_t / dr sourcing (confirmed):** σ_t = a CONSTRUCTOR PARAM (ng,nx) — the C_ray collision
+  coefficient, matching the sweep's `sig_t` param + `MultiplicationOperator(coefficient)`; the
+  test provides it, Step 4 provides `solver.mat_xs.total_cross_section` (shape (ng,nx) verified).
+  dr = `sn_mesh.axis_widths[0]` (nx,) — mesh geometry. So `RadialCharacteristicOperator(sn_mesh,
+  total_cross_section)`.
+
+  **⚠ P-IDX-VS-LEVEL — RESOLVE FIRST (correctness gate, may be a latent bug):** `cells_view(
+  buffer, level, sign)` requires the LEVEL VALUE (`_slot_key`, `radial_characteristic_space.py:
+  378`: `if level not in self.levels: raise`). But the in-sweep march passes `p_idx` (the
+  `enumerate(levels)` POSITION) at `:4097-4112`, not the level value. On the sphere `levels=(0,)`
+  ⟹ `p_idx==level==0` so it works; a MULTI-LEVEL carrying mesh (multi-level cylinder) would
+  mismatch (p_idx∈{0,1,2} vs level∈{0,2,5}). Before building RayOp: determine (a) whether the
+  sweep's `levels` var is positional or actual μ-indices, (b) whether multi-level ψ½ ever occurs
+  in production, (c) whether the existing sweep has a latent p_idx/level bug (if so, FIX FIRST
+  per process-discipline). RayOp must use the CORRECT key. Dispatch explorer/numerics-investigator
+  on this if not immediately clear.
+
+  **Forward `.apply` (banded matvec μ∂_r+σ_t) — DEFER to Step 4 as a documented seam:** the
+  forward action of A_BB is currently woven into `(L+C).apply` (the ray residual on the +1
+  outflow corner, R13); extracting it standalone is the Step-4 CoupledOperator's job (it needs
+  the (B,B) matvec block). RayOp in 1c realizes the RESOLVENT (`.solve` = the march) + its
+  adjoint (via `carlson_inward_sweep_transpose`). For the `solve∘apply=id` invariant, use the
+  test-architect's fallback: the dense `(L+C).apply` restricted to the ray block as the forward
+  reference (NOT a from-scratch matvec).
+
+  **Gates** (test-architect design, home = sibling `tests/sn/operators/test_ray_operator.py`
+  `pytest.mark.l1` for the convergence gate; foundation gates extend `test_psi_half_coupling.py`):
+  `TestA_BB_RadialBVP` — the L1 closed-form-ODE convergence `φ=q/σ+(φ_R−q/σ)e^{−σ(R−r)}` on a
+  GRADED mesh (measured orders 1.71→1.85→1.92, already validated; mutations at `psi_half_angle_
+  seed.py:150/151/154` + `dr[::-1]` graded-vs-uniform Mode-5 control); WRAP bit-id vs the
+  in-sweep `:4092-4117` (Mode-11 call-counter sentinel on `carlson_inward_sweep_from_source`);
+  pole continuation `ψ½⁺(0)=ψ½⁻(0)` (sentinel-captured leg args); r=R Dirichlet propagation
+  (φ_R=0 vs 1 → interior differs by the exp envelope); fixed-source Q/Σ equilibrium; ≥2G. Build
+  q½ DIRECTLY (uniform), NOT via `fold_moments_to_radial_characteristic` (that fold is Step 2).
 
 ### OPEN DECISION D1 — the B_a naming asymmetry (elegance-enforcer, user's call)
 
