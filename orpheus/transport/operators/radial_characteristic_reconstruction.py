@@ -7,20 +7,30 @@ factor of the ``A_BA`` bulk→ray coupling block of the augmented SN system
     [ A_AA   A_AB ] [ transport ]      A_BA = Reconstruction ∘ Emission
     [ A_BA   A_BB ] [ ray       ]
 
-**Why it lives in transport, not sn.** The operator is consumed by the
-model-generic :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
-and :class:`~orpheus.transport.operators.fission.FissionOperator` (their
-``(ray, bulk)`` seed arms), and it produces a transport
-:class:`~orpheus.transport.source_sinks.RadialCharacteristicSourceSink` from
-the numerics fold
-(:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`).
-It needs SN only for the *type* of the carrier mesh — imported under
-``TYPE_CHECKING`` exactly like the ray source-sink itself. So it is
-transport-layered; a runtime ``transport → sn`` import is forbidden
-(sn depends on transport, never the reverse). Its self-block sibling
+**Home — a step-2 TRANSIENT in transport; it moves to sn at step 4.** This
+operator's *native* home is beside its self-block sibling
 :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
-(``A_BB``) DOES live in sn, because that one wraps the SN radial sweep
-engine — the split follows the dependency, not the concept.
+(``A_BB``) in ``orpheus/sn/operators/radial_characteristic.py`` — both are
+blocks of the one ψ½ coupled operator. It sits in ``transport/`` at step 2
+ONLY because the model-generic
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
+:class:`~orpheus.transport.operators.fission.FissionOperator` still *consume*
+it in their ``(ray, bulk)`` seed arms: a runtime ``transport → sn`` import is
+forbidden (sn depends on transport, never the reverse), so a fold that S/F
+consume must sit at/below transport.
+
+That consumption is the **monolithic posing this campaign un-welds** — the ψ½
+starting-direction ray is a *curvilinear-SN augmentation*, and a model-generic
+gain has no business owning its projection. **Campaign step 4 reverses the
+dependency**: S/F become pure bulk, ``A_BA = Fold ∘ K_iso`` is composed by the
+coupled driver (the Wave-O #208 lagged-gain pattern), and this operator moves
+to sn beside ``A_BB``. The ψ½ *data* types legitimately stay at the
+transport/numerics data layer (this operator's
+:class:`~orpheus.transport.source_sinks.RadialCharacteristicSourceSink` codomain,
+the carrier space — generic transport ops like ``M[σ]`` and the residual act on
+them), so only the *operator* migrates. Until then it needs SN solely for the
+carrier-mesh *type* (``TYPE_CHECKING``), and the runtime ``transport → sn`` ban
+holds. (User ruling 2026-07-08 — see the campaign plan step-4 lift deliverable.)
 """
 
 from __future__ import annotations

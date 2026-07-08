@@ -94,6 +94,8 @@ suite). Principled-equivalent, verified — not necessarily bit-identical.
    ()).H` swap law extends). **Highest-risk step** if it touches the interleaved (L+C) walk —
    gate hard; may WRAP the sweep as the resolvent's block-triangular solve of the posed
    operators (naming, not re-implementing) as the first landing, extraction second.
+   **INCLUDES THE LIFT** (user ruling 2026-07-08): S/F → pure bulk, `A_BA = Fold ∘ K_iso` composed
+   by the driver, the fold migrates to sn beside A_BB — see "Step-4 LIFT deliverable" below.
 5. **The solve.** Pose the resolvent (block-triangular DIRECT) + scattering (ITERATIVE) via
    the spectral-keyed solvers; the ρ-honest block residual as the stopping test. *Invariant:*
    coupled solve ≡ current solve (principled-equivalent, 5.5e-16 vs the dense-LU oracle).
@@ -496,12 +498,16 @@ the angular reconstruction `R` sampled at the closed μ=±1 rays, so:
   bulk-moment intermediate, K_iso-precedent), `n_moments` FIXED at construction (Pattern 4 — the
   apply/apply_transpose adjoint pair agrees on the moment dim by construction; default 1 = iso
   production reach). `block_role=None` (SystemRole lattice is step 4).
-- **HOME = transport, NOT sn** (layering — the load-bearing decision): the operator is consumed by
-  the transport `Scattering`/`Fission` operators + produces a transport `RadialCharacteristicSourceSink`;
-  **transport must not import sn at runtime** (grep-verified: the only `from orpheus.sn` in
-  transport/ are `TYPE_CHECKING` `SNMesh`). A_BB (`RadialCharacteristicOperator`) STAYS in sn
-  because it wraps the sn sweep engine — **the two `RadialCharacteristic*` operators split across
-  layers by their dependency, not their concept** (elegance-enforcer ACCEPT-strong).
+- **HOME = transport — but a step-2 TRANSIENT, NOT native (USER RULING 2026-07-08).** The fold's
+  *native* home is beside A_BB in `sn/operators/radial_characteristic.py` (both are blocks of the
+  ONE ψ½ coupled operator). It sits in transport at step 2 ONLY because S/F (transport) still
+  CONSUME it (transport ⊥ sn at runtime — grep-verified: the only `from orpheus.sn` in transport/
+  are `TYPE_CHECKING`). **That consumption IS the monolithic posing this campaign un-welds** — the
+  ψ½ starting-direction ray is a curvilinear-SN augmentation a model-generic gain should not own;
+  S/F owning a ray arm is the welded coupling. **Step 4 reverses the arrow** (see the lift
+  deliverable below). The earlier "native, dependency-forced split" framing was the main agent
+  going along with the inherited posing — the user caught it; the reconstruction's module docstring
+  now labels the transport home as a transient.
 - **Single-sourced the weights** (Pattern 2/7): `_radial_characteristic_reconstruction_weights(n,
   sign) = (2ℓ+1)/2·(±1)^ℓ` in `radial_characteristic_space.py`, shared by the forward
   `fold_moments_to_radial_characteristic` AND the NEW `fold_moments_to_radial_characteristic_transpose`
@@ -532,6 +538,30 @@ bypass→count 0 RED).
    companion (currently unnamed inline `legvander`+`einsum`; anti-#5/#6). `module:sn`/`type:improvement`.
 2. **A_BA theory prose** — the operator-algebra theory page's A_BA section (the Schur fold, the
    `(2ℓ+1)/2·(±1)^ℓ` reconstruction, the broadcast/sum adjoint) → campaign **step 7** docs.
+
+### Step-4 LIFT deliverable — reverse the ψ½ coupling arrow (USER RULING 2026-07-08)
+
+The step-4 CoupledOperator assembly MUST include **the lift** that reverses the S/F→fold dependency
+and gives the fold its native sn home (the completion of the un-weld step 2 began — step 2 named the
+fold; step 4 lifts it out of S/F). Locked deliverables:
+
+1. **S/F → pure bulk.** Drop the `(ray, bulk)` seed arms from `ScatteringOperator`/`FissionOperator`
+   (scattering.py S-fwd + S-adj, fission.py F-fwd) — the model-generic gain STOPS producing ψ½ ray
+   sources; its composite `apply` returns bulk (⊕ boundary) only.
+2. **`A_BA = Fold ∘ K_iso ∘ integrate` (scattering) / `Fold ∘ FissionKernel` (fission)** — a NAMED
+   sn coupled-block operator composing the SHARED transport emission kernels (`IsotropicScattering`
+   = K_iso, already standalone; the fission dyad) with the fold. NO dependency on the full S/F.
+3. **The SI driver applies `A_BA` as its own lagged gain** (the Wave-O #208 pattern that separated
+   `B` from `S`): the ray seed is born driver-side, not inside S/F.
+4. **Move the fold → `orpheus/sn/operators/radial_characteristic.py`** (beside A_BB). Once S/F no
+   longer consume it, the runtime `transport → sn` ban lifts and the fold joins its self-block
+   sibling; **retire `orpheus/transport/operators/radial_characteristic_reconstruction.py`**.
+5. **The ψ½ DATA types STAY** at the transport/numerics data layer (`RadialCharacteristicSourceSink`,
+   the carrier space, the residual) — generic transport ops (`M[σ]`, the residual) act on them; only
+   the *operator* migrates. NO data-type re-homing.
+
+*Invariant:* the driver's `S_bulk + A_BA` ≡ today's monolithic `S.apply` composite (bit-identical on
+the sphere); the regression floor + the `TestA_BA_SchurFold` bit-identity gate pin it.
 
 **NEXT: Step 3** — name `A_AB` (the ray→bulk seed injection: `precompute_psi_state` reading
 `cells(p,−1)` posed as an operator; adjoint `seed_cells_bar = A_AB.H`). ⏸ COMPACTION recommended
