@@ -117,3 +117,24 @@ rationale.
 .. automodule:: orpheus.sn.operators.boundary
    :members:
    :show-inheritance:
+
+
+ψ½ Coupled-Block Operators (A_BB, A_AB)
+---------------------------------------------------
+
+The :mod:`~orpheus.sn.operators.radial_characteristic` module hosts the two
+System-B blocks of the ψ½ coupled block operator (the augmented within-group
+system re-partitioned as a 2×2 block operator over the transport bulk⊕trace and
+the radial-characteristic ray). :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
+(``A_BB``) is the radial straight-characteristic transport self-block (the
+two-point radial BVP whose direct Carlson march IS the resolvent :math:`A_{BB}^{-1}`);
+:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicSeeding`
+(``A_AB``) is the cell-local angular ray→bulk seed injection (the Morel–Montry
+ψ½ seed folded into the bulk angular recurrence). See the class docstrings for
+the operator-algebra posing and the campaign plan
+``coupled_block_operator_campaign.md`` for the full 2×2 assembly (step 4).
+
+.. automodule:: orpheus.sn.operators.radial_characteristic
+   :members:
+   :show-inheritance:
+   :noindex:
