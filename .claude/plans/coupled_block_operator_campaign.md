@@ -294,8 +294,11 @@ campaign's path). The un-weld fixes it structurally (`split()`→B_a; B_b schedu
   mutation-proven orthogonal teeth (reciprocity control=0 + wrong-transpose=1.00 /
   gauge-asymmetry=0.33). elegance-enforcer PASS (no violations; all fixes applied). 2 tests
   rewired to the successor API (reflective-sphere Q/Σ recovery + SI/eig single-primitive).
-- **1c DONE (2026-07-07) — `RadialCharacteristicOperator` built + 15 gates landed, all
-  green + mutation-verified.** NEW `orpheus/sn/operators/radial_characteristic.py`:
+- **1c DONE @ `77e7b72` (2026-07-07) — `RadialCharacteristicOperator` built + 15 gates
+  landed, all green + mutation-verified. ⟹ STEP 1 COMPLETE (1a rename + 1b boundary
+  un-weld + 1c RayOp).** Verify: ratchet `transport:1`, full `tests/sn/operators` 719
+  passed, sphinx -W exit 0, elegance-enforcer PASS. NEW
+  `orpheus/sn/operators/radial_characteristic.py`:
   `RadialCharacteristicOperator(sn_mesh, total_cross_section)`, `domain=codomain=
   radial_characteristic_space`. Realizes the **resolvent action** `.solve` (the two-leg
   Carlson march WRAP, keyed by `space.levels` = the p_idx positions) + its **adjoint**
