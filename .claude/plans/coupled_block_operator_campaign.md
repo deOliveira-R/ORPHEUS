@@ -294,9 +294,42 @@ campaign's path). The un-weld fixes it structurally (`split()`→B_a; B_b schedu
   mutation-proven orthogonal teeth (reciprocity control=0 + wrong-transpose=1.00 /
   gauge-asymmetry=0.33). elegance-enforcer PASS (no violations; all fixes applied). 2 tests
   rewired to the successor API (reflective-sphere Q/Σ recovery + SI/eig single-primitive).
-- **1c NEXT — DESIGN RECONNAISSANCE DONE (2026-07-07), build on fresh context.** Pose
-  `RayOp = A_BB` (System B's radial straight-characteristic transport operator). Full recon
-  below; a correctness question (⚠ P-IDX-VS-LEVEL) gates the build.
+- **1c DONE (2026-07-07) — `RadialCharacteristicOperator` built + 15 gates landed, all
+  green + mutation-verified.** NEW `orpheus/sn/operators/radial_characteristic.py`:
+  `RadialCharacteristicOperator(sn_mesh, total_cross_section)`, `domain=codomain=
+  radial_characteristic_space`. Realizes the **resolvent action** `.solve` (the two-leg
+  Carlson march WRAP, keyed by `space.levels` = the p_idx positions) + its **adjoint**
+  `.solve_transpose` (the ISOLATED reverse march — the in-sweep reverse MINUS the
+  `psi_angle_bar` bulk-coupling term, which is A_AB's transpose, steps 2–3). Smoke: exact
+  Euclidean adjoint `⟨solve(u),v⟩=⟨u,solve_transpose(v)⟩` at **3.3e-16**; WRAP bit-identical
+  to direct engine calls. **DESIGN DECISIONS LOCKED (elegance-review + user may overrule):**
+  (1) forward `.apply` (μ∂_r+σ_t matvec) **loud-deferred to step 4** — it is woven into
+  `(L+C).apply` (R13); a standalone spelling now = a twin or a premature hot-path carve.
+  (2) `is_invertible=False` + `is_adjointable=False` in 1c (base semantics: `is_invertible`
+  advertises the `inverse()` OPERATOR-returning act, which lands in step 4 WITH the forward
+  `.apply` — the involution web `inverse().solve == forward apply` needs both directions;
+  shipping `inverse()` now = a resolvent whose `solve` raises = a false capability). The
+  math-invertibility is expressed by the working `.solve`. (3) `block_role=None` (the
+  SystemRole lattice is step 4). (4) **σ_t is a typed `CrossSectionField`** (USER
+  RULING 2026-07-07, elegance-review-flagged — deviates from the plan's earlier
+  bare-ndarray ratification): mesh-bound, so the constructor guards mesh-identity
+  (closes the Pattern-4 illegal-state — a σ_t from a foreign mesh would silently
+  march the wrong Δr; a bare ndarray couldn't catch it), aligns A_BB with the
+  inverse-family sibling `InvertibleOperator`'s typed coefficient, and reads like
+  `C_ray = M[σ_t]`. The field's own space invariant makes the (ng,nx) shape correct
+  by construction (the explicit shape check is retired as redundant). Step 4 sources
+  it as `mat_xs.total_cross_section_field`. Gates: `TestA_BB_RadialBVP` foundation (9, in
+  `test_psi_half_coupling.py`: adjoint-consistency+tooth, Mode-11 WRAP sentinel, pole
+  continuation, 2.5a reversal on graded, Dirichlet propagation+tooth, Q/Σ equilibrium ≥2G,
+  constructor CONTROL cylinder/slab/malformed) + L1 convergence (6, NEW
+  `tests/sn/operators/test_ray_operator.py`, `pytest.mark.l1`: closed-form ODE
+  `φ=q/σ+(φ_R−q/σ)e^{−σ(R−r)}` uniform+graded, orders 1.82→1.95; 4 DD-coefficient +
+  Mode-5-index-drift teeth). **⚠ TRANSIENT TWIN (Cardinal Rule 2, TRACKED):** `.solve`'s
+  two-leg orchestration mirrors the in-sweep block `loss_representation:4104-4119` (the
+  engine is single-sourced; the orchestration is not yet). Retired at step 4/5 when the
+  coupled resolvent routes the production `(L+C)` ray solve through this operator — see the
+  RETIREMENT LIST below. Both sides behaviour-pinned meanwhile (regression floor + sweep
+  suite ⟂ the Mode-11 WRAP gate). Recon (the durable build spec) retained below.
 
   **Home + name:** NEW `orpheus/sn/operators/radial_characteristic.py`; class
   `RadialCharacteristicOperator` (A_BB interior; the boundary sibling `RadialCharacteristic
@@ -347,6 +380,28 @@ campaign's path). The un-weld fixes it structurally (`split()`→B_a; B_b schedu
   pole continuation `ψ½⁺(0)=ψ½⁻(0)` (sentinel-captured leg args); r=R Dirichlet propagation
   (φ_R=0 vs 1 → interior differs by the exp envelope); fixed-source Q/Σ equilibrium; ≥2G. Build
   q½ DIRECTLY (uniform), NOT via `fold_moments_to_radial_characteristic` (that fold is Step 2).
+
+### RETIREMENT LIST (tracked debt — retired at the named step, "retire as you go")
+
+Enumerated so no superseded path falls silently out of view (coding-standards
+"retire as you go"). Each entry: what, `file:line`, retired-at, and the guard holding it
+until then.
+
+1. **The in-sweep two-leg ψ½ orchestration** — `loss_representation/__init__.py:4104-4119`
+   (the direct-seed march inside `(L+C).solve`; reads/marches/writes the ray blocks). A
+   transient twin of `RadialCharacteristicOperator.solve` (the engine is single-sourced; the
+   orchestration is duplicated). **Retire at step 4/5** — when the coupled block-triangular
+   resolvent routes the production `(L+C)` ray solve through `A_BB` (the CoupledOperator's
+   `(B,B)` block), the inline block collapses to that call (the `phi_aux = cells_minus` M-M
+   seed use at `:4123` reads the operator's returned inward cells). Guard until then: the
+   in-sweep by the regression floor + `tests/sn/sweep/**`; `A_BB.solve` by the Mode-11 WRAP
+   bit-identity gate. (Step 5's `EXTRACT ≡ dense-LU` gate is the equivalence that licenses
+   the collapse.)
+2. **The in-sweep reverse ψ½ orchestration** — `loss_representation/__init__.py:4621-4649`
+   (inside `sweep_transpose`; the reverse march + the `psi_angle_bar` bulk term). Its pure
+   ray-block half is `A_BB.solve_transpose`; the `psi_angle_bar` term is `A_BA`'s transpose
+   (steps 2–3). Retire alongside entry 1 (the coupled adjoint-solve routes through
+   `A_BB.solve_transpose` + the named `A_AB`/`A_BA` transposes).
 
 ### OPEN DECISION D1 — the B_a naming asymmetry (elegance-enforcer, user's call)
 

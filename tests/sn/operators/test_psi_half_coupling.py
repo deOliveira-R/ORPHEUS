@@ -64,12 +64,22 @@ from orpheus.sn.operators.boundary import (
     SNBoundaryOperator,
 )
 from orpheus.sn.operators.streaming import StreamingOperator
+import orpheus.sn.operators.radial_characteristic as _rc_mod
+from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
 from orpheus.sn.solver import SNSolver, _within_group_triple
+from orpheus.sn.spatial.psi_half_angle_seed import (
+    carlson_inward_sweep_from_source,
+    carlson_inward_sweep_transpose,
+)
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
+from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
+    RadialCharacteristicSourceSink,
+)
 from orpheus.derivations.common.xs_library import make_mixture
 
 pytestmark = pytest.mark.foundation
@@ -557,3 +567,415 @@ class TestSplitInteraction:
                 out.radial_characteristic.values, 0.0,
                 err_msg=f"masked B_{name} emitted a NON-ZERO ray corner — the split doubles "
                         f"the ray (the latent bug; the grading must live on B_a's TRACE only).")
+
+
+# ── Step-1c helpers: A_BB = RadialCharacteristicOperator (the ψ½ radial BVP) ──
+
+
+def _graded_sphere(nx: int, ng: int = 2, p: float = 1.5, R: float = 4.0,
+                   bc: str = "vacuum"):
+    r"""A seed-carrying sphere on a power-graded radial mesh ``r_j = R·(j/nx)^p``.
+
+    The genuinely non-uniform ``dr`` the reversal / index-drift gates need: on a
+    uniform mesh ``dr[::-1] == dr`` and ``dr[k−1] == dr[k]``, so those gates are
+    vv Mode-5 vacuous — the grading breaks the blind spot (§0.6)."""
+    edges = R * (np.arange(nx + 1, dtype=float) / nx) ** p
+    mesh = Mesh1D(edges=edges, mat_ids=np.zeros(nx, dtype=int),
+                  coord=CoordSystem.SPHERICAL, bc_right=BC(bc))
+    return SNMesh(mesh, Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, ng)})
+
+
+def _ray_sigma(sn, slope: float = 0.3) -> CrossSectionField:
+    r"""Heterogeneous per-group per-cell ``σ_t`` as a typed, mesh-bound
+    ``CrossSectionField`` on ``sn`` (``.values`` are ``(ng, nx)``, varying in
+    BOTH group AND cell so an index / group-axis bug in the march is not nulled —
+    anti-#2 asymmetry). The operator's ``C_ray`` collision coefficient; the typed
+    field carries ``.mesh`` for the operator's mesh-identity guard."""
+    nx, ng = sn.nx, sn.ng
+    raw = np.stack([1.0 + slope * g + 0.15 * np.arange(nx) for g in range(ng)], 0)
+    return CrossSectionField.from_mesh(raw, sn)
+
+
+def _ray_source(sn, rng) -> RadialCharacteristicSourceSink:
+    """A random q½ source block on ``sn``'s ray carrier (all slots non-zero)."""
+    space = sn.radial_characteristic_space
+    return RadialCharacteristicSourceSink(
+        values=rng.standard_normal(space.shape[0]), space=space, mesh=sn)
+
+
+def _ray_cotangent(sn, rng) -> RadialCharacteristicFlux:
+    """A random flux-space cotangent (the solve's codomain) on ``sn``'s carrier."""
+    space = sn.radial_characteristic_space
+    return RadialCharacteristicFlux(
+        values=rng.standard_normal(space.shape[0]), space=space, mesh=sn)
+
+
+def _two_leg_reference(op, source) -> RadialCharacteristicFlux:
+    r"""Replicate ``A_BB.solve``'s two-leg march with the REAL engine — the WRAP
+    oracle for the bit-identity gate. Calls ``carlson_inward_sweep_from_source``
+    (the test-module imported name, UNPATCHED when the operator's module attr is
+    spied) so ``.solve`` (patched with a delegating spy) and this reference
+    compute with the SAME engine → any divergence is a WRAP bug, not FP."""
+    space = source.space
+    sigma = op.total_cross_section.values
+    dr = np.asarray(op.sn_mesh.axis_widths[0])
+    out = RadialCharacteristicFlux.zeros_on(op.sn_mesh)
+    buf, sv = out.values, source.values
+    for lv in space.levels:
+        q_minus = space.cells_view(sv, lv, -1)
+        q_plus = space.cells_view(sv, lv, +1)
+        corner_in = space.corner_view(sv, lv, -1)
+        cells_minus, pole_face = carlson_inward_sweep_from_source(
+            q_minus, sigma, dr, corner_in)
+        cells_plus_rev, corner_out = carlson_inward_sweep_from_source(
+            q_plus[:, ::-1], sigma[:, ::-1], dr[::-1], pole_face)
+        space.cells_view(buf, lv, -1)[...] = cells_minus
+        space.corner_view(buf, lv, -1)[...] = corner_in
+        space.cells_view(buf, lv, +1)[...] = cells_plus_rev[:, ::-1]
+        space.corner_view(buf, lv, +1)[...] = corner_out
+    return out
+
+
+def _install_engine_spy(monkeypatch) -> list[dict]:
+    r"""Mode-11 sentinel: wrap ``carlson_inward_sweep_from_source`` in the
+    OPERATOR's module namespace, recording ``(args, result)`` per call and
+    delegating to the real engine. Returns the calls list (2 per level: inward
+    then outward). Proves ``.solve`` EXECUTES the production engine (a divergent
+    inlined copy would leave the list empty)."""
+    calls: list[dict] = []
+    real = carlson_inward_sweep_from_source  # the unpatched module-top import
+
+    def spy(Q_bar, sigma_t, dr, bc_outer_value):
+        result = real(Q_bar, sigma_t, dr, bc_outer_value)
+        calls.append({
+            "Q": np.asarray(Q_bar).copy(),
+            "sigma": np.asarray(sigma_t).copy(),
+            "dr": np.asarray(dr).copy(),
+            "bc": np.asarray(bc_outer_value).copy(),
+            "cells": result[0].copy(),
+            "exit_face": result[1].copy(),
+        })
+        return result
+
+    monkeypatch.setattr(_rc_mod, "carlson_inward_sweep_from_source", spy)
+    return calls
+
+
+def _euclid_adjoint_defect(op, u, v) -> float:
+    r"""The relative Euclidean reciprocity defect
+    ``|⟨solve(u), v⟩ − ⟨u, solve_transpose(v)⟩| / (|·| + |·|)``.
+
+    Plain dot products (NOT the ``G_sd`` metric): ``solve_transpose`` is the
+    ISOLATED EUCLIDEAN adjoint of the resolvent (the pure ray-block transpose —
+    operator docstring), so its consistency partner is the Euclidean inner
+    product, not the ``V_cell`` Hilbert adjoint (which is realized once at the
+    composite, L19)."""
+    lhs = float(op.solve(u).values @ v.values)
+    rhs = float(u.values @ op.solve_transpose(v).values)
+    return abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+
+
+class TestA_BB_RadialBVP:
+    r"""``A_BB`` = :class:`RadialCharacteristicOperator` — the ψ½ radial two-point
+    BVP resolvent (campaign step 1c).
+
+    Foundation invariants of ``solve`` / ``solve_transpose`` (the realized
+    resolvent action + its adjoint; ``apply`` / ``inverse`` defer to step 4).
+    The convergence-ORDER claim lives in the sibling L1 module
+    ``test_ray_operator.py`` (don't conflate foundation + verifies, L9). Every
+    value row is ≥2G; the sphere-GL S4 carrier is the ONLY seed-carrying member
+    (cylinder/slab are the non-carrying CONTROL — the constructor rejects them).
+
+    Runtime: gates raise via :func:`pytest.fail` / ``np.testing.assert_*`` (fire
+    under ``python -O``), never a bare ``assert`` (vv Mode 8).
+    """
+
+    # ── solve / solve_transpose adjoint consistency (Euclidean) ────────────
+
+    def test_adjoint_consistency_euclidean(self):
+        r"""``⟨solve(u), v⟩ = ⟨u, solve_transpose(v)⟩`` (Euclidean) to < 1e-11 on
+        heterogeneous σ, ≥2 random draws — the PRIMARY solve/solve_transpose
+        consistency gate (the resolvent adjoint is the reverse-mode transpose of
+        the two-leg march). The source ``μ = +1`` corner cotangent is EXACTLY
+        zero (the q½ fold writes only cells + the ``μ = -1`` corner, so the
+        outflow-corner source slot is unused — R13)."""
+        sn = _sphere()
+        op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
+        space = sn.radial_characteristic_space
+        for seed in (1, 2, 3):                       # ≥2 draws
+            rng = np.random.default_rng(seed)
+            u, v = _ray_source(sn, rng), _ray_cotangent(sn, rng)
+            defect = _euclid_adjoint_defect(op, u, v)
+            if not defect < 1e-11:
+                pytest.fail(
+                    f"seed {seed}: Euclidean adjoint defect {defect:.3e} ≥ 1e-11 — "
+                    f"solve_transpose is NOT the transpose of solve (the reverse "
+                    f"march or its leg chaining is mis-wired).")
+            src_bar = op.solve_transpose(v)
+            for lv in space.levels:
+                np.testing.assert_array_equal(
+                    space.corner_view(src_bar.values, lv, +1), 0.0,
+                    err_msg=f"seed {seed} level {lv}: the source μ=+1 corner "
+                            f"cotangent is non-zero (it must stay 0 — the q½ fold "
+                            f"never writes that slot).")
+
+    def test_adjoint_sign_flip_tooth(self, monkeypatch):
+        r"""TOOTH for the adjoint gate: a sign flip in the reverse-mode
+        recurrence (``carlson_inward_sweep_transpose``'s incoming face-cotangent
+        ``-f_bar → +f_bar``) breaks reciprocity — the defect jumps to O(1).
+        Proves the < 1e-11 gate above is not vacuously green."""
+
+        def transpose_sign_flip(cells_bar, final_face_bar, sigma_t, dr):
+            ng, nx = cells_bar.shape
+            Q_bar = np.zeros((ng, nx), dtype=cells_bar.dtype)
+            f_bar = final_face_bar.copy()
+            for k in range(nx):
+                denom = dr[k] * sigma_t[:, k] + 2.0
+                c_bar = cells_bar[:, k] + 2.0 * f_bar
+                f_in_bar = +f_bar                    # SIGN FLIP: production is -f_bar
+                Q_bar[:, k] = (dr[k] / denom) * c_bar
+                f_in_bar = f_in_bar + (2.0 / denom) * c_bar
+                f_bar = f_in_bar
+            return Q_bar, f_bar
+
+        monkeypatch.setattr(
+            _rc_mod, "carlson_inward_sweep_transpose", transpose_sign_flip)
+        sn = _sphere()
+        op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
+        rng = np.random.default_rng(1)
+        defect = _euclid_adjoint_defect(op, _ray_source(sn, rng),
+                                        _ray_cotangent(sn, rng))
+        if not defect > 1e-3:
+            pytest.fail(
+                f"the transpose sign-flip left the adjoint defect at {defect:.3e} "
+                f"— the adjoint-consistency gate has no teeth.")
+
+    # ── WRAP bit-identity via a Mode-11 call-counter sentinel ──────────────
+
+    def test_wrap_executes_engine_bit_identical(self, monkeypatch):
+        r"""``solve`` WRAPS the production engine: the Mode-11 sentinel counts
+        exactly ``2·n_levels`` calls to ``carlson_inward_sweep_from_source`` (2
+        legs/level) AND the result is bit-identical (``array_equal``) to an
+        independent two-leg reference on the SAME engine — a divergent inlined
+        copy would leave the counter at 0 (Cardinal Rule 2 single source)."""
+        sn = _sphere()
+        op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
+        source = _ray_source(sn, np.random.default_rng(4))
+        reference = _two_leg_reference(op, source)   # real engine, before the spy
+        calls = _install_engine_spy(monkeypatch)
+        flux = op.solve(source)
+        n_levels = len(sn.radial_characteristic_space.levels)
+        if len(calls) != 2 * n_levels:
+            pytest.fail(
+                f"solve called the engine {len(calls)}× (expected 2·n_levels = "
+                f"{2 * n_levels}) — it is NOT the two-leg WRAP (a divergent copy?).")
+        np.testing.assert_array_equal(
+            flux.values, reference.values,
+            err_msg="solve is not bit-identical to the two-leg engine reference — "
+                    "the WRAP diverged from the production march.")
+
+    def test_pole_continuation_threads_exit_to_entry(self, monkeypatch):
+        r"""Pole continuation ``ψ½⁺(0) = ψ½⁻(0)``: per level the OUTWARD leg's
+        entry face (call #2's ``bc_outer_value``) EQUALS the INWARD leg's exit
+        face (call #1's ``phi_face_final``) — the inward exit IS the outward
+        entry (internal to the march, R13). The exit face is asserted non-trivial
+        so the gate is not vacuously satisfied by zeros."""
+        sn = _sphere()
+        op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
+        calls = _install_engine_spy(monkeypatch)
+        op.solve(_ray_source(sn, np.random.default_rng(5)))
+        for i in range(0, len(calls), 2):
+            inward, outward = calls[i], calls[i + 1]
+            np.testing.assert_array_equal(
+                outward["bc"], inward["exit_face"],
+                err_msg="the outward leg's entry face ≠ the inward leg's exit face "
+                        "— pole continuation ψ½⁺(0)=ψ½⁻(0) is broken.")
+            if not np.max(np.abs(inward["exit_face"])) > 0.0:
+                pytest.fail("the inward exit (pole) face is identically zero — the "
+                            "pole-continuation gate is vacuous for this source.")
+
+    def test_outward_leg_marches_reversed_data(self, monkeypatch):
+        r"""The 2.5a discipline — orientation is carried by the DATA, never a
+        flag: the OUTWARD (+1) leg rides the same engine on the ``[:, ::-1]`` /
+        ``[::-1]`` reversed level data, the INWARD (-1) leg on forward data. Run
+        on a GRADED mesh so ``dr[::-1] ≠ dr`` — the reversal is a genuine
+        constraint (on a uniform mesh it is vv Mode-5 vacuous; the non-vacuity
+        check enforces that). If the operator dropped a reversal, call #2 would
+        carry forward data and these equalities RED."""
+        sn = _graded_sphere(nx=8)
+        op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
+        space = sn.radial_characteristic_space
+        dr = np.asarray(sn.axis_widths[0])
+        sigma = op.total_cross_section.values
+        source = _ray_source(sn, np.random.default_rng(6))
+        sv = source.values
+        # Non-vacuity (Mode 5): on this graded mesh reversed ≠ forward.
+        if np.array_equal(dr[::-1], dr):
+            pytest.fail("dr is uniform — the reversal gate is Mode-5 vacuous; the "
+                        "graded mesh must give dr[::-1] ≠ dr.")
+        calls = _install_engine_spy(monkeypatch)
+        op.solve(source)
+        for idx, lv in enumerate(space.levels):
+            inward, outward = calls[2 * idx], calls[2 * idx + 1]
+            np.testing.assert_array_equal(
+                inward["dr"], dr,
+                err_msg=f"level {lv}: the inward leg did not march FORWARD widths.")
+            np.testing.assert_array_equal(
+                inward["Q"], space.cells_view(sv, lv, -1),
+                err_msg=f"level {lv}: the inward leg read the wrong source cells.")
+            np.testing.assert_array_equal(
+                outward["dr"], dr[::-1],
+                err_msg=f"level {lv}: the outward leg did not march REVERSED widths "
+                        f"(the 2.5a data-carried orientation broke).")
+            np.testing.assert_array_equal(
+                outward["Q"], space.cells_view(sv, lv, +1)[:, ::-1],
+                err_msg=f"level {lv}: the outward leg did not read REVERSED source cells.")
+            np.testing.assert_array_equal(
+                outward["sigma"], sigma[:, ::-1],
+                err_msg=f"level {lv}: the outward leg did not read REVERSED σ_t.")
+
+    # ── r = R Dirichlet propagation ────────────────────────────────────────
+
+    def test_r_R_dirichlet_propagates_into_interior(self):
+        r"""A nonzero ``r = R`` inflow corner (μ=−1) vs zero — same cells source —
+        changes the INTERIOR cells (by the ``e^{−σ(R−r)}`` envelope), not merely
+        the boundary. Two solves differing ONLY in ``corner_in`` must differ in
+        the interior; equal interiors would mean the Dirichlet datum is ignored."""
+        sn = _sphere()
+        op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
+        space = sn.radial_characteristic_space
+        s0 = RadialCharacteristicSourceSink(
+            values=np.zeros(space.shape[0]), space=space, mesh=sn)
+        s1 = RadialCharacteristicSourceSink(
+            values=np.zeros(space.shape[0]), space=space, mesh=sn)
+        for s in (s0, s1):
+            for lv in space.levels:
+                space.cells_view(s.values, lv, -1)[...] = 0.5     # identical cells
+        for lv in space.levels:
+            space.corner_view(s1.values, lv, -1)[...] = 3.0       # nonzero inflow only
+        a = op.solve(s0).cells(0, -1)
+        b = op.solve(s1).cells(0, -1)
+        interior_diff = float(np.max(np.abs(a[:, :-1] - b[:, :-1])))  # exclude outer cell
+        if not interior_diff > 1e-6:
+            pytest.fail(
+                f"the interior cells are unchanged ({interior_diff:.3e}) when the "
+                f"r=R inflow corner goes 0 → 3 — the Dirichlet datum does NOT "
+                f"propagate inward (the corner is being ignored).")
+
+    def test_dirichlet_bc_ignore_tooth(self, monkeypatch):
+        r"""TOOTH for the Dirichlet-propagation gate: an engine that ignores its
+        ``bc_outer_value`` (always enters at 0) makes the two solves' interiors
+        IDENTICAL — the interior difference collapses to 0. Proves the gate
+        above catches a dropped inflow datum."""
+
+        def ignore_bc(Q_bar, sigma_t, dr, bc_outer_value):
+            return carlson_inward_sweep_from_source(
+                Q_bar, sigma_t, dr, np.zeros_like(bc_outer_value))
+
+        monkeypatch.setattr(
+            _rc_mod, "carlson_inward_sweep_from_source", ignore_bc)
+        sn = _sphere()
+        op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
+        space = sn.radial_characteristic_space
+        s0 = RadialCharacteristicSourceSink(
+            values=np.zeros(space.shape[0]), space=space, mesh=sn)
+        s1 = RadialCharacteristicSourceSink(
+            values=np.zeros(space.shape[0]), space=space, mesh=sn)
+        for s in (s0, s1):
+            space.cells_view(s.values, 0, -1)[...] = 0.5
+        space.corner_view(s1.values, 0, -1)[...] = 3.0
+        interior_diff = float(np.max(np.abs(
+            op.solve(s0).cells(0, -1)[:, :-1] - op.solve(s1).cells(0, -1)[:, :-1])))
+        if not interior_diff < 1e-14:
+            pytest.fail(
+                f"the bc-ignoring engine still produced an interior difference "
+                f"({interior_diff:.3e}) — the Dirichlet-propagation gate's tooth "
+                f"does not bite.")
+
+    # ── Fixed-source Q/Σ equilibrium (conservation + spatial distribution) ─
+
+    def test_fixed_source_equilibrium_Q_over_sigma(self):
+        r"""The single most powerful curvilinear diagnostic: uniform source at
+        equilibrium ``q̄ = σ·C`` with the consistent inflow ``φ_R = C`` → every
+        cell of BOTH legs sits at ``C = q̄/σ`` (the flat identity
+        ``(Δr·σ·C + 2C)/(Δr·σ + 2) = C``, self-similar through the pole). ≥2G with
+        DISTINCT per-group ``C`` and heterogeneous per-cell σ, so a missing ``Δr``
+        / factor / group-axis bug would break the equilibrium."""
+        sn = _sphere(nx=6)
+        sigma = _ray_sigma(sn)                       # het in g AND cell
+        sig = sigma.values                           # (ng, nx) for the σ·C source
+        op = RadialCharacteristicOperator(sn, sigma)
+        space = sn.radial_characteristic_space
+        C = np.array([0.5, 1.3])                     # distinct per-group equilibrium
+        src = RadialCharacteristicSourceSink(
+            values=np.zeros(space.shape[0]), space=space, mesh=sn)
+        for g in range(sn.ng):
+            for sign in (-1, +1):                    # BOTH legs' cells source = σ·C
+                space.cells_view(src.values, 0, sign)[g, :] = sig[g] * C[g]
+            space.corner_view(src.values, 0, -1)[g] = C[g]   # consistent inflow
+        flux = op.solve(src)
+        expected = np.broadcast_to(C[:, None], (sn.ng, sn.nx))
+        for sign in (-1, +1):
+            np.testing.assert_allclose(
+                flux.cells(0, sign), expected, atol=1e-13,
+                err_msg=f"leg {sign}: the equilibrium flux ≠ q̄/σ = C — the "
+                        f"fixed-source Q/Σ balance (conservation + spatial "
+                        f"distribution) is broken.")
+
+    # ── Constructor negative gates (the non-carrying CONTROL) ──────────────
+
+    def test_constructor_rejects_non_carrying_foreign_mesh_and_nonpositive(self):
+        r"""The constructor's guards, NET-NEW teeth (L4). Three illegal states,
+        each with ``match=`` the SPECIFIC message (a downstream crash would
+        false-green a bare ``raises``):
+
+        * **non-carrying CONTROL** — a cylinder (level-symmetric) and a slab
+          (Cartesian) have ``radial_characteristic_space is None`` → the seedless
+          guard fires (before σ_t is even read);
+        * **foreign-mesh σ_t** — a ``CrossSectionField`` on a DIFFERENT sphere
+          (same ``(ng, nx)``, different Δr) is refused by the mesh-identity
+          invariant. THIS is the Pattern-4 illegal state the typed, mesh-bound
+          coefficient closes — a bare ``(ng, nx)`` ndarray could not catch it (it
+          carries no mesh), so the operator would silently march this mesh's Δr
+          against a foreign σ_t;
+        * **σ_t ≤ 0** — the DD-denominator ``Δr·σ + 2`` guard.
+
+        Positive control: a σ_t on THIS mesh constructs cleanly."""
+        # Non-carrying CONTROL — a cylinder (needs a level-structured quadrature).
+        cyl = SNMesh(
+            Mesh1D(edges=np.linspace(0.05, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CYLINDRICAL, bc_right=BC("vacuum")),
+            Quadrature.level_symmetric(4), {0: _mixture(1.0, 0.4, 2)})
+        slab = SNMesh(
+            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
+                   bc_left=BC("reflective")),
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+        if cyl.radial_characteristic_space is not None:
+            pytest.fail("the cylinder carries a ray space — CONTROL invalid.")
+        if slab.radial_characteristic_space is not None:
+            pytest.fail("the slab carries a ray space — CONTROL invalid.")
+        # The seedless guard fires before σ_t is read (a valid field on the mesh).
+        with pytest.raises(ValueError, match="carries no starting-direction ray"):
+            RadialCharacteristicOperator(
+                cyl, CrossSectionField.from_mesh(np.ones((2, 5)), cyl))
+        with pytest.raises(ValueError, match="carries no starting-direction ray"):
+            RadialCharacteristicOperator(
+                slab, CrossSectionField.from_mesh(np.ones((2, 5)), slab))
+        # Positive control — a σ_t on THIS mesh constructs cleanly.
+        sn = _sphere(nx=6)
+        RadialCharacteristicOperator(
+            sn, CrossSectionField.from_mesh(np.ones((sn.ng, sn.nx)), sn))
+        # THE Pattern-4 closure: a σ_t bound to a DIFFERENT sphere (graded — a
+        # genuinely different Δr) is refused. The typed coefficient makes the
+        # foreign-mesh march unconstructable; a bare ndarray could not.
+        foreign_mesh = _graded_sphere(nx=6)
+        foreign_sigma = CrossSectionField.from_mesh(
+            np.ones((sn.ng, sn.nx)), foreign_mesh)
+        with pytest.raises(ValueError, match="mesh-identity invariant"):
+            RadialCharacteristicOperator(sn, foreign_sigma)
+        # σ_t ≤ 0 → the DD-denominator guard.
+        bad = np.ones((sn.ng, sn.nx))
+        bad[1, 2] = 0.0
+        with pytest.raises(ValueError, match="strictly positive"):
+            RadialCharacteristicOperator(sn, CrossSectionField.from_mesh(bad, sn))

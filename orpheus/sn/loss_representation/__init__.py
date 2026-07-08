@@ -4089,6 +4089,18 @@ class _OneDimScanWalk:
                     # to the outflow corner.  The outward leg rides the
                     # SAME engine on reversed cell data (orientation is
                     # data, never a flag — the 2.5a discipline).
+                    #
+                    # ⚠ TRACKED TRANSIENT TWIN (Cardinal Rule 2): the two-leg
+                    # orchestration below (:4104-4119) is byte-identical to
+                    # RadialCharacteristicOperator.solve — A_BB, the named System-B
+                    # resolvent (orpheus/sn/operators/radial_characteristic.py). The
+                    # DD engine carlson_inward_sweep_from_source is single-sourced;
+                    # this ORCHESTRATION is duplicated and RETIRED at coupled-block
+                    # campaign step 4/5, when the production (L+C) ray solve routes
+                    # THROUGH A_BB.solve (plan retirement list entry 1). Edit both
+                    # twins in lockstep until then — the Mode-11 WRAP gate
+                    # (test_psi_half_coupling.py::…test_wrap_executes_engine_bit_identical)
+                    # reddens on any divergence.
                     assert radial_characteristic_source is not None
                     assert radial_characteristic_flux is not None
                     src_vals = radial_characteristic_source.values
