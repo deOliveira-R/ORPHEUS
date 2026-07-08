@@ -657,3 +657,88 @@ driver, fold→sn) + **THE WALK UN-WEAVE** (retirement entries 1-4: extract A_AB
 + the solve-side orchestrations from the interleaved `(L+C)` walk into the explicit block matvec).
 Highest-risk step (touches the interleaved walk) — gate hard, WRAP-first then extract. Re-anchor
 from THIS plan + `git log` (trust git). ⏸ COMPACTION recommended NOW (after step 3).
+
+---
+
+## Step 4 — DECOMPOSITION + EXECUTION (the HARD step; WRAP-first ruling, 2026-07-08)
+
+**Ground truth (explorer + test-architect dispatches, 2026-07-08).** The KEY finding: **all four
+extraction-target operators already exist + are tested** (A_BB.solve/solve_transpose @ 1c;
+A_AB.apply/apply_transpose @ step 3). So the walk un-weave is *route the production walk through the
+built operator, then DELETE the inline twin* — NOT "build the operator." The ONE genuinely-unbuilt
+piece is **A_BB.apply** (the forward μ∂_r+σ_t matvec, deferred from 1c) — the CoupledOperator's (B,B)
+block + `inverse()` need it. Memos: explorer `ac4355b6…` (blast-radius map, current `file:line`),
+test-architect `.claude/agent-memory/test-architect/coupled_operator_step4_verification.md` (the
+extended gate spec), elegance-enforcer `.claude/agent-memory/elegance-enforcer/coupled_block_boundary_
+unweld_rulings.md`.
+
+**Verification bar SPLITS three ways** (one gate can't serve all three — refutation #1 operational):
+4d WRAP = `array_equal` 0-ULP vs current augmented apply (**TRANSIENT** — retired at 4e); 4c LIFT =
+bit-id vs captured baseline; 4e EXTRACT = principled-equiv **5.5e-16** vs the dense-LU-of-assembled-
+(L+C) oracle (regression floor row 6). The DURABLE gate is the principled A1-EXTRACT (green at 0-ULP
+through 4a-4d, stays green at 5.5e-16 after 4e — never churns; the WRAP bit-id proof is a separate
+transient characterization, honestly retired at 4e). Load-bearing row: **A2 — the assembled `.H`
+V_cell reciprocity stays Mode-12-closed** (a Euclidean block adjoint on System B reopens ERR-067;
+reds on ALL geometries — the "slab stays green" instinct is FALSE, burned on 2.5c).
+
+**The 5 risk-ordered sub-commits** (WRAP-first, user-ruled 2026-07-08):
+- **4a — SystemRole {A,B,COUPLED} lattice.** DONE @ `4113d27` (see below).
+- **4b — A_BB.apply forward + inverse() + is_adjointable/is_invertible flips.** The one unbuilt piece.
+  ⚠ predicate-flip contract blast (test-architect flag 2): grep EVERY `is_adjointable is False` /
+  `is_invertible is False` for `RadialCharacteristicOperator` (`test_capability_survival.py`,
+  `test_inverse_operator_equivalence.py`, the contract table) + update in the SAME landing. Gate:
+  forward matvec ≡ dense `(L+C).apply` ray-block; `solve∘apply=id` both directions.
+- **4c — THE LIFT.** Move the fold `RadialCharacteristicReconstruction` transport→sn (beside A_BB);
+  build `A_BA = Fold∘K_iso∘integrate` (S) / `Fold∘FissionKernel` (F); drop the ray arms — S-fwd
+  (`scattering.py:1572-1597`) + S-adj (`:1806-1854`, **ASYMMETRIC** — ray-out present-ZERO, bulk-out
+  gets `K_isoᵀ∘Reconstructionᵀ` pullback; a symmetric "drop" LOSES the bulk term) + F-fwd
+  (`fission.py:493-534`) → pure bulk. **HAZARD 3: the LIFT + driver-gain-add MUST land in ONE commit**
+  (presence law — S/F dropping the ray while the iterate still carries the 3rd block trips
+  `FullField.__sub__` mixed-presence). **HAZARD 5: S and F lift onto DIFFERENT seams** — S = within-
+  group lagged gain (the `(S,B)` tuple); F = the OUTER `q_ext` (within-group fission=0; the F ray
+  source rides `compute_fission_source`, `solver.py:951`, NOT the gain tuple). Retire
+  `transport/operators/radial_characteristic_reconstruction.py`. **DRIVER-WIRING FORK** (→ AskUserQuestion
+  at 4c start): A_BA as its own gain slot (widen the `(L+C,S,B)` triple — ~13 unpack sites) vs composed
+  into the scatter gain (`S_bulk+A_BA` in one slot — less blast; ⚠ the shared-`K_iso`-emission elegance:
+  S_bulk and A_BA share the `K_iso∘integrate` emission — do NOT recompute it twice). Gates L1-L5 (L4 =
+  the DECISIVE Mode-11 "gate-never-executes-the-rewired-path" driver-routing sentinel).
+- **4d — Assemble CoupledOperator (WRAP-first).** Name the 2×2 exposing the four blocks; `.apply`/
+  `.solve`/`.H` delegate to the current fused walk (bit-id). Stamp `system_role=COUPLED` explicitly;
+  **C-fwd (elegance ruling): explicit-stamp the A_AA block = `SystemRole.A`, do NOT join-derive it**
+  (transport-None poisons the join). Gates: the 4d-WRAP transient characterization (`array_equal`,
+  RETIRED at 4e); **A2a** composite-G forward reciprocity (reds ALL geoms — tooth M-ADJ-metric at
+  `_AdjointOperator.apply`) + **A2b** seed-isolated V_cell; **A3** swap law `(A.H).inverse()=
+  (A.inverse()).H` extends `test_inverse_adjoint_coherence.py` (⚠ grep every is_adjointable/
+  is_invertible False assertion when the coupled predicates land); **E4** two-anchor (φ=Q/Σ_t
+  non-fissile + k_inf fissile, ≥2G).
+- **4e — THE WALK UN-WEAVE (EXTRACT).** Route the walk through the built operators + delete the inline
+  twins (retirement entries 1-4, current lines: entry1 `_run:4104-4131` +A_AB feed `:4135-4136`; entry2
+  `_run_transpose:4633-4661`; entry3 `_apply_walk:3168-3186` +precompute `:3078-3084`; entry4
+  `loss_action_transpose:3410→3498→3576→3580-3590` +`_seed_rows_transpose:2791-2846`). **HAZARD 1:
+  A_AA+A_AB are FUSED in the shared kernel** (`precompute_psi_state`/`cell_contribution`/
+  `angular_adjoint` compute them summed) — isolate A_AB by zeroing psi_view (as `A_AB.apply` already
+  does); expect principled-equiv, NOT bit-id. **HAZARD 2: the solve is a within-(L+C) block-triangular
+  forward-substitution** — ray marched FIRST (A_BB⁻¹), then `phi_aux=cells_minus` seeds the bulk loop
+  (`psi_angle` is shared mutable ray→bulk state); preserve the ordering. **HAZARD 8: non-carrying
+  cyl/slab share the kernel** — must stay bit-exact (the CONTROL). Retire the 4d-WRAP transient gate;
+  flip A1-EXTRACT + E1-E3 live. HIGHEST-RISK.
+
+### 4a — DONE @ `4113d27` (SystemRole {A,B,COUPLED} lattice)
+
+NEW `SystemRole {A,B,COUPLED}` enum + `_join_system_roles` (union: same→same, different→COUPLED, None
+propagates) in `numerics/operator.py`, **CLONING block_role's mechanism exactly** (base-Protocol
+`system_role=None` attr + the 3 composer propagations: OperatorSum join, _AdjointOperator/ScaledOperator
+passthrough). Stamped the 4 ψ½ operators: A_BB→B, B_b→B, A_AB→COUPLED, A_BA→COUPLED; model-generic
+System-A ops (C/S/F/B_a) stay None (honest — no layering violation; transport-None would poison the join
+anyway). `SystemRole.A` defined but UNSTAMPED in 4a (the honest 3rd of a complete partition; becomes the
+CoupledOperator's A_AA-block label at 4d — **C-fwd**). Gates: `TestSystemRoleLattice`
+(`test_psi_half_coupling.py`) + `TestSystemRoleEnum` (`test_operator_protocols.py` — the exact-3-member
+pin mirroring BlockRole's). Verified: ratchet transport:1, 62+46 tests, both teeth mutation-RED, sphinx
+-W exit 0. **elegance-enforcer PASS-WITH-NITS** (0 violations; all 3 nits fixed: SystemRole exact-member
+pin, ScaledOperator propagation case, bidirectional join cross-ref + collapse trigger). **RULING:** the
+parallel enum is **structurally FORCED** — B_b sits non-None on BOTH axes (block_role=BOUNDARY AND
+system_role=B), which a merged enum cannot represent; the generic `RoleAxis` abstraction is premature at
+2 axes (**collapse trigger = a 3rd parallel axis**: DSA/multiphysics).
+
+**NEXT: 4b** — A_BB.apply forward + inverse() + predicate flips (grep the is_adjointable/is_invertible
+False contract). Re-anchor from THIS block + `git log` (trust git).
