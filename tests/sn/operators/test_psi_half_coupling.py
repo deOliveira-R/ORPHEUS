@@ -65,7 +65,10 @@ from orpheus.sn.operators.boundary import (
 )
 from orpheus.sn.operators.streaming import StreamingOperator
 import orpheus.sn.operators.radial_characteristic as _rc_mod
-from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
+from orpheus.sn.operators.radial_characteristic import (
+    RadialCharacteristicOperator,
+    RadialCharacteristicSeeding,
+)
 import orpheus.numerics.spaces.radial_characteristic_space as _rcs_mod
 import orpheus.transport.operators.radial_characteristic_reconstruction as _rcr_mod
 from orpheus.sn.solver import SNSolver, _within_group_triple
@@ -79,6 +82,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
+from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
 from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
     RadialCharacteristicSourceSink,
 )
@@ -1522,3 +1526,297 @@ class TestA_BA_SchurFold:
         np.testing.assert_allclose(
             lhs, rhs, rtol=1e-11, atol=1e-12,
             err_msg="A_BA.apply_transpose is not the Euclidean adjoint of A_BA.apply.")
+
+
+# ── Step-3 helpers: A_AB the ψ½ seed injection (ray → bulk) ────────────────
+#
+# A_AB = RadialCharacteristicSeeding: the ray ψ½ seed injected into the bulk
+# Morel–Montry angular recurrence. It is CELL-LOCAL ANGULAR (the seed at cell i
+# feeds cell i's ordinate recurrence; NO spatial coupling — the radial march is
+# A_BB's job), so — unlike A_BB's spatially-woven forward matvec — BOTH
+# directions realize HERE as thin WRAPs of the single-sourced closure methods
+# (precompute_psi_state / cell_contribution / angular_adjoint). σ-INDEPENDENT:
+# with the bulk zeroed the collision/streaming terms drop out, so A_AB needs no
+# σ_t (the constructor takes sn_mesh only). The forward .apply's contribution to
+# (L+C).apply is isolated by LINEARITY (bulk=0, boundary=0 → only the seed's
+# angular numerator survives); the transpose is the seed_cells_bar term the
+# in-sweep reverse adds on cells(p,-1). A_sb=0 (block-triangular) and A_bs≈7.5
+# (this coupling's magnitude) are already pinned by TestRegressionFloor — not
+# re-tested here. The sphere carries ONE level (R12a), so the per-level loop is
+# length 1: a multi-carrying-level indexing bug is UNTESTABLE with current
+# geometry (cylinder is non-carrying) — an inherited blind spot, noted not faked.
+
+
+def _bulk_composite(sn, bulk_values: NDArray) -> FullField:
+    """A composite with the given bulk, zero trace, and a zero ψ½ ray — so
+    ``(L+C).apply_transpose`` isolates A_AB's ``seed_cells_bar``: the ray=0 nulls
+    the A_BB self-block (``_seed_rows_transpose`` on a zero χ_seed → 0), leaving
+    only the M-M thread cotangent on ``cells(p,-1)``."""
+    n_tr = int(sn.angular_trace.layout.total_size)
+    ns = sn.radial_characteristic_space.shape[0]
+    return FullField(
+        bulk=AngularFlux.from_mesh(bulk_values, sn),
+        boundary=AngularBoundaryFlux(
+            values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
+        radial_characteristic=RadialCharacteristicFlux(
+            values=np.zeros(ns), space=sn.radial_characteristic_space, mesh=sn),
+    )
+
+
+def _seed_flux(sn, rng) -> RadialCharacteristicFlux:
+    """A random ψ½ ray seed — the ``A_AB.apply`` input."""
+    ns = sn.radial_characteristic_space.shape[0]
+    return RadialCharacteristicFlux(
+        values=rng.standard_normal(ns), space=sn.radial_characteristic_space, mesh=sn)
+
+
+def _bulk_cotangent(sn, rng) -> AngularSourceSink:
+    """A random bulk-residual cotangent — the ``A_AB.apply_transpose`` input."""
+    return AngularSourceSink.from_mesh(
+        rng.standard_normal((sn.quad.N, sn.ng, sn.nx)), sn)
+
+
+def _install_closure_spy(monkeypatch, sn, method_name: str) -> list[dict]:
+    r"""Mode-11 sentinel: WRAP a ``MorelMontryAngularSweep`` method (the shared
+    M-M closure kernel A_AB routes through) on the closure CLASS, recording each
+    call's ``(args, kwargs)`` and delegating to the real method. Class-level so
+    it is robust to the closure's storage layout (an instance-attr patch could
+    trip ``__slots__``); the test uses ONE closure, so no cross-instance leak.
+    Proves ``apply`` / ``apply_transpose`` EXECUTE the production kernel — a
+    divergent inlined copy would leave the list empty (Cardinal Rule 2)."""
+    cls = type(sn.pole_angular_closure)
+    real = getattr(cls, method_name)
+
+    def spy(self, *args, **kwargs):
+        calls.append({"args": args, "kwargs": kwargs})
+        return real(self, *args, **kwargs)
+
+    calls: list[dict] = []
+    monkeypatch.setattr(cls, method_name, spy)
+    return calls
+
+
+class TestA_AB_SeedInjection:
+    r"""``A_AB`` = :class:`RadialCharacteristicSeeding` — the ray→bulk ψ½ seed
+    injection (campaign step 3).
+
+    The off-diagonal ``(transport, ray)`` coupling: the ψ½ ray seeds the bulk
+    Morel–Montry angular recurrence. CELL-LOCAL ANGULAR (no spatial coupling),
+    so both ``apply`` (ray → bulk residual) and ``apply_transpose`` (bulk
+    cotangent → ray seed cotangent) are realized as WRAPs of the single-sourced
+    closure methods and ``is_adjointable = True`` — unlike ``A_BB``, whose
+    forward matvec is spatially woven and defers.
+
+    Sphere-GL S4 is the ONLY carrying member (cylinder/slab are the non-carrying
+    CONTROL — the constructor rejects them). Every value row is ≥2G. Gates raise
+    via :func:`pytest.fail` / ``np.testing.assert_*`` (fire under ``python -O``),
+    never a bare ``assert`` (vv Mode 8).
+
+    L13/Mode-11 caveat: the bit-identity gates (:meth:`test_apply_matches_the_in_sweep_seed_injection`,
+    :meth:`test_apply_transpose_is_the_in_sweep_seed_cells_bar`) route both
+    ``A_AB`` and the ``(L+C)`` reference through the SAME closure methods, so
+    they INHERIT bit-identity and are blind to a bug inside a shared method. The
+    correctness cross-check is :meth:`test_euclidean_adjoint_consistency`
+    (forward ↔ transpose — a shared-method sign bug lands on one side and breaks
+    reciprocity)."""
+
+    # ── Forward — the seed injection ≡ the in-sweep contribution ───────────
+
+    def test_apply_matches_the_in_sweep_seed_injection(self, monkeypatch):
+        r"""``A_AB.apply(s)`` ≡ the seed's contribution to ``(L+C).apply``
+        (bulk=0, boundary=0 isolate ``A_bs`` by linearity), BIT-IDENTICALLY
+        (``array_equal`` — with ψ_cell=0 the σ-diagonal cancels, so this is
+        0-ULP, not principled-equiv). A Mode-11 sentinel proves ``apply``
+        EXECUTES the shared closure kernel with the bulk ZEROED and the seed
+        passed as ``radial_characteristic``. σ-independence is asserted
+        positively (the reference is identical at two ``σ_t`` slopes). ≥2G."""
+        sn = _sphere()
+        space = sn.radial_characteristic_space
+        rng = np.random.default_rng(30)
+        sv = rng.standard_normal(space.shape[0])
+        seed = RadialCharacteristicFlux(values=sv, space=space, mesh=sn)
+        # Reference (real methods, computed BEFORE the spy): the seed's
+        # contribution to (L+C).apply — bulk=0/boundary=0 ⇒ A_AA·0 = 0, so the
+        # bulk output is exactly A_AB·s.
+        reference = _loss(sn).apply(_seed_composite(sn, sv)).bulk
+        ref_other_sigma = _loss(sn, slope=0.9).apply(_seed_composite(sn, sv)).bulk
+        np.testing.assert_array_equal(
+            reference.values, ref_other_sigma.values,
+            err_msg="the seed→bulk contribution changed with σ_t — A_AB is not "
+                    "σ-independent (the isolation-by-linearity premise is wrong).")
+        # Mode-11 sentinel on the shared closure kernel.
+        pre = _install_closure_spy(monkeypatch, sn, "precompute_psi_state")
+        cc = _install_closure_spy(monkeypatch, sn, "cell_contribution")
+        out = RadialCharacteristicSeeding(sn).apply(seed)
+        if len(pre) != 1:
+            pytest.fail(
+                f"precompute_psi_state called {len(pre)}× (expected 1) — A_AB."
+                f"apply is not the single-precompute WRAP.")
+        psi_view_arg = np.asarray(pre[0]["args"][0])
+        if np.max(np.abs(psi_view_arg)) != 0.0:
+            pytest.fail(
+                "A_AB.apply did NOT zero the bulk psi_view — A_AA's angular "
+                "redistribution would leak into the isolated coupling.")
+        if pre[0]["kwargs"].get("radial_characteristic") is not seed:
+            pytest.fail(
+                "A_AB.apply did not pass the seed as radial_characteristic.")
+        if len(cc) < sn.nx:
+            pytest.fail(
+                f"cell_contribution called {len(cc)}× (< nx = {sn.nx}) — the "
+                f"cell-local angular injection did not visit every cell.")
+        np.testing.assert_array_equal(
+            out.values, reference.values,
+            err_msg="A_AB.apply is not bit-identical to the in-sweep injection.")
+
+    # ── Transpose — the seed_cells_bar term ≡ the in-sweep reverse ─────────
+
+    def test_apply_transpose_is_the_in_sweep_seed_cells_bar(self, monkeypatch):
+        r"""``A_AB.apply_transpose(v).cells(p,-1)`` ≡ the ``seed_cells_bar`` term
+        the in-sweep reverse adds — ``(L+C).apply_transpose(bulk=v, ray=0)`` on
+        the ray block (ray=0 nulls the A_BB self-block, isolating the M-M thread
+        cotangent), BIT-IDENTICALLY. The ``+1`` leg and both corners stay EXACTLY
+        0 (the forward writes only the inward leg). A Mode-11 sentinel proves
+        ``angular_adjoint`` runs exactly once. ≥2G."""
+        sn = _sphere()
+        space = sn.radial_characteristic_space
+        rng = np.random.default_rng(31)
+        vv = rng.standard_normal((sn.quad.N, sn.ng, sn.nx))
+        v = AngularSourceSink.from_mesh(vv, sn)
+        reference = _loss(sn).apply_transpose(
+            _bulk_composite(sn, vv)).radial_characteristic
+        aa = _install_closure_spy(monkeypatch, sn, "angular_adjoint")
+        out = RadialCharacteristicSeeding(sn).apply_transpose(v)
+        if len(aa) != 1:
+            pytest.fail(
+                f"angular_adjoint called {len(aa)}× (expected 1) — A_AB."
+                f"apply_transpose is not the single-adjoint WRAP.")
+        for p in space.levels:
+            np.testing.assert_array_equal(
+                out.cells(p, -1), reference.cells(p, -1),
+                err_msg=f"level {p}: apply_transpose cells(-1) ≠ the in-sweep "
+                        f"seed_cells_bar.")
+            np.testing.assert_array_equal(
+                space.cells_view(out.values, p, +1), 0.0,
+                err_msg=f"level {p}: apply_transpose wrote the +1 leg (must be 0).")
+            np.testing.assert_array_equal(
+                space.corner_view(out.values, p, -1), 0.0,
+                err_msg=f"level {p}: apply_transpose wrote the -1 corner (be 0).")
+            np.testing.assert_array_equal(
+                space.corner_view(out.values, p, +1), 0.0,
+                err_msg=f"level {p}: apply_transpose wrote the +1 corner (be 0).")
+
+    # ── Euclidean adjoint consistency — THE correctness cross-check ────────
+
+    def test_euclidean_adjoint_consistency(self):
+        r"""``⟨A_AB·u, v⟩ = ⟨u, A_ABᵀ·v⟩`` (Euclidean, plain dot — NOT the
+        ``V_cell`` metric, which is the COMPOSITE Hilbert adjoint realized once
+        at the coupled operator, L19) to < 1e-11, ≥3 draws. THE load-bearing
+        correctness gate: it compares ``apply`` (precompute + cell_contribution)
+        to ``apply_transpose`` (angular_adjoint) — two separately-implemented
+        duals — so a sign/wiring bug in EITHER shared method lands on ONE side
+        and breaks reciprocity (unlike the bit-identity gates, which route both
+        sides through the same method and are blind to a shared-method bug).
+        ≥2G."""
+        sn = _sphere()
+        op = RadialCharacteristicSeeding(sn)
+        for seed in (1, 2, 3):
+            rng = np.random.default_rng(seed)
+            u, v = _seed_flux(sn, rng), _bulk_cotangent(sn, rng)
+            lhs = float(op.apply(u).values.ravel() @ v.values.ravel())
+            rhs = float(u.values.ravel() @ op.apply_transpose(v).values.ravel())
+            defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+            if not defect < 1e-11:
+                pytest.fail(
+                    f"seed {seed}: Euclidean adjoint defect {defect:.3e} ≥ 1e-11 "
+                    f"— apply_transpose is not the transpose of apply.")
+
+    def test_euclidean_adjoint_consistency_tooth(self, monkeypatch):
+        r"""TOOTH for the adjoint gate: flipping the sign of ``cell_contribution``'s
+        angular numerator flips ``apply`` (the forward side) but NOT
+        ``apply_transpose`` (which routes through ``angular_adjoint``), so
+        reciprocity breaks and the defect jumps to O(1). Proves the < 1e-11 gate
+        has teeth AND that a shared-method bug DOES surface on the adjoint
+        cross-check (the L13 escape hatch the bit-identity gates lack)."""
+        sn = _sphere()
+        cls = type(sn.pole_angular_closure)
+        real = cls.cell_contribution
+
+        def flip(self, *args, **kwargs):
+            denom, upstream = real(self, *args, **kwargs)
+            return denom, -upstream
+
+        monkeypatch.setattr(cls, "cell_contribution", flip)
+        op = RadialCharacteristicSeeding(sn)
+        rng = np.random.default_rng(1)
+        u, v = _seed_flux(sn, rng), _bulk_cotangent(sn, rng)
+        lhs = float(op.apply(u).values.ravel() @ v.values.ravel())
+        rhs = float(u.values.ravel() @ op.apply_transpose(v).values.ravel())
+        defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+        if not defect > 1e-3:
+            pytest.fail(
+                f"the cell_contribution sign flip left the adjoint defect at "
+                f"{defect:.3e} — the consistency gate has no teeth.")
+
+    # ── Seed-consumed asymmetry — reads ONLY the inward leg ────────────────
+
+    def test_apply_reads_only_the_inward_leg(self):
+        r"""``A_AB.apply`` reads ONLY the inward ``cells(p,-1)`` leg of the seed
+        (the recurrence seed): two seeds sharing that leg but differing in the
+        ``+1`` leg and both corners give IDENTICAL bulk output. Non-vacuity
+        (Mode-5): the output is asserted non-trivial (a zero output would satisfy
+        the identity vacuously)."""
+        sn = _sphere()
+        op = RadialCharacteristicSeeding(sn)
+        space = sn.radial_characteristic_space
+        rng = np.random.default_rng(32)
+        full = rng.standard_normal(space.shape[0])
+        only_minus = np.zeros_like(full)
+        for p in space.levels:
+            space.cells_view(only_minus, p, -1)[...] = space.cells_view(full, p, -1)
+        if not np.max(np.abs(only_minus)) > 0.0:
+            pytest.fail("the inward -1 leg is zero — the asymmetry gate is vacuous.")
+        out_full = op.apply(
+            RadialCharacteristicFlux(values=full, space=space, mesh=sn))
+        out_minus = op.apply(
+            RadialCharacteristicFlux(values=only_minus, space=space, mesh=sn))
+        if not np.max(np.abs(out_full.values)) > 1e-6:
+            pytest.fail("A_AB.apply output is ~0 — the asymmetry gate is vacuous.")
+        np.testing.assert_array_equal(
+            out_full.values, out_minus.values,
+            err_msg="A_AB.apply changed when only the +1 leg / corners changed — "
+                    "it reads more than the inward starting-direction leg.")
+
+    # ── Non-carrying CONTROL + mesh-identity ───────────────────────────────
+
+    def test_constructor_and_mesh_identity_reject_non_carrying(self):
+        r"""The guards, NET-NEW teeth (L4). Non-carrying CONTROL — a cylinder
+        (level-symmetric) and a slab (Cartesian) have
+        ``radial_characteristic_space is None`` → the seedless guard fires with
+        ``match=`` the specific message. Positive control — the sphere
+        constructs. Mesh-identity (Pattern 4) — ``apply`` / ``apply_transpose``
+        refuse a field on a DIFFERENT sphere."""
+        cyl = SNMesh(
+            Mesh1D(edges=np.linspace(0.05, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CYLINDRICAL, bc_right=BC("vacuum")),
+            Quadrature.level_symmetric(4), {0: _mixture(1.0, 0.4, 2)})
+        slab = SNMesh(
+            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
+                   bc_left=BC("reflective")),
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+        if cyl.radial_characteristic_space is not None:
+            pytest.fail("the cylinder carries a ray space — CONTROL invalid.")
+        if slab.radial_characteristic_space is not None:
+            pytest.fail("the slab carries a ray space — CONTROL invalid.")
+        with pytest.raises(ValueError, match="carries no starting-direction ray"):
+            RadialCharacteristicSeeding(cyl)
+        with pytest.raises(ValueError, match="carries no starting-direction ray"):
+            RadialCharacteristicSeeding(slab)
+        # Positive control + the mesh-identity guard (a field on ANOTHER sphere).
+        sn = _sphere()
+        op = RadialCharacteristicSeeding(sn)
+        other = _sphere()
+        with pytest.raises(ValueError, match="mesh-identity invariant"):
+            op.apply(_seed_flux(other, np.random.default_rng(9)))
+        with pytest.raises(ValueError, match="mesh-identity invariant"):
+            op.apply_transpose(_bulk_cotangent(other, np.random.default_rng(9)))

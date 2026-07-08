@@ -407,6 +407,22 @@ until then.
    ray-block half is `A_BB.solve_transpose`; the `psi_angle_bar` term is `A_BA`'s transpose
    (steps 2–3). Retire alongside entry 1 (the coupled adjoint-solve routes through
    `A_BB.solve_transpose` + the named `A_AB`/`A_BA` transposes).
+3. **The in-sweep A_AB forward placement** — `loss_representation/__init__.py:3168-3186`
+   (inside `(L+C).apply` / `_OneDimScanWalk._apply_walk`; the seed's `angular_numer` term
+   `−(ΔA/w)·c_in·ψ_{m-1/2}/V` fused into `m_full = (denom·ψ − numer)/V`). A transient twin
+   of `RadialCharacteristicSeeding.apply` (the M-M *kernel* `precompute_psi_state` /
+   `cell_contribution` is single-sourced; only the `∓numer/V` orchestration is duplicated —
+   a DIFFERENT production entry point from entries 1–2, which are the resolvent/solve side).
+   **Retire at step 4/5** — when the CoupledOperator routes the `(L+C)` bulk rows through
+   `A_AA + A_AB` (the block matvec), the inline seed placement collapses to `A_AB.apply`.
+   Guard until then: the in-sweep by the regression floor + `tests/sn/sweep/**`; `A_AB.apply`
+   by the `TestA_AB_SeedInjection` bit-identity gate + Mode-11 WRAP sentinel.
+4. **The in-sweep A_AB transpose placement** — `loss_representation/__init__.py:~3475-3590`
+   (inside `(L+C).apply_transpose`; the `numer_bar = −ob/V` gather at `:3498` → `angular_adjoint`
+   at `:3576` → `seed_cells_bar` landed on `cells(p,-1)` via `_seed_rows_transpose:2846`). Its
+   isolated projection is `RadialCharacteristicSeeding.apply_transpose`. Retire alongside
+   entry 3 (the coupled adjoint block matvec routes the bulk cotangent → ray through the named
+   `A_AB.apply_transpose`).
 
 ### OPEN DECISION D1 — the B_a naming asymmetry (elegance-enforcer, user's call)
 
@@ -563,6 +579,81 @@ fold; step 4 lifts it out of S/F). Locked deliverables:
 *Invariant:* the driver's `S_bulk + A_BA` ≡ today's monolithic `S.apply` composite (bit-identical on
 the sphere); the regression floor + the `TestA_BA_SchurFold` bit-identity gate pin it.
 
-**NEXT: Step 3** — name `A_AB` (the ray→bulk seed injection: `precompute_psi_state` reading
-`cells(p,−1)` posed as an operator; adjoint `seed_cells_bar = A_AB.H`). ⏸ COMPACTION recommended
-after step 3.
+---
+
+## Step 3 — EXECUTION STATUS (DONE, 2026-07-08)
+
+**DONE — `A_AB` posed as ONE named operator, BOTH directions realized.** All green +
+mutation-verified + elegance PASS-with-nits (all nits addressed); forward AND transpose
+bit-identical to the in-sweep injection (0-ULP `array_equal`), Euclidean adjoint defect
+**0.0**; ratchet **`transport:1`** (sn 0), sphinx **-W exit 0**, `tests/sn/operators` 735 +
+`test_psi_half_coupling` 42, full `tests/sn -m "not slow"` 0 reds.
+
+**The realization — CELL-LOCAL ANGULAR, both directions clean WRAPs (refines the pre-compaction
+framing).** The pre-compaction analysis said A_AB "defers its forward like A_BB". The deeper
+trace (explorer-verified, 5/5 claims ACCEPT) corrected this: the M-M recurrence
+`ψ_half[m+1] = (ψ[m]−(1−τ)ψ_half[m])/τ` runs over ORDINATES at a FIXED cell, so **A_AB is
+cell-local angular** — the seed at cell i couples ONLY to cell i's bulk ordinates, NO spatial
+weaving (the radial march is A_BB's job). A_BB's defer-the-forward rationale (spatially-woven
+matvec, no standalone engine) simply does NOT apply. So both directions realize as thin WRAPs
+of the single-sourced closure methods (`precompute_psi_state`/`cell_contribution`/
+`angular_adjoint` on `MorelMontryAngularSweep`), and `is_adjointable=True`.
+
+- **NEW `RadialCharacteristicSeeding(LinearOperator["RadialCharacteristicField","AngularField"])`**
+  in `orpheus/sn/operators/radial_characteristic.py` — BESIDE A_BB (native sn home; NO transport
+  transient, NO lift — A_AB's consumer is the sn `(L+C)` walk, not model-generic S/F, so nothing
+  forces it below sn). Name **USER-chosen 2026-07-08** (`…Seeding` over `…SeedInjection`/`…Injection`;
+  "Injection" would collide with the DSA multigrid transfer term, the same concern that rejected
+  "Restriction" for A_BA). Scope **USER-chosen: realize BOTH directions** ([[feedback-build-the-
+  machinery-operator-algebra]] — the full honest posing, not the minimal defer-forward).
+  - `apply(seed) → AngularSourceSink`: WRAP `precompute_psi_state(np.zeros((N,ng,nx)),
+    radial_characteristic=seed)` (bulk ZEROED → isolates A_AB from A_AA's redistribution by
+    LINEARITY) + per (carrying level, cell) `cell_contribution` → `−angular_numer/V`. Reads ONLY
+    the inward `cells(p,-1)` leg.
+  - `apply_transpose(cotangent) → RadialCharacteristicSourceSink`: the local `numer_bar[p]=−ob/V`
+    gather (exact transpose of the forward `−·/V`) → `angular_adjoint` → `seed_cells_bar` on
+    `cells(p,-1)`; discards `psi_ang_bar` (that's A_AA^T). `+1` leg + corners EXACTLY 0.
+  - **σ-INDEPENDENT** — constructor takes `sn_mesh` ONLY (contrast A_BB's σ_t): with ψ_cell=0 the
+    collision/streaming terms drop out, only the angular numerator survives (positively asserted
+    in the gate: reference identical at two σ slopes).
+- **The shared-kernel projection (step-4 seed):** `precompute_psi_state`/`cell_contribution`/
+  `angular_adjoint` each serve BOTH A_AA (bulk redistribution) and A_AB (seed); A_AB projects out
+  its block (zero the bulk / discard `psi_ang_bar`). Step-4 CoupledOperator calls the ONE kernel
+  and routes into A_AA + A_AB — never a twin kernel.
+- **Gates** (`TestA_AB_SeedInjection`, `test_psi_half_coupling.py`, test-architect memo
+  `a_ab_seed_injection_verification.md`): forward bit-id + Mode-11 sentinel (precompute called
+  once with all-zero psi_view + seed passed; cell_contribution ≥ nx) + σ-independence; transpose
+  bit-id + zero-slots + Mode-11 (angular_adjoint once); **Euclidean adjoint consistency < 1e-11**
+  (THE correctness gate — compares apply↔transpose, catches a shared-method bug the L13 bit-id
+  gates are blind to) + committed tooth (cell_contribution sign flip → defect O(1)); reads-only-
+  inward-leg asymmetry; non-carrying cyl/slab CONTROL + mesh-identity. Teeth all mutation-verified
+  RED in-process (cell_contribution flip, angular_adjoint seed_bar flip, precompute-reads-+1).
+- **Retirement entries 3-4 ADDED** (the A_AB in-sweep matvec placement twins at
+  `loss_representation:3168-3186` fwd + `~3475-3590` transpose — a DIFFERENT entry point from the
+  A_BB resolvent twins 1-2; retire at step 4/5 when the CoupledOperator routes the bulk rows
+  through A_AA+A_AB). Docstring carries a symmetric "Tracked transient twin" note.
+- **Docs (Cardinal Rule 3):** `.. automodule:: orpheus.sn.operators.radial_characteristic` added
+  to `docs/api/discrete_ordinates.rst` (was MISSING since 1c — A_BB + A_AB docstrings rendered
+  nowhere); this SURFACED + FIXED a latent RST bug in the A_BB module docstring (a paragraph split
+  a bullet list). `sn/operators/__init__.py` inventory + V&V matrix regenerated.
+
+**FOLLOW-UP (step 4 — the block-operator theory-page PROSE for A_AB, absent as it was for A_BA;
+natural home = the CoupledOperator assembly docs.)**
+
+## ⏸ CHECKPOINT — step 3 complete (2026-07-08)
+
+**Committed on branch `refactor/sn-walk-unification`** (pushes HELD): Step 3 = `RadialCharacteristic
+Seeding` (A_AB) + `TestA_AB_SeedInjection` + docs. Steps 0/1(1a/1b/1c)/2/3 DONE; the algebra is
+POSED (System B + all THREE couplings A_BA/A_BB/A_AB named + realized). **Deviation from this
+plan's step-3 line:** the plan said "matches the in-sweep injection; the adjoint seed_cells_bar is
+A_AB.H" — realized as intended, PLUS the forward `.apply` is ALSO realized (the cell-local
+discovery made it a clean WRAP, not a defer) — a STRENGTHENING, user-ratified. **Rulings:** name
+`…Seeding` (collision-avoidance); realize-both (build-the-machinery); native sn home (consumer-
+layer forces the home, not the data types — A_AB's consumer is sn, unlike A_BA's transport S/F).
+
+**NEXT (step 4 — the HARD one): assemble `CoupledOperator [[A_AA,A_AB],[A_BA,A_BB]]`** + widen the
+role lattice (`SystemRole {A,B,COUPLED}`) + **THE LIFT** (S/F→pure bulk, A_BA=Fold∘K_iso by the
+driver, fold→sn) + **THE WALK UN-WEAVE** (retirement entries 1-4: extract A_AB/A_BB forward matvecs
++ the solve-side orchestrations from the interleaved `(L+C)` walk into the explicit block matvec).
+Highest-risk step (touches the interleaved walk) — gate hard, WRAP-first then extract. Re-anchor
+from THIS plan + `git log` (trust git). ⏸ COMPACTION recommended NOW (after step 3).

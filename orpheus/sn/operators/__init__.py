@@ -12,7 +12,16 @@ the discrete-ordinates spatial sweep:
   inverse-as-operator carve (#226) so ``K = A_loss.inverse() @ F`` reads like the
   math,
 * the boundary leaf :math:`B`
-  (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`).
+  (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`),
+* the **ψ½ coupled-block operators** — System B of the augmented within-group
+  system (a 2×2 block operator over the transport bulk⊕trace and the
+  radial-characteristic ray): the radial straight-characteristic self-block
+  :math:`A_{BB}`
+  (:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`),
+  the cell-local ray→bulk seed injection :math:`A_{AB}`
+  (:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicSeeding`),
+  and the ray boundary block :math:`B_b`
+  (:class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`).
 
 These are the SN residue #261 deliberately kept out of ``transport/operators/``:
 the cross-method *reaction* operators (collision :math:`M[\sigma_t]`, fission,

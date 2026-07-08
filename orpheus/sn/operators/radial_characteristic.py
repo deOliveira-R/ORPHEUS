@@ -1,11 +1,17 @@
-r"""``A_BB`` — System B's radial straight-characteristic transport operator.
+r"""The ψ½ System-B block operators — ``A_BB`` (self-block) + ``A_AB`` (ray→bulk).
 
-The self-block of the ψ½ ray in the 2×2 coupled block operator (campaign
+The two System-B blocks of the 2×2 coupled block operator (campaign
 :mod:`coupled block operator <orpheus.sn>` — the augmented within-group
 system re-partitioned as two systems)::
 
-    [ A_AA   A_AB ] [ transport ]      A_AA = L + C − S − B   (System A)
-    [ A_BA   A_BB ] [ ray       ]      A_BB = this operator   (System B)
+    [ A_AA   A_AB ] [ transport ]   A_AB = RadialCharacteristicSeeding (ray→bulk seed)
+    [ A_BA   A_BB ] [ ray       ]   A_BB = RadialCharacteristicOperator (System B self-block)
+
+This module hosts BOTH: :class:`RadialCharacteristicOperator` (``A_BB``, the
+radial straight-characteristic self-block, documented in depth below) and
+:class:`RadialCharacteristicSeeding` (``A_AB``, the cell-local angular ray→bulk
+seed injection — see its class docstring for the operator-algebra posing). The
+remainder of this module docstring documents ``A_BB``.
 
 **What it is (operator algebra).** :class:`RadialCharacteristicOperator`
 is the banded radial transport operator :math:`\mu\,\partial_r + \sigma_t`
@@ -61,6 +67,13 @@ principled coherence deferral, not an omission:
   hot-path extraction out of ``(L+C).apply`` prematurely — the campaign's
   highest-risk carve, gated at step 4 (the ``CoupledOperator`` assembly,
   which is the forward matvec's first real consumer).
+* The inverse-family involution web is two-directional
+  (``inverse().solve`` == the forward ``apply``); shipping :meth:`inverse`
+  while ``apply`` is deferred would yield a resolvent whose ``solve``
+  raises — a false capability. So the forward ``apply``, :meth:`inverse`,
+  and ``is_invertible = True`` land TOGETHER in step 4, keeping the
+  faithfulness contract (``is_invertible=True`` ⟺ a working ``solve``)
+  honest here.
 
 **Tracked transient twin (Cardinal Rule 2 — retired at step 4/5).** The
 :math:`\sigma_t`-driven DD *engine*
@@ -77,13 +90,6 @@ then both sides are behaviour-pinned (the in-sweep by the regression floor
 + sweep suite; this by the Mode-11 WRAP bit-identity gate
 ``test_psi_half_coupling.py::TestA_BB_RadialBVP.test_wrap_executes_engine_bit_identical``),
 and the campaign plan's step-4/5 retirement list carries the inline block.
-* The inverse-family involution web is two-directional
-  (``inverse().solve`` == the forward ``apply``); shipping :meth:`inverse`
-  while ``apply`` is deferred would yield a resolvent whose ``solve``
-  raises — a false capability. So the forward ``apply``, :meth:`inverse`,
-  and ``is_invertible = True`` land TOGETHER in step 4, keeping the
-  faithfulness contract (``is_invertible=True`` ⟺ a working ``solve``)
-  honest here.
 
 ``is_invertible`` therefore reads ``False`` (the base default) in this
 step — it advertises the ``inverse()`` OPERATOR-returning act, which does
@@ -136,15 +142,21 @@ if TYPE_CHECKING:
         RadialCharacteristicSpace,
     )
     from orpheus.sn.mesh.augmented_mesh import SNMesh
-    from orpheus.transport.fields._bases import RadialCharacteristicField
+    from orpheus.transport.fields._bases import (
+        AngularField,
+        RadialCharacteristicField,
+    )
     from orpheus.transport.fields.cross_section_field import CrossSectionField
     from orpheus.transport.fields.radial_characteristic_flux import (
         RadialCharacteristicFlux,
     )
     from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
+    from orpheus.transport.source_sinks.angular_source_sink import (
+        AngularSourceSink,
+    )
 
 
-__all__ = ["RadialCharacteristicOperator"]
+__all__ = ["RadialCharacteristicOperator", "RadialCharacteristicSeeding"]
 
 
 class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
@@ -431,5 +443,291 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
     def __repr__(self) -> str:
         return (
             f"RadialCharacteristicOperator(levels={self._ray_space.levels}, "
+            f"ng={self._ray_space.ng}, nx={self._ray_space.nx})"
+        )
+
+
+class RadialCharacteristicSeeding(
+    LinearOperator["RadialCharacteristicField", "AngularField"],
+):
+    r"""``A_AB`` — the ray→bulk seed injection (the Morel–Montry angular seed).
+
+    The off-diagonal ``(transport, ray)`` block of the 2×2 coupled block
+    operator: the ψ½ starting-direction ray seeds the bulk angular recurrence.
+    Domain = the ψ½ carrier
+    :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`
+    (``sn_mesh.radial_characteristic_space`` — the operator reads the inward
+    :math:`\mu=-1` ``cells(p, -1)`` leg of a seed); codomain = the bulk
+    per-ordinate residual
+    :class:`~orpheus.transport.source_sinks.AngularSourceSink`. It exists ONLY
+    on a seed-carrying mesh (the sphere, R12a).
+
+    **What it is (operator algebra) — a CELL-LOCAL ANGULAR coupling.** At each
+    radial cell :math:`i`, the ray value :math:`\psi_{1/2}(i)` is the seed of
+    the Morel–Montry angular recurrence (Hébert §3.9.4)
+
+    .. math::
+
+        \psi_{m+1/2,\,i}
+          = \frac{\psi_{m,\,i} - (1-\tau_m)\,\psi_{m-1/2,\,i}}{\tau_m},
+        \qquad \psi_{-1/2,\,i} \equiv \psi_{1/2}(i),
+
+    run over ORDINATES :math:`m` at a FIXED cell :math:`i`. The upstream
+    half-flux :math:`\psi_{m-1/2,\,i}` then enters that cell's balance as the
+    angular numerator :math:`(\Delta A/w)\,c_{\rm in}\,\psi_{m-1/2,\,i}`. So the
+    seed at cell :math:`i` couples ONLY to the bulk ordinates at the SAME cell
+    :math:`i` — there is **no spatial cell-cell coupling** (the radial march of
+    :math:`\psi_{1/2}` is ``A_BB``'s job; the bulk's spatial DD face march is
+    seed-independent). This is exactly what separates ``A_AB`` from ``A_BB``:
+    ``A_BB``'s forward matvec is spatially woven into ``(L+C).apply`` and
+    DEFERS to step 4, whereas ``A_AB`` is cell-local angular and realizes BOTH
+    directions HERE as thin WRAPs of the single-sourced closure methods.
+
+    **How it is realized — WRAPs of the shared M-M closure.** The seed→bulk map
+    is the SAME
+    :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+    machinery the ``(L+C)`` matvec runs (single source — Cardinal Rule 2);
+    ``A_AB`` isolates its own block by ZEROING the bulk (forward) and
+    DISCARDING the bulk cotangent (transpose):
+
+    * :meth:`apply` (ray → bulk) — ``precompute_psi_state`` with an all-zero
+      ``psi_view`` builds the seed-only half-angle grid. Because the recurrence
+      is linear in :math:`(\psi_{\rm bulk}, \psi_{1/2})` jointly, the zero bulk
+      isolates the ``A_AB`` part exactly (``A_AA``'s angular redistribution
+      contributes nothing). Then per (carrying level, cell) ``cell_contribution``
+      gives the angular numerator, placed as :math:`-(\Delta A/w)\,c_{\rm
+      in}\,\psi_{m-1/2}/V` — the seed's contribution to the bulk residual
+      :math:`m = (\mathrm{denom}\cdot\psi - \mathrm{numer})/V` with
+      :math:`\psi_{\rm cell}=0` (the σ-diagonal and streaming terms drop out).
+    * :meth:`apply_transpose` (bulk cotangent → ray seed cotangent) — the local
+      gather :math:`\bar n_{p,\,m,\,i} = -\bar o_{m,\,i}/V_i` (the exact
+      transpose of the forward :math:`-\cdot/V` placement), then
+      ``angular_adjoint`` reverses the M-M recurrence to the seed cotangent
+      ``seed_cells_bar[p]``, written on the ray ``cells(p, -1)`` leg. This is
+      the :math:`\bar{c}_{-}\mathrel{+}=\mathrm{seed\_cells\_bar}[p]` term the
+      in-sweep reverse (:mod:`orpheus.sn.loss_representation`) adds — the
+      Euclidean transpose :math:`A_{AB}^{\mathsf T}`.
+
+    Because both directions are realized, ``is_adjointable = True``.
+    ``is_invertible`` inherits ``False`` — a rectangular coupling (ray → bulk)
+    has no inverse.
+
+    **The shared kernel (a step-4 note).** ``precompute_psi_state`` /
+    ``cell_contribution`` / ``angular_adjoint`` each serve BOTH ``A_AA`` (the
+    bulk angular redistribution, ``psi_view ≠ 0``) and ``A_AB`` (the seed).
+    ``A_AB`` projects out its block by zeroing / discarding; the step-4
+    ``CoupledOperator`` calls the ONE angular kernel and routes it into the
+    ``A_AA`` and ``A_AB`` blocks — never a twin kernel.
+
+    **Tracked transient twin (Cardinal Rule 2 — retired at step 4/5).** The M-M
+    *kernel* is single-sourced, but the thin :math:`\mp\,\mathrm{numer}/V`
+    orchestration that :meth:`apply` / :meth:`apply_transpose` run around it
+    mirrors the in-sweep placement fused into the ``(L+C)`` matvec
+    (:mod:`orpheus.sn.loss_representation` — the seed's ``angular_numer`` term in
+    ``m = (denom·ψ − numer)/V`` on the forward, and the ``numer_bar →
+    angular_adjoint → seed_cells_bar`` term on the reverse). This is the SAME
+    kind of transient twin ``A_BB.solve`` carries, at a DIFFERENT production
+    entry point (the ``apply`` walk, not the ``solve`` march). Steps 4/5 route
+    the production ``(L+C)`` bulk rows through ``A_AA + A_AB`` (the
+    ``CoupledOperator`` block matvec), retiring the inline placement so the
+    orchestration lives in ONE place (campaign retirement-list entries 3–4).
+    Until then both sides are behaviour-pinned — the in-sweep by the regression
+    floor + sweep suite, this by the bit-identity gates ``TestA_AB_SeedInjection``.
+
+    Parameters
+    ----------
+    sn_mesh : SNMesh
+        The augmented geometry — seed-carrying (1-D curvilinear, R12a). Supplies
+        the ray carrier ``radial_characteristic_space`` (the domain), the M-M
+        closure ``pole_angular_closure`` (the single-sourced kernel), the cell
+        volumes ``volumes``, and the quadrature ``quad``. A seedless mesh
+        (Cartesian / cylinder) has NO ray→bulk coupling: constructing over one
+        is rejected. Unlike ``A_BB``, ``A_AB`` needs NO :math:`\sigma_t` — with
+        the bulk zeroed the collision/streaming terms drop out and only the
+        σ-independent angular numerator survives (so the coupling is a pure
+        function of the mesh geometry + quadrature).
+    """
+
+    def __init__(self, sn_mesh: "SNMesh") -> None:
+        space = sn_mesh.radial_characteristic_space
+        if space is None:
+            raise ValueError(
+                "RadialCharacteristicSeeding: the mesh carries no "
+                "starting-direction ray (radial_characteristic_space is None) "
+                "— a seedless mesh (Cartesian / cylinder, R12a) has no System "
+                "B, hence no ray→bulk seed coupling to inject. A_AB exists "
+                "only on a seed-carrying mesh (the sphere)."
+            )
+        from orpheus.transport.source_sinks.angular_source_sink import (
+            AngularSourceSink,
+        )
+        #: The augmented geometry (ray carrier + the M-M closure + volumes).
+        self.sn_mesh = sn_mesh
+        #: The ψ½ carrier — the DOMAIN. The operator reads the inward
+        #: ``cells(p, -1)`` leg of a seed on this space.
+        self._ray_space: "RadialCharacteristicSpace" = space
+        #: The bulk per-ordinate residual space — the CODOMAIN (the seed's
+        #: contribution to the ``(L+C)`` bulk rows). Derived from the single
+        #: source of the ``AngularSourceSink`` space identity.
+        self._bulk_space: "FunctionSpace" = AngularSourceSink._space_for_mesh(
+            sn_mesh,
+        )
+
+    # ── Predicates / spaces ───────────────────────────────────────────
+
+    @property
+    def is_adjointable(self) -> bool:
+        # Both directions are realized: :meth:`apply` (seed → bulk residual
+        # injection) and :meth:`apply_transpose` (bulk cotangent → ray seed
+        # cotangent, the seed_cells_bar term). A_AB is cell-local angular (no
+        # spatial weaving), so — unlike A_BB's forward matvec — neither
+        # direction defers. is_invertible inherits False: a rectangular
+        # coupling (ray → bulk) is not square.
+        return True
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        # The ψ½ ray seed (the input to :meth:`apply`).
+        return self._ray_space
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        # The bulk per-ordinate residual contribution (:meth:`apply` output).
+        return self._bulk_space
+
+    # ── Forward — seed → bulk angular-numerator contribution ──────────
+
+    def apply(self, seed: "RadialCharacteristicField", /) -> "AngularSourceSink":
+        r"""Inject the ψ½ ray seed into the bulk angular recurrence.
+
+        The seed's contribution to the ``(L+C)`` bulk residual: build the
+        seed-only Morel–Montry half-angle grid (``precompute_psi_state`` with
+        an all-zero ``psi_view`` — the zero bulk isolates ``A_AB`` from
+        ``A_AA``'s redistribution by linearity), then per carrying level and
+        cell take the angular numerator :math:`(\Delta A/w)\,c_{\rm in}\,
+        \psi_{m-1/2}` (``cell_contribution``) and place :math:`-\,\cdot\,/V` —
+        the seed's term in :math:`m = (\mathrm{denom}\cdot\psi -
+        \mathrm{numer})/V` with :math:`\psi_{\rm cell}=0`. Non-carrying-level
+        ordinates stay zero (they have no ray seed). Bit-identical to the
+        in-sweep injection (same single-sourced closure methods).
+
+        Parameters
+        ----------
+        seed : RadialCharacteristicField
+            The ψ½ ray flux. Only its inward ``cells(p, -1)`` leg is read
+            (the recurrence seed); the ``+1`` leg and corners are ``A_BB``
+            -internal. Must share this operator's mesh.
+
+        Returns
+        -------
+        AngularSourceSink
+            The seed's per-ordinate contribution to the bulk residual,
+            shape ``(N, ng, nx)``.
+        """
+        from orpheus.transport.source_sinks.angular_source_sink import (
+            AngularSourceSink,
+        )
+
+        mesh = self.sn_mesh
+        self._check_mesh(seed, "apply")
+        closure = mesh.pole_angular_closure
+        space = self._ray_space
+        N = mesh.quad.N
+        ng = space.ng
+        nx = mesh.nx
+        V = mesh.volumes
+        level_indices = closure.level_indices
+
+        # Bulk zeroed → the recurrence propagates ONLY the seed (linearity).
+        psi_state = closure.precompute_psi_state(
+            np.zeros((N, ng, nx)), radial_characteristic=seed,
+        )
+        out_g_first = np.zeros((ng, N, nx))
+        for p in space.levels:
+            ordinates = np.asarray(level_indices[p])
+            within = np.arange(ordinates.size)
+            for i in range(nx):
+                _, upstream_numer = closure.cell_contribution(
+                    psi_state, i, p, within,
+                )
+                out_g_first[:, ordinates, i] = -upstream_numer / V[i]
+        return AngularSourceSink.from_mesh(out_g_first.swapaxes(0, 1), mesh)
+
+    # ── Euclidean transpose — bulk cotangent → ray seed cotangent ─────
+
+    def apply_transpose(
+        self, cotangent: "AngularField", /,
+    ) -> "RadialCharacteristicSourceSink":
+        r"""Euclidean transpose :math:`A_{AB}^{\mathsf T}` — bulk → ray seed.
+
+        The adjoint of :meth:`apply`: given a cotangent on the bulk residual
+        (the codomain), return the cotangent on the ray seed (the domain).
+        Reverse the forward's :math:`-\,\mathrm{numer}/V` placement with the
+        local gather :math:`\bar n_{p,\,m,\,i} = -\bar o_{m,\,i}/V_i`, then
+        ``angular_adjoint`` reverses the M-M recurrence to the per-carrying-
+        level seed cotangent ``seed_cells_bar[p]``, written on the inward
+        ``cells(p, -1)`` leg. The bulk-redistribution cotangent
+        (``psi_ang_bar``, ``A_AA``'s share of the shared kernel) is discarded.
+        The ``+1`` leg and corners stay zero (the forward writes only the
+        inward leg).
+
+        Parameters
+        ----------
+        cotangent : AngularField
+            A cotangent on the bulk residual space (role-erased — any
+            ``(N, ng, nx)`` bulk field). Must share this operator's mesh.
+
+        Returns
+        -------
+        RadialCharacteristicSourceSink
+            The ray seed cotangent — ``cells(p, -1)`` filled per carrying
+            level, everything else zero.
+        """
+        from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
+            RadialCharacteristicSourceSink,
+        )
+
+        mesh = self.sn_mesh
+        self._check_mesh(cotangent, "apply_transpose")
+        closure = mesh.pole_angular_closure
+        space = self._ray_space
+        V = mesh.volumes
+        level_indices = closure.level_indices
+
+        ob_g_first = cotangent.values.swapaxes(0, 1)          # (ng, N, nx)
+        # numer_bar for EVERY level (angular_adjoint needs the full tuple);
+        # the local −ō/V gather is the exact transpose of the forward −·/V.
+        numer_bar = tuple(
+            -ob_g_first[:, np.asarray(level_idx), :] / V[None, None, :]
+            for level_idx in level_indices
+        )
+        _, seed_cells_bar = closure.angular_adjoint(numer_bar)
+
+        src_bar = RadialCharacteristicSourceSink.zeros_on(mesh)
+        for p, cells_bar in seed_cells_bar.items():
+            space.cells_view(src_bar.values, p, -1)[...] = cells_bar
+        return src_bar
+
+    # ── Internals ─────────────────────────────────────────────────────
+
+    def _check_mesh(self, field: "RadialCharacteristicField | AngularField", method: str) -> None:
+        r"""Enforce the mesh-identity invariant (Pattern 4).
+
+        The input field, this operator's ``pole_angular_closure``, and the
+        ``volumes`` must all be on the SAME
+        :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` instance, so the seed
+        legs, the M-M coefficients, and the ``/V`` scaling cannot desync.
+        """
+        if field.mesh is not self.sn_mesh:
+            raise ValueError(
+                f"RadialCharacteristicSeeding.{method}: the input field and "
+                f"the operator must share the same SNMesh instance "
+                f"(mesh-identity invariant); got field mesh {field.mesh!r} "
+                f"vs operator mesh {self.sn_mesh!r}."
+            )
+
+    def __repr__(self) -> str:
+        return (
+            f"RadialCharacteristicSeeding(levels={self._ray_space.levels}, "
             f"ng={self._ray_space.ng}, nx={self._ray_space.nx})"
         )
