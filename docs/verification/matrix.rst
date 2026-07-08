@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6363**
+Total tests collected: **6424**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1187, 18.7%
-   L1, 1074, 16.9%
+   L0, 1187, 18.5%
+   L1, 1080, 16.8%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4012, 63.1%
+   foundation, 4067, 63.3%
    unmarked, 36, 0.6%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6248
+   explicit, 6309
    verify, 0
    class-name, 46
    func-name, 0
@@ -259,6 +259,7 @@ Module × level grid
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
    mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 26, 0
+   mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 34, 0
    mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
    mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
    mms/test_curvilinear_operator_admits_anisotropic_mms, 0, 2, 0, 0, 0, 0
@@ -348,9 +349,10 @@ Module × level grid
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
-   operators/test_psi_half_coupling, 0, 0, 0, 0, 17, 0
+   operators/test_psi_half_coupling, 0, 0, 0, 0, 36, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_radial_characteristic_metric, 0, 0, 0, 0, 19, 0
+   operators/test_ray_operator, 0, 6, 0, 0, 0, 0
    operators/test_removal_form_matvec_sweep, 0, 0, 0, 0, 20, 0
    operators/test_scattering_adjoint, 0, 0, 0, 0, 15, 0
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
@@ -411,7 +413,7 @@ Module × level grid
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 318, 0
+   test_layer_imports, 0, 0, 0, 0, 320, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -598,6 +600,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``dd-slab-scalar``, 4
    ``en-kernel-integral``, 4
    ``hebert-3-323``, 4
+   ``hebert-3-434``, 4
+   ``hebert-3-435``, 4
    ``loss-rep-LpC``, 4
    ``macro-sum``, 4
    ``peierls-greens-V-alpha-1``, 4
@@ -633,8 +637,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``diffusion-mms``, 2
    ``harmonic-moment-projection``, 2
    ``hebert-3-432-source``, 2
-   ``hebert-3-434``, 2
-   ``hebert-3-435``, 2
    ``hilbert-adjoint-equals-metric-times-S0``, 2
    ``peierls-greens-cylinder-mr-kinf``, 2
    ``peierls-greens-cylinder-mr-piecewise-tau``, 2
