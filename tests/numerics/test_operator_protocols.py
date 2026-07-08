@@ -34,6 +34,7 @@ from orpheus.numerics.operator import (
     IdentityOperator,
     OperatorSum,
     SumOfTensorProductsOperator,
+    SystemRole,
     TensorProductOperator,
     ZeroOperator,
 )
@@ -59,6 +60,18 @@ class TestBlockRoleEnum:
 
     def test_roles_are_distinct(self) -> None:
         assert len({BlockRole.BULK, BlockRole.FULL, BlockRole.BOUNDARY}) == 3
+
+
+class TestSystemRoleEnum:
+    # Mirror of TestBlockRoleEnum — the exact-member pin protects the hard-coded
+    # "two atoms + a top" shape that _join_system_roles relies on (a 4th member
+    # would break the binary same/different→COUPLED join, exactly as a 4th
+    # BlockRole member would break _join_block_roles).
+    def test_enum_has_the_three_roles(self) -> None:
+        assert {r.name for r in SystemRole} == {"A", "B", "COUPLED"}
+
+    def test_roles_are_distinct(self) -> None:
+        assert len({SystemRole.A, SystemRole.B, SystemRole.COUPLED}) == 3
 
 
 class TestIsinstanceMarkers:

@@ -130,7 +130,7 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from orpheus.numerics.operator import LinearOperator
+from orpheus.numerics.operator import LinearOperator, SystemRole
 from orpheus.sn.spatial.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
     carlson_inward_sweep_transpose,
@@ -243,10 +243,11 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
     # Endomorphic on the ψ½ carrier: both the source (input to solve) and
     # the flux (its output) live on the SAME RadialCharacteristicSpace —
     # the role (source / flux) lives on the field types, not the space.
-    # block_role stays None (the base default): A_BB is System B's self-
-    # block on the ray space, not a bulk/full/boundary block of the
-    # FullField composite; the SystemRole {A, B, COUPLED} lattice widening
-    # is campaign step 4.
+    # block_role stays None (the base default): A_BB is System B's self-block
+    # on the ray space, not a bulk/full/boundary block of the FullField
+    # composite. Its two-system membership rides the SystemRole axis (campaign
+    # step 4a) — A_BB acts within System B alone.
+    system_role = SystemRole.B
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -547,6 +548,10 @@ class RadialCharacteristicSeeding(
         σ-independent angular numerator survives (so the coupling is a pure
         function of the mesh geometry + quadrature).
     """
+
+    # A_AB maps System B (the ray seed) → System A (the bulk residual): an
+    # off-diagonal block, so it spans both systems (campaign step 4a).
+    system_role = SystemRole.COUPLED
 
     def __init__(self, sn_mesh: "SNMesh") -> None:
         space = sn_mesh.radial_characteristic_space

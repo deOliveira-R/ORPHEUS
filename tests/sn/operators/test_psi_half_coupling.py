@@ -76,7 +76,10 @@ from orpheus.sn.spatial.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
     carlson_inward_sweep_transpose,
 )
+from orpheus.numerics.operator import SystemRole, _join_system_roles
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
+from orpheus.transport.operators.scattering import ScatteringOperator
+from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.cross_section_field import CrossSectionField
@@ -1820,3 +1823,63 @@ class TestA_AB_SeedInjection:
             op.apply(_seed_flux(other, np.random.default_rng(9)))
         with pytest.raises(ValueError, match="mesh-identity invariant"):
             op.apply_transpose(_bulk_cotangent(other, np.random.default_rng(9)))
+
+
+class TestSystemRoleLattice:
+    r"""4a — the ``SystemRole {A, B, COUPLED}`` two-system role lattice.
+
+    The COARSE two-system partition that makes System B first-class in the
+    operator algebra (orthogonal to :class:`~orpheus.numerics.operator.BlockRole`,
+    the within-System-A bulk↔boundary refinement): the self-block ``A_BB`` and
+    the ray boundary ``B_b`` are System B; the off-diagonal couplings ``A_AB`` /
+    ``A_BA`` span both systems (COUPLED); every model-generic System-A leaf stays
+    unclassified (``None``). The join is the two-system analogue of the
+    block-role union — ``A ⊔ B = COUPLED``. Foundation: a software-invariant
+    gate (no ``verifies`` — it pins no equation).
+    """
+
+    def test_join_is_the_two_system_union(self):
+        # The defining law A ⊔ B = COUPLED, its symmetry, idempotence, COUPLED
+        # absorption, and the conservative None propagation (an operator outside
+        # the two-system decomposition stays outside under a sum).
+        A, B, C = SystemRole.A, SystemRole.B, SystemRole.COUPLED
+        assert _join_system_roles(A, A) is A
+        assert _join_system_roles(B, B) is B
+        assert _join_system_roles(C, C) is C
+        assert _join_system_roles(A, B) is C
+        assert _join_system_roles(B, A) is C          # symmetric
+        assert _join_system_roles(A, C) is C
+        assert _join_system_roles(C, B) is C          # COUPLED absorbs
+        assert _join_system_roles(None, A) is None
+        assert _join_system_roles(A, None) is None
+        assert _join_system_roles(None, None) is None
+
+    def test_psi_half_blocks_carry_their_system_role(self):
+        # The four ψ½ blocks are stamped at the class level (the classification
+        # is a class attribute — readable without instantiation).
+        assert RadialCharacteristicOperator.system_role is SystemRole.B          # A_BB
+        assert RadialCharacteristicSeeding.system_role is SystemRole.COUPLED     # A_AB
+        assert RadialCharacteristicBoundaryOperator.system_role is SystemRole.B  # B_b
+        assert (
+            _rcr_mod.RadialCharacteristicReconstruction.system_role
+            is SystemRole.COUPLED  # A_BA
+        )
+
+    def test_model_generic_operators_stay_unclassified(self):
+        # The CONTROL: System-A model-generic leaves carry NO intrinsic
+        # two-system membership — an SN context composes them into System A, but
+        # they belong to no system by construction (the honest None default).
+        assert SNBoundaryOperator.system_role is None      # B_a (System A trace boundary)
+        assert MultiplicationOperator.system_role is None  # C (collision)
+        assert ScatteringOperator.system_role is None      # S
+        assert FissionOperator.system_role is None         # F
+
+    def test_role_propagates_through_the_composers(self):
+        # The derivation fires through the composers exactly as block_role does:
+        # OperatorSum joins its summands, the G-adjoint preserves. A_AB is
+        # σ-independent, so a sphere instance is cheap; it carries COUPLED, so
+        # both a sum with itself and its adjoint stay COUPLED.
+        a_ab = RadialCharacteristicSeeding(_sphere())
+        assert (a_ab + a_ab).system_role is SystemRole.COUPLED   # OperatorSum join
+        assert (2.0 * a_ab).system_role is SystemRole.COUPLED    # ScaledOperator passthrough
+        assert a_ab.H.system_role is SystemRole.COUPLED          # _AdjointOperator passthrough

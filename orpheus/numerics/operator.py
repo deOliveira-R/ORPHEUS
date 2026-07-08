@@ -233,6 +233,54 @@ class BlockRole(Enum):
     BOUNDARY = "boundary"
 
 
+class SystemRole(Enum):
+    r"""Which of the two coupled systems an operator's action maps between.
+
+    The curvilinear-S\ :sub:`N` within-group system is a 2×2 coupled block
+    operator over two systems (campaign ``coupled_block_operator_campaign``):
+
+    .. math::
+
+        \begin{bmatrix} A_{AA} & A_{AB} \\ A_{BA} & A_{BB} \end{bmatrix}
+        \begin{bmatrix} \text{transport} \\ \text{ray} \end{bmatrix}
+
+    * **System A** — the transport bulk ⊕ trace (the angular-flux
+      :class:`~orpheus.transport.full_field.FullField`: a bulk field ⊕ its
+      spatial boundary trace), governed by ``A_AA = L + C − S − B``.
+    * **System B** — the ψ½ radial-characteristic ray (the starting-direction
+      cells at each radial cell), governed by ``A_BB`` (the radial
+      straight-characteristic march).
+
+    This role is the COARSE two-system partition — orthogonal to
+    :class:`BlockRole`, which refines the bulk ↔ boundary structure *within*
+    System A. An operator carries at most one:
+
+    * :attr:`A` — acts within System A only.
+    * :attr:`B` — acts within System B only: the self-block ``A_BB``
+      (:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`)
+      and the ray boundary ``B_b``
+      (:class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`).
+    * :attr:`COUPLED` — maps BETWEEN the systems (an off-diagonal block, or the
+      assembled 2×2): the ray→bulk seed ``A_AB``
+      (:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicSeeding`),
+      the bulk→ray fold ``A_BA``, and the assembled ``CoupledOperator``.
+
+    Reading each role as the SET of systems its action touches (``A = {A}``,
+    ``B = {B}``, ``COUPLED = {A, B}``), a sum touches the union — see
+    :func:`_join_system_roles`. Operators outside the two-system decomposition
+    — every model-generic family (diffusion / CP / MoC) AND the model-generic
+    reaction leaves ``C`` / ``S`` / ``F`` that a curvilinear-S\ :sub:`N` context
+    COMPOSES into System A but that carry no intrinsic two-system membership —
+    leave :attr:`~LinearOperator.system_role` at its ``None`` default: the
+    conservative "not part of the ψ½ augmentation" reading, exactly as an
+    unclassified :attr:`~LinearOperator.block_role` is ``None``.
+    """
+
+    A = "system_a"
+    B = "system_b"
+    COUPLED = "coupled"
+
+
 def _join_block_roles(
     a: Optional["BlockRole"], b: Optional["BlockRole"],
 ) -> Optional["BlockRole"]:
@@ -253,10 +301,39 @@ def _join_block_roles(
     ``InvertibleOperator`` FULL tag. ``L`` is ``FULL``, ``C``/``S``/``F`` are
     ``BULK``, ``B`` is ``BOUNDARY`` → every within-group loss sum joins to
     ``FULL``, exactly the irreducibly bulk↔boundary-coupling streaming role.
+
+    Twin of :func:`_join_system_roles` (the two-system analogue — ``COUPLED``
+    there plays the top-of-lattice role ``FULL`` plays here): both are the SAME
+    union-lattice join (two atoms + a top + ``None`` propagation) on ORTHOGONAL
+    role axes. Kept as a deliberate twin while only two axes exist — a generic
+    ``RoleAxis`` join would need ``setattr``-driven dispatch that regresses the
+    #226 pyright ratchet. **Collapse trigger:** a THIRD parallel role axis (a
+    DSA / multiphysics role) makes the shared abstraction pay — unify then.
     """
     if a is None or b is None:
         return None
     return a if a is b else BlockRole.FULL
+
+
+def _join_system_roles(
+    a: Optional["SystemRole"], b: Optional["SystemRole"],
+) -> Optional["SystemRole"]:
+    r"""The system role of a SUM ``A + B`` — the union of the systems touched.
+
+    Reading a role as the *set* of systems its action touches
+    (:attr:`SystemRole.A` = ``{A}``, :attr:`SystemRole.B` = ``{B}``,
+    :attr:`SystemRole.COUPLED` = ``{A, B}``), the sum touches the union:
+    ``A ⊔ A = A``, ``B ⊔ B = B``, and any mix (or anything with ``COUPLED``) is
+    ``COUPLED``. So the join is *"same role stays, anything different becomes
+    COUPLED"* — the two-system analogue of :func:`_join_block_roles` with
+    ``COUPLED`` playing the top-of-lattice role that ``FULL`` plays there. If
+    either operand is unclassified (``None`` — an operator outside the
+    two-system decomposition) the sum is unclassified too: ``None`` propagates
+    (a conservative "don't know" rather than a guessed role).
+    """
+    if a is None or b is None:
+        return None
+    return a if a is b else SystemRole.COUPLED
 
 
 class _BlockRoleMeta(type):
@@ -484,6 +561,15 @@ class LinearOperator(Protocol[Domain, Codomain]):
     #: class-attr override keeps the class-level read
     #: (``ScatteringOperator.block_role``) working.
     block_role: Optional[BlockRole] = None
+
+    #: The COARSE two-system membership (:class:`SystemRole` — System A / System
+    #: B / COUPLED) of a curvilinear-S_N augmented operator, orthogonal to
+    #: :attr:`block_role` (which refines the bulk↔boundary structure *within*
+    #: System A). ``None`` for every operator outside the ψ½ two-system
+    #: decomposition. Derived through composition exactly as :attr:`block_role`
+    #: is — the passthrough (:class:`_AdjointOperator`, :class:`ScaledOperator`)
+    #: and the :func:`_join_system_roles` union (:class:`OperatorSum`).
+    system_role: Optional[SystemRole] = None
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -1114,6 +1200,9 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
         # inner operator's role (Wave O / O.2b 4.5): ``L.H`` is FULL,
         # ``B.H`` is BOUNDARY, ``C.H`` is BULK.
         self.block_role = getattr(inner, "block_role", None)
+        # The G-adjoint also preserves which SYSTEMS are touched: A_AB.H
+        # (bulk→ray) is still COUPLED, A_BB.H still System B.
+        self.system_role = getattr(inner, "system_role", None)
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -1293,6 +1382,12 @@ class OperatorSum(
         # the whole ``(L+C-S-F-B)`` loss now carry FULL by construction.
         self.block_role = _join_block_roles(
             getattr(a, "block_role", None), getattr(b, "block_role", None),
+        )
+        # System role DERIVED the same way — the sum touches the union of the
+        # systems its summands touch (``A ⊔ B = COUPLED``); the two-system
+        # analogue of the block-role join.
+        self.system_role = _join_system_roles(
+            getattr(a, "system_role", None), getattr(b, "system_role", None),
         )
 
     @property
@@ -1666,6 +1761,8 @@ class ScaledOperator(
         self._op: Final = op
         # Scaling preserves which blocks the action touches (Wave O / O.2b 4.5).
         self.block_role = getattr(op, "block_role", None)
+        # Scaling preserves which systems the action touches, too.
+        self.system_role = getattr(op, "system_role", None)
 
     @property
     def op(self) -> ScaledOperand:

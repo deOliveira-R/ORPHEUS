@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from orpheus.numerics.operator import LinearOperator
+from orpheus.numerics.operator import LinearOperator, SystemRole
 from orpheus.numerics.spaces.radial_characteristic_space import (
     fold_moments_to_radial_characteristic,
     fold_moments_to_radial_characteristic_transpose,
@@ -119,6 +119,11 @@ class RadialCharacteristicReconstruction(LinearOperator):
         case. Fixed at construction so the transpose has a well-defined
         codomain ``(n_moments, ng, nx)``.
     """
+
+    # A_BA maps System A (the bulk emission) → System B (the ray source): an
+    # off-diagonal block, so it spans both systems (campaign step 4a). The fold
+    # migrates to sn beside A_BB at step 4c (the LIFT); the role rides with it.
+    system_role = SystemRole.COUPLED
 
     def __init__(self, sn_mesh: "SNMesh", n_moments: int = 1) -> None:
         space = sn_mesh.radial_characteristic_space

@@ -57,6 +57,7 @@ import numpy as np
 from orpheus.numerics.operator import (
     BlockRole,
     LinearOperator,
+    SystemRole,
 )
 
 if TYPE_CHECKING:
@@ -534,6 +535,9 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     """
 
     block_role = BlockRole.BOUNDARY
+    # B_b is System B's boundary — it acts within the ray system alone
+    # (present-zero bulk and trace); campaign step 4a.
+    system_role = SystemRole.B
 
     def __init__(self, sn_mesh: "SNMesh") -> None:
         self.sn_mesh = sn_mesh
