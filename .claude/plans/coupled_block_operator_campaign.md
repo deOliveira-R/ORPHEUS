@@ -319,16 +319,16 @@ campaign's path). The un-weld fixes it structurally (`split()`→B_a; B_b schedu
   dr = `sn_mesh.axis_widths[0]` (nx,) — mesh geometry. So `RadialCharacteristicOperator(sn_mesh,
   total_cross_section)`.
 
-  **⚠ P-IDX-VS-LEVEL — RESOLVE FIRST (correctness gate, may be a latent bug):** `cells_view(
-  buffer, level, sign)` requires the LEVEL VALUE (`_slot_key`, `radial_characteristic_space.py:
-  378`: `if level not in self.levels: raise`). But the in-sweep march passes `p_idx` (the
-  `enumerate(levels)` POSITION) at `:4097-4112`, not the level value. On the sphere `levels=(0,)`
-  ⟹ `p_idx==level==0` so it works; a MULTI-LEVEL carrying mesh (multi-level cylinder) would
-  mismatch (p_idx∈{0,1,2} vs level∈{0,2,5}). Before building RayOp: determine (a) whether the
-  sweep's `levels` var is positional or actual μ-indices, (b) whether multi-level ψ½ ever occurs
-  in production, (c) whether the existing sweep has a latent p_idx/level bug (if so, FIX FIRST
-  per process-discipline). RayOp must use the CORRECT key. Dispatch explorer/numerics-investigator
-  on this if not immediately clear.
+  **✅ P-IDX-VS-LEVEL — RESOLVED @ `bf07922` (numerics-investigator verdict: NOT A BUG; key by
+  `p_idx`).** `RadialCharacteristicSpace.levels` are level POSITIONS (`enumerate(raw)`), NOT
+  sparse μ-indices; the gate `p_idx in seed_levels` and the space key share ONE source
+  (`mesh.radial_characteristic_levels`), so a passing `p_idx` is ALWAYS a valid slot key — no
+  crash, no wrong-slot, for any config. Multi-level-sparse carrying meshes DON'T occur (sphere
+  always 1 level `(0,)`; cylinder never carries; verified 16-quadrature battery). **RayOp MUST
+  key by `p_idx` (level POSITION), NOT `level`** — `level` is the walk's `mu_level_idx`, `None`
+  on the sphere (the only carrying geometry), so passing it would raise. The invariant is pinned
+  by `tests/sn/mesh/test_radial_characteristic_slot_coordination.py` (34 tests) + an inoculating
+  comment at the solve site.
 
   **Forward `.apply` (banded matvec μ∂_r+σ_t) — DEFER to Step 4 as a documented seam:** the
   forward action of A_BB is currently woven into `(L+C).apply` (the ray residual on the +1
