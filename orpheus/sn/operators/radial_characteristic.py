@@ -50,54 +50,51 @@ SAME engine the in-sweep direct-seed block
 its Euclidean reverse-mode adjoint
 (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_transpose`).
 
-Scope of this realization (campaign step 1c) — resolvent action only
-====================================================================
+Scope of this realization (campaign step 4b) — the full operator
+================================================================
 
-This operator realizes the **resolvent action** :math:`A_{BB}^{-1}` as
-:meth:`solve` (the march) and its adjoint as :meth:`solve_transpose`. The
-**forward** action :math:`A_{BB}\,\psi = (\mu\,\partial_r + \sigma_t)\psi`
-(:meth:`apply`) is DEFERRED to campaign step 4, and with it the
-operator-returning :meth:`inverse` and ``is_invertible = True``. This is a
-principled coherence deferral, not an omission:
+This operator realizes BOTH directions of the complete ``A_BB`` machinery:
 
-* The forward matvec is currently woven into the composite ``(L+C).apply``
-  (the ray residual on the :math:`\mu=+1` outflow corner, ruling R13).
-  Spelling it standalone HERE would either duplicate that DD recurrence (a
-  Pattern-2 twin path that could drift by a rounding) or force the
-  hot-path extraction out of ``(L+C).apply`` prematurely — the campaign's
-  highest-risk carve, gated at step 4 (the ``CoupledOperator`` assembly,
-  which is the forward matvec's first real consumer).
-* The inverse-family involution web is two-directional
-  (``inverse().solve`` == the forward ``apply``); shipping :meth:`inverse`
-  while ``apply`` is deferred would yield a resolvent whose ``solve``
-  raises — a false capability. So the forward ``apply``, :meth:`inverse`,
-  and ``is_invertible = True`` land TOGETHER in step 4, keeping the
-  faithfulness contract (``is_invertible=True`` ⟺ a working ``solve``)
-  honest here.
+* the **forward** action :math:`A_{BB}\,\psi_{1/2} = (\mu\,\partial_r +
+  \sigma_t)\,\psi_{1/2}` as :meth:`apply`, and its Euclidean transpose
+  :math:`A_{BB}^{\mathsf T}` as :meth:`apply_transpose`;
+* the **resolvent** action :math:`A_{BB}^{-1}` as :meth:`solve` (the direct
+  Carlson march) and its adjoint :math:`(A_{BB}^{-1})^{\mathsf T}` as
+  :meth:`solve_transpose`;
+* the operator-returning :meth:`inverse` (a generic
+  :class:`~orpheus.numerics.operator.InverseOperator` whose ``apply`` IS
+  :meth:`solve`), so ``is_invertible`` and ``is_adjointable`` both read
+  ``True`` — the involution web ``inverse().solve == apply`` closes.
 
-**Tracked transient twin (Cardinal Rule 2 — retired at step 4/5).** The
-:math:`\sigma_t`-driven DD *engine*
+**Single-sourced forward (campaign step 4b — extract, not twin).** The
+forward matvec is the exact algebraic inverse of the march; it lives in ONE
+place —
+:func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual`
+— which BOTH :meth:`apply` here AND the fused ``(L+C)`` walk's ψ½ rows
+(:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._seed_rows_forward`)
+call. There is NO forward twin: step 4b reduced the walk method to a thin
+wrapper over the shared kernel (the user ruled "extract the shared kernel
+now" over a tracked twin, closing the "could drift by a rounding" risk by
+construction — Cardinal Rule 2). The transpose is single-sourced the same
+way
+(:func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual_transpose`,
+the PURE ``A_BB`` transpose; the walk's ``_seed_rows_transpose`` wraps it and
+ADDS the ``A_AB`` seed→bulk coupling, which is not part of ``A_BB`` in
+isolation).
+
+**Tracked transient twin — the SOLVE orchestration (Cardinal Rule 2, retired
+at step 4e).** The :math:`\sigma_t`-driven DD *engine*
 (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`)
 is single-sourced, but the two-leg ORCHESTRATION that :meth:`solve` runs
 (read the source views → inward leg → pole-continue → reversed outward leg
-→ write the flux views) currently mirrors the in-sweep production block
-``orpheus/sn/loss_representation:4104-4119`` — the direct-seed march that
-``(L+C).solve`` runs inline. This transient twin is the *reason* step 1c
-poses the named operator FIRST: steps 4/5 route the production ``(L+C)``
-ray solve THROUGH this operator (the coupled block-triangular resolvent),
+→ write the flux views) still mirrors the in-sweep production block
+``orpheus/sn/loss_representation:4104-4131`` — the direct-seed march that
+``(L+C).solve`` runs inline. Step 4e routes the production ``(L+C)`` ray
+solve THROUGH this operator (the coupled block-triangular resolvent),
 retiring the inline block so the orchestration lives in ONE place. Until
-then both sides are behaviour-pinned (the in-sweep by the regression floor
-+ sweep suite; this by the Mode-11 WRAP bit-identity gate
-``test_psi_half_coupling.py::TestA_BB_RadialBVP.test_wrap_executes_engine_bit_identical``),
-and the campaign plan's step-4/5 retirement list carries the inline block.
-
-``is_invertible`` therefore reads ``False`` (the base default) in this
-step — it advertises the ``inverse()`` OPERATOR-returning act, which does
-not yet exist — while the mathematical invertibility is expressed by the
-presence of a working :meth:`solve`. Likewise ``is_adjointable`` stays
-``False`` (the FORWARD transpose :math:`A_{BB}^{\mathsf T}` defers with the
-forward ``apply``; the *solve*-transpose :meth:`solve_transpose` is a
-distinct realized verb, the adjoint of the inverse action).
+then both sides are behaviour-pinned (the in-sweep by the regression floor +
+sweep suite; this by the Mode-11 WRAP bit-identity gate) and the campaign
+plan's step-4e retirement list carries the inline block.
 
 Sourcing
 ========
@@ -130,10 +127,17 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from orpheus.numerics.operator import LinearOperator, SystemRole
+from orpheus.numerics.operator import (
+    InverseOperator,
+    LinearOperator,
+    NotInvertible,
+    SystemRole,
+)
 from orpheus.sn.spatial.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
     carlson_inward_sweep_transpose,
+    radial_characteristic_forward_residual,
+    radial_characteristic_forward_residual_transpose,
 )
 
 if TYPE_CHECKING:
@@ -168,11 +172,13 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
     :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`
     (``sn_mesh.radial_characteristic_space``).
 
-    See the module docstring for the operator-algebra posing (two-point
-    radial BVP), the solve (the direct Carlson march IS the resolvent
-    :math:`A_{BB}^{-1}`), and the step-1c realization scope (resolvent
-    action :meth:`solve` + adjoint :meth:`solve_transpose`; the forward
-    :meth:`apply` / :meth:`inverse` / ``is_invertible`` land in step 4).
+    See the module docstring's "Scope of this realization" section for the
+    operator-algebra posing (two-point radial BVP) and the full realized
+    surface — the forward :meth:`apply` / :meth:`apply_transpose`, the
+    resolvent :meth:`solve` / :meth:`solve_transpose` (the direct Carlson
+    march IS :math:`A_{BB}^{-1}`), and the operator-returning :meth:`inverse`
+    (so ``is_invertible`` and ``is_adjointable`` both read ``True``; step 4b
+    completed the forward, single-sourced with the ``(L+C)`` walk).
 
     Parameters
     ----------
@@ -257,28 +263,105 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
     def codomain(self) -> Optional["FunctionSpace"]:
         return self._ray_space
 
-    # ── Forward action — DEFERRED to campaign step 4 ──────────────────
+    # ── Predicates — the forward closes the involution web (step 4b) ──
 
-    def apply(self, x: "RadialCharacteristicField", /) -> "RadialCharacteristicField":
-        r"""The forward matvec :math:`A_{BB}\,\psi = (\mu\,\partial_r + \sigma_t)\psi`.
+    @property
+    def is_invertible(self) -> bool:
+        # A_BB's ``solve`` IS the exact direct inverse (the two-leg Carlson
+        # march); with the forward ``apply`` realized (step 4b) the involution
+        # web ``inverse().solve == apply`` closes, so ``inverse()`` is a
+        # faithful capability (a carrying-mesh A_BB is always invertible).
+        return True
 
-        DEFERRED to campaign step 4 (loud, never a silent wrong answer).
-        The forward ray action is currently woven into the composite
-        ``(L+C).apply`` (the ray residual on the :math:`\mu=+1` outflow
-        corner, ruling R13); extracting it standalone here would duplicate
-        that DD recurrence (a twin path) or force the hot-path carve
-        prematurely. It lands in step 4 with the ``CoupledOperator``
-        assembly — the forward matvec's first real consumer — as the single
-        source (see the module docstring "Scope of this realization").
+    @property
+    def is_adjointable(self) -> bool:
+        # Both transposes are realized: the forward ``apply_transpose``
+        # (Euclidean :math:`A_{BB}^{\mathsf T}`) and the resolvent
+        # ``solve_transpose`` (:math:`(A_{BB}^{-1})^{\mathsf T}`).
+        return True
+
+    # ── Forward action — A_BB ψ = (μ ∂_r + σ_t)ψ (campaign step 4b) ────
+
+    def apply(
+        self, x: "RadialCharacteristicField", /,
+    ) -> "RadialCharacteristicSourceSink":
+        r"""The forward matvec :math:`A_{BB}\,\psi_{1/2} = (\mu\,\partial_r
+        + \sigma_t)\,\psi_{1/2}` — the exact algebraic inverse of :meth:`solve`.
+
+        A thin WRAP of the single-sourced
+        :func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual`
+        — the SAME body the fused ``(L+C)`` walk runs for the ψ½ rows
+        (``_OneDimScanWalk._seed_rows_forward``), so ``A_BB.apply`` is
+        bit-identical to that production forward (Cardinal Rule 2: one
+        forward, no twin). Reads the flux state ψ½ (cells + corners); returns
+        the residual source :math:`q_{1/2} = A_{BB}\,\psi_{1/2}`. The
+        ``apply ∘ solve`` outflow-corner defect closes to ``0.0`` exactly; the
+        cell round-trip is principled-equiv at ~FP ULP — the forward's
+        :math:`2/\Delta r` and the march's :math:`\Delta r\,\sigma + 2`
+        reassociate.
+
+        Parameters
+        ----------
+        x : RadialCharacteristicField
+            The ψ½ flux state (role-erased). Must share this operator's mesh.
+
+        Returns
+        -------
+        RadialCharacteristicSourceSink
+            The residual source :math:`A_{BB}\,\psi_{1/2}`.
         """
-        raise NotImplementedError(
-            "RadialCharacteristicOperator.apply (the forward matvec "
-            "A_BB ψ = (μ ∂_r + σ_t) ψ) is deferred to campaign step 4: it "
-            "is currently woven into (L+C).apply (ruling R13), and is "
-            "extracted there — with inverse() and is_invertible=True — as "
-            "the CoupledOperator's (B,B) block. Step 1c realizes the "
-            "resolvent action via .solve (the direct Carlson march)."
+        from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
+
+        space = self._require_same_carrier(x, "apply")
+        out = radial_characteristic_forward_residual(
+            x.values, space, self.total_cross_section.values,
+            self.sn_mesh.axis_widths[0],
         )
+        return RadialCharacteristicSourceSink(values=out, space=space, mesh=self.sn_mesh)
+
+    def apply_transpose(
+        self, y: "RadialCharacteristicField", /,
+    ) -> "RadialCharacteristicSourceSink":
+        r"""The Euclidean transpose of the forward matvec —
+        :math:`A_{BB}^{\mathsf T}`.
+
+        A thin WRAP of
+        :func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual_transpose`
+        — the PURE ``A_BB`` transpose. The walk's ``_seed_rows_transpose``
+        wraps the SAME body then ADDS the ``A_AB`` seed→bulk recurrence
+        coupling, which is NOT part of ``A_BB`` in isolation. This is the flat
+        EUCLIDEAN adjoint :math:`A_{BB}^{\mathsf T}`; the metric Hilbert
+        adjoint :math:`G^{-1}A_{BB}^{\mathsf T}G` (``.H``) is realized once at
+        the composite (L19).
+        """
+        from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
+
+        space = self._require_same_carrier(y, "apply_transpose")
+        out = radial_characteristic_forward_residual_transpose(
+            y.values, space, self.total_cross_section.values,
+            self.sn_mesh.axis_widths[0],
+        )
+        return RadialCharacteristicSourceSink(values=out, space=space, mesh=self.sn_mesh)
+
+    def inverse(self) -> "InverseOperator":
+        r"""Return :math:`A_{BB}^{-1}` as an
+        :class:`~orpheus.numerics.operator.InverseOperator`.
+
+        The generic solve-backed inverse (#226 taxonomy §13): the returned
+        operator's ``apply`` IS :meth:`solve` (the direct Carlson march) and
+        its ``solve`` is this operator's forward :meth:`apply` — the
+        involution web, no reciprocal twin. ``A_BB`` earns only the generic
+        ``InverseOperator`` (round-trip alone); the distinguishing triangular
+        invariant lives in
+        :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`.
+        """
+        if not self.is_invertible:  # pragma: no cover — always invertible
+            raise NotInvertible(
+                "RadialCharacteristicOperator.inverse requires a working "
+                "solve (the Carlson march); a carrying-mesh A_BB always has "
+                "one."
+            )
+        return InverseOperator(self)
 
     # ── Resolvent action — the direct Carlson march IS A_BB⁻¹ ─────────
 

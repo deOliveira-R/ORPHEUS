@@ -64,6 +64,7 @@ from orpheus.sn.operators.boundary import (
     SNBoundaryOperator,
 )
 from orpheus.sn.operators.streaming import StreamingOperator
+import orpheus.sn.loss_representation as _lr_mod
 import orpheus.sn.operators.radial_characteristic as _rc_mod
 from orpheus.sn.operators.radial_characteristic import (
     RadialCharacteristicOperator,
@@ -75,6 +76,7 @@ from orpheus.sn.solver import SNSolver, _within_group_triple
 from orpheus.sn.spatial.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
     carlson_inward_sweep_transpose,
+    radial_characteristic_forward_residual,
 )
 from orpheus.numerics.operator import SystemRole, _join_system_roles
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -688,8 +690,10 @@ class TestA_BB_RadialBVP:
     r"""``A_BB`` = :class:`RadialCharacteristicOperator` — the ψ½ radial two-point
     BVP resolvent (campaign step 1c).
 
-    Foundation invariants of ``solve`` / ``solve_transpose`` (the realized
-    resolvent action + its adjoint; ``apply`` / ``inverse`` defer to step 4).
+    Foundation invariants of the full operator — the forward ``apply`` /
+    ``apply_transpose``, the resolvent ``solve`` / ``solve_transpose``, and the
+    operator-returning ``inverse()`` (step 1c posed the resolvent; step 4b
+    completes the forward via the shared kernel).
     The convergence-ORDER claim lives in the sibling L1 module
     ``test_ray_operator.py`` (don't conflate foundation + verifies, L9). Every
     value row is ≥2G; the sphere-GL S4 carrier is the ONLY seed-carrying member
@@ -988,6 +992,112 @@ class TestA_BB_RadialBVP:
         bad[1, 2] = 0.0
         with pytest.raises(ValueError, match="strictly positive"):
             RadialCharacteristicOperator(sn, CrossSectionField.from_mesh(bad, sn))
+
+
+def _install_forward_spy(monkeypatch) -> list[int]:
+    r"""Mode-11 anti-twin sentinel: wrap the SHARED forward kernel
+    ``radial_characteristic_forward_residual`` in BOTH namespaces that import
+    it — the operator (``_rc_mod``) and the fused ``(L+C)`` walk (``_lr_mod``).
+    Every entry appends to the shared list, so a caller that inlined a
+    divergent copy would leave its delta at 0 (L16: only-new-reds ⟹ twin)."""
+    calls: list[int] = []
+    real = radial_characteristic_forward_residual
+
+    def spy(values, space, sigma, dr):
+        calls.append(1)
+        return real(values, space, sigma, dr)
+
+    monkeypatch.setattr(_rc_mod, "radial_characteristic_forward_residual", spy)
+    monkeypatch.setattr(_lr_mod, "radial_characteristic_forward_residual", spy)
+    return calls
+
+
+class TestA_BB_Forward:
+    r"""``A_BB`` step-4b — the forward ``apply`` / ``apply_transpose`` /
+    ``inverse()`` that complete the operator, single-sourced with the ``(L+C)``
+    walk (the user's "extract the shared kernel now" ruling — no forward twin).
+
+    Sphere-GL S4 carrier, ≥2G, graded σ. ``solve∘apply`` is principled-equiv at
+    ~FP ULP for the cells (the forward's ``2/Δr`` and the march's ``Δr·σ+2``
+    reassociate, L7) and BIT-EXACT ``0.0`` on the μ=+1 outflow corner.
+    """
+
+    def test_apply_is_the_exact_march_inverse(self):
+        # solve∘apply=id on the CONSISTENT subspace ψ0 = solve(q0) (the +1
+        # outflow corner is a FREE datum apply MEASURES / solve OVERWRITES — an
+        # arbitrary ψ falsely reds, refutation R2). Cells at rtol
+        # (principled-equiv, R1); the apply∘solve +1 corner closes bit-exact 0.
+        sn = _sphere()
+        op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
+        space = sn.radial_characteristic_space
+        for seed in range(2):
+            rng = np.random.default_rng(seed)
+            q0 = _ray_source(sn, rng)
+            psi0 = op.solve(q0)
+            psi1 = op.solve(op.apply(psi0))
+            np.testing.assert_allclose(
+                psi1.values, psi0.values, rtol=1e-11, atol=1e-13)
+            qr = op.apply(op.solve(q0))
+            for p in space.levels:
+                corner = space.corner_view(qr.values, p, +1)
+                np.testing.assert_array_equal(corner, np.zeros_like(corner))
+
+    def test_apply_routes_through_the_shared_forward_kernel(self, monkeypatch):
+        # Mode-11 anti-twin (operator side): A_BB.apply MUST enter the shared
+        # radial_characteristic_forward_residual, not an inlined copy.
+        sn = _sphere()
+        op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
+        calls = _install_forward_spy(monkeypatch)
+        op.apply(_ray_cotangent(sn, np.random.default_rng(1)))
+        if len(calls) == 0:
+            pytest.fail(
+                "A_BB.apply did NOT route through the shared forward kernel "
+                "(a divergent inlined copy — twin).")
+
+    def test_walk_forward_routes_through_the_shared_kernel(self, monkeypatch):
+        # Mode-11 anti-twin (walk side): (L+C).apply's ψ½ rows MUST enter the
+        # SAME shared kernel — the single-source proof (both callers, one body).
+        sn = _sphere()
+        LC = _loss(sn, slope=0.4)
+        calls = _install_forward_spy(monkeypatch)
+        LC.apply(_random_composite(sn, np.random.default_rng(2)))
+        if len(calls) == 0:
+            pytest.fail(
+                "(L+C).apply did NOT route through the shared forward kernel "
+                "(a leftover inline copy survives — twin).")
+
+    def test_apply_transpose_is_the_euclidean_adjoint(self):
+        # ⟨apply(u), v⟩ = ⟨u, apply_transpose(v)⟩ — plain flat dot (the metric
+        # Hilbert adjoint .H is realized at the composite, L19/R4). Graded het σ.
+        sn = _sphere()
+        op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
+        for seed in range(2):
+            rng = np.random.default_rng(seed + 10)
+            u = _ray_cotangent(sn, rng)
+            v = _ray_cotangent(sn, rng)
+            lhs = float(op.apply(u).values @ v.values)
+            rhs = float(u.values @ op.apply_transpose(v).values)
+            defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+            if defect > 1e-11:
+                pytest.fail(
+                    f"forward Euclidean adjoint defect {defect:.2e} > 1e-11")
+
+    def test_inverse_is_the_march_involution(self):
+        # inverse() delegates: apply → inner.solve, solve → inner.apply;
+        # inverse().inverse() is self (mixin identity); predicates report True.
+        sn = _sphere()
+        op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
+        rng = np.random.default_rng(3)
+        q0 = _ray_source(sn, rng)
+        psi0 = op.solve(q0)
+        inv = op.inverse()
+        np.testing.assert_array_equal(inv.apply(q0).values, op.solve(q0).values)
+        np.testing.assert_array_equal(inv.solve(psi0).values, op.apply(psi0).values)
+        if inv.inverse() is not op:
+            pytest.fail("inverse().inverse() is not the original operator.")
+        if not (op.is_invertible and op.is_adjointable):
+            pytest.fail(
+                "A_BB must report is_invertible and is_adjointable True at 4b.")
 
 
 # ── Step-2 helpers: A_BA the ψ½ Schur fold (bulk → ray q½ source) ──────────
@@ -1607,8 +1717,9 @@ class TestA_AB_SeedInjection:
     Morel–Montry angular recurrence. CELL-LOCAL ANGULAR (no spatial coupling),
     so both ``apply`` (ray → bulk residual) and ``apply_transpose`` (bulk
     cotangent → ray seed cotangent) are realized as WRAPs of the single-sourced
-    closure methods and ``is_adjointable = True`` — unlike ``A_BB``, whose
-    forward matvec is spatially woven and defers.
+    closure methods and ``is_adjointable = True`` — the same both-directions
+    completeness ``A_BB`` reached at step 4b (its forward is the radial march,
+    single-sourced with the walk via ``radial_characteristic_forward_residual``).
 
     Sphere-GL S4 is the ONLY carrying member (cylinder/slab are the non-carrying
     CONTROL — the constructor rejects them). Every value row is ≥2G. Gates raise

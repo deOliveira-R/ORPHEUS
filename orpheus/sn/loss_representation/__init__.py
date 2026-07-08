@@ -140,7 +140,11 @@ from orpheus.numerics.moment_layout import (
 
 from orpheus.transport.spatial._ubld import octant_moment_frame_signs
 from orpheus.transport.spatial.scheme import UpstreamState
-from ..spatial.psi_half_angle_seed import carlson_inward_sweep_from_source
+from ..spatial.psi_half_angle_seed import (
+    carlson_inward_sweep_from_source,
+    radial_characteristic_forward_residual,
+    radial_characteristic_forward_residual_transpose,
+)
 from ..spatial.scan import (
     _scanmarch_row,
     _x_scan_faces,
@@ -165,30 +169,6 @@ from .sweep_schedule import SweepSchedule
 #: into ``residual_kernel_batch`` — the kernel only READS ``Q_cells`` (it never
 #: mutates it), so one shared instance is safe and avoids a per-cell allocation.
 _MATVEC_ZERO_SOURCE = np.zeros((1, 1, 1))
-
-
-def _seed_residual_march(
-    sigma: "np.ndarray", cells: "np.ndarray", two_over_dr: "np.ndarray",
-    f_entry: "np.ndarray",
-) -> "tuple[np.ndarray, np.ndarray]":
-    r"""ONE starting-direction DD-residual march (the seed-block analogue of
-    :func:`carlson_inward_sweep_from_source`, forward-direction).
-
-    Marches the Hébert (3.434) residual ``mᵢ = σᵢ·cᵢ + (2/Δrᵢ)·(cᵢ − fᵢ)``
-    with the DD face chain ``f ← 2·cᵢ − f`` in ASCENDING cell order from
-    the entry face ``f_entry``; returns ``(rows, f_exit)``.  Both seed legs
-    route through this one body — the inward (μ = −1) leg marches its
-    REVERSED data (orientation is DATA, never a flag).
-
-    ``sigma`` / ``cells`` are ``(ng, n)``; ``two_over_dr`` is ``(n,)``;
-    ``f_entry`` / ``f_exit`` are ``(ng,)``.
-    """
-    rows = np.empty_like(cells)
-    f = f_entry.copy()
-    for i in range(cells.shape[1]):
-        rows[:, i] = sigma[:, i] * cells[:, i] + two_over_dr[i] * (cells[:, i] - f)
-        f = 2.0 * cells[:, i] - f
-    return rows, f
 
 
 def _refuse_radial_characteristic(
@@ -2738,55 +2718,24 @@ class _OneDimScanWalk:
     def _seed_rows_forward(
         self, sigma: "np.ndarray", seed: "RadialCharacteristicField",
     ) -> "np.ndarray":
-        r"""Forward ``(L+C)`` action on the starting-direction block.
+        r"""Forward ``(L+C)`` action on the starting-direction block — a thin
+        wrapper over the single-sourced
+        :func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual`.
 
-        Per carrying level: the Hébert (3.434)-residual of each leg —
-        ``m½ᵢ = σᵢ·ψ½ᵢ + (2/Δrᵢ)·(ψ½ᵢ − f_in,i)`` with the DD face
-        chain ``f ← 2·ψ½ᵢ − f`` reconstructed from the STATE cells
-        (entry face: the inflow corner for the − leg, the − leg's
-        pole face for the + leg) — plus the two corner rows.  Both legs
-        run through ONE march (:func:`_seed_residual_march`); the inward
-        (μ = −1) leg reverses its cell data so the SAME march covers both
-        orientations (orientation is DATA — the discipline
-        ``carlson_inward_sweep_from_source`` uses for the SOLVE).  The
-        face chains replay the solve's march arithmetic on the stored
-        cells (same ops, same order), so ``apply ∘ solve`` closes the
-        corner defect to 0.0 bit-exactly.
-
-        ``sigma`` is the caller's diagonal (σ_t for the fused (L+C),
-        ZERO for the σ-free ``streaming_action`` — the seed rows are
-        affine in σ exactly like the bulk walk).  Returns the flat
-        seed-space buffer of the emitted rows.
+        The forward ψ½ residual :math:`A_{BB}\,\psi_{1/2}` is realized in ONE
+        place (Cardinal Rule 2) and shared with the standalone ``A_BB``
+        operator
+        (:meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.apply`);
+        this method just supplies the walk's diagonal ``sigma`` (:math:`\sigma_t`
+        for the fused ``(L+C)``, ZERO for the σ-free streaming block — the seed
+        rows are affine in σ like the bulk walk) and the mesh widths.  KEPT as a
+        method so the schedule / monkeypatch seam
+        (``tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point``) still
+        targets it.
         """
-        values = seed.values
-        space = seed.space
-        dr = self.mesh.axis_widths[0]                     # (nx,)
-        two_over_dr = 2.0 / dr                            # (nx,)
-        out = np.zeros_like(values)
-        for p in space.levels:
-            c_minus = space.cells_view(values, p, -1)     # (ng, nx)
-            k_minus = space.corner_view(values, p, -1)    # (ng,)
-            c_plus = space.cells_view(values, p, +1)
-            k_plus = space.corner_view(values, p, +1)
-            # ── inward (μ = −1) leg: enter at the outer corner — march the
-            # reversed data so the ascending helper covers the outer→inner
-            # direction; the exit face IS the pole datum. ──
-            rows_rev, f_pole = _seed_residual_march(
-                sigma[:, ::-1], c_minus[:, ::-1], two_over_dr[::-1], k_minus,
-            )
-            space.cells_view(out, p, -1)[:] = rows_rev[:, ::-1]
-            # ── outward (μ = +1) leg: pole continuation ψ½⁺(0) = ψ½⁻(0) ──
-            rows_plus, f_outer = _seed_residual_march(
-                sigma, c_plus, two_over_dr, f_pole,
-            )
-            space.cells_view(out, p, +1)[:] = rows_plus
-            # ── corner rows (the trace diagonals' discipline) ──
-            # inflow corner: identity row I·ψ½.corner(−1);
-            # outflow corner: streamed − stored (computed-minus-stored,
-            # the same free-sign convention as the trace outflow slots).
-            space.corner_view(out, p, -1)[:] = k_minus
-            space.corner_view(out, p, +1)[:] = f_outer - k_plus
-        return out
+        return radial_characteristic_forward_residual(
+            seed.values, seed.space, sigma, self.mesh.axis_widths[0],
+        )
 
     def _seed_rows_transpose(
         self,
@@ -2808,41 +2757,15 @@ class _OneDimScanWalk:
         STOPPING at the seed) adds onto the − leg's cells cotangent:
         the transpose of the seed→bulk recurrence coupling.
         """
-        values = chi_seed.values
         space = chi_seed.space
-        dr = self.mesh.axis_widths[0]
-        two_over_dr = 2.0 / dr
-        out = np.zeros_like(values)
+        out = radial_characteristic_forward_residual_transpose(
+            chi_seed.values, space, sigma, self.mesh.axis_widths[0],
+        )
+        # ── the seed→bulk M-M recurrence coupling, transposed (A_AB's
+        # transpose) — added onto the − leg cells, NOT part of the pure A_BBᵀ.
         for p in space.levels:
-            mb_minus = space.cells_view(values, p, -1)    # m̄½⁻ (ng, nx)
-            kb_minus = space.corner_view(values, p, -1)   # m̄k⁻ (ng,)
-            mb_plus = space.cells_view(values, p, +1)
-            kb_plus = space.corner_view(values, p, +1)
-            cb_minus = space.cells_view(out, p, -1)
-            cb_plus = space.cells_view(out, p, +1)
-            # ── reverse the corner rows ──
-            # mk⁺ = f_R⁺ − k⁺  ⟹  f̄ = m̄k⁺, k̄⁺ = −m̄k⁺;  mk⁻ = k⁻ ⟹ k̄⁻ += m̄k⁻.
-            space.corner_view(out, p, +1)[:] = -kb_plus
-            f_bar = kb_plus.copy()
-            corner_minus_bar = kb_minus.copy()
-            # ── reverse the + (outward) leg: cells descending ──
-            for i in range(dr.size - 1, -1, -1):
-                cb_plus[:, i] += 2.0 * f_bar
-                f_bar = -f_bar
-                cb_plus[:, i] += (sigma[:, i] + two_over_dr[i]) * mb_plus[:, i]
-                f_bar += -two_over_dr[i] * mb_plus[:, i]
-            # ── pole continuation: f̄ flows into the − leg's final face ──
-            # ── reverse the − (inward) leg: cells ascending ──
-            for i in range(dr.size):
-                cb_minus[:, i] += 2.0 * f_bar
-                f_bar = -f_bar
-                cb_minus[:, i] += (sigma[:, i] + two_over_dr[i]) * mb_minus[:, i]
-                f_bar += -two_over_dr[i] * mb_minus[:, i]
-            # the − chain's entry face was the inflow corner.
-            corner_minus_bar += f_bar
-            space.corner_view(out, p, -1)[:] = corner_minus_bar
-            # ── the seed→bulk M-M recurrence coupling, transposed ──
             if p in seed_cells_bar:
+                cb_minus = space.cells_view(out, p, -1)
                 cb_minus += seed_cells_bar[p]
         return out
 

@@ -81,7 +81,14 @@ References
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from orpheus.numerics.spaces.radial_characteristic_space import (
+        RadialCharacteristicSpace,
+    )
 
 
 def carlson_inward_sweep_from_source(
@@ -207,7 +214,143 @@ def carlson_inward_sweep_transpose(
     return Q_bar, f_bar
 
 
+def radial_characteristic_residual_march(
+    sigma: np.ndarray, cells: np.ndarray, two_over_dr: np.ndarray,
+    f_entry: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""ONE starting-direction DD-residual march — the forward-direction
+    analogue of :func:`carlson_inward_sweep_from_source`.
+
+    Marches the Hébert (3.434) residual ``mᵢ = σᵢ·cᵢ + (2/Δrᵢ)·(cᵢ − fᵢ)``
+    with the DD face chain ``f ← 2·cᵢ − f`` in ASCENDING cell order from the
+    entry face ``f_entry``; returns ``(rows, f_exit)``.  Both ψ½ legs route
+    through this one body — the inward (:math:`\mu = -1`) leg marches its
+    REVERSED data (orientation is DATA, never a flag — the 2.5a discipline
+    :func:`carlson_inward_sweep_from_source` uses for the SOLVE).
+
+    ``sigma`` / ``cells`` are ``(ng, n)``; ``two_over_dr`` is ``(n,)``;
+    ``f_entry`` / ``f_exit`` are ``(ng,)``.
+    """
+    rows = np.empty_like(cells)
+    f = f_entry.copy()
+    for i in range(cells.shape[1]):
+        rows[:, i] = sigma[:, i] * cells[:, i] + two_over_dr[i] * (cells[:, i] - f)
+        f = 2.0 * cells[:, i] - f
+    return rows, f
+
+
+def radial_characteristic_forward_residual(
+    values: np.ndarray, space: "RadialCharacteristicSpace",
+    sigma: np.ndarray, dr: np.ndarray,
+) -> np.ndarray:
+    r"""The forward ``(L+C)`` action :math:`A_{BB}\,\psi_{1/2} =
+    (\mu\,\partial_r + \sigma_t)\,\psi_{1/2}` on the starting-direction block —
+    the SINGLE SOURCE of the ψ½ forward residual.
+
+    Per carried level: the Hébert (3.434)-residual of each leg
+    (:func:`radial_characteristic_residual_march`) with the DD face chain
+    reconstructed from the STATE cells (entry face: the inflow corner for the
+    :math:`\mu=-1` leg, that leg's pole face for the :math:`\mu=+1` leg), plus
+    the two corner rows — the inflow corner is the identity row, the outflow
+    corner the ``streamed − stored`` self-consistency defect (the same
+    free-sign convention as the trace outflow slots).  The face chains replay
+    the solve's march arithmetic on the stored cells (same ops, same order),
+    so the ``apply ∘ solve`` outflow-corner defect closes to ``0.0``
+    bit-exactly (the cell round-trip is principled-equiv at ~FP ULP — the
+    forward's ``2/Δr`` and the march's ``Δr·σ+2`` reassociate).
+
+    Both callers — the fused ``(L+C)`` walk
+    (:meth:`orpheus.sn.loss_representation._OneDimScanWalk._seed_rows_forward`)
+    and the standalone ``A_BB``
+    (:meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.apply`)
+    — route through this ONE body (Cardinal Rule 2: no forward twin).
+
+    ``sigma`` is the caller's diagonal (:math:`\sigma_t` for the fused
+    ``(L+C)``, ZERO for the σ-free streaming block — the seed rows are affine
+    in σ like the bulk walk).  Returns the flat seed-space residual buffer.
+    """
+    two_over_dr = 2.0 / dr
+    out = np.zeros_like(values)
+    for p in space.levels:
+        c_minus = space.cells_view(values, p, -1)     # (ng, nx)
+        k_minus = space.corner_view(values, p, -1)    # (ng,)
+        c_plus = space.cells_view(values, p, +1)
+        k_plus = space.corner_view(values, p, +1)
+        # inward (μ = −1) leg: enter at the outer corner; march the reversed
+        # data so the ascending helper covers outer→inner; exit face = pole.
+        rows_rev, f_pole = radial_characteristic_residual_march(
+            sigma[:, ::-1], c_minus[:, ::-1], two_over_dr[::-1], k_minus,
+        )
+        space.cells_view(out, p, -1)[:] = rows_rev[:, ::-1]
+        # outward (μ = +1) leg: pole continuation ψ½⁺(0) = ψ½⁻(0).
+        rows_plus, f_outer = radial_characteristic_residual_march(
+            sigma, c_plus, two_over_dr, f_pole,
+        )
+        space.cells_view(out, p, +1)[:] = rows_plus
+        # corner rows: inflow = identity I·ψ½.corner(−1); outflow = streamed −
+        # stored (the free-sign self-consistency defect).
+        space.corner_view(out, p, -1)[:] = k_minus
+        space.corner_view(out, p, +1)[:] = f_outer - k_plus
+    return out
+
+
+def radial_characteristic_forward_residual_transpose(
+    values: np.ndarray, space: "RadialCharacteristicSpace",
+    sigma: np.ndarray, dr: np.ndarray,
+) -> np.ndarray:
+    r"""Euclidean transpose of :func:`radial_characteristic_forward_residual`
+    — the PURE :math:`A_{BB}^{\mathsf T}` reverse-mode (NO ``A_AB`` coupling).
+
+    Exact reverse-mode of the forward straight-line program: the corner rows
+    reverse first, then the :math:`\mu=+1` leg's chain (cells descending — the
+    reverse of its outward march), the pole continuation hands the running
+    face cotangent to the :math:`\mu=-1` leg's reversal (cells ascending), and
+    the :math:`\mu=-1` chain's final face cotangent lands on the inflow corner
+    (the forward's entry read).
+
+    This is the ``A_BB`` transpose in ISOLATION.  The fused ``(L+C)``
+    reverse-scan (:meth:`orpheus.sn.loss_representation._OneDimScanWalk._seed_rows_transpose`)
+    ADDS the ``seed_cells_bar`` recurrence-coupling term (the ``A_AB``
+    transpose) onto the :math:`\mu=-1` leg cells; that term is NOT part of
+    ``A_BB`` and is applied by the walk wrapper, never here.
+    """
+    two_over_dr = 2.0 / dr
+    out = np.zeros_like(values)
+    for p in space.levels:
+        mb_minus = space.cells_view(values, p, -1)    # m̄½⁻ (ng, nx)
+        kb_minus = space.corner_view(values, p, -1)   # m̄k⁻ (ng,)
+        mb_plus = space.cells_view(values, p, +1)
+        kb_plus = space.corner_view(values, p, +1)
+        cb_minus = space.cells_view(out, p, -1)
+        cb_plus = space.cells_view(out, p, +1)
+        # reverse the corner rows: mk⁺ = f_R⁺ − k⁺ ⟹ f̄ = m̄k⁺, k̄⁺ = −m̄k⁺;
+        # mk⁻ = k⁻ ⟹ k̄⁻ += m̄k⁻.
+        space.corner_view(out, p, +1)[:] = -kb_plus
+        f_bar = kb_plus.copy()
+        corner_minus_bar = kb_minus.copy()
+        # reverse the + (outward) leg: cells descending.
+        for i in range(dr.size - 1, -1, -1):
+            cb_plus[:, i] += 2.0 * f_bar
+            f_bar = -f_bar
+            cb_plus[:, i] += (sigma[:, i] + two_over_dr[i]) * mb_plus[:, i]
+            f_bar += -two_over_dr[i] * mb_plus[:, i]
+        # pole continuation: f̄ flows into the − leg's final face.
+        # reverse the − (inward) leg: cells ascending.
+        for i in range(dr.size):
+            cb_minus[:, i] += 2.0 * f_bar
+            f_bar = -f_bar
+            cb_minus[:, i] += (sigma[:, i] + two_over_dr[i]) * mb_minus[:, i]
+            f_bar += -two_over_dr[i] * mb_minus[:, i]
+        # the − chain's entry face was the inflow corner.
+        corner_minus_bar += f_bar
+        space.corner_view(out, p, -1)[:] = corner_minus_bar
+    return out
+
+
 __all__ = [
     "carlson_inward_sweep_from_source",
     "carlson_inward_sweep_transpose",
+    "radial_characteristic_residual_march",
+    "radial_characteristic_forward_residual",
+    "radial_characteristic_forward_residual_transpose",
 ]
