@@ -66,6 +66,8 @@ from orpheus.sn.operators.boundary import (
 from orpheus.sn.operators.streaming import StreamingOperator
 import orpheus.sn.operators.radial_characteristic as _rc_mod
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
+import orpheus.numerics.spaces.radial_characteristic_space as _rcs_mod
+import orpheus.transport.operators.radial_characteristic_reconstruction as _rcr_mod
 from orpheus.sn.solver import SNSolver, _within_group_triple
 from orpheus.sn.spatial.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
@@ -979,3 +981,544 @@ class TestA_BB_RadialBVP:
         bad[1, 2] = 0.0
         with pytest.raises(ValueError, match="strictly positive"):
             RadialCharacteristicOperator(sn, CrossSectionField.from_mesh(bad, sn))
+
+
+# ── Step-2 helpers: A_BA the ψ½ Schur fold (bulk → ray q½ source) ──────────
+#
+# A_BA folds a bulk isotropic cell-emission q₀ (the ℓ=0 K_iso·φ₀ for S, the
+# χ·νΣf·φ for F) onto the ray q½ source at the closed rays μ=±1, per carrying
+# radial level. It lives ENTIRELY in the lagged S + F/k gain, OUTSIDE the
+# resolvent (it cannot touch the #284 forward-substitution certificate). The
+# Step-2 un-weld routes the three hand-rolled S/F fold arms (scattering.py S-fwd
+# + S-adj, fission.py F-fwd) through ONE single source — the operator
+# RadialCharacteristicReconstruction, which wraps the fold helper
+# fold_moments_to_radial_characteristic; these gates pin that. (from_angular_
+# source keeps its own per-level analysis — a distinct operation, not a twin.)
+#
+# The fold math (single source ``fold_moments_to_radial_characteristic``):
+#   Q̄(μ=±1) = Σ_ℓ (2ℓ+1)/2 · Q_ℓ · P_ℓ(±1) = Σ_ℓ (2ℓ+1)/2 · Q_ℓ · (±1)^ℓ.
+# At ℓ=0 it collapses to ½·Q₀ (both signs — P₀≡1); the PRODUCTION S/F arms feed
+# ℓ=0 ONLY, so an S/F-only gate is BLIND to P_ℓ(±1) for ℓ≥1 (refutation #3) —
+# the contract gate manufactures ℓ≥1 to activate the ``sign^ℓ`` line.
+
+
+def _fissile_mixture(sig_t: float, sig_s: float, ng: int):
+    """A group-graded FISSILE mixture (asymmetric in g).
+
+    F's seed emission is ``χ·νΣf·φ`` — identically zero on a non-fissile
+    mixture (``_mixture`` sets ``sig_f = nu = chi = 0``), which makes the F
+    routing / bit-identity rows VACUOUS (0 == 0). vv refutation #4: split the
+    fixed-source ``Q/Σ`` scattering config (non-fissile ``_mixture``) from the
+    fissile config (here) so the F emission is genuinely nonzero. χ births all
+    fission neutrons in group 0 (``chi=[1,0,…]``) — an asymmetric emission.
+    """
+    st = np.array([sig_t * (1.0 + 0.4 * g) for g in range(ng)])
+    ss = np.diag([sig_s * (1.0 + 0.4 * g) for g in range(ng)])
+    sf = np.array([0.05 + 0.1 * g for g in range(ng)])
+    nu = np.full(ng, 2.4)
+    chi = np.zeros(ng)
+    chi[0] = 1.0
+    return make_mixture(sig_t=st, sig_c=st - ss.sum(axis=0) - sf, sig_f=sf,
+                        nu=nu, chi=chi, sig_s=ss)
+
+
+def _fissile_sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4):
+    """A seed-carrying FISSILE sphere (GL S4) — the F-arm carrier (non-vacuous emission)."""
+    mesh = Mesh1D(edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
+                  coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"))
+    return SNMesh(mesh, Quadrature.gauss_legendre(4),
+                  {0: _fissile_mixture(sigma, c * sigma, ng)})
+
+
+def _s_emission(S, psi: FullField) -> NDArray:
+    """The ℓ=0 iso cell-emission ``q₀ = K_iso·φ₀`` that the S seed arm folds — the
+    A_BA *input* (``(ng, nx)``). Computed via the operator's own isotropic kernel
+    (the emission is the bulk-scattering job, verified elsewhere; A_BA's job is the
+    FOLD of this emission, so it is the correct oracle input)."""
+    phi0 = psi.bulk.integrate_angular().values          # (ng, nx)
+    return np.asarray(S.isotropic_kernel.apply(phi0))
+
+
+def _f_emission(F, psi: FullField) -> NDArray:
+    """The ℓ=0 iso fission cell-emission ``χ·νΣf·φ`` that the F seed arm folds."""
+    return np.asarray(F.apply(psi.bulk.integrate_angular()).values)
+
+
+def _ba_oldloop_reference(emission: NDArray, sn) -> NDArray:
+    r"""The EXACT pre-un-weld hand-rolled fold loop (the S/F seed arms before
+    Step 2 routed them through RadialCharacteristicReconstruction): the
+    bit-identity ORACLE. For each carrying (level, sign)
+    the cells are ``fold(emission[None], sign)`` and the corners stay zero. The
+    Step-2 un-weld MUST reproduce this byte-for-byte (``np.array_equal``),
+    inheriting verification from the ℓ-fold contract gate (vv §Bit-identity: free
+    verification by inheritance from a verified reference)."""
+    space = sn.radial_characteristic_space
+    vals = np.zeros(space.shape[0])
+    for lv in space.levels:
+        for sign in (-1, +1):
+            space.cells_view(vals, lv, sign)[:] = (
+                _rcs_mod.fold_moments_to_radial_characteristic(emission[None], sign))
+    return vals
+
+
+def _fold_transpose_reference(y: NDArray, sign: int, n_moments: int,
+                              *, coeff0: float | None = None) -> NDArray:
+    r"""The Euclidean transpose of the ℓ-fold: ``moments_bar[ℓ] = coeff[ℓ]·y``
+    with ``coeff[ℓ] = ((2ℓ+1)/2)·sign^ℓ`` — the contract the production
+    fold-transpose (the S-adjoint's single-sourced ``0.5``) must satisfy. The
+    ``coeff0`` override is the tooth: a ``0.6`` at ℓ=0 (≠ the fold's ``0.5``)
+    breaks the adjoint identity."""
+    ell = np.arange(n_moments)
+    coeff = ((2.0 * ell + 1.0) / 2.0) * np.float64(sign) ** ell
+    if coeff0 is not None:
+        coeff = coeff.copy()
+        coeff[0] = coeff0
+    return coeff[:, None, None] * y[None]
+
+
+def _install_fold_spy(monkeypatch) -> dict:
+    r"""Mode-11 sentinel: WRAP the shared Legendre fold as the RECONSTRUCTION
+    operator sees it. Post-un-weld the S/F seed arms route through
+    ``RadialCharacteristicReconstruction.apply``, which module-level-imports
+    ``fold_moments_to_radial_characteristic`` — so the object it fetches at call
+    time is the reconstruction module's global (``_rcr_mod``), NOT the numerics
+    source module. Wrapping it here counts every fold the reconstruction runs; an
+    S/F arm that bypassed the reconstruction (re-inlined the numerics fold in its
+    own namespace) would leave this counter at 0 (Cardinal Rule 2 single source;
+    Mode 11)."""
+    calls: dict = {"n": 0, "signs": []}
+    real = _rcr_mod.fold_moments_to_radial_characteristic
+
+    def spy(moments, sign):
+        calls["n"] += 1
+        calls["signs"].append(sign)
+        return real(moments, sign)
+
+    monkeypatch.setattr(_rcr_mod, "fold_moments_to_radial_characteristic", spy)
+    return calls
+
+
+def _apply_A_BA(emission: NDArray, sn) -> NDArray:
+    r"""BIND POINT — how the extracted single-source A_BA fold is invoked.
+
+    Input: the ℓ=0 iso cell-emission ``(ng, nx)``. Output: the folded ray-source
+    ``RadialCharacteristicSourceSink.values`` (cells at μ=±1 per carrying level,
+    corners zero). The Step-2 un-weld gives this ONE surface (the loop sites
+    2/3/4 inline today). Its production shape is being decided in parallel — the
+    main agent flips the ``# BIND:`` line to the chosen surface:
+    """
+    # Bound (Step 2, operator shape): the extracted single-source A_BA fold is
+    # RadialCharacteristicReconstruction.apply — the emission is the ℓ=0 moment
+    # (a unit ℓ axis, n_moments=1).
+    return _rcr_mod.RadialCharacteristicReconstruction(sn).apply(
+        emission[None]).values
+
+
+def _apply_A_BA_transpose(seed_cotangent: NDArray, sn) -> NDArray:
+    r"""BIND POINT — the A_BA Euclidean transpose (ray-cotangent → emission-cotangent),
+    IF the chosen A_BA shape exposes a transpose surface. If the user picks a
+    factory-only shape (no transpose surface), this gate is subsumed by the
+    fold-helper-transpose contract (``test_fold_transpose_euclidean_contract``)
+    and the operator-level consistency gate — flag the binding, do not force it.
+    """
+    # Bound (Step 2, operator shape): wrap the flat ray cotangent as a
+    # RadialCharacteristicFlux and pull it back through the reconstruction's
+    # Euclidean transpose → the (n_moments=1, ng, nx) bulk-moment cotangent.
+    field = RadialCharacteristicFlux(
+        values=np.asarray(seed_cotangent, dtype=float),
+        space=sn.radial_characteristic_space, mesh=sn)
+    return _rcr_mod.RadialCharacteristicReconstruction(sn).apply_transpose(field)
+
+
+def _wrap_extracted_A_BA(monkeypatch) -> dict:
+    r"""Mode-11 sentinel on the EXTRACTED single-source A_BA surface (post-un-weld).
+    The wrap MUST sit on the SAME object the production S/F seed arms construct —
+    the factory or the operator the un-weld routes them through. xfail until the
+    bind is chosen; flip the ``# BIND:`` monkeypatch target:
+    """
+    calls: dict = {"n": 0}
+    # Bound (Step 2, operator shape): wrap the operator method on the CLASS, so
+    # every S/F seed arm that constructs a RadialCharacteristicReconstruction and
+    # calls ``.apply`` is counted — immune to import binding (it patches the
+    # class object all instances share).
+    real = _rcr_mod.RadialCharacteristicReconstruction.apply
+
+    def spy(self, moments, /):
+        calls["n"] += 1
+        return real(self, moments)
+
+    monkeypatch.setattr(
+        _rcr_mod.RadialCharacteristicReconstruction, "apply", spy)
+    return calls
+
+
+class TestA_BA_SchurFold:
+    r"""``A_BA`` — the ψ½ Schur fold (bulk → ray q½ source), the coupling Step 2
+    un-welds from the five hand-rolled fold sites into ONE single source.
+
+    Carrying member = **sphere-GL S4 ONLY** (the only geometry that carries a ψ½
+    level, R12a; 1 level → 2 fold calls/arm). cylinder/slab are the non-carrying
+    CONTROL. Every value row is ≥2G (1G is degenerate, vv anti-#3). Runtime: gates
+    raise via ``pytest.fail`` / ``np.testing.assert_*`` (fire under ``python -O``),
+    never a bare ``assert`` (vv Mode 8).
+
+    Live TODAY (green, teeth mutation-verified in-process): the fold contract, the
+    fold-transpose contract, the operator seed-arm transpose consistency, the S/F
+    closed-form bit-identity, the shared-fold Mode-11 routing, the non-carrying
+    control. xfail-skeleton (flip the ``# BIND`` in ``_apply_A_BA`` /
+    ``_wrap_extracted_A_BA`` once the un-weld lands): the direct-A_BA-surface rows.
+    """
+
+    # ── Gate 1: the fold contract on a MANUFACTURED anisotropic input ──────
+
+    def test_fold_contract_anisotropic_activates_p_ell(self):
+        r"""Load-bearing refutation #3. Manufacture ``moments`` with ℓ=0 AND ℓ=1
+        (≥2G, distinct per group) and assert the closed form
+        ``Q̄(+1) = ½Q₀ + (3/2)Q₁``, ``Q̄(−1) = ½Q₀ − (3/2)Q₁`` — the ``sign^ℓ``
+        line's P₁(±1) = ±1 asymmetry.
+
+        Tooth (in-process, local): a fold that DROPS ``sign^ℓ`` (``coeff`` = the
+        same ``(2ℓ+1)/2`` for both signs) reds the anisotropic assertion by
+        ``3·|Q₁|`` (measured ≈ 2.7). NECESSITY: the SAME mutated fold on an
+        ℓ=0-only input stays green (P₀≡1, ``sign^0=1`` always) — so the production
+        S/F arms, which feed ℓ=0 ONLY, are STRUCTURALLY blind to this bug; the
+        anisotropic input is what earns the coverage (§0.6 iso-snapshot blindness).
+        """
+        Q0 = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])       # (ng=2, nx=3)
+        Q1 = np.array([[0.7, -0.3, 0.2], [0.1, 0.9, -0.5]])     # distinct per group
+        mom = np.stack([Q0, Q1], axis=0)                        # (L=2, ng, nx)
+        fold = _rcs_mod.fold_moments_to_radial_characteristic
+        np.testing.assert_allclose(
+            fold(mom, +1), 0.5 * Q0 + 1.5 * Q1, rtol=0.0, atol=1e-13,
+            err_msg="Q̄(+1) ≠ ½Q₀ + (3/2)Q₁ — the (2ℓ+1)/2·(+1)^ℓ fold is wrong.")
+        np.testing.assert_allclose(
+            fold(mom, -1), 0.5 * Q0 - 1.5 * Q1, rtol=0.0, atol=1e-13,
+            err_msg="Q̄(−1) ≠ ½Q₀ − (3/2)Q₁ — the P₁(−1) = −1 sign is dropped/flipped.")
+
+        # Tooth + necessity: a fold that drops sign^ℓ.
+        def _fold_drop_sign(moments, sign):
+            moments = np.asarray(moments)
+            ell = np.arange(moments.shape[0])
+            coeff = (2.0 * ell + 1.0) / 2.0                     # sign^ℓ DROPPED
+            return np.tensordot(coeff, moments, axes=(0, 0))
+
+        red_aniso = float(np.max(np.abs(_fold_drop_sign(mom, -1) - fold(mom, -1))))
+        red_iso = float(np.max(np.abs(
+            _fold_drop_sign(Q0[None], -1) - fold(Q0[None], -1))))
+        print(f"  [G1] drop-sign^ℓ: anisotropic RED={red_aniso:.3f}  iso-only={red_iso:.1e}")
+        if not red_aniso > 1e-3:
+            pytest.fail(f"the drop-sign^ℓ mutation did not red the anisotropic contract "
+                        f"({red_aniso:.3e}) — the ℓ≥1 gate is toothless.")
+        if not red_iso < 1e-15:
+            pytest.fail(f"the iso-only input MOVED under the mutation ({red_iso:.3e}) — "
+                        f"the necessity claim is false (iso should be blind to sign^ℓ).")
+
+    # ── Gate 2a (LIVE): S and F both route through the ONE shared fold ──────
+
+    def test_scattering_and_fission_both_route_through_the_shared_fold(self, monkeypatch):
+        r"""Mode-11 CENTERPIECE (single-source routing). A wrap-COUNTER on the
+        shared ``fold_moments_to_radial_characteristic`` (the SAME object the S/F
+        seed arms local-import) must be entered by BOTH the S forward seed arm AND
+        the F forward seed arm — a green-but-unrouted arm (a divergent inlined copy
+        of the P_ℓ math) leaves the counter at 0 (Mode 11). Each arm folds
+        ``2·n_levels`` times (2 signs/level; sphere-GL S4 → 1 level → 2 calls).
+
+        POST-UN-WELD: re-point the wrap to the EXTRACTED single-source surface
+        (``_wrap_extracted_A_BA`` — the ``from_moments`` factory / ``A_BA.apply``);
+        the count then proves S and F route through the ONE extracted loop, not
+        merely the shared inner math. (That sharper gate is the xfail row below.)
+        """
+        n_levels = 1  # sphere-GL S4 carries exactly one ψ½ level (levels == (0,))
+
+        sn_s = _sphere()
+        S = SNSolver(sn_s).scattering_op
+        calls = _install_fold_spy(monkeypatch)
+        S.apply(_random_composite(sn_s, np.random.default_rng(30)))
+        s_calls = calls["n"]
+        if s_calls != 2 * n_levels:
+            pytest.fail(f"S folded {s_calls}× (expected 2·n_levels = {2 * n_levels}) — "
+                        f"the S seed arm does not route through the shared fold.")
+
+        sn_f = _fissile_sphere()
+        F = SNSolver(sn_f).fission_op
+        calls["n"] = 0
+        F.apply(_random_composite(sn_f, np.random.default_rng(31)))
+        f_calls = calls["n"]
+        print(f"  [G2a] S fold-calls={s_calls}  F fold-calls={f_calls}  (both = 2·n_levels)")
+        if f_calls != 2 * n_levels:
+            pytest.fail(f"F folded {f_calls}× (expected 2·n_levels = {2 * n_levels}) — "
+                        f"the F seed arm does not route through the shared fold "
+                        f"(or the fissile emission is zero — check the mixture).")
+
+    # ── Gate 3 (LIVE): the S / F seed output IS the ½·emission fold ─────────
+
+    def test_scattering_seed_is_the_half_emission_fold(self):
+        r"""The S forward seed output equals the ℓ=0 fold of its iso emission:
+        byte-for-byte the documented old loop (``np.array_equal`` — the un-weld's
+        bit-identity contract, inheriting from Gate 1) AND, structurally
+        INDEPENDENT of the fold, the closed form ``½·q₀`` per (level, sign) with
+        zero corners (P₀≡1; scattering is volumetric). Non-fissile ``Q/Σ``
+        scattering config (refutation #4 — no ``nan`` k here)."""
+        sn = _sphere()
+        S = SNSolver(sn).scattering_op
+        space = sn.radial_characteristic_space
+        psi = _random_composite(sn, np.random.default_rng(21))
+        emission = _s_emission(S, psi)
+        if not np.max(np.abs(emission)) > 1e-6:
+            pytest.fail("scattering iso emission ≈ 0 — the S seed gate is vacuous.")
+        seed = S.apply(psi).radial_characteristic
+        if seed is None:
+            pytest.fail("S emitted a None ray on a seed-carrying sphere composite.")
+        # (a) bit-identity vs the documented hand-rolled loop (survives the un-weld).
+        np.testing.assert_array_equal(
+            seed.values, _ba_oldloop_reference(emission, sn),
+            err_msg="S seed ≠ the pre-un-weld hand-rolled fold loop (the un-weld "
+                    "diverged from the documented site-3 loop).")
+        # (b) structurally-independent closed form: ½·emission cells, zero corners.
+        for lv in space.levels:
+            for sign in (-1, +1):
+                np.testing.assert_allclose(
+                    space.cells_view(seed.values, lv, sign), 0.5 * emission,
+                    rtol=1e-13, atol=1e-14,
+                    err_msg=f"level {lv} sign {sign}: S seed cells ≠ ½·q₀ (the ℓ=0 fold).")
+                np.testing.assert_array_equal(
+                    space.corner_view(seed.values, lv, sign), 0.0,
+                    err_msg=f"level {lv} sign {sign}: S seed corner ≠ 0 (fold writes cells only).")
+
+    def test_fission_seed_is_the_half_emission_fold_fissile(self):
+        r"""The F forward seed output equals ``½·(χ·νΣf·φ)`` per (level, sign),
+        zero corners — same bit-identity + closed-form pair as S. FISSILE mixture
+        (refutation #4: a non-fissile mixture makes the emission — hence the seed —
+        identically zero, a VACUOUS gate; the non-vacuity guard asserts a genuine
+        nonzero emission)."""
+        sn = _fissile_sphere()
+        F = SNSolver(sn).fission_op
+        space = sn.radial_characteristic_space
+        psi = _random_composite(sn, np.random.default_rng(22))
+        emission = _f_emission(F, psi)
+        if not np.max(np.abs(emission)) > 1e-6:
+            pytest.fail("fission iso emission ≈ 0 — the F seed gate is VACUOUS "
+                        "(mixture is not actually fissile / νΣf = 0).")
+        seed = F.apply(psi).radial_characteristic
+        if seed is None:
+            pytest.fail("F emitted a None ray on a seed-carrying fissile sphere composite.")
+        np.testing.assert_array_equal(
+            seed.values, _ba_oldloop_reference(emission, sn),
+            err_msg="F seed ≠ the pre-un-weld hand-rolled fold loop (the F seed "
+                    "arm before the Step-2 un-weld).")
+        for lv in space.levels:
+            for sign in (-1, +1):
+                np.testing.assert_allclose(
+                    space.cells_view(seed.values, lv, sign), 0.5 * emission,
+                    rtol=1e-13, atol=1e-14,
+                    err_msg=f"level {lv} sign {sign}: F seed cells ≠ ½·fission_iso.")
+                np.testing.assert_array_equal(
+                    space.corner_view(seed.values, lv, sign), 0.0,
+                    err_msg=f"level {lv} sign {sign}: F seed corner ≠ 0.")
+
+    # ── Gate 5a (LIVE): the fold-helper Euclidean transpose contract ───────
+
+    def test_fold_transpose_euclidean_contract(self):
+        r"""The transpose the S-adjoint arm's hard-coded ``0.5`` must be
+        single-sourced through. The Euclidean adjoint identity
+        ``⟨fold(m, sign), y⟩ = ⟨m, fold_transpose(y, sign)⟩`` with
+        ``fold_transpose(y, sign)[ℓ] = ((2ℓ+1)/2)·sign^ℓ · y``, on a MANUFACTURED
+        anisotropic ``m`` (ℓ=0 AND ℓ=1) and random ``y``.
+
+        Teeth: (a) a ``0.6`` ℓ=0 coefficient in the reference transpose (≠ the
+        fold's ``0.5`` — the scattering.py:1846 hard-code) breaks the identity
+        (measured ≈ 0.02–0.04); (b) dropping ``sign^ℓ`` in the transpose breaks
+        the sign=−1 leg (the P₁(−1) transpose consistency)."""
+        rng = np.random.default_rng(0)
+        m = rng.standard_normal((2, 2, 3))                      # (L=2, ng, nx) anisotropic
+        y = rng.standard_normal((2, 3))
+        fold = _rcs_mod.fold_moments_to_radial_characteristic
+        for sign in (-1, +1):
+            folded = fold(m, sign)
+            lhs = float(np.sum(folded * y))
+            rhs = float(np.sum(m * _fold_transpose_reference(y, sign, 2)))
+            np.testing.assert_allclose(
+                lhs, rhs, rtol=1e-12, atol=1e-12,
+                err_msg=f"sign {sign}: ⟨fold(m),y⟩ ≠ ⟨m, fold_transpose(y)⟩ — the "
+                        f"fold-transpose is not the Euclidean adjoint of the fold.")
+            # Tooth (a): 0.6 ≠ 0.5 at ℓ=0.
+            rhs_06 = float(np.sum(m * _fold_transpose_reference(y, sign, 2, coeff0=0.6)))
+            d06 = abs(lhs - rhs_06) / (abs(lhs) + abs(rhs_06) + 1e-300)
+            if not d06 > 1e-3:
+                pytest.fail(f"sign {sign}: the 0.6 ℓ=0-coefficient tooth did not red "
+                            f"({d06:.3e}) — the transpose contract is toothless to the "
+                            f"scattering.py:1846 hard-coded 0.5.")
+
+        # Tooth (b): the sign^ℓ transpose consistency (P₁(−1) = −1). A transpose
+        # that drops sign^ℓ agrees at sign=+1 but breaks at sign=−1.
+        ell = np.arange(2)
+        for sign in (-1, +1):
+            folded = fold(m, sign)
+            lhs = float(np.sum(folded * y))
+            no_sign = ((2.0 * ell + 1.0) / 2.0)[:, None, None] * y[None]   # sign^ℓ dropped
+            d = abs(lhs - float(np.sum(m * no_sign))) / (abs(lhs) + 1e-300)
+            print(f"  [G5a] sign={sign}: drop-sign^ℓ transpose defect = {d:.3f}")
+            if sign == -1 and not d > 1e-3:
+                pytest.fail(f"the drop-sign^ℓ transpose stayed green at sign=−1 "
+                            f"({d:.3e}) — the P₁(−1) transpose consistency is unpinned.")
+
+    # ── Gate 5b (LIVE): the S seed-arm forward/adjoint transpose consistency ─
+
+    def test_scattering_seed_arm_euclidean_transpose_consistency(self, monkeypatch):
+        r"""The S adjoint seed arm (site 5, hard-coded ``0.5``) is the EXACT
+        Euclidean transpose of the S forward seed arm:
+        ``⟨A_BA·φ, χ̄⟩ = ⟨φ, A_BAᵀ·χ̄⟩`` (< 1e-11), with the adjoint's OUTPUT ray
+        block present-zero (``∂S/∂ψ½ = 0``). This is the gate that pins the
+        hand-rolled ``0.5`` is CONSISTENT with the forward fold — the risk the
+        un-weld's single-sourcing eliminates by construction.
+
+        Tooth: monkeypatch the FORWARD fold to ``0.6`` at ℓ=0 (the forward
+        local-imports it; the adjoint hand-rolls ``0.5``, unaffected) → the
+        forward/adjoint coefficients DISAGREE → the identity reds (measured ≈ 0.09).
+        A shared-coefficient value is invisible to this consistency gate (both
+        legs scale together) — the fold's VALUE is pinned by Gate 1/3, this gate
+        pins the fwd↔adj CONSISTENCY. The tooth survives the un-weld (the fold and
+        the fold-transpose stay distinct entry points)."""
+        sn = _sphere()
+        S = SNSolver(sn).scattering_op
+        space = sn.radial_characteristic_space
+        N, nx, ng = sn.quad.N, sn.nx, sn.ng
+        n_tr = int(sn.angular_trace.layout.total_size)
+        n_sd = space.shape[0]
+        rng = np.random.default_rng(40)
+
+        def euclid_defect() -> float:
+            phi_ff = FullField(
+                bulk=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
+                boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
+                radial_characteristic=RadialCharacteristicFlux(
+                    values=np.zeros(n_sd), space=space, mesh=sn))
+            chi = rng.standard_normal(n_sd)
+            chi_ff = FullField(
+                bulk=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
+                boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
+                radial_characteristic=RadialCharacteristicFlux(values=chi, space=space, mesh=sn))
+            seed_out = S.apply(phi_ff).radial_characteristic.values         # A_BA·φ
+            adj = S.apply_transpose(chi_ff)
+            # ∂S/∂ψ½ = 0: the adjoint's ray block is present-zero.
+            if adj.radial_characteristic is not None:
+                np.testing.assert_array_equal(
+                    adj.radial_characteristic.values, 0.0,
+                    err_msg="S adjoint ray block ≠ present-zero (∂S/∂ψ½ must be 0).")
+            bulk_out = adj.bulk.values                                       # A_BAᵀ·χ̄
+            lhs = float(seed_out @ chi)
+            rhs = float(phi_ff.bulk.values.ravel() @ bulk_out.ravel())
+            return abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+
+        control = euclid_defect()
+        if not control < 1e-11:
+            pytest.fail(f"seed-arm Euclidean transpose defect {control:.3e} ≥ 1e-11 — "
+                        f"the S adjoint seed arm's 0.5 is NOT the transpose of the "
+                        f"forward fold (forward/adjoint coefficients disagree).")
+
+        # Tooth: force a forward/adjoint coefficient disagreement (forward → 0.6).
+        def _fold_06(moments, sign):
+            moments = np.asarray(moments)
+            ell = np.arange(moments.shape[0])
+            coeff = ((2.0 * ell + 1.0) / 2.0) * np.float64(sign) ** ell
+            coeff = coeff.copy()
+            coeff[0] = 0.6
+            return np.tensordot(coeff, moments, axes=(0, 0))
+
+        # Patch the fold as the RECONSTRUCTION sees it (forward → 0.6); the
+        # adjoint uses the SEPARATE fold-transpose (unpatched, 0.5) → the fwd/adj
+        # coefficients disagree → the identity reds.
+        monkeypatch.setattr(_rcr_mod, "fold_moments_to_radial_characteristic", _fold_06)
+        tooth = euclid_defect()
+        print(f"  [G5b] control={control:.2e}  fwd-fold=0.6 tooth={tooth:.3f}")
+        if not tooth > 1e-3:
+            pytest.fail(f"the forward-fold=0.6 mismatch left the transpose defect at "
+                        f"{tooth:.3e} — the fwd↔adj consistency gate has no teeth.")
+
+    # ── Gate 6 (LIVE): the non-carrying CONTROL (no ray, no fold) ──────────
+
+    def test_non_carrying_control_no_ray_no_fold(self, monkeypatch):
+        r"""cylinder + slab are the non-carrying CONTROL (``radial_characteristic_
+        space is None`` — refutation #6, NOT "other geometries"): the S/F seed arm
+        emits a ``None`` ray and NO fold is invoked. Feed a bulk-only composite
+        (the arm is gated on ``psi.radial_characteristic is not None``), assert the
+        output ray is ``None`` and the fold spy counter stays 0."""
+        cyl = SNMesh(
+            Mesh1D(edges=np.linspace(0.05, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CYLINDRICAL, bc_right=BC("vacuum")),
+            Quadrature.level_symmetric(4), {0: _mixture(1.0, 0.4, 2)})
+        slab = SNMesh(
+            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
+                   bc_left=BC("reflective")),
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+        for tag, sn in (("cylinder", cyl), ("slab", slab)):
+            if sn.radial_characteristic_space is not None:
+                pytest.fail(f"{tag} carries a ray space — the non-carrying CONTROL is invalid.")
+            N, nx, ng = sn.quad.N, sn.nx, sn.ng
+            n_tr = int(sn.angular_trace.layout.total_size)
+            bulk_only = FullField(
+                bulk=AngularFlux.from_mesh(
+                    np.random.default_rng(50).standard_normal((N, ng, nx)), sn),
+                boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
+                radial_characteristic=None)
+            calls = _install_fold_spy(monkeypatch)
+            out = SNSolver(sn).scattering_op.apply(bulk_only)
+            if out.radial_characteristic is not None:
+                pytest.fail(f"{tag}: S emitted a non-None ray on a non-carrying mesh "
+                            f"(the seed arm must be skipped when the space is None).")
+            if calls["n"] != 0:
+                pytest.fail(f"{tag}: the fold was invoked {calls['n']}× on a non-carrying "
+                            f"mesh — A_BA must not fire without a ray carrier.")
+
+    # ── xfail-skeleton: the direct extracted-A_BA surface (BIND undecided) ──
+
+    def test_A_BA_direct_surface_folds_half_emission(self):
+        r"""The extracted single-source A_BA surface
+        (``RadialCharacteristicReconstruction.apply``) folds an emission to the
+        ray q½ source, matching the closed-form ½·emission loop
+        (``_ba_oldloop_reference``). LIVE post-un-weld (Step 2)."""
+        sn = _sphere()
+        S = SNSolver(sn).scattering_op
+        psi = _random_composite(sn, np.random.default_rng(60))
+        emission = _s_emission(S, psi)
+        got = _apply_A_BA(emission, sn)
+        np.testing.assert_array_equal(
+            got, _ba_oldloop_reference(emission, sn),
+            err_msg="the extracted A_BA surface ≠ the documented fold loop.")
+
+    def test_scattering_and_fission_route_through_extracted_A_BA(self, monkeypatch):
+        r"""Mode-11, SHARPENED: S and F both route through the EXTRACTED
+        single-source surface (``RadialCharacteristicReconstruction.apply``), not
+        merely the shared inner fold. A green-but-unrouted arm (re-inlining the
+        loop) leaves the counter at 0 and reds. LIVE post-un-weld (Step 2)."""
+        sn_s = _sphere()
+        S = SNSolver(sn_s).scattering_op
+        calls = _wrap_extracted_A_BA(monkeypatch)
+        S.apply(_random_composite(sn_s, np.random.default_rng(70)))
+        if calls["n"] <= 0:
+            pytest.fail("S did not route through the extracted A_BA surface (Mode 11).")
+        sn_f = _fissile_sphere()
+        F = SNSolver(sn_f).fission_op
+        calls["n"] = 0
+        F.apply(_random_composite(sn_f, np.random.default_rng(71)))
+        if calls["n"] <= 0:
+            pytest.fail("F did not route through the extracted A_BA surface (Mode 11).")
+
+    def test_A_BA_transpose_surface_euclidean_contract(self):
+        r"""The operator-shape A_BA exposes ``.apply_transpose``, which satisfies
+        the Euclidean adjoint contract against the forward fold
+        (``⟨A_BA·emission, y⟩ = ⟨emission, A_BAᵀ·y⟩``). LIVE post-un-weld (Step 2 —
+        the operator shape carries a real transpose surface)."""
+        sn = _sphere()
+        space = sn.radial_characteristic_space
+        rng = np.random.default_rng(80)
+        emission = rng.standard_normal((sn.ng, sn.nx))
+        y = rng.standard_normal(space.shape[0])
+        fwd = _apply_A_BA(emission, sn)
+        bwd = _apply_A_BA_transpose(y, sn)
+        lhs = float(fwd @ y)
+        rhs = float(emission.ravel() @ np.asarray(bwd).ravel())
+        np.testing.assert_allclose(
+            lhs, rhs, rtol=1e-11, atol=1e-12,
+            err_msg="A_BA.apply_transpose is not the Euclidean adjoint of A_BA.apply.")

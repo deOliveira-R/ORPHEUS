@@ -181,7 +181,11 @@ from numpy.typing import NDArray
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.space import FunctionSpace
 
-__all__ = ["RadialCharacteristicSpace", "fold_moments_to_radial_characteristic"]
+__all__ = [
+    "RadialCharacteristicSpace",
+    "fold_moments_to_radial_characteristic",
+    "fold_moments_to_radial_characteristic_transpose",
+]
 
 #: The two starting-direction legs, in flat-layout (and DAG) order:
 #: the inward leg first (seed⁻ ≺ seed⁺ — the outward leg is
@@ -405,6 +409,41 @@ class RadialCharacteristicSpace(FunctionSpace):
         return slot.slice_view(buffer)
 
 
+def _radial_characteristic_reconstruction_weights(
+    n_moments: int,
+    sign: int,
+) -> np.ndarray:
+    r"""The 1-D Legendre reconstruction weights at the closed ray :math:`\mu=\pm 1`.
+
+    .. math::
+
+        w_\ell \;=\; \frac{2\ell + 1}{2}\,(\pm 1)^\ell ,
+        \qquad \ell = 0 \ldots n_{\rm moments} - 1,
+
+    the exact addition-theorem weight :math:`(2\ell+1)/2` with
+    :math:`P_\ell(\pm 1) = (\pm 1)^\ell` (Hébert 3.432). The **single source**
+    of the fold coefficient: both the forward reconstruction
+    :func:`fold_moments_to_radial_characteristic` (which contracts these
+    weights against the moments) and its Euclidean transpose
+    :func:`fold_moments_to_radial_characteristic_transpose` (which expands a
+    ray cotangent onto them) read this — so the :math:`P_1(-1)` sign is
+    spelled ONCE (vv Mode 1/6; the §16.B B2b 2-term pin lives on the forward).
+    """
+    if sign not in (-1, +1):
+        raise ValueError(
+            f"_radial_characteristic_reconstruction_weights: sign must be "
+            f"-1 or +1; got {sign!r}."
+        )
+    if n_moments < 1:
+        raise ValueError(
+            f"_radial_characteristic_reconstruction_weights: n_moments must "
+            f"be ≥ 1 (at least the ℓ = 0 moment); got {n_moments!r}."
+        )
+    ell = np.arange(n_moments)
+    # (2ℓ+1)/2 · sign^ℓ.
+    return ((2.0 * ell + 1.0) / 2.0) * np.float64(sign) ** ell
+
+
 def fold_moments_to_radial_characteristic(
     moments: np.ndarray,
     sign: int,
@@ -453,11 +492,6 @@ def fold_moments_to_radial_characteristic(
         :math:`\bar Q(\mu = \mathrm{sign})`, the trailing shape of
         ``moments``.
     """
-    if sign not in (-1, +1):
-        raise ValueError(
-            f"fold_moments_to_radial_characteristic: sign must be -1 or +1; "
-            f"got {sign!r}."
-        )
     moments = np.asarray(moments)
     if moments.ndim < 1 or moments.shape[0] < 1:
         raise ValueError(
@@ -465,8 +499,57 @@ def fold_moments_to_radial_characteristic(
             f"leading ℓ axis with at least the ℓ = 0 moment; got shape "
             f"{moments.shape!r}."
         )
-    n_moments = moments.shape[0]
-    ell = np.arange(n_moments)
-    # (2ℓ+1)/2 · sign^ℓ, broadcast down the trailing axes.
-    coeff = ((2.0 * ell + 1.0) / 2.0) * np.float64(sign) ** ell
-    return np.tensordot(coeff, moments, axes=(0, 0))
+    # (2ℓ+1)/2 · sign^ℓ from the single-source weights, contracted down the
+    # ℓ axis (the sign is validated inside the weights helper).
+    weights = _radial_characteristic_reconstruction_weights(
+        moments.shape[0], sign,
+    )
+    return np.tensordot(weights, moments, axes=(0, 0))
+
+
+def fold_moments_to_radial_characteristic_transpose(
+    rays_bar: np.ndarray,
+    sign: int,
+    n_moments: int,
+) -> np.ndarray:
+    r"""Euclidean transpose of :func:`fold_moments_to_radial_characteristic`.
+
+    The forward reconstruction contracts the ray value out of the moments,
+    :math:`\bar Q(\mu=\mathrm{sign}) = \sum_\ell w_\ell\,Q_\ell`; its adjoint
+    with respect to the moments therefore EXPANDS a cotangent on that ray
+    value back onto the moments,
+
+    .. math::
+
+        \bar Q_\ell \;=\; w_\ell(\mathrm{sign})\,\overline{\bar Q},
+        \qquad \ell = 0 \ldots n_{\rm moments} - 1,
+
+    with the SAME reconstruction weights
+    :math:`w_\ell = \tfrac{2\ell+1}{2}(\pm 1)^\ell`
+    (:func:`_radial_characteristic_reconstruction_weights` — single source).
+    This is the transpose that single-sources the scattering seed adjoint
+    (:math:`\partial S / \partial \psi_{1/2}` cotangent → bulk moment): it
+    retires the hand-rolled :math:`\ell = 0` factor :math:`\tfrac12` that arm
+    previously carried, keeping the sign/weight in ONE place (vv Mode 1).
+
+    Parameters
+    ----------
+    rays_bar : np.ndarray, shape ``(...)``
+        The cotangent on :math:`\bar Q(\mu = \mathrm{sign})` — typically
+        ``(ng, nx)`` (a per-level, per-sign ray-cells cotangent).
+    sign : int
+        ``-1`` (inward starting direction) or ``+1`` (outward, pole-continued).
+    n_moments : int
+        The number of moments to expand onto — the reconstruction operator's
+        domain dimension (≥ 1). For the isotropic production reach this is 1.
+
+    Returns
+    -------
+    np.ndarray, shape ``(n_moments, *rays_bar.shape)``
+        :math:`\bar Q_\ell`, the moment-space cotangent (ℓ-leading).
+    """
+    rays_bar = np.asarray(rays_bar)
+    weights = _radial_characteristic_reconstruction_weights(n_moments, sign)
+    # outer product: (n_moments,) ⊗ (…) → (n_moments, …), the transpose of
+    # the forward tensordot's ℓ-contraction.
+    return weights.reshape((n_moments,) + (1,) * rays_bar.ndim) * rays_bar[None]

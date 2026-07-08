@@ -472,3 +472,67 @@ reflective), `TestB_b_RayBoundary` (corner swap ± transpose, vacuum-zero, white
 `NotImplementedError` `match=`, block-locality, **the G_sd-reciprocity gate** control=0 + 2 teeth
 0.96/0.33), `TestSplitInteraction` (split lives on B_a; B_b unaffected). Mutation ledger + the
 measured teeth are in the test-architect memo `a5e2bdff`.
+
+---
+
+## Step 2 — EXECUTION STATUS (DONE, 2026-07-08)
+
+**DONE — the ψ½ Schur fold un-welded into ONE named operator.** All green + mutation-verified +
+elegance PASS; bit-identical (731 `tests/sn/operators` pass unchanged incl. the curvilinear
+aniso-P1 MMS end-to-end fold), ratchet **`transport:1`**, sphinx **-W exit 0**.
+
+**The realization.** `A_BA = Reconstruction ∘ Emission`; the shared factor is the **Reconstruction**
+(the fold), NOT `A_BA` itself (the emission — `K_iso·φ₀` for S, `χνΣf·φ/k` for F — is
+operator-specific; the FULL A_BA block assembles at step 4). The user rejected the initial
+`RadialCharacteristicFold` name (it conflated the fold FACTOR with the A_BA block) — the fold IS
+the angular reconstruction `R` sampled at the closed μ=±1 rays, so:
+
+- **NEW `orpheus/transport/operators/radial_characteristic_reconstruction.py`** — class
+  `RadialCharacteristicReconstruction(LinearOperator)` (name USER-chosen 2026-07-08 over
+  `…Emission`/`…Restriction`; "Restriction" would collide with the DSA multigrid R, #2).
+  `apply(moments (n_moments,ng,nx)) → RadialCharacteristicSourceSink` (broadcast fold onto every
+  carried level); `apply_transpose(ray cotangent) → (n_moments,ng,nx)` (the Euclidean transpose,
+  sum over levels/signs). `is_adjointable=True`, `codomain=ray space`, `domain=None` (untyped
+  bulk-moment intermediate, K_iso-precedent), `n_moments` FIXED at construction (Pattern 4 — the
+  apply/apply_transpose adjoint pair agrees on the moment dim by construction; default 1 = iso
+  production reach). `block_role=None` (SystemRole lattice is step 4).
+- **HOME = transport, NOT sn** (layering — the load-bearing decision): the operator is consumed by
+  the transport `Scattering`/`Fission` operators + produces a transport `RadialCharacteristicSourceSink`;
+  **transport must not import sn at runtime** (grep-verified: the only `from orpheus.sn` in
+  transport/ are `TYPE_CHECKING` `SNMesh`). A_BB (`RadialCharacteristicOperator`) STAYS in sn
+  because it wraps the sn sweep engine — **the two `RadialCharacteristic*` operators split across
+  layers by their dependency, not their concept** (elegance-enforcer ACCEPT-strong).
+- **Single-sourced the weights** (Pattern 2/7): `_radial_characteristic_reconstruction_weights(n,
+  sign) = (2ℓ+1)/2·(±1)^ℓ` in `radial_characteristic_space.py`, shared by the forward
+  `fold_moments_to_radial_characteristic` AND the NEW `fold_moments_to_radial_characteristic_transpose`
+  — the P₁(−1) sign spelled ONCE; the **S-adjoint's hand-rolled `0.5` is RETIRED** to it (the
+  ERR-022 forward/adjoint-coefficient-drift class dissolved by construction).
+- **Routed** S-fwd + F-fwd (`.apply(emission[None])`) + **S-adjoint** (`.apply_transpose(chi_seed)`
+  → `K_isoᵀ(m_bar[0])`); the 3 hand-rolled fold loops **DELETED** (aggressive retirement, complete
+  — no `sd_values`/`cells_bar_sum` tells survive). Stale `"dormant until d3"` comments fixed (d3
+  landed @ `a29ab2d`; the arms are LIVE).
+- **`from_angular_source` NOT routed through** (the one deviation from the AskUserQuestion preview,
+  user-flagged): it is the per-ordinate birth factory doing per-level Legendre **analysis** (a
+  DISTINCT operation, not the S/F broadcast-fold twin); it already shares the fold math (helper +
+  weights). Forcing it through the broadcast operator would be correct only via the R12a 1-level
+  coincidence (fragile). elegance-enforcer ACCEPT: different physics, summed into the same q½ block.
+
+**Gates** (`TestA_BA_SchurFold`, `test_psi_half_coupling.py`, extended by test-architect memo
+`a651e6e9`): the fold contract on a MANUFACTURED anisotropic ≥2-moment input (refutation #3), the
+Mode-11 wrap-counter (S+F both route through the reconstruction — re-pointed to `_rcr_mod`, the
+reconstruction module's fold binding, after the module-level import moved the patch target), the
+½·emission bit-identity vs the old loop, the fold-transpose Euclidean contract, the S fwd↔adj
+consistency, the non-carrying cyl/slab CONTROL. The 3 formerly-xfail direct-surface gates are now
+LIVE (BIND flipped to `RadialCharacteristicReconstruction.apply/.apply_transpose`; xfail markers
+removed). Teeth mutation-verified in-process (M1 weights→fold RED, M2 transpose shares weights, M3
+bypass→count 0 RED).
+
+**FOLLOW-UPS (out of scope — for the user to file / step 7):**
+1. `from_angular_source = Reconstruction ∘ Analysis` — name the per-level Legendre `Analysis`
+   companion (currently unnamed inline `legvander`+`einsum`; anti-#5/#6). `module:sn`/`type:improvement`.
+2. **A_BA theory prose** — the operator-algebra theory page's A_BA section (the Schur fold, the
+   `(2ℓ+1)/2·(±1)^ℓ` reconstruction, the broadcast/sum adjoint) → campaign **step 7** docs.
+
+**NEXT: Step 3** — name `A_AB` (the ray→bulk seed injection: `precompute_psi_state` reading
+`cells(p,−1)` posed as an operator; adjoint `seed_cells_bar = A_AB.H`). ⏸ COMPACTION recommended
+after step 3.

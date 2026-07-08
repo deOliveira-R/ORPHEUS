@@ -505,31 +505,22 @@ class FissionOperator(LinearOperator):
             per_ord = AngularSourceSink.from_isotropic(
                 fission_iso.values, mesh,
             )
-            # #282 route (a) seed arm (2.5d, dormant until the d3 birth-site
-            # flip): a seed-carrying input emits the fission q½ on the cells
-            # legs — the isotropic emission folded to μ = ±1 through the ONE
-            # R14 fold helper (ℓ = 0: Q̄ = ½·Q₀, both signs — P₀ ≡ 1).
-            # Corners stay zero (trace-like rows; fission is volumetric).
+            # #282 route (a) seed arm (LIVE; d3 birth-site flip landed @
+            # a29ab2d): a seed-carrying input emits the fission q½ on the cells
+            # legs — the (ray, bulk) block of the lagged gain, A_BA =
+            # Reconstruction ∘ (χνΣf/k). The isotropic fission emission is
+            # reconstructed at the closed μ = ±1 rays by
+            # RadialCharacteristicReconstruction (ℓ = 0: Q̄ = ½·Q₀, both signs
+            # — the single-source fold, campaign step 2). Corners stay zero
+            # (fission is volumetric).
             sd_out = None
             if psi.radial_characteristic is not None:
-                from orpheus.numerics.spaces.radial_characteristic_space import (
-                    fold_moments_to_radial_characteristic,
-                )
-                from orpheus.transport.source_sinks import (
-                    RadialCharacteristicSourceSink,
+                from orpheus.transport.operators.radial_characteristic_reconstruction import (  # noqa: E501
+                    RadialCharacteristicReconstruction,
                 )
 
-                seed = psi.radial_characteristic
-                sd_values = np.zeros_like(seed.values)
-                for level in seed.space.levels:
-                    for sign in (-1, +1):
-                        seed.space.cells_view(sd_values, level, sign)[:] = (
-                            fold_moments_to_radial_characteristic(
-                                fission_iso.values[None], sign,
-                            )
-                        )
-                sd_out = RadialCharacteristicSourceSink(
-                    values=sd_values, space=seed.space, mesh=seed.mesh,
+                sd_out = RadialCharacteristicReconstruction(mesh).apply(
+                    fission_iso.values[None],
                 )
             return FullField(
                 # B.5.2: the operator output IS a source (Fψ rate density) — emit
