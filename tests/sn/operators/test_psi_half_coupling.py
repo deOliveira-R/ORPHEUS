@@ -54,10 +54,15 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.boundary import (
+    RadialCharacteristicBoundaryOperator,
+    SNBoundaryOperator,
+)
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.sn.solver import SNSolver, _within_group_triple
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -81,10 +86,17 @@ def _mixture(sig_t: float, sig_s: float, ng: int):
                         nu=np.zeros(ng), chi=np.zeros(ng), sig_s=ss)
 
 
-def _sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4):
-    """Seed-carrying vacuum sphere (GL S4) with scattering ratio ``c``."""
+def _sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4,
+            bc: str = "vacuum"):
+    """Seed-carrying sphere (GL S4) with scattering ratio ``c`` and outer law ``bc``.
+
+    Default vacuum (the regression floor). ``bc="reflective"`` gives a
+    seed-carrying sphere whose outer face drives ``B_b``'s non-trivial specular
+    corner swap — the vacuum floor never exercises that arm (``_reflect_corner``
+    returns zeros for vacuum), so the ``B_b`` gates below need it.
+    """
     mesh = Mesh1D(edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-                  coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"))
+                  coord=CoordSystem.SPHERICAL, bc_right=BC(bc))
     return SNMesh(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, c * sigma, ng)})
 
 
@@ -178,7 +190,7 @@ class TestRegressionFloor:
         within-sweep one."""
         sn = _sphere()
         _, S, _ = _within_group_triple(SNSolver(sn))
-        b, t, s, _ = _blocks(sn)
+        b, _, s, _ = _blocks(sn)
         Sd = _dense(S.apply, _template(sn))
         s_sb, s_bs, s_bb = _bn(Sd, s, b), _bn(Sd, b, s), _bn(Sd, b, b)
         print(f"  S: S_sb(bulk→ray src)={s_sb:.3e}  S_bs(ray→scalar)={s_bs:.2e}  S_bb={s_bb:.3e}")
@@ -276,3 +288,272 @@ class TestRegressionFloor:
             pytest.fail(f"welded vs dense LU differ by {diff:.3e} — an EXTRACTED block solve does "
                         f"not even reach principled-equivalence; the extraction dropped the row "
                         f"contract of the sweep (naive dense M⁻¹ ignores inflow/seed rows).")
+
+
+# ── Step-1b helpers: the boundary un-weld B = B_a + B_b ───────────────────
+
+
+def _seed_composite(sn, seed_values: NDArray) -> FullField:
+    """A composite with zero bulk, the given trace, and the given ψ½ seed."""
+    N, nx, ng = sn.quad.N, sn.nx, sn.ng
+    n_tr = int(sn.angular_trace.layout.total_size)
+    return FullField(
+        bulk=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
+        boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
+        radial_characteristic=RadialCharacteristicFlux(
+            values=seed_values, space=sn.radial_characteristic_space, mesh=sn),
+    )
+
+
+def _random_composite(sn, rng) -> FullField:
+    """A composite with random bulk, trace, and ψ½ seed (all blocks non-zero)."""
+    N, nx, ng = sn.quad.N, sn.nx, sn.ng
+    n_tr = int(sn.angular_trace.layout.total_size)
+    ns = sn.radial_characteristic_space.shape[0]
+    return FullField(
+        bulk=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
+        boundary=AngularBoundaryFlux(
+            values=rng.standard_normal(n_tr), space=sn.angular_trace, mesh=sn),
+        radial_characteristic=RadialCharacteristicFlux(
+            values=rng.standard_normal(ns), space=sn.radial_characteristic_space, mesh=sn),
+    )
+
+
+def _dense_seed(fn, sn) -> NDArray:
+    """Densify a seed-block operator (``FullField -> FullField``) by probing the
+    ψ½ basis — the ``(n_sd, n_sd)`` matrix of its radial_characteristic block."""
+    ns = sn.radial_characteristic_space.shape[0]
+    M = np.zeros((ns, ns))
+    for j in range(ns):
+        e = np.zeros(ns)
+        e[j] = 1.0
+        out = fn(_seed_composite(sn, e))
+        M[:, j] = out.radial_characteristic.values
+    return M
+
+
+def _v_cell_seed(sn) -> NDArray:
+    """The ``G_sd = V_cell`` seed metric (production ``inner_product_weights``)."""
+    return np.asarray(
+        sn.radial_characteristic_space.inner_product_weights, dtype=float)
+
+
+def _g_recip(fwd: NDArray, T: NDArray, g: NDArray, rng) -> float:
+    """The metric-reciprocity defect ``|⟨fwd x, y⟩_g − ⟨x, T y⟩_g| / norm``."""
+    x = rng.standard_normal(g.size)
+    y = rng.standard_normal(g.size)
+    lhs = float((fwd @ x) @ (g * y))
+    rhs = float(x @ (g * (T @ y)))
+    return abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-30)
+
+
+class TestBoundaryUnweld:
+    r"""``B = B_a + B_b`` — the boundary un-weld is a DISJOINT direct sum.
+
+    ``B_a`` (:class:`SNBoundaryOperator`, System A's trace boundary) touches only
+    the trace and emits a **present-zero** ray block; ``B_b``
+    (:class:`RadialCharacteristicBoundaryOperator`, System B's ray corner) touches
+    only the ray and emits a present-zero trace. Their sum reconstructs the whole
+    augmented boundary bit-identically (RULING P1). The reflective sphere is used
+    so BOTH arms are non-trivial (vacuum would leave B_b zero).
+    """
+
+    def test_b_a_touches_only_the_trace_present_zero_ray(self):
+        r"""``B_a`` reflects the trace but emits a PRESENT-ZERO ray (not ``None``
+        — the mixed-presence law would raise under ``B_a + B_b``). Mutation tooth:
+        a ``B_a`` that re-grew the ray arm would emit a non-zero ray block."""
+        sn = _sphere(bc="reflective")
+        out = SNBoundaryOperator(sn).apply(_random_composite(sn, np.random.default_rng(1)))
+        if out.radial_characteristic is None:
+            pytest.fail("B_a emitted a None ray on a seed-carrying composite — the "
+                        "mixed-presence law will raise under B_a + B_b (must be present-zero).")
+        np.testing.assert_array_equal(
+            out.radial_characteristic.values, 0.0,
+            err_msg="B_a emitted a NON-ZERO ray block — it re-grew the ray arm "
+                    "that belongs to B_b (the un-weld leaked).")
+        if not np.max(np.abs(out.boundary.values)) > 0.0:
+            pytest.fail("B_a emitted a zero trace on a reflective sphere — it is not "
+                        "reflecting the trace (System A boundary is dead).")
+
+    def test_b_b_touches_only_the_ray_present_zero_trace(self):
+        r"""``B_b`` reflects the ray corner but emits a PRESENT-ZERO trace.
+        Mutation tooth: a ``B_b`` leaking a trace action emits a non-zero trace."""
+        sn = _sphere(bc="reflective")
+        out = RadialCharacteristicBoundaryOperator(sn).apply(
+            _random_composite(sn, np.random.default_rng(2)))
+        np.testing.assert_array_equal(
+            out.boundary.values, 0.0,
+            err_msg="B_b emitted a NON-ZERO trace block — it leaked a trace action "
+                    "that belongs to B_a.")
+        if not np.max(np.abs(out.radial_characteristic.values)) > 0.0:
+            pytest.fail("B_b emitted a zero ray corner on a reflective sphere — the "
+                        "System B boundary arm is dead.")
+
+    def test_sum_reconstructs_both_blocks_disjointly(self):
+        r"""``(B_a + B_b).apply`` = ``B_a``'s trace ⊕ ``B_b``'s ray, byte-for-byte
+        per block — the disjoint direct sum reconstructs the whole boundary."""
+        sn = _sphere(bc="reflective")
+        psi = _random_composite(sn, np.random.default_rng(3))
+        B_a = SNBoundaryOperator(sn)
+        B_b = RadialCharacteristicBoundaryOperator(sn)
+        out = (B_a + B_b).apply(psi)
+        out_a, out_b = B_a.apply(psi), B_b.apply(psi)
+        # The composite trace is exactly B_a's (B_b contributes present-zero).
+        np.testing.assert_array_equal(out.boundary.values, out_a.boundary.values)
+        # The composite ray is exactly B_b's (B_a contributes present-zero).
+        np.testing.assert_array_equal(
+            out.radial_characteristic.values, out_b.radial_characteristic.values)
+
+    def test_seedless_composite_sum_is_still_b_a(self):
+        r"""On a seedless composite ``B_b`` is a no-op (ray ``None``); ``B_a + B_b``
+        equals ``B_a`` on the trace, ray stays ``None`` (no mixed-presence raise).
+        A slab (Cartesian) is genuinely seedless — a sphere carries the pole ray."""
+        slab = SNMesh(
+            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
+                   bc_left=BC("reflective")),
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+        N, nx, ng = slab.quad.N, slab.nx, slab.ng
+        n_tr = int(slab.angular_trace.layout.total_size)
+        psi = FullField(
+            bulk=AngularFlux.from_mesh(np.random.default_rng(4).standard_normal((N, ng, nx)), slab),
+            boundary=AngularBoundaryFlux(
+                values=np.random.default_rng(5).standard_normal(n_tr),
+                space=slab.angular_trace, mesh=slab),
+            radial_characteristic=None,
+        )
+        B_a = SNBoundaryOperator(slab)
+        B_b = RadialCharacteristicBoundaryOperator(slab)
+        out = (B_a + B_b).apply(psi)
+        if out.radial_characteristic is not None:
+            pytest.fail("seedless B_a + B_b emitted a non-None ray — B_b must pass "
+                        "None through on a seedless composite.")
+        np.testing.assert_array_equal(out.boundary.values, B_a.apply(psi).boundary.values)
+
+
+class TestB_b_RayBoundary:
+    r"""``B_b`` — the ψ½ ray-corner boundary law (RULINGS P1 + P2).
+
+    The specular corner swap, its Euclidean transpose (the mirror), and — the
+    load-bearing gate — the ``G_sd = V_cell`` reciprocity that keeps Mode-12
+    closed (P2: the corner gauge is symmetric, so Euclidean = Hilbert). Reflective
+    sphere for the non-trivial arm; vacuum for the null control.
+    """
+
+    def test_reflective_corner_swap_forward(self):
+        r"""Forward: ``out.corner(level, −1) = seed.corner(level, +1)`` per level;
+        the cells and the +1 corner stay zero (B_b touches only the inflow row)."""
+        sn = _sphere(bc="reflective")
+        space = sn.radial_characteristic_space
+        seed_vals = np.random.default_rng(6).standard_normal(space.shape[0])
+        out = RadialCharacteristicBoundaryOperator(sn).apply(_seed_composite(sn, seed_vals))
+        ov = out.radial_characteristic.values
+        for level in space.levels:
+            np.testing.assert_array_equal(
+                space.corner_view(ov, level, -1), space.corner_view(seed_vals, level, +1),
+                err_msg=f"level {level}: corner(−1) ≠ seed.corner(+1) (specular swap wrong).")
+            np.testing.assert_array_equal(
+                space.corner_view(ov, level, +1), 0.0,
+                err_msg=f"level {level}: the +1 corner is non-zero (B_b touched a non-inflow row).")
+            np.testing.assert_array_equal(
+                space.cells_view(ov, level, -1), 0.0,
+                err_msg=f"level {level}: the cells leg is non-zero (B_b is corner-only).")
+
+    def test_transpose_is_exact_euclidean_mirror(self):
+        r"""``dense(B_b.apply_transpose) ≡ dense(B_b.apply).T`` (0 ULP). A
+        same-direction transpose would equal ``dense(apply)`` (not its transpose)
+        and — since the swap matrix is non-symmetric — red this gate."""
+        sn = _sphere(bc="reflective")
+        B_b = RadialCharacteristicBoundaryOperator(sn)
+        fwd = _dense_seed(B_b.apply, sn)
+        T = _dense_seed(B_b.apply_transpose, sn)
+        np.testing.assert_array_equal(
+            T, fwd.T, err_msg="B_bᵀ ≠ (B_b)ᵀ — the transpose is not the Euclidean mirror.")
+
+    def test_euclidean_transpose_is_the_vcell_hilbert_adjoint(self):
+        r"""Mode-12 CLOSURE (RULING P2): ``⟨B_b x, y⟩_{G_sd} = ⟨x, B_bᵀ y⟩_{G_sd}``
+        under ``G_sd = V_cell``. Euclidean IS the Hilbert adjoint because the
+        corner gauge is symmetric (``g₊ = g₋ = V(R)``). CONTROL = 0 + two teeth
+        (a wrong-direction transpose, an asymmetric gauge) prove it is not vacuous
+        — a future asymmetric gauge that reopened Mode-12 would red the gate."""
+        sn = _sphere(bc="reflective")
+        B_b = RadialCharacteristicBoundaryOperator(sn)
+        fwd = _dense_seed(B_b.apply, sn)
+        T = _dense_seed(B_b.apply_transpose, sn)
+        g = _v_cell_seed(sn)
+        rng = np.random.default_rng(8)
+        ctrl = _g_recip(fwd, T, g, rng)
+        print(f"  B_b G_sd-reciprocity: control={ctrl:.2e}")
+        if not (ctrl < 1e-12):
+            pytest.fail(f"CONTROL defect {ctrl:.3e} ≠ 0 — the Euclidean transpose is NOT the "
+                        f"V_cell Hilbert adjoint; a Euclidean block adjoint on System B has "
+                        f"reopened Mode-12 (the corner gauge is not symmetric).")
+        # Tooth a: a same-direction (wrong) transpose breaks reciprocity.
+        tooth_a = _g_recip(fwd, fwd, g, rng)
+        # Tooth b: an asymmetric corner gauge breaks reciprocity even with the correct T.
+        g_bad = g.copy()
+        for level in sn.radial_characteristic_space.levels:
+            sn.radial_characteristic_space.corner_view(g_bad, level, +1)[:] *= 2.0
+        tooth_b = _g_recip(fwd, T, g_bad, rng)
+        print(f"    teeth: wrong-transpose={tooth_a:.2f}  gauge-asymmetry={tooth_b:.2f}")
+        if not (tooth_a > 1e-3 and tooth_b > 1e-3):
+            pytest.fail(f"reciprocity gate is VACUOUS: wrong-transpose tooth {tooth_a:.3e} or "
+                        f"gauge-asymmetry tooth {tooth_b:.3e} did not red (Mode-12 gate toothless).")
+
+    def test_vacuum_outer_emits_zero_corner(self):
+        r"""``kind == "vacuum"`` → ``B_b`` emits an all-zero ray block (no
+        re-emission at the outer ray). Positive law (anti-#11)."""
+        sn = _sphere(bc="vacuum")
+        seed_vals = np.random.default_rng(10).standard_normal(
+            sn.radial_characteristic_space.shape[0])
+        out = RadialCharacteristicBoundaryOperator(sn).apply(_seed_composite(sn, seed_vals))
+        np.testing.assert_array_equal(
+            out.radial_characteristic.values, 0.0,
+            err_msg="vacuum B_b emitted a non-zero corner (it did the reflective swap).")
+
+    def test_unruled_outer_law_is_loud_deferred(self, monkeypatch):
+        r"""``kind ∈ {white, albedo, periodic}`` → ``NotImplementedError`` with the
+        specific message (NEGATIVE law, anti-#11: a bare ``raises`` false-greens on
+        a downstream crash). Monkeypatch the xmax law kind (no white-sphere mesh
+        needed) — auto-reverts, never a git checkout."""
+        sn = _sphere(bc="reflective")
+        monkeypatch.setattr(sn.bc["xmax"], "kind", "white")
+        seed_vals = np.random.default_rng(12).standard_normal(
+            sn.radial_characteristic_space.shape[0])
+        with pytest.raises(NotImplementedError, match="no ruled corner action yet"):
+            RadialCharacteristicBoundaryOperator(sn).apply(_seed_composite(sn, seed_vals))
+
+    def test_is_adjointable_is_per_leaf(self):
+        r"""``B_b.is_adjointable`` is the OUTER ray-face law's, not the whole-trace
+        intersection: reflective + vacuum → True; the loud-deferred set → False."""
+        if not RadialCharacteristicBoundaryOperator(_sphere(bc="reflective")).is_adjointable:
+            pytest.fail("reflective B_b is not adjointable (the involution should be).")
+        if not RadialCharacteristicBoundaryOperator(_sphere(bc="vacuum")).is_adjointable:
+            pytest.fail("vacuum B_b is not adjointable (the zero map should be).")
+
+
+class TestSplitInteraction:
+    r"""The schedule ``split()`` lives on ``B_a`` alone; ``B_b`` is schedule-atomic.
+
+    RULING P1 corollary: a grading is a refinement of ONE system's boundary block,
+    never the composite. Because ``B_a`` sheds the ray arm, its masked halves emit
+    ZERO ray — so ``B_lower + B_upper + B_b`` carries the ray corner exactly ONCE
+    (the latent double-count the un-weld closes; it would go live on curvilinear
+    multi-D, #22). Verified on the seed-carrying sphere's degenerate split (the
+    masked ``_apply_faces`` path is what matters — it emits present-zero ray)."""
+
+    def test_split_masked_halves_emit_zero_ray(self):
+        from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
+
+        sn = _sphere(bc="reflective")
+        B_a = SNBoundaryOperator(sn)
+        parts = B_a.split(SweepSchedule.gauss_seidel(sn))
+        psi = _random_composite(sn, np.random.default_rng(13))
+        for name, half in (("lower", parts.lower), ("upper", parts.upper)):
+            out = half.apply(psi)
+            if out.radial_characteristic is None:
+                pytest.fail(f"B_{name} emitted a None ray (mixed-presence raises under the sum).")
+            np.testing.assert_array_equal(
+                out.radial_characteristic.values, 0.0,
+                err_msg=f"masked B_{name} emitted a NON-ZERO ray corner — the split doubles "
+                        f"the ray (the latent bug; the grading must live on B_a's TRACE only).")

@@ -857,7 +857,10 @@ class TestInvertibleSolveBridgeRegression:
         property end-to-end on the composite path.
         """
         from dataclasses import replace
-        from orpheus.sn.operators.boundary import SNBoundaryOperator
+        from orpheus.sn.operators.boundary import (
+            RadialCharacteristicBoundaryOperator,
+            SNBoundaryOperator,
+        )
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
@@ -906,7 +909,18 @@ class TestInvertibleSolveBridgeRegression:
         # (``q.boundary = 0`` here) — exactly the ``S + B`` source the
         # production SI driver folds.  ``initial_guess`` still threads the
         # M-M Carlson bulk warm start.
-        B = SNBoundaryOperator(sn_mesh)
+        # The augmented boundary coupling: on a seed-carrying (sphere) mesh the
+        # direct sum B_a + B_b (System A trace ⊕ System B ray corner — RULING P1;
+        # the un-weld of the old welded SNBoundaryOperator). B.apply(ψ) emits BOTH
+        # the reflected trace AND the ψ½ corner arm, exactly the augmented −B the
+        # production driver folds (this test replicates that fold by hand). On a
+        # seedless (slab/cylinder) mesh B is B_a alone. Mirrors _within_group_triple.
+        B_a = SNBoundaryOperator(sn_mesh)
+        B = (
+            B_a + RadialCharacteristicBoundaryOperator(sn_mesh)
+            if sn_mesh.radial_characteristic_space is not None
+            else B_a
+        )
         psi_typed: TimedFullField | None = None
         for _ in range(400):
             if psi_typed is None:

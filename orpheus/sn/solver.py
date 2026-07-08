@@ -167,9 +167,17 @@ from .solution import IterationHistory, Solution
 
 def _within_group_triple(
     solver: "SNSolver",
-) -> "tuple[InvertibleOperator, ScatteringOperator, SNBoundaryOperator]":
+) -> "tuple[InvertibleOperator, ScatteringOperator, LinearOperator[FullField, FullField]]":
     r"""The within-group loss decomposition ``(L + C, S, B)`` — the invertible
     resolvent plus its two lagged coupling gains.
+
+    ``B`` is the augmented boundary block: on a seed-carrying (1-D curvilinear)
+    mesh the direct sum ``B_a + B_b`` (System A trace ⊕ System B ray corner —
+    an :class:`~orpheus.numerics.operator.OperatorSum`); on a seedless mesh the
+    plain :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` (``B_a``).
+    Either way it is a boundary-role gain the driver consumes via ``.apply`` —
+    only the seedless multi-D-Cartesian G-S path calls ``.split()``, and there
+    ``B`` is always the plain ``SNBoundaryOperator`` (RULING P1).
 
     Single source of truth (Cardinal Rule 2 / coding-elegance Pattern 2 + 5)
     for the operators EVERY within-group solve consumes — eigenvalue SI
@@ -205,7 +213,10 @@ def _within_group_triple(
     outer / within-group decomposition), so there is no fission gain here.
     """
     from .operators.streaming import StreamingOperator
-    from .operators.boundary import SNBoundaryOperator
+    from .operators.boundary import (
+        RadialCharacteristicBoundaryOperator,
+        SNBoundaryOperator,
+    )
 
     sn_mesh = solver.sn_mesh
     # L = pure σ-free streaming (#257 S8b): the streaming leaf reads no σ;
@@ -221,11 +232,21 @@ def _within_group_triple(
         coefficient=solver.mat_xs.total_cross_section_field,
         space=sn_mesh.full_field_space,
     )
-    return (
-        L + C,
-        solver.scattering_op,
-        SNBoundaryOperator(sn_mesh),
+    # B = the augmented boundary block. On a seed-carrying (1-D curvilinear)
+    # mesh it is the DIRECT SUM B_a + B_b of the two per-system boundary
+    # operators (RULING P1): B_a = SNBoundaryOperator (System A trace), B_b =
+    # RadialCharacteristicBoundaryOperator (System B ray corner). On a seedless
+    # mesh B is B_a alone (no ray). The G-S split() path (multi-D Cartesian) is
+    # seedless BY CONSTRUCTION, so it always sees the plain SNBoundaryOperator —
+    # the schedule grading lives on B_a, never the composite (RULING P1
+    # corollary; this is what closes the ray-corner double-count).
+    boundary_a = SNBoundaryOperator(sn_mesh)
+    boundary: "LinearOperator[FullField, FullField]" = (
+        boundary_a + RadialCharacteristicBoundaryOperator(sn_mesh)
+        if sn_mesh.radial_characteristic_space is not None
+        else boundary_a
     )
+    return (L + C, solver.scattering_op, boundary)
 
 
 def evaluate_residual(
@@ -515,7 +536,8 @@ def _radial_characteristic_source_from_per_ordinate(
 
 
 def _select_si_resolvent(
-    LC: "InvertibleOperator", S: "ScatteringOperator", B: "SNBoundaryOperator",
+    LC: "InvertibleOperator", S: "ScatteringOperator",
+    B: "LinearOperator[FullField, FullField]",
     sn_mesh: "SNMesh", inner_schedule: str,
 ) -> "tuple[InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...]]":
     r"""Pick the ``(resolvent, gains)`` for the within-group SI driver per
@@ -559,14 +581,28 @@ def _select_si_resolvent(
         and not sn_mesh.is_1d
     ):
         from .loss_representation.sweep_schedule import SweepSchedule
+        from .operators.boundary import SNBoundaryOperator
 
+        # Multi-D Cartesian ⟹ SEEDLESS ⟹ B is the plain SNBoundaryOperator
+        # (B_a alone; no ray block). The schedule split lives on B_a, never the
+        # B_a + B_b composite (RULING P1 corollary) — this narrowing asserts that
+        # invariant (a seed-carrying composite would be curvilinear, not
+        # Cartesian, so it never reaches here).
+        if not isinstance(B, SNBoundaryOperator):
+            raise TypeError(
+                "boundary Gauss-Seidel split requires the plain "
+                "SNBoundaryOperator (a seedless multi-D Cartesian mesh); got "
+                f"{type(B).__name__} — a seed-carrying composite must not reach "
+                "the G-S schedule path (RULING P1: gradings live on B_a)."
+            )
         parts = B.split(SweepSchedule.gauss_seidel(sn_mesh))
         return LC - parts.lower, (S, parts.upper)
     return LC, (S, B)
 
 
 def _within_group_si(
-    LC: "InvertibleOperator", S: "ScatteringOperator", B: "SNBoundaryOperator",
+    LC: "InvertibleOperator", S: "ScatteringOperator",
+    B: "LinearOperator[FullField, FullField]",
     sn_mesh: "SNMesh", *, inner_schedule: str, max_iter: int, tol: float,
 ) -> "tuple[SourceIteration[FullField], InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...], bool]":
     r"""SourceIteration driver on the within-group loss ``(L + C − S − B)``.
@@ -1675,9 +1711,15 @@ def _reflect_outflow_into_inflow(
     ``B`` coupling gain), but the DIRECT fixed-source SI loop
     (:func:`_solve_fixed_source_si`) and the final eigenvalue reconstruction
     sweep (:func:`solve_sn`) do not route through that driver — they call this
-    helper to set ``ψ.inflow = B·ψ.outflow`` on the buffer before each sweep,
-    via the canonical whole-trace :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
-    (single source of truth — the same ``B`` the matvec / SI driver consume).
+    helper to set ``ψ.inflow = B·ψ.outflow`` on the buffer before each sweep.
+    Post-un-weld ``B = B_a + B_b`` is the direct sum of the two per-system
+    boundaries (RULING P1), so this helper reflects each system through its OWN
+    operator: the trace via
+    :meth:`~orpheus.sn.operators.boundary.SNBoundaryOperator.reflect_inflow_inplace`
+    (``B_a``) and the ψ½ ray corner via
+    :meth:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator.reflect_corner_inplace`
+    (``B_b``) — the SAME two cores the matvec / SI driver consume as the
+    ``B_a + B_b`` gain (single source of truth; the two routes cannot drift).
 
     For vacuum ``B = 0`` so the inflow slots stay zero (bit-identical to the
     pre-extraction ``bc.apply`` of a vacuum law); for reflective/white/albedo
@@ -1705,19 +1747,25 @@ def _reflect_outflow_into_inflow(
     current-iterate inflow. ``B`` is block-diagonal over faces ⟹ exact
     restriction.
     """
-    from orpheus.sn.operators.boundary import SNBoundaryOperator
+    from orpheus.sn.operators.boundary import (
+        RadialCharacteristicBoundaryOperator,
+        SNBoundaryOperator,
+    )
 
     # Trace-only ``A_ss`` action — no zero-bulk probe (the bulk was only ever
     # a carrier to reach ``B``'s boundary block).  The mutating write-back is
-    # ``B``'s own :meth:`reflect_inflow_inplace` verb (#226 step 2 moved it
+    # ``B_a``'s own :meth:`reflect_inflow_inplace` verb (#226 step 2 moved it
     # onto the operator so the scheduled sweep's inter-group reflect and this
     # helper share ONE body); it routes through ``_reflect_trace`` with
-    # ``B.apply``, so the helper and the matvec / SI driver cannot drift.
+    # ``B_a.apply``, so the helper and the matvec / SI driver cannot drift.
+    SNBoundaryOperator(sn_mesh).reflect_inflow_inplace(boundary_flux, faces=faces)
     # ``radial_characteristic`` (#282 route (a)): the ψ½ carrier whose
     # inflow-corner slots get the law's corner action — the seed analogue,
-    # through ``B``'s SAME corner arm.
-    SNBoundaryOperator(sn_mesh).reflect_inflow_inplace(
-        boundary_flux, faces=faces, radial_characteristic=radial_characteristic,
+    # through System B's OWN boundary ``B_b`` (RULING P1: one reflect per
+    # system; ``B_b.reflect_corner_inplace`` is the ray sibling of ``B_a``'s
+    # trace reflect above). ``None`` is a no-op (seedless).
+    RadialCharacteristicBoundaryOperator(sn_mesh).reflect_corner_inplace(
+        radial_characteristic,
     )
 
 

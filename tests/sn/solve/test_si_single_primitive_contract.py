@@ -41,7 +41,7 @@ from orpheus.sn.solver import SNSolver
 from orpheus.sn.operators.streaming import InvertibleOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
-from orpheus.sn.operators.boundary import SNBoundaryOperator
+from orpheus.numerics.operator import BlockRole
 from orpheus.numerics import iteration as _iteration
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.source_sinks import AngularSourceSink
@@ -172,8 +172,13 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     assert isinstance(S_eig, ScatteringOperator)
     assert isinstance(S_fs, ScatteringOperator)
 
-    # (2b) gain 1 = B: the BOUNDARY reflective coupling on the trace (the
-    # |Ω·n|·w adjoint metric lives here — Wave O O.2 — hence B stays a separate
-    # trace-typed gain, never folded into the bulk S).
-    assert isinstance(B_eig, SNBoundaryOperator)
-    assert isinstance(B_fs, SNBoundaryOperator)
+    # (2b) gain 1 = B: the augmented BOUNDARY coupling. On a seed-carrying
+    # (sphere) mesh it is the direct sum B_a + B_b (System A trace ⊕ System B ray
+    # corner — an OperatorSum, RULING P1; the un-weld of the old welded
+    # SNBoundaryOperator). The |Ω·n|·w trace adjoint metric lives on B_a. The
+    # single-primitive contract: SI and eigenvalue share the SAME structural
+    # boundary primitive — same type both paths, carrying the BOUNDARY block-role
+    # (never folded into the bulk S).
+    assert type(B_eig) is type(B_fs)
+    assert B_eig.block_role is BlockRole.BOUNDARY
+    assert B_fs.block_role is BlockRole.BOUNDARY

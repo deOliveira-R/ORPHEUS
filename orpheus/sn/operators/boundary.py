@@ -22,11 +22,16 @@ On ``V = V_bulk ⊕ V_boundary`` the four operator families are::
     B        →  [ 0     0   ] (BOUNDARY — boundary → boundary only, ``A_ss``)
                 [ 0     A_ss]
 
-:class:`SNBoundaryOperator` is the ``A_ss`` leaf. As a sibling ``−B`` of ``L``
-in the :class:`~orpheus.numerics.operator.OperatorSum` algebra it supplies the
-reflective coupling that ``L`` previously absorbed inside its sweep (the
-``inflow = bc.apply(outflow)`` re-apply); the outer Krylov / SI loop then drives
-the boundary **consistency residual** ``ψ.inflow − B·ψ.outflow − q.inflow → 0``.
+The whole boundary block is the direct sum ``B = B_a + B_b`` of the two
+per-system boundaries (a block-composed system's boundary is the direct sum of
+its per-system boundary blocks over the composite biproduct):
+:class:`SNBoundaryOperator` (``B_a``) is System A's **trace** ``A_ss`` leaf, and
+:class:`RadialCharacteristicBoundaryOperator` (``B_b``) is System B's **ψ½
+ray-corner** ``A_ss`` leaf (present only on a seed-carrying mesh). As a sibling
+``−B`` of ``L`` in the :class:`~orpheus.numerics.operator.OperatorSum` algebra it
+supplies the reflective coupling that ``L`` previously absorbed inside its sweep
+(the ``inflow = bc.apply(outflow)`` re-apply); the outer Krylov / SI loop then
+drives the boundary **consistency residual** ``ψ.inflow − B·ψ.outflow − q.inflow → 0``.
 
 Construction
 ============
@@ -69,18 +74,87 @@ if TYPE_CHECKING:
     )
 
 
-__all__ = ["BoundarySplit", "SNBoundaryOperator", "SNMaskedBoundaryOperator"]
+__all__ = [
+    "BoundarySplit",
+    "RadialCharacteristicBoundaryOperator",
+    "SNBoundaryOperator",
+    "SNMaskedBoundaryOperator",
+]
+
+#: The outer-face law kinds with a RULED ψ½ corner action (RULING P1's ray
+#: carrier). Single source for BOTH
+#: :attr:`RadialCharacteristicBoundaryOperator.is_adjointable` (a ruled kind's
+#: corner map is Euclidean-adjointable) AND
+#: :meth:`RadialCharacteristicBoundaryOperator._reflect_corner` (an unruled kind
+#: is loud-deferred). white / albedo / periodic are absent — their off-quadrature
+#: μ = ±1 re-emission is a design decision not yet ruled (2.5d plan-of-record);
+#: add a kind here AND its branch in ``_reflect_corner`` when it is ruled.
+_RULED_CORNER_KINDS = frozenset({"vacuum", "reflective"})
+
+
+def _zero_bulk_source(mesh: "SNMesh"):
+    r"""The zero-bulk ``A_ss`` carrier every boundary block emits.
+
+    Sized from the MESH (not ``zeros_like`` the input) so the carrier is correct
+    for any bulk representation (full-angular
+    :class:`~orpheus.transport.fields.angular_flux.AngularFlux` OR the Phase-5a
+    windowed :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`);
+    it carries the scheme's spatial-moment width (#240 D5b-S3) so it composes
+    element-wise with the moment-carrying ``(L+C)ψ`` in the ``(L+C − S − B)ψ``
+    matvec.  Single source (Cardinal Rule 2) for the zero bulk both ``B_a``
+    (:class:`SNBoundaryOperator`) and ``B_b``
+    (:class:`RadialCharacteristicBoundaryOperator`) emit.
+    """
+    from orpheus.transport.source_sinks import AngularSourceSink
+
+    return AngularSourceSink.zeros_on(
+        mesh, spatial_moments=mesh.scheme.spatial_basis_per_axis,
+    )
+
+
+def _zero_radial_characteristic_like(
+    seed: "RadialCharacteristicField | None",
+) -> "RadialCharacteristicSourceSink | None":
+    r"""A present-but-ZERO ray source matching ``seed``'s presence.
+
+    ``B_a`` (System A's trace boundary) touches no ray corner, but on a
+    seed-carrying composite it MUST emit a PRESENT zero ray block — not ``None``:
+    ``B = B_a + B_b`` sums the two per-system boundary blocks, and the composite
+    ``+`` raises on a seeded ⊕ unseeded presence mismatch
+    (:meth:`~orpheus.transport.full_field.FullField._combine_radial_characteristic`).
+    So ``B_a`` emits present-zero and ``B_b`` emits the reflected corner; their
+    sum is the reflected corner, bit-identically.  ``None`` passes through for a
+    seedless composite (Cartesian / cylinder, R12a).
+    """
+    if seed is None:
+        return None
+    from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
+
+    return RadialCharacteristicSourceSink(
+        values=np.zeros_like(seed.values), space=seed.space, mesh=seed.mesh,
+    )
 
 
 class SNBoundaryOperator(LinearOperator):
-    r"""Whole-trace boundary law ``B`` — the ``A_ss`` block of the SN algebra.
+    r"""``B_a`` — System A's (trace) boundary law, the SN ``A_ss`` block.
 
-    Block-diagonal over the mesh's true boundary faces: ``B.apply(ψ)`` returns a
+    The boundary operator of the transport system (System A of the 2×2 coupled
+    block operator — bulk⊕trace): block-diagonal over the mesh's true boundary
+    faces, ``B_a.apply(ψ)`` returns a
     :class:`~orpheus.transport.full_field.FullField` with **zero bulk**
     and, on each face, ``bc[<face>].apply(ψ.boundary.face_view(<face>))`` — the
     per-face realized boundary law applied to that face's trace slot. It composes
     as ``−B`` in ``(L_full + C − S − F − B)`` (acting on the same
     :class:`~orpheus.transport.full_field.FullField` carrier as ``L``/``C``/``S``/``F``).
+
+    On a **seed-carrying** composite the whole boundary block is the direct sum
+    ``B = B_a + B_b``, where ``B_b`` is the sibling
+    :class:`RadialCharacteristicBoundaryOperator` — System B's (ψ½ ray-corner)
+    boundary (RULING P1: a block-composed system's boundary is the direct sum of
+    per-system boundary blocks over the composite biproduct; the off-diagonal
+    structure is keyed to face physics — reflection is a per-system
+    endomorphism ⇒ block-diagonal). ``B_a`` emits a **present-zero** ray block so
+    ``B_a + B_b`` sums bit-identically; the ray corner is entirely ``B_b``'s.
 
     The role is :attr:`BlockRole.BOUNDARY`; the domain and codomain are the
     mesh's composite carrier
@@ -251,13 +325,20 @@ class SNBoundaryOperator(LinearOperator):
     ) -> "FullField":
         r"""Lift the trace-only :meth:`_reflect_trace` onto the full
         :class:`~orpheus.transport.full_field.FullField` carrier with **zero
-        bulk** — the ``A_ss`` block as an operator on ``V = V_bulk ⊕
-        V_boundary``.  #257 S8a: history-free (the matvec leaf is a base arrow
-        ``FullField -> FullField``; the comonad lives on the driver).
+        bulk** — ``B_a``, the System-A (trace) boundary block on ``V = V_bulk ⊕
+        V_boundary ⊕ V_ray``.  #257 S8a: history-free (the matvec leaf is a base
+        arrow ``FullField -> FullField``; the comonad lives on the driver).
+
+        The ray block is **present-zero** (:func:`_zero_radial_characteristic_like`
+        — never ``None`` on a seed-carrying composite): ``B_a`` touches only the
+        trace; the ray-corner boundary is the sibling
+        :class:`RadialCharacteristicBoundaryOperator` (``B_b``), and
+        ``B = B_a + B_b`` reproduces the whole augmented boundary block (RULING P1
+        — a block-composed system's boundary is the direct sum of per-system
+        boundary blocks; see the module docstring).
         """
         from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import AngularSourceSink
 
         mesh = self.sn_mesh
         if psi.bulk.mesh is not mesh:
@@ -266,7 +347,7 @@ class SNBoundaryOperator(LinearOperator):
                 "share the same SNMesh instance (mesh-identity invariant); "
                 f"got field mesh {psi.bulk.mesh!r} vs operator mesh {mesh!r}."
             )
-        # Role parse at the composite boundary: ``B`` reads a FLUX trace
+        # Role parse at the composite boundary: ``B_a`` reads a FLUX trace
         # (``_reflect_trace`` applies the boundary law to outflow flux), but
         # the ``FullField.boundary`` slot erases the role (the F2-sibling
         # erasure — #289). A source-role
@@ -278,96 +359,18 @@ class SNBoundaryOperator(LinearOperator):
                 f"be an AngularBoundaryFlux trace; got {type(trace).__name__}."
             )
         return FullField(
-            # Zero bulk source, sized from the MESH — not ``zeros_like(psi.bulk)``
-            # — so the carrier is correct whatever representation the input bulk
-            # carries (full-angular :class:`AngularFlux` OR the Phase-5a windowed
-            # :class:`HarmonicMomentFlux`).  ``B`` is the boundary block ``A_ss``:
-            # it reads the trace and emits zero bulk regardless.  The zero bulk
-            # carries the input's spatial-moment width (#240 D5b-S3) so it
-            # composes element-wise with the moment-carrying ``(L+C)ψ`` in the
-            # SI / Krylov ``(L+C − S − B)ψ`` matvec.  DD/Step → no factor.
-            bulk=AngularSourceSink.zeros_on(
-                mesh, spatial_moments=mesh.scheme.spatial_basis_per_axis,
-            ),
+            bulk=_zero_bulk_source(mesh),
             boundary=self._reflect_trace(trace, method, rows=rows),
-            radial_characteristic=self._reflect_radial_characteristic(
-                psi.radial_characteristic, method,
+            # Present-zero ray (B_a touches no corner); B_b carries it. The
+            # split() masked halves inherit this zero, so B_lower + B_upper no
+            # longer double the ray corner (the latent bug the un-weld closes).
+            radial_characteristic=_zero_radial_characteristic_like(
+                psi.radial_characteristic,
             ),
-        )
-
-    def _reflect_radial_characteristic(
-        self, seed: "RadialCharacteristicField | None", method: str,
-    ) -> "RadialCharacteristicSourceSink | None":
-        r"""The ``A_ss`` CORNER arm on the starting-direction block (R13, 2.5d).
-
-        The (R, μ = ∓1) corner pair completes the boundary block on a
-        seed-carrying mesh: the inward seed leg's r = R inflow is BC data,
-        and for a specular-reflective outer face the reflected partner of
-        the outward starting direction μ = +1 is EXACTLY the inward one
-        μ = −1 (its own mirror — an off-quadrature ray, so the per-face
-        law OPERATOR cannot act on it; the specular fact is applied
-        directly). Forward: ``out.corner(level, −1) = ψ½.corner(level, +1)``
-        per carried level; Euclidean transpose: ``out.corner(level, +1) =
-        χ̄.corner(level, −1)``. The cells legs and the opposite corners
-        stay ZERO (``B`` touches only the inflow row / its transpose
-        image — the exact `_reflect_trace` projection discipline).
-
-        Law dispatch — on the declared law KIND (the #186 shim's ``kind``
-        tag, the same registry key ``sn_mesh.bc[face] == "reflective"``
-        comparisons read), NOT on the realized operator's composition
-        tree: the realized law is an (ordinate ⊗ group) operator over the
-        QUADRATURE rows and structurally cannot act on the off-quadrature
-        μ = ±1 ray — the corner action is a per-KIND angular fact:
-
-        * ``"vacuum"`` — no corner emission (the block stays all-zero).
-        * ``"reflective"`` — the specular corner swap above (the mirror
-          of μ = +1 is exactly μ = −1).
-        * anything else (white / albedo / periodic / prescribed) —
-          **loud-deferred** (`NotImplementedError`) per the 2.5d
-          plan-of-record: e.g. the white re-emission at the
-          off-quadrature ray needs the |Ω·n|-weighted outflow average
-          evaluated for μ = −1, a design decision not yet ruled.
-
-        ``None`` passes through (a seedless composite — Cartesian /
-        cylinder, R12a). NOTE the metric-invisibility honest scope
-        (§16.A A4): G3 cannot see this arm; the Euclidean Mᵀ chain at
-        2.5b and the §16.C round-trip are its catchers.
-        """
-        if seed is None:
-            return None
-        from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
-
-        # A seed-carrying mesh is 1-D curvilinear: exactly ONE boundary
-        # face (the outer radius renders as ``xmax``) carries the law.
-        law = self._face_laws["xmax"]
-        kind = getattr(law, "kind", None)
-        out = np.zeros_like(seed.values)
-        space = seed.space
-        if kind == "vacuum":
-            pass  # zero corner emission.
-        elif kind == "reflective":
-            for level in space.levels:
-                if method == "apply":
-                    space.corner_view(out, level, -1)[:] = (
-                        space.corner_view(seed.values, level, +1)
-                    )
-                else:  # apply_transpose — the Euclidean mirror image
-                    space.corner_view(out, level, +1)[:] = (
-                        space.corner_view(seed.values, level, -1)
-                    )
-        else:
-            raise NotImplementedError(
-                f"SNBoundaryOperator starting-direction corner arm: the "
-                f"outer-face law kind {kind!r} has no ruled corner action "
-                f"yet (white / albedo / periodic at the off-quadrature "
-                f"μ = ±1 ray — loud-deferred, 2.5d plan-of-record)."
-            )
-        return RadialCharacteristicSourceSink(
-            values=out, space=space, mesh=seed.mesh,  # type: ignore[attr-defined]
         )
 
     def apply(self, psi: "FullField") -> "FullField":
-        r"""Forward action ``B·ψ`` — per-face boundary law on the trace, zero bulk."""
+        r"""Forward action ``B_a·ψ`` — per-face boundary law on the trace, zero bulk."""
         return self._apply_faces(psi, "apply")
 
     def reflect_into_inflow(
@@ -401,11 +404,9 @@ class SNBoundaryOperator(LinearOperator):
     def reflect_inflow_inplace(
         self, boundary_flux: "AngularBoundaryFlux",
         faces: "Iterable[str] | None" = None,
-        *,
-        radial_characteristic: "RadialCharacteristicField | None" = None,
     ) -> None:
         r"""In place: overwrite each face's inflow rows with the reflected
-        outflow — ``ψ.inflow ← (B·ψ)|_{\rm inflow}``, face-restrictable.
+        outflow — ``ψ.inflow ← (B_a·ψ)|_{\rm inflow}``, face-restrictable.
 
         The MUTATING façade over :meth:`reflect_into_inflow` (single source —
         both route through :meth:`_reflect_trace`), matching the sweep
@@ -418,13 +419,10 @@ class SNBoundaryOperator(LinearOperator):
         fixed-source SI loop + the eigenvalue reconstruction sweep via
         :func:`orpheus.sn.solver._reflect_outflow_into_inflow`.
 
-        ``radial_characteristic`` (#282 route (a)): a ψ½ carrier whose
-        inflow-corner slots are overwritten with the law's corner action
-        on its OUTFLOW corners — ``ψ½.corner(p, −1) ← (B·ψ½).corner(p,
-        −1)`` through the SAME :meth:`_reflect_radial_characteristic` arm
-        the matvec uses (vacuum ⇒ 0, reflective ⇒ the specular corner
-        swap).  The seed analogue of the trace overwrite above, for the
-        reconstruction sweep's given-data corner seeding.
+        Trace-only: the ψ½ ray-corner analogue is
+        :meth:`RadialCharacteristicBoundaryOperator.reflect_corner_inplace`
+        (``B_b``), the System-B boundary — the reconstruction sweep calls BOTH,
+        one per system (RULING P1).
         """
         reflected = self.reflect_into_inflow(boundary_flux, faces=faces)
         trace = self.sn_mesh.angular_trace
@@ -436,16 +434,6 @@ class SNBoundaryOperator(LinearOperator):
             boundary_flux.face_view(face)[inflow] = (
                 reflected.face_view(face)[inflow]
             )
-        if radial_characteristic is not None:
-            corner_reflected = self._reflect_radial_characteristic(
-                radial_characteristic, "apply",
-            )
-            assert corner_reflected is not None  # seed given ⇒ arm emits
-            space = radial_characteristic.space
-            for level in space.levels:
-                space.corner_view(
-                    radial_characteristic.values, level, -1,
-                )[...] = space.corner_view(corner_reflected.values, level, -1)
 
     def split(self, schedule: "SweepSchedule") -> "BoundarySplit":
         r"""Split ``B = B_lower + B_upper`` under ``schedule``'s octant order
@@ -492,6 +480,231 @@ class SNBoundaryOperator(LinearOperator):
         the ``|Ω·n|·w`` trace metric (Wave O step O.2).
         """
         return self._apply_faces(psi, "apply_transpose")
+
+
+class RadialCharacteristicBoundaryOperator(LinearOperator):
+    r"""``B_b`` — System B's (ψ½ ray-corner) boundary law, the ray ``A_ss`` block.
+
+    The boundary operator of the radial-characteristic system (System B of the
+    2×2 coupled block operator — the ψ½ ray). A first-class sibling of
+    :class:`SNBoundaryOperator` (``B_a``, System A's trace boundary) over the SAME
+    :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` composite;
+    the whole boundary block is the direct sum ``B = B_a + B_b`` (RULING P1: a
+    block-composed system's boundary is the direct sum of per-system boundary
+    blocks over the composite biproduct). ``B_b`` touches **only** the ray corner
+    (present-zero bulk and trace); ``B_a`` touches only the trace — disjoint
+    blocks, so ``B_a + B_b`` reproduces the augmented boundary bit-identically.
+
+    The action is the ``(R, μ = ∓1)`` corner reflection that closes the ray's
+    r = R boundary. The outer face law realizes on the trace carrier as an
+    (ordinate ⊗ group) OPERATOR (``B_a``'s per-face law), but at the
+    **off-quadrature** μ = ±1 ray it cannot act — so ``B_b`` applies the per-KIND
+    specular FACT directly (RULING P1's "one law, two carriers": the
+    carrier-indexed realizer that would produce both arms from one law is the
+    named seam, built when DSA adds the 3rd carrier).
+
+    Capabilities
+    ------------
+
+    ``apply`` always. ``apply_transpose`` iff the outer ray-face law is
+    Euclidean-adjointable — reflective (involution) and vacuum are; white /
+    albedo / periodic are the loud-deferred set (no ruled off-quadrature corner
+    action). Per-leaf :attr:`is_adjointable` (NOT the whole-trace intersection —
+    ``B_b`` has exactly one face, the outer radius).
+
+    Adjoint metric (RULING P2)
+    --------------------------
+
+    ``B_b`` advertises the **Euclidean** :meth:`apply_transpose` only — no
+    per-leaf ``.H``. The ray corner gauge is symmetric (``g₊ = g₋ = V(R)`` — both
+    corners at r = R), so ``B_b.H = G_sd⁻¹ B_bᵀ G_sd = B_bᵀ``: the Euclidean
+    transpose IS the ``G_sd = V_cell`` Hilbert adjoint. (``.H`` is realized ONCE
+    at the composite via ``G⁺·apply_transpose·G``; a Euclidean block adjoint on
+    System B is metric-correct here BECAUSE of the symmetric gauge — the
+    ``G_sd``-reciprocity gate in ``test_psi_half_coupling.py`` pins the symmetry
+    that keeps Mode-12 closed.)
+
+    Parameters
+    ----------
+    sn_mesh : SNMesh
+        The augmented geometry (seed-carrying — 1-D curvilinear). Carries the
+        outer-face law ``sn_mesh.bc["xmax"]`` and the ray space
+        ``sn_mesh.radial_characteristic_space`` (the mesh-identity invariant of
+        :class:`SNBoundaryOperator` applies here too).
+    """
+
+    block_role = BlockRole.BOUNDARY
+
+    def __init__(self, sn_mesh: "SNMesh") -> None:
+        self.sn_mesh = sn_mesh
+
+    @property
+    def is_adjointable(self) -> bool:
+        # Per-leaf (NOT B_a's whole-trace intersection): B_b has exactly one
+        # face, the outer radius. Reflective (involution) + vacuum are
+        # Euclidean-adjointable; white / albedo / periodic are the loud-deferred
+        # set (:meth:`_reflect_corner` raises — no ruled off-quadrature corner
+        # action → no transpose). is_invertible inherits base False.
+        if self.sn_mesh.radial_characteristic_space is None:
+            return True  # seedless → trivial zero block (defensive; B_b is
+            #              only constructed seed-carrying — see _within_group_triple)
+        kind = getattr(self.sn_mesh.bc["xmax"], "kind", None)
+        return kind in _RULED_CORNER_KINDS
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        # The composite carrier (matching B_a / L / C / S / F) so the
+        # OperatorSum composition guard accepts (L + C − S − B_a − B_b) and the
+        # block-diagonal G-adjoint metric B_b.H reads (RULING P2). Wave O / O.2b.
+        return self.sn_mesh.full_field_space
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        return self.sn_mesh.full_field_space
+
+    def _reflect_corner(
+        self, seed: "RadialCharacteristicField | None", method: str,
+    ) -> "RadialCharacteristicSourceSink | None":
+        r"""The ``A_ss`` CORNER action on the ψ½ ray block (R13, 2.5d).
+
+        The (R, μ = ∓1) corner pair closes the ray boundary on a seed-carrying
+        mesh: the inward seed leg's r = R inflow is BC data, and for a
+        specular-reflective outer face the reflected partner of the outward ray
+        μ = +1 is EXACTLY the inward one μ = −1 (its own mirror — an
+        off-quadrature ray, so the per-face law OPERATOR cannot act on it; the
+        specular fact is applied directly). Forward:
+        ``out.corner(level, −1) = ψ½.corner(level, +1)`` per carried level;
+        Euclidean transpose: ``out.corner(level, +1) = χ̄.corner(level, −1)``.
+        The cells legs and the opposite corners stay ZERO (``B_b`` touches only
+        the inflow row / its transpose image — the exact ``_reflect_trace``
+        projection discipline).
+
+        Law dispatch — on the declared law KIND (the #186 shim's ``kind`` tag,
+        the same registry key ``sn_mesh.bc[face] == "reflective"`` comparisons
+        read), NOT on the realized operator's composition tree (which is an
+        (ordinate ⊗ group) operator over the QUADRATURE rows and structurally
+        cannot act on the off-quadrature μ = ±1 ray):
+
+        * ``"vacuum"`` — no corner emission (the block stays all-zero).
+        * ``"reflective"`` — the specular corner swap above.
+        * anything else (white / albedo / periodic / prescribed) —
+          **loud-deferred** (:class:`NotImplementedError`) per the 2.5d
+          plan-of-record (e.g. white re-emission at the off-quadrature ray needs
+          the ``|Ω·n|``-weighted outflow average for μ = −1, not yet ruled).
+
+        ``None`` passes through (a seedless composite — Cartesian / cylinder,
+        R12a).
+        """
+        if seed is None:
+            return None
+        from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
+
+        # A seed-carrying mesh is 1-D curvilinear: exactly ONE boundary face
+        # (the outer radius renders as ``xmax``) carries the law.
+        law = self.sn_mesh.bc["xmax"]
+        kind = getattr(law, "kind", None)
+        if kind not in _RULED_CORNER_KINDS:  # single source with is_adjointable
+            raise NotImplementedError(
+                f"RadialCharacteristicBoundaryOperator: the outer-face law kind "
+                f"{kind!r} has no ruled corner action yet (white / albedo / "
+                f"periodic at the off-quadrature μ = ±1 ray — loud-deferred, "
+                f"2.5d plan-of-record)."
+            )
+        out = np.zeros_like(seed.values)
+        space = seed.space
+        # vacuum ⇒ zero corner emission (the all-zero ``out`` falls through);
+        # reflective ⇒ the specular swap (the mirror of μ = +1 is exactly μ = −1).
+        if kind == "reflective":
+            for level in space.levels:
+                if method == "apply":
+                    space.corner_view(out, level, -1)[:] = (
+                        space.corner_view(seed.values, level, +1)
+                    )
+                else:  # apply_transpose — the Euclidean mirror image
+                    space.corner_view(out, level, +1)[:] = (
+                        space.corner_view(seed.values, level, -1)
+                    )
+        return RadialCharacteristicSourceSink(
+            values=out, space=space, mesh=seed.mesh,
+        )
+
+    def _apply_faces(self, psi: "FullField", method: str) -> "FullField":
+        r"""``B_b`` on the composite: zero bulk, **present-zero** trace, and the
+        ray-corner action :meth:`_reflect_corner` on the seed block.
+
+        The trace is present-zero (:func:`AngularBoundarySourceSink.zeros_on`),
+        NOT ``None``: it composes with ``B_a``'s reflected trace under
+        ``B_a + B_b`` (both source-role, same space → element-wise sum), and the
+        zero leaves it untouched. Symmetric to ``B_a``'s present-zero ray.
+        """
+        from orpheus.transport.fields.radial_characteristic_flux import (
+            RadialCharacteristicFlux,
+        )
+        from orpheus.transport.full_field import FullField
+        from orpheus.transport.source_sinks import AngularBoundarySourceSink
+
+        mesh = self.sn_mesh
+        if psi.bulk.mesh is not mesh:
+            raise ValueError(
+                "RadialCharacteristicBoundaryOperator.apply: input field and "
+                "operator must share the same SNMesh instance (mesh-identity "
+                f"invariant); got field mesh {psi.bulk.mesh!r} vs operator mesh "
+                f"{mesh!r}."
+            )
+        # Role parse at the composite boundary (symmetric to B_a's trace parse):
+        # ``B_b`` reads a FLUX ray (``_reflect_corner`` reflects the outflow
+        # corner), but the ``FullField.radial_characteristic`` slot erases the
+        # role (the F2-sibling erasure — #289). A source- / displacement-role ray
+        # arriving here is a caller error worth raising loudly.
+        seed = psi.radial_characteristic
+        if seed is not None and not isinstance(seed, RadialCharacteristicFlux):
+            raise TypeError(
+                f"RadialCharacteristicBoundaryOperator: the input composite's "
+                f"radial_characteristic must be a RadialCharacteristicFlux ray; "
+                f"got {type(seed).__name__}."
+            )
+        return FullField(
+            bulk=_zero_bulk_source(mesh),
+            boundary=AngularBoundarySourceSink.zeros_on(mesh),  # present-zero
+            radial_characteristic=self._reflect_corner(
+                psi.radial_characteristic, method,
+            ),
+        )
+
+    def apply(self, psi: "FullField") -> "FullField":
+        r"""Forward action ``B_b·ψ`` — the ray-corner reflection, zero bulk/trace."""
+        return self._apply_faces(psi, "apply")
+
+    def apply_transpose(self, psi: "FullField") -> "FullField":
+        r"""Euclidean transpose ``B_bᵀ·ψ`` — the mirror-image corner swap.
+
+        Reachable iff the outer ray-face law is adjointable (see
+        :attr:`is_adjointable`). Euclidean = the ``G_sd = V_cell`` Hilbert adjoint
+        because the corner gauge is symmetric (RULING P2).
+        """
+        return self._apply_faces(psi, "apply_transpose")
+
+    def reflect_corner_inplace(
+        self, radial_characteristic: "RadialCharacteristicField | None",
+    ) -> None:
+        r"""In place: overwrite the ψ½ inflow-corner slots with the law's corner
+        action on its OUTFLOW corners — ``ψ½.corner(p, −1) ← (B_b·ψ½).corner(p,
+        −1)`` (vacuum ⇒ 0, reflective ⇒ the specular swap).
+
+        The ray-corner analogue of :meth:`SNBoundaryOperator.reflect_inflow_inplace`
+        (#282 route (a)): the final eigenvalue reconstruction sweep + the direct
+        fixed-source SI loop call BOTH — ``B_a`` for the trace, ``B_b`` for the
+        ray — one per system (RULING P1). ``None`` is a no-op (seedless).
+        """
+        if radial_characteristic is None:
+            return
+        corner_reflected = self._reflect_corner(radial_characteristic, "apply")
+        assert corner_reflected is not None  # seed present ⇒ arm emits (vacuum ⇒ zeros)
+        space = radial_characteristic.space
+        for level in space.levels:
+            space.corner_view(
+                radial_characteristic.values, level, -1,
+            )[...] = space.corner_view(corner_reflected.values, level, -1)
 
 
 class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
