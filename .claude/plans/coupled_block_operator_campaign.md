@@ -740,5 +740,39 @@ parallel enum is **structurally FORCED** — B_b sits non-None on BOTH axes (blo
 system_role=B), which a merged enum cannot represent; the generic `RoleAxis` abstraction is premature at
 2 axes (**collapse trigger = a 3rd parallel axis**: DSA/multiphysics).
 
-**NEXT: 4b** — A_BB.apply forward + inverse() + predicate flips (grep the is_adjointable/is_invertible
-False contract). Re-anchor from THIS block + `git log` (trust git).
+### 4b — DONE @ `6b4d584` (A_BB forward via shared-kernel extraction)
+
+**USER RULING (2026-07-08): "extract the shared kernel now", NOT a tracked twin** (chosen over the
+WRAP-first default when the operator docstring flagged the twin-vs-extract fork). The forward is
+single-sourced: 3 shared functions in `psi_half_angle_seed.py` beside `carlson_inward_sweep_from_source`
+— `radial_characteristic_residual_march` (per-leg kernel, RELOCATED from the walk's `_seed_residual_
+march`), `radial_characteristic_forward_residual` (two-leg orchestration), `..._transpose` (PURE A_BB
+transpose). BOTH the `(L+C)` walk (`_seed_rows_forward`/`_seed_rows_transpose` → thin wrappers; the
+transpose wrapper ADDS the A_AB `seed_cells_bar` coupling, NOT part of A_BB) AND `A_BB.apply`/
+`apply_transpose` route through them. `inverse()` = the generic `InverseOperator` (apply→solve,
+solve→apply); is_invertible/is_adjointable→True.
+
+**test-architect refutations (R1-R4 — corrected my "bit-exact by construction" assumption):** solve∘apply
+=id is ~FP ULP for the CELLS (the forward's 2/Δr and the march's Δr·σ+2 reassociate, L7), bit-exact 0
+ONLY on the +1 outflow corner → test on the CONSISTENT subspace ψ0=solve(q0) (the +1 corner is a free
+datum apply MEASURES / solve OVERWRITES). The transpose split is correct block decomposition (pure
+A_BBᵀ shared; A_ABᵀ in the walk). Gate 4 is EUCLIDEAN (the metric `.H` is the composite's job, 4d).
+**The predicate-flip contract was EMPTY** (A_BB not composed in production, not in
+`test_capability_survival`) — the flip is additive-safe.
+
+**Verified:** walk BIT-IDENTICAL after extraction (all blocks, fwd+transpose, array_equal); `TestA_BB_
+Forward` (5 gates incl. the Mode-11 both-namespace anti-twin spy) + both teeth (fwd recurrence σ×3,
+transpose sign-flip) mutation-RED w/ green controls; `tests/sn -m "not slow"` **2073 passed / 0 reds**;
+ratchet transport:1; sphinx -W exit 0; **elegance-enforcer PASS** (0 violations; all 5 crux decisions
+principled; 1 stale-class-docstring NIT fixed). Retirement: `_seed_residual_march` retired (relocated);
+the SOLVE orchestration twin (A_BB.solve vs in-sweep `:4104-4131`) REMAINS → step 4e.
+
+**FOLLOW-UP (optional, step 7):** a canonical positive A_BB row in `test_capability_survival.py`
+(gate 5c already catches a predicate flip-back; the canonical table is a nice-to-have durable pin).
+
+**NEXT: 4c — THE LIFT** (S/F→pure bulk, A_BA=Fold∘K_iso driver-born, fold→sn, retire the transport
+reconstruction module). ⚠ HAZARD 3 (the LIFT + driver-gain-add land in ONE commit — presence law) +
+HAZARD 5 (S=within-group gain, F=outer q_ext — different seams) + the **DRIVER-WIRING FORK** (→
+AskUserQuestion at 4c start: A_BA as its own gain slot vs composed with the scatter gain; ⚠ the
+shared-K_iso-emission elegance — S_bulk and A_BA share the `K_iso∘integrate` emission, don't recompute
+twice). Re-anchor from THIS block + `git log` (trust git).
