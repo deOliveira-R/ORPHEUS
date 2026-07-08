@@ -4094,6 +4094,13 @@ class _OneDimScanWalk:
                     src_vals = radial_characteristic_source.values
                     buf_vals = radial_characteristic_flux.values
                     seed_space = radial_characteristic_flux.space
+                    # ``cells_view``/``corner_view`` are keyed by ``p_idx`` — the
+                    # level-POSITION index (``RadialCharacteristicSpace.levels``
+                    # are positions from ``enumerate``, and the gate ``p_idx in
+                    # seed_levels`` shares that source, so ``p_idx`` is always a
+                    # valid slot key).  NOT ``level`` — that is the walk's
+                    # ``mu_level_idx`` (``None`` on the sphere, the only carrying
+                    # geometry), which would raise ``None not in (0,)``.
                     q_minus = seed_space.cells_view(src_vals, p_idx, -1)
                     q_plus = seed_space.cells_view(src_vals, p_idx, +1)
                     corner_in = seed_space.corner_view(src_vals, p_idx, -1)
