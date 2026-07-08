@@ -281,6 +281,41 @@ curvilinear multi-D (a mesh with BOTH a ψ½ seed AND an octant schedule — **#
 campaign's path). The un-weld fixes it structurally (`split()`→B_a; B_b schedule-atomic);
 `TestSplitInteraction` pins it.
 
+### Step-1 EXECUTION STATUS (2026-07-07)
+
+- **Step 0 DONE @ `2834b90`** — regression floor 6/6.
+- **1a DONE @ `f9e4c4a`** — the `StartingDirection → RadialCharacteristic` rename (550 refs /
+  55 files, bit-identical; plan capture @ `b015e36`, 1b map @ `edd2954`).
+- **1b DONE @ `604c890`** — the boundary un-weld `B → B_a + B_b`. B_b =
+  `RadialCharacteristicBoundaryOperator` (System B ray boundary); the latent split-double-count
+  closed structurally; `_within_group_triple` returns the composite; the reconstruction reflects
+  per-system. Bit-identical (ratchet transport:1, floor byte-identical, 932+589 passed, sphinx
+  -W). NEW gates `TestBoundaryUnweld`/`TestB_b_RayBoundary`/`TestSplitInteraction` with
+  mutation-proven orthogonal teeth (reciprocity control=0 + wrong-transpose=1.00 /
+  gauge-asymmetry=0.33). elegance-enforcer PASS (no violations; all fixes applied). 2 tests
+  rewired to the successor API (reflective-sphere Q/Σ recovery + SI/eig single-primitive).
+- **1c NEXT** — pose `RayOp = A_BB` (the radial straight-characteristic march). WRAP of
+  `carlson_inward_sweep_from_source` (+ `…_transpose`) at `psi_half_angle_seed.py:87-207`;
+  production sites `loss_representation/__init__.py:4092-4117` (solve) + `:4614-4643`
+  (transpose). Gates: `TestA_BB_RadialBVP` (foundation: solve∘apply=id, WRAP bit-id via a
+  Mode-11 call-counter sentinel, pole-thread, Dirichlet propagation, fixed-source Q/Σ) + the
+  L1 closed-form-ODE convergence gate `φ=q/σ+(φ_R−q/σ)e^{−σ(R−r)}` on a GRADED mesh (measured
+  1.71→1.85→1.92) in sibling `tests/sn/operators/test_ray_operator.py` (`pytest.mark.l1`).
+  ⚠ `RayOp.apply` vs the composite `A_ss` block is the ONE non-bit-id spot — gate at `rtol`.
+
+### OPEN DECISION D1 — the B_a naming asymmetry (elegance-enforcer, user's call)
+
+`SNBoundaryOperator` (B_a) keeps the generic name while `RadialCharacteristicBoundaryOperator`
+(B_b) is descriptive — so B_a reads as *primary*, B_b as *auxiliary*, though the algebra frames
+them co-equal (System A / System B boundaries). Honest today (B_b IS subsidiary — block-
+triangular in the ray, lagged-scatter coupled), but when DSA adds a 3rd sibling
+`DSABoundaryOperator`, "which is THE SN boundary?" becomes concrete. Two options: rename B_a →
+`SNTraceBoundaryOperator` (symmetric, greppable — but a wide rename, and "trace" slightly
+undersells the |Ω·n|·w metric it carries), OR keep the asymmetry (the docstrings already say
+"B_a — System A's (trace) boundary", honest). **Current call: KEEP `SNBoundaryOperator`** — the
+rename is premature (DSA forces the symmetry question with a concrete 3rd instance; defer-until-
+the-shape-is-clear). Revisit when DSA lands. User may overrule.
+
 ### SEAM — carrier-indexed realizer (DEFERRED, user-ruled 2026-07-07)
 
 The precedent's *production* half — `realize(law, carrier)` producing B_a (trace) + B_b (ray
