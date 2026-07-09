@@ -1186,6 +1186,16 @@ def _s_emission(S, psi: FullField) -> NDArray:
     return np.asarray(S.isotropic_kernel.apply(phi0))
 
 
+def _f_emission(F, psi: FullField) -> NDArray:
+    """The ℓ=0 iso fission cell-emission ``χ·νΣf·φ`` that the F seed folds — the
+    A_BA_fission *input* (``(ng, nx)``). The eigenvalue outer loop computes exactly
+    this (as ``fission_source`` from the SCALAR flux, ``F.kernel ∘ integrate``), so
+    the migrated F seed :func:`~orpheus.sn.solver._radial_characteristic_fission_seed`
+    only needs the FOLD of this emission (``A_BA_fission = Fold ∘ F.kernel``,
+    factored)."""
+    return np.asarray(F.apply(psi.bulk.integrate_angular()).values)
+
+
 def _ba_oldloop_reference(emission: NDArray, sn) -> NDArray:
     r"""The EXACT pre-un-weld hand-rolled fold loop (the S/F seed arms before
     Step 2 routed them through RadialCharacteristicReconstruction): the
@@ -1558,10 +1568,16 @@ class TestCoupledLift:
     a bare ``assert`` (vv Mode 8). Every gate carries a mutation-verified tooth
     (a companion ``*_has_teeth`` / ``*_pins_the_object`` row).
 
-    The commit-1 scope is the SCATTER lift: F STAYS on ``from_angular_source``
-    (the fission ray seed already folds through the shared kernel — no twin), so
-    the fission rows assert only that ``F.apply`` is pure bulk. The fission A_BA
-    emission + L4-F land in commit 2.
+    Commit 1 = the SCATTER lift (S/F ``.apply`` pure bulk, A_BA_scatter its own
+    driver gain). **Commit 2 = the FISSION outer-seam migration**: the eigenvalue F
+    ray seed moved from the per-ordinate ``from_isotropic → from_angular_source``
+    round-trip to the DIRECT moments-fold
+    :func:`~orpheus.sn.solver._radial_characteristic_fission_seed` (=
+    ``A_BA_fission = Fold ∘ F.kernel``, factored — the outer loop already applied
+    ``F.kernel ∘ integrate`` to build ``fission_source``, so only the Fold remains).
+    The **L1-F** value gate + the **L4-F** Mode-11 sentinel pin it.
+    (``from_angular_source`` STAYS for its other consumers — the final total-source
+    reconstruction and the fixed-source external source.)
     """
 
     # ── L1-FWD: S / F pure bulk, A_BA emits (LIFT deliverable 1, forward) ───
@@ -1882,6 +1898,197 @@ class TestCoupledLift:
         if counter["n"] != 0:
             pytest.fail(f"the un-widened driver STILL applied A_BA {counter['n']}× — "
                         f"the L4-S sentinel would not catch a missing rewire.")
+
+    # ── L1-F: the eigenvalue F seed IS the direct moments-fold (commit 2) ───
+
+    def test_L1F_fission_seed_is_the_moments_fold(self):
+        r"""[L1-F value gate, commit 2] The eigenvalue fission ray seed
+        (:func:`~orpheus.sn.solver._radial_characteristic_fission_seed`) IS the
+        direct ℓ=0 moments-fold of the fission emission ``χ·νΣf·φ`` — pinning the
+        migration ``A_BA_fission = Fold ∘ F.kernel`` (factored: the outer loop
+        already applied ``F.kernel ∘ integrate`` to build ``fission_source``, so
+        only the Fold remains).
+
+        (a) BIT-IDENTICAL to the documented fold loop (``_ba_oldloop_reference`` —
+        both fold ``emission[None]`` through ``RadialCharacteristicReconstruction``);
+        (b) PRINCIPLED-EQUIV (~ULP) to the RETIRED per-ordinate route
+        ``from_isotropic → from_angular_source`` — documenting the migration is a
+        genuine ~ULP RE-baseline (the removed round-trip's per-ordinate ``·w``
+        reassociates; vv §Bit-identity, criterion-3 FP-non-associativity), NOT
+        bit-identical. FISSILE sphere, ≥2G (refutation #4: a non-fissile mixture
+        makes the emission — hence the seed — identically zero, a VACUOUS gate).
+
+        Tooth (½ → 0.6 fold): :meth:`test_L1F_fission_seed_value_has_teeth`."""
+        from orpheus.sn.solver import (
+            _radial_characteristic_fission_seed,
+            _radial_characteristic_source_from_per_ordinate,
+        )
+        snf = _fissile_sphere()
+        F = SNSolver(snf).fission_op
+        psi = _random_composite(snf, np.random.default_rng(140))
+        emission = _f_emission(F, psi)
+        if not np.max(np.abs(emission)) > 1e-6:
+            pytest.fail("the fission emission ≈ 0 — the L1-F value gate is VACUOUS "
+                        "(the mixture is not actually fissile / νΣf = 0; vv #4).")
+        got = _radial_characteristic_fission_seed(emission, snf).values
+        # (a) bit-identical to the direct moments-fold loop.
+        np.testing.assert_array_equal(
+            got, _ba_oldloop_reference(emission, snf),
+            err_msg="_radial_characteristic_fission_seed ≠ the direct moments-fold "
+                    "(_ba_oldloop_reference) — the F seed is not the ℓ=0 fold.")
+        # (b) principled-equiv (~ULP) to the RETIRED per-ordinate round-trip.
+        old = _radial_characteristic_source_from_per_ordinate(
+            AngularSourceSink.from_isotropic(emission, snf).values, snf).values
+        # Budget: measured ~9-16 ULP on this config (maxabs 5.6e-16, maxrel 1.9e-15);
+        # nulp=32 gives headroom for the removed per-ordinate ·w reassociation (the
+        # migration is principled-equiv — vv §Bit-identity criterion 3, NOT byte-id).
+        np.testing.assert_array_almost_equal_nulp(got, old, nulp=32)
+
+    def test_L1F_fission_seed_value_has_teeth(self, monkeypatch):
+        r"""TOOTH for L1-F (a): a ½ → 0.6 fold coefficient (as the RECONSTRUCTION
+        sees it) moves ``_radial_characteristic_fission_seed`` off the documented
+        loop (``_ba_oldloop_reference`` uses the numerics fold, unpatched) — the
+        ``array_equal`` reds. Proves the F seed's fold VALUE is pinned (a
+        dropped/wrong ½ coefficient in the migrated fold is caught)."""
+        from orpheus.sn.solver import _radial_characteristic_fission_seed
+        snf = _fissile_sphere()
+        F = SNSolver(snf).fission_op
+        psi = _random_composite(snf, np.random.default_rng(141))
+        emission = _f_emission(F, psi)
+        monkeypatch.setattr(
+            _rcr_mod, "fold_moments_to_radial_characteristic", _fold_half_to(0.6))
+        got = _radial_characteristic_fission_seed(emission, snf).values
+        oracle = _ba_oldloop_reference(emission, snf)   # numerics fold, unpatched (0.5)
+        red = float(np.max(np.abs(got - oracle)))
+        print(f"  [L1-F tooth] ½→0.6 fold: |seed − oracle| = {red:.4f}")
+        if not red > 1e-3:
+            pytest.fail(f"the ½→0.6 fold mutation left the F seed on the oracle "
+                        f"({red:.3e}) — the L1-F value gate is toothless.")
+
+    # ── L4-F: the OUTER eigenvalue loop routes F through the fold (deliv/d) ──
+
+    def test_L4F_outer_fission_seed_routes_through_the_moments_fold(self, monkeypatch):
+        r"""L4-F — THE DECISIVE Mode-11 sentinel (refutation R5): a GREEN eigenvalue
+        solve is BLIND to a leftover ``from_angular_source`` route on the F seed;
+        only instrumenting the fold ON the fission path proves the OUTER
+        fission-source loop routes through the migrated moments-fold.
+
+        ⚠ REFINEMENT of the brief's literal design — a GLOBAL counter on
+        ``RadialCharacteristicReconstruction.apply`` is Mode-11-CONTAMINATED: the
+        SCATTER ``A_BA`` (:class:`RadialCharacteristicEmission`, a within-group
+        lagged gain) folds through the SAME reconstruction EVERY SI iteration
+        (measured: 322 scatter folds even with the F seed reverted), so a global
+        ``n > 0`` fires from scatter alone and reverting the F seed would NOT red it.
+        The fission-SPECIFIC catcher wraps the seam
+        ``_radial_characteristic_fission_seed`` and measures the fold-count DELTA
+        *attributable to it* — isolating the fission fold from the scatter fold.
+
+        Structural pair (HAZARD 5): ``_lagged_gains`` carries the SCATTER ``A_BA``
+        (over ``S.isotropic_kernel``), NOT a fission fold — F is the OUTER
+        ``q_ext``, never a within-group gain.
+
+        Tooth (revert the migration): :meth:`test_L4F_sentinel_has_teeth`."""
+        snf = _fissile_sphere()
+        # Global fold counter (scatter + fission both fold through Reconstruction).
+        fold = {"n": 0}
+        real_fold = RadialCharacteristicReconstruction.apply
+
+        def fold_spy(self, moments, /):
+            fold["n"] += 1
+            return real_fold(self, moments)
+
+        monkeypatch.setattr(RadialCharacteristicReconstruction, "apply", fold_spy)
+        # Fission-SPECIFIC: the fold delta DURING _radial_characteristic_fission_seed.
+        seam = {"n": 0, "fold_delta": 0}
+        real_seed = _solver_mod._radial_characteristic_fission_seed
+
+        def seam_spy(fission_source, sn_mesh):
+            before = fold["n"]
+            out = real_seed(fission_source, sn_mesh)
+            seam["n"] += 1
+            seam["fold_delta"] += fold["n"] - before
+            return out
+
+        monkeypatch.setattr(
+            _solver_mod, "_radial_characteristic_fission_seed", seam_spy)
+        # A REAL fissile-sphere eigenvalue solve (default source_iteration → the
+        # eig-SI fission-seed site, solver.py:1453).
+        _solver_mod.solve_sn(snf.materials, snf.mesh, snf.quad)
+        # (i) the OUTER eigenvalue loop calls the fission seam.
+        if seam["n"] <= 0:
+            pytest.fail("the eigenvalue outer loop never called "
+                        "_radial_characteristic_fission_seed — the F seed is not on "
+                        "the eigenvalue path (Mode-11: green keff, uncaught).")
+        # (ii) each fission-seam call routes through the moments-fold (delta > 0).
+        if seam["fold_delta"] <= 0:
+            pytest.fail(f"the fission seed fired {seam['n']}× but folded "
+                        f"{seam['fold_delta']}× through RadialCharacteristic"
+                        f"Reconstruction — a leftover from_angular_source route "
+                        f"survives on the F seed (Mode-11).")
+        print(f"  [L4-F] eigenvalue solve: seam_n={seam['n']} "
+              f"seam_fold_delta={seam['fold_delta']} global_fold={fold['n']}")
+        # Structural pair (HAZARD 5): the within-group gains carry the SCATTER A_BA
+        # (over S.isotropic_kernel), NOT a fission fold — F is the outer q_ext.
+        _, S, B = _within_group_triple(SNSolver(snf))
+        gains = _lagged_gains(S, B, snf)
+        emissions = [g for g in gains if isinstance(g, RadialCharacteristicEmission)]
+        if len(emissions) != 1 or emissions[0].emission_kernel is not S.isotropic_kernel:
+            pytest.fail("_lagged_gains does not carry EXACTLY the scatter A_BA (over "
+                        "S.isotropic_kernel) — the F fold must be the OUTER q_ext "
+                        "seam, never a within-group gain (HAZARD 5).")
+
+    def test_L4F_sentinel_has_teeth(self, monkeypatch):
+        r"""TOOTH for L4-F: reverting the migration — pointing
+        ``_radial_characteristic_fission_seed`` back to the RETIRED per-ordinate
+        BYPASS (``from_isotropic → from_angular_source``, which never touches
+        ``RadialCharacteristicReconstruction``) — leaves the fission-path
+        ``fold_delta`` at 0, EVEN THOUGH the scatter A_BA keeps the GLOBAL fold
+        counter > 0 (measured 322). Proves BOTH (a) the L4-F ``fold_delta`` catcher
+        reds a reverted migration, and (b) a GLOBAL fold counter would NOT (it stays
+        > 0 from scatter) — the fission-specific delta is WHY the sentinel has teeth
+        (Mode 11). This tooth bakes the refutation of the brief's literal design in."""
+        from orpheus.sn.solver import _radial_characteristic_source_from_per_ordinate
+        snf = _fissile_sphere()
+        fold = {"n": 0}
+        real_fold = RadialCharacteristicReconstruction.apply
+
+        def fold_spy(self, moments, /):
+            fold["n"] += 1
+            return real_fold(self, moments)
+
+        monkeypatch.setattr(RadialCharacteristicReconstruction, "apply", fold_spy)
+        # The reverted seam: compute the seed via the RETIRED per-ordinate route
+        # (no Reconstruction) but record the fold delta the sentinel measures.
+        seam = {"n": 0, "fold_delta": 0}
+
+        def bypass_seam(fission_source, sn_mesh):
+            before = fold["n"]
+            out = _radial_characteristic_source_from_per_ordinate(
+                AngularSourceSink.from_isotropic(fission_source, sn_mesh).values,
+                sn_mesh)
+            seam["n"] += 1
+            seam["fold_delta"] += fold["n"] - before
+            return out
+
+        monkeypatch.setattr(
+            _solver_mod, "_radial_characteristic_fission_seed", bypass_seam)
+        _solver_mod.solve_sn(snf.materials, snf.mesh, snf.quad)
+        print(f"  [L4-F tooth] reverted seed: global_fold={fold['n']} (scatter) "
+              f"seam_n={seam['n']} seam_fold_delta={seam['fold_delta']}")
+        # The seam still fires (the bypass IS called) …
+        if seam["n"] <= 0:
+            pytest.fail("the reverted seam never fired — the tooth is mis-wired.")
+        # … but the fission path no longer folds — the fold_delta catcher reds.
+        if seam["fold_delta"] != 0:
+            pytest.fail(f"the reverted (bypass) fission seed STILL folded "
+                        f"{seam['fold_delta']}× — the L4-F fold_delta catcher would "
+                        f"not red a reverted migration.")
+        # The Mode-11 lesson: a GLOBAL counter would MISS this (scatter keeps it > 0).
+        if not fold["n"] > 0:
+            pytest.fail(f"the global fold counter is {fold['n']} — the scatter A_BA "
+                        f"should keep it > 0 even with F reverted (the Mode-11 point "
+                        f"a global counter is blind to; the fission-specific delta "
+                        f"is why the sentinel has teeth).")
 
 
 # ── Step-3 helpers: A_AB the ψ½ seed injection (ray → bulk) ────────────────

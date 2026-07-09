@@ -907,14 +907,25 @@ round-trip removal as a minor-optimization follow-up if wanted. RadialCharacteri
 generic (machinery; F.kernel smoke-verified) even though production instantiates it for scatter.
 
 **USER RULING (2026-07-08): TWO immediate back-to-back commits, NOT a follow-up issue.**
-- **Commit 1 (4c) = scatter LIFT, BIT-IDENTICAL.** S/F ops→pure bulk; A_BA_scatter own gain
-  (`_lagged_gains`); reciprocity leaf `(L+C−S−A_BA−B).H`; gates L1-FWD/L1-ADJ/L2/L3/L4-S + R3 row
-  migration; retire the transport `radial_characteristic_reconstruction.py`. Fission seed UNCHANGED
-  (from_angular_source). array_equal bar; no ULP shift.
-- **Commit 2 (immediately after, this session) = F outer-seam migration.** `solver.py:1401/1570`
-  `from_angular_source(from_isotropic(fission_source))` → the direct moments-fold
-  `Reconstruction(fission_source[None])` (ULP re-baseline; removes the round-trip). `:1956` (TOTAL
-  source) + `:2172` (external) KEEP from_angular_source. L4-F + the fission value gate land here.
-  Verify tolerances absorb the ~1e-16 keff/flux shift.
+- **Commit 1 (4c) = scatter LIFT — DONE @ `fbcb5aa` (2026-07-08).** S/F ops→pure bulk;
+  `RadialCharacteristicEmission` (A_BA) + migrated Fold in sn; A_BA_scatter own gain
+  (`_lagged_gains`); the `_EmissionKernel` Protocol (typing the apply+apply_transpose contract
+  the bare `LinearOperator` doesn't surface); reciprocity leaf `(L+C−S−A_BA−B).H`; gates
+  `TestCoupledLift` {L1-FWD/L1-ADJ/L2/L3/L4-S} + R3 row re-point + the 3-gain single-primitive
+  contract; retired the transport `radial_characteristic_reconstruction.py`. Fission seed UNCHANGED
+  (from_angular_source). BIT-IDENTICAL (0-ULP smoke + curvilinear keff). VERIFIED: tests/sn -m "not
+  slow" 2078/0, ratchet transport:1, sphinx -W 0, elegance PASS (all 3 conditions met). test-arch
+  refutation banked: deleting the WHOLE A_BA leaf keeps reciprocity green (leaf-invariant, Mode-12)
+  ⟹ L1-ADJ (nonzero seed) catches a WRONG transpose, L4-S sentinel catches a DROPPED gain.
+- **Commit 2 (immediately after, this session) = F outer-seam migration — PRODUCTION DONE
+  (uncommitted).** NEW `_radial_characteristic_fission_seed(fission_source, sn_mesh)` helper
+  (`solver.py`) = the direct moments-fold `Reconstruction(fission_source[None])`; the eig-SI
+  (`:1401`) + eig-Krylov (`:1570`) fission seed routes through it (`from_isotropic→from_angular_
+  source` round-trip GONE). `:1956` (TOTAL source) + `:2172` (external) KEEP `from_angular_source`
+  (the per-ordinate typed entry — docstrings now clarify the two typed entries over the ONE kernel,
+  no twin). VERIFIED principled-equiv (maxabs **1.2e-15** vs the old route, NOT bit-id — the removed
+  `·w` round-trip reassociates); curvilinear/homogeneous eigenvalue suite ABSORBS it (31 passed,
+  unchanged); ratchet transport:1 (sn 0). Gate (L4-F sentinel + fission value gate + `_f_emission`
+  re-add) IN FLIGHT (test-architect). Then full tests/sn + sphinx -W + commit 2.
 Rationale (user): follow-up work we CAN do immediately should be done immediately, not filed —
 but bit-id and ULP-re-baseline stay in SEPARATE commits (bisectable, each cleanly verifiable).

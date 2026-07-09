@@ -533,12 +533,56 @@ def _radial_characteristic_zeros(sn_mesh) -> "RadialCharacteristicFlux | None":
 def _radial_characteristic_source_from_per_ordinate(
     per_ordinate_values: "np.ndarray", sn_mesh,
 ) -> "RadialCharacteristicSourceSink | None":
-    r"""Thin alias for :meth:`RadialCharacteristicSourceSink.from_angular_source`
-    (the ONE q½-fold factory, Pattern 2 — the solver, the fixed-source
-    rhs, and the operator-free ``transport_sweep`` all route through it).
+    r"""Fold a PER-ORDINATE source to its q½ seed —
+    :meth:`RadialCharacteristicSourceSink.from_angular_source` (Legendre-project
+    the per-ordinate source to moments, then fold at :math:`\mu=\pm 1`).
+
+    The PER-ORDINATE typed entry to the one fold kernel
+    (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`),
+    used where the source is genuinely per-ordinate (possibly anisotropic): the
+    final total-source reconstruction, the fixed-source rhs external source, and
+    the operator-free ``transport_sweep``. The eigenvalue FISSION q½ seed uses the
+    MOMENTS entry :func:`_radial_characteristic_fission_seed` instead (its ℓ=0
+    emission is already a moment, so the direct fold skips this factory's
+    per-ordinate round-trip). Both bottom out in the SAME kernel — no twin, a
+    different typed input.
     """
     return RadialCharacteristicSourceSink.from_angular_source(
         per_ordinate_values, sn_mesh,
+    )
+
+
+def _radial_characteristic_fission_seed(
+    fission_source: "np.ndarray", sn_mesh,
+) -> "RadialCharacteristicSourceSink | None":
+    r"""The ψ½ FISSION ray seed — the direct ℓ=0 moments-fold of the fission
+    emission (``A_BA_fission = Fold ∘ F.kernel``, factored).
+
+    The eigenvalue outer loop computes ``fission_source = χνΣf·φ/k`` from the
+    SCALAR flux (:meth:`SNSolver.compute_fission_source`), so ``F.kernel ∘
+    integrate`` is already applied and only the fold remains: the isotropic ℓ=0
+    emission is reconstructed at the closed :math:`\mu=\pm 1` rays through the
+    migrated
+    :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicReconstruction`
+    (the single fold operator). ``None`` on a seedless mesh (no ψ½ ray).
+
+    REPLACES the ``from_isotropic → from_angular_source`` round-trip (campaign
+    step 4c commit 2): the old path broadcast ``fission_source`` to a per-ordinate
+    iso source then re-projected it back to the ℓ=0 moment; the direct moments-fold
+    is one step. Both bottom out in the SAME
+    :func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`
+    kernel — principled-equivalent (~ULP), NOT bit-identical (the removed
+    round-trip's per-ordinate ``·w`` reassociates). Carrying meshes are 1-D
+    curvilinear (R12a) so ``fission_source`` is ``(ng, nx)``; the fold takes the
+    unit-ℓ ``[None]`` axis (``RadialCharacteristicReconstruction.apply`` guards it).
+    """
+    if sn_mesh.radial_characteristic_space is None:
+        return None
+    from orpheus.sn.operators.radial_characteristic import (
+        RadialCharacteristicReconstruction,
+    )
+    return RadialCharacteristicReconstruction(sn_mesh).apply(
+        np.asarray(fission_source)[None],
     )
 
 
@@ -1406,8 +1450,8 @@ class SNSolver:
             # starting-direction source the direct ψ½ solve consumes.
             bulk=q_ext_per_ord,
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
-            radial_characteristic=_radial_characteristic_source_from_per_ordinate(
-                q_ext_per_ord.values, self.sn_mesh,
+            radial_characteristic=_radial_characteristic_fission_seed(
+                fission_source, self.sn_mesh,
             ),
             _history=(),
             history_depth=2,
@@ -1575,8 +1619,8 @@ class SNSolver:
             # (the Krylov matvec + preconditioner run on 3-block state).
             bulk=q_ext_per_ord,
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
-            radial_characteristic=_radial_characteristic_source_from_per_ordinate(
-                q_ext_per_ord.values, self.sn_mesh,
+            radial_characteristic=_radial_characteristic_fission_seed(
+                fission_source, self.sn_mesh,
             ),
             _history=(),
             history_depth=2,
