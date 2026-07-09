@@ -505,23 +505,24 @@ class FissionOperator(LinearOperator):
             per_ord = AngularSourceSink.from_isotropic(
                 fission_iso.values, mesh,
             )
-            # #282 route (a) seed arm (LIVE; d3 birth-site flip landed @
-            # a29ab2d): a seed-carrying input emits the fission q½ on the cells
-            # legs — the (ray, bulk) block of the lagged gain, A_BA =
-            # Reconstruction ∘ (χνΣf/k). The isotropic fission emission is
-            # reconstructed at the closed μ = ±1 rays by
-            # RadialCharacteristicReconstruction (ℓ = 0: Q̄ = ½·Q₀, both signs
-            # — the single-source fold, campaign step 2). Corners stay zero
-            # (fission is volumetric).
+            # #282 route (a) LIFTED (campaign step 4c, THE LIFT): the model-generic
+            # fission gain is now PURE BULK. The (ray, bulk) fission emission —
+            # χνΣf·φ reconstructed at the closed μ = ±1 rays — moved to the sn
+            # coupling operator
+            # :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
+            # (``A_BA = Fold ∘ F.kernel ∘ integrate``). Fission is the eigenvalue
+            # OUTER source (within-group fission is zero), so its ``A_BA`` rides
+            # the outer ``q_ext`` assembly (``solver.py``), NOT the within-group
+            # gain (HAZARD 5 — a different seam than the scattering ``A_BA``). On a
+            # carrying mesh the ray block stays PRESENT-ZERO (the composite
+            # presence law); seedless → None.
             sd_out = None
             if psi.radial_characteristic is not None:
-                from orpheus.transport.operators.radial_characteristic_reconstruction import (  # noqa: E501
-                    RadialCharacteristicReconstruction,
+                from orpheus.transport.source_sinks import (
+                    RadialCharacteristicSourceSink,
                 )
 
-                sd_out = RadialCharacteristicReconstruction(mesh).apply(
-                    fission_iso.values[None],
-                )
+                sd_out = RadialCharacteristicSourceSink.zeros_on(mesh)
             return FullField(
                 # B.5.2: the operator output IS a source (Fψ rate density) — emit
                 # the AngularSourceSink directly, not a re-wrap into AngularFlux.

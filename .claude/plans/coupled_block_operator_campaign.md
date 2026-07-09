@@ -776,3 +776,145 @@ HAZARD 5 (S=within-group gain, F=outer q_ext — different seams) + the **DRIVER
 AskUserQuestion at 4c start: A_BA as its own gain slot vs composed with the scatter gain; ⚠ the
 shared-K_iso-emission elegance — S_bulk and A_BA share the `K_iso∘integrate` emission, don't recompute
 twice). Re-anchor from THIS block + `git log` (trust git).
+
+### 4c GROUNDING + OPEN QUESTIONS (2026-07-08, pre-implementation, `22a96cc`)
+
+**DRIVER-WIRING FORK RESOLVED (user, 2026-07-08): OWN GAIN SLOT.** Gains widen
+`(S,B)→(S,A_BA,B)`; A_BA a peer coupling (mirrors #208's B-from-S un-weld — `_within_group_
+triple:204` "the transitional `S + B` fold is RETIRED"). S stays pure model-generic bulk.
+Cost accepted: S_bulk + A_BA each call `K_iso∘integrate` — cheap, single-sourced (the SAME
+`IsotropicScattering` object, not a twin). Rejected: composed `S⊕A_BA` gain (would re-weld
+the very fold #208 retired).
+
+**Own-slot driver blast (precise, `orpheus/sn/solver.py`):** 1 producer `_within_group_
+triple:168` (returns `(L+C,S,B)`) + 3 helper sigs (`_within_group_si:603`, `_within_group_
+krylov:372`, `_select_si_resolvent:538`) + 4 caller unpacks (`LC,S,B = _within_group_triple`
+@ `:1374` eig-SI / `:1565` eig-Krylov / `:2461` fix-SI / `:2663` fix-Krylov). **A_BA is
+Jacobi-ONLY** — it exists iff `radial_characteristic_space is not None` (seed-carrying 1-D
+curvilinear), which ALWAYS falls to Jacobi (G-S needs `is_cartesian and not is_1d`), so the
+G-S split arm NEVER sees A_BA ⟹ append A_BA to the Jacobi gains only; G-S arm untouched.
+
+**Scatter A_BA design (clean):** `A_BA_scatter = Fold ∘ K_iso ∘ integrate_angular`, wrapping
+the migrated Fold (`RadialCharacteristicReconstruction`) + the SHARED
+`ScatteringOperator.isotropic_kernel` (`= IsotropicScattering(mat_xs)+IsotropicN2N(mat_xs)`,
+`scattering.py:911`). House style = A_AB `RadialCharacteristicSeeding` (bespoke
+`LinearOperator` subclass wrapping shared kernels). Candidate: ONE generic sn class
+parametrized by the emission kernel (K_iso for scatter, the fission kernel for F) — name TBD
+(user historically steers these; `RadialCharacteristicEmission`?). Fold MATH kernel
+(`fold_moments_to_radial_characteristic{,_transpose}`, `numerics/spaces/radial_characteristic_
+space.py:447/510`) STAYS (data layer, deliverable 5).
+
+**⚠ OPEN — F ray-seed is a TWO-FOLD-FACTORY question (HAZARD 5, subtler than "compute_fission_
+source"):**
+- The eigenvalue F ray seed does NOT ride F-fwd (`fission.py:522`, `RadialCharacteristic
+  Reconstruction`): `compute_fission_source:951` passes a bare scalar ndarray → fission's
+  scalar arm (no seed). It rides `_radial_characteristic_source_from_per_ordinate`
+  (`solver.py:1364`, eig-SI q_ext assembly) = `RadialCharacteristicSourceSink.from_angular_
+  source(q_ext_per_ord)` (`:526-535`).
+- So there are TWO ψ½-fold factories: (a) `RadialCharacteristicReconstruction` (moments-fold,
+  step-2's named A_BA fold, used by S/F `.apply` arms) and (b) `from_angular_source`
+  (per-ordinate-fold; docstring `:529` claims "the ONE q½-fold factory" — solver +
+  fixed-source rhs + `transport_sweep`). They AGREE at ℓ=0 (production reach):
+  `from_angular_source ≈ Fold∘integrate`, `Reconstruction = Fold`.
+- **QUESTION (test-architect map + user):** does 4c UNIFY these (A_BA = the single ray-seed
+  path, retiring `from_angular_source`'s driver route) or leave `from_angular_source` for its
+  OTHER consumers (fixed-source rhs, `transport_sweep`)? The invariant "A_BA ≡ today's ray
+  seed bit-identical" must pin against whichever is TODAY's LIVE path (eig = `from_angular_
+  source`, NOT `Reconstruction`). test-architect dispatched (bg, own-slot gate spec L1–L5 +
+  S-adj asymmetry ruling + refutations).
+
+### 4c GATE SPEC + OBLIGATIONS (test-architect memo, own-slot, 2026-07-08)
+
+Full table: `.claude/agent-memory/test-architect/coupled_operator_step4_verification.md`. Durable
+load-bearing findings:
+
+**THE reframe — NO adjoint SI driver in production** (`grep 'apply_transpose|\.H' solver.py` =
+EMPTY). Forward own-slot gains call only `A_BA.apply`. The S-adj `K_isoᵀ∘Reconstructionᵀ` bulk
+pullback is exercised ONLY by test-side `.H` reciprocity gates, which feed a **present-ZERO seed
+cotangent** ⟹ a lost pullback is a **FALSE GREEN** in every existing adjoint gate (R2).
+
+**THREE obligations on the ONE commit (HAZARD 3):**
+1. LIFT (S/F ray-arm drop) + own-slot gain-add land TOGETHER — the intermediate mixed-presence
+   state trips `evaluate_residual:300` / `FullField.__sub__`; acceptance = full `tests/sn -m "not
+   slow"` green in the single commit.
+2. **S-adj reciprocity-leaf:** A_BA MUST realize `apply_transpose` at 4c (NOT deferred to 4d), AND
+   the reciprocity gate's loss `(L+C−S−B).H` MUST gain the A_BA leaf → `(L+C−S−A_BA−B).H` in the
+   SAME commit — else `.H` silently loses the pullback (hidden by present-zero seeds). **Sole
+   catcher = L1-ADJ with a NONZERO seed cotangent** (A2a/A2b are present-zero-blind).
+3. **Pinned-row FLIP (R3):** `TestRegressionFloor::test_bulk_to_ray_coupling_lives_in_the_lagged_
+   scattering_gain` (test:206) asserts `S_sb>1e-6` on the MONOLITHIC `S.apply`; the LIFT makes S
+   pure-bulk ⟹ `S_sb→0` ⟹ REDDENS. Migrate it in the LIFT commit (re-point the claim to the A_BA
+   gain). Do NOT let it fail as "expected".
+
+**S-adj asymmetry ruling:** the pullback `bulk_bar += w·K_isoᵀ(Reconstructionᵀ χ_seed)`
+(`scattering.py:1837-1844`) = `A_BA.apply_transpose(χ_seed)` (Foldᵀ→K_isoᵀ→integrateᵀ=×w). After
+the lift: `S.apply_transpose` pure-bulk; `A_BA.apply_transpose` carries the pullback; sum = monolith.
+
+**F outer-seam (HAZARD 5) + the two-factory resolution:** the eigenvalue F ray seed is TODAY built
+at `solver.py:1364` via `from_angular_source` (NOT F-fwd's `Reconstruction` arm — `compute_fission_
+source:951` passes a bare scalar ndarray → fission's SCALAR arm, no seed). 4c migrates the `:1364`
+route → `A_BA_fission.apply` (L4-F sentinel). `from_angular_source` STAYS for its non-fission
+consumers (fixed-source rhs, `transport_sweep`). ⚠ the migration REMOVES a `from_isotropic∘integrate`
+round-trip ⟹ F ray seed may be principled-equiv (ULP), NOT bit-id — MEASURE (`array_equal` if exact,
+else `assert_array_almost_equal_nulp`). ⚠ CHECK F-fwd's ray arm (`fission.py:508-534`) production
+reachability in the retirement audit (may be DEAD ⟹ pure retirement).
+
+**Gates** (all `-O`): L1-FWD (S/F pure-bulk fwd, `array_equal`) · **L1-ADJ** (nonzero-χ_seed pullback
+catcher — THE decisive one) · L2 (A_BA=Fold∘K_iso∘integrate bit-id vs `_ba_oldloop_reference` +
+Mode-11 fold-spy `n==2·n_levels`) · L3 (`S_bulk⊕A_BA≡monolith`, `array_equal` the OBJECT — Mode-12) ·
+**L4-S** (own-slot driver-routing sentinel: wrap `A_BA_scatter.apply`, `n>0` in a real solve +
+`A_BA in gains`) · **L4-F** (F outer-seam: wrap `A_BA_fission.apply`, `n>0` in outer iter +
+`A_BA_fission NOT in within-group gains`) · L5 (retirement + `_rcr_mod` repoint). Driver mechanics:
+SI `rhs+=g.apply` (`iteration.py:619`), Krylov `out-=g.apply` (`:868`); widen `_within_group_triple:
+249`→`(L+C,S,A_BA,B)`, `_select_si_resolvent:599`, `*gains` spread `:658`. R1: `array_equal` legit
+(fold home-move, no re-assoc) EXCEPT the F round-trip + any summed-rhs reduction-order (→ nulp).
+
+### 4c EXECUTION FINDINGS (main agent, 2026-07-08) — scatter DONE, F reframed
+
+**Scatter LIFT built + verified (production edits landed, uncommitted):**
+- `RadialCharacteristicEmission` (A_BA, generic over `emission_kernel`) + migrated
+  `RadialCharacteristicReconstruction` (Fold) in `sn/operators/radial_characteristic.py`.
+  SMOKE-VERIFIED: scatter `apply` bit-id vs the old fold (maxabs **0.0**); `apply_transpose`
+  an EXACT Euclidean adjoint (defect **0.0**); `F.kernel ≡ F.apply` emission bit-for-bit.
+- S-fwd/S-adj/F-fwd → PURE BULK (present-zero ray). Scatter A_BA wired as its OWN gain via the
+  new single-source `_lagged_gains(S, B, sn_mesh)` (SI Jacobi arm + both Krylov calls) — this
+  AVOIDS the `_within_group_triple` rename (99-ref blast) the plan's "widen the triple" implied;
+  A_BA injected at the gain-assembly seam instead. **The scatter LIFT is BIT-IDENTICAL end-to-end**
+  (the scattering seed just moved S.apply → A_BA_scatter; q_ext's fission seed untouched).
+- `tests/sn/operators/test_psi_half_coupling.py`: **6 reds, all expected** — the R3 flip
+  (`TestRegressionFloor::test_bulk_to_ray_coupling_lives_in_the_lagged_scattering_gain`) + 5
+  step-2 `TestA_BA_SchurFold` gates that asserted S/F EMIT the ray (now A_BA's job). These are
+  the migrate-to-step-4-architecture list. 45 pass (bit-id elsewhere).
+
+**⚠ F REFRAME — the two-factory premise was FALSE (no twin):** `from_angular_source`
+(`radial_characteristic_source_sink.py:157`) computes Legendre moments (`legvander`+einsum) then
+folds through the SHARED `fold_moments_to_radial_characteristic` kernel — the SAME kernel
+`Reconstruction`/A_BA use. So the fission ray seed ALREADY routes through the one fold (no
+Cardinal-Rule-2 twin); `from_angular_source` is the PER-ORDINATE typed entry, `Reconstruction`
+the MOMENTS entry, over one kernel. Further: **F-fwd's ray arm is DEAD in production**
+(`fission_op.apply` only ever gets a scalar — the drop is pure retirement), and the live fission
+seed rides the OUTER `q_ext` (`solver.py:1401/1570`), which is a valid FACTORED A_BA_fission
+(F.kernel in `compute_fission_source` + `from_angular_source`'s fold). So migrating it to
+`Reconstruction(fission_source[None])` is NOT a twin-fix — it is a ULP re-baseline + shape-fiddling
+(fission_source is `(ng,nx,ny)`; the fold wants `(n_moments,ng,nx)`) that merely removes a
+`from_isotropic→re-project` round-trip. Site `:1956` folds the TOTAL source (fission+scatter), NOT
+pure fission — MUST keep `from_angular_source`.
+
+**⟹ RECONSULTING the user** (the "migrate fission only" ruling rested on the false twin premise):
+recommend **scatter LIFT bit-identical THIS commit; leave the fission seed on `from_angular_source`**
+(already folds through the shared kernel — no twin; more general = handles anisotropic); file the
+round-trip removal as a minor-optimization follow-up if wanted. RadialCharacteristicEmission stays
+generic (machinery; F.kernel smoke-verified) even though production instantiates it for scatter.
+
+**USER RULING (2026-07-08): TWO immediate back-to-back commits, NOT a follow-up issue.**
+- **Commit 1 (4c) = scatter LIFT, BIT-IDENTICAL.** S/F ops→pure bulk; A_BA_scatter own gain
+  (`_lagged_gains`); reciprocity leaf `(L+C−S−A_BA−B).H`; gates L1-FWD/L1-ADJ/L2/L3/L4-S + R3 row
+  migration; retire the transport `radial_characteristic_reconstruction.py`. Fission seed UNCHANGED
+  (from_angular_source). array_equal bar; no ULP shift.
+- **Commit 2 (immediately after, this session) = F outer-seam migration.** `solver.py:1401/1570`
+  `from_angular_source(from_isotropic(fission_source))` → the direct moments-fold
+  `Reconstruction(fission_source[None])` (ULP re-baseline; removes the round-trip). `:1956` (TOTAL
+  source) + `:2172` (external) KEEP from_angular_source. L4-F + the fission value gate land here.
+  Verify tolerances absorb the ~1e-16 keff/flux shift.
+Rationale (user): follow-up work we CAN do immediately should be done immediately, not filed —
+but bit-id and ULP-re-baseline stay in SEPARATE commits (bisectable, each cleanly verifiable).

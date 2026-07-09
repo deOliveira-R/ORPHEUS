@@ -5,9 +5,11 @@ fixed-source within-group solve :func:`~orpheus.sn.solver._solve_fixed_source_si
 and the eigenvalue within-group inner
 :meth:`~orpheus.sn.solver.SNSolver._solve_source_iteration` are ONE primitive
 (:class:`~orpheus.numerics.iteration.SourceIteration`) on ONE loss
-decomposition ``(L+C, S, B)`` — the invertible resolvent ``L+C`` plus the
-scattering ``S`` and boundary ``B`` coupling gains — differing only in
-``q_ext`` (external vs fission source) and the returned contract.
+decomposition ``(L+C, S, [A_BA,] B)`` — the invertible resolvent ``L+C`` plus
+the scattering ``S``, the curvilinear bulk→ray coupling ``A_BA`` (seed-carrying
+meshes only — campaign step 4c, THE LIFT), and the boundary ``B`` coupling gains
+— differing only in ``q_ext`` (external vs fission source) and the returned
+contract.
 
 Why a *structural* test and not a numerical one
 ================================================
@@ -41,7 +43,8 @@ from orpheus.sn.solver import SNSolver
 from orpheus.sn.operators.streaming import InvertibleOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
-from orpheus.numerics.operator import BlockRole
+from orpheus.sn.operators.radial_characteristic import RadialCharacteristicEmission
+from orpheus.numerics.operator import BlockRole, SystemRole
 from orpheus.numerics import iteration as _iteration
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.source_sinks import AngularSourceSink
@@ -160,25 +163,40 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     assert isinstance(L_fs.inner, InvertibleOperator)
     assert type(L_eig.inner) is type(L_fs.inner)
 
-    # (2) Exactly two coupling gains, same structural pair both paths (Wave O
-    # O.2a — the honest (L+C, S, B); the transitional S+B fold is RETIRED, so
-    # B is delivered as a SEPARATE gain, not folded into S).
-    assert len(gains_eig) == 2
-    assert len(gains_fs) == 2
-    S_eig, B_eig = gains_eig
-    S_fs, B_fs = gains_fs
+    # (2) The coupling gains — SAME structural tuple both paths (Wave O O.2a:
+    # the honest (L+C, S, [A_BA,] B); the transitional S+B fold is RETIRED, B a
+    # SEPARATE gain). On a seed-carrying (curvilinear) mesh the gains ALSO carry
+    # A_BA — the scattering bulk→ray coupling as its OWN lagged gain (campaign
+    # step 4c, THE LIFT; user-ruled "own gain slot", the #208 pattern that
+    # separated B from S extended to the ψ½ ray). Both SI paths share it, so the
+    # single-primitive contract now pins the THREE-gain sphere shape too.
+    carrying = sn_mesh.radial_characteristic_space is not None
+    expected_n = 3 if carrying else 2
+    assert len(gains_eig) == expected_n
+    assert len(gains_fs) == expected_n
 
     # (2a) gain 0 = S: the BULK scattering coupling.
+    S_eig, S_fs = gains_eig[0], gains_fs[0]
     assert isinstance(S_eig, ScatteringOperator)
     assert isinstance(S_fs, ScatteringOperator)
 
-    # (2b) gain 1 = B: the augmented BOUNDARY coupling. On a seed-carrying
+    # (2b) On a carrying mesh, gain 1 = A_BA: the bulk→ray emission
+    # (RadialCharacteristicEmission = Fold∘K_iso∘integrate; SystemRole.COUPLED).
+    # Absent on a seedless mesh (no ψ½ ray). Same primitive both paths.
+    if carrying:
+        A_BA_eig, A_BA_fs = gains_eig[1], gains_fs[1]
+        assert isinstance(A_BA_eig, RadialCharacteristicEmission)
+        assert isinstance(A_BA_fs, RadialCharacteristicEmission)
+        assert A_BA_eig.system_role is SystemRole.COUPLED
+
+    # (2c) last gain = B: the augmented BOUNDARY coupling. On a seed-carrying
     # (sphere) mesh it is the direct sum B_a + B_b (System A trace ⊕ System B ray
     # corner — an OperatorSum, RULING P1; the un-weld of the old welded
     # SNBoundaryOperator). The |Ω·n|·w trace adjoint metric lives on B_a. The
     # single-primitive contract: SI and eigenvalue share the SAME structural
     # boundary primitive — same type both paths, carrying the BOUNDARY block-role
     # (never folded into the bulk S).
+    B_eig, B_fs = gains_eig[-1], gains_fs[-1]
     assert type(B_eig) is type(B_fs)
     assert B_eig.block_role is BlockRole.BOUNDARY
     assert B_fs.block_role is BlockRole.BOUNDARY

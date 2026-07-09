@@ -1559,35 +1559,25 @@ class ScatteringOperator(LinearOperator):
         # HarmonicMomentFlux — both dispatch arms return AngularSourceSink)
         # so the typed ``apply`` overloads resolve.
         combined = self.apply(cast("AngularFlux | HarmonicMomentFlux", psi.bulk))
-        # #282 route (a) seed arm (LIVE; d3 birth-site flip landed @ a29ab2d).
-        # A seed-carrying input emits the scattering q½ on the cells legs: the
-        # (ray, bulk) block of the lagged gain, A_BA = Reconstruction ∘ K_iso.
-        # The isotropic (ℓ = 0) emission K_iso·φ₀ is reconstructed at the
-        # closed μ = ±1 rays by RadialCharacteristicReconstruction (½·Q₀, both
-        # signs — the single-source fold, campaign step 2). Corners stay zero
-        # (scattering is volumetric). HONEST SCOPE: the reconstruction accepts
-        # ℓ ≥ 1, but this arm feeds the ℓ = 0 iso emission ONLY (n_moments = 1)
-        # — the curvilinear operator's production reach (§16.B B2b); the
-        # anisotropic fold activates with the >linear-in-μ companion gate.
+        # #282 route (a) LIFTED (campaign step 4c, THE LIFT): the model-generic
+        # scattering gain is now PURE BULK. The (ray, bulk) emission — the
+        # isotropic ℓ = 0 source K_iso·φ₀ reconstructed at the closed μ = ±1 rays
+        # — moved to the sn coupling operator
+        # :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
+        # (``A_BA = Fold ∘ K_iso ∘ integrate``), which the SI driver lags as its
+        # OWN gain (the Wave-O #208 pattern that separated B from S; the driver's
+        # ``S_bulk + A_BA`` is bit-identical to this old monolith). A model-generic
+        # gain has no business owning a curvilinear-SN projection. On a carrying
+        # mesh the ray block stays PRESENT-ZERO (the composite presence law
+        # forbids a None ray summed against A_BA's present ray — the disjoint
+        # direct sum ``S_bulk ⊕ A_BA``, exactly as ``B_a + B_b``); seedless → None.
         sd_out = None
         if psi.radial_characteristic is not None:
-            from orpheus.transport.operators.radial_characteristic_reconstruction import (  # noqa: E501
-                RadialCharacteristicReconstruction,
-            )
-            from orpheus.transport.fields.angular_flux import AngularFlux as _AF
+            from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
 
-            if not isinstance(psi.bulk, _AF):
-                raise TypeError(
-                    "ScatteringOperator seed arm: a starting-direction-"
-                    "carrying composite must have a full-angular "
-                    "AngularFlux bulk (1-D curvilinear); got "
-                    f"{type(psi.bulk).__name__}."
-                )
-            phi0 = psi.bulk.integrate_angular().values          # (ng, nx)
-            q0_iso = self.isotropic_kernel.apply(phi0)          # (ng, nx) iso ℓ=0
-            sd_out = RadialCharacteristicReconstruction(
+            sd_out = RadialCharacteristicSourceSink.zeros_on(
                 cast("SNMesh", psi.mesh),
-            ).apply(q0_iso[None])
+            )
         # #257 S8a: history-free (the matvec leaf is a base arrow
         # ``FullField -> FullField``; the comonad lives on the driver, which
         # reattaches the timed type when this source is added to the timed rhs).
@@ -1809,44 +1799,27 @@ class ScatteringOperator(LinearOperator):
             # angular FullField only arises on an SNMesh) — the same
             # runtime-truth cast as the forward arm's bulk dispatch (#257 S8c).
             sn_mesh = cast("SNMesh", chi.mesh)
-            # #282 seed arm, TRANSPOSE (A_BAᵀ): the forward seed emission is
-            # the (ray, bulk) block A_BA = Reconstruction ∘ K_iso, so its
-            # Euclidean transpose is K_isoᵀ ∘ Reconstructionᵀ — the seed-cells
-            # cotangent pulls back to the ℓ = 0 bulk moment through the
-            # reconstruction's transpose (the single-source (2ℓ+1)/2·(±1)^ℓ
-            # weights — this RETIRES the hand-rolled ½ this arm used to carry),
-            # then K_isoᵀ scatters it into the BULK weighted per ordinate
-            # (ψ̄_n += w_n · K_isoᵀ(Reconstructionᵀ χ̄)). Corner cotangents are
-            # ignored (the forward emits zero corners) and the OUTPUT seed
-            # block is the PRESENT ZERO (∂S/∂ψ½ = 0 — scattering never reads
-            # the seed; presence must match the input per the composite's
-            # mixed-presence law). NOTE this transpose is METRIC-INVISIBLE to
-            # G3 (the ghost metric zeroes seed cotangents before the wrap
-            # reaches here) — its committed catchers are the Euclidean Mᵀ
-            # chain at 2.5b and the §16.C round-trip (the §16.A A4 honest scope).
+            # #282 route (a) TRANSPOSE, LIFTED (campaign step 4c, THE LIFT): S
+            # is now PURE BULK, so its transpose is pure bulk too. The
+            # ``w · K_isoᵀ(Reconstructionᵀ χ_seed)`` bulk pullback of the seed
+            # cotangent moved to
+            # :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission.apply_transpose`
+            # (``A_BAᵀ = (∫dμ)ᵀ ∘ K_isoᵀ ∘ Reconstructionᵀ``), which the composite
+            # ``(L + C − S − A_BA − B).H`` sums — reconstructing the monolithic
+            # adjoint. There is NO adjoint SI driver in production, so this
+            # pullback is exercised ONLY by the ``.H`` reciprocity gates (which
+            # MUST carry the A_BA leaf now that S dropped it — a present-zero seed
+            # cotangent would silently hide the loss). The ray-OUT block is the
+            # PRESENT ZERO (∂S/∂ψ½ = 0 — scattering never reads the seed; presence
+            # must match the input per the composite's mixed-presence law).
             sd_bar_out = None
             chi_seed = chi.radial_characteristic
             if chi_seed is not None:
-                from orpheus.transport.operators.radial_characteristic_reconstruction import (  # noqa: E501
-                    RadialCharacteristicReconstruction,
-                )
                 from orpheus.transport.source_sinks import (
                     RadialCharacteristicSourceSink,
                 )
 
-                m_bar = RadialCharacteristicReconstruction(
-                    sn_mesh,
-                ).apply_transpose(chi_seed)                     # (1, ng, nx)
-                phi0_bar = self.isotropic_kernel.apply_transpose(m_bar[0])
-                w = np.asarray(self.weights, dtype=float)
-                bulk_bar = bulk_bar + (
-                    w.reshape((w.size,) + (1,) * phi0_bar.ndim) * phi0_bar
-                )
-                sd_bar_out = RadialCharacteristicSourceSink(
-                    values=np.zeros_like(chi_seed.values),
-                    space=chi_seed.space,
-                    mesh=chi_seed.mesh,
-                )
+                sd_bar_out = RadialCharacteristicSourceSink.zeros_on(sn_mesh)
             return FullField(
                 bulk=AngularSourceSink.from_mesh(bulk_bar, sn_mesh),
                 boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),

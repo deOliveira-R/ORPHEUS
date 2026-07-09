@@ -190,9 +190,15 @@ def _within_group_triple(
     NOT in this decomposition.
 
     The driver consumes them via the variadic ``Driver(resolvent, *gains)``
-    shape (Wave O #208 O.2a): the matvec is the honest
-    ``(L + C).apply − S.apply − B.apply`` ≡ ``(L + C − S − B)·ψ`` and the SI
-    rhs is ``q_ext + S.apply(ψ) + B.apply(ψ)``.
+    shape (Wave O #208 O.2a): the matvec is the honest ``(L + C).apply −
+    Σᵢ gᵢ.apply`` and the SI rhs is ``q_ext + Σᵢ gᵢ.apply(ψ)``. On a SEEDLESS
+    mesh the gains are ``(S, B)`` (matvec ≡ ``(L+C−S−B)·ψ``); on a SEED-CARRYING
+    mesh :func:`_lagged_gains` injects ``A_BA`` — the scattering bulk→ray coupling
+    (:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`)
+    as its OWN lagged gain (campaign step 4c, THE LIFT) — so the effective
+    within-group operator is ``(L + C − S − A_BA − B)``. This helper returns the
+    model-generic ``(L+C, S, B)``; the curvilinear ``A_BA`` layers on at the gain
+    seam (:func:`_lagged_gains`), NOT here.
 
     * ``L + C`` is the :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
       (``.apply`` = matvec, ``.solve`` = the WDD sweep) — the resolvent.
@@ -373,15 +379,16 @@ def _within_group_krylov(
     LC: "LinearOperator[FullField]", *gains: "LinearOperator[FullField]",
     n_dof: int, max_iter: int, tol: float,
 ) -> "KrylovAcceleration[FullField]":
-    r"""GMRES driver on the within-group loss operator ``(L + C − S − B)``.
+    r"""GMRES driver on the within-group loss ``(L + C − S − [A_BA −] B)``.
 
     Single source of truth (Cardinal Rule 2 / Phase 1 R2) for the
     :class:`~orpheus.numerics.iteration.KrylovAcceleration` construction shared
     by the eigenvalue (:meth:`SNSolver._solve_krylov`) and fixed-source
     (:func:`_solve_fixed_source_krylov`) Krylov paths — they previously built
     byte-identical instances.  ``*gains`` are the lagged couplings (the
-    scattering ``S`` and boundary reflection ``B`` from
-    :func:`_within_group_triple`); the matvec is ``LC.apply − Σ gᵢ.apply``.
+    scattering ``S``, the boundary reflection ``B``, and — on a seed-carrying
+    mesh — the bulk→ray ``A_BA``; assembled by :func:`_lagged_gains` at the call
+    sites); the matvec is ``LC.apply − Σ gᵢ.apply``.
 
     GMRES is UNPRECONDITIONED (explicit identity) per `issue #200
     <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_ (the block-inverse
@@ -535,6 +542,40 @@ def _radial_characteristic_source_from_per_ordinate(
     )
 
 
+def _lagged_gains(
+    S: "ScatteringOperator", B: "LinearOperator[FullField, FullField]",
+    sn_mesh: "SNMesh",
+) -> "tuple[LinearOperator[FullField], ...]":
+    r"""The within-group lagged coupling gains the SI/Krylov driver applies.
+
+    ``(S, A_BA, B)`` on a seed-carrying (1-D curvilinear) mesh; ``(S, B)`` on a
+    seedless mesh. ``A_BA`` is the scattering bulk→ray coupling
+    :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
+    (``= Fold ∘ K_iso ∘ integrate``) applied as its OWN lagged gain — the
+    user-ruled "own gain slot" (campaign step 4c, THE LIFT; the Wave-O #208
+    pattern that separated ``B`` from ``S``, extended to the ψ½ ray coupling).
+    It shares the isotropic emission kernel ``S`` uses (``S.isotropic_kernel``),
+    so the emission is single-sourced (the SI rhs / Krylov matvec computes
+    ``K_iso∘integrate`` once in ``S``'s bulk arm and once here — one shared
+    kernel object, not a twin). A seedless mesh has no ψ½ ray, hence no bulk→ray
+    coupling: ``A_BA`` is absent.
+
+    Single source of truth (Cardinal Rule 2) for the ``A_BA`` gain injection,
+    shared by the SI (:func:`_select_si_resolvent`, Jacobi arm) and the Krylov
+    (:meth:`SNSolver._solve_krylov` / :func:`_solve_fixed_source_krylov`) paths.
+    The boundary Gauss-Seidel arm never sees ``A_BA``: it is seedless multi-D
+    Cartesian by construction (RULING P1), and every seed-carrying mesh falls to
+    Jacobi (:func:`_select_si_resolvent`).
+    """
+    if sn_mesh.radial_characteristic_space is None:
+        return (S, B)
+    from orpheus.sn.operators.radial_characteristic import (
+        RadialCharacteristicEmission,
+    )
+    a_ba = RadialCharacteristicEmission(sn_mesh, S.isotropic_kernel)
+    return (S, a_ba, B)
+
+
 def _select_si_resolvent(
     LC: "InvertibleOperator", S: "ScatteringOperator",
     B: "LinearOperator[FullField, FullField]",
@@ -543,8 +584,11 @@ def _select_si_resolvent(
     r"""Pick the ``(resolvent, gains)`` for the within-group SI driver per
     ``inner_schedule`` — the single source of truth for the Jacobi/G-S choice.
 
-    * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, (S, B))``: ``B`` lagged as an
-      external gain (inter-sweep Jacobi — today's path, every geometry).
+    * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, (S, [A_BA,] B))``: ``B`` lagged as
+      an external gain (inter-sweep Jacobi — every geometry). On a seed-carrying
+      (curvilinear) mesh the gains ALSO carry ``A_BA`` — the scattering bulk→ray
+      coupling as its OWN lagged gain (:func:`_lagged_gains`; campaign step 4c,
+      THE LIFT).
     * ``"gauss_seidel"`` on a multi-D Cartesian mesh →
       ``((L+C) - B_lower, (S, B_upper))``: the regular splitting
       ``(L+C−B) = M − B_upper`` (#226 §17 W2).  ``B`` splits under the
@@ -597,7 +641,7 @@ def _select_si_resolvent(
             )
         parts = B.split(SweepSchedule.gauss_seidel(sn_mesh))
         return LC - parts.lower, (S, parts.upper)
-    return LC, (S, B)
+    return LC, _lagged_gains(S, B, sn_mesh)
 
 
 def _within_group_si(
@@ -605,7 +649,7 @@ def _within_group_si(
     B: "LinearOperator[FullField, FullField]",
     sn_mesh: "SNMesh", *, inner_schedule: str, max_iter: int, tol: float,
 ) -> "tuple[SourceIteration[FullField], InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...], bool]":
-    r"""SourceIteration driver on the within-group loss ``(L + C − S − B)``.
+    r"""SourceIteration driver on the within-group loss ``(L + C − S − [A_BA −] B)``.
 
     Single source of truth (Cardinal Rule 2 / Phase 1 R1) for the
     :class:`~orpheus.numerics.iteration.SourceIteration` construction shared by
@@ -636,9 +680,10 @@ def _within_group_si(
     * ``base_resolvent`` — the un-inverted FORWARD (the fixed-source path
       needs it for the one-shot full-angular reconstruction of
       ``Solution.angular_flux``);
-    * ``gains`` — the lagged couplings (``(S, B)`` Jacobi /
-      ``(S, B_upper)`` G-S), also needed to rebuild the converged source
-      for that reconstruction;
+    * ``gains`` — the lagged couplings (``(S, [A_BA,] B)`` Jacobi — ``A_BA`` the
+      curvilinear bulk→ray gain injected by :func:`_lagged_gains` on a
+      seed-carrying mesh — / ``(S, B_upper)`` G-S), also needed to rebuild the
+      converged source for that reconstruction;
     * ``windowed`` — whether the iterate is the moment representation (2-D
       Cartesian) vs full-angular (curvilinear / 1-D).
 
@@ -1563,8 +1608,11 @@ class SNSolver:
         # a bulk-sized restart re-truncates GMRES on the trace+seed DOFs (the
         # sphere Krylov stall).  Size it from the composite the driver ravels.
         LC, S, B = _within_group_triple(self)
+        # Own-slot ψ½ coupling (step 4c): on a seed-carrying mesh the lagged
+        # gains carry A_BA (the scattering bulk→ray emission) beside S and B —
+        # the matvec subtracts every gain, so GMRES lags A_BA identically.
         krylov = _within_group_krylov(
-            LC, S, B,
+            LC, *_lagged_gains(S, B, self.sn_mesh),
             n_dof=int(initial_guess.to_flat().size),
             max_iter=self.max_inner, tol=self.inner_tol,
         )
@@ -2661,8 +2709,10 @@ def _solve_fixed_source_krylov(
     # cold-start composite the driver ravels (the multi-moment φ̂ axis + the
     # trace + the seed all track automatically through ``to_flat``).
     LC, S, B = _within_group_triple(solver)
+    # Own-slot ψ½ coupling (step 4c): seed-carrying meshes lag A_BA (the
+    # scattering bulk→ray emission) beside S and B (:func:`_lagged_gains`).
     krylov = _within_group_krylov(
-        LC, S, B,
+        LC, *_lagged_gains(S, B, solver.sn_mesh),
         n_dof=int(krylov_cold_start.to_flat().size),
         max_iter=max_inner, tol=inner_tol,
     )

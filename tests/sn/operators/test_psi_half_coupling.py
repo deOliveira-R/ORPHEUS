@@ -67,12 +67,20 @@ from orpheus.sn.operators.streaming import StreamingOperator
 import orpheus.sn.loss_representation as _lr_mod
 import orpheus.sn.operators.radial_characteristic as _rc_mod
 from orpheus.sn.operators.radial_characteristic import (
+    RadialCharacteristicEmission,
     RadialCharacteristicOperator,
+    RadialCharacteristicReconstruction,
     RadialCharacteristicSeeding,
 )
 import orpheus.numerics.spaces.radial_characteristic_space as _rcs_mod
-import orpheus.transport.operators.radial_characteristic_reconstruction as _rcr_mod
-from orpheus.sn.solver import SNSolver, _within_group_triple
+# Campaign step 4c (THE LIFT): the Fold ``RadialCharacteristicReconstruction``
+# migrated transport → sn (it is a factor of the sn coupling operator
+# ``RadialCharacteristicEmission``); ``_rcr_mod`` is the reconstruction/fold home
+# (now the same module as ``_rc_mod``) — kept as a distinct alias for the spies
+# that patch the fold as the reconstruction sees it.
+import orpheus.sn.operators.radial_characteristic as _rcr_mod
+import orpheus.sn.solver as _solver_mod
+from orpheus.sn.solver import SNSolver, _lagged_gains, _within_group_triple
 from orpheus.sn.spatial.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
     carlson_inward_sweep_transpose,
@@ -203,21 +211,43 @@ class TestRegressionFloor:
             pytest.fail(f"seed→bulk feed A_bs={a_bs:.3e} or self-block A_ss={a_ss:.3e} vanished "
                         f"— the ψ½ coupling is degenerate (route-a seed not wired).")
 
-    def test_bulk_to_ray_coupling_lives_in_the_lagged_scattering_gain(self):
-        r"""The full ``A_BA`` (bulk→ray) is carried ONLY by the LAGGED scattering
-        gain ``S`` (``S_sb ≠ 0``, the ray scattering source), and the ray cannot
-        feed the scalar flux (``S_bs = 0``, ψ½ has zero moment weight). So the
-        coupled system's off-diagonal ``A_BA`` is an OUTER-iterated block, never a
-        within-sweep one."""
+    def test_bulk_to_ray_coupling_lives_in_the_lagged_A_BA_gain(self):
+        r"""The full ``A_BA`` (bulk→ray) is carried by the LIFTED
+        :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
+        gain (``A_BA_sb ≠ 0``, the ray scattering source) — NOT by the
+        model-generic ``S``, which is now PURE BULK (``S_sb = 0``, campaign step
+        4c THE LIFT re-pointed this pin from S to A_BA). The ray still cannot feed
+        the scalar flux (``S_bs = 0``, ψ½ has zero moment weight). So the coupled
+        system's off-diagonal ``A_BA`` is an OUTER-iterated block riding its OWN
+        lagged gain, never a within-sweep one.
+
+        Mutation tooth: an ``A_BA`` that emitted into the bulk (a double-count with
+        S's bulk) would make ``A_BA_bb ≠ 0``; an S that re-grew the ray arm would
+        make ``S_sb ≠ 0`` (the pre-lift regression this flip retired)."""
         sn = _sphere()
         _, S, _ = _within_group_triple(SNSolver(sn))
+        A_BA = RadialCharacteristicEmission(sn, S.isotropic_kernel)
         b, _, s, _ = _blocks(sn)
-        Sd = _dense(S.apply, _template(sn))
-        s_sb, s_bs, s_bb = _bn(Sd, s, b), _bn(Sd, b, s), _bn(Sd, b, b)
-        print(f"  S: S_sb(bulk→ray src)={s_sb:.3e}  S_bs(ray→scalar)={s_bs:.2e}  S_bb={s_bb:.3e}")
-        if not (s_sb > 1e-6):
-            pytest.fail(f"S_sb={s_sb:.3e} ≈ 0 — scattering does NOT source the ray; the bulk→ray "
-                        f"coupling A_BA is missing (the ψ½ within-group source is unwired).")
+        tpl = _template(sn)
+        Sd = _dense(S.apply, tpl)
+        Ad = _dense(A_BA.apply, tpl)
+        s_sb, s_bs = _bn(Sd, s, b), _bn(Sd, b, s)
+        aba_sb, aba_bb = _bn(Ad, s, b), _bn(Ad, b, b)
+        print(f"  S(pure bulk): S_sb={s_sb:.2e} S_bs={s_bs:.2e} | "
+              f"A_BA: A_BA_sb(bulk→ray)={aba_sb:.3f} A_BA_bb(no bulk-out)={aba_bb:.2e}")
+        # The coupling lives in A_BA, not S.
+        if not (aba_sb > 1e-6):
+            pytest.fail(f"A_BA_sb={aba_sb:.3e} ≈ 0 — the lifted A_BA does NOT source the ray; "
+                        f"the bulk→ray coupling is missing (the ψ½ gain is unwired).")
+        # S is now pure bulk (the LIFT dropped the ray side-channel).
+        if not (s_sb < 1e-12):
+            pytest.fail(f"S_sb={s_sb:.3e} ≠ 0 — the model-generic scattering gain still sources "
+                        f"the ray; the LIFT did not make S pure bulk (a re-grown ray arm).")
+        # A_BA is disjoint from the bulk (no double-count with S's bulk).
+        if not (aba_bb < 1e-12):
+            pytest.fail(f"A_BA_bb={aba_bb:.3e} ≠ 0 — A_BA emits into the bulk (a double-count "
+                        f"with S's bulk); it must write ONLY the ray (disjoint direct sum).")
+        # The ray still cannot feed the scalar flux (ψ½ zero moment weight).
         if not (s_bs < 1e-12):
             pytest.fail(f"S_bs={s_bs:.3e} ≠ 0 — the ray leaks into the scalar flux; ψ½ must have "
                         f"ZERO moment weight (the ghost-metric physics is violated).")
@@ -1156,11 +1186,6 @@ def _s_emission(S, psi: FullField) -> NDArray:
     return np.asarray(S.isotropic_kernel.apply(phi0))
 
 
-def _f_emission(F, psi: FullField) -> NDArray:
-    """The ℓ=0 iso fission cell-emission ``χ·νΣf·φ`` that the F seed arm folds."""
-    return np.asarray(F.apply(psi.bulk.integrate_angular()).values)
-
-
 def _ba_oldloop_reference(emission: NDArray, sn) -> NDArray:
     r"""The EXACT pre-un-weld hand-rolled fold loop (the S/F seed arms before
     Step 2 routed them through RadialCharacteristicReconstruction): the
@@ -1270,20 +1295,23 @@ def _wrap_extracted_A_BA(monkeypatch) -> dict:
 
 
 class TestA_BA_SchurFold:
-    r"""``A_BA`` — the ψ½ Schur fold (bulk → ray q½ source), the coupling Step 2
-    un-welds from the five hand-rolled fold sites into ONE single source.
+    r"""``A_BA`` — the ψ½ Schur fold FACTOR (the ``RadialCharacteristicReconstruction``
+    single source the ℓ-moment emission folds through at μ = ±1).
+
+    Post-LIFT (campaign step 4c, commit 1) this class pins the FOLD FACTOR + the
+    non-carrying control: the fold contract (``P_ℓ(±1) = (±1)^ℓ`` on a manufactured
+    anisotropic input), the fold-transpose Euclidean contract, the fold-factor
+    surface value + its Euclidean transpose, and the cyl/slab non-carrying control.
+    The FULL coupling operator ``RadialCharacteristicEmission`` (``Fold ∘ K_iso ∘
+    integrate``), the S/F→pure-bulk lift, and the driver routing are pinned in
+    :class:`TestCoupledLift` (the step-2 "S/F EMIT the ray" gates are retired
+    there — S/F are now pure bulk).
 
     Carrying member = **sphere-GL S4 ONLY** (the only geometry that carries a ψ½
     level, R12a; 1 level → 2 fold calls/arm). cylinder/slab are the non-carrying
     CONTROL. Every value row is ≥2G (1G is degenerate, vv anti-#3). Runtime: gates
     raise via ``pytest.fail`` / ``np.testing.assert_*`` (fire under ``python -O``),
     never a bare ``assert`` (vv Mode 8).
-
-    Live TODAY (green, teeth mutation-verified in-process): the fold contract, the
-    fold-transpose contract, the operator seed-arm transpose consistency, the S/F
-    closed-form bit-identity, the shared-fold Mode-11 routing, the non-carrying
-    control. xfail-skeleton (flip the ``# BIND`` in ``_apply_A_BA`` /
-    ``_wrap_extracted_A_BA`` once the un-weld lands): the direct-A_BA-surface rows.
     """
 
     # ── Gate 1: the fold contract on a MANUFACTURED anisotropic input ──────
@@ -1330,108 +1358,13 @@ class TestA_BA_SchurFold:
             pytest.fail(f"the iso-only input MOVED under the mutation ({red_iso:.3e}) — "
                         f"the necessity claim is false (iso should be blind to sign^ℓ).")
 
-    # ── Gate 2a (LIVE): S and F both route through the ONE shared fold ──────
-
-    def test_scattering_and_fission_both_route_through_the_shared_fold(self, monkeypatch):
-        r"""Mode-11 CENTERPIECE (single-source routing). A wrap-COUNTER on the
-        shared ``fold_moments_to_radial_characteristic`` (the SAME object the S/F
-        seed arms local-import) must be entered by BOTH the S forward seed arm AND
-        the F forward seed arm — a green-but-unrouted arm (a divergent inlined copy
-        of the P_ℓ math) leaves the counter at 0 (Mode 11). Each arm folds
-        ``2·n_levels`` times (2 signs/level; sphere-GL S4 → 1 level → 2 calls).
-
-        POST-UN-WELD: re-point the wrap to the EXTRACTED single-source surface
-        (``_wrap_extracted_A_BA`` — the ``from_moments`` factory / ``A_BA.apply``);
-        the count then proves S and F route through the ONE extracted loop, not
-        merely the shared inner math. (That sharper gate is the xfail row below.)
-        """
-        n_levels = 1  # sphere-GL S4 carries exactly one ψ½ level (levels == (0,))
-
-        sn_s = _sphere()
-        S = SNSolver(sn_s).scattering_op
-        calls = _install_fold_spy(monkeypatch)
-        S.apply(_random_composite(sn_s, np.random.default_rng(30)))
-        s_calls = calls["n"]
-        if s_calls != 2 * n_levels:
-            pytest.fail(f"S folded {s_calls}× (expected 2·n_levels = {2 * n_levels}) — "
-                        f"the S seed arm does not route through the shared fold.")
-
-        sn_f = _fissile_sphere()
-        F = SNSolver(sn_f).fission_op
-        calls["n"] = 0
-        F.apply(_random_composite(sn_f, np.random.default_rng(31)))
-        f_calls = calls["n"]
-        print(f"  [G2a] S fold-calls={s_calls}  F fold-calls={f_calls}  (both = 2·n_levels)")
-        if f_calls != 2 * n_levels:
-            pytest.fail(f"F folded {f_calls}× (expected 2·n_levels = {2 * n_levels}) — "
-                        f"the F seed arm does not route through the shared fold "
-                        f"(or the fissile emission is zero — check the mixture).")
-
-    # ── Gate 3 (LIVE): the S / F seed output IS the ½·emission fold ─────────
-
-    def test_scattering_seed_is_the_half_emission_fold(self):
-        r"""The S forward seed output equals the ℓ=0 fold of its iso emission:
-        byte-for-byte the documented old loop (``np.array_equal`` — the un-weld's
-        bit-identity contract, inheriting from Gate 1) AND, structurally
-        INDEPENDENT of the fold, the closed form ``½·q₀`` per (level, sign) with
-        zero corners (P₀≡1; scattering is volumetric). Non-fissile ``Q/Σ``
-        scattering config (refutation #4 — no ``nan`` k here)."""
-        sn = _sphere()
-        S = SNSolver(sn).scattering_op
-        space = sn.radial_characteristic_space
-        psi = _random_composite(sn, np.random.default_rng(21))
-        emission = _s_emission(S, psi)
-        if not np.max(np.abs(emission)) > 1e-6:
-            pytest.fail("scattering iso emission ≈ 0 — the S seed gate is vacuous.")
-        seed = S.apply(psi).radial_characteristic
-        if seed is None:
-            pytest.fail("S emitted a None ray on a seed-carrying sphere composite.")
-        # (a) bit-identity vs the documented hand-rolled loop (survives the un-weld).
-        np.testing.assert_array_equal(
-            seed.values, _ba_oldloop_reference(emission, sn),
-            err_msg="S seed ≠ the pre-un-weld hand-rolled fold loop (the un-weld "
-                    "diverged from the documented site-3 loop).")
-        # (b) structurally-independent closed form: ½·emission cells, zero corners.
-        for lv in space.levels:
-            for sign in (-1, +1):
-                np.testing.assert_allclose(
-                    space.cells_view(seed.values, lv, sign), 0.5 * emission,
-                    rtol=1e-13, atol=1e-14,
-                    err_msg=f"level {lv} sign {sign}: S seed cells ≠ ½·q₀ (the ℓ=0 fold).")
-                np.testing.assert_array_equal(
-                    space.corner_view(seed.values, lv, sign), 0.0,
-                    err_msg=f"level {lv} sign {sign}: S seed corner ≠ 0 (fold writes cells only).")
-
-    def test_fission_seed_is_the_half_emission_fold_fissile(self):
-        r"""The F forward seed output equals ``½·(χ·νΣf·φ)`` per (level, sign),
-        zero corners — same bit-identity + closed-form pair as S. FISSILE mixture
-        (refutation #4: a non-fissile mixture makes the emission — hence the seed —
-        identically zero, a VACUOUS gate; the non-vacuity guard asserts a genuine
-        nonzero emission)."""
-        sn = _fissile_sphere()
-        F = SNSolver(sn).fission_op
-        space = sn.radial_characteristic_space
-        psi = _random_composite(sn, np.random.default_rng(22))
-        emission = _f_emission(F, psi)
-        if not np.max(np.abs(emission)) > 1e-6:
-            pytest.fail("fission iso emission ≈ 0 — the F seed gate is VACUOUS "
-                        "(mixture is not actually fissile / νΣf = 0).")
-        seed = F.apply(psi).radial_characteristic
-        if seed is None:
-            pytest.fail("F emitted a None ray on a seed-carrying fissile sphere composite.")
-        np.testing.assert_array_equal(
-            seed.values, _ba_oldloop_reference(emission, sn),
-            err_msg="F seed ≠ the pre-un-weld hand-rolled fold loop (the F seed "
-                    "arm before the Step-2 un-weld).")
-        for lv in space.levels:
-            for sign in (-1, +1):
-                np.testing.assert_allclose(
-                    space.cells_view(seed.values, lv, sign), 0.5 * emission,
-                    rtol=1e-13, atol=1e-14,
-                    err_msg=f"level {lv} sign {sign}: F seed cells ≠ ½·fission_iso.")
-                np.testing.assert_array_equal(
-                    space.corner_view(seed.values, lv, sign), 0.0,
-                    err_msg=f"level {lv} sign {sign}: F seed corner ≠ 0.")
+    # NOTE (campaign step 4c, THE LIFT): the step-2 gates that asserted S/F EMIT
+    # the ray via the fold (``test_scattering_and_fission_both_route_through_the_
+    # shared_fold``, ``test_scattering_seed_is_the_half_emission_fold``,
+    # ``test_fission_seed_is_the_half_emission_fold_fissile``) are RETIRED — S/F
+    # are now PURE BULK and the emission moved to the ``RadialCharacteristicEmission``
+    # gain (``A_BA``). Their successor coverage lives in :class:`TestCoupledLift`
+    # (L1-FWD / L2 / L3), which pins that A_BA emits the fold and S/F carry no ray.
 
     # ── Gate 5a (LIVE): the fold-helper Euclidean transpose contract ───────
 
@@ -1479,78 +1412,13 @@ class TestA_BA_SchurFold:
                 pytest.fail(f"the drop-sign^ℓ transpose stayed green at sign=−1 "
                             f"({d:.3e}) — the P₁(−1) transpose consistency is unpinned.")
 
-    # ── Gate 5b (LIVE): the S seed-arm forward/adjoint transpose consistency ─
-
-    def test_scattering_seed_arm_euclidean_transpose_consistency(self, monkeypatch):
-        r"""The S adjoint seed arm (site 5, hard-coded ``0.5``) is the EXACT
-        Euclidean transpose of the S forward seed arm:
-        ``⟨A_BA·φ, χ̄⟩ = ⟨φ, A_BAᵀ·χ̄⟩`` (< 1e-11), with the adjoint's OUTPUT ray
-        block present-zero (``∂S/∂ψ½ = 0``). This is the gate that pins the
-        hand-rolled ``0.5`` is CONSISTENT with the forward fold — the risk the
-        un-weld's single-sourcing eliminates by construction.
-
-        Tooth: monkeypatch the FORWARD fold to ``0.6`` at ℓ=0 (the forward
-        local-imports it; the adjoint hand-rolls ``0.5``, unaffected) → the
-        forward/adjoint coefficients DISAGREE → the identity reds (measured ≈ 0.09).
-        A shared-coefficient value is invisible to this consistency gate (both
-        legs scale together) — the fold's VALUE is pinned by Gate 1/3, this gate
-        pins the fwd↔adj CONSISTENCY. The tooth survives the un-weld (the fold and
-        the fold-transpose stay distinct entry points)."""
-        sn = _sphere()
-        S = SNSolver(sn).scattering_op
-        space = sn.radial_characteristic_space
-        N, nx, ng = sn.quad.N, sn.nx, sn.ng
-        n_tr = int(sn.angular_trace.layout.total_size)
-        n_sd = space.shape[0]
-        rng = np.random.default_rng(40)
-
-        def euclid_defect() -> float:
-            phi_ff = FullField(
-                bulk=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
-                boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
-                radial_characteristic=RadialCharacteristicFlux(
-                    values=np.zeros(n_sd), space=space, mesh=sn))
-            chi = rng.standard_normal(n_sd)
-            chi_ff = FullField(
-                bulk=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
-                boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
-                radial_characteristic=RadialCharacteristicFlux(values=chi, space=space, mesh=sn))
-            seed_out = S.apply(phi_ff).radial_characteristic.values         # A_BA·φ
-            adj = S.apply_transpose(chi_ff)
-            # ∂S/∂ψ½ = 0: the adjoint's ray block is present-zero.
-            if adj.radial_characteristic is not None:
-                np.testing.assert_array_equal(
-                    adj.radial_characteristic.values, 0.0,
-                    err_msg="S adjoint ray block ≠ present-zero (∂S/∂ψ½ must be 0).")
-            bulk_out = adj.bulk.values                                       # A_BAᵀ·χ̄
-            lhs = float(seed_out @ chi)
-            rhs = float(phi_ff.bulk.values.ravel() @ bulk_out.ravel())
-            return abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
-
-        control = euclid_defect()
-        if not control < 1e-11:
-            pytest.fail(f"seed-arm Euclidean transpose defect {control:.3e} ≥ 1e-11 — "
-                        f"the S adjoint seed arm's 0.5 is NOT the transpose of the "
-                        f"forward fold (forward/adjoint coefficients disagree).")
-
-        # Tooth: force a forward/adjoint coefficient disagreement (forward → 0.6).
-        def _fold_06(moments, sign):
-            moments = np.asarray(moments)
-            ell = np.arange(moments.shape[0])
-            coeff = ((2.0 * ell + 1.0) / 2.0) * np.float64(sign) ** ell
-            coeff = coeff.copy()
-            coeff[0] = 0.6
-            return np.tensordot(coeff, moments, axes=(0, 0))
-
-        # Patch the fold as the RECONSTRUCTION sees it (forward → 0.6); the
-        # adjoint uses the SEPARATE fold-transpose (unpatched, 0.5) → the fwd/adj
-        # coefficients disagree → the identity reds.
-        monkeypatch.setattr(_rcr_mod, "fold_moments_to_radial_characteristic", _fold_06)
-        tooth = euclid_defect()
-        print(f"  [G5b] control={control:.2e}  fwd-fold=0.6 tooth={tooth:.3f}")
-        if not tooth > 1e-3:
-            pytest.fail(f"the forward-fold=0.6 mismatch left the transpose defect at "
-                        f"{tooth:.3e} — the fwd↔adj consistency gate has no teeth.")
+    # NOTE (campaign step 4c, THE LIFT): the step-2 gate
+    # ``test_scattering_seed_arm_euclidean_transpose_consistency`` (S's hand-rolled
+    # adjoint 0.5 == the forward fold's transpose) is RETIRED — the S-adjoint no
+    # longer carries the seed pullback (S is pure bulk). Its stronger successor is
+    # :meth:`TestCoupledLift.test_A_BA_scatter_carries_the_seed_pullback_S_carries_none`
+    # (L1-ADJ), which pins the pullback ``w·K_isoᵀ(Reconstructionᵀ χ_seed)`` in
+    # ``A_BA.apply_transpose`` and its Euclidean fwd↔adj consistency.
 
     # ── Gate 6 (LIVE): the non-carrying CONTROL (no ray, no fold) ──────────
 
@@ -1588,13 +1456,20 @@ class TestA_BA_SchurFold:
                 pytest.fail(f"{tag}: the fold was invoked {calls['n']}× on a non-carrying "
                             f"mesh — A_BA must not fire without a ray carrier.")
 
-    # ── xfail-skeleton: the direct extracted-A_BA surface (BIND undecided) ──
+    # ── the fold FACTOR surface (a factor of A_BA, post-lift LIVE) ─────────
+    #
+    # ``_apply_A_BA`` / ``_apply_A_BA_transpose`` exercise the fold FACTOR
+    # (``RadialCharacteristicReconstruction`` — emission → ray) that the coupling
+    # operator ``RadialCharacteristicEmission`` composes with ``K_iso ∘ integrate``.
+    # The FULL production A_BA (integrate → K_iso → fold) and the driver routing
+    # are pinned in :class:`TestCoupledLift` (L1-FWD / L2 / L4-S); these two rows
+    # pin just the fold factor's value + Euclidean transpose.
 
-    def test_A_BA_direct_surface_folds_half_emission(self):
-        r"""The extracted single-source A_BA surface
+    def test_A_BA_fold_factor_folds_half_emission(self):
+        r"""The A_BA fold FACTOR surface
         (``RadialCharacteristicReconstruction.apply``) folds an emission to the
         ray q½ source, matching the closed-form ½·emission loop
-        (``_ba_oldloop_reference``). LIVE post-un-weld (Step 2)."""
+        (``_ba_oldloop_reference``)."""
         sn = _sphere()
         S = SNSolver(sn).scattering_op
         psi = _random_composite(sn, np.random.default_rng(60))
@@ -1602,31 +1477,12 @@ class TestA_BA_SchurFold:
         got = _apply_A_BA(emission, sn)
         np.testing.assert_array_equal(
             got, _ba_oldloop_reference(emission, sn),
-            err_msg="the extracted A_BA surface ≠ the documented fold loop.")
+            err_msg="the A_BA fold factor surface ≠ the documented fold loop.")
 
-    def test_scattering_and_fission_route_through_extracted_A_BA(self, monkeypatch):
-        r"""Mode-11, SHARPENED: S and F both route through the EXTRACTED
-        single-source surface (``RadialCharacteristicReconstruction.apply``), not
-        merely the shared inner fold. A green-but-unrouted arm (re-inlining the
-        loop) leaves the counter at 0 and reds. LIVE post-un-weld (Step 2)."""
-        sn_s = _sphere()
-        S = SNSolver(sn_s).scattering_op
-        calls = _wrap_extracted_A_BA(monkeypatch)
-        S.apply(_random_composite(sn_s, np.random.default_rng(70)))
-        if calls["n"] <= 0:
-            pytest.fail("S did not route through the extracted A_BA surface (Mode 11).")
-        sn_f = _fissile_sphere()
-        F = SNSolver(sn_f).fission_op
-        calls["n"] = 0
-        F.apply(_random_composite(sn_f, np.random.default_rng(71)))
-        if calls["n"] <= 0:
-            pytest.fail("F did not route through the extracted A_BA surface (Mode 11).")
-
-    def test_A_BA_transpose_surface_euclidean_contract(self):
-        r"""The operator-shape A_BA exposes ``.apply_transpose``, which satisfies
-        the Euclidean adjoint contract against the forward fold
-        (``⟨A_BA·emission, y⟩ = ⟨emission, A_BAᵀ·y⟩``). LIVE post-un-weld (Step 2 —
-        the operator shape carries a real transpose surface)."""
+    def test_A_BA_fold_factor_transpose_euclidean_contract(self):
+        r"""The fold FACTOR exposes ``.apply_transpose``, which satisfies the
+        Euclidean adjoint contract against the forward fold
+        (``⟨fold·emission, y⟩ = ⟨emission, foldᵀ·y⟩``)."""
         sn = _sphere()
         space = sn.radial_characteristic_space
         rng = np.random.default_rng(80)
@@ -1639,6 +1495,393 @@ class TestA_BA_SchurFold:
         np.testing.assert_allclose(
             lhs, rhs, rtol=1e-11, atol=1e-12,
             err_msg="A_BA.apply_transpose is not the Euclidean adjoint of A_BA.apply.")
+
+
+# ── Step-4c helpers: THE LIFT — S/F → pure bulk, A_BA born driver-side ──────
+#
+# The scatter LIFT (campaign step 4c, commit 1): the model-generic S / F gains
+# drop their hand-rolled ψ½ seed arm and become PURE BULK; the bulk→ray emission
+# is posed as the first-class coupling operator A_BA =
+# RadialCharacteristicEmission (= Fold ∘ K_iso ∘ integrate), which the SI/Krylov
+# driver lags as its OWN gain (the Wave-O #208 pattern that separated B from S).
+# S_bulk ⊕ A_BA is bit-identical to the old monolithic S.apply.
+
+
+def _a_ba_scatter(sn) -> RadialCharacteristicEmission:
+    r"""The production scattering bulk→ray coupling A_BA — the SI driver's OWN
+    lagged gain (``RadialCharacteristicEmission`` over S's isotropic kernel, the
+    SAME shared object the bulk scatter gain uses — single-sourced emission)."""
+    return RadialCharacteristicEmission(sn, SNSolver(sn).scattering_op.isotropic_kernel)
+
+
+def _pullback_reconstruction(sn, S, chi_seed_values: NDArray) -> NDArray:
+    r"""The seed pullback ``w·K_isoᵀ(Reconstructionᵀ χ_seed)`` rebuilt from its
+    NAMED factors — the structural decomposition
+    ``A_BAᵀ = (∫dμ)ᵀ ∘ K_isoᵀ ∘ Foldᵀ`` the S-adjoint carried inline before the
+    LIFT. Shape ``(N, ng, nx)``. (This shares A_BA's fold + kernel objects, so the
+    ``== A_BA.apply_transpose.bulk`` check is INHERITANCE — necessary-not-
+    sufficient; the load-bearing structural cross-check is the fwd↔adj Euclidean
+    reciprocity, leg (c) of L1-ADJ.)"""
+    space = sn.radial_characteristic_space
+    fold = RadialCharacteristicReconstruction(sn, n_moments=1)
+    chi_ray = RadialCharacteristicFlux(
+        values=np.asarray(chi_seed_values, dtype=float), space=space, mesh=sn)
+    m_bar = fold.apply_transpose(chi_ray)                       # Foldᵀ: (1, ng, nx)
+    phi0_bar = np.asarray(S.isotropic_kernel.apply_transpose(m_bar[0]))  # K_isoᵀ: (ng, nx)
+    w = np.asarray(sn.quad.weights, dtype=float)               # (∫dμ)ᵀ = ×w_n
+    return w.reshape((w.size, 1, 1)) * phi0_bar[None]          # (N, ng, nx)
+
+
+def _fold_half_to(coeff0: float):
+    r"""A fold that overrides the ℓ=0 coefficient (½ → ``coeff0``) — the L2 value
+    tooth (the un-weld's single-sourcing eliminated the hand-rolled ``0.5``)."""
+
+    def _fold(moments, sign):
+        moments = np.asarray(moments)
+        ell = np.arange(moments.shape[0])
+        coeff = ((2.0 * ell + 1.0) / 2.0) * np.float64(sign) ** ell
+        coeff = coeff.copy()
+        coeff[0] = coeff0
+        return np.tensordot(coeff, moments, axes=(0, 0))
+
+    return _fold
+
+
+class TestCoupledLift:
+    r"""Step 4c, commit 1 — THE SCATTER LIFT (S/F → pure bulk, A_BA born
+    driver-side, BIT-IDENTICAL). The successor of the retired step-2 "S/F emit the
+    ray" gates.
+
+    Carrying member = **sphere-GL S4 ONLY** (R12a); ≥2G every value row; nonzero
+    seed + bulk where the term needs activating (§0.6). Runtime: gates raise via
+    :func:`pytest.fail` / ``np.testing.assert_*`` (fire under ``python -O``), never
+    a bare ``assert`` (vv Mode 8). Every gate carries a mutation-verified tooth
+    (a companion ``*_has_teeth`` / ``*_pins_the_object`` row).
+
+    The commit-1 scope is the SCATTER lift: F STAYS on ``from_angular_source``
+    (the fission ray seed already folds through the shared kernel — no twin), so
+    the fission rows assert only that ``F.apply`` is pure bulk. The fission A_BA
+    emission + L4-F land in commit 2.
+    """
+
+    # ── L1-FWD: S / F pure bulk, A_BA emits (LIFT deliverable 1, forward) ───
+
+    def test_L1_fwd_S_and_F_apply_are_pure_bulk_A_BA_scatter_emits(self):
+        r"""S / F ``.apply`` are PURE BULK — ray present-zero, bulk UNCHANGED
+        (``S.apply(psi).bulk == S.apply(psi.bulk)``, the FullField arm's bulk IS
+        the model-generic scatter — the LIFT touched no bulk). The lifted A_BA
+        gain carries the emission (ray nonzero, bulk present-zero — the disjoint
+        direct sum ``S_bulk ⊕ A_BA``). Positive (A_BA emits) + pure-bulk
+        (S/F ray present-zero); ≥2G, nonzero seed + bulk."""
+        sn = _sphere()
+        S = SNSolver(sn).scattering_op
+        psi = _random_composite(sn, np.random.default_rng(100))
+        s_out = S.apply(psi)
+        if s_out.radial_characteristic is None:
+            pytest.fail("S emitted a None ray on a carrying composite — the composite "
+                        "presence law raises under S ⊕ A_BA (must be present-zero).")
+        np.testing.assert_array_equal(
+            s_out.radial_characteristic.values, 0.0,
+            err_msg="S.apply ray ≠ present-zero — the model-generic scatter still "
+                    "emits the ψ½ ray (the LIFT did not make S pure bulk).")
+        np.testing.assert_array_equal(
+            s_out.bulk.values, S.apply(psi.bulk).values,
+            err_msg="S.apply(FullField).bulk ≠ S.apply(bulk) — the LIFT altered the "
+                    "model-generic scatter bulk (it must touch ONLY the ray).")
+        # F pure bulk (fissile sphere; the F-fwd ray arm is dead — the fission
+        # emission rides from_angular_source / commit 2, not F.apply).
+        snf = _fissile_sphere()
+        f_out = SNSolver(snf).fission_op.apply(
+            _random_composite(snf, np.random.default_rng(101)))
+        if f_out.radial_characteristic is not None:
+            np.testing.assert_array_equal(
+                f_out.radial_characteristic.values, 0.0,
+                err_msg="F.apply ray ≠ present-zero — the F-fwd ray arm is not dropped.")
+        # A_BA carries the emission: ray nonzero, bulk present-zero (disjoint).
+        a_out = _a_ba_scatter(sn).apply(psi)
+        if not np.max(np.abs(a_out.radial_characteristic.values)) > 1e-6:
+            pytest.fail("A_BA.apply ray ≈ 0 — the lifted gain does not carry the "
+                        "bulk→ray emission (the coupling is unwired).")
+        np.testing.assert_array_equal(
+            a_out.bulk.values, 0.0,
+            err_msg="A_BA.apply bulk ≠ present-zero — it emits into the bulk (a "
+                    "double-count with S's bulk); it must write ONLY the ray.")
+
+    # ── L1-ADJ: the DECISIVE lost-pullback catcher (LIFT deliv 1, adjoint) ──
+
+    def test_L1_adj_A_BA_scatter_carries_the_seed_pullback_S_carries_none(self):
+        r"""THE DECISIVE pullback catcher (refutation R2). The S-adjoint's
+        ``w·K_isoᵀ(Reconstructionᵀ χ_seed)`` bulk pullback moved to
+        ``A_BA.apply_transpose``; ``S.apply_transpose`` is now pure bulk. On a
+        NONZERO seed cotangent χ (the previously-nulled input — a present-zero χ
+        gives ``Reconstructionᵀ(0) = 0`` so every ``.H`` reciprocity gate is BLIND
+        to a lost pullback; ONLY a nonzero χ catches it):
+
+        (a) ``A_BA.apply_transpose(χ).bulk`` == the pullback (lives in A_BA), and
+        is NONZERO (non-vacuity);
+        (b) ``S.apply_transpose(χ_seed).bulk`` == 0 (S dropped it — pure bulk);
+        (c) structurally-independent fwd↔adj Euclidean reciprocity
+        ``⟨A_BA·ψ, χ_seed⟩ = ⟨ψ, A_BAᵀ·χ⟩`` (a corrupted pullback lands on ONE
+        side — the load-bearing cross-check; (a) is only an INHERITANCE decomposition).
+
+        Tooth: :meth:`test_L1_adj_pullback_catcher_has_teeth`."""
+        sn = _sphere()
+        S = SNSolver(sn).scattering_op
+        A_BA = _a_ba_scatter(sn)
+        space = sn.radial_characteristic_space
+        rng = np.random.default_rng(110)
+        chi_seed = rng.standard_normal(space.shape[0])
+        chi_cot = _seed_composite(sn, chi_seed)            # seed-only cotangent (bulk=0)
+        # (a) the pullback lives in A_BA (== the named-factor reconstruction).
+        adj_bulk = A_BA.apply_transpose(chi_cot).bulk.values
+        np.testing.assert_array_equal(
+            adj_bulk, _pullback_reconstruction(sn, S, chi_seed),
+            err_msg="A_BA.apply_transpose.bulk ≠ w·K_isoᵀ(Reconstructionᵀ χ_seed) — "
+                    "the lifted seed pullback is wrong.")
+        if not np.max(np.abs(adj_bulk)) > 1e-6:
+            pytest.fail("A_BA.apply_transpose bulk ≈ 0 on a nonzero seed cotangent — "
+                        "the pullback catcher is vacuous.")
+        # (b) S dropped the pullback (pure-bulk transpose: seed-only χ → zero bulk).
+        s_adj = S.apply_transpose(chi_cot)
+        np.testing.assert_array_equal(
+            s_adj.bulk.values, 0.0,
+            err_msg="S.apply_transpose(seed-only χ).bulk ≠ 0 — S still carries the "
+                    "seed pullback (the LIFT did not move it to A_BA).")
+        # (c) structurally-independent Euclidean fwd↔adj reciprocity, NONZERO seed.
+        psi = _random_composite(sn, rng)
+        lhs = float(A_BA.apply(psi).radial_characteristic.values @ chi_seed)
+        rhs = float(psi.bulk.values.ravel() @ adj_bulk.ravel())
+        defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+        if not defect < 1e-11:
+            pytest.fail(f"A_BA Euclidean fwd↔adj reciprocity defect {defect:.3e} ≥ "
+                        f"1e-11 — apply_transpose is not the transpose of apply.")
+
+    def test_L1_adj_pullback_catcher_has_teeth(self, monkeypatch):
+        r"""TOOTH for L1-ADJ: a corrupted ``A_BA.apply_transpose`` (drop the bulk
+        pullback — return present-zero bulk) breaks the fwd↔adj Euclidean
+        reciprocity O(1). Proves L1-ADJ's leg (c) catches a lost pullback (and, via
+        the composite ``.H``, the reciprocity-leaf sphere row too — see
+        ``test_g_adjoint_reciprocity``). Monkeypatch-revert; ``-O``-safe."""
+        sn = _sphere()
+        A_BA = _a_ba_scatter(sn)
+        space = sn.radial_characteristic_space
+        rng = np.random.default_rng(111)
+        chi_seed = rng.standard_normal(space.shape[0])
+        psi = _random_composite(sn, rng)
+
+        from orpheus.transport.full_field import FullField as _FF
+        from orpheus.transport.source_sinks import (
+            AngularBoundarySourceSink, AngularSourceSink,
+            RadialCharacteristicSourceSink,
+        )
+
+        def _drop_pullback(self, cotangent, /):
+            # A present-zero bulk (the pullback dropped) — the symmetric-drop bug.
+            return _FF(
+                bulk=AngularSourceSink.zeros_on(self.sn_mesh),
+                boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
+                radial_characteristic=RadialCharacteristicSourceSink.zeros_on(self.sn_mesh))
+
+        monkeypatch.setattr(RadialCharacteristicEmission, "apply_transpose", _drop_pullback)
+        adj_bulk = A_BA.apply_transpose(_seed_composite(sn, chi_seed)).bulk.values
+        lhs = float(A_BA.apply(psi).radial_characteristic.values @ chi_seed)
+        rhs = float(psi.bulk.values.ravel() @ adj_bulk.ravel())
+        defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+        print(f"  [L1-ADJ tooth] dropped-pullback reciprocity defect = {defect:.3f}")
+        if not defect > 1e-3:
+            pytest.fail(f"the dropped-pullback mutation left the reciprocity defect at "
+                        f"{defect:.3e} — L1-ADJ has no teeth to a lost pullback.")
+
+    # ── L2: A_BA = Fold ∘ K_iso ∘ integrate, single-source fold (deliv 2) ───
+
+    def test_L2_A_BA_scatter_routes_through_the_shared_fold(self, monkeypatch):
+        r"""A_BA folds through the SINGLE-SOURCE reconstruction: a Mode-11 wrap on
+        the shared ``fold_moments_to_radial_characteristic`` fires EXACTLY
+        ``2·n_levels`` (2 signs/level; sphere-GL S4 → 1 level → 2), and the ray
+        value is the documented fold loop (``_ba_oldloop_reference``,
+        ``array_equal``, inheriting Gate 1's value). The lifted S no longer folds
+        (0× — the emission left it).
+
+        Tooth (½ → 0.6 fold coefficient): :meth:`test_L2_fold_value_has_teeth`."""
+        sn = _sphere()
+        S = SNSolver(sn).scattering_op
+        A_BA = _a_ba_scatter(sn)
+        psi = _random_composite(sn, np.random.default_rng(120))
+        emission = _s_emission(S, psi)
+        n_levels = len(sn.radial_characteristic_space.levels)   # == 1 (sphere-GL S4)
+        fold_calls = _install_fold_spy(monkeypatch)
+        recon_calls = _wrap_extracted_A_BA(monkeypatch)
+        ray = A_BA.apply(psi).radial_characteristic.values
+        # (i) the extracted single-source RECONSTRUCTION operator is on the call
+        # path (once per A_BA.apply — a re-inlined fold copy leaves this at 0).
+        if recon_calls["n"] != 1:
+            pytest.fail(f"A_BA routed through the reconstruction operator {recon_calls['n']}× "
+                        f"(expected 1) — it does not use the extracted single-source surface.")
+        # (ii) the shared inner fold fires 2·n_levels (2 signs/level).
+        if fold_calls["n"] != 2 * n_levels:
+            pytest.fail(f"A_BA folded {fold_calls['n']}× (expected 2·n_levels = "
+                        f"{2 * n_levels}) — it does not route through the single-source fold.")
+        np.testing.assert_array_equal(
+            ray, _ba_oldloop_reference(emission, sn),
+            err_msg="A_BA.apply ray ≠ the documented fold loop (the fold value diverged).")
+        # S no longer folds (pure bulk).
+        fold_calls["n"] = 0
+        S.apply(psi)
+        if fold_calls["n"] != 0:
+            pytest.fail(f"S folded {fold_calls['n']}× — the lifted S must be pure bulk "
+                        f"(the emission moved to A_BA).")
+
+    def test_L2_fold_value_has_teeth(self, monkeypatch):
+        r"""TOOTH for L2: a ½ → 0.6 fold coefficient (as the RECONSTRUCTION sees it)
+        moves ``A_BA.apply`` off the documented loop (which uses the numerics fold,
+        unpatched) — the ``array_equal`` reds. Proves the fold VALUE is pinned."""
+        sn = _sphere()
+        S = SNSolver(sn).scattering_op
+        A_BA = _a_ba_scatter(sn)
+        psi = _random_composite(sn, np.random.default_rng(121))
+        emission = _s_emission(S, psi)
+        monkeypatch.setattr(_rcr_mod, "fold_moments_to_radial_characteristic", _fold_half_to(0.6))
+        ray = A_BA.apply(psi).radial_characteristic.values
+        oracle = _ba_oldloop_reference(emission, sn)   # numerics fold, unpatched (0.5)
+        red = float(np.max(np.abs(ray - oracle)))
+        print(f"  [L2 tooth] ½→0.6 fold: |A_BA.ray − oracle| = {red:.4f}")
+        if not red > 1e-3:
+            pytest.fail(f"the ½→0.6 fold mutation left A_BA.ray on the oracle "
+                        f"({red:.3e}) — the L2 fold-value gate is toothless.")
+
+    # ── L3: S_bulk ⊕ A_BA_ray reconstructs the monolith (deliv 3, Mode-12) ──
+
+    def test_L3_S_bulk_plus_A_BA_ray_reconstructs_the_monolith(self):
+        r"""The disjoint direct sum ``S_bulk ⊕ A_BA_ray`` reconstructs the OLD
+        monolithic ``S.apply`` — pin the OBJECT (the exact ray PLACEMENT, never a
+        keff/sum proxy; Mode-12 R4). S contributes ONLY the bulk (ray present-zero),
+        A_BA ONLY the ray (bulk present-zero); the ray placement is byte-for-byte
+        the documented monolith fold (``_ba_oldloop_reference``, ``array_equal``).
+
+        Tooth (a ray permutation preserving the level sum):
+        :meth:`test_L3_ray_placement_pins_the_object`."""
+        sn = _sphere()
+        S = SNSolver(sn).scattering_op
+        A_BA = _a_ba_scatter(sn)
+        psi = _random_composite(sn, np.random.default_rng(130))
+        emission = _s_emission(S, psi)
+        s_out, a_out = S.apply(psi), A_BA.apply(psi)
+        # Disjoint direct sum: S no ray, A_BA no bulk.
+        np.testing.assert_array_equal(
+            s_out.radial_characteristic.values, 0.0,
+            err_msg="S contributes a nonzero ray — the direct sum is not disjoint.")
+        np.testing.assert_array_equal(
+            a_out.bulk.values, 0.0,
+            err_msg="A_BA contributes a nonzero bulk — the direct sum is not disjoint.")
+        # The reconstructed monolith ray == the documented fold loop (exact placement).
+        monolith_ray = _ba_oldloop_reference(emission, sn)
+        if not np.max(np.abs(monolith_ray)) > 1e-6:
+            pytest.fail("the reconstructed monolith ray ≈ 0 — L3 is vacuous.")
+        np.testing.assert_array_equal(
+            a_out.radial_characteristic.values, monolith_ray,
+            err_msg="S_bulk ⊕ A_BA_ray ≠ the monolithic S.apply ray (the ray "
+                    "placement drifted — a permutation the OBJECT pin catches).")
+
+    def test_L3_ray_placement_pins_the_object(self, monkeypatch):
+        r"""TOOTH for L3 (Mode-12): a fold that PERMUTES the cells within a level
+        (a radial roll — preserving the per-level SUM) reds the ``array_equal`` ray
+        placement while a sum proxy would stay green. Proves L3 pins the OBJECT."""
+        sn = _sphere()
+        S = SNSolver(sn).scattering_op
+        A_BA = _a_ba_scatter(sn)
+        psi = _random_composite(sn, np.random.default_rng(131))
+        emission = _s_emission(S, psi)
+        real_fold = _rcs_mod.fold_moments_to_radial_characteristic
+
+        def _fold_rolled(moments, sign):
+            return np.roll(real_fold(moments, sign), 1, axis=-1)  # permute cells; sum preserved
+
+        monkeypatch.setattr(_rcr_mod, "fold_moments_to_radial_characteristic", _fold_rolled)
+        ray = A_BA.apply(psi).radial_characteristic.values
+        monolith_ray = _ba_oldloop_reference(emission, sn)   # numerics fold, unpatched
+        # The OBJECT (placement) differs …
+        placement_red = float(np.max(np.abs(ray - monolith_ray)))
+        # … while the per-(level,sign) SUM proxy is BLIND to the permutation.
+        space = sn.radial_characteristic_space
+        sum_ray = sum(float(space.cells_view(ray, lv, s).sum())
+                      for lv in space.levels for s in (-1, +1))
+        sum_ref = sum(float(space.cells_view(monolith_ray, lv, s).sum())
+                      for lv in space.levels for s in (-1, +1))
+        sum_gap = abs(sum_ray - sum_ref) / (abs(sum_ref) + 1e-300)
+        print(f"  [L3 tooth] permutation: placement RED={placement_red:.4f}  sum-proxy gap={sum_gap:.1e}")
+        if not placement_red > 1e-3:
+            pytest.fail(f"the ray permutation did not red the OBJECT pin "
+                        f"({placement_red:.3e}) — L3 is a sum proxy, not an OBJECT pin.")
+        if not sum_gap < 1e-9:
+            pytest.fail(f"the permutation did NOT preserve the sum ({sum_gap:.3e}) — "
+                        f"the Mode-12 necessity (a sum proxy would be blind) is not shown.")
+
+    # ── L4-S: the driver routes A_BA as its OWN lagged gain (deliv 3/d) ─────
+
+    def test_L4S_driver_routes_A_BA_scatter_as_its_own_gain(self, monkeypatch):
+        r"""THE DECISIVE own-slot driver-routing sentinel (refutation R5: a green
+        bulk gate measures the UNCHANGED sibling; only wrapping the NEW A_BA.apply
+        proves the driver rewired). Wrap ``RadialCharacteristicEmission.apply`` and
+        run a REAL within-group sphere ``solve_fixed_source``: the counter fires
+        (> 0). Structural pair: ``_lagged_gains`` carries an A_BA on the sphere and
+        NOT on a seedless slab.
+
+        Tooth (drop A_BA from ``_lagged_gains``): :meth:`test_L4S_sentinel_has_teeth`."""
+        sn = _sphere()
+        _, S, B = _within_group_triple(SNSolver(sn))
+        if not any(isinstance(g, RadialCharacteristicEmission)
+                   for g in _lagged_gains(S, B, sn)):
+            pytest.fail("_lagged_gains(sphere) carries no RadialCharacteristicEmission "
+                        "— A_BA is not wired as its own lagged gain.")
+        slab = SNMesh(
+            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
+                   bc_left=BC("reflective")),
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+        _, Ss, Bs = _within_group_triple(SNSolver(slab))
+        if any(isinstance(g, RadialCharacteristicEmission)
+               for g in _lagged_gains(Ss, Bs, slab)):
+            pytest.fail("_lagged_gains(slab) carries an A_BA — a seedless mesh has no "
+                        "bulk→ray coupling.")
+        # Mode-11 sentinel: a REAL within-group sphere solve APPLIES A_BA.
+        counter = {"n": 0}
+        real = RadialCharacteristicEmission.apply
+
+        def spy(self, psi, /):
+            counter["n"] += 1
+            return real(self, psi)
+
+        monkeypatch.setattr(RadialCharacteristicEmission, "apply", spy)
+        SNSolver(sn).solve_fixed_source(
+            np.ones((sn.ng, sn.nx)), np.ones((sn.ng, sn.nx)))
+        if counter["n"] <= 0:
+            pytest.fail("a real within-group sphere solve did NOT apply A_BA — the SI "
+                        "driver does not route the lifted gain (the rewire is missing).")
+
+    def test_L4S_sentinel_has_teeth(self, monkeypatch):
+        r"""TOOTH for L4-S: a driver that forgot to widen its gains (``_lagged_gains``
+        returns just ``(S, B)`` — the pre-lift shape) leaves the A_BA.apply counter
+        at 0. Proves the L4-S sentinel catches an unwired driver (Mode 11)."""
+        sn = _sphere()
+
+        def _no_a_ba(S, B, sn_mesh):
+            return (S, B)                                    # the un-widened gain tuple
+
+        monkeypatch.setattr(_solver_mod, "_lagged_gains", _no_a_ba)
+        counter = {"n": 0}
+        real = RadialCharacteristicEmission.apply
+
+        def spy(self, psi, /):
+            counter["n"] += 1
+            return real(self, psi)
+
+        monkeypatch.setattr(RadialCharacteristicEmission, "apply", spy)
+        SNSolver(sn).solve_fixed_source(
+            np.ones((sn.ng, sn.nx)), np.ones((sn.ng, sn.nx)))
+        print(f"  [L4-S tooth] un-widened _lagged_gains: A_BA.apply calls = {counter['n']}")
+        if counter["n"] != 0:
+            pytest.fail(f"the un-widened driver STILL applied A_BA {counter['n']}× — "
+                        f"the L4-S sentinel would not catch a missing rewire.")
 
 
 # ── Step-3 helpers: A_AB the ψ½ seed injection (ray → bulk) ────────────────

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6430**
+Total tests collected: **6445**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1187, 18.5%
+   L0, 1187, 18.4%
    L1, 1080, 16.8%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4073, 63.3%
+   foundation, 4088, 63.4%
    unmarked, 36, 0.6%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6315
+   explicit, 6330
    verify, 0
    class-name, 46
    func-name, 0
@@ -304,7 +304,7 @@ Module × level grid
    numerics/test_measure_phase, 0, 0, 0, 0, 11, 0
    numerics/test_operator, 0, 0, 0, 0, 58, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 27, 0
-   numerics/test_operator_protocols, 0, 0, 0, 0, 14, 0
+   numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
    numerics/test_periodic_wrap_operator, 5, 0, 0, 0, 0, 0
    numerics/test_permutation_operator, 9, 2, 0, 0, 0, 0
@@ -334,7 +334,7 @@ Module × level grid
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
-   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 23, 0
+   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 24, 0
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
    operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
@@ -349,7 +349,7 @@ Module × level grid
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
-   operators/test_psi_half_coupling, 0, 0, 0, 0, 42, 0
+   operators/test_psi_half_coupling, 0, 0, 0, 0, 55, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_radial_characteristic_metric, 0, 0, 0, 0, 19, 0
    operators/test_ray_operator, 0, 6, 0, 0, 0, 0
@@ -413,7 +413,7 @@ Module × level grid
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 320, 0
+   test_layer_imports, 0, 0, 0, 0, 319, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0

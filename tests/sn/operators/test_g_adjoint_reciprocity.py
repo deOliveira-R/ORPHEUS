@@ -473,11 +473,30 @@ def _mix_4g(p0: np.ndarray):
 
 
 def _full_loss_case(coord: CoordSystem, ng: int):
-    r"""Het 2-material mesh + the full loss ``A = (L + C) - S - B``.
+    r"""Het 2-material mesh + the full loss ``A = (L + C) - S - A_BA - B``.
 
     ``S`` is the PRODUCTION scattering operator off a real :class:`SNSolver`
     (never a re-implementation); σ_t comes off the same material field the
     solver consumes (one source).
+
+    **Campaign step 4c (THE LIFT) — the A_BA reciprocity leaf.** On a
+    seed-carrying mesh (the sphere, R12a) the within-group loss carries the
+    bulk→ray coupling ``A_BA = RadialCharacteristicEmission`` (``S`` is now pure
+    bulk). Its ``.H`` sums the ``w·K_isoᵀ(Reconstructionᵀ χ_seed)`` bulk pullback
+    the S-adjoint used to carry inline — WITHOUT this leaf the composite ``.H`` is
+    mathematically WRONG on a carrying mesh (a silent-correctness landmine). A
+    **present-zero** seed hides the loss (``Reconstructionᵀ(0) = 0``), but
+    ``_random_composite`` seeds a NONZERO ψ½ block, so the sphere rows are a real
+    composite-level catcher of an ``A_BA.apply_transpose`` corruption
+    (``test_tooth_a_ba_transpose_drop_reds``). Seedless meshes (slab) have no ray
+    coupling, so the leaf is absent there (``RadialCharacteristicEmission`` rejects
+    a seedless mesh).
+
+    NOTE (R2): reciprocity ``⟨Aψ,φ⟩_G = ⟨ψ, A.Hφ⟩_G`` holds for WHATEVER A is
+    posed, so it cannot catch a *deleted* A_BA leaf (A.apply and A.H drop it
+    consistently) — the DELETED-leaf catcher is L4-S (the driver-routing sentinel
+    in ``test_psi_half_coupling``); this leaf makes the gate test the CORRECT
+    complete loss and catches an A_BA transpose that is present-but-wrong.
     """
     quad = Quadrature.gauss_legendre(4)
     edges = np.linspace(0.0, 1.0, 5)
@@ -510,6 +529,11 @@ def _full_loss_case(coord: CoordSystem, ng: int):
         StreamingOperator(sn)
         + MultiplicationOperator.from_mesh(sig_t, sn)
     ) - S - SNBoundaryOperator(sn)
+    if sn.radial_characteristic_space is not None:
+        from orpheus.sn.operators.radial_characteristic import (
+            RadialCharacteristicEmission,
+        )
+        A = A - RadialCharacteristicEmission(sn, S.isotropic_kernel)
     return sn, A, S
 
 
@@ -629,4 +653,53 @@ def test_tooth_s_transpose_drop_reds(monkeypatch):
             f"transpose-drop mutation NOT caught (rel={rel:.2e}) — the "
             f"full-loss gate is blind to the S group-transfer transpose; "
             f"check the mixture asymmetry has not degraded."
+        )
+
+
+@pytest.mark.foundation
+def test_tooth_a_ba_transpose_drop_reds(monkeypatch):
+    r"""TOOTH (campaign step 4c, THE LIFT — the A_BA reciprocity leaf): a corrupted
+    ``A_BA.apply_transpose`` (drop the ``w·K_isoᵀ(Reconstructionᵀ χ_seed)`` bulk
+    pullback) breaks the SPHERE full-loss reciprocity O(1) — because the forward
+    ``A.apply`` still carries the A_BA emission (bulk→ray) while ``A.H`` loses the
+    pullback, so ``⟨Aψ,φ⟩_G ≠ ⟨ψ,A.Hφ⟩_G`` under the NONZERO random ψ½ seed.
+
+    This is the composite-level R2 catcher: the leaf makes ``A.H`` complete, and
+    the nonzero seed of ``_random_composite`` activates the pullback. The SLAB has
+    no A_BA leaf (seedless), so the same mutation leaves slab reciprocity GREEN — a
+    present-zero / seedless regime is BLIND (the direct nonzero-χ catcher is
+    ``test_psi_half_coupling::TestCoupledLift.test_L1_adj_*``). In-process
+    monkeypatch; ``-O``-safe."""
+    from orpheus.sn.operators.radial_characteristic import RadialCharacteristicEmission
+    from orpheus.transport.full_field import FullField
+    from orpheus.transport.source_sinks import (
+        AngularBoundarySourceSink,
+        AngularSourceSink,
+        RadialCharacteristicSourceSink,
+    )
+
+    def _drop_pullback(self, cotangent, /):
+        return FullField(
+            bulk=AngularSourceSink.zeros_on(self.sn_mesh),
+            boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
+            radial_characteristic=RadialCharacteristicSourceSink.zeros_on(self.sn_mesh),
+        )
+
+    monkeypatch.setattr(
+        RadialCharacteristicEmission, "apply_transpose", _drop_pullback)
+
+    sn, A, _ = _FULL_LOSS_BUILDERS["sphere_2g"]()
+    if sn.radial_characteristic_space is None:
+        pytest.fail("sphere_2g is not seed-carrying — the A_BA leaf tooth is invalid.")
+    rng = np.random.default_rng(4707)
+    psi = _random_composite(sn, rng)          # NONZERO ψ½ seed (activates the pullback)
+    phi = _random_composite(sn, rng)
+    lhs = _g_inner(A.apply(psi), phi, sn)
+    rhs = _g_inner(psi, A.H.apply(phi), sn)
+    rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+    if not rel > 1e-6:
+        pytest.fail(
+            f"A_BA transpose-drop NOT caught on the sphere full-loss (rel={rel:.2e}) "
+            f"— the composite .H is blind to a lost seed pullback (is the A_BA leaf "
+            f"in _full_loss_case? is the seed nonzero?)."
         )

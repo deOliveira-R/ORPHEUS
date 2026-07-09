@@ -1,17 +1,28 @@
-r"""The ψ½ System-B block operators — ``A_BB`` (self-block) + ``A_AB`` (ray→bulk).
+r"""The ψ½ block operators — all four blocks of the 2×2 coupled system.
 
-The two System-B blocks of the 2×2 coupled block operator (campaign
-:mod:`coupled block operator <orpheus.sn>` — the augmented within-group
-system re-partitioned as two systems)::
+This module hosts the FOUR curvilinear-SN ψ½ block operators of the augmented
+within-group system, re-partitioned as two systems (campaign
+:mod:`coupled block operator <orpheus.sn>`)::
 
-    [ A_AA   A_AB ] [ transport ]   A_AB = RadialCharacteristicSeeding (ray→bulk seed)
-    [ A_BA   A_BB ] [ ray       ]   A_BB = RadialCharacteristicOperator (System B self-block)
+    [ A_AA   A_AB ] [ transport ]
+    [ A_BA   A_BB ] [ ray       ]
 
-This module hosts BOTH: :class:`RadialCharacteristicOperator` (``A_BB``, the
-radial straight-characteristic self-block, documented in depth below) and
-:class:`RadialCharacteristicSeeding` (``A_AB``, the cell-local angular ray→bulk
-seed injection — see its class docstring for the operator-algebra posing). The
-remainder of this module docstring documents ``A_BB``.
+* ``A_BB`` = :class:`RadialCharacteristicOperator` — the System-B self-block,
+  the radial straight-characteristic march (documented in depth below);
+* ``A_AB`` = :class:`RadialCharacteristicSeeding` — the ray→bulk seed injection
+  (cell-local angular; see its class docstring for the operator-algebra posing);
+* ``A_BA`` = :class:`RadialCharacteristicEmission` — the bulk→ray coupling, the
+  emission :math:`\mathrm{Fold} \circ K_{\rm iso} \circ \mathrm{integrate}` that
+  a within-group gain lags (campaign step 4c, THE LIFT — see its class docstring);
+* the shared factor ``Fold`` = :class:`RadialCharacteristicReconstruction` —
+  reconstructs a bulk moment source at the closed :math:`\mu = \pm 1` rays
+  (``A_BA``'s fold factor; migrated here from ``transport/`` at step 4c, once the
+  model-generic S/F stopped consuming it and the runtime ``transport → sn`` ban
+  lifted).
+
+``A_AA`` (the transport bulk⊕trace self-block) has no explicit object — it is
+the driver-level composite ``L + C − S − B``. The remainder of THIS module
+docstring documents ``A_BB``.
 
 **What it is (operator algebra).** :class:`RadialCharacteristicOperator`
 is the banded radial transport operator :math:`\mu\,\partial_r + \sigma_t`
@@ -123,7 +134,7 @@ References
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Protocol
 
 import numpy as np
 
@@ -132,6 +143,10 @@ from orpheus.numerics.operator import (
     LinearOperator,
     NotInvertible,
     SystemRole,
+)
+from orpheus.numerics.spaces.radial_characteristic_space import (
+    fold_moments_to_radial_characteristic,
+    fold_moments_to_radial_characteristic_transpose,
 )
 from orpheus.sn.spatial.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
@@ -158,9 +173,37 @@ if TYPE_CHECKING:
     from orpheus.transport.source_sinks.angular_source_sink import (
         AngularSourceSink,
     )
+    from orpheus.transport.full_field import FullField
 
 
-__all__ = ["RadialCharacteristicOperator", "RadialCharacteristicSeeding"]
+class _EmissionKernel(Protocol):
+    r"""The isotropic :math:`\ell = 0` emission kernel — ``A_BA``'s factor between
+    the angular integral and the fold: an ``ndarray → ndarray`` operator carrying
+    a Euclidean transpose.
+
+    A **structural** contract (no nominal base): the bare
+    :class:`~orpheus.numerics.operator.LinearOperator` Protocol does NOT surface
+    ``apply_transpose`` — that is a runtime capability of *adjointable* operators
+    only (#276 P3; the same reason
+    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_kernel`
+    is annotated as the concrete ``OperatorSum``, not ``LinearOperator``, so the
+    checker sees the transpose). ``A_BA`` needs BOTH directions, so it types its
+    kernel by the capability it consumes. Satisfied by the scattering
+    ``isotropic_kernel`` (``K_iso`` = an ``OperatorSum``) and the fission
+    ``kernel`` (the rank-1 ``χ ⊗ νΣf`` dyad).
+    """
+
+    def apply(self, phi: "np.ndarray", /) -> "np.ndarray": ...
+
+    def apply_transpose(self, chi: "np.ndarray", /) -> "np.ndarray": ...
+
+
+__all__ = [
+    "RadialCharacteristicOperator",
+    "RadialCharacteristicSeeding",
+    "RadialCharacteristicReconstruction",
+    "RadialCharacteristicEmission",
+]
 
 
 class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
@@ -818,4 +861,487 @@ class RadialCharacteristicSeeding(
         return (
             f"RadialCharacteristicSeeding(levels={self._ray_space.levels}, "
             f"ng={self._ray_space.ng}, nx={self._ray_space.nx})"
+        )
+
+
+class RadialCharacteristicReconstruction(LinearOperator):
+    r"""Reconstruct a bulk angular source at the closed μ=±1 rays — the ``A_BA`` fold.
+
+    The shared factor of the ``A_BA`` bulk→ray coupling block
+    (``A_BA = RadialCharacteristicReconstruction ∘ Emission``, where the full
+    coupling is :class:`RadialCharacteristicEmission`): given a bulk within-group
+    angular source in its Legendre-moment representation, it evaluates that
+    source at the two closed radial-characteristic rays :math:`\mu = \pm 1` and
+    writes the result as the q½ ray source on every carried μ-level.
+
+    **Home — beside its self-block sibling in sn (migrated at step 4c).** This
+    operator lives here, next to :class:`RadialCharacteristicOperator` (``A_BB``)
+    and its full-coupling consumer :class:`RadialCharacteristicEmission`
+    (``A_BA``), because both are blocks of the one ψ½ coupled operator. It sat in
+    ``transport/`` through steps 2–3 ONLY because the model-generic
+    :class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
+    :class:`~orpheus.transport.operators.fission.FissionOperator` still consumed
+    it in their ``(ray, bulk)`` seed arms (a runtime ``transport → sn`` import is
+    forbidden). Campaign **step 4c (THE LIFT)** reversed that dependency: S/F
+    became pure bulk, the coupled driver composes the emission via ``A_BA``, and
+    this fold moved to its native home. The ψ½ *data* types legitimately stay at
+    the transport/numerics data layer (this operator's
+    :class:`~orpheus.transport.source_sinks.RadialCharacteristicSourceSink`
+    codomain, the carrier space, and the fold *math* kernel
+    :func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`);
+    only the *operator* migrated.
+
+    **What it is (operator algebra).** The 1-D angular reconstruction
+    :math:`\mathcal R` (Hébert Eq. 3.432) SAMPLED at the closed rays
+    :math:`\mu = \pm 1`:
+
+    .. math::
+
+        \bar q_{1/2}(\mu = \pm 1)
+          \;=\; \sum_\ell \frac{2\ell + 1}{2}\,q_\ell\,(\pm 1)^\ell ,
+
+    the same :math:`(2\ell+1)/2\,(\pm 1)^\ell` weights the angular frame
+    reconstructs with (:math:`P_\ell(\pm 1) = (\pm 1)^\ell`), evaluated at the
+    rays rather than at the quadrature nodes. Its Euclidean transpose is the
+    injection of a ray cotangent back into moment space
+    (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic_transpose`)
+    — so it advertises ``is_adjointable = True`` (the shape of the shared
+    :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+    kernel). ``is_invertible`` inherits ``False`` (a reconstruction from
+    ``n_moments`` to the two rays is not square).
+
+    **The single source of the fold.** Both the forward reconstruction and its
+    Euclidean transpose route through the ONE math kernel
+    :func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`
+    (Cardinal Rule 2 — the :math:`P_1(-1)` sign is spelled once). The forward
+    reads a Legendre-moment source ``(n_moments, ng, nx)``; the production
+    emitter (:class:`RadialCharacteristicEmission`) feeds the isotropic
+    :math:`\ell = 0` emission (``n_moments = 1``), and the fold accepts any order
+    so the anisotropic reach is testable before it is needed. (The distinct
+    :meth:`~orpheus.transport.source_sinks.radial_characteristic_source_sink.RadialCharacteristicSourceSink.from_angular_source`
+    data-factory folds a *per-ordinate* source through the SAME kernel after a
+    Legendre projection — a different typed input, not a twin; see its docstring.)
+
+    **Broadcast across levels.** The same moment source is folded onto every
+    carried level (an angularly-uniform-across-levels source — exact for the
+    isotropic emission). Carrying meshes have EXACTLY one level (R12a), so
+    "broadcast across levels" is "on the one ray"; the transpose therefore sums
+    the per-level, per-sign cotangents. Corners stay zero: the fold writes only
+    the cells legs (the inflow-corner datum is the boundary block ``B_b``'s job;
+    scattering/fission are volumetric).
+
+    Parameters
+    ----------
+    sn_mesh : SNMesh
+        The seed-carrying geometry (1-D curvilinear, R12a). Supplies the ray
+        carrier ``radial_characteristic_space`` (the codomain) and the
+        cells-leg layout. A seedless mesh has no bulk→ray coupling → rejected.
+    n_moments : int, default 1
+        The operator's domain dimension — the number of angular Legendre
+        moments it reconstructs from. ``1`` is the isotropic production reach
+        (:math:`\ell = 0`); a larger order is the manufactured anisotropic
+        case. Fixed at construction so the transpose has a well-defined
+        codomain ``(n_moments, ng, nx)``.
+    """
+
+    # A_BA maps System A (the bulk emission) → System B (the ray source): an
+    # off-diagonal block, so it spans both systems (campaign step 4a).
+    system_role = SystemRole.COUPLED
+
+    def __init__(self, sn_mesh: "SNMesh", n_moments: int = 1) -> None:
+        space = sn_mesh.radial_characteristic_space
+        if space is None:
+            raise ValueError(
+                "RadialCharacteristicReconstruction: the mesh carries no "
+                "radial-characteristic ray (radial_characteristic_space is "
+                "None) — a seedless mesh (Cartesian / cylinder, R12a) has no "
+                "bulk→ray coupling to fold."
+            )
+        if n_moments < 1:
+            raise ValueError(
+                f"RadialCharacteristicReconstruction: n_moments must be ≥ 1 "
+                f"(at least the ℓ = 0 moment); got {n_moments!r}."
+            )
+        #: The augmented geometry (ray carrier + cells-leg layout).
+        self.sn_mesh = sn_mesh
+        #: The angular Legendre-moment order of the domain (``1`` = isotropic,
+        #: the production reach; larger is the manufactured anisotropic case).
+        self.n_moments = n_moments
+        #: The ψ½ carrier — the codomain (non-None by the ctor guard).
+        self._ray_space: "RadialCharacteristicSpace" = space
+
+    # ── Predicates / spaces ───────────────────────────────────────────
+
+    @property
+    def is_adjointable(self) -> bool:
+        # Both the forward fold and its Euclidean transpose are realized
+        # (:meth:`apply` / :meth:`apply_transpose`) — the same shape as the
+        # shared IsotropicScattering kernel. is_invertible inherits False (a
+        # reconstruction from n_moments to the two rays is not square).
+        return True
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        # The bulk angular-moment source — an untyped ``(n_moments, ng, nx)``
+        # intermediate (like K_iso's ndarray domain); no minted moment space.
+        return None
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        return self._ray_space
+
+    # ── Forward fold — reconstruct at μ=±1 ────────────────────────────
+
+    def apply(self, moments: np.ndarray, /) -> "RadialCharacteristicSourceSink":
+        r"""Reconstruct the bulk moment source at μ=±1 → the q½ ray source.
+
+        Folds the Legendre-moment source ``moments`` (shape
+        ``(n_moments, ng, nx)``) onto every carried level's cells legs at both
+        closed rays via
+        :func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`
+        (the single-source fold). The corners stay zero — the fold is
+        volumetric (the inflow-corner datum is ``B_b``'s job).
+
+        Parameters
+        ----------
+        moments : np.ndarray
+            The bulk within-group source in ℓ-leading Legendre moments,
+            shape ``(n_moments, ng, nx)``. The production emitter passes the
+            isotropic emission with a unit ℓ axis (``emission[None]``,
+            ``n_moments=1``).
+
+        Returns
+        -------
+        RadialCharacteristicSourceSink
+            The q½ ray source — cells legs folded, corners zero.
+        """
+        from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
+
+        arr = np.asarray(moments)
+        expected = (self.n_moments, self._ray_space.ng, self._ray_space.nx)
+        if arr.shape != expected:
+            raise ValueError(
+                f"RadialCharacteristicReconstruction.apply expects a bulk "
+                f"Legendre-moment source of shape (n_moments, ng, nx) = "
+                f"{expected}; got {arr.shape}."
+            )
+        space = self._ray_space
+        seed = RadialCharacteristicSourceSink.zeros_on(self.sn_mesh)
+        for level in space.levels:
+            for sign in (-1, +1):
+                space.cells_view(seed.values, level, sign)[...] = (
+                    fold_moments_to_radial_characteristic(arr, sign)
+                )
+        return seed
+
+    # ── Euclidean transpose — inject a ray cotangent into moment space ─
+
+    def apply_transpose(
+        self, cotangent: "RadialCharacteristicField", /,
+    ) -> np.ndarray:
+        r"""Euclidean transpose — a ray cotangent → the bulk moment cotangent.
+
+        The adjoint of :meth:`apply` with respect to the moments: sum the
+        per-level, per-sign ray-cells cotangents expanded back onto the
+        moments via
+        :func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic_transpose`
+        (the SAME reconstruction weights the forward contracts — the sign is
+        spelled once). This is the single source of the scattering seed
+        adjoint (``∂S/∂ψ½`` cotangent → the ℓ = 0 bulk moment, which
+        ``K_isoᵀ`` then scatters into the bulk) — the transpose factor of
+        :meth:`RadialCharacteristicEmission.apply_transpose`.
+
+        Parameters
+        ----------
+        cotangent : RadialCharacteristicField
+            A cotangent on the ray source (role-erased). Must share this
+            operator's mesh. Only the cells legs are read (the forward writes
+            only cells); the corner cotangents are ignored.
+
+        Returns
+        -------
+        np.ndarray
+            The bulk moment cotangent, shape ``(n_moments, ng, nx)``.
+        """
+        if cotangent.mesh is not self.sn_mesh:
+            raise ValueError(
+                f"RadialCharacteristicReconstruction.apply_transpose: the "
+                f"cotangent and the operator must share the same SNMesh "
+                f"(mesh-identity invariant); got field mesh "
+                f"{cotangent.mesh!r} vs operator mesh {self.sn_mesh!r}."
+            )
+        space = self._ray_space
+        cot_vals = cotangent.values
+        moment_bar = np.zeros(
+            (self.n_moments, space.ng, space.nx), dtype=float,
+        )
+        for level in space.levels:
+            for sign in (-1, +1):
+                cells_bar = space.cells_view(cot_vals, level, sign)
+                moment_bar += fold_moments_to_radial_characteristic_transpose(
+                    cells_bar, sign, self.n_moments,
+                )
+        return moment_bar
+
+    def __repr__(self) -> str:
+        return (
+            f"RadialCharacteristicReconstruction("
+            f"n_moments={self.n_moments}, levels={self._ray_space.levels}, "
+            f"ng={self._ray_space.ng}, nx={self._ray_space.nx})"
+        )
+
+
+class RadialCharacteristicEmission(LinearOperator):
+    r"""``A_BA`` — the bulk→ray coupling (the ψ½ emission ``Fold ∘ K ∘ integrate``).
+
+    The off-diagonal ``(ray, transport)`` block of the 2×2 coupled block
+    operator: the bulk within-group flux emits an isotropic source that seeds
+    the ψ½ starting-direction ray. It composes THREE factors —
+
+    .. math::
+
+        A_{BA} \;=\; \underbrace{\mathrm{Fold}}_{\text{Reconstruction}}
+                 \;\circ\; \underbrace{K}_{\text{emission kernel}}
+                 \;\circ\; \underbrace{\textstyle\int\! d\mu}_{\text{integrate}} ,
+
+    the angular integral of the bulk flux to :math:`\phi_0`, the operator's
+    isotropic emission kernel :math:`K` (the scattering
+    ``K_{\rm iso} = \Sigma_{s0} + 2\Sigma_{2n}`` — the production instantiation),
+    and the reconstruction of that :math:`\ell = 0` moment at the closed
+    :math:`\mu = \pm 1` rays (:class:`RadialCharacteristicReconstruction`). It
+    exists ONLY on a seed-carrying mesh (the sphere, R12a).
+
+    **Generic over the emission kernel (build the machinery).** What
+    distinguishes a bulk→ray emission coupling is only its emission kernel
+    :math:`K` — an ``ndarray → ndarray`` operator (``(ng, nx) → (ng, nx)``)
+    exposing ``apply``/``apply_transpose``. The SCATTERING coupling passes
+    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_kernel`
+    (``K_iso``) — the production consumer, a within-group lagged gain. The
+    fission dyad
+    :attr:`~orpheus.transport.operators.fission.FissionOperator.kernel`
+    (``χ ⊗ νΣf``) is a smoke-verified SECOND kernel that exercises the same
+    machinery — but fission's PRODUCTION coupling does NOT flow through this
+    operator: fission is the eigenvalue OUTER source, so its ``K ∘ integrate`` is
+    pre-computed as the fission source and the ray seed is a DIRECT
+    :class:`RadialCharacteristicReconstruction` fold at the ``q_ext`` seam
+    (HAZARD 5 — S is a within-group gain, F the outer source; different seams).
+    Routing ``F.kernel`` through this operator's full ``Fold ∘ K ∘ integrate``
+    would DOUBLE-apply ``K ∘ integrate`` (the outer source already carries it).
+    So this operator's production shape is the SCATTER coupling; the genericity
+    keeps the emission a clean dependency injection (no scatter-hardcoded fork),
+    NOT a claim that fission wires through it.
+
+    **The driver applies it as its OWN lagged gain (campaign step 4c, THE LIFT).**
+    Before the lift, the model-generic ``S``/``F`` composites hand-rolled the ψ½
+    seed inside their ``apply`` — a curvilinear-SN augmentation welded into a
+    model-generic gain. The lift made ``S``/``F`` pure bulk and posed this
+    coupling as a first-class operator the SI driver lags as a separate gain
+    (the Wave-O #208 pattern that separated ``B`` from ``S``): the within-group
+    scattering gain rides ``(S, A_BA, B)``, and the fission ``A_BA`` rides the
+    OUTER ``q_ext`` (within-group fission is zero). Its ``S_bulk + A_BA`` is
+    bit-identical to the old monolithic ``S.apply`` composite (the regression
+    floor + ``TestA_BA_SchurFold`` pin it).
+
+    **A ``FullField`` gain (like ``B_b``).** As a lagged gain the driver sums, it
+    is typed ``FullField → FullField`` (reading the System-A ``bulk``, writing the
+    System-B ``radial_characteristic`` — bulk/boundary present-zero) so it slots
+    into the variadic gains beside ``S`` and ``B`` under the composite
+    presence law. This mirrors ``B_b``
+    (:class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`),
+    the other System-B-touching operator that is ``FullField``-typed to sum into
+    ``B``.
+
+    **The transpose IS the S-adjoint bulk pullback (single source).**
+    :meth:`apply_transpose` reads a ray cotangent and pulls it back into the bulk
+    as :math:`\int\!d\mu^{\mathsf T}\,K^{\mathsf T}\,\mathrm{Fold}^{\mathsf T}`
+    — exactly the ``w · K_isoᵀ(Reconstructionᵀ χ_seed)`` term the S-adjoint used
+    to carry inline. The lift moved that pullback HERE, so ``S.apply_transpose``
+    is pure-bulk and the composite ``(L+C − S − A_BA − B).H`` reconstructs the
+    monolithic adjoint. There is NO adjoint SI driver in production, so the
+    pullback is reached only by the ``.H`` reciprocity gates — which is why
+    :meth:`apply_transpose` is realized NOW and pinned by a NONZERO-seed-cotangent
+    gate (a present-zero seed would hide a lost pullback). ``is_adjointable =
+    True``; ``is_invertible`` inherits ``False`` (a rectangular bulk→ray coupling
+    is not square).
+
+    Parameters
+    ----------
+    sn_mesh : SNMesh
+        The seed-carrying geometry (1-D curvilinear, R12a). Supplies the fold's
+        ray carrier and the quadrature weights (the ``integrate`` transpose
+        broadcast). A seedless mesh has no bulk→ray coupling → rejected.
+    emission_kernel : LinearOperator
+        The operator's isotropic :math:`\ell = 0` emission kernel :math:`K`,
+        an ``ndarray → ndarray`` map ``(ng, nx) → (ng, nx)`` with
+        ``apply``/``apply_transpose``. In production pass
+        ``scattering_op.isotropic_kernel`` (``K_iso``) — the SAME shared object
+        the bulk scattering gain uses, so the emission is single-sourced
+        (computed once in ``S``'s bulk arm and once here — one shared kernel
+        call, not a twin). ``fission_op.kernel`` is accepted (the machinery is
+        kernel-generic) but fission's production ray seed rides the outer
+        ``q_ext`` seam as a direct ``Fold``, NOT through this operator (see the
+        class docstring — routing it here would double-apply ``K ∘ integrate``).
+    """
+
+    # A_BA maps System A (bulk) → System B (ray): an off-diagonal block spanning
+    # both systems (campaign step 4a).
+    system_role = SystemRole.COUPLED
+
+    def __init__(self, sn_mesh: "SNMesh", emission_kernel: "_EmissionKernel") -> None:
+        space = sn_mesh.radial_characteristic_space
+        if space is None:
+            raise ValueError(
+                "RadialCharacteristicEmission: the mesh carries no "
+                "radial-characteristic ray (radial_characteristic_space is "
+                "None) — a seedless mesh (Cartesian / cylinder, R12a) has no "
+                "System B, hence no bulk→ray emission coupling. A_BA exists "
+                "only on a seed-carrying mesh (the sphere)."
+            )
+        #: The augmented geometry (ray carrier + quadrature).
+        self.sn_mesh = sn_mesh
+        #: The isotropic ℓ=0 emission kernel (K_iso for S, the fission dyad
+        #: for F) — the SHARED ``ndarray → ndarray`` object the bulk gain uses.
+        self.emission_kernel = emission_kernel
+        #: The fold factor (the migrated reconstruction, ℓ=0 production reach).
+        self._fold = RadialCharacteristicReconstruction(sn_mesh, n_moments=1)
+        #: The ψ½ carrier — the codomain block (non-None by the ctor guard).
+        self._ray_space: "RadialCharacteristicSpace" = space
+
+    # ── Predicates / spaces ───────────────────────────────────────────
+
+    @property
+    def is_adjointable(self) -> bool:
+        # Both directions realized: :meth:`apply` (bulk → ray emission) and
+        # :meth:`apply_transpose` (ray cotangent → bulk pullback, the
+        # S-adjoint term). is_invertible inherits False: a rectangular
+        # coupling (bulk → ray) is not square.
+        return True
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        # System A (the bulk flux) — read as the FullField ``bulk`` block; no
+        # standalone minted space (the composite carries it).
+        return None
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        # System B (the ray source) — written as the FullField
+        # ``radial_characteristic`` block.
+        return None
+
+    # ── Forward — bulk flux → ψ½ ray emission ─────────────────────────
+
+    def apply(self, psi: "FullField", /) -> "FullField":
+        r"""Emit the bulk within-group source onto the ψ½ ray.
+
+        Integrate the bulk flux to :math:`\phi_0`, apply the emission kernel
+        :math:`K` (the isotropic ℓ=0 source), and fold that moment at the
+        closed :math:`\mu = \pm 1` rays. Returns a ``FullField`` gain
+        contribution carrying ONLY the ``radial_characteristic`` block
+        (``bulk``/``boundary`` present-zero — the disjoint direct sum with
+        ``S``'s bulk and ``B``'s boundary, exactly as ``B_a + B_b``).
+
+        Parameters
+        ----------
+        psi : FullField
+            The within-group iterate. Its ``bulk`` must be a full-angular
+            :class:`~orpheus.transport.fields.angular_flux.AngularFlux` (1-D
+            curvilinear); the seed emission needs the per-ordinate flux to
+            integrate.
+
+        Returns
+        -------
+        FullField
+            The ψ½ ray source contribution (``radial_characteristic`` folded;
+            ``bulk``/``boundary`` present-zero).
+        """
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.full_field import FullField
+        from orpheus.transport.source_sinks import (
+            AngularBoundarySourceSink,
+            AngularSourceSink,
+        )
+
+        bulk = psi.bulk
+        if not isinstance(bulk, AngularFlux):
+            raise TypeError(
+                "RadialCharacteristicEmission.apply: a seed-carrying composite "
+                "must have a full-angular AngularFlux bulk (1-D curvilinear); "
+                f"got {type(bulk).__name__}."
+            )
+        mesh = self.sn_mesh
+        phi0 = bulk.integrate_angular().values              # (ng, nx)
+        q0 = np.asarray(self.emission_kernel.apply(phi0))   # (ng, nx) iso ℓ=0
+        ray = self._fold.apply(q0[None])                    # ray source
+        return FullField(
+            bulk=AngularSourceSink.zeros_on(mesh),
+            boundary=AngularBoundarySourceSink.zeros_on(mesh),
+            radial_characteristic=ray,
+        )
+
+    # ── Euclidean transpose — ray cotangent → bulk pullback ───────────
+
+    def apply_transpose(self, cotangent: "FullField", /) -> "FullField":
+        r"""Euclidean transpose :math:`A_{BA}^{\mathsf T}` — ray → bulk pullback.
+
+        The adjoint of :meth:`apply`: pull a ray cotangent back into the bulk
+        as :math:`\int\!d\mu^{\mathsf T}\,K^{\mathsf T}\,\mathrm{Fold}^{\mathsf T}`.
+        Reconstructionᵀ lifts the ray cotangent to the :math:`\ell = 0` bulk
+        moment, :math:`K^{\mathsf T}` scatters it in energy, and the
+        ``integrate`` transpose broadcasts it per ordinate with the quadrature
+        weight :math:`w_n` (:math:`(\int d\mu)^{\mathsf T}\,x = w_n\,x`). This is
+        exactly the ``w · K_isoᵀ(Reconstructionᵀ χ_seed)`` bulk pullback the
+        S-adjoint carried inline before the lift (single source now). Returns a
+        ``FullField`` carrying ONLY the ``bulk`` cotangent (``boundary`` /
+        ``radial_characteristic`` present-zero).
+
+        Parameters
+        ----------
+        cotangent : FullField
+            A cotangent on the ray source. Its ``radial_characteristic`` block
+            is read; ``bulk``/``boundary`` cotangents are ignored (the forward
+            writes only the ray).
+
+        Returns
+        -------
+        FullField
+            The bulk per-ordinate cotangent (``bulk`` filled; ``boundary`` /
+            ``radial_characteristic`` present-zero).
+        """
+        from orpheus.transport.full_field import FullField
+        from orpheus.transport.source_sinks import (
+            AngularBoundarySourceSink,
+            AngularSourceSink,
+            RadialCharacteristicSourceSink,
+        )
+
+        chi_ray = cotangent.radial_characteristic
+        if chi_ray is None:
+            raise ValueError(
+                "RadialCharacteristicEmission.apply_transpose: the cotangent "
+                "carries no ψ½ (radial_characteristic) block — on a carrying "
+                "mesh (R12a) the ray cotangent is required to pull back."
+            )
+        mesh = self.sn_mesh
+        m_bar = self._fold.apply_transpose(chi_ray)          # (1, ng, nx)
+        phi0_bar = np.asarray(
+            self.emission_kernel.apply_transpose(m_bar[0]),  # (ng, nx)
+        )
+        # (∫dμ)ᵀ: broadcast the bulk moment cotangent per ordinate with the
+        # quadrature weight w_n (the exact transpose of ``integrate_angular``'s
+        # Σ_n w_n ψ_n) — the same w the S-adjoint pullback used.
+        w = np.asarray(mesh.quad.weights, dtype=float)       # (N,)
+        bulk_bar = w.reshape((w.size,) + (1,) * phi0_bar.ndim) * phi0_bar[None]
+        return FullField(
+            bulk=AngularSourceSink.from_mesh(bulk_bar, mesh),
+            boundary=AngularBoundarySourceSink.zeros_on(mesh),
+            radial_characteristic=RadialCharacteristicSourceSink.zeros_on(mesh),
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"RadialCharacteristicEmission("
+            f"emission_kernel={type(self.emission_kernel).__name__}, "
+            f"levels={self._ray_space.levels}, ng={self._ray_space.ng}, "
+            f"nx={self._ray_space.nx})"
         )
