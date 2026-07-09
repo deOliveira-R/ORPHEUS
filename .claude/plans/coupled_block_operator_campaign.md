@@ -925,7 +925,21 @@ generic (machinery; F.kernel smoke-verified) even though production instantiates
   (the per-ordinate typed entry — docstrings now clarify the two typed entries over the ONE kernel,
   no twin). VERIFIED principled-equiv (maxabs **1.2e-15** vs the old route, NOT bit-id — the removed
   `·w` round-trip reassociates); curvilinear/homogeneous eigenvalue suite ABSORBS it (31 passed,
-  unchanged); ratchet transport:1 (sn 0). Gate (L4-F sentinel + fission value gate + `_f_emission`
-  re-add) IN FLIGHT (test-architect). Then full tests/sn + sphinx -W + commit 2.
+  unchanged); ratchet transport:1 (sn 0). **DONE @ `88d94b4`.** Gates (test-architect): L1F fission
+  value gate (bit-id vs moments-fold + nulp=32 vs the retired route) + L4F outer-seam sentinel +
+  teeth. **test-architect refutation banked (memo L4-F row):** a GLOBAL `Reconstruction.apply`
+  counter is Mode-11-BLIND here — the scatter A_BA folds through the SAME reader every SI iteration
+  (`global_fold=322` even with the fission seed reverted), so the sentinel must measure the
+  SEAM-SPECIFIC fold DELTA (`seam_fold_delta=0` on revert → RED). VERIFIED: tests/sn -m "not slow"
+  **2082 passed / 0 reds**, ratchet transport:1, sphinx -W 0.
+
+**⟹ STEP 4c (THE LIFT) COMPLETE @ `fbcb5aa` (scatter, bit-id) + `88d94b4` (fission, ~ULP).** S/F are
+pure bulk; A_BA = `RadialCharacteristicEmission` (scatter = own within-group gain; fission = the
+direct moments-fold at the outer q_ext seam); the Fold migrated to sn; the transport reconstruction
+module retired; the reciprocity `.H` carries the A_BA leaf. NEXT = **Step 4d** (assemble the 2×2
+`CoupledOperator`, WRAP-first) — note the 4d typing reconciliation elegance-enforcer flagged: A_BB/
+A_AB are sub-space block-typed, A_BA/B_b are FullField-embedded; 4d chooses how to reconcile (wrap
+A_BB/A_AB to embedded, unwrap A_BA/B_b to blocks, or embed-at-assembly). Owed docs (step 4/5): the
+A_BA/A_AB block-operator theory-page prose.
 Rationale (user): follow-up work we CAN do immediately should be done immediately, not filed —
 but bit-id and ULP-re-baseline stay in SEPARATE commits (bisectable, each cleanly verifiable).
