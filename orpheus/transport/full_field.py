@@ -69,7 +69,7 @@ Same-class arithmetic propagates to both bulk and boundary members:
 
 .. code-block:: python
 
-    a + b = FullField(bulk=a.bulk + b.bulk,
+    a + b = FullField(interior=a.interior + b.interior,
                       boundary=a.boundary + b.boundary)
 
 The six vector-space dunders (``+``, ``-``, unary ``-``, scalar ``*``,
@@ -148,14 +148,14 @@ class FullField:
 
     Parameters
     ----------
-    bulk : BulkField
+    interior : BulkField
         The volumetric / bulk field. Any
         :class:`~orpheus.transport.fields._bases.BulkField` subclass —
         typically :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
         for SN, :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
         for CP / diffusion, ``RayField`` for MoC.
     boundary : BoundaryField
-        The boundary partner field on the trace of ``bulk``'s domain.
+        The boundary partner field on the trace of ``interior``'s domain.
         Any :class:`~orpheus.transport.fields._bases.BoundaryField` family —
         :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
         (angular) for SN,
@@ -199,7 +199,7 @@ class FullField:
     :class:`FullField`.
     """
 
-    bulk: BulkField
+    interior: BulkField
     boundary: BoundaryField
     #: The optional starting-direction block (#282 route (a)). ``None`` ⟺
     #: the mesh carries no seed-carrying level (R12a) — absence is a
@@ -212,7 +212,7 @@ class FullField:
     def zeros(
         cls,
         *,
-        bulk: type[BulkField],
+        interior: type[BulkField],
         boundary: type[BoundaryField],
         mesh: "object",
         radial_characteristic: type[RadialCharacteristicField] | None = None,
@@ -230,7 +230,7 @@ class FullField:
 
         Parameters
         ----------
-        bulk : type[BulkField]
+        interior : type[BulkField]
             The bulk leaf CLASS to instantiate (must expose
             ``zeros_on(mesh)``).
         boundary : type[BoundaryField]
@@ -258,7 +258,7 @@ class FullField:
         ):
             seed_leaf = radial_characteristic.zeros_on(mesh)  # type: ignore[arg-type]
         return cls(
-            bulk=bulk.zeros_on(mesh),  # type: ignore[attr-defined]
+            interior=interior.zeros_on(mesh),  # type: ignore[attr-defined]
             boundary=boundary.zeros_on(mesh),  # type: ignore[attr-defined]
             radial_characteristic=seed_leaf,
         )
@@ -266,10 +266,10 @@ class FullField:
     # ── Construction validation ──────────────────────────────────────
 
     def __post_init__(self) -> None:
-        if not isinstance(self.bulk, BulkField):
+        if not isinstance(self.interior, BulkField):
             raise TypeError(
                 f"{type(self).__name__}: bulk must be a BulkField; got "
-                f"{type(self.bulk).__name__}"
+                f"{type(self.interior).__name__}"
             )
         if not isinstance(self.boundary, BoundaryField):
             raise TypeError(
@@ -290,7 +290,7 @@ class FullField:
         # AngularFlux and AngularBoundaryFlux carry ``mesh: SNMesh``; other
         # methods follow the same convention. The optional
         # starting-direction block joins the same invariant.
-        bulk_mesh = getattr(self.bulk, "mesh", None)
+        bulk_mesh = getattr(self.interior, "mesh", None)
         boundary_mesh = getattr(self.boundary, "mesh", None)
         if bulk_mesh is not None and boundary_mesh is not None:
             if bulk_mesh is not boundary_mesh:
@@ -335,7 +335,7 @@ class FullField:
     def _recombine(
         self: T,
         *,
-        bulk: BulkField,
+        interior: BulkField,
         boundary: BoundaryField,
         radial_characteristic: RadialCharacteristicField | None,
     ) -> T:
@@ -361,7 +361,7 @@ class FullField:
         """
         return replace(
             self,
-            bulk=bulk,
+            interior=interior,
             boundary=boundary,
             radial_characteristic=radial_characteristic,
         )
@@ -376,7 +376,7 @@ class FullField:
         the torsor ``flux + displacement → flux``, the displacement mint
         ``flux − flux → displacement``, cross-class rejection, the
         cross-mesh guard) is the SINGLE SOURCE OF TRUTH on the leaves —
-        ``__add__`` / ``__sub__`` delegate to ``self.bulk ± other.bulk``
+        ``__add__`` / ``__sub__`` delegate to ``self.interior ± other.interior``
         and ``self.boundary ± other.boundary``, where the leaf dunders
         enforce role-correctness (#208). Pre-checking member types here
         would BLOCK the legitimate composite torsor (``flux`` bulk +
@@ -440,7 +440,7 @@ class FullField:
     def __add__(self: T, other: "FullField") -> T:
         self._check_partner(other)
         return self._recombine(
-            bulk=self.bulk + other.bulk,
+            interior=self.interior + other.interior,
             boundary=self.boundary + other.boundary,
             radial_characteristic=self._combine_radial_characteristic(
                 other, lambda a, b: a + b,
@@ -450,7 +450,7 @@ class FullField:
     def __sub__(self: T, other: "FullField") -> T:
         self._check_partner(other)
         return self._recombine(
-            bulk=self.bulk - other.bulk,
+            interior=self.interior - other.interior,
             boundary=self.boundary - other.boundary,
             radial_characteristic=self._combine_radial_characteristic(
                 other, lambda a, b: a - b,
@@ -460,7 +460,7 @@ class FullField:
     def __neg__(self: T) -> T:
         sd = self.radial_characteristic
         return self._recombine(
-            bulk=-self.bulk,
+            interior=-self.interior,
             boundary=-self.boundary,
             radial_characteristic=None if sd is None else -sd,
         )
@@ -468,7 +468,7 @@ class FullField:
     def __mul__(self: T, scalar: float) -> T:
         sd = self.radial_characteristic
         return self._recombine(
-            bulk=self.bulk * float(scalar),
+            interior=self.interior * float(scalar),
             boundary=self.boundary * float(scalar),
             radial_characteristic=None if sd is None else sd * float(scalar),
         )
@@ -479,7 +479,7 @@ class FullField:
     def __truediv__(self: T, scalar: float) -> T:
         sd = self.radial_characteristic
         return self._recombine(
-            bulk=self.bulk / float(scalar),
+            interior=self.interior / float(scalar),
             boundary=self.boundary / float(scalar),
             radial_characteristic=None if sd is None else sd / float(scalar),
         )
@@ -515,7 +515,7 @@ class FullField:
             boundary.values.size (+ radial_characteristic.values.size)``.
         """
         parts = [
-            self.bulk.values.ravel(),
+            self.interior.values.ravel(),
             self.boundary.values,  # already 1-D (AngularBoundaryFlux flat storage)
         ]
         if self.radial_characteristic is not None:
@@ -530,7 +530,7 @@ class FullField:
 
         The ``template`` provides the shapes, types, AND the concrete
         composite class: ``bulk`` is reshaped to
-        ``template.bulk.values.shape`` and rebuilt with the same ``space``
+        ``template.interior.values.shape`` and rebuilt with the same ``space``
         / ``mesh`` as the template; ``boundary`` likewise; the pair is
         then routed through ``template``'s :meth:`_recombine` hook, so the
         result is the SAME concrete type as ``template`` — a
@@ -555,28 +555,28 @@ class FullField:
             Reconstructed composite of the SAME concrete type as
             ``template``.
         """
-        n_bulk = template.bulk.values.size
+        n_interior = template.interior.values.size
         n_boundary = template.boundary.values.size
         template_seed = template.radial_characteristic
         n_seed = 0 if template_seed is None else template_seed.values.size
-        expected_total = n_bulk + n_boundary + n_seed
+        expected_total = n_interior + n_boundary + n_seed
         if flat.size != expected_total:
             raise ValueError(
                 f"{cls.__name__}.from_flat: flat.size = {flat.size} "
                 f"does not match template total size "
-                f"{n_bulk} + {n_boundary} + {n_seed} = {expected_total}"
+                f"{n_interior} + {n_boundary} + {n_seed} = {expected_total}"
             )
-        bulk_values = flat[:n_bulk].reshape(template.bulk.values.shape)
-        boundary_values = flat[n_bulk : n_bulk + n_boundary]
-        new_bulk = replace(template.bulk, values=bulk_values)
+        bulk_values = flat[:n_interior].reshape(template.interior.values.shape)
+        boundary_values = flat[n_interior : n_interior + n_boundary]
+        new_bulk = replace(template.interior, values=bulk_values)
         new_boundary = replace(template.boundary, values=boundary_values)
         new_seed = (
             None
             if template_seed is None
-            else replace(template_seed, values=flat[n_bulk + n_boundary :])
+            else replace(template_seed, values=flat[n_interior + n_boundary :])
         )
         return template._recombine(
-            bulk=new_bulk, boundary=new_boundary, radial_characteristic=new_seed,
+            interior=new_bulk, boundary=new_boundary, radial_characteristic=new_seed,
         )
 
     # ── Diagnostics ──────────────────────────────────────────────────
@@ -592,7 +592,7 @@ class FullField:
         """
         sd = self.radial_characteristic
         return self._recombine(
-            bulk=self.bulk.copy(),
+            interior=self.interior.copy(),
             boundary=self.boundary.copy(),
             radial_characteristic=None if sd is None else sd.copy(),
         )

@@ -116,9 +116,9 @@ class TestSpaces:
         assert ffs.trace_space is dm.scalar_trace
         assert ffs is dm.full_field_space          # cached — one identity
         # Bulk metric = cell volumes broadcast over the group axis.
-        assert ffs.bulk_space is not None
+        assert ffs.interior_space is not None
         np.testing.assert_array_equal(
-            ffs.bulk_space.inner_product_weights,
+            ffs.interior_space.inner_product_weights,
             np.asarray(dm.volumes)[None, :],
         )
 

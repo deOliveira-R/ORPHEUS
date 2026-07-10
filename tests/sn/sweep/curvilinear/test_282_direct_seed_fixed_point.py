@@ -96,7 +96,7 @@ def _random_source(sn, rng, ng: int = 2):
     N, nx = sn.quad.N, sn.nx
     bvals = rng.standard_normal((N, ng, nx))
     return bvals, FullField(
-        bulk=AngularSourceSink.from_mesh(bvals, sn),
+        interior=AngularSourceSink.from_mesh(bvals, sn),
         boundary=AngularBoundarySourceSink.zeros_on(sn),
         radial_characteristic=RadialCharacteristicSourceSink.from_angular_source(
             bvals, sn,
@@ -114,7 +114,7 @@ def _random_iterate(sn, rng, ng: int = 2):
             space=sn.radial_characteristic_space, mesh=sn,
         )
     return FullField(
-        bulk=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
+        interior=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux.zeros_on(sn),
         radial_characteristic=seed,
     )
@@ -123,7 +123,7 @@ def _random_iterate(sn, rng, ng: int = 2):
 def _full_residual_inf(A, sol, source_composite, bvals) -> float:
     """‖A·solve(b) − b‖_∞ / ‖b‖_∞ over the FULL augmented field."""
     r = A.apply(sol)
-    num = np.max(np.abs(r.bulk.values - bvals))
+    num = np.max(np.abs(r.interior.values - bvals))
     if r.radial_characteristic is not None:
         num = max(num, np.max(np.abs(
             r.radial_characteristic.values
@@ -174,7 +174,7 @@ def test_cii_sphere_solve_is_seed_insensitive_bitwise():
     s1 = A.solve(b, initial_guess=_random_iterate(sn, rng))
     s2 = A.solve(b, initial_guess=_random_iterate(sn, rng))
     np.testing.assert_array_equal(
-        s1.bulk.values, s2.bulk.values,
+        s1.interior.values, s2.interior.values,
         err_msg="sphere solve depends on the initial guess — the seed lag lives",
     )
 
@@ -192,7 +192,7 @@ def test_cii_probe6_cold_solve_recovers_preimage(coord):
     b = A.apply(psi0)
     sol = A.solve(b, initial_guess=None)
     np.testing.assert_allclose(
-        sol.bulk.values, psi0.bulk.values, rtol=1e-11, atol=1e-12,
+        sol.interior.values, psi0.interior.values, rtol=1e-11, atol=1e-12,
         err_msg=f"[{coord}] cold solve did not recover the pre-image ψ₀",
     )
 
@@ -250,7 +250,7 @@ def test_civ_pure_absorber_sphere_cold_solve_exact():
     r = _full_residual_inf(A, sol, b, bvals)
     assert r < 1e-11, f"pure-absorber cold residual {r:.3e} ≥ 1e-11"
     # A single-pass exact inverse of a physical source is finite.
-    assert np.all(np.isfinite(sol.bulk.values))
+    assert np.all(np.isfinite(sol.interior.values))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -336,7 +336,7 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
     def _random_seed_composite():
         # NONZERO seed — activates the V_cell metric AND the A_ss self-block.
         return FullField(
-            bulk=AngularFlux.from_mesh(
+            interior=AngularFlux.from_mesh(
                 rng.standard_normal((sn.quad.N, sn.ng, sn.nx)), sn,
             ),
             boundary=AngularBoundaryFlux(
@@ -394,12 +394,12 @@ def test_mode10_seed_source_activation_q_half_moves_the_sphere_solve():
     sol_with = A.solve(b, initial_guess=None)
     # Zero the q½ block only (keep bulk + trace); re-solve.
     b_zero = FullField(
-        bulk=b.bulk,
+        interior=b.interior,
         boundary=b.boundary,
         radial_characteristic=RadialCharacteristicSourceSink.zeros_on(sn),
     )
     sol_without = A.solve(b_zero, initial_guess=None)
-    delta = np.max(np.abs(sol_with.bulk.values - sol_without.bulk.values))
+    delta = np.max(np.abs(sol_with.interior.values - sol_without.interior.values))
     if delta <= 1e-12:
         pytest.fail(
             "the q½ source block is DEAD: zeroing it left the sphere solve "

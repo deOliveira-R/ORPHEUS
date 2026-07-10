@@ -118,7 +118,7 @@ def _zero_state_with_unit_face(
     structural positive test: this unit should propagate downstream
     via the streaming operator's BC apply.
     """
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
     state.boundary.face_view(face)[...] = 1.0
     return state
 
@@ -130,7 +130,7 @@ def _zero_state_with_unit_face(
 def test_unit_at_face_produces_nonzero_matvec(face: str) -> None:
     r"""Unit at each face MUST produce a nonzero matvec output.
 
-    Negative-version: if ``out.bulk.values`` is identically zero for
+    Negative-version: if ``out.interior.values`` is identically zero for
     any face, the BC apply for that face is broken (Pattern 7
     convention drift catches this).
     """
@@ -143,7 +143,7 @@ def test_unit_at_face_produces_nonzero_matvec(face: str) -> None:
 
     out = L.apply(state)
 
-    bulk = out.bulk.values
+    bulk = out.interior.values
     assert not np.allclose(bulk, 0.0), (
         f"Unit at face {face!r} produced identically-zero bulk output. "
         f"BC apply for {face!r} is broken — the convention crosswalk "
@@ -168,7 +168,7 @@ def test_four_faces_produce_distinct_outputs() -> None:
     outputs = {}
     for face in ("xmin", "xmax", "ymin", "ymax"):
         state = _zero_state_with_unit_face(mesh, face)
-        outputs[face] = L.apply(state).bulk.values.copy()
+        outputs[face] = L.apply(state).interior.values.copy()
 
     face_names = list(outputs)
     for i, a in enumerate(face_names):

@@ -72,17 +72,17 @@ def _run_si(c: float, **kw):
         LC, S, B, sn_mesh, inner_schedule=solver.inner_schedule,
         max_iter=600, tol=1e-12,
     )
-    # 1-D slab never windows (windowing is 2-D Cartesian) → bulk=AngularFlux.
+    # 1-D slab never windows (windowing is 2-D Cartesian) → interior=AngularFlux.
     if windowed:
         raise AssertionError("homogeneous slab should not window the SI iterate")
     q_ext = TimedFullField(
-        bulk=AngularSourceSink.from_isotropic(
+        interior=AngularSourceSink.from_isotropic(
             np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
         ),
         boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
         _history=(), history_depth=2,
     )
-    ig = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     si.solve(q_ext, initial_guess=ig)
     return si
 

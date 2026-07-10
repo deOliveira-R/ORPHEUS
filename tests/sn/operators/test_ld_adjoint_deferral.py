@@ -98,7 +98,7 @@ def _lc(sn, sig_t):
 def _ld_composite(sn) -> FullField:
     """A well-formed LD cotangent: moment-tailed bulk + scalar face trace."""
     return FullField(
-        bulk=AngularFlux.zeros_on(sn, spatial_moments=2),
+        interior=AngularFlux.zeros_on(sn, spatial_moments=2),
         boundary=AngularBoundaryFlux.zeros_on(sn),
     )
 
@@ -220,7 +220,7 @@ class TestWalkEntryGuard:
         rng = np.random.default_rng(2026)
         out = _lc(sn, sig_t).apply_transpose(_random_composite(sn, rng))
         require(
-            bool(np.all(np.isfinite(out.bulk.values))),
+            bool(np.all(np.isfinite(out.interior.values))),
             "DD (L+C)ᵀφ produced non-finite bulk values.",
         )
 

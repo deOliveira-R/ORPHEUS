@@ -4,7 +4,7 @@ The residual mint :meth:`AngularResidual.from_balance` /
 :meth:`AngularBoundaryResidual.from_balance` now has a production-reachable consumer:
 :func:`orpheus.sn.solver.evaluate_residual` types the within-group balance
 defect :math:`r = (L+C-S-B)\psi - q` as a composite
-``TimedFullField(bulk=AngularResidual, boundary=AngularBoundaryResidual)`` — a
+``TimedFullField(interior=AngularResidual, boundary=AngularBoundaryResidual)`` — a
 diagnostic (``balance_map`` / ``boundary_vs_interior_split`` / ``relative_to``)
 and the consistent-DSA (`#2`) low-order-correction substrate.
 
@@ -69,13 +69,13 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
     if windowed:
         raise AssertionError("1-D slab must not window")
     q_ext = TimedFullField(
-        bulk=AngularSourceSink.from_isotropic(
+        interior=AngularSourceSink.from_isotropic(
             np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
         ),
         boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
         _history=(), history_depth=2,
     )
-    ig = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     psi, _ = si.solve(q_ext, initial_guess=ig)
     return solver, (LC - S - B), q_ext, psi
 
@@ -123,22 +123,22 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
     defect, not a latent dud)."""
     _solver, loss_op, q_ext, psi = _converged_slab_2g()
     r = evaluate_residual(loss_op, psi, q_ext)            # POSITIVE
-    bmap = r.bulk.balance_map()                            # (ng, *spatial)
-    q_scale = float(np.abs(q_ext.bulk.values).max())
+    bmap = r.interior.balance_map()                            # (ng, *spatial)
+    q_scale = float(np.abs(q_ext.interior.values).max())
     rel = float(np.abs(bmap).max()) / max(q_scale, 1e-30)
     if not (rel < 1e-7):
         raise AssertionError(f"balance_map not ≈0 at convergence: rel={rel:.2e}")
 
     # NEGATIVE — perturb one interior cell (group 0, all ordinates) by 10 %.
-    bad_vals = psi.bulk.values.copy()
-    ix = psi.bulk.values.shape[2] // 2
+    bad_vals = psi.interior.values.copy()
+    ix = psi.interior.values.shape[2] // 2
     bad_vals[:, 0, ix] *= 1.1
     psi_bad = TimedFullField(
-        bulk=AngularFlux.from_mesh(bad_vals, psi.bulk.mesh),
+        interior=AngularFlux.from_mesh(bad_vals, psi.interior.mesh),
         boundary=psi.boundary, _history=(), history_depth=psi.history_depth,
     )
     r_bad = evaluate_residual(loss_op, psi_bad, q_ext)
-    bmap_bad = r_bad.bulk.balance_map()
+    bmap_bad = r_bad.interior.balance_map()
     if not (np.abs(bmap_bad).max() > 100.0 * max(np.abs(bmap).max(), 1e-30)):
         raise AssertionError(
             "balance_map did not detect a deliberate ψ perturbation — latent dud."
@@ -177,7 +177,7 @@ def test_relative_to_source_is_norm_ratio():
     _solver, loss_op, q_ext, psi = _converged_slab_2g()
     r = evaluate_residual(loss_op, psi, q_ext)
     np.testing.assert_allclose(
-        r.bulk.relative_to(q_ext.bulk), r.bulk.l2 / q_ext.bulk.l2, rtol=1e-12,
+        r.interior.relative_to(q_ext.interior), r.interior.l2 / q_ext.interior.l2, rtol=1e-12,
     )
 
 

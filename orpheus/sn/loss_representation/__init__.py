@@ -570,10 +570,10 @@ class _LossRepresentation:
         r"""The zero diagonal coefficient :math:`\sigma = 0` matching ``field``'s
         ``(ng, *spatial)`` shape — the σ-free streaming probe.
 
-        The group count is read off the carrier (``field.bulk.values`` is the
+        The group count is read off the carrier (``field.interior.values`` is the
         ``(N, ng, *spatial)`` angular flux); the spatial shape is the mesh's.
         """
-        ng = int(field.bulk.values.shape[1])
+        ng = int(field.interior.values.shape[1])
         return np.zeros((ng, *self.mesh.spatial_shape))
 
     @property
@@ -1097,7 +1097,7 @@ class _OctantWalk:
         ndim = sn_mesh.ndim
         ng = sigma.shape[0]
         spatial = sigma.shape[1:]
-        probe = psi.bulk.values
+        probe = psi.interior.values
         # The matvec is intrinsically moment-valued (#240 D5b-S3): a multi-moment
         # closure (LD) carries a trailing 2^d spatial-moment axis on the probe
         # / accumulators so the apply returns the full moment residual.  DD/Step
@@ -1166,7 +1166,7 @@ class _OctantWalk:
                 out_boundary.face_view(face)[in_idx] = given[in_idx]
 
         return FullField(
-            bulk=AngularSourceSink.from_mesh(LpC, sn_mesh, spatial_moments=per_axis),
+            interior=AngularSourceSink.from_mesh(LpC, sn_mesh, spatial_moments=per_axis),
             boundary=out_boundary,
         )
 
@@ -2878,7 +2878,7 @@ class _OneDimScanWalk:
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
         # selects the SpatialMomentSpace factor.  DD/Step → no factor, byte-id.
         return FullField(
-            bulk=AngularSourceSink.from_mesh(
+            interior=AngularSourceSink.from_mesh(
                 m_cell, self.mesh,
                 spatial_moments=self.mesh.scheme.spatial_basis_per_axis,
             ),
@@ -2940,7 +2940,7 @@ class _OneDimScanWalk:
         from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 
         sn_mesh = self.mesh
-        psi_view = psi.bulk.values
+        psi_view = psi.interior.values
         quad = sn_mesh.quad
         N = quad.N
         ng = psi_view.shape[1]
@@ -3191,7 +3191,7 @@ class _OneDimScanWalk:
         # operator (so this matvec contains NO BC reflection):
         #   * OUTFLOW slots — the self-consistency defect
         #     ``ψ.outflow − streamed`` (the r_outflow row's I·ψ.outflow
-        #     diagonal minus L_out,b·ψ.bulk). UNCHANGED from pre-extraction;
+        #     diagonal minus L_out,b·ψ.interior). UNCHANGED from pre-extraction;
         #     kept as ``computed − stored`` so the vacuum path is bit-identical
         #     (the per-row sign is free — q.outflow ≡ 0, the outflow trace is a
         #     pure definition with no source).
@@ -3288,7 +3288,7 @@ class _OneDimScanWalk:
         sn_mesh = self.mesh
         quad = sn_mesh.quad
         N = quad.N
-        ng = phi.bulk.values.shape[1]
+        ng = phi.interior.values.shape[1]
         nx = sn_mesh.nx
         curvature_raw = getattr(sn_mesh, "curvature", None)
         curvature = curvature_raw if curvature_raw is not None else "cartesian"
@@ -3336,7 +3336,7 @@ class _OneDimScanWalk:
             role="cotangent",
         )
 
-        out_bar = phi.bulk.values.swapaxes(0, 1)   # (ng, N, nx)
+        out_bar = phi.interior.values.swapaxes(0, 1)   # (ng, N, nx)
         fo = phi.boundary.face_view("xmax")                       # (N, ng)
 
         psi_bar = np.zeros((ng, N, nx))
@@ -3518,7 +3518,7 @@ class _OneDimScanWalk:
         if has_inner_face:
             m_boundary.face_view("xmin")[...] = fi_bar
         return FullField(
-            bulk=AngularSourceSink.from_mesh(
+            interior=AngularSourceSink.from_mesh(
                 psi_bar.swapaxes(0, 1), sn_mesh,
             ),
             boundary=m_boundary,

@@ -127,9 +127,9 @@ def _loss(sn_mesh: SNMesh):
 def _bulk_impulse_state(sn_mesh: SNMesh, n: int, g: int, x: np.ndarray):
     """A composite that is ``x`` on bulk row (n, g) and zero elsewhere."""
     state = FullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )
-    state.bulk.values[n, g] = x.reshape(sn_mesh.spatial_shape)
+    state.interior.values[n, g] = x.reshape(sn_mesh.spatial_shape)
     return state
 
 
@@ -137,10 +137,10 @@ def _bulk_source(sn_mesh: SNMesh, n: int, g: int, q: np.ndarray):
     """A source composite with ``q`` on bulk row (n, g), zero trace —
     the #284 source subspace the sweep inverts exactly."""
     rhs = FullField(
-        bulk=AngularSourceSink.zeros_on(sn_mesh),
+        interior=AngularSourceSink.zeros_on(sn_mesh),
         boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
     )
-    rhs.bulk.values[n, g] = q.reshape(sn_mesh.spatial_shape)
+    rhs.interior.values[n, g] = q.reshape(sn_mesh.spatial_shape)
     return rhs
 
 
@@ -163,7 +163,7 @@ def test_g1_assembled_matvec_equals_apply(geometry):
         for g in range(ng):
             x = rng.random(n_cells) + 0.5              # non-flat, positive
             out = A.apply(_bulk_impulse_state(sn_mesh, n, g, x))
-            bulk_out = np.asarray(out.bulk.values)
+            bulk_out = np.asarray(out.interior.values)
             np.testing.assert_allclose(
                 blocks[g].apply(x), bulk_out[n, g].ravel(),
                 rtol=_RTOL, atol=1e-14,
@@ -222,7 +222,7 @@ def test_g2_lapack_forward_substitution_equals_sweep(geometry):
         for g in range(ng):
             q = rng.random(n_cells) + 0.5
             psi = A.solve(_bulk_source(sn_mesh, n, g, q))
-            psi_row = np.asarray(psi.bulk.values)[n, g].ravel()
+            psi_row = np.asarray(psi.interior.values)[n, g].ravel()
             permuted = blocks[g].as_matrix()[np.ix_(order, order)]
             via_lapack = solve_triangular(permuted, q[order], lower=True)
             np.testing.assert_allclose(
@@ -253,7 +253,7 @@ def test_g3_dd_slab_probed_column_pin():
         basis = np.zeros(n_cells)
         basis[j] = 1.0
         out = A.apply(_bulk_impulse_state(sn_mesh, n, g, basis))
-        probed[:, j] = np.asarray(out.bulk.values)[n, g].ravel()
+        probed[:, j] = np.asarray(out.interior.values)[n, g].ravel()
     np.testing.assert_allclose(M, probed, rtol=_RTOL, atol=1e-15)
 
 
@@ -301,10 +301,10 @@ def test_teeth_shared_kernel_sign_flip_moves_all_three_modes(monkeypatch):
         A = _loss(sn_mesh)
         M = assemble_ordinate_blocks(sn_mesh, n)[g].as_matrix()
         apply_row = np.asarray(
-            A.apply(_bulk_impulse_state(sn_mesh, n, g, x)).bulk.values
+            A.apply(_bulk_impulse_state(sn_mesh, n, g, x)).interior.values
         )[n, g].ravel()
         sweep_row = np.asarray(
-            A.solve(_bulk_source(sn_mesh, n, g, q)).bulk.values
+            A.solve(_bulk_source(sn_mesh, n, g, q)).interior.values
         )[n, g].ravel()
         return M, apply_row, sweep_row
 
@@ -414,16 +414,16 @@ def test_g1_ld_assembled_matvec_equals_apply(geometry):
             # spatial_moments factor selects the SpatialMomentSpace so
             # the bilinear closure's trailing 2^d axis is carried).
             state = FullField(
-                bulk=AngularFlux.zeros_on(sn_mesh, spatial_moments=2),
+                interior=AngularFlux.zeros_on(sn_mesh, spatial_moments=2),
                 boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             )
-            state.bulk.values[n, g] = x.reshape(
+            state.interior.values[n, g] = x.reshape(
                 sn_mesh.spatial_shape + (cm,)
             )
             out = A.apply(state)
             np.testing.assert_allclose(
                 blocks[g].apply(x),
-                np.asarray(out.bulk.values)[n, g].ravel(),
+                np.asarray(out.interior.values)[n, g].ravel(),
                 rtol=_RTOL, atol=1e-14,
                 err_msg=f"LD {geometry}: G1 broke at ordinate {n}, group {g}",
             )
@@ -474,13 +474,13 @@ def test_g2_ld_block_triangular_and_lapack_solve_equals_sweep(geometry):
                 sn_mesh.spatial_shape
             )
             rhs = FullField(
-                bulk=AngularSourceSink.from_mesh(
+                interior=AngularSourceSink.from_mesh(
                     src_values, sn_mesh, spatial_moments=2,
                 ),
                 boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
             )
             psi = A.solve(rhs)
-            psi_row = np.asarray(psi.bulk.values)[n, g].reshape(-1)
+            psi_row = np.asarray(psi.interior.values)[n, g].reshape(-1)
             q_lifted = np.zeros(n_cells * cm)
             q_lifted[AVERAGE_MOMENT::cm] = q
             via_lapack = lu_solve(lu_factor(M), q_lifted)
@@ -552,7 +552,7 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
         ])
 
     def _read(out) -> np.ndarray:
-        bulk = np.asarray(out.bulk.values)[:, g].ravel()   # (N·nx,)
+        bulk = np.asarray(out.interior.values)[:, g].ravel()   # (N·nx,)
         if space is None:
             return bulk
         seed = np.concatenate(
@@ -562,7 +562,7 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
 
     def _fresh():
         return FullField.zeros(
-            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
             radial_characteristic=(
                 None if space is None else RadialCharacteristicFlux
             ),
@@ -588,7 +588,7 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
     for n in range(N):
         for i in range(nx):
             st = _fresh()
-            st.bulk.values[n, g, i] = 1.0
+            st.interior.values[n, g, i] = 1.0
             columns.append(_read(A.apply(st)))
     return np.array(columns).T
 

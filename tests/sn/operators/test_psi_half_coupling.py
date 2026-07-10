@@ -149,7 +149,7 @@ def _template(sn):
     n_tr = int(sn.angular_trace.layout.total_size)
     n_sd = sn.radial_characteristic_space.shape[0]
     return FullField(
-        bulk=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
+        interior=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
         radial_characteristic=RadialCharacteristicFlux(
             values=np.zeros(n_sd), space=sn.radial_characteristic_space, mesh=sn))
@@ -349,7 +349,7 @@ def _seed_composite(sn, seed_values: NDArray) -> FullField:
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
     return FullField(
-        bulk=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
+        interior=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
         radial_characteristic=RadialCharacteristicFlux(
             values=seed_values, space=sn.radial_characteristic_space, mesh=sn),
@@ -362,7 +362,7 @@ def _random_composite(sn, rng) -> FullField:
     n_tr = int(sn.angular_trace.layout.total_size)
     ns = sn.radial_characteristic_space.shape[0]
     return FullField(
-        bulk=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
+        interior=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux(
             values=rng.standard_normal(n_tr), space=sn.angular_trace, mesh=sn),
         radial_characteristic=RadialCharacteristicFlux(
@@ -467,7 +467,7 @@ class TestBoundaryUnweld:
         N, nx, ng = slab.quad.N, slab.nx, slab.ng
         n_tr = int(slab.angular_trace.layout.total_size)
         psi = FullField(
-            bulk=AngularFlux.from_mesh(np.random.default_rng(4).standard_normal((N, ng, nx)), slab),
+            interior=AngularFlux.from_mesh(np.random.default_rng(4).standard_normal((N, ng, nx)), slab),
             boundary=AngularBoundaryFlux(
                 values=np.random.default_rng(5).standard_normal(n_tr),
                 space=slab.angular_trace, mesh=slab),
@@ -1182,7 +1182,7 @@ def _s_emission(S, psi: FullField) -> NDArray:
     A_BA *input* (``(ng, nx)``). Computed via the operator's own isotropic kernel
     (the emission is the bulk-scattering job, verified elsewhere; A_BA's job is the
     FOLD of this emission, so it is the correct oracle input)."""
-    phi0 = psi.bulk.integrate_angular().values          # (ng, nx)
+    phi0 = psi.interior.integrate_angular().values          # (ng, nx)
     return np.asarray(S.isotropic_kernel.apply(phi0))
 
 
@@ -1193,7 +1193,7 @@ def _f_emission(F, psi: FullField) -> NDArray:
     the migrated F seed :func:`~orpheus.sn.solver._radial_characteristic_fission_seed`
     only needs the FOLD of this emission (``A_BA_fission = Fold ∘ F.kernel``,
     factored)."""
-    return np.asarray(F.apply(psi.bulk.integrate_angular()).values)
+    return np.asarray(F.apply(psi.interior.integrate_angular()).values)
 
 
 def _ba_oldloop_reference(emission: NDArray, sn) -> NDArray:
@@ -1453,7 +1453,7 @@ class TestA_BA_SchurFold:
             N, nx, ng = sn.quad.N, sn.nx, sn.ng
             n_tr = int(sn.angular_trace.layout.total_size)
             bulk_only = FullField(
-                bulk=AngularFlux.from_mesh(
+                interior=AngularFlux.from_mesh(
                     np.random.default_rng(50).standard_normal((N, ng, nx)), sn),
                 boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
                 radial_characteristic=None)
@@ -1529,7 +1529,7 @@ def _pullback_reconstruction(sn, S, chi_seed_values: NDArray) -> NDArray:
     NAMED factors — the structural decomposition
     ``A_BAᵀ = (∫dμ)ᵀ ∘ K_isoᵀ ∘ Foldᵀ`` the S-adjoint carried inline before the
     LIFT. Shape ``(N, ng, nx)``. (This shares A_BA's fold + kernel objects, so the
-    ``== A_BA.apply_transpose.bulk`` check is INHERITANCE — necessary-not-
+    ``== A_BA.apply_transpose.interior`` check is INHERITANCE — necessary-not-
     sufficient; the load-bearing structural cross-check is the fwd↔adj Euclidean
     reciprocity, leg (c) of L1-ADJ.)"""
     space = sn.radial_characteristic_space
@@ -1584,7 +1584,7 @@ class TestCoupledLift:
 
     def test_L1_fwd_S_and_F_apply_are_pure_bulk_A_BA_scatter_emits(self):
         r"""S / F ``.apply`` are PURE BULK — ray present-zero, bulk UNCHANGED
-        (``S.apply(psi).bulk == S.apply(psi.bulk)``, the FullField arm's bulk IS
+        (``S.apply(psi).interior == S.apply(psi.interior)``, the FullField arm's bulk IS
         the model-generic scatter — the LIFT touched no bulk). The lifted A_BA
         gain carries the emission (ray nonzero, bulk present-zero — the disjoint
         direct sum ``S_bulk ⊕ A_BA``). Positive (A_BA emits) + pure-bulk
@@ -1601,8 +1601,8 @@ class TestCoupledLift:
             err_msg="S.apply ray ≠ present-zero — the model-generic scatter still "
                     "emits the ψ½ ray (the LIFT did not make S pure bulk).")
         np.testing.assert_array_equal(
-            s_out.bulk.values, S.apply(psi.bulk).values,
-            err_msg="S.apply(FullField).bulk ≠ S.apply(bulk) — the LIFT altered the "
+            s_out.interior.values, S.apply(psi.interior).values,
+            err_msg="S.apply(FullField).interior ≠ S.apply(bulk) — the LIFT altered the "
                     "model-generic scatter bulk (it must touch ONLY the ray).")
         # F pure bulk (fissile sphere; the F-fwd ray arm is dead — the fission
         # emission rides from_angular_source / commit 2, not F.apply).
@@ -1619,7 +1619,7 @@ class TestCoupledLift:
             pytest.fail("A_BA.apply ray ≈ 0 — the lifted gain does not carry the "
                         "bulk→ray emission (the coupling is unwired).")
         np.testing.assert_array_equal(
-            a_out.bulk.values, 0.0,
+            a_out.interior.values, 0.0,
             err_msg="A_BA.apply bulk ≠ present-zero — it emits into the bulk (a "
                     "double-count with S's bulk); it must write ONLY the ray.")
 
@@ -1633,9 +1633,9 @@ class TestCoupledLift:
         gives ``Reconstructionᵀ(0) = 0`` so every ``.H`` reciprocity gate is BLIND
         to a lost pullback; ONLY a nonzero χ catches it):
 
-        (a) ``A_BA.apply_transpose(χ).bulk`` == the pullback (lives in A_BA), and
+        (a) ``A_BA.apply_transpose(χ).interior`` == the pullback (lives in A_BA), and
         is NONZERO (non-vacuity);
-        (b) ``S.apply_transpose(χ_seed).bulk`` == 0 (S dropped it — pure bulk);
+        (b) ``S.apply_transpose(χ_seed).interior`` == 0 (S dropped it — pure bulk);
         (c) structurally-independent fwd↔adj Euclidean reciprocity
         ``⟨A_BA·ψ, χ_seed⟩ = ⟨ψ, A_BAᵀ·χ⟩`` (a corrupted pullback lands on ONE
         side — the load-bearing cross-check; (a) is only an INHERITANCE decomposition).
@@ -1647,12 +1647,12 @@ class TestCoupledLift:
         space = sn.radial_characteristic_space
         rng = np.random.default_rng(110)
         chi_seed = rng.standard_normal(space.shape[0])
-        chi_cot = _seed_composite(sn, chi_seed)            # seed-only cotangent (bulk=0)
+        chi_cot = _seed_composite(sn, chi_seed)            # seed-only cotangent (interior=0)
         # (a) the pullback lives in A_BA (== the named-factor reconstruction).
-        adj_bulk = A_BA.apply_transpose(chi_cot).bulk.values
+        adj_bulk = A_BA.apply_transpose(chi_cot).interior.values
         np.testing.assert_array_equal(
             adj_bulk, _pullback_reconstruction(sn, S, chi_seed),
-            err_msg="A_BA.apply_transpose.bulk ≠ w·K_isoᵀ(Reconstructionᵀ χ_seed) — "
+            err_msg="A_BA.apply_transpose.interior ≠ w·K_isoᵀ(Reconstructionᵀ χ_seed) — "
                     "the lifted seed pullback is wrong.")
         if not np.max(np.abs(adj_bulk)) > 1e-6:
             pytest.fail("A_BA.apply_transpose bulk ≈ 0 on a nonzero seed cotangent — "
@@ -1660,13 +1660,13 @@ class TestCoupledLift:
         # (b) S dropped the pullback (pure-bulk transpose: seed-only χ → zero bulk).
         s_adj = S.apply_transpose(chi_cot)
         np.testing.assert_array_equal(
-            s_adj.bulk.values, 0.0,
-            err_msg="S.apply_transpose(seed-only χ).bulk ≠ 0 — S still carries the "
+            s_adj.interior.values, 0.0,
+            err_msg="S.apply_transpose(seed-only χ).interior ≠ 0 — S still carries the "
                     "seed pullback (the LIFT did not move it to A_BA).")
         # (c) structurally-independent Euclidean fwd↔adj reciprocity, NONZERO seed.
         psi = _random_composite(sn, rng)
         lhs = float(A_BA.apply(psi).radial_characteristic.values @ chi_seed)
-        rhs = float(psi.bulk.values.ravel() @ adj_bulk.ravel())
+        rhs = float(psi.interior.values.ravel() @ adj_bulk.ravel())
         defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
         if not defect < 1e-11:
             pytest.fail(f"A_BA Euclidean fwd↔adj reciprocity defect {defect:.3e} ≥ "
@@ -1694,14 +1694,14 @@ class TestCoupledLift:
         def _drop_pullback(self, cotangent, /):
             # A present-zero bulk (the pullback dropped) — the symmetric-drop bug.
             return _FF(
-                bulk=AngularSourceSink.zeros_on(self.sn_mesh),
+                interior=AngularSourceSink.zeros_on(self.sn_mesh),
                 boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
                 radial_characteristic=RadialCharacteristicSourceSink.zeros_on(self.sn_mesh))
 
         monkeypatch.setattr(RadialCharacteristicEmission, "apply_transpose", _drop_pullback)
-        adj_bulk = A_BA.apply_transpose(_seed_composite(sn, chi_seed)).bulk.values
+        adj_bulk = A_BA.apply_transpose(_seed_composite(sn, chi_seed)).interior.values
         lhs = float(A_BA.apply(psi).radial_characteristic.values @ chi_seed)
-        rhs = float(psi.bulk.values.ravel() @ adj_bulk.ravel())
+        rhs = float(psi.interior.values.ravel() @ adj_bulk.ravel())
         defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
         print(f"  [L1-ADJ tooth] dropped-pullback reciprocity defect = {defect:.3f}")
         if not defect > 1e-3:
@@ -1787,7 +1787,7 @@ class TestCoupledLift:
             s_out.radial_characteristic.values, 0.0,
             err_msg="S contributes a nonzero ray — the direct sum is not disjoint.")
         np.testing.assert_array_equal(
-            a_out.bulk.values, 0.0,
+            a_out.interior.values, 0.0,
             err_msg="A_BA contributes a nonzero bulk — the direct sum is not disjoint.")
         # The reconstructed monolith ray == the documented fold loop (exact placement).
         monolith_ray = _ba_oldloop_reference(emission, sn)
@@ -2101,7 +2101,7 @@ class TestCoupledLift:
 # (precompute_psi_state / cell_contribution / angular_adjoint). σ-INDEPENDENT:
 # with the bulk zeroed the collision/streaming terms drop out, so A_AB needs no
 # σ_t (the constructor takes sn_mesh only). The forward .apply's contribution to
-# (L+C).apply is isolated by LINEARITY (bulk=0, boundary=0 → only the seed's
+# (L+C).apply is isolated by LINEARITY (interior=0, boundary=0 → only the seed's
 # angular numerator survives); the transpose is the seed_cells_bar term the
 # in-sweep reverse adds on cells(p,-1). A_sb=0 (block-triangular) and A_bs≈7.5
 # (this coupling's magnitude) are already pinned by TestRegressionFloor — not
@@ -2118,7 +2118,7 @@ def _bulk_composite(sn, bulk_values: NDArray) -> FullField:
     n_tr = int(sn.angular_trace.layout.total_size)
     ns = sn.radial_characteristic_space.shape[0]
     return FullField(
-        bulk=AngularFlux.from_mesh(bulk_values, sn),
+        interior=AngularFlux.from_mesh(bulk_values, sn),
         boundary=AngularBoundaryFlux(
             values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
         radial_characteristic=RadialCharacteristicFlux(
@@ -2188,7 +2188,7 @@ class TestA_AB_SeedInjection:
 
     def test_apply_matches_the_in_sweep_seed_injection(self, monkeypatch):
         r"""``A_AB.apply(s)`` ≡ the seed's contribution to ``(L+C).apply``
-        (bulk=0, boundary=0 isolate ``A_bs`` by linearity), BIT-IDENTICALLY
+        (interior=0, boundary=0 isolate ``A_bs`` by linearity), BIT-IDENTICALLY
         (``array_equal`` — with ψ_cell=0 the σ-diagonal cancels, so this is
         0-ULP, not principled-equiv). A Mode-11 sentinel proves ``apply``
         EXECUTES the shared closure kernel with the bulk ZEROED and the seed
@@ -2200,10 +2200,10 @@ class TestA_AB_SeedInjection:
         sv = rng.standard_normal(space.shape[0])
         seed = RadialCharacteristicFlux(values=sv, space=space, mesh=sn)
         # Reference (real methods, computed BEFORE the spy): the seed's
-        # contribution to (L+C).apply — bulk=0/boundary=0 ⇒ A_AA·0 = 0, so the
+        # contribution to (L+C).apply — interior=0/boundary=0 ⇒ A_AA·0 = 0, so the
         # bulk output is exactly A_AB·s.
-        reference = _loss(sn).apply(_seed_composite(sn, sv)).bulk
-        ref_other_sigma = _loss(sn, slope=0.9).apply(_seed_composite(sn, sv)).bulk
+        reference = _loss(sn).apply(_seed_composite(sn, sv)).interior
+        ref_other_sigma = _loss(sn, slope=0.9).apply(_seed_composite(sn, sv)).interior
         np.testing.assert_array_equal(
             reference.values, ref_other_sigma.values,
             err_msg="the seed→bulk contribution changed with σ_t — A_AB is not "
@@ -2236,7 +2236,7 @@ class TestA_AB_SeedInjection:
 
     def test_apply_transpose_is_the_in_sweep_seed_cells_bar(self, monkeypatch):
         r"""``A_AB.apply_transpose(v).cells(p,-1)`` ≡ the ``seed_cells_bar`` term
-        the in-sweep reverse adds — ``(L+C).apply_transpose(bulk=v, ray=0)`` on
+        the in-sweep reverse adds — ``(L+C).apply_transpose(interior=v, ray=0)`` on
         the ray block (ray=0 nulls the A_BB self-block, isolating the M-M thread
         cotangent), BIT-IDENTICALLY. The ``+1`` leg and both corners stay EXACTLY
         0 (the forward writes only the inward leg). A Mode-11 sentinel proves

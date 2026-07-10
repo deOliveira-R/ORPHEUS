@@ -12,7 +12,7 @@ evaluation (Piece 3) add **ZERO numerical change** to the converged flux:
   path.
 
 So the converged flux MUST be **byte-identical** to the pre-carve value. This
-test freezes a ``sha256`` of the converged ``angular_flux.bulk.values`` and
+test freezes a ``sha256`` of the converged ``angular_flux.interior.values`` and
 ``scalar_flux.values``, generated once at the pre-carve commit ``63719a2`` and
 committed WITH Piece 1.
 
@@ -204,7 +204,7 @@ def test_converged_flux_bit_identical_after_affine_carve(case: str) -> None:
     sol = _solve_case(case)
     if not sol.history.converged:
         raise AssertionError(f"{case}: solve did not converge")
-    psi_sha = _sha(sol.angular_flux.bulk.values)
+    psi_sha = _sha(sol.angular_flux.interior.values)
     phi_sha = _sha(sol.scalar_flux.values)
     if psi_sha != GOLDEN[f"{case}_psi_sha"]:
         raise AssertionError(

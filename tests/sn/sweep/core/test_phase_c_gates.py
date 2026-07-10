@@ -24,7 +24,7 @@ Gates consume the composite algebra :class:`StreamingOperator` +
 
 * Resolution A subtractive identity:
   :math:`(L + C).{\rm apply}(\psi) = M(\psi;\sigma_t)` bit-exact.
-* ``op.apply(state).bulk.values`` holds :math:`(L+C)\psi`'s
+* ``op.apply(state).interior.values`` holds :math:`(L+C)\psi`'s
   cell-centre block; face residuals live in ``out.boundary``.
 * Linearity (Gate 1.4) tests via :class:`TimedFullField` arithmetic
   (``__add__``, scalar ``__mul__/__rmul__``).
@@ -186,7 +186,7 @@ def _build_composite(
     else:
         radial_characteristic = None
     return TimedFullField(
-        bulk=AngularFlux.from_mesh(bulk_values, sn_mesh),
+        interior=AngularFlux.from_mesh(bulk_values, sn_mesh),
         boundary=boundary,
         radial_characteristic=radial_characteristic,
         _history=(),
@@ -243,13 +243,13 @@ def test_apply_linearity_under_sweep_frame(geom):
     hom_lhs = op.apply(c * psi1)
     hom_rhs = c * op.apply(psi1)
     np.testing.assert_allclose(
-        hom_lhs.bulk.values, hom_rhs.bulk.values, rtol=1e-13, atol=1e-14)
+        hom_lhs.interior.values, hom_rhs.interior.values, rtol=1e-13, atol=1e-14)
     np.testing.assert_allclose(
         hom_lhs.boundary.values, hom_rhs.boundary.values, rtol=1e-13, atol=1e-14)
     lhs = op.apply(psi1 + lam * (psi2 - psi1))   # (1−λ)ψ₁ + λψ₂, a flux
     rhs = (1.0 - lam) * op.apply(psi1) + lam * op.apply(psi2)
     np.testing.assert_allclose(
-        lhs.bulk.values, rhs.bulk.values, rtol=1e-13, atol=1e-14,
+        lhs.interior.values, rhs.interior.values, rtol=1e-13, atol=1e-14,
     )
     np.testing.assert_allclose(
         lhs.boundary.values, rhs.boundary.values, rtol=1e-13, atol=1e-14,
@@ -341,7 +341,7 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     The composite ``(L + C).apply(state)`` realises the geometry-agnostic
     matvec via Resolution A's subtractive identity:
     :math:`(L+C)\psi = (M(\psi;\sigma_t) - \sigma_t\psi) + \sigma_t\psi
-    = M(\psi;\sigma_t)`.  The check is on ``out.bulk.values`` cell-centre
+    = M(\psi;\sigma_t)`.  The check is on ``out.interior.values`` cell-centre
     block; the per-ordinate flat-ψ invariant collapses the matvec to
     ``Σ_t·ψ`` cell-wise.
     """
@@ -355,8 +355,8 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     op = L + C
     psi_state = _flat_psi_composite(sn_mesh, ng=sn_mesh.ng)
     result = op.apply(psi_state)
-    result_bulk = result.bulk.values
-    expected_bulk = sigma_t_value * psi_state.bulk.values
+    result_bulk = result.interior.values
+    expected_bulk = sigma_t_value * psi_state.interior.values
     if sigma_t_value == 0.0:
         np.testing.assert_allclose(result_bulk, 0.0, atol=1e-13)
     else:
@@ -436,7 +436,7 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     def full_dot(a, b):
         """Euclidean inner product over the whole bulk⊕trace⊕seed composite."""
         total = (
-            np.sum(a.bulk.values * b.bulk.values)
+            np.sum(a.interior.values * b.interior.values)
             + np.sum(a.boundary.values * b.boundary.values)
         )
         if a.radial_characteristic is not None and b.radial_characteristic is not None:
@@ -475,7 +475,7 @@ def test_apply_face_fluxes_match_sweep_recurrence_spherical():
     propagation chain would compute. Bit-identical via np.array_equal.
 
     D-K.5 migration — the determinism assertion shifts from the legacy
-    packed vector to ``out.bulk.values`` AND ``out.boundary.values``;
+    packed vector to ``out.interior.values`` AND ``out.boundary.values``;
     both must be bit-stable across repeated calls to the composite
     ``(L + C).apply``.
     """
@@ -494,7 +494,7 @@ def test_apply_face_fluxes_match_sweep_recurrence_spherical():
     # contract called out in plan §5 Gate 1.2.
     out1 = op.apply(psi_state)
     out2 = op.apply(psi_state)
-    assert np.array_equal(out1.bulk.values, out2.bulk.values), (
+    assert np.array_equal(out1.interior.values, out2.interior.values), (
         "Apply bulk is not deterministic — sweep-frame matvec must be "
         "bit-stable"
     )
@@ -552,15 +552,15 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     # #282 route (a): pass the seed leaf UNIFORMLY (the R12a predicate
     # allocates it iff the mesh carries levels — here the sphere does).
     state_zero = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         radial_characteristic=RadialCharacteristicFlux,
     )
     result = op.apply(state_zero)
     assert np.array_equal(
-        result.bulk.values, np.zeros_like(result.bulk.values),
+        result.interior.values, np.zeros_like(result.interior.values),
     ), (
-        f"apply(0).bulk should be 0 (BC linearity); got max|out|="
-        f"{np.max(np.abs(result.bulk.values)):.3e}"
+        f"apply(0).interior should be 0 (BC linearity); got max|out|="
+        f"{np.max(np.abs(result.interior.values)):.3e}"
     )
     assert np.array_equal(
         result.boundary.values, np.zeros_like(result.boundary.values),
@@ -591,11 +591,11 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     # #282 route (a): pass the seed leaf UNIFORMLY (the R12a predicate
     # allocates it iff the mesh carries levels — here the sphere does).
     state_zero = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         radial_characteristic=RadialCharacteristicFlux,
     )
     result = op.apply(state_zero)
-    np.testing.assert_array_equal(result.bulk.values, 0.0)
+    np.testing.assert_array_equal(result.interior.values, 0.0)
     np.testing.assert_array_equal(result.boundary.values, 0.0)
 
 

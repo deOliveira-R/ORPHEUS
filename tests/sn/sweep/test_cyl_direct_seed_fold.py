@@ -81,9 +81,9 @@ def _cyl_level_symmetric_mesh() -> SNMesh:
 
 
 def _random_source(sn: SNMesh) -> FullField:
-    q = FullField(bulk=AngularSourceSink.zeros_on(sn),
+    q = FullField(interior=AngularSourceSink.zeros_on(sn),
                   boundary=AngularBoundarySourceSink.zeros_on(sn))
-    q.bulk.values[:] = np.random.default_rng(5).random(
+    q.interior.values[:] = np.random.default_rng(5).random(
         (sn.quad.n_ordinates, sn.ng, *sn.spatial_shape)
     )
     return q
@@ -220,8 +220,8 @@ def test_cold_solve_equals_matvec_inverse_single_pass():
     q = _random_source(sn)
     for g in range(sn.ng):
         M = _probe_augmented_matrix_one_group(sn, g)
-        ref = np.linalg.solve(M, q.bulk.values[:, g].ravel())
-        cold = np.asarray(A.solve(q).bulk.values)[:, g].ravel()
+        ref = np.linalg.solve(M, q.interior.values[:, g].ravel())
+        cold = np.asarray(A.solve(q).interior.values)[:, g].ravel()
         np.testing.assert_allclose(
             cold, ref, rtol=1e-10, atol=1e-12,
             err_msg=f"g{g}: cold cyl solve != M^-1 single-pass (the fold lag).",
@@ -242,10 +242,10 @@ def test_cold_solve_equals_si_converged_fixed_point():
     A = _loss(sn)
     q = _random_source(sn)
     psi = A.solve(q)                       # cold single-pass
-    cold = np.asarray(psi.bulk.values)
+    cold = np.asarray(psi.interior.values)
     for _ in range(40):                    # thread the iterate to convergence
         psi = A.solve(q, initial_guess=psi)
-    converged = np.asarray(psi.bulk.values)
+    converged = np.asarray(psi.interior.values)
     np.testing.assert_allclose(
         cold, converged, rtol=1e-10, atol=1e-12,
         err_msg="cold single-pass solve != SI-converged fixed point.",
@@ -275,8 +275,8 @@ def test_level_symmetric_cyl_seed_is_dead_fold_is_noop():
     q = _random_source(sn)
     for g in range(sn.ng):
         M = _probe_augmented_matrix_one_group(sn, g)
-        ref = np.linalg.solve(M, q.bulk.values[:, g].ravel())
-        cold = np.asarray(A.solve(q).bulk.values)[:, g].ravel()
+        ref = np.linalg.solve(M, q.interior.values[:, g].ravel())
+        cold = np.asarray(A.solve(q).interior.values)[:, g].ravel()
         np.testing.assert_allclose(
             cold, ref, rtol=1e-10, atol=1e-12,
             err_msg=f"LS g{g}: cold cyl solve != M^-1 (should already be exact).",

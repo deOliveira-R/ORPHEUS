@@ -22,7 +22,7 @@ Two checks, complementary:
   analytical fact.
 
 * **the −C glue, cross-checked against an INDEPENDENT collision operator.**
-  ``apply(ψ).bulk == loss_action(σ_t, ψ).bulk − C.apply(ψ).bulk`` on a ≥2G
+  ``apply(ψ).interior == loss_action(σ_t, ψ).interior − C.apply(ψ).interior`` on a ≥2G
   heterogeneous NON-FLAT config, where ``C`` is a SEPARATELY-constructed
   :class:`~orpheus.sn.operators.streaming.CollisionOperator` — so the subtrahend is verified
   to be exactly ``σ_t·ψ`` (the same σ_t), applied ONCE, not the production
@@ -86,7 +86,7 @@ _CASES = {"slab_2g": _slab_2g, "cart2d_2g": _cart2d_2g}
 
 
 def _zeros_state(sn: SNMesh) -> TimedFullField:
-    return TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+    return TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
 
 
 @pytest.mark.parametrize("case", list(_CASES))
@@ -95,7 +95,7 @@ def test_loss_action_is_full_loss_LpC_flat_reflective(case):
 
     The NON-tautological anchor.  A flat ψ on a fully-reflective box is the
     streaming fundamental (``L·ψ_flat = 0``), so ``loss_action`` MUST equal
-    ``C·ψ_flat = σ_t·ψ_flat`` and ``apply.bulk`` MUST be ``≈ 0``.
+    ``C·ψ_flat = σ_t·ψ_flat`` and ``apply.interior`` MUST be ``≈ 0``.
     """
     sn = _CASES[case]()
     # Uniform σ_t so the flat-reflective fundamental is exact (L·ψ_flat = 0).
@@ -104,7 +104,7 @@ def test_loss_action_is_full_loss_LpC_flat_reflective(case):
     rep = L.loss_representation
 
     psi = _zeros_state(sn)
-    psi.bulk.values[...] = 1.0   # FLAT in space + angle (the reflective fundamental)
+    psi.interior.values[...] = 1.0   # FLAT in space + angle (the reflective fundamental)
     for face in psi.boundary.layout.faces:
         psi.boundary.face_view(face)[...] = 1.0   # flat trace (in = out = avg)
 
@@ -112,16 +112,16 @@ def test_loss_action_is_full_loss_LpC_flat_reflective(case):
     lpsi = L.apply(psi)
 
     np.testing.assert_allclose(
-        lpc.bulk.values, sig_t[None] * psi.bulk.values, rtol=0.0, atol=1e-12,
+        lpc.interior.values, sig_t[None] * psi.interior.values, rtol=0.0, atol=1e-12,
         err_msg=(
             f"[{case}] loss_action(flat) != σ_t·ψ — loss_action is NOT the FULL "
             "(L+C) loss (it must be C·ψ when streaming is annihilated)."
         ),
     )
     np.testing.assert_allclose(
-        lpsi.bulk.values, 0.0, rtol=0.0, atol=1e-11,
+        lpsi.interior.values, 0.0, rtol=0.0, atol=1e-11,
         err_msg=(
-            f"[{case}] apply(flat_reflective).bulk != 0 — the streaming "
+            f"[{case}] apply(flat_reflective).interior != 0 — the streaming "
             "fundamental L·ψ_flat = 0 is broken (k_inf annihilation)."
         ),
     )
@@ -152,7 +152,7 @@ def test_pure_L_plus_C_recovers_loss_action_het(case):
     rep = L.loss_representation
 
     psi = _zeros_state(sn)
-    psi.bulk.values[...] = rng.standard_normal(psi.bulk.values.shape)   # NON-flat
+    psi.interior.values[...] = rng.standard_normal(psi.interior.values.shape)   # NON-flat
     for face in psi.boundary.layout.faces:
         fv = psi.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
@@ -163,13 +163,13 @@ def test_pure_L_plus_C_recovers_loss_action_het(case):
     composite = (L + C).apply(psi)          # InvertibleOperator.apply
 
     # non-vacuous guard: C·ψ must be non-trivial (else the pin is degenerate).
-    if float(np.max(np.abs(cpsi.bulk.values))) < 1e-6:
+    if float(np.max(np.abs(cpsi.interior.values))) < 1e-6:
         pytest.fail(f"[{case}] C·ψ ≈ 0 — the het/non-flat config degenerated.")
 
     # (1) the +C glue recovers the full loss BYTE-EXACT (the composite IS
     #     loss_action(σ_t)).
     np.testing.assert_array_equal(
-        composite.bulk.values, lpc.bulk.values,
+        composite.interior.values, lpc.interior.values,
         err_msg=(
             f"[{case}] (L+C).apply != loss_action(σ_t) — the composite must "
             "recover the full within-group loss bit-exactly."
@@ -178,7 +178,7 @@ def test_pure_L_plus_C_recovers_loss_action_het(case):
     # (2) pure L.apply == loss_action(σ_t) − C·ψ to FP ULP (the affine
     #     relation streaming_action = M(σ_t) − σ_t⊙ψ).
     np.testing.assert_allclose(
-        lpsi.bulk.values, lpc.bulk.values - cpsi.bulk.values,
+        lpsi.interior.values, lpc.interior.values - cpsi.interior.values,
         rtol=1e-12, atol=1e-12,
         err_msg=(
             f"[{case}] pure L.apply != loss_action − C·ψ — the affine "

@@ -135,11 +135,11 @@ def _random_state(sn_mesh: SNMesh, ng: int = 2, seed: int = 42) -> TimedFullFiel
     """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, *spatial)``."""
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     return replace(
         state,
-        bulk=replace(
-            state.bulk,
+        interior=replace(
+            state.interior,
             values=rng.standard_normal((N, ng, *sn_mesh.spatial_shape)),
         ),
     )
@@ -181,8 +181,8 @@ class TestBroadcastOracle:
         psi = _random_state(sn, ng=2, seed=202)
 
         M = _multiplier(sn, sigma)
-        engine_result = M.apply(psi).bulk.values
-        legacy_result = sigma[None] * psi.bulk.values
+        engine_result = M.apply(psi).interior.values
+        legacy_result = sigma[None] * psi.interior.values
 
         np.testing.assert_array_equal(engine_result, legacy_result)
 
@@ -192,9 +192,9 @@ class TestBroadcastOracle:
         M = _multiplier(sn, _positive_sigma(sn, ng=2, seed=303))
         out = M.apply(_random_state(sn, ng=2, seed=404))
         _require(
-            isinstance(out.bulk, AngularSourceSink),
+            isinstance(out.interior, AngularSourceSink),
             f"M[σ].apply codomain bulk must be AngularSourceSink (a SOURCE), "
-            f"got {type(out.bulk).__name__}",
+            f"got {type(out.interior).__name__}",
         )
         # Multiplier has no face-trace action → boundary is implicit zero.
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -207,11 +207,11 @@ class TestBroadcastOracle:
         M = _multiplier(sn, sigma)
         out = M.solve(q)
         _require(
-            isinstance(out.bulk, AngularFlux),
+            isinstance(out.interior, AngularFlux),
             f"M[σ].solve codomain bulk must be AngularFlux (a flux), "
-            f"got {type(out.bulk).__name__}",
+            f"got {type(out.interior).__name__}",
         )
-        np.testing.assert_array_equal(out.bulk.values, q.bulk.values / sigma[None])
+        np.testing.assert_array_equal(out.interior.values, q.interior.values / sigma[None])
 
     def test_round_trip_solve_apply_identity(self):
         """``solve(apply(ψ)) == ψ`` for a coefficient bounded away from 0."""
@@ -221,7 +221,7 @@ class TestBroadcastOracle:
         M = _multiplier(sn, sigma)
         round_trip = M.solve(M.apply(psi))
         np.testing.assert_allclose(
-            round_trip.bulk.values, psi.bulk.values, rtol=1e-14, atol=1e-15,
+            round_trip.interior.values, psi.interior.values, rtol=1e-14, atol=1e-15,
         )
 
 
@@ -244,7 +244,7 @@ class TestMultiplierAlgebraLaws:
         I = IdentityOperator()
         # On the VALUES level (the engine domain): M[1]·x == I·x == x.
         np.testing.assert_array_equal(
-            M1.apply(psi).bulk.values, I.apply(psi.bulk.values),
+            M1.apply(psi).interior.values, I.apply(psi.interior.values),
         )
 
     def test_M_zero_is_codomain_aware_zero_operator(self):
@@ -263,25 +263,25 @@ class TestMultiplierAlgebraLaws:
         out = M0.apply(psi)
         # The zero coefficient maps every flux to the zero SOURCE.
         _require(
-            isinstance(out.bulk, AngularSourceSink),
+            isinstance(out.interior, AngularSourceSink),
             f"M[0].apply codomain bulk must be AngularSourceSink (a zero "
-            f"SOURCE, not a zero flux), got {type(out.bulk).__name__}",
+            f"SOURCE, not a zero flux), got {type(out.interior).__name__}",
         )
-        np.testing.assert_array_equal(out.bulk.values, 0.0)
+        np.testing.assert_array_equal(out.interior.values, 0.0)
 
         # Structurally-independent: a codomain-aware ZeroOperator whose
         # codomain_zero builds the zero source-composite from psi.
         def _zero_source(p: TimedFullField) -> TimedFullField:
             return replace(
                 p,
-                bulk=AngularSourceSink.from_mesh(
-                    np.zeros_like(p.bulk.values), p.bulk.mesh,
+                interior=AngularSourceSink.from_mesh(
+                    np.zeros_like(p.interior.values), p.interior.mesh,
                 ),
             )
 
         Z = ZeroOperator(codomain_zero=_zero_source)
         np.testing.assert_array_equal(
-            out.bulk.values, Z.apply(psi).bulk.values,
+            out.interior.values, Z.apply(psi).interior.values,
         )
         # M[0] is NOT invertible — its spectrum is {0}.
         _require(
@@ -311,11 +311,11 @@ class TestMultiplierAlgebraLaws:
         M_f = _multiplier(sn, f)
         M_g = _multiplier(sn, g)
 
-        lhs = M_combo.apply(psi).bulk.values
+        lhs = M_combo.apply(psi).interior.values
         # a·M[f]·ψ + b·M[g]·ψ at the values level.
         rhs = (
-            a * M_f.apply(psi).bulk.values
-            + b * M_g.apply(psi).bulk.values
+            a * M_f.apply(psi).interior.values
+            + b * M_g.apply(psi).interior.values
         )
         np.testing.assert_allclose(lhs, rhs, rtol=1e-14, atol=1e-15)
 
@@ -330,12 +330,12 @@ class TestMultiplierAlgebraLaws:
         M = _multiplier(sn, _positive_sigma(sn, ng=2, seed=161))
         psi = _random_state(sn, ng=2, seed=171)
 
-        forward = M.apply(psi).bulk.values
+        forward = M.apply(psi).interior.values
         np.testing.assert_array_equal(
-            M.apply_transpose(psi).bulk.values, forward,
+            M.apply_transpose(psi).interior.values, forward,
         )
         # .H action (metric-blind, Euclidean) equals the forward action.
-        np.testing.assert_array_equal(M.H.apply(psi).bulk.values, forward)
+        np.testing.assert_array_equal(M.H.apply(psi).interior.values, forward)
 
     def test_spectrum_invertible_iff_min_abs_positive(self):
         r""":math:`\mathrm{spec}(M[f]) = \mathrm{ess\,range}(f)`.
@@ -369,7 +369,7 @@ class TestMultiplierAlgebraLaws:
         # apply still works (the multiplier is defined; only the inverse
         # is undefined at the zero).
         np.testing.assert_array_equal(
-            M_zero.apply(psi).bulk.values, with_zero[None] * psi.bulk.values,
+            M_zero.apply(psi).interior.values, with_zero[None] * psi.interior.values,
         )
 
     def test_homomorphism_M_f_compose_M_g_equals_M_fg(self):
@@ -393,12 +393,12 @@ class TestMultiplierAlgebraLaws:
         # M[f] ∘ M[g] applied via the two engines (values level).
         eng_g = DiagonalOperator(g, broadcast_axes=(0,))
         eng_f = DiagonalOperator(f, broadcast_axes=(0,))
-        composed = eng_f.apply(eng_g.apply(psi.bulk.values))
+        composed = eng_f.apply(eng_g.apply(psi.interior.values))
 
         # M[f·g] — the engine on the raw product array (units cm⁻², so
         # NOT a CrossSectionField; the homomorphism is a numerics fact).
         eng_fg = DiagonalOperator(f * g, broadcast_axes=(0,))
-        product = eng_fg.apply(psi.bulk.values)
+        product = eng_fg.apply(psi.interior.values)
 
         np.testing.assert_allclose(composed, product, rtol=1e-14, atol=1e-15)
 
@@ -435,11 +435,11 @@ class TestStreamingEquilibriumValuesLeg:
         psi = M.solve(Q)
         # M[σ_t]·ψ == Q (the balance is satisfied).
         np.testing.assert_allclose(
-            M.apply(psi).bulk.values, Q.bulk.values, rtol=1e-14, atol=1e-15,
+            M.apply(psi).interior.values, Q.interior.values, rtol=1e-14, atol=1e-15,
         )
         # And ψ == Q/σ_t explicitly.
         np.testing.assert_array_equal(
-            psi.bulk.values, Q.bulk.values / sigma_t[None],
+            psi.interior.values, Q.interior.values / sigma_t[None],
         )
 
 
@@ -594,12 +594,12 @@ class TestMeshlessBareArm:
         N = sn.quad.N
         bulk_vals = np.broadcast_to(x[None], (N, 2, 5, 3)).copy()
         state = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
         )
-        psi_bcast = replace(state, bulk=replace(state.bulk, values=bulk_vals))
+        psi_bcast = replace(state, interior=replace(state.interior, values=bulk_vals))
 
         bare_out = C.apply(x)
-        ff_out = C.apply(psi_bcast).bulk.values
+        ff_out = C.apply(psi_bcast).interior.values
         _require(
             bare_out.shape == (2, 5, 3),
             f"bare apply shape must be (ng,nx,ny)=(2,5,3), got {bare_out.shape}",
@@ -645,11 +645,11 @@ class TestInverseOperatorFace:
         q = M.apply(psi)  # a genuine source-typed rhs
         inv = M.inverse()
         np.testing.assert_array_equal(
-            inv.apply(q).bulk.values, M.solve(q).bulk.values,
+            inv.apply(q).interior.values, M.solve(q).interior.values,
             err_msg="M.inverse().apply is not M.solve bit-identically",
         )
         np.testing.assert_array_almost_equal_nulp(  # I1: M⁻¹(M ψ) = ψ
-            inv.apply(q).bulk.values, np.asarray(psi.bulk.values), nulp=2
+            inv.apply(q).interior.values, np.asarray(psi.interior.values), nulp=2
         )
         assert inv.inverse() is M  # (M⁻¹)⁻¹ — object identity
 

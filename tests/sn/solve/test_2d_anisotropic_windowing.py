@@ -190,13 +190,13 @@ def test_2d_windowed_si_full_angular_flux_self_consistent():
 
     NOTE: this is a NECESSARY structural check, not the bit-identity gate.
     The bit-identity of the full field is the step-3 pin in the plan ladder
-    (capture pre-carve ``angular_flux.bulk.values``, assert ``np.array_equal``
+    (capture pre-carve ``angular_flux.interior.values``, assert ``np.array_equal``
     post-carve).  That pin lives in the carve session (it needs the pre-carve
     array on disk); this self-consistency test is the always-on guard that
     needs no frozen reference.
     """
     sol = _solve(scattering_order=1)
-    psi = np.asarray(sol.angular_flux.bulk.values, dtype=np.float64)  # (N,ng,nx,ny)
+    psi = np.asarray(sol.angular_flux.interior.values, dtype=np.float64)  # (N,ng,nx,ny)
     phi = np.asarray(sol.scalar_flux.values, dtype=np.float64)         # (ng,nx,ny)
     weights = sol.mesh.quad.weights
 
@@ -296,16 +296,16 @@ def _windowed_product_and_oracle_operands(
     # input-independent — it is a property of the reduction tree, not of ψ).
     rng = np.random.default_rng(50301)
     rhs = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )
-    rhs.bulk.values[...] = rng.uniform(0.0, 1.0, size=rhs.bulk.values.shape)
+    rhs.interior.values[...] = rng.uniform(0.0, 1.0, size=rhs.interior.values.shape)
 
     def oracle_fn():
         # ORACLE (the fuller view, DEFORESTED): flat post-projection (the
         # frame's analysis face) of the full-angular sweep — structurally the
         # inherited ``OperatorProduct.apply`` body, spelled independently.
         return np.asarray(
-            S.frame.analysis.apply(base.solve(rhs).bulk.values),
+            S.frame.analysis.apply(base.solve(rhs).interior.values),
             dtype=np.float64,
         )
 
@@ -378,12 +378,12 @@ def test_2d_windowed_product_equals_post_projection():
         HarmonicMomentFlux,
     )
 
-    if not isinstance(out.bulk, HarmonicMomentFlux):
+    if not isinstance(out.interior, HarmonicMomentFlux):
         raise AssertionError(
-            f"windowed product bulk is {type(out.bulk).__name__}, "
+            f"windowed product bulk is {type(out.interior).__name__}, "
             f"expected HarmonicMomentFlux — the codomain fact broke"
         )
-    sut = np.asarray(out.bulk.values, dtype=np.float64)
+    sut = np.asarray(out.interior.values, dtype=np.float64)
     oracle = oracle_fn()
 
     # leg-2: ℓ≥1 carries signal (anti-degeneracy) — raise fires under -O.
@@ -461,7 +461,7 @@ def test_2d_windowed_product_over_gauss_seidel_M_equals_post_projection():
         )
 
     out = product.apply(rhs)
-    sut = np.asarray(out.bulk.values, dtype=np.float64)
+    sut = np.asarray(out.interior.values, dtype=np.float64)
     oracle = oracle_fn()
 
     # leg-2: ℓ≥1 carries signal (anti-degeneracy).
@@ -501,7 +501,7 @@ def test_mutation_dropped_higher_moments_redden(monkeypatch):
 
     def truncated(self, rhs):
         out = real(self, rhs)
-        out.bulk.values[1:] = 0.0  # the trap: "reduce angular→scalar"
+        out.interior.values[1:] = 0.0  # the trap: "reduce angular→scalar"
         return out
 
     monkeypatch.setattr(WindowedSweep, "apply", truncated)
@@ -510,7 +510,7 @@ def test_mutation_dropped_higher_moments_redden(monkeypatch):
     quad, _base, product, rhs, oracle_fn = (
         _windowed_product_and_oracle_operands()
     )
-    sut = np.asarray(product.apply(rhs).bulk.values, dtype=np.float64)
+    sut = np.asarray(product.apply(rhs).interior.values, dtype=np.float64)
     oracle = oracle_fn()
     bound = 4 * quad.N * float(np.finfo(np.float64).eps)
     rel_drift = float(np.abs(sut - oracle).max() / np.abs(oracle).max())
@@ -525,7 +525,7 @@ def test_mutation_dropped_higher_moments_redden(monkeypatch):
     quad0, _base0, product0, rhs0, oracle_fn0 = (
         _windowed_product_and_oracle_operands(scattering_order=0)
     )
-    sut0 = np.asarray(product0.apply(rhs0).bulk.values, dtype=np.float64)
+    sut0 = np.asarray(product0.apply(rhs0).interior.values, dtype=np.float64)
     oracle0 = oracle_fn0()
     rel_drift0 = float(np.abs(sut0 - oracle0).max() / np.abs(oracle0).max())
     if rel_drift0 > 4 * quad0.N * float(np.finfo(np.float64).eps):

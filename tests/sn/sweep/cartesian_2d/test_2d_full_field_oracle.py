@@ -127,15 +127,15 @@ def test_matvec_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     N = sn_mesh.quad.N
     sig_t = _random_sig_t(rng, ng, nx, ny)
 
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
-    state.bulk.values[...] = rng.uniform(-1.0, 1.0, size=state.bulk.values.shape)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state.interior.values[...] = rng.uniform(-1.0, 1.0, size=state.interior.values.shape)
     _seed_random_inflow(rng, state.boundary)
 
     out_win = MovingFrontierWindow(sn_mesh).loss_action(sig_t, state)
     out_full = FullFieldWavefront(sn_mesh).loss_action(sig_t, state)
 
     np.testing.assert_array_equal(
-        out_win.bulk.values, out_full.bulk.values, err_msg="bulk residual",
+        out_win.interior.values, out_full.interior.values, err_msg="bulk residual",
     )
     np.testing.assert_array_equal(
         out_win.boundary.values, out_full.boundary.values,

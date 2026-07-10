@@ -188,9 +188,9 @@ def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
 
     state = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )
-    state.bulk.values[...] = rng.uniform(-1.0, 1.0, size=state.bulk.values.shape)
+    state.interior.values[...] = rng.uniform(-1.0, 1.0, size=state.interior.values.shape)
     for face in state.boundary.layout.faces:
         fv = state.boundary.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
@@ -199,7 +199,7 @@ def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
     out_or = FullFieldWavefront(sn_mesh).loss_action(sig_t, state)
 
     np.testing.assert_allclose(
-        out_sm.bulk.values, out_or.bulk.values, rtol=_RTOL, atol=_ATOL,
+        out_sm.interior.values, out_or.interior.values, rtol=_RTOL, atol=_ATOL,
         err_msg="bulk residual",
     )
     np.testing.assert_allclose(

@@ -65,7 +65,7 @@ def test_vacuum_means_zero_incoming_current():
         np.testing.assert_allclose(
             trace.inflow_view(face), 0.0, atol=1e-12 * scale,
         )
-    assert np.all(result.flux.bulk.values[:, [0, -1]] > 0.0), (
+    assert np.all(result.flux.interior.values[:, [0, -1]] > 0.0), (
         "Vacuum (Marshak) must NOT pin the boundary-cell flux to zero"
     )
 
@@ -73,7 +73,7 @@ def test_vacuum_means_zero_incoming_current():
 def test_flux_positivity():
     """All flux values must be positive in the fundamental mode."""
     result = _bare_slab(BC("zero_flux"))
-    phi = result.flux.bulk.values
+    phi = result.flux.interior.values
     assert np.all(phi > 0), f"Non-positive flux: min={phi.min():.6e}"
 
 
@@ -81,7 +81,7 @@ def test_flux_symmetry():
     """For a symmetric bare slab, flux must be mirror-symmetric and the
     outward net currents on the two faces must agree."""
     result = _bare_slab(BC("zero_flux"))
-    phi = result.flux.bulk.values  # (2, n_cells)
+    phi = result.flux.interior.values  # (2, n_cells)
     for g in range(2):
         np.testing.assert_allclose(
             phi[g, :], phi[g, ::-1], rtol=1e-10,

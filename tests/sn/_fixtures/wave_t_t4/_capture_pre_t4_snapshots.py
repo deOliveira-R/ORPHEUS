@@ -202,11 +202,11 @@ def _make_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
     psi_values = rng.uniform(
         0.05, 1.0, size=(N, ng, *sn_mesh.spatial_shape),
     )
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     from dataclasses import replace
     return replace(
         state,
-        bulk=replace(state.bulk, values=psi_values),
+        interior=replace(state.interior, values=psi_values),
     )
 
 
@@ -247,9 +247,9 @@ def _capture_apply(name: str, sn_mesh: SNMesh, *, seed: int,
     L, _ = _build_L_C(sn_mesh)
     state = _make_state(sn_mesh, seed=seed)
     out = L.apply(state)
-    snapshots[f"{name}_apply_bulk"] = out.bulk.values.copy()
+    snapshots[f"{name}_apply_bulk"] = out.interior.values.copy()
     snapshots[f"{name}_apply_boundary"] = out.boundary.values.copy()
-    snapshots[f"seed_psi_{name}"] = state.bulk.values.copy()
+    snapshots[f"seed_psi_{name}"] = state.interior.values.copy()
 
 
 def _capture_LpC_apply(name: str, sn_mesh: SNMesh, *, seed: int,
@@ -266,7 +266,7 @@ def _capture_LpC_apply(name: str, sn_mesh: SNMesh, *, seed: int,
     LpC = L + C  # InvertibleOperator
     state = _make_state(sn_mesh, seed=seed)
     out = LpC.apply(state)
-    snapshots[f"{name}_LpC_apply_bulk"] = out.bulk.values.copy()
+    snapshots[f"{name}_LpC_apply_bulk"] = out.interior.values.copy()
     snapshots[f"{name}_LpC_apply_boundary"] = out.boundary.values.copy()
 
 
@@ -281,9 +281,9 @@ def _capture_LpC_solve(name: str, sn_mesh: SNMesh, *, seed: int,
     LpC = L + C  # InvertibleOperator
     q_state = _make_state(sn_mesh, seed=seed)
     out = LpC.solve(q_state)
-    snapshots[f"{name}_LpC_solve_bulk"] = out.bulk.values.copy()
+    snapshots[f"{name}_LpC_solve_bulk"] = out.interior.values.copy()
     snapshots[f"{name}_LpC_solve_boundary"] = out.boundary.values.copy()
-    snapshots[f"seed_q_{name}"] = q_state.bulk.values.copy()
+    snapshots[f"seed_q_{name}"] = q_state.interior.values.copy()
 
 
 def _capture_perf_baseline(snapshots: dict[str, np.ndarray]) -> dict:

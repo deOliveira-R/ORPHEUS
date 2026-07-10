@@ -81,10 +81,10 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     vals = np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
     vals[:, 0, :] = (A / W)[None, :]
     zero = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )
     psi_ref = TimedFullField(
-        bulk=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,
+        interior=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,
         # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed of the MMS
         # trial (the trial's own μ = −1 starting datum), so LC.apply reproduces
         # the pre-route-(a) operator action and the residual decays as before;
@@ -93,10 +93,10 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     )
 
     rv = (
-        LC.apply(psi_ref).bulk.values
-        - S.apply(psi_ref).bulk.values
-        - B.apply(psi_ref).bulk.values
-        - q_ext.bulk.values
+        LC.apply(psi_ref).interior.values
+        - S.apply(psi_ref).interior.values
+        - B.apply(psi_ref).interior.values
+        - q_ext.interior.values
     )
     V = sn_mesh.volumes
     return float(np.sqrt(np.einsum("x,ngx->", V, rv**2) / V.sum()))

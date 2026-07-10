@@ -101,11 +101,11 @@ def _random_state(
     """
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     return replace(
         state,
-        bulk=replace(
-            state.bulk, values=rng.standard_normal((N, ng, *sn_mesh.spatial_shape)),
+        interior=replace(
+            state.interior, values=rng.standard_normal((N, ng, *sn_mesh.spatial_shape)),
         ),
     )
 
@@ -171,17 +171,17 @@ class TestApply:
         psi = _random_state(sn_mesh)
         out = C.apply(psi)
         assert isinstance(out, FullField)  # #257 S8a: timeless codomain (base arrow)
-        assert isinstance(out.bulk, AngularSourceSink)
-        assert out.bulk.values.shape == psi.bulk.values.shape
+        assert isinstance(out.interior, AngularSourceSink)
+        assert out.interior.values.shape == psi.interior.values.shape
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_zero_returns_zero(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        zero = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        zero = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         out = C.apply(zero)
-        np.testing.assert_array_equal(out.bulk.values, 0.0)
+        np.testing.assert_array_equal(out.interior.values, 0.0)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_constant_sigma_uniform(self, name, builder):
@@ -193,7 +193,7 @@ class TestApply:
         psi = _random_state(sn_mesh, seed=99)
         out = C.apply(psi)
         np.testing.assert_allclose(
-            out.bulk.values, c * psi.bulk.values, rtol=1e-14, atol=1e-15,
+            out.interior.values, c * psi.interior.values, rtol=1e-14, atol=1e-15,
         )
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
@@ -210,13 +210,13 @@ class TestApply:
         # full linearity, and op.apply stays on flux states (its domain).
         c, lam = 2.3, 0.7
         np.testing.assert_allclose(
-            C.apply(c * psi1).bulk.values, (c * C.apply(psi1)).bulk.values,
+            C.apply(c * psi1).interior.values, (c * C.apply(psi1)).interior.values,
             rtol=1e-14, atol=1e-15,
         )
         out_combined = C.apply(psi1 + lam * (psi2 - psi1))
         out_separate = (1.0 - lam) * C.apply(psi1) + lam * C.apply(psi2)
         np.testing.assert_allclose(
-            out_combined.bulk.values, out_separate.bulk.values,
+            out_combined.interior.values, out_separate.interior.values,
             rtol=1e-14, atol=1e-15,
         )
 
@@ -239,7 +239,7 @@ class TestSolve:
         q = _random_state(sn_mesh, seed=88)
         out = C.solve(q)
         np.testing.assert_allclose(
-            out.bulk.values, q.bulk.values / c, rtol=1e-14, atol=1e-15,
+            out.interior.values, q.interior.values / c, rtol=1e-14, atol=1e-15,
         )
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
@@ -250,12 +250,12 @@ class TestSolve:
         q = _random_state(sn_mesh)
         out = C.solve(q)
         assert isinstance(out, FullField)  # #257 S8a: timeless codomain (base arrow)
-        assert isinstance(out.bulk, AngularFlux)
-        assert out.bulk.values.shape == q.bulk.values.shape
+        assert isinstance(out.interior, AngularFlux)
+        assert out.interior.values.shape == q.interior.values.shape
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_solve_equals_division(self, name, builder):
-        """solve(q) == q.bulk.values / sigma (broadcast over ordinates)."""
+        """solve(q) == q.interior.values / sigma (broadcast over ordinates)."""
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
@@ -263,7 +263,7 @@ class TestSolve:
         out = C.solve(q)
         # σ has shape (ng, *spatial); broadcasts over the ordinate axis.
         np.testing.assert_allclose(
-            out.bulk.values, q.bulk.values / sigma[None], rtol=1e-14,
+            out.interior.values, q.interior.values / sigma[None], rtol=1e-14,
         )
 
 
@@ -283,7 +283,7 @@ class TestApplySolveIdentity:
         q = _random_state(sn_mesh, seed=77)
         round_trip = C.apply(C.solve(q))
         np.testing.assert_allclose(
-            round_trip.bulk.values, q.bulk.values, rtol=1e-12, atol=1e-14,
+            round_trip.interior.values, q.interior.values, rtol=1e-12, atol=1e-14,
         )
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
@@ -294,7 +294,7 @@ class TestApplySolveIdentity:
         psi = _random_state(sn_mesh, seed=78)
         round_trip = C.solve(C.apply(psi))
         np.testing.assert_allclose(
-            round_trip.bulk.values, psi.bulk.values, rtol=1e-12, atol=1e-14,
+            round_trip.interior.values, psi.interior.values, rtol=1e-12, atol=1e-14,
         )
 
 
@@ -316,7 +316,7 @@ class TestApplyTranspose:
         out_transpose = C.apply_transpose(psi)
         # Bit-exact: apply_transpose delegates to apply.
         np.testing.assert_array_equal(
-            out_transpose.bulk.values, out_apply.bulk.values,
+            out_transpose.interior.values, out_apply.interior.values,
         )
 
 
@@ -339,7 +339,7 @@ class TestSigmaInterpretation:
         C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
         psi = _random_state(sn_mesh, seed=10)
         out = C.apply(psi)
-        assert np.any(np.abs(out.bulk.values) > 0)
+        assert np.any(np.abs(out.interior.values) > 0)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_works_with_removal_cross_section(self, name, builder):
@@ -348,7 +348,7 @@ class TestSigmaInterpretation:
         C = MultiplicationOperator.from_mesh(sigma_r, sn_mesh)
         psi = _random_state(sn_mesh, seed=10)
         out = C.apply(psi)
-        assert np.any(np.abs(out.bulk.values) > 0)
+        assert np.any(np.abs(out.interior.values) > 0)
 
 # ═══════════════════════════════════════════════════════════════════════
 # 7. Sigma layout sanity — broadcast over the ordinate axis is correct.
@@ -378,13 +378,13 @@ class TestSigmaLayout:
         cell_mask[ix_target] = True
         # Output at NON-target cells is zero.
         np.testing.assert_array_equal(
-            out.bulk.values[:, :, ~cell_mask], 0.0,
+            out.interior.values[:, :, ~cell_mask], 0.0,
         )
         # Output at the TARGET cell equals 1.0 · psi at that cell
         # (sigma == 1.0 at the target).
         np.testing.assert_allclose(
-            out.bulk.values[:, :, cell_mask],
-            psi.bulk.values[:, :, cell_mask],
+            out.interior.values[:, :, cell_mask],
+            psi.interior.values[:, :, cell_mask],
             rtol=1e-14, atol=1e-15,
         )
 
@@ -442,7 +442,7 @@ class TestCompositeInvariants:
         sigma = _sigma_total(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth)
+            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out_apply = C.apply(state)
             out_solve = C.solve(state)
             # base-arrow codomain: a timeless FullField, NOT the timed subclass.

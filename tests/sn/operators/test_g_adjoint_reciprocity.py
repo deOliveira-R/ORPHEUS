@@ -207,7 +207,7 @@ def _g_inner(a: TimedFullField, b: TimedFullField, sn: SNMesh, *,
     reciprocity (an error in ``Aᵀ``, not in ``G``): see the Mode-12 closure
     gate ``test_282_direct_seed_fixed_point.py``.
     """
-    bulk = float(np.sum(_bulk_measure(sn) * a.bulk.values * b.bulk.values))
+    bulk = float(np.sum(_bulk_measure(sn) * a.interior.values * b.interior.values))
     trace = 0.0
     for f_idx, face in enumerate(sn.angular_trace.layout.faces):
         af = a.boundary.face_view(face)
@@ -268,7 +268,7 @@ def _random_composite(
             values=seed_vals, space=sn.radial_characteristic_space, mesh=sn,
         )
     return TimedFullField(
-        bulk=bulk, boundary=boundary,
+        interior=bulk, boundary=boundary,
         radial_characteristic=radial_characteristic,
         _history=(), history_depth=2,
     )
@@ -573,7 +573,7 @@ def _one_hot_group_composite(
             space=sn.radial_characteristic_space, mesh=sn,
         )
     return TimedFullField(
-        bulk=AngularFlux.from_mesh(bulk_vals, sn),
+        interior=AngularFlux.from_mesh(bulk_vals, sn),
         boundary=boundary,
         radial_characteristic=radial_characteristic,
         _history=(), history_depth=2,
@@ -680,7 +680,7 @@ def test_tooth_a_ba_transpose_drop_reds(monkeypatch):
 
     def _drop_pullback(self, cotangent, /):
         return FullField(
-            bulk=AngularSourceSink.zeros_on(self.sn_mesh),
+            interior=AngularSourceSink.zeros_on(self.sn_mesh),
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
             radial_characteristic=RadialCharacteristicSourceSink.zeros_on(self.sn_mesh),
         )

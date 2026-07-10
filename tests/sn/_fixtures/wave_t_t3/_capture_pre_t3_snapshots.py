@@ -41,7 +41,7 @@ Output schema
 
     p1_apply_angular_flux        : (N, ng, nx, ny) — apply(AngularFlux).values
     p1_apply_scalar_flux         : (ng, nx, ny)    — apply(ScalarFlux).values
-    p1_apply_timed_full_field_bulk     : (N, ng, nx, ny) — .bulk.values
+    p1_apply_timed_full_field_bulk     : (N, ng, nx, ny) — .interior.values
     p1_apply_timed_full_field_boundary : (...) flat boundary buffer
     p1_build_aniso_source        : (N, ng, nx, ny) — direct call output
     p1_apply_legendre_scattering_moments : (L+1, 2L+1, ng, nx, ny)
@@ -165,11 +165,11 @@ def main() -> None:
 
     psi = _make_psi(p1_solver, seed=20260530)
     phi = _make_phi(p1_solver, seed=20260530 + 1)
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=p1_solver.sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=p1_solver.sn_mesh)
     from dataclasses import replace
 
     bulk_values = psi.values.copy()
-    state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+    state = replace(state, interior=replace(state.interior, values=bulk_values))
 
     # L1-1: AngularFlux dispatch arm
     out_af = p1_op.apply(psi)
@@ -181,7 +181,7 @@ def main() -> None:
 
     # L1-3: TimedFullField dispatch arm (bulk + boundary)
     out_tff = p1_op.apply(state)
-    snapshots["p1_apply_timed_full_field_bulk"] = out_tff.bulk.values.copy()
+    snapshots["p1_apply_timed_full_field_bulk"] = out_tff.interior.values.copy()
     snapshots["p1_apply_timed_full_field_boundary"] = (
         out_tff.boundary.values.copy()
     )

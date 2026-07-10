@@ -408,7 +408,7 @@ def _flux_displacement_leaf(displacement) -> "_DisplacementLeaf | None":
     Duck-typed on ``contraction_ratio`` (numerics MUST NOT import transport —
     the L1↛L2 layering), mirroring the ``_is_ravellable`` protocol check above.
     """
-    bulk = getattr(displacement, "bulk", None)
+    bulk = getattr(displacement, "interior", None)
     if bulk is not None and hasattr(bulk, "contraction_ratio"):
         return bulk
     if hasattr(displacement, "contraction_ratio"):

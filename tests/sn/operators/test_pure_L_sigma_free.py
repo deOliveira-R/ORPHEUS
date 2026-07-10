@@ -86,14 +86,14 @@ def _random_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
     from dataclasses import replace
 
     state = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=2,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=2,
         radial_characteristic=RadialCharacteristicFlux,
     )
     rng = np.random.default_rng(seed)
     state = replace(
         state,
-        bulk=replace(
-            state.bulk, values=rng.standard_normal(state.bulk.values.shape),
+        interior=replace(
+            state.interior, values=rng.standard_normal(state.interior.values.shape),
         ),
     )
     return state
@@ -142,7 +142,7 @@ def test_c1_pure_L_apply_is_sigma_free(geometry: str) -> None:
 
     # Pure L is σ-free: its apply does not depend on any σ at all.
     np.testing.assert_array_equal(
-        out_a.bulk.values, out_b.bulk.values,
+        out_a.interior.values, out_b.interior.values,
         err_msg=(
             f"[{geometry}] pure L.apply is NOT σ-free — two calls disagree on "
             "bulk; the streaming leaf must read no σ (Mode-2 leak)."
@@ -211,7 +211,7 @@ def test_c1_teeth_sigma_leaking_stub_reddens(
 
     # With the leak, the two outputs DIFFER (σ_a ≠ σ_b) → C1's array_equal
     # invariant would fail.  Assert the difference is real (the teeth bite).
-    if np.array_equal(out_a.bulk.values, out_b.bulk.values):
+    if np.array_equal(out_a.interior.values, out_b.interior.values):
         pytest.fail(
             f"[{geometry}] the σ-leaking stub did NOT change L.apply — C1 has "
             "no teeth (it cannot detect a σ re-coupling into streaming_action)."

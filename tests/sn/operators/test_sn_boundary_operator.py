@@ -62,10 +62,10 @@ def _sn(geometry: str, bcs: tuple, nx: int = 4, ng: int = 1) -> SNMesh:
 
 def _random_state(sn: SNMesh, seed: int = 7) -> TimedFullField:
     rng = np.random.default_rng(seed)
-    z = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+    z = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
     return replace(
         z,
-        bulk=replace(z.bulk, values=rng.uniform(0.5, 2.0, size=z.bulk.values.shape)),
+        interior=replace(z.interior, values=rng.uniform(0.5, 2.0, size=z.interior.values.shape)),
         boundary=replace(
             z.boundary, values=rng.uniform(0.5, 2.0, size=z.boundary.values.shape),
         ),
@@ -112,7 +112,7 @@ class TestApply:
         """``B`` is ``A_ss`` only — no bulk action."""
         sn = _sn(*_CASES[case_id])
         out = SNBoundaryOperator(sn).apply(_random_state(sn))
-        assert not out.bulk.values.any()
+        assert not out.interior.values.any()
         # B.5.2: B.apply emits B·ψ.outflow — the operator output is Aψ (a
         # source/sink), NOT a residual.  Its boundary is the source/sink role
         # leaf (mirrors the bulk's AngularSourceSink); the residual only arises

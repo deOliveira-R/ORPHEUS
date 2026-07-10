@@ -454,7 +454,7 @@ class FissionOperator(LinearOperator):
         Registered on the timeless :class:`FullField` (W-C): a
         :class:`TimedFullField` iterate dispatches here via MRO (it IS a
         ``FullField``), so the runtime is behaviour-preserving, and a bare
-        ``FullField`` now dispatches correctly. Reads only ``psi.bulk``
+        ``FullField`` now dispatches correctly. Reads only ``psi.interior``
         (history-blind). The ``@overload`` static stubs name ``FullField``
         too (W-F), matching this runtime registration.
 
@@ -489,7 +489,7 @@ class FissionOperator(LinearOperator):
         # no per-ordinate projection. Both arms reuse the ScalarFlux
         # branch — single source of truth for the per-cell
         # production-rate × emission-spectrum contraction.
-        bulk = psi.bulk
+        bulk = psi.interior
         if isinstance(bulk, AngularFlux):
             phi_scalar = bulk.integrate_angular()
             fission_iso: ScalarSourceSink = self.apply(phi_scalar)
@@ -529,7 +529,7 @@ class FissionOperator(LinearOperator):
                 # #257 S8a: history-free (the matvec leaf is a base arrow; the
                 # comonad lives on the driver, which reattaches the timed type when
                 # this source is added to the timed rhs).
-                bulk=per_ord,
+                interior=per_ord,
                 boundary=AngularBoundarySourceSink.zeros_on(mesh),
                 radial_characteristic=sd_out,
             )
@@ -543,7 +543,7 @@ class FissionOperator(LinearOperator):
 
             scalar_iso: ScalarSourceSink = self.apply(bulk)
             return FullField(
-                bulk=scalar_iso,
+                interior=scalar_iso,
                 boundary=ScalarBoundarySourceSink.zeros_on(bulk.mesh),
             )
         raise TypeError(

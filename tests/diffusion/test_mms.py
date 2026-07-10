@@ -154,7 +154,7 @@ def _solve_mms(
     # back verbatim and a zero trace block (guards the bulk-first flat
     # convention this construction rides on).
     q_full = FullField.from_flat(q_flat, solver.template)
-    np.testing.assert_array_equal(q_full.bulk.values, q_bulk)
+    np.testing.assert_array_equal(q_full.interior.values, q_bulk)
     np.testing.assert_array_equal(
         q_full.boundary.values, np.zeros_like(q_full.boundary.values),
     )
@@ -164,7 +164,7 @@ def _solve_mms(
         np.asarray(_PHI1(z), float), np.asarray(_PHI2(z), float),
     ])
     dz = _L / n_cells
-    return float(np.sqrt(dz * np.sum((psi.bulk.values - phi_exact) ** 2)))
+    return float(np.sqrt(dz * np.sum((psi.interior.values - phi_exact) ** 2)))
 
 
 def test_mms_flux_converges_second_order():

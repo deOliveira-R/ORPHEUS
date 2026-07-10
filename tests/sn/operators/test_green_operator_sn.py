@@ -32,7 +32,7 @@ SN carriers ``initial_guess=None`` is unusable — the driver's
 ``_zeros_like(q)`` inherits ``q``'s SOURCE role and the gain ``S`` rejects a
 source-typed iterate (cross-class arithmetic is forbidden).  Production
 always warm-starts with a flux-typed state; these gates do the same
-(``TimedFullField.zeros(bulk=AngularFlux, …)``).  This is the DRIVER's
+(``TimedFullField.zeros(interior=AngularFlux, …)``).  This is the DRIVER's
 pre-existing typing boundary, inherited by Green — not a step-4 novelty.
 
 **Ordering-ruling edges (§22.1):** ``(L+C)`` → ``SweepOperator`` (the MRO
@@ -129,7 +129,7 @@ def _operators():
 
 def _flux_zeros(sn: SNMesh) -> TimedFullField:
     """The flux-typed cold start (the production warm-start convention)."""
-    return TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+    return TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
 
 
 def _manufactured(sn, lc, a_loss):
@@ -160,22 +160,22 @@ def test_g_neumann_l1_expansion_and_manufactured_anchor():
     # small-magnitude elements carry an absolute band of the same size —
     # element-wise rtol alone over-demands on near-zero flux entries.
     np.testing.assert_allclose(
-        psi.bulk.values, x_tc.bulk.values,
+        psi.interior.values, x_tc.interior.values,
         rtol=_SAFETY * _TOL, atol=_SAFETY * _TOL,
         err_msg="Green ≠ the exact manufactured solution (anchor)",
     )
 
     lc_inv = lc.inverse()
     term = lc_inv.apply(q)
-    acc = term.bulk.values.copy()
-    norms = [float(np.linalg.norm(term.bulk.values))]
+    acc = term.interior.values.copy()
+    norms = [float(np.linalg.norm(term.interior.values))]
     for _k in range(1, 40):
         term = lc_inv.apply(S.apply(term))     # ((L+C)⁻¹S)^k (L+C)⁻¹ q
-        acc = acc + term.bulk.values
-        norms.append(float(np.linalg.norm(term.bulk.values)))
+        acc = acc + term.interior.values
+        norms.append(float(np.linalg.norm(term.interior.values)))
 
     np.testing.assert_allclose(
-        acc, psi.bulk.values, rtol=_SAFETY * _TOL, atol=_SAFETY * _TOL,
+        acc, psi.interior.values, rtol=_SAFETY * _TOL, atol=_SAFETY * _TOL,
         err_msg="Neumann partial sums ≠ Green application (G-Neumann L1)",
     )
     tail = [norms[i + 1] / norms[i] for i in (30, 34, 38)]
@@ -202,7 +202,7 @@ def test_green_driver_bit_identical_to_hand_source_iteration():
     got, _ = green._driver.solve(q, initial_guess=_flux_zeros(sn))
     ref, _ = hand.solve(q, initial_guess=_flux_zeros(sn))
     np.testing.assert_array_equal(
-        got.bulk.values, ref.bulk.values,
+        got.interior.values, ref.interior.values,
         err_msg="auto-derived splitting ≠ the canonical hand-built SI",
     )
 

@@ -130,7 +130,7 @@ def test_spatial_moment_axis_present_on_moment_aware_producer_output() -> None:
     r"""P3 (positive): a field produced THROUGH the LD moment-aware output wrap
     carries the spatial-moment factor → ``spatial_moments_per_axis > 1``."""
     result = _solve_1g_slab(LinearDiscontinuous())
-    bulk = result.angular_flux.bulk
+    bulk = result.angular_flux.interior
     _require(
         bulk.spatial_moments_per_axis > 1,
         "LD producer output should carry the spatial-moment axis",
@@ -140,7 +140,7 @@ def test_spatial_moment_axis_present_on_moment_aware_producer_output() -> None:
 def test_spatial_moment_axis_absent_on_dd_field() -> None:
     r"""P4 (negative): a DD output field lacks the factor → ``spatial_moments_per_axis == 1``."""
     result = _solve_1g_slab(DiamondDifference())
-    bulk = result.angular_flux.bulk
+    bulk = result.angular_flux.interior
     _require(
         bulk.spatial_moments_per_axis == 1,
         "DD output should NOT carry the spatial-moment axis",

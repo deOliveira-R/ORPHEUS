@@ -148,8 +148,8 @@ class TestAzimuthalRedistribution:
         quad = Quadrature.product(n_mu=4, n_phi=8)
         result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
-        # D-H.1d: Solution.angular_flux is TimedFullField; .bulk.values.
-        psi_center = result.angular_flux.bulk.values[:, 0, 0]
+        # D-H.1d: Solution.angular_flux is TimedFullField; .interior.values.
+        psi_center = result.angular_flux.interior.values[:, 0, 0]
         assert np.all(psi_center > 0), (
             f"Zero/negative angular flux at centre: min={psi_center.min():.4e}"
         )

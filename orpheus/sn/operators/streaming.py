@@ -201,7 +201,7 @@ def _require_typed_composite(
         Qualified method name for the error message (e.g.
         ``"StreamingOperator.apply"``).
     sn_mesh : SNMesh
-        The operator's mesh — ``field.bulk.mesh`` must be the SAME instance.
+        The operator's mesh — ``field.interior.mesh`` must be the SAME instance.
     field : FullField
         The matvec input (``psi`` for apply, ``phi`` for the transpose).
         A timeless :class:`FullField` or its timed subclass.
@@ -213,11 +213,11 @@ def _require_typed_composite(
             f"{method}: expected FullField, got "
             f"{type(field).__name__}.  D-I.3d (2026-05-29) retired the "
             "bare-ndarray packed-vector contract; construct a timeless "
-            "composite via ``FullField(bulk=AngularFlux(...), "
+            "composite via ``FullField(interior=AngularFlux(...), "
             "boundary=AngularBoundaryFlux(...))`` (or the timed "
-            "``TimedFullField(bulk=..., boundary=...)`` for an iterate)."
+            "``TimedFullField(interior=..., boundary=...)`` for an iterate)."
         )
-    if sn_mesh is not field.bulk.mesh:
+    if sn_mesh is not field.interior.mesh:
         raise ValueError(
             f"{method}: operator and composite must share the SAME "
             "SNMesh instance (mesh-identity invariant)."
@@ -432,7 +432,7 @@ class StreamingOperator(LinearOperator["FullField"]):
             (:class:`~orpheus.transport.fields.angular_flux.AngularFlux`)
             and boundary
             (:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`).
-            Operator and ``psi.bulk.mesh`` MUST be the same
+            Operator and ``psi.interior.mesh`` MUST be the same
             :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` instance.
 
         Returns
@@ -627,7 +627,7 @@ class InvertibleOperator(
     bare ``FullField`` is admitted as the ``history_depth = 0``
     degenerate.  ``rhs`` carries:
 
-    * ``rhs.bulk.values`` — per-ordinate source ``(N, ng, nx, ny)``.
+    * ``rhs.interior.values`` — per-ordinate source ``(N, ng, nx, ny)``.
       This is treated as the per-ordinate anisotropic source
       :math:`Q^{\rm aniso}` that the sweep consumes (the isotropic
       source is zero).
@@ -975,7 +975,7 @@ class InvertibleOperator(
         Returns
         -------
         TimedFullField
-            Solve output with ``bulk`` = ``(L + C)^{-1} rhs.bulk`` and
+            Solve output with ``bulk`` = ``(L + C)^{-1} rhs.interior`` and
             ``boundary`` = the sweep's outflow face state.
             ``history_depth`` matches ``rhs.history_depth``; ``_history``
             is empty (solver outputs carry no iteration history — the
@@ -1007,7 +1007,7 @@ class InvertibleOperator(
                 f"in D-H.2-C3."
             )
         sn_mesh = self.sn_mesh
-        if rhs.bulk.mesh is not sn_mesh:
+        if rhs.interior.mesh is not sn_mesh:
             raise ValueError(
                 "InvertibleOperator.solve(FullField): rhs and "
                 "operator must share the same SNMesh instance "
@@ -1063,7 +1063,7 @@ class InvertibleOperator(
         # the SAME :class:`LossRepresentation` instance the matvec
         # (:meth:`StreamingOperator.apply`) consumes, so L21 ("matvec ≡
         # sweep") is a type fact, not two ``default_for`` calls agreeing.
-        # ``rhs.bulk.values`` IS the per-ordinate source by producer
+        # ``rhs.interior.values`` IS the per-ordinate source by producer
         # contract (R-1 Step 4 A1) — typed at the ``rhs`` guard above, so
         # no wrap-unwrap round trip through :class:`AngularSourceSink`
         # (the module-level :func:`transport_sweep` keeps that typed
@@ -1075,7 +1075,7 @@ class InvertibleOperator(
         # Only the OUTPUT WRAP differs: full angular field vs harmonic
         # moments.
         bulk_values, _scalar = self.loss_representation.sweep(
-            rhs.bulk.values,
+            rhs.interior.values,
             self.sigma,
             boundary_buf,
             moment_frame=moment_frame,
@@ -1103,7 +1103,7 @@ class InvertibleOperator(
 
         # ── L2 direct return — no adapter needed (D-H.2-C2). ───────────
         return TimedFullField(
-            bulk=bulk,
+            interior=bulk,
             boundary=boundary_buf,
             radial_characteristic=radial_characteristic_buf,
             _history=(),
@@ -1136,20 +1136,20 @@ class InvertibleOperator(
         from orpheus.transport.source_sinks import AngularSourceSink
 
         sn_mesh = self.sn_mesh
-        if b.bulk.mesh is not sn_mesh:
+        if b.interior.mesh is not sn_mesh:
             raise ValueError(
                 "InvertibleOperator.solve_transpose(FullField): b and "
                 "operator must share the same SNMesh instance "
                 "(mesh-identity invariant)."
             )
         q_bar, m_boundary, m_seed = self.loss_representation.sweep_transpose(
-            b.bulk.values,
+            b.interior.values,
             self.sigma,
             b.boundary,
             seed_cot=b.radial_characteristic,
         )
         return FullField(
-            bulk=AngularSourceSink.from_mesh(
+            interior=AngularSourceSink.from_mesh(
                 q_bar, sn_mesh,
                 spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
             ),

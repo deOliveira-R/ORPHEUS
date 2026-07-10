@@ -342,11 +342,11 @@ class SNBoundaryOperator(LinearOperator):
         from orpheus.transport.full_field import FullField
 
         mesh = self.sn_mesh
-        if psi.bulk.mesh is not mesh:
+        if psi.interior.mesh is not mesh:
             raise ValueError(
                 "SNBoundaryOperator.apply: input field and operator must "
                 "share the same SNMesh instance (mesh-identity invariant); "
-                f"got field mesh {psi.bulk.mesh!r} vs operator mesh {mesh!r}."
+                f"got field mesh {psi.interior.mesh!r} vs operator mesh {mesh!r}."
             )
         # Role parse at the composite boundary: ``B_a`` reads a FLUX trace
         # (``_reflect_trace`` applies the boundary law to outflow flux), but
@@ -360,7 +360,7 @@ class SNBoundaryOperator(LinearOperator):
                 f"be an AngularBoundaryFlux trace; got {type(trace).__name__}."
             )
         return FullField(
-            bulk=_zero_bulk_source(mesh),
+            interior=_zero_bulk_source(mesh),
             boundary=self._reflect_trace(trace, method, rows=rows),
             # Present-zero ray (B_a touches no corner); B_b carries it. The
             # split() masked halves inherit this zero, so B_lower + B_upper no
@@ -648,11 +648,11 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         from orpheus.transport.source_sinks import AngularBoundarySourceSink
 
         mesh = self.sn_mesh
-        if psi.bulk.mesh is not mesh:
+        if psi.interior.mesh is not mesh:
             raise ValueError(
                 "RadialCharacteristicBoundaryOperator.apply: input field and "
                 "operator must share the same SNMesh instance (mesh-identity "
-                f"invariant); got field mesh {psi.bulk.mesh!r} vs operator mesh "
+                f"invariant); got field mesh {psi.interior.mesh!r} vs operator mesh "
                 f"{mesh!r}."
             )
         # Role parse at the composite boundary (symmetric to B_a's trace parse):
@@ -668,7 +668,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
                 f"got {type(seed).__name__}."
             )
         return FullField(
-            bulk=_zero_bulk_source(mesh),
+            interior=_zero_bulk_source(mesh),
             boundary=AngularBoundarySourceSink.zeros_on(mesh),  # present-zero
             radial_characteristic=self._reflect_corner(
                 psi.radial_characteristic, method,

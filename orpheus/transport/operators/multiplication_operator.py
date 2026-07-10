@@ -71,7 +71,7 @@ The raw pointwise multiply is delegated to the N-D
 carrier ``(N, ng, *spatial)``, the engine
 ``DiagonalOperator(f.values, broadcast_axes=(0,))`` broadcasts the
 coefficient over the leading ordinate axis, so
-``engine.apply(psi.bulk.values) == f.values[None] * psi.bulk.values``.
+``engine.apply(psi.interior.values) == f.values[None] * psi.interior.values``.
 This operator owns only the *typed codomain* (the field wrapping); the
 arithmetic lives once, in the engine (``coding-elegance`` Pattern 2).
 
@@ -79,7 +79,7 @@ Mesh-free (the carrier carries the mesh)
 ========================================
 
 :class:`MultiplicationOperator` stores ONLY the coefficient field; the
-mesh is read off the carrier at apply time (``mesh = psi.bulk.mesh``),
+mesh is read off the carrier at apply time (``mesh = psi.interior.mesh``),
 faithful to the structure the legacy collision operator used. The
 coefficient field is itself mesh-bound (it was built ``from_mesh``), so
 the operator's domain is implicit in the field it carries.
@@ -178,7 +178,7 @@ class MultiplicationOperator(LinearOperator["FullField"]):
     Stores ONLY the coefficient; the mesh is read off the carrier at
     apply time. The raw pointwise multiply is delegated to the N-D
     :class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine
-    on ``psi.bulk.values``; this operator owns the typed codomain.
+    on ``psi.interior.values``; this operator owns the typed codomain.
 
     See the module docstring for the multiplier-algebra law-suite
     (:math:`M[1]=I`, :math:`M[0]=0`, linearity, homomorphism,
@@ -297,7 +297,7 @@ class MultiplicationOperator(LinearOperator["FullField"]):
 
         return (
             isinstance(self.space, FullFieldSpace)
-            and self.space.bulk_space is not None
+            and self.space.interior_space is not None
         )
 
     def assemble(self) -> "SparseAssembledOperator":
@@ -320,20 +320,20 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         from scipy import sparse
 
         space = self.space
-        if not isinstance(space, FullFieldSpace) or space.bulk_space is None:
+        if not isinstance(space, FullFieldSpace) or space.interior_space is None:
             raise MissingAssembly(
                 "MultiplicationOperator.assemble requires a block-bearing "
                 "FullFieldSpace (the composite flat layout); this "
                 "multiplier is space-anonymous."
             )
-        bulk_shape = tuple(space.bulk_space.shape)
-        n_bulk = int(np.prod(bulk_shape))
+        interior_shape = tuple(space.interior_space.shape)
+        n_interior = int(np.prod(interior_shape))
         n_total = int(space.shape[0])
         diagonal = np.ascontiguousarray(
-            np.broadcast_to(self.coefficient.values, bulk_shape)
+            np.broadcast_to(self.coefficient.values, interior_shape)
         ).ravel()
         nonzero = diagonal != 0.0
-        indices = np.arange(n_bulk)[nonzero]
+        indices = np.arange(n_interior)[nonzero]
         matrix = sparse.coo_array(
             (diagonal[nonzero], (indices, indices)),
             shape=(n_total, n_total),
@@ -462,12 +462,12 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # Parse the family loudly at the seam (#289 discipline). The mesh
         # is read off the PARSED bulk, whose family declaration carries
         # the mesh type the widened composite surfaces erase (#290 P2).
-        bulk = psi.bulk
+        bulk = psi.interior
         if isinstance(bulk, AngularField):
             mesh = bulk.mesh
             out_bulk = self.engine.apply(bulk.values)
             return FullField(
-                bulk=AngularSourceSink.from_mesh(out_bulk, mesh),
+                interior=AngularSourceSink.from_mesh(out_bulk, mesh),
                 boundary=AngularBoundarySourceSink.zeros_on(mesh),
                 # #282 route (a) seed arm: σ·ψ½ on the carried cells legs
                 # (dormant until the d3 birth-site flip populates inputs).
@@ -486,7 +486,7 @@ class MultiplicationOperator(LinearOperator["FullField"]):
             mesh = bulk.mesh
             out_bulk = self.engine.apply(bulk.values[None])[0]
             return FullField(
-                bulk=ScalarSourceSink.from_mesh(out_bulk, mesh),
+                interior=ScalarSourceSink.from_mesh(out_bulk, mesh),
                 boundary=ScalarBoundarySourceSink.zeros_on(mesh),
             )
         raise TypeError(
@@ -544,12 +544,12 @@ class MultiplicationOperator(LinearOperator["FullField"]):
 
         # Same #289 seam parse as :meth:`apply`; the mesh comes off the
         # parsed bulk's family-typed declaration.
-        bulk = q.bulk
+        bulk = q.interior
         if isinstance(bulk, AngularField):
             mesh = bulk.mesh
             out_bulk = self.engine.solve(bulk.values)
             return FullField(
-                bulk=AngularFlux.from_mesh(out_bulk, mesh),
+                interior=AngularFlux.from_mesh(out_bulk, mesh),
                 boundary=AngularBoundaryFlux.zeros_on(mesh),
                 # #282 seed arm: cells ← q½/σ AFTER the engine's bulk solve
                 # has gated the spectrum law (min|σ| > 0); corners mirror
@@ -567,7 +567,7 @@ class MultiplicationOperator(LinearOperator["FullField"]):
             mesh = bulk.mesh
             out_bulk = self.engine.solve(bulk.values[None])[0]
             return FullField(
-                bulk=ScalarFlux.from_mesh(out_bulk, mesh),
+                interior=ScalarFlux.from_mesh(out_bulk, mesh),
                 boundary=ScalarBoundaryFlux.zeros_on(mesh),
             )
         raise TypeError(

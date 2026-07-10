@@ -186,7 +186,7 @@ class TestInfiniteMedium:
         assert abs(result.keff - reference.k_inf) < 1e-11
 
         # The mode is spatially flat with the homogeneous spectrum.
-        phi = result.flux.bulk.values                     # (ng, 3)
+        phi = result.flux.interior.values                     # (ng, 3)
         assert float(np.ptp(phi, axis=1).max()) < 1e-10 * float(phi.max())
         spectrum = phi[:, 0] / phi[:, 0].sum()
         expected = reference.flux / reference.flux.sum()
@@ -207,7 +207,7 @@ class TestInfiniteMedium:
         result = _solve_tight({0: mix}, mesh)
         # Leaky ⟹ strictly below k∞; positive fundamental mode.
         assert 0.0 < result.keff < solve_homogeneous_infinite(mix).k_inf
-        assert np.all(result.flux.bulk.values > 0.0)
+        assert np.all(result.flux.interior.values > 0.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -284,14 +284,14 @@ class TestSolutionTraceSemantics:
         )
         # The flux sags toward the Dirichlet sink: higher at the
         # reflective edge than at the zero-flux edge, every group.
-        phi = result.flux.bulk.values
+        phi = result.flux.interior.values
         assert np.all(phi[:, 0] > phi[:, -1])
 
     def test_current_profile_is_reconstructed_at_every_face(self):
         result = _solve_tight(
             _het_materials(), _het_mesh(BC("reflective"), BC("zero_flux")),
         )
-        ng, nx = result.flux.bulk.values.shape
+        ng, nx = result.flux.interior.values.shape
         assert result.current.shape == (ng, nx + 1)
         trace = result.flux.boundary
         # Boundary slots are the axis-signed trace net currents …
@@ -319,7 +319,7 @@ class TestBalanceAndOrdering:
 
         material_mesh = result.mesh
         mat_xs = material_mesh.material_xs_field()
-        phi = result.flux.bulk.values
+        phi = result.flux.interior.values
         production = IntegratedReactionRate(
             mat_xs.fission_production_field
         ).evaluate(phi)

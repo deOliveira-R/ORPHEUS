@@ -143,7 +143,7 @@ def mat_xs(mesh) -> MaterialXSField:
 @pytest.fixture
 def template(mesh) -> FullField:
     return FullField.zeros(
-        bulk=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh,
+        interior=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh,
     )
 
 
@@ -151,7 +151,7 @@ def template(mesh) -> FullField:
 def flux(mesh) -> FullField:
     rng = np.random.default_rng(42)
     return FullField(
-        bulk=ScalarFlux.from_mesh(rng.random((2, 4)) + 0.5, mesh),
+        interior=ScalarFlux.from_mesh(rng.random((2, 4)) + 0.5, mesh),
         boundary=ScalarBoundaryFlux.from_mesh(
             rng.random(mesh.scalar_trace.shape[0]) + 0.1, mesh,
         ),
@@ -163,7 +163,7 @@ def _random_flux(mesh: DiffusionMesh) -> FullField:
     (fields and operators must share the ONE mesh — identity guard)."""
     rng = np.random.default_rng(42)
     return FullField(
-        bulk=ScalarFlux.from_mesh(rng.random((2, 4)) + 0.5, mesh),
+        interior=ScalarFlux.from_mesh(rng.random((2, 4)) + 0.5, mesh),
         boundary=ScalarBoundaryFlux.from_mesh(
             rng.random(mesh.scalar_trace.shape[0]) + 0.1, mesh,
         ),
@@ -269,7 +269,7 @@ def _config_setup(config: str):
     (bc_left, bc_right), albedos = _CONFIGS[config]
     mesh = _diffusion_mesh(bc_left, bc_right)
     template = FullField.zeros(
-        bulk=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh,
+        interior=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh,
     )
     return mesh, mesh.material_xs_field(), template, albedos
 
@@ -430,7 +430,7 @@ class TestFamilyLaws:
         L = LeakageOperator(mesh)
         B = DiffusionBoundaryOperator(mesh)
         const = FullField(
-            bulk=ScalarFlux.from_mesh(np.full((_NG, _NX), 3.7), mesh),
+            interior=ScalarFlux.from_mesh(np.full((_NG, _NX), 3.7), mesh),
             boundary=ScalarBoundaryFlux.from_mesh(
                 np.full(mesh.scalar_trace.shape[0], 3.7 / 4.0), mesh,
             ),
@@ -440,7 +440,7 @@ class TestFamilyLaws:
         # floats); the outflow-defect row closes through the algebraic
         # identity c_φ = (1 − c_J)/4, which is exact in reals and
         # ULP-level in floats.
-        np.testing.assert_array_equal(out.bulk.values, 0.0)
+        np.testing.assert_array_equal(out.interior.values, 0.0)
         np.testing.assert_allclose(out.boundary.values, 0.0, atol=1e-15)
 
     def test_dense_resolvent_over_flattened_loss(self):
@@ -492,7 +492,7 @@ class TestLeakageOperator:
         L = LeakageOperator(mesh)
         # Wrong bulk role/family:
         bad_bulk = FullField(
-            bulk=ScalarSourceSink.from_mesh(np.ones((_NG, _NX)), mesh),
+            interior=ScalarSourceSink.from_mesh(np.ones((_NG, _NX)), mesh),
             boundary=flux.boundary,
         )
         with pytest.raises(TypeError, match="ScalarFlux"):
@@ -500,7 +500,7 @@ class TestLeakageOperator:
         # Wrong mesh instance:
         other = _diffusion_mesh()
         foreign = FullField(
-            bulk=ScalarFlux.from_mesh(np.ones((_NG, _NX)), other),
+            interior=ScalarFlux.from_mesh(np.ones((_NG, _NX)), other),
             boundary=ScalarBoundaryFlux.zeros_on(other),
         )
         with pytest.raises(ValueError, match="mesh-identity"):
@@ -519,10 +519,10 @@ class TestLeakageOperator:
         rng = np.random.default_rng(3)
         phi = rng.random((_NG, 4))
         psi = FullField(
-            bulk=ScalarFlux.from_mesh(phi, mm),
+            interior=ScalarFlux.from_mesh(phi, mm),
             boundary=ScalarBoundaryFlux.zeros_on(mm),
         )
-        out = L.apply(psi).bulk.values
+        out = L.apply(psi).interior.values
         D = 1.0 / (3.0 * _SIG_T_A)
         h = 1.0
         for g in range(_NG):
@@ -537,7 +537,7 @@ class TestLeakageOperator:
         L = LeakageOperator(mesh)
         out = L.apply(flux)
         trace_in = flux.boundary
-        phi = flux.bulk.values
+        phi = flux.interior.values
         h = np.diff(_EDGES)
         D = 1.0 / (3.0 * np.stack([_SIG_T_A, _SIG_T_B]))  # [mat, g]
         for face, e in _EDGE.items():
@@ -563,7 +563,7 @@ class TestDiffusionBoundaryOperator:
         flux = _random_flux(mesh)
         B = DiffusionBoundaryOperator(mesh)
         out = B.apply(flux)
-        np.testing.assert_array_equal(out.bulk.values, 0.0)
+        np.testing.assert_array_equal(out.interior.values, 0.0)
         for face, alb in (("xmin", 0.3), ("xmax", -1.0)):
             slot = out.boundary.face_view(face)
             np.testing.assert_array_equal(slot[0], 0.0)      # no outflow emission
@@ -602,10 +602,10 @@ class TestScalarCompositeSubstrate:
     def test_full_field_space_blocks_and_metric(self, mesh):
         ffs = mesh.full_field_space
         assert ffs.shape == (_NG * _NX + 2 * 2 * _NG,)
-        assert ffs.bulk_space is not None
+        assert ffs.interior_space is not None
         assert ffs.trace_space is mesh.scalar_trace
         # Bulk metric = cell volumes, broadcast over groups.
-        w = ffs.bulk_space.inner_product_weights
+        w = ffs.interior_space.inner_product_weights
         np.testing.assert_array_equal(w, np.diff(_EDGES)[None, :])
 
     def test_scalar_boundary_source_sink_class_gate(self, mesh):
@@ -624,17 +624,17 @@ class TestSharedOperatorScalarArms:
     def test_multiplication_scalar_apply_and_solve(self, mesh, mat_xs, flux):
         C = MultiplicationOperator(mat_xs.total_cross_section_field)
         out = C.apply(flux)
-        assert isinstance(out.bulk, ScalarSourceSink)
+        assert isinstance(out.interior, ScalarSourceSink)
         assert isinstance(out.boundary, ScalarBoundarySourceSink)
         np.testing.assert_array_equal(
-            out.bulk.values, mat_xs.total_cross_section * flux.bulk.values,
+            out.interior.values, mat_xs.total_cross_section * flux.interior.values,
         )
         np.testing.assert_array_equal(out.boundary.values, 0.0)
         # solve is the typed division back to a flux composite.
         back = C.solve(out)
-        assert isinstance(back.bulk, ScalarFlux)
+        assert isinstance(back.interior, ScalarFlux)
         np.testing.assert_allclose(
-            back.bulk.values, flux.bulk.values, rtol=1e-15,
+            back.interior.values, flux.interior.values, rtol=1e-15,
         )
 
     def test_multiplication_solve_gates_spectrum_on_scalar_arm(self, mesh, flux):
@@ -649,18 +649,18 @@ class TestSharedOperatorScalarArms:
     ):
         F = FissionOperator.from_solver_data(mat_xs=mat_xs)
         composite = F.apply(flux)
-        direct = F.apply(flux.bulk)
-        assert isinstance(composite.bulk, ScalarSourceSink)
-        np.testing.assert_array_equal(composite.bulk.values, direct.values)
+        direct = F.apply(flux.interior)
+        assert isinstance(composite.interior, ScalarSourceSink)
+        np.testing.assert_array_equal(composite.interior.values, direct.values)
         np.testing.assert_array_equal(composite.boundary.values, 0.0)
         assert isinstance(composite.boundary, ScalarBoundarySourceSink)
 
     def test_k_iso_composite_arm_matches_bare_kernel(self, mesh, mat_xs, flux):
         for op in (IsotropicScattering(mat_xs), IsotropicN2N(mat_xs)):
             composite = op.apply(flux)
-            bare = op.apply(flux.bulk.values)
-            assert isinstance(composite.bulk, ScalarSourceSink)
-            np.testing.assert_array_equal(composite.bulk.values, bare)
+            bare = op.apply(flux.interior.values)
+            assert isinstance(composite.interior, ScalarSourceSink)
+            np.testing.assert_array_equal(composite.interior.values, bare)
             np.testing.assert_array_equal(composite.boundary.values, 0.0)
 
     def test_k_iso_composite_refuses_angular_bulk_and_transpose(

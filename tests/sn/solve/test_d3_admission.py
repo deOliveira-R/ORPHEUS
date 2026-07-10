@@ -153,7 +153,7 @@ def test_d3_pure_absorber_per_ordinate_psi_exact() -> None:
         external_source=q, boundary_condition="reflective",
         inner_tol=1e-13,
     )
-    psi = np.asarray(sol.angular_flux.bulk.values)   # (N, ng, 3, 4, 5)
+    psi = np.asarray(sol.angular_flux.interior.values)   # (N, ng, 3, 4, 5)
     sig_t = np.asarray(mix.SigT)
     for g in range(2):
         np.testing.assert_allclose(

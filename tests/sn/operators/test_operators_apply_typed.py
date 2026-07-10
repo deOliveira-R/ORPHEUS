@@ -118,12 +118,12 @@ def _random_state(sn: SNMesh, seed: int) -> TimedFullField:
     rng_bulk = np.random.default_rng(seed)
     rng_bnd = np.random.default_rng(seed + 1000)
     state = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
         radial_characteristic=RadialCharacteristicFlux,
     )
-    bulk_values = rng_bulk.standard_normal(state.bulk.values.shape)
+    bulk_values = rng_bulk.standard_normal(state.interior.values.shape)
     boundary_values = rng_bnd.standard_normal(state.boundary.values.shape)
-    state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+    state = replace(state, interior=replace(state.interior, values=bulk_values))
     return replace(
         state, boundary=replace(state.boundary, values=boundary_values),
     )
@@ -143,9 +143,9 @@ def test_F_apply_timed_full_field_returns_composite(name, builder) -> None:
 
     Fpsi = F.apply(state)
     assert isinstance(Fpsi, FullField)  # #257 S8a: timeless codomain (base arrow)
-    assert isinstance(Fpsi.bulk, AngularSourceSink)
-    assert Fpsi.bulk.values.shape == state.bulk.values.shape
-    assert Fpsi.bulk.mesh is sn
+    assert isinstance(Fpsi.interior, AngularSourceSink)
+    assert Fpsi.interior.values.shape == state.interior.values.shape
+    assert Fpsi.interior.mesh is sn
     # F is volumetric; result's boundary is implicit-zero.
     np.testing.assert_array_equal(Fpsi.boundary.values, 0.0)
 
@@ -159,20 +159,20 @@ def test_F_typed_lift_equivalent_to_scalar(name, builder) -> None:
 
     # Composite path: F(state) — TimedFullField
     Fpsi_typed = F.apply(state)
-    # Scalar path: F(integrate_angular(state.bulk)) — ScalarFlux, then broadcast.
-    # ``state.bulk`` is statically the broad ``BulkField`` (``_random_state``
+    # Scalar path: F(integrate_angular(state.interior)) — ScalarFlux, then broadcast.
+    # ``state.interior`` is statically the broad ``BulkField`` (``_random_state``
     # builds it as the concrete ``AngularFlux``), and ``integrate_angular`` is
     # itself under-typed (returns ``object``); the casts name both runtime
     # truths so the typed ``F.apply`` overload resolves.
     phi = cast(
-        ScalarFlux, cast(AngularFlux, state.bulk).integrate_angular(),
+        ScalarFlux, cast(AngularFlux, state.interior).integrate_angular(),
     )
     F_phi = F.apply(phi)
     expected_values = np.broadcast_to(
-        F_phi.values[None], Fpsi_typed.bulk.values.shape,
+        F_phi.values[None], Fpsi_typed.interior.values.shape,
     )
     np.testing.assert_allclose(
-        Fpsi_typed.bulk.values, expected_values, rtol=1e-14,
+        Fpsi_typed.interior.values, expected_values, rtol=1e-14,
     )
 
 
@@ -194,8 +194,8 @@ def test_S_apply_timed_full_field_zero_boundary(name, builder) -> None:
 
     Spsi = S.apply(state)
     assert isinstance(Spsi, FullField)  # #257 S8a: timeless codomain (base arrow)
-    assert isinstance(Spsi.bulk, AngularSourceSink)
-    assert Spsi.bulk.values.shape == state.bulk.values.shape
+    assert isinstance(Spsi.interior, AngularSourceSink)
+    assert Spsi.interior.values.shape == state.interior.values.shape
     # S is volumetric; result's boundary is implicit-zero.
     np.testing.assert_array_equal(Spsi.boundary.values, 0.0)
 
@@ -215,14 +215,14 @@ def test_C_apply_timed_full_field_zero_boundary(name, builder) -> None:
 
     Cpsi = C.apply(state)
     assert isinstance(Cpsi, FullField)  # #257 S8a: timeless codomain (base arrow)
-    assert isinstance(Cpsi.bulk, AngularSourceSink)
-    assert Cpsi.bulk.values.shape == state.bulk.values.shape
+    assert isinstance(Cpsi.interior, AngularSourceSink)
+    assert Cpsi.interior.values.shape == state.interior.values.shape
     np.testing.assert_array_equal(Cpsi.boundary.values, 0.0)
 
 
 @pytest.mark.parametrize("name,builder", GEOMETRIES)
 def test_C_diagonal_action(name, builder) -> None:
-    """C.apply(TimedFullField).bulk.values == σ ⊙ bulk.values element-wise."""
+    """C.apply(TimedFullField).interior.values == σ ⊙ bulk.values element-wise."""
     sn = builder()
     state = _random_state(sn, seed=6)
     rng = np.random.default_rng(7)
@@ -230,8 +230,8 @@ def test_C_diagonal_action(name, builder) -> None:
     C = MultiplicationOperator.from_mesh(sigma, sn)
 
     Cpsi = C.apply(state)
-    expected = sigma[None] * state.bulk.values
-    np.testing.assert_array_equal(Cpsi.bulk.values, expected)
+    expected = sigma[None] * state.interior.values
+    np.testing.assert_array_equal(Cpsi.interior.values, expected)
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -250,8 +250,8 @@ def test_L_apply_timed_full_field_returns_composite(name, builder) -> None:
 
     Lpsi = L.apply(state)
     assert isinstance(Lpsi, FullField)  # #257 S8a: timeless codomain (base arrow)
-    assert isinstance(Lpsi.bulk, AngularSourceSink)
-    assert Lpsi.bulk.values.shape == state.bulk.values.shape
+    assert isinstance(Lpsi.interior, AngularSourceSink)
+    assert Lpsi.interior.values.shape == state.interior.values.shape
     # L emits the face residual into .boundary; for these random
     # inputs at least one face slot is non-zero.
     assert not np.allclose(Lpsi.boundary.values, 0.0)
@@ -300,7 +300,7 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
     # the comonad lives on the iteration driver, not the operator.
     assert isinstance(out, FullField)
     assert not isinstance(out, TimedFullField)
-    assert out.bulk.mesh is sn
+    assert out.interior.mesh is sn
 
 
 @pytest.mark.parametrize("name,builder", GEOMETRIES)
@@ -337,7 +337,7 @@ def test_full_algebra_linearity(name, builder) -> None:
     hom_lhs = A.apply(c * state1)
     hom_rhs = c * A.apply(state1)
     np.testing.assert_allclose(
-        hom_lhs.bulk.values, hom_rhs.bulk.values, rtol=1e-12, atol=1e-13)
+        hom_lhs.interior.values, hom_rhs.interior.values, rtol=1e-12, atol=1e-13)
     np.testing.assert_allclose(
         hom_lhs.boundary.values, hom_rhs.boundary.values, rtol=1e-12, atol=1e-13)
 
@@ -345,7 +345,7 @@ def test_full_algebra_linearity(name, builder) -> None:
     rhs = (1.0 - lam) * A.apply(state1) + lam * A.apply(state2)
     # Bulk linearity check.
     np.testing.assert_allclose(
-        lhs.bulk.values, rhs.bulk.values, rtol=1e-12, atol=1e-13,
+        lhs.interior.values, rhs.interior.values, rtol=1e-12, atol=1e-13,
     )
     # Boundary linearity check.
     np.testing.assert_allclose(
@@ -408,7 +408,7 @@ def _windowed_product_static_typing_pins(
     today (``FullField`` is not generic over its bulk type), so the
     moment-bulk half of the codomain fact is pinned at RUNTIME in the
     deforestation gate (``test_2d_windowed_product_equals_post_projection``
-    asserts ``isinstance(out.bulk, HarmonicMomentFlux)``); minting a
+    asserts ``isinstance(out.interior, HarmonicMomentFlux)``); minting a
     bulk-generic composite is a separate typing carve, not smuggled here.
     """
     assert_type(product.apply(rhs), TimedFullField)
@@ -432,7 +432,7 @@ def test_c6_apply_dispatch_parity() -> None:
         mat_xs=sn.material_xs_field(), quadrature=sn.quad, scattering_order=0,
     )
     # Carriers built directly (independent of the under-typed integrate_angular).
-    psi = cast(AngularFlux, state.bulk)
+    psi = cast(AngularFlux, state.interior)
     phi = ScalarFlux.from_mesh(np.ones((sn.ng, *sn.spatial_shape)), sn)
 
     cases = [

@@ -269,7 +269,7 @@ def evaluate_residual(
     via the named composition :meth:`AngularResidual.from_balance` /
     :meth:`AngularBoundaryResidual.from_balance` (NOT a bare cross-class ``−``, which
     would mis-type the defect as a source), returning the typed composite
-    ``FullField(bulk=AngularResidual, boundary=AngularBoundaryResidual)``.  A residual
+    ``FullField(interior=AngularResidual, boundary=AngularBoundaryResidual)``.  A residual
     is a one-shot balance defect — it carries no iteration history, so it is the
     timeless :class:`~orpheus.transport.full_field.FullField` (the
     ``history_depth = 0`` degenerate; W-C confines the timed type to the driver
@@ -305,13 +305,13 @@ def evaluate_residual(
 
     lhs = loss_op.apply(psi)  # (L+C−S−B)·ψ — a source-role composite
     # Role parse at the composite boundary: ``AngularResidual.from_balance``
-    # demands the angular family, but the ``FullField.bulk`` slot erases the
+    # demands the angular family, but the ``FullField.interior`` slot erases the
     # role (the F2-sibling erasure — #289).
     # A scalar-bulk composite here is a caller error worth raising loudly.
-    q_bulk = q_ext.bulk
+    q_bulk = q_ext.interior
     if not isinstance(q_bulk, AngularField):
         raise TypeError(
-            f"evaluate_residual: q_ext.bulk must be an angular-family "
+            f"evaluate_residual: q_ext.interior must be an angular-family "
             f"per-ordinate source; got {type(q_bulk).__name__}."
         )
     # Same parse on the trace legs: the widened ``FullField.boundary`` slot
@@ -352,7 +352,7 @@ def evaluate_residual(
     # history, so it is the timeless FullField (the history_depth=0 degenerate
     # of TimedFullField; W-C confines the timed type to the driver iterate).
     return FullField(
-        bulk=AngularResidual.from_balance(lhs=lhs.bulk, rhs=q_bulk),
+        interior=AngularResidual.from_balance(lhs=lhs.interior, rhs=q_bulk),
         boundary=AngularBoundaryResidual.from_balance(
             lhs=lhs_boundary, rhs=q_boundary,
         ),
@@ -368,9 +368,9 @@ def boundary_vs_interior_split(residual: "FullField") -> tuple[float, float]:
     norm — the same metric the SI stopping test uses). Discriminates a
     BC-realizer / reflective-trace defect (large ``boundary``) from an
     interior-streaming defect (large ``interior``) — free from the typed
-    composite ``FullField(bulk=AngularResidual, boundary=AngularBoundaryResidual)``.
+    composite ``FullField(interior=AngularResidual, boundary=AngularBoundaryResidual)``.
     """
-    interior = float(np.linalg.norm(np.asarray(residual.bulk.values).ravel()))
+    interior = float(np.linalg.norm(np.asarray(residual.interior.values).ravel()))
     boundary = float(np.linalg.norm(np.asarray(residual.boundary.values).ravel()))
     return boundary, interior
 
@@ -478,7 +478,7 @@ def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
     from orpheus.transport.timed_full_field import TimedFullField
 
     return TimedFullField(
-        bulk=HarmonicMomentFlux.zeros_for_mesh_and_L(
+        interior=HarmonicMomentFlux.zeros_for_mesh_and_L(
             sn_mesh, scattering_op.scattering_order,
             spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
@@ -508,7 +508,7 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
     from orpheus.transport.timed_full_field import TimedFullField
 
     return TimedFullField(
-        bulk=AngularFlux.zeros_on(
+        interior=AngularFlux.zeros_on(
             sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
         boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
@@ -1378,7 +1378,7 @@ class SNSolver:
         multiplier ``C = M[σ_t]`` — plus the
         scattering ``S`` and boundary ``B`` coupling gains —
         :func:`_within_group_triple`, zero within-group fission), identical
-        ``psi_typed.bulk.integrate_angular()`` reduction — differing
+        ``psi_typed.interior.integrate_angular()`` reduction — differing
         ONLY in the driver (:class:`SourceIteration` vs
         :class:`KrylovAcceleration`), and neither driver carries any
         geometry dependence.  The reflective coupling rides the BARE
@@ -1448,7 +1448,7 @@ class SNSolver:
             # #282 route (a): on a carrying mesh the composite also carries
             # the q½ fold of the (isotropic) fission source — the TRUE
             # starting-direction source the direct ψ½ solve consumes.
-            bulk=q_ext_per_ord,
+            interior=q_ext_per_ord,
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
             radial_characteristic=_radial_characteristic_fission_seed(
                 fission_source, self.sn_mesh,
@@ -1520,7 +1520,7 @@ class SNSolver:
             HarmonicMomentFlux,
         )
 
-        bulk = psi_typed.bulk
+        bulk = psi_typed.interior
         if windowed:
             if not isinstance(bulk, HarmonicMomentFlux):
                 raise TypeError(
@@ -1617,7 +1617,7 @@ class SNSolver:
             # closes on AngularBoundarySourceSink (operator outputs are sources).
             # #282 route (a): the q½ fold rides along on carrying meshes
             # (the Krylov matvec + preconditioner run on 3-block state).
-            bulk=q_ext_per_ord,
+            interior=q_ext_per_ord,
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
             radial_characteristic=_radial_characteristic_fission_seed(
                 fission_source, self.sn_mesh,
@@ -1638,7 +1638,7 @@ class SNSolver:
             # q_ext's now-AngularSourceSink type.  x0 stays all-zeros
             # (bit-identical); the flux template fixes the Krylov return type.
             initial_guess = TimedFullField.zeros(
-                bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=self.sn_mesh,
+                interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=self.sn_mesh,
                 radial_characteristic=RadialCharacteristicFlux,
             )
 
@@ -1672,7 +1672,7 @@ class SNSolver:
         # Reduce angular → scalar flux for the eigenvalue outer's contract.
         # The parse reifies the driver-template contract (the solve echoes
         # the flux initial_guess) loudly on mismatch.
-        bulk = psi_typed.bulk
+        bulk = psi_typed.interior
         if not isinstance(bulk, AngularFlux):
             raise TypeError(
                 f"eigenvalue Krylov iterate must carry an AngularFlux bulk "
@@ -2067,7 +2067,7 @@ def solve_sn(
     )
     return Solution(
         angular_flux=TimedFullField(
-            bulk=AngularFlux.from_mesh(angular_flux, sn_mesh),
+            interior=AngularFlux.from_mesh(angular_flux, sn_mesh),
             # Wave O #208 O.4a.2: the converged boundary trace from the final
             # bare sweep (inflow = B·ψ.outflow, outflow = streamed).
             boundary=final_boundary,
@@ -2138,7 +2138,7 @@ def _build_fixed_source_rhs(
     expected = (N, ng, *sn_mesh.spatial_shape)
 
     if isinstance(external_source, TimedFullField):
-        bulk_values = np.asarray(external_source.bulk.values)
+        bulk_values = np.asarray(external_source.interior.values)
         trace_size = int(sn_mesh.angular_trace.layout.total_size)
         boundary_values = external_source.boundary.values
         if boundary_values.size != trace_size:
@@ -2225,7 +2225,7 @@ def _build_fixed_source_rhs(
             bulk_values, sn_mesh,
         )
     return TimedFullField(
-        bulk=AngularSourceSink.from_mesh(
+        interior=AngularSourceSink.from_mesh(
             bulk_values, sn_mesh, spatial_moments=per_axis,
         ),
         boundary=boundary,
@@ -2597,7 +2597,7 @@ def _solve_fixed_source_si(
     # Un-windowed: ``psi_typed`` already IS it (return directly, exactly as the
     # fixed-source Krylov path does; the boundary trace lives on
     # ``psi_typed.boundary`` — no legacy ``solver._boundary_flux`` writeback).
-    # Windowed: ``psi_typed.bulk`` is the moment iterate, so reconstruct the
+    # Windowed: ``psi_typed.interior`` is the moment iterate, so reconstruct the
     # full angular with ONE final full-angular solve of the converged source
     # ``q + Σ gains·ψ`` through the UN-wrapped base resolvent (mirrors the
     # eigenvalue reconstruction sweep).  Bit-identical to the un-windowed
@@ -2616,13 +2616,13 @@ def _solve_fixed_source_si(
     # Scalar flux from the RETURNED full angular flux → the Solution is exactly
     # self-consistent (``scalar == ∫ angular dΩ``), matching the un-windowed
     # contract.  (For the un-windowed path ``angular_out`` IS ``psi_typed``, so
-    # this is bit-identical to the prior ``psi_typed.bulk.integrate_angular``.)
+    # this is bit-identical to the prior ``psi_typed.interior.integrate_angular``.)
     # The user-facing scalar flux is the cell-AVERAGE moment (slot 0) — a
     # multi-moment closure's φ̂ slopes are internal DG structure, not the scalar
     # flux the Solution reports (#240 D5b-S3).  The parse reifies the
     # full-angular contract of BOTH arms (the reconstruction sweep emits
     # angular; the un-windowed iterate echoes the flux template) loudly.
-    angular_bulk = angular_out.bulk
+    angular_bulk = angular_out.interior
     if not isinstance(angular_bulk, AngularFlux):
         raise TypeError(
             f"fixed-source SI: Solution.angular_flux must carry an "
@@ -2774,7 +2774,7 @@ def _solve_fixed_source_krylov(
             f"fixed-source Krylov: the converged iterate must echo the "
             f"timed flux template; got {type(psi_typed).__name__}."
         )
-    bulk = psi_typed.bulk
+    bulk = psi_typed.interior
     if not isinstance(bulk, AngularFlux):
         raise TypeError(
             f"fixed-source Krylov: the converged iterate must carry an "

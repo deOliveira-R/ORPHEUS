@@ -229,7 +229,7 @@ def _random_state(sn_mesh: SNMesh, seed: int, *, zero_boundary: bool = True) -> 
             view[:] = rng.standard_normal(view.shape)
     bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
     return TimedFullField(
-        bulk=AngularFlux.from_mesh(bulk_arr, sn_mesh),
+        interior=AngularFlux.from_mesh(bulk_arr, sn_mesh),
         boundary=boundary,
         # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed reproduces
         # the pre-route-(a) internally-computed seed, so the extracted matvec
@@ -327,7 +327,7 @@ class TestVacuumMatvecBitIdentity:
         path = _BASELINE_DIR / f"{key}.npy"
         if _capturing(request):
             _BASELINE_DIR.mkdir(parents=True, exist_ok=True)
-            np.save(path, out.bulk.values)
+            np.save(path, out.interior.values)
             pytest.skip(f"captured baseline {key}")
         assert path.exists(), (
             f"missing baseline snapshot {path}; run with "
@@ -350,7 +350,7 @@ class TestVacuumMatvecBitIdentity:
         # re-captured SLB/CYL; SPH was deferred) — current SPH matvec
         # verified vs L0/L1 references first.
         assert_regression(
-            out.bulk.values, expected,
+            out.interior.values, expected,
             conv_tol=0.0, kind="direct", reduction_depth=sn_mesh.nx,
             case_name=f"vacuum_bulk_{geometry}_seed{seed}",
             quantity="vacuum_bulk_matvec",
@@ -447,14 +447,14 @@ class TestVacuumMatvecBitIdentity:
         path = _BASELINE_DIR / f"{key}.npy"
         if _capturing(request):
             _BASELINE_DIR.mkdir(parents=True, exist_ok=True)
-            np.save(path, out.bulk.values)
+            np.save(path, out.interior.values)
             pytest.skip(f"captured baseline {key}")
         assert path.exists(), (
             f"missing baseline snapshot {path}; run with --capture-baseline"
         )
         expected = np.load(path)
         np.testing.assert_array_equal(
-            out.bulk.values, expected,
+            out.interior.values, expected,
             err_msg=(
                 f"2-D vacuum seed={seed}: the 1-D O.4a.2 carve PERTURBED "
                 f"the 2-D Cartesian path — the carve must touch ONLY "
@@ -518,7 +518,7 @@ class TestStreamingEquilibriumValue:
         nx = sn_mesh.nx
         flat = np.ones((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
-            bulk=AngularFlux.from_mesh(flat, sn_mesh),
+            interior=AngularFlux.from_mesh(flat, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             # #282 route (a): a per-ordinate FLAT field's consistent ψ½ seed is
             # the same constant (edge-extrap is constant-preserving), so the
@@ -531,7 +531,7 @@ class TestStreamingEquilibriumValue:
         sigma_t = np.full((ng, *sn_mesh.spatial_shape), 1.0)
         out = _LpC_apply(sn_mesh, state, sigma_t)
         # L action = (L+C) − C; C·ψ = σ_t·ψ = 1·1 = 1 everywhere.
-        l_action = out.bulk.values - sigma_t[None] * flat
+        l_action = out.interior.values - sigma_t[None] * flat
         # Per-cell L2 magnitude across ordinates+groups (1-D geometries).
         per_cell = np.linalg.norm(
             l_action.reshape(N * ng, nx), axis=0,
@@ -625,7 +625,7 @@ class TestLFullReadsInflow:
             if inflow.size:
                 face[inflow, :] = inflow_scale
             return TimedFullField(
-                bulk=AngularFlux.from_mesh(bulk.copy(), sn_mesh),
+                interior=AngularFlux.from_mesh(bulk.copy(), sn_mesh),
                 boundary=b,
                 # #282 route (a): the seed is derived from the (shared) bulk, so
                 # both states carry the SAME ψ½ — the ONLY difference is the
@@ -637,7 +637,7 @@ class TestLFullReadsInflow:
         out_zero = _LpC_apply(sn_mesh, _state(0.0), sigma_t)
         out_one = _LpC_apply(sn_mesh, _state(1.0), sigma_t)
         diff = np.linalg.norm(
-            out_one.bulk.values - out_zero.bulk.values
+            out_one.interior.values - out_zero.interior.values
         )
         assert diff > 1e-10, (
             f"{geometry}: changing the outer-face INFLOW trace did not "
@@ -682,13 +682,13 @@ class TestLFullOutflowDefectKept:
         # state2: SAME bulk, SAME inflow slots, ZERO outflow slots — isolates
         # the ``−ψ.outflow`` defect term on the outflow slots.
         state2 = TimedFullField(
-            bulk=AngularFlux.from_mesh(state.bulk.values.copy(), sn_mesh),
+            interior=AngularFlux.from_mesh(state.interior.values.copy(), sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             # #282 route (a): SAME bulk ⇒ SAME ψ½ seed as ``state`` (edge-extrap
             # depends only on the bulk), so ``streamed`` is identical and the
             # output outflow differs by EXACTLY the stored-outflow defect.
             radial_characteristic=radial_characteristic_edge_seed(
-                state.bulk.values, sn_mesh,
+                state.interior.values, sn_mesh,
             ),
             _history=(), history_depth=2,
         )
@@ -760,7 +760,7 @@ class TestVacuumBoundaryDefectKept:
             if outflow.size:
                 b.face_view("xmax")[outflow, :] = outflow_fill
             st = TimedFullField(
-                bulk=AngularFlux.from_mesh(bulk.copy(), sn_mesh),
+                interior=AngularFlux.from_mesh(bulk.copy(), sn_mesh),
                 boundary=b,
                 # #282 route (a): the seed derives from the (shared) bulk, so
                 # both runs carry the SAME ψ½ — the output outflow differs by

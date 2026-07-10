@@ -78,7 +78,7 @@ state):
 
 .. code-block:: python
 
-    a + b = TimedFullField(bulk=a.bulk + b.bulk,
+    a + b = TimedFullField(interior=a.interior + b.interior,
                            boundary=a.boundary + b.boundary,
                            _history=(),  # algebra drops iteration metadata
                            history_depth=a.history_depth)
@@ -153,12 +153,12 @@ class TimedFullField(FullField):
 
     Parameters
     ----------
-    bulk : BulkField
+    interior : BulkField
         The volumetric / bulk field (inherited from
         :class:`~orpheus.transport.full_field.FullField`). Any
         :class:`~orpheus.transport.fields._bases.BulkField` subclass.
     boundary : AngularBoundaryField
-        The boundary partner field on the trace of ``bulk``'s domain
+        The boundary partner field on the trace of ``interior``'s domain
         (inherited).
     _history : tuple[FullField, ...], optional
         Rotating history of prior frames, most recent first. Default
@@ -187,7 +187,7 @@ class TimedFullField(FullField):
       register (current → lag-1, new → current).
     * :meth:`at_lag(k)`: reads the state at lag ``k`` (0 = current,
       1 = previous, ...). Used by BDF stencils:
-      ``dpsi_dt ≈ (state.at_lag(0).bulk - state.at_lag(1).bulk) / dt``.
+      ``dpsi_dt ≈ (state.at_lag(0).interior - state.at_lag(1).interior) / dt``.
     """
 
     _history: tuple["FullField", ...] = ()
@@ -199,7 +199,7 @@ class TimedFullField(FullField):
     def zeros(
         cls,
         *,
-        bulk: type[BulkField],
+        interior: type[BulkField],
         boundary: type[BoundaryField],
         mesh: "object",
         history_depth: int = 2,
@@ -217,7 +217,7 @@ class TimedFullField(FullField):
 
         Parameters
         ----------
-        bulk : type[BulkField]
+        interior : type[BulkField]
             The bulk leaf CLASS to instantiate (must expose
             ``zeros_on(mesh)``).
         boundary : type[BoundaryField]
@@ -240,13 +240,13 @@ class TimedFullField(FullField):
         # mesh-keyed seed-presence resolution), then re-wrap with the
         # history metadata — so neither lives duplicated here.
         base = FullField.zeros(
-            bulk=bulk,
+            interior=interior,
             boundary=boundary,
             mesh=mesh,
             radial_characteristic=radial_characteristic,
         )
         return cls(
-            bulk=base.bulk,
+            interior=base.interior,
             boundary=base.boundary,
             radial_characteristic=base.radial_characteristic,
             _history=(),
@@ -268,7 +268,7 @@ class TimedFullField(FullField):
     def _recombine(
         self,
         *,
-        bulk: BulkField,
+        interior: BulkField,
         boundary: BoundaryField,
         radial_characteristic: RadialCharacteristicField | None,
     ) -> "TimedFullField":
@@ -284,7 +284,7 @@ class TimedFullField(FullField):
         of the base hook — see the base docstring's silent-drop note.
         """
         return TimedFullField(
-            bulk=bulk,
+            interior=interior,
             boundary=boundary,
             radial_characteristic=radial_characteristic,
             _history=(),
@@ -318,7 +318,7 @@ class TimedFullField(FullField):
         Parameters
         ----------
         new_bulk : BulkField
-            The new current bulk field. Must match ``type(self.bulk)``.
+            The new current bulk field. Must match ``type(self.interior)``.
         new_boundary : AngularBoundaryField
             The new current boundary field. Must match
             ``type(self.boundary)``.
@@ -334,11 +334,11 @@ class TimedFullField(FullField):
         TimedFullField
             The advanced state with rotated history.
         """
-        if type(new_bulk) is not type(self.bulk):
+        if type(new_bulk) is not type(self.interior):
             raise TypeError(
                 f"TimedFullField.advance: new_bulk type "
                 f"{type(new_bulk).__name__} does not match current "
-                f"bulk type {type(self.bulk).__name__}."
+                f"bulk type {type(self.interior).__name__}."
             )
         if type(new_boundary) is not type(self.boundary):
             raise TypeError(
@@ -363,13 +363,13 @@ class TimedFullField(FullField):
                 f"current type {type(self.radial_characteristic).__name__}."
             )
         current_snapshot = FullField(
-            bulk=self.bulk,
+            interior=self.interior,
             boundary=self.boundary,
             radial_characteristic=self.radial_characteristic,
         )
         new_history = (current_snapshot, *self._history)[: self.history_depth]
         return TimedFullField(
-            bulk=new_bulk,
+            interior=new_bulk,
             boundary=new_boundary,
             radial_characteristic=new_radial_characteristic,
             _history=new_history,

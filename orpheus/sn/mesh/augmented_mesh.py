@@ -75,7 +75,7 @@ if TYPE_CHECKING:
     # NOTE (B.5.A): the transport-field TYPE_CHECKING imports retired with the
     # SNMesh.zeros_* factory family. Zero-allocation now lives on the field
     # types (``Field.zeros`` / ``<Leaf>.zeros_on`` /
-    # ``TimedFullField.zeros(bulk=..., boundary=..., mesh=...)``); the mesh
+    # ``TimedFullField.zeros(interior=..., boundary=..., mesh=...)``); the mesh
     # provides shape data only and no longer imports transport types.
     # Remaining ``AngularBoundaryFlux`` / ``AngularFlux`` mentions below are docstring
     # cross-references (Sphinx resolves them by full path, no import needed).
@@ -905,13 +905,13 @@ class SNMesh(MaterialMesh):
             w_n.reshape((N, 1) + (1,) * V.ndim)
             * V.reshape((1, 1) + V.shape)
         )
-        bulk_space = FunctionSpace(
+        interior_space = FunctionSpace(
             name="sn_bulk",
             shape=(N, self.ng, *self.spatial_shape),
             inner_product_weights=g_bulk,
         )
         return FullFieldSpace.from_blocks(
-            bulk_space,
+            interior_space,
             self.angular_trace,
             radial_characteristic_space=self.radial_characteristic_space,
         )

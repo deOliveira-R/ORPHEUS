@@ -69,11 +69,11 @@ def _random_state(
     """
     rng = np.random.default_rng(seed)
     N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth, radial_characteristic=RadialCharacteristicFlux)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth, radial_characteristic=RadialCharacteristicFlux)
     return replace(
         state,
-        bulk=replace(
-            state.bulk, values=rng.standard_normal((N, ng, *sn_mesh.spatial_shape)),
+        interior=replace(
+            state.interior, values=rng.standard_normal((N, ng, *sn_mesh.spatial_shape)),
         ),
     )
 
@@ -83,10 +83,10 @@ def _const_state(
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` whose bulk is uniformly ``value``."""
     N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth, radial_characteristic=RadialCharacteristicFlux)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth, radial_characteristic=RadialCharacteristicFlux)
     return replace(
         state,
-        bulk=replace(state.bulk, values=np.full((N, ng, *sn_mesh.spatial_shape), value)),
+        interior=replace(state.interior, values=np.full((N, ng, *sn_mesh.spatial_shape), value)),
     )
 
 
@@ -275,7 +275,7 @@ class TestApply:
         # cancellation spikes; rel drift is machine-ε (grounded by the
         # byte-identical composite in test_streaming_operator_decomposition).
         np.testing.assert_array_almost_equal_nulp(
-            composite_out.bulk.values, sum_out.bulk.values, nulp=256,
+            composite_out.interior.values, sum_out.interior.values, nulp=256,
         )
         # Boundary STRICT: C never touches the trace.
         np.testing.assert_array_equal(
@@ -299,9 +299,9 @@ class TestSolve:
         psi = invertible.solve(rhs)
 
         assert isinstance(psi, TimedFullField)
-        assert isinstance(psi.bulk, AngularFlux)
-        assert psi.bulk.mesh is sn
-        assert psi.bulk.values.shape == rhs.bulk.values.shape
+        assert isinstance(psi.interior, AngularFlux)
+        assert psi.interior.mesh is sn
+        assert psi.interior.values.shape == rhs.interior.values.shape
 
     def test_solve_inherits_history_depth_from_rhs(self) -> None:
         """``rhs.history_depth`` propagates to the returned composite."""
@@ -311,7 +311,7 @@ class TestSolve:
             sigma_t, sn,
         )
 
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=5)
+        rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=5)
         psi = invertible.solve(rhs)
         assert psi.history_depth == 5
 
@@ -354,7 +354,7 @@ class TestSolve:
         invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
         )
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn2)
+        rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn2)
         with pytest.raises(ValueError, match="mesh-identity"):
             invertible.solve(rhs)
 
@@ -392,8 +392,8 @@ class TestSolve:
             (N, ng, nx),
         ).copy()
         q = replace(
-            TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn),
-            bulk=replace(TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn).bulk, values=rhs_values),
+            TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn),
+            interior=replace(TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn).interior, values=rhs_values),
         )
         psi = invertible.solve(q)
 
@@ -402,11 +402,11 @@ class TestSolve:
         # positivity may fail at the BC face under WDD's diamond
         # closure — that's a known DD artefact.  Sufficient signal:
         # non-trivial peak in the interior.
-        assert psi.bulk.values.max() > 0
+        assert psi.interior.values.max() > 0
         # Peak occurs near the source maximum (centre of the slab).
         peak_x_idx = np.unravel_index(
-            np.argmax(psi.bulk.values[0, 0, :]),
-            psi.bulk.values[0, 0, :].shape,
+            np.argmax(psi.interior.values[0, 0, :]),
+            psi.interior.values[0, 0, :].shape,
         )
         assert nx // 4 <= peak_x_idx[0] <= 3 * nx // 4
 
@@ -421,14 +421,14 @@ class TestSolve:
         q = _const_state(sn, value=1.0)
         psi = invertible.solve(q)
         assert isinstance(psi, TimedFullField)
-        assert psi.bulk.values.shape == q.bulk.values.shape
+        assert psi.interior.values.shape == q.interior.values.shape
         # Curvilinear sweep produces a non-trivial positive bulk.
-        assert psi.bulk.values.max() > 0
+        assert psi.interior.values.max() > 0
 
     @pytest.mark.l0
     @pytest.mark.verifies("transport-cartesian")
     def test_solve_consumes_per_ordinate_rhs(self) -> None:
-        r"""``InvertibleOperator.solve`` passes ``rhs.bulk.values`` unmodified to the sweep.
+        r"""``InvertibleOperator.solve`` passes ``rhs.interior.values`` unmodified to the sweep.
 
         R-1 Step 4 A1 invariant pin (N5 per verification plan).  The
         producer-side normalisation contract says the bulk values are
@@ -445,7 +445,7 @@ class TestSolve:
         representation's ``sweep`` (the S6.5 solve seam —
         ``solve`` runs ``self.loss_representation.sweep`` directly) to
         capture the ``Q`` argument and asserts it is bit-identical to
-        ``rhs.bulk.values``.  If a future refactor re-introduces a
+        ``rhs.interior.values``.  If a future refactor re-introduces a
         ``* sum_w`` / ``/ sum_w`` rescaling on this hot path, the
         bit-equal assertion fails.
         """
@@ -458,11 +458,11 @@ class TestSolve:
         sum_w = float(sn.quad.weights.sum())
         q_const = 2.7
         per_ord_density = q_const / sum_w
-        zero = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+        zero = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
         rhs = replace(
             zero,
-            bulk=replace(
-                zero.bulk,
+            interior=replace(
+                zero.interior,
                 values=np.full(
                     (sn.quad.N, sn.ng, *sn.spatial_shape), per_ord_density,
                 ),
@@ -489,9 +489,9 @@ class TestSolve:
         )
         forwarded = captured[0]
         np.testing.assert_array_equal(
-            forwarded, rhs.bulk.values,
+            forwarded, rhs.interior.values,
             err_msg=(
-                "InvertibleOperator.solve modified rhs.bulk.values before "
+                "InvertibleOperator.solve modified rhs.interior.values before "
                 "forwarding to the representation sweep — A1 producer-side "
                 "convention drifted (the ``* sum_w`` bridge MUST stay "
                 "dissolved)."
@@ -536,7 +536,7 @@ class TestSolveTimedFullField:
         # Build rhs with a non-zero boundary trace (the inflow source) —
         # verify it makes it into the sweep's boundary_buf.  Slab has both
         # xmin and xmax faces.
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+        rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
         rhs_boundary = rhs.boundary
         layout = rhs_boundary.layout
         if "xmax" in layout.faces:
@@ -593,7 +593,7 @@ class TestSolveTimedFullField:
         )
 
         for depth in (1, 2, 4):
-            rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=depth)
+            rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=depth)
             psi = invertible.solve(rhs)
             assert psi.history_depth == depth
 
@@ -604,7 +604,7 @@ class TestSolveTimedFullField:
         invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
         )
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn2)
+        rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn2)
         with pytest.raises(ValueError, match="mesh-identity"):
             invertible.solve(rhs)
 
@@ -795,10 +795,10 @@ class TestInvertibleSolveBridgeRegression:
         # Build composite ψ=1.  No need for legacy AngularFlux at all
         # on this path.
         from dataclasses import replace
-        psi_known = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        psi_known = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         psi_known = replace(
             psi_known,
-            bulk=replace(psi_known.bulk, values=np.ones((N, ng, *sn_mesh.spatial_shape))),
+            interior=replace(psi_known.interior, values=np.ones((N, ng, *sn_mesh.spatial_shape))),
         )
         # #257 S8a — the matvec leaf is a base arrow: ``LC.apply`` returns a
         # timeless FullField source.  ``InvertibleOperator.solve`` consumes the
@@ -807,7 +807,7 @@ class TestInvertibleSolveBridgeRegression:
         # comonad; the operator does not).  Byte-identical source values.
         LC_psi_source = LC.apply(psi_known)
         LC_psi = TimedFullField(
-            bulk=LC_psi_source.bulk,
+            interior=LC_psi_source.interior,
             boundary=LC_psi_source.boundary,
             _history=(),
             history_depth=psi_known.history_depth,
@@ -821,14 +821,14 @@ class TestInvertibleSolveBridgeRegression:
             else:
                 psi_new = LC.solve(LC_psi, initial_guess=psi_recovered)
             if psi_recovered is not None and np.abs(
-                psi_new.bulk.values - psi_recovered.bulk.values,
+                psi_new.interior.values - psi_recovered.interior.values,
             ).max() < 1e-15:
                 psi_recovered = psi_new
                 break
             psi_recovered = psi_new
 
         assert psi_recovered is not None
-        diff = np.abs(psi_known.bulk.values - psi_recovered.bulk.values).max()
+        diff = np.abs(psi_known.interior.values - psi_recovered.interior.values).max()
         assert diff < 1e-12, (
             f"slab composite (L+C).solve((L+C).apply(ψ=1)) ≠ ψ=1: "
             f"abs_max={diff:.3e}.  D-H.1c stage 1's composite bridge "
@@ -885,7 +885,7 @@ class TestInvertibleSolveBridgeRegression:
         q_iso = 0.225
         q_per_ord = np.full((N, ng, *sn_mesh.spatial_shape), q_iso / sum_w)
         rhs = TimedFullField(
-            bulk=AngularFlux.from_mesh(q_per_ord, sn_mesh),
+            interior=AngularFlux.from_mesh(q_per_ord, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             # #282 route (a): on a carrying mesh (sphere) the fixed-source RHS
             # carries the TRUE starting-direction SOURCE — the q½ fold of the
@@ -942,7 +942,7 @@ class TestInvertibleSolveBridgeRegression:
                 )
                 psi_new = LC.solve(rhs_n, initial_guess=psi_typed)
             if psi_typed is not None and np.abs(
-                psi_new.bulk.values - psi_typed.bulk.values,
+                psi_new.interior.values - psi_typed.interior.values,
             ).max() < 1e-14:
                 psi_typed = psi_new
                 break
@@ -953,7 +953,7 @@ class TestInvertibleSolveBridgeRegression:
         for g in range(ng):
             sig_g = float(sigma_t[g, 0])
             expected_per_ord = (q_iso / sum_w) / sig_g
-            actual = psi_typed.bulk.values[:, g, :]
+            actual = psi_typed.interior.values[:, g, :]
             rel_dev = np.abs(actual - expected_per_ord) / max(
                 expected_per_ord, 1e-30,
             )

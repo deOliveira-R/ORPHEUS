@@ -139,7 +139,7 @@ def test_homogeneous_streaming_equilibrium_sphere(
         boundary_condition="reflective", inner_solver=inner_solver,
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
-    psi = result.angular_flux.bulk.values   # (N, ng, nx)
+    psi = result.angular_flux.interior.values   # (N, ng, nx)
     sf = result.scalar_flux.values          # (ng, nx)
 
     psi_expected = _expected_psi(quad)
@@ -240,7 +240,7 @@ def test_homogeneous_streaming_equilibrium_cylinder(
         boundary_condition="reflective", inner_solver=inner_solver,
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
-    psi = result.angular_flux.bulk.values   # (N, ng, nx)
+    psi = result.angular_flux.interior.values   # (N, ng, nx)
     sf = result.scalar_flux.values          # (ng, nx)
 
     psi_expected = _expected_psi(quad)
@@ -305,7 +305,7 @@ def test_pomraning_pole_isotropy_sphere(inner_solver: str) -> None:
         boundary_condition="reflective", inner_solver=inner_solver,
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
-    psi_at_pole = result.angular_flux.bulk.values[:, 0, 0]   # (N,)
+    psi_at_pole = result.angular_flux.interior.values[:, 0, 0]   # (N,)
     cv = float(np.std(psi_at_pole) / np.mean(psi_at_pole))
     assert cv < 0.01, (
         f"Pomraning pole isotropy violated for {inner_solver}: "

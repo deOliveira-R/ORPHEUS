@@ -137,10 +137,10 @@ def _random_composite(sn_mesh, seed=171):
     from dataclasses import replace
 
     rng = np.random.default_rng(seed)
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
-    bulk_values = rng.standard_normal(state.bulk.values.shape)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+    bulk_values = rng.standard_normal(state.interior.values.shape)
     boundary_values = 0.1 + rng.random(state.boundary.values.shape)
-    state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+    state = replace(state, interior=replace(state.interior, values=bulk_values))
     state = replace(
         state, boundary=replace(state.boundary, values=boundary_values),
     )
@@ -266,9 +266,9 @@ class TestLinearity:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh, ng=2)
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         out = L.apply(state)
-        np.testing.assert_allclose(out.bulk.values, 0.0, atol=1e-14)
+        np.testing.assert_allclose(out.interior.values, 0.0, atol=1e-14)
         np.testing.assert_allclose(out.boundary.values, 0.0, atol=1e-14)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
@@ -287,13 +287,13 @@ class TestLinearity:
         hom_combined = L.apply(c * state1)
         hom_separate = c * L.apply(state1)
         np.testing.assert_allclose(
-            hom_combined.bulk.values, hom_separate.bulk.values, rtol=1e-12, atol=1e-13)
+            hom_combined.interior.values, hom_separate.interior.values, rtol=1e-12, atol=1e-13)
         np.testing.assert_allclose(
             hom_combined.boundary.values, hom_separate.boundary.values, rtol=1e-12, atol=1e-13)
         out_combined = L.apply(state1 + lam * (state2 - state1))
         out_separate = (1.0 - lam) * L.apply(state1) + lam * L.apply(state2)
         np.testing.assert_allclose(
-            out_combined.bulk.values, out_separate.bulk.values,
+            out_combined.interior.values, out_separate.interior.values,
             rtol=1e-12, atol=1e-13,
         )
         np.testing.assert_allclose(
@@ -382,8 +382,8 @@ class TestCompositeInvariants:
         # so the output is the TIMELESS FullField (history-free).
         assert isinstance(out, FullField)
         assert not isinstance(out, TimedFullField)
-        assert isinstance(out.bulk, AngularSourceSink)
-        assert out.bulk.mesh is sn_mesh
+        assert isinstance(out.interior, AngularSourceSink)
+        assert out.interior.mesh is sn_mesh
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_boundary_carries_face_residual(self, name, builder):
@@ -420,9 +420,9 @@ class TestCompositeInvariants:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         out = L.apply(state)
-        np.testing.assert_array_equal(out.bulk.values, 0.0)
+        np.testing.assert_array_equal(out.interior.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
@@ -442,7 +442,7 @@ class TestCompositeInvariants:
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth, radial_characteristic=RadialCharacteristicFlux)
+            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth, radial_characteristic=RadialCharacteristicFlux)
             out = L.apply(state)
             if type(out) is not FullField or isinstance(out, TimedFullField):
                 pytest.fail(
@@ -482,7 +482,7 @@ class TestCompositeInvariants:
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
 
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         out = L.apply(state)
 
         # base-arrow codomain: a timeless FullField, NOT the timed subclass.
@@ -491,8 +491,8 @@ class TestCompositeInvariants:
                 f"L.apply output must be a timeless FullField, "
                 f"got {type(out).__name__}"
             )
-        assert isinstance(out.bulk, AngularSourceSink)
-        assert out.bulk.mesh is sn_mesh
+        assert isinstance(out.interior, AngularSourceSink)
+        assert out.interior.mesh is sn_mesh
 
     def test_mesh_identity_invariant(self):
         """Distinct SNMesh instances must reject the apply."""
@@ -500,7 +500,7 @@ class TestCompositeInvariants:
         sn_mesh_b = _slab_mesh()
         sig_t = _sig_t_uniform(sn_mesh_a)
         L = StreamingOperator(sn_mesh_a)
-        state_b = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh_b)
+        state_b = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh_b)
         with pytest.raises(ValueError, match="mesh-identity"):
             L.apply(state_b)
 
@@ -539,7 +539,7 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
 
         assert isinstance(out, FullField)
         assert not isinstance(out, TimedFullField)
-        assert out.bulk.mesh is sn_mesh
+        assert out.interior.mesh is sn_mesh
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -679,24 +679,24 @@ class TestT4bPreT4RegressionSnapshot:
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
-            bulk=replace(
-                state.bulk,
-                values=rng.uniform(0.05, 1.0, size=state.bulk.values.shape),
+            interior=replace(
+                state.interior,
+                values=rng.uniform(0.05, 1.0, size=state.interior.values.shape),
             ),
         )
         # #282 route (a): on a carrying mesh (sphere) the CONSISTENT edge-
         # extrapolated ψ½ seed reproduces the pre-route-(a) internally-computed
         # seed, so L.apply reproduces the frozen snapshot value; None on
         # non-carrying meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
-        sd = radial_characteristic_edge_seed(state.bulk.values, sn_mesh)
+        sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
         if sd is not None:
             state = replace(state, radial_characteristic=sd)
         out = L.apply(state)
-        return out.bulk.values.copy(), out.boundary.values.copy()
+        return out.interior.values.copy(), out.boundary.values.copy()
 
     def _assert_arm(self, snapshots, *, tag: str, mesh: SNMesh, seed: int) -> None:
         """Re-run the slab matvec arm: BULK principled-equivalent, BOUNDARY strict.
@@ -801,7 +801,7 @@ class TestT4bPreT4RegressionSnapshot:
         state = _make_state(sn_mesh, seed=seed)
         out = L.apply(state)
         assert_regression(
-            out.bulk.values, snapshots[f"{tag}_apply_bulk"],
+            out.interior.values, snapshots[f"{tag}_apply_bulk"],
             conv_tol=0.0, kind="direct", reduction_depth=self._PURE_L_NULP,
             case_name=f"{tag}_apply_bulk", quantity="apply_bulk",
         )
@@ -884,24 +884,24 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
-            bulk=replace(
-                state.bulk,
-                values=rng.uniform(0.05, 1.0, size=state.bulk.values.shape),
+            interior=replace(
+                state.interior,
+                values=rng.uniform(0.05, 1.0, size=state.interior.values.shape),
             ),
         )
         # #282 route (a): on a carrying mesh (sphere) the CONSISTENT edge-
         # extrapolated ψ½ seed reproduces the pre-route-(a) internally-computed
         # seed, so L.apply reproduces the frozen snapshot value; None on
         # non-carrying meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
-        sd = radial_characteristic_edge_seed(state.bulk.values, sn_mesh)
+        sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
         if sd is not None:
             state = replace(state, radial_characteristic=sd)
         out = L.apply(state)
-        return out.bulk.values.copy(), out.boundary.values.copy()
+        return out.interior.values.copy(), out.boundary.values.copy()
 
     def test_sphere_1g_apply_bit_identical(self, snapshots):
         """L4-2 — sphere 1G P0 vacuum-at-r=R."""

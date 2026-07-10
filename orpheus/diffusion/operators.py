@@ -8,7 +8,7 @@ r"""The diffusion operator family on the scalar composite — ``L`` and ``B``.
     \qquad
     (A)\,x \;=\; \tfrac{1}{k}\,F\,x ,
 
-acting on the scalar composite ``FullField(bulk=ScalarFlux,
+acting on the scalar composite ``FullField(interior=ScalarFlux,
 boundary=ScalarBoundaryFlux)`` (user ruling 1). Everything else is the
 SHARED algebra: ``C`` is
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
@@ -111,7 +111,7 @@ The resolvent (P4 design ruling)
 
 .. code-block:: python
 
-    template = FullField.zeros(bulk=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh)
+    template = FullField.zeros(interior=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh)
     A_inv = MatrixInverseOperator(FlattenedOperator(A, template))
 
 — NEVER the structure-keyed ``A.inverse()`` (the Green splitting
@@ -234,7 +234,7 @@ def _require_trace_layout(space: ScalarTraceSpace) -> FaceLayout[str]:
 
 
 def _trace_dof_columns(
-    n_bulk: int, layout: FaceLayout[str], face: str, row: int, ng: int,
+    n_interior: int, layout: FaceLayout[str], face: str, row: int, ng: int,
 ) -> np.ndarray:
     r"""Flat composite DOF indices of one trace component row on ``face``.
 
@@ -244,10 +244,10 @@ def _trace_dof_columns(
     at its :class:`FaceLayout` offset with component-major C-order — so
     component ``row`` (:attr:`ScalarTraceSpace.OUTFLOW_ROW` = J⁺ /
     ``INFLOW_ROW`` = J⁻), group ``g`` lives at
-    ``n_bulk + offset(face) + row·ng + g``. Returns the ``(ng,)`` index
+    ``n_interior + offset(face) + row·ng + g``. Returns the ``(ng,)`` index
     vector for all groups of that component.
     """
-    return n_bulk + layout.faces[face].offset + row * ng + np.arange(ng)
+    return n_interior + layout.faces[face].offset + row * ng + np.arange(ng)
 
 
 @dataclass(frozen=True)
@@ -283,7 +283,7 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
     <orpheus.transport.mesh.material_xs_field.MaterialXSField.diffusion_coefficient>`
     = the per-cell gather of ``Mixture.diffusion_coefficient``).
 
-    Action on ``FullField(bulk=ScalarFlux, boundary=ScalarBoundaryFlux)``
+    Action on ``FullField(interior=ScalarFlux, boundary=ScalarBoundaryFlux)``
     (see the module docstring for the derivation):
 
     * **bulk** — the conservative FD divergence with condensed interior
@@ -355,7 +355,7 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
 
         The shared entry of :meth:`apply` and :meth:`face_currents`
         (single source of the composite parses — Pattern 2)."""
-        bulk = psi.bulk
+        bulk = psi.interior
         if not isinstance(bulk, ScalarFlux):
             raise TypeError(
                 f"LeakageOperator: the input composite's bulk must be a "
@@ -428,7 +428,7 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
             slot[ScalarTraceSpace.INFLOW_ROW] = j_minus
 
         return FullField(
-            bulk=ScalarSourceSink.from_mesh(out_bulk, self.mesh),
+            interior=ScalarSourceSink.from_mesh(out_bulk, self.mesh),
             boundary=out_boundary,
         )
 
@@ -472,7 +472,7 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
         """
         ng, _n_interior = self._conductance.shape
         nx = self._volumes.size
-        n_bulk = ng * nx
+        n_interior = ng * nx
         space = self.mesh.full_field_space
         layout = _require_trace_layout(self.mesh.scalar_trace)
         n_total = int(space.shape[0])
@@ -505,10 +505,10 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
         # ── Boundary faces: trace coupling + the P1 closure rows ─────────
         for face, c in self._face_closures.items():
             j_plus = _trace_dof_columns(
-                n_bulk, layout, face, ScalarTraceSpace.OUTFLOW_ROW, ng,
+                n_interior, layout, face, ScalarTraceSpace.OUTFLOW_ROW, ng,
             )
             j_minus = _trace_dof_columns(
-                n_bulk, layout, face, ScalarTraceSpace.INFLOW_ROW, ng,
+                n_interior, layout, face, ScalarTraceSpace.INFLOW_ROW, ng,
             )
             edge_cell = np.arange(ng) * nx + c.edge
             # Edge bulk row: A_s (J⁺ − J⁻)/V_e — the axis_sign squares
@@ -600,12 +600,12 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
                 f"boundary must be a ScalarBoundaryFlux trace; got "
                 f"{type(trace).__name__}."
             )
-        if psi.bulk.mesh is not self.mesh:
+        if psi.interior.mesh is not self.mesh:
             raise ValueError(
                 "DiffusionBoundaryOperator.apply: input field and "
                 "operator must share the same DiffusionMesh instance "
                 f"(mesh-identity invariant); got field mesh "
-                f"{psi.bulk.mesh!r} vs operator mesh {self.mesh!r}."
+                f"{psi.interior.mesh!r} vs operator mesh {self.mesh!r}."
             )
         out_boundary = ScalarBoundarySourceSink.zeros_on(self.mesh)
         for face, law in self.face_laws.items():
@@ -613,7 +613,7 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
                 law.apply(trace.outflow_view(face))
             )
         return FullField(
-            bulk=ScalarSourceSink.zeros_on(self.mesh),
+            interior=ScalarSourceSink.zeros_on(self.mesh),
             boundary=out_boundary,
         )
 
@@ -638,7 +638,7 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
         ng = int(self.mesh.ng)
         space = self.mesh.full_field_space
         layout = _require_trace_layout(self.mesh.scalar_trace)
-        n_bulk = int(space.shape[0]) - layout.total_size
+        n_interior = int(space.shape[0]) - layout.total_size
         n_total = int(space.shape[0])
 
         rows: list[np.ndarray] = []
@@ -647,10 +647,10 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
         for face, law in self.face_laws.items():
             law_matrix = law.as_matrix(basis_shape=(ng,))     # (ng, ng)
             j_plus = _trace_dof_columns(
-                n_bulk, layout, face, ScalarTraceSpace.OUTFLOW_ROW, ng,
+                n_interior, layout, face, ScalarTraceSpace.OUTFLOW_ROW, ng,
             )
             j_minus = _trace_dof_columns(
-                n_bulk, layout, face, ScalarTraceSpace.INFLOW_ROW, ng,
+                n_interior, layout, face, ScalarTraceSpace.INFLOW_ROW, ng,
             )
             to_row, from_col = np.nonzero(law_matrix)
             rows.append(j_minus[to_row])

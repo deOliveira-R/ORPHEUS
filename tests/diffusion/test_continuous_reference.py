@@ -175,8 +175,8 @@ def test_bare_slab_flux_shape_converges_second_order():
 
         ref_g0 = np.asarray(ref.phi(z, 0), dtype=float)
         ref_g1 = np.asarray(ref.phi(z, 1), dtype=float)
-        solver_g0 = result.flux.bulk.values[0].copy()
-        solver_g1 = result.flux.bulk.values[1].copy()
+        solver_g0 = result.flux.interior.values[0].copy()
+        solver_g1 = result.flux.interior.values[1].copy()
 
         ref_g0, ref_g1 = _peak_normalise(ref_g0, ref_g1)
         solver_g0, solver_g1 = _peak_normalise(solver_g0, solver_g1)
@@ -286,8 +286,8 @@ def test_2region_flux_shape_converges_second_order():
 
         ref_g0 = np.asarray(ref.phi(z, 0), dtype=float)
         ref_g1 = np.asarray(ref.phi(z, 1), dtype=float)
-        solver_g0 = result.flux.bulk.values[0].copy()
-        solver_g1 = result.flux.bulk.values[1].copy()
+        solver_g0 = result.flux.interior.values[0].copy()
+        solver_g1 = result.flux.interior.values[1].copy()
 
         if ref_g0.sum() < 0:
             ref_g0 = -ref_g0

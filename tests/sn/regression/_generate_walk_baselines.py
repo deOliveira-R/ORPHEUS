@@ -95,9 +95,9 @@ def run_case(case: WalkMatvecCase) -> dict[str, np.ndarray]:
     fwd = lc.apply(psi)
     adj = lc.apply_transpose(phi)
     return {
-        "fwd_bulk": np.asarray(fwd.bulk.values, dtype=np.float64),
+        "fwd_bulk": np.asarray(fwd.interior.values, dtype=np.float64),
         "fwd_trace": np.asarray(fwd.boundary.values, dtype=np.float64),
-        "adj_bulk": np.asarray(adj.bulk.values, dtype=np.float64),
+        "adj_bulk": np.asarray(adj.interior.values, dtype=np.float64),
         "adj_trace": np.asarray(adj.boundary.values, dtype=np.float64),
     }
 

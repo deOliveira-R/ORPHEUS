@@ -175,8 +175,8 @@ def test_cylinder_three_way_standoff(
     )
 
     # D-H.1d: Solution.angular_flux is TimedFullField.
-    psi_si = res_si.angular_flux.bulk.values[:, :, 0]
-    psi_k = res_k.angular_flux.bulk.values[:, :, 0]
+    psi_si = res_si.angular_flux.interior.values[:, :, 0]
+    psi_k = res_k.angular_flux.interior.values[:, :, 0]
 
     err_si_vs_ref = float(np.max(np.abs(psi_si - psi_ref)))
     err_k_vs_ref = float(np.max(np.abs(psi_k - psi_ref)))

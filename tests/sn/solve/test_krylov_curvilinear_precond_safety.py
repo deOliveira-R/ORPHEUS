@@ -198,7 +198,7 @@ def _krylov_power_iteration_kinf(
         # :class:`TimedFullField` composite — bulk = L2 AngularFlux
         # carrying ``q_ext_per_ord.values``; boundary = implicit zero.
         zero = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
             radial_characteristic=RadialCharacteristicFlux,
         )
         # B.5.2: q_ext IS a source (AngularSourceSink), emitted directly — no
@@ -211,7 +211,7 @@ def _krylov_power_iteration_kinf(
         # ``SNSolver._solve_krylov`` uses).  The reflective B corner arm is folded
         # by ``KrylovAcceleration`` internally (B is in the gains).
         q_ext_typed = replace(
-            zero, bulk=q_ext_per_ord,
+            zero, interior=q_ext_per_ord,
             radial_characteristic=RadialCharacteristicSourceSink.from_angular_source(
                 q_ext_per_ord.values, sn_mesh,
             ),
@@ -221,7 +221,7 @@ def _krylov_power_iteration_kinf(
             initial_guess=psi_typed_warm if psi_typed_warm is not None else zero,
         )
         psi_typed_warm = psi_typed
-        phi = psi_typed.bulk.integrate_angular().values
+        phi = psi_typed.interior.integrate_angular().values
         keff_new = solver.compute_keff(phi)
         if abs(keff_new - keff) < keff_tol:
             keff = keff_new
@@ -341,7 +341,7 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
     )
     bulk_only = sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape))
     composite = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
         radial_characteristic=RadialCharacteristicFlux,
     )
     composite_dim = int(composite.to_flat().size)

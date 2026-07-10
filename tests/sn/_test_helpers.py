@@ -326,10 +326,10 @@ def het_operands(sn: "SNMesh"):
     # slab/cyl no).  A RANDOM seed activates the augmented seed rows in
     # the frozen baseline (nothing nulled by a zero block).
     psi = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
         radial_characteristic=RadialCharacteristicFlux,
     )
-    psi.bulk.values[...] = rng.standard_normal(psi.bulk.values.shape)
+    psi.interior.values[...] = rng.standard_normal(psi.interior.values.shape)
     for face in psi.boundary.layout.faces:
         fv = psi.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
@@ -358,7 +358,7 @@ def legacy_proxy_matvec(
        face — the cell-centre-proxy fill.
     2. Wrap into a :class:`TimedFullField`.
     3. Call :func:`_transport_operator_matvec_unified`.
-    4. Return ``result.bulk.values`` as a bare ndarray.
+    4. Return ``result.interior.values`` as a bare ndarray.
 
     The "legacy" prefix refers to the BOUNDARY-FILL CONVENTION (the
     pre-B1'' cell-centre proxy), not to retired code.  Production
@@ -406,7 +406,7 @@ def legacy_proxy_matvec(
     # meshes (slab/cyl) → None, byte-identical to the pre-2.5d helper.
     radial_characteristic = radial_characteristic_edge_seed(psi_view, sn_mesh)
     composite = TimedFullField(
-        bulk=AngularFlux.from_mesh(psi_view, sn_mesh),
+        interior=AngularFlux.from_mesh(psi_view, sn_mesh),
         boundary=boundary,
         radial_characteristic=radial_characteristic,
         _history=(),
@@ -415,7 +415,7 @@ def legacy_proxy_matvec(
     L_op = StreamingOperator(sn_mesh)
     C_op = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     result = (L_op + C_op).apply(composite)
-    return result.bulk.values
+    return result.interior.values
 
 
 def radial_characteristic_edge_seed(psi_view, sn_mesh):
@@ -470,7 +470,7 @@ def _LC_matvec(
     """
     from orpheus.sn.operators.streaming import StreamingOperator
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-    sn_mesh = psi.bulk.mesh
+    sn_mesh = psi.interior.mesh
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     return (L + C).apply(psi)

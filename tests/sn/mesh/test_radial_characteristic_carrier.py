@@ -121,7 +121,7 @@ def _slab() -> SNMesh:
 def _seeded_flux_composite(sn: SNMesh, seed: int = 20260704) -> TimedFullField:
     """A random seed-carrying flux composite on ``sn`` (must be sphere)."""
     z = TimedFullField.zeros(
-        bulk=AngularFlux,
+        interior=AngularFlux,
         boundary=AngularBoundaryFlux,
         mesh=sn,
         radial_characteristic=RadialCharacteristicFlux,
@@ -129,7 +129,7 @@ def _seeded_flux_composite(sn: SNMesh, seed: int = 20260704) -> TimedFullField:
     rng = np.random.default_rng(seed)
     assert z.radial_characteristic is not None  # builder precondition, not a gate
     return z._recombine(
-        bulk=replace(z.bulk, values=rng.normal(size=z.bulk.values.shape)),
+        interior=replace(z.interior, values=rng.normal(size=z.interior.values.shape)),
         boundary=replace(
             z.boundary, values=rng.normal(size=z.boundary.values.shape),
         ),
@@ -143,7 +143,7 @@ def _seeded_flux_composite(sn: SNMesh, seed: int = 20260704) -> TimedFullField:
 def _seeded_source_composite(sn: SNMesh, seed: int) -> FullField:
     """A random seed-carrying SOURCE composite (additive role algebra)."""
     z = FullField.zeros(
-        bulk=AngularSourceSink,
+        interior=AngularSourceSink,
         boundary=AngularBoundarySourceSink,
         mesh=sn,
         radial_characteristic=RadialCharacteristicSourceSink,
@@ -151,7 +151,7 @@ def _seeded_source_composite(sn: SNMesh, seed: int) -> FullField:
     rng = np.random.default_rng(seed)
     assert z.radial_characteristic is not None
     return z._recombine(
-        bulk=replace(z.bulk, values=rng.normal(size=z.bulk.values.shape)),
+        interior=replace(z.interior, values=rng.normal(size=z.interior.values.shape)),
         boundary=replace(
             z.boundary, values=rng.normal(size=z.boundary.values.shape),
         ),
@@ -201,7 +201,7 @@ class TestA1PresenceR12a:
                 f"radial_characteristic_space None (R12a)"
             )
         z = TimedFullField.zeros(
-            bulk=AngularFlux,
+            interior=AngularFlux,
             boundary=AngularBoundaryFlux,
             mesh=sn,
             radial_characteristic=RadialCharacteristicFlux,  # passed UNIFORMLY
@@ -217,7 +217,7 @@ class TestA1PresenceR12a:
     def test_sphere_composite_zeros_carry_typed_block(self):
         sn = _sphere()
         z = TimedFullField.zeros(
-            bulk=AngularFlux,
+            interior=AngularFlux,
             boundary=AngularBoundaryFlux,
             mesh=sn,
             radial_characteristic=RadialCharacteristicFlux,
@@ -237,11 +237,11 @@ class TestA1PresenceR12a:
         sn = _sphere()
         seed_space = sn.radial_characteristic_space
         assert seed_space is not None  # narrowing (A1 sphere gate above pins it)
-        n_bulk = sn.quad.N * sn.ng * 4
+        n_interior = sn.quad.N * sn.ng * 4
         n_trace = sn.angular_trace.shape[0]
         np.testing.assert_array_equal(
             sn.full_field_space.shape,
-            (n_bulk + n_trace + seed_space.shape[0],),
+            (n_interior + n_trace + seed_space.shape[0],),
         )
         slab = _slab()
         np.testing.assert_array_equal(
@@ -301,13 +301,13 @@ class TestA2FlatRoundTrip:
         assert x.radial_characteristic is not None
         flat = x.to_flat()
         expected_len = (
-            x.bulk.values.size
+            x.interior.values.size
             + x.boundary.values.size
             + x.radial_characteristic.values.size
         )
         np.testing.assert_array_equal(flat.size, expected_len)
         y = FullField.from_flat(flat, x)
-        np.testing.assert_array_equal(y.bulk.values, x.bulk.values)
+        np.testing.assert_array_equal(y.interior.values, x.interior.values)
         np.testing.assert_array_equal(y.boundary.values, x.boundary.values)
         assert y.radial_characteristic is not None
         np.testing.assert_array_equal(
@@ -322,7 +322,7 @@ class TestA2FlatRoundTrip:
         x = _seeded_flux_composite(sn)
         assert x.radial_characteristic is not None
         flat = x.to_flat()
-        n_head = x.bulk.values.size + x.boundary.values.size
+        n_head = x.interior.values.size + x.boundary.values.size
         np.testing.assert_array_equal(
             flat[n_head:], x.radial_characteristic.values,
         )
@@ -338,13 +338,13 @@ class TestA2FlatRoundTrip:
 
         def _two_block_to_flat(self):  # the pre-2.5d serializer
             return np.concatenate([
-                self.bulk.values.ravel(), self.boundary.values,
+                self.interior.values.ravel(), self.boundary.values,
             ])
 
         monkeypatch.setattr(FullField, "to_flat", _two_block_to_flat)
         mutated = x.to_flat()
         expected_len = (
-            x.bulk.values.size
+            x.interior.values.size
             + x.boundary.values.size
             + x.radial_characteristic.values.size
         )
@@ -430,7 +430,7 @@ class TestA3AlgebraClosure:
         never a silent drop of the ψ½ block (§16.A A3's feared bug)."""
         sn = _sphere()
         a = _seeded_source_composite(sn, 21)
-        unseeded = FullField(bulk=a.bulk, boundary=a.boundary)
+        unseeded = FullField(interior=a.interior, boundary=a.boundary)
         with pytest.raises(ValueError, match="MIXED starting-direction"):
             (a + unseeded) if op == "add" else (a - unseeded)
         with pytest.raises(ValueError, match="MIXED starting-direction"):
@@ -442,7 +442,7 @@ class TestA3AlgebraClosure:
         assert psi.radial_characteristic is not None
         new = _seeded_flux_composite(sn, 32)
         assert new.radial_characteristic is not None
-        adv = psi.advance(new.bulk, new.boundary, new.radial_characteristic)
+        adv = psi.advance(new.interior, new.boundary, new.radial_characteristic)
         assert adv.radial_characteristic is not None
         np.testing.assert_array_equal(
             adv.radial_characteristic.values, new.radial_characteristic.values,
@@ -453,7 +453,7 @@ class TestA3AlgebraClosure:
             lag1.radial_characteristic.values, psi.radial_characteristic.values,
         )
         with pytest.raises(TypeError, match="presence must match"):
-            psi.advance(new.bulk, new.boundary)  # dropping the block
+            psi.advance(new.interior, new.boundary)  # dropping the block
 
     def test_copy_owns_the_seed_block(self):
         sn = _sphere()
@@ -527,7 +527,7 @@ class TestA4SeedStateMetricVcell:
         sn = _sphere()
         ffs = sn.full_field_space
         x = _seeded_flux_composite(sn, 51)
-        twin = FullField(bulk=x.bulk, boundary=x.boundary)
+        twin = FullField(interior=x.interior, boundary=x.boundary)
         gx = ffs.apply_metric(x)
         g_twin = ffs.apply_metric(twin)
         assert gx.radial_characteristic is not None
@@ -537,7 +537,7 @@ class TestA4SeedStateMetricVcell:
         )
         if not np.any(gx.radial_characteristic.values != 0.0):
             pytest.fail("G⊙x zeroed the seed block — the ghost metric lives")
-        np.testing.assert_array_equal(gx.bulk.values, g_twin.bulk.values)
+        np.testing.assert_array_equal(gx.interior.values, g_twin.interior.values)
         np.testing.assert_array_equal(gx.boundary.values, g_twin.boundary.values)
 
     def test_apply_inverse_metric_divides_seed_by_v_cell(self):
@@ -571,8 +571,8 @@ class TestA4SeedStateMetricVcell:
         ffs = sn.full_field_space
         x = _seeded_flux_composite(sn, 53)
         y = _seeded_flux_composite(sn, 54)
-        x_twin = FullField(bulk=x.bulk, boundary=x.boundary)
-        y_twin = FullField(bulk=y.bulk, boundary=y.boundary)
+        x_twin = FullField(interior=x.interior, boundary=x.boundary)
+        y_twin = FullField(interior=y.interior, boundary=y.boundary)
         w = np.asarray(
             sn.radial_characteristic_space.inner_product_weights, dtype=float,
         )
@@ -595,7 +595,7 @@ class TestA4SeedStateMetricVcell:
         sn = _sphere()
         ffs = sn.full_field_space
         x = _seeded_flux_composite(sn, 55)
-        y_twin = FullField(bulk=x.bulk, boundary=x.boundary)
+        y_twin = FullField(interior=x.interior, boundary=x.boundary)
         with pytest.raises(ValueError, match="mixed starting-direction"):
             ffs.inner_product(x, y_twin)
 

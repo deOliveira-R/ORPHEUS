@@ -121,7 +121,7 @@ def _scalar_composite_source(op: "LinearOperator", psi: FullField) -> FullField:
         ScalarSourceSink,
     )
 
-    bulk = psi.bulk
+    bulk = psi.interior
     if not isinstance(bulk, ScalarField):
         raise TypeError(
             f"{type(op).__name__} composite apply: scalar-family bulk "
@@ -131,7 +131,7 @@ def _scalar_composite_source(op: "LinearOperator", psi: FullField) -> FullField:
         )
     mesh = bulk.mesh
     return FullField(
-        bulk=ScalarSourceSink.from_mesh(op.apply(bulk.values), mesh),
+        interior=ScalarSourceSink.from_mesh(op.apply(bulk.values), mesh),
         boundary=ScalarBoundarySourceSink.zeros_on(mesh),
     )
 
@@ -152,9 +152,9 @@ def _iso_is_assemblable(op: "IsotropicScattering | IsotropicN2N") -> bool:
     space = op.space
     return (
         isinstance(space, FullFieldSpace)
-        and space.bulk_space is not None
-        and len(space.bulk_space.shape) >= 1
-        and int(space.bulk_space.shape[0]) == int(op.mat_xs.ng)
+        and space.interior_space is not None
+        and len(space.interior_space.shape) >= 1
+        and int(space.interior_space.shape[0]) == int(op.mat_xs.ng)
     )
 
 
@@ -197,22 +197,22 @@ def _assemble_iso_energy_operator(
             f"axis is not the group axis."
         )
     assert isinstance(space, FullFieldSpace)  # narrowed by the predicate
-    assert space.bulk_space is not None
-    bulk_shape = tuple(space.bulk_space.shape)
-    ng = bulk_shape[0]
-    n_cells = int(np.prod(bulk_shape[1:])) if len(bulk_shape) > 1 else 1
-    n_bulk = ng * n_cells
+    assert space.interior_space is not None
+    interior_shape = tuple(space.interior_space.shape)
+    ng = interior_shape[0]
+    n_cells = int(np.prod(interior_shape[1:])) if len(interior_shape) > 1 else 1
+    n_interior = ng * n_cells
     n_total = int(space.shape[0])
 
-    bulk_rows = np.arange(n_bulk)
+    bulk_rows = np.arange(n_interior)
     cell_of_row = bulk_rows % n_cells
     rows: list[np.ndarray] = []
     cols: list[np.ndarray] = []
     vals: list[np.ndarray] = []
     for g_from in range(ng):
-        impulse = np.zeros(bulk_shape)
+        impulse = np.zeros(interior_shape)
         impulse[g_from] = 1.0
-        image = np.asarray(op.apply(impulse)).ravel()   # (n_bulk,) g-major
+        image = np.asarray(op.apply(impulse)).ravel()   # (n_interior,) g-major
         nonzero = image != 0.0
         rows.append(bulk_rows[nonzero])
         cols.append((g_from * n_cells + cell_of_row)[nonzero])

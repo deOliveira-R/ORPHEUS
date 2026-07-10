@@ -172,7 +172,7 @@ def test_solve_sn_2d_krylov_homogeneous_reflective_recovers_kinf() -> None:
 @pytest.mark.foundation
 @pytest.mark.catches("ERR-026")
 def test_apply_vs_sweep_2d_residual_cancellation() -> None:
-    r"""``(L + C).apply(state).bulk ≈ L.apply(state).bulk + C.apply(state).bulk`` (allclose).
+    r"""``(L + C).apply(state).interior ≈ L.apply(state).interior + C.apply(state).interior`` (allclose).
 
     Pillar: allclose-consistency check.  Since #240 Phase 2 Step B this is NO
     LONGER the load-bearing ERR-026 anchor: ``InvertibleOperator.apply`` now
@@ -195,8 +195,8 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
     mesh = _vacuum_xy_2d_with_scatter()
     rng = np.random.default_rng(seed=20260528)
 
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
-    state.bulk.values[...] = rng.standard_normal(state.bulk.values.shape)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
+    state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
     state.boundary.values[...] = rng.standard_normal(state.boundary.values.shape)
 
     sigma_t = np.array(
@@ -212,10 +212,10 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
     A = L + C
 
     sum_out = A.apply(state)
-    sep_out = L.apply(state).bulk.values + C.apply(state).bulk.values
+    sep_out = L.apply(state).interior.values + C.apply(state).interior.values
 
     np.testing.assert_allclose(
-        sum_out.bulk.values, sep_out, rtol=0.0, atol=1e-12,
+        sum_out.interior.values, sep_out, rtol=0.0, atol=1e-12,
         err_msg=(
             "ERR-026 2-D tripwire: (L+C).apply ≠ L.apply + C.apply on bulk."
         ),
@@ -313,10 +313,10 @@ def test_2d_matvec_linearity_random_state() -> None:
     A = L + C
 
     rng = np.random.default_rng(seed=20260528)
-    u = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
-    v = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
-    u.bulk.values[...] = rng.standard_normal(u.bulk.values.shape)
-    v.bulk.values[...] = rng.standard_normal(v.bulk.values.shape)
+    u = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
+    v = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
+    u.interior.values[...] = rng.standard_normal(u.interior.values.shape)
+    v.interior.values[...] = rng.standard_normal(v.interior.values.shape)
     u.boundary.values[...] = rng.standard_normal(u.boundary.values.shape)
     v.boundary.values[...] = rng.standard_normal(v.boundary.values.shape)
 
@@ -329,10 +329,10 @@ def test_2d_matvec_linearity_random_state() -> None:
     # Build the combined input state at the .values array level (the raw
     # vector-space combination of the numbers) and apply the operator.
     combined = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh,
     )
-    combined.bulk.values[...] = (
-        alpha * u.bulk.values + beta * v.bulk.values
+    combined.interior.values[...] = (
+        alpha * u.interior.values + beta * v.interior.values
     )
     combined.boundary.values[...] = (
         alpha * u.boundary.values + beta * v.boundary.values
@@ -340,11 +340,11 @@ def test_2d_matvec_linearity_random_state() -> None:
 
     lhs = A.apply(combined)
     rhs_bulk = (
-        alpha * A.apply(u).bulk.values + beta * A.apply(v).bulk.values
+        alpha * A.apply(u).interior.values + beta * A.apply(v).interior.values
     )
 
     np.testing.assert_allclose(
-        lhs.bulk.values, rhs_bulk, rtol=1e-12, atol=1e-14,
+        lhs.interior.values, rhs_bulk, rtol=1e-12, atol=1e-14,
         err_msg=(
             "2-D matvec lost linearity on bulk — /W projection defect "
             "or convention drift across bulk/boundary boundary."

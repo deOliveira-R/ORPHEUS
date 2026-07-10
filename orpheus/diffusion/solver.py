@@ -6,7 +6,7 @@ Poses the multigroup diffusion criticality problem
 
     \underbrace{(L + C - S - B)}_{A}\,\psi \;=\; \frac{1}{k}\,F\,\psi
 
-on the **scalar composite** ``FullField(bulk=ScalarFlux,
+on the **scalar composite** ``FullField(interior=ScalarFlux,
 boundary=ScalarBoundaryFlux)`` (campaign ruling 1) and drives it through
 the ONE cross-method engine,
 :func:`~orpheus.numerics.eigenvalue.power_iteration`, via the
@@ -244,7 +244,7 @@ class DiffusionSolver:
 
         #: The zero composite freezing the flat layout.
         self.template = FullField.zeros(
-            bulk=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh,
+            interior=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh,
         )
         #: The campaign-ruled exact resolvent (eager LU at construction).
         self.resolvent = MatrixInverseOperator(
@@ -301,7 +301,7 @@ class DiffusionSolver:
         psi = self.unflatten(flux_distribution)
         return IntegratedReactionRate(
             self.mat_xs.fission_production_field
-        ).evaluate(psi.bulk.values)
+        ).evaluate(psi.interior.values)
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
         r"""The integrated eigenvalue relation
@@ -310,7 +310,7 @@ class DiffusionSolver:
         theorem + divergence telescoping — module docstring)."""
         psi = self.unflatten(flux_distribution)
         production = self.compute_production_rate(flux_distribution)
-        loss_rate = self._volume_integral(self.loss.apply(psi).bulk.values)
+        loss_rate = self._volume_integral(self.loss.apply(psi).interior.values)
         return production / loss_rate
 
     def converged(

@@ -52,7 +52,7 @@ def _build(case_builder):
 
 def _assert_fields_equal(got, ref, msg):
     """Bit-identical on BOTH the bulk flux AND every boundary face trace."""
-    np.testing.assert_array_equal(got.bulk.values, ref.bulk.values, err_msg=msg)
+    np.testing.assert_array_equal(got.interior.values, ref.interior.values, err_msg=msg)
     for face in ref.boundary.layout.faces:
         np.testing.assert_array_equal(
             got.boundary.face_view(face), ref.boundary.face_view(face),

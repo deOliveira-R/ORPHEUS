@@ -42,7 +42,7 @@ For slab + sphere + cylinder, ≥2 groups, the gate captures (under
 * **Sweep leg:** ONE ``transport_sweep`` driven by a fixed-seed random
   per-ordinate source ``Q`` + heterogeneous σ_t — both the returned
   ``angular_flux`` ``(N, ng, nx)`` and ``scalar_flux`` ``(ng, nx)``.
-* **Matvec leg:** ONE ``(L + C).apply(ψ).bulk`` on a fixed-seed random
+* **Matvec leg:** ONE ``(L + C).apply(ψ).interior`` on a fixed-seed random
   NON-flat ψ (random bulk + random boundary trace) + heterogeneous σ_t
   — the canonical :func:`tests.sn._test_helpers.het_operands` operands,
   which are tuned precisely so every loss-action term is activated.
@@ -279,13 +279,13 @@ class TestAffineCarveSweepBaseline:
 
 
 # ═════════════════════════════════════════════════════════════════════
-# MATVEC LEG — one (L+C).apply(ψ).bulk on a fixed-seed random non-flat ψ.
+# MATVEC LEG — one (L+C).apply(ψ).interior on a fixed-seed random non-flat ψ.
 # ═════════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.foundation
 class TestAffineCarveMatvecBaseline:
-    """One ``(L+C).apply(ψ).bulk`` on a het σ_t + non-flat random ψ is
+    """One ``(L+C).apply(ψ).interior`` on a het σ_t + non-flat random ψ is
     unmoved.
 
     Sharper than ``TestVacuumMatvecBitIdentity`` (vacuum BC, flat-
@@ -299,7 +299,7 @@ class TestAffineCarveMatvecBaseline:
 
     @pytest.mark.parametrize("geometry", _GEOMS_1D)
     def test_matvec_bulk_unmoved(self, geometry, request):
-        """[foundation] One (L+C).apply(ψ).bulk on het σ_t + non-flat ψ.
+        """[foundation] One (L+C).apply(ψ).interior on het σ_t + non-flat ψ.
 
         The bulk residual ``(N, ng, nx)`` reduces over ``nx`` cells (the
         per-cell WDD recurrence ``psi_face_in = 2·psi_cell − psi_face_in``)
@@ -319,7 +319,7 @@ class TestAffineCarveMatvecBaseline:
         captured = _capture_or_assert(
             request,
             f"matvec_bulk_{geometry}",
-            np.asarray(out.bulk.values, dtype=np.float64),
+            np.asarray(out.interior.values, dtype=np.float64),
             reduction_depth=nx,
             quantity="matvec_bulk",
         )

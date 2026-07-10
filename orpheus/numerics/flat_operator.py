@@ -38,7 +38,7 @@ Pattern 2), and the resolvent is spelled
 (:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`)
 already carries the flat direct-sum dimension as its ``shape``
 identity, so the inner operator's spaces are reported verbatim and
-``as_matrix`` derives ``basis_shape = (n_bulk + n_trace,)`` for free.
+``as_matrix`` derives ``basis_shape = (n_interior + n_trace,)`` for free.
 
 The TEMPLATE is input-side metadata only: basis vectors are unflattened
 through it (shapes, spaces, meshes, concrete composite class), while the

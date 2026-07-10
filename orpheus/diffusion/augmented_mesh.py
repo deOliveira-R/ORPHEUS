@@ -359,9 +359,9 @@ class DiffusionMesh(MaterialMesh):
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
         V = np.asarray(self.volumes, dtype=float)  # (*spatial)
-        bulk_space = FunctionSpace(
+        interior_space = FunctionSpace(
             name="scalar_bulk",
             shape=(self.ng, *self.spatial_shape),
             inner_product_weights=V.reshape((1, *V.shape)),
         )
-        return FullFieldSpace.from_blocks(bulk_space, self.scalar_trace)
+        return FullFieldSpace.from_blocks(interior_space, self.scalar_trace)

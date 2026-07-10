@@ -688,7 +688,7 @@ def _moment_resolved_rhs(case, sn, mesh, *, moment_source=None):
 
     Qm = _project_external_source(case, mesh) if moment_source is None else moment_source
     return TimedFullField(
-        bulk=AngularSourceSink.from_mesh(Qm, sn, spatial_moments=2),
+        interior=AngularSourceSink.from_mesh(Qm, sn, spatial_moments=2),
         boundary=case.prescribed_inflow(sn),
     )
 
@@ -1298,7 +1298,7 @@ def _solve_with_boundary_slope(case, nc, *, slope_sign):
             slot[..., 1] = slope_sign * slope
             face_values[face] = slot
     rhs = TimedFullField(
-        bulk=AngularSourceSink.from_mesh(case.external_source(mesh), sn),
+        interior=AngularSourceSink.from_mesh(case.external_source(mesh), sn),
         boundary=AngularBoundarySourceSink.prescribed_inflow(sn, face_values),
     )
     result = solve_sn_fixed_source(

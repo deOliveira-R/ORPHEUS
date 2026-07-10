@@ -134,7 +134,7 @@ def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
     n_tr = int(sn.angular_trace.layout.total_size)
     n_sd = sn.radial_characteristic_space.shape[0]
     return FullField(
-        bulk=AngularFlux.from_mesh(
+        interior=AngularFlux.from_mesh(
             rng.standard_normal((N, ng, nx)) if bulk else np.zeros((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux(
             values=rng.standard_normal(n_tr) if trace else np.zeros(n_tr),

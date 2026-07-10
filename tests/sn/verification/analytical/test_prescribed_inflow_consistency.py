@@ -79,7 +79,7 @@ def _flux_zero(sn: SNMesh) -> TimedFullField:
     unravel, else ``S.apply`` hits ``AngularSourceSink`` (no
     ``integrate_angular``).
     """
-    return TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+    return TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
 
 
 def _prescribed_inflow_source(
@@ -97,7 +97,7 @@ def _prescribed_inflow_source(
     inflow = sn.angular_trace.inflow_indices_for_face(face)
     bss.face_view(face)[inflow] = psi_in
     return TimedFullField(
-        bulk=AngularSourceSink.from_mesh(bulk_vals, sn),
+        interior=AngularSourceSink.from_mesh(bulk_vals, sn),
         boundary=bss,
         _history=(),
         history_depth=2,
@@ -220,15 +220,15 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     # PRECONDITION 2 — the inflow non-trivially drives the interior
     # (else J≡GS≡K could hold vacuously at ψ≡0).
     _require(
-        np.abs(psi_j.bulk.values).max() > 1e-3,
+        np.abs(psi_j.interior.values).max() > 1e-3,
         "prescribed inflow did not drive the interior — vacuous consistency",
     )
 
     # SI ≡ Krylov (the 1-D discriminating pair; also a 2-D leg).
     _require(
-        _reldiff(psi_j.bulk.values, psi_k.bulk.values) < 1e-11,
+        _reldiff(psi_j.interior.values, psi_k.interior.values) < 1e-11,
         f"SI-Jacobi vs Krylov reldiff = "
-        f"{_reldiff(psi_j.bulk.values, psi_k.bulk.values):.2e} >= 1e-11",
+        f"{_reldiff(psi_j.interior.values, psi_k.interior.values):.2e} >= 1e-11",
     )
 
     if run_gs:
@@ -256,14 +256,14 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
 
         # Three-way ≡ (J ≡ GS ≡ K).
         _require(
-            _reldiff(psi_j.bulk.values, psi_g.bulk.values) < 1e-11,
+            _reldiff(psi_j.interior.values, psi_g.interior.values) < 1e-11,
             f"SI-Jacobi vs SI-Gauss-Seidel reldiff = "
-            f"{_reldiff(psi_j.bulk.values, psi_g.bulk.values):.2e} >= 1e-11",
+            f"{_reldiff(psi_j.interior.values, psi_g.interior.values):.2e} >= 1e-11",
         )
         _require(
-            _reldiff(psi_g.bulk.values, psi_k.bulk.values) < 1e-11,
+            _reldiff(psi_g.interior.values, psi_k.interior.values) < 1e-11,
             f"SI-Gauss-Seidel vs Krylov reldiff = "
-            f"{_reldiff(psi_g.bulk.values, psi_k.bulk.values):.2e} >= 1e-11",
+            f"{_reldiff(psi_g.interior.values, psi_k.interior.values):.2e} >= 1e-11",
         )
 
         # The inflow is honoured identically across all three.

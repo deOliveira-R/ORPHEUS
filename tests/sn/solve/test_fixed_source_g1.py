@@ -144,8 +144,8 @@ class TestExternalSourcePerOrdContract:
 
         def spy(self, q_ext, initial_guess=None):
             # D-H.1c stage 2: q_ext is now a TimedFullField; the
-            # per-ordinate source values live at ``q_ext.bulk.values``.
-            captured.append(np.array(q_ext.bulk.values, copy=True))
+            # per-ordinate source values live at ``q_ext.interior.values``.
+            captured.append(np.array(q_ext.interior.values, copy=True))
             return original_solve(self, q_ext, initial_guess=initial_guess)
 
         with patch.object(
@@ -238,8 +238,8 @@ class TestHomogeneousReflectiveFixedPoint:
         )
         # Per-ord ψ should be uniform across (N, ng, nx, ny) at the
         # fixed point. D-H.1b: angular_flux is now a TimedFullField;
-        # the bulk per-ordinate values live at .bulk.values.
-        per_ord = result.angular_flux.bulk.values
+        # the bulk per-ordinate values live at .interior.values.
+        per_ord = result.angular_flux.interior.values
         rel_dev = np.abs(per_ord - expected_per_ord) / max(
             expected_per_ord, 1e-30,
         )

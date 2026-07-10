@@ -160,7 +160,7 @@ def _sphere_per_ordinate_max_l2_ladder(case, n_cells) -> np.ndarray:
             case.materials, mesh, case.quadrature, Q,
             max_inner=500, inner_tol=1e-13,
         )
-        psi = result.angular_flux.bulk.values  # (N, ng, nx)
+        psi = result.angular_flux.interior.values  # (N, ng, nx)
         centers = mesh.centers
         V = mesh.volumes
         worst = 0.0

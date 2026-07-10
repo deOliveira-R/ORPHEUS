@@ -138,7 +138,7 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
-    template = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
     n_flat = template.to_flat().size
 
     def matvec_flat(flat: np.ndarray) -> np.ndarray:
@@ -211,7 +211,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     ``ψ.inflow − B·ψ.outflow``).
 
     D-I.3c (2026-05-29) — migrated from the bare-ndarray packed-vector contract
-    to :class:`TimedFullField` (typed ``out.bulk`` / ``out.boundary`` split,
+    to :class:`TimedFullField` (typed ``out.interior`` / ``out.boundary`` split,
     Pattern 4: illegal-states-unrepresentable).  2026-06-05 — the boundary-block
     assertion migrated from the pre-extraction "WDD residual = 0 at every face"
     to the O.4b inflow-identity / outflow-defect split (the pre-extraction
@@ -230,9 +230,9 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # face_view = 1 at every face slot (the "ψ = const at every B1''
     # slot" condition the docstring describes).  The face-flat buffer
     # is filled by assigning to every face_view in turn.
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
-    bulk_values = np.ones_like(state.bulk.values)
-    new_bulk = replace(state.bulk, values=bulk_values)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+    bulk_values = np.ones_like(state.interior.values)
+    new_bulk = replace(state.interior, values=bulk_values)
     new_boundary = state.boundary
     for face in new_boundary.layout.faces:
         new_boundary.face_view(face)[:] = 1.0
@@ -241,19 +241,19 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # reproduces the flat field and (L+C)·const collapses to σ_t·const; a
     # present-ZERO seed would break the collapse.  None on non-carrying meshes.
     state = replace(
-        state, bulk=new_bulk, boundary=new_boundary,
+        state, interior=new_bulk, boundary=new_boundary,
         radial_characteristic=radial_characteristic_edge_seed(bulk_values, sn_mesh),
     )
 
     out = L.apply(state) + C.apply(state)
 
-    # Cell slots: (L + C)·1.bulk = σ_t · 1.bulk
+    # Cell slots: (L + C)·1.interior = σ_t · 1.interior
     np.testing.assert_allclose(
-        out.bulk.values, sigma_t_val, rtol=1e-12, atol=1e-13,
+        out.interior.values, sigma_t_val, rtol=1e-12, atol=1e-13,
         err_msg=(
             f"{name}: (L + C) on flat ψ should reduce to σ_t at cell "
-            f"slots; got out.bulk with max diff "
-            f"{np.max(np.abs(out.bulk.values - sigma_t_val)):.3e}"
+            f"slots; got out.interior with max diff "
+            f"{np.max(np.abs(out.interior.values - sigma_t_val)):.3e}"
         ),
     )
     # Boundary block (Wave O O.4b bare-matvec semantics): NOT a single
@@ -320,7 +320,7 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
-    template = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
     n_flat = template.to_flat().size
 
     def matvec(flat: np.ndarray) -> np.ndarray:

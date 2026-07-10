@@ -13,7 +13,7 @@ the sweep substrate re-derives the outflow-definition rows (``shed`` writes
 SOURCE SUBSPACE ``{y : y.outflow-rows = 0}`` — which contains every
 production rhs (``q + S·ψ + B_upper·ψ`` all write bulk/inflow only) — whose
 :math:`M`-preimage is the TRACE-CONSISTENT states (``x.out =
-streamed(x.bulk)``, i.e. actual transport states; solve outputs by
+streamed(x.interior)``, i.e. actual transport states; solve outputs by
 construction).  The round-trip gate therefore round-trips a consistent
 state and asserts machine precision on BOTH the bulk and the trace — a
 STRONGER claim than the bulk-only falsifier.  The discriminator keeps its
@@ -68,7 +68,7 @@ pytestmark = pytest.mark.foundation
 
 def _as_timed(field, like):
     return TimedFullField(
-        bulk=field.bulk, boundary=field.boundary,
+        interior=field.interior, boundary=field.boundary,
         _history=(), history_depth=like.history_depth,
     )
 
@@ -90,7 +90,7 @@ def _reified(bc: str = "reflective", *, seed: int = 7):
 
 
 def _consistent_state(sn, LC, *, seed: int):
-    """A trace-CONSISTENT random state (``x.out = streamed(x.bulk)``): a
+    """A trace-CONSISTENT random state (``x.out = streamed(x.interior)``): a
     solve output — the walk's honest domain (module docstring)."""
     raw = _random_state(sn, seed=seed)
     return LC.solve(raw)
@@ -126,8 +126,8 @@ def test_w2_round_trip_machine_precision():
 
     rt = inv.apply(_as_timed(M.apply(x), x))
     np.testing.assert_allclose(
-        np.asarray(rt.bulk.values), np.asarray(x.bulk.values),
-        rtol=1e-10, atol=1e-12 * float(np.abs(x.bulk.values).max()),
+        np.asarray(rt.interior.values), np.asarray(x.interior.values),
+        rtol=1e-10, atol=1e-12 * float(np.abs(x.interior.values).max()),
         err_msg="M⁻¹(Mx) ≠ x (bulk) — the reified G-S forward substitution "
                 "does not invert its OWN forward",
     )
@@ -306,8 +306,8 @@ def test_mutation_split_direction_reddens_round_trip(monkeypatch):
     x = _consistent_state(sn, LC, seed=13)
     rt = M.inverse().apply(_as_timed(M.apply(x), x))
     defect = float(
-        np.abs(np.asarray(rt.bulk.values) - np.asarray(x.bulk.values)).max()
-        / np.abs(np.asarray(x.bulk.values)).max()
+        np.abs(np.asarray(rt.interior.values) - np.asarray(x.interior.values)).max()
+        / np.abs(np.asarray(x.interior.values)).max()
     )
     if defect < 1e-3:
         pytest.fail(

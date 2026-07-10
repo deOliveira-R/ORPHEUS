@@ -70,7 +70,7 @@ def test_ld_slope_moment_global_frame_consistency() -> None:
         boundary_condition="vacuum", inner_solver="krylov",
         max_inner=2000, inner_tol=1e-10,
     )
-    ang = ld.angular_flux.bulk.values   # (N, ng, nx, 2)
+    ang = ld.angular_flux.interior.values   # (N, ng, nx, 2)
     mu = quad.mu_x
     n_fwd, n_bwd = int(np.argmax(mu)), int(np.argmin(mu))
     j = 3   # left flank: global-x gradient clearly positive (flux rising L→R)

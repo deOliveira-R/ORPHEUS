@@ -97,7 +97,7 @@ def test_2d_homogeneous_reflective_krylov_hits_q_over_sigma_t() -> None:
 
     # Per-ordinate ψ uniform across (N, ng, nx, ny) at the fixed point;
     # Σ_t = 1.0 ⟹ ψ_n = q_iso / W.  Exact analytic limit → only FP noise.
-    per_ord = result.angular_flux.bulk.values
+    per_ord = result.angular_flux.interior.values
     expected_per_ord = q_iso / sum_w
     np.testing.assert_allclose(
         per_ord, expected_per_ord, rtol=1e-10,

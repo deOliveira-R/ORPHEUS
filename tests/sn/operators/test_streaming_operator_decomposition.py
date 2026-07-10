@@ -144,7 +144,7 @@ class TestResolutionADecomposition:
     """``(L + C).apply(ψ) == M(ψ; σ_t)`` bit-exact across all geometries.
 
     Resolution A guarantees this by construction:
-    ``L.apply := M(ψ; σ_t) − σ_t⊙ψ.bulk`` and ``C.apply := σ_t⊙ψ.bulk``,
+    ``L.apply := M(ψ; σ_t) − σ_t⊙ψ.interior`` and ``C.apply := σ_t⊙ψ.interior``,
     so ``(L + C).apply = M(ψ; σ_t)`` algebraically on both bulk and
     boundary blocks. NO xfail.
     """
@@ -162,7 +162,7 @@ class TestResolutionADecomposition:
         rng = np.random.default_rng(seed)
         bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
-            bulk=AngularFlux.from_mesh(bulk_arr, sn_mesh),
+            interior=AngularFlux.from_mesh(bulk_arr, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed on a
             # carrying mesh (SPH); None on non-carrying (CART/CYL).  The
@@ -184,15 +184,15 @@ class TestResolutionADecomposition:
         sum_state = L.apply(state) + C.apply(state)
 
         # Bulk residual — (N, ng, nx, ny) ndarray.
-        residual_bulk = sum_state.bulk.values - m_full_state.bulk.values
+        residual_bulk = sum_state.interior.values - m_full_state.interior.values
         rel_bulk = (
             np.linalg.norm(residual_bulk)
-            / max(np.linalg.norm(m_full_state.bulk.values), 1e-300)
+            / max(np.linalg.norm(m_full_state.interior.values), 1e-300)
         )
         assert rel_bulk < 1e-14, (
             f"{geometry} seed={seed}: bulk rel_residual={rel_bulk:.3e} "
             f"— Resolution A subtractive decomposition FAILED bit-exact "
-            f"gate on bulk. (L + C).apply.bulk MUST equal M(ψ; σ_t).bulk."
+            f"gate on bulk. (L + C).apply.interior MUST equal M(ψ; σ_t).interior."
         )
 
         # Boundary residual — flat (layout.total_size,) backing buffer.
@@ -217,13 +217,13 @@ class TestResolutionADecomposition:
 
 # ═══════════════════════════════════════════════════════════════════════
 # Mechanism criterion 2 — the pure-L apply matches the affine subtractive
-# form: L.apply(ψ).bulk ≈ M(ψ; σ_t).bulk − σ_t⊙ψ.bulk to FP ULP (the named
+# form: L.apply(ψ).interior ≈ M(ψ; σ_t).interior − σ_t⊙ψ.interior to FP ULP (the named
 # streaming_action leaf re-associates the reduction tree); boundary STRICT.
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestSubtractiveDefinition:
-    """``L.apply(ψ).bulk ≈ M(ψ; σ_t).bulk − σ_t · ψ.bulk`` to FP ULP
+    """``L.apply(ψ).interior ≈ M(ψ; σ_t).interior − σ_t · ψ.interior`` to FP ULP
     and ``L.apply(ψ).boundary == M(ψ; σ_t).boundary`` at STRICT exact equality.
 
     #257 S8b: pure-``L`` ``apply`` is ``streaming_action(ψ) =
@@ -236,7 +236,7 @@ class TestSubtractiveDefinition:
     ``C`` contributes zero on the trace and ``loss_action(0)`` produces
     the identical outflow defect, so the face residual must not move
     (a moved boundary would be a real bug).  Together with the
-    ``C.apply == σ_t⊙ψ.bulk; zero boundary`` contract (covered by
+    ``C.apply == σ_t⊙ψ.interior; zero boundary`` contract (covered by
     test_collision_operator), these two tests pin the pure-L + C split.
 
     The drift bound is ``REDUCTION_DEPTH × ULP`` (a single-step matvec FP
@@ -260,7 +260,7 @@ class TestSubtractiveDefinition:
         rng = np.random.default_rng(seed)
         bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
-            bulk=AngularFlux.from_mesh(bulk_arr, sn_mesh),
+            interior=AngularFlux.from_mesh(bulk_arr, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed on a
             # carrying mesh (SPH); None on non-carrying (CART/CYL).  The
@@ -279,10 +279,10 @@ class TestSubtractiveDefinition:
 
         m_full_state = _LC_matvec(state, sigma_t)
 
-        # Affine subtractive form: bulk expected = M.bulk - σ_t·ψ.bulk
+        # Affine subtractive form: bulk expected = M.interior - σ_t·ψ.interior
         # (σ_t broadcast over the ordinate axis 0 via [None, :, :, :]).
         expected_bulk = (
-            m_full_state.bulk.values - sigma_t[None] * state.bulk.values
+            m_full_state.interior.values - sigma_t[None] * state.interior.values
         )
         # Face slots: L.boundary == M.boundary (no volumetric collision
         # on the trace; the cell-balance σ·ψ term is a CELL quantity).
@@ -290,7 +290,7 @@ class TestSubtractiveDefinition:
 
         # Pure-L apply == the affine subtractive form to FP ULP on bulk.
         np.testing.assert_array_almost_equal_nulp(
-            l_state.bulk.values, expected_bulk, nulp=self._BULK_NULP,
+            l_state.interior.values, expected_bulk, nulp=self._BULK_NULP,
         )
         # Boundary STRICT 0-ULP — the face residual must not move.
         np.testing.assert_array_equal(
@@ -335,7 +335,7 @@ class TestPureLIsLossActionAtZeroSigma:
         rng = np.random.default_rng(0)
         bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
-            bulk=AngularFlux.from_mesh(bulk_arr, sn_mesh),
+            interior=AngularFlux.from_mesh(bulk_arr, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed on a
             # carrying mesh (SPH); None on non-carrying (CART/CYL).  The
@@ -359,7 +359,7 @@ class TestPureLIsLossActionAtZeroSigma:
         # Byte-exact: pure-L apply IS loss_action(0) (same call under
         # streaming_action) on BOTH bulk and boundary.
         np.testing.assert_array_equal(
-            l_state.bulk.values, l_action_zero.bulk.values,
+            l_state.interior.values, l_action_zero.interior.values,
         )
         np.testing.assert_array_equal(
             l_state.boundary.values, l_action_zero.boundary.values,

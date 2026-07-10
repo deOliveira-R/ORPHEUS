@@ -125,7 +125,7 @@ def _loss(sn_mesh: SNMesh):
 def _fresh(sn_mesh: SNMesh) -> FullField:
     space = sn_mesh.radial_characteristic_space
     return FullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         radial_characteristic=None if space is None else RadialCharacteristicFlux,
     )
 
@@ -133,7 +133,7 @@ def _fresh(sn_mesh: SNMesh) -> FullField:
 def _read_augmented(out, sn_mesh, g) -> np.ndarray:
     """The full augmented probe layout (incl. the outflow corner) — for the
     dense oracle's index bookkeeping."""
-    bulk = np.asarray(out.bulk.values)[:, g].ravel()
+    bulk = np.asarray(out.interior.values)[:, g].ravel()
     space = sn_mesh.radial_characteristic_space
     if space is None:
         return bulk
@@ -177,20 +177,20 @@ def test_g1_round_trip_bulk(geom):
     A = _loss(sn)
     rng = np.random.default_rng(20260705)
     x = _fresh(sn)
-    x.bulk.values[:] = rng.random(x.bulk.values.shape)
+    x.interior.values[:] = rng.random(x.interior.values.shape)
     if sn.radial_characteristic_space is not None:
         x.radial_characteristic.values[:] = rng.random(x.radial_characteristic.values.shape)
     back = A.solve_transpose(A.apply_transpose(x))
     np.testing.assert_allclose(
-        np.asarray(back.bulk.values), np.asarray(x.bulk.values),
+        np.asarray(back.interior.values), np.asarray(x.interior.values),
         rtol=_RTOL, atol=1e-11,
         err_msg=f"{geom}: solve_transpose∘apply_transpose ≠ I on the bulk",
     )
     b = _fresh(sn)                            # bulk-only source-subspace b
-    b.bulk.values[:] = rng.random(b.bulk.values.shape)
+    b.interior.values[:] = rng.random(b.interior.values.shape)
     fwd = A.apply_transpose(A.solve_transpose(b))
     np.testing.assert_allclose(
-        np.asarray(fwd.bulk.values), np.asarray(b.bulk.values),
+        np.asarray(fwd.interior.values), np.asarray(b.interior.values),
         rtol=_RTOL, atol=1e-11,
         err_msg=f"{geom}: apply_transpose∘solve_transpose ≠ I on the bulk",
     )
@@ -212,7 +212,7 @@ def test_g2_dense_transpose_oracle(geom):
     for g in range(sn.ng):
         M = _probe_augmented_matrix_one_group(sn, g)
         b = _fresh(sn)
-        b.bulk.values[:, g] = rng.random((sn.quad.n_ordinates, *sn.spatial_shape))
+        b.interior.values[:, g] = rng.random((sn.quad.n_ordinates, *sn.spatial_shape))
         if sn.radial_characteristic_space is not None:
             b.radial_characteristic.values[:] = rng.random(
                 b.radial_characteristic.values.shape
@@ -233,7 +233,7 @@ def _fdot(x, y, sn) -> float:
     """Plain Euclidean pairing over bulk ⊕ boundary.  ``solve_transpose`` is the
     EUCLIDEAN transpose-solve, so its reciprocity is metric-free (contrast the
     G-adjoint ``.H`` reciprocity in ``test_g_adjoint_reciprocity``)."""
-    d = float(np.sum(np.asarray(x.bulk.values) * np.asarray(y.bulk.values)))
+    d = float(np.sum(np.asarray(x.interior.values) * np.asarray(y.interior.values)))
     for face in sn.angular_trace.layout.faces:
         d += float(np.sum(x.boundary.face_view(face) * y.boundary.face_view(face)))
     return d
@@ -259,8 +259,8 @@ def test_g3_full_field_solve_reciprocity(geom):
     A = _loss(sn)
     rng = np.random.default_rng(20260705)
     q, p = _fresh(sn), _fresh(sn)
-    q.bulk.values[:] = rng.random(q.bulk.values.shape)
-    p.bulk.values[:] = rng.random(p.bulk.values.shape)
+    q.interior.values[:] = rng.random(q.interior.values.shape)
+    p.interior.values[:] = rng.random(p.interior.values.shape)
     for face in sn.angular_trace.layout.faces:
         q.boundary.face_view(face)[:] = rng.random(q.boundary.face_view(face).shape)
         p.boundary.face_view(face)[:] = rng.random(p.boundary.face_view(face).shape)
@@ -288,7 +288,7 @@ def test_g4_cyl_returns_no_seed_cotangent(geom):
         pytest.fail(f"{geom} unexpectedly carries a starting-direction space")
     A = _loss(sn)
     p = _fresh(sn)
-    p.bulk.values[:] = np.random.default_rng(1).random(p.bulk.values.shape)
+    p.interior.values[:] = np.random.default_rng(1).random(p.interior.values.shape)
     out = A.solve_transpose(p)
     if out.radial_characteristic is not None:
         pytest.fail(
@@ -351,9 +351,9 @@ def test_assembled_transpose_lapack_slab():
     for g in range(sn.ng):
         M = _probe_augmented_matrix_one_group(sn, g)
         b = _fresh(sn)
-        b.bulk.values[:, g] = rng.random((sn.quad.n_ordinates, *sn.spatial_shape))
-        b_vec = np.asarray(b.bulk.values)[:, g].ravel()
-        got = np.asarray(A.solve_transpose(b).bulk.values)[:, g].ravel()
+        b.interior.values[:, g] = rng.random((sn.quad.n_ordinates, *sn.spatial_shape))
+        b_vec = np.asarray(b.interior.values)[:, g].ravel()
+        got = np.asarray(A.solve_transpose(b).interior.values)[:, g].ravel()
         ref = np.empty_like(b_vec)
         ref[order] = solve_triangular(
             M[np.ix_(order, order)].T, b_vec[order], lower=False,

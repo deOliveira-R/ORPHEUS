@@ -111,12 +111,12 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = self.sn_mesh
-        if field.bulk.mesh is not sn_mesh:
+        if field.interior.mesh is not sn_mesh:
             raise ValueError(
                 "BulkAnalysisOperator.apply: input field and operator must "
                 "share the same SNMesh instance (mesh-identity invariant)."
             )
-        moments = self.frame.analysis.apply(field.bulk.values)
+        moments = self.frame.analysis.apply(field.interior.values)
         # The same wrap as the solve body's moment arm: the tensor's own
         # leading axis fixes L (basis-agnostic), and the trailing 2^d
         # spatial-moment axis rides through (#240 D5b-S3).
@@ -125,7 +125,7 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
             spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         )
         return TimedFullField(
-            bulk=bulk,
+            interior=bulk,
             boundary=field.boundary,
             _history=(),
             history_depth=(

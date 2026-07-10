@@ -131,7 +131,7 @@ def _rand_bulk(sn, seed: int) -> FullField:
     reciprocity/round-trip are well-posed for a bulk-only ``b``.
     """
     f = _fresh(sn)
-    f.bulk.values[:] = np.random.default_rng(seed).standard_normal(f.bulk.values.shape)
+    f.interior.values[:] = np.random.default_rng(seed).standard_normal(f.interior.values.shape)
     return f
 
 
@@ -145,7 +145,7 @@ def _rand_full(sn, seed: int) -> FullField:
     """
     f = _fresh(sn)
     rng = np.random.default_rng(seed)
-    f.bulk.values[:] = rng.standard_normal(f.bulk.values.shape)
+    f.interior.values[:] = rng.standard_normal(f.interior.values.shape)
     for face in sn.angular_trace.layout.faces:
         f.boundary.face_view(face)[:] = rng.standard_normal(
             f.boundary.face_view(face).shape
@@ -229,7 +229,7 @@ def test_gate2_swap_law_bit_identical(geom):
     lhs = _adjoint_inverse(A).apply(b)
     rhs = A.inverse().H.apply(b)
     np.testing.assert_array_equal(
-        np.asarray(lhs.bulk.values), np.asarray(rhs.bulk.values),
+        np.asarray(lhs.interior.values), np.asarray(rhs.interior.values),
         err_msg=f"[{geom}] swap-law bulk not bit-identical",
     )
     np.testing.assert_array_equal(
@@ -262,7 +262,7 @@ def test_gate3_adjoint_inverse_round_trip(geom):
     b = _rand_bulk(sn, 5)
     rt = A.H.apply(_adjoint_inverse(A).apply(b))
     np.testing.assert_allclose(
-        np.asarray(rt.bulk.values), np.asarray(b.bulk.values),
+        np.asarray(rt.interior.values), np.asarray(b.interior.values),
         rtol=_RTOL, atol=1e-11,
         err_msg=f"[{geom}] A*(A*)⁻¹ b ≠ b on the source-carried bulk",
     )
@@ -342,7 +342,7 @@ def test_mutation_adj_swap_reds_gates_1_and_2(geom, monkeypatch):
     )
     x = _adjoint_inverse(A).apply(b)
 
-    g2 = float(np.max(np.abs(np.asarray(x.bulk.values) - np.asarray(ref.bulk.values))))
+    g2 = float(np.max(np.abs(np.asarray(x.interior.values) - np.asarray(ref.interior.values))))
     g1 = _reciprocity_rel(A, psi, x, b, sn.full_field_space)
     if not (g2 > _CAUGHT and g1 > _CAUGHT):
         pytest.fail(

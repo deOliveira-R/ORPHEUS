@@ -577,10 +577,10 @@ class TestCompositeInvariants:
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = solver_2g_p0.sn_mesh
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         np.random.seed(41)
-        bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
-        state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+        bulk_values = np.random.rand(*state.interior.values.shape) + 0.1
+        state = replace(state, interior=replace(state.interior, values=bulk_values))
 
         out = solver_2g_p0.scattering_op.apply(state)
 
@@ -588,18 +588,18 @@ class TestCompositeInvariants:
         # so the output is the TIMELESS FullField (history-free).
         assert isinstance(out, FullField)
         assert not isinstance(out, TimedFullField)
-        assert isinstance(out.bulk, AngularSourceSink)
-        assert out.bulk.mesh is sn_mesh
+        assert isinstance(out.interior, AngularSourceSink)
+        assert out.interior.mesh is sn_mesh
 
     def test_implicit_zero_boundary(self, solver_2g_p0):
         """Scattering is volumetric — boundary member is all zeros."""
         from dataclasses import replace
 
         sn_mesh = solver_2g_p0.sn_mesh
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         np.random.seed(42)
-        bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
-        state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+        bulk_values = np.random.rand(*state.interior.values.shape) + 0.1
+        state = replace(state, interior=replace(state.interior, values=bulk_values))
 
         out = solver_2g_p0.scattering_op.apply(state)
 
@@ -608,9 +608,9 @@ class TestCompositeInvariants:
 
     def test_zero_bulk_zero_output(self, solver_2g_p0):
         """ψ = 0 ⇒ S·ψ = 0 (linearity guard at composite layer)."""
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=solver_2g_p0.sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=solver_2g_p0.sn_mesh)
         out = solver_2g_p0.scattering_op.apply(state)
-        np.testing.assert_array_equal(out.bulk.values, 0.0)
+        np.testing.assert_array_equal(out.interior.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
 
     def test_output_is_timeless_full_field(self, solver_2g_p0):
@@ -625,7 +625,7 @@ class TestCompositeInvariants:
 
         sn_mesh = solver_2g_p0.sn_mesh
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth)
+            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out = solver_2g_p0.scattering_op.apply(state)
             assert isinstance(out, FullField)
             assert not isinstance(out, TimedFullField)
@@ -1457,8 +1457,8 @@ class TestAnisoMomentSourcePath:
         from dataclasses import replace
 
         psi = self._reproduce_psi(solver_2g_p1_n2n, seed=20260530)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=solver_2g_p1_n2n.sn_mesh)
-        state = replace(state, bulk=replace(state.bulk, values=psi.values))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=solver_2g_p1_n2n.sn_mesh)
+        state = replace(state, interior=replace(state.interior, values=psi.values))
 
         out_post_t3 = op_p1.apply(state)
         snapshots = self._load_snapshot()
@@ -1466,7 +1466,7 @@ class TestAnisoMomentSourcePath:
         # Bulk: principled-equivalence relaxation.
         nulp_bound = max(4, 4 * op_p1.scattering_order)
         np.testing.assert_array_almost_equal_nulp(
-            out_post_t3.bulk.values,
+            out_post_t3.interior.values,
             snapshots["p1_apply_timed_full_field_bulk"],
             nulp=nulp_bound,
         )

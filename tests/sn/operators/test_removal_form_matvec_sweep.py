@@ -217,8 +217,8 @@ def _removal_sigmas(sn: SNMesh, *, seed: int) -> tuple[np.ndarray, np.ndarray]:
 
 def _random_state(sn: SNMesh, *, seed: int) -> TimedFullField:
     rng = np.random.default_rng([seed, 7])
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
-    state.bulk.values[...] = rng.standard_normal(state.bulk.values.shape)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+    state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
     for face in state.boundary.layout.faces:
         fv = state.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
@@ -267,17 +267,17 @@ def test_invertible_apply_is_M_of_C_sigma_bit_identical(case):
     op = InvertibleOperator(L, C_r)
     psi = _random_state(sn, seed=sum(map(ord, case)))
 
-    composite_matvec = op.apply(psi).bulk.values
+    composite_matvec = op.apply(psi).interior.values
     # M(σ_r)ψ — independent leaf whose OWN σ_t IS σ_r. Post-#240-Step-B
     # signature: loss_action takes the σ array directly (here σ_r), not the
     # operator. The reference's σ IS σ_r, so it is unambiguously M(σ_r)ψ.
     L_ref = StreamingOperator(sn)
-    M_sigma_r = L_ref.loss_representation.loss_action(sig_r, psi).bulk.values
+    M_sigma_r = L_ref.loss_representation.loss_action(sig_r, psi).interior.values
 
     np.testing.assert_array_equal(
         composite_matvec, M_sigma_r,
         err_msg=(
-            f"[{case}] (L+C).apply.bulk != M(σ_r)ψ BIT-IDENTICAL — the "
+            f"[{case}] (L+C).apply.interior != M(σ_r)ψ BIT-IDENTICAL — the "
             "composite matvec is NOT its own loss_action(σ_r); it is still the "
             "inherited leaf sum L.apply(σ_t) + C.apply(σ_r) (the #240 Step B "
             "leak). Value-EQUAL (affine-in-σ) but ULP-distinct: the override "
@@ -309,17 +309,17 @@ def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case
         pytest.fail(f"[{case}] InvertibleOperator.is_adjointable is False.")
     phi = _random_state(sn, seed=sum(map(ord, case)) + 1)
 
-    composite_t = op.apply_transpose(phi).bulk.values
+    composite_t = op.apply_transpose(phi).interior.values
     # Post-#240-Step-B signature: loss_action_transpose takes the σ array (σ_r).
     L_ref = StreamingOperator(sn)
     M_t_sigma_r = L_ref.loss_representation.loss_action_transpose(
         sig_r, phi,
-    ).bulk.values
+    ).interior.values
 
     np.testing.assert_array_equal(
         composite_t, M_t_sigma_r,
         err_msg=(
-            f"[{case}] (L+C).apply_transpose.bulk != M(σ_r)ᵀφ bit-identical — "
+            f"[{case}] (L+C).apply_transpose.interior != M(σ_r)ᵀφ bit-identical — "
             "the composite adjoint is still the leaf sum, not its own action."
         ),
     )
@@ -382,7 +382,7 @@ def test_removal_form_matvec_sweep_roundtrip(case):
     psi = op.solve(q)
     q_back = op.apply(psi)
     np.testing.assert_allclose(
-        q_back.bulk.values, q.bulk.values, rtol=1e-10, atol=1e-12,
+        q_back.interior.values, q.interior.values, rtol=1e-10, atol=1e-12,
         err_msg=(
             f"[{case}] op.apply(op.solve(q)) != q on the removal form — the "
             "matvec and sweep are NOT inverse twins for σ_r ≠ σ_t."
@@ -397,14 +397,14 @@ def test_removal_form_matvec_sweep_roundtrip(case):
     # does — it carries the comonad; the operator does not).  Byte-identical.
     Lpsi_source = op.apply(psi0)
     Lpsi = TimedFullField(
-        bulk=Lpsi_source.bulk,
+        interior=Lpsi_source.interior,
         boundary=Lpsi_source.boundary,
         _history=(),
         history_depth=psi0.history_depth,
     )
     psi_back = op.solve(Lpsi)
     np.testing.assert_allclose(
-        psi_back.bulk.values, psi0.bulk.values, rtol=1e-10, atol=1e-12,
+        psi_back.interior.values, psi0.interior.values, rtol=1e-10, atol=1e-12,
         err_msg=(
             f"[{case}] op.solve(op.apply(ψ)) != ψ on the removal form."
         ),
@@ -435,12 +435,12 @@ def test_removal_form_apply_value_equals_M_of_sigma_r(case):
     )
     psi = _random_state(sn, seed=sum(map(ord, case)) + 4)
 
-    leaky_or_override = op.apply(psi).bulk.values
+    leaky_or_override = op.apply(psi).interior.values
     # Independent M(σ_r): a leaf whose OWN σ_t IS σ_r — unambiguously M(σ_r)ψ.
     # Post-#240-Step-B signature loss_action(sigma, psi) — pass σ_r directly.
     # Value-ground (not the teeth): holds under leak AND override.
     L_ref = StreamingOperator(sn)
-    M_sigma_r = L_ref.loss_representation.loss_action(sig_r, psi).bulk.values
+    M_sigma_r = L_ref.loss_representation.loss_action(sig_r, psi).interior.values
 
     np.testing.assert_allclose(
         leaky_or_override, M_sigma_r, rtol=0.0, atol=1e-12,
@@ -539,8 +539,8 @@ def test_production_sigma_apply_value_preserved(case):
     op = InvertibleOperator(L, C)
     state = _random_state(sn, seed=sum(map(ord, case)))
 
-    composite = op.apply(state).bulk.values
-    leaf_sum = (L.apply(state).bulk.values + C.apply(state).bulk.values)
+    composite = op.apply(state).interior.values
+    leaf_sum = (L.apply(state).interior.values + C.apply(state).interior.values)
 
     np.testing.assert_array_almost_equal_nulp(
         composite, leaf_sum, nulp=2048,

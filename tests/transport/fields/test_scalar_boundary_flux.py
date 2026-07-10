@@ -232,7 +232,7 @@ class TestScalarComposite:
     def test_scalar_composite_constructs_and_reads_one_mesh(self):
         mm = _slab_mesh()
         full = FullField(
-            bulk=ScalarFlux.zeros_on(mm), boundary=ScalarBoundaryFlux.zeros_on(mm),
+            interior=ScalarFlux.zeros_on(mm), boundary=ScalarBoundaryFlux.zeros_on(mm),
         )
         if full.mesh is not mm:
             pytest.fail("composite mesh must be the shared DiffusionMesh")
@@ -242,7 +242,7 @@ class TestScalarComposite:
         mixing guard for free — distinct mesh objects are rejected."""
         with pytest.raises(ValueError, match="share mesh identity"):
             FullField(
-                bulk=ScalarFlux.zeros_on(_slab_mesh()),
+                interior=ScalarFlux.zeros_on(_slab_mesh()),
                 boundary=ScalarBoundaryFlux.zeros_on(_slab_mesh()),
             )
 
@@ -254,7 +254,7 @@ class TestScalarComposite:
         pc = ScalarBoundaryFlux.zeros_on(mm)
         pc.outflow_view("xmax")[:] = [3.0, 1.0]
         pc.inflow_view("xmax")[:] = [1.0, 0.25]
-        full = FullField(bulk=bulk, boundary=pc)
+        full = FullField(interior=bulk, boundary=pc)
         ffs = FullFieldSpace.from_blocks(bulk.space, mm.scalar_trace)
         np.testing.assert_array_equal(
             ffs.shape, (bulk.values.size + pc.values.size,)

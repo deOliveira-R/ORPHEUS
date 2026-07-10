@@ -1515,12 +1515,12 @@ class ScatteringOperator(LinearOperator):
         Registered on the timeless :class:`FullField` (W-C): a
         :class:`TimedFullField` iterate dispatches here via MRO (it IS a
         ``FullField``), so the runtime is behaviour-preserving, and a bare
-        ``FullField`` now dispatches correctly. Reads only ``psi.bulk``
+        ``FullField`` now dispatches correctly. Reads only ``psi.interior``
         (history-blind). The ``@overload`` static stubs name ``FullField``
         too (W-F), matching this runtime registration.
 
         Math: identical to the :class:`AngularFlux` branch above —
-        reduce ``psi.bulk`` angular → scalar, build iso :math:`P_0 +
+        reduce ``psi.interior`` angular → scalar, build iso :math:`P_0 +
         (n,2n)` source on the typed
         :class:`~orpheus.transport.source_sinks.ScalarSourceSink` accumulator,
         build the per-ordinate :math:`P_\ell\ge 1` Galerkin
@@ -1544,7 +1544,7 @@ class ScatteringOperator(LinearOperator):
         the composite branch (D-H.1c).
         """
         # Delegate the bulk source to the bulk-type dispatch arm and wrap
-        # with the implicit-zero boundary.  ``psi.bulk`` is either the
+        # with the implicit-zero boundary.  ``psi.interior`` is either the
         # full-angular :class:`AngularFlux` (1-D / curvilinear / un-windowed
         # 2-D) OR — Phase 5a angular-windowing — the reduced-moment
         # :class:`HarmonicMomentFlux` (the 2-D Cartesian windowed SI
@@ -1554,11 +1554,11 @@ class ScatteringOperator(LinearOperator):
         # B.5.2: the operator output IS a source (Sψ rate density).  The
         # boundary is the implicit-zero :class:`AngularBoundarySourceSink` —
         # scattering is volumetric (Option β3 / Wave O #208).
-        # #257 S8c: ``psi.bulk`` is statically the broad ``BulkField``; the
+        # #257 S8c: ``psi.interior`` is statically the broad ``BulkField``; the
         # cast names the runtime truth documented above (AngularFlux OR
         # HarmonicMomentFlux — both dispatch arms return AngularSourceSink)
         # so the typed ``apply`` overloads resolve.
-        combined = self.apply(cast("AngularFlux | HarmonicMomentFlux", psi.bulk))
+        combined = self.apply(cast("AngularFlux | HarmonicMomentFlux", psi.interior))
         # #282 route (a) LIFTED (campaign step 4c, THE LIFT): the model-generic
         # scattering gain is now PURE BULK. The (ray, bulk) emission — the
         # isotropic ℓ = 0 source K_iso·φ₀ reconstructed at the closed μ = ±1 rays
@@ -1582,7 +1582,7 @@ class ScatteringOperator(LinearOperator):
         # ``FullField -> FullField``; the comonad lives on the driver, which
         # reattaches the timed type when this source is added to the timed rhs).
         return FullField(
-            bulk=combined,
+            interior=combined,
             boundary=AngularBoundarySourceSink.zeros_on(psi.mesh),
             radial_characteristic=sd_out,
         )
@@ -1776,7 +1776,7 @@ class ScatteringOperator(LinearOperator):
         The COMPOSITE arm (Phase 2.5 S0.2, #280): a
         :class:`~orpheus.transport.full_field.FullField` cotangent mirrors the
         forward FullField lift — scattering is volumetric, so :math:`S^{T}`
-        reads ONLY the bulk cotangent (the full-angular ``chi.bulk``) and
+        reads ONLY the bulk cotangent (the full-angular ``chi.interior``) and
         emits the implicit-zero trace
         (:class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`).
         This is what lets the full within-group loss ``(L + C - S - B).H``
@@ -1794,7 +1794,7 @@ class ScatteringOperator(LinearOperator):
             bulk-only content.
         """
         if isinstance(chi, FullField):
-            bulk_bar = self.apply_transpose(np.asarray(chi.bulk.values))
+            bulk_bar = self.apply_transpose(np.asarray(chi.interior.values))
             # The composite's mesh is the SN phase-space mesh at runtime (an
             # angular FullField only arises on an SNMesh) — the same
             # runtime-truth cast as the forward arm's bulk dispatch (#257 S8c).
@@ -1821,7 +1821,7 @@ class ScatteringOperator(LinearOperator):
 
                 sd_bar_out = RadialCharacteristicSourceSink.zeros_on(sn_mesh)
             return FullField(
-                bulk=AngularSourceSink.from_mesh(bulk_bar, sn_mesh),
+                interior=AngularSourceSink.from_mesh(bulk_bar, sn_mesh),
                 boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
                 radial_characteristic=sd_bar_out,
             )

@@ -1262,7 +1262,7 @@ class RadialCharacteristicEmission(LinearOperator):
             AngularSourceSink,
         )
 
-        bulk = psi.bulk
+        bulk = psi.interior
         if not isinstance(bulk, AngularFlux):
             raise TypeError(
                 "RadialCharacteristicEmission.apply: a seed-carrying composite "
@@ -1274,7 +1274,7 @@ class RadialCharacteristicEmission(LinearOperator):
         q0 = np.asarray(self.emission_kernel.apply(phi0))   # (ng, nx) iso ℓ=0
         ray = self._fold.apply(q0[None])                    # ray source
         return FullField(
-            bulk=AngularSourceSink.zeros_on(mesh),
+            interior=AngularSourceSink.zeros_on(mesh),
             boundary=AngularBoundarySourceSink.zeros_on(mesh),
             radial_characteristic=ray,
         )
@@ -1333,7 +1333,7 @@ class RadialCharacteristicEmission(LinearOperator):
         w = np.asarray(mesh.quad.weights, dtype=float)       # (N,)
         bulk_bar = w.reshape((w.size,) + (1,) * phi0_bar.ndim) * phi0_bar[None]
         return FullField(
-            bulk=AngularSourceSink.from_mesh(bulk_bar, mesh),
+            interior=AngularSourceSink.from_mesh(bulk_bar, mesh),
             boundary=AngularBoundarySourceSink.zeros_on(mesh),
             radial_characteristic=RadialCharacteristicSourceSink.zeros_on(mesh),
         )

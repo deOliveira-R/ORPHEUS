@@ -162,7 +162,7 @@ class Solution:
 
         Under D-H.1b (2026-05-28), this field carries a
         :class:`~orpheus.transport.timed_full_field.TimedFullField`
-        composite. The bulk (``angular_flux.bulk``) is the
+        composite. The bulk (``angular_flux.interior``) is the
         per-ordinate angular flux :math:`\psi(\vec r, \hat\Omega_n, g)`
         on shape ``(N, ng, nx, ny)``; the boundary trace is exposed
         via the :attr:`Solution.boundary_flux` delegate property.
@@ -218,9 +218,9 @@ class Solution:
         # D-H.1b: angular_flux is now a TimedFullField composite —
         # the mesh is on the bulk (and validated against boundary at
         # TimedFullField construction).
-        if self.angular_flux.bulk.mesh is not self.mesh:
+        if self.angular_flux.interior.mesh is not self.mesh:
             raise ValueError(
-                "Solution: angular_flux.bulk.mesh is not Solution.mesh "
+                "Solution: angular_flux.interior.mesh is not Solution.mesh "
                 "(typed-field mesh-identity contract broken — every "
                 "field must reference the same SNMesh instance)."
             )
@@ -570,7 +570,7 @@ class Solution:
         else:
             keff_abs = None
 
-        ang_diff = self.angular_flux.bulk.values - other.angular_flux.bulk.values
+        ang_diff = self.angular_flux.interior.values - other.angular_flux.interior.values
         sca_diff = self.scalar_flux.values - other.scalar_flux.values
         ang_linf = float(np.abs(ang_diff).max()) if ang_diff.size else 0.0
         sca_linf = float(np.abs(sca_diff).max()) if sca_diff.size else 0.0

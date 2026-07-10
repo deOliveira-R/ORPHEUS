@@ -178,7 +178,7 @@ class TestSphericalSweepRegression:
         result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
         # D-H.1d: Solution.angular_flux is TimedFullField; bulk values.
-        psi_center = result.angular_flux.bulk.values[:, 0, 0]  # (N_ord,) for group 0
+        psi_center = result.angular_flux.interior.values[:, 0, 0]  # (N_ord,) for group 0
 
         assert np.all(psi_center > 0), (
             f"Zero or negative angular flux at centre: {psi_center}"

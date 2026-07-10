@@ -157,14 +157,14 @@ class TestVacuum2DBitIdentity:
     def test_vacuum_bulk_bit_identical(self, seed, request):
         """[foundation] Bare 2-D vacuum pure-L bulk matvec == committed snapshot, bit-exact.
 
-        Build a vacuum 2-D mesh, seed ``psi.bulk`` with fixed-seed random
+        Build a vacuum 2-D mesh, seed ``psi.interior`` with fixed-seed random
         values and a ZERO inflow trace, apply the bare ``StreamingOperator``,
-        and assert ``L.apply(psi).bulk.values`` is ``np.array_equal`` to the
+        and assert ``L.apply(psi).interior.values`` is ``np.array_equal`` to the
         committed baseline.  The baseline was **re-captured at #257 S8b**:
         ``L.apply`` is now pure σ-free ``streaming_action(ψ) = loss_action(0,
         ψ)`` (the ``(L+C)−C`` fold is retired), which re-associates the FP
         reduction tree vs the old subtractive form.  The new frozen value is
-        the genuine pure streaming — verified ``== (L+C).apply.bulk − σ_t⊙ψ``
+        the genuine pure streaming — verified ``== (L+C).apply.interior − σ_t⊙ψ``
         to ≤64 ULP (the affine relation) with the BYTE-IDENTICAL ``(L+C)``
         composite as the structural ground (NOT old-vs-new proximity).  The
         bit-exact ``array_equal`` gate is RESTORED against this re-baselined
@@ -177,9 +177,9 @@ class TestVacuum2DBitIdentity:
 
         rng = np.random.default_rng(20260603 + seed)
         state = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         )
-        state.bulk.values[...] = rng.standard_normal(state.bulk.values.shape)
+        state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
         # vacuum: no incoming inflow trace (boundary stays zero).
 
         out = L.apply(state)
@@ -202,10 +202,10 @@ class TestVacuum2DBitIdentity:
             # self-referential ("freeze whatever pure-L emits") by construction.
             composite = (L + MultiplicationOperator.from_mesh(sig_t, sn_mesh)).apply(state)
             structural_ground = (
-                composite.bulk.values - sig_t[None] * state.bulk.values
+                composite.interior.values - sig_t[None] * state.interior.values
             )
             np.testing.assert_allclose(
-                out.bulk.values, structural_ground, rtol=1e-11, atol=0.0,
+                out.interior.values, structural_ground, rtol=1e-11, atol=0.0,
                 err_msg=(
                     "capture-time structural guard: pure-L streaming_action does "
                     "NOT match (L+C) − σ_t⊙ψ — refusing to freeze a possibly-"
@@ -213,7 +213,7 @@ class TestVacuum2DBitIdentity:
                 ),
             )
             _BASELINE_DIR.mkdir(parents=True, exist_ok=True)
-            np.save(path, out.bulk.values)
+            np.save(path, out.interior.values)
             pytest.skip(f"captured baseline {key}")
         assert path.exists(), (
             f"missing baseline snapshot {path}; run with --capture-baseline "
@@ -221,7 +221,7 @@ class TestVacuum2DBitIdentity:
         )
         expected = np.load(path)
         np.testing.assert_array_equal(
-            out.bulk.values, expected,
+            out.interior.values, expected,
             err_msg=(
                 f"2-D vacuum seed={seed}: the bare 2-D matvec bulk moved a "
                 f"bit vs the committed snapshot — the keystone 2-D path was "
@@ -270,9 +270,9 @@ class TestStreamingEquilibrium2D:
         ng = phi.size
         nx, ny = sn_mesh.spatial_shape
         state = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         )
-        state.bulk.values[...] = (phi / W)[None, :, None, None] * np.ones(
+        state.interior.values[...] = (phi / W)[None, :, None, None] * np.ones(
             (N, ng, nx, ny)
         )
         # Consistent reflective trace: every boundary face carries ψ_n,g = φ_g/W
@@ -315,9 +315,9 @@ class TestStreamingEquilibrium2D:
         C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         B = SNBoundaryOperator(sn_mesh)
 
-        l_bulk = L.apply(state).bulk.values
-        c_bulk = C.apply(state).bulk.values
-        b_bulk = B.apply(state).bulk.values  # B has zero bulk action
+        l_bulk = L.apply(state).interior.values
+        c_bulk = C.apply(state).interior.values
+        b_bulk = B.apply(state).interior.values  # B has zero bulk action
 
         # Per-ordinate source Q_n,g = Q_g/W (the producer-side /W projection).
         Qn = (Q_scalar / W)[None, :, None, None] * np.ones((N, ng, nx, ny))
@@ -363,9 +363,9 @@ class TestStreamingEquilibrium2D:
 
         Qn = (Q_scalar / W)[None, :, None, None] * np.ones((N, ng, nx, ny))
         resid = (
-            L.apply(state).bulk.values
-            + C.apply(state).bulk.values
-            - B.apply(state).bulk.values
+            L.apply(state).interior.values
+            + C.apply(state).interior.values
+            - B.apply(state).interior.values
             - Qn
         )
         # Per-cell residual magnitude (max over ordinates + groups).
@@ -499,9 +499,9 @@ class TestBoundaryResidual2DResponds:
     def _perturbable_state(self, sn_mesh: SNMesh, seed: int) -> TimedFullField:
         rng = np.random.default_rng(seed)
         state = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         )
-        state.bulk.values[...] = rng.standard_normal(state.bulk.values.shape)
+        state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
         state.boundary.values[...] = rng.standard_normal(
             state.boundary.values.shape
         )
@@ -509,9 +509,9 @@ class TestBoundaryResidual2DResponds:
 
     def _copy_state(self, src: TimedFullField, sn_mesh: SNMesh) -> TimedFullField:
         dst = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         )
-        dst.bulk.values[...] = src.bulk.values
+        dst.interior.values[...] = src.interior.values
         dst.boundary.values[...] = src.boundary.values
         return dst
 
@@ -555,7 +555,7 @@ class TestBoundaryResidual2DResponds:
         )
 
         # (2) the boundary-ring bulk responds (the inflow feeds the wavefront).
-        dbulk = float(np.abs(r_pert.bulk.values - r_base.bulk.values).max())
+        dbulk = float(np.abs(r_pert.interior.values - r_base.interior.values).max())
         assert dbulk > 1e-9, (
             f"perturbing ψ.boundary.inflow left the bulk UNCHANGED "
             f"(max|Δbulk| = {dbulk:.3e} ≤ 1e-9) — the bare matvec is NOT "

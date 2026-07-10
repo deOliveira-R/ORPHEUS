@@ -60,8 +60,8 @@ def _make_fluxes(sn_mesh: SNMesh, fill: float = 1.0):
     flux + boundary trace + history), the third slot is the
     composite's boundary trace.
     """
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
-    state.bulk.values[:] = fill
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state.interior.values[:] = fill
     state.boundary.values[:] = fill
     phi = ScalarFlux.from_mesh(np.full((sn_mesh.ng, *sn_mesh.spatial_shape), fill), sn_mesh)
     return state, phi, state.boundary
@@ -159,9 +159,9 @@ class TestSolutionConstruction:
         """A foreign-mesh TimedFullField must be rejected at construction."""
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # distinct instance, same shape
-        state_foreign = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=m2)
+        state_foreign = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=m2)
         _, phi, bf = _make_fluxes(m1)
-        with pytest.raises(ValueError, match="angular_flux.bulk.mesh"):
+        with pytest.raises(ValueError, match="angular_flux.interior.mesh"):
             Solution(
                 angular_flux=state_foreign, scalar_flux=phi, mesh=m1,
             )

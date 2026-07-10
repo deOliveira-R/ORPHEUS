@@ -91,10 +91,10 @@ def _lc_apply_on_psi_ref(case, nc: int):
 
     # zero boundary trace — the matvec's bulk action is what we probe.
     zero = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )
     psi_ref = TimedFullField(
-        bulk=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,
+        interior=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,
         # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed of the
         # NON-FLAT-in-μ trial (its own μ = −1 datum, A − B for the linear
         # A + Bμ ansatz), so (L+C).apply reproduces the operator action the
@@ -106,7 +106,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
     sigma_t = np.full((ng, nx), case.sigma_t)
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
-    lc_psi = (L + C).apply(psi_ref).bulk.values         # (N, ng, nx)
+    lc_psi = (L + C).apply(psi_ref).interior.values         # (N, ng, nx)
 
     # ── Hand CONTINUOUS reference: [(L+C)ψ]_n(r) per ordinate, /W ──
     #   streaming  : μ A' + μ² B'
