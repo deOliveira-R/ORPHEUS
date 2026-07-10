@@ -133,6 +133,7 @@ from typing import TYPE_CHECKING, Callable, Generic, Self, TypeVar
 
 import numpy as np
 
+from orpheus.numerics.field import Field
 from orpheus.transport.fields._bases import (
     BulkField,
     BoundaryField,
@@ -147,15 +148,22 @@ if TYPE_CHECKING:
 
 __all__ = ["Composite", "FullField"]
 
-#: The interior (volumetric) leaf type — any
-#: :class:`~orpheus.transport.fields._bases.BulkField` subclass
-#: (``AngularFlux`` for SN, ``ScalarFlux`` for diffusion / CP, ``RayField`` for
-#: MoC). The generic parameter makes ``Composite[AngularFlux, ...].interior``
-#: read as the PRECISE leaf type, not the ``BulkField`` base.
-Interior = TypeVar("Interior", bound=BulkField)
-#: The boundary (trace) leaf type — any
-#: :class:`~orpheus.transport.fields._bases.BoundaryField` subclass.
-Boundary = TypeVar("Boundary", bound=BoundaryField)
+#: The interior (first-block) leaf type — any
+#: :class:`~orpheus.numerics.field.Field` leaf. The bound is the generic
+#: ``Field`` base (NOT ``BulkField``): the two composite slots are the
+#: structural *interior* and *boundary* blocks, and the SPECIALIZATION fixes
+#: the concrete locus — System A (:class:`FullField`) narrows interior to a
+#: :class:`~orpheus.transport.fields._bases.BulkField` (``AngularFlux``);
+#: System B (the ψ½ ray) to a codim-1 ``RadialCharacteristicInteriorFlux``
+#: (a ``FaceField`` sibling, NOT a ``BulkField``). The generic parameter makes
+#: ``Composite[AngularFlux, ...].interior`` read as the PRECISE leaf type.
+Interior = TypeVar("Interior", bound=Field)
+#: The boundary (second-block) leaf type — any
+#: :class:`~orpheus.numerics.field.Field` leaf (the specialization narrows it:
+#: System A to a :class:`~orpheus.transport.fields._bases.BoundaryField`
+#: spatial trace, System B to the ψ½ ``RadialCharacteristicBoundaryFlux`` r = R
+#: corner).
+Boundary = TypeVar("Boundary", bound=Field)
 #: A composite flavor — the template type of :meth:`Composite.from_flat` (its
 #: return follows the template, so the reconstruction preserves the concrete
 #: subclass: a ``TimedFullField`` template yields a ``TimedFullField``).
@@ -178,11 +186,15 @@ class Composite(Generic[Interior, Boundary]):
     Parameters
     ----------
     interior : Interior
-        The volumetric field. Any
-        :class:`~orpheus.transport.fields._bases.BulkField` subclass.
+        The interior (first-block) leaf — any
+        :class:`~orpheus.numerics.field.Field`. The specialization narrows it
+        to the concrete locus (a ``BulkField`` volumetric flux for System A, a
+        codim-1 ``RadialCharacteristicInteriorFlux`` for the ψ½ ray).
     boundary : Boundary
-        The boundary partner field on the trace of ``interior``'s domain. Any
-        :class:`~orpheus.transport.fields._bases.BoundaryField` subclass.
+        The boundary (second-block) partner leaf — any
+        :class:`~orpheus.numerics.field.Field` (a ``BoundaryField`` spatial
+        trace for System A, the ψ½ ``RadialCharacteristicBoundaryFlux`` r = R
+        corner for System B).
 
     Notes
     -----
@@ -224,16 +236,21 @@ class Composite(Generic[Interior, Boundary]):
     # ── Construction validation ──────────────────────────────────────
 
     def __post_init__(self) -> None:
-        if not isinstance(self.interior, BulkField):
+        # The generic base enforces only that both blocks are Field leaves; the
+        # CONCRETE locus — BulkField / BoundaryField for System A, the ψ½ ray
+        # leaves for System B — is narrowed by each specialization's own
+        # __post_init__. The base relaxed off BulkField / BoundaryField in
+        # Phase B (the coupled-block campaign) so a ray leaf, which is neither,
+        # can fill a slot.
+        if not isinstance(self.interior, Field):
             raise TypeError(
-                f"{type(self).__name__}: bulk must be a BulkField; got "
+                f"{type(self).__name__}: interior must be a Field leaf; got "
                 f"{type(self.interior).__name__}"
             )
-        if not isinstance(self.boundary, BoundaryField):
+        if not isinstance(self.boundary, Field):
             raise TypeError(
-                f"{type(self).__name__}: boundary must be a BoundaryField "
-                f"(an AngularBoundaryField / ScalarBoundaryField family leaf); "
-                f"got {type(self.boundary).__name__}"
+                f"{type(self).__name__}: boundary must be a Field leaf; got "
+                f"{type(self.boundary).__name__}"
             )
         # Mesh-identity check (where both members carry a ``mesh`` attribute —
         # the cross-method generic contract). For SN both AngularFlux and
@@ -266,13 +283,20 @@ class Composite(Generic[Interior, Boundary]):
         off the SNMesh its operator was constructed with (the #226 F2 pattern) or
         off the family-typed boundary leaf — never through this method-generic
         surface.
+
+        Read via ``getattr`` (not a static ``self.boundary.mesh``): the generic
+        ``Boundary`` bound is :class:`~orpheus.numerics.field.Field`, which
+        carries no ``mesh`` — only the transport leaves declare it (the same
+        reason ``__post_init__``'s mesh-identity check reads both leaves via
+        ``getattr``). Every composite leaf in practice IS a mesh-bound transport
+        field, so the attribute is always present.
         """
-        return self.boundary.mesh
+        return getattr(self.boundary, "mesh")
 
     # ── Polymorphic recombine + block-map hooks (Pattern 2) ───────────
 
     def _recombine(
-        self, *, interior: "BulkField", boundary: "BoundaryField",
+        self, *, interior: "Field", boundary: "Field",
     ) -> "Self":
         r"""Rebuild a composite of the SAME concrete type from recombined blocks.
 
@@ -555,6 +579,25 @@ class FullField(Composite[BulkField, BoundaryField]):
     # ── Construction validation (override — super + ψ½ checks) ────────
 
     def __post_init__(self) -> None:
+        # System A narrows the generic Composite slots to the SN locus types:
+        # interior = the volumetric bulk (AngularFlux), boundary = the spatial
+        # trace (AngularBoundaryFlux). These guards live HERE, not on the
+        # generic Composite base — the base's slots relaxed to Field in Phase B
+        # so System B's ψ½ ray leaves (a FaceField sibling, neither a BulkField
+        # nor a BoundaryField) can fill them; the concrete-locus guard belongs
+        # with the concrete specialization. Messages are verbatim (bit-identical
+        # System-A behaviour: they fire BEFORE the base's generic Field check).
+        if not isinstance(self.interior, BulkField):
+            raise TypeError(
+                f"{type(self).__name__}: bulk must be a BulkField; got "
+                f"{type(self.interior).__name__}"
+            )
+        if not isinstance(self.boundary, BoundaryField):
+            raise TypeError(
+                f"{type(self).__name__}: boundary must be a BoundaryField "
+                f"(an AngularBoundaryField / ScalarBoundaryField family leaf); "
+                f"got {type(self.boundary).__name__}"
+            )
         super().__post_init__()
         if self.radial_characteristic is not None and not isinstance(
             self.radial_characteristic, RadialCharacteristicField
