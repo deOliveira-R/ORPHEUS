@@ -128,7 +128,9 @@ user it is safe to `/compact`. Re-anchor from this plan + `git log` (trust git).
   #288); streamed `<new-diagnostics>` = documented #226 LSP artifact, IGNORE.
 - **Pushes HELD**; `.claude/agent-memory/*` + `scratch/*` + `.claude/skills/*` NOT the main
   agent's to commit; never `git checkout`/`restore` on uncommitted files (monkeypatch to
-  revert mutations); commits stamp **Opus 4.8**; sphinx -W must stay clean.
+  revert mutations); commits stamp the SESSION model per [[feedback-truthful-model-attribution]]
+  (**Opus 4.8** through 2026-07-10 B.1; **Fable 5** from the 2026-07-10 B.2 resume on — the
+  user's /model switch); sphinx -W must stay clean.
 
 ## Out of scope / deferred AS CONSUMERS (not risk-deferrals)
 
@@ -1191,3 +1193,39 @@ bit-id proof); relax the numerics `CompositeField` protocol to 2-block (drop the
 `radial_characteristic`); retire the mixed-presence law + the unified `RadialCharacteristicField` (the
 `from_unified`/`to_unified` bridge licenses it). ⚠ ERR-053 GMRES `restart=n_dof` re-size. Re-anchor from
 THIS block + `git log` (trust git).
+
+---
+
+## Phase B.2 — RULED decomposition (2026-07-10, user; session resumed on Fable 5)
+
+Two AskUserQuestion rulings at arc start:
+
+1. **Additive spine, 4 sub-steps** (over one atomic landing):
+   - **B.2a** — the numerics `CoupledSpace`/`CoupledField`/`CoupledOperator` machinery
+     (semantics-agnostic, N-general; gates M1–M5 on synthetic asymmetric toys per the
+     test-architect step-4 memo). ADDITIVE, zero production touch.
+   - **B.2b** — re-type `A_BA` (codomain) + `B_b` (domain/codomain) onto
+     `RadialCharacteristicComposite` (P3 value-unmoved gates; re-point `TestA_BA_SchurFold`
+     / `TestB_b_RayBoundary` probes), with **thin transient FullField-gain adapters** at the
+     gain seam (`_lagged_gains` / the `B_a + B_b` sum) so production stays bit-identical.
+     Mints the split-locus SOURCE-SINK role leaves the block codomains need.
+   - **B.2c** — `build_coupled_system` co-producing builder (P1–P2 presence-structural;
+     SUBSUMES step 6 / task #34).
+   - **B.2d** — driver iterate → `CoupledField [ψ_A, ψ_B]` (W1 Mode-11 sentinel) + **ray
+     eviction from FullField** (pure 2-block collapse; diffusion/CP onto the pure base) +
+     `CompositeField` protocol → 2-block + mixed-presence-law retirement + the B.2b adapters
+     retired + E4 anchors + ⚠ ERR-053 `restart=n_dof` re-size.
+2. **The unified leaf DEMOTES in B.2, it does not retire** — block-level carriers
+   (CoupledField, block signatures, driver, A_BA/B_b) go split-composite; the A_BB/A_AB
+   ENGINES + the fused `(L+C)` walk keep the unified layout internally behind
+   `from_unified`/`to_unified` bridges at their block boundaries (transient, cheap). Full
+   unified-leaf retirement lands at **Phase C (4e)** with the walk-slot rewrite. (CORRECTS
+   the B.1 checkpoint's "retire the unified `RadialCharacteristicField` in B.2" — that is
+   unreachable before 4e: the walk's `cells_view`/`corner_view` internals march the unified
+   buffer. The bridge is the licence; 4e is the executioner.)
+
+Grounding dispatched at arc start: explorer blast-radius memo
+`.claude/agent-memory/explorer/b2_ray_eviction_blast_radius.md` (the
+`FullField.radial_characteristic` consumer map, mixed-presence/present-zero sites,
+`CompositeField` protocol consumers, unified role-leaf inventory, the walk's narrowest
+bridging boundary, ERR-053 sites) — feeds B.2b/B.2d scoping.
