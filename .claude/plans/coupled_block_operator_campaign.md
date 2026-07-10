@@ -943,3 +943,197 @@ A_BB/A_AB to embedded, unwrap A_BA/B_b to blocks, or embed-at-assembly). Owed do
 A_BA/A_AB block-operator theory-page prose.
 Rationale (user): follow-up work we CAN do immediately should be done immediately, not filed —
 but bit-id and ULP-re-baseline stay in SEPARATE commits (bisectable, each cleanly verifiable).
+
+---
+
+## Step 4 RE-SCOPED (2026-07-10) — the N-general block machinery (user design dialogue)
+
+**The 4d "WRAP-first name the 2×2" framing is SUPERSEDED.** A design dialogue (2026-07-09/10)
+re-posed 4d around the operational criterion "*if we assembled the explicit matrix with all
+blocks in it, it must work*" and then generalized. Settled design + rulings below; the earlier
+4d gate memo (`coupled_operator_step4_verification.md`) is superseded on structure (its
+invariants — type-safe matvec, `.H` Mode-12 reciprocity, two-anchor value — carry forward).
+
+### Why the OperatorSum/present-zero route was REJECTED (user, decisive)
+
+The flat `OperatorSum` + `FullField→FullField` present-zero padding **keeps wrong
+multiplications representable** — a padded block accepts any `FullField`; nothing at the type
+level stops a ray operator from receiving a bulk field or an emission from landing in the trace
+slot. Present-zero padding *is* the loss of Pattern-4 safety; `system_role` tags are runtime
+metadata, not type constraints. The honest object is a **typed block operator over a typed
+block vector**, where the block matvec is the only spelling and type-checks per block.
+
+### The settled design — semantics-agnostic, N-general (the machinery, not the ψ½ special case)
+
+- **`CoupledField` = N systems**, each a complete `(interior ⊕ boundary)` composite — i.e.
+  each system is a `FullField` in its own right.
+- **`CoupledOperator` = the N×N block grid** `A_ij : System_j → System_i` (diagonal = each
+  system's self-operator `L+C−S−B`; off-diagonals = couplings; missing block = zero map, so
+  coupling sparsity is explicit).
+- **Block matvec** `y_i = Σ_j A_ij x_j`, per-block TYPE-CHECKED (`A_AB @ x_A` is a type error —
+  illegal states unrepresentable, Pattern 1 ∘ Pattern 4).
+- **Three consumption modes at the block level** (the stencil-assembly `Op → Mat` functor):
+  `assemble` places each block at its `(row_i, col_j)` OFFSET → one flat Mat₄ → direct factor
+  (small); `apply` = block matvec (Krylov); `solve` = block-triangular / block-Jacobi /
+  block-G-S (large). **The block structure PROVIDES the offsets → this is the scoped
+  realization of the deferred `LocalToGlobalMap`** (the "structured consumer" the 2-P0
+  ruling waited for; `assembled_operator.py:48`). Block granularity = a solve-strategy + size
+  knob, not physics.
+- **The co-producing mechanism** `build_coupled_system(sn_mesh, mat_xs) → (CoupledOperator,
+  CoupledSpace)` emits the operator AND the matching block-field space together (aligned by
+  construction); keyed on the mesh's ray-carrying status → non-carrying degenerates to 1×1
+  (no System B) → applying a System-B block is unconstructable. **This SUBSUMES step 6**
+  (structural presence: `Optional[ray]` + the 7 guards dissolve — presence = block existence).
+- **The ray LEAVES the augmented `FullField`** and becomes System B's own `(interior ⊕
+  boundary)` composite. Folds step 6's ray-extraction into this build.
+- **Within System A stays flat-sum + `block_role` tags** — `L` is irreducibly FULL (couples
+  bulk↔trace), so bulk/trace is NOT cleanly block-separable; typed-2×2 belongs only where the
+  decomposition is clean (the A/B split). `SystemAField` remains a composite. Right tool per
+  level (nested: typed blocks at A/B, flat-sum within A).
+
+### The ψ½ instance (#1) — a 2×2 special case of the above
+
+System A = the entire SN transport (`FullField` bulk⊕boundary), `A_AA = L+C−S−B_a`; System B =
+the radial-characteristic closure (its own interior⊕boundary), `A_BB = RayOp − B_b`; off-diag
+`A_AB` = ray→bulk seed (`RadialCharacteristicSeeding`), `A_BA` = bulk→ray emission
+(`RadialCharacteristicEmission`, RE-TYPED from FullField-embedded to the true `SystemA→SystemB`
+block — the elegance memo's anticipated "re-type at 4d").
+
+### FOUNDATIONAL insight → GH #296 (the FORWARD quest, deferred)
+
+SN is ALREADY a coupled block system, solved with implicit per-axis block strategies (space =
+sweep = block-triangular direct #284; angle = source iteration = block-Jacobi over scattering;
+energy = multigroup = block-G-S #273). Monolithic treatment was a CHOICE. Reifying "block"
+unifies solve-strategy posing across SN axes, other transport methods, domain decomposition
+(sparse inter-domain coupling), and CP-finer-than-interface-current (volumetric coupling).
+**#296 tracks reframing the SN stack (and beyond) onto blocks — a FUTURE quest.** THIS campaign
+builds the machinery N-general in SHAPE but migrates ONLY ψ½ (existing axes keep their
+correctness-gated representations). User: "leaving any SN stack reformulation to a future quest."
+
+### RULED sub-design (2026-07-10, USER: path (i))
+
+**RULED path (i)** (user: "we're building already, so let's make it right"): generalize
+`FullField` → carrier-generic `System[Interior,
+Boundary]` (System A = `System[AngularFlux, AngularBoundaryFlux]` bit-id; System B =
+`System[RadialCharacteristicFlux, RadialCharacteristicBoundary]`) — the honest uniform object,
+but touches the widely-used `FullField`; vs (ii) keep `FullField` for System A, give System B a
+bespoke `(interior⊕boundary)` composite — lighter, but "each system is a FullField" stays
+conceptual not typed. LEAN = (i) (user framing "System B would also have a FullField").
+
+### RULED: B1 rename + the corrected A/B/C sequencing (2026-07-10)
+
+**B1 RULED (user): rename the carrier INTERIOR ACCESSOR `.bulk` → `.interior` NOW** ("this
+rename will never be as easy as today"; sub-agents execute, main agent owns scope + verifies).
+SCOPE = the **accessor family ONLY**: `.bulk`→`.interior` (564), `bulk=`→`interior=` (280),
+`bulk_space`→`interior_space` (36), `n_bulk`/`bulk_shape` internals, `CompositeField.bulk`
+protocol, docs `.bulk`/`:attr:` refs. **CONSCIOUS KEEP** (distinct axes — NOT off-pattern):
+`BulkField` (the interior-field TYPE — `.interior` *holds* a `BulkField`),
+`BlockRole.BULK`/`BulkOperator` (the operator ACTION-FOOTPRINT classification), compound names
+(`BulkAnalysisOperator`). Each family stays internally consistent ⟹ greppability holds; a
+full-lexicon `bulk`→`interior` is an OPTIONAL later pass (additive, no rework).
+
+**ORDERING CORRECTION (explorer, load-bearing):** `System[Interior, Boundary]` is 2-block;
+today's `FullField` is 3-block (`interior ⊕ boundary ⊕ Optional[ray]`). You CANNOT make
+FullField a PURE 2-block `System` while the ray lives in it → the ray must LEAVE first; pure-2-
+block-ness FALLS OUT of the eviction, it is NOT a separate first step. (Supersedes the earlier
+4d.0-first framing.) FullField blast-radius (explorer): 564 `.bulk` readers, 280 `bulk=`,
+382-degree hub; the numerics drivers (`iteration.py` gain-fold) + `OperatorSum`/`_AdjointOperator`
+are the ONLY composite-generic seams (stay bit-id); everything else is shape-specific.
+
+**Corrected phases:**
+
+- **Phase A (bit-identical) — rename + carrier-generic.**
+  - **A1 (mechanical, sub-agents): DONE @ `42f1a34`** (93 files; tests/sn **2082/0 = baseline**,
+    diffusion+homogeneous+cp 276, ratchet transport:1; verified structurally clean — the streamed
+    `bulk`/`starting_direction` diagnostics were STALE LSP #226 noise, grep+ratchet confirmed).
+    KEPT (conscious): `BulkField` type, `BlockRole.BULK`/`BulkOperator`, compound names, prose
+    domain-noun "bulk". **DOCS-DEBT:** the docs `:attr:`bulk``/`psi.bulk` accessor refs are stale
+    (silent-render, no `-W` break) — DEFERRED to ONE consolidated archivist pass AFTER A2 (covers
+    both the accessor rename AND the new `System[Interior,Boundary]` carrier docs).
+  - **A2 (surgical, main agent):** generalize `FullField` → carrier-generic `System[Interior,
+    Boundary]`, System A = `System[AngularFlux, AngularBoundaryFlux]`, ray KEPT Optional for now;
+    diffusion/CP (already pure 2-block `FullField(interior, boundary)`, zero ray) ADOPT the
+    generic base — the living bit-id proof. Gate: per-consumer bit-id (ERR-063 discipline — direct
+    value compare, not a proxy) + the multi-instantiation crux `System[ScalarFlux,
+    ScalarBoundaryFlux]` (a hardcoded-`AngularFlux` bug in the generic body reds scalar / greens
+    angular — L20 sharpened).
+- **Phase B (principled-equiv 5.5e-16) — System B + machinery + ray eviction.** Build System B =
+  `System[ray-interior, ray-boundary]` + `CoupledField`/`CoupledOperator` (semantics-agnostic,
+  N-general: type-checked block matvec, block `assemble` = offset placement → flat Mat₄, block
+  `.H`); RE-TYPE `A_BA`/`B_b` to true `SystemA↔SystemB` cross-space blocks; block-aware driver
+  `[ψ_A, ψ_B]`; **evict the ray from FullField** → System A falls out pure-2-block; retire the
+  mixed-presence law (SUBSUMES step 6). ⚠ **ERR-053**: re-size GMRES `restart = n_dof` =
+  Σ both systems' `to_flat().size` or GMRES silently truncates. Gates: block matvec type-safety;
+  **assemble ≡ probe** (principled-equiv `rtol=1e-11` via `_dense(.apply)` NOT `.as_matrix()` —
+  a tautology trap; offset-swap tooth on an ASYMMETRIC toy 2×2 — symmetric is offset-transpose-
+  blind); block `.H` Mode-12 reciprocity (reds ALL geoms, "slab stays green" is FALSE).
+- **Phase C — block solve (step 5) + walk un-weave (4e).**
+
+Gate spec (re-written for the re-scope):
+`.claude/agent-memory/test-architect/coupled_operator_step4_verification.md`.
+
+### A2 design — extract the generic `System[Interior, Boundary]` base (2026-07-10)
+
+**Key finding (grounding `full_field_space.py`):** `FullFieldSpace` + the `CompositeField`
+protocol (numerics) are ALREADY carrier-generic — family-blind, duck-typed on
+`.interior`/`.boundary`/(optional `.radial_characteristic`), used by SN (angular trace) AND
+diffusion/CP (scalar trace). So the SPACE side is DONE; A2 extracts the generic CONCRETE composite
+BASE from the `FullField` DATACLASS (whose 2-block ALGEBRA — `_recombine`/dunders/`to_flat`/
+`from_flat`/mesh-identity — is already carrier-agnostic in structure; only the leaf TYPES
+`interior: BulkField`, `boundary: BoundaryField` are specialized).
+
+**Approach (A2-i):** a generic 2-block frozen-dataclass base `System[Interior, Boundary]`
+(`kw_only`, holds the 2-block algebra) + `FullField(System[AngularFlux/BulkField,
+AngularBoundaryFlux/BoundaryField])` subclass that ADDS `Optional[radial_characteristic]` and
+overrides the hooks to thread it — the ray is transport-SN-specific, NOT part of the generic
+2-block System, a TEMPORARY subclass extension Phase B removes (collapsing FullField → pure
+`System[·,·]`). diffusion/CP adopt the PURE base `System[ScalarFlux, ScalarBoundaryFlux]` (the
+living bit-id proof + the multi-instantiation gate — a hardcoded-`AngularFlux` bug in the generic
+body reds scalar). `TimedFullField(FullField)` unchanged. `FullFieldSpace` already `getattr`s the
+ray → works for both the 2-block base and 3-block FullField.
+
+**Ray-threading:** base `_recombine(*, interior, boundary)` is 2-block; FullField overrides to add
+`radial_characteristic`; `FullFieldSpace._rebuild` threads the ray only when the field carries it
+(already field-driven via `getattr`/`_seed_space_for`). **NAME RULED: `Composite[Interior, Boundary]`**
+(user, 2026-07-10 — structural not domain-role; "System" misleads under domain decomposition; the
+principle is saved to [[feedback-high-signal-names]]).
+
+### A2.1 EXECUTION — Composite extraction (2026-07-10, in verification)
+
+**Realized:** `full_field.py` now holds `Composite[Interior, Boundary]` (generic 2-block base,
+`Interior`/`Boundary` bound to `BulkField`/`BoundaryField`) + `FullField(Composite[BulkField,
+BoundaryField])` subclass. The algebra lives ONCE on `Composite`: the six dunders + `copy` route
+through **two per-shape hooks** `_map_binary` / `_map_unary` (+ `_recombine`), and the flat protocol
+through `_flat_parts` / `_from_flat` (INSTANCE hooks, so `to_flat`/`from_flat` live once with NO
+classmethod-override narrowing — the from_flat Liskov fix). FullField overrides ONLY those hooks to
+thread the ψ½ block. `TimedFullField` UNCHANGED (inherits FullField's ray-aware hooks; overrides
+`_recombine` alone). Error messages preserved VERBATIM (the shared `"same-class partner"` Field-base
+vocabulary kept — a divergence to `"Composite partner"` was reverted).
+
+**Gate (bit-identical):** ratchet `transport:1`; composite carrier `test_full_field`+`test_timed_full_field`
+**51 passed**; `transport`+`numerics`+`diffusion` **1355 passed**; `tests/sn` **2082/0 = baseline**. The
+streamed `full_field.py` import diagnostics are #226 LSP noise (ratchet CLI clean).
+
+## ⏸ PHASE A COMPLETE (2026-07-10) — recommended /compact point
+
+Three commits, all verified, branch `refactor/sn-walk-unification` **69 ahead of main, pushes HELD**:
+- **A1 `42f1a34`** — `.bulk`→`.interior` accessor rename (bit-identical).
+- **A2.1 `c439bf4`** — extract the generic `Composite[Interior, Boundary]` base; `FullField(Composite
+  [BulkField, BoundaryField])` subclass with the temporary ψ½ block; algebra ONCE via the
+  `_map_binary`/`_map_unary`/`_recombine` + `_flat_parts`/`_from_flat` hooks; `TimedFullField` unchanged
+  (bit-identical, sn 2082/0).
+- **A2.2 `d6b1490`** — `test_composite.py`: the pure `Composite` base's intrinsic affine-torsor laws on a
+  SCALAR carrier (the base hooks are dead-until-tested since FullField overrides them; doubles as the N2
+  multi-instantiation gate). 14 passed.
+
+**NEXT = Phase B** (principled-equiv 5.5e-16) — the HARD arc. Build System B = `Composite[ray-interior,
+ray-boundary]` + `CoupledField`/`CoupledOperator` (semantics-agnostic N-general: type-checked block
+matvec, block `assemble` = offset placement → Mat₄, block `.H`); RE-TYPE `A_BA`/`B_b` to true
+`SystemA↔SystemB` cross-space blocks; block-aware driver `[ψ_A, ψ_B]`; **evict the ray from FullField**
+→ FullField collapses to pure `Composite`; **relax the `CompositeField` protocol (numerics) to 2-block**
+(drop the required `radial_characteristic` member — this is what unblocks diffusion adopting the pure
+`Composite` base); retire the mixed-presence law (SUBSUMES step 6). ⚠ **ERR-053**: re-size GMRES
+`restart=n_dof` = Σ both systems' `to_flat().size`. Gates (test-architect memo
+`coupled_operator_step4_verification.md`): block matvec type-safety; **assemble ≡ probe** (principled-
+equiv rtol=1e-11 via `_dense(.apply)`, offset-swap tooth on an ASYMMETRIC toy 2×2); block `.H` Mode-12
+reciprocity (reds ALL geoms). Re-anchor from THIS block + `git log` (trust git).
