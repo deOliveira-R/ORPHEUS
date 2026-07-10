@@ -70,6 +70,8 @@ if TYPE_CHECKING:
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.numerics.spaces.radial_characteristic_space import (
+        RadialCharacteristicBoundarySpace,
+        RadialCharacteristicInteriorSpace,
         RadialCharacteristicSpace,
     )
     # NOTE (B.5.A): the transport-field TYPE_CHECKING imports retired with the
@@ -828,6 +830,32 @@ class SNMesh(MaterialMesh):
             if eps < float(tau_level[0]) < 1.0 - eps
         )
 
+    def _radial_characteristic_for_levels_args(
+        self,
+    ) -> "tuple[tuple[int, ...], int, int, np.ndarray] | None":
+        r"""The shared ``for_levels`` args for the ψ½ ray spaces, or ``None``.
+
+        Single-sources the R12a levels gate + the ``(ng, nx, cell_volumes)``
+        sourcing across the unified :attr:`radial_characteristic_space` and the
+        split :attr:`radial_characteristic_interior_space` /
+        :attr:`radial_characteristic_boundary_space` (Phase B — the coupled-block
+        campaign poses the ψ½ ray as System B, its own interior ⊕ boundary
+        composite), so the three ψ½ spaces are built from ONE set of inputs.
+        ``None`` ⟺ :attr:`radial_characteristic_levels` is empty (absence is
+        spelled ``None``, never a zero-DOF space). ``cell_volumes`` is the
+        ``G_sd = V_cell`` state metric — the SAME radial cell-volume measure the
+        bulk metric ``G_bulk = V_cell·w_n`` reads (:attr:`full_field_space`).
+        """
+        levels = self.radial_characteristic_levels
+        if not levels:
+            return None
+        return (
+            levels,
+            self.ng,
+            int(self.spatial_shape[0]),
+            np.asarray(self.volumes, dtype=float).ravel(),
+        )
+
     @cached_property
     def radial_characteristic_space(self) -> "RadialCharacteristicSpace | None":
         r"""The R12a-keyed ψ½ carrier space, or ``None`` if no level carries.
@@ -842,20 +870,67 @@ class SNMesh(MaterialMesh):
         so every leaf of every role shares the same instance (the
         layout + state-metric single source).
         """
-        levels = self.radial_characteristic_levels
-        if not levels:
+        args = self._radial_characteristic_for_levels_args()
+        if args is None:
             return None
         from orpheus.numerics.spaces.radial_characteristic_space import (
             RadialCharacteristicSpace,
         )
 
+        levels, ng, nx, cell_volumes = args
         return RadialCharacteristicSpace.for_levels(
-            levels,
-            ng=self.ng,
-            nx=int(self.spatial_shape[0]),
-            # G_sd = V_cell — the same radial cell-volume measure the bulk
-            # metric G_bulk = V_cell·w_n reads (full_field_space below).
-            cell_volumes=np.asarray(self.volumes, dtype=float).ravel(),
+            levels, ng=ng, nx=nx, cell_volumes=cell_volumes,
+        )
+
+    @cached_property
+    def radial_characteristic_interior_space(
+        self,
+    ) -> "RadialCharacteristicInteriorSpace | None":
+        r"""The ψ½ INTERIOR (cells) space — System B's interior block, or ``None``.
+
+        The split sibling of :attr:`radial_characteristic_space` (Phase B): the
+        ``(ng, nx)`` cells legs under the SPD ``G_sd = V_cell`` metric, on which
+        :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
+        (A_BB) marches. ``None`` on the same non-carrying meshes (R12a). Cached
+        (one per mesh), built from the shared
+        :meth:`_radial_characteristic_for_levels_args`.
+        """
+        args = self._radial_characteristic_for_levels_args()
+        if args is None:
+            return None
+        from orpheus.numerics.spaces.radial_characteristic_space import (
+            RadialCharacteristicInteriorSpace,
+        )
+
+        levels, ng, nx, cell_volumes = args
+        return RadialCharacteristicInteriorSpace.for_levels(
+            levels, ng=ng, nx=nx, cell_volumes=cell_volumes,
+        )
+
+    @cached_property
+    def radial_characteristic_boundary_space(
+        self,
+    ) -> "RadialCharacteristicBoundarySpace | None":
+        r"""The ψ½ BOUNDARY (corner) space — System B's boundary block, or ``None``.
+
+        The split sibling of :attr:`radial_characteristic_space` (Phase B): the
+        ``(ng,)`` r = R corner legs under the ``G = V(r = R)`` corner gauge, on
+        which
+        :class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`
+        (B_b) acts (inflow = given data; outflow = the defect row). ``None`` on
+        the same non-carrying meshes (R12a). Cached (one per mesh), built from
+        the shared :meth:`_radial_characteristic_for_levels_args`.
+        """
+        args = self._radial_characteristic_for_levels_args()
+        if args is None:
+            return None
+        from orpheus.numerics.spaces.radial_characteristic_space import (
+            RadialCharacteristicBoundarySpace,
+        )
+
+        levels, ng, nx, cell_volumes = args
+        return RadialCharacteristicBoundarySpace.for_levels(
+            levels, ng=ng, nx=nx, cell_volumes=cell_volumes,
         )
 
     @cached_property
