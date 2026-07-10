@@ -1,5 +1,6 @@
 """Model-independent numerical methods for reactor physics."""
 
+from .coupled_system import CoupledField, CoupledOperator, CoupledSpace, SystemField
 from .eigenvalue import EigenvalueSolver, ProductionRateSolver, power_iteration
 from .field import Field
 from .functional import Functional, InnerProductFunctional, R_co, V_contra
@@ -43,6 +44,9 @@ __all__ = [
     "AnalysisOperator",
     "Basis",
     "BundleMeasure",
+    "CoupledField",
+    "CoupledOperator",
+    "CoupledSpace",
     "DiagonalOperator",
     "DiscreteMeasure",
     "DiscreteMeasurePartition",
@@ -73,6 +77,7 @@ __all__ = [
     "SumOfTensorProductsOperator",
     "SupportsAdjoint",
     "SupportsInverse",
+    "SystemField",
     "TensorProductOperator",
     "TensorProductSpace",
     "V",

@@ -487,6 +487,11 @@ in operator apply, §5 for the Layer 2 construction-time check, and
 API Reference
 -------------
 
+.. automodule:: orpheus.numerics.coupled_system
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 .. automodule:: orpheus.numerics.eigenvalue
    :members:
    :undoc-members:
