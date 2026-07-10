@@ -1137,3 +1137,57 @@ matvec, block `assemble` = offset placement → Mat₄, block `.H`); RE-TYPE `A_
 `coupled_operator_step4_verification.md`): block matvec type-safety; **assemble ≡ probe** (principled-
 equiv rtol=1e-11 via `_dense(.apply)`, offset-swap tooth on an ASYMMETRIC toy 2×2); block `.H` Mode-12
 reciprocity (reds ALL geoms). Re-anchor from THIS block + `git log` (trust git).
+
+---
+
+## ⏸ PHASE B.1 COMPLETE (2026-07-10) — System B IS an independent composite; recommended /compact point
+
+**"Pose System B as an independent composite" (the user's explicit Phase-B entry) is DONE** in four
+verified, ADDITIVE commits on `refactor/sn-walk-unification` (**74 ahead of main, pushes HELD**). The
+unified `RadialCharacteristicField` path + all its consumers are UNTOUCHED — the split coexists until the
+operator-retyping arc migrates + retires it. Ratchet stayed `transport:1` every commit.
+
+- **B.1a `030e550`** — relax the `Composite` base bounds `BulkField`/`BoundaryField` → `Field`; the
+  System-A locus guards RELOCATE to `FullField.__post_init__` (verbatim messages, BEFORE super), the
+  `mesh` property reads via `getattr` (generic `Field` carries no mesh). USER-RULED: relax-to-Field +
+  subclasses-guard (over locus-marker ABCs). **BIT-IDENTICAL** (full not-slow wall 3592/0).
+- **B.1b `df05587`** — the two split spaces `RadialCharacteristicInteriorSpace` (cells, `G_sd=V_cell`) /
+  `RadialCharacteristicBoundarySpace` (corner, `G=V(R)`) on a shared `_RadialCharacteristicSubSpace`
+  base, + `SNMesh.radial_characteristic_{interior,boundary}_space` cached props. CLEAN-BEFORE-EXTEND: a
+  NEW `_radial_characteristic_legs` (`_RayLeg` NamedTuple) + `_validate_ray_space_inputs` single-source
+  the leg order + metric; the unified `for_levels` + mesh prop REFACTORED through them (bit-id). Gate
+  (20): arange-fingerprint split-fidelity (NOT split==unified — self-referential to the shared walk),
+  the MANDATORY multi-level `for_levels((0,2,5))` fixture (mutation-verified: reverse-levels is
+  sphere-GREEN / multi-RED — the config-blindness proof), metric partition + conservation, presence.
+- **B.1c `59b2ad0`** — the split leaf types: two INDEPENDENT `FaceField[tuple[int,int]]` loci
+  `RadialCharacteristic{Interior,Boundary}Field` (like Bulk vs Boundary, NOT a shared base) + their
+  `…Flux` + `…Displacement` role leaves, registered (displacements EAGERLY for `_BY_REP`). The two flux
+  carry DISTINCT `_carrier_rep`s (their distinct Field bases) ⟹ `flux ⊖ flux` mints the CORRECT per-locus
+  displacement (no collision — the test-architect's flagged hazard, closed by construction). Gate (19).
+- **B.1d `fa61797`** — `RadialCharacteristicComposite(Composite[…InteriorFlux, …BoundaryFlux])` — a
+  TRIVIAL subclass (NO hook overrides — the payoff of B.1a; System B adds no 3rd block) + `from_mesh`
+  (presence-gated) + the split-fidelity BRIDGE `from_unified`/`to_unified` (`to_unified∘from_unified==id`
+  bitwise = the retirement licence). Gate (16) incl. the multi-instantiation crux — mutation-verified:
+  re-tightening the base bound REDs the ray composite while System-A FullField stays GREEN (System B IS
+  the catcher for a B.1a regression).
+
+**Design rulings locked this phase (durable):** (1) relax-to-Field + each specialization guards its
+concrete leaf types on the FIELD base (admits both flux + displacement composites). (2) interior/boundary
+are DIFFERENT LOCI (independent field bases) but the SPACES share a base (same structural kind). (3)
+single-source the `(level,sign)` leg walk across all three ray spaces (Pattern 2 — the split can't drift;
+the fidelity gate is a safety net). (4) the split-fidelity oracle is a HAND-KNOWN arange fingerprint +
+the mandatory multi-level fixture (single-level sphere is offset-blind — L20). (5) `RadialCharacteristic
+Composite` name chosen by the main agent (flagged for the user; could converge to the freed
+`RadialCharacteristicField` at unified-leaf retirement). Specialist memo: test-architect
+`coupled_operator_b1_split_verification.md` (G-A/G-B/G-C + the config-blindness ledger).
+
+**NEXT — the HARD principled-equiv arc (the operator retyping, still Phase B):** RE-TYPE `A_BA`
+(`RadialCharacteristicEmission`) + `B_b` (`RadialCharacteristicBoundaryOperator`) from FullField-embedded
+→ true `SystemA↔SystemB` cross-space blocks acting on `RadialCharacteristicComposite`; build the typed
+`CoupledField`/`CoupledOperator` machinery (test-architect `coupled_operator_step4_verification.md` M1-M5
++ A2 + the assemble≡probe centrepiece); block-aware driver `[ψ_A, ψ_B]`; **evict the ray from FullField**
+(→ it collapses to a pure 2-block `Composite`; migrate diffusion/CP onto the pure base — the living
+bit-id proof); relax the numerics `CompositeField` protocol to 2-block (drop the required
+`radial_characteristic`); retire the mixed-presence law + the unified `RadialCharacteristicField` (the
+`from_unified`/`to_unified` bridge licenses it). ⚠ ERR-053 GMRES `restart=n_dof` re-size. Re-anchor from
+THIS block + `git log` (trust git).
