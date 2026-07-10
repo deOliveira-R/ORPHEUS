@@ -1228,4 +1228,68 @@ Grounding dispatched at arc start: explorer blast-radius memo
 `.claude/agent-memory/explorer/b2_ray_eviction_blast_radius.md` (the
 `FullField.radial_characteristic` consumer map, mixed-presence/present-zero sites,
 `CompositeField` protocol consumers, unified role-leaf inventory, the walk's narrowest
-bridging boundary, ERR-053 sites) — feeds B.2b/B.2d scoping.
+bridging boundary, ERR-053 sites) — feeds B.2b/B.2d scoping. **Its four structural
+verdicts:** V1 — the (d) eviction is ATOMIC across carrier + space + protocol
+(`_rebuild`/`_recombine` kwarg coupling forces one commit); V2 — the fused-walk bridge is
+exactly SIX signatures (`InvertibleOperator.solve`/`solve_transpose` streaming.py:1049/1145,
+`loss_action`/`_transpose` loss_rep:2860/3319 + packs) and everything below marches
+`values + unified slot views` — the demote ruling is exactly right; V3 — machinery must
+precede the re-type (the gain sum + OperatorSum guard need the typed carrier to exist);
+V4 — A_BB is ALREADY leaf-typed (its re-type is a leaf swap, no padding to shed). B.2 must
+mint the split **SourceSink** pair (A_BA codomain + B_b emission); the split **Residual**
+pair only iff `evaluate_residual` re-types at (d). ERR-053 sites auto-track iff
+`CoupledField` satisfies the ravellable protocol (it does — pinned by the interop gate).
+
+### B.2a — DONE @ `81cfd25` (2026-07-10)
+
+**The N-system machinery landed in numerics** (`orpheus/numerics/coupled_system.py`):
+`SystemField` (member contract = the iteration.py ravellable pair + copy; arithmetic
+deliberately duck-typed — the affine-torsor member signatures fit no simple Protocol
+spelling), `CoupledField` (member-wise algebra delegation; the flat protocol packs in
+system order ⟹ the Krylov boundary + every `restart = n_dof` site count both systems
+automatically — ERR-053 closed by conformance), `CoupledSpace(FunctionSpace)`
+(member-wise metric dispatch; `system_slices` = **the scoped LocalToGlobalMap** the
+assembly layer's 2-P0 ruling deferred), `CoupledOperator(LinearOperator)` (typed N×N
+grid; mis-placed space-declaring block UNCONSTRUCTABLE; None block = structural zero;
+`assemble()` scatters block emissions via `scipy.sparse.block_array` →
+`SparseAssembledOperator`; NO solve/inverse — step 5). **The Hilbert adjoint comes free
+and Mode-12-closed**: zero adjoint code here — `.H` = the existing `_AdjointOperator`
+over the Euclidean transposed grid + the member-wise metrics (measured reciprocity
+1.3e-16; the M-ADJ-metric tooth reds O(1)).
+
+Gates: `tests/numerics/test_coupled_operator.py` (39, foundation — the step-4 memo's
+M1–M5 on synthetic toys; teeth are PERMANENT in-process monkeypatch tests: offset-swap +
+dropped-block red the assemble≡probe centrepiece on a same-size ASYMMETRIC grid,
+M-ADJ-metric reds the reciprocity). VERIFIED: numerics+transport wall **1312/0**, ratchet
+`transport:1` (numerics 0), sphinx -W exit 0, **elegance-enforcer PASS-WITH-NITS (0
+violations; all 3 nits fixed pre-commit** — the SystemField docstring over-claim
+corrected, collapse-trigger notes added to the two deliberately-coextensive helpers).
+Key elegance verdicts banked: `CoupledField` NESTS the transport `Composite` (inter- vs
+intra-system layers; both fan `op` to members, the math single-sources on the Field
+leaves — collapse trigger = a 3rd direct-sum fan-out container); `eq=False` follows the
+numerics `Field` convention (the `Composite` divergence needs no reconciling).
+
+**FOLLOW-UP (cross-session, user to confirm issue creation — outward action):** numerics
+now carries THREE member-contract concepts (`Vector` named / `_is_ravellable` ad-hoc
+private / `SystemField`) — converge onto a named ravellable-Protocol home (the `Vector`
+promotion precedent). `module:numerics` / `type:improvement`.
+
+**⚠ B.2b–d carried reminder (elegance-enforcer):** M2 (assemble≡probe) is really the
+field-layout ≡ space-layout coextensiveness gate — on the toys `to_flat().size ==
+prod(space.shape)` holds by contract; on the REAL members (`FullField`,
+`RadialCharacteristicComposite`, multi-axis shapes) the three offset spellings
+(`to_flat`, `system_slices`, `block_array` inference) are a LIVE thing to re-pin, not a
+contract-guaranteed identity.
+
+**NEXT = B.2b:** re-type `A_BA` (codomain) + `B_b` (domain/codomain) onto
+`RadialCharacteristicComposite` behind thin transient FullField-gain adapters at the gain
+seam (production bit-identical); mint the split-locus SourceSink leaves
+(`RadialCharacteristicInteriorSourceSink` + boundary sibling, ANGULAR_RATE_UNITS, over
+the locus field bases — the unified `RadialCharacteristicSourceSink(RadialCharacteristicField)`
+is the pattern); P3 value-unmoved gates (re-point the `TestA_BA_SchurFold` /
+`TestB_b_RayBoundary` probes). Open B.2b design points (main-agent proposes, user
+steers): System B's member SPACE for the composite (a family-blind `FullFieldSpace.
+from_blocks(interior=ray_interior_space, trace=ray_boundary_space)` vs a bespoke sibling)
+and whether the source-role composite rides the SAME `RadialCharacteristicComposite`
+class (role-erased slots, the FullField precedent / #289 F2 erasure) or a role-typed
+sibling. Re-anchor from THIS block + `git log` (trust git).
