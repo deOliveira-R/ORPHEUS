@@ -1,0 +1,200 @@
+r"""B.1c — the split ψ½ leaf types (System B's interior ⊕ boundary flux + displacement).
+
+Intrinsic-property gates for the Phase-B (coupled-block campaign) split-locus leaf
+types: the two field bases
+:class:`~orpheus.transport.fields._bases.RadialCharacteristicInteriorField` /
+:class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField` and
+their flux + displacement role leaves. These are the DATA carriers System B's
+composite (B.1d) pairs; here we pin their construction, views, presence, and the
+affine-torsor flux algebra ([[feedback-test-intrinsic-properties]]).
+
+The LOAD-BEARING gate is the **torsor mint over DISTINCT reps**: the split flux
+leaves carry distinct ``_carrier_rep``s (their distinct Field bases), so
+``flux ⊖ flux`` resolves — via
+:meth:`~orpheus.transport.displacements._displacement.Displacement.sibling_of`
+— to the CORRECT per-locus displacement (interior → interior, boundary →
+boundary), never a collision onto the unified ψ½ or the wrong locus.
+
+vv Mode-8 discipline: ``np.testing.assert_*`` / ``pytest.raises`` only.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.numerics.quadrature import Quadrature
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+# Eager-load the displacements package so the _BY_REP registry is complete
+# (the flux ⊖ mint looks the sibling up by Rep).
+import orpheus.transport.displacements  # noqa: F401
+from orpheus.transport.displacements.radial_characteristic_boundary_displacement import (
+    RadialCharacteristicBoundaryDisplacement,
+)
+from orpheus.transport.displacements.radial_characteristic_interior_displacement import (
+    RadialCharacteristicInteriorDisplacement,
+)
+from orpheus.transport.fields.radial_characteristic_boundary_flux import (
+    RadialCharacteristicBoundaryFlux,
+)
+from orpheus.transport.fields.radial_characteristic_interior_flux import (
+    RadialCharacteristicInteriorFlux,
+)
+from tests.sn._test_helpers import placeholder_materials
+
+pytestmark = pytest.mark.foundation
+
+_NG, _NX = 2, 4
+
+
+def _mesh_1d(coord: CoordSystem, quad, *, nx: int = _NX, ng: int = _NG) -> SNMesh:
+    edges = np.linspace(0.0, 1.0, nx + 1)
+    mat_ids = np.zeros(nx, dtype=int)
+    if coord is CoordSystem.CARTESIAN:
+        mesh = Mesh1D(
+            edges=edges, mat_ids=mat_ids, coord=coord,
+            bc_left=BC("reflective"), bc_right=BC("reflective"),
+        )
+    else:
+        mesh = Mesh1D(
+            edges=edges, mat_ids=mat_ids, coord=coord, bc_right=BC("reflective"),
+        )
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
+def _sphere() -> SNMesh:
+    return _mesh_1d(CoordSystem.SPHERICAL, Quadrature.gauss_legendre(4))
+
+
+def _cyl_product() -> SNMesh:
+    return _mesh_1d(CoordSystem.CYLINDRICAL, Quadrature.product(n_mu=2, n_phi=4))
+
+
+def _slab() -> SNMesh:
+    return _mesh_1d(CoordSystem.CARTESIAN, Quadrature.gauss_legendre(4))
+
+
+def _rand(cls, mesh, seed: int):
+    """A random flux leaf on ``mesh`` (distinct nonzero values)."""
+    space = cls._face_space_of(mesh)
+    rng = np.random.default_rng(seed)
+    return cls.from_mesh(rng.random(space.shape[0]) + 0.5, mesh)
+
+
+# ── Construction + views + presence ──
+
+
+class TestSplitLeafConstruction:
+    def test_interior_flux_shape_space_and_cells_view(self) -> None:
+        sn = _sphere()
+        f = RadialCharacteristicInteriorFlux.zeros_on(sn)
+        if f.space.name != "radial_characteristic_interior":
+            pytest.fail(f"interior flux space is {f.space.name!r}")
+        np.testing.assert_array_equal(f.cells(0, -1).shape, (_NG, _NX))
+        np.testing.assert_array_equal(f.cells(0, +1).shape, (_NG, _NX))
+
+    def test_boundary_flux_shape_space_and_corner_view(self) -> None:
+        sn = _sphere()
+        f = RadialCharacteristicBoundaryFlux.zeros_on(sn)
+        if f.space.name != "radial_characteristic_boundary":
+            pytest.fail(f"boundary flux space is {f.space.name!r}")
+        np.testing.assert_array_equal(f.corner(0, -1).shape, (_NG,))
+
+    def test_from_mesh_round_trips_values(self) -> None:
+        sn = _sphere()
+        space = RadialCharacteristicInteriorFlux._face_space_of(sn)
+        vals = np.arange(space.shape[0], dtype=float)
+        f = RadialCharacteristicInteriorFlux.from_mesh(vals, sn)
+        np.testing.assert_array_equal(f.values, vals)
+
+    def test_view_writes_back_through_the_flat_buffer(self) -> None:
+        sn = _sphere()
+        f = RadialCharacteristicInteriorFlux.zeros_on(sn)
+        f.cells(0, -1)[...] = 7.0
+        # the (0,-1) cells block is the first (ng*nx) of the flat buffer
+        np.testing.assert_array_equal(f.values[: _NG * _NX], np.full(_NG * _NX, 7.0))
+
+    @pytest.mark.parametrize("mesh_fn", [_cyl_product, _slab])
+    @pytest.mark.parametrize(
+        "cls", [RadialCharacteristicInteriorFlux, RadialCharacteristicBoundaryFlux],
+    )
+    def test_presence_noncarrying_mesh_raises(self, cls, mesh_fn) -> None:
+        sn = mesh_fn()
+        with pytest.raises(ValueError, match="carries no radial_characteristic"):
+            cls.zeros_on(sn)
+
+
+# ── The affine-torsor flux algebra (per locus, over DISTINCT reps) ──
+
+
+class TestSplitLeafTorsor:
+    def test_interior_subtraction_mints_the_interior_displacement(self) -> None:
+        sn = _sphere()
+        a = _rand(RadialCharacteristicInteriorFlux, sn, 1)
+        b = _rand(RadialCharacteristicInteriorFlux, sn, 2)
+        d = a - b
+        if type(d) is not RadialCharacteristicInteriorDisplacement:
+            pytest.fail(f"interior ⊖ minted {type(d).__name__}")
+        np.testing.assert_array_equal(d.values, a.values - b.values)
+
+    def test_boundary_subtraction_mints_the_boundary_displacement(self) -> None:
+        sn = _sphere()
+        a = _rand(RadialCharacteristicBoundaryFlux, sn, 3)
+        b = _rand(RadialCharacteristicBoundaryFlux, sn, 4)
+        d = a - b
+        if type(d) is not RadialCharacteristicBoundaryDisplacement:
+            pytest.fail(f"boundary ⊖ minted {type(d).__name__}")
+
+    def test_the_two_locus_displacements_are_distinct_types(self) -> None:
+        # Distinct _carrier_rep (distinct Field bases) ⟹ no registry collision.
+        if (
+            RadialCharacteristicInteriorDisplacement
+            is RadialCharacteristicBoundaryDisplacement
+        ):
+            pytest.fail("interior/boundary displacements collapsed to one type")
+
+    @pytest.mark.parametrize(
+        "cls", [RadialCharacteristicInteriorFlux, RadialCharacteristicBoundaryFlux],
+    )
+    def test_torsor_recovery_a_plus_b_minus_a_is_b(self, cls) -> None:
+        sn = _sphere()
+        a, b = _rand(cls, sn, 5), _rand(cls, sn, 6)
+        recovered = a + (b - a)  # flux ⊕ displacement → flux
+        if type(recovered) is not cls:
+            pytest.fail(f"torsor action returned {type(recovered).__name__}")
+        np.testing.assert_allclose(recovered.values, b.values)
+
+    @pytest.mark.parametrize(
+        "cls", [RadialCharacteristicInteriorFlux, RadialCharacteristicBoundaryFlux],
+    )
+    def test_flux_plus_flux_is_the_affine_gate(self, cls) -> None:
+        sn = _sphere()
+        a, b = _rand(cls, sn, 7), _rand(cls, sn, 8)
+        with pytest.raises(TypeError, match="affine"):
+            _ = a + b
+
+    @pytest.mark.parametrize(
+        "cls", [RadialCharacteristicInteriorFlux, RadialCharacteristicBoundaryFlux],
+    )
+    def test_scalar_scaling_stays_a_flux(self, cls) -> None:
+        sn = _sphere()
+        a = _rand(cls, sn, 9)
+        out = 2.0 * a
+        if type(out) is not cls:
+            pytest.fail(f"scalar * flux returned {type(out).__name__}")
+        np.testing.assert_allclose(out.values, 2.0 * a.values)
+        np.testing.assert_allclose((a / 2.0).values, 0.5 * a.values)
+
+    def test_cross_locus_subtraction_is_forbidden(self) -> None:
+        sn = _sphere()
+        i = _rand(RadialCharacteristicInteriorFlux, sn, 10)
+        b = _rand(RadialCharacteristicBoundaryFlux, sn, 11)
+        with pytest.raises(TypeError, match="same-class"):
+            _ = i - b  # type: ignore[operator]
+
+    def test_cross_mesh_arithmetic_is_forbidden(self) -> None:
+        a = _rand(RadialCharacteristicInteriorFlux, _sphere(), 12)
+        b = _rand(RadialCharacteristicInteriorFlux, _sphere(), 12)  # a DIFFERENT mesh
+        with pytest.raises(ValueError, match="mesh"):
+            _ = a - b

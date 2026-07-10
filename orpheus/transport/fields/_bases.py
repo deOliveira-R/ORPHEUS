@@ -101,7 +101,11 @@ from orpheus.numerics.spaces.spherical_harmonic_space import (
 )
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
-from orpheus.numerics.spaces.radial_characteristic_space import RadialCharacteristicSpace
+from orpheus.numerics.spaces.radial_characteristic_space import (
+    RadialCharacteristicBoundarySpace,
+    RadialCharacteristicInteriorSpace,
+    RadialCharacteristicSpace,
+)
 
 if TYPE_CHECKING:
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
@@ -1218,4 +1222,143 @@ class RadialCharacteristicField(FaceField[tuple[int, int, str]]):
         outflow corner (``sign = +1``): the defect row (ruling R13).
         """
         return self.space.corner_view(self.values, level, sign)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The SPLIT ψ½ loci — System B's interior ⊕ boundary (Phase B)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The coupled-block campaign poses the ψ½ ray as System B — its OWN
+# interior ⊕ boundary composite — by splitting the unified
+# RadialCharacteristicField (cells ⊕ corner on one FaceField[(level,sign,part)])
+# into two INDEPENDENT loci, exactly as the spatial domain splits into BulkField
+# (interior) and BoundaryField (boundary). They are FaceField SIBLINGS, not
+# parent/child of each other, and each keys by (level, sign) on its own split
+# space. The concrete role leaves (…Flux state / …Displacement increment) live
+# beside the unified ones in fields/ and displacements/.
+
+
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
+class RadialCharacteristicInteriorField(FaceField[tuple[int, int]]):
+    r"""System B's INTERIOR locus — the ψ½ cells (Phase B split).
+
+    The ``(ng, nx)`` half-angle flux at every radial cell, per seed-carrying
+    ``(level, sign)`` leg — the marched interior state that
+    :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
+    (A_BB) evolves (μ∂_r + σ_t), that A_AB reads (inward leg) and A_BA writes.
+    The interior half of the split of :class:`RadialCharacteristicField` (the
+    unified cells ⊕ corner leaf); a ``FaceField[tuple[int, int]]`` keyed by
+    ``(level, sign)`` on the
+    :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicInteriorSpace`
+    (SPD ``G_sd = V_cell`` state metric). A :class:`FaceField` **sibling** of the
+    boundary locus :class:`RadialCharacteristicBoundaryField`, NOT a child (like
+    :class:`BulkField` vs :class:`BoundaryField`). ``mesh`` is :class:`SNMesh` and
+    the space source is the R12a-keyed ``mesh.radial_characteristic_interior_space``
+    — construction on a non-carrying mesh is unrepresentable (the factory raises;
+    the composite spells absence as ``None``). The concrete role leaves are
+    ``RadialCharacteristicInteriorFlux`` (state) and
+    ``RadialCharacteristicInteriorDisplacement`` (the iterate increment). Abstract
+    — instantiate a role leaf.
+    """
+
+    mesh: "SNMesh"
+    space: RadialCharacteristicInteriorSpace
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.space, RadialCharacteristicInteriorSpace):
+            raise TypeError(
+                f"{type(self).__name__} requires a "
+                f"RadialCharacteristicInteriorSpace (read off "
+                f"mesh.radial_characteristic_interior_space); got "
+                f"space={self.space!r}."
+            )
+        super().__post_init__()  # FaceField: Field shape + layout-bearing check.
+
+    @classmethod
+    def _face_space_of(
+        cls, mesh: "MaterialMesh",
+    ) -> RadialCharacteristicInteriorSpace:
+        r"""Return ``mesh``'s cached ψ½ interior space, or raise (R12a)."""
+        space = getattr(mesh, "radial_characteristic_interior_space", None)
+        if space is None:
+            raise ValueError(
+                f"{cls.__name__}: mesh carries no "
+                f"radial_characteristic_interior_space — no μ-level consumes "
+                f"independent starting-direction state (R12a; Cartesian and the "
+                f"production cylinder rules land here). System B's interior block "
+                f"is spelled absent, never a zero-DOF field."
+            )
+        return space
+
+    @property
+    def levels(self) -> tuple[int, ...]:
+        r"""The seed-carrying μ-level indices (read off the space)."""
+        return self.space.levels
+
+    def cells(self, level: int, sign: int) -> NDArray:
+        r"""The ``(ng, nx)`` ψ½ cells view for ``(level, sign)`` — memory-shared."""
+        return self.space.slot_view(self.values, level, sign)
+
+
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
+class RadialCharacteristicBoundaryField(FaceField[tuple[int, int]]):
+    r"""System B's BOUNDARY locus — the ψ½ r = R corner (Phase B split).
+
+    The ``(ng,)`` half-angle flux at the outer radius r = R, per seed-carrying
+    ``(level, sign)`` leg — System B's BC locus, on which
+    :class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`
+    (B_b) acts. Inflow corner (``sign = -1``) is the given BC data; outflow corner
+    (``sign = +1``) is the defect row (ruling R13). The boundary half of the split
+    of :class:`RadialCharacteristicField`; a ``FaceField[tuple[int, int]]`` keyed
+    by ``(level, sign)`` on the
+    :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicBoundarySpace`
+    (``G = V(r = R)`` corner gauge). A :class:`FaceField` **sibling** of the
+    interior locus :class:`RadialCharacteristicInteriorField`, NOT a child.
+    ``mesh`` is :class:`SNMesh` and the space source is the R12a-keyed
+    ``mesh.radial_characteristic_boundary_space``. The concrete role leaves are
+    ``RadialCharacteristicBoundaryFlux`` (state) and
+    ``RadialCharacteristicBoundaryDisplacement`` (the iterate increment). Abstract
+    — instantiate a role leaf.
+    """
+
+    mesh: "SNMesh"
+    space: RadialCharacteristicBoundarySpace
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.space, RadialCharacteristicBoundarySpace):
+            raise TypeError(
+                f"{type(self).__name__} requires a "
+                f"RadialCharacteristicBoundarySpace (read off "
+                f"mesh.radial_characteristic_boundary_space); got "
+                f"space={self.space!r}."
+            )
+        super().__post_init__()  # FaceField: Field shape + layout-bearing check.
+
+    @classmethod
+    def _face_space_of(
+        cls, mesh: "MaterialMesh",
+    ) -> RadialCharacteristicBoundarySpace:
+        r"""Return ``mesh``'s cached ψ½ boundary space, or raise (R12a)."""
+        space = getattr(mesh, "radial_characteristic_boundary_space", None)
+        if space is None:
+            raise ValueError(
+                f"{cls.__name__}: mesh carries no "
+                f"radial_characteristic_boundary_space — no μ-level consumes "
+                f"independent starting-direction state (R12a). System B's "
+                f"boundary block is spelled absent, never a zero-DOF field."
+            )
+        return space
+
+    @property
+    def levels(self) -> tuple[int, ...]:
+        r"""The seed-carrying μ-level indices (read off the space)."""
+        return self.space.levels
+
+    def corner(self, level: int, sign: int) -> NDArray:
+        r"""The ``(ng,)`` r = R corner view for ``(level, sign)`` — memory-shared.
+
+        Inflow corner (``sign = -1``): the given-data / identity row;
+        outflow corner (``sign = +1``): the defect row (ruling R13).
+        """
+        return self.space.slot_view(self.values, level, sign)
 
