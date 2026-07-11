@@ -1384,3 +1384,80 @@ A_AB/A_BB stay unified-internal behind their block boundaries (V2/V4: A_BB is
 already leaf-typed — its grid entry is direct; A_AB's re-type is a leaf swap).
 Then B.2d (driver CoupledField + ray eviction + adapter retirement + protocol
 2-block + ERR-053 re-size + E4 anchors). Re-anchor from THIS block + `git log`.
+
+### B.2c — DONE @ 8b06052 (2026-07-10); recommended /compact point
+
+Two green commits (`1097647` c1 / `8b06052` c2 + the plan/matrix docs commits). Delta gate
+spec: test-architect `coupled_operator_b2c_builder_verification.md` (G-c1.1–1.3 +
+G-c2.1–2.6; findings F1–F4; rulings R1–R4).
+
+- **c1 `1097647`** — the grid-entry re-types. **A_BB** (`RadialCharacteristicOperator`):
+  ALL FOUR action surfaces (apply/apply_transpose/solve/solve_transpose) re-typed
+  composite → composite (domain=codomain=`radial_characteristic_composite_space`);
+  solve gains the #289-F2 SOURCE-role parse; `inverse()` untouched (R4 — delegates,
+  speaks composite for free). **A_AB** (`RadialCharacteristicSeeding`): domain → the
+  composite space; codomain → `full_field_space` (apply emits the seed's bulk term as
+  the FullField INTERIOR member over present-zero trace/ψ½ — System A IS its honest
+  row space; apply_transpose reads `.interior`, discards trace/ψ½ structurally, emits
+  the composite cotangent). Engines stay UNIFIED behind the bitwise bridge (demote
+  ruling; dissolves at 4e). **Shared parse minted** (rule-of-three):
+  `RadialCharacteristicComposite.require_member(x, mesh=, context=)` guards all THREE
+  System-B block boundaries (A_BB + A_AB new, B_b converged — its transpose-path
+  message no longer hardcodes ".apply"). Every value row `array_equal` (§0 re-label);
+  re-points per the memo F4 ledger (TestA_BB_RadialBVP/Forward, TestA_AB_SeedInjection,
+  test_ray_operator's L1 helper — orders untouched). NEW G-c1 gates: the four-surface
+  container/identity-pin row (+ bridge-drop & value-corruption teeth) and the A_AB
+  grid-entry container row.
+- **c2 `8b06052`** — `orpheus/sn/coupled_system.py::build_coupled_system(sn_mesh,
+  mat_xs, *, scattering_order=0) → (CoupledOperator, CoupledSpace)` (exported from
+  `orpheus.sn`). Blocks: (A,A) `LC − S − B_a` stamped `SystemRole.A` (C-fwd);
+  (A,B) `+Seeding` (loss sign internal); (B,A) `−Emission` (gain negated);
+  (B,B) `A_BB − B_b`. P1 aligned-by-construction; **P2 presence predicate = the
+  System-B member-space read itself** (the Optional narrow IS the branch; ratchet
+  stays clean by construction, no cast). The dead-slot hazard DOCUMENTED + witnessed,
+  not guarded (R3). The builder is a tracked transient construction twin of
+  `_within_group_triple`/`_lagged_gains` (collapses at (d)). **PRESENCE FIX forced by
+  `grid.H`**: `Emission.apply_transpose`'s cotangent ψ½ slot flips ray=None →
+  PRESENT-ZERO (the transposed row sums it with A_AAᵀ's 3-block output — the
+  mixed-presence law correctly refused the b3 2-block shape; G-b3.2 re-pinned
+  None→present-zero; the gain adapter is immune, byte-identity preserved). B.2d flips
+  ALL System-A emissions to 2-block together.
+- **Gates landed** (`TestCoupledBuilder`, 7): G-c2.1 P1 + identity-pinned member
+  spaces + the **F2 runtime-apply proof** (the unified and composite spaces COLLIDE on
+  `(name, shape) = ("radial_characteristic", (ni+nb,))` ⟹ `FunctionSpace.__eq__` and
+  hence the grid's per-block check CANNOT see a still-unified-typed block — runtime is
+  the sufficient catcher; transitional aliasing, dissolves at 4e with the unified
+  space); G-c2.2 P2 shapes + the four ctor-refusal bypass-proof; **G-c2.3 THE
+  centrepiece** grid ≡ the COMPLETE fused loss (local helper WITH the B_b adapter on a
+  REFLECTIVE sphere — F1: `_full_loss_case` omits B_b, vacuum masks it) at per-row
+  bars (bulk rtol=1e-11 = the intrinsic M-M block split, the campaign's FIRST
+  principled-equiv row in the block realization; trace/ray rtol=1e-12; dead slot
+  array_equal 0) + teeth (off-diagonal swap UNCONSTRUCTABLE; dropped −B_b reds on
+  reflective); G-c2.4 M2-on-real (`to_flat` ≡ `system_slices` + coverage + round-trip
+  on real multi-axis members; block_array arm pinned UNAVAILABLE — F3/R2, re-enters
+  only if an SN walk assembler wires streaming assembly); G-c2.5 forward block-`.H`
+  reciprocity < 1e-12 on the real 2×2 + the M-ADJ-metric tooth (Mode-12/ERR-067);
+  G-c2.6 the live-ray double-count POSITIVE witness (**REMOVE at B.2d**).
+
+**VERIFIED:** psi_half 70/70 (63 + 7); operator neighborhood 148/148; FULL
+sn+transport+numerics not-slow wall **3467/0** (5 skipped, 36 xfailed, 9:37); ratchet `transport:1`; sphinx -W exit 0
+(verifies-marker skips = the parked phantom).
+
+**DEFERRED to B.2d per R1/R2:** the A2a swap-law/inverse `coupled` fixture
+(`grid.is_invertible` is False until step 5), E4 solve-anchors (φ=Q/Σ_t, k_inf — the
+centrepiece's forward-equivalence to the anchored fused loss is the B.2c tie), the
+dead-slot guard (structural at the eviction).
+
+**NEXT = B.2d:** driver iterate → `CoupledField [ψ_A, ψ_B]` (W1 Mode-11 sentinel:
+wrap the driver's route into `CoupledOperator.apply`, count>0) + **ray eviction from
+FullField** (ATOMIC across carrier + space + protocol — explorer V1; `full_field_space`
+collapses to 2-block, the coupled DOF count goes honest, the dead-slot hazard
+dissolves, G-c2.6 witness REMOVED, G-b3.2/A_AB presence pins flip to 2-block) +
+`CompositeField` protocol → 2-block + mixed-presence-law retirement + **the B.2b/B.2c
+adapters + the builder's construction twin retired** (driver block-native; the triple
+re-founds on the grid) + ERR-053 `restart=n_dof` re-size verification (CoupledField
+conformance auto-tracks — pinned by the interop gate) + E4 anchors + the A2a coupled
+fixture (with step-5's block solve if is_invertible lands there). Bridge the fused
+walk at the SIX V2 signatures. Archivist docs follow-up: `discrete_ordinates.rst` (18
+refs) + `loss_representations.rst` (8) describe the 3-block FullField as current.
+Re-anchor from THIS block + `git log` (trust git).
