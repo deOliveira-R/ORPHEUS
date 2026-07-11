@@ -10948,12 +10948,13 @@ deeper structural reason :math:`\mu = \pm 1` is the *only* admissible
 starting direction in any curvilinear geometry is set out under
 :ref:`sn-phase-d-pomraning-structural-singularity`.
 
-ψ½ as first-class state — the augmented (bulk ⊕ trace ⊕ seed) composite
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ψ½ as first-class state — the augmented composite (System A ⊕ System B)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Route (a) kills the back edge by making the seed a **state variable the
 solve computes**, not a functional of the iterate it reads.  The
-within-group phase space grows a third summand:
+within-group phase space carries a starting-direction subspace beyond the
+bulk and trace:
 
 .. math::
    :label: sn-282-augmented-composite
@@ -10998,6 +10999,38 @@ composite torsor algebra (flux, source/sink, displacement, residual):
      - System B's typed residual members :math:`r_B = (A\psi)_B - q_B`
        (the split pair — the unified leaf retired at B.2d d2)
      - :func:`~orpheus.sn.solver.evaluate_residual`'s coupled arm (B.2d)
+
+**Where ψ½ lives — System B, not a block on the bulk composite (the B.2d
+eviction).**  The role family above is a **separate composite**, never a
+third block bolted onto the bulk ⊕ trace field.  System A — the ordinary
+bulk ⊕ trace SN state — is the pure **2-block**
+:class:`~orpheus.transport.full_field.FullField`
+(``Composite[BulkField, BoundaryField]``); the ψ½ ray is **System B**, its
+own 2-block
+:class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`
+(the marched interior cells ⊕ the :math:`r = R` corner, carrying the same
+flux / source-sink / displacement / residual role family), and on a
+carrying sphere the driver iterate is the **coupled pair**
+:class:`CoupledField[ψ_A, ψ_B] <orpheus.numerics.coupled_system.CoupledField>`
+threaded through the within-group 2×2 loss grid (blocks :math:`A_{AA}`,
+:math:`A_{AB}`, :math:`A_{BA}`, :math:`A_{BB}` — the :math:`A = M - N`
+splitting built by
+:func:`~orpheus.sn.coupled_system.build_within_group_system`; the grid
+algebra is on :doc:`operator_algebra`).  The transitional 2.5d interim —
+ψ½ as an **optional third block** on ``FullField`` with a mesh-keyed
+*mixed-presence law* and runtime presence pins — is **retired**: a
+live-ray :math:`\psi_A` is now **unrepresentable** (the type system is the
+guard, not a runtime branch), so the B.2c dead-slot double-count hazard
+(the welded seed feed **and** an explicit :math:`A_{AB}` block both firing
+on one carrier) dissolved **structurally**.  The coupled flat dimension is
+the **honest two-system sum** — no dead padding — which is why the ERR-053
+``restart`` sizing (:ref:`sn-282-gotchas`) reads the true count off the
+coupled ravel.  The converged ψ½ state is returned as
+:attr:`Solution.radial_characteristic <orpheus.sn.solution.Solution.radial_characteristic>`
+— System B's **own typed member**, ``None`` exactly when the mesh carries
+no seed level (presence validated as a **biconditional** at construction)
+— while :attr:`Solution.angular_flux <orpheus.sn.solution.Solution.angular_flux>`
+stays the honest 2-block System-A composite.
 
 **The state metric.**  The inner-product weight of :math:`V_{\rm sd}`
 is the SPD **state metric** :math:`G_{\rm sd} = V_{\rm cell}` — the
@@ -11585,9 +11618,10 @@ Numerical evidence — the lag death
 The acceptance gates live in
 :file:`tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py`
 (the §16.C fixed-point classifiers); every gate measures the **full
-augmented field** (bulk ⊕ trace ⊕ seed), because a bulk-only norm would
-be blind to any seed error (a Mode-12 functional-invariance point,
-independent of the metric closure in the gotcha below).
+coupled state** (System A's bulk ⊕ trace *and* System B's ψ½), because a
+bulk-only norm would be blind to any seed error (a Mode-12
+functional-invariance point, independent of the metric closure in the
+gotcha below).
 
 .. list-table:: #282 route-(a) acceptance evidence
    :header-rows: 1
@@ -11685,10 +11719,11 @@ Gotchas
 (ERR-053 family).**  A carve that grows the Krylov composite (adds a
 block) **must** resize the GMRES ``restart`` / ``n_dof`` from the
 composite ``to_flat().size``, not the bulk :math:`N\cdot n_g\cdot n_x`.
-Route (a)'s third (seed) block pushed ``to_flat`` past the bulk count, so
-a bulk-sized ``restart`` re-truncated GMRES on the trace **and** seed
-degrees of freedom — the restarted subspace could not represent the
-augmented iterate and the sphere within-group inner **stalled** (wrong
+Route (a)'s coupled System B (the ψ½ ray) pushed the coupled ``to_flat``
+past the bulk count, so a bulk-sized ``restart`` re-truncated GMRES on the
+trace **and** seed degrees of freedom — the restarted subspace could not
+represent the coupled iterate and the sphere within-group inner **stalled**
+(wrong
 :math:`k` under an outer cap, :math:`\sim 868` s).  Fixed at **both**
 solver Krylov drivers by sizing ``n_dof = initial_guess.to_flat().size``.
 Distinct from #200 (the identity preconditioner); this is a pure
@@ -12232,8 +12267,9 @@ Issue #9 is about the *second*; everything above (#229, the
   :math:`P_1{+}` scattering source :math:`R\,\Lambda\,M`
   (``scattering.build_aniso_source``, ``scattering_order ≥ 1``),
   geometry-**agnostic**, wired identically for all geometries through
-  ``_within_group_triple`` (the :math:`S` in the
-  :math:`(L+C),\,S,\,B` triple carries :math:`P_1` when
+  :func:`~orpheus.sn.coupled_system.build_within_group_system` (the
+  :math:`S` gain of the :math:`(L+C),\,S,\,B` decomposition carries
+  :math:`P_1` when
   ``scattering_order = 1``).  No curvilinear test exercised Path-(II)
   before #9 — it is NEW coverage of an existing capability (NO
   ``orpheus/`` change; Path-(II) works as-is).
@@ -13819,7 +13855,8 @@ identity is :eq:`si-spectral-rate`.
 The convergence test is the relative L2 residual on the iterate — the
 same metric :meth:`SNSolver._solve_source_iteration` uses, since that
 within-group inner now consumes this primitive directly (Phase 1 R1,
-via the ``_within_group_triple`` single-source-of-truth helper):
+via the :func:`~orpheus.sn.coupled_system.build_within_group_system`
+single-source-of-truth builder):
 
 .. math::
 
@@ -14745,7 +14782,7 @@ architecture and why the Protocol layer is canonical.
   via :func:`~orpheus.sn.solver.solve_sn`; its Layer-3 resolvent is
   the within-group :class:`SourceIteration` /
   :class:`KrylovAcceleration` inner solve built from the
-  :func:`_within_group_triple` SSoT (see
+  :func:`~orpheus.sn.coupled_system.build_within_group_system` SSoT (see
   :ref:`sn-solver-operator-algebra-coordinator`).
 * **CP** (collision-probability) — drives ``power_iteration`` through
   its own ``EigenvalueSolver``-Protocol implementation; its resolvent
@@ -14819,11 +14856,13 @@ under :class:`~orpheus.numerics.operator.OperatorSum` and
 conforming so the iteration primitives in
 :mod:`orpheus.numerics.iteration` consume them without SN-specific
 plumbing.  The within-group inner solve is built once from a single
-source of truth — the :func:`_within_group_triple` helper assembles
-the honest within-group decomposition :math:`(L+C,\ S,\ B)`: the
-invertible resolvent plus its two lagged coupling gains (the bulk
-scattering :math:`S` and the trace boundary reflection :math:`B`; zero
-within-group fission), handed to the **variadic** driver
+source of truth — the :func:`~orpheus.sn.coupled_system.build_within_group_system`
+builder assembles the :class:`~orpheus.sn.coupled_system.WithinGroupSystem`
+record, the honest within-group decomposition :math:`(L+C,\ S,\ B)` as a
+named splitting :math:`A = M - N`: the invertible resolvent
+:math:`M = (L+C)` plus its two lagged coupling gains :math:`N = (S,\ B_a)`
+(the bulk scattering :math:`S` and the trace boundary reflection :math:`B`;
+zero within-group fission), handed to the **variadic** driver
 :math:`\text{Driver}(L_{\rm resolvent},\,*\text{gains})` (Wave O step
 O.2a — the transitional :math:`S + B` fold is retired; see
 :ref:`bc-extraction-variadic-driver` in :doc:`operator_algebra`).
@@ -14841,7 +14880,7 @@ The within-group inner solve consumes the primitives directly
 :class:`~orpheus.numerics.iteration.KrylovAcceleration` primitive — not
 a verbatim replica of its loop.
 :meth:`SNSolver._solve_source_iteration` constructs a
-:class:`SourceIteration` from the :func:`_within_group_triple` SSoT and
+:class:`SourceIteration` from the :func:`~orpheus.sn.coupled_system.build_within_group_system` SSoT and
 runs it; :meth:`SNSolver._solve_krylov` constructs a
 :class:`KrylovAcceleration` from :func:`_within_group_krylov` and runs
 that.  The Layer-3 resolvent of the SN row in the
@@ -17124,9 +17163,9 @@ this work that entry point hardcoded a vacuum ``q.boundary``
 (``zeros_on``) — it had no way to carry a prescribed inflow — and the
 rows therefore took an operator-triple *bypass*: assembling
 :math:`(L+C)`, :math:`S`, :math:`B` by hand via
-:func:`~orpheus.sn.solver._within_group_triple` and driving them with
-:func:`~orpheus.numerics.iteration.SourceIteration`. That bypass is
-**retired**. The field-role-typing work gave
+:func:`~orpheus.sn.coupled_system.build_within_group_system` and driving
+them with :func:`~orpheus.numerics.iteration.SourceIteration`. That bypass
+is **retired**. The field-role-typing work gave
 :func:`~orpheus.sn.solver.solve_sn_fixed_source` a second accepted
 source form — the full **composite source** ``q = q_bulk ⊕ q_∂``
 represented by a
@@ -20562,6 +20601,55 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-07-11
+     - **The ψ½ ray was evicted from the SN composite carrier —
+       ``FullField`` is pure 2-block and System B is its own composite**
+       (coupled-block campaign, Phase B.2d d2, "the atomic eviction"). The
+       transitional optional-third-block ψ½ passenger on
+       :class:`~orpheus.transport.full_field.FullField` — with a mesh-keyed
+       *mixed-presence law* and runtime presence pins — is **retired**:
+       ``FullField`` is now the pure 2-block
+       ``Composite[BulkField, BoundaryField]``, and the ψ½ ray is
+       **System B**, its own 2-block
+       :class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`
+       coupled to System A through the within-group 2×2 grid as a
+       :class:`~orpheus.numerics.coupled_system.CoupledField`. A live-ray
+       ``ψ_A`` is now **unrepresentable** (the type system is the guard),
+       so the B.2c dead-slot double-count hazard dissolved structurally and
+       the coupled flat dimension is the honest two-system sum. The six
+       loss-representation walk signatures re-typed to **explicit ψ½ leaf
+       kwargs** (forward ``radial_characteristic_flux`` /
+       ``radial_characteristic_source``; transpose ``seed_cot`` /
+       ``seed_cot_out``); the unified ``RadialCharacteristicResidual`` leaf
+       split into a typed interior ⊕ boundary residual pair; and the
+       converged ray is returned as
+       :attr:`Solution.radial_characteristic <orpheus.sn.solution.Solution.radial_characteristic>`,
+       System B's own member with a presence biconditional. See
+       :ref:`sn-282-direct-starting-direction-solve`.
+     - #280
+     - ``refactor/sn-walk-unification`` *(in development, e5d1acf)*
+   * - 2026-07-11
+     - **The within-group solve became block-native — one
+       ``WithinGroupSystem`` record carrying the named** :math:`A = M - N`
+       **splitting** (coupled-block campaign, Phase B.2d d1). The former
+       ``_within_group_triple`` / ``_lagged_gains`` construction pair
+       retired into a single builder,
+       :func:`~orpheus.sn.coupled_system.build_within_group_system`, which
+       returns the frozen
+       :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record — the
+       loss grid together with its Hackbusch regular splitting
+       :math:`A = M - N` (``resolvent`` = :math:`M`, the sweepable part
+       inverted each step; ``gains`` = :math:`N`, the lagged couplings). On
+       a carrying sphere :math:`M` is the coupled-bridged fused walk
+       (:class:`~orpheus.sn.coupled_system.CoupledInvertibleOperator`) and
+       :math:`N` the coupled gain grid ``[[S+B_a, ∅], [Emission, B_b]]``
+       (the ``(A,B)`` slot structurally zero — seeding lives in :math:`M`);
+       on a seedless mesh it degrades to the bare ``((L+C), (S, B_a))`` the
+       Gauss-Seidel / windowing paths consume zero-touch. The four
+       within-group solve sites consume the one record. See
+       :ref:`bc-extraction-variadic-driver` in :doc:`operator_algebra`.
+     - #280
+     - ``refactor/sn-walk-unification`` *(in development, c0f23f6)*
    * - 2026-07-05
      - **The adjoint-inverse swap law wired the reverse-scan into the
        operator algebra** (#280 Phase 2.5c). With the reverse-scan in

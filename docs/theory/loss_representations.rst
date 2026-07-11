@@ -2255,24 +2255,30 @@ which was precisely the last thing the SN sweep *used* an
 The starting-direction ψ½ as a codim-1 face object
 ==================================================
 
-Every representation on this page acts on the augmented within-group
-composite
+The within-group phase space spans three subspaces —
 
 .. math::
 
    V \;=\; V_{\rm bulk} \,\oplus\, V_{\rm trace} \,\oplus\, V_{\rm sd}
 
-(the same three-block direct sum whose metric :math:`G` is
+(the same direct sum whose metric :math:`G` is
 :eq:`loss-rep-metric-adjoint-solve`; the canonical statement is the
 augmented composite :eq:`sn-282-augmented-composite` on the discrete-
 ordinates page).  The first two summands are familiar — the cell-centred
-bulk and the spatial boundary trace.  This section is about the third,
+bulk and the spatial boundary trace, together the 2-block
+:class:`~orpheus.transport.full_field.FullField` (System A) every
+representation on this page acts on.  This section is about the third,
 :math:`V_{\rm sd}`, the starting-direction ψ½ block (#282 route (a); the
 physics and the direct solve are on
-:ref:`sn-282-direct-starting-direction-solve`), and about the
-**architectural** fact it exposes: ψ½ is a **codim-1 face object**, a
-sibling of the spatial trace, and it does **not** belong in the
-cell-centred bulk.
+:ref:`sn-282-direct-starting-direction-solve`).  Since the Phase B.2d
+eviction :math:`V_{\rm sd}` is **not** a block on ``FullField`` — it is
+**System B**, its own 2-block composite coupled to System A as a
+:class:`~orpheus.numerics.coupled_system.CoupledField`, and the walk
+consumes its leaves through **explicit kwargs** (the six-signature
+protocol below), never as a third summand of the carrier.  The
+**architectural** fact this section documents survives the eviction
+unchanged: ψ½ is a **codim-1 face object**, a sibling of the spatial
+trace, and it does **not** belong in the cell-centred bulk.
 
 Current truth — a face object, not a bulk passenger
 ---------------------------------------------------
@@ -2317,32 +2323,40 @@ object is the Cardinal-Rule-2 choice that keeps the bulk clean; the
 Lobatto study is what makes that separation a *chosen* architecture
 rather than a forced one.
 
-.. admonition:: Design direction — the structural ``FaceField`` codim-1 parent (PLANNED, not built)
+.. admonition:: Design direction — mesh-derived presence via a ``PhaseSpaceCarrier`` protocol (PARTIALLY built)
    :class: note
 
-   The following is a **design direction**, recorded so a future
-   implementation session inherits the reasoning rather than re-deriving
-   it.  Only the **structural** half is planned — no ``FaceField`` ABC or
-   ``PhaseSpaceCarrier`` protocol exists yet.  (The
-   :func:`~orpheus.numerics.face_layout.face_streaming_normal` measure
-   *does* exist, but as the spatial-trace partial-current metric **only**
-   — see the refuted-unification note below.)  The per-leaf **metrics are
-   already correct and LANDED**: the spatial trace carries
-   :math:`\lvert\Omega\cdot n\rvert\,w` and the ψ½ block carries its SPD
-   state metric :math:`G_{\rm sd} = V_{\rm cell}`.  The *current* state is
-   the ``Optional`` block + guards described under the next heading; the
+   Parts of this design direction have **landed**; the rest is recorded so
+   a future session inherits the reasoning.  The **structural codim-1
+   parent** :class:`~orpheus.transport.fields._bases.FaceField` now
+   **exists** (commit ``4081c0d``) — ``RadialCharacteristicField`` and the
+   spatial-trace boundary families are its subclasses, sharing the
+   flat-buffer ``FaceLayout`` discipline instead of hand-copying it.  The
+   :func:`~orpheus.numerics.face_layout.face_streaming_normal` measure also
+   exists, but as the spatial-trace partial-current metric **only** (see
+   the refuted-unification note below).  The per-leaf **metrics are correct
+   and landed**: the spatial trace carries
+   :math:`\lvert\Omega\cdot n\rvert\,w` and the ψ½ block its SPD state
+   metric :math:`G_{\rm sd} = V_{\rm cell}`.  And the Phase B.2d eviction
+   already reached the design's **unconstructable-by-design presence** goal
+   — by a different route: ψ½ is System B (its own composite), so a
+   presence-mismatched carrier is a *type error*, not a runtime-checked
+   ``Optional`` (the six-signature protocol below replaces the old
+   presence-reconciling guards).  What is **not** built is the
+   ``PhaseSpaceCarrier`` protocol that would let the mesh *enumerate* its
+   phase-space blocks and the composite mirror them automatically.  The
    durable synthesis is ``.claude/plans/facefield_codim1_design.md`` (§5),
    read against the ERR-067 metric correction.
 
-   **The missing codim-1 parent.**  Today the typed-field hierarchy
-   (:mod:`orpheus.transport.fields`) has the spatial-trace family
+   **The codim-1 parent (landed).**  The typed-field hierarchy
+   (:mod:`orpheus.transport.fields`) now shares the **codim-1 parent**
+   :class:`~orpheus.transport.fields._bases.FaceField` off
+   :class:`~orpheus.numerics.field.Field`: the spatial-trace family
    (:class:`~orpheus.transport.fields._bases.BoundaryField`) and the ψ½
    family
-   (:class:`~orpheus.transport.fields._bases.RadialCharacteristicField`) as
-   **separate siblings** off :class:`~orpheus.numerics.field.Field` —
-   ``RadialCharacteristicField`` *hand-copies* the flat-buffer discipline
-   rather than inheriting it.  The design introduces the missing **codim-1
-   parent** they should share::
+   (:class:`~orpheus.transport.fields._bases.RadialCharacteristicField`)
+   are both its subclasses, inheriting the flat-buffer ``FaceLayout``
+   discipline once instead of hand-copying it::
 
        Field
        ├── BulkField    — codim-0 (cell centres);  metric = per-leaf  V·w
@@ -2350,10 +2364,9 @@ rather than a forced one.
             ├── AngularBoundaryField / ScalarBoundaryField  (spatial faces)  metric |Ω·n|·w
             └── RadialCharacteristicField (ψ½)                 (angular edges)   metric V_cell (SPD)
 
-   ``FaceField`` would own the ``FaceLayout`` flat-buffer discipline and
-   the presence-invariant **once**, so the face families stop being
-   siblings-by-accident.  It unifies **structure only** — the metric stays
-   per-leaf (next note).
+   ``FaceField`` owns the ``FaceLayout`` flat-buffer discipline **once**,
+   so the face families are no longer siblings-by-accident.  It unifies
+   **structure only** — the metric stays per-leaf (next note).
 
    **The metric does NOT unify — it is per-leaf (refuted unification,
    ERR-067).**  An earlier draft proposed collapsing both codim-1 metrics
@@ -2373,36 +2386,84 @@ rather than a forced one.
    :math:`V_{\rm cell}`), exactly as the bulk's metric is its own per-leaf
    :math:`V\,w`.
 
-   **Mesh-enumerated blocks / mesh-derived presence.**  The composite's
-   block list would be *the mesh's phase-space DOF structure, reified* —
-   the mesh enumerates its blocks (bulk always; spatial trace always;
-   angular trace iff :math:`\tau_{\rm raw} \in (0,1)` on that level) and
-   the composite mirrors it, via a ``PhaseSpaceCarrier`` protocol in
-   ``transport`` that ``SNMesh`` (in ``sn``) satisfies — sn → transport,
-   never the reverse.  Presence becomes a *derived reading of the mesh*,
-   and the consistency guards (below) become
-   **unconstructable-by-design** rather than runtime-checked.
+   **Mesh-enumerated blocks (still planned).**  The remaining, unbuilt
+   half: the composite's block list would be *the mesh's phase-space DOF
+   structure, reified* — the mesh enumerates its blocks (bulk always;
+   spatial trace always; angular trace iff :math:`\tau_{\rm raw} \in (0,1)`
+   on that level) and the composite mirrors it, via a ``PhaseSpaceCarrier``
+   protocol in ``transport`` that ``SNMesh`` (in ``sn``) satisfies — sn →
+   transport, never the reverse.  The B.2d eviction already made presence
+   **unconstructable-by-design** (a live-ray ``ψ_A`` is a type error); what
+   ``PhaseSpaceCarrier`` would add is building the carrier *from* the
+   mesh's DOF enumeration directly, rather than the mesh and the composite
+   agreeing by separate construction.
 
-Current state — the ``Optional`` block and the 7 guards
--------------------------------------------------------
+How the walk sees ψ½ — the six-signature leaf-kwarg protocol
+------------------------------------------------------------
 
-Until the design above lands, presence is a **free constructor argument**
-kept consistent with a fact only the mesh knows.
-:class:`~orpheus.transport.full_field.FullField` carries the
-starting-direction block as an ``Optional`` third summand
-(``radial_characteristic: RadialCharacteristicField | None = None``), and
-**7 runtime guard call sites** police presence-vs-mesh consistency: a
-positive half (``_require_radial_characteristic``, "carrying ⟹ present", at
-3 sites — one of them in
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator`) and a
-negative half (``_refuse_radial_characteristic``, "non-carrying ⟹ absent",
-at 4 sites).  Both guard functions live in
-:mod:`orpheus.sn.loss_representation`.  The mesh already authoritatively
-computes presence
+Since the B.2d eviction the ``Optional`` third block and its
+presence-vs-mesh reconciliation guards are **retired**: ψ½ is System B,
+so a carrier cannot even *hold* a starting-direction block, and there is
+nothing to reconcile.  Instead the coupled bridge
+(:class:`~orpheus.sn.coupled_system.CoupledInvertibleOperator`) splits the
+coupled pair and hands System B's leaf to the walk through **explicit
+kwargs**.  The six walk signatures of
+:class:`~orpheus.sn.loss_representation.LossRepresentation` (the forward /
+adjoint / streaming triples) carry two kwarg pairs:
+
+.. list-table:: The B.2d ψ½ leaf-kwarg pairs
+   :header-rows: 1
+   :widths: 24 30 46
+
+   * - Direction
+     - Kwarg pair
+     - Contract (read vs filled)
+   * - **apply** — matvec :math:`(L+C)\psi`
+     - ``radial_characteristic_flux`` (state) /
+       ``radial_characteristic_source`` (rhs)
+     - **reads** the given ψ½ flux, **fills** the emitted ray-block source
+       rows — the fused factor's (state-side, rhs-side) legs.
+   * - **solve** — sweep :math:`(L+C)^{-1}q`
+     - the same pair, roles swapped by direction
+     - **reads** the true q½ ``source``, **fills** the marched ψ½ ``flux``
+       in place — the direct starting-direction march.
+   * - **transpose** — :math:`(L+C)^{\mathsf T}`
+     - ``seed_cot`` (in) / ``seed_cot_out`` (filled)
+     - **consumes** the ray-row cotangent, **fills** the domain-side
+       pullback :math:`\text{Seeding}^{\mathsf T}\phi_A +
+       D_{BB}^{\mathsf T}\chi_B`.
+
+The **no-legs** call on a carrying mesh is the ray-decoupled
+:math:`(A,A)` block action via internal zero-substitution — bit-identical
+to the retired dead-slot arithmetic, which is why the loss grid's
+``OperatorSum`` members need no kwargs.  A **transpose** no-legs call
+**discards** the :math:`\text{Seeding}^{\mathsf T}` pullback
+(:math:`M_{BA} = 0` in the resolvent: the seed rows are
+bulk/trace-χ-independent).  ``solve`` / ``solve_transpose`` **require** the
+pair on a carrying mesh (no block-inverse spelling exists until the step-5
+block solve); a **seedless** strategy **refuses** the kwargs outright (a
+non-``None`` pair is a caller wiring error — multi-D Cartesian has no
+carrying levels, R12a).
+
+The rules are single-sourced by a three-function guard family, all in
+:mod:`orpheus.sn.loss_representation`:
+
+* ``_require_radial_characteristic`` — the positive half of the R12a
+  biconditional ("carrying ⟹ the leg is present"), so a carrying-mesh
+  action that forgot System B's leaf fails loudly rather than silently
+  dropping the emission;
+* ``_refuse_radial_characteristic`` — the negative half ("non-carrying ⟹
+  no leg"), the SAME biconditional spelled once so the forward emit and
+  the transpose consume cannot drift onto different domains;
+* ``_require_leg_pair`` — the **both-or-neither** law of the explicit legs
+  on a joint surface: an IN leg and its OUT buffer come together or not at
+  all (a lone IN silently drops the emitted rows; a lone OUT has nothing to
+  emit from).
+
+The mesh remains the single authority on presence
 (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`),
-so there are **two sources of truth** for one fact and the guards are the
-machinery reconciling them — the Pattern-2 smell the
-mesh-derived-presence design (above) is meant to dissolve.
+and the guards enforce the *leg* biconditional against it — the
+``Optional``-block two-sources-of-truth smell the eviction dissolved.
 
 .. _loss-rep-fork-b2:
 

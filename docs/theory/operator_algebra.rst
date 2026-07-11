@@ -1745,16 +1745,21 @@ unaffected.
 
    The gate change is purely additive honesty — an audit (#257 S3b)
    confirmed **no production path** relies on a :math:`\sigma=0` collision
-   ``solve``: all three production sites (the within-group operator
-   builder
-   :func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`,
-   the solver ``__init__`` ``L = Streaming + Collision``, and
-   ``rebind_sigma_t``) source :math:`\sigma_t > 0` (total cross sections
-   are bounded away from zero), and the removal cross section
-   :math:`\sigma_r` ``solve`` appears only in a docstring, with no live
-   caller. The bundled :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
-   has its own stricter construction-time ``min σ > 0`` guard, consistent
-   with the new gate.
+   ``solve``. Since B.2d d3 the within-group :math:`L + C` composition is
+   spelled in **one** place — the fused-factor primitive
+   :func:`~orpheus.sn.coupled_system.build_streaming_collision`, called by
+   BOTH :func:`~orpheus.sn.coupled_system.build_within_group_system` (whose
+   :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record the
+   solver's within-group inners consume) and the solver's own ``L``
+   binding legs (the former per-solver ``Streaming + Collision``
+   spellings — the third copy was the L-002 collapse trigger). That builder
+   sources
+   :math:`\sigma_t > 0` (total cross sections are bounded away from zero),
+   and the removal cross section :math:`\sigma_r` ``solve`` appears only in
+   a docstring, with no live caller. The bundled
+   :class:`~orpheus.sn.operators.streaming.InvertibleOperator` has its own
+   stricter construction-time ``min σ > 0`` guard, consistent with the new
+   gate.
 
 
 .. _functional-category:
@@ -5021,17 +5026,26 @@ loss decomposition is the honest
 
 .. vv-status: bc-extraction-within-group-decomposition documented
 
-assembled once by the single-source-of-truth helper
-:func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`,
-which returns ``(L+C, S, B)`` — the invertible resolvent
+assembled once by the single-source-of-truth builder
+:func:`~orpheus.sn.coupled_system.build_within_group_system`, which returns
+the frozen :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record —
+the loss grid together with its **named regular splitting**
+:math:`A = M - N` (Hackbusch 2016 §11). On a seedless (slab / cylinder /
+Cartesian) mesh the record degrades to exactly this triple: its ``resolvent``
+is :math:`M = (L+C)` — the invertible resolvent
 (:class:`~orpheus.sn.operators.streaming.InvertibleOperator`, ``.solve`` = the WDD
-sweep), the bulk scattering gain
+sweep) — and its ``gains`` are :math:`N = (S,\ B_a)`, the two lagged
+couplings the driver applies: the bulk scattering gain
 (:class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
-:attr:`block_role <orpheus.numerics.operator.BlockRole>` ``BULK``), and
-the boundary reflection gain
+:attr:`block_role <orpheus.numerics.operator.BlockRole>` ``BULK``) and the
+boundary reflection gain
 (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`,
-``block_role`` ``BOUNDARY``). The :math:`B\,\psi.\text{outflow}` term
-lands on :math:`\text{rhs.boundary}`, which the bare ``(L+C).solve``
+``block_role`` ``BOUNDARY``). On a *carrying* sphere the record additionally
+bridges the ψ½ System B into a coupled :math:`M - N` grid
+(:ref:`sn-282-direct-starting-direction-solve` in :doc:`discrete_ordinates`);
+the former ``_within_group_triple`` / ``_lagged_gains`` construction pair
+retired into this one builder at B.2d. The :math:`B\,\psi.\text{outflow}`
+term lands on :math:`\text{rhs.boundary}`, which the bare ``(L+C).solve``
 sweep reads as the inflow seed (:ref:`bare-sweep-extraction` in
 :doc:`discrete_ordinates`).
 
@@ -5130,7 +5144,7 @@ source of truth, Cardinal Rule 2):
      - Mechanism
      - Used by
    * - **Variadic gain**
-       (:func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`
+       (:func:`~orpheus.sn.coupled_system.build_within_group_system`
        returns :math:`B` as a gain)
      - :math:`B` is one of the ``*gains`` the variadic driver lags:
        the matvec subtracts :math:`B.\text{apply}`, the SI rhs adds it
@@ -5234,7 +5248,7 @@ boundary block as an active-trace residual (outflow slots carry the
 self-consistency defect ``streamed − ψ.outflow``; inflow slots carry
 the identity ``ψ.inflow``), wired into the composed Krylov matvec as
 the boundary gain :math:`B` of
-:func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`.
+:func:`~orpheus.sn.coupled_system.build_within_group_system`.
 The interior face fluxes the bare 2-D sweep + matvec propagate are the
 interior 1-cochain :math:`C^1_{\rm int}` — carried since S6.4(f) by the
 rolling ``_MovingFrontier`` front (the ``WavefrontFlux`` type that named
@@ -5326,7 +5340,7 @@ multiplier :math:`C = M[\sigma_t]`
 (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
 plus the scattering
 gain :math:`S` and the boundary reflection gain :math:`B` from
-:func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`;
+:func:`~orpheus.sn.coupled_system.build_within_group_system`;
 zero within-group fission), and the
 same :meth:`integrate_angular <orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular>`
 angular reduction. Neither driver carries any geometry dependence.
@@ -5719,9 +5733,9 @@ Thirteen sites (operator outputs + ``q_ext`` sources) flipped from
 (The B.5.2 ``_zero_within_group_fission`` slot — a ``ZeroOperator``
 ``codomain_zero`` emitting the boundary zero for an explicit ``F = 0``
 within-group operator — was designed here but NEVER wired: the Wave-O
-``_within_group_triple`` decomposition routes within-group fission
-through ``q_ext`` instead, so no zero-fission operator is ever
-constructed. The dead helper retired 2026-07-03 (C4).)
+within-group decomposition (:func:`~orpheus.sn.coupled_system.build_within_group_system`)
+routes within-group fission through ``q_ext`` instead, so no zero-fission
+operator is ever constructed. The dead helper retired 2026-07-03 (C4).)
 
 The change is **type-only**: :meth:`AngularBoundarySourceSink.zeros_on <orpheus.transport.fields._bases.AngularBoundaryField.zeros_on>`
 and the per-face-view writes produce **bit-identical** ``.values`` —
@@ -6733,8 +6747,10 @@ the *forward* composition guard).
    composite ``full_field_space`` metric (above); and **(b)** the
    within-group loss is never fused into a single
    :math:`(L + C - S - F - B)` operator —
-   :func:`~orpheus.sn.solver._within_group_triple` returns the
-   ``(L + C, S, B)`` triple with ``S`` / ``B`` as **lagged gains** and
+   :func:`~orpheus.sn.coupled_system.build_within_group_system` returns the
+   :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record whose
+   ``resolvent`` ``(L+C)`` and lagged ``gains`` ``(S, B_a)`` keep ``S`` /
+   ``B`` as **lagged gains** and
    ``F`` handled at the eigenvalue / DSA **outer** layer (where the
    adjoint posing row daggers :math:`M = F` as :math:`M^{\dagger}`; see
    :ref:`eigenvalue-posing`), not via a within-group composite adjoint.
