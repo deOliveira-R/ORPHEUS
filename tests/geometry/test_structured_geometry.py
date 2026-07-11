@@ -352,6 +352,7 @@ class TestMesh1DFromGeometry:
         )
         np.testing.assert_allclose(mesh.edges, [5.0, 6.0, 7.0])
 
+    @pytest.mark.catches("ERR-020")
     def test_equal_volume_cylindrical_invariant(self):
         """Equal-volume cells in a cylindrical zone are bit-identical."""
         g = StructuredGeometry(
@@ -366,6 +367,7 @@ class TestMesh1DFromGeometry:
         expected_total = np.pi * 2.0 ** 2
         np.testing.assert_allclose(mesh.volumes.sum(), expected_total, rtol=1e-14)
 
+    @pytest.mark.catches("ERR-020")
     def test_equal_volume_spherical_invariant(self):
         g = StructuredGeometry(
             geometry="SPH",

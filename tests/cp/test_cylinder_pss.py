@@ -147,6 +147,7 @@ def test_pss_multiregion_with_uniform_sigma_equals_homogeneous(tau_R):
 # 5. Multi-region asymmetry (chord geometry order-dependence)
 # ═══════════════════════════════════════════════════════════════════════
 
+@pytest.mark.catches("ERR-031")
 def test_pss_multiregion_layer_order_matters_for_grazing_chords():
     """Chord geometry: chords with impact parameter h > r_inner cross
     only the OUTER annulus, so swapping σ_t between annuli changes

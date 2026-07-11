@@ -197,7 +197,7 @@ def test_R_equals_2l_plus_1_times_S0(lebedev_L_pair):
 
 
 @pytest.mark.l1
-@pytest.mark.catches("ERR-039")
+@pytest.mark.catches("ERR-039", "ERR-051")
 @pytest.mark.verifies("pi-r-equals-4pi-i")
 def test_pi_R_is_4pi_identity_on_band_limited(lebedev_L_pair):
     r""":math:`\Pi \cdot R = 4\pi \cdot I` on the band-limited coefficient space.

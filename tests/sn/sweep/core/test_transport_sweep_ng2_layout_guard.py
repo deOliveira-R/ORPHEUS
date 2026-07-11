@@ -37,7 +37,7 @@ from orpheus.sn.loss_representation import transport_sweep
 from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
-pytestmark = pytest.mark.foundation
+pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-055")]
 
 
 def _slab_1d(n_cells: int, ng_mix) -> Mesh1D:

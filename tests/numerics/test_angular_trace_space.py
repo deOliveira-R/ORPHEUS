@@ -174,6 +174,7 @@ def test_outflow_selectors_are_sign_flipped_inflow():
 
 
 @pytest.mark.l1
+@pytest.mark.catches("ERR-040")
 def test_axis_aligned_ordinates_excluded_from_both_selectors():
     """L1: pure-axis ordinates (e.g. (0,0,±1)) are tangential to a
     perpendicular face — in NEITHER selector."""
