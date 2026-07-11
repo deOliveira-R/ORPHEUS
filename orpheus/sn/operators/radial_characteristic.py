@@ -174,6 +174,9 @@ if TYPE_CHECKING:
         AngularSourceSink,
     )
     from orpheus.transport.full_field import FullField
+    from orpheus.transport.radial_characteristic_composite import (
+        RadialCharacteristicComposite,
+    )
 
 
 class _EmissionKernel(Protocol):
@@ -1142,14 +1145,20 @@ class RadialCharacteristicEmission(LinearOperator):
     bit-identical to the old monolithic ``S.apply`` composite (the regression
     floor + ``TestA_BA_SchurFold`` pin it).
 
-    **A ``FullField`` gain (like ``B_b``).** As a lagged gain the driver sums, it
-    is typed ``FullField → FullField`` (reading the System-A ``bulk``, writing the
-    System-B ``radial_characteristic`` — bulk/boundary present-zero) so it slots
-    into the variadic gains beside ``S`` and ``B`` under the composite
-    presence law. This mirrors ``B_b``
-    (:class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`),
-    the other System-B-touching operator that is ``FullField``-typed to sum into
-    ``B``.
+    **A true System A → System B block (B.2b re-type).** ``apply`` is typed
+    ``FullField → RadialCharacteristicComposite``: it reads the System-A
+    composite and returns System B's OWN carrier with SOURCE members — no
+    present-zero bulk/boundary padding (the old "A_BA writes into the bulk"
+    double-count is now UNSPELLABLE: the codomain has no bulk slot,
+    Pattern 4). ``domain``/``codomain`` declare the two member spaces
+    (``full_field_space`` / ``radial_characteristic_composite_space``), so
+    the B.2c ``CoupledOperator`` grid can type-check its placement. The
+    internal fold engine stays UNIFIED behind the role-preserving
+    ``from_unified`` bridge (the B.2 demote ruling — the unified leaf
+    retires at Phase C/4e). The production SI/Krylov driver still sums
+    FullField gains, so ``_lagged_gains`` wraps this block in the TRANSIENT
+    ``_RayEmissionFullFieldGain`` adapter (byte-identical embedding;
+    retires at B.2d with the block-native driver).
 
     **The transpose IS the S-adjoint bulk pullback (single source).**
     :meth:`apply_transpose` reads a ray cotangent and pulls it back into the bulk
@@ -1219,47 +1228,51 @@ class RadialCharacteristicEmission(LinearOperator):
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
-        # System A (the bulk flux) — read as the FullField ``bulk`` block; no
-        # standalone minted space (the composite carries it).
-        return None
+        # System A — the FullField composite carrier (B.2b re-type; the
+        # 2-blockification of System A lands with the B.2d ray eviction).
+        return self.sn_mesh.full_field_space
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        # System B (the ray source) — written as the FullField
-        # ``radial_characteristic`` block.
-        return None
+        # System B — the ψ½ composite member space (B.2b DP1; non-None by
+        # the ctor guard: A_BA exists only where System B does).
+        return self.sn_mesh.radial_characteristic_composite_space
 
     # ── Forward — bulk flux → ψ½ ray emission ─────────────────────────
 
-    def apply(self, psi: "FullField", /) -> "FullField":
+    def apply(self, psi: "FullField", /) -> "RadialCharacteristicComposite":
         r"""Emit the bulk within-group source onto the ψ½ ray.
 
         Integrate the bulk flux to :math:`\phi_0`, apply the emission kernel
         :math:`K` (the isotropic ℓ=0 source), and fold that moment at the
-        closed :math:`\mu = \pm 1` rays. Returns a ``FullField`` gain
-        contribution carrying ONLY the ``radial_characteristic`` block
-        (``bulk``/``boundary`` present-zero — the disjoint direct sum with
-        ``S``'s bulk and ``B``'s boundary, exactly as ``B_a + B_b``).
+        closed :math:`\mu = \pm 1` rays. Returns **System B's own carrier**
+        (B.2b re-type): a
+        :class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`
+        with SOURCE members — the folded emission in the interior cells, a
+        zero boundary corner (the fold writes cells only). No present-zero
+        bulk/boundary padding: the codomain has no such slots, so the old
+        disjointness with ``S``'s bulk is structural (Pattern 4). The fold
+        engine stays unified internally; the role-preserving
+        ``from_unified`` bridge types its output (the demote ruling).
 
         Parameters
         ----------
         psi : FullField
-            The within-group iterate. Its ``bulk`` must be a full-angular
+            The within-group System-A iterate. Its ``interior`` must be a
+            full-angular
             :class:`~orpheus.transport.fields.angular_flux.AngularFlux` (1-D
             curvilinear); the seed emission needs the per-ordinate flux to
             integrate.
 
         Returns
         -------
-        FullField
-            The ψ½ ray source contribution (``radial_characteristic`` folded;
-            ``bulk``/``boundary`` present-zero).
+        RadialCharacteristicComposite
+            The ψ½ ray source emission (interior = folded cells, boundary =
+            zero corner; both SOURCE role).
         """
         from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import (
-            AngularBoundarySourceSink,
-            AngularSourceSink,
+        from orpheus.transport.radial_characteristic_composite import (
+            RadialCharacteristicComposite,
         )
 
         bulk = psi.interior
@@ -1269,60 +1282,64 @@ class RadialCharacteristicEmission(LinearOperator):
                 "must have a full-angular AngularFlux bulk (1-D curvilinear); "
                 f"got {type(bulk).__name__}."
             )
-        mesh = self.sn_mesh
         phi0 = bulk.integrate_angular().values              # (ng, nx)
         q0 = np.asarray(self.emission_kernel.apply(phi0))   # (ng, nx) iso ℓ=0
-        ray = self._fold.apply(q0[None])                    # ray source
-        return FullField(
-            interior=AngularSourceSink.zeros_on(mesh),
-            boundary=AngularBoundarySourceSink.zeros_on(mesh),
-            radial_characteristic=ray,
-        )
+        ray = self._fold.apply(q0[None])                    # unified ray source
+        return RadialCharacteristicComposite.from_unified(ray)
 
     # ── Euclidean transpose — ray cotangent → bulk pullback ───────────
 
-    def apply_transpose(self, cotangent: "FullField", /) -> "FullField":
+    def apply_transpose(
+        self, cotangent: "RadialCharacteristicComposite", /,
+    ) -> "FullField":
         r"""Euclidean transpose :math:`A_{BA}^{\mathsf T}` — ray → bulk pullback.
 
-        The adjoint of :meth:`apply`: pull a ray cotangent back into the bulk
-        as :math:`\int\!d\mu^{\mathsf T}\,K^{\mathsf T}\,\mathrm{Fold}^{\mathsf T}`.
+        The adjoint of :meth:`apply`: pull a System-B cotangent back into the
+        bulk as
+        :math:`\int\!d\mu^{\mathsf T}\,K^{\mathsf T}\,\mathrm{Fold}^{\mathsf T}`.
         Reconstructionᵀ lifts the ray cotangent to the :math:`\ell = 0` bulk
         moment, :math:`K^{\mathsf T}` scatters it in energy, and the
         ``integrate`` transpose broadcasts it per ordinate with the quadrature
         weight :math:`w_n` (:math:`(\int d\mu)^{\mathsf T}\,x = w_n\,x`). This is
         exactly the ``w · K_isoᵀ(Reconstructionᵀ χ_seed)`` bulk pullback the
-        S-adjoint carried inline before the lift (single source now). Returns a
-        ``FullField`` carrying ONLY the ``bulk`` cotangent (``boundary`` /
-        ``radial_characteristic`` present-zero).
+        S-adjoint carried inline before the lift (single source now). The
+        composite cotangent is recomposed onto the unified leaf through the
+        role-preserving ``to_unified`` bridge (the fold engine stays unified
+        — the demote ruling).
 
         Parameters
         ----------
-        cotangent : FullField
-            A cotangent on the ray source. Its ``radial_characteristic`` block
-            is read; ``bulk``/``boundary`` cotangents are ignored (the forward
-            writes only the ray).
+        cotangent : RadialCharacteristicComposite
+            A cotangent on System B (the ray source codomain). The old "the
+            cotangent carries no ψ½ block" failure is now UNSPELLABLE — the
+            composite always carries both members (Pattern 4).
 
         Returns
         -------
         FullField
-            The bulk per-ordinate cotangent (``bulk`` filled; ``boundary`` /
-            ``radial_characteristic`` present-zero).
+            The System-A cotangent: ``interior`` = the bulk per-ordinate
+            pullback, ``boundary`` present-zero, ``radial_characteristic``
+            **None** — the forward-looking 2-block System-A shape (the B.2d
+            eviction's end state; the transient gain adapter re-pads for
+            today's 3-slot production composites).
         """
         from orpheus.transport.full_field import FullField
+        from orpheus.transport.radial_characteristic_composite import (
+            RadialCharacteristicComposite,
+        )
         from orpheus.transport.source_sinks import (
             AngularBoundarySourceSink,
             AngularSourceSink,
-            RadialCharacteristicSourceSink,
         )
 
-        chi_ray = cotangent.radial_characteristic
-        if chi_ray is None:
-            raise ValueError(
+        if not isinstance(cotangent, RadialCharacteristicComposite):
+            raise TypeError(
                 "RadialCharacteristicEmission.apply_transpose: the cotangent "
-                "carries no ψ½ (radial_characteristic) block — on a carrying "
-                "mesh (R12a) the ray cotangent is required to pull back."
+                "must be a RadialCharacteristicComposite (System B's member "
+                f"carrier); got {type(cotangent).__name__}."
             )
         mesh = self.sn_mesh
+        chi_ray = cotangent.to_unified()                     # role-preserving
         m_bar = self._fold.apply_transpose(chi_ray)          # (1, ng, nx)
         phi0_bar = np.asarray(
             self.emission_kernel.apply_transpose(m_bar[0]),  # (ng, nx)
@@ -1335,7 +1352,7 @@ class RadialCharacteristicEmission(LinearOperator):
         return FullField(
             interior=AngularSourceSink.from_mesh(bulk_bar, mesh),
             boundary=AngularBoundarySourceSink.zeros_on(mesh),
-            radial_characteristic=RadialCharacteristicSourceSink.zeros_on(mesh),
+            radial_characteristic=None,
         )
 
     def __repr__(self) -> str:
@@ -1345,3 +1362,94 @@ class RadialCharacteristicEmission(LinearOperator):
             f"levels={self._ray_space.levels}, ng={self._ray_space.ng}, "
             f"nx={self._ray_space.nx})"
         )
+
+
+class _RayEmissionFullFieldGain(LinearOperator["FullField", "FullField"]):
+    r"""TRANSIENT (B.2b → retires at B.2d): ``A_BA`` presented as a FullField gain.
+
+    The re-typed :class:`RadialCharacteristicEmission` speaks the TARGET
+    architecture (codomain = System B's
+    :class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`);
+    the production SI/Krylov driver still sums ``FullField → FullField``
+    lagged gains under the composite presence law. This adapter is the
+    byte-identical bridge at the gain seam (``_lagged_gains``):
+
+    * :meth:`apply` DELEGATES to the block's ``apply`` (the L4-S sentinel's
+      class-method spy fires through it) and embeds the ray-composite
+      emission — via the role-preserving ``to_unified`` bridge — into an
+      otherwise present-zero ``FullField``, reproducing the pre-B.2b
+      embedded output byte-for-byte.
+    * :meth:`apply_transpose` parses the FullField cotangent's ψ½ slot (the
+      erased-slot presence check lives HERE now — on the block it is
+      unspellable), projects it into the composite, and re-pads the block's
+      2-block System-A output with the present-zero ψ½ slot today's 3-slot
+      composites expect.
+
+    Retired at B.2d when the driver iterate becomes a ``CoupledField`` and
+    the gains go block-native.
+    """
+
+    # Presents the COUPLED bulk→ray block to the gain slot (the same stamp
+    # the wrapped block carries).
+    system_role = SystemRole.COUPLED
+
+    def __init__(self, emission: RadialCharacteristicEmission) -> None:
+        #: The wrapped System A → System B block (read by the driver-routing
+        #: gates' wraps-predicate).
+        self._emission = emission
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        return self._emission.sn_mesh.full_field_space
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        return self._emission.sn_mesh.full_field_space
+
+    @property
+    def is_adjointable(self) -> bool:
+        return self._emission.is_adjointable
+
+    def apply(self, psi: "FullField", /) -> "FullField":
+        r"""The pre-B.2b embedded emission: ray folded, bulk/boundary present-zero."""
+        from orpheus.transport.full_field import FullField
+        from orpheus.transport.source_sinks import (
+            AngularBoundarySourceSink,
+            AngularSourceSink,
+        )
+
+        mesh = self._emission.sn_mesh
+        ray = self._emission.apply(psi)  # the BLOCK emission (delegation)
+        return FullField(
+            interior=AngularSourceSink.zeros_on(mesh),
+            boundary=AngularBoundarySourceSink.zeros_on(mesh),
+            radial_characteristic=ray.to_unified(),
+        )
+
+    def apply_transpose(self, cotangent: "FullField", /) -> "FullField":
+        r"""The pre-B.2b pullback shape: bulk filled, boundary/ψ½ present-zero."""
+        from orpheus.transport.full_field import FullField
+        from orpheus.transport.radial_characteristic_composite import (
+            RadialCharacteristicComposite,
+        )
+        from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
+
+        mesh = self._emission.sn_mesh
+        chi_ray = cotangent.radial_characteristic
+        if chi_ray is None:
+            raise ValueError(
+                "RadialCharacteristicEmission.apply_transpose: the cotangent "
+                "carries no ψ½ (radial_characteristic) block — on a carrying "
+                "mesh (R12a) the ray cotangent is required to pull back."
+            )
+        out = self._emission.apply_transpose(
+            RadialCharacteristicComposite.from_unified(chi_ray),
+        )
+        return FullField(
+            interior=out.interior,
+            boundary=out.boundary,
+            radial_characteristic=RadialCharacteristicSourceSink.zeros_on(mesh),
+        )
+
+    def __repr__(self) -> str:
+        return f"_RayEmissionFullFieldGain({self._emission!r})"

@@ -181,12 +181,17 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     assert isinstance(S_fs, ScatteringOperator)
 
     # (2b) On a carrying mesh, gain 1 = A_BA: the bulk→ray emission
-    # (RadialCharacteristicEmission = Fold∘K_iso∘integrate; SystemRole.COUPLED).
-    # Absent on a seedless mesh (no ψ½ ray). Same primitive both paths.
+    # (RadialCharacteristicEmission = Fold∘K_iso∘integrate; SystemRole.COUPLED),
+    # riding the B.2b transient FullField-gain adapter (the block itself speaks
+    # System B's composite codomain — the wraps-predicate reads the wrapped
+    # ``_emission``). Absent on a seedless mesh (no ψ½ ray). Same primitive
+    # both paths.
     if carrying:
         A_BA_eig, A_BA_fs = gains_eig[1], gains_fs[1]
-        assert isinstance(A_BA_eig, RadialCharacteristicEmission)
-        assert isinstance(A_BA_fs, RadialCharacteristicEmission)
+        assert isinstance(
+            getattr(A_BA_eig, "_emission", None), RadialCharacteristicEmission)
+        assert isinstance(
+            getattr(A_BA_fs, "_emission", None), RadialCharacteristicEmission)
         assert A_BA_eig.system_role is SystemRole.COUPLED
 
     # (2c) last gain = B: the augmented BOUNDARY coupling. On a seed-carrying

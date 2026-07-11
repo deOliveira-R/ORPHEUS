@@ -222,6 +222,7 @@ def _within_group_triple(
     from .operators.boundary import (
         RadialCharacteristicBoundaryOperator,
         SNBoundaryOperator,
+        _RayBoundaryFullFieldGain,
     )
 
     sn_mesh = solver.sn_mesh
@@ -247,8 +248,12 @@ def _within_group_triple(
     # the schedule grading lives on B_a, never the composite (RULING P1
     # corollary; this is what closes the ray-corner double-count).
     boundary_a = SNBoundaryOperator(sn_mesh)
+    # B.2b: B_b is a true System B → System B block; the FullField-summed
+    # production ``B = B_a + B_b`` rides the TRANSIENT byte-identical adapter
+    # (retires at B.2d with the block-native driver).
     boundary: "LinearOperator[FullField, FullField]" = (
-        boundary_a + RadialCharacteristicBoundaryOperator(sn_mesh)
+        boundary_a
+        + _RayBoundaryFullFieldGain(RadialCharacteristicBoundaryOperator(sn_mesh))
         if sn_mesh.radial_characteristic_space is not None
         else boundary_a
     )
@@ -615,8 +620,13 @@ def _lagged_gains(
         return (S, B)
     from orpheus.sn.operators.radial_characteristic import (
         RadialCharacteristicEmission,
+        _RayEmissionFullFieldGain,
     )
-    a_ba = RadialCharacteristicEmission(sn_mesh, S.isotropic_kernel)
+    # B.2b: A_BA is a true System A → System B block; the FullField-gain sum
+    # rides the TRANSIENT byte-identical adapter (retires at B.2d).
+    a_ba = _RayEmissionFullFieldGain(
+        RadialCharacteristicEmission(sn_mesh, S.isotropic_kernel),
+    )
     return (S, a_ba, B)
 
 
@@ -1855,10 +1865,13 @@ def _reflect_outflow_into_inflow(
     # inflow-corner slots get the law's corner action — the seed analogue,
     # through System B's OWN boundary ``B_b`` (RULING P1: one reflect per
     # system; ``B_b.reflect_corner_inplace`` is the ray sibling of ``B_a``'s
-    # trace reflect above). ``None`` is a no-op (seedless).
-    RadialCharacteristicBoundaryOperator(sn_mesh).reflect_corner_inplace(
-        radial_characteristic,
-    )
+    # trace reflect above). Presence-guarded at the call site since B.2b:
+    # a seedless mesh has no System B, so B_b is unconstructable there (the
+    # old in-method ``None`` no-op moved here — a None ray ⟺ seedless).
+    if radial_characteristic is not None:
+        RadialCharacteristicBoundaryOperator(sn_mesh).reflect_corner_inplace(
+            radial_characteristic,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════

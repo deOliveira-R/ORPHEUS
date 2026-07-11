@@ -532,8 +532,14 @@ def _full_loss_case(coord: CoordSystem, ng: int):
     if sn.radial_characteristic_space is not None:
         from orpheus.sn.operators.radial_characteristic import (
             RadialCharacteristicEmission,
+            _RayEmissionFullFieldGain,
         )
-        A = A - RadialCharacteristicEmission(sn, S.isotropic_kernel)
+        # B.2b: the FullField-composable face of the re-typed block is the
+        # transient gain adapter (the raw block's System-B codomain is not
+        # summable with the FullField operands — correctly, per the guard).
+        A = A - _RayEmissionFullFieldGain(
+            RadialCharacteristicEmission(sn, S.isotropic_kernel),
+        )
     return sn, A, S
 
 
@@ -675,14 +681,16 @@ def test_tooth_a_ba_transpose_drop_reds(monkeypatch):
     from orpheus.transport.source_sinks import (
         AngularBoundarySourceSink,
         AngularSourceSink,
-        RadialCharacteristicSourceSink,
     )
 
     def _drop_pullback(self, cotangent, /):
+        # The b3 block shape (2-block System-A cotangent, ray=None) with the
+        # bulk pullback dropped; the class-method patch fires THROUGH the
+        # transient gain adapter (delegation — G-b3.3), which re-pads the ray.
         return FullField(
             interior=AngularSourceSink.zeros_on(self.sn_mesh),
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
-            radial_characteristic=RadialCharacteristicSourceSink.zeros_on(self.sn_mesh),
+            radial_characteristic=None,
         )
 
     monkeypatch.setattr(
