@@ -1269,10 +1269,11 @@ intra-system layers; both fan `op` to members, the math single-sources on the Fi
 leaves — collapse trigger = a 3rd direct-sum fan-out container); `eq=False` follows the
 numerics `Field` convention (the `Composite` divergence needs no reconciling).
 
-**FOLLOW-UP (cross-session, user to confirm issue creation — outward action):** numerics
-now carries THREE member-contract concepts (`Vector` named / `_is_ravellable` ad-hoc
-private / `SystemField`) — converge onto a named ravellable-Protocol home (the `Vector`
-promotion precedent). `module:numerics` / `type:improvement`.
+**FOLLOW-UP — FILED as #297 (2026-07-10, user-confirmed):** numerics carries THREE
+member-contract concepts (`Vector` named / `_is_ravellable` ad-hoc private /
+`SystemField`) — converge spellings 2+3 onto a named `Ravellable` Protocol home (the
+`Vector` promotion precedent; `Vector` itself stays — the algebra/serialization split
+is principled). Full scope + the ERR-053 interop-gate constraint on the issue.
 
 **⚠ B.2b–d carried reminder (elegance-enforcer):** M2 (assemble≡probe) is really the
 field-layout ≡ space-layout coextensiveness gate — on the toys `to_flat().size ==
