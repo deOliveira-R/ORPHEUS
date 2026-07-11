@@ -1593,3 +1593,97 @@ transitional cast dissolve. Then d3 (E4 anchors + A2a forward arm + the
 honest ERR-053 gate + the archivist dispatch + estate). Re-anchor from THIS
 block + `git log` (trust git).
 Re-anchor from THIS block + `git log` (trust git).
+
+### B.2d d2 — DONE @ `e5d1acf` (2026-07-11); recommended /compact point
+
+THE ATOMIC EVICTION landed as ONE feature commit + the matrix regen
+(`1bbd997`). FullField/TimedFullField/FullFieldSpace/CompositeField are pure
+2-block; a live-ray ψ_A is UNREPRESENTABLE (G-c2.6 witness REMOVED — G-d2.7;
+memo R3 discharged exactly as ruled: the type system is the guard).
+
+- **The six walk signatures** speak EXPLICIT leaf kwargs: forward pair
+  `(radial_characteristic_flux, radial_characteristic_source)` (read/filled
+  swaps with direction — the (source, flux) pair is the fused factor's
+  (rhs-side, state-side) ray legs), transpose pair `(seed_cot, seed_cot_out)`.
+  No-legs on carrying = the ray-decoupled (A,A) block action via internal
+  zero-substitution (bit-identical to the retired dead-slot arithmetic — the
+  grid's OperatorSum members need no kwargs); joint solves REQUIRE the pair
+  (no block-inverse spelling exists until step 5); seedless refuses. Guards:
+  `_require_/_refuse_radial_characteristic` + `_require_leg_pair` (one
+  family). The walk BELOW is untouched — the frozen `walk_matvec_*` +
+  affine-carve baselines reproduce 0-ULP through the re-type (F4 discharged).
+- **The bridge dissolved**: `_split_fused_state`/`_fuse_coupled_state`
+  deleted; `CoupledInvertibleOperator`'s four surfaces = `_require_coupled_
+  pair` parse + exact `to_unified`/`from_unified` round trips + walk-filled
+  buffers (matvec/transposes → SourceSink buffer, solve → Flux buffer).
+  `_system_b_member`'s live-ray refusal arm dissolved (unspellable).
+- **Producer pads retired**: S/Sᵀ/F/B_a present-zero emissions, A_AB/A_BAᵀ
+  codomain pads, `_zero_radial_characteristic_like`, and the C-operator's
+  `_radial_characteristic_scaled` (+ its `invert=` boolean-flag smell) —
+  the ray's σ term is A_BB's alone.
+- **Driver native**: `_coupled_flux_state`/`_coupled_source_state` births at
+  all four solve sites; `_build_fixed_source_rhs` returns the driver-ready
+  state (accepts an explicit-q½ CoupledField); `evaluate_residual` coupled
+  arm mints the SPLIT residual pair (`RadialCharacteristicInterior/
+  BoundaryResidual`; unified leaf RETIRED) and the bare arm REFUSES a
+  carrying mesh (the elegance CONCERN — the eviction's signature footgun, a
+  DSA caller passing `solution.angular_flux` alone would silently drop r_B —
+  closed loudly in-commit); `boundary_vs_interior_split`'s √(b²+i²)=‖r_A‖
+  EXACT (the closed diagnostic gap); `Solution.angular_flux` 2-block + NEW
+  `Solution.radial_characteristic` member with the presence biconditional
+  (DP-Solution). Honest DOF: Δ == n_seed pinned (G-d2.3, merged into the
+  psi_half G-d1.8 successor); ERR-053 file migrated (F3).
+- **NEW production predicate beyond the ruled brief** (flagged): `SweepOperator.
+  is_adjointable` gains the B.2d THIRD factor — a carrying-mesh fused wrap
+  cannot thread `seed_cot`, so it refuses EAGERLY; `CoupledSweepOperator` is
+  the joint swap-law home. The coherence file's sphere rows re-expressed as
+  the COUPLED swap-law arm (G1c/G2c/G4c on M + the predicate row); its fused
+  rows went seedless-only.
+- **Gate re-shapes vs the d1-era spellings** (each with the successor's
+  rationale in-file): G-c2.3 → `grid ≡ M − N` (two-path: explicit blocks vs
+  welded legs; same per-row bars); G-d1.5 → `N ≡ pieces`; G-d1.4 → the M
+  leg-plumbing gate (zero-leg ≡ no-leg; live-ψ_B non-vacuity; joint round
+  trip on cells legs — corners are given-data slots); G-d1.6 het → SI ≡
+  Krylov cross-driver (the fused reference is unrepresentable; the d1 proof
+  vs pre-d1 stands as history); the d1.1 bypass tooth → the DP-seedless
+  negative control (a fused bypass cannot be CONSTRUCTED); Mode-12 seed-flip
+  closure re-expressed on the coupled M; the FusedRay*Gain oracles deleted;
+  the carrier file REWRITTEN to presence-facts (System-B existence) + the
+  V_cell metric rows (composite-member ≡ unified gauge).
+
+**VERIFIED:** FULL sn+transport+numerics+diffusion+cp not-slow wall
+**3722/0** (5 skipped, 36 xfailed, 17:31) — tests/diffusion + tests/cp GREEN
+UNTOUCHED (G-d2.6, zero re-points); psi_half 78/78; ratchet `transport: 1`
+(sn 0; no casts; ONE relocated `# type: ignore[override]` marker
+FullField→TimedFullField, net ledger 0); sphinx -W exit 0 ×2; smoke: sphere-SI
++ both slab arms k BIT-IDENTICAL to pre-d2 HEAD (12 digits, worktree-probed),
+sphere-Krylov Δ1.8e-10 = the honest-DOF Krylov-subspace change (anticipated
+principled-equiv arm); elegance-enforcer **PASS-WITH-NITS, 0 violations**
+(CONCERN + NIT-2 fixed in-commit; NIT-1 4× repack acceptable — collapse
+trigger banked; NIT-3 seed_cot naming asymmetry noted).
+
+**CARRIED to d3:**
+- E4 anchors G-d3.1 (φ=Q/Σ_t reflective pure-absorber carrying sphere ≥2G,
+  rtol≤1e-10, both drivers) + G-d3.2 (k_inf homogeneous reflective vs
+  derivations closed form, paired with the het cross-driver row).
+- G-d3.3 the honest END-TO-END ERR-053 gate (restart from the coupled ravel
+  at both Krylov sites + the stall-deficit tooth) — the d2 migration landed
+  the count pin; the end-to-end proof is d3.
+- G-d3.4 A2a forward arm in the coherence file (grid.H reciprocity in the
+  swap-law home) + the `xfail(strict=False)` swap-law inverse arm
+  (`grid.is_invertible` False until step 5) — R5/R11.
+- Archivist dispatch: the 13 `_within_group_triple` refs (d1-carried) + the
+  3-block-FullField sections (`discrete_ordinates.rst` ~18 refs — the
+  role-quadruple table row was minimally re-pointed to the split pair at d2,
+  the SECTION rewrite is d3 — + `loss_representations.rst` ~8 presence-law
+  refs) + the six-signature/leaf-kwarg protocol documentation.
+- Estate: the LC triplication (`SNSolver.self.L` :~849/:~929 vs the builder)
+  + the NIT-2 singular-consistent GMRES anchor test (the exact-breakdown
+  guard's first caller — the dead pad — is GONE; the guard is now
+  caller-less-but-permanent, needs its own minimal anchor).
+- Pre-existing (NOT d2 regressions): audit MISSING ERR-042/045/047/051/055
+  markers in untouched geometry/sweep files.
+
+**NEXT = d3** — E4 anchors + A2a + honest ERR-053 + archivist + estate; then
+Phase C (#47 4e walk un-weave, #41 step-5 block solve, #35/#34). Re-anchor
+from THIS block + `git log` (trust git).
