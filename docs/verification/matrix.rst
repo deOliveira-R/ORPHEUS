@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6610**
+Total tests collected: **6603**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1187, 18.0%
-   L1, 1080, 16.3%
+   L1, 1080, 16.4%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4253, 64.3%
+   foundation, 4246, 64.3%
    unmarked, 36, 0.5%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6495
+   explicit, 6488
    verify, 0
    class-name, 46
    func-name, 0
@@ -258,7 +258,7 @@ Module × level grid
    mc/test_gaps, 7, 9, 0, 0, 0, 0
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
-   mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 26, 0
+   mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 14, 0
    mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 34, 0
    mesh/test_radial_characteristic_split_leaves, 0, 0, 0, 0, 27, 0
    mesh/test_radial_characteristic_split_spaces, 0, 0, 0, 0, 20, 0
@@ -337,9 +337,9 @@ Module × level grid
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
-   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 24, 0
+   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 23, 0
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
-   operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
+   operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 17, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
    operators/test_invertible_operator, 1, 10, 0, 0, 20, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
@@ -352,7 +352,7 @@ Module × level grid
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
-   operators/test_psi_half_coupling, 0, 0, 0, 0, 80, 0
+   operators/test_psi_half_coupling, 0, 0, 0, 0, 78, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_radial_characteristic_metric, 0, 0, 0, 0, 19, 0
    operators/test_ray_operator, 0, 6, 0, 0, 0, 0
@@ -366,7 +366,7 @@ Module × level grid
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
    operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
-   operators/test_typed_residual_evaluation, 1, 0, 0, 0, 6, 0
+   operators/test_typed_residual_evaluation, 1, 0, 0, 0, 12, 0
    primitives/test_axis_native_construction, 0, 0, 0, 0, 15, 0
    primitives/test_axis_primitive, 0, 0, 0, 0, 23, 0
    primitives/test_boundary_face_layout, 0, 0, 0, 0, 5, 0
@@ -416,20 +416,20 @@ Module × level grid
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 328, 0
+   test_layer_imports, 0, 0, 0, 0, 329, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
    transport/test_composite, 0, 0, 0, 0, 14, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
-   transport/test_full_field, 0, 0, 0, 0, 13, 0
+   transport/test_full_field, 0, 0, 0, 0, 17, 0
    transport/test_functional_category, 0, 0, 0, 0, 11, 0
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 6, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 22, 0
-   transport/test_radial_characteristic_composite, 0, 0, 0, 0, 31, 0
+   transport/test_radial_characteristic_composite, 0, 0, 0, 0, 30, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
 
