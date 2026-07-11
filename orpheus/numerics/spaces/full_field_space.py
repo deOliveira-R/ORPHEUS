@@ -97,7 +97,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, ClassVar, Optional, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, Protocol, cast
 
 import numpy as np
 
@@ -225,6 +225,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         interior_space: FunctionSpace,
         trace_space: FunctionSpace,
         radial_characteristic_space: Optional[FunctionSpace] = None,
+        name: str = "full_field",
     ) -> "FullFieldSpace":
         r"""Build the composite from its bulk and trace (and optional seed) leaf spaces.
 
@@ -235,6 +236,13 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         (total_size,)``). The starting-direction block is present
         exactly when the mesh predicate supplies a space (R12a — see
         :attr:`radial_characteristic_space`).
+
+        ``name`` keys the ``(name, shape)`` identity and signals the
+        INSTANCE: the default ``"full_field"`` is System A's bulk ⊕ trace
+        composite; System B's ψ½ composite instantiates the SAME
+        family-blind class under ``name="radial_characteristic"``
+        (B.2b DP1 — one composite-space class, instances differ in
+        members).
         """
         n_interior = int(np.prod(interior_space.shape))
         n_trace = int(np.prod(trace_space.shape))
@@ -244,7 +252,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             else int(np.prod(radial_characteristic_space.shape))
         )
         return cls(
-            name="full_field",
+            name=name,
             shape=(n_interior + n_trace + n_seed,),
             interior_space=interior_space,
             trace_space=trace_space,
@@ -324,7 +332,26 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         ``radial_characteristic_values`` must be supplied exactly when ``x``
         carries the seed block (the callers thread it from
         :meth:`_seed_space_for`'s field-driven dispatch).
+
+        **Presence-dispatch (B.2b DP1).** The seed kwarg is passed to
+        ``_recombine`` only when the carrier EXPOSES the slot: a
+        3-slot carrier (``FullField`` — the slot exists even when
+        ``None``) takes the required kwarg; a pure 2-block
+        :class:`~orpheus.transport.full_field.Composite` carrier
+        (System B's ψ½ composite; the post-eviction System A) has a
+        2-block ``_recombine`` with NO seed kwarg, so passing it would
+        ``TypeError``. Dispatch on ``hasattr`` keeps the 3-slot path
+        byte-identical.
         """
+        if not hasattr(x, "radial_characteristic"):
+            # Pure 2-block Composite carrier — its _recombine hook has no
+            # seed kwarg. The CompositeField Protocol still declares the
+            # slot until the ray eviction relaxes it to 2-block (B.2d);
+            # this cast is that transitional seam.
+            return cast("CompositeField", cast(Any, x)._recombine(
+                interior=replace(x.interior, values=bulk_values),
+                boundary=replace(x.boundary, values=boundary_values),
+            ))
         seed = x.radial_characteristic
         if seed is not None and radial_characteristic_values is None:
             raise RuntimeError(

@@ -934,6 +934,41 @@ class SNMesh(MaterialMesh):
         )
 
     @cached_property
+    def radial_characteristic_composite_space(self) -> "FullFieldSpace | None":
+        r"""System B's member space — the ψ½ ``interior ⊕ boundary`` composite, or ``None``.
+
+        The :class:`~orpheus.numerics.space.FunctionSpace` the re-typed
+        coupling blocks declare (B.2b DP1): ``A_BA``'s codomain and ``B_b``'s
+        domain/codomain — the carrier space of
+        :class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`.
+        REUSES the family-blind
+        :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+        (the same direct-sum member-wise metric dispatch System A's
+        :attr:`full_field_space` uses — zero new space classes; this IS the
+        post-eviction end-state, one composite-space class with instances
+        differing in members), instantiated over the two split ψ½ spaces:
+
+        * **interior** — :attr:`radial_characteristic_interior_space`
+          (``G_sd = V_cell`` cells state metric);
+        * **trace slot** — :attr:`radial_characteristic_boundary_space`
+          (the ``G = V(r = R)`` corner gauge).
+
+        Identity ``("radial_characteristic", (n_interior + n_corner,))`` —
+        the name signals the instance. ``None`` on non-carrying meshes
+        (R12a; System B does not exist there). Cached: one space per mesh,
+        so every block shares one identity instance.
+        """
+        interior = self.radial_characteristic_interior_space
+        boundary = self.radial_characteristic_boundary_space
+        if interior is None or boundary is None:
+            return None
+        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+
+        return FullFieldSpace.from_blocks(
+            interior, boundary, name="radial_characteristic",
+        )
+
+    @cached_property
     def full_field_space(self) -> "FullFieldSpace":
         r"""The composite carrier :math:`V_{\rm bulk} \oplus V_{\rm trace}` (Wave O / O.2b).
 

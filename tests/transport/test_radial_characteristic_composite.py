@@ -354,3 +354,165 @@ class TestPresence:
     def test_from_mesh_raises_on_a_noncarrying_mesh(self) -> None:
         with pytest.raises(ValueError, match="carries no radial_characteristic"):
             RadialCharacteristicComposite.from_mesh(_slab())
+
+
+# ── System B's member space (B.2b b2 — the family-blind FullFieldSpace reuse) ──
+
+
+class TestRadialCharacteristicCompositeSpace:
+    r"""``SNMesh.radial_characteristic_composite_space`` — System B's member space.
+
+    The DP1 ruling realized: the SAME family-blind ``FullFieldSpace`` class
+    System A uses, instantiated over the two split ψ½ spaces under the
+    identity name ``"radial_characteristic"``. The metric rows exercise the
+    ``_rebuild`` presence-dispatch 2-BLOCK arm on the REAL composite (before
+    B.2b this path raised — ``_rebuild`` always passed the seed kwarg to a
+    hook that has none); the FullField row pins the 3-slot arm byte-identical
+    (test-architect G-b2: exercise BOTH arms). Space ``==`` is
+    ``(name, shape)``-only (Mode-12 note), so member identity is asserted
+    with ``is``, and every value row is ``array_equal`` (bit-id — a re-label
+    moves no arithmetic).
+    """
+
+    def test_identity_name_and_shape(self) -> None:
+        sn = _sphere()
+        space = sn.radial_characteristic_composite_space
+        if space is None:
+            pytest.fail("sphere (carrying) must mint the composite space")
+        n_i = sn.radial_characteristic_interior_space.shape[0]
+        n_b = sn.radial_characteristic_boundary_space.shape[0]
+        if space.name != "radial_characteristic":
+            pytest.fail(f"space name is {space.name!r}")
+        np.testing.assert_array_equal(space.shape, (n_i + n_b,))
+
+    def test_member_spaces_are_the_split_instances(self) -> None:
+        # Space == is (name, shape)-only — assert the MEMBER identity with
+        # ``is`` (the cached split spaces, one instance per mesh).
+        sn = _sphere()
+        space = sn.radial_characteristic_composite_space
+        if space.interior_space is not sn.radial_characteristic_interior_space:
+            pytest.fail("interior member is not THE cached interior split space")
+        if space.trace_space is not sn.radial_characteristic_boundary_space:
+            pytest.fail("trace member is not THE cached boundary split space")
+        if space.radial_characteristic_space is not None:
+            pytest.fail("System B's own space must carry NO third slot")
+
+    def test_presence_and_caching(self) -> None:
+        if _slab().radial_characteristic_composite_space is not None:
+            pytest.fail("a non-carrying mesh has no System B, hence no space")
+        sn = _sphere()
+        if (sn.radial_characteristic_composite_space
+                is not sn.radial_characteristic_composite_space):
+            pytest.fail("the composite space must be cached (one per mesh)")
+
+    def test_metric_trio_dispatches_member_wise_on_the_real_composite(self) -> None:
+        r"""apply_metric / apply_inverse_metric / inner_product on the REAL
+        2-block composite ≡ direct split-space application per member,
+        bitwise — the presence-dispatch 2-block arm, type-preserving. This
+        row is the TOOTH for a kwarg-inversion mutation (always passing the
+        seed kwarg REDs it with a TypeError)."""
+        sn = _sphere()
+        space = sn.radial_characteristic_composite_space
+        x = _rand_composite(sn, 51)
+        y = _rand_composite(sn, 52)
+
+        gx = space.apply_metric(x)
+        if type(gx) is not RadialCharacteristicComposite:
+            pytest.fail(f"apply_metric returned {type(gx).__name__}")
+        np.testing.assert_array_equal(
+            gx.interior.values,
+            sn.radial_characteristic_interior_space.apply_metric(x.interior.values),
+        )
+        np.testing.assert_array_equal(
+            gx.boundary.values,
+            sn.radial_characteristic_boundary_space.apply_metric(x.boundary.values),
+        )
+
+        ginv = space.apply_inverse_metric(x)
+        np.testing.assert_array_equal(
+            ginv.interior.values,
+            sn.radial_characteristic_interior_space.apply_inverse_metric(
+                x.interior.values,
+            ),
+        )
+        np.testing.assert_array_equal(
+            ginv.boundary.values,
+            sn.radial_characteristic_boundary_space.apply_inverse_metric(
+                x.boundary.values,
+            ),
+        )
+
+        # inner_product is a SCALAR functional (Mode-12-blind to per-member
+        # swaps on its own) — paired with the array rows above per the memo.
+        np.testing.assert_array_equal(
+            space.inner_product(x, y),
+            sn.radial_characteristic_interior_space.inner_product(
+                x.interior.values, y.interior.values,
+            )
+            + sn.radial_characteristic_boundary_space.inner_product(
+                x.boundary.values, y.boundary.values,
+            ),
+        )
+
+    def test_metric_preserves_the_member_role(self) -> None:
+        r"""The rebuilt members keep their leaf classes (replace-based
+        rebuild) — a source composite through G stays a source composite."""
+        sn = _sphere()
+        space = sn.radial_characteristic_composite_space
+        src = RadialCharacteristicComposite(
+            interior=RadialCharacteristicInteriorSourceSink.zeros_on(sn),
+            boundary=RadialCharacteristicBoundarySourceSink.zeros_on(sn),
+        )
+        out = space.apply_metric(src)
+        if type(out.interior) is not RadialCharacteristicInteriorSourceSink:
+            pytest.fail(f"interior became {type(out.interior).__name__}")
+        if type(out.boundary) is not RadialCharacteristicBoundarySourceSink:
+            pytest.fail(f"boundary became {type(out.boundary).__name__}")
+
+    def test_full_field_three_slot_arm_is_byte_identical(self) -> None:
+        r"""The OTHER presence-dispatch arm: a seed-carrying FullField still
+        routes its ψ½ block through the seed space (byte-identity vs the
+        direct leaf-space application — the pre-B.2b behavior)."""
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
+        )
+        from orpheus.transport.fields.angular_flux import AngularFlux
+
+        sn = _sphere()
+        ff = FullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            radial_characteristic=RadialCharacteristicFlux,
+        )
+        rng = np.random.default_rng(53)
+        ff.interior.values[...] = rng.random(ff.interior.values.shape)
+        ff.boundary.values[...] = rng.random(ff.boundary.values.shape)
+        if ff.radial_characteristic is None:
+            pytest.fail("sphere FullField must carry the ψ½ block (R12a)")
+        ff.radial_characteristic.values[...] = rng.random(
+            ff.radial_characteristic.values.shape,
+        )
+        out = sn.full_field_space.apply_metric(ff)
+        np.testing.assert_array_equal(
+            out.radial_characteristic.values,
+            sn.radial_characteristic_space.apply_metric(
+                ff.radial_characteristic.values,
+            ),
+        )
+
+    def test_flat_layout_is_coextensive_with_the_space_shape(self) -> None:
+        r"""The elegance-carried B.2a reminder, pinned on the REAL members:
+        ``to_flat().size == prod(space.shape)`` AND the flat ORDER is
+        ``concat(interior, boundary)`` — the three offset spellings
+        (``to_flat``, the space shape, the future ``system_slices``) name
+        ONE layout."""
+        sn = _sphere()
+        space = sn.radial_characteristic_composite_space
+        c = _rand_composite(sn, 54)
+        flat = c.to_flat()
+        np.testing.assert_array_equal(flat.size, int(np.prod(space.shape)))
+        np.testing.assert_array_equal(
+            flat,
+            np.concatenate(
+                [c.interior.values.ravel(), c.boundary.values.ravel()],
+            ),
+        )
