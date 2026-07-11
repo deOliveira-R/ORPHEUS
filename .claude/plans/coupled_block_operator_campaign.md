@@ -1791,3 +1791,69 @@ the MissingAdjoint bite-test — landed in `1de9592`).
 flips the A2a inverse arm live + retires the joint-solve pair requirement),
 #35/#34 (docs + guard retirement). Local task #51 (B.2d) CLOSED. Re-anchor
 from THIS block + `git log` (trust git).
+
+## Phase C 4e — RULED design points (2026-07-11, user; P0 memos absorbed)
+
+P0 grounding @ `9fdbd47`: explorer `campaign_4e_walk_unweave_map.md` (the six
+signatures + the four welded regions + the overlap matrix + the unified-family
+blast radius, all current file:line) + test-architect
+`coupled_operator_4e_unweave_verification.md` (survivors ledger, S1/S2
+single-source proofs, per-surface equivalence architecture, mutation ledger).
+KEY P0 finding: the EXTRACT is smaller than the #47 task card — the A_BB
+MATVEC rows are already single-sourced (`radial_characteristic_forward_
+residual(+_transpose)`, no twin); the genuine welded twins are ONLY the two
+SOLVE orchestrations (`_run:4207-4237` ≡ `A_BB.solve:498-522`,
+`_run_transpose:4739-4762` ≡ `solve_transpose:564-597`, both WRAP-pinned
+byte-identical today) + the FUSED A_AB composition (H1).
+
+- **R-4e.1 — H1-NARROW scope.** Extract ONLY the two welded A_BB solve
+  orchestrations (M.solve/M.solve_transpose ray legs route through the
+  `RadialCharacteristicOperator` engine). The A_AB feed STAYS M's fused
+  internal — consistent with the B.2d DP-splitting ruling ("Seeding lives in
+  M"; the N grid's (A,B)=∅ is structural). Consequences: `_seed_rows_forward`/
+  `_seed_rows_transpose` SURVIVE (matvec-side, shared-kernel-routed) ⟹ the
+  TA's M1 headline re-aim becomes VERIFY-still-bites, not re-aim; the sphere
+  forward AND transpose matvec stay bit-exact; e2's solve legs are expected
+  bit-id-or-nearly (the WRAP gates pin welded ≡ engine byte-identical TODAY)
+  — measure under `-W error::DriftWarning`, never assume; any drift is
+  localized and explained or it is a bug. S2 tripwire form under narrow:
+  post-e2 `loss_representation` has ZERO `carlson_inward_sweep_*` references
+  (the engine + psi_half keep them; the walk's only carlson callers are the
+  two welded marches). The cylinder non-carrying direct-seed FOLD is NOT
+  A_BB — stays in the walk.
+- **R-4e.2 — spine e1 → e1b → e2, each commit green.**
+  e1 = THE WALK-SLOT REWRITE (atomic, like d2, forced by cells_view/
+  corner_view coupling): the walk marches split-native (composite members;
+  closure kwarg re-types unified→Interior leaf — same `.cells(p,-1)`
+  accessor), the six signatures + 4 thin wrappers + `transport_sweep`
+  re-type their leaf kwargs to the split composite, M's 4×(buffer +
+  to_unified + from_unified) dissolve, driver factories mint split directly,
+  `B_b.reflect_corner_inplace` takes the split boundary member, engines +
+  Emission/Reconstruction go split-native (the ×9 + ×2 internal bridges),
+  THEN the unified family retires (leaf base + Flux/SourceSink/Displacement,
+  unified `RadialCharacteristicSpace`, `SNMesh.radial_characteristic_space`
+  — presence readers re-point to `radial_characteristic_composite_space`/
+  `_levels`, presence-coextensive by construction — `from_unified`/
+  `to_unified` + tables, `from_angular_source` re-homed split-side).
+  BIT-IDENTICAL GATE: every frozen baseline (`walk_matvec_{slab,sphere,cyl}`
+  nulp=1, affine-carve ALL geoms, test_282 C(i)/C(ii), G2c array_equal)
+  under `-W error::DriftWarning` — ANY drift at e1 is a representation bug,
+  not an accepted delta (TA refutation 4).
+  e1b = the FREED-NAME rename (own mechanical commit).
+  e2 = the solve-leg extraction (route through the A_BB engine; delete the
+  two welded marches; the WRAP twin-coexistence gates retire BY DESIGN —
+  S1 engine-execution sentinel both drivers + S2 carlson-absence tripwire +
+  row-6 oracle + test_282 C(i) cold <1e-11 carry the coverage; preserve H2
+  ray-first ordering — `phi_aux = cells_minus` handoff reads the engine's
+  returned flux member).
+- **R-4e.3 — the freed name: `RadialCharacteristicComposite` → 
+  `RadialCharacteristicField` at e1b** (user-ruled — the FullField mirror;
+  the B.1d flagged convergence FIRES). The name REBINDS from the retired
+  unified leaf to the composite ⟹ the retirement audit is STRICTER: at e1,
+  every existing `RadialCharacteristicField` reference (code, tests, docs)
+  is explicitly dispositioned dead-vs-composite BEFORE e1b reminst the name;
+  isinstance checks that meant the leaf must not silently re-bind. Docs
+  re-point at the archivist pass; archaeology collision accepted.
+- **Step-5 boundary (do NOT cross):** no `grid.is_invertible` flip, the A2a
+  inverse arm STAYS xfail, the joint-solve pair law survives; M's deeper
+  re-pose as honest block-triangular substitution over the grid is #41.
