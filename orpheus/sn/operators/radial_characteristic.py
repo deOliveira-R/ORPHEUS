@@ -1405,10 +1405,12 @@ class RadialCharacteristicEmission(LinearOperator):
         -------
         FullField
             The System-A cotangent: ``interior`` = the bulk per-ordinate
-            pullback, ``boundary`` present-zero, ``radial_characteristic``
-            **None** — the forward-looking 2-block System-A shape (the B.2d
-            eviction's end state; the transient gain adapter re-pads for
-            today's 3-slot production composites).
+            pullback, ``boundary`` AND ``radial_characteristic``
+            present-zero — the transitional 3-block presence convention
+            (B.2c: the transposed grid row sums this with ``A_AAᵀ``'s
+            3-block output under the mixed-presence law, so EVERY System-A
+            emission stays presence-consistent until the B.2d eviction
+            flips them all to the 2-block shape together).
         """
         from orpheus.transport.full_field import FullField
         from orpheus.transport.radial_characteristic_composite import (
@@ -1417,6 +1419,7 @@ class RadialCharacteristicEmission(LinearOperator):
         from orpheus.transport.source_sinks import (
             AngularBoundarySourceSink,
             AngularSourceSink,
+            RadialCharacteristicSourceSink,
         )
 
         if not isinstance(cotangent, RadialCharacteristicComposite):
@@ -1439,7 +1442,7 @@ class RadialCharacteristicEmission(LinearOperator):
         return FullField(
             interior=AngularSourceSink.from_mesh(bulk_bar, mesh),
             boundary=AngularBoundarySourceSink.zeros_on(mesh),
-            radial_characteristic=None,
+            radial_characteristic=RadialCharacteristicSourceSink.zeros_on(mesh),
         )
 
     def __repr__(self) -> str:

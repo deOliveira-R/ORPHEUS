@@ -90,7 +90,18 @@ from orpheus.sn.spatial.psi_half_angle_seed import (
     carlson_inward_sweep_transpose,
     radial_characteristic_forward_residual,
 )
-from orpheus.numerics.operator import SystemRole, _join_system_roles
+from orpheus.numerics.coupled_system import (
+    CoupledField,
+    CoupledOperator,
+    CoupledSpace,
+)
+from orpheus.numerics.operator import (
+    IncompatibleOperatorComposition,
+    MissingAssembly,
+    SystemRole,
+    _join_system_roles,
+)
+from orpheus.sn.coupled_system import build_coupled_system
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.operators.fission import FissionOperator
@@ -1821,13 +1832,21 @@ class TestCoupledLift:
         # seed-only cotangent is now unspellable at the block boundary).
         chi_cot = _ray_composite(sn, chi_seed)
         # (a) the pullback lives in A_BA (== the named-factor reconstruction),
-        # and the output is the forward-looking 2-block System-A shape
-        # (radial_characteristic is None — G-b3.2's shape pin).
+        # and the output rides the TRANSITIONAL 3-block presence convention:
+        # ψ½ slot present-ZERO (B.2c re-pin of G-b3.2 — the transposed grid
+        # row sums this with A_AAᵀ's 3-block output under the mixed-presence
+        # law; every System-A emission stays presence-consistent until B.2d
+        # flips them all to the 2-block shape together).
         adj_out = A_BA.apply_transpose(chi_cot)
-        if adj_out.radial_characteristic is not None:
-            pytest.fail("A_BA.apply_transpose returned a 3-slot System-A cotangent "
-                        "— the block speaks the 2-block shape (ray=None); the "
-                        "present-zero re-pad is the ADAPTER's job.")
+        if adj_out.radial_characteristic is None:
+            pytest.fail("A_BA.apply_transpose returned a 2-block System-A "
+                        "cotangent — the transitional convention requires the "
+                        "ψ½ slot PRESENT-ZERO until the B.2d eviction (the "
+                        "transposed grid row-sum trips mixed presence).")
+        np.testing.assert_array_equal(
+            adj_out.radial_characteristic.values, 0.0,
+            err_msg="A_BA.apply_transpose's ψ½ slot is not present-ZERO — the "
+                    "pullback must not write the ray.")
         adj_bulk = adj_out.interior.values
         np.testing.assert_array_equal(
             adj_bulk, _pullback_reconstruction(sn, S, chi_seed),
@@ -1871,8 +1890,9 @@ class TestCoupledLift:
         )
 
         def _drop_pullback(self, cotangent, /):
-            # A zero bulk (the pullback dropped) in the b3 block shape
-            # (2-block System-A cotangent, ray=None) — the symmetric-drop bug.
+            # A zero bulk (the pullback dropped). Only .interior is read from
+            # this mock (standalone, never member-summed), so the ray slot's
+            # presence is incidental — None kept for the minimal mimic.
             return _FF(
                 interior=AngularSourceSink.zeros_on(self.sn_mesh),
                 boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
@@ -2747,3 +2767,363 @@ class TestSystemRoleLattice:
         assert (a_ab + a_ab).system_role is SystemRole.COUPLED   # OperatorSum join
         assert (2.0 * a_ab).system_role is SystemRole.COUPLED    # ScaledOperator passthrough
         assert a_ab.H.system_role is SystemRole.COUPLED          # _AdjointOperator passthrough
+
+
+# ── B.2c helpers: the co-producing builder (G-c2.x) ─────────────────────────
+#
+# build_coupled_system(sn_mesh, mat_xs) → (CoupledOperator, CoupledSpace) —
+# the ψ½ instance #1 of the numerics block machinery. The gates below realize
+# the test-architect delta memo coupled_operator_b2c_builder_verification
+# (G-c2.1–2.6): P1 alignment + the F2 runtime proof, P2 presence-structural,
+# THE grid≡fused centrepiece (per-row tolerances — the bulk row is the
+# campaign's FIRST intrinsic principled-equiv row: the block split of the
+# fused Morel-Montry angular state), the M2-on-real layout coextensiveness,
+# the forward block-.H reciprocity (Mode-12), and the dead-slot hazard
+# witness (memo R3).
+
+
+def _complete_fused_loss(sn, mat_xs):
+    r"""The COMPLETE fused within-group loss ``LC − S − A_BA − B_a − B_b``.
+
+    The centrepiece's reference (memo F1): ``_full_loss_case`` in the
+    g-adjoint suite spells ``B_a`` ALONE (reciprocity holds for whatever A is
+    posed), but the grid's ``(B,B)`` carries ``− B_b`` — so the reference
+    here MUST include the ``B_b`` adapter, and the fixture mesh MUST be
+    REFLECTIVE (on vacuum ``_reflect_corner`` ≡ 0 silently masks a dropped
+    ``B_b``). Same constructions as the builder (the sanctioned transient
+    construction twin — the builder docstring)."""
+    S = ScatteringOperator.from_solver_data(
+        mat_xs=mat_xs, quadrature=sn.quad, scattering_order=0,
+        full_field_space=sn.full_field_space)
+    LC = StreamingOperator(sn) + MultiplicationOperator(
+        coefficient=mat_xs.total_cross_section_field,
+        space=sn.full_field_space)
+    a_ba = _RayEmissionFullFieldGain(
+        RadialCharacteristicEmission(sn, S.isotropic_kernel))
+    b_b = _RayBoundaryFullFieldGain(RadialCharacteristicBoundaryOperator(sn))
+    return LC - S - a_ba - SNBoundaryOperator(sn) - b_b
+
+
+def _coupled_state(sn, psi_full: FullField) -> CoupledField:
+    r"""Map an augmented 3-block ``FullField`` onto the coupled ``[ψ_A, ψ_B]``.
+
+    The transitional convention (builder docstring): ψ_A carries the ray slot
+    PRESENT-ZERO (the welded seed arm reads zeros), ψ_B carries the REAL ray
+    as the member composite — together they represent the same state the
+    3-block carrier holds."""
+    zero_ray = RadialCharacteristicFlux(
+        values=np.zeros(sn.radial_characteristic_space.shape[0]),
+        space=sn.radial_characteristic_space, mesh=sn)
+    return CoupledField(systems=(
+        replace(psi_full, radial_characteristic=zero_ray),
+        RadialCharacteristicComposite.from_unified(
+            psi_full.radial_characteristic),
+    ))
+
+
+class TestCoupledBuilder:
+    r"""B.2c — ``build_coupled_system``: the typed ψ½ 2×2 grid, co-produced
+    with its :class:`CoupledSpace` (campaign step 4d.2; SUBSUMES the step-6
+    presence collapse for the grid arm).
+
+    Gates G-c2.1–2.6 per the delta memo. Sphere-GL S4 is the carrying member
+    (REFLECTIVE where ``B_b`` must be non-null — memo F1); slab + cylinder
+    are the non-carrying CONTROL (1×1). ≥2G everywhere. Gates raise via
+    :func:`pytest.fail` / ``np.testing.assert_*`` (fire under ``python -O``).
+    """
+
+    # ── G-c2.1 — P1 alignment by construction + the F2 runtime proof ──────
+
+    def test_p1_alignment_by_construction_and_runtime_apply(self):
+        r"""The co-produced pair is aligned: ``op.domain is op.codomain is
+        space``; the space members are THE mesh's cached space objects
+        (identity — the F2 discipline); each block declares the member space
+        its grid position requires (asserted DIRECTLY — the grid's own check
+        is ``==``-blind between the unified and composite System-B spaces,
+        memo F2); the C-fwd ``SystemRole.A`` stamp rides the (A,A) block; and
+        ``grid.apply`` RUNS on a space-shaped :class:`CoupledField` — the
+        SUFFICIENT runtime proof that every block speaks its typed carrier
+        (construction alone is Mode-12-blind, F2)."""
+        sn = _sphere()
+        grid, space = build_coupled_system(sn, sn.material_xs_field())
+        if type(space) is not CoupledSpace:
+            pytest.fail(f"space is {type(space).__name__}, not CoupledSpace.")
+        if grid.domain is not space or grid.codomain is not space:
+            pytest.fail("the grid is not typed against the co-produced space "
+                        "object (P1 alignment broken).")
+        if space.systems[0] is not sn.full_field_space:
+            pytest.fail("System A's member space is not THE mesh's cached "
+                        "full_field_space object.")
+        if space.systems[1] is not sn.radial_characteristic_composite_space:
+            pytest.fail("System B's member space is not THE mesh's cached "
+                        "composite member-space object.")
+        # Per-block declared spaces, asserted directly (F2).
+        if grid.blocks[0][0].domain != sn.full_field_space:
+            pytest.fail("A_AA does not declare System A's space.")
+        if grid.blocks[0][1].domain != sn.radial_characteristic_composite_space:
+            pytest.fail("A_AB's domain is not System B's member space.")
+        if grid.blocks[1][0].codomain != sn.radial_characteristic_composite_space:
+            pytest.fail("A_BA's codomain is not System B's member space.")
+        if grid.blocks[1][1].domain != sn.radial_characteristic_composite_space:
+            pytest.fail("A_BB−B_b does not declare System B's member space.")
+        # Role stamps: the grid spans systems; the (A,A) block is explicitly
+        # SystemRole.A (C-fwd — its model-generic members join to None).
+        if grid.system_role is not SystemRole.COUPLED:
+            pytest.fail("the grid does not carry SystemRole.COUPLED.")
+        if grid.blocks[0][0].system_role is not SystemRole.A:
+            pytest.fail("the (A,A) block is not stamped SystemRole.A "
+                        "(the C-fwd explicit stamp).")
+        # THE runtime proof (F2): apply runs and emits the member types.
+        y = grid.apply(_coupled_state(sn, _template(sn)))
+        if type(y.systems[0]) is not FullField:
+            pytest.fail("row A did not emit a FullField.")
+        if type(y.systems[1]) is not RadialCharacteristicComposite:
+            pytest.fail("row B did not emit the member composite.")
+
+    # ── G-c2.2 — P2 presence-STRUCTURAL (positive shapes + refusals) ──────
+
+    def test_p2_presence_structural(self):
+        r"""Carrying sphere → 2×2; non-carrying slab AND cylinder → 1×1 over
+        ``(full_field_space,)`` alone. The bypass-proof (the memo's forced-
+        presence negative, realized at the guards that enforce it): EVERY
+        System-B block constructor refuses a seedless mesh with its own
+        specific message — so even a builder whose presence predicate were
+        bypassed could not construct System B (Pattern 4: the illegal grid
+        is unrepresentable, not merely un-built)."""
+        sn = _sphere()
+        grid, space = build_coupled_system(sn, sn.material_xs_field())
+        if not (grid.n_rows == grid.n_cols == 2):
+            pytest.fail(f"carrying sphere built {grid.n_rows}×{grid.n_cols}, "
+                        f"expected 2×2.")
+        slab = SNMesh(
+            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
+                   bc_left=BC("reflective")),
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+        cyl = SNMesh(
+            Mesh1D(edges=np.linspace(0.05, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CYLINDRICAL, bc_right=BC("vacuum")),
+            Quadrature.level_symmetric(4), {0: _mixture(1.0, 0.4, 2)})
+        for mesh, label in ((slab, "slab"), (cyl, "cylinder")):
+            op1, space1 = build_coupled_system(mesh, mesh.material_xs_field())
+            if not (op1.n_rows == op1.n_cols == 1):
+                pytest.fail(f"non-carrying {label} built "
+                            f"{op1.n_rows}×{op1.n_cols}, expected 1×1.")
+            if len(space1.systems) != 1 or (
+                    space1.systems[0] is not mesh.full_field_space):
+                pytest.fail(f"{label}: the 1×1 space is not (full_field_space,).")
+        # The four System-B ctor refusals (match= each guard's OWN message —
+        # a downstream crash must not false-green these).
+        sigma = CrossSectionField.from_mesh(np.ones((2, 5)), slab)
+        with pytest.raises(ValueError, match="carries no starting-direction ray"):
+            RadialCharacteristicOperator(slab, sigma)                    # A_BB
+        with pytest.raises(ValueError, match="carries no starting-direction ray"):
+            RadialCharacteristicSeeding(slab)                            # A_AB
+        with pytest.raises(ValueError, match="carries no radial-characteristic ray"):
+            RadialCharacteristicEmission(slab, object())                 # A_BA
+        with pytest.raises(ValueError, match="carries no ψ½ ray"):
+            RadialCharacteristicBoundaryOperator(slab)                   # B_b
+
+    # ── G-c2.3 — THE centrepiece: grid ≡ the complete fused loss ──────────
+
+    def test_grid_equals_the_complete_fused_loss(self):
+        r"""``grid.apply([ψ_A, ψ_B])`` ≡ the production fused loss on the
+        3-block carrier, mapped through the transitional convention — the
+        construction-equivalence that ties the block realization to the
+        already-anchored production loss. PER-ROW bars (memo §0 — B.2c is
+        NOT uniformly array_equal):
+
+        * ``y_A.interior``  — rtol=1e-11 (the intrinsic M-M block split:
+          seed-zeroed A_AA + bulk-zeroed A_AB summed after ≠ the fused joint
+          recurrence, FP reassociation ~5.5e-16; array_equal here would
+          falsely red the honest decomposition);
+        * ``y_A.boundary``  — rtol=1e-12 (present-zero insert order only);
+        * ``y_A.ray slot``  — EXACTLY zero (the dead transitional slot);
+        * ``y_B``           — rtol=1e-12 (same single-sourced bodies, only
+          OperatorSum addition order differs).
+
+        REFLECTIVE sphere so ``B_b`` is non-null (memo F1 — vacuum masks a
+        dropped B_b); ≥2G; the live-ray + live-corner non-vacuity asserted."""
+        sn = _sphere(bc="reflective")
+        mat_xs = sn.material_xs_field()
+        grid, _ = build_coupled_system(sn, mat_xs)
+        fused = _complete_fused_loss(sn, mat_xs)
+        for seed in (21, 22):
+            rng = np.random.default_rng(seed)
+            psi_full = _random_composite(sn, rng)
+            if not np.max(np.abs(psi_full.radial_characteristic.values)) > 0.0:
+                pytest.fail("the probe ray is zero — the centrepiece would be "
+                            "vacuous for the coupling rows.")
+            y_fused = fused.apply(psi_full)
+            if not np.max(np.abs(y_fused.radial_characteristic.values)) > 0.0:
+                pytest.fail("the fused ray rows are zero — the B_b/emission "
+                            "arms are not exercised (non-vacuity, F1).")
+            y_a, y_b = grid.apply(_coupled_state(sn, psi_full)).systems
+            np.testing.assert_allclose(
+                y_a.interior.values, y_fused.interior.values,
+                rtol=1e-11, atol=1e-13,
+                err_msg=f"seed {seed}: the bulk row diverged beyond the M-M "
+                        f"block-split floor — the grid is NOT the fused loss.")
+            np.testing.assert_allclose(
+                y_a.boundary.values, y_fused.boundary.values,
+                rtol=1e-12, atol=1e-15,
+                err_msg=f"seed {seed}: the trace row moved (only present-zero "
+                        f"insert order may differ).")
+            np.testing.assert_array_equal(
+                y_a.radial_characteristic.values, 0.0,
+                err_msg=f"seed {seed}: the dead A-side ψ½ slot is not exactly "
+                        f"zero (zero in → zero out broke).")
+            np.testing.assert_allclose(
+                y_b.to_unified().values, y_fused.radial_characteristic.values,
+                rtol=1e-12, atol=1e-15,
+                err_msg=f"seed {seed}: the ray rows diverged — the (B,·) "
+                        f"blocks are not the fused ray action.")
+
+    def test_centrepiece_teeth_misplacement_and_dropped_b_b(self):
+        r"""TEETH for G-c2.1/2.3: (a) the off-diagonal swap is
+        UNCONSTRUCTABLE — the typed grid refuses A_BA at the (A,B) position
+        at construction (Pattern 4; full_field vs composite spaces DO
+        discriminate — the F2 blindness is only unified-vs-composite);
+        (b) dropping ``− B_b`` from (B,B) moves the ray rows on the
+        REFLECTIVE sphere (on vacuum B_b ≡ 0 would mask the drop — F1)."""
+        sn = _sphere(bc="reflective")
+        mat_xs = sn.material_xs_field()
+        grid, space = build_coupled_system(sn, mat_xs)
+        with pytest.raises(IncompatibleOperatorComposition):
+            CoupledOperator(
+                [[grid.blocks[0][0], grid.blocks[1][0]],
+                 [grid.blocks[0][1], grid.blocks[1][1]]],
+                domain=space, codomain=space)
+        a_bb_alone = RadialCharacteristicOperator(
+            sn, mat_xs.total_cross_section_field)
+        dropped = CoupledOperator(
+            [[grid.blocks[0][0], grid.blocks[0][1]],
+             [grid.blocks[1][0], a_bb_alone]],
+            domain=space, codomain=space)
+        rng = np.random.default_rng(23)
+        psi_full = _random_composite(sn, rng)
+        y_ref = _complete_fused_loss(sn, mat_xs).apply(
+            psi_full).radial_characteristic.values
+        y_drop = dropped.apply(
+            _coupled_state(sn, psi_full)).systems[1].to_unified().values
+        if not np.max(np.abs(y_drop - y_ref)) > 1e-8:
+            pytest.fail("dropping −B_b left the ray rows unmoved on a "
+                        "REFLECTIVE sphere — the centrepiece has no teeth "
+                        "for the boundary block.")
+
+    # ── G-c2.4 — M2-on-real: layout coextensiveness; assemble unavailable ─
+
+    def test_m2_layout_coextensiveness_and_assemble_unavailable(self, monkeypatch):
+        r"""The elegance-carried M2 re-pin on REAL members: the three offset
+        spellings that CAN exist today agree — ``member.to_flat()`` sizes ==
+        ``prod(member_space.shape)``, the ``system_slices`` table extracts
+        exactly each member's flat (multi-axis leaves included), the table
+        COVERS the whole flat, and ``CoupledField.from_flat`` round-trips.
+        The third spelling (``block_array`` inference) is UNAVAILABLE — the
+        ψ½ blocks emit no sparse assembly (memo F3/R2): pinned as
+        ``is_assemblable False`` + ``assemble()`` raises, so a future reader
+        sees deferral, not a bug. Tooth: a slice table that drops System B
+        reds the coverage pin."""
+        sn = _sphere()
+        grid, space = build_coupled_system(sn, sn.material_xs_field())
+        coupled = _coupled_state(
+            sn, _random_composite(sn, np.random.default_rng(24)))
+        flat = coupled.to_flat()
+        slices = space.system_slices
+        if len(slices) != 2:
+            pytest.fail(f"expected 2 system slices, got {len(slices)}.")
+        if slices[-1].stop != flat.size:
+            pytest.fail("the slice table does not COVER the coupled flat "
+                        f"({slices[-1].stop} != {flat.size}).")
+        for i, (member, mspace) in enumerate(zip(coupled.systems, space.systems)):
+            m_flat = np.asarray(member.to_flat(), dtype=float)
+            if m_flat.size != int(np.prod(mspace.shape)):
+                pytest.fail(
+                    f"system {i}: to_flat size {m_flat.size} != prod(space."
+                    f"shape) {int(np.prod(mspace.shape))} — the field layout "
+                    f"and the space layout are NOT coextensive.")
+            np.testing.assert_array_equal(
+                flat[slices[i]], m_flat,
+                err_msg=f"system {i}: the system_slices extraction ≠ the "
+                        f"member's own to_flat — the offset spellings drifted.")
+        rebuilt = CoupledField.from_flat(flat, coupled)
+        np.testing.assert_array_equal(
+            rebuilt.to_flat(), flat,
+            err_msg="the coupled flat protocol does not round-trip.")
+        if grid.is_assemblable:
+            pytest.fail("the ψ½ grid claims assemblability — no block emits "
+                        "sparse assembly (memo F3); did a walk assembler land? "
+                        "Then wire the block_array M2 arm (R2).")
+        with pytest.raises(MissingAssembly):
+            grid.assemble()
+        # Tooth: drop System B's slice → the coverage pin reds.
+        with monkeypatch.context() as m:
+            first = slices[0]
+            m.setattr(type(space), "system_slices",
+                      property(lambda self: (first,)))
+            broken = space.system_slices
+            if broken[-1].stop == flat.size:
+                pytest.fail("the dropped-slice tooth is mis-wired — coverage "
+                            "still holds with System B dropped.")
+
+    # ── G-c2.5 — forward block-.H reciprocity (Mode-12, real members) ─────
+
+    def test_forward_block_adjoint_reciprocity(self, monkeypatch):
+        r"""``⟨grid·ψ, x⟩_G = ⟨ψ, grid.H·x⟩_G`` on the REAL sphere 2×2 —
+        the block Hilbert adjoint's FIRST real-curvilinear-member run (it is
+        FREE via the B.2a `_AdjointOperator` + the member-wise CoupledSpace
+        metrics; a hand-rolled Euclidean block-.H is the ERR-067 reopening).
+        Tooth M-ADJ-metric: stripping the metric conjugation (identity
+        apply_metric / apply_inverse_metric) reds the defect O(1) — the
+        composite bulk⊕trace⊕seed metric is non-trivial on every geometry
+        (the step-4 memo's burned 'slab stays green' lesson)."""
+        sn = _sphere(bc="reflective")
+        grid, space = build_coupled_system(sn, sn.material_xs_field())
+        rng = np.random.default_rng(25)
+        psi = _coupled_state(sn, _random_composite(sn, rng))
+        x = _coupled_state(sn, _random_composite(sn, rng))
+        lhs = space.inner_product(grid.apply(psi), x)
+        rhs = space.inner_product(psi, grid.H.apply(x))
+        defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+        if not defect < 1e-12:
+            pytest.fail(f"block-.H reciprocity defect {defect:.3e} ≥ 1e-12 on "
+                        f"the real 2×2 — the metric conjugation is broken.")
+        with monkeypatch.context() as m:
+            m.setattr(CoupledSpace, "apply_metric", lambda self, f: f)
+            m.setattr(CoupledSpace, "apply_inverse_metric", lambda self, f: f)
+            lhs2 = space.inner_product(grid.apply(psi), x)
+            rhs2 = space.inner_product(psi, grid.H.apply(x))
+            defect2 = abs(lhs2 - rhs2) / (abs(lhs2) + abs(rhs2) + 1e-300)
+        if not defect2 > 1e-3:
+            pytest.fail(f"the M-ADJ-metric tooth left the defect at "
+                        f"{defect2:.3e} — the reciprocity gate has no teeth "
+                        f"(a Euclidean block-.H would pass).")
+
+    # ── G-c2.6 — the dead-slot hazard witness (POSITIVE assert-defect) ────
+
+    def test_dead_slot_double_count_witness(self):
+        r"""The transitional Pattern-4 hole, kept VISIBLE (memo R3): a
+        LIVE-ray ψ_A double-counts the seed feed — once welded inside
+        A_AA's fused walk, once through the explicit A_AB block. This is a
+        POSITIVE assert-defect (the defect EXISTS), not a guard (guarding
+        would calcify a shape B.2d dissolves structurally: the eviction
+        makes a live-ray ψ_A unrepresentable). **When B.2d lands, this
+        witness must be REMOVED** — its failure mode then is 'the live-ray
+        state no longer constructs', not a green."""
+        sn = _sphere(bc="reflective")
+        mat_xs = sn.material_xs_field()
+        grid, _ = build_coupled_system(sn, mat_xs)
+        psi_full = _random_composite(sn, np.random.default_rng(26))
+        live = CoupledField(systems=(
+            psi_full,                                # ψ_A keeps its LIVE ray
+            RadialCharacteristicComposite.from_unified(
+                psi_full.radial_characteristic),
+        ))
+        y_live = grid.apply(live).systems[0].interior.values
+        y_ref = _complete_fused_loss(sn, mat_xs).apply(psi_full).interior.values
+        defect = float(np.max(np.abs(y_live - y_ref)))
+        if not defect > 1e-8:
+            pytest.fail(
+                "the live-ray double-count defect vanished — either the B.2d "
+                "eviction landed (REMOVE this witness) or the welded seed arm "
+                "stopped reading ψ_A's ray slot (investigate before trusting).")
