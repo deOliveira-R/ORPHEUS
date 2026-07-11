@@ -1293,3 +1293,39 @@ from_blocks(interior=ray_interior_space, trace=ray_boundary_space)` vs a bespoke
 and whether the source-role composite rides the SAME `RadialCharacteristicComposite`
 class (role-erased slots, the FullField precedent / #289 F2 erasure) or a role-typed
 sibling. Re-anchor from THIS block + `git log` (trust git).
+
+### B.2b — RULED design points (2026-07-10, user; both = the recommended options)
+
+- **DP1 (System B's member space): reuse `FullFieldSpace` family-blind.**
+  `SNMesh.radial_characteristic_composite_space` (cached, presence-gated None) =
+  `FullFieldSpace.from_blocks(interior_space=ray_interior, trace_space=ray_boundary,
+  name="radial_characteristic")`. `from_blocks` gains the `name` param (identity stays
+  honest — the space name signals the instance); `_rebuild` gains PRESENCE-DISPATCH
+  (pass the `radial_characteristic` kwarg to `_recombine` only when the carrier exposes
+  the slot — today it ALWAYS passes it, which would TypeError on a pure 2-block
+  `Composite`; FullField behavior byte-unchanged). Zero new space classes; the
+  member-wise metric dispatch stays single-sourced; this IS the post-eviction end-state
+  (one composite-space class, instances differ in members), so (d) simplifies in place.
+- **DP2 (source-role composite): same class, role-erased.** Re-bind
+  `RadialCharacteristicComposite`'s static params from the flux leaves to the FIELD
+  BASES (`…InteriorField`/`…BoundaryField` — the FullField precedent; the runtime guard
+  already admits them; `⊖` already mints displacement members onto the same class).
+  Role parses at consumption (B_b's #289-F2 parse moves onto the boundary member).
+  `from_unified`/`to_unified` become ROLE-PRESERVING via an exact-class leaf table
+  (Flux ↔ flux pair, SourceSink ↔ source pair, Displacement ↔ displacement pair) —
+  one bridge body, no twins.
+- **Units refinement over the brief's shorthand (Cardinal Rule 1):** the split
+  DISSOLVES the unified SourceSink's documented corner-units deviation into two honest
+  per-locus declarations — `RadialCharacteristicInteriorSourceSink.UNITS =
+  ANGULAR_RATE_UNITS` (volumetric folded emission, like `AngularSourceSink`) and
+  `RadialCharacteristicBoundarySourceSink.UNITS = ANGULAR_FLUX_UNITS` (trace-like
+  corner datum, like `AngularBoundarySourceSink` — the "on the trace a source does not
+  pick up the volumetric cm⁻³" convention).
+- **Execution spine (each commit green):** b1 = split SourceSink leaves + composite
+  re-bind + role-generic bridge; b2 = the space instance (`from_blocks` name +
+  `_rebuild` presence-dispatch + the SNMesh cached prop); b3 = the A_BA/B_b re-type +
+  solver-private transient gain adapters (`_lagged_gains` solver.py:619 + the
+  `B_a + B_b` sum :251) + P3 re-points (`TestCoupledLift` isinstance gates → the
+  adapter; the L4-S sentinel spy pins the wrapped CLASS method, so it fires through
+  the adapter unchanged). Test-architect delta memo:
+  `coupled_operator_b2b_retype_verification.md` (dispatched at arc start).
