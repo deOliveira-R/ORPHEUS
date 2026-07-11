@@ -159,6 +159,7 @@ __all__ = [
     "CoupledSweepOperator",
     "WithinGroupSystem",
     "build_coupled_system",
+    "build_streaming_collision",
     "build_within_group_system",
 ]
 
@@ -555,6 +556,30 @@ class WithinGroupSystem:
     gains: "tuple[LinearOperator, ...]"
 
 
+def build_streaming_collision(
+    sn_mesh: "SNMesh", mat_xs: "MaterialXSField",
+) -> "InvertibleOperator":
+    r"""The fused within-group loss factor ``L + C`` — THE one LC spelling.
+
+    ``L`` is the σ-free :class:`~orpheus.sn.operators.streaming.StreamingOperator`
+    (#257 S8b) and ``C = M[σ_t]`` the collision diagonal from the typed
+    ``total_cross_section_field`` accessor; the ``+`` fuses them to the
+    :class:`~orpheus.sn.operators.streaming.InvertibleOperator` whose
+    ``solve`` is the WDD sweep.
+
+    Single source of truth (Cardinal Rule 2): :func:`build_within_group_system`
+    and both :class:`~orpheus.sn.solver.SNSolver` binding legs (``__init__`` +
+    ``rebind_cross_sections``) previously spelled this composition
+    independently — the third spelling was the L-002 collapse trigger
+    (B.2d d3 estate). A σ_t rebind flows through by RE-CALLING this builder
+    with the mutated ``mat_xs`` (the field accessor is the live read).
+    """
+    return StreamingOperator(sn_mesh) + MultiplicationOperator(
+        coefficient=mat_xs.total_cross_section_field,
+        space=sn_mesh.full_field_space,
+    )
+
+
 def build_within_group_system(
     sn_mesh: "SNMesh",
     mat_xs: "MaterialXSField",
@@ -636,12 +661,8 @@ def build_within_group_system(
             full_field_space=full_field_space,
         )
     )
-    # L = pure σ-free streaming; C = M[σ_t] from the typed field accessor.
-    # The + fuses to the InvertibleOperator — the sweepable resolvent.
-    LC = StreamingOperator(sn_mesh) + MultiplicationOperator(
-        coefficient=mat_xs.total_cross_section_field,
-        space=full_field_space,
-    )
+    # L = pure σ-free streaming; C = M[σ_t] — the ONE LC spelling.
+    LC = build_streaming_collision(sn_mesh, mat_xs)
     B_a = SNBoundaryOperator(sn_mesh)
     A_AA = LC - S - B_a
     # C-fwd explicit stamp: System membership is the composition context's

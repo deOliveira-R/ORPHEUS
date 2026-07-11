@@ -51,6 +51,7 @@ from .coupled_system import (
     WithinGroupSystem,
     _system_a_member,
     _system_b_member,
+    build_streaming_collision,
     build_within_group_system,
 )
 from orpheus.numerics.coupled_system import CoupledField
@@ -60,8 +61,6 @@ from orpheus.transport.radial_characteristic_composite import (
 from .mesh.augmented_mesh import SNMesh
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
-from .operators.streaming import StreamingOperator
-from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.moment_layout import (
     AVERAGE_MOMENT,
     cell_moment_count,
@@ -933,19 +932,11 @@ class SNSolver:
             full_field_space=sn_mesh.full_field_space,
         )
         # The full transport operator :math:`L = \Omega\cdot\nabla + \Sigma_t`
-        # as the algebraic sum streaming + the collision multiplier
-        # ``M[σ_t]`` = :class:`InvertibleOperator`.
-        # :meth:`InvertibleOperator.apply` returns ``(L_stream + C)·ψ`` in
-        # :class:`TimedFullField` form (the typed direct-sum carrier);
-        # :meth:`InvertibleOperator.solve` consumes ``initial_guess`` for
-        # the Carlson seed (R-1 Phase 1.2 unification).
-        self.L = (
-            StreamingOperator(sn_mesh)
-            + MultiplicationOperator(
-                coefficient=self.mat_xs.total_cross_section_field,
-                space=sn_mesh.full_field_space,
-            )
-        )
+        # = :class:`InvertibleOperator` (``apply`` returns ``(L_stream + C)·ψ``
+        # on the typed carrier; ``solve`` consumes ``initial_guess`` for the
+        # Carlson seed — R-1 Phase 1.2 unification).  ONE LC spelling
+        # (B.2d d3 estate): :func:`build_streaming_collision`.
+        self.L = build_streaming_collision(sn_mesh, self.mat_xs)
         self.S = self.scattering_op
         self.F = self.fission_op
 
@@ -1018,14 +1009,8 @@ class SNSolver:
         self.mat_xs._sig_t_cell = new_sig_t
         # Rebuild the composite so the rebound σ_t flows into the collision
         # diagonal C (the streaming leaf L is σ-free since #257 S8b — only C
-        # carries σ; the composite single-sources it from C.sigma).
-        self.L = (
-            StreamingOperator(self.sn_mesh)
-            + MultiplicationOperator(
-                coefficient=self.mat_xs.total_cross_section_field,
-                space=self.sn_mesh.full_field_space,
-            )
-        )
+        # carries σ).  ONE LC spelling: :func:`build_streaming_collision`.
+        self.L = build_streaming_collision(self.sn_mesh, self.mat_xs)
         if self.geom_cache is not None:
             sig_t_1d = self.mat_xs.total_cross_section
             self.coll_cache = CollisionCache.from_geometry(
