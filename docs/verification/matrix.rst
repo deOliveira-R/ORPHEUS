@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6603**
+Total tests collected: **6615**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1187, 18.0%
-   L1, 1080, 16.4%
+   L0, 1187, 17.9%
+   L1, 1085, 16.4%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4246, 64.3%
+   foundation, 4253, 64.3%
    unmarked, 36, 0.5%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6488
+   explicit, 6500
    verify, 0
    class-name, 46
    func-name, 0
@@ -300,7 +300,7 @@ Module × level grid
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
-   numerics/test_iteration, 0, 1, 0, 0, 18, 0
+   numerics/test_iteration, 0, 1, 0, 0, 21, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 24, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -339,7 +339,7 @@ Module × level grid
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
    operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 23, 0
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
-   operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 17, 0
+   operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
    operators/test_invertible_operator, 1, 10, 0, 0, 20, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
@@ -352,7 +352,7 @@ Module × level grid
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
-   operators/test_psi_half_coupling, 0, 0, 0, 0, 78, 0
+   operators/test_psi_half_coupling, 0, 2, 0, 0, 80, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_radial_characteristic_metric, 0, 0, 0, 0, 19, 0
    operators/test_ray_operator, 0, 6, 0, 0, 0, 0
@@ -398,7 +398,7 @@ Module × level grid
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
    solve/test_flux_displacement_diagnostics, 0, 4, 0, 0, 0, 0
    solve/test_gauss_seidel_reification, 0, 0, 0, 0, 7, 0
-   solve/test_krylov_curvilinear_precond_safety, 0, 7, 0, 0, 0, 0
+   solve/test_krylov_curvilinear_precond_safety, 0, 10, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
@@ -459,12 +459,12 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``fission-matrix``, 63
    ``removal-matrix``, 63
    ``e3-def``, 61
+   ``transport-cartesian``, 59
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
    ``balance-general``, 54
    ``hebert-3-432``, 54
    ``self-cyl``, 54
-   ``transport-cartesian``, 54
    ``p-inf``, 53
    ``self-sph``, 52
    ``chord-length``, 51
@@ -474,6 +474,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
    ``cp-kernel-differential-identities``, 36
+   ``sn-curvilinear-homogeneous-kinf-recovery``, 36
    ``flat-source``, 35
    ``cp-keff-update``, 34
    ``first-flight-kernel``, 34
@@ -494,7 +495,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sigma-keff``, 33
    ``dd-slab``, 32
    ``free-flight``, 31
-   ``sn-curvilinear-homogeneous-kinf-recovery``, 31
    ``transport-cylindrical``, 30
    ``chi-sampling``, 28
    ``decompose``, 28
@@ -1148,13 +1148,13 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-017``, 3
    ``ERR-018``, 1
    ``ERR-019``, 1
-   ``ERR-020``, **0 (MISSING)**
+   ``ERR-020``, 1
    ``ERR-021``, 2
    ``ERR-022``, 1
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 5
-   ``ERR-026``, 43
+   ``ERR-026``, 45
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6
@@ -1178,10 +1178,10 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-047``, **0 (MISSING)**
    ``ERR-048``, 51
    ``ERR-049``, 15
-   ``ERR-050``, 7
+   ``ERR-050``, 10
    ``ERR-051``, **0 (MISSING)**
    ``ERR-052``, 1
-   ``ERR-053``, 7
+   ``ERR-053``, 13
    ``ERR-054``, 2
    ``ERR-055``, **0 (MISSING)**
    ``ERR-056``, 7
