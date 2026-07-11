@@ -605,6 +605,58 @@ class TestBoundaryUnweld:
             pytest.fail(f"seedless B_a emitted {type(out).__name__}, not the "
                         f"2-block FullField.")
 
+    # ── B.2d d3 — B_a Euclidean-transpose honesty (the DEFINING law) ──────
+
+    def test_b_a_vacuum_transpose_is_the_honest_zero(self):
+        r"""On a VACUUM outer face ``B_a`` is the ZERO map — and its
+        ``apply_transpose`` must be the transpose of that zero, NOT the law
+        object's diagonal block.
+
+        B.2d d3 regression pin: the realized vacuum law is the full-face mask
+        (zero-on-inflow ⊕ identity-on-outflow) whose harmless-in-the-forward
+        identity block the OLD output-side projection extracted into a
+        spurious ``+1`` outflow diagonal (``Fᵀ − T = −1`` on every outflow
+        slot); the honest spelling is ``(P_inflow ∘ law)ᵀ = lawᵀ ∘ P_inflow``
+        (input restriction).  Caught by the A2a grid-reciprocity arm
+        (``test_inverse_adjoint_coherence``) at defect 2.6e-4 on the
+        het-VACUUM sphere — every reflective-fixture reciprocity gate was
+        blind, because permutation laws coincide bit-identically under both
+        spellings (the ERR-063 masking family: the degenerate regime hides
+        the wrong arm)."""
+        sn = _sphere()          # vacuum outer — the masking-free regime
+        B_a = SNBoundaryOperator(sn)
+        tpl = _template(sn)
+        F = _dense(B_a.apply, tpl)
+        T = _dense(B_a.apply_transpose, tpl)
+        np.testing.assert_array_equal(
+            F, np.zeros_like(F),
+            err_msg="vacuum B_a forward is not the zero map")
+        np.testing.assert_array_equal(
+            T, np.zeros_like(T),
+            err_msg="vacuum B_a apply_transpose is not the honest zero — the "
+                    "law's diagonal block leaked through the transpose "
+                    "projection again (B.2d d3)")
+
+    def test_b_a_transpose_is_the_dense_euclidean_transpose(self):
+        r"""The DEFINING law of ``apply_transpose``: ``dense(B_aᵀ) ≡
+        dense(B_a)ᵀ`` EXACTLY, on the arm where ``B_a`` is non-trivial
+        (reflective — the specular permutation).  Bit-equality is the
+        contract: both spellings of the projection coincide for permutation
+        laws, so any future drift here is a real transpose bug, not a
+        convention change."""
+        sn = _sphere(bc="reflective")
+        B_a = SNBoundaryOperator(sn)
+        tpl = _template(sn)
+        F = _dense(B_a.apply, tpl)
+        T = _dense(B_a.apply_transpose, tpl)
+        if not np.abs(F).max() > 0:
+            pytest.fail("reflective B_a densified to zero — the fixture no "
+                        "longer exercises the permutation arm")
+        np.testing.assert_array_equal(
+            T, F.T,
+            err_msg="B_a.apply_transpose is not the dense Euclidean "
+                    "transpose of B_a.apply (reflective arm)")
+
 
 class TestB_b_RayBoundary:
     r"""``B_b`` — the ψ½ ray-corner boundary law (RULINGS P1 + P2).
@@ -3596,3 +3648,143 @@ class TestWithinGroupSystem:
         if krylov.restart != n_dof:
             pytest.fail(f"restart = {krylov.restart} ≠ n_dof = {n_dof} — "
                         f"ERR-053 re-opened at the coupled seam")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# B.2d d3 — the E4 closed-form END-TO-END anchors (G-d3.1 / G-d3.2)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _pure_absorber_reflective_sphere(ng: int = 2, nx: int = 8):
+    r"""REFLECTIVE PURE-ABSORBER (c = 0) carrying sphere, group-graded σ_t.
+
+    ``_mixture(σ, 0.0, ng)`` grades ``σ_t,g = σ·(1 + 0.4g)`` with zero
+    scattering (pure capture) — the Mode-6 group-swap catcher: each group's
+    equilibrium ratio ``Q_g/Σ_t,g`` is distinct.
+    """
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.SPHERICAL, bc_right=BC("reflective"),
+    )
+    return mesh, Quadrature.gauss_legendre(4), {0: _mixture(1.3, 0.0, ng)}
+
+
+class TestWithinGroupSystemAnchors:
+    r"""B.2d d3 — the E4 closed-form END-TO-END anchors through the
+    block-native driver (memo G-d3.1 / G-d3.2).
+
+    **G-d3.2 (k_inf) is carried by the EXISTING production anchor** —
+    ``tests/sn/verification/analytical/test_kinf_homogeneous.py::
+    test_kinf_homogeneous`` runs the production ``solve_sn`` (block-native
+    since d1) on the carrying sphere × {1, 2, 4}G × BOTH inner solvers
+    against the ``orpheus.derivations`` closed form at ``rtol = 1e-10`` —
+    tighter than the memo's 1e-8 floor.  A twin here would duplicate a
+    green production gate (Cardinal Rule 2); this class records the
+    PAIRING instead: per the memo's Mode-12 sweep, k_inf is the
+    eigenvalue-LAYER anchor only — it is NEVER credited against
+    shape-class (leg-swap / ray-coupling) mutations, whose committed
+    catchers are G-d1.4's object-level round trip, G-d1.6's HETEROGENEOUS
+    same-fixed-point FIELD row, and G-d3.1's flat-flux FIELD below.
+    """
+
+    pytestmark = [
+        pytest.mark.l1,
+        pytest.mark.catches("ERR-026"),
+        pytest.mark.verifies(
+            "transport-cartesian", "sn-curvilinear-homogeneous-kinf-recovery",
+        ),
+    ]
+
+    @pytest.mark.parametrize(
+        "inner_solver", ["source_iteration", "krylov"],
+    )
+    def test_g_d3_1_flat_flux_equilibrium_on_the_carrying_sphere(
+        self, inner_solver,
+    ):
+        r"""G-d3.1 — E4 ``φ = Q/Σ_t`` END-TO-END (the single most powerful
+        curvilinear diagnostic), BOTH drivers, ``rtol ≤ 1e-10``.
+
+        On the reflective pure-absorber carrying sphere with a uniform
+        per-ordinate source ``Q_g`` and group-graded ``Σ_t,g``, the
+        converged state is the flat-flux equilibrium EXACTLY — the M-M
+        closure's flat-flux consistency condition makes streaming +
+        angular redistribution vanish per ordinate, so the discrete
+        answer equals the continuous one at solver tolerance::
+
+            ψ_n,g = Q_g / Σ_t,g      φ_g = Σw · Q_g / Σ_t,g
+
+        and System B's converged member (``Solution.radial_
+        characteristic``) sits at the SAME equilibrium — the driver-level
+        end-to-end companion of the operator-level
+        ``TestA_BB_RadialBVP::test_fixed_source_equilibrium_Q_over_sigma``.
+
+        A driver sign/shape bug in the ray coupling moves the FIELD O(1)
+        (flat flux is exact — never sub-floor; the mutation teeth ride
+        G-d1.5's coupling-wire mutations, which divert through this same
+        driver).  The 1G/krylov-only sibling
+        (``test_fixed_source_g1::test_uniform_source_converges_to_q_over_
+        sigma_t``) stays the ERR-049 W-factor sentinel; THIS gate adds
+        ≥2G group grading (Mode-6), the source-iteration arm, and the
+        1e-10 contract.
+        """
+        ng, nx = 2, 8
+        mesh, quad, materials = _pure_absorber_reflective_sphere(ng=ng, nx=nx)
+        sig_t_g = np.asarray(materials[0].SigT, dtype=float)
+        Q_g = np.array([3.0, 0.7])
+        q = np.broadcast_to(
+            Q_g[None, :, None], (quad.N, ng, nx),
+        ).astype(float).copy()
+
+        sol = solve_sn_fixed_source(
+            materials=materials, mesh=mesh, quadrature=quad,
+            external_source=q, inner_solver=inner_solver,
+            max_inner=400, inner_tol=1e-13,
+        )
+        if not sol.history.converged:
+            pytest.fail(f"[{inner_solver}] fixed-source did not converge "
+                        f"on the pure-absorber sphere")
+
+        psi = np.asarray(sol.angular_flux.interior.values)
+        np.testing.assert_allclose(
+            psi,
+            np.broadcast_to((Q_g / sig_t_g)[None, :, None], psi.shape),
+            rtol=1e-10,
+            err_msg=(
+                f"[{inner_solver}] per-ordinate ψ off the flat-flux "
+                f"equilibrium Q_g/Σ_t,g — the E4 curvilinear catcher "
+                f"(a ray-coupling sign/shape bug in the block-native "
+                f"driver is O(1) here, never sub-floor)"
+            ),
+        )
+        sum_w = float(quad.weights.sum())
+        phi = np.asarray(
+            sol.angular_flux.interior.integrate_angular().values,
+        )
+        np.testing.assert_allclose(
+            phi,
+            np.broadcast_to((sum_w * Q_g / sig_t_g)[:, None], phi.shape),
+            rtol=1e-10,
+            err_msg=f"[{inner_solver}] φ off Σw·Q_g/Σ_t,g",
+        )
+        # System B end-to-end: the converged ray member carries the SAME
+        # per-group equilibrium (layout-free set check: every unified
+        # value IS one of the two group ratios, and both appear).
+        ray = sol.radial_characteristic
+        if ray is None:
+            pytest.fail(f"[{inner_solver}] Solution.radial_characteristic "
+                        f"is None on the carrying sphere (DP-Solution)")
+        u = np.asarray(ray.to_unified().values, dtype=float)
+        eq = Q_g / sig_t_g
+        one_of = np.isclose(u[:, None], eq[None, :], rtol=1e-10).any(axis=1)
+        if not one_of.all():
+            pytest.fail(
+                f"[{inner_solver}] ray member values off the flat "
+                f"equilibrium set {{Q_g/Σ_t,g}}: "
+                f"worst = {u[~one_of][:3]!r} vs {eq!r}"
+            )
+        for g, v in enumerate(eq):
+            if not np.isclose(u, v, rtol=1e-10).any():
+                pytest.fail(
+                    f"[{inner_solver}] group-{g} equilibrium {v} absent "
+                    f"from the ray member — a group axis dropped (Mode 6)"
+                )

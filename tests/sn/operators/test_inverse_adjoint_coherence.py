@@ -574,3 +574,115 @@ def test_coupled_gate4_reverse_scan_executes(monkeypatch):
     if not counts["solve"] == 0:
         pytest.fail(f"coupled M.H.inverse().apply touched the FORWARD solve "
                     f"({counts['solve']}×)")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# B.2d d3 — A2a: the LOSS-GRID rows in the swap-law home (G-d3.4, R5/R11)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The rows above live on M (the resolvent factor).  A2a adds the full
+# within-group LOSS GRID ``A = M − N`` (``WithinGroupSystem.loss``) to the
+# SAME file so the swap-law family is complete in its home: the forward
+# ``.H`` reciprocity arm is live NOW (the block Hilbert adjoint is free via
+# the member-wise CoupledSpace metrics — psi_half G-c2.5 is the sibling in
+# the grid's own file); the inverse/swap-law arm is ``xfail(strict=False)``
+# until the step-5 block solve flips ``grid.is_invertible`` — it then
+# XPASSes loudly and gets converted to a live gate (vv xfail discipline).
+
+
+def _within_group_grid(sn):
+    from orpheus.sn.coupled_system import build_within_group_system
+
+    system = build_within_group_system(sn, sn.material_xs_field())
+    return system.loss, system.space
+
+
+def _coupled_rand_pair(sn, seed: int):
+    r"""A coupled pair with EVERY block non-zero (random ψ_A bulk+trace AND a
+    random System-B member) — the grid's coupling columns must enter the
+    pairing, unlike the zero-member vectors the M rows use."""
+    from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.transport.fields.radial_characteristic_flux import (
+        RadialCharacteristicFlux,
+    )
+    from orpheus.transport.radial_characteristic_composite import (
+        RadialCharacteristicComposite,
+    )
+
+    rng = np.random.default_rng(seed)
+    member = RadialCharacteristicComposite.from_unified(
+        RadialCharacteristicFlux(
+            values=rng.standard_normal(
+                sn.radial_characteristic_space.shape[0],
+            ),
+            space=sn.radial_characteristic_space, mesh=sn,
+        ),
+    )
+    return CoupledField(systems=(_rand_full(sn, seed + 1000), member))
+
+
+def test_a2a_grid_forward_h_reciprocity(monkeypatch):
+    r"""A2a forward arm (G-d3.4): ``⟨A·ψ, x⟩_G = ⟨ψ, A.H·x⟩_G < 1e-12`` on
+    the carrying ``WithinGroupSystem.loss`` — the grid row in the swap-law
+    home (all four coupling blocks enter through the random members).
+
+    Tooth M-ADJ-metric (mirroring psi_half G-c2.5): stripping the
+    CoupledSpace metric conjugation (identity ``apply_metric`` /
+    ``apply_inverse_metric``) reds the defect O(1) — a hand-rolled
+    EUCLIDEAN block-.H would pass the stripped form, which is exactly the
+    ERR-067 reopening this tooth exists to catch."""
+    from orpheus.numerics.coupled_system import CoupledSpace
+
+    sn = _sphere()
+    grid, space = _within_group_grid(sn)
+    psi = _coupled_rand_pair(sn, 25)
+    x = _coupled_rand_pair(sn, 26)
+    lhs = space.inner_product(grid.apply(psi), x)
+    rhs = space.inner_product(psi, grid.H.apply(x))
+    defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+    if not defect < 1e-12:
+        pytest.fail(f"grid-.H G-reciprocity defect {defect:.3e} ≥ 1e-12 on "
+                    f"the carrying loss grid — the metric conjugation or a "
+                    f"coupling-block transpose is broken (A2a forward arm)")
+    with monkeypatch.context() as m:
+        m.setattr(CoupledSpace, "apply_metric", lambda self, f: f)
+        m.setattr(CoupledSpace, "apply_inverse_metric", lambda self, f: f)
+        lhs2 = space.inner_product(grid.apply(psi), x)
+        rhs2 = space.inner_product(psi, grid.H.apply(x))
+        defect2 = abs(lhs2 - rhs2) / (abs(lhs2) + abs(rhs2) + 1e-300)
+    if not defect2 > 1e-3:
+        pytest.fail(f"the metric-strip tooth left the defect at "
+                    f"{defect2:.3e} — the grid reciprocity gate has no "
+                    f"teeth (a Euclidean block-.H would pass)")
+
+
+@pytest.mark.xfail(
+    strict=False,
+    reason="grid.is_invertible is False until the step-5 block solve lands "
+           "(R5/R11); flips to XPASS exactly when the block-triangular "
+           "inverse arrives — convert to a live gate then.",
+)
+def test_a2a_grid_swap_law_inverse_arm():
+    r"""A2a inverse arm (G-d3.4): ``A.H.inverse() ≡ A.inverse().H`` on the
+    within-group loss grid — DORMANT until step 5 (``grid.is_invertible``
+    is honestly ``False``: no block-inverse spelling exists at B.2d, so
+    asserting this green today would be a vacuous pass through a raise).
+    """
+    sn = _sphere()
+    grid, _space = _within_group_grid(sn)
+    if not getattr(grid, "is_invertible", False):
+        pytest.fail("grid.is_invertible is False — the step-5 block solve "
+                    "has not landed (expected until #41)")
+    b = _coupled_bulk_b(sn, 5)
+    lhs = grid.H.inverse().apply(b)
+    rhs = grid.inverse().H.apply(b)
+    np.testing.assert_array_equal(
+        np.asarray(lhs.systems[0].interior.values),
+        np.asarray(rhs.systems[0].interior.values),
+        err_msg="grid swap-law bulk not bit-identical",
+    )
+    np.testing.assert_array_equal(
+        np.asarray(lhs.systems[1].to_flat()),
+        np.asarray(rhs.systems[1].to_flat()),
+        err_msg="grid swap-law System-B member not bit-identical",
+    )

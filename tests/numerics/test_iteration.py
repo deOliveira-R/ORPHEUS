@@ -744,3 +744,144 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         f"keff={expected_keff!r} by {abs(keff_at_ke_flux-expected_keff):.2e}; "
         f"Rayleigh history[-3:]={keff_history[-3:]}"
     )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Foundation: the GMRES exact-breakdown carve-out (the ERR-053 warn
+# boundary) — B.2d d3 NIT-2 anchor
+# ───────────────────────────────────────────────────────────────────────
+#
+# The warn branch in :meth:`KrylovAcceleration.solve` carries a PERMANENT
+# exact-breakdown carve-out: a final preconditioned residual of LITERAL
+# ``0.0`` means the Krylov space collapsed AT the solution (``M⁻¹(b − Ax)
+# = 0`` with a nonsingular preconditioner implies ``Ax = b`` exactly) —
+# that is CONVERGENCE, the opposite of the ERR-053 restart-truncation
+# stall the warning surfaces, so it must NOT warn even when scipy stamps
+# ``info > 0``.  The guard's first production caller (the B.2d
+# transitional dead-ray GMRES padding) dissolved at the d2 eviction,
+# leaving it caller-less-but-permanent — these anchors keep both branch
+# arms exercised.  scipy's ``info`` stamping on breakdown is
+# version-dependent (current scipy stamps ``info == 0`` on every small
+# reachable case because its convergence test is ``<=``), so the branch
+# pair is pinned through a deterministic gmres STUB while the real-scipy
+# arm pins the caller-visible contract.
+
+
+def _singular_consistent() -> tuple[MatrixOperator, np.ndarray]:
+    r"""``A = diag(1, 0)`` with ``b ∈ range(A)`` — the minimal
+    singular-but-CONSISTENT system.  GMRES from ``x0 = 0`` solves it
+    exactly in one iteration (``K₁ = span{b}`` contains the solution), so
+    the ``pr_norm`` history ends at LITERAL ``0.0`` — the exact-breakdown
+    signature."""
+    return MatrixOperator(np.diag([1.0, 0.0])), np.array([3.0, 0.0])
+
+
+def _krylov_warnings(krylov: KrylovAcceleration, b: np.ndarray):
+    """Run ``krylov.solve(b)`` recording only this boundary's RuntimeWarnings."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        x, history = krylov.solve(b)
+    ours = [
+        w for w in caught
+        if issubclass(w.category, RuntimeWarning)
+        and "KrylovAcceleration.solve" in str(w.message)
+    ]
+    return x, history, ours
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-053")
+def test_singular_consistent_exact_breakdown_solves_clean() -> None:
+    r"""REAL scipy: the singular-consistent exact-breakdown solve returns
+    the EXACT solution with a literal-``0.0`` residual tail and NO
+    ERR-053 warning — the caller-visible contract of the carve-out
+    (``tol=0.0`` = "solve to exactness" makes the breakdown the only
+    possible exit)."""
+    A_op, b = _singular_consistent()
+    krylov = KrylovAcceleration(
+        A_op, preconditioner=lambda q: q, tol=0.0, max_iter=30, restart=2,
+    )
+    x, history, ours = _krylov_warnings(krylov, b)
+    if not history or history[-1] != 0.0:
+        pytest.fail(
+            f"the singular-consistent probe no longer ends at a LITERAL 0.0 "
+            f"pr_norm (tail = {history[-3:] if history else []}) — the "
+            f"exact-breakdown fixture premise broke; redesign the anchor."
+        )
+    np.testing.assert_allclose(
+        A_op.matrix @ x, b, atol=5e-16,
+        err_msg="exact breakdown did not return the exact solution",
+    )
+    if ours:
+        pytest.fail(
+            f"exact breakdown WARNED ({ours[0].message}) — the ERR-053 "
+            f"carve-out regressed: a converged solve is being reported as "
+            f"a restart stall."
+        )
+
+
+def _stub_gmres_returning(info: int, pr_norm_tail: float):
+    """A deterministic ``spla.gmres`` stand-in: feeds the callback one
+    ``pr_norm`` value and stamps ``info`` — pins the guard BRANCH
+    independent of scipy's version-dependent breakdown stamping."""
+
+    def _stub(A, b, x0=None, M=None, rtol=None, atol=None, maxiter=None,
+              restart=None, callback=None, callback_type=None):
+        if callback is not None:
+            callback(pr_norm_tail)
+        x = np.zeros_like(np.asarray(b))
+        return x, info
+
+    return _stub
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-053")
+def test_exact_breakdown_guard_suppresses_the_info_warning(monkeypatch) -> None:
+    r"""GUARD arm: ``info > 0`` WITH a literal-``0.0`` tail (the d1-observed
+    breakdown stamping) must NOT warn — the carve-out recognizes the
+    collapsed-at-the-solution Krylov space as convergence."""
+    import orpheus.numerics.iteration as iteration_mod
+
+    monkeypatch.setattr(
+        iteration_mod.spla, "gmres", _stub_gmres_returning(info=7, pr_norm_tail=0.0),
+    )
+    A_op, b = _singular_consistent()
+    krylov = KrylovAcceleration(
+        A_op, preconditioner=lambda q: q, tol=1e-12, max_iter=30, restart=2,
+    )
+    _x, history, ours = _krylov_warnings(krylov, b)
+    if history != [0.0]:
+        pytest.fail(f"stub plumbing broke: history = {history}")
+    if ours:
+        pytest.fail(
+            f"info=7 with a literal-0.0 tail WARNED ({ours[0].message}) — "
+            f"the exact-breakdown guard branch regressed."
+        )
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-053")
+def test_info_warning_fires_on_genuine_nonconvergence(monkeypatch) -> None:
+    r"""TEETH arm: the SAME stub with a NONZERO tail (a genuine ERR-053
+    stall signature) MUST warn — proving the guard arm's silence above is
+    the carve-out biting, not dead warn machinery."""
+    import orpheus.numerics.iteration as iteration_mod
+
+    monkeypatch.setattr(
+        iteration_mod.spla, "gmres",
+        _stub_gmres_returning(info=7, pr_norm_tail=0.37),
+    )
+    A_op, b = _singular_consistent()
+    krylov = KrylovAcceleration(
+        A_op, preconditioner=lambda q: q, tol=1e-12, max_iter=30, restart=2,
+    )
+    _x, _history, ours = _krylov_warnings(krylov, b)
+    if not ours:
+        pytest.fail(
+            "info=7 with a NONZERO residual tail did not warn — the "
+            "ERR-053 non-convergence surface went silent (the guard has "
+            "no teeth)."
+        )
+    if "ERR-053" not in str(ours[0].message):
+        pytest.fail(f"the warning lost its ERR-053 pointer: {ours[0].message}")

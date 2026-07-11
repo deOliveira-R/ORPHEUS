@@ -360,3 +360,149 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
         int(sn.angular_trace.layout.total_size)
         + int(np.asarray(pair.systems[1].to_flat()).size)
     ), f"restart deficit {deficit} ≠ trace + System B — the ravel layout drifted"
+
+
+# ── B.2d d3 — G-d3.3: the honest END-TO-END site proof ─────────────────
+#
+# The count pin above (d2's F3 migration) decomposes the coupled ravel; the
+# gates below close the ERR-053 loop END-TO-END: BOTH production Krylov
+# drivers (`solve_sn` eigenvalue + `solve_sn_fixed_source`) must CONSTRUCT
+# KrylovAcceleration with ``restart`` == that coupled honest ravel — the
+# site-plumbing claim (`initial_guess.to_flat()` reaches ``restart``), which
+# the count pin alone cannot see.  A revert to the d1-era bulk-only formula
+# reds HERE in seconds instead of re-opening the measured 868 s sphere
+# stall.
+
+
+def _carrying_sphere_case(n_cells: int = 6):
+    """Homogeneous FISSILE 2G reflective carrying sphere (the kinf case
+    materials — fissile, so BOTH production drivers run on it)."""
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
+
+    case = _get_continuous_case("2eg")
+    mat_id = next(iter(case.problem.materials.keys()))
+    mesh = _homogeneous_mesh(
+        coord="sphere", n_cells=n_cells, length=2.0, mat_id=mat_id,
+    )
+    quad = _quadrature_for("sphere")
+    sn = SNMesh(mesh, quad, case.problem.materials)
+    return case.problem.materials, mesh, quad, sn
+
+
+def _expected_coupled_restart(sn) -> tuple[int, int]:
+    """(coupled honest restart, bulk-only count) from the SPACES — explicit
+    arithmetic independent of the driver's own ``to_flat`` read (the d2
+    count pin above proves the decomposition; HERE the sum is the oracle
+    for the SITE plumbing)."""
+    from orpheus.transport.radial_characteristic_composite import (
+        RadialCharacteristicComposite,
+    )
+
+    bulk = int(sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape)))
+    trace = int(sn.angular_trace.layout.total_size)
+    size_b = int(np.asarray(
+        RadialCharacteristicComposite.from_mesh(sn).to_flat(),
+    ).size)
+    return bulk + trace + size_b, bulk
+
+
+def _install_restart_spy(monkeypatch) -> list[int]:
+    """Wrap ``KrylovAcceleration.__init__`` capturing every constructed
+    ``restart`` (the Mode-11 sentinel: the drivers must actually route
+    through the construction this gate inspects)."""
+    from orpheus.numerics.iteration import KrylovAcceleration
+
+    captured: list[int] = []
+    orig_init = KrylovAcceleration.__init__
+
+    def _spy_init(self, *args, **kwargs):
+        orig_init(self, *args, **kwargs)
+        captured.append(int(self.restart))
+
+    monkeypatch.setattr(KrylovAcceleration, "__init__", _spy_init)
+    return captured
+
+
+@pytest.mark.catches("ERR-053")
+@pytest.mark.parametrize("driver", ["eigenvalue", "fixed_source"])
+def test_g_d3_3_production_sites_size_restart_from_the_coupled_ravel(
+    driver: str, monkeypatch,
+) -> None:
+    r"""G-d3.3 END-TO-END: the production driver constructs its
+    within-group GMRES with ``restart`` == the COUPLED honest ravel
+    (bulk ⊕ trace ⊕ BOTH System-B legs) on the carrying sphere.
+
+    Loose outer tolerances — the claim is the CONSTRUCTION plumbing, not
+    convergence; every KrylovAcceleration the driver builds is captured
+    and compared against the space-derived sum."""
+    from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
+
+    materials, mesh, quad, sn = _carrying_sphere_case()
+    expected, bulk_only = _expected_coupled_restart(sn)
+    if not expected > bulk_only:
+        pytest.fail("premise broke: the coupled ravel no longer exceeds "
+                    "the bulk count — if System B was removed this gate "
+                    "is stale")
+
+    captured = _install_restart_spy(monkeypatch)
+
+    if driver == "eigenvalue":
+        solve_sn(
+            materials, mesh, quad, inner_solver="krylov",
+            max_outer=2, keff_tol=1e-3, flux_tol=1e-3,
+            max_inner=60, inner_tol=1e-8,
+        )
+    else:
+        solve_sn_fixed_source(
+            materials=materials, mesh=mesh, quadrature=quad,
+            external_source=np.ones((quad.N, sn.ng, sn.nx)),
+            inner_solver="krylov", max_inner=60, inner_tol=1e-8,
+        )
+
+    if not captured:
+        pytest.fail(f"[{driver}] Mode-11: the KrylovAcceleration spy never "
+                    f"fired — the driver no longer constructs the "
+                    f"within-group GMRES this gate inspects")
+    if set(captured) != {expected}:
+        pytest.fail(
+            f"[{driver}] production restart(s) {sorted(set(captured))} ≠ "
+            f"the coupled honest ravel {expected} (bulk-only = {bulk_only})"
+            f" — ERR-053 re-opened at a driver site"
+        )
+
+
+@pytest.mark.catches("ERR-053")
+def test_g_d3_3_site_gate_has_teeth(monkeypatch) -> None:
+    r"""The stall-deficit tooth: force the d1-era bulk-only ``n_dof``
+    through the ONE production helper (``_within_group_krylov``) — the
+    captured restart then lands EXACTLY at the bulk-only count and
+    mismatches the coupled ravel, proving the site gate above reds on a
+    formula revert (the capture is live, not vacuous)."""
+    import orpheus.sn.solver as solver_mod
+
+    materials, mesh, quad, sn = _carrying_sphere_case()
+    expected, bulk_only = _expected_coupled_restart(sn)
+
+    orig_wgk = solver_mod._within_group_krylov
+
+    def _bulk_only_wgk(LC, *gains, n_dof, max_iter, tol):
+        return orig_wgk(LC, *gains, n_dof=bulk_only, max_iter=max_iter,
+                        tol=tol)
+
+    monkeypatch.setattr(solver_mod, "_within_group_krylov", _bulk_only_wgk)
+    captured = _install_restart_spy(monkeypatch)
+
+    solver_mod.solve_sn_fixed_source(
+        materials=materials, mesh=mesh, quadrature=quad,
+        external_source=np.ones((quad.N, sn.ng, sn.nx)),
+        inner_solver="krylov", max_inner=40, inner_tol=1e-6,
+    )
+
+    if not captured:
+        pytest.fail("Mode-11: the spy never fired under the mutation")
+    if set(captured) == {expected}:
+        pytest.fail("the bulk-only mutation did NOT move the captured "
+                    "restart — the site gate has no teeth")
+    if set(captured) != {bulk_only}:
+        pytest.fail(f"mutated captures {sorted(set(captured))} ≠ bulk-only "
+                    f"{bulk_only} — the tooth is mis-wired")
