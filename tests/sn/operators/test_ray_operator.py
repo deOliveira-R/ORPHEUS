@@ -54,6 +54,9 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
 from orpheus.transport.fields.cross_section_field import CrossSectionField
+from orpheus.transport.radial_characteristic_composite import (
+    RadialCharacteristicComposite,
+)
 from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
     RadialCharacteristicSourceSink,
 )
@@ -127,7 +130,10 @@ def _solve_inward_cells(edges: np.ndarray) -> np.ndarray:
         # q½ built DIRECTLY (uniform q̄ per group) — NOT via the R14 fold (step 2).
         space.cells_view(src.values, 0, -1)[g, :] = _Q[g]
         space.corner_view(src.values, 0, -1)[g] = _PHI_R[g]   # r = R Dirichlet datum
-    return op.solve(src).cells(0, -1)
+    # B.2c I/O: the block boundary speaks the member composite (the bridge is
+    # bitwise, so the convergence orders are untouched).
+    return op.solve(
+        RadialCharacteristicComposite.from_unified(src)).interior.cells(0, -1)
 
 
 def _max_group_inf_error(edges: np.ndarray) -> float:

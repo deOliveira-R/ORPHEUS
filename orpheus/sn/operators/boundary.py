@@ -667,19 +667,13 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         )
 
         mesh = self.sn_mesh
-        if not isinstance(ray, RadialCharacteristicComposite):
-            raise TypeError(
-                f"RadialCharacteristicBoundaryOperator.{method}: expected a "
-                f"RadialCharacteristicComposite (System B's member carrier); "
-                f"got {type(ray).__name__}."
-            )
-        if ray.mesh is not mesh:
-            raise ValueError(
-                "RadialCharacteristicBoundaryOperator.apply: input field and "
-                "operator must share the same SNMesh instance (mesh-identity "
-                f"invariant); got field mesh {ray.mesh!r} vs operator mesh "
-                f"{mesh!r}."
-            )
+        # The shared System-B block-boundary parse (carrier class +
+        # mesh-identity — one parse body across A_BB / A_AB / B_b, B.2c).
+        RadialCharacteristicComposite.require_member(
+            ray,
+            mesh=mesh,
+            context=f"RadialCharacteristicBoundaryOperator.{method}",
+        )
         # Role parse at the block boundary (the #289-F2 discipline, relocated
         # from the erased FullField slot to the boundary MEMBER — the composite
         # slots are role-erased): ``B_b`` reflects a FLUX corner. A source- /

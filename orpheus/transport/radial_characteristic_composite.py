@@ -191,6 +191,35 @@ class RadialCharacteristicComposite(
             boundary=RadialCharacteristicBoundaryFlux.zeros_on(mesh),
         )
 
+    @classmethod
+    def require_member(
+        cls, x: object, *, mesh: "SNMesh", context: str,
+    ) -> "RadialCharacteristicComposite":
+        r"""Parse ``x`` as a System-B member carrier on ``mesh`` — the shared
+        block-boundary guard.
+
+        Every System-B block boundary (``A_BB`` / ``A_AB`` / ``B_b``) receives
+        a :class:`RadialCharacteristicComposite` and must refuse (i) a foreign
+        carrier type and (ii) a foreign mesh (the mesh-identity invariant —
+        the member's legs, the operator's coefficients, and the radial widths
+        must not desync). One parse, three consumers (coding-elegance
+        Pattern 2; parse-don't-validate at the boundary). ``context`` names
+        the refusing surface (``"RadialCharacteristicOperator.apply"``) so the
+        error reads at the call site.
+        """
+        if not isinstance(x, cls):
+            raise TypeError(
+                f"{context}: expected a RadialCharacteristicComposite "
+                f"(System B's member carrier); got {type(x).__name__}."
+            )
+        if x.mesh is not mesh:
+            raise ValueError(
+                f"{context}: the input field and the operator must share the "
+                f"same SNMesh instance (mesh-identity invariant); got field "
+                f"mesh {x.mesh!r} vs operator mesh {mesh!r}."
+            )
+        return x
+
     # ── The split-fidelity bridge (to / from the unified ψ½ leaf) ─────
 
     @classmethod
