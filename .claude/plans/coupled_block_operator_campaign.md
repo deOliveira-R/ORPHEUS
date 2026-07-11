@@ -1498,4 +1498,98 @@ refs) + `loss_representations.rst` (8) describe the 3-block FullField as current
   2-block System-A composite; `Solution.radial_characteristic:
   RadialCharacteristicComposite | None` carries System B's converged state as its own
   typed member (downstream System-A readers untouched; ray readers re-point).
+
+### B.2d d1 — DONE @ `c0f23f6` (2026-07-11); recommended /compact point
+
+One green feature commit + the matrix regen (`fa3ec11`). Delta gate spec:
+test-architect `coupled_operator_b2d_driver_eviction_verification.md`
+(G-d1.1–1.8 / G-d2.x / G-d3.x; findings F1–F5; rulings R1–R6 — F1–F5 all fired
+and were resolved as ruled).
+
+- **The record**: `orpheus/sn/coupled_system.py::build_within_group_system(...)
+  → WithinGroupSystem(loss, space, resolvent, gains)` — THE single construction
+  site; `_within_group_triple` + `_lagged_gains` retired into it (the builder's
+  construction-twin status dissolved). Carrying: `resolvent =
+  CoupledInvertibleOperator` (M — the fused walk behind the exact
+  `_split_fused_state`/`_fuse_coupled_state` bridge; all FOUR surfaces incl.
+  the reverse-scan pair; `inverse()` = `CoupledSweepOperator`, an
+  InverseWrapMixin sibling, seed accepted-and-dropped per #282/2.5d);
+  `gains = (N,)`, `N = [[S+B_a, ∅],[Emission, B_b]]` (∅ structural — Seeding
+  lives in M; (A,A) stamped SystemRole.A). Seedless: `(L+C, (S, B_a))` pure
+  re-package, G-S/windowing ZERO-touch. `build_coupled_system` = the loss-grid
+  VIEW (delegation). Elegance verdict banked: the M−N split closes on SHARED
+  piece objects (three views of one object set — cannot drift).
+- **The four solve sites** consume the record; carrying iterate/q_ext =
+  `CoupledField[ψ_A 3-block dead-ray, ψ_B]` split at the transitional birth
+  seams (all marked retire-at-d2). The B.2b adapters DELETED — the fused
+  spelling survives as TEST ORACLES (`FusedRayEmissionGain`/`FusedRayBoundaryGain`
+  in `tests/sn/_test_helpers.py`; dissolve at d2 with the 3-block). R3 ruled:
+  NO `.interior` face on CoupledField (the N-general container stays
+  vocabulary-clean) — F1 (g1 spy) + F5 (`_flux_displacement_leaf` walks
+  `systems[0]`) both re-pointed. Two #289-F2 role parses minted (compute_keff
+  + finalize trace reads); the windowed arm narrows structurally.
+- **The GMRES exact-breakdown carve-out** (`numerics/iteration.py`): the
+  transitional dead-pad makes the coupled matvec SINGULAR; warm-started late
+  outers break down AT the exact solution (final pr_norm literal 0.0) and
+  scipy stamps info>0 — the warn branch now recognizes exact breakdown as
+  convergence (a PERMANENT invariant; the ψ½ pad was the first caller, per
+  the elegance NIT-2 reword). Root cause (the pad) dissolves at d2.
+- **Gates landed**: `TestWithinGroupSystem` (11 — G-d1.1 W1 wrap-counter
+  sentinel ×2 inner_solvers + the dead-slot rider + the fused-bypass tooth;
+  G-d1.2 identity pins; G-d1.4 bridge round-trip + teeth; G-d1.5 N ≡ fused
+  gains `array_equal` control + teeth, the dropped-B_b mutation UPGRADED to
+  unconstructable by the all-None-column guard; G-d1.6 Mode-9 het-VACUUM
+  2-region sphere same-fixed-point at SAFETY×tol ×2 solvers + the
+  `array_equal` slab control; G-d1.7 the F5 diagnostic gate; G-d1.8 the
+  ERR-053 d1 sizing pin). G-d1.3 executed as the 3-search audit (grep ZERO
+  live references). Re-point ledger: 17 files (the ~12 F2 import re-points;
+  the L4-S/L4-F structural pairs + the SI single-primitive contract re-pinned
+  onto the record's block shapes; G-b3.3 deleted with its referent; the
+  g-adjoint full-loss + psi_half centrepiece/ρ probes onto the oracles).
+
+**VERIFIED:** FULL sn+transport+numerics not-slow wall **3477/0** (5 skipped,
+36 xfailed, 19:09); psi_half 80/80; ratchet `transport: 1` (sn 0 — no casts,
+no ignores); sphinx -W exit 0; smoke sphere k(SI) ≡ k(Krylov) @ 3.2e-11 with
+the Solution ray intact; elegance-enforcer **PASS-WITH-NITS (0 violations)**,
+NIT-2/NIT-4 fixed pre-commit, NIT-3 waived (defensible asymmetry, retires at
+d2).
+
+**CARRIED to d2/d3 (from the elegance + memo ledgers):**
+- **NIT-1 (MUST, d3 archivist)** — 13 stale `_within_group_triple` doc refs
+  (broken `:func:` roles render silently, no `-W` catch):
+  `operator_algebra.rst` :1750 :5025 :5133 :5237 :5329 :5722 :6736 +
+  `discrete_ordinates.rst` :12233 :13820 :14746 :14820 :14842 :17125 —
+  re-point to `build_within_group_system` + fix tense; prioritize the
+  present-tense ones. Plus the pre-listed 3-block-FullField sections
+  (`discrete_ordinates.rst` 18 refs / `loss_representations.rst` 8).
+- **Estate (d3)** — the pre-existing LC-spelling triplication: the builder +
+  `SNSolver.self.L` (:849 init + :929 rebind_sigma_t) — collapse the two
+  `self.L` legs onto the builder or a shared `_build_lc` primitive
+  (`operator_algebra.rst:1748` documents it; the 3rd spelling IS the L-002
+  collapse trigger).
+- **NIT-2 anchor (SHOULD, test-architect at d2/d3)** — a minimal general
+  singular-consistent GMRES test so the exact-breakdown guard stays exercised
+  after the d2 pad removal.
+
+**NEXT = d2 (THE ATOMIC EVICTION)** — one commit per explorer V1 + the memo's
+G-d2.1–2.7: `FullField`/`TimedFullField` → pure 2-block (carrier hooks +
+`zeros` keying + `__post_init__` seed checks); `FullFieldSpace` seed arms +
+`CompositeField` protocol → 2-block; the mixed-presence law retires (6 raise
+sites) + ALL present-zero producer pads (S/Sᵀ/F/B_a, A_BAᵀ ray-out,
+`_radial_characteristic_scaled`); the SIX walk signatures re-type to leaf
+kwargs (the CoupledInvertibleOperator bridge passes
+`radial_characteristic_source/flux`/`seed_cot` explicitly — F4: the d2
+re-point of test_282/walk-baselines/native-matvec IS the six-signature
+catcher, values stay bit-identical); `evaluate_residual` → coupled + the
+split Residual mint (R4 — rides the eviction atomically) +
+`boundary_vs_interior_split` seed-gap closes; `Solution.angular_flux` →
+2-block + NEW `Solution.radial_characteristic` member (DP-Solution);
+G-b3.2/A_AB presence pins flip 2-block; **G-c2.6 witness REMOVED** (G-d2.7);
+the timed presence law retires (test-migration only); the ERR-053 file
+MIGRATES (F3 — coupled `to_flat` count; the honest end-to-end gate lands at
+d3); honest-DOF gate G-d2.3 (`Δ == n_seed`); diffusion/CP walls = the
+untouched bit-id oracle (G-d2.6); the birth seams + oracles + `_rebuild`
+transitional cast dissolve. Then d3 (E4 anchors + A2a forward arm + the
+honest ERR-053 gate + the archivist dispatch + estate). Re-anchor from THIS
+block + `git log` (trust git).
 Re-anchor from THIS block + `git log` (trust git).
