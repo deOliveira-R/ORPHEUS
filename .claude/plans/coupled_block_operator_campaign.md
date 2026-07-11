@@ -1460,4 +1460,42 @@ conformance auto-tracks — pinned by the interop gate) + E4 anchors + the A2a c
 fixture (with step-5's block solve if is_invertible lands there). Bridge the fused
 walk at the SIX V2 signatures. Archivist docs follow-up: `discrete_ordinates.rst` (18
 refs) + `loss_representations.rst` (8) describe the 3-block FullField as current.
+
+### B.2d — RULED design points (2026-07-10, user; all four = the recommended options)
+
+- **Spine d1→d2→d3 (each commit green):** d1 = the block-native driver on the B.2c
+  dead-slot convention (iterate → `CoupledField[ψ_A 3-block, ψ_B]`; M = the fused walk
+  behind a pack/split bridge; N = the coupled gain grid; the B.2b/B.2c adapters + the
+  builder's construction twin RETIRE; W1 Mode-11 sentinel; ZERO touch to
+  streaming/loss_rep — principled-equiv at ~ULP: rhs-assembly reassociation + GMRES
+  dead-slot padding; the walk sees bit-identical inputs). d2 = THE ATOMIC EVICTION
+  (FullField → 2-block; space + `CompositeField` protocol + mixed-presence law retire;
+  ALL presence pins flip together; the SIX walk signatures re-type to leaf kwargs;
+  `evaluate_residual` → coupled + the split Residual mint; G-c2.6 REMOVED; DOF count
+  honest). d3 = E4 anchors + the A2a coupled fixture + the ERR-053 gate + archivist
+  dispatch + estate.
+- **DP-splitting: the System record.** ONE builder `build_within_group_system(sn_mesh,
+  mat_xs, *, scattering_op=None, scattering_order=0)` in `orpheus/sn/coupled_system.py`
+  returns frozen `WithinGroupSystem(loss, space, resolvent, gains)` — the NAMED
+  `A = M − N` splitting (Hackbusch): `.loss` = the typed grid; `.resolvent` = M (the
+  coupled-bridged fused walk on carrying meshes — pack `[ψ_A, ψ_B]` → 3-block via
+  `to_unified`, fused `(L+C)` acts, split back; plain LC seedless); `.gains` = N (ONE
+  `CoupledOperator [[S+B_a, ∅],[Emission, B_b]]` carrying — the ∅ (A,B) slot is
+  structural: Seeding lives in M, the walk's welded feed, so `N = M − A` has no
+  ray→bulk gain; `(S, B_a)` tuple seedless, B_a LAST per the existing boundary-gain
+  convention the G-S arm parses). `_within_group_triple` + `_lagged_gains` RETIRE into
+  it; the four solve sites consume the record; the solver's cached `scattering_op`
+  injects via kwarg (a cache seam, not a flag). The fused `LC.apply` on a LIVE-ray
+  3-block IS `M.apply` (welded Seeding feed + RC rows), so `matvec = M.apply − N.apply
+  = A.apply` — consistent with the grid's complementary dead-slot arrangement.
+- **DP-seedless: carrying only.** The coupled iterate appears exactly where System B
+  exists (P2's spirit — a 1-member coupled wrapper on a seedless mesh is ceremony
+  without algebra). Seedless paths (multi-D Cartesian G-S split, 2-D harmonic
+  windowing, `_maybe_window`) are ZERO-TOUCH; carrying meshes are 1-D curvilinear ⟹
+  always Jacobi, never windowed — the coupled arm bypasses both machineries
+  structurally.
+- **DP-Solution: own member.** Post-eviction `Solution.angular_flux` = the honest
+  2-block System-A composite; `Solution.radial_characteristic:
+  RadialCharacteristicComposite | None` carries System B's converged state as its own
+  typed member (downstream System-A readers untouched; ray readers re-point).
 Re-anchor from THIS block + `git log` (trust git).
