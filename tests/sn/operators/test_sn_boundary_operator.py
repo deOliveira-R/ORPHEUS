@@ -30,6 +30,7 @@ from orpheus.numerics.operator import (
     BoundaryOperator,
     BulkOperator,
     FullOperator,
+    MissingAdjoint,
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.operators.boundary import SNBoundaryOperator
@@ -192,22 +193,29 @@ class TestApplyTransposeCapability:
         sn = _sn(*_CASES[case_id])
         B = SNBoundaryOperator(sn)
         assert B.is_adjointable
-        # The Euclidean transpose ``Bᵀ: V_inflow → V_outflow`` emits on the
-        # OUTFLOW row only (the transpose of the inflow-row projection), and
-        # agrees there with the per-face ``bc.apply_transpose``.
+        # The Euclidean transpose of the row-projected forward ``B_face =
+        # P_inflow ∘ law`` is ``B_faceᵀ = lawᵀ ∘ P_inflow`` — the per-face law
+        # transpose applied to the INFLOW-masked input, full image written.
+        # (B.2d d3 rewire: the previous spelling asserted ``got[outflow] ==
+        # lawᵀ(ψ_face)[outflow]``, which on a VACUUM face pinned the law
+        # object's spurious identity-on-outflow diagonal — the masked-regime
+        # snapshot of vv anti-pattern #12.  The honest vacuum transpose is
+        # ZERO; see psi_half ``test_b_a_vacuum_transpose_is_the_honest_zero``.)
         psi = _random_state(sn)
         out = B.apply_transpose(psi)
         for face in sn.angular_trace.layout.faces:
             bc = sn.bc[face]
             inflow = sn.angular_trace.inflow_indices_for_face(face)
-            outflow = sn.angular_trace.outflow_indices_for_face(face)
             got = out.boundary.face_view(face)
-            expected_full = bc.apply_transpose(psi.boundary.face_view(face))
-            np.testing.assert_array_equal(got[outflow], expected_full[outflow])
-            assert not got[inflow].any(), (
-                f"{case_id} face {face!r}: Bᵀ emitted non-zero on the inflow "
-                f"row — the transpose of an A_ss (V_outflow → V_inflow) block "
-                f"must land on the outflow row."
+            face_in = psi.boundary.face_view(face)
+            masked = np.zeros_like(face_in)
+            masked[inflow] = face_in[inflow]
+            np.testing.assert_array_equal(
+                got, bc.apply_transpose(masked),
+                err_msg=(
+                    f"{case_id} face {face!r}: Bᵀ ≠ lawᵀ ∘ P_inflow — the "
+                    f"transpose of the inflow-row-projected A_ss block."
+                ),
             )
 
     def test_adjointability_drops_when_a_face_lacks_it(self) -> None:
@@ -236,6 +244,11 @@ class TestApplyTransposeCapability:
 
         B = _BWithStubFace(sn)
         assert not B.is_adjointable
+        # B.2d d3 bite-test: a caller bypassing the predicate hits the loud
+        # per-face refusal, never a silent wrong transpose (the raise at
+        # ``_reflect_trace``'s guarded ``adjointable(law)`` narrowing).
+        with pytest.raises(MissingAdjoint, match="no Euclidean"):
+            B.apply_transpose(_random_state(sn))
 
 
 class TestFaceRestrictedReflect:

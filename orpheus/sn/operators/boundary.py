@@ -57,7 +57,9 @@ import numpy as np
 from orpheus.numerics.operator import (
     BlockRole,
     LinearOperator,
+    MissingAdjoint,
     SystemRole,
+    adjointable,
 )
 
 if TYPE_CHECKING:
@@ -243,10 +245,18 @@ class SNBoundaryOperator(LinearOperator):
         ``ψ.outflow − streamed`` (it is supposed to carry no ``B`` term — see the
         block matrix in :mod:`orpheus.sn.operators.boundary`). So the forward
         action is projected onto ``inflow_indices_for_face`` (the consistency
-        row); the Euclidean transpose ``Bᵀ: V_inflow → V_outflow`` is projected
-        onto ``outflow_indices_for_face`` accordingly. (The metric-correct Hilbert
-        adjoint ``B.H`` under ``|Ω·n|·w`` is Wave O step O.2; this Euclidean
-        ``apply_transpose`` is the un-weighted shadow, not yet a live consumer.)
+        row): ``B_face = P_inflow ∘ law``.  The Euclidean transpose is therefore
+        ``B_faceᵀ = lawᵀ ∘ P_inflow`` — the INPUT is restricted to the forward's
+        codomain rows and the full ``lawᵀ`` image is written (B.2d d3).
+        Output-projecting ``lawᵀ`` onto the outflow rows instead extracts a
+        law's DIAGONAL block: for the vacuum mask (zero-on-inflow ⊕
+        identity-on-outflow) that spelled a spurious ``+1`` outflow diagonal
+        where the forward is the ZERO map — caught by the A2a grid-reciprocity
+        arm on the het-VACUUM sphere.  Off-diagonal permutation laws
+        (reflective / albedo) are bit-identical under either spelling, which is
+        why every reflective-fixture gate stayed green over the wrong one.
+        (The metric-correct Hilbert adjoint ``B.H`` under ``|Ω·n|·w`` is Wave O
+        step O.2; this Euclidean ``apply_transpose`` is the un-weighted shadow.)
 
         This is the **single source of truth** for the boundary reflection: both
         the full-field :meth:`apply` (lifted onto a zero-bulk carrier) and the
@@ -291,16 +301,30 @@ class SNBoundaryOperator(LinearOperator):
             face_laws = {f: law for f, law in face_laws.items() if f in rows}
         for face, law in face_laws.items():
             face_in = boundary.face_view(face)
-            full = getattr(law, method)(face_in)
-            if rows is not None:
-                target = rows[face]
+            sel = (
+                rows[face] if rows is not None
+                else trace.inflow_indices_for_face(face)
+            )
+            if method == "apply":
+                full = law.apply(face_in)
+                out_boundary.face_view(face)[sel] = full[sel]
             else:
-                target = (
-                    trace.inflow_indices_for_face(face)
-                    if method == "apply"
-                    else trace.outflow_indices_for_face(face)
-                )
-            out_boundary.face_view(face)[target] = full[target]
+                # ``(P_sel ∘ law)ᵀ = lawᵀ ∘ P_sel``: mask the INPUT to the
+                # forward's codomain rows, write the FULL transpose image.
+                # The checked bridge licenses the raw verb (spec §39.1) —
+                # unreachable-in-practice because :attr:`is_adjointable`
+                # gates the composite eagerly, but the per-face raise keeps
+                # the refusal loud if a caller bypasses the predicate.
+                if not adjointable(law):
+                    raise MissingAdjoint(
+                        f"SNBoundaryOperator.apply_transpose: face {face!r} "
+                        f"law {type(law).__name__} has no Euclidean "
+                        f"transpose — reachable only when every face law is "
+                        f"adjointable (see is_adjointable)."
+                    )
+                masked = np.zeros_like(face_in)
+                masked[sel] = face_in[sel]
+                out_boundary.face_view(face)[...] = law.apply_transpose(masked)
         return out_boundary
 
     def _apply_faces(
