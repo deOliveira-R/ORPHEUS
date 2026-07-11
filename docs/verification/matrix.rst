@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6563**
+Total tests collected: **6589**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1187, 18.1%
-   L1, 1080, 16.5%
+   L0, 1187, 18.0%
+   L1, 1080, 16.4%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4206, 64.1%
+   foundation, 4232, 64.2%
    unmarked, 36, 0.5%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6448
+   explicit, 6474
    verify, 0
    class-name, 46
    func-name, 0
@@ -260,7 +260,7 @@ Module × level grid
    mc/test_properties, 24, 0, 0, 0, 0, 0
    mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 26, 0
    mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 34, 0
-   mesh/test_radial_characteristic_split_leaves, 0, 0, 0, 0, 19, 0
+   mesh/test_radial_characteristic_split_leaves, 0, 0, 0, 0, 27, 0
    mesh/test_radial_characteristic_split_spaces, 0, 0, 0, 0, 20, 0
    mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
    mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
@@ -352,7 +352,7 @@ Module × level grid
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
-   operators/test_psi_half_coupling, 0, 0, 0, 0, 59, 0
+   operators/test_psi_half_coupling, 0, 0, 0, 0, 60, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_radial_characteristic_metric, 0, 0, 0, 0, 19, 0
    operators/test_ray_operator, 0, 6, 0, 0, 0, 0
@@ -416,7 +416,7 @@ Module × level grid
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 325, 0
+   test_layer_imports, 0, 0, 0, 0, 327, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -429,7 +429,7 @@ Module × level grid
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 22, 0
-   transport/test_radial_characteristic_composite, 0, 0, 0, 0, 16, 0
+   transport/test_radial_characteristic_composite, 0, 0, 0, 0, 31, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
 
