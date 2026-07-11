@@ -58,6 +58,12 @@ from orpheus.transport.source_sinks.harmonic_moment_source_sink import (
 from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
     RadialCharacteristicSourceSink,
 )
+from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
+    RadialCharacteristicInteriorSourceSink,
+)
+from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
+    RadialCharacteristicBoundarySourceSink,
+)
 
 __all__ = [
     "ScalarSourceSink",
@@ -66,4 +72,6 @@ __all__ = [
     "ScalarBoundarySourceSink",
     "HarmonicMomentSourceSink",
     "RadialCharacteristicSourceSink",
+    "RadialCharacteristicInteriorSourceSink",
+    "RadialCharacteristicBoundarySourceSink",
 ]

@@ -35,11 +35,18 @@ from orpheus.transport.displacements.radial_characteristic_boundary_displacement
 from orpheus.transport.displacements.radial_characteristic_interior_displacement import (
     RadialCharacteristicInteriorDisplacement,
 )
+from orpheus.numerics.units import ANGULAR_FLUX_UNITS, ANGULAR_RATE_UNITS
 from orpheus.transport.fields.radial_characteristic_boundary_flux import (
     RadialCharacteristicBoundaryFlux,
 )
 from orpheus.transport.fields.radial_characteristic_interior_flux import (
     RadialCharacteristicInteriorFlux,
+)
+from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
+    RadialCharacteristicBoundarySourceSink,
+)
+from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
+    RadialCharacteristicInteriorSourceSink,
 )
 from tests.sn._test_helpers import placeholder_materials
 
@@ -117,7 +124,13 @@ class TestSplitLeafConstruction:
 
     @pytest.mark.parametrize("mesh_fn", [_cyl_product, _slab])
     @pytest.mark.parametrize(
-        "cls", [RadialCharacteristicInteriorFlux, RadialCharacteristicBoundaryFlux],
+        "cls",
+        [
+            RadialCharacteristicInteriorFlux,
+            RadialCharacteristicBoundaryFlux,
+            RadialCharacteristicInteriorSourceSink,
+            RadialCharacteristicBoundarySourceSink,
+        ],
     )
     def test_presence_noncarrying_mesh_raises(self, cls, mesh_fn) -> None:
         sn = mesh_fn()
@@ -198,3 +211,50 @@ class TestSplitLeafTorsor:
         b = _rand(RadialCharacteristicInteriorFlux, _sphere(), 12)  # a DIFFERENT mesh
         with pytest.raises(ValueError, match="mesh"):
             _ = a - b
+
+
+# ── The split SourceSink leaves (B.2b b1 — plain vector role per locus) ──
+
+
+class TestSplitSourceSinkLeaves:
+    r"""The q½ source split: plain vector-space leaves over the locus bases.
+
+    Unlike the flux leaves (affine points, ``⊖`` mints displacements), source
+    sums are CLOSED — no role mixin. The Field class-identity gate is what
+    keeps source, flux, and displacement arithmetic from mixing (all roles per
+    locus share the SAME split space, so the class is the gate). The units row
+    pins the B.2b ruling that the split DISSOLVES the unified leaf's
+    documented corner-units deviation into two honest per-locus identities.
+    """
+
+    @pytest.mark.parametrize(
+        "cls",
+        [RadialCharacteristicInteriorSourceSink, RadialCharacteristicBoundarySourceSink],
+    )
+    def test_source_plus_source_stays_source(self, cls) -> None:
+        sn = _sphere()
+        a, b = _rand(cls, sn, 20), _rand(cls, sn, 21)
+        out = a + b
+        if type(out) is not cls:
+            pytest.fail(f"source + source returned {type(out).__name__}")
+        np.testing.assert_array_equal(out.values, a.values + b.values)
+
+    def test_cross_role_sum_is_forbidden(self) -> None:
+        # Source and flux share the SAME interior space — the CLASS identity
+        # (not the space) is the arithmetic gate rejecting the cross-role sum.
+        sn = _sphere()
+        src = _rand(RadialCharacteristicInteriorSourceSink, sn, 22)
+        flx = _rand(RadialCharacteristicInteriorFlux, sn, 23)
+        with pytest.raises(TypeError):
+            _ = src + flx  # type: ignore[operator]
+
+    def test_units_dissolve_the_unified_corner_deviation(self) -> None:
+        r"""Interior cells = volumetric rate (like ``AngularSourceSink``);
+        boundary corner = trace-like flux datum (like
+        ``AngularBoundarySourceSink``) — two honest per-locus identities where
+        the unified leaf carried one identity plus a documented deviation."""
+        if RadialCharacteristicInteriorSourceSink.UNITS is not ANGULAR_RATE_UNITS:
+            pytest.fail("interior q½ cells must carry ANGULAR_RATE_UNITS")
+        if RadialCharacteristicBoundarySourceSink.UNITS is not ANGULAR_FLUX_UNITS:
+            pytest.fail("boundary q½ corner must carry ANGULAR_FLUX_UNITS "
+                        "(the trace convention — no volumetric cm⁻³)")
