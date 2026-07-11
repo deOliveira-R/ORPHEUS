@@ -275,7 +275,7 @@ class TestMultiDOrientationHonesty:
 
     def test_cart2d_H_raises_missing_adjoint_at_construction(self) -> None:
         sn = cart2d_2g_nonsquare()
-        sig_t, _psi = het_operands(sn)
+        sig_t, _psi = het_operands(sn)[:2]
         with pytest.raises(MissingAdjoint):
             _ = StreamingOperator(sn).H
         with pytest.raises(MissingAdjoint):
@@ -286,7 +286,7 @@ class TestMultiDOrientationHonesty:
         ``apply_transpose`` (bypassing ``.H``) still hits the
         representation's loud multi-D deferral raise."""
         sn = cart2d_2g_nonsquare()
-        sig_t, psi = het_operands(sn)
+        sig_t, psi = het_operands(sn)[:2]
         with pytest.raises(NotImplementedError, match="multi-D Cartesian adjoint"):
             _lc(sn, sig_t).apply_transpose(psi)
 

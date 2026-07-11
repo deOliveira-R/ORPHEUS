@@ -114,7 +114,6 @@ def _timed_random_state(sn_mesh: SNMesh, *, history_depth: int, seed: int) -> Ti
     state = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         history_depth=history_depth,
-        radial_characteristic=RadialCharacteristicFlux,
     )
     from dataclasses import replace
 

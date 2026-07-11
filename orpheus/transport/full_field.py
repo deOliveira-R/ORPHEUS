@@ -13,11 +13,16 @@ L2 (transport, method-agnostic). This module holds TWO things:
   ``Composite[AngularFlux, AngularBoundaryFlux]``, diffusion / CP are
   ``Composite[ScalarFlux, ScalarBoundaryFlux]``, MoC its own leaves.
 * :class:`FullField` — the **SN specialization**
-  ``Composite[BulkField, BoundaryField]`` plus the OPTIONAL curvilinear
-  starting-direction (ψ½) third block. This third block is transport-SN
-  -specific; it is a *temporary* extension the coupled-block campaign's Phase B
-  evicts into its own System-B composite (after which ``FullField`` collapses
-  to a pure ``Composite``).
+  ``Composite[BulkField, BoundaryField]``: the generic base with the SN
+  concrete-locus guards (interior is a ``BulkField``, boundary a
+  ``BoundaryField``). A pure two-block composite — the curvilinear
+  starting-direction (ψ½) state that transiently rode here as an optional
+  third block was evicted by the coupled-block campaign's Phase B.2d into
+  its own **System-B** composite
+  (:class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`);
+  on a carrying mesh the driver iterate is the coupled pair
+  ``CoupledField[FullField, RadialCharacteristicComposite]``, never a
+  wider ``FullField``.
 
 Why the interior + boundary split is the right L2 abstraction
 =============================================================
@@ -35,23 +40,22 @@ transport method has the same pair:
 * **CP / MoC / diffusion**: their own interior + boundary leaves
   (diffusion / CP already build ``Composite[ScalarFlux, ScalarBoundaryFlux]``).
 
-The optional starting-direction block (#282 route (a), 2.5d)
-============================================================
+Where the curvilinear ψ½ state lives (#282 route (a) → Phase B.2d)
+==================================================================
 
 On a mesh whose Morel–Montry thread genuinely consumes independent
 starting-direction state (the R12a predicate — the 1-D sphere; see
-:mod:`orpheus.numerics.spaces.radial_characteristic_space`), the SN
-:class:`FullField` carries a THIRD block: the per-level half-angle flux ψ½ as a
-typed :class:`~orpheus.transport.fields._bases.RadialCharacteristicField` leaf.
-This dissolves the #282 back edge — the seed stops being a lagged
-solver-internal estimate and becomes state the operator reads and the solve
-produces. ``radial_characteristic`` is ``None`` exactly when the mesh carries no
-seed level (Cartesian; every production cylinder rule), presence is resolved
-MESH-side by :meth:`FullField.zeros`, and mixed-presence arithmetic raises —
-three spellings of the same illegal-states-unrepresentable discipline. The ψ½
-block lives on the SN subclass, NOT on the generic :class:`Composite`, because
-it is a curvilinear-SN augmentation, not part of every method's interior ⊕
-boundary structure.
+:mod:`orpheus.numerics.spaces.radial_characteristic_space`), the ψ½ ray is
+**System B** — its own ``interior ⊕ boundary``
+:class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`,
+coupled to System A (this ``FullField``) through the named blocks of the
+within-group grid (``A_AB`` Seeding / ``A_BA`` Emission / ``B_b``; see
+:func:`orpheus.sn.coupled_system.build_within_group_system`). The 2.5d
+interim — ψ½ as an optional third block ON this class, with mesh-keyed
+presence and a mixed-presence law — is retired: presence is now
+*existence of System B* (a carrying mesh builds a 2×2 coupled system, a
+seedless one a 1×1), so a seed block on System A's composite is not merely
+illegal, it is unrepresentable.
 
 The cofree-comonad framing (the #217 split)
 ===========================================
@@ -90,9 +94,9 @@ The six vector-space dunders (``+``, ``-``, unary ``-``, scalar ``*``,
 small per-shape hooks — :meth:`Composite._map_binary` (elementwise over two
 operands' blocks) and :meth:`Composite._map_unary` (elementwise over one
 operand's blocks) — then rebuild via the polymorphic :meth:`Composite._recombine`
-hook. A subclass carrying an extra block (:class:`FullField`'s ψ½) overrides ONLY
-those three hooks to thread the extra block; the dunders themselves are never
-duplicated. :class:`~orpheus.transport.timed_full_field.TimedFullField` overrides
+hook. A subclass needing a different rebuild overrides ONLY the hooks; the
+dunders themselves are never duplicated.
+:class:`~orpheus.transport.timed_full_field.TimedFullField` overrides
 :meth:`_recombine` alone to rebuild a ``TimedFullField`` with empty history
 (#217: "algebra results carry empty history"). One definition of the algebra, the
 correct concrete return type for each subclass.
@@ -108,9 +112,9 @@ Grep signal
 ===========
 
 ``Composite`` — the generic *structural* interior ⊕ boundary carrier.
-``FullField`` — the SN specialization (the *full* SN domain, *timeless*), plus
-the optional ψ½ block. Its history-bearing subclass keeps the strong three-token
-grep signal ``TimedFullField`` (Timed + Full + Field).
+``FullField`` — the SN specialization (the *full* SN domain, *timeless*).
+Its history-bearing subclass keeps the strong three-token grep signal
+``TimedFullField`` (Timed + Full + Field).
 
 References
 ==========
@@ -118,12 +122,12 @@ References
 * GH **issue #217** — the timeless-``FullField`` extraction (the composite source
   is the first timeless consumer).
 * ``.claude/plans/coupled_block_operator_campaign.md`` — the ``Composite``
-  generalization (Phase A2) + the ψ½-eviction (Phase B).
+  generalization (Phase A2) + the ψ½ eviction into System B (Phase B.2d).
 * Grand Report v3 §5.5 (Field hierarchy), §5.3 (``DirectSumSpace`` /
   :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`).
 * ``coding-elegance`` Pattern 2 (the algebra lives ONCE in the base via the
   recombine + block-map hooks) + Pattern 5 (``Composite`` is the right primitive;
-  ``FullField`` composes it with the ψ½ block, ``TimedFullField`` with history).
+  ``FullField`` narrows its loci, ``TimedFullField`` composes it with history).
 """
 
 from __future__ import annotations
@@ -137,7 +141,6 @@ from orpheus.numerics.field import Field
 from orpheus.transport.fields._bases import (
     BulkField,
     BoundaryField,
-    RadialCharacteristicField,
 )
 
 if TYPE_CHECKING:
@@ -303,8 +306,7 @@ class Composite(Generic[Interior, Boundary]):
         The polymorphic hook the block-map methods route their result through.
         The base spelling is ``replace(self, ...)`` — provably ``Self`` (and
         ``replace`` re-runs ``__post_init__`` so the block invariants re-fire for
-        free). A subclass carrying an extra block (:class:`FullField`'s ψ½)
-        OVERRIDES this to accept + thread it;
+        free). A subclass needing a different rebuild OVERRIDES this;
         :class:`~orpheus.transport.timed_full_field.TimedFullField` overrides it to
         rebuild a ``TimedFullField`` with an EMPTY history (#217).
         """
@@ -317,9 +319,8 @@ class Composite(Generic[Interior, Boundary]):
         ``other``, then recombine.
 
         The single place a two-operand dunder (``+`` / ``-``) spells its block
-        propagation. A subclass with an extra block overrides this to also
-        combine that block (:class:`FullField` threads ψ½ via
-        :meth:`FullField._combine_radial_characteristic`).
+        propagation. A subclass with a different block structure overrides
+        this to combine its blocks.
         """
         return self._recombine(
             interior=op(self.interior, other.interior),  # type: ignore[arg-type]
@@ -333,8 +334,8 @@ class Composite(Generic[Interior, Boundary]):
         recombine.
 
         The single place a one-operand transform (unary ``-``, scalar ``*`` / ``/``,
-        :meth:`copy`) spells its block propagation. A subclass with an extra block
-        overrides this to also transform that block.
+        :meth:`copy`) spells its block propagation. A subclass with a different
+        block structure overrides this to transform its blocks.
         """
         return self._recombine(
             interior=op(self.interior),  # type: ignore[arg-type]
@@ -411,19 +412,18 @@ class Composite(Generic[Interior, Boundary]):
     def to_flat(self) -> "NDArray":
         r"""Pack the composite blocks into a flat 1-D vector.
 
-        The packed layout is ``[interior.values.ravel(), boundary.values, ...]``
+        The packed layout is ``[interior.values.ravel(), boundary.values]``
         — the direct-sum representation, its ordered blocks supplied by
-        :meth:`_flat_parts` (which a subclass with an extra block overrides). Lives
-        ONCE here; :meth:`from_flat` is its inverse.
+        :meth:`_flat_parts`. Lives ONCE here; :meth:`from_flat` is its
+        inverse.
         """
         return np.concatenate(self._flat_parts())
 
     def _flat_parts(self) -> "list[NDArray]":
         r"""The ordered 1-D block arrays :meth:`to_flat` concatenates.
 
-        Base: ``[interior.values.ravel(), boundary.values]``. A subclass carrying
-        an extra block (:class:`FullField`'s ψ½) overrides to append it, so the
-        flat protocol stays defined ONCE on :class:`Composite`.
+        ``[interior.values.ravel(), boundary.values]`` — the hook exists so
+        the flat protocol stays defined ONCE on :class:`Composite`.
         """
         return [
             self.interior.values.ravel(),
@@ -456,9 +456,8 @@ class Composite(Generic[Interior, Boundary]):
         The instance-hook inverse of :meth:`_flat_parts`: slices
         ``interior | boundary`` from the template layout, rebuilds each leaf with
         the template's ``space`` / ``mesh``, and routes the pair through
-        :meth:`_recombine`. A subclass with an extra block overrides to slice +
-        thread it. Instance method (not classmethod) so the ``Self`` override is
-        Liskov-clean.
+        :meth:`_recombine`. Instance method (not classmethod) so the ``Self``
+        override is Liskov-clean.
         """
         n_interior = self.interior.values.size
         n_boundary = self.boundary.values.size
@@ -493,22 +492,21 @@ class Composite(Generic[Interior, Boundary]):
 
 @dataclass(frozen=True, kw_only=True)
 class FullField(Composite[BulkField, BoundaryField]):
-    r"""The SN composite: ``interior ⊕ boundary`` plus the optional ψ½ block.
+    r"""The SN composite: ``interior ⊕ boundary`` with the SN locus guards.
 
     The :class:`Composite` specialization the SN operator algebra acts on —
     ``interior`` an :class:`~orpheus.transport.fields.angular_flux.AngularFlux`,
     ``boundary`` an
-    :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-    — extended with the OPTIONAL curvilinear starting-direction (ψ½) third block.
+    :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`.
     Bound to the ``BulkField`` / ``BoundaryField`` ABCs (not a single leaf) so the
-    same class serves every SN geometry.
+    same class serves every SN geometry. The whole 2-block algebra — the six
+    dunders, the flat protocol, ``zeros``, ``copy`` — is inherited from the
+    generic base; this class adds ONLY the concrete-locus construction guards.
 
-    See the module docstring for the ψ½ block's role (#282 route (a)) and the
-    cofree-comonad split (:class:`~orpheus.transport.timed_full_field.TimedFullField`).
-    The ψ½ block lives HERE, not on :class:`Composite`, because it is a
-    curvilinear-SN augmentation — the coupled-block campaign's Phase B evicts it
-    into its own System-B composite, after which ``FullField`` is a pure
-    ``Composite``.
+    A curvilinear carrying mesh's ψ½ ray is **System B**, a sibling
+    :class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`
+    coupled through the within-group grid — never a block on this class (the
+    Phase B.2d eviction; see the module docstring).
 
     Parameters
     ----------
@@ -516,67 +514,9 @@ class FullField(Composite[BulkField, BoundaryField]):
         The volumetric / bulk field (typically ``AngularFlux`` for SN).
     boundary : BoundaryField
         The boundary partner field on the trace of ``interior``'s domain.
-    radial_characteristic : RadialCharacteristicField or None
-        The OPTIONAL third block (#282 route (a), campaign phase 2.5d): the
-        per-μ-level starting-direction flux ψ½ of a curvilinear Morel–Montry
-        thread, typed as composite state. ``None`` ⟺ the mesh has NO seed-carrying
-        level (the R12a predicate — Cartesian always; every production cylinder
-        rule; only the sphere carries it today). Presence is MESH-keyed, never
-        caller-keyed: :meth:`zeros` consults the mesh predicate, so a seed block on
-        a Cartesian composite is unrepresentable through the factory.
-        Mixed-presence arithmetic raises (a partner without the block cannot
-        silently drop it).
     """
 
-    #: The optional starting-direction block (#282 route (a)). ``None`` ⟺ the mesh
-    #: carries no seed-carrying level (R12a) — absence is a structural fact of the
-    #: phase space, not a lazily-unfilled slot.
-    radial_characteristic: RadialCharacteristicField | None = None
-
-    # ── Construction (override — the mesh-keyed ψ½ third block) ───────
-
-    @classmethod
-    def zeros(  # type: ignore[override]
-        cls,
-        *,
-        interior: type[BulkField],
-        boundary: type[BoundaryField],
-        mesh: "object",
-        radial_characteristic: type[RadialCharacteristicField] | None = None,
-    ) -> "Self":
-        r"""Allocate a zero SN composite from the leaf TYPES (+ the ψ½ leaf).
-
-        Extends :meth:`Composite.zeros` with the mesh-keyed ψ½ block: the
-        starting-direction leaf is allocated iff ``radial_characteristic`` is
-        given AND ``mesh.radial_characteristic_space`` is non-``None`` (the R12a
-        predicate), so SN call sites pass the class UNIFORMLY across geometries and
-        a Cartesian / cylinder composite still (correctly) carries ``None``.
-        Methods without the concept omit it.
-
-        Parameters
-        ----------
-        interior, boundary : type[BulkField] / type[BoundaryField]
-            The leaf CLASSES to instantiate (must expose ``zeros_on(mesh)``).
-        mesh : object
-            The phase-space carrier passed through to each leaf's ``zeros_on``.
-        radial_characteristic : type[RadialCharacteristicField], optional
-            The starting-direction leaf CLASS (SN passes
-            :class:`~orpheus.transport.fields.radial_characteristic_flux.RadialCharacteristicFlux`
-            for a flux composite, its SourceSink sibling for a source).
-        """
-        seed_leaf: RadialCharacteristicField | None = None
-        if (
-            radial_characteristic is not None
-            and getattr(mesh, "radial_characteristic_space", None) is not None
-        ):
-            seed_leaf = radial_characteristic.zeros_on(mesh)  # type: ignore[arg-type]
-        return cls(
-            interior=interior.zeros_on(mesh),  # type: ignore[attr-defined]
-            boundary=boundary.zeros_on(mesh),  # type: ignore[attr-defined]
-            radial_characteristic=seed_leaf,
-        )
-
-    # ── Construction validation (override — super + ψ½ checks) ────────
+    # ── Construction validation (override — the SN locus narrows) ─────
 
     def __post_init__(self) -> None:
         # System A narrows the generic Composite slots to the SN locus types:
@@ -599,136 +539,3 @@ class FullField(Composite[BulkField, BoundaryField]):
                 f"got {type(self.boundary).__name__}"
             )
         super().__post_init__()
-        if self.radial_characteristic is not None and not isinstance(
-            self.radial_characteristic, RadialCharacteristicField
-        ):
-            raise TypeError(
-                f"{type(self).__name__}: radial_characteristic must be a "
-                f"RadialCharacteristicField leaf or None; got "
-                f"{type(self.radial_characteristic).__name__}"
-            )
-        boundary_mesh = getattr(self.boundary, "mesh", None)
-        if self.radial_characteristic is not None and boundary_mesh is not None:
-            if self.radial_characteristic.mesh is not boundary_mesh:
-                raise ValueError(
-                    f"{type(self).__name__}: radial_characteristic must share "
-                    "mesh identity with interior/boundary; got "
-                    f"radial_characteristic.mesh="
-                    f"{self.radial_characteristic.mesh!r}, "
-                    f"boundary.mesh={boundary_mesh!r}"
-                )
-
-    # ── Hooks (override — thread the ψ½ third block) ──────────────────
-
-    def _recombine(  # type: ignore[override]
-        self,
-        *,
-        interior: BulkField,
-        boundary: BoundaryField,
-        radial_characteristic: RadialCharacteristicField | None,
-    ) -> "Self":
-        r"""Rebuild an SN composite from recombined blocks (interior ⊕ boundary ⊕ ψ½).
-
-        ``radial_characteristic`` is a REQUIRED keyword (no default): every caller
-        must state the recombined third block explicitly, so a caller that forgets
-        it fails loudly instead of silently dropping the seed — the silent-drop bug
-        class the 2.5d carrier gates pin (§16.A A3).
-        """
-        return replace(
-            self,
-            interior=interior,
-            boundary=boundary,
-            radial_characteristic=radial_characteristic,
-        )
-
-    def _map_binary(  # type: ignore[override]
-        self, other: "Composite", op: "Callable[[object, object], object]",
-    ) -> "Self":
-        return self._recombine(
-            interior=op(self.interior, other.interior),  # type: ignore[arg-type]
-            boundary=op(self.boundary, other.boundary),  # type: ignore[arg-type]
-            radial_characteristic=self._combine_radial_characteristic(other, op),
-        )
-
-    def _map_unary(  # type: ignore[override]
-        self, op: "Callable[[object], object]",
-    ) -> "Self":
-        sd = self.radial_characteristic
-        return self._recombine(
-            interior=op(self.interior),  # type: ignore[arg-type]
-            boundary=op(self.boundary),  # type: ignore[arg-type]
-            radial_characteristic=None if sd is None else op(sd),  # type: ignore[arg-type]
-        )
-
-    def _combine_radial_characteristic(
-        self,
-        other: "Composite",
-        combine: "Callable[[object, object], object]",
-    ) -> RadialCharacteristicField | None:
-        r"""Combine the two operands' starting-direction blocks, or ``None``.
-
-        Presence must MATCH: a seeded ⊕ unseeded pair raises — silently dropping
-        (or fabricating) the ψ½ block is exactly the bug class the carrier gates
-        pin (§16.A A3). When both are absent the result is absent; when both are
-        present the combined leaf comes from the member-level algebra (which
-        enforces role / mesh / space exactly as for interior and boundary — e.g.
-        seed ``flux − flux`` mints a ``RadialCharacteristicDisplacement``).
-        """
-        mine = self.radial_characteristic
-        theirs = getattr(other, "radial_characteristic", None)
-        if (mine is None) != (theirs is None):
-            raise ValueError(
-                f"{type(self).__name__} arithmetic with MIXED "
-                f"starting-direction presence: one operand carries the ψ½ block "
-                f"and the other does not (self: {mine is not None}, other: "
-                f"{theirs is not None}). On a seed-carrying mesh (R12a) every "
-                f"composite must carry the block — a partner without it cannot "
-                f"silently drop it."
-            )
-        if mine is None:
-            return None
-        return combine(mine, theirs)  # type: ignore[return-value]
-
-    # ── Flat-vector protocol (override the hooks — the ψ½ tail) ───────
-
-    def _flat_parts(self) -> "list[NDArray]":
-        parts = [
-            self.interior.values.ravel(),
-            self.boundary.values,  # already 1-D (flat trace storage)
-        ]
-        if self.radial_characteristic is not None:
-            parts.append(self.radial_characteristic.values)  # already 1-D
-        return parts
-
-    def _from_flat(self, flat: "NDArray") -> "Self":
-        r"""Rebuild an SN composite from a flat vector (ψ½-aware; self = template).
-
-        Slices ``interior | boundary | ψ½`` from the template layout and routes the
-        rebuilt blocks through :meth:`_recombine`, so a
-        :class:`~orpheus.transport.timed_full_field.TimedFullField` template yields
-        a ``TimedFullField`` with an EMPTY history. The ψ½ tail is present exactly
-        when the template carries the block.
-        """
-        n_interior = self.interior.values.size
-        n_boundary = self.boundary.values.size
-        template_seed = self.radial_characteristic
-        n_seed = 0 if template_seed is None else template_seed.values.size
-        expected_total = n_interior + n_boundary + n_seed
-        if flat.size != expected_total:
-            raise ValueError(
-                f"{type(self).__name__}.from_flat: flat.size = {flat.size} does "
-                f"not match template total size {n_interior} + {n_boundary} + "
-                f"{n_seed} = {expected_total}"
-            )
-        interior_values = flat[:n_interior].reshape(self.interior.values.shape)
-        boundary_values = flat[n_interior : n_interior + n_boundary]
-        new_seed = (
-            None
-            if template_seed is None
-            else replace(template_seed, values=flat[n_interior + n_boundary :])
-        )
-        return self._recombine(
-            interior=replace(self.interior, values=interior_values),
-            boundary=replace(self.boundary, values=boundary_values),
-            radial_characteristic=new_seed,
-        )

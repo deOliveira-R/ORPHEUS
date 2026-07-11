@@ -135,7 +135,15 @@ class SweepOperator(
         carries :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`
         (the 2.5b reverse-scan) — AND that forward is itself adjointable, so
         the two-factor geometry gate rides ``inner.is_adjointable`` (DD-1D
-        yes; LD / multi-D Cartesian defer). The schedule-folded
+        yes; LD / multi-D Cartesian defer) — AND the mesh carries no ψ½ ray
+        (B.2d third factor): on a CARRYING mesh the joint transpose-solve
+        consumes System B's explicit leaf legs
+        (``seed_cot``/``seed_cot_out``), which this wrap-delegate's leg-less
+        ``apply_transpose(b)`` surface cannot thread — the honest joint
+        spelling is the coupled sibling
+        (:meth:`~orpheus.sn.coupled_system.CoupledSweepOperator.apply_transpose`),
+        so the fused wrap refuses EAGERLY here instead of raising mid-apply.
+        The schedule-folded
         :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
         arm has no ``solve_transpose`` (its reverse-scan is the #280 sibling
         deferral — no consumer), so a ``SweepOperator`` over it stays
@@ -146,6 +154,7 @@ class SweepOperator(
         return (
             isinstance(self.inner, InvertibleOperator)
             and self.inner.is_adjointable
+            and self.inner.sn_mesh.radial_characteristic_space is None
         )
 
     def apply_transpose(self, b: "FullField") -> "FullField":

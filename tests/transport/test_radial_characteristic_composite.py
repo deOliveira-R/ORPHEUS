@@ -394,8 +394,9 @@ class TestRadialCharacteristicCompositeSpace:
             pytest.fail("interior member is not THE cached interior split space")
         if space.trace_space is not sn.radial_characteristic_boundary_space:
             pytest.fail("trace member is not THE cached boundary split space")
-        if space.radial_characteristic_space is not None:
-            pytest.fail("System B's own space must carry NO third slot")
+        if hasattr(space, "radial_characteristic_space"):
+            pytest.fail("FullFieldSpace still exposes a third-slot field — "
+                        "the B.2d eviction leaked into the space class")
 
     def test_presence_and_caching(self) -> None:
         if _slab().radial_characteristic_composite_space is not None:
@@ -469,35 +470,11 @@ class TestRadialCharacteristicCompositeSpace:
         if type(out.boundary) is not RadialCharacteristicBoundarySourceSink:
             pytest.fail(f"boundary became {type(out.boundary).__name__}")
 
-    def test_full_field_three_slot_arm_is_byte_identical(self) -> None:
-        r"""The OTHER presence-dispatch arm: a seed-carrying FullField still
-        routes its ψ½ block through the seed space (byte-identity vs the
-        direct leaf-space application — the pre-B.2b behavior)."""
-        from orpheus.transport.fields.angular_boundary_flux import (
-            AngularBoundaryFlux,
-        )
-        from orpheus.transport.fields.angular_flux import AngularFlux
-
-        sn = _sphere()
-        ff = FullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
-            radial_characteristic=RadialCharacteristicFlux,
-        )
-        rng = np.random.default_rng(53)
-        ff.interior.values[...] = rng.random(ff.interior.values.shape)
-        ff.boundary.values[...] = rng.random(ff.boundary.values.shape)
-        if ff.radial_characteristic is None:
-            pytest.fail("sphere FullField must carry the ψ½ block (R12a)")
-        ff.radial_characteristic.values[...] = rng.random(
-            ff.radial_characteristic.values.shape,
-        )
-        out = sn.full_field_space.apply_metric(ff)
-        np.testing.assert_array_equal(
-            out.radial_characteristic.values,
-            sn.radial_characteristic_space.apply_metric(
-                ff.radial_characteristic.values,
-            ),
-        )
+    # ``test_full_field_three_slot_arm_is_byte_identical`` RETIRED at B.2d
+    # d2 with the arm itself: a seed-carrying 3-slot FullField is
+    # unrepresentable (the eviction), so the presence-dispatch arm it pinned
+    # dissolved — the 2-block dispatch above is the ONLY arm, and System B's
+    # metric rides THIS composite space (the member-wise trio rows).
 
     def test_flat_layout_is_coextensive_with_the_space_shape(self) -> None:
         r"""The elegance-carried B.2a reminder, pinned on the REAL members:

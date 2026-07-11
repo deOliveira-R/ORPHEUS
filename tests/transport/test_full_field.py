@@ -353,3 +353,79 @@ class TestPolymorphicRecombine:
             f"-TimedFullField must return a TimedFullField; got "
             f"{type(out).__name__}.",
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# G-d2.2 (B.2d d2) — FullField / TimedFullField / FullFieldSpace /
+# CompositeField are PURE 2-BLOCK: the ray eviction's structural pins
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.foundation
+class TestFullFieldTwoBlock:
+    r"""The B.2d eviction end-state, pinned structurally (G-d2.2): the ψ½
+    ray is System B's own composite — ``FullField`` carries NO
+    ``radial_characteristic`` slot, the factories reject the retired
+    kwarg, the ``CompositeField`` protocol declares only the two blocks,
+    and the recombine hook is 2-kwarg (a stray seed arm — the eviction's
+    leftover bug class — TypeErrors instead of silently threading)."""
+
+    def test_full_field_has_no_ray_slot(self):
+        sn = _slab_mesh()
+        composite = FullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        )
+        if hasattr(composite, "radial_characteristic"):
+            pytest.fail("FullField still exposes a radial_characteristic "
+                        "slot — the B.2d eviction leaked")
+
+    def test_zeros_rejects_the_retired_kwarg(self):
+        from orpheus.transport.fields.radial_characteristic_flux import (
+            RadialCharacteristicFlux,
+        )
+
+        sn = _slab_mesh()
+        with pytest.raises(TypeError):
+            FullField.zeros(
+                interior=AngularFlux, boundary=AngularBoundaryFlux,
+                mesh=sn,
+                radial_characteristic=RadialCharacteristicFlux,
+            )
+        with pytest.raises(TypeError):
+            TimedFullField.zeros(
+                interior=AngularFlux, boundary=AngularBoundaryFlux,
+                mesh=sn,
+                radial_characteristic=RadialCharacteristicFlux,
+            )
+
+    def test_protocol_declares_two_blocks_only(self):
+        from orpheus.numerics.spaces.full_field_space import CompositeField
+
+        members = set(getattr(CompositeField, "__protocol_attrs__", set()))
+        if "radial_characteristic" in members:
+            pytest.fail("the CompositeField protocol still declares the "
+                        "retired ray member")
+        for required in ("interior", "boundary", "_recombine"):
+            if required not in members:
+                pytest.fail(f"the CompositeField protocol lost {required!r}")
+
+    def test_recombine_hook_is_two_kwarg(self):
+        # The G-d2.2 tooth: a caller that threads the retired seed kwarg
+        # (an eviction leftover) fails LOUDLY — the hook takes exactly the
+        # two blocks.
+        sn = _slab_mesh()
+        composite = FullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        )
+        with pytest.raises(TypeError):
+            composite._recombine(
+                interior=composite.interior,
+                boundary=composite.boundary,
+                radial_characteristic=None,
+            )
+        rebuilt = composite._recombine(
+            interior=composite.interior,
+            boundary=composite.boundary,
+        )
+        if type(rebuilt) is not type(composite):
+            pytest.fail("the 2-kwarg recombine changed the concrete type")

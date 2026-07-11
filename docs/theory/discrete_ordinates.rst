@@ -10993,9 +10993,11 @@ composite torsor algebra (flux, source/sink, displacement, residual):
    * - :class:`~orpheus.transport.displacements.radial_characteristic_displacement.RadialCharacteristicDisplacement`
      - the affine displacement between two ψ½ states
      - the composite torsor algebra (2.5d d1)
-   * - :class:`~orpheus.transport.residuals.radial_characteristic_residual.RadialCharacteristicResidual`
-     - the seed block of the typed residual :math:`r = A\psi - q`
-     - :func:`~orpheus.sn.solver.evaluate_residual` (2.5d d3)
+   * - :class:`~orpheus.transport.residuals.radial_characteristic_interior_residual.RadialCharacteristicInteriorResidual`
+       ⊕ :class:`~orpheus.transport.residuals.radial_characteristic_boundary_residual.RadialCharacteristicBoundaryResidual`
+     - System B's typed residual members :math:`r_B = (A\psi)_B - q_B`
+       (the split pair — the unified leaf retired at B.2d d2)
+     - :func:`~orpheus.sn.solver.evaluate_residual`'s coupled arm (B.2d)
 
 **The state metric.**  The inner-product weight of :math:`V_{\rm sd}`
 is the SPD **state metric** :math:`G_{\rm sd} = V_{\rm cell}` — the

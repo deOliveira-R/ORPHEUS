@@ -72,6 +72,10 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
         scattering_order=0, max_inner=10, inner_tol=1e-13,
     )
     q_ext = _build_fixed_source_rhs(Q, sn_mesh)
+    # B.2d: on a carrying mesh the rhs builder returns the coupled pair —
+    # this probe reads System A's member (the q½ member is A_BB's rhs).
+    if hasattr(q_ext, "systems"):
+        q_ext = q_ext.systems[0]
     # B.2d: the triple retired into build_within_group_system; this fused
     # 3-block probe reads the production surfaces directly. B = B_a alone is
     # bit-identical here: on vacuum cases the ray-corner B_b term is exactly
@@ -90,15 +94,29 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     )
     psi_ref = TimedFullField(
         interior=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,
-        # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed of the MMS
-        # trial (the trial's own μ = −1 starting datum), so LC.apply reproduces
-        # the pre-route-(a) operator action and the residual decays as before;
-        # None on non-carrying meshes.
-        radial_characteristic=radial_characteristic_edge_seed(vals, sn_mesh),
     )
+    # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed of the
+    # MMS trial (the trial's own μ = −1 starting datum) rides the walk's
+    # EXPLICIT flux leg, so LC.apply reproduces the pre-route-(a) operator
+    # action and the residual decays as before; no legs on non-carrying.
+    seed_leg = radial_characteristic_edge_seed(vals, sn_mesh)
+    if seed_leg is None:
+        lc_out = LC.apply(psi_ref)
+    else:
+        from orpheus.transport.source_sinks import (
+            RadialCharacteristicSourceSink,
+        )
+
+        lc_out = LC.apply(
+            psi_ref,
+            radial_characteristic_flux=seed_leg,
+            radial_characteristic_source=(
+                RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+            ),
+        )
 
     rv = (
-        LC.apply(psi_ref).interior.values
+        lc_out.interior.values
         - S.apply(psi_ref).interior.values
         - B.apply(psi_ref).interior.values
         - q_ext.interior.values

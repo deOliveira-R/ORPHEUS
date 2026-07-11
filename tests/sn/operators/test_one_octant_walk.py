@@ -55,7 +55,7 @@ def test_sweep_and_loss_action_hit_one_octant_walk(monkeypatch):
     monkeypatch.setattr(_OctantWalk, "_interior_walk", spy)
 
     sn = cart2d_2g_nonsquare()
-    sig_t, psi = het_operands(sn)
+    sig_t, psi = het_operands(sn)[:2]
     L = StreamingOperator(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
     A = L + C
@@ -142,7 +142,7 @@ def test_both_matvec_variants_share_the_walk(monkeypatch):
     monkeypatch.setattr(_OctantWalk, "_interior_walk", spy)
 
     sn = cart2d_2g_nonsquare()
-    sig_t, psi = het_operands(sn)
+    sig_t, psi = het_operands(sn)[:2]
 
     for rep_cls in (MovingFrontierWindow, ScanMarch):
         hits.clear()

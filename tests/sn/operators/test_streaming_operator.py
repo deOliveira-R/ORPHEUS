@@ -137,7 +137,7 @@ def _random_composite(sn_mesh, seed=171):
     from dataclasses import replace
 
     rng = np.random.default_rng(seed)
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     bulk_values = rng.standard_normal(state.interior.values.shape)
     boundary_values = 0.1 + rng.random(state.boundary.values.shape)
     state = replace(state, interior=replace(state.interior, values=bulk_values))
@@ -266,7 +266,7 @@ class TestLinearity:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh, ng=2)
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         out = L.apply(state)
         np.testing.assert_allclose(out.interior.values, 0.0, atol=1e-14)
         np.testing.assert_allclose(out.boundary.values, 0.0, atol=1e-14)
@@ -420,7 +420,7 @@ class TestCompositeInvariants:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         out = L.apply(state)
         np.testing.assert_array_equal(out.interior.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -442,7 +442,7 @@ class TestCompositeInvariants:
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth, radial_characteristic=RadialCharacteristicFlux)
+            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out = L.apply(state)
             if type(out) is not FullField or isinstance(out, TimedFullField):
                 pytest.fail(
@@ -482,7 +482,7 @@ class TestCompositeInvariants:
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
 
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         out = L.apply(state)
 
         # base-arrow codomain: a timeless FullField, NOT the timed subclass.
@@ -679,7 +679,7 @@ class TestT4bPreT4RegressionSnapshot:
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
@@ -688,14 +688,26 @@ class TestT4bPreT4RegressionSnapshot:
                 values=rng.uniform(0.05, 1.0, size=state.interior.values.shape),
             ),
         )
-        # #282 route (a): on a carrying mesh (sphere) the CONSISTENT edge-
-        # extrapolated ψ½ seed reproduces the pre-route-(a) internally-computed
-        # seed, so L.apply reproduces the frozen snapshot value; None on
-        # non-carrying meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
+        # #282 route (a) → B.2d: on a carrying mesh (sphere) the CONSISTENT
+        # edge-extrapolated ψ½ seed reproduces the pre-route-(a) internally-
+        # computed seed THROUGH the walk's explicit flux leg, so L.apply
+        # reproduces the frozen snapshot value; no legs on non-carrying
+        # meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
         sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
         if sd is not None:
-            state = replace(state, radial_characteristic=sd)
-        out = L.apply(state)
+            from orpheus.transport.source_sinks import (
+                RadialCharacteristicSourceSink,
+            )
+
+            out = L.apply(
+                state,
+                radial_characteristic_flux=sd,
+                radial_characteristic_source=(
+                    RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+                ),
+            )
+        else:
+            out = L.apply(state)
         return out.interior.values.copy(), out.boundary.values.copy()
 
     def _assert_arm(self, snapshots, *, tag: str, mesh: SNMesh, seed: int) -> None:
@@ -884,7 +896,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
@@ -893,14 +905,26 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
                 values=rng.uniform(0.05, 1.0, size=state.interior.values.shape),
             ),
         )
-        # #282 route (a): on a carrying mesh (sphere) the CONSISTENT edge-
-        # extrapolated ψ½ seed reproduces the pre-route-(a) internally-computed
-        # seed, so L.apply reproduces the frozen snapshot value; None on
-        # non-carrying meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
+        # #282 route (a) → B.2d: on a carrying mesh (sphere) the CONSISTENT
+        # edge-extrapolated ψ½ seed reproduces the pre-route-(a) internally-
+        # computed seed THROUGH the walk's explicit flux leg, so L.apply
+        # reproduces the frozen snapshot value; no legs on non-carrying
+        # meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
         sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
         if sd is not None:
-            state = replace(state, radial_characteristic=sd)
-        out = L.apply(state)
+            from orpheus.transport.source_sinks import (
+                RadialCharacteristicSourceSink,
+            )
+
+            out = L.apply(
+                state,
+                radial_characteristic_flux=sd,
+                radial_characteristic_source=(
+                    RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+                ),
+            )
+        else:
+            out = L.apply(state)
         return out.interior.values.copy(), out.boundary.values.copy()
 
     def test_sphere_1g_apply_bit_identical(self, snapshots):

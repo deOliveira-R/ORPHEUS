@@ -1,45 +1,48 @@
-r"""§16.A — the starting-direction CARRIER intrinsic gates (2.5d d1, #282 route (a)).
+r"""§16.A — the starting-direction PRESENCE + space intrinsic gates (post-B.2d).
 
-Algebraic carrier laws for the ψ½ block of the augmented composite
-:math:`V = V_{\rm bulk} \oplus V_{\rm trace} \oplus V_{\rm sd}` — the
-gate spec is ``a3_solve_transpose_verification.md`` §16.A, with A1
-re-ruled by **R12a** (presence iff the level's first-ordinate raw M-M
-weight ``τ_raw ∈ (0, 1)`` exclusive — supersedes both the R12 letter's
-μ-node-membership spelling AND §16.A A1's original cylinder-HAS leg):
+The 2.5d-era §16.A carrier-law suite pinned the ψ½ block's life ON the
+3-block augmented composite (presence-keyed ``zeros``, the mixed-presence
+law, the flat seed tail, the seed metric arms of ``FullFieldSpace``). The
+B.2d ray eviction dissolved that carrier: ``FullField`` is a pure 2-block
+composite and System B is its own
+:class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`,
+so the LAW tests retired with the law and the surviving content here is the
+**presence FACTS** (the R12a trichotomy, re-homed as System-B EXISTENCE) and
+the **unified-space intrinsics** (layout views, the ``G_sd = V_cell`` state
+metric) that the walk currency still rides:
 
-* **A1** — R12a presence pinned BOTH ways: the sphere-GL composite HAS
-  the block (1 level); the cylinder (BOTH production rules — the
-  level-symmetric one is the R12a discriminator: μ_start ∉ its μ-nodes,
-  yet τ_raw = 1.0 bit-exact makes the seed dead) and Cartesian (1-D and
-  2-D) MUST NOT. The chosen absent-spelling is pinned positively:
-  mesh predicate → ``None`` space → ``zeros`` omits the block → the
-  leaf factory RAISES.
-* **A2** — to_flat/from_flat round-trip INCLUDING the seed tail +
-  the flat-length pin + the drop-slice mutation teeth (a serializer
-  that silently truncates the block reddens BOTH legs).
-* **A3** — zeros / algebra closure threads the block through every
-  composite operation (additive source algebra; the flux torsor triple
-  ``ψ⊖ψ → Δ`` / ``ψ⊕Δ → ψ`` / ``ψ+ψ → ⊥``; mixed presence raises —
-  the anti-silent-drop law; ``advance`` presence law; ``copy``).
-* **A4** — the STATE-METRIC gates (INVERTED from the former
-  ghost-metric scope): the seed weights ARE ``G_sd = V_cell`` (SPD),
-  ``apply_metric`` SCALES the block by ``V_cell`` and
-  ``apply_inverse_metric`` DIVIDES by it (no masking — empty null
-  space) while leaving bulk/trace bit-identical to the unseeded twin,
-  and ``inner_product`` receives a NONZERO ``Σ V_cell·x·y`` seed term.
+* **A1** — R12a presence pinned BOTH ways, as System-B existence: the
+  sphere-GL mesh carries the space (1 level) and CONSTRUCTS System B; the
+  cylinder (BOTH production rules — the level-symmetric one is the R12a
+  discriminator: μ_start ∉ its μ-nodes, yet τ_raw = 1.0 bit-exact makes the
+  seed dead) and Cartesian (1-D and 2-D) MUST NOT — the space is ``None``,
+  the leaf factory raises, System B is unconstructable, and the 2-block
+  composite factories REJECT the retired ``radial_characteristic=`` kwarg
+  outright (the G-d2.2 mesh-side tooth: an eviction that left a seed arm
+  behind reds here).
+* **A4** — the unified space's STATE metric ``G_sd = V_cell`` (SPD) — the
+  space-level fact, unchanged by the eviction. Its COMPOSITE realization
+  (the member-wise metric dispatch) lives on System B's own composite space
+  (``sn.radial_characteristic_composite_space``), gated below against the
+  same ``V_cell``/corner-gauge numbers.
 
-.. note:: **Mode-12 is CLOSED for the seed rows.** The ghost
-   ``G_sd = 0`` put the seed rows inside the G-reciprocity functional's
-   invariance group (identically blind to a seed-row transpose error —
-   the false-green this A4 class used to pin); the ``G_sd = V_cell``
-   fix moves them OUT of it. The Mode-12-CLOSURE gate — a seed-row flip
-   now REDS G-reciprocity while the UNMUTATED nonzero-seed reciprocity
-   holds — lives at
-   :func:`tests.sn.sweep.curvilinear.test_282_direct_seed_fixed_point.test_mode12_g_reciprocity_catches_a_seed_row_flip`
-   (production path) and the promoted ``diag_gsd_02`` dense sweep
-   (canonical). See the derivation-of-record
-   ``radial_characteristic_metric_gauge_derivation.md`` and
-   :mod:`orpheus.numerics.spaces.radial_characteristic_space`.
+Retirement ledger (B.2d d2 — where each retired class's claim went):
+
+* **A2 (flat round-trip incl. the seed tail)** — the 3-block layout is
+  unrepresentable; the 2-block round trip is the base composite law
+  (``tests/transport/test_composite.py``) and the COUPLED round trip +
+  coverage is G-c2.4 (``test_psi_half_coupling::TestCoupledBuilder``).
+* **A3 (algebra closure threading the seed; the mixed-presence law; the
+  ``advance`` presence law)** — the seed-threading arms are unspellable;
+  System B's own 2-block algebra closure lives in
+  ``tests/transport/test_radial_characteristic_composite.py``; the
+  mixed-presence and advance presence LAWS retired with the block (their
+  raise sites are gone — presence is System-B existence, G-c2.2).
+* **A4's FullFieldSpace seed arms** (apply_metric/apply_inverse_metric/
+  inner_product seed terms + the mixed-presence raise + the illegal
+  pairing) — the space is 2-block; System B's metric rides its OWN
+  composite-space instance (gated here) and the coupled G-reciprocity is
+  G-c2.5.
 
 vv Mode-8 discipline: ``np.testing.assert_*`` / ``pytest.raises`` only
 (no bare ``assert`` on numerical claims — the canonical invocation is
@@ -47,8 +50,6 @@ vv Mode-8 discipline: ``np.testing.assert_*`` / ``pytest.raises`` only
 """
 
 from __future__ import annotations
-
-from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -60,12 +61,9 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
-from orpheus.transport.displacements import RadialCharacteristicDisplacement
 from orpheus.transport.full_field import FullField
-from orpheus.transport.source_sinks import (
-    AngularBoundarySourceSink,
-    AngularSourceSink,
-    RadialCharacteristicSourceSink,
+from orpheus.transport.radial_characteristic_composite import (
+    RadialCharacteristicComposite,
 )
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import cart2d_2g_nonsquare, placeholder_materials
@@ -118,52 +116,8 @@ def _slab() -> SNMesh:
     return _mesh_1d(CoordSystem.CARTESIAN, Quadrature.gauss_legendre(4))
 
 
-def _seeded_flux_composite(sn: SNMesh, seed: int = 20260704) -> TimedFullField:
-    """A random seed-carrying flux composite on ``sn`` (must be sphere)."""
-    z = TimedFullField.zeros(
-        interior=AngularFlux,
-        boundary=AngularBoundaryFlux,
-        mesh=sn,
-        radial_characteristic=RadialCharacteristicFlux,
-    )
-    rng = np.random.default_rng(seed)
-    assert z.radial_characteristic is not None  # builder precondition, not a gate
-    return z._recombine(
-        interior=replace(z.interior, values=rng.normal(size=z.interior.values.shape)),
-        boundary=replace(
-            z.boundary, values=rng.normal(size=z.boundary.values.shape),
-        ),
-        radial_characteristic=replace(
-            z.radial_characteristic,
-            values=rng.normal(size=z.radial_characteristic.values.shape),
-        ),
-    )
-
-
-def _seeded_source_composite(sn: SNMesh, seed: int) -> FullField:
-    """A random seed-carrying SOURCE composite (additive role algebra)."""
-    z = FullField.zeros(
-        interior=AngularSourceSink,
-        boundary=AngularBoundarySourceSink,
-        mesh=sn,
-        radial_characteristic=RadialCharacteristicSourceSink,
-    )
-    rng = np.random.default_rng(seed)
-    assert z.radial_characteristic is not None
-    return z._recombine(
-        interior=replace(z.interior, values=rng.normal(size=z.interior.values.shape)),
-        boundary=replace(
-            z.boundary, values=rng.normal(size=z.boundary.values.shape),
-        ),
-        radial_characteristic=replace(
-            z.radial_characteristic,
-            values=rng.normal(size=z.radial_characteristic.values.shape),
-        ),
-    )
-
-
 # ═══════════════════════════════════════════════════════════════════════
-# A1 — R12a presence, pinned BOTH ways
+# A1 — R12a presence, pinned BOTH ways (as System-B existence, B.2d)
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -179,19 +133,34 @@ class TestA1PresenceR12a:
         np.testing.assert_array_equal(space.shape, (expected,))
         np.testing.assert_array_equal(space.levels, (0,))
 
+    def test_sphere_constructs_system_b(self):
+        """The presence FACT, re-homed (B.2d): a carrying mesh's System B
+        EXISTS — the member composite constructs presence-gated, its
+        composite member space is cached and 2-block-consistent."""
+        sn = _sphere()
+        ray = RadialCharacteristicComposite.from_mesh(sn)
+        np.testing.assert_array_equal(ray.to_flat(), 0.0)
+        cspace = sn.radial_characteristic_composite_space
+        if cspace is None:
+            pytest.fail("carrying mesh must cache the System-B member space")
+        np.testing.assert_array_equal(
+            ray.to_flat().size, int(np.prod(cspace.shape)),
+        )
+
     @pytest.mark.parametrize(
         "builder",
         [_cyl_level_symmetric, _cyl_product, _slab, cart2d_2g_nonsquare],
         ids=["cyl_level_symmetric", "cyl_product", "slab", "cart2d"],
     )
-    def test_non_carrying_meshes_have_no_block(self, builder):
+    def test_non_carrying_meshes_have_no_system_b(self, builder):
         """Absent-on-non-carrying, pinned positively (a future leak REDS here).
 
         The cylinder-LS row is the R12a discriminator: the R12 letter
         (μ_start ∉ μ-nodes) fires on it, so THIS row is what pins the
         refined predicate — a re-spelling back to node membership grows
         dead seed blocks on every level-symmetric cylinder and reds
-        this gate.
+        this gate. B.2d: absence is SYSTEM-B NON-EXISTENCE (space None,
+        leaf factory raises, the composite unconstructable).
         """
         sn = builder()
         np.testing.assert_array_equal(sn.radial_characteristic_levels, ())
@@ -200,54 +169,47 @@ class TestA1PresenceR12a:
                 f"{builder.__name__}: non-carrying mesh must have "
                 f"radial_characteristic_space None (R12a)"
             )
-        z = TimedFullField.zeros(
-            interior=AngularFlux,
-            boundary=AngularBoundaryFlux,
-            mesh=sn,
-            radial_characteristic=RadialCharacteristicFlux,  # passed UNIFORMLY
-        )
-        if z.radial_characteristic is not None:
+        if sn.radial_characteristic_composite_space is not None:
             pytest.fail(
-                "composite factory must omit the ψ½ block on a "
-                "non-carrying mesh even when the leaf class is passed"
+                f"{builder.__name__}: non-carrying mesh must have NO "
+                f"System-B member space"
             )
         with pytest.raises(ValueError, match="no starting-direction"):
             RadialCharacteristicFlux.zeros_on(sn)
+        with pytest.raises(
+            ValueError, match="no radial_characteristic_interior_space",
+        ):
+            RadialCharacteristicComposite.from_mesh(sn)
 
-    def test_sphere_composite_zeros_carry_typed_block(self):
-        sn = _sphere()
-        z = TimedFullField.zeros(
-            interior=AngularFlux,
-            boundary=AngularBoundaryFlux,
-            mesh=sn,
-            radial_characteristic=RadialCharacteristicFlux,
-        )
-        sd = z.radial_characteristic
-        if not isinstance(sd, RadialCharacteristicFlux):
-            pytest.fail(f"expected RadialCharacteristicFlux, got {type(sd)}")
-        np.testing.assert_array_equal(sd.values, 0.0)
-        np.testing.assert_array_equal(sd.cells(0, -1).shape, (sn.ng, 4))
-        np.testing.assert_array_equal(sd.cells(0, +1).shape, (sn.ng, 4))
-        np.testing.assert_array_equal(sd.corner(0, -1).shape, (sn.ng,))
-        np.testing.assert_array_equal(sd.corner(0, +1).shape, (sn.ng,))
+    @pytest.mark.parametrize(
+        "builder", [_sphere, _slab], ids=["sphere", "slab"],
+    )
+    def test_composite_factories_reject_the_retired_seed_kwarg(self, builder):
+        """G-d2.2 (mesh side): the 2-block factories REJECT a
+        ``radial_characteristic=`` kwarg outright — on EVERY mesh, carrying
+        included (the eviction left no seed arm; a revived arm reds here)."""
+        sn = builder()
+        with pytest.raises(TypeError):
+            FullField.zeros(
+                interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+                radial_characteristic=RadialCharacteristicFlux,
+            )
+        with pytest.raises(TypeError):
+            TimedFullField.zeros(
+                interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+                radial_characteristic=RadialCharacteristicFlux,
+            )
 
-    def test_full_field_space_third_block_keyed_by_presence(self):
-        """The composite SPACE grows by exactly the seed size on the sphere
-        and is unchanged on non-carrying meshes."""
-        sn = _sphere()
-        seed_space = sn.radial_characteristic_space
-        assert seed_space is not None  # narrowing (A1 sphere gate above pins it)
-        n_interior = sn.quad.N * sn.ng * 4
-        n_trace = sn.angular_trace.shape[0]
-        np.testing.assert_array_equal(
-            sn.full_field_space.shape,
-            (n_interior + n_trace + seed_space.shape[0],),
-        )
-        slab = _slab()
-        np.testing.assert_array_equal(
-            slab.full_field_space.shape,
-            (slab.quad.N * slab.ng * 4 + slab.angular_trace.shape[0],),
-        )
+    def test_full_field_space_is_two_block_everywhere(self):
+        """G-d2.2 (space side): System A's composite space is the honest
+        bulk ⊕ trace sum on EVERY mesh — the sphere's seed DOFs live on
+        System B's OWN member space, never as a third block here."""
+        for sn in (_sphere(), _slab()):
+            n_interior = sn.quad.N * sn.ng * 4
+            n_trace = sn.angular_trace.shape[0]
+            np.testing.assert_array_equal(
+                sn.full_field_space.shape, (n_interior + n_trace,),
+            )
 
     def test_views_alias_one_flat_backing(self):
         """cells/corner are slice VIEWS — writing through them mutates the
@@ -290,211 +252,29 @@ class TestA1PresenceR12a:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# A2 — flat round-trip including the seed tail (+ the mutation teeth)
-# ═══════════════════════════════════════════════════════════════════════
-
-
-class TestA2FlatRoundTrip:
-    def test_round_trip_identity_and_length(self):
-        sn = _sphere()
-        x = _seeded_flux_composite(sn)
-        assert x.radial_characteristic is not None
-        flat = x.to_flat()
-        expected_len = (
-            x.interior.values.size
-            + x.boundary.values.size
-            + x.radial_characteristic.values.size
-        )
-        np.testing.assert_array_equal(flat.size, expected_len)
-        y = FullField.from_flat(flat, x)
-        np.testing.assert_array_equal(y.interior.values, x.interior.values)
-        np.testing.assert_array_equal(y.boundary.values, x.boundary.values)
-        assert y.radial_characteristic is not None
-        np.testing.assert_array_equal(
-            y.radial_characteristic.values, x.radial_characteristic.values,
-        )
-        if type(y) is not TimedFullField:
-            pytest.fail("template type must be preserved through from_flat")
-
-    def test_seed_tail_layout_is_the_trailing_block(self):
-        """The flat layout is [bulk, trace, seed] — pin the tail slice."""
-        sn = _sphere()
-        x = _seeded_flux_composite(sn)
-        assert x.radial_characteristic is not None
-        flat = x.to_flat()
-        n_head = x.interior.values.size + x.boundary.values.size
-        np.testing.assert_array_equal(
-            flat[n_head:], x.radial_characteristic.values,
-        )
-
-    def test_mutation_teeth_dropped_seed_slice_reds_both_legs(self, monkeypatch):
-        """MUTATION (in-process, per the mutation-hygiene rule): a to_flat
-        that silently truncates the ψ½ block breaks (a) the length pin and
-        (b) from_flat's size guard — proving the block is genuinely
-        serialized, not decorative."""
-        sn = _sphere()
-        x = _seeded_flux_composite(sn)
-        assert x.radial_characteristic is not None
-
-        def _two_block_to_flat(self):  # the pre-2.5d serializer
-            return np.concatenate([
-                self.interior.values.ravel(), self.boundary.values,
-            ])
-
-        monkeypatch.setattr(FullField, "to_flat", _two_block_to_flat)
-        mutated = x.to_flat()
-        expected_len = (
-            x.interior.values.size
-            + x.boundary.values.size
-            + x.radial_characteristic.values.size
-        )
-        if mutated.size == expected_len:
-            pytest.fail("mutation did not bite — the teeth probe is broken")
-        with pytest.raises(ValueError, match="does not match template"):
-            FullField.from_flat(mutated, x)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# A3 — zeros / algebra closure threads the block
-# ═══════════════════════════════════════════════════════════════════════
-
-
-class TestA3AlgebraClosure:
-    def test_source_composite_additive_algebra(self):
-        """SourceSink composites are a genuine vector space — every
-        operation threads the seed block exactly leaf-wise."""
-        sn = _sphere()
-        a = _seeded_source_composite(sn, 1)
-        b = _seeded_source_composite(sn, 2)
-        assert a.radial_characteristic is not None
-        assert b.radial_characteristic is not None
-        av, bv = a.radial_characteristic.values, b.radial_characteristic.values
-        s = a + b
-        assert s.radial_characteristic is not None
-        np.testing.assert_array_equal(s.radial_characteristic.values, av + bv)
-        d = a - b
-        assert d.radial_characteristic is not None
-        np.testing.assert_array_equal(d.radial_characteristic.values, av - bv)
-        n = -a
-        assert n.radial_characteristic is not None
-        np.testing.assert_array_equal(n.radial_characteristic.values, -av)
-        m = 2.5 * a
-        assert m.radial_characteristic is not None
-        np.testing.assert_array_equal(m.radial_characteristic.values, 2.5 * av)
-        q = a / 4.0
-        assert q.radial_characteristic is not None
-        np.testing.assert_array_equal(q.radial_characteristic.values, av / 4.0)
-        # role closure: the summed block keeps the SourceSink role
-        if type(s.radial_characteristic) is not RadialCharacteristicSourceSink:
-            pytest.fail("source algebra must stay in the SourceSink role")
-
-    def test_flux_torsor_triple_threads_the_seed(self):
-        sn = _sphere()
-        psi1 = _seeded_flux_composite(sn, 11)
-        psi2 = _seeded_flux_composite(sn, 12)
-        assert psi1.radial_characteristic is not None
-        assert psi2.radial_characteristic is not None
-        # ψ ⊖ ψ → displacement composite (seed block mints its sibling)
-        delta = psi2 - psi1
-        if type(delta.radial_characteristic) is not RadialCharacteristicDisplacement:
-            pytest.fail(
-                f"flux ⊖ flux must mint RadialCharacteristicDisplacement; got "
-                f"{type(delta.radial_characteristic).__name__}"
-            )
-        np.testing.assert_array_equal(
-            delta.radial_characteristic.values,
-            psi2.radial_characteristic.values - psi1.radial_characteristic.values,
-        )
-        # ψ ⊕ Δ → flux. The THREADING pin is bitwise (the block computes
-        # exactly ψ₁ ⊕ Δ leaf-wise); the torsor LAW ψ₁ ⊕ (ψ₂ ⊖ ψ₁) = ψ₂
-        # holds to FP round-off only (a + (b − a) ≠ b bitwise).
-        recovered = psi1 + delta
-        if type(recovered.radial_characteristic) is not RadialCharacteristicFlux:
-            pytest.fail("torsor action must return the flux role")
-        np.testing.assert_array_equal(
-            recovered.radial_characteristic.values,
-            psi1.radial_characteristic.values + delta.radial_characteristic.values,
-        )
-        np.testing.assert_allclose(
-            recovered.radial_characteristic.values,
-            psi2.radial_characteristic.values,
-            rtol=0.0, atol=1e-15,
-        )
-        # ψ + ψ → ⊥ (the affine gate — raised by the leaf algebra)
-        with pytest.raises(TypeError, match="cannot add two"):
-            psi1 + psi2
-
-    @pytest.mark.parametrize("op", ["add", "sub"], ids=["add", "sub"])
-    def test_mixed_presence_raises(self, op):
-        """The anti-silent-drop law: a seeded ⊕ unseeded pair is an ERROR,
-        never a silent drop of the ψ½ block (§16.A A3's feared bug)."""
-        sn = _sphere()
-        a = _seeded_source_composite(sn, 21)
-        unseeded = FullField(interior=a.interior, boundary=a.boundary)
-        with pytest.raises(ValueError, match="MIXED starting-direction"):
-            (a + unseeded) if op == "add" else (a - unseeded)
-        with pytest.raises(ValueError, match="MIXED starting-direction"):
-            (unseeded + a) if op == "add" else (unseeded - a)
-
-    def test_advance_presence_law_and_snapshot(self):
-        sn = _sphere()
-        psi = _seeded_flux_composite(sn, 31)
-        assert psi.radial_characteristic is not None
-        new = _seeded_flux_composite(sn, 32)
-        assert new.radial_characteristic is not None
-        adv = psi.advance(new.interior, new.boundary, new.radial_characteristic)
-        assert adv.radial_characteristic is not None
-        np.testing.assert_array_equal(
-            adv.radial_characteristic.values, new.radial_characteristic.values,
-        )
-        lag1 = adv.at_lag(1)
-        assert lag1.radial_characteristic is not None
-        np.testing.assert_array_equal(
-            lag1.radial_characteristic.values, psi.radial_characteristic.values,
-        )
-        with pytest.raises(TypeError, match="presence must match"):
-            psi.advance(new.interior, new.boundary)  # dropping the block
-
-    def test_copy_owns_the_seed_block(self):
-        sn = _sphere()
-        x = _seeded_flux_composite(sn, 41)
-        assert x.radial_characteristic is not None
-        c = x.copy()
-        assert c.radial_characteristic is not None
-        np.testing.assert_array_equal(
-            c.radial_characteristic.values, x.radial_characteristic.values,
-        )
-        if np.shares_memory(c.radial_characteristic.values, x.radial_characteristic.values):
-            pytest.fail("copy must own its seed ndarray (no aliasing)")
-
-    def test_cross_mesh_seed_arithmetic_rejected(self):
-        """Mesh-bound discipline on the new leaf (the BulkField guard law)."""
-        a = RadialCharacteristicFlux.zeros_on(_sphere())
-        b = RadialCharacteristicFlux.zeros_on(_sphere())
-        with pytest.raises(ValueError, match="distinct SNMesh"):
-            a - b
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# A4 — the ghost metric: honest-scope gates (d1-landable part)
+# A4 — the ψ½ STATE metric G_sd = V_cell (SPD): the space-level fact +
+# its System-B composite realization
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestA4SeedStateMetricVcell:
-    r"""A4 (INVERTED) — the ψ½ STATE metric is ``G_sd = V_cell`` (SPD), NOT
-    the ghost zero.  The starting-direction ray is a first-class radial STATE
-    field (its self-block ``A_ss`` is a banded radial transport operator, not
-    a grazing angular face — diag_gsd_05), so its Hilbert metric is the radial
+    r"""A4 — the ψ½ STATE metric is ``G_sd = V_cell`` (SPD), NOT the ghost
+    zero.  The starting-direction ray is a first-class radial STATE field
+    (its self-block ``A_BB`` is a banded radial transport operator, not a
+    grazing angular face — diag_gsd_05), so its Hilbert metric is the radial
     cell volume, mirroring the bulk ``G_bulk = V_cell·w_n``.  The ghost
     ``G_sd = 0`` was the single FORBIDDEN value: it puts the seed in null(G),
-    severing the seed→bulk ``A_bs`` coupling from ``A.H`` — a WRONG adjoint
-    for any nonzero seed (production defect 1.3e-2; derivation-of-record +
-    diag_gsd_02/03).  These four gates were the green-but-blind ghost gates;
-    inverted to the V_cell reality.
+    severing the seed→bulk coupling from ``A.H`` — a WRONG adjoint for any
+    nonzero seed (production defect 1.3e-2; derivation-of-record +
+    diag_gsd_02/03).
 
-    Object-level (vv Mode-12): assert on the weight ARRAY and the scaled
-    block values directly — NEVER via a downstream scalar (a scalar
-    functional can lie in the metric's invariance group).
+    B.2d: the metric's COMPOSITE realization rides System B's OWN member
+    space (the member-wise dispatch of the family-blind composite-space
+    class); the coupled G-reciprocity it feeds is G-c2.5.
+
+    Object-level (vv Mode-12): assert on the weight ARRAY directly — NEVER
+    via a downstream scalar (a scalar functional can lie in the metric's
+    invariance group).
     """
 
     def test_seed_weights_are_v_cell_spd(self):
@@ -520,91 +300,30 @@ class TestA4SeedStateMetricVcell:
             pytest.fail(f"state metric must be SPD (strictly positive); got "
                         f"min {float(w.min()):.3e} — the forbidden ghost value")
 
-    def test_apply_metric_scales_seed_by_v_cell_and_leaves_bulk_trace(self):
-        r"""``G⊙x`` SCALES the ψ½ block by ``V_cell`` (not zero); bulk/trace
-        stay BIT-IDENTICAL to the unseeded twin's (the metric is
-        block-diagonal — the seed block changes nothing outside itself)."""
+    def test_composite_member_metric_matches_the_unified_gauge(self):
+        r"""System B's OWN composite-space inner product carries the SAME
+        ``Σ V_cell·x·y`` numbers as the unified gauge — the member-wise
+        realization of the state metric (the B.2d home of the retired
+        ``FullFieldSpace`` seed arms; the split↔unified re-label is exact,
+        so the two spellings must agree to reassociation)."""
         sn = _sphere()
-        ffs = sn.full_field_space
-        x = _seeded_flux_composite(sn, 51)
-        twin = FullField(interior=x.interior, boundary=x.boundary)
-        gx = ffs.apply_metric(x)
-        g_twin = ffs.apply_metric(twin)
-        assert gx.radial_characteristic is not None
-        w = sn.radial_characteristic_space.inner_product_weights
-        np.testing.assert_array_equal(
-            gx.radial_characteristic.values, w * x.radial_characteristic.values,
+        cspace = sn.radial_characteristic_composite_space
+        uspace = sn.radial_characteristic_space
+        assert cspace is not None and uspace is not None
+        rng = np.random.default_rng(53)
+        x_u = RadialCharacteristicFlux.zeros_on(sn)
+        y_u = RadialCharacteristicFlux.zeros_on(sn)
+        x_u.values[...] = rng.standard_normal(x_u.values.shape)
+        y_u.values[...] = rng.standard_normal(y_u.values.shape)
+        w = np.asarray(uspace.inner_product_weights, dtype=float)
+        unified_term = float(np.sum(w * x_u.values * y_u.values))
+        composite_term = cspace.inner_product(
+            RadialCharacteristicComposite.from_unified(x_u),
+            RadialCharacteristicComposite.from_unified(y_u),
         )
-        if not np.any(gx.radial_characteristic.values != 0.0):
-            pytest.fail("G⊙x zeroed the seed block — the ghost metric lives")
-        np.testing.assert_array_equal(gx.interior.values, g_twin.interior.values)
-        np.testing.assert_array_equal(gx.boundary.values, g_twin.boundary.values)
-
-    def test_apply_inverse_metric_divides_seed_by_v_cell(self):
-        r"""``G⁺⊙x`` DIVIDES the ψ½ block by ``V_cell`` (no masking — the SPD
-        metric has empty null space); the round-trip ``G⁺(G⊙x) = x`` holds on
-        the seed (inverted from the ghost's masked-zero whole-block)."""
-        sn = _sphere()
-        ffs = sn.full_field_space
-        x = _seeded_flux_composite(sn, 52)
-        w = sn.radial_characteristic_space.inner_product_weights
-        ginv_x = ffs.apply_inverse_metric(x)
-        assert ginv_x.radial_characteristic is not None
-        np.testing.assert_array_equal(
-            ginv_x.radial_characteristic.values, x.radial_characteristic.values / w,
-        )
-        if not np.all(np.isfinite(ginv_x.to_flat())):
-            pytest.fail("inverse metric produced non-finite values")
-        round_trip = ffs.apply_inverse_metric(ffs.apply_metric(x))
-        assert round_trip.radial_characteristic is not None
         np.testing.assert_allclose(
-            round_trip.radial_characteristic.values,
-            x.radial_characteristic.values, rtol=0.0, atol=1e-14,
+            composite_term, unified_term, rtol=1e-12, atol=1e-13,
         )
-
-    def test_inner_product_seed_contribution_is_v_cell_weighted(self):
-        r"""``⟨x,y⟩_G`` now CHANGES with the seed values (inverted from the
-        ghost's seed-blindness): the seed term = ``Σ V_cell·x_seed·y_seed``,
-        NONZERO for a nonzero seed — the Mode-12 CLOSURE mechanism (the seed
-        rows carry metric weight, so a seed-transpose error is visible)."""
-        sn = _sphere()
-        ffs = sn.full_field_space
-        x = _seeded_flux_composite(sn, 53)
-        y = _seeded_flux_composite(sn, 54)
-        x_twin = FullField(interior=x.interior, boundary=x.boundary)
-        y_twin = FullField(interior=y.interior, boundary=y.boundary)
-        w = np.asarray(
-            sn.radial_characteristic_space.inner_product_weights, dtype=float,
-        )
-        assert x.radial_characteristic is not None and y.radial_characteristic is not None
-        seed_term = float(np.sum(
-            w * x.radial_characteristic.values * y.radial_characteristic.values
-        ))
-        full = ffs.inner_product(x, y)
-        bulk_trace = ffs.inner_product(x_twin, y_twin)
-        # the composite routes EXACTLY the V_cell-weighted seed term into
-        # the total (inverted from "seed contributes 0"):
-        np.testing.assert_allclose(
-            full - bulk_trace, seed_term, rtol=1e-11, atol=1e-12,
-        )
-        if abs(seed_term) < 1e-9:
-            pytest.fail(f"seed inner-product term ~0 ({seed_term:.2e}) — the "
-                        f"ghost metric lives (expected Σ V_cell·x·y ≠ 0)")
-
-    def test_inner_product_mixed_presence_raises(self):
-        sn = _sphere()
-        ffs = sn.full_field_space
-        x = _seeded_flux_composite(sn, 55)
-        y_twin = FullField(interior=x.interior, boundary=x.boundary)
-        with pytest.raises(ValueError, match="mixed starting-direction"):
-            ffs.inner_product(x, y_twin)
-
-    def test_seeded_field_on_seedless_space_rejected(self):
-        """The illegal pairing: a ψ½-carrying composite through a composite
-        space with no seed block space (the transitional discipline's one
-        forbidden quadrant)."""
-        sn = _sphere()
-        slab = _slab()
-        x = _seeded_flux_composite(sn, 56)
-        with pytest.raises(RuntimeError, match="no.*radial_characteristic_space"):
-            slab.full_field_space.apply_metric(x)
+        if abs(unified_term) < 1e-9:
+            pytest.fail(f"seed inner-product term ~0 ({unified_term:.2e}) — "
+                        f"the metric gate is vacuous (expected Σ V_cell·x·y ≠ 0)")

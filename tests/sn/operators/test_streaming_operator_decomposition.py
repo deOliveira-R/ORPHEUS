@@ -92,6 +92,21 @@ from tests.sn._test_helpers import placeholder_materials, radial_characteristic_
 pytestmark = pytest.mark.l0
 
 
+def _l_apply(L, state, seed_leg, sn_mesh):
+    """``L.apply`` through the B.2d explicit ψ½ legs (scratch rows out)."""
+    if seed_leg is None:
+        return L.apply(state)
+    from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
+
+    return L.apply(
+        state,
+        radial_characteristic_flux=seed_leg,
+        radial_characteristic_source=(
+            RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+        ),
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Fixtures — slab / sphere / cylinder, reflective inner / vacuum outer.
 # ═══════════════════════════════════════════════════════════════════════
@@ -164,24 +179,27 @@ class TestResolutionADecomposition:
         state = TimedFullField(
             interior=AngularFlux.from_mesh(bulk_arr, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
-            # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed on a
-            # carrying mesh (SPH); None on non-carrying (CART/CYL).  The
-            # decomposition identity (L+C ≡ L + C) holds for ANY seed since
-            # both apply paths consume the SAME state — the consistent seed
-            # additionally exercises the augmented seed rows in both paths.
-            radial_characteristic=radial_characteristic_edge_seed(bulk_arr, sn_mesh),
             _history=(),
             history_depth=2,
         )
+        # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed on
+        # a carrying mesh (SPH) rides the walk's EXPLICIT flux leg in EVERY
+        # apply below; None on non-carrying (CART/CYL).  The System-A
+        # decomposition identity (L+C ≡ L + C on bulk ⊕ trace) holds for ANY
+        # seed since both σ-paths consume the SAME leg (the seed's bulk feed
+        # is σ-independent); the ray's own σ term is A_BB's, System B.
+        seed_leg = radial_characteristic_edge_seed(bulk_arr, sn_mesh)
         sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
 
         # Reference: the unified matvec at full σ_t.
-        m_full_state = _LC_matvec(state, sigma_t)
+        m_full_state = _LC_matvec(
+            state, sigma_t, radial_characteristic_flux=seed_leg,
+        )
 
         # Pure-L + C via TimedFullField arithmetic (#257 S8b): L reads no σ.
         L = StreamingOperator(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
-        sum_state = L.apply(state) + C.apply(state)
+        sum_state = _l_apply(L, state, seed_leg, sn_mesh) + C.apply(state)
 
         # Bulk residual — (N, ng, nx, ny) ndarray.
         residual_bulk = sum_state.interior.values - m_full_state.interior.values
@@ -262,22 +280,25 @@ class TestSubtractiveDefinition:
         state = TimedFullField(
             interior=AngularFlux.from_mesh(bulk_arr, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
-            # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed on a
-            # carrying mesh (SPH); None on non-carrying (CART/CYL).  The
-            # decomposition identity (L+C ≡ L + C) holds for ANY seed since
-            # both apply paths consume the SAME state — the consistent seed
-            # additionally exercises the augmented seed rows in both paths.
-            radial_characteristic=radial_characteristic_edge_seed(bulk_arr, sn_mesh),
             _history=(),
             history_depth=2,
         )
+        # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed on
+        # a carrying mesh (SPH) rides the walk's EXPLICIT flux leg in EVERY
+        # apply below; None on non-carrying (CART/CYL).  The System-A
+        # decomposition identity (L+C ≡ L + C on bulk ⊕ trace) holds for ANY
+        # seed since both σ-paths consume the SAME leg (the seed's bulk feed
+        # is σ-independent); the ray's own σ term is A_BB's, System B.
+        seed_leg = radial_characteristic_edge_seed(bulk_arr, sn_mesh)
         sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
 
         # Pure-L apply (σ-free, #257 S8b): L takes only the mesh.
         L = StreamingOperator(sn_mesh)
-        l_state = L.apply(state)
+        l_state = _l_apply(L, state, seed_leg, sn_mesh)
 
-        m_full_state = _LC_matvec(state, sigma_t)
+        m_full_state = _LC_matvec(
+            state, sigma_t, radial_characteristic_flux=seed_leg,
+        )
 
         # Affine subtractive form: bulk expected = M.interior - σ_t·ψ.interior
         # (σ_t broadcast over the ordinate axis 0 via [None, :, :, :]).
@@ -337,24 +358,39 @@ class TestPureLIsLossActionAtZeroSigma:
         state = TimedFullField(
             interior=AngularFlux.from_mesh(bulk_arr, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
-            # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed on a
-            # carrying mesh (SPH); None on non-carrying (CART/CYL).  The
-            # decomposition identity (L+C ≡ L + C) holds for ANY seed since
-            # both apply paths consume the SAME state — the consistent seed
-            # additionally exercises the augmented seed rows in both paths.
-            radial_characteristic=radial_characteristic_edge_seed(bulk_arr, sn_mesh),
             _history=(),
             history_depth=2,
         )
+        # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed on
+        # a carrying mesh (SPH) rides the walk's EXPLICIT flux leg in EVERY
+        # apply below; None on non-carrying (CART/CYL).  The System-A
+        # decomposition identity (L+C ≡ L + C on bulk ⊕ trace) holds for ANY
+        # seed since both σ-paths consume the SAME leg (the seed's bulk feed
+        # is σ-independent); the ray's own σ term is A_BB's, System B.
+        seed_leg = radial_characteristic_edge_seed(bulk_arr, sn_mesh)
         sigma_zero = np.zeros((ng, *sn_mesh.spatial_shape))
 
         # Pure-L apply (σ-free, #257 S8b): L takes only the mesh.
         L = StreamingOperator(sn_mesh)
-        l_state = L.apply(state)
+        l_state = _l_apply(L, state, seed_leg, sn_mesh)
 
-        # The single-sourced σ-free walk: loss_action at σ = 0 directly.
+        # The single-sourced σ-free walk: loss_action at σ = 0 directly
+        # (same explicit legs — the SAME call under streaming_action).
         from orpheus.sn.loss_representation import default_for
-        l_action_zero = default_for(sn_mesh).loss_action(sigma_zero, state)
+        if seed_leg is None:
+            l_action_zero = default_for(sn_mesh).loss_action(sigma_zero, state)
+        else:
+            from orpheus.transport.source_sinks import (
+                RadialCharacteristicSourceSink,
+            )
+
+            l_action_zero = default_for(sn_mesh).loss_action(
+                sigma_zero, state,
+                radial_characteristic_flux=seed_leg,
+                radial_characteristic_source=(
+                    RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+                ),
+            )
 
         # Byte-exact: pure-L apply IS loss_action(0) (same call under
         # streaming_action) on BOTH bulk and boundary.

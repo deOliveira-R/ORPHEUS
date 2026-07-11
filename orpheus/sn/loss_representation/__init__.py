@@ -174,7 +174,7 @@ _MATVEC_ZERO_SOURCE = np.zeros((1, 1, 1))
 def _refuse_radial_characteristic(
     where: str,
     radial_characteristic_source: "RadialCharacteristicField | None",
-    radial_characteristic_flux: "RadialCharacteristicFlux | None",
+    radial_characteristic_flux: "RadialCharacteristicField | None",
 ) -> None:
     """Loud refusal of a ψ½ seed pair on a strategy that cannot carry one.
 
@@ -190,19 +190,34 @@ def _refuse_radial_characteristic(
         )
 
 
+def _require_leg_pair(
+    where: str, leg_in: object, leg_out: object, *, action_msg: str,
+) -> None:
+    """The both-or-neither pair law of the B.2d explicit ψ½ legs — the third
+    member of the guard family (:func:`_refuse_radial_characteristic` /
+    :func:`_require_radial_characteristic`): a joint surface's IN leg and
+    OUT buffer come together or not at all (a lone IN silently drops the
+    emitted rows; a lone OUT has nothing to emit from)."""
+    if (leg_in is None) != (leg_out is None):
+        raise ValueError(
+            f"{where}: the ψ½ legs come as a PAIR — {action_msg}"
+        )
+
+
 def _require_radial_characteristic(
     where: str, sn_mesh: "SNMesh", block: "RadialCharacteristicField | None",
     *, role: str,
 ) -> None:
     """The positive half of the R12a biconditional — a carrying mesh REQUIRES
-    the ψ½ block on the composite (#282 route (a); Pattern 2 with
-    :func:`_refuse_radial_characteristic` — one spelling of "carrying ⟺ block
+    the ψ½ leg (#282 route (a); Pattern 2 with
+    :func:`_refuse_radial_characteristic` — one spelling of "carrying ⟺ leg
     present", so the forward emit and the transpose consume cannot drift
     onto different domains).
 
-    ``block`` is the composite's ``.radial_characteristic`` slot (role-erased
-    to :class:`RadialCharacteristicField`); ``role`` names the composite for
-    the message (``"input"`` / ``"cotangent"`` / ``"rhs"``).
+    ``block`` is the explicit ψ½ LEAF KWARG (role-erased to
+    :class:`RadialCharacteristicField` — B.2d evicted the leg from the
+    composite, so the joint surfaces receive it explicitly); ``role`` names
+    the leg for the message (``"input"`` / ``"cotangent"`` / ``"rhs"``).
     """
     if (
         getattr(sn_mesh, "radial_characteristic_space", None) is not None
@@ -210,10 +225,10 @@ def _require_radial_characteristic(
     ):
         raise ValueError(
             f"{where}: this mesh carries starting-direction levels (R12a) "
-            f"but the {role} composite has no radial_characteristic block — "
-            f"build it via the seed-aware factory / FullField.zeros(..., "
-            f"radial_characteristic=<leaf>) or thread the solve output "
-            f"(#282 route (a))."
+            f"but no {role} ψ½ leg was passed — the joint action on a "
+            f"carrying mesh consumes System B's leaves explicitly "
+            f"(radial_characteristic_source= / radial_characteristic_flux= / "
+            f"seed_cot=; #282 route (a), B.2d)."
         )
 
 
@@ -390,6 +405,9 @@ class LossRepresentation(Protocol):
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
+        *,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         r"""The forward within-group loss action :math:`(L+C)\,\psi` for this geometry.
 
@@ -405,10 +423,26 @@ class LossRepresentation(Protocol):
         realises (#240 Phase 2 Step B — passed EXPLICITLY, symmetric with
         :meth:`sweep`'s ``sig_t``, so the composite — not the leaf — single-sources
         :math:`\sigma`); the per-geometry walk machinery is on ``self.mesh``.
+
+        ``radial_characteristic_flux`` / ``radial_characteristic_source``
+        (B.2d — the ψ½ legs as EXPLICIT leaf kwargs, System B evicted from
+        the composite): the ψ½ state the joint matvec READS (flux) and the
+        caller-allocated buffer its ray-block rows are FILLED into (source).
+        Both given ⟹ the JOINT action ``M·[ψ_A, ψ_B]`` (the coupled bridge's
+        spelling); both absent on a carrying mesh ⟹ the ray-decoupled
+        ``(A,A)`` BLOCK action (bit-identical to a zero seed — the walk's
+        welded feed reads zeros, the ray rows are discarded); mixed ⟹ raise
+        (a silently-dropped emission is the silent-drop bug class).
+        Non-``None`` on a seedless strategy ⟹ raise (R12a).
         """
         ...
 
-    def streaming_action(self, psi: "FullField") -> "FullField":
+    def streaming_action(
+        self, psi: "FullField",
+        *,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
+    ) -> "FullField":
         r"""The pure σ-free streaming action :math:`L\,\psi = \Omega\cdot\nabla\psi`.
 
         The genuine pure-:math:`L` leaf — the spatial streaming + curvilinear
@@ -425,12 +459,16 @@ class LossRepresentation(Protocol):
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` calls this directly
         (#257 S8b) so :math:`L` reads no :math:`\sigma`: the collision diagonal
         :math:`C = M[\sigma_t]` is the separate shared multiplier leaf, and the
-        composition :math:`L + C` recovers the full loss.
+        composition :math:`L + C` recovers the full loss.  The ψ½ leg kwargs
+        pass through to :meth:`loss_action` unchanged (B.2d).
         """
         ...
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
+        *,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         r"""The adjoint loss action :math:`(L+C)^{\mathsf T}\,\phi` for this geometry.
 
@@ -441,10 +479,24 @@ class LossRepresentation(Protocol):
         (the multi-D Cartesian reverse sweep — O.2b lands the 1-D reverse sweep
         first).  Never a silent wrong answer.  ``sigma`` is the ``(ng, ...)``
         diagonal coefficient, passed EXPLICITLY (#240 Phase 2 Step B).
+
+        ``seed_cot`` / ``seed_cot_out`` (B.2d — the transposed ψ½ legs): the
+        codomain-side ray cotangent the transpose CONSUMES (``seed_cot``, the
+        cotangent of the forward's emitted ray rows) and the caller-allocated
+        buffer the domain-side ray cotangent is FILLED into (``seed_cot_out``,
+        the pullback ``Seedingᵀ·φ_A + D_BBᵀ·χ_B``).  Both given ⟹ the JOINT
+        transposed action ``Mᵀ``; both absent on a carrying mesh ⟹ the
+        ray-decoupled ``(A,A)ᵀ`` block action (the seed pullback is DISCARDED
+        — it belongs to the explicit ``A_ABᵀ`` grid block); mixed ⟹ raise.
         """
         ...
 
-    def streaming_action_transpose(self, phi: "FullField") -> "FullField":
+    def streaming_action_transpose(
+        self, phi: "FullField",
+        *,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
+    ) -> "FullField":
         r"""The pure σ-free adjoint streaming action :math:`L^{\mathsf T}\,\phi`.
 
         The transpose sibling of :meth:`streaming_action` (#257 S8b): the σ-free
@@ -452,7 +504,7 @@ class LossRepresentation(Protocol):
         :meth:`loss_action_transpose` at :math:`\sigma = 0`.  Used by
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`.  Inherits
         the deferral contract (multi-D Cartesian raises, never a silent wrong
-        answer).
+        answer) and passes the transposed ψ½ leg kwargs through (B.2d).
         """
         ...
 
@@ -522,26 +574,51 @@ class _LossRepresentation:
         # concrete subclass via normal MRO.
         def loss_action(
             self, sigma: "np.ndarray", psi: "FullField",
+            *,
+            radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+            radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
         ) -> "FullField": ...
 
         def loss_action_transpose(
             self, sigma: "np.ndarray", phi: "FullField",
+            *,
+            seed_cot: "RadialCharacteristicField | None" = None,
+            seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
         ) -> "FullField": ...
 
-    def streaming_action(self, psi: "FullField") -> "FullField":
+    def streaming_action(
+        self, psi: "FullField",
+        *,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
+    ) -> "FullField":
         r"""Pure σ-free forward streaming :math:`L\,\psi = \Omega\cdot\nabla\psi`.
 
         See the :meth:`LossRepresentation.streaming_action` protocol docstring.
+        The ψ½ leg kwargs pass through to :meth:`loss_action` unchanged (B.2d).
         """
-        return self.loss_action(self._zero_sigma_for(psi), psi)
+        return self.loss_action(
+            self._zero_sigma_for(psi), psi,
+            radial_characteristic_flux=radial_characteristic_flux,
+            radial_characteristic_source=radial_characteristic_source,
+        )
 
-    def streaming_action_transpose(self, phi: "FullField") -> "FullField":
+    def streaming_action_transpose(
+        self, phi: "FullField",
+        *,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
+    ) -> "FullField":
         r"""Pure σ-free adjoint streaming :math:`L^{\mathsf T}\,\phi`.
 
         See :meth:`LossRepresentation.streaming_action_transpose`.  Inherits the
-        deferral contract of :meth:`loss_action_transpose`.
+        deferral contract of :meth:`loss_action_transpose`; the transposed ψ½
+        leg kwargs pass through unchanged (B.2d).
         """
-        return self.loss_action_transpose(self._zero_sigma_for(phi), phi)
+        return self.loss_action_transpose(
+            self._zero_sigma_for(phi), phi,
+            seed_cot=seed_cot, seed_cot_out=seed_cot_out,
+        )
 
     def sweep_transpose(
         self,
@@ -694,12 +771,17 @@ class _LossRepresentation:
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
+        *,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         """The forward loss action ``(L+C)ψ`` — every concrete leaf implements it.
 
         Returns the FULL within-group loss ``(L+C)ψ`` (NOT ``Lψ``); the operator
         subtracts ``C = σ⊙`` in ``apply`` (Resolution A ``L = (L+C) − C``).
         ``sigma`` is the diagonal coefficient, passed explicitly (#240 Step B).
+        The ψ½ leg kwargs are the B.2d explicit-leaf protocol (see
+        :meth:`LossRepresentation.loss_action`).
         """
         raise NotImplementedError(
             f"{type(self).__name__} must implement loss_action()"
@@ -707,11 +789,16 @@ class _LossRepresentation:
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
+        *,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         """The adjoint loss action ``(L+C)ᵀφ`` — 1-D implemented or a deferral raise.
 
         Returns the FULL adjoint loss ``(L+C)ᵀφ`` (the operator subtracts ``C`` in
         ``apply_transpose``).  ``sigma`` is the diagonal coefficient (#240 Step B).
+        The transposed ψ½ leg kwargs are the B.2d explicit-leaf protocol (see
+        :meth:`LossRepresentation.loss_action_transpose`).
         """
         raise NotImplementedError(
             f"{type(self).__name__} must implement loss_action_transpose()"
@@ -1259,6 +1346,9 @@ class CumprodScan(_LossRepresentation):
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
+        *,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         r"""1-D forward loss action ``(L+C)ψ`` — the geometry-blind spatial sum.
 
@@ -1267,12 +1357,20 @@ class CumprodScan(_LossRepresentation):
         The matvec walk LIVES in :meth:`._OneDimScanWalk.loss_action` (the
         apply-direction twin of the sweep — L21 "matvec ≡ sweep"); the angular
         Morel–Montry redistribution + Carlson pole seed ride through
-        ``pole_angular_closure`` there (NOT re-inlined).
+        ``pole_angular_closure`` there (NOT re-inlined).  The ψ½ leg kwargs
+        pass through (B.2d).
         """
-        return _OneDimScanWalk(self.mesh).loss_action(sigma, psi)
+        return _OneDimScanWalk(self.mesh).loss_action(
+            sigma, psi,
+            radial_characteristic_flux=radial_characteristic_flux,
+            radial_characteristic_source=radial_characteristic_source,
+        )
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
+        *,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the reverse spatial sum.
 
@@ -1281,9 +1379,12 @@ class CumprodScan(_LossRepresentation):
         :meth:`._OneDimScanWalk.loss_action_transpose`, which carries the
         curvilinear angular SECOND triangular factor (``closure.angular_adjoint``)
         — so the spatial reverse NEVER silently drops the angular adjoint
-        (pinned by ``test_g_adjoint_reciprocity`` sphere/cyl, -O-firing).
+        (pinned by ``test_g_adjoint_reciprocity`` sphere/cyl, -O-firing).  The
+        transposed ψ½ leg kwargs pass through (B.2d).
         """
-        return _OneDimScanWalk(self.mesh).loss_action_transpose(sigma, phi)
+        return _OneDimScanWalk(self.mesh).loss_action_transpose(
+            sigma, phi, seed_cot=seed_cot, seed_cot_out=seed_cot_out,
+        )
 
     @property
     def has_transpose_walk(self) -> bool:
@@ -1344,6 +1445,9 @@ class _DAGWavefront(_LossRepresentation):
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
+        *,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         r"""The multi-D Cartesian adjoint is DEFERRED (shared by both policies).
 
@@ -1500,6 +1604,9 @@ class MovingFrontierWindow(_DAGWavefront):
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
+        *,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         r"""2-D Cartesian forward loss action ``(L+C)ψ`` via the rolling-frontier window.
 
@@ -1515,6 +1622,10 @@ class MovingFrontierWindow(_DAGWavefront):
         ``σ·ψ̄`` (the collision diagonal ``C``) to recover the
         bare-streaming ``Lψ̄``.
         """
+        _refuse_radial_characteristic(
+            "MovingFrontierWindow.loss_action",
+            radial_characteristic_source, radial_characteristic_flux,
+        )
         return _OctantWalk(self.mesh).loss_action(
             sigma, psi, self._loss_action_interior,
         )
@@ -1796,6 +1907,9 @@ class FullFieldWavefront(_DAGWavefront):
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
+        *,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         r"""Forward loss action ORACLE ``(L+C)ψ`` — the full-field DAG walk (d-generic).
 
@@ -1811,6 +1925,10 @@ class FullFieldWavefront(_DAGWavefront):
         subtracts ``σ·ψ̄``.  Sole purpose: verification (production is the
         window / the 1-D scan).
         """
+        _refuse_radial_characteristic(
+            "FullFieldWavefront.loss_action",
+            radial_characteristic_source, radial_characteristic_flux,
+        )
         return _OctantWalk(self.mesh).loss_action(
             sigma, psi, self._loss_action_interior,
         )
@@ -2116,6 +2234,9 @@ class ScanMarch(_LossRepresentation):
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
+        *,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         r"""Forward loss action ``(L+C)ψ`` — the row-march apply (L21: sweep & matvec, ONE operator).
 
@@ -2145,7 +2266,15 @@ class ScanMarch(_LossRepresentation):
             # d=1 ⇒ scan(x) with no transverse march: the 1-D apply-direction
             # walk (#206 Phase C — the s_y = 0 degeneration of the 2-D
             # scan-march; the matvec walk lives in _OneDimScanWalk.loss_action).
-            return _OneDimScanWalk(self.mesh).loss_action(sigma, psi)
+            return _OneDimScanWalk(self.mesh).loss_action(
+                sigma, psi,
+                radial_characteristic_flux=radial_characteristic_flux,
+                radial_characteristic_source=radial_characteristic_source,
+            )
+        _refuse_radial_characteristic(
+            "ScanMarch.loss_action",
+            radial_characteristic_source, radial_characteristic_flux,
+        )
         return _OctantWalk(self.mesh).loss_action(
             sigma, psi, self._loss_action_interior,
         )
@@ -2217,11 +2346,16 @@ class ScanMarch(_LossRepresentation):
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
+        *,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         """Adjoint loss action — 1-D wired ``(L+C)ᵀφ``; multi-D Cartesian deferred."""
         if self.mesh.is_1d:
             # #206 Phase C: the 1-D transpose walk lives in _OneDimScanWalk.
-            return _OneDimScanWalk(self.mesh).loss_action_transpose(sigma, phi)
+            return _OneDimScanWalk(self.mesh).loss_action_transpose(
+                sigma, phi, seed_cot=seed_cot, seed_cot_out=seed_cot_out,
+            )
         raise NotImplementedError(
             "ScanMarch.loss_action_transpose: the multi-D Cartesian adjoint is "
             "deferred (O.2b lands the 1-D reverse sweep first; the multi-D "
@@ -2452,9 +2586,10 @@ def transport_sweep(
     # self-sufficient — it folds the source's ℓ=0 moment into the q½ block
     # and allocates the ψ½ carrier (the ONE fold factory,
     # ``RadialCharacteristicSourceSink.from_angular_source``) unless the caller
-    # supplied the pair.  This mirrors ``InvertibleOperator.solve`` reading
-    # ``rhs.radial_characteristic`` — transport_sweep has no composite rhs, so
-    # it derives the pair from the source it DOES have.
+    # supplied the pair.  ``InvertibleOperator.solve`` REQUIRES the explicit
+    # pair (B.2d — the joint inverse's leaf-kwarg legs); this operator-free
+    # entry stays self-deriving because its callers (the final eigenvalue
+    # reconstruction) hand it a bare source with no System-B state yet.
     if (
         getattr(sn_mesh, "radial_characteristic_space", None) is not None
         and radial_characteristic_source is None
@@ -2859,6 +2994,9 @@ class _OneDimScanWalk:
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
+        *,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         r"""1-D forward loss action ``(L+C)ψ`` — the matvec, apply direction.
 
@@ -2867,13 +3005,37 @@ class _OneDimScanWalk:
         the FULL ``(L+C)ψ``;
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` subtracts ``σ·ψ``
         ONCE to recover ``Lψ`` (Resolution A).  ``sigma`` is the diagonal
-        coefficient, passed explicitly (#240 Step B); :meth:`_apply_walk` already
-        took a plain ``sigma_t`` array, so the change is signature-only here.
+        coefficient, passed explicitly (#240 Step B).
+
+        The ψ½ legs are EXPLICIT leaf kwargs (B.2d): ``radial_characteristic_
+        flux`` is the seed state the joint matvec reads,
+        ``radial_characteristic_source`` the caller-allocated buffer the
+        emitted ray rows fill.  Both ⟹ the joint ``M`` action; neither on a
+        carrying mesh ⟹ the ray-decoupled ``(A,A)`` block action (zero seed
+        in, rows discarded); mixed ⟹ raise.
         """
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
 
-        m_cell, m_boundary, m_seed = self._apply_walk(sigma, psi)
+        _require_leg_pair(
+            "_OneDimScanWalk.loss_action",
+            radial_characteristic_flux, radial_characteristic_source,
+            action_msg=(
+                "the flux state read and the source buffer filled. Pass "
+                "both (the joint M action) or neither (the ray-decoupled "
+                "(A,A) block action)."
+            ),
+        )
+        if self.mesh.radial_characteristic_space is None:
+            _refuse_radial_characteristic(
+                "_OneDimScanWalk.loss_action",
+                radial_characteristic_source, radial_characteristic_flux,
+            )
+        m_cell, m_boundary, m_seed = self._apply_walk(
+            sigma, psi, radial_characteristic_flux,
+        )
+        if radial_characteristic_source is not None and m_seed is not None:
+            radial_characteristic_source.values[...] = m_seed.values
         # The matvec output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
         # selects the SpatialMomentSpace factor.  DD/Step → no factor, byte-id.
@@ -2883,11 +3045,11 @@ class _OneDimScanWalk:
                 spatial_moments=self.mesh.scheme.spatial_basis_per_axis,
             ),
             boundary=m_boundary,
-            radial_characteristic=m_seed,
         )
 
     def _apply_walk(
         self, sigma: "np.ndarray", psi: "FullField",
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicSourceSink | None]":
         r"""The 1-D apply-direction walk — the fused ``(L+C)ψ`` single emission.
 
@@ -2991,17 +3153,22 @@ class _OneDimScanWalk:
                 "populated."
             )
 
-        # #282 route (a) (2.5d): a carrying mesh (R12a — the sphere)
-        # REQUIRES the composite's starting-direction block: the M-M
-        # recurrence seed is first-class STATE read off the carrier, and
-        # the (L+C) matvec emits the seed rows below.  A 2-block field on
-        # a carrying mesh is an illegal state post-activation (Pattern 4)
-        # — the pre-2.5d extrapolate-from-the-iterate treatment (the #282
-        # back edge) is retired, not silently reproduced.
-        seed_field = psi.radial_characteristic
-        _require_radial_characteristic(
-            "_OneDimScanWalk._apply_walk", sn_mesh, seed_field, role="input",
-        )
+        # #282 route (a) → B.2d: the M-M recurrence seed is first-class
+        # System-B state, passed as the EXPLICIT ``radial_characteristic_
+        # flux`` leaf kwarg (the composite no longer carries it).  On a
+        # carrying mesh with NO leg given, this is the ray-decoupled (A,A)
+        # BLOCK action: substitute a ZERO seed — bit-identical to the
+        # retired dead-slot convention (the welded feed reads zeros; the
+        # emitted rows, ``D·0 = 0``, are discarded by the caller).  The
+        # pre-2.5d extrapolate-from-the-iterate treatment (the #282 back
+        # edge) stays retired, never silently reproduced.
+        seed_field = radial_characteristic_flux
+        if seed_field is None and sn_mesh.radial_characteristic_space is not None:
+            from orpheus.transport.fields.radial_characteristic_flux import (
+                RadialCharacteristicFlux,
+            )
+
+            seed_field = RadialCharacteristicFlux.zeros_on(sn_mesh)
         psi_state = pole_angular_closure.precompute_psi_state(
             psi_view, radial_characteristic=seed_field,
         )
@@ -3243,6 +3410,9 @@ class _OneDimScanWalk:
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
+        *,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
     ) -> "FullField":
         r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the matvec transpose.
 
@@ -3326,15 +3496,28 @@ class _OneDimScanWalk:
         trace = sn_mesh.angular_trace
         has_inner_face = "xmin" in phi.boundary.layout.faces
 
-        # #282 route (a): the transpose of the augmented operator needs the
-        # cotangent's starting-direction block on a carrying mesh (the
-        # forward emits seed rows, so the transpose consumes their
-        # cotangents) — the SAME R12a requirement as the forward walk.
-        chi_seed = phi.radial_characteristic
-        _require_radial_characteristic(
-            "_OneDimScanWalk.loss_action_transpose", sn_mesh, chi_seed,
-            role="cotangent",
+        # #282 route (a) → B.2d: the transposed ψ½ legs are EXPLICIT leaf
+        # kwargs.  ``seed_cot`` is the cotangent of the forward's emitted ray
+        # rows (consumed by the seed-block reversal below); ``seed_cot_out``
+        # the buffer the domain-side pullback fills.  Both ⟹ the joint Mᵀ;
+        # neither on a carrying mesh ⟹ the ray-decoupled (A,A)ᵀ block action
+        # — the bulk/trace reversal is chi-independent (M_BA = 0), and the
+        # seed pullback is DISCARDED (it belongs to the explicit A_ABᵀ grid
+        # block); mixed ⟹ raise.
+        _require_leg_pair(
+            "_OneDimScanWalk.loss_action_transpose",
+            seed_cot, seed_cot_out,
+            action_msg=(
+                "the rows cotangent consumed and the pullback buffer "
+                "filled. Pass both (the joint Mᵀ action) or neither (the "
+                "ray-decoupled (A,A)ᵀ block action)."
+            ),
         )
+        if sn_mesh.radial_characteristic_space is None:
+            _refuse_radial_characteristic(
+                "_OneDimScanWalk.loss_action_transpose", seed_cot, None,
+            )
+        chi_seed = seed_cot
 
         out_bar = phi.interior.values.swapaxes(0, 1)   # (ng, N, nx)
         fo = phi.boundary.face_view("xmax")                       # (N, ng)
@@ -3500,16 +3683,12 @@ class _OneDimScanWalk:
         psi_bar += psi_ang_bar
 
         # ── reverse the starting-direction rows (#282 route (a)) ──
-        m_seed_bar = None
-        if chi_seed is not None:
-            from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
-
-            m_seed_bar = RadialCharacteristicSourceSink(
-                values=self._seed_rows_transpose(
-                    sgx, chi_seed, seed_cells_bar,
-                ),
-                space=chi_seed.space,
-                mesh=chi_seed.mesh,
+        # The joint arm only: the pullback ``Seedingᵀ·φ_A + D_BBᵀ·χ_B`` fills
+        # the caller's buffer.  On the (A,A)ᵀ block arm (no legs) it is
+        # DISCARDED — the explicit A_ABᵀ grid block carries it (B.2d).
+        if chi_seed is not None and seed_cot_out is not None:
+            seed_cot_out.values[...] = self._seed_rows_transpose(
+                sgx, chi_seed, seed_cells_bar,
             )
 
         # ── assemble the typed composite ──
@@ -3522,7 +3701,6 @@ class _OneDimScanWalk:
                 psi_bar.swapaxes(0, 1), sn_mesh,
             ),
             boundary=m_boundary,
-            radial_characteristic=m_seed_bar,
         )
 
     def _ensure_geom_cache(self) -> GeometryCoefficients:
@@ -4557,7 +4735,7 @@ class _OneDimScanWalk:
             if is_sphere:
                 # phi_aux = cells_minus, so the M-M thread cotangent lands on the
                 # inward seed cells; the carrier is ALSO an output (its cotangent
-                # is b.radial_characteristic).
+                # is the explicit ``seed_cot`` leg).
                 assert seed_cot is not None and seed_bar_vals is not None
                 seed_space = seed_cot.space
                 seed_vals = seed_cot.values

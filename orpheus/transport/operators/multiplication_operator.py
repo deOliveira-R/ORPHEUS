@@ -126,51 +126,6 @@ if TYPE_CHECKING:
 __all__ = ["MultiplicationOperator"]
 
 
-def _radial_characteristic_scaled(
-    seed: "Any",
-    coefficient_values: np.ndarray,
-    *,
-    invert: bool,
-) -> "Any":
-    r"""The diagonal seed arm of :math:`M[f]` (#282 route (a), 2.5d).
-
-    Per carried ``(level, sign)`` leg: cells ← :math:`f \cdot` cells
-    (``invert=False``, the :meth:`apply` arm — the collision rate
-    :math:`\sigma\,\psi_{1/2}` the additive ``(L+C) = L + M[σ]``
-    decomposition demands on the seed rows) or cells ← cells :math:`/ f`
-    (``invert=True``, the :meth:`solve` arm — call ONLY after the
-    engine's bulk solve has gated the spectrum law). The r = R
-    **corner slots stay zero** in BOTH directions: they are trace-like
-    rows (inflow identity / outflow defect, ruling R13) — a multiplier
-    has no corner action, mirroring the composite arms' implicit-zero
-    trace. ``None`` passes through (a seedless composite — Cartesian /
-    cylinder, R12a). The output role follows the verb: apply emits the
-    SourceSink leaf, solve the Flux leaf (the same role flip as the
-    bulk/trace blocks).
-    """
-    if seed is None:
-        return None
-    from orpheus.transport.fields.radial_characteristic_flux import (
-        RadialCharacteristicFlux,
-    )
-    from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
-        RadialCharacteristicSourceSink,
-    )
-
-    space = seed.space
-    out = np.zeros_like(seed.values)
-    for level in space.levels:
-        for sign in (-1, +1):
-            cells_in = space.cells_view(seed.values, level, sign)
-            cells_out = space.cells_view(out, level, sign)
-            if invert:
-                cells_out[:] = cells_in / coefficient_values
-            else:
-                cells_out[:] = coefficient_values * cells_in
-    out_cls = RadialCharacteristicFlux if invert else RadialCharacteristicSourceSink
-    return out_cls(values=out, space=space, mesh=seed.mesh)
-
-
 @dataclass(eq=False)
 class MultiplicationOperator(LinearOperator["FullField"]):
     r"""The promotion :math:`M[f]` of a coefficient field to a diagonal operator.
@@ -469,13 +424,6 @@ class MultiplicationOperator(LinearOperator["FullField"]):
             return FullField(
                 interior=AngularSourceSink.from_mesh(out_bulk, mesh),
                 boundary=AngularBoundarySourceSink.zeros_on(mesh),
-                # #282 route (a) seed arm: σ·ψ½ on the carried cells legs
-                # (dormant until the d3 birth-site flip populates inputs).
-                radial_characteristic=_radial_characteristic_scaled(
-                    psi.radial_characteristic,
-                    self.coefficient.values,
-                    invert=False,
-                ),
             )
         if isinstance(bulk, ScalarField):
             # Scalar arm (#290 P4): the (ng, *spatial) bulk has NO
@@ -551,14 +499,6 @@ class MultiplicationOperator(LinearOperator["FullField"]):
             return FullField(
                 interior=AngularFlux.from_mesh(out_bulk, mesh),
                 boundary=AngularBoundaryFlux.zeros_on(mesh),
-                # #282 seed arm: cells ← q½/σ AFTER the engine's bulk solve
-                # has gated the spectrum law (min|σ| > 0); corners mirror
-                # the trace's zeros-discard (not in M's range).
-                radial_characteristic=_radial_characteristic_scaled(
-                    q.radial_characteristic,
-                    self.coefficient.values,
-                    invert=True,
-                ),
             )
         if isinstance(bulk, ScalarField):
             # Scalar arm (#290 P4): the typed division q/f through the

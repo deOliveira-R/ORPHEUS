@@ -551,21 +551,40 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
             [space.corner_view(seed_values, level, +1)[g]],
         ])
 
-    def _read(out) -> np.ndarray:
+    def _read(out, rows) -> np.ndarray:
         bulk = np.asarray(out.interior.values)[:, g].ravel()   # (N·nx,)
         if space is None:
             return bulk
         seed = np.concatenate(
-            [_seed_leg_view(out.radial_characteristic.values, p) for p in levels]
+            [_seed_leg_view(rows.values, p) for p in levels]
         )
         return np.concatenate([seed, bulk])
 
     def _fresh():
         return FullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-            radial_characteristic=(
-                None if space is None else RadialCharacteristicFlux
-            ),
+        )
+
+    def _apply(st, seed_leaf):
+        # B.2d: the ψ½ legs ride the EXPLICIT kwargs (flux IN, rows OUT).
+        if space is None:
+            return _read(A.apply(st), None)
+        from orpheus.transport.source_sinks import (
+            RadialCharacteristicSourceSink,
+        )
+
+        rows = RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+        out = A.apply(
+            st,
+            radial_characteristic_flux=seed_leaf,
+            radial_characteristic_source=rows,
+        )
+        return _read(out, rows)
+
+    def _zero_seed():
+        return (
+            None if space is None
+            else RadialCharacteristicFlux.zeros_on(sn_mesh)
         )
 
     n_seed_per_level = 2 * nx + 2
@@ -574,7 +593,8 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
     for p in levels:
         for local in range(n_seed_per_level):
             st = _fresh()
-            s = st.radial_characteristic.values
+            seed_leaf = _zero_seed()
+            s = seed_leaf.values
             if local == 0:
                 space.corner_view(s, p, -1)[g] = 1.0
             elif local <= nx:
@@ -583,13 +603,13 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
                 space.cells_view(s, p, +1)[g][local - nx - 1] = 1.0
             else:
                 space.corner_view(s, p, +1)[g] = 1.0
-            columns.append(_read(A.apply(st)))
+            columns.append(_apply(st, seed_leaf))
     # ── ordinate-bulk columns ──
     for n in range(N):
         for i in range(nx):
             st = _fresh()
             st.interior.values[n, g, i] = 1.0
-            columns.append(_read(A.apply(st)))
+            columns.append(_apply(st, _zero_seed()))
     return np.array(columns).T
 
 

@@ -87,7 +87,6 @@ def _random_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
 
     state = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=2,
-        radial_characteristic=RadialCharacteristicFlux,
     )
     rng = np.random.default_rng(seed)
     state = replace(
@@ -200,8 +199,8 @@ def test_c1_teeth_sigma_leaking_stub_reddens(
     # cell so two "applies" can see different σ — exactly the Mode-2 regression.
     leaked = {"sigma": sigma_a}
 
-    def _leaking_streaming_action(self, psi):
-        return self.loss_action(leaked["sigma"], psi)
+    def _leaking_streaming_action(self, psi, **legs):
+        return self.loss_action(leaked["sigma"], psi, **legs)
 
     monkeypatch.setattr(rep_cls, "streaming_action", _leaking_streaming_action)
 

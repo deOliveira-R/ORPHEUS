@@ -27,8 +27,9 @@ The blocks (loss-sign convention IN the grid)
 The block matvec ``grid.apply([ψ_A, ψ_B])`` IS the within-group loss action
 — the object the SI/Krylov drivers realize as ``M·ψ − N·ψ`` through the
 record's splitting (since B.2d; the fused flat spelling
-``(L+C)·ψ − S·ψ − A_BA·ψ − B·ψ`` of the retired triple/gain-seam pair is the
-same action on the 3-block carrier). Signs live IN the block slots, and they
+``(L+C)·ψ − S·ψ − A_BA·ψ − B·ψ`` of the retired triple/gain-seam pair was
+the same action on the pre-eviction 3-block carrier). Signs live IN the
+block slots, and they
 are NOT uniform — the two off-diagonals differ, a trap worth spelling out:
 
 * ``(A,A) = L + C − S − B_a`` — System A's self-block: streaming +
@@ -55,28 +56,20 @@ blocks are never constructed there (their constructors refuse seedless
 meshes), so "applying a System-B block on a non-carrying mesh" is not a
 runtime branch, it is an object that does not exist.
 
-The transitional dead slot (B.2c → B.2d) — a DOCUMENTED hazard
-==============================================================
+The eviction end-state (B.2d) — a live-ray ψ_A is unrepresentable
+=================================================================
 
-Through B.2c System A's ``full_field_space`` is still the 3-block composite
-(interior ⊕ trace ⊕ ψ½): the ray has not yet left ``FullField`` (the
-eviction is B.2d, atomic per the explorer's V1). The coupled state therefore
-carries ψ_A with a **present-ZERO** ``radial_characteristic`` slot and the
-REAL ray state in ψ_B. Under that convention the fused ``(L+C)`` walk's
-welded seed-feed arm reads zeros (contributes nothing) and the explicit
-``A_AB`` block carries the coupling — the grid row is exact. **Nothing
-structural enforces the convention yet**: a LIVE-ray ψ_A double-counts the
-seed feed (once welded inside ``A_AA``'s walk, once through ``A_AB``). This
-is a known, deliberately-unguarded transitional Pattern-4 hole (memo R3): a
-runtime guard would calcify a shape B.2d dissolves structurally (the
-eviction makes a live-ray ψ_A unrepresentable). The hazard-witness gate
-(``TestCoupledBuilder``, G-c2.6) keeps it visible until then.
-
-Sizing note: the coupled flat dimension counts the dead A-side ψ½ slot AND
-System B (the ray twice) until the eviction — honest for Krylov workspace
-(every DOF the carriers hold is real memory) but NOT the mathematical DOF
-count. B.2d restores the honest count when ``full_field_space`` collapses
-to 2-block.
+Since the B.2d eviction ``FullField`` is a pure 2-block composite: ψ_A
+cannot carry ray state at all, so the B.2c dead-slot convention (and its
+double-count hazard — the welded seed feed AND the explicit ``A_AB`` block
+both firing on a live-ray ψ_A) dissolved STRUCTURALLY, exactly as ruled
+(memo R3: no runtime guard — the type system is the guard). The grid's
+``(A,A)`` entry acting on a 2-block member IS the ray-decoupled block
+action (the fused surfaces substitute a zero seed internally and discard
+the ray rows — bit-identical to the retired dead-slot arithmetic); the
+explicit ``A_AB``/``A_BA`` blocks carry ALL the coupling. The coupled flat
+dimension is the honest two-system sum (no dead padding — the ERR-053
+``restart`` sizing reads the true count).
 
 The named splitting ``A = M − N`` (B.2d — the driver's system record)
 =====================================================================
@@ -92,10 +85,13 @@ of the within-group decomposition; the former
 into it, which is what dissolved this module's tracked construction twin):
 
 * ``M = [[L+C, +Seeding], [0, A_BB-march]]`` — realized by the FUSED
-  ``(L+C)`` walk, which on the 3-block carrier ALREADY computes exactly
-  this joint block action (the welded seed feed IS the (A,B) coupling; the
-  in-walk ψ½ recurrence IS the (B,B) march), re-typed onto the coupled
-  carrier by :class:`CoupledInvertibleOperator`.
+  ``(L+C)`` walk, which computes exactly this joint block action (the
+  welded seed feed IS the (A,B) coupling; the in-walk ψ½ recurrence IS the
+  (B,B) march), re-typed onto the coupled carrier by
+  :class:`CoupledInvertibleOperator` through the B.2d explicit leaf-kwarg
+  legs (``radial_characteristic_source``/``_flux``, ``seed_cot``/``_out``
+  — System B's leaves cross into the walk as kwargs, never on the
+  composite).
 * ``N = M − A = [[S + B_a, ∅], [+Emission, B_b]]`` — ONE
   :class:`~orpheus.numerics.coupled_system.CoupledOperator` gain grid. The
   (A,B) slot is STRUCTURALLY zero (Seeding lives in M), and the signs are
@@ -143,8 +139,14 @@ from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
 from orpheus.transport.operators.scattering import ScatteringOperator
+from orpheus.transport.fields.radial_characteristic_flux import (
+    RadialCharacteristicFlux,
+)
 from orpheus.transport.radial_characteristic_composite import (
     RadialCharacteristicComposite,
+)
+from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
+    RadialCharacteristicSourceSink,
 )
 
 if TYPE_CHECKING:
@@ -223,16 +225,14 @@ def build_coupled_system(
 
 
 def _system_a_member(state: "CoupledField | FullField") -> "FullField":
-    r"""Read System A's member off a driver state — coupled or fused.
+    r"""Read System A's member off a driver state — coupled or bare.
 
-    TRANSIENT presence-dispatch reader (B.2d d1 → retires at d2 with the
-    driver-state unification): the solve sites hold a
-    :class:`~orpheus.numerics.coupled_system.CoupledField` on a carrying
-    mesh and the bare fused composite elsewhere (the DP-seedless ruling —
-    the coupled carrier appears exactly where System B exists), so every
-    System-A read (the φ reduction, the boundary trace, the finalize
-    threading) funnels through this one seam instead of branching at each
-    call site.
+    The ONE presence-dispatch reader of the DP-seedless ruling: the solve
+    sites hold a :class:`~orpheus.numerics.coupled_system.CoupledField` on
+    a carrying mesh and the bare 2-block composite elsewhere (the coupled
+    carrier appears exactly where System B exists), so every System-A read
+    (the φ reduction, the boundary trace, the finalize threading) funnels
+    through this one seam instead of branching at each call site.
     """
     if isinstance(state, CoupledField):
         member = state.systems[0]
@@ -250,14 +250,12 @@ def _system_b_member(
     state: "CoupledField | FullField",
 ) -> "RadialCharacteristicComposite | None":
     r"""Read System B's member off a driver state, ``None`` where it does
-    not exist (seedless fused state).
+    not exist (a bare seedless composite).
 
-    TRANSIENT sibling of :func:`_system_a_member` (same d2 retirement). A
-    FUSED state carrying a LIVE ψ½ ray is REFUSED: on the coupled arm the
-    driver representation is the split pair, and a live-ray fused iterate
-    is exactly the B.2c dead-slot double-count hazard (the welded seed feed
-    AND the explicit ``A_AB`` block would both fire) — split it with
-    :func:`_split_fused_state` before the driver consumes it.
+    The sibling of :func:`_system_a_member`. A bare :class:`FullField` is
+    pure 2-block since the B.2d eviction — a "fused state carrying a live
+    ψ½ ray" (the B.2c double-count hazard this reader used to refuse) is
+    no longer representable, so the bare arm simply has no System B.
     """
     if isinstance(state, CoupledField):
         if state.n_systems != 2:
@@ -273,68 +271,33 @@ def _system_b_member(
                 f"{type(member).__name__}."
             )
         return member
-    if state.radial_characteristic is not None:
-        raise ValueError(
-            "_system_b_member: a fused state carrying a LIVE ψ½ ray is not "
-            "a legal driver state — on a carrying mesh the driver holds the "
-            "split coupled pair (a live-ray fused iterate double-counts the "
-            "welded seed feed; the B.2c dead-slot hazard). Split it with "
-            "_split_fused_state first."
-        )
     return None
 
 
-def _split_fused_state(full: "FullField", sn_mesh: "SNMesh") -> "CoupledField":
-    r"""Split a fused 3-block composite into the coupled pair ``[ψ_A, ψ_B]``.
+def _require_coupled_pair(
+    state: "CoupledField", sn_mesh: "SNMesh", context: str,
+) -> "tuple[FullField, RadialCharacteristicComposite]":
+    r"""Parse a coupled ψ½ pair ``[ψ_A, ψ_B]`` at an operator boundary.
 
-    TRANSIENT (B.2d d1 — retires at d2 with the ray eviction): while System
-    A's ``full_field_space`` is still the 3-block composite, the coupled
-    driver state is DERIVED from the fused birth sites (the cold starts,
-    the q_ext builders) by re-typing — the REAL ray state moves to ψ_B
-    (role-preserved through
-    :meth:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite.from_unified`)
-    and ψ_A keeps a present-ZERO slot of the SAME role (the B.2c dead-slot
-    convention: the fused walk's welded seed-feed arm reads zeros; the
-    explicit blocks carry the coupling). Values are copied EXACTLY — this
-    is a re-label, not arithmetic. At d2 the eviction makes the 2-block
-    ψ_A native, the births go coupled directly, and this helper (with its
-    inverse :func:`_fuse_coupled_state`) dissolves.
-    """
-    ray = full.radial_characteristic
-    if ray is None:
-        raise ValueError(
-            "_split_fused_state: the fused composite carries no ψ½ block — "
-            "the coupled pair exists only on a seed-carrying mesh (R12a); "
-            "a seedless state stays fused (DP-seedless)."
-        )
-    # Role-preserving present-zero: the dead slot mirrors the live ray's
-    # role class so composite arithmetic on ψ_A stays class-closed.
-    dead = type(ray).zeros_on(sn_mesh)
-    return CoupledField(
-        systems=(
-            replace(full, radial_characteristic=dead),
-            RadialCharacteristicComposite.from_unified(ray),
-        ),
-    )
-
-
-def _fuse_coupled_state(state: "CoupledField", sn_mesh: "SNMesh") -> "FullField":
-    r"""Recompose the coupled pair into the fused 3-block composite.
-
-    TRANSIENT inverse of :func:`_split_fused_state` (same d2 retirement):
-    the fused ``(L+C)`` walk — and, until d2, ``Solution.angular_flux`` —
-    speaks the 3-block layout, so the bridge re-seats ψ_B's state into
-    ψ_A's slot (role-preserved via
-    :meth:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite.to_unified`).
-    ψ_A's slot is OVERWRITTEN, which is exactly the dead-slot convention's
-    licence: it is present-zero by construction, so nothing is lost.
+    The shared parse of :class:`CoupledInvertibleOperator`'s four action
+    surfaces (parse-don't-validate): System A through
+    :func:`_system_a_member`, System B through the composite's own
+    :meth:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite.require_member`
+    (carrier class + mesh identity). A bare System-A composite refuses —
+    ``M`` is the JOINT operator; the seedless ``(L+C)`` is its own resolvent
+    (DP-seedless).
     """
     psi_a = _system_a_member(state)
-    psi_b = RadialCharacteristicComposite.require_member(
-        state.systems[1] if state.n_systems == 2 else None,
-        mesh=sn_mesh, context="_fuse_coupled_state",
+    psi_b = _system_b_member(state)
+    if psi_b is None:
+        raise TypeError(
+            f"{context}: expected the coupled pair [ψ_A, ψ_B] — a bare "
+            f"System-A composite has no ray member (on a seedless mesh the "
+            f"resolvent is the plain (L+C), never this joint M)."
+        )
+    return psi_a, RadialCharacteristicComposite.require_member(
+        psi_b, mesh=sn_mesh, context=context,
     )
-    return replace(psi_a, radial_characteristic=psi_b.to_unified())
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -347,8 +310,7 @@ class CoupledInvertibleOperator(LinearOperator["CoupledField", "CoupledField"]):
     onto the coupled pair.
 
     The named ``M`` of ``A = M − N`` (:class:`WithinGroupSystem`): the fused
-    ``(L+C)`` walk, which on the 3-block composite ALREADY computes the
-    joint block action
+    ``(L+C)`` walk, which computes the joint block action
 
     .. math::
 
@@ -356,18 +318,19 @@ class CoupledInvertibleOperator(LinearOperator["CoupledField", "CoupledField"]):
 
     — the welded seed feed IS the (A,B) coupling and the in-walk ψ½
     recurrence IS the (B,B) march — presented on the coupled carrier
-    through the transitional fused-state bridge
-    (:func:`_fuse_coupled_state` / :func:`_split_fused_state`, exact
-    re-labels). The walk below the bridge is UNTOUCHED (explorer V2: the
-    bridge is exactly the composite entry signatures; everything beneath
-    marches leaf values) — the d1 zero-walk-touch invariant.
+    through the B.2d EXPLICIT LEAF LEGS: each surface splits the pair,
+    hands System B's member to the fused surface as its unified leaf
+    kwargs (``radial_characteristic_source``/``_flux`` forward,
+    ``seed_cot``/``_out`` transposed — exact role-preserving
+    ``to_unified``/``from_unified`` round trips, the B.1d licence), and
+    re-packs the walk-filled buffer as ψ_B. The walk below the kwarg
+    boundary is UNTOUCHED (explorer V2) — the zero-walk-touch invariant.
 
-    All four action surfaces bridge: :meth:`apply` (the joint forward
-    matvec — the Krylov action), :meth:`solve` (the joint WDD sweep — the
-    SI step), :meth:`apply_transpose` / :meth:`solve_transpose` (the
-    reverse-scan pair, #280, gated by the fused forward's adjointability).
-    ``inverse()`` returns the :class:`CoupledSweepOperator` wrap-delegate
-    sibling.
+    All four action surfaces: :meth:`apply` (the joint forward matvec —
+    the Krylov action), :meth:`solve` (the joint WDD sweep — the SI step),
+    :meth:`apply_transpose` / :meth:`solve_transpose` (the reverse-scan
+    pair, #280, gated by the fused forward's adjointability). ``inverse()``
+    returns the :class:`CoupledSweepOperator` wrap-delegate sibling.
 
     Lifecycle: at Phase C (4e) the walk un-weaves and the bridge dissolves
     (M goes leaf-native); at step 5 the block SOLVE re-poses M as an honest
@@ -404,24 +367,45 @@ class CoupledInvertibleOperator(LinearOperator["CoupledField", "CoupledField"]):
     # ── The four bridged action surfaces ──────────────────────────────
 
     def apply(self, x: "CoupledField", /) -> "CoupledField":
-        r"""The joint forward matvec ``M·[ψ_A, ψ_B]`` via the fused walk."""
-        return _split_fused_state(
-            self.fused.apply(_fuse_coupled_state(x, self._sn_mesh)),
-            self._sn_mesh,
+        r"""The joint forward matvec ``M·[ψ_A, ψ_B]`` via the fused walk.
+
+        System B's state crosses in as the ``radial_characteristic_flux``
+        leg; the emitted ray-block rows fill the ``radial_characteristic_
+        source`` buffer, re-packed as ψ_B (source-role — the matvec output).
+        """
+        x_a, x_b = _require_coupled_pair(
+            x, self._sn_mesh, "CoupledInvertibleOperator.apply",
+        )
+        rows_buf = RadialCharacteristicSourceSink.zeros_on(self._sn_mesh)
+        y_a = self.fused.apply(
+            x_a,
+            radial_characteristic_flux=x_b.to_unified(),
+            radial_characteristic_source=rows_buf,
+        )
+        return CoupledField(
+            systems=(y_a, RadialCharacteristicComposite.from_unified(rows_buf)),
         )
 
     def solve(self, rhs: "CoupledField") -> "CoupledField":
         r"""The joint WDD sweep ``M⁻¹·[rhs_A, rhs_B]`` — the SI step.
 
-        The fused sweep reads rhs_B (the q½ source legs) through the
-        bridge, marches the seed and bulk jointly (bit-identical inputs to
-        the pre-B.2d fused path), and the output splits back: ψ_B carries
-        the marched ray flux, ψ_A the bulk + trace with the dead
-        present-zero slot.
+        rhs_B (the TRUE q½ source) crosses in as the
+        ``radial_characteristic_source`` leg; the walk marches the seed and
+        bulk jointly (bit-identical inputs to the pre-B.2d fused path) and
+        fills the ``radial_characteristic_flux`` carrier in place — ψ_B of
+        the output is that marched ray flux, ψ_A the 2-block bulk ⊕ trace.
         """
-        return _split_fused_state(
-            self.fused.solve(_fuse_coupled_state(rhs, self._sn_mesh)),
-            self._sn_mesh,
+        rhs_a, rhs_b = _require_coupled_pair(
+            rhs, self._sn_mesh, "CoupledInvertibleOperator.solve",
+        )
+        flux_buf = RadialCharacteristicFlux.zeros_on(self._sn_mesh)
+        psi_a = self.fused.solve(
+            rhs_a,
+            radial_characteristic_source=rhs_b.to_unified(),
+            radial_characteristic_flux=flux_buf,
+        )
+        return CoupledField(
+            systems=(psi_a, RadialCharacteristicComposite.from_unified(flux_buf)),
         )
 
     @property
@@ -431,17 +415,39 @@ class CoupledInvertibleOperator(LinearOperator["CoupledField", "CoupledField"]):
         return self.fused.is_adjointable
 
     def apply_transpose(self, y: "CoupledField", /) -> "CoupledField":
-        r"""The joint transposed matvec ``Mᵀ·[y_A, y_B]`` via the fused walk."""
-        return _split_fused_state(
-            self.fused.apply_transpose(_fuse_coupled_state(y, self._sn_mesh)),
-            self._sn_mesh,
+        r"""The joint transposed matvec ``Mᵀ·[y_A, y_B]`` via the fused walk.
+
+        y_B (the cotangent of the forward's ray rows) crosses in as the
+        ``seed_cot`` leg; the domain-side pullback ``Seedingᵀ·y_A +
+        D_BBᵀ·y_B`` fills the ``seed_cot_out`` buffer, re-packed as ψ_B.
+        """
+        y_a, y_b = _require_coupled_pair(
+            y, self._sn_mesh, "CoupledInvertibleOperator.apply_transpose",
+        )
+        cot_buf = RadialCharacteristicSourceSink.zeros_on(self._sn_mesh)
+        x_a_bar = self.fused.apply_transpose(
+            y_a, seed_cot=y_b.to_unified(), seed_cot_out=cot_buf,
+        )
+        return CoupledField(
+            systems=(x_a_bar, RadialCharacteristicComposite.from_unified(cot_buf)),
         )
 
     def solve_transpose(self, b: "CoupledField") -> "CoupledField":
-        r"""The joint reverse-scan ``M⁻ᵀ·[b_A, b_B]`` (#280 2.5b, bridged)."""
-        return _split_fused_state(
-            self.fused.solve_transpose(_fuse_coupled_state(b, self._sn_mesh)),
-            self._sn_mesh,
+        r"""The joint reverse-scan ``M⁻ᵀ·[b_A, b_B]`` (#280 2.5b).
+
+        b_B (the flux-side ray cotangent) crosses in as the ``seed_cot``
+        leg; the source-side cotangent fills the ``seed_cot_out`` buffer,
+        re-packed as ψ_B.
+        """
+        b_a, b_b = _require_coupled_pair(
+            b, self._sn_mesh, "CoupledInvertibleOperator.solve_transpose",
+        )
+        cot_buf = RadialCharacteristicSourceSink.zeros_on(self._sn_mesh)
+        x_a_bar = self.fused.solve_transpose(
+            b_a, seed_cot=b_b.to_unified(), seed_cot_out=cot_buf,
+        )
+        return CoupledField(
+            systems=(x_a_bar, RadialCharacteristicComposite.from_unified(cot_buf)),
         )
 
     # ── Invertibility (the schedule-triangular family) ────────────────

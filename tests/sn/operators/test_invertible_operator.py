@@ -69,7 +69,7 @@ def _random_state(
     """
     rng = np.random.default_rng(seed)
     N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth, radial_characteristic=RadialCharacteristicFlux)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth)
     return replace(
         state,
         interior=replace(
@@ -83,7 +83,7 @@ def _const_state(
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` whose bulk is uniformly ``value``."""
     N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth, radial_characteristic=RadialCharacteristicFlux)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth)
     return replace(
         state,
         interior=replace(state.interior, values=np.full((N, ng, *sn_mesh.spatial_shape), value)),
@@ -411,7 +411,10 @@ class TestSolve:
         assert nx // 4 <= peak_x_idx[0] <= 3 * nx // 4
 
     def test_solve_runs_on_sphere(self) -> None:
-        r"""Sphere geometry — smoke test that the curvilinear path runs."""
+        r"""Sphere geometry — smoke test that the curvilinear path runs.
+
+        B.2d: the carrying joint solve REQUIRES the explicit ψ½ legs
+        (the q½ source read + the flux carrier filled in place)."""
         sn = _sphere_mesh(nx=8, n_ord=4, ng=1)
         sigma_t = np.full((sn.ng, *sn.spatial_shape), 1.0)
         invertible = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
@@ -419,11 +422,22 @@ class TestSolve:
         )
 
         q = _const_state(sn, value=1.0)
-        psi = invertible.solve(q)
+        flux_buf = RadialCharacteristicFlux.zeros_on(sn)
+        psi = invertible.solve(
+            q,
+            radial_characteristic_source=(
+                RadialCharacteristicSourceSink.from_angular_source(
+                    q.interior.values, sn,
+                )
+            ),
+            radial_characteristic_flux=flux_buf,
+        )
         assert isinstance(psi, TimedFullField)
         assert psi.interior.values.shape == q.interior.values.shape
-        # Curvilinear sweep produces a non-trivial positive bulk.
+        # Curvilinear sweep produces a non-trivial positive bulk AND fills
+        # the marched ψ½ carrier in place.
         assert psi.interior.values.max() > 0
+        assert float(np.abs(flux_buf.values).max()) > 0
 
     @pytest.mark.l0
     @pytest.mark.verifies("transport-cartesian")
@@ -881,23 +895,26 @@ class TestInvertibleSolveBridgeRegression:
         C_t = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
         LC = L_leaf + C_t
 
-        # Per-ordinate uniform source — composite carrier.
+        # Per-ordinate uniform source — 2-block carrier; on a carrying mesh
+        # (sphere) the TRUE q½ SOURCE rides the walk's EXPLICIT
+        # ``radial_characteristic_source`` leg (B.2d — the q½ fold of the
+        # per-ordinate source, the SAME ``from_angular_source`` factory the
+        # production q_ext assembly uses).  Without it the pole march is
+        # seeded wrong and ψ ≠ q/Σ_t; None on non-carrying (slab/cyl).
         q_iso = 0.225
         q_per_ord = np.full((N, ng, *sn_mesh.spatial_shape), q_iso / sum_w)
         rhs = TimedFullField(
             interior=AngularFlux.from_mesh(q_per_ord, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
-            # #282 route (a): on a carrying mesh (sphere) the fixed-source RHS
-            # carries the TRUE starting-direction SOURCE — the q½ fold of the
-            # per-ordinate source the direct ψ½ solve consumes (the SAME
-            # ``from_angular_source`` factory the production
-            # ``solve_sn_fixed_source`` q_ext uses).  Without it the pole march
-            # is seeded wrong and ψ ≠ q/Σ_t; None on non-carrying (slab/cyl).
-            radial_characteristic=RadialCharacteristicSourceSink.from_angular_source(
-                q_per_ord, sn_mesh,
-            ),
             _history=(),
             history_depth=2,
+        )
+        carrying = sn_mesh.radial_characteristic_space is not None
+        q_half = (
+            RadialCharacteristicSourceSink.from_angular_source(
+                q_per_ord, sn_mesh,
+            )
+            if carrying else None
         )
 
         # Iterate to converge the reflective fixed point.  Wave O (#208)
@@ -909,53 +926,57 @@ class TestInvertibleSolveBridgeRegression:
         # (``q.boundary = 0`` here) — exactly the ``S + B`` source the
         # production SI driver folds.  ``initial_guess`` still threads the
         # M-M Carlson bulk warm start.
-        # The augmented boundary coupling: on a seed-carrying (sphere) mesh the
-        # direct sum B_a + B_b (System A trace ⊕ System B ray corner — RULING P1;
-        # the un-weld of the old welded SNBoundaryOperator). B.apply(ψ) emits BOTH
-        # the reflected trace AND the ψ½ corner arm, exactly the augmented −B the
-        # production driver folds (this test replicates that fold by hand). On a
-        # seedless (slab/cylinder) mesh B is B_a alone. The FUSED B_a + B_b sum
-        # rides the fused-oracle shim since B.2d (the re-typed B_b speaks
-        # System B's composite spaces, which the OperatorSum guard correctly
-        # refuses to sum with B_a's FullField carrier; production consumes the
-        # block natively through the gain grid).
-        from tests.sn._test_helpers import FusedRayBoundaryGain
+        # The augmented boundary coupling: PER SYSTEM (RULING P1 / B.2d) —
+        # ``B_a`` reflects System A's trace into ``rhs.boundary``; on the
+        # carrying sphere ``B_b`` (System B's own block) reflects the ψ½
+        # corner into the q½ SOURCE leg (the fused-summable spelling is
+        # unrepresentable since the eviction; production consumes both
+        # blocks through the gain grid — this loop replicates that fold by
+        # hand, one reflect per system).
+        from orpheus.transport.radial_characteristic_composite import (
+            RadialCharacteristicComposite,
+        )
 
         B_a = SNBoundaryOperator(sn_mesh)
-        B = (
-            B_a
-            + FusedRayBoundaryGain(
-                RadialCharacteristicBoundaryOperator(sn_mesh),
-            )
-            if sn_mesh.radial_characteristic_space is not None
-            else B_a
+        B_b = (
+            RadialCharacteristicBoundaryOperator(sn_mesh) if carrying else None
         )
+
+        def _joint_solve(rhs_a, q_seed, guess):
+            if not carrying:
+                return LC.solve(rhs_a, initial_guess=guess), None
+            buf = RadialCharacteristicFlux.zeros_on(sn_mesh)
+            out = LC.solve(
+                rhs_a, initial_guess=guess,
+                radial_characteristic_source=q_seed,
+                radial_characteristic_flux=buf,
+            )
+            return out, buf
+
         psi_typed: TimedFullField | None = None
+        flux_prev: RadialCharacteristicFlux | None = None
         for _ in range(400):
             if psi_typed is None:
-                psi_new = LC.solve(rhs)
+                psi_new, flux_new = _joint_solve(rhs, q_half, None)
             else:
-                # #282 route (a): the reflective −B coupling folds into BOTH the
-                # boundary inflow AND the ψ½ SOURCE corner arm.  Production SI
-                # builds ``rhs = q_ext + B.apply(psi)`` (the composite ``+``
-                # combines EVERY block); the pre-2.5d loop replaced only
-                # ``.boundary``.  On a carrying mesh (sphere) the B corner arm
-                # must be added to the q½ source too, else the pole ψ½ march is
-                # under-driven and ψ ≠ q/Σ_t (the observed non-flat profile).
-                B_out = B.apply(psi_typed)
-                seed_n = rhs.radial_characteristic
-                if seed_n is not None and B_out.radial_characteristic is not None:
-                    seed_n = seed_n + B_out.radial_characteristic
-                rhs_n = replace(
-                    rhs, boundary=B_out.boundary, radial_characteristic=seed_n,
-                )
-                psi_new = LC.solve(rhs_n, initial_guess=psi_typed)
+                # The reflective −B coupling folds per system: B_a's trace
+                # into rhs.boundary; B_b's corner arm into the q½ source
+                # (else the pole ψ½ march is under-driven and ψ ≠ q/Σ_t).
+                B_out = B_a.apply(psi_typed)
+                seed_n = q_half
+                if carrying and B_b is not None and flux_prev is not None:
+                    corner = B_b.apply(
+                        RadialCharacteristicComposite.from_unified(flux_prev))
+                    seed_n = q_half + corner.to_unified()
+                rhs_n = replace(rhs, boundary=B_out.boundary)
+                psi_new, flux_new = _joint_solve(rhs_n, seed_n, psi_typed)
             if psi_typed is not None and np.abs(
                 psi_new.interior.values - psi_typed.interior.values,
             ).max() < 1e-14:
                 psi_typed = psi_new
                 break
             psi_typed = psi_new
+            flux_prev = flux_new
 
         assert psi_typed is not None
         # Per-ordinate expected: ψ_n = q_n / Σ_t = (q_iso/W) / Σ_t.

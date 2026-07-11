@@ -85,13 +85,12 @@ import orpheus.sn.solver as _solver_mod
 from orpheus.sn.coupled_system import (
     CoupledInvertibleOperator,
     WithinGroupSystem,
-    _fuse_coupled_state,
-    _split_fused_state,
     build_within_group_system,
 )
 from orpheus.sn.solver import (
     SNSolver,
     _build_fixed_source_rhs,
+    _coupled_flux_state,
     _unwindowed_cold_start,
     _within_group_krylov,
     _within_group_si,
@@ -100,8 +99,6 @@ from orpheus.sn import solve_sn_fixed_source
 from orpheus.numerics.iteration import SourceIteration
 from orpheus.sn.operators.streaming import InvertibleOperator
 from tests.sn._test_helpers import (
-    FusedRayBoundaryGain,
-    FusedRayEmissionGain,
     curvilinear_two_region_mesh,
 )
 from orpheus.sn.spatial.psi_half_angle_seed import (
@@ -190,30 +187,58 @@ def _loss(sn, slope: float = 0.4):
 
 
 def _template(sn):
-    """A zero :class:`FullField` (bulk ⊕ trace ⊕ ψ½ seed) to seed dense probes."""
+    """A zero 2-block :class:`FullField` (bulk ⊕ trace) to seed dense probes."""
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
-    n_sd = sn.radial_characteristic_space.shape[0]
     return FullField(
         interior=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
-        boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
-        radial_characteristic=RadialCharacteristicFlux(
-            values=np.zeros(n_sd), space=sn.radial_characteristic_space, mesh=sn))
+        boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn))
+
+
+def _coupled_template(sn):
+    """A zero coupled pair ``[ψ_A 2-block, ψ_B]`` to seed JOINT dense probes."""
+    return CoupledField(systems=(
+        _template(sn), RadialCharacteristicComposite.from_mesh(sn)))
+
+
+def _pair(sn, psi_a, ray_values):
+    """The coupled pair from a System-A composite + unified-layout ray values
+    (role-preserved through ``from_unified`` — the exact B.1d re-label)."""
+    return CoupledField(systems=(
+        psi_a,
+        RadialCharacteristicComposite.from_unified(RadialCharacteristicFlux(
+            values=np.asarray(ray_values, dtype=float),
+            space=sn.radial_characteristic_space, mesh=sn))))
+
+
+def _joint_M(sn, LC):
+    """The joint ``M`` — ``LC``'s fused walk re-typed onto the coupled pair
+    (the B.2d leaf-kwarg legs), over the mesh's own coupled space."""
+    from orpheus.numerics.coupled_system import CoupledSpace as _CS
+
+    space = _CS.from_systems(
+        (sn.full_field_space, sn.radial_characteristic_composite_space))
+    return CoupledInvertibleOperator(LC, space=space, sn_mesh=sn)
 
 
 def _dense(fn, tpl):
-    """Materialise ``fn`` as a dense matrix by probing the ``FullField`` basis."""
+    """Materialise ``fn`` as a dense matrix by probing ``tpl``'s flat basis
+    (any ``to_flat``/``from_flat`` carrier — FullField or the coupled pair)."""
     n = tpl.to_flat().size
     M = np.zeros((n, n))
     for j in range(n):
         e = np.zeros(n)
         e[j] = 1.0
-        M[:, j] = fn(FullField.from_flat(e, tpl)).to_flat()
+        M[:, j] = fn(type(tpl).from_flat(e, tpl)).to_flat()
     return M
 
 
 def _blocks(sn):
-    """The (bulk, trace, seed) row/col slices of the flat ``FullField`` layout."""
+    """The (bulk, trace, System-B) row/col slices of the COUPLED flat layout
+    ``[ψ_A.interior | ψ_A.boundary | ψ_B]`` (B.2d — the ray block is System
+    B's own composite tail; its internal member order differs from the old
+    unified layout, which every consumer here treats as a BLOCK — max-abs
+    norms, eigenvalues, and round-trips are permutation-invariant)."""
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     nb = N * ng * nx
     nt = int(sn.angular_trace.layout.total_size)
@@ -243,9 +268,9 @@ class TestRegressionFloor:
         certificate. Mutation tooth: a bulk→seed coupling leaking into ``(L+C)``
         (e.g. the ray reading a bulk moment in-sweep) makes ``A_sb`` jump O(1)."""
         sn = _sphere()
-        LC = _loss(sn, slope=0.4)
+        M_op = _joint_M(sn, _loss(sn, slope=0.4))
         b, t, s, _ = _blocks(sn)
-        A = _dense(LC.apply, _template(sn))
+        A = _dense(M_op.apply, _coupled_template(sn))
         a_sb, a_st = _bn(A, s, b), _bn(A, s, t)
         a_bs, a_ss = _bn(A, b, s), _bn(A, s, s)
         print(f"  (L+C): A_sb={a_sb:.2e} A_st={a_st:.2e} | A_bs={a_bs:.3f} A_ss={a_ss:.3f}")
@@ -271,21 +296,26 @@ class TestRegressionFloor:
         S's bulk) would make ``A_BA_bb ≠ 0``; an S that re-grew the ray arm would
         make ``S_sb ≠ 0`` (the pre-lift regression this flip retired).
 
-        B.2d re-point: the FullField-densifiable face is the FUSED-spelling
-        test oracle (the block itself is FullField → RadialCharacteristicComposite —
-        un-densifiable on one template); on the BLOCK the ``A_BA_bb = 0``
-        disjointness is STRUCTURAL (no bulk slot in the codomain), so the
-        measured ``aba_bb`` row pins the ORACLE's embed."""
+        B.2d re-point: the pin now reads the RECORD's gain grid N — the
+        (B,A) Emission block probed over the coupled template. ``S_sb``/
+        ``S_bs`` = 0 is STRUCTURAL since the eviction (the model-generic S
+        acts on the 2-block System A; no ray slot exists), so the measured
+        rows here are N's: the Emission sources the ray (N_sb ≠ 0) and the
+        (A,B) slot is the structural ∅ (no ray→bulk gain — Seeding lives in
+        M)."""
         sn = _sphere()
-        S = SNSolver(sn).scattering_op
-        A_BA = FusedRayEmissionGain(
-            RadialCharacteristicEmission(sn, S.isotropic_kernel))
+        solver = SNSolver(sn)
+        system = build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+        S = solver.scattering_op
         b, _, s, _ = _blocks(sn)
-        tpl = _template(sn)
-        Sd = _dense(S.apply, tpl)
-        Ad = _dense(A_BA.apply, tpl)
-        s_sb, s_bs = _bn(Sd, s, b), _bn(Sd, b, s)
-        aba_sb, aba_bb = _bn(Ad, s, b), _bn(Ad, b, b)
+        tpl_a = _template(sn)
+        Sd = _dense(S.apply, tpl_a)              # 2-block: NO ray rows exist
+        Ad = _dense(system.gains[0].apply, _coupled_template(sn))
+        s_sb, s_bs = 0.0, 0.0                    # structural (no block to read)
+        if Sd.shape[0] != tpl_a.to_flat().size:
+            pytest.fail("S's dense is not the 2-block System-A square.")
+        aba_sb, aba_bb = _bn(Ad, s, b), _bn(Ad, b, s)
         print(f"  S(pure bulk): S_sb={s_sb:.2e} S_bs={s_bs:.2e} | "
               f"A_BA: A_BA_sb(bulk→ray)={aba_sb:.3f} A_BA_bb(no bulk-out)={aba_bb:.2e}")
         # The coupling lives in A_BA, not S.
@@ -296,14 +326,10 @@ class TestRegressionFloor:
         if not (s_sb < 1e-12):
             pytest.fail(f"S_sb={s_sb:.3e} ≠ 0 — the model-generic scattering gain still sources "
                         f"the ray; the LIFT did not make S pure bulk (a re-grown ray arm).")
-        # A_BA is disjoint from the bulk (no double-count with S's bulk).
+        # N's (A,B) is the structural ∅ — no ray→bulk gain (Seeding is M's).
         if not (aba_bb < 1e-12):
-            pytest.fail(f"A_BA_bb={aba_bb:.3e} ≠ 0 — A_BA emits into the bulk (a double-count "
-                        f"with S's bulk); it must write ONLY the ray (disjoint direct sum).")
-        # The ray still cannot feed the scalar flux (ψ½ zero moment weight).
-        if not (s_bs < 1e-12):
-            pytest.fail(f"S_bs={s_bs:.3e} ≠ 0 — the ray leaks into the scalar flux; ψ½ must have "
-                        f"ZERO moment weight (the ghost-metric physics is violated).")
+            pytest.fail(f"N_bs={aba_bb:.3e} ≠ 0 — the gain grid carries a ray→bulk arm; "
+                        f"the (A,B) slot must be the structural ∅ (Seeding lives in M).")
 
     def test_outer_si_splitting_rate_is_bounded_by_scattering_ratio(self):
         r"""``A = (L+C) − S − B = M − N`` with ``M = (L+C)``, ``N = S + B``: the
@@ -313,13 +339,12 @@ class TestRegressionFloor:
         c = 0.4
         sn = _sphere(c=c)
         solver = SNSolver(sn)
-        LC, S = solver.L, solver.scattering_op
-        # The FUSED dense M/N (3-block template): B = B_a + the B_b oracle.
-        B = SNBoundaryOperator(sn) + FusedRayBoundaryGain(
-            RadialCharacteristicBoundaryOperator(sn))
-        tpl = _template(sn)
-        M = _dense(LC.apply, tpl)
-        N = _dense(S.apply, tpl) + _dense(B.apply, tpl)
+        # The record's OWN splitting, densified over the coupled pair (B.2d).
+        system = build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+        tpl = _coupled_template(sn)
+        M = _dense(system.resolvent.apply, tpl)
+        N = _dense(system.gains[0].apply, tpl)
         rho = float(np.max(np.abs(np.linalg.eigvals(np.linalg.solve(M, N)))))
         print(f"  ρ(M⁻¹N) = {rho:.4f}   (c={c}; below c for vacuum leakage)")
         if not (0.0 < rho < c + 1e-6):
@@ -336,14 +361,11 @@ class TestRegressionFloor:
         ψ½ = E·ψ_bulk, a genuine cycle — diverges ρ≈70; that is why route-a was
         needed. Documented, not reconstructed here.)"""
         sn = _sphere()
-        LC = _loss(sn, slope=0.4)
         _, _, _, (nb, nt, ns) = _blocks(sn)
-        M = _dense(LC.apply, _template(sn))
-        ab = np.r_[np.arange(nb), np.arange(nb, nb + nt)]      # bulk+trace = System A
-        sd = np.arange(nb + nt, nb + nt + ns)                  # seed = System B
-        perm = np.r_[ab, sd]
-        Mp = M[np.ix_(perm, perm)]
-        nA = len(ab)
+        M = _dense(_joint_M(sn, _loss(sn, slope=0.4)).apply, _coupled_template(sn))
+        # The coupled layout is ALREADY [System A | System B] contiguous.
+        Mp = M
+        nA = nb + nt
         M_lag = Mp.copy(); M_lag[:nA, nA:] = 0.0               # lag the seed→bulk feed
         N_lag = np.zeros_like(Mp); N_lag[:nA, nA:] = Mp[:nA, nA:]
         rho_lag = float(np.max(np.abs(np.linalg.eigvals(np.linalg.solve(M_lag, N_lag)))))
@@ -358,14 +380,14 @@ class TestRegressionFloor:
         bit-for-bit. Mutation tooth: a re-introduced ψ½ seed lag makes the sphere
         round-trip blow up (pre-route-a residual was O(1e5))."""
         sn = _sphere()
-        LC = _loss(sn, slope=0.3)
-        tpl = _template(sn)
+        M_op = _joint_M(sn, _loss(sn, slope=0.3))
+        tpl = _coupled_template(sn)
         nb = sn.quad.N * sn.ng * sn.nx
         rng = np.random.default_rng(7)
         psi0 = np.zeros(tpl.to_flat().size)
         psi0[:nb] = rng.standard_normal(nb)                 # random physical bulk
-        psi0_ff = FullField.from_flat(psi0, tpl)
-        back = LC.solve(LC.apply(psi0_ff)).to_flat()
+        psi0_c = CoupledField.from_flat(psi0, tpl)
+        back = M_op.solve(M_op.apply(psi0_c)).to_flat()
         rel = np.max(np.abs(back[:nb] - psi0[:nb])) / (np.max(np.abs(psi0[:nb])) + 1e-300)
         print(f"  ||solve(apply(ψ)) − ψ||_bulk_rel = {rel:.3e}")
         if not (rel < 1e-12):
@@ -380,15 +402,15 @@ class TestRegressionFloor:
         bit-identity; EXTRACT trades it for ~1e-15 drift. This row is the oracle
         every EXTRACT step of the campaign pins against."""
         sn = _sphere()
-        LC = _loss(sn, slope=0.3)
-        tpl = _template(sn)
+        M_op = _joint_M(sn, _loss(sn, slope=0.3))
+        tpl = _coupled_template(sn)
         nb = sn.quad.N * sn.ng * sn.nx
-        M = _dense(LC.apply, tpl)                            # the EXTRACTED explicit matrix
+        M = _dense(M_op.apply, tpl)                          # the EXTRACTED explicit matrix
         rng = np.random.default_rng(11)
         psi0 = np.zeros(tpl.to_flat().size)
         psi0[:nb] = rng.standard_normal(nb)
-        q = LC.apply(FullField.from_flat(psi0, tpl))
-        psi_weld = LC.solve(q).to_flat()                    # welded sweep (forward substitution)
+        q = M_op.apply(CoupledField.from_flat(psi0, tpl))
+        psi_weld = M_op.solve(q).to_flat()                  # welded sweep (forward substitution)
         psi_dense = np.linalg.solve(M, q.to_flat())         # extracted dense LU
         diff = np.max(np.abs(psi_weld[:nb] - psi_dense[:nb])) / (np.max(np.abs(psi_dense[:nb])) + 1e-300)
         print(f"  ||welded − dense_LU||_bulk_rel = {diff:.3e}  (principled ~1e-15, not 0)")
@@ -401,30 +423,33 @@ class TestRegressionFloor:
 # ── Step-1b helpers: the boundary un-weld B = B_a + B_b ───────────────────
 
 
-def _seed_composite(sn, seed_values: NDArray) -> FullField:
-    """A composite with zero bulk, the given trace, and the given ψ½ seed."""
-    N, nx, ng = sn.quad.N, sn.nx, sn.ng
-    n_tr = int(sn.angular_trace.layout.total_size)
-    return FullField(
-        interior=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
-        boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
-        radial_characteristic=RadialCharacteristicFlux(
-            values=seed_values, space=sn.radial_characteristic_space, mesh=sn),
-    )
+def _zero_composite(sn) -> FullField:
+    """A zero 2-block System-A composite (alias of :func:`_template`)."""
+    return _template(sn)
+
+
+def _seed_leaf(sn, seed_values: NDArray) -> RadialCharacteristicFlux:
+    """The unified ψ½ flux leaf over the given values (the walk currency)."""
+    return RadialCharacteristicFlux(
+        values=np.asarray(seed_values, dtype=float),
+        space=sn.radial_characteristic_space, mesh=sn)
 
 
 def _random_composite(sn, rng) -> FullField:
-    """A composite with random bulk, trace, and ψ½ seed (all blocks non-zero)."""
+    """A 2-block composite with random bulk and trace (System A alone)."""
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
-    ns = sn.radial_characteristic_space.shape[0]
     return FullField(
         interior=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux(
             values=rng.standard_normal(n_tr), space=sn.angular_trace, mesh=sn),
-        radial_characteristic=RadialCharacteristicFlux(
-            values=rng.standard_normal(ns), space=sn.radial_characteristic_space, mesh=sn),
     )
+
+
+def _random_pair(sn, rng) -> CoupledField:
+    """A random coupled pair ``[ψ_A 2-block, ψ_B]`` (every block non-zero)."""
+    ns = sn.radial_characteristic_space.shape[0]
+    return _pair(sn, _random_composite(sn, rng), rng.standard_normal(ns))
 
 
 def _ray_composite(sn, seed_values: NDArray) -> RadialCharacteristicComposite:
@@ -475,19 +500,17 @@ class TestBoundaryUnweld:
     so BOTH arms are non-trivial (vacuum would leave B_b zero).
     """
 
-    def test_b_a_touches_only_the_trace_present_zero_ray(self):
-        r"""``B_a`` reflects the trace but emits a PRESENT-ZERO ray (not ``None``
-        — the mixed-presence law would raise under ``B_a + B_b``). Mutation tooth:
-        a ``B_a`` that re-grew the ray arm would emit a non-zero ray block."""
+    def test_b_a_touches_only_the_trace(self):
+        r"""``B_a`` reflects the trace over a zero bulk — and since B.2d "B_a
+        touches the ray" is UNSPELLABLE (its 2-block codomain has no ray slot;
+        the retired present-zero pad dissolved with the eviction). The live
+        claims: the trace reflection is non-trivial, the bulk stays zero."""
         sn = _sphere(bc="reflective")
         out = SNBoundaryOperator(sn).apply(_random_composite(sn, np.random.default_rng(1)))
-        if out.radial_characteristic is None:
-            pytest.fail("B_a emitted a None ray on a seed-carrying composite — the "
-                        "mixed-presence law will raise under B_a + B_b (must be present-zero).")
         np.testing.assert_array_equal(
-            out.radial_characteristic.values, 0.0,
-            err_msg="B_a emitted a NON-ZERO ray block — it re-grew the ray arm "
-                    "that belongs to B_b (the un-weld leaked).")
+            out.interior.values, 0.0,
+            err_msg="B_a emitted a NON-ZERO bulk — the trace boundary leaked "
+                    "into the interior.")
         if not np.max(np.abs(out.boundary.values)) > 0.0:
             pytest.fail("B_a emitted a zero trace on a reflective sphere — it is not "
                         "reflecting the trace (System A boundary is dead).")
@@ -500,11 +523,12 @@ class TestBoundaryUnweld:
         present-zero embed rows dissolved with it). Mutation tooth: a dead
         reflective corner arm emits a zero corner."""
         sn = _sphere(bc="reflective")
-        psi = _random_composite(sn, np.random.default_rng(2))
+        rng = np.random.default_rng(2)
         block = RadialCharacteristicBoundaryOperator(sn)
         # The BLOCK's structural half: composite in/out, SOURCE members out.
         block_out = block.apply(
-            RadialCharacteristicComposite.from_unified(psi.radial_characteristic))
+            RadialCharacteristicComposite.from_unified(_seed_leaf(
+                sn, rng.standard_normal(sn.radial_characteristic_space.shape[0]))))
         if type(block_out) is not RadialCharacteristicComposite:
             pytest.fail(f"B_b block returned {type(block_out).__name__}")
         if type(block_out.interior) is not RadialCharacteristicInteriorSourceSink:
@@ -528,15 +552,12 @@ class TestBoundaryUnweld:
         present-zero trace), row B's corner exactly ``B_b``'s (Emission emits a
         zero boundary member) — the per-system direct sum of RULING P1,
         realized structurally on the record's N since B.2d."""
-        from orpheus.sn.coupled_system import _split_fused_state
-
         sn = _sphere(bc="reflective")
         solver = SNSolver(sn)
         system = build_within_group_system(
             sn, solver.mat_xs, scattering_op=solver.scattering_op)
         n_grid = system.gains[0]
-        psi = _random_composite(sn, np.random.default_rng(3))
-        coupled = _split_fused_state(psi, sn)
+        coupled = _random_pair(sn, np.random.default_rng(3))
         out = n_grid.apply(coupled)
         B_a = SNBoundaryOperator(sn)
         B_b = RadialCharacteristicBoundaryOperator(sn)
@@ -578,11 +599,11 @@ class TestBoundaryUnweld:
             boundary=AngularBoundaryFlux(
                 values=np.random.default_rng(5).standard_normal(n_tr),
                 space=slab.angular_trace, mesh=slab),
-            radial_characteristic=None,
         )
         out = B.apply(psi)
-        if out.radial_characteristic is not None:
-            pytest.fail("seedless B_a emitted a non-None ray on a seedless composite.")
+        if type(out) is not FullField:
+            pytest.fail(f"seedless B_a emitted {type(out).__name__}, not the "
+                        f"2-block FullField.")
 
 
 class TestB_b_RayBoundary:
@@ -695,28 +716,35 @@ class TestB_b_RayBoundary:
 class TestSplitInteraction:
     r"""The schedule ``split()`` lives on ``B_a`` alone; ``B_b`` is schedule-atomic.
 
-    RULING P1 corollary: a grading is a refinement of ONE system's boundary block,
-    never the composite. Because ``B_a`` sheds the ray arm, its masked halves emit
-    ZERO ray — so ``B_lower + B_upper + B_b`` carries the ray corner exactly ONCE
-    (the latent double-count the un-weld closes; it would go live on curvilinear
-    multi-D, #22). Verified on the seed-carrying sphere's degenerate split (the
-    masked ``_apply_faces`` path is what matters — it emits present-zero ray)."""
+    RULING P1 corollary: a grading is a refinement of ONE system's boundary
+    block, never the composite. Since B.2d the once-latent "masked halves
+    double the ray corner" bug class is STRUCTURALLY closed — ``B_a``'s
+    2-block codomain has no ray slot to double (Pattern 4), and ``B_b`` sits
+    alone at the gain grid's (B,B) slot. The live claim: the masked halves
+    stay trace-only 2-block composites whose traces partition ``B_a``'s."""
 
-    def test_split_masked_halves_emit_zero_ray(self):
+    def test_split_masked_halves_are_trace_only(self):
         from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
 
         sn = _sphere(bc="reflective")
         B_a = SNBoundaryOperator(sn)
         parts = B_a.split(SweepSchedule.gauss_seidel(sn))
         psi = _random_composite(sn, np.random.default_rng(13))
+        whole = B_a.apply(psi)
+        total = None
         for name, half in (("lower", parts.lower), ("upper", parts.upper)):
             out = half.apply(psi)
-            if out.radial_characteristic is None:
-                pytest.fail(f"B_{name} emitted a None ray (mixed-presence raises under the sum).")
+            if type(out) is not FullField:
+                pytest.fail(f"masked B_{name} emitted {type(out).__name__}, "
+                            f"not the 2-block FullField.")
             np.testing.assert_array_equal(
-                out.radial_characteristic.values, 0.0,
-                err_msg=f"masked B_{name} emitted a NON-ZERO ray corner — the split doubles "
-                        f"the ray (the latent bug; the grading must live on B_a's TRACE only).")
+                out.interior.values, 0.0,
+                err_msg=f"masked B_{name} emitted a non-zero bulk.")
+            total = out.boundary.values if total is None else total + out.boundary.values
+        np.testing.assert_array_equal(
+            total, whole.boundary.values,
+            err_msg="B_lower + B_upper trace ≠ B_a's trace — the split halves "
+                    "do not partition the whole-trace reflection.")
 
 
 # ── Step-1c helpers: A_BB = RadialCharacteristicOperator (the ψ½ radial BVP) ──
@@ -1634,10 +1662,9 @@ class TestA_BA_SchurFold:
 
     def test_non_carrying_control_no_ray_no_fold(self, monkeypatch):
         r"""cylinder + slab are the non-carrying CONTROL (``radial_characteristic_
-        space is None`` — refutation #6, NOT "other geometries"): the S/F seed arm
-        emits a ``None`` ray and NO fold is invoked. Feed a bulk-only composite
-        (the arm is gated on ``psi.radial_characteristic is not None``), assert the
-        output ray is ``None`` and the fold spy counter stays 0."""
+        space is None`` — refutation #6, NOT "other geometries"): NO fold is
+        invoked by the model-generic S (pure 2-block since B.2d — a ray arm
+        is unspellable). The live claim: the fold spy counter stays 0."""
         cyl = SNMesh(
             Mesh1D(edges=np.linspace(0.05, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CYLINDRICAL, bc_right=BC("vacuum")),
@@ -1655,13 +1682,12 @@ class TestA_BA_SchurFold:
             bulk_only = FullField(
                 interior=AngularFlux.from_mesh(
                     np.random.default_rng(50).standard_normal((N, ng, nx)), sn),
-                boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
-                radial_characteristic=None)
+                boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn))
             calls = _install_fold_spy(monkeypatch)
             out = SNSolver(sn).scattering_op.apply(bulk_only)
-            if out.radial_characteristic is not None:
-                pytest.fail(f"{tag}: S emitted a non-None ray on a non-carrying mesh "
-                            f"(the seed arm must be skipped when the space is None).")
+            if type(out) is not FullField:
+                pytest.fail(f"{tag}: S emitted {type(out).__name__}, not the "
+                            f"2-block FullField.")
             if calls["n"] != 0:
                 pytest.fail(f"{tag}: the fold was invoked {calls['n']}× on a non-carrying "
                             f"mesh — A_BA must not fire without a ray carrier.")
@@ -1793,26 +1819,24 @@ class TestCoupledLift:
         S = SNSolver(sn).scattering_op
         psi = _random_composite(sn, np.random.default_rng(100))
         s_out = S.apply(psi)
-        if s_out.radial_characteristic is None:
-            pytest.fail("S emitted a None ray on a carrying composite — the composite "
-                        "presence law raises under S ⊕ A_BA (must be present-zero).")
-        np.testing.assert_array_equal(
-            s_out.radial_characteristic.values, 0.0,
-            err_msg="S.apply ray ≠ present-zero — the model-generic scatter still "
-                    "emits the ψ½ ray (the LIFT did not make S pure bulk).")
+        # Since B.2d "S emits a ray" is UNSPELLABLE (the 2-block codomain has
+        # no slot — Pattern 4 closed the pre-lift regression structurally);
+        # the live claim is the bulk fidelity.
+        if type(s_out) is not FullField:
+            pytest.fail(f"S.apply emitted {type(s_out).__name__}, not the "
+                        f"2-block FullField.")
         np.testing.assert_array_equal(
             s_out.interior.values, S.apply(psi.interior).values,
             err_msg="S.apply(FullField).interior ≠ S.apply(bulk) — the LIFT altered the "
-                    "model-generic scatter bulk (it must touch ONLY the ray).")
+                    "model-generic scatter bulk (it must touch ONLY the bulk).")
         # F pure bulk (fissile sphere; the F-fwd ray arm is dead — the fission
         # emission rides from_angular_source / commit 2, not F.apply).
         snf = _fissile_sphere()
         f_out = SNSolver(snf).fission_op.apply(
             _random_composite(snf, np.random.default_rng(101)))
-        if f_out.radial_characteristic is not None:
-            np.testing.assert_array_equal(
-                f_out.radial_characteristic.values, 0.0,
-                err_msg="F.apply ray ≠ present-zero — the F-fwd ray arm is not dropped.")
+        if type(f_out) is not FullField:
+            pytest.fail(f"F.apply emitted {type(f_out).__name__}, not the "
+                        f"2-block FullField.")
         # A_BA carries the emission on System B's OWN carrier (B.2b re-type):
         # the "bulk present-zero" disjointness is now STRUCTURAL — the codomain
         # has no bulk slot (Pattern 4) — so the pins are the container types
@@ -1863,22 +1887,13 @@ class TestCoupledLift:
         # B.2b: the block's cotangent is System B's OWN carrier (a FullField
         # seed-only cotangent is now unspellable at the block boundary).
         chi_cot = _ray_composite(sn, chi_seed)
-        # (a) the pullback lives in A_BA (== the named-factor reconstruction),
-        # and the output rides the TRANSITIONAL 3-block presence convention:
-        # ψ½ slot present-ZERO (B.2c re-pin of G-b3.2 — the transposed grid
-        # row sums this with A_AAᵀ's 3-block output under the mixed-presence
-        # law; every System-A emission stays presence-consistent until B.2d
-        # flips them all to the 2-block shape together).
+        # (a) the pullback lives in A_BA (== the named-factor reconstruction);
+        # the output is System A's honest 2-block cotangent (B.2d — the
+        # transitional present-zero ψ½ slot dissolved with the eviction).
         adj_out = A_BA.apply_transpose(chi_cot)
-        if adj_out.radial_characteristic is None:
-            pytest.fail("A_BA.apply_transpose returned a 2-block System-A "
-                        "cotangent — the transitional convention requires the "
-                        "ψ½ slot PRESENT-ZERO until the B.2d eviction (the "
-                        "transposed grid row-sum trips mixed presence).")
-        np.testing.assert_array_equal(
-            adj_out.radial_characteristic.values, 0.0,
-            err_msg="A_BA.apply_transpose's ψ½ slot is not present-ZERO — the "
-                    "pullback must not write the ray.")
+        if type(adj_out) is not FullField:
+            pytest.fail(f"A_BA.apply_transpose emitted {type(adj_out).__name__}, "
+                        f"not the 2-block System-A cotangent.")
         adj_bulk = adj_out.interior.values
         np.testing.assert_array_equal(
             adj_bulk, _pullback_reconstruction(sn, S, chi_seed),
@@ -1887,13 +1902,16 @@ class TestCoupledLift:
         if not np.max(np.abs(adj_bulk)) > 1e-6:
             pytest.fail("A_BA.apply_transpose bulk ≈ 0 on a nonzero seed cotangent — "
                         "the pullback catcher is vacuous.")
-        # (b) S dropped the pullback (pure-bulk transpose: seed-only χ → zero
-        # bulk). S is FullField-typed — feed it the seed-only FullField.
-        s_adj = S.apply_transpose(_seed_composite(sn, chi_seed))
+        # (b) "S carries the seed pullback" is UNSPELLABLE since B.2d — a
+        # seed-only System-A cotangent cannot even be built (the 2-block
+        # composite has no ray slot), so the LIFT's claim is structural. The
+        # residual live control: S's transpose of a zero-bulk composite is
+        # zero (no hidden arm feeds the bulk from anywhere else).
+        s_adj = S.apply_transpose(_zero_composite(sn))
         np.testing.assert_array_equal(
             s_adj.interior.values, 0.0,
-            err_msg="S.apply_transpose(seed-only χ).interior ≠ 0 — S still carries the "
-                    "seed pullback (the LIFT did not move it to A_BA).")
+            err_msg="S.apply_transpose(zero composite).interior ≠ 0 — a hidden "
+                    "non-bulk arm feeds S's transpose.")
         # (c) structurally-independent Euclidean fwd↔adj reciprocity, NONZERO seed.
         psi = _random_composite(sn, rng)
         lhs = float(A_BA.apply(psi).to_unified().values @ chi_seed)
@@ -1922,13 +1940,10 @@ class TestCoupledLift:
         )
 
         def _drop_pullback(self, cotangent, /):
-            # A zero bulk (the pullback dropped). Only .interior is read from
-            # this mock (standalone, never member-summed), so the ray slot's
-            # presence is incidental — None kept for the minimal mimic.
+            # A zero bulk (the pullback dropped) on the honest 2-block shape.
             return _FF(
                 interior=AngularSourceSink.zeros_on(self.sn_mesh),
-                boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
-                radial_characteristic=None)
+                boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh))
 
         monkeypatch.setattr(RadialCharacteristicEmission, "apply_transpose", _drop_pullback)
         adj_bulk = A_BA.apply_transpose(_ray_composite(sn, chi_seed)).interior.values
@@ -2014,11 +2029,13 @@ class TestCoupledLift:
         psi = _random_composite(sn, np.random.default_rng(130))
         emission = _s_emission(S, psi)
         s_out, a_out = S.apply(psi), A_BA.apply(psi)
-        # Disjoint direct sum: S no ray; A_BA's "no bulk" is STRUCTURAL since
-        # B.2b (the block codomain has no bulk slot — Pattern 4).
+        # Disjoint direct sum — BOTH sides structural since B.2b/B.2d: S's "no
+        # ray" (2-block codomain) and A_BA's "no bulk" (composite codomain)
+        # are unspellable (Pattern 4), so the surviving value claim is the
+        # bulk fidelity + the exact ray placement below.
         np.testing.assert_array_equal(
-            s_out.radial_characteristic.values, 0.0,
-            err_msg="S contributes a nonzero ray — the direct sum is not disjoint.")
+            s_out.interior.values, S.apply(psi.interior).values,
+            err_msg="the lifted S's bulk drifted from the model-generic scatter.")
         # The reconstructed monolith ray == the documented fold loop (exact placement).
         monolith_ray = _ba_oldloop_reference(emission, sn)
         if not np.max(np.abs(monolith_ray)) > 1e-6:
@@ -2367,19 +2384,30 @@ class TestCoupledLift:
 
 
 def _bulk_composite(sn, bulk_values: NDArray) -> FullField:
-    """A composite with the given bulk, zero trace, and a zero ψ½ ray — so
-    ``(L+C).apply_transpose`` isolates A_AB's ``seed_cells_bar``: the ray=0 nulls
-    the A_BB self-block (``_seed_rows_transpose`` on a zero χ_seed → 0), leaving
-    only the M-M thread cotangent on ``cells(p,-1)``."""
+    """A 2-block composite with the given bulk and a zero trace — the
+    ``(L+C).apply_transpose`` isolation probe (B.2d: the transposed ψ½ legs
+    ride the explicit ``seed_cot``/``seed_cot_out`` kwargs; a zero ``seed_cot``
+    nulls the A_BB self-block, leaving only the M-M thread cotangent)."""
     n_tr = int(sn.angular_trace.layout.total_size)
-    ns = sn.radial_characteristic_space.shape[0]
     return FullField(
         interior=AngularFlux.from_mesh(bulk_values, sn),
         boundary=AngularBoundaryFlux(
             values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
-        radial_characteristic=RadialCharacteristicFlux(
-            values=np.zeros(ns), space=sn.radial_characteristic_space, mesh=sn),
     )
+
+
+def _loss_transpose_seed_pullback(sn, LC, bulk_values: NDArray) -> RadialCharacteristicSourceSink:
+    """The in-sweep reverse's seed pullback ``Seedingᵀ·φ_A`` read through the
+    B.2d explicit legs: run ``LC.apply_transpose`` with a ZERO ``seed_cot``
+    (nulls ``D_BBᵀ``) and collect the ``seed_cot_out`` buffer."""
+    ns = sn.radial_characteristic_space.shape[0]
+    out_buf = RadialCharacteristicSourceSink.zeros_on(sn)
+    LC.apply_transpose(
+        _bulk_composite(sn, bulk_values),
+        seed_cot=_seed_leaf(sn, np.zeros(ns)),
+        seed_cot_out=out_buf,
+    )
+    return out_buf
 
 
 def _seed_flux(sn, rng) -> RadialCharacteristicFlux:
@@ -2456,10 +2484,19 @@ class TestA_AB_SeedInjection:
         sv = rng.standard_normal(space.shape[0])
         seed = RadialCharacteristicFlux(values=sv, space=space, mesh=sn)
         # Reference (real methods, computed BEFORE the spy): the seed's
-        # contribution to (L+C).apply — interior=0/boundary=0 ⇒ A_AA·0 = 0, so the
-        # bulk output is exactly A_AB·s.
-        reference = _loss(sn).apply(_seed_composite(sn, sv)).interior
-        ref_other_sigma = _loss(sn, slope=0.9).apply(_seed_composite(sn, sv)).interior
+        # contribution to the JOINT (L+C).apply — zero System A + the seed
+        # through the explicit flux leg (B.2d) ⇒ A_AA·0 = 0, so the bulk
+        # output is exactly A_AB·s (the emitted ray rows are discarded via a
+        # scratch buffer).
+        def _seed_feed(LC_op):
+            return LC_op.apply(
+                _zero_composite(sn),
+                radial_characteristic_flux=_seed_leaf(sn, sv),
+                radial_characteristic_source=RadialCharacteristicSourceSink.zeros_on(sn),
+            ).interior
+
+        reference = _seed_feed(_loss(sn))
+        ref_other_sigma = _seed_feed(_loss(sn, slope=0.9))
         np.testing.assert_array_equal(
             reference.values, ref_other_sigma.values,
             err_msg="the seed→bulk contribution changed with σ_t — A_AB is not "
@@ -2510,8 +2547,7 @@ class TestA_AB_SeedInjection:
         space = sn.radial_characteristic_space
         rng = np.random.default_rng(31)
         vv = rng.standard_normal((sn.quad.N, sn.ng, sn.nx))
-        reference = _loss(sn).apply_transpose(
-            _bulk_composite(sn, vv)).radial_characteristic
+        reference = _loss_transpose_seed_pullback(sn, _loss(sn), vv)
         aa = _install_closure_spy(monkeypatch, sn, "angular_adjoint")
         # B.2c: the cotangent arrives as System A's FullField (the codomain);
         # only its interior member is read (trace/ray structurally discarded).
@@ -2674,12 +2710,11 @@ class TestA_AB_SeedInjection:
 
     def test_b2c_grid_entry_containers(self):
         r"""B.2c re-type (G-c1.3): A_AB's grid-entry carriers. ``apply`` emits
-        System A's FullField — the interior member carries the bulk term, the
-        trace and ψ½ slots are PRESENT-ZERO (the transitional 3-block presence
-        convention; ray → ``None`` at the B.2d eviction); ``apply_transpose``
-        emits System B's composite (source members). Declared domain/codomain
-        pinned by IDENTITY (memo F2 — the composite space object, and
-        System A's cached full_field_space)."""
+        System A's honest 2-block FullField — the interior member carries the
+        bulk term over a zero trace (B.2d: the transitional ψ½ slot is gone);
+        ``apply_transpose`` emits System B's composite (source members).
+        Declared domain/codomain pinned by IDENTITY (memo F2 — the composite
+        space object, and System A's cached full_field_space)."""
         sn = _sphere()
         op = RadialCharacteristicSeeding(sn)
         rng = np.random.default_rng(11)
@@ -2695,14 +2730,8 @@ class TestA_AB_SeedInjection:
                         f"{type(out.interior).__name__}.")
         np.testing.assert_array_equal(
             out.boundary.values, 0.0,
-            err_msg="apply's trace slot is not present-zero (A_AB writes only "
+            err_msg="apply's trace slot is not zero (A_AB writes only "
                     "the interior).")
-        if out.radial_characteristic is None:
-            pytest.fail("apply's ψ½ slot is None — the transitional 3-block "
-                        "presence convention requires present-zero until B.2d.")
-        np.testing.assert_array_equal(
-            out.radial_characteristic.values, 0.0,
-            err_msg="apply's ψ½ slot is not present-ZERO.")
         out_t = op.apply_transpose(_bulk_composite(
             sn, rng.standard_normal((sn.quad.N, sn.ng, sn.nx))))
         if type(out_t) is not RadialCharacteristicComposite:
@@ -2786,44 +2815,26 @@ class TestSystemRoleLattice:
 # witness (memo R3).
 
 
-def _complete_fused_loss(sn, mat_xs):
-    r"""The COMPLETE fused within-group loss ``LC − S − A_BA − B_a − B_b``.
+def _m_minus_n_reference(sn, mat_xs, coupled):
+    r"""The centrepiece's reference: ``A·ψ`` spelled as ``M·ψ − N·ψ`` through
+    the RECORD's splitting — the WELDED path (the fused walk's seed feed via
+    the B.2d explicit legs) minus the gain grid.
 
-    The centrepiece's reference (memo F1): ``_full_loss_case`` in the
-    g-adjoint suite spells ``B_a`` ALONE (reciprocity holds for whatever A is
-    posed), but the grid's ``(B,B)`` carries ``− B_b`` — so the reference
-    here MUST include the ``B_b`` adapter, and the fixture mesh MUST be
-    REFLECTIVE (on vacuum ``_reflect_corner`` ≡ 0 silently masks a dropped
-    ``B_b``). Since B.2d the FUSED spelling is TEST-ONLY (the production
-    driver consumes the record's splitting): the System-B terms embed through
-    the fused-oracle shims (``_test_helpers`` — the retired B.2b adapters'
-    bodies, kept as the fused-composition reference)."""
-    S = ScatteringOperator.from_solver_data(
+    Structurally DISTINCT from the loss grid's own row composition (the grid
+    reaches the ray coupling through the EXPLICIT ``A_AB``/``A_BA`` blocks;
+    ``M`` reaches it through the walk's welded feed) — so ``grid ≡ M − N`` is
+    a genuine two-path cross-check of the named splitting ``A = M − N``, the
+    B.2d successor of the retired fused-shim reference (memo F1's REFLECTIVE
+    requirement carries over: vacuum masks a dropped ``B_b``)."""
+    solver_S = ScatteringOperator.from_solver_data(
         mat_xs=mat_xs, quadrature=sn.quad, scattering_order=0,
         full_field_space=sn.full_field_space)
-    LC = StreamingOperator(sn) + MultiplicationOperator(
-        coefficient=mat_xs.total_cross_section_field,
-        space=sn.full_field_space)
-    a_ba = FusedRayEmissionGain(
-        RadialCharacteristicEmission(sn, S.isotropic_kernel))
-    b_b = FusedRayBoundaryGain(RadialCharacteristicBoundaryOperator(sn))
-    return LC - S - a_ba - SNBoundaryOperator(sn) - b_b
-
-
-def _coupled_state(sn, psi_full: FullField) -> CoupledField:
-    r"""Map an augmented 3-block ``FullField`` onto the coupled ``[ψ_A, ψ_B]``.
-
-    The transitional convention (builder docstring): ψ_A carries the ray slot
-    PRESENT-ZERO (the welded seed arm reads zeros), ψ_B carries the REAL ray
-    as the member composite — together they represent the same state the
-    3-block carrier holds."""
-    zero_ray = RadialCharacteristicFlux(
-        values=np.zeros(sn.radial_characteristic_space.shape[0]),
-        space=sn.radial_characteristic_space, mesh=sn)
+    system = build_within_group_system(sn, mat_xs, scattering_op=solver_S)
+    y_m = system.resolvent.apply(coupled)
+    y_n = system.gains[0].apply(coupled)
     return CoupledField(systems=(
-        replace(psi_full, radial_characteristic=zero_ray),
-        RadialCharacteristicComposite.from_unified(
-            psi_full.radial_characteristic),
+        y_m.systems[0] - y_n.systems[0],
+        y_m.systems[1] - y_n.systems[1],
     ))
 
 
@@ -2880,7 +2891,7 @@ class TestCoupledBuilder:
             pytest.fail("the (A,A) block is not stamped SystemRole.A "
                         "(the C-fwd explicit stamp).")
         # THE runtime proof (F2): apply runs and emits the member types.
-        y = grid.apply(_coupled_state(sn, _template(sn)))
+        y = grid.apply(_coupled_template(sn))
         if type(y.systems[0]) is not FullField:
             pytest.fail("row A did not emit a FullField.")
         if type(y.systems[1]) is not RadialCharacteristicComposite:
@@ -2932,58 +2943,54 @@ class TestCoupledBuilder:
 
     # ── G-c2.3 — THE centrepiece: grid ≡ the complete fused loss ──────────
 
-    def test_grid_equals_the_complete_fused_loss(self):
-        r"""``grid.apply([ψ_A, ψ_B])`` ≡ the production fused loss on the
-        3-block carrier, mapped through the transitional convention — the
-        construction-equivalence that ties the block realization to the
-        already-anchored production loss. PER-ROW bars (memo §0 — B.2c is
-        NOT uniformly array_equal):
+    def test_grid_equals_m_minus_n(self):
+        r"""``grid.apply([ψ_A, ψ_B])`` ≡ ``M·ψ − N·ψ`` through the record's
+        splitting — the named ``A = M − N`` identity as a TWO-PATH cross-check
+        (the grid's ray coupling flows through the EXPLICIT ``A_AB``/``A_BA``
+        blocks; ``M``'s through the walk's welded feed via the B.2d leaf-kwarg
+        legs). The B.2d successor of the retired fused-shim centrepiece.
+        PER-ROW bars (memo §0 — NOT uniformly array_equal):
 
         * ``y_A.interior``  — rtol=1e-11 (the intrinsic M-M block split:
           seed-zeroed A_AA + bulk-zeroed A_AB summed after ≠ the fused joint
           recurrence, FP reassociation ~5.5e-16; array_equal here would
           falsely red the honest decomposition);
-        * ``y_A.boundary``  — rtol=1e-12 (present-zero insert order only);
-        * ``y_A.ray slot``  — EXACTLY zero (the dead transitional slot);
+        * ``y_A.boundary``  — rtol=1e-12 (addition order only);
         * ``y_B``           — rtol=1e-12 (same single-sourced bodies, only
-          OperatorSum addition order differs).
+          composition order differs).
 
         REFLECTIVE sphere so ``B_b`` is non-null (memo F1 — vacuum masks a
         dropped B_b); ≥2G; the live-ray + live-corner non-vacuity asserted."""
         sn = _sphere(bc="reflective")
         mat_xs = sn.material_xs_field()
         grid, _ = build_coupled_system(sn, mat_xs)
-        fused = _complete_fused_loss(sn, mat_xs)
         for seed in (21, 22):
             rng = np.random.default_rng(seed)
-            psi_full = _random_composite(sn, rng)
-            if not np.max(np.abs(psi_full.radial_characteristic.values)) > 0.0:
+            coupled = _random_pair(sn, rng)
+            if not np.max(np.abs(coupled.systems[1].to_unified().values)) > 0.0:
                 pytest.fail("the probe ray is zero — the centrepiece would be "
                             "vacuous for the coupling rows.")
-            y_fused = fused.apply(psi_full)
-            if not np.max(np.abs(y_fused.radial_characteristic.values)) > 0.0:
-                pytest.fail("the fused ray rows are zero — the B_b/emission "
+            y_ref = _m_minus_n_reference(sn, mat_xs, coupled)
+            if not np.max(np.abs(y_ref.systems[1].to_unified().values)) > 0.0:
+                pytest.fail("the reference ray rows are zero — the B_b/emission "
                             "arms are not exercised (non-vacuity, F1).")
-            y_a, y_b = grid.apply(_coupled_state(sn, psi_full)).systems
+            y_a, y_b = grid.apply(coupled).systems
             np.testing.assert_allclose(
-                y_a.interior.values, y_fused.interior.values,
+                y_a.interior.values, y_ref.systems[0].interior.values,
                 rtol=1e-11, atol=1e-13,
                 err_msg=f"seed {seed}: the bulk row diverged beyond the M-M "
-                        f"block-split floor — the grid is NOT the fused loss.")
+                        f"block-split floor — the grid is NOT M − N.")
             np.testing.assert_allclose(
-                y_a.boundary.values, y_fused.boundary.values,
+                y_a.boundary.values, y_ref.systems[0].boundary.values,
                 rtol=1e-12, atol=1e-15,
-                err_msg=f"seed {seed}: the trace row moved (only present-zero "
-                        f"insert order may differ).")
-            np.testing.assert_array_equal(
-                y_a.radial_characteristic.values, 0.0,
-                err_msg=f"seed {seed}: the dead A-side ψ½ slot is not exactly "
-                        f"zero (zero in → zero out broke).")
+                err_msg=f"seed {seed}: the trace row moved (only addition "
+                        f"order may differ).")
             np.testing.assert_allclose(
-                y_b.to_unified().values, y_fused.radial_characteristic.values,
+                y_b.to_unified().values,
+                y_ref.systems[1].to_unified().values,
                 rtol=1e-12, atol=1e-15,
                 err_msg=f"seed {seed}: the ray rows diverged — the (B,·) "
-                        f"blocks are not the fused ray action.")
+                        f"blocks are not the welded M − N action.")
 
     def test_centrepiece_teeth_misplacement_and_dropped_b_b(self):
         r"""TEETH for G-c2.1/2.3: (a) the off-diagonal swap is
@@ -3007,11 +3014,10 @@ class TestCoupledBuilder:
              [grid.blocks[1][0], a_bb_alone]],
             domain=space, codomain=space)
         rng = np.random.default_rng(23)
-        psi_full = _random_composite(sn, rng)
-        y_ref = _complete_fused_loss(sn, mat_xs).apply(
-            psi_full).radial_characteristic.values
-        y_drop = dropped.apply(
-            _coupled_state(sn, psi_full)).systems[1].to_unified().values
+        coupled = _random_pair(sn, rng)
+        y_ref = _m_minus_n_reference(
+            sn, mat_xs, coupled).systems[1].to_unified().values
+        y_drop = dropped.apply(coupled).systems[1].to_unified().values
         if not np.max(np.abs(y_drop - y_ref)) > 1e-8:
             pytest.fail("dropping −B_b left the ray rows unmoved on a "
                         "REFLECTIVE sphere — the centrepiece has no teeth "
@@ -3032,8 +3038,7 @@ class TestCoupledBuilder:
         reds the coverage pin."""
         sn = _sphere()
         grid, space = build_coupled_system(sn, sn.material_xs_field())
-        coupled = _coupled_state(
-            sn, _random_composite(sn, np.random.default_rng(24)))
+        coupled = _random_pair(sn, np.random.default_rng(24))
         flat = coupled.to_flat()
         slices = space.system_slices
         if len(slices) != 2:
@@ -3086,8 +3091,8 @@ class TestCoupledBuilder:
         sn = _sphere(bc="reflective")
         grid, space = build_coupled_system(sn, sn.material_xs_field())
         rng = np.random.default_rng(25)
-        psi = _coupled_state(sn, _random_composite(sn, rng))
-        x = _coupled_state(sn, _random_composite(sn, rng))
+        psi = _random_pair(sn, rng)
+        x = _random_pair(sn, rng)
         lhs = space.inner_product(grid.apply(psi), x)
         rhs = space.inner_product(psi, grid.H.apply(x))
         defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
@@ -3105,34 +3110,13 @@ class TestCoupledBuilder:
                         f"{defect2:.3e} — the reciprocity gate has no teeth "
                         f"(a Euclidean block-.H would pass).")
 
-    # ── G-c2.6 — the dead-slot hazard witness (POSITIVE assert-defect) ────
-
-    def test_dead_slot_double_count_witness(self):
-        r"""The transitional Pattern-4 hole, kept VISIBLE (memo R3): a
-        LIVE-ray ψ_A double-counts the seed feed — once welded inside
-        A_AA's fused walk, once through the explicit A_AB block. This is a
-        POSITIVE assert-defect (the defect EXISTS), not a guard (guarding
-        would calcify a shape B.2d dissolves structurally: the eviction
-        makes a live-ray ψ_A unrepresentable). **When B.2d lands, this
-        witness must be REMOVED** — its failure mode then is 'the live-ray
-        state no longer constructs', not a green."""
-        sn = _sphere(bc="reflective")
-        mat_xs = sn.material_xs_field()
-        grid, _ = build_coupled_system(sn, mat_xs)
-        psi_full = _random_composite(sn, np.random.default_rng(26))
-        live = CoupledField(systems=(
-            psi_full,                                # ψ_A keeps its LIVE ray
-            RadialCharacteristicComposite.from_unified(
-                psi_full.radial_characteristic),
-        ))
-        y_live = grid.apply(live).systems[0].interior.values
-        y_ref = _complete_fused_loss(sn, mat_xs).apply(psi_full).interior.values
-        defect = float(np.max(np.abs(y_live - y_ref)))
-        if not defect > 1e-8:
-            pytest.fail(
-                "the live-ray double-count defect vanished — either the B.2d "
-                "eviction landed (REMOVE this witness) or the welded seed arm "
-                "stopped reading ψ_A's ray slot (investigate before trusting).")
+    # ── G-c2.6 — REMOVED at B.2d d2 (G-d2.7) ─────────────────────────────
+    #
+    # The ``test_dead_slot_double_count_witness`` gate is GONE with its
+    # hazard: a live-ray ψ_A is UNREPRESENTABLE since the eviction
+    # (``FullField`` is 2-block), so the double-count it witnessed cannot
+    # occur — the replacement is the type system itself, not a runtime
+    # assert (memo R3, exactly as ruled).
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -3160,23 +3144,14 @@ def _het_vacuum_sphere(ng: int = 2) -> SNMesh:
                   {0: _mixture(1.0, 0.4, ng), 1: _mixture(0.5, 0.1, ng)})
 
 
-def _fused_reference_pieces(sn):
-    r"""The PRE-d1 fused driver composition, rebuilt from the shims: the
-    resolvent ``L+C`` and the FullField gains ``(S, A_BA-oracle, B_a+B_b-oracle)``
-    — the retired ``_within_group_triple``/``_lagged_gains`` shape, kept as the
-    same-fixed-point reference (G-d1.6) and the bypass tooth (G-d1.1)."""
-    mat_xs = sn.material_xs_field()
-    S = ScatteringOperator.from_solver_data(
-        mat_xs=mat_xs, quadrature=sn.quad, scattering_order=0,
-        full_field_space=sn.full_field_space)
-    LC = StreamingOperator(sn) + MultiplicationOperator(
-        coefficient=mat_xs.total_cross_section_field,
-        space=sn.full_field_space)
-    a_ba = FusedRayEmissionGain(
-        RadialCharacteristicEmission(sn, S.isotropic_kernel))
-    B = SNBoundaryOperator(sn) + FusedRayBoundaryGain(
-        RadialCharacteristicBoundaryOperator(sn))
-    return LC, (S, a_ba, B)
+# The d1-era ``_fused_reference_pieces`` (the pre-d1 fused driver rebuilt
+# from the FusedRay*Gain shims) DISSOLVED at d2 with the 3-block carrier —
+# the shims and the fused spelling are unrepresentable. The d1 gate G-d1.6
+# proved the block-native driver reproduces the pre-d1 fixed point; the
+# d2-forward fixed-point protection is the walk-substrate re-points (F4:
+# test_282 / walk-baselines / native-matvec — values bit-identical through
+# the six-signature re-type) + the SI ≡ Krylov cross-driver row below + the
+# E4 closed-form anchors (d3).
 
 
 class TestWithinGroupSystem:
@@ -3256,9 +3231,9 @@ class TestWithinGroupSystem:
         the N grid's ``CoupledOperator.apply``, the M bridge
         (``CoupledInvertibleOperator.solve``/``apply``), and the fused walk
         beneath it all fire (wrap counters > 0 — the B.2c F2 lesson: runtime
-        is the sufficient catcher). RIDER (ordering hazard 4): the driver's
-        ψ_A dead ray slot stays EXACTLY zero — a live-ray ψ_A would
-        double-count the welded seed feed end-to-end."""
+        is the sufficient catcher). RIDER: the driver's iterate is the
+        coupled pair with an honest 2-block ψ_A (the d1 dead-slot rider
+        dissolved — a live-ray ψ_A is unrepresentable since d2)."""
         sn = _sphere()
         counters = {"N": 0, "M": 0, "walk": 0}
         real_n = CoupledOperator.apply
@@ -3306,31 +3281,33 @@ class TestWithinGroupSystem:
                 pytest.fail(f"[{inner}] the production route never executed "
                             f"the {name} leg (counter 0) — Mode-11: the block "
                             f"machinery is bypassed.")
-        # The dead-slot rider: ψ_A's ray is present and EXACTLY zero.
+        # The pair rider: the iterate is the coupled pair; ψ_A is the honest
+        # 2-block System-A member (Pattern 4 — no ray slot to double-count).
         psi = solver._psi_typed
         if not isinstance(psi, CoupledField):
             pytest.fail(f"[{inner}] the carrying iterate is "
                         f"{type(psi).__name__}, not the coupled pair")
-        np.testing.assert_array_equal(
-            psi.systems[0].radial_characteristic.values, 0.0,
-            err_msg=f"[{inner}] ψ_A's dead ray slot is NON-ZERO — the welded "
-                    f"seed feed double-counts (the B.2c hazard went live).")
+        if type(psi.systems[0]) is not type(psi.systems[0]) or not isinstance(
+                psi.systems[0], FullField):
+            pytest.fail(f"[{inner}] ψ_A is {type(psi.systems[0]).__name__}, "
+                        f"not the 2-block System-A composite")
+        if not isinstance(psi.systems[1], RadialCharacteristicComposite):
+            pytest.fail(f"[{inner}] ψ_B is {type(psi.systems[1]).__name__}, "
+                        f"not System B's composite")
 
-    def test_g_d1_1_sentinel_has_teeth(self, monkeypatch):
-        r"""TOOTH: a driver handed the PRE-d1 fused record (plain ``L+C``
-        resolvent + the FullField gain tuple, via the oracles) runs GREEN —
-        and leaves every block counter at 0. Proves the sentinel catches a
-        route that bypasses the block machinery (Mode 11)."""
-        sn = _sphere()
-        real_build = _solver_mod.build_within_group_system
-
-        def _pre_d1_record(sn_mesh, mat_xs, **kw):
-            system = real_build(sn_mesh, mat_xs, **kw)
-            lc, gains = _fused_reference_pieces(sn_mesh)
-            return replace(system, resolvent=lc, gains=gains)
-
-        monkeypatch.setattr(
-            _solver_mod, "build_within_group_system", _pre_d1_record)
+    def test_g_d1_1_sentinel_seedless_negative_control(self, monkeypatch):
+        r"""NEGATIVE CONTROL (DP-seedless): a SEEDLESS slab solve leaves every
+        block counter at 0 — the coupled machinery fires exactly where System
+        B exists, never on the bare seedless arm. (The d1 bypass tooth — a
+        driver handed the pre-d1 FUSED record running green with counters 0 —
+        dissolved at d2: the fused 3-block spelling is unrepresentable, so a
+        bypassing driver cannot even be CONSTRUCTED; the sentinel's teeth are
+        now the type system plus this seedless control.)"""
+        slab = SNMesh(
+            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
+                   bc_left=BC("reflective")),
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         counters = {"N": 0, "M": 0}
         real_n = CoupledOperator.apply
 
@@ -3346,64 +3323,90 @@ class TestWithinGroupSystem:
 
         monkeypatch.setattr(CoupledOperator, "apply", spy_n)
         monkeypatch.setattr(CoupledInvertibleOperator, "apply", spy_m)
-        # Krylov: the variadic gain shape admits the 3-tuple, so the fused
-        # bypass RUNS (converges on the old path) while the counters stay 0.
-        solver = SNSolver(sn, inner_solver="krylov")
+        solver = SNSolver(slab, inner_solver="krylov")
         solver.solve_fixed_source(
-            np.ones((sn.ng, sn.nx)), np.ones((sn.ng, sn.nx)))
+            np.ones((slab.ng, slab.nx)), np.ones((slab.ng, slab.nx)))
         if counters["N"] != 0 or counters["M"] != 0:
-            pytest.fail(f"the fused bypass still drove the block machinery "
-                        f"{counters} — the tooth is dead (the sentinel would "
-                        f"not catch a bypassing driver).")
+            pytest.fail(f"a SEEDLESS solve drove the coupled machinery "
+                        f"{counters} — DP-seedless is violated (the coupled "
+                        f"carrier must appear exactly where System B exists).")
 
-    # ── G-d1.4 — the fused-state bridge round-trip + teeth ───────────────
+    # ── G-d1.4 — the M leg plumbing: consistency + coupling non-vacuity ──
 
-    def test_g_d1_4_bridge_round_trip_and_teeth(self):
-        r"""``split(fuse(·))`` and ``fuse(split(·))`` are EXACT re-labels
-        (array_equal — the B.1d licence), the split's ψ_A slot is the
-        role-preserved present-zero, and the comparison DISCRIMINATES the
-        bridge corruptions (leg-drop / dead-slot-live / placement roll) —
-        the OBJECT-level catcher for mutations keff is spectrally blind to
-        (memo Mode-12 sweep)."""
+    def test_g_d1_4_m_leg_plumbing_consistency(self):
+        r"""The B.2d successor of the d1 fused-state-bridge round trip (the
+        split/fuse pair dissolved with the 3-block): the M surfaces' explicit
+        leaf legs are plumbed OBJECT-level —
+
+        (a) ZERO-LEG CONSISTENCY: ``M.apply([x_A, 0])``'s System-A member ≡
+        the fused surface's no-leg call (the ray-decoupled (A,A) block
+        action) — the internal zero-substitution and the explicit zero leg
+        are the SAME arithmetic, array_equal;
+        (b) COUPLING NON-VACUITY: a LIVE ψ_B moves y_A (the welded seed feed
+        genuinely reads the leg — a leg-dropping pack would leave y_A at the
+        (A,A) value) and fills y_B (the emitted rows ride the buffer);
+        (c) ROUND TRIP: ``M.solve(M.apply(x))`` reproduces x at walk
+        precision on BOTH systems (the joint inverse round trip — the
+        object-level catcher for mutations keff is spectrally blind to)."""
         sn = _sphere()
-        psi3 = _random_composite(sn, np.random.default_rng(150))  # live ray
-        coupled = _split_fused_state(psi3, sn)
+        solver = SNSolver(sn)
+        system = build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+        M_op = system.resolvent
+        rng = np.random.default_rng(150)
+        psi_a = _random_composite(sn, rng)
+        ns = sn.radial_characteristic_space.shape[0]
+        live = _pair(sn, psi_a, rng.standard_normal(ns))
+        dead = _pair(sn, psi_a, np.zeros(ns))
+        # (a) zero-leg ≡ no-leg (the (A,A) block action).
+        y_dead = M_op.apply(dead)
+        y_noleg = M_op.fused.apply(psi_a)
         np.testing.assert_array_equal(
-            coupled.systems[0].radial_characteristic.values, 0.0,
-            err_msg="split's ψ_A slot is not present-zero")
-        if type(coupled.systems[0].radial_characteristic) is not type(
-                psi3.radial_characteristic):
-            pytest.fail("split's dead slot did not preserve the ray ROLE")
-        fused = _fuse_coupled_state(coupled, sn)
-        for slot in ("interior", "boundary", "radial_characteristic"):
-            np.testing.assert_array_equal(
-                getattr(fused, slot).values, getattr(psi3, slot).values,
-                err_msg=f"fuse(split(·)) moved the {slot} values")
-        back = _split_fused_state(fused, sn)
+            y_dead.systems[0].interior.values, y_noleg.interior.values,
+            err_msg="M.apply([x_A, 0]) ≠ the no-leg (A,A) block action — the "
+                    "zero-substitution and the explicit zero leg drifted")
         np.testing.assert_array_equal(
-            back.systems[1].to_unified().values,
-            coupled.systems[1].to_unified().values,
-            err_msg="split(fuse(·)) moved ψ_B")
-        # TEETH — corrupted bridges must NOT reproduce the live state:
-        # (a) ψ_B-drop / dead-slot-live: fusing ψ_A ALONE keeps the dead zero.
-        dropped = coupled.systems[0]
-        if np.array_equal(dropped.radial_characteristic.values,
-                          psi3.radial_characteristic.values):
-            pytest.fail("tooth (a) dead: the live probe's ray is all-zero — "
-                        "a ψ_B-dropping fuse would pass undetected")
-        # (b) placement roll: a bridge that permutes the ray cells is caught
-        # by the value comparison (the sum proxy would be blind).
-        rolled = np.roll(psi3.radial_characteristic.values, 1)
-        if np.array_equal(rolled, psi3.radial_characteristic.values):
-            pytest.fail("tooth (b) dead: the roll probe is permutation-blind")
+            y_dead.systems[1].to_unified().values, 0.0,
+            err_msg="a zero ψ_B emitted nonzero ray rows (D·0 ≠ 0)")
+        # (b) a live ψ_B moves y_A and fills y_B.
+        y_live = M_op.apply(live)
+        if not np.max(np.abs(
+                y_live.systems[0].interior.values
+                - y_dead.systems[0].interior.values)) > 1e-8:
+            pytest.fail("a LIVE ψ_B left y_A unmoved — the welded seed feed "
+                        "does not read the flux leg (a dropped pack)")
+        if not np.max(np.abs(y_live.systems[1].to_unified().values)) > 1e-8:
+            pytest.fail("a LIVE ψ_B left y_B empty — the emitted ray rows do "
+                        "not ride the source buffer")
+        # (c) the joint inverse round trip — ψ_A's bulk + ψ_B's CELLS legs
+        # (the corner slots are the given-data BC slots: apply emits the
+        # corner defect, solve reads the source corner as given data — the
+        # same reason the step-0 floor asserted the bulk alone).
+        back = M_op.solve(M_op.apply(live))
+        np.testing.assert_allclose(
+            back.systems[0].interior.values, psi_a.interior.values,
+            rtol=1e-11, atol=1e-12,
+            err_msg="M.solve(M.apply(x)) moved ψ_A past walk precision")
+        space_u = sn.radial_characteristic_space
+        back_u = back.systems[1].to_unified().values
+        live_u = live.systems[1].to_unified().values
+        for lv in space_u.levels:
+            for sign in (-1, +1):
+                np.testing.assert_allclose(
+                    space_u.cells_view(back_u, lv, sign),
+                    space_u.cells_view(live_u, lv, sign),
+                    rtol=1e-11, atol=1e-12,
+                    err_msg=f"M.solve(M.apply(x)) moved ψ_B cells({lv},{sign})")
 
     # ── G-d1.5 — N ≡ the fused gains (control) + sign/shape teeth ────────
 
-    def test_g_d1_5_gain_grid_matches_fused_gains_with_teeth(self):
-        r"""CONTROL: the record's N grid reproduces the retired fused gain
-        sum ``(S + A_BA + B_a + B_b)·ψ`` slot-for-slot ``array_equal`` (same
-        leaf sums, same association — a pure re-package on the gain side).
-        REFLECTIVE sphere (the B.2c F1 lesson: vacuum masks a dropped B_b).
+    def test_g_d1_5_gain_grid_matches_the_pieces_with_teeth(self):
+        r"""CONTROL: the record's N grid reproduces the PIECE composition
+        row-for-row ``array_equal`` — row A = ``(S + B_a)·ψ_A``, row B =
+        ``Emission·ψ_A + B_b·ψ_B`` (the grid's block dispatch vs the direct
+        piece application; a pure re-association on the gain side). The
+        fused-shim reference dissolved at d2 with the 3-block. REFLECTIVE
+        sphere (the B.2c F1 lesson: vacuum masks a dropped B_b).
         TEETH (each mutation moves a row O(1)): dropped B_b; sign-flipped
         Emission; a non-∅ (A,B) block double-counting the Seeding feed."""
         sn = _sphere(bc="reflective")
@@ -3411,25 +3414,25 @@ class TestWithinGroupSystem:
         system = build_within_group_system(
             sn, solver.mat_xs, scattering_op=solver.scattering_op)
         n_grid = system.gains[0]
-        psi3 = _random_composite(sn, np.random.default_rng(151))
-        coupled = _split_fused_state(psi3, sn)
+        coupled = _random_pair(sn, np.random.default_rng(151))
         out = n_grid.apply(coupled)
-        _, (S_f, a_ba_f, B_f) = _fused_reference_pieces(sn)
-        fused_out = ((S_f + a_ba_f) + B_f).apply(psi3)
-        np.testing.assert_array_equal(
-            out.systems[0].interior.values, fused_out.interior.values,
-            err_msg="N row A bulk ≠ the fused gains' bulk")
-        np.testing.assert_array_equal(
-            out.systems[0].boundary.values, fused_out.boundary.values,
-            err_msg="N row A trace ≠ the fused gains' trace")
-        np.testing.assert_array_equal(
-            out.systems[1].to_unified().values,
-            fused_out.radial_characteristic.values,
-            err_msg="N row B ray ≠ the fused gains' ray")
-        # TEETH (in-process constructions; the real N is never touched):
         emission = n_grid.blocks[1][0]
         b_b = n_grid.blocks[1][1]
         n_aa = n_grid.blocks[0][0]
+        row_a_ref = n_aa.apply(coupled.systems[0])
+        row_b_ref = (emission.apply(coupled.systems[0])
+                     + b_b.apply(coupled.systems[1]))
+        np.testing.assert_array_equal(
+            out.systems[0].interior.values, row_a_ref.interior.values,
+            err_msg="N row A bulk ≠ (S + B_a)·ψ_A")
+        np.testing.assert_array_equal(
+            out.systems[0].boundary.values, row_a_ref.boundary.values,
+            err_msg="N row A trace ≠ (S + B_a)·ψ_A")
+        np.testing.assert_array_equal(
+            out.systems[1].to_unified().values,
+            row_b_ref.to_unified().values,
+            err_msg="N row B ray ≠ Emission·ψ_A + B_b·ψ_B")
+        # TEETH (in-process constructions; the real N is never touched):
         # (a) dropped B_b is UNCONSTRUCTABLE — B_b is the only block reading
         # System B's input, so the all-None-column guard refuses the grid
         # (stronger than a value-red: the mutation class is unspellable).
@@ -3452,55 +3455,52 @@ class TestWithinGroupSystem:
         doubled = CoupledOperator(
             [[n_aa, seeding], [emission, b_b]],
             domain=n_grid.domain, codomain=n_grid.codomain)
-        live_b = CoupledField(systems=(
-            coupled.systems[0],
-            RadialCharacteristicComposite.from_unified(
-                psi3.radial_characteristic),
-        ))
         d_c = np.max(np.abs(
-            doubled.apply(live_b).systems[0].interior.values
-            - n_grid.apply(live_b).systems[0].interior.values))
+            doubled.apply(coupled).systems[0].interior.values
+            - n_grid.apply(coupled).systems[0].interior.values))
         if not d_c > 1e-10:
             pytest.fail("tooth (c) dead: a non-∅ (A,B) block left the bulk "
                         "row unmoved — the Seeding double-count is invisible")
 
     # ── G-d1.6 — Mode-9 same fixed point (het vacuum) + slab control ─────
 
-    @pytest.mark.parametrize("inner", ["source_iteration", "krylov"])
-    def test_g_d1_6_same_fixed_point_het_vacuum_sphere(self, inner):
-        r"""The block-native driver converges to the SAME fixed point as the
-        pre-d1 FUSED driver (rebuilt in-test from the oracles) on the Mode-9
-        configuration — heterogeneous VACUUM 2-region sphere, 2G (NOT the
-        reflective isotropic box). Principled-equiv bar SAFETY × inner_tol
-        (the rhs-reassembly/GMRES-padding ~ULP·iters drift; §0 R1 — the
-        campaign's FIRST end-to-end principled-equiv row). The FLUX FIELD is
-        asserted, not keff (outside every spectral invariance group)."""
+    def test_g_d1_6_same_fixed_point_het_vacuum_sphere(self):
+        r"""The TWO block-native inner drivers (SI and Krylov — structurally
+        different iterations over the SAME record splitting) converge to the
+        SAME fixed point on the Mode-9 configuration — heterogeneous VACUUM
+        2-region sphere, 2G (NOT the reflective isotropic box).
+        Principled-equiv bar SAFETY × inner_tol. The FLUX FIELD is asserted
+        — bulk AND System B's ψ½ member — not keff (outside every spectral
+        invariance group). (The d1 spelling compared against the pre-d1
+        fused driver, proven then; the fused reference dissolved with the
+        3-block at d2, and the cross-driver row is the standing successor.)"""
         tol = 1e-11
         sn = _het_vacuum_sphere()
         q_np = np.ones((sn.quad.N, sn.ng, sn.nx))
-        sol = solve_sn_fixed_source(
-            {0: _mixture(1.0, 0.4, 2), 1: _mixture(0.5, 0.1, 2)},
-            sn.mesh, Quadrature.gauss_legendre(4), q_np,
-            inner_solver=inner, inner_schedule="jacobi",
-            max_inner=6000, inner_tol=tol)
-        # The fused reference driver (the retired composition, via oracles).
-        LC, gains = _fused_reference_pieces(sn)
-        q3 = _build_fixed_source_rhs(q_np, sn)
-        si_ref = SourceIteration(
-            LC.inverse(), *gains, max_iter=6000, tol=tol)
-        psi_ref, _ = si_ref.solve(
-            q3, initial_guess=_unwindowed_cold_start(
-                sn, history_depth=q3.history_depth))
+        mats = {0: _mixture(1.0, 0.4, 2), 1: _mixture(0.5, 0.1, 2)}
+        sols = {
+            inner: solve_sn_fixed_source(
+                mats, sn.mesh, Quadrature.gauss_legendre(4), q_np,
+                inner_solver=inner, inner_schedule="jacobi",
+                max_inner=6000, inner_tol=tol)
+            for inner in ("source_iteration", "krylov")
+        }
         bar = 100.0 * tol
+        si_sol, ky_sol = sols["source_iteration"], sols["krylov"]
         np.testing.assert_allclose(
-            sol.angular_flux.interior.values, psi_ref.interior.values,
+            si_sol.angular_flux.interior.values,
+            ky_sol.angular_flux.interior.values,
             rtol=bar, atol=bar,
-            err_msg=f"[{inner}] bulk fixed point moved past SAFETY×tol")
+            err_msg="SI and Krylov bulk fixed points diverged past SAFETY×tol")
+        for inner, sol in sols.items():
+            if sol.radial_characteristic is None:
+                pytest.fail(f"[{inner}] Solution.radial_characteristic is None "
+                            f"on a carrying sphere (DP-Solution broken)")
         np.testing.assert_allclose(
-            sol.angular_flux.radial_characteristic.values,
-            psi_ref.radial_characteristic.values,
+            si_sol.radial_characteristic.to_unified().values,
+            ky_sol.radial_characteristic.to_unified().values,
             rtol=bar, atol=bar,
-            err_msg=f"[{inner}] ψ½ fixed point moved past SAFETY×tol")
+            err_msg="SI and Krylov ψ½ fixed points diverged past SAFETY×tol")
 
     def test_g_d1_6_slab_control_is_bit_identical(self):
         r"""CONTROL (ordering hazard 5): the seedless record arm is a PURE
@@ -3546,36 +3546,50 @@ class TestWithinGroupSystem:
             sn, solver.mat_xs, scattering_op=solver.scattering_op)
         si, *_ = _within_group_si(
             system, sn, inner_schedule="jacobi", max_iter=60, tol=1e-10)
-        q3 = _build_fixed_source_rhs(
-            np.ones((sn.quad.N, sn.ng, sn.nx)), sn)
-        cold = _split_fused_state(
-            _unwindowed_cold_start(sn, history_depth=q3.history_depth), sn)
-        si.solve(_split_fused_state(q3, sn), initial_guess=cold)
+        q_pair = _build_fixed_source_rhs(
+            np.ones((sn.quad.N, sn.ng, sn.nx)), sn)  # coupled on carrying
+        if not isinstance(q_pair, CoupledField):
+            pytest.fail("the carrying rhs builder did not return the coupled pair")
+        cold = _coupled_flux_state(
+            _unwindowed_cold_start(sn, history_depth=2), sn)
+        si.solve(q_pair, initial_guess=cold)
         if not si.contraction_ratios:
             pytest.fail("contraction_ratios is EMPTY on the coupled iterate — "
                         "the displacement diagnostic went silent (F5)")
         if si.last_displacement is None:
             pytest.fail("last_displacement not recorded on the coupled iterate")
 
-    # ── G-d1.8 — ERR-053 auto-tracks at d1 ───────────────────────────────
+    # ── G-d1.8 / G-d2.3 — the HONEST coupled DOF + the ERR-053 restart ───
 
-    def test_g_d1_8_krylov_restart_covers_the_coupled_ravel(self):
-        r"""The Krylov ``restart`` sizing reads the COUPLED ``to_flat`` —
-        both systems, dead-ray padding included at d1 (the honest count is
-        the d2/G-d3.3 deliverable). Pins that the ERR-053 sizing did not
-        regress when the iterate became a CoupledField."""
+    def test_g_d2_3_honest_dof_and_krylov_restart(self):
+        r"""The coupled ravel is the HONEST two-system sum (G-d2.3): ``n_dof
+        == size_A(2-block) + size_B(composite)`` with NO dead-ray padding —
+        strictly ``n_seed`` less than the d1 padded count (the "DOF count
+        goes honest" claim, quantified: Δ == n_seed). And the Krylov
+        ``restart`` sizing reads exactly this coupled ``to_flat`` (ERR-053
+        stays closed at the coupled seam)."""
         sn = _sphere()
         solver = SNSolver(sn)
         system = build_within_group_system(
             sn, solver.mat_xs, scattering_op=solver.scattering_op)
-        cold3 = _unwindowed_cold_start(sn, history_depth=2)
-        cold = _split_fused_state(cold3, sn)
+        cold_a = _unwindowed_cold_start(sn, history_depth=2)
+        cold = _coupled_flux_state(cold_a, sn)
         n_dof = int(cold.to_flat().size)
-        expected = int(cold3.to_flat().size) + int(
-            np.asarray(cold.systems[1].to_flat()).size)
-        if n_dof != expected:
-            pytest.fail(f"coupled n_dof = {n_dof} ≠ ψ_A(3-block) + ψ_B = "
-                        f"{expected} — the coupled ravel lost a system")
+        size_a = int(cold_a.to_flat().size)
+        size_b = int(np.asarray(cold.systems[1].to_flat()).size)
+        n_seed = int(sn.radial_characteristic_space.shape[0])
+        nb = sn.quad.N * sn.ng * sn.nx
+        nt = int(sn.angular_trace.layout.total_size)
+        if size_a != nb + nt:
+            pytest.fail(f"size_A = {size_a} ≠ bulk + trace = {nb + nt} — "
+                        f"ψ_A still carries padding (the eviction leaked)")
+        if n_dof != size_a + size_b:
+            pytest.fail(f"coupled n_dof = {n_dof} ≠ size_A + size_B = "
+                        f"{size_a + size_b} — the coupled ravel lost a system")
+        padded_d1 = size_a + n_seed + size_b   # the retired dead-pad count
+        if padded_d1 - n_dof != n_seed:
+            pytest.fail(f"Δ(padded − honest) = {padded_d1 - n_dof} ≠ n_seed = "
+                        f"{n_seed} — the dead padding did not dissolve exactly")
         krylov = _within_group_krylov(
             system.resolvent, *system.gains,
             n_dof=n_dof, max_iter=5, tol=1e-3)

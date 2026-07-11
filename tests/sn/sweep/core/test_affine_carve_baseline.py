@@ -310,11 +310,28 @@ class TestAffineCarveMatvecBaseline:
 
         # het_operands: heterogeneous σ_t (fixed seed) + non-flat random
         # bulk AND boundary trace (every term activated).  A reflective
-        # outer BC drives the boundary trace into the matvec (vs vacuum).
-        sig_t, psi = het_operands(sn_mesh)
+        # outer BC drives the boundary trace into the matvec (vs vacuum);
+        # B.2d — the random ψ½ seed rides the walk's EXPLICIT flux leg on
+        # the carrying sphere (the SAME rng draws as the frozen baseline,
+        # so the walk sees bit-identical inputs; the F4 six-signature
+        # catcher).
+        sig_t, psi, seed = het_operands(sn_mesh)
         L = StreamingOperator(sn_mesh)
         C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
-        out = (L + C).apply(psi)
+        if seed is None:
+            out = (L + C).apply(psi)
+        else:
+            from orpheus.transport.source_sinks import (
+                RadialCharacteristicSourceSink,
+            )
+
+            out = (L + C).apply(
+                psi,
+                radial_characteristic_flux=seed,
+                radial_characteristic_source=(
+                    RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+                ),
+            )
 
         captured = _capture_or_assert(
             request,

@@ -95,18 +95,32 @@ def _lc_apply_on_psi_ref(case, nc: int):
     )
     psi_ref = TimedFullField(
         interior=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,
-        # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed of the
-        # NON-FLAT-in-μ trial (its own μ = −1 datum, A − B for the linear
-        # A + Bμ ansatz), so (L+C).apply reproduces the operator action the
-        # continuous hand reference is compared against; None on non-carrying.
-        radial_characteristic=radial_characteristic_edge_seed(vals, sn_mesh),
     )
+    # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed of the
+    # NON-FLAT-in-μ trial (its own μ = −1 datum, A − B for the linear A + Bμ
+    # ansatz) rides the walk's EXPLICIT flux leg, so (L+C).apply reproduces
+    # the operator action the continuous hand reference is compared against;
+    # no legs on non-carrying meshes.
+    seed_leg = radial_characteristic_edge_seed(vals, sn_mesh)
 
     # ── Production (L+C).apply on ψ_ref ──
     sigma_t = np.full((ng, nx), case.sigma_t)
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
-    lc_psi = (L + C).apply(psi_ref).interior.values         # (N, ng, nx)
+    if seed_leg is None:
+        lc_psi = (L + C).apply(psi_ref).interior.values     # (N, ng, nx)
+    else:
+        from orpheus.transport.source_sinks import (
+            RadialCharacteristicSourceSink,
+        )
+
+        lc_psi = (L + C).apply(
+            psi_ref,
+            radial_characteristic_flux=seed_leg,
+            radial_characteristic_source=(
+                RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+            ),
+        ).interior.values                                   # (N, ng, nx)
 
     # ── Hand CONTINUOUS reference: [(L+C)ψ]_n(r) per ordinate, /W ──
     #   streaming  : μ A' + μ² B'

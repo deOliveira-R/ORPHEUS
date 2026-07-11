@@ -74,7 +74,7 @@ def test_apply_and_solve_share_one_representation_instance(monkeypatch):
     _spy_capture(monkeypatch, ScanMarch, "sweep", seen, "solve")
 
     sn = cart2d_2g_nonsquare()
-    sig_t, psi = het_operands(sn)
+    sig_t, psi = het_operands(sn)[:2]
     L = StreamingOperator(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
     A = L + C
@@ -140,7 +140,7 @@ def test_scheduled_solve_runs_the_operators_instance(monkeypatch):
     monkeypatch.setattr(ScanMarch, "_sweep_interior", spy)
 
     sn = cart2d_2g_nonsquare()
-    sig_t, psi = het_operands(sn)
+    sig_t, psi = het_operands(sn)[:2]
     L = StreamingOperator(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
     A = L + C

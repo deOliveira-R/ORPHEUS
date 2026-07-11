@@ -143,12 +143,20 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.fields.cross_section_field import CrossSectionField
+    from orpheus.transport.fields._bases import RadialCharacteristicField
+    from orpheus.transport.fields.radial_characteristic_flux import (
+        RadialCharacteristicFlux,
+    )
     from orpheus.transport.full_field import FullField
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.space import FunctionSpace
     from ..mesh.augmented_mesh import SNMesh
     from orpheus.numerics.frame import FrameBase
-    from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
+    from orpheus.transport.source_sinks import (
+        AngularSourceSink,
+        RadialCharacteristicSourceSink,
+        ScalarSourceSink,
+    )
     from ..loss_representation.sweep_schedule import SweepSchedule
     from ..loss_representation import LossRepresentation
     # Type-only (the runtime constructions are late imports inside ``inverse``
@@ -401,7 +409,12 @@ class StreamingOperator(LinearOperator["FullField"]):
         # Endomorphism on the composite (see :meth:`domain`).
         return self.sn_mesh.full_field_space
 
-    def apply(self, psi: "FullField") -> "FullField":
+    def apply(
+        self, psi: "FullField",
+        *,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
+    ) -> "FullField":
         r"""Pure σ-free forward streaming :math:`L\,\psi = \Omega\cdot\nabla\psi`.
 
         Computes pure streaming DIRECTLY via the :attr:`loss_representation`'s
@@ -446,9 +459,18 @@ class StreamingOperator(LinearOperator["FullField"]):
             ``FullField -> FullField``; the comonad lives on the driver).
         """
         _require_typed_composite("StreamingOperator.apply", self.sn_mesh, psi)
-        return self.loss_representation.streaming_action(psi)
+        return self.loss_representation.streaming_action(
+            psi,
+            radial_characteristic_flux=radial_characteristic_flux,
+            radial_characteristic_source=radial_characteristic_source,
+        )
 
-    def apply_transpose(self, phi: "FullField") -> "FullField":
+    def apply_transpose(
+        self, phi: "FullField",
+        *,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
+    ) -> "FullField":
         r"""Hilbert transpose :math:`L^{\mathsf T}\,\phi` (Wave O / O.2b, #208).
 
         The σ-free adjoint streaming leaf (#257 S8b): :math:`L^{\mathsf T}\phi`
@@ -478,7 +500,9 @@ class StreamingOperator(LinearOperator["FullField"]):
         _require_typed_composite(
             "StreamingOperator.apply_transpose", self.sn_mesh, phi,
         )
-        return self.loss_representation.streaming_action_transpose(phi)
+        return self.loss_representation.streaming_action_transpose(
+            phi, seed_cot=seed_cot, seed_cot_out=seed_cot_out,
+        )
 
     # ── LossRepresentation carve (S2) — the polymorphic matvec dispatch ─────
 
@@ -762,7 +786,12 @@ class InvertibleOperator(
 
     # ── apply / apply_transpose: the composite's OWN matvec (#240 Step B) ──
 
-    def apply(self, psi: "FullField") -> "FullField":
+    def apply(
+        self, psi: "FullField",
+        *,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicSourceSink | None" = None,
+    ) -> "FullField":
         r"""Matvec :math:`(L+C)\,\psi = M(\sigma)\,\psi` — the composite OWNS it.
 
         #240 Phase 2 Step B.  Both the matvec and the sweep are actions of the
@@ -786,11 +815,26 @@ class InvertibleOperator(
         one source of :math:`\sigma`), removing the latent affine-in-:math:`\sigma`
         coupling — the composite never asks the leaf for a :math:`\sigma`-bearing
         action it must then undo.
+
+        The ψ½ legs ride as explicit leaf kwargs (B.2d — see
+        :meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action`):
+        both ⟹ the joint ``M`` matvec (the coupled bridge's spelling); neither
+        on a carrying mesh ⟹ the ray-decoupled ``(A,A)`` block action (the
+        within-group grid's spelling).
         """
         _require_typed_composite("InvertibleOperator.apply", self.sn_mesh, psi)
-        return self.loss_representation.loss_action(self.sigma, psi)
+        return self.loss_representation.loss_action(
+            self.sigma, psi,
+            radial_characteristic_flux=radial_characteristic_flux,
+            radial_characteristic_source=radial_characteristic_source,
+        )
 
-    def apply_transpose(self, phi: "FullField") -> "FullField":
+    def apply_transpose(
+        self, phi: "FullField",
+        *,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
+    ) -> "FullField":
         r"""Adjoint matvec :math:`(L+C)^{\mathsf T}\,\phi = M(\sigma)^{\mathsf T}\,\phi`.
 
         The adjoint sibling of :meth:`apply` (#240 Phase 2 Step B): the
@@ -803,11 +847,16 @@ class InvertibleOperator(
         G-adjoint ``.H`` is applied AROUND this by
         :class:`~orpheus.numerics.operator._AdjointOperator` (pinned by
         ``test_g_adjoint_reciprocity``).
+
+        The transposed ψ½ legs ride as explicit leaf kwargs (B.2d — see
+        :meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action_transpose`).
         """
         _require_typed_composite(
             "InvertibleOperator.apply_transpose", self.sn_mesh, phi,
         )
-        return self.loss_representation.loss_action_transpose(self.sigma, phi)
+        return self.loss_representation.loss_action_transpose(
+            self.sigma, phi, seed_cot=seed_cot, seed_cot_out=seed_cot_out,
+        )
 
     # ── Algebra dispatch — schedule-folded composite (#226 step 2) ────
 
@@ -880,6 +929,8 @@ class InvertibleOperator(
         rhs: "FullField",
         *,
         initial_guess: "FullField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicFlux | None" = None,
     ) -> "TimedFullField":
         r"""Invert :math:`(L + C)\,\psi = \text{rhs}` via the WDD sweep.
 
@@ -927,9 +978,23 @@ class InvertibleOperator(
         accept-and-drop contract; a warm start lives at the iteration layer
         (:class:`~orpheus.numerics.iteration.SourceIteration` /
         :class:`~orpheus.numerics.green_operator.GreenOperator`), never here.
+
+        ``radial_characteristic_source`` / ``radial_characteristic_flux``
+        (B.2d — System B's legs as explicit leaf kwargs): the TRUE q½ ray
+        source the joint sweep reads, and the caller-allocated ψ½ carrier it
+        fills in place (the marched cells + outflow corner; the inflow corner
+        passes through as the seeded given-data slot). A carrying mesh
+        REQUIRES both — the WDD solve is the JOINT direct inverse ``M⁻¹``
+        (there is no ray-decoupled (A,A) inverse spelling; the coupled
+        bridge, :class:`~orpheus.sn.coupled_system.CoupledInvertibleOperator`,
+        is the production caller). A seedless mesh refuses non-``None`` legs.
         """
         del initial_guess  # accept-and-drop: exact direct inverse, nothing to seed (#280 2.5c)
-        return self._solve_timed_full_field(rhs)
+        return self._solve_timed_full_field(
+            rhs,
+            radial_characteristic_source=radial_characteristic_source,
+            radial_characteristic_flux=radial_characteristic_flux,
+        )
 
     # ``solve_moments`` (Phase 5c) retired in #226 step 2 (§17 W1): a public
     # method whose output-mode argument silently changed the operator's
@@ -946,6 +1011,8 @@ class InvertibleOperator(
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicFlux | None" = None,
     ) -> "TimedFullField":
         r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
 
@@ -1039,25 +1106,33 @@ class InvertibleOperator(
                     seed_boundary.face_view(face_name)
                 )
 
-        # ── the ψ½ carrier for the sweep (#282 route (a), 2.5d) ────────
+        # ── the ψ½ legs for the sweep (#282 route (a) → B.2d) ──────────
         # A carrying mesh (R12a — the sphere) solves the starting-
-        # direction legs DIRECTLY: the rhs composite must carry the TRUE
-        # q½ block, and the sweep fills a fresh ψ½ carrier in place (the
-        # boundary_buf discipline — the inflow corner passes through as
-        # the seeded given-data slot; the marched cells + outflow corner
-        # are the solved state).  Non-carrying meshes stay 2-block.
-        radial_characteristic_buf = None
-        if sn_mesh.radial_characteristic_space is not None:
-            from orpheus.sn.loss_representation import _require_radial_characteristic
-            from orpheus.transport.fields.radial_characteristic_flux import (
-                RadialCharacteristicFlux,
-            )
+        # direction legs DIRECTLY: the caller passes the TRUE q½ source
+        # and the ψ½ carrier the sweep fills in place (the boundary_buf
+        # discipline — the inflow corner passes through as the seeded
+        # given-data slot; the marched cells + outflow corner are the
+        # solved state).  The solve is the JOINT inverse M⁻¹, so a
+        # carrying mesh REQUIRES both legs; a seedless mesh refuses them.
+        from orpheus.sn.loss_representation import (
+            _refuse_radial_characteristic,
+            _require_radial_characteristic,
+        )
 
+        if sn_mesh.radial_characteristic_space is not None:
             _require_radial_characteristic(
-                "InvertibleOperator.solve", sn_mesh, rhs.radial_characteristic,
-                role="rhs",
+                "InvertibleOperator.solve", sn_mesh,
+                radial_characteristic_source, role="rhs",
             )
-            radial_characteristic_buf = RadialCharacteristicFlux.zeros_on(sn_mesh)
+            _require_radial_characteristic(
+                "InvertibleOperator.solve", sn_mesh,
+                radial_characteristic_flux, role="carrier",
+            )
+        else:
+            _refuse_radial_characteristic(
+                "InvertibleOperator.solve",
+                radial_characteristic_source, radial_characteristic_flux,
+            )
 
         # ── Sweep on the operator's ONE representation (S6.5, #222) —
         # the SAME :class:`LossRepresentation` instance the matvec
@@ -1081,8 +1156,8 @@ class InvertibleOperator(
             moment_frame=moment_frame,
             schedule=schedule,
             reflect=reflect,
-            radial_characteristic_source=rhs.radial_characteristic,
-            radial_characteristic_flux=radial_characteristic_buf,
+            radial_characteristic_source=radial_characteristic_source,
+            radial_characteristic_flux=radial_characteristic_flux,
         )
         # The sweep output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
@@ -1101,18 +1176,24 @@ class InvertibleOperator(
                 spatial_moments=per_axis,
             )
 
-        # ── L2 direct return — no adapter needed (D-H.2-C2). ───────────
+        # ── L2 direct return — no adapter needed (D-H.2-C2).  The marched
+        # ψ½ state lives in the caller's ``radial_characteristic_flux``
+        # buffer (filled in place by the walk), never on the composite. ──
         return TimedFullField(
             interior=bulk,
             boundary=boundary_buf,
-            radial_characteristic=radial_characteristic_buf,
             _history=(),
             history_depth=(
                 rhs.history_depth if isinstance(rhs, TimedFullField) else 0
             ),
         )
 
-    def solve_transpose(self, b: "FullField") -> "FullField":
+    def solve_transpose(
+        self, b: "FullField",
+        *,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicSourceSink | None" = None,
+    ) -> "FullField":
         r"""Invert :math:`(L + C)^{\mathsf T}\,x = b` via the REVERSE-SCAN.
 
         The transpose-solve :math:`(L+C)^{-\mathsf T}` (#280 Phase 2.5b): the
@@ -1131,7 +1212,18 @@ class InvertibleOperator(
         swap law (``A.H.inverse() ≡ A.inverse().H``) and flips the adjoint
         predicates.  DD/scalar-1-D only — the LD / multi-D reverse-scans are
         the #280 kernel-pair deferrals (the representation raises).
+
+        ``seed_cot`` / ``seed_cot_out`` (B.2d — the transposed ψ½ legs as
+        explicit leaf kwargs): the flux-side ray cotangent the reverse-scan
+        consumes and the caller-allocated buffer the source-side cotangent
+        fills.  Like :meth:`solve`, the transpose-solve is the JOINT inverse
+        ``M⁻ᵀ`` — a carrying mesh REQUIRES both legs; a seedless mesh
+        refuses them.
         """
+        from orpheus.sn.loss_representation import (
+            _refuse_radial_characteristic,
+            _require_radial_characteristic,
+        )
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
 
@@ -1142,17 +1234,31 @@ class InvertibleOperator(
                 "operator must share the same SNMesh instance "
                 "(mesh-identity invariant)."
             )
+        if sn_mesh.radial_characteristic_space is not None:
+            _require_radial_characteristic(
+                "InvertibleOperator.solve_transpose", sn_mesh, seed_cot,
+                role="cotangent",
+            )
+            _require_radial_characteristic(
+                "InvertibleOperator.solve_transpose", sn_mesh, seed_cot_out,
+                role="carrier",
+            )
+        else:
+            _refuse_radial_characteristic(
+                "InvertibleOperator.solve_transpose", seed_cot, seed_cot_out,
+            )
         q_bar, m_boundary, m_seed = self.loss_representation.sweep_transpose(
             b.interior.values,
             self.sigma,
             b.boundary,
-            seed_cot=b.radial_characteristic,
+            seed_cot=seed_cot,
         )
+        if seed_cot_out is not None and m_seed is not None:
+            seed_cot_out.values[...] = m_seed.values
         return FullField(
             interior=AngularSourceSink.from_mesh(
                 q_bar, sn_mesh,
                 spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
             ),
             boundary=m_boundary,
-            radial_characteristic=m_seed,
         )

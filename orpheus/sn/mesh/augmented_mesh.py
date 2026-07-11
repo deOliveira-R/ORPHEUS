@@ -987,19 +987,16 @@ class SNMesh(MaterialMesh):
           tensor;
         * **trace** :math:`G_{\rm trace} = |\Omega\cdot\hat n_f|\,w_n` — the
           partial-current surface metric already carried by
-          :attr:`angular_trace`;
-        * **starting-direction** (present iff the mesh carries R12a seed
-          levels — the sphere): :math:`G_{\rm sd} = V_{\rm cell}` — the
-          SPD radial cell-volume **state metric** of
-          :attr:`radial_characteristic_space` (ψ½ is a first-class radial
-          state field: the same spatial measure as the bulk, restricted
-          to the μ = ±1 ray, without the angular factor :math:`w_n`). See
-          the space's module docstring for the derivation and the
-          Mode-12 closure.
+          :attr:`angular_trace`.
 
-        The bulk/trace factors carry :math:`w_n`; they differ only in the
-        spatial measure (cell volume vs. oriented face). Cached: the
-        composite is immutable for a given mesh + quadrature.
+        The two factors carry :math:`w_n`; they differ only in the
+        spatial measure (cell volume vs. oriented face). On a carrying
+        mesh the ψ½ ray's state metric (``G_sd = V_cell``) lives on
+        **System B's own composite space**,
+        :attr:`radial_characteristic_composite_space` — never as a third
+        block here (the B.2d eviction; the coupled DOF count is the
+        honest two-system sum). Cached: the composite is immutable for a
+        given mesh + quadrature.
         """
         from orpheus.numerics.space import FunctionSpace
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
@@ -1023,7 +1020,6 @@ class SNMesh(MaterialMesh):
         return FullFieldSpace.from_blocks(
             interior_space,
             self.angular_trace,
-            radial_characteristic_space=self.radial_characteristic_space,
         )
 
     @property

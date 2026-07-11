@@ -136,7 +136,6 @@ from dataclasses import dataclass
 from orpheus.transport.fields._bases import (
     BulkField,
     BoundaryField,
-    RadialCharacteristicField,
 )
 from orpheus.transport.full_field import FullField
 
@@ -196,19 +195,18 @@ class TimedFullField(FullField):
     # ── Construction ─────────────────────────────────────────────────
 
     @classmethod
-    def zeros(
+    def zeros(  # type: ignore[override]
         cls,
         *,
         interior: type[BulkField],
         boundary: type[BoundaryField],
         mesh: "object",
         history_depth: int = 2,
-        radial_characteristic: type[RadialCharacteristicField] | None = None,
     ) -> "TimedFullField":
         r"""Allocate a zero composite from the bulk + boundary leaf TYPES (B.5.A).
 
         Specialises
-        :meth:`~orpheus.transport.full_field.FullField.zeros` by threading
+        :meth:`~orpheus.transport.full_field.Composite.zeros` by threading
         ``history_depth`` (the timeless base has no such concept). The
         bulk / boundary leaf CLASSES are zero-allocated on ``mesh`` via
         their own :meth:`zeros_on` — the SN-specific ``(AngularFlux,
@@ -229,26 +227,18 @@ class TimedFullField(FullField):
             dependency).
         history_depth : int, optional
             History buffer depth (default 2; see the class docstring).
-        radial_characteristic : type[RadialCharacteristicField], optional
-            The starting-direction leaf CLASS; presence is MESH-keyed
-            (allocated iff ``mesh.radial_characteristic_space`` is
-            non-``None`` — the R12a predicate). See
-            :meth:`FullField.zeros`.
         """
         # Delegate leaf zero-allocation to the timeless base (the SINGLE
-        # source of the duck-typed ``zeros_on`` calls AND of the
-        # mesh-keyed seed-presence resolution), then re-wrap with the
-        # history metadata — so neither lives duplicated here.
+        # source of the duck-typed ``zeros_on`` calls), then re-wrap with
+        # the history metadata — so neither lives duplicated here.
         base = FullField.zeros(
             interior=interior,
             boundary=boundary,
             mesh=mesh,
-            radial_characteristic=radial_characteristic,
         )
         return cls(
             interior=base.interior,
             boundary=base.boundary,
-            radial_characteristic=base.radial_characteristic,
             _history=(),
             history_depth=history_depth,
         )
@@ -265,28 +255,25 @@ class TimedFullField(FullField):
 
     # ── Polymorphic recombine hook (carries history metadata) ────────
 
-    def _recombine(
+    def _recombine(  # type: ignore[override]
         self,
         *,
         interior: BulkField,
         boundary: BoundaryField,
-        radial_characteristic: RadialCharacteristicField | None,
     ) -> "TimedFullField":
         r"""Rebuild a ``TimedFullField`` with empty history + preserved depth.
 
         Overrides
-        :meth:`~orpheus.transport.full_field.FullField._recombine` so the
+        :meth:`~orpheus.transport.full_field.Composite._recombine` so the
         inherited vector-space dunders (defined ONCE on the base) return
         a :class:`TimedFullField` for a ``TimedFullField`` operand —
         carrying ``history_depth`` and an EMPTY history (#217: algebra
         results carry empty history; history is iteration metadata, not
-        algebraic state). ``radial_characteristic`` is the REQUIRED keyword
-        of the base hook — see the base docstring's silent-drop note.
+        algebraic state).
         """
         return TimedFullField(
             interior=interior,
             boundary=boundary,
-            radial_characteristic=radial_characteristic,
             _history=(),
             history_depth=self.history_depth,
         )
@@ -297,15 +284,13 @@ class TimedFullField(FullField):
         self,
         new_bulk: BulkField,
         new_boundary: BoundaryField,
-        new_radial_characteristic: RadialCharacteristicField | None = None,
     ) -> "TimedFullField":
         r"""Push the current frame into history; install the new one as current.
 
         Returns a fresh :class:`TimedFullField` with:
 
-        * ``bulk = new_bulk``, ``boundary = new_boundary`` (and, on a
-          seed-carrying composite, ``radial_characteristic =
-          new_radial_characteristic``) — the current frame;
+        * ``bulk = new_bulk``, ``boundary = new_boundary`` — the current
+          frame;
         * ``_history = (current_snapshot, *self._history)[: history_depth]``
           where ``current_snapshot`` is the pre-advance timeless frame.
 
@@ -322,12 +307,6 @@ class TimedFullField(FullField):
         new_boundary : AngularBoundaryField
             The new current boundary field. Must match
             ``type(self.boundary)``.
-        new_radial_characteristic : RadialCharacteristicField, optional
-            The new current ψ½ block. Presence must MATCH the current
-            frame's (a seed-carrying iterate cannot silently drop its
-            block, an unseeded one cannot grow it — R12a presence is a
-            structural fact of the mesh, not of the step), and the type
-            must match when present.
 
         Returns
         -------
@@ -346,32 +325,14 @@ class TimedFullField(FullField):
                 f"{type(new_boundary).__name__} does not match current "
                 f"boundary type {type(self.boundary).__name__}."
             )
-        if (self.radial_characteristic is None) != (new_radial_characteristic is None):
-            raise TypeError(
-                f"TimedFullField.advance: starting-direction presence must "
-                f"match the current frame (current: "
-                f"{self.radial_characteristic is not None}, new: "
-                f"{new_radial_characteristic is not None}) — presence is a "
-                f"structural fact of the mesh (R12a), not of the step."
-            )
-        if new_radial_characteristic is not None and type(
-            new_radial_characteristic
-        ) is not type(self.radial_characteristic):
-            raise TypeError(
-                f"TimedFullField.advance: new_radial_characteristic type "
-                f"{type(new_radial_characteristic).__name__} does not match "
-                f"current type {type(self.radial_characteristic).__name__}."
-            )
         current_snapshot = FullField(
             interior=self.interior,
             boundary=self.boundary,
-            radial_characteristic=self.radial_characteristic,
         )
         new_history = (current_snapshot, *self._history)[: self.history_depth]
         return TimedFullField(
             interior=new_bulk,
             boundary=new_boundary,
-            radial_characteristic=new_radial_characteristic,
             _history=new_history,
             history_depth=self.history_depth,
         )

@@ -78,7 +78,6 @@ if TYPE_CHECKING:
     from orpheus.transport.source_sinks import (
         AngularBoundarySourceSink,
         RadialCharacteristicBoundarySourceSink,
-        RadialCharacteristicSourceSink,
     )
 
 
@@ -117,29 +116,6 @@ def _zero_bulk_source(mesh: "SNMesh"):
 
     return AngularSourceSink.zeros_on(
         mesh, spatial_moments=mesh.scheme.spatial_basis_per_axis,
-    )
-
-
-def _zero_radial_characteristic_like(
-    seed: "RadialCharacteristicField | None",
-) -> "RadialCharacteristicSourceSink | None":
-    r"""A present-but-ZERO ray source matching ``seed``'s presence.
-
-    ``B_a`` (System A's trace boundary) touches no ray corner, but on a
-    seed-carrying composite it MUST emit a PRESENT zero ray block — not ``None``:
-    ``B = B_a + B_b`` sums the two per-system boundary blocks, and the composite
-    ``+`` raises on a seeded ⊕ unseeded presence mismatch
-    (:meth:`~orpheus.transport.full_field.FullField._combine_radial_characteristic`).
-    So ``B_a`` emits present-zero and ``B_b`` emits the reflected corner; their
-    sum is the reflected corner, bit-identically.  ``None`` passes through for a
-    seedless composite (Cartesian / cylinder, R12a).
-    """
-    if seed is None:
-        return None
-    from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
-
-    return RadialCharacteristicSourceSink(
-        values=np.zeros_like(seed.values), space=seed.space, mesh=seed.mesh,
     )
 
 
@@ -334,16 +310,15 @@ class SNBoundaryOperator(LinearOperator):
         r"""Lift the trace-only :meth:`_reflect_trace` onto the full
         :class:`~orpheus.transport.full_field.FullField` carrier with **zero
         bulk** — ``B_a``, the System-A (trace) boundary block on ``V = V_bulk ⊕
-        V_boundary ⊕ V_ray``.  #257 S8a: history-free (the matvec leaf is a base
+        V_boundary``.  #257 S8a: history-free (the matvec leaf is a base
         arrow ``FullField -> FullField``; the comonad lives on the driver).
 
-        The ray block is **present-zero** (:func:`_zero_radial_characteristic_like`
-        — never ``None`` on a seed-carrying composite): ``B_a`` touches only the
-        trace; the ray-corner boundary is the sibling
-        :class:`RadialCharacteristicBoundaryOperator` (``B_b``), and
-        ``B = B_a + B_b`` reproduces the whole augmented boundary block (RULING P1
+        ``B_a`` touches only the trace; the ray-corner boundary is the sibling
+        :class:`RadialCharacteristicBoundaryOperator` (``B_b``) — SYSTEM B's
+        own boundary block, living at the coupled grid's (B,B) slot (RULING P1
         — a block-composed system's boundary is the direct sum of per-system
-        boundary blocks; see the module docstring).
+        boundary blocks; see the module docstring). B.2d: System B is its own
+        composite, so ``B_a`` neither reads nor pads a ray block.
         """
         from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
         from orpheus.transport.full_field import FullField
@@ -369,12 +344,6 @@ class SNBoundaryOperator(LinearOperator):
         return FullField(
             interior=_zero_bulk_source(mesh),
             boundary=self._reflect_trace(trace, method, rows=rows),
-            # Present-zero ray (B_a touches no corner); B_b carries it. The
-            # split() masked halves inherit this zero, so B_lower + B_upper no
-            # longer double the ray corner (the latent bug the un-weld closes).
-            radial_characteristic=_zero_radial_characteristic_like(
-                psi.radial_characteristic,
-            ),
         )
 
     def apply(self, psi: "FullField") -> "FullField":

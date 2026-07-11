@@ -138,7 +138,7 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
-    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     n_flat = template.to_flat().size
 
     def matvec_flat(flat: np.ndarray) -> np.ndarray:
@@ -230,22 +230,33 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # face_view = 1 at every face slot (the "ψ = const at every B1''
     # slot" condition the docstring describes).  The face-flat buffer
     # is filled by assigning to every face_view in turn.
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     bulk_values = np.ones_like(state.interior.values)
     new_bulk = replace(state.interior, values=bulk_values)
     new_boundary = state.boundary
     for face in new_boundary.layout.faces:
         new_boundary.face_view(face)[:] = 1.0
-    # #282 route (a): the CONSISTENT ψ½ seed of a per-ordinate FLAT field is the
-    # same constant (edge-extrap is constant-preserving), so the pole march
-    # reproduces the flat field and (L+C)·const collapses to σ_t·const; a
-    # present-ZERO seed would break the collapse.  None on non-carrying meshes.
-    state = replace(
-        state, interior=new_bulk, boundary=new_boundary,
-        radial_characteristic=radial_characteristic_edge_seed(bulk_values, sn_mesh),
-    )
+    state = replace(state, interior=new_bulk, boundary=new_boundary)
+    # #282 route (a) → B.2d: the CONSISTENT ψ½ seed of a per-ordinate FLAT
+    # field is the same constant (edge-extrap is constant-preserving) and
+    # rides L's EXPLICIT flux leg, so the pole march reproduces the flat
+    # field and (L+C)·const collapses to σ_t·const; a zero leg would break
+    # the collapse.  No legs on non-carrying meshes.
+    seed_leg = radial_characteristic_edge_seed(bulk_values, sn_mesh)
+    if seed_leg is None:
+        out = L.apply(state) + C.apply(state)
+    else:
+        from orpheus.transport.source_sinks import (
+            RadialCharacteristicSourceSink,
+        )
 
-    out = L.apply(state) + C.apply(state)
+        out = L.apply(
+            state,
+            radial_characteristic_flux=seed_leg,
+            radial_characteristic_source=(
+                RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+            ),
+        ) + C.apply(state)
 
     # Cell slots: (L + C)·1.interior = σ_t · 1.interior
     np.testing.assert_allclose(
@@ -320,7 +331,7 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
-    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, radial_characteristic=RadialCharacteristicFlux)
+    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     n_flat = template.to_flat().size
 
     def matvec(flat: np.ndarray) -> np.ndarray:

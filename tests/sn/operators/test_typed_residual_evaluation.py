@@ -302,3 +302,252 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
             IncompatibleOperatorComposition, match="equal domains",
         ):
             _ = L + C
+
+
+# ── G-d2.4 / G-d2.5 (B.2d d2) — the split ψ½ Residual mint + the coupled
+# evaluate_residual arm + the Solution System-B member ────────────────────
+
+
+def _tiny_sphere_2g(nx: int = 5):
+    from orpheus.geometry import CoordSystem
+
+    fuel = get_mixture("A", "2g")
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 2.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"),
+    )
+    return SNMesh(mesh, Quadrature.gauss_legendre(4), {0: fuel})
+
+
+@pytest.mark.foundation
+class TestSplitRayResidualMint:
+    r"""G-d2.4 — the split ψ½ Residual pair (B.2d, mirroring the B.2b
+    SourceSink split): per leaf, ROLE (``from_balance`` demands the matching
+    family and raises on a mis-feed), UNITS (interior volumetric rate /
+    boundary trace flux — the B.2b units ruling applied identically), and
+    BALANCE (``r = lhs − rhs`` array_equal on a hand fixture). POSITIVE and
+    NEGATIVE per leaf (vv anti-#11)."""
+
+    def test_interior_leaf_role_units_balance(self):
+        from orpheus.numerics.units import ANGULAR_RATE_UNITS
+        from orpheus.transport.residuals import (
+            RadialCharacteristicInteriorResidual,
+        )
+        from orpheus.transport.source_sinks import (
+            RadialCharacteristicInteriorSourceSink,
+        )
+        from orpheus.transport.fields.radial_characteristic_interior_flux import (
+            RadialCharacteristicInteriorFlux,
+        )
+
+        sn = _tiny_sphere_2g()
+        rng = np.random.default_rng(42)
+        lhs = RadialCharacteristicInteriorSourceSink.zeros_on(sn)
+        rhs = RadialCharacteristicInteriorSourceSink.zeros_on(sn)
+        lhs.values[...] = rng.standard_normal(lhs.values.shape)
+        rhs.values[...] = rng.standard_normal(rhs.values.shape)
+        r = RadialCharacteristicInteriorResidual.from_balance(lhs=lhs, rhs=rhs)
+        if type(r) is not RadialCharacteristicInteriorResidual:
+            pytest.fail(f"from_balance returned {type(r).__name__}")
+        np.testing.assert_array_equal(r.values, lhs.values - rhs.values)
+        if RadialCharacteristicInteriorResidual.UNITS is not ANGULAR_RATE_UNITS:
+            pytest.fail("interior ψ½ residual must carry the volumetric "
+                        "rate units (the μ = ∓1 DD balance rows)")
+        flux = RadialCharacteristicInteriorFlux.zeros_on(sn)
+        with pytest.raises(TypeError):
+            RadialCharacteristicInteriorResidual.from_balance(lhs=flux, rhs=rhs)
+
+    def test_boundary_leaf_role_units_balance(self):
+        from orpheus.numerics.units import ANGULAR_FLUX_UNITS
+        from orpheus.transport.residuals import (
+            RadialCharacteristicBoundaryResidual,
+        )
+        from orpheus.transport.source_sinks import (
+            RadialCharacteristicBoundarySourceSink,
+        )
+        from orpheus.transport.fields.radial_characteristic_boundary_flux import (
+            RadialCharacteristicBoundaryFlux,
+        )
+
+        sn = _tiny_sphere_2g()
+        rng = np.random.default_rng(43)
+        lhs = RadialCharacteristicBoundarySourceSink.zeros_on(sn)
+        rhs = RadialCharacteristicBoundarySourceSink.zeros_on(sn)
+        lhs.values[...] = rng.standard_normal(lhs.values.shape)
+        rhs.values[...] = rng.standard_normal(rhs.values.shape)
+        r = RadialCharacteristicBoundaryResidual.from_balance(lhs=lhs, rhs=rhs)
+        if type(r) is not RadialCharacteristicBoundaryResidual:
+            pytest.fail(f"from_balance returned {type(r).__name__}")
+        np.testing.assert_array_equal(r.values, lhs.values - rhs.values)
+        if RadialCharacteristicBoundaryResidual.UNITS is not ANGULAR_FLUX_UNITS:
+            pytest.fail("boundary ψ½ residual must carry the trace flux "
+                        "units (the corner flux-matching rows)")
+        flux = RadialCharacteristicBoundaryFlux.zeros_on(sn)
+        with pytest.raises(TypeError):
+            RadialCharacteristicBoundaryResidual.from_balance(lhs=flux, rhs=rhs)
+
+    def test_coupled_evaluate_residual_mints_the_pair_and_vanishes_at_fixed_point(self):
+        r"""The COUPLED evaluate_residual arm (R4 — rides the eviction):
+        on a carrying sphere the residual is ``CoupledField[r_A, r_B]``
+        with ``r_B`` the split pair; at the converged fixed point EVERY
+        member ≈ 0 (the Mode-12 (b) closure — System B's defect is a typed
+        member, not a silently-dropped block); and the System-A-only split
+        identity ``√(b²+i²) = ‖r_A‖`` is EXACT (the closed diagnostic gap)."""
+        from orpheus.numerics.coupled_system import CoupledField
+        from orpheus.sn import solve_sn_fixed_source
+        from orpheus.sn.solver import _build_fixed_source_rhs
+        from orpheus.transport.radial_characteristic_composite import (
+            RadialCharacteristicComposite,
+        )
+        from orpheus.transport.residuals import (
+            RadialCharacteristicBoundaryResidual,
+            RadialCharacteristicInteriorResidual,
+        )
+
+        sn = _tiny_sphere_2g()
+        q_np = np.ones((sn.quad.N, sn.ng, sn.nx))
+        tol = 1e-12
+        sol = solve_sn_fixed_source(
+            {0: get_mixture("A", "2g")}, sn.mesh,
+            Quadrature.gauss_legendre(4), q_np,
+            inner_solver="source_iteration", inner_schedule="jacobi",
+            max_inner=6000, inner_tol=tol,
+        )
+        # Rebuild the record + the coupled states on the SOLVE's OWN mesh.
+        sn_sol = sol.mesh
+        solver = SNSolver(sn_sol)
+        system = build_within_group_system(
+            sn_sol, solver.mat_xs, scattering_op=solver.scattering_op,
+        )
+        q_pair = _build_fixed_source_rhs(q_np, sn_sol)
+        if not isinstance(q_pair, CoupledField):
+            pytest.fail("the carrying rhs builder did not return the pair")
+        assert sol.radial_characteristic is not None  # narrowing (G-d2.5 pins)
+        psi_pair = CoupledField(systems=(
+            sol.angular_flux, sol.radial_characteristic,
+        ))
+        r = evaluate_residual(system.loss, psi_pair, q_pair)
+        if not isinstance(r, CoupledField):
+            pytest.fail(f"coupled residual is {type(r).__name__}")
+        r_b = r.systems[1]
+        if not isinstance(r_b, RadialCharacteristicComposite):
+            pytest.fail(f"r_B is {type(r_b).__name__}")
+        if type(r_b.interior) is not RadialCharacteristicInteriorResidual:
+            pytest.fail(f"r_B.interior is {type(r_b.interior).__name__}")
+        if type(r_b.boundary) is not RadialCharacteristicBoundaryResidual:
+            pytest.fail(f"r_B.boundary is {type(r_b.boundary).__name__}")
+        q_scale = float(np.abs(q_np).max())
+        for name, vals in (
+            ("r_A.interior", r.systems[0].interior.values),
+            ("r_A.boundary", r.systems[0].boundary.values),
+            ("r_B.interior", r_b.interior.values),
+            ("r_B.boundary", r_b.boundary.values),
+        ):
+            rel = float(np.abs(vals).max()) / q_scale
+            if not rel < 1e-6:
+                pytest.fail(f"{name} not ≈0 at the fixed point (rel={rel:.2e})")
+        # The System-A split identity is EXACT on the 2-block member.
+        b, i = boundary_vs_interior_split(r)
+        np.testing.assert_allclose(
+            np.hypot(b, i),
+            float(np.linalg.norm(r.systems[0].to_flat())),
+            rtol=1e-12,
+        )
+
+    def test_coupled_evaluate_residual_role_tooth(self):
+        r"""G-d2.4 tooth: feeding a coupled q_ext whose System-B member
+        carries the WRONG role (a FLUX composite where the balance demands
+        the SOURCE pair) raises from the leaf's from_balance role parse."""
+        from orpheus.numerics.coupled_system import CoupledField
+        from orpheus.sn.solver import (
+            _build_fixed_source_rhs,
+            _coupled_flux_state,
+        )
+        from orpheus.transport.radial_characteristic_composite import (
+            RadialCharacteristicComposite,
+        )
+
+        sn = _tiny_sphere_2g()
+        solver = SNSolver(sn)
+        system = build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op,
+        )
+        q_pair = _build_fixed_source_rhs(
+            np.ones((sn.quad.N, sn.ng, sn.nx)), sn,
+        )
+        psi_pair = _coupled_flux_state(
+            TimedFullField.zeros(
+                interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            ),
+            sn,
+        )
+        assert isinstance(q_pair, CoupledField)
+        bad_q = CoupledField(systems=(
+            q_pair.systems[0],
+            RadialCharacteristicComposite.from_mesh(sn),   # FLUX pair — wrong role
+        ))
+        with pytest.raises(TypeError):
+            evaluate_residual(system.loss, psi_pair, bad_q)
+
+
+@pytest.mark.foundation
+class TestSolutionRayMember:
+    r"""G-d2.5 — the ``Solution`` contract (DP-Solution): ``angular_flux`` is
+    the honest 2-block composite; System B's converged state is the OWN
+    ``radial_characteristic`` member (present ⟺ the mesh carries — the
+    biconditional guard); a 3-block angular_flux is UNREPRESENTABLE (the
+    structural tooth: the carrier itself rejects the retired kwarg)."""
+
+    def test_carrying_solution_carries_the_member(self):
+        from orpheus.sn import solve_sn_fixed_source
+        from orpheus.transport.radial_characteristic_composite import (
+            RadialCharacteristicComposite,
+        )
+
+        sn = _tiny_sphere_2g()
+        sol = solve_sn_fixed_source(
+            {0: get_mixture("A", "2g")}, sn.mesh,
+            Quadrature.gauss_legendre(4),
+            np.ones((sn.quad.N, sn.ng, sn.nx)),
+            inner_solver="source_iteration", inner_schedule="jacobi",
+            max_inner=4000, inner_tol=1e-10,
+        )
+        if hasattr(sol.angular_flux, "radial_characteristic"):
+            pytest.fail("Solution.angular_flux still exposes a ψ½ slot — "
+                        "the eviction leaked into the Solution contract")
+        if not isinstance(sol.radial_characteristic, RadialCharacteristicComposite):
+            pytest.fail(f"Solution.radial_characteristic is "
+                        f"{type(sol.radial_characteristic).__name__}")
+        if not float(np.abs(sol.radial_characteristic.to_flat()).max()) > 0.0:
+            pytest.fail("the converged System-B member is identically zero — "
+                        "the final sweep's marched ψ½ state was not threaded")
+
+    def test_presence_biconditional_guard(self):
+        from dataclasses import replace as _replace
+
+        from orpheus.sn import solve_sn_fixed_source
+
+        # Seedless: the member is None…
+        fuel = get_mixture("A", "2g")
+        mesh = Mesh1D(
+            edges=np.linspace(0.0, 2.0, 6), mat_ids=np.zeros(5, dtype=int),
+            bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+        )
+        sol = solve_sn_fixed_source(
+            {0: fuel}, mesh, Quadrature.gauss_legendre(4),
+            np.ones((4, 2, 5)),
+            inner_solver="source_iteration", inner_schedule="jacobi",
+            max_inner=2000, inner_tol=1e-10,
+        )
+        if sol.radial_characteristic is not None:
+            pytest.fail("seedless Solution carries a System-B member")
+        # …and a carrying Solution WITHOUT it refuses (the biconditional).
+        sn = _tiny_sphere_2g()
+        sol_c = solve_sn_fixed_source(
+            {0: fuel}, sn.mesh, Quadrature.gauss_legendre(4),
+            np.ones((sn.quad.N, sn.ng, sn.nx)),
+            inner_solver="source_iteration", inner_schedule="jacobi",
+            max_inner=2000, inner_tol=1e-8,
+        )
+        with pytest.raises(ValueError, match="presence must match"):
+            _replace(sol_c, radial_characteristic=None)

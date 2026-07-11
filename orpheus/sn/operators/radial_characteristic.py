@@ -641,11 +641,9 @@ class RadialCharacteristicSeeding(
     inward :math:`\mu=-1` ``cells(p, -1)`` leg); codomain = System A's
     ``sn_mesh.full_field_space`` — :meth:`apply` emits the seed's bulk
     contribution as the interior member of a
-    :class:`~orpheus.transport.full_field.FullField` (trace and ψ½ slots
-    present-zero: a block emitting into a composite row space pads the slots
-    it does not touch — unlike ``A_BA``'s retired padding, System A IS this
-    block's honest codomain; the ray slot flips to ``None`` at the B.2d
-    eviction). It exists ONLY on a seed-carrying mesh (the sphere, R12a).
+    :class:`~orpheus.transport.full_field.FullField` over a zero trace
+    (System A IS this block's honest 2-block codomain, post-B.2d). It
+    exists ONLY on a seed-carrying mesh (the sphere, R12a).
 
     **What it is (operator algebra) — a CELL-LOCAL ANGULAR coupling.** At each
     radial cell :math:`i`, the ray value :math:`\psi_{1/2}(i)` is the seed of
@@ -795,9 +793,8 @@ class RadialCharacteristicSeeding(
         \mathrm{numer})/V` with :math:`\psi_{\rm cell}=0`. Non-carrying-level
         ordinates stay zero (they have no ray seed). Bit-identical to the
         in-sweep injection (same single-sourced closure methods). The bulk
-        contribution lands as the FullField INTERIOR member; the trace and ψ½
-        slots are present-zero (System A's row space — the transitional
-        3-block presence convention, ray → ``None`` at the B.2d eviction).
+        contribution lands as the FullField INTERIOR member over a zero
+        trace (System A's honest 2-block row space, post-B.2d).
 
         Parameters
         ----------
@@ -812,8 +809,8 @@ class RadialCharacteristicSeeding(
         -------
         FullField
             The seed's contribution to System A's residual row — the
-            per-ordinate bulk term ``(N, ng, nx)`` as the interior member,
-            present-zero trace and ψ½ members.
+            per-ordinate bulk term ``(N, ng, nx)`` as the interior member
+            over a zero trace.
         """
         from orpheus.transport.full_field import FullField
         from orpheus.transport.radial_characteristic_composite import (
@@ -821,7 +818,6 @@ class RadialCharacteristicSeeding(
         )
         from orpheus.transport.source_sinks import (
             AngularBoundarySourceSink,
-            RadialCharacteristicSourceSink,
         )
         from orpheus.transport.source_sinks.angular_source_sink import (
             AngularSourceSink,
@@ -857,7 +853,6 @@ class RadialCharacteristicSeeding(
                 out_g_first.swapaxes(0, 1), mesh,
             ),
             boundary=AngularBoundarySourceSink.zeros_on(mesh),
-            radial_characteristic=RadialCharacteristicSourceSink.zeros_on(mesh),
         )
 
     # ── Euclidean transpose — bulk cotangent → ray seed cotangent ─────
@@ -870,8 +865,8 @@ class RadialCharacteristicSeeding(
         The adjoint of :meth:`apply`: given a cotangent on System A's row
         space (the codomain), return the cotangent on the ray seed composite
         (the domain). The forward writes ONLY the interior member, so the
-        transpose reads ONLY ``cotangent.interior`` — the trace and ψ½ parts
-        are annihilated structurally (discarded, not zeroed). Reverse the
+        transpose reads ONLY ``cotangent.interior`` — the trace part is
+        annihilated structurally (discarded, not zeroed). Reverse the
         forward's :math:`-\,\mathrm{numer}/V` placement with the local gather
         :math:`\bar n_{p,\,m,\,i} = -\bar o_{m,\,i}/V_i`, then
         ``angular_adjoint`` reverses the M-M recurrence to the per-carrying-
@@ -1405,12 +1400,8 @@ class RadialCharacteristicEmission(LinearOperator):
         -------
         FullField
             The System-A cotangent: ``interior`` = the bulk per-ordinate
-            pullback, ``boundary`` AND ``radial_characteristic``
-            present-zero — the transitional 3-block presence convention
-            (B.2c: the transposed grid row sums this with ``A_AAᵀ``'s
-            3-block output under the mixed-presence law, so EVERY System-A
-            emission stays presence-consistent until the B.2d eviction
-            flips them all to the 2-block shape together).
+            pullback over a zero trace (System A's honest 2-block row
+            space, post-B.2d).
         """
         from orpheus.transport.full_field import FullField
         from orpheus.transport.radial_characteristic_composite import (
@@ -1419,7 +1410,6 @@ class RadialCharacteristicEmission(LinearOperator):
         from orpheus.transport.source_sinks import (
             AngularBoundarySourceSink,
             AngularSourceSink,
-            RadialCharacteristicSourceSink,
         )
 
         if not isinstance(cotangent, RadialCharacteristicComposite):
@@ -1442,7 +1432,6 @@ class RadialCharacteristicEmission(LinearOperator):
         return FullField(
             interior=AngularSourceSink.from_mesh(bulk_bar, mesh),
             boundary=AngularBoundarySourceSink.zeros_on(mesh),
-            radial_characteristic=RadialCharacteristicSourceSink.zeros_on(mesh),
         )
 
     def __repr__(self) -> str:

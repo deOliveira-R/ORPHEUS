@@ -123,26 +123,39 @@ def _loss(sn_mesh: SNMesh):
 
 
 def _fresh(sn_mesh: SNMesh) -> FullField:
-    space = sn_mesh.radial_characteristic_space
     return FullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-        radial_characteristic=None if space is None else RadialCharacteristicFlux,
     )
 
 
-def _read_augmented(out, sn_mesh, g) -> np.ndarray:
-    """The full augmented probe layout (incl. the outflow corner) — for the
-    dense oracle's index bookkeeping."""
-    bulk = np.asarray(out.interior.values)[:, g].ravel()
+def _seed_legs(sn_mesh: SNMesh, values=None):
+    """The (seed_cot IN, seed_cot_out OUT) leg pair for the transposed joint
+    surfaces on a carrying mesh (B.2d) — ``(None, None)`` seedless."""
+    from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
+
     space = sn_mesh.radial_characteristic_space
     if space is None:
+        return None, None
+    cot = RadialCharacteristicFlux.zeros_on(sn_mesh)
+    if values is not None:
+        cot.values[...] = values
+    return cot, RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+
+
+def _read_augmented(out, sn_mesh, g, ray_values=None) -> np.ndarray:
+    """The full augmented probe layout (incl. the outflow corner) — for the
+    dense oracle's index bookkeeping. ``ray_values`` is the EXPLICIT ray leg
+    (B.2d — the composite no longer carries it)."""
+    bulk = np.asarray(out.interior.values)[:, g].ravel()
+    space = sn_mesh.radial_characteristic_space
+    if space is None or ray_values is None:
         return bulk
     seed = np.concatenate([
         np.concatenate([
-            [space.corner_view(out.radial_characteristic.values, p, -1)[g]],
-            space.cells_view(out.radial_characteristic.values, p, -1)[g][::-1],
-            space.cells_view(out.radial_characteristic.values, p, +1)[g],
-            [space.corner_view(out.radial_characteristic.values, p, +1)[g]],
+            [space.corner_view(ray_values, p, -1)[g]],
+            space.cells_view(ray_values, p, -1)[g][::-1],
+            space.cells_view(ray_values, p, +1)[g],
+            [space.corner_view(ray_values, p, +1)[g]],
         ]) for p in space.levels
     ])
     return np.concatenate([seed, bulk])
@@ -176,11 +189,19 @@ def test_g1_round_trip_bulk(geom):
     sn = _MESHES[geom]()
     A = _loss(sn)
     rng = np.random.default_rng(20260705)
+    carrying = sn.radial_characteristic_space is not None
     x = _fresh(sn)
     x.interior.values[:] = rng.random(x.interior.values.shape)
-    if sn.radial_characteristic_space is not None:
-        x.radial_characteristic.values[:] = rng.random(x.radial_characteristic.values.shape)
-    back = A.solve_transpose(A.apply_transpose(x))
+    cot_in, cot_out = _seed_legs(
+        sn,
+        rng.random(sn.radial_characteristic_space.shape[0]) if carrying else None,
+    )
+    if carrying:
+        mid = A.apply_transpose(x, seed_cot=cot_in, seed_cot_out=cot_out)
+        mid_cot, mid_out = _seed_legs(sn, cot_out.values)
+        back = A.solve_transpose(mid, seed_cot=mid_cot, seed_cot_out=mid_out)
+    else:
+        back = A.solve_transpose(A.apply_transpose(x))
     np.testing.assert_allclose(
         np.asarray(back.interior.values), np.asarray(x.interior.values),
         rtol=_RTOL, atol=1e-11,
@@ -188,7 +209,13 @@ def test_g1_round_trip_bulk(geom):
     )
     b = _fresh(sn)                            # bulk-only source-subspace b
     b.interior.values[:] = rng.random(b.interior.values.shape)
-    fwd = A.apply_transpose(A.solve_transpose(b))
+    if carrying:
+        z_cot, z_out = _seed_legs(sn)
+        mid = A.solve_transpose(b, seed_cot=z_cot, seed_cot_out=z_out)
+        mid_cot, mid_out = _seed_legs(sn, z_out.values)
+        fwd = A.apply_transpose(mid, seed_cot=mid_cot, seed_cot_out=mid_out)
+    else:
+        fwd = A.apply_transpose(A.solve_transpose(b))
     np.testing.assert_allclose(
         np.asarray(fwd.interior.values), np.asarray(b.interior.values),
         rtol=_RTOL, atol=1e-11,
@@ -209,16 +236,24 @@ def test_g2_dense_transpose_oracle(geom):
     A = _loss(sn)
     rng = np.random.default_rng(20260706)
     mask = _source_carried_mask(sn)
+    carrying = sn.radial_characteristic_space is not None
     for g in range(sn.ng):
         M = _probe_augmented_matrix_one_group(sn, g)
         b = _fresh(sn)
         b.interior.values[:, g] = rng.random((sn.quad.n_ordinates, *sn.spatial_shape))
-        if sn.radial_characteristic_space is not None:
-            b.radial_characteristic.values[:] = rng.random(
-                b.radial_characteristic.values.shape
-            )
-        b_vec = _read_augmented(b, sn, g)
-        got = _read_augmented(A.solve_transpose(b), sn, g)
+        cot_in, cot_out = _seed_legs(
+            sn,
+            rng.random(sn.radial_characteristic_space.shape[0])
+            if carrying else None,
+        )
+        b_vec = _read_augmented(
+            b, sn, g, None if cot_in is None else cot_in.values,
+        )
+        if carrying:
+            out = A.solve_transpose(b, seed_cot=cot_in, seed_cot_out=cot_out)
+            got = _read_augmented(out, sn, g, cot_out.values)
+        else:
+            got = _read_augmented(A.solve_transpose(b), sn, g)
         ref = np.linalg.solve(M.T, b_vec)
         np.testing.assert_allclose(
             got[mask], ref[mask], rtol=_RTOL, atol=1e-12,
@@ -290,11 +325,12 @@ def test_g4_cyl_returns_no_seed_cotangent(geom):
     p = _fresh(sn)
     p.interior.values[:] = np.random.default_rng(1).random(p.interior.values.shape)
     out = A.solve_transpose(p)
-    if out.radial_characteristic is not None:
-        pytest.fail(
-            f"{geom}: non-carrying cyl solve_transpose must return "
-            f"radial_characteristic=None, got {type(out.radial_characteristic).__name__}"
-        )
+    if type(out) is not FullField:
+        pytest.fail(f"{geom}: solve_transpose emitted {type(out).__name__}")
+    # B.2d: the R12a mirror is STRUCTURAL — the transposed ψ½ legs cannot
+    # even be BUILT on a non-carrying mesh (the leaf factories raise; pinned
+    # in test_radial_characteristic_carrier), so a silent None pass-through
+    # is unspellable. The live claim here is the clean 2-block run above.
 
 
 # ── G5 — the mandatory-config activation sentinel (Mode-7 pin) ─────────

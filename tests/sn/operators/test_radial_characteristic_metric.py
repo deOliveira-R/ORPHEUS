@@ -125,28 +125,49 @@ def _build_sphere(nx: int, ng: int, sigma: float):
     return sn, StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
 
 
-def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
-    """A ``FullField`` with each block either random (True) or zero (False).
+def _joint_M(sn, LC):
+    """The joint ``M`` — ``LC``'s fused walk on the coupled pair (B.2d: the
+    ψ½ legs ride the explicit leaf kwargs; the pair is the honest carrier)."""
+    from orpheus.numerics.coupled_system import CoupledSpace
+    from orpheus.sn.coupled_system import CoupledInvertibleOperator
 
-    Draws in block order bulk → trace → seed, only for the active blocks.
+    space = CoupledSpace.from_systems(
+        (sn.full_field_space, sn.radial_characteristic_composite_space),
+    )
+    return CoupledInvertibleOperator(LC, space=space, sn_mesh=sn), space
+
+
+def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
+    """The coupled pair with each block either random (True) or zero (False).
+
+    Draws in block order bulk → trace → seed, only for the active blocks
+    (the SAME order as the pre-eviction 3-block builder).
     """
+    from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.transport.radial_characteristic_composite import (
+        RadialCharacteristicComposite,
+    )
+
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
     n_sd = sn.radial_characteristic_space.shape[0]
-    return FullField(
+    psi_a = FullField(
         interior=AngularFlux.from_mesh(
             rng.standard_normal((N, ng, nx)) if bulk else np.zeros((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux(
             values=rng.standard_normal(n_tr) if trace else np.zeros(n_tr),
             space=sn.angular_trace, mesh=sn),
-        radial_characteristic=RadialCharacteristicFlux(
-            values=rng.standard_normal(n_sd) if seed else np.zeros(n_sd),
-            space=sn.radial_characteristic_space, mesh=sn),
     )
+    unified = RadialCharacteristicFlux(
+        values=rng.standard_normal(n_sd) if seed else np.zeros(n_sd),
+        space=sn.radial_characteristic_space, mesh=sn)
+    return CoupledField(systems=(
+        psi_a, RadialCharacteristicComposite.from_unified(unified),
+    ))
 
 
 def _template(sn):
-    """An all-zero ``FullField`` carrying all three blocks (a shape template)."""
+    """An all-zero coupled pair (a shape template)."""
     return _composite(sn, bulk=False, trace=False, seed=False, rng=np.random.default_rng(0))
 
 
@@ -157,12 +178,16 @@ def _dense(fn, tpl):
     for j in range(n):
         e = np.zeros(n)
         e[j] = 1.0
-        M[:, j] = fn(FullField.from_flat(e, tpl)).to_flat()
+        M[:, j] = fn(type(tpl).from_flat(e, tpl)).to_flat()
     return M
 
 
 def _blocks(sn):
-    """``(bulk, trace, seed)`` index slices in ``to_flat`` order + their sizes."""
+    """``(bulk, trace, System-B)`` index slices in the COUPLED ``to_flat``
+    order + their sizes (System B is the trailing member; its internal
+    member order differs from the old unified interleave — every consumer
+    here treats it as a BLOCK, so the analysis is permutation-invariant
+    within the slice)."""
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     nb = N * ng * nx
     nt = int(sn.angular_trace.layout.total_size)
@@ -170,10 +195,27 @@ def _blocks(sn):
     return slice(0, nb), slice(nb, nb + nt), slice(nb + nt, nb + nt + ns), (nb, nt, ns)
 
 
-def _prod_metric(sn, tpl):
-    """The SHIPPED production metric ``G`` as a flat diagonal (``full_field_space``)."""
-    ones = FullField.from_flat(np.ones(tpl.to_flat().size), tpl)
-    return sn.full_field_space.apply_metric(ones).to_flat()
+def _seed_to_coupled_layout(sn, unified_values):
+    """Re-label a UNIFIED-layout seed diagonal onto the coupled System-B
+    member layout (the exact from_unified gather — values preserved)."""
+    from orpheus.transport.radial_characteristic_composite import (
+        RadialCharacteristicComposite,
+    )
+
+    leaf = RadialCharacteristicFlux(
+        values=np.asarray(unified_values, dtype=float),
+        space=sn.radial_characteristic_space, mesh=sn)
+    return np.asarray(
+        RadialCharacteristicComposite.from_unified(leaf).to_flat(), dtype=float,
+    )
+
+
+def _prod_metric(sn, tpl, space):
+    """The SHIPPED production metric ``G`` as a flat diagonal (the coupled
+    member-wise metric — System A's ``full_field_space`` ⊕ System B's
+    composite instance)."""
+    ones = type(tpl).from_flat(np.ones(tpl.to_flat().size), tpl)
+    return space.apply_metric(ones).to_flat()
 
 
 def _v_cell_seed(sn):
@@ -257,6 +299,7 @@ def test_r1_transpose_is_euclidean_across_configs(nx, ng, sigma):
     ``T_sb = A_bsᵀ`` seed↔bulk coupling) makes ``‖T − Aᵀ‖rel`` jump O(1) → RED.
     """
     sn, A = _build_sphere(nx, ng, sigma)
+    A, cspace = _joint_M(sn, A)
     tpl = _template(sn)
     Afwd = _dense(A.apply, tpl)
     T = _dense(A.apply_transpose, tpl)
@@ -297,13 +340,14 @@ def test_derive_gsd_and_close_mode12():
     numpy ``Afwd.T`` in ``test_r1_...`` (an independent ground).
     """
     sn, A = _build_sphere(4, 2, 0.5)
+    A, cspace = _joint_M(sn, A)
     tpl = _template(sn)
     b, t, s, (nb, nt, ns) = _blocks(sn)
     Afwd = _dense(A.apply, tpl)
     T = _dense(A.apply_transpose, tpl)
     Hprod = _dense(A.H.apply, tpl)
 
-    g_cur = _prod_metric(sn, tpl)
+    g_cur = _prod_metric(sn, tpl, cspace)
 
     def make_g(seed_diag):
         g = g_cur.copy()
@@ -313,8 +357,8 @@ def test_derive_gsd_and_close_mode12():
     candidates = {
         "g_sd = 0 (ghost)":    make_g(np.zeros(ns)),
         "g_sd = 1 (identity)": make_g(np.ones(ns)),
-        "g_sd = V_cell":       make_g(_v_cell_seed(sn)),
-        "g_sd = V·w_start":    make_g(_seed_vw(sn)),
+        "g_sd = V_cell":       make_g(_seed_to_coupled_layout(sn, _v_cell_seed(sn))),
+        "g_sd = V·w_start":    make_g(_seed_to_coupled_layout(sn, _seed_vw(sn))),
     }
     _spd = ("g_sd = 1 (identity)", "g_sd = V_cell", "g_sd = V·w_start")
 
@@ -385,7 +429,8 @@ def test_production_path_vcell_honest_adjoint_for_nonzero_seed():
     RED. The zero-seed leg is the control (holds under both metrics).
     """
     sn, A = _build_sphere(4, 2, 0.5)
-    space = sn.full_field_space
+    A, cspace = _joint_M(sn, A)
+    space = cspace
     rng = np.random.default_rng(7)
 
     def defect(seed):
@@ -418,9 +463,10 @@ def test_shipped_metric_block_values():
     seed block all-zero → the positivity check and the count ``nb+nt+ns`` both RED.
     """
     sn, A = _build_sphere(4, 2, 0.5)
+    A, cspace = _joint_M(sn, A)
     tpl = _template(sn)
     b, t, s, (nb, nt, ns) = _blocks(sn)
-    g = _prod_metric(sn, tpl)
+    g = _prod_metric(sn, tpl, cspace)
     g_bulk, g_trace, g_seed = g[b], g[t], g[s]
     print(f"\n=== Shipped metric block ranges ===")
     print(f"  bulk  V·w   : [{g_bulk.min():.3e}, {g_bulk.max():.3e}]")
@@ -433,7 +479,7 @@ def test_shipped_metric_block_values():
     _fail_unless_above(np.min(g_seed), 0.0,
                        "shipped seed metric must be V_cell (SPD), not the zero ghost")
     np.testing.assert_allclose(
-        g_seed, _v_cell_seed(sn), rtol=0.0, atol=0.0,
+        g_seed, _seed_to_coupled_layout(sn, _v_cell_seed(sn)), rtol=0.0, atol=0.0,
         err_msg="shipped seed metric block is not exactly V_cell")
     # ...so G is FULLY non-singular: every block contributes to the norm.
     n_pos = int((g > 0).sum())
@@ -456,7 +502,8 @@ def test_trace_and_pole_faces_both_hold_reciprocity():
     stay green (the seed metric is the only thing that changed).
     """
     sn, A = _build_sphere(4, 2, 0.5)
-    space = sn.full_field_space
+    A, cspace = _joint_M(sn, A)
+    space = cspace
 
     def defect(*, bulk, trace, seed):
         rng = np.random.default_rng(2026)
@@ -505,6 +552,7 @@ def test_seed_selfblock_is_transport_not_reflection():
     bulk/trace (``A_sb`` or ``A_st`` ≠ 0) also REDS the triangularity pins.
     """
     sn, A = _build_sphere(6, 2, 0.5)
+    A, cspace = _joint_M(sn, A)
     tpl = _template(sn)
     M = _dense(A.apply, tpl)
     b, t, s, (nb, nt, ns) = _blocks(sn)
@@ -559,10 +607,11 @@ def test_r2_adjoint_bulk_is_gauge_invariant(nx, ng, sigma):
     let the bulk adjoint READ the seed metric would make ``d_bulk`` move O(1) → RED.
     """
     sn, A = _build_sphere(nx, ng, sigma)
+    A, cspace = _joint_M(sn, A)
     tpl = _template(sn)
     b, t, s, (nb, nt, ns) = _blocks(sn)
     T = _dense(A.apply_transpose, tpl)
-    g0 = _prod_metric(sn, tpl)
+    g0 = _prod_metric(sn, tpl, cspace)
 
     def adjoint_matrix(seed_diag):
         g = g0.copy()
@@ -600,11 +649,12 @@ def test_r3_vcell_closes_mode12_across_configs(nx, ng, sigma):
     canonical Mode-12 gate's leg (c).
     """
     sn, A = _build_sphere(nx, ng, sigma)
+    A, cspace = _joint_M(sn, A)
     tpl = _template(sn)
     b, t, s, (nb, nt, ns) = _blocks(sn)
     Afwd = _dense(A.apply, tpl)
     T = _dense(A.apply_transpose, tpl)
-    g = _prod_metric(sn, tpl)
+    g = _prod_metric(sn, tpl, cspace)
     g[s] = _v_cell_seed(sn)
     gpos = g > 0
     ginv = np.where(gpos, 1.0 / np.where(gpos, g, 1.0), 0.0)
@@ -647,10 +697,11 @@ def test_r4_gauge_perturbing_gsd_leaves_forward_bit_identical(nx, ng, sigma):
     the observable-inert side of note (c): the forward stays GREEN under it.
     """
     sn, A = _build_sphere(nx, ng, sigma)
+    A, cspace = _joint_M(sn, A)
     tpl = _template(sn)
     n = tpl.to_flat().size
     rng = np.random.default_rng(5)
-    x = FullField.from_flat(rng.standard_normal(n), tpl)
+    x = type(tpl).from_flat(rng.standard_normal(n), tpl)
 
     y_before = A.apply(x).to_flat()
 

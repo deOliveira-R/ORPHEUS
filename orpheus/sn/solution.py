@@ -56,6 +56,9 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from orpheus.transport.radial_characteristic_composite import (
+        RadialCharacteristicComposite,
+    )
     from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -178,6 +181,15 @@ class Solution:
     history : IterationHistory or None
         Convergence-trajectory diagnostics.  ``None`` for paths that
         do not surface them.
+    radial_characteristic : RadialCharacteristicComposite or None
+        System B's converged ψ½ state (B.2d DP-Solution — its OWN typed
+        member, never a block on :attr:`angular_flux`): the marched
+        starting-direction flux composite on a carrying mesh (R12a — the
+        sphere), ``None`` exactly when the mesh carries no seed level
+        (presence is structural — validated as a biconditional at
+        construction). Downstream System-A readers (:attr:`scalar_flux`,
+        :attr:`boundary_flux`, :class:`SolutionDiff`) are untouched; a
+        ray reader reads THIS member.
 
     Notes
     -----
@@ -208,6 +220,7 @@ class Solution:
     mesh: "SNMesh"
     keff: float | None = None
     history: IterationHistory | None = None
+    radial_characteristic: "RadialCharacteristicComposite | None" = None
 
     def __post_init__(self) -> None:
         # Mesh-binding consistency: every typed field MUST share the
@@ -229,6 +242,29 @@ class Solution:
                 "Solution: scalar_flux.mesh is not Solution.mesh "
                 "(typed-field mesh-identity contract broken — every "
                 "field must reference the same SNMesh instance)."
+            )
+        # B.2d DP-Solution: System B's presence is STRUCTURAL — the member
+        # exists exactly when the mesh carries seed levels (R12a). A
+        # carrying-mesh Solution without its converged ψ½ state (or a
+        # seedless one carrying a ray) is a wiring error, not a variant.
+        carries = (
+            getattr(self.mesh, "radial_characteristic_space", None) is not None
+        )
+        if carries != (self.radial_characteristic is not None):
+            raise ValueError(
+                "Solution: radial_characteristic presence must match the "
+                f"mesh's R12a predicate (mesh carries: {carries}, member "
+                f"present: {self.radial_characteristic is not None}) — "
+                "System B's converged state is its own typed member on a "
+                "carrying mesh, absent otherwise (B.2d)."
+            )
+        if (
+            self.radial_characteristic is not None
+            and self.radial_characteristic.mesh is not self.mesh
+        ):
+            raise ValueError(
+                "Solution: radial_characteristic.mesh is not Solution.mesh "
+                "(typed-field mesh-identity contract broken)."
             )
 
     # ── boundary_flux as a delegate property ─────────────────────────

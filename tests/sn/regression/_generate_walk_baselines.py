@@ -70,16 +70,34 @@ def _per_group_sigma(sn, ng: int = 2) -> np.ndarray:
     )
 
 
+def _draw_with_seed(sn, rng):
+    """One (2-block composite, ψ½ leaf) draw — the SAME rng order (bulk →
+    boundary → seed) as the pre-B.2d 3-block builder, so the frozen
+    baselines reproduce bit-identically; the leaf rides the walk's explicit
+    legs (``None`` on non-carrying meshes)."""
+    from orpheus.transport.fields.radial_characteristic_flux import (
+        RadialCharacteristicFlux,
+    )
+
+    composite = _random_composite(sn, rng)
+    seed_leaf = None
+    if sn.radial_characteristic_space is not None:
+        seed_leaf = RadialCharacteristicFlux.zeros_on(sn)
+        seed_leaf.values[...] = rng.standard_normal(seed_leaf.values.shape)
+    return composite, seed_leaf
+
+
 def _build(mesh_builder, seed: int):
     sn, _ = mesh_builder(ng=2)
     sig_t = _per_group_sigma(sn)
     lc = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
     rng = np.random.default_rng(seed)
-    # ``seed_block="random"`` freezes the ψ½ matvec rows too (#282 route (a));
-    # the object-level anchor pins them independent of the zero-weight metric.
-    psi = _random_composite(sn, rng, seed_block="random")   # forward-matvec input
-    phi = _random_composite(sn, rng, seed_block="random")   # adjoint-matvec input
-    return sn, lc, psi, phi
+    # The random ψ½ legs freeze the seed-fed matvec rows too (#282 route
+    # (a) → B.2d explicit legs); the object-level anchor pins them
+    # independent of the metric.
+    psi, psi_seed = _draw_with_seed(sn, rng)   # forward-matvec input
+    phi, phi_seed = _draw_with_seed(sn, rng)   # adjoint-matvec input
+    return sn, lc, (psi, psi_seed), (phi, phi_seed)
 
 
 CASES: tuple[WalkMatvecCase, ...] = (
@@ -91,9 +109,29 @@ CASES: tuple[WalkMatvecCase, ...] = (
 
 def run_case(case: WalkMatvecCase) -> dict[str, np.ndarray]:
     """Apply both orientations; return the four value blocks."""
-    _, lc, psi, phi = case.build()
-    fwd = lc.apply(psi)
-    adj = lc.apply_transpose(phi)
+    sn, lc, (psi, psi_seed), (phi, phi_seed) = case.build()
+    if psi_seed is None:
+        fwd = lc.apply(psi)
+        adj = lc.apply_transpose(phi)
+    else:
+        from orpheus.transport.source_sinks import (
+            RadialCharacteristicSourceSink,
+        )
+
+        fwd = lc.apply(
+            psi,
+            radial_characteristic_flux=psi_seed,
+            radial_characteristic_source=(
+                RadialCharacteristicSourceSink.zeros_on(sn)
+            ),
+        )
+        # phi's ψ½ leaf rides the role-erased ``seed_cot`` leg (exactly the
+        # slot the pre-eviction 3-block adjoint consumed).
+        adj = lc.apply_transpose(
+            phi,
+            seed_cot=phi_seed,
+            seed_cot_out=RadialCharacteristicSourceSink.zeros_on(sn),
+        )
     return {
         "fwd_bulk": np.asarray(fwd.interior.values, dtype=np.float64),
         "fwd_trace": np.asarray(fwd.boundary.values, dtype=np.float64),

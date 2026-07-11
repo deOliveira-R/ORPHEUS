@@ -128,19 +128,20 @@ def _krylov_power_iteration_kinf(
     from dataclasses import replace
 
     from orpheus.numerics.iteration import KrylovAcceleration
-    from orpheus.sn.operators.boundary import SNBoundaryOperator
+    from orpheus.sn.coupled_system import (
+        CoupledInvertibleOperator,
+        _system_a_member,
+        build_within_group_system,
+    )
     from orpheus.sn.mesh.augmented_mesh import SNMesh
-    from orpheus.sn.operators.streaming import StreamingOperator
-    from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-    from orpheus.sn.solver import SNSolver
+    from orpheus.sn.solver import (
+        SNSolver,
+        _coupled_flux_state,
+        _coupled_source_state,
+        _radial_characteristic_source_from_per_ordinate,
+    )
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.source_sinks import (
-        AngularSourceSink,
-        RadialCharacteristicSourceSink,
-    )
-    from orpheus.transport.fields.radial_characteristic_flux import (
-        RadialCharacteristicFlux,
-    )
+    from orpheus.transport.source_sinks import AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
     case = _get_continuous_case(ng_key)
@@ -156,10 +157,6 @@ def _krylov_power_iteration_kinf(
         max_inner=300, inner_tol=1e-12, inner_solver="krylov",
     )
 
-    L_leaf = StreamingOperator(sn_mesh)
-    C_t = MultiplicationOperator.from_mesh(solver.mat_xs.total_cross_section, sn_mesh)
-    LC = L_leaf + C_t
-
     if preconditioner_kind == "default_sweep":
         precond = None
     elif preconditioner_kind == "identity":
@@ -167,21 +164,24 @@ def _krylov_power_iteration_kinf(
     else:
         raise ValueError(f"unknown preconditioner_kind: {preconditioner_kind!r}")
 
-    N = sn_mesh.quad.N
-    n_cells, ng = int(np.prod(sn_mesh.spatial_shape)), solver.ng
+    # B.2d: consume THE production record (build_within_group_system) —
+    # M + N on the coupled pair for a carrying mesh, the bare
+    # ``(L+C, (S, B_a))`` pieces seedless (the pre-record hand-build
+    # duplicated exactly this composition; omitting B drops the reflective
+    # coupling → the WRONG eigenmode, k ≈ 1.67 not 1.875).
+    system = build_within_group_system(
+        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+    )
+    coupled = isinstance(system.resolvent, CoupledInvertibleOperator)
+    zero = TimedFullField.zeros(
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+    )
+    cold = _coupled_flux_state(zero, sn_mesh) if coupled else zero
     krylov = KrylovAcceleration(
-        # Wave O O.2a: mirror the honest production gains from
-        # ``build_within_group_system`` — the resolvent ``L+C`` plus the
-        # scattering gain ``S`` AND the boundary reflection gain ``B``.  The
-        # transitional ``S+B`` fold + the vestigial ``F=Zero`` slot are RETIRED
-        # (variadic ``(L, *gains)`` drivers).  OMITTING ``B`` (as this test did
-        # pre-O.2a, when it hand-built ``(LC, scattering_op, ZeroOperator)``)
-        # drops the reflective coupling → the GMRES converges to the WRONG
-        # eigenmode (k ≈ 1.67, not k_inf = 1.875) on a reflective box.
-        LC, solver.scattering_op, SNBoundaryOperator(sn_mesh),
+        system.resolvent, *system.gains,
         preconditioner=precond,
         tol=1e-12, max_iter=300,
-        restart=N * ng * n_cells,
+        restart=int(cold.to_flat().size),
     )
 
     phi = solver.initial_flux_distribution()
@@ -194,34 +194,29 @@ def _krylov_power_iteration_kinf(
     for n_outer in range(max_outer):
         fis = solver.compute_fission_source(phi, keff)
         q_ext_per_ord = AngularSourceSink.from_isotropic(fis, sn_mesh)
-        # D-H.2-C1: build the per-ordinate external source as a
-        # :class:`TimedFullField` composite — bulk = L2 AngularFlux
-        # carrying ``q_ext_per_ord.values``; boundary = implicit zero.
-        zero = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-            radial_characteristic=RadialCharacteristicFlux,
-        )
         # B.5.2: q_ext IS a source (AngularSourceSink), emitted directly — no
-        # re-wrap into AngularFlux.  The iterate/return is a flux, so bootstrap
-        # a flux initial_guess on the cold start (psi_typed_warm is None on the
-        # first outer), mirroring SNSolver._solve_krylov.
-        # #282 route (a): on a carrying mesh (sphere) the eigenvalue RHS carries
-        # the SOURCE fold of the (isotropic) fission source — the TRUE q½ source
-        # the direct ψ½ solve consumes (the SAME ``from_angular_source`` factory
-        # ``SNSolver._solve_krylov`` uses).  The reflective B corner arm is folded
-        # by ``KrylovAcceleration`` internally (B is in the gains).
-        q_ext_typed = replace(
-            zero, interior=q_ext_per_ord,
-            radial_characteristic=RadialCharacteristicSourceSink.from_angular_source(
-                q_ext_per_ord.values, sn_mesh,
-            ),
+        # re-wrap into AngularFlux.  On a carrying mesh (sphere) the coupled
+        # rhs pairs the 2-block source with the q½ fold of the (isotropic)
+        # fission source — System B's member, mirroring the production
+        # ``SNSolver._solve_krylov`` assembly (B.2d); the reflective B arms
+        # are folded by ``KrylovAcceleration`` internally (N is in the gains).
+        q_a = replace(zero, interior=q_ext_per_ord)
+        q_ext_typed = (
+            _coupled_source_state(
+                q_a,
+                _radial_characteristic_source_from_per_ordinate(
+                    q_ext_per_ord.values, sn_mesh,
+                ),
+                sn_mesh, context="test_krylov_precond_safety",
+            )
+            if coupled else q_a
         )
         psi_typed, _residuals = krylov.solve(
             q_ext_typed,
-            initial_guess=psi_typed_warm if psi_typed_warm is not None else zero,
+            initial_guess=psi_typed_warm if psi_typed_warm is not None else cold,
         )
         psi_typed_warm = psi_typed
-        phi = psi_typed.interior.integrate_angular().values
+        phi = _system_a_member(psi_typed).interior.integrate_angular().values
         keff_new = solver.compute_keff(phi)
         if abs(keff_new - keff) < keff_tol:
             keff = keff_new
@@ -340,22 +335,28 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
         {2: get_mixture("A", "1g"), 0: get_mixture("B", "1g")},
     )
     bulk_only = sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape))
-    composite = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
-        radial_characteristic=RadialCharacteristicFlux,
+    # B.2d (F3 migration): the Krylov state on a carrying mesh is the COUPLED
+    # pair — the honest two-system ravel (2-block ψ_A + System B's composite;
+    # NO dead padding).  The pre-fix bulk-only restart under-sizes it by
+    # exactly the trace + BOTH System-B legs; the production sizing (the
+    # driver state's ``to_flat``) covers it BY CONSTRUCTION — a revert to the
+    # bulk formula re-opens this deficit and re-triggers the stall.
+    from orpheus.sn.solver import _coupled_flux_state
+
+    pair = _coupled_flux_state(
+        TimedFullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        ),
+        sn,
     )
-    composite_dim = int(composite.to_flat().size)
-    # The pre-fix bulk-only restart under-sizes on a carrying mesh — the
-    # deficit is exactly the trace + ψ½-seed blocks.  The production sizing
-    # (composite ``to_flat``) covers it BY CONSTRUCTION; a revert to the bulk
-    # formula re-opens this deficit and re-triggers the stall.
-    assert bulk_only < composite_dim, (
-        "the sphere composite ravel no longer exceeds the bulk DOF count — "
-        "if the seed block was removed this gate is stale; otherwise the "
-        "premise of the #282 Krylov-restart fix changed."
+    coupled_dim = int(pair.to_flat().size)
+    assert bulk_only < coupled_dim, (
+        "the sphere coupled ravel no longer exceeds the bulk DOF count — "
+        "if System B was removed this gate is stale; otherwise the premise "
+        "of the #282 Krylov-restart fix changed."
     )
-    deficit = composite_dim - bulk_only
+    deficit = coupled_dim - bulk_only
     assert deficit == (
         int(sn.angular_trace.layout.total_size)
-        + int(sn.radial_characteristic_space.shape[0])
-    ), f"restart deficit {deficit} ≠ trace+seed — the ravel layout drifted"
+        + int(np.asarray(pair.systems[1].to_flat()).size)
+    ), f"restart deficit {deficit} ≠ trace + System B — the ravel layout drifted"

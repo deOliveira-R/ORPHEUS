@@ -1560,31 +1560,19 @@ class ScatteringOperator(LinearOperator):
         # so the typed ``apply`` overloads resolve.
         combined = self.apply(cast("AngularFlux | HarmonicMomentFlux", psi.interior))
         # #282 route (a) LIFTED (campaign step 4c, THE LIFT): the model-generic
-        # scattering gain is now PURE BULK. The (ray, bulk) emission — the
-        # isotropic ℓ = 0 source K_iso·φ₀ reconstructed at the closed μ = ±1 rays
-        # — moved to the sn coupling operator
+        # scattering gain is PURE BULK. The (ray, bulk) emission — the isotropic
+        # ℓ = 0 source K_iso·φ₀ reconstructed at the closed μ = ±1 rays — lives on
+        # the sn coupling operator
         # :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
-        # (``A_BA = Fold ∘ K_iso ∘ integrate``), which the SI driver lags as its
-        # OWN gain (the Wave-O #208 pattern that separated B from S; the driver's
-        # ``S_bulk + A_BA`` is bit-identical to this old monolith). A model-generic
-        # gain has no business owning a curvilinear-SN projection. On a carrying
-        # mesh the ray block stays PRESENT-ZERO (the composite presence law
-        # forbids a None ray summed against A_BA's present ray — the disjoint
-        # direct sum ``S_bulk ⊕ A_BA``, exactly as ``B_a + B_b``); seedless → None.
-        sd_out = None
-        if psi.radial_characteristic is not None:
-            from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
-
-            sd_out = RadialCharacteristicSourceSink.zeros_on(
-                cast("SNMesh", psi.mesh),
-            )
+        # (``A_BA = Fold ∘ K_iso ∘ integrate``), the (B,A) block of the coupled
+        # gain grid (B.2d: System B is its own composite — a model-generic gain
+        # neither reads nor pads a curvilinear-SN ray block).
         # #257 S8a: history-free (the matvec leaf is a base arrow
         # ``FullField -> FullField``; the comonad lives on the driver, which
         # reattaches the timed type when this source is added to the timed rhs).
         return FullField(
             interior=combined,
             boundary=AngularBoundarySourceSink.zeros_on(psi.mesh),
-            radial_characteristic=sd_out,
         )
 
     @_apply_impl.register
@@ -1800,30 +1788,16 @@ class ScatteringOperator(LinearOperator):
             # runtime-truth cast as the forward arm's bulk dispatch (#257 S8c).
             sn_mesh = cast("SNMesh", chi.mesh)
             # #282 route (a) TRANSPOSE, LIFTED (campaign step 4c, THE LIFT): S
-            # is now PURE BULK, so its transpose is pure bulk too. The
-            # ``w · K_isoᵀ(Reconstructionᵀ χ_seed)`` bulk pullback of the seed
-            # cotangent moved to
+            # is PURE BULK, so its transpose is pure bulk too. The
+            # ``w · K_isoᵀ(Reconstructionᵀ χ_seed)`` pullback of a seed cotangent
+            # lives on
             # :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission.apply_transpose`
-            # (``A_BAᵀ = (∫dμ)ᵀ ∘ K_isoᵀ ∘ Reconstructionᵀ``), which the composite
-            # ``(L + C − S − A_BA − B).H`` sums — reconstructing the monolithic
-            # adjoint. There is NO adjoint SI driver in production, so this
-            # pullback is exercised ONLY by the ``.H`` reciprocity gates (which
-            # MUST carry the A_BA leaf now that S dropped it — a present-zero seed
-            # cotangent would silently hide the loss). The ray-OUT block is the
-            # PRESENT ZERO (∂S/∂ψ½ = 0 — scattering never reads the seed; presence
-            # must match the input per the composite's mixed-presence law).
-            sd_bar_out = None
-            chi_seed = chi.radial_characteristic
-            if chi_seed is not None:
-                from orpheus.transport.source_sinks import (
-                    RadialCharacteristicSourceSink,
-                )
-
-                sd_bar_out = RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+            # (``A_BAᵀ = (∫dμ)ᵀ ∘ K_isoᵀ ∘ Reconstructionᵀ``), the transposed
+            # (B,A) block of the coupled gain grid (∂S/∂ψ½ = 0 — scattering
+            # never reads System B's ray).
             return FullField(
                 interior=AngularSourceSink.from_mesh(bulk_bar, sn_mesh),
                 boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
-                radial_characteristic=sd_bar_out,
             )
         chi_values = np.asarray(getattr(chi, "values", chi))
         return self.full_scatter_kernel.apply_transpose(chi_values) / float(

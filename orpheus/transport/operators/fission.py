@@ -506,23 +506,16 @@ class FissionOperator(LinearOperator):
                 fission_iso.values, mesh,
             )
             # #282 route (a) LIFTED (campaign step 4c, THE LIFT): the model-generic
-            # fission gain is now PURE BULK. The (ray, bulk) fission emission —
-            # χνΣf·φ reconstructed at the closed μ = ±1 rays — moved to the sn
+            # fission gain is PURE BULK. The (ray, bulk) fission emission —
+            # χνΣf·φ reconstructed at the closed μ = ±1 rays — lives on the sn
             # coupling operator
             # :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
             # (``A_BA = Fold ∘ F.kernel ∘ integrate``). Fission is the eigenvalue
             # OUTER source (within-group fission is zero), so its ``A_BA`` rides
             # the outer ``q_ext`` assembly (``solver.py``), NOT the within-group
-            # gain (HAZARD 5 — a different seam than the scattering ``A_BA``). On a
-            # carrying mesh the ray block stays PRESENT-ZERO (the composite
-            # presence law); seedless → None.
-            sd_out = None
-            if psi.radial_characteristic is not None:
-                from orpheus.transport.source_sinks import (
-                    RadialCharacteristicSourceSink,
-                )
-
-                sd_out = RadialCharacteristicSourceSink.zeros_on(mesh)
+            # gain (HAZARD 5 — a different seam than the scattering ``A_BA``).
+            # B.2d: System B is its own composite — a model-generic gain neither
+            # reads nor pads a curvilinear-SN ray block.
             return FullField(
                 # B.5.2: the operator output IS a source (Fψ rate density) — emit
                 # the AngularSourceSink directly, not a re-wrap into AngularFlux.
@@ -531,7 +524,6 @@ class FissionOperator(LinearOperator):
                 # this source is added to the timed rhs).
                 interior=per_ord,
                 boundary=AngularBoundarySourceSink.zeros_on(mesh),
-                radial_characteristic=sd_out,
             )
         if isinstance(bulk, ScalarFlux):
             # Scalar composite arm (#290 P4): fission emission in iso

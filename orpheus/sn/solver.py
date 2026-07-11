@@ -49,11 +49,13 @@ from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
     CoupledInvertibleOperator,
     WithinGroupSystem,
-    _fuse_coupled_state,
-    _split_fused_state,
     _system_a_member,
     _system_b_member,
     build_within_group_system,
+)
+from orpheus.numerics.coupled_system import CoupledField
+from orpheus.transport.radial_characteristic_composite import (
+    RadialCharacteristicComposite,
 )
 from .mesh.augmented_mesh import SNMesh
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
@@ -188,65 +190,31 @@ from .solution import IterationHistory, Solution
 # with them — the coupled driver consumes System B's blocks natively.
 
 
-def evaluate_residual(
-    loss_op: "LinearOperator", psi: "TimedFullField", q_ext: "FullField",
-) -> "FullField":
-    r"""The typed equation residual :math:`r = A\,\psi - q` as a composite.
+def _system_a_residual(lhs: "FullField", q_ext: "FullField") -> "FullField":
+    r"""System A's typed balance defect — the named bulk/trace ``from_balance`` pair.
 
-    Evaluates the within-group balance defect
-
-    .. math::
-
-        r \;=\; (L + C - S - B)\,\psi \;-\; q
-
-    via the named composition :meth:`AngularResidual.from_balance` /
-    :meth:`AngularBoundaryResidual.from_balance` (NOT a bare cross-class ``−``, which
-    would mis-type the defect as a source), returning the typed composite
-    ``FullField(interior=AngularResidual, boundary=AngularBoundaryResidual)``.  A residual
-    is a one-shot balance defect — it carries no iteration history, so it is the
-    timeless :class:`~orpheus.transport.full_field.FullField` (the
-    ``history_depth = 0`` degenerate; W-C confines the timed type to the driver
-    iterate).
-
-    This is the **#208 box-7 consumer** of the residual mint — the first
-    production-reachable site that types the equation residual (the mint was
-    previously unconsumed). It is a diagnostic (``balance_map`` /
-    ``boundary_vs_interior_split`` / ``relative_to``) AND the substrate the
-    consistent-DSA low-order correction (`#2`) will consume (``r`` is the
-    transport residual the diffusion solve corrects). NOT in the convergence
-    path — it is evaluated on a (typically converged) flux, additive.
-
-    Parameters
-    ----------
-    loss_op : LinearOperator
-        The within-group loss operator ``L + C - S - B`` (the A_AA block of
-        :func:`~orpheus.sn.coupled_system.build_within_group_system`'s loss
-        grid, or an equivalent composition). ``loss_op.apply(psi)``
-        returns a ``FullField`` of source-role members (the matvec leaves are
-        timeless ``FullField -> FullField`` arrows).
-    psi : TimedFullField
-        The FULL-angular flux (``bulk`` an ``AngularFlux``; for a windowed 2-D
-        solve pass the reconstructed ``Solution.angular_flux``, NOT the moment
-        iterate — the operators consume per-ordinate flux).
-    q_ext : FullField
-        The external source composite (``bulk`` / ``boundary`` source-role).  The
-        timeless ``FullField`` — a one-shot source carries no iteration history
-        (the timed iterate would pass via inheritance, but the residual output is
-        history-free regardless).
+    The shared body of :func:`evaluate_residual`'s two arms (bare seedless /
+    the coupled pair's A-member): parses the angular family at the composite
+    boundary (the #289 F2-sibling role erasure) and mints the 2-block
+    residual composite.
     """
     from orpheus.transport.fields._bases import AngularField, AngularBoundaryField
     from orpheus.transport.residuals import AngularResidual, AngularBoundaryResidual
 
-    lhs = loss_op.apply(psi)  # (L+C−S−B)·ψ — a source-role composite
     # Role parse at the composite boundary: ``AngularResidual.from_balance``
     # demands the angular family, but the ``FullField.interior`` slot erases the
     # role (the F2-sibling erasure — #289).
-    # A scalar-bulk composite here is a caller error worth raising loudly.
+    # A scalar-bulk composite here is a caller error worth raising loudly —
+    # on BOTH sides of the balance.
+    lhs_bulk = lhs.interior
     q_bulk = q_ext.interior
-    if not isinstance(q_bulk, AngularField):
+    if not isinstance(lhs_bulk, AngularField) or not isinstance(
+        q_bulk, AngularField
+    ):
         raise TypeError(
-            f"evaluate_residual: q_ext.interior must be an angular-family "
-            f"per-ordinate source; got {type(q_bulk).__name__}."
+            f"evaluate_residual: both composites must carry angular-family "
+            f"per-ordinate bulks; got lhs {type(lhs_bulk).__name__}, "
+            f"q_ext {type(q_bulk).__name__}."
         )
     # Same parse on the trace legs: the widened ``FullField.boundary`` slot
     # (a BoundaryField since #290 P2) erases the family; the SN residual builder
@@ -261,51 +229,141 @@ def evaluate_residual(
             f"(AngularBoundaryField-family) traces; got lhs "
             f"{type(lhs_boundary).__name__}, rhs {type(q_boundary).__name__}."
         )
-    # #282 route (a): the ψ½ block of the augmented residual (Mode 12 (b)
-    # — a bulk⊕trace-only residual would be structurally blind to a wrong
-    # seed row; the full-field norm needs the typed third member).  The
-    # composite algebra's presence law holds here too: both sides carry
-    # the block or neither does (a mixed pairing is a wiring error).
-    from orpheus.transport.residuals import RadialCharacteristicResidual
-
-    lhs_seed = lhs.radial_characteristic
-    q_seed = q_ext.radial_characteristic
-    if (lhs_seed is None) != (q_seed is None):
-        raise ValueError(
-            "evaluate_residual: MIXED starting-direction presence between "
-            f"the operator output ({lhs_seed is not None}) and q_ext "
-            f"({q_seed is not None}) — on a carrying mesh (R12a) both "
-            "composites must carry the ψ½ block."
-        )
-    seed_residual = (
-        RadialCharacteristicResidual.from_balance(lhs=lhs_seed, rhs=q_seed)
-        if lhs_seed is not None and q_seed is not None
-        else None
-    )
     # A residual is a one-shot balance defect, not an iterate — it carries no
     # history, so it is the timeless FullField (the history_depth=0 degenerate
     # of TimedFullField; W-C confines the timed type to the driver iterate).
     return FullField(
-        interior=AngularResidual.from_balance(lhs=lhs.interior, rhs=q_bulk),
+        interior=AngularResidual.from_balance(lhs=lhs_bulk, rhs=q_bulk),
         boundary=AngularBoundaryResidual.from_balance(
             lhs=lhs_boundary, rhs=q_boundary,
         ),
-        radial_characteristic=seed_residual,
     )
 
 
-def boundary_vs_interior_split(residual: "FullField") -> tuple[float, float]:
-    r"""Split a typed residual composite into ``(boundary, interior)`` L2 norms.
+def evaluate_residual(
+    loss_op: "LinearOperator",
+    psi: "TimedFullField | CoupledField",
+    q_ext: "FullField | CoupledField",
+) -> "FullField | CoupledField":
+    r"""The typed equation residual :math:`r = A\,\psi - q`, per system.
 
-    Returns the flat-L2 norm of the boundary residual and of the interior (bulk)
-    residual, so :math:`\sqrt{b^2 + i^2} = \lVert r\rVert` (the composite flat
-    norm — the same metric the SI stopping test uses). Discriminates a
-    BC-realizer / reflective-trace defect (large ``boundary``) from an
-    interior-streaming defect (large ``interior``) — free from the typed
-    composite ``FullField(interior=AngularResidual, boundary=AngularBoundaryResidual)``.
+    Evaluates the within-group balance defect
+
+    .. math::
+
+        r \;=\; A\,\psi \;-\; q
+
+    via the named ``from_balance`` compositions (NOT a bare cross-class
+    ``−``, which would mis-type the defect as a source). On a SEEDLESS mesh
+    ``A = L + C - S - B`` and the result is the typed 2-block composite
+    ``FullField(interior=AngularResidual, boundary=AngularBoundaryResidual)``.
+    On a CARRYING mesh (B.2d — the coupled arm) ``loss_op`` is the 2×2
+    coupled loss grid, ``psi``/``q_ext`` the coupled pairs, and the result is
+    the coupled residual ``CoupledField[r_A, r_B]`` with ``r_B`` the split
+    ψ½ pair (:class:`~orpheus.transport.residuals.radial_characteristic_interior_residual.RadialCharacteristicInteriorResidual`
+    ⊕ :class:`~orpheus.transport.residuals.radial_characteristic_boundary_residual.RadialCharacteristicBoundaryResidual`)
+    — the Mode-12 (b) closure: a System-A-only residual would be
+    structurally blind to a wrong seed row, so System B's defect is a typed
+    member that cannot be silently dropped.
+
+    This is the **#208 box-7 consumer** of the residual mint — the first
+    production-reachable site that types the equation residual (the mint was
+    previously unconsumed). It is a diagnostic (``balance_map`` /
+    :func:`boundary_vs_interior_split` / ``relative_to``) AND the substrate
+    the consistent-DSA low-order correction (`#2`) will consume (``r`` is the
+    transport residual the diffusion solve corrects). NOT in the convergence
+    path — it is evaluated on a (typically converged) flux, additive.
+
+    Parameters
+    ----------
+    loss_op : LinearOperator
+        The within-group loss operator: the seedless ``L + C - S - B``
+        composition, or the carrying 2×2 grid
+        (:attr:`~orpheus.sn.coupled_system.WithinGroupSystem.loss`).
+        ``loss_op.apply(psi)`` returns source-role members.
+    psi : TimedFullField or CoupledField
+        The FULL-angular flux state (``bulk`` an ``AngularFlux``; for a
+        windowed 2-D solve pass the reconstructed ``Solution.angular_flux``,
+        NOT the moment iterate — the operators consume per-ordinate flux).
+        The coupled pair on a carrying mesh.
+    q_ext : FullField or CoupledField
+        The external source (source-role members), matching ``psi``'s
+        carrier shape.
     """
-    interior = float(np.linalg.norm(np.asarray(residual.interior.values).ravel()))
-    boundary = float(np.linalg.norm(np.asarray(residual.boundary.values).ravel()))
+    lhs = loss_op.apply(psi)  # A·ψ — source-role members
+    if isinstance(psi, CoupledField):
+        from orpheus.transport.residuals import (
+            RadialCharacteristicBoundaryResidual,
+            RadialCharacteristicInteriorResidual,
+        )
+
+        if not isinstance(lhs, CoupledField) or not isinstance(
+            q_ext, CoupledField
+        ):
+            raise TypeError(
+                "evaluate_residual: a coupled ψ requires the coupled loss "
+                "grid and a coupled q_ext — got "
+                f"lhs {type(lhs).__name__}, q_ext {type(q_ext).__name__}."
+            )
+        lhs_a = _system_a_member(lhs)
+        q_a = _system_a_member(q_ext)
+        lhs_b = _system_b_member(lhs)
+        q_b = _system_b_member(q_ext)
+        if lhs_b is None or q_b is None:
+            raise TypeError(
+                "evaluate_residual: the coupled arm requires System-B "
+                "members on both the loss output and q_ext."
+            )
+        r_b = RadialCharacteristicComposite(
+            interior=RadialCharacteristicInteriorResidual.from_balance(
+                lhs=lhs_b.interior, rhs=q_b.interior,
+            ),
+            boundary=RadialCharacteristicBoundaryResidual.from_balance(
+                lhs=lhs_b.boundary, rhs=q_b.boundary,
+            ),
+        )
+        return CoupledField(
+            systems=(_system_a_residual(lhs_a, q_a), r_b),
+        )
+    if not isinstance(q_ext, FullField):
+        raise TypeError(
+            f"evaluate_residual: a bare System-A ψ takes a bare FullField "
+            f"q_ext; got {type(q_ext).__name__}."
+        )
+    # The eviction's signature footgun, closed loudly: on a CARRYING mesh a
+    # bare System-A call would silently omit r_B — exactly the Mode-12 (b)
+    # blindness the split-residual mint exists to prevent (a DSA consumer
+    # feeding solution.angular_flux alone would get a residual blind to a
+    # wrong seed row). The full-system residual takes the coupled pair.
+    bare_mesh = getattr(q_ext.interior, "mesh", None)
+    if getattr(bare_mesh, "radial_characteristic_space", None) is not None:
+        raise ValueError(
+            "evaluate_residual: this mesh carries starting-direction levels "
+            "(R12a) — pass the coupled pair [ψ_A, ψ_B] (and the coupled loss "
+            "grid) for the FULL-system residual; a bare System-A call would "
+            "silently drop System B's defect (Mode-12 (b))."
+        )
+    return _system_a_residual(lhs, q_ext)
+
+
+def boundary_vs_interior_split(
+    residual: "FullField | CoupledField",
+) -> tuple[float, float]:
+    r"""Split a typed System-A residual into ``(boundary, interior)`` L2 norms.
+
+    Returns the flat-L2 norm of the boundary residual and of the interior
+    (bulk) residual, so :math:`\sqrt{b^2 + i^2} = \lVert r_A\rVert` (System
+    A's composite flat norm — EXACT since B.2d made ``FullField`` 2-block;
+    the pre-eviction 3-block silently excluded the seed rows from this
+    identity, the closed diagnostic gap). Discriminates a BC-realizer /
+    reflective-trace defect (large ``boundary``) from an interior-streaming
+    defect (large ``interior``). A coupled residual funnels to its System-A
+    member; System B's defect is its own typed member — read
+    ``residual.systems[1]`` directly (its flat norm is the ray-row defect).
+    """
+    member = _system_a_member(residual)
+    interior = float(np.linalg.norm(np.asarray(member.interior.values).ravel()))
+    boundary = float(np.linalg.norm(np.asarray(member.boundary.values).ravel()))
     return boundary, interior
 
 
@@ -420,9 +478,6 @@ def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
             spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
         boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
-        # Windowed SI is 2-D Cartesian (never seed-carrying, R12a); the
-        # mesh-keyed predicate spells that None uniformly.
-        radial_characteristic=_radial_characteristic_zeros(sn_mesh),
         _history=(),
         history_depth=history_depth,
     )
@@ -437,9 +492,8 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
     moment-carrying ``q_ext`` + ``S.apply(ψ)`` in the SI rhs.  DD/Step
     (per_axis == 1) → no factor (byte-identical to the prior ``TimedFullField.zeros``).
     The un-windowed sibling of :func:`_windowed_cold_start` (Pattern 2).
-    On a seed-carrying mesh (R12a — #282 route (a)) the iterate carries the
-    zero ψ½ block so every operator arm and the composite algebra see a
-    presence-consistent 3-block state from the first iterate."""
+    On a seed-carrying mesh the COUPLED cold start wraps this System-A
+    frame with a zero ψ_B via :func:`_coupled_flux_state` (B.2d)."""
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.timed_full_field import TimedFullField
@@ -449,19 +503,21 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
             sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
         boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
-        radial_characteristic=_radial_characteristic_zeros(sn_mesh),
         _history=(),
         history_depth=history_depth,
     )
 
 
 def _radial_characteristic_zeros(sn_mesh) -> "RadialCharacteristicFlux | None":
-    r"""The mesh-keyed zero ψ½ FLUX block (``None`` on non-carrying meshes).
+    r"""The mesh-keyed zero UNIFIED ψ½ flux buffer (``None`` on non-carrying meshes).
 
-    The birth-site presence predicate of #282 route (a): every SN
-    composite FLUX birth site calls this so presence is decided by the
-    ONE R12a source (``SNMesh.radial_characteristic_space``), never by the
-    call site."""
+    The walk-buffer factory of #282 route (a): the final-reconstruction
+    ``transport_sweep`` fills this carrier in place (the walk internals
+    stay unified through Phase C/4e — the demote ruling). Presence is
+    decided by the ONE R12a source (``SNMesh.radial_characteristic_space``),
+    never by the call site. Driver STATES no longer ride it — the coupled
+    pair's ψ_B is System B's own composite (B.2d,
+    :func:`_coupled_flux_state`)."""
     if sn_mesh.radial_characteristic_space is None:
         return None
     return RadialCharacteristicFlux.zeros_on(sn_mesh)
@@ -520,6 +576,43 @@ def _radial_characteristic_fission_seed(
     )
     return RadialCharacteristicReconstruction(sn_mesh).apply(
         np.asarray(fission_source)[None],
+    )
+
+
+def _coupled_flux_state(
+    psi_a: "TimedFullField", sn_mesh: "SNMesh",
+) -> "CoupledField":
+    r"""Pair a System-A FLUX iterate with a zero System-B flux composite.
+
+    The coupled cold-start / iterate birth on a carrying mesh (B.2d — the
+    pair is born native; there is no fused 3-block to split). ψ_B's zero
+    flux composite comes from the presence-gated
+    :meth:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite.from_mesh`.
+    """
+    return CoupledField(
+        systems=(psi_a, RadialCharacteristicComposite.from_mesh(sn_mesh)),
+    )
+
+
+def _coupled_source_state(
+    q_a: "FullField", q_half: "RadialCharacteristicSourceSink | None",
+    sn_mesh: "SNMesh", *, context: str,
+) -> "CoupledField":
+    r"""Pair a System-A SOURCE composite with its q½ System-B member.
+
+    The coupled rhs birth on a carrying mesh: ``q_half`` is the unified q½
+    fold (:func:`_radial_characteristic_source_from_per_ordinate` /
+    :func:`_radial_characteristic_fission_seed`), lifted role-preserving
+    onto System B's composite. ``None`` refuses loudly — a carrying mesh's
+    rhs MUST carry the true q½ (the direct ψ½ solve consumes it).
+    """
+    if q_half is None:
+        raise ValueError(
+            f"{context}: a carrying mesh's coupled rhs requires the q½ fold "
+            f"(got None) — the joint solve consumes System B's true source."
+        )
+    return CoupledField(
+        systems=(q_a, RadialCharacteristicComposite.from_unified(q_half)),
     )
 
 
@@ -1379,14 +1472,8 @@ class SNSolver:
             # the AngularBoundarySourceSink inflow trace (zero for vacuum/reflective;
             # prescribed inflow otherwise). The SI rhs q_ext + S.apply + B.apply
             # closes on AngularBoundarySourceSink (operator outputs are sources).
-            # #282 route (a): on a carrying mesh the composite also carries
-            # the q½ fold of the (isotropic) fission source — the TRUE
-            # starting-direction source the direct ψ½ solve consumes.
             interior=q_ext_per_ord,
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
-            radial_characteristic=_radial_characteristic_fission_seed(
-                fission_source, self.sn_mesh,
-            ),
             _history=(),
             history_depth=2,
         )
@@ -1427,8 +1514,7 @@ class SNSolver:
             # decoupled from q_ext's AngularSourceSink type.  Phase 5a: when
             # windowed the bulk is a zero HarmonicMomentFlux (single-sourced
             # in :func:`_windowed_cold_start`); else a zero AngularFlux —
-            # split into the coupled pair on a carrying mesh (the
-            # transitional d1 birth seam; goes native at d2).
+            # paired NATIVE with a zero ψ_B on a carrying mesh (B.2d).
             if windowed:
                 initial_guess = _windowed_cold_start(
                     self.scattering_op, self.sn_mesh, history_depth=2,
@@ -1436,11 +1522,22 @@ class SNSolver:
             else:
                 cold = _unwindowed_cold_start(self.sn_mesh, history_depth=2)
                 initial_guess = (
-                    _split_fused_state(cold, self.sn_mesh) if coupled else cold
+                    _coupled_flux_state(cold, self.sn_mesh) if coupled else cold
                 )
 
+        # #282 route (a): on a carrying mesh the coupled rhs pairs the
+        # 2-block source with the q½ fold of the (isotropic) fission
+        # source — the TRUE starting-direction source the joint solve
+        # consumes (System B's member, never a composite block — B.2d).
         q_driver = (
-            _split_fused_state(q_ext_composite, self.sn_mesh)
+            _coupled_source_state(
+                q_ext_composite,
+                _radial_characteristic_fission_seed(
+                    fission_source, self.sn_mesh,
+                ),
+                self.sn_mesh,
+                context="SNSolver._solve_source_iteration",
+            )
             if coupled else q_ext_composite
         )
         psi_typed, _residuals = si.solve(
@@ -1559,13 +1656,8 @@ class SNSolver:
             # the AngularBoundarySourceSink inflow trace (zero for vacuum/reflective;
             # prescribed inflow otherwise). The SI rhs q_ext + S.apply + B.apply
             # closes on AngularBoundarySourceSink (operator outputs are sources).
-            # #282 route (a): the q½ fold rides along on carrying meshes
-            # (the Krylov matvec + preconditioner run on 3-block state).
             interior=q_ext_per_ord,
             boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
-            radial_characteristic=_radial_characteristic_fission_seed(
-                fission_source, self.sn_mesh,
-            ),
             _history=(),
             history_depth=2,
         )
@@ -1592,20 +1684,19 @@ class SNSolver:
             # B.5.2: cold-start iterate is a FLUX composite, decoupled from
             # q_ext's now-AngularSourceSink type.  x0 stays all-zeros
             # (bit-identical); the flux template fixes the Krylov return
-            # type — split into the coupled pair on a carrying mesh (the
-            # transitional d1 birth seam; goes native at d2).
+            # type — paired NATIVE with a zero ψ_B on a carrying mesh (B.2d).
             cold = TimedFullField.zeros(
                 interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=self.sn_mesh,
-                radial_characteristic=RadialCharacteristicFlux,
             )
             initial_guess = (
-                _split_fused_state(cold, self.sn_mesh) if coupled else cold
+                _coupled_flux_state(cold, self.sn_mesh) if coupled else cold
             )
 
         # ERR-053 (#282 route (a)): ``restart`` MUST cover the FULL ravel —
-        # bulk ⊕ trace ⊕ ψ½ (both systems on the coupled pair; the
-        # CoupledField ``to_flat`` concatenates them, so the sizing tracks
-        # automatically — the B.2a conformance closure).  A bulk-sized
+        # bulk ⊕ trace on System A plus BOTH System-B legs on the coupled
+        # pair (``CoupledField.to_flat`` concatenates the systems, so the
+        # sizing tracks automatically — the B.2a conformance closure; the
+        # count is HONEST since B.2d, no dead padding).  A bulk-sized
         # restart re-truncates GMRES on the trace+seed DOFs (the sphere
         # Krylov stall).  Size it from the state the driver ravels.
         krylov = _within_group_krylov(
@@ -1615,7 +1706,14 @@ class SNSolver:
         )
 
         q_driver = (
-            _split_fused_state(q_ext_composite, self.sn_mesh)
+            _coupled_source_state(
+                q_ext_composite,
+                _radial_characteristic_fission_seed(
+                    fission_source, self.sn_mesh,
+                ),
+                self.sn_mesh,
+                context="SNSolver._solve_krylov",
+            )
             if coupled else q_ext_composite
         )
         psi_typed, _residuals = krylov.solve(
@@ -2043,9 +2141,6 @@ def solve_sn(
             # Wave O #208 O.4a.2: the converged boundary trace from the final
             # bare sweep (inflow = B·ψ.outflow, outflow = streamed).
             boundary=final_boundary,
-            # #282 route (a): the marched ψ½ carrier from the final sweep
-            # (None on non-carrying meshes).
-            radial_characteristic=final_seed_buf,
             _history=(),
             history_depth=2,
         ),
@@ -2053,24 +2148,34 @@ def solve_sn(
         mesh=sn_mesh,
         keff=float(keff_history[-1]),
         history=history,
+        # B.2d DP-Solution: System B's converged state is its OWN member —
+        # the final sweep's marched ψ½ carrier, lifted role-preserving onto
+        # the composite (None on non-carrying meshes).
+        radial_characteristic=(
+            None
+            if final_seed_buf is None
+            else RadialCharacteristicComposite.from_unified(final_seed_buf)
+        ),
     )
 
 
 def _build_fixed_source_rhs(
-    external_source: "np.ndarray | TimedFullField",
+    external_source: "np.ndarray | TimedFullField | CoupledField",
     sn_mesh: SNMesh,
-) -> TimedFullField:
-    r"""Normalize the external source into the composite RHS ``q = q_bulk ⊕ q_∂``.
+) -> "TimedFullField | CoupledField":
+    r"""Normalize the external source into the driver RHS.
 
     A fixed-source problem's RHS is the composite source
     :class:`~orpheus.transport.timed_full_field.TimedFullField` — a bulk
     :class:`~orpheus.transport.source_sinks.AngularSourceSink` paired with a
     boundary :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
     (the prescribed inflow :math:`q` of the affine BC
-    :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`). This is the ONE object
-    that represents a source everywhere in the solve; this helper is its
-    single construction point (Cardinal Rule 2 — the SI and Krylov inner
-    paths both consume what it returns, rather than each re-deriving it).
+    :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`) — paired, on a
+    carrying mesh (B.2d), with System B's q½ member into the coupled
+    ``CoupledField[q_A, q_B]``. This is the ONE object that represents a
+    source everywhere in the solve; this helper is its single construction
+    point (Cardinal Rule 2 — the SI and Krylov inner paths both consume
+    what it returns, rather than each re-deriving it).
 
     ``external_source`` is accepted in three forms (the bulk array is a typed
     union of TWO ndarray ranks; see :func:`_lift_external_source_to_moments`):
@@ -2099,6 +2204,10 @@ def _build_fixed_source_rhs(
       the solve's own mesh instance — required because the within-group
       operators are built on ``sn_mesh`` and :class:`TimedFullField` algebra
       enforces mesh identity.  Its bulk may be flat OR moment-resolved.
+    * :class:`~orpheus.numerics.coupled_system.CoupledField` — the coupled
+      pair with an EXPLICIT q½ member (B.2d): System A re-homes as above;
+      System B's member values re-home onto the fold slot exactly (the
+      caller controls the true q½ instead of the ℓ = 0 fold default).
     """
     from orpheus.transport.source_sinks import (
         AngularSourceSink,
@@ -2109,10 +2218,19 @@ def _build_fixed_source_rhs(
     ng = sn_mesh.ng
     expected = (N, ng, *sn_mesh.spatial_shape)
 
-    if isinstance(external_source, TimedFullField):
-        bulk_values = np.asarray(external_source.interior.values)
+    explicit_seed: "RadialCharacteristicComposite | None" = None
+    source_a: "np.ndarray | FullField" = (
+        external_source if not isinstance(external_source, CoupledField)
+        else _system_a_member(external_source)
+    )
+    if isinstance(external_source, CoupledField):
+        # The coupled pair: System B's explicit q½ member is captured for
+        # the seed slot below; System A continues through the composite arm.
+        explicit_seed = _system_b_member(external_source)
+    if isinstance(source_a, FullField):
+        bulk_values = np.asarray(source_a.interior.values)
         trace_size = int(sn_mesh.angular_trace.layout.total_size)
-        boundary_values = external_source.boundary.values
+        boundary_values = source_a.boundary.values
         if boundary_values.size != trace_size:
             raise ValueError(
                 f"_build_fixed_source_rhs: composite boundary source has "
@@ -2122,7 +2240,7 @@ def _build_fixed_source_rhs(
             )
         boundary = AngularBoundarySourceSink.from_mesh(boundary_values.copy(), sn_mesh)
     else:
-        bulk_values = np.asarray(external_source)
+        bulk_values = np.asarray(source_a)
         if bulk_values.dtype == object:
             # A stray non-array, non-TimedFullField object (e.g. a bare
             # AngularSourceSink) — np.asarray wraps it as a 0-d object array.
@@ -2180,28 +2298,29 @@ def _build_fixed_source_rhs(
     # the slope rows Q̂ (the caller projected them — #247): thread them through
     # unchanged.  DD/Step (per_axis == 1) → no lift, byte-identical.
     bulk_values, per_axis = _lift_external_source_to_moments(bulk_values, sn_mesh)
-    # #282 route (a): the q½ block on carrying meshes.  A composite input
-    # that already carries one is re-homed values-exactly (same
-    # deterministic-layout argument as the trace copy above); otherwise
-    # the ℓ = 0 fold of the per-ordinate bulk populates it.  Carrying
-    # meshes are 1-D curvilinear DD (never moment-resolved), so the flat
-    # bulk is the only live shape here.
-    if (
-        isinstance(external_source, TimedFullField)
-        and external_source.radial_characteristic is not None
-    ):
-        seed_src = RadialCharacteristicSourceSink.zeros_on(sn_mesh)
-        seed_src.values[...] = external_source.radial_characteristic.values
-    else:
-        seed_src = _radial_characteristic_source_from_per_ordinate(
-            bulk_values, sn_mesh,
-        )
-    return TimedFullField(
+    q_a = TimedFullField(
         interior=AngularSourceSink.from_mesh(
             bulk_values, sn_mesh, spatial_moments=per_axis,
         ),
         boundary=boundary,
-        radial_characteristic=seed_src,
+    )
+    if sn_mesh.radial_characteristic_space is None:
+        return q_a
+    # #282 route (a) → B.2d: the q½ member on carrying meshes — System B's
+    # OWN composite, paired with q_A.  A coupled input's explicit member is
+    # re-homed values-exactly (same deterministic-layout argument as the
+    # trace copy above); otherwise the ℓ = 0 fold of the per-ordinate bulk
+    # populates it.  Carrying meshes are 1-D curvilinear DD (never
+    # moment-resolved), so the flat bulk is the only live shape here.
+    if explicit_seed is not None:
+        seed_src = RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+        seed_src.values[...] = explicit_seed.to_unified().values
+    else:
+        seed_src = _radial_characteristic_source_from_per_ordinate(
+            bulk_values, sn_mesh,
+        )
+    return _coupled_source_state(
+        q_a, seed_src, sn_mesh, context="_build_fixed_source_rhs",
     )
 
 
@@ -2446,7 +2565,7 @@ def solve_sn_fixed_source(
 def _solve_fixed_source_si(
     solver: SNSolver,
     sn_mesh: SNMesh,
-    q_ext_composite: TimedFullField,
+    q_ext_composite: "TimedFullField | CoupledField",
     t_start: float,
     max_inner: int,
     inner_tol: float,
@@ -2535,29 +2654,34 @@ def _solve_fixed_source_si(
     # Cold-start iterate (x0 = zeros).  Fixed-source is a single solve — no
     # eigenvalue outer to warm-start from (cf. the eigenvalue inner's
     # ``self._psi_typed``).  Windowed → zero moments (single-sourced in
-    # :func:`_windowed_cold_start`); else a zero AngularFlux — split into
-    # the coupled pair on a carrying mesh (the transitional d1 birth seam).
+    # :func:`_windowed_cold_start`); else a zero AngularFlux — paired
+    # NATIVE with a zero ψ_B on a carrying mesh (B.2d).
+    q_a_ext = _system_a_member(q_ext_composite)
+    # The rhs builder emits the TIMED System-A frame (its history_depth keys
+    # the cold start); the parse reifies that producer contract loudly.
+    if not isinstance(q_a_ext, TimedFullField):
+        raise TypeError(
+            f"fixed-source SI: the rhs's System-A member must be the timed "
+            f"composite; got {type(q_a_ext).__name__}."
+        )
     if windowed:
         initial_guess = _windowed_cold_start(
             solver.scattering_op, sn_mesh,
-            history_depth=q_ext_composite.history_depth,
+            history_depth=q_a_ext.history_depth,
         )
     else:
         cold = _unwindowed_cold_start(
-            sn_mesh, history_depth=q_ext_composite.history_depth,
+            sn_mesh, history_depth=q_a_ext.history_depth,
         )
-        initial_guess = _split_fused_state(cold, sn_mesh) if coupled else cold
-    q_driver = (
-        _split_fused_state(q_ext_composite, sn_mesh)
-        if coupled else q_ext_composite
-    )
+        initial_guess = _coupled_flux_state(cold, sn_mesh) if coupled else cold
+    # ``q_ext_composite`` is already driver-ready (the coupled pair on a
+    # carrying mesh — built once by :func:`_build_fixed_source_rhs`).
     psi_typed, residuals = si.solve(
-        q_driver, initial_guess=initial_guess,
+        q_ext_composite, initial_guess=initial_guess,
     )
-    # Re-fuse the coupled pair for the Solution contract (unchanged at d1:
-    # ``Solution.angular_flux`` carries the converged ψ½ in its slot until
-    # the d2 eviction re-homes it onto ``Solution.radial_characteristic``).
-    psi_full = _fuse_coupled_state(psi_typed, sn_mesh) if coupled else psi_typed
+    # System A's converged member feeds the Solution contract; System B's
+    # rides ``Solution.radial_characteristic`` (B.2d DP-Solution).
+    psi_full = _system_a_member(psi_typed)
     # The parse reifies the driver-template contract (the solve echoes the
     # TimedFullField initial_guess member) — the static iterate type is the
     # operators' carrier, re-narrowed here loudly.
@@ -2602,7 +2726,7 @@ def _solve_fixed_source_si(
                 "structurally unreachable (windowing is 2-D Cartesian, "
                 "seedless; the coupled arm never windows)."
             )
-        rhs_final = q_ext_composite
+        rhs_final = q_a_ext
         for gain in gains:
             rhs_final = rhs_final + gain.apply(psi_full)
         angular_out = base_resolvent.inverse().apply(
@@ -2636,13 +2760,14 @@ def _solve_fixed_source_si(
         mesh=sn_mesh,
         keff=None,
         history=history,
+        radial_characteristic=_system_b_member(psi_typed),
     )
 
 
 def _solve_fixed_source_krylov(
     solver: SNSolver,
     sn_mesh: SNMesh,
-    q_ext_composite: TimedFullField,
+    q_ext_composite: "TimedFullField | CoupledField",
     t_start: float,
     max_inner: int,
     inner_tol: float,
@@ -2738,8 +2863,14 @@ def _solve_fixed_source_krylov(
     # return type); x0 stays all-zeros (bit-identical to the prior cold start).
     # The template carries the φ̂ moment axis at a multi-moment closure AND the
     # ψ½ state on a carrying mesh (the ravel keys on its ``to_flat``).
+    q_a_ext = _system_a_member(q_ext_composite)
+    if not isinstance(q_a_ext, TimedFullField):
+        raise TypeError(
+            f"fixed-source Krylov: the rhs's System-A member must be the "
+            f"timed composite; got {type(q_a_ext).__name__}."
+        )
     krylov_cold_start = _unwindowed_cold_start(
-        sn_mesh, history_depth=q_ext_composite.history_depth,
+        sn_mesh, history_depth=q_a_ext.history_depth,
     )
 
     # ── Build the within-group system + Krylov driver (single source of
@@ -2757,11 +2888,10 @@ def _solve_fixed_source_krylov(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
     coupled = isinstance(system.resolvent, CoupledInvertibleOperator)
-    q_driver = q_ext_composite
     if coupled:
-        # The transitional d1 birth seam (goes native at d2).
-        krylov_cold_start = _split_fused_state(krylov_cold_start, sn_mesh)
-        q_driver = _split_fused_state(q_ext_composite, sn_mesh)
+        # The coupled pair is born native (B.2d): the flux template pairs
+        # with a zero ψ_B; ``q_ext_composite`` is already the coupled rhs.
+        krylov_cold_start = _coupled_flux_state(krylov_cold_start, sn_mesh)
     krylov = _within_group_krylov(
         system.resolvent, *system.gains,
         n_dof=int(krylov_cold_start.to_flat().size),
@@ -2769,12 +2899,11 @@ def _solve_fixed_source_krylov(
     )
 
     psi_typed, residuals = krylov.solve(
-        q_driver, initial_guess=krylov_cold_start,
+        q_ext_composite, initial_guess=krylov_cold_start,
     )
-    # Re-fuse the coupled pair for the Solution contract (unchanged at d1:
-    # ``Solution.angular_flux`` carries the converged ψ½ in its slot until
-    # the d2 eviction re-homes it onto ``Solution.radial_characteristic``).
-    psi_full = _fuse_coupled_state(psi_typed, sn_mesh) if coupled else psi_typed
+    # System A's converged member feeds the Solution contract; System B's
+    # rides ``Solution.radial_characteristic`` (B.2d DP-Solution).
+    psi_full = _system_a_member(psi_typed)
     # D-H.1c stage 2 — the Krylov ravellable protocol unravels back to the
     # SOLUTION TEMPLATE (the flux ``initial_guess``), so the driver's static
     # iterate type (the operators' carrier) re-narrows to the timed flux
@@ -2818,4 +2947,5 @@ def _solve_fixed_source_krylov(
         mesh=sn_mesh,
         keff=None,
         history=history,
+        radial_characteristic=_system_b_member(psi_typed),
     )

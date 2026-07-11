@@ -97,7 +97,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, ClassVar, Optional, Protocol, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, Protocol
 
 import numpy as np
 
@@ -127,11 +127,11 @@ class _CompositeLeaf(Protocol):
 class CompositeField(Protocol):
     """The composite-field contract (see module docstring) made static.
 
-    The carrier of :class:`FullFieldSpace` — a bulk ⊕ boundary
-    (⊕ optional starting-direction, #282 route (a)) block tuple with
-    the polymorphic ``_recombine`` rebuild hook. Structural, so the
-    transport carriers (``FullField`` / ``TimedFullField``) satisfy it
-    without an import edge out of the numerics layer.
+    The carrier of :class:`FullFieldSpace` — a bulk ⊕ boundary block pair
+    with the polymorphic ``_recombine`` rebuild hook. Structural, so the
+    transport carriers (``FullField`` / ``TimedFullField`` / the System-B
+    ``RadialCharacteristicComposite``) satisfy it without an import edge
+    out of the numerics layer.
     """
 
     @property
@@ -140,15 +140,11 @@ class CompositeField(Protocol):
     @property
     def boundary(self) -> _CompositeLeaf: ...
 
-    @property
-    def radial_characteristic(self) -> Optional[_CompositeLeaf]: ...
-
     def _recombine(
         self,
         *,
         interior: _CompositeLeaf,
         boundary: _CompositeLeaf,
-        radial_characteristic: Optional[_CompositeLeaf],
     ) -> "CompositeField": ...
 
 
@@ -180,25 +176,22 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         (#290 P2). The composite reads only the carrier-generic
         FunctionSpace metric surface, so the block dispatch is
         family-blind. ``compare=False`` leaf metadata.
-    radial_characteristic_space : FunctionSpace, optional
-        The OPTIONAL third block (#282 route (a), 2.5d): the
-        :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`
-        carrying the per-level ψ½ layout and the SPD **state metric**
-        ``G_sd = V_cell`` (the radial cell-volume measure — ψ½ is a
-        first-class radial state field; the scaling metric, its inverse,
-        and the ``Σ V_cell·x·y`` inner-product term all follow from the
-        leaf space's weights, no composite-level arithmetic). ``None`` on
-        meshes with no seed-carrying level (R12a) and for non-SN methods.
-        ``compare=False`` leaf metadata.
+
+    Notes
+    -----
+    A curvilinear carrying mesh's ψ½ ray is **System B** — its own
+    2-block instance of THIS class (``name="radial_characteristic"``,
+    members the split interior / boundary ray spaces; B.2b DP1: one
+    family-blind composite-space class, instances differ in members).
+    The transient third ``radial_characteristic_space`` slot the 2.5d
+    interim carried here was evicted at Phase B.2d — the coupled DOF
+    count is the honest two-system sum, never a padded third block.
     """
 
     interior_space: Optional[FunctionSpace] = field(
         default=None, repr=False, compare=False,
     )
     trace_space: Optional[FunctionSpace] = field(
-        default=None, repr=False, compare=False,
-    )
-    radial_characteristic_space: Optional[FunctionSpace] = field(
         default=None, repr=False, compare=False,
     )
 
@@ -224,18 +217,14 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         cls,
         interior_space: FunctionSpace,
         trace_space: FunctionSpace,
-        radial_characteristic_space: Optional[FunctionSpace] = None,
         name: str = "full_field",
     ) -> "FullFieldSpace":
-        r"""Build the composite from its bulk and trace (and optional seed) leaf spaces.
+        r"""Build the composite from its bulk and trace leaf spaces.
 
         Derives the flat direct-sum ``shape`` from the leaf shapes:
-        ``(prod(bulk) + prod(trace) [+ prod(radial_characteristic)],)`` —
-        ``prod`` on every block so the identity dimension is robust to a
-        future multi-axis trace (today ``trace_space.shape ==
-        (total_size,)``). The starting-direction block is present
-        exactly when the mesh predicate supplies a space (R12a — see
-        :attr:`radial_characteristic_space`).
+        ``(prod(bulk) + prod(trace),)`` — ``prod`` on every block so the
+        identity dimension is robust to a future multi-axis trace (today
+        ``trace_space.shape == (total_size,)``).
 
         ``name`` keys the ``(name, shape)`` identity and signals the
         INSTANCE: the default ``"full_field"`` is System A's bulk ⊕ trace
@@ -246,17 +235,11 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         """
         n_interior = int(np.prod(interior_space.shape))
         n_trace = int(np.prod(trace_space.shape))
-        n_seed = (
-            0
-            if radial_characteristic_space is None
-            else int(np.prod(radial_characteristic_space.shape))
-        )
         return cls(
             name=name,
-            shape=(n_interior + n_trace + n_seed,),
+            shape=(n_interior + n_trace,),
             interior_space=interior_space,
             trace_space=trace_space,
-            radial_characteristic_space=radial_characteristic_space,
         )
 
     # ------------------------------------------------------------------
@@ -281,41 +264,15 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             )
         return self.interior_space, self.trace_space
 
-    def _seed_space_for(self, x: CompositeField) -> Optional[FunctionSpace]:
-        r"""The starting-direction leaf space for ``x``'s seed block, or ``None``.
-
-        Field-driven dispatch (2.5d transitional discipline): the seed
-        arithmetic runs exactly when the FIELD carries the block. A
-        field WITHOUT the block on a space WITH one is legal (the space
-        grew at d1; production fields adopt the block at d3) — the seed
-        paths are simply not exercised. The REVERSE — a field carrying a
-        ψ½ block through a composite space that has no seed leaf space —
-        is an illegal pairing and raises.
-        """
-        if getattr(x, "radial_characteristic", None) is None:
-            return None
-        if self.radial_characteristic_space is None:
-            raise RuntimeError(
-                "FullFieldSpace: the composite field carries a "
-                "radial_characteristic block but this space has no "
-                "radial_characteristic_space — the field/space pairing is "
-                "inconsistent (build the space via "
-                "FullFieldSpace.from_blocks(..., radial_characteristic_space=...) "
-                "/ SNMesh.full_field_space)."
-            )
-        return self.radial_characteristic_space
-
     @staticmethod
     def _rebuild(
         x: CompositeField,
         bulk_values: np.ndarray,
         boundary_values: np.ndarray,
-        radial_characteristic_values: Optional[np.ndarray] = None,
     ) -> CompositeField:
         r"""Return a copy of composite field ``x`` with new block ``values``.
 
-        Rebuilds the frozen leaves (``x.interior`` / ``x.boundary`` / the
-        optional ``x.radial_characteristic``) via
+        Rebuilds the frozen leaves (``x.interior`` / ``x.boundary``) via
         :func:`dataclasses.replace` — preserving each leaf's ``space`` /
         ``mesh`` — then routes the recombined blocks through the composite's
         polymorphic :meth:`_recombine` hook.  The hook gives the correct
@@ -329,45 +286,10 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         arrows), the G-adjoint metric path receives either carrier; routing
         through ``_recombine`` (not a hardcoded ``_history=()``) handles both.
         No concrete type import (duck-typed on the ``_recombine`` hook).
-        ``radial_characteristic_values`` must be supplied exactly when ``x``
-        carries the seed block (the callers thread it from
-        :meth:`_seed_space_for`'s field-driven dispatch).
-
-        **Presence-dispatch (B.2b DP1).** The seed kwarg is passed to
-        ``_recombine`` only when the carrier EXPOSES the slot: a
-        3-slot carrier (``FullField`` — the slot exists even when
-        ``None``) takes the required kwarg; a pure 2-block
-        :class:`~orpheus.transport.full_field.Composite` carrier
-        (System B's ψ½ composite; the post-eviction System A) has a
-        2-block ``_recombine`` with NO seed kwarg, so passing it would
-        ``TypeError``. Dispatch on ``hasattr`` keeps the 3-slot path
-        byte-identical.
         """
-        if not hasattr(x, "radial_characteristic"):
-            # Pure 2-block Composite carrier — its _recombine hook has no
-            # seed kwarg. The CompositeField Protocol still declares the
-            # slot until the ray eviction relaxes it to 2-block (B.2d);
-            # this cast is that transitional seam.
-            return cast("CompositeField", cast(Any, x)._recombine(
-                interior=replace(x.interior, values=bulk_values),
-                boundary=replace(x.boundary, values=boundary_values),
-            ))
-        seed = x.radial_characteristic
-        if seed is not None and radial_characteristic_values is None:
-            raise RuntimeError(
-                "FullFieldSpace._rebuild: the composite carries a "
-                "radial_characteristic block but no rebuilt seed values were "
-                "supplied — a metric path silently dropping the ψ½ block "
-                "is the silent-drop bug class (§16.A A3)."
-            )
         return x._recombine(
             interior=replace(x.interior, values=bulk_values),
             boundary=replace(x.boundary, values=boundary_values),
-            radial_characteristic=(
-                None
-                if seed is None
-                else replace(seed, values=radial_characteristic_values)
-            ),
         )
 
     def apply_metric(self, x: CompositeField) -> CompositeField:
@@ -375,79 +297,42 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
 
         ``x`` is a composite field; the bulk block is weighted by
         ``G_bulk = V·w_n`` and the trace block by ``G_trace = |Ω·n|·w_n``,
-        each delegated to the matching leaf space. A carried
-        starting-direction block is scaled by its SPD **state metric**
-        ``G_sd = V_cell`` (the radial cell volume — ψ½ is a first-class
-        radial state field, so its metric is set by its operator role,
-        not its angular integration weight; documented on
-        :mod:`orpheus.numerics.spaces.radial_characteristic_space`).
+        each delegated to the matching leaf space. (For System B's ψ½
+        instance the same two-block dispatch scales the interior cells by
+        the SPD state metric ``G_sd = V_cell`` and the corner block by its
+        trace metric — the family-blind dispatch needs no third arm.)
         """
         interior_space, trace_space = self._require_blocks()
-        seed_space = self._seed_space_for(x)
         return self._rebuild(
             x,
             interior_space.apply_metric(x.interior.values),
             trace_space.apply_metric(x.boundary.values),
-            None
-            if seed_space is None
-            else seed_space.apply_metric(
-                x.radial_characteristic.values  # type: ignore[union-attr]
-            ),
         )
 
     def apply_inverse_metric(self, x: CompositeField) -> CompositeField:
         r"""Apply the block-diagonal pseudo-inverse metric :math:`G^{+}\odot x`.
 
-        Plain ``1/G`` on the strictly-positive bulk block AND on the
-        starting-direction block (its state metric ``G_sd = V_cell`` is
-        strictly positive — an empty null space, so ``G^{+} = 1/G``
-        exactly there). The Moore–Penrose masked inverse is needed only
-        on the trace block (zero on the tangential null space
-        ``|Ω·n| = 0``). Delegated per block.
+        Plain ``1/G`` on the strictly-positive bulk block; the
+        Moore–Penrose masked inverse is needed only on the trace block
+        (zero on the tangential null space ``|Ω·n| = 0``). Delegated per
+        block.
         """
         interior_space, trace_space = self._require_blocks()
-        seed_space = self._seed_space_for(x)
         return self._rebuild(
             x,
             interior_space.apply_inverse_metric(x.interior.values),
             trace_space.apply_inverse_metric(x.boundary.values),
-            None
-            if seed_space is None
-            else seed_space.apply_inverse_metric(
-                x.radial_characteristic.values  # type: ignore[union-attr]
-            ),
         )
 
     def inner_product(self, x: CompositeField, y: CompositeField) -> float:
         r"""Return the direct-sum inner product
         :math:`\langle x, y\rangle_G = \langle x_{\rm bulk}, y_{\rm bulk}\rangle_{G_{\rm bulk}}
-        + \langle x_{\rm trace}, y_{\rm trace}\rangle_{G_{\rm trace}}
-        \;(+\;\langle x_{\rm sd}, y_{\rm sd}\rangle_{G_{\rm sd}})`.
-
-        A carried starting-direction block contributes the nonzero
-        ``Σ V_cell·x·y`` seed term (its SPD state metric
-        ``G_sd = V_cell``) — the term is evaluated through the leaf
-        space, and presence must MATCH between ``x`` and ``y`` (mixed
-        presence is the silent-drop bug class).
+        + \langle x_{\rm trace}, y_{\rm trace}\rangle_{G_{\rm trace}}`.
         """
         interior_space, trace_space = self._require_blocks()
-        x_seed = getattr(x, "radial_characteristic", None)
-        y_seed = getattr(y, "radial_characteristic", None)
-        if (x_seed is None) != (y_seed is None):
-            raise ValueError(
-                "FullFieldSpace.inner_product: mixed starting-direction "
-                "presence between the two composite operands — on a "
-                "seed-carrying mesh every composite must carry the block."
-            )
-        seed_term = 0.0
-        if x_seed is not None:
-            seed_space = self._seed_space_for(x)
-            assert seed_space is not None  # narrowed by _seed_space_for
-            seed_term = seed_space.inner_product(x_seed.values, y_seed.values)  # type: ignore[union-attr]
         return (
             interior_space.inner_product(x.interior.values, y.interior.values)
             + trace_space.inner_product(
                 x.boundary.values, y.boundary.values
             )
-            + seed_term
         )

@@ -119,7 +119,12 @@ _RTOL = 1e-10
 #: ≥ 0.13; the clean gates sit at ≤ ~1e-15).
 _CAUGHT = 1e-6
 
-_MESHES = {"slab": _slab, "sphere": _sphere, "cyl_product": _cyl_product}
+# B.2d: the FUSED swap-law rows are SEEDLESS-only — on a carrying mesh the
+# leg-less ``SweepOperator.apply_transpose`` surface cannot thread System B's
+# explicit ``seed_cot`` legs, so the fused wrap refuses eagerly (the predicate
+# row below) and the JOINT swap law lives on the coupled sibling (the
+# ``TestCoupledSwapLaw`` arm — the same G1–G4 claims on ``M``).
+_MESHES = {"slab": _slab, "cyl_product": _cyl_product}
 
 
 def _rand_bulk(sn, seed: int) -> FullField:
@@ -236,13 +241,6 @@ def test_gate2_swap_law_bit_identical(geom):
         np.asarray(lhs.boundary.values), np.asarray(rhs.boundary.values),
         err_msg=f"[{geom}] swap-law boundary not bit-identical",
     )
-    seed_lhs = lhs.radial_characteristic
-    seed_rhs = rhs.radial_characteristic
-    if seed_lhs is not None and seed_rhs is not None:
-        np.testing.assert_array_equal(
-            np.asarray(seed_lhs.values), np.asarray(seed_rhs.values),
-            err_msg=f"[{geom}] swap-law seed not bit-identical",
-        )
 
 
 # ── G3 — adjoint-inverse round-trip ────────────────────────────────────
@@ -440,3 +438,139 @@ def _static_typing_pins(endo: LinearOperator[FullField, FullField]) -> None:
         ah = endo.H
         if invertible(ah):
             assert_type(ah.inverse(), LinearOperator[FullField, FullField])
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# B.2d — the CARRYING arm: the fused wrap refuses eagerly; the coupled M
+# carries the joint swap law (the same G1–G4 claims on the pair)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _coupled_M(sn):
+    from orpheus.numerics.coupled_system import CoupledSpace
+    from orpheus.sn.coupled_system import CoupledInvertibleOperator
+
+    space = CoupledSpace.from_systems(
+        (sn.full_field_space, sn.radial_characteristic_composite_space),
+    )
+    return CoupledInvertibleOperator(_loss(sn), space=space, sn_mesh=sn), space
+
+
+def _coupled_bulk_b(sn, seed: int):
+    from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.transport.radial_characteristic_composite import (
+        RadialCharacteristicComposite,
+    )
+
+    b = _rand_bulk(sn, seed)
+    return CoupledField(systems=(b, RadialCharacteristicComposite.from_mesh(sn)))
+
+
+def _coupled_full_psi(sn, seed: int):
+    from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.transport.radial_characteristic_composite import (
+        RadialCharacteristicComposite,
+    )
+
+    psi = _rand_full(sn, seed)
+    return CoupledField(systems=(psi, RadialCharacteristicComposite.from_mesh(sn)))
+
+
+def test_carrying_fused_wrap_refuses_and_the_coupled_sibling_carries():
+    r"""The B.2d predicate row (the R11 spelling post-eviction): on the
+    carrying sphere the FUSED ``A.inverse()`` is NOT adjointable (its
+    leg-less ``apply_transpose`` cannot thread ``seed_cot`` — eager refusal,
+    never a mid-apply raise) and ``A.H`` is NOT invertible; the COUPLED
+    sibling ``M.inverse()`` IS adjointable (it threads the legs) and ``M.H``
+    IS invertible — the joint swap law's honest home."""
+    sn = _sphere()
+    A = _loss(sn)
+    if A.inverse().is_adjointable:
+        pytest.fail("the fused SweepOperator claims adjointability on a "
+                    "carrying mesh — its leg-less surface cannot thread "
+                    "System B's seed_cot legs (B.2d third factor)")
+    if getattr(A.H, "is_invertible", False):
+        pytest.fail("the fused A.H claims invertibility on a carrying mesh")
+    M_op, _space = _coupled_M(sn)
+    if not M_op.inverse().is_adjointable:
+        pytest.fail("the coupled M.inverse() is not adjointable — the joint "
+                    "swap law lost its home")
+    if not invertible(M_op.H):
+        pytest.fail("the coupled M.H does not advertise invertibility")
+
+
+def test_coupled_gate1_forward_matvec_g_reciprocity():
+    r"""G1 on the pair: ``⟨M.apply(ψ), x⟩_G = ⟨ψ, b⟩_G`` for
+    ``x = M.H.inverse().apply(b)`` — the joint forward + the member-wise
+    coupled metric only (never the transpose path)."""
+    sn = _sphere()
+    M_op, space = _coupled_M(sn)
+    b = _coupled_bulk_b(sn, 5)
+    psi = _coupled_full_psi(sn, 4)
+    ah = M_op.H
+    if not invertible(ah):
+        pytest.fail("M.H must advertise is_invertible")
+    x = ah.inverse().apply(b)
+    lhs = space.inner_product(M_op.apply(psi), x)
+    rhs = space.inner_product(psi, b)
+    rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
+    if not rel < _RTOL:
+        pytest.fail(f"coupled forward-matvec G-reciprocity broken: rel={rel:.2e}")
+
+
+def test_coupled_gate2_swap_law_bit_identical():
+    r"""G2 on the pair: ``M.H.inverse().apply(b) ≡ M.inverse().H.apply(b)``
+    — bit-identical on BOTH systems (the same object graph)."""
+    sn = _sphere()
+    M_op, _space = _coupled_M(sn)
+    b = _coupled_bulk_b(sn, 5)
+    ah = M_op.H
+    if not invertible(ah):
+        pytest.fail("M.H must advertise is_invertible")
+    lhs = ah.inverse().apply(b)
+    rhs = M_op.inverse().H.apply(b)
+    np.testing.assert_array_equal(
+        np.asarray(lhs.systems[0].interior.values),
+        np.asarray(rhs.systems[0].interior.values),
+        err_msg="coupled swap-law bulk not bit-identical",
+    )
+    np.testing.assert_array_equal(
+        np.asarray(lhs.systems[1].to_flat()),
+        np.asarray(rhs.systems[1].to_flat()),
+        err_msg="coupled swap-law System-B member not bit-identical",
+    )
+
+
+def test_coupled_gate4_reverse_scan_executes(monkeypatch):
+    r"""G4 on the pair (Mode-11): ``M.H.inverse().apply(b)`` ENTERS the
+    bridged ``CoupledInvertibleOperator.solve_transpose`` (> 0) and never
+    the forward ``solve`` (== 0)."""
+    from orpheus.sn.coupled_system import CoupledInvertibleOperator
+
+    sn = _sphere()
+    M_op, _space = _coupled_M(sn)
+    b = _coupled_bulk_b(sn, 5)
+    counts = {"solve": 0, "solve_transpose": 0}
+    real_solve = CoupledInvertibleOperator.solve
+    real_st = CoupledInvertibleOperator.solve_transpose
+
+    def _wrap_solve(self, rhs, *a, **k):
+        counts["solve"] += 1
+        return real_solve(self, rhs, *a, **k)
+
+    def _wrap_st(self, rhs, *a, **k):
+        counts["solve_transpose"] += 1
+        return real_st(self, rhs, *a, **k)
+
+    monkeypatch.setattr(CoupledInvertibleOperator, "solve", _wrap_solve)
+    monkeypatch.setattr(CoupledInvertibleOperator, "solve_transpose", _wrap_st)
+    ah = M_op.H
+    if not invertible(ah):
+        pytest.fail("M.H must advertise is_invertible")
+    ah.inverse().apply(b)
+    if not counts["solve_transpose"] > 0:
+        pytest.fail("coupled M.H.inverse().apply never entered the bridged "
+                    "solve_transpose — the joint reverse scan was routed around")
+    if not counts["solve"] == 0:
+        pytest.fail(f"coupled M.H.inverse().apply touched the FORWARD solve "
+                    f"({counts['solve']}×)")

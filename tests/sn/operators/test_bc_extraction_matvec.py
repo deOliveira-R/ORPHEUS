@@ -231,11 +231,6 @@ def _random_state(sn_mesh: SNMesh, seed: int, *, zero_boundary: bool = True) -> 
     return TimedFullField(
         interior=AngularFlux.from_mesh(bulk_arr, sn_mesh),
         boundary=boundary,
-        # #282 route (a): the CONSISTENT edge-extrapolated ψ½ seed reproduces
-        # the pre-route-(a) internally-computed seed, so the extracted matvec
-        # reproduces the frozen baseline bit-identically (SPH); None on
-        # non-carrying (SLB/CYL) — byte-identical to the pre-2.5d helper.
-        radial_characteristic=radial_characteristic_edge_seed(bulk_arr, sn_mesh),
         _history=(),
         history_depth=2,
     )
@@ -246,10 +241,26 @@ def _LpC_apply(sn_mesh: SNMesh, state: TimedFullField, sigma_t: np.ndarray) -> "
 
     #257 S8a — the matvec leaf is a base arrow, so ``(L + C).apply`` returns a
     timeless :class:`~orpheus.transport.full_field.FullField` source.
+    B.2d — on a carrying mesh (SPH) the CONSISTENT edge-extrapolated ψ½ seed
+    (derived from the state's own bulk, exactly as every pre-eviction site
+    here derived it) rides the walk's EXPLICIT flux leg, so the extracted
+    matvec reproduces the frozen baselines bit-identically; no legs on
+    non-carrying meshes.
     """
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
-    return (L + C).apply(state)
+    seed_leg = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
+    if seed_leg is None:
+        return (L + C).apply(state)
+    from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
+
+    return (L + C).apply(
+        state,
+        radial_characteristic_flux=seed_leg,
+        radial_characteristic_source=(
+            RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+        ),
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -520,11 +531,6 @@ class TestStreamingEquilibriumValue:
         state = TimedFullField(
             interior=AngularFlux.from_mesh(flat, sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
-            # #282 route (a): a per-ordinate FLAT field's consistent ψ½ seed is
-            # the same constant (edge-extrap is constant-preserving), so the
-            # pole march reproduces the flat field and the no-spike invariant
-            # holds; None on non-carrying (SLB).
-            radial_characteristic=radial_characteristic_edge_seed(flat, sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -627,10 +633,6 @@ class TestLFullReadsInflow:
             return TimedFullField(
                 interior=AngularFlux.from_mesh(bulk.copy(), sn_mesh),
                 boundary=b,
-                # #282 route (a): the seed is derived from the (shared) bulk, so
-                # both states carry the SAME ψ½ — the ONLY difference is the
-                # outer inflow, isolating its effect on the bulk output.
-                radial_characteristic=radial_characteristic_edge_seed(bulk, sn_mesh),
                 _history=(), history_depth=2,
             )
 
@@ -684,12 +686,6 @@ class TestLFullOutflowDefectKept:
         state2 = TimedFullField(
             interior=AngularFlux.from_mesh(state.interior.values.copy(), sn_mesh),
             boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
-            # #282 route (a): SAME bulk ⇒ SAME ψ½ seed as ``state`` (edge-extrap
-            # depends only on the bulk), so ``streamed`` is identical and the
-            # output outflow differs by EXACTLY the stored-outflow defect.
-            radial_characteristic=radial_characteristic_edge_seed(
-                state.interior.values, sn_mesh,
-            ),
             _history=(), history_depth=2,
         )
         trace = sn_mesh.angular_trace
@@ -762,10 +758,6 @@ class TestVacuumBoundaryDefectKept:
             st = TimedFullField(
                 interior=AngularFlux.from_mesh(bulk.copy(), sn_mesh),
                 boundary=b,
-                # #282 route (a): the seed derives from the (shared) bulk, so
-                # both runs carry the SAME ψ½ — the output outflow differs by
-                # EXACTLY the stored-outflow defect (the ``−ψ.outflow`` term).
-                radial_characteristic=radial_characteristic_edge_seed(bulk, sn_mesh),
                 _history=(), history_depth=2,
             )
             out = _LpC_apply(sn_mesh, st, sigma_t)

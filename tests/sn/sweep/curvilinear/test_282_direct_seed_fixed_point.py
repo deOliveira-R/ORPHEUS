@@ -90,45 +90,66 @@ def _operator(coord: CoordSystem, nx: int, *, sigma: float, ng: int = 2):
 
 
 def _random_source(sn, rng, ng: int = 2):
-    r"""A ``FullField`` volumetric source with ZEROED inflow trace — the
-    q½ seed block folded from the bulk (the augmented rhs on a carrying
-    mesh; ``None`` seed on slab/cyl)."""
+    r"""A 2-block volumetric source with ZEROED inflow trace + the q½ leaf
+    folded from the bulk (the joint rhs legs on a carrying mesh; the q½
+    leaf is ``None`` on slab/cyl — B.2d: the legs are EXPLICIT kwargs)."""
     N, nx = sn.quad.N, sn.nx
     bvals = rng.standard_normal((N, ng, nx))
-    return bvals, FullField(
+    q_half = (
+        RadialCharacteristicSourceSink.from_angular_source(bvals, sn)
+        if sn.radial_characteristic_space is not None else None
+    )
+    b = FullField(
         interior=AngularSourceSink.from_mesh(bvals, sn),
         boundary=AngularBoundarySourceSink.zeros_on(sn),
-        radial_characteristic=RadialCharacteristicSourceSink.from_angular_source(
-            bvals, sn,
-        ),
     )
+    return bvals, b, q_half
 
 
 def _random_iterate(sn, rng, ng: int = 2):
-    """A random 3-block flux composite (an ``initial_guess``)."""
+    """A random 2-block flux composite (an ``initial_guess``)."""
     N, nx = sn.quad.N, sn.nx
-    seed = None
-    if sn.radial_characteristic_space is not None:
-        seed = RadialCharacteristicFlux(
-            values=rng.standard_normal(sn.radial_characteristic_space.shape[0]),
-            space=sn.radial_characteristic_space, mesh=sn,
-        )
     return FullField(
         interior=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux.zeros_on(sn),
-        radial_characteristic=seed,
     )
 
 
-def _full_residual_inf(A, sol, source_composite, bvals) -> float:
-    """‖A·solve(b) − b‖_∞ / ‖b‖_∞ over the FULL augmented field."""
-    r = A.apply(sol)
+def _joint_solve(A, sn, b, q_half, *, initial_guess=None):
+    """``A.solve`` through the B.2d explicit legs; returns ``(sol, flux)``
+    where ``flux`` is the marched ψ½ carrier (``None`` seedless)."""
+    if q_half is None:
+        return A.solve(b, initial_guess=initial_guess), None
+    buf = RadialCharacteristicFlux.zeros_on(sn)
+    sol = A.solve(
+        b, initial_guess=initial_guess,
+        radial_characteristic_source=q_half,
+        radial_characteristic_flux=buf,
+    )
+    return sol, buf
+
+
+def _joint_apply(A, sn, psi, flux):
+    """``A.apply`` through the B.2d explicit legs; returns ``(out, rows)``
+    where ``rows`` is the emitted ray-block buffer (``None`` seedless)."""
+    if flux is None:
+        return A.apply(psi), None
+    rows = RadialCharacteristicSourceSink.zeros_on(sn)
+    out = A.apply(
+        psi,
+        radial_characteristic_flux=flux,
+        radial_characteristic_source=rows,
+    )
+    return out, rows
+
+
+def _full_residual_inf(A, sn, sol, flux, q_half, bvals) -> float:
+    """‖A·solve(b) − b‖_∞ / ‖b‖_∞ over the FULL joint field (bulk + trace
+    + the emitted ray rows vs the q½ source)."""
+    r, rows = _joint_apply(A, sn, sol, flux)
     num = np.max(np.abs(r.interior.values - bvals))
-    if r.radial_characteristic is not None:
-        num = max(num, np.max(np.abs(
-            r.radial_characteristic.values
-            - source_composite.radial_characteristic.values
-        )))
+    if rows is not None and q_half is not None:
+        num = max(num, np.max(np.abs(rows.values - q_half.values)))
     # boundary source is zeroed; r.boundary is the trace defect (≈0 too).
     num = max(num, np.max(np.abs(r.boundary.values)))
     return float(num / np.max(np.abs(bvals)))
@@ -154,9 +175,9 @@ def test_ci_cold_residual_is_machine_zero(coord):
     exact inverse (slab/cyl were already exact — they must STAY)."""
     sn, A = _operator(coord, nx=4, sigma=0.5)
     rng = np.random.default_rng(282)
-    bvals, b = _random_source(sn, rng)
-    sol = A.solve(b, initial_guess=None)
-    r = _full_residual_inf(A, sol, b, bvals)
+    bvals, b, q_half = _random_source(sn, rng)
+    sol, flux = _joint_solve(A, sn, b, q_half)
+    r = _full_residual_inf(A, sn, sol, flux, q_half, bvals)
     assert r < 1e-11, f"[{coord}] cold residual {r:.3e} ≥ 1e-11 (the seed lag)"
 
 
@@ -170,12 +191,16 @@ def test_cii_sphere_solve_is_seed_insensitive_bitwise():
     direct march does not read the guess for the ψ½ rows)."""
     sn, A = _operator(CoordSystem.SPHERICAL, nx=4, sigma=0.5)
     rng = np.random.default_rng(6)
-    _bvals, b = _random_source(sn, rng)
-    s1 = A.solve(b, initial_guess=_random_iterate(sn, rng))
-    s2 = A.solve(b, initial_guess=_random_iterate(sn, rng))
+    _bvals, b, q_half = _random_source(sn, rng)
+    s1, f1 = _joint_solve(A, sn, b, q_half, initial_guess=_random_iterate(sn, rng))
+    s2, f2 = _joint_solve(A, sn, b, q_half, initial_guess=_random_iterate(sn, rng))
     np.testing.assert_array_equal(
         s1.interior.values, s2.interior.values,
         err_msg="sphere solve depends on the initial guess — the seed lag lives",
+    )
+    np.testing.assert_array_equal(
+        f1.values, f2.values,
+        err_msg="the marched ψ½ carrier depends on the initial guess",
     )
 
 
@@ -189,8 +214,12 @@ def test_cii_probe6_cold_solve_recovers_preimage(coord):
     sn, A = _operator(coord, nx=4, sigma=0.5)
     rng = np.random.default_rng(60)
     psi0 = _random_iterate(sn, rng)
-    b = A.apply(psi0)
-    sol = A.solve(b, initial_guess=None)
+    flux0 = None
+    if sn.radial_characteristic_space is not None:
+        flux0 = RadialCharacteristicFlux.zeros_on(sn)
+        flux0.values[...] = rng.standard_normal(flux0.values.shape)
+    b, rows = _joint_apply(A, sn, psi0, flux0)
+    sol, _flux = _joint_solve(A, sn, b, rows)
     np.testing.assert_allclose(
         sol.interior.values, psi0.interior.values, rtol=1e-11, atol=1e-12,
         err_msg=f"[{coord}] cold solve did not recover the pre-image ψ₀",
@@ -245,9 +274,9 @@ def test_civ_pure_absorber_sphere_cold_solve_exact():
     )
     A = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
     rng = np.random.default_rng(4)
-    bvals, b = _random_source(sn, rng)
-    sol = A.solve(b, initial_guess=None)
-    r = _full_residual_inf(A, sol, b, bvals)
+    bvals, b, q_half = _random_source(sn, rng)
+    sol, flux = _joint_solve(A, sn, b, q_half)
+    r = _full_residual_inf(A, sn, sol, flux, q_half, bvals)
     assert r < 1e-11, f"pure-absorber cold residual {r:.3e} ≥ 1e-11"
     # A single-pass exact inverse of a physical source is finite.
     assert np.all(np.isfinite(sol.interior.values))
@@ -280,11 +309,11 @@ def test_mode11_direct_solver_executes_on_sphere_not_slab():
         (CoordSystem.SPHERICAL, True), (CoordSystem.CARTESIAN, False),
     ):
         sn, A = _operator(coord, nx=4, sigma=0.5)
-        _bvals, b = _random_source(sn, np.random.default_rng(11))
+        _bvals, b, q_half = _random_source(sn, np.random.default_rng(11))
         calls["n"] = 0
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(lr, "carlson_inward_sweep_from_source", _counting)
-            A.solve(b, initial_guess=None)
+            _joint_solve(A, sn, b, q_half)
         if expect_calls and calls["n"] == 0:
             pytest.fail(
                 f"[{coord}] the direct ψ½ solver was NEVER called by the "
@@ -297,11 +326,13 @@ def test_mode11_direct_solver_executes_on_sphere_not_slab():
             )
 
 
-def _g_inner(a, b, sn) -> float:
-    """Metric-weighted composite inner product (bulk V·w ⊕ trace |Ω·n|·w ⊕
-    seed zero-weight) via the production ``full_field_space`` metric."""
-    space = sn.full_field_space
-    return float(space.inner_product(a, b))
+def _coupled_space(sn):
+    """The mesh's coupled ψ½ space (System A ⊕ System B, member-wise metric)."""
+    from orpheus.numerics.coupled_system import CoupledSpace
+
+    return CoupledSpace.from_systems(
+        (sn.full_field_space, sn.radial_characteristic_composite_space),
+    )
 
 
 @pytest.mark.foundation
@@ -326,16 +357,28 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
     mutated RED is attributable to the FLIP.  Without the control leg a
     reverted ghost ``G_sd = 0`` would ALSO give a mutated defect ~0.107 > tol
     (a broken baseline mimicking "caught") and fool the gate."""
+    from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.sn.coupled_system import CoupledInvertibleOperator
     from orpheus.sn.loss_representation import _OneDimScanWalk
+    from orpheus.transport.radial_characteristic_composite import (
+        RadialCharacteristicComposite,
+    )
 
     sn, A = _operator(CoordSystem.SPHERICAL, nx=4, sigma=0.5)
     rng = np.random.default_rng(12)
     n_seed = sn.radial_characteristic_space.shape[0]
     n_trace = int(sn.angular_trace.layout.total_size)
+    space = _coupled_space(sn)
+    # B.2d: the joint operator is M on the coupled pair (the fused walk
+    # behind the explicit legs) — its .H is the member-wise G-adjoint over
+    # System A's (V·w ⊕ |Ω·n|·w) and System B's (V_cell ⊕ corner-gauge)
+    # metrics, so the seed rows carry metric weight OUTSIDE the functional's
+    # invariance group.
+    M_op = CoupledInvertibleOperator(A, space=space, sn_mesh=sn)
 
-    def _random_seed_composite():
-        # NONZERO seed — activates the V_cell metric AND the A_ss self-block.
-        return FullField(
+    def _random_pair():
+        # NONZERO ψ_B — activates the V_cell metric AND the A_BB self-rows.
+        psi_a = FullField(
             interior=AngularFlux.from_mesh(
                 rng.standard_normal((sn.quad.N, sn.ng, sn.nx)), sn,
             ),
@@ -343,18 +386,21 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
                 values=rng.standard_normal(n_trace),
                 space=sn.angular_trace, mesh=sn,
             ),
-            radial_characteristic=RadialCharacteristicFlux(
-                values=rng.standard_normal(n_seed),
-                space=sn.radial_characteristic_space, mesh=sn,
-            ),
         )
+        seed = RadialCharacteristicFlux(
+            values=rng.standard_normal(n_seed),
+            space=sn.radial_characteristic_space, mesh=sn,
+        )
+        return CoupledField(systems=(
+            psi_a, RadialCharacteristicComposite.from_unified(seed),
+        ))
 
-    psi, phi = _random_seed_composite(), _random_seed_composite()
+    psi, phi = _random_pair(), _random_pair()
 
     # ── CONTROL leg: UNMUTATED nonzero-seed reciprocity HOLDS (V_cell is the
     #    honest adjoint for seed data — pre-fix the ghost broke this ~1.3e-2). ──
-    lhs0 = _g_inner(A.apply(psi), phi, sn)
-    rhs0 = _g_inner(psi, A.H.apply(phi), sn)
+    lhs0 = float(space.inner_product(M_op.apply(psi), phi))
+    rhs0 = float(space.inner_product(psi, M_op.H.apply(phi)))
     rel0 = abs(lhs0 - rhs0) / (abs(lhs0) + abs(rhs0) + 1e-300)
     if not rel0 < 1e-12:
         pytest.fail(
@@ -367,12 +413,12 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
     orig_rows = _OneDimScanWalk._seed_rows_forward
 
     def _flipped(self, sigma, seed):
-        return -orig_rows(self, sigma, seed)   # flip the forward A_ss only
+        return -orig_rows(self, sigma, seed)   # flip the forward A_BB rows only
 
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(_OneDimScanWalk, "_seed_rows_forward", _flipped)
-        lhs = _g_inner(A.apply(psi), phi, sn)
-        rhs = _g_inner(psi, A.H.apply(phi), sn)
+        lhs = float(space.inner_product(M_op.apply(psi), phi))
+        rhs = float(space.inner_product(psi, M_op.H.apply(phi)))
     recip_rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
     if not recip_rel > 1e-6:
         pytest.fail(
@@ -390,15 +436,12 @@ def test_mode10_seed_source_activation_q_half_moves_the_sphere_solve():
     route-(a) machinery un-exercised)."""
     sn, A = _operator(CoordSystem.SPHERICAL, nx=4, sigma=0.5)
     rng = np.random.default_rng(103)
-    bvals, b = _random_source(sn, rng)
-    sol_with = A.solve(b, initial_guess=None)
-    # Zero the q½ block only (keep bulk + trace); re-solve.
-    b_zero = FullField(
-        interior=b.interior,
-        boundary=b.boundary,
-        radial_characteristic=RadialCharacteristicSourceSink.zeros_on(sn),
+    bvals, b, q_half = _random_source(sn, rng)
+    sol_with, _f1 = _joint_solve(A, sn, b, q_half)
+    # Zero the q½ leg only (keep bulk + trace); re-solve.
+    sol_without, _f2 = _joint_solve(
+        A, sn, b, RadialCharacteristicSourceSink.zeros_on(sn),
     )
-    sol_without = A.solve(b_zero, initial_guess=None)
     delta = np.max(np.abs(sol_with.interior.values - sol_without.interior.values))
     if delta <= 1e-12:
         pytest.fail(

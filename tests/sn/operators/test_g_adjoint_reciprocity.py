@@ -188,24 +188,17 @@ def _trace_cosine_weight(sn: SNMesh, face_idx: int, *, with_cosine: bool) -> np.
 
 def _g_inner(a: TimedFullField, b: TimedFullField, sn: SNMesh, *,
              with_cosine: bool = True) -> float:
-    r"""``⟨a,b⟩_G = Σ_bulk a·b·(V·w_n) + Σ_trace a·b·(|Ω·n|·w_n) + Σ_seed a·b·V_cell``.
+    r"""``⟨a,b⟩_G = Σ_bulk a·b·(V·w_n) + Σ_trace a·b·(|Ω·n|·w_n)``.
 
-    Built directly from ``omega_dot_n`` / ``quad.weights`` / ``volumes`` for
-    the bulk+trace blocks — the structurally-independent reference inner
-    product. ``with_cosine=False`` drops the ``|Ω·n|`` factor (the L11
-    wrong-metric control).
+    Built directly from ``omega_dot_n`` / ``quad.weights`` / ``volumes`` —
+    the structurally-independent reference inner product on System A's
+    2-block composite. ``with_cosine=False`` drops the ``|Ω·n|`` factor
+    (the L11 wrong-metric control).
 
-    The seed (ψ½) block (#282 route (a), present on carrying meshes) carries
-    the state metric ``G_sd = V_cell``, read from
-    ``sn.radial_characteristic_space.inner_product_weights``.  ``G_sd`` is a
-    GAUGE (any SPD is a valid adjoint metric — diag_gsd_03 R2), so the
-    reference MUST use production's chosen gauge for the reciprocity identity
-    to close; reusing it is NOT reference contamination because the seed
-    metric is not load-bearing like ``|Ω·n|`` (it verifies no *value*, only
-    non-degeneracy). The load-bearing seed content — the TRANSPOSE of the
-    ``A_ss`` self-block and the ``A_bs`` coupling — is still caught by
-    reciprocity (an error in ``Aᵀ``, not in ``G``): see the Mode-12 closure
-    gate ``test_282_direct_seed_fixed_point.py``.
+    B.2d: the ψ½ seed is System B's own composite — its ``G_sd = V_cell``
+    reciprocity lives on the COUPLED space (the grid ``.H`` gate,
+    ``test_psi_half_coupling::TestCoupledBuilder``), never as a third term
+    here.
     """
     bulk = float(np.sum(_bulk_measure(sn) * a.interior.values * b.interior.values))
     trace = 0.0
@@ -215,40 +208,20 @@ def _g_inner(a: TimedFullField, b: TimedFullField, sn: SNMesh, *,
         w_face = _trace_cosine_weight(sn, f_idx, with_cosine=with_cosine)
         w_b = w_face.reshape((w_face.shape[0],) + (1,) * (af.ndim - 1))
         trace += float(np.sum(af * bf * w_b))
-    seed = 0.0
-    a_sd, b_sd = a.radial_characteristic, b.radial_characteristic
-    if (a_sd is None) != (b_sd is None):
-        raise ValueError("_g_inner: mixed starting-direction presence between operands")
-    if a_sd is not None and b_sd is not None:
-        w_seed = np.asarray(
-            sn.radial_characteristic_space.inner_product_weights, dtype=float,
-        )
-        seed = float(np.sum(w_seed * a_sd.values * b_sd.values))
-    return bulk + trace + seed
+    return bulk + trace
 
 
 def _random_composite(
-    sn: SNMesh, rng: np.random.Generator, *, seed_block: str = "random",
+    sn: SNMesh, rng: np.random.Generator,
 ) -> TimedFullField:
-    r"""Random NON-FLAT composite (bulk + boundary both random per ordinate).
+    r"""Random NON-FLAT 2-block composite (bulk + boundary both random).
 
-    On a seed-carrying mesh (R12a — sphere GL / non-degenerate curvilinear;
-    #282 route (a)) the ψ½ block is PRESENT (the augmented operator's
-    Pattern-4 guard rejects a 2-block state), with content keyed by
-    ``seed_block``:
-
-    * ``"random"`` (default, since the ``G_sd = V_cell`` fix) — a random ψ½
-      block.  With the SPD state metric ``G_sd = V_cell`` the augmented
-      ``A.H = G⁻¹AᵀG`` is the HONEST adjoint for arbitrary seed data, so
-      ⟨Aψ,φ⟩_G = ⟨ψ,A.Hφ⟩_G holds on the FULL bulk⊕trace⊕seed space
-      (production random-seed defect ~1e-15).  This is the §0.6 activation
-      choice: the random seed drives the ``A_ss`` self-block and the
-      ``A_bs`` seed→bulk coupling OUT of cancellation, so the reciprocity
-      gate actually exercises the fix (the pre-fix ghost ``G_sd = 0`` made
-      this the 1.3e-2 wrong-adjoint regime — a zero-seed probe was blind).
-    * ``"zero"`` — a present-but-ZERO ψ½ block (retained for the legacy
-      zero-seed regime; the reciprocity identity holds here too, but it does
-      NOT exercise the seed metric).
+    B.2d: System A's composite carries no ψ½ block — the reciprocity gates
+    below pin the (A,A) block's G-adjoint on the 2-block metric (the walk's
+    no-leg surfaces zero-substitute the seed and discard the pullback, i.e.
+    the honest ray-decoupled block); the COUPLED reciprocity including
+    System B's ``G_sd = V_cell`` gauge is the grid ``.H`` gate
+    (``test_psi_half_coupling::TestCoupledBuilder``).
     """
     N, ng = sn.quad.N, sn.ng
     bulk = AngularFlux.from_mesh(rng.standard_normal((N, ng, *sn.spatial_shape)), sn)
@@ -257,19 +230,8 @@ def _random_composite(
         space=sn.angular_trace,
         mesh=sn,
     )
-    radial_characteristic = None
-    if sn.radial_characteristic_space is not None:
-        n_seed = sn.radial_characteristic_space.shape[0]
-        seed_vals = (
-            rng.standard_normal(n_seed) if seed_block == "random"
-            else np.zeros(n_seed)
-        )
-        radial_characteristic = RadialCharacteristicFlux(
-            values=seed_vals, space=sn.radial_characteristic_space, mesh=sn,
-        )
     return TimedFullField(
         interior=bulk, boundary=boundary,
-        radial_characteristic=radial_characteristic,
         _history=(), history_depth=2,
     )
 
@@ -525,23 +487,15 @@ def _full_loss_case(coord: CoordSystem, ng: int):
     sig_t = np.asarray(
         sn.material_xs_field().total_cross_section_field.values, dtype=float
     )
+    # B.2d: this is System A's (A,A) block ``L + C − S − B_a`` on the honest
+    # 2-block composite — the coupling blocks (A_AB/A_BA/B_b) live on the
+    # coupled grid, whose full block ``.H`` reciprocity is G-c2.5
+    # (``test_psi_half_coupling::TestCoupledBuilder``); a FullField-summable
+    # fused spelling is unrepresentable since the eviction.
     A = (
         StreamingOperator(sn)
         + MultiplicationOperator.from_mesh(sig_t, sn)
     ) - S - SNBoundaryOperator(sn)
-    if sn.radial_characteristic_space is not None:
-        from orpheus.sn.operators.radial_characteristic import (
-            RadialCharacteristicEmission,
-        )
-        from tests.sn._test_helpers import FusedRayEmissionGain
-
-        # B.2d: the FullField-composable face of the re-typed block is the
-        # FUSED-spelling TEST ORACLE (the raw block's System-B codomain is not
-        # summable with the FullField operands — correctly, per the guard;
-        # production consumes the block natively through the gain grid).
-        A = A - FusedRayEmissionGain(
-            RadialCharacteristicEmission(sn, S.isotropic_kernel),
-        )
     return sn, A, S
 
 
@@ -571,19 +525,9 @@ def _one_hot_group_composite(
         space=sn.angular_trace,
         mesh=sn,
     )
-    # #282 route (a): a present-but-ZERO ψ½ block on carrying meshes (the
-    # augmented operator's Pattern-4 guard; G-reciprocity is zero-weight-
-    # blind to it, so zero is the law's regime — see _random_composite).
-    radial_characteristic = None
-    if sn.radial_characteristic_space is not None:
-        radial_characteristic = RadialCharacteristicFlux(
-            values=np.zeros(sn.radial_characteristic_space.shape[0]),
-            space=sn.radial_characteristic_space, mesh=sn,
-        )
     return TimedFullField(
         interior=AngularFlux.from_mesh(bulk_vals, sn),
         boundary=boundary,
-        radial_characteristic=radial_characteristic,
         _history=(), history_depth=2,
     )
 
@@ -664,52 +608,12 @@ def test_tooth_s_transpose_drop_reds(monkeypatch):
         )
 
 
-@pytest.mark.foundation
-def test_tooth_a_ba_transpose_drop_reds(monkeypatch):
-    r"""TOOTH (campaign step 4c, THE LIFT — the A_BA reciprocity leaf): a corrupted
-    ``A_BA.apply_transpose`` (drop the ``w·K_isoᵀ(Reconstructionᵀ χ_seed)`` bulk
-    pullback) breaks the SPHERE full-loss reciprocity O(1) — because the forward
-    ``A.apply`` still carries the A_BA emission (bulk→ray) while ``A.H`` loses the
-    pullback, so ``⟨Aψ,φ⟩_G ≠ ⟨ψ,A.Hφ⟩_G`` under the NONZERO random ψ½ seed.
+# ``test_tooth_a_ba_transpose_drop_reds`` RETIRED at B.2d d2 with its
+# mechanism: the FullField-summable fused spelling (the FusedRayEmissionGain
+# shim leaf inside ``_full_loss_case``) is unrepresentable on the 2-block
+# composite. The A_BA-transpose corruption catcher is the BLOCK-level
+# reciprocity tooth ``test_psi_half_coupling::TestCoupledLift.
+# test_L1_adj_pullback_catcher_has_teeth`` (the direct nonzero-χ Euclidean
+# fwd↔adj cross-check on the operator itself).
 
-    This is the composite-level R2 catcher: the leaf makes ``A.H`` complete, and
-    the nonzero seed of ``_random_composite`` activates the pullback. The SLAB has
-    no A_BA leaf (seedless), so the same mutation leaves slab reciprocity GREEN — a
-    present-zero / seedless regime is BLIND (the direct nonzero-χ catcher is
-    ``test_psi_half_coupling::TestCoupledLift.test_L1_adj_*``). In-process
-    monkeypatch; ``-O``-safe."""
-    from orpheus.sn.operators.radial_characteristic import RadialCharacteristicEmission
-    from orpheus.transport.full_field import FullField
-    from orpheus.transport.source_sinks import (
-        AngularBoundarySourceSink,
-        AngularSourceSink,
-    )
 
-    def _drop_pullback(self, cotangent, /):
-        # The b3 block shape (2-block System-A cotangent, ray=None) with the
-        # bulk pullback dropped; the class-method patch fires THROUGH the
-        # transient gain adapter (delegation — G-b3.3), which re-pads the ray.
-        return FullField(
-            interior=AngularSourceSink.zeros_on(self.sn_mesh),
-            boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
-            radial_characteristic=None,
-        )
-
-    monkeypatch.setattr(
-        RadialCharacteristicEmission, "apply_transpose", _drop_pullback)
-
-    sn, A, _ = _FULL_LOSS_BUILDERS["sphere_2g"]()
-    if sn.radial_characteristic_space is None:
-        pytest.fail("sphere_2g is not seed-carrying — the A_BA leaf tooth is invalid.")
-    rng = np.random.default_rng(4707)
-    psi = _random_composite(sn, rng)          # NONZERO ψ½ seed (activates the pullback)
-    phi = _random_composite(sn, rng)
-    lhs = _g_inner(A.apply(psi), phi, sn)
-    rhs = _g_inner(psi, A.H.apply(phi), sn)
-    rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
-    if not rel > 1e-6:
-        pytest.fail(
-            f"A_BA transpose-drop NOT caught on the sphere full-loss (rel={rel:.2e}) "
-            f"— the composite .H is blind to a lost seed pullback (is the A_BA leaf "
-            f"in _full_loss_case? is the seed nonzero?)."
-        )

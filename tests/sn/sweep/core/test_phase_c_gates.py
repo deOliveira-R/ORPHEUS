@@ -176,27 +176,55 @@ def _build_composite(
     if radial_characteristic_values is None:
         radial_characteristic = radial_characteristic_edge_seed(bulk_values, sn_mesh)
     elif sn_mesh.radial_characteristic_space is not None:
-        from orpheus.transport.fields.radial_characteristic_flux import (
-            RadialCharacteristicFlux,
-        )
         radial_characteristic = RadialCharacteristicFlux(
             values=radial_characteristic_values,
             space=sn_mesh.radial_characteristic_space, mesh=sn_mesh,
         )
     else:
         radial_characteristic = None
-    return TimedFullField(
+    psi_a = TimedFullField(
         interior=AngularFlux.from_mesh(bulk_values, sn_mesh),
         boundary=boundary,
-        radial_characteristic=radial_characteristic,
         _history=(),
         history_depth=2,
     )
+    if radial_characteristic is None:
+        return psi_a
+    # B.2d: the carrying state is the COUPLED pair — System B rides its own
+    # composite member (the exact from_unified re-label of the leaf).
+    from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.transport.radial_characteristic_composite import (
+        RadialCharacteristicComposite,
+    )
+
+    return CoupledField(systems=(
+        psi_a, RadialCharacteristicComposite.from_unified(radial_characteristic),
+    ))
 
 
 def _random_bulk(sn_mesh: SNMesh, rng: np.random.Generator) -> np.ndarray:
     """Random ``(N, ng, *spatial)`` bulk values for the mesh."""
     return rng.standard_normal((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
+
+
+def _joint_op(sn_mesh: SNMesh, op):
+    """The JOINT operator for the mesh (B.2d): the coupled ``M`` on a
+    carrying mesh (the fused walk behind the explicit ψ½ legs), ``op``
+    itself on a seedless one."""
+    if sn_mesh.radial_characteristic_space is None:
+        return op
+    from orpheus.numerics.coupled_system import CoupledSpace
+    from orpheus.sn.coupled_system import CoupledInvertibleOperator
+
+    space = CoupledSpace.from_systems(
+        (sn_mesh.full_field_space, sn_mesh.radial_characteristic_composite_space),
+    )
+    return CoupledInvertibleOperator(op, space=space, sn_mesh=sn_mesh)
+
+
+def _sysA(x):
+    """System A's member off a pair, or the bare composite itself."""
+    return x.systems[0] if hasattr(x, "systems") else x
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -236,23 +264,27 @@ def test_apply_linearity_under_sweep_frame(geom):
         sn_mesh, sig_t = _make_cylindrical_sn_mesh()
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
-    op = L + C
+    op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
     psi1 = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
     psi2 = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
     c, lam = 1.7, 0.7
     hom_lhs = op.apply(c * psi1)
     hom_rhs = c * op.apply(psi1)
     np.testing.assert_allclose(
-        hom_lhs.interior.values, hom_rhs.interior.values, rtol=1e-13, atol=1e-14)
+        _sysA(hom_lhs).interior.values, _sysA(hom_rhs).interior.values,
+        rtol=1e-13, atol=1e-14)
     np.testing.assert_allclose(
-        hom_lhs.boundary.values, hom_rhs.boundary.values, rtol=1e-13, atol=1e-14)
+        _sysA(hom_lhs).boundary.values, _sysA(hom_rhs).boundary.values,
+        rtol=1e-13, atol=1e-14)
     lhs = op.apply(psi1 + lam * (psi2 - psi1))   # (1−λ)ψ₁ + λψ₂, a flux
     rhs = (1.0 - lam) * op.apply(psi1) + lam * op.apply(psi2)
     np.testing.assert_allclose(
-        lhs.interior.values, rhs.interior.values, rtol=1e-13, atol=1e-14,
+        _sysA(lhs).interior.values, _sysA(rhs).interior.values,
+        rtol=1e-13, atol=1e-14,
     )
     np.testing.assert_allclose(
-        lhs.boundary.values, rhs.boundary.values, rtol=1e-13, atol=1e-14,
+        _sysA(lhs).boundary.values, _sysA(rhs).boundary.values,
+        rtol=1e-13, atol=1e-14,
     )
 
 
@@ -410,7 +442,7 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
         sn_mesh, sig_t = _make_cylindrical_sn_mesh()
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
-    op = L + C
+    op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
     n_trace = int(sn_mesh.angular_trace.layout.total_size)
     # #282 route (a): a RANDOM ψ½ block (not the edge-extrap default) so the
     # augmented seed rows are independently exercised — the Euclidean
@@ -434,16 +466,9 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     )
 
     def full_dot(a, b):
-        """Euclidean inner product over the whole bulk⊕trace⊕seed composite."""
-        total = (
-            np.sum(a.interior.values * b.interior.values)
-            + np.sum(a.boundary.values * b.boundary.values)
-        )
-        if a.radial_characteristic is not None and b.radial_characteristic is not None:
-            total += np.sum(
-                a.radial_characteristic.values * b.radial_characteristic.values
-            )
-        return float(total)
+        """Euclidean inner product over the whole coupled state (System A's
+        bulk ⊕ trace + System B's members — the joint flat pairing)."""
+        return float(np.sum(a.to_flat() * b.to_flat()))
 
     lhs = full_dot(op.apply(psi_state), phi_state)
     rhs = full_dot(psi_state, op.apply_transpose(phi_state))
@@ -482,7 +507,7 @@ def test_apply_face_fluxes_match_sweep_recurrence_spherical():
     sn_mesh, sig_t = _make_spherical_sn_mesh(nx=6, R=1.0, quad_name="gl4")
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
-    op = L + C
+    op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
 
     # Use a deterministic, structured input so the residual is
     # predictable.
@@ -494,13 +519,9 @@ def test_apply_face_fluxes_match_sweep_recurrence_spherical():
     # contract called out in plan §5 Gate 1.2.
     out1 = op.apply(psi_state)
     out2 = op.apply(psi_state)
-    assert np.array_equal(out1.interior.values, out2.interior.values), (
-        "Apply bulk is not deterministic — sweep-frame matvec must be "
-        "bit-stable"
-    )
-    assert np.array_equal(out1.boundary.values, out2.boundary.values), (
-        "Apply boundary is not deterministic — sweep-frame matvec must "
-        "be bit-stable"
+    assert np.array_equal(out1.to_flat(), out2.to_flat()), (
+        "Apply is not deterministic — sweep-frame matvec must be "
+        "bit-stable on the whole coupled state"
     )
 
 
@@ -553,7 +574,6 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     # allocates it iff the mesh carries levels — here the sphere does).
     state_zero = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-        radial_characteristic=RadialCharacteristicFlux,
     )
     result = op.apply(state_zero)
     assert np.array_equal(
@@ -592,7 +612,6 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     # allocates it iff the mesh carries levels — here the sphere does).
     state_zero = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
-        radial_characteristic=RadialCharacteristicFlux,
     )
     result = op.apply(state_zero)
     np.testing.assert_array_equal(result.interior.values, 0.0)
@@ -726,7 +745,7 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
     )
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
-    op = L + C
+    op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
     rng = np.random.default_rng(seed=137)
     psi_bulk = _random_bulk(sn_mesh, rng)
     psi_state = _build_composite(sn_mesh, psi_bulk)  # zero boundary
@@ -766,7 +785,7 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
     # to the matvec's emission).
     trace = sn_mesh.angular_trace
     outflow_idx = trace.outflow_indices_for_face("xmax")
-    got_outflow = out.boundary.face_view("xmax")[outflow_idx, :]   # (M, ng)
+    got_outflow = _sysA(out).boundary.face_view("xmax")[outflow_idx, :]   # (M, ng)
     expected_outflow_face = expected_outflow.T[outflow_idx, :]      # (M, ng)
     assert np.allclose(
         got_outflow, expected_outflow_face, rtol=1e-14, atol=1e-14,

@@ -119,7 +119,6 @@ def _random_state(sn: SNMesh, seed: int) -> TimedFullField:
     rng_bnd = np.random.default_rng(seed + 1000)
     state = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
-        radial_characteristic=RadialCharacteristicFlux,
     )
     bulk_values = rng_bulk.standard_normal(state.interior.values.shape)
     boundary_values = rng_bnd.standard_normal(state.boundary.values.shape)

@@ -307,11 +307,16 @@ def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNMesh":
 def het_operands(sn: "SNMesh"):
     """Heterogeneous σ_t + a non-flat random state (≥2G, non-degenerate).
 
-    Returns ``(sig_t, psi)`` where ``sig_t`` is a random per-group
-    per-cell total cross section and ``psi`` is a
+    Returns ``(sig_t, psi, seed)``: a random per-group per-cell total
+    cross section, a 2-block
     :class:`~orpheus.transport.timed_full_field.TimedFullField` with
-    random bulk AND boundary values — every term of the loss action is
-    activated (nothing nulled by a flat or zero state).
+    random bulk AND boundary values, and — on a carrying mesh (R12a) —
+    the random unified ψ½ FLUX leaf for the walk's explicit
+    ``radial_characteristic_flux`` leg (B.2d; ``None`` on slab/cyl).
+    The rng draw ORDER (bulk → faces → seed) matches the pre-eviction
+    3-block builder exactly, so the frozen walk baselines hold
+    bit-identically — every term of the loss action stays activated
+    (nothing nulled by a flat or zero state).
     """
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.radial_characteristic_flux import (
@@ -321,23 +326,18 @@ def het_operands(sn: "SNMesh"):
 
     rng = np.random.default_rng(20260611)
     sig_t = rng.uniform(0.3, 3.0, size=(sn.ng, *sn.spatial_shape))
-    # #282 route (a): pass the seed leaf UNIFORMLY — the R12a predicate
-    # allocates the ψ½ block iff the mesh carries levels (sphere yes,
-    # slab/cyl no).  A RANDOM seed activates the augmented seed rows in
-    # the frozen baseline (nothing nulled by a zero block).
     psi = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
-        radial_characteristic=RadialCharacteristicFlux,
     )
     psi.interior.values[...] = rng.standard_normal(psi.interior.values.shape)
     for face in psi.boundary.layout.faces:
         fv = psi.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
-    if psi.radial_characteristic is not None:
-        psi.radial_characteristic.values[...] = rng.standard_normal(
-            psi.radial_characteristic.values.shape
-        )
-    return sig_t, psi
+    seed = None
+    if getattr(sn, "radial_characteristic_space", None) is not None:
+        seed = RadialCharacteristicFlux.zeros_on(sn)
+        seed.values[...] = rng.standard_normal(seed.values.shape)
+    return sig_t, psi, seed
 
 
 def legacy_proxy_matvec(
@@ -408,13 +408,15 @@ def legacy_proxy_matvec(
     composite = TimedFullField(
         interior=AngularFlux.from_mesh(psi_view, sn_mesh),
         boundary=boundary,
-        radial_characteristic=radial_characteristic,
         _history=(),
         history_depth=2,
     )
     L_op = StreamingOperator(sn_mesh)
     C_op = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
-    result = (L_op + C_op).apply(composite)
+    result = _LC_matvec(
+        composite, sigma_t, LC=(L_op + C_op),
+        radial_characteristic_flux=radial_characteristic,
+    )
     return result.interior.values
 
 
@@ -452,8 +454,16 @@ def radial_characteristic_edge_seed(psi_view, sn_mesh):
 
 def _LC_matvec(
     psi: "TimedFullField", sigma_t: "np.ndarray",
+    *,
+    LC=None,
+    radial_characteristic_flux=None,
 ) -> "TimedFullField":
-    r"""Test-helper shim: returns ``(L + C).apply(psi)`` as a TimedFullField.
+    r"""Test-helper shim: returns ``(L + C).apply(psi)`` as a composite.
+
+    B.2d: the ψ½ state rides the EXPLICIT ``radial_characteristic_flux``
+    leg (System B's leaf); the emitted ray rows fill an internal scratch
+    buffer (callers that need them use the operator surface directly).
+    ``LC`` optionally injects a pre-built ``(L+C)`` composite.
 
     Wave T T.5 close-out (matvec retirement, post-T.5.2): the module-
     level helper ``_transport_operator_matvec_unified`` was DELETED;
@@ -471,9 +481,22 @@ def _LC_matvec(
     from orpheus.sn.operators.streaming import StreamingOperator
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
     sn_mesh = psi.interior.mesh
-    L = StreamingOperator(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
-    return (L + C).apply(psi)
+    if LC is None:
+        L = StreamingOperator(sn_mesh)
+        C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
+        LC = L + C
+    if radial_characteristic_flux is None:
+        return LC.apply(psi)
+    from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
+        RadialCharacteristicSourceSink,
+    )
+
+    scratch = RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+    return LC.apply(
+        psi,
+        radial_characteristic_flux=radial_characteristic_flux,
+        radial_characteristic_source=scratch,
+    )
 
 
 def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "AngularBoundaryFlux":
@@ -564,153 +587,10 @@ def redistribution_via_live_path(
     return redist
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# The FUSED-spelling gain oracles (B.2d — test-only)
-# ═══════════════════════════════════════════════════════════════════════
-#
-# The B.2b transient production adapters (``_RayEmissionFullFieldGain`` /
-# ``_RayBoundaryFullFieldGain``) RETIRED at B.2d d1: the driver consumes
-# System B's blocks natively through the within-group gain grid. The FUSED
-# FullField-composable spelling they realized survives HERE as a TEST
-# ORACLE ONLY — the fused-composition reference the grid≡fused centrepiece
-# (psi_half G-c2.3), the fused full-loss ``.H`` reciprocity file
-# (test_g_adjoint_reciprocity), and the dense block-structure probes
-# compare against. NOT production-reachable; both dissolve with the
-# 3-block ``FullField`` at d2. Bodies are the retired adapters' verbatim
-# (byte-identical embedding — the role-preserving ``to_unified``/
-# ``from_unified`` bridge does the value work).
-
-
-from orpheus.numerics.operator import LinearOperator as _LinearOperator
-from orpheus.numerics.operator import SystemRole as _SystemRole
-
-
-class FusedRayEmissionGain(_LinearOperator):
-    """TEST ORACLE: ``A_BA`` presented as a FullField→FullField gain (the
-    fused spelling; see the banner above)."""
-
-    system_role = _SystemRole.COUPLED
-
-    def __init__(self, emission) -> None:
-        self._emission = emission
-
-    @property
-    def domain(self):
-        return self._emission.sn_mesh.full_field_space
-
-    @property
-    def codomain(self):
-        return self._emission.sn_mesh.full_field_space
-
-    @property
-    def is_adjointable(self) -> bool:
-        return self._emission.is_adjointable
-
-    def apply(self, psi, /):
-        from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import (
-            AngularBoundarySourceSink,
-            AngularSourceSink,
-        )
-
-        mesh = self._emission.sn_mesh
-        ray = self._emission.apply(psi)
-        return FullField(
-            interior=AngularSourceSink.zeros_on(mesh),
-            boundary=AngularBoundarySourceSink.zeros_on(mesh),
-            radial_characteristic=ray.to_unified(),
-        )
-
-    def apply_transpose(self, cotangent, /):
-        from orpheus.transport.full_field import FullField
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
-        )
-        from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
-
-        mesh = self._emission.sn_mesh
-        chi_ray = cotangent.radial_characteristic
-        if chi_ray is None:
-            raise ValueError(
-                "FusedRayEmissionGain.apply_transpose: the cotangent carries "
-                "no ψ½ block — a carrying-mesh cotangent is required."
-            )
-        out = self._emission.apply_transpose(
-            RadialCharacteristicComposite.from_unified(chi_ray),
-        )
-        return FullField(
-            interior=out.interior,
-            boundary=out.boundary,
-            radial_characteristic=RadialCharacteristicSourceSink.zeros_on(mesh),
-        )
-
-    def __repr__(self) -> str:
-        return f"FusedRayEmissionGain({self._emission!r})"
-
-
-class FusedRayBoundaryGain(_LinearOperator):
-    """TEST ORACLE: ``B_b`` presented as a FullField→FullField summand (the
-    fused spelling; see the banner above)."""
-
-    system_role = _SystemRole.B
-
-    def __init__(self, ray_boundary) -> None:
-        self._ray_boundary = ray_boundary
-
-    @property
-    def domain(self):
-        return self._ray_boundary.sn_mesh.full_field_space
-
-    @property
-    def codomain(self):
-        return self._ray_boundary.sn_mesh.full_field_space
-
-    @property
-    def is_adjointable(self) -> bool:
-        return self._ray_boundary.is_adjointable
-
-    def _apply(self, psi, method: str):
-        from orpheus.transport.fields.radial_characteristic_flux import (
-            RadialCharacteristicFlux,
-        )
-        from orpheus.transport.full_field import FullField
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
-        )
-        from orpheus.transport.source_sinks import (
-            AngularBoundarySourceSink,
-            AngularSourceSink,
-        )
-
-        mesh = self._ray_boundary.sn_mesh
-        seed = psi.radial_characteristic
-        if seed is None:
-            raise ValueError(
-                "FusedRayBoundaryGain: the input composite carries no ψ½ "
-                "block — a carrying-mesh composite is required."
-            )
-        if not isinstance(seed, RadialCharacteristicFlux):
-            raise TypeError(
-                f"FusedRayBoundaryGain: the ray member must be a "
-                f"RadialCharacteristicFlux; got {type(seed).__name__}."
-            )
-        block_in = RadialCharacteristicComposite.from_unified(seed)
-        block_out = (
-            self._ray_boundary.apply(block_in)
-            if method == "apply"
-            else self._ray_boundary.apply_transpose(block_in)
-        )
-        return FullField(
-            interior=AngularSourceSink.zeros_on(mesh),
-            boundary=AngularBoundarySourceSink.zeros_on(mesh),
-            radial_characteristic=block_out.to_unified(),
-        )
-
-    def apply(self, psi, /):
-        return self._apply(psi, "apply")
-
-    def apply_transpose(self, psi, /):
-        return self._apply(psi, "apply_transpose")
-
-    def __repr__(self) -> str:
-        return f"FusedRayBoundaryGain({self._ray_boundary!r})"
+# The B.2b/B.2c FusedRay*Gain test oracles (the retired production
+# adapters' verbatim bodies, kept through d1 as the fused-composition
+# reference) DISSOLVED at B.2d d2 with the 3-block carrier: the fused
+# spelling they embedded into is unrepresentable (``FullField`` is
+# 2-block), and their consumer gates re-expressed onto the record's
+# named splitting (grid ≡ M − N; N ≡ the pieces; the walk's explicit
+# leaf-kwarg legs).
