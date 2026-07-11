@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6615**
+Total tests collected: **6600**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1187, 17.9%
+   L0, 1187, 18.0%
    L1, 1085, 16.4%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4253, 64.3%
+   foundation, 4238, 64.2%
    unmarked, 36, 0.5%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6500
+   explicit, 6485
    verify, 0
    class-name, 46
    func-name, 0
@@ -261,7 +261,7 @@ Module × level grid
    mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 14, 0
    mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 34, 0
    mesh/test_radial_characteristic_split_leaves, 0, 0, 0, 0, 27, 0
-   mesh/test_radial_characteristic_split_spaces, 0, 0, 0, 0, 20, 0
+   mesh/test_radial_characteristic_split_spaces, 0, 0, 0, 0, 18, 0
    mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
    mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
    mms/test_curvilinear_operator_admits_anisotropic_mms, 0, 2, 0, 0, 0, 0
@@ -416,7 +416,7 @@ Module × level grid
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 329, 0
+   test_layer_imports, 0, 0, 0, 0, 326, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -429,7 +429,7 @@ Module × level grid
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 22, 0
-   transport/test_radial_characteristic_composite, 0, 0, 0, 0, 30, 0
+   transport/test_radial_characteristic_composite, 0, 0, 0, 0, 20, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
 
