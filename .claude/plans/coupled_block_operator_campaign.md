@@ -1857,3 +1857,65 @@ byte-identical today) + the FUSED A_AB composition (H1).
 - **Step-5 boundary (do NOT cross):** no `grid.is_invertible` flip, the A2a
   inverse arm STAYS xfail, the joint-solve pair law survives; M's deeper
   re-pose as honest block-triangular substitution over the grid is #41.
+
+### 4e e1 — DONE @ `63702e7` (2026-07-11); recommended /compact point
+
+THE WALK-SLOT REWRITE landed as ONE commit (production + the 32-file test
+migration), **bit-identical by measurement**:
+
+- **Production**: the six walk signatures + 4 thin wrappers +
+  `transport_sweep` take `RadialCharacteristicComposite` legs (same kwarg
+  names); `_seed_rows_forward/_transpose` + the psi_half kernels re-typed
+  to `(interior, boundary)` buffer pairs (same arithmetic, two view
+  targets); `_run`/`_run_transpose`/`_apply_walk`/`loss_action_transpose`
+  march member views; the closure kwarg → the Interior leaf; M's four
+  surfaces pass members straight (the 4×(buffer+to_unified+from_unified)
+  dissolved); driver factories mint composites
+  (`_radial_characteristic_zeros`→`from_mesh`, `…source_from_per_ordinate`
+  →`source_from_angular`, fission seed via the re-typed Reconstruction);
+  `B_b.reflect_corner_inplace(composite)`; the A_BB/A_AB/A_BA/fold engines
+  split-native (A_BB ctor guards on the interior space — the pyright
+  narrowing fix). RETIRED: the unified leaf base + 3 role leaves (3
+  modules deleted), the unified `RadialCharacteristicSpace` class,
+  `SNMesh.radial_characteristic_space`, the bridge + `_UNIFIED_TO_SPLIT`
+  tables, `_RayLeg.unified_key`. NEW composite factories:
+  `source_zeros_on` + `source_from_angular` (the ONE fold factory,
+  re-homed). The F2 space-identity aliasing dissolved structurally.
+- **The migration agent's load-bearing finding (RNG faithfulness)**: the
+  unified buffer interleaved cells-then-corner PER LEG; the shared test
+  helper `random_radial_characteristic_composite` draws in that exact
+  order, reproducing the retired RNG stream bit-for-bit — without it the
+  frozen baselines would have "drifted" falsely. Plus one real catch: the
+  `_install_forward_spy` 4-arg delegation would have TypeError'd on the
+  6-arg kernel (the retired-symbol grep is blind to surviving NAMES with
+  changed signatures — census lesson).
+- **Retired test rows (each with named successor, per the migration
+  report)**: the `TestSplitFidelityBridge` class (8 — the licence, now
+  discharged by bit-identity), 2 split-space unified-interleave rows, the
+  unified-gauge carrier row (re-posed structurally independent), the
+  `_seed_to_coupled_layout` re-label, the b2c bridge-mechanism tooth
+  (re-aimed on kernel output). Mode-12 ERR-067 seed-flip tooth re-aimed
+  onto the pair return — VERIFIED still bites (>1e-6).
+
+**VERIFIED:** frozen `walk_matvec_{slab,sphere,cyl}` + affine-carve at
+nulp=1 ZERO drift (the e1 acceptance — TA refutation 4 satisfied: no
+arithmetic fold); **k BIT-IDENTICAL pre-vs-post** on sphere/slab ×
+SI/Krylov (probe vs a `009b4dd` worktree, 15 digits); FULL not-slow wall
+**3721/0** (5 skipped, 37 xfailed; the −12 vs 3733 = the honest
+retirements above); ratchet `transport: 1` (sn 0); sphinx -W exit 0
+(theory-page prose refs to retired symbols render silently — the
+archivist 4e pass is BANKED, not yet run).
+
+**NEXT = e1b** (the freed-name rename `RadialCharacteristicComposite` →
+`RadialCharacteristicField`, R-4e.3 — pure mechanical, own commit, strict
+dead-vs-composite disposition of every existing reference BEFORE the
+name reminted; grep-driven, ~code+tests+docs) **then e2** (the solve-leg
+extraction, R-4e.1 H1-narrow: route `_run`/`_run_transpose`'s welded ray
+marches through the `A_BB` engine, delete the twins; expected
+bit-id-or-nearly — the WRAP gates pin byte-identity today — measure
+under DriftWarning, never assume; S1 engine-execution sentinel both
+drivers + S2 carlson-absence tripwire in loss_representation; the WRAP
+twin-coexistence gates retire WITH the twins; test_282 C(i) cold
+<1e-11 + row-6 + G-d3.1 carry the coverage). Then the archivist 4e docs
+pass + matrix regen + the #47 close-out. Re-anchor from THIS block +
+`git log` (trust git).
