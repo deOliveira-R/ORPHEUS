@@ -1148,7 +1148,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-017``, 3
    ``ERR-018``, 1
    ``ERR-019``, 1
-   ``ERR-020``, 1
+   ``ERR-020``, 2
    ``ERR-021``, 2
    ``ERR-022``, 1
    ``ERR-023``, 1
@@ -1159,7 +1159,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-028``, 1
    ``ERR-029``, 6
    ``ERR-030``, 2
-   ``ERR-031``, **0 (MISSING)**
+   ``ERR-031``, 1
    ``ERR-032``, 4
    ``ERR-033``, 4
    ``ERR-034``, 1
@@ -1168,7 +1168,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-037``, 11
    ``ERR-038``, 5
    ``ERR-039``, 8
-   ``ERR-040``, **0 (MISSING)**
+   ``ERR-040``, 1
    ``ERR-041``, **0 (MISSING)**
    ``ERR-042``, **0 (MISSING)**
    ``ERR-043``, 8
@@ -1179,11 +1179,11 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-048``, 51
    ``ERR-049``, 15
    ``ERR-050``, 10
-   ``ERR-051``, **0 (MISSING)**
+   ``ERR-051``, 1
    ``ERR-052``, 1
    ``ERR-053``, 13
    ``ERR-054``, 2
-   ``ERR-055``, **0 (MISSING)**
+   ``ERR-055``, 2
    ``ERR-056``, 7
    ``ERR-057``, 1
    ``ERR-058``, 5
