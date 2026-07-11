@@ -1687,3 +1687,107 @@ trigger banked; NIT-3 seed_cot naming asymmetry noted).
 **NEXT = d3** — E4 anchors + A2a + honest ERR-053 + archivist + estate; then
 Phase C (#47 4e walk un-weave, #41 step-5 block solve, #35/#34). Re-anchor
 from THIS block + `git log` (trust git).
+
+### B.2d d3 — DONE (2026-07-11); **B.2d COMPLETE**; recommended /compact point
+
+Six commits: `1de9592` (the B_aᵀ fix) → `4841694` (LC collapse) → `d3fbfab`
+(the d3 gates) → `f9d50f4` (theory docs) → `66d2244` (matrix) → `82a9db1`
+(catches-markers) [+ the marker-driven matrix delta + this checkpoint].
+
+- **THE FIND — the B_aᵀ vacuum diagonal leak (fixed @ `1de9592`).** The new
+  A2a grid-reciprocity arm CAUGHT a live production bug on its FIRST run
+  (defect 2.6e-4, het-VACUUM coherence sphere). Localization: the (A,A)
+  quadrant only; dense discriminator → exactly 4 diagonal trace entries,
+  expected (G⁻¹AᵀG) −1 vs grid.H −2 = LC's honest −1 PLUS a spurious +1 from
+  ``B_aᵀ``. Root cause: ``_reflect_trace``'s transpose arm OUTPUT-projected
+  ``lawᵀ`` onto the outflow rows — extracting the vacuum mask law's
+  (zero-on-inflow ⊕ identity-on-outflow) harmless-in-the-forward identity
+  block. The honest transpose of the row-projected forward ``B_face =
+  P_inflow ∘ law`` is ``lawᵀ ∘ P_inflow`` (INPUT restriction, full image
+  written). Off-diagonal permutation laws (reflective/albedo) are
+  bit-identical under either spelling — why every reflective-fixture
+  reciprocity gate was blind (the ERR-063 masking family), and why
+  ``test_adjointable_when_all_faces_support`` had PINNED the masked regime
+  (vv anti-pattern #12) — rewired onto the defining law ``got =
+  lawᵀ(P_inflow·ψ)``. Leaf pins minted (psi_half TestBoundaryUnweld: vacuum
+  ``Fᵀ ≡ T ≡ 0``; reflective dense ``T ≡ F.T`` bit-equal). The raw verb is
+  now licensed by the ``adjointable()`` TypeGuard + a loud per-face
+  ``MissingAdjoint`` (spec §39.1; ratchet-clean where the old ``getattr``
+  was pyright-invisible), bite-tested via the stub-face fixture (the
+  elegance do-now). Forward solves never call ``B_aᵀ`` ⟹ k-values untouched
+  BY CONSTRUCTION (the wall's kinf gates confirm; no worktree probe needed).
+  B_b audited clean (KIND-dispatched, vacuum zero both directions).
+  **PROPOSED (user rules): catalog as a new ERR entry** — the vv
+  error_catalog lives under `.claude/skills/` (not the main agent's to
+  edit unprompted).
+- **The gates (@ `d3fbfab`)**: G-d3.1 (psi_half
+  ``TestWithinGroupSystemAnchors``) — flat-flux equilibrium END-TO-END,
+  reflective pure-absorber carrying sphere, 2G group-graded (Mode-6), BOTH
+  drivers, rtol 1e-10, per-ord ψ + φ + **the Solution.radial_characteristic
+  member at the same equilibrium** (layout-free set check — the fold
+  convention is exact on flat); teeth ride G-d1.5 per the memo. **G-d3.2
+  discharged by CROSS-REFERENCE, not a twin** (Cardinal 2):
+  ``test_kinf_homogeneous`` already runs production ``solve_sn`` on the
+  carrying sphere × {1,2,4}G × both drivers vs the derivations closed form
+  at 1e-10 (tighter than the memo's 1e-8) — the class docstring records the
+  Mode-12 pairing (k_inf never credited against shape-class mutations).
+  G-d3.3 — the END-TO-END site proof in the migrated ERR-053 file: a
+  ``KrylovAcceleration.__init__`` spy through BOTH production drivers
+  asserts every constructed ``restart`` == the SPACE-derived coupled sum
+  (bulk + trace + System-B flat), Mode-11 fired-check + the bulk-only
+  mutation tooth through ``_within_group_krylov``. G-d3.4 — the A2a
+  loss-GRID forward ``.H`` reciprocity arm in the coherence file (<1e-12 +
+  the metric-strip tooth) + the ``xfail(strict=False)`` swap-law inverse arm
+  (dormant until step 5 flips ``grid.is_invertible`` — R5/R11; the wall's
+  37th xfail).
+- **Estate**: the LC triplication collapsed @ `4841694` —
+  ``build_streaming_collision(sn_mesh, mat_xs)`` in ``coupled_system.py`` is
+  THE one ``L + C`` spelling (the builder + both solver ``self.L`` legs call
+  it; two dead solver imports retired; byte-identical extract-function;
+  elegance-confirmed home + name). The NIT-2 GMRES exact-breakdown anchors
+  (numerics ``test_iteration.py``): the real-scipy singular-consistent arm
+  (exact solution, literal-0.0 tail, NO ERR-053 warning) + the
+  stubbed-gmres guard-branch pair (info>0 + 0.0-tail must NOT warn /
+  nonzero tail MUST) — **probe fact banked: current scipy's convergence
+  test is ``<=``, so info>0-with-0.0-tail is unreachable via real solves on
+  small systems; the stub pins the branch deterministically,
+  version-proof.**
+- **ERR-marker audit (qa @ `82a9db1`, every marker mutation-verified)**:
+  5 closed — ERR-020 (the Phase-F marker-migration find: catcher re-homed,
+  marker left behind — L-022 applied to markers), 031, 040 (trace-space
+  layer; the envisioned BC-layer second defense never built), 051 (the
+  catalog-authorized ΠR=4πI extension), 055 (file-level). **4 remain
+  HONESTLY missing (041/042/045/047)** — each needs an UNBUILT BC-layer
+  production invariant (never-raised error classes
+  ``VacuumAppliedToOutgoingTraceError``/``ReflectionDidNotMapInflowToOutflowError``,
+  the no-op ``assert_source_lives_on_incoming_trace`` ABC default, the
+  weight-measure check that delegates to involution — ERR-042 would be a
+  BLIND marker today). **PROPOSED follow-up issue** (module:geometry +
+  module:tests, type:improvement) — user confirms before filing (GitHub =
+  outward action).
+- **Docs @ `f9d50f4`** (archivist, main-agent reviewed): the 13
+  ``_within_group_triple`` refs re-pointed (2 deliberate historical
+  literals); the route-(a) section reframed post-eviction; the
+  loss_representations presence-law section → "How the walk sees ψ½ — the
+  six-signature leaf-kwarg protocol" (read-vs-fill table verified against
+  the code, incl. the code's own ``D_BB`` seed-diagonal notation); the
+  FaceField admonition PLANNED → PARTIALLY-built (parent landed
+  `4081c0d`); dev-history d1+d2 entries. In-review correction: the LC note
+  names ``build_streaming_collision`` (the archivist wrote pre-collapse
+  prose). **Archivist FLAG banked (untouched, follow-up)**: the
+  dev-history route-(a) entry (~:20650) still says "zero-metric
+  RadialCharacteristicSpace" — the refuted ERR-067 ghost-metric wording vs
+  the corrected ``G_sd = V_cell`` body; an L-015 dev-history
+  reconciliation pass.
+
+**VERIFIED:** FULL sn+transport+numerics+diffusion+cp not-slow wall
+**3733/0** (5 skipped, 37 xfailed, 11:21); ratchet `transport: 1` (sn 0 —
+the TypeGuard bridge is the typed spelling of the fix); sphinx -W exit 0
+(twice: archivist state + post-review state); audit MISSING 9 → 4;
+elegance-enforcer **PASS-WITH-NITS, nothing blocking** (the one do-now —
+the MissingAdjoint bite-test — landed in `1de9592`).
+
+**NEXT = Phase C**: #47 (4e walk un-weave), #41 (step-5 block solve —
+flips the A2a inverse arm live + retires the joint-solve pair requirement),
+#35/#34 (docs + guard retirement). Local task #51 (B.2d) CLOSED. Re-anchor
+from THIS block + `git log` (trust git).
