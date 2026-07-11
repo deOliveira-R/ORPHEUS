@@ -1329,3 +1329,57 @@ sibling. Re-anchor from THIS block + `git log` (trust git).
   adapter; the L4-S sentinel spy pins the wrapped CLASS method, so it fires through
   the adapter unchanged). Test-architect delta memo:
   `coupled_operator_b2b_retype_verification.md` (dispatched at arc start).
+
+### B.2b — DONE @ `81c1995` (2026-07-10); recommended /compact point
+
+Three green commits (`42b596d` b1 / `b15bf2e` b2 / `81c1995` b3 + the two plan/matrix
+docs commits `427c159`, `c426b33`):
+
+- **b1** — `RadialCharacteristicInteriorSourceSink` (ANGULAR_RATE) +
+  `…BoundarySourceSink` (ANGULAR_FLUX — the trace convention; the split DISSOLVED the
+  unified leaf's documented corner-units deviation); the composite re-bound to the
+  FIELD BASES (honestly role-erased); `from_unified`/`to_unified` role-preserving via
+  the exact-class `_UNIFIED_TO_SPLIT` table (+ its inverse; mixed-role and off-table
+  refusals loud). +16 gates (G-b1.1–1.4 incl. the role⊕values split rows).
+- **b2** — `FullFieldSpace.from_blocks(name=…)` + `_rebuild` PRESENCE-DISPATCH (the
+  seed kwarg passed iff the carrier exposes the slot — FullField byte-unchanged; a
+  pure 2-block carrier no longer AttributeErrors; ONE documented transitional cast,
+  retires at (d)) + cached `SNMesh.radial_characteristic_composite_space`
+  (identity `("radial_characteristic", (n_i + n_b,))`). +7 gates (G-b2.1/2.2: metric
+  trio ≡ direct split-space application on the REAL composite, BOTH branch arms,
+  role-preserving rebuild, the coextensiveness + flat-order pin).
+- **b3** — **A_BA**: `apply → RadialCharacteristicComposite` (SOURCE members; no
+  present-zero padding — "writes bulk" UNSPELLABLE), `apply_transpose` takes the
+  composite cotangent → 2-block System-A FullField (ray=None); domain/codomain
+  DECLARED (full_field_space / the composite space); fold engine unified behind the
+  bridge (demote ruling). **B_b**: domain=codomain= the composite space; composite →
+  composite (the #289-F2 role parse relocated onto the boundary member;
+  `_reflect_corner` re-typed onto the split member — ONE law body);
+  **ctor guard** (unconstructable seedless — the old None-pass-through + the dead
+  seedless is_adjointable arm retired); `reflect_corner_inplace` non-None, bridges
+  internally (the solver call site `_reflect_boundary_inplace` presence-guards).
+  **Adapters** (TRANSIENT, retire at (d), each beside its block): `_RayEmission
+  FullFieldGain` (radial_characteristic.py) + `_RayBoundaryFullFieldGain`
+  (boundary.py) — byte-identical FullField faces; wired at `_lagged_gains` + the
+  `_within_group_triple` sum; DELEGATION proven (the new G-b3.3 spy-count==1 gate
+  keeps the L4-S sentinel non-vacuous). Re-points landed per the memo + two extra
+  same-class sites the wall surfaced (test_invertible_operator's hand fold;
+  test_si_single_primitive_contract's gain-1 isinstance → wraps-predicate);
+  `_dense_seed` retired (successor `_dense_ray`, unified-layout probes).
+
+**VERIFIED:** psi_half+g_adjoint 84/84; **FULL sn+transport+numerics not-slow wall
+3457/0**; ratchet `transport:1` (numerics 0); sphinx -W exit 0 (verifies-marker
+skips = the parked phantom). Every value row `array_equal` per the memo's §0 ruling
+(pure re-labeling — no tolerance anywhere).
+
+**NEXT = B.2c:** `build_coupled_system(sn_mesh, mat_xs) → (CoupledOperator,
+CoupledSpace)` — the typed 2×2 grid over (full_field_space ⊕
+radial_characteristic_composite_space) with A_AA/A_AB/A_BA/A_BB placed
+by-construction (P1 alignment; P2 presence-structural: the seedless grid is 1×1);
+SUBSUMES step 6 / task #34's presence collapse for the grid arm. The M2
+assemble≡probe re-pin on REAL members (the elegance carried reminder) lands HERE —
+CoupledSpace.system_slices vs FullField/composite to_flat on multi-axis members.
+A_AB/A_BB stay unified-internal behind their block boundaries (V2/V4: A_BB is
+already leaf-typed — its grid entry is direct; A_AB's re-type is a leaf swap).
+Then B.2d (driver CoupledField + ray eviction + adapter retirement + protocol
+2-block + ERR-053 re-size + E4 anchors). Re-anchor from THIS block + `git log`.
