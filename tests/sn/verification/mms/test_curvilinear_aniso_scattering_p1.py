@@ -23,7 +23,7 @@ verification memo + ``discrete_ordinates.rst`` :ref:`pn-scattering`):
 
 * **Path (II)** — the :math:`P_\ell` Legendre SCATTERING moments
   :math:`R\,\Lambda\,M` (:eq:`pn-scatter` / :eq:`flux-moments`), wired
-  via :func:`_within_group_triple` (the ``S`` in the ``(L+C), S, B``
+  via :func:`~orpheus.sn.coupled_system.build_within_group_system` (the ``S`` in the ``(L+C), S, B``
   triple carries :math:`P_1` when ``scattering_order=1``).  This is
   geometry-AGNOSTIC, but NO curvilinear test exercised it before #9 —
   the only prior :eq:`pn-scatter` tests are 2-D Cartesian

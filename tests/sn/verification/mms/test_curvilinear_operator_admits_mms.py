@@ -53,7 +53,6 @@ from orpheus.sn.solver import (
     SNSolver,
     _as_sn_mesh,
     _build_fixed_source_rhs,
-    _within_group_triple,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -73,7 +72,13 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
         scattering_order=0, max_inner=10, inner_tol=1e-13,
     )
     q_ext = _build_fixed_source_rhs(Q, sn_mesh)
-    LC, S, B = _within_group_triple(solver)
+    # B.2d: the triple retired into build_within_group_system; this fused
+    # 3-block probe reads the production surfaces directly. B = B_a alone is
+    # bit-identical here: on vacuum cases the ray-corner B_b term is exactly
+    # zero, and B_a pads the ray slot present-zero like the retired composite.
+    from orpheus.sn.operators.boundary import SNBoundaryOperator
+    LC, S = solver.L, solver.scattering_op
+    B = SNBoundaryOperator(solver.sn_mesh)
 
     # ψ_ref,n = A(r)/W — isotropic per ordinate, zero boundary (vacuum).
     A = case.phi_exact(mesh.centers)

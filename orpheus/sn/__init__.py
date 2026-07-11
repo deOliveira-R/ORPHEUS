@@ -1,4 +1,8 @@
-from .coupled_system import build_coupled_system
+from .coupled_system import (
+    WithinGroupSystem,
+    build_coupled_system,
+    build_within_group_system,
+)
 from .solution import IterationHistory, Solution, SolutionDiff
 from .solver import (
     SNSolver,

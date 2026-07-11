@@ -64,7 +64,6 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.boundary import (
     RadialCharacteristicBoundaryOperator,
     SNBoundaryOperator,
-    _RayBoundaryFullFieldGain,
 )
 from orpheus.sn.operators.streaming import StreamingOperator
 import orpheus.sn.loss_representation as _lr_mod
@@ -74,7 +73,6 @@ from orpheus.sn.operators.radial_characteristic import (
     RadialCharacteristicOperator,
     RadialCharacteristicReconstruction,
     RadialCharacteristicSeeding,
-    _RayEmissionFullFieldGain,
 )
 import orpheus.numerics.spaces.radial_characteristic_space as _rcs_mod
 # Campaign step 4c (THE LIFT): the Fold ``RadialCharacteristicReconstruction``
@@ -84,7 +82,28 @@ import orpheus.numerics.spaces.radial_characteristic_space as _rcs_mod
 # that patch the fold as the reconstruction sees it.
 import orpheus.sn.operators.radial_characteristic as _rcr_mod
 import orpheus.sn.solver as _solver_mod
-from orpheus.sn.solver import SNSolver, _lagged_gains, _within_group_triple
+from orpheus.sn.coupled_system import (
+    CoupledInvertibleOperator,
+    WithinGroupSystem,
+    _fuse_coupled_state,
+    _split_fused_state,
+    build_within_group_system,
+)
+from orpheus.sn.solver import (
+    SNSolver,
+    _build_fixed_source_rhs,
+    _unwindowed_cold_start,
+    _within_group_krylov,
+    _within_group_si,
+)
+from orpheus.sn import solve_sn_fixed_source
+from orpheus.numerics.iteration import SourceIteration
+from orpheus.sn.operators.streaming import InvertibleOperator
+from tests.sn._test_helpers import (
+    FusedRayBoundaryGain,
+    FusedRayEmissionGain,
+    curvilinear_two_region_mesh,
+)
 from orpheus.sn.spatial.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
     carlson_inward_sweep_transpose,
@@ -252,14 +271,14 @@ class TestRegressionFloor:
         S's bulk) would make ``A_BA_bb ≠ 0``; an S that re-grew the ray arm would
         make ``S_sb ≠ 0`` (the pre-lift regression this flip retired).
 
-        B.2b re-point: the FullField-densifiable face is the TRANSIENT gain
-        adapter (the block itself is FullField → RadialCharacteristicComposite —
+        B.2d re-point: the FullField-densifiable face is the FUSED-spelling
+        test oracle (the block itself is FullField → RadialCharacteristicComposite —
         un-densifiable on one template); on the BLOCK the ``A_BA_bb = 0``
         disjointness is STRUCTURAL (no bulk slot in the codomain), so the
-        measured ``aba_bb`` row now pins the ADAPTER's embed."""
+        measured ``aba_bb`` row pins the ORACLE's embed."""
         sn = _sphere()
-        _, S, _ = _within_group_triple(SNSolver(sn))
-        A_BA = _RayEmissionFullFieldGain(
+        S = SNSolver(sn).scattering_op
+        A_BA = FusedRayEmissionGain(
             RadialCharacteristicEmission(sn, S.isotropic_kernel))
         b, _, s, _ = _blocks(sn)
         tpl = _template(sn)
@@ -293,7 +312,11 @@ class TestRegressionFloor:
         ONE genuinely-iterated coupling in the ψ½ system."""
         c = 0.4
         sn = _sphere(c=c)
-        LC, S, B = _within_group_triple(SNSolver(sn))
+        solver = SNSolver(sn)
+        LC, S = solver.L, solver.scattering_op
+        # The FUSED dense M/N (3-block template): B = B_a + the B_b oracle.
+        B = SNBoundaryOperator(sn) + FusedRayBoundaryGain(
+            RadialCharacteristicBoundaryOperator(sn))
         tpl = _template(sn)
         M = _dense(LC.apply, tpl)
         N = _dense(S.apply, tpl) + _dense(B.apply, tpl)
@@ -470,23 +493,15 @@ class TestBoundaryUnweld:
                         "reflecting the trace (System A boundary is dead).")
 
     def test_b_b_touches_only_the_ray_present_zero_trace(self):
-        r"""Through the TRANSIENT gain adapter, ``B_b`` emits a PRESENT-ZERO
-        trace and zero bulk (the pre-B.2b byte shape the ``B_a + B_b`` sum
-        needs). On the BLOCK itself "B_b touches the trace" is UNSPELLABLE
-        since the B.2b re-type (its codomain has no trace slot — Pattern 4);
-        the container-type rows pin that. Mutation tooth: an adapter leaking a
-        trace action emits a non-zero trace."""
+        r"""On the BLOCK, "B_b touches the trace" is UNSPELLABLE since the
+        B.2b re-type (its codomain has no trace slot — Pattern 4); since B.2d
+        the driver consumes the block NATIVELY at the gain grid's (B,B) slot,
+        so the structural claim is the whole claim (the retired adapter's
+        present-zero embed rows dissolved with it). Mutation tooth: a dead
+        reflective corner arm emits a zero corner."""
         sn = _sphere(bc="reflective")
         psi = _random_composite(sn, np.random.default_rng(2))
         block = RadialCharacteristicBoundaryOperator(sn)
-        out = _RayBoundaryFullFieldGain(block).apply(psi)
-        np.testing.assert_array_equal(
-            out.boundary.values, 0.0,
-            err_msg="B_b's adapter emitted a NON-ZERO trace block — it leaked a "
-                    "trace action that belongs to B_a.")
-        if not np.max(np.abs(out.radial_characteristic.values)) > 0.0:
-            pytest.fail("B_b emitted a zero ray corner on a reflective sphere — the "
-                        "System B boundary arm is dead.")
         # The BLOCK's structural half: composite in/out, SOURCE members out.
         block_out = block.apply(
             RadialCharacteristicComposite.from_unified(psi.radial_characteristic))
@@ -498,35 +513,49 @@ class TestBoundaryUnweld:
         if type(block_out.boundary) is not RadialCharacteristicBoundarySourceSink:
             pytest.fail(f"B_b boundary member is {type(block_out.boundary).__name__} "
                         f"— the block must emit the SOURCE pair.")
-        # Adapter ≡ block, byte-for-byte on the ray (the embed is a re-label).
+        # The interior member is a ZERO source (B_b writes ONLY the corner).
         np.testing.assert_array_equal(
-            out.radial_characteristic.values, block_out.to_unified().values,
-            err_msg="adapter ray ≠ block ray — the transient embed moved values.")
+            block_out.interior.values, 0.0,
+            err_msg="B_b's interior member is non-zero — the corner block "
+                    "leaked a bulk-ray action.")
+        if not np.max(np.abs(block_out.boundary.values)) > 0.0:
+            pytest.fail("B_b emitted a zero ray corner on a reflective sphere — the "
+                        "System B boundary arm is dead.")
 
     def test_sum_reconstructs_both_blocks_disjointly(self):
-        r"""``(B_a + B_b).apply`` = ``B_a``'s trace ⊕ ``B_b``'s ray, byte-for-byte
-        per block — the disjoint direct sum reconstructs the whole boundary."""
+        r"""The gain grid's boundary arms are DISJOINT per system, byte-for-byte:
+        row A's trace is exactly ``B_a``'s reflection (S contributes a
+        present-zero trace), row B's corner exactly ``B_b``'s (Emission emits a
+        zero boundary member) — the per-system direct sum of RULING P1,
+        realized structurally on the record's N since B.2d."""
+        from orpheus.sn.coupled_system import _split_fused_state
+
         sn = _sphere(bc="reflective")
+        solver = SNSolver(sn)
+        system = build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+        n_grid = system.gains[0]
         psi = _random_composite(sn, np.random.default_rng(3))
+        coupled = _split_fused_state(psi, sn)
+        out = n_grid.apply(coupled)
         B_a = SNBoundaryOperator(sn)
-        # B.2b: the production sum rides the transient adapter (the raw block
-        # declares System B's composite spaces, which the OperatorSum guard
-        # correctly refuses to sum with B_a's FullField spaces).
-        B_b = _RayBoundaryFullFieldGain(RadialCharacteristicBoundaryOperator(sn))
-        out = (B_a + B_b).apply(psi)
-        out_a, out_b = B_a.apply(psi), B_b.apply(psi)
-        # The composite trace is exactly B_a's (B_b contributes present-zero).
-        np.testing.assert_array_equal(out.boundary.values, out_a.boundary.values)
-        # The composite ray is exactly B_b's (B_a contributes present-zero).
+        B_b = RadialCharacteristicBoundaryOperator(sn)
+        # Row A's trace is exactly B_a's reflection of ψ_A.
         np.testing.assert_array_equal(
-            out.radial_characteristic.values, out_b.radial_characteristic.values)
+            out.systems[0].boundary.values,
+            B_a.apply(coupled.systems[0]).boundary.values)
+        # Row B's corner is exactly B_b's reflection of ψ_B.
+        np.testing.assert_array_equal(
+            out.systems[1].boundary.values,
+            B_b.apply(coupled.systems[1]).boundary.values)
 
     def test_seedless_mesh_has_no_b_b_and_b_is_b_a_alone(self):
         r"""B.2b re-point of the old None-pass-through row: a seedless mesh has
         no System B, so ``B_b`` is UNCONSTRUCTABLE there (Pattern 4 — the old
         "B_b passes None through" behavior is now unspellable), and the
-        production boundary is ``B_a`` ALONE (``_within_group_triple``'s
-        presence branch). The ray of ``B_a``'s output stays ``None``."""
+        production boundary is ``B_a`` ALONE (the record's seedless
+        ``(S, B_a)`` gains — DP-seedless). The ray of ``B_a``'s output stays
+        ``None``."""
         slab = SNMesh(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
@@ -535,9 +564,12 @@ class TestBoundaryUnweld:
         with pytest.raises(ValueError, match="carries no ψ½ ray"):
             RadialCharacteristicBoundaryOperator(slab)
         # The production boundary on a seedless mesh is B_a alone.
-        _, _, B = _within_group_triple(SNSolver(slab))
+        slab_solver = SNSolver(slab)
+        slab_system = build_within_group_system(
+            slab, slab_solver.mat_xs, scattering_op=slab_solver.scattering_op)
+        B = slab_system.gains[-1]
         if not isinstance(B, SNBoundaryOperator):
-            pytest.fail(f"seedless _within_group_triple boundary is "
+            pytest.fail(f"seedless record boundary gain is "
                         f"{type(B).__name__} — must be B_a alone (no B_b arm).")
         N, nx, ng = slab.quad.N, slab.nx, slab.ng
         n_tr = int(slab.angular_trace.layout.total_size)
@@ -2032,51 +2064,11 @@ class TestCoupledLift:
 
     # ── L3.5 (G-b3.3): the transient adapter — byte-identity + DELEGATION ───
 
-    def test_L35_adapter_is_byte_identical_and_delegates(self, monkeypatch):
-        r"""G-b3.3 — the two facts that keep production honest through B.2b:
-
-        (i) BYTE-IDENTITY: the FullField-gain adapter reproduces the pre-B.2b
-        embedded output exactly — ray == the documented fold loop
-        (``_ba_oldloop_reference``), bulk/boundary present-zero (whole-flat
-        ``array_equal``: value AND placement).
-
-        (ii) DELEGATION (THE SENTINEL-TEETH CHECK): a counting spy on
-        ``RadialCharacteristicEmission.apply`` (the CLASS method) fires
-        EXACTLY once per ``adapter.apply`` — proving the adapter DELEGATES to
-        the wrapped block rather than inlining a fold copy. This is the
-        load-bearing assumption that keeps the L4-S Mode-11 sentinel
-        non-vacuous through the adapter (an inlining adapter would leave the
-        L4-S spy at 0 while production stayed green)."""
-        sn = _sphere()
-        S = SNSolver(sn).scattering_op
-        adapter = _RayEmissionFullFieldGain(_a_ba_scatter(sn))
-        psi = _random_composite(sn, np.random.default_rng(140))
-        emission = _s_emission(S, psi)
-        out = adapter.apply(psi)
-        np.testing.assert_array_equal(
-            out.radial_characteristic.values, _ba_oldloop_reference(emission, sn),
-            err_msg="adapter ray ≠ the documented fold loop — the transient embed "
-                    "is not byte-identical to the pre-B.2b output.")
-        np.testing.assert_array_equal(
-            out.interior.values, 0.0,
-            err_msg="adapter bulk ≠ present-zero — the embed leaked into the bulk.")
-        np.testing.assert_array_equal(
-            out.boundary.values, 0.0,
-            err_msg="adapter trace ≠ present-zero — the embed leaked into the trace.")
-        # (ii) the delegation proof — one isolated call, counter == 1.
-        counter = {"n": 0}
-        real = RadialCharacteristicEmission.apply
-
-        def spy(self, p, /):
-            counter["n"] += 1
-            return real(self, p)
-
-        monkeypatch.setattr(RadialCharacteristicEmission, "apply", spy)
-        adapter.apply(psi)
-        if counter["n"] != 1:
-            pytest.fail(f"adapter.apply fired the block's class method {counter['n']}× "
-                        f"(expected exactly 1) — the adapter does not DELEGATE, so "
-                        f"the L4-S sentinel is Mode-11-vacuous through it.")
+    # G-b3.3 (the B.2b adapter byte-identity + delegation gate) RETIRED at
+    # B.2d d1 with its referent: the transient FullField-gain adapters are
+    # gone (the driver consumes the blocks natively through the gain grid).
+    # The fold-value pins live at BLOCK level (L3/L3.5 rows above); the
+    # driver-route sentinel is L4-S below + TestWithinGroupSystem (G-d1.1).
 
     # ── L4-S: the driver routes A_BA as its OWN lagged gain (deliv 3/d) ─────
 
@@ -2085,29 +2077,33 @@ class TestCoupledLift:
         bulk gate measures the UNCHANGED sibling; only wrapping the NEW A_BA.apply
         proves the driver rewired). Wrap ``RadialCharacteristicEmission.apply`` and
         run a REAL within-group sphere ``solve_fixed_source``: the counter fires
-        (> 0). Structural pair: ``_lagged_gains`` carries an A_BA on the sphere and
-        NOT on a seedless slab.
+        (> 0). Structural pair: the carrying record's gain grid carries the
+        Emission block at (B,A) and the seedless record carries no coupled
+        grid at all.
 
-        Tooth (drop A_BA from ``_lagged_gains``): :meth:`test_L4S_sentinel_has_teeth`."""
+        Tooth (an Emission-less gain grid): :meth:`test_L4S_sentinel_has_teeth`."""
         sn = _sphere()
-        _, S, B = _within_group_triple(SNSolver(sn))
-        # B.2b: the gain slot carries the ADAPTER wrapping the block — the
-        # wraps-predicate reads the wrapped ``_emission``.
-        if not any(isinstance(getattr(g, "_emission", None), RadialCharacteristicEmission)
-                   for g in _lagged_gains(S, B, sn)):
-            pytest.fail("_lagged_gains(sphere) carries no adapter-wrapped "
-                        "RadialCharacteristicEmission — A_BA is not wired as its "
-                        "own lagged gain.")
+        solver = SNSolver(sn)
+        system = build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+        # B.2d: the gain grid's (B,A) slot carries the BLOCK natively.
+        n_grid = system.gains[0]
+        if not (isinstance(n_grid, CoupledOperator)
+                and isinstance(n_grid.blocks[1][0], RadialCharacteristicEmission)):
+            pytest.fail("the carrying record's gain grid carries no "
+                        "RadialCharacteristicEmission at (B,A) — A_BA is not "
+                        "wired as a block gain.")
         slab = SNMesh(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
-        _, Ss, Bs = _within_group_triple(SNSolver(slab))
-        if any(isinstance(getattr(g, "_emission", None), RadialCharacteristicEmission)
-               for g in _lagged_gains(Ss, Bs, slab)):
-            pytest.fail("_lagged_gains(slab) carries an A_BA — a seedless mesh has no "
-                        "bulk→ray coupling.")
+        slab_solver = SNSolver(slab)
+        slab_system = build_within_group_system(
+            slab, slab_solver.mat_xs, scattering_op=slab_solver.scattering_op)
+        if any(isinstance(g, CoupledOperator) for g in slab_system.gains):
+            pytest.fail("the seedless record carries a coupled gain grid — a "
+                        "seedless mesh has no bulk→ray coupling.")
         # Mode-11 sentinel: a REAL within-group sphere solve APPLIES A_BA.
         counter = {"n": 0}
         real = RadialCharacteristicEmission.apply
@@ -2124,15 +2120,22 @@ class TestCoupledLift:
                         "driver does not route the lifted gain (the rewire is missing).")
 
     def test_L4S_sentinel_has_teeth(self, monkeypatch):
-        r"""TOOTH for L4-S: a driver that forgot to widen its gains (``_lagged_gains``
-        returns just ``(S, B)`` — the pre-lift shape) leaves the A_BA.apply counter
+        r"""TOOTH for L4-S: a driver whose gain grid forgot the Emission block
+        (the (B,A) slot None — the un-wired shape) leaves the A_BA.apply counter
         at 0. Proves the L4-S sentinel catches an unwired driver (Mode 11)."""
         sn = _sphere()
+        real_build = _solver_mod.build_within_group_system
 
-        def _no_a_ba(S, B, sn_mesh):
-            return (S, B)                                    # the un-widened gain tuple
+        def _no_emission(sn_mesh, mat_xs, **kw):
+            system = real_build(sn_mesh, mat_xs, **kw)
+            n = system.gains[0]
+            crippled = CoupledOperator(
+                [[n.blocks[0][0], None], [None, n.blocks[1][1]]],
+                domain=n.domain, codomain=n.codomain)
+            return replace(system, gains=(crippled,))
 
-        monkeypatch.setattr(_solver_mod, "_lagged_gains", _no_a_ba)
+        monkeypatch.setattr(
+            _solver_mod, "build_within_group_system", _no_emission)
         counter = {"n": 0}
         real = RadialCharacteristicEmission.apply
 
@@ -2143,7 +2146,7 @@ class TestCoupledLift:
         monkeypatch.setattr(RadialCharacteristicEmission, "apply", spy)
         SNSolver(sn).solve_fixed_source(
             np.ones((sn.ng, sn.nx)), np.ones((sn.ng, sn.nx)))
-        print(f"  [L4-S tooth] un-widened _lagged_gains: A_BA.apply calls = {counter['n']}")
+        print(f"  [L4-S tooth] Emission-less gain grid: A_BA.apply calls = {counter['n']}")
         if counter["n"] != 0:
             pytest.fail(f"the un-widened driver STILL applied A_BA {counter['n']}× — "
                         f"the L4-S sentinel would not catch a missing rewire.")
@@ -2232,7 +2235,7 @@ class TestCoupledLift:
         ``_radial_characteristic_fission_seed`` and measures the fold-count DELTA
         *attributable to it* — isolating the fission fold from the scatter fold.
 
-        Structural pair (HAZARD 5): ``_lagged_gains`` carries the SCATTER ``A_BA``
+        Structural pair (HAZARD 5): the gain grid carries the SCATTER ``A_BA``
         (over ``S.isotropic_kernel``), NOT a fission fold — F is the OUTER
         ``q_ext``, never a within-group gain.
 
@@ -2276,18 +2279,19 @@ class TestCoupledLift:
                         f"survives on the F seed (Mode-11).")
         print(f"  [L4-F] eigenvalue solve: seam_n={seam['n']} "
               f"seam_fold_delta={seam['fold_delta']} global_fold={fold['n']}")
-        # Structural pair (HAZARD 5): the within-group gains carry the SCATTER A_BA
-        # (over S.isotropic_kernel), NOT a fission fold — F is the outer q_ext.
-        _, S, B = _within_group_triple(SNSolver(snf))
-        gains = _lagged_gains(S, B, snf)
-        emissions = [
-            g._emission for g in gains
-            if isinstance(getattr(g, "_emission", None), RadialCharacteristicEmission)
-        ]
-        if len(emissions) != 1 or emissions[0].emission_kernel is not S.isotropic_kernel:
-            pytest.fail("_lagged_gains does not carry EXACTLY the scatter A_BA (over "
-                        "S.isotropic_kernel) — the F fold must be the OUTER q_ext "
-                        "seam, never a within-group gain (HAZARD 5).")
+        # Structural pair (HAZARD 5): the within-group gain grid carries the
+        # SCATTER A_BA (over S.isotropic_kernel), NOT a fission fold — F is
+        # the outer q_ext.
+        snf_solver = SNSolver(snf)
+        snf_system = build_within_group_system(
+            snf, snf_solver.mat_xs, scattering_op=snf_solver.scattering_op)
+        S = snf_solver.scattering_op
+        emission_block = snf_system.gains[0].blocks[1][0]
+        if not (isinstance(emission_block, RadialCharacteristicEmission)
+                and emission_block.emission_kernel is S.isotropic_kernel):
+            pytest.fail("the gain grid's (B,A) block is not EXACTLY the scatter "
+                        "A_BA (over S.isotropic_kernel) — the F fold must be the "
+                        "OUTER q_ext seam, never a within-group gain (HAZARD 5).")
 
     def test_L4F_sentinel_has_teeth(self, monkeypatch):
         r"""TOOTH for L4-F: reverting the migration — pointing
@@ -2790,17 +2794,19 @@ def _complete_fused_loss(sn, mat_xs):
     posed), but the grid's ``(B,B)`` carries ``− B_b`` — so the reference
     here MUST include the ``B_b`` adapter, and the fixture mesh MUST be
     REFLECTIVE (on vacuum ``_reflect_corner`` ≡ 0 silently masks a dropped
-    ``B_b``). Same constructions as the builder (the sanctioned transient
-    construction twin — the builder docstring)."""
+    ``B_b``). Since B.2d the FUSED spelling is TEST-ONLY (the production
+    driver consumes the record's splitting): the System-B terms embed through
+    the fused-oracle shims (``_test_helpers`` — the retired B.2b adapters'
+    bodies, kept as the fused-composition reference)."""
     S = ScatteringOperator.from_solver_data(
         mat_xs=mat_xs, quadrature=sn.quad, scattering_order=0,
         full_field_space=sn.full_field_space)
     LC = StreamingOperator(sn) + MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
         space=sn.full_field_space)
-    a_ba = _RayEmissionFullFieldGain(
+    a_ba = FusedRayEmissionGain(
         RadialCharacteristicEmission(sn, S.isotropic_kernel))
-    b_b = _RayBoundaryFullFieldGain(RadialCharacteristicBoundaryOperator(sn))
+    b_b = FusedRayBoundaryGain(RadialCharacteristicBoundaryOperator(sn))
     return LC - S - a_ba - SNBoundaryOperator(sn) - b_b
 
 
@@ -3127,3 +3133,452 @@ class TestCoupledBuilder:
                 "the live-ray double-count defect vanished — either the B.2d "
                 "eviction landed (REMOVE this witness) or the welded seed arm "
                 "stopped reading ψ_A's ray slot (investigate before trusting).")
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# B.2d d1 — the WithinGroupSystem record + the block-native driver (G-d1.x)
+# ═════════════════════════════════════════════════════════════════════════
+#
+# Delta memo: test-architect coupled_operator_b2d_driver_eviction_verification
+# (G-d1.1–1.8; findings F1–F5; rulings R1–R6). The §0 partition: the WALK is
+# ZERO-TOUCH at d1 (operator/walk-level pins bit-identical); the ~ULP drift
+# lives ONLY in the end-to-end coupled driver (rhs reassembly + GMRES
+# dead-ray padding), so the carrying same-fixed-point row is principled-equiv
+# (SAFETY × inner_tol) while the seedless slab CONTROL is array_equal (the
+# record's seedless arm is a pure re-package).
+
+
+def _het_vacuum_sphere(ng: int = 2) -> SNMesh:
+    r"""Heterogeneous VACUUM 2-region sphere — the Mode-9 configuration
+    (vv-principles: never gate a splitting/driver re-pose on the reflective
+    isotropic box; vacuum + heterogeneity break the degenerate coincidences)."""
+    mesh = curvilinear_two_region_mesh(
+        outers=(2.0, 4.0), mat_ids=(0, 1), n_cells=(3, 3),
+        coord=CoordSystem.SPHERICAL, bc=BC("vacuum"),
+    )
+    return SNMesh(mesh, Quadrature.gauss_legendre(4),
+                  {0: _mixture(1.0, 0.4, ng), 1: _mixture(0.5, 0.1, ng)})
+
+
+def _fused_reference_pieces(sn):
+    r"""The PRE-d1 fused driver composition, rebuilt from the shims: the
+    resolvent ``L+C`` and the FullField gains ``(S, A_BA-oracle, B_a+B_b-oracle)``
+    — the retired ``_within_group_triple``/``_lagged_gains`` shape, kept as the
+    same-fixed-point reference (G-d1.6) and the bypass tooth (G-d1.1)."""
+    mat_xs = sn.material_xs_field()
+    S = ScatteringOperator.from_solver_data(
+        mat_xs=mat_xs, quadrature=sn.quad, scattering_order=0,
+        full_field_space=sn.full_field_space)
+    LC = StreamingOperator(sn) + MultiplicationOperator(
+        coefficient=mat_xs.total_cross_section_field,
+        space=sn.full_field_space)
+    a_ba = FusedRayEmissionGain(
+        RadialCharacteristicEmission(sn, S.isotropic_kernel))
+    B = SNBoundaryOperator(sn) + FusedRayBoundaryGain(
+        RadialCharacteristicBoundaryOperator(sn))
+    return LC, (S, a_ba, B)
+
+
+class TestWithinGroupSystem:
+    r"""G-d1.x — the record's shape, the driver's route, and the fixed point."""
+
+    # ── G-d1.2 — the record's container/identity pins ────────────────────
+
+    def test_g_d1_2_record_container_and_identity_pins(self):
+        r"""ONE construction: the loss grid, its space, M, and N share the
+        SAME space OBJECT (`is` — the P1 co-production carried onto the
+        record); N's (A,B) slot is the structural ∅ (Seeding lives in M);
+        the (A,A) gain is stamped ``SystemRole.A`` (C-fwd); the seedless
+        record is the pure re-package ``(L+C, (S, B_a))`` with the solver's
+        CACHED scattering operator (the cache seam, by identity)."""
+        sn = _sphere()
+        solver = SNSolver(sn)
+        system = build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+        if type(system) is not WithinGroupSystem:
+            pytest.fail(f"builder returned {type(system).__name__}")
+        if not isinstance(system.loss, CoupledOperator):
+            pytest.fail(f"loss is {type(system.loss).__name__}")
+        if system.loss.domain is not system.space or (
+                system.loss.codomain is not system.space):
+            pytest.fail("loss grid not typed against THE record space (identity)")
+        if not isinstance(system.resolvent, CoupledInvertibleOperator):
+            pytest.fail(f"carrying resolvent is {type(system.resolvent).__name__}")
+        if system.resolvent.domain is not system.space:
+            pytest.fail("M not typed against THE record space (identity)")
+        if len(system.gains) != 1 or not isinstance(system.gains[0], CoupledOperator):
+            pytest.fail(f"carrying gains are {system.gains!r} — expected (N,)")
+        n_grid = system.gains[0]
+        if n_grid.domain is not system.space or n_grid.codomain is not system.space:
+            pytest.fail("N not typed against THE record space (identity)")
+        if n_grid.blocks[0][1] is not None:
+            pytest.fail("N's (A,B) slot is not the structural ∅ — Seeding "
+                        "must live in M (the walk's welded feed), never in N.")
+        if n_grid.blocks[0][0].system_role is not SystemRole.A:
+            pytest.fail("N's (A,A) gain lost the C-fwd SystemRole.A stamp")
+        if not isinstance(n_grid.blocks[1][0], RadialCharacteristicEmission):
+            pytest.fail("N's (B,A) block is not the Emission")
+        if not isinstance(n_grid.blocks[1][1], RadialCharacteristicBoundaryOperator):
+            pytest.fail("N's (B,B) block is not B_b")
+        # The cache seam: the injected scattering operator rides BY IDENTITY.
+        # (Reach S through N's (A,A) OperatorSum is internal; pin the seam by
+        # rebuilding with injection and checking the seedless arm below.)
+        # Seedless: the pure re-package.
+        slab = SNMesh(
+            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
+                   bc_left=BC("reflective")),
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+        slab_solver = SNSolver(slab)
+        s_system = build_within_group_system(
+            slab, slab_solver.mat_xs, scattering_op=slab_solver.scattering_op)
+        if isinstance(s_system.resolvent, CoupledInvertibleOperator):
+            pytest.fail("seedless resolvent is coupled — DP-seedless violated")
+        if not isinstance(s_system.resolvent, InvertibleOperator):
+            pytest.fail(f"seedless resolvent is {type(s_system.resolvent).__name__}")
+        if len(s_system.gains) != 2:
+            pytest.fail(f"seedless gains are {s_system.gains!r} — expected (S, B_a)")
+        S_g, B_g = s_system.gains
+        if S_g is not slab_solver.scattering_op:
+            pytest.fail("the injected scattering operator did not ride the "
+                        "record by IDENTITY (the cache seam broke)")
+        if not isinstance(B_g, SNBoundaryOperator):
+            pytest.fail(f"seedless boundary gain is {type(B_g).__name__}")
+        if s_system.space.n_systems != 1 or s_system.loss.n_rows != 1:
+            pytest.fail("seedless record is not the 1-system grid (P2)")
+
+    # ── G-d1.1 — the W1 Mode-11 sentinel (+ the dead-slot rider) ─────────
+
+    @pytest.mark.parametrize("inner", ["source_iteration", "krylov"])
+    def test_g_d1_1_production_routes_through_the_block_machinery(
+            self, inner, monkeypatch):
+        r"""A REAL carrying-mesh within-group solve EXECUTES the block route:
+        the N grid's ``CoupledOperator.apply``, the M bridge
+        (``CoupledInvertibleOperator.solve``/``apply``), and the fused walk
+        beneath it all fire (wrap counters > 0 — the B.2c F2 lesson: runtime
+        is the sufficient catcher). RIDER (ordering hazard 4): the driver's
+        ψ_A dead ray slot stays EXACTLY zero — a live-ray ψ_A would
+        double-count the welded seed feed end-to-end."""
+        sn = _sphere()
+        counters = {"N": 0, "M": 0, "walk": 0}
+        real_n = CoupledOperator.apply
+
+        def spy_n(op, x, /):
+            counters["N"] += 1
+            return real_n(op, x)
+
+        real_m_solve = CoupledInvertibleOperator.solve
+        real_m_apply = CoupledInvertibleOperator.apply
+
+        def spy_m_solve(op, rhs):
+            counters["M"] += 1
+            return real_m_solve(op, rhs)
+
+        def spy_m_apply(op, x, /):
+            counters["M"] += 1
+            return real_m_apply(op, x)
+
+        # The fused walk beneath the bridge: SI enters through .solve (the
+        # joint sweep), Krylov through .apply (the joint matvec — its GMRES
+        # preconditioner is the explicit identity, #200, so .solve never
+        # fires there). Either entry IS the walk leg.
+        real_walk_solve = InvertibleOperator.solve
+        real_walk_apply = InvertibleOperator.apply
+
+        def spy_walk_solve(op, rhs, *a, **kw):
+            counters["walk"] += 1
+            return real_walk_solve(op, rhs, *a, **kw)
+
+        def spy_walk_apply(op, psi, *a, **kw):
+            counters["walk"] += 1
+            return real_walk_apply(op, psi, *a, **kw)
+
+        monkeypatch.setattr(CoupledOperator, "apply", spy_n)
+        monkeypatch.setattr(CoupledInvertibleOperator, "solve", spy_m_solve)
+        monkeypatch.setattr(CoupledInvertibleOperator, "apply", spy_m_apply)
+        monkeypatch.setattr(InvertibleOperator, "solve", spy_walk_solve)
+        monkeypatch.setattr(InvertibleOperator, "apply", spy_walk_apply)
+        solver = SNSolver(sn, inner_solver=inner)
+        solver.solve_fixed_source(
+            np.ones((sn.ng, sn.nx)), np.ones((sn.ng, sn.nx)))
+        for name, n in counters.items():
+            if n <= 0:
+                pytest.fail(f"[{inner}] the production route never executed "
+                            f"the {name} leg (counter 0) — Mode-11: the block "
+                            f"machinery is bypassed.")
+        # The dead-slot rider: ψ_A's ray is present and EXACTLY zero.
+        psi = solver._psi_typed
+        if not isinstance(psi, CoupledField):
+            pytest.fail(f"[{inner}] the carrying iterate is "
+                        f"{type(psi).__name__}, not the coupled pair")
+        np.testing.assert_array_equal(
+            psi.systems[0].radial_characteristic.values, 0.0,
+            err_msg=f"[{inner}] ψ_A's dead ray slot is NON-ZERO — the welded "
+                    f"seed feed double-counts (the B.2c hazard went live).")
+
+    def test_g_d1_1_sentinel_has_teeth(self, monkeypatch):
+        r"""TOOTH: a driver handed the PRE-d1 fused record (plain ``L+C``
+        resolvent + the FullField gain tuple, via the oracles) runs GREEN —
+        and leaves every block counter at 0. Proves the sentinel catches a
+        route that bypasses the block machinery (Mode 11)."""
+        sn = _sphere()
+        real_build = _solver_mod.build_within_group_system
+
+        def _pre_d1_record(sn_mesh, mat_xs, **kw):
+            system = real_build(sn_mesh, mat_xs, **kw)
+            lc, gains = _fused_reference_pieces(sn_mesh)
+            return replace(system, resolvent=lc, gains=gains)
+
+        monkeypatch.setattr(
+            _solver_mod, "build_within_group_system", _pre_d1_record)
+        counters = {"N": 0, "M": 0}
+        real_n = CoupledOperator.apply
+
+        def spy_n(op, x, /):
+            counters["N"] += 1
+            return real_n(op, x)
+
+        real_m = CoupledInvertibleOperator.apply
+
+        def spy_m(op, x, /):
+            counters["M"] += 1
+            return real_m(op, x)
+
+        monkeypatch.setattr(CoupledOperator, "apply", spy_n)
+        monkeypatch.setattr(CoupledInvertibleOperator, "apply", spy_m)
+        # Krylov: the variadic gain shape admits the 3-tuple, so the fused
+        # bypass RUNS (converges on the old path) while the counters stay 0.
+        solver = SNSolver(sn, inner_solver="krylov")
+        solver.solve_fixed_source(
+            np.ones((sn.ng, sn.nx)), np.ones((sn.ng, sn.nx)))
+        if counters["N"] != 0 or counters["M"] != 0:
+            pytest.fail(f"the fused bypass still drove the block machinery "
+                        f"{counters} — the tooth is dead (the sentinel would "
+                        f"not catch a bypassing driver).")
+
+    # ── G-d1.4 — the fused-state bridge round-trip + teeth ───────────────
+
+    def test_g_d1_4_bridge_round_trip_and_teeth(self):
+        r"""``split(fuse(·))`` and ``fuse(split(·))`` are EXACT re-labels
+        (array_equal — the B.1d licence), the split's ψ_A slot is the
+        role-preserved present-zero, and the comparison DISCRIMINATES the
+        bridge corruptions (leg-drop / dead-slot-live / placement roll) —
+        the OBJECT-level catcher for mutations keff is spectrally blind to
+        (memo Mode-12 sweep)."""
+        sn = _sphere()
+        psi3 = _random_composite(sn, np.random.default_rng(150))  # live ray
+        coupled = _split_fused_state(psi3, sn)
+        np.testing.assert_array_equal(
+            coupled.systems[0].radial_characteristic.values, 0.0,
+            err_msg="split's ψ_A slot is not present-zero")
+        if type(coupled.systems[0].radial_characteristic) is not type(
+                psi3.radial_characteristic):
+            pytest.fail("split's dead slot did not preserve the ray ROLE")
+        fused = _fuse_coupled_state(coupled, sn)
+        for slot in ("interior", "boundary", "radial_characteristic"):
+            np.testing.assert_array_equal(
+                getattr(fused, slot).values, getattr(psi3, slot).values,
+                err_msg=f"fuse(split(·)) moved the {slot} values")
+        back = _split_fused_state(fused, sn)
+        np.testing.assert_array_equal(
+            back.systems[1].to_unified().values,
+            coupled.systems[1].to_unified().values,
+            err_msg="split(fuse(·)) moved ψ_B")
+        # TEETH — corrupted bridges must NOT reproduce the live state:
+        # (a) ψ_B-drop / dead-slot-live: fusing ψ_A ALONE keeps the dead zero.
+        dropped = coupled.systems[0]
+        if np.array_equal(dropped.radial_characteristic.values,
+                          psi3.radial_characteristic.values):
+            pytest.fail("tooth (a) dead: the live probe's ray is all-zero — "
+                        "a ψ_B-dropping fuse would pass undetected")
+        # (b) placement roll: a bridge that permutes the ray cells is caught
+        # by the value comparison (the sum proxy would be blind).
+        rolled = np.roll(psi3.radial_characteristic.values, 1)
+        if np.array_equal(rolled, psi3.radial_characteristic.values):
+            pytest.fail("tooth (b) dead: the roll probe is permutation-blind")
+
+    # ── G-d1.5 — N ≡ the fused gains (control) + sign/shape teeth ────────
+
+    def test_g_d1_5_gain_grid_matches_fused_gains_with_teeth(self):
+        r"""CONTROL: the record's N grid reproduces the retired fused gain
+        sum ``(S + A_BA + B_a + B_b)·ψ`` slot-for-slot ``array_equal`` (same
+        leaf sums, same association — a pure re-package on the gain side).
+        REFLECTIVE sphere (the B.2c F1 lesson: vacuum masks a dropped B_b).
+        TEETH (each mutation moves a row O(1)): dropped B_b; sign-flipped
+        Emission; a non-∅ (A,B) block double-counting the Seeding feed."""
+        sn = _sphere(bc="reflective")
+        solver = SNSolver(sn)
+        system = build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+        n_grid = system.gains[0]
+        psi3 = _random_composite(sn, np.random.default_rng(151))
+        coupled = _split_fused_state(psi3, sn)
+        out = n_grid.apply(coupled)
+        _, (S_f, a_ba_f, B_f) = _fused_reference_pieces(sn)
+        fused_out = ((S_f + a_ba_f) + B_f).apply(psi3)
+        np.testing.assert_array_equal(
+            out.systems[0].interior.values, fused_out.interior.values,
+            err_msg="N row A bulk ≠ the fused gains' bulk")
+        np.testing.assert_array_equal(
+            out.systems[0].boundary.values, fused_out.boundary.values,
+            err_msg="N row A trace ≠ the fused gains' trace")
+        np.testing.assert_array_equal(
+            out.systems[1].to_unified().values,
+            fused_out.radial_characteristic.values,
+            err_msg="N row B ray ≠ the fused gains' ray")
+        # TEETH (in-process constructions; the real N is never touched):
+        emission = n_grid.blocks[1][0]
+        b_b = n_grid.blocks[1][1]
+        n_aa = n_grid.blocks[0][0]
+        # (a) dropped B_b is UNCONSTRUCTABLE — B_b is the only block reading
+        # System B's input, so the all-None-column guard refuses the grid
+        # (stronger than a value-red: the mutation class is unspellable).
+        with pytest.raises(ValueError, match="column 1 has no blocks"):
+            CoupledOperator(
+                [[n_aa, None], [emission, None]],
+                domain=n_grid.domain, codomain=n_grid.codomain)
+        # (b) sign-flipped Emission → the ray bulk row flips.
+        flipped = CoupledOperator(
+            [[n_aa, None], [-emission, b_b]],
+            domain=n_grid.domain, codomain=n_grid.codomain)
+        d_b = np.max(np.abs(
+            flipped.apply(coupled).systems[1].interior.values
+            - out.systems[1].interior.values))
+        if not d_b > 1e-8:
+            pytest.fail("tooth (b) dead: flipping the Emission sign left "
+                        "the ray row unmoved")
+        # (c) a non-∅ (A,B) block → the Seeding feed double-counts into bulk.
+        seeding = RadialCharacteristicSeeding(sn)
+        doubled = CoupledOperator(
+            [[n_aa, seeding], [emission, b_b]],
+            domain=n_grid.domain, codomain=n_grid.codomain)
+        live_b = CoupledField(systems=(
+            coupled.systems[0],
+            RadialCharacteristicComposite.from_unified(
+                psi3.radial_characteristic),
+        ))
+        d_c = np.max(np.abs(
+            doubled.apply(live_b).systems[0].interior.values
+            - n_grid.apply(live_b).systems[0].interior.values))
+        if not d_c > 1e-10:
+            pytest.fail("tooth (c) dead: a non-∅ (A,B) block left the bulk "
+                        "row unmoved — the Seeding double-count is invisible")
+
+    # ── G-d1.6 — Mode-9 same fixed point (het vacuum) + slab control ─────
+
+    @pytest.mark.parametrize("inner", ["source_iteration", "krylov"])
+    def test_g_d1_6_same_fixed_point_het_vacuum_sphere(self, inner):
+        r"""The block-native driver converges to the SAME fixed point as the
+        pre-d1 FUSED driver (rebuilt in-test from the oracles) on the Mode-9
+        configuration — heterogeneous VACUUM 2-region sphere, 2G (NOT the
+        reflective isotropic box). Principled-equiv bar SAFETY × inner_tol
+        (the rhs-reassembly/GMRES-padding ~ULP·iters drift; §0 R1 — the
+        campaign's FIRST end-to-end principled-equiv row). The FLUX FIELD is
+        asserted, not keff (outside every spectral invariance group)."""
+        tol = 1e-11
+        sn = _het_vacuum_sphere()
+        q_np = np.ones((sn.quad.N, sn.ng, sn.nx))
+        sol = solve_sn_fixed_source(
+            {0: _mixture(1.0, 0.4, 2), 1: _mixture(0.5, 0.1, 2)},
+            sn.mesh, Quadrature.gauss_legendre(4), q_np,
+            inner_solver=inner, inner_schedule="jacobi",
+            max_inner=6000, inner_tol=tol)
+        # The fused reference driver (the retired composition, via oracles).
+        LC, gains = _fused_reference_pieces(sn)
+        q3 = _build_fixed_source_rhs(q_np, sn)
+        si_ref = SourceIteration(
+            LC.inverse(), *gains, max_iter=6000, tol=tol)
+        psi_ref, _ = si_ref.solve(
+            q3, initial_guess=_unwindowed_cold_start(
+                sn, history_depth=q3.history_depth))
+        bar = 100.0 * tol
+        np.testing.assert_allclose(
+            sol.angular_flux.interior.values, psi_ref.interior.values,
+            rtol=bar, atol=bar,
+            err_msg=f"[{inner}] bulk fixed point moved past SAFETY×tol")
+        np.testing.assert_allclose(
+            sol.angular_flux.radial_characteristic.values,
+            psi_ref.radial_characteristic.values,
+            rtol=bar, atol=bar,
+            err_msg=f"[{inner}] ψ½ fixed point moved past SAFETY×tol")
+
+    def test_g_d1_6_slab_control_is_bit_identical(self):
+        r"""CONTROL (ordering hazard 5): the seedless record arm is a PURE
+        re-package — the production slab SI converges BIT-IDENTICAL
+        (array_equal) to the hand-built ``SourceIteration(L+C⁻¹, S, B_a)``
+        on the same rhs. A drift here is a bug, never principled-equiv."""
+        slab = SNMesh(
+            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
+                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
+                   bc_left=BC("reflective")),
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+        tol, mi = 1e-11, 3000
+        q_np = np.ones((slab.quad.N, slab.ng, slab.nx))
+        sol = solve_sn_fixed_source(
+            {0: _mixture(1.0, 0.4, 2)}, slab.mesh,
+            Quadrature.gauss_legendre(4), q_np,
+            inner_solver="source_iteration", inner_schedule="jacobi",
+            max_inner=mi, inner_tol=tol)
+        solver = SNSolver(slab)
+        system = build_within_group_system(
+            slab, solver.mat_xs, scattering_op=solver.scattering_op)
+        q3 = _build_fixed_source_rhs(q_np, slab)
+        si = SourceIteration(
+            system.resolvent.inverse(), *system.gains, max_iter=mi, tol=tol)
+        psi_ref, _ = si.solve(
+            q3, initial_guess=_unwindowed_cold_start(
+                slab, history_depth=q3.history_depth))
+        np.testing.assert_array_equal(
+            sol.angular_flux.interior.values, psi_ref.interior.values,
+            err_msg="the seedless record arm is NOT a pure re-package — "
+                    "the slab control drifted (ordering hazard 5)")
+
+    # ── G-d1.7 — the SI displacement diagnostic survives (F5) ────────────
+
+    def test_g_d1_7_si_displacement_diagnostic_on_the_coupled_iterate(self):
+        r"""The SI convergence diagnostics survive the CoupledField iterate:
+        the leaf-finder walks the PRIMARY system (System A's bulk), so the
+        contraction ratios RECORD on a carrying sphere (F5 — previously
+        uncovered; a silent-empty diagnostic is the failure mode)."""
+        sn = _sphere(c=0.6)
+        solver = SNSolver(sn)
+        system = build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+        si, *_ = _within_group_si(
+            system, sn, inner_schedule="jacobi", max_iter=60, tol=1e-10)
+        q3 = _build_fixed_source_rhs(
+            np.ones((sn.quad.N, sn.ng, sn.nx)), sn)
+        cold = _split_fused_state(
+            _unwindowed_cold_start(sn, history_depth=q3.history_depth), sn)
+        si.solve(_split_fused_state(q3, sn), initial_guess=cold)
+        if not si.contraction_ratios:
+            pytest.fail("contraction_ratios is EMPTY on the coupled iterate — "
+                        "the displacement diagnostic went silent (F5)")
+        if si.last_displacement is None:
+            pytest.fail("last_displacement not recorded on the coupled iterate")
+
+    # ── G-d1.8 — ERR-053 auto-tracks at d1 ───────────────────────────────
+
+    def test_g_d1_8_krylov_restart_covers_the_coupled_ravel(self):
+        r"""The Krylov ``restart`` sizing reads the COUPLED ``to_flat`` —
+        both systems, dead-ray padding included at d1 (the honest count is
+        the d2/G-d3.3 deliverable). Pins that the ERR-053 sizing did not
+        regress when the iterate became a CoupledField."""
+        sn = _sphere()
+        solver = SNSolver(sn)
+        system = build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+        cold3 = _unwindowed_cold_start(sn, history_depth=2)
+        cold = _split_fused_state(cold3, sn)
+        n_dof = int(cold.to_flat().size)
+        expected = int(cold3.to_flat().size) + int(
+            np.asarray(cold.systems[1].to_flat()).size)
+        if n_dof != expected:
+            pytest.fail(f"coupled n_dof = {n_dof} ≠ ψ_A(3-block) + ψ_B = "
+                        f"{expected} — the coupled ravel lost a system")
+        krylov = _within_group_krylov(
+            system.resolvent, *system.gains,
+            n_dof=n_dof, max_iter=5, tol=1e-3)
+        if krylov.restart != n_dof:
+            pytest.fail(f"restart = {krylov.restart} ≠ n_dof = {n_dof} — "
+                        f"ERR-053 re-opened at the coupled seam")

@@ -55,10 +55,10 @@ from orpheus.geometry.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.solver import (
     SNSolver,
     _select_si_resolvent,
-    _within_group_triple,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -277,7 +277,10 @@ def _windowed_product_and_oracle_operands(
     # The within-group forward + the scattering operator — the SAME
     # operators (and the SAME schedule dispatch) the windowed SI driver
     # consumes (single source of truth).
-    LC, S, B = _within_group_triple(solver)
+    system = build_within_group_system(
+        solver.sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+    )
+    LC, (S, B) = system.resolvent, system.gains  # seedless 2-D record shape
     sn_mesh = solver.sn_mesh
     base, _gains = _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule)
 

@@ -14,7 +14,7 @@ Marks ``l1`` — a convergence-rate claim, pillar = closed-form (:math:`\rho=c`)
 eigenvalue / flux-shape claim; :math:`\rho=c` is flux-shape-independent by
 design (the ≥2G mandate guards eigenvalue/flux-shape claims, which this makes
 neither). Builds the SI via the production single-source builders
-(``_within_group_triple`` / ``_within_group_si``) — no construction duplicated.
+(``build_within_group_system`` / ``_within_group_si``) — no construction duplicated.
 """
 from __future__ import annotations
 
@@ -26,7 +26,8 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.solver import SNSolver, _within_group_si, _within_group_triple
+from orpheus.sn.coupled_system import build_within_group_system
+from orpheus.sn.solver import SNSolver, _within_group_si
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
@@ -67,9 +68,11 @@ def _run_si(c: float, **kw):
     (with ``contraction_ratios`` / ``last_displacement`` populated)."""
     solver = _homogeneous_slab_solver(c, **kw)
     sn_mesh = solver.sn_mesh
-    LC, S, B = _within_group_triple(solver)
+    system = build_within_group_system(
+        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+    )
     si, _base, _gains, windowed = _within_group_si(
-        LC, S, B, sn_mesh, inner_schedule=solver.inner_schedule,
+        system, sn_mesh, inner_schedule=solver.inner_schedule,
         max_iter=600, tol=1e-12,
     )
     # 1-D slab never windows (windowing is 2-D Cartesian) → interior=AngularFlux.

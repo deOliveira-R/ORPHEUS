@@ -15,7 +15,7 @@ The un-gate is safe because the 2-D fixed-source Krylov is the structural
 twin of two already-verified paths — the live 2-D *eigenvalue* Krylov
 inner (:meth:`SNSolver._solve_krylov`) and the geometry-agnostic 2-D
 *fixed-source SI* path — sharing the identical operator triple
-(:func:`_within_group_triple`) and Krylov driver
+(:func:`~orpheus.sn.coupled_system.build_within_group_system`) and Krylov driver
 (:func:`_within_group_krylov`), differing only in ``q_ext``.
 
 Two legs (vv-principles §three-pillars):

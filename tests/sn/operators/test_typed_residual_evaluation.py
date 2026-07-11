@@ -33,10 +33,10 @@ from orpheus.numerics.spaces import FullFieldSpace
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
+from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.solver import (
     SNSolver,
     _within_group_si,
-    _within_group_triple,
     boundary_vs_interior_split,
     evaluate_residual,
 )
@@ -61,9 +61,12 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod})
     solver = SNSolver(sn_mesh, inner_solver="source_iteration", scattering_order=1)
-    LC, S, B = _within_group_triple(solver)
+    system = build_within_group_system(
+        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+    )
+    LC, (S, B) = system.resolvent, system.gains  # seedless slab record shape
     si, _base, _gains, windowed = _within_group_si(
-        LC, S, B, sn_mesh, inner_schedule=solver.inner_schedule,
+        system, sn_mesh, inner_schedule=solver.inner_schedule,
         max_iter=600, tol=1e-12,
     )
     if windowed:
@@ -202,7 +205,10 @@ def _slab_2g_het_triple(nx: int = 12, n_ord: int = 8):
     solver = SNSolver(
         sn_mesh, inner_solver="source_iteration", scattering_order=1,
     )
-    LC, S, B = _within_group_triple(solver)
+    system = build_within_group_system(
+        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+    )
+    LC, (S, B) = system.resolvent, system.gains  # seedless slab record shape
     return solver, LC, S, B
 
 

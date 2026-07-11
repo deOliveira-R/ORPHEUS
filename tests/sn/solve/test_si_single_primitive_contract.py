@@ -39,6 +39,11 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.coupled_system import (
+    CoupledInvertibleOperator,
+    CoupledSweepOperator,
+)
+from orpheus.numerics.coupled_system import CoupledOperator
 from orpheus.sn.solver import SNSolver
 from orpheus.sn.operators.streaming import InvertibleOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
@@ -152,56 +157,64 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     L_fs, gains_fs = captured[-1]
 
     # ── Structural identity of the decomposition (no numerical tolerance) ──
-    # (1) The step operator is the INVERSE of (L + C) — a SweepOperator
-    # whose ``inner`` is the InvertibleOperator forward, same concrete
-    # types both paths (#226 taxonomy step 3: the solver builds the
-    # inverse, SourceIteration applies it — the forward identity moved
-    # one level in, onto ``.inner``).
-    assert isinstance(L_eig, SweepOperator)
-    assert isinstance(L_fs, SweepOperator)
-    assert isinstance(L_eig.inner, InvertibleOperator)
-    assert isinstance(L_fs.inner, InvertibleOperator)
+    carrying = sn_mesh.radial_characteristic_space is not None
+    # (1) The step operator is the INVERSE of M — since B.2d, on a carrying
+    # mesh the coupled joint sweep (CoupledSweepOperator over the
+    # CoupledInvertibleOperator bridge; the fused (L+C) rides ``.fused``);
+    # seedless, the plain SweepOperator over the InvertibleOperator. Same
+    # concrete types both paths (#226 taxonomy step 3: the solver builds the
+    # inverse, SourceIteration applies it).
+    if carrying:
+        assert isinstance(L_eig, CoupledSweepOperator)
+        assert isinstance(L_fs, CoupledSweepOperator)
+        assert isinstance(L_eig.inner, CoupledInvertibleOperator)
+        assert isinstance(L_eig.inner.fused, InvertibleOperator)
+        assert isinstance(L_fs.inner.fused, InvertibleOperator)
+    else:
+        assert isinstance(L_eig, SweepOperator)
+        assert isinstance(L_fs, SweepOperator)
+        assert isinstance(L_eig.inner, InvertibleOperator)
+        assert isinstance(L_fs.inner, InvertibleOperator)
     assert type(L_eig.inner) is type(L_fs.inner)
 
-    # (2) The coupling gains — SAME structural tuple both paths (Wave O O.2a:
-    # the honest (L+C, S, [A_BA,] B); the transitional S+B fold is RETIRED, B a
-    # SEPARATE gain). On a seed-carrying (curvilinear) mesh the gains ALSO carry
-    # A_BA — the scattering bulk→ray coupling as its OWN lagged gain (campaign
-    # step 4c, THE LIFT; user-ruled "own gain slot", the #208 pattern that
-    # separated B from S extended to the ψ½ ray). Both SI paths share it, so the
-    # single-primitive contract now pins the THREE-gain sphere shape too.
-    carrying = sn_mesh.radial_characteristic_space is not None
-    expected_n = 3 if carrying else 2
+    # (2) The coupling gains — SAME structural shape both paths. Since B.2d
+    # the record's splitting A = M − N: on a carrying mesh N is ONE
+    # CoupledOperator gain grid ``[[S+B_a, ∅],[Emission, B_b]]`` (the block-
+    # native successor of the step-4c "own gain slot" — the Emission is a
+    # grid BLOCK now, not a tuple entry); seedless, the (S, B_a) pair.
+    expected_n = 1 if carrying else 2
     assert len(gains_eig) == expected_n
     assert len(gains_fs) == expected_n
 
-    # (2a) gain 0 = S: the BULK scattering coupling.
-    S_eig, S_fs = gains_eig[0], gains_fs[0]
-    assert isinstance(S_eig, ScatteringOperator)
-    assert isinstance(S_fs, ScatteringOperator)
-
-    # (2b) On a carrying mesh, gain 1 = A_BA: the bulk→ray emission
-    # (RadialCharacteristicEmission = Fold∘K_iso∘integrate; SystemRole.COUPLED),
-    # riding the B.2b transient FullField-gain adapter (the block itself speaks
-    # System B's composite codomain — the wraps-predicate reads the wrapped
-    # ``_emission``). Absent on a seedless mesh (no ψ½ ray). Same primitive
-    # both paths.
     if carrying:
-        A_BA_eig, A_BA_fs = gains_eig[1], gains_fs[1]
+        # (2a/2b carrying) The ONE gain is the N grid; its (B,A) block is the
+        # bulk→ray Emission (Fold∘K_iso∘integrate) and the grid spans systems
+        # (SystemRole.COUPLED). Same structural grid both paths.
+        N_eig, N_fs = gains_eig[0], gains_fs[0]
+        assert isinstance(N_eig, CoupledOperator)
+        assert isinstance(N_fs, CoupledOperator)
+        assert N_eig.blocks[0][1] is None  # Seeding lives in M, never in N
         assert isinstance(
-            getattr(A_BA_eig, "_emission", None), RadialCharacteristicEmission)
+            N_eig.blocks[1][0], RadialCharacteristicEmission)
         assert isinstance(
-            getattr(A_BA_fs, "_emission", None), RadialCharacteristicEmission)
-        assert A_BA_eig.system_role is SystemRole.COUPLED
+            N_fs.blocks[1][0], RadialCharacteristicEmission)
+        assert N_eig.system_role is SystemRole.COUPLED
+    else:
+        # (2a seedless) gain 0 = S: the BULK scattering coupling.
+        S_eig, S_fs = gains_eig[0], gains_fs[0]
+        assert isinstance(S_eig, ScatteringOperator)
+        assert isinstance(S_fs, ScatteringOperator)
 
-    # (2c) last gain = B: the augmented BOUNDARY coupling. On a seed-carrying
-    # (sphere) mesh it is the direct sum B_a + B_b (System A trace ⊕ System B ray
-    # corner — an OperatorSum, RULING P1; the un-weld of the old welded
-    # SNBoundaryOperator). The |Ω·n|·w trace adjoint metric lives on B_a. The
-    # single-primitive contract: SI and eigenvalue share the SAME structural
-    # boundary primitive — same type both paths, carrying the BOUNDARY block-role
-    # (never folded into the bulk S).
-    B_eig, B_fs = gains_eig[-1], gains_fs[-1]
+    # (2c) the BOUNDARY coupling. RULING P1's per-system direct sum is
+    # STRUCTURAL since B.2d: on a carrying mesh B_a rides inside N's (A,A)
+    # sum and B_b sits at the (B,B) slot (the ray corner, BOUNDARY-role);
+    # seedless, the last gain is B_a itself. Same structural boundary
+    # primitive both paths (never folded into the bulk S).
+    if carrying:
+        B_eig = gains_eig[0].blocks[1][1]
+        B_fs = gains_fs[0].blocks[1][1]
+    else:
+        B_eig, B_fs = gains_eig[-1], gains_fs[-1]
     assert type(B_eig) is type(B_fs)
     assert B_eig.block_role is BlockRole.BOUNDARY
     assert B_fs.block_role is BlockRole.BOUNDARY

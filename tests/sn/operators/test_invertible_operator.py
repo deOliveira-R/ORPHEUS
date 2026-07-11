@@ -914,16 +914,17 @@ class TestInvertibleSolveBridgeRegression:
         # the un-weld of the old welded SNBoundaryOperator). B.apply(ψ) emits BOTH
         # the reflected trace AND the ψ½ corner arm, exactly the augmented −B the
         # production driver folds (this test replicates that fold by hand). On a
-        # seedless (slab/cylinder) mesh B is B_a alone. Mirrors _within_group_triple
-        # — incl. the B.2b transient adapter (the re-typed B_b speaks System B's
-        # composite spaces, which the OperatorSum guard correctly refuses to sum
-        # with B_a's FullField carrier).
-        from orpheus.sn.operators.boundary import _RayBoundaryFullFieldGain
+        # seedless (slab/cylinder) mesh B is B_a alone. The FUSED B_a + B_b sum
+        # rides the fused-oracle shim since B.2d (the re-typed B_b speaks
+        # System B's composite spaces, which the OperatorSum guard correctly
+        # refuses to sum with B_a's FullField carrier; production consumes the
+        # block natively through the gain grid).
+        from tests.sn._test_helpers import FusedRayBoundaryGain
 
         B_a = SNBoundaryOperator(sn_mesh)
         B = (
             B_a
-            + _RayBoundaryFullFieldGain(
+            + FusedRayBoundaryGain(
                 RadialCharacteristicBoundaryOperator(sn_mesh),
             )
             if sn_mesh.radial_characteristic_space is not None

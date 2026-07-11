@@ -532,12 +532,14 @@ def _full_loss_case(coord: CoordSystem, ng: int):
     if sn.radial_characteristic_space is not None:
         from orpheus.sn.operators.radial_characteristic import (
             RadialCharacteristicEmission,
-            _RayEmissionFullFieldGain,
         )
-        # B.2b: the FullField-composable face of the re-typed block is the
-        # transient gain adapter (the raw block's System-B codomain is not
-        # summable with the FullField operands — correctly, per the guard).
-        A = A - _RayEmissionFullFieldGain(
+        from tests.sn._test_helpers import FusedRayEmissionGain
+
+        # B.2d: the FullField-composable face of the re-typed block is the
+        # FUSED-spelling TEST ORACLE (the raw block's System-B codomain is not
+        # summable with the FullField operands — correctly, per the guard;
+        # production consumes the block natively through the gain grid).
+        A = A - FusedRayEmissionGain(
             RadialCharacteristicEmission(sn, S.isotropic_kernel),
         )
     return sn, A, S

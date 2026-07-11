@@ -41,7 +41,7 @@ mesh would override).
 
 See:
 - ``.claude/skills/vv-principles/SKILL.md`` (Mode 9 — splitting invariance).
-- :func:`orpheus.sn.solver._within_group_triple` / ``_select_si_resolvent``
+- :func:`orpheus.sn.coupled_system.build_within_group_system` / ``_select_si_resolvent``
   / ``_within_group_krylov`` — the operator triple + splittings under test.
 """
 from __future__ import annotations
@@ -55,11 +55,11 @@ from orpheus.geometry.coord import CoordSystem
 from orpheus.numerics.iteration import SourceIteration
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.solver import (
     SNSolver,
     _select_si_resolvent,
     _within_group_krylov,
-    _within_group_triple,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -191,7 +191,10 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
 
     sn = SNMesh(mesh, quad, {0: _make_1g_mixture(sigma_t, sigma_s)})
     solver = SNSolver(sn, max_inner=500, inner_tol=1e-13)
-    LC, S, B = _within_group_triple(solver)
+    system = build_within_group_system(
+        sn, solver.mat_xs, scattering_op=solver.scattering_op,
+    )
+    LC, (S, B) = system.resolvent, system.gains  # seedless record shape
     n_dof = quad.N * sn.ng * int(np.prod(sn.spatial_shape)) + int(sn.angular_trace.layout.total_size)
 
     face = "xmin"

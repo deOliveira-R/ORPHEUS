@@ -60,7 +60,7 @@ from orpheus.derivations.continuous.mms.sn import (
     build_cylindrical_mms_case,
 )
 from orpheus.sn.solver import (
-    SNSolver, _within_group_triple, _build_fixed_source_rhs, _as_sn_mesh,
+    SNSolver, _build_fixed_source_rhs, _as_sn_mesh,
 )
 from orpheus.sn.spatial.cell_balance import cell_balance_for_streaming
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -111,7 +111,13 @@ def _decompose(case, nc):
     V = sn_mesh.volumes                         # (nx,)
     sigma_t_gx = solver  # placeholder; pull from operator below
     # Pull σ_t the operator uses (within-group LC).
-    LC, S, B = _within_group_triple(solver)
+    # B.2d: the triple retired into build_within_group_system; this fused
+    # 3-block probe reads the production surfaces directly. B = B_a alone is
+    # bit-identical here: on vacuum cases the ray-corner B_b term is exactly
+    # zero, and B_a pads the ray slot present-zero like the retired composite.
+    from orpheus.sn.operators.boundary import SNBoundaryOperator
+    LC, S = solver.L, solver.scattering_op
+    B = SNBoundaryOperator(solver.sn_mesh)
     # The StreamingOperator carries sigma_t; reach it via M_spatial.
     L_op = LC  # OperatorSum (L+C); we need the StreamingOperator leaf's sigma_t
     sig_t_op = None

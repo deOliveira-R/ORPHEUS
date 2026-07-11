@@ -35,7 +35,7 @@ from __future__ import annotations
 import time
 from collections.abc import Iterable
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from scipy.sparse.linalg import gmres
@@ -46,6 +46,15 @@ from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
+from .coupled_system import (
+    CoupledInvertibleOperator,
+    WithinGroupSystem,
+    _fuse_coupled_state,
+    _split_fused_state,
+    _system_a_member,
+    _system_b_member,
+    build_within_group_system,
+)
 from .mesh.augmented_mesh import SNMesh
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
@@ -165,99 +174,18 @@ from .solution import IterationHistory, Solution
 # within-group fission enters as ``q_ext``, so no ``F = 0`` slot exists.
 
 
-def _within_group_triple(
-    solver: "SNSolver",
-) -> "tuple[InvertibleOperator, ScatteringOperator, LinearOperator[FullField, FullField]]":
-    r"""The within-group loss decomposition ``(L + C, S, B)`` — the invertible
-    resolvent plus its two lagged coupling gains.
-
-    ``B`` is the augmented boundary block: on a seed-carrying (1-D curvilinear)
-    mesh the direct sum ``B_a + B_b`` (System A trace ⊕ System B ray corner —
-    an :class:`~orpheus.numerics.operator.OperatorSum`); on a seedless mesh the
-    plain :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` (``B_a``).
-    Either way it is a boundary-role gain the driver consumes via ``.apply`` —
-    only the seedless multi-D-Cartesian G-S path calls ``.split()``, and there
-    ``B`` is always the plain ``SNBoundaryOperator`` (RULING P1).
-
-    Single source of truth (Cardinal Rule 2 / coding-elegance Pattern 2 + 5)
-    for the operators EVERY within-group solve consumes — eigenvalue SI
-    (:meth:`SNSolver._solve_source_iteration`), eigenvalue Krylov
-    (:meth:`SNSolver._solve_krylov`), fixed-source SI
-    (:func:`_solve_fixed_source_si`), and fixed-source Krylov
-    (:func:`_solve_fixed_source_krylov`).  The four solves differ ONLY in the
-    driver (:class:`SourceIteration` vs :class:`KrylovAcceleration`), the
-    ``q_ext`` (fission source vs external source), and the returned contract —
-    NOT in this decomposition.
-
-    The driver consumes them via the variadic ``Driver(resolvent, *gains)``
-    shape (Wave O #208 O.2a): the matvec is the honest ``(L + C).apply −
-    Σᵢ gᵢ.apply`` and the SI rhs is ``q_ext + Σᵢ gᵢ.apply(ψ)``. On a SEEDLESS
-    mesh the gains are ``(S, B)`` (matvec ≡ ``(L+C−S−B)·ψ``); on a SEED-CARRYING
-    mesh :func:`_lagged_gains` injects ``A_BA`` — the scattering bulk→ray coupling
-    (:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`)
-    as its OWN lagged gain (campaign step 4c, THE LIFT) — so the effective
-    within-group operator is ``(L + C − S − A_BA − B)``. This helper returns the
-    model-generic ``(L+C, S, B)``; the curvilinear ``A_BA`` layers on at the gain
-    seam (:func:`_lagged_gains`), NOT here.
-
-    * ``L + C`` is the :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
-      (``.apply`` = matvec, ``.solve`` = the WDD sweep) — the resolvent.
-    * ``S`` (:class:`~orpheus.transport.operators.scattering.ScatteringOperator`) is the BULK
-      scattering coupling.  Producer-side ``/W`` normalisation (R-1 Step 4 A1)
-      lives inside :meth:`ScatteringOperator.apply`; no consumer-side rescale.
-    * ``B`` (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`) is the
-      BOUNDARY reflective coupling, delivered as a SEPARATE first-class gain
-      (Wave O #208 O.2a — the transitional ``S + B`` fold is RETIRED).  Its
-      ``B·ψ.outflow`` lands on ``rhs.boundary``, which the bare
-      ``(L + C).solve`` sweep reads as the inflow seed.  ``B`` stays separate
-      from ``S`` because it lives on the trace — it cannot join the ``L + C``
-      preconditioner (a generic :class:`OperatorSum` is Green-realized) and the
-      cosine-weighted ``|Ω·n|·w`` adjoint metric (Wave O O.2) lives on ``B``'s
-      trace domain, not the bulk.
-
-    Within-group fission is zero (it enters as ``q_ext`` per the eigenvalue
-    outer / within-group decomposition), so there is no fission gain here.
-    """
-    from .operators.streaming import StreamingOperator
-    from .operators.boundary import (
-        RadialCharacteristicBoundaryOperator,
-        SNBoundaryOperator,
-        _RayBoundaryFullFieldGain,
-    )
-
-    sn_mesh = solver.sn_mesh
-    # L = pure σ-free streaming (#257 S8b): the streaming leaf reads no σ;
-    # the collision diagonal lives entirely in C = M[σ_t].
-    L = StreamingOperator(sn_mesh)
-    # C = M[σ_t] (#257 S3b promotion / #261 collapse): construct the
-    # diagonal multiplier from the typed CrossSectionField accessor (the
-    # field side of the operator promotion), not the raw ndarray view. The
-    # composite ``full_field_space`` lets the ``L + C`` OperatorSum guard
-    # VALIDATE the build (W-D); the mesh-identity invariant reads it back off
-    # ``C.coefficient.mesh``.
-    C = MultiplicationOperator(
-        coefficient=solver.mat_xs.total_cross_section_field,
-        space=sn_mesh.full_field_space,
-    )
-    # B = the augmented boundary block. On a seed-carrying (1-D curvilinear)
-    # mesh it is the DIRECT SUM B_a + B_b of the two per-system boundary
-    # operators (RULING P1): B_a = SNBoundaryOperator (System A trace), B_b =
-    # RadialCharacteristicBoundaryOperator (System B ray corner). On a seedless
-    # mesh B is B_a alone (no ray). The G-S split() path (multi-D Cartesian) is
-    # seedless BY CONSTRUCTION, so it always sees the plain SNBoundaryOperator —
-    # the schedule grading lives on B_a, never the composite (RULING P1
-    # corollary; this is what closes the ray-corner double-count).
-    boundary_a = SNBoundaryOperator(sn_mesh)
-    # B.2b: B_b is a true System B → System B block; the FullField-summed
-    # production ``B = B_a + B_b`` rides the TRANSIENT byte-identical adapter
-    # (retires at B.2d with the block-native driver).
-    boundary: "LinearOperator[FullField, FullField]" = (
-        boundary_a
-        + _RayBoundaryFullFieldGain(RadialCharacteristicBoundaryOperator(sn_mesh))
-        if sn_mesh.radial_characteristic_space is not None
-        else boundary_a
-    )
-    return (L + C, solver.scattering_op, boundary)
+# The former ``_within_group_triple`` (Wave O #208 O.2a) and its gain seam
+# ``_lagged_gains`` (campaign step 4c) RETIRED at B.2d d1: the within-group
+# decomposition every solve consumes — the loss grid AND its regular
+# splitting ``A = M − N`` — is constructed ONCE by
+# :func:`orpheus.sn.coupled_system.build_within_group_system` and shipped as
+# the :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record (which is
+# also what dissolved the builder's tracked construction twin). The triple's
+# composition contract (why ``B`` is a separate first-class gain, RULING P1
+# on the G-S split, the producer-side ``/W`` note) lives on the builder's
+# docstring now. The B.2b transient FullField-gain adapters
+# (``_RayEmissionFullFieldGain`` / ``_RayBoundaryFullFieldGain``) retired
+# with them — the coupled driver consumes System B's blocks natively.
 
 
 def evaluate_residual(
@@ -291,8 +219,9 @@ def evaluate_residual(
     Parameters
     ----------
     loss_op : LinearOperator
-        The within-group loss operator ``L + C - S - B`` (compose it from
-        :func:`_within_group_triple` as ``(L+C) - S - B``). ``loss_op.apply(psi)``
+        The within-group loss operator ``L + C - S - B`` (the A_AA block of
+        :func:`~orpheus.sn.coupled_system.build_within_group_system`'s loss
+        grid, or an equivalent composition). ``loss_op.apply(psi)``
         returns a ``FullField`` of source-role members (the matvec leaves are
         timeless ``FullField -> FullField`` arrows).
     psi : TimedFullField
@@ -381,19 +310,22 @@ def boundary_vs_interior_split(residual: "FullField") -> tuple[float, float]:
 
 
 def _within_group_krylov(
-    LC: "LinearOperator[FullField]", *gains: "LinearOperator[FullField]",
+    LC: "LinearOperator", *gains: "LinearOperator",
     n_dof: int, max_iter: int, tol: float,
-) -> "KrylovAcceleration[FullField]":
-    r"""GMRES driver on the within-group loss ``(L + C − S − [A_BA −] B)``.
+) -> "KrylovAcceleration[Any]":
+    r"""GMRES driver on the within-group system ``(M − N)·ψ = q``.
 
     Single source of truth (Cardinal Rule 2 / Phase 1 R2) for the
     :class:`~orpheus.numerics.iteration.KrylovAcceleration` construction shared
     by the eigenvalue (:meth:`SNSolver._solve_krylov`) and fixed-source
     (:func:`_solve_fixed_source_krylov`) Krylov paths — they previously built
-    byte-identical instances.  ``*gains`` are the lagged couplings (the
-    scattering ``S``, the boundary reflection ``B``, and — on a seed-carrying
-    mesh — the bulk→ray ``A_BA``; assembled by :func:`_lagged_gains` at the call
-    sites); the matvec is ``LC.apply − Σ gᵢ.apply``.
+    byte-identical instances.  The call sites pass the
+    :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record's splitting:
+    ``LC`` is ``M`` (the fused ``(L+C)`` seedless; the
+    :class:`~orpheus.sn.coupled_system.CoupledInvertibleOperator` on a
+    carrying mesh) and ``*gains`` is ``N`` (the ``(S, B_a)`` pair seedless;
+    the ONE coupled gain grid carrying); the matvec is
+    ``M.apply − Σ Nᵢ.apply``.
 
     GMRES is UNPRECONDITIONED (explicit identity) per `issue #200
     <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_ (the block-inverse
@@ -591,58 +523,22 @@ def _radial_characteristic_fission_seed(
     )
 
 
-def _lagged_gains(
-    S: "ScatteringOperator", B: "LinearOperator[FullField, FullField]",
-    sn_mesh: "SNMesh",
-) -> "tuple[LinearOperator[FullField], ...]":
-    r"""The within-group lagged coupling gains the SI/Krylov driver applies.
-
-    ``(S, A_BA, B)`` on a seed-carrying (1-D curvilinear) mesh; ``(S, B)`` on a
-    seedless mesh. ``A_BA`` is the scattering bulk→ray coupling
-    :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
-    (``= Fold ∘ K_iso ∘ integrate``) applied as its OWN lagged gain — the
-    user-ruled "own gain slot" (campaign step 4c, THE LIFT; the Wave-O #208
-    pattern that separated ``B`` from ``S``, extended to the ψ½ ray coupling).
-    It shares the isotropic emission kernel ``S`` uses (``S.isotropic_kernel``),
-    so the emission is single-sourced (the SI rhs / Krylov matvec computes
-    ``K_iso∘integrate`` once in ``S``'s bulk arm and once here — one shared
-    kernel object, not a twin). A seedless mesh has no ψ½ ray, hence no bulk→ray
-    coupling: ``A_BA`` is absent.
-
-    Single source of truth (Cardinal Rule 2) for the ``A_BA`` gain injection,
-    shared by the SI (:func:`_select_si_resolvent`, Jacobi arm) and the Krylov
-    (:meth:`SNSolver._solve_krylov` / :func:`_solve_fixed_source_krylov`) paths.
-    The boundary Gauss-Seidel arm never sees ``A_BA``: it is seedless multi-D
-    Cartesian by construction (RULING P1), and every seed-carrying mesh falls to
-    Jacobi (:func:`_select_si_resolvent`).
-    """
-    if sn_mesh.radial_characteristic_space is None:
-        return (S, B)
-    from orpheus.sn.operators.radial_characteristic import (
-        RadialCharacteristicEmission,
-        _RayEmissionFullFieldGain,
-    )
-    # B.2b: A_BA is a true System A → System B block; the FullField-gain sum
-    # rides the TRANSIENT byte-identical adapter (retires at B.2d).
-    a_ba = _RayEmissionFullFieldGain(
-        RadialCharacteristicEmission(sn_mesh, S.isotropic_kernel),
-    )
-    return (S, a_ba, B)
-
-
 def _select_si_resolvent(
     LC: "InvertibleOperator", S: "ScatteringOperator",
     B: "LinearOperator[FullField, FullField]",
     sn_mesh: "SNMesh", inner_schedule: str,
 ) -> "tuple[InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...]]":
-    r"""Pick the ``(resolvent, gains)`` for the within-group SI driver per
-    ``inner_schedule`` — the single source of truth for the Jacobi/G-S choice.
+    r"""Pick the ``(resolvent, gains)`` for the SEEDLESS within-group SI
+    driver per ``inner_schedule`` — the single source of truth for the
+    Jacobi/G-S choice.
 
-    * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, (S, [A_BA,] B))``: ``B`` lagged as
-      an external gain (inter-sweep Jacobi — every geometry). On a seed-carrying
-      (curvilinear) mesh the gains ALSO carry ``A_BA`` — the scattering bulk→ray
-      coupling as its OWN lagged gain (:func:`_lagged_gains`; campaign step 4c,
-      THE LIFT).
+    Seedless-only since B.2d: a seed-carrying mesh takes the coupled
+    block-native arm in :func:`_within_group_si` and never reaches this
+    selector (its M/N splitting is fixed by
+    :func:`~orpheus.sn.coupled_system.build_within_group_system`).
+
+    * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, (S, B_a))``: the boundary
+      lagged as an external gain (inter-sweep Jacobi — every geometry).
     * ``"gauss_seidel"`` on a multi-D Cartesian mesh →
       ``((L+C) - B_lower, (S, B_upper))``: the regular splitting
       ``(L+C−B) = M − B_upper`` (#226 §17 W2).  ``B`` splits under the
@@ -695,49 +591,53 @@ def _select_si_resolvent(
             )
         parts = B.split(SweepSchedule.gauss_seidel(sn_mesh))
         return LC - parts.lower, (S, parts.upper)
-    return LC, _lagged_gains(S, B, sn_mesh)
+    return LC, (S, B)
 
 
 def _within_group_si(
-    LC: "InvertibleOperator", S: "ScatteringOperator",
-    B: "LinearOperator[FullField, FullField]",
+    system: "WithinGroupSystem",
     sn_mesh: "SNMesh", *, inner_schedule: str, max_iter: int, tol: float,
-) -> "tuple[SourceIteration[FullField], InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...], bool]":
-    r"""SourceIteration driver on the within-group loss ``(L + C − S − [A_BA −] B)``.
+) -> "tuple[SourceIteration[Any], CoupledInvertibleOperator | InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator, ...], bool]":
+    r"""SourceIteration driver on the within-group system ``A = M − N``.
 
     Single source of truth (Cardinal Rule 2 / Phase 1 R1) for the
     :class:`~orpheus.numerics.iteration.SourceIteration` construction shared by
     the eigenvalue (:meth:`SNSolver._solve_source_iteration`) and fixed-source
     (:func:`_solve_fixed_source_si`) paths — the SI sibling of
-    :func:`_within_group_krylov`, bringing R1's SI collapse to the SAME builder
-    depth R2 reached for Krylov (both inner methods now have ONE construction
-    helper consumed by their eigenvalue + fixed-source sites).
+    :func:`_within_group_krylov` (both inner methods have ONE construction
+    helper consumed by their eigenvalue + fixed-source sites). Consumes the
+    :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record — the loss
+    and its splitting from the ONE construction site
+    (:func:`~orpheus.sn.coupled_system.build_within_group_system`).
 
-    Composes the THREE SI-construction concerns (#226 taxonomy step 3 —
-    "the solver builds the inverse operator; the driver applies it"):
+    Two structurally-dispatched arms (B.2d DP-seedless — the coupled
+    carrier appears exactly where System B exists):
 
-    * the schedule splitting (:func:`_select_si_resolvent`) — Jacobi
-      ``(L+C, (S, B))`` (``B`` lagged as an external gain) or boundary
-      Gauss-Seidel ``(M = (L+C)−B_lower, (S, B_upper))`` (multi-D
-      Cartesian; #226 §17 W2);
-    * the INVERSE build — ``base_resolvent.inverse()``, the
-      :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` the
-      driver steps through;
-    * the Phase-5a angular-windowing composition (:func:`_maybe_window`)
-      — 2-D Cartesian holds the iterate as harmonic moments via
-      ``P @ A.inverse()``.
+    * **coupled** (the record's ``resolvent`` is the
+      :class:`~orpheus.sn.coupled_system.CoupledInvertibleOperator` — a
+      seed-carrying 1-D curvilinear mesh): the block-native driver
+      ``ψ ← M⁻¹(q + N·ψ)`` on the ``CoupledField [ψ_A, ψ_B]`` iterate.
+      Never windowed (carrying ⟹ 1-D, R12a) and never schedule-split
+      (G-S is multi-D Cartesian ⟹ seedless, RULING P1) — both machineries
+      are bypassed structurally, and ``inner_schedule`` is inert here (the
+      1-D Jacobi fallback the seedless arm spells explicitly).
+    * **seedless**: exactly the pre-B.2d composition — the schedule
+      splitting (:func:`_select_si_resolvent`, Jacobi vs boundary-G-S),
+      the INVERSE build (``base_resolvent.inverse()`` — the
+      :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`), and
+      the Phase-5a angular-windowing composition (:func:`_maybe_window` —
+      2-D Cartesian holds the iterate as harmonic moments via
+      ``P @ A.inverse()``).
 
     Returns ``(si, base_resolvent, gains, windowed)``:
 
-    * ``si`` — the :class:`SourceIteration` primitive (its step operator
-      moment-windowed when 2-D Cartesian);
-    * ``base_resolvent`` — the un-inverted FORWARD (the fixed-source path
-      needs it for the one-shot full-angular reconstruction of
+    * ``si`` — the :class:`SourceIteration` primitive;
+    * ``base_resolvent`` — the un-inverted FORWARD ``M`` (the fixed-source
+      path needs it for the one-shot full-angular reconstruction of
       ``Solution.angular_flux``);
-    * ``gains`` — the lagged couplings (``(S, [A_BA,] B)`` Jacobi — ``A_BA`` the
-      curvilinear bulk→ray gain injected by :func:`_lagged_gains` on a
-      seed-carrying mesh — / ``(S, B_upper)`` G-S), also needed to rebuild the
-      converged source for that reconstruction;
+    * ``gains`` — the lagged couplings ``N`` actually driven (the record's,
+      except the G-S arm's re-split ``(S, B_upper)``), also needed to
+      rebuild the converged source for that reconstruction;
     * ``windowed`` — whether the iterate is the moment representation (2-D
       Cartesian) vs full-angular (curvilinear / 1-D).
 
@@ -746,12 +646,27 @@ def _within_group_si(
     <https://github.com/deOliveira-R/ORPHEUS/issues/218>`_ closed the
     eigenvalue-inner gap; the eigenvalue path reads ``SNSolver.inner_schedule``,
     the fixed-source path its ``inner_schedule`` argument).
-    ``_select_si_resolvent`` auto-falls-back to Jacobi on 1-D / curvilinear.
     """
     from orpheus.numerics.iteration import SourceIteration
 
+    if isinstance(system.resolvent, CoupledInvertibleOperator):
+        # The ψ½ coupled block-native arm (B.2d): the record's splitting IS
+        # the driver's — M⁻¹ = the joint sweep, N = the coupled gain grid.
+        si = SourceIteration(
+            system.resolvent.inverse(), *system.gains,
+            max_iter=max_iter, tol=tol,
+        )
+        return si, system.resolvent, system.gains, False
+    # Seedless: the record's gains are the (S, B_a) pair — loud on drift.
+    S, B = system.gains
+    if not isinstance(S, ScatteringOperator):
+        raise TypeError(
+            f"_within_group_si: the seedless record's first gain must be "
+            f"the ScatteringOperator (the builder's (S, B_a) convention); "
+            f"got {type(S).__name__}."
+        )
     base_resolvent, gains = _select_si_resolvent(
-        LC, S, B, sn_mesh, inner_schedule,
+        system.resolvent, S, B, sn_mesh, inner_schedule,
     )
     step, windowed = _maybe_window(base_resolvent.inverse(), S, sn_mesh)
     si = SourceIteration(step, *gains, max_iter=max_iter, tol=tol)
@@ -1287,8 +1202,16 @@ class SNSolver:
                 "without it would silently drop leakage (#291)."
             )
         rate = 0.0
+        trace = _system_a_member(psi).boundary  # System A carries the trace
+        # #289-F2 role parse: the widened FullField.boundary slot erases the
+        # family; the SN leakage read needs the ANGULAR trace's net_current.
+        if not isinstance(trace, AngularBoundaryFlux):
+            raise TypeError(
+                f"compute_keff: the converged iterate's trace must be an "
+                f"AngularBoundaryFlux; got {type(trace).__name__}."
+            )
         for face in vacuum_faces:
-            net_current = psi.boundary.net_current(face)  # (ng, *face_spatial)
+            net_current = trace.net_current(face)  # (ng, *face_spatial)
             rate += float(np.sum(net_current * self._face_area_of(face)))
         reference = IntegratedReactionRate(
             self.mat_xs.fission_production_field
@@ -1387,7 +1310,8 @@ class SNSolver:
         (``LC = StreamingOperator + MultiplicationOperator`` — the collision
         multiplier ``C = M[σ_t]`` — plus the
         scattering ``S`` and boundary ``B`` coupling gains —
-        :func:`_within_group_triple`, zero within-group fission), identical
+        :func:`~orpheus.sn.coupled_system.build_within_group_system`, zero
+        within-group fission), identical
         ``psi_typed.interior.integrate_angular()`` reduction — differing
         ONLY in the driver (:class:`SourceIteration` vs
         :class:`KrylovAcceleration`), and neither driver carries any
@@ -1443,8 +1367,8 @@ class SNSolver:
         # Wave O (#208) O.4a.2 — the partner-flux seeding
         # (``boundary = self._boundary_flux``) is RETIRED: the reflective
         # inflow is no longer pre-staged into the source.  It is driven by
-        # the sibling ``−B`` delivered as a SEPARATE coupling gain (O.2a —
-        # ``_within_group_triple`` returns ``(L+C, S, B)``): each SI iterate
+        # the sibling ``−B`` delivered as a SEPARATE coupling gain (O.2a;
+        # since B.2d the system record's ``gains``): each SI iterate
         # adds ``B·ψ.outflow`` to ``rhs.boundary``, which ``(L+C).solve``'s
         # bare sweep reads as the inflow seed (operator.py
         # ``_solve_timed_full_field`` seeds from ``rhs.boundary``).  The
@@ -1467,50 +1391,60 @@ class SNSolver:
             history_depth=2,
         )
 
-        # ── Build the within-group operator triple (single source of
-        # truth — ``_within_group_triple``; shared with the Krylov and
-        # fixed-source paths). ───────────────────────────────────────
-        LC, S, B = _within_group_triple(self)
-        # ONE SI builder shared with the fixed-source path (R1 brought to the
-        # same depth as Krylov's R2 / :func:`_within_group_krylov`).  ``#218``:
-        # the eigenvalue inner now honours ``self.inner_schedule`` (default
-        # boundary-G-S on 2-D Cartesian — same accelerator the fixed-source
-        # path got in Phase 3; ``_select_si_resolvent`` auto-falls-back to
-        # Jacobi on 1-D / curvilinear).  Phase-5a angular-windowing folds in via
-        # :func:`_maybe_window` inside the builder.
+        # ── Build the within-group system (single source of truth —
+        # :func:`~orpheus.sn.coupled_system.build_within_group_system`;
+        # shared with the Krylov and fixed-source paths; the solver's
+        # cached scattering operator injects through the cache seam).
+        # ``#218``: the eigenvalue inner honours ``self.inner_schedule``
+        # (default boundary-G-S on 2-D Cartesian; the coupled arm and 1-D
+        # fall to Jacobi structurally).  Phase-5a angular-windowing folds
+        # in via :func:`_maybe_window` inside the SI builder. ──────────
+        system = build_within_group_system(
+            self.sn_mesh, self.mat_xs, scattering_op=self.scattering_op,
+        )
         si, _base, _gains, windowed = _within_group_si(
-            LC, S, B, self.sn_mesh,
+            system, self.sn_mesh,
             inner_schedule=self.inner_schedule,
             max_iter=self.max_inner, tol=self.inner_tol,
         )
+        # B.2d DP-seedless: the coupled pair appears exactly where System B
+        # exists; the seedless paths (windowed 2-D, G-S) stay fused.
+        coupled = isinstance(system.resolvent, CoupledInvertibleOperator)
 
-        # ── Warm start (composite) ──────────────────────────────────
+        # ── Warm start (composite / coupled pair) ───────────────────
         # SourceIteration threads the previous iterate to the inverse
         # operator's ``apply`` via the explicit ``initial_guess`` kwarg
-        # (the M-M closure's ``psi_half_seed`` strategy reads it to
-        # derive the Carlson coupled-pole seed; the previous iterate's
-        # boundary trace seeds the reflective-BC partner-flux state —
-        # pinned by the seed-threading spy).  Post-D-H.1c stage 2
-        # ``self._psi_typed`` is a :class:`TimedFullField`; the type
-        # propagates through the iteration primitive via the ravellable
-        # protocol.
+        # (accepted-and-dropped by the direct sweeps since #282/2.5d; the
+        # previous iterate's boundary trace seeds the reflective-BC
+        # partner-flux state — pinned by the seed-threading spy).
+        # Post-B.2d ``self._psi_typed`` is a CoupledField on a carrying
+        # mesh (the previous inner's converged pair — already split) and
+        # a :class:`TimedFullField` elsewhere; both propagate through the
+        # iteration primitive via the ravellable protocol.
         initial_guess = getattr(self, "_psi_typed", None)
         if initial_guess is None:
             # B.5.2: cold-start iterate is an all-zeros FLUX composite,
             # decoupled from q_ext's AngularSourceSink type.  Phase 5a: when
             # windowed the bulk is a zero HarmonicMomentFlux (single-sourced
-            # in :func:`_windowed_cold_start`); else a zero AngularFlux.
+            # in :func:`_windowed_cold_start`); else a zero AngularFlux —
+            # split into the coupled pair on a carrying mesh (the
+            # transitional d1 birth seam; goes native at d2).
             if windowed:
                 initial_guess = _windowed_cold_start(
-                    S, self.sn_mesh, history_depth=2,
+                    self.scattering_op, self.sn_mesh, history_depth=2,
                 )
             else:
-                initial_guess = _unwindowed_cold_start(
-                    self.sn_mesh, history_depth=2,
+                cold = _unwindowed_cold_start(self.sn_mesh, history_depth=2)
+                initial_guess = (
+                    _split_fused_state(cold, self.sn_mesh) if coupled else cold
                 )
 
+        q_driver = (
+            _split_fused_state(q_ext_composite, self.sn_mesh)
+            if coupled else q_ext_composite
+        )
         psi_typed, _residuals = si.solve(
-            q_ext_composite, initial_guess=initial_guess,
+            q_driver, initial_guess=initial_guess,
         )
         # Phase 3 measurement seam: accumulate this outer step's inner SI
         # iterate count (the eigenvalue path's only window onto the inner
@@ -1530,7 +1464,7 @@ class SNSolver:
             HarmonicMomentFlux,
         )
 
-        bulk = psi_typed.interior
+        bulk = _system_a_member(psi_typed).interior
         if windowed:
             if not isinstance(bulk, HarmonicMomentFlux):
                 raise TypeError(
@@ -1636,43 +1570,56 @@ class SNSolver:
             history_depth=2,
         )
 
-        # ── Warm start (composite) — built BEFORE the driver so the
-        # GMRES restart is sized from the FULL composite ravel. ───────
-        # Post-D-H.1c stage 2: ``self._psi_typed`` is a TimedFullField;
-        # the Krylov ravellable protocol detects the composite via
-        # ``to_flat`` / ``from_flat`` (D-H.1b.1) and threads it through
-        # the matvec / unravel cycle natively.
+        # ── Build the within-group system (single source of truth —
+        # :func:`~orpheus.sn.coupled_system.build_within_group_system` /
+        # ``_within_group_krylov``; shared with the SI and fixed-source
+        # paths; the cached scattering operator injects through the cache
+        # seam). ──────────────────────────────────────────────────────
+        system = build_within_group_system(
+            self.sn_mesh, self.mat_xs, scattering_op=self.scattering_op,
+        )
+        coupled = isinstance(system.resolvent, CoupledInvertibleOperator)
+
+        # ── Warm start (composite / coupled pair) — built BEFORE the
+        # driver so the GMRES restart is sized from the FULL ravel. ───
+        # Post-B.2d ``self._psi_typed`` is a CoupledField on a carrying
+        # mesh and a TimedFullField elsewhere; the Krylov ravellable
+        # protocol detects either via ``to_flat`` / ``from_flat``
+        # (D-H.1b.1) and threads it through the matvec / unravel cycle
+        # natively.
         initial_guess = getattr(self, "_psi_typed", None)
         if initial_guess is None:
             # B.5.2: cold-start iterate is a FLUX composite, decoupled from
             # q_ext's now-AngularSourceSink type.  x0 stays all-zeros
-            # (bit-identical); the flux template fixes the Krylov return type.
-            initial_guess = TimedFullField.zeros(
+            # (bit-identical); the flux template fixes the Krylov return
+            # type — split into the coupled pair on a carrying mesh (the
+            # transitional d1 birth seam; goes native at d2).
+            cold = TimedFullField.zeros(
                 interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=self.sn_mesh,
                 radial_characteristic=RadialCharacteristicFlux,
             )
+            initial_guess = (
+                _split_fused_state(cold, self.sn_mesh) if coupled else cold
+            )
 
-        # ── Build the within-group operator triple + Krylov driver
-        # (single source of truth — ``_within_group_triple`` /
-        # ``_within_group_krylov``; shared with the SI and fixed-source
-        # paths). ─────────────────────────────────────────────────────
-        # ERR-053 (#282 route (a)): ``restart`` MUST cover the FULL composite
-        # ravel — bulk ⊕ trace ⊕ ψ½-seed — NOT the bulk alone.  The seed
-        # block (R12a curvilinear) grows ``to_flat`` past the bulk count, and
-        # a bulk-sized restart re-truncates GMRES on the trace+seed DOFs (the
-        # sphere Krylov stall).  Size it from the composite the driver ravels.
-        LC, S, B = _within_group_triple(self)
-        # Own-slot ψ½ coupling (step 4c): on a seed-carrying mesh the lagged
-        # gains carry A_BA (the scattering bulk→ray emission) beside S and B —
-        # the matvec subtracts every gain, so GMRES lags A_BA identically.
+        # ERR-053 (#282 route (a)): ``restart`` MUST cover the FULL ravel —
+        # bulk ⊕ trace ⊕ ψ½ (both systems on the coupled pair; the
+        # CoupledField ``to_flat`` concatenates them, so the sizing tracks
+        # automatically — the B.2a conformance closure).  A bulk-sized
+        # restart re-truncates GMRES on the trace+seed DOFs (the sphere
+        # Krylov stall).  Size it from the state the driver ravels.
         krylov = _within_group_krylov(
-            LC, *_lagged_gains(S, B, self.sn_mesh),
+            system.resolvent, *system.gains,
             n_dof=int(initial_guess.to_flat().size),
             max_iter=self.max_inner, tol=self.inner_tol,
         )
 
+        q_driver = (
+            _split_fused_state(q_ext_composite, self.sn_mesh)
+            if coupled else q_ext_composite
+        )
         psi_typed, _residuals = krylov.solve(
-            q_ext_composite, initial_guess=initial_guess,
+            q_driver, initial_guess=initial_guess,
         )
         # Phase 3 measurement seam: accumulate this outer step's inner
         # Krylov iterate count (see IterationHistory.total_inner_iterations).
@@ -1682,7 +1629,7 @@ class SNSolver:
         # Reduce angular → scalar flux for the eigenvalue outer's contract.
         # The parse reifies the driver-template contract (the solve echoes
         # the flux initial_guess) loudly on mismatch.
-        bulk = psi_typed.interior
+        bulk = _system_a_member(psi_typed).interior
         if not isinstance(bulk, AngularFlux):
             raise TypeError(
                 f"eigenvalue Krylov iterate must carry an AngularFlux bulk "
@@ -1831,8 +1778,9 @@ def _reflect_outflow_into_inflow(
     This is the TWIN of the driver route: the within-group SI/Krylov drivers
     deliver the SAME ``−B`` coupling via the SAME
     :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`, as a first-class
-    coupling gain (Wave O O.2a — :func:`_within_group_triple` returns
-    ``(L+C, S, B)``).  The two differ only in plumbing: this helper writes the
+    coupling gain (Wave O O.2a — since B.2d the
+    :func:`~orpheus.sn.coupled_system.build_within_group_system` record's
+    ``gains``).  The two differ only in plumbing: this helper writes the
     buffer's inflow slots directly; the driver's ``B`` gain rides
     ``B·ψ.outflow`` in ``rhs.boundary``.  The DRIVER route no longer needs this
     helper (O.2a collapsed it); it survives for the final eigenvalue
@@ -2009,10 +1957,20 @@ def solve_sn(
     # into the inflow slots via −B (no-op for vacuum; idempotent here since the
     # converged inflow already equals ``B·ψ.outflow``), then sweep.
     converged = getattr(solver, "_psi_typed", None)
+    # B.2d: the converged iterate is the coupled pair on a carrying mesh;
+    # System A carries the trace, System B the converged ψ½ state.
+    converged_a = _system_a_member(converged) if converged is not None else None
     final_boundary = (
-        converged.boundary if converged is not None
+        converged_a.boundary if converged_a is not None
         else _BoundaryFlux.zeros_on(sn_mesh)
     )
+    # #289-F2 role parse: the reconstruction sweep seeds its inflow from the
+    # ANGULAR trace; the widened composite slot erases the family.
+    if not isinstance(final_boundary, _BoundaryFlux):
+        raise TypeError(
+            f"eigenvalue finalize: the converged trace must be an "
+            f"AngularBoundaryFlux; got {type(final_boundary).__name__}."
+        )
     # #282 route (a): the reconstruction sweep's ψ½ pair on a carrying
     # mesh — q½ = the ℓ = 0 fold of the converged total source; the
     # carrier pre-loads the converged outflow corner so the corner
@@ -2022,10 +1980,11 @@ def solve_sn(
         q_final_per_ord.values, sn_mesh,
     )
     final_seed_buf = _radial_characteristic_zeros(sn_mesh)
-    if final_seed_buf is not None and converged is not None and (
-        converged.radial_characteristic is not None
-    ):
-        final_seed_buf.values[...] = converged.radial_characteristic.values
+    converged_ray = (
+        _system_b_member(converged) if converged is not None else None
+    )
+    if final_seed_buf is not None and converged_ray is not None:
+        final_seed_buf.values[...] = converged_ray.to_unified().values
     # Wave O #208 O.4b Phase E2 — the 2-D wavefront is now BARE (reads the
     # given inflow, no in-sweep bc.apply), so the reflective coupling is the
     # external -B for 2-D too.  The guard is lifted: _reflect_outflow_into_inflow
@@ -2519,7 +2478,7 @@ def _solve_fixed_source_si(
     recomputes the IDENTICAL ``(P0 in-scatter + (n,2n))/W + Pℓ`` bulk source,
     and the boundary gain ``B``
     (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`, a first-class
-    coupling in :func:`_within_group_triple`) delivers the reflective
+    coupling in the within-group system record) delivers the reflective
     ``B·ψ.outflow`` through ``rhs.boundary`` which the bare ``(L + C).solve``
     sweep reads as the inflow seed (single source of truth — Cardinal Rule 2).  The whole-trace
     :func:`_reflect_outflow_into_inflow` route is no longer needed on this
@@ -2557,40 +2516,55 @@ def _solve_fixed_source_si(
     # (n,2n)) is NOT pre-staged — the primitive's ``S`` operator recomputes
     # it each iterate.
 
-    # ── Build the within-group SI via the SHARED builder (single source of
-    # truth — :func:`_within_group_si`, the SI sibling of
-    # ``_within_group_krylov``; identical construction to the eigenvalue
-    # inner).  ``inner_schedule`` selects Jacobi vs boundary-G-S; the builder
-    # folds in the Phase-5a angular-windowing.  ``base_resolvent`` (un-wrapped)
-    # + ``gains`` are kept for the final full-angular reconstruction below. ───
-    LC, S, B = _within_group_triple(solver)
+    # ── Build the within-group system + SI via the SHARED builders (single
+    # source of truth — :func:`~orpheus.sn.coupled_system.build_within_group_system`
+    # / :func:`_within_group_si`; identical construction to the eigenvalue
+    # inner).  ``inner_schedule`` selects Jacobi vs boundary-G-S; the SI
+    # builder folds in the Phase-5a angular-windowing.  ``base_resolvent``
+    # (un-wrapped) + ``gains`` are kept for the final full-angular
+    # reconstruction below. ────────────────────────────────────────────
+    system = build_within_group_system(
+        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+    )
     si, base_resolvent, gains, windowed = _within_group_si(
-        LC, S, B, sn_mesh,
+        system, sn_mesh,
         inner_schedule=inner_schedule, max_iter=max_inner, tol=inner_tol,
     )
+    coupled = isinstance(system.resolvent, CoupledInvertibleOperator)
 
     # Cold-start iterate (x0 = zeros).  Fixed-source is a single solve — no
     # eigenvalue outer to warm-start from (cf. the eigenvalue inner's
     # ``self._psi_typed``).  Windowed → zero moments (single-sourced in
-    # :func:`_windowed_cold_start`); else a zero AngularFlux.
+    # :func:`_windowed_cold_start`); else a zero AngularFlux — split into
+    # the coupled pair on a carrying mesh (the transitional d1 birth seam).
     if windowed:
         initial_guess = _windowed_cold_start(
-            S, sn_mesh, history_depth=q_ext_composite.history_depth,
+            solver.scattering_op, sn_mesh,
+            history_depth=q_ext_composite.history_depth,
         )
     else:
-        initial_guess = _unwindowed_cold_start(
+        cold = _unwindowed_cold_start(
             sn_mesh, history_depth=q_ext_composite.history_depth,
         )
-    psi_typed, residuals = si.solve(
-        q_ext_composite, initial_guess=initial_guess,
+        initial_guess = _split_fused_state(cold, sn_mesh) if coupled else cold
+    q_driver = (
+        _split_fused_state(q_ext_composite, sn_mesh)
+        if coupled else q_ext_composite
     )
+    psi_typed, residuals = si.solve(
+        q_driver, initial_guess=initial_guess,
+    )
+    # Re-fuse the coupled pair for the Solution contract (unchanged at d1:
+    # ``Solution.angular_flux`` carries the converged ψ½ in its slot until
+    # the d2 eviction re-homes it onto ``Solution.radial_characteristic``).
+    psi_full = _fuse_coupled_state(psi_typed, sn_mesh) if coupled else psi_typed
     # The parse reifies the driver-template contract (the solve echoes the
-    # TimedFullField initial_guess) — the static iterate type is the
-    # operators' ``FullField`` carrier, re-narrowed here loudly.
-    if not isinstance(psi_typed, TimedFullField):
+    # TimedFullField initial_guess member) — the static iterate type is the
+    # operators' carrier, re-narrowed here loudly.
+    if not isinstance(psi_full, TimedFullField):
         raise TypeError(
             f"fixed-source SI: the converged iterate must echo the timed "
-            f"template; got {type(psi_typed).__name__}."
+            f"template; got {type(psi_full).__name__}."
         )
     converged_flag = bool(residuals) and residuals[-1] < inner_tol
     flux_residuals = [float(r) for r in residuals]
@@ -2618,14 +2592,26 @@ def _solve_fixed_source_si(
     # (de-risk proven), so the source is the same, and one sweep of the
     # converged source reproduces the converged iterate by the fixed point.
     if windowed:
+        # Windowed ⟹ 2-D Cartesian ⟹ seedless (R12a): the iterate is the
+        # fused composite (``psi_full IS psi_typed`` here) and the resolvent
+        # is never the coupled bridge — the parse states the structural
+        # fact loudly instead of assuming it.
+        if isinstance(base_resolvent, CoupledInvertibleOperator):
+            raise TypeError(
+                "windowed reconstruction reached a coupled resolvent — "
+                "structurally unreachable (windowing is 2-D Cartesian, "
+                "seedless; the coupled arm never windows)."
+            )
         rhs_final = q_ext_composite
         for gain in gains:
-            rhs_final = rhs_final + gain.apply(psi_typed)
+            rhs_final = rhs_final + gain.apply(psi_full)
         angular_out = base_resolvent.inverse().apply(
-            rhs_final, initial_guess=psi_typed,
+            rhs_final, initial_guess=psi_full,
         )
     else:
-        angular_out = psi_typed
+        # Un-windowed: the (re-fused) converged iterate IS the full
+        # per-ordinate angular flux.
+        angular_out = psi_full
     # Scalar flux from the RETURNED full angular flux → the Solution is exactly
     # self-consistent (``scalar == ∫ angular dΩ``), matching the un-windowed
     # contract.  (For the un-windowed path ``angular_out`` IS ``psi_typed``, so
@@ -2712,8 +2698,8 @@ def _solve_fixed_source_krylov(
     ALL geometries — slab, sphere, cylinder, AND 2-D Cartesian (Phase 1
     "gap" un-gate, 2026-06-04).  The 2-D Cartesian fixed-source Krylov is
     the structural twin of the live 2-D eigenvalue Krylov inner
-    :meth:`SNSolver._solve_krylov`: identical operator triple
-    (:func:`_within_group_triple`) and identical
+    :meth:`SNSolver._solve_krylov`: identical within-group system
+    (:func:`~orpheus.sn.coupled_system.build_within_group_system`) and identical
     :class:`~orpheus.numerics.iteration.KrylovAcceleration` driver
     (:func:`_within_group_krylov`), differing ONLY in ``q_ext`` (the
     external source here vs the fission source there) — and it is the twin
@@ -2751,43 +2737,55 @@ def _solve_fixed_source_krylov(
     # from the FULL composite ravel) fixes the Krylov solution_template (the
     # return type); x0 stays all-zeros (bit-identical to the prior cold start).
     # The template carries the φ̂ moment axis at a multi-moment closure AND the
-    # ψ½-seed tail on a carrying mesh (the ravel keys on its ``to_flat``).
+    # ψ½ state on a carrying mesh (the ravel keys on its ``to_flat``).
     krylov_cold_start = _unwindowed_cold_start(
         sn_mesh, history_depth=q_ext_composite.history_depth,
     )
 
-    # ── Build the within-group operator triple + Krylov driver (single
-    # source of truth — ``_within_group_triple`` / ``_within_group_krylov``;
-    # shared with the eigenvalue Krylov + SI paths). ──────────────────
-    # ERR-053 (#282 route (a)): ``restart`` MUST cover the FULL composite
-    # ravel — bulk ⊕ trace ⊕ ψ½-seed — NOT the bulk alone (the seed block
-    # grows ``to_flat`` past the bulk count on a carrying mesh; a bulk-sized
-    # restart re-truncates GMRES on the trace+seed DOFs).  Size it from the
-    # cold-start composite the driver ravels (the multi-moment φ̂ axis + the
-    # trace + the seed all track automatically through ``to_flat``).
-    LC, S, B = _within_group_triple(solver)
-    # Own-slot ψ½ coupling (step 4c): seed-carrying meshes lag A_BA (the
-    # scattering bulk→ray emission) beside S and B (:func:`_lagged_gains`).
+    # ── Build the within-group system + Krylov driver (single source of
+    # truth — :func:`~orpheus.sn.coupled_system.build_within_group_system` /
+    # ``_within_group_krylov``; shared with the eigenvalue Krylov + SI
+    # paths; the cached scattering operator injects through the cache
+    # seam). ──────────────────────────────────────────────────────────
+    # ERR-053 (#282 route (a)): ``restart`` MUST cover the FULL ravel —
+    # bulk ⊕ trace ⊕ ψ½ (both systems on the coupled pair — the
+    # CoupledField ``to_flat`` concatenates them, the B.2a conformance
+    # closure).  A bulk-sized restart re-truncates GMRES on the trace+seed
+    # DOFs.  Size it from the state the driver ravels (the multi-moment φ̂
+    # axis + the trace + the ψ½ state all track automatically).
+    system = build_within_group_system(
+        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+    )
+    coupled = isinstance(system.resolvent, CoupledInvertibleOperator)
+    q_driver = q_ext_composite
+    if coupled:
+        # The transitional d1 birth seam (goes native at d2).
+        krylov_cold_start = _split_fused_state(krylov_cold_start, sn_mesh)
+        q_driver = _split_fused_state(q_ext_composite, sn_mesh)
     krylov = _within_group_krylov(
-        LC, *_lagged_gains(S, B, solver.sn_mesh),
+        system.resolvent, *system.gains,
         n_dof=int(krylov_cold_start.to_flat().size),
         max_iter=max_inner, tol=inner_tol,
     )
 
     psi_typed, residuals = krylov.solve(
-        q_ext_composite, initial_guess=krylov_cold_start,
+        q_driver, initial_guess=krylov_cold_start,
     )
+    # Re-fuse the coupled pair for the Solution contract (unchanged at d1:
+    # ``Solution.angular_flux`` carries the converged ψ½ in its slot until
+    # the d2 eviction re-homes it onto ``Solution.radial_characteristic``).
+    psi_full = _fuse_coupled_state(psi_typed, sn_mesh) if coupled else psi_typed
     # D-H.1c stage 2 — the Krylov ravellable protocol unravels back to the
     # SOLUTION TEMPLATE (the flux ``initial_guess``), so the driver's static
-    # iterate type (``FullField`` — the operators' carrier) re-narrows to
-    # the timed flux composite here. The parse reifies that template
-    # contract loudly instead of assuming it.
-    if not isinstance(psi_typed, TimedFullField):
+    # iterate type (the operators' carrier) re-narrows to the timed flux
+    # composite here. The parse reifies that template contract loudly
+    # instead of assuming it.
+    if not isinstance(psi_full, TimedFullField):
         raise TypeError(
             f"fixed-source Krylov: the converged iterate must echo the "
-            f"timed flux template; got {type(psi_typed).__name__}."
+            f"timed flux template; got {type(psi_full).__name__}."
         )
-    bulk = psi_typed.interior
+    bulk = psi_full.interior
     if not isinstance(bulk, AngularFlux):
         raise TypeError(
             f"fixed-source Krylov: the converged iterate must carry an "
@@ -2802,7 +2800,7 @@ def _solve_fixed_source_krylov(
     flux_residuals = [float(r) for r in residuals]
 
     # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
-    # R-1 Step 4 G1 — ``psi_typed`` carries the Krylov-converged
+    # R-1 Step 4 G1 — ``psi_full`` carries the Krylov-converged
     # composite with the matvec's B1'' face residual on its boundary;
     # reuse directly. (The former mesh / quadrature / materials
     # parameters retired in C4 — Solution never consumed them.)
@@ -2812,10 +2810,10 @@ def _solve_fixed_source_krylov(
         total_inner_iterations=n_outer + 1,
         converged=converged_flag,
     )
-    # D-H.1c stage 2 (2026-05-28): psi_typed IS already a TimedFullField;
+    # D-H.1c stage 2 (2026-05-28): psi_full IS already a TimedFullField;
     # no adapter wrap at the Solution boundary.
     return Solution(
-        angular_flux=psi_typed,
+        angular_flux=psi_full,
         scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
         mesh=sn_mesh,
         keff=None,

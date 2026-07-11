@@ -271,7 +271,7 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
     landed on the driver, not the leaf.
     """
     from orpheus.numerics.iteration import SourceIteration
-    from orpheus.sn.solver import _within_group_triple
+    from orpheus.sn.coupled_system import build_within_group_system
     from orpheus.transport.source_sinks import (
         AngularSourceSink,
         AngularBoundarySourceSink,
@@ -279,7 +279,10 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
 
     solver, _case = _solver_for("slab", "2eg")
     sn_mesh = solver.sn_mesh
-    LC, S, B = _within_group_triple(solver)
+    system = build_within_group_system(
+        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+    )
+    LC, (S, B) = system.resolvent, system.gains  # seedless slab record shape
 
     # A timed external source (the driver's comonad-carrying rhs).
     q_ext = TimedFullField(

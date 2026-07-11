@@ -34,7 +34,6 @@ from orpheus.derivations.continuous.mms.sn import (
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.solver import (
     SNSolver,
-    _within_group_triple,
     _build_fixed_source_rhs,
     _as_sn_mesh,
 )
@@ -83,7 +82,13 @@ def _reference_angular_flux(case, sn_mesh) -> AngularFlux:
 
 def _residual_profile(case, nc):
     mesh, sn_mesh, solver, q_ext = _build_solver_and_mesh(case, nc)
-    LC, S, B = _within_group_triple(solver)
+    # B.2d: the triple retired into build_within_group_system; this fused
+    # 3-block probe reads the production surfaces directly. B = B_a alone is
+    # bit-identical here: on vacuum cases the ray-corner B_b term is exactly
+    # zero, and B_a pads the ray slot present-zero like the retired composite.
+    from orpheus.sn.operators.boundary import SNBoundaryOperator
+    LC, S = solver.L, solver.scattering_op
+    B = SNBoundaryOperator(solver.sn_mesh)
     psi_ref = _reference_angular_flux(case, sn_mesh)
     rhs = TimedFullField.zeros(
         bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,

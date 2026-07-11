@@ -407,12 +407,23 @@ def _flux_displacement_leaf(displacement) -> "_DisplacementLeaf | None":
 
     Duck-typed on ``contraction_ratio`` (numerics MUST NOT import transport —
     the L1↛L2 layering), mirroring the ``_is_ravellable`` protocol check above.
+
+    A coupled block iterate (:class:`~orpheus.numerics.coupled_system.
+    CoupledField`) exposes ``systems`` instead of ``interior``; the finder
+    recurses into the PRIMARY system (``systems[0]`` — the convention: the
+    coupling's first member is the principal field whose bulk carries the
+    convergence diagnostics; for the ψ½ instance that is System A's
+    transport composite). Numerics-native — ``systems`` is this layer's own
+    direct-sum vocabulary, no transport import.
     """
     bulk = getattr(displacement, "interior", None)
     if bulk is not None and hasattr(bulk, "contraction_ratio"):
         return bulk
     if hasattr(displacement, "contraction_ratio"):
         return displacement
+    systems = getattr(displacement, "systems", None)
+    if systems:
+        return _flux_displacement_leaf(systems[0])
     return None
 
 
@@ -924,7 +935,21 @@ class KrylovAcceleration(Generic[V]):
         # surface as warnings — raising would break long-standing
         # callers that tolerate slow convergence and need the
         # best-effort iterate.  See ERR-053.
-        if info != 0:
+        # Exact-breakdown carve-out — a PERMANENT invariant of this
+        # boundary, not a special case: a final preconditioned residual of
+        # LITERAL 0.0 means the Krylov space collapsed AT the solution
+        # (``M⁻¹(b − Ax) = 0`` with a nonsingular preconditioner —
+        # identity / exact inverses — implies ``Ax = b`` exactly), yet
+        # scipy's breakdown path then stagnates to ``maxiter`` and stamps
+        # ``info > 0``.  That is CONVERGENCE, the opposite of the ERR-053
+        # restart truncation this warning exists to surface — so it does
+        # not warn.  The general trigger is any warm-started solve of a
+        # singular-but-consistent system; the first caller to exercise it
+        # was the B.2d transitional coupled matvec (dead ψ_A ray padding,
+        # gone at the d2 eviction) — that caller motivated the guard, it
+        # is not the reason the guard exists.
+        exact_breakdown = bool(residual_history) and residual_history[-1] == 0.0
+        if info != 0 and not exact_breakdown:
             warnings.warn(
                 f"KrylovAcceleration.solve: scipy.sparse.linalg.gmres "
                 f"returned info={info} (not converged within "
@@ -1112,8 +1137,9 @@ class KEigenvalue:
     # eigen-operator M = F, k = μ — then delegates the outer loop to the
     # canonical ``power_iteration`` algorithm.  (The SN production path poses
     # the same standard form via
-    # :func:`~orpheus.sn.solver._within_group_triple`, which adds the boundary
-    # reflection ``B`` as a second coupling gain so, with A = L+C,
+    # :func:`~orpheus.sn.coupled_system.build_within_group_system`, whose
+    # record carries the boundary reflection ``B`` as a coupling gain so,
+    # with A = L+C,
     # A_loss = L+C − S − B.)  There is ONE power-iteration loop in the codebase
     # (Cardinal Rule 2): KEigenvalue and SNSolver are both implementers of this
     # boundary, not parallel engines.

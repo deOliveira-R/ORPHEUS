@@ -501,14 +501,13 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     ``RadialCharacteristicComposite → RadialCharacteristicComposite`` (reads
     the boundary member's FLUX corners, emits boundary-member SOURCE corners;
     the interior member is a zero source — "B_b touches the trace/bulk" is now
-    UNSPELLABLE, Pattern 4). The whole boundary block is still the direct sum
-    ``B = B_a + B_b`` (RULING P1: a block-composed system's boundary is the
-    direct sum of per-system boundary blocks); the production sum is composed
-    over the FullField carrier through the TRANSIENT
-    ``_RayBoundaryFullFieldGain`` adapter (byte-identical; retires at
-    B.2d), so ``B_a + adapter(B_b)`` reproduces the augmented boundary
-    bit-identically. Unconstructable on a seedless mesh (System B does not
-    exist there — the ctor guard mirrors ``A_BA``'s).
+    UNSPELLABLE, Pattern 4). The system's boundary is still the direct sum of
+    per-system boundary blocks (RULING P1) — realized since B.2d as the two
+    grid entries ``B_a`` at (A,A) and ``B_b`` at (B,B) of the within-group
+    gain grid (:func:`orpheus.sn.coupled_system.build_within_group_system`);
+    the B.2b FullField-summed adapter composition is retired. Unconstructable
+    on a seedless mesh (System B does not exist there — the ctor guard
+    mirrors ``A_BA``'s).
 
     The action is the ``(R, μ = ∓1)`` corner reflection that closes the ray's
     r = R boundary. The outer face law realizes on the trace carrier as an
@@ -653,8 +652,8 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         Since the B.2b re-type there is NO bulk/trace padding — the composite
         has no such slots (Pattern 4: "B_b touches the trace" is unspellable).
         The interior member is a zero SOURCE (``B_b`` writes only the corner);
-        the production ``B_a + B_b`` sum rides the
-        ``_RayBoundaryFullFieldGain`` adapter.
+        the production driver consumes this block natively at the (B,B) slot
+        of the within-group gain grid (B.2d).
         """
         from orpheus.transport.fields.radial_characteristic_boundary_flux import (
             RadialCharacteristicBoundaryFlux,
@@ -737,101 +736,11 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
             )[...] = corner_reflected.corner(level, -1)
 
 
-class _RayBoundaryFullFieldGain(LinearOperator["FullField", "FullField"]):
-    r"""TRANSIENT (B.2b → retires at B.2d): ``B_b`` presented as a FullField summand.
-
-    The re-typed :class:`RadialCharacteristicBoundaryOperator` speaks the
-    TARGET architecture (domain = codomain = System B's composite space); the
-    production boundary block is still the FullField-summed ``B = B_a + B_b``
-    (``_within_group_triple``). This adapter is the byte-identical bridge:
-    it parses the FullField's ψ½ slot (the erased-slot #289-F2 role parse
-    lives HERE now — on the block the slot does not exist), projects it into
-    the composite via the role-preserving bridge, DELEGATES to the block
-    (its class-method spies fire through), and re-embeds the corner emission
-    into the pre-B.2b FullField shape (``_zero_bulk_source`` bulk +
-    present-zero trace + the unified ray SourceSink). Retired at B.2d when
-    the driver iterate becomes a ``CoupledField`` and ``B_b`` sits
-    block-native in the (B, B) grid slot.
-    """
-
-    block_role = BlockRole.BOUNDARY
-    system_role = SystemRole.B
-
-    def __init__(self, ray_boundary: RadialCharacteristicBoundaryOperator) -> None:
-        #: The wrapped System B → System B block (read by the driver-routing
-        #: gates' wraps-predicate).
-        self._ray_boundary = ray_boundary
-
-    @property
-    def domain(self) -> Optional["FunctionSpace"]:
-        # The FullField carrier — so the OperatorSum guard accepts
-        # ``B_a + B_b`` (and the composite loss) over ONE space.
-        return self._ray_boundary.sn_mesh.full_field_space
-
-    @property
-    def codomain(self) -> Optional["FunctionSpace"]:
-        return self._ray_boundary.sn_mesh.full_field_space
-
-    @property
-    def is_adjointable(self) -> bool:
-        return self._ray_boundary.is_adjointable
-
-    def _apply(self, psi: "FullField", method: str) -> "FullField":
-        from orpheus.transport.fields.radial_characteristic_flux import (
-            RadialCharacteristicFlux,
-        )
-        from orpheus.transport.full_field import FullField
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
-        )
-        from orpheus.transport.source_sinks import AngularBoundarySourceSink
-
-        mesh = self._ray_boundary.sn_mesh
-        if psi.interior.mesh is not mesh:
-            raise ValueError(
-                "RadialCharacteristicBoundaryOperator.apply: input field and "
-                "operator must share the same SNMesh instance (mesh-identity "
-                f"invariant); got field mesh {psi.interior.mesh!r} vs operator "
-                f"mesh {mesh!r}."
-            )
-        # The erased-slot role parse (#289 F2) — the FullField slot admits any
-        # ray role; ``B_b`` reflects a FLUX corner.
-        seed = psi.radial_characteristic
-        if seed is None:
-            raise ValueError(
-                "RadialCharacteristicBoundaryOperator: the input composite "
-                "carries no ψ½ (radial_characteristic) block — on a carrying "
-                "mesh (R12a) every composite must carry it (the mixed-presence "
-                "law); a seedless mesh never constructs B_b."
-            )
-        if not isinstance(seed, RadialCharacteristicFlux):
-            raise TypeError(
-                f"RadialCharacteristicBoundaryOperator: the input composite's "
-                f"radial_characteristic must be a RadialCharacteristicFlux ray; "
-                f"got {type(seed).__name__}."
-            )
-        block_in = RadialCharacteristicComposite.from_unified(seed)
-        block_out = (
-            self._ray_boundary.apply(block_in)
-            if method == "apply"
-            else self._ray_boundary.apply_transpose(block_in)
-        )
-        return FullField(
-            interior=_zero_bulk_source(mesh),
-            boundary=AngularBoundarySourceSink.zeros_on(mesh),  # present-zero
-            radial_characteristic=block_out.to_unified(),
-        )
-
-    def apply(self, psi: "FullField", /) -> "FullField":
-        r"""The pre-B.2b embedded corner reflection: zero bulk, present-zero trace."""
-        return self._apply(psi, "apply")
-
-    def apply_transpose(self, psi: "FullField", /) -> "FullField":
-        r"""The pre-B.2b embedded mirror-image corner swap."""
-        return self._apply(psi, "apply_transpose")
-
-    def __repr__(self) -> str:
-        return f"_RayBoundaryFullFieldGain({self._ray_boundary!r})"
+# The B.2b transient ``_RayBoundaryFullFieldGain`` adapter RETIRED at B.2d:
+# the driver iterate is the CoupledField pair and ``B_b`` sits block-native
+# in the (B, B) slot of the within-group gain grid
+# (:func:`orpheus.sn.coupled_system.build_within_group_system`) — the
+# FullField-summed ``B = B_a + B_b`` composition it bridged is gone.
 
 
 class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):

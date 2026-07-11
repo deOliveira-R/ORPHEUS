@@ -41,7 +41,7 @@ from orpheus.derivations.continuous.mms.sn import (
     build_spherical_mms_case, build_cylindrical_mms_case,
 )
 from orpheus.sn.solver import (
-    SNSolver, _within_group_triple, _build_fixed_source_rhs, _as_sn_mesh,
+    SNSolver, _build_fixed_source_rhs, _as_sn_mesh,
 )
 from orpheus.sn.spatial.cell_balance import cell_balance_for_streaming
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -65,7 +65,13 @@ def _operator_residual_with_seed(case, nc, seed_mode):
     solver = SNSolver(sn_mesh, inner_solver="source_iteration",
                       scattering_order=0, max_inner=2000, inner_tol=1e-13)
     q_ext = _build_fixed_source_rhs(Q, sn_mesh)
-    LC, S, B = _within_group_triple(solver)
+    # B.2d: the triple retired into build_within_group_system; this fused
+    # 3-block probe reads the production surfaces directly. B = B_a alone is
+    # bit-identical here: on vacuum cases the ray-corner B_b term is exactly
+    # zero, and B_a pads the ray slot present-zero like the retired composite.
+    from orpheus.sn.operators.boundary import SNBoundaryOperator
+    LC, S = solver.L, solver.scattering_op
+    B = SNBoundaryOperator(solver.sn_mesh)
 
     A_obj = case.phi_exact(mesh.centers)
     sum_w = float(sn_mesh.quad.weights.sum())

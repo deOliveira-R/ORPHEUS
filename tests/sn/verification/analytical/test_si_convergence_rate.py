@@ -24,7 +24,7 @@ Reflective-coupling background
 The Wave O O.4a.2 / O.4b BC extraction made the transport sweep BARE — it
 reads ``psi.boundary.inflow`` as GIVEN for the whole sweep, and the
 reflective coupling is applied EXTERNALLY via the sibling ``-B``
-(``SNBoundaryOperator``, Wave O.2a ``_within_group_triple`` -> ``(L+C, S,
+(``SNBoundaryOperator``, Wave O.2a; since B.2d ``build_within_group_system`` -> ``(L+C, S,
 B)``).  This converted the reflective coupling from intra-sweep
 Gauss-Seidel (the retired ``bc.apply``-inside-the-sweep read the LIVE
 boundary buffer) to inter-sweep Jacobi (``B`` fully lagged): same

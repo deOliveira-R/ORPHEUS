@@ -99,7 +99,7 @@ def _cylinder_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
 # fixed-source Krylov RAISES ``NotImplementedError``.  Phase 1 deleted
 # that guard — the path is now the geometry-agnostic structural twin of
 # the live 2-D eigenvalue Krylov inner (:meth:`SNSolver._solve_krylov`)
-# and the 2-D fixed-source SI path (same ``_within_group_triple`` +
+# and the 2-D fixed-source SI path (same ``build_within_group_system`` +
 # ``_within_group_krylov``, differing only in ``q_ext``).  The pin is
 # INVERTED into a positive correctness pin —
 # ``tests/sn/solve/test_fixed_source_2d_equivalence.py`` (NEW-1: the
@@ -143,9 +143,17 @@ class TestExternalSourcePerOrdContract:
         original_solve = iteration_mod.KrylovAcceleration.solve
 
         def spy(self, q_ext, initial_guess=None):
-            # D-H.1c stage 2: q_ext is now a TimedFullField; the
-            # per-ordinate source values live at ``q_ext.interior.values``.
-            captured.append(np.array(q_ext.interior.values, copy=True))
+            # B.2d: on a carrying mesh (the sphere param) the driver input is
+            # the coupled pair — the per-ordinate source lives on System A's
+            # interior member; elsewhere (cylinder — seedless, #229) q_ext is
+            # the fused TimedFullField. Value UNMOVED either way (F1: an
+            # accessor re-point, the source still folds in bit-equal).
+            from orpheus.numerics.coupled_system import CoupledField
+
+            member = (
+                q_ext.systems[0] if isinstance(q_ext, CoupledField) else q_ext
+            )
+            captured.append(np.array(member.interior.values, copy=True))
             return original_solve(self, q_ext, initial_guess=initial_guess)
 
         with patch.object(

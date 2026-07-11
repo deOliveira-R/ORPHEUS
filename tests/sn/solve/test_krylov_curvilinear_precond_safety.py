@@ -171,7 +171,7 @@ def _krylov_power_iteration_kinf(
     n_cells, ng = int(np.prod(sn_mesh.spatial_shape)), solver.ng
     krylov = KrylovAcceleration(
         # Wave O O.2a: mirror the honest production gains from
-        # ``SNSolver._within_group_triple`` — the resolvent ``L+C`` plus the
+        # ``build_within_group_system`` — the resolvent ``L+C`` plus the
         # scattering gain ``S`` AND the boundary reflection gain ``B``.  The
         # transitional ``S+B`` fold + the vestigial ``F=Zero`` slot are RETIRED
         # (variadic ``(L, *gains)`` drivers).  OMITTING ``B`` (as this test did
