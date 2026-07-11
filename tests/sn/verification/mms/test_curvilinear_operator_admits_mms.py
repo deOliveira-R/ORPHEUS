@@ -103,15 +103,15 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     if seed_leg is None:
         lc_out = LC.apply(psi_ref)
     else:
-        from orpheus.transport.source_sinks import (
-            RadialCharacteristicSourceSink,
+        from orpheus.transport.radial_characteristic_composite import (
+            RadialCharacteristicComposite,
         )
 
         lc_out = LC.apply(
             psi_ref,
             radial_characteristic_flux=seed_leg,
             radial_characteristic_source=(
-                RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+                RadialCharacteristicComposite.source_zeros_on(sn_mesh)
             ),
         )
 

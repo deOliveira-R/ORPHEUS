@@ -248,7 +248,7 @@ class Solution:
         # carrying-mesh Solution without its converged ψ½ state (or a
         # seedless one carrying a ray) is a wiring error, not a variant.
         carries = (
-            getattr(self.mesh, "radial_characteristic_space", None) is not None
+            getattr(self.mesh, "radial_characteristic_composite_space", None) is not None
         )
         if carries != (self.radial_characteristic is not None):
             raise ValueError(

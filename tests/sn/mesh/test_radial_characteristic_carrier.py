@@ -56,11 +56,12 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.spaces.radial_characteristic_space import RadialCharacteristicSpace
+from orpheus.numerics.spaces.radial_characteristic_space import (
+    RadialCharacteristicInteriorSpace,
+)
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.radial_characteristic_composite import (
     RadialCharacteristicComposite,
@@ -125,13 +126,16 @@ class TestA1PresenceR12a:
     def test_sphere_carries_one_seed_level(self):
         sn = _sphere()
         np.testing.assert_array_equal(sn.radial_characteristic_levels, (0,))
-        space = sn.radial_characteristic_space
+        space = sn.radial_characteristic_composite_space
         if space is None:
             pytest.fail("sphere-GL mesh must carry a starting-direction space")
-        # 1 level × 2 signs × (ng·nx cells + ng corner)
+        # 1 level × 2 signs × (ng·nx cells + ng corner) — the composite space's
+        # flat size (the successor of the retired unified space total, 4e).
         expected = 1 * 2 * (sn.ng * 4 + sn.ng)
         np.testing.assert_array_equal(space.shape, (expected,))
-        np.testing.assert_array_equal(space.levels, (0,))
+        np.testing.assert_array_equal(
+            sn.radial_characteristic_interior_space.levels, (0,),
+        )
 
     def test_sphere_constructs_system_b(self):
         """The presence FACT, re-homed (B.2d): a carrying mesh's System B
@@ -164,18 +168,16 @@ class TestA1PresenceR12a:
         """
         sn = builder()
         np.testing.assert_array_equal(sn.radial_characteristic_levels, ())
-        if sn.radial_characteristic_space is not None:
-            pytest.fail(
-                f"{builder.__name__}: non-carrying mesh must have "
-                f"radial_characteristic_space None (R12a)"
-            )
         if sn.radial_characteristic_composite_space is not None:
             pytest.fail(
                 f"{builder.__name__}: non-carrying mesh must have NO "
                 f"System-B member space"
             )
-        with pytest.raises(ValueError, match="no starting-direction"):
-            RadialCharacteristicFlux.zeros_on(sn)
+        if sn.radial_characteristic_interior_space is not None:
+            pytest.fail(
+                f"{builder.__name__}: non-carrying mesh must have NO "
+                f"interior split space (R12a)"
+            )
         with pytest.raises(
             ValueError, match="no radial_characteristic_interior_space",
         ):
@@ -192,12 +194,12 @@ class TestA1PresenceR12a:
         with pytest.raises(TypeError):
             FullField.zeros(
                 interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
-                radial_characteristic=RadialCharacteristicFlux,
+                radial_characteristic=None,
             )
         with pytest.raises(TypeError):
             TimedFullField.zeros(
                 interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
-                radial_characteristic=RadialCharacteristicFlux,
+                radial_characteristic=None,
             )
 
     def test_full_field_space_is_two_block_everywhere(self):
@@ -215,27 +217,34 @@ class TestA1PresenceR12a:
         """cells/corner are slice VIEWS — writing through them mutates the
         flat buffer (the AngularBoundaryFlux flat-storage discipline)."""
         sn = _sphere(ng=1)
-        space = sn.radial_characteristic_space
-        assert space is not None
-        buf = np.zeros(space.shape)
-        space.cells_view(buf, 0, -1)[:] = 1.0
-        space.corner_view(buf, 0, +1)[:] = 2.0
-        np.testing.assert_allclose(np.sum(buf == 1.0), space.ng * space.nx)
-        np.testing.assert_allclose(np.sum(buf == 2.0), space.ng)
-        # Layout order (documented): (−1 cells, −1 corner, +1 cells, +1 corner)
-        per_sign = space.ng * space.nx + space.ng
-        np.testing.assert_array_equal(buf[: space.ng * space.nx], 1.0)
-        np.testing.assert_array_equal(buf[per_sign + space.ng * space.nx :], 2.0)
+        # 4e: the split spaces carry their own flat backings (cells in the
+        # interior space, corners in the boundary space); slot_view is a slice
+        # VIEW into each, so writes mutate the flat buffer.
+        interior = sn.radial_characteristic_interior_space
+        boundary = sn.radial_characteristic_boundary_space
+        assert interior is not None and boundary is not None
+        ibuf = np.zeros(interior.shape)
+        bbuf = np.zeros(boundary.shape)
+        interior.slot_view(ibuf, 0, -1)[:] = 1.0
+        boundary.slot_view(bbuf, 0, +1)[:] = 2.0
+        np.testing.assert_allclose(np.sum(ibuf == 1.0), interior.ng * interior.nx)
+        np.testing.assert_allclose(np.sum(bbuf == 2.0), boundary.ng)
+        # Interior layout order: (−1 cells, +1 cells) ⇒ the −1 cells are the
+        # first slot; boundary: (−1 corner, +1 corner) ⇒ the +1 corner is last.
+        np.testing.assert_array_equal(ibuf[: interior.ng * interior.nx], 1.0)
+        np.testing.assert_array_equal(bbuf[boundary.ng :], 2.0)
 
     def test_unknown_level_and_sign_rejected(self):
         sn = _sphere()
-        space = sn.radial_characteristic_space
-        assert space is not None
-        buf = np.zeros(space.shape)
+        interior = sn.radial_characteristic_interior_space
+        boundary = sn.radial_characteristic_boundary_space
+        assert interior is not None and boundary is not None
+        ibuf = np.zeros(interior.shape)
+        bbuf = np.zeros(boundary.shape)
         with pytest.raises(KeyError, match="no starting-direction block"):
-            space.cells_view(buf, 1, -1)
+            interior.slot_view(ibuf, 1, -1)
         with pytest.raises(ValueError, match="sign must be"):
-            space.corner_view(buf, 0, 0)
+            boundary.slot_view(bbuf, 0, 0)
 
     def test_empty_levels_space_unrepresentable(self):
         """Absence is spelled None, never a zero-DOF phantom space.
@@ -246,7 +255,7 @@ class TestA1PresenceR12a:
         (not a TypeError from the missing kwarg) is what we pin.
         """
         with pytest.raises(ValueError, match="levels is empty"):
-            RadialCharacteristicSpace.for_levels(
+            RadialCharacteristicInteriorSpace.for_levels(
                 (), ng=2, nx=4, cell_volumes=np.ones(4),
             )
 
@@ -282,48 +291,61 @@ class TestA4SeedStateMetricVcell:
         cells == ``V_cell`` (group-broadcast), corner == ``V[-1]`` (the gauge
         slot); strictly positive (SPD — the ghost 0 is the forbidden value)."""
         sn = _sphere()
-        space = sn.radial_characteristic_space
-        assert space is not None
-        w = space.inner_product_weights
-        if w is None:
+        interior = sn.radial_characteristic_interior_space
+        boundary = sn.radial_characteristic_boundary_space
+        assert interior is not None and boundary is not None
+        iw = interior.inner_product_weights
+        bw = boundary.inner_product_weights
+        if iw is None or bw is None:
             pytest.fail("the state metric must be EXPLICIT V_cell weights, "
                         "not None (None selects the Euclidean inner product)")
         V = np.asarray(sn.volumes, dtype=float).ravel()
-        for p in space.levels:
+        for p in interior.levels:
             for sign in (-1, +1):
                 np.testing.assert_array_equal(
-                    space.cells_view(w, p, sign),
-                    np.broadcast_to(V, (space.ng, space.nx)),
+                    interior.slot_view(iw, p, sign),
+                    np.broadcast_to(V, (interior.ng, interior.nx)),
                 )
-                np.testing.assert_array_equal(space.corner_view(w, p, sign), V[-1])
-        if not np.all(w > 0.0):
-            pytest.fail(f"state metric must be SPD (strictly positive); got "
-                        f"min {float(w.min()):.3e} — the forbidden ghost value")
+                np.testing.assert_array_equal(boundary.slot_view(bw, p, sign), V[-1])
+        if not (np.all(iw > 0.0) and np.all(bw > 0.0)):
+            pytest.fail("state metric must be SPD (strictly positive) — the "
+                        "forbidden ghost value")
 
-    def test_composite_member_metric_matches_the_unified_gauge(self):
-        r"""System B's OWN composite-space inner product carries the SAME
-        ``Σ V_cell·x·y`` numbers as the unified gauge — the member-wise
-        realization of the state metric (the B.2d home of the retired
-        ``FullFieldSpace`` seed arms; the split↔unified re-label is exact,
-        so the two spellings must agree to reassociation)."""
+    def test_composite_member_metric_is_the_v_cell_gauge(self):
+        r"""System B's OWN composite-space inner product carries the
+        ``Σ V_cell·x·y`` numbers — the member-wise realization of the state
+        metric — checked against a HAND-BUILT ``V_cell`` gauge from
+        ``sn.volumes`` (4e RE-POSE: the retired unified gauge is gone, so the
+        reference is built directly from the cell volumes, structurally
+        independent of the space's stored weights)."""
         sn = _sphere()
         cspace = sn.radial_characteristic_composite_space
-        uspace = sn.radial_characteristic_space
-        assert cspace is not None and uspace is not None
+        interior = sn.radial_characteristic_interior_space
+        boundary = sn.radial_characteristic_boundary_space
+        assert cspace is not None and interior is not None and boundary is not None
         rng = np.random.default_rng(53)
-        x_u = RadialCharacteristicFlux.zeros_on(sn)
-        y_u = RadialCharacteristicFlux.zeros_on(sn)
-        x_u.values[...] = rng.standard_normal(x_u.values.shape)
-        y_u.values[...] = rng.standard_normal(y_u.values.shape)
-        w = np.asarray(uspace.inner_product_weights, dtype=float)
-        unified_term = float(np.sum(w * x_u.values * y_u.values))
-        composite_term = cspace.inner_product(
-            RadialCharacteristicComposite.from_unified(x_u),
-            RadialCharacteristicComposite.from_unified(y_u),
+        ns = int(cspace.shape[0])
+        x = RadialCharacteristicComposite.from_flat(
+            rng.standard_normal(ns), RadialCharacteristicComposite.from_mesh(sn),
         )
+        y = RadialCharacteristicComposite.from_flat(
+            rng.standard_normal(ns), RadialCharacteristicComposite.from_mesh(sn),
+        )
+        # Hand-built V_cell gauge (composite to_flat order = interior ⊕ boundary),
+        # from sn.volumes directly — the structurally-independent reference.
+        V = np.asarray(sn.volumes, dtype=float).ravel()
+        iw = np.zeros(interior.shape[0])
+        bw = np.zeros(boundary.shape[0])
+        for p in interior.levels:
+            for sign in (-1, +1):
+                interior.slot_view(iw, p, sign)[:] = V[None, :]
+                boundary.slot_view(bw, p, sign)[:] = V[-1]
+        w = np.concatenate([iw, bw])
+        hand_term = float(np.sum(w * x.to_flat() * y.to_flat()))
+        composite_term = cspace.inner_product(x, y)
         np.testing.assert_allclose(
-            composite_term, unified_term, rtol=1e-12, atol=1e-13,
+            composite_term, hand_term, rtol=1e-12, atol=1e-13,
         )
-        if abs(unified_term) < 1e-9:
-            pytest.fail(f"seed inner-product term ~0 ({unified_term:.2e}) — "
+        if abs(hand_term) < 1e-9:
+            pytest.fail(f"seed inner-product term ~0 ({hand_term:.2e}) — "
                         f"the metric gate is vacuous (expected Σ V_cell·x·y ≠ 0)")

@@ -40,6 +40,7 @@ import numpy as np
 
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
+from tests.sn._test_helpers import random_radial_characteristic_composite
 from tests.sn.operators.test_g_adjoint_reciprocity import (
     _make_cyl,
     _make_slab,
@@ -71,19 +72,15 @@ def _per_group_sigma(sn, ng: int = 2) -> np.ndarray:
 
 
 def _draw_with_seed(sn, rng):
-    """One (2-block composite, ψ½ leaf) draw — the SAME rng order (bulk →
+    """One (2-block composite, ψ½ composite) draw — the SAME rng order (bulk →
     boundary → seed) as the pre-B.2d 3-block builder, so the frozen
-    baselines reproduce bit-identically; the leaf rides the walk's explicit
-    legs (``None`` on non-carrying meshes)."""
-    from orpheus.transport.fields.radial_characteristic_flux import (
-        RadialCharacteristicFlux,
-    )
-
+    baselines reproduce bit-identically; the ψ½ composite rides the walk's
+    explicit legs (``None`` on non-carrying meshes). Phase C 4e retired the
+    unified ψ½ leaf: the seed draw is the split-native composite whose
+    per-slot values are bit-faithful to the retired unified single-buffer
+    fill (see :func:`~tests.sn._test_helpers.random_radial_characteristic_composite`)."""
     composite = _random_composite(sn, rng)
-    seed_leaf = None
-    if sn.radial_characteristic_space is not None:
-        seed_leaf = RadialCharacteristicFlux.zeros_on(sn)
-        seed_leaf.values[...] = rng.standard_normal(seed_leaf.values.shape)
+    seed_leaf = random_radial_characteristic_composite(sn, rng)
     return composite, seed_leaf
 
 
@@ -114,23 +111,23 @@ def run_case(case: WalkMatvecCase) -> dict[str, np.ndarray]:
         fwd = lc.apply(psi)
         adj = lc.apply_transpose(phi)
     else:
-        from orpheus.transport.source_sinks import (
-            RadialCharacteristicSourceSink,
+        from orpheus.transport.radial_characteristic_composite import (
+            RadialCharacteristicComposite,
         )
 
         fwd = lc.apply(
             psi,
             radial_characteristic_flux=psi_seed,
             radial_characteristic_source=(
-                RadialCharacteristicSourceSink.zeros_on(sn)
+                RadialCharacteristicComposite.source_zeros_on(sn)
             ),
         )
-        # phi's ψ½ leaf rides the role-erased ``seed_cot`` leg (exactly the
-        # slot the pre-eviction 3-block adjoint consumed).
+        # phi's ψ½ composite rides the role-erased ``seed_cot`` leg (exactly
+        # the slot the pre-eviction 3-block adjoint consumed).
         adj = lc.apply_transpose(
             phi,
             seed_cot=phi_seed,
-            seed_cot_out=RadialCharacteristicSourceSink.zeros_on(sn),
+            seed_cot_out=RadialCharacteristicComposite.source_zeros_on(sn),
         )
     return {
         "fwd_bulk": np.asarray(fwd.interior.values, dtype=np.float64),

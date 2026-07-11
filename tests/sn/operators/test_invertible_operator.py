@@ -53,8 +53,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
-from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
+from orpheus.transport.radial_characteristic_composite import RadialCharacteristicComposite
 
 
 def _random_state(
@@ -422,11 +421,11 @@ class TestSolve:
         )
 
         q = _const_state(sn, value=1.0)
-        flux_buf = RadialCharacteristicFlux.zeros_on(sn)
+        flux_buf = RadialCharacteristicComposite.from_mesh(sn)
         psi = invertible.solve(
             q,
             radial_characteristic_source=(
-                RadialCharacteristicSourceSink.from_angular_source(
+                RadialCharacteristicComposite.source_from_angular(
                     q.interior.values, sn,
                 )
             ),
@@ -437,7 +436,7 @@ class TestSolve:
         # Curvilinear sweep produces a non-trivial positive bulk AND fills
         # the marched ψ½ carrier in place.
         assert psi.interior.values.max() > 0
-        assert float(np.abs(flux_buf.values).max()) > 0
+        assert float(np.abs(flux_buf.to_flat()).max()) > 0
 
     @pytest.mark.l0
     @pytest.mark.verifies("transport-cartesian")
@@ -909,9 +908,9 @@ class TestInvertibleSolveBridgeRegression:
             _history=(),
             history_depth=2,
         )
-        carrying = sn_mesh.radial_characteristic_space is not None
+        carrying = sn_mesh.radial_characteristic_composite_space is not None
         q_half = (
-            RadialCharacteristicSourceSink.from_angular_source(
+            RadialCharacteristicComposite.source_from_angular(
                 q_per_ord, sn_mesh,
             )
             if carrying else None
@@ -933,10 +932,6 @@ class TestInvertibleSolveBridgeRegression:
         # unrepresentable since the eviction; production consumes both
         # blocks through the gain grid — this loop replicates that fold by
         # hand, one reflect per system).
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
-        )
-
         B_a = SNBoundaryOperator(sn_mesh)
         B_b = (
             RadialCharacteristicBoundaryOperator(sn_mesh) if carrying else None
@@ -945,7 +940,7 @@ class TestInvertibleSolveBridgeRegression:
         def _joint_solve(rhs_a, q_seed, guess):
             if not carrying:
                 return LC.solve(rhs_a, initial_guess=guess), None
-            buf = RadialCharacteristicFlux.zeros_on(sn_mesh)
+            buf = RadialCharacteristicComposite.from_mesh(sn_mesh)
             out = LC.solve(
                 rhs_a, initial_guess=guess,
                 radial_characteristic_source=q_seed,
@@ -954,7 +949,7 @@ class TestInvertibleSolveBridgeRegression:
             return out, buf
 
         psi_typed: TimedFullField | None = None
-        flux_prev: RadialCharacteristicFlux | None = None
+        flux_prev: RadialCharacteristicComposite | None = None
         for _ in range(400):
             if psi_typed is None:
                 psi_new, flux_new = _joint_solve(rhs, q_half, None)
@@ -965,9 +960,8 @@ class TestInvertibleSolveBridgeRegression:
                 B_out = B_a.apply(psi_typed)
                 seed_n = q_half
                 if carrying and B_b is not None and flux_prev is not None:
-                    corner = B_b.apply(
-                        RadialCharacteristicComposite.from_unified(flux_prev))
-                    seed_n = q_half + corner.to_unified()
+                    corner = B_b.apply(flux_prev)
+                    seed_n = q_half + corner
                 rhs_n = replace(rhs, boundary=B_out.boundary)
                 psi_new, flux_new = _joint_solve(rhs_n, seed_n, psi_typed)
             if psi_typed is not None and np.abs(

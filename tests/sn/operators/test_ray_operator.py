@@ -26,8 +26,9 @@ hazard). The engine ``carlson_inward_sweep_from_source`` carries its OWN
 closed-form convergence gate in
 ``tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py::TestB1DirectSolverClosedForm``;
 THIS module is the operator-level anchor — it exercises the WRAP layer (the
-``RadialCharacteristicSpace`` cells/corner views, the source-block reading, the
-``RadialCharacteristicFlux`` output) that the bare-engine gate never touches.
+``RadialCharacteristicComposite`` interior/boundary member views, the
+source-block reading, the composite flux output) that the bare-engine gate
+never touches.
 
 **Config discipline (§0.6).** The fixture is genuinely ≥2G — DISTINCT
 per-group :math:`(\sigma, q, \phi_R)`, both groups anchored — so a group-axis
@@ -56,9 +57,6 @@ from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOpera
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.radial_characteristic_composite import (
     RadialCharacteristicComposite,
-)
-from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
-    RadialCharacteristicSourceSink,
 )
 
 pytestmark = pytest.mark.l1
@@ -118,22 +116,19 @@ def _solve_inward_cells(edges: np.ndarray) -> np.ndarray:
     """Build the operator + the uniform-q½ source, return ``solve``'s inward-leg
     cells ``(ng, nx)`` = the ψ½ marched on the ``μ = -1`` ray."""
     sn = _sphere(edges)
-    space = sn.radial_characteristic_space
     nx = sn.nx
     # σ_t constant in r, distinct per group — the C_ray collision coefficient,
     # a typed mesh-bound CrossSectionField (the operator's mesh-identity guard).
     sigma_t = np.stack([np.full(nx, _SIGMA[g]) for g in range(_NG)], axis=0)
     op = RadialCharacteristicOperator(sn, CrossSectionField.from_mesh(sigma_t, sn))
-    src = RadialCharacteristicSourceSink(
-        values=np.zeros(space.shape[0]), space=space, mesh=sn)
+    # System B's SOURCE composite (4e native — the block boundary speaks the
+    # split member directly; no unified bridge).
+    src = RadialCharacteristicComposite.source_zeros_on(sn)
     for g in range(_NG):
         # q½ built DIRECTLY (uniform q̄ per group) — NOT via the R14 fold (step 2).
-        space.cells_view(src.values, 0, -1)[g, :] = _Q[g]
-        space.corner_view(src.values, 0, -1)[g] = _PHI_R[g]   # r = R Dirichlet datum
-    # B.2c I/O: the block boundary speaks the member composite (the bridge is
-    # bitwise, so the convergence orders are untouched).
-    return op.solve(
-        RadialCharacteristicComposite.from_unified(src)).interior.cells(0, -1)
+        src.interior.cells(0, -1)[g, :] = _Q[g]
+        src.boundary.corner(0, -1)[g] = _PHI_R[g]   # r = R Dirichlet datum
+    return op.solve(src).interior.cells(0, -1)
 
 
 def _max_group_inf_error(edges: np.ndarray) -> float:

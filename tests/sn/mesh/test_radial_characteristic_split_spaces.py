@@ -34,7 +34,6 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.radial_characteristic_space import (
     RadialCharacteristicBoundarySpace as Boundary,
     RadialCharacteristicInteriorSpace as Interior,
-    RadialCharacteristicSpace as Unified,
     _RadialCharacteristicSubSpace,
 )
 from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -100,14 +99,18 @@ def _slab() -> SNMesh:
 
 
 class TestSplitSpaceConstruction:
-    def test_split_shapes_sum_to_unified(self) -> None:
-        u = Unified.for_levels(_MULTI_LEVELS, ng=_NG, nx=_NX, cell_volumes=_CV)
+    def test_split_shapes_sum_to_the_combined_layout(self) -> None:
         i = Interior.for_levels(_MULTI_LEVELS, ng=_NG, nx=_NX, cell_volumes=_CV)
         b = Boundary.for_levels(_MULTI_LEVELS, ng=_NG, nx=_NX, cell_volumes=_CV)
         n_legs = len(_MULTI_LEVELS) * 2
         np.testing.assert_array_equal(i.shape, (n_legs * _NG * _NX,))
         np.testing.assert_array_equal(b.shape, (n_legs * _NG,))
-        np.testing.assert_array_equal(u.shape, (i.shape[0] + b.shape[0],))
+        # The split shapes sum to the hand-known combined ψ½ layout size (per
+        # leg: cells ng·nx + corner ng) — the successor of the retired unified
+        # space's total (4e; the composite space is (ni + nb,)).
+        np.testing.assert_equal(
+            i.shape[0] + b.shape[0], n_legs * (_NG * _NX + _NG),
+        )
 
     def test_identity_is_name_shape(self) -> None:
         i1 = Interior.for_levels(_SPHERE_LEVELS, ng=_NG, nx=_NX, cell_volumes=_CV)
@@ -188,25 +191,13 @@ class TestSplitFidelityArangeFingerprint:
 # ── G-B2: recompose exact — the "split IS the unified, re-typed" contract ──
 
 
-class TestSplitRecompose:
-    def test_split_then_recompose_is_the_unified_buffer(self) -> None:
-        """Scatter a unified arange buffer into the split layouts (cells → interior,
-        corner → boundary), gather it back, and recover the unified buffer exactly
-        — the space-level retirement licence (the split loses nothing)."""
-        levels = _MULTI_LEVELS
-        u = Unified.for_levels(levels, ng=_NG, nx=_NX, cell_volumes=_CV)
-        i = Interior.for_levels(levels, ng=_NG, nx=_NX, cell_volumes=_CV)
-        b = Boundary.for_levels(levels, ng=_NG, nx=_NX, cell_volumes=_CV)
-        ubuf = np.arange(u.shape[0], dtype=float)
-        ibuf, bbuf = np.zeros(i.shape[0]), np.zeros(b.shape[0])
-        for level, sign in _legs(levels):
-            i.slot_view(ibuf, level, sign)[...] = u.cells_view(ubuf, level, sign)
-            b.slot_view(bbuf, level, sign)[...] = u.corner_view(ubuf, level, sign)
-        recomposed = np.zeros(u.shape[0])
-        for level, sign in _legs(levels):
-            u.cells_view(recomposed, level, sign)[...] = i.slot_view(ibuf, level, sign)
-            u.corner_view(recomposed, level, sign)[...] = b.slot_view(bbuf, level, sign)
-        np.testing.assert_array_equal(recomposed, ubuf)
+# The G-B3 "split ↔ unified buffer" recompose licence (``test_split_then_
+# recompose_is_the_unified_buffer``) RETIRED at Phase C 4e with its referent:
+# the unified ``RadialCharacteristicSpace`` buffer is gone. Its "the split
+# loses nothing" claim is now carried by the successors that do NOT reference
+# the unified: the arange-fingerprint slots (``TestSplitFidelityArangeFingerprint``
+# — the exact per-slot layout) + the composite ``to_flat``/``from_flat``
+# round-trip in the composite carrier suite (``test_radial_characteristic_composite``).
 
 
 # ── G-B3: metric partition + conservation (ERR-067-adjacent gauge) ──
@@ -223,36 +214,30 @@ class TestMetricPartition:
         expected = np.full(len(_MULTI_LEVELS) * 2 * _NG, _CV[-1])
         np.testing.assert_array_equal(b.inner_product_weights, expected)
 
-    def test_unified_metric_is_the_interleave_of_the_split(self) -> None:
-        """Conservation: unified metric == per-leg interleave(interior, boundary)
-        — ties the split gauge to the unified single source (no drift)."""
-        u = Unified.for_levels(_MULTI_LEVELS, ng=_NG, nx=_NX, cell_volumes=_CV)
-        i = Interior.for_levels(_MULTI_LEVELS, ng=_NG, nx=_NX, cell_volumes=_CV)
-        b = Boundary.for_levels(_MULTI_LEVELS, ng=_NG, nx=_NX, cell_volumes=_CV)
-        n_legs = len(_MULTI_LEVELS) * 2
-        iw = i.inner_product_weights.reshape(n_legs, _NG * _NX)
-        bw = b.inner_product_weights.reshape(n_legs, _NG)
-        interleaved = np.concatenate(
-            [np.concatenate([iw[k], bw[k]]) for k in range(n_legs)]
-        )
-        np.testing.assert_array_equal(u.inner_product_weights, interleaved)
+    # ``test_unified_metric_is_the_interleave_of_the_split`` RETIRED at 4e with
+    # its referent (the unified metric is gone). The split gauges are pinned
+    # directly, without the unified, by ``test_interior_metric_is_tile_v_cell``
+    # + ``test_boundary_metric_is_v_at_outer_radius`` above (single-sourced from
+    # ``_radial_characteristic_legs``, so no cross-space drift is spellable).
 
 
 # ── G-C2: mesh presence = ray-carrying (the new SNMesh properties) ──
 
 
 class TestMeshPresence:
-    def test_sphere_carries_both_split_spaces_aligned_with_unified(self) -> None:
+    def test_sphere_carries_both_split_spaces_aligned_with_composite(self) -> None:
         sn = _sphere()
         i = sn.radial_characteristic_interior_space
         b = sn.radial_characteristic_boundary_space
-        u = sn.radial_characteristic_space
-        if i is None or b is None or u is None:
+        c = sn.radial_characteristic_composite_space
+        if i is None or b is None or c is None:
             pytest.fail("sphere must carry the ψ½ spaces (R12a)")
-        if not (i.levels == b.levels == u.levels):
-            pytest.fail(f"level mismatch: {i.levels} / {b.levels} / {u.levels}")
+        if not (i.levels == b.levels):
+            pytest.fail(f"level mismatch: {i.levels} / {b.levels}")
+        # The split shapes sum to the composite space's flat size (4e — the
+        # composite is the successor of the retired unified space).
         np.testing.assert_array_equal(
-            (i.shape[0] + b.shape[0],), u.shape,
+            (i.shape[0] + b.shape[0],), c.shape,
         )
 
     @pytest.mark.parametrize(
@@ -260,8 +245,8 @@ class TestMeshPresence:
     )
     def test_noncarrying_meshes_have_no_split_spaces(self, mesh_fn) -> None:
         sn = mesh_fn()
-        # The presence trichotomy is single-sourced: no unified → no split.
-        if sn.radial_characteristic_space is not None:
+        # The presence trichotomy is single-sourced: no composite → no split.
+        if sn.radial_characteristic_composite_space is not None:
             pytest.skip("mesh unexpectedly carries a seed level")
         if sn.radial_characteristic_interior_space is not None:
             pytest.fail("non-carrying mesh has an interior split space")

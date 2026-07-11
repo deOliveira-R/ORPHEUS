@@ -50,7 +50,6 @@ from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.fields.radial_characteristic_interior_flux import (
     RadialCharacteristicInteriorFlux,
 )
@@ -63,7 +62,6 @@ __all__ = [
     "HarmonicMomentFlux",
     "ScalarBoundaryFlux",
     "ScalarFlux",
-    "RadialCharacteristicFlux",
     "RadialCharacteristicInteriorFlux",
     "RadialCharacteristicBoundaryFlux",
 ]

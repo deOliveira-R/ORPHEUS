@@ -380,22 +380,21 @@ class TestFullFieldTwoBlock:
                         "slot — the B.2d eviction leaked")
 
     def test_zeros_rejects_the_retired_kwarg(self):
-        from orpheus.transport.fields.radial_characteristic_flux import (
-            RadialCharacteristicFlux,
-        )
-
+        # The retired ``radial_characteristic`` leaf is gone (Phase C 4e), so
+        # the rejection is of the KWARG NAME itself — any value trips the
+        # unexpected-keyword TypeError.
         sn = _slab_mesh()
         with pytest.raises(TypeError):
             FullField.zeros(
                 interior=AngularFlux, boundary=AngularBoundaryFlux,
                 mesh=sn,
-                radial_characteristic=RadialCharacteristicFlux,
+                radial_characteristic=None,
             )
         with pytest.raises(TypeError):
             TimedFullField.zeros(
                 interior=AngularFlux, boundary=AngularBoundaryFlux,
                 mesh=sn,
-                radial_characteristic=RadialCharacteristicFlux,
+                radial_characteristic=None,
             )
 
     def test_protocol_declares_two_blocks_only(self):

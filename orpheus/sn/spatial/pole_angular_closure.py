@@ -190,7 +190,7 @@ from orpheus.geometry import CoordSystem
 from orpheus.numerics.registry import RegistryMixin
 
 if TYPE_CHECKING:  # pragma: no cover
-    from orpheus.transport.fields._bases import RadialCharacteristicField
+    from orpheus.transport.fields._bases import RadialCharacteristicInteriorField
 
     from ..mesh.augmented_mesh import SNMesh
 
@@ -472,7 +472,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         self,
         psi_view: np.ndarray,
         *,
-        radial_characteristic: "RadialCharacteristicField | None" = None,
+        radial_characteristic: "RadialCharacteristicInteriorField | None" = None,
     ) -> object:
         r"""Precompute per-level closure state for one matvec pass.
 
@@ -1239,7 +1239,7 @@ class MorelMontryAngularSweep(
         self,
         psi_view: np.ndarray,                       # (N, ng, nx, 1) canonical
         *,
-        radial_characteristic: "RadialCharacteristicField | None" = None,
+        radial_characteristic: "RadialCharacteristicInteriorField | None" = None,
     ) -> "tuple[_MMHalfGrid, ...]":
         r"""Build per-level half-angle grids from the ψ½ state / edge seed.
 
@@ -1527,7 +1527,7 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         self,
         psi_view: np.ndarray,
         *,
-        radial_characteristic: "RadialCharacteristicField | None" = None,
+        radial_characteristic: "RadialCharacteristicInteriorField | None" = None,
     ) -> None:
         """No state — Cartesian has no curvature half-grid to precompute.
 

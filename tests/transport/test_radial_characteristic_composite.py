@@ -36,20 +36,12 @@ import orpheus.transport.displacements  # noqa: F401  eager _BY_REP registry
 from orpheus.transport.displacements.radial_characteristic_boundary_displacement import (
     RadialCharacteristicBoundaryDisplacement,
 )
-from orpheus.transport.displacements.radial_characteristic_displacement import (
-    RadialCharacteristicDisplacement,
-)
 from orpheus.transport.displacements.radial_characteristic_interior_displacement import (
     RadialCharacteristicInteriorDisplacement,
-)
-from orpheus.transport.fields._bases import (
-    RadialCharacteristicField,
-    RadialCharacteristicInteriorField,
 )
 from orpheus.transport.fields.radial_characteristic_boundary_flux import (
     RadialCharacteristicBoundaryFlux,
 )
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.fields.radial_characteristic_interior_flux import (
     RadialCharacteristicInteriorFlux,
 )
@@ -62,9 +54,6 @@ from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink i
 )
 from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
     RadialCharacteristicInteriorSourceSink,
-)
-from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
-    RadialCharacteristicSourceSink,
 )
 from tests.sn._test_helpers import placeholder_materials
 
@@ -91,21 +80,13 @@ def _slab() -> SNMesh:
     )
 
 
-def _rand_unified(sn: SNMesh, seed: int) -> RadialCharacteristicFlux:
-    n = RadialCharacteristicFlux.zeros_on(sn).values.size
-    rng = np.random.default_rng(seed)
-    return RadialCharacteristicFlux.from_mesh(rng.random(n) + 0.5, sn)
-
-
-def _rand_unified_of(cls, sn: SNMesh, seed: int):
-    """A random unified ψ½ leaf of the given ROLE class (bridge role rows)."""
-    n = cls.zeros_on(sn).values.size
-    rng = np.random.default_rng(seed)
-    return cls.from_mesh(rng.random(n) + 0.5, sn)
-
-
 def _rand_composite(sn: SNMesh, seed: int) -> RadialCharacteristicComposite:
-    return RadialCharacteristicComposite.from_unified(_rand_unified(sn, seed))
+    """A random ψ½ FLUX composite (4e native — built via ``from_flat`` over a
+    zero flux composite; the retired unified-leaf bridge is gone)."""
+    rng = np.random.default_rng(seed)
+    template = RadialCharacteristicComposite.from_mesh(sn)
+    n = template.to_flat().size
+    return RadialCharacteristicComposite.from_flat(rng.random(n) + 0.5, template)
 
 
 # ── Construction (the multi-instantiation structural crux) ──
@@ -154,126 +135,23 @@ class TestCompositeConstruction:
             pytest.fail("composite mesh must be the leaves' mesh")
 
 
-# ── The split-fidelity bridge (retirement licence) ──
-
-
-class TestSplitFidelityBridge:
-    def test_from_unified_maps_cells_to_interior_and_corner_to_boundary(self) -> None:
-        sn = _sphere()
-        u = _rand_unified(sn, 1)
-        c = RadialCharacteristicComposite.from_unified(u)
-        for level in u.levels:
-            for sign in _SIGNS:
-                np.testing.assert_array_equal(
-                    c.interior.cells(level, sign), u.cells(level, sign),
-                )
-                np.testing.assert_array_equal(
-                    c.boundary.corner(level, sign), u.corner(level, sign),
-                )
-
-    def test_to_unified_after_from_unified_is_exact(self) -> None:
-        """The retirement licence: to_unified(from_unified(u)) == u, bitwise."""
-        sn = _sphere()
-        u = _rand_unified(sn, 2)
-        back = RadialCharacteristicComposite.from_unified(u).to_unified()
-        if type(back) is not RadialCharacteristicFlux:
-            pytest.fail(f"to_unified returned {type(back).__name__}")
-        np.testing.assert_array_equal(back.values, u.values)
-
-    def test_from_unified_after_to_unified_is_exact(self) -> None:
-        sn = _sphere()
-        c = _rand_composite(sn, 3)
-        rt = RadialCharacteristicComposite.from_unified(c.to_unified())
-        np.testing.assert_array_equal(rt.interior.values, c.interior.values)
-        np.testing.assert_array_equal(rt.boundary.values, c.boundary.values)
-
-    # ── Role preservation (B.2b DP2 — one bridge body, exact-class table) ──
-
-    @pytest.mark.parametrize(
-        "unified_cls,interior_cls,boundary_cls",
-        [
-            (RadialCharacteristicSourceSink,
-             RadialCharacteristicInteriorSourceSink,
-             RadialCharacteristicBoundarySourceSink),
-            (RadialCharacteristicDisplacement,
-             RadialCharacteristicInteriorDisplacement,
-             RadialCharacteristicBoundaryDisplacement),
-        ],
-    )
-    def test_bridge_preserves_the_member_role(
-        self, unified_cls, interior_cls, boundary_cls,
-    ) -> None:
-        r"""from_unified follows the unified leaf's ROLE: a source leaf splits
-        into the source pair (the A_BA / B_b emission carrier), a displacement
-        into the displacement pair — values mapped bitwise per leg."""
-        sn = _sphere()
-        u = _rand_unified_of(unified_cls, sn, 31)
-        comp = RadialCharacteristicComposite.from_unified(u)
-        if type(comp.interior) is not interior_cls:
-            pytest.fail(f"interior member is {type(comp.interior).__name__}, "
-                        f"expected {interior_cls.__name__}")
-        if type(comp.boundary) is not boundary_cls:
-            pytest.fail(f"boundary member is {type(comp.boundary).__name__}, "
-                        f"expected {boundary_cls.__name__}")
-        for level in u.levels:
-            for sign in _SIGNS:
-                np.testing.assert_array_equal(
-                    comp.interior.cells(level, sign), u.cells(level, sign),
-                )
-                np.testing.assert_array_equal(
-                    comp.boundary.corner(level, sign), u.corner(level, sign),
-                )
-
-    @pytest.mark.parametrize(
-        "unified_cls",
-        [RadialCharacteristicSourceSink, RadialCharacteristicDisplacement],
-    )
-    def test_round_trip_is_exact_per_role(self, unified_cls) -> None:
-        r"""The retirement licence holds PER ROLE: to∘from == id bitwise, and
-        the round-tripped leaf carries the original role class."""
-        sn = _sphere()
-        u = _rand_unified_of(unified_cls, sn, 32)
-        back = RadialCharacteristicComposite.from_unified(u).to_unified()
-        if type(back) is not unified_cls:
-            pytest.fail(f"round trip returned {type(back).__name__}, "
-                        f"expected {unified_cls.__name__}")
-        np.testing.assert_array_equal(back.values, u.values)
-
-    def test_from_unified_rejects_an_unknown_role(self) -> None:
-        r"""An off-table unified role refuses loudly (a new role joins by a
-        table row, never a silent flux-pair default)."""
-        @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-        class _AlienUnified(RadialCharacteristicField):
-            pass
-
-        sn = _sphere()
-        with pytest.raises(TypeError, match="role-preserving"):
-            RadialCharacteristicComposite.from_unified(_AlienUnified.zeros_on(sn))
-
-    def test_to_unified_rejects_a_mixed_role_composite(self) -> None:
-        r"""Role-erased slots make a mixed-role composite CONSTRUCTABLE, but it
-        has no unified counterpart — the bridge is where role identity is
-        parsed (the consumption-site F2 discipline)."""
-        sn = _sphere()
-        comp = RadialCharacteristicComposite(
-            interior=RadialCharacteristicInteriorFlux.zeros_on(sn),
-            boundary=RadialCharacteristicBoundarySourceSink.zeros_on(sn),
-        )
-        with pytest.raises(TypeError, match="mixed-role"):
-            comp.to_unified()
-
-    def test_to_unified_rejects_an_unknown_interior_role(self) -> None:
-        @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-        class _AlienInterior(RadialCharacteristicInteriorField):
-            pass
-
-        sn = _sphere()
-        comp = RadialCharacteristicComposite(
-            interior=_AlienInterior.zeros_on(sn),
-            boundary=RadialCharacteristicBoundaryFlux.zeros_on(sn),
-        )
-        with pytest.raises(TypeError, match="no unified role"):
-            comp.to_unified()
+# ── The split-fidelity bridge (TestSplitFidelityBridge) RETIRED at Phase C 4e ──
+#
+# The whole class tested the ``from_unified`` / ``to_unified`` bridge between the
+# retired unified ``RadialCharacteristicField`` leaf and the composite — the
+# "demotion licence" (``to_unified ∘ from_unified == id`` + role-preserving
+# splits + the mixed/unknown-role bridge guards). The bridge and the unified
+# leaf are GONE (the composite is the native representation), so the licence has
+# no referent — the walk-slot rewrite landing bit-identically on the frozen
+# baselines IS the discharged licence. Successors carrying the surviving claims:
+#   * value fidelity / round-trip → ``TestCompositeAlgebra::
+#     test_to_flat_from_flat_round_trip_preserves_type`` (the native flat
+#     round-trip) + the ``_rand_composite`` ``from_flat`` build;
+#   * role identity (flux / source / displacement members) → the member-type
+#     rows in ``TestCompositeConstruction`` + ``TestCompositeAlgebra::
+#     test_subtraction_mints_a_displacement_composite_per_block``;
+#   * the mixed-role "guard" DISSOLVED — role-erased slots make a mixed-role
+#     composite LEGAL by construction (B.2b DP2); there is no bridge to refuse it.
 
 
 # ── Intrinsic composite algebra on the ray carrier (multi-instantiation) ──

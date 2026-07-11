@@ -5,15 +5,16 @@ codim-1 parent that owns the flat-buffer / :class:`FaceLayout` discipline ONCE �
 and re-parented the two codim-1 loci under it as **siblings**:
 
 * :class:`BoundaryField` (``FaceField[str]``) — the SPATIAL faces;
-* :class:`RadialCharacteristicField` (``FaceField[tuple[int, int, str]]``) — the ψ½
-  ANGULAR-edge pole seed.
+* :class:`RadialCharacteristicInteriorField` / :class:`RadialCharacteristicBoundaryField`
+  (``FaceField[tuple[int, int]]``) — System B's ψ½ ANGULAR-edge pole-seed split
+  members (Phase C 4e retired the unified ``RadialCharacteristicField`` base).
 
 This module pins the two load-bearing structural facts the carve must preserve:
 
 1. **Sibling, NOT child.** The :class:`~orpheus.transport.full_field.FullField`
    composite discriminates its boundary slot by ``isinstance(·, BoundaryField)``;
-   the ψ½ pole MUST FAIL that test. If a refactor made
-   :class:`RadialCharacteristicField` a *child* of :class:`BoundaryField` (or
+   the ψ½ pole members MUST FAIL that test. If a refactor made a
+   ``RadialCharacteristic*Field`` a *child* of :class:`BoundaryField` (or
    collapsed :class:`BoundaryField` into :class:`FaceField`), the composite would
    silently accept a pole field in its boundary slot — a wrong-slot bug invisible
    to every value gate.
@@ -38,10 +39,13 @@ from orpheus.transport.fields._bases import (
     BoundaryField,
     AngularBoundaryField,
     ScalarBoundaryField,
-    RadialCharacteristicField,
+    RadialCharacteristicInteriorField,
+    RadialCharacteristicBoundaryField,
 )
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
+from orpheus.transport.fields.radial_characteristic_interior_flux import (
+    RadialCharacteristicInteriorFlux,
+)
 from tests.sn._test_helpers import make_tiny_spherical_sn_mesh
 
 
@@ -61,7 +65,8 @@ class TestFaceFieldIsTheCodim1Parent:
     def test_every_face_family_descends_from_facefield(self):
         for family in (
             BoundaryField,
-            RadialCharacteristicField,
+            RadialCharacteristicInteriorField,
+            RadialCharacteristicBoundaryField,
             AngularBoundaryField,
             ScalarBoundaryField,
         ):
@@ -83,12 +88,16 @@ class TestPoleIsSiblingNotChild:
     def test_pole_is_not_a_boundaryfield_subclass(self):
         # If this flips, isinstance(pole, BoundaryField) in FullField.__post_init__
         # starts returning True and the composite accepts the pole in its
-        # boundary slot — silently wrong.
-        np.testing.assert_(not issubclass(RadialCharacteristicField, BoundaryField))
-        np.testing.assert_(not issubclass(BoundaryField, RadialCharacteristicField))
+        # boundary slot — silently wrong. Both split ψ½ members must fail it.
+        for pole_base in (
+            RadialCharacteristicInteriorField, RadialCharacteristicBoundaryField,
+        ):
+            np.testing.assert_(not issubclass(pole_base, BoundaryField))
+            np.testing.assert_(not issubclass(BoundaryField, pole_base))
 
     def test_pole_and_boundary_share_the_facefield_parent(self):
-        np.testing.assert_(issubclass(RadialCharacteristicField, FaceField))
+        np.testing.assert_(issubclass(RadialCharacteristicInteriorField, FaceField))
+        np.testing.assert_(issubclass(RadialCharacteristicBoundaryField, FaceField))
         np.testing.assert_(issubclass(BoundaryField, FaceField))
 
 
@@ -98,7 +107,7 @@ class TestPoleIsSiblingNotChild:
 class TestConstructedInstancesDiscriminate:
     def test_constructed_pole_fails_the_boundary_isinstance(self):
         mesh = _sphere_mesh()
-        pole = RadialCharacteristicFlux.zeros_on(mesh)
+        pole = RadialCharacteristicInteriorFlux.zeros_on(mesh)
         boundary = AngularBoundaryFlux.zeros_on(mesh)
         # The exact test FullField.__post_init__ runs on its boundary slot.
         np.testing.assert_(not isinstance(pole, BoundaryField))  # the guarded fact
@@ -130,7 +139,7 @@ class TestPostInitFiresOnce:
 
         monkeypatch.setattr(FaceField, "__post_init__", counting_post_init)
 
-        RadialCharacteristicFlux.zeros_on(mesh)
+        RadialCharacteristicInteriorFlux.zeros_on(mesh)
         np.testing.assert_equal(calls["n"], 1, err_msg="pole: post_init != once")
 
         calls["n"] = 0
@@ -153,7 +162,7 @@ class TestMetricIsPerLeaf:
         would collapse them to equal — this reddens.
         """
         mesh = _sphere_mesh()
-        pole_w = RadialCharacteristicFlux.zeros_on(mesh).space.inner_product_weights
+        pole_w = RadialCharacteristicInteriorFlux.zeros_on(mesh).space.inner_product_weights
         trace_w = AngularBoundaryFlux.zeros_on(mesh).space.inner_product_weights
 
         # The pole's state metric exists and is SPD (nonzero) — NOT the ghost 0.

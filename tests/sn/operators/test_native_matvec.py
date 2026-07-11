@@ -48,7 +48,7 @@ from tests.sn._test_helpers import _LC_matvec
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
+from orpheus.transport.radial_characteristic_composite import RadialCharacteristicComposite
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.quadrature import Quadrature
@@ -138,9 +138,10 @@ def _uniform_flux(sn_mesh: SNMesh, value: float = 1.0) -> TimedFullField:
     # ``(L+C)·ψ = σ_t·ψ`` holds.  A zero seed leg would inject a wrong pole
     # datum and break the value assertion (rule 2).
     seed = None
-    if getattr(sn_mesh, "radial_characteristic_space", None) is not None:
-        seed = RadialCharacteristicFlux.zeros_on(sn_mesh)
-        seed.values[:] = value
+    if sn_mesh.radial_characteristic_composite_space is not None:
+        seed = RadialCharacteristicComposite.from_mesh(sn_mesh)
+        seed.interior.values[:] = value
+        seed.boundary.values[:] = value
     return state, seed
 
 

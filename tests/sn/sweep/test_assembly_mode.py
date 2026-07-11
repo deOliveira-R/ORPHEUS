@@ -69,7 +69,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
+from orpheus.transport.radial_characteristic_composite import RadialCharacteristicComposite
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
@@ -539,25 +539,23 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
     A = _loss(sn_mesh)
     N = sn_mesh.quad.n_ordinates
     nx = int(np.prod(sn_mesh.spatial_shape))
-    space = sn_mesh.radial_characteristic_space
-    levels = () if space is None else space.levels
+    levels = sn_mesh.radial_characteristic_levels
+    carrying = sn_mesh.radial_characteristic_composite_space is not None
 
-    def _seed_leg_view(seed_values, level):
-        # The seed leg in march order, one group.
+    def _seed_leg_view(rows, level):
+        # The emitted seed leg (a source composite) in march order, one group.
         return np.concatenate([
-            [space.corner_view(seed_values, level, -1)[g]],
-            space.cells_view(seed_values, level, -1)[g][::-1],
-            space.cells_view(seed_values, level, +1)[g],
-            [space.corner_view(seed_values, level, +1)[g]],
+            [rows.boundary.corner(level, -1)[g]],
+            rows.interior.cells(level, -1)[g][::-1],
+            rows.interior.cells(level, +1)[g],
+            [rows.boundary.corner(level, +1)[g]],
         ])
 
     def _read(out, rows) -> np.ndarray:
         bulk = np.asarray(out.interior.values)[:, g].ravel()   # (N·nx,)
-        if space is None:
+        if not carrying:
             return bulk
-        seed = np.concatenate(
-            [_seed_leg_view(rows.values, p) for p in levels]
-        )
+        seed = np.concatenate([_seed_leg_view(rows, p) for p in levels])
         return np.concatenate([seed, bulk])
 
     def _fresh():
@@ -566,14 +564,11 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
         )
 
     def _apply(st, seed_leaf):
-        # B.2d: the ψ½ legs ride the EXPLICIT kwargs (flux IN, rows OUT).
-        if space is None:
+        # B.2d / 4e: the ψ½ legs ride the EXPLICIT kwargs (flux composite IN,
+        # source composite rows OUT).
+        if not carrying:
             return _read(A.apply(st), None)
-        from orpheus.transport.source_sinks import (
-            RadialCharacteristicSourceSink,
-        )
-
-        rows = RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+        rows = RadialCharacteristicComposite.source_zeros_on(sn_mesh)
         out = A.apply(
             st,
             radial_characteristic_flux=seed_leaf,
@@ -583,8 +578,8 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
 
     def _zero_seed():
         return (
-            None if space is None
-            else RadialCharacteristicFlux.zeros_on(sn_mesh)
+            None if not carrying
+            else RadialCharacteristicComposite.from_mesh(sn_mesh)
         )
 
     n_seed_per_level = 2 * nx + 2
@@ -594,15 +589,14 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
         for local in range(n_seed_per_level):
             st = _fresh()
             seed_leaf = _zero_seed()
-            s = seed_leaf.values
             if local == 0:
-                space.corner_view(s, p, -1)[g] = 1.0
+                seed_leaf.boundary.corner(p, -1)[g] = 1.0
             elif local <= nx:
-                space.cells_view(s, p, -1)[g][nx - local] = 1.0
+                seed_leaf.interior.cells(p, -1)[g][nx - local] = 1.0
             elif local <= 2 * nx:
-                space.cells_view(s, p, +1)[g][local - nx - 1] = 1.0
+                seed_leaf.interior.cells(p, +1)[g][local - nx - 1] = 1.0
             else:
-                space.corner_view(s, p, +1)[g] = 1.0
+                seed_leaf.boundary.corner(p, +1)[g] = 1.0
             columns.append(_apply(st, seed_leaf))
     # ── ordinate-bulk columns ──
     for n in range(N):
@@ -619,8 +613,11 @@ def _augmented_sweep_order(sn_mesh: SNMesh) -> np.ndarray:
     (cells marching WITH each ordinate's direction — inward for μ<0)."""
     mu = np.asarray(sn_mesh.quad.mu_x)
     nx = int(np.prod(sn_mesh.spatial_shape))
-    space = sn_mesh.radial_characteristic_space
-    n_seed = 0 if space is None else space.shape[0] // sn_mesh.ng
+    composite_space = sn_mesh.radial_characteristic_composite_space
+    n_seed = (
+        0 if composite_space is None
+        else composite_space.shape[0] // sn_mesh.ng
+    )
     order: list[int] = list(range(n_seed))   # seed DOFs already march-ordered
     for n in np.argsort(mu, kind="stable"):
         cells = range(nx - 1, -1, -1) if mu[n] < 0.0 else range(nx)
@@ -715,9 +712,7 @@ def test_282_teeth_coupling_direction_swap_reds():
             import numpy as _np
             psi_g_first = psi_view.swapaxes(0, 1)
             for p in self._carrying_levels:
-                cells = radial_characteristic.space.cells_view(
-                    radial_characteristic.values, p, -1,
-                )
+                cells = radial_characteristic.cells(p, -1)
                 cells += psi_g_first[:, -1, :]   # + last-ordinate column
         return orig(self, psi_view, radial_characteristic=radial_characteristic)
 

@@ -320,9 +320,6 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
     from orpheus.geometry import CoordSystem
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.mesh.augmented_mesh import SNMesh
-    from orpheus.transport.fields.radial_characteristic_flux import (
-        RadialCharacteristicFlux,
-    )
     from orpheus.transport.timed_full_field import TimedFullField
     from tests.sn._test_helpers import curvilinear_two_region_mesh
 

@@ -72,9 +72,7 @@ from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.mesh.axis import Axis1D
 from .loss_representation import transport_sweep
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
-from orpheus.transport.source_sinks import RadialCharacteristicSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
 if TYPE_CHECKING:
@@ -335,7 +333,7 @@ def evaluate_residual(
     # feeding solution.angular_flux alone would get a residual blind to a
     # wrong seed row). The full-system residual takes the coupled pair.
     bare_mesh = getattr(q_ext.interior, "mesh", None)
-    if getattr(bare_mesh, "radial_characteristic_space", None) is not None:
+    if getattr(bare_mesh, "radial_characteristic_composite_space", None) is not None:
         raise ValueError(
             "evaluate_residual: this mesh carries starting-direction levels "
             "(R12a) — pass the coupled pair [ψ_A, ψ_B] (and the coupled loss "
@@ -507,26 +505,25 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
     )
 
 
-def _radial_characteristic_zeros(sn_mesh) -> "RadialCharacteristicFlux | None":
-    r"""The mesh-keyed zero UNIFIED ψ½ flux buffer (``None`` on non-carrying meshes).
+def _radial_characteristic_zeros(sn_mesh) -> "RadialCharacteristicComposite | None":
+    r"""The mesh-keyed zero ψ½ flux composite (``None`` on non-carrying meshes).
 
     The walk-buffer factory of #282 route (a): the final-reconstruction
-    ``transport_sweep`` fills this carrier in place (the walk internals
-    stay unified through Phase C/4e — the demote ruling). Presence is
-    decided by the ONE R12a source (``SNMesh.radial_characteristic_space``),
-    never by the call site. Driver STATES no longer ride it — the coupled
-    pair's ψ_B is System B's own composite (B.2d,
-    :func:`_coupled_flux_state`)."""
-    if sn_mesh.radial_characteristic_space is None:
+    ``transport_sweep`` fills this carrier in place (the walk marches
+    System B's split composite natively since 4e). Presence is decided by
+    the ONE R12a source (``SNMesh.radial_characteristic_composite_space``),
+    never by the call site. Driver STATES ride the same composite via
+    :func:`_coupled_flux_state` (B.2d)."""
+    if sn_mesh.radial_characteristic_composite_space is None:
         return None
-    return RadialCharacteristicFlux.zeros_on(sn_mesh)
+    return RadialCharacteristicComposite.from_mesh(sn_mesh)
 
 
 def _radial_characteristic_source_from_per_ordinate(
     per_ordinate_values: "np.ndarray", sn_mesh,
-) -> "RadialCharacteristicSourceSink | None":
-    r"""Fold a PER-ORDINATE source to its q½ seed —
-    :meth:`RadialCharacteristicSourceSink.from_angular_source` (Legendre-project
+) -> "RadialCharacteristicComposite | None":
+    r"""Fold a PER-ORDINATE source to its q½ composite —
+    :meth:`RadialCharacteristicComposite.source_from_angular` (Legendre-project
     the per-ordinate source to moments, then fold at :math:`\mu=\pm 1`).
 
     The PER-ORDINATE typed entry to the one fold kernel
@@ -539,14 +536,14 @@ def _radial_characteristic_source_from_per_ordinate(
     per-ordinate round-trip). Both bottom out in the SAME kernel — no twin, a
     different typed input.
     """
-    return RadialCharacteristicSourceSink.from_angular_source(
+    return RadialCharacteristicComposite.source_from_angular(
         per_ordinate_values, sn_mesh,
     )
 
 
 def _radial_characteristic_fission_seed(
     fission_source: "np.ndarray", sn_mesh,
-) -> "RadialCharacteristicSourceSink | None":
+) -> "RadialCharacteristicComposite | None":
     r"""The ψ½ FISSION ray seed — the direct ℓ=0 moments-fold of the fission
     emission (``A_BA_fission = Fold ∘ F.kernel``, factored).
 
@@ -568,7 +565,7 @@ def _radial_characteristic_fission_seed(
     curvilinear (R12a) so ``fission_source`` is ``(ng, nx)``; the fold takes the
     unit-ℓ ``[None]`` axis (``RadialCharacteristicReconstruction.apply`` guards it).
     """
-    if sn_mesh.radial_characteristic_space is None:
+    if sn_mesh.radial_characteristic_composite_space is None:
         return None
     from orpheus.sn.operators.radial_characteristic import (
         RadialCharacteristicReconstruction,
@@ -594,25 +591,23 @@ def _coupled_flux_state(
 
 
 def _coupled_source_state(
-    q_a: "FullField", q_half: "RadialCharacteristicSourceSink | None",
+    q_a: "FullField", q_half: "RadialCharacteristicComposite | None",
     sn_mesh: "SNMesh", *, context: str,
 ) -> "CoupledField":
     r"""Pair a System-A SOURCE composite with its q½ System-B member.
 
-    The coupled rhs birth on a carrying mesh: ``q_half`` is the unified q½
-    fold (:func:`_radial_characteristic_source_from_per_ordinate` /
-    :func:`_radial_characteristic_fission_seed`), lifted role-preserving
-    onto System B's composite. ``None`` refuses loudly — a carrying mesh's
-    rhs MUST carry the true q½ (the direct ψ½ solve consumes it).
+    The coupled rhs birth on a carrying mesh: ``q_half`` is the q½ fold
+    composite (:func:`_radial_characteristic_source_from_per_ordinate` /
+    :func:`_radial_characteristic_fission_seed`) — System B's member,
+    paired directly. ``None`` refuses loudly — a carrying mesh's rhs MUST
+    carry the true q½ (the direct ψ½ solve consumes it).
     """
     if q_half is None:
         raise ValueError(
             f"{context}: a carrying mesh's coupled rhs requires the q½ fold "
             f"(got None) — the joint solve consumes System B's true source."
         )
-    return CoupledField(
-        systems=(q_a, RadialCharacteristicComposite.from_unified(q_half)),
-    )
+    return CoupledField(systems=(q_a, q_half))
 
 
 def _select_si_resolvent(
@@ -1831,7 +1826,7 @@ def _is_curvilinear(mesh: Mesh1D | Mesh2D) -> bool:
 def _reflect_outflow_into_inflow(
     boundary_flux, sn_mesh: SNMesh, faces: "Iterable[str] | None" = None,
     *,
-    radial_characteristic: "RadialCharacteristicFlux | None" = None,
+    radial_characteristic: "RadialCharacteristicComposite | None" = None,
 ) -> None:
     r"""In-place: fill each face's inflow ordinate slots with the realized
     boundary law applied to that face's outflow trace — the ``−B`` reflective
@@ -2067,7 +2062,8 @@ def solve_sn(
         _system_b_member(converged) if converged is not None else None
     )
     if final_seed_buf is not None and converged_ray is not None:
-        final_seed_buf.values[...] = converged_ray.to_unified().values
+        final_seed_buf.interior.values[...] = converged_ray.interior.values
+        final_seed_buf.boundary.values[...] = converged_ray.boundary.values
     # Wave O #208 O.4b Phase E2 — the 2-D wavefront is now BARE (reads the
     # given inflow, no in-sweep bc.apply), so the reflective coupling is the
     # external -B for 2-D too.  The guard is lifted: _reflect_outflow_into_inflow
@@ -2082,10 +2078,9 @@ def solve_sn(
     # source's corner slot (the sweep reads the SOURCE corner as the
     # inward march's entry — the trace's seeded-inflow discipline).
     if final_seed_src is not None and final_seed_buf is not None:
-        space = final_seed_src.space
-        for _p in space.levels:
-            space.corner_view(final_seed_src.values, _p, -1)[...] = (
-                space.corner_view(final_seed_buf.values, _p, -1)
+        for _p in final_seed_src.boundary.space.levels:
+            final_seed_src.boundary.corner(_p, -1)[...] = (
+                final_seed_buf.boundary.corner(_p, -1)
             )
     angular_flux, _ = transport_sweep(
         q_final_per_ord,
@@ -2134,13 +2129,9 @@ def solve_sn(
         keff=float(keff_history[-1]),
         history=history,
         # B.2d DP-Solution: System B's converged state is its OWN member —
-        # the final sweep's marched ψ½ carrier, lifted role-preserving onto
-        # the composite (None on non-carrying meshes).
-        radial_characteristic=(
-            None
-            if final_seed_buf is None
-            else RadialCharacteristicComposite.from_unified(final_seed_buf)
-        ),
+        # the final sweep's marched ψ½ composite (None on non-carrying
+        # meshes; the walk filled it in place, 4e split-native).
+        radial_characteristic=final_seed_buf,
     )
 
 
@@ -2289,7 +2280,7 @@ def _build_fixed_source_rhs(
         ),
         boundary=boundary,
     )
-    if sn_mesh.radial_characteristic_space is None:
+    if sn_mesh.radial_characteristic_composite_space is None:
         return q_a
     # #282 route (a) → B.2d: the q½ member on carrying meshes — System B's
     # OWN composite, paired with q_A.  A coupled input's explicit member is
@@ -2298,8 +2289,9 @@ def _build_fixed_source_rhs(
     # populates it.  Carrying meshes are 1-D curvilinear DD (never
     # moment-resolved), so the flat bulk is the only live shape here.
     if explicit_seed is not None:
-        seed_src = RadialCharacteristicSourceSink.zeros_on(sn_mesh)
-        seed_src.values[...] = explicit_seed.to_unified().values
+        seed_src = RadialCharacteristicComposite.source_zeros_on(sn_mesh)
+        seed_src.interior.values[...] = explicit_seed.interior.values
+        seed_src.boundary.values[...] = explicit_seed.boundary.values
     else:
         seed_src = _radial_characteristic_source_from_per_ordinate(
             bulk_values, sn_mesh,

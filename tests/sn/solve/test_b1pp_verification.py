@@ -44,7 +44,6 @@ from tests.sn._test_helpers import (
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 
 # Per-test V&V level markers (see individual @pytest.mark.lN decorators).
 
@@ -246,15 +245,15 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     if seed_leg is None:
         out = L.apply(state) + C.apply(state)
     else:
-        from orpheus.transport.source_sinks import (
-            RadialCharacteristicSourceSink,
+        from orpheus.transport.radial_characteristic_composite import (
+            RadialCharacteristicComposite,
         )
 
         out = L.apply(
             state,
             radial_characteristic_flux=seed_leg,
             radial_characteristic_source=(
-                RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+                RadialCharacteristicComposite.source_zeros_on(sn_mesh)
             ),
         ) + C.apply(state)
 

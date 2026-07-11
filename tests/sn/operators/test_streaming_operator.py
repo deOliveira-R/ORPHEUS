@@ -41,7 +41,6 @@ from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials, radial_characteristic_edge_seed
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 pytestmark = pytest.mark.foundation
@@ -695,15 +694,15 @@ class TestT4bPreT4RegressionSnapshot:
         # meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
         sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
         if sd is not None:
-            from orpheus.transport.source_sinks import (
-                RadialCharacteristicSourceSink,
+            from orpheus.transport.radial_characteristic_composite import (
+                RadialCharacteristicComposite,
             )
 
             out = L.apply(
                 state,
                 radial_characteristic_flux=sd,
                 radial_characteristic_source=(
-                    RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+                    RadialCharacteristicComposite.source_zeros_on(sn_mesh)
                 ),
             )
         else:
@@ -912,15 +911,15 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         # meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
         sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
         if sd is not None:
-            from orpheus.transport.source_sinks import (
-                RadialCharacteristicSourceSink,
+            from orpheus.transport.radial_characteristic_composite import (
+                RadialCharacteristicComposite,
             )
 
             out = L.apply(
                 state,
                 radial_characteristic_flux=sd,
                 radial_characteristic_source=(
-                    RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+                    RadialCharacteristicComposite.source_zeros_on(sn_mesh)
                 ),
             )
         else:

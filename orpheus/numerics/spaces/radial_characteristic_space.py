@@ -61,7 +61,7 @@ flat-backing precedent::
 Access goes through :meth:`cells_view` / :meth:`corner_view` — slice
 views into the flat buffer, no copies. The offsets are sourced from a
 real :class:`~orpheus.numerics.face_layout.FaceLayout` carried on the
-space (:attr:`~RadialCharacteristicSpace.layout`), keyed by the structured
+space layouts, keyed by the structured
 ``(level, sign, part)`` tuple — the SAME flat-buffer discipline the
 spatial trace uses with ``str`` face-name keys (``FaceLayout[str]``), the
 key merely typed instead of stringly.
@@ -183,7 +183,6 @@ from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.space import FunctionSpace
 
 __all__ = [
-    "RadialCharacteristicSpace",
     "RadialCharacteristicInteriorSpace",
     "RadialCharacteristicBoundarySpace",
     "fold_moments_to_radial_characteristic",
@@ -205,7 +204,7 @@ def _validate_ray_space_inputs(
 ) -> tuple[tuple[int, ...], NDArray]:
     r"""The shared ``for_levels`` precondition check for every ψ½ ray space.
 
-    The unified :class:`RadialCharacteristicSpace` and the two split
+    The two split
     :class:`RadialCharacteristicInteriorSpace` / :class:`RadialCharacteristicBoundarySpace`
     share ONE construction contract: non-empty strictly-ascending seed levels,
     positive ``ng`` / ``nx``, and a strictly-positive ``cell_volumes`` of shape
@@ -256,7 +255,6 @@ class _RayLeg(NamedTuple):
     #: ``(level, sign)`` — the split interior / boundary spaces' layout key.
     split_key: tuple[int, int]
     #: ``(level, sign, part)`` — the unified space's 3-tuple layout key.
-    unified_key: tuple[int, int, str]
     #: The per-leg block shape (``(ng, nx)`` cells / ``(ng,)`` corner).
     shape: tuple[int, ...]
     #: The ``G_sd = V_cell`` state-metric weights for this leg.
@@ -273,8 +271,7 @@ def _radial_characteristic_legs(
 
     Emits, in the canonical flat-layout (= DAG) order — ``level`` ascending,
     ``sign ∈ (-1, +1)``, ``cells`` then ``corner`` — one :data:`_RayLeg` per leg.
-    The unified :class:`RadialCharacteristicSpace` consumes EVERY leg (keying by
-    the 3-tuple ``unified_key``); each split space filters on its ``part`` (keying
+    Each split space filters on its ``part`` (keying
     by ``split_key``). Because all three spaces read their layout order AND their
     ``G_sd = V_cell`` state metric from THIS one walk, a split space's
     layout/metric cannot drift from the unified (Pattern 2 — the twin-path is
@@ -292,7 +289,6 @@ def _radial_characteristic_legs(
                 _RayLeg(
                     part="cells",
                     split_key=(level, sign),
-                    unified_key=(level, sign, "cells"),
                     shape=(ng, nx),
                     metric=np.tile(cell_volumes, ng),
                 )
@@ -301,7 +297,6 @@ def _radial_characteristic_legs(
                 _RayLeg(
                     part="corner",
                     split_key=(level, sign),
-                    unified_key=(level, sign, "corner"),
                     shape=(ng,),
                     metric=np.full(ng, corner_gauge),
                 )
@@ -309,177 +304,12 @@ def _radial_characteristic_legs(
     return legs
 
 
-@dataclass(frozen=True)
-class RadialCharacteristicSpace(FunctionSpace):
-    r"""Flat per-level ψ½ space with typed ``(level, sign)`` views and the V_cell metric.
-
-    Parameters
-    ----------
-    name, shape, inner_product_weights
-        Inherited from :class:`~orpheus.numerics.space.FunctionSpace`.
-        ``name`` is ``"radial_characteristic"``; ``shape`` is the flat
-        total ``(n_levels · 2 · (ng·nx + ng),)``; the weights are the
-        SPD **state metric** :math:`G_{\rm sd} = V_{\rm cell}` (see the
-        module docstring's "The state metric" section).
-        Build via :meth:`for_levels`, never the bare constructor.
-    levels : tuple[int, ...]
-        The seed-carrying μ-level indices (ascending), as selected by
-        the R12a predicate on the owning mesh. Metadata
-        (``compare=False`` — space identity stays ``(name, shape)``).
-    ng, nx : int
-        Group and radial-cell counts — the per-``(level, sign)`` block
-        shapes ``(ng, nx)`` (cells) and ``(ng,)`` (corner). Metadata.
-    """
-
-    levels: tuple[int, ...] = field(kw_only=True, compare=False, repr=False)
-    ng: int = field(kw_only=True, compare=False, repr=False)
-    nx: int = field(kw_only=True, compare=False, repr=False)
-    #: The flat-buffer :class:`~orpheus.numerics.face_layout.FaceLayout`
-    #: keyed by the structured ``(level, sign, part)`` tuple — the single
-    #: source of the per-``(level, sign)`` cells/corner offsets (the same
-    #: discipline the spatial trace carries via ``str`` keys). Metadata
-    #: (``compare=False`` — space identity stays ``(name, shape)``); built
-    #: unconditionally by :meth:`for_levels`.
-    layout: FaceLayout[tuple[int, int, str]] = field(
-        kw_only=True, compare=False, repr=False,
-    )
-
-    # ── Equality / hashing inherited from FunctionSpace ───────────────
-    #
-    # Same rationale as AngularTraceSpace / TensorProductSpace / FullFieldSpace:
-    # restore the (name, shape) identity convention over the dataclass
-    # auto-generation (the metadata fields are already ``compare=False``).
-
-    def __eq__(self, other: object) -> bool:
-        return FunctionSpace.__eq__(self, other)
-
-    def __hash__(self) -> int:
-        return FunctionSpace.__hash__(self)
-
-    def __repr__(self) -> str:
-        return (
-            f"RadialCharacteristicSpace(levels={self.levels}, ng={self.ng}, "
-            f"nx={self.nx}, shape={self.shape})"
-        )
-
-    # ── Construction ──────────────────────────────────────────────────
-
-    @classmethod
-    def for_levels(
-        cls,
-        levels: tuple[int, ...],
-        *,
-        ng: int,
-        nx: int,
-        cell_volumes: NDArray,
-    ) -> "RadialCharacteristicSpace":
-        r"""Build the space for the given seed-carrying levels.
-
-        The ONLY construction path (the bare constructor cannot derive
-        the flat shape or the state metric). An EMPTY ``levels`` is
-        rejected: absence of the block is spelled ``None`` at the
-        carrier/mesh layer, never a zero-DOF phantom space.
-
-        Parameters
-        ----------
-        levels : tuple[int, ...]
-            Seed-carrying μ-level indices, strictly ascending (the
-            canonical layout order; also the DAG order).
-        ng, nx : int
-            Group / radial-cell counts of the owning mesh.
-        cell_volumes : NDArray, shape ``(nx,)``
-            The radial cell volumes :math:`V_{\rm cell}` of the owning
-            mesh — the state metric :math:`G_{\rm sd} = V_{\rm cell}` (see
-            the module docstring "The state metric" section). The SAME
-            array the bulk metric :math:`G_{\rm bulk} = V_{\rm cell}\,w_n`
-            reads (``SNMesh.full_field_space``).
-        """
-        levels, cell_volumes = _validate_ray_space_inputs(
-            cls.__name__, levels, ng, nx, cell_volumes,
-        )
-        # The unified space keys every leg by the 3-tuple (level, sign, part).
-        # The (level, sign) leg order AND the SPD G_sd = V_cell state metric are
-        # single-sourced from _radial_characteristic_legs — shared with the split
-        # interior / boundary spaces, each of which projects onto ONE part — so
-        # the flat-buffer offsets and the metric weights cannot diverge across
-        # the three ψ½ spaces (a single source of the leg order, retiring the
-        # hand-rolled _leg_offset). See that helper's docstring for the metric
-        # gauge, and the module docstring's "state metric" section for why
-        # G_sd = V_cell (and why 0 is the forbidden ghost — ERR-067).
-        named_shapes: list[tuple[tuple[int, int, str], tuple[int, ...]]] = []
-        metric_pieces: list[NDArray] = []
-        for leg in _radial_characteristic_legs(levels, ng, nx, cell_volumes):
-            named_shapes.append((leg.unified_key, leg.shape))
-            metric_pieces.append(leg.metric)
-        layout = FaceLayout.from_named_shapes(named_shapes)
-        metric = np.concatenate(metric_pieces)
-        return cls(
-            name="radial_characteristic",
-            shape=(layout.total_size,),
-            inner_product_weights=metric,
-            levels=levels,
-            ng=int(ng),
-            nx=int(nx),
-            layout=layout,
-        )
-
-    # ── Layout access (offsets sourced from the FaceLayout) ───────────
-
-    @property
-    def n_levels(self) -> int:
-        r"""Number of seed-carrying levels."""
-        return len(self.levels)
-
-    def _slot_key(
-        self, level: int, sign: int, part: str,
-    ) -> tuple[int, int, str]:
-        r"""Validate ``(level, sign)`` and return the ``(level, sign, part)`` layout key.
-
-        The flat offsets themselves live on :attr:`layout` (the
-        single-source :class:`~orpheus.numerics.face_layout.FaceLayout`);
-        this reproduces the retired ``_leg_offset``'s error contract so the
-        view accessors reject the same misuse.
-
-        Raises
-        ------
-        ValueError
-            If ``sign`` is not ``-1`` or ``+1``.
-        KeyError
-            If ``level`` is not a seed-carrying level of this space.
-        """
-        if sign not in _SIGNS:
-            raise ValueError(
-                f"RadialCharacteristicSpace: sign must be -1 (inward) or +1 "
-                f"(outward); got {sign!r}."
-            )
-        if level not in self.levels:
-            raise KeyError(
-                f"RadialCharacteristicSpace: level {level!r} carries no "
-                f"starting-direction block; seed-carrying levels are "
-                f"{self.levels!r} (R12a predicate)."
-            )
-        return (level, sign, part)
-
-    # ── Shaped views (no copies — slice views into the flat buffer) ───
-
-    def cells_view(self, buffer: NDArray, level: int, sign: int) -> NDArray:
-        r"""The ``(ng, nx)`` ψ½ cells view of ``buffer`` for ``(level, sign)``.
-
-        A reshaped slice view through the :attr:`layout` slot — shares
-        memory with ``buffer``.
-        """
-        slot = self.layout.faces[self._slot_key(level, sign, "cells")]
-        return slot.slice_view(buffer)
-
-    def corner_view(self, buffer: NDArray, level: int, sign: int) -> NDArray:
-        r"""The ``(ng,)`` r = R corner view of ``buffer`` for ``(level, sign)``.
-
-        Inflow corner (``sign = -1``): the given-data / identity row.
-        Outflow corner (``sign = +1``): the defect row (ruling R13).
-        Shares memory with ``buffer``.
-        """
-        slot = self.layout.faces[self._slot_key(level, sign, "corner")]
-        return slot.slice_view(buffer)
+# The historical UNIFIED ``RadialCharacteristicSpace`` (one flat buffer
+# keyed by the 3-tuple ``(level, sign, part)``) RETIRED at Phase C 4e —
+# the fused walk marches System B's split composite natively, so the split
+# interior / boundary spaces below are the ONLY ψ½ layouts. The shared
+# ``(level, sign)`` leg walk + metric (``_radial_characteristic_legs``)
+# and validation (``_validate_ray_space_inputs``) single-source both.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -493,7 +323,7 @@ class _RadialCharacteristicSubSpace(FunctionSpace):
 
     Phase B (the coupled-block campaign) poses the ψ½ ray as **System B** — its
     OWN ``interior ⊕ boundary`` composite — by splitting the unified
-    :class:`RadialCharacteristicSpace` (keyed by the 3-tuple ``(level, sign,
+    the retired unified space (keyed by the 3-tuple ``(level, sign,
     part)``) along its ``part`` axis into two per-``(level, sign)`` spaces:
 
     * :class:`RadialCharacteristicInteriorSpace` — the ``cells`` legs
@@ -557,8 +387,8 @@ class _RadialCharacteristicSubSpace(FunctionSpace):
         r"""Build the split space for the given seed-carrying levels.
 
         The SAME contract + inputs as
-        :meth:`RadialCharacteristicSpace.for_levels` (the split spaces are
-        projections of the unified one): validated by the shared
+        the retired unified ``for_levels`` (the split spaces project the same
+        leg walk): validated by the shared
         :func:`_validate_ray_space_inputs`, then the shared
         :func:`_radial_characteristic_legs` walk FILTERED to this space's
         ``_PART``. ``nx`` / ``cell_volumes`` are required by BOTH spaces even
@@ -596,7 +426,7 @@ class _RadialCharacteristicSubSpace(FunctionSpace):
     def _slot_key(self, level: int, sign: int) -> tuple[int, int]:
         r"""Validate ``(level, sign)`` and return the layout key.
 
-        Reproduces :meth:`RadialCharacteristicSpace._slot_key`'s error contract,
+        Reproduces the retired unified ``_slot_key``'s error contract,
         minus the ``part`` (fixed per space by ``_PART``).
         """
         if sign not in _SIGNS:

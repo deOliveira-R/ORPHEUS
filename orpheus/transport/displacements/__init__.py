@@ -50,9 +50,6 @@ from orpheus.transport.displacements.angular_boundary_displacement import Angula
 from orpheus.transport.displacements.scalar_boundary_displacement import (
     ScalarBoundaryDisplacement,
 )
-from orpheus.transport.displacements.radial_characteristic_displacement import (
-    RadialCharacteristicDisplacement,
-)
 from orpheus.transport.displacements.radial_characteristic_interior_displacement import (
     RadialCharacteristicInteriorDisplacement,
 )
@@ -68,7 +65,6 @@ __all__ = [
     "MomentDisplacement",
     "AngularBoundaryDisplacement",
     "ScalarBoundaryDisplacement",
-    "RadialCharacteristicDisplacement",
     "RadialCharacteristicInteriorDisplacement",
     "RadialCharacteristicBoundaryDisplacement",
 ]

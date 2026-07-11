@@ -13,13 +13,13 @@ realized:
                     RadialCharacteristicBoundaryField]     # the r = R corner (B_b)
 
 It is a **trivial** subclass — no hook overrides — because System B adds no third
-block (unlike ``FullField``'s optional ψ½): the generic
+block (unlike the historical 3-block ``FullField``): the generic
 :class:`~orpheus.transport.full_field.Composite` base (its slot bounds relaxed to
 ``Field`` in Phase B) holds the entire 2-block vector-space algebra, and System B
 inherits it whole. The subclass adds only the concrete-locus ``__post_init__``
-guard, an ergonomic ``from_mesh`` factory (presence-gated by the leaf factories),
-and the split-fidelity **bridge** (:meth:`from_unified` / :meth:`to_unified`) to
-and from the still-live unified ψ½ leaves.
+guard and the role-keyed birth factories (:meth:`from_mesh` /
+:meth:`source_zeros_on` / :meth:`source_from_angular` — all presence-gated by
+the leaf factories).
 
 **Role-erased slots (B.2b DP2, the FullField precedent).** The static parameters
 bind the locus FIELD BASES, not the flux leaves — exactly as ``FullField`` binds
@@ -30,20 +30,20 @@ on the MEMBERS (the Field class-identity gate rejects cross-role sums); a
 consumer that needs a specific role parses it off the member (the #289-F2
 discipline).
 
-The bridge is the additive-migration seam: while the split coexists with the
-unified ψ½ leaf (until Phase C (4e) re-writes the walk slots and retires the
-unified), ``to_unified(from_unified(u)) == u`` is the "the split IS the unified,
-re-typed" contract — the retirement licence. It is **role-preserving** via the
-exact-class leaf table :data:`_UNIFIED_TO_SPLIT` (flux ↔ flux pair, source ↔
-source pair, displacement ↔ displacement pair) — one bridge body, no per-role
-twins.
+Since Phase C (4e) this composite is the NATIVE ψ½ representation end to end:
+the fused ``(L+C)`` walk marches its members directly, so the historical
+unified ``RadialCharacteristicField`` leaf family, its space, and the
+``from_unified``/``to_unified`` bridge are RETIRED (the demotion licence —
+``to_unified ∘ from_unified == id`` — was discharged by the walk-slot rewrite
+landing bit-identically on the frozen baselines).
 
 References
 ----------
 
 * ``.claude/plans/coupled_block_operator_campaign.md`` — Phase B (pose System B
   as an independent composite); B.1a (base relaxation), B.1b (split spaces),
-  B.1c (split leaves), B.1d (this composite + the bridge).
+  B.1c (split leaves), B.1d (this composite), Phase C 4e (the walk-slot
+  rewrite + unified retirement).
 * ``coding-elegance`` Pattern 2 (the 2-block algebra lives ONCE on ``Composite``;
   System B is a no-op extension) + Pattern 4 (the leaf-type guard makes a wrong
   pairing unconstructable).
@@ -54,24 +54,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from orpheus.transport.displacements.radial_characteristic_boundary_displacement import (
-    RadialCharacteristicBoundaryDisplacement,
-)
-from orpheus.transport.displacements.radial_characteristic_displacement import (
-    RadialCharacteristicDisplacement,
-)
-from orpheus.transport.displacements.radial_characteristic_interior_displacement import (
-    RadialCharacteristicInteriorDisplacement,
-)
+import numpy as np
+
 from orpheus.transport.fields._bases import (
     RadialCharacteristicBoundaryField,
-    RadialCharacteristicField,
     RadialCharacteristicInteriorField,
 )
 from orpheus.transport.fields.radial_characteristic_boundary_flux import (
     RadialCharacteristicBoundaryFlux,
 )
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.fields.radial_characteristic_interior_flux import (
     RadialCharacteristicInteriorFlux,
 )
@@ -82,11 +73,10 @@ from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink i
 from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
     RadialCharacteristicInteriorSourceSink,
 )
-from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
-    RadialCharacteristicSourceSink,
-)
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
     from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 __all__ = ["RadialCharacteristicComposite"]
@@ -94,47 +84,6 @@ __all__ = ["RadialCharacteristicComposite"]
 #: The ψ½ direction legs, in canonical (DAG) order: inward first, then the
 #: pole-continued outward leg (the same order the split spaces lay out).
 _SIGNS: tuple[int, int] = (-1, +1)
-
-#: The role-preserving bridge table: unified ψ½ leaf class → its split
-#: ``(interior, boundary)`` leaf pair. EXACT-class keyed — a role IS a class
-#: identity (the Field arithmetic gate), so the bridge maps flux ↔ flux pair,
-#: source ↔ source pair, displacement ↔ displacement pair through ONE body
-#: (B.2b DP2). A new unified role joins by adding a row, not a bridge twin.
-_UNIFIED_TO_SPLIT: dict[
-    type[RadialCharacteristicField],
-    tuple[
-        type[RadialCharacteristicInteriorField],
-        type[RadialCharacteristicBoundaryField],
-    ],
-] = {
-    RadialCharacteristicFlux: (
-        RadialCharacteristicInteriorFlux,
-        RadialCharacteristicBoundaryFlux,
-    ),
-    RadialCharacteristicSourceSink: (
-        RadialCharacteristicInteriorSourceSink,
-        RadialCharacteristicBoundarySourceSink,
-    ),
-    RadialCharacteristicDisplacement: (
-        RadialCharacteristicInteriorDisplacement,
-        RadialCharacteristicBoundaryDisplacement,
-    ),
-}
-
-#: The inverse view, keyed by the split INTERIOR leaf class (the composite's
-#: role witness); carries the boundary partner so :meth:`to_unified` can
-#: verify the pairing (mixed-role composites are constructable — the slots
-#: are role-erased — but never bridgeable).
-_SPLIT_TO_UNIFIED: dict[
-    type[RadialCharacteristicInteriorField],
-    tuple[
-        type[RadialCharacteristicField],
-        type[RadialCharacteristicBoundaryField],
-    ],
-] = {
-    interior: (unified, boundary)
-    for unified, (interior, boundary) in _UNIFIED_TO_SPLIT.items()
-}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -220,73 +169,101 @@ class RadialCharacteristicComposite(
             )
         return x
 
-    # ── The split-fidelity bridge (to / from the unified ψ½ leaf) ─────
+    # ── The source-role birth factories ───────────────────────────────
 
     @classmethod
-    def from_unified(
-        cls, unified: RadialCharacteristicField,
-    ) -> "RadialCharacteristicComposite":
-        r"""Split a unified ψ½ leaf into System B — role-preserving.
+    def source_zeros_on(cls, mesh: "SNMesh") -> "RadialCharacteristicComposite":
+        r"""A zero q½ SOURCE composite on ``mesh`` (presence-gated).
 
-        The unified leaf's ``cells`` legs become the interior member, its
-        ``corner`` legs the boundary member — the additive-migration seam. The
-        member CLASSES follow the unified leaf's role through the exact-class
-        table :data:`_UNIFIED_TO_SPLIT` (flux → flux pair, source → source
-        pair, displacement → displacement pair). Paired with :meth:`to_unified`
-        it round-trips exactly per role (the "split IS the unified, re-typed"
-        retirement licence).
+        The source-role sibling of :meth:`from_mesh` — the buffer the joint
+        matvec/transpose surfaces fill with System B's emitted rows (an
+        operator ``.apply`` output is source-role, never flux-role).  On a
+        non-carrying mesh the leaf factories raise (presence = block
+        existence).
         """
-        split = _UNIFIED_TO_SPLIT.get(type(unified))
-        if split is None:
-            raise TypeError(
-                f"RadialCharacteristicComposite.from_unified: no split leaf "
-                f"pair for the unified role {type(unified).__name__} — the "
-                f"bridge is role-preserving and knows "
-                f"{sorted(c.__name__ for c in _UNIFIED_TO_SPLIT)}. A new "
-                f"unified role joins by adding a _UNIFIED_TO_SPLIT row."
-            )
-        interior_cls, boundary_cls = split
-        mesh = unified.mesh
-        interior = interior_cls.zeros_on(mesh)
-        boundary = boundary_cls.zeros_on(mesh)
-        for level in unified.levels:
-            for sign in _SIGNS:
-                interior.cells(level, sign)[...] = unified.cells(level, sign)
-                boundary.corner(level, sign)[...] = unified.corner(level, sign)
-        return cls(interior=interior, boundary=boundary)
+        return cls(
+            interior=RadialCharacteristicInteriorSourceSink.zeros_on(mesh),
+            boundary=RadialCharacteristicBoundarySourceSink.zeros_on(mesh),
+        )
 
-    def to_unified(self) -> RadialCharacteristicField:
-        r"""Recompose System B into its unified ψ½ leaf — role-preserving.
+    @classmethod
+    def source_from_angular(
+        cls, angular_source_values: "NDArray", mesh: "SNMesh",
+    ) -> "RadialCharacteristicComposite | None":
+        r"""Fold a per-ordinate volumetric source into its q½ composite.
 
-        The inverse of :meth:`from_unified`: the interior ``cells`` + boundary
-        ``corner`` legs are gathered back onto the unified leaf's
-        ``(level, sign, part)`` layout. The unified CLASS follows the
-        composite's role, witnessed by the interior member through the inverse
-        table (and the boundary member must carry the SAME role — mixed-role
-        composites are constructable, the slots being role-erased, but have no
-        unified counterpart and refuse loudly here).
+        The ONE source-side birth factory of #282 route (a) (Pattern 2 —
+        the solver cold-starts, the fixed-source rhs, and the operator-free
+        :func:`~orpheus.sn.loss_representation.transport_sweep` all route
+        through here): ``None`` on a non-carrying mesh; on a carrying mesh
+        (1-D curvilinear, R12a) the starting-direction legs receive the
+        value of the source at the starting direction :math:`\mu = \pm 1`,
+        reconstructed from ALL its Legendre moments (Hébert Eq. 3.432, the
+        R14 full :math:`(-1)^\ell` fold):
+
+        .. math::
+
+           \bar q_{1/2}(\mu = \pm 1)
+             \;=\; \sum_\ell \tfrac{2\ell+1}{2}\,q_\ell\,(\pm 1)^\ell,
+           \qquad
+           q_\ell(r) \;=\; \sum_n w_n\,P_\ell(\mu_n)\,q_n(r),
+
+        via the R14 helper
+        (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`).
+        The full fold is REQUIRED for an anisotropic source: even an
+        isotropic trial flux :math:`\psi = A(r)` streams to a
+        :math:`\mu`-linear source :math:`q = \mu A'(r) + \sigma_t A(r)`,
+        whose value at :math:`\mu = -1` is :math:`\sigma_t A - A'` — the
+        :math:`\ell = 1` term carries the :math:`-A'` that an
+        :math:`\ell = 0`-only fold drops (which floored the anisotropic
+        curvilinear MMS; #282 route (a)).  For an isotropic source the
+        higher moments vanish and the fold collapses to
+        :math:`\tfrac12 q_0` bit-exactly (so the isotropic eigenvalue /
+        fixed-source paths are unchanged).  The boundary corners stay zero:
+        the inflow-corner datum is the BOUNDARY's job (vacuum ⇒ 0;
+        reflective ⇒ the ``B`` corner arm into the SI rhs).
+
+        Parameters
+        ----------
+        angular_source_values : NDArray
+            The per-ordinate source in principled 1-D ``(N, ng, nx)``
+            layout (carrying meshes are 1-D curvilinear).
+        mesh : SNMesh
+            The phase-space carrier (its
+            ``radial_characteristic_composite_space`` is the R12a presence
+            predicate; its ``pole_angular_closure.level_indices`` give each
+            level's ordinate bundle for the per-level moment integration).
         """
-        entry = _SPLIT_TO_UNIFIED.get(type(self.interior))
-        if entry is None:
-            raise TypeError(
-                f"RadialCharacteristicComposite.to_unified: no unified role "
-                f"for the interior member {type(self.interior).__name__} — "
-                f"the bridge is role-preserving and knows "
-                f"{sorted(c.__name__ for c in _SPLIT_TO_UNIFIED)}."
+        from orpheus.numerics.spaces.radial_characteristic_space import (
+            fold_moments_to_radial_characteristic,
+        )
+
+        if mesh.radial_characteristic_composite_space is None:
+            return None
+        vals = np.asarray(angular_source_values)
+        if vals.ndim != 3:
+            raise ValueError(
+                "RadialCharacteristicComposite.source_from_angular expects "
+                f"the principled 1-D (N, ng, nx) per-ordinate layout; got "
+                f"shape {vals.shape} (carrying meshes are 1-D curvilinear, "
+                f"R12a)."
             )
-        unified_cls, boundary_cls = entry
-        if type(self.boundary) is not boundary_cls:
-            raise TypeError(
-                f"RadialCharacteristicComposite.to_unified: mixed-role "
-                f"composite — interior {type(self.interior).__name__} pairs "
-                f"with boundary {boundary_cls.__name__}, got "
-                f"{type(self.boundary).__name__}. A mixed-role composite has "
-                f"no unified counterpart."
-            )
-        mesh = self.mesh
-        unified = unified_cls.zeros_on(mesh)
-        for level in self.interior.levels:
+        mu = mesh.quad.mu_x
+        weights = mesh.quad.weights
+        level_indices = mesh.pole_angular_closure.level_indices
+        seed = cls.source_zeros_on(mesh)
+        for p in seed.interior.space.levels:
+            ords = np.asarray(level_indices[p])
+            mu_p = mu[ords]
+            w_p = weights[ords]
+            q_p = vals[ords]                                  # (M_p, ng, nx)
+            # Legendre moments of the source over the level's μ-nodes:
+            # q_ℓ = Σ_n w_n P_ℓ(μ_n) q_n, ℓ = 0 … M_p−1 (the full angular
+            # content the level resolves; the fold reconstructs q(μ=±1)).
+            legendre = np.polynomial.legendre.legvander(mu_p, ords.size - 1)
+            moments = np.einsum("n,nl,ngx->lgx", w_p, legendre, q_p)
             for sign in _SIGNS:
-                unified.cells(level, sign)[...] = self.interior.cells(level, sign)
-                unified.corner(level, sign)[...] = self.boundary.corner(level, sign)
-        return unified
+                seed.interior.cells(p, sign)[...] = (
+                    fold_moments_to_radial_characteristic(moments, sign)
+                )
+        return seed

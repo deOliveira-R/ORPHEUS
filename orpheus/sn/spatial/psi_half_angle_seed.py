@@ -87,7 +87,8 @@ import numpy as np
 
 if TYPE_CHECKING:
     from orpheus.numerics.spaces.radial_characteristic_space import (
-        RadialCharacteristicSpace,
+        RadialCharacteristicBoundarySpace,
+        RadialCharacteristicInteriorSpace,
     )
 
 
@@ -240,9 +241,12 @@ def radial_characteristic_residual_march(
 
 
 def radial_characteristic_forward_residual(
-    values: np.ndarray, space: "RadialCharacteristicSpace",
+    interior_values: np.ndarray,
+    boundary_values: np.ndarray,
+    interior_space: "RadialCharacteristicInteriorSpace",
+    boundary_space: "RadialCharacteristicBoundarySpace",
     sigma: np.ndarray, dr: np.ndarray,
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
     r"""The forward ``(L+C)`` action :math:`A_{BB}\,\psi_{1/2} =
     (\mu\,\partial_r + \sigma_t)\,\psi_{1/2}` on the starting-direction block —
     the SINGLE SOURCE of the ψ½ forward residual.
@@ -265,39 +269,48 @@ def radial_characteristic_forward_residual(
     (:meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.apply`)
     — route through this ONE body (Cardinal Rule 2: no forward twin).
 
-    ``sigma`` is the caller's diagonal (:math:`\sigma_t` for the fused
-    ``(L+C)``, ZERO for the σ-free streaming block — the seed rows are affine
-    in σ like the bulk walk).  Returns the flat seed-space residual buffer.
+    The state arrives SPLIT-NATIVE (4e): the marched cells on System B's
+    interior flat buffer, the r = R corners on its boundary flat buffer —
+    the same numbers the retired unified layout interleaved, so the
+    residual arithmetic (ops and order) is byte-identical; only the view
+    targets differ.  ``sigma`` is the caller's diagonal (:math:`\sigma_t`
+    for the fused ``(L+C)``, ZERO for the σ-free streaming block — the seed
+    rows are affine in σ like the bulk walk).  Returns the
+    ``(interior, boundary)`` residual buffer pair.
     """
     two_over_dr = 2.0 / dr
-    out = np.zeros_like(values)
-    for p in space.levels:
-        c_minus = space.cells_view(values, p, -1)     # (ng, nx)
-        k_minus = space.corner_view(values, p, -1)    # (ng,)
-        c_plus = space.cells_view(values, p, +1)
-        k_plus = space.corner_view(values, p, +1)
+    interior_out = np.zeros_like(interior_values)
+    boundary_out = np.zeros_like(boundary_values)
+    for p in interior_space.levels:
+        c_minus = interior_space.slot_view(interior_values, p, -1)   # (ng, nx)
+        k_minus = boundary_space.slot_view(boundary_values, p, -1)   # (ng,)
+        c_plus = interior_space.slot_view(interior_values, p, +1)
+        k_plus = boundary_space.slot_view(boundary_values, p, +1)
         # inward (μ = −1) leg: enter at the outer corner; march the reversed
         # data so the ascending helper covers outer→inner; exit face = pole.
         rows_rev, f_pole = radial_characteristic_residual_march(
             sigma[:, ::-1], c_minus[:, ::-1], two_over_dr[::-1], k_minus,
         )
-        space.cells_view(out, p, -1)[:] = rows_rev[:, ::-1]
+        interior_space.slot_view(interior_out, p, -1)[:] = rows_rev[:, ::-1]
         # outward (μ = +1) leg: pole continuation ψ½⁺(0) = ψ½⁻(0).
         rows_plus, f_outer = radial_characteristic_residual_march(
             sigma, c_plus, two_over_dr, f_pole,
         )
-        space.cells_view(out, p, +1)[:] = rows_plus
+        interior_space.slot_view(interior_out, p, +1)[:] = rows_plus
         # corner rows: inflow = identity I·ψ½.corner(−1); outflow = streamed −
         # stored (the free-sign self-consistency defect).
-        space.corner_view(out, p, -1)[:] = k_minus
-        space.corner_view(out, p, +1)[:] = f_outer - k_plus
-    return out
+        boundary_space.slot_view(boundary_out, p, -1)[:] = k_minus
+        boundary_space.slot_view(boundary_out, p, +1)[:] = f_outer - k_plus
+    return interior_out, boundary_out
 
 
 def radial_characteristic_forward_residual_transpose(
-    values: np.ndarray, space: "RadialCharacteristicSpace",
+    interior_values: np.ndarray,
+    boundary_values: np.ndarray,
+    interior_space: "RadialCharacteristicInteriorSpace",
+    boundary_space: "RadialCharacteristicBoundarySpace",
     sigma: np.ndarray, dr: np.ndarray,
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
     r"""Euclidean transpose of :func:`radial_characteristic_forward_residual`
     — the PURE :math:`A_{BB}^{\mathsf T}` reverse-mode (NO ``A_AB`` coupling).
 
@@ -312,20 +325,24 @@ def radial_characteristic_forward_residual_transpose(
     reverse-scan (:meth:`orpheus.sn.loss_representation._OneDimScanWalk._seed_rows_transpose`)
     ADDS the ``seed_cells_bar`` recurrence-coupling term (the ``A_AB``
     transpose) onto the :math:`\mu=-1` leg cells; that term is NOT part of
-    ``A_BB`` and is applied by the walk wrapper, never here.
+    ``A_BB`` and is applied by the walk wrapper, never here.  The cotangent
+    arrives split-native (4e — interior rows / boundary corner rows) and the
+    pullback returns the ``(interior, boundary)`` pair; the reversal
+    arithmetic is byte-identical to the retired unified spelling.
     """
     two_over_dr = 2.0 / dr
-    out = np.zeros_like(values)
-    for p in space.levels:
-        mb_minus = space.cells_view(values, p, -1)    # m̄½⁻ (ng, nx)
-        kb_minus = space.corner_view(values, p, -1)   # m̄k⁻ (ng,)
-        mb_plus = space.cells_view(values, p, +1)
-        kb_plus = space.corner_view(values, p, +1)
-        cb_minus = space.cells_view(out, p, -1)
-        cb_plus = space.cells_view(out, p, +1)
+    interior_out = np.zeros_like(interior_values)
+    boundary_out = np.zeros_like(boundary_values)
+    for p in interior_space.levels:
+        mb_minus = interior_space.slot_view(interior_values, p, -1)  # m̄½⁻ (ng, nx)
+        kb_minus = boundary_space.slot_view(boundary_values, p, -1)  # m̄k⁻ (ng,)
+        mb_plus = interior_space.slot_view(interior_values, p, +1)
+        kb_plus = boundary_space.slot_view(boundary_values, p, +1)
+        cb_minus = interior_space.slot_view(interior_out, p, -1)
+        cb_plus = interior_space.slot_view(interior_out, p, +1)
         # reverse the corner rows: mk⁺ = f_R⁺ − k⁺ ⟹ f̄ = m̄k⁺, k̄⁺ = −m̄k⁺;
         # mk⁻ = k⁻ ⟹ k̄⁻ += m̄k⁻.
-        space.corner_view(out, p, +1)[:] = -kb_plus
+        boundary_space.slot_view(boundary_out, p, +1)[:] = -kb_plus
         f_bar = kb_plus.copy()
         corner_minus_bar = kb_minus.copy()
         # reverse the + (outward) leg: cells descending.
@@ -343,8 +360,8 @@ def radial_characteristic_forward_residual_transpose(
             f_bar += -two_over_dr[i] * mb_minus[:, i]
         # the − chain's entry face was the inflow corner.
         corner_minus_bar += f_bar
-        space.corner_view(out, p, -1)[:] = corner_minus_bar
-    return out
+        boundary_space.slot_view(boundary_out, p, -1)[:] = corner_minus_bar
+    return interior_out, boundary_out
 
 
 __all__ = [

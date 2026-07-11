@@ -72,7 +72,6 @@ from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.sn.operators.windowing import BulkAnalysisOperator, WindowedSweep
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 
 
 pytestmark = [pytest.mark.foundation]

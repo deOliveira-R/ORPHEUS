@@ -142,7 +142,7 @@ def test_gate_source_is_the_space_key_source(name, coord, quad):
     """
     sn = _mesh_1d(coord, quad)
     seed_levels = frozenset(sn.radial_characteristic_levels)
-    space = sn.radial_characteristic_space
+    space = sn.radial_characteristic_interior_space
 
     if not seed_levels:
         # Absence spelled None (never a zero-DOF space) — nothing to key.
@@ -164,7 +164,7 @@ def test_sphere_p_idx_is_the_correct_slot_key_and_level_is_None():
     CRASH here — proving ``p_idx`` is deliberate, not a typo.
     """
     sn = _mesh_1d(CoordSystem.SPHERICAL, Quadrature.gauss_legendre(4))
-    space = sn.radial_characteristic_space
+    space = sn.radial_characteristic_interior_space
     _require(space is not None and space.levels == (0,),
              f"sphere space.levels expected (0,), got "
              f"{None if space is None else space.levels}")
@@ -174,13 +174,13 @@ def test_sphere_p_idx_is_the_correct_slot_key_and_level_is_None():
     # (p_idx=0, level=None). p_idx=0 is the slot key.
     buf = np.zeros(space.shape)
     # p_idx = 0 is a valid key (no raise) and returns the (ng, nx) cells view.
-    view = space.cells_view(buf, 0, -1)
+    view = space.slot_view(buf, 0, -1)
     _require(view.shape == (space.ng, space.nx),
              f"cells_view(0,-1) shape {view.shape} != {(space.ng, space.nx)}")
 
     # The proposed "fix" passes ``level`` (== None for the sphere) — a crash.
     with pytest.raises((KeyError, TypeError, ValueError)):
-        space.cells_view(buf, None, -1)  # type: ignore[arg-type]
+        space.slot_view(buf, None, -1)  # type: ignore[arg-type]
 
 
 def test_slot_coordination_writes_the_processed_levels_seed():
@@ -191,7 +191,7 @@ def test_slot_coordination_writes_the_processed_levels_seed():
     the sweep iteration, AND ``level_ordinates_list``.
     """
     sn = _mesh_1d(CoordSystem.SPHERICAL, Quadrature.gauss_legendre(4))
-    space = sn.radial_characteristic_space
+    space = sn.radial_characteristic_interior_space
     _require(space is not None, "sphere carrier space is None")
     assert space is not None  # narrow for the type-checker
 
@@ -203,7 +203,7 @@ def test_slot_coordination_writes_the_processed_levels_seed():
     # Write a distinct marker through slot key p_idx=0 and read it back — the
     # -1 (inward) and +1 (outward) cells views are disjoint memory regions.
     buf = np.zeros(space.shape)
-    space.cells_view(buf, 0, -1)[...] = 1.0
-    space.cells_view(buf, 0, +1)[...] = 2.0
-    np.testing.assert_array_equal(space.cells_view(buf, 0, -1), 1.0)
-    np.testing.assert_array_equal(space.cells_view(buf, 0, +1), 2.0)
+    space.slot_view(buf, 0, -1)[...] = 1.0
+    space.slot_view(buf, 0, +1)[...] = 2.0
+    np.testing.assert_array_equal(space.slot_view(buf, 0, -1), 1.0)
+    np.testing.assert_array_equal(space.slot_view(buf, 0, +1), 2.0)

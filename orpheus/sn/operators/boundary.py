@@ -70,7 +70,6 @@ if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields._bases import (
         RadialCharacteristicBoundaryField,
-        RadialCharacteristicField,
     )
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.full_field import FullField
@@ -536,7 +535,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     sn_mesh : SNMesh
         The augmented geometry (seed-carrying — 1-D curvilinear). Carries the
         outer-face law ``sn_mesh.bc["xmax"]`` and the ray space
-        ``sn_mesh.radial_characteristic_space`` (the mesh-identity invariant of
+        (the split ψ½ spaces; the mesh-identity invariant of
         :class:`SNBoundaryOperator` applies here too).
     """
 
@@ -698,7 +697,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         return self._apply_faces(ray, "apply_transpose")
 
     def reflect_corner_inplace(
-        self, radial_characteristic: "RadialCharacteristicField",
+        self, radial_characteristic: "RadialCharacteristicComposite",
     ) -> None:
         r"""In place: overwrite the ψ½ inflow-corner slots with the law's corner
         action on its OUTFLOW corners — ``ψ½.corner(p, −1) ← (B_b·ψ½).corner(p,
@@ -707,26 +706,18 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         The ray-corner analogue of :meth:`SNBoundaryOperator.reflect_inflow_inplace`
         (#282 route (a)): the final eigenvalue reconstruction sweep + the direct
         fixed-source SI loop call BOTH — ``B_a`` for the trace, ``B_b`` for the
-        ray — one per system (RULING P1). The input is the UNIFIED walk buffer
-        (the walk internals march it through Phase C/4e — the demote ruling);
-        it is bridged onto the boundary member so the corner LAW has ONE body
-        (:meth:`_reflect_corner`). Non-``None`` by signature since B.2b: a
-        seedless B_b is unconstructable, so the caller guards presence
-        (see ``_reflect_boundary_inplace``).
+        ray — one per system (RULING P1). The input is System B's composite
+        (the walk marches it natively since 4e); the corner LAW has ONE body
+        (:meth:`_reflect_corner`) acting on the boundary member. Non-``None``
+        by signature since B.2b: a seedless B_b is unconstructable, so the
+        caller guards presence (see ``_reflect_boundary_inplace``).
         """
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
-        )
-
-        boundary_member = RadialCharacteristicComposite.from_unified(
-            radial_characteristic,
-        ).boundary
+        boundary_member = radial_characteristic.boundary
         corner_reflected = self._reflect_corner(boundary_member, "apply")
-        space = radial_characteristic.space
-        for level in space.levels:
-            space.corner_view(
-                radial_characteristic.values, level, -1,
-            )[...] = corner_reflected.corner(level, -1)
+        for level in boundary_member.space.levels:
+            boundary_member.corner(level, -1)[...] = (
+                corner_reflected.corner(level, -1)
+            )
 
 
 # The B.2b transient ``_RayBoundaryFullFieldGain`` adapter RETIRED at B.2d:

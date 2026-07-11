@@ -64,7 +64,6 @@ from orpheus.sn.spatial.pole_angular_closure import (
 from orpheus.sn.loss_representation import transport_sweep
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import (
     placeholder_materials,
@@ -175,10 +174,13 @@ def _build_composite(
         )
     if radial_characteristic_values is None:
         radial_characteristic = radial_characteristic_edge_seed(bulk_values, sn_mesh)
-    elif sn_mesh.radial_characteristic_space is not None:
-        radial_characteristic = RadialCharacteristicFlux(
-            values=radial_characteristic_values,
-            space=sn_mesh.radial_characteristic_space, mesh=sn_mesh,
+    elif sn_mesh.radial_characteristic_composite_space is not None:
+        from orpheus.transport.radial_characteristic_composite import (
+            RadialCharacteristicComposite,
+        )
+        radial_characteristic = RadialCharacteristicComposite.from_flat(
+            radial_characteristic_values,
+            RadialCharacteristicComposite.from_mesh(sn_mesh),
         )
     else:
         radial_characteristic = None
@@ -190,16 +192,11 @@ def _build_composite(
     )
     if radial_characteristic is None:
         return psi_a
-    # B.2d: the carrying state is the COUPLED pair — System B rides its own
-    # composite member (the exact from_unified re-label of the leaf).
+    # B.2d / 4e: the carrying state is the COUPLED pair — System B rides its
+    # own native split composite member (no unified bridge).
     from orpheus.numerics.coupled_system import CoupledField
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
-    )
 
-    return CoupledField(systems=(
-        psi_a, RadialCharacteristicComposite.from_unified(radial_characteristic),
-    ))
+    return CoupledField(systems=(psi_a, radial_characteristic))
 
 
 def _random_bulk(sn_mesh: SNMesh, rng: np.random.Generator) -> np.ndarray:
@@ -211,7 +208,7 @@ def _joint_op(sn_mesh: SNMesh, op):
     """The JOINT operator for the mesh (B.2d): the coupled ``M`` on a
     carrying mesh (the fused walk behind the explicit ψ½ legs), ``op``
     itself on a seedless one."""
-    if sn_mesh.radial_characteristic_space is None:
+    if sn_mesh.radial_characteristic_composite_space is None:
         return op
     from orpheus.numerics.coupled_system import CoupledSpace
     from orpheus.sn.coupled_system import CoupledInvertibleOperator
@@ -450,7 +447,7 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     # include the seed block for reciprocity to hold (a bulk⊕trace-only dot
     # is blind to the seed↔bulk coupling — the Euclidean sibling of the
     # G-reciprocity's zero-weight blindness, vv Mode 12).
-    seed_space = sn_mesh.radial_characteristic_space
+    seed_space = sn_mesh.radial_characteristic_composite_space
     n_seed = 0 if seed_space is None else seed_space.shape[0]
     psi_state = _build_composite(
         sn_mesh, _random_bulk(sn_mesh, rng), rng.standard_normal(n_trace),

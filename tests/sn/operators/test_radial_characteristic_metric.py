@@ -64,7 +64,6 @@ from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.full_field import FullField
 from orpheus.derivations.common.xs_library import make_mixture
 
@@ -150,7 +149,6 @@ def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
 
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
-    n_sd = sn.radial_characteristic_space.shape[0]
     psi_a = FullField(
         interior=AngularFlux.from_mesh(
             rng.standard_normal((N, ng, nx)) if bulk else np.zeros((N, ng, nx)), sn),
@@ -158,12 +156,16 @@ def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
             values=rng.standard_normal(n_tr) if trace else np.zeros(n_tr),
             space=sn.angular_trace, mesh=sn),
     )
-    unified = RadialCharacteristicFlux(
-        values=rng.standard_normal(n_sd) if seed else np.zeros(n_sd),
-        space=sn.radial_characteristic_space, mesh=sn)
-    return CoupledField(systems=(
-        psi_a, RadialCharacteristicComposite.from_unified(unified),
-    ))
+    # System B is the native split composite (4e); a random seed fills its
+    # to_flat (interior ⊕ boundary) — the reciprocity identity is layout-agnostic
+    # (psi and phi share this convention).
+    system_b = RadialCharacteristicComposite.from_mesh(sn)
+    if seed:
+        n_sd = sn.radial_characteristic_composite_space.shape[0]
+        system_b = RadialCharacteristicComposite.from_flat(
+            rng.standard_normal(n_sd), system_b,
+        )
+    return CoupledField(systems=(psi_a, system_b))
 
 
 def _template(sn):
@@ -191,23 +193,19 @@ def _blocks(sn):
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     nb = N * ng * nx
     nt = int(sn.angular_trace.layout.total_size)
-    ns = sn.radial_characteristic_space.shape[0]
+    ns = sn.radial_characteristic_composite_space.shape[0]
     return slice(0, nb), slice(nb, nb + nt), slice(nb + nt, nb + nt + ns), (nb, nt, ns)
 
 
-def _seed_to_coupled_layout(sn, unified_values):
-    """Re-label a UNIFIED-layout seed diagonal onto the coupled System-B
-    member layout (the exact from_unified gather — values preserved)."""
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
-    )
+def _seed_to_coupled_layout(sn, seed_values):
+    """Identity passthrough (4e).
 
-    leaf = RadialCharacteristicFlux(
-        values=np.asarray(unified_values, dtype=float),
-        space=sn.radial_characteristic_space, mesh=sn)
-    return np.asarray(
-        RadialCharacteristicComposite.from_unified(leaf).to_flat(), dtype=float,
-    )
+    Pre-4e this re-labelled a UNIFIED-layout seed diagonal onto the coupled
+    System-B member layout via the ``from_unified`` gather. Since 4e the
+    composite IS the native representation, so ``_v_cell_seed`` / ``_seed_vw``
+    build directly in the composite ``to_flat`` order — the re-label is now
+    the identity (its referent, the unified layout, is retired)."""
+    return np.asarray(seed_values, dtype=float)
 
 
 def _prod_metric(sn, tpl, space):
@@ -219,35 +217,42 @@ def _prod_metric(sn, tpl, space):
 
 
 def _v_cell_seed(sn):
-    """The ``G_sd = V_cell`` seed diagonal — per (level, sign): cells (ng, nx) =
-    radial cell volume group-broadcast, corner (ng,) = outer-cell volume (gauge).
+    """The ``G_sd = V_cell`` seed diagonal in the composite ``to_flat``
+    (interior ⊕ boundary) order — per (level, sign): cells (ng, nx) = radial
+    cell volume group-broadcast, corner (ng,) = outer-cell volume (gauge).
 
-    Built through the space's own ``cells_view`` / ``corner_view`` — the SAME
-    layout ``RadialCharacteristicSpace.for_levels`` populates — so it reproduces the
-    shipped seed block bit-for-bit.
+    Built by HAND from ``sn.volumes`` through the SPLIT spaces' own
+    ``slot_view`` — the SAME layout ``for_levels`` populates — so it reproduces
+    the shipped seed block bit-for-bit (a structurally-independent reference:
+    the diagonal comes from ``sn.volumes``, not from the space's stored metric).
     """
-    space = sn.radial_characteristic_space
+    interior_space = sn.radial_characteristic_interior_space
+    boundary_space = sn.radial_characteristic_boundary_space
     V = np.asarray(sn.volumes, dtype=float).ravel()
-    g = np.zeros(space.shape[0])
-    for p in space.levels:
+    interior = np.zeros(interior_space.shape[0])
+    boundary = np.zeros(boundary_space.shape[0])
+    for p in sn.radial_characteristic_levels:
         for sign in (-1, +1):
-            space.cells_view(g, p, sign)[:] = V[None, :]
-            space.corner_view(g, p, sign)[:] = V[-1]
-    return g
+            interior_space.slot_view(interior, p, sign)[:] = V[None, :]
+            boundary_space.slot_view(boundary, p, sign)[:] = V[-1]
+    return np.concatenate([interior, boundary])
 
 
 def _seed_vw(sn):
-    """A ``G_sd = V_cell · w_start`` seed diagonal — the "fold an angular weight
-    in" gauge variant. Also SPD, also valid (the ``w`` is a free gauge)."""
-    space = sn.radial_characteristic_space
+    """A ``G_sd = V_cell · w_start`` seed diagonal (composite ``to_flat`` order) —
+    the "fold an angular weight in" gauge variant. Also SPD, also valid (the
+    ``w`` is a free gauge)."""
+    interior_space = sn.radial_characteristic_interior_space
+    boundary_space = sn.radial_characteristic_boundary_space
     V = np.asarray(sn.volumes, dtype=float).ravel()
     w0 = float(np.asarray(sn.quad.weights, dtype=float)[0])
-    g = np.zeros(space.shape[0])
-    for p in space.levels:
+    interior = np.zeros(interior_space.shape[0])
+    boundary = np.zeros(boundary_space.shape[0])
+    for p in sn.radial_characteristic_levels:
         for sign in (-1, +1):
-            space.cells_view(g, p, sign)[:] = V[None, :] * w0
-            space.corner_view(g, p, sign)[:] = V[-1] * w0
-    return g
+            interior_space.slot_view(interior, p, sign)[:] = V[None, :] * w0
+            boundary_space.slot_view(boundary, p, sign)[:] = V[-1] * w0
+    return np.concatenate([interior, boundary])
 
 
 def _recip_defect(Afwd, T, g, s, *, seed_scale, flip_seed_self, rng):
@@ -708,9 +713,12 @@ def test_r4_gauge_perturbing_gsd_leaves_forward_bit_identical(nx, ng, sigma):
     # A non-vacuous GAUGE change on the (cached) seed metric: an explicit 2·V_cell
     # (includes the corner V[-1]→2·V[-1]). The forward path must never read the
     # metric, so the result is byte-for-byte unchanged.
-    space = sn.radial_characteristic_space
+    interior_space = sn.radial_characteristic_interior_space
+    boundary_space = sn.radial_characteristic_boundary_space
+    ni = interior_space.shape[0]
     perturbed = 2.0 * _v_cell_seed(sn)
-    object.__setattr__(space, "inner_product_weights", perturbed)
+    object.__setattr__(interior_space, "inner_product_weights", perturbed[:ni])
+    object.__setattr__(boundary_space, "inner_product_weights", perturbed[ni:])
 
     y_after = A.apply(x).to_flat()
     np.testing.assert_array_equal(

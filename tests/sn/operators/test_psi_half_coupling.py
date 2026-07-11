@@ -124,7 +124,6 @@ from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.cross_section_field import CrossSectionField
-from orpheus.transport.fields.radial_characteristic_flux import RadialCharacteristicFlux
 from orpheus.transport.fields.radial_characteristic_interior_flux import (
     RadialCharacteristicInteriorFlux,
 )
@@ -139,9 +138,6 @@ from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink i
     RadialCharacteristicInteriorSourceSink,
 )
 from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
-from orpheus.transport.source_sinks.radial_characteristic_source_sink import (
-    RadialCharacteristicSourceSink,
-)
 from orpheus.derivations.common.xs_library import make_mixture
 
 pytestmark = pytest.mark.foundation
@@ -202,13 +198,9 @@ def _coupled_template(sn):
 
 
 def _pair(sn, psi_a, ray_values):
-    """The coupled pair from a System-A composite + unified-layout ray values
-    (role-preserved through ``from_unified`` — the exact B.1d re-label)."""
-    return CoupledField(systems=(
-        psi_a,
-        RadialCharacteristicComposite.from_unified(RadialCharacteristicFlux(
-            values=np.asarray(ray_values, dtype=float),
-            space=sn.radial_characteristic_space, mesh=sn))))
+    """The coupled pair from a System-A composite + System-B ray values in the
+    composite ``to_flat`` (interior ⊕ boundary) order (4e native)."""
+    return CoupledField(systems=(psi_a, _ray_composite(sn, ray_values)))
 
 
 def _joint_M(sn, LC):
@@ -242,7 +234,7 @@ def _blocks(sn):
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     nb = N * ng * nx
     nt = int(sn.angular_trace.layout.total_size)
-    ns = sn.radial_characteristic_space.shape[0]
+    ns = sn.radial_characteristic_composite_space.shape[0]
     return slice(0, nb), slice(nb, nb + nt), slice(nb + nt, nb + nt + ns), (nb, nt, ns)
 
 
@@ -428,11 +420,10 @@ def _zero_composite(sn) -> FullField:
     return _template(sn)
 
 
-def _seed_leaf(sn, seed_values: NDArray) -> RadialCharacteristicFlux:
-    """The unified ψ½ flux leaf over the given values (the walk currency)."""
-    return RadialCharacteristicFlux(
-        values=np.asarray(seed_values, dtype=float),
-        space=sn.radial_characteristic_space, mesh=sn)
+def _seed_leaf(sn, seed_values: NDArray) -> RadialCharacteristicComposite:
+    """A ψ½ FLUX composite over the given composite-``to_flat``-order values (the
+    walk currency; 4e — replaces the retired unified flux leaf)."""
+    return _ray_composite(sn, seed_values)
 
 
 def _random_composite(sn, rng) -> FullField:
@@ -448,36 +439,43 @@ def _random_composite(sn, rng) -> FullField:
 
 def _random_pair(sn, rng) -> CoupledField:
     """A random coupled pair ``[ψ_A 2-block, ψ_B]`` (every block non-zero)."""
-    ns = sn.radial_characteristic_space.shape[0]
+    ns = sn.radial_characteristic_composite_space.shape[0]
     return _pair(sn, _random_composite(sn, rng), rng.standard_normal(ns))
 
 
 def _ray_composite(sn, seed_values: NDArray) -> RadialCharacteristicComposite:
-    """System B's own carrier with the unified seed layout split onto its members
-    (the B.2b block probes — the bridge round-trip is the exact re-labeling)."""
-    return RadialCharacteristicComposite.from_unified(
-        RadialCharacteristicFlux(
-            values=np.asarray(seed_values, dtype=float),
-            space=sn.radial_characteristic_space, mesh=sn))
+    """System B's FLUX carrier from a composite-``to_flat``-order flat array (4e
+    native; ``from_flat`` over a zero flux composite — the split members are the
+    interior ⊕ boundary blocks)."""
+    return RadialCharacteristicComposite.from_flat(
+        np.asarray(seed_values, dtype=float),
+        RadialCharacteristicComposite.from_mesh(sn))
 
 
 def _dense_ray(fn, sn) -> NDArray:
     """Densify a System-B block (composite → composite) by probing the composite
-    basis in the UNIFIED layout — bit-comparable with the pre-B.2b ``_dense_seed``
-    matrices (the role-preserving bridge is a pure gather/scatter)."""
-    ns = sn.radial_characteristic_space.shape[0]
+    ``to_flat`` basis — self-consistent in the composite (interior ⊕ boundary)
+    layout (4e; the retired unified layout is gone)."""
+    ns = sn.radial_characteristic_composite_space.shape[0]
     M = np.zeros((ns, ns))
     for j in range(ns):
         e = np.zeros(ns)
         e[j] = 1.0
-        M[:, j] = fn(_ray_composite(sn, e)).to_unified().values
+        M[:, j] = fn(_ray_composite(sn, e)).to_flat()
     return M
 
 
 def _v_cell_seed(sn) -> NDArray:
-    """The ``G_sd = V_cell`` seed metric (production ``inner_product_weights``)."""
-    return np.asarray(
-        sn.radial_characteristic_space.inner_product_weights, dtype=float)
+    """The ``G_sd = V_cell`` seed metric in composite ``to_flat`` order (the split
+    interior ⊕ boundary ``inner_product_weights``)."""
+    return np.concatenate([
+        np.asarray(
+            sn.radial_characteristic_interior_space.inner_product_weights,
+            dtype=float),
+        np.asarray(
+            sn.radial_characteristic_boundary_space.inner_product_weights,
+            dtype=float),
+    ])
 
 
 def _g_recip(fwd: NDArray, T: NDArray, g: NDArray, rng) -> float:
@@ -527,8 +525,8 @@ class TestBoundaryUnweld:
         block = RadialCharacteristicBoundaryOperator(sn)
         # The BLOCK's structural half: composite in/out, SOURCE members out.
         block_out = block.apply(
-            RadialCharacteristicComposite.from_unified(_seed_leaf(
-                sn, rng.standard_normal(sn.radial_characteristic_space.shape[0]))))
+            _seed_leaf(
+                sn, rng.standard_normal(sn.radial_characteristic_composite_space.shape[0])))
         if type(block_out) is not RadialCharacteristicComposite:
             pytest.fail(f"B_b block returned {type(block_out).__name__}")
         if type(block_out.interior) is not RadialCharacteristicInteriorSourceSink:
@@ -673,19 +671,19 @@ class TestB_b_RayBoundary:
         B.2b: probed on System B's OWN carrier; the unified view of the output
         (the role-preserving bridge) keeps the pre-B.2b assertions bitwise."""
         sn = _sphere(bc="reflective")
-        space = sn.radial_characteristic_space
-        seed_vals = np.random.default_rng(6).standard_normal(space.shape[0])
-        out = RadialCharacteristicBoundaryOperator(sn).apply(_ray_composite(sn, seed_vals))
-        ov = out.to_unified().values
-        for level in space.levels:
+        ns = sn.radial_characteristic_composite_space.shape[0]
+        seed_vals = np.random.default_rng(6).standard_normal(ns)
+        seed = _ray_composite(sn, seed_vals)
+        out = RadialCharacteristicBoundaryOperator(sn).apply(seed)
+        for level in sn.radial_characteristic_levels:
             np.testing.assert_array_equal(
-                space.corner_view(ov, level, -1), space.corner_view(seed_vals, level, +1),
+                out.boundary.corner(level, -1), seed.boundary.corner(level, +1),
                 err_msg=f"level {level}: corner(−1) ≠ seed.corner(+1) (specular swap wrong).")
             np.testing.assert_array_equal(
-                space.corner_view(ov, level, +1), 0.0,
+                out.boundary.corner(level, +1), 0.0,
                 err_msg=f"level {level}: the +1 corner is non-zero (B_b touched a non-inflow row).")
             np.testing.assert_array_equal(
-                space.cells_view(ov, level, -1), 0.0,
+                out.interior.cells(level, -1), 0.0,
                 err_msg=f"level {level}: the cells leg is non-zero (B_b is corner-only).")
 
     def test_transpose_is_exact_euclidean_mirror(self):
@@ -723,9 +721,14 @@ class TestB_b_RayBoundary:
         # Tooth a: a same-direction (wrong) transpose breaks reciprocity.
         tooth_a = _g_recip(fwd, fwd, g, rng)
         # Tooth b: an asymmetric corner gauge breaks reciprocity even with the correct T.
+        # (g is composite to_flat order: interior ⊕ boundary; the +1 corner slots
+        # live in the boundary block.)
         g_bad = g.copy()
-        for level in sn.radial_characteristic_space.levels:
-            sn.radial_characteristic_space.corner_view(g_bad, level, +1)[:] *= 2.0
+        ni = sn.radial_characteristic_interior_space.shape[0]
+        g_bad_boundary = g_bad[ni:]
+        boundary_space = sn.radial_characteristic_boundary_space
+        for level in sn.radial_characteristic_levels:
+            boundary_space.slot_view(g_bad_boundary, level, +1)[:] *= 2.0
         tooth_b = _g_recip(fwd, T, g_bad, rng)
         print(f"    teeth: wrong-transpose={tooth_a:.2f}  gauge-asymmetry={tooth_b:.2f}")
         if not (tooth_a > 1e-3 and tooth_b > 1e-3):
@@ -737,10 +740,10 @@ class TestB_b_RayBoundary:
         re-emission at the outer ray). Positive law (anti-#11)."""
         sn = _sphere(bc="vacuum")
         seed_vals = np.random.default_rng(10).standard_normal(
-            sn.radial_characteristic_space.shape[0])
+            sn.radial_characteristic_composite_space.shape[0])
         out = RadialCharacteristicBoundaryOperator(sn).apply(_ray_composite(sn, seed_vals))
         np.testing.assert_array_equal(
-            out.to_unified().values, 0.0,
+            out.to_flat(), 0.0,
             err_msg="vacuum B_b emitted a non-zero corner (it did the reflective swap).")
 
     def test_unruled_outer_law_is_loud_deferred(self, monkeypatch):
@@ -752,7 +755,7 @@ class TestB_b_RayBoundary:
         B_b = RadialCharacteristicBoundaryOperator(sn)  # construct BEFORE the patch
         monkeypatch.setattr(sn.bc["xmax"], "kind", "white")
         seed_vals = np.random.default_rng(12).standard_normal(
-            sn.radial_characteristic_space.shape[0])
+            sn.radial_characteristic_composite_space.shape[0])
         with pytest.raises(NotImplementedError, match="no ruled corner action yet"):
             B_b.apply(_ray_composite(sn, seed_vals))
 
@@ -826,50 +829,49 @@ def _ray_sigma(sn, slope: float = 0.3) -> CrossSectionField:
     return CrossSectionField.from_mesh(raw, sn)
 
 
-def _ray_source(sn, rng) -> RadialCharacteristicSourceSink:
-    """A random q½ source block on ``sn``'s ray carrier (all slots non-zero)."""
-    space = sn.radial_characteristic_space
-    return RadialCharacteristicSourceSink(
-        values=rng.standard_normal(space.shape[0]), space=space, mesh=sn)
+def _ray_source(sn, rng) -> RadialCharacteristicComposite:
+    """A random q½ SOURCE composite on ``sn``'s ray carrier (all slots non-zero)."""
+    ns = sn.radial_characteristic_composite_space.shape[0]
+    return RadialCharacteristicComposite.from_flat(
+        rng.standard_normal(ns),
+        RadialCharacteristicComposite.source_zeros_on(sn))
 
 
-def _ray_cotangent(sn, rng) -> RadialCharacteristicFlux:
+def _ray_cotangent(sn, rng) -> RadialCharacteristicComposite:
     """A random flux-space cotangent (the solve's codomain) on ``sn``'s carrier."""
-    space = sn.radial_characteristic_space
-    return RadialCharacteristicFlux(
-        values=rng.standard_normal(space.shape[0]), space=space, mesh=sn)
+    ns = sn.radial_characteristic_composite_space.shape[0]
+    return _ray_composite(sn, rng.standard_normal(ns))
 
 
-def _member(unified) -> RadialCharacteristicComposite:
-    """Bridge a unified ψ½ leaf into System B's member composite — the B.2c
-    re-typed block I/O (role-preserving + bitwise, the B.1d licence). The
-    oracles stay UNIFIED (engine layout); only the operator calls bridge."""
-    return RadialCharacteristicComposite.from_unified(unified)
+def _member(x) -> RadialCharacteristicComposite:
+    """Identity passthrough (4e — System B's split composite is the native
+    carrier now; the pre-4e ``from_unified`` bridge from a unified leaf is
+    retired)."""
+    return x
 
 
-def _two_leg_reference(op, source) -> RadialCharacteristicFlux:
+def _two_leg_reference(op, source) -> RadialCharacteristicComposite:
     r"""Replicate ``A_BB.solve``'s two-leg march with the REAL engine — the WRAP
     oracle for the bit-identity gate. Calls ``carlson_inward_sweep_from_source``
     (the test-module imported name, UNPATCHED when the operator's module attr is
     spied) so ``.solve`` (patched with a delegating spy) and this reference
     compute with the SAME engine → any divergence is a WRAP bug, not FP."""
-    space = source.space
+    sn = op.sn_mesh
     sigma = op.total_cross_section.values
-    dr = np.asarray(op.sn_mesh.axis_widths[0])
-    out = RadialCharacteristicFlux.zeros_on(op.sn_mesh)
-    buf, sv = out.values, source.values
-    for lv in space.levels:
-        q_minus = space.cells_view(sv, lv, -1)
-        q_plus = space.cells_view(sv, lv, +1)
-        corner_in = space.corner_view(sv, lv, -1)
+    dr = np.asarray(sn.axis_widths[0])
+    out = RadialCharacteristicComposite.from_mesh(sn)
+    for lv in sn.radial_characteristic_levels:
+        q_minus = source.interior.cells(lv, -1)
+        q_plus = source.interior.cells(lv, +1)
+        corner_in = source.boundary.corner(lv, -1)
         cells_minus, pole_face = carlson_inward_sweep_from_source(
             q_minus, sigma, dr, corner_in)
         cells_plus_rev, corner_out = carlson_inward_sweep_from_source(
             q_plus[:, ::-1], sigma[:, ::-1], dr[::-1], pole_face)
-        space.cells_view(buf, lv, -1)[...] = cells_minus
-        space.corner_view(buf, lv, -1)[...] = corner_in
-        space.cells_view(buf, lv, +1)[...] = cells_plus_rev[:, ::-1]
-        space.corner_view(buf, lv, +1)[...] = corner_out
+        out.interior.cells(lv, -1)[...] = cells_minus
+        out.boundary.corner(lv, -1)[...] = corner_in
+        out.interior.cells(lv, +1)[...] = cells_plus_rev[:, ::-1]
+        out.boundary.corner(lv, +1)[...] = corner_out
     return out
 
 
@@ -907,8 +909,8 @@ def _euclid_adjoint_defect(op, u, v) -> float:
     operator docstring), so its consistency partner is the Euclidean inner
     product, not the ``V_cell`` Hilbert adjoint (which is realized once at the
     composite, L19). ``u``/``v`` are unified; the calls bridge (B.2c I/O)."""
-    lhs = float(op.solve(_member(u)).to_unified().values @ v.values)
-    rhs = float(u.values @ op.solve_transpose(_member(v)).to_unified().values)
+    lhs = float(op.solve(_member(u)).to_flat() @ v.to_flat())
+    rhs = float(u.to_flat() @ op.solve_transpose(_member(v)).to_flat())
     return abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
 
 
@@ -940,7 +942,6 @@ class TestA_BB_RadialBVP:
         outflow-corner source slot is unused — R13)."""
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
-        space = sn.radial_characteristic_space
         for seed in (1, 2, 3):                       # ≥2 draws
             rng = np.random.default_rng(seed)
             u, v = _ray_source(sn, rng), _ray_cotangent(sn, rng)
@@ -950,10 +951,10 @@ class TestA_BB_RadialBVP:
                     f"seed {seed}: Euclidean adjoint defect {defect:.3e} ≥ 1e-11 — "
                     f"solve_transpose is NOT the transpose of solve (the reverse "
                     f"march or its leg chaining is mis-wired).")
-            src_bar = op.solve_transpose(_member(v)).to_unified()
-            for lv in space.levels:
+            src_bar = op.solve_transpose(_member(v))
+            for lv in sn.radial_characteristic_levels:
                 np.testing.assert_array_equal(
-                    space.corner_view(src_bar.values, lv, +1), 0.0,
+                    src_bar.boundary.corner(lv, +1), 0.0,
                     err_msg=f"seed {seed} level {lv}: the source μ=+1 corner "
                             f"cotangent is non-zero (it must stay 0 — the q½ fold "
                             f"never writes that slot).")
@@ -1002,14 +1003,14 @@ class TestA_BB_RadialBVP:
         source = _ray_source(sn, np.random.default_rng(4))
         reference = _two_leg_reference(op, source)   # real engine, before the spy
         calls = _install_engine_spy(monkeypatch)
-        flux = op.solve(_member(source)).to_unified()
-        n_levels = len(sn.radial_characteristic_space.levels)
+        flux = op.solve(_member(source))
+        n_levels = len(sn.radial_characteristic_levels)
         if len(calls) != 2 * n_levels:
             pytest.fail(
                 f"solve called the engine {len(calls)}× (expected 2·n_levels = "
                 f"{2 * n_levels}) — it is NOT the two-leg WRAP (a divergent copy?).")
         np.testing.assert_array_equal(
-            flux.values, reference.values,
+            flux.to_flat(), reference.to_flat(),
             err_msg="solve is not bit-identical to the two-leg engine reference — "
                     "the WRAP diverged from the production march.")
 
@@ -1043,31 +1044,29 @@ class TestA_BB_RadialBVP:
         carry forward data and these equalities RED."""
         sn = _graded_sphere(nx=8)
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
-        space = sn.radial_characteristic_space
         dr = np.asarray(sn.axis_widths[0])
         sigma = op.total_cross_section.values
         source = _ray_source(sn, np.random.default_rng(6))
-        sv = source.values
         # Non-vacuity (Mode 5): on this graded mesh reversed ≠ forward.
         if np.array_equal(dr[::-1], dr):
             pytest.fail("dr is uniform — the reversal gate is Mode-5 vacuous; the "
                         "graded mesh must give dr[::-1] ≠ dr.")
         calls = _install_engine_spy(monkeypatch)
         op.solve(_member(source))
-        for idx, lv in enumerate(space.levels):
+        for idx, lv in enumerate(sn.radial_characteristic_levels):
             inward, outward = calls[2 * idx], calls[2 * idx + 1]
             np.testing.assert_array_equal(
                 inward["dr"], dr,
                 err_msg=f"level {lv}: the inward leg did not march FORWARD widths.")
             np.testing.assert_array_equal(
-                inward["Q"], space.cells_view(sv, lv, -1),
+                inward["Q"], source.interior.cells(lv, -1),
                 err_msg=f"level {lv}: the inward leg read the wrong source cells.")
             np.testing.assert_array_equal(
                 outward["dr"], dr[::-1],
                 err_msg=f"level {lv}: the outward leg did not march REVERSED widths "
                         f"(the 2.5a data-carried orientation broke).")
             np.testing.assert_array_equal(
-                outward["Q"], space.cells_view(sv, lv, +1)[:, ::-1],
+                outward["Q"], source.interior.cells(lv, +1)[:, ::-1],
                 err_msg=f"level {lv}: the outward leg did not read REVERSED source cells.")
             np.testing.assert_array_equal(
                 outward["sigma"], sigma[:, ::-1],
@@ -1082,16 +1081,13 @@ class TestA_BB_RadialBVP:
         the interior; equal interiors would mean the Dirichlet datum is ignored."""
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
-        space = sn.radial_characteristic_space
-        s0 = RadialCharacteristicSourceSink(
-            values=np.zeros(space.shape[0]), space=space, mesh=sn)
-        s1 = RadialCharacteristicSourceSink(
-            values=np.zeros(space.shape[0]), space=space, mesh=sn)
+        s0 = RadialCharacteristicComposite.source_zeros_on(sn)
+        s1 = RadialCharacteristicComposite.source_zeros_on(sn)
         for s in (s0, s1):
-            for lv in space.levels:
-                space.cells_view(s.values, lv, -1)[...] = 0.5     # identical cells
-        for lv in space.levels:
-            space.corner_view(s1.values, lv, -1)[...] = 3.0       # nonzero inflow only
+            for lv in sn.radial_characteristic_levels:
+                s.interior.cells(lv, -1)[...] = 0.5     # identical cells
+        for lv in sn.radial_characteristic_levels:
+            s1.boundary.corner(lv, -1)[...] = 3.0       # nonzero inflow only
         a = op.solve(_member(s0)).interior.cells(0, -1)
         b = op.solve(_member(s1)).interior.cells(0, -1)
         interior_diff = float(np.max(np.abs(a[:, :-1] - b[:, :-1])))  # exclude outer cell
@@ -1115,14 +1111,11 @@ class TestA_BB_RadialBVP:
             _rc_mod, "carlson_inward_sweep_from_source", ignore_bc)
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
-        space = sn.radial_characteristic_space
-        s0 = RadialCharacteristicSourceSink(
-            values=np.zeros(space.shape[0]), space=space, mesh=sn)
-        s1 = RadialCharacteristicSourceSink(
-            values=np.zeros(space.shape[0]), space=space, mesh=sn)
+        s0 = RadialCharacteristicComposite.source_zeros_on(sn)
+        s1 = RadialCharacteristicComposite.source_zeros_on(sn)
         for s in (s0, s1):
-            space.cells_view(s.values, 0, -1)[...] = 0.5
-        space.corner_view(s1.values, 0, -1)[...] = 3.0
+            s.interior.cells(0, -1)[...] = 0.5
+        s1.boundary.corner(0, -1)[...] = 3.0
         interior_diff = float(np.max(np.abs(
             op.solve(_member(s0)).interior.cells(0, -1)[:, :-1]
             - op.solve(_member(s1)).interior.cells(0, -1)[:, :-1])))
@@ -1145,14 +1138,12 @@ class TestA_BB_RadialBVP:
         sigma = _ray_sigma(sn)                       # het in g AND cell
         sig = sigma.values                           # (ng, nx) for the σ·C source
         op = RadialCharacteristicOperator(sn, sigma)
-        space = sn.radial_characteristic_space
         C = np.array([0.5, 1.3])                     # distinct per-group equilibrium
-        src = RadialCharacteristicSourceSink(
-            values=np.zeros(space.shape[0]), space=space, mesh=sn)
+        src = RadialCharacteristicComposite.source_zeros_on(sn)
         for g in range(sn.ng):
             for sign in (-1, +1):                    # BOTH legs' cells source = σ·C
-                space.cells_view(src.values, 0, sign)[g, :] = sig[g] * C[g]
-            space.corner_view(src.values, 0, -1)[g] = C[g]   # consistent inflow
+                src.interior.cells(0, sign)[g, :] = sig[g] * C[g]
+            src.boundary.corner(0, -1)[g] = C[g]   # consistent inflow
         flux = op.solve(_member(src))
         expected = np.broadcast_to(C[:, None], (sn.ng, sn.nx))
         for sign in (-1, +1):
@@ -1191,9 +1182,9 @@ class TestA_BB_RadialBVP:
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
-        if cyl.radial_characteristic_space is not None:
+        if cyl.radial_characteristic_composite_space is not None:
             pytest.fail("the cylinder carries a ray space — CONTROL invalid.")
-        if slab.radial_characteristic_space is not None:
+        if slab.radial_characteristic_composite_space is not None:
             pytest.fail("the slab carries a ray space — CONTROL invalid.")
         # The seedless guard fires before σ_t is read (a valid field on the mesh).
         with pytest.raises(ValueError, match="carries no starting-direction ray"):
@@ -1230,9 +1221,9 @@ def _install_forward_spy(monkeypatch) -> list[int]:
     calls: list[int] = []
     real = radial_characteristic_forward_residual
 
-    def spy(values, space, sigma, dr):
+    def spy(*args, **kwargs):
         calls.append(1)
-        return real(values, space, sigma, dr)
+        return real(*args, **kwargs)
 
     monkeypatch.setattr(_rc_mod, "radial_characteristic_forward_residual", spy)
     monkeypatch.setattr(_lr_mod, "radial_characteristic_forward_residual", spy)
@@ -1256,17 +1247,16 @@ class TestA_BB_Forward:
         # (principled-equiv, R1); the apply∘solve +1 corner closes bit-exact 0.
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
-        space = sn.radial_characteristic_space
         for seed in range(2):
             rng = np.random.default_rng(seed)
             q0 = _member(_ray_source(sn, rng))
             psi0 = op.solve(q0)
             psi1 = op.solve(op.apply(psi0))
             np.testing.assert_allclose(
-                psi1.to_unified().values, psi0.to_unified().values,
+                psi1.to_flat(), psi0.to_flat(),
                 rtol=1e-11, atol=1e-13)
             qr = op.apply(op.solve(q0))
-            for p in space.levels:
+            for p in sn.radial_characteristic_levels:
                 corner = qr.boundary.corner(p, +1)
                 np.testing.assert_array_equal(corner, np.zeros_like(corner))
 
@@ -1303,9 +1293,9 @@ class TestA_BB_Forward:
             rng = np.random.default_rng(seed + 10)
             u = _ray_cotangent(sn, rng)
             v = _ray_cotangent(sn, rng)
-            lhs = float(op.apply(_member(u)).to_unified().values @ v.values)
+            lhs = float(op.apply(_member(u)).to_flat() @ v.to_flat())
             rhs = float(
-                u.values @ op.apply_transpose(_member(v)).to_unified().values)
+                u.to_flat() @ op.apply_transpose(_member(v)).to_flat())
             defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
             if defect > 1e-11:
                 pytest.fail(
@@ -1321,10 +1311,10 @@ class TestA_BB_Forward:
         psi0 = op.solve(q0)
         inv = op.inverse()
         np.testing.assert_array_equal(
-            inv.apply(q0).to_unified().values, op.solve(q0).to_unified().values)
+            inv.apply(q0).to_flat(), op.solve(q0).to_flat())
         np.testing.assert_array_equal(
-            inv.solve(psi0).to_unified().values,
-            op.apply(psi0).to_unified().values)
+            inv.solve(psi0).to_flat(),
+            op.apply(psi0).to_flat())
         if inv.inverse() is not op:
             pytest.fail("inverse().inverse() is not the original operator.")
         if not (op.is_invertible and op.is_adjointable):
@@ -1370,44 +1360,43 @@ class TestA_BB_Forward:
         # Block-boundary refusals (parse-don't-validate, match= the parse's
         # own message — a downstream crash must not false-green these).
         with pytest.raises(TypeError, match="System B's member carrier"):
-            op.apply(_ray_cotangent(sn, rng))          # a unified leaf
+            op.apply(_template(sn))                     # a System-A FullField (foreign carrier)
         with pytest.raises(TypeError, match="SOURCE members"):
             op.solve(cot)                              # flux into the resolvent
         with pytest.raises(ValueError, match="mesh-identity invariant"):
             op.apply(_member(_ray_cotangent(_sphere(), rng)))
 
-    def test_b2c_member_composite_bridge_teeth(self, monkeypatch):
-        r"""TEETH for the G-c1.1 rows: (a) an apply that SKIPS the
-        ``from_unified`` re-split (returns the unified engine leaf) reds the
-        container assertion; (b) a value-corrupting bridge (the re-split
-        doubling the interior member) moves the apply value — the value rows
-        are not blind to a broken bridge. In-process monkeypatch, both legs."""
+    def test_b2c_member_value_rows_have_teeth(self, monkeypatch):
+        r"""TEETH for the G-c1.1 value rows (4e RE-AIM).
+
+        The pre-4e teeth patched ``RadialCharacteristicComposite.from_unified``
+        (a bridge-drop → the container gate reds; a bridge-corruption → the
+        value moves). Phase C 4e retired the unified leaf and its bridge, so
+        that mechanism has no referent. Successors:
+
+        * The container guarantee (``apply`` emits a native member composite) is
+          now STRUCTURAL — pinned by
+          :meth:`test_b2c_member_composite_block_boundary` (the operator emits
+          the composite directly; there is no bridge to drop).
+        * The value-teeth are RE-AIMED onto a direct corruption of the SHARED
+          forward kernel's interior output (same assertion — a value corruption
+          moves ``apply``'s value; the value rows are not blind to it)."""
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
         cot = _member(_ray_cotangent(sn, np.random.default_rng(8)))
-        reference = op.apply(cot).to_unified().values      # unpatched control
-        # (a) bridge-drop → the container gate reds.
-        with monkeypatch.context() as m:
-            m.setattr(RadialCharacteristicComposite, "from_unified",
-                      classmethod(lambda cls, unified: unified))
-            out = op.apply(cot)
-            if isinstance(out, RadialCharacteristicComposite):
-                pytest.fail("the bridge-drop tooth is mis-wired — apply still "
-                            "emitted a composite under a dropped re-split.")
-        # (b) value corruption → the value rows red.
-        real_from_unified = RadialCharacteristicComposite.from_unified.__func__
+        reference = op.apply(cot).to_flat()             # unpatched control
+        real = radial_characteristic_forward_residual
 
-        def corrupt(cls, unified):
-            out = real_from_unified(cls, unified)
-            return replace(out, interior=out.interior * 2.0)
+        def corrupt(*args, **kwargs):
+            interior_out, boundary_out = real(*args, **kwargs)
+            return interior_out * 2.0, boundary_out      # double the interior member
 
         with monkeypatch.context() as m:
-            m.setattr(RadialCharacteristicComposite, "from_unified",
-                      classmethod(corrupt))
-            corrupted = op.apply(cot).to_unified().values
+            m.setattr(_rc_mod, "radial_characteristic_forward_residual", corrupt)
+            corrupted = op.apply(cot).to_flat()
         if not np.max(np.abs(corrupted - reference)) > 0.0:
             pytest.fail("the value-corruption tooth left apply unchanged — the "
-                        "value rows have no teeth against a broken bridge.")
+                        "value rows have no teeth against a corrupted kernel.")
 
 
 # ── Step-2 helpers: A_BA the ψ½ Schur fold (bulk → ray q½ source) ──────────
@@ -1484,13 +1473,12 @@ def _ba_oldloop_reference(emission: NDArray, sn) -> NDArray:
     Step-2 un-weld MUST reproduce this byte-for-byte (``np.array_equal``),
     inheriting verification from the ℓ-fold contract gate (vv §Bit-identity: free
     verification by inheritance from a verified reference)."""
-    space = sn.radial_characteristic_space
-    vals = np.zeros(space.shape[0])
-    for lv in space.levels:
+    ref = RadialCharacteristicComposite.source_zeros_on(sn)
+    for lv in sn.radial_characteristic_levels:
         for sign in (-1, +1):
-            space.cells_view(vals, lv, sign)[:] = (
+            ref.interior.cells(lv, sign)[:] = (
                 _rcs_mod.fold_moments_to_radial_characteristic(emission[None], sign))
-    return vals
+    return ref.to_flat()
 
 
 def _fold_transpose_reference(y: NDArray, sign: int, n_moments: int,
@@ -1543,7 +1531,7 @@ def _apply_A_BA(emission: NDArray, sn) -> NDArray:
     # RadialCharacteristicReconstruction.apply — the emission is the ℓ=0 moment
     # (a unit ℓ axis, n_moments=1).
     return _rcr_mod.RadialCharacteristicReconstruction(sn).apply(
-        emission[None]).values
+        emission[None]).to_flat()
 
 
 def _apply_A_BA_transpose(seed_cotangent: NDArray, sn) -> NDArray:
@@ -1553,12 +1541,11 @@ def _apply_A_BA_transpose(seed_cotangent: NDArray, sn) -> NDArray:
     fold-helper-transpose contract (``test_fold_transpose_euclidean_contract``)
     and the operator-level consistency gate — flag the binding, do not force it.
     """
-    # Bound (Step 2, operator shape): wrap the flat ray cotangent as a
-    # RadialCharacteristicFlux and pull it back through the reconstruction's
-    # Euclidean transpose → the (n_moments=1, ng, nx) bulk-moment cotangent.
-    field = RadialCharacteristicFlux(
-        values=np.asarray(seed_cotangent, dtype=float),
-        space=sn.radial_characteristic_space, mesh=sn)
+    # Bound (Step 2, operator shape): wrap the flat ray cotangent as a ψ½ FLUX
+    # composite (composite to_flat order) and pull it back through the
+    # reconstruction's Euclidean transpose → the (n_moments=1, ng, nx)
+    # bulk-moment cotangent.
+    field = _ray_composite(sn, seed_cotangent)
     return _rcr_mod.RadialCharacteristicReconstruction(sn).apply_transpose(field)
 
 
@@ -1727,7 +1714,7 @@ class TestA_BA_SchurFold:
                    bc_left=BC("reflective")),
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         for tag, sn in (("cylinder", cyl), ("slab", slab)):
-            if sn.radial_characteristic_space is not None:
+            if sn.radial_characteristic_composite_space is not None:
                 pytest.fail(f"{tag} carries a ray space — the non-carrying CONTROL is invalid.")
             N, nx, ng = sn.quad.N, sn.nx, sn.ng
             n_tr = int(sn.angular_trace.layout.total_size)
@@ -1772,10 +1759,9 @@ class TestA_BA_SchurFold:
         Euclidean adjoint contract against the forward fold
         (``⟨fold·emission, y⟩ = ⟨emission, foldᵀ·y⟩``)."""
         sn = _sphere()
-        space = sn.radial_characteristic_space
         rng = np.random.default_rng(80)
         emission = rng.standard_normal((sn.ng, sn.nx))
-        y = rng.standard_normal(space.shape[0])
+        y = rng.standard_normal(sn.radial_characteristic_composite_space.shape[0])
         fwd = _apply_A_BA(emission, sn)
         bwd = _apply_A_BA_transpose(y, sn)
         lhs = float(fwd @ y)
@@ -1810,10 +1796,8 @@ def _pullback_reconstruction(sn, S, chi_seed_values: NDArray) -> NDArray:
     ``== A_BA.apply_transpose.interior`` check is INHERITANCE — necessary-not-
     sufficient; the load-bearing structural cross-check is the fwd↔adj Euclidean
     reciprocity, leg (c) of L1-ADJ.)"""
-    space = sn.radial_characteristic_space
     fold = RadialCharacteristicReconstruction(sn, n_moments=1)
-    chi_ray = RadialCharacteristicFlux(
-        values=np.asarray(chi_seed_values, dtype=float), space=space, mesh=sn)
+    chi_ray = _ray_composite(sn, chi_seed_values)
     m_bar = fold.apply_transpose(chi_ray)                       # Foldᵀ: (1, ng, nx)
     phi0_bar = np.asarray(S.isotropic_kernel.apply_transpose(m_bar[0]))  # K_isoᵀ: (ng, nx)
     w = np.asarray(sn.quad.weights, dtype=float)               # (∫dμ)ᵀ = ×w_n
@@ -1904,7 +1888,7 @@ class TestCoupledLift:
         if type(a_out.boundary) is not RadialCharacteristicBoundarySourceSink:
             pytest.fail(f"A_BA boundary member is {type(a_out.boundary).__name__} "
                         f"— the emission must carry the SOURCE pair.")
-        if not np.max(np.abs(a_out.to_unified().values)) > 1e-6:
+        if not np.max(np.abs(a_out.to_flat())) > 1e-6:
             pytest.fail("A_BA.apply ray ≈ 0 — the lifted gain does not carry the "
                         "bulk→ray emission (the coupling is unwired).")
         np.testing.assert_array_equal(
@@ -1933,9 +1917,8 @@ class TestCoupledLift:
         sn = _sphere()
         S = SNSolver(sn).scattering_op
         A_BA = _a_ba_scatter(sn)
-        space = sn.radial_characteristic_space
         rng = np.random.default_rng(110)
-        chi_seed = rng.standard_normal(space.shape[0])
+        chi_seed = rng.standard_normal(sn.radial_characteristic_composite_space.shape[0])
         # B.2b: the block's cotangent is System B's OWN carrier (a FullField
         # seed-only cotangent is now unspellable at the block boundary).
         chi_cot = _ray_composite(sn, chi_seed)
@@ -1966,7 +1949,7 @@ class TestCoupledLift:
                     "non-bulk arm feeds S's transpose.")
         # (c) structurally-independent Euclidean fwd↔adj reciprocity, NONZERO seed.
         psi = _random_composite(sn, rng)
-        lhs = float(A_BA.apply(psi).to_unified().values @ chi_seed)
+        lhs = float(A_BA.apply(psi).to_flat() @ chi_seed)
         rhs = float(psi.interior.values.ravel() @ adj_bulk.ravel())
         defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
         if not defect < 1e-11:
@@ -1981,9 +1964,8 @@ class TestCoupledLift:
         ``test_g_adjoint_reciprocity``). Monkeypatch-revert; ``-O``-safe."""
         sn = _sphere()
         A_BA = _a_ba_scatter(sn)
-        space = sn.radial_characteristic_space
         rng = np.random.default_rng(111)
-        chi_seed = rng.standard_normal(space.shape[0])
+        chi_seed = rng.standard_normal(sn.radial_characteristic_composite_space.shape[0])
         psi = _random_composite(sn, rng)
 
         from orpheus.transport.full_field import FullField as _FF
@@ -1999,7 +1981,7 @@ class TestCoupledLift:
 
         monkeypatch.setattr(RadialCharacteristicEmission, "apply_transpose", _drop_pullback)
         adj_bulk = A_BA.apply_transpose(_ray_composite(sn, chi_seed)).interior.values
-        lhs = float(A_BA.apply(psi).to_unified().values @ chi_seed)
+        lhs = float(A_BA.apply(psi).to_flat() @ chi_seed)
         rhs = float(psi.interior.values.ravel() @ adj_bulk.ravel())
         defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
         print(f"  [L1-ADJ tooth] dropped-pullback reciprocity defect = {defect:.3f}")
@@ -2023,10 +2005,10 @@ class TestCoupledLift:
         A_BA = _a_ba_scatter(sn)
         psi = _random_composite(sn, np.random.default_rng(120))
         emission = _s_emission(S, psi)
-        n_levels = len(sn.radial_characteristic_space.levels)   # == 1 (sphere-GL S4)
+        n_levels = len(sn.radial_characteristic_levels)   # == 1 (sphere-GL S4)
         fold_calls = _install_fold_spy(monkeypatch)
         recon_calls = _wrap_extracted_A_BA(monkeypatch)
-        ray = A_BA.apply(psi).to_unified().values
+        ray = A_BA.apply(psi).to_flat()
         # (i) the extracted single-source RECONSTRUCTION operator is on the call
         # path (once per A_BA.apply — a re-inlined fold copy leaves this at 0).
         if recon_calls["n"] != 1:
@@ -2056,7 +2038,7 @@ class TestCoupledLift:
         psi = _random_composite(sn, np.random.default_rng(121))
         emission = _s_emission(S, psi)
         monkeypatch.setattr(_rcr_mod, "fold_moments_to_radial_characteristic", _fold_half_to(0.6))
-        ray = A_BA.apply(psi).to_unified().values
+        ray = A_BA.apply(psi).to_flat()
         oracle = _ba_oldloop_reference(emission, sn)   # numerics fold, unpatched (0.5)
         red = float(np.max(np.abs(ray - oracle)))
         print(f"  [L2 tooth] ½→0.6 fold: |A_BA.ray − oracle| = {red:.4f}")
@@ -2093,7 +2075,7 @@ class TestCoupledLift:
         if not np.max(np.abs(monolith_ray)) > 1e-6:
             pytest.fail("the reconstructed monolith ray ≈ 0 — L3 is vacuous.")
         np.testing.assert_array_equal(
-            a_out.to_unified().values, monolith_ray,
+            a_out.to_flat(), monolith_ray,
             err_msg="S_bulk ⊕ A_BA_ray ≠ the monolithic S.apply ray (the ray "
                     "placement drifted — a permutation the OBJECT pin catches).")
 
@@ -2112,16 +2094,17 @@ class TestCoupledLift:
             return np.roll(real_fold(moments, sign), 1, axis=-1)  # permute cells; sum preserved
 
         monkeypatch.setattr(_rcr_mod, "fold_moments_to_radial_characteristic", _fold_rolled)
-        ray = A_BA.apply(psi).to_unified().values
+        ray = A_BA.apply(psi).to_flat()
         monolith_ray = _ba_oldloop_reference(emission, sn)   # numerics fold, unpatched
         # The OBJECT (placement) differs …
         placement_red = float(np.max(np.abs(ray - monolith_ray)))
         # … while the per-(level,sign) SUM proxy is BLIND to the permutation.
-        space = sn.radial_characteristic_space
-        sum_ray = sum(float(space.cells_view(ray, lv, s).sum())
-                      for lv in space.levels for s in (-1, +1))
-        sum_ref = sum(float(space.cells_view(monolith_ray, lv, s).sum())
-                      for lv in space.levels for s in (-1, +1))
+        ray_c = _ray_composite(sn, ray)
+        ref_c = _ray_composite(sn, monolith_ray)
+        sum_ray = sum(float(ray_c.interior.cells(lv, s).sum())
+                      for lv in sn.radial_characteristic_levels for s in (-1, +1))
+        sum_ref = sum(float(ref_c.interior.cells(lv, s).sum())
+                      for lv in sn.radial_characteristic_levels for s in (-1, +1))
         sum_gap = abs(sum_ray - sum_ref) / (abs(sum_ref) + 1e-300)
         print(f"  [L3 tooth] permutation: placement RED={placement_red:.4f}  sum-proxy gap={sum_gap:.1e}")
         if not placement_red > 1e-3:
@@ -2251,7 +2234,7 @@ class TestCoupledLift:
         if not np.max(np.abs(emission)) > 1e-6:
             pytest.fail("the fission emission ≈ 0 — the L1-F value gate is VACUOUS "
                         "(the mixture is not actually fissile / νΣf = 0; vv #4).")
-        got = _radial_characteristic_fission_seed(emission, snf).values
+        got = _radial_characteristic_fission_seed(emission, snf).to_flat()
         # (a) bit-identical to the direct moments-fold loop.
         np.testing.assert_array_equal(
             got, _ba_oldloop_reference(emission, snf),
@@ -2259,7 +2242,7 @@ class TestCoupledLift:
                     "(_ba_oldloop_reference) — the F seed is not the ℓ=0 fold.")
         # (b) principled-equiv (~ULP) to the RETIRED per-ordinate round-trip.
         old = _radial_characteristic_source_from_per_ordinate(
-            AngularSourceSink.from_isotropic(emission, snf).values, snf).values
+            AngularSourceSink.from_isotropic(emission, snf).values, snf).to_flat()
         # Budget: measured ~9-16 ULP on this config (maxabs 5.6e-16, maxrel 1.9e-15);
         # nulp=32 gives headroom for the removed per-ordinate ·w reassociation (the
         # migration is principled-equiv — vv §Bit-identity criterion 3, NOT byte-id).
@@ -2278,7 +2261,7 @@ class TestCoupledLift:
         emission = _f_emission(F, psi)
         monkeypatch.setattr(
             _rcr_mod, "fold_moments_to_radial_characteristic", _fold_half_to(0.6))
-        got = _radial_characteristic_fission_seed(emission, snf).values
+        got = _radial_characteristic_fission_seed(emission, snf).to_flat()
         oracle = _ba_oldloop_reference(emission, snf)   # numerics fold, unpatched (0.5)
         red = float(np.max(np.abs(got - oracle)))
         print(f"  [L1-F tooth] ½→0.6 fold: |seed − oracle| = {red:.4f}")
@@ -2448,12 +2431,12 @@ def _bulk_composite(sn, bulk_values: NDArray) -> FullField:
     )
 
 
-def _loss_transpose_seed_pullback(sn, LC, bulk_values: NDArray) -> RadialCharacteristicSourceSink:
+def _loss_transpose_seed_pullback(sn, LC, bulk_values: NDArray) -> RadialCharacteristicComposite:
     """The in-sweep reverse's seed pullback ``Seedingᵀ·φ_A`` read through the
     B.2d explicit legs: run ``LC.apply_transpose`` with a ZERO ``seed_cot``
     (nulls ``D_BBᵀ``) and collect the ``seed_cot_out`` buffer."""
-    ns = sn.radial_characteristic_space.shape[0]
-    out_buf = RadialCharacteristicSourceSink.zeros_on(sn)
+    ns = sn.radial_characteristic_composite_space.shape[0]
+    out_buf = RadialCharacteristicComposite.source_zeros_on(sn)
     LC.apply_transpose(
         _bulk_composite(sn, bulk_values),
         seed_cot=_seed_leaf(sn, np.zeros(ns)),
@@ -2462,11 +2445,10 @@ def _loss_transpose_seed_pullback(sn, LC, bulk_values: NDArray) -> RadialCharact
     return out_buf
 
 
-def _seed_flux(sn, rng) -> RadialCharacteristicFlux:
+def _seed_flux(sn, rng) -> RadialCharacteristicComposite:
     """A random ψ½ ray seed — the ``A_AB.apply`` input."""
-    ns = sn.radial_characteristic_space.shape[0]
-    return RadialCharacteristicFlux(
-        values=rng.standard_normal(ns), space=sn.radial_characteristic_space, mesh=sn)
+    ns = sn.radial_characteristic_composite_space.shape[0]
+    return _ray_composite(sn, rng.standard_normal(ns))
 
 
 def _bulk_cotangent(sn, rng) -> AngularSourceSink:
@@ -2531,10 +2513,9 @@ class TestA_AB_SeedInjection:
         passed as ``radial_characteristic``. σ-independence is asserted
         positively (the reference is identical at two ``σ_t`` slopes). ≥2G."""
         sn = _sphere()
-        space = sn.radial_characteristic_space
         rng = np.random.default_rng(30)
-        sv = rng.standard_normal(space.shape[0])
-        seed = RadialCharacteristicFlux(values=sv, space=space, mesh=sn)
+        sv = rng.standard_normal(sn.radial_characteristic_composite_space.shape[0])
+        seed = _ray_composite(sn, sv)
         # Reference (real methods, computed BEFORE the spy): the seed's
         # contribution to the JOINT (L+C).apply — zero System A + the seed
         # through the explicit flux leg (B.2d) ⇒ A_AA·0 = 0, so the bulk
@@ -2544,7 +2525,7 @@ class TestA_AB_SeedInjection:
             return LC_op.apply(
                 _zero_composite(sn),
                 radial_characteristic_flux=_seed_leaf(sn, sv),
-                radial_characteristic_source=RadialCharacteristicSourceSink.zeros_on(sn),
+                radial_characteristic_source=RadialCharacteristicComposite.source_zeros_on(sn),
             ).interior
 
         reference = _seed_feed(_loss(sn))
@@ -2566,18 +2547,18 @@ class TestA_AB_SeedInjection:
             pytest.fail(
                 "A_AB.apply did NOT zero the bulk psi_view — A_AA's angular "
                 "redistribution would leak into the isolated coupling.")
-        # B.2c: the engine receives the BRIDGED unified seed (a fresh
-        # to_unified object, so the pre-re-type object-identity pin becomes a
-        # role + value-fidelity pin — the bridge is bitwise).
+        # 4e: the closure receives System B's INTERIOR member directly (the
+        # split RadialCharacteristicInteriorFlux — no unified bridge). Role +
+        # value-fidelity pin: the interior member is passed value-faithfully.
         bridged = pre[0]["kwargs"].get("radial_characteristic")
-        if type(bridged) is not RadialCharacteristicFlux:
+        if type(bridged) is not RadialCharacteristicInteriorFlux:
             pytest.fail(
-                "A_AB.apply did not pass a role-preserved ψ½ FLUX as "
+                "A_AB.apply did not pass a role-preserved ψ½ INTERIOR FLUX as "
                 f"radial_characteristic; got {type(bridged).__name__}.")
         np.testing.assert_array_equal(
-            bridged.values, sv,
-            err_msg="the bridged seed is not value-faithful to the input "
-                    "composite (the to_unified bridge must be bitwise).")
+            bridged.values, seed.interior.values,
+            err_msg="the passed seed interior member is not value-faithful to "
+                    "the input composite's interior.")
         if len(cc) < sn.nx:
             pytest.fail(
                 f"cell_contribution called {len(cc)}× (< nx = {sn.nx}) — the "
@@ -2596,7 +2577,6 @@ class TestA_AB_SeedInjection:
         0 (the forward writes only the inward leg). A Mode-11 sentinel proves
         ``angular_adjoint`` runs exactly once. ≥2G."""
         sn = _sphere()
-        space = sn.radial_characteristic_space
         rng = np.random.default_rng(31)
         vv = rng.standard_normal((sn.quad.N, sn.ng, sn.nx))
         reference = _loss_transpose_seed_pullback(sn, _loss(sn), vv)
@@ -2609,9 +2589,9 @@ class TestA_AB_SeedInjection:
             pytest.fail(
                 f"angular_adjoint called {len(aa)}× (expected 1) — A_AB."
                 f"apply_transpose is not the single-adjoint WRAP.")
-        for p in space.levels:
+        for p in sn.radial_characteristic_levels:
             np.testing.assert_array_equal(
-                out.interior.cells(p, -1), reference.cells(p, -1),
+                out.interior.cells(p, -1), reference.interior.cells(p, -1),
                 err_msg=f"level {p}: apply_transpose cells(-1) ≠ the in-sweep "
                         f"seed_cells_bar.")
             np.testing.assert_array_equal(
@@ -2647,9 +2627,9 @@ class TestA_AB_SeedInjection:
             lhs = float(
                 op.apply(_member(u)).interior.values.ravel() @ v.values.ravel())
             rhs = float(
-                u.values.ravel()
+                u.to_flat()
                 @ op.apply_transpose(
-                    _bulk_composite(sn, v.values)).to_unified().values.ravel())
+                    _bulk_composite(sn, v.values)).to_flat())
             defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
             if not defect < 1e-11:
                 pytest.fail(
@@ -2678,9 +2658,9 @@ class TestA_AB_SeedInjection:
         lhs = float(
             op.apply(_member(u)).interior.values.ravel() @ v.values.ravel())
         rhs = float(
-            u.values.ravel()
+            u.to_flat()
             @ op.apply_transpose(
-                _bulk_composite(sn, v.values)).to_unified().values.ravel())
+                _bulk_composite(sn, v.values)).to_flat())
         defect = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
         if not defect > 1e-3:
             pytest.fail(
@@ -2697,18 +2677,16 @@ class TestA_AB_SeedInjection:
         the identity vacuously)."""
         sn = _sphere()
         op = RadialCharacteristicSeeding(sn)
-        space = sn.radial_characteristic_space
         rng = np.random.default_rng(32)
-        full = rng.standard_normal(space.shape[0])
-        only_minus = np.zeros_like(full)
-        for p in space.levels:
-            space.cells_view(only_minus, p, -1)[...] = space.cells_view(full, p, -1)
-        if not np.max(np.abs(only_minus)) > 0.0:
+        ns = sn.radial_characteristic_composite_space.shape[0]
+        full = _ray_composite(sn, rng.standard_normal(ns))
+        only_minus = RadialCharacteristicComposite.from_mesh(sn)
+        for p in sn.radial_characteristic_levels:
+            only_minus.interior.cells(p, -1)[...] = full.interior.cells(p, -1)
+        if not np.max(np.abs(only_minus.to_flat())) > 0.0:
             pytest.fail("the inward -1 leg is zero — the asymmetry gate is vacuous.")
-        out_full = op.apply(_member(
-            RadialCharacteristicFlux(values=full, space=space, mesh=sn)))
-        out_minus = op.apply(_member(
-            RadialCharacteristicFlux(values=only_minus, space=space, mesh=sn)))
+        out_full = op.apply(_member(full))
+        out_minus = op.apply(_member(only_minus))
         if not np.max(np.abs(out_full.interior.values)) > 1e-6:
             pytest.fail("A_AB.apply output is ~0 — the asymmetry gate is vacuous.")
         np.testing.assert_array_equal(
@@ -2734,9 +2712,9 @@ class TestA_AB_SeedInjection:
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
-        if cyl.radial_characteristic_space is not None:
+        if cyl.radial_characteristic_composite_space is not None:
             pytest.fail("the cylinder carries a ray space — CONTROL invalid.")
-        if slab.radial_characteristic_space is not None:
+        if slab.radial_characteristic_composite_space is not None:
             pytest.fail("the slab carries a ray space — CONTROL invalid.")
         with pytest.raises(ValueError, match="carries no starting-direction ray"):
             RadialCharacteristicSeeding(cyl)
@@ -2753,10 +2731,10 @@ class TestA_AB_SeedInjection:
                 other,
                 np.random.default_rng(9).standard_normal(
                     (other.quad.N, other.ng, other.nx))))
-        # B.2c block-boundary refusals: a unified leaf / a bulk field are not
-        # the typed carriers (parse-don't-validate at the block boundary).
+        # 4e block-boundary refusals: a System-A FullField / a bulk field are
+        # not the typed carriers (parse-don't-validate at the block boundary).
         with pytest.raises(TypeError, match="System B's member carrier"):
-            op.apply(_seed_flux(sn, np.random.default_rng(9)))
+            op.apply(_template(sn))                     # a System-A FullField (foreign carrier)
         with pytest.raises(TypeError, match="expected a FullField"):
             op.apply_transpose(_bulk_cotangent(sn, np.random.default_rng(9)))
 
@@ -3019,11 +2997,11 @@ class TestCoupledBuilder:
         for seed in (21, 22):
             rng = np.random.default_rng(seed)
             coupled = _random_pair(sn, rng)
-            if not np.max(np.abs(coupled.systems[1].to_unified().values)) > 0.0:
+            if not np.max(np.abs(coupled.systems[1].to_flat())) > 0.0:
                 pytest.fail("the probe ray is zero — the centrepiece would be "
                             "vacuous for the coupling rows.")
             y_ref = _m_minus_n_reference(sn, mat_xs, coupled)
-            if not np.max(np.abs(y_ref.systems[1].to_unified().values)) > 0.0:
+            if not np.max(np.abs(y_ref.systems[1].to_flat())) > 0.0:
                 pytest.fail("the reference ray rows are zero — the B_b/emission "
                             "arms are not exercised (non-vacuity, F1).")
             y_a, y_b = grid.apply(coupled).systems
@@ -3038,8 +3016,8 @@ class TestCoupledBuilder:
                 err_msg=f"seed {seed}: the trace row moved (only addition "
                         f"order may differ).")
             np.testing.assert_allclose(
-                y_b.to_unified().values,
-                y_ref.systems[1].to_unified().values,
+                y_b.to_flat(),
+                y_ref.systems[1].to_flat(),
                 rtol=1e-12, atol=1e-15,
                 err_msg=f"seed {seed}: the ray rows diverged — the (B,·) "
                         f"blocks are not the welded M − N action.")
@@ -3068,8 +3046,8 @@ class TestCoupledBuilder:
         rng = np.random.default_rng(23)
         coupled = _random_pair(sn, rng)
         y_ref = _m_minus_n_reference(
-            sn, mat_xs, coupled).systems[1].to_unified().values
-        y_drop = dropped.apply(coupled).systems[1].to_unified().values
+            sn, mat_xs, coupled).systems[1].to_flat()
+        y_drop = dropped.apply(coupled).systems[1].to_flat()
         if not np.max(np.abs(y_drop - y_ref)) > 1e-8:
             pytest.fail("dropping −B_b left the ray rows unmoved on a "
                         "REFLECTIVE sphere — the centrepiece has no teeth "
@@ -3407,7 +3385,7 @@ class TestWithinGroupSystem:
         M_op = system.resolvent
         rng = np.random.default_rng(150)
         psi_a = _random_composite(sn, rng)
-        ns = sn.radial_characteristic_space.shape[0]
+        ns = sn.radial_characteristic_composite_space.shape[0]
         live = _pair(sn, psi_a, rng.standard_normal(ns))
         dead = _pair(sn, psi_a, np.zeros(ns))
         # (a) zero-leg ≡ no-leg (the (A,A) block action).
@@ -3418,7 +3396,7 @@ class TestWithinGroupSystem:
             err_msg="M.apply([x_A, 0]) ≠ the no-leg (A,A) block action — the "
                     "zero-substitution and the explicit zero leg drifted")
         np.testing.assert_array_equal(
-            y_dead.systems[1].to_unified().values, 0.0,
+            y_dead.systems[1].to_flat(), 0.0,
             err_msg="a zero ψ_B emitted nonzero ray rows (D·0 ≠ 0)")
         # (b) a live ψ_B moves y_A and fills y_B.
         y_live = M_op.apply(live)
@@ -3427,7 +3405,7 @@ class TestWithinGroupSystem:
                 - y_dead.systems[0].interior.values)) > 1e-8:
             pytest.fail("a LIVE ψ_B left y_A unmoved — the welded seed feed "
                         "does not read the flux leg (a dropped pack)")
-        if not np.max(np.abs(y_live.systems[1].to_unified().values)) > 1e-8:
+        if not np.max(np.abs(y_live.systems[1].to_flat())) > 1e-8:
             pytest.fail("a LIVE ψ_B left y_B empty — the emitted ray rows do "
                         "not ride the source buffer")
         # (c) the joint inverse round trip — ψ_A's bulk + ψ_B's CELLS legs
@@ -3439,14 +3417,13 @@ class TestWithinGroupSystem:
             back.systems[0].interior.values, psi_a.interior.values,
             rtol=1e-11, atol=1e-12,
             err_msg="M.solve(M.apply(x)) moved ψ_A past walk precision")
-        space_u = sn.radial_characteristic_space
-        back_u = back.systems[1].to_unified().values
-        live_u = live.systems[1].to_unified().values
-        for lv in space_u.levels:
+        back_b = back.systems[1]
+        live_b = live.systems[1]
+        for lv in sn.radial_characteristic_levels:
             for sign in (-1, +1):
                 np.testing.assert_allclose(
-                    space_u.cells_view(back_u, lv, sign),
-                    space_u.cells_view(live_u, lv, sign),
+                    back_b.interior.cells(lv, sign),
+                    live_b.interior.cells(lv, sign),
                     rtol=1e-11, atol=1e-12,
                     err_msg=f"M.solve(M.apply(x)) moved ψ_B cells({lv},{sign})")
 
@@ -3481,8 +3458,8 @@ class TestWithinGroupSystem:
             out.systems[0].boundary.values, row_a_ref.boundary.values,
             err_msg="N row A trace ≠ (S + B_a)·ψ_A")
         np.testing.assert_array_equal(
-            out.systems[1].to_unified().values,
-            row_b_ref.to_unified().values,
+            out.systems[1].to_flat(),
+            row_b_ref.to_flat(),
             err_msg="N row B ray ≠ Emission·ψ_A + B_b·ψ_B")
         # TEETH (in-process constructions; the real N is never touched):
         # (a) dropped B_b is UNCONSTRUCTABLE — B_b is the only block reading
@@ -3549,8 +3526,8 @@ class TestWithinGroupSystem:
                 pytest.fail(f"[{inner}] Solution.radial_characteristic is None "
                             f"on a carrying sphere (DP-Solution broken)")
         np.testing.assert_allclose(
-            si_sol.radial_characteristic.to_unified().values,
-            ky_sol.radial_characteristic.to_unified().values,
+            si_sol.radial_characteristic.to_flat(),
+            ky_sol.radial_characteristic.to_flat(),
             rtol=bar, atol=bar,
             err_msg="SI and Krylov ψ½ fixed points diverged past SAFETY×tol")
 
@@ -3629,7 +3606,7 @@ class TestWithinGroupSystem:
         n_dof = int(cold.to_flat().size)
         size_a = int(cold_a.to_flat().size)
         size_b = int(np.asarray(cold.systems[1].to_flat()).size)
-        n_seed = int(sn.radial_characteristic_space.shape[0])
+        n_seed = int(sn.radial_characteristic_composite_space.shape[0])
         nb = sn.quad.N * sn.ng * sn.nx
         nt = int(sn.angular_trace.layout.total_size)
         if size_a != nb + nt:
@@ -3767,13 +3744,13 @@ class TestWithinGroupSystemAnchors:
             err_msg=f"[{inner_solver}] φ off Σw·Q_g/Σ_t,g",
         )
         # System B end-to-end: the converged ray member carries the SAME
-        # per-group equilibrium (layout-free set check: every unified
+        # per-group equilibrium (layout-free set check: every composite
         # value IS one of the two group ratios, and both appear).
         ray = sol.radial_characteristic
         if ray is None:
             pytest.fail(f"[{inner_solver}] Solution.radial_characteristic "
                         f"is None on the carrying sphere (DP-Solution)")
-        u = np.asarray(ray.to_unified().values, dtype=float)
+        u = np.asarray(ray.to_flat(), dtype=float)
         eq = Q_g / sig_t_g
         one_of = np.isclose(u[:, None], eq[None, :], rtol=1e-10).any(axis=1)
         if not one_of.all():

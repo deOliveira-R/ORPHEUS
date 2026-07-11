@@ -602,21 +602,15 @@ def _coupled_rand_pair(sn, seed: int):
     random System-B member) — the grid's coupling columns must enter the
     pairing, unlike the zero-member vectors the M rows use."""
     from orpheus.numerics.coupled_system import CoupledField
-    from orpheus.transport.fields.radial_characteristic_flux import (
-        RadialCharacteristicFlux,
-    )
     from orpheus.transport.radial_characteristic_composite import (
         RadialCharacteristicComposite,
     )
 
     rng = np.random.default_rng(seed)
-    member = RadialCharacteristicComposite.from_unified(
-        RadialCharacteristicFlux(
-            values=rng.standard_normal(
-                sn.radial_characteristic_space.shape[0],
-            ),
-            space=sn.radial_characteristic_space, mesh=sn,
-        ),
+    ns = sn.radial_characteristic_composite_space.shape[0]
+    member = RadialCharacteristicComposite.from_flat(
+        rng.standard_normal(ns),
+        RadialCharacteristicComposite.from_mesh(sn),
     )
     return CoupledField(systems=(_rand_full(sn, seed + 1000), member))
 

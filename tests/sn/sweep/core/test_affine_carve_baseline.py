@@ -321,15 +321,15 @@ class TestAffineCarveMatvecBaseline:
         if seed is None:
             out = (L + C).apply(psi)
         else:
-            from orpheus.transport.source_sinks import (
-                RadialCharacteristicSourceSink,
+            from orpheus.transport.radial_characteristic_composite import (
+                RadialCharacteristicComposite,
             )
 
             out = (L + C).apply(
                 psi,
                 radial_characteristic_flux=seed,
                 radial_characteristic_source=(
-                    RadialCharacteristicSourceSink.zeros_on(sn_mesh)
+                    RadialCharacteristicComposite.source_zeros_on(sn_mesh)
                 ),
             )
 

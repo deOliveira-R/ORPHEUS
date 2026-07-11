@@ -45,13 +45,19 @@ provides the *locus + family* axes as ABCs; the *role* leaves
          │   └─ ScalarBoundaryField (ABC)    ScalarTraceSpace (DiffusionMesh.scalar_trace; #290 P2/P7a)
          │       ├─ ScalarBoundaryFlux           role leaf  (flux — the per-face (J⁺, J⁻) pair)
          │       └─ ScalarBoundaryDisplacement   role leaf  (displacement — orpheus.transport.displacements)
-         └─ RadialCharacteristicField (ABC, FaceField[(level,sign,part)])  ANGULAR edge — the ψ½
-             │                    pole seed (μ = μ_start; #282 route (a), 2.5d): mesh: SNMesh +
-             │                    RadialCharacteristicSpace (mesh.radial_characteristic_space, R12a-keyed);
-             │                    a FaceField SIBLING of BoundaryField, never a child
-             ├─ RadialCharacteristicFlux          role leaf  (flux — the ψ½ state)
-             ├─ RadialCharacteristicSourceSink    role leaf  (source — q½ cells + corner data)
-             └─ RadialCharacteristicDisplacement  role leaf  (displacement — orpheus.transport.displacements)
+         ├─ RadialCharacteristicInteriorField (ABC, FaceField[(level,sign)])  ANGULAR edge — the ψ½
+         │   │                    marched cells (μ = μ_start; #282 route (a); System B's interior);
+         │   │                    a FaceField SIBLING of BoundaryField, never a child
+         │   ├─ RadialCharacteristicInteriorFlux          role leaf  (flux — the ψ½ state)
+         │   ├─ RadialCharacteristicInteriorSourceSink    role leaf  (source — q½ cells)
+         │   ├─ RadialCharacteristicInteriorResidual      role leaf  (residual)
+         │   └─ RadialCharacteristicInteriorDisplacement  role leaf  (displacement)
+         └─ RadialCharacteristicBoundaryField (ABC, FaceField[(level,sign)])  the r = R ψ½ corner
+             │                    (System B's boundary; the unified 3-tuple base retired at 4e)
+             ├─ RadialCharacteristicBoundaryFlux          role leaf  (flux — corner data/defect)
+             ├─ RadialCharacteristicBoundarySourceSink    role leaf  (source — corner datum)
+             ├─ RadialCharacteristicBoundaryResidual      role leaf  (residual)
+             └─ RadialCharacteristicBoundaryDisplacement  role leaf  (displacement)
 
 Parametrization (no twin paths)
 ===============================
@@ -104,7 +110,6 @@ from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.numerics.spaces.radial_characteristic_space import (
     RadialCharacteristicBoundarySpace,
     RadialCharacteristicInteriorSpace,
-    RadialCharacteristicSpace,
 )
 
 if TYPE_CHECKING:
@@ -116,8 +121,8 @@ if TYPE_CHECKING:
 
 #: The face-key type of a :class:`FaceField` and its
 #: :class:`~orpheus.numerics.face_layout.FaceLayout`: ``str`` face names for
-#: the spatial :class:`BoundaryField`, the ``(level, sign, part)`` tuple for
-#: the ψ½ :class:`RadialCharacteristicField`. Bounded by
+#: the spatial :class:`BoundaryField`, the ``(level, sign)`` tuple for
+#: the ψ½ split loci. Bounded by
 #: :class:`~collections.abc.Hashable` — the face key is a mapping key.
 K = TypeVar("K", bound=Hashable)
 
@@ -131,7 +136,6 @@ __all__ = [
     "BoundaryField",
     "AngularBoundaryField",
     "ScalarBoundaryField",
-    "RadialCharacteristicField",
 ]
 
 
@@ -728,7 +732,7 @@ class FaceField(Field, Generic[K]):
     space: the spatial trace carries the partial-current ``|Ω·n̂|·w`` metric
     (:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`),
     the ψ½ pole the SPD radial cell-volume STATE metric :math:`V_{\rm cell}`
-    (:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`).
+    (the split ψ½ spaces in :mod:`orpheus.numerics.spaces.radial_characteristic_space`).
     The through-flux coefficient is NOT the state metric (ERR-067, vv Mode 12)
     — so this ABC deliberately unifies the *layout*, never the *measure*.
 
@@ -739,7 +743,8 @@ class FaceField(Field, Generic[K]):
 
     * :class:`BoundaryField` — the **spatial** faces (``FaceField[str]``): the
       boundary of the SPATIAL domain, keyed by face name.
-    * :class:`RadialCharacteristicField` — the **angular** edge
+    * the ψ½ split loci (:class:`RadialCharacteristicInteriorField` /
+      :class:`RadialCharacteristicBoundaryField`) — the **angular** edge
       (``FaceField[tuple[int, int, str]]``): the ψ½ pole seed, the boundary of
       the ANGULAR domain (:math:`\mu = \mu_{\rm start}`), keyed by
       ``(level, sign, part)``.
@@ -766,7 +771,7 @@ class FaceField(Field, Generic[K]):
         families read ``mesh.angular_trace`` (raising on the trace-less 2-D
         cylindrical mesh) / ``mesh.scalar_trace`` (a :class:`DiffusionMesh`
         member, raising on a bare MaterialMesh — #290 P7a); the
-        starting-direction family reads ``mesh.radial_characteristic_space``
+        starting-direction family reads the split ψ½ mesh spaces
         (R12a-keyed). MUST return a layout-bearing space or raise
         :class:`ValueError` with the family's own diagnosis.
         """
@@ -779,7 +784,7 @@ class FaceField(Field, Generic[K]):
         # The space IS the face space and carries the FaceLayout
         # (illegal-states-unrepresentable): a face field on a layout-less
         # space cannot do face_view. Families ADD their space-type narrowing
-        # (AngularTraceSpace / ScalarTraceSpace / RadialCharacteristicSpace) on
+        # (AngularTraceSpace / ScalarTraceSpace / the split ψ½ spaces) on
         # top of this structural floor.
         layout = getattr(self.space, "layout", None)
         if layout is None:
@@ -913,7 +918,7 @@ class BoundaryField(FaceField[str]):
     intermediate (a) adds the spatial-only :meth:`from_face_arrays` per-face
     packer, and (b) is the type the
     :class:`~orpheus.transport.full_field.FullField` composite discriminates
-    its boundary slot by — the ψ½ pole (:class:`RadialCharacteristicField`, a
+    its boundary slot by — the ψ½ pole (the RadialCharacteristic split loci, a
     :class:`FaceField` SIBLING) is deliberately NOT a ``BoundaryField``.
 
     Two storage families realize the SPATIAL locus (#290 P2; named per the
@@ -1097,145 +1102,20 @@ class ScalarBoundaryField(BoundaryField):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Starting-direction locus (#282 route (a), campaign #280 phase 2.5d)
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicField(FaceField[tuple[int, int, str]]):
-    r"""Starting-direction storage base — the ANGULAR-domain edge of :class:`FaceField`.
-
-    Carries the per-μ-level half-angle flux :math:`\psi_{1/2}` of the
-    curvilinear Morel–Montry thread as TYPED STATE (#282 route (a)):
-    per seed-carrying level, BOTH direction legs (inward μ = μ_start
-    and the pole-continued outward leg — ruling R13) as ``(ng, nx)``
-    cell blocks plus the ``(ng,)`` r = R corner slots, on ONE flat
-    backing buffer keyed by ``(level, sign, part)`` — the
-    :class:`FaceField` flat-storage discipline (the layout, slice views,
-    mesh/layout guards, and ``from_mesh`` / ``zeros_on`` are all inherited;
-    the layout arithmetic lives on the
-    :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`).
-
-    A :class:`FaceField` **sibling** of the spatial :class:`BoundaryField`,
-    NOT a child — the :class:`~orpheus.transport.full_field.FullField`
-    boundary-slot discriminator ``isinstance(·, BoundaryField)`` must REJECT
-    the pole. Where :class:`BoundaryField` is the codim-1 boundary of the
-    SPATIAL domain, this is the codim-1 boundary of the ANGULAR domain
-    (:math:`\mu = \mu_{\rm start}`, where the angular through-flux
-    coefficient :math:`(1-\mu^2)` vanishes — the straight characteristic).
-    Its Hilbert **state** metric is nonetheless the SPD radial cell volume
-    :math:`G_{\rm sd} = V_{\rm cell}` — set by its operator role, not that
-    coefficient (ERR-067) — carried per-leaf on its space exactly as the
-    spatial trace carries ``|Ω·n̂|·w``. A starting-direction field is
-    meaningless without a quadrature and its M-M level structure, so
-    ``mesh`` is :class:`SNMesh` (the :class:`AngularField` narrowing
-    discipline) and the space source is the R12a-keyed
-    ``mesh.radial_characteristic_space`` — construction on a mesh with no
-    seed-carrying level is unrepresentable (the factory raises; the
-    composite spells absence as ``None``).
-
-    The concrete role leaves are ``RadialCharacteristicFlux`` (the ψ½
-    state), ``RadialCharacteristicSourceSink`` (the q½ source block), and
-    ``RadialCharacteristicDisplacement`` (the iterate increment). Abstract
-    — instantiate a role leaf.
-    """
-
-    mesh: "SNMesh"
-    # The static twin of the __post_init__ isinstance gate below (the
-    # AngularBoundaryField/AngularTraceSpace idiom): consumers of the
-    # layout atoms (cells_view / corner_view / levels) type-check
-    # without re-narrowing.
-    space: RadialCharacteristicSpace
-
-    # ── Construction validation ──────────────────────────────────────
-
-    def __post_init__(self) -> None:
-        # The family narrowing runs FIRST so the family-specific message
-        # fires for the common misuse (a bare FunctionSpace, or an
-        # AngularTraceSpace, passed where the starting-direction space
-        # belongs).
-        if not isinstance(self.space, RadialCharacteristicSpace):
-            raise TypeError(
-                f"{type(self).__name__} requires a RadialCharacteristicSpace "
-                f"(built via RadialCharacteristicSpace.for_levels / read off "
-                f"mesh.radial_characteristic_space); got space={self.space!r}."
-            )
-        super().__post_init__()  # FaceField: Field shape + layout-bearing check.
-
-    # The mesh + layout arithmetic guards are inherited from
-    # :class:`FaceField._check_partner` (the pole space is cached per mesh,
-    # so same-mesh operands share one layout identity — the layout check is
-    # a no-op for valid operands, a loud reject for hand-built cross-layout
-    # ones); the retired override only spelled the mesh half.
-
-    # ── The space source (``mesh.radial_characteristic_space``) ─────────
-
-    @classmethod
-    def _face_space_of(cls, mesh: "MaterialMesh") -> RadialCharacteristicSpace:
-        r"""Return ``mesh``'s cached starting-direction space, or raise.
-
-        The :class:`FaceField` face-space hook for the ψ½ locus — the
-        angular-edge counterpart of the spatial families'
-        ``mesh.angular_trace`` / ``mesh.scalar_trace`` sources. Reads
-        ``mesh.radial_characteristic_space`` duck-typed, so the override keeps
-        the base ``mesh: MaterialMesh`` signature (no contravariant narrowing
-        to :class:`SNMesh`). Raises on a mesh with no seed-carrying level
-        (R12a: no level's first-ordinate raw M-M weight lies in (0, 1) —
-        Cartesian always; every production cylinder rule; see
-        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`).
-        """
-        space = getattr(mesh, "radial_characteristic_space", None)
-        if space is None:
-            raise ValueError(
-                f"{cls.__name__}: mesh carries no starting-direction "
-                f"space — no μ-level consumes independent "
-                f"starting-direction state (R12a predicate: first-ordinate "
-                f"raw M-M weight τ_raw ∈ (0,1) on no level; Cartesian and "
-                f"the production cylinder rules land here). The composite "
-                f"spells this as radial_characteristic=None, never a "
-                f"zero-DOF field."
-            )
-        return space
-
-    # ``from_mesh`` / ``zeros_on`` are inherited from :class:`FaceField`
-    # (sourcing the space via :meth:`_face_space_of`); both RAISE on a mesh
-    # with no seed-carrying level (R12a). Presence-aware allocation — passing
-    # ``None`` through for a non-carrying mesh — lives on the composite
-    # factory :meth:`~orpheus.transport.full_field.FullField.zeros`, which
-    # consults the mesh predicate.
-
-    # ── Shaped views (delegate to the space's layout arithmetic) ─────
-
-    @property
-    def levels(self) -> tuple[int, ...]:
-        r"""The seed-carrying μ-level indices (read off the space)."""
-        return self.space.levels
-
-    def cells(self, level: int, sign: int) -> NDArray:
-        r"""The ``(ng, nx)`` ψ½ cells view for ``(level, sign)`` — memory-shared."""
-        return self.space.cells_view(self.values, level, sign)
-
-    def corner(self, level: int, sign: int) -> NDArray:
-        r"""The ``(ng,)`` r = R corner view for ``(level, sign)`` — memory-shared.
-
-        Inflow corner (``sign = -1``): the given-data / identity row;
-        outflow corner (``sign = +1``): the defect row (ruling R13).
-        """
-        return self.space.corner_view(self.values, level, sign)
-
-
-# ═══════════════════════════════════════════════════════════════════════
 # The SPLIT ψ½ loci — System B's interior ⊕ boundary (Phase B)
 # ═══════════════════════════════════════════════════════════════════════
 #
 # The coupled-block campaign poses the ψ½ ray as System B — its OWN
-# interior ⊕ boundary composite — by splitting the unified
-# RadialCharacteristicField (cells ⊕ corner on one FaceField[(level,sign,part)])
-# into two INDEPENDENT loci, exactly as the spatial domain splits into BulkField
-# (interior) and BoundaryField (boundary). They are FaceField SIBLINGS, not
-# parent/child of each other, and each keys by (level, sign) on its own split
-# space. The concrete role leaves (…Flux state / …Displacement increment) live
-# beside the unified ones in fields/ and displacements/.
+# interior ⊕ boundary composite — split into two INDEPENDENT loci, exactly
+# as the spatial domain splits into BulkField (interior) and BoundaryField
+# (boundary). They are FaceField SIBLINGS, not parent/child of each other,
+# and each keys by (level, sign) on its own split space. The concrete role
+# leaves (…Flux state / …SourceSink emission / …Displacement increment)
+# live in fields/, source_sinks/, and displacements/. The historical
+# UNIFIED RadialCharacteristicField base (cells ⊕ corner interleaved on one
+# FaceField[(level, sign, part)] buffer) retired at 4e, when the fused
+# (L+C) walk went split-native — System B's composite is now the ONLY ψ½
+# representation.
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
@@ -1246,8 +1126,7 @@ class RadialCharacteristicInteriorField(FaceField[tuple[int, int]]):
     ``(level, sign)`` leg — the marched interior state that
     :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
     (A_BB) evolves (μ∂_r + σ_t), that A_AB reads (inward leg) and A_BA writes.
-    The interior half of the split of :class:`RadialCharacteristicField` (the
-    unified cells ⊕ corner leaf); a ``FaceField[tuple[int, int]]`` keyed by
+    The interior half of the ψ½ split; a ``FaceField[tuple[int, int]]`` keyed by
     ``(level, sign)`` on the
     :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicInteriorSpace`
     (SPD ``G_sd = V_cell`` state metric). A :class:`FaceField` **sibling** of the
@@ -1309,7 +1188,7 @@ class RadialCharacteristicBoundaryField(FaceField[tuple[int, int]]):
     :class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`
     (B_b) acts. Inflow corner (``sign = -1``) is the given BC data; outflow corner
     (``sign = +1``) is the defect row (ruling R13). The boundary half of the split
-    of :class:`RadialCharacteristicField`; a ``FaceField[tuple[int, int]]`` keyed
+    of the ψ½ split; a ``FaceField[tuple[int, int]]`` keyed
     by ``(level, sign)`` on the
     :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicBoundarySpace`
     (``G = V(r = R)`` corner gauge). A :class:`FaceField` **sibling** of the
