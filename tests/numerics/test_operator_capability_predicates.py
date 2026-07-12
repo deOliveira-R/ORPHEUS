@@ -166,10 +166,18 @@ def _mixin_family():
     D = DiagonalOperator(_C)
     from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 
+    # (name, op, is_adjointable) — the adjoint axis lands PER SIBLING
+    # (#280 family): FREE for the materialized matrix (step 5 — the
+    # ``trans=1`` backsolve on the SAME LU factors, the arm the swap law
+    # rides), still deferred for the pointwise and splitting siblings.
     return [
-        ("InverseOperator", D.inverse()),
-        ("GreenOperator", (IdentityOperator() + D).inverse()),
-        ("MatrixInverseOperator", MatrixInverseOperator(D, basis_shape=(3,))),
+        ("InverseOperator", D.inverse(), False),
+        ("GreenOperator", (IdentityOperator() + D).inverse(), False),
+        (
+            "MatrixInverseOperator",
+            MatrixInverseOperator(D, basis_shape=(3,)),
+            True,
+        ),
     ]
 
 
@@ -201,10 +209,11 @@ _CONTRACT_ROWS = [
     # MissingAdjoint EAGERLY (adjoint-of-adjoint deferred).
     ("AdjointWrapper", DiagonalOperator(_C).H, False, False, VALUE_RAISE),
     # The wrap-delegate inverse family (SweepOperator = SN side, pinned
-    # in tests/sn/operators/test_capability_survival.py):
+    # in tests/sn/operators/test_capability_survival.py); the adjoint
+    # column is per-sibling — see _mixin_family:
     *[
-        (name, op, True, False, INVERTIBLE)
-        for name, op in _mixin_family()
+        (name, op, True, adj, INVERTIBLE)
+        for name, op, adj in _mixin_family()
     ],
 ]
 

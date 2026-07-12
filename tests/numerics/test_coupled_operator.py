@@ -57,6 +57,7 @@ from orpheus.numerics.coupled_system import (
     CoupledField,
     CoupledOperator,
     CoupledSpace,
+    CoupledSubstitutionOperator,
 )
 from orpheus.numerics.iteration import (
     _is_ravellable,
@@ -64,11 +65,14 @@ from orpheus.numerics.iteration import (
     _unravel_like,
     _zeros_like,
 )
+from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.operator import (
     IncompatibleOperatorComposition,
     LinearOperator,
+    MatrixTooLarge,
     MissingAdjoint,
     MissingAssembly,
+    NotInvertible,
     SystemRole,
     _AdjointOperator,
 )
@@ -187,11 +191,13 @@ class _Block(LinearOperator):
         codomain=None,
         adjointable_: bool = True,
         assemblable_: bool = True,
+        invertible_: bool = True,
     ) -> None:
         self.matrix = np.asarray(matrix, dtype=float)
         self._in_cls, self._out_cls = in_cls, out_cls
         self._domain, self._codomain = domain, codomain
         self._adjointable, self._assemblable = adjointable_, assemblable_
+        self._invertible = invertible_
 
     @property
     def domain(self):
@@ -231,6 +237,39 @@ class _Block(LinearOperator):
             domain=self._domain,
             codomain=self._codomain,
         )
+
+    # The direct-invertible face (the step-5 substitution consumes it):
+    # ``solve`` inverts the forward (out → in), ``solve_transpose`` the
+    # transposed forward (in → out) — with the same class guards as
+    # apply/apply_transpose, so a member routed to the wrong verb raises.
+
+    @property
+    def is_invertible(self) -> bool:
+        return self._invertible
+
+    def solve(self, b):
+        if type(b) is not self._out_cls:
+            raise TypeError(
+                f"_Block solve: expected {self._out_cls.__name__}, got "
+                f"{type(b).__name__}"
+            )
+        return self._in_cls(values=np.linalg.solve(self.matrix, b.values))
+
+    def solve_transpose(self, b):
+        if type(b) is not self._in_cls:
+            raise TypeError(
+                f"_Block solve_transpose: expected {self._in_cls.__name__}, "
+                f"got {type(b).__name__}"
+            )
+        return self._out_cls(values=np.linalg.solve(self.matrix.T, b.values))
+
+
+class _NoReverseBlock(_Block):
+    """A diagonal block WITHOUT the direct transpose-solve verb (the
+    ``solve_transpose = None`` class attr makes ``callable(getattr(...))``
+    False) — the transposed-substitution MissingAdjoint leg's fixture."""
+
+    solve_transpose = None  # type: ignore[assignment]
 
 
 _RNG = np.random.default_rng(20260710)
@@ -854,3 +893,404 @@ class TestSystemRoleStamp:
             pytest.fail("class stamp missing")
         if _operator().system_role is not SystemRole.COUPLED:
             pytest.fail("instance stamp missing")
+
+
+# ── Step 5 — the block SOLVE mode (S1–S4 + the space zeros seam) ───────
+#
+# The step-5 gate spec rows (``coupled_operator_step5_solve_verification.md``):
+# S1 structural triangularity detection + route keying, S2 the substitution
+# value + the order/drop/sign teeth, S3 the transposed substitution vs the
+# dense ``Mᵀ``, S4 the structure-keyed ``inverse()`` factory — on the SAME
+# synthetic toys as M1–M5. Every fixture grid is ASYMMETRIC (random blocks;
+# a symmetric grid is order/transpose-blind — Mode 12), with diagonally-
+# dominant diagonal blocks (``+3I``) so the LU/dense references are
+# well-conditioned. A LOCAL rng — the module-level ``_RNG`` stream feeding
+# the M1–M5 fixtures stays untouched.
+
+
+_SOLVE_RNG = np.random.default_rng(20260712)
+
+_D11 = _SOLVE_RNG.random((3, 3)) + 3.0 * np.eye(3)
+_D12 = _SOLVE_RNG.random((3, 2))
+_D21 = _SOLVE_RNG.random((2, 3))
+_D22 = _SOLVE_RNG.random((2, 2)) + 3.0 * np.eye(2)
+
+
+def _solve_blocks(*, assemblable: bool = True, **overrides) -> dict:
+    blocks: dict = {
+        "AA": _Block(
+            _D11, in_cls=_AlphaField, out_cls=_AlphaField,
+            domain=_SP_A, codomain=_SP_A, assemblable_=assemblable,
+        ),
+        "AB": _Block(
+            _D12, in_cls=_BetaField, out_cls=_AlphaField,
+            domain=_SP_B, codomain=_SP_A, assemblable_=assemblable,
+        ),
+        "BA": _Block(
+            _D21, in_cls=_AlphaField, out_cls=_BetaField,
+            domain=_SP_A, codomain=_SP_B, assemblable_=assemblable,
+        ),
+        "BB": _Block(
+            _D22, in_cls=_BetaField, out_cls=_BetaField,
+            domain=_SP_B, codomain=_SP_B, assemblable_=assemblable,
+        ),
+    }
+    blocks.update(overrides)
+    return blocks
+
+
+def _zeros_field() -> CoupledField:
+    return CoupledField(
+        systems=(
+            _AlphaField(values=np.zeros(3)),
+            _BetaField(values=np.zeros(2)),
+        ),
+    )
+
+
+def _solvable_space(*, zeros: bool = True) -> CoupledSpace:
+    return CoupledSpace.from_systems(
+        (_SP_A, _SP_B), zeros=_zeros_field if zeros else None,
+    )
+
+
+_PATTERNS: dict = {
+    "upper": [["AA", "AB"], [None, "BB"]],
+    "lower": [["AA", None], ["BA", "BB"]],
+    "full": [["AA", "AB"], ["BA", "BB"]],
+    "antidiag": [[None, "AB"], ["BA", None]],
+}
+
+
+def _grid(
+    pattern: str, *, zeros: bool = True, assemblable: bool = True, **overrides,
+) -> CoupledOperator:
+    """Build the ``pattern`` ∈ {upper, lower, full, antidiag} grid — the
+    ``None``-mask IS the structure the detector reads."""
+    blocks = _solve_blocks(assemblable=assemblable, **overrides)
+    cs = _solvable_space(zeros=zeros)
+    rows = [
+        [blocks[key] if key is not None else None for key in row]
+        for row in _PATTERNS[pattern]
+    ]
+    return CoupledOperator(rows, domain=cs, codomain=cs)
+
+
+def _rhs(seed: int) -> CoupledField:
+    rng = np.random.default_rng(seed)
+    return CoupledField(
+        systems=(
+            _AlphaField(values=rng.random(3) + 0.5),
+            _BetaField(values=rng.random(2) + 0.5),
+        ),
+    )
+
+
+class TestBlockSolve:
+    # ── S1 — triangularity is STRUCTURAL (the None-pattern) ───────────
+
+    def test_triangular_orientation_reads_the_none_pattern(self) -> None:
+        if _grid("upper")._triangular_orientation() != "upper":
+            pytest.fail("upper grid not detected")
+        if _grid("lower")._triangular_orientation() != "lower":
+            pytest.fail("lower grid not detected")
+        if _grid("full")._triangular_orientation() is not None:
+            pytest.fail(
+                "a FULL grid read as triangular — the substitution would "
+                "silently drop a coupling (the S1 tooth)"
+            )
+        if _grid("antidiag")._triangular_orientation() is not None:
+            pytest.fail("a diagonal-less grid read as triangular")
+
+    def test_is_invertible_routes(self) -> None:
+        if not _grid("upper").is_invertible:
+            pytest.fail("triangular substitution route not advertised")
+        if not _grid("full").is_invertible:
+            pytest.fail("square materializable grid not advertised")
+        # Falls back to the zeros-factory probe when assembly is absent:
+        bare = _grid(
+            "full", zeros=True,
+            AA=_Block(_D11, in_cls=_AlphaField, out_cls=_AlphaField,
+                      domain=_SP_A, codomain=_SP_A, assemblable_=False),
+        )
+        if not bare.is_invertible:
+            pytest.fail("zeros-factory materialization route not advertised")
+        # No route at all: non-assemblable + zeroless space.
+        no_route = _grid("full", zeros=False, assemblable=False)
+        if no_route.is_invertible:
+            pytest.fail("a route was advertised with no assembly, no zeros")
+        with pytest.raises(NotInvertible, match="no direct route"):
+            no_route.inverse()
+        with pytest.raises(NotInvertible, match="no direct route"):
+            no_route.solve(_rhs(1))
+
+    # ── S2 — the substitution value + order/drop/sign teeth ───────────
+
+    def test_upper_substitution_bit_matches_the_hand_substitution(self) -> None:
+        grid, q = _grid("upper"), _rhs(11)
+        x = grid.solve(q)
+        blocks = _solve_blocks()
+        x_b = blocks["BB"].solve(q.systems[1])
+        x_a = blocks["AA"].solve(q.systems[0] - blocks["AB"].apply(x_b))
+        np.testing.assert_array_equal(x.systems[1].values, x_b.values)
+        np.testing.assert_array_equal(x.systems[0].values, x_a.values)
+
+    def test_substitution_matches_the_dense_lu_reference(self) -> None:
+        template = _zeros_field()
+        for pattern in ("upper", "lower"):
+            grid, q = _grid(pattern), _rhs(12)
+            reference = np.linalg.solve(
+                _probe_dense(grid, template), q.to_flat(),
+            )
+            np.testing.assert_allclose(
+                grid.solve(q).to_flat(), reference, rtol=1e-12, atol=1e-14,
+                err_msg=f"{pattern} substitution off the LU reference",
+            )
+
+    def test_substitution_drop_and_sign_teeth(self, monkeypatch) -> None:
+        """The off-diagonal update ``rhs_i − A_ij·x_j`` has teeth: dropping
+        the subtraction or flipping its sign REDs against the dense-LU
+        reference O(1) (control leg first — L18 both-legs discipline)."""
+        grid, q, template = _grid("upper"), _rhs(13), _zeros_field()
+        reference = np.linalg.solve(_probe_dense(grid, template), q.to_flat())
+        np.testing.assert_allclose(  # control: unmutated matches
+            grid.solve(q).to_flat(), reference, rtol=1e-12, atol=1e-14,
+        )
+
+        def _mutant(sign: float):
+            def _body(self, rhs, orientation, *, transpose):
+                n = self.n_rows
+                order = (
+                    range(n - 1, -1, -1)
+                    if (orientation == "upper") != transpose
+                    else range(n)
+                )
+                solved: list = [None] * n
+                for i in order:
+                    acc = rhs.systems[i]
+                    if sign != 0.0:
+                        for j in range(n):
+                            if j == i:
+                                continue
+                            block = self.blocks[i][j]
+                            if block is None or solved[j] is None:
+                                continue
+                            update = block.apply(solved[j])
+                            acc = (
+                                acc - update if sign > 0 else acc + update
+                            )
+                    diagonal = self.blocks[i][i]
+                    solved[i] = diagonal.solve(acc)
+                return CoupledField(systems=tuple(solved))
+
+            return _body
+
+        for name, sign in (("drop", 0.0), ("sign-flip", -1.0)):
+            with monkeypatch.context() as m:
+                m.setattr(CoupledOperator, "_solve_triangular", _mutant(sign))
+                mutated = grid.solve(q).to_flat()
+            if np.allclose(mutated, reference, rtol=1e-6):
+                pytest.fail(
+                    f"the {name} mutation left the substitution on the "
+                    f"reference — the off-diagonal update has no teeth"
+                )
+
+    def test_substitution_order_guard_is_loud(self, monkeypatch) -> None:
+        """Visiting members in the WRONG order must hit the loud
+        ordering-bug guard, never silently drop the coupling (the
+        production RuntimeError is itself mutation-verified here)."""
+        grid, q = _grid("upper"), _rhs(14)
+        original = CoupledOperator._solve_triangular
+
+        def _flipped(self, rhs, orientation, *, transpose):
+            wrong = "lower" if orientation == "upper" else "upper"
+            return original(self, rhs, wrong, transpose=transpose)
+
+        monkeypatch.setattr(CoupledOperator, "_solve_triangular", _flipped)
+        with pytest.raises(RuntimeError, match="ordering bug"):
+            grid.solve(q)
+
+    # ── S3 — the transposed substitution ──────────────────────────────
+
+    def test_transpose_substitution_matches_the_dense_transpose(self) -> None:
+        template = _zeros_field()
+        for pattern in ("upper", "lower"):
+            grid, b = _grid(pattern), _rhs(15)
+            dense = _probe_dense(grid, template)
+            if np.allclose(dense, dense.T):
+                pytest.fail("fixture drift: the grid is symmetric — the "
+                            "transpose gate is Mode-12-blind")
+            reference = np.linalg.solve(dense.T, b.to_flat())
+            np.testing.assert_allclose(
+                grid.solve_transpose(b).to_flat(), reference,
+                rtol=1e-12, atol=1e-14,
+                err_msg=f"{pattern} transposed substitution off dense-Mᵀ",
+            )
+            np.testing.assert_array_equal(
+                grid.inverse().apply_transpose(b).to_flat(),
+                grid.solve_transpose(b).to_flat(),
+                err_msg="the wrap's apply_transpose must delegate to "
+                        "solve_transpose (one body)",
+            )
+
+    def test_transpose_guards_and_the_wrap_predicate(self) -> None:
+        clean = _grid("upper")
+        if not clean.inverse().is_adjointable:
+            pytest.fail("positive control: the clean upper grid's "
+                        "substitution wrap must advertise the transpose")
+        # (a) a non-adjointable coupling block — the per-block guard.
+        no_adj = _grid(
+            "upper",
+            AB=_Block(_D12, in_cls=_BetaField, out_cls=_AlphaField,
+                      domain=_SP_B, codomain=_SP_A, adjointable_=False),
+        )
+        if no_adj.inverse().is_adjointable:
+            pytest.fail("wrap advertises a transpose over a "
+                        "non-adjointable coupling block")
+        with pytest.raises(MissingAdjoint, match=r"coupling block \(0, 1\)"):
+            no_adj.solve_transpose(_rhs(16))
+        # (b) a diagonal without the direct transpose-solve verb.
+        no_reverse = _grid(
+            "upper",
+            BB=_NoReverseBlock(_D22, in_cls=_BetaField, out_cls=_BetaField,
+                               domain=_SP_B, codomain=_SP_B),
+        )
+        if no_reverse.inverse().is_adjointable:
+            pytest.fail("wrap advertises a transpose over a diagonal "
+                        "with no solve_transpose")
+        with pytest.raises(MissingAdjoint, match="no solve_transpose"):
+            no_reverse.solve_transpose(_rhs(17))
+
+    # ── S4 — the structure-keyed inverse() factory ────────────────────
+
+    def test_inverse_is_structure_keyed(self) -> None:
+        upper, q = _grid("upper"), _rhs(18)
+        substitution = upper.inverse()
+        if type(substitution) is not CoupledSubstitutionOperator:
+            pytest.fail("triangular grid must key the substitution wrap")
+        if substitution.inverse() is not upper:
+            pytest.fail("the involution (A⁻¹)⁻¹ is not the grid itself")
+        round_trip = upper.apply(substitution.apply(q))
+        np.testing.assert_allclose(
+            round_trip.to_flat(), q.to_flat(), rtol=1e-12, atol=1e-14,
+        )
+        np.testing.assert_array_equal(  # seeded-apply: accepted and DROPPED
+            substitution.apply(q).to_flat(),
+            substitution.apply(q, initial_guess=_rhs(9)).to_flat(),
+        )
+        full = _grid("full")
+        if type(full.inverse()) is not MatrixInverseOperator:
+            pytest.fail("full square grid must key the materialized LU")
+        with pytest.raises(NotInvertible, match="block-triangular"):
+            CoupledSubstitutionOperator(full)
+
+    def test_full_grid_lu_solve_value_and_member_types(self) -> None:
+        grid, q, template = _grid("full"), _rhs(19), _zeros_field()
+        dense = _probe_dense(grid, template)
+        x = grid.solve(q)  # the documented one-shot LU convenience
+        np.testing.assert_allclose(
+            x.to_flat(), np.linalg.solve(dense, q.to_flat()),
+            rtol=1e-12, atol=1e-14,
+        )
+        if type(x.systems[0]) is not _AlphaField or (
+            type(x.systems[1]) is not _BetaField
+        ):
+            pytest.fail(
+                "the LU route must mint the solution from the DOMAIN's "
+                "zero exemplar (typed members), never return flats"
+            )
+        np.testing.assert_allclose(
+            grid.solve_transpose(q).to_flat(),
+            np.linalg.solve(dense.T, q.to_flat()),
+            rtol=1e-12, atol=1e-14,
+        )
+
+    def test_dead_diagonal_falls_through_to_the_lu_route(self) -> None:
+        grid = _grid(
+            "upper",
+            BB=_Block(_D22, in_cls=_BetaField, out_cls=_BetaField,
+                      domain=_SP_B, codomain=_SP_B, invertible_=False),
+        )
+        if grid._substitution_ready():
+            pytest.fail("a non-invertible diagonal must disqualify the "
+                        "substitution route")
+        if not grid.is_invertible:
+            pytest.fail("the grid is still materializable — the LU route "
+                        "must carry it")
+        if type(grid.inverse()) is not MatrixInverseOperator:
+            pytest.fail("the fall-through must key the materialized LU")
+        q, template = _rhs(20), _zeros_field()
+        np.testing.assert_allclose(  # and it is CORRECT, not just typed
+            grid.solve(q).to_flat(),
+            np.linalg.solve(_probe_dense(grid, template), q.to_flat()),
+            rtol=1e-12, atol=1e-14,
+        )
+
+    def test_singular_grid_fails_loud_at_inverse_construction(self) -> None:
+        grid = _grid(
+            "full",
+            BA=_Block(np.zeros((2, 3)), in_cls=_AlphaField,
+                      out_cls=_BetaField, domain=_SP_A, codomain=_SP_B),
+            BB=_Block(np.zeros((2, 2)), in_cls=_BetaField,
+                      out_cls=_BetaField, domain=_SP_B, codomain=_SP_B,
+                      invertible_=False),
+        )
+        with pytest.raises(np.linalg.LinAlgError, match="exactly singular"):
+            grid.inverse()
+
+    # ── as_matrix — the typed-carrier Op → Mat realization ────────────
+
+    def test_as_matrix_typed_probe_route(self) -> None:
+        """A non-assemblable grid materializes by TYPED basis probing
+        through the domain's zero exemplar — bit-identical to the test's
+        own apply-probe (same basis drive), with the base gate contract
+        (basis_shape agreement + MatrixTooLarge) preserved."""
+        grid = _grid("upper", assemblable=False)
+        np.testing.assert_array_equal(
+            grid.as_matrix(), _probe_dense(grid, _zeros_field()),
+        )
+        with pytest.raises(ValueError, match="contradicts"):
+            grid.as_matrix(basis_shape=(7,))
+        with pytest.raises(MatrixTooLarge):
+            grid.as_matrix(max_dimension=2)
+        zeroless = _grid("upper", zeros=False, assemblable=False)
+        with pytest.raises(RuntimeError, match="zero-element factory"):
+            zeroless.as_matrix()
+
+    def test_as_matrix_assemblable_grid_routes_through_assembly(self) -> None:
+        grid = _grid("upper")
+        np.testing.assert_allclose(  # principled-equiv — L16 scatter order
+            grid.as_matrix(), _probe_dense(grid, _zeros_field()),
+            rtol=1e-11,
+        )
+
+
+class TestCoupledSpaceZeros:
+    """The zero-element seam (:meth:`CoupledSpace.zeros`) — the
+    typed-carrier materialization's template source."""
+
+    def test_unwired_zeros_raises_the_seam_message(self) -> None:
+        with pytest.raises(RuntimeError, match="zero-element factory"):
+            _solvable_space(zeros=False).zeros()
+
+    def test_wired_zeros_mints_fresh_owned_buffers(self) -> None:
+        space = _solvable_space()
+        first, second = space.zeros(), space.zeros()
+        if first is second:
+            pytest.fail("zeros() must mint a FRESH field per call")
+        np.asarray(first.systems[0].values)[...] = 7.0
+        np.testing.assert_array_equal(
+            second.systems[0].values, np.zeros(3),
+            err_msg="zeros() results share a buffer — factory semantics "
+                    "broken",
+        )
+
+    def test_zeros_arity_is_checked(self) -> None:
+        lopsided = CoupledSpace.from_systems(
+            (_SP_A, _SP_B),
+            zeros=lambda: CoupledField(
+                systems=(_AlphaField(values=np.zeros(3)),),
+            ),
+        )
+        with pytest.raises(ValueError, match="pairing is inconsistent"):
+            lopsided.zeros()

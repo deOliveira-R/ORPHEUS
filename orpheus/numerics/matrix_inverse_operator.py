@@ -65,14 +65,18 @@ Green splitting). CP's ``[P]`` — dense by construction, §14b — is the
 next production method in line.
 
 **Placement.** A leaf module importing :mod:`orpheus.numerics.operator`
-(the ``green_operator.py`` precedent) — and unlike Green, nothing in
-``operator.py`` routes back here: no automatic ``.inverse()`` returns
-this type, so there is no late-import seam at all.
+(the ``green_operator.py`` precedent) — nothing in ``operator.py``
+routes back here. Since step 5 ONE structure-keyed factory does:
+:meth:`~orpheus.numerics.coupled_system.CoupledOperator.inverse` returns
+this type for a non-triangular square materializable block grid (a late
+import on its side — the coupled grid's whole-system EXTRACT), and its
+typed carrier round-trips through the :meth:`apply` /
+:meth:`apply_transpose` ravellable seam below.
 """
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from numpy.linalg import LinAlgError
@@ -166,17 +170,83 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
             )
         super().__init__(inner)
 
+    def _flat_of(self, x: Any) -> np.ndarray:
+        r"""Ravel the operand — the ravellable protocol for typed carriers
+        (``to_flat``), plain C-ravel for ndarrays (byte-identical legacy
+        path)."""
+        if hasattr(x, "to_flat"):
+            return np.asarray(x.to_flat(), dtype=float).ravel()
+        return np.asarray(x).ravel()
+
+    def _returned_as(self, solution: np.ndarray, x: Any, space: Any) -> Any:
+        r"""Re-type a backsolve result to match the operand's carrier.
+
+        An ndarray operand reshapes to the basis carrier (the legacy
+        path, byte-identical). A TYPED (ravellable) operand re-enters its
+        family through ``from_flat`` over the carrier space's ZERO
+        exemplar (``space.zeros()`` — e.g.
+        :meth:`~orpheus.numerics.coupled_system.CoupledSpace.zeros`): the
+        exemplar, not the operand, is the template, so the result carries
+        the SPACE's member roles (a solution is a state, never the
+        rhs's source role — the role-honesty half of the typed seam).
+        """
+        if not hasattr(x, "to_flat"):
+            return solution.reshape(self._basis_shape)
+        zeros_factory = getattr(space, "zeros", None)
+        if space is None or not callable(zeros_factory):
+            raise ValueError(
+                f"MatrixInverseOperator: a typed (ravellable) operand "
+                f"needs a carrier space with a zeros() exemplar to mint "
+                f"the typed result; {type(self.inner).__name__} carries "
+                f"{'no space' if space is None else type(space).__name__} "
+                f"without one — pass flats, or wire the space's zero "
+                f"factory (CoupledSpace.from_systems(..., zeros=...))."
+            )
+        template = zeros_factory()
+        # The class-level half of the duck-typed ravellable protocol; the
+        # cast is the one documented static seam (the
+        # ``coupled_system._member_from_flat`` precedent).
+        factory = cast("Any", type(template))
+        return factory.from_flat(solution, template)
+
     def apply(self, x: Any, /, *, initial_guess: Any | None = None) -> Any:
         r"""Return :math:`A^{-1}x` — one LU backsolve against the stored factors.
 
         ``initial_guess`` is the inverse family's canonical driver
         signature (taxonomy §12 step 3); an exact direct inverse has
         nothing to seed, so it is accepted and unused — which is
-        precisely the M-direct seed-independence invariant.
+        precisely the M-direct seed-independence invariant. A typed
+        (ravellable) operand round-trips through the carrier seam
+        (:meth:`_flat_of` / :meth:`_returned_as` — the solution is minted
+        from the DOMAIN's zero exemplar).
         """
         del initial_guess  # exact direct inverse — M-direct IS seed-independence
-        solution = lu_solve(self._lu, np.asarray(x).ravel())
-        return solution.reshape(self._basis_shape)
+        solution = lu_solve(self._lu, self._flat_of(x))
+        return self._returned_as(solution, x, self.inner.domain)
+
+    @property
+    def is_adjointable(self) -> bool:
+        r"""``True`` unconditionally — the transpose of a MATERIALIZED
+        matrix is free: :meth:`apply_transpose` backsolves the SAME LU
+        factors under LAPACK's transpose flag (no re-factorization, no
+        dependence on ``inner``'s own adjointability — the matrix
+        realization reads values, and a value matrix always transposes)."""
+        return True
+
+    def apply_transpose(self, b: Any, /) -> Any:
+        r"""Return :math:`A^{-\mathsf T}b` — the transpose backsolve on the
+        stored factors (``lu_solve(..., trans=1)``).
+
+        The arm the operator-algebra swap law rides (#280 R5/R11):
+        ``grid.H.inverse()`` routes through
+        ``_AdjointOperator.inverse() = inner.inverse().H``, whose ``.H``
+        exists only because THIS inverse is adjointable — the metric
+        conjugation then wraps this Euclidean transpose backsolve. A typed
+        operand is minted from the CODOMAIN's zero exemplar (the transpose
+        maps the opposite way).
+        """
+        solution = lu_solve(self._lu, self._flat_of(b), trans=1)
+        return self._returned_as(solution, b, self.inner.codomain)
 
     def as_matrix(
         self,

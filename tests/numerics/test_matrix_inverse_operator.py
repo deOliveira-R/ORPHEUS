@@ -516,3 +516,101 @@ def test_matrix_inverts_what_green_refuses():
     np.testing.assert_allclose(
         np.asarray(minv.apply(q)).ravel(), np.linalg.solve(A_hand, q), atol=1e-12,
         err_msg="MatrixInverse did not invert the leading-non-invertible sum")
+
+
+# ───────────────────────────────────────────────────────────────────────
+# S5 (step 5) — the transpose backsolve on the SAME LU factors
+# ───────────────────────────────────────────────────────────────────────
+#
+# ``apply_transpose = lu_solve(lu, b, trans=1)`` is the arm the
+# operator-algebra swap law rides (#280 R5/R11): ``grid.H.inverse()``
+# exists only because ``grid.inverse()`` is adjointable
+# (``_AdjointOperator.is_invertible`` clause 2). Mode-12 mandate: every
+# value row runs on an ASYMMETRIC matrix — a symmetric fixture is blind
+# to a forgotten ``trans`` flag (``A⁻¹b ≡ A⁻ᵀb`` there).
+
+
+def _asymmetric_5x5() -> np.ndarray:
+    rng = np.random.default_rng(20260712)
+    matrix = rng.random((5, 5)) + 4.0 * np.eye(5)
+    assert not np.allclose(matrix, matrix.T)  # fixture verification
+    return matrix
+
+
+def test_apply_transpose_matches_the_dense_transpose_solve():
+    """``A⁻ᵀb`` against the structurally-independent ``np.linalg.solve(Aᵀ, b)``
+    (a FRESH factorization of the transpose vs the stored-factor
+    ``trans=1`` backsolve — reduction-tree independent)."""
+    matrix = _asymmetric_5x5()
+    minv = MatrixInverseOperator(
+        _DenseActionOperator(matrix), basis_shape=(5,),
+    )
+    b = np.random.default_rng(3).standard_normal(5)
+    np.testing.assert_allclose(
+        np.asarray(minv.apply_transpose(b)).ravel(),
+        np.linalg.solve(matrix.T, b),
+        rtol=1e-12, atol=1e-14,
+        err_msg="the trans=1 backsolve is off the dense-Aᵀ reference",
+    )
+
+
+def test_apply_transpose_is_not_apply_on_an_asymmetric_matrix():
+    """The forget-``trans`` discriminator: a mutation returning ``A⁻¹b``
+    from ``apply_transpose`` sits O(1) off the transpose reference on the
+    asymmetric fixture (and EXACTLY on it on a symmetric one — the
+    Mode-12 reason the fixture asserts its own asymmetry)."""
+    matrix = _asymmetric_5x5()
+    minv = MatrixInverseOperator(
+        _DenseActionOperator(matrix), basis_shape=(5,),
+    )
+    b = np.random.default_rng(4).standard_normal(5)
+    forward = np.asarray(minv.apply(b)).ravel()
+    transposed = np.asarray(minv.apply_transpose(b)).ravel()
+    if np.allclose(forward, transposed, rtol=1e-6):
+        pytest.fail(
+            "apply and apply_transpose coincide on an asymmetric matrix — "
+            "the trans flag is not reaching the backsolve"
+        )
+
+
+def test_transpose_face_advertised_and_seed_free():
+    """``is_adjointable`` is unconditionally True (a materialized matrix
+    always transposes — same LU factors, no re-factorization), closing the
+    swap-law precondition ``adjointable(grid.inverse())``."""
+    minv = MatrixInverseOperator(
+        _DenseActionOperator(_asymmetric_5x5()), basis_shape=(5,),
+    )
+    if not minv.is_adjointable:
+        pytest.fail("MatrixInverseOperator must advertise its free transpose")
+    b = np.random.default_rng(5).standard_normal(5)
+    np.testing.assert_array_equal(  # M-direct seed-independence, both faces
+        np.asarray(minv.apply(b, initial_guess=b)),
+        np.asarray(minv.apply(b)),
+    )
+
+
+def test_typed_operand_without_a_space_zeros_exemplar_raises():
+    """A ravellable (typed) operand needs the carrier space's zeros()
+    exemplar to mint the typed result — absent, the seam refuses loudly
+    instead of guessing a template (role honesty: a solution is a state,
+    never the rhs's source role)."""
+
+    class _RavelToy:
+        def __init__(self, values):
+            self.values = np.asarray(values, dtype=float)
+
+        def to_flat(self):
+            return self.values.ravel()
+
+        @classmethod
+        def from_flat(cls, flat, template):
+            del template
+            return cls(flat)
+
+    minv = MatrixInverseOperator(
+        _DenseActionOperator(_asymmetric_5x5()), basis_shape=(5,),
+    )
+    with pytest.raises(ValueError, match=r"zeros\(\) exemplar"):
+        minv.apply(_RavelToy(np.ones(5)))
+    with pytest.raises(ValueError, match=r"zeros\(\) exemplar"):
+        minv.apply_transpose(_RavelToy(np.ones(5)))

@@ -50,9 +50,17 @@ Mode           Realization here
                ``(row_i, col_j)`` block offset into ONE flat matrix
                (:func:`scipy.sparse.block_array`), closing over
                :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`
-``solve``      NOT realized here — the block solve (block-triangular
-               direct / block-Jacobi / block-G-S) is the campaign's
-               step-5 deliverable, keyed by spectral character
+``solve``      the structure-keyed DIRECT solve (step 5): a
+               block-triangular grid runs back/forward SUBSTITUTION
+               through the diagonal blocks' own ``solve`` verbs
+               (matrix-free); a non-triangular square grid
+               materializes and LU-factors —
+               :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+               via :meth:`CoupledOperator.inverse`. The ITERATIVE
+               splitting solve (block-Jacobi / block-G-S over
+               ``A = M − N``) deliberately stays with the drivers
+               (``SourceIteration``) — convergence is spectral
+               (ρ(M⁻¹N) < 1), never a structural capability
 =============  ===========================================================
 
 **The offsets ARE the block structure.** ``assemble`` needs a local→global
@@ -129,9 +137,12 @@ from scipy import sparse
 from orpheus.numerics.assembled_operator import SparseAssembledOperator
 from orpheus.numerics.operator import (
     IncompatibleOperatorComposition,
+    InverseWrapMixin,
     LinearOperator,
+    MatrixTooLarge,
     MissingAdjoint,
     MissingAssembly,
+    NotInvertible,
     SystemRole,
     adjointable,
     assemblable,
@@ -141,10 +152,13 @@ from orpheus.numerics.space import FunctionSpace
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
+    from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+
 __all__ = [
     "CoupledField",
     "CoupledOperator",
     "CoupledSpace",
+    "CoupledSubstitutionOperator",
     "SystemField",
 ]
 
@@ -413,10 +427,26 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         identity). Each must be the space of the matching
         :class:`CoupledField` member — its carrier-generic metric surface is
         called ON that member field.
+    zeros_factory : Callable[[], CoupledField], optional
+        Mints this space's ZERO element — a fresh (owned-buffer)
+        :class:`CoupledField` of zeros per call. ``compare=False`` leaf
+        metadata like ``systems``; wired by the instance builder (which
+        holds the member classes/mesh the fields are minted from — a
+        FunctionSpace deliberately is not a field factory, so the zero
+        exemplar must be SUPPLIED). This is the typed-carrier
+        materialization seam (step 5): :meth:`CoupledOperator.as_matrix`'s
+        basis probe and
+        :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`'s
+        typed return template both read it — a typed block operator whose
+        space carries no zero exemplar stays matrix-free (the base
+        ``as_matrix`` "honest scope" note).
     """
 
     systems: tuple[FunctionSpace, ...] = field(
         default=(), repr=False, compare=False,
+    )
+    zeros_factory: Optional[Callable[[], "CoupledField"]] = field(
+        default=None, repr=False, compare=False,
     )
 
     # ── Equality / hashing inherited from FunctionSpace ───────────────
@@ -437,7 +467,10 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
 
     @classmethod
     def from_systems(
-        cls, systems: "Sequence[FunctionSpace]",
+        cls,
+        systems: "Sequence[FunctionSpace]",
+        *,
+        zeros: "Callable[[], CoupledField] | None" = None,
     ) -> "CoupledSpace":
         r"""Build the coupled space from the member spaces, in system order.
 
@@ -445,7 +478,8 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         ``shape = (Σ prod(member.shape),)`` (the flat direct-sum dimension —
         ``prod`` per member so multi-axis member shapes flatten honestly).
         A 1-member coupling is the legitimate degenerate (the uncoupled
-        system).
+        system). ``zeros`` wires the optional zero-element factory (the
+        typed-carrier materialization seam — see the class docstring).
         """
         members = tuple(systems)
         if len(members) == 0:
@@ -455,7 +489,30 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
             )
         name = "coupled(" + " ⊕ ".join(s.name for s in members) + ")"
         total = int(sum(int(np.prod(s.shape)) for s in members))
-        return cls(name=name, shape=(total,), systems=members)
+        return cls(
+            name=name, shape=(total,), systems=members, zeros_factory=zeros,
+        )
+
+    def zeros(self) -> "CoupledField":
+        r"""Mint this space's ZERO element — a fresh zero :class:`CoupledField`.
+
+        The space's distinguished element, realized through the
+        builder-wired :attr:`zeros_factory` (a FunctionSpace is not a field
+        factory — the member classes live above this layer, so the exemplar
+        is supplied at construction). Each call returns a FRESH field with
+        owned buffers (factory semantics — callers may write into it).
+        Arity-checked against the member spaces; loud when unwired.
+        """
+        if self.zeros_factory is None:
+            raise RuntimeError(
+                f"CoupledSpace {self.name!r} carries no zero-element "
+                f"factory — supply zeros= at from_systems (the "
+                f"typed-carrier materialization seam; without it a typed "
+                f"block operator over this space stays matrix-free)."
+            )
+        minted = self.zeros_factory()
+        self._check_arity(minted)
+        return minted
 
     def _require_systems(self) -> tuple[FunctionSpace, ...]:
         r"""Return the member spaces, guarding the bare-constructor footgun.
@@ -577,9 +634,14 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
     :class:`~orpheus.numerics.operator._AdjointOperator` over THIS class's
     Euclidean :meth:`apply_transpose` (the transposed grid) and the
     :class:`CoupledSpace` member-wise metrics — see the module docstring's
-    Mode-12 note. ``is_invertible`` stays the base ``False``: the block SOLVE
-    (block-triangular / block-Jacobi / block-G-S, keyed by spectral character)
-    is the campaign's step-5 deliverable, not a free capability.
+    Mode-12 note. :attr:`is_invertible` is structure-keyed (step 5), two
+    DIRECT routes: block-triangular grids with invertible ``solve``-bearing
+    diagonals run the substitution (:meth:`solve` /
+    :class:`CoupledSubstitutionOperator`); non-triangular square
+    materializable grids take the LU EXTRACT
+    (:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`).
+    The ITERATIVE splitting solve stays with the drivers — spectral, never
+    structural.
 
     Parameters
     ----------
@@ -773,6 +835,319 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
         does)."""
         return all(b.is_adjointable for b in self._present_blocks())
 
+    # ── The solve mode (step 5 — the structure-keyed DIRECT inverse) ───
+
+    def _diagonal_blocks(self) -> "list[LinearOperator] | None":
+        r"""The diagonal blocks when the grid is square with a full
+        diagonal, else ``None`` (the shared narrow of the solve routes)."""
+        if self.n_rows != self.n_cols:
+            return None
+        diagonals = [self._blocks[i][i] for i in range(self.n_rows)]
+        if any(d is None for d in diagonals):
+            return None
+        return cast("list[LinearOperator]", diagonals)
+
+    def _triangular_orientation(self) -> "str | None":
+        r"""``"upper"`` / ``"lower"`` when the grid is block-triangular,
+        else ``None``.
+
+        Structural — the ``None``-pattern IS the sparsity: a square grid
+        with every diagonal block present and present off-diagonals on at
+        most ONE side of the diagonal. A block-diagonal grid is both;
+        reported ``"upper"`` (the canonical spelling — the substitution
+        degenerates to independent diagonal solves either way).
+        """
+        if self._diagonal_blocks() is None:
+            return None
+        n = self.n_rows
+        lower = any(
+            self._blocks[i][j] is not None
+            for i in range(n)
+            for j in range(i)
+        )
+        upper = any(
+            self._blocks[i][j] is not None
+            for i in range(n)
+            for j in range(i + 1, n)
+        )
+        if lower and upper:
+            return None
+        return "lower" if lower else "upper"
+
+    def _substitution_ready(self) -> bool:
+        r"""``True`` iff the DIRECT substitution route exists: triangular
+        AND every diagonal block invertible with a native ``solve`` verb.
+
+        The ``solve`` conjunct keeps the substitution honestly DIRECT: an
+        invertible-by-splitting diagonal (an ``OperatorSum`` whose
+        ``inverse()`` is the ITERATIVE Green splitting — no ``solve`` verb)
+        must not silently smuggle an inner iteration into
+        "block-triangular direct"; such a grid falls through to the
+        materialized-LU route or refuses.
+        """
+        if self._triangular_orientation() is None:
+            return False
+        diagonals = self._diagonal_blocks()
+        if diagonals is None:  # unreachable past the orientation check
+            return False
+        return all(
+            d.is_invertible and callable(getattr(d, "solve", None))
+            for d in diagonals
+        )
+
+    def _transpose_substitution_ready(self) -> bool:
+        r"""``True`` iff the TRANSPOSED substitution route exists: the
+        forward route plus every coupling block adjointable and every
+        diagonal bearing BOTH the direct ``solve_transpose`` verb and an
+        adjointable reverse (the #280 two-factor discipline surfaces here
+        per block — an LD / multi-D diagonal that defers its reverse scan
+        honestly reports ``False``)."""
+        if not self._substitution_ready():
+            return False
+        n = self.n_rows
+        for i in range(n):
+            for j in range(n):
+                block = self._blocks[i][j]
+                if block is None:
+                    continue
+                if i == j:
+                    if not callable(getattr(block, "solve_transpose", None)):
+                        return False
+                    if not block.is_adjointable:
+                        return False
+                elif not block.is_adjointable:
+                    return False
+        return True
+
+    def _materialization_route(self) -> bool:
+        r"""``True`` iff the dense direct route exists: a square grid whose
+        matrix CAN be realized — a full structural assembly, or the typed
+        basis probe through the domain's zero exemplar
+        (:meth:`CoupledSpace.zeros`). Squareness is arity AND flat
+        dimension (a two-sided inverse needs both). Size is deliberately
+        NOT consulted — the gate
+        (:class:`~orpheus.numerics.operator.MatrixTooLarge`) is a loud
+        construction-time failure of :meth:`inverse`, not a structural
+        fact."""
+        if self.n_rows != self.n_cols:
+            return False
+        if self._domain.shape != self._codomain.shape:
+            return False
+        if all(b.is_assemblable for b in self._present_blocks()):
+            return True
+        return self._domain.zeros_factory is not None
+
+    @property
+    def is_invertible(self) -> bool:
+        r"""``True`` iff a DIRECT solve route exists (step 5).
+
+        Two structure-keyed routes, in order: **triangular substitution**
+        (:meth:`_substitution_ready` — matrix-free, through the diagonal
+        blocks' own direct solves) and **materialize/LU**
+        (:meth:`_materialization_route` — the
+        :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+        EXTRACT). The predicate advertises the ROUTE; exact singularity is
+        the LU's loud construction-time :class:`numpy.linalg.LinAlgError`
+        (the ``numpy.linalg.solve`` convention — structural predicate,
+        value failure loud). The ITERATIVE splitting solve (SI over
+        ``A = M − N``) is deliberately NOT an ``is_invertible`` route:
+        convergence is spectral (ρ(M⁻¹N) < 1), never structural — the
+        drivers own that choice.
+        """
+        return self._substitution_ready() or self._materialization_route()
+
+    def solve(self, rhs: "CoupledField") -> "CoupledField":
+        r"""The structure-keyed DIRECT solve ``A⁻¹·rhs`` (step 5).
+
+        A triangular grid runs the block substitution matrix-free — e.g.
+        the ψ½ resolvent ``M = [[LC, Seeding], [None, A_BB]]``: System B's
+        march first, then System A's sweep on ``q_A − Seeding·ψ_B``. A
+        non-triangular square grid delegates to a FRESH materialized LU
+        per call — a ONE-SHOT convenience (hold :meth:`inverse` for
+        repeated solves; the factorization is the expensive half).
+        """
+        rhs = self._check_iterate(rhs, arity=self.n_rows, side="solve")
+        orientation = self._triangular_orientation()
+        if orientation is not None and self._substitution_ready():
+            return self._solve_triangular(rhs, orientation, transpose=False)
+        if self._materialization_route():
+            return self.inverse().apply(rhs)
+        raise NotInvertible(
+            f"CoupledOperator.solve: no direct route — the grid is "
+            f"neither block-triangular with invertible solve-bearing "
+            f"diagonals nor square-materializable (assemblable blocks or "
+            f"a domain zeros factory). is_invertible is False."
+        )
+
+    def solve_transpose(self, b: "CoupledField") -> "CoupledField":
+        r"""The transposed DIRECT solve ``A⁻ᵀ·b``.
+
+        The transpose of a triangular grid is triangular the OTHER way
+        (``(Aᵀ)_{ij} = (A_{ji})ᵀ``), so the same one-body substitution
+        runs with the visit order flipped; a materialized grid backsolves
+        the SAME LU factors under the transpose flag
+        (:meth:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator.apply_transpose`).
+        Per-block adjoint guards raise
+        :class:`~orpheus.numerics.operator.MissingAdjoint` naming the
+        offending block.
+        """
+        b = self._check_iterate(b, arity=self.n_cols, side="solve_transpose")
+        orientation = self._triangular_orientation()
+        if orientation is not None and self._substitution_ready():
+            return self._solve_triangular(b, orientation, transpose=True)
+        if self._materialization_route():
+            inverse_op = self.inverse()
+            return inverse_op.apply_transpose(b)
+        raise NotInvertible(
+            f"CoupledOperator.solve_transpose: no direct route — the grid "
+            f"is neither block-triangular with invertible solve-bearing "
+            f"diagonals nor square-materializable. is_invertible is False."
+        )
+
+    def _solve_triangular(
+        self, rhs: "CoupledField", orientation: str, *, transpose: bool,
+    ) -> "CoupledField":
+        r"""Block back/forward substitution — ONE body for the four
+        orientation × transpose combinations.
+
+        Members are visited in the order that makes every referenced
+        partner already solved: upper-triangular forward descends
+        (back-substitution — member N−1 first), and each transpose flips
+        the direction (upper turns lower under ``(Aᵀ)_{ij} = (A_{ji})ᵀ``).
+        Every present coupling block is consumed exactly once through its
+        own ``apply`` / ``apply_transpose``; each diagonal inverts its
+        member through its native direct verb (``solve`` /
+        ``solve_transpose`` — :meth:`_substitution_ready` vouches the
+        forward verb exists; the transpose verb is guarded per block
+        here). Role algebra stays on the members: the rhs update
+        ``rhs_i − A_ij·x_j`` is a member ``−``.
+        """
+        n = self.n_rows
+        descending = (orientation == "upper") != transpose
+        order = range(n - 1, -1, -1) if descending else range(n)
+        solved: list[Any] = [None] * n
+        for i in order:
+            acc = rhs.systems[i]
+            for j in range(n):
+                if j == i:
+                    continue
+                block = self._blocks[j][i] if transpose else self._blocks[i][j]
+                if block is None:
+                    continue
+                if solved[j] is None:
+                    # Unreachable under the triangularity guard — loud,
+                    # never a silently-dropped coupling (Cardinal Rule 1).
+                    raise RuntimeError(
+                        f"CoupledOperator._solve_triangular: substitution "
+                        f"ordering bug — the coupling block at grid "
+                        f"position {(j, i) if transpose else (i, j)} "
+                        f"references the unsolved member {j}."
+                    )
+                if transpose:
+                    if not adjointable(block):
+                        raise MissingAdjoint(
+                            f"CoupledOperator.solve_transpose: coupling "
+                            f"block ({j}, {i}) ({type(block).__name__}) "
+                            f"does not transpose (is_adjointable False)."
+                        )
+                    acc = acc - block.apply_transpose(solved[j])
+                else:
+                    acc = acc - block.apply(solved[j])
+            diagonal = self._blocks[i][i]
+            if diagonal is None:  # unreachable past the orientation check
+                raise RuntimeError(
+                    f"CoupledOperator._solve_triangular: diagonal ({i}, "
+                    f"{i}) is absent — the triangularity guard is broken."
+                )
+            if transpose:
+                transpose_verb = getattr(diagonal, "solve_transpose", None)
+                if not callable(transpose_verb):
+                    raise MissingAdjoint(
+                        f"CoupledOperator.solve_transpose: diagonal block "
+                        f"({i}, {i}) ({type(diagonal).__name__}) has no "
+                        f"solve_transpose — the transposed substitution "
+                        f"needs the diagonal's direct transpose-solve."
+                    )
+                solved[i] = transpose_verb(acc)
+            else:
+                forward_verb = getattr(diagonal, "solve")
+                solved[i] = forward_verb(acc)
+        return CoupledField(systems=tuple(solved))
+
+    def inverse(
+        self,
+    ) -> "CoupledSubstitutionOperator | MatrixInverseOperator":
+        r"""The structure-keyed inverse OPERATOR (taxonomy §12/§13).
+
+        * triangular with invertible ``solve``-bearing diagonals →
+          :class:`CoupledSubstitutionOperator` (matrix-free block
+          substitution — the direct inverse family's coupled sibling);
+        * square materializable →
+          :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+          (the dense EXTRACT: one LU of :meth:`as_matrix`, loud on exact
+          singularity and the size gate);
+        * neither → :class:`~orpheus.numerics.operator.NotInvertible`.
+        """
+        if self._substitution_ready():
+            return CoupledSubstitutionOperator(self)
+        if self._materialization_route():
+            from orpheus.numerics.matrix_inverse_operator import (
+                MatrixInverseOperator,
+            )
+
+            return MatrixInverseOperator(self)
+        raise NotInvertible(
+            f"CoupledOperator.inverse: no direct route — the grid is "
+            f"neither block-triangular with invertible solve-bearing "
+            f"diagonal blocks nor square-materializable. is_invertible "
+            f"is False."
+        )
+
+    def as_matrix(
+        self,
+        *,
+        basis_shape: tuple[int, ...] | None = None,
+        max_dimension: int = 4096,
+    ) -> "NDArray":
+        r"""Materialize ``[A]`` — the typed-carrier ``Op → Mat`` realization.
+
+        An all-assemblable grid routes through the base assembly
+        delegation (:meth:`assemble` → dense, the structural emission).
+        Otherwise the base's ndarray basis probe cannot run (a typed block
+        matvec refuses flat columns — the base ``as_matrix`` "honest
+        scope" note), so the probe runs over TYPED basis elements minted
+        from the domain's zero exemplar: column ``j`` is
+        ``apply(from_flat(δ_j, domain.zeros()))`` raveled — the same
+        C-order column convention as the base. Requires the domain space's
+        zeros factory (:meth:`CoupledSpace.zeros`, wired by the instance
+        builder); an explicit ``basis_shape`` must match the coupled flat
+        dimension, and ``max_dimension`` gates as usual.
+        """
+        if all(b.is_assemblable for b in self._present_blocks()):
+            return super().as_matrix(
+                basis_shape=basis_shape, max_dimension=max_dimension,
+            )
+        n = int(np.prod(self._domain.shape))
+        if basis_shape is not None and int(np.prod(basis_shape)) != n:
+            raise ValueError(
+                f"as_matrix on CoupledOperator: basis_shape {basis_shape} "
+                f"(dimension {int(np.prod(basis_shape))}) contradicts the "
+                f"coupled domain dimension {n}."
+            )
+        if n > max_dimension:
+            raise MatrixTooLarge(
+                f"as_matrix on CoupledOperator: dimension {n} exceeds "
+                f"max_dimension={max_dimension}."
+            )
+        template = self._domain.zeros()
+        columns = []
+        for j in range(n):
+            basis = np.zeros(n)
+            basis[j] = 1.0
+            image = self.apply(CoupledField.from_flat(basis, template))
+            columns.append(np.asarray(image.to_flat(), dtype=float))
+        return np.column_stack(columns)
+
     # ── Assembly (the Op → Mat functor at block offsets) ───────────────
 
     @property
@@ -827,3 +1202,81 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
             f"blocks={present} domain={self._domain.name!r} "
             f"codomain={self._codomain.name!r}>"
         )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# The substitution inverse (the direct inverse family's coupled sibling)
+# ───────────────────────────────────────────────────────────────────────
+
+
+class CoupledSubstitutionOperator(
+    InverseWrapMixin["CoupledOperator"],
+    LinearOperator["CoupledField", "CoupledField"],
+):
+    r"""``A⁻¹`` of a block-triangular :class:`CoupledOperator`, realized by
+    block back/forward SUBSTITUTION.
+
+    The inverse family's coupled sibling (taxonomy §12): the wrap-delegate
+    back-half — the domain↔codomain swap, ``solve`` = the forward block
+    matvec, ``is_invertible`` ``True`` with the object-identity involution
+    ``inverse() → inner`` — is inherited from
+    :class:`~orpheus.numerics.operator.InverseWrapMixin`. The three
+    per-sibling pieces:
+
+    * **ctor guard** — the inner grid must be block-triangular with
+      invertible ``solve``-bearing diagonal blocks
+      (:meth:`CoupledOperator._substitution_ready`); a full grid belongs to
+      :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+      (the materialize/LU route).
+    * **apply** — delegates to the grid's own
+      :meth:`CoupledOperator.solve`: the substitution body lives on the
+      FORWARD's native solve verb (the carve-P4 one-body contract — the
+      inverse OBJECT and the realization never twin). ``initial_guess`` is
+      accepted and dropped: a substitution over direct diagonal solves is
+      an exact direct inverse, nothing to seed.
+    * **the adjoint axis** — ``(A⁻¹)ᵀ = (Aᵀ)⁻¹``: :meth:`apply_transpose`
+      delegates to :meth:`CoupledOperator.solve_transpose` (the transposed
+      substitution), advertised iff every coupling block transposes and
+      every diagonal carries the direct ``solve_transpose`` verb
+      (:meth:`CoupledOperator._transpose_substitution_ready` — the #280
+      two-factor discipline per block).
+    """
+
+    def __init__(self, inner: "CoupledOperator") -> None:
+        if not inner._substitution_ready():
+            raise NotInvertible(
+                f"CoupledSubstitutionOperator requires a block-triangular "
+                f"grid with invertible solve-bearing diagonal blocks; "
+                f"{inner!r} is not (a non-triangular square grid takes the "
+                f"materialized-LU route — MatrixInverseOperator)."
+            )
+        super().__init__(inner)
+
+    def apply(
+        self,
+        rhs: "CoupledField",
+        /,
+        *,
+        initial_guess: "CoupledField | None" = None,
+    ) -> "CoupledField":
+        r"""Return ``A⁻¹·rhs`` by block substitution.
+
+        ``initial_guess`` is the inverse family's canonical driver
+        signature — an exact direct substitution has nothing to seed, so
+        it is accepted and unused.
+        """
+        del initial_guess  # exact direct substitution — nothing to seed
+        return self.inner.solve(rhs)
+
+    @property
+    def is_adjointable(self) -> bool:
+        r"""``True`` iff the transposed substitution is realizable
+        (:meth:`CoupledOperator._transpose_substitution_ready`)."""
+        return self.inner._transpose_substitution_ready()
+
+    def apply_transpose(self, b: "CoupledField", /) -> "CoupledField":
+        r"""Return ``A⁻ᵀ·b`` — the transposed block substitution."""
+        return self.inner.solve_transpose(b)
+
+    def __repr__(self) -> str:
+        return f"CoupledSubstitutionOperator({self.inner!r})"
