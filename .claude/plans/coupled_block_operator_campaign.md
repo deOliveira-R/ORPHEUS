@@ -1934,3 +1934,41 @@ Verified: targeted 150/0 under DriftWarning-as-error; **FULL tree wall 6338/0**
 (18 skipped, 55 xfailed — the first whole-tree wall this campaign, strictly
 broader than e1's scoped 3721); ratchet `transport: 1`; sphinx -W exit 0.
 NEXT = e2 per the block above.
+
+### 4e e2 — DONE @ `98fe2e36` (2026-07-11) — THE UN-WEAVE IS COMPLETE
+
+The solve-leg extraction landed per R-4e.1 (H1-narrow): both welded ray
+orchestrations DELETED from the walk; the production `(L+C)` path routes
+System B through the NAMED resolvent.
+
+- **Forward**: `_run` solves System B ONCE, up front, via
+  `RadialCharacteristicOperator.solve` constructed over the walk's OWN σ_t
+  (`CrossSectionField.from_mesh(sigma_t_gx, self.mesh)` — byte-faithful, the
+  values array IS the walk's); the carrying branch reads the marched inward
+  cells off the carrier as the M-M seed (ray-first preserved). **Transpose**:
+  the reversed ordinate loop accumulates `psi_angle_bar` onto a COPY of the
+  seed cotangent (the fused A_ABᵀ feed made visible — H1-narrow keeps it M's
+  internal), then ONE `A_BB.solve_transpose(aug)` after the loop IS `m_seed`.
+  Late (function-local) imports — module-level would cycle via
+  `operators.streaming → loss_representation`.
+- **carlson refs in loss_representation 8 → 0**; dead `dr` locals removed;
+  the operator module's SOLVE-twin notes flipped terminal (the :712 A_AB twin
+  note STAYS — step-5 scope under H1-narrow); test 369's prose refreshed.
+- **Gates**: test_282 Mode-11 RE-AIMED onto `RadialCharacteristicOperator.
+  solve` (CLASS-level wrap) = S1-fwd; NEW S1-transpose sentinel; NEW S2
+  carlson-absence tripwire (all in test_282 §16.F). The engine's own
+  two-leg-reference/WRAP/pole-continuation gates survive unchanged (they pin
+  the engine, not the twin). Row-6 oracle (389) + round-trip (369) +
+  C(i)/G-d3.1 carry the value coverage, all green through the engine route.
+- **VERIFIED**: **k BIT-IDENTICAL pre-vs-post, 15 digits, sphere/slab ×
+  SI/Krylov** (probe vs an `ea7f919c` worktree, confirmed importing the
+  twin-bearing tree — 8 carlson refs); frozen walk/affine baselines nulp=1
+  ZERO drift; **FULL tree wall 6340/0** (+2 = the new gates); ratchet
+  `transport: 1`; sphinx -W exit 0; matrix 6600 → 6602.
+
+**NEXT**: the archivist 4e docs pass (discrete_ordinates.rst ~20 unified-era
+refs incl. the role-quadruple table + the 2 dead `:class:` xrefs to
+`fields._bases.RadialCharacteristicField`; loss_representations.rst FaceField
+diagram + the six-signature section; silent `:class:` refs to retired
+symbols) + elegance-enforcer review of e1/e1b/e2 + matrix regen + the #47
+close-out. Then #41 (step 5), #34/#35 per the Phase C order.
