@@ -2182,7 +2182,49 @@ PRE-EXISTING at `d881243d` via worktree probe. numerics+transport
 swap-law arm; the one wall red was the precond-safety record
 consumption's own isinstance — re-keyed in-commit).
 
-**5c (in flight — the ρ-honest stop, R-5.2/R-5.3)**:
+### STEP 5 (#41) COMPLETE — the five sub-commits landed
+
+**5a `6732778a`** (numerics solve mode) → **5b `899ee06a`** (the M
+re-pose; fused bridge production-orphaned) → **5c `c98a23d8`** (the
+ρ-honest stop + certificate) → **5d `88e226ff`** (the bridge DELETED;
+one `joint_m_grid` fixture successor; −202 net lines) → **5e** (this
+commit: the R5/R11 swap-law arm xfail→LIVE with the E2 positive
+control — `A.H.apply(A.H.inverse().apply(b)) ≈ b`, metric-closed —
+matrix regen, the step close-out; the wall's xpassed count returns to
+0, xfail 36 → 35).
+
+**What step 5 changed, durably**: the numerics `CoupledOperator` owns
+the structure-keyed DIRECT solve (triangular substitution — ONE body,
+four orientation×transpose combos — and the materialize/LU EXTRACT via
+`MatrixInverseOperator`, which gained `apply_transpose`/adjointability
++ the ravellable typed-carrier seam over `CoupledSpace.zeros()`); the
+ψ½ M is the honest upper-triangular grid `[[LC, Seeding], [None,
+march]]` (the march construction seam = ONE site; the walk's bare
+carrying call = the ray-decoupled (L+C) channel, the pair law
+two-channel on all four solve surfaces;
+`_require_radial_characteristic` retired); `SourceIteration` stops on
+the free-identity equation residual with the driver-level lag-death
+CERTIFICATE (`ConvergenceCertificateError`) on every full-angular arm;
+the loss grid is direct-invertible (the EXTRACT the swap-law gates
+ride). Banked seams RESOLVED: (i) the construction triplication → one
+site; (ii) the `:712` fused-matvec twin → routed through the grid
+(R-5.1), the walk's `_seed_rows_*` production-dead pending the step-6
+kwarg retirement.
+
+**Follow-ups banked for #34/#35 (+ close-out notes)**: the walk's
+joint-leg kwargs + presence guards retire at step 6 (production-dead
+since 5b/R-5.1 — incl. the six signatures' ray kwargs, the walk's
+in-solve engine block, `_seed_rows_*`, and the eigen-finalize
+`transport_sweep` pair re-route); the LD residual-mint widening (the
+certificate's moment-tail exemption — `AngularResidual.from_balance`
+does not admit the `2^d` tail); the >290s SLOW curvilinear tier trips
+the canonical 300s timeout cap (pre-existing perf — the step-7
+verification needs a patient uncapped run or the perf fix); the cp
+SLOW-tier scratch breakage (`diag_cin_aware_split_basis_keff` source
+gone — USER decision on re-homing); the eigen-finalize windowed-arm
+certificate (structurally exempt today — documented at the helper).
+
+**5c (LANDED @ `c98a23d8` — the ρ-honest stop, R-5.2/R-5.3)**:
 `SourceIteration`'s stop = the FREE-IDENTITY equation residual
 `r_n = rhs_{n−1} − rhs_n` (= `Σg·Δψ` = `Aψ−q` under exact-M) over
 `max(‖q_ext‖, 1e-30)`, checked BEFORE the next apply (a break wastes no

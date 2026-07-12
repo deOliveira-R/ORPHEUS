@@ -599,11 +599,11 @@ def test_coupled_gate4_reverse_scan_executes(monkeypatch):
 # The rows above live on M (the resolvent factor).  A2a adds the full
 # within-group LOSS GRID ``A = M − N`` (``WithinGroupSystem.loss``) to the
 # SAME file so the swap-law family is complete in its home: the forward
-# ``.H`` reciprocity arm is live NOW (the block Hilbert adjoint is free via
-# the member-wise CoupledSpace metrics — psi_half G-c2.5 is the sibling in
-# the grid's own file); the inverse/swap-law arm is ``xfail(strict=False)``
-# until the step-5 block solve flips ``grid.is_invertible`` — it then
-# XPASSes loudly and gets converted to a live gate (vv xfail discipline).
+# ``.H`` reciprocity arm landed live at d3; the inverse/swap-law arm sat
+# ``xfail(strict=False)`` until step 5 flipped ``grid.is_invertible``
+# (the materialize/LU route — the space's zero exemplar wired at 5b) and
+# was converted to the LIVE gate below at 5e (vv xfail discipline), with
+# the E2 positive control ahead of the object-identity row.
 
 
 def _within_group_grid(sn):
@@ -666,25 +666,40 @@ def test_a2a_grid_forward_h_reciprocity(monkeypatch):
                     f"teeth (a Euclidean block-.H would pass)")
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="grid.is_invertible is False until the step-5 block solve lands "
-           "(R5/R11); flips to XPASS exactly when the block-triangular "
-           "inverse arrives — convert to a live gate then.",
-)
 def test_a2a_grid_swap_law_inverse_arm():
-    r"""A2a inverse arm (G-d3.4): ``A.H.inverse() ≡ A.inverse().H`` on the
-    within-group loss grid — DORMANT until step 5 (``grid.is_invertible``
-    is honestly ``False``: no block-inverse spelling exists at B.2d, so
-    asserting this green today would be a vacuous pass through a raise).
+    r"""A2a inverse arm (G-d3.4, LIVE since 5e): ``A.H.inverse() ≡
+    A.inverse().H`` on the FULL within-group loss grid — the R5/R11 swap
+    law through the materialize/LU route (``grid.inverse()`` is the
+    ``MatrixInverseOperator`` EXTRACT; its ``trans=1`` backsolve is the
+    adjointable arm ``_AdjointOperator.is_invertible``'s second clause
+    demands). E2 positive control FIRST: the adjoint-inverse SOLVES the
+    adjoint equation against the structurally-independent dense-``Aᵀ`` LU
+    (a bare bit-identity of two broken constructions would be a false
+    green); THEN the object-identity row (both spellings run the SAME
+    ``A.inverse().H`` graph — bit-identical BY CONSTRUCTION).
     """
     sn = _sphere()
     grid, _space = _within_group_grid(sn)
-    if not getattr(grid, "is_invertible", False):
-        pytest.fail("grid.is_invertible is False — the step-5 block solve "
-                    "has not landed (expected until #41)")
+    if not grid.is_invertible:
+        pytest.fail("grid.is_invertible is False — the step-5 materialize/"
+                    "LU route regressed (the space's zero exemplar?)")
     b = _coupled_bulk_b(sn, 5)
-    lhs = grid.H.inverse().apply(b)
+    # E2 — the positive control: the adjoint-inverse SOLVES the adjoint
+    # equation, checked through the equation itself (metric-closed —
+    # ``A.H.apply(A.H.inverse().apply(b)) ≈ b`` — no hand G-algebra to
+    # drift; the LU conditioning prices the tolerance).
+    x = grid.H.inverse().apply(b)
+    round_trip = grid.H.apply(x)
+    b_scale = float(np.abs(np.asarray(b.to_flat())).max())
+    np.testing.assert_allclose(
+        np.asarray(round_trip.to_flat()),
+        np.asarray(b.to_flat()),
+        rtol=1e-9, atol=1e-10 * b_scale,
+        err_msg="E2 positive control: A.H.apply(A.H.inverse().apply(b)) "
+                "does not reproduce b — the adjoint-inverse does not solve "
+                "the adjoint equation",
+    )
+    lhs = x
     rhs = grid.inverse().H.apply(b)
     np.testing.assert_array_equal(
         np.asarray(lhs.systems[0].interior.values),
