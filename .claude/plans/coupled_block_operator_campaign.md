@@ -1919,3 +1919,18 @@ twin-coexistence gates retire WITH the twins; test_282 C(i) cold
 <1e-11 + row-6 + G-d3.1 carry the coverage). Then the archivist 4e docs
 pass + matrix regen + the #47 close-out. Re-anchor from THIS block +
 `git log` (trust git).
+
+### 4e e1b — DONE @ `ea7f919c` (2026-07-11)
+
+The freed-name remint landed exactly per R-4e.3: class →
+`RadialCharacteristicField`, module → `transport/radial_characteristic_field.py`
+(the `full_field.py` mirror, git-mv), `SNMesh.radial_characteristic_field_space`,
+test helper `random_radial_characteristic_field`. Pre-remint disposition: the
+freed name was fully DEAD in live code (13 prose hits — 6 docs + 3 code
+comments + 4 test comments; zero isinstance / live bindings; the two `:class:`
+xrefs carry the dead `fields._bases` path so cannot re-bind); 7 non-docs
+archaeology sites clarified, 6 docs hits banked for the archivist pass.
+Verified: targeted 150/0 under DriftWarning-as-error; **FULL tree wall 6338/0**
+(18 skipped, 55 xfailed — the first whole-tree wall this campaign, strictly
+broader than e1's scoped 3721); ratchet `transport: 1`; sphinx -W exit 0.
+NEXT = e2 per the block above.
