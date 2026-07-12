@@ -2262,3 +2262,33 @@ predicted tol-reinterpretation class; Krylov arms BIT-identical
 (GMRES stop untouched). regression+analytical not-slow 61/0 (the 5 F's
 in the unfiltered probe = the >290s SLOW tier hitting the 300s cap —
 pre-existing perf, not 5c); numerics 924/0; sphinx -W exit 0.
+
+### ⏸ COMPACTION — post-step-5 checkpoint (2026-07-12)
+
+**Everything committed through `0e03c304`** (5e — step 5 COMPLETE);
+branch `refactor/sn-walk-unification` **160 ahead of origin/main, pushes
+HELD**; scoped tree CLEAN. Standing exception on disk (user-owned, NOT
+the main agent's to commit): `.claude/skills/vv-principles/
+{error_catalog.md, SKILL.md}` still carry the pending ERR-067 + ERR-068
+entries. Verification state: full-tree not-slow wall **6371/0** (18
+skipped, 54 xfailed, 0 xpassed) @ `0e03c304`; ratchet `transport: 1`;
+sphinx -W exit 0; matrix 6632.
+
+**NEXT = local task #52** (the ERR-041/042/045/047 BC-layer invariants,
+user-ruled build-now: mint the never-raised
+`VacuumAppliedToOutgoingTraceError`/`ReflectionDidNotMapInflowToOutflowError`,
+the real `assert_source_lives_on_incoming_trace`, the independent
+weight-measure check; then mutation-verified catchers + the four
+markers), then **#34** (step 6 — the guard/kwarg retirement over the
+now-production-dead walk ray-leg surface; the step-5 STATUS block's
+follow-up ledger is the worklist) and **#35** (step 7 — verify + docs +
+close-out; the archivist theory-page pass covers the step-5
+architecture: the solve mode, the certificate, the two-channel law).
+
+**USER decisions pending**: (i) the cp SLOW-tier scratch breakage
+(`diag_cin_aware_split_basis_keff` source gone from
+`scratch/derivations/diagnostics/` — re-home into tracked
+`derivations/` or re-point the F4 tests); (ii) the skills-file commit.
+
+Re-anchor from the "STEP 5 (#41) COMPLETE" STATUS block above + `git
+log` (trust git, not the summary).
