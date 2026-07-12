@@ -59,8 +59,8 @@ swappable ``PsiHalfAngleSeed`` strategy family on the M-M closure:
 
 Route (a) (#282, ruling R10) retired the whole strategy family: the
 starting-direction flux is now first-class STATE (the
-``RadialCharacteristicField`` block of the composite, present per level
-under the R12a predicate), the SOLVE marches it directly from the TRUE
+``RadialCharacteristicField`` System-B composite of the coupled state,
+present per level under the R12a predicate), the SOLVE marches it directly from the TRUE
 q½ source through this function, and the APPLY reads the given carrier
 block.  On the non-carrying cylinder levels (R12a: product rules
 τ_raw = 0, level-symmetric rules τ_raw = 1) the closure inlines the

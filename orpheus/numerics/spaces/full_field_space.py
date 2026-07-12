@@ -130,7 +130,7 @@ class CompositeField(Protocol):
     The carrier of :class:`FullFieldSpace` — a bulk ⊕ boundary block pair
     with the polymorphic ``_recombine`` rebuild hook. Structural, so the
     transport carriers (``FullField`` / ``TimedFullField`` / the System-B
-    ``RadialCharacteristicComposite``) satisfy it without an import edge
+    ``RadialCharacteristicField``) satisfy it without an import edge
     out of the numerics layer.
     """
 

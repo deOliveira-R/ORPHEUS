@@ -157,7 +157,7 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     L_fs, gains_fs = captured[-1]
 
     # ── Structural identity of the decomposition (no numerical tolerance) ──
-    carrying = sn_mesh.radial_characteristic_composite_space is not None
+    carrying = sn_mesh.radial_characteristic_field_space is not None
     # (1) The step operator is the INVERSE of M — since B.2d, on a carrying
     # mesh the coupled joint sweep (CoupledSweepOperator over the
     # CoupledInvertibleOperator bridge; the fused (L+C) rides ``.fused``);

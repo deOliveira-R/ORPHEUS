@@ -7,7 +7,9 @@ and re-parented the two codim-1 loci under it as **siblings**:
 * :class:`BoundaryField` (``FaceField[str]``) — the SPATIAL faces;
 * :class:`RadialCharacteristicInteriorField` / :class:`RadialCharacteristicBoundaryField`
   (``FaceField[tuple[int, int]]``) — System B's ψ½ ANGULAR-edge pole-seed split
-  members (Phase C 4e retired the unified ``RadialCharacteristicField`` base).
+  members (Phase C 4e retired the unified single-buffer base; its
+  ``RadialCharacteristicField`` name was reminted onto System B's split
+  composite at 4e-e1b).
 
 This module pins the two load-bearing structural facts the carve must preserve:
 

@@ -32,9 +32,9 @@ rays the angular redistribution coefficient :math:`1-\mu^2` vanishes
 (:math:`\alpha_{1/2}=0`, Hébert 3.423), so the streaming–collision balance
 DECOUPLES from the α-cascade and reduces to a plain diamond-difference (DD)
 recurrence in radius — a *straight characteristic*. Its domain and codomain
-are System B's member space ``sn_mesh.radial_characteristic_composite_space``
+are System B's member space ``sn_mesh.radial_characteristic_field_space``
 — the carrier of
-:class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`
+:class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
 (the B.2c grid re-type; the ENGINE marches the unified ψ½ layout internally
 split-natively on System B's composite members (4e — the unified
 bridge is retired),
@@ -165,8 +165,8 @@ if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.cross_section_field import CrossSectionField
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
 
 
@@ -200,15 +200,15 @@ __all__ = [
 ]
 
 
-class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite"]):
+class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
     r"""``A_BB`` — the radial straight-characteristic transport operator on ψ½.
 
     System B's self-block of the 2×2 coupled block operator: the banded
     radial DD recurrence :math:`\mu\,\partial_r + \sigma_t` at the closed
     :math:`\mu = \pm 1` rays (Hébert §3.9.4). Endomorphic on System B's
     member carrier
-    :class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`
-    (domain = codomain = ``sn_mesh.radial_characteristic_composite_space`` —
+    :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
+    (domain = codomain = ``sn_mesh.radial_characteristic_field_space`` —
     the B.2c grid re-type; the ``CoupledOperator`` grid places it at the
     ``(B, B)`` slot). All four action surfaces parse the composite at the
     block boundary and bridge to the unified ψ½ layout the single-sourced
@@ -306,11 +306,11 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
     def domain(self) -> Optional["FunctionSpace"]:
         # Non-None by the ctor guard (the composite space is presence-
         # coextensive with the unified one — both None exactly off-R12a).
-        return self.sn_mesh.radial_characteristic_composite_space
+        return self.sn_mesh.radial_characteristic_field_space
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        return self.sn_mesh.radial_characteristic_composite_space
+        return self.sn_mesh.radial_characteristic_field_space
 
     # ── Predicates — the forward closes the involution web (step 4b) ──
 
@@ -332,8 +332,8 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
     # ── Forward action — A_BB ψ = (μ ∂_r + σ_t)ψ (campaign step 4b) ────
 
     def apply(
-        self, x: "RadialCharacteristicComposite", /,
-    ) -> "RadialCharacteristicComposite":
+        self, x: "RadialCharacteristicField", /,
+    ) -> "RadialCharacteristicField":
         r"""The forward matvec :math:`A_{BB}\,\psi_{1/2} = (\mu\,\partial_r
         + \sigma_t)\,\psi_{1/2}` — the exact algebraic inverse of :meth:`solve`.
 
@@ -352,18 +352,18 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
 
         Parameters
         ----------
-        x : RadialCharacteristicComposite
+        x : RadialCharacteristicField
             The ψ½ state as System B's member composite (member roles erased
             — the bridge preserves whatever role the members carry). Must
             share this operator's mesh.
 
         Returns
         -------
-        RadialCharacteristicComposite
+        RadialCharacteristicField
             The residual source :math:`A_{BB}\,\psi_{1/2}` (source members).
         """
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
         from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
             RadialCharacteristicBoundarySourceSink,
@@ -379,7 +379,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
             self.total_cross_section.values,
             self.sn_mesh.axis_widths[0],
         )
-        return RadialCharacteristicComposite(
+        return RadialCharacteristicField(
             interior=RadialCharacteristicInteriorSourceSink(
                 values=interior_out, space=comp.interior.space,
                 mesh=self.sn_mesh,
@@ -391,8 +391,8 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
         )
 
     def apply_transpose(
-        self, y: "RadialCharacteristicComposite", /,
-    ) -> "RadialCharacteristicComposite":
+        self, y: "RadialCharacteristicField", /,
+    ) -> "RadialCharacteristicField":
         r"""The Euclidean transpose of the forward matvec —
         :math:`A_{BB}^{\mathsf T}`.
 
@@ -406,8 +406,8 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
         the composite (L19). Composite in, source-member composite out — the
         same block-boundary bridge as :meth:`apply`.
         """
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
         from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
             RadialCharacteristicBoundarySourceSink,
@@ -423,7 +423,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
             self.total_cross_section.values,
             self.sn_mesh.axis_widths[0],
         )
-        return RadialCharacteristicComposite(
+        return RadialCharacteristicField(
             interior=RadialCharacteristicInteriorSourceSink(
                 values=interior_out, space=comp.interior.space,
                 mesh=self.sn_mesh,
@@ -457,8 +457,8 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
     # ── Resolvent action — the direct Carlson march IS A_BB⁻¹ ─────────
 
     def solve(
-        self, source: "RadialCharacteristicComposite",
-    ) -> "RadialCharacteristicComposite":
+        self, source: "RadialCharacteristicField",
+    ) -> "RadialCharacteristicField":
         r"""Solve :math:`A_{BB}\,\psi_{1/2} = q_{1/2}` by the two-leg Carlson march.
 
         The EXACT direct inverse :math:`A_{BB}^{-1}` (no iteration): per
@@ -481,7 +481,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
 
         Parameters
         ----------
-        source : RadialCharacteristicComposite
+        source : RadialCharacteristicField
             The q½ source as System B's member composite — the interior
             member's cells legs carry the folded starting-direction source
             and the boundary member's :math:`\mu=-1` corner the r = R inflow
@@ -492,13 +492,13 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
 
         Returns
         -------
-        RadialCharacteristicComposite
+        RadialCharacteristicField
             The ψ½ state :math:`\psi_{1/2}` satisfying the two-point radial
             BVP (flux members) — cells + both corner legs filled per carried
             level.
         """
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
         from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
             RadialCharacteristicInteriorSourceSink,
@@ -516,7 +516,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
         sigma = self.total_cross_section.values
         dr = mesh.axis_widths[0]
 
-        flux = RadialCharacteristicComposite.from_mesh(mesh)
+        flux = RadialCharacteristicField.from_mesh(mesh)
         for level in comp.interior.space.levels:
             q_minus = comp.interior.cells(level, -1)
             q_plus = comp.interior.cells(level, +1)
@@ -537,8 +537,8 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
         return flux
 
     def solve_transpose(
-        self, cotangent: "RadialCharacteristicComposite",
-    ) -> "RadialCharacteristicComposite":
+        self, cotangent: "RadialCharacteristicField",
+    ) -> "RadialCharacteristicField":
         r"""The Euclidean adjoint of :meth:`solve` — :math:`(A_{BB}^{-1})^{\mathsf T}`.
 
         The reverse-mode adjoint of the two-leg march: given a cotangent on
@@ -558,20 +558,20 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
 
         Parameters
         ----------
-        cotangent : RadialCharacteristicComposite
+        cotangent : RadialCharacteristicField
             A cotangent on the flux composite (member roles erased — a
             cotangent legitimately rides any role's carrier). Must share this
             operator's mesh.
 
         Returns
         -------
-        RadialCharacteristicComposite
+        RadialCharacteristicField
             The cotangent on the q½ source (source members). The
             :math:`\mu=+1` source corner is unused by the march (the q½ fold
             writes only cells + the :math:`\mu=-1` corner), so it stays zero.
         """
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
 
         mesh = self.sn_mesh
@@ -579,7 +579,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
         sigma = self.total_cross_section.values
         dr = mesh.axis_widths[0]
 
-        src_bar = RadialCharacteristicComposite.source_zeros_on(mesh)
+        src_bar = RadialCharacteristicField.source_zeros_on(mesh)
         for level in comp.interior.space.levels:
             cells_minus_bar = comp.interior.cells(level, -1)
             cells_plus_bar = comp.interior.cells(level, +1)
@@ -607,22 +607,22 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
     # ── Internals ─────────────────────────────────────────────────────
 
     def _require_member_composite(
-        self, x: "RadialCharacteristicComposite", method: str,
-    ) -> "RadialCharacteristicComposite":
+        self, x: "RadialCharacteristicField", method: str,
+    ) -> "RadialCharacteristicField":
         r"""Parse the member composite at the block boundary.
 
         Single source for the four action-surface guards: the shared
-        :meth:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite.require_member`
+        :meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.require_member`
         parse (carrier class + mesh-identity — the field's legs, this
         operator's :math:`\sigma_t`, and ``axis_widths`` cannot desync).
         Since 4e the engines march the split members directly — the
         parse returns the composite itself (the unified bridge retired).
         """
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
 
-        return RadialCharacteristicComposite.require_member(
+        return RadialCharacteristicField.require_member(
             x,
             mesh=self.sn_mesh,
             context=f"RadialCharacteristicOperator.{method}",
@@ -636,14 +636,14 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicComposite
 
 
 class RadialCharacteristicSeeding(
-    LinearOperator["RadialCharacteristicComposite", "FullField"],
+    LinearOperator["RadialCharacteristicField", "FullField"],
 ):
     r"""``A_AB`` — the ray→bulk seed injection (the Morel–Montry angular seed).
 
     The off-diagonal ``(transport, ray)`` block of the 2×2 coupled block
     operator: the ψ½ starting-direction ray seeds the bulk angular recurrence.
     Domain = System B's member space
-    ``sn_mesh.radial_characteristic_composite_space`` (the B.2c grid re-type —
+    ``sn_mesh.radial_characteristic_field_space`` (the B.2c grid re-type —
     the operator bridges the composite to the unified layout and reads the
     inward :math:`\mu=-1` ``cells(p, -1)`` leg); codomain = System A's
     ``sn_mesh.full_field_space`` — :meth:`apply` emits the seed's bulk
@@ -776,7 +776,7 @@ class RadialCharacteristicSeeding(
         # System B's member space — the ψ½ seed composite (the input to
         # :meth:`apply`). Non-None by the ctor guard (presence-coextensive
         # with the unified engine carrier).
-        return self.sn_mesh.radial_characteristic_composite_space
+        return self.sn_mesh.radial_characteristic_field_space
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
@@ -786,7 +786,7 @@ class RadialCharacteristicSeeding(
 
     # ── Forward — seed → bulk angular-numerator contribution ──────────
 
-    def apply(self, seed: "RadialCharacteristicComposite", /) -> "FullField":
+    def apply(self, seed: "RadialCharacteristicField", /) -> "FullField":
         r"""Inject the ψ½ ray seed into the bulk angular recurrence.
 
         The seed's contribution to the ``(L+C)`` bulk residual: bridge the
@@ -805,7 +805,7 @@ class RadialCharacteristicSeeding(
 
         Parameters
         ----------
-        seed : RadialCharacteristicComposite
+        seed : RadialCharacteristicField
             The ψ½ seed as System B's member composite (member roles erased —
             the bridge preserves them). Only the interior member's inward
             ``cells(p, -1)`` leg is read (the recurrence seed); the ``+1``
@@ -820,8 +820,8 @@ class RadialCharacteristicSeeding(
             over a zero trace.
         """
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
         from orpheus.transport.source_sinks import (
             AngularBoundarySourceSink,
@@ -831,7 +831,7 @@ class RadialCharacteristicSeeding(
         )
 
         mesh = self.sn_mesh
-        comp = RadialCharacteristicComposite.require_member(
+        comp = RadialCharacteristicField.require_member(
             seed, mesh=mesh, context="RadialCharacteristicSeeding.apply",
         )
         closure = mesh.pole_angular_closure
@@ -867,7 +867,7 @@ class RadialCharacteristicSeeding(
 
     def apply_transpose(
         self, cotangent: "FullField", /,
-    ) -> "RadialCharacteristicComposite":
+    ) -> "RadialCharacteristicField":
         r"""Euclidean transpose :math:`A_{AB}^{\mathsf T}` — System A → ray seed.
 
         The adjoint of :meth:`apply`: given a cotangent on System A's row
@@ -893,13 +893,13 @@ class RadialCharacteristicSeeding(
 
         Returns
         -------
-        RadialCharacteristicComposite
+        RadialCharacteristicField
             The ray seed cotangent (source members) — the interior member's
             ``cells(p, -1)`` filled per carrying level, everything else zero.
         """
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
 
         mesh = self.sn_mesh
@@ -923,7 +923,7 @@ class RadialCharacteristicSeeding(
         )
         _, seed_cells_bar = closure.angular_adjoint(numer_bar)
 
-        src_bar = RadialCharacteristicComposite.source_zeros_on(mesh)
+        src_bar = RadialCharacteristicField.source_zeros_on(mesh)
         for p, cells_bar in seed_cells_bar.items():
             src_bar.interior.cells(p, -1)[...] = cells_bar
         return src_bar
@@ -975,7 +975,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
     became pure bulk, the coupled driver composes the emission via ``A_BA``, and
     this fold moved to its native home. The ψ½ *data* types legitimately stay at
     the transport/numerics data layer (this operator's
-    a q½ :class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`
+    a q½ :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
     codomain, the carrier space, and the fold *math* kernel
     :func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`);
     only the *operator* migrated.
@@ -1007,7 +1007,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
     emitter (:class:`RadialCharacteristicEmission`) feeds the isotropic
     :math:`\ell = 0` emission (``n_moments = 1``), and the fold accepts any order
     so the anisotropic reach is testable before it is needed. (The distinct
-    :meth:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite.source_from_angular`
+    :meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.source_from_angular`
     data-factory folds a *per-ordinate* source through the SAME kernel after a
     Legendre projection — a different typed input, not a twin; see its docstring.)
 
@@ -1080,11 +1080,11 @@ class RadialCharacteristicReconstruction(LinearOperator):
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
         # System B's member space — the fold emits the q½ composite (4e).
-        return self.sn_mesh.radial_characteristic_composite_space
+        return self.sn_mesh.radial_characteristic_field_space
 
     # ── Forward fold — reconstruct at μ=±1 ────────────────────────────
 
-    def apply(self, moments: np.ndarray, /) -> "RadialCharacteristicComposite":
+    def apply(self, moments: np.ndarray, /) -> "RadialCharacteristicField":
         r"""Reconstruct the bulk moment source at μ=±1 → the q½ ray source.
 
         Folds the Legendre-moment source ``moments`` (shape
@@ -1104,12 +1104,12 @@ class RadialCharacteristicReconstruction(LinearOperator):
 
         Returns
         -------
-        RadialCharacteristicComposite
+        RadialCharacteristicField
             The q½ ray source composite — interior cells legs folded,
             boundary corners zero.
         """
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
 
         arr = np.asarray(moments)
@@ -1120,7 +1120,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
                 f"Legendre-moment source of shape (n_moments, ng, nx) = "
                 f"{expected}; got {arr.shape}."
             )
-        seed = RadialCharacteristicComposite.source_zeros_on(self.sn_mesh)
+        seed = RadialCharacteristicField.source_zeros_on(self.sn_mesh)
         for level in self._ray_space.levels:
             for sign in (-1, +1):
                 seed.interior.cells(level, sign)[...] = (
@@ -1131,7 +1131,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
     # ── Euclidean transpose — inject a ray cotangent into moment space ─
 
     def apply_transpose(
-        self, cotangent: "RadialCharacteristicComposite", /,
+        self, cotangent: "RadialCharacteristicField", /,
     ) -> np.ndarray:
         r"""Euclidean transpose — a ray cotangent → the bulk moment cotangent.
 
@@ -1147,7 +1147,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
 
         Parameters
         ----------
-        cotangent : RadialCharacteristicComposite
+        cotangent : RadialCharacteristicField
             A cotangent on the ray source composite (member roles erased).
             Must share this operator's mesh. Only the interior cells legs
             are read (the forward writes only cells); the boundary corner
@@ -1237,12 +1237,12 @@ class RadialCharacteristicEmission(LinearOperator):
     floor + ``TestA_BA_SchurFold`` pin it).
 
     **A true System A → System B block (B.2b re-type).** ``apply`` is typed
-    ``FullField → RadialCharacteristicComposite``: it reads the System-A
+    ``FullField → RadialCharacteristicField``: it reads the System-A
     composite and returns System B's OWN carrier with SOURCE members — no
     present-zero bulk/boundary padding (the old "A_BA writes into the bulk"
     double-count is now UNSPELLABLE: the codomain has no bulk slot,
     Pattern 4). ``domain``/``codomain`` declare the two member spaces
-    (``full_field_space`` / ``radial_characteristic_composite_space``), so
+    (``full_field_space`` / ``radial_characteristic_field_space``), so
     the B.2c ``CoupledOperator`` grid can type-check its placement. The
     internal fold engine stays UNIFIED behind the role-preserving
     split composite natively (4e — the unified leaf
@@ -1328,18 +1328,18 @@ class RadialCharacteristicEmission(LinearOperator):
     def codomain(self) -> Optional["FunctionSpace"]:
         # System B — the ψ½ composite member space (B.2b DP1; non-None by
         # the ctor guard: A_BA exists only where System B does).
-        return self.sn_mesh.radial_characteristic_composite_space
+        return self.sn_mesh.radial_characteristic_field_space
 
     # ── Forward — bulk flux → ψ½ ray emission ─────────────────────────
 
-    def apply(self, psi: "FullField", /) -> "RadialCharacteristicComposite":
+    def apply(self, psi: "FullField", /) -> "RadialCharacteristicField":
         r"""Emit the bulk within-group source onto the ψ½ ray.
 
         Integrate the bulk flux to :math:`\phi_0`, apply the emission kernel
         :math:`K` (the isotropic ℓ=0 source), and fold that moment at the
         closed :math:`\mu = \pm 1` rays. Returns **System B's own carrier**
         (B.2b re-type): a
-        :class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`
+        :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
         with SOURCE members — the folded emission in the interior cells, a
         zero boundary corner (the fold writes cells only). No present-zero
         bulk/boundary padding: the codomain has no such slots, so the old
@@ -1358,13 +1358,13 @@ class RadialCharacteristicEmission(LinearOperator):
 
         Returns
         -------
-        RadialCharacteristicComposite
+        RadialCharacteristicField
             The ψ½ ray source emission (interior = folded cells, boundary =
             zero corner; both SOURCE role).
         """
         from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
 
         bulk = psi.interior
@@ -1381,7 +1381,7 @@ class RadialCharacteristicEmission(LinearOperator):
     # ── Euclidean transpose — ray cotangent → bulk pullback ───────────
 
     def apply_transpose(
-        self, cotangent: "RadialCharacteristicComposite", /,
+        self, cotangent: "RadialCharacteristicField", /,
     ) -> "FullField":
         r"""Euclidean transpose :math:`A_{BA}^{\mathsf T}` — ray → bulk pullback.
 
@@ -1399,7 +1399,7 @@ class RadialCharacteristicEmission(LinearOperator):
 
         Parameters
         ----------
-        cotangent : RadialCharacteristicComposite
+        cotangent : RadialCharacteristicField
             A cotangent on System B (the ray source codomain). The old "the
             cotangent carries no ψ½ block" failure is now UNSPELLABLE — the
             composite always carries both members (Pattern 4).
@@ -1412,18 +1412,18 @@ class RadialCharacteristicEmission(LinearOperator):
             space, post-B.2d).
         """
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
         from orpheus.transport.source_sinks import (
             AngularBoundarySourceSink,
             AngularSourceSink,
         )
 
-        if not isinstance(cotangent, RadialCharacteristicComposite):
+        if not isinstance(cotangent, RadialCharacteristicField):
             raise TypeError(
                 "RadialCharacteristicEmission.apply_transpose: the cotangent "
-                "must be a RadialCharacteristicComposite (System B's member "
+                "must be a RadialCharacteristicField (System B's member "
                 f"carrier); got {type(cotangent).__name__}."
             )
         mesh = self.sn_mesh

@@ -69,7 +69,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.radial_characteristic_composite import RadialCharacteristicComposite
+from orpheus.transport.radial_characteristic_field import RadialCharacteristicField
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
@@ -540,7 +540,7 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
     N = sn_mesh.quad.n_ordinates
     nx = int(np.prod(sn_mesh.spatial_shape))
     levels = sn_mesh.radial_characteristic_levels
-    carrying = sn_mesh.radial_characteristic_composite_space is not None
+    carrying = sn_mesh.radial_characteristic_field_space is not None
 
     def _seed_leg_view(rows, level):
         # The emitted seed leg (a source composite) in march order, one group.
@@ -568,7 +568,7 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
         # source composite rows OUT).
         if not carrying:
             return _read(A.apply(st), None)
-        rows = RadialCharacteristicComposite.source_zeros_on(sn_mesh)
+        rows = RadialCharacteristicField.source_zeros_on(sn_mesh)
         out = A.apply(
             st,
             radial_characteristic_flux=seed_leaf,
@@ -579,7 +579,7 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
     def _zero_seed():
         return (
             None if not carrying
-            else RadialCharacteristicComposite.from_mesh(sn_mesh)
+            else RadialCharacteristicField.from_mesh(sn_mesh)
         )
 
     n_seed_per_level = 2 * nx + 2
@@ -613,7 +613,7 @@ def _augmented_sweep_order(sn_mesh: SNMesh) -> np.ndarray:
     (cells marching WITH each ordinate's direction — inward for μ<0)."""
     mu = np.asarray(sn_mesh.quad.mu_x)
     nx = int(np.prod(sn_mesh.spatial_shape))
-    composite_space = sn_mesh.radial_characteristic_composite_space
+    composite_space = sn_mesh.radial_characteristic_field_space
     n_seed = (
         0 if composite_space is None
         else composite_space.shape[0] // sn_mesh.ng

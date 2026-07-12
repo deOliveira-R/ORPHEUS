@@ -11007,7 +11007,7 @@ bulk ⊕ trace SN state — is the pure **2-block**
 :class:`~orpheus.transport.full_field.FullField`
 (``Composite[BulkField, BoundaryField]``); the ψ½ ray is **System B**, its
 own 2-block
-:class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`
+:class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
 (the marched interior cells ⊕ the :math:`r = R` corner, carrying the same
 flux / source-sink / displacement / residual role family), and on a
 carrying sphere the driver iterate is the **coupled pair**
@@ -20611,7 +20611,7 @@ branch and have no landed hash yet.
        ``FullField`` is now the pure 2-block
        ``Composite[BulkField, BoundaryField]``, and the ψ½ ray is
        **System B**, its own 2-block
-       :class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`
+       :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
        coupled to System A through the within-group 2×2 grid as a
        :class:`~orpheus.numerics.coupled_system.CoupledField`. A live-ray
        ``ψ_A`` is now **unrepresentable** (the type system is the guard),

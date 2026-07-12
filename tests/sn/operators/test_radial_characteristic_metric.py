@@ -131,7 +131,7 @@ def _joint_M(sn, LC):
     from orpheus.sn.coupled_system import CoupledInvertibleOperator
 
     space = CoupledSpace.from_systems(
-        (sn.full_field_space, sn.radial_characteristic_composite_space),
+        (sn.full_field_space, sn.radial_characteristic_field_space),
     )
     return CoupledInvertibleOperator(LC, space=space, sn_mesh=sn), space
 
@@ -143,8 +143,8 @@ def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
     (the SAME order as the pre-eviction 3-block builder).
     """
     from orpheus.numerics.coupled_system import CoupledField
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
 
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
@@ -159,10 +159,10 @@ def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
     # System B is the native split composite (4e); a random seed fills its
     # to_flat (interior ⊕ boundary) — the reciprocity identity is layout-agnostic
     # (psi and phi share this convention).
-    system_b = RadialCharacteristicComposite.from_mesh(sn)
+    system_b = RadialCharacteristicField.from_mesh(sn)
     if seed:
-        n_sd = sn.radial_characteristic_composite_space.shape[0]
-        system_b = RadialCharacteristicComposite.from_flat(
+        n_sd = sn.radial_characteristic_field_space.shape[0]
+        system_b = RadialCharacteristicField.from_flat(
             rng.standard_normal(n_sd), system_b,
         )
     return CoupledField(systems=(psi_a, system_b))
@@ -193,7 +193,7 @@ def _blocks(sn):
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     nb = N * ng * nx
     nt = int(sn.angular_trace.layout.total_size)
-    ns = sn.radial_characteristic_composite_space.shape[0]
+    ns = sn.radial_characteristic_field_space.shape[0]
     return slice(0, nb), slice(nb, nb + nt), slice(nb + nt, nb + nt + ns), (nb, nt, ns)
 
 

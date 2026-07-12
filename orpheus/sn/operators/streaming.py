@@ -144,8 +144,8 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.fields.cross_section_field import CrossSectionField
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.space import FunctionSpace
@@ -410,8 +410,8 @@ class StreamingOperator(LinearOperator["FullField"]):
     def apply(
         self, psi: "FullField",
         *,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""Pure σ-free forward streaming :math:`L\,\psi = \Omega\cdot\nabla\psi`.
 
@@ -466,8 +466,8 @@ class StreamingOperator(LinearOperator["FullField"]):
     def apply_transpose(
         self, phi: "FullField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-        seed_cot_out: "RadialCharacteristicComposite | None" = None,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""Hilbert transpose :math:`L^{\mathsf T}\,\phi` (Wave O / O.2b, #208).
 
@@ -787,8 +787,8 @@ class InvertibleOperator(
     def apply(
         self, psi: "FullField",
         *,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""Matvec :math:`(L+C)\,\psi = M(\sigma)\,\psi` — the composite OWNS it.
 
@@ -830,8 +830,8 @@ class InvertibleOperator(
     def apply_transpose(
         self, phi: "FullField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-        seed_cot_out: "RadialCharacteristicComposite | None" = None,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""Adjoint matvec :math:`(L+C)^{\mathsf T}\,\phi = M(\sigma)^{\mathsf T}\,\phi`.
 
@@ -927,8 +927,8 @@ class InvertibleOperator(
         rhs: "FullField",
         *,
         initial_guess: "FullField | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "TimedFullField":
         r"""Invert :math:`(L + C)\,\psi = \text{rhs}` via the WDD sweep.
 
@@ -1009,8 +1009,8 @@ class InvertibleOperator(
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "TimedFullField":
         r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
 
@@ -1117,7 +1117,7 @@ class InvertibleOperator(
             _require_radial_characteristic,
         )
 
-        if sn_mesh.radial_characteristic_composite_space is not None:
+        if sn_mesh.radial_characteristic_field_space is not None:
             _require_radial_characteristic(
                 "InvertibleOperator.solve", sn_mesh,
                 radial_characteristic_source, role="rhs",
@@ -1189,8 +1189,8 @@ class InvertibleOperator(
     def solve_transpose(
         self, b: "FullField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-        seed_cot_out: "RadialCharacteristicComposite | None" = None,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""Invert :math:`(L + C)^{\mathsf T}\,x = b` via the REVERSE-SCAN.
 
@@ -1232,7 +1232,7 @@ class InvertibleOperator(
                 "operator must share the same SNMesh instance "
                 "(mesh-identity invariant)."
             )
-        if sn_mesh.radial_characteristic_composite_space is not None:
+        if sn_mesh.radial_characteristic_field_space is not None:
             _require_radial_characteristic(
                 "InvertibleOperator.solve_transpose", sn_mesh, seed_cot,
                 role="cotangent",

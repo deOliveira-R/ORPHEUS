@@ -694,15 +694,15 @@ class TestT4bPreT4RegressionSnapshot:
         # meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
         sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
         if sd is not None:
-            from orpheus.transport.radial_characteristic_composite import (
-                RadialCharacteristicComposite,
+            from orpheus.transport.radial_characteristic_field import (
+                RadialCharacteristicField,
             )
 
             out = L.apply(
                 state,
                 radial_characteristic_flux=sd,
                 radial_characteristic_source=(
-                    RadialCharacteristicComposite.source_zeros_on(sn_mesh)
+                    RadialCharacteristicField.source_zeros_on(sn_mesh)
                 ),
             )
         else:
@@ -911,15 +911,15 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         # meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
         sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
         if sd is not None:
-            from orpheus.transport.radial_characteristic_composite import (
-                RadialCharacteristicComposite,
+            from orpheus.transport.radial_characteristic_field import (
+                RadialCharacteristicField,
             )
 
             out = L.apply(
                 state,
                 radial_characteristic_flux=sd,
                 radial_characteristic_source=(
-                    RadialCharacteristicComposite.source_zeros_on(sn_mesh)
+                    RadialCharacteristicField.source_zeros_on(sn_mesh)
                 ),
             )
         else:

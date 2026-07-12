@@ -197,7 +197,7 @@ class TestSplitFidelityArangeFingerprint:
 # loses nothing" claim is now carried by the successors that do NOT reference
 # the unified: the arange-fingerprint slots (``TestSplitFidelityArangeFingerprint``
 # — the exact per-slot layout) + the composite ``to_flat``/``from_flat``
-# round-trip in the composite carrier suite (``test_radial_characteristic_composite``).
+# round-trip in the composite carrier suite (``test_radial_characteristic_field``).
 
 
 # ── G-B3: metric partition + conservation (ERR-067-adjacent gauge) ──
@@ -229,7 +229,7 @@ class TestMeshPresence:
         sn = _sphere()
         i = sn.radial_characteristic_interior_space
         b = sn.radial_characteristic_boundary_space
-        c = sn.radial_characteristic_composite_space
+        c = sn.radial_characteristic_field_space
         if i is None or b is None or c is None:
             pytest.fail("sphere must carry the ψ½ spaces (R12a)")
         if not (i.levels == b.levels):
@@ -246,7 +246,7 @@ class TestMeshPresence:
     def test_noncarrying_meshes_have_no_split_spaces(self, mesh_fn) -> None:
         sn = mesh_fn()
         # The presence trichotomy is single-sourced: no composite → no split.
-        if sn.radial_characteristic_composite_space is not None:
+        if sn.radial_characteristic_field_space is not None:
             pytest.skip("mesh unexpectedly carries a seed level")
         if sn.radial_characteristic_interior_space is not None:
             pytest.fail("non-carrying mesh has an interior split space")

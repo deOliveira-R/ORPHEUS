@@ -154,7 +154,7 @@ class SweepOperator(
         return (
             isinstance(self.inner, InvertibleOperator)
             and self.inner.is_adjointable
-            and self.inner.sn_mesh.radial_characteristic_composite_space is None
+            and self.inner.sn_mesh.radial_characteristic_field_space is None
         )
 
     def apply_transpose(self, b: "FullField") -> "FullField":

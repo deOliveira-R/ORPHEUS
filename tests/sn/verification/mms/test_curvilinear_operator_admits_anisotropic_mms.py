@@ -110,15 +110,15 @@ def _lc_apply_on_psi_ref(case, nc: int):
     if seed_leg is None:
         lc_psi = (L + C).apply(psi_ref).interior.values     # (N, ng, nx)
     else:
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
 
         lc_psi = (L + C).apply(
             psi_ref,
             radial_characteristic_flux=seed_leg,
             radial_characteristic_source=(
-                RadialCharacteristicComposite.source_zeros_on(sn_mesh)
+                RadialCharacteristicField.source_zeros_on(sn_mesh)
             ),
         ).interior.values                                   # (N, ng, nx)
 

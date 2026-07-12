@@ -13,7 +13,7 @@ block grid over its two systems,
 
 with System A = the SN transport composite (``sn_mesh.full_field_space``)
 and System B = the ψ½ radial-characteristic closure
-(``sn_mesh.radial_characteristic_composite_space``). The grid and its
+(``sn_mesh.radial_characteristic_field_space``). The grid and its
 :class:`~orpheus.numerics.coupled_system.CoupledSpace` are emitted TOGETHER,
 aligned by construction (RULING P1: a mismatched operator/space pairing is
 unconstructable — this builder is the ψ½ instance's only constructor). The
@@ -139,8 +139,8 @@ from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
 from orpheus.transport.operators.scattering import ScatteringOperator
-from orpheus.transport.radial_characteristic_composite import (
-    RadialCharacteristicComposite,
+from orpheus.transport.radial_characteristic_field import (
+    RadialCharacteristicField,
 )
 
 if TYPE_CHECKING:
@@ -189,7 +189,7 @@ def build_coupled_system(
     sn_mesh : SNMesh
         The augmented geometry — supplies both member spaces, the
         quadrature, and the R12a presence predicate
-        (``radial_characteristic_composite_space is not None``).
+        (``radial_characteristic_field_space is not None``).
     mat_xs : MaterialXSField
         The mesh-materialized macroscopic cross sections (the solver's
         ``sn_mesh.material_xs_field()``): σ_t feeds ``C`` AND ``A_BB`` (one
@@ -243,7 +243,7 @@ def _system_a_member(state: "CoupledField | FullField") -> "FullField":
 
 def _system_b_member(
     state: "CoupledField | FullField",
-) -> "RadialCharacteristicComposite | None":
+) -> "RadialCharacteristicField | None":
     r"""Read System B's member off a driver state, ``None`` where it does
     not exist (a bare seedless composite).
 
@@ -259,10 +259,10 @@ def _system_b_member(
                 f"systems; got {state.n_systems}."
             )
         member = state.systems[1]
-        if not isinstance(member, RadialCharacteristicComposite):
+        if not isinstance(member, RadialCharacteristicField):
             raise TypeError(
                 f"_system_b_member: the ψ½ coupled pair carries System B "
-                f"(a RadialCharacteristicComposite) at position 1; got "
+                f"(a RadialCharacteristicField) at position 1; got "
                 f"{type(member).__name__}."
             )
         return member
@@ -271,13 +271,13 @@ def _system_b_member(
 
 def _require_coupled_pair(
     state: "CoupledField", sn_mesh: "SNMesh", context: str,
-) -> "tuple[FullField, RadialCharacteristicComposite]":
+) -> "tuple[FullField, RadialCharacteristicField]":
     r"""Parse a coupled ψ½ pair ``[ψ_A, ψ_B]`` at an operator boundary.
 
     The shared parse of :class:`CoupledInvertibleOperator`'s four action
     surfaces (parse-don't-validate): System A through
     :func:`_system_a_member`, System B through the composite's own
-    :meth:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite.require_member`
+    :meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.require_member`
     (carrier class + mesh identity). A bare System-A composite refuses —
     ``M`` is the JOINT operator; the seedless ``(L+C)`` is its own resolvent
     (DP-seedless).
@@ -290,7 +290,7 @@ def _require_coupled_pair(
             f"System-A composite has no ray member (on a seedless mesh the "
             f"resolvent is the plain (L+C), never this joint M)."
         )
-    return psi_a, RadialCharacteristicComposite.require_member(
+    return psi_a, RadialCharacteristicField.require_member(
         psi_b, mesh=sn_mesh, context=context,
     )
 
@@ -372,7 +372,7 @@ class CoupledInvertibleOperator(LinearOperator["CoupledField", "CoupledField"]):
         x_a, x_b = _require_coupled_pair(
             x, self._sn_mesh, "CoupledInvertibleOperator.apply",
         )
-        rows_buf = RadialCharacteristicComposite.source_zeros_on(self._sn_mesh)
+        rows_buf = RadialCharacteristicField.source_zeros_on(self._sn_mesh)
         y_a = self.fused.apply(
             x_a,
             radial_characteristic_flux=x_b,
@@ -391,7 +391,7 @@ class CoupledInvertibleOperator(LinearOperator["CoupledField", "CoupledField"]):
         rhs_a, rhs_b = _require_coupled_pair(
             rhs, self._sn_mesh, "CoupledInvertibleOperator.solve",
         )
-        flux_buf = RadialCharacteristicComposite.from_mesh(self._sn_mesh)
+        flux_buf = RadialCharacteristicField.from_mesh(self._sn_mesh)
         psi_a = self.fused.solve(
             rhs_a,
             radial_characteristic_source=rhs_b,
@@ -416,7 +416,7 @@ class CoupledInvertibleOperator(LinearOperator["CoupledField", "CoupledField"]):
         y_a, y_b = _require_coupled_pair(
             y, self._sn_mesh, "CoupledInvertibleOperator.apply_transpose",
         )
-        cot_buf = RadialCharacteristicComposite.source_zeros_on(self._sn_mesh)
+        cot_buf = RadialCharacteristicField.source_zeros_on(self._sn_mesh)
         x_a_bar = self.fused.apply_transpose(
             y_a, seed_cot=y_b, seed_cot_out=cot_buf,
         )
@@ -432,7 +432,7 @@ class CoupledInvertibleOperator(LinearOperator["CoupledField", "CoupledField"]):
         b_a, b_b = _require_coupled_pair(
             b, self._sn_mesh, "CoupledInvertibleOperator.solve_transpose",
         )
-        cot_buf = RadialCharacteristicComposite.source_zeros_on(self._sn_mesh)
+        cot_buf = RadialCharacteristicField.source_zeros_on(self._sn_mesh)
         x_a_bar = self.fused.solve_transpose(
             b_a, seed_cot=b_b, seed_cot_out=cot_buf,
         )
@@ -659,7 +659,7 @@ def build_within_group_system(
     # P2 presence predicate = System B's member space itself (the grid needs
     # exactly it; presence-coextensive with the unified engine carrier, and
     # the read doubles as the Optional narrow).
-    member_space = sn_mesh.radial_characteristic_composite_space
+    member_space = sn_mesh.radial_characteristic_field_space
     if member_space is None:
         # The non-carrying degenerate: System B does not exist — the loss
         # is the 1-system grid and the splitting the bare (L+C, (S, B_a))

@@ -910,13 +910,13 @@ class SNMesh(MaterialMesh):
         )
 
     @cached_property
-    def radial_characteristic_composite_space(self) -> "FullFieldSpace | None":
+    def radial_characteristic_field_space(self) -> "FullFieldSpace | None":
         r"""System B's member space — the ψ½ ``interior ⊕ boundary`` composite, or ``None``.
 
         The :class:`~orpheus.numerics.space.FunctionSpace` the re-typed
         coupling blocks declare (B.2b DP1): ``A_BA``'s codomain and ``B_b``'s
         domain/codomain — the carrier space of
-        :class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`.
+        :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`.
         REUSES the family-blind
         :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
         (the same direct-sum member-wise metric dispatch System A's
@@ -969,7 +969,7 @@ class SNMesh(MaterialMesh):
         spatial measure (cell volume vs. oriented face). On a carrying
         mesh the ψ½ ray's state metric (``G_sd = V_cell``) lives on
         **System B's own composite space**,
-        :attr:`radial_characteristic_composite_space` — never as a third
+        :attr:`radial_characteristic_field_space` — never as a third
         block here (the B.2d eviction; the coupled DOF count is the
         honest two-system sum). Cached: the composite is immutable for a
         given mesh + quadrature.

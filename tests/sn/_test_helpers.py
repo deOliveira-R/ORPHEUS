@@ -304,13 +304,14 @@ def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNMesh":
     return SNMesh(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2))
 
 
-def random_radial_characteristic_composite(sn: "SNMesh", rng):
+def random_radial_characteristic_field(sn: "SNMesh", rng):
     """A random ψ½ FLUX composite whose per-slot values reproduce the retired
     unified leaf's single-buffer draw BIT-IDENTICALLY (``None`` on non-carrying).
 
-    Phase C 4e retired the unified ``RadialCharacteristicField`` leaf (one flat
-    buffer) in favour of :class:`RadialCharacteristicComposite` (split
-    ``interior ⊕ boundary`` members). The unified leg walk
+    Phase C 4e retired the unified single-buffer leaf (which then held the
+    ``RadialCharacteristicField`` name) in favour of the split
+    ``interior ⊕ boundary`` composite — reminted as
+    :class:`RadialCharacteristicField` at 4e-e1b. The unified leg walk
     (:func:`~orpheus.numerics.spaces.radial_characteristic_space._radial_characteristic_legs`)
     interleaves ``cells`` then ``corner`` PER ``(level, sign)`` leg, and the old
     fill was one ``rng.standard_normal(unified.values.shape)`` over that flat
@@ -320,13 +321,13 @@ def random_radial_characteristic_composite(sn: "SNMesh", rng):
     frozen walk / affine-carve baselines hold at ``nulp=1``. Returns ``None`` on
     a non-carrying mesh (R12a): System B does not exist there.
     """
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
 
-    if sn.radial_characteristic_composite_space is None:
+    if sn.radial_characteristic_field_space is None:
         return None
-    comp = RadialCharacteristicComposite.from_mesh(sn)
+    comp = RadialCharacteristicField.from_mesh(sn)
     for level in sn.radial_characteristic_levels:
         for sign in (-1, +1):
             cells = comp.interior.cells(level, sign)
@@ -348,7 +349,7 @@ def het_operands(sn: "SNMesh"):
     ``None`` on slab/cyl).  The rng draw ORDER (bulk → faces → seed) matches
     the pre-eviction 3-block builder exactly (the per-leg seed draw is
     bit-faithful to the retired unified single-buffer fill — see
-    :func:`random_radial_characteristic_composite`), so the frozen walk
+    :func:`random_radial_characteristic_field`), so the frozen walk
     baselines hold bit-identically — every term of the loss action stays
     activated (nothing nulled by a flat or zero state).
     """
@@ -364,7 +365,7 @@ def het_operands(sn: "SNMesh"):
     for face in psi.boundary.layout.faces:
         fv = psi.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
-    seed = random_radial_characteristic_composite(sn, rng)
+    seed = random_radial_characteristic_field(sn, rng)
     return sig_t, psi, seed
 
 
@@ -460,15 +461,15 @@ def radial_characteristic_edge_seed(psi_view, sn_mesh):
     seed (a constant field extrapolates to the same constant, so
     ``(L+C)·const = σ_t·const`` still holds, and the augmented apply
     stays a linear operator)."""
-    if sn_mesh.radial_characteristic_composite_space is None:
+    if sn_mesh.radial_characteristic_field_space is None:
         return None
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
 
     closure = sn_mesh.pole_angular_closure
     psi_g_first = psi_view[..., 0].swapaxes(0, 1) if psi_view.ndim == 4 else psi_view.swapaxes(0, 1)
-    seed = RadialCharacteristicComposite.from_mesh(sn_mesh)
+    seed = RadialCharacteristicField.from_mesh(sn_mesh)
     for p in sn_mesh.radial_characteristic_levels:
         level_idx = closure.level_indices[p]
         psi_level = psi_g_first[:, level_idx, :]          # (ng, M_p, nx)
@@ -514,11 +515,11 @@ def _LC_matvec(
         LC = L + C
     if radial_characteristic_flux is None:
         return LC.apply(psi)
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
 
-    scratch = RadialCharacteristicComposite.source_zeros_on(sn_mesh)
+    scratch = RadialCharacteristicField.source_zeros_on(sn_mesh)
     return LC.apply(
         psi,
         radial_characteristic_flux=radial_characteristic_flux,

@@ -396,8 +396,8 @@ class TestSplitRayResidualMint:
         from orpheus.numerics.coupled_system import CoupledField
         from orpheus.sn import solve_sn_fixed_source
         from orpheus.sn.solver import _build_fixed_source_rhs
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
         from orpheus.transport.residuals import (
             RadialCharacteristicBoundaryResidual,
@@ -430,7 +430,7 @@ class TestSplitRayResidualMint:
         if not isinstance(r, CoupledField):
             pytest.fail(f"coupled residual is {type(r).__name__}")
         r_b = r.systems[1]
-        if not isinstance(r_b, RadialCharacteristicComposite):
+        if not isinstance(r_b, RadialCharacteristicField):
             pytest.fail(f"r_B is {type(r_b).__name__}")
         if type(r_b.interior) is not RadialCharacteristicInteriorResidual:
             pytest.fail(f"r_B.interior is {type(r_b.interior).__name__}")
@@ -463,8 +463,8 @@ class TestSplitRayResidualMint:
             _build_fixed_source_rhs,
             _coupled_flux_state,
         )
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
 
         sn = _tiny_sphere_2g()
@@ -484,7 +484,7 @@ class TestSplitRayResidualMint:
         assert isinstance(q_pair, CoupledField)
         bad_q = CoupledField(systems=(
             q_pair.systems[0],
-            RadialCharacteristicComposite.from_mesh(sn),   # FLUX pair — wrong role
+            RadialCharacteristicField.from_mesh(sn),   # FLUX pair — wrong role
         ))
         with pytest.raises(TypeError):
             evaluate_residual(system.loss, psi_pair, bad_q)
@@ -500,8 +500,8 @@ class TestSolutionRayMember:
 
     def test_carrying_solution_carries_the_member(self):
         from orpheus.sn import solve_sn_fixed_source
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
 
         sn = _tiny_sphere_2g()
@@ -515,7 +515,7 @@ class TestSolutionRayMember:
         if hasattr(sol.angular_flux, "radial_characteristic"):
             pytest.fail("Solution.angular_flux still exposes a ψ½ slot — "
                         "the eviction leaked into the Solution contract")
-        if not isinstance(sol.radial_characteristic, RadialCharacteristicComposite):
+        if not isinstance(sol.radial_characteristic, RadialCharacteristicField):
             pytest.fail(f"Solution.radial_characteristic is "
                         f"{type(sol.radial_characteristic).__name__}")
         if not float(np.abs(sol.radial_characteristic.to_flat()).max()) > 0.0:

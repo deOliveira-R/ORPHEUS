@@ -1,8 +1,8 @@
-r"""B.1d — RadialCharacteristicComposite (System B as an independent composite).
+r"""B.1d — RadialCharacteristicField (System B as an independent composite).
 
 Intrinsic-property + split-fidelity gates for the Phase-B (coupled-block campaign)
 ψ½ composite
-``RadialCharacteristicComposite = Composite[RadialCharacteristicInteriorFlux,
+``RadialCharacteristicField = Composite[RadialCharacteristicInteriorFlux,
 RadialCharacteristicBoundaryFlux]`` — System B's own ``interior ⊕ boundary`` field,
 parallel to System A's :class:`~orpheus.transport.full_field.FullField`. It is a
 TRIVIAL subclass of the relaxed :class:`~orpheus.transport.full_field.Composite`
@@ -46,8 +46,8 @@ from orpheus.transport.fields.radial_characteristic_interior_flux import (
     RadialCharacteristicInteriorFlux,
 )
 from orpheus.transport.full_field import Composite, FullField
-from orpheus.transport.radial_characteristic_composite import (
-    RadialCharacteristicComposite,
+from orpheus.transport.radial_characteristic_field import (
+    RadialCharacteristicField,
 )
 from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
     RadialCharacteristicBoundarySourceSink,
@@ -80,13 +80,13 @@ def _slab() -> SNMesh:
     )
 
 
-def _rand_composite(sn: SNMesh, seed: int) -> RadialCharacteristicComposite:
+def _rand_composite(sn: SNMesh, seed: int) -> RadialCharacteristicField:
     """A random ψ½ FLUX composite (4e native — built via ``from_flat`` over a
     zero flux composite; the retired unified-leaf bridge is gone)."""
     rng = np.random.default_rng(seed)
-    template = RadialCharacteristicComposite.from_mesh(sn)
+    template = RadialCharacteristicField.from_mesh(sn)
     n = template.to_flat().size
-    return RadialCharacteristicComposite.from_flat(rng.random(n) + 0.5, template)
+    return RadialCharacteristicField.from_flat(rng.random(n) + 0.5, template)
 
 
 # ── Construction (the multi-instantiation structural crux) ──
@@ -94,7 +94,7 @@ def _rand_composite(sn: SNMesh, seed: int) -> RadialCharacteristicComposite:
 
 class TestCompositeConstruction:
     def test_is_a_composite_but_not_a_fullfield(self) -> None:
-        c = RadialCharacteristicComposite.from_mesh(_sphere())
+        c = RadialCharacteristicField.from_mesh(_sphere())
         if not isinstance(c, Composite):
             pytest.fail("System B is not a Composite")
         if isinstance(c, FullField):
@@ -102,13 +102,13 @@ class TestCompositeConstruction:
 
     def test_has_no_radial_characteristic_third_slot(self) -> None:
         # A pure 2-block composite — the ψ½ third block is FullField's, not this.
-        c = RadialCharacteristicComposite.from_mesh(_sphere())
+        c = RadialCharacteristicField.from_mesh(_sphere())
         if hasattr(c, "radial_characteristic"):
             pytest.fail("System B is pure 2-block; it carries no ψ½ third slot")
 
     def test_leaf_types_are_the_ray_split_loci(self) -> None:
         # The 3rd Composite instantiation, FIRST with non-Bulk/Boundary leaves.
-        c = RadialCharacteristicComposite.from_mesh(_sphere())
+        c = RadialCharacteristicField.from_mesh(_sphere())
         if type(c.interior) is not RadialCharacteristicInteriorFlux:
             pytest.fail(f"interior is {type(c.interior).__name__}")
         if type(c.boundary) is not RadialCharacteristicBoundaryFlux:
@@ -119,7 +119,7 @@ class TestCompositeConstruction:
         so an operator emission — the (interior, boundary) SOURCE pair that
         A_BA / B_b write — rides the SAME composite class as the flux state."""
         sn = _sphere()
-        comp = RadialCharacteristicComposite(
+        comp = RadialCharacteristicField(
             interior=RadialCharacteristicInteriorSourceSink.zeros_on(sn),
             boundary=RadialCharacteristicBoundarySourceSink.zeros_on(sn),
         )
@@ -130,7 +130,7 @@ class TestCompositeConstruction:
 
     def test_mesh_reads_off_the_leaves(self) -> None:
         sn = _sphere()
-        c = RadialCharacteristicComposite.from_mesh(sn)
+        c = RadialCharacteristicField.from_mesh(sn)
         if c.mesh is not sn:
             pytest.fail("composite mesh must be the leaves' mesh")
 
@@ -138,7 +138,8 @@ class TestCompositeConstruction:
 # ── The split-fidelity bridge (TestSplitFidelityBridge) RETIRED at Phase C 4e ──
 #
 # The whole class tested the ``from_unified`` / ``to_unified`` bridge between the
-# retired unified ``RadialCharacteristicField`` leaf and the composite — the
+# retired unified single-buffer leaf (whose ``RadialCharacteristicField`` name
+# the composite has since taken, 4e-e1b) and the composite — the
 # "demotion licence" (``to_unified ∘ from_unified == id`` + role-preserving
 # splits + the mixed/unknown-role bridge guards). The bridge and the unified
 # leaf are GONE (the composite is the native representation), so the licence has
@@ -180,7 +181,7 @@ class TestCompositeAlgebra:
         sn = _sphere()
         a, b = _rand_composite(sn, 8), _rand_composite(sn, 9)
         recovered = a + (b - a)  # flux ⊕ displacement → flux
-        if type(recovered) is not RadialCharacteristicComposite:
+        if type(recovered) is not RadialCharacteristicField:
             pytest.fail(f"torsor returned {type(recovered).__name__}")
         np.testing.assert_allclose(recovered.interior.values, b.interior.values)
         np.testing.assert_allclose(recovered.boundary.values, b.boundary.values)
@@ -199,7 +200,7 @@ class TestCompositeAlgebra:
         expected = np.concatenate([a.interior.values.ravel(), a.boundary.values])
         np.testing.assert_array_equal(a.to_flat(), expected)
         back = Composite.from_flat(a.to_flat(), a)
-        if type(back) is not RadialCharacteristicComposite:
+        if type(back) is not RadialCharacteristicField:
             pytest.fail(f"from_flat returned {type(back).__name__}")
         np.testing.assert_array_equal(back.interior.values, a.interior.values)
         np.testing.assert_array_equal(back.boundary.values, a.boundary.values)
@@ -231,14 +232,14 @@ class TestCompositeAlgebra:
 class TestPresence:
     def test_from_mesh_raises_on_a_noncarrying_mesh(self) -> None:
         with pytest.raises(ValueError, match="carries no radial_characteristic"):
-            RadialCharacteristicComposite.from_mesh(_slab())
+            RadialCharacteristicField.from_mesh(_slab())
 
 
 # ── System B's member space (B.2b b2 — the family-blind FullFieldSpace reuse) ──
 
 
-class TestRadialCharacteristicCompositeSpace:
-    r"""``SNMesh.radial_characteristic_composite_space`` — System B's member space.
+class TestRadialCharacteristicFieldSpace:
+    r"""``SNMesh.radial_characteristic_field_space`` — System B's member space.
 
     The DP1 ruling realized: the SAME family-blind ``FullFieldSpace`` class
     System A uses, instantiated over the two split ψ½ spaces under the
@@ -254,7 +255,7 @@ class TestRadialCharacteristicCompositeSpace:
 
     def test_identity_name_and_shape(self) -> None:
         sn = _sphere()
-        space = sn.radial_characteristic_composite_space
+        space = sn.radial_characteristic_field_space
         if space is None:
             pytest.fail("sphere (carrying) must mint the composite space")
         n_i = sn.radial_characteristic_interior_space.shape[0]
@@ -267,7 +268,7 @@ class TestRadialCharacteristicCompositeSpace:
         # Space == is (name, shape)-only — assert the MEMBER identity with
         # ``is`` (the cached split spaces, one instance per mesh).
         sn = _sphere()
-        space = sn.radial_characteristic_composite_space
+        space = sn.radial_characteristic_field_space
         if space.interior_space is not sn.radial_characteristic_interior_space:
             pytest.fail("interior member is not THE cached interior split space")
         if space.trace_space is not sn.radial_characteristic_boundary_space:
@@ -277,11 +278,11 @@ class TestRadialCharacteristicCompositeSpace:
                         "the B.2d eviction leaked into the space class")
 
     def test_presence_and_caching(self) -> None:
-        if _slab().radial_characteristic_composite_space is not None:
+        if _slab().radial_characteristic_field_space is not None:
             pytest.fail("a non-carrying mesh has no System B, hence no space")
         sn = _sphere()
-        if (sn.radial_characteristic_composite_space
-                is not sn.radial_characteristic_composite_space):
+        if (sn.radial_characteristic_field_space
+                is not sn.radial_characteristic_field_space):
             pytest.fail("the composite space must be cached (one per mesh)")
 
     def test_metric_trio_dispatches_member_wise_on_the_real_composite(self) -> None:
@@ -291,12 +292,12 @@ class TestRadialCharacteristicCompositeSpace:
         row is the TOOTH for a kwarg-inversion mutation (always passing the
         seed kwarg REDs it with a TypeError)."""
         sn = _sphere()
-        space = sn.radial_characteristic_composite_space
+        space = sn.radial_characteristic_field_space
         x = _rand_composite(sn, 51)
         y = _rand_composite(sn, 52)
 
         gx = space.apply_metric(x)
-        if type(gx) is not RadialCharacteristicComposite:
+        if type(gx) is not RadialCharacteristicField:
             pytest.fail(f"apply_metric returned {type(gx).__name__}")
         np.testing.assert_array_equal(
             gx.interior.values,
@@ -337,8 +338,8 @@ class TestRadialCharacteristicCompositeSpace:
         r"""The rebuilt members keep their leaf classes (replace-based
         rebuild) — a source composite through G stays a source composite."""
         sn = _sphere()
-        space = sn.radial_characteristic_composite_space
-        src = RadialCharacteristicComposite(
+        space = sn.radial_characteristic_field_space
+        src = RadialCharacteristicField(
             interior=RadialCharacteristicInteriorSourceSink.zeros_on(sn),
             boundary=RadialCharacteristicBoundarySourceSink.zeros_on(sn),
         )
@@ -361,7 +362,7 @@ class TestRadialCharacteristicCompositeSpace:
         (``to_flat``, the space shape, the future ``system_slices``) name
         ONE layout."""
         sn = _sphere()
-        space = sn.radial_characteristic_composite_space
+        space = sn.radial_characteristic_field_space
         c = _rand_composite(sn, 54)
         flat = c.to_flat()
         np.testing.assert_array_equal(flat.size, int(np.prod(space.shape)))

@@ -96,15 +96,15 @@ def _l_apply(L, state, seed_leg, sn_mesh):
     """``L.apply`` through the B.2d explicit ψ½ legs (scratch rows out)."""
     if seed_leg is None:
         return L.apply(state)
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
 
     return L.apply(
         state,
         radial_characteristic_flux=seed_leg,
         radial_characteristic_source=(
-            RadialCharacteristicComposite.source_zeros_on(sn_mesh)
+            RadialCharacteristicField.source_zeros_on(sn_mesh)
         ),
     )
 
@@ -382,15 +382,15 @@ class TestPureLIsLossActionAtZeroSigma:
         if seed_leg is None:
             l_action_zero = default_for(sn_mesh).loss_action(sigma_zero, state)
         else:
-            from orpheus.transport.radial_characteristic_composite import (
-                RadialCharacteristicComposite,
+            from orpheus.transport.radial_characteristic_field import (
+                RadialCharacteristicField,
             )
 
             l_action_zero = default_for(sn_mesh).loss_action(
                 sigma_zero, state,
                 radial_characteristic_flux=seed_leg,
                 radial_characteristic_source=(
-                    RadialCharacteristicComposite.source_zeros_on(sn_mesh)
+                    RadialCharacteristicField.source_zeros_on(sn_mesh)
                 ),
             )
 

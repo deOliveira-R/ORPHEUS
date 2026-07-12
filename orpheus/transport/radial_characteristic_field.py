@@ -8,7 +8,7 @@ realized:
 
 .. code-block:: python
 
-    RadialCharacteristicComposite
+    RadialCharacteristicField
         = Composite[RadialCharacteristicInteriorField,    # the marched cells (A_BB)
                     RadialCharacteristicBoundaryField]     # the r = R corner (B_b)
 
@@ -79,7 +79,7 @@ if TYPE_CHECKING:
 
     from orpheus.sn.mesh.augmented_mesh import SNMesh
 
-__all__ = ["RadialCharacteristicComposite"]
+__all__ = ["RadialCharacteristicField"]
 
 #: The ψ½ direction legs, in canonical (DAG) order: inward first, then the
 #: pole-continued outward leg (the same order the split spaces lay out).
@@ -87,7 +87,7 @@ _SIGNS: tuple[int, int] = (-1, +1)
 
 
 @dataclass(frozen=True, kw_only=True)
-class RadialCharacteristicComposite(
+class RadialCharacteristicField(
     Composite[RadialCharacteristicInteriorField, RadialCharacteristicBoundaryField],
 ):
     r"""System B: the ψ½ ray as an ``interior ⊕ boundary`` composite.
@@ -127,7 +127,7 @@ class RadialCharacteristicComposite(
     # ── Construction ─────────────────────────────────────────────────
 
     @classmethod
-    def from_mesh(cls, mesh: "SNMesh") -> "RadialCharacteristicComposite":
+    def from_mesh(cls, mesh: "SNMesh") -> "RadialCharacteristicField":
         r"""A zero ψ½ flux composite on ``mesh`` (presence-gated).
 
         Builds the two zero flux leaves from ``mesh``'s split spaces — so on a
@@ -143,12 +143,12 @@ class RadialCharacteristicComposite(
     @classmethod
     def require_member(
         cls, x: object, *, mesh: "SNMesh", context: str,
-    ) -> "RadialCharacteristicComposite":
+    ) -> "RadialCharacteristicField":
         r"""Parse ``x`` as a System-B member carrier on ``mesh`` — the shared
         block-boundary guard.
 
         Every System-B block boundary (``A_BB`` / ``A_AB`` / ``B_b``) receives
-        a :class:`RadialCharacteristicComposite` and must refuse (i) a foreign
+        a :class:`RadialCharacteristicField` and must refuse (i) a foreign
         carrier type and (ii) a foreign mesh (the mesh-identity invariant —
         the member's legs, the operator's coefficients, and the radial widths
         must not desync). One parse, three consumers (coding-elegance
@@ -158,7 +158,7 @@ class RadialCharacteristicComposite(
         """
         if not isinstance(x, cls):
             raise TypeError(
-                f"{context}: expected a RadialCharacteristicComposite "
+                f"{context}: expected a RadialCharacteristicField "
                 f"(System B's member carrier); got {type(x).__name__}."
             )
         if x.mesh is not mesh:
@@ -172,7 +172,7 @@ class RadialCharacteristicComposite(
     # ── The source-role birth factories ───────────────────────────────
 
     @classmethod
-    def source_zeros_on(cls, mesh: "SNMesh") -> "RadialCharacteristicComposite":
+    def source_zeros_on(cls, mesh: "SNMesh") -> "RadialCharacteristicField":
         r"""A zero q½ SOURCE composite on ``mesh`` (presence-gated).
 
         The source-role sibling of :meth:`from_mesh` — the buffer the joint
@@ -189,7 +189,7 @@ class RadialCharacteristicComposite(
     @classmethod
     def source_from_angular(
         cls, angular_source_values: "NDArray", mesh: "SNMesh",
-    ) -> "RadialCharacteristicComposite | None":
+    ) -> "RadialCharacteristicField | None":
         r"""Fold a per-ordinate volumetric source into its q½ composite.
 
         The ONE source-side birth factory of #282 route (a) (Pattern 2 —
@@ -230,7 +230,7 @@ class RadialCharacteristicComposite(
             layout (carrying meshes are 1-D curvilinear).
         mesh : SNMesh
             The phase-space carrier (its
-            ``radial_characteristic_composite_space`` is the R12a presence
+            ``radial_characteristic_field_space`` is the R12a presence
             predicate; its ``pole_angular_closure.level_indices`` give each
             level's ordinate bundle for the per-level moment integration).
         """
@@ -238,12 +238,12 @@ class RadialCharacteristicComposite(
             fold_moments_to_radial_characteristic,
         )
 
-        if mesh.radial_characteristic_composite_space is None:
+        if mesh.radial_characteristic_field_space is None:
             return None
         vals = np.asarray(angular_source_values)
         if vals.ndim != 3:
             raise ValueError(
-                "RadialCharacteristicComposite.source_from_angular expects "
+                "RadialCharacteristicField.source_from_angular expects "
                 f"the principled 1-D (N, ng, nx) per-ordinate layout; got "
                 f"shape {vals.shape} (carrying meshes are 1-D curvilinear, "
                 f"R12a)."

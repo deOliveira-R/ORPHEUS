@@ -252,15 +252,15 @@ def _LpC_apply(sn_mesh: SNMesh, state: TimedFullField, sigma_t: np.ndarray) -> "
     seed_leg = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
     if seed_leg is None:
         return (L + C).apply(state)
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
 
     return (L + C).apply(
         state,
         radial_characteristic_flux=seed_leg,
         radial_characteristic_source=(
-            RadialCharacteristicComposite.source_zeros_on(sn_mesh)
+            RadialCharacteristicField.source_zeros_on(sn_mesh)
         ),
     )
 

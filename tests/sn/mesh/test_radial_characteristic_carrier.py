@@ -5,7 +5,7 @@ The 2.5d-era §16.A carrier-law suite pinned the ψ½ block's life ON the
 law, the flat seed tail, the seed metric arms of ``FullFieldSpace``). The
 B.2d ray eviction dissolved that carrier: ``FullField`` is a pure 2-block
 composite and System B is its own
-:class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`,
+:class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`,
 so the LAW tests retired with the law and the surviving content here is the
 **presence FACTS** (the R12a trichotomy, re-homed as System-B EXISTENCE) and
 the **unified-space intrinsics** (layout views, the ``G_sd = V_cell`` state
@@ -23,7 +23,7 @@ metric) that the walk currency still rides:
 * **A4** — the unified space's STATE metric ``G_sd = V_cell`` (SPD) — the
   space-level fact, unchanged by the eviction. Its COMPOSITE realization
   (the member-wise metric dispatch) lives on System B's own composite space
-  (``sn.radial_characteristic_composite_space``), gated below against the
+  (``sn.radial_characteristic_field_space``), gated below against the
   same ``V_cell``/corner-gauge numbers.
 
 Retirement ledger (B.2d d2 — where each retired class's claim went):
@@ -35,7 +35,7 @@ Retirement ledger (B.2d d2 — where each retired class's claim went):
 * **A3 (algebra closure threading the seed; the mixed-presence law; the
   ``advance`` presence law)** — the seed-threading arms are unspellable;
   System B's own 2-block algebra closure lives in
-  ``tests/transport/test_radial_characteristic_composite.py``; the
+  ``tests/transport/test_radial_characteristic_field.py``; the
   mixed-presence and advance presence LAWS retired with the block (their
   raise sites are gone — presence is System-B existence, G-c2.2).
 * **A4's FullFieldSpace seed arms** (apply_metric/apply_inverse_metric/
@@ -63,8 +63,8 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
-from orpheus.transport.radial_characteristic_composite import (
-    RadialCharacteristicComposite,
+from orpheus.transport.radial_characteristic_field import (
+    RadialCharacteristicField,
 )
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import cart2d_2g_nonsquare, placeholder_materials
@@ -126,7 +126,7 @@ class TestA1PresenceR12a:
     def test_sphere_carries_one_seed_level(self):
         sn = _sphere()
         np.testing.assert_array_equal(sn.radial_characteristic_levels, (0,))
-        space = sn.radial_characteristic_composite_space
+        space = sn.radial_characteristic_field_space
         if space is None:
             pytest.fail("sphere-GL mesh must carry a starting-direction space")
         # 1 level × 2 signs × (ng·nx cells + ng corner) — the composite space's
@@ -142,9 +142,9 @@ class TestA1PresenceR12a:
         EXISTS — the member composite constructs presence-gated, its
         composite member space is cached and 2-block-consistent."""
         sn = _sphere()
-        ray = RadialCharacteristicComposite.from_mesh(sn)
+        ray = RadialCharacteristicField.from_mesh(sn)
         np.testing.assert_array_equal(ray.to_flat(), 0.0)
-        cspace = sn.radial_characteristic_composite_space
+        cspace = sn.radial_characteristic_field_space
         if cspace is None:
             pytest.fail("carrying mesh must cache the System-B member space")
         np.testing.assert_array_equal(
@@ -168,7 +168,7 @@ class TestA1PresenceR12a:
         """
         sn = builder()
         np.testing.assert_array_equal(sn.radial_characteristic_levels, ())
-        if sn.radial_characteristic_composite_space is not None:
+        if sn.radial_characteristic_field_space is not None:
             pytest.fail(
                 f"{builder.__name__}: non-carrying mesh must have NO "
                 f"System-B member space"
@@ -181,7 +181,7 @@ class TestA1PresenceR12a:
         with pytest.raises(
             ValueError, match="no radial_characteristic_interior_space",
         ):
-            RadialCharacteristicComposite.from_mesh(sn)
+            RadialCharacteristicField.from_mesh(sn)
 
     @pytest.mark.parametrize(
         "builder", [_sphere, _slab], ids=["sphere", "slab"],
@@ -319,17 +319,17 @@ class TestA4SeedStateMetricVcell:
         reference is built directly from the cell volumes, structurally
         independent of the space's stored weights)."""
         sn = _sphere()
-        cspace = sn.radial_characteristic_composite_space
+        cspace = sn.radial_characteristic_field_space
         interior = sn.radial_characteristic_interior_space
         boundary = sn.radial_characteristic_boundary_space
         assert cspace is not None and interior is not None and boundary is not None
         rng = np.random.default_rng(53)
         ns = int(cspace.shape[0])
-        x = RadialCharacteristicComposite.from_flat(
-            rng.standard_normal(ns), RadialCharacteristicComposite.from_mesh(sn),
+        x = RadialCharacteristicField.from_flat(
+            rng.standard_normal(ns), RadialCharacteristicField.from_mesh(sn),
         )
-        y = RadialCharacteristicComposite.from_flat(
-            rng.standard_normal(ns), RadialCharacteristicComposite.from_mesh(sn),
+        y = RadialCharacteristicField.from_flat(
+            rng.standard_normal(ns), RadialCharacteristicField.from_mesh(sn),
         )
         # Hand-built V_cell gauge (composite to_flat order = interior ⊕ boundary),
         # from sn.volumes directly — the structurally-independent reference.

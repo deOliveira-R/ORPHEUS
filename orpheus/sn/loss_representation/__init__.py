@@ -173,8 +173,8 @@ _MATVEC_ZERO_SOURCE = np.zeros((1, 1, 1))
 
 def _refuse_radial_characteristic(
     where: str,
-    radial_characteristic_source: "RadialCharacteristicComposite | None",
-    radial_characteristic_flux: "RadialCharacteristicComposite | None",
+    radial_characteristic_source: "RadialCharacteristicField | None",
+    radial_characteristic_flux: "RadialCharacteristicField | None",
 ) -> None:
     """Loud refusal of a ψ½ seed pair on a strategy that cannot carry one.
 
@@ -205,7 +205,7 @@ def _require_leg_pair(
 
 
 def _require_radial_characteristic(
-    where: str, sn_mesh: "SNMesh", block: "RadialCharacteristicComposite | None",
+    where: str, sn_mesh: "SNMesh", block: "RadialCharacteristicField | None",
     *, role: str,
 ) -> None:
     """The positive half of the R12a biconditional — a carrying mesh REQUIRES
@@ -221,7 +221,7 @@ def _require_radial_characteristic(
     ``"cotangent"`` / ``"rhs"``).
     """
     if (
-        getattr(sn_mesh, "radial_characteristic_composite_space", None) is not None
+        getattr(sn_mesh, "radial_characteristic_field_space", None) is not None
         and block is None
     ):
         raise ValueError(
@@ -261,8 +261,8 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
     from orpheus.transport.source_sinks import (
         AngularSourceSink,
@@ -352,8 +352,8 @@ class LossRepresentation(Protocol):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         """Perform one within-group transport sweep on this strategy's mesh.
 
@@ -387,8 +387,8 @@ class LossRepresentation(Protocol):
         sigma: "np.ndarray",
         boundary_cot: "BoundaryField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicComposite | None]":
+        seed_cot: "RadialCharacteristicField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicField | None]":
         r"""The transpose-solve :math:`(L+C)^{-\mathsf T}` — the REVERSE-SCAN.
 
         The solve-scan frame's adjoint (#280 Phase 2.5b): the transpose sibling
@@ -408,8 +408,8 @@ class LossRepresentation(Protocol):
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
         *,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""The forward within-group loss action :math:`(L+C)\,\psi` for this geometry.
 
@@ -442,8 +442,8 @@ class LossRepresentation(Protocol):
     def streaming_action(
         self, psi: "FullField",
         *,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""The pure σ-free streaming action :math:`L\,\psi = \Omega\cdot\nabla\psi`.
 
@@ -469,8 +469,8 @@ class LossRepresentation(Protocol):
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-        seed_cot_out: "RadialCharacteristicComposite | None" = None,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""The adjoint loss action :math:`(L+C)^{\mathsf T}\,\phi` for this geometry.
 
@@ -496,8 +496,8 @@ class LossRepresentation(Protocol):
     def streaming_action_transpose(
         self, phi: "FullField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-        seed_cot_out: "RadialCharacteristicComposite | None" = None,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""The pure σ-free adjoint streaming action :math:`L^{\mathsf T}\,\phi`.
 
@@ -577,22 +577,22 @@ class _LossRepresentation:
         def loss_action(
             self, sigma: "np.ndarray", psi: "FullField",
             *,
-            radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-            radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+            radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+            radial_characteristic_source: "RadialCharacteristicField | None" = None,
         ) -> "FullField": ...
 
         def loss_action_transpose(
             self, sigma: "np.ndarray", phi: "FullField",
             *,
-            seed_cot: "RadialCharacteristicComposite | None" = None,
-            seed_cot_out: "RadialCharacteristicComposite | None" = None,
+            seed_cot: "RadialCharacteristicField | None" = None,
+            seed_cot_out: "RadialCharacteristicField | None" = None,
         ) -> "FullField": ...
 
     def streaming_action(
         self, psi: "FullField",
         *,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""Pure σ-free forward streaming :math:`L\,\psi = \Omega\cdot\nabla\psi`.
 
@@ -608,8 +608,8 @@ class _LossRepresentation:
     def streaming_action_transpose(
         self, phi: "FullField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-        seed_cot_out: "RadialCharacteristicComposite | None" = None,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""Pure σ-free adjoint streaming :math:`L^{\mathsf T}\,\phi`.
 
@@ -628,8 +628,8 @@ class _LossRepresentation:
         sigma: "np.ndarray",
         boundary_cot: "BoundaryField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicComposite | None]":
+        seed_cot: "RadialCharacteristicField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicField | None]":
         r"""Reverse-scan default — DEFERRED (the #280 2.5b kernel-pair contract).
 
         The transpose-solve :math:`(L+C)^{-\mathsf T}` is realised only by the
@@ -763,8 +763,8 @@ class _LossRepresentation:
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         """One within-group sweep — every concrete strategy implements it."""
         raise NotImplementedError(
@@ -774,8 +774,8 @@ class _LossRepresentation:
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
         *,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         """The forward loss action ``(L+C)ψ`` — every concrete leaf implements it.
 
@@ -792,8 +792,8 @@ class _LossRepresentation:
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-        seed_cot_out: "RadialCharacteristicComposite | None" = None,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         """The adjoint loss action ``(L+C)ᵀφ`` — 1-D implemented or a deferral raise.
 
@@ -1299,8 +1299,8 @@ class CumprodScan(_LossRepresentation):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if moment_frame is not None:
             # Moment output is the 2-D windowed-SI peak-memory optimization;
@@ -1331,8 +1331,8 @@ class CumprodScan(_LossRepresentation):
         sigma: "np.ndarray",
         boundary_cot: "BoundaryField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicComposite | None]":
+        seed_cot: "RadialCharacteristicField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicField | None]":
         r"""The transpose-solve ``(L+C)⁻ᵀ`` — the REVERSE-SCAN (#280 2.5b).
 
         The solve-scan frame's adjoint: the transpose sibling of :meth:`sweep`
@@ -1349,8 +1349,8 @@ class CumprodScan(_LossRepresentation):
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
         *,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""1-D forward loss action ``(L+C)ψ`` — the geometry-blind spatial sum.
 
@@ -1371,8 +1371,8 @@ class CumprodScan(_LossRepresentation):
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-        seed_cot_out: "RadialCharacteristicComposite | None" = None,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the reverse spatial sum.
 
@@ -1448,8 +1448,8 @@ class _DAGWavefront(_LossRepresentation):
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-        seed_cot_out: "RadialCharacteristicComposite | None" = None,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""The multi-D Cartesian adjoint is DEFERRED (shared by both policies).
 
@@ -1500,8 +1500,8 @@ class MovingFrontierWindow(_DAGWavefront):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         _refuse_radial_characteristic(
             "MovingFrontierWindow.sweep",
@@ -1607,8 +1607,8 @@ class MovingFrontierWindow(_DAGWavefront):
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
         *,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""2-D Cartesian forward loss action ``(L+C)ψ`` via the rolling-frontier window.
 
@@ -1817,8 +1817,8 @@ class FullFieldWavefront(_DAGWavefront):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         _refuse_radial_characteristic(
             "FullFieldWavefront.sweep",
@@ -1910,8 +1910,8 @@ class FullFieldWavefront(_DAGWavefront):
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
         *,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""Forward loss action ORACLE ``(L+C)ψ`` — the full-field DAG walk (d-generic).
 
@@ -2078,8 +2078,8 @@ class ScanMarch(_LossRepresentation):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         if self.mesh.is_1d:
             # d=1 ⇒ ``scan(x)`` with no transverse march: the unified 1-D body
@@ -2237,8 +2237,8 @@ class ScanMarch(_LossRepresentation):
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
         *,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""Forward loss action ``(L+C)ψ`` — the row-march apply (L21: sweep & matvec, ONE operator).
 
@@ -2349,8 +2349,8 @@ class ScanMarch(_LossRepresentation):
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-        seed_cot_out: "RadialCharacteristicComposite | None" = None,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         """Adjoint loss action — 1-D wired ``(L+C)ᵀφ``; multi-D Cartesian deferred."""
         if self.mesh.is_1d:
@@ -2469,8 +2469,8 @@ def transport_sweep(
     boundary_flux: "AngularBoundaryFlux",
     *,
     moment_frame: "FrameBase | None" = None,
-    radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
-    radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+    radial_characteristic_source: "RadialCharacteristicField | None" = None,
+    radial_characteristic_flux: "RadialCharacteristicField | None" = None,
 ) -> "tuple[np.ndarray, np.ndarray | None]":
     """Perform one full transport sweep.
 
@@ -2587,25 +2587,25 @@ def transport_sweep(
     # #282 route (a): on a carrying mesh (R12a) the operator-free entry is
     # self-sufficient — it folds the source into the q½ composite and
     # allocates the ψ½ flux composite (the ONE fold factory,
-    # ``RadialCharacteristicComposite.source_from_angular``) unless the
+    # ``RadialCharacteristicField.source_from_angular``) unless the
     # caller supplied the pair.  ``InvertibleOperator.solve`` REQUIRES the
     # explicit pair (B.2d — the joint inverse's leaf-kwarg legs); this
     # operator-free entry stays self-deriving because its callers (the
     # final eigenvalue reconstruction) hand it a bare source with no
     # System-B state yet.
     if (
-        getattr(sn_mesh, "radial_characteristic_composite_space", None) is not None
+        getattr(sn_mesh, "radial_characteristic_field_space", None) is not None
         and radial_characteristic_source is None
         and radial_characteristic_flux is None
     ):
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
 
         radial_characteristic_source = (
-            RadialCharacteristicComposite.source_from_angular(Q, sn_mesh)
+            RadialCharacteristicField.source_from_angular(Q, sn_mesh)
         )
-        radial_characteristic_flux = RadialCharacteristicComposite.from_mesh(sn_mesh)
+        radial_characteristic_flux = RadialCharacteristicField.from_mesh(sn_mesh)
     # S6.4(f): selector and orchestration share this module — the historical
     # sweep ↔ loss_representation lazy-import cycle is GONE.
     return default_for(sn_mesh).sweep(
@@ -2853,7 +2853,7 @@ class _OneDimScanWalk:
     # lower-triangular: the #282 back edge is dead by construction.
 
     def _seed_rows_forward(
-        self, sigma: "np.ndarray", seed: "RadialCharacteristicComposite",
+        self, sigma: "np.ndarray", seed: "RadialCharacteristicField",
     ) -> "tuple[np.ndarray, np.ndarray]":
         r"""Forward ``(L+C)`` action on the starting-direction block — a thin
         wrapper over the single-sourced
@@ -2881,7 +2881,7 @@ class _OneDimScanWalk:
     def _seed_rows_transpose(
         self,
         sigma: "np.ndarray",
-        chi_seed: "RadialCharacteristicComposite",
+        chi_seed: "RadialCharacteristicField",
         seed_cells_bar: "dict[int, np.ndarray]",
     ) -> "tuple[np.ndarray, np.ndarray]":
         r"""Euclidean transpose of :meth:`_seed_rows_forward` (+ the
@@ -2920,8 +2920,8 @@ class _OneDimScanWalk:
         sig_t: np.ndarray,
         boundary_flux: "AngularBoundaryFlux",
         *,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         r"""Geometry-blind 1-D SN sweep — three numpy tensor ops per ordinate.
 
@@ -2984,8 +2984,8 @@ class _OneDimScanWalk:
         sigma: np.ndarray,
         boundary_cot: "BoundaryField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicComposite | None]":
+        seed_cot: "RadialCharacteristicField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicField | None]":
         r"""The transpose-solve :math:`(L+C)^{-\mathsf T}` — the REVERSE-SCAN.
 
         The solve-scan frame's adjoint (#280 Phase 2.5b): the transpose sibling
@@ -3005,8 +3005,8 @@ class _OneDimScanWalk:
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
         *,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""1-D forward loss action ``(L+C)ψ`` — the matvec, apply direction.
 
@@ -3036,7 +3036,7 @@ class _OneDimScanWalk:
                 "(A,A) block action)."
             ),
         )
-        if self.mesh.radial_characteristic_composite_space is None:
+        if self.mesh.radial_characteristic_field_space is None:
             _refuse_radial_characteristic(
                 "_OneDimScanWalk.loss_action",
                 radial_characteristic_source, radial_characteristic_flux,
@@ -3061,7 +3061,7 @@ class _OneDimScanWalk:
 
     def _apply_walk(
         self, sigma: "np.ndarray", psi: "FullField",
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, AngularBoundarySourceSink, tuple[np.ndarray, np.ndarray] | None]":
         r"""The 1-D apply-direction walk — the fused ``(L+C)ψ`` single emission.
 
@@ -3177,12 +3177,12 @@ class _OneDimScanWalk:
         # consumes the INTERIOR member only (its ``.cells(p, -1)`` read —
         # the M-M recurrence seed lives on the marched cells).
         seed_field = radial_characteristic_flux
-        if seed_field is None and sn_mesh.radial_characteristic_composite_space is not None:
-            from orpheus.transport.radial_characteristic_composite import (
-                RadialCharacteristicComposite,
+        if seed_field is None and sn_mesh.radial_characteristic_field_space is not None:
+            from orpheus.transport.radial_characteristic_field import (
+                RadialCharacteristicField,
             )
 
-            seed_field = RadialCharacteristicComposite.from_mesh(sn_mesh)
+            seed_field = RadialCharacteristicField.from_mesh(sn_mesh)
         psi_state = pole_angular_closure.precompute_psi_state(
             psi_view,
             radial_characteristic=(
@@ -3425,8 +3425,8 @@ class _OneDimScanWalk:
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-        seed_cot_out: "RadialCharacteristicComposite | None" = None,
+        seed_cot: "RadialCharacteristicField | None" = None,
+        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the matvec transpose.
 
@@ -3527,7 +3527,7 @@ class _OneDimScanWalk:
                 "ray-decoupled (A,A)ᵀ block action)."
             ),
         )
-        if sn_mesh.radial_characteristic_composite_space is None:
+        if sn_mesh.radial_characteristic_field_space is None:
             _refuse_radial_characteristic(
                 "_OneDimScanWalk.loss_action_transpose", seed_cot, None,
             )
@@ -3760,8 +3760,8 @@ class _OneDimScanWalk:
         geom: GeometryCoefficients,
         coll: CollisionCache,
         *,
-        radial_characteristic_source: "RadialCharacteristicComposite | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicComposite | None" = None,
+        radial_characteristic_source: "RadialCharacteristicField | None" = None,
+        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Inner body of the unified 1-D sweep.
 
@@ -4409,8 +4409,8 @@ class _OneDimScanWalk:
         geom: GeometryCoefficients,
         coll: CollisionCache,
         *,
-        seed_cot: "RadialCharacteristicComposite | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicComposite | None]":
+        seed_cot: "RadialCharacteristicField | None" = None,
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicField | None]":
         r"""The REVERSE-SCAN — :math:`(L+C)^{-\mathsf T}` on the composite cotangent.
 
         The Euclidean transpose-solve (#280 Phase 2.5b): the reverse-mode
@@ -4787,8 +4787,8 @@ class _OneDimScanWalk:
             assert seed_cot is not None
             assert seed_bar_interior is not None
             assert seed_bar_boundary is not None
-            from orpheus.transport.radial_characteristic_composite import (
-                RadialCharacteristicComposite,
+            from orpheus.transport.radial_characteristic_field import (
+                RadialCharacteristicField,
             )
             from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
                 RadialCharacteristicBoundarySourceSink,
@@ -4797,7 +4797,7 @@ class _OneDimScanWalk:
                 RadialCharacteristicInteriorSourceSink,
             )
 
-            m_seed = RadialCharacteristicComposite(
+            m_seed = RadialCharacteristicField(
                 interior=RadialCharacteristicInteriorSourceSink(
                     values=seed_bar_interior,
                     space=seed_cot.interior.space,

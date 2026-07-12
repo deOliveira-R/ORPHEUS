@@ -53,7 +53,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.radial_characteristic_composite import RadialCharacteristicComposite
+from orpheus.transport.radial_characteristic_field import RadialCharacteristicField
 
 
 def _random_state(
@@ -421,11 +421,11 @@ class TestSolve:
         )
 
         q = _const_state(sn, value=1.0)
-        flux_buf = RadialCharacteristicComposite.from_mesh(sn)
+        flux_buf = RadialCharacteristicField.from_mesh(sn)
         psi = invertible.solve(
             q,
             radial_characteristic_source=(
-                RadialCharacteristicComposite.source_from_angular(
+                RadialCharacteristicField.source_from_angular(
                     q.interior.values, sn,
                 )
             ),
@@ -908,9 +908,9 @@ class TestInvertibleSolveBridgeRegression:
             _history=(),
             history_depth=2,
         )
-        carrying = sn_mesh.radial_characteristic_composite_space is not None
+        carrying = sn_mesh.radial_characteristic_field_space is not None
         q_half = (
-            RadialCharacteristicComposite.source_from_angular(
+            RadialCharacteristicField.source_from_angular(
                 q_per_ord, sn_mesh,
             )
             if carrying else None
@@ -940,7 +940,7 @@ class TestInvertibleSolveBridgeRegression:
         def _joint_solve(rhs_a, q_seed, guess):
             if not carrying:
                 return LC.solve(rhs_a, initial_guess=guess), None
-            buf = RadialCharacteristicComposite.from_mesh(sn_mesh)
+            buf = RadialCharacteristicField.from_mesh(sn_mesh)
             out = LC.solve(
                 rhs_a, initial_guess=guess,
                 radial_characteristic_source=q_seed,
@@ -949,7 +949,7 @@ class TestInvertibleSolveBridgeRegression:
             return out, buf
 
         psi_typed: TimedFullField | None = None
-        flux_prev: RadialCharacteristicComposite | None = None
+        flux_prev: RadialCharacteristicField | None = None
         for _ in range(400):
             if psi_typed is None:
                 psi_new, flux_new = _joint_solve(rhs, q_half, None)

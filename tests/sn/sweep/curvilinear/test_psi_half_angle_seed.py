@@ -8,7 +8,7 @@ The full retirement narrative lives in the production module docstring of
 
 #282 route (a) (#280 Phase 2.5d, 2026-07-04) **retired the whole strategy
 zoo**: the starting-direction flux is now first-class STATE (the
-``RadialCharacteristicField`` block of the augmented composite), the SOLVE
+``RadialCharacteristicField`` System-B composite of the coupled state), the SOLVE
 marches it directly from the TRUE q½ source, and the APPLY reads the given
 carrier.  What SURVIVES as the direct engine is the free function
 :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`

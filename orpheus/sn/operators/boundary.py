@@ -73,8 +73,8 @@ if TYPE_CHECKING:
     )
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
     from orpheus.transport.source_sinks import (
         AngularBoundarySourceSink,
@@ -489,8 +489,8 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     2×2 coupled block operator — the ψ½ ray). A first-class sibling of
     :class:`SNBoundaryOperator` (``B_a``, System A's trace boundary), typed —
     since the B.2b re-type — on **System B's own carrier**: domain = codomain =
-    ``sn_mesh.radial_characteristic_composite_space``, acting
-    ``RadialCharacteristicComposite → RadialCharacteristicComposite`` (reads
+    ``sn_mesh.radial_characteristic_field_space``, acting
+    ``RadialCharacteristicField → RadialCharacteristicField`` (reads
     the boundary member's FLUX corners, emits boundary-member SOURCE corners;
     the interior member is a zero source — "B_b touches the trace/bulk" is now
     UNSPELLABLE, Pattern 4). The system's boundary is still the direct sum of
@@ -545,10 +545,10 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     system_role = SystemRole.B
 
     def __init__(self, sn_mesh: "SNMesh") -> None:
-        if sn_mesh.radial_characteristic_composite_space is None:
+        if sn_mesh.radial_characteristic_field_space is None:
             raise ValueError(
                 "RadialCharacteristicBoundaryOperator: the mesh carries no "
-                "ψ½ ray (radial_characteristic_composite_space is None) — a "
+                "ψ½ ray (radial_characteristic_field_space is None) — a "
                 "seedless mesh (Cartesian / cylinder, R12a) has no System B, "
                 "hence no ray-corner boundary block. B_b exists only on a "
                 "seed-carrying mesh (the sphere)."
@@ -572,11 +572,11 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         # The B.2c CoupledOperator grid type-checks the (B, B) placement
         # against it; the FullField-summed production ``B = B_a + B_b`` rides
         # the transient adapter, which declares ``full_field_space``.
-        return self.sn_mesh.radial_characteristic_composite_space
+        return self.sn_mesh.radial_characteristic_field_space
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        return self.sn_mesh.radial_characteristic_composite_space
+        return self.sn_mesh.radial_characteristic_field_space
 
     def _reflect_corner(
         self, seed: "RadialCharacteristicBoundaryField", method: str,
@@ -636,8 +636,8 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         return out
 
     def _apply_faces(
-        self, ray: "RadialCharacteristicComposite", method: str,
-    ) -> "RadialCharacteristicComposite":
+        self, ray: "RadialCharacteristicField", method: str,
+    ) -> "RadialCharacteristicField":
         r"""``B_b`` on System B's own carrier: the ray-corner action
         :meth:`_reflect_corner` on the boundary member, a zero-source interior.
 
@@ -650,8 +650,8 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         from orpheus.transport.fields.radial_characteristic_boundary_flux import (
             RadialCharacteristicBoundaryFlux,
         )
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
         from orpheus.transport.source_sinks import (
             RadialCharacteristicInteriorSourceSink,
@@ -660,7 +660,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         mesh = self.sn_mesh
         # The shared System-B block-boundary parse (carrier class +
         # mesh-identity — one parse body across A_BB / A_AB / B_b, B.2c).
-        RadialCharacteristicComposite.require_member(
+        RadialCharacteristicField.require_member(
             ray,
             mesh=mesh,
             context=f"RadialCharacteristicBoundaryOperator.{method}",
@@ -676,18 +676,18 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
                 f"boundary must be a RadialCharacteristicBoundaryFlux corner; "
                 f"got {type(ray.boundary).__name__}."
             )
-        return RadialCharacteristicComposite(
+        return RadialCharacteristicField(
             interior=RadialCharacteristicInteriorSourceSink.zeros_on(mesh),
             boundary=self._reflect_corner(ray.boundary, method),
         )
 
-    def apply(self, ray: "RadialCharacteristicComposite") -> "RadialCharacteristicComposite":
+    def apply(self, ray: "RadialCharacteristicField") -> "RadialCharacteristicField":
         r"""Forward action ``B_b·ψ½`` — the ray-corner reflection on System B."""
         return self._apply_faces(ray, "apply")
 
     def apply_transpose(
-        self, ray: "RadialCharacteristicComposite",
-    ) -> "RadialCharacteristicComposite":
+        self, ray: "RadialCharacteristicField",
+    ) -> "RadialCharacteristicField":
         r"""Euclidean transpose ``B_bᵀ·ψ½`` — the mirror-image corner swap.
 
         Reachable iff the outer ray-face law is adjointable (see
@@ -697,7 +697,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         return self._apply_faces(ray, "apply_transpose")
 
     def reflect_corner_inplace(
-        self, radial_characteristic: "RadialCharacteristicComposite",
+        self, radial_characteristic: "RadialCharacteristicField",
     ) -> None:
         r"""In place: overwrite the ψ½ inflow-corner slots with the law's corner
         action on its OUTFLOW corners — ``ψ½.corner(p, −1) ← (B_b·ψ½).corner(p,

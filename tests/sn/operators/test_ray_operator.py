@@ -26,7 +26,7 @@ hazard). The engine ``carlson_inward_sweep_from_source`` carries its OWN
 closed-form convergence gate in
 ``tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py::TestB1DirectSolverClosedForm``;
 THIS module is the operator-level anchor — it exercises the WRAP layer (the
-``RadialCharacteristicComposite`` interior/boundary member views, the
+``RadialCharacteristicField`` interior/boundary member views, the
 source-block reading, the composite flux output) that the bare-engine gate
 never touches.
 
@@ -55,8 +55,8 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
 from orpheus.transport.fields.cross_section_field import CrossSectionField
-from orpheus.transport.radial_characteristic_composite import (
-    RadialCharacteristicComposite,
+from orpheus.transport.radial_characteristic_field import (
+    RadialCharacteristicField,
 )
 
 pytestmark = pytest.mark.l1
@@ -123,7 +123,7 @@ def _solve_inward_cells(edges: np.ndarray) -> np.ndarray:
     op = RadialCharacteristicOperator(sn, CrossSectionField.from_mesh(sigma_t, sn))
     # System B's SOURCE composite (4e native — the block boundary speaks the
     # split member directly; no unified bridge).
-    src = RadialCharacteristicComposite.source_zeros_on(sn)
+    src = RadialCharacteristicField.source_zeros_on(sn)
     for g in range(_NG):
         # q½ built DIRECTLY (uniform q̄ per group) — NOT via the R14 fold (step 2).
         src.interior.cells(0, -1)[g, :] = _Q[g]

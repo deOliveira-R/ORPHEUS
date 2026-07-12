@@ -391,14 +391,14 @@ def _expected_coupled_restart(sn) -> tuple[int, int]:
     arithmetic independent of the driver's own ``to_flat`` read (the d2
     count pin above proves the decomposition; HERE the sum is the oracle
     for the SITE plumbing)."""
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
 
     bulk = int(sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape)))
     trace = int(sn.angular_trace.layout.total_size)
     size_b = int(np.asarray(
-        RadialCharacteristicComposite.from_mesh(sn).to_flat(),
+        RadialCharacteristicField.from_mesh(sn).to_flat(),
     ).size)
     return bulk + trace + size_b, bulk
 

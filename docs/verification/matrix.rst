@@ -429,7 +429,7 @@ Module × level grid
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 22, 0
-   transport/test_radial_characteristic_composite, 0, 0, 0, 0, 20, 0
+   transport/test_radial_characteristic_field, 0, 0, 0, 0, 20, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
 

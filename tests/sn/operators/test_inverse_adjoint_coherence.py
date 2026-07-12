@@ -451,29 +451,29 @@ def _coupled_M(sn):
     from orpheus.sn.coupled_system import CoupledInvertibleOperator
 
     space = CoupledSpace.from_systems(
-        (sn.full_field_space, sn.radial_characteristic_composite_space),
+        (sn.full_field_space, sn.radial_characteristic_field_space),
     )
     return CoupledInvertibleOperator(_loss(sn), space=space, sn_mesh=sn), space
 
 
 def _coupled_bulk_b(sn, seed: int):
     from orpheus.numerics.coupled_system import CoupledField
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
 
     b = _rand_bulk(sn, seed)
-    return CoupledField(systems=(b, RadialCharacteristicComposite.from_mesh(sn)))
+    return CoupledField(systems=(b, RadialCharacteristicField.from_mesh(sn)))
 
 
 def _coupled_full_psi(sn, seed: int):
     from orpheus.numerics.coupled_system import CoupledField
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
 
     psi = _rand_full(sn, seed)
-    return CoupledField(systems=(psi, RadialCharacteristicComposite.from_mesh(sn)))
+    return CoupledField(systems=(psi, RadialCharacteristicField.from_mesh(sn)))
 
 
 def test_carrying_fused_wrap_refuses_and_the_coupled_sibling_carries():
@@ -602,15 +602,15 @@ def _coupled_rand_pair(sn, seed: int):
     random System-B member) — the grid's coupling columns must enter the
     pairing, unlike the zero-member vectors the M rows use."""
     from orpheus.numerics.coupled_system import CoupledField
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
 
     rng = np.random.default_rng(seed)
-    ns = sn.radial_characteristic_composite_space.shape[0]
-    member = RadialCharacteristicComposite.from_flat(
+    ns = sn.radial_characteristic_field_space.shape[0]
+    member = RadialCharacteristicField.from_flat(
         rng.standard_normal(ns),
-        RadialCharacteristicComposite.from_mesh(sn),
+        RadialCharacteristicField.from_mesh(sn),
     )
     return CoupledField(systems=(_rand_full(sn, seed + 1000), member))
 

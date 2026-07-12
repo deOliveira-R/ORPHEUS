@@ -40,7 +40,7 @@ import numpy as np
 
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-from tests.sn._test_helpers import random_radial_characteristic_composite
+from tests.sn._test_helpers import random_radial_characteristic_field
 from tests.sn.operators.test_g_adjoint_reciprocity import (
     _make_cyl,
     _make_slab,
@@ -78,9 +78,9 @@ def _draw_with_seed(sn, rng):
     explicit legs (``None`` on non-carrying meshes). Phase C 4e retired the
     unified ψ½ leaf: the seed draw is the split-native composite whose
     per-slot values are bit-faithful to the retired unified single-buffer
-    fill (see :func:`~tests.sn._test_helpers.random_radial_characteristic_composite`)."""
+    fill (see :func:`~tests.sn._test_helpers.random_radial_characteristic_field`)."""
     composite = _random_composite(sn, rng)
-    seed_leaf = random_radial_characteristic_composite(sn, rng)
+    seed_leaf = random_radial_characteristic_field(sn, rng)
     return composite, seed_leaf
 
 
@@ -111,15 +111,15 @@ def run_case(case: WalkMatvecCase) -> dict[str, np.ndarray]:
         fwd = lc.apply(psi)
         adj = lc.apply_transpose(phi)
     else:
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
 
         fwd = lc.apply(
             psi,
             radial_characteristic_flux=psi_seed,
             radial_characteristic_source=(
-                RadialCharacteristicComposite.source_zeros_on(sn)
+                RadialCharacteristicField.source_zeros_on(sn)
             ),
         )
         # phi's ψ½ composite rides the role-erased ``seed_cot`` leg (exactly
@@ -127,7 +127,7 @@ def run_case(case: WalkMatvecCase) -> dict[str, np.ndarray]:
         adj = lc.apply_transpose(
             phi,
             seed_cot=phi_seed,
-            seed_cot_out=RadialCharacteristicComposite.source_zeros_on(sn),
+            seed_cot_out=RadialCharacteristicField.source_zeros_on(sn),
         )
     return {
         "fwd_bulk": np.asarray(fwd.interior.values, dtype=np.float64),

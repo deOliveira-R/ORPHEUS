@@ -245,15 +245,15 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     if seed_leg is None:
         out = L.apply(state) + C.apply(state)
     else:
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
 
         out = L.apply(
             state,
             radial_characteristic_flux=seed_leg,
             radial_characteristic_source=(
-                RadialCharacteristicComposite.source_zeros_on(sn_mesh)
+                RadialCharacteristicField.source_zeros_on(sn_mesh)
             ),
         ) + C.apply(state)
 

@@ -128,8 +128,8 @@ from orpheus.transport.fields.radial_characteristic_interior_flux import (
     RadialCharacteristicInteriorFlux,
 )
 from orpheus.transport.full_field import FullField
-from orpheus.transport.radial_characteristic_composite import (
-    RadialCharacteristicComposite,
+from orpheus.transport.radial_characteristic_field import (
+    RadialCharacteristicField,
 )
 from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
     RadialCharacteristicBoundarySourceSink,
@@ -194,7 +194,7 @@ def _template(sn):
 def _coupled_template(sn):
     """A zero coupled pair ``[ψ_A 2-block, ψ_B]`` to seed JOINT dense probes."""
     return CoupledField(systems=(
-        _template(sn), RadialCharacteristicComposite.from_mesh(sn)))
+        _template(sn), RadialCharacteristicField.from_mesh(sn)))
 
 
 def _pair(sn, psi_a, ray_values):
@@ -209,7 +209,7 @@ def _joint_M(sn, LC):
     from orpheus.numerics.coupled_system import CoupledSpace as _CS
 
     space = _CS.from_systems(
-        (sn.full_field_space, sn.radial_characteristic_composite_space))
+        (sn.full_field_space, sn.radial_characteristic_field_space))
     return CoupledInvertibleOperator(LC, space=space, sn_mesh=sn)
 
 
@@ -234,7 +234,7 @@ def _blocks(sn):
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     nb = N * ng * nx
     nt = int(sn.angular_trace.layout.total_size)
-    ns = sn.radial_characteristic_composite_space.shape[0]
+    ns = sn.radial_characteristic_field_space.shape[0]
     return slice(0, nb), slice(nb, nb + nt), slice(nb + nt, nb + nt + ns), (nb, nt, ns)
 
 
@@ -420,7 +420,7 @@ def _zero_composite(sn) -> FullField:
     return _template(sn)
 
 
-def _seed_leaf(sn, seed_values: NDArray) -> RadialCharacteristicComposite:
+def _seed_leaf(sn, seed_values: NDArray) -> RadialCharacteristicField:
     """A ψ½ FLUX composite over the given composite-``to_flat``-order values (the
     walk currency; 4e — replaces the retired unified flux leaf)."""
     return _ray_composite(sn, seed_values)
@@ -439,24 +439,24 @@ def _random_composite(sn, rng) -> FullField:
 
 def _random_pair(sn, rng) -> CoupledField:
     """A random coupled pair ``[ψ_A 2-block, ψ_B]`` (every block non-zero)."""
-    ns = sn.radial_characteristic_composite_space.shape[0]
+    ns = sn.radial_characteristic_field_space.shape[0]
     return _pair(sn, _random_composite(sn, rng), rng.standard_normal(ns))
 
 
-def _ray_composite(sn, seed_values: NDArray) -> RadialCharacteristicComposite:
+def _ray_composite(sn, seed_values: NDArray) -> RadialCharacteristicField:
     """System B's FLUX carrier from a composite-``to_flat``-order flat array (4e
     native; ``from_flat`` over a zero flux composite — the split members are the
     interior ⊕ boundary blocks)."""
-    return RadialCharacteristicComposite.from_flat(
+    return RadialCharacteristicField.from_flat(
         np.asarray(seed_values, dtype=float),
-        RadialCharacteristicComposite.from_mesh(sn))
+        RadialCharacteristicField.from_mesh(sn))
 
 
 def _dense_ray(fn, sn) -> NDArray:
     """Densify a System-B block (composite → composite) by probing the composite
     ``to_flat`` basis — self-consistent in the composite (interior ⊕ boundary)
     layout (4e; the retired unified layout is gone)."""
-    ns = sn.radial_characteristic_composite_space.shape[0]
+    ns = sn.radial_characteristic_field_space.shape[0]
     M = np.zeros((ns, ns))
     for j in range(ns):
         e = np.zeros(ns)
@@ -526,8 +526,8 @@ class TestBoundaryUnweld:
         # The BLOCK's structural half: composite in/out, SOURCE members out.
         block_out = block.apply(
             _seed_leaf(
-                sn, rng.standard_normal(sn.radial_characteristic_composite_space.shape[0])))
-        if type(block_out) is not RadialCharacteristicComposite:
+                sn, rng.standard_normal(sn.radial_characteristic_field_space.shape[0])))
+        if type(block_out) is not RadialCharacteristicField:
             pytest.fail(f"B_b block returned {type(block_out).__name__}")
         if type(block_out.interior) is not RadialCharacteristicInteriorSourceSink:
             pytest.fail(f"B_b interior member is {type(block_out.interior).__name__} "
@@ -671,7 +671,7 @@ class TestB_b_RayBoundary:
         B.2b: probed on System B's OWN carrier; the unified view of the output
         (the role-preserving bridge) keeps the pre-B.2b assertions bitwise."""
         sn = _sphere(bc="reflective")
-        ns = sn.radial_characteristic_composite_space.shape[0]
+        ns = sn.radial_characteristic_field_space.shape[0]
         seed_vals = np.random.default_rng(6).standard_normal(ns)
         seed = _ray_composite(sn, seed_vals)
         out = RadialCharacteristicBoundaryOperator(sn).apply(seed)
@@ -740,7 +740,7 @@ class TestB_b_RayBoundary:
         re-emission at the outer ray). Positive law (anti-#11)."""
         sn = _sphere(bc="vacuum")
         seed_vals = np.random.default_rng(10).standard_normal(
-            sn.radial_characteristic_composite_space.shape[0])
+            sn.radial_characteristic_field_space.shape[0])
         out = RadialCharacteristicBoundaryOperator(sn).apply(_ray_composite(sn, seed_vals))
         np.testing.assert_array_equal(
             out.to_flat(), 0.0,
@@ -755,7 +755,7 @@ class TestB_b_RayBoundary:
         B_b = RadialCharacteristicBoundaryOperator(sn)  # construct BEFORE the patch
         monkeypatch.setattr(sn.bc["xmax"], "kind", "white")
         seed_vals = np.random.default_rng(12).standard_normal(
-            sn.radial_characteristic_composite_space.shape[0])
+            sn.radial_characteristic_field_space.shape[0])
         with pytest.raises(NotImplementedError, match="no ruled corner action yet"):
             B_b.apply(_ray_composite(sn, seed_vals))
 
@@ -829,28 +829,28 @@ def _ray_sigma(sn, slope: float = 0.3) -> CrossSectionField:
     return CrossSectionField.from_mesh(raw, sn)
 
 
-def _ray_source(sn, rng) -> RadialCharacteristicComposite:
+def _ray_source(sn, rng) -> RadialCharacteristicField:
     """A random q½ SOURCE composite on ``sn``'s ray carrier (all slots non-zero)."""
-    ns = sn.radial_characteristic_composite_space.shape[0]
-    return RadialCharacteristicComposite.from_flat(
+    ns = sn.radial_characteristic_field_space.shape[0]
+    return RadialCharacteristicField.from_flat(
         rng.standard_normal(ns),
-        RadialCharacteristicComposite.source_zeros_on(sn))
+        RadialCharacteristicField.source_zeros_on(sn))
 
 
-def _ray_cotangent(sn, rng) -> RadialCharacteristicComposite:
+def _ray_cotangent(sn, rng) -> RadialCharacteristicField:
     """A random flux-space cotangent (the solve's codomain) on ``sn``'s carrier."""
-    ns = sn.radial_characteristic_composite_space.shape[0]
+    ns = sn.radial_characteristic_field_space.shape[0]
     return _ray_composite(sn, rng.standard_normal(ns))
 
 
-def _member(x) -> RadialCharacteristicComposite:
+def _member(x) -> RadialCharacteristicField:
     """Identity passthrough (4e — System B's split composite is the native
     carrier now; the pre-4e ``from_unified`` bridge from a unified leaf is
     retired)."""
     return x
 
 
-def _two_leg_reference(op, source) -> RadialCharacteristicComposite:
+def _two_leg_reference(op, source) -> RadialCharacteristicField:
     r"""Replicate ``A_BB.solve``'s two-leg march with the REAL engine — the WRAP
     oracle for the bit-identity gate. Calls ``carlson_inward_sweep_from_source``
     (the test-module imported name, UNPATCHED when the operator's module attr is
@@ -859,7 +859,7 @@ def _two_leg_reference(op, source) -> RadialCharacteristicComposite:
     sn = op.sn_mesh
     sigma = op.total_cross_section.values
     dr = np.asarray(sn.axis_widths[0])
-    out = RadialCharacteristicComposite.from_mesh(sn)
+    out = RadialCharacteristicField.from_mesh(sn)
     for lv in sn.radial_characteristic_levels:
         q_minus = source.interior.cells(lv, -1)
         q_plus = source.interior.cells(lv, +1)
@@ -1081,8 +1081,8 @@ class TestA_BB_RadialBVP:
         the interior; equal interiors would mean the Dirichlet datum is ignored."""
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
-        s0 = RadialCharacteristicComposite.source_zeros_on(sn)
-        s1 = RadialCharacteristicComposite.source_zeros_on(sn)
+        s0 = RadialCharacteristicField.source_zeros_on(sn)
+        s1 = RadialCharacteristicField.source_zeros_on(sn)
         for s in (s0, s1):
             for lv in sn.radial_characteristic_levels:
                 s.interior.cells(lv, -1)[...] = 0.5     # identical cells
@@ -1111,8 +1111,8 @@ class TestA_BB_RadialBVP:
             _rc_mod, "carlson_inward_sweep_from_source", ignore_bc)
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
-        s0 = RadialCharacteristicComposite.source_zeros_on(sn)
-        s1 = RadialCharacteristicComposite.source_zeros_on(sn)
+        s0 = RadialCharacteristicField.source_zeros_on(sn)
+        s1 = RadialCharacteristicField.source_zeros_on(sn)
         for s in (s0, s1):
             s.interior.cells(0, -1)[...] = 0.5
         s1.boundary.corner(0, -1)[...] = 3.0
@@ -1139,7 +1139,7 @@ class TestA_BB_RadialBVP:
         sig = sigma.values                           # (ng, nx) for the σ·C source
         op = RadialCharacteristicOperator(sn, sigma)
         C = np.array([0.5, 1.3])                     # distinct per-group equilibrium
-        src = RadialCharacteristicComposite.source_zeros_on(sn)
+        src = RadialCharacteristicField.source_zeros_on(sn)
         for g in range(sn.ng):
             for sign in (-1, +1):                    # BOTH legs' cells source = σ·C
                 src.interior.cells(0, sign)[g, :] = sig[g] * C[g]
@@ -1182,9 +1182,9 @@ class TestA_BB_RadialBVP:
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
-        if cyl.radial_characteristic_composite_space is not None:
+        if cyl.radial_characteristic_field_space is not None:
             pytest.fail("the cylinder carries a ray space — CONTROL invalid.")
-        if slab.radial_characteristic_composite_space is not None:
+        if slab.radial_characteristic_field_space is not None:
             pytest.fail("the slab carries a ray space — CONTROL invalid.")
         # The seedless guard fires before σ_t is read (a valid field on the mesh).
         with pytest.raises(ValueError, match="carries no starting-direction ray"):
@@ -1335,24 +1335,24 @@ class TestA_BB_Forward:
         rng = np.random.default_rng(7)
         src = _member(_ray_source(sn, rng))
         cot = _member(_ray_cotangent(sn, rng))
-        if op.domain is not sn.radial_characteristic_composite_space:
+        if op.domain is not sn.radial_characteristic_field_space:
             pytest.fail("A_BB.domain is not THE composite member-space object "
                         "(F2: == cannot see a unified-typed block).")
-        if op.codomain is not sn.radial_characteristic_composite_space:
+        if op.codomain is not sn.radial_characteristic_field_space:
             pytest.fail("A_BB.codomain is not THE composite member-space object.")
         for name, out in (
             ("apply", op.apply(cot)),
             ("apply_transpose", op.apply_transpose(cot)),
             ("solve_transpose", op.solve_transpose(cot)),
         ):
-            if type(out) is not RadialCharacteristicComposite:
+            if type(out) is not RadialCharacteristicField:
                 pytest.fail(f"{name} did not emit the member composite; got "
                             f"{type(out).__name__}.")
             if type(out.interior) is not RadialCharacteristicInteriorSourceSink:
                 pytest.fail(f"{name} did not emit SOURCE members; got "
                             f"{type(out.interior).__name__}.")
         out_solve = op.solve(src)
-        if type(out_solve) is not RadialCharacteristicComposite:
+        if type(out_solve) is not RadialCharacteristicField:
             pytest.fail("solve did not emit the member composite.")
         if type(out_solve.interior) is not RadialCharacteristicInteriorFlux:
             pytest.fail(f"solve did not emit FLUX members; got "
@@ -1369,7 +1369,7 @@ class TestA_BB_Forward:
     def test_b2c_member_value_rows_have_teeth(self, monkeypatch):
         r"""TEETH for the G-c1.1 value rows (4e RE-AIM).
 
-        The pre-4e teeth patched ``RadialCharacteristicComposite.from_unified``
+        The pre-4e teeth patched ``RadialCharacteristicField.from_unified``
         (a bridge-drop → the container gate reds; a bridge-corruption → the
         value moves). Phase C 4e retired the unified leaf and its bridge, so
         that mechanism has no referent. Successors:
@@ -1473,7 +1473,7 @@ def _ba_oldloop_reference(emission: NDArray, sn) -> NDArray:
     Step-2 un-weld MUST reproduce this byte-for-byte (``np.array_equal``),
     inheriting verification from the ℓ-fold contract gate (vv §Bit-identity: free
     verification by inheritance from a verified reference)."""
-    ref = RadialCharacteristicComposite.source_zeros_on(sn)
+    ref = RadialCharacteristicField.source_zeros_on(sn)
     for lv in sn.radial_characteristic_levels:
         for sign in (-1, +1):
             ref.interior.cells(lv, sign)[:] = (
@@ -1714,7 +1714,7 @@ class TestA_BA_SchurFold:
                    bc_left=BC("reflective")),
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         for tag, sn in (("cylinder", cyl), ("slab", slab)):
-            if sn.radial_characteristic_composite_space is not None:
+            if sn.radial_characteristic_field_space is not None:
                 pytest.fail(f"{tag} carries a ray space — the non-carrying CONTROL is invalid.")
             N, nx, ng = sn.quad.N, sn.nx, sn.ng
             n_tr = int(sn.angular_trace.layout.total_size)
@@ -1761,7 +1761,7 @@ class TestA_BA_SchurFold:
         sn = _sphere()
         rng = np.random.default_rng(80)
         emission = rng.standard_normal((sn.ng, sn.nx))
-        y = rng.standard_normal(sn.radial_characteristic_composite_space.shape[0])
+        y = rng.standard_normal(sn.radial_characteristic_field_space.shape[0])
         fwd = _apply_A_BA(emission, sn)
         bwd = _apply_A_BA_transpose(y, sn)
         lhs = float(fwd @ y)
@@ -1879,9 +1879,9 @@ class TestCoupledLift:
         # (G-b3.1 (ii)) + the nonzero folded cells; the boundary member is a
         # REAL zero (the fold writes cells only).
         a_out = _a_ba_scatter(sn).apply(psi)
-        if type(a_out) is not RadialCharacteristicComposite:
+        if type(a_out) is not RadialCharacteristicField:
             pytest.fail(f"A_BA.apply returned {type(a_out).__name__} — the block "
-                        f"must emit System B's RadialCharacteristicComposite.")
+                        f"must emit System B's RadialCharacteristicField.")
         if type(a_out.interior) is not RadialCharacteristicInteriorSourceSink:
             pytest.fail(f"A_BA interior member is {type(a_out.interior).__name__} "
                         f"— the emission must carry the SOURCE pair.")
@@ -1918,7 +1918,7 @@ class TestCoupledLift:
         S = SNSolver(sn).scattering_op
         A_BA = _a_ba_scatter(sn)
         rng = np.random.default_rng(110)
-        chi_seed = rng.standard_normal(sn.radial_characteristic_composite_space.shape[0])
+        chi_seed = rng.standard_normal(sn.radial_characteristic_field_space.shape[0])
         # B.2b: the block's cotangent is System B's OWN carrier (a FullField
         # seed-only cotangent is now unspellable at the block boundary).
         chi_cot = _ray_composite(sn, chi_seed)
@@ -1965,7 +1965,7 @@ class TestCoupledLift:
         sn = _sphere()
         A_BA = _a_ba_scatter(sn)
         rng = np.random.default_rng(111)
-        chi_seed = rng.standard_normal(sn.radial_characteristic_composite_space.shape[0])
+        chi_seed = rng.standard_normal(sn.radial_characteristic_field_space.shape[0])
         psi = _random_composite(sn, rng)
 
         from orpheus.transport.full_field import FullField as _FF
@@ -2431,12 +2431,12 @@ def _bulk_composite(sn, bulk_values: NDArray) -> FullField:
     )
 
 
-def _loss_transpose_seed_pullback(sn, LC, bulk_values: NDArray) -> RadialCharacteristicComposite:
+def _loss_transpose_seed_pullback(sn, LC, bulk_values: NDArray) -> RadialCharacteristicField:
     """The in-sweep reverse's seed pullback ``Seedingᵀ·φ_A`` read through the
     B.2d explicit legs: run ``LC.apply_transpose`` with a ZERO ``seed_cot``
     (nulls ``D_BBᵀ``) and collect the ``seed_cot_out`` buffer."""
-    ns = sn.radial_characteristic_composite_space.shape[0]
-    out_buf = RadialCharacteristicComposite.source_zeros_on(sn)
+    ns = sn.radial_characteristic_field_space.shape[0]
+    out_buf = RadialCharacteristicField.source_zeros_on(sn)
     LC.apply_transpose(
         _bulk_composite(sn, bulk_values),
         seed_cot=_seed_leaf(sn, np.zeros(ns)),
@@ -2445,9 +2445,9 @@ def _loss_transpose_seed_pullback(sn, LC, bulk_values: NDArray) -> RadialCharact
     return out_buf
 
 
-def _seed_flux(sn, rng) -> RadialCharacteristicComposite:
+def _seed_flux(sn, rng) -> RadialCharacteristicField:
     """A random ψ½ ray seed — the ``A_AB.apply`` input."""
-    ns = sn.radial_characteristic_composite_space.shape[0]
+    ns = sn.radial_characteristic_field_space.shape[0]
     return _ray_composite(sn, rng.standard_normal(ns))
 
 
@@ -2514,7 +2514,7 @@ class TestA_AB_SeedInjection:
         positively (the reference is identical at two ``σ_t`` slopes). ≥2G."""
         sn = _sphere()
         rng = np.random.default_rng(30)
-        sv = rng.standard_normal(sn.radial_characteristic_composite_space.shape[0])
+        sv = rng.standard_normal(sn.radial_characteristic_field_space.shape[0])
         seed = _ray_composite(sn, sv)
         # Reference (real methods, computed BEFORE the spy): the seed's
         # contribution to the JOINT (L+C).apply — zero System A + the seed
@@ -2525,7 +2525,7 @@ class TestA_AB_SeedInjection:
             return LC_op.apply(
                 _zero_composite(sn),
                 radial_characteristic_flux=_seed_leaf(sn, sv),
-                radial_characteristic_source=RadialCharacteristicComposite.source_zeros_on(sn),
+                radial_characteristic_source=RadialCharacteristicField.source_zeros_on(sn),
             ).interior
 
         reference = _seed_feed(_loss(sn))
@@ -2678,9 +2678,9 @@ class TestA_AB_SeedInjection:
         sn = _sphere()
         op = RadialCharacteristicSeeding(sn)
         rng = np.random.default_rng(32)
-        ns = sn.radial_characteristic_composite_space.shape[0]
+        ns = sn.radial_characteristic_field_space.shape[0]
         full = _ray_composite(sn, rng.standard_normal(ns))
-        only_minus = RadialCharacteristicComposite.from_mesh(sn)
+        only_minus = RadialCharacteristicField.from_mesh(sn)
         for p in sn.radial_characteristic_levels:
             only_minus.interior.cells(p, -1)[...] = full.interior.cells(p, -1)
         if not np.max(np.abs(only_minus.to_flat())) > 0.0:
@@ -2712,9 +2712,9 @@ class TestA_AB_SeedInjection:
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
-        if cyl.radial_characteristic_composite_space is not None:
+        if cyl.radial_characteristic_field_space is not None:
             pytest.fail("the cylinder carries a ray space — CONTROL invalid.")
-        if slab.radial_characteristic_composite_space is not None:
+        if slab.radial_characteristic_field_space is not None:
             pytest.fail("the slab carries a ray space — CONTROL invalid.")
         with pytest.raises(ValueError, match="carries no starting-direction ray"):
             RadialCharacteristicSeeding(cyl)
@@ -2748,7 +2748,7 @@ class TestA_AB_SeedInjection:
         sn = _sphere()
         op = RadialCharacteristicSeeding(sn)
         rng = np.random.default_rng(11)
-        if op.domain is not sn.radial_characteristic_composite_space:
+        if op.domain is not sn.radial_characteristic_field_space:
             pytest.fail("A_AB.domain is not THE composite member-space object.")
         if op.codomain is not sn.full_field_space:
             pytest.fail("A_AB.codomain is not THE full_field_space object.")
@@ -2764,7 +2764,7 @@ class TestA_AB_SeedInjection:
                     "the interior).")
         out_t = op.apply_transpose(_bulk_composite(
             sn, rng.standard_normal((sn.quad.N, sn.ng, sn.nx))))
-        if type(out_t) is not RadialCharacteristicComposite:
+        if type(out_t) is not RadialCharacteristicField:
             pytest.fail(f"apply_transpose did not emit the member composite; "
                         f"got {type(out_t).__name__}.")
         if type(out_t.interior) is not RadialCharacteristicInteriorSourceSink:
@@ -2901,17 +2901,17 @@ class TestCoupledBuilder:
         if space.systems[0] is not sn.full_field_space:
             pytest.fail("System A's member space is not THE mesh's cached "
                         "full_field_space object.")
-        if space.systems[1] is not sn.radial_characteristic_composite_space:
+        if space.systems[1] is not sn.radial_characteristic_field_space:
             pytest.fail("System B's member space is not THE mesh's cached "
                         "composite member-space object.")
         # Per-block declared spaces, asserted directly (F2).
         if grid.blocks[0][0].domain != sn.full_field_space:
             pytest.fail("A_AA does not declare System A's space.")
-        if grid.blocks[0][1].domain != sn.radial_characteristic_composite_space:
+        if grid.blocks[0][1].domain != sn.radial_characteristic_field_space:
             pytest.fail("A_AB's domain is not System B's member space.")
-        if grid.blocks[1][0].codomain != sn.radial_characteristic_composite_space:
+        if grid.blocks[1][0].codomain != sn.radial_characteristic_field_space:
             pytest.fail("A_BA's codomain is not System B's member space.")
-        if grid.blocks[1][1].domain != sn.radial_characteristic_composite_space:
+        if grid.blocks[1][1].domain != sn.radial_characteristic_field_space:
             pytest.fail("A_BB−B_b does not declare System B's member space.")
         # Role stamps: the grid spans systems; the (A,A) block is explicitly
         # SystemRole.A (C-fwd — its model-generic members join to None).
@@ -2924,7 +2924,7 @@ class TestCoupledBuilder:
         y = grid.apply(_coupled_template(sn))
         if type(y.systems[0]) is not FullField:
             pytest.fail("row A did not emit a FullField.")
-        if type(y.systems[1]) is not RadialCharacteristicComposite:
+        if type(y.systems[1]) is not RadialCharacteristicField:
             pytest.fail("row B did not emit the member composite.")
 
     # ── G-c2.2 — P2 presence-STRUCTURAL (positive shapes + refusals) ──────
@@ -3321,7 +3321,7 @@ class TestWithinGroupSystem:
                 psi.systems[0], FullField):
             pytest.fail(f"[{inner}] ψ_A is {type(psi.systems[0]).__name__}, "
                         f"not the 2-block System-A composite")
-        if not isinstance(psi.systems[1], RadialCharacteristicComposite):
+        if not isinstance(psi.systems[1], RadialCharacteristicField):
             pytest.fail(f"[{inner}] ψ_B is {type(psi.systems[1]).__name__}, "
                         f"not System B's composite")
 
@@ -3385,7 +3385,7 @@ class TestWithinGroupSystem:
         M_op = system.resolvent
         rng = np.random.default_rng(150)
         psi_a = _random_composite(sn, rng)
-        ns = sn.radial_characteristic_composite_space.shape[0]
+        ns = sn.radial_characteristic_field_space.shape[0]
         live = _pair(sn, psi_a, rng.standard_normal(ns))
         dead = _pair(sn, psi_a, np.zeros(ns))
         # (a) zero-leg ≡ no-leg (the (A,A) block action).
@@ -3606,7 +3606,7 @@ class TestWithinGroupSystem:
         n_dof = int(cold.to_flat().size)
         size_a = int(cold_a.to_flat().size)
         size_b = int(np.asarray(cold.systems[1].to_flat()).size)
-        n_seed = int(sn.radial_characteristic_composite_space.shape[0])
+        n_seed = int(sn.radial_characteristic_field_space.shape[0])
         nb = sn.quad.N * sn.ng * sn.nx
         nt = int(sn.angular_trace.layout.total_size)
         if size_a != nb + nt:

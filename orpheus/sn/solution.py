@@ -56,8 +56,8 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.mesh.material_mesh import MaterialMesh
-    from orpheus.transport.radial_characteristic_composite import (
-        RadialCharacteristicComposite,
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
     )
     from orpheus.transport.timed_full_field import TimedFullField
 
@@ -181,7 +181,7 @@ class Solution:
     history : IterationHistory or None
         Convergence-trajectory diagnostics.  ``None`` for paths that
         do not surface them.
-    radial_characteristic : RadialCharacteristicComposite or None
+    radial_characteristic : RadialCharacteristicField or None
         System B's converged ψ½ state (B.2d DP-Solution — its OWN typed
         member, never a block on :attr:`angular_flux`): the marched
         starting-direction flux composite on a carrying mesh (R12a — the
@@ -220,7 +220,7 @@ class Solution:
     mesh: "SNMesh"
     keff: float | None = None
     history: IterationHistory | None = None
-    radial_characteristic: "RadialCharacteristicComposite | None" = None
+    radial_characteristic: "RadialCharacteristicField | None" = None
 
     def __post_init__(self) -> None:
         # Mesh-binding consistency: every typed field MUST share the
@@ -248,7 +248,7 @@ class Solution:
         # carrying-mesh Solution without its converged ψ½ state (or a
         # seedless one carrying a ray) is a wiring error, not a variant.
         carries = (
-            getattr(self.mesh, "radial_characteristic_composite_space", None) is not None
+            getattr(self.mesh, "radial_characteristic_field_space", None) is not None
         )
         if carries != (self.radial_characteristic is not None):
             raise ValueError(

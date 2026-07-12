@@ -1112,9 +1112,10 @@ class ScalarBoundaryField(BoundaryField):
 # and each keys by (level, sign) on its own split space. The concrete role
 # leaves (…Flux state / …SourceSink emission / …Displacement increment)
 # live in fields/, source_sinks/, and displacements/. The historical
-# UNIFIED RadialCharacteristicField base (cells ⊕ corner interleaved on one
+# UNIFIED base (cells ⊕ corner interleaved on one
 # FaceField[(level, sign, part)] buffer) retired at 4e, when the fused
-# (L+C) walk went split-native — System B's composite is now the ONLY ψ½
+# (L+C) walk went split-native — System B's composite, which took the
+# freed ``RadialCharacteristicField`` name at 4e-e1b, is now the ONLY ψ½
 # representation.
 
 

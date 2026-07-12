@@ -43,7 +43,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.radial_characteristic_composite import RadialCharacteristicComposite
+from orpheus.transport.radial_characteristic_field import RadialCharacteristicField
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
@@ -132,16 +132,16 @@ def _seed_legs(sn_mesh: SNMesh, values=None):
     """The (seed_cot IN, seed_cot_out OUT) leg pair for the transposed joint
     surfaces on a carrying mesh (B.2d / 4e) — ``(None, None)`` seedless.
 
-    ``values`` is a flat array of ``radial_characteristic_composite_space``
+    ``values`` is a flat array of ``radial_characteristic_field_space``
     size (the split composite's ``to_flat`` layout: interior ⊕ boundary)."""
-    if sn_mesh.radial_characteristic_composite_space is None:
+    if sn_mesh.radial_characteristic_field_space is None:
         return None, None
-    cot = RadialCharacteristicComposite.from_mesh(sn_mesh)
+    cot = RadialCharacteristicField.from_mesh(sn_mesh)
     if values is not None:
-        cot = RadialCharacteristicComposite.from_flat(
+        cot = RadialCharacteristicField.from_flat(
             np.asarray(values, dtype=float), cot,
         )
-    return cot, RadialCharacteristicComposite.source_zeros_on(sn_mesh)
+    return cot, RadialCharacteristicField.source_zeros_on(sn_mesh)
 
 
 def _read_augmented(out, sn_mesh, g, ray=None) -> np.ndarray:
@@ -149,7 +149,7 @@ def _read_augmented(out, sn_mesh, g, ray=None) -> np.ndarray:
     dense oracle's index bookkeeping. ``ray`` is the EXPLICIT ray-leg composite
     (B.2d / 4e — System B's split ``interior ⊕ boundary`` member)."""
     bulk = np.asarray(out.interior.values)[:, g].ravel()
-    if sn_mesh.radial_characteristic_composite_space is None or ray is None:
+    if sn_mesh.radial_characteristic_field_space is None or ray is None:
         return bulk
     seed = np.concatenate([
         np.concatenate([
@@ -167,7 +167,7 @@ def _source_carried_mask(sn_mesh) -> np.ndarray:
     slot EXCEPT each seed leg's trailing outflow corner."""
     N = sn_mesh.quad.n_ordinates
     nx = int(np.prod(sn_mesh.spatial_shape))
-    if sn_mesh.radial_characteristic_composite_space is None:
+    if sn_mesh.radial_characteristic_field_space is None:
         return np.ones(N * nx, dtype=bool)
     per = 2 * nx + 2  # seed leg: corner_in, cells⁻, cells⁺, corner_out
     mask = []
@@ -189,12 +189,12 @@ def test_g1_round_trip_bulk(geom):
     sn = _MESHES[geom]()
     A = _loss(sn)
     rng = np.random.default_rng(20260705)
-    carrying = sn.radial_characteristic_composite_space is not None
+    carrying = sn.radial_characteristic_field_space is not None
     x = _fresh(sn)
     x.interior.values[:] = rng.random(x.interior.values.shape)
     cot_in, cot_out = _seed_legs(
         sn,
-        rng.random(sn.radial_characteristic_composite_space.shape[0])
+        rng.random(sn.radial_characteristic_field_space.shape[0])
         if carrying else None,
     )
     if carrying:
@@ -237,14 +237,14 @@ def test_g2_dense_transpose_oracle(geom):
     A = _loss(sn)
     rng = np.random.default_rng(20260706)
     mask = _source_carried_mask(sn)
-    carrying = sn.radial_characteristic_composite_space is not None
+    carrying = sn.radial_characteristic_field_space is not None
     for g in range(sn.ng):
         M = _probe_augmented_matrix_one_group(sn, g)
         b = _fresh(sn)
         b.interior.values[:, g] = rng.random((sn.quad.n_ordinates, *sn.spatial_shape))
         cot_in, cot_out = _seed_legs(
             sn,
-            rng.random(sn.radial_characteristic_composite_space.shape[0])
+            rng.random(sn.radial_characteristic_field_space.shape[0])
             if carrying else None,
         )
         b_vec = _read_augmented(b, sn, g, cot_in)
@@ -318,7 +318,7 @@ def test_g4_cyl_returns_no_seed_cotangent(geom):
     ``radial_characteristic = None`` (``m_seed = None``) — the R12a contract, the
     mirror of the forward's non-carrying refusal."""
     sn = _MESHES[geom]()
-    if sn.radial_characteristic_composite_space is not None:
+    if sn.radial_characteristic_field_space is not None:
         pytest.fail(f"{geom} unexpectedly carries a starting-direction space")
     A = _loss(sn)
     p = _fresh(sn)

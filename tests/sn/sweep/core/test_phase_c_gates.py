@@ -174,13 +174,13 @@ def _build_composite(
         )
     if radial_characteristic_values is None:
         radial_characteristic = radial_characteristic_edge_seed(bulk_values, sn_mesh)
-    elif sn_mesh.radial_characteristic_composite_space is not None:
-        from orpheus.transport.radial_characteristic_composite import (
-            RadialCharacteristicComposite,
+    elif sn_mesh.radial_characteristic_field_space is not None:
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
         )
-        radial_characteristic = RadialCharacteristicComposite.from_flat(
+        radial_characteristic = RadialCharacteristicField.from_flat(
             radial_characteristic_values,
-            RadialCharacteristicComposite.from_mesh(sn_mesh),
+            RadialCharacteristicField.from_mesh(sn_mesh),
         )
     else:
         radial_characteristic = None
@@ -208,13 +208,13 @@ def _joint_op(sn_mesh: SNMesh, op):
     """The JOINT operator for the mesh (B.2d): the coupled ``M`` on a
     carrying mesh (the fused walk behind the explicit ψ½ legs), ``op``
     itself on a seedless one."""
-    if sn_mesh.radial_characteristic_composite_space is None:
+    if sn_mesh.radial_characteristic_field_space is None:
         return op
     from orpheus.numerics.coupled_system import CoupledSpace
     from orpheus.sn.coupled_system import CoupledInvertibleOperator
 
     space = CoupledSpace.from_systems(
-        (sn_mesh.full_field_space, sn_mesh.radial_characteristic_composite_space),
+        (sn_mesh.full_field_space, sn_mesh.radial_characteristic_field_space),
     )
     return CoupledInvertibleOperator(op, space=space, sn_mesh=sn_mesh)
 
@@ -447,7 +447,7 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     # include the seed block for reciprocity to hold (a bulk⊕trace-only dot
     # is blind to the seed↔bulk coupling — the Euclidean sibling of the
     # G-reciprocity's zero-weight blindness, vv Mode 12).
-    seed_space = sn_mesh.radial_characteristic_composite_space
+    seed_space = sn_mesh.radial_characteristic_field_space
     n_seed = 0 if seed_space is None else seed_space.shape[0]
     psi_state = _build_composite(
         sn_mesh, _random_bulk(sn_mesh, rng), rng.standard_normal(n_trace),

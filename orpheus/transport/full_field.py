@@ -19,9 +19,9 @@ L2 (transport, method-agnostic). This module holds TWO things:
   starting-direction (ψ½) state that transiently rode here as an optional
   third block was evicted by the coupled-block campaign's Phase B.2d into
   its own **System-B** composite
-  (:class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`);
+  (:class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`);
   on a carrying mesh the driver iterate is the coupled pair
-  ``CoupledField[FullField, RadialCharacteristicComposite]``, never a
+  ``CoupledField[FullField, RadialCharacteristicField]``, never a
   wider ``FullField``.
 
 Why the interior + boundary split is the right L2 abstraction
@@ -47,7 +47,7 @@ On a mesh whose Morel–Montry thread genuinely consumes independent
 starting-direction state (the R12a predicate — the 1-D sphere; see
 :mod:`orpheus.numerics.spaces.radial_characteristic_space`), the ψ½ ray is
 **System B** — its own ``interior ⊕ boundary``
-:class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`,
+:class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`,
 coupled to System A (this ``FullField``) through the named blocks of the
 within-group grid (``A_AB`` Seeding / ``A_BA`` Emission / ``B_b``; see
 :func:`orpheus.sn.coupled_system.build_within_group_system`). The 2.5d
@@ -504,7 +504,7 @@ class FullField(Composite[BulkField, BoundaryField]):
     generic base; this class adds ONLY the concrete-locus construction guards.
 
     A curvilinear carrying mesh's ψ½ ray is **System B**, a sibling
-    :class:`~orpheus.transport.radial_characteristic_composite.RadialCharacteristicComposite`
+    :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
     coupled through the within-group grid — never a block on this class (the
     Phase B.2d eviction; see the module docstring).
 

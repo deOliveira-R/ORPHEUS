@@ -153,7 +153,7 @@ class SystemField(Protocol):
     r"""One system's complete field — the member contract of :class:`CoupledField`.
 
     Structural (duck-typed): the transport ``Composite`` family (``FullField``,
-    ``RadialCharacteristicComposite``) satisfies it without an import edge out
+    ``RadialCharacteristicField``) satisfies it without an import edge out
     of the numerics layer — the same deliberate decoupling as the ravellable
     protocol at :mod:`orpheus.numerics.iteration` (whose ``to_flat()`` /
     ``from_flat(flat, template)`` pair this protocol embeds).
@@ -219,7 +219,7 @@ class CoupledField:
     r"""The N-system block vector: one member field per coupled system.
 
     The state of a coupled solve — e.g. the ψ½ instance's
-    ``[ψ_A, ψ_B] = [FullField, RadialCharacteristicComposite]``. The vector
+    ``[ψ_A, ψ_B] = [FullField, RadialCharacteristicField]``. The vector
     algebra (``±``, scalar ``·``, :meth:`copy`, the flat protocol) is realized
     ONCE here by member-wise delegation: every ``+`` is a member ``+``, so the
     member family's role semantics (affine flux torsor, displacement minting,
