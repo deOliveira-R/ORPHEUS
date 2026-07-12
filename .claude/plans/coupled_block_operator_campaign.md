@@ -1992,3 +1992,20 @@ the block solve lands. Agent IDs: archivist `a7b8d65faa208f705`, enforcer
 `a946468abd9ec5742`. Sequence this segment: `ea7f919c` (e1b) → `eb3a2168` →
 `98fe2e36` (e2) → `ffbd9761` → `9c66fbe6` (docs+close). NEXT = **#41 step 5**
 (the block solve), then #34/#35. Recommended /compact point.
+
+### The two d3 HELD decisions — RESOLVED (user rulings, 2026-07-11)
+
+1. **B_aᵀ vacuum-transpose find → ERR-068 MINTED** in the vv error catalog
+   (appended after the pending ERR-067; Mode-2 composition-order swap on a
+   row-projected transpose, hidden by the ERR-063 masking family + an
+   anti-pattern-#12 pin). Marker `@pytest.mark.catches("ERR-068")` landed on
+   `TestBoundaryUnweld::test_b_a_vacuum_transpose_is_the_honest_zero` (born
+   RED pre-fix @ `1de9592`, the teeth evidence). Per ownership, the
+   `.claude/skills/` files (ERR-067 + ERR-068 + SKILL.md edits) remain
+   UNCOMMITTED — the user commits the skills substrate.
+2. **ERR-041/042/045/047 marker gaps → NO GitHub issue; user chose
+   BUILD-THE-INVARIANTS-NOW**, queued as local task **#52** blocked by #41
+   (step 5): mint the never-raised BC-layer error classes
+   (`VacuumAppliedToOutgoingTraceError`/`ReflectionDidNotMapInflowToOutflowError`),
+   the real `assert_source_lives_on_incoming_trace`, the independent
+   weight-measure check; then catchers (mutation-verified RED) + markers.

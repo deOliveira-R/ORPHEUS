@@ -607,6 +607,7 @@ class TestBoundaryUnweld:
 
     # ── B.2d d3 — B_a Euclidean-transpose honesty (the DEFINING law) ──────
 
+    @pytest.mark.catches("ERR-068")
     def test_b_a_vacuum_transpose_is_the_honest_zero(self):
         r"""On a VACUUM outer face ``B_a`` is the ZERO map — and its
         ``apply_transpose`` must be the transpose of that zero, NOT the law

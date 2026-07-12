@@ -1196,6 +1196,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-065``, 1
    ``ERR-066``, 6
    ``ERR-067``, 2
+   ``ERR-068``, 1
 
 Unmarked tests
 --------------
