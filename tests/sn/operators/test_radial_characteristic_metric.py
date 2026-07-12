@@ -125,15 +125,11 @@ def _build_sphere(nx: int, ng: int, sigma: float):
 
 
 def _joint_M(sn, LC):
-    """The joint ``M`` — ``LC``'s fused walk on the coupled pair (B.2d: the
-    ψ½ legs ride the explicit leaf kwargs; the pair is the honest carrier)."""
-    from orpheus.numerics.coupled_system import CoupledSpace
-    from orpheus.sn.coupled_system import CoupledInvertibleOperator
+    """The joint ``M`` — the honest triangular grid on the coupled pair
+    (step 5: the numerics substitution; the fused bridge deleted at 5d)."""
+    from tests.sn._test_helpers import joint_m_grid
 
-    space = CoupledSpace.from_systems(
-        (sn.full_field_space, sn.radial_characteristic_field_space),
-    )
-    return CoupledInvertibleOperator(LC, space=space, sn_mesh=sn), space
+    return joint_m_grid(sn, LC)
 
 
 def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):

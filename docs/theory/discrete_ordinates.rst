@@ -20751,8 +20751,13 @@ branch and have no landed hash yet.
        loss grid together with its Hackbusch regular splitting
        :math:`A = M - N` (``resolvent`` = :math:`M`, the sweepable part
        inverted each step; ``gains`` = :math:`N`, the lagged couplings). On
-       a carrying sphere :math:`M` is the coupled-bridged fused walk
-       (:class:`~orpheus.sn.coupled_system.CoupledInvertibleOperator`) and
+       a carrying sphere :math:`M` is the honest upper-triangular grid
+       ``[[LC, Seeding], [None, march]]``
+       (:class:`~orpheus.numerics.coupled_system.CoupledOperator` — since
+       step 5 its ``solve`` is the numerics block back-substitution and
+       its ``inverse()`` the
+       :class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`;
+       the fused ``CoupledInvertibleOperator`` bridge deleted at 5d) and
        :math:`N` the coupled gain grid ``[[S+B_a, ∅], [Emission, B_b]]``
        (the ``(A,B)`` slot structurally zero — seeding lives in :math:`M`);
        on a seedless mesh it degrades to the bare ``((L+C), (S, B_a))`` the

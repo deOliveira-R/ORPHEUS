@@ -141,7 +141,8 @@ class SweepOperator(
         (``seed_cot``/``seed_cot_out``), which this wrap-delegate's leg-less
         ``apply_transpose(b)`` surface cannot thread — the honest joint
         spelling is the coupled sibling
-        (:meth:`~orpheus.sn.coupled_system.CoupledSweepOperator.apply_transpose`),
+        (:meth:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator.apply_transpose`
+        — the transposed block substitution over the M grid, step 5),
         so the fused wrap refuses EAGERLY here instead of raising mid-apply.
         The schedule-folded
         :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`

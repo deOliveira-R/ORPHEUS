@@ -426,8 +426,9 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
     Pre-fix the ghost ``G_sd = 0`` put them INSIDE it and the flip was
     invisible (the standing false-green this gate replaces).
 
-    Mechanism (diag_gsd_02/03): the mutation flips ``_seed_rows_forward``
-    (the forward ``A_ss``) but NOT ``_seed_rows_transpose`` (``A.H``'s
+    Mechanism (diag_gsd_02/03, re-aimed at 5d onto the NAMED block): the
+    mutation flips ``RadialCharacteristicSeeding.apply`` (the grid M's
+    forward seed placement) but NOT its transpose (``A.H``'s
     independently-coded reverse mode), creating an apply-vs-transpose
     inconsistency.  With ``G_sd = V_cell`` the seed contributes
     ``Σ V_cell·(A_ss ψ_seed)·φ_seed`` to ⟨Aψ,φ⟩_G that ``A.H``'s unflipped
@@ -440,7 +441,6 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
     reverted ghost ``G_sd = 0`` would ALSO give a mutated defect ~0.107 > tol
     (a broken baseline mimicking "caught") and fool the gate."""
     from orpheus.numerics.coupled_system import CoupledField
-    from orpheus.sn.coupled_system import CoupledInvertibleOperator
     from orpheus.sn.loss_representation import _OneDimScanWalk
     from orpheus.transport.radial_characteristic_field import (
         RadialCharacteristicField,
@@ -451,12 +451,13 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
     n_seed = sn.radial_characteristic_field_space.shape[0]
     n_trace = int(sn.angular_trace.layout.total_size)
     space = _coupled_space(sn)
-    # B.2d: the joint operator is M on the coupled pair (the fused walk
-    # behind the explicit legs) — its .H is the member-wise G-adjoint over
-    # System A's (V·w ⊕ |Ω·n|·w) and System B's (V_cell ⊕ corner-gauge)
-    # metrics, so the seed rows carry metric weight OUTSIDE the functional's
+    # Step 5: the joint operator is the honest triangular M grid on the
+    # coupled pair — its .H is the member-wise G-adjoint over System A's
+    # (V·w ⊕ |Ω·n|·w) and System B's (V_cell ⊕ corner-gauge) metrics, so
+    # the seed rows carry metric weight OUTSIDE the functional's
     # invariance group.
-    M_op = CoupledInvertibleOperator(A, space=space, sn_mesh=sn)
+    from tests.sn._test_helpers import joint_m_grid
+    M_op, _ = joint_m_grid(sn, A)
 
     def _random_pair():
         # NONZERO ψ_B — activates the V_cell metric AND the A_BB self-rows.
@@ -489,26 +490,32 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
             "G_sd=0 back?); the mutated RED below would be un-attributable."
         )
 
-    # ── Mode-12 CLOSURE: the seed-row flip now REDS reciprocity. ──
-    orig_rows = _OneDimScanWalk._seed_rows_forward
+    # ── Mode-12 CLOSURE: the seed-placement flip now REDS reciprocity. ──
+    # Step 5: the grid's forward seed placement IS the named
+    # RadialCharacteristicSeeding block (the walk's fused ``_seed_rows_*``
+    # lost their production role at 5b — a mutation there is off M's call
+    # graph, Mode 11); flip the FORWARD block only (its transpose stays
+    # honest) so the SPD G_sd=V_cell reciprocity sees the inconsistency.
+    from orpheus.sn.operators.radial_characteristic import (
+        RadialCharacteristicSeeding,
+    )
 
-    def _flipped(self, sigma, seed):
-        # 4e: _seed_rows_forward returns the RAW (interior_values,
-        # boundary_values) ndarray PAIR; flip the interior seed rows (the
-        # A_BB self-block seed rows the SPD G_sd=V_cell reciprocity catches).
-        interior_values, boundary_values = orig_rows(self, sigma, seed)
-        return -interior_values, boundary_values
+    orig_apply = RadialCharacteristicSeeding.apply
+
+    def _flipped(self, x, /):
+        return -orig_apply(self, x)
 
     with pytest.MonkeyPatch.context() as mp:
-        mp.setattr(_OneDimScanWalk, "_seed_rows_forward", _flipped)
+        mp.setattr(RadialCharacteristicSeeding, "apply", _flipped)
         lhs = float(space.inner_product(M_op.apply(psi), phi))
         rhs = float(space.inner_product(psi, M_op.H.apply(phi)))
     recip_rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
     if not recip_rel > 1e-6:
         pytest.fail(
-            f"G-reciprocity did NOT move under a seed-row flip "
-            f"(rel={recip_rel:.2e}) — Mode-12 is NOT closed; the seed rows are "
-            "still in the functional's invariance group (is G_sd the ghost 0?)."
+            f"G-reciprocity did NOT move under the forward seed-placement "
+            f"flip (rel={recip_rel:.2e}) — Mode-12 is NOT closed; the seed "
+            "coupling sits in the functional's invariance group (is G_sd "
+            "the ghost 0, or is the mutation off M's call graph?)."
         )
 
 

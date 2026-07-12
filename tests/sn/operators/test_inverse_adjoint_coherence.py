@@ -441,29 +441,33 @@ def _static_typing_pins(endo: LinearOperator[FullField, FullField]) -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# B.2d — the CARRYING arm: the fused wrap refuses eagerly; the coupled M
-# carries the joint swap law (the same G1–G4 claims on the pair)
+# B.2d → step 5 — the CARRYING arm: the fused wrap refuses eagerly; the
+# coupled M (the honest triangular grid since 5b; the fused bridge
+# deleted at 5d) carries the joint swap law (the same G1–G4 claims)
 # ═══════════════════════════════════════════════════════════════════════
 
 
 def _coupled_M(sn):
-    from orpheus.numerics.coupled_system import CoupledSpace
-    from orpheus.sn.coupled_system import CoupledInvertibleOperator
+    from tests.sn._test_helpers import joint_m_grid
 
-    space = CoupledSpace.from_systems(
-        (sn.full_field_space, sn.radial_characteristic_field_space),
-    )
-    return CoupledInvertibleOperator(_loss(sn), space=space, sn_mesh=sn), space
+    return joint_m_grid(sn, _loss(sn))
 
 
 def _coupled_bulk_b(sn, seed: int):
+    # b is a SOURCE-side cotangent — System B's member rides the source
+    # composite (role-honest: the transposed substitution's rhs update
+    # ``b_B − Seedingᵀ·x̄_A`` is a source-role ``−``; the flux-role zeros
+    # the fused bridge tolerated were a role leak its role-blind buffers
+    # never noticed — step 5's member algebra does).
     from orpheus.numerics.coupled_system import CoupledField
     from orpheus.transport.radial_characteristic_field import (
         RadialCharacteristicField,
     )
 
     b = _rand_bulk(sn, seed)
-    return CoupledField(systems=(b, RadialCharacteristicField.from_mesh(sn)))
+    return CoupledField(
+        systems=(b, RadialCharacteristicField.source_zeros_on(sn)),
+    )
 
 
 def _coupled_full_psi(sn, seed: int):
@@ -497,6 +501,17 @@ def test_carrying_fused_wrap_refuses_and_the_coupled_sibling_carries():
                     "swap law lost its home")
     if not invertible(M_op.H):
         pytest.fail("the coupled M.H does not advertise invertibility")
+    # Step 5: the joint home is the SUBSTITUTION wrap over the triangular
+    # grid — pin the concrete successor types (the retired fused bridge
+    # must not silently come back as an untyped shim).
+    from orpheus.numerics.coupled_system import (
+        CoupledOperator,
+        CoupledSubstitutionOperator,
+    )
+    if not isinstance(M_op, CoupledOperator):
+        pytest.fail(f"the joint M is {type(M_op).__name__}, not the grid")
+    if not isinstance(M_op.inverse(), CoupledSubstitutionOperator):
+        pytest.fail("M.inverse() is not the block substitution wrap")
 
 
 def test_coupled_gate1_forward_matvec_g_reciprocity():
@@ -543,16 +558,16 @@ def test_coupled_gate2_swap_law_bit_identical():
 
 def test_coupled_gate4_reverse_scan_executes(monkeypatch):
     r"""G4 on the pair (Mode-11): ``M.H.inverse().apply(b)`` ENTERS the
-    bridged ``CoupledInvertibleOperator.solve_transpose`` (> 0) and never
-    the forward ``solve`` (== 0)."""
-    from orpheus.sn.coupled_system import CoupledInvertibleOperator
+    grid's transposed substitution (``CoupledOperator.solve_transpose``
+    > 0) and never the forward ``solve`` (== 0)."""
+    from orpheus.numerics.coupled_system import CoupledOperator
 
     sn = _sphere()
     M_op, _space = _coupled_M(sn)
     b = _coupled_bulk_b(sn, 5)
     counts = {"solve": 0, "solve_transpose": 0}
-    real_solve = CoupledInvertibleOperator.solve
-    real_st = CoupledInvertibleOperator.solve_transpose
+    real_solve = CoupledOperator.solve
+    real_st = CoupledOperator.solve_transpose
 
     def _wrap_solve(self, rhs, *a, **k):
         counts["solve"] += 1
@@ -562,15 +577,16 @@ def test_coupled_gate4_reverse_scan_executes(monkeypatch):
         counts["solve_transpose"] += 1
         return real_st(self, rhs, *a, **k)
 
-    monkeypatch.setattr(CoupledInvertibleOperator, "solve", _wrap_solve)
-    monkeypatch.setattr(CoupledInvertibleOperator, "solve_transpose", _wrap_st)
+    monkeypatch.setattr(CoupledOperator, "solve", _wrap_solve)
+    monkeypatch.setattr(CoupledOperator, "solve_transpose", _wrap_st)
     ah = M_op.H
     if not invertible(ah):
         pytest.fail("M.H must advertise is_invertible")
     ah.inverse().apply(b)
     if not counts["solve_transpose"] > 0:
-        pytest.fail("coupled M.H.inverse().apply never entered the bridged "
-                    "solve_transpose — the joint reverse scan was routed around")
+        pytest.fail("coupled M.H.inverse().apply never entered the grid's "
+                    "solve_transpose — the transposed substitution was "
+                    "routed around")
     if not counts["solve"] == 0:
         pytest.fail(f"coupled M.H.inverse().apply touched the FORWARD solve "
                     f"({counts['solve']}×)")

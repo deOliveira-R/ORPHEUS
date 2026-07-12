@@ -2418,10 +2418,15 @@ How the walk sees ψ½ — the six-signature leaf-kwarg protocol
 Since the B.2d eviction the ``Optional`` third block and its
 presence-vs-mesh reconciliation guards are **retired**: ψ½ is System B,
 so a carrier cannot even *hold* a starting-direction block, and there is
-nothing to reconcile.  Instead the coupled bridge
-(:class:`~orpheus.sn.coupled_system.CoupledInvertibleOperator`) splits the
-coupled pair and hands System B's leaf to the walk through **explicit
-kwargs**.  The six walk signatures of
+nothing to reconcile.  System B's leaf reaches the walk through
+**explicit kwargs** — since step 5 (#41) the production resolvent is the
+honest upper-triangular grid ``[[LC, Seeding], [None, march]]``
+(:class:`~orpheus.numerics.coupled_system.CoupledOperator`), whose block
+substitution calls the walk BARE on its ray-decoupled channel, so the
+joint-leg kwargs remain a supported channel only for the operator-free
+wrapper entries (the ``CoupledInvertibleOperator`` bridge that used to
+thread them was deleted at 5d; the kwargs themselves retire at step 6).
+The six walk signatures of
 :class:`~orpheus.sn.loss_representation.LossRepresentation` (the forward /
 adjoint / streaming triples) carry two kwarg pairs:
 

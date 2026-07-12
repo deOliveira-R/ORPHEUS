@@ -622,3 +622,34 @@ def redistribution_via_live_path(
 # 2-block), and their consumer gates re-expressed onto the record's
 # named splitting (grid ≡ M − N; N ≡ the pieces; the walk's explicit
 # leaf-kwarg legs).
+
+
+def joint_m_grid(sn_mesh: "SNMesh", LC):
+    """The step-5 joint ``M`` — the honest upper-triangular grid
+    ``[[LC, Seeding], [None, march]]`` over the given (possibly variant)
+    ``L + C`` — returning ``(grid, space)``.
+
+    The ONE test-fixture spelling of the joint resolvent (the successor of
+    the retired ``CoupledInvertibleOperator`` fused bridge, deleted at
+    step-5d): the march re-uses the SAME σ_t field object the ``LC`` sum's
+    multiplication member carries (``LC.b.coefficient`` — mesh-identity
+    intact, no reconstruction), exactly as ``build_within_group_system``
+    shares one field between ``C`` and the march. ``grid.solve`` is the
+    numerics block back-substitution, ``grid.inverse()`` the
+    ``CoupledSubstitutionOperator``.
+    """
+    from orpheus.numerics.coupled_system import CoupledOperator, CoupledSpace
+    from orpheus.sn.operators.radial_characteristic import (
+        RadialCharacteristicOperator,
+        RadialCharacteristicSeeding,
+    )
+
+    space = CoupledSpace.from_systems(
+        (sn_mesh.full_field_space, sn_mesh.radial_characteristic_field_space),
+    )
+    march = RadialCharacteristicOperator(sn_mesh, LC.b.coefficient)
+    grid = CoupledOperator(
+        [[LC, RadialCharacteristicSeeding(sn_mesh)], [None, march]],
+        domain=space, codomain=space,
+    )
+    return grid, space

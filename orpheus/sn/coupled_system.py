@@ -92,10 +92,10 @@ into it, which is what dissolved this module's tracked construction twin):
   bulk sweep on its ray-DECOUPLED channel), ``apply`` the block matvec,
   ``inverse()`` the
   :class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`.
-  The FUSED-walk delegation (:class:`CoupledInvertibleOperator` threading
-  the B.2d leaf kwargs) dissolved at 5b (R-5.1/R-5.4) — the walk's joint
-  legs remain a supported channel for the operator-free wrapper entries
-  until the step-6 kwarg retirement.
+  The FUSED-walk delegation (the ``CoupledInvertibleOperator`` bridge
+  threading the B.2d leaf kwargs, DELETED at 5d — R-5.1/R-5.4) dissolved
+  at 5b; the walk's joint legs remain a supported channel for the
+  operator-free wrapper entries until the step-6 kwarg retirement.
 * ``N = M − A = [[S + B_a, ∅], [+Emission, B_b]]`` — ONE
   :class:`~orpheus.numerics.coupled_system.CoupledOperator` gain grid. The
   (A,B) slot is STRUCTURALLY zero (Seeding lives in M), and the signs are
@@ -123,11 +123,11 @@ References
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator, CoupledSpace
-from orpheus.numerics.operator import InverseWrapMixin, LinearOperator, SystemRole
+from orpheus.numerics.operator import LinearOperator, SystemRole
 from orpheus.sn.operators.boundary import (
     RadialCharacteristicBoundaryOperator,
     SNBoundaryOperator,
@@ -153,8 +153,6 @@ if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 __all__ = [
-    "CoupledInvertibleOperator",
-    "CoupledSweepOperator",
     "WithinGroupSystem",
     "build_coupled_system",
     "build_streaming_collision",
@@ -276,240 +274,6 @@ def _system_b_member(
     return None
 
 
-def _require_coupled_pair(
-    state: "CoupledField", sn_mesh: "SNMesh", context: str,
-) -> "tuple[FullField, RadialCharacteristicField]":
-    r"""Parse a coupled ψ½ pair ``[ψ_A, ψ_B]`` at an operator boundary.
-
-    The shared parse of :class:`CoupledInvertibleOperator`'s four action
-    surfaces (parse-don't-validate): System A through
-    :func:`_system_a_member`, System B through the composite's own
-    :meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.require_member`
-    (carrier class + mesh identity). A bare System-A composite refuses —
-    ``M`` is the JOINT operator; the seedless ``(L+C)`` is its own resolvent
-    (DP-seedless).
-    """
-    psi_a = _system_a_member(state)
-    psi_b = _system_b_member(state)
-    if psi_b is None:
-        raise TypeError(
-            f"{context}: expected the coupled pair [ψ_A, ψ_B] — a bare "
-            f"System-A composite has no ray member (on a seedless mesh the "
-            f"resolvent is the plain (L+C), never this joint M)."
-        )
-    return psi_a, RadialCharacteristicField.require_member(
-        psi_b, mesh=sn_mesh, context=context,
-    )
-
-
-# ───────────────────────────────────────────────────────────────────────
-# M — the sweepable part of the splitting, on the coupled carrier
-# ───────────────────────────────────────────────────────────────────────
-
-
-class CoupledInvertibleOperator(LinearOperator["CoupledField", "CoupledField"]):
-    r"""``M`` — the sweepable part of the within-group splitting, re-typed
-    onto the coupled pair.
-
-    The named ``M`` of ``A = M − N`` (:class:`WithinGroupSystem`): the fused
-    ``(L+C)`` walk, which computes the joint block action
-
-    .. math::
-
-        M \;=\; \begin{bmatrix} L+C & +\text{Seeding} \\ 0 & A_{BB}\text{-march} \end{bmatrix}
-
-    — the welded seed feed IS the (A,B) coupling and the in-walk ψ½
-    recurrence IS the (B,B) march — presented on the coupled carrier
-    through the B.2d EXPLICIT LEAF LEGS: each surface splits the pair and
-    hands System B's member DIRECTLY to the fused surface's composite leg
-    kwargs (``radial_characteristic_source``/``_flux`` forward,
-    ``seed_cot``/``_out`` transposed — the walk marches the split members
-    natively since 4e; the ``to_unified``/``from_unified`` bridge and its
-    buffers are retired), then packs the walk-filled composite as ψ_B.
-
-    All four action surfaces: :meth:`apply` (the joint forward matvec —
-    the Krylov action), :meth:`solve` (the joint WDD sweep — the SI step),
-    :meth:`apply_transpose` / :meth:`solve_transpose` (the reverse-scan
-    pair, #280, gated by the fused forward's adjointability). ``inverse()``
-    returns the :class:`CoupledSweepOperator` wrap-delegate sibling.
-
-    Lifecycle: **production-orphaned at 5b** — the step-5 block solve
-    re-posed ``M`` as the honest triangular
-    :class:`~orpheus.numerics.coupled_system.CoupledOperator` grid (the
-    fused delegation dissolved; ``build_within_group_system`` no longer
-    constructs this class). It survives for the transient
-    substitution-vs-fused equivalence gates and the coherence fixtures;
-    DELETION + test re-point = sub-commit 5d (R-5.4). The M-M block
-    split — the fused joint recurrence vs the seed-zeroed/bulk-zeroed
-    block sum — is the campaign's intrinsic principled-equiv row
-    (B.2c §0: ~5.5e-16), so grid-vs-fused comparisons carry that bar,
-    never bitwise.
-    """
-
-    # M spans both systems by construction (the step-4a lattice).
-    system_role = SystemRole.COUPLED
-
-    def __init__(
-        self,
-        fused: "InvertibleOperator",
-        *,
-        space: "CoupledSpace",
-        sn_mesh: "SNMesh",
-    ) -> None:
-        #: The fused ``(L+C)`` forward realizing the joint action (read by
-        #: the driver-routing gates' wraps-predicate).
-        self.fused = fused
-        self._space = space
-        self._sn_mesh = sn_mesh
-
-    @property
-    def domain(self) -> "CoupledSpace":
-        return self._space
-
-    @property
-    def codomain(self) -> "CoupledSpace":
-        return self._space
-
-    # ── The four bridged action surfaces ──────────────────────────────
-
-    def apply(self, x: "CoupledField", /) -> "CoupledField":
-        r"""The joint forward matvec ``M·[ψ_A, ψ_B]`` via the fused walk.
-
-        System B's member crosses in DIRECTLY as the
-        ``radial_characteristic_flux`` leg (the walk marches the split
-        composite natively since 4e); the emitted ray-block rows fill the
-        source composite, which IS ψ_B of the output (source-role — the
-        matvec output).
-        """
-        x_a, x_b = _require_coupled_pair(
-            x, self._sn_mesh, "CoupledInvertibleOperator.apply",
-        )
-        rows_buf = RadialCharacteristicField.source_zeros_on(self._sn_mesh)
-        y_a = self.fused.apply(
-            x_a,
-            radial_characteristic_flux=x_b,
-            radial_characteristic_source=rows_buf,
-        )
-        return CoupledField(systems=(y_a, rows_buf))
-
-    def solve(self, rhs: "CoupledField") -> "CoupledField":
-        r"""The joint WDD sweep ``M⁻¹·[rhs_A, rhs_B]`` — the SI step.
-
-        rhs_B (the TRUE q½ source) crosses in DIRECTLY as the
-        ``radial_characteristic_source`` leg; the walk marches the seed and
-        bulk jointly and fills the flux composite in place — ψ_B of the
-        output is that marched ray flux, ψ_A the 2-block bulk ⊕ trace.
-        """
-        rhs_a, rhs_b = _require_coupled_pair(
-            rhs, self._sn_mesh, "CoupledInvertibleOperator.solve",
-        )
-        flux_buf = RadialCharacteristicField.from_mesh(self._sn_mesh)
-        psi_a = self.fused.solve(
-            rhs_a,
-            radial_characteristic_source=rhs_b,
-            radial_characteristic_flux=flux_buf,
-        )
-        return CoupledField(systems=(psi_a, flux_buf))
-
-    @property
-    def is_adjointable(self) -> bool:
-        r"""The reverse-scan pair exists iff the fused forward's does
-        (two-factor geometry gate — DD-1D yes; LD / multi-D defer)."""
-        return self.fused.is_adjointable
-
-    def apply_transpose(self, y: "CoupledField", /) -> "CoupledField":
-        r"""The joint transposed matvec ``Mᵀ·[y_A, y_B]`` via the fused walk.
-
-        y_B (the cotangent of the forward's ray rows) crosses in DIRECTLY
-        as the ``seed_cot`` leg; the domain-side pullback ``Seedingᵀ·y_A +
-        D_BBᵀ·y_B`` fills the ``seed_cot_out`` composite, which IS ψ_B of
-        the output.
-        """
-        y_a, y_b = _require_coupled_pair(
-            y, self._sn_mesh, "CoupledInvertibleOperator.apply_transpose",
-        )
-        cot_buf = RadialCharacteristicField.source_zeros_on(self._sn_mesh)
-        x_a_bar = self.fused.apply_transpose(
-            y_a, seed_cot=y_b, seed_cot_out=cot_buf,
-        )
-        return CoupledField(systems=(x_a_bar, cot_buf))
-
-    def solve_transpose(self, b: "CoupledField") -> "CoupledField":
-        r"""The joint reverse-scan ``M⁻ᵀ·[b_A, b_B]`` (#280 2.5b).
-
-        b_B (the flux-side ray cotangent) crosses in DIRECTLY as the
-        ``seed_cot`` leg; the source-side cotangent fills the
-        ``seed_cot_out`` composite, which IS ψ_B of the output.
-        """
-        b_a, b_b = _require_coupled_pair(
-            b, self._sn_mesh, "CoupledInvertibleOperator.solve_transpose",
-        )
-        cot_buf = RadialCharacteristicField.source_zeros_on(self._sn_mesh)
-        x_a_bar = self.fused.solve_transpose(
-            b_a, seed_cot=b_b, seed_cot_out=cot_buf,
-        )
-        return CoupledField(systems=(x_a_bar, cot_buf))
-
-    # ── Invertibility (the schedule-triangular family) ────────────────
-
-    @property
-    def is_invertible(self) -> bool:
-        r"""``True`` — joint walk-triangularity (#284: the fused sweep IS a
-        forward substitution) makes M direct-invertible by construction."""
-        return True
-
-    def inverse(self) -> "CoupledSweepOperator":
-        r"""``M⁻¹`` as an operator — the :class:`CoupledSweepOperator`."""
-        return CoupledSweepOperator(self)
-
-    def __repr__(self) -> str:
-        return f"CoupledInvertibleOperator({self.fused!r})"
-
-
-class CoupledSweepOperator(
-    InverseWrapMixin["CoupledInvertibleOperator"],
-    LinearOperator["CoupledField", "CoupledField"],
-):
-    r"""``M⁻¹`` — the joint WDD sweep as the inverse operator of
-    :class:`CoupledInvertibleOperator` (the coupled sibling of
-    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`).
-
-    The wrap-delegate back-half (domain↔codomain swap, ``solve`` = the
-    forward matvec, ``is_invertible``/``inverse() → inner``, the canonical
-    seeded ``apply`` signature) is inherited from
-    :class:`~orpheus.numerics.operator.InverseWrapMixin`. The ctor guard is
-    the :class:`CoupledInvertibleOperator` TYPE itself — joint
-    walk-triangularity is what makes the fused forward sweep-invertible.
-    """
-
-    def apply(
-        self, rhs: "CoupledField", *, initial_guess: "CoupledField | None" = None,
-    ) -> "CoupledField":
-        r"""Return ``M⁻¹·rhs`` via the joint WDD sweep.
-
-        ``initial_guess`` is the inverse family's canonical seeded keyword
-        (#285) — accepted and DROPPED, exactly as
-        :meth:`~orpheus.sn.operators.sweep_operator.SweepOperator.apply`
-        does: the WDD sweep is a DIRECT exact inverse (the curvilinear ψ½
-        starting direction is computed directly from the source since #282
-        route (a) 2.5d — nothing to seed).
-        """
-        del initial_guess  # direct exact inverse — nothing to seed (#282/2.5d)
-        return self.inner.solve(rhs)
-
-    @property
-    def is_adjointable(self) -> bool:
-        r"""``(M⁻¹)ᵀ = (Mᵀ)⁻¹`` exists iff the bridged reverse-scan does."""
-        return self.inner.is_adjointable
-
-    def apply_transpose(self, b: "CoupledField", /) -> "CoupledField":
-        r"""Return ``M⁻ᵀ·b`` — the bridged reverse-scan transpose-solve."""
-        return self.inner.solve_transpose(b)
-
-    def __repr__(self) -> str:
-        return f"CoupledSweepOperator({self.inner!r})"
-
-
 # ───────────────────────────────────────────────────────────────────────
 # The system record — the loss and its splitting, from ONE construction
 # ───────────────────────────────────────────────────────────────────────
@@ -548,8 +312,8 @@ class WithinGroupSystem:
         ``solve`` is the numerics block back-substitution and whose
         ``inverse()`` the
         :class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`
-        (step 5 — the fused ``CoupledInvertibleOperator`` delegation
-        dissolved); the plain ``(L+C)`` seedless.
+        (step 5 — the fused ``CoupledInvertibleOperator`` bridge
+        dissolved at 5b, deleted at 5d); the plain ``(L+C)`` seedless.
     gains : tuple[LinearOperator, ...]
         ``N`` — the lagged couplings the driver applies each step: ONE
         :class:`~orpheus.numerics.coupled_system.CoupledOperator` gain grid
@@ -762,8 +526,8 @@ def build_within_group_system(
     # block back-substitution (System B's march first, then the bulk
     # sweep on ``q_A − Seeding·ψ_B`` — the ray-DECOUPLED (L+C) leg), its
     # ``apply`` the block matvec — the fused joint delegation
-    # (``CoupledInvertibleOperator``) dissolved (R-5.1/R-5.4; the class
-    # is production-orphaned pending the 5d deletion + test re-point).
+    # (``CoupledInvertibleOperator``, deleted at 5d) dissolved
+    # (R-5.1/R-5.4).
     resolvent = CoupledOperator(
         [[LC, A_AB], [None, march]], domain=space, codomain=space,
     )

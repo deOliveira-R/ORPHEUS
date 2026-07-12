@@ -205,18 +205,15 @@ def _random_bulk(sn_mesh: SNMesh, rng: np.random.Generator) -> np.ndarray:
 
 
 def _joint_op(sn_mesh: SNMesh, op):
-    """The JOINT operator for the mesh (B.2d): the coupled ``M`` on a
-    carrying mesh (the fused walk behind the explicit ψ½ legs), ``op``
-    itself on a seedless one."""
+    """The JOINT operator for the mesh (step 5): the honest triangular ``M``
+    grid on a carrying mesh (the numerics substitution — the fused
+    ``CoupledInvertibleOperator`` bridge deleted at 5d), ``op`` itself on a
+    seedless one."""
     if sn_mesh.radial_characteristic_field_space is None:
         return op
-    from orpheus.numerics.coupled_system import CoupledSpace
-    from orpheus.sn.coupled_system import CoupledInvertibleOperator
+    from tests.sn._test_helpers import joint_m_grid
 
-    space = CoupledSpace.from_systems(
-        (sn_mesh.full_field_space, sn_mesh.radial_characteristic_field_space),
-    )
-    return CoupledInvertibleOperator(op, space=space, sn_mesh=sn_mesh)
+    return joint_m_grid(sn_mesh, op)[0]
 
 
 def _sysA(x):

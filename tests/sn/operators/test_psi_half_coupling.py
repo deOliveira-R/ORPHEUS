@@ -83,7 +83,6 @@ import orpheus.numerics.spaces.radial_characteristic_space as _rcs_mod
 import orpheus.sn.operators.radial_characteristic as _rcr_mod
 import orpheus.sn.solver as _solver_mod
 from orpheus.sn.coupled_system import (
-    CoupledInvertibleOperator,
     WithinGroupSystem,
     build_streaming_collision,
     build_within_group_system,
@@ -207,13 +206,13 @@ def _pair(sn, psi_a, ray_values):
 
 
 def _joint_M(sn, LC):
-    """The joint ``M`` — ``LC``'s fused walk re-typed onto the coupled pair
-    (the B.2d leaf-kwarg legs), over the mesh's own coupled space."""
-    from orpheus.numerics.coupled_system import CoupledSpace as _CS
+    """The joint ``M`` — the honest triangular grid over the given variant
+    ``LC`` (step 5: the numerics substitution — the row-6 oracle and the
+    round-trip rows now pin THE PRODUCTION solve shape; the fused
+    ``CoupledInvertibleOperator`` bridge deleted at 5d)."""
+    from tests.sn._test_helpers import joint_m_grid
 
-    space = _CS.from_systems(
-        (sn.full_field_space, sn.radial_characteristic_field_space))
-    return CoupledInvertibleOperator(LC, space=space, sn_mesh=sn)
+    return joint_m_grid(sn, LC)[0]
 
 
 def _dense(fn, tpl):
@@ -3404,14 +3403,14 @@ class TestWithinGroupSystem:
             counters["N"] += 1
             return real_n(op, x)
 
-        real_m = CoupledInvertibleOperator.apply
+        real_m = CoupledSubstitutionOperator.apply
 
-        def spy_m(op, x, /):
+        def spy_m(op, rhs, /, *, initial_guess=None):
             counters["M"] += 1
-            return real_m(op, x)
+            return real_m(op, rhs, initial_guess=initial_guess)
 
         monkeypatch.setattr(CoupledOperator, "apply", spy_n)
-        monkeypatch.setattr(CoupledInvertibleOperator, "apply", spy_m)
+        monkeypatch.setattr(CoupledSubstitutionOperator, "apply", spy_m)
         solver = SNSolver(slab, inner_solver="krylov")
         solver.solve_fixed_source(
             np.ones((slab.ng, slab.nx)), np.ones((slab.ng, slab.nx)))
@@ -3892,29 +3891,6 @@ class TestCoupledSolve:
                 x[sl], reference[sl], rtol=1e-11, atol=1e-13,
                 err_msg=f"substitution off the dense-LU reference on the "
                         f"{name} block — the r1 data-flow broke")
-
-    def test_r1_substitution_matches_the_fused_facade(self):
-        r"""TRANSIENT (retires at 5d with ``CoupledInvertibleOperator``):
-        the substitution ≡ the fused joint sweep — the ray members
-        BIT-identical (both routes call the same ``march.solve`` on the
-        same ``rhs_B``), the bulk at the M-M reassociation bar (~5.5e-16,
-        never bitwise)."""
-        sn, system = self._system(bc="reflective")
-        facade = CoupledInvertibleOperator(
-            build_streaming_collision(sn, SNSolver(sn).mat_xs),
-            space=system.space, sn_mesh=sn)
-        tpl, psi0 = self._carried_state(sn, 52)
-        rhs = system.resolvent.apply(CoupledField.from_flat(psi0, tpl))
-        x_sub = system.resolvent.solve(rhs)
-        x_fused = facade.solve(rhs.copy())
-        np.testing.assert_array_equal(
-            x_sub.systems[1].to_flat(), x_fused.systems[1].to_flat(),
-            err_msg="the ray members must be BIT-identical (same march, "
-                    "same rhs_B)")
-        np.testing.assert_allclose(
-            x_sub.systems[0].interior.values,
-            x_fused.systems[0].interior.values, rtol=1e-11, atol=1e-14,
-            err_msg="bulk off the M-M reassociation bar")
 
     def test_b3_transpose_substitution_vs_dense_mt(self):
         sn, system = self._system(bc="reflective")
