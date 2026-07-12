@@ -240,12 +240,21 @@ class IncomingSourceOperator(LinearOperator):
     matching the input shape. Used by the SN realizer for
     :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow`.
 
-    The operator stores only the
-    :class:`~orpheus.geometry.boundary._source.InflowSourceSpec` —
-    no quadrature reference is retained. The probe trace built at
-    apply time carries just the shape information the source needs
-    to size its output; the source's :meth:`evaluate` is responsible
-    for filling values per its own contract.
+    The operator stores the
+    :class:`~orpheus.geometry.boundary._source.InflowSourceSpec` and —
+    when the realizing method space carries them (#52, ERR-047) — the
+    face's inflow-ordinate indices. An
+    :class:`~orpheus.geometry.boundary._source.InflowSourceSpec` fills
+    whatever block *shape* it is handed (it carries no trace
+    knowledge), so restricting the delivered :math:`q` to
+    :math:`\Gamma_-` is THIS operator's contract: with a mask, the
+    evaluation is zeroed on every non-inflow ordinate (outflow AND
+    tangential — neither is in :math:`\Gamma_-`), making the affine
+    form's :math:`q \in \Gamma_-` hold by construction. Without a
+    mask, the raw evaluation passes through — legal only for
+    :math:`q \equiv 0` sources on the realize path, which
+    :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
+    certifies BEFORE this operator is built.
 
     Apply-only. The operator is rank-0 in the
     input (every input maps to the same source value); it is NOT
@@ -263,23 +272,76 @@ class IncomingSourceOperator(LinearOperator):
         :class:`~orpheus.geometry.boundary._source.InflowSourceSpec`
         implementations may inject spatially / energy- / angularly-
         varying inflow.
+    inflow_indices : np.ndarray, optional
+        The face's inflow-ordinate indices (axis 0 of the boundary
+        block). When given, ``n_ordinates`` is required and the
+        delivered source is masked to these slots.
+    n_ordinates : int, optional
+        Length of the ordinate axis; validates the mask range
+        (mirrors :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`'s
+        construction guards) and pins the expected ``apply`` shape.
     """
 
-    def __init__(self, source: "InflowSourceSpec") -> None:
+    def __init__(
+        self,
+        source: "InflowSourceSpec",
+        *,
+        inflow_indices: "np.ndarray | None" = None,
+        n_ordinates: "int | None" = None,
+    ) -> None:
         self.source = source
+        if inflow_indices is None:
+            self._inflow_mask: "np.ndarray | None" = None
+            self.n_ordinates: "int | None" = (
+                int(n_ordinates) if n_ordinates is not None else None
+            )
+            return
+        if n_ordinates is None:
+            raise ValueError(
+                "IncomingSourceOperator: inflow_indices requires "
+                "n_ordinates (the mask needs the ordinate-axis length)."
+            )
+        indices = np.asarray(inflow_indices, dtype=np.intp)
+        if indices.ndim != 1:
+            raise ValueError(
+                f"IncomingSourceOperator inflow_indices must be 1-D; "
+                f"got shape {indices.shape}"
+            )
+        if indices.size > 0 and (
+            indices.min() < 0 or indices.max() >= int(n_ordinates)
+        ):
+            raise ValueError(
+                f"IncomingSourceOperator inflow_indices out of range "
+                f"[0, {n_ordinates}); got min={int(indices.min())}, "
+                f"max={int(indices.max())}"
+            )
+        mask = np.zeros(int(n_ordinates), dtype=float)
+        mask[indices] = 1.0
+        self._inflow_mask = mask
+        self.n_ordinates = int(n_ordinates)
 
     def apply(self, psi_out: np.ndarray) -> np.ndarray:
-        r"""Return the source evaluated at ``psi_out.shape``. ``psi_out``
+        r"""Return the source evaluated at ``psi_out.shape``, masked to
+        :math:`\Gamma_-` when inflow indices were wired. ``psi_out``
         itself is IGNORED (the affine source does not depend on the
         outgoing flux).
 
         The source is asked to fill an array of the incoming-face
-        shape. Sources that need richer trace metadata (face-tagged
-        inflow injection, per-ordinate masks) require Wave 8's full
-        :class:`~orpheus.sn.mesh.method_space.SNMethodSpace` wiring; the
-        Wave-7 ship-state covers the
-        :class:`~orpheus.geometry.boundary._source.NoSource` /
-        :class:`~orpheus.geometry.boundary._source.ConstantInflowSource`
-        cases that only need the shape.
+        shape; the mask (ordinate axis 0, broadcast over trailing
+        group / spatial axes) then zeroes every non-inflow slot so the
+        delivered :math:`q` lives on the incoming trace by
+        construction (ERR-047).
         """
-        return self.source.evaluate(tuple(int(s) for s in psi_out.shape))
+        q = self.source.evaluate(tuple(int(s) for s in psi_out.shape))
+        if self._inflow_mask is None:
+            return q
+        if q.shape[0] != self._inflow_mask.shape[0]:
+            raise ValueError(
+                f"IncomingSourceOperator: ordinate axis mismatch — the "
+                f"inflow mask covers {self._inflow_mask.shape[0]} "
+                f"ordinates but the requested block has axis-0 length "
+                f"{q.shape[0]}."
+            )
+        return q * self._inflow_mask.reshape(
+            (-1,) + (1,) * (q.ndim - 1)
+        )

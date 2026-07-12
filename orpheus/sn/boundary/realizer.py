@@ -42,15 +42,29 @@ The realisation map (law concrete → Wave-0 / Wave-1 primitive)
 * :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundary` →
   :class:`~orpheus.numerics.operator.PeriodicWrapOperator`.
 * :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
-  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator(source)`
-  — apply returns ``source.evaluate(psi_out.shape)``, ignoring the
-  outgoing flux. The rank-0 affine BC (Wave 7 / C7.5).
+  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator` —
+  apply ignores the outgoing flux and returns the source evaluation
+  MASKED to the face's inflow ordinates (#52 / ERR-047: the delivered
+  :math:`q` lives on :math:`\Gamma_-` by construction; a nonzero
+  source on a method space with no inflow indices is refused at
+  certification). The rank-0 affine BC (Wave 7 / C7.5).
 * :class:`~orpheus.geometry.boundary.zero_flux.ZeroFluxBoundary` →
   **REFUSED** (:class:`~orpheus.geometry.boundary.BoundaryError`):
   the Dirichlet idealization :math:`\phi_\Gamma = 0` is the
   albedo-family member :math:`\mathcal{A} = -1`, and a negative
   angular inflow is unrepresentable in a non-negative :math:`\psi`.
   It realizes only under the diffusion realizer (#290 P3).
+
+Realization is the certification point (#52): every dispatch first
+fires the law's :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_realizable`
+aggregate (the §16A.12 universal invariants + each law's specific
+checks — reflective's measure/involution/inflow→outflow table trio,
+white/albedo's sub-Markov bound, the universal ERR-047 source-trace
+certification), and the vacuum arm cross-checks the claimed
+``inflow_indices`` against the face-name geometry (ERR-041). The
+error catalog's recurring lesson operationalized: contracts are
+checked where the law meets the trace, not discovered by downstream
+balance defects.
 
 Wave 11 removed the ``MixedBoundaryOperator`` composer from the
 dispatch table. Rank-N compositions are now expressed via Wave-0
@@ -75,6 +89,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
@@ -82,10 +98,15 @@ from orpheus.geometry.boundary import (
     PeriodicBoundary,
     PrescribedInflow,
     ReflectiveBoundary,
+    VacuumAppliedToOutgoingTraceError,
     VacuumInflow,
     WhiteBoundary,
     ZeroFluxBoundary,
     stamp_boundary_role,
+)
+from orpheus.numerics.spaces.angular_trace_space import (
+    TANGENTIAL_EPS,
+    build_omega_dot_n,
 )
 from orpheus.numerics.operator import (
     IdentityOperator,
@@ -160,6 +181,21 @@ class SNBoundaryRealizer:
 
         quad = method_space.quadrature
 
+        # #52 — the §16A.12 invariants fire HERE, at the seam where the
+        # law meets the actual quadrature + trace data (the error
+        # catalog's recurring lesson: check at realization, not only by
+        # downstream balance). One aggregate call; each law extends the
+        # base template with its own invariants (reflective's three
+        # table checks, white/albedo's sub-Markov bound, the universal
+        # ERR-047 source-trace certification). Certification is a LAW
+        # contract: a non-law object (and a LawSum/LawScaled tree,
+        # which composes laws but is not one) falls through to the
+        # loud dispatch-failure raise below instead.
+        if isinstance(law, BoundaryTraceLaw):
+            law.assert_realizable(
+                quad, inflow_indices=method_space.inflow_indices
+            )
+
         if isinstance(law, VacuumInflow):
             if method_space.inflow_indices is None:
                 raise BoundaryError(
@@ -173,6 +209,42 @@ class SNBoundaryRealizer:
                     "inflow_indices=...).",
                     law="vacuum",
                 )
+            # #52 / ERR-041 — trace-orientation guard. The claimed
+            # inflow_indices and the face NAME are two independent
+            # encodings of the same orientation (the annotation-swap
+            # bug class desynchronizes them: indices built from the
+            # OUTGOING set of this face). Cross-check against the
+            # signed projection the face name alone implies via the
+            # single face→normal primitive. On the canonical
+            # SNMesh.realize_boundary_law path both encodings derive
+            # from the trace space, so the guard is green by
+            # construction; it bites on hand-built method spaces —
+            # exactly where the annotation swap lives. A method space
+            # with no face carries no independent orientation truth,
+            # so the guard cannot fire there (documented escape:
+            # quadrature-only spaces with explicit indices are the
+            # caller's responsibility).
+            if method_space.face is not None:
+                omega_dot_n = build_omega_dot_n(
+                    quad, (method_space.face,)
+                )[0]
+                claimed = np.asarray(
+                    method_space.inflow_indices, dtype=np.intp
+                )
+                outgoing = omega_dot_n[claimed] > +TANGENTIAL_EPS
+                if np.any(outgoing):
+                    offending = claimed[outgoing]
+                    raise VacuumAppliedToOutgoingTraceError(
+                        f"VacuumInflow at face "
+                        f"{method_space.face!r}: inflow_indices "
+                        f"{offending.tolist()} are OUTGOING ordinates "
+                        f"(Ω·n̂ > 0) at this face — the vacuum law "
+                        f"prescribes γ₋ψ = 0 on the INCOMING trace "
+                        f"only; zeroing outflow slots discards the "
+                        f"flux the sweep just computed (ERR-041: "
+                        f"swapped inflow/outflow face annotation).",
+                        law="vacuum",
+                    )
             # Wave T step T.1 — vacuum BC lift to 2-factor
             # TensorProductOperator, mirroring the D-B+1 specular pattern.
             # IncomingOrdinateMaskTensor acts on the ordinate axis
@@ -260,11 +332,20 @@ class SNBoundaryRealizer:
             return stamp_boundary_role(PeriodicWrapOperator() & IdentityOperator())
 
         if isinstance(law, PrescribedInflow):
-            # Wave-7 addition: rank-0 affine source. The operator's
-            # apply ignores the outgoing flux and returns
-            # source.evaluate(psi_out.shape). Wave 8 will extend
-            # IncomingSourceOperator with face / inflow-indices
-            # plumbing once SNMethodSpace carries them.
+            # Rank-0 affine source. The operator's apply ignores the
+            # outgoing flux and returns the source evaluation MASKED
+            # to the face's inflow ordinates (#52 / ERR-047 — the
+            # anticipated Wave-8 inflow-indices plumbing, live now
+            # that SNMethodSpace carries them): the delivered q lives
+            # on Γ_- by construction. The unmasked branch is reached
+            # only for q ≡ 0 sources — assert_realizable above raised
+            # already for a nonzero source with no inflow set.
+            if method_space.inflow_indices is not None:
+                return IncomingSourceOperator(
+                    law.source,
+                    inflow_indices=method_space.inflow_indices,
+                    n_ordinates=int(quad.N),
+                )
             return IncomingSourceOperator(law.source)
 
         raise BoundaryError(

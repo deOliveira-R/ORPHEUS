@@ -23,7 +23,15 @@ Invariant → ERR-NNN map
 * :meth:`ReflectiveBoundary.assert_is_involutive` → ERR-044
   (``ReflectionNotInvolutiveError``)
 * :meth:`ReflectiveBoundary.assert_geometry_map_measure_preserving`
-  → ERR-042 / ERR-044 (delegates to involution check)
+  → ERR-042 (``BoundaryGeometryMapNotMeasurePreservingError``) — the
+  DIRECT ``w·|μ|`` pushforward check (#52; the pre-#52 delegation to
+  the involution check left the unequal-weight-pairing hole open)
+* :meth:`ReflectiveBoundary.assert_reflection_maps_inflow_to_outflow`
+  → ERR-045 (``ReflectionDidNotMapInflowToOutflowError``) — the
+  third independent reflection-table invariant (#52)
+* :meth:`BoundaryTraceLaw.assert_source_lives_on_incoming_trace` →
+  ERR-047 (``BoundarySourceNotOnIncomingTraceError``) — the
+  universal q ∈ Γ_- certification (#52; real body on the ABC)
 * :meth:`WhiteBoundary.assert_response_positive_if_declared` →
   ERR-043 (``BoundaryResponseNotPositiveError``)
 * :meth:`WhiteBoundary.assert_submarkov` → ERR-046
@@ -32,7 +40,16 @@ Invariant → ERR-NNN map
   ERR-043
 * :meth:`AlbedoBoundary.assert_submarkov` → ERR-046
 
-Plan: ``.claude/plans/transient-giggling-cake.md`` Wave 7 / C7.6.
+Production wiring (#52): every invariant above fires at REALIZE time
+through :meth:`BoundaryTraceLaw.assert_realizable` (called by
+:meth:`SNBoundaryRealizer.realize` at entry), so the negative legs
+below include realize-time catchers — the invariants are production
+guards, not test-only helpers. The ERR-041 realizer-seam guard
+(vacuum trace orientation) lives with the realizer's own tests in
+``tests/sn/operators/test_sn_boundary_realizer.py``.
+
+Plan: ``.claude/plans/transient-giggling-cake.md`` Wave 7 / C7.6;
+#52 (the four unbuilt BC-layer invariants, 2026-07-12).
 """
 
 from __future__ import annotations
@@ -42,8 +59,11 @@ import pytest
 
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
+    BoundaryGeometryMapNotMeasurePreservingError,
     BoundaryResponseNotPositiveError,
+    BoundarySourceNotOnIncomingTraceError,
     PeriodicBoundary,
+    ReflectionDidNotMapInflowToOutflowError,
     ReflectiveBoundary,
     SubmarkovViolationError,
     VacuumInflow,
@@ -106,35 +126,156 @@ class TestReflectiveInvolutionInvariant:
             bc.assert_is_involutive(_FakeQuad())  # type: ignore[arg-type]
 
 
+class _TableQuad:
+    """Quadrature stand-in: REAL nodes/weights, injectable reflection
+    table.
+
+    The negative legs below need tables that are wrong in exactly ONE
+    invariant while every other datum stays production-real — the
+    surgical way to prove the three reflection-table invariants are
+    independent (the ERR-045 catalog lesson: "checking only one or two
+    leaves a hole").
+    """
+
+    def __init__(self, base: Quadrature, table: np.ndarray) -> None:
+        self.N = base.N
+        self.weights = base.weights
+        self._base = base
+        self._table = np.asarray(table)
+
+    def axis_cosines(self, axis_index: int) -> np.ndarray:
+        return self._base.axis_cosines(axis_index)
+
+    def reflection_index(self, axis: str) -> np.ndarray:
+        return self._table
+
+
 @pytest.mark.l1
+@pytest.mark.catches("ERR-042")
 class TestReflectiveMeasurePreservingInvariant:
     """:meth:`ReflectiveBoundary.assert_geometry_map_measure_preserving`
-    delegates to the involution check."""
+    checks the ``w·|μ|`` pushforward DIRECTLY (#52).
+
+    The pre-#52 body delegated to the involution check on the claim
+    that weight symmetry is "implied by construction" — leaving open
+    the exact ERR-042 hole: an involutive table pairing ordinates from
+    DIFFERENT weight classes. The neighbor-pair mutant below is that
+    hole made flesh; its raise is the invariant's tooth, and its clean
+    pass through the involution check is the independence proof.
+    """
 
     def test_passes_for_real_quadratures(self) -> None:
         for quad in (
             Quadrature.lebedev(17),
             Quadrature.level_symmetric(sn_order=6),
             Quadrature.gauss_legendre(n_ordinates=8),
+            Quadrature.product(n_mu=8, n_phi=8),
         ):
-            ReflectiveBoundary(axis="x").assert_geometry_map_measure_preserving(quad)
+            for axis in ("x", "y", "z"):
+                ReflectiveBoundary(axis=axis).assert_geometry_map_measure_preserving(quad)
 
-    def test_raises_when_involution_fails(self) -> None:
-        """Non-involutive perm fails the measure-preserving check
-        via the delegated involution test."""
-        quad = Quadrature.lebedev(17)
-        N = quad.N
+    def test_raises_for_involutive_weight_class_mispairing(self) -> None:
+        """Neighbor-pair table on GL-8: a perfect involution that
+        pairs ordinates with UNEQUAL weights and |μ| — the measure
+        check must red where the involution check stays green."""
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
+        mutant = _TableQuad(quad, np.array([1, 0, 3, 2, 5, 4, 7, 6]))
+        bc = ReflectiveBoundary(axis="x")
 
-        class _FakeQuad:
-            N = quad.N
+        # Independence: the mutant sails through the ERR-044 check…
+        bc.assert_is_involutive(mutant)  # type: ignore[arg-type]
 
-            @staticmethod
-            def reflection_index(axis: str) -> np.ndarray:
-                return np.roll(np.arange(N), 1)
+        # …and reds the ERR-042 check.
+        with pytest.raises(BoundaryGeometryMapNotMeasurePreservingError):
+            bc.assert_geometry_map_measure_preserving(mutant)  # type: ignore[arg-type]
 
-        with pytest.raises(ReflectionNotInvolutiveError):
-            ReflectiveBoundary(axis="x").assert_geometry_map_measure_preserving(
-                _FakeQuad(),  # type: ignore[arg-type]
+    def test_raises_at_realize_time(self, monkeypatch) -> None:
+        """The invariant is a PRODUCTION guard: the same mispaired
+        table poisoning a real quadrature's precomputed partners
+        reddens ``SNBoundaryRealizer.realize`` itself (via the
+        ``assert_realizable`` certification at entry)."""
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
+
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
+        monkeypatch.setitem(
+            quad.reflection_partners, 0,
+            np.array([1, 0, 3, 2, 5, 4, 7, 6]),
+        )
+        with pytest.raises(BoundaryGeometryMapNotMeasurePreservingError):
+            SNBoundaryRealizer().realize(
+                ReflectiveBoundary(axis="x"),
+                SNMethodSpace.minimal(quad),
+            )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ReflectiveBoundary.assert_reflection_maps_inflow_to_outflow (ERR-045)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-045")
+class TestReflectiveInflowToOutflowInvariant:
+    """:meth:`ReflectiveBoundary.assert_reflection_maps_inflow_to_outflow`
+    (#52) — the THIRD independent reflection-table invariant.
+
+    The identity table is the canonical ERR-045 mutant: every ordinate
+    self-maps, so it is trivially involutive (ERR-044 green) and
+    trivially measure-preserving (ERR-042 green — ``m[id] ≡ m``), yet
+    every non-tangential inflow ordinate maps to ITSELF instead of its
+    outflow partner — a length-1 self-loop in the sweep dependency
+    graph. Only this check can see it.
+    """
+
+    def test_passes_for_real_quadratures(self) -> None:
+        for quad in (
+            Quadrature.lebedev(17),
+            Quadrature.level_symmetric(sn_order=6),
+            Quadrature.gauss_legendre(n_ordinates=8),
+            Quadrature.product(n_mu=8, n_phi=8),
+        ):
+            for axis in ("x", "y", "z"):
+                ReflectiveBoundary(axis=axis).assert_reflection_maps_inflow_to_outflow(quad)
+
+    def test_identity_table_raises_while_sibling_invariants_pass(self) -> None:
+        """The independence triad on ONE mutant: identity passes
+        involution AND measure, reds ONLY inflow→outflow."""
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
+        mutant = _TableQuad(quad, np.arange(quad.N))
+        bc = ReflectiveBoundary(axis="x")
+
+        bc.assert_is_involutive(mutant)  # type: ignore[arg-type]
+        bc.assert_geometry_map_measure_preserving(mutant)  # type: ignore[arg-type]
+
+        with pytest.raises(ReflectionDidNotMapInflowToOutflowError):
+            bc.assert_reflection_maps_inflow_to_outflow(mutant)  # type: ignore[arg-type]
+
+    def test_tangential_self_map_is_exempt(self) -> None:
+        """A 1-D quadrature's y-axis table is the identity over
+        ALL-tangential ordinates (``mu_y ≡ 0``) — the geometrically
+        correct image. The exemption must keep it green (an
+        over-strict check would red every degenerate axis)."""
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
+        np.testing.assert_array_equal(
+            quad.reflection_index("y"), np.arange(quad.N),
+        )
+        ReflectiveBoundary(axis="y").assert_reflection_maps_inflow_to_outflow(quad)
+
+    def test_raises_at_realize_time(self, monkeypatch) -> None:
+        """Production wiring: the identity-poisoned table reddens
+        ``SNBoundaryRealizer.realize`` itself."""
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
+
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
+        monkeypatch.setitem(
+            quad.reflection_partners, 0, np.arange(quad.N),
+        )
+        with pytest.raises(ReflectionDidNotMapInflowToOutflowError):
+            SNBoundaryRealizer().realize(
+                ReflectiveBoundary(axis="x"),
+                SNMethodSpace.minimal(quad),
             )
 
 
@@ -347,8 +488,12 @@ class TestPrescribedInflowApply:
         assert psi_in.shape == psi_out.shape
         np.testing.assert_array_equal(psi_in, np.zeros_like(psi_out))
 
-    def test_realized_apply_with_constant_source_returns_constant(self) -> None:
-        """``ConstantInflowSource(v)``: realized ``apply`` returns ``v``."""
+    def test_realized_apply_with_constant_source_is_masked_to_inflow(self) -> None:
+        """``ConstantInflowSource(v)``: the realized ``apply`` delivers
+        ``v`` on the face's inflow slots and ZERO everywhere else — the
+        #52 / ERR-047 delivered-q contract (the pre-#52 unmasked
+        full-array ``v`` was the ERR-047 hazard this file's pin used
+        to bless)."""
         from orpheus.geometry.boundary import (
             ConstantInflowSource,
             PrescribedInflow,
@@ -358,11 +503,23 @@ class TestPrescribedInflowApply:
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=3.7))
         quad = Quadrature.lebedev(17)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        inflow = np.flatnonzero(quad.mu_x < 0)
+        op = SNBoundaryRealizer().realize(
+            bc,
+            SNMethodSpace(
+                quadrature=quad, face="xmax", inflow_indices=inflow,
+            ),
+        )
         psi_out = np.random.default_rng(1).standard_normal((quad.N, 2))
         psi_in = op.apply(psi_out)
         assert psi_in.shape == psi_out.shape
-        np.testing.assert_array_equal(psi_in, np.full_like(psi_out, 3.7))
+        np.testing.assert_array_equal(
+            psi_in[inflow], np.full((inflow.size, 2), 3.7),
+        )
+        off_trace = np.setdiff1d(np.arange(quad.N), inflow)
+        np.testing.assert_array_equal(
+            psi_in[off_trace], np.zeros((off_trace.size, 2)),
+        )
 
     def test_realized_apply_ignores_psi_out(self) -> None:
         """The rank-0 contract: input is ignored, output depends only on source."""
@@ -375,7 +532,13 @@ class TestPrescribedInflowApply:
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=1.0))
         quad = Quadrature.lebedev(17)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        op = SNBoundaryRealizer().realize(
+            bc,
+            SNMethodSpace(
+                quadrature=quad, face="xmax",
+                inflow_indices=np.flatnonzero(quad.mu_x < 0),
+            ),
+        )
         psi_out_a = np.random.default_rng(2).standard_normal((quad.N, 2))
         psi_out_b = 1000.0 * np.ones((quad.N, 2))
         # Same source → same output, regardless of psi_out.
@@ -436,7 +599,13 @@ class TestSNRealizerPrescribedInflowDispatch:
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=1.5))
         quad = Quadrature.lebedev(17)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        op = SNBoundaryRealizer().realize(
+            bc,
+            SNMethodSpace(
+                quadrature=quad, face="xmax",
+                inflow_indices=np.flatnonzero(quad.mu_x < 0),
+            ),
+        )
         assert isinstance(op, IncomingSourceOperator)
         # The source is the same one we passed in.
         assert op.source is bc.source
@@ -452,3 +621,151 @@ class TestSNRealizerPrescribedInflowDispatch:
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, IncomingSourceOperator)
         assert isinstance(op.source, NoSource)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# BoundaryTraceLaw.assert_source_lives_on_incoming_trace (ERR-047)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-047")
+class TestSourceLivesOnIncomingTraceInvariant:
+    """:meth:`BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
+    (#52) — the real universal body replacing the no-op default.
+
+    The affine form's :math:`q` lives on :math:`\\Gamma_-`. An
+    :class:`InflowSourceSpec` fills whatever shape it is handed, so
+    the delivered-:math:`q` guarantee needs the realizer's inflow
+    mask; the invariant certifies the mask EXISTS whenever
+    :math:`q \\not\\equiv 0`, and the delivered-q leg pins the masked
+    postcondition end-to-end (the ERR-047 mechanism: an unmasked
+    constant writes into outflow slots the sweep silently discards —
+    the total inflow lands SHORT of intent)."""
+
+    def test_nonzero_source_without_inflow_set_raises(self) -> None:
+        """Law-level negative: the exact catalog catcher —
+        ``ConstantInflowSource(2.0)`` on a mixed inflow/outflow
+        quadrature, no outflow mask available."""
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource,
+            PrescribedInflow,
+        )
+
+        law = PrescribedInflow(source=ConstantInflowSource(value=2.0))
+        quad = Quadrature.lebedev(17)
+        with pytest.raises(BoundarySourceNotOnIncomingTraceError):
+            law.assert_source_lives_on_incoming_trace(quad, None)
+
+    def test_nonzero_source_with_inflow_set_passes(self) -> None:
+        """Positive: with the face's inflow indices supplied, the
+        realizer masks and the invariant certifies."""
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource,
+            PrescribedInflow,
+        )
+
+        law = PrescribedInflow(source=ConstantInflowSource(value=2.0))
+        quad = Quadrature.lebedev(17)
+        law.assert_source_lives_on_incoming_trace(
+            quad, np.flatnonzero(quad.mu_x < 0),
+        )
+
+    def test_homogeneous_laws_certify_masklessly(self) -> None:
+        """Positive sweep: every homogeneous law's ``NoSource`` is
+        :math:`q \\equiv 0` — trivially on :math:`\\Gamma_-`, with or
+        without a mask. The universal body must not demand trace data
+        it does not need."""
+        quad = Quadrature.lebedev(17)
+        for law in (
+            VacuumInflow(),
+            ReflectiveBoundary(axis="x"),
+            WhiteBoundary(axis="x", outward_sign=+1),
+            AlbedoBoundary(albedo=0.5),
+            PeriodicBoundary(),
+        ):
+            law.assert_source_lives_on_incoming_trace(quad, None)
+
+    def test_zero_valued_constant_certifies_masklessly(self) -> None:
+        """``ConstantInflowSource(0.0)`` has zero support — same
+        trivial certification as ``NoSource``."""
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource,
+            PrescribedInflow,
+        )
+
+        law = PrescribedInflow(source=ConstantInflowSource(value=0.0))
+        law.assert_source_lives_on_incoming_trace(
+            Quadrature.lebedev(17), None,
+        )
+
+    def test_raises_at_realize_time(self) -> None:
+        """Production wiring: realizing the nonzero source on a
+        quadrature-only method space (no inflow indices anywhere)
+        reddens ``SNBoundaryRealizer.realize`` itself — 'the realiser
+        asked to apply the source without an outflow mask' (the
+        catalog's catcher spec, verbatim)."""
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource,
+            PrescribedInflow,
+        )
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
+
+        bc = PrescribedInflow(source=ConstantInflowSource(value=2.0))
+        quad = Quadrature.lebedev(17)
+        with pytest.raises(BoundarySourceNotOnIncomingTraceError):
+            SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+
+    def test_delivered_q_vanishes_off_the_incoming_trace(self) -> None:
+        """The end-to-end postcondition the invariant's mask-exists
+        certification rides on: the REALIZED operator's output is the
+        source value on :math:`\\Gamma_-` and exactly zero on outflow
+        AND tangential slots (neither is in :math:`\\Gamma_-`)."""
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource,
+            PrescribedInflow,
+        )
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
+
+        bc = PrescribedInflow(source=ConstantInflowSource(value=2.0))
+        quad = Quadrature.lebedev(17)
+        inflow = np.flatnonzero(quad.mu_x < 0)
+        op = SNBoundaryRealizer().realize(
+            bc,
+            SNMethodSpace(
+                quadrature=quad, face="xmax", inflow_indices=inflow,
+            ),
+        )
+        delivered = op.apply(np.ones((quad.N, 3)))
+        np.testing.assert_array_equal(
+            delivered[inflow], np.full((inflow.size, 3), 2.0),
+        )
+        off_trace = np.setdiff1d(np.arange(quad.N), inflow)
+        np.testing.assert_array_equal(
+            delivered[off_trace], np.zeros((off_trace.size, 3)),
+        )
+
+    def test_mask_construction_guards(self) -> None:
+        """The mask plumbing's own contract: indices without a length
+        are refused; out-of-range indices are refused (mirrors
+        :class:`IncomingOrdinateMaskTensor`'s construction guards)."""
+        from orpheus.geometry.boundary import ConstantInflowSource
+        from orpheus.sn.boundary.angular import IncomingSourceOperator
+
+        src = ConstantInflowSource(value=1.0)
+        with pytest.raises(ValueError):
+            IncomingSourceOperator(
+                src, inflow_indices=np.array([0, 1]),
+            )
+        with pytest.raises(ValueError):
+            IncomingSourceOperator(
+                src, inflow_indices=np.array([0, 9]), n_ordinates=4,
+            )
+        with pytest.raises(ValueError):
+            IncomingSourceOperator(
+                src,
+                inflow_indices=np.array([[0], [1]]),
+                n_ordinates=4,
+            )

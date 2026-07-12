@@ -51,7 +51,9 @@ References
 from __future__ import annotations
 
 from abc import ABC
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Optional
+
+import numpy as np
 
 from orpheus.numerics.registry import RegistryMixin
 
@@ -257,15 +259,113 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         """
 
     def assert_source_lives_on_incoming_trace(
-        self, quadrature: "Quadrature"
+        self,
+        quadrature: "Quadrature",
+        inflow_indices: Optional[np.ndarray] = None,
     ) -> None:
-        r"""The source :math:`q` is nonzero only on
-        :math:`\Gamma_-`.
+        r"""The source :math:`q` is nonzero only on :math:`\Gamma_-`
+        (ERR-047).
 
-        Default: no-op (concrete laws inherit unless they need a
-        stricter check). The :class:`NoSource` default trivially
-        satisfies the invariant because :math:`q \equiv 0`.
+        The affine form's :math:`q` term lives on the incoming trace by
+        definition. An
+        :class:`~orpheus.geometry.boundary._source.InflowSourceSpec`
+        fills whatever block *shape* it is handed (it carries no trace
+        knowledge), so the delivered :math:`q \in \Gamma_-` guarantee
+        rests on the realizer masking the evaluation to the face's
+        inflow ordinates. This check certifies that the mask EXISTS
+        whenever it is needed:
+
+        * :math:`q \equiv 0` (the :class:`NoSource` default of every
+          homogeneous law, or a zero-valued constant) — trivially on
+          :math:`\Gamma_-`; certifiable with or without a mask.
+        * :math:`q \not\equiv 0` **and** ``inflow_indices is None`` —
+          the realizer has no inflow set to mask with, so the delivered
+          source would write into outflow slots the sweep silently
+          discards (the ERR-047 missing-source bug: total inflow SHORT
+          of the user's intent). Raises
+          :class:`~orpheus.geometry.boundary._errors.BoundarySourceNotOnIncomingTraceError`.
+        * :math:`q \not\equiv 0` **and** a mask is supplied — the
+          realizer restricts the evaluation to :math:`\Gamma_-` at
+          construction (see the SN realizer's ``PrescribedInflow``
+          arm), so the delivered :math:`q` vanishes off the incoming
+          trace by construction. The end-to-end delivered-:math:`q`
+          postcondition is pinned by the ERR-047 catcher test.
+
+        The support probe evaluates the source on the per-ordinate
+        shape ``(N,)`` — the one axis the trace partition lives on;
+        the :class:`InflowSourceSpec` contract ("fill exactly the
+        requested shape") makes the probe representative of any
+        trailing-axis block the realizer later requests.
         """
+        probe = self.source.evaluate((int(quadrature.N),))
+        if not np.any(probe):
+            return
+        if inflow_indices is None:
+            from ._errors import BoundarySourceNotOnIncomingTraceError
+
+            raise BoundarySourceNotOnIncomingTraceError(
+                f"{type(self).__name__} carries a nonzero inflow source "
+                f"({type(self.source).__name__}) but no inflow-trace "
+                f"indices were provided, so the realized q cannot be "
+                f"certified to live on Γ_- — an unmasked source writes "
+                f"into outflow slots the sweep discards (ERR-047). "
+                f"Realize against a method space carrying "
+                f"inflow_indices (SNMethodSpace.for_face with a trace, "
+                f"or explicit inflow_indices=).",
+                law=type(self).__name__,
+            )
+
+    # ------------------------------------------------------------------
+    # Realize-time certification (#52) -- the ONE aggregate the method
+    # realizers call so the §16A.12 invariants are PRODUCTION guards,
+    # not test-only helpers.
+    # ------------------------------------------------------------------
+
+    def assert_realizable(
+        self,
+        quadrature: "Quadrature",
+        *,
+        inflow_indices: Optional[np.ndarray] = None,
+    ) -> None:
+        r"""Fire every law-level invariant against the realization data.
+
+        The §16A.12 universal invariants and the error catalog's
+        lessons (ERR-041/042/043/045/046/047) all end the same way:
+        *the contract must be CHECKED at construction/realization, not
+        only verified by downstream balance* — by then the miscount has
+        propagated. This template method is the production seam that
+        honors those lessons: a method realizer (e.g.
+        :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`)
+        calls it ONCE at entry, so every law arrives at its primitive
+        construction already certified against the actual quadrature
+        and trace data it is about to be wired to.
+
+        The base body fires the five universal invariants (no-op
+        defaults unless a concrete law overrides). Concrete laws
+        EXTEND via ``super().assert_realizable(...)`` plus their
+        law-specific invariants — :class:`ReflectiveBoundary` adds the
+        involution and inflow→outflow table checks,
+        :class:`WhiteBoundary` / :class:`AlbedoBoundary` add the
+        sub-Markov bound — so the realizer needs no per-law knowledge
+        of WHICH invariants exist.
+
+        Parameters
+        ----------
+        quadrature
+            The angular quadrature the law is being realized against.
+        inflow_indices
+            The face's inflow-ordinate indices when the method space
+            carries them (``None`` on quadrature-only spaces). Consumed
+            by the ERR-047 source-trace check; a nonzero source without
+            an inflow set is uncertifiable and raises there.
+        """
+        self.assert_inflow_outflow_classification(quadrature)
+        self.assert_outgoing_leakage_unconstrained(quadrature)
+        self.assert_geometry_map_measure_preserving(quadrature)
+        self.assert_response_positive_if_declared()
+        self.assert_source_lives_on_incoming_trace(
+            quadrature, inflow_indices
+        )
 
     # ------------------------------------------------------------------
     # Method realisation hook -- guidance raise; the realizers are the

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6632**
+Total tests collected: **6649**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1187, 17.9%
-   L1, 1085, 16.4%
+   L1, 1102, 16.6%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4267, 64.3%
+   foundation, 4267, 64.2%
    unmarked, 39, 0.6%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6514
+   explicit, 6531
    verify, 0
    class-name, 46
    func-name, 0
@@ -242,7 +242,7 @@ Module × level grid
    frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
-   geometry/test_bc_universal_invariants, 0, 30, 0, 0, 11, 0
+   geometry/test_bc_universal_invariants, 0, 42, 0, 0, 11, 0
    geometry/test_bound_compat, 10, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 25, 0
    geometry/test_boundary_trace_law, 0, 0, 0, 0, 15, 0
@@ -361,7 +361,7 @@ Module × level grid
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 69, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 20, 0
-   operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
+   operators/test_sn_boundary_realizer, 0, 25, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
@@ -1170,13 +1170,13 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-038``, 5
    ``ERR-039``, 8
    ``ERR-040``, 1
-   ``ERR-041``, **0 (MISSING)**
-   ``ERR-042``, **0 (MISSING)**
+   ``ERR-041``, 5
+   ``ERR-042``, 3
    ``ERR-043``, 8
    ``ERR-044``, 4
-   ``ERR-045``, **0 (MISSING)**
+   ``ERR-045``, 4
    ``ERR-046``, 8
-   ``ERR-047``, **0 (MISSING)**
+   ``ERR-047``, 7
    ``ERR-048``, 51
    ``ERR-049``, 15
    ``ERR-050``, 10

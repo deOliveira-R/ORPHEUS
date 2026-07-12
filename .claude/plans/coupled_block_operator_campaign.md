@@ -2292,3 +2292,89 @@ architecture: the solve mode, the certificate, the two-channel law).
 
 Re-anchor from the "STEP 5 (#41) COMPLETE" STATUS block above + `git
 log` (trust git, not the summary).
+
+### Task #52 COMPLETE — the four BC-layer invariants go production-live (2026-07-12)
+
+**The gap closed**: the d3 ERR-marker audit's four honestly-missing
+entries (041/042/045/047) each needed an UNBUILT production invariant —
+the error classes existed since Wave 3 but NOTHING in production raised
+them, so a `catches` marker would have been blind. The deeper finding:
+NO production path called ANY of the §16A.12 `assert_*` invariants —
+they were test-only helpers wearing production names.
+
+**The architecture (one commit)**:
+
+- **`BoundaryTraceLaw.assert_realizable(quad, *, inflow_indices=None)`**
+  — the certification template method: fires the five universal
+  invariants; concrete laws EXTEND via `super()` (reflective adds
+  involution ERR-044 + the new inflow→outflow ERR-045; white/albedo add
+  sub-Markov ERR-046). `SNBoundaryRealizer.realize` calls it ONCE at
+  entry (isinstance-gated so non-laws still reach the loud
+  dispatch-failure raise) — **realization is the certification point**,
+  per the catalog's own recurring lesson. Every SNMesh construction now
+  certifies its BC laws; the full tree is transparent to it.
+- **ERR-042** — `assert_geometry_map_measure_preserving` gets the REAL
+  body: `m = w·|μ_axis|`, `m[π] ≈ m` (rtol 1e-12), independent of
+  involution. The pre-#52 delegation ("weight equality implied by
+  construction") left the involutive-unequal-weight-pairing hole open —
+  the GL-8 neighbor-pair mutant passes involution AND reds measure
+  (independence measured, both directions).
+- **ERR-045** — new `assert_reflection_maps_inflow_to_outflow`: every
+  non-tangential ordinate's partner must be non-tangential with
+  opposite sign on the law's axis. The identity-table mutant passes
+  involution AND measure, reds ONLY here — the catalog's
+  three-independent-invariants lesson realized as three measured
+  independent checks. Tangential exemption rides the ONE shared
+  `TANGENTIAL_EPS` (promoted public from `angular_trace_space`; the 1-D
+  degenerate-axis identity tables stay green through it).
+- **ERR-041** — realizer-seam guard in the vacuum arm: claimed
+  `inflow_indices` cross-checked against the orientation the FACE NAME
+  alone implies via the promoted `build_omega_dot_n` primitive (the two
+  encodings are independently supplied exactly on the hand-built /
+  annotation-swap path the catalog names; the canonical
+  `SNMesh.realize_boundary_law` path derives both from the trace ⟹
+  green by construction). Faceless spaces carry no orientation truth —
+  documented escape, pinned by a test. Legacy `face="left"/"right"`
+  strings fail LOUD at the primitive's parse (two test sites migrated
+  to `xmin`/`xmax`; the vacuum docstring example fixed).
+- **ERR-047** — the ABC no-op default becomes the REAL universal body:
+  probe `self.source` on `(N,)`; q ≡ 0 certifies trivially (every
+  homogeneous law, maskless); nonzero q **without** an inflow set
+  raises (uncertifiable — "the realiser asked to apply the source
+  without an outflow mask", the catalog's catcher spec verbatim);
+  nonzero q **with** the mask passes and the realizer's
+  `PrescribedInflow` arm delivers q MASKED to Γ_-
+  (`IncomingSourceOperator` gained the anticipated Wave-8
+  inflow-indices plumbing — delivered q is the source value on inflow
+  slots and exactly 0 on outflow AND tangential slots, pinned
+  end-to-end). The three pre-#52 tests blessing the unmasked full-array
+  delivery (the ERR-047 hazard itself) rewired to the masked contract.
+
+**Catchers + markers**: the four `@pytest.mark.catches` markers land on
+positive+negative-paired catcher classes — 042/045/047 in
+`tests/geometry/test_bc_universal_invariants.py` (law-level mutants via
+the `_TableQuad` real-nodes/injectable-table stand-in + realize-time
+legs poisoning `quad.reflection_partners` via monkeypatch), 041 in
+`tests/sn/operators/test_sn_boundary_realizer.py` (swap / single-index
+contamination / positive both faces / faceless escape / unknown-face
+loud). **Mutation-verified in-process (all four)**: no-op the invariant
+body ⟹ the catcher's raise DISAPPEARS; revert ⟹ red again — each
+catcher rides exactly its guard. **`tests._harness.audit` ERR coverage:
+64/68 → 68/68 — every catalog entry now has a catching test.**
+
+**VERIFIED**: full not-slow tree in four segments — geometry 288/0,
+sn 2159/0 (37 min), numerics+transport+diffusion 1459/0, remainder
+(cp/mc/moc/homogeneous/data/…) 2482/0 (62 min) — **≈6388/0 total**;
+ratchet `transport: 1`; sphinx -W exit 0; matrix regenerated.
+
+**Deliberately NOT touched**: `.claude/skills/vv-principles/
+error_catalog.md` Status lines for 041/042/045/047 still read "Catching
+test ships Wave 7" — the file is USER-owned with pending ERR-067/068
+edits; the user updates it at their commit. **Follow-up seams (named,
+not built)**: (i) the diffusion realizer performs no certification (its
+laws are albedo-family on partial currents; the invariants' signatures
+are angular-native — a diffusion-side `assert_realizable` needs a
+quadrature-free posing); (ii) `IncomingOrdinateMaskTensor`'s
+`inflow_indices` param name is vacuum-use-case-colored (semantic is
+"indices to zero") — rename candidate if a third masking consumer
+appears.

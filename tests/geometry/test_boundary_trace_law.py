@@ -144,22 +144,39 @@ def test_descriptor_has_no_domain_or_codomain() -> None:
 
 
 @pytest.mark.foundation
-def test_assert_invariants_default_to_no_ops() -> None:
-    """The five ``assert_*`` methods on the ABC default to no-ops.
+def test_assert_invariants_default_behaviour() -> None:
+    """Four ``assert_*`` methods on the ABC default to no-ops; the
+    fifth carries the real ERR-047 body (#52).
 
-    Concrete BCs in Wave 7 override the relevant ones with
-    invariant logic that raises the typed errors from
-    :mod:`orpheus.geometry.boundary._errors`. Default behaviour
-    must not raise on ANY input.
-    """
+    Concrete BCs override the relevant invariants with logic that
+    raises the typed errors from
+    :mod:`orpheus.geometry.boundary._errors`. The first four defaults
+    must not raise on ANY input;
+    ``assert_source_lives_on_incoming_trace`` probes ``self.source``
+    against the quadrature's ordinate count — for the inherited
+    :class:`NoSource` (:math:`q \\equiv 0`) it certifies trivially,
+    with or without an inflow set. Its no-op era ended at #52 (the
+    d3 audit's "a marker today would be blind" finding)."""
     law = _StubLaw()
-    # Use ``None`` as the quadrature stand-in -- the default
-    # implementations don't access it.
+    # ``None`` as the quadrature stand-in -- the four no-op defaults
+    # don't access it.
     assert law.assert_inflow_outflow_classification(None) is None  # type: ignore[arg-type]
     assert law.assert_outgoing_leakage_unconstrained(None) is None  # type: ignore[arg-type]
     assert law.assert_geometry_map_measure_preserving(None) is None  # type: ignore[arg-type]
     assert law.assert_response_positive_if_declared() is None
-    assert law.assert_source_lives_on_incoming_trace(None) is None  # type: ignore[arg-type]
+
+    class _QuadStub:
+        N = 6
+
+    # The real body reads quadrature.N + self.source only; NoSource
+    # certifies masklessly (both index states).
+    assert law.assert_source_lives_on_incoming_trace(_QuadStub()) is None  # type: ignore[arg-type]
+    assert (
+        law.assert_source_lives_on_incoming_trace(
+            _QuadStub(), np.arange(3),  # type: ignore[arg-type]
+        )
+        is None
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────

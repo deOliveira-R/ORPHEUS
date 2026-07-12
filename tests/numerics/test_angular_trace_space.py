@@ -22,7 +22,7 @@ from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace, _TANGENTIAL_EPS
+from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace, TANGENTIAL_EPS
 from orpheus.numerics.quadrature import Quadrature
 
 
@@ -139,7 +139,7 @@ def test_identity_independent_of_leaf_data():
 def test_2d_cartesian_lebedev_inflow_selectors_per_face():
     """L1: per-face inflow indices match the hand-computed mu signs."""
     quad = Quadrature.lebedev(11)
-    eps = _TANGENTIAL_EPS
+    eps = TANGENTIAL_EPS
     space = _trace_2d(quad)
     # xmin: outward -x → inflow iff Ω·n = -mu_x < 0 iff mu_x > eps.
     np.testing.assert_array_equal(
@@ -163,7 +163,7 @@ def test_outflow_selectors_are_sign_flipped_inflow():
     """L1: outflow at a face is the +sign half (complement of inflow on
     a non-tangential quadrature)."""
     quad = Quadrature.lebedev(11)
-    eps = _TANGENTIAL_EPS
+    eps = TANGENTIAL_EPS
     space = _trace_2d(quad)
     np.testing.assert_array_equal(
         space.outflow_indices_for_face("xmin"), np.flatnonzero(quad.mu_x < -eps),
@@ -200,11 +200,11 @@ def test_1d_slab_inflow_bit_identical_to_mu_signs():
     assert space.face_names == ("xmin", "xmax")
     np.testing.assert_array_equal(
         space.inflow_indices_for_face("xmin"),
-        np.flatnonzero(quad.mu_x > _TANGENTIAL_EPS),
+        np.flatnonzero(quad.mu_x > TANGENTIAL_EPS),
     )
     np.testing.assert_array_equal(
         space.inflow_indices_for_face("xmax"),
-        np.flatnonzero(quad.mu_x < -_TANGENTIAL_EPS),
+        np.flatnonzero(quad.mu_x < -TANGENTIAL_EPS),
     )
 
 
@@ -240,7 +240,7 @@ def test_curvilinear_has_only_outer_xmax_face(coord):
     # xmax inflow on curvilinear == the same predicate as slab's xmax.
     np.testing.assert_array_equal(
         space.inflow_indices_for_face("xmax"),
-        np.flatnonzero(quad.mu_x < -_TANGENTIAL_EPS),
+        np.flatnonzero(quad.mu_x < -TANGENTIAL_EPS),
     )
     with pytest.raises(ValueError, match="Unknown face"):
         space.inflow_indices_for_face("xmin")
@@ -314,7 +314,7 @@ def test_omega_dot_n_dtype_is_float():
 def test_eps_is_four_machine_eps():
     """The tangential tolerance is the principled 4·machine_eps, NOT a
     hand-tuned magic number."""
-    assert _TANGENTIAL_EPS == 4.0 * np.finfo(np.float64).eps
+    assert TANGENTIAL_EPS == 4.0 * np.finfo(np.float64).eps
 
 
 @pytest.mark.foundation
@@ -342,17 +342,17 @@ def test_eps_sits_in_the_round_off_to_genuine_gap():
             amu = np.abs(np.asarray(mu, dtype=float))
             # Nominally-tangential cosines are exactly 0.0 (quadrature
             # symmetry) — never in the (0, eps] round-off band.
-            assert not np.any((amu > 0.0) & (amu <= _TANGENTIAL_EPS)), (
+            assert not np.any((amu > 0.0) & (amu <= TANGENTIAL_EPS)), (
                 f"{type(q).__name__} {axis} has a cosine in the round-off "
                 f"band (0, eps] — the exactly-zero assumption is violated"
             )
-            genuine = amu[amu > _TANGENTIAL_EPS]
+            genuine = amu[amu > TANGENTIAL_EPS]
             if genuine.size:
                 min_genuine = min(min_genuine, float(genuine.min()))
 
     # eps must be far below the smallest genuine cosine (empirically
     # 2.44e-2, ~13 orders above eps).
-    assert _TANGENTIAL_EPS < min_genuine
+    assert TANGENTIAL_EPS < min_genuine
     assert min_genuine > 1e-3, (
         f"smallest genuine |cosine| = {min_genuine:.3e} is suspiciously "
         f"small — investigate before trusting the gap"

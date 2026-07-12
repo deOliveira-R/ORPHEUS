@@ -83,7 +83,7 @@ def _realize_vacuum_for_face_right(bc, quad):
     """
     inflow_indices = np.flatnonzero(quad.mu_x < -1e-12)
     method_space = SNMethodSpace(
-        quadrature=quad, face="right", inflow_indices=inflow_indices,
+        quadrature=quad, face="xmax", inflow_indices=inflow_indices,
     )
     return SNBoundaryRealizer().realize(bc, method_space)
 

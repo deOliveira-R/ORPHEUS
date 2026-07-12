@@ -73,7 +73,7 @@ projection :math:`\Omega_n \cdot \hat n_f = \mathrm{sign}_f \cdot
 Principled tolerance (not a magic number)
 -----------------------------------------
 
-``_TANGENTIAL_EPS = 4 * np.finfo(np.float64).eps`` (:math:`\approx
+``TANGENTIAL_EPS = 4 * np.finfo(np.float64).eps`` (:math:`\approx
 8.9\times10^{-16}`). It is a safety factor over the IEEE-754
 dot-product round-off bound :math:`d \cdot u` (:math:`d \leq 3` spatial
 dimensions, :math:`u = \epsilon_{\mathrm{mach}}/2` the unit round-off)
@@ -143,7 +143,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.quadrature import Quadrature
 
 
-__all__ = ["AngularTraceSpace"]
+__all__ = ["AngularTraceSpace", "TANGENTIAL_EPS", "build_omega_dot_n"]
 
 
 # Tangential tolerance for the unit-vector projection ``Ω · n``. A
@@ -151,7 +151,11 @@ __all__ = ["AngularTraceSpace"]
 # 3-component unit-vector inner product. Empirically bit-identical to
 # the legacy ``1e-15`` (operator) and ``1e-12`` (realizer) tolerances;
 # see the module docstring + :func:`test_eps_below_min_genuine_cosine`.
-_TANGENTIAL_EPS: float = 4.0 * np.finfo(np.float64).eps
+# Public: the ONE tangential threshold every trace-classification
+# consumer shares (the selectors below; the reflective law's
+# inflow→outflow invariant, ERR-045) — a second locally-minted epsilon
+# would be a twin source of truth for "what counts as grazing".
+TANGENTIAL_EPS: float = 4.0 * np.finfo(np.float64).eps
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -197,7 +201,7 @@ def _quadrature_axis(quadrature: "Quadrature", axis: int) -> np.ndarray:
     raise ValueError(f"axis must be 0, 1, or 2; got {axis}")
 
 
-def _build_omega_dot_n(
+def build_omega_dot_n(
     quadrature: "Quadrature",
     faces: tuple[str, ...],
 ) -> NDArray:
@@ -215,6 +219,12 @@ def _build_omega_dot_n(
     unreachable (such a mesh cannot become an ``SNMesh`` — the axis
     conversion at construction refuses it), and the isinstance check
     carried no data.
+
+    Public (#52, ERR-041): this is the SINGLE face-name → signed-
+    projection primitive. The SN realizer's vacuum-orientation guard
+    cross-checks hand-supplied ``inflow_indices`` against the row this
+    function derives from the face name alone — a second, independently
+    sourced encoding of the same orientation.
     """
     n_ord = int(quadrature.N)
     omega_dot_n = np.zeros((len(faces), n_ord), dtype=float)
@@ -392,7 +402,7 @@ class AngularTraceSpace(FunctionSpace):
             If ``layout`` names a face absent from the normal table.
         """
         faces = tuple(layout.faces)
-        omega_dot_n = _build_omega_dot_n(quadrature, faces)
+        omega_dot_n = build_omega_dot_n(quadrature, faces)
         # Wave O / O.2b (#208): the partial-current boundary metric
         # G_s = |Ω·n_f| ⊙ w_n — the cosine-weighted angular quadrature under
         # which the BoundaryOperator Hilbert adjoints (B.H) are physically
@@ -426,7 +436,7 @@ class AngularTraceSpace(FunctionSpace):
         points into the domain). Tangential ordinates are excluded.
         """
         row = self.omega_dot_n[self._face_row(face)]
-        return np.flatnonzero(row < -_TANGENTIAL_EPS)
+        return np.flatnonzero(row < -TANGENTIAL_EPS)
 
     def outflow_indices_for_face(self, face: str) -> np.ndarray:
         r"""Ordinate indices that are outflow at ``face``.
@@ -435,4 +445,4 @@ class AngularTraceSpace(FunctionSpace):
         points out of the domain). Tangential ordinates are excluded.
         """
         row = self.omega_dot_n[self._face_row(face)]
-        return np.flatnonzero(row > +_TANGENTIAL_EPS)
+        return np.flatnonzero(row > +TANGENTIAL_EPS)

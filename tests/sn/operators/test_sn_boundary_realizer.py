@@ -33,6 +33,7 @@ from orpheus.geometry.boundary import (
     BoundaryRealizer,
     PeriodicBoundary,
     ReflectiveBoundary,
+    VacuumAppliedToOutgoingTraceError,
     VacuumInflow,
     WhiteBoundary,
 )
@@ -126,7 +127,7 @@ class TestRealizeVacuum:
         quad = Quadrature.gauss_legendre(8)
         inflow_indices = np.flatnonzero(quad.mu_x > 0)
         space = SNMethodSpace(
-            quadrature=quad, face="left", inflow_indices=inflow_indices,
+            quadrature=quad, face="xmin", inflow_indices=inflow_indices,
         )
         op = SNBoundaryRealizer().realize(VacuumInflow(), space)
         assert isinstance(op, TensorProductOperator)
@@ -469,3 +470,97 @@ class TestRealizeUnknownLawRaises:
         with pytest.raises(BoundaryError) as excinfo:
             realizer.realize(_NotABc(), SNMethodSpace.minimal(quad))
         assert excinfo.value.law == "_NotABc"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 9. Vacuum trace-orientation guard (#52, ERR-041)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-041")
+class TestVacuumTraceOrientationGuard:
+    """The realizer-seam ERR-041 guard: claimed ``inflow_indices``
+    cross-checked against the orientation the FACE NAME alone implies.
+
+    The catalog's threat model verbatim: "a realiser swapped the
+    face's (inflow, outflow) annotation by mistake" — the resulting
+    vacuum operator zeroes the OUTGOING flux the sweep just computed,
+    while every shape-level test stays green (``apply`` returns a
+    same-shaped array regardless of orientation). The face name and
+    the index array are two independently-supplied encodings of one
+    orientation; the guard reads the face's signed projection
+    Ω·n̂ through the single
+    :func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n`
+    primitive and refuses any claimed inflow index that is outgoing.
+    """
+
+    def test_swapped_annotation_raises(self):
+        """The full annotation swap: the OUTGOING set of xmax
+        (μ_x > 0) claimed as its inflow set."""
+        quad = Quadrature.gauss_legendre(8)
+        swapped = SNMethodSpace(
+            quadrature=quad, face="xmax",
+            inflow_indices=np.flatnonzero(quad.mu_x > 0),
+        )
+        with pytest.raises(VacuumAppliedToOutgoingTraceError):
+            SNBoundaryRealizer().realize(VacuumInflow(), swapped)
+
+    def test_single_contaminated_index_raises(self):
+        """The sharper form: ONE outgoing ordinate hidden inside an
+        otherwise-correct inflow set (a per-ordinate indexing slip,
+        not a wholesale swap)."""
+        quad = Quadrature.gauss_legendre(8)
+        correct = np.flatnonzero(quad.mu_x < 0)
+        one_outgoing = np.flatnonzero(quad.mu_x > 0)[:1]
+        contaminated = np.concatenate([correct, one_outgoing])
+        space = SNMethodSpace(
+            quadrature=quad, face="xmax", inflow_indices=contaminated,
+        )
+        with pytest.raises(VacuumAppliedToOutgoingTraceError):
+            SNBoundaryRealizer().realize(VacuumInflow(), space)
+
+    def test_correct_orientation_realizes(self):
+        """Positive control: the true inflow set of each face realizes
+        clean through the SAME guarded path, both face sides."""
+        quad = Quadrature.gauss_legendre(8)
+        for face, inflow in (
+            ("xmax", np.flatnonzero(quad.mu_x < 0)),
+            ("xmin", np.flatnonzero(quad.mu_x > 0)),
+        ):
+            op = SNBoundaryRealizer().realize(
+                VacuumInflow(),
+                SNMethodSpace(
+                    quadrature=quad, face=face, inflow_indices=inflow,
+                ),
+            )
+            assert isinstance(op, TensorProductOperator)
+
+    def test_faceless_space_carries_no_orientation_truth(self):
+        """A quadrature-only method space with hand-supplied indices
+        has NO independent orientation encoding — the guard cannot
+        fire there (documented escape; the canonical
+        ``SNMesh.realize_boundary_law`` path always carries a face).
+        The realize must succeed, wrong indices and all: the caller
+        owns the claim."""
+        quad = Quadrature.gauss_legendre(8)
+        faceless = SNMethodSpace(
+            quadrature=quad,
+            inflow_indices=np.flatnonzero(quad.mu_x > 0),
+        )
+        op = SNBoundaryRealizer().realize(VacuumInflow(), faceless)
+        assert isinstance(op, TensorProductOperator)
+
+    def test_unknown_face_name_fails_loud(self):
+        """A face name outside the ``{axis}{min|max}`` convention is
+        uncertifiable orientation data — the guard's primitive raises
+        a loud ``ValueError`` naming the valid faces rather than
+        silently skipping the check (the pre-#52 legacy strings
+        ``"left"``/``"right"`` migrate, not linger)."""
+        quad = Quadrature.gauss_legendre(8)
+        legacy = SNMethodSpace(
+            quadrature=quad, face="right",
+            inflow_indices=np.flatnonzero(quad.mu_x < 0),
+        )
+        with pytest.raises(ValueError, match="Unknown face name"):
+            SNBoundaryRealizer().realize(VacuumInflow(), legacy)

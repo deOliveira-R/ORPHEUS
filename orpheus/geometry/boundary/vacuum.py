@@ -37,7 +37,7 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
         op = SNBoundaryRealizer().realize(
             VacuumInflow(),
             SNMethodSpace(
-                quadrature=quad, face="right",
+                quadrature=quad, face="xmax",
                 inflow_indices=np.flatnonzero(quad.mu_x < 0),
             ),
         )

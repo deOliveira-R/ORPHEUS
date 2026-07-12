@@ -9,8 +9,14 @@ v3 vocabulary) is the sole live name.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional
 
 from ._base import BoundaryTraceLaw
+
+if TYPE_CHECKING:
+    import numpy as np
+
+    from orpheus.numerics.quadrature import Quadrature
 
 
 __all__ = ["AlbedoBoundary"]
@@ -88,3 +94,19 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
                 f"Albedo BC albedo={self.albedo} > 1",
                 law="albedo",
             )
+
+    def assert_realizable(
+        self,
+        quadrature: "Quadrature",
+        *,
+        inflow_indices: "Optional[np.ndarray]" = None,
+    ) -> None:
+        r"""Universal invariants + the sub-Markov bound (ERR-046).
+
+        ``assert_submarkov`` is albedo-specific (not one of the
+        §16A.12 universal five), so it joins the certification here —
+        the same extension pattern as :class:`ReflectiveBoundary`'s
+        table checks.
+        """
+        super().assert_realizable(quadrature, inflow_indices=inflow_indices)
+        self.assert_submarkov()

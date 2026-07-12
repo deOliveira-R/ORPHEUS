@@ -8,8 +8,15 @@ and to a ``@pytest.mark.catches("ERR-NNN")`` decorator on the test
 that proves the error fires under the right conditions.
 
 The 8 typed errors below replace generic :class:`ValueError` raises
-in the boundary layer. Wave 3 ships the TYPES; Wave 7 ships the
-concrete BCs that fire them.
+in the boundary layer. Wave 3 shipped the TYPES; Wave 7 shipped the
+concrete BCs firing the response/involution/sub-Markov family; #52
+(2026-07-12) wired the remaining four as PRODUCTION guards — the
+measure-preservation direct check (ERR-042), the inflow→outflow
+table check (ERR-045), the universal source-trace certification
+(ERR-047) all fire through
+:meth:`~orpheus.geometry.boundary._base.BoundaryTraceLaw.assert_realizable`
+at every realize, and the vacuum trace-orientation guard (ERR-041)
+fires at the SN realizer's vacuum arm.
 
 References
 ----------
