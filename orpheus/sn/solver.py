@@ -47,14 +47,13 @@ from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
-    CoupledInvertibleOperator,
     WithinGroupSystem,
     _system_a_member,
     _system_b_member,
     build_streaming_collision,
     build_within_group_system,
 )
-from orpheus.numerics.coupled_system import CoupledField
+from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
@@ -376,9 +375,10 @@ def _within_group_krylov(
     (:func:`_solve_fixed_source_krylov`) Krylov paths — they previously built
     byte-identical instances.  The call sites pass the
     :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record's splitting:
-    ``LC`` is ``M`` (the fused ``(L+C)`` seedless; the
-    :class:`~orpheus.sn.coupled_system.CoupledInvertibleOperator` on a
-    carrying mesh) and ``*gains`` is ``N`` (the ``(S, B_a)`` pair seedless;
+    ``LC`` is ``M`` (the fused ``(L+C)`` seedless; the triangular
+    :class:`~orpheus.numerics.coupled_system.CoupledOperator` grid
+    ``[[LC, Seeding], [None, march]]`` on a carrying mesh — step 5, the
+    block matvec) and ``*gains`` is ``N`` (the ``(S, B_a)`` pair seedless;
     the ONE coupled gain grid carrying); the matvec is
     ``M.apply − Σ Nᵢ.apply``.
 
@@ -684,7 +684,7 @@ def _select_si_resolvent(
 def _within_group_si(
     system: "WithinGroupSystem",
     sn_mesh: "SNMesh", *, inner_schedule: str, max_iter: int, tol: float,
-) -> "tuple[SourceIteration[Any], CoupledInvertibleOperator | InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator, ...], bool]":
+) -> "tuple[SourceIteration[Any], CoupledOperator | InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator, ...], bool]":
     r"""SourceIteration driver on the within-group system ``A = M − N``.
 
     Single source of truth (Cardinal Rule 2 / Phase 1 R1) for the
@@ -700,10 +700,14 @@ def _within_group_si(
     Two structurally-dispatched arms (B.2d DP-seedless — the coupled
     carrier appears exactly where System B exists):
 
-    * **coupled** (the record's ``resolvent`` is the
-      :class:`~orpheus.sn.coupled_system.CoupledInvertibleOperator` — a
+    * **coupled** (the record's ``resolvent`` is the triangular
+      :class:`~orpheus.numerics.coupled_system.CoupledOperator` grid — a
       seed-carrying 1-D curvilinear mesh): the block-native driver
-      ``ψ ← M⁻¹(q + N·ψ)`` on the ``CoupledField [ψ_A, ψ_B]`` iterate.
+      ``ψ ← M⁻¹(q + N·ψ)`` on the ``CoupledField [ψ_A, ψ_B]`` iterate,
+      ``M⁻¹`` the block back-substitution
+      (:class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`,
+      step 5 — System B's march, then the ray-decoupled bulk sweep on
+      ``q_A − Seeding·ψ_B``).
       Never windowed (carrying ⟹ 1-D, R12a) and never schedule-split
       (G-S is multi-D Cartesian ⟹ seedless, RULING P1) — both machineries
       are bypassed structurally, and ``inner_schedule`` is inert here (the
@@ -736,7 +740,7 @@ def _within_group_si(
     """
     from orpheus.numerics.iteration import SourceIteration
 
-    if isinstance(system.resolvent, CoupledInvertibleOperator):
+    if isinstance(system.resolvent, CoupledOperator):
         # The ψ½ coupled block-native arm (B.2d): the record's splitting IS
         # the driver's — M⁻¹ = the joint sweep, N = the coupled gain grid.
         si = SourceIteration(
@@ -1476,7 +1480,7 @@ class SNSolver:
         )
         # B.2d DP-seedless: the coupled pair appears exactly where System B
         # exists; the seedless paths (windowed 2-D, G-S) stay fused.
-        coupled = isinstance(system.resolvent, CoupledInvertibleOperator)
+        coupled = isinstance(system.resolvent, CoupledOperator)
 
         # ── Warm start (composite / coupled pair) ───────────────────
         # SourceIteration threads the previous iterate to the inverse
@@ -1650,7 +1654,7 @@ class SNSolver:
         system = build_within_group_system(
             self.sn_mesh, self.mat_xs, scattering_op=self.scattering_op,
         )
-        coupled = isinstance(system.resolvent, CoupledInvertibleOperator)
+        coupled = isinstance(system.resolvent, CoupledOperator)
 
         # ── Warm start (composite / coupled pair) — built BEFORE the
         # driver so the GMRES restart is sized from the FULL ravel. ───
@@ -2626,7 +2630,7 @@ def _solve_fixed_source_si(
         system, sn_mesh,
         inner_schedule=inner_schedule, max_iter=max_inner, tol=inner_tol,
     )
-    coupled = isinstance(system.resolvent, CoupledInvertibleOperator)
+    coupled = isinstance(system.resolvent, CoupledOperator)
 
     # Cold-start iterate (x0 = zeros).  Fixed-source is a single solve — no
     # eigenvalue outer to warm-start from (cf. the eigenvalue inner's
@@ -2697,7 +2701,7 @@ def _solve_fixed_source_si(
         # fused composite (``psi_full IS psi_typed`` here) and the resolvent
         # is never the coupled bridge — the parse states the structural
         # fact loudly instead of assuming it.
-        if isinstance(base_resolvent, CoupledInvertibleOperator):
+        if isinstance(base_resolvent, CoupledOperator):
             raise TypeError(
                 "windowed reconstruction reached a coupled resolvent — "
                 "structurally unreachable (windowing is 2-D Cartesian, "
@@ -2864,7 +2868,7 @@ def _solve_fixed_source_krylov(
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    coupled = isinstance(system.resolvent, CoupledInvertibleOperator)
+    coupled = isinstance(system.resolvent, CoupledOperator)
     if coupled:
         # The coupled pair is born native (B.2d): the flux template pairs
         # with a zero ψ_B; ``q_ext_composite`` is already the coupled rhs.

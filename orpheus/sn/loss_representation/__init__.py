@@ -192,43 +192,19 @@ def _refuse_radial_characteristic(
 def _require_leg_pair(
     where: str, leg_in: object, leg_out: object, *, action_msg: str,
 ) -> None:
-    """The both-or-neither pair law of the B.2d explicit ψ½ legs — the third
-    member of the guard family (:func:`_refuse_radial_characteristic` /
-    :func:`_require_radial_characteristic`): a joint surface's IN leg and
-    OUT buffer come together or not at all (a lone IN silently drops the
-    emitted rows; a lone OUT has nothing to emit from)."""
+    """The both-or-neither pair law of the B.2d explicit ψ½ legs — the
+    second member of the guard family
+    (:func:`_refuse_radial_characteristic` is the non-carrying half): a
+    joint surface's IN leg and OUT buffer come together or not at all (a
+    lone IN silently drops the emitted rows; a lone OUT has nothing to
+    emit from).  Since step 5 this IS the whole carrying-mesh law — the
+    former required-pair half (``_require_radial_characteristic``) retired
+    with the two-channel relaxation: both legs = the JOINT action, both
+    absent = the ray-DECOUPLED ``(L+C)`` block action (the M grid's
+    substitution leg)."""
     if (leg_in is None) != (leg_out is None):
         raise ValueError(
             f"{where}: the ψ½ legs come as a PAIR — {action_msg}"
-        )
-
-
-def _require_radial_characteristic(
-    where: str, sn_mesh: "SNMesh", block: "RadialCharacteristicField | None",
-    *, role: str,
-) -> None:
-    """The positive half of the R12a biconditional — a carrying mesh REQUIRES
-    the ψ½ leg (#282 route (a); Pattern 2 with
-    :func:`_refuse_radial_characteristic` — one spelling of "carrying ⟺ leg
-    present", so the forward emit and the transpose consume cannot drift
-    onto different domains).
-
-    ``block`` is the explicit ψ½ LEG KWARG — System B's split
-    ``interior ⊕ boundary`` composite, role-erased (B.2d evicted the leg
-    from the System-A composite; 4e made the walk march the split members
-    natively); ``role`` names the leg for the message (``"input"`` /
-    ``"cotangent"`` / ``"rhs"``).
-    """
-    if (
-        getattr(sn_mesh, "radial_characteristic_field_space", None) is not None
-        and block is None
-    ):
-        raise ValueError(
-            f"{where}: this mesh carries starting-direction levels (R12a) "
-            f"but no {role} ψ½ leg was passed — the joint action on a "
-            f"carrying mesh consumes System B's leaves explicitly "
-            f"(radial_characteristic_source= / radial_characteristic_flux= / "
-            f"seed_cot=; #282 route (a), B.2d)."
         )
 
 
@@ -374,9 +350,11 @@ class LossRepresentation(Protocol):
         ψ½ carrier the sweep fills in place (the marched cells + the
         outflow corner; the inflow corner passes through as the seeded
         given-data slot, exactly like the trace inflow).  Both are
-        ``None`` on a mesh with no carrying levels (R12a); a 1-D
-        curvilinear carrying mesh REQUIRES both.  Multi-D strategies
-        raise on a non-``None`` pair (no curvature ⇒ no seed).
+        ``None`` on a mesh with no carrying levels (R12a); on a 1-D
+        curvilinear carrying mesh the legs come as a PAIR — both = the
+        JOINT march, both absent = the ray-DECOUPLED ``(L+C)`` block
+        solve (zero-seed closure, step 5).  Multi-D strategies raise on
+        a non-``None`` pair (no curvature ⇒ no seed).
         """
         ...
 
@@ -2587,11 +2565,12 @@ def transport_sweep(
     # self-sufficient — it folds the source into the q½ composite and
     # allocates the ψ½ flux composite (the ONE fold factory,
     # ``RadialCharacteristicField.source_from_angular``) unless the
-    # caller supplied the pair.  ``InvertibleOperator.solve`` REQUIRES the
-    # explicit pair (B.2d — the joint inverse's leaf-kwarg legs); this
-    # operator-free entry stays self-deriving because its callers (the
-    # final eigenvalue reconstruction) hand it a bare source with no
-    # System-B state yet.
+    # caller supplied the pair.  NOTE the deliberate divergence from the
+    # operator surface (step 5): a BARE ``InvertibleOperator.solve`` on a
+    # carrying mesh is the ray-DECOUPLED (L+C) block solve, while this
+    # operator-free WRAPPER self-derives the pair and joint-solves —
+    # its callers (the final eigenvalue reconstruction) hand it a bare
+    # source and expect the FULL physical sweep, not a block leg.
     if (
         getattr(sn_mesh, "radial_characteristic_field_space", None) is not None
         and radial_characteristic_source is None
@@ -3803,23 +3782,28 @@ class _OneDimScanWalk:
         weights = quad.weights
         mu = quad.mu_x
 
-        # ── #282 route (a): the starting-direction contract (R12a) ──
-        # A carrying mesh (the sphere) REQUIRES the seed pair — the solve
-        # marches the ψ½ legs directly from the TRUE q½ source and fills
-        # the carrier in place (the boundary_flux discipline).  A
-        # non-carrying mesh must NOT receive one (the typed field cannot
-        # even exist on it; a non-None pair is a caller wiring error).
+        # ── #282 route (a) → step 5: the starting-direction contract ──
+        # TWO channels on a carrying mesh (the sphere), mirroring the
+        # matvec's law: BOTH legs = the JOINT march M⁻¹ (System B solved
+        # up front from the TRUE q½ source, the carrier filled in place —
+        # the boundary_flux discipline); BOTH absent = the ray-DECOUPLED
+        # ``(L+C)`` diagonal-block solve (the M-M thread starts at ZERO —
+        # the leg the M grid's block substitution consumes); a LONE leg
+        # is a wiring error (the pair law).  A non-carrying mesh must NOT
+        # receive one (the typed field cannot even exist on it).
         seed_levels = frozenset(self.mesh.radial_characteristic_levels)
         if seed_levels:
-            if radial_characteristic_source is None or radial_characteristic_flux is None:
-                raise ValueError(
-                    "_OneDimScanWalk._run: this mesh carries starting-"
-                    "direction levels (R12a) but the sweep was called "
-                    "without the (radial_characteristic_source, "
-                    "radial_characteristic_flux) pair — the rhs composite "
-                    "must carry its q½ block and the solve wrap must "
-                    "allocate the ψ½ carrier (#282 route (a))."
-                )
+            _require_leg_pair(
+                "_OneDimScanWalk._run",
+                radial_characteristic_source, radial_characteristic_flux,
+                action_msg=(
+                    "the joint march takes (radial_characteristic_source, "
+                    "radial_characteristic_flux) together; both absent = "
+                    "the ray-DECOUPLED (L+C) block solve (zero-seed "
+                    "closure, step 5), a lone leg silently drops half "
+                    "the coupling."
+                ),
+            )
         else:
             _refuse_radial_characteristic(
                 "_OneDimScanWalk._run",
@@ -4193,7 +4177,7 @@ class _OneDimScanWalk:
             # IS the single source.  The walk then reads the marched inward
             # cells as the M-M recurrence seed per carrying level (the
             # ray-first ordering, preserved).
-            if seed_levels:
+            if seed_levels and radial_characteristic_source is not None:
                 from orpheus.transport.fields.cross_section_field import (
                     CrossSectionField,
                 )
@@ -4202,8 +4186,7 @@ class _OneDimScanWalk:
                     RadialCharacteristicOperator,
                 )
 
-                assert radial_characteristic_source is not None
-                assert radial_characteristic_flux is not None
+                assert radial_characteristic_flux is not None  # pair law above
                 ray_resolvent = RadialCharacteristicOperator(
                     self.mesh,
                     CrossSectionField.from_mesh(sigma_t_gx, self.mesh),
@@ -4231,7 +4214,7 @@ class _OneDimScanWalk:
             for p_idx, level in enumerate(levels):
                 ordinates_in_level = level_ordinates_list[p_idx]
                 ords_arr = np.asarray(ordinates_in_level)
-                if p_idx in seed_levels:
+                if p_idx in seed_levels and radial_characteristic_flux is not None:
                     # ── the M-M seed read (#282 route (a); 4e-e2) ──
                     # The ψ½ legs were solved by A_BB up front; the marched
                     # inward cells ARE the recurrence seed — first-class
@@ -4241,18 +4224,24 @@ class _OneDimScanWalk:
                     # spaces' ``levels`` are positions from ``enumerate``,
                     # the same source as ``seed_levels``) — NOT ``level``
                     # (the walk's ``mu_level_idx``, ``None`` on the sphere,
-                    # the only carrying geometry).
-                    assert radial_characteristic_flux is not None
+                    # the only carrying geometry).  A leg-less carrying
+                    # call (the ray-DECOUPLED (L+C) block, step 5) falls
+                    # through to the ZERO thread below.
                     psi_angle = radial_characteristic_flux.interior.cells(
                         p_idx, -1,
                     ).copy()                                         # (ng, nx)
                 else:
-                    # ── non-carrying level: the seed is solved IN-LINE ──
-                    # ψ½ ≡ ψ̄_{m0} (product, t=0) is resolved by the #280 2.5b
-                    # diagonal fold when m0 is swept (below) — no pre-loop seed,
-                    # no iterate read.  ``psi_angle`` is the M-M thread buffer;
-                    # m0 (swept first) writes its own average into it before any
-                    # downstream ordinate reads it.
+                    # ── the ZERO thread: non-carrying, or decoupled ──
+                    # Non-carrying level: ψ½ ≡ ψ̄_{m0} (product, t=0) is
+                    # resolved by the #280 2.5b diagonal fold when m0 is
+                    # swept (below) — no pre-loop seed, no iterate read;
+                    # ``psi_angle`` is the M-M thread buffer and m0 (swept
+                    # first) writes its own average into it before any
+                    # downstream ordinate reads it.  A CARRYING level on a
+                    # leg-less call (step 5): the zero thread IS the
+                    # ray-decoupled (L+C) closure — no fold entry exists
+                    # for carrying levels, so the recurrence starts at
+                    # exactly ψ½ = 0 (the LC diagonal-block semantics).
                     psi_angle = np.zeros((ng, nx))                    # (ng, nx)
 
                 for m_local, global_n in enumerate(ordinates_in_level):
@@ -4440,17 +4429,14 @@ class _OneDimScanWalk:
         mu = quad.mu_x
         scheme = self.mesh.scheme
 
-        # ── the R12a starting-direction contract (mirror _run) ──
+        # ── the R12a starting-direction contract (mirror _run, step 5) ──
+        # TWO channels on a carrying mesh: ``seed_cot`` present = the JOINT
+        # transpose-solve M⁻ᵀ; absent = the ray-DECOUPLED ``(L+C)⁻ᵀ``
+        # diagonal-block transpose (the M-M thread cotangent is DISCARDED —
+        # the zero thread is a FIXED input of the decoupled map, so its
+        # cotangent propagates nowhere; ``m_seed`` stays ``None``).
         seed_levels = frozenset(self.mesh.radial_characteristic_levels)
-        if seed_levels:
-            if seed_cot is None:
-                raise ValueError(
-                    "_OneDimScanWalk._run_transpose: this mesh carries "
-                    "starting-direction levels (R12a) but the transpose-solve "
-                    "was called without a seed cotangent — the rhs cotangent "
-                    "composite must carry its ψ½ block (#282 route (a))."
-                )
-        elif seed_cot is not None:
+        if not seed_levels and seed_cot is not None:
             raise ValueError(
                 "_OneDimScanWalk._run_transpose: a starting-direction "
                 "cotangent is 1-D curvilinear only — this mesh carries no "
@@ -4573,8 +4559,11 @@ class _OneDimScanWalk:
         # ONCE after the loop.
         seed_cot_augmented: "RadialCharacteristicField | None" = None
         if is_sphere:
-            assert seed_cot is not None                          # R12a on the sphere
-            seed_cot_augmented = seed_cot.copy()
+            if seed_cot is not None:
+                # The JOINT channel; a ``None`` cotangent is the
+                # ray-DECOUPLED (L+C)⁻ᵀ block (step 5) — no augmentation,
+                # the thread cotangent is discarded, ``m_seed`` = None.
+                seed_cot_augmented = seed_cot.copy()
             levels: "list[int | None]" = [None]
             level_ordinates_list = [list(range(N))]
         else:
@@ -4745,15 +4734,17 @@ class _OneDimScanWalk:
                     pole_outflow_bar[mirror[global_n]] += psi_in_bar
 
             # ── the M-M thread cotangent lands on the inward seed cells ──
-            if is_sphere:
+            if is_sphere and seed_cot_augmented is not None:
                 # psi_angle = the A_BB-marched inward cells seeded the thread
                 # in the forward, so this level's accumulated
                 # ``psi_angle_bar`` ADDS to the explicit ``seed_cot`` leg on
                 # the (p_idx, −1) cells slot — the fused A_ABᵀ contribution
                 # entering System B's cotangent (H1-narrow: the feed stays
                 # M's fused internal).  The leg REVERSAL itself is A_BB's
-                # job — solve_transpose, once, after the loop.
-                assert seed_cot_augmented is not None
+                # job — solve_transpose, once, after the loop.  On the
+                # DECOUPLED channel (no cotangent, step 5) the thread
+                # cotangent is discarded — the zero thread was a fixed
+                # input, not an unknown.
                 seed_cot_augmented.interior.cells(p_idx, -1)[...] += (
                     psi_angle_bar
                 )
@@ -4762,8 +4753,8 @@ class _OneDimScanWalk:
         # Reverse the two-leg march through the NAMED resolvent adjoint —
         # (A_BB⁻¹)ᵀ on the augmented cotangent (4e-e2: the welded inline
         # reversal is retired; A_BB.solve_transpose is the single source).
-        if is_sphere:
-            assert seed_cot_augmented is not None
+        # The decoupled channel (no cotangent, step 5) skips — m_seed None.
+        if is_sphere and seed_cot_augmented is not None:
             from orpheus.transport.fields.cross_section_field import (
                 CrossSectionField,
             )

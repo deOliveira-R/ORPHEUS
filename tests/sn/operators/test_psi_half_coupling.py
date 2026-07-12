@@ -85,6 +85,7 @@ import orpheus.sn.solver as _solver_mod
 from orpheus.sn.coupled_system import (
     CoupledInvertibleOperator,
     WithinGroupSystem,
+    build_streaming_collision,
     build_within_group_system,
 )
 from orpheus.sn.solver import (
@@ -110,6 +111,7 @@ from orpheus.numerics.coupled_system import (
     CoupledField,
     CoupledOperator,
     CoupledSpace,
+    CoupledSubstitutionOperator,
 )
 from orpheus.numerics.operator import (
     IncompatibleOperatorComposition,
@@ -3210,9 +3212,24 @@ class TestWithinGroupSystem:
         if system.loss.domain is not system.space or (
                 system.loss.codomain is not system.space):
             pytest.fail("loss grid not typed against THE record space (identity)")
-        if not isinstance(system.resolvent, CoupledInvertibleOperator):
-            pytest.fail(f"carrying resolvent is {type(system.resolvent).__name__}")
-        if system.resolvent.domain is not system.space:
+        # Step 5: M is the HONEST upper-triangular grid over the same piece
+        # objects — [[LC, Seeding], [None, march]] (the fused facade
+        # dissolved; R-5.4).
+        M_grid = system.resolvent
+        if not isinstance(M_grid, CoupledOperator):
+            pytest.fail(f"carrying resolvent is {type(M_grid).__name__}")
+        if M_grid._triangular_orientation() != "upper":
+            pytest.fail("M is not upper-triangular — the substitution route "
+                        "is gone")
+        if M_grid.blocks[1][0] is not None:
+            pytest.fail("M's (B,A) slot is not the structural ∅ — the "
+                        "emission belongs to N, never to M")
+        if not isinstance(M_grid.blocks[0][1], RadialCharacteristicSeeding):
+            pytest.fail("M's (A,B) block is not the Seeding")
+        if not isinstance(M_grid.blocks[1][1], RadialCharacteristicOperator):
+            pytest.fail("M's (B,B) block is not the bare march (B_b belongs "
+                        "to N)")
+        if M_grid.domain is not system.space:
             pytest.fail("M not typed against THE record space (identity)")
         if len(system.gains) != 1 or not isinstance(system.gains[0], CoupledOperator):
             pytest.fail(f"carrying gains are {system.gains!r} — expected (N,)")
@@ -3240,7 +3257,7 @@ class TestWithinGroupSystem:
         slab_solver = SNSolver(slab)
         s_system = build_within_group_system(
             slab, slab_solver.mat_xs, scattering_op=slab_solver.scattering_op)
-        if isinstance(s_system.resolvent, CoupledInvertibleOperator):
+        if isinstance(s_system.resolvent, CoupledOperator):
             pytest.fail("seedless resolvent is coupled — DP-seedless violated")
         if not isinstance(s_system.resolvent, InvertibleOperator):
             pytest.fail(f"seedless resolvent is {type(s_system.resolvent).__name__}")
@@ -3261,35 +3278,44 @@ class TestWithinGroupSystem:
     def test_g_d1_1_production_routes_through_the_block_machinery(
             self, inner, monkeypatch):
         r"""A REAL carrying-mesh within-group solve EXECUTES the block route:
-        the N grid's ``CoupledOperator.apply``, the M bridge
-        (``CoupledInvertibleOperator.solve``/``apply``), and the fused walk
-        beneath it all fire (wrap counters > 0 — the B.2c F2 lesson: runtime
-        is the sufficient catcher). RIDER: the driver's iterate is the
-        coupled pair with an honest 2-block ψ_A (the d1 dead-slot rider
-        dissolved — a live-ray ψ_A is unrepresentable since d2)."""
+        the N grid's ``CoupledOperator.apply``, the M leg — since step 5 the
+        SUBSTITUTION (``CoupledSubstitutionOperator.apply`` → ``grid.solve``,
+        the SI step) or the triangular grid's own matvec (the Krylov action;
+        discriminated from N by the structural ``(1, 0) is None`` slot —
+        only M's grid is upper-triangular) — and the bulk walk beneath it
+        all fire (wrap counters > 0 — the B.2c F2 lesson: runtime is the
+        sufficient catcher). RIDER: the driver's iterate is the coupled
+        pair with an honest 2-block ψ_A (the d1 dead-slot rider dissolved —
+        a live-ray ψ_A is unrepresentable since d2)."""
         sn = _sphere()
         counters = {"N": 0, "M": 0, "walk": 0}
-        real_n = CoupledOperator.apply
+        real_grid_apply = CoupledOperator.apply
 
-        def spy_n(op, x, /):
+        def spy_grid_apply(op, x, /):
             counters["N"] += 1
-            return real_n(op, x)
+            # The M grid is the ONLY upper-triangular 2×2 in the route
+            # (N and the loss both carry a present (1, 0) block) — its
+            # matvec IS the Krylov M leg.
+            if op.n_rows == 2 and op.blocks[1][0] is None:
+                counters["M"] += 1
+            return real_grid_apply(op, x)
 
-        real_m_solve = CoupledInvertibleOperator.solve
-        real_m_apply = CoupledInvertibleOperator.apply
+        real_grid_solve = CoupledOperator.solve
+        real_sub_apply = CoupledSubstitutionOperator.apply
 
-        def spy_m_solve(op, rhs):
+        def spy_grid_solve(op, rhs):
             counters["M"] += 1
-            return real_m_solve(op, rhs)
+            return real_grid_solve(op, rhs)
 
-        def spy_m_apply(op, x, /):
+        def spy_sub_apply(op, rhs, /, *, initial_guess=None):
             counters["M"] += 1
-            return real_m_apply(op, x)
+            return real_sub_apply(op, rhs, initial_guess=initial_guess)
 
-        # The fused walk beneath the bridge: SI enters through .solve (the
-        # joint sweep), Krylov through .apply (the joint matvec — its GMRES
-        # preconditioner is the explicit identity, #200, so .solve never
-        # fires there). Either entry IS the walk leg.
+        # The bulk walk beneath the substitution: SI enters through .solve
+        # (the ray-DECOUPLED (L+C) leg of the substitution), Krylov through
+        # .apply (the (A,A) block matvec — its GMRES preconditioner is the
+        # explicit identity, #200, so .solve never fires there). Either
+        # entry IS the walk leg.
         real_walk_solve = InvertibleOperator.solve
         real_walk_apply = InvertibleOperator.apply
 
@@ -3301,9 +3327,9 @@ class TestWithinGroupSystem:
             counters["walk"] += 1
             return real_walk_apply(op, psi, *a, **kw)
 
-        monkeypatch.setattr(CoupledOperator, "apply", spy_n)
-        monkeypatch.setattr(CoupledInvertibleOperator, "solve", spy_m_solve)
-        monkeypatch.setattr(CoupledInvertibleOperator, "apply", spy_m_apply)
+        monkeypatch.setattr(CoupledOperator, "apply", spy_grid_apply)
+        monkeypatch.setattr(CoupledOperator, "solve", spy_grid_solve)
+        monkeypatch.setattr(CoupledSubstitutionOperator, "apply", spy_sub_apply)
         monkeypatch.setattr(InvertibleOperator, "solve", spy_walk_solve)
         monkeypatch.setattr(InvertibleOperator, "apply", spy_walk_apply)
         solver = SNSolver(sn, inner_solver=inner)
@@ -3372,9 +3398,10 @@ class TestWithinGroupSystem:
         leaf legs are plumbed OBJECT-level —
 
         (a) ZERO-LEG CONSISTENCY: ``M.apply([x_A, 0])``'s System-A member ≡
-        the fused surface's no-leg call (the ray-decoupled (A,A) block
-        action) — the internal zero-substitution and the explicit zero leg
-        are the SAME arithmetic, array_equal;
+        the (A,A) block's OWN bare call (the ray-decoupled action — since
+        step 5 the block matvec's LC leg plus a ZERO Seeding term) — the
+        structural zero and the explicit zero leg are the SAME arithmetic,
+        array_equal;
         (b) COUPLING NON-VACUITY: a LIVE ψ_B moves y_A (the welded seed feed
         genuinely reads the leg — a leg-dropping pack would leave y_A at the
         (A,A) value) and fills y_B (the emitted rows ride the buffer);
@@ -3391,9 +3418,10 @@ class TestWithinGroupSystem:
         ns = sn.radial_characteristic_field_space.shape[0]
         live = _pair(sn, psi_a, rng.standard_normal(ns))
         dead = _pair(sn, psi_a, np.zeros(ns))
-        # (a) zero-leg ≡ no-leg (the (A,A) block action).
+        # (a) zero-leg ≡ no-leg (the (A,A) block action — the grid's own
+        # LC block, called bare on its ray-decoupled channel).
         y_dead = M_op.apply(dead)
-        y_noleg = M_op.fused.apply(psi_a)
+        y_noleg = M_op.blocks[0][0].apply(psi_a)
         np.testing.assert_array_equal(
             y_dead.systems[0].interior.values, y_noleg.interior.values,
             err_msg="M.apply([x_A, 0]) ≠ the no-leg (A,A) block action — the "
@@ -3768,3 +3796,114 @@ class TestWithinGroupSystemAnchors:
                     f"[{inner_solver}] group-{g} equilibrium {v} absent "
                     f"from the ray member — a group axis dropped (Mode 6)"
                 )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Step 5 (#41) — TestCoupledSolve: the block solve's SN-bound rows
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestCoupledSolve:
+    r"""The step-5 block solve on the ψ½ instance (the TA step-5 memo's
+    B-rows) — the record's M is the honest upper-triangular grid and its
+    ``solve`` the numerics substitution.
+
+    * **r1 (MANDATORY, the reflective-corner data-flow)** — the
+      substitution's ``march.solve(rhs_B)`` reads the corner datum from
+      ``rhs_B``'s corner slot exactly as the fused route did (``B_b ∈ N``
+      in BOTH routes — the corner arrives via the rhs, never via hidden
+      state). Gated against the STRUCTURALLY-INDEPENDENT dense-LU of the
+      probed M (the row-6 doctrine: the rhs is MANUFACTURED in M's range,
+      ``q = M·ψ0`` with ψ0 random on the bulk ⊕ ray blocks, so every slot
+      is consistent), corner block asserted explicitly, on the REFLECTIVE
+      sphere (the non-trivial ``B_b`` corner-swap fixture).
+    * **B3** — the transposed substitution against the dense ``Mᵀ`` under
+      the same manufactured-cotangent doctrine (``b = Mᵀ·x̄0``).
+    """
+
+    def _system(self, bc: str = "reflective"):
+        sn = _sphere(bc=bc)
+        solver = SNSolver(sn)
+        return sn, build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+
+    @staticmethod
+    def _carried_state(sn, seed: int):
+        """ψ0 random on bulk ⊕ the WHOLE ray block (cells + corner — the r1
+        focus), zero trace — the row-6 manufactured-range doctrine."""
+        rng = np.random.default_rng(seed)
+        tpl = _coupled_template(sn)
+        bulk, _tr, ray, _ = _blocks(sn)
+        psi0 = np.zeros(tpl.to_flat().size)
+        psi0[bulk] = rng.standard_normal(psi0[bulk].size)
+        psi0[ray] = rng.standard_normal(psi0[ray].size)
+        return tpl, psi0
+
+    def test_r1_substitution_corner_dataflow_vs_dense_lu(self):
+        sn, system = self._system(bc="reflective")
+        M_grid = system.resolvent
+        tpl, psi0 = self._carried_state(sn, 51)
+        q = M_grid.apply(CoupledField.from_flat(psi0, tpl))
+        x = M_grid.solve(q).to_flat()
+        dense = _dense(M_grid.apply, tpl)
+        reference = np.linalg.solve(dense, q.to_flat())
+        bulk, _tr, ray, _ = _blocks(sn)
+        # The corner slots are the walk's COMPUTED/free-DOF pair (#284:
+        # solve computes the outflow slots apply treats as free DOFs), so
+        # the two-sided dense inverse does not hold THERE — the corner
+        # data-flow is evidenced by the ray CELLS (which depend on the
+        # inflow corner datum through the march: a broken corner read
+        # moves them O(1) off this reference) plus the facade bit-row
+        # below (corners included, array_equal).
+        n_cells = RadialCharacteristicField.from_mesh(sn).interior.values.size
+        ray_cells = slice(ray.start, ray.start + n_cells)
+        for name, sl in (("bulk", bulk), ("ray cells", ray_cells)):
+            np.testing.assert_allclose(
+                x[sl], reference[sl], rtol=1e-11, atol=1e-13,
+                err_msg=f"substitution off the dense-LU reference on the "
+                        f"{name} block — the r1 data-flow broke")
+
+    def test_r1_substitution_matches_the_fused_facade(self):
+        r"""TRANSIENT (retires at 5d with ``CoupledInvertibleOperator``):
+        the substitution ≡ the fused joint sweep — the ray members
+        BIT-identical (both routes call the same ``march.solve`` on the
+        same ``rhs_B``), the bulk at the M-M reassociation bar (~5.5e-16,
+        never bitwise)."""
+        sn, system = self._system(bc="reflective")
+        facade = CoupledInvertibleOperator(
+            build_streaming_collision(sn, SNSolver(sn).mat_xs),
+            space=system.space, sn_mesh=sn)
+        tpl, psi0 = self._carried_state(sn, 52)
+        rhs = system.resolvent.apply(CoupledField.from_flat(psi0, tpl))
+        x_sub = system.resolvent.solve(rhs)
+        x_fused = facade.solve(rhs.copy())
+        np.testing.assert_array_equal(
+            x_sub.systems[1].to_flat(), x_fused.systems[1].to_flat(),
+            err_msg="the ray members must be BIT-identical (same march, "
+                    "same rhs_B)")
+        np.testing.assert_allclose(
+            x_sub.systems[0].interior.values,
+            x_fused.systems[0].interior.values, rtol=1e-11, atol=1e-14,
+            err_msg="bulk off the M-M reassociation bar")
+
+    def test_b3_transpose_substitution_vs_dense_mt(self):
+        sn, system = self._system(bc="reflective")
+        M_grid = system.resolvent
+        tpl, x0 = self._carried_state(sn, 53)
+        dense = _dense(M_grid.apply, tpl)
+        if np.allclose(dense, dense.T):
+            pytest.fail("fixture drift: M is symmetric — the transpose "
+                        "gate is Mode-12-blind")
+        b = M_grid.apply_transpose(CoupledField.from_flat(x0, tpl))
+        xt = M_grid.solve_transpose(b).to_flat()
+        reference = np.linalg.solve(dense.T, b.to_flat())
+        bulk, _tr, ray, _ = _blocks(sn)
+        # Same #284 computed-slot doctrine as the forward: the corner
+        # cotangent slots are outside the two-sided-inverse subspace.
+        n_cells = RadialCharacteristicField.from_mesh(sn).interior.values.size
+        ray_cells = slice(ray.start, ray.start + n_cells)
+        for name, sl in (("bulk", bulk), ("ray cells", ray_cells)):
+            np.testing.assert_allclose(
+                xt[sl], reference[sl], rtol=1e-11, atol=1e-13,
+                err_msg=f"transposed substitution off the dense-Mᵀ "
+                        f"reference on the {name} block")

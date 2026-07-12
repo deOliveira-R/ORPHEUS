@@ -84,14 +84,18 @@ of the within-group decomposition; the former
 ``orpheus.sn.solver._within_group_triple`` / ``_lagged_gains`` pair retired
 into it, which is what dissolved this module's tracked construction twin):
 
-* ``M = [[L+C, +Seeding], [0, A_BB-march]]`` — realized by the FUSED
-  ``(L+C)`` walk, which computes exactly this joint block action (the
-  welded seed feed IS the (A,B) coupling; the in-walk ψ½ recurrence IS the
-  (B,B) march), re-typed onto the coupled carrier by
-  :class:`CoupledInvertibleOperator` through the B.2d explicit leaf-kwarg
-  legs (``radial_characteristic_source``/``_flux``, ``seed_cot``/``_out``
-  — System B's leaves cross into the walk as kwargs, never on the
-  composite).
+* ``M = [[L+C, +Seeding], [None, march]]`` — since step 5 an HONEST
+  upper-triangular :class:`~orpheus.numerics.coupled_system.CoupledOperator`
+  grid over the SAME piece objects: ``solve`` is the numerics block
+  back-substitution (``ψ_B = march⁻¹ q_B`` — System B first, exactly the
+  curvilinear sweep order — then ``ψ_A = LC⁻¹(q_A − Seeding·ψ_B)``, the
+  bulk sweep on its ray-DECOUPLED channel), ``apply`` the block matvec,
+  ``inverse()`` the
+  :class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`.
+  The FUSED-walk delegation (:class:`CoupledInvertibleOperator` threading
+  the B.2d leaf kwargs) dissolved at 5b (R-5.1/R-5.4) — the walk's joint
+  legs remain a supported channel for the operator-free wrapper entries
+  until the step-6 kwarg retirement.
 * ``N = M − A = [[S + B_a, ∅], [+Emission, B_b]]`` — ONE
   :class:`~orpheus.numerics.coupled_system.CoupledOperator` gain grid. The
   (A,B) slot is STRUCTURALLY zero (Seeding lives in M), and the signs are
@@ -205,8 +209,11 @@ def build_coupled_system(
     (CoupledOperator, CoupledSpace)
         The within-group loss grid and its carrier space. The grid carries
         ``apply``/``apply_transpose`` (and ``.H`` via the member-wise
-        metrics); the block SOLVE is the campaign's step-5 deliverable
-        (``is_invertible`` is ``False`` here).
+        metrics) and, since step 5, the DIRECT solve surface: the full
+        2×2 is ``is_invertible`` via the materialize/LU route (the space's
+        zero exemplar is wired), the EXTRACT the R5/R11 swap-law gates
+        ride — production solves stay the splitting iteration on the
+        record's ``resolvent``/``gains``.
     """
     system = build_within_group_system(
         sn_mesh, mat_xs, scattering_order=scattering_order,
@@ -326,12 +333,17 @@ class CoupledInvertibleOperator(LinearOperator["CoupledField", "CoupledField"]):
     pair, #280, gated by the fused forward's adjointability). ``inverse()``
     returns the :class:`CoupledSweepOperator` wrap-delegate sibling.
 
-    Lifecycle: at step 5 (#41) the block SOLVE re-poses M as an honest
-    block-triangular substitution over the grid (the fused delegation
-    dissolves). The M-M block split — the fused joint recurrence vs the
-    seed-zeroed/bulk-zeroed block sum — is the campaign's intrinsic
-    principled-equiv row (B.2c §0: ~5.5e-16), so grid-vs-M comparisons
-    carry that bar, never bitwise.
+    Lifecycle: **production-orphaned at 5b** — the step-5 block solve
+    re-posed ``M`` as the honest triangular
+    :class:`~orpheus.numerics.coupled_system.CoupledOperator` grid (the
+    fused delegation dissolved; ``build_within_group_system`` no longer
+    constructs this class). It survives for the transient
+    substitution-vs-fused equivalence gates and the coherence fixtures;
+    DELETION + test re-point = sub-commit 5d (R-5.4). The M-M block
+    split — the fused joint recurrence vs the seed-zeroed/bulk-zeroed
+    block sum — is the campaign's intrinsic principled-equiv row
+    (B.2c §0: ~5.5e-16), so grid-vs-fused comparisons carry that bar,
+    never bitwise.
     """
 
     # M spans both systems by construction (the step-4a lattice).
@@ -522,13 +534,22 @@ class WithinGroupSystem:
     ----------
     loss : CoupledOperator
         ``A`` — the typed loss grid (2×2 carrying / 1×1 seedless; the
-        B.2c presence-structural P2 shape).
+        B.2c presence-structural P2 shape). Since step 5 it is
+        DIRECT-invertible via the materialize/LU route
+        (``CoupledSpace.zeros`` is wired), the EXTRACT the swap-law
+        gates ride — production solves stay the splitting iteration.
     space : CoupledSpace
         The coupled carrier space ``loss`` is typed against (P1
-        co-production).
-    resolvent : CoupledInvertibleOperator | InvertibleOperator
-        ``M`` — the sweepable part: the coupled-bridged fused walk on a
-        carrying mesh, the plain ``(L+C)`` seedless.
+        co-production), carrying the zero-exemplar factory (step 5 —
+        the typed-carrier materialization seam).
+    resolvent : CoupledOperator | InvertibleOperator
+        ``M`` — the sweepable part: on a carrying mesh the HONEST
+        upper-triangular grid ``[[LC, Seeding], [None, march]]`` whose
+        ``solve`` is the numerics block back-substitution and whose
+        ``inverse()`` the
+        :class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`
+        (step 5 — the fused ``CoupledInvertibleOperator`` delegation
+        dissolved); the plain ``(L+C)`` seedless.
     gains : tuple[LinearOperator, ...]
         ``N`` — the lagged couplings the driver applies each step: ONE
         :class:`~orpheus.numerics.coupled_system.CoupledOperator` gain grid
@@ -539,8 +560,33 @@ class WithinGroupSystem:
 
     loss: "CoupledOperator"
     space: "CoupledSpace"
-    resolvent: "CoupledInvertibleOperator | InvertibleOperator"
+    resolvent: "CoupledOperator | InvertibleOperator"
     gains: "tuple[LinearOperator, ...]"
+
+
+def _zero_full_field(sn_mesh: "SNMesh") -> "FullField":
+    r"""The zero System-A state — the coupled space's zero-exemplar member.
+
+    Flux-role by construction (``AngularFlux`` bulk ⊕ ``AngularBoundaryFlux``
+    trace — the DOMAIN of the within-group operators), spatial-moment-aware
+    (a multi-moment closure's φ̂ tail rides ``zeros_on``'s
+    ``spatial_moments``).  Consumed by :meth:`CoupledSpace.zeros` — the
+    typed-carrier materialization seam (the loss grid's ``as_matrix``
+    basis probe and ``MatrixInverseOperator``'s typed return template),
+    which is what flips ``loss.is_invertible`` True (the step-5 EXTRACT
+    route the swap-law gate rides).
+    """
+    from orpheus.transport.fields.angular_boundary_flux import (
+        AngularBoundaryFlux,
+    )
+    from orpheus.transport.fields.angular_flux import AngularFlux
+
+    return FullField(
+        interior=AngularFlux.zeros_on(
+            sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
+        ),
+        boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+    )
 
 
 def build_streaming_collision(
@@ -664,7 +710,12 @@ def build_within_group_system(
         # The non-carrying degenerate: System B does not exist — the loss
         # is the 1-system grid and the splitting the bare (L+C, (S, B_a))
         # the seedless driver paths consume zero-touch (DP-seedless).
-        space = CoupledSpace.from_systems((full_field_space,))
+        space = CoupledSpace.from_systems(
+            (full_field_space,),
+            zeros=lambda: CoupledField(
+                systems=(_zero_full_field(sn_mesh),),
+            ),
+        )
         return WithinGroupSystem(
             loss=CoupledOperator([[A_AA]], domain=space, codomain=space),
             space=space,
@@ -672,15 +723,27 @@ def build_within_group_system(
             gains=(S, B_a),
         )
 
-    # System B's pieces, constructed ONCE and shared between the loss grid
-    # and the gain grid (single-sourced objects, two compositions).
+    # System B's pieces, constructed ONCE and shared between the loss
+    # grid, the gain grid, AND the resolvent grid (single-sourced objects,
+    # three compositions — the step-5 construction-seam collapse: the
+    # walk's in-solve engine constructions retired with the fused
+    # delegation, so THIS is the one march-construction site).
     A_AB = RadialCharacteristicSeeding(sn_mesh)
     emission = RadialCharacteristicEmission(sn_mesh, S.isotropic_kernel)
     B_b = RadialCharacteristicBoundaryOperator(sn_mesh)
-    A_BB = RadialCharacteristicOperator(
+    march = RadialCharacteristicOperator(
         sn_mesh, mat_xs.total_cross_section_field,
-    ) - B_b
-    space = CoupledSpace.from_systems((full_field_space, member_space))
+    )
+    A_BB = march - B_b
+    space = CoupledSpace.from_systems(
+        (full_field_space, member_space),
+        zeros=lambda: CoupledField(
+            systems=(
+                _zero_full_field(sn_mesh),
+                RadialCharacteristicField.from_mesh(sn_mesh),
+            ),
+        ),
+    )
     # The LOSS grid: (A,B) POSITIVE / (B,A) NEGATED — the sign asymmetry
     # documented in the module docstring (Seeding internalizes its loss
     # sign; Emission is a gain, negated into the loss row).
@@ -688,15 +751,25 @@ def build_within_group_system(
         [[A_AA, A_AB], [-emission, A_BB]], domain=space, codomain=space,
     )
     # The GAIN grid N = M − A: all POSITIVE (rhs gains); the (A,B) slot is
-    # STRUCTURALLY zero — Seeding lives in M (the walk's welded feed).
+    # STRUCTURALLY zero — Seeding lives in M (the (A,B) block below).
     N_AA = S + B_a
     N_AA.system_role = SystemRole.A  # C-fwd stamp, as on A_AA
     N = CoupledOperator(
         [[N_AA, None], [emission, B_b]], domain=space, codomain=space,
     )
+    # M — the sweepable part, an HONEST upper-triangular grid (step 5):
+    # ``[[LC, Seeding], [None, march]]``.  Its ``solve`` is the numerics
+    # block back-substitution (System B's march first, then the bulk
+    # sweep on ``q_A − Seeding·ψ_B`` — the ray-DECOUPLED (L+C) leg), its
+    # ``apply`` the block matvec — the fused joint delegation
+    # (``CoupledInvertibleOperator``) dissolved (R-5.1/R-5.4; the class
+    # is production-orphaned pending the 5d deletion + test re-point).
+    resolvent = CoupledOperator(
+        [[LC, A_AB], [None, march]], domain=space, codomain=space,
+    )
     return WithinGroupSystem(
         loss=loss,
         space=space,
-        resolvent=CoupledInvertibleOperator(LC, space=space, sn_mesh=sn_mesh),
+        resolvent=resolvent,
         gains=(N,),
     )

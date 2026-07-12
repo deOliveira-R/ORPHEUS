@@ -39,11 +39,10 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.coupled_system import (
-    CoupledInvertibleOperator,
-    CoupledSweepOperator,
+from orpheus.numerics.coupled_system import (
+    CoupledOperator,
+    CoupledSubstitutionOperator,
 )
-from orpheus.numerics.coupled_system import CoupledOperator
 from orpheus.sn.solver import SNSolver
 from orpheus.sn.operators.streaming import InvertibleOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
@@ -158,18 +157,20 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
 
     # ── Structural identity of the decomposition (no numerical tolerance) ──
     carrying = sn_mesh.radial_characteristic_field_space is not None
-    # (1) The step operator is the INVERSE of M — since B.2d, on a carrying
-    # mesh the coupled joint sweep (CoupledSweepOperator over the
-    # CoupledInvertibleOperator bridge; the fused (L+C) rides ``.fused``);
-    # seedless, the plain SweepOperator over the InvertibleOperator. Same
-    # concrete types both paths (#226 taxonomy step 3: the solver builds the
-    # inverse, SourceIteration applies it).
+    # (1) The step operator is the INVERSE of M — since step 5, on a
+    # carrying mesh the block SUBSTITUTION (CoupledSubstitutionOperator
+    # over the honest upper-triangular CoupledOperator grid
+    # ``[[LC, Seeding], [None, march]]``; the bulk (L+C) is the grid's
+    # (A,A) block); seedless, the plain SweepOperator over the
+    # InvertibleOperator. Same concrete types both paths (#226 taxonomy
+    # step 3: the solver builds the inverse, SourceIteration applies it).
     if carrying:
-        assert isinstance(L_eig, CoupledSweepOperator)
-        assert isinstance(L_fs, CoupledSweepOperator)
-        assert isinstance(L_eig.inner, CoupledInvertibleOperator)
-        assert isinstance(L_eig.inner.fused, InvertibleOperator)
-        assert isinstance(L_fs.inner.fused, InvertibleOperator)
+        assert isinstance(L_eig, CoupledSubstitutionOperator)
+        assert isinstance(L_fs, CoupledSubstitutionOperator)
+        assert isinstance(L_eig.inner, CoupledOperator)
+        assert L_eig.inner._triangular_orientation() == "upper"
+        assert isinstance(L_eig.inner.blocks[0][0], InvertibleOperator)
+        assert isinstance(L_fs.inner.blocks[0][0], InvertibleOperator)
     else:
         assert isinstance(L_eig, SweepOperator)
         assert isinstance(L_fs, SweepOperator)

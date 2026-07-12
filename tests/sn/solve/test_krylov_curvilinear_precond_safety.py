@@ -128,8 +128,8 @@ def _krylov_power_iteration_kinf(
     from dataclasses import replace
 
     from orpheus.numerics.iteration import KrylovAcceleration
+    from orpheus.numerics.coupled_system import CoupledOperator
     from orpheus.sn.coupled_system import (
-        CoupledInvertibleOperator,
         _system_a_member,
         build_within_group_system,
     )
@@ -172,7 +172,7 @@ def _krylov_power_iteration_kinf(
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    coupled = isinstance(system.resolvent, CoupledInvertibleOperator)
+    coupled = isinstance(system.resolvent, CoupledOperator)
     zero = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )

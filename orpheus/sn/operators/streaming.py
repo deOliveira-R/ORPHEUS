@@ -981,11 +981,13 @@ class InvertibleOperator(
         (B.2d — System B's legs as explicit leaf kwargs): the TRUE q½ ray
         source the joint sweep reads, and the caller-allocated ψ½ carrier it
         fills in place (the marched cells + outflow corner; the inflow corner
-        passes through as the seeded given-data slot). A carrying mesh
-        REQUIRES both — the WDD solve is the JOINT direct inverse ``M⁻¹``
-        (there is no ray-decoupled (A,A) inverse spelling; the coupled
-        bridge, :class:`~orpheus.sn.coupled_system.CoupledInvertibleOperator`,
-        is the production caller). A seedless mesh refuses non-``None`` legs.
+        passes through as the seeded given-data slot). TWO channels on a
+        carrying mesh (step 5, mirroring the matvec's law): both legs = the
+        JOINT direct inverse ``M⁻¹``; both absent = the ray-DECOUPLED
+        ``(L+C)`` diagonal-block solve (zero-seed closure — the leg the M
+        grid's block substitution consumes, ``ψ_A = LC⁻¹(q_A −
+        Seeding·ψ_B)``); a lone leg raises the pair law. A seedless mesh
+        refuses non-``None`` legs.
         """
         del initial_guess  # accept-and-drop: exact direct inverse, nothing to seed (#280 2.5c)
         return self._solve_timed_full_field(
@@ -1104,27 +1106,30 @@ class InvertibleOperator(
                     seed_boundary.face_view(face_name)
                 )
 
-        # ── the ψ½ legs for the sweep (#282 route (a) → B.2d) ──────────
-        # A carrying mesh (R12a — the sphere) solves the starting-
-        # direction legs DIRECTLY: the caller passes the TRUE q½ source
-        # and the ψ½ carrier the sweep fills in place (the boundary_buf
-        # discipline — the inflow corner passes through as the seeded
-        # given-data slot; the marched cells + outflow corner are the
-        # solved state).  The solve is the JOINT inverse M⁻¹, so a
-        # carrying mesh REQUIRES both legs; a seedless mesh refuses them.
+        # ── the ψ½ legs for the sweep (#282 route (a) → B.2d → step 5) ──
+        # TWO channels on a carrying mesh (R12a — the sphere), mirroring
+        # the matvec's law: BOTH legs present = the JOINT inverse M⁻¹
+        # (the caller passes the TRUE q½ source and the ψ½ carrier the
+        # sweep fills in place — the boundary_buf discipline); BOTH
+        # absent = the ray-DECOUPLED ``(L+C)`` diagonal-block solve
+        # (zero-seed closure — the M grid's (A,A) substitution leg,
+        # step 5: ``ψ_A = LC⁻¹(q_A − Seeding·ψ_B)``); a LONE leg is a
+        # wiring error (the pair law).  A seedless mesh refuses them.
         from orpheus.sn.loss_representation import (
             _refuse_radial_characteristic,
-            _require_radial_characteristic,
+            _require_leg_pair,
         )
 
         if sn_mesh.radial_characteristic_field_space is not None:
-            _require_radial_characteristic(
-                "InvertibleOperator.solve", sn_mesh,
-                radial_characteristic_source, role="rhs",
-            )
-            _require_radial_characteristic(
-                "InvertibleOperator.solve", sn_mesh,
-                radial_characteristic_flux, role="carrier",
+            _require_leg_pair(
+                "InvertibleOperator.solve",
+                radial_characteristic_source, radial_characteristic_flux,
+                action_msg=(
+                    "the joint solve consumes the TRUE q½ source and "
+                    "fills the ψ½ carrier together; both absent = the "
+                    "ray-DECOUPLED (L+C) block solve (step 5), a lone "
+                    "leg silently drops half the coupling."
+                ),
             )
         else:
             _refuse_radial_characteristic(
@@ -1214,13 +1219,15 @@ class InvertibleOperator(
         ``seed_cot`` / ``seed_cot_out`` (B.2d — the transposed ψ½ legs as
         explicit leaf kwargs): the flux-side ray cotangent the reverse-scan
         consumes and the caller-allocated buffer the source-side cotangent
-        fills.  Like :meth:`solve`, the transpose-solve is the JOINT inverse
-        ``M⁻ᵀ`` — a carrying mesh REQUIRES both legs; a seedless mesh
-        refuses them.
+        fills.  Like :meth:`solve`, TWO channels on a carrying mesh
+        (step 5): both legs = the JOINT inverse ``M⁻ᵀ``; both absent = the
+        ray-DECOUPLED ``(L+C)⁻ᵀ`` diagonal-block transpose-solve (the M
+        grid's transposed-substitution (A,A) leg); a lone leg is a wiring
+        error.  A seedless mesh refuses them.
         """
         from orpheus.sn.loss_representation import (
             _refuse_radial_characteristic,
-            _require_radial_characteristic,
+            _require_leg_pair,
         )
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
@@ -1233,13 +1240,15 @@ class InvertibleOperator(
                 "(mesh-identity invariant)."
             )
         if sn_mesh.radial_characteristic_field_space is not None:
-            _require_radial_characteristic(
-                "InvertibleOperator.solve_transpose", sn_mesh, seed_cot,
-                role="cotangent",
-            )
-            _require_radial_characteristic(
-                "InvertibleOperator.solve_transpose", sn_mesh, seed_cot_out,
-                role="carrier",
+            _require_leg_pair(
+                "InvertibleOperator.solve_transpose", seed_cot, seed_cot_out,
+                action_msg=(
+                    "the joint transpose-solve consumes the ray cotangent "
+                    "and fills the source-side buffer together; both "
+                    "absent = the ray-DECOUPLED (L+C)⁻ᵀ block solve "
+                    "(step 5), a lone leg silently drops half the "
+                    "coupling."
+                ),
             )
         else:
             _refuse_radial_characteristic(

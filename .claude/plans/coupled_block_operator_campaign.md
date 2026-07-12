@@ -2060,3 +2060,121 @@ only docstrings/tests/docs touched since, targeted suites 130/0 + 116/0 +
   on uncommitted paths; commits stamp the session model.
 
 Re-anchor from THIS block + `git log` (trust git, not the summary).
+
+## Step 5 (#41) design — RULED (2026-07-12, user; TA P0 in flight)
+
+Settled by the re-anchor bundle + the dormant xfail's demands (not re-asked):
+
+- **D1 — the numerics solve mode.** `CoupledOperator` gains
+  `solve`/`solve_transpose`/`is_invertible`/`inverse()`: structural
+  triangularity detection (the `None`-pattern, strictly-upper/lower) →
+  block back/forward SUBSTITUTION via the diagonal blocks'
+  `inverse().apply` + off-diagonal `apply`; a NON-triangular square
+  assemblable grid → `MatrixInverseOperator(assemble())` (the LU EXTRACT
+  route — FORCED: the dormant swap-law xfail
+  `test_a2a_grid_swap_law_inverse_arm` calls `grid.inverse()` on the FULL
+  loss grid). `MatrixInverseOperator` gains `apply_transpose` (the
+  factored transpose is free; `grid.H.inverse()` needs `grid.inverse()`
+  ADJOINTABLE via `_AdjointOperator.is_invertible`'s second clause).
+- **D2 — the M re-pose.** M = the genuine upper-triangular grid
+  `[[LC, Seeding], [None, A_BB]]` built in `build_within_group_system`;
+  `M.solve` = the substitution `ψ_B = A_BB.solve(q_B)` then
+  `ψ_A = LC.solve(q_A − Seeding·ψ_B)`; the transpose substitution mirrors
+  (`x̄_A` first, then `x̄_B = A_BB.solve_transpose(b_B − Seedingᵀ·x̄_A)`).
+  Principled ~5.5e-16 vs the fused joint sweep (the measured M-M row),
+  NEVER bitwise. The walk's in-solve System-B march loses its production
+  caller ⟹ the construction TRIPLICATION (banked seam i) collapses to the
+  one `:680` site; the joint-solve explicit-pair guard retires at step 5
+  (the rest of the guard estate stays step 6 #34). Krylov stop semantics
+  untouched (GMRES already residual-stopped); the driver-level
+  certificate covers both paths.
+
+The four USER RULINGS (all = the recommended option):
+
+- **R-5.1 (banked seam ii, the `:712` twin): M.apply routes through the
+  grid block matvec.** The fused `_seed_rows_forward/_transpose` inline
+  placements lose their production callers (the walk matvec ray legs go
+  dormant; kwargs formally retire at step 6); the Krylov matvec FP stream
+  re-baselines (~5.5e-16 class — principled-over-bit-identical).
+- **R-5.2 (stop mechanism): the FREE identity + END-CERTIFICATE.** The
+  running stop is `r_{n+1} = rhs_n − rhs_{n+1}` (`= N·Δψ`, exact under
+  exact-M; zero marginal cost, computed from the driver's own rhs
+  bookkeeping) + ONE honest driver-level `evaluate_residual(loss, ψ, q)`
+  per solve after convergence, raising LOUDLY on defect — the
+  production-wired cold-residual lag-death classifier (closes the
+  in-M-lag hole the identity is structurally blind to — #282's class).
+- **R-5.3 (stop scope): ALL SourceIteration arms** — one stop test
+  (coupled, seedless, windowed-moment in moment space); normalization
+  `‖r‖/max(‖q_ext‖, tiny)` (equation-relative). The windowed arm is
+  pending the TA r3 refutation (the coisometry breaks the exact-M
+  premise) — if it fails there, that arm gets a STRUCTURAL exemption,
+  never a silent twin. Stop-test-SENSITIVE snapshots re-baseline;
+  closed-form anchors are the truth (TA inventories the ledger).
+- **R-5.4 (the bridge): `CoupledInvertibleOperator` +
+  `CoupledSweepOperator` RETIRE.** The record's `resolvent` field
+  narrows to `CoupledOperator | InvertibleOperator`; the coherence-file
+  M-row gates re-point to the grid; the four bridged surfaces dissolve
+  into the generic substitution.
+
+Execution waits on the TA step-5 memo
+(`coupled_operator_step5_solve_verification.md`, dispatched agent
+`a962dae984fa8d02d`) — gate architecture, re-baseline ledger, mutation
+ledger, refutations r1–r5 (r1 reflective-corner data-flow, r2 snapshot
+band quantification, r3 windowed premise, r4 zero-gain exit, r5 q≈0
+normalization).
+
+### Step 5 — TA memo LANDED; 5a DONE @ `6732778a`; 5b executing
+
+**The TA memo** (headline rows absorbed): grid.is_invertible = the LOSS
+grid via materialize/LU (NOT M — M was already invertible);
+`MatrixInverseOperator.apply_transpose` a HARD requirement (swap-law
+clause 2); the in-M-lag CERTIFICATE (C3) NOT subsumed by row-6
+(tautology-blind — the lag rides both sides of the assembled compare);
+r3 CONFIRMS the windowed exemption (coisometry breaks exact-M — the
+free identity keeps its STOP role there, the certificate evaluates the
+RECONSTRUCTED flux); five sub-commits 5a→5e; the stop-test re-baseline
+ledger (dd_regression k-snapshots re-baseline vs the closed form;
+`n_predicted` RE-DERIVED not re-baselined; the frozen walk baselines +
+row-6 + 282 C-rows are the robust leak-tripwire).
+
+**5a @ `6732778a` (numerics)**: `CoupledOperator.solve/solve_transpose/
+is_invertible/inverse()` — triangular substitution (ONE body, four
+orientation×transpose combos, loud ordering-bug guard mutation-verified)
++ the materialize/LU branch; `CoupledSubstitutionOperator`
+(InverseWrapMixin sibling; apply delegates to the FORWARD's solve — the
+carve-P4 one-body contract); `CoupledSpace.zeros()` (the builder-wired
+zero-exemplar factory — the typed-carrier materialization seam);
+`CoupledOperator.as_matrix` typed basis probe through it;
+`MatrixInverseOperator` + apply_transpose (trans=1 on the SAME LU) +
+is_adjointable True + the ravellable-carrier seam (typed operands mint
+from the DOMAIN's zero exemplar — role honesty). Keystone predicate
+contract updated per-sibling. tests/numerics 921/0; sn/operators 780/0;
+FINDING: the 7 cp reds are the pre-existing SLOW-tier scratch breakage
+(`diag_cin_aware_split_basis_keff` source gone from scratch/, .pyc relic
+only — NOT-SLOW cp is 141/0; user decision pending on re-homing).
+
+**5b (in flight)**: M re-posed as the honest upper-triangular grid
+`[[LC, Seeding], [None, march]]` in `build_within_group_system` (the
+construction triplication → ONE site); zeros wired both branches ⟹
+loss.is_invertible True (the dormant swap-law xfail XPASSes);
+`CoupledInvertibleOperator`/`CoupledSweepOperator` production-orphaned
+(deletion = 5d); the joint-pair guard relaxed to the TWO-CHANNEL law on
+all four solve surfaces (both = joint M⁻¹; both-absent = the
+ray-DECOUPLED (L+C) block leg; lone leg = pair-law raise;
+`_require_radial_characteristic` retired caller-less); the walk's
+`_run`/`_run_transpose` presence-keyed (zero thread / discarded thread
+cotangent on the decoupled channel); solver dispatches re-keyed
+(6 isinstance sites → CoupledOperator). Gates: G-d1.1 sentinels re-aimed
+(substitution wrap + the blocks[1][0]-is-None grid discriminator);
+G-d1.2 pins the grid shape; G-d1.4(a) re-pointed to the (A,A) block's
+bare call; the primitive-contract isinstance rows → CoupledSubstitution
+Operator; NEW `TestCoupledSolve` (r1 corner data-flow vs dense-LU on the
+manufactured-range doctrine with the #284 computed-corner-slot exclusion
++ the TRANSIENT facade bit-row [ray members array_equal] + B3 dense-Mᵀ).
+**MEASURED**: substitution vs facade — ray members + WHOLE transpose
+BIT-identical, bulk 8.3e-16 (the M-M row); k 4-arm probe — SI sphere +
+BOTH Cartesian arms BIT-identical to 16 digits, Krylov sphere moved
+5.2e-14 (the R-5.1 grid-matvec reassociation, principled re-baseline);
+the 2-D dd_regression DriftWarning (9.8e-13, within tol) verified
+PRE-EXISTING at `d881243d` via worktree probe. numerics+transport
+1344/0; ratchet transport: 1; sphinx -W exit 0.
