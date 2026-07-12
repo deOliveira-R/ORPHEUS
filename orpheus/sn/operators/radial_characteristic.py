@@ -98,19 +98,19 @@ the PURE ``A_BB`` transpose; the walk's ``_seed_rows_transpose`` wraps it and
 ADDS the ``A_AB`` seed→bulk coupling, which is not part of ``A_BB`` in
 isolation).
 
-**Tracked transient twin — the SOLVE orchestration (Cardinal Rule 2, retired
-at step 4e).** The :math:`\sigma_t`-driven DD *engine*
+**The ONE solve orchestration (Cardinal Rule 2 — the 4e-e2 un-weave).** The
+:math:`\sigma_t`-driven DD *engine*
 (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`)
-is single-sourced, but the two-leg ORCHESTRATION that :meth:`solve` runs
-(read the source views → inward leg → pole-continue → reversed outward leg
-→ write the flux views) still mirrors the in-sweep production block
-``orpheus/sn/loss_representation:4104-4131`` — the direct-seed march that
-``(L+C).solve`` runs inline. Step 4e routes the production ``(L+C)`` ray
-solve THROUGH this operator (the coupled block-triangular resolvent),
-retiring the inline block so the orchestration lives in ONE place. Until
-then both sides are behaviour-pinned (the in-sweep by the regression floor +
-sweep suite; this by the Mode-11 WRAP bit-identity gate) and the campaign
-plan's step-4e retirement list carries the inline block.
+is single-sourced, and since step 4e-e2 the two-leg ORCHESTRATION (read the
+source views → inward leg → pole-continue → reversed outward leg → write
+the flux views) lives ONLY here: the production ``(L+C)`` walk routes its
+ray solve THROUGH :meth:`solve` / :meth:`solve_transpose` — it constructs
+this operator over its own :math:`\sigma_t` and calls it once, up front
+(forward) / once, after the reversed ordinate loops, on the thread-augmented
+cotangent (transpose). The former in-sweep inline block and its reverse-scan
+mirror are RETIRED. The Mode-11 engine-execution sentinels (the S1 driver
+gates) pin the routing; the two-leg reference gate pins the orchestration
+itself.
 
 Sourcing
 ========
@@ -468,11 +468,10 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         (orientation is carried by the DATA, never a flag) from the
         pole-continued face out to the r = R outflow corner. A thin WRAP of
         :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
-        (Hébert 3.434–3.435) — the SAME single-sourced DD engine the
-        in-sweep direct-seed block runs, so this is bit-identical to that
-        block (pinned by the Mode-11 WRAP gate). The two-leg orchestration
-        HERE is a tracked transient twin of that block, retired at step 4/5
-        — see the module docstring "Tracked transient twin".
+        (Hébert 3.434–3.435) — the single-sourced DD engine. Since 4e-e2
+        this IS the production orchestration: the ``(L+C)`` walk routes its
+        ray solve through this method (the former in-sweep inline twin is
+        retired — see the module docstring "The ONE solve orchestration").
 
         The per-level slot key is the carrier's own ``space.levels`` member
         (the level POSITION, ``p_idx`` in the in-sweep) — the coordinate

@@ -141,7 +141,6 @@ from orpheus.numerics.moment_layout import (
 from orpheus.transport.spatial._ubld import octant_moment_frame_signs
 from orpheus.transport.spatial.scheme import UpstreamState
 from ..spatial.psi_half_angle_seed import (
-    carlson_inward_sweep_from_source,
     radial_characteristic_forward_residual,
     radial_characteristic_forward_residual_transpose,
 )
@@ -4084,7 +4083,6 @@ class _OneDimScanWalk:
             bc_outer = boundary_flux.face_view("xmax")  # (N, ng)
             inflow_full = bc_outer  # incoming-ord slots = seeded inflow (bare sweep)
             sigma_t_gx = sig_t_p                                  # (ng, nx)
-            dr = self.mesh.axis_widths[0]
             if is_sphere:
                 # Sphere is the single-level case with NO μ-level index
                 # (``mu_level_idx=None`` on the walk below).
@@ -4106,12 +4104,14 @@ class _OneDimScanWalk:
             # cylinder).
             #
             # * CARRYING level (R12a — the sphere): the ψ½ legs are
-            #   solved DIRECTLY, before the level's ordinate loop, by the
-            #   Hébert (3.434)-(3.435) DD march on the TRUE q½ source
-            #   (``carlson_inward_sweep_from_source`` — inward from the
-            #   seeded inflow corner, pole-continued, outward to the
-            #   outflow corner), and the marched inward cells ARE the
-            #   recurrence seed (the #282 seed LAG is dead).
+            #   solved DIRECTLY, up front (before the level loop), by
+            #   System B's NAMED resolvent ``A_BB.solve`` — the Hébert
+            #   (3.434)-(3.435) DD march on the TRUE q½ source, inward
+            #   from the seeded inflow corner, pole-continued, outward
+            #   to the outflow corner (4e-e2: the walk routes THROUGH
+            #   ``RadialCharacteristicOperator``) — and the marched
+            #   inward cells ARE the recurrence seed (the #282 seed
+            #   LAG is dead).
             # * NON-carrying level (every production cylinder): the seed
             #   ψ½ ≡ ψ̄_{m0} (product, t = 0, #229 — the first-swept
             #   ordinate's own average) is a per-ordinate SELF-reference,
@@ -4183,6 +4183,42 @@ class _OneDimScanWalk:
                         for k, g in enumerate(fold_globals)
                     }
 
+            # ── the DIRECT ψ½ solve (#282 route (a)) — THROUGH A_BB (4e-e2) ──
+            # System B is iterate-independent (the direct march reads only
+            # the TRUE q½ source + the r = R inflow datum), so it is solved
+            # ONCE, up front, by its NAMED resolvent — the SAME
+            # RadialCharacteristicOperator.solve the coupled grid exposes at
+            # its (B, B) slot.  The welded two-leg orchestration this walk
+            # carried inline is RETIRED (the 4e un-weave); the engine call
+            # IS the single source.  The walk then reads the marched inward
+            # cells as the M-M recurrence seed per carrying level (the
+            # ray-first ordering, preserved).
+            if seed_levels:
+                from orpheus.transport.fields.cross_section_field import (
+                    CrossSectionField,
+                )
+
+                from ..operators.radial_characteristic import (
+                    RadialCharacteristicOperator,
+                )
+
+                assert radial_characteristic_source is not None
+                assert radial_characteristic_flux is not None
+                ray_resolvent = RadialCharacteristicOperator(
+                    self.mesh,
+                    CrossSectionField.from_mesh(sigma_t_gx, self.mesh),
+                )
+                ray_flux = ray_resolvent.solve(radial_characteristic_source)
+                # Fill the caller-owned carrier in place (the in-out
+                # contract of the solve wrap, #282 route (a)) — member-wise
+                # value copies; the composite spaces are mesh-identical.
+                radial_characteristic_flux.interior.values[...] = (
+                    ray_flux.interior.values
+                )
+                radial_characteristic_flux.boundary.values[...] = (
+                    ray_flux.boundary.values
+                )
+
             # Carlson coupled-pole spatial seed (ERR-058, Issue #195): each
             # inward (μ<0) ordinate's pole-face outflow is captured here and
             # consumed as the spatial seed of its MIRROR outward (μ>0)
@@ -4196,62 +4232,20 @@ class _OneDimScanWalk:
                 ordinates_in_level = level_ordinates_list[p_idx]
                 ords_arr = np.asarray(ordinates_in_level)
                 if p_idx in seed_levels:
-                    # ── the DIRECT ψ½ solve (#282 route (a)) ──
-                    # Marches BOTH starting-direction legs from the TRUE
-                    # q½ source before any ordinate of the level: inward
-                    # from the seeded inflow corner (the given-data slot,
-                    # copied through to the carrier — the trace-inflow
-                    # discipline), pole continuation ψ½⁺(0) = ψ½⁻(0)
-                    # (the march's exit face IS the pole datum), outward
-                    # to the outflow corner.  The outward leg rides the
-                    # SAME engine on reversed cell data (orientation is
-                    # data, never a flag — the 2.5a discipline).
-                    #
-                    # ⚠ TRACKED TRANSIENT TWIN (Cardinal Rule 2): the two-leg
-                    # orchestration below (:4104-4119) is byte-identical to
-                    # RadialCharacteristicOperator.solve — A_BB, the named System-B
-                    # resolvent (orpheus/sn/operators/radial_characteristic.py). The
-                    # DD engine carlson_inward_sweep_from_source is single-sourced;
-                    # this ORCHESTRATION is duplicated and RETIRED at coupled-block
-                    # campaign step 4/5, when the production (L+C) ray solve routes
-                    # THROUGH A_BB.solve (plan retirement list entry 1). Edit both
-                    # twins in lockstep until then — the Mode-11 WRAP gate
-                    # (test_psi_half_coupling.py::…test_wrap_executes_engine_bit_identical)
-                    # reddens on any divergence.
-                    assert radial_characteristic_source is not None
+                    # ── the M-M seed read (#282 route (a); 4e-e2) ──
+                    # The ψ½ legs were solved by A_BB up front; the marched
+                    # inward cells ARE the recurrence seed — first-class
+                    # state, no iterate read (C(ii) bitwise seed-
+                    # insensitivity is this read).  ``cells`` keys by
+                    # ``p_idx`` — the level-POSITION index (the split
+                    # spaces' ``levels`` are positions from ``enumerate``,
+                    # the same source as ``seed_levels``) — NOT ``level``
+                    # (the walk's ``mu_level_idx``, ``None`` on the sphere,
+                    # the only carrying geometry).
                     assert radial_characteristic_flux is not None
-                    src_interior = radial_characteristic_source.interior
-                    src_boundary = radial_characteristic_source.boundary
-                    buf_interior = radial_characteristic_flux.interior
-                    buf_boundary = radial_characteristic_flux.boundary
-                    # ``cells``/``corner`` are keyed by ``p_idx`` — the
-                    # level-POSITION index (the split spaces' ``levels``
-                    # are positions from ``enumerate``, and the gate ``p_idx in
-                    # seed_levels`` shares that source, so ``p_idx`` is always a
-                    # valid slot key).  NOT ``level`` — that is the walk's
-                    # ``mu_level_idx`` (``None`` on the sphere, the only carrying
-                    # geometry), which would raise ``None not in (0,)``.
-                    q_minus = src_interior.cells(p_idx, -1)
-                    q_plus = src_interior.cells(p_idx, +1)
-                    corner_in = src_boundary.corner(p_idx, -1)
-                    cells_minus, pole_face = carlson_inward_sweep_from_source(
-                        q_minus, sigma_t_gx, dr, corner_in,
-                    )
-                    cells_plus_rev, corner_out = carlson_inward_sweep_from_source(
-                        q_plus[:, ::-1], sigma_t_gx[:, ::-1], dr[::-1],
-                        pole_face,
-                    )
-                    buf_interior.cells(p_idx, -1)[...] = cells_minus
-                    buf_boundary.corner(p_idx, -1)[...] = corner_in
-                    buf_interior.cells(p_idx, +1)[...] = (
-                        cells_plus_rev[:, ::-1]
-                    )
-                    buf_boundary.corner(p_idx, +1)[...] = corner_out
-                    # The marched inward cells ARE the M-M recurrence seed
-                    # — first-class state, no iterate read (C(ii) bitwise
-                    # seed-insensitivity is this line).
-                    phi_aux = cells_minus
-                    psi_angle = phi_aux.copy()                       # (ng, nx)
+                    psi_angle = radial_characteristic_flux.interior.cells(
+                        p_idx, -1,
+                    ).copy()                                         # (ng, nx)
                 else:
                     # ── non-carrying level: the seed is solved IN-LINE ──
                     # ψ½ ≡ ψ̄_{m0} (product, t=0) is resolved by the #280 2.5b
@@ -4550,7 +4544,6 @@ class _OneDimScanWalk:
         # routing (no carrier, ``m_seed = None``); and the pure-azimuthal
         # DEGENERATE ordinates as slot-local diagonal transposes.
         from ..spatial.pole_angular_closure import MorelMontryAngularSweep
-        from ..spatial.psi_half_angle_seed import carlson_inward_sweep_transpose
 
         is_sphere = coord is CoordSystem.SPHERICAL
         closure = self.mesh.pole_angular_closure
@@ -4561,7 +4554,6 @@ class _OneDimScanWalk:
             )
         weights = quad.weights
         sigma_gx = sigma                                         # (ng, nx)
-        dr = self.mesh.axis_widths[0]
         mirror = quad.reflection_index("x")
         bc_outer_cot = boundary_cot.face_view("xmax")            # (N, ng)
         bc_outer_bar = m_boundary.face_view("xmax")              # (N, ng) — written
@@ -4574,13 +4566,15 @@ class _OneDimScanWalk:
         # seed carrier; the fold's transpose lives in the seed-ordinate branch of
         # the ordinate loop, and ``m_seed`` stays ``None``.
         seed_fold: "dict[int, tuple[np.ndarray, np.ndarray]]" = {}
-        # sphere-carrying only: the (interior, boundary) pullback buffers.
-        seed_bar_interior: "np.ndarray | None" = None
-        seed_bar_boundary: "np.ndarray | None" = None
+        # sphere-carrying only: the AUGMENTED ψ½ cotangent (4e-e2) — the
+        # explicit ``seed_cot`` leg plus, per level, the M-M thread cotangent
+        # the reversed ordinate loop accumulates on the inward cells (the
+        # fused A_ABᵀ feed, H1-narrow); reversed through A_BB.solve_transpose
+        # ONCE after the loop.
+        seed_cot_augmented: "RadialCharacteristicField | None" = None
         if is_sphere:
             assert seed_cot is not None                          # R12a on the sphere
-            seed_bar_interior = np.zeros_like(seed_cot.interior.values)
-            seed_bar_boundary = np.zeros_like(seed_cot.boundary.values)
+            seed_cot_augmented = seed_cot.copy()
             levels: "list[int | None]" = [None]
             level_ordinates_list = [list(range(N))]
         else:
@@ -4750,65 +4744,39 @@ class _OneDimScanWalk:
                 else:
                     pole_outflow_bar[mirror[global_n]] += psi_in_bar
 
-            # ── reverse the direct ψ½ seed march (sphere carrying level only) ──
+            # ── the M-M thread cotangent lands on the inward seed cells ──
             if is_sphere:
-                # phi_aux = cells_minus, so the M-M thread cotangent lands on the
-                # inward seed cells; the carrier is ALSO an output (its cotangent
-                # is the explicit ``seed_cot`` leg).
-                assert seed_cot is not None
-                assert seed_bar_interior is not None
-                assert seed_bar_boundary is not None
-                interior_space = seed_cot.interior.space
-                boundary_space = seed_cot.boundary.space
-                cells_minus_bar = (
-                    seed_cot.interior.cells(p_idx, -1) + psi_angle_bar
+                # psi_angle = the A_BB-marched inward cells seeded the thread
+                # in the forward, so this level's accumulated
+                # ``psi_angle_bar`` ADDS to the explicit ``seed_cot`` leg on
+                # the (p_idx, −1) cells slot — the fused A_ABᵀ contribution
+                # entering System B's cotangent (H1-narrow: the feed stays
+                # M's fused internal).  The leg REVERSAL itself is A_BB's
+                # job — solve_transpose, once, after the loop.
+                assert seed_cot_augmented is not None
+                seed_cot_augmented.interior.cells(p_idx, -1)[...] += (
+                    psi_angle_bar
                 )
-                cells_plus_bar = seed_cot.interior.cells(p_idx, +1).copy()
-                corner_in_bar = seed_cot.boundary.corner(p_idx, -1).copy()
-                corner_out_bar = seed_cot.boundary.corner(p_idx, +1)
-                # reverse the OUTWARD (+1) leg — marched on reversed data.
-                q_plus_rev_bar, pole_face_bar = carlson_inward_sweep_transpose(
-                    cells_plus_bar[:, ::-1], corner_out_bar,
-                    sigma_gx[:, ::-1], dr[::-1],
-                )
-                q_plus_bar = q_plus_rev_bar[:, ::-1]
-                # reverse the INWARD (−1) leg — the pole face is its exit.
-                q_minus_bar, corner_in_from_minus = carlson_inward_sweep_transpose(
-                    cells_minus_bar, pole_face_bar, sigma_gx, dr,
-                )
-                corner_in_bar = corner_in_bar + corner_in_from_minus
-                # assemble the seed source cotangent (corner(+1) unused by q½ → 0).
-                interior_space.slot_view(seed_bar_interior, p_idx, -1)[...] = q_minus_bar
-                interior_space.slot_view(seed_bar_interior, p_idx, +1)[...] = q_plus_bar
-                boundary_space.slot_view(seed_bar_boundary, p_idx, -1)[...] = corner_in_bar
 
         # ── the seed cotangent: sphere carries it, cylinder does not ──
+        # Reverse the two-leg march through the NAMED resolvent adjoint —
+        # (A_BB⁻¹)ᵀ on the augmented cotangent (4e-e2: the welded inline
+        # reversal is retired; A_BB.solve_transpose is the single source).
         if is_sphere:
-            assert seed_cot is not None
-            assert seed_bar_interior is not None
-            assert seed_bar_boundary is not None
-            from orpheus.transport.radial_characteristic_field import (
-                RadialCharacteristicField,
-            )
-            from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
-                RadialCharacteristicBoundarySourceSink,
-            )
-            from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
-                RadialCharacteristicInteriorSourceSink,
+            assert seed_cot_augmented is not None
+            from orpheus.transport.fields.cross_section_field import (
+                CrossSectionField,
             )
 
-            m_seed = RadialCharacteristicField(
-                interior=RadialCharacteristicInteriorSourceSink(
-                    values=seed_bar_interior,
-                    space=seed_cot.interior.space,
-                    mesh=seed_cot.interior.mesh,
-                ),
-                boundary=RadialCharacteristicBoundarySourceSink(
-                    values=seed_bar_boundary,
-                    space=seed_cot.boundary.space,
-                    mesh=seed_cot.boundary.mesh,
-                ),
+            from ..operators.radial_characteristic import (
+                RadialCharacteristicOperator,
             )
+
+            ray_resolvent = RadialCharacteristicOperator(
+                self.mesh,
+                CrossSectionField.from_mesh(sigma_gx, self.mesh),
+            )
+            m_seed = ray_resolvent.solve_transpose(seed_cot_augmented)
         else:
             m_seed = None
         return Q_bar, m_boundary, m_seed

@@ -295,19 +295,23 @@ def test_civ_pure_absorber_sphere_cold_solve_exact():
 def test_mode11_direct_solver_executes_on_sphere_not_slab():
     r"""Mode 11 — the rewired production line IS on the solve's call graph.
 
-    Wrap-sentinel the direct starting-direction solver
-    ``carlson_inward_sweep_from_source`` (the name the 1-D scan calls) and
+    Since 4e-e2 the walk routes its ψ½ ray solve THROUGH System B's named
+    resolvent: wrap-sentinel ``RadialCharacteristicOperator.solve`` on the
+    CLASS (the Mode-11 pytest-plugin sharpening — the wrap sits on the very
+    object the production path constructs, so a walk that routed AROUND the
+    engine, e.g. a re-welded inline march, leaves the counter at 0) and
     confirm the sphere COLD solve executes it (counter > 0) while the slab
-    does NOT (counter == 0, no carrying levels).  A green solve that never
-    reached the new reader would be a vacuous gate (Mode 11)."""
-    import orpheus.sn.loss_representation as lr
+    does NOT (counter == 0, no carrying levels — no System B)."""
+    from orpheus.sn.operators.radial_characteristic import (
+        RadialCharacteristicOperator,
+    )
 
     calls = {"n": 0}
-    orig = lr.carlson_inward_sweep_from_source
+    orig = RadialCharacteristicOperator.solve
 
-    def _counting(*a, **k):
+    def _counting(self, source):
         calls["n"] += 1
-        return orig(*a, **k)
+        return orig(self, source)
 
     for coord, expect_calls in (
         (CoordSystem.SPHERICAL, True), (CoordSystem.CARTESIAN, False),
@@ -316,18 +320,92 @@ def test_mode11_direct_solver_executes_on_sphere_not_slab():
         _bvals, b, q_half = _random_source(sn, np.random.default_rng(11))
         calls["n"] = 0
         with pytest.MonkeyPatch.context() as mp:
-            mp.setattr(lr, "carlson_inward_sweep_from_source", _counting)
+            mp.setattr(RadialCharacteristicOperator, "solve", _counting)
             _joint_solve(A, sn, b, q_half)
         if expect_calls and calls["n"] == 0:
             pytest.fail(
-                f"[{coord}] the direct ψ½ solver was NEVER called by the "
-                "sphere cold solve — the rewired path is off the call graph."
+                f"[{coord}] A_BB.solve was NEVER called by the sphere cold "
+                "solve — the walk is routing around the System-B resolvent "
+                "(the 4e un-weave regressed)."
             )
         if not expect_calls and calls["n"] != 0:
             pytest.fail(
-                f"[{coord}] the slab solve called the ψ½ direct solver "
+                f"[{coord}] the slab solve called A_BB.solve "
                 f"{calls['n']}× — it has no carrying levels."
             )
+
+
+@pytest.mark.foundation
+def test_mode11_transpose_solver_executes_on_sphere_not_slab():
+    r"""Mode 11, the reverse orientation — the reverse-scan routes System B's
+    cotangent reversal THROUGH ``RadialCharacteristicOperator.solve_transpose``
+    (4e-e2: the welded inline leg reversal is retired). The sphere
+    transpose-solve executes it (counter > 0); the slab does not
+    (counter == 0). Same CLASS-level wrap discipline as the forward gate."""
+    from orpheus.sn.operators.radial_characteristic import (
+        RadialCharacteristicOperator,
+    )
+
+    calls = {"n": 0}
+    orig = RadialCharacteristicOperator.solve_transpose
+
+    def _counting(self, cotangent):
+        calls["n"] += 1
+        return orig(self, cotangent)
+
+    for coord, expect_calls in (
+        (CoordSystem.SPHERICAL, True), (CoordSystem.CARTESIAN, False),
+    ):
+        sn, A = _operator(coord, nx=4, sigma=0.5)
+        _bvals, b, _q_half = _random_source(sn, np.random.default_rng(13))
+        calls["n"] = 0
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                RadialCharacteristicOperator, "solve_transpose", _counting,
+            )
+            if sn.radial_characteristic_field_space is not None:
+                A.solve_transpose(
+                    b,
+                    seed_cot=RadialCharacteristicField.from_mesh(sn),
+                    seed_cot_out=RadialCharacteristicField.source_zeros_on(sn),
+                )
+            else:
+                A.solve_transpose(b)
+        if expect_calls and calls["n"] == 0:
+            pytest.fail(
+                f"[{coord}] A_BB.solve_transpose was NEVER called by the "
+                "sphere transpose-solve — the reverse-scan is routing around "
+                "the System-B resolvent adjoint (the 4e un-weave regressed)."
+            )
+        if not expect_calls and calls["n"] != 0:
+            pytest.fail(
+                f"[{coord}] the slab transpose-solve called "
+                f"A_BB.solve_transpose {calls['n']}× — it has no carrying "
+                "levels."
+            )
+
+
+@pytest.mark.foundation
+def test_4e_unweave_walk_source_has_no_carlson_reference():
+    r"""S2 — the un-weave completion tripwire: the fused ``(L+C)`` walk
+    (:mod:`orpheus.sn.loss_representation`) carries ZERO textual references
+    to the ``carlson_inward_sweep_*`` engines — System B's marches live ONLY
+    behind ``RadialCharacteristicOperator.solve`` / ``solve_transpose``. An
+    inline march creeping back (an import, a call, even a stale comment
+    naming the engine) REDS here before any value gate could go blind."""
+    from pathlib import Path
+
+    import orpheus.sn.loss_representation as lr
+
+    src = Path(lr.__file__).read_text(encoding="utf-8")
+    n = src.count("carlson")
+    if n != 0:
+        pytest.fail(
+            f"loss_representation source contains {n} 'carlson' "
+            "reference(s) — the 4e un-weave is regressing (the walk must "
+            "route System B through RadialCharacteristicOperator, never "
+            "inline the engine)."
+        )
 
 
 def _coupled_space(sn):

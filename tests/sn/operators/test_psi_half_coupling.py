@@ -367,10 +367,12 @@ class TestRegressionFloor:
                         f"lagging the seed is no longer nilpotent (the triangular structure broke).")
 
     def test_welded_sweep_is_exact_direct_inverse(self):
-        r"""``(L+C).solve((L+C).apply(ψ)) ≈ ψ`` at machine precision — the welded
-        sphere sweep IS the exact direct inverse (route-a). A WRAP inherits this
-        bit-for-bit. Mutation tooth: a re-introduced ψ½ seed lag makes the sphere
-        round-trip blow up (pre-route-a residual was O(1e5))."""
+        r"""``(L+C).solve((L+C).apply(ψ)) ≈ ψ`` at machine precision — the
+        production sphere sweep IS the exact direct inverse (route-a). Since
+        4e-e2 the sweep routes its ray legs through ``A_BB.solve`` (the WRAP)
+        — measured bit-identical at the un-weave, so this row pins the routed
+        path directly. Mutation tooth: a re-introduced ψ½ seed lag makes the
+        sphere round-trip blow up (pre-route-a residual was O(1e5))."""
         sn = _sphere()
         M_op = _joint_M(sn, _loss(sn, slope=0.3))
         tpl = _coupled_template(sn)
