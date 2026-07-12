@@ -16,8 +16,8 @@ Like the spatial trace sibling
 :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`,
 the corner datum is FLUX-valued (``1/(cm²·s·sr)``): on a trace-like locus a
 source does NOT pick up the volumetric ``cm⁻³``. The split DISSOLVES the
-unified
-:class:`~orpheus.transport.source_sinks.radial_characteristic_source_sink.RadialCharacteristicSourceSink`'s
+retired unified leaf's (the single-buffer ``RadialCharacteristicSourceSink``,
+deleted at 4e — its module is gone)
 documented corner-units deviation — each locus leaf now declares its own
 honest dimensional identity (the volumetric cells live on
 :class:`~orpheus.transport.source_sinks.radial_characteristic_interior_source_sink.RadialCharacteristicInteriorSourceSink`).

@@ -2291,11 +2291,13 @@ from the bulk:
 * **It lives on a codim-1 locus.**  The bulk is codim-0 (cell centres,
   the full :math:`(N, n_g, n_x)` phase space); the spatial trace is
   codim-1 (the :math:`r`-faces); ψ½ is codim-1 too — the angular-domain
-  edge :math:`\mu = \mu_{\rm start}`.  Its storage
-  (:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`)
-  deliberately mirrors the spatial trace's flat-buffer
-  :class:`~orpheus.numerics.face_layout.FaceLayout` discipline (typed
-  ``(level, sign)`` views in place of ``FaceLabel`` views).
+  edge :math:`\mu = \mu_{\rm start}`.  Its storage — the split
+  :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicInteriorSpace`
+  (cells) and
+  :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicBoundarySpace`
+  (the :math:`r = R` corner) — deliberately mirrors the spatial trace's
+  flat-buffer :class:`~orpheus.numerics.face_layout.FaceLayout` discipline
+  (typed ``(level, sign)`` views in place of ``FaceLabel`` views).
 * **Its metric is a STATE metric, not the through-flux.**  ψ½ is a
   first-class radial state field, so its Hilbert metric is the SPD radial
   cell volume :math:`G_{\rm sd} = V_{\rm cell}` (mirroring the bulk's
@@ -2329,9 +2331,13 @@ rather than a forced one.
    Parts of this design direction have **landed**; the rest is recorded so
    a future session inherits the reasoning.  The **structural codim-1
    parent** :class:`~orpheus.transport.fields._bases.FaceField` now
-   **exists** (commit ``4081c0d``) — ``RadialCharacteristicField`` and the
-   spatial-trace boundary families are its subclasses, sharing the
-   flat-buffer ``FaceLayout`` discipline instead of hand-copying it.  The
+   **exists** (commit ``4081c0d``) — the split ψ½ leaves
+   (``RadialCharacteristicInteriorField`` / ``RadialCharacteristicBoundaryField``,
+   the ``interior ⊕ boundary`` loci) and the spatial-trace boundary
+   families are its subclasses, sharing the flat-buffer ``FaceLayout``
+   discipline instead of hand-copying it.  (Since 4e-e1b the name
+   ``RadialCharacteristicField`` denotes the **composite** that binds those
+   two leaves — System B's carrier — **not** a ``FaceField`` subclass.)  The
    :func:`~orpheus.numerics.face_layout.face_streaming_normal` measure also
    exists, but as the spatial-trace partial-current metric **only** (see
    the refuted-unification note below).  The per-leaf **metrics are correct
@@ -2352,17 +2358,25 @@ rather than a forced one.
    (:mod:`orpheus.transport.fields`) now shares the **codim-1 parent**
    :class:`~orpheus.transport.fields._bases.FaceField` off
    :class:`~orpheus.numerics.field.Field`: the spatial-trace family
-   (:class:`~orpheus.transport.fields._bases.BoundaryField`) and the ψ½
-   family
-   (:class:`~orpheus.transport.fields._bases.RadialCharacteristicField`)
-   are both its subclasses, inheriting the flat-buffer ``FaceLayout``
-   discipline once instead of hand-copying it::
+   (:class:`~orpheus.transport.fields._bases.BoundaryField`) and the
+   **split** ψ½ family
+   (:class:`~orpheus.transport.fields._bases.RadialCharacteristicInteriorField`
+   / :class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField`)
+   are all its subclasses, inheriting the flat-buffer ``FaceLayout``
+   discipline once instead of hand-copying it.  The two 2-block **carriers**
+   (System A's ``FullField``, System B's ``RadialCharacteristicField``) are
+   ``Composite`` products of those leaves — **not** ``FaceField``
+   subclasses::
 
        Field
-       ├── BulkField    — codim-0 (cell centres);  metric = per-leaf  V·w
-       └── FaceField    — codim-1 (faces/edges);   STRUCTURE only (flat layout + presence)
-            ├── AngularBoundaryField / ScalarBoundaryField  (spatial faces)  metric |Ω·n|·w
-            └── RadialCharacteristicField (ψ½)                 (angular edges)   metric V_cell (SPD)
+       ├── BulkField    — codim-0 (cell centres);   metric = per-leaf  V·w
+       └── FaceField    — codim-1 (faces/edges);    STRUCTURE only (flat layout + presence)
+            ├── AngularBoundaryField / ScalarBoundaryField            (spatial faces)  metric |Ω·n|·w
+            └── RadialCharacteristicInteriorField / …BoundaryField     (ψ½ split, angular edges)  metric V_cell (SPD)
+
+       Composite[Interior, Boundary]   — a two-block product of Fields (NOT a Field)
+       ├── FullField                 = Composite[BulkField, BoundaryField]                        (System A)
+       └── RadialCharacteristicField  = Composite[…InteriorField, …BoundaryField]   (System B — ψ½ carrier, reminted 4e-e1b)
 
    ``FaceField`` owns the ``FaceLayout`` flat-buffer discipline **once**,
    so the face families are no longer siblings-by-accident.  It unifies
@@ -2464,6 +2478,27 @@ The mesh remains the single authority on presence
 (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`),
 and the guards enforce the *leg* biconditional against it — the
 ``Optional``-block two-sources-of-truth smell the eviction dissolved.
+
+.. note:: **Internally the walk consumes the ``A_BB`` operator, not an inline march (4e-e2).**
+
+   The kwarg *contract* above is a leaf-handoff, not the orchestration.
+   The ``solve`` row's "fill the marched ψ½ ``flux`` in place" no longer
+   happens by an inline two-leg march welded into the walk body.  Since
+   4e-e2 the walk constructs System B's
+   :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
+   over its own :math:`\sigma_t` and routes the forward ``solve`` through
+   :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve`
+   (once, up front — System B is iterate-independent) and the reverse-scan
+   through
+   :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve_transpose`
+   (once, on the seed cotangent augmented with the Morel–Montry thread
+   cotangent — the fused :math:`A_{AB}^{\mathsf T}` feed, H1-narrow).  This
+   is the named resolvent the coupled 2×2 grid also exposes at its
+   ``(B, B)`` slot, so the two-leg orchestration is single-sourced
+   (Cardinal Rule 2); the walk's ``carlson_inward_sweep_*`` references went
+   **8 → 0**.  The full un-weave, the H1-narrow ruling, and the re-aimed
+   Mode-11 sentinels are on the discrete-ordinates page
+   (:ref:`sn-282-direct-starting-direction-solve`).
 
 .. _loss-rep-fork-b2:
 

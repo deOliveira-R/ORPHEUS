@@ -37,13 +37,16 @@ Key Facts
   :ref:`sn-curvilinear-aniso-norm-reconciliation`.
 - **Curvilinear starting-direction seed** (Issue #282 route (a)): the
   Morel–Montry recurrence's half-angle seed :math:`\psi_{1/2}` at
-  :math:`\mu_{\rm start}` is **first-class typed state**
-  (:class:`~orpheus.transport.fields.radial_characteristic_flux.RadialCharacteristicFlux`),
-  NOT a lagged extrapolation of the iterate.  The spherical within-group
-  **solve marches it directly** from the true q½ source
-  (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`,
-  the **full** Legendre fold — an :math:`\ell=0`-only fold drops the
-  :math:`-A'` term streaming manufactures), so the cold solve is a
+  :math:`\mu_{\rm start}` is **first-class typed state** — System B's own
+  :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
+  composite (its own ``interior ⊕ boundary`` of ψ½ leaves), NOT a lagged
+  extrapolation of the iterate.  The spherical within-group **solve marches
+  it directly** from the true q½ source through System B's named resolvent
+  :meth:`RadialCharacteristicOperator.solve <orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve>`
+  (the Hébert
+  :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+  engine on the **full** Legendre fold — an :math:`\ell=0`-only fold drops
+  the :math:`-A'` term streaming manufactures), so the cold solve is a
   single-pass exact inverse (residual :math:`5.18\times10^5 \to
   2.5\times10^{-16}`).  Only levels with first-ordinate raw
   :math:`\tau \in (0,1)` carry the block (**R12a** — the sphere;
@@ -10799,14 +10802,17 @@ Route (a) — the direct starting-direction ψ½ solve (Issue #282)
    extrapolation of the *previous* source-iteration iterate — was a
    **walk-order back edge**: it made the spherical within-group SOLVE a
    *non-direct* inverse.  Route (a) promotes the starting-direction flux
-   :math:`\psi_{1/2}` to **first-class typed state** (the
-   :class:`~orpheus.transport.fields._bases.RadialCharacteristicField` role
-   family on a :math:`V_{\rm cell}`-state-metric
-   :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`)
-   and marches it **directly** from the true within-group source
-   :math:`\bar q_{1/2}` through the Hébert §3.9.4
-   :eq:`hebert-3-434`–:eq:`hebert-3-435` recurrence
-   (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`).
+   :math:`\psi_{1/2}` to **first-class typed state** — System B's own
+   :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
+   composite (a :math:`V_{\rm cell}`-state-metric ``interior ⊕ boundary``
+   of ψ½ role leaves on the split
+   :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicInteriorSpace`
+   / :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicBoundarySpace`)
+   — and marches it **directly** from the true within-group source
+   :math:`\bar q_{1/2}` through System B's named resolvent
+   :meth:`RadialCharacteristicOperator.solve <orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve>`
+   (the Hébert §3.9.4 :eq:`hebert-3-434`–:eq:`hebert-3-435` recurrence
+   :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`).
 
    **Keystone:** the sphere cold-start residual
    :math:`\lVert A\cdot\mathrm{solve}(b) - b\rVert_\infty / \lVert b\rVert_\infty`
@@ -10969,36 +10975,55 @@ bulk and trace:
 one starting-direction block :math:`V_{1/2,p}^{\pm}` per **carrying**
 :math:`\mu`-level :math:`p` (R12a; on production meshes only the sphere
 carries — one level).  Each block holds the level's half-angle flux at
-every radial cell plus its two :math:`r = R` corner slots
-(:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`,
-a flat backing buffer with typed ``(level, sign)`` views, mirroring the
+every radial cell (the **interior**
+:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicInteriorSpace`)
+plus its two :math:`r = R` corner slots (the **boundary**
+:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicBoundarySpace`)
+— two flat backing buffers with typed ``(level, sign)`` views, mirroring the
 :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-trace layout).  Like every typed phase-space quantity in this codebase
-the seed is realised by a **role family** — here a quadruple keyed by the
-composite torsor algebra (flux, source/sink, displacement, residual):
+trace layout.  The single unified ψ½ buffer (which then held the
+``RadialCharacteristicSpace`` name) split into this interior ⊕ boundary
+pair at 4e-e1.  Like every typed phase-space quantity in this codebase
+the seed is realised by a **role family** — here a quadruple of roles,
+each split into an ``interior ⊕ boundary`` locus pair (4e-e1) and composed
+by System B's ``RadialCharacteristicField`` (role-erased slots — role
+identity lives on the members):
 
-.. list-table:: The ``RadialCharacteristicField`` role quadruple (#282 route (a))
+.. list-table:: The ψ½ role family — four roles × two split loci, composed by ``RadialCharacteristicField`` (#282 route (a); split at 4e-e1)
    :header-rows: 1
    :widths: 34 30 36
 
-   * - Role leaf
+   * - Role — the ``interior ⊕ boundary`` leaf pair
      - Realises
      - Forced by
-   * - :class:`~orpheus.transport.fields.radial_characteristic_flux.RadialCharacteristicFlux`
-     - the ψ½ state :math:`\psi_{1/2}` itself
+   * - **flux** —
+       :class:`~orpheus.transport.fields.radial_characteristic_interior_flux.RadialCharacteristicInteriorFlux`
+       ⊕ :class:`~orpheus.transport.fields.radial_characteristic_boundary_flux.RadialCharacteristicBoundaryFlux`
+     - the ψ½ state :math:`\psi_{1/2}` itself (the marched cells ⊕ the
+       :math:`r = R` corner)
      - the carrier promotion (2.5d d1)
-   * - :class:`~orpheus.transport.source_sinks.radial_characteristic_source_sink.RadialCharacteristicSourceSink`
+   * - **source/sink** —
+       :class:`~orpheus.transport.source_sinks.radial_characteristic_interior_source_sink.RadialCharacteristicInteriorSourceSink`
+       ⊕ :class:`~orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink.RadialCharacteristicBoundarySourceSink`
      - the q½ source block :math:`\bar q_{1/2}` (the fold below) and any
        operator ``.apply`` output on the seed rows
      - the augmented source composite
-   * - :class:`~orpheus.transport.displacements.radial_characteristic_displacement.RadialCharacteristicDisplacement`
-     - the affine displacement between two ψ½ states
+   * - **displacement** —
+       :class:`~orpheus.transport.displacements.radial_characteristic_interior_displacement.RadialCharacteristicInteriorDisplacement`
+       ⊕ :class:`~orpheus.transport.displacements.radial_characteristic_boundary_displacement.RadialCharacteristicBoundaryDisplacement`
+     - the affine displacement between two ψ½ states (minted per block by ⊖)
      - the composite torsor algebra (2.5d d1)
-   * - :class:`~orpheus.transport.residuals.radial_characteristic_interior_residual.RadialCharacteristicInteriorResidual`
+   * - **residual** —
+       :class:`~orpheus.transport.residuals.radial_characteristic_interior_residual.RadialCharacteristicInteriorResidual`
        ⊕ :class:`~orpheus.transport.residuals.radial_characteristic_boundary_residual.RadialCharacteristicBoundaryResidual`
      - System B's typed residual members :math:`r_B = (A\psi)_B - q_B`
-       (the split pair — the unified leaf retired at B.2d d2)
      - :func:`~orpheus.sn.solver.evaluate_residual`'s coupled arm (B.2d)
+
+The historical **unified** single-buffer leaf — cells ⊕ corner interleaved
+on one ``FaceField[(level, sign, part)]`` — carried the
+``RadialCharacteristicField`` name until 4e; that name was reminted onto
+System B's composite at 4e-e1b (see the "Where ψ½ lives" note below), and
+the eight split role leaves above are the only ψ½ representation.
 
 **Where ψ½ lives — System B, not a block on the bulk composite (the B.2d
 eviction).**  The role family above is a **separate composite**, never a
@@ -11138,7 +11163,8 @@ metric while for the other it does not:
      - **equals** the through-flux
        :math:`\lvert\Omega\cdot n\rvert\,w`
    * - **angular** :math:`\mu = \pm 1` edge — the ψ½ seed
-       (:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`)
+       (System B's
+       :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`)
      - :math:`(1-\mu^2)\,w = 0`
      - the ray is a **straight characteristic**
        (:math:`(1-\mu^2) = 0`, the pole)
@@ -11223,17 +11249,23 @@ no bulk or trace unknown), and the seed → bulk coupling is one-directional
 (the M-M recurrence reads :math:`\psi_{1/2}` into the bulk rows'
 ``angular_numer``, never the reverse).  The three orientations:
 
-* **SOLVE** (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`).
-  Before any ordinate of a carrying level, the two ψ½ legs are solved
-  **directly** from the true q½ source: march inward from the seeded
-  :math:`r = R` inflow corner (vacuum ⇒ 0; reflective ⇒ the mirror
-  outflow corner) via the Hébert :eq:`hebert-3-434`–:eq:`hebert-3-435`
-  DD recurrence, pole-continue :math:`\psi^{+}_{1/2}(0) = \psi^{-}_{1/2}(0)`
-  (the inward march's exit face **is** the pole datum), then march the
-  :math:`\mu = +1` leg outward to the :math:`r = R` outflow corner on the
-  **reversed** cell data (orientation is carried by the data, never a
-  flag — the 2.5a discipline).  The marched inward cells **are** the M-M
-  recurrence seed; the iterate plays no role.
+* **SOLVE** — routed through System B's named resolvent
+  :meth:`RadialCharacteristicOperator.solve <orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve>`
+  (the **4e-e2 un-weave**: the walk constructs ``A_BB`` over its own
+  :math:`\sigma_t` and calls it **once, up front** — System B is
+  iterate-independent — instead of inlining the two-leg march).  The two
+  ψ½ legs are solved **directly** from the true q½ source: march inward
+  from the seeded :math:`r = R` inflow corner (vacuum ⇒ 0; reflective ⇒
+  the mirror outflow corner) via the Hébert
+  :eq:`hebert-3-434`–:eq:`hebert-3-435` DD recurrence
+  (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`,
+  the single-sourced DD **engine** — the only place the march lives),
+  pole-continue :math:`\psi^{+}_{1/2}(0) = \psi^{-}_{1/2}(0)` (the inward
+  march's exit face **is** the pole datum), then march the :math:`\mu = +1`
+  leg outward to the :math:`r = R` outflow corner on the **reversed** cell
+  data (orientation is carried by the data, never a flag — the 2.5a
+  discipline).  The walk then reads the marched inward cells off the
+  carrier **as** the M-M recurrence seed; the iterate plays no role.
 * **APPLY** (the matvec).  Reads the *given* ψ½ carrier and **emits** the
   seed-block rows: per leg the Hébert (3.434) residual
   :math:`m_{1/2,i} = \sigma_i\psi_{1/2,i} + (2/\Delta r_i)(\psi_{1/2,i} - f_{{\rm in},i})`
@@ -11254,6 +11286,39 @@ The triangularity is not asserted — it is **certified** by a probed
 ``triu == 0`` check on the assembled augmented block (the transpose
 analogue of the #284 object-level discharge): the sweep is LAPACK forward
 substitution on the source subspace.
+
+.. note:: **The ray solve is un-woven from the walk (Cardinal Rule 2 — 4e-e2).**
+
+   The two ψ½ **orchestrations** — the forward SOLVE and its reverse-scan
+   solve-transpose — no longer live inline in the walk.  Since 4e-e2 both
+   route through System B's named resolvent
+   :meth:`RadialCharacteristicOperator.solve <orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve>`
+   / :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve_transpose`
+   (``A_BB``, constructed inside the walk over its own :math:`\sigma_t`),
+   which the coupled 2×2 grid also exposes at its ``(B, B)`` slot.  The
+   two-leg **orchestration** (read source views → inward leg →
+   pole-continue → reversed outward leg → write flux views) now lives in
+   exactly **one** place —
+   :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
+   — and the DD **engine** it drives in exactly one other
+   (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+   / :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_transpose`).
+   The walk's ``carlson_inward_sweep_*`` references went **8 → 0**; a
+   source-scan tripwire (``test_4e_unweave_walk_source_has_no_carlson_reference``)
+   pins that the walk holds zero references to the engines, and the
+   :ref:`Mode-11 wrap-sentinels <sn-282-numerical-evidence>` re-aim onto
+   the operator's ``solve`` / ``solve_transpose``.  The **forward matvec**
+   and its transpose were single-sourced earlier (step 4b) onto
+   :func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual`,
+   so ``apply`` and the walk's seed rows already share one kernel.
+
+   **H1-narrow.**  Only the ``A_BB`` *solve* legs were extracted; the
+   ``A_AB`` seed → bulk coupling stays **fused** in the within-group
+   :math:`M` (the DP-splitting ruling).  In the transpose the reversed
+   ordinate loop accumulates the Morel–Montry thread cotangent onto a copy
+   of the seed cotangent — *that augmentation is* the fused
+   :math:`A_{AB}^{\mathsf T}` feed — and only then does one
+   ``A_BB.solve_transpose`` call return the seed-source cotangent.
 
 .. (vv-status rationale) Structural / representational identity: the
 .. block-triangular normal form of the augmented (L+C) in the augmented
@@ -11284,7 +11349,7 @@ the exact 1-D addition-theorem weight :math:`(2\ell+1)/2` with
 :math:`P_\ell(\pm 1) = (\pm 1)^\ell` — this is Eq. :eq:`hebert-3-432-source`
 kept at **full order**, not collapsed to :math:`L = 0`.  The single q½
 fold factory
-:meth:`~orpheus.transport.source_sinks.radial_characteristic_source_sink.RadialCharacteristicSourceSink.from_angular_source`
+:meth:`RadialCharacteristicField.source_from_angular <orpheus.transport.radial_characteristic_field.RadialCharacteristicField.source_from_angular>`
 folds every moment the level resolves; the solver cold-start, the
 fixed-source right-hand side, and the operator-free
 :func:`~orpheus.sn.loss_representation.transport_sweep` all route through
@@ -11612,6 +11677,8 @@ places, both correct on their own:
   bit-identical to the retired default: :math:`t = 0` exact on product
   rules, dead seed weight on level-symmetric rules).
 
+.. _sn-282-numerical-evidence:
+
 Numerical evidence — the lag death
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -11657,9 +11724,15 @@ gotcha below).
        (:math:`< 10^{-11}`, finite, positive)
 
 Three teeth pin that the evidence is not vacuous: **Mode 11** —
-a wrap-sentinel confirms the sphere cold solve *executes*
-:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
-while the slab does **not** (no carrying levels); **Mode 10** — zeroing
+a **class-level** wrap-sentinel confirms the sphere cold solve *executes*
+:meth:`RadialCharacteristicOperator.solve <orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve>`
+while the slab does **not** (no carrying levels), the transpose analogue
+wraps :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve_transpose`,
+and a source-scan tripwire
+(``test_4e_unweave_walk_source_has_no_carlson_reference``) pins that the
+walk holds **zero** ``carlson_inward_sweep_*`` references — the 4e-e2
+un-weave (the marches live only behind the operator, so the sentinel wraps
+the very method the walk routes through); **Mode 10** — zeroing
 the q½ source block **moves** the sphere solve (the carrier is not inert);
 **Mode 12** — with the :math:`V_{\rm cell}` state metric the G-reciprocity
 gate now *catches* a seed-row flip (the closure, ERR-067; gotcha below).
@@ -20602,6 +20675,44 @@ branch and have no landed hash yet.
      - Issue
      - Where
    * - 2026-07-11
+     - **The ψ½ ray solve was un-woven from the walk — System B is marched
+       split-native and its ray solve routes through the named ``A_BB``
+       resolvent** (coupled-block campaign, Phase C 4e). Three moves
+       complete the Cardinal-Rule-2 single source for the curvilinear ray
+       orchestration. **(e1, ``63702e7``)** the fused :math:`(L+C)` 1-D walk
+       marches System B's ``interior ⊕ boundary`` composite **natively**,
+       retiring the historical **unified** ψ½ leaf family (cells ⊕ corner
+       interleaved on one ``FaceField[(level, sign, part)]`` buffer), its
+       unified space, and the ``from_unified`` / ``to_unified`` bridge (the
+       demotion licence ``to_unified ∘ from_unified == id`` discharged by
+       the walk-slot rewrite landing bit-identically). **(e1b,
+       ``ea7f919c``)** the freed ``RadialCharacteristicField`` name was
+       reminted onto System B's composite —
+       :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
+       (``Composite[interior, boundary]``), the exact
+       :class:`~orpheus.transport.full_field.FullField` mirror (ONE
+       System-B carrier name). **(e2, ``98fe2e36``)** the walk's two welded
+       ray-solve orchestrations were **deleted**: the :math:`(L+C)` walk
+       now routes System B through the named resolvent
+       :meth:`RadialCharacteristicOperator.solve <orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve>`
+       / :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve_transpose`
+       (``A_BB``, built inside the walk over its own :math:`\sigma_t`), so
+       the two-leg march **orchestration** lives in ONE place and the DD
+       **engine**
+       (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`)
+       in one other — the walk's ``carlson_inward_sweep_*`` references went
+       **8 → 0**. Under the **H1-narrow** ruling only the ``A_BB`` *solve*
+       legs were extracted; the ``A_AB`` seed → bulk coupling stays fused in
+       the within-group :math:`M` (the transpose augments the seed cotangent
+       with the Morel–Montry thread cotangent — the fused
+       :math:`A_{AB}^{\mathsf T}` feed — before one ``solve_transpose``
+       call). Landed **bit-identical**: the frozen walk baselines hold at
+       ``nulp = 1`` (zero drift) and :math:`k` matches to 15 digits across
+       sphere/slab × SI/Krylov (full tree 6340/0). See
+       :ref:`sn-282-direct-starting-direction-solve`.
+     - #280
+     - ``refactor/sn-walk-unification`` *(in development, 98fe2e36)*
+   * - 2026-07-11
      - **The ψ½ ray was evicted from the SN composite carrier —
        ``FullField`` is pure 2-block and System B is its own composite**
        (coupled-block campaign, Phase B.2d d2, "the atomic eviction"). The
@@ -20732,12 +20843,10 @@ branch and have no landed hash yet.
        *previous* source-iteration iterate) was a **walk-order back
        edge** that made the spherical within-group SOLVE a *non-direct*
        inverse (cold residual :math:`5.18\times10^5`). Route (a) promotes
-       :math:`\psi_{1/2}` to a typed
-       :class:`~orpheus.transport.fields._bases.RadialCharacteristicField`
-       role quadruple (flux / source / displacement / residual) on a
-       zero-metric
-       :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`,
-       and the sweep marches it **directly** from the true q½ source (the
+       :math:`\psi_{1/2}` to a **typed** ψ½ role quadruple (flux / source /
+       displacement / residual) carrying the SPD :math:`V_{\rm cell}` state
+       metric, and the sweep marches it **directly** from the true q½
+       source (the
        Hébert §3.9.4 recurrence
        :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
        + the **full** Legendre fold

@@ -12,8 +12,8 @@ This is the block ``A_BA``
 (:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`,
 the ``Fold ∘ K ∘ integrate`` emission) writes.
 
-The split DISSOLVES the unified
-:class:`~orpheus.transport.source_sinks.radial_characteristic_source_sink.RadialCharacteristicSourceSink`'s
+The split DISSOLVES the retired unified leaf's (the single-buffer
+``RadialCharacteristicSourceSink``, deleted at 4e — its module is gone)
 documented corner-units deviation: each locus leaf now declares its own honest
 dimensional identity (cells = volumetric rate here; the corner datum lives on
 :class:`~orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink.RadialCharacteristicBoundarySourceSink`

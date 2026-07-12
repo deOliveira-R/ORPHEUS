@@ -211,10 +211,9 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
     (domain = codomain = ``sn_mesh.radial_characteristic_field_space`` —
     the B.2c grid re-type; the ``CoupledOperator`` grid places it at the
     ``(B, B)`` slot). All four action surfaces parse the composite at the
-    block boundary and bridge to the unified ψ½ layout the single-sourced
-    ENGINE marches (split member views end to end since 4e
-    — the B.2 demote ruling; the bridge dissolves at Phase C/4e with the
-    unified leaf).
+    block boundary and march the split member views directly, end to end
+    (4e — the unified ψ½ layout and its bridge are retired; the split
+    composite is the ONLY representation).
 
     See the module docstring's "Scope of this realization" section for the
     operator-algebra posing (two-point radial BVP) and the full realized
