@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6602**
+Total tests collected: **6633**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1187, 18.0%
+   L0, 1187, 17.9%
    L1, 1085, 16.4%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4240, 64.2%
-   unmarked, 36, 0.5%
+   foundation, 4268, 64.3%
+   unmarked, 39, 0.6%
 
 Tagging source
 --------------
@@ -32,12 +32,12 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6487
+   explicit, 6515
    verify, 0
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 36
+   unmarked, 39
 
 Module × level grid
 -------------------
@@ -285,7 +285,7 @@ Module × level grid
    numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 0, 21
-   numerics/test_coupled_operator, 0, 0, 0, 0, 39, 0
+   numerics/test_coupled_operator, 0, 0, 0, 0, 56, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 4, 0
@@ -300,8 +300,8 @@ Module × level grid
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
-   numerics/test_iteration, 0, 1, 0, 0, 21, 0
-   numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 24, 0
+   numerics/test_iteration, 0, 1, 0, 0, 21, 3
+   numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 11, 0
@@ -352,7 +352,7 @@ Module × level grid
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
-   operators/test_psi_half_coupling, 0, 2, 0, 0, 80, 0
+   operators/test_psi_half_coupling, 0, 2, 0, 0, 83, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_radial_characteristic_metric, 0, 0, 0, 0, 19, 0
    operators/test_ray_operator, 0, 6, 0, 0, 0, 0
@@ -393,6 +393,7 @@ Module × level grid
    solve/test_2d_anisotropic_windowing, 0, 6, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
+   solve/test_coupled_solve_certificate, 0, 0, 0, 0, 4, 0
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
@@ -1201,7 +1202,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
 Unmarked tests
 --------------
 
-**36 tests** have no V&V level marker.
+**39 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1216,6 +1217,7 @@ equations. See ``docs/testing/architecture.rst``
    ``tests/numerics/test_assembled_operator.py``, 21
    ``tests/numerics/test_face_layout_typed_key.py``, 5
    ``tests/derivations/test_atkinson_product_nystrom.py``, 3
+   ``tests/numerics/test_iteration.py``, 3
    ``tests/derivations/test_fn_projection_vs_kll_flux.py``, 2
    ``tests/sn/sweep/core/test_cell_kernel_batch.py``, 2
    ``tests/derivations/test_fn_la13511_slab_reflected.py``, 1

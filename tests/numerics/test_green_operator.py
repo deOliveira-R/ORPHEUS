@@ -240,28 +240,36 @@ def test_divergent_split_raises_loudly_convergent_control_does_not():
 
 
 def test_near_critical_increment_lies_true_residual_governs():
-    """§18.A (Signature 9, ρ-blind stopping): at ``ρ = 0.99`` the driver's
-    INCREMENT converges below tol while the TRUE equation residual is
-    ~``ρ/(1−ρ) ≈ 1e2`` larger.  A tight budget must RAISE on the true
-    residual (M-GRN-INCREMENT's gate — an increment-checking Green returns
-    the wrong iterate silently); a generous budget lets the refinement
-    loop MEET the true promise (the positive control that the promise is
-    driven, not merely checked — a check-only design would falsely raise
-    for every ρ > 1/2)."""
+    """§18.A (Signature 9, ρ-blind stopping): at ``ρ = 0.99`` an
+    increment-family stop under-delivers by ~``ρ/(1−ρ) ≈ 1e2`` — the
+    pathology this gate was born on. Since step 5 the DRIVER itself stops
+    on the ρ-honest equation residual (the free identity — the
+    increment-lie is structurally closed a level down), so the gate's
+    claim narrows to Green's own governor: a HARD budget below the honest
+    convergence need must still RAISE on the true residual at a
+    pass-boundary check (M-GRN-INCREMENT's surviving tooth — a governor
+    that trusted any driver claim without the true-residual check would
+    return a best-effort iterate silently); a generous budget lets the
+    refinement MEET the true promise (the positive control that the
+    promise is driven, not merely checked)."""
     n = 6
     D = DiagonalOperator(np.full(n, 1.0))
     N = DiagonalOperator(np.full(n, 0.99))
     q = _RNG.uniform(1.0, 2.0, n)
     A_dense = np.diag(np.full(n, 1.0)) - np.diag(np.full(n, 0.99))
 
-    # Budget calibration (M-GRN-INCREMENT teeth): at ρ=0.99/tol=1e-4 the
-    # increment-stop lands at ~460 steps (0.99ⁿ < 1e-2·tol/1e-4) and the
-    # true-residual refinement closes at ~920, so a 600 budget sits
-    # BETWEEN them — the honest Green raises (promise unmet at ~2e-3),
-    # while an increment-checking mutant returns the wrong iterate
-    # silently at ~460 (this gate then reds on the missing raise).
+    # Budget calibration for the HONEST driver (step 5): the residual
+    # stop needs ~920 steps for 0.99ⁿ·(scale/‖q‖) < 1e-4 — the old
+    # increment-stop's premature ~460-step claim is gone. Green's budget
+    # check runs at PASS boundaries (steps ≥ max_iter after a driver
+    # pass), so the raise leg needs a budget whose cumulative passes trip
+    # the check while still unmet: 200 → pass 1 (~200 steps, res ~0.13·s)
+    # leaves steps < budget, pass 2 crosses it with the promise still
+    # ~1e-2 off → RAISE. (600 would now sit in the soft window where the
+    # warm second pass MEETS the promise at ~930 — better delivery, not a
+    # missing raise.)
     with pytest.raises(ConvergenceFailure, match="TRUE relative residual"):
-        GreenOperator(D - N, max_iter=600, tol=1e-4).apply(q)
+        GreenOperator(D - N, max_iter=200, tol=1e-4).apply(q)
 
     psi = GreenOperator(D - N, max_iter=5000, tol=1e-4).apply(q)
     true_res = np.linalg.norm(A_dense @ psi - q) / np.linalg.norm(q)

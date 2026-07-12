@@ -93,7 +93,12 @@ from orpheus.transport.source_sinks import AngularSourceSink
 #   VACUUM_2G ≈ 128 (coupling inactive — the G-4 negative control)
 # The boundary-G-S recovery is the MEASURED ~0.86–0.92× (NOT the c² halving an
 # earlier draft assumed — see §4.1); the c-independent win is DSA (#2) / Krylov.
-_N_JACOBI_VACUUM_2G = 128  # G-4 negative control (boundary coupling inactive)
+_N_JACOBI_VACUUM_2G = 144  # G-4 negative control (boundary coupling inactive)
+# 128 → 144 at step 5 (R-5.2/R-5.3): the SI stop re-posed onto the ρ-honest
+# equation residual ‖Σg·Δψ‖/‖q_ext‖ (was ‖Δψ‖/‖ψ‖) — a DELIBERATE tol
+# re-interpretation that shifts absolute counts uniformly across schedules;
+# the test's CLAIM (vacuum count is schedule-INVARIANT — the recovery
+# touches only reflective coupling) is count-value-independent and holds.
 _TOL = 1e-8
 
 

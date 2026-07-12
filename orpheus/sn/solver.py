@@ -363,6 +363,106 @@ def boundary_vs_interior_split(
     return boundary, interior
 
 
+class ConvergenceCertificateError(RuntimeError):
+    r"""A within-group solve CLAIMED convergence but the honest equation
+    residual disagrees — the production lag-death classifier (step 5,
+    R-5.2).
+
+    The running stop is the FREE-IDENTITY residual ``r = rhs_{n−1} −
+    rhs_n`` (:class:`~orpheus.numerics.iteration.SourceIteration`), which
+    equals the true ``Aψ − q`` ONLY when the step operator is an exact
+    inverse of the splitting's ``M``. An in-``M`` inconsistency — the
+    #282 class: a lagged seed, a stale block, a walk whose fixed point
+    does not solve the equation — leaves the identity (and any
+    ``‖Δψ‖``-family test) reporting "converged" while the equation is
+    violated O(1). The certificate is the ONE honest
+    :func:`evaluate_residual` per solve that closes exactly that hole
+    (the row-6 oracle is tautology-blind to it — an in-``M`` lag rides
+    both sides of an assembled self-compare; TA step-5 memo refutation
+    #8).
+    """
+
+
+#: The certificate's false-alarm guard: the free identity and the honest
+#: residual agree to FP-reassociation grain when M is exact, so a genuine
+#: lag-death (O(1) defect — #282 measured 5e5) clears this by orders of
+#: magnitude while exact-M exits never trip it.
+_CERTIFICATE_SAFETY = 10.0
+
+
+def _certify_within_group_exit(
+    loss_op: "LinearOperator",
+    psi: "TimedFullField | CoupledField",
+    q_ext: "FullField | CoupledField",
+    *,
+    sn_mesh: "SNMesh",
+    residual_history: "list[float]",
+    tol: float,
+    where: str,
+) -> None:
+    r"""The end-of-solve convergence CERTIFICATE — one honest residual.
+
+    No-op when the exit made NO claim (``max_iter`` hit without reaching
+    ``tol`` — best-effort returns stay legal); when the driver's stop
+    CLAIMED convergence, evaluates the true ``r = A·ψ − q`` through
+    :func:`evaluate_residual` (a real forward apply — the only
+    measurement an in-``M`` lag cannot fool) and raises
+    :class:`ConvergenceCertificateError` on a defect beyond
+    ``_CERTIFICATE_SAFETY × tol``.
+
+    Wired on every FULL-ANGULAR arm (the coupled sphere, the seedless
+    un-windowed SI, both Krylov paths). Two structural exemptions —
+    honest scope, each with the threat model spelled:
+
+    * **the windowed 2-D moment arm** (skipped at the call sites): (i)
+      the #282 in-M lag class is CARRYING-only and windowing is 2-D
+      Cartesian ⟹ seedless (the threat cannot exist there); (ii) its
+      G-S fixed-point threat class (ERR-056) is value-gated by the
+      C5.5 Mode-9 mixed-BC box; (iii) the moment iterate cannot feed
+      the typed angular residual without a per-solve reconstruction
+      (the r3 coisometry exemption — the moment free-identity keeps
+      the STOP role only).
+    * **moment-tailed (LD) schemes** (skipped HERE, one seam): the
+      residual mint (:class:`~orpheus.transport.residuals.AngularResidual`
+      ``from_balance``) does not yet admit the trailing ``2^d``
+      spatial-moment axis — an un-built widening of the residual
+      family, NOT a threat gap today: the carrying production family
+      (where the #282 class lives) is DD, and the LD reverse-scan /
+      adjoint arms are themselves #280 deferrals. The widening lands
+      with the LD residual carve (step-5 close-out note).
+    """
+    if sn_mesh.scheme.spatial_basis_per_axis > 1:
+        return  # moment-tailed scheme — the residual mint's un-built widening
+    if not residual_history or not (residual_history[-1] < tol):
+        return  # no convergence claim — nothing to certify
+    residual = evaluate_residual(loss_op, psi, q_ext)
+    r_norm = float(np.linalg.norm(np.asarray(residual.to_flat())))
+    q_norm = max(float(np.linalg.norm(np.asarray(q_ext.to_flat()))), 1e-30)
+    defect = r_norm / q_norm
+    if defect > _CERTIFICATE_SAFETY * tol:
+        raise ConvergenceCertificateError(
+            f"{where}: the within-group solve claimed convergence "
+            f"(running residual {residual_history[-1]:.3e} < tol {tol:.1e}) "
+            f"but the honest equation residual is ‖Aψ − q‖/‖q‖ = "
+            f"{defect:.3e} — the iteration's fixed point does not solve "
+            f"the equation (the #282 lag-death class: a stale/lagged "
+            f"block inside M; the free-identity stop is structurally "
+            f"blind to it)."
+        )
+
+
+def _bare_loss_arm(system: "WithinGroupSystem") -> "LinearOperator":
+    r"""The seedless certificate's operator: the 1×1 grid's (A,A) entry
+    (the ``L+C−S−B_a`` composition — :func:`evaluate_residual`'s bare
+    arm takes the composition, not the arity-guarded grid)."""
+    arm = system.loss.blocks[0][0]
+    if arm is None:  # unreachable — the grid ctor guards diagonal presence
+        raise RuntimeError(
+            "_bare_loss_arm: the 1×1 loss grid carries no (A,A) block."
+        )
+    return arm
+
+
 def _within_group_krylov(
     LC: "LinearOperator", *gains: "LinearOperator",
     n_dof: int, max_iter: int, tol: float,
@@ -1527,6 +1627,17 @@ class SNSolver:
         psi_typed, _residuals = si.solve(
             q_driver, initial_guess=initial_guess,
         )
+        # The end-of-solve CERTIFICATE (step 5, R-5.2) — full-angular arms
+        # only (the windowed moment arm is structurally exempt: seedless ⟹
+        # no in-M lag surface; see _certify_within_group_exit).
+        if not windowed:
+            _certify_within_group_exit(
+                system.loss if coupled else _bare_loss_arm(system),
+                psi_typed, q_driver,
+                sn_mesh=self.sn_mesh,
+                residual_history=_residuals, tol=self.inner_tol,
+                where="SNSolver._solve_source_iteration",
+            )
         # Phase 3 measurement seam: accumulate this outer step's inner SI
         # iterate count (the eigenvalue path's only window onto the inner
         # spectral rate — see IterationHistory.total_inner_iterations).
@@ -1702,6 +1813,18 @@ class SNSolver:
         )
         psi_typed, _residuals = krylov.solve(
             q_driver, initial_guess=initial_guess,
+        )
+        # The end-of-solve CERTIFICATE (step 5, R-5.2) — the Krylov path is
+        # always full-angular (windowing is SI-only), so it certifies
+        # unconditionally: GMRES's own stop is residual-based, but the
+        # certificate is the honest cross-check on the ASSEMBLED equation
+        # (the ERR-053 truncation family's independent catcher).
+        _certify_within_group_exit(
+            system.loss if coupled else _bare_loss_arm(system),
+            psi_typed, q_driver,
+            sn_mesh=self.sn_mesh,
+            residual_history=_residuals, tol=self.inner_tol,
+            where="SNSolver._solve_krylov",
         )
         # Phase 3 measurement seam: accumulate this outer step's inner
         # Krylov iterate count (see IterationHistory.total_inner_iterations).
@@ -2660,6 +2783,17 @@ def _solve_fixed_source_si(
     psi_typed, residuals = si.solve(
         q_ext_composite, initial_guess=initial_guess,
     )
+    # The end-of-solve CERTIFICATE (step 5, R-5.2) — full-angular arms only
+    # (the windowed moment arm is structurally exempt; see
+    # _certify_within_group_exit).
+    if not windowed:
+        _certify_within_group_exit(
+            system.loss if coupled else _bare_loss_arm(system),
+            psi_typed, q_ext_composite,
+            sn_mesh=sn_mesh,
+            residual_history=residuals, tol=inner_tol,
+            where="solve_sn_fixed_source[source_iteration]",
+        )
     # System A's converged member feeds the Solution contract; System B's
     # rides ``Solution.radial_characteristic`` (B.2d DP-Solution).
     psi_full = _system_a_member(psi_typed)
@@ -2881,6 +3015,16 @@ def _solve_fixed_source_krylov(
 
     psi_typed, residuals = krylov.solve(
         q_ext_composite, initial_guess=krylov_cold_start,
+    )
+    # The end-of-solve CERTIFICATE (step 5, R-5.2) — the Krylov path is
+    # always full-angular; the honest cross-check on the assembled
+    # equation (the ERR-053 truncation family's independent catcher).
+    _certify_within_group_exit(
+        system.loss if coupled else _bare_loss_arm(system),
+        psi_typed, q_ext_composite,
+        sn_mesh=sn_mesh,
+        residual_history=residuals, tol=inner_tol,
+        where="solve_sn_fixed_source[krylov]",
     )
     # System A's converged member feeds the Solution contract; System B's
     # rides ``Solution.radial_characteristic`` (B.2d DP-Solution).

@@ -473,15 +473,39 @@ class SourceIteration(Generic[V]):
     duck-typed resolvents (a ``solve`` that inverted a DIFFERENT operator
     than ``apply`` applied) dissolved into these typed objects.
 
-    Convergence test (matching :class:`SNSolver` for bit-identical
-    Round 2 wiring):
+    Convergence test — **the ρ-honest equation residual** (step 5,
+    R-5.2/R-5.3; supersedes the historical iterate-increment norm
+    ``‖Δψ‖/‖ψ‖``, a DELIBERATE re-interpretation of ``tol``):
 
     .. math::
 
-        {\rm res}_n \;=\; \frac{\|\psi_n - \psi_{n-1}\|_2}
-                                {\max(\|\psi_n\|_2,\,10^{-30})}
+        r_{n} \;=\; A\,\psi_{n} - q_{\rm ext}
+              \;=\; \mathrm{rhs}_{n-1} - \mathrm{rhs}_{n}
+              \;=\; \textstyle\sum_i g_i\,(\psi_{n-1} - \psi_{n}),
+        \qquad
+        {\rm res}_n = \frac{\lVert r_n\rVert_2}
+                           {\max(\lVert q_{\rm ext}\rVert_2, 10^{-30})}
 
-    and the iteration breaks when :math:`{\rm res}_n < {\rm tol}`.
+    and the iteration breaks when :math:`{\rm res}_n < {\rm tol}`. The
+    FREE-IDENTITY spelling (``rhs_{n-1} − rhs_n``, retained from the
+    loop's own bookkeeping — zero marginal cost) is EXACT when the step
+    operator is an exact inverse of the splitting's ``M``: then
+    ``M ψ_n = rhs_{n-1}`` and ``A ψ_n − q = rhs_{n-1} − N ψ_n − q =
+    N(ψ_{n-1} − ψ_n)``. Why the residual and not ``‖Δψ‖``: the increment
+    understates the true error by ``1/(1 − ρ)`` (Banach) AND is blind to
+    an iteration whose fixed point does not solve the EQUATION (the #282
+    lag-death class); the residual claim is contraction-rate-independent.
+    The identity itself assumes exact-``M`` — the hole the driver-level
+    end-of-solve CERTIFICATE closes (one honest ``evaluate_residual``
+    per solve, ``orpheus.sn.solver._certify_within_group_exit``).
+    Normalization is EQUATION-relative (``‖q_ext‖``, a source is the
+    residual's natural scale); ``q_ext ≈ 0`` degrades to absolute via
+    the guard (a zero source has the zero solution — a zero cold start
+    exits at the first comparison with ``res = 0`` exactly). For a
+    windowed MOMENT-space iterate the same spelling stops on the
+    moment-equation increment class (the coisometry ``M`` is not an
+    exact inverse there, so the "≡ true residual" claim is NOT made —
+    the r3 exemption; the stop ROLE is retained, one law for every arm).
 
     Parameters
     ----------
@@ -613,11 +637,18 @@ class SourceIteration(Generic[V]):
         # Convergence diagnostics (#208) derived from the typed iterate
         # increment Δψ = ψ⁽ⁱ⁾ ⊖ ψ⁽ⁱ⁻¹⁾ (a FluxDisplacement for typed SN
         # iterates; the synthetic L0 case stays a bare ndarray → no diagnostics).
-        # Additive — NOT in the convergence path; the stopping norm is unchanged.
-        # O(1) field memory: one retained previous displacement leaf.
+        # Additive — NOT in the convergence path (the stop is the equation
+        # residual below). O(1) field memory: one retained previous leaf.
         self.contraction_ratios: list[float] = []
         self.last_displacement = None
         _prev_disp_leaf = None
+
+        # The ρ-honest stop's fixed scale (step 5): the equation residual
+        # is measured against the SOURCE's norm — computed once; the guard
+        # degrades q ≈ 0 to an absolute test (a zero source has the zero
+        # solution, caught at the first comparison).
+        q_norm = max(_l2_norm(q_ext), 1e-30)
+        rhs_prev = None
 
         for _ in range(self.max_iter):
             psi_prev = psi
@@ -630,6 +661,20 @@ class SourceIteration(Generic[V]):
             for g in self.gains:
                 rhs = rhs + g.apply(psi)
 
+            # ── the ρ-honest STOP (step 5): the equation residual of the
+            # PREVIOUS iterate via the free identity r_n = rhs_{n−1} − rhs_n
+            # (= Σ g_i (ψ_{n−1} − ψ_n) = A ψ_n − q under exact-M; see the
+            # class docstring). Checked BEFORE the next inverse apply — on
+            # a break, ``psi`` (the last applied iterate) is the converged
+            # state and no sweep is wasted. Zero marginal cost: the rhs is
+            # the loop's own bookkeeping.
+            if rhs_prev is not None:
+                res = _l2_norm(rhs_prev - rhs) / q_norm
+                residual_history.append(res)
+                if res < self.tol:
+                    break
+            rhs_prev = rhs
+
             # Apply the inverse OPERATOR.  The curvilinear Carlson
             # coupled-pole seed and the reflective-BC partner-flux trace
             # travel through ``initial_guess`` explicitly (the M-M closure
@@ -640,23 +685,11 @@ class SourceIteration(Generic[V]):
             psi = self.A_inv.apply(rhs, initial_guess=psi_prev)
 
             # The iterate increment Δψ — a typed FluxDisplacement (ψ ⊖ ψ_prev)
-            # for SN, a bare ndarray for the synthetic case. The stopping test
-            # is the SAME flat relative L2 residual as before (bit-identical:
-            # ``_l2_norm(displacement)`` == ``_l2_norm(psi - psi_prev)``; the
-            # metric ``.l2`` is a DIAGNOSTIC only — switching the stopping norm
-            # would re-interpret ``tol``).
+            # for SN, a bare ndarray for the synthetic case. DIAGNOSTICS
+            # only (ρ ≈ ‖Δψ⁽ⁱ⁾‖/‖Δψ⁽ⁱ⁻¹⁾‖ the Banach contraction factor;
+            # ``last_displacement`` feeds ``where_largest`` /
+            # ``true_error_estimate``) — the STOP rides the residual above.
             displacement = psi - psi_prev
-            norm = _l2_norm(psi)
-            if norm > 0.0:
-                res = _l2_norm(displacement) / max(norm, 1e-30)
-            else:
-                res = _l2_norm(displacement)
-            residual_history.append(res)
-
-            # Record the typed convergence diagnostics (the displacement is the
-            # ONLY object that knows "previous"/"step"). ρ ≈ ‖Δψ⁽ⁱ⁾‖/‖Δψ⁽ⁱ⁻¹⁾‖
-            # is the Banach contraction factor (via the typed leaf method);
-            # ``last_displacement`` feeds ``where_largest`` / ``true_error_estimate``.
             disp_leaf = _flux_displacement_leaf(displacement)
             if disp_leaf is not None:
                 if _prev_disp_leaf is not None and _prev_disp_leaf.l2 > 0.0:
@@ -665,9 +698,6 @@ class SourceIteration(Generic[V]):
                     )
                 _prev_disp_leaf = disp_leaf
                 self.last_displacement = disp_leaf
-
-            if res < self.tol:
-                break
 
         return psi, residual_history
 

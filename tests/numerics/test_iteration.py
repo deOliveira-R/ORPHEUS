@@ -885,3 +885,149 @@ def test_info_warning_fires_on_genuine_nonconvergence(monkeypatch) -> None:
         )
     if "ERR-053" not in str(ours[0].message):
         pytest.fail(f"the warning lost its ERR-053 pointer: {ours[0].message}")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Step 5 (R-5.2/R-5.3) — the ρ-honest free-identity stop (C1/C5/r5)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The SI stop is the equation residual via the free identity
+# ``r_n = rhs_{n−1} − rhs_n = Σ g_i (ψ_{n−1} − ψ_n)`` normalized by
+# ``‖q_ext‖`` — EXACT (= ``Aψ_n − q``) when the step operator is an exact
+# inverse of M. These rows pin the identity ELEMENT-WISE against
+# explicitly-computed references on a dense toy (Mode-12-safe: the object,
+# not just a norm), the zero-gain honest exit, and the q ≈ 0 guard.
+
+
+class _RecordingInverse:
+    """A dense exact inverse that RECORDS every (rhs, ψ) pair — the
+    reference sequence the free-identity rows recompute against."""
+
+    def __init__(self, A: np.ndarray) -> None:
+        self._inv = np.linalg.inv(A)
+        self.rhs_seen: list[np.ndarray] = []
+        self.psi_out: list[np.ndarray] = []
+
+    def apply(self, rhs, /, *, initial_guess=None):
+        del initial_guess
+        psi = self._inv @ np.asarray(rhs, dtype=float)
+        self.rhs_seen.append(np.asarray(rhs, dtype=float).copy())
+        self.psi_out.append(psi.copy())
+        return psi
+
+
+def test_stop_is_the_free_identity_residual_elementwise(rng):
+    """C1 — the recorded history ≡ ‖rhs_{n−1} − rhs_n‖/‖q‖ ≡
+    ‖(S+F)·Δψ‖/‖q‖ ≡ ‖Aψ − q‖/‖q‖ (three independently-computed
+    spellings; the last is the HONEST residual — exact-M toy).
+    Discrimination is BY VALUE: the fixture's ‖ψ‖ and ‖q‖ scales differ
+    O(10²), so a ψ-normalized mutant (the historical stop) sits O(10²)
+    off every reference; a gain dropped from the rhs bookkeeping breaks
+    the (S+F)·Δψ match O(1)."""
+    n = 6
+    A_mat = np.diag(rng.uniform(2.0, 3.0, n))
+    S_mat = 0.35 * rng.random((n, n))
+    F_mat = 0.25 * rng.random((n, n))
+    A_inv = _RecordingInverse(A_mat)
+    S, F = MatrixOperator(S_mat), MatrixOperator(F_mat)
+    q = 200.0 * (rng.random(n) + 0.5)  # ‖q‖ scale ≫ tol, ≠ ‖ψ‖ scale
+    si = SourceIteration(A_inv, S, F, max_iter=200, tol=1e-10)
+    psi, history = si.solve(q)
+
+    if not history or not history[-1] < 1e-10:
+        pytest.fail("fixture did not converge — the rows below assume the "
+                    "break path")
+    q_norm = np.linalg.norm(q)
+    # The BREAK pass computes one final rhs that never reaches the inverse
+    # (the stop fires before the apply) — reconstruct it from the returned
+    # iterate; the recorded applies plus that tail ARE the comparison pairs.
+    # Reconstructed with the loop's own accumulation ORDER
+    # ((q + S·ψ) + F·ψ — associativity matters at the 1e-12 bar):
+    psi_arr = np.asarray(psi)
+    rhs_seq = A_inv.rhs_seen + [(q + S_mat @ psi_arr) + F_mat @ psi_arr]
+    psi_seq = [np.zeros(n)] + A_inv.psi_out
+    if len(history) != len(rhs_seq) - 1:
+        pytest.fail(
+            f"history length {len(history)} ≠ #rhs-comparisons "
+            f"{len(rhs_seq) - 1} — the stop is not the rhs-difference"
+        )
+    # The residual is a DIFFERENCE of O(‖q‖)-scale vectors, so near
+    # convergence every independent re-spelling is cancellation-limited
+    # (absolute noise ~ eps·‖rhs‖). The identity rows therefore run on
+    # the iterations where r is MEASURABLE (well above that floor); the
+    # stop-VALUE row (the same subtraction the production loop performs)
+    # is bit-safe and runs on every iteration.
+    cancellation_floor = 1e-12 * q_norm
+    measurable = 0
+    for k, res in enumerate(history):
+        r_rhs = rhs_seq[k] - rhs_seq[k + 1]
+        np.testing.assert_allclose(
+            res, np.linalg.norm(r_rhs) / q_norm, rtol=1e-12,
+            err_msg=f"iter {k}: the stop value is not ‖r‖/‖q_ext‖ — "
+                    f"a ψ-normalized mutant would sit O(‖ψ‖/‖q‖) off",
+        )
+        if np.linalg.norm(r_rhs) < 1e4 * cancellation_floor:
+            continue
+        measurable += 1
+        r_gain = (S_mat + F_mat) @ (psi_seq[k] - psi_seq[k + 1])
+        np.testing.assert_allclose(
+            r_rhs, r_gain, rtol=1e-9, atol=cancellation_floor,
+            err_msg=f"iter {k}: rhs-difference ≠ (S+F)·Δψ — a gain "
+                    f"dropped from the rhs bookkeeping",
+        )
+        # The HONEST residual of the iterate the comparison certifies:
+        r_true = A_mat @ psi_seq[k + 1] - (
+            q + (S_mat + F_mat) @ psi_seq[k + 1]
+        )
+        np.testing.assert_allclose(
+            np.linalg.norm(r_rhs), np.linalg.norm(r_true),
+            rtol=1e-6, atol=cancellation_floor,
+            err_msg=f"iter {k}: the free identity is not the true "
+                    f"residual on an exact-M toy",
+        )
+    if measurable < 10:
+        pytest.fail(
+            f"only {measurable} iterations above the cancellation floor — "
+            f"the identity rows lost their teeth (fixture drift)"
+        )
+    # And the exit claim is honest: the converged iterate's true residual.
+    r_final = A_mat @ psi - (q + (S_mat + F_mat) @ psi)
+    if not np.linalg.norm(r_final) / q_norm < 1e-10:
+        pytest.fail("the exit claim is dishonest on an exact-M toy")
+
+
+def test_zero_gain_exits_after_one_apply_with_exact_residual(rng):
+    """C5 — zero gains ⟹ rhs ≡ q is constant ⟹ the first comparison sees
+    r = 0 EXACTLY: one inverse apply, history == [0.0], and the returned
+    iterate is the exact solve (a zero-gain path that iterates or exits
+    non-zero is a bookkeeping bug)."""
+    n = 5
+    A_mat = np.diag(rng.uniform(1.0, 2.0, n))
+    A_inv = _RecordingInverse(A_mat)
+    q = rng.random(n) + 0.5
+    si = SourceIteration(A_inv, max_iter=50, tol=1e-12)
+    psi, history = si.solve(q)
+    if len(A_inv.rhs_seen) != 1:
+        pytest.fail(
+            f"zero-gain SI ran {len(A_inv.rhs_seen)} inverse applies — "
+            f"expected exactly ONE (ψ₁ = A⁻¹q is exact when A = M)"
+        )
+    if history != [0.0]:
+        pytest.fail(f"zero-gain history {history} — expected [0.0] exactly")
+    np.testing.assert_allclose(psi, np.linalg.solve(A_mat, q), rtol=1e-13)
+
+
+def test_zero_source_zero_start_exits_clean():
+    """r5 — ``q_ext = 0`` with the zero cold start: the zero solution is
+    found at the first comparison (res = 0/1e-30 = 0.0 exactly), no
+    division blow-up, no spurious non-convergence."""
+    n = 4
+    A_inv = _RecordingInverse(np.eye(n) * 2.0)
+    S = MatrixOperator(0.3 * np.eye(n))
+    si = SourceIteration(A_inv, S, max_iter=50, tol=1e-12)
+    psi, history = si.solve(np.zeros(n))
+    np.testing.assert_array_equal(np.asarray(psi), 0.0)
+    if history != [0.0]:
+        pytest.fail(f"zero-source history {history} — expected [0.0]")
+    if not np.isfinite(history).all():
+        pytest.fail("the q≈0 guard leaked a non-finite residual")

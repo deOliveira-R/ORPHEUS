@@ -2177,4 +2177,46 @@ BOTH Cartesian arms BIT-identical to 16 digits, Krylov sphere moved
 5.2e-14 (the R-5.1 grid-matvec reassociation, principled re-baseline);
 the 2-D dd_regression DriftWarning (9.8e-13, within tol) verified
 PRE-EXISTING at `d881243d` via worktree probe. numerics+transport
-1344/0; ratchet transport: 1; sphinx -W exit 0.
+1344/0; ratchet transport: 1; sphinx -W exit 0. **5b COMMITTED @
+`899ee06a`** (wall tests/sn not-slow 2150/0, 1 xpassed = the flipped
+swap-law arm; the one wall red was the precond-safety record
+consumption's own isinstance — re-keyed in-commit).
+
+**5c (in flight — the ρ-honest stop, R-5.2/R-5.3)**:
+`SourceIteration`'s stop = the FREE-IDENTITY equation residual
+`r_n = rhs_{n−1} − rhs_n` (= `Σg·Δψ` = `Aψ−q` under exact-M) over
+`max(‖q_ext‖, 1e-30)`, checked BEFORE the next apply (a break wastes no
+sweep; Δψ diagnostics retained as diagnostics); the driver-level
+CERTIFICATE `_certify_within_group_exit` + `ConvergenceCertificateError`
+(solver.py) — ONE honest `evaluate_residual` per claimed exit, SAFETY
+10×, wired on all four FULL-ANGULAR arms (eigen SI/Krylov + fs
+SI/Krylov; coupled → system.loss, seedless → `_bare_loss_arm`); the
+WINDOWED arm structurally exempt, twice over (windowed ⟹ seedless ⟹ the
+#282 in-M-lag class cannot exist there; the ERR-056-class G-S
+fixed-point threat is C5.5 Mode-9-gated; the moment iterate cannot feed
+the typed angular residual — the r3 coisometry exemption, stop ROLE
+retained). Gates: C1 free-identity ELEMENT-WISE ≡ (S+F)·Δψ ≡ the honest
+residual on a recording toy (cancellation-floor-scoped, ≥10 measurable
+iters enforced; the stop-value row exact on every iter — a ψ-normalized
+mutant sits O(‖ψ‖/‖q‖) off); C5 zero-gain = ONE apply + history [0.0]
+exactly; r5 q=0 clean exit; **C3 THE HEADLINE** (new
+`tests/sn/solve/test_coupled_solve_certificate.py`): the stale-zero-ψ_B
+in-M lag mutation leaves the running stop convergent while the
+certificate RAISES match="lag-death" (control legs both sides — the
+classifier's asymmetry proof); C2 positive controls both drivers; the
+no-claim no-op law (None sentinels prove the short-circuit).
+RE-BASELINE LEDGER EXECUTED per the TA + the snapshot protocol's
+audit-regenerate-commit-together: the 13 dd_regression snapshots
+regenerated (the closed-form kinf anchors held GREEN — the independent
+truth; the audit = this block + the commit message);
+`_N_JACOBI_VACUUM_2G` 128 → 144 (the count-pin's CLAIM —
+schedule-invariance on vacuum — is count-value-independent, attributed
+in-comment); the Green near-critical gate re-calibrated (the honest
+driver closed the increment-lie a level down — budget 600 now sits in
+the soft pass-boundary window and DELIVERS at ~930; the raise leg moves
+to 200, the governor's surviving tooth documented). k probe under the
+new stop: SI arms moved 3.2e-10 (sphere) / 1.1e-9 (slab) — the
+predicted tol-reinterpretation class; Krylov arms BIT-identical
+(GMRES stop untouched). regression+analytical not-slow 61/0 (the 5 F's
+in the unfiltered probe = the >290s SLOW tier hitting the 300s cap —
+pre-existing perf, not 5c); numerics 924/0; sphinx -W exit 0.

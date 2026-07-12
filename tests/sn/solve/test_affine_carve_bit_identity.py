@@ -107,19 +107,32 @@ pytestmark = pytest.mark.foundation
 #   UNTOUCHED — D5a's blast radius is the 2-D row-march ONLY (the 1-D CumprodScan
 #   scan path is byte-identical), which is exactly the D5a.3 negative-control
 #   proof that the fold did not leak into the 1-D solve.
+# * 2026-07-12 (step 5 #41, R-5.2/R-5.3) — the THREE SI hash pairs
+#   regenerated (si_2d_p1_aniso_het + si_slab_2g_het). The SourceIteration
+#   stop re-posed onto the ρ-honest equation residual ‖Σg·Δψ‖/‖q_ext‖
+#   (was the iterate increment ‖Δψ‖/‖ψ‖) — a DELIBERATE tol
+#   re-interpretation, so the SI converged bytes shift at the
+#   iteration-count level (the same fixed point, reached at a different
+#   stopping surface; vv §bit-identity-vs-principled). Verified
+#   structurally-independent: the post-change SI 2-D φ agrees with the
+#   Krylov 2-D φ (a DIFFERENT driver whose GMRES stop is UNTOUCHED) to
+#   9.8e-13 rel at inner_tol=1e-12, and the closed-form kinf/Q-over-Σt
+#   anchor walls held green through the change. The KRYLOV hashes are
+#   UNTOUCHED — the stop change's blast radius is SI-only, which is
+#   exactly the pin (GMRES was already residual-stopped).
 GOLDEN = {
     "si_2d_p1_aniso_het_psi_sha":
-        "847f302c28cc3e096252412d7ce266f982c112b416178ddbd40be7a62d97459c",
+        "fe0ae4d5e86a535501f171f52793cbe87fd38eb60a88db3158bcedbb5977c2f2",
     "si_2d_p1_aniso_het_phi_sha":
-        "688e65b34c3563a54ae39bedf22ff533cd2518bdd6462752efe191912dc45713",
+        "aa02d0f9134c8e623d7de6eff15e4fc053f3c1f1245b6d6e0ee4ef1e5b3dea0f",
     "krylov_2d_p1_aniso_het_psi_sha":
         "ae9b35efb3b4f3b09411db1dcd9d1201a60985bb7cbd7087e6dddbcba0a1a196",
     "krylov_2d_p1_aniso_het_phi_sha":
         "0c8a6ce13c9fcdd831fe421e59a5d24cc6571bb5b323edf2063571bda6cca749",
     "si_slab_2g_het_psi_sha":
-        "353d7db054781af44dc4682ca3330c0c7490d54185bf5a3a8a83b83b85b4b1f3",
+        "daa4f33b87adb8db870d7f65fc406af11ecde7fa8cde6c697c3b83097f4da534",
     "si_slab_2g_het_phi_sha":
-        "136a3e1779e2f280fb6dd8a99eae825430855e1fde0ff6c09ea9902e2151b028",
+        "cd5328649e0ccf1d0e3cb56bba231cab39864b072faf6bdf64b3a881b73db7e0",
 }
 
 
