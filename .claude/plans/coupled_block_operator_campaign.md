@@ -2009,3 +2009,54 @@ the block solve lands. Agent IDs: archivist `a7b8d65faa208f705`, enforcer
    (`VacuumAppliedToOutgoingTraceError`/`ReflectionDidNotMapInflowToOutflowError`),
    the real `assert_source_lives_on_incoming_trace`, the independent
    weight-measure check; then catchers (mutation-verified RED) + markers.
+
+### ⏸ COMPACTION — pre-step-5 checkpoint (2026-07-12)
+
+**Everything committed through `69621ffd`** (the ERR-068 marker + d3-rulings
+record); branch `refactor/sn-walk-unification` **154 ahead of origin/main,
+pushes HELD**; scoped tree CLEAN. Standing exception on disk (survives
+compaction, NOT the main agent's to commit): `.claude/skills/vv-principles/
+{error_catalog.md, SKILL.md}` carry the user's pending ERR-067 + ERR-068
+entries. Last verification state: full tree wall **6340/0** @ e2 (`98fe2e36`;
+only docstrings/tests/docs touched since, targeted suites 130/0 + 116/0 +
+82/0), ratchet `transport: 1`, sphinx -W exit 0, matrix current @ 6602 rows
+(+1 ERR-068 catches row).
+
+**NEXT = #41 (STEP 5 — THE BLOCK SOLVE).** Re-anchor from:
+
+- **The gate spec summary** — THIS plan :174-176 (`TestCoupledSolve`):
+  block solve ≡ current fixed-source (`Q/Σ_t`, non-fissile) AND k_eff
+  (fissile `A/2g`); EXTRACT ≡ dense-LU (principled-equiv, NOT bit-id — the
+  step-0 row-6 oracle `test_extract_to_dense_is_principled_equivalent_not_
+  bit_identical` is the pinned reference); **the ρ-honest block residual
+  `r = Aψ − q` via `evaluate_residual` as the STOP test, not `‖Δψ‖`**;
+  cold-residual lag-death classifier. Fuller spec rows: the test-architect
+  memo `.claude/agent-memory/test-architect/coupled_operator_step4_
+  verification.md` (+ the 6 refutations at :182-190).
+- **What step 5 flips**: `grid.is_invertible` False→True ⟹ the DORMANT
+  `xfail(strict=False)` A2a swap-law inverse arm (G-d3.4, the wall's 37th
+  xfail — R5/R11: `A.H.inverse() ≡ A.inverse().H`) goes LIVE; the
+  joint-solve explicit-pair requirement (`radial_characteristic_source/
+  _flux` kwargs threaded by every driver) can retire onto the block
+  resolvent surface.
+- **Banked seams to resolve IN step 5**: (i) the `RadialCharacteristicOperator`
+  construction TRIPLICATION (`coupled_system.py:680` + the two walk legs in
+  `loss_representation/__init__.py` `_run`/`_run_transpose` — coextensive
+  today; give it ONE construction seam or a reciprocal cross-ref; enforcer
+  4e note); (ii) the :712 A_AB "tracked transient twin" note in
+  `operators/radial_characteristic.py` — its retirement decision (route the
+  bulk rows through `A_AA + A_AB` or keep fused) is step-5 scope under
+  H1-narrow.
+- **After #41**: task **#52** (the BC-layer invariants for ERR-041/042/045/
+  047, user-ruled build-now) unblocks; then #34 (step 6 — guard retirement,
+  presence structural) / #35 (step 7 — verify + docs + close-out).
+- **Standing constraints** (unchanged): surgical mode (main agent writes
+  production; test-architect/explorer/qa/archivist/elegance-enforcer
+  dispatchable); pushes HELD; canonical SERIAL pytest invocation
+  (`.venv/bin/python -O -m pytest -p no:xdist --timeout=300
+  -p no:cacheprovider`); ratchet oracle `python -m tests._harness.
+  pyright_ratchet` baseline `transport: 1`; streamed LSP diagnostics =
+  the #226 artifact (CLI is the arbiter); never `git checkout`/`restore`
+  on uncommitted paths; commits stamp the session model.
+
+Re-anchor from THIS block + `git log` (trust git, not the summary).
