@@ -69,7 +69,6 @@ from orpheus.numerics.moment_layout import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.mesh.axis import Axis1D
-from .loss_representation import transport_sweep
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
@@ -603,20 +602,6 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
         _history=(),
         history_depth=history_depth,
     )
-
-
-def _radial_characteristic_zeros(sn_mesh) -> "RadialCharacteristicField | None":
-    r"""The mesh-keyed zero ψ½ flux composite (``None`` on non-carrying meshes).
-
-    The walk-buffer factory of #282 route (a): the final-reconstruction
-    ``transport_sweep`` fills this carrier in place (the walk marches
-    System B's split composite natively since 4e). Presence is decided by
-    the ONE R12a source (``SNMesh.radial_characteristic_field_space``),
-    never by the call site. Driver STATES ride the same composite via
-    :func:`_coupled_flux_state` (B.2d)."""
-    if sn_mesh.radial_characteristic_field_space is None:
-        return None
-    return RadialCharacteristicField.from_mesh(sn_mesh)
 
 
 def _radial_characteristic_source_from_per_ordinate(
@@ -2176,46 +2161,85 @@ def solve_sn(
             f"eigenvalue finalize: the converged trace must be an "
             f"AngularBoundaryFlux; got {type(final_boundary).__name__}."
         )
-    # #282 route (a): the reconstruction sweep's ψ½ pair on a carrying
-    # mesh — q½ = the ℓ = 0 fold of the converged total source; the
-    # carrier pre-loads the converged outflow corner so the corner
-    # reflect below can seed the inflow corner (vacuum ⇒ 0).
+    # Step 6 (R-6.1): the reconstruction rides the SAME within-group
+    # resolvent M every driver consumes (build_within_group_system — the
+    # single construction site); the fused ``transport_sweep`` joint
+    # channel retired with the walk's ray legs.  M excludes B by
+    # construction (B_a / B_b are gains), exactly as the bare sweep did
+    # — the −B coupling arrives as GIVEN data through the reflect below.
     q_final_per_ord = AngularSourceSink.from_isotropic(Q_final, sn_mesh)
-    final_seed_src = _radial_characteristic_source_from_per_ordinate(
-        q_final_per_ord.values, sn_mesh,
-    )
-    final_seed_buf = _radial_characteristic_zeros(sn_mesh)
+    final_resolvent = build_within_group_system(
+        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+    ).resolvent
     converged_ray = (
         _system_b_member(converged) if converged is not None else None
     )
-    if final_seed_buf is not None and converged_ray is not None:
-        final_seed_buf.interior.values[...] = converged_ray.interior.values
-        final_seed_buf.boundary.values[...] = converged_ray.boundary.values
-    # Wave O #208 O.4b Phase E2 — the 2-D wavefront is now BARE (reads the
-    # given inflow, no in-sweep bc.apply), so the reflective coupling is the
-    # external -B for 2-D too.  The guard is lifted: _reflect_outflow_into_inflow
-    # is geometry-agnostic (iterates boundary_flux.layout.faces via the canonical
-    # SNBoundaryOperator — verified 2-D-ready) and idempotent here (the converged
-    # inflow already equals B·ψ.outflow); vacuum stays a no-op (B = 0).  The
-    # seed carrier's inflow corner rides the same reflect (#282 route (a)).
+    # #282 route (a): on a carrying mesh the corner carrier pre-loads the
+    # converged ψ½ state so the corner reflect below can seed the inflow
+    # corner (vacuum ⇒ 0; zeros on a cold finalize).
+    corner_state = None
+    if isinstance(final_resolvent, CoupledOperator):
+        corner_state = RadialCharacteristicField.from_mesh(sn_mesh)
+        if converged_ray is not None:
+            corner_state.interior.values[...] = converged_ray.interior.values
+            corner_state.boundary.values[...] = converged_ray.boundary.values
+    # Wave O #208 O.4b Phase E2 — the reconstruction reads the given inflow
+    # (no in-solve bc.apply), so the reflective coupling is the external -B.
+    # _reflect_outflow_into_inflow is geometry-agnostic (iterates
+    # boundary_flux.layout.faces via the canonical SNBoundaryOperator) and
+    # idempotent here (the converged inflow already equals B·ψ.outflow);
+    # vacuum stays a no-op (B = 0).  Each system reflects through its OWN
+    # boundary (RULING P1): the trace via B_a, the ψ½ corner via B_b.
     _reflect_outflow_into_inflow(
-        final_boundary, sn_mesh, radial_characteristic=final_seed_buf,
+        final_boundary, sn_mesh, radial_characteristic=corner_state,
     )
-    # The corner datum is GIVEN data for the sweep: thread it into the q½
-    # source's corner slot (the sweep reads the SOURCE corner as the
-    # inward march's entry — the trace's seeded-inflow discipline).
-    if final_seed_src is not None and final_seed_buf is not None:
-        for _p in final_seed_src.boundary.space.levels:
-            final_seed_src.boundary.corner(_p, -1)[...] = (
-                final_seed_buf.boundary.corner(_p, -1)
-            )
-    angular_flux, _ = transport_sweep(
-        q_final_per_ord,
-        solver.mat_xs.total_cross_section, sn_mesh,
-        final_boundary,
-        radial_characteristic_source=final_seed_src,
-        radial_characteristic_flux=final_seed_buf,
+    # The rhs: the total final source with the reflected trace as the
+    # prescribed-inflow boundary member (the affine-BC ``q`` — the SAME
+    # composite shape the drivers consume), moment-lifted through the ONE
+    # external-source policy (Q̂ = 0 — exact for the isotropic
+    # reconstruction source; DD/Step passes byte-identical).
+    from orpheus.transport.source_sinks import AngularBoundarySourceSink
+    final_bulk, final_per_axis = _lift_external_source_to_moments(
+        np.asarray(q_final_per_ord.values), sn_mesh,
     )
+    final_rhs_a = TimedFullField(
+        interior=AngularSourceSink.from_mesh(
+            final_bulk, sn_mesh, spatial_moments=final_per_axis,
+        ),
+        boundary=AngularBoundarySourceSink.from_mesh(
+            final_boundary.values.copy(), sn_mesh,
+        ),
+        _history=(),
+        history_depth=2,
+    )
+    if isinstance(final_resolvent, CoupledOperator):
+        # q½ = the ℓ = 0 fold of the final total source; the corner datum
+        # is GIVEN data for the march: thread it into the q½ source's
+        # corner slot (A_BB.solve reads the SOURCE corner as the inward
+        # march's entry — the trace's seeded-inflow discipline).
+        final_seed_src = _radial_characteristic_source_from_per_ordinate(
+            q_final_per_ord.values, sn_mesh,
+        )
+        if final_seed_src is not None and corner_state is not None:
+            for _p in final_seed_src.boundary.space.levels:
+                final_seed_src.boundary.corner(_p, -1)[...] = (
+                    corner_state.boundary.corner(_p, -1)
+                )
+        final_state = final_resolvent.solve(_coupled_source_state(
+            final_rhs_a, final_seed_src, sn_mesh,
+            context="solve_sn finalize",
+        ))
+        final_psi_a = _system_a_member(final_state)
+        final_ray = _system_b_member(final_state)
+    else:
+        final_psi_a = final_resolvent.solve(final_rhs_a)
+        final_ray = None
+    # Solution carries the cell-average angular view (the pre-step-6
+    # contract — a multi-moment closure's φ̂ tail stays iterate-internal;
+    # AVERAGE_MOMENT is the layout's named slot).
+    angular_flux = np.asarray(final_psi_a.interior.values)
+    if final_psi_a.interior.spatial_moments_per_axis > 1:
+        angular_flux = angular_flux[..., AVERAGE_MOMENT]
 
     elapsed = time.perf_counter() - t_start
 
@@ -2226,16 +2250,14 @@ def solve_sn(
     # D-H.1c stage 2 (2026-05-28): Solution.angular_flux is a
     # TimedFullField composite (bulk + boundary + history) constructed
     # DIRECTLY from L2 types.  The legacy-AngularFlux adapter wrap is
-    # GONE — ``angular_flux`` is a bare ndarray from the final sweep;
-    # we wrap it once into the composite carrier.
+    # GONE — ``angular_flux`` is the cell-average ndarray extracted from
+    # the final resolvent solve; we wrap it once into the composite
+    # carrier (``TimedFullField`` rides the module-level import — a local
+    # re-import here would shadow the finalize's earlier use).
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,
     )
-    from orpheus.transport.fields.angular_boundary_flux import (
-        AngularBoundaryFlux,
-    )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
-    from orpheus.transport.timed_full_field import TimedFullField
     history = IterationHistory(
         keff_history=tuple(keff_history),
         n_outer=len(keff_history),
@@ -2245,9 +2267,10 @@ def solve_sn(
     return Solution(
         angular_flux=TimedFullField(
             interior=AngularFlux.from_mesh(angular_flux, sn_mesh),
-            # Wave O #208 O.4a.2: the converged boundary trace from the final
-            # bare sweep (inflow = B·ψ.outflow, outflow = streamed).
-            boundary=final_boundary,
+            # Wave O #208 O.4a.2 → step 6: the converged boundary trace
+            # from the final resolvent solve (inflow = B·ψ.outflow as
+            # seeded through the rhs, outflow = streamed).
+            boundary=final_psi_a.boundary,
             _history=(),
             history_depth=2,
         ),
@@ -2255,10 +2278,10 @@ def solve_sn(
         mesh=sn_mesh,
         keff=float(keff_history[-1]),
         history=history,
-        # B.2d DP-Solution: System B's converged state is its OWN member —
-        # the final sweep's marched ψ½ composite (None on non-carrying
-        # meshes; the walk filled it in place, 4e split-native).
-        radial_characteristic=final_seed_buf,
+        # B.2d DP-Solution → step 6: System B's converged state is its OWN
+        # member — the final resolvent solve's marched ψ½ composite (the M
+        # grid's substitution ψ_B; None on non-carrying meshes).
+        radial_characteristic=final_ray,
     )
 
 
