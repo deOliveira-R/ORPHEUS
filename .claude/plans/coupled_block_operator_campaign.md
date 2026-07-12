@@ -1972,3 +1972,23 @@ refs incl. the role-quadruple table + the 2 dead `:class:` xrefs to
 diagram + the six-signature section; silent `:class:` refs to retired
 symbols) + elegance-enforcer review of e1/e1b/e2 + matrix regen + the #47
 close-out. Then #41 (step 5), #34/#35 per the Phase C order.
+
+### 4e CLOSED @ `9c66fbe6` (2026-07-11) — task #47 done, STEP 4 (#40) COMPLETE
+
+The docs pass + review landed: archivist re-pointed 13 dead xrefs across 5
+retired module paths to ZERO (sources + built HTML — `-W` is blind to
+silently-unresolved refs), redrew the role-quadruple table + FaceField
+hierarchy for the split/composite architecture, disambiguated the freed-name
+collision everywhere, recorded the un-weave in 6 places + the Phase C 4e
+Development-history entry, and fixed one adjacent refuted-framing survivor
+(the 2026-07-04 changelog's "zero-metric" → SPD `V_cell`; L-015 sweep gap).
+Elegance-enforcer verdict on e1/e1b/e2: **ZERO violations, ship-quality**;
+its 3 findings fixed in the same commit (the stale "bridge to the unified
+layout" class docstring; 2 broken source-sink xrefs de-linkified).
+**BANKED FOR STEP 5 (#41)**: the `RadialCharacteristicOperator` construction
+triplication (`coupled_system.py:680` + the two walk legs) is coextensive
+today — give it a reciprocal cross-ref or a shared construction seam when
+the block solve lands. Agent IDs: archivist `a7b8d65faa208f705`, enforcer
+`a946468abd9ec5742`. Sequence this segment: `ea7f919c` (e1b) → `eb3a2168` →
+`98fe2e36` (e2) → `ffbd9761` → `9c66fbe6` (docs+close). NEXT = **#41 step 5**
+(the block solve), then #34/#35. Recommended /compact point.
