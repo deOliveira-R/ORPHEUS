@@ -1893,12 +1893,12 @@ consume the operator's one instance.
 .. note::
 
    **Deliberate scope boundary.** The module-level
-   :func:`~orpheus.sn.loss_representation.transport_sweep` REMAINS the
-   operator-free functional entry — it still selects via ``default_for``
-   because its one production caller (the ``solve_sn``
-   post-convergence reconstruction) has no operator in scope. The
-   one-instance theorem is about the *operator's* doors; an
-   operator-free functional caller legitimately mints its own.
+   The operator-free ``transport_sweep`` entry RETIRED at step 6 with
+   its one production caller: the ``solve_sn`` post-convergence
+   reconstruction re-routed onto the within-group resolvent
+   (``build_within_group_system(...).resolvent`` — 6a), so every
+   remaining sweep runs through an operator's ONE representation
+   instance and the one-instance theorem now covers all doors.
 
 
 .. _loss-rep-orientation-two-frames:
@@ -2412,98 +2412,72 @@ rather than a forced one.
    mesh's DOF enumeration directly, rather than the mesh and the composite
    agreeing by separate construction.
 
-How the walk sees ψ½ — the six-signature leaf-kwarg protocol
+How the walk sees ψ½ — the ray-decoupled block (step 6)
 ------------------------------------------------------------
 
 Since the B.2d eviction the ``Optional`` third block and its
 presence-vs-mesh reconciliation guards are **retired**: ψ½ is System B,
 so a carrier cannot even *hold* a starting-direction block, and there is
-nothing to reconcile.  System B's leaf reaches the walk through
-**explicit kwargs** — since step 5 (#41) the production resolvent is the
-honest upper-triangular grid ``[[LC, Seeding], [None, march]]``
-(:class:`~orpheus.numerics.coupled_system.CoupledOperator`), whose block
-substitution calls the walk BARE on its ray-decoupled channel, so the
-joint-leg kwargs remain a supported channel only for the operator-free
-wrapper entries (the ``CoupledInvertibleOperator`` bridge that used to
-thread them was deleted at 5d; the kwargs themselves retire at step 6).
-The six walk signatures of
-:class:`~orpheus.sn.loss_representation.LossRepresentation` (the forward /
-adjoint / streaming triples) carry two kwarg pairs:
+nothing to reconcile.  Step 6 (#34) completed the collapse: the walk's
+**explicit leaf-kwarg channel is gone**.  Every walk surface — ``sweep``
+/ ``sweep_transpose`` / ``loss_action`` / ``loss_action_transpose`` and
+the operator entries over them — is the ray-decoupled :math:`(A,A)`
+diagonal block, on every mesh, with **no seed parameters at all**:
 
-.. list-table:: The B.2d ψ½ leaf-kwarg pairs
-   :header-rows: 1
-   :widths: 24 30 46
+* the **matvec** substitutes a ZERO seed into the Morel–Montry thread
+  (bit-identical to the retired dead-slot arithmetic — the closure reads
+  zeros), and the emitted ray rows do not exist (the coupling is the
+  explicit :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicSeeding`
+  grid block);
+* the **sweep** starts the M-M recurrence at exactly :math:`\psi_{1/2} = 0`
+  on a carrying level (the LC diagonal-block semantics — no fold entry
+  exists there);
+* the **transpose** surfaces DISCARD the M-M thread cotangent (the zero
+  thread was a *fixed input* of the decoupled map, so its cotangent
+  propagates nowhere; the :math:`\text{Seeding}^{\mathsf T}` pullback is
+  the explicit grid block's
+  :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicSeeding.apply_transpose`);
+* ``sweep_transpose`` returns the plain pair ``(Q_bar, m_boundary)`` —
+  the third ``m_seed`` member retired with the channel.
 
-   * - Direction
-     - Kwarg pair
-     - Contract (read vs filled)
-   * - **apply** — matvec :math:`(L+C)\psi`
-     - ``radial_characteristic_flux`` (state) /
-       ``radial_characteristic_source`` (rhs)
-     - **reads** the given ψ½ flux, **fills** the emitted ray-block source
-       rows — the fused factor's (state-side, rhs-side) legs.
-   * - **solve** — sweep :math:`(L+C)^{-1}q`
-     - the same pair, roles swapped by direction
-     - **reads** the true q½ ``source``, **fills** the marched ψ½ ``flux``
-       in place — the direct starting-direction march.
-   * - **transpose** — :math:`(L+C)^{\mathsf T}`
-     - ``seed_cot`` (in) / ``seed_cot_out`` (filled)
-     - **consumes** the ray-row cotangent, **fills** the domain-side
-       pullback :math:`\text{Seeding}^{\mathsf T}\phi_A +
-       D_{BB}^{\mathsf T}\chi_B`.
+The JOINT system has exactly ONE spelling: the within-group M grid
+``[[LC, Seeding], [None, A_BB]]``
+(:class:`~orpheus.numerics.coupled_system.CoupledOperator`, built by
+:func:`~orpheus.sn.coupled_system.build_within_group_system`) — its
+``apply`` is the block matvec, its ``solve`` the block back-substitution
+(System B's :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve`
+first, then the walk's bare sweep on
+:math:`q_A - \text{Seeding}\,\psi_B`), and its transposed twins mirror.
+**Presence is structural**: the grid is 2×2 exactly when the mesh
+carries a ray (R12a — the builder's P2 shape), a seedless grid is the
+plain ``(L+C)``, and a "joint call" on the wrong geometry is not a
+guarded runtime error but an *unspellable program* — the
+``RadialCharacteristic*`` constructors refuse seedless meshes and the
+carriers cannot be built there.
 
-The **no-legs** call on a carrying mesh is the ray-decoupled
-:math:`(A,A)` block action via internal zero-substitution — bit-identical
-to the retired dead-slot arithmetic, which is why the loss grid's
-``OperatorSum`` members need no kwargs.  A **transpose** no-legs call
-**discards** the :math:`\text{Seeding}^{\mathsf T}` pullback
-(:math:`M_{BA} = 0` in the resolvent: the seed rows are
-bulk/trace-χ-independent).  ``solve`` / ``solve_transpose`` **require** the
-pair on a carrying mesh (no block-inverse spelling exists until the step-5
-block solve); a **seedless** strategy **refuses** the kwargs outright (a
-non-``None`` pair is a caller wiring error — multi-D Cartesian has no
-carrying levels, R12a).
-
-The rules are single-sourced by a three-function guard family, all in
-:mod:`orpheus.sn.loss_representation`:
-
-* ``_require_radial_characteristic`` — the positive half of the R12a
-  biconditional ("carrying ⟹ the leg is present"), so a carrying-mesh
-  action that forgot System B's leaf fails loudly rather than silently
-  dropping the emission;
-* ``_refuse_radial_characteristic`` — the negative half ("non-carrying ⟹
-  no leg"), the SAME biconditional spelled once so the forward emit and
-  the transpose consume cannot drift onto different domains;
-* ``_require_leg_pair`` — the **both-or-neither** law of the explicit legs
-  on a joint surface: an IN leg and its OUT buffer come together or not at
-  all (a lone IN silently drops the emitted rows; a lone OUT has nothing to
-  emit from).
+The retired estate (step 6): the two kwarg pairs
+(``radial_characteristic_source``/``radial_characteristic_flux`` forward,
+``seed_cot``/``seed_cot_out`` transposed) across the six representation
+signatures and the four operator entries; the three-function guard
+family (``_require_radial_characteristic`` at 5b, then
+``_refuse_radial_characteristic`` and ``_require_leg_pair`` — the
+both-or-neither pair law died with the legs it guarded); the walk's fused
+``_seed_rows_forward``/``_seed_rows_transpose`` glue (the kernels live
+single-sourced in :mod:`orpheus.sn.spatial.psi_half_angle_seed`,
+consumed by ``A_BB``); the walk's in-solve System-B engine (the up-front
+``A_BB.solve`` + per-level seed read) and its transposed sibling (the
+``seed_cot`` augmentation + ``A_BB.solve_transpose``); and the
+operator-free module-level ``transport_sweep`` wrapper, whose
+carrying-mesh self-derivation existed precisely to feed the fused joint
+channel — its callers route the typed surfaces
+(:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` for
+the block, the grid's ``solve`` for the joint march; the eigenvalue
+finalize re-routed onto ``build_within_group_system`` at 6a).
 
 The mesh remains the single authority on presence
-(:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`),
-and the guards enforce the *leg* biconditional against it — the
-``Optional``-block two-sources-of-truth smell the eviction dissolved.
-
-.. note:: **Internally the walk consumes the ``A_BB`` operator, not an inline march (4e-e2).**
-
-   The kwarg *contract* above is a leaf-handoff, not the orchestration.
-   The ``solve`` row's "fill the marched ψ½ ``flux`` in place" no longer
-   happens by an inline two-leg march welded into the walk body.  Since
-   4e-e2 the walk constructs System B's
-   :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
-   over its own :math:`\sigma_t` and routes the forward ``solve`` through
-   :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve`
-   (once, up front — System B is iterate-independent) and the reverse-scan
-   through
-   :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve_transpose`
-   (once, on the seed cotangent augmented with the Morel–Montry thread
-   cotangent — the fused :math:`A_{AB}^{\mathsf T}` feed, H1-narrow).  This
-   is the named resolvent the coupled 2×2 grid also exposes at its
-   ``(B, B)`` slot, so the two-leg orchestration is single-sourced
-   (Cardinal Rule 2); the walk's ``carlson_inward_sweep_*`` references went
-   **8 → 0**.  The full un-weave, the H1-narrow ruling, and the re-aimed
-   Mode-11 sentinels are on the discrete-ordinates page
-   (:ref:`sn-282-direct-starting-direction-solve`).
+(:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`);
+what changed at step 6 is that nothing *checks* against it anymore —
+the type system carries the biconditional.
 
 .. _loss-rep-fork-b2:
 

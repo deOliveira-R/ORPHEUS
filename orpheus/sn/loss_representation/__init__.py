@@ -13,19 +13,25 @@ distinct *algorithms*, each natural for a different mesh:
   :math:`(d{-}1)`-frontier window (the fast production path).
 
 Historically the choice between them was a *scattered, procedural* branch
-spelled three different ways: ``transport_sweep`` branched on
-``sn_mesh.reduced is not None``; the matvec branched in five operator gates
-on ``not sn_mesh.is_1d``; and the full-field oracle was reachable only
-through hand-built test adapters.  Adding a method, a dimensionality, or a
-frontend meant touching all three — an enum-style branch repeated at every
-call site (cyclomatic complexity, not abstraction).
+spelled three different ways: the (since-retired) operator-free
+``transport_sweep`` entry branched on ``sn_mesh.reduced is not None``; the
+matvec branched in five operator gates on ``not sn_mesh.is_1d``; and the
+full-field oracle was reachable only through hand-built test adapters.
+Adding a method, a dimensionality, or a frontend meant touching all three
+— an enum-style branch repeated at every call site (cyclomatic complexity,
+not abstraction).
 
 This module replaces that with a first-class :class:`LossRepresentation`: each
 algorithm is an object that carries **both** the forward ``sweep`` and (from
 Phase S2) the ``loss_action`` matvec twin, plus a **declared, queryable**
-:meth:`~LossRepresentation.supports` predicate.  The operator and the
-``transport_sweep`` dispatcher select one via :func:`default_for` and then
-call it branchlessly.
+:meth:`~LossRepresentation.supports` predicate.  The operator selects one
+via :func:`default_for` and then calls it branchlessly.  (The module-level
+``transport_sweep`` wrapper retired at step 6 with the walk's ψ½ joint
+channel: the typed surfaces are
+:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` for the
+``(L+C)`` block and the within-group M grid's
+:meth:`~orpheus.numerics.coupled_system.CoupledOperator.solve` for the
+joint march.)
 
 The hierarchy
 =============
@@ -125,9 +131,9 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 
-# S6.4(f): the orchestration (transport_sweep + the schedule loop + the 1-D
-# unified body) lives IN this module — ``sweep.py`` dissolved; selector and
-# bodies share one home, so the historical load-time import cycle is gone.
+# S6.4(f): the orchestration (the schedule loop + the 1-D unified body)
+# lives IN this module — ``sweep.py`` dissolved; selector and bodies share
+# one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.moment_layout import (
     AVERAGE_MOMENT,
@@ -140,10 +146,6 @@ from orpheus.numerics.moment_layout import (
 
 from orpheus.transport.spatial._ubld import octant_moment_frame_signs
 from orpheus.transport.spatial.scheme import UpstreamState
-from ..spatial.psi_half_angle_seed import (
-    radial_characteristic_forward_residual,
-    radial_characteristic_forward_residual_transpose,
-)
 from ..spatial.scan import (
     _scanmarch_row,
     _x_scan_faces,
@@ -168,44 +170,6 @@ from .sweep_schedule import SweepSchedule
 #: into ``residual_kernel_batch`` — the kernel only READS ``Q_cells`` (it never
 #: mutates it), so one shared instance is safe and avoids a per-cell allocation.
 _MATVEC_ZERO_SOURCE = np.zeros((1, 1, 1))
-
-
-def _refuse_radial_characteristic(
-    where: str,
-    radial_characteristic_source: "RadialCharacteristicField | None",
-    radial_characteristic_flux: "RadialCharacteristicField | None",
-) -> None:
-    """Loud refusal of a ψ½ seed pair on a strategy that cannot carry one.
-
-    The starting-direction block is 1-D curvilinear only (R12a: multi-D
-    Cartesian has no carrying levels — the field cannot even be built on
-    such a mesh, so a non-``None`` pair here is a caller wiring error).
-    """
-    if radial_characteristic_source is not None or radial_characteristic_flux is not None:
-        raise ValueError(
-            f"{where}: a starting-direction seed pair is 1-D curvilinear "
-            f"only — this strategy's meshes carry no starting-direction "
-            f"levels (R12a)."
-        )
-
-
-def _require_leg_pair(
-    where: str, leg_in: object, leg_out: object, *, action_msg: str,
-) -> None:
-    """The both-or-neither pair law of the B.2d explicit ψ½ legs — the
-    second member of the guard family
-    (:func:`_refuse_radial_characteristic` is the non-carrying half): a
-    joint surface's IN leg and OUT buffer come together or not at all (a
-    lone IN silently drops the emitted rows; a lone OUT has nothing to
-    emit from).  Since step 5 this IS the whole carrying-mesh law — the
-    former required-pair half (``_require_radial_characteristic``) retired
-    with the two-channel relaxation: both legs = the JOINT action, both
-    absent = the ray-DECOUPLED ``(L+C)`` block action (the M grid's
-    substitution leg)."""
-    if (leg_in is None) != (leg_out is None):
-        raise ValueError(
-            f"{where}: the ψ½ legs come as a PAIR — {action_msg}"
-        )
 
 
 def frame_signs_for(
@@ -236,9 +200,6 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.radial_characteristic_field import (
-        RadialCharacteristicField,
-    )
     from orpheus.transport.source_sinks import (
         AngularSourceSink,
         AngularBoundarySourceSink,
@@ -327,8 +288,6 @@ class LossRepresentation(Protocol):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         """Perform one within-group transport sweep on this strategy's mesh.
 
@@ -344,17 +303,11 @@ class LossRepresentation(Protocol):
         forward substitution of the reified ``M = (L+C−B_lower)``.
         Multi-D only; the 1-D scan raises (not a wavefront).
 
-        ``radial_characteristic_source``/``radial_characteristic_flux`` (#282
-        route (a), 2.5d): the ψ½ analogue of the ``(Q, boundary_flux)``
-        pair — the TRUE starting-direction source q½ (read) and the
-        ψ½ carrier the sweep fills in place (the marched cells + the
-        outflow corner; the inflow corner passes through as the seeded
-        given-data slot, exactly like the trace inflow).  Both are
-        ``None`` on a mesh with no carrying levels (R12a); on a 1-D
-        curvilinear carrying mesh the legs come as a PAIR — both = the
-        JOINT march, both absent = the ray-DECOUPLED ``(L+C)`` block
-        solve (zero-seed closure, step 5).  Multi-D strategies raise on
-        a non-``None`` pair (no curvature ⇒ no seed).
+        On a carrying mesh (R12a) this is the ray-DECOUPLED ``(L+C)``
+        block solve (zero-seed closure; step 6 — presence is structural):
+        the JOINT ψ½ march is the within-group M grid's
+        :meth:`~orpheus.numerics.coupled_system.CoupledOperator.solve`,
+        never a leg channel on this surface.
         """
         ...
 
@@ -363,18 +316,18 @@ class LossRepresentation(Protocol):
         bulk_cot: "np.ndarray",
         sigma: "np.ndarray",
         boundary_cot: "BoundaryField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicField | None]":
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""The transpose-solve :math:`(L+C)^{-\mathsf T}` — the REVERSE-SCAN.
 
         The solve-scan frame's adjoint (#280 Phase 2.5b): the transpose sibling
         of :meth:`sweep`, exactly as :meth:`loss_action_transpose` is the adjoint
         sibling of :meth:`loss_action`.  Consumes the composite cotangent
-        (``bulk_cot`` on :math:`\bar\psi`, ``boundary_cot``, ``seed_cot``) and
-        returns ``(Q_bar, m_boundary, m_seed)`` — the reverse-mode adjoint of the
+        (``bulk_cot`` on :math:`\bar\psi`, ``boundary_cot``) and returns
+        ``(Q_bar, m_boundary)`` — the reverse-mode adjoint of the
         forward sweep-scan, sharing its ``ordinate_scan`` substrate via
-        :func:`~orpheus.sn.spatial.scan.ordinate_scan_transpose`.  Raises
+        :func:`~orpheus.sn.spatial.scan.ordinate_scan_transpose`.  On a
+        carrying mesh this is the ray-decoupled block's reverse-scan (step
+        6); the joint ``M⁻ᵀ`` is the grid's transposed substitution.  Raises
         :class:`NotImplementedError` for representations / geometries whose
         reverse-scan is deferred (multi-D Cartesian; LD moment-tail; the
         lagged-seed cylinder until its forward fundamental fix).  Never a silent
@@ -384,9 +337,6 @@ class LossRepresentation(Protocol):
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
-        *,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""The forward within-group loss action :math:`(L+C)\,\psi` for this geometry.
 
@@ -403,25 +353,15 @@ class LossRepresentation(Protocol):
         :meth:`sweep`'s ``sig_t``, so the composite — not the leaf — single-sources
         :math:`\sigma`); the per-geometry walk machinery is on ``self.mesh``.
 
-        ``radial_characteristic_flux`` / ``radial_characteristic_source``
-        (B.2d — the ψ½ legs as EXPLICIT leaf kwargs, System B evicted from
-        the composite): the ψ½ state the joint matvec READS (flux) and the
-        caller-allocated buffer its ray-block rows are FILLED into (source).
-        Both given ⟹ the JOINT action ``M·[ψ_A, ψ_B]`` (the coupled bridge's
-        spelling); both absent on a carrying mesh ⟹ the ray-decoupled
-        ``(A,A)`` BLOCK action (bit-identical to a zero seed — the walk's
-        welded feed reads zeros, the ray rows are discarded); mixed ⟹ raise
-        (a silently-dropped emission is the silent-drop bug class).
-        Non-``None`` on a seedless strategy ⟹ raise (R12a).
+        On a carrying mesh this is the ray-decoupled ``(A,A)`` BLOCK action
+        (bit-identical to a zero seed — the walk's welded feed reads zeros;
+        step 6 — presence is structural): the JOINT action ``M·[ψ_A, ψ_B]``
+        is the within-group M grid's
+        :meth:`~orpheus.numerics.coupled_system.CoupledOperator.apply`.
         """
         ...
 
-    def streaming_action(
-        self, psi: "FullField",
-        *,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
-    ) -> "FullField":
+    def streaming_action(self, psi: "FullField") -> "FullField":
         r"""The pure σ-free streaming action :math:`L\,\psi = \Omega\cdot\nabla\psi`.
 
         The genuine pure-:math:`L` leaf — the spatial streaming + curvilinear
@@ -438,16 +378,12 @@ class LossRepresentation(Protocol):
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` calls this directly
         (#257 S8b) so :math:`L` reads no :math:`\sigma`: the collision diagonal
         :math:`C = M[\sigma_t]` is the separate shared multiplier leaf, and the
-        composition :math:`L + C` recovers the full loss.  The ψ½ leg kwargs
-        pass through to :meth:`loss_action` unchanged (B.2d).
+        composition :math:`L + C` recovers the full loss.
         """
         ...
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""The adjoint loss action :math:`(L+C)^{\mathsf T}\,\phi` for this geometry.
 
@@ -459,23 +395,17 @@ class LossRepresentation(Protocol):
         first).  Never a silent wrong answer.  ``sigma`` is the ``(ng, ...)``
         diagonal coefficient, passed EXPLICITLY (#240 Phase 2 Step B).
 
-        ``seed_cot`` / ``seed_cot_out`` (B.2d — the transposed ψ½ legs): the
-        codomain-side ray cotangent the transpose CONSUMES (``seed_cot``, the
-        cotangent of the forward's emitted ray rows) and the caller-allocated
-        buffer the domain-side ray cotangent is FILLED into (``seed_cot_out``,
-        the pullback ``Seedingᵀ·φ_A + D_BBᵀ·χ_B``).  Both given ⟹ the JOINT
-        transposed action ``Mᵀ``; both absent on a carrying mesh ⟹ the
-        ray-decoupled ``(A,A)ᵀ`` block action (the seed pullback is DISCARDED
-        — it belongs to the explicit ``A_ABᵀ`` grid block); mixed ⟹ raise.
+        On a carrying mesh this is the ray-decoupled ``(A,A)ᵀ`` block action
+        (step 6 — presence is structural): the JOINT transposed action
+        ``Mᵀ`` — including the seed pullback ``Seedingᵀ·φ_A`` — is the
+        within-group M grid's
+        :meth:`~orpheus.numerics.coupled_system.CoupledOperator.apply_transpose`;
+        the ``A_ABᵀ`` pullback belongs to the explicit grid block
+        (:meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicSeeding.apply_transpose`).
         """
         ...
 
-    def streaming_action_transpose(
-        self, phi: "FullField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-        seed_cot_out: "RadialCharacteristicField | None" = None,
-    ) -> "FullField":
+    def streaming_action_transpose(self, phi: "FullField") -> "FullField":
         r"""The pure σ-free adjoint streaming action :math:`L^{\mathsf T}\,\phi`.
 
         The transpose sibling of :meth:`streaming_action` (#257 S8b): the σ-free
@@ -483,7 +413,7 @@ class LossRepresentation(Protocol):
         :meth:`loss_action_transpose` at :math:`\sigma = 0`.  Used by
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`.  Inherits
         the deferral contract (multi-D Cartesian raises, never a silent wrong
-        answer) and passes the transposed ψ½ leg kwargs through (B.2d).
+        answer).
         """
         ...
 
@@ -553,60 +483,33 @@ class _LossRepresentation:
         # concrete subclass via normal MRO.
         def loss_action(
             self, sigma: "np.ndarray", psi: "FullField",
-            *,
-            radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-            radial_characteristic_source: "RadialCharacteristicField | None" = None,
         ) -> "FullField": ...
 
         def loss_action_transpose(
             self, sigma: "np.ndarray", phi: "FullField",
-            *,
-            seed_cot: "RadialCharacteristicField | None" = None,
-            seed_cot_out: "RadialCharacteristicField | None" = None,
         ) -> "FullField": ...
 
-    def streaming_action(
-        self, psi: "FullField",
-        *,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
-    ) -> "FullField":
+    def streaming_action(self, psi: "FullField") -> "FullField":
         r"""Pure σ-free forward streaming :math:`L\,\psi = \Omega\cdot\nabla\psi`.
 
         See the :meth:`LossRepresentation.streaming_action` protocol docstring.
-        The ψ½ leg kwargs pass through to :meth:`loss_action` unchanged (B.2d).
         """
-        return self.loss_action(
-            self._zero_sigma_for(psi), psi,
-            radial_characteristic_flux=radial_characteristic_flux,
-            radial_characteristic_source=radial_characteristic_source,
-        )
+        return self.loss_action(self._zero_sigma_for(psi), psi)
 
-    def streaming_action_transpose(
-        self, phi: "FullField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-        seed_cot_out: "RadialCharacteristicField | None" = None,
-    ) -> "FullField":
+    def streaming_action_transpose(self, phi: "FullField") -> "FullField":
         r"""Pure σ-free adjoint streaming :math:`L^{\mathsf T}\,\phi`.
 
         See :meth:`LossRepresentation.streaming_action_transpose`.  Inherits the
-        deferral contract of :meth:`loss_action_transpose`; the transposed ψ½
-        leg kwargs pass through unchanged (B.2d).
+        deferral contract of :meth:`loss_action_transpose`.
         """
-        return self.loss_action_transpose(
-            self._zero_sigma_for(phi), phi,
-            seed_cot=seed_cot, seed_cot_out=seed_cot_out,
-        )
+        return self.loss_action_transpose(self._zero_sigma_for(phi), phi)
 
     def sweep_transpose(
         self,
         bulk_cot: "np.ndarray",
         sigma: "np.ndarray",
         boundary_cot: "BoundaryField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicField | None]":
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""Reverse-scan default — DEFERRED (the #280 2.5b kernel-pair contract).
 
         The transpose-solve :math:`(L+C)^{-\mathsf T}` is realised only by the
@@ -740,8 +643,6 @@ class _LossRepresentation:
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         """One within-group sweep — every concrete strategy implements it."""
         raise NotImplementedError(
@@ -750,17 +651,12 @@ class _LossRepresentation:
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
-        *,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         """The forward loss action ``(L+C)ψ`` — every concrete leaf implements it.
 
         Returns the FULL within-group loss ``(L+C)ψ`` (NOT ``Lψ``); the operator
         subtracts ``C = σ⊙`` in ``apply`` (Resolution A ``L = (L+C) − C``).
         ``sigma`` is the diagonal coefficient, passed explicitly (#240 Step B).
-        The ψ½ leg kwargs are the B.2d explicit-leaf protocol (see
-        :meth:`LossRepresentation.loss_action`).
         """
         raise NotImplementedError(
             f"{type(self).__name__} must implement loss_action()"
@@ -768,9 +664,6 @@ class _LossRepresentation:
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         """The adjoint loss action ``(L+C)ᵀφ`` — 1-D implemented or a deferral raise.
 
@@ -1276,8 +1169,6 @@ class CumprodScan(_LossRepresentation):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if moment_frame is not None:
             # Moment output is the 2-D windowed-SI peak-memory optimization;
@@ -1296,20 +1187,14 @@ class CumprodScan(_LossRepresentation):
                 "CumprodScan.sweep: a sweep schedule is multi-D only — "
                 "the 1-D scan is not a wavefront."
             )
-        return _OneDimScanWalk(self.mesh).sweep(
-            Q, sig_t, boundary_flux,
-            radial_characteristic_source=radial_characteristic_source,
-            radial_characteristic_flux=radial_characteristic_flux,
-        )
+        return _OneDimScanWalk(self.mesh).sweep(Q, sig_t, boundary_flux)
 
     def sweep_transpose(
         self,
         bulk_cot: "np.ndarray",
         sigma: "np.ndarray",
         boundary_cot: "BoundaryField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicField | None]":
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""The transpose-solve ``(L+C)⁻ᵀ`` — the REVERSE-SCAN (#280 2.5b).
 
         The solve-scan frame's adjoint: the transpose sibling of :meth:`sweep`
@@ -1320,14 +1205,11 @@ class CumprodScan(_LossRepresentation):
         :func:`~orpheus.sn.spatial.scan.ordinate_scan_transpose`.
         """
         return _OneDimScanWalk(self.mesh).sweep_transpose(
-            bulk_cot, sigma, boundary_cot, seed_cot=seed_cot,
+            bulk_cot, sigma, boundary_cot,
         )
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
-        *,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""1-D forward loss action ``(L+C)ψ`` — the geometry-blind spatial sum.
 
@@ -1336,20 +1218,12 @@ class CumprodScan(_LossRepresentation):
         The matvec walk LIVES in :meth:`._OneDimScanWalk.loss_action` (the
         apply-direction twin of the sweep — L21 "matvec ≡ sweep"); the angular
         Morel–Montry redistribution + Carlson pole seed ride through
-        ``pole_angular_closure`` there (NOT re-inlined).  The ψ½ leg kwargs
-        pass through (B.2d).
+        ``pole_angular_closure`` there (NOT re-inlined).
         """
-        return _OneDimScanWalk(self.mesh).loss_action(
-            sigma, psi,
-            radial_characteristic_flux=radial_characteristic_flux,
-            radial_characteristic_source=radial_characteristic_source,
-        )
+        return _OneDimScanWalk(self.mesh).loss_action(sigma, psi)
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the reverse spatial sum.
 
@@ -1358,12 +1232,9 @@ class CumprodScan(_LossRepresentation):
         :meth:`._OneDimScanWalk.loss_action_transpose`, which carries the
         curvilinear angular SECOND triangular factor (``closure.angular_adjoint``)
         — so the spatial reverse NEVER silently drops the angular adjoint
-        (pinned by ``test_g_adjoint_reciprocity`` sphere/cyl, -O-firing).  The
-        transposed ψ½ leg kwargs pass through (B.2d).
+        (pinned by ``test_g_adjoint_reciprocity`` sphere/cyl, -O-firing).
         """
-        return _OneDimScanWalk(self.mesh).loss_action_transpose(
-            sigma, phi, seed_cot=seed_cot, seed_cot_out=seed_cot_out,
-        )
+        return _OneDimScanWalk(self.mesh).loss_action_transpose(sigma, phi)
 
     @property
     def has_transpose_walk(self) -> bool:
@@ -1424,9 +1295,6 @@ class _DAGWavefront(_LossRepresentation):
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""The multi-D Cartesian adjoint is DEFERRED (shared by both policies).
 
@@ -1477,13 +1345,7 @@ class MovingFrontierWindow(_DAGWavefront):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
-        _refuse_radial_characteristic(
-            "MovingFrontierWindow.sweep",
-            radial_characteristic_source, radial_characteristic_flux,
-        )
         if schedule is None:
             return _sweep_jacobi(
                 Q, sig_t, self.mesh, boundary_flux,
@@ -1583,9 +1445,6 @@ class MovingFrontierWindow(_DAGWavefront):
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
-        *,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""2-D Cartesian forward loss action ``(L+C)ψ`` via the rolling-frontier window.
 
@@ -1601,10 +1460,6 @@ class MovingFrontierWindow(_DAGWavefront):
         ``σ·ψ̄`` (the collision diagonal ``C``) to recover the
         bare-streaming ``Lψ̄``.
         """
-        _refuse_radial_characteristic(
-            "MovingFrontierWindow.loss_action",
-            radial_characteristic_source, radial_characteristic_flux,
-        )
         return _OctantWalk(self.mesh).loss_action(
             sigma, psi, self._loss_action_interior,
         )
@@ -1794,13 +1649,7 @@ class FullFieldWavefront(_DAGWavefront):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
-        _refuse_radial_characteristic(
-            "FullFieldWavefront.sweep",
-            radial_characteristic_source, radial_characteristic_flux,
-        )
         if moment_frame is not None:
             raise ValueError(
                 "FullFieldWavefront.sweep: the full-field oracle does not "
@@ -1886,9 +1735,6 @@ class FullFieldWavefront(_DAGWavefront):
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
-        *,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""Forward loss action ORACLE ``(L+C)ψ`` — the full-field DAG walk (d-generic).
 
@@ -1904,10 +1750,6 @@ class FullFieldWavefront(_DAGWavefront):
         subtracts ``σ·ψ̄``.  Sole purpose: verification (production is the
         window / the 1-D scan).
         """
-        _refuse_radial_characteristic(
-            "FullFieldWavefront.loss_action",
-            radial_characteristic_source, radial_characteristic_flux,
-        )
         return _OctantWalk(self.mesh).loss_action(
             sigma, psi, self._loss_action_interior,
         )
@@ -2055,8 +1897,6 @@ class ScanMarch(_LossRepresentation):
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         if self.mesh.is_1d:
             # d=1 ⇒ ``scan(x)`` with no transverse march: the unified 1-D body
@@ -2075,15 +1915,7 @@ class ScanMarch(_LossRepresentation):
                     "ScanMarch.sweep: a sweep schedule is multi-D only — "
                     "the 1-D scan is not a wavefront."
                 )
-            return _OneDimScanWalk(self.mesh).sweep(
-                Q, sig_t, boundary_flux,
-                radial_characteristic_source=radial_characteristic_source,
-                radial_characteristic_flux=radial_characteristic_flux,
-            )
-        _refuse_radial_characteristic(
-            "ScanMarch.sweep",
-            radial_characteristic_source, radial_characteristic_flux,
-        )
+            return _OneDimScanWalk(self.mesh).sweep(Q, sig_t, boundary_flux)
         # multi-D ⇒ the row-march sweep = the schedule × the scan-march
         # interior kernel on the SAME schedule loop the window uses (S6.4(b):
         # the former private ``_sweep_2d_scanmarch`` frame dissolved into the
@@ -2213,9 +2045,6 @@ class ScanMarch(_LossRepresentation):
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
-        *,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""Forward loss action ``(L+C)ψ`` — the row-march apply (L21: sweep & matvec, ONE operator).
 
@@ -2245,15 +2074,7 @@ class ScanMarch(_LossRepresentation):
             # d=1 ⇒ scan(x) with no transverse march: the 1-D apply-direction
             # walk (#206 Phase C — the s_y = 0 degeneration of the 2-D
             # scan-march; the matvec walk lives in _OneDimScanWalk.loss_action).
-            return _OneDimScanWalk(self.mesh).loss_action(
-                sigma, psi,
-                radial_characteristic_flux=radial_characteristic_flux,
-                radial_characteristic_source=radial_characteristic_source,
-            )
-        _refuse_radial_characteristic(
-            "ScanMarch.loss_action",
-            radial_characteristic_source, radial_characteristic_flux,
-        )
+            return _OneDimScanWalk(self.mesh).loss_action(sigma, psi)
         return _OctantWalk(self.mesh).loss_action(
             sigma, psi, self._loss_action_interior,
         )
@@ -2325,16 +2146,11 @@ class ScanMarch(_LossRepresentation):
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         """Adjoint loss action — 1-D wired ``(L+C)ᵀφ``; multi-D Cartesian deferred."""
         if self.mesh.is_1d:
             # #206 Phase C: the 1-D transpose walk lives in _OneDimScanWalk.
-            return _OneDimScanWalk(self.mesh).loss_action_transpose(
-                sigma, phi, seed_cot=seed_cot, seed_cot_out=seed_cot_out,
-            )
+            return _OneDimScanWalk(self.mesh).loss_action_transpose(sigma, phi)
         raise NotImplementedError(
             "ScanMarch.loss_action_transpose: the multi-D Cartesian adjoint is "
             "deferred (O.2b lands the 1-D reverse sweep first; the multi-D "
@@ -2438,178 +2254,6 @@ def default_for(mesh: "SNMesh") -> LossRepresentation:
 #   closed form (the cumprod/cumsum scan the 1-D body evaluates).
 # ═══════════════════════════════════════════════════════════════════════
 
-
-def transport_sweep(
-    source: "AngularSourceSink",
-    sig_t: np.ndarray,
-    sn_mesh: "SNMesh",
-    boundary_flux: "AngularBoundaryFlux",
-    *,
-    moment_frame: "FrameBase | None" = None,
-    radial_characteristic_source: "RadialCharacteristicField | None" = None,
-    radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-) -> "tuple[np.ndarray, np.ndarray | None]":
-    """Perform one full transport sweep.
-
-    Boundary conditions are read from ``sn_mesh`` (resolved at
-    construction time from the geometry mesh's :class:`BC` declarations).
-    The cell-update strategy is read from ``sn_mesh.scheme``
-    (defaults to :class:`DiamondDifference`).
-
-    Single-source contract (R-1 Step 4 A1)
-    --------------------------------------
-
-    The sweep consumes ONE :class:`AngularSourceSink` carrying the
-    combined per-ordinate source magnitude
-    :math:`Q_n(\\vec r, g)` — whatever combination of iso (P0 + n2n +
-    fission) and aniso (P_ℓ ≥ 1) the caller produced.  The producer
-    side has already applied the :math:`1/W` projection (Pattern 7
-    per ``coding-elegance`` SKILL.md §"Convention crosswalk template",
-    lesson L18); the sweep does NOT apply ``/W`` internally to ANY
-    part of the source.
-
-    External iso scalar sources :math:`Q(\\vec r, g)` (e.g. user-
-    supplied fixed-source problems) project to per-ordinate at
-    construction time via
-    :meth:`~orpheus.transport.source_sinks.AngularSourceSink.from_isotropic`.
-    Scattering-generated sources project at the producer boundary
-    via the singledispatched
-    :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply`.  Fission-
-    generated sources project at the producer boundary via
-    :meth:`~orpheus.transport.operators.fission.FissionOperator.apply`.
-
-    The legacy two-parameter convention (``iso_source: ScalarSourceSink``
-    + ``aniso_source: AngularSourceSink | None`` with sweep-internal
-    ``/W``) is GONE.  See `#205
-    <https://github.com/deOliveira-R/ORPHEUS/issues/205>`_ for the
-    cross-method field architecture that will further refine the
-    typed contract.
-
-    History (chronological)
-    -----------------------
-
-    * Issue #196 PR-INDEX-5: PUBLIC contract is principled
-      ``(ng, nx, ny)`` / ``(N, ng, nx, ny)``.
-    * Issue #197 PR-TYPED-2: ``psi_bc: dict`` retired in favour of
-      typed :class:`AngularBoundaryFlux`.
-    * Issue #197 PR-TYPED-3: typed :class:`ScalarSourceSink` /
-      :class:`AngularSourceSink` inputs.
-    * Issue #197 PR-TYPED-4: bare-``np.ndarray`` overload retired.
-    * R-1 Step 0 (2026-05-19): curvilinear Carlson seed derived from
-      ``initial_guess`` (= previous iterate) — SUPERSEDED by the #282
-      route (a) direct seed (2.5d): the ψ½ starting direction is now
-      computed DIRECTLY from the source, and the vestigial ``initial_guess``
-      param was retired (#280 2.5c). The WDD sweep is an exact direct inverse.
-    * R-1 Step 4 A1 (2026-05-21): ``iso_source`` parameter retired;
-      sweep takes one :class:`AngularSourceSink` carrying the combined
-      per-ordinate source magnitude.  Producer-side ``/W`` projection
-      everywhere.
-
-    Parameters
-    ----------
-    source : AngularSourceSink
-        Per-ordinate volumetric source, shape ``(N, ng, nx, ny)``.
-        Convention: **per-ordinate magnitude** (the producer has
-        already applied any required ``/W`` projection).
-    sig_t : np.ndarray
-        Total cross-section, shape ``(ng, nx, ny)``.
-    sn_mesh : SNMesh
-        :class:`SNMesh` carrying geometry, BCs, quadrature, cell-update
-        strategy.
-    boundary_flux : AngularBoundaryFlux
-        Persistent :class:`AngularBoundaryFlux` (mutated in place).  Build a
-        zero-initialised instance via ``AngularBoundaryFlux.zeros_on(sn_mesh)``.
-    moment_frame : FrameBase or None, optional
-        Phase 5c moment OUTPUT mode (2-D Cartesian ONLY — raises on a 1-D
-        mesh).  ``None`` (default) returns the full per-ordinate angular flux
-        (every full-angular consumer).  When given (the windowed-SI path), the
-        2-D sweep accumulates the harmonic moment tensor per anti-diagonal and
-        returns it INSTEAD of the angular field — the full ``(N, ng, nx, ny)``
-        field is never materialized (the ~3× peak-memory win).  See
-        :func:`_sweep_scheduled`.
-
-    Returns
-    -------
-    bulk
-        ``moment_frame is None`` → ``angular_flux`` ``(N, ng, nx, ny)``.
-        Given → the harmonic moment tensor ``(L+1, 2L+1, ng, nx, ny)``.
-    scalar_flux
-        ``(ng, nx, ny)`` :math:`\\sum_n w_n \\psi_n` in angular mode; ``None`` in
-        moment mode (the scalar IS :math:`\\phi_0^0` = ``moments[0, 0]``).
-
-    Dispatch:
-
-    The sweep algorithm is a first-class, selectable sweep strategy
-    (``orpheus.sn.loss_representation.LossRepresentation``; ``default_for`` picks the
-    default for the mesh).  This replaces the historical scattered branch —
-    the ``reduced is not None`` test here and the five ``not is_1d`` gates in
-    the operator algebra — with one polymorphic selection:
-
-    * 1-D meshes → ``CumprodScan`` (:meth:`._OneDimScanWalk.sweep`; slab, sphere,
-      cylinder — one body via the two-stratum cache).
-    * multi-D Cartesian → ``ScanMarch`` (row-march ``scan(x)∘march(y)``; the
-      S6.9 Fork-B2 default since 2026-06-11 — measured 0.57–0.84× the
-      window's sweep time at identical peak memory).
-      ``MovingFrontierWindow`` (anti-diagonal scheduling) stays selectable.
-
-    The ``moment_frame`` guard (moment output is 2-D Cartesian only)
-    now lives in ``CumprodScan.sweep`` — the strategy that cannot produce it
-    carries its own refusal.
-
-    (The strategy architecture's rendered API + theory page land in
-    Sweep-Strategy carve phase S5; this docstring names the symbols as
-    literals until then.)
-    """
-    Q = _unwrap_source(source)
-    # #282 route (a): on a carrying mesh (R12a) the operator-free entry is
-    # self-sufficient — it folds the source into the q½ composite and
-    # allocates the ψ½ flux composite (the ONE fold factory,
-    # ``RadialCharacteristicField.source_from_angular``) unless the
-    # caller supplied the pair.  NOTE the deliberate divergence from the
-    # operator surface (step 5): a BARE ``InvertibleOperator.solve`` on a
-    # carrying mesh is the ray-DECOUPLED (L+C) block solve, while this
-    # operator-free WRAPPER self-derives the pair and joint-solves —
-    # its callers (the final eigenvalue reconstruction) hand it a bare
-    # source and expect the FULL physical sweep, not a block leg.
-    if (
-        getattr(sn_mesh, "radial_characteristic_field_space", None) is not None
-        and radial_characteristic_source is None
-        and radial_characteristic_flux is None
-    ):
-        from orpheus.transport.radial_characteristic_field import (
-            RadialCharacteristicField,
-        )
-
-        radial_characteristic_source = (
-            RadialCharacteristicField.source_from_angular(Q, sn_mesh)
-        )
-        radial_characteristic_flux = RadialCharacteristicField.from_mesh(sn_mesh)
-    # S6.4(f): selector and orchestration share this module — the historical
-    # sweep ↔ loss_representation lazy-import cycle is GONE.
-    return default_for(sn_mesh).sweep(
-        Q, sig_t, boundary_flux,
-        moment_frame=moment_frame,
-        radial_characteristic_source=radial_characteristic_source,
-        radial_characteristic_flux=radial_characteristic_flux,
-    )
-
-
-def _unwrap_source(source: "AngularSourceSink") -> np.ndarray:
-    """Unwrap typed :class:`AngularSourceSink` to bare ndarray.
-
-    Issue #197 PR-TYPED-4 — strict typed input.  R-1 Step 4 A1 collapsed
-    the iso / aniso parameter pair into a single per-ordinate source.
-    The internal hot path consumes bare ndarray; this helper performs
-    the unwrap once at the public boundary.
-    """
-    from orpheus.transport.source_sinks import AngularSourceSink
-    if not isinstance(source, AngularSourceSink):
-        raise TypeError(
-            f"transport_sweep: source must be "
-            f"AngularSourceSink (R-1 Step 4 A1); got "
-            f"{type(source).__name__}"
-        )
-    return source.values
 
 
 #: The one μ-direction trichotomy threshold of the 1-D walk: an ordinate is a
@@ -2814,92 +2458,23 @@ class _OneDimScanWalk:
                     break
         return global_deg, deg_level, deg_within
 
-    # ── The starting-direction (ψ½) block of (L+C) — #282 route (a) ────
+    # ── The starting-direction (ψ½) block — retired from the walk (step 6).
     #
-    # On a carrying mesh (R12a: the sphere) the composite carries the
-    # per-level starting-direction legs as FIRST-CLASS STATE, and (L+C)
-    # gains their rows: per carrying level, the μ = −1 leg's DD residual
-    # (marched inward from the outer corner), the pole continuation
-    # ψ½⁺(0) = ψ½⁻(0), the μ = +1 leg's DD residual (marched outward),
-    # and the two corner rows — inflow corner = identity (the trace
-    # r_inflow discipline), outflow corner = streamed − stored (the
-    # trace r_outflow discipline).  The rows are SELF-CONTAINED in the
-    # seed state (no bulk/trace reads): the seed→bulk coupling is the
-    # M-M recurrence (``precompute_psi_state`` reads ``cells(p, -1)``),
-    # which lands in the BULK rows' ``angular_numer`` — one-directional,
-    # so the augmented walk order (seed⁻ ≺ seed⁺ ≺ ordinate legs) stays
-    # lower-triangular: the #282 back edge is dead by construction.
-
-    def _seed_rows_forward(
-        self, sigma: "np.ndarray", seed: "RadialCharacteristicField",
-    ) -> "tuple[np.ndarray, np.ndarray]":
-        r"""Forward ``(L+C)`` action on the starting-direction block — a thin
-        wrapper over the single-sourced
-        :func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual`.
-
-        The forward ψ½ residual :math:`A_{BB}\,\psi_{1/2}` is realized in ONE
-        place (Cardinal Rule 2) and shared with the standalone ``A_BB``
-        operator
-        (:meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.apply`);
-        this method just supplies the walk's diagonal ``sigma`` (:math:`\sigma_t`
-        for the fused ``(L+C)``, ZERO for the σ-free streaming block — the seed
-        rows are affine in σ like the bulk walk) and the mesh widths.  Takes
-        System B's split composite, returns the ``(interior, boundary)``
-        residual buffer pair (4e — split-native).  KEPT as a method so the
-        schedule / monkeypatch seam
-        (``tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point``) still
-        targets it.
-        """
-        return radial_characteristic_forward_residual(
-            seed.interior.values, seed.boundary.values,
-            seed.interior.space, seed.boundary.space,
-            sigma, self.mesh.axis_widths[0],
-        )
-
-    def _seed_rows_transpose(
-        self,
-        sigma: "np.ndarray",
-        chi_seed: "RadialCharacteristicField",
-        seed_cells_bar: "dict[int, np.ndarray]",
-    ) -> "tuple[np.ndarray, np.ndarray]":
-        r"""Euclidean transpose of :meth:`_seed_rows_forward` (+ the
-        recurrence-coupling cotangent).
-
-        Exact reverse-mode of the forward straight-line program: the
-        corner rows reverse first, then the + leg's chain (cells
-        descending — the reverse of its outward march), the pole
-        continuation hands the running face cotangent to the − leg's
-        reversal (cells ascending), and the − chain's final face
-        cotangent lands on the inflow corner (the forward's entry
-        read).  ``seed_cells_bar`` (from
-        ``closure.angular_adjoint`` — the reverse M-M recurrence
-        STOPPING at the seed) adds onto the − leg's cells cotangent:
-        the transpose of the seed→bulk recurrence coupling.  Takes the
-        rows cotangent as System B's split composite, returns the
-        ``(interior, boundary)`` pullback buffer pair (4e).
-        """
-        interior_space = chi_seed.interior.space
-        interior_out, boundary_out = radial_characteristic_forward_residual_transpose(
-            chi_seed.interior.values, chi_seed.boundary.values,
-            interior_space, chi_seed.boundary.space,
-            sigma, self.mesh.axis_widths[0],
-        )
-        # ── the seed→bulk M-M recurrence coupling, transposed (A_AB's
-        # transpose) — added onto the − leg cells, NOT part of the pure A_BBᵀ.
-        for p in interior_space.levels:
-            if p in seed_cells_bar:
-                cb_minus = interior_space.slot_view(interior_out, p, -1)
-                cb_minus += seed_cells_bar[p]
-        return interior_out, boundary_out
+    # The ψ½ rows are the M grid's OWN blocks now: the forward/transpose
+    # residual kernels live single-sourced in
+    # ``orpheus/sn/spatial/psi_half_angle_seed.py`` and are consumed by the
+    # standalone ``A_BB`` operator
+    # (``RadialCharacteristicOperator.apply``/``.apply_transpose``); the
+    # seed→bulk M-M recurrence coupling's transpose is the explicit grid
+    # block ``RadialCharacteristicSeeding.apply_transpose``.  The walk's
+    # fused ``_seed_rows_forward``/``_seed_rows_transpose`` glue retired
+    # with the joint channel.
 
     def sweep(
         self,
         Q: np.ndarray,
         sig_t: np.ndarray,
         boundary_flux: "AngularBoundaryFlux",
-        *,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         r"""Geometry-blind 1-D SN sweep — three numpy tensor ops per ordinate.
 
@@ -2950,20 +2525,14 @@ class _OneDimScanWalk:
         """
         geom = self._ensure_geom_cache()
         coll = self._ensure_coll_cache(sig_t, geom)
-        return self._run(
-            Q, sig_t, boundary_flux, geom, coll,
-            radial_characteristic_source=radial_characteristic_source,
-            radial_characteristic_flux=radial_characteristic_flux,
-        )
+        return self._run(Q, sig_t, boundary_flux, geom, coll)
 
     def sweep_transpose(
         self,
         bulk_cot: np.ndarray,
         sigma: np.ndarray,
         boundary_cot: "BoundaryField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicField | None]":
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""The transpose-solve :math:`(L+C)^{-\mathsf T}` — the REVERSE-SCAN.
 
         The solve-scan frame's adjoint (#280 Phase 2.5b): the transpose sibling
@@ -2976,15 +2545,10 @@ class _OneDimScanWalk:
         """
         geom = self._ensure_geom_cache()
         coll = self._ensure_coll_cache(sigma, geom)
-        return self._run_transpose(
-            bulk_cot, sigma, boundary_cot, geom, coll, seed_cot=seed_cot,
-        )
+        return self._run_transpose(bulk_cot, sigma, boundary_cot, geom, coll)
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "FullField",
-        *,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""1-D forward loss action ``(L+C)ψ`` — the matvec, apply direction.
 
@@ -2995,37 +2559,14 @@ class _OneDimScanWalk:
         ONCE to recover ``Lψ`` (Resolution A).  ``sigma`` is the diagonal
         coefficient, passed explicitly (#240 Step B).
 
-        The ψ½ legs are EXPLICIT leaf kwargs (B.2d): ``radial_characteristic_
-        flux`` is the seed state the joint matvec reads,
-        ``radial_characteristic_source`` the caller-allocated buffer the
-        emitted ray rows fill.  Both ⟹ the joint ``M`` action; neither on a
-        carrying mesh ⟹ the ray-decoupled ``(A,A)`` block action (zero seed
-        in, rows discarded); mixed ⟹ raise.
+        On a carrying mesh this is the ray-decoupled ``(A,A)`` block action
+        (the walk's welded seed feed reads zeros; step 6 — presence is
+        structural): the joint ``M`` action is the within-group grid's
+        :meth:`~orpheus.numerics.coupled_system.CoupledOperator.apply`.
         """
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
-
-        _require_leg_pair(
-            "_OneDimScanWalk.loss_action",
-            radial_characteristic_flux, radial_characteristic_source,
-            action_msg=(
-                "the flux state read and the source buffer filled. Pass "
-                "both (the joint M action) or neither (the ray-decoupled "
-                "(A,A) block action)."
-            ),
-        )
-        if self.mesh.radial_characteristic_field_space is None:
-            _refuse_radial_characteristic(
-                "_OneDimScanWalk.loss_action",
-                radial_characteristic_source, radial_characteristic_flux,
-            )
-        m_cell, m_boundary, m_seed = self._apply_walk(
-            sigma, psi, radial_characteristic_flux,
-        )
-        if radial_characteristic_source is not None and m_seed is not None:
-            interior_rows, boundary_rows = m_seed
-            radial_characteristic_source.interior.values[...] = interior_rows
-            radial_characteristic_source.boundary.values[...] = boundary_rows
+        m_cell, m_boundary = self._apply_walk(sigma, psi)
         # The matvec output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
         # selects the SpatialMomentSpace factor.  DD/Step → no factor, byte-id.
@@ -3039,8 +2580,7 @@ class _OneDimScanWalk:
 
     def _apply_walk(
         self, sigma: "np.ndarray", psi: "FullField",
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, tuple[np.ndarray, np.ndarray] | None]":
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""The 1-D apply-direction walk — the fused ``(L+C)ψ`` single emission.
 
         #206 Phase C: relocated verbatim off
@@ -3143,19 +2683,18 @@ class _OneDimScanWalk:
                 "populated."
             )
 
-        # #282 route (a) → B.2d: the M-M recurrence seed is first-class
-        # System-B state, passed as the EXPLICIT ``radial_characteristic_
-        # flux`` leg kwarg (System B's split composite since 4e).  On a
-        # carrying mesh with NO leg given, this is the ray-decoupled (A,A)
-        # BLOCK action: substitute a ZERO seed — bit-identical to the
-        # retired dead-slot convention (the welded feed reads zeros; the
-        # emitted rows, ``D·0 = 0``, are discarded by the caller).  The
-        # pre-2.5d extrapolate-from-the-iterate treatment (the #282 back
-        # edge) stays retired, never silently reproduced.  The closure
-        # consumes the INTERIOR member only (its ``.cells(p, -1)`` read —
-        # the M-M recurrence seed lives on the marched cells).
-        seed_field = radial_characteristic_flux
-        if seed_field is None and sn_mesh.radial_characteristic_field_space is not None:
+        # #282 route (a) → B.2d → step 6: on a carrying mesh this walk IS
+        # the ray-decoupled (A,A) BLOCK action — a ZERO seed feeds the
+        # closure (bit-identical to the retired dead-slot convention: the
+        # welded feed reads zeros).  The pre-2.5d
+        # extrapolate-from-the-iterate treatment (the #282 back edge)
+        # stays retired, never silently reproduced.  The joint M action
+        # (a live ψ½ seed feeding the recurrence) is the within-group
+        # grid's block matvec; the closure consumes the INTERIOR member
+        # only (its ``.cells(p, -1)`` read — the M-M recurrence seed
+        # lives on the marched cells).
+        seed_field = None
+        if sn_mesh.radial_characteristic_field_space is not None:
             from orpheus.transport.radial_characteristic_field import (
                 RadialCharacteristicField,
             )
@@ -3390,21 +2929,10 @@ class _OneDimScanWalk:
                     face_inner[inner_inflow, :]
                 )
 
-        # ── the starting-direction (ψ½) rows — #282 route (a) ──
-        # The emitted pair is raw ``(interior, boundary)`` buffers (4e):
-        # ``loss_action`` copies them into the caller-allocated composite,
-        # which owns the typed wrap — no leaf mint here.
-        m_seed = None
-        if seed_field is not None:
-            m_seed = self._seed_rows_forward(sigma_gx, seed_field)
-
-        return m_cell, m_boundary, m_seed
+        return m_cell, m_boundary
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-        seed_cot_out: "RadialCharacteristicField | None" = None,
     ) -> "FullField":
         r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the matvec transpose.
 
@@ -3488,28 +3016,12 @@ class _OneDimScanWalk:
         trace = sn_mesh.angular_trace
         has_inner_face = "xmin" in phi.boundary.layout.faces
 
-        # #282 route (a) → B.2d: the transposed ψ½ legs are EXPLICIT leaf
-        # kwargs.  ``seed_cot`` is the cotangent of the forward's emitted ray
-        # rows (consumed by the seed-block reversal below); ``seed_cot_out``
-        # the buffer the domain-side pullback fills.  Both ⟹ the joint Mᵀ;
-        # neither on a carrying mesh ⟹ the ray-decoupled (A,A)ᵀ block action
-        # — the bulk/trace reversal is chi-independent (M_BA = 0), and the
-        # seed pullback is DISCARDED (it belongs to the explicit A_ABᵀ grid
-        # block); mixed ⟹ raise.
-        _require_leg_pair(
-            "_OneDimScanWalk.loss_action_transpose",
-            seed_cot, seed_cot_out,
-            action_msg=(
-                "the rows cotangent consumed and the pullback buffer "
-                "filled. Pass both (the joint Mᵀ action) or neither (the "
-                "ray-decoupled (A,A)ᵀ block action)."
-            ),
-        )
-        if sn_mesh.radial_characteristic_field_space is None:
-            _refuse_radial_characteristic(
-                "_OneDimScanWalk.loss_action_transpose", seed_cot, None,
-            )
-        chi_seed = seed_cot
+        # #282 route (a) → B.2d → step 6: this is the ray-decoupled (A,A)ᵀ
+        # block action on a carrying mesh — the bulk/trace reversal is
+        # chi-independent (M_BA = 0), and the seed pullback belongs to the
+        # explicit A_ABᵀ grid block
+        # (``RadialCharacteristicSeeding.apply_transpose``); the joint Mᵀ is
+        # the within-group grid's ``CoupledOperator.apply_transpose``.
 
         out_bar = phi.interior.values.swapaxes(0, 1)   # (ng, N, nx)
         fo = phi.boundary.face_view("xmax")                       # (N, ng)
@@ -3667,23 +3179,17 @@ class _OneDimScanWalk:
                     ] += -ob[:, col_idx] / V[i]
 
         # ── reverse the angular factor (delegated; zero for the slab closure) ──
-        # #282 route (a): the reverse M-M recurrence STOPS at the seed on
-        # carrying levels — ``seed_cells_bar`` is the per-level seed-cells
-        # cotangent the seed-block reversal below consumes; non-carrying
-        # levels were scattered onto ``psi_ang_bar`` inside the closure.
-        psi_ang_bar, seed_cells_bar = closure.angular_adjoint(tuple(numer_bar))
+        # #282 route (a) → step 6: the reverse M-M recurrence STOPS at the
+        # seed on carrying levels — ``seed_cells_bar`` (the per-level
+        # seed-cells cotangent) is the (A,A)ᵀ block's DISCARD: that pullback
+        # is the explicit A_ABᵀ grid block
+        # (``RadialCharacteristicSeeding.apply_transpose``), never this
+        # walk's; non-carrying levels were scattered onto ``psi_ang_bar``
+        # inside the closure.
+        psi_ang_bar, _seed_cells_bar_discarded = closure.angular_adjoint(
+            tuple(numer_bar),
+        )
         psi_bar += psi_ang_bar
-
-        # ── reverse the starting-direction rows (#282 route (a)) ──
-        # The joint arm only: the pullback ``Seedingᵀ·φ_A + D_BBᵀ·χ_B`` fills
-        # the caller's buffer.  On the (A,A)ᵀ block arm (no legs) it is
-        # DISCARDED — the explicit A_ABᵀ grid block carries it (B.2d).
-        if chi_seed is not None and seed_cot_out is not None:
-            interior_bar, boundary_bar = self._seed_rows_transpose(
-                sgx, chi_seed, seed_cells_bar,
-            )
-            seed_cot_out.interior.values[...] = interior_bar
-            seed_cot_out.boundary.values[...] = boundary_bar
 
         # ── assemble the typed composite ──
         m_boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
@@ -3737,14 +3243,11 @@ class _OneDimScanWalk:
         boundary_flux: "AngularBoundaryFlux",
         geom: GeometryCoefficients,
         coll: CollisionCache,
-        *,
-        radial_characteristic_source: "RadialCharacteristicField | None" = None,
-        radial_characteristic_flux: "RadialCharacteristicField | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Inner body of the unified 1-D sweep.
 
-        Issue #196 PR-INDEX-1 through PR-INDEX-5: internal arrays AND the
-        public ``transport_sweep`` signature both carry the principled
+        Issue #196 PR-INDEX-1 through PR-INDEX-5: internal arrays carry
+        the principled
         ``(N, ng, nx, ny=1)`` layout (energy ``g`` is the *second* axis,
         NOT trailing; see :ref:`theory-sn-index-convention`).  No
         entry/exit transposes are required at the public boundary —
@@ -3782,33 +3285,14 @@ class _OneDimScanWalk:
         weights = quad.weights
         mu = quad.mu_x
 
-        # ── #282 route (a) → step 5: the starting-direction contract ──
-        # TWO channels on a carrying mesh (the sphere), mirroring the
-        # matvec's law: BOTH legs = the JOINT march M⁻¹ (System B solved
-        # up front from the TRUE q½ source, the carrier filled in place —
-        # the boundary_flux discipline); BOTH absent = the ray-DECOUPLED
-        # ``(L+C)`` diagonal-block solve (the M-M thread starts at ZERO —
-        # the leg the M grid's block substitution consumes); a LONE leg
-        # is a wiring error (the pair law).  A non-carrying mesh must NOT
-        # receive one (the typed field cannot even exist on it).
+        # ── #282 route (a) → step 6: the starting-direction contract ──
+        # This walk is the ray-DECOUPLED ``(L+C)`` diagonal-block solve on
+        # a carrying mesh (the M-M thread starts at ZERO — the leg the M
+        # grid's block substitution consumes); the JOINT march M⁻¹ (System
+        # B solved up front from the TRUE q½ source) is the within-group
+        # grid's ``CoupledOperator.solve`` substitution, never an in-walk
+        # engine.
         seed_levels = frozenset(self.mesh.radial_characteristic_levels)
-        if seed_levels:
-            _require_leg_pair(
-                "_OneDimScanWalk._run",
-                radial_characteristic_source, radial_characteristic_flux,
-                action_msg=(
-                    "the joint march takes (radial_characteristic_source, "
-                    "radial_characteristic_flux) together; both absent = "
-                    "the ray-DECOUPLED (L+C) block solve (zero-seed "
-                    "closure, step 5), a lone leg silently drops half "
-                    "the coupling."
-                ),
-            )
-        else:
-            _refuse_radial_characteristic(
-                "_OneDimScanWalk._run",
-                radial_characteristic_source, radial_characteristic_flux,
-            )
 
         # ── Entry layout — the public contract is the principled
         # (N, ng, *spatial) = (N, ng, nx) for 1-D (no phantom ny axis).
@@ -4167,41 +3651,6 @@ class _OneDimScanWalk:
                         for k, g in enumerate(fold_globals)
                     }
 
-            # ── the DIRECT ψ½ solve (#282 route (a)) — THROUGH A_BB (4e-e2) ──
-            # System B is iterate-independent (the direct march reads only
-            # the TRUE q½ source + the r = R inflow datum), so it is solved
-            # ONCE, up front, by its NAMED resolvent — the SAME
-            # RadialCharacteristicOperator.solve the coupled grid exposes at
-            # its (B, B) slot.  The welded two-leg orchestration this walk
-            # carried inline is RETIRED (the 4e un-weave); the engine call
-            # IS the single source.  The walk then reads the marched inward
-            # cells as the M-M recurrence seed per carrying level (the
-            # ray-first ordering, preserved).
-            if seed_levels and radial_characteristic_source is not None:
-                from orpheus.transport.fields.cross_section_field import (
-                    CrossSectionField,
-                )
-
-                from ..operators.radial_characteristic import (
-                    RadialCharacteristicOperator,
-                )
-
-                assert radial_characteristic_flux is not None  # pair law above
-                ray_resolvent = RadialCharacteristicOperator(
-                    self.mesh,
-                    CrossSectionField.from_mesh(sigma_t_gx, self.mesh),
-                )
-                ray_flux = ray_resolvent.solve(radial_characteristic_source)
-                # Fill the caller-owned carrier in place (the in-out
-                # contract of the solve wrap, #282 route (a)) — member-wise
-                # value copies; the composite spaces are mesh-identical.
-                radial_characteristic_flux.interior.values[...] = (
-                    ray_flux.interior.values
-                )
-                radial_characteristic_flux.boundary.values[...] = (
-                    ray_flux.boundary.values
-                )
-
             # Carlson coupled-pole spatial seed (ERR-058, Issue #195): each
             # inward (μ<0) ordinate's pole-face outflow is captured here and
             # consumed as the spatial seed of its MIRROR outward (μ>0)
@@ -4214,35 +3663,20 @@ class _OneDimScanWalk:
             for p_idx, level in enumerate(levels):
                 ordinates_in_level = level_ordinates_list[p_idx]
                 ords_arr = np.asarray(ordinates_in_level)
-                if p_idx in seed_levels and radial_characteristic_flux is not None:
-                    # ── the M-M seed read (#282 route (a); 4e-e2) ──
-                    # The ψ½ legs were solved by A_BB up front; the marched
-                    # inward cells ARE the recurrence seed — first-class
-                    # state, no iterate read (C(ii) bitwise seed-
-                    # insensitivity is this read).  ``cells`` keys by
-                    # ``p_idx`` — the level-POSITION index (the split
-                    # spaces' ``levels`` are positions from ``enumerate``,
-                    # the same source as ``seed_levels``) — NOT ``level``
-                    # (the walk's ``mu_level_idx``, ``None`` on the sphere,
-                    # the only carrying geometry).  A leg-less carrying
-                    # call (the ray-DECOUPLED (L+C) block, step 5) falls
-                    # through to the ZERO thread below.
-                    psi_angle = radial_characteristic_flux.interior.cells(
-                        p_idx, -1,
-                    ).copy()                                         # (ng, nx)
-                else:
-                    # ── the ZERO thread: non-carrying, or decoupled ──
-                    # Non-carrying level: ψ½ ≡ ψ̄_{m0} (product, t=0) is
-                    # resolved by the #280 2.5b diagonal fold when m0 is
-                    # swept (below) — no pre-loop seed, no iterate read;
-                    # ``psi_angle`` is the M-M thread buffer and m0 (swept
-                    # first) writes its own average into it before any
-                    # downstream ordinate reads it.  A CARRYING level on a
-                    # leg-less call (step 5): the zero thread IS the
-                    # ray-decoupled (L+C) closure — no fold entry exists
-                    # for carrying levels, so the recurrence starts at
-                    # exactly ψ½ = 0 (the LC diagonal-block semantics).
-                    psi_angle = np.zeros((ng, nx))                    # (ng, nx)
+                # ── the ZERO thread (step 6 — the walk IS the (A,A) block) ──
+                # Non-carrying level: ψ½ ≡ ψ̄_{m0} (product, t=0) is
+                # resolved by the #280 2.5b diagonal fold when m0 is
+                # swept (below) — no pre-loop seed, no iterate read;
+                # ``psi_angle`` is the M-M thread buffer and m0 (swept
+                # first) writes its own average into it before any
+                # downstream ordinate reads it.  A CARRYING level: the
+                # zero thread IS the ray-decoupled (L+C) closure — no fold
+                # entry exists for carrying levels, so the recurrence
+                # starts at exactly ψ½ = 0 (the LC diagonal-block
+                # semantics); the joint march (A_BB solved up front, the
+                # marched cells read as the seed) is the M grid's
+                # substitution, never an in-walk engine.
+                psi_angle = np.zeros((ng, nx))                    # (ng, nx)
 
                 for m_local, global_n in enumerate(ordinates_in_level):
                     mu_n = mu[global_n]
@@ -4391,9 +3825,7 @@ class _OneDimScanWalk:
         boundary_cot: "BoundaryField",
         geom: GeometryCoefficients,
         coll: CollisionCache,
-        *,
-        seed_cot: "RadialCharacteristicField | None" = None,
-    ) -> "tuple[np.ndarray, AngularBoundarySourceSink, RadialCharacteristicField | None]":
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""The REVERSE-SCAN — :math:`(L+C)^{-\mathsf T}` on the composite cotangent.
 
         The Euclidean transpose-solve (#280 Phase 2.5b): the reverse-mode
@@ -4414,9 +3846,12 @@ class _OneDimScanWalk:
         Consumes the SAME ``geom`` / ``coll`` caches ``_run`` does (the
         ``×V`` ``affine_scan`` coefficient form — NOT the matvec's ``÷V``
         ``residual_kernel_batch``; the #242 two-denom seam, pinned by G1).
-        Returns ``(Q_bar, m_boundary, m_seed)`` mirroring :meth:`_apply_walk`:
-        the bulk source cotangent + the trace cotangent + (carrying meshes)
-        the ψ½ source cotangent.  DD/scalar-1-D only — the LD moment-tailed
+        Returns ``(Q_bar, m_boundary)`` — the bulk source cotangent + the
+        trace cotangent.  On a carrying mesh this is the ray-decoupled
+        ``(L+C)⁻ᵀ`` block (step 6): the M-M thread cotangent is DISCARDED
+        (the zero thread is a FIXED input of the decoupled map, so its
+        cotangent propagates nowhere); the joint ``M⁻ᵀ`` is the M grid's
+        transposed substitution.  DD/scalar-1-D only — the LD moment-tailed
         transpose-solve is the #280 kernel-pair deferral (same guard the
         adjoint matvec raises).
         """
@@ -4429,19 +3864,13 @@ class _OneDimScanWalk:
         mu = quad.mu_x
         scheme = self.mesh.scheme
 
-        # ── the R12a starting-direction contract (mirror _run, step 5) ──
-        # TWO channels on a carrying mesh: ``seed_cot`` present = the JOINT
-        # transpose-solve M⁻ᵀ; absent = the ray-DECOUPLED ``(L+C)⁻ᵀ``
-        # diagonal-block transpose (the M-M thread cotangent is DISCARDED —
-        # the zero thread is a FIXED input of the decoupled map, so its
-        # cotangent propagates nowhere; ``m_seed`` stays ``None``).
+        # ── the R12a starting-direction contract (mirror _run, step 6) ──
+        # This is the ray-DECOUPLED ``(L+C)⁻ᵀ`` diagonal-block transpose on
+        # a carrying mesh — the M-M thread cotangent is DISCARDED (the zero
+        # thread is a FIXED input of the decoupled map, so its cotangent
+        # propagates nowhere); the joint ``M⁻ᵀ`` is the M grid's transposed
+        # substitution.
         seed_levels = frozenset(self.mesh.radial_characteristic_levels)
-        if not seed_levels and seed_cot is not None:
-            raise ValueError(
-                "_OneDimScanWalk._run_transpose: a starting-direction "
-                "cotangent is 1-D curvilinear only — this mesh carries no "
-                "starting-direction levels (R12a)."
-            )
 
         # ── DD/scalar scope (LD moment-tail = the #280 kernel-pair deferral) ──
         per_axis = scheme.spatial_basis_per_axis
@@ -4519,7 +3948,7 @@ class _OneDimScanWalk:
                 in_cot = xmin_cot if direction_sign > 0 else xmax_cot
                 in_bar = xmin_bar if direction_sign > 0 else xmax_bar
                 in_bar[ords] = in_cot[ords] + psi_in_bar
-            return Q_bar, m_boundary, None
+            return Q_bar, m_boundary
 
         # ── CURVILINEAR reverse-scan (sphere carrying + cylinder non-carrying) ──
         # The transpose of ``_run``'s unified curvilinear body (#280 2.5b cyl
@@ -4552,18 +3981,7 @@ class _OneDimScanWalk:
         # seed carrier; the fold's transpose lives in the seed-ordinate branch of
         # the ordinate loop, and ``m_seed`` stays ``None``.
         seed_fold: "dict[int, tuple[np.ndarray, np.ndarray]]" = {}
-        # sphere-carrying only: the AUGMENTED ψ½ cotangent (4e-e2) — the
-        # explicit ``seed_cot`` leg plus, per level, the M-M thread cotangent
-        # the reversed ordinate loop accumulates on the inward cells (the
-        # fused A_ABᵀ feed, H1-narrow); reversed through A_BB.solve_transpose
-        # ONCE after the loop.
-        seed_cot_augmented: "RadialCharacteristicField | None" = None
         if is_sphere:
-            if seed_cot is not None:
-                # The JOINT channel; a ``None`` cotangent is the
-                # ray-DECOUPLED (L+C)⁻ᵀ block (step 5) — no augmentation,
-                # the thread cotangent is discarded, ``m_seed`` = None.
-                seed_cot_augmented = seed_cot.copy()
             levels: "list[int | None]" = [None]
             level_ordinates_list = [list(range(N))]
         else:
@@ -4733,44 +4151,13 @@ class _OneDimScanWalk:
                 else:
                     pole_outflow_bar[mirror[global_n]] += psi_in_bar
 
-            # ── the M-M thread cotangent lands on the inward seed cells ──
-            if is_sphere and seed_cot_augmented is not None:
-                # psi_angle = the A_BB-marched inward cells seeded the thread
-                # in the forward, so this level's accumulated
-                # ``psi_angle_bar`` ADDS to the explicit ``seed_cot`` leg on
-                # the (p_idx, −1) cells slot — the fused A_ABᵀ contribution
-                # entering System B's cotangent (H1-narrow: the feed stays
-                # M's fused internal).  The leg REVERSAL itself is A_BB's
-                # job — solve_transpose, once, after the loop.  On the
-                # DECOUPLED channel (no cotangent, step 5) the thread
-                # cotangent is discarded — the zero thread was a fixed
-                # input, not an unknown.
-                seed_cot_augmented.interior.cells(p_idx, -1)[...] += (
-                    psi_angle_bar
-                )
+            # The M-M thread cotangent (``psi_angle_bar``) is DISCARDED on
+            # a carrying level (step 6): the zero thread was a fixed input
+            # of the decoupled map, so its cotangent propagates nowhere —
+            # the joint reversal (the fused A_ABᵀ feed + A_BB's
+            # solve_transpose) is the M grid's transposed substitution.
 
-        # ── the seed cotangent: sphere carries it, cylinder does not ──
-        # Reverse the two-leg march through the NAMED resolvent adjoint —
-        # (A_BB⁻¹)ᵀ on the augmented cotangent (4e-e2: the welded inline
-        # reversal is retired; A_BB.solve_transpose is the single source).
-        # The decoupled channel (no cotangent, step 5) skips — m_seed None.
-        if is_sphere and seed_cot_augmented is not None:
-            from orpheus.transport.fields.cross_section_field import (
-                CrossSectionField,
-            )
-
-            from ..operators.radial_characteristic import (
-                RadialCharacteristicOperator,
-            )
-
-            ray_resolvent = RadialCharacteristicOperator(
-                self.mesh,
-                CrossSectionField.from_mesh(sigma_gx, self.mesh),
-            )
-            m_seed = ray_resolvent.solve_transpose(seed_cot_augmented)
-        else:
-            m_seed = None
-        return Q_bar, m_boundary, m_seed
+        return Q_bar, m_boundary
 
 
 def _sweep_scheduled(
@@ -4981,5 +4368,4 @@ __all__ = [
     "MovingFrontierWindow",
     "ScanMarch",
     # the public sweep entry (relocated from the dissolved ``sweep.py``)
-    "transport_sweep",
 ]

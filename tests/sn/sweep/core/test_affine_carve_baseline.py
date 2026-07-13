@@ -87,7 +87,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.loss_representation import transport_sweep
+from tests.sn._test_helpers import sweep_once
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -256,7 +256,7 @@ class TestAffineCarveSweepBaseline:
         source = AngularSourceSink.from_mesh(q_values, sn_mesh)
         boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
 
-        angular_flux, scalar_flux = transport_sweep(
+        angular_flux, scalar_flux = sweep_once(
             source, sig_t, sn_mesh, boundary,
         )
 
@@ -321,17 +321,15 @@ class TestAffineCarveMatvecBaseline:
         if seed is None:
             out = (L + C).apply(psi)
         else:
-            from orpheus.transport.radial_characteristic_field import (
-                RadialCharacteristicField,
-            )
+            # step 6: the joint row-A action rides THE GRID.
+            from orpheus.numerics.coupled_system import CoupledField
 
-            out = (L + C).apply(
-                psi,
-                radial_characteristic_flux=seed,
-                radial_characteristic_source=(
-                    RadialCharacteristicField.source_zeros_on(sn_mesh)
-                ),
-            )
+            from tests.sn._test_helpers import joint_m_grid
+
+            grid, _space = joint_m_grid(sn_mesh, L + C)
+            out = grid.apply(
+                CoupledField(systems=(psi, seed)),
+            ).systems[0]
 
         captured = _capture_or_assert(
             request,

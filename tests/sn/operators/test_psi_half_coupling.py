@@ -1219,10 +1219,11 @@ class TestA_BB_RadialBVP:
 
 def _install_forward_spy(monkeypatch) -> list[int]:
     r"""Mode-11 anti-twin sentinel: wrap the SHARED forward kernel
-    ``radial_characteristic_forward_residual`` in BOTH namespaces that import
-    it — the operator (``_rc_mod``) and the fused ``(L+C)`` walk (``_lr_mod``).
-    Every entry appends to the shared list, so a caller that inlined a
-    divergent copy would leave its delta at 0 (L16: only-new-reds ⟹ twin)."""
+    ``radial_characteristic_forward_residual`` in the operator namespace
+    (``_rc_mod``) — since step 6 the ONE consumer (the walk's fused ψ½
+    rows retired with the joint channel).  Every entry appends to the
+    shared list, so a caller that inlined a divergent copy would leave
+    its delta at 0 (L16: only-new-reds ⟹ twin)."""
     calls: list[int] = []
     real = radial_characteristic_forward_residual
 
@@ -1231,7 +1232,6 @@ def _install_forward_spy(monkeypatch) -> list[int]:
         return real(*args, **kwargs)
 
     monkeypatch.setattr(_rc_mod, "radial_characteristic_forward_residual", spy)
-    monkeypatch.setattr(_lr_mod, "radial_characteristic_forward_residual", spy)
     return calls
 
 
@@ -1277,17 +1277,10 @@ class TestA_BB_Forward:
                 "A_BB.apply did NOT route through the shared forward kernel "
                 "(a divergent inlined copy — twin).")
 
-    def test_walk_forward_routes_through_the_shared_kernel(self, monkeypatch):
-        # Mode-11 anti-twin (walk side): (L+C).apply's ψ½ rows MUST enter the
-        # SAME shared kernel — the single-source proof (both callers, one body).
-        sn = _sphere()
-        LC = _loss(sn, slope=0.4)
-        calls = _install_forward_spy(monkeypatch)
-        LC.apply(_random_composite(sn, np.random.default_rng(2)))
-        if len(calls) == 0:
-            pytest.fail(
-                "(L+C).apply did NOT route through the shared forward kernel "
-                "(a leftover inline copy survives — twin).")
+    # ``test_walk_forward_routes_through_the_shared_kernel`` RETIRED at
+    # step 6: the walk carries no ψ½ rows (the fused wrapper deleted with
+    # the joint channel), so the walk-side anti-twin has no referent —
+    # the operator-side sentinel above is the surviving single-source pin.
 
     def test_apply_transpose_is_the_euclidean_adjoint(self):
         # ⟨apply(u), v⟩ = ⟨u, apply_transpose(v)⟩ — plain flat dot (the metric
@@ -2454,29 +2447,15 @@ class TestCoupledLift:
 
 def _bulk_composite(sn, bulk_values: NDArray) -> FullField:
     """A 2-block composite with the given bulk and a zero trace — the
-    ``(L+C).apply_transpose`` isolation probe (B.2d: the transposed ψ½ legs
-    ride the explicit ``seed_cot``/``seed_cot_out`` kwargs; a zero ``seed_cot``
-    nulls the A_BB self-block, leaving only the M-M thread cotangent)."""
+    ``A_AB.apply_transpose`` isolation probe (step 6: the coupling's
+    transpose is the explicit grid block; only the interior member is
+    read, so the zero trace is inert)."""
     n_tr = int(sn.angular_trace.layout.total_size)
     return FullField(
         interior=AngularFlux.from_mesh(bulk_values, sn),
         boundary=AngularBoundaryFlux(
             values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
     )
-
-
-def _loss_transpose_seed_pullback(sn, LC, bulk_values: NDArray) -> RadialCharacteristicField:
-    """The in-sweep reverse's seed pullback ``Seedingᵀ·φ_A`` read through the
-    B.2d explicit legs: run ``LC.apply_transpose`` with a ZERO ``seed_cot``
-    (nulls ``D_BBᵀ``) and collect the ``seed_cot_out`` buffer."""
-    ns = sn.radial_characteristic_field_space.shape[0]
-    out_buf = RadialCharacteristicField.source_zeros_on(sn)
-    LC.apply_transpose(
-        _bulk_composite(sn, bulk_values),
-        seed_cot=_seed_leaf(sn, np.zeros(ns)),
-        seed_cot_out=out_buf,
-    )
-    return out_buf
 
 
 def _seed_flux(sn, rng) -> RadialCharacteristicField:
@@ -2538,40 +2517,24 @@ class TestA_AB_SeedInjection:
 
     # ── Forward — the seed injection ≡ the in-sweep contribution ───────────
 
-    def test_apply_matches_the_in_sweep_seed_injection(self, monkeypatch):
-        r"""``A_AB.apply(s)`` ≡ the seed's contribution to ``(L+C).apply``
-        (interior=0, boundary=0 isolate ``A_bs`` by linearity), BIT-IDENTICALLY
-        (``array_equal`` — with ψ_cell=0 the σ-diagonal cancels, so this is
-        0-ULP, not principled-equiv). A Mode-11 sentinel proves ``apply``
-        EXECUTES the shared closure kernel with the bulk ZEROED and the seed
-        passed as ``radial_characteristic``. σ-independence is asserted
-        positively (the reference is identical at two ``σ_t`` slopes). ≥2G."""
+    def test_apply_executes_the_shared_closure_kernel(self, monkeypatch):
+        r"""``A_AB.apply`` EXECUTES the shared M-M closure kernel with the
+        bulk ZEROED and the seed passed role-preserved (Mode-11 sentinels).
+
+        Step 6 retired the fused ``(L+C)`` joint channel, so A_AB IS the
+        one spelling of the seed→bulk coupling — the ``≡ in-sweep
+        injection`` reference has no referent.  σ-independence is now a
+        TYPE fact (``RadialCharacteristicSeeding`` takes no σ); the VALUE
+        anchoring is the Euclidean reciprocity gate below + the grid
+        gates.  ≥2G."""
         sn = _sphere()
         rng = np.random.default_rng(30)
         sv = rng.standard_normal(sn.radial_characteristic_field_space.shape[0])
         seed = _ray_composite(sn, sv)
-        # Reference (real methods, computed BEFORE the spy): the seed's
-        # contribution to the JOINT (L+C).apply — zero System A + the seed
-        # through the explicit flux leg (B.2d) ⇒ A_AA·0 = 0, so the bulk
-        # output is exactly A_AB·s (the emitted ray rows are discarded via a
-        # scratch buffer).
-        def _seed_feed(LC_op):
-            return LC_op.apply(
-                _zero_composite(sn),
-                radial_characteristic_flux=_seed_leaf(sn, sv),
-                radial_characteristic_source=RadialCharacteristicField.source_zeros_on(sn),
-            ).interior
-
-        reference = _seed_feed(_loss(sn))
-        ref_other_sigma = _seed_feed(_loss(sn, slope=0.9))
-        np.testing.assert_array_equal(
-            reference.values, ref_other_sigma.values,
-            err_msg="the seed→bulk contribution changed with σ_t — A_AB is not "
-                    "σ-independent (the isolation-by-linearity premise is wrong).")
         # Mode-11 sentinel on the shared closure kernel.
         pre = _install_closure_spy(monkeypatch, sn, "precompute_psi_state")
         cc = _install_closure_spy(monkeypatch, sn, "cell_contribution")
-        out = RadialCharacteristicSeeding(sn).apply(_member(seed))
+        RadialCharacteristicSeeding(sn).apply(_member(seed))
         if len(pre) != 1:
             pytest.fail(
                 f"precompute_psi_state called {len(pre)}× (expected 1) — A_AB."
@@ -2597,23 +2560,22 @@ class TestA_AB_SeedInjection:
             pytest.fail(
                 f"cell_contribution called {len(cc)}× (< nx = {sn.nx}) — the "
                 f"cell-local angular injection did not visit every cell.")
-        np.testing.assert_array_equal(
-            out.interior.values, reference.values,
-            err_msg="A_AB.apply is not bit-identical to the in-sweep injection.")
 
     # ── Transpose — the seed_cells_bar term ≡ the in-sweep reverse ─────────
 
-    def test_apply_transpose_is_the_in_sweep_seed_cells_bar(self, monkeypatch):
-        r"""``A_AB.apply_transpose(v).cells(p,-1)`` ≡ the ``seed_cells_bar`` term
-        the in-sweep reverse adds — ``(L+C).apply_transpose(interior=v, ray=0)`` on
-        the ray block (ray=0 nulls the A_BB self-block, isolating the M-M thread
-        cotangent), BIT-IDENTICALLY. The ``+1`` leg and both corners stay EXACTLY
-        0 (the forward writes only the inward leg). A Mode-11 sentinel proves
-        ``angular_adjoint`` runs exactly once. ≥2G."""
+    def test_apply_transpose_writes_only_the_inward_leg(self, monkeypatch):
+        r"""``A_AB.apply_transpose`` runs ``angular_adjoint`` exactly once
+        (Mode-11 sentinel) and writes ONLY the inward (−1) leg cells — the
+        ``+1`` leg and both corners stay EXACTLY 0 (the forward's coupling
+        reads only the inward cells, so its transpose writes only them).
+
+        Step 6: the ``≡ in-sweep seed_cells_bar`` reference retired with
+        the walk's joint channel — A_AB's transpose IS the one spelling of
+        the pullback; its VALUE is anchored by the Euclidean reciprocity
+        gate below (the two separately-implemented duals).  ≥2G."""
         sn = _sphere()
         rng = np.random.default_rng(31)
         vv = rng.standard_normal((sn.quad.N, sn.ng, sn.nx))
-        reference = _loss_transpose_seed_pullback(sn, _loss(sn), vv)
         aa = _install_closure_spy(monkeypatch, sn, "angular_adjoint")
         # B.2c: the cotangent arrives as System A's FullField (the codomain);
         # only its interior member is read (trace/ray structurally discarded).
@@ -2623,11 +2585,10 @@ class TestA_AB_SeedInjection:
             pytest.fail(
                 f"angular_adjoint called {len(aa)}× (expected 1) — A_AB."
                 f"apply_transpose is not the single-adjoint WRAP.")
+        wrote_inward = False
         for p in sn.radial_characteristic_levels:
-            np.testing.assert_array_equal(
-                out.interior.cells(p, -1), reference.interior.cells(p, -1),
-                err_msg=f"level {p}: apply_transpose cells(-1) ≠ the in-sweep "
-                        f"seed_cells_bar.")
+            if np.max(np.abs(out.interior.cells(p, -1))) > 0.0:
+                wrote_inward = True
             np.testing.assert_array_equal(
                 out.interior.cells(p, +1), 0.0,
                 err_msg=f"level {p}: apply_transpose wrote the +1 leg (must be 0).")
@@ -2637,6 +2598,10 @@ class TestA_AB_SeedInjection:
             np.testing.assert_array_equal(
                 out.boundary.corner(p, +1), 0.0,
                 err_msg=f"level {p}: apply_transpose wrote the +1 corner (be 0).")
+        if not wrote_inward:
+            pytest.fail(
+                "apply_transpose left every inward (−1) leg at zero on a "
+                "random cotangent — the M-M thread pullback is dead.")
 
     # ── Euclidean adjoint consistency — THE correctness cross-check ────────
 

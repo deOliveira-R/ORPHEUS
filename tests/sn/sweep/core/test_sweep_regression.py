@@ -42,7 +42,7 @@ def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) ->
     )
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.loss_representation import transport_sweep
+from tests.sn._test_helpers import sweep_once
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.l0  # SN sweep + SNMesh stencil regressions

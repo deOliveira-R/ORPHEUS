@@ -522,7 +522,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     Marked ``@slow`` — skipped by default but runs in CI.
     """
     from orpheus.transport.source_sinks import AngularSourceSink
-    from orpheus.sn.loss_representation import transport_sweep
+    from tests.sn._test_helpers import sweep_once
 
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 161),
@@ -541,13 +541,13 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
 
     # Warm-up — first call also caches inside SNMesh.
     for _ in range(3):
-        transport_sweep(Q, sig_t, sn_mesh, boundary_flux)
+        sweep_once(Q, sig_t, sn_mesh, boundary_flux)
 
     # Measured wall clock over 100 sweeps.
     n_iters = 100
     t0 = time.perf_counter()
     for _ in range(n_iters):
-        transport_sweep(Q, sig_t, sn_mesh, boundary_flux)
+        sweep_once(Q, sig_t, sn_mesh, boundary_flux)
     elapsed_per_sweep_ms = (time.perf_counter() - t0) / n_iters * 1000.0
     print(f"\nSlab sweep nx=160 N=16 ng=4: {elapsed_per_sweep_ms:.3f} ms/sweep")
     assert elapsed_per_sweep_ms < 2.0, (

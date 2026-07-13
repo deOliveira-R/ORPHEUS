@@ -31,7 +31,7 @@ from orpheus.sn import loss_representation as sweep_module
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.source_sinks import AngularSourceSink
-from orpheus.sn.loss_representation import transport_sweep
+from tests.sn._test_helpers import sweep_once
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
@@ -79,7 +79,7 @@ def _count_ordinate_scan_calls(Q, sig_t, sn_mesh, boundary_flux):
 
     sweep_module.ordinate_scan = tracking_scan
     try:
-        transport_sweep(Q, sig_t, sn_mesh, boundary_flux)
+        sweep_once(Q, sig_t, sn_mesh, boundary_flux)
     finally:
         sweep_module.ordinate_scan = original
     return calls

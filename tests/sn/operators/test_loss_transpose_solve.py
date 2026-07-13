@@ -128,20 +128,41 @@ def _fresh(sn_mesh: SNMesh) -> FullField:
     )
 
 
-def _seed_legs(sn_mesh: SNMesh, values=None):
-    """The (seed_cot IN, seed_cot_out OUT) leg pair for the transposed joint
-    surfaces on a carrying mesh (B.2d / 4e) — ``(None, None)`` seedless.
+def _seed_cot(sn_mesh: SNMesh, values=None):
+    """The ray cotangent member for the transposed JOINT surfaces on a
+    carrying mesh (step 6: the joint spelling is the grid — the cotangent
+    is a CoupledField member, never a leg kwarg) — ``None`` seedless.
 
+    SOURCE-role (the transposed substitution's member algebra is
+    role-honest — the flux-role zeros the fused legs tolerated were a
+    role leak; see ``test_inverse_adjoint_coherence._coupled_bulk_b``).
     ``values`` is a flat array of ``radial_characteristic_field_space``
     size (the split composite's ``to_flat`` layout: interior ⊕ boundary)."""
     if sn_mesh.radial_characteristic_field_space is None:
-        return None, None
-    cot = RadialCharacteristicField.from_mesh(sn_mesh)
+        return None
+    cot = RadialCharacteristicField.source_zeros_on(sn_mesh)
     if values is not None:
         cot = RadialCharacteristicField.from_flat(
             np.asarray(values, dtype=float), cot,
         )
-    return cot, RadialCharacteristicField.source_zeros_on(sn_mesh)
+    return cot
+
+
+def _fresh_source(sn_mesh: SNMesh) -> FullField:
+    """A zero SOURCE-role composite — the codomain-side cotangent carrier
+    the grid's transposed surfaces consume (role-honest member algebra)."""
+    from orpheus.transport.source_sinks import (
+        AngularBoundarySourceSink,
+        AngularSourceSink,
+    )
+
+    return FullField(
+        interior=AngularSourceSink.from_mesh(
+            np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)),
+            sn_mesh,
+        ),
+        boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+    )
 
 
 def _read_augmented(out, sn_mesh, g, ray=None) -> np.ndarray:
@@ -190,32 +211,47 @@ def test_g1_round_trip_bulk(geom):
     A = _loss(sn)
     rng = np.random.default_rng(20260705)
     carrying = sn.radial_characteristic_field_space is not None
-    x = _fresh(sn)
-    x.interior.values[:] = rng.random(x.interior.values.shape)
-    cot_in, cot_out = _seed_legs(
-        sn,
-        rng.random(sn.radial_characteristic_field_space.shape[0])
-        if carrying else None,
-    )
     if carrying:
-        mid = A.apply_transpose(x, seed_cot=cot_in, seed_cot_out=cot_out)
-        mid_cot, mid_out = _seed_legs(sn, cot_out.to_flat())
-        back = A.solve_transpose(mid, seed_cot=mid_cot, seed_cot_out=mid_out)
+        # step 6: the joint Mᵀ round-trip is THE GRID's (presence
+        # structural — the walk carries only the decoupled block);
+        # cotangent members are SOURCE-role (role-honest algebra).
+        from orpheus.numerics.coupled_system import CoupledField
+
+        from tests.sn._test_helpers import joint_m_grid
+
+        grid, _space = joint_m_grid(sn, A)
+        x = _fresh_source(sn)
+        x.interior.values[:] = rng.random(x.interior.values.shape)
+        cot_in = _seed_cot(
+            sn, rng.random(sn.radial_characteristic_field_space.shape[0]),
+        )
+        back = grid.solve_transpose(
+            grid.apply_transpose(CoupledField(systems=(x, cot_in))),
+        ).systems[0]
     else:
+        x = _fresh(sn)
+        x.interior.values[:] = rng.random(x.interior.values.shape)
         back = A.solve_transpose(A.apply_transpose(x))
     np.testing.assert_allclose(
         np.asarray(back.interior.values), np.asarray(x.interior.values),
         rtol=_RTOL, atol=1e-11,
         err_msg=f"{geom}: solve_transpose∘apply_transpose ≠ I on the bulk",
     )
-    b = _fresh(sn)                            # bulk-only source-subspace b
-    b.interior.values[:] = rng.random(b.interior.values.shape)
     if carrying:
-        z_cot, z_out = _seed_legs(sn)
-        mid = A.solve_transpose(b, seed_cot=z_cot, seed_cot_out=z_out)
-        mid_cot, mid_out = _seed_legs(sn, z_out.to_flat())
-        fwd = A.apply_transpose(mid, seed_cot=mid_cot, seed_cot_out=mid_out)
+        from orpheus.numerics.coupled_system import CoupledField
+
+        from tests.sn._test_helpers import joint_m_grid
+
+        grid, _space = joint_m_grid(sn, A)
+        b = _fresh_source(sn)                 # bulk-only source-subspace b
+        b.interior.values[:] = rng.random(b.interior.values.shape)
+        z_cot = RadialCharacteristicField.source_zeros_on(sn)
+        fwd = grid.apply_transpose(
+            grid.solve_transpose(CoupledField(systems=(b, z_cot))),
+        ).systems[0]
     else:
+        b = _fresh(sn)                        # bulk-only source-subspace b
+        b.interior.values[:] = rng.random(b.interior.values.shape)
         fwd = A.apply_transpose(A.solve_transpose(b))
     np.testing.assert_allclose(
         np.asarray(fwd.interior.values), np.asarray(b.interior.values),
@@ -240,17 +276,23 @@ def test_g2_dense_transpose_oracle(geom):
     carrying = sn.radial_characteristic_field_space is not None
     for g in range(sn.ng):
         M = _probe_augmented_matrix_one_group(sn, g)
-        b = _fresh(sn)
+        b = _fresh_source(sn) if carrying else _fresh(sn)
         b.interior.values[:, g] = rng.random((sn.quad.n_ordinates, *sn.spatial_shape))
-        cot_in, cot_out = _seed_legs(
+        cot_in = _seed_cot(
             sn,
             rng.random(sn.radial_characteristic_field_space.shape[0])
             if carrying else None,
         )
         b_vec = _read_augmented(b, sn, g, cot_in)
         if carrying:
-            out = A.solve_transpose(b, seed_cot=cot_in, seed_cot_out=cot_out)
-            got = _read_augmented(out, sn, g, cot_out)
+            # step 6: the joint M⁻ᵀ is the grid's transposed substitution.
+            from orpheus.numerics.coupled_system import CoupledField
+
+            from tests.sn._test_helpers import joint_m_grid
+
+            grid, _space = joint_m_grid(sn, A)
+            out = grid.solve_transpose(CoupledField(systems=(b, cot_in)))
+            got = _read_augmented(out.systems[0], sn, g, out.systems[1])
         else:
             got = _read_augmented(A.solve_transpose(b), sn, g)
         ref = np.linalg.solve(M.T, b_vec)

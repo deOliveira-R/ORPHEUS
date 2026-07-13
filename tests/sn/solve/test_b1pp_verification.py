@@ -245,17 +245,17 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     if seed_leg is None:
         out = L.apply(state) + C.apply(state)
     else:
-        from orpheus.transport.radial_characteristic_field import (
-            RadialCharacteristicField,
+        from orpheus.sn.operators.radial_characteristic import (
+            RadialCharacteristicSeeding,
         )
 
-        out = L.apply(
-            state,
-            radial_characteristic_flux=seed_leg,
-            radial_characteristic_source=(
-                RadialCharacteristicField.source_zeros_on(sn_mesh)
-            ),
-        ) + C.apply(state)
+        # step 6: the joint σ-free action is the BLOCK SUM (Seeding is
+        # σ-independent), so the flat-field collapse rides L + A_AB + C.
+        out = (
+            L.apply(state)
+            + RadialCharacteristicSeeding(sn_mesh).apply(seed_leg)
+            + C.apply(state)
+        )
 
     # Cell slots: (L + C)·1.interior = σ_t · 1.interior
     np.testing.assert_allclose(

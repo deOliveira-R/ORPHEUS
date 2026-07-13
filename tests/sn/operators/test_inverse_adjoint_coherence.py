@@ -119,11 +119,11 @@ _RTOL = 1e-10
 #: ≥ 0.13; the clean gates sit at ≤ ~1e-15).
 _CAUGHT = 1e-6
 
-# B.2d: the FUSED swap-law rows are SEEDLESS-only — on a carrying mesh the
-# leg-less ``SweepOperator.apply_transpose`` surface cannot thread System B's
-# explicit ``seed_cot`` legs, so the fused wrap refuses eagerly (the predicate
-# row below) and the JOINT swap law lives on the coupled sibling (the
-# ``TestCoupledSwapLaw`` arm — the same G1–G4 claims on ``M``).
+# Step 6 (R-6.2): the block swap-law rows run on the NON-carrying meshes;
+# on a carrying mesh the bare ``(L+C)`` is the honest ray-decoupled (A,A)
+# block and IS adjointable (the predicate row below), while the JOINT swap
+# law lives on the coupled sibling (the ``TestCoupledSwapLaw`` arm — the
+# same G1–G4 claims on ``M``).
 _MESHES = {"slab": _slab, "cyl_product": _cyl_product}
 
 
@@ -480,21 +480,23 @@ def _coupled_full_psi(sn, seed: int):
     return CoupledField(systems=(psi, RadialCharacteristicField.from_mesh(sn)))
 
 
-def test_carrying_fused_wrap_refuses_and_the_coupled_sibling_carries():
-    r"""The B.2d predicate row (the R11 spelling post-eviction): on the
-    carrying sphere the FUSED ``A.inverse()`` is NOT adjointable (its
-    leg-less ``apply_transpose`` cannot thread ``seed_cot`` — eager refusal,
-    never a mid-apply raise) and ``A.H`` is NOT invertible; the COUPLED
-    sibling ``M.inverse()`` IS adjointable (it threads the legs) and ``M.H``
-    IS invertible — the joint swap law's honest home."""
+def test_carrying_block_and_coupled_adjointability_coexist():
+    r"""The step-6 predicate row (R-6.2 — the B.2d third factor retired
+    with the two-channel collapse): on the carrying sphere the bare
+    ``A.inverse()`` IS adjointable — the leg-less surface is unambiguously
+    the ray-decoupled ``(A, A)`` diagonal block, whose reverse-scan is
+    well-defined (the type says what you hold) — AND the COUPLED sibling
+    ``M.inverse()`` is adjointable too: the JOINT adjoint's one home is
+    the grid's transposed substitution, the block adjoint's the block."""
     sn = _sphere()
     A = _loss(sn)
-    if A.inverse().is_adjointable:
-        pytest.fail("the fused SweepOperator claims adjointability on a "
-                    "carrying mesh — its leg-less surface cannot thread "
-                    "System B's seed_cot legs (B.2d third factor)")
-    if getattr(A.H, "is_invertible", False):
-        pytest.fail("the fused A.H claims invertibility on a carrying mesh")
+    if not A.inverse().is_adjointable:
+        pytest.fail("the (A,A)-block SweepOperator refuses adjointability on "
+                    "a carrying mesh — the R-6.2 two-factor predicate "
+                    "regressed to the retired B.2d third factor")
+    if not getattr(A.H, "is_invertible", False):
+        pytest.fail("the (A,A)-block A.H does not advertise invertibility on "
+                    "a carrying mesh (the swap law's block arm)")
     M_op, _space = _coupled_M(sn)
     if not M_op.inverse().is_adjointable:
         pytest.fail("the coupled M.inverse() is not adjointable — the joint "

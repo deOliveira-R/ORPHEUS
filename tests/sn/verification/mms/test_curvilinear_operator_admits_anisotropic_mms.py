@@ -110,17 +110,15 @@ def _lc_apply_on_psi_ref(case, nc: int):
     if seed_leg is None:
         lc_psi = (L + C).apply(psi_ref).interior.values     # (N, ng, nx)
     else:
-        from orpheus.transport.radial_characteristic_field import (
-            RadialCharacteristicField,
-        )
+        # step 6: the joint row-A action rides THE GRID (presence structural).
+        from orpheus.numerics.coupled_system import CoupledField
 
-        lc_psi = (L + C).apply(
-            psi_ref,
-            radial_characteristic_flux=seed_leg,
-            radial_characteristic_source=(
-                RadialCharacteristicField.source_zeros_on(sn_mesh)
-            ),
-        ).interior.values                                   # (N, ng, nx)
+        from tests.sn._test_helpers import joint_m_grid
+
+        grid, _space = joint_m_grid(sn_mesh, L + C)
+        lc_psi = grid.apply(
+            CoupledField(systems=(psi_ref, seed_leg)),
+        ).systems[0].interior.values                        # (N, ng, nx)
 
     # ── Hand CONTINUOUS reference: [(L+C)ψ]_n(r) per ordinate, /W ──
     #   streaming  : μ A' + μ² B'

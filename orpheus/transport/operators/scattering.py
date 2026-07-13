@@ -1209,10 +1209,9 @@ class ScatteringOperator(LinearOperator):
         aniso source enters the per-ordinate transport equation
         :math:`(\Omega\cdot\nabla + \sigma_t)\psi_n = Q/W +
         q_{\rm aniso,n}` already in per-ordinate magnitude, so the
-        sweep does NOT need to apply ``/W`` again
-        (cf. :func:`~orpheus.sn.loss_representation.transport_sweep` whose
-        ``aniso_source`` parameter is documented as per-ordinate
-        magnitude post-A1).  See ``coding-elegance`` SKILL.md
+        sweep does NOT need to apply ``/W`` again (the R-1 Step 4 A1
+        single-source contract every sweep entry inherits).  See
+        ``coding-elegance`` SKILL.md
         §"Convention crosswalk template" / lesson L18.
 
         Total flop count is identical to the legacy hand-rolled

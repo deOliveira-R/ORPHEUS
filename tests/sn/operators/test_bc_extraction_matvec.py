@@ -241,27 +241,19 @@ def _LpC_apply(sn_mesh: SNMesh, state: TimedFullField, sigma_t: np.ndarray) -> "
 
     #257 S8a — the matvec leaf is a base arrow, so ``(L + C).apply`` returns a
     timeless :class:`~orpheus.transport.full_field.FullField` source.
-    B.2d — on a carrying mesh (SPH) the CONSISTENT edge-extrapolated ψ½ seed
-    (derived from the state's own bulk, exactly as every pre-eviction site
-    here derived it) rides the walk's EXPLICIT flux leg, so the extracted
-    matvec reproduces the frozen baselines bit-identically; no legs on
+    Step 6 — on a carrying mesh (SPH) the CONSISTENT edge-extrapolated ψ½
+    seed (derived from the state's own bulk, exactly as every pre-eviction
+    site here derived it) rides the JOINT row-A action through the grid
+    (:func:`_LC_matvec`'s seed arm — presence structural); no seed on
     non-carrying meshes.
     """
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     seed_leg = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
-    if seed_leg is None:
-        return (L + C).apply(state)
-    from orpheus.transport.radial_characteristic_field import (
-        RadialCharacteristicField,
-    )
+    from tests.sn._test_helpers import _LC_matvec
 
-    return (L + C).apply(
-        state,
-        radial_characteristic_flux=seed_leg,
-        radial_characteristic_source=(
-            RadialCharacteristicField.source_zeros_on(sn_mesh)
-        ),
+    return _LC_matvec(
+        state, sigma_t, LC=(L + C), radial_characteristic_flux=seed_leg,
     )
 
 

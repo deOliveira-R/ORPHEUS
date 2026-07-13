@@ -115,31 +115,32 @@ def _random_iterate(sn, rng, ng: int = 2):
 
 
 def _joint_solve(A, sn, b, q_half, *, initial_guess=None):
-    """``A.solve`` through the B.2d explicit legs; returns ``(sol, flux)``
-    where ``flux`` is the marched ψ½ carrier (``None`` seedless)."""
+    """The joint solve through THE GRID (step 6 — presence structural);
+    returns ``(sol, flux)`` where ``flux`` is the marched ψ½ member
+    (``None`` seedless)."""
     if q_half is None:
         return A.solve(b, initial_guess=initial_guess), None
-    buf = RadialCharacteristicField.from_mesh(sn)
-    sol = A.solve(
-        b, initial_guess=initial_guess,
-        radial_characteristic_source=q_half,
-        radial_characteristic_flux=buf,
-    )
-    return sol, buf
+    from orpheus.numerics.coupled_system import CoupledField
+
+    from tests.sn._test_helpers import joint_m_grid
+
+    grid, _space = joint_m_grid(sn, A)
+    state = grid.solve(CoupledField(systems=(b, q_half)))
+    return state.systems[0], state.systems[1]
 
 
 def _joint_apply(A, sn, psi, flux):
-    """``A.apply`` through the B.2d explicit legs; returns ``(out, rows)``
-    where ``rows`` is the emitted ray-block buffer (``None`` seedless)."""
+    """The joint matvec through THE GRID (step 6); returns ``(out, rows)``
+    where ``rows`` is the emitted ray-block member (``None`` seedless)."""
     if flux is None:
         return A.apply(psi), None
-    rows = RadialCharacteristicField.source_zeros_on(sn)
-    out = A.apply(
-        psi,
-        radial_characteristic_flux=flux,
-        radial_characteristic_source=rows,
-    )
-    return out, rows
+    from orpheus.numerics.coupled_system import CoupledField
+
+    from tests.sn._test_helpers import joint_m_grid
+
+    grid, _space = joint_m_grid(sn, A)
+    out = grid.apply(CoupledField(systems=(psi, flux)))
+    return out.systems[0], out.systems[1]
 
 
 def _full_residual_inf(A, sn, sol, flux, q_half, bvals) -> float:
@@ -291,98 +292,11 @@ def test_civ_pure_absorber_sphere_cold_solve_exact():
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.foundation
-def test_mode11_direct_solver_executes_on_sphere_not_slab():
-    r"""Mode 11 — the rewired production line IS on the solve's call graph.
-
-    Since 4e-e2 the walk routes its ψ½ ray solve THROUGH System B's named
-    resolvent: wrap-sentinel ``RadialCharacteristicOperator.solve`` on the
-    CLASS (the Mode-11 pytest-plugin sharpening — the wrap sits on the very
-    object the production path constructs, so a walk that routed AROUND the
-    engine, e.g. a re-welded inline march, leaves the counter at 0) and
-    confirm the sphere COLD solve executes it (counter > 0) while the slab
-    does NOT (counter == 0, no carrying levels — no System B)."""
-    from orpheus.sn.operators.radial_characteristic import (
-        RadialCharacteristicOperator,
-    )
-
-    calls = {"n": 0}
-    orig = RadialCharacteristicOperator.solve
-
-    def _counting(self, source):
-        calls["n"] += 1
-        return orig(self, source)
-
-    for coord, expect_calls in (
-        (CoordSystem.SPHERICAL, True), (CoordSystem.CARTESIAN, False),
-    ):
-        sn, A = _operator(coord, nx=4, sigma=0.5)
-        _bvals, b, q_half = _random_source(sn, np.random.default_rng(11))
-        calls["n"] = 0
-        with pytest.MonkeyPatch.context() as mp:
-            mp.setattr(RadialCharacteristicOperator, "solve", _counting)
-            _joint_solve(A, sn, b, q_half)
-        if expect_calls and calls["n"] == 0:
-            pytest.fail(
-                f"[{coord}] A_BB.solve was NEVER called by the sphere cold "
-                "solve — the walk is routing around the System-B resolvent "
-                "(the 4e un-weave regressed)."
-            )
-        if not expect_calls and calls["n"] != 0:
-            pytest.fail(
-                f"[{coord}] the slab solve called A_BB.solve "
-                f"{calls['n']}× — it has no carrying levels."
-            )
-
-
-@pytest.mark.foundation
-def test_mode11_transpose_solver_executes_on_sphere_not_slab():
-    r"""Mode 11, the reverse orientation — the reverse-scan routes System B's
-    cotangent reversal THROUGH ``RadialCharacteristicOperator.solve_transpose``
-    (4e-e2: the welded inline leg reversal is retired). The sphere
-    transpose-solve executes it (counter > 0); the slab does not
-    (counter == 0). Same CLASS-level wrap discipline as the forward gate."""
-    from orpheus.sn.operators.radial_characteristic import (
-        RadialCharacteristicOperator,
-    )
-
-    calls = {"n": 0}
-    orig = RadialCharacteristicOperator.solve_transpose
-
-    def _counting(self, cotangent):
-        calls["n"] += 1
-        return orig(self, cotangent)
-
-    for coord, expect_calls in (
-        (CoordSystem.SPHERICAL, True), (CoordSystem.CARTESIAN, False),
-    ):
-        sn, A = _operator(coord, nx=4, sigma=0.5)
-        _bvals, b, _q_half = _random_source(sn, np.random.default_rng(13))
-        calls["n"] = 0
-        with pytest.MonkeyPatch.context() as mp:
-            mp.setattr(
-                RadialCharacteristicOperator, "solve_transpose", _counting,
-            )
-            if sn.radial_characteristic_field_space is not None:
-                A.solve_transpose(
-                    b,
-                    seed_cot=RadialCharacteristicField.from_mesh(sn),
-                    seed_cot_out=RadialCharacteristicField.source_zeros_on(sn),
-                )
-            else:
-                A.solve_transpose(b)
-        if expect_calls and calls["n"] == 0:
-            pytest.fail(
-                f"[{coord}] A_BB.solve_transpose was NEVER called by the "
-                "sphere transpose-solve — the reverse-scan is routing around "
-                "the System-B resolvent adjoint (the 4e un-weave regressed)."
-            )
-        if not expect_calls and calls["n"] != 0:
-            pytest.fail(
-                f"[{coord}] the slab transpose-solve called "
-                f"A_BB.solve_transpose {calls['n']}× — it has no carrying "
-                "levels."
-            )
+# The two Mode-11 routing spies (A_BB.solve / .solve_transpose is on the
+# joint solve's call graph) RETIRED at step 6: the joint solve IS the
+# grid's block substitution, whose (B, B) leg calls A_BB by
+# CONSTRUCTION — the routed-around fused channel the spies guarded is
+# deleted, so the claim is a type fact, not an execution fact.
 
 
 @pytest.mark.foundation
@@ -491,10 +405,10 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
         )
 
     # ── Mode-12 CLOSURE: the seed-placement flip now REDS reciprocity. ──
-    # Step 5: the grid's forward seed placement IS the named
+    # Step 5 → step 6: the grid's forward seed placement IS the named
     # RadialCharacteristicSeeding block (the walk's fused ``_seed_rows_*``
-    # lost their production role at 5b — a mutation there is off M's call
-    # graph, Mode 11); flip the FORWARD block only (its transpose stays
+    # went production-dead at 5b and were DELETED at step 6 — the block is
+    # the one spelling); flip the FORWARD block only (its transpose stays
     # honest) so the SPD G_sd=V_cell reciprocity sees the inconsistency.
     from orpheus.sn.operators.radial_characteristic import (
         RadialCharacteristicSeeding,

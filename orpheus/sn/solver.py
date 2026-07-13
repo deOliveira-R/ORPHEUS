@@ -614,8 +614,8 @@ def _radial_characteristic_source_from_per_ordinate(
     The PER-ORDINATE typed entry to the one fold kernel
     (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`),
     used where the source is genuinely per-ordinate (possibly anisotropic): the
-    final total-source reconstruction, the fixed-source rhs external source, and
-    the operator-free ``transport_sweep``. The eigenvalue FISSION q½ seed uses the
+    final total-source reconstruction and the fixed-source rhs external
+    source. The eigenvalue FISSION q½ seed uses the
     MOMENTS entry :func:`_radial_characteristic_fission_seed` instead (its ℓ=0
     emission is already a moment, so the direct fold skips this factory's
     per-ordinate round-trip). Both bottom out in the SAME kernel — no twin, a
@@ -1049,8 +1049,8 @@ class SNSolver:
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d, sn_mesh.scheme,
             )
-            # Stash the caches on the SNMesh so the sweep can find them
-            # without threading a solver reference through ``transport_sweep``.
+            # Stash the caches on the SNMesh so the walk can find them
+            # without threading a solver reference through the sweep entry.
             sn_mesh._geom_cache = self.geom_cache  # type: ignore[attr-defined]
             sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
@@ -1942,7 +1942,7 @@ def _reflect_outflow_into_inflow(
 ) -> None:
     r"""In-place: fill each face's inflow ordinate slots with the realized
     boundary law applied to that face's outflow trace — the ``−B`` reflective
-    coupling, externalised for the bare ``transport_sweep`` (Wave O #208 O.4a.2).
+    coupling, externalised for the bare sweep (Wave O #208 O.4a.2).
 
     The bare sweep reads the inflow ordinate slots of its boundary buffer as
     the inflow seed; it no longer re-applies ``bc`` to the outflow internally.

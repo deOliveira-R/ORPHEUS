@@ -564,17 +564,18 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
         )
 
     def _apply(st, seed_leaf):
-        # B.2d / 4e: the ψ½ legs ride the EXPLICIT kwargs (flux composite IN,
-        # source composite rows OUT).
+        # step 6: the joint row action is THE GRID's block matvec —
+        # systems[0] = LC·ψ_A + Seeding·ψ_B (the bulk), systems[1] =
+        # A_BB·ψ_B (the self-contained emitted seed rows).
         if not carrying:
             return _read(A.apply(st), None)
-        rows = RadialCharacteristicField.source_zeros_on(sn_mesh)
-        out = A.apply(
-            st,
-            radial_characteristic_flux=seed_leaf,
-            radial_characteristic_source=rows,
-        )
-        return _read(out, rows)
+        from orpheus.numerics.coupled_system import CoupledField
+
+        from tests.sn._test_helpers import joint_m_grid
+
+        grid, _space = joint_m_grid(sn_mesh, A)
+        out = grid.apply(CoupledField(systems=(st, seed_leaf)))
+        return _read(out.systems[0], out.systems[1])
 
     def _zero_seed():
         return (

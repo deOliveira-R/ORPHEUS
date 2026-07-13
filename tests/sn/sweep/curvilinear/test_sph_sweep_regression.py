@@ -99,7 +99,7 @@ class TestSphericalSweepRegression:
         This caught the missing weight_norm (1/sum_w) normalization in
         the spherical sweep source term.
         """
-        from orpheus.sn.loss_representation import transport_sweep
+        from tests.sn._test_helpers import sweep_once
         from orpheus.sn.solver import _reflect_outflow_into_inflow
         from orpheus.transport.source_sinks import AngularSourceSink
 
@@ -118,7 +118,7 @@ class TestSphericalSweepRegression:
             # coupling explicitly before each sweep (the sweep no longer
             # re-applies the BC at entry).  Mirrors _solve_fixed_source_si.
             _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
-            _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
+            _, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
         V = sn_mesh.volumes
         phi_avg = np.sum(phi[0, :] * V) / V.sum()
@@ -131,7 +131,7 @@ class TestSphericalSweepRegression:
         Catches the negative-denominator bug from using signed α
         instead of |α| at the innermost cell where A=0.
         """
-        from orpheus.sn.loss_representation import transport_sweep
+        from tests.sn._test_helpers import sweep_once
         from orpheus.transport.source_sinks import AngularSourceSink
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
@@ -143,7 +143,7 @@ class TestSphericalSweepRegression:
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
         boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
-        ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
+        ang, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux in first sweep"
         assert np.all(np.isfinite(phi)), "Non-finite scalar flux in first sweep"

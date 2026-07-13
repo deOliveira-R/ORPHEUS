@@ -48,7 +48,7 @@ class TestCylindricalSweepRegression:
 
     def test_single_sweep_all_finite(self):
         """A single sweep must produce finite fluxes."""
-        from orpheus.sn.loss_representation import transport_sweep
+        from tests.sn._test_helpers import sweep_once
         from orpheus.transport.source_sinks import AngularSourceSink
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
@@ -60,7 +60,7 @@ class TestCylindricalSweepRegression:
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
         boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
-        ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
+        ang, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux"
         assert np.all(np.isfinite(phi)), "Non-finite scalar flux"
@@ -160,7 +160,7 @@ class TestAzimuthalRedistribution:
         The redistribution sum Σ_m (α_{m+1/2}ψ_{m+1/2} − α_{m-1/2}ψ_{m-1/2})
         must vanish for each cell because α[0] = α[M] = 0.
         """
-        from orpheus.sn.loss_representation import transport_sweep
+        from tests.sn._test_helpers import sweep_once
         from orpheus.transport.source_sinks import AngularSourceSink
 
         mix = get_mixture("A", "1g")
@@ -172,7 +172,7 @@ class TestAzimuthalRedistribution:
         Q_iso = np.ones((1, *sn_mesh.spatial_shape))               # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
         boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
-        ang, _ = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
+        ang, _ = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
         for p, level_idx in enumerate(quad.level_indices):
             alpha = sn_mesh.reduced.alpha_per_level[p]
@@ -189,7 +189,7 @@ class TestAzimuthalRedistribution:
 
     def test_single_cell_uniform_source_equilibrium(self):
         """Two-cell 1G pure absorber with uniform source → φ = Q/Σ_t."""
-        from orpheus.sn.loss_representation import transport_sweep
+        from tests.sn._test_helpers import sweep_once
         from orpheus.sn.solver import _reflect_outflow_into_inflow
         from orpheus.transport.source_sinks import AngularSourceSink
 
@@ -207,7 +207,7 @@ class TestAzimuthalRedistribution:
             # coupling explicitly before each sweep (mirrors the production
             # _solve_fixed_source_si direct loop).
             _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
-            _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
+            _, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
         phi_avg = np.average(phi[0, :], weights=mesh.volumes)
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.01,

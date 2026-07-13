@@ -53,7 +53,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
-from orpheus.sn.loss_representation import transport_sweep
+from tests.sn._test_helpers import sweep_once
 from orpheus.sn.loss_representation import (
     CumprodScan,
     IncompatibleRepresentation,
@@ -667,7 +667,7 @@ class TestTransportSweepDelegatesToStrategy:
         # (ng, nx, ny) for 2-D Cartesian (C5.2: no phantom ny).
         sig_t = np.ones((ng, *spatial))
         source = AngularSourceSink.zeros_on(sn_mesh)
-        transport_sweep(source, sig_t, sn_mesh, AngularBoundaryFlux.zeros_on(sn_mesh))
+        sweep_once(source, sig_t, sn_mesh, AngularBoundaryFlux.zeros_on(sn_mesh))
 
         if calls["sweep"] != 1:
             pytest.fail(

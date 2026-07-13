@@ -521,7 +521,7 @@ class TestMultiGroupMultiRegionSpherical:
         Without the ΔA/w geometry factor, the flux spikes to ~5x at
         the origin.  With the fix, the range should be bounded.
         """
-        from orpheus.sn.loss_representation import transport_sweep
+        from tests.sn._test_helpers import sweep_once
         from orpheus.sn.solver import _reflect_outflow_into_inflow
         from orpheus.transport.source_sinks import AngularSourceSink
         from tests.sn._test_helpers import placeholder_materials
@@ -541,7 +541,7 @@ class TestMultiGroupMultiRegionSpherical:
             # explicitly (reflect the persisted outflow into the inflow slots)
             # before each sweep, exactly as ``_solve_fixed_source_si`` does.
             _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
-            _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
+            _, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
         phi_avg = np.average(phi[0, :], weights=mesh.volumes)
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.01,

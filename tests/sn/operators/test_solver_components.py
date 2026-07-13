@@ -22,7 +22,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn, _reflect_outflow_into_inflow
 from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
-from orpheus.sn.loss_representation import transport_sweep
+from tests.sn._test_helpers import sweep_once
 from tests.sn._test_helpers import SN_TESTS_ROOT
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
@@ -289,8 +289,8 @@ class TestTransportSweep:
         boundary_flux1 = AngularBoundaryFlux.zeros_on(sn_mesh)
         boundary_flux2 = AngularBoundaryFlux.zeros_on(sn_mesh)
         src = AngularSourceSink.from_isotropic(Q, sn_mesh)
-        ang1, phi1 = transport_sweep(src, solver.mat_xs.total_cross_section, sn_mesh, boundary_flux1)
-        ang2, phi2 = transport_sweep(src, solver.mat_xs.total_cross_section, sn_mesh, boundary_flux2)
+        ang1, phi1 = sweep_once(src, solver.mat_xs.total_cross_section, sn_mesh, boundary_flux1)
+        ang2, phi2 = sweep_once(src, solver.mat_xs.total_cross_section, sn_mesh, boundary_flux2)
 
         np.testing.assert_array_equal(phi1, phi2,
                                       err_msg="Sweep not deterministic")
@@ -313,7 +313,7 @@ class TestTransportSweep:
         np.random.seed(7)
         Q = np.random.rand(solver.ng, *sn_mesh.spatial_shape) + 0.01
 
-        _, phi = transport_sweep(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
+        _, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
         ref = np.load(SN_TESTS_ROOT / "sweep_ref_2g.npy")
 
         np.testing.assert_allclose(phi, ref, rtol=1e-14,
@@ -324,7 +324,7 @@ class TestTransportSweep:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, *sn_mesh.spatial_shape))
 
-        _, phi = transport_sweep(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
+        _, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
 
         assert np.all(phi >= 0), "Negative flux from positive source"
 
@@ -333,7 +333,7 @@ class TestTransportSweep:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, *sn_mesh.spatial_shape))
 
-        ang, phi = transport_sweep(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
+        ang, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
 
         assert ang.shape == (quad.N, solver.ng, *sn_mesh.spatial_shape)
         assert phi.shape == (solver.ng, *sn_mesh.spatial_shape)
@@ -348,7 +348,7 @@ class TestQuadratureWeightConservation:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, *sn_mesh.spatial_shape))
 
-        ang, phi = transport_sweep(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
+        ang, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
 
         phi_manual = np.zeros_like(phi)
         for n in range(quad.N):
@@ -362,7 +362,7 @@ class TestQuadratureWeightConservation:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, *sn_mesh.spatial_shape))
 
-        ang, _ = transport_sweep(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
+        ang, _ = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
 
         for n in range(quad.N):
             if abs(quad.mu_x[n]) < 1e-15 and abs(quad.mu_y[n]) < 1e-15:
@@ -399,7 +399,7 @@ class TestQuadratureWeightConservation:
         # infinite-medium φ = Q/Σ_t.  Converges to machine precision here.
         for _ in range(200):
             _reflect_outflow_into_inflow(boundary_flux, local_sn_mesh)
-            _, phi = transport_sweep(src, solver.mat_xs.total_cross_section, local_sn_mesh, boundary_flux)
+            _, phi = sweep_once(src, solver.mat_xs.total_cross_section, local_sn_mesh, boundary_flux)
 
         expected = Q / solver.mat_xs.total_cross_section
         np.testing.assert_allclose(phi, expected, rtol=1e-6,
@@ -646,7 +646,7 @@ class TestPerformanceBaseline:
         src = AngularSourceSink.from_isotropic(Q, solver.sn_mesh)
         t0 = time.perf_counter()
         for _ in range(n_sweep):
-            transport_sweep(src, solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
+            sweep_once(src, solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
         t_sweep = (time.perf_counter() - t0) / n_sweep * 1000
         print(f"  transport_sweep: {t_sweep:.1f} ms")
 

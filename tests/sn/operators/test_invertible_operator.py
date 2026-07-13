@@ -420,23 +420,37 @@ class TestSolve:
             sigma_t, sn,
         )
 
-        q = _const_state(sn, value=1.0)
-        flux_buf = RadialCharacteristicField.from_mesh(sn)
-        psi = invertible.solve(
-            q,
-            radial_characteristic_source=(
-                RadialCharacteristicField.source_from_angular(
-                    q.interior.values, sn,
-                )
-            ),
-            radial_characteristic_flux=flux_buf,
+        # step 6: the joint solve is THE GRID's substitution (presence
+        # structural — the bare solve is the ray-decoupled block); the
+        # rhs is SOURCE-role (the substitution's ``q_A − Seeding·ψ_B``
+        # member algebra is role-honest).
+        from orpheus.numerics.coupled_system import CoupledField
+        from orpheus.transport.source_sinks import (
+            AngularBoundarySourceSink,
+            AngularSourceSink,
         )
+
+        from tests.sn._test_helpers import joint_m_grid
+
+        q_values = np.ones((sn.quad.N, sn.ng, *sn.spatial_shape))
+        q = TimedFullField(
+            interior=AngularSourceSink.from_mesh(q_values, sn),
+            boundary=AngularBoundarySourceSink.zeros_on(sn),
+            _history=(),
+            history_depth=2,
+        )
+        grid, _space = joint_m_grid(sn, invertible)
+        state = grid.solve(CoupledField(systems=(
+            q,
+            RadialCharacteristicField.source_from_angular(q_values, sn),
+        )))
+        psi = state.systems[0]
         assert isinstance(psi, TimedFullField)
         assert psi.interior.values.shape == q.interior.values.shape
-        # Curvilinear sweep produces a non-trivial positive bulk AND fills
-        # the marched ψ½ carrier in place.
+        # The joint march produces a non-trivial positive bulk AND a
+        # marched ψ½ member.
         assert psi.interior.values.max() > 0
-        assert float(np.abs(flux_buf.to_flat()).max()) > 0
+        assert float(np.abs(state.systems[1].to_flat()).max()) > 0
 
     @pytest.mark.l0
     @pytest.mark.verifies("transport-cartesian")
@@ -570,25 +584,19 @@ class TestSolveTimedFullField:
             self, Q, sigma, boundary_flux, *,
             moment_frame=None,
             schedule=None, reflect=None,
-            radial_characteristic_source=None, radial_characteristic_flux=None,
         ):
             # D-H.2-C2: L2 AngularBoundaryFlux exposes per-face writable views
             # via face_view; copy them out at entry to snapshot the inflow.
             # (#226 step 2: the door signature grew schedule/reflect —
-            # None here, the Jacobi path; #282 route (a) grew the two
-            # radial_characteristic seed args — None on the non-carrying slab;
-            # mirror them all so the spy stays signature-compatible with the
-            # production call.  The vestigial ``initial_guess`` kwarg retired
-            # with the dead seed threading, #280 2.5c.)
+            # None here, the Jacobi path.  The ψ½ leg kwargs retired at
+            # step 6 with the walk's joint channel; the vestigial
+            # ``initial_guess`` retired with the dead seed threading,
+            # #280 2.5c.)
             captured.append((
                 boundary_flux.face_view("xmax").copy(),
                 boundary_flux.face_view("xmin").copy(),
             ))
-            return original(
-                self, Q, sigma, boundary_flux,
-                radial_characteristic_source=radial_characteristic_source,
-                radial_characteristic_flux=radial_characteristic_flux,
-            )
+            return original(self, Q, sigma, boundary_flux)
 
         with patch.object(CumprodScan, "sweep", spy):
             invertible.solve(rhs)
@@ -902,9 +910,16 @@ class TestInvertibleSolveBridgeRegression:
         # seeded wrong and ψ ≠ q/Σ_t; None on non-carrying (slab/cyl).
         q_iso = 0.225
         q_per_ord = np.full((N, ng, *sn_mesh.spatial_shape), q_iso / sum_w)
+        # SOURCE-role rhs (step 6 — the grid substitution's member algebra
+        # is role-honest; the driver's rhs is source-typed too).
+        from orpheus.transport.source_sinks import (
+            AngularBoundarySourceSink,
+            AngularSourceSink,
+        )
+
         rhs = TimedFullField(
-            interior=AngularFlux.from_mesh(q_per_ord, sn_mesh),
-            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            interior=AngularSourceSink.from_mesh(q_per_ord, sn_mesh),
+            boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -937,16 +952,19 @@ class TestInvertibleSolveBridgeRegression:
             RadialCharacteristicBoundaryOperator(sn_mesh) if carrying else None
         )
 
+        # step 6: the joint solve is THE GRID's substitution — build M
+        # once (the walk's bare solve is the ray-decoupled block).
+        from orpheus.numerics.coupled_system import CoupledField
+
+        from tests.sn._test_helpers import joint_m_grid
+
+        grid = joint_m_grid(sn_mesh, LC)[0] if carrying else None
+
         def _joint_solve(rhs_a, q_seed, guess):
             if not carrying:
                 return LC.solve(rhs_a, initial_guess=guess), None
-            buf = RadialCharacteristicField.from_mesh(sn_mesh)
-            out = LC.solve(
-                rhs_a, initial_guess=guess,
-                radial_characteristic_source=q_seed,
-                radial_characteristic_flux=buf,
-            )
-            return out, buf
+            state = grid.solve(CoupledField(systems=(rhs_a, q_seed)))
+            return state.systems[0], state.systems[1]
 
         psi_typed: TimedFullField | None = None
         flux_prev: RadialCharacteristicField | None = None

@@ -103,17 +103,15 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     if seed_leg is None:
         lc_out = LC.apply(psi_ref)
     else:
-        from orpheus.transport.radial_characteristic_field import (
-            RadialCharacteristicField,
-        )
+        # step 6: the joint row-A action rides THE GRID (presence structural).
+        from orpheus.numerics.coupled_system import CoupledField
 
-        lc_out = LC.apply(
-            psi_ref,
-            radial_characteristic_flux=seed_leg,
-            radial_characteristic_source=(
-                RadialCharacteristicField.source_zeros_on(sn_mesh)
-            ),
-        )
+        from tests.sn._test_helpers import joint_m_grid
+
+        grid, _space = joint_m_grid(sn_mesh, LC)
+        lc_out = grid.apply(
+            CoupledField(systems=(psi_ref, seed_leg)),
+        ).systems[0]
 
     rv = (
         lc_out.interior.values

@@ -488,23 +488,21 @@ def _LC_matvec(
 ) -> "TimedFullField":
     r"""Test-helper shim: returns ``(L + C).apply(psi)`` as a composite.
 
-    B.2d: the ψ½ state rides the EXPLICIT ``radial_characteristic_flux``
-    leg (System B's leaf); the emitted ray rows fill an internal scratch
-    buffer (callers that need them use the operator surface directly).
-    ``LC`` optionally injects a pre-built ``(L+C)`` composite.
+    Step 6 (the two-channel collapse): a bare call is the ray-decoupled
+    ``(A,A)`` block matvec (the walk's only channel); a seed-carrying
+    call routes the JOINT row-A action ``LC·ψ_A + Seeding·ψ_B`` through
+    THE GRID (:func:`joint_m_grid` — the production joint spelling;
+    presence is structural, never a kwarg channel).  ``LC`` optionally
+    injects a pre-built ``(L+C)`` composite.
 
     Wave T T.5 close-out (matvec retirement, post-T.5.2): the module-
     level helper ``_transport_operator_matvec_unified`` was DELETED;
     the canonical 1-D matvec body is now
     :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`
-    (the fused ``(L+C)ψ``).  This shim constructs the canonical
+    (the ``(L+C)ψ`` walk).  This shim constructs the canonical
     ``(L + C)`` operator-algebra composite and delegates to its public
     :meth:`apply` — the migration target for tests that previously
     called the deleted helper directly.
-
-    Bit-identical to the legacy call ``_transport_operator_matvec_unified(psi, sigma_t)``
-    for default ``bc_outer`` / ``pole_angular_closure`` (the only call
-    convention any test actually exercised).
     """
     from orpheus.sn.operators.streaming import StreamingOperator
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -515,16 +513,13 @@ def _LC_matvec(
         LC = L + C
     if radial_characteristic_flux is None:
         return LC.apply(psi)
-    from orpheus.transport.radial_characteristic_field import (
-        RadialCharacteristicField,
-    )
+    from orpheus.numerics.coupled_system import CoupledField
 
-    scratch = RadialCharacteristicField.source_zeros_on(sn_mesh)
-    return LC.apply(
-        psi,
-        radial_characteristic_flux=radial_characteristic_flux,
-        radial_characteristic_source=scratch,
+    grid, _space = joint_m_grid(sn_mesh, LC)
+    joint = grid.apply(
+        CoupledField(systems=(psi, radial_characteristic_flux)),
     )
+    return joint.systems[0]
 
 
 def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "AngularBoundaryFlux":
@@ -622,6 +617,58 @@ def redistribution_via_live_path(
 # 2-block), and their consumer gates re-expressed onto the record's
 # named splitting (grid ≡ M − N; N ≡ the pieces; the walk's explicit
 # leaf-kwarg legs).
+
+
+def sweep_once(source, sig_t, sn_mesh, boundary_flux):
+    """One full physical transport sweep — the typed successor of the
+    retired operator-free ``transport_sweep`` (step 6).
+
+    Routes the SAME physics through the production operator surfaces:
+    the ``(L+C).solve`` WDD sweep on a seedless mesh; the joint
+    within-group M grid (:func:`joint_m_grid` — ``[[LC, Seeding],
+    [None, march]]``) on a carrying mesh, with the q½ member folded from
+    the source by the ONE fold factory exactly as the retired
+    self-derivation did.  Consumes/mutates ``boundary_flux`` in place
+    (the old in-out buffer contract: inflow slots read as the seed, the
+    marched trace written back) and returns ``(angular_values,
+    scalar_values)`` — the scalar recomputed by the quadrature
+    contraction (tolerance-equivalent to the walk's per-leg
+    accumulation, not bit-pinned).
+    """
+    from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.sn.operators.streaming import StreamingOperator
+    from orpheus.transport.operators.multiplication_operator import (
+        MultiplicationOperator,
+    )
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
+    )
+    from orpheus.transport.source_sinks import AngularBoundarySourceSink
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    LC = StreamingOperator(sn_mesh) + MultiplicationOperator.from_mesh(
+        sig_t, sn_mesh,
+    )
+    rhs = TimedFullField(
+        interior=source,
+        boundary=AngularBoundarySourceSink.from_mesh(
+            np.asarray(boundary_flux.values).copy(), sn_mesh,
+        ),
+        _history=(),
+        history_depth=2,
+    )
+    if sn_mesh.radial_characteristic_field_space is not None:
+        q_half = RadialCharacteristicField.source_from_angular(
+            np.asarray(source.values), sn_mesh,
+        )
+        grid, _space = joint_m_grid(sn_mesh, LC)
+        psi_a = grid.solve(CoupledField(systems=(rhs, q_half))).systems[0]
+    else:
+        psi_a = LC.solve(rhs)
+    boundary_flux.values[...] = psi_a.boundary.values
+    values = np.asarray(psi_a.interior.values)
+    scalar = np.einsum("n,ng...->g...", sn_mesh.quad.weights, values)
+    return values, scalar
 
 
 def joint_m_grid(sn_mesh: "SNMesh", LC):

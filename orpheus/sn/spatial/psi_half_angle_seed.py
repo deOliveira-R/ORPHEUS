@@ -263,11 +263,10 @@ def radial_characteristic_forward_residual(
     bit-exactly (the cell round-trip is principled-equiv at ~FP ULP — the
     forward's ``2/Δr`` and the march's ``Δr·σ+2`` reassociate).
 
-    Both callers — the fused ``(L+C)`` walk
-    (:meth:`orpheus.sn.loss_representation._OneDimScanWalk._seed_rows_forward`)
-    and the standalone ``A_BB``
+    The ONE production caller is the standalone ``A_BB``
     (:meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.apply`)
-    — route through this ONE body (Cardinal Rule 2: no forward twin).
+    — the walk's fused wrapper retired at step 6 with the joint channel
+    (Cardinal Rule 2: no forward twin).
 
     The state arrives SPLIT-NATIVE (4e): the marched cells on System B's
     interior flat buffer, the r = R corners on its boundary flat buffer —
@@ -321,11 +320,10 @@ def radial_characteristic_forward_residual_transpose(
     the :math:`\mu=-1` chain's final face cotangent lands on the inflow corner
     (the forward's entry read).
 
-    This is the ``A_BB`` transpose in ISOLATION.  The fused ``(L+C)``
-    reverse-scan (:meth:`orpheus.sn.loss_representation._OneDimScanWalk._seed_rows_transpose`)
-    ADDS the ``seed_cells_bar`` recurrence-coupling term (the ``A_AB``
-    transpose) onto the :math:`\mu=-1` leg cells; that term is NOT part of
-    ``A_BB`` and is applied by the walk wrapper, never here.  The cotangent
+    This is the ``A_BB`` transpose in ISOLATION.  The ``A_AB``
+    recurrence-coupling term's transpose is the explicit grid block
+    (:meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicSeeding.apply_transpose`);
+    that term is NOT part of ``A_BB`` and is never applied here.  The cotangent
     arrives split-native (4e — interior rows / boundary corner rows) and the
     pullback returns the ``(interior, boundary)`` pair; the reversal
     arithmetic is byte-identical to the retired unified spelling.

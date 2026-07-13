@@ -93,20 +93,16 @@ pytestmark = pytest.mark.l0
 
 
 def _l_apply(L, state, seed_leg, sn_mesh):
-    """``L.apply`` through the B.2d explicit ψ½ legs (scratch rows out)."""
+    """The joint σ-free streaming action (step 6): the BLOCK SUM
+    ``L·ψ + Seeding·ψ½`` (Seeding is σ-independent — its own pinned
+    property); bare ``L.apply`` seedless."""
     if seed_leg is None:
         return L.apply(state)
-    from orpheus.transport.radial_characteristic_field import (
-        RadialCharacteristicField,
+    from orpheus.sn.operators.radial_characteristic import (
+        RadialCharacteristicSeeding,
     )
 
-    return L.apply(
-        state,
-        radial_characteristic_flux=seed_leg,
-        radial_characteristic_source=(
-            RadialCharacteristicField.source_zeros_on(sn_mesh)
-        ),
-    )
+    return L.apply(state) + RadialCharacteristicSeeding(sn_mesh).apply(seed_leg)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -382,17 +378,13 @@ class TestPureLIsLossActionAtZeroSigma:
         if seed_leg is None:
             l_action_zero = default_for(sn_mesh).loss_action(sigma_zero, state)
         else:
-            from orpheus.transport.radial_characteristic_field import (
-                RadialCharacteristicField,
+            from orpheus.sn.operators.radial_characteristic import (
+                RadialCharacteristicSeeding,
             )
 
             l_action_zero = default_for(sn_mesh).loss_action(
                 sigma_zero, state,
-                radial_characteristic_flux=seed_leg,
-                radial_characteristic_source=(
-                    RadialCharacteristicField.source_zeros_on(sn_mesh)
-                ),
-            )
+            ) + RadialCharacteristicSeeding(sn_mesh).apply(seed_leg)
 
         # Byte-exact: pure-L apply IS loss_action(0) (same call under
         # streaming_action) on BOTH bulk and boundary.

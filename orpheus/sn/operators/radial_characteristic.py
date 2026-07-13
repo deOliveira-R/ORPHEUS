@@ -86,17 +86,17 @@ This operator realizes BOTH directions of the complete ``A_BB`` machinery:
 forward matvec is the exact algebraic inverse of the march; it lives in ONE
 place —
 :func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual`
-— which BOTH :meth:`apply` here AND the fused ``(L+C)`` walk's ψ½ rows
-(:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._seed_rows_forward`)
-call. There is NO forward twin: step 4b reduced the walk method to a thin
-wrapper over the shared kernel (the user ruled "extract the shared kernel
-now" over a tracked twin, closing the "could drift by a rounding" risk by
-construction — Cardinal Rule 2). The transpose is single-sourced the same
-way
+— which :meth:`apply` here calls. There is NO forward twin: step 4b reduced
+the fused walk's ψ½ rows to a thin wrapper over the shared kernel (the user
+ruled "extract the shared kernel now" over a tracked twin, closing the
+"could drift by a rounding" risk by construction — Cardinal Rule 2), and
+step 6 retired that wrapper with the walk's joint channel — this operator
+is now the kernel's ONE consumer pair. The transpose is single-sourced the
+same way
 (:func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual_transpose`,
-the PURE ``A_BB`` transpose; the walk's ``_seed_rows_transpose`` wraps it and
-ADDS the ``A_AB`` seed→bulk coupling, which is not part of ``A_BB`` in
-isolation).
+the PURE ``A_BB`` transpose; the ``A_AB`` seed→bulk coupling's transpose is
+the explicit grid block ``RadialCharacteristicSeeding.apply_transpose``,
+not part of ``A_BB`` in isolation).
 
 **The ONE solve orchestration (Cardinal Rule 2 — the 4e-e2 un-weave).** The
 :math:`\sigma_t`-driven DD *engine*
@@ -338,10 +338,10 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
 
         A thin WRAP of the single-sourced
         :func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual`
-        — the SAME body the fused ``(L+C)`` walk runs for the ψ½ rows
-        (``_OneDimScanWalk._seed_rows_forward``), so ``A_BB.apply`` is
-        bit-identical to that production forward (Cardinal Rule 2: one
-        forward, no twin). Reads the flux state ψ½ (cells + corners) off the
+        — since step 6 (the walk's fused ψ½ rows retired with the joint
+        channel) this operator IS the kernel's production forward
+        (Cardinal Rule 2: one forward, no twin). Reads the flux state ψ½
+        (cells + corners) off the
         bridged member composite; returns the residual source
         :math:`q_{1/2} = A_{BB}\,\psi_{1/2}` as a source-member composite. The
         ``apply ∘ solve`` outflow-corner defect closes to ``0.0`` exactly; the
@@ -397,9 +397,10 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
 
         A thin WRAP of
         :func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual_transpose`
-        — the PURE ``A_BB`` transpose. The walk's ``_seed_rows_transpose``
-        wraps the SAME body then ADDS the ``A_AB`` seed→bulk recurrence
-        coupling, which is NOT part of ``A_BB`` in isolation. This is the flat
+        — the PURE ``A_BB`` transpose. The ``A_AB`` seed→bulk recurrence
+        coupling's transpose is the explicit grid block
+        (:meth:`RadialCharacteristicSeeding.apply_transpose`), NOT part of
+        ``A_BB`` in isolation. This is the flat
         EUCLIDEAN adjoint :math:`A_{BB}^{\mathsf T}`; the metric Hilbert
         adjoint :math:`G^{-1}A_{BB}^{\mathsf T}G` (``.H``) is realized once at
         the composite (L19). Composite in, source-member composite out — the

@@ -33,7 +33,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.loss_representation import transport_sweep
+from tests.sn._test_helpers import sweep_once
 from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
@@ -75,7 +75,7 @@ def test_transport_sweep_ng2_layout_shapes():
     source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
     boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
 
-    ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
+    ang, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
     assert ang.shape == (quad.N, ng, nx), (
         f"angular flux layout drift: got {ang.shape}, "
@@ -117,7 +117,7 @@ def test_transport_sweep_ng2_per_group_distinct():
         # explicitly before each sweep (the sweep no longer re-applies the BC
         # at entry; the no-leakage equilibrium φ_g = Q_g/Σ_t,g needs it).
         _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
-        _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
+        _, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
     # Equilibrium per group: φ_g = Q_g / Σ_t,g (pure-streaming sweep with
     # no scatter coupling — transport_sweep is the within-group sweep).

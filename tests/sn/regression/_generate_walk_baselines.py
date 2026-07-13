@@ -111,24 +111,18 @@ def run_case(case: WalkMatvecCase) -> dict[str, np.ndarray]:
         fwd = lc.apply(psi)
         adj = lc.apply_transpose(phi)
     else:
-        from orpheus.transport.radial_characteristic_field import (
-            RadialCharacteristicField,
-        )
+        # step 6: the joint matvec rows are THE GRID's block actions
+        # (presence structural — the walk carries only the decoupled
+        # block); the pinned blocks stay the System-A bulk/trace views.
+        from orpheus.numerics.coupled_system import CoupledField
 
-        fwd = lc.apply(
-            psi,
-            radial_characteristic_flux=psi_seed,
-            radial_characteristic_source=(
-                RadialCharacteristicField.source_zeros_on(sn)
-            ),
-        )
-        # phi's ψ½ composite rides the role-erased ``seed_cot`` leg (exactly
-        # the slot the pre-eviction 3-block adjoint consumed).
-        adj = lc.apply_transpose(
-            phi,
-            seed_cot=phi_seed,
-            seed_cot_out=RadialCharacteristicField.source_zeros_on(sn),
-        )
+        from tests.sn._test_helpers import joint_m_grid
+
+        grid, _space = joint_m_grid(sn, lc)
+        fwd = grid.apply(CoupledField(systems=(psi, psi_seed))).systems[0]
+        adj = grid.apply_transpose(
+            CoupledField(systems=(phi, phi_seed)),
+        ).systems[0]
     return {
         "fwd_bulk": np.asarray(fwd.interior.values, dtype=np.float64),
         "fwd_trace": np.asarray(fwd.boundary.values, dtype=np.float64),

@@ -193,8 +193,8 @@ class RadialCharacteristicField(
         r"""Fold a per-ordinate volumetric source into its q½ composite.
 
         The ONE source-side birth factory of #282 route (a) (Pattern 2 —
-        the solver cold-starts, the fixed-source rhs, and the operator-free
-        :func:`~orpheus.sn.loss_representation.transport_sweep` all route
+        the solver cold-starts, the fixed-source rhs, and the eigen-finalize
+        reconstruction all route
         through here): ``None`` on a non-carrying mesh; on a carrying mesh
         (1-D curvilinear, R12a) the starting-direction legs receive the
         value of the source at the starting direction :math:`\mu = \pm 1`,

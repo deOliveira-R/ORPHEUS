@@ -687,26 +687,22 @@ class TestT4bPreT4RegressionSnapshot:
                 values=rng.uniform(0.05, 1.0, size=state.interior.values.shape),
             ),
         )
-        # #282 route (a) → B.2d: on a carrying mesh (sphere) the CONSISTENT
-        # edge-extrapolated ψ½ seed reproduces the pre-route-(a) internally-
-        # computed seed THROUGH the walk's explicit flux leg, so L.apply
-        # reproduces the frozen snapshot value; no legs on non-carrying
-        # meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
+        # #282 route (a) → step 6: on a carrying mesh (sphere) the joint
+        # σ-free streaming action is the BLOCK SUM ``L·ψ + Seeding·ψ½``
+        # (Seeding is σ-independent — its own pinned property), with the
+        # CONSISTENT edge-extrapolated ψ½ seed reproducing the
+        # pre-route-(a) internally-computed seed.  The bulk re-associates
+        # ~1 ULP vs the fused spelling (inside the principled band); the
+        # boundary residual is probe-reconstructed, seed-independent —
+        # byte-identical.  No seed term on non-carrying meshes (slab/cyl).
         sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
+        out = L.apply(state)
         if sd is not None:
-            from orpheus.transport.radial_characteristic_field import (
-                RadialCharacteristicField,
+            from orpheus.sn.operators.radial_characteristic import (
+                RadialCharacteristicSeeding,
             )
 
-            out = L.apply(
-                state,
-                radial_characteristic_flux=sd,
-                radial_characteristic_source=(
-                    RadialCharacteristicField.source_zeros_on(sn_mesh)
-                ),
-            )
-        else:
-            out = L.apply(state)
+            out = out + RadialCharacteristicSeeding(sn_mesh).apply(sd)
         return out.interior.values.copy(), out.boundary.values.copy()
 
     def _assert_arm(self, snapshots, *, tag: str, mesh: SNMesh, seed: int) -> None:
@@ -904,26 +900,22 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
                 values=rng.uniform(0.05, 1.0, size=state.interior.values.shape),
             ),
         )
-        # #282 route (a) → B.2d: on a carrying mesh (sphere) the CONSISTENT
-        # edge-extrapolated ψ½ seed reproduces the pre-route-(a) internally-
-        # computed seed THROUGH the walk's explicit flux leg, so L.apply
-        # reproduces the frozen snapshot value; no legs on non-carrying
-        # meshes (slab/cyl) — byte-identical to the pre-2.5d arm.
+        # #282 route (a) → step 6: on a carrying mesh (sphere) the joint
+        # σ-free streaming action is the BLOCK SUM ``L·ψ + Seeding·ψ½``
+        # (Seeding is σ-independent — its own pinned property), with the
+        # CONSISTENT edge-extrapolated ψ½ seed reproducing the
+        # pre-route-(a) internally-computed seed.  The bulk re-associates
+        # ~1 ULP vs the fused spelling (inside the principled band); the
+        # boundary residual is probe-reconstructed, seed-independent —
+        # byte-identical.  No seed term on non-carrying meshes (slab/cyl).
         sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
+        out = L.apply(state)
         if sd is not None:
-            from orpheus.transport.radial_characteristic_field import (
-                RadialCharacteristicField,
+            from orpheus.sn.operators.radial_characteristic import (
+                RadialCharacteristicSeeding,
             )
 
-            out = L.apply(
-                state,
-                radial_characteristic_flux=sd,
-                radial_characteristic_source=(
-                    RadialCharacteristicField.source_zeros_on(sn_mesh)
-                ),
-            )
-        else:
-            out = L.apply(state)
+            out = out + RadialCharacteristicSeeding(sn_mesh).apply(sd)
         return out.interior.values.copy(), out.boundary.values.copy()
 
     def test_sphere_1g_apply_bit_identical(self, snapshots):
