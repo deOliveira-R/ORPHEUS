@@ -39,12 +39,31 @@ but the pattern is the same.
 
 Usage
 -----
-    python scratch/derivations/diagnostics/diag_f4_structural_floor_baseline.py
+    python derivations/diagnostics/diag_f4_structural_floor_baseline.py
 
 Output: a plain-text Markdown-friendly table at the end.
 
 NOT a pytest test -- this is a scanner. The distilled baseline is copied
 into tests/cp/test_peierls_rank_n_protocol.py as the F.4 per-point reference.
+
+Provenance (moved 2026-07-13)
+-----------------------------
+Moved from the legacy ``scratch/derivations/diagnostics/`` tree — the
+pre-``ff473838`` repo-root ``derivations/``, where this scanner was
+TRACKED all along — into the live diagnostics home, beside the F.4
+evaluator ``diag_cin_aware_split_basis_keff.py`` its worker imports.
+The move followed that evaluator's loss: the evaluator sat UNTRACKED
+in the legacy tree (mass-deleted from git by ``15486f66`` while still
+consumed), so when its working copy vanished it had to be recovered
+via surviving ``__pycache__`` bytecode + git archaeology. This scanner
+IS the instrument that produced (and is the documented re-scan path
+for) the ``F4_REFERENCE_BASELINE`` pinned in the tracked protocol
+test — it now lives next to what it drives. The worker's hardcoded
+devcontainer scratch path became the ``__file__``-resolved directory
+passed via argv (a tool may only import code through
+environment-agnostic paths). Behavior otherwise unchanged; the
+120 s/run budget stays — it is the L19 protocol's documented scan
+vocabulary ("unresolved at 2-min budget"), not an infra backstop.
 """
 from __future__ import annotations
 
@@ -88,10 +107,12 @@ RESOLUTION_THRESHOLD = 5.0e-5  # 0.005%
 # Subprocess worker -- runs a single (tau, rho, quad) triple, prints JSON.
 # -------------------------------------------------------------------------
 
+_DIAG_DIR = Path(__file__).resolve().parent
+
 _WORKER_CODE = textwrap.dedent(
     r"""
     import json, sys, time
-    sys.path.insert(0, '/workspaces/ORPHEUS/scratch/derivations/diagnostics')
+    sys.path.insert(0, sys.argv[6])
     from diag_cin_aware_split_basis_keff import run_scalar_f4
 
     tau = float(sys.argv[1])
@@ -130,6 +151,7 @@ def run_point_quad(tau: float, rho: float, quad: dict, wall_budget: float = WALL
         sys.executable, "-c", _WORKER_CODE,
         str(tau), str(rho),
         str(quad["n_panels"]), str(quad["p_order"]), str(quad["n_ang"]),
+        str(_DIAG_DIR),
     ]
     t0 = time.time()
     try:

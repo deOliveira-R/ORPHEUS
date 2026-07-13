@@ -43,7 +43,7 @@ Pass criterion:
 
 Usage
 -----
-    python scratch/derivations/diagnostics/diag_f4_qmc_quadrature.py
+    python derivations/diagnostics/diag_f4_qmc_quadrature.py
 
 Subprocess isolation: each (point, quadrature-or-scramble) triple runs
 in its own python subprocess with subprocess.run(..., timeout=600).
@@ -52,6 +52,36 @@ driver for hours if a single point hangs.
 
 NOT a pytest test — this is a scanner. The conclusions feed back into
 the L19 protocol proposal in the final memo.
+
+Provenance (moved 2026-07-13)
+-----------------------------
+Moved from the legacy ``scratch/derivations/diagnostics/`` tree (the
+pre-``ff473838`` repo-root ``derivations/``, where this scanner was
+TRACKED all along) into the live diagnostics home, together with its
+sibling ``diag_f4_structural_floor_baseline.py``, after the F.4
+evaluator both import — untracked in the legacy tree — was lost and
+recovered via bytecode + git archaeology. Updates besides the path
+fix (worker scratch path → ``__file__``-resolved dir via argv):
+imports moved from the era ``orpheus.derivations.peierls_geometry``
+onto the post-``bda76faf`` home
+``orpheus.derivations.continuous.peierls_nystrom.geometry``.
+
+**The QMC arm is ERA-BOUND — verified dead at HEAD, now loud.** The
+re-home probe ran two distinct Sobol seeds and got bit-identical k:
+the post-era angular-primitive collapse left ``gl_float`` with ZERO
+internal call sites in the assembly, so the monkey-patch — the entire
+QMC mechanism — no longer bites, and the "QMC" k silently degenerated
+to deterministic quadrature. The worker now carries a called-flag
+tripwire and REFUSES rather than emit such a number. This study's
+conclusions stay banked on the 2026-04 era runtime; to actually re-run
+the QMC arm, use the era tree::
+
+    git archive cd0e93f5 orpheus | tar -x -C /tmp/era_repo
+    PYTHONPATH=/tmp/era_repo python derivations/diagnostics/diag_f4_qmc_quadrature.py
+
+or first re-point the patch at the current assembly's angular-node
+producer and re-verify seed-distinctness. The PG reference arm is
+fully LIVE at HEAD (probe: bit-exact against the era k table).
 """
 from __future__ import annotations
 
@@ -98,6 +128,8 @@ WALL_BUDGET_S = 600
 # QMC worker (runs F.4 with gl_float monkey-patched to scrambled Sobol')
 # -------------------------------------------------------------------------
 
+_DIAG_DIR = Path(__file__).resolve().parent
+
 _QMC_WORKER_CODE = textwrap.dedent(
     r"""
     # Batched QMC worker: build K_vol ONCE, then run n_scrambles closure
@@ -106,9 +138,9 @@ _QMC_WORKER_CODE = textwrap.dedent(
     import numpy as np
     from scipy.stats import qmc
 
-    sys.path.insert(0, '/workspaces/ORPHEUS/scratch/derivations/diagnostics')
-    from orpheus.derivations import peierls_geometry as pg
-    from orpheus.derivations.peierls_geometry import (
+    sys.path.insert(0, sys.argv[8])
+    from orpheus.derivations.continuous.peierls_nystrom import geometry as pg
+    from orpheus.derivations.continuous.peierls_nystrom.geometry import (
         CurvilinearGeometry, composite_gl_r, build_volume_kernel,
         build_closure_operator,
     )
@@ -145,7 +177,14 @@ _QMC_WORKER_CODE = textwrap.dedent(
     kvol_wall = time.time() - t_kvol
 
     # --- Monkey-patch gl_float; it's rebound per scramble ---
+    # The patch carries a called-flag tripwire: at the 2026-04 era every
+    # closure-assembly angular integral routed through the module-global
+    # gl_float, so the patch WAS the QMC mechanism. If the assembly no
+    # longer calls it (the post-era angular-primitive collapse removed
+    # all internal call sites), the k that comes back is DETERMINISTIC
+    # quadrature wearing a QMC label -- refuse loudly, never emit it.
     _orig_gl_float = pg.gl_float
+    _patch_called = [False]
     results = []
     total_closure_wall = 0.0
 
@@ -155,6 +194,7 @@ _QMC_WORKER_CODE = textwrap.dedent(
             sobol_u = sobol.random_base2(m=m_log2).ravel()
 
             def _gl_float_qmc(n, a, b, dps=30, _u=sobol_u, _N=n_qmc):
+                _patch_called[0] = True
                 nodes = a + (b - a) * _u
                 wts = np.full(_N, (b - a) / _N)
                 return nodes, wts
@@ -166,6 +206,15 @@ _QMC_WORKER_CODE = textwrap.dedent(
                 geom, r_nodes, r_wts, radii, sig_t,
                 reflection='white', n_angular=n_qmc, n_surf_quad=n_qmc, dps=15,
             )
+            if not _patch_called[0]:
+                raise RuntimeError(
+                    'Sobol patch did not bite: the closure assembly never '
+                    'called geometry.gl_float, so this "QMC" k would be '
+                    'deterministic quadrature in disguise. The QMC arm is '
+                    'era-bound -- run against the cd0e93f5 era tree (module '
+                    'docstring) or re-point the patch at the current '
+                    "assembly's angular-node producer first."
+                )
             K = K_vol + op.as_matrix()
             k = solve_k_eff(K, 1.0, 1.0/3.0, 1.0)
             dt = time.time() - t0
@@ -191,7 +240,7 @@ _QMC_WORKER_CODE = textwrap.dedent(
 _PG_WORKER_CODE = textwrap.dedent(
     r"""
     import json, sys, time
-    sys.path.insert(0, '/workspaces/ORPHEUS/scratch/derivations/diagnostics')
+    sys.path.insert(0, sys.argv[6])
     from diag_cin_aware_split_basis_keff import run_scalar_f4
 
     tau      = float(sys.argv[1])
@@ -216,7 +265,8 @@ _PG_WORKER_CODE = textwrap.dedent(
 def run_pg(tau, rho, quad, timeout=WALL_BUDGET_S):
     args = [sys.executable, "-c", _PG_WORKER_CODE,
             str(tau), str(rho),
-            str(quad["n_panels"]), str(quad["p_order"]), str(quad["n_ang"])]
+            str(quad["n_panels"]), str(quad["p_order"]), str(quad["n_ang"]),
+            str(_DIAG_DIR)]
     t0 = time.time()
     try:
         proc = subprocess.run(args, capture_output=True, text=True,
@@ -239,7 +289,8 @@ def run_qmc_batch(tau, rho, n_qmc, seed_lo, seed_hi, timeout=WALL_BUDGET_S):
     args = [sys.executable, "-c", _QMC_WORKER_CODE,
             str(tau), str(rho), str(n_qmc),
             str(seed_lo), str(seed_hi),
-            str(QMC_N_PANELS), str(QMC_P_ORDER)]
+            str(QMC_N_PANELS), str(QMC_P_ORDER),
+            str(_DIAG_DIR)]
     t0 = time.time()
     try:
         proc = subprocess.run(args, capture_output=True, text=True,
