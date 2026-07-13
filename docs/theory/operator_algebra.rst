@@ -1233,6 +1233,25 @@ duplicating what ``.inverse().apply`` already does. This executes the
 (taxonomy §11): *solving with an operator IS applying its inverse
 object*, ``A.inverse().apply(b)``.
 
+.. (vv-status rationale) The inverse-as-operator keystone (#226 Phase 2):
+   applying an operator's inverse OBJECT equals invoking its native
+   realization verb ``solve``. A foundation software invariant (no
+   eigenvalue / flux claim); the verifiable content is the bit-identity
+   gate ``tests/sn/operators/test_inverse_operator_equivalence.py``
+   (``(L+C).inverse().apply(b) == (L+C).solve(b)`` for the sweep-invertible
+   loss operator, plus the seed-drop and returned-surface-type checks).
+.. vv-status: inverse-as-operator documented
+
+.. math::
+   :label: inverse-as-operator
+
+   A^{-1} b \;=\; \texttt{A.inverse().apply(b)} \;=\; \texttt{A.solve(b)}
+
+For the sweep-invertible loss operator :math:`(L+C)` the native ``solve``
+IS the WDD sweep, so this keystone reads: applying the inverse object runs
+the same sweep the operator's own ``solve`` runs — no separate inverse
+machinery.
+
 **Deleted** (the algebra-closed and driver-realized kinds):
 
 - :class:`~orpheus.numerics.operator.OperatorSum` — a generic sum's
@@ -5289,8 +5308,11 @@ it through #205 Phase 5 is retired; see :ref:`wavefront-flux-cochain`).
 
 The dispatch is still guarded by a **single predicate** so the two
 geometry paths cannot drift: ``sn_mesh.reduced is not None`` is the
-**same** predicate :func:`~orpheus.sn.loss_representation.transport_sweep` uses to
-select the 1-D scan vs the 2-D wavefront body, and the **same**
+**same** predicate the representation dispatch
+(:func:`~orpheus.sn.loss_representation.default_for`, via each
+representation's ``supports``) reads to select the 1-D scan
+(:class:`~orpheus.sn.loss_representation.CumprodScan`) vs the 2-D
+wavefront body, and the **same**
 predicate the direct-helper guards
 (:func:`_solve_fixed_source_si <orpheus.sn.solver._solve_fixed_source_si>`,
 :func:`solve_sn <orpheus.sn.solver.solve_sn>`) check before calling
@@ -8086,8 +8108,9 @@ applies directly (:ref:`windowing-retyped` and
    - **2-D Cartesian only; the rest is untouched.** Gated on the genuine
      ``sn_mesh.is_cartesian and sn_mesh.ndim == 2`` (the C5.4 / #225
      sharpening of 5a's ``reduced is None`` proxy — the proxy was also
-     true at 3-D Cartesian); ``transport_sweep`` *raises*
-     on a 1-D mesh given a moment projection (illegal-states-
+     true at 3-D Cartesian); the 1-D scan representation
+     (:class:`~orpheus.sn.loss_representation.CumprodScan`) *raises*
+     on a moment frame (illegal-states-
      unrepresentable). Curvilinear / Krylov stay full-angular; both
      one-shot ``Solution.angular_flux`` reconstructions stay separate
      full sweeps.
@@ -8395,7 +8418,9 @@ Honest scope — what 5c does and does NOT do
    * **Both** ``Solution.angular_flux`` **reconstructions stay full
      sweeps.** The eigenvalue final reconstruction and the fixed-source
      windowed one-shot reconstruction each re-run a *separate*
-     full-angular ``transport_sweep`` to return the user-facing
+     full-angular sweep — the within-group resolvent ``solve``
+     (:func:`~orpheus.sn.coupled_system.build_within_group_system`,
+     applying its ``.resolvent``) — to return the user-facing
      :math:`(N, n_g, n_x, n_y)` field. They are **untouched** — the
      user-facing angular flux is bit-identical (the
      :math:`\Sigma w\psi = \phi` self-consistency gate and the step-3
@@ -8406,8 +8431,9 @@ Honest scope — what 5c does and does NOT do
      iterate at :math:`\mu = -1` (lesson L21), which the moment tensor
      cannot carry. Both are gated out by the genuine
      ``sn_mesh.is_cartesian and sn_mesh.ndim == 2`` (C5.4 / #225 — 3-D
-     Cartesian is excluded too); ``transport_sweep`` *raises* if a moment
-     projection reaches a 1-D mesh, so the unwindowable regime is
+     Cartesian is excluded too); the 1-D scan
+     (:class:`~orpheus.sn.loss_representation.CumprodScan`) *raises* if a
+     moment frame reaches it, so the unwindowable regime is
      unrepresentable, not merely unreached.
 
 So the three-phase arc is complete: **5a** holds the persistent iterate
@@ -8454,11 +8480,11 @@ dependency-injection idiom of :func:`_sweep_scheduled <orpheus.sn.loss_represent
 * the per-group octant frame (``sweep_octant_group`` then, since S6.4(b),
   ``_OctantWalk.sweep_group``) /
   :func:`_sweep_scheduled <orpheus.sn.loss_representation._sweep_scheduled>` /
-  :func:`_sweep_jacobi <orpheus.sn.loss_representation._sweep_jacobi>` /
-  :func:`transport_sweep <orpheus.sn.loss_representation.transport_sweep>` — thread the
-  optional ``moment_projection`` (2-D Cartesian only; ``transport_sweep``
-  raises on a 1-D mesh). Moment mode skips the per-octant angular
-  allocation and ``_sweep_2d_scheduled`` returns ``(moment_buf, None)``.
+  :func:`_sweep_jacobi <orpheus.sn.loss_representation._sweep_jacobi>` — thread the
+  optional ``moment_frame`` (2-D Cartesian only; the 1-D scan
+  ``CumprodScan.sweep`` raises on a moment frame). Moment mode skips the
+  per-octant angular allocation and the scheduled 2-D body returns
+  ``(moment_buf, None)``.
 * the private
   :meth:`InvertibleOperator._solve_timed_full_field
   <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`

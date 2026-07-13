@@ -1892,13 +1892,13 @@ consume the operator's one instance.
 
 .. note::
 
-   **Deliberate scope boundary.** The module-level
-   The operator-free ``transport_sweep`` entry RETIRED at step 6 with
-   its one production caller: the ``solve_sn`` post-convergence
-   reconstruction re-routed onto the within-group resolvent
-   (``build_within_group_system(...).resolvent`` — 6a), so every
-   remaining sweep runs through an operator's ONE representation
-   instance and the one-instance theorem now covers all doors.
+   **Deliberate scope boundary.** The operator-free ``transport_sweep``
+   entry RETIRED at step 6 (R-6.1) with its one production caller: the
+   ``solve_sn`` post-convergence reconstruction re-routed onto the
+   within-group resolvent (``build_within_group_system(...).resolvent`` —
+   6a), so every remaining sweep runs through an operator's ONE
+   representation instance and the one-instance theorem now covers all
+   doors.
 
 
 .. _loss-rep-orientation-two-frames:

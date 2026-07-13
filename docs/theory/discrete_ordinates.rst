@@ -68,8 +68,9 @@ Key Facts
   / :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`).
   See :ref:`sweep-octant-dependency-graph`.
 - **Both the 1-D and 2-D sweeps are BARE** (Wave O steps O.4a.2 +
-  O.4b, Issue #208): :func:`~orpheus.sn.loss_representation.transport_sweep` (1-D)
-  and :func:`~orpheus.sn.loss_representation._sweep_jacobi` (2-D) no longer
+  O.4b, Issue #208): the 1-D scan
+  (:meth:`~orpheus.sn.loss_representation.CumprodScan.sweep`)
+  and the 2-D :func:`~orpheus.sn.loss_representation._sweep_jacobi` no longer
   re-apply ``bc`` to the outflow — they read the *seeded* inflow
   trace directly. The reflective coupling :math:`\psi.\text{inflow} =
   B\,\psi.\text{outflow}` is delivered as a sibling :math:`-B` source
@@ -254,27 +255,25 @@ mesh) is shared with :ref:`theory-collision-probability` and
 Quadrature Dispatch
 -------------------
 
-The sweep dispatcher in :func:`transport_sweep` routes based on the
-``SNMesh.curvature`` attribute and the quadrature type.  Boundary
-conditions are **not** passed as a parameter to the sweep --- the
-sweep reads the resolved BC kind strings directly from the
-face-name-keyed :attr:`SNMesh.bc` dict (``sn_mesh.bc["xmin"]``,
-``sn_mesh.bc["xmax"]``, ...; see :ref:`bc-face-name-carve`):
-
-.. code-block:: python
-
-   if sn_mesh.curvature == "spherical":
-       return _sweep_1d_spherical(...)
-   elif sn_mesh.curvature == "cylindrical":
-       return _sweep_1d_cylindrical(...)
-   elif is_gl_1d:            # ny=1, mu_y=0, no aniso source
-       return _sweep_1d_cumprod(...)
-   else:
-       return _sweep_jacobi(...)
+The geometry-and-quadrature dispatch is a first-class polymorphism:
+:func:`~orpheus.sn.loss_representation.default_for` selects the
+:class:`~orpheus.sn.loss_representation.LossRepresentation` whose declared
+``supports`` predicate matches the mesh — the 1-D chain scan
+(:class:`~orpheus.sn.loss_representation.CumprodScan`, any geometry) or the
+multi-D anti-hyperplane wavefront — and the operator then calls it
+branchlessly.  (This replaced the pre-carve procedural branch on the
+``SNMesh.curvature`` string tags and the since-retired operator-free
+``transport_sweep`` entry; the full carve is documented in
+:doc:`loss_representations`.)  Boundary conditions are **not** passed as
+a parameter to the sweep --- it reads the resolved BC kind strings
+directly from the face-name-keyed :attr:`SNMesh.bc` dict
+(``sn_mesh.bc["xmin"]``, ``sn_mesh.bc["xmax"]``, ...; see
+:ref:`bc-face-name-carve`).
 
 For 1D meshes (``ny=1``):
 
-- **Gauss--Legendre** quadrature takes the fast cumprod path (all
+- **Gauss--Legendre** quadrature takes the fast 1-D chain-scan
+  (:class:`~orpheus.sn.loss_representation.CumprodScan`) path (all
   :math:`\mu_y = 0`, so no y-streaming).
 - **Lebedev** quadrature falls through to the 2D wavefront sweep.
   Ordinates with :math:`\mu_x \neq 0` stream along *x*; the
@@ -6337,10 +6336,25 @@ Implemented in :func:`_sweep_1d_spherical` and
 Unified sweep dispatch
 -----------------------
 
-Wave D Round 2 of the SN reshape campaign (Issue #161) consolidates
+.. note::
+
+   **Superseded (coupled-block campaign step 6, R-6.1, 2026-07-12).**
+   This section records the Wave-D Round-2 consolidation (#161) — the
+   *first* unification of the four sweep paths under a single entry, the
+   operator-free ``transport_sweep``.  That entry was itself retired at
+   step 6; the dispatch is now the first-class ``LossRepresentation``
+   polymorphism (:func:`~orpheus.sn.loss_representation.default_for` selects
+   :class:`~orpheus.sn.loss_representation.CumprodScan` for the 1-D scan,
+   the anti-hyperplane wavefront for multi-D), documented in
+   :doc:`loss_representations`.  The Wave-D narrative below is preserved as
+   the origin of that unification: read ``transport_sweep`` and the
+   ``ReducedStreamingOperator`` boolean-dispatch code as the then-current
+   implementation, not today's.
+
+Wave D Round 2 of the SN reshape campaign (Issue #161) consolidated
 the four pre-existing sweep paths (1-D cumprod / 2-D wavefront /
-spherical / cylindrical) under one
-:func:`~orpheus.sn.loss_representation.transport_sweep` entry point that branches
+spherical / cylindrical) under one operator-free ``transport_sweep``
+entry point that branched
 on a single boolean from the
 :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
 primitive (Wave B Issue #6 / Wave D Round 1):
@@ -7392,8 +7406,9 @@ Wave O step O.4a.2 (Issue #208, commits ``d7e1316`` / ``4c0ff96`` /
 ``2bdc66d``, 2026-06-03) **removed the boundary law from the 1-D
 sweep entirely**. The boundary-edge ``inflow_full =
 bc_outer.apply(outflow_at_boundary.T)`` line shown above (the
-"keystone") is **deleted**; the 1-D :func:`~orpheus.sn.loss_representation.transport_sweep`
-entry now reads the *seeded* inflow trace directly:
+"keystone") is **deleted**; the 1-D ``transport_sweep`` entry (then the
+production sweep, since retired at step 6) read the *seeded* inflow trace
+directly:
 
 .. code-block:: python
 
@@ -9025,9 +9040,9 @@ Phase D Carlson seed is invoked by
 :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` via the
 ``MorelMontryAngularSweep.psi_half_seed`` composition; that
 covers every Krylov-driven call.  But ORPHEUS's curvilinear
-production default is **source iteration**, which dispatches
-through :func:`~orpheus.sn.loss_representation.transport_sweep` rather than
-through the apply matvec, and the two paths run **different code**
+production default is **source iteration**, which (pre-Phase-F) dispatched
+through the then-production ``transport_sweep`` entry rather than
+through the apply matvec, and the two paths ran **different code**
 to seed the M-M half-angle recurrence:
 
 .. list-table:: Apply vs SI/sweep dispatch divergence (pre-Phase-F)
@@ -9168,10 +9183,10 @@ Same materials, same quadrature, same mesh, same
 :class:`MorelMontryAngularSweep` pole closure with the Phase D
 Carlson seed installed on its ``psi_half_seed`` field — the
 **only** difference is which inner-solver dispatch is used.
-The Krylov path goes through
+The Krylov path went through
 :meth:`InvertibleOperator.apply` (which consumes the Phase D
-Carlson seed correctly); the SI path goes through
-:func:`transport_sweep` (which carries the **legacy zero
+Carlson seed correctly); the SI path went through the then-production
+``transport_sweep`` entry (which carried the **legacy zero
 seed** untouched by Phase D).
 
 This split is the smoking gun that pins the bug to
@@ -9963,7 +9978,7 @@ sweep's pole outflow read **at the mirror ordinate** — concretely,
 the fused matvec
 (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk` and
 its adjoint partner) and ``psi_in = pole_outflow[mirror[global_n]]`` in
-the SI sweep twin (:meth:`~orpheus.sn.loss_representation.transport_sweep`).
+the SI sweep twin (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep`).
 That single index — ``reflection_index("x")[n]`` — is what makes the
 seed correct, and it carries a load-bearing assumption that is invisible
 in the code but essential to the physics.
@@ -10452,7 +10467,7 @@ oracle), ERR-058 deletes no correct machinery:
        comparison.
    * - Coupled-pole spatial seed in
        :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`
-       / :meth:`~orpheus.sn.loss_representation.transport_sweep`
+       / :meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep`
      - **production**
      - The :math:`\psi(0,+\mu)=\psi(0,-\mu)` continuity; matvec + sweep
        share it (one discrete system).
@@ -11351,8 +11366,8 @@ kept at **full order**, not collapsed to :math:`L = 0`.  The single q½
 fold factory
 :meth:`RadialCharacteristicField.source_from_angular <orpheus.transport.radial_characteristic_field.RadialCharacteristicField.source_from_angular>`
 folds every moment the level resolves; the solver cold-start, the
-fixed-source right-hand side, and the operator-free
-:func:`~orpheus.sn.loss_representation.transport_sweep` all route through
+fixed-source right-hand side, and the within-group joint march (the
+System-B q½ source fed to the resolvent grid) all route through
 it (Pattern 2 — the :math:`P_1(-1)` sign is spelled **once**).
 
 **The full fold is load-bearing, and this is the subtle part.**  It is
@@ -12711,9 +12726,9 @@ mesh declares (defaulting to reflective on all faces).
 .. note::
 
    Before this infrastructure existed, the SN solver hardcoded
-   reflective BCs on all faces and :func:`transport_sweep` accepted
-   a ``boundary_condition: str`` parameter.  That parameter has been
-   removed --- BCs now flow exclusively through the mesh → SNMesh
+   reflective BCs on all faces and the then-production ``transport_sweep``
+   entry accepted a ``boundary_condition: str`` parameter.  That parameter
+   has been removed --- BCs now flow exclusively through the mesh → SNMesh
    resolution path described above.
 
 Supported Types
@@ -13187,8 +13202,8 @@ polynomial of degree :math:`\leq L`.
    ``Q_aniso[n, :, :, :]``.
 
 4. The resulting ``Q_aniso`` array of shape ``(N, ng, nx, ny)`` is
-   passed to :func:`transport_sweep`, which adds it to the isotropic
-   source on a per-ordinate basis.
+   added to the isotropic source on a per-ordinate basis and consumed by
+   the within-group sweep (the resolvent ``solve``).
 
 **Equivalence of the code to the mathematical form.**
 Equation :eq:`pn-scatter` writes the sum as
@@ -13265,7 +13280,8 @@ The normalization chain in the code ensures consistent scaling:
 2. **Scattering source** (:meth:`SNSolver._add_scattering_source`):
    :math:`Q_s = \text{SigS}^T \cdot \phi` --- also un-normalised.
 
-3. **Sweep** (:func:`transport_sweep`): applies
+3. **Sweep** (the within-group resolvent ``solve``,
+   :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`): applies
    :math:`Q_{\rm scaled} = Q \cdot w_{\rm norm}` where
    :math:`w_{\rm norm} = 1/\sum w_n`.  This is the :math:`1/W` division
    in the S\ :sub:`N` equation.
@@ -13531,9 +13547,10 @@ The full operator surface — apply, solve, apply_transpose
   **extracted verbatim**; the new class is a thin Protocol wrapper.
 
 * :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` —
-  inverse action :math:`A^{-1}\,q` via the Wave D Round 2 unified
-  sweep (:func:`~orpheus.sn.loss_representation.transport_sweep`).  Bit-identical
-  to a direct :func:`transport_sweep` call on the same arguments.
+  inverse action :math:`A^{-1}\,q` via the operator's own
+  :attr:`~orpheus.sn.operators.streaming.InvertibleOperator.loss_representation`
+  sweep (the WDD forward substitution; the 1-D scan or multi-D wavefront
+  selected by :func:`~orpheus.sn.loss_representation.default_for`).
 
 * :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose` —
   adjoint action :math:`A^*\,\psi`.  Implemented via the explicit
@@ -13566,8 +13583,9 @@ for different consumers:
   :mod:`orpheus.sn.operators.streaming`).
 
 * The **sweep operator**
-  (:func:`~orpheus.sn.loss_representation.transport_sweep`, dispatching through
-  the Wave D Round 2 :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`
+  (:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`,
+  dispatching its selected representation through the
+  :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`
   Protocol with :class:`~orpheus.transport.spatial.diamond.DiamondDifference`
   as the default strategy) uses the **WDD asymmetric closure**
   :math:`\psi_{n+1/2} = (\overline\psi - (1-\tau)\,\psi_{n-1/2})/\tau`.
@@ -13673,8 +13691,8 @@ vector is laid out group-major in Fortran order.  This is the
 natural input shape for :func:`scipy.sparse.linalg.bicgstab` and
 the canonical layout for the Wave E Krylov-on-apply path.
 
-:meth:`solve` operates on **structured arrays** matching
-:func:`transport_sweep`'s contract, in the principled
+:meth:`solve` operates on **structured arrays** matching the within-group
+sweep's array contract, in the principled
 ``(ng, nx, ny)`` / ``(N, ng, nx, ny)`` layout
 (see :ref:`theory-sn-index-convention`):
 
@@ -15547,12 +15565,11 @@ reflection step itself).
 
 .. note::
 
-   Before the BC infrastructure was introduced,
-   :func:`~orpheus.sn.loss_representation.transport_sweep` accepted a
-   ``boundary_condition: str`` parameter directly.  That parameter
-   has been removed --- BCs now flow through the mesh → SNMesh
-   resolution path.  The description above reflects the current
-   implementation.
+   Before the BC infrastructure was introduced, the then-production
+   ``transport_sweep`` entry accepted a ``boundary_condition: str``
+   parameter directly.  That parameter has been removed --- BCs now flow
+   through the mesh → SNMesh resolution path.  The description above
+   reflects the current implementation.
 
 **Measured convergence.**  With
 :math:`\Sigma_t = 1\ \mathrm{cm^{-1}}`,

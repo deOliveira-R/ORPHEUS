@@ -2187,8 +2187,9 @@ contract on the apply-matvec path (the within-group operator,
 matvec lives at :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_unified`).  Phase F
 (Issue #168 Phase F, 2026-05-12, also landed on
 ``refactor/sn-operator-algebra``) propagates the same pattern to the
-**SI/sweep path** (:func:`~orpheus.sn.loss_representation.transport_sweep` →
-``_sweep_1d_spherical`` (the dissolved ``sweep.py``) /
+**SI/sweep path** (the then-production ``transport_sweep`` entry — since
+retired at the coupled-block campaign step 6 (R-6.1, 2026-07-12) —
+dispatching to ``_sweep_1d_spherical`` (the dissolved ``sweep.py``) /
 ``_sweep_1d_cylindrical``).  See
 :ref:`sn-phase-f-carlson-sweep-path-backport` in
 :doc:`discrete_ordinates` for the math and the

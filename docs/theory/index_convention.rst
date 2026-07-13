@@ -462,8 +462,7 @@ The six PRs
        ``SNFixedSourceResult`` / ``SNResult`` (RETIRED in Issue #197
        PR-TYPED-5; now :class:`~orpheus.sn.solution.Solution`)
        storage flipped to ``(N, ng, nx, ny)`` / ``(ng, nx, ny)``;
-       :func:`~orpheus.sn.loss_representation.transport_sweep` PUBLIC contract
-       principled;
+       ``transport_sweep`` PUBLIC contract principled;
        :func:`~orpheus.sn.solver.solve_sn` /
        :func:`~orpheus.sn.solver.solve_sn_fixed_source` return shapes
        flipped; external-source contract ``(N, ng, nx, ny)``.
@@ -778,8 +777,8 @@ axes :math:`(n_x, n_y)`.
      - ``(N_inflow, ng)`` per face
      - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
        face views, keyed by face name (``face_view("xmin")`` …) —
-       the pre-#197 ``psi_bc`` dict is retired
-       (:func:`~orpheus.sn.loss_representation.transport_sweep`)
+       the pre-#197 ``psi_bc`` dict (the boundary arg of the since-retired
+       ``transport_sweep``) is retired
 
 The conversion functions between the two principal types are the
 load-bearing primitives of the operator algebra: ``to_scalar()`` is
@@ -797,8 +796,8 @@ Source / RHS vocabulary
 The four-operator algebra :math:`(L + C - S - F/k)\psi = q` has a
 typed RHS.  The "source" :math:`q` is a deliberate split into
 direction-independent (``ScalarSourceSink``) and per-ordinate
-(``AngularSourceSink``) contributions — the sweep at
-:func:`~orpheus.sn.loss_representation.transport_sweep` consumes both, and the
+(``AngularSourceSink``) contributions — the within-group sweep (the
+resolvent ``solve``) consumes both, and the
 internal P₀ + (n,2n) accumulation in
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` emits the first
 while the P\ :sub:`ℓ≥1` accumulation emits the second.
@@ -816,7 +815,7 @@ while the P\ :sub:`ℓ≥1` accumulation emits the second.
      - :math:`q(r, g)` --- direction-independent external source
      - 1/(cm³·s·sr)
      - ``(ng, nx, ny)``
-     - ``Q`` arg of :func:`~orpheus.sn.loss_representation.transport_sweep`;
+     - ``Q`` arg of the retired ``transport_sweep``;
        ``Q_iso`` in
        :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply`
    * - ``AngularSourceSink``
@@ -824,8 +823,7 @@ while the P\ :sub:`ℓ≥1` accumulation emits the second.
        boundary) source
      - 1/(cm³·s·sr)
      - ``(N, ng, nx, ny)``
-     - ``Q_aniso`` arg of
-       :func:`~orpheus.sn.loss_representation.transport_sweep`;
+     - ``Q_aniso`` arg of the retired ``transport_sweep``;
        output of
        :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.build_aniso_source`
    * - ``ResidualSource``
@@ -844,7 +842,7 @@ while the P\ :sub:`ℓ≥1` accumulation emits the second.
 
 The shape distinction between the two source flavours
 (``(ng, nx, ny)`` vs ``(N, ng, nx, ny)``) is load-bearing: the
-sweep at :func:`~orpheus.sn.loss_representation.transport_sweep` avoids a wasteful
+within-group sweep avoids a wasteful
 :math:`N`-fold broadcast of the isotropic part by accepting both
 splits.
 
@@ -1015,12 +1013,12 @@ Two derived combinations carry their own names:
 
 - The fusion target :math:`A_{wg} = L + C - S_{\text{foldable}}`
   is the within-group system; its ``solve`` routes through the
-  fused :func:`~orpheus.sn.loss_representation.transport_sweep` (the
+  fused sweep (the
   ``L + C`` composition rule mints the sweep-invertible
   :class:`~orpheus.sn.operators.streaming.InvertibleOperator`, whose
-  own ``solve`` override emits one call to the sweep rather than the
-  unfused Krylov outer-iteration — the generic ``OperatorSum`` carries
-  no ``solve`` at all since carve P4).
+  own ``solve`` override runs the sweep on its selected representation
+  rather than the unfused Krylov outer-iteration — the generic
+  ``OperatorSum`` carries no ``solve`` at all since carve P4).
 - The multiplication operator :math:`K = A_{\text{loss}}^{-1} F`
   carries the k-eigenvalue iteration; lives implicitly in
   :meth:`~orpheus.sn.solver.SNSolver.solve_eigenvalue`.
@@ -1115,21 +1113,21 @@ lives in scattered docstrings.
    * - :class:`SNSolver`.\ ``angular_flux``
      - ``(N, ng, nx, ny)``
      - :class:`SNResult`
-   * - :func:`transport_sweep` input ``Q``
+   * - SN sweep input ``Q`` (isotropic source)
      - ``(ng, nx, ny)``
-     - :func:`~orpheus.sn.loss_representation.transport_sweep`
-   * - :func:`transport_sweep` input ``sig_t``
+     - :meth:`~orpheus.sn.loss_representation.CumprodScan.sweep`
+   * - SN sweep input ``sig_t``
      - ``(ng, nx, ny)``
-     - :func:`~orpheus.sn.loss_representation.transport_sweep`
-   * - :func:`transport_sweep` input ``Q_aniso``
+     - :meth:`~orpheus.sn.loss_representation.CumprodScan.sweep`
+   * - SN sweep per-ordinate source (folded into ``Q``)
      - ``(N, ng, nx, ny)``
-     - :func:`~orpheus.sn.loss_representation.transport_sweep`
-   * - :func:`transport_sweep` return ``angular_flux``
+     - :meth:`~orpheus.sn.loss_representation.CumprodScan.sweep`
+   * - SN sweep return ``angular_flux``
      - ``(N, ng, nx, ny)``
-     - :func:`~orpheus.sn.loss_representation.transport_sweep`
-   * - :func:`transport_sweep` return ``scalar_flux``
+     - :meth:`~orpheus.sn.loss_representation.CumprodScan.sweep`
+   * - SN sweep return ``scalar_flux``
      - ``(ng, nx, ny)``
-     - :func:`~orpheus.sn.loss_representation.transport_sweep`
+     - :meth:`~orpheus.sn.loss_representation.CumprodScan.sweep`
    * - :func:`solve_sn_fixed_source` input ``external_source``
      - ``(N, ng, nx, ny)``
      - :func:`~orpheus.sn.solver.solve_sn_fixed_source`
@@ -1200,8 +1198,8 @@ fail at construction time (Pattern 4 — illegal states unrepresentable).
    The full rich-narrative version of this section — derivation of each
    type's domain semantics, units, the dunder algebra and its
    correspondence to the operator-equation form ``(L + C − S − F/k) ψ
-   = q``, and a worked walk-through of the
-   :func:`~orpheus.sn.loss_representation.transport_sweep` AngularBoundaryFlux contract —
+   = q``, and a worked walk-through of the within-group sweep's
+   AngularBoundaryFlux contract —
    should be authored by the **archivist** sub-agent.  This section
    is the stub written by the method-implementer per
    ``algebra-of-record``'s Sphinx stub vs rich narrative discipline.
@@ -1382,20 +1380,24 @@ Source density and flux carry the same numpy storage shape but are
 different physical quantities — keeping the types distinct enforces
 the algebraic distinction at the dunder layer.
 
-Transport-sweep typed input
----------------------------
+Typed sweep input
+-----------------
 
-:func:`~orpheus.sn.loss_representation.transport_sweep` accepts both typed and bare
-inputs (one-cycle deprecation alias preserves the ``Q_aniso=`` keyword)::
+The production within-group sweep is a **typed operator surface**: the
+loss operator's ``solve``
+(:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`) consumes
+a typed source field and returns a typed angular-flux field; the isotropic
+and per-ordinate source contributions ride the one typed source object,
+not a separate ``Q_aniso=`` keyword.  The bare
+``(Q, sig_t, boundary_flux)`` ndarray contract survives one layer down, in
+the representation ``sweep`` methods
+(:meth:`~orpheus.sn.loss_representation.CumprodScan.sweep` /
+:func:`~orpheus.sn.loss_representation._sweep_jacobi`), where the internal
+hot path consumes bare ndarray throughout.
 
-    iso = sn_mesh.zeros_isotropic_source()
-    aniso = sn_mesh.zeros_per_ordinate_source()
-    angular, scalar = transport_sweep(
-        iso, sig_t, sn_mesh, boundary_flux, aniso_source=aniso,
-    )
-
-The internal hot path consumes bare ndarray throughout; the typed
-inputs are unwrapped at the entry boundary.
+(The pre-#197 ``transport_sweep``-era typed/bare deprecation alias — the
+one-cycle ``Q_aniso=`` keyword and the bare/typed dual entry — retired with
+the operator-free ``transport_sweep`` entry at step 6, R-6.1.)
 
 ScatteringOperator typed action
 -------------------------------

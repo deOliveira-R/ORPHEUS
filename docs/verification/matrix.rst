@@ -589,7 +589,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
    ``kin-kernel-special-values``, 6
-   ``ld-cartesian-1d``, 6
+   ``ld-ubld-d1-reduction``, 6
    ``peierls-greens-slab-T``, 6
    ``singular-eigenfunction-eq54``, 6
    ``sn-space-angle-separability``, 6
@@ -673,7 +673,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``branching``, 1
    ``collision-estimator``, 1
    ``e1-decomposition``, 1
-   ``ld-ubld-d1-reduction``, 1
    ``majorant``, 1
    ``moment-projection-transpose-T``, 1
    ``nm1980-eq15-critical-condition``, 1
@@ -834,7 +833,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **293** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **294** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -932,6 +931,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``hilbert-adjoint-equals-metric-times-S0``
 - ``in-scatter-full-contraction``
 - ``integral-kernel-category``
+- ``inverse-as-operator``
 - ``keff-as-integrated-rates``
 - ``kll-1974-slab-phi``
 - ``kll-1974-sphere-phi``
