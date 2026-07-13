@@ -3,7 +3,7 @@ r"""L14 four-leg standoff — slab + cylinder via the typed operator algebra.
 Per ``.claude/lessons.md`` L14, solver correctness is four-legged:
 
 1.  **Algorithm 1 (Krylov via ``(L + C)``) ≡ structurally-independent reference.**
-2.  **Algorithm 2 (sweep via ``transport_sweep``) ≡ structurally-independent reference.**
+2.  **Algorithm 2 (sweep via ``sweep_once`` — the production strategy path) ≡ structurally-independent reference.**
 3.  **Algorithm 1 ≡ Algorithm 2** (twin-path agreement).
 4.  **All three under mesh refinement** (right rate to right limit).
 
@@ -28,10 +28,11 @@ References (semi-analytical pillar per ``vv-principles``):
   SN code (no shared FP path, no shared redist closure, no shared
   boundary recurrence).
 
-Sweep route (``inner_solver="source_iteration"``) routes through
-``transport_sweep`` / ``DiscretizationScheme.update``, which uses WDD
+Sweep route (``inner_solver="source_iteration"``) routes through the
+``(L+C)`` strategy sweep / ``DiscretizationScheme.update``, which uses WDD
 (Cartesian) / the same per-cell algebra as
-:func:`transport_operator_matvec_unified` (curvilinear).
+:func:`transport_operator_matvec_unified` (curvilinear).  (The operator-free
+``transport_sweep`` entry retired at the coupled-block campaign step 6.)
 """
 from __future__ import annotations
 
@@ -179,7 +180,7 @@ _CYL_TWIN_RTOL = 1.0e-5
 def test_cylinder_l1_sweep_vs_trajectory_resolvent() -> None:
     r"""**Cylinder Leg 2** — sweep ≡ trajectory_resolvent reference.
 
-    Production source-iteration path (``transport_sweep`` /
+    Production source-iteration path (the ``(L+C)`` strategy sweep /
     ``DiscretizationScheme.update``) on the 3-region 2G ABA cylinder. No shim:
     the sweep already uses the WDD-correct per-cell algebra that the
     unified matvec also wraps.

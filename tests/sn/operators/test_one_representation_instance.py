@@ -24,10 +24,12 @@ as delegation would make ``A.loss_representation is L.loss_representation``
 true by spelling; what the spy proves is that the SOLVE PATH actually runs on
 that object.
 
-NOTE the deliberate scope boundary: the module-level :func:`transport_sweep`
-REMAINS an operator-free functional entry (it still selects via
-``default_for`` — its callers have no operator to hold an instance for).  The
-one-instance theorem is about the OPERATOR's doors.
+NOTE the scope boundary DISSOLVED at the coupled-block campaign step 6
+(R-6.1): the module-level ``transport_sweep`` operator-free entry — which
+legitimately selected via ``default_for`` per call — is retired; every
+production solve now rides an operator (test callers build a fresh one via
+``tests.sn._test_helpers.sweep_once``).  The one-instance theorem is about a
+LONG-LIVED operator's doors, and is now the only selection discipline left.
 
 ``-O``-safe (vv Mode 8): ``pytest.fail`` only — no bare asserts.
 ``foundation`` — software-structure invariants (no theory ``:label:``).

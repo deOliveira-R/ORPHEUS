@@ -1,7 +1,7 @@
 r"""Wave O (#208) step O.4a.2 — the MATVEC BC-extraction gates.
 
 This file pins the **matvec / ``.apply`` path** carve of O.4a.2 ONLY.
-It does NOT touch the sweep (``transport_sweep`` / ``(L+C).solve`` — that
+It does NOT touch the sweep (``(L+C).solve`` — that
 is O.4a.3) nor the solver rewire (SI seeding retirement, ``q.boundary``
 typing, the through-solver reflective convergence — that is O.4a.4).
 

@@ -630,7 +630,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
 
     # Build the SN operator triple from the same precomputed solver
     # data used for the reference run.  ``A_inv_adapter`` (defined
-    # below) wraps :func:`transport_sweep` directly; the
+    # below) wraps ``sweep_once`` directly; the
     # :class:`InvertibleOperator` (= ``L + C``) on the SNSolver is
     # unused here.  Solver instance retained to provide
     # ``solver.scattering_op`` / ``solver.fission_op`` / ``solver.mat_xs``.

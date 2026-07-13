@@ -463,7 +463,7 @@ class TestSolve:
         ``ScatteringOperator.apply`` or ``AngularSourceSink.from_isotropic``
         — applied ``/sum_w`` at the producer boundary).  The
         ``InvertibleOperator.solve`` adapter MUST forward the bulk
-        values to :func:`transport_sweep` *bit-equal* — no internal
+        values to the strategy sweep *bit-equal* — no internal
         ``* sum_w`` bridge, no ``/sum_w`` rescaling.
 
         Pre-A1 the adapter wrapped ``rhs.values * sum_w`` into the sweep

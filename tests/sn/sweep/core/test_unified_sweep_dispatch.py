@@ -9,16 +9,20 @@ on the chosen ``_sweep_*`` function being *called* (monkeypatching the
 module-level name).  The carve replaced that branch with a first-class,
 selectable :class:`~orpheus.sn.loss_representation.LossRepresentation`:
 :func:`~orpheus.sn.loss_representation.default_for` picks the strategy, and
-``transport_sweep`` delegates to ``strategy.sweep``.  The spy mechanism no
-longer applies (the strategy holds its own reference to the sweep body),
-so the dispatch contract is now pinned at its single source of truth:
+the sweep entry delegates to ``strategy.sweep``.  (The operator-free
+``transport_sweep`` entry itself retired at the coupled-block campaign
+step 6, R-6.1; the production entry is the ``(L+C)`` operator's solve,
+exercised here via ``tests.sn._test_helpers.sweep_once``.)  The spy
+mechanism no longer applies (the strategy holds its own reference to the
+sweep body), so the dispatch contract is now pinned at its single source
+of truth:
 
 * the SELECTION — ``default_for(mesh)`` returns the right strategy class:
   ALL 1-D meshes (slab, sphere, cylinder; ``is_1d``) →
   :class:`~orpheus.sn.loss_representation.CumprodScan`; multi-D Cartesian →
   :class:`~orpheus.sn.loss_representation.ScanMarch` (the S6.9 Fork-B2
   production default);
-* the ROUTING — ``transport_sweep`` delegates to
+* the ROUTING — the sweep entry delegates to
   ``default_for(mesh).sweep(...)`` exactly once.
 
 ``-O``-safe (vv Mode 8): every gate is a ``np.testing`` / ``pytest.fail``
@@ -621,23 +625,25 @@ class TestSchemeTraitProbe:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# TestTransportSweepDelegatesToStrategy — the ROUTING half of the contract
+# TestSweepEntryDelegatesToStrategy — the ROUTING half of the contract
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestTransportSweepDelegatesToStrategy:
-    """``transport_sweep`` routes through ``default_for(mesh).sweep`` once.
+class TestSweepEntryDelegatesToStrategy:
+    """The sweep entry routes through ``default_for(mesh).sweep`` once.
 
     The ROUTING half of the dispatch contract (the SELECTION half is
-    :class:`TestDispatchSelectsStrategy`).  Since S6.4(f) ``transport_sweep``
-    lives IN ``loss_representation`` and reads the module-global
-    ``default_for`` at call time, so patching
-    ``loss_representation.default_for`` is seen — the spy confirms the
-    dispatcher *delegates to the selected strategy* rather than re-deciding
-    the branch itself.  Geometry-agnostic: the same delegation holds for the
-    1-D scan and the 2-D window.  (S6.5 scope note: this is the operator-FREE
-    functional entry, which legitimately selects per call; the OPERATOR's
-    solve consumes its own ``loss_representation`` instance and is pinned by
-    ``test_one_representation_instance.py``.)
+    :class:`TestDispatchSelectsStrategy`).  The entry under test is
+    ``sweep_once`` — a FRESH ``(L+C)`` operator per call, whose
+    ``loss_representation`` cached_property reads the module-global
+    ``default_for`` at first access — so patching
+    ``loss_representation.default_for`` is seen: the spy confirms the
+    solve *delegates to the selected strategy* rather than re-deciding
+    the branch itself.  Geometry-agnostic: the same delegation holds for
+    the 1-D scan and the 2-D window.  (Scope note: a fresh operator
+    legitimately selects per call; a LONG-LIVED operator's doors consume
+    its ONE instance — pinned by ``test_one_representation_instance.py``.
+    The operator-free ``transport_sweep`` entry this class historically
+    pinned retired at the coupled-block campaign step 6, R-6.1.)
     """
 
     @pytest.mark.foundation
@@ -645,7 +651,7 @@ class TestTransportSweepDelegatesToStrategy:
         "mesh_factory", [_slab_sn_mesh, _2d_sn_mesh], ids=["slab", "cart2d"],
     )
     def test_delegates_to_selected_strategy(self, monkeypatch, mesh_factory):
-        """transport_sweep calls the selected strategy's ``sweep`` exactly once."""
+        """The sweep entry calls the selected strategy's ``sweep`` exactly once."""
         sn_mesh = mesh_factory()
         import orpheus.sn.loss_representation as loss_representation
 
@@ -671,7 +677,7 @@ class TestTransportSweepDelegatesToStrategy:
 
         if calls["sweep"] != 1:
             pytest.fail(
-                f"transport_sweep delegated to strategy.sweep "
+                f"the sweep entry delegated to strategy.sweep "
                 f"{calls['sweep']} times (selected {selected}), expected "
                 f"exactly 1"
             )

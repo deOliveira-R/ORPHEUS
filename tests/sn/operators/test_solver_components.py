@@ -648,7 +648,7 @@ class TestPerformanceBaseline:
         for _ in range(n_sweep):
             sweep_once(src, solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros_on(solver.sn_mesh))
         t_sweep = (time.perf_counter() - t0) / n_sweep * 1000
-        print(f"  transport_sweep: {t_sweep:.1f} ms")
+        print(f"  sweep_once: {t_sweep:.1f} ms")
 
         # The 2-D source-iteration inner loop (deferred — raises here).
         t0 = time.perf_counter()

@@ -46,9 +46,10 @@ the FORCED leg runs the window, which doubles as the window's end-to-end
 coverage now that it is a selectable (non-default) peer.  The FP-invariance
 claim is symmetric, so the gate's meaning is unchanged: two schedules, one
 converged fixed point.  Every door reads the module attribute at call time —
-the operator's ``loss_representation`` cached_property (lazy import), the
-operator-free ``transport_sweep``, and (via the operator's instance, S6.5)
-the G-S resolvent — so ONE patch forces the whole solve.  The forcing is a
+the operator's ``loss_representation`` cached_property (lazy import) and
+(via the operator's instance, S6.5) the G-S resolvent; the third,
+operator-free ``transport_sweep`` door retired at the coupled-block
+campaign step 6 — so ONE patch forces the whole solve.  The forcing is a
 CONTEXT MANAGER, not a test-scoped fixture, because the REFERENCE leg of each
 FP-invariance pair must run UNFORCED (a fixture would force both legs and
 compare the window to itself).  NON-VACUITY is explicit: the context counts

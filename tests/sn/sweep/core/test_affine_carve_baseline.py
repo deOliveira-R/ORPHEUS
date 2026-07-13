@@ -32,14 +32,15 @@ axes that the #206 carve actually touches:
    of the convention axes the carve crosses (L17 crosswalk).
 
 3. **A bare single-SWEEP output** (``angular_flux`` AND ``scalar_flux``),
-   captured directly from ``transport_sweep`` — the production sweep entry
-   the carve relocates.  This is the leg the existing matvec-only gate
-   does not cover.
+   captured from the then-production ``transport_sweep`` entry (retired at
+   the coupled-block campaign step 6, R-6.1; the sweep leg now drives the
+   same production strategy path via ``sweep_once``).  This is the leg
+   the existing matvec-only gate does not cover.
 
 For slab + sphere + cylinder, ≥2 groups, the gate captures (under
 ``--capture-baseline``, run ONCE BEFORE Phase A) and otherwise asserts:
 
-* **Sweep leg:** ONE ``transport_sweep`` driven by a fixed-seed random
+* **Sweep leg:** ONE sweep (``sweep_once``) driven by a fixed-seed random
   per-ordinate source ``Q`` + heterogeneous σ_t — both the returned
   ``angular_flux`` ``(N, ng, nx)`` and ``scalar_flux`` ``(ng, nx)``.
 * **Matvec leg:** ONE ``(L + C).apply(ψ).interior`` on a fixed-seed random
@@ -217,13 +218,13 @@ def _capture_or_assert(
 
 
 # ═════════════════════════════════════════════════════════════════════
-# SWEEP LEG — one raw transport_sweep on a fixed-seed random Q + het σ_t.
+# SWEEP LEG — one raw sweep (sweep_once) on a fixed-seed random Q + het σ_t.
 # ═════════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.foundation
 class TestAffineCarveSweepBaseline:
-    """One raw ``transport_sweep`` output (angular + scalar) is unmoved.
+    """One raw sweep output (angular + scalar) is unmoved.
 
     Catches: a Phase-A closure-routing slip or a Phase-B relocation that
     perturbs the raw forward sweep on a heterogeneous, non-flat
@@ -234,7 +235,7 @@ class TestAffineCarveSweepBaseline:
 
     @pytest.mark.parametrize("geometry", _GEOMS_1D)
     def test_sweep_angular_and_scalar_unmoved(self, geometry, request):
-        """[foundation] One transport_sweep: angular_flux AND scalar_flux.
+        """[foundation] One sweep (``sweep_once``): angular_flux AND scalar_flux.
 
         Fixed-seed random per-ordinate source ``Q`` (≥2G) + heterogeneous
         σ_t.  Both returned arrays are pinned: ``angular_flux`` reduces

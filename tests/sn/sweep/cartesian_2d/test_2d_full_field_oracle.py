@@ -10,7 +10,7 @@ interior face retained during the walk) that the moving frontier is
 cross-checked against END-TO-END.
 
 This is STRONGER than `test_sweep_graph_window_equivalence.py` (which pins only
-the per-octant WALK at the graph level): it pins the whole ``transport_sweep``
+the per-octant WALK at the graph level): it pins the whole sweep
 / matvec ORCHESTRATOR — boundary plumbing included — bit-for-bit. Both share
 the cell kernel
 (`DiamondDifference.cell_kernel_batch`/`residual_kernel_batch`) AND (since

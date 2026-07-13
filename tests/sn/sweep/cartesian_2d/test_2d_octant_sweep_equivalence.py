@@ -451,7 +451,7 @@ class OctantEquivalenceInputs:
     to align with the typed-source vocabulary; the field still carries
     a bare ndarray because the consumer is the INTERNAL
     ``_sweep_jacobi`` which keeps its bare-ndarray signature
-    (the public typed contract lives at :func:`transport_sweep`).
+    (the public typed contract lives at the ``(L+C)`` operator surface).
     """
 
     sn_mesh: SNMesh
