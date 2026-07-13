@@ -2378,3 +2378,92 @@ quadrature-free posing); (ii) `IncomingOrdinateMaskTensor`'s
 `inflow_indices` param name is vacuum-use-case-colored (semantic is
 "indices to zero") — rename candidate if a third masking consumer
 appears.
+
+### Step 6 (#34) COMPLETE — the ray-leg estate retires; presence structural (2026-07-12)
+
+**Rulings (AskUserQuestion, both = recommended):** **R-6.1** —
+`transport_sweep` retires FULLY (not a grid adapter, not deferred to
+S5): post-6a it had zero production callers, its carrying-mesh
+self-derivation existed to feed the fused joint channel, and a
+surviving wrapper would have been test-only production code. **R-6.2**
+— `SweepOperator.is_adjointable` drops the B.2d carrying-mesh third
+factor: with no legs anywhere the bare `(L+C)` IS unambiguously the
+ray-decoupled (A,A) block (the type says what you hold); the joint
+adjoint's one home is the grid's transposed substitution.
+
+**6a @ `03e275e8` — the eigen-finalize re-route.** `solve_sn`'s
+reconstruction builds the SAME `build_within_group_system(...)` record
+every driver consumes and applies its `.resolvent` (M grid carrying /
+`(L+C)` seedless): the coupled rhs = the moment-lifted total source
+(the ONE `_lift_external_source_to_moments` policy) ⊕ the q½ fold with
+the B_b-reflected corner datum (each system reflects through its OWN
+boundary — the −B given-data discipline unchanged); Solution reads
+boundary = the marched trace, radial_characteristic = ψ_B, angular =
+the cell-average view (`AVERAGE_MOMENT`). `_radial_characteristic_zeros`
+retired (single caller). **Finalize-equivalence probe** (12-cell 2G ×
+{sphere-refl, sphere-vac, slab-DD, cyl-product}): slab/cyl BITWISE on
+every member; sphere keff/scalar/BOTH ψ½ ray members BITWISE (A_BB's
+march ≡ the walk's in-solve march exactly), bulk+trace movers rel-max
+8.4e-16/3.3e-16 — the M-substitution vs fused-interleave reassociation.
+Wall: eigenvalue+regression+solve 153/0.
+
+**6b @ `015dcc73` — the estate cut (net −803 lines).** The kwarg pairs
+retire from the protocol + base + 5 strategies + the walk + 6 operator
+surfaces; `sweep_transpose` → the honest 2-tuple (incl. the :3951
+degenerate early-return the first wall caught); `_require_leg_pair` +
+`_refuse_radial_characteristic` + defs DELETED (zero tests asserted
+their raises — the audit's finding); the walk's `_seed_rows_*` glue +
+both in-solve System-B engines cut (kernels single-sourced in
+`psi_half_angle_seed.py`, `A_BB`/`Seeding` the one consumer pair; the
+walk's M-M thread starts at zero on carrying levels, the transpose
+DISCARDS the thread cotangent — a fixed input's cotangent propagates
+nowhere); `transport_sweep` + `_unwrap_source` deleted, module
+docstring + `__all__` + the rst "REMAINS" claim updated.
+
+**Test migration:** `sweep_once` minted in `tests/sn/_test_helpers`
+(the typed successor: grid on carrying, `(L+C).solve` seedless; scalar
+recomputed by quadrature contraction — tolerance-equivalent, the
+SLB/CYL affine sweep captures sit at 7-8 ULP inside their bands);
+12 caller files renamed onto it; `_LC_matvec`'s seed arm routes
+`joint_m_grid`; the joint behavioral gates (loss_transpose G1/G2,
+282 C-rows, invertible smoke+bridge, bc_extraction `_LpC_apply`, mms
+admits ×2, affine-carve, the assembly probe's `_apply`, walk-baseline
+generator) all ride the grid with SOURCE-role members (the role-honest
+member algebra caught every flux-role leak the fused legs tolerated);
+the joint σ-free streaming sites spell `L + Seeding` (σ-independence
+is a type fact). DELETED as tautological/referent-less: the two
+Mode-11 A_BB-routing spies (the grid calls A_BB BY CONSTRUCTION), the
+walk-side kernel anti-twin (operator-side survives), the A_AB
+≡-to-fused rows (re-anchored: closure-spy + structural zeros +
+reciprocity). REVISED per R-6.2: the coherence predicate row →
+`test_carrying_block_and_coupled_adjointability_coexist`. The step-6
+invariant class (carrying-missing-seed / non-carrying-carrying
+unconstructable) is covered STRUCTURALLY: `test_p2_presence_structural`
+(the builder's P2 shape), `test_presence_noncarrying_mesh_raises`
+(carrier constructors), `test_presence_biconditional_guard` — the spec's
+"7 guards, zero negative tests" concern dissolved with the guards.
+
+**Re-baselines (audit-regenerate-commit-together; ALL sphere-only —
+the fused→block-sum association class ~1e-15):**
+`walk_matvec_sphere_2g.npz`, 3× `bc_extraction vacuum_bulk_SPH`,
+3× `affine_carve *_SPH`. Slab/cyl stores byte-identical THROUGH a full
+re-save (git-clean — the strongest leak-tripwire confirmation).
+
+**Verification:** tests/sn + tests/numerics not-slow SERIAL **3080/0**
+(33:32); the migration batch 193/0; ratchet `transport: 1` (sn +
+numerics stay ZERO through the carve); sphinx -W exit 0.
+
+**Follow-up seams (named, not built):** the `AngularFlux` moment-tail
+Solution widening (the finalize extracts `AVERAGE_MOMENT` to hold the
+flat contract — carrying the φ̂ tail on Solution is a deliberate
+future widening); `sweep_once`'s einsum scalar vs the walk's per-leg
+accumulation (tolerance-equivalent — if a bit-pin consumer appears,
+single-source the reduction); the `test_transport_sweep_ng2_layout_guard`
+FILE NAME still references the retired symbol (contents already ride
+`sweep_once`; rename at the step-7 estate pass).
+
+**NEXT = #35 (step 7)** — verify + docs + close-out: the archivist
+theory-page pass (the solve mode / certificate / two-channel→ONE-
+channel law now includes this step's collapse), promote diag_coupled,
+the FULL-tree not-slow wall (needs the patient uncapped run for the
+>290s SLOW curvilinear tier), close #280/#282 per the roadmap.
