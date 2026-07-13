@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6648**
+Total tests collected: **6652**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1187, 17.9%
+   L0, 1187, 17.8%
    L1, 1102, 16.6%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4266, 64.2%
+   foundation, 4270, 64.2%
    unmarked, 39, 0.6%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6530
+   explicit, 6534
    verify, 0
    class-name, 46
    func-name, 0
@@ -231,7 +231,7 @@ Module × level grid
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
    eigenvalue/test_keff_curvilinear, 0, 19, 13, 0, 0, 0
-   eigenvalue/test_keff_estimator_gate, 0, 0, 0, 0, 7, 0
+   eigenvalue/test_keff_estimator_gate, 0, 0, 0, 0, 11, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    fields/test_angular_boundary_flux, 0, 0, 0, 0, 36, 0
    fields/test_angular_boundary_source_sink_residual, 0, 0, 0, 0, 30, 0
@@ -601,6 +601,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-cylinder-mr-homogeneous-reduction``, 5
    ``real-sh-discrete-orthogonality``, 5
    ``singular-eigenfunction-eq40``, 5
+   ``sn-keff-update``, 5
    ``streaming-equilibrium``, 5
    ``xs-interp``, 5
    ``dd-slab-scalar``, 4
@@ -616,7 +617,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-white-bc-slab``, 4
    ``phase-f-carlson-seed-source-driven``, 4
    ``phase-f-q-bar-twin-forms``, 4
-   ``sn-keff-update``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``cp-escape-from-p-cell``, 3

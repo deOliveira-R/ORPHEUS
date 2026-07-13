@@ -15180,13 +15180,38 @@ The face measure :math:`dA` is supplied by
    * - 2-D Cartesian
      - transverse edge-cell widths (unit depth)
      - ``mesh.axes`` transverse extent
-   * - 3-D
-     - **fails loud** (``NotImplementedError``)
-     - no vacuum-eigenvalue consumer yet
+   * - 3-D Cartesian
+     - :math:`\Delta A_{\mathbf c} = \prod_{j\ne a}\Delta_j[c_j]`
+       (transverse-area outer product)
+     - ``mesh.axes`` transverse extents
 
-The 3-D case raises rather than guess a transverse-area product's cell
-ordering — the leakage term cannot be answered honestly, and Cardinal
-Rule 1 forbids returning a wrong-but-plausible number.
+The :math:`d \ge 2` Cartesian arms are ONE generic body: the outer
+product of the *other* axes' edge widths in **ascending axis order** —
+the same codimension-1 enumeration as
+:func:`~orpheus.transport.mesh.axis.face_shape`, so the measure array
+broadcasts cell-for-cell against the ``(ng, *face_spatial)`` net
+current, and the 2-D width vector is just the single-transverse-axis
+degenerate (bit-identical to the pre-3-D spelling).
+
+The 3-D arm originally shipped as a **typed refusal**
+(``NotImplementedError``): guessing the transverse product's cell
+ordering would silently mis-weight the leakage sum, and Cardinal Rule 1
+forbids returning a wrong-but-plausible number.  The wire landed
+2026-07-13 when the first 3-D vacuum eigenvalue consumer arrived (the
+d=3 Mode-9 G-S≡Jacobi gate), with the ordering pinned twice in
+``tests/sn/eigenvalue/test_keff_estimator_gate.py``: an **object-level
+pin** (face measure ≡ the boundary layer's ``volumes / Δ_axis``, the
+mesh's own ascending-axis enumeration — vv Mode-12 discipline: pin the
+object, not only the k functional) and the **k* map-ratio gate** on a
+Mode-2 asymmetric all-vacuum box, whose teeth are proven by permanent
+in-process mutants — a reversed transverse enumeration moves the
+reported k by a measured **13.9 %** against the estimator-independent
+:math:`k^*` (clean agreement :math:`6\times10^{-10}`), and a transposed
+enumeration crash-REDs on the broadcast.  A trace carrying a
+``#251`` transverse face-moment tail is refused loudly at the
+consumption site (the face integral must consume ONLY the
+transverse-average moment — higher Legendre face moments integrate to
+zero over each face cell — and that slot-0 read has no consumer yet).
 
 Reflective faces are a structural zero
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

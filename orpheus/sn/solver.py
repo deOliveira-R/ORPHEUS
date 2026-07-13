@@ -35,6 +35,7 @@ from __future__ import annotations
 import time
 from collections.abc import Iterable
 from dataclasses import replace
+from functools import reduce
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -1385,8 +1386,20 @@ class SNSolver:
                 f"AngularBoundaryFlux; got {type(trace).__name__}."
             )
         for face in vacuum_faces:
-            net_current = trace.net_current(face)  # (ng, *face_spatial)
-            rate += float(np.sum(net_current * self._face_area_of(face)))
+            net_current = trace.net_current(face)  # (ng, *face_spatial[, moments])
+            face_area = self._face_area_of(face)
+            if net_current.ndim - 1 != np.ndim(face_area):
+                raise NotImplementedError(
+                    f"boundary leakage on {face!r}: the trace carries a "
+                    f"transverse face-moment tail (net current shape "
+                    f"{net_current.shape} vs face measure shape "
+                    f"{np.shape(face_area)}, #251). The face integral "
+                    f"consumes ONLY the transverse-average moment — higher "
+                    f"Legendre face moments integrate to zero over each "
+                    f"face cell — so wire the slot-0 read when the first "
+                    f"multi-moment vacuum eigenvalue consumer arrives."
+                )
+            rate += float(np.sum(net_current * face_area))
         reference = IntegratedReactionRate(
             self.mat_xs.fission_production_field
         ).evaluate(phi_of_trace)
@@ -1405,25 +1418,35 @@ class SNSolver:
         — ``1.0`` (slab, per unit cross-section), :math:`2\pi R`
         (cylinder, per unit height), :math:`4\pi R^2` (sphere) — the
         same geometric convention the cell volumes integrate under, so
-        the balance identity closes. 2-D Cartesian: the per-edge-cell
-        transverse widths (unit depth), broadcast against the
-        ``(ng, n_edge)`` net current. 3-D vacuum leakage has no consumer
-        yet and fails loud rather than guessing the transverse-area
-        product's cell ordering.
+        the balance identity closes.
+
+        d ≥ 2 Cartesian: the per-face-cell transverse measure
+
+        .. math::
+
+            A_{\mathbf{c}} \;=\; \prod_{j \ne a} \Delta_j[c_j]
+
+        — the outer product of the OTHER axes' edge widths in
+        **ascending axis order**, the same codimension-1 enumeration as
+        :func:`~orpheus.transport.mesh.axis.face_shape`, so the array
+        broadcasts cell-for-cell against the ``(ng, *face_spatial)``
+        net current (2-D: the single transverse width vector, unit
+        depth; 3-D: the ``(n_t0, n_t1)`` transverse-area product —
+        the #291 estimator's d=3 arm). Equivalent to the boundary
+        layer's ``volumes / Δ_axis`` — the object-level pin in
+        ``tests/sn/eigenvalue/test_keff_estimator_gate.py``.
         """
         mesh = self.sn_mesh
         if mesh.ndim == 1:
             areas = mesh.areas
             return float(areas[0] if face == "xmin" else areas[-1])
-        if mesh.ndim == 2:
-            axis_index = {"x": 0, "y": 1}[face[0]]
-            transverse = mesh.axes[1 - axis_index]
-            return np.diff(np.asarray(transverse.edges, dtype=float))
-        raise NotImplementedError(
-            f"boundary leakage for a {mesh.ndim}-D vacuum face "
-            f"({face!r}): wire the transverse-area product when the "
-            f"first 3-D vacuum eigenvalue consumer arrives."
+        axis_index = {"x": 0, "y": 1, "z": 2}[face[0]]
+        transverse_widths = (
+            np.diff(np.asarray(mesh.axes[j].edges, dtype=float))
+            for j in range(mesh.ndim)
+            if j != axis_index
         )
+        return reduce(np.multiply.outer, transverse_widths)
 
     def converged(
         self, keff: float, keff_old: float,

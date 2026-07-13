@@ -26,8 +26,12 @@ leakage-drop mutation REDs the vacuum leg and leaves the reflective leg
 **bitwise** green (that asymmetry IS the #291 catcher — reflective
 faces are a structural zero, never a computed one); the leakage
 sign-flip REDs the vacuum leg; the old-convention (n,2n)-in-numerator
-mutation REDs the Σ₂≠0 leg. All mutations are in-process monkeypatches
-(never a git-checkout revert — process-discipline rule).
+mutation REDs the Σ₂≠0 leg; the d=3 transverse-enumeration mutants
+(reversed / transposed) red the 3-D vacuum leg, whose face-measure
+ARRAY is additionally object-pinned against the boundary layer's
+``volumes / Δ_axis`` (Mode-12 discipline). All mutations are
+in-process monkeypatches (never a git-checkout revert —
+process-discipline rule).
 
 ``foundation`` — a solver-invariant claim (estimator ≡ posed problem),
 pinned by an exact self-reference, not a literature value.
@@ -45,7 +49,9 @@ from orpheus.geometry import (
 )
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver, _as_sn_mesh
+from orpheus.transport.mesh.axis import AxisMesh
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 
 pytestmark = pytest.mark.foundation
@@ -112,6 +118,39 @@ def _mixture_with_n2n():
     return fuel
 
 
+# The d=3 vacuum box for the transverse-area-product arm (#291 3-D wire):
+# distinct per-axis cell counts AND distinct, strongly non-uniform width
+# patterns (x increasing, y decreasing, z mixed — Mode-2 asymmetry), so a
+# transposed or reversed transverse enumeration moves the leakage sum O(1)
+# instead of cancelling on a symmetric coincidence.
+_D3_EDGES = (
+    np.array([0.0, 0.3, 0.8, 1.6, 3.0]),   # x: 4 cells, widths ↑
+    np.array([0.0, 1.2, 1.9, 2.4]),        # y: 3 cells, widths ↓
+    np.array([0.0, 0.9, 1.4]),             # z: 2 cells
+)
+
+
+def _d3_vacuum_sn_mesh():
+    vac = BC("vacuum")
+    axes = tuple(
+        AxisMesh(edges=e, bc_low=vac, bc_high=vac) for e in _D3_EDGES
+    )
+    return SNMesh.from_axes(
+        axes, Quadrature.level_symmetric(sn_order=4),
+        {0: get_mixture("A", "2g")},
+    )
+
+
+def _d3_vacuum_solve():
+    """Converged d=3 all-vacuum eigenpair, solver retained."""
+    solver = SNSolver(
+        _d3_vacuum_sn_mesh(),
+        keff_tol=1e-9, flux_tol=1e-8, max_inner=2000, inner_tol=1e-11,
+    )
+    keff, _history, phi = power_iteration(solver, max_iter=2000)
+    return solver, keff, phi
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # The cross-engine gate: reported k ≡ the posed problem's eigenvalue.
 # ═══════════════════════════════════════════════════════════════════════
@@ -152,6 +191,24 @@ class TestReportedKeffIsThePosedEigenvalue:
             {0: get_mixture("A", "2g")},
             _mesh([(0, 4.0, 20)], BC.vacuum, CoordSystem.SPHERICAL),
         )
+        k_star = _map_ratio_kstar(solver, phi)
+        np.testing.assert_allclose(keff, k_star, rtol=self.RTOL)
+
+    def test_vacuum_3d_box_transverse_area_product(self):
+        """[#291 d=3 arm] Vacuum box — the transverse-area outer product.
+
+        The d=3 leakage term integrates each face's net current over
+        the outer product of the two transverse axes' edge widths in
+        ascending-axis order (the ``face_shape`` enumeration). k* (map
+        ratio) never consumes the face areas, so on the Mode-2
+        asymmetric box any transposed / reversed / wrong-axis
+        enumeration moves the reported k off k* (teeth proven in
+        ``TestGateTeeth``). This is also the not-slow WIRING pin for
+        the d=3 vacuum eigenvalue class (the ERR-069 discipline —
+        before the wire, this path raised ``NotImplementedError`` and
+        only a slow-tier gate could see it).
+        """
+        solver, keff, phi = _d3_vacuum_solve()
         k_star = _map_ratio_kstar(solver, phi)
         np.testing.assert_allclose(keff, k_star, rtol=self.RTOL)
 
@@ -202,6 +259,76 @@ class TestReportedKeffIsThePosedEigenvalue:
         )
         k_star = _map_ratio_kstar(solver, phi)
         np.testing.assert_allclose(keff, k_star, rtol=self.RTOL)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The face-measure OBJECT pin (vv Mode 12: pin the object, not only the
+# functional through which the k gate consumes it).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestFaceAreaObjectPin:
+    """``_face_area_of`` ≡ boundary-layer ``volumes / Δ_axis``, all faces.
+
+    The k gate above sees the face measure only through the leakage
+    functional; this pin fixes the ARRAY itself against an
+    independently-assembled oracle — the mesh's own cell volumes
+    divided by the face axis's boundary width. The shaped ``volumes``
+    array carries the mesh's ascending-axis cell enumeration, which is
+    exactly the ``face_shape`` enumeration the trace layout uses, so
+    agreement here localizes any ordering defect to the exact face
+    array instead of a k residual.
+    """
+
+    def test_d3_face_measure_matches_volume_ratio_on_all_six_faces(self):
+        sn = _d3_vacuum_sn_mesh()
+        solver = SNSolver(sn)
+        volumes = np.asarray(sn.volumes, dtype=float).reshape(
+            sn.spatial_shape
+        )
+        widths = [np.diff(e) for e in _D3_EDGES]
+        for axis, prefix in enumerate("xyz"):
+            for face, layer in ((f"{prefix}min", 0), (f"{prefix}max", -1)):
+                area = np.asarray(solver._face_area_of(face))
+                # Trace-layout authority: the slot is (N, ng, *face_spatial).
+                slot = sn.angular_trace.layout.faces[face]
+                np.testing.assert_equal(
+                    area.shape, slot.shape[2:],
+                    err_msg=f"{face}: face measure vs trace-slot spatial "
+                            f"shape",
+                )
+                oracle = (
+                    np.take(volumes, layer, axis=axis) / widths[axis][layer]
+                )
+                np.testing.assert_allclose(
+                    area, oracle, rtol=1e-13,
+                    err_msg=f"{face}: face measure vs boundary-layer "
+                            f"volumes/Δ oracle",
+                )
+
+    def test_d2_face_measure_unchanged_by_the_d3_wire(self):
+        """The d=2 arm is the single-axis degenerate of the same body.
+
+        ``reduce(outer, [w])`` IS ``w`` — assert the 2-D face measure
+        still equals the transverse width vector bitwise, so the #291
+        2-D estimator arithmetic is untouched by the generalization.
+        """
+        vac = BC("vacuum")
+        axes = (
+            AxisMesh(edges=_D3_EDGES[0], bc_low=vac, bc_high=vac),
+            AxisMesh(edges=_D3_EDGES[1], bc_low=vac, bc_high=vac),
+        )
+        sn = SNMesh.from_axes(
+            axes, Quadrature.level_symmetric(sn_order=4),
+            {0: get_mixture("A", "2g")},
+        )
+        solver = SNSolver(sn)
+        np.testing.assert_array_equal(
+            solver._face_area_of("xmin"), np.diff(_D3_EDGES[1]),
+        )
+        np.testing.assert_array_equal(
+            solver._face_area_of("ymax"), np.diff(_D3_EDGES[0]),
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -311,3 +438,54 @@ class TestGateTeeth:
                 "the posed eigenvalue on a Σ₂≠0 problem (measured −26% "
                 "pre-fix) — the Σ₂≠0 leg failed to catch it."
             )
+
+    def test_transverse_ordering_mutants_red_the_3d_vacuum_leg(
+        self, monkeypatch,
+    ):
+        """d=3 face-measure enumeration mutants must be caught.
+
+        Two mutants of ``_face_area_of`` on the Mode-2 asymmetric box:
+
+        * REVERSED — the first transverse axis enumerated descending
+          (``area[::-1]``): shape-silent, value-wrong on the
+          non-uniform widths; the reported k must leave the k* band.
+        * TRANSPOSED — the transverse axes swapped (``area.T``): with
+          distinct per-axis counts the broadcast against
+          ``(ng, *face_spatial)`` cannot align, so the accepted
+          detection is a loud crash-RED; a square-face survivor would
+          have to miss k*. The only forbidden outcome is a mutant that
+          solves AND matches k*.
+        """
+        true_area = SNSolver._face_area_of
+
+        with monkeypatch.context() as m:
+            m.setattr(
+                SNSolver, "_face_area_of",
+                lambda self, face: true_area(self, face)[::-1],
+            )
+            solver, k_mut, phi = _d3_vacuum_solve()
+            k_star = _map_ratio_kstar(solver, phi)
+            gap = abs(k_mut / k_star - 1.0)
+            assert gap > 100 * TestReportedKeffIsThePosedEigenvalue.RTOL, (
+                f"the reversed transverse enumeration must move the d=3 "
+                f"reported k off the posed eigenvalue (got relative gap "
+                f"{gap:.3e}) — the 3-D vacuum leg has no teeth against "
+                f"face-cell ordering defects."
+            )
+
+        with monkeypatch.context() as m:
+            m.setattr(
+                SNSolver, "_face_area_of",
+                lambda self, face: true_area(self, face).T,
+            )
+            try:
+                solver, k_mut, phi = _d3_vacuum_solve()
+            except ValueError:
+                return  # broadcast refuses the swapped enumeration — RED
+            k_star = _map_ratio_kstar(solver, phi)
+            assert abs(k_mut / k_star - 1.0) > \
+                100 * TestReportedKeffIsThePosedEigenvalue.RTOL, (
+                    "a transposed transverse enumeration survived the "
+                    "broadcast AND matched k* — the d=3 vacuum leg has "
+                    "no teeth against the axis swap."
+                )
