@@ -3798,9 +3798,10 @@ class TestWithinGroupSystemAnchors:
 
 
 @pytest.mark.foundation
+@pytest.mark.catches("ERR-069")
 class TestPrescribedCornerDatum:
     r"""The rhs birth delivers the PRESCRIBED-inflow ψ½ corner datum
-    (step 7 — the d3 regression's fast wiring catcher).
+    (step 7 — the d3 regression's fast wiring catcher; ERR-069).
 
     The inflow-corner law has three arms (see
     :meth:`RadialCharacteristicField.source_from_angular`): vacuum ⇒ 0,

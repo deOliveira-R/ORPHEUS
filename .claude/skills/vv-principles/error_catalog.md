@@ -3115,10 +3115,19 @@ computed.
 the bug only surfaces when the trace metadata is consumed by
 Wave 5+ realiser logic that asserts `domain == outflow_trace`.
 
-**Catching test (Wave 7):** a constructor-level test that passes
-an `OutflowTraceSpace` to the Wave 7 `VacuumInflow` BC and asserts
-`VacuumAppliedToOutgoingTraceError` is raised. To be tagged
-`@pytest.mark.catches("ERR-041")` at Wave 7 ship.
+**Catching test — SHIPPED (coupled-block campaign task #52,
+`51c22396`, 2026-07-12):** the invariant went PRODUCTION-live as the
+realizer-seam guard in `SNBoundaryRealizer.realize`'s vacuum arm —
+claimed `inflow_indices` cross-checked against the orientation the
+FACE NAME alone implies via `build_omega_dot_n` (the canonical
+`SNMesh.realize_boundary_law` path derives both from the trace ⟹
+green by construction; the hand-built / annotation-swap path is
+exactly where the two encodings are independently supplied).
+Catchers tagged `@pytest.mark.catches("ERR-041")` in
+`tests/sn/operators/test_sn_boundary_realizer.py` (swap /
+single-index contamination / positive both faces / the documented
+faceless escape / unknown-face loud), mutation-verified in-process
+(no-op the guard ⟹ the raise disappears; revert ⟹ red).
 
 **Lesson:** Trace orientation is part of the BC's type signature.
 When the realiser layer (Wave 5) wires a BC to a trace, it MUST
@@ -3155,11 +3164,18 @@ ordinate times the weight). Heterogeneous problems amplify the
 imbalance by the contrast in Σ_t.
 
 **Catching test (Wave 7):** the ReflectiveBoundary's
-`assert_geometry_map_measure_preserving` test constructs a
-quadrature, builds the reflection table, applies the map, and
-asserts `Σ_n w_n · |μ_n · n| · ψ_n` equals the same quantity on
-the reflected ψ. To be tagged
-`@pytest.mark.catches("ERR-042")` at Wave 7 ship.
+`assert_geometry_map_measure_preserving` got its REAL body at the
+coupled-block campaign task #52 (`51c22396`, 2026-07-12): the trace
+measure `m = w·|μ_axis|` must satisfy `m[π] ≈ m` (rtol 1e-12),
+INDEPENDENT of involution — the pre-#52 delegation ("weight
+equality implied by construction") left the
+involutive-unequal-weight-pairing hole open, and the GL-8
+neighbor-pair mutant passes involution while redding measure
+(independence measured, both directions). Fired at realization by
+`BoundaryTraceLaw.assert_realizable` (every `SNMesh` construction
+certifies). Catchers tagged `@pytest.mark.catches("ERR-042")` in
+`tests/geometry/test_bc_universal_invariants.py`
+(positive+negative-paired, mutation-verified in-process).
 
 **Lesson:** Geometric maps `G` carry a measure-preservation
 contract. The contract must be CHECKED at construction, not only
@@ -3274,11 +3290,21 @@ nearly-tangential one) look like a benign quadrature artifact and
 don't surface until per-ordinate flat-flux residual tests stress
 the redistribution path (cf. ERR-006 / Signature 1).
 
-**Catching test (Wave 7):** ReflectiveBoundary test that probes
-the reflection table on an inflow ordinate set and asserts every
-image is in the outflow set. Failure raises
-`ReflectionDidNotMapInflowToOutflowError`. To be tagged
-`@pytest.mark.catches("ERR-045")` at Wave 7 ship.
+**Catching test — SHIPPED (coupled-block campaign task #52,
+`51c22396`, 2026-07-12):** the new
+`assert_reflection_maps_inflow_to_outflow` invariant — every
+non-tangential ordinate's partner must be non-tangential with
+OPPOSITE sign on the law's axis (tangential exemption rides the one
+shared `TANGENTIAL_EPS`, promoted public); raises
+`ReflectionDidNotMapInflowToOutflowError`. The identity-table
+mutant passes involution AND measure and reds ONLY here — the
+three-independent-invariants lesson realized as three MEASURED
+independent checks, fired at realization via
+`BoundaryTraceLaw.assert_realizable`. Catchers tagged
+`@pytest.mark.catches("ERR-045")` in
+`tests/geometry/test_bc_universal_invariants.py`
+(positive+negative-paired incl. realize-time legs poisoning
+`quad.reflection_partners`, mutation-verified in-process).
 
 **Lesson:** Reflection contracts compose: the inflow partition,
 the involution property, and the inflow → outflow image are three
@@ -3357,11 +3383,21 @@ catches it.
 
 **Catching test (Wave 7):** prescribed-inflow BC test that
 constructs `ConstantInflowSource(2.0)` on a quadrature with
-mixed inflow / outflow ordinates, asserts the
-`assert_source_lives_on_incoming_trace` invariant raises
-`BoundarySourceNotOnIncomingTraceError` when the realiser is
-asked to apply the source without an outflow mask. To be tagged
-`@pytest.mark.catches("ERR-047")` at Wave 7 ship.
+mixed inflow / outflow ordinates: SHIPPED at the coupled-block
+campaign task #52 (`51c22396`, 2026-07-12) — the ABC no-op default
+became the REAL universal body (probe `self.source` on `(N,)`;
+q ≡ 0 certifies trivially; nonzero q WITHOUT an inflow set raises
+— "the realiser asked to apply the source without an outflow
+mask", this entry's catcher spec verbatim), and the realizer's
+`PrescribedInflow` arm now delivers q MASKED to Γ₋
+(`IncomingSourceOperator` gained the inflow-indices plumbing;
+delivered q = the source value on inflow slots, exactly 0 on
+outflow AND tangential slots, pinned end-to-end — the three
+pre-#52 tests blessing the unmasked full-array delivery, the
+ERR-047 hazard itself, rewired to the masked contract). Catchers
+tagged `@pytest.mark.catches("ERR-047")` in
+`tests/geometry/test_bc_universal_invariants.py`
+(positive+negative-paired, mutation-verified in-process).
 
 **Lesson:** The affine form's three terms (`G`, `R`, `q`) each
 live on a SPECIFIC trace space. The trace-space type tag (Wave 2)
@@ -4585,3 +4621,102 @@ Coordination: the fix lives in `orpheus/sn/spatial/scan.py:80-138`; it is orthog
 **Which test catches it.** `tests/sn/operators/test_g_adjoint_reciprocity.py::test_g_adjoint_reciprocity_full_block[cyl_product_2g]` (the `_make_cyl_product` builder — red pre-fix at O(1), green post-fix at rel < 1e-12, dev-verified in that order) + the structural trichotomy pin `tests/sn/sweep/core/test_one_dim_loop_walk.py::test_legs_and_degenerates_partition_the_quadrature` (legs ∪ degenerates partition the ordinate set — a two-threshold drift cannot silently re-empty the class).
 
 **Lesson.** A transpose is complete only with respect to EVERY branch of its primal: enumerate the forward's branches (leg march, degenerate volumetric, boundary writeback) and demand a reverse arm per branch — reverse-mode completeness is a per-branch checklist, not a per-function one. Mode 7's "declare what the ansatz nulls" discipline extends to QUADRATURE selection: a gate family whose every row uses one rule family silently nulls the classes that family never populates; the cheap catcher is one builder on the activating rule (here product with 4 | n_phi), not a new oracle. The G-reciprocity gate sees any dropped branch the moment one activating row exists — tolerance tightness was never the issue, coverage of the input lattice was.
+
+## ERR-067 — the SN curvilinear starting-direction (ψ½) block Hilbert metric was `G_sd ≡ 0` (the "ghost metric") — an OPERATOR coefficient mis-installed as the STATE metric, so `A.H = G⁻¹AᵀG` SEVERED the seed→bulk coupling and was a WRONG adjoint for any nonzero seed, while every reciprocity gate fed a present-but-ZERO seed and stayed green
+
+**Date:** 2026-07-06 (the FaceField codim-1 design session; the ghost framing was authored 2026-07-04 in the #280 2.5d carrier work and refuted here — derived by numerics-investigator via the adjoint constraint `AᵀG = GA†` on the dense augmented sphere operator).
+**Module:** `numerics` (`spaces/starting_direction_space.py::for_levels` built `np.zeros`) / `sn` (the augmented loss composite's G-adjoint).
+**Class:** Mode 12 (invariant-functional gate blindness) — a state's inner-product metric conflated with an angular-integration weight.
+
+**Failure mode.** THREE quantities all vanish at the pole μ=±1 for DIFFERENT reasons, in DIFFERENT objects, and the bug welded them: **M1** the moment/output weight `w_moment = 0` (open Gauss–Legendre has no node at the pole — correctly excludes ψ½ from `φ = Σ wₙψₙ`); **M2** the angular through-flux `(1−μ²)|_pole = 0` (the α-dome endpoint `α_{1/2}=0` — an OPERATOR coefficient in the angular-derivative term, governing the straight-characteristic/triangular structure); **M3** the STATE metric `G_sd` — the inner product, governing the G-adjoint. Installing M2 (=0) as M3 put the seed in `ker G`, so `A.H = G⁻¹AᵀG` (with `G⁺_sd = 0`) zeroed the adjoint seed block `A†_sb = G⁺_sd A_bsᵀ G_b` — the seed→bulk coupling `A_bs ≠ 0` (the Morel–Montry recurrence) went unmatched. Measured production `A.H` reciprocity: **4.6e-16 on a zero seed, 1.3e-2 on a random seed** — a wrong adjoint the instant ψ½ carries data. ψ½ is a first-class radial STATE field (its self-block `A_ss` is a banded radial transport operator `μ∂_r + σ_t`, off-diag ‖71‖ vs the trace's reflection-map ‖2‖), so its Hilbert metric is the bulk's spatial measure restricted to the ray: `G_sd = V_cell`.
+
+**How it hid.** Every G-adjoint reciprocity gate (`test_g_adjoint_reciprocity`, the #282 seed gates, the `full_field_space` metric tests) fed a present-but-**ZERO** ψ½ block — and with a zero seed the coupling term `ψ½ᵀ A_bsᵀ G_b φ_b` is identically zero regardless of `G_sd`, so the seed rows sat inside the reciprocity functional's invariance group: **designed-green at every tolerance, in every regime** (the exact Mode-12 mechanism — annihilation, not sub-floor). The blindness was even DOCUMENTED as correct (a "Mode-12 honest-scope note"), which is how a wrong adjoint shipped behind a green wall. Reachable-wrong the moment the #276/#281 adjoint work routes φ* through `A.H` on a curvilinear (nonzero-seed) problem.
+
+**Fix.** `G_sd = V_cell` (radial cell volume, SPD), installed in `StartingDirectionSpace.for_levels` (mirroring `G_bulk = V_cell·w_n`; the angular factor `w` is a free gauge — a single pole ray has no canonical quadrature weight — gauge-fixed to `V_cell` so the adjoint seed block is the physical backward radial march and bulk/trace observables are bitwise gauge-invariant). The metric is pinned only up to SPD by `AᵀG = GA†` (since `apply_transpose` is the EXACT Euclidean transpose, `‖T−Aᵀ‖ ≈ 3e-16`); `0` is the single forbidden value (the boundary of the SPD cone). **Forward path bit-identical** (the metric is read only by `A.H` + `inner_product`, never the forward sweep/matvec — the #208 trace-metric-install precedent).
+
+**Which test catches it.** `tests/sn/operators/test_starting_direction_metric.py::test_derive_gsd_and_close_mode12` (`@pytest.mark.catches("ERR-067")`) — the dense structurally-independent `G⁺TG` sweep over {0, id, V_cell, V·w} × {zero-seed, random-seed, seed-row-flip}, proving `g_sd=0` is blind AND `V_cell` closes; corroborated on the production path by `tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py::test_mode12_g_reciprocity_catches_a_seed_row_flip`. Mutation-verified teeth: revert `G_sd → 0` reds both; a seed-row sign-flip reds; the corner-gauge `V[-1] → 2·V[-1]` leaves reciprocity + bulk observables green (gauge inert). **Critical gate-design note:** the closure gate carries a **control leg** (unmutated nonzero-seed reciprocity `< 1e-12`) so the red is attributable to the flip — without it, a broken `G_sd=0` baseline (also `> tol` on a random seed) mimics "caught."
+
+**Lesson.** A state DOF's Hilbert metric is set by its OPERATOR ROLE (it must be SPD so the adjoint is non-degenerate), NOT by its output/integration weight — a DOF that is zero-weight in the output functional (`φ`, `k`) can still require a nonzero metric for its adjoint (`output-functional weight ≠ state inner-product metric`). Corollary for Mode-12-closure gates: the blindness is exact precisely on the input the old gate fed (the zero seed), so closing it REQUIRES exercising the previously-nulled input (a nonzero seed) AND a control leg that pins the honest baseline — else the closure test cannot distinguish "the metric now catches it" from "the baseline is broken too." The three-quantities-conflated pattern (integration weight / operator coefficient / state metric all vanishing at one geometric locus) generalises to any augmented block on a measure-degenerate face.
+
+## ERR-068 — `B_a.apply_transpose` output-projected `lawᵀ` onto the outflow rows: the transpose of the row-projected forward `B_face = P_inflow ∘ law` was spelled `P_outflow ∘ lawᵀ`, extracting the vacuum mask law's harmless identity-on-outflow block into a spurious +1 diagonal exactly where the forward is the ZERO map — while every reciprocity fixture rode permutation laws, on which both spellings are bit-identical
+
+**Date:** 2026-07-11 (B.2d d3 — caught by the NEW A2a grid-reciprocity arm on its FIRST run, defect 2.6e-4 on the het-VACUUM coherence sphere; localized by dense discriminator to exactly 4 diagonal trace entries of the (A,A) quadrant — expected `G⁻¹AᵀG` −1 vs `grid.H` −2 = LC's honest −1 PLUS the spurious +1; fixed same session @ `1de9592`).
+**Module:** `sn` (`orpheus/sn/operators/boundary.py::SNBoundaryOperator._reflect_trace`, the Euclidean transpose arm).
+**Class:** Mode 2 (composition-order swap on a transpose: `(P ∘ law)ᵀ` spelled as `P′ ∘ lawᵀ` instead of `lawᵀ ∘ P`) — hidden by the ERR-063 masking family (a fixture regime on which the wrong and right spellings coincide) and PINNED green by anti-pattern #12.
+
+**Failure mode.** The forward boundary action is row-projected: `B_face = P_inflow ∘ law` — the law maps the full face trace, and only the inflow rows are written. The honest Euclidean transpose is `B_faceᵀ = lawᵀ ∘ P_inflow`: restrict the INPUT to the forward's codomain rows, write the FULL `lawᵀ` image. The implementation instead computed the full `lawᵀ` image and wrote only the OUTFLOW rows (`P_outflow ∘ lawᵀ`). Output projection extracts a law's DIAGONAL block: the realized VACUUM law is the full-face mask (zero-on-inflow ⊕ identity-on-outflow), whose identity block is harmless in the forward (the row projection annihilates it) but leaked under the wrong transpose as a spurious `+1` on every outflow diagonal slot — `B_aᵀ` was `+1` exactly where `B_a` is the ZERO map. Forward solves never call `B_aᵀ`, so no k/flux anchor could ever see it; it was reachable-wrong for every transpose consumer (`grid.H`, reciprocity, the future φ* adjoint chain).
+
+**How it hid.** Off-diagonal permutation laws (reflective, albedo) have NO diagonal block — both spellings select the same entries bit-identically, so every reflective-fixture reciprocity gate was green over the wrong arm (the ERR-063 masking family: neutrality proven on one law-contract is silently false on another). Worse, `test_adjointable_when_all_faces_support` had PINNED the output-projected behaviour as a green snapshot (anti-pattern #12 in its purest form — a pin on an arm no production consumer exercised, certifying the masked regime and actively defending the bug).
+
+**Fix.** (`1de9592`) `_reflect_trace`'s transpose arm masks the input and writes the full image (`masked[sel] = face_in[sel]; out[...] = law.apply_transpose(masked)` — the `(P_sel ∘ law)ᵀ = lawᵀ ∘ P_sel` spelling), with the raw verb licensed by the `adjointable()` TypeGuard + a loud per-face `MissingAdjoint` (spec §39.1; ratchet-clean where the old `getattr` was pyright-invisible). `test_adjointable_when_all_faces_support` rewired onto the defining law (`got = lawᵀ(P_inflow·ψ)`). Forward path untouched BY CONSTRUCTION (the arm has no forward callers) — the wall's kinf gates confirm; `B_b` audited clean (KIND-dispatched, vacuum zero both directions).
+
+**Which test catches it.** `tests/sn/operators/test_psi_half_coupling.py::TestBoundaryUnweld::test_b_a_vacuum_transpose_is_the_honest_zero` (`@pytest.mark.catches("ERR-068")`) — densified vacuum `F ≡ 0` AND `T ≡ 0` on the masking-free regime; born RED against the pre-fix tree, green post-fix, dev-verified in that order. Companions: `test_b_a_transpose_is_the_dense_euclidean_transpose` (the defining law `dense(B_aᵀ) ≡ dense(B_a)ᵀ`, bit-equal on the non-trivial reflective arm) and the end-to-end catcher that found it live — the A2a grid `.H` reciprocity arm in `tests/sn/operators/test_inverse_adjoint_coherence.py` (< 1e-12 + the metric-strip tooth).
+
+**Lesson.** Transpose the COMPOSITION, not the pieces around the wrong side: a row-projected forward `P ∘ law` transposes to `lawᵀ ∘ P` (input restriction, full image written), never `P′ ∘ lawᵀ` (output projection) — and the two coincide exactly on laws with no diagonal block, so a fixture family of permutation laws CANNOT distinguish them. Before crediting a transpose/neutrality gate, enumerate the law/contract classes and check the fixture activates one on which the candidate wrong spellings DIFFER (here one vacuum-fixture row was the whole cost — the third ERR-063-family instance). And a snapshot pin on an arm with zero production consumers certifies the masked regime, not the claim: retire or rewire such pins onto the defining law.
+
+## ERR-069 — the d3 direct-seed carve wired the ψ½ r=R corner datum for vacuum(0) and reflective(B_b) only: a PRESCRIBED inflow's corner went silently ZERO, and the sphere prescribed-inflow solve converged to a wrong fixed point (L2 ≈ 0.21 vs the 2.4e-3 floor) for nine days — because the change was verified exactly on the two regimes where the missing arm is accidentally exact, and the one committed catcher was slow-marked
+
+**Date:** introduced 2026-07-04 (`a29ab2df`, #282 route (a) d3 — the direct starting-direction seed); caught + fixed 2026-07-13 (coupled-block campaign step 7, `1a5e5dc5`) by the tier's FIRST patient slow run since d3.
+**Module:** `sn` (`solver._build_fixed_source_rhs`) / `transport` (`RadialCharacteristicField.source_from_angular`).
+**Class:** Mode 9 (verified only in the degenerate/coincident regime) compounded by a slow-marked-only catcher — five not-slow walls (6371, 6388, 6385, …) ran green over the wrong fixed point.
+
+**What happened.** Pre-d3, the lagged seed march started its r=R inward
+leg from `bc_outer_value = inflow_full[most_inward_global, :]` — the
+boundary trace's most-negative-μ ordinate, an O(Δμ) nearest-node proxy
+for the seed BVP's Dirichlet datum ψ_in(μ=−1, R) that served ALL three
+BC families through one read. d3 retired that read and re-posed the
+corner as an explicit given-data slot with per-family arms: vacuum ⇒ 0
+(the factory's zero corners), reflective ⇒ the `B_b` corner GAIN
+(iterate-side, in the splitting's N). A prescribed inflow is NEITHER —
+it is a SOURCE, and no source-side arm existed: the corner stayed the
+factory's zero, System B marched from a wrong Dirichlet datum, and the
+seed thread fed the wrong ψ½ into every level's Morel–Montry
+recurrence.
+
+**Why every gate stayed green.** The §16.D acceptance matrix (sphere
+cold-residual, seed-insensitivity, coarse-LS, pure-absorber) was
+vacuum/reflective-only — the exact regimes where the missing arm is
+zero-exact (vacuum: 0 IS the datum; reflective: B_b supplies it).
+Mode-9's signature precisely: the formulation change was FP-invariant
+on the verified class and wrong outside it. The one committed catcher
+(`test_mms_prescribed_inflow_sphere_activates_redistribution`, whose
+band was DESIGNED for this dropped-q.boundary class) is slow-marked, so
+the canonical not-slow walls never executed it; the not-slow structural
+sibling (`test_sphere_nonvacuum_inflow_honoured_and_redistribution_live`)
+checks inflow-honoured + redistribution-live but not the corner datum,
+so it stayed green over the wrong converged value.
+
+**Fix.** (`1a5e5dc5`) The inflow-corner law completed to THREE arms,
+each datum through its own system channel:
+`source_from_angular(..., boundary_trace=)` — the SAME composite rhs's
+boundary member — populates each carrying level's inflow corner with
+the trace's most-inward `xmax` row (the pre-d3 proxy restored through
+the source channel; the half-range Legendre fold to μ=−1 is the named
+upgrade seam); `_build_fixed_source_rhs` threads its own boundary
+member in. Dormant by DATA off the prescribed class (vacuum/reflective
+rhs traces are zero): the 257/0 dormancy battery (byte-compare
+walk_matvec / affine-carve / bc_extraction stores, the regression
+floor, the r1 reflective-corner row) passed with ZERO re-baselines.
+
+**Which test catches it.**
+`tests/sn/operators/test_psi_half_coupling.py::TestPrescribedCornerDatum`
+(`@pytest.mark.catches("ERR-069")`) — the NOT-SLOW wiring pin: the
+prescribed arm (a random ordinate-asymmetric trace must land on every
+carrying level's inflow corner as the most-inward row; the outflow
+defect corner stays zero) + the vacuum control (bare-ndarray rhs keeps
+zero corners — the dormancy leg). Teeth mutation-verified in-process:
+the factory reverted to the d3 state (drop `boundary_trace`) ⟹ RED in
+0.14 s; restored ⟹ green. The value-level catcher remains the slow
+MMS gate (red→green at the fix, 4/4 file).
+
+**Lesson.** A refactor that re-poses one shared read as per-family
+arms MUST enumerate the family — the BC lattice here is
+{vacuum, reflective, albedo, prescribed}, and "the two arms my
+acceptance matrix exercises" is not an enumeration. Mode-9 discipline
+applies to BC-family coverage exactly as to splittings: verify on a
+config where the arms DIFFER (a nonzero prescribed trace), not only
+where the missing one is accidentally exact. And a bug class whose
+only catcher is slow-marked is invisible to every routine wall — when
+a slow gate is the designed catcher for a regression class, give the
+class a not-slow WIRING pin (the value gate stays slow; the wiring pin
+runs everywhere), and run the patient slow tier at every merge gate.
