@@ -40,9 +40,12 @@ file-level TODO below).
 Runtime
 -------
 The baseline test runs F.4 at two quadratures per point in child
-processes, capped at 120 s/run. Whole file is ``@pytest.mark.slow``:
-total wall ~6-15 min depending on machine. The helper unit tests
-themselves are fast (no F.4 evaluation).
+processes, with a 600 s/run hung-subprocess backstop (a RICH run
+measures ~82 s on the 2026-07 host runtime; the historical 120 s cap
+was the 2026-04 devcontainer scan budget and sat razor-thin against
+core contention). Whole file is ``@pytest.mark.slow``: total wall
+~20-30 min uncontended. The helper unit tests themselves are fast
+(no F.4 evaluation).
 """
 
 # TODO(Issue #123 close-out): add the ``:label: peierls-rank-n-stability``
@@ -560,13 +563,27 @@ F4_REFERENCE_BASELINE: dict[tuple[float, float], dict] = {
 # =========================================================================
 # Subprocess worker to evaluate F.4 without binding the test process.
 # Mirrors diag_f4_structural_floor_baseline.py.
+#
+# The F.4 evaluator lives in the TRACKED derivations tree
+# (``derivations/diagnostics/diag_cin_aware_split_basis_keff.py``,
+# recovered 2026-07-13 from its surviving cpython-312 bytecode after the
+# original — untracked, in scratch/ — was lost). The directory is passed
+# to the child as an argv, resolved from THIS file's location: the
+# pre-recovery worker hardcoded the devcontainer mount
+# ``/workspaces/ORPHEUS/scratch/...``, so it could never run on Host and
+# its import target was invisible to version control — two process
+# defects with the same lesson: a tracked test may only import tracked
+# code through environment-agnostic paths.
 # =========================================================================
 
+_DIAGNOSTICS_DIR = (
+    Path(__file__).resolve().parents[2] / "derivations" / "diagnostics"
+)
 
 _WORKER_CODE = textwrap.dedent(
     r"""
     import json, sys, time
-    sys.path.insert(0, '/workspaces/ORPHEUS/scratch/derivations/diagnostics')
+    sys.path.insert(0, sys.argv[6])
     from diag_cin_aware_split_basis_keff import run_scalar_f4
     tau = float(sys.argv[1]); rho = float(sys.argv[2])
     n_panels = int(sys.argv[3]); p_order = int(sys.argv[4]); n_ang = int(sys.argv[5])
@@ -580,11 +597,18 @@ _WORKER_CODE = textwrap.dedent(
 ).strip()
 
 
-def _run_f4_subprocess(tau: float, rho: float, quad: dict, timeout: float = 120.0) -> float:
+def _run_f4_subprocess(tau: float, rho: float, quad: dict, timeout: float = 600.0) -> float:
+    # The timeout is a hung-subprocess BACKSTOP, not a science budget: the
+    # historical 120.0 was the 2026-04 devcontainer scan budget (see the
+    # F4_REFERENCE_BASELINE status strings), and a RICH run measures ~82 s
+    # nominal on the 2026-07 host runtime — razor-thin against 120 under
+    # any core contention. The 1e-6 VALUE tolerance is the contract; the
+    # backstop only needs to sit an order of magnitude above nominal.
     args = [
         sys.executable, "-c", _WORKER_CODE,
         str(tau), str(rho),
         str(quad["n_panels"]), str(quad["p_order"]), str(quad["n_ang"]),
+        str(_DIAGNOSTICS_DIR),
     ]
     proc = subprocess.run(
         args, capture_output=True, text=True, timeout=timeout, check=True,
