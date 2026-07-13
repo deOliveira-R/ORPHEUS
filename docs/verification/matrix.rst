@@ -77,11 +77,11 @@ Module × level grid
    core/test_sweep_graph, 76, 0, 0, 0, 0, 0
    core/test_sweep_graph_nd_admission, 0, 0, 0, 0, 42, 0
    core/test_sweep_graph_window_equivalence, 0, 0, 0, 0, 20, 0
+   core/test_sweep_ng2_layout_guard, 0, 0, 0, 0, 2, 0
    core/test_sweep_regression, 10, 0, 0, 0, 0, 0
    core/test_sweep_schedule, 0, 0, 0, 0, 9, 0
    core/test_sweep_schedule_nd, 0, 0, 0, 0, 9, 0
    core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 3, 0
-   core/test_transport_sweep_ng2_layout_guard, 0, 0, 0, 0, 2, 0
    core/test_unified_sweep_dispatch, 0, 0, 0, 0, 28, 0
    core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 4, 0
    cp/test_cylinder, 0, 9, 0, 0, 0, 0
@@ -834,7 +834,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **284** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **293** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -867,6 +867,15 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``coolant-energy``
 - ``coolant-feedback``
 - ``coolant-rate``
+- ``coupled-ab-seed``
+- ``coupled-ba-emission``
+- ``coupled-ba-fold``
+- ``coupled-block-2x2``
+- ``coupled-block-matvec``
+- ``coupled-block-substitution``
+- ``coupled-free-identity-residual``
+- ``coupled-loss-grid``
+- ``coupled-mn-splitting``
 - ``creep-rate``
 - ``dd-2d-balance-form``
 - ``diagonal-operator-action``

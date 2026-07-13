@@ -20674,6 +20674,87 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-07-12
+     - **The walk's fused ψ½ joint channel was retired — every sweep
+       surface IS the ray-decoupled** :math:`(A,A)` **block, presence
+       structural** (coupled-block campaign, step 6). With the four blocks
+       posed and the solve routed through the grid, the walk's fused
+       joint-leg channel became dead production code and was deleted
+       (net −803 lines): the two forward/transpose ψ½ kwarg pairs across
+       the six representation signatures, the three-function presence-guard
+       family, the walk's in-solve System-B engines, and the operator-free
+       ``transport_sweep`` wrapper. **(6a, ``03e275e8``)** the eigenvalue
+       finalize re-routes through the SAME
+       :func:`~orpheus.sn.coupled_system.build_within_group_system`
+       ``.resolvent`` every driver consumes. **(6b, ``015dcc73``)** the
+       estate cut: every walk surface is now the ray-decoupled
+       :math:`(A,A)` diagonal block on *every* mesh — the matvec
+       substitutes a zero seed into the Morel–Montry thread, and the
+       transpose **discards** the thread cotangent (a fixed input's
+       cotangent propagates nowhere; the
+       :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicSeeding`
+       grid block carries the coupling). :attr:`SweepOperator.is_adjointable
+       <orpheus.sn.operators.sweep_operator.SweepOperator.is_adjointable>`
+       dropped its carrying-mesh third factor (R-6.2). The mesh stays the
+       single authority on presence — nothing *checks* against it anymore,
+       the type system carries the biconditional. Sphere re-baselines are
+       sphere-only FP-grain (the fused → block-sum association class
+       ~1e-15); slab/cylinder byte-identical through a full re-save. See
+       :ref:`coupled-block-operator` in :doc:`operator_algebra`.
+     - #280
+     - ``refactor/sn-walk-unification`` *(in development, 015dcc73)*
+   * - 2026-07-12
+     - **The four BC-layer invariants (ERR-041/042/045/047) went
+       production-live at the realize seam** (coupled-block campaign).
+       ``BoundaryTraceLaw.assert_realizable`` became the certification
+       template method — ``SNBoundaryRealizer.realize`` fires it ONCE at
+       entry, so every ``SNMesh`` construction certifies its BC laws:
+       the reflection table must be measure-preserving under the
+       :math:`w\,\lvert\mu_{\rm axis}\rvert` trace metric (ERR-042,
+       independent of involution), every non-tangential ordinate's
+       partner must map inflow→outflow with opposite sign on the law's
+       axis (ERR-045), the vacuum arm cross-checks claimed
+       ``inflow_indices`` against the orientation the face name alone
+       implies (ERR-041), and a nonzero boundary source without an
+       inflow mask is uncertifiable while a masked one is delivered
+       exactly on :math:`\Gamma_-` (ERR-047). Three measured-independent
+       invariants (a mutant passing involution AND measure reds only the
+       inflow→outflow check); all four catchers mutation-verified;
+       ``tests._harness.audit`` ERR coverage 64/68 → **68/68**.
+     - —
+     - ``refactor/sn-walk-unification`` *(in development, 51c22396)*
+   * - 2026-07-12
+     - **The within-group coupled solve landed — block-triangular
+       substitution + a materialised-LU EXTRACT, with a ρ-honest stop and
+       a lag-death certificate** (coupled-block campaign, step 5). The
+       numerics :class:`~orpheus.numerics.coupled_system.CoupledOperator`
+       gained the structure-keyed DIRECT solve: **(5a, ``6732778a``)** the
+       triangular block substitution (ONE body, four orientation × transpose
+       combos) and the materialise/LU EXTRACT via
+       :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`;
+       **(5b, ``899ee06a``)** the resolvent :math:`M` re-poses as the honest
+       upper-triangular grid ``[[LC, Seeding], [None, march]]``, whose
+       ``solve`` is the block back-substitution (System B's march first,
+       then the bulk sweep on the ray-decoupled :math:`q_A -
+       \text{Seeding}\,\psi_B`) and whose ``inverse()`` is the
+       :class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`;
+       **(5c, ``c98a23d8``)** :class:`~orpheus.numerics.iteration.SourceIteration`
+       stops on the free-identity equation residual
+       :math:`r_n = \mathrm{rhs}_{n-1} - \mathrm{rhs}_n = A\psi_n - q`, and
+       every full-angular arm carries the driver-level
+       :class:`~orpheus.sn.solver.ConvergenceCertificateError` — one honest
+       :func:`~orpheus.sn.solver.evaluate_residual` per claimed exit closes
+       the exact-:math:`M` hole the free identity assumes (the #282
+       lag-death class, measured cold-residual defect ~5e5); **(5d,
+       ``88e226ff``)** the fused ``CoupledInvertibleOperator`` bridge was
+       DELETED (every joint-``M`` fixture rides the one grid helper); **(5e,
+       ``0e03c304``)** the :math:`A.H.\text{inverse}() \equiv
+       A.\text{inverse}().H` swap-law arm went live on the grid. The EXTRACT
+       is principled-equivalent (:math:`5.5\text{e-}16` vs the dense-LU
+       oracle), not bit-identical. See :ref:`coupled-block-operator` in
+       :doc:`operator_algebra`.
+     - #280 #282
+     - ``refactor/sn-walk-unification`` *(in development, 0e03c304)*
    * - 2026-07-11
      - **The ψ½ ray solve was un-woven from the walk — System B is marched
        split-native and its ray solve routes through the named ``A_BB``
