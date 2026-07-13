@@ -130,9 +130,14 @@ See also
 ========
 
 * :class:`orpheus.sn.mesh.augmented_mesh.SNMesh` — consumes this primitive
-  via the curvilinear connection-coefficients path.
-  :class:`~orpheus.sn.operators.streaming.StreamingOperator` consumes it through
-  :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_unified`.
+  via the curvilinear connection-coefficients path (as ``SNMesh.reduced``).
+  :class:`~orpheus.sn.operators.streaming.StreamingOperator` consumes it
+  through the loss-representation walk (its
+  :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` reads
+  ``self.mesh.reduced.coord`` inside the walk).  (The per-geometry
+  ``transport_operator_matvec_*`` matvecs and their unified successor,
+  which consumed it in the Depth-B era, were deleted in the typed-field
+  (#197) / walk-unification (#280 campaigns) refactors.)
   MoC and CP campaigns (post-Wave-1) reuse this primitive with their
   own consumption patterns.
 * :doc:`/theory/structured_geometry` — the architecture page;

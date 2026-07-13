@@ -480,18 +480,31 @@ The six PRs
        mentions in code docstrings + comments + tests.  No
        production code semantics touched.
 
-What stayed deliberately legacy: the FD-matvec internal contract
-----------------------------------------------------------------
+What stayed deliberately legacy: the FD-matvec internal contract (historical)
+-----------------------------------------------------------------------------
 
-The FD-matvec internal helpers
-:func:`~orpheus.sn.operators.streaming.solution_to_angular_flux` and
-:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_cylindrical`
-(plus Cartesian / spherical analogues) carry a separate internal
+.. note:: **Deleted path (typed-field campaign, #197 / Depth-B
+   D-H–D-J).**  This subsection describes the packed-vector internal
+   layout of the FD-matvec helpers, which at the time were *kept*
+   deliberately legacy pending a PR-INDEX-7 migration.  That whole path
+   — the ``transport_operator_matvec_*`` family, the
+   ``solution_to_angular_flux*`` unpackers, and the ``EquationMap``
+   codec — was subsequently **deleted**: operators now consume the
+   single typed :class:`~orpheus.transport.full_field.FullField`
+   composite (see :ref:`theory-sn-index-convention`'s principled
+   ``(N, ng, nx, ny)`` layout above), so there is no packed vector left
+   to migrate and **PR-INDEX-7 is moot**.  The description below is
+   retained as a record of the packed-vector convention that once
+   existed.
+
+The FD-matvec internal helpers (``solution_to_angular_flux`` and
+``transport_operator_matvec_cylindrical``, plus Cartesian / spherical
+analogues — all since deleted) carried a separate internal
 packed-vector convention: the flat layout
 :math:`\texttt{flux}[g + n_g \cdot k_{\text{eq}}]` where
-:math:`k_{\text{eq}}` enumerates cells in the order
-``for iy: for ix: for n:`` so :math:`n` is the next-fastest axis
-after :math:`g`.  The unpacked helper returns
+:math:`k_{\text{eq}}` enumerated cells in the order
+``for iy: for ix: for n:`` so :math:`n` was the next-fastest axis
+after :math:`g`.  The unpacked helper returned
 ``fi.shape == (ng, N, nx, ny)`` --- a *third* layout, distinct from
 both the legacy ``(N, nx, ny, ng)`` and the principled
 ``(N, ng, nx, ny)``.
@@ -942,9 +955,9 @@ both problem kinds.
 
 Solution holds:
 
-- :class:`~orpheus.sn.angular_flux.AngularFlux` +
+- :class:`~orpheus.transport.fields.angular_flux.AngularFlux` +
   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` +
-  :class:`~orpheus.sn.boundary_flux.AngularBoundaryFlux` typed fields (NOT
+  :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` typed fields (NOT
   bare ndarrays);
 - :class:`~orpheus.sn.solution.IterationHistory` carrying tuple-based
   per-outer / per-inner trajectory diagnostics (NOT list-based);
@@ -1152,17 +1165,19 @@ lives in scattered docstrings.
    * - ``LegendreMomentScattering`` moment field
      - ``(L+1, 2L+1, ng, nx, ny)``
      - :mod:`orpheus.transport.operators.scattering`
-   * - FD-matvec internal ``fi`` (deferred to PR-INDEX-7)
-     - ``(ng, N, nx, ny)``
-     - :func:`~orpheus.sn.operators.streaming.solution_to_angular_flux`
 
-Two arrays do **not** follow the priority order:
+.. note:: A former row here recorded the FD-matvec packed-vector
+   internal ``fi`` shape ``(ng, N, nx, ny)`` (``ng`` first, then ``N``,
+   an out-of-priority-order layout deferred to the never-executed
+   PR-INDEX-7).  That whole path — the ``transport_operator_matvec_*``
+   family and its ``solution_to_angular_flux*`` unpackers — was deleted
+   in the typed-field campaign (#197), so the row no longer describes
+   any live array.
+
+One array does **not** follow the priority order:
 
 - :class:`CollisionCache` fields drop ``ny`` (they are 1-D-only and
   consume the cell axis as a single innermost contraction).
-- The FD-matvec packed-vector internal helper carries ``(ng, N,
-  nx, ny)`` --- ``ng`` first, then ``N``, then spatial.  This is the
-  PR-INDEX-7 deferred work.
 
 Three array shapes that look like exceptions but are not:
 
@@ -1204,8 +1219,8 @@ fail at construction time (Pattern 4 — illegal states unrepresentable).
    is the stub written by the method-implementer per
    ``algebra-of-record``'s Sphinx stub vs rich narrative discipline.
 
-   Source modules: :mod:`orpheus.sn.angular_flux`,
-   :mod:`orpheus.transport.fields.scalar_flux`, :mod:`orpheus.sn.boundary_flux`.
+   Source modules: :mod:`orpheus.transport.fields.angular_flux`,
+   :mod:`orpheus.transport.fields.scalar_flux`, :mod:`orpheus.transport.fields.angular_boundary_flux`.
    Foundation tests:
    :file:`tests/sn/test_typed_fields.py` (22 cases, all green).
    Closeout memo:
@@ -1221,7 +1236,7 @@ The three types
    * - Type
      - Storage shape
      - Reads as the math
-   * - :class:`~orpheus.sn.angular_flux.AngularFlux`
+   * - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
      - ``(N, ng, nx, ny)``
      - :math:`\psi(\vec r, \hat\Omega_n, g)`.  ``psi.integrate_angular()``
        returns the :class:`ScalarFlux` (the canonical ``Σ_n w_n ψ_n``
@@ -1230,7 +1245,7 @@ The three types
      - ``(ng, nx, ny)``
      - :math:`\phi_g(\vec r) = \int_{4\pi} \psi\,d\Omega`.  Dunder
        arithmetic: ``a + b``, ``α · phi``, ``phi.at_group(g)``.
-   * - :class:`~orpheus.sn.boundary_flux.AngularBoundaryFlux`
+   * - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
      - Per-face: 1-D ``(N, ng)``; 2-D persistent ``(N, ng, nx+1, ny)``
        / ``(N, ng, nx, ny+1)``.
      - Boundary :math:`\psi` at every face plus curvilinear pole state.
@@ -1375,7 +1390,7 @@ Cross-type ``__add__`` table
      - :class:`AngularSourceSink` (within type)
 
 The cross-type with :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` /
-:class:`~orpheus.sn.angular_flux.AngularFlux` is **not** defined.
+:class:`~orpheus.transport.fields.angular_flux.AngularFlux` is **not** defined.
 Source density and flux carry the same numpy storage shape but are
 different physical quantities — keeping the types distinct enforces
 the algebraic distinction at the dunder layer.
@@ -1499,35 +1514,43 @@ choice, not a layout slip.
 Future work
 ===========
 
-PR-INDEX-7 --- EquationMap packed-vector traversal flip
--------------------------------------------------------
+PR-INDEX-7 --- EquationMap packed-vector traversal flip (obsoleted)
+-------------------------------------------------------------------
 
-The FD-matvec internal helpers
-(:func:`~orpheus.sn.operators.streaming.solution_to_angular_flux` and the
-``transport_operator_matvec_*`` family) carry a
+.. note:: **Obsoleted by deletion (typed-field campaign, #197 /
+   Depth-B D-H–D-J).**  This planned flip targeted the packed-vector
+   internal layout of the FD-matvec path.  That path — the
+   ``transport_operator_matvec_*`` family, the
+   ``solution_to_angular_flux*`` unpackers, and the ``EquationMap``
+   codec — was **deleted** in favour of the single typed
+   :class:`~orpheus.transport.full_field.FullField` composite.  With no
+   packed vector left, the flip below is moot; it is retained only as a
+   record of the migration that was superseded by the deletion.
+
+At the time, the FD-matvec internal helpers
+(``solution_to_angular_flux`` and the
+``transport_operator_matvec_*`` family, since deleted) carried a
 Fortran-flatten layout for the packed vector
 :math:`\texttt{solution}[g + n_g \cdot k_{\text{eq}}]` with
 :math:`k_{\text{eq}}` enumerating cells via
-``for iy: for ix: for n:``.  The unpacked result is
+``for iy: for ix: for n:``.  The unpacked result was
 ``fi.shape == (ng, N, nx, ny)``.
 
-PR-INDEX-7 will flip this to the principled
+The planned PR-INDEX-7 flip would have moved this to the principled
 ``(N, ng, nx, ny)`` traversal:
 
 - Reverse the ``EquationMap`` enumeration order to put :math:`n`
   outermost.
 - Update the Fortran-reshape pair at every
   ``solution.reshape(ng, n_eq, order='F')`` /
-  ``lhs.ravel(order='F')`` site
-  (``operator.py:292``, ``operator.py:460``, etc.).
-- Update the 30+ ``fi[:, n, i, j]`` indexing sites in
+  ``lhs.ravel(order='F')`` site.
+- Update the ``fi[:, n, i, j]`` indexing sites in
   ``transport_operator_matvec_*``.
 - Retire the two ``np.transpose(fi, (1, 0, 2, 3))`` axis-swap
-  adapters at ``solver.py:1361`` and ``solver.py:1408``.
+  adapters at the Krylov decode sites.
 
-Estimated size: ~200 LoC, all internal, no public API surface
-affected.  PR-INDEX-7 is **not** a blocker for the typed-field
-contract resume; the two efforts are independent.
+The deletion of the whole packed-vector path resolved all of the above
+at once — no separate PR-INDEX-7 was needed.
 
 Typed-field contract resume
 ---------------------------

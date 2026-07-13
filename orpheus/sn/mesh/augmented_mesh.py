@@ -306,11 +306,12 @@ class SNMesh(MaterialMesh):
         #   §3.9.4 term); ships neutral zeros for the per-cell
         #   contribution interface.
         #
-        # Used by the unified matvec
-        # (:func:`transport_operator_matvec_unified`) via
-        # :meth:`StreamingOperator.apply` (the Resolution A leaf;
-        # composed as ``L + C`` via :class:`InvertibleOperator` for
-        # the within-group sweep + Krylov path).
+        # Used by :meth:`StreamingOperator.apply` (the Resolution A
+        # leaf) through the loss-representation walk; composed as
+        # ``L + C`` via :class:`InvertibleOperator` for the within-group
+        # sweep + Krylov path.  (The former ``transport_operator_matvec_*``
+        # matvec family — including the unified successor — was deleted
+        # at the walk unification; #197 / #280 campaigns.)
         #
         # PR-TYPED-6.5 Phase 2.9: instantiation is deferred until AFTER
         # the coord dispatch block populates ``self.reduced`` /
@@ -1218,8 +1219,11 @@ class SNMesh(MaterialMesh):
         r"""Lightweight twin of :meth:`dag_walk` — yields just cell indices.
 
         Consumers that build their own per-cell algebra from primitives
-        (the unified matvec ``transport_operator_matvec_unified``) only
-        need the cell traversal order, not the full
+        (the loss-representation walk in
+        :mod:`orpheus.sn.loss_representation` — the former unified matvec
+        ``transport_operator_matvec_unified`` was its Depth-B predecessor,
+        deleted at the walk unification) only need the cell traversal
+        order, not the full
         :class:`~orpheus.transport.spatial.scheme.CellVisit` packet.
 
         Eliminates per-cell-per-call ``ReducedStreamingOperator.streaming_terms()``

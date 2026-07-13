@@ -447,7 +447,13 @@ SN reshape campaign (``.claude/plans/sn_reshape.md``):
 * **SN operator algebra (Depth B, 2026-05)** —
   :class:`~orpheus.sn.operators.streaming.StreamingOperator` /
   :class:`~orpheus.sn.operators.streaming.InvertibleOperator` consume the
-  primitive through :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_unified`.
+  primitive (as ``SNMesh.reduced``) through the loss-representation walk:
+  :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` reads the
+  connection coefficients off ``self.mesh.reduced.coord`` inside the walk.
+  (Depth B consumed them through the per-geometry
+  ``transport_operator_matvec_*`` matvecs; that family and its unified
+  successor were deleted in the typed-field (#197) and walk-unification
+  (#280 campaigns) refactors — the primitive itself is unchanged.)
 * **MoC and CP campaigns (post-Wave-1)** reuse the same primitive
   with their own consumption patterns (track-segment chord march
   for MoC; ray-traced chord-length integrals for CP).

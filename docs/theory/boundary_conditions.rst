@@ -242,13 +242,17 @@ Three remarks make this form load-bearing:
 .. note::
 
    **SN apply matvec honours the affine BC contract (Issue #168
-   Phase C, 2026-05-12).** The
-   :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
-   and ``_cylindrical`` matvecs were rewritten as one sweep
+   Phase C, 2026-05-12).** The then-production per-geometry matvecs
+   (``transport_operator_matvec_spherical`` and ``_cylindrical`` —
+   since deleted in the typed-field campaign (#197), their successor
+   ``_transport_operator_matvec_unified`` in turn retired at the walk
+   unification (#280 campaigns)) were rewritten as one sweep
    iteration semantically: the BC trace law is applied **at least
    once** per matvec at the boundary edge on the WDD-propagated
    outflow face values (:math:`\gamma_+ \psi`), not on cell-centre
-   approximations. The pre-Phase-C cell-centre-as-face-value
+   approximations.  The live forward action is now
+   :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`
+   through the loss-representation walk. The pre-Phase-C cell-centre-as-face-value
    contamination — and the Phase A ``BoundaryFaceFlux`` Protocol
    that patched it — both retire in Phase C. See
    :ref:`bc-trace-contract-respected-by-matvec` for the
@@ -2076,8 +2080,10 @@ post-Phase-D code path:
      - Output use
    * - **#1**
      - Phase D Carlson context build
-       (:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
-       / ``_cylindrical`` early in the call)
+       (the then-production ``transport_operator_matvec_spherical``
+       / ``_cylindrical`` matvec — the whole per-geometry family since
+       deleted in the typed-field campaign (#197), successor retired at
+       the walk unification (#280 campaigns) — early in the call)
      - ``(N, ng)`` — outer-cell cell-centred :math:`\psi` (NOT the
        face trace; a first-order proxy used only to construct the
        linear-in-:math:`\psi` ``bc_outer_value`` scalar at
@@ -2184,7 +2190,10 @@ Phase D (Issue #168 Phase D, :ref:`bc-phase-d-two-bc-applies-per-matvec`
 above) instituted the *two BC apply calls per curvilinear matvec*
 contract on the apply-matvec path (the within-group operator,
 :class:`~orpheus.sn.operators.streaming.InvertibleOperator` post-Depth-B; the
-matvec lives at :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_unified`).  Phase F
+matvec then lived at ``_transport_operator_matvec_unified`` — since
+deleted at the walk unification (#280 campaigns); the live forward action
+is now :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`
+through the loss-representation walk).  Phase F
 (Issue #168 Phase F, 2026-05-12, also landed on
 ``refactor/sn-operator-algebra``) propagates the same pattern to the
 **SI/sweep path** (the then-production ``transport_sweep`` entry — since

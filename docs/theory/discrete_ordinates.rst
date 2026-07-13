@@ -6825,9 +6825,11 @@ Sweep-frame apply matvec (Issue #168 Phase C)
 .. admonition:: Key Facts
    :class: important
 
-   * Phase C (commits ``eae6f05`` → ``d445a8f``, 2026-05-12) rewrites
-     :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
-     and ``_cylindrical`` as **one sweep iteration semantically**.
+   * Phase C (commits ``eae6f05`` → ``d445a8f``, 2026-05-12) rewrote
+     the then-production ``transport_operator_matvec_spherical``
+     and ``_cylindrical`` matvecs (the whole per-geometry family
+     since deleted — #197 / #280 campaigns) as **one sweep iteration
+     semantically**.
      The WDD diamond closure
      :math:`\psi^{\text{face}}_{\text{out}} = 2\,\psi^{\text{cell}}
      - \psi^{\text{face}}_{\text{in}}` propagates the face flux
@@ -7101,8 +7103,8 @@ algebraic extrapolation of cell centres. The retired symbols are:
 * The ``boundary_face_flux`` constructor field +
   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` attribute
 * The ``boundary_face_flux_closure`` keyword argument from
-  :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
-  and ``_cylindrical``
+  ``transport_operator_matvec_spherical`` and ``_cylindrical`` (the
+  matvec family since deleted — #197 / #280 campaigns)
 * :file:`tests/sn/sweep/test_boundary_face_flux.py` (232 LOC,
   21 foundation tests)
 
@@ -8315,8 +8317,8 @@ The single largest **architectural correction** of Phase D is
 where the canonical inward-sweep output is injected.  The Phase D
 plan (and the literature memo's §7 implementation note) routed
 the inward-sweep result :math:`\bar\phi_i` into the **WDD
-spatial pole-face initial condition** at
-:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`'s
+spatial pole-face initial condition** at the then-production
+``transport_operator_matvec_spherical`` matvec's (since deleted)
 ``psi_face_in`` initialisation — the very same site the
 :ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section` discussion
 identified as the Phase C Carlson seed location.
@@ -8985,8 +8987,9 @@ Phase F Carlson seed sweep-path backport (Issue #168 Phase F)
      backports the Phase D Carlson coupled-pole seed
      (``CarlsonInwardSweep``,
      Hébert §3.9.4 Eqs. (3.432)–(3.435)) from the apply-matvec path
-     (:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
-     / ``_cylindrical``, fixed in Phase D Step 3) into the SI/sweep
+     (the then-production ``transport_operator_matvec_spherical``
+     / ``_cylindrical`` matvec — since deleted, #197 / #280 campaigns —
+     fixed in Phase D Step 3) into the SI/sweep
      path
      (``_sweep_1d_spherical`` (the dissolved ``sweep.py``) and
      ``_sweep_1d_cylindrical``).
@@ -13538,13 +13541,19 @@ The full operator surface — apply, solve, apply_transpose
 :ref:`capability-set-semantics`):
 
 * :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` —
-  matrix-free forward action :math:`A\,\psi`.  Reuses the
-  symmetric closure math from the existing
-  :func:`~orpheus.sn.operators.streaming.transport_operator_matvec`,
-  :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`,
-  :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_cylindrical`
-  functions (the historical BiCGSTAB FD operator).  The math is
-  **extracted verbatim**; the new class is a thin Protocol wrapper.
+  matrix-free forward action :math:`A\,\psi = (L+C)\,\psi` via the
+  operator's own
+  :attr:`~orpheus.sn.operators.streaming.InvertibleOperator.loss_representation`
+  through the shared apply-direction walk
+  (:meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action`,
+  the ``(L+C)ψ`` single emission — the apply-direction twin of
+  :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep`,
+  L21 "matvec ≡ sweep"; #206 Phase C).  (Historically ``apply``
+  reused the symmetric-closure math extracted verbatim from the
+  per-geometry ``transport_operator_matvec*`` functions of the
+  BiCGSTAB FD operator; that whole family and its unified successor
+  were deleted in the typed-field (#197) and walk-unification
+  (#280 campaigns) refactors.)
 
 * :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` —
   inverse action :math:`A^{-1}\,q` via the operator's own
@@ -13553,29 +13562,51 @@ The full operator surface — apply, solve, apply_transpose
   selected by :func:`~orpheus.sn.loss_representation.default_for`).
 
 * :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose` —
-  adjoint action :math:`A^*\,\psi`.  Implemented via the explicit
-  transpose of the dense matrix assembled by probing
-  :meth:`apply` with each unit basis vector.  The construction is
-  exact by linear algebra and gates the reciprocity invariant
-  :math:`\langle A\,\psi,\,\varphi\rangle = \langle\psi,\,
-  A^*\,\varphi\rangle` (see "Reciprocity" subsection below).
+  adjoint action :math:`A^{\mathsf T}\,\phi` via the loss-representation's
+  named
+  :meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action_transpose`
+  (the reverse-direction walk carrying the second angular triangular
+  factor on curvilinear; the multi-D Cartesian adjoint is an honest
+  deferral raise, never a silent wrong answer).  It gates the
+  reciprocity invariant :math:`\langle A\,\psi,\,\varphi\rangle =
+  \langle\psi,\,A^{\mathsf T}\,\varphi\rangle` (see "Reciprocity"
+  subsection below).  (The pre-Depth-B path assembled a dense matrix by
+  probing :meth:`apply` with unit basis vectors and returned its explicit
+  transpose; that retired with the bundled ``SNStreamingOperator`` class
+  in D-K.)
 
-Apply and solve use **different** closures by design
-----------------------------------------------------
+Apply and solve use **different** closures by design (historical)
+-----------------------------------------------------------------
 
-This is the load-bearing architectural fact about
+.. note:: **Superseded architecture (Wave D / early Wave E).**  This
+   subsection describes a design in which ``apply`` (a separate
+   finite-difference operator) and ``solve`` (the WDD sweep) were
+   **two distinct discretisations** of :math:`A`.  That split was
+   dissolved by the #206 Phase C **matvec ≡ sweep** unification: today
+   ``apply`` and ``solve`` run the **one** loss-representation walk
+   (:meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action`
+   for the matvec, :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep`
+   for the inverse — "one walk", a code fact per L21), so there is no
+   longer a separate FD operator and no by-design bit-difference between
+   the two directions.  The FD-operator family
+   (``transport_operator_matvec*`` and its unified successor) was deleted
+   in the typed-field (#197) and walk-unification (#280 campaigns)
+   refactors.  The historical two-closure narrative below is retained for
+   the ERR-026 closure-bias reasoning it records.
+
+This was the load-bearing architectural fact about
 :class:`InvertibleOperator`, and the reason the operator's
-:meth:`apply` is **not** bit-identical to its :meth:`solve`.
+:meth:`apply` was **not** bit-identical to its :meth:`solve`.
 
-The historical SN dispatch in ORPHEUS ships **two distinct
+The Wave-D-era SN dispatch in ORPHEUS shipped **two distinct
 discretisations** of the same continuous operator
 :math:`A = \Omega\cdot\nabla + \Sigma_t`, built at different times
 for different consumers:
 
-* The **finite-difference operator**
-  (:func:`transport_operator_matvec_*` in
-  :mod:`orpheus.sn.operators.streaming`) was built for the BiCGSTAB inner
-  solver path (:meth:`SNSolver._solve_bicgstab_*`).  It uses
+* The **finite-difference operator** (the ``transport_operator_matvec_*``
+  family in :mod:`orpheus.sn.operators.streaming`, since deleted) was
+  built for the BiCGSTAB inner
+  solver path (:meth:`SNSolver._solve_bicgstab_*`).  It used
   upwind cell-center FD on Cartesian and arithmetic face averages
   with **τ-symmetric Morel-Montry angular interpolation** on
   curvilinear (see the "Explicit Transport Operator" subsection of
@@ -13682,36 +13713,41 @@ xfail-strict placeholder.
 Vector layouts (``apply`` vs ``solve``)
 ---------------------------------------
 
-:meth:`apply` and :meth:`apply_transpose` operate on the **packed
-1-D solution vector** used by the legacy BiCGSTAB FD operator
-path: an :class:`~orpheus.sn.operators.streaming.EquationMap` selects which
-``(ordinate, cell)`` combinations are unknowns (the rest are
-determined by reflective BCs and the z-hemisphere reduction); the
-vector is laid out group-major in Fortran order.  This is the
-natural input shape for :func:`scipy.sparse.linalg.bicgstab` and
-the canonical layout for the Wave E Krylov-on-apply path.
+Today :meth:`apply`, :meth:`apply_transpose`, and :meth:`solve` all
+operate on the **same** typed composite carrier
+:class:`~orpheus.transport.full_field.FullField` (bulk
+:class:`~orpheus.transport.fields.angular_flux.AngularFlux` +
+boundary :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`),
+in the principled ``(N, ng, nx, ny)`` layout
+(see :ref:`theory-sn-index-convention`).  The source and its state
+ride on the composite's typed members:
 
-:meth:`solve` operates on **structured arrays** matching the within-group
-sweep's array contract, in the principled
-``(ng, nx, ny)`` / ``(N, ng, nx, ny)`` layout
-(see :ref:`theory-sn-index-convention`):
+* **Source** — carried as the composite bulk
+  (``rhs.interior.values``, per-ordinate shape ``(N, ng, nx, ny)``);
+  the P\ :sub:`ℓ` (:math:`\ell\ge 1`) anisotropic contribution is
+  folded into this one per-ordinate source (the separate ``Q_aniso``
+  kwarg is gone).
+* **Boundary state** — carried as the typed
+  :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
+  face views on ``rhs.boundary`` (keyed by face name), replacing the
+  former stringly-typed ``psi_bc`` dict; the sweep seeds its mutable
+  boundary buffer from these trace slots and persists reflective/pole
+  state through them between outer iterations.
 
-* Source ``Q`` shape ``(ng, nx, ny)``.
-* Persistent boundary-flux dict ``psi_bc`` carrying state between
-  sweeps.
-* Optional anisotropic source ``Q_aniso`` shape
-  ``(N, ng, nx, ny)`` for P\ :sub:`ℓ` (:math:`\ell\ge 1`)
-  scattering.
-
-The shape mismatch reflects the FD-matvec packed-vector internal
-convention (the packed vector is laid out group-major in Fortran
-order; see :ref:`theory-sn-index-convention`'s "What stayed
-deliberately legacy" subsection).  Wave E will normalise these via
-a single Krylov-on-apply path; until then, calling :meth:`apply` and
-:meth:`solve` requires the caller to be aware of the layout
-difference.  The principled-storage flip
-(:ref:`theory-sn-index-convention`) does NOT touch the packed-vector
-layout --- that work is deferred to PR-INDEX-7.
+.. note:: **Superseded packed-vector layout (Wave D / early Wave E).**
+   The previous design gave :meth:`apply` / :meth:`apply_transpose` a
+   **packed 1-D solution vector** (an ``EquationMap`` selecting the
+   unknown ``(ordinate, cell)`` combinations, laid out group-major in
+   Fortran order for :func:`scipy.sparse.linalg.bicgstab`) that
+   differed from :meth:`solve`'s structured arrays, and ``solve``
+   consumed a separate ``Q`` / ``psi_bc`` dict / optional ``Q_aniso``
+   triple.  The typed-field campaign (#197, then Depth-B D-H/D-I/D-J)
+   retired the packed-vector convention, the ``EquationMap`` codec
+   family, and the ``psi_bc`` dict in favour of the single
+   :class:`~orpheus.transport.full_field.FullField` composite above; the
+   ``Q_aniso`` kwarg folded into the one per-ordinate source.  There is
+   no longer a layout difference between :meth:`apply` and
+   :meth:`solve`.
 
 Why not extract :meth:`apply_transpose` analytically?
 -----------------------------------------------------
@@ -18105,8 +18141,9 @@ Applied the [BaileyMorelChang2010]_ formulation:
    at :math:`r = 0` dropped from 5.1x to 1.1x.
 
 5. Applied the fix to both the spherical and cylindrical **BiCGSTAB
-   operators** (:func:`transport_operator_matvec_spherical`,
-   :func:`transport_operator_matvec_cylindrical`).  Multi-group
+   operators** (the then-production ``transport_operator_matvec_spherical``,
+   ``transport_operator_matvec_cylindrical`` — the matvec family since
+   deleted, #197 / #280 campaigns).  Multi-group
    spherical BiCGSTAB had been unstable (keff → NaN for 2G+); the
    root cause was the same missing :math:`\Delta A/w` factor in the
    explicit FD operator.  After the fix, 2G and 4G spherical BiCGSTAB
