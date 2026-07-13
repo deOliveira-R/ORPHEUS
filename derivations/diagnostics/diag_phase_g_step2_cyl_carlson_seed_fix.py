@@ -23,11 +23,11 @@ from orpheus.sn.operator import (
     build_equation_map_cylindrical,
     transport_operator_matvec_cylindrical,
 )
-from orpheus.sn.spatial.pole_angular_closure import (
+from orpheus.sn.sweep.pole_angular_closure import (
     MorelMontryAngularSweep,
     _mm_weighted_angular_recurrence_single_level,
 )
-from orpheus.sn.spatial.psi_half_angle_seed import (
+from orpheus.sn.sweep.psi_half_angle_seed import (
     CarlsonSweepContext, carlson_inward_sweep_from_source,
 )
 
@@ -54,7 +54,7 @@ class FixedCarlsonSeed:
 
 
 from dataclasses import dataclass
-from orpheus.sn.spatial.pole_angular_closure import PoleAngularClosureBase
+from orpheus.sn.sweep.pole_angular_closure import PoleAngularClosureBase
 
 
 @dataclass(frozen=True, slots=True)

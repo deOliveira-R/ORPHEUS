@@ -23,7 +23,7 @@ from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import solve_sn_fixed_source
-from orpheus.sn.spatial.psi_half_angle_seed import carlson_inward_sweep_from_source
+from orpheus.sn.sweep.psi_half_angle_seed import carlson_inward_sweep_from_source
 
 
 def custom_si_sweep(

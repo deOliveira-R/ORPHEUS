@@ -65,7 +65,7 @@ q½ source through this function, and the APPLY reads the given carrier
 block.  On the non-carrying cylinder levels (R12a: product rules
 τ_raw = 0, level-symmetric rules τ_raw = 1) the closure inlines the
 2-point angular-edge extrapolation — see
-:meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`.
+:meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`.
 
 References
 ==========

@@ -17,7 +17,7 @@ CLI runs, but cosmic-ray won is the right tool here because:
 | Criterion | cosmic-ray 8.4.6 | why it matters |
 |---|---|---|
 | Runs on Py 3.14.3 | yes (CLI + `local` distributor) | xdist already broke on 3.14; compat was a real risk |
-| Scope to ONE module | `module-path = "orpheus/sn/spatial/diamond.py"` | the taxonomy makes mutation tractable: mutate one tier's module, run only that tier |
+| Scope to ONE module | `module-path = "orpheus/transport/spatial/diamond.py"` | the taxonomy makes mutation tractable: mutate one tier's module, run only that tier |
 | No xdist needed | `distributor.name = "local"` | xdist 3.8.0 DEADLOCKS on Py 3.14.3 (see `sn_taxonomy_reorg_mapping.md`) |
 | Per-mutant speed | ~1.0 s/mutant (≈ baseline cost) | 374 mutants for diamond.py ≈ 6 min single-process |
 | Survivor localization | `dump` carries `definition_name` + `start_pos` per mutant | a survivor maps to the enclosing function → the capability node |
@@ -43,7 +43,7 @@ tested by `test_cell_update_batch.py`. Adding the third file → 100 %.
 
 ```toml
 [cosmic-ray]
-module-path = "orpheus/sn/spatial/<module>.py"   # one module / one tier
+module-path = "orpheus/sn/sweep/<module>.py"   # one module / one tier
 timeout = 30.0                                     # bound mutant infinite loops
 test-command = "env PYTHONPATH=<worktree> <venv>/bin/python -O -m pytest <that tier's tests> -q -p no:cacheprovider --timeout=30"
 [cosmic-ray.distributor]
@@ -60,7 +60,7 @@ python -m cosmic_ray.cli exec <cfg>.toml <cfg>.sqlite
 # 4. score: dump JSON, classify by definition_name → capability node
 python -m cosmic_ray.cli dump <cfg>.sqlite | <score script>
 # 5. ALWAYS restore the module — see gotcha below
-git checkout -- orpheus/sn/spatial/<module>.py
+git checkout -- orpheus/sn/sweep/<module>.py
 ```
 
 ## GOTCHA — cosmic-ray leaves the LAST mutant on disk if killed

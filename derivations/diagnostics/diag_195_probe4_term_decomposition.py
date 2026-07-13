@@ -62,7 +62,7 @@ from orpheus.derivations.continuous.mms.sn import (
 from orpheus.sn.solver import (
     SNSolver, _build_fixed_source_rhs, _as_sn_mesh,
 )
-from orpheus.sn.spatial.cell_balance import cell_balance_for_streaming
+from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField

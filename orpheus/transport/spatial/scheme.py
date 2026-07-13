@@ -474,7 +474,7 @@ class DiscretizationScheme(Protocol):
         condition (the Bailey–Morel–Chang :math:`\beta = 0` weight) lives
         on the redistribution closure as ``beta_first_order_consistent``,
         and the validity of a (scheme, closure) PAIR is their conjunction
-        (:func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`).
+        (:func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`).
         ⚠ Do NOT conflate the spatial DD verdict (``True``, leading-order)
         with DD-in-ANGLE's first-order :math:`\beta`-failure (the
         curvilinear flux dip): that is an angular-axis result, not a
@@ -723,7 +723,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     κ-scheme blend (DD's ``w = ½`` is the central scheme, Σ-independent; LD's
     ``w = 1/(1+k)`` runs ½ at :math:`\Sigma \to 0` to 1 at :math:`\Sigma \to
     \infty`), NOT an SN artefact.  The diffusion-readiness contract is pinned
-    by :mod:`tests.sn.spatial.test_scheme_reaction_rate_contract` (the
+    by :mod:`tests.transport.spatial.test_scheme_reaction_rate_contract` (the
     closed-form-at-arbitrary-Σ positive + the Σ-statelessness teeth).  The full
     Step/DD/LD ↔ advection-scheme narrative (box ≡ diamond, the Péclet coupling,
     the spatial ⊗ angular factorization) is the #240 Step D6 deliverable on
@@ -786,7 +786,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
 
     These two ops are in the ×V "denom" convention (``inverse_denom = 1/S``
     with ``S`` the ×V cell-balance diagonal) — the convention the scan cache
-    (:class:`~orpheus.sn.spatial.sweep_cache.CollisionCache`) uses.  The
+    (:class:`~orpheus.sn.sweep.cache.CollisionCache`) uses.  The
     group-3 ≡ group-2 gate (``test_group3_equals_group2_scan_flat``) pins the
     SOLVE direction (``ψ̄``/``ψ_out``) against the trusted Increment-A kernel.
 
@@ -961,7 +961,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     ``False`` for Step (LMM-1987 Eq. (5.20)).  The ANGULAR first-order condition
     is the redistribution closure's ``beta_first_order_consistent`` (Bailey–
     Morel–Chang 2010 Eq. (42)); the PAIR's validity is their conjunction
-    (:func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`).  ⚠ The
+    (:func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`).  ⚠ The
     spatial DD verdict (``True``, leading-order) is NOT the DD-in-angle
     :math:`\beta`-failure (the curvilinear flux dip is an ANGULAR artefact —
     BMC 2010, not LMM 1987).  Read-only class attribute."""
@@ -1156,7 +1156,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
 
         The source-dependent emission ``b`` and the order-dependent
         ``cumprod_a`` are NOT here — ``cumprod_a`` is a scan-schedule transform
-        (:class:`~orpheus.sn.spatial.sweep_cache.CollisionCache`), and ``b``
+        (:class:`~orpheus.sn.sweep.cache.CollisionCache`), and ``b``
         plus the cell-average / outgoing-face / matvec-residual operations are
         the representation's job, applied generically from these coefficients by
         the base reconstruction staticmethods (:meth:`source_emission`,

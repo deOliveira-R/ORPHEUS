@@ -887,12 +887,12 @@ not a narrow crutch). The geometry difference (slab vs sphere vs
 cylinder) is absorbed by the two-stratum sweep cache, so all three
 geometries share **one body**
 (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep` →
-:func:`~orpheus.sn.spatial.scan.ordinate_scan`); the curvilinear
+:func:`~orpheus.sn.sweep.scan.ordinate_scan`); the curvilinear
 Morel–Montry angular redistribution folds into the scan's affine
 source. The recurrence and its closed-form cumprod/cumsum solution are
 derived at :ref:`sweep-cumprod`; the pair-monoid algebra that justifies
 the closed form is documented on
-:func:`~orpheus.sn.spatial.scan.ordinate_scan`.
+:func:`~orpheus.sn.sweep.scan.ordinate_scan`.
 
 CumprodScan is conditioning-robust by construction: the closed-form
 backend handles the pole reset (ERR-054) and denormal underflow
@@ -920,7 +920,7 @@ first-order linear scan* — **marched over the transverse axes**:
 Within each transverse row the diamond-difference x-face recurrence is
 the **same Blelloch scan** that
 :class:`~orpheus.sn.loss_representation.CumprodScan` uses
-(:func:`~orpheus.sn.spatial.scan._scanmarch_row`); the transverse
+(:func:`~orpheus.sn.sweep.scan._scanmarch_row`); the transverse
 coupling rides the affine source. The per-axis streaming the row-march
 feeds is the **raw down-face coefficient** :math:`g_a = |\mu_a|/\Delta a`;
 since #240 Phase 2 Step D5a the diamond factor :math:`2 = 1/w_{\rm DD}`
@@ -995,7 +995,7 @@ at :math:`w = \tfrac12`,
    \beta \;=\; \frac{\bar\psi}{w} \;=\; 2\bar\psi
    \qquad(\text{DD},\ w = \tfrac12),
 
-evaluated by :func:`~orpheus.sn.spatial.scan._x_scan_faces`. The per-cell
+evaluated by :func:`~orpheus.sn.sweep.scan._x_scan_faces`. The per-cell
 residual then rides the uniform :math:`\div V` matvec kernel
 :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`
 that every facewise closure shares,
@@ -1095,7 +1095,7 @@ coefficient is the generic
 w) = QV_{\rm eff}\cdot\mathrm{inverse\_denom}/w`, while
 :math:`\alpha = a`. The in-row x-face recurrence
 :math:`\psi^{\rm out}_x = \alpha\,\psi^{\rm in}_x + \beta` is the **same
-Blelloch scan** (:func:`~orpheus.sn.spatial.scan._x_scan_faces`) the 1-D
+Blelloch scan** (:func:`~orpheus.sn.sweep.scan._x_scan_faces`) the 1-D
 ``CumprodScan`` runs; the cell then closes **generically in the blend weight**
 :math:`w` via the base reconstruction staticmethods —
 :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average`
@@ -1104,7 +1104,7 @@ recovers :math:`\bar\psi = (1-w)\psi^{\rm in}_x + w\,\psi^{\rm out}_x` and
 sheds the downstream y-face :math:`\psi^{\rm out}_y = (\bar\psi -
 (1-w)\psi^{\rm in}_y)/w` (the next row's :math:`\psi_{y,\rm in}`). This entire
 closure runs through
-:func:`~orpheus.sn.spatial.scan._scanmarch_row`, which gained a ``w`` parameter
+:func:`~orpheus.sn.sweep.scan._scanmarch_row`, which gained a ``w`` parameter
 in D5a (it was a hard-coded ``0.5``) and now consumes the scheme-supplied
 blend.
 
@@ -1578,7 +1578,7 @@ Why the row-march needs cross-axis separability
 The row-march :math:`\mathrm{scan}(x) \circ \mathrm{march}(y)`
 (:eq:`loss-rep-scanmarch`) sweeps one transverse row at a time. Within a row
 it runs the *same* first-order linear scan
-(:func:`~orpheus.sn.spatial.scan._scanmarch_row`) the 1-D
+(:func:`~orpheus.sn.sweep.scan._scanmarch_row`) the 1-D
 :class:`~orpheus.sn.loss_representation.CumprodScan` uses, and the coupling to
 the previously-marched row enters **the scan's affine source** as a single
 term :math:`c_y\,\psi_{y,\rm in}` (:eq:`loss-rep-scanmarch-solve-affine`). Read
@@ -2011,7 +2011,7 @@ DAG, forking **only** at orientation:
   ``quad.reflection_index("x")``; the adjoint reverses that
   cross-direction dependency); and
 * the **second triangular factor** —
-  :meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.angular_adjoint`,
+  :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.angular_adjoint`,
   the reverse of the Morel–Montry angular recurrence (zero for slab).
 
 Phase 2.5a landed this frame, **bit-identical in BOTH orientations**
@@ -2029,12 +2029,12 @@ solve — the reverse-scan)}``. Phase 2.5b landed
 :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep_transpose`
 as the **coherent reverse-scan** — *not* a reverse-loop bolted onto the
 apply path. Its substrate is
-:func:`~orpheus.sn.spatial.scan.ordinate_scan_transpose`, the affine
+:func:`~orpheus.sn.sweep.scan.ordinate_scan_transpose`, the affine
 scan's own adjoint (an ``ordinate_scan`` on reversed-shifted
 coefficients), so it inherits ``_run``'s Blelloch pair-monoid substrate
 and denormal robustness — one source of truth, not a duplicated reverse
 loop. The seed-block sibling is
-:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_transpose`
+:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_transpose`
 (the Hébert §3.9.4 starting-direction march's adjoint).
 
 The orientation × kernel × execution taxonomy
@@ -2229,7 +2229,7 @@ and 2.5c retired it. The principle is a clean layering:
 This split is only *possible* because Issue #282 route (a) (Phase 2.5d)
 made the curvilinear :math:`\psi_{1/2}` starting direction a
 **direct** computation from the source
-(:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`),
+(:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`),
 retiring the old two-point extrapolation of the *previous* iterate —
 which was precisely the last thing the SN sweep *used* an
 ``initial_guess`` for.
@@ -2463,7 +2463,7 @@ family (``_require_radial_characteristic`` at 5b, then
 ``_refuse_radial_characteristic`` and ``_require_leg_pair`` — the
 both-or-neither pair law died with the legs it guarded); the walk's fused
 ``_seed_rows_forward``/``_seed_rows_transpose`` glue (the kernels live
-single-sourced in :mod:`orpheus.sn.spatial.psi_half_angle_seed`,
+single-sourced in :mod:`orpheus.sn.sweep.psi_half_angle_seed`,
 consumed by ``A_BB``); the walk's in-solve System-B engine (the up-front
 ``A_BB.solve`` + per-level seed read) and its transposed sibling (the
 ``seed_cot`` augmentation + ``A_BB.solve_transpose``); and the
@@ -2836,7 +2836,7 @@ from the standard discrete-ordinates references, anchored in the
    * - Blelloch (1990), *Prefix Sums and Their Applications*,
        CMU-CS-90-190 §1.5
      - The first-order linear-recurrence scan
-       (:func:`~orpheus.sn.spatial.scan.ordinate_scan`) that
+       (:func:`~orpheus.sn.sweep.scan.ordinate_scan`) that
        ``CumprodScan`` and ``ScanMarch`` both reuse — the pair-monoid
        closed form.
    * - Adams & Larsen (2002), *Fast iterative methods for

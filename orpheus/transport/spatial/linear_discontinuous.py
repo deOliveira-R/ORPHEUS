@@ -334,7 +334,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     (:math:`\hat Q = 0`) would be ``O(h²)`` but NOT diffusion-limit-consistent.
     The angular first-order condition is separate (the pole-angular closure's
     ``beta_first_order_consistent``); the PAIR validity is
-    :func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`."""
+    :func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`."""
 
     supports_curvilinear: ClassVar[bool] = False
     r"""LD is slab/Cartesian ONLY: the curvilinear (sphere/cylinder) LD cell
@@ -748,7 +748,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         signal is non-neutral curvature: slab carries ``dA_w == 0`` and
         ``c_out == 0`` EXACTLY (the :func:`slab_streaming` neutral element);
         curvilinear carries non-zero values.  Raising here fails fast at the
-        :class:`~orpheus.sn.spatial.sweep_cache.CollisionCache` build
+        :class:`~orpheus.sn.sweep.cache.CollisionCache` build
         (``SNSolver.__init__``) before any sweep or matvec runs — so a 1-D
         sphere/cylinder mesh carrying ``LinearDiscontinuous`` (which would match
         ``CumprodScan.supports`` via ``is_1d and is_affine_scannable``) is

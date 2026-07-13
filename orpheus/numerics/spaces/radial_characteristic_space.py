@@ -21,7 +21,7 @@ Presence is keyed PER LEVEL by the structural predicate
 — i.e. the M-M half-angle recurrence *genuinely consumes independent
 starting-direction state*. The trichotomy, bit-exact on the production
 quadratures (τ_raw from
-:func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_raw_per_level`):
+:func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_raw_per_level`):
 
 * ``τ_raw = 0`` — the starting direction coincides with the level's
   first node (cylinder *product* rules: :math:`\eta_0 = \eta_{1/2} =

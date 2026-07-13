@@ -4,7 +4,7 @@ Issue #236 realizes the SN discretization as a tensor product of two
 independently-selectable axes — a SPATIAL closure
 (:class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`) and an ANGULAR
 redistribution closure
-(:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`).
+(:class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`).
 Some properties of the discretization are properties of the *pair*, not of
 either axis alone.  This module is the home for those pairing-validity
 predicates: each reads only the class-level traits the two axes declare, so a
@@ -74,7 +74,7 @@ def pair_diffusion_limit_consistent(
     Both arguments are read for a class-level trait only, so either the class or
     an instance may be passed.  This is the validity predicate for a
     ``(scheme × closure)`` pair; it is currently exercised by its tests
-    (``tests/sn/spatial/test_pairing_diffusion_limit.py``) — production wiring of
+    (``tests/sn/sweep/core/test_pairing_diffusion_limit.py``) — production wiring of
     the check (against the instances ``mesh.scheme`` / ``mesh.pole_angular_closure``
     at mesh construction) is pending, so it has no production call site today.
 

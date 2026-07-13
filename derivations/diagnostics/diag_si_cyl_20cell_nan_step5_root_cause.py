@@ -41,8 +41,8 @@ from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.spatial.sweep_cache import GeometryCoefficients, CollisionCache
-from orpheus.sn.spatial.scan import ordinate_scan
+from orpheus.sn.sweep.cache import GeometryCoefficients, CollisionCache
+from orpheus.sn.sweep.scan import ordinate_scan
 
 
 def _build_caches(thickness: float = 2.0, n_cells: int = 20, eg: str = '2g'):
@@ -138,9 +138,9 @@ def test_krylov_avoids_ordinate_scan_path():
     Verified by grep + manual review of ``orpheus/sn/operator.py``
     (apply paths) versus ``orpheus/sn/sweep.py`` (sweep paths).  This
     assertion is a structural invariant.  See
-    ``orpheus/sn/spatial/scan.py`` and ``orpheus/sn/sweep.py``.
+    ``orpheus/sn/sweep/scan.py`` and ``orpheus/sn/sweep.py``.
     """
-    import orpheus.sn.spatial.scan as scan_mod
+    import orpheus.sn.sweep.scan as scan_mod
     import orpheus.sn.sweep as sweep_mod
     import orpheus.sn.operator as op_mod
     # ordinate_scan is exported from spatial/scan.py

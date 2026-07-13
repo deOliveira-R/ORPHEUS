@@ -1244,6 +1244,14 @@ unification` (pushes HELD). Delivered:
   name this campaign per R9 — renaming churns ~150 docs refs + 17 test imports, and
   Phase 2.5 already touched every module twice. The name is STALE (sweep-walk +
   angular machinery, not "spatial"); the rename is DEFERRED to a follow-up issue.
+  **EXECUTED (task #54, 2026-07-13): `sn/spatial/` → `sn/sweep/`** (the honest
+  name — the package is the sweep's kernel substrate; the walk executors stay in
+  `loss_representation`); `sweep_cache.py` → `cache.py` rode along, the
+  `tests/sn/spatial/` mirror dissolved to true homes (sweep/core ×2,
+  transport/spatial ×2, numerics ×1), and the pre-existing #272 debt
+  (mutation-TOML module-paths, the broken `diag_276` LD import, the dangling
+  `tests.sn.spatial.*` doc roles) was settled in the same pass. This bullet is
+  now archaeology.
 - **Frozen baselines — KEEP (fuller-view rule, explicit).**
   `test_walk_matvec_baselines.py` + `walk_matvec_{slab,sphere,cyl}_2g.npz` stay as
   permanent regression canaries: they pin the FORWARD-walk matvec output

@@ -4508,7 +4508,7 @@ The angular-redistribution contribution to the cell balance is
 with :math:`{\rm angular\_denom\_term} = (\Delta A / w)\,c_{\rm out}`
 and :math:`{\rm angular\_numer\_upstream} = (\Delta A / w)\,c_{\rm in}\,
 \psi_{m-1/2,\,i,\,g}` per the M-M closure (see
-:class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
+:class:`orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
 for the closure data). It is an interior-cell operation that does not
 traverse the spatial boundary; only the spatial sweep writes face
 residuals.
@@ -4751,7 +4751,7 @@ Cross-references
     the operator INTO the representation; #238 removed the dual-emission
     ``(M_spatial, M_angular_redist)`` arm (no production consumer). The
     public surface is :meth:`StreamingOperator.apply`.
-  - :class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
+  - :class:`orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
     — the M-M closure data and per-cell algebra primitive.
   - :func:`orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
     — the three-term cell-balance primitive.
@@ -5489,7 +5489,7 @@ reference:
      - Reference (pillar)
      - Both solvers?
    * - Curvilinear streaming-equilibrium
-       (``tests/sn/spatial/test_streaming_equilibrium_curvilinear.py``)
+       (``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``)
      - Analytical infinite-medium balance
        :math:`\phi = q/\Sigma_t` (closed-form)
      - ``source_iteration`` AND ``krylov``
@@ -10119,7 +10119,7 @@ The self-block :math:`A_{BB}` — the march is its own inverse
 Because the recurrence is triangular in radius (:math:`\rho = 0` — the
 #284 forward-substitution certificate, measured :math:`A_{ss} = 5.0`
 self-coupling, :math:`A_{sb} = 0` exact), the two-leg Carlson march
-(:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`,
+(:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`,
 Hébert 3.434–3.435) is the **exact** direct inverse :math:`A_{BB}^{-1}` —
 no iteration, no previous-iterate seed. :meth:`RadialCharacteristicOperator.solve
 <orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve>`

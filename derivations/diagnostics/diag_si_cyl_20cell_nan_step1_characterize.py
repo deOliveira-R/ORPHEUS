@@ -16,7 +16,7 @@ regression catcher.
 
 ROOT CAUSE (proven in step5 and step6):
 the Blelloch closed-form ``ordinate_scan`` in
-``orpheus/sn/spatial/scan.py:138`` computes
+``orpheus/sn/sweep/scan.py:138`` computes
 ``cumprod_a · (psi_0 + cumsum(b / cumprod_a))`` which divides by
 ``cumprod_a``.  At the pole cell of the cylindrical mesh, ``A_down = 0``
 exactly; this drives the per-cell attenuation

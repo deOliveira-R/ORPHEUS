@@ -5,7 +5,7 @@ Pins the numpy production primitive
 #240 / #38 / #37 — against the SymPy algebra-of-record
 (:mod:`orpheus.derivations.discrete.sn.ld_ubld`, the Branch-1 reference) and
 against the LIVE production
-:class:`~orpheus.sn.spatial.LinearDiscontinuous` scheme.
+:class:`~orpheus.transport.spatial.LinearDiscontinuous` scheme.
 
 The three deliverable gates (the brief):
 
@@ -23,9 +23,9 @@ The three deliverable gates (the brief):
   CONCERN closed IN CODE: the symbolic oracle proved the three views equal the
   reduction symbolically; this proves it numerically, end to end.
 * **The link proof** — the LIVE production
-  :meth:`~orpheus.sn.spatial.LinearDiscontinuous.update` /
-  :meth:`~orpheus.sn.spatial.LinearDiscontinuous.cell_kernel_batch` /
-  :meth:`~orpheus.sn.spatial.LinearDiscontinuous.affine_scan_coefficients`
+  :meth:`~orpheus.transport.spatial.LinearDiscontinuous.update` /
+  :meth:`~orpheus.transport.spatial.LinearDiscontinuous.cell_kernel_batch` /
+  :meth:`~orpheus.transport.spatial.LinearDiscontinuous.affine_scan_coefficients`
   (which now single-source through ``d1_closed_form``) reproduce the dense
   primitive's ``d = 1`` solve — so the production scheme's three views are
   anchored to the d-generic primitive, not only to each other.

@@ -306,7 +306,7 @@ def test_v_ld2d_stress_source_builds_without_ld_scheme():
     cross-check above; this test pins the OBSERVABLE proxy — the symbolic
     builder (:func:`_2d_cartesian_ld_stress_symbolic`) and the Branch-2
     ``external_source`` produce a finite source with NO
-    :class:`~orpheus.sn.spatial.LinearDiscontinuous` instance in scope (sharing
+    :class:`~orpheus.transport.spatial.LinearDiscontinuous` instance in scope (sharing
     the kernel would let an LD slope-row sign bug corrupt the reference too —
     the defining anti-pattern of a dependent MMS)."""
     case = build_2d_cartesian_ld_stress_mms_case()

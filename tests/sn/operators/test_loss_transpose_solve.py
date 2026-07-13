@@ -3,7 +3,7 @@ r"""The #280 Phase 2.5b reverse-scan ``(L+C)⁻ᵀ`` — G1 round-trip + G2 dens
 ``InvertibleOperator.solve_transpose`` is the transpose-solve
 :math:`(L+C)^{-\mathsf T}` (the reverse-mode adjoint of the forward WDD
 sweep-scan, sharing its ``ordinate_scan`` substrate via
-:func:`~orpheus.sn.spatial.scan.ordinate_scan_transpose`).  These are the
+:func:`~orpheus.sn.sweep.scan.ordinate_scan_transpose`).  These are the
 object-level correctness gates:
 
 * **G1 — round-trip.** ``solve_transpose`` inverts ``apply_transpose``

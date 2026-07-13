@@ -1,27 +1,27 @@
-"""SN sweep-walk support: angular closures, seeds, caches, and the scan.
+"""The discrete-ordinates sweep machinery: closures, seeds, caches, the scan.
 
-What remains here after #272 promoted the method-generic spatial
-closure layer (the ``DiscretizationScheme`` contract, Diamond
-Difference, Linear Discontinuous, the UBLD kernels, and the per-cell
-WDD balance) to :mod:`orpheus.transport.spatial` is the
-discrete-ordinates sweep machinery proper:
+This package is the sweep's kernel substrate — the pieces the walk
+executors (:mod:`orpheus.sn.loss_representation`) and the sweep-family
+operators (:mod:`orpheus.sn.operators`) consume per ordinate.  The
+method-generic spatial closure layer (the ``DiscretizationScheme``
+contract, Diamond Difference, Linear Discontinuous, the UBLD kernels,
+and the per-cell WDD balance) lives in :mod:`orpheus.transport.spatial`
+since #272:
 
-* :mod:`~orpheus.sn.spatial.pole_angular_closure` — the curvilinear
+* :mod:`~orpheus.sn.sweep.pole_angular_closure` — the curvilinear
   angular-redistribution closure family (Morel–Montry, identity).
-* :mod:`~orpheus.sn.spatial.psi_half_angle_seed` — the Hébert §3.9.4
+* :mod:`~orpheus.sn.sweep.psi_half_angle_seed` — the Hébert §3.9.4
   starting-direction DD march (the #282 route-(a) direct ψ½ solver).
-* :mod:`~orpheus.sn.spatial.sweep_cache` — the two-stratum hot-path
+* :mod:`~orpheus.sn.sweep.cache` — the two-stratum hot-path
   cache keyed to solver/mesh × quadrature lifecycles.
-* :mod:`~orpheus.sn.spatial.scan` — the 1-D Blelloch ordinate scan and
+* :mod:`~orpheus.sn.sweep.scan` — the 1-D Blelloch ordinate scan and
   the Cartesian row-march.
-* :mod:`~orpheus.sn.spatial.pairing` — pairing-validity predicates for
+* :mod:`~orpheus.sn.sweep.pairing` — pairing-validity predicates for
   the (spatial ⊗ angular) discretization product (#236).
 
-NOTE (R9, 2026-07-04): the package NAME is stale for this residual —
-what lives here is sweep-walk + angular machinery, not spatial trial
-space.  The rename is deliberately deferred to the #280
-orientation×kernel walk unification (Phase 2.5), which owns the
-sweep-layer layout.
+History: this package was ``orpheus.sn.spatial`` until the R9 estate
+rename (task #54, 2026-07-13) — the old name described the pre-#272
+contents (the spatial trial-space layer), not this residual.
 """
 
 from .pairing import pair_diffusion_limit_consistent

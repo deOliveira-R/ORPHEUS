@@ -15,7 +15,7 @@ The two oracles (per the brief):
   slab LD closed forms, AND the production ÷V (``_kernel_terms``) and ×V
   (``affine_scan_coefficients``) views equal that reduction (the
   "single-source the math" proof for Branch 2).  The d=1 test ALSO probes
-  the production :class:`~orpheus.sn.spatial.LinearDiscontinuous` ``update``
+  the production :class:`~orpheus.transport.spatial.LinearDiscontinuous` ``update``
   numerically at the SymPy-derived flat-source reduction, so the gate ties
   the symbolic primitive to the live production algebra (not just to a
   re-typed copy of its closed form).
@@ -122,7 +122,7 @@ class TestOracleId1Reduction:
         *closed form*.  This test closes the loop by evaluating the symbolic
         d=1 ``ψ̄`` / ``ψ_out`` (flat ``Q̂ = 0``) at concrete numbers and
         asserting the production
-        :meth:`~orpheus.sn.spatial.LinearDiscontinuous.update` reproduces
+        :meth:`~orpheus.transport.spatial.LinearDiscontinuous.update` reproduces
         them — so the gate is anchored to the running algebra, not only to a
         re-typed copy of its formula (structural-independence of the cross-check).
         """

@@ -1,4 +1,4 @@
-r"""Tests for :func:`orpheus.sn.spatial.scan.ordinate_scan`.
+r"""Tests for :func:`orpheus.sn.sweep.scan.ordinate_scan`.
 
 Issue #196 Phase G Step 2.5b — the canonical first-order linear-
 recurrence scan (Blelloch 1990 §1.5).  Sixteen strong tests:
@@ -41,7 +41,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import DiamondDifference, UpstreamState
 from orpheus.transport.spatial.cell_balance import cell_balance_terms
 from orpheus.transport.spatial.scheme import CellVisit
-from orpheus.sn.spatial.scan import ordinate_scan
+from orpheus.sn.sweep.scan import ordinate_scan
 from tests.sn.sweep.core._c_surrogate import (
     c_from_constants,
     mm_constants_for_ordinate,
@@ -476,7 +476,7 @@ class TestNumericalStability:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-# Mesh fixtures (mirror tests/sn/spatial/test_diamond.py).
+# Mesh fixtures (mirror tests/sn/sweep/core/test_diamond.py).
 
 def _slab_mesh(nx: int = 5, length: float = 1.0) -> Mesh1D:
     return Mesh1D(

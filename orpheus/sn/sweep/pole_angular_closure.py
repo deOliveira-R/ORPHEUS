@@ -54,12 +54,12 @@ angular redistribution weight vanishes (:math:`\alpha_{1/2} = 0`).
 Since Issue #282 route (a) (#280 Phase 2.5d) the seed
 :math:`\psi_{1/2,i}` is computed **directly from the source** by the
 Hébert Eqs. 3.432-3.435 starting-direction march
-(:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`)
+(:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`)
 and carried as first-class STATE on the composite's
 ``radial_characteristic`` block (the carrying levels — the sphere), or
 inlined as the operator-consistent 2-point angular-edge extrapolation
 on the non-carrying cylinder levels
-(:meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`).
+(:meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`).
 The pre-route-(a) treatment — adopting :math:`\phi_{1/2,i} = 0` for the
 **forward apply** matvec and letting the SOLVE reach it under
 fixed-point iteration — was a walk-order back edge and is **retired**;
@@ -313,7 +313,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     condition; the SPATIAL half is the discretization scheme's
     ``diffusion_limit_consistent`` (Larsen–Morel–Miller 1987), and the PAIR's
     validity is their conjunction
-    (:func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`).
+    (:func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`).
     Opt-in (``False`` default): a redistribution closure is NOT assumed
     :math:`\beta`-consistent until it declares so with a citation.  ``True`` for
     Morel–Montry (BMC Eq. (42) sets :math:`\beta = 0`) and — vacuously — for the
@@ -346,7 +346,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     # The closure is their CANONICAL owner — it computes them once at
     # construction (per μ-level, ``(M_p,)`` arrays) from the very α and τ it
     # already binds.  Consumers that key on the GLOBAL ordinate axis (the
-    # :class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients` populator,
+    # :class:`~orpheus.sn.sweep.cache.GeometryCoefficients` populator,
     # the matvec) read the gathered ``(N,)`` views below instead of rebuilding
     # the same scalar formula at their own site (Cardinal Rule 2 single source
     # of truth; coding-elegance Pattern 7 — normalise at the definition site).
@@ -951,7 +951,7 @@ class MorelMontryAngularSweep(
     # retired ``AngularEdgeExtrapolation`` default: product rules hit
     # its t = 0 degenerate exactly, level-symmetric rules have a DEAD
     # seed weight (1−τ₀) = 0).  See the module docstring of
-    # :mod:`orpheus.sn.spatial.psi_half_angle_seed` for the history.
+    # :mod:`orpheus.sn.sweep.psi_half_angle_seed` for the history.
     r"""Canonical Hébert §3.9.4 per-cell M-M weighted DD angular recurrence.
 
     PR-TYPED-6.5 Phase 2.3: the strategy is now **bound to an SNMesh at
@@ -1496,7 +1496,7 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
     Eqs. (49)-(50)).  With no angular edge flux to close there is nothing to get
     wrong: :math:`\beta \equiv 0` term-by-term.  This is what makes the
     pair-validity predicate COLLAPSE to the spatial condition alone in Cartesian
-    (:func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`)."""
+    (:func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`)."""
 
     def __init__(self, sn_mesh: "SNMesh") -> None:
         self._sn_mesh = sn_mesh

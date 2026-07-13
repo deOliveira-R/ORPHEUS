@@ -28,7 +28,7 @@ divergent).  Conformance is now ABC inheritance, and the hand-calc
 redistribution algebra (formerly pinned through the dead legacy
 ``__call__`` bundle interface) is re-pinned through the LIVE production
 surface: the half-angle ψ-thread via the module-level
-:func:`~orpheus.sn.spatial.pole_angular_closure.compute_psi_half_per_level`
+:func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
 (the same recurrence kernel ``_psi_half_grid_single_level`` the matvec's
 :meth:`~MorelMontryAngularSweep.precompute_psi_state` consumes) composed
 with the geometry redistribution fold ``(ΔA/w)/V·(α_{m+1/2}ψ_{m+1/2} −
@@ -44,7 +44,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.sn.spatial.pole_angular_closure import (
+from orpheus.sn.sweep.pole_angular_closure import (
     MorelMontryAngularSweep,
     PoleAngularClosureBase,
 )
@@ -252,7 +252,7 @@ class TestMorelMontryHandCalc:
 
         The ψ-thread (``ψ_face_{3/2} = 2``, ``ψ_face_{5/2} = 4``) is pinned
         by the live
-        :func:`~orpheus.sn.spatial.pole_angular_closure.compute_psi_half_per_level`
+        :func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
         recurrence; the α-weighted geometry fold gives ``R_0``/``R_1``.
         """
         psi, alpha, dAw, tau, V = two_ordinate_sphere_fixture
@@ -369,7 +369,7 @@ def test_strategy_is_linear_in_psi():
 
     Issue #248 — driven through the LIVE redistribution path (the
     module-level
-    :func:`~orpheus.sn.spatial.pole_angular_closure.compute_psi_half_per_level`
+    :func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
     recurrence composed with the geometry fold) instead of the retired
     ``__call__`` bundle.  Linearity is the load-bearing property for the
     matvec's consumption: both the recurrence and the α-weighted fold are

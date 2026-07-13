@@ -57,14 +57,14 @@ problem closed by its own boundary block ``B_b``
 **How it is solved — the direct march IS the resolvent.** Because the
 recurrence is triangular in radius (:math:`\rho=0` — the #284
 forward-substitution certificate), the two-leg Carlson march
-(:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`,
+(:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`,
 Hébert 3.434–3.435) is the EXACT direct inverse :math:`A_{BB}^{-1}` — no
 iteration, no previous-iterate seed. :meth:`solve` is that march; it is a
 thin WRAP of the standalone engine (single source — Cardinal Rule 2 — the
 SAME engine the in-sweep direct-seed block
 :mod:`orpheus.sn.loss_representation` runs), and :meth:`solve_transpose` is
 its Euclidean reverse-mode adjoint
-(:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_transpose`).
+(:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_transpose`).
 
 Scope of this realization (campaign step 4b) — the full operator
 ================================================================
@@ -85,7 +85,7 @@ This operator realizes BOTH directions of the complete ``A_BB`` machinery:
 **Single-sourced forward (campaign step 4b — extract, not twin).** The
 forward matvec is the exact algebraic inverse of the march; it lives in ONE
 place —
-:func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual`
+:func:`~orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_forward_residual`
 — which :meth:`apply` here calls. There is NO forward twin: step 4b reduced
 the fused walk's ψ½ rows to a thin wrapper over the shared kernel (the user
 ruled "extract the shared kernel now" over a tracked twin, closing the
@@ -93,14 +93,14 @@ ruled "extract the shared kernel now" over a tracked twin, closing the
 step 6 retired that wrapper with the walk's joint channel — this operator
 is now the kernel's ONE consumer pair. The transpose is single-sourced the
 same way
-(:func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual_transpose`,
+(:func:`~orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_forward_residual_transpose`,
 the PURE ``A_BB`` transpose; the ``A_AB`` seed→bulk coupling's transpose is
 the explicit grid block ``RadialCharacteristicSeeding.apply_transpose``,
 not part of ``A_BB`` in isolation).
 
 **The ONE solve orchestration (Cardinal Rule 2 — the 4e-e2 un-weave).** The
 :math:`\sigma_t`-driven DD *engine*
-(:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`)
+(:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`)
 is single-sourced, and since step 4e-e2 the two-leg ORCHESTRATION (read the
 source views → inward leg → pole-continue → reversed outward leg → write
 the flux views) lives ONLY here: the production ``(L+C)`` walk routes its
@@ -153,7 +153,7 @@ from orpheus.numerics.spaces.radial_characteristic_space import (
     fold_moments_to_radial_characteristic,
     fold_moments_to_radial_characteristic_transpose,
 )
-from orpheus.sn.spatial.psi_half_angle_seed import (
+from orpheus.sn.sweep.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
     carlson_inward_sweep_transpose,
     radial_characteristic_forward_residual,
@@ -337,7 +337,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         + \sigma_t)\,\psi_{1/2}` — the exact algebraic inverse of :meth:`solve`.
 
         A thin WRAP of the single-sourced
-        :func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual`
+        :func:`~orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_forward_residual`
         — since step 6 (the walk's fused ψ½ rows retired with the joint
         channel) this operator IS the kernel's production forward
         (Cardinal Rule 2: one forward, no twin). Reads the flux state ψ½
@@ -396,7 +396,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         :math:`A_{BB}^{\mathsf T}`.
 
         A thin WRAP of
-        :func:`~orpheus.sn.spatial.psi_half_angle_seed.radial_characteristic_forward_residual_transpose`
+        :func:`~orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_forward_residual_transpose`
         — the PURE ``A_BB`` transpose. The ``A_AB`` seed→bulk recurrence
         coupling's transpose is the explicit grid block
         (:meth:`RadialCharacteristicSeeding.apply_transpose`), NOT part of
@@ -467,7 +467,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         :math:`\mu=+1` leg rides the SAME engine on reversed cell data
         (orientation is carried by the DATA, never a flag) from the
         pole-continued face out to the r = R outflow corner. A thin WRAP of
-        :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+        :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
         (Hébert 3.434–3.435) — the single-sourced DD engine. Since 4e-e2
         this IS the production orchestration: the ``(L+C)`` walk routes its
         ray solve through this method (the former in-sweep inline twin is
@@ -547,7 +547,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         cotangent is its exit), threading the running face cotangent back to
         the r = R inflow corner — the transpose of :meth:`solve`'s leg chain,
         via
-        :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_transpose`.
+        :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_transpose`.
 
         This is the ISOLATED ray-block transpose :math:`(A_{BB}^{-1})^{\mathsf T}`
         — the pure resolvent adjoint. The full ``(L+C)`` reverse-scan adds a
@@ -674,7 +674,7 @@ class RadialCharacteristicSeeding(
 
     **How it is realized — WRAPs of the shared M-M closure.** The seed→bulk map
     is the SAME
-    :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+    :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
     machinery the ``(L+C)`` matvec runs (single source — Cardinal Rule 2);
     ``A_AB`` isolates its own block by ZEROING the bulk (forward) and
     DISCARDING the bulk cotangent (transpose):

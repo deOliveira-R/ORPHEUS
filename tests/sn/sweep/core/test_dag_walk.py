@@ -118,7 +118,7 @@ def test_dag_walk_cell_indices_matches_dag_walk_all_geometries():
     r"""The lightweight twin yields EXACTLY ``dag_walk``'s cell order.
 
     Phase 2.5 S0.3 (#280, P0 inference (b) closure): ``chain_idx`` (the scan
-    permutation) is MATERIALIZED from ``dag_walk`` (``sweep_cache.py``), and
+    permutation) is MATERIALIZED from ``dag_walk`` (``cache.py``), and
     ``dag_walk_cell_indices`` is its documented shortcut twin — but no test
     compared the twin to the canonical walk directly (zero prior references
     to ``dag_walk_cell_indices`` under ``tests/``). This pin makes the

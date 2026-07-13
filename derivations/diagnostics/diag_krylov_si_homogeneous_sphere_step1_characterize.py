@@ -7,7 +7,7 @@ Reproduces the symptom described in the brief:
 - Krylov inner solver -> keff ~ 1.40 (~25% wrong)
 
 If this test catches a real bug, promote to ``tests/sn/test_sn_solver.py``
-or ``tests/sn/spatial/test_sweep_vs_apply_consistency.py``.
+or ``tests/sn/sweep/core/test_sweep_vs_apply_consistency.py``.
 """
 from __future__ import annotations
 

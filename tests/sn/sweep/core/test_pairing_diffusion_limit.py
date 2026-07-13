@@ -1,7 +1,7 @@
 r"""Phase 1a (#236 ST4): the (spatial ⊗ angular) diffusion-limit pairing predicate.
 
 ``@foundation`` — software-invariant tests of the pairing-validity predicate
-(:func:`orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`) and the
+(:func:`orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`) and the
 literature-declared per-scheme / per-closure booleans.  The booleans transcribe
 Larsen–Morel–Miller 1987 (spatial) / Bailey–Morel–Chang 2010 (angular); the
 underlying PHYSICS is verified elsewhere
@@ -20,8 +20,8 @@ import pytest
 
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
-from orpheus.sn.spatial.pairing import pair_diffusion_limit_consistent
-from orpheus.sn.spatial.pole_angular_closure import (
+from orpheus.sn.sweep.pairing import pair_diffusion_limit_consistent
+from orpheus.sn.sweep.pole_angular_closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
     PoleAngularClosureBase,

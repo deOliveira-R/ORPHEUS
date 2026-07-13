@@ -62,6 +62,7 @@ Module × level grid
    cartesian_2d/test_l2_boundary_face_view, 0, 0, 0, 0, 11, 0
    cartesian_2d/test_scan_march_equivalence, 0, 0, 0, 0, 11, 0
    core/test_affine_carve_baseline, 0, 0, 0, 0, 6, 0
+   core/test_cache, 28, 0, 0, 0, 0, 0
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
    core/test_cell_kernel_batch, 11, 0, 0, 0, 1, 2
    core/test_cell_visit_c_stamp, 0, 0, 0, 0, 3, 0
@@ -71,9 +72,10 @@ Module × level grid
    core/test_one_dim_loop_walk, 0, 0, 0, 0, 5, 0
    core/test_ordinate_scan, 52, 0, 0, 0, 0, 0
    core/test_ordinate_scan_joint_batch, 5, 0, 0, 0, 0, 0
+   core/test_ordinate_scan_reset, 3, 2, 0, 0, 0, 0
+   core/test_pairing_diffusion_limit, 0, 0, 0, 0, 6, 0
    core/test_phase_c_gates, 8, 0, 0, 0, 9, 0
    core/test_reframe_moment_intent, 7, 0, 0, 0, 0, 0
-   core/test_sweep_cache, 28, 0, 0, 0, 0, 0
    core/test_sweep_graph, 76, 0, 0, 0, 0, 0
    core/test_sweep_graph_nd_admission, 0, 0, 0, 0, 42, 0
    core/test_sweep_graph_window_equivalence, 0, 0, 0, 0, 20, 0
@@ -319,6 +321,7 @@ Module × level grid
    numerics/test_rules_sphere, 0, 7, 0, 0, 29, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
+   numerics/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    numerics/test_spatial_moment_space, 0, 0, 0, 0, 22, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
@@ -410,10 +413,7 @@ Module × level grid
    spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 6, 0
    spatial/test_linear_discontinuous, 0, 0, 0, 0, 20, 1
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 6, 0
-   spatial/test_ordinate_scan_reset, 3, 2, 0, 0, 0, 0
-   spatial/test_pairing_diffusion_limit, 0, 0, 0, 0, 6, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
-   spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    test_convergence, 0, 0, 1, 0, 0, 0

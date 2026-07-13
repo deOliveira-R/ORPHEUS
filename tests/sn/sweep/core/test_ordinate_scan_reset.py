@@ -65,7 +65,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
-from orpheus.sn.spatial.scan import ordinate_scan
+from orpheus.sn.sweep.scan import ordinate_scan
 from tests.sn._test_helpers import curvilinear_homogeneous_mesh
 
 pytestmark = [pytest.mark.verifies("blelloch-1990-eq-1-5")]

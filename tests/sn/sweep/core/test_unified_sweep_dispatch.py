@@ -33,7 +33,7 @@ These are **software-contract** tests — the L1 transport math is
 verified by the regression snapshots at
 ``tests/sn/regression/snapshots/`` (gate the bit-identical contract)
 and the Wave C ``DiamondDifference`` hand-calc tests at
-``tests/sn/spatial/test_diamond.py`` (gate the per-cell algebra).
+``tests/sn/sweep/core/test_diamond.py`` (gate the per-cell algebra).
 
 Tagged ``@pytest.mark.foundation`` because:
 

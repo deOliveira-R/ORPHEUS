@@ -9,7 +9,7 @@ closure constants arrive as plain floats on the
 :class:`~orpheus.transport.spatial.scheme.CellVisit` packet (#236's
 spatial ⊗ angular separation), and nothing here imports from a method
 package.  The discrete-ordinates sweep was the first consumer, not the
-owner — the layer was promoted from ``orpheus.sn.spatial`` at #272
+owner — the layer was promoted from ``orpheus.sn.sweep`` at #272
 (2026-07-04) so the assembly consumption mode can serve every method.
 
 The contract lives in :mod:`orpheus.transport.spatial.scheme`:

@@ -102,7 +102,7 @@ from orpheus.sn.operators.streaming import InvertibleOperator
 from tests.sn._test_helpers import (
     curvilinear_two_region_mesh,
 )
-from orpheus.sn.spatial.psi_half_angle_seed import (
+from orpheus.sn.sweep.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
     carlson_inward_sweep_transpose,
     radial_characteristic_forward_residual,

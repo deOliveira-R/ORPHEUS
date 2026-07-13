@@ -2,7 +2,7 @@ r"""Apply-vs-sweep consistency invariants for the starting-direction march (Issu
 
 Phase D fixed the apply-matvec path's Carlson coupled-pole seed; Phase F
 backported the same fix to the SI/sweep path via
-:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`.
+:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`.
 The two paths share the Hébert §3.9.4 Eqs. (3.432)-(3.435) starting-direction
 math, so they solve the SAME curvilinear fixed point.
 
@@ -24,7 +24,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.sn.spatial.psi_half_angle_seed import (
+from orpheus.sn.sweep.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
 )
 

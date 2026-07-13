@@ -146,13 +146,13 @@ from orpheus.numerics.moment_layout import (
 
 from orpheus.transport.spatial._ubld import octant_moment_frame_signs
 from orpheus.transport.spatial.scheme import UpstreamState
-from ..spatial.scan import (
+from ..sweep.scan import (
     _scanmarch_row,
     _x_scan_faces,
     ordinate_scan,
     ordinate_scan_transpose,
 )
-from ..spatial.sweep_cache import CollisionCache, GeometryCoefficients
+from ..sweep.cache import CollisionCache, GeometryCoefficients
 from orpheus.transport.mesh.axis import AXIS_NAMES
 from .sweep_graph import (
     OctantLabel,
@@ -325,7 +325,7 @@ class LossRepresentation(Protocol):
         (``bulk_cot`` on :math:`\bar\psi`, ``boundary_cot``) and returns
         ``(Q_bar, m_boundary)`` — the reverse-mode adjoint of the
         forward sweep-scan, sharing its ``ordinate_scan`` substrate via
-        :func:`~orpheus.sn.spatial.scan.ordinate_scan_transpose`.  On a
+        :func:`~orpheus.sn.sweep.scan.ordinate_scan_transpose`.  On a
         carrying mesh this is the ray-decoupled block's reverse-scan (step
         6); the joint ``M⁻ᵀ`` is the grid's transposed substitution.  Raises
         :class:`NotImplementedError` for representations / geometries whose
@@ -1141,7 +1141,7 @@ class CumprodScan(_LossRepresentation):
     Intrinsically 1-D: a prefix scan needs a total order (a chain).  The
     geometry difference is absorbed by the two-stratum cache, so slab +
     sphere + cylinder share THE SAME scan expression
-    (:meth:`._OneDimScanWalk.sweep` → :func:`~orpheus.sn.spatial.scan.ordinate_scan`).
+    (:meth:`._OneDimScanWalk.sweep` → :func:`~orpheus.sn.sweep.scan.ordinate_scan`).
     The default production path for every 1-D mesh.
     """
 
@@ -1202,7 +1202,7 @@ class CumprodScan(_LossRepresentation):
         reverse-scan LIVES in :meth:`._OneDimScanWalk.sweep_transpose` (the
         reverse-mode adjoint of :meth:`._OneDimScanWalk._run`), sharing
         ``_run``'s ``ordinate_scan`` substrate via
-        :func:`~orpheus.sn.spatial.scan.ordinate_scan_transpose`.
+        :func:`~orpheus.sn.sweep.scan.ordinate_scan_transpose`.
         """
         return _OneDimScanWalk(self.mesh).sweep_transpose(
             bulk_cot, sigma, boundary_cot,
@@ -1811,7 +1811,7 @@ class ScanMarch(_LossRepresentation):
 
     Reframes the d-D diamond-difference sweep as forward substitution along the
     sweep axis — the first-order linear scan
-    :func:`~orpheus.sn.spatial.scan.ordinate_scan` — marched over the transverse
+    :func:`~orpheus.sn.sweep.scan.ordinate_scan` — marched over the transverse
     axes: ``scan(x)`` at d=1, ``scan(x) ∘ march(y)`` at d=2.  ONE primitive that
     **unifies** the 1-D :class:`CumprodScan` (its degenerate ``s_y = 0`` case)
     and the 2-D row-march: the within-row x-face recurrence is the SAME Blelloch
@@ -1949,7 +1949,7 @@ class ScanMarch(_LossRepresentation):
 
         Marches the y-rows in the octant's y-sweep order: within each row the
         x-face recurrence is the first-order linear scan
-        (:func:`~orpheus.sn.spatial.scan._scanmarch_row`) whose coefficients
+        (:func:`~orpheus.sn.sweep.scan._scanmarch_row`) whose coefficients
         come from the scheme's
         :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cartesian_scan_coefficients`
         — the row body carries NO inline diamond ``2`` or blend ``w`` (the
@@ -2052,7 +2052,7 @@ class ScanMarch(_LossRepresentation):
         :meth:`_OneDimScanWalk._apply_walk` (the ``s_y = 0`` degeneration of the
         2-D scan-march).  2-D Cartesian → the row-march reconstruction of
         the interior faces from the KNOWN probe via
-        :func:`~orpheus.sn.spatial.scan._x_scan_faces` with the apply coefficients
+        :func:`~orpheus.sn.sweep.scan._x_scan_faces` with the apply coefficients
         ``α = −1``, ``β = 2 ψ̄`` (a pure-reflection scan: since ψ̄ is known the WDD
         closure ``out_x = 2ψ̄ − in_x`` IS a first-order recurrence).  The per-cell
         residual is ``(Σ_t + s_x + s_y)·ψ̄ − s_x·in_x − s_y·in_y`` (``= (L+C)ψ̄`` at
@@ -2089,7 +2089,7 @@ class ScanMarch(_LossRepresentation):
         r"""Row-march interior kernel, APPLY direction, one octant.
 
         Marches the y-rows in the octant's y-sweep order, reconstructing the
-        x-faces from the KNOWN probe via :func:`~orpheus.sn.spatial.scan._x_scan_faces`
+        x-faces from the KNOWN probe via :func:`~orpheus.sn.sweep.scan._x_scan_faces`
         with the apply coefficients ``α = −1``, ``β = 2ψ̄`` (a pure-reflection
         scan) and threading the transverse-y face ``out_y = 2ψ̄ − ψy_in`` row
         to row.  Returns ``(LpC_octant, capture)`` with the per-axis
@@ -2462,7 +2462,7 @@ class _OneDimScanWalk:
     #
     # The ψ½ rows are the M grid's OWN blocks now: the forward/transpose
     # residual kernels live single-sourced in
-    # ``orpheus/sn/spatial/psi_half_angle_seed.py`` and are consumed by the
+    # ``orpheus/sn/sweep/psi_half_angle_seed.py`` and are consumed by the
     # standalone ``A_BB`` operator
     # (``RadialCharacteristicOperator.apply``/``.apply_transpose``); the
     # seed→bulk M-M recurrence coupling's transpose is the explicit grid
@@ -2518,7 +2518,7 @@ class _OneDimScanWalk:
         precomputed once at solver construction rather than rebuilt every
         sweep.
         The Pattern 2 dual-view test
-        (``tests/sn/spatial/test_sweep_cache.py``) pins this at
+        (``tests/sn/sweep/core/test_cache.py``) pins this at
         ``rtol=1e-13`` across the parametrised geometry × ng × source
         grid.  Slab regression snapshots stay bit-identical at
         ``rtol=1e-12``.
@@ -3589,7 +3589,7 @@ class _OneDimScanWalk:
             #   iterate read: the level solves single-pass exact.  Level-
             #   symmetric rules have c_in = 0 (dead seed) so the fold is an
             #   exact no-op there.
-            from ..spatial.pole_angular_closure import MorelMontryAngularSweep
+            from ..sweep.pole_angular_closure import MorelMontryAngularSweep
 
             closure = self.mesh.pole_angular_closure
             if not isinstance(closure, MorelMontryAngularSweep):
@@ -3958,7 +3958,7 @@ class _OneDimScanWalk:
         # (#280 2.5b-cyl-fwd) — transposed as the seed-ordinate's own-average
         # routing (no carrier, ``m_seed = None``); and the pure-azimuthal
         # DEGENERATE ordinates as slot-local diagonal transposes.
-        from ..spatial.pole_angular_closure import MorelMontryAngularSweep
+        from ..sweep.pole_angular_closure import MorelMontryAngularSweep
 
         is_sphere = coord is CoordSystem.SPHERICAL
         closure = self.mesh.pole_angular_closure

@@ -320,7 +320,7 @@ def _x_scan_faces(
       the faces (a pure-reflection scan, ``|α| = 1`` so no underflow).
 
     Solves ``out_x(i) = α(i)·in_x(i) + β(i)`` (``in_x(i) = out_x(i−1)``,
-    ``in_x(0) = psi_x_in``) by :func:`~orpheus.sn.spatial.scan.ordinate_scan`
+    ``in_x(0) = psi_x_in``) by :func:`~orpheus.sn.sweep.scan.ordinate_scan`
     along the x-chain.
 
     Parameters

@@ -58,7 +58,7 @@ from orpheus.sn.operators.streaming import (
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.spatial.pole_angular_closure import (
+from orpheus.sn.sweep.pole_angular_closure import (
     MorelMontryAngularSweep,
 )
 from tests.sn._test_helpers import sweep_once
@@ -798,7 +798,7 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
 #
 # The DUAL of Gate 1.1 (apply-matvec) but on the SI/sweep path.  Phase D
 # pinned Gate 1.1 on the apply-matvec by composing
-# :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
+# :class:`~orpheus.sn.sweep.psi_half_angle_seed.CarlsonInwardSweep`
 # into :class:`MorelMontryAngularSweep.psi_half_seed`.  Phase F backports
 # the Carlson coupled-pole seed into ``_sweep_1d_spherical`` /
 # ``_sweep_1d_cylindrical`` via the source-driven
@@ -845,7 +845,7 @@ def test_sweep_curvilinear_per_ordinate_flat_flux_residual(
     quadrature; #280 Phase 2.5b).
 
     Phase F backports the Carlson coupled-pole seed via
-    :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+    :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
     so the seed becomes ``Σ_t · ψ_const / 2`` on the flat source
     (per Hébert (3.434)-(3.435) with ``Q̄ = Σ_t · ψ_const / 2`` at
     μ = −1), which is consistent with the flat-ψ field across cells.
@@ -861,7 +861,7 @@ def test_sweep_curvilinear_per_ordinate_flat_flux_residual(
     # folded φ₀ = Σw·ψ then called the SAME function with Q̄ = Σ_t·ψ_const).
     # It reduces to the flat-ψ algebraic identity of the surviving
     # function, pinned directly below.
-    from orpheus.sn.spatial.psi_half_angle_seed import (
+    from orpheus.sn.sweep.psi_half_angle_seed import (
         carlson_inward_sweep_from_source,
     )
 

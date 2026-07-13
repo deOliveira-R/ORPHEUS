@@ -84,7 +84,7 @@ sigma_t_gx = sig_t[:, 0, :].T
 dr = sn_mesh.dx
 mu_full = quad.mu_x
 
-from orpheus.sn.spatial.psi_half_angle_seed import carlson_inward_sweep_from_source
+from orpheus.sn.sweep.psi_half_angle_seed import carlson_inward_sweep_from_source
 
 for p, level_idx in enumerate(quad.level_indices):
     level_idx_arr = np.asarray(level_idx)

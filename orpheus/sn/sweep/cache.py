@@ -43,7 +43,7 @@ For one ordinate :math:`n`, one cell :math:`i` (in chain order), one group
    \psi^{s}[n, g, i+1]
        &\;=\; a[n, g, i]\,\psi^{s}[n, g, i] + b[n, g, i].
 
-Closed-form scan (Blelloch §1.5; :func:`~orpheus.sn.spatial.scan.ordinate_scan`):
+Closed-form scan (Blelloch §1.5; :func:`~orpheus.sn.sweep.scan.ordinate_scan`):
 
 .. math::
 
@@ -385,7 +385,7 @@ class CollisionCache:
     eigenvalue solve, ...), :meth:`from_geometry` is called EXACTLY ONCE.
     The :attr:`_build_count` class variable instruments this — pinning the
     invariant in
-    ``tests/sn/spatial/test_sweep_cache.py::test_collision_cache_invariance_under_source_iteration``.
+    ``tests/sn/sweep/core/test_cache.py::test_collision_cache_invariance_under_source_iteration``.
 
     Storage: ``(N, ng, nx)`` per field × 3 fields × 8 bytes.  Canonical
     ``(N=16, ng=2, nx=160)`` problem ≈ 240 kB.

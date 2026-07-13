@@ -233,11 +233,11 @@ Under the principled layout, the per-sweep hot path
    )
 
 becomes a single
-:func:`~orpheus.sn.spatial.scan.ordinate_scan` call per chain (two
+:func:`~orpheus.sn.sweep.scan.ordinate_scan` call per chain (two
 chains per slab problem), rather than ``N/2`` per-ordinate calls.
 
 The closed-form scan that
-:func:`~orpheus.sn.spatial.scan.ordinate_scan` evaluates is the
+:func:`~orpheus.sn.sweep.scan.ordinate_scan` evaluates is the
 **Blelloch §1.5 first-order linear-recurrence form**.  For the
 per-ordinate spatial recurrence
 :math:`\psi[i+1] = a[i]\,\psi[i] + b[i]` with :math:`\psi[0]
@@ -261,7 +261,7 @@ no Python loop over cells.  The pair-monoid composition
 ([Blelloch1990]_ §1.5; [Brent1974]_), so the same closed form admits
 Brent's :math:`O(N/\log N)`-work parallel decomposition if a future
 GPU port adopts a parallel-prefix backend.  The
-``tests/sn/spatial/test_ordinate_scan.py`` algebraic-theorem suite
+``tests/sn/sweep/core/test_ordinate_scan.py`` algebraic-theorem suite
 pins the pair-monoid associativity, identity, linearity in
 :math:`\psi_0`, linearity in :math:`b`, and bit-identity to a serial
 explicit loop — fifteen foundation-level invariants that justify
@@ -413,7 +413,7 @@ The six PRs
        ~28 % mean speedup on the slab benchmark.
    * - PR-INDEX-2
      - ``6cfdfd4``
-     - :class:`~orpheus.sn.spatial.sweep_cache.CollisionCache` field
+     - :class:`~orpheus.sn.sweep.cache.CollisionCache` field
        layout flipped to ``(N, ng, nx)`` natively (``a_attenuation``,
        ``inverse_denom``, etc.); cumprod axis updated 1→2; slab
        ``np.swapaxes`` and curvilinear ``.T`` bridges at cache-read
@@ -646,7 +646,7 @@ L0 streaming-equilibrium curvilinear
 ------------------------------------
 
 The L0 curvilinear gate at
-``tests/sn/spatial/test_streaming_equilibrium_curvilinear.py``
+``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``
 asserts the streaming-equilibrium identity
 :math:`\phi = q / \Sigma_t` to machine precision under refinement.
 It is the strongest L0 test for the sphere and cylinder sweep, and
@@ -1136,7 +1136,7 @@ lives in scattered docstrings.
    * - :class:`CollisionCache` fields (``a_attenuation``,
        ``inverse_denom``, …)
      - ``(N, ng, nx)``
-     - :class:`~orpheus.sn.spatial.sweep_cache.CollisionCache`
+     - :class:`~orpheus.sn.sweep.cache.CollisionCache`
        (1-D; collapses ``ny=1``)
    * - :class:`ScatteringOperator`.\ ``apply`` in/out
      - ``(N, ng, nx, ny)``
@@ -1625,11 +1625,11 @@ treatment of the within-group source iteration.
   the principled :math:`n` leading layout.
 - [Blelloch1990]_ §1.5 ("First-Order Linear Recurrences") --- the
   closed-form scan factorisation in :eq:`blelloch-1990-eq-1-5` that
-  underlies :func:`~orpheus.sn.spatial.scan.ordinate_scan` and the
+  underlies :func:`~orpheus.sn.sweep.scan.ordinate_scan` and the
   slab joint-batch hot path.
 - [Brent1974]_ --- Brent's theorem on work-efficient associative-scan
   reduction.  The pair-monoid associativity test in
-  ``tests/sn/spatial/test_ordinate_scan.py`` is the algebraic
+  ``tests/sn/sweep/core/test_ordinate_scan.py`` is the algebraic
   justification for the closed form.
 
 .. [Blelloch1990] G.E. Blelloch,
@@ -1637,7 +1637,7 @@ treatment of the within-group source iteration.
    CMU-CS-90-190 Technical Report, Carnegie Mellon University, 1990.
    §1.5 derives the first-order linear-recurrence closed form
    :eq:`blelloch-1990-eq-1-5` that ORPHEUS's slab joint-batch sweep
-   consumes through :func:`~orpheus.sn.spatial.scan.ordinate_scan`.
+   consumes through :func:`~orpheus.sn.sweep.scan.ordinate_scan`.
 
 .. [Brent1974] R.P. Brent,
    "The parallel evaluation of general arithmetic expressions,"

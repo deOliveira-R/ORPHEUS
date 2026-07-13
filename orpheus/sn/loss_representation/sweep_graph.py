@@ -19,7 +19,7 @@ Architectural framing (Cardinal Rule 2)
 =======================================
 
 Per the project memory note ``project_moc_structure.md`` and
-:doc:`../sn/spatial/scheme`, this DAG abstraction is **SN-specific
+:mod:`orpheus.transport.spatial.scheme`, this DAG abstraction is **SN-specific
 by design**. MoC will define its own analog (per-ray traversal — fiber
 bundles + solution sheaves, NOT a topological sort over a cell graph).
 There is no shared ``SweepGraph`` Protocol because there is no shared

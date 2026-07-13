@@ -38,7 +38,7 @@ from orpheus.geometry import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver
-from orpheus.sn.spatial import LinearDiscontinuous
+from orpheus.transport.spatial import LinearDiscontinuous
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 

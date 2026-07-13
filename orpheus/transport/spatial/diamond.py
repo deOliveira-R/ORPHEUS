@@ -176,7 +176,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     :math:`\beta`-failure (the curvilinear flux dip, Bailey–Morel–Chang 2010) is
     a DISTINCT, angular result — do NOT read it as a spatial-DD deficiency.  The
     angular condition lives on the pole-angular closure; the PAIR validity is
-    :func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`."""
+    :func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`."""
 
     supports_curvilinear: ClassVar[bool] = True
     r"""DD has a curvilinear cell closure: :meth:`update` runs the Morel–Montry

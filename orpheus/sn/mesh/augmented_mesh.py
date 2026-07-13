@@ -56,7 +56,7 @@ from .method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase, CellVisit
 from orpheus.transport.spatial.diamond import DiamondDifference
-from ..spatial.pole_angular_closure import (
+from ..sweep.pole_angular_closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
     PoleAngularClosureBase,
@@ -286,7 +286,7 @@ class SNMesh(MaterialMesh):
         # coupled-pole seed (Eqs. 3.432-3.435).  Since #282 route (a)
         # (#280 Phase 2.5d) the seed is first-class composite STATE,
         # marched directly from the true q½ source by
-        # :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+        # :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
         # (the retired ``CarlsonInwardSweep`` proxy-source strategy).
         # The seed closes the M-M recurrence's pole-face
         # initialisation gap, making the per-ordinate flat-flux
@@ -813,7 +813,7 @@ class SNMesh(MaterialMesh):
         whose claimed ⟺ with ``τ_raw ≠ 0`` fails on level-symmetric
         cylinder rules (μ_start ∉ nodes there, yet the seed is dead —
         measured 0.0-bit solve insensitivity). Single-sourced from
-        :func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_raw_per_level`
+        :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_raw_per_level`
         — the SAME edge construction the production τ clamp consumes.
         Level indexing matches the closure's: the sphere's single M-M
         level is index ``0``; cylinder levels index
@@ -1358,7 +1358,7 @@ class SNMesh(MaterialMesh):
         The values are read from the mesh's canonical angular-closure
         owner :attr:`pole_angular_closure` via its per-global-ordinate
         ``(N,)`` accessors
-        (:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`
+        (:attr:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`
         / ``c_in_per_ordinate`` / ``c_out_per_ordinate``) — NOT rebuilt from
         ``st.alpha_*`` / ``st.tau_mm`` (the inline formula the former
         duplication sites carried).  ``global_ordinate`` is the

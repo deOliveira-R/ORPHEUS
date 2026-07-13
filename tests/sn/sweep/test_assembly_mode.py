@@ -690,7 +690,7 @@ def test_282_teeth_coupling_direction_swap_reds():
     order (a back edge), and confirm ``triu != 0``.  Reverts by
     in-process monkeypatch (never git checkout).
     """
-    from orpheus.sn.spatial.pole_angular_closure import MorelMontryAngularSweep
+    from orpheus.sn.sweep.pole_angular_closure import MorelMontryAngularSweep
 
     mesh1d = Mesh1D(
         edges=np.array([0.0, 0.3, 0.8, 1.0]),

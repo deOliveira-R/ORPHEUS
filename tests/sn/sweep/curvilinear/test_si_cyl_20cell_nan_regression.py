@@ -1,7 +1,7 @@
 """Regression catcher: SI cylindrical 1-D pole-cell algebraic resonance
 triggers ``ordinate_scan`` NaN.
 
-Bug class: ``orpheus/sn/spatial/scan.py`` Blelloch-form
+Bug class: ``orpheus/sn/sweep/scan.py`` Blelloch-form
 ``cumprod_a * (psi_0 + cumsum(b / cumprod_a))`` produces NaN whenever
 the per-cell attenuation chain ``a`` contains an exact zero.  At the
 cylindrical pole cell ``A_down = 0`` (the inner radial face at r=0
@@ -22,9 +22,9 @@ violation, not a math error.
 
 WHY THIS WAS INVISIBLE TO EXISTING TESTS.
 
-* ``tests/sn/spatial/test_ordinate_scan.py::test_ordinate_scan_small_attenuation``
+* ``tests/sn/sweep/core/test_ordinate_scan.py::test_ordinate_scan_small_attenuation``
   uses ``a ∈ [0.05, 0.2]`` (positive, bounded away from 0).
-* ``tests/sn/spatial/test_ordinate_scan.py::test_ordinate_scan_zero_attenuation``
+* ``tests/sn/sweep/core/test_ordinate_scan.py::test_ordinate_scan_zero_attenuation``
   tests ``a = 1`` everywhere (pure accumulation), the OPPOSITE
   regime.
 * No test covers ``a ∋ 0`` (the pole-cell pathology).
@@ -35,7 +35,7 @@ WHY THIS WAS INVISIBLE TO EXISTING TESTS.
 
 CATCHES: future ERR-NNN ``si-cyl-pole-cell-resonance``.
 
-FIX SITE: ``orpheus/sn/spatial/scan.py:138``.  The Blelloch closed
+FIX SITE: ``orpheus/sn/sweep/scan.py:138``.  The Blelloch closed
 form must be replaced by a numerically-stable alternative.  Choices:
 (a) the pair-monoid prefix scan ``(α, β) ⊕ (α', β') = (α·α', α'·β + β')``
 which has no division; (b) per-segment fall-back to the explicit
@@ -164,7 +164,7 @@ def test_ordinate_scan_at_a_zero_returns_finite_via_loop():
     passes; the SI-cylinder-20cell test above then also passes by
     structural consequence.
     """
-    from orpheus.sn.spatial.scan import ordinate_scan
+    from orpheus.sn.sweep.scan import ordinate_scan
     # Chain with an exact zero at the tail (mirrors the failing
     # cylindrical pole-cell config).
     a = np.array([0.7965626, 0.79170007, 0.78645589, 0.78077641,

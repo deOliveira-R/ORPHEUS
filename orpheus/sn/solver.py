@@ -60,7 +60,7 @@ from orpheus.transport.radial_characteristic_field import (
 )
 from .mesh.augmented_mesh import SNMesh
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
-from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
+from .sweep.cache import CollisionCache, GeometryCoefficients
 from orpheus.numerics.moment_layout import (
     AVERAGE_MOMENT,
     cell_moment_count,
@@ -2687,7 +2687,7 @@ def solve_sn_fixed_source(
     #   flat-flux balance holds on sphere Gate 1.1 MMS.  (Since #282
     #   route (a) / #280 Phase 2.5d the seed is first-class composite
     #   STATE, marched directly from the true q½ source by
-    #   :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`;
+    #   :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`;
     #   the original ``CarlsonInwardSweep`` proxy-source strategy is
     #   retired.)
     #

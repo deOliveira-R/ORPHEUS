@@ -35,8 +35,8 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.cell_balance import cell_balance_terms
 from orpheus.transport.spatial.scheme import UpstreamState
 from orpheus.transport.spatial.diamond import DiamondDifference
-from orpheus.sn.spatial.scan import ordinate_scan
-from orpheus.sn.spatial.sweep_cache import CollisionCache, GeometryCoefficients
+from orpheus.sn.sweep.scan import ordinate_scan
+from orpheus.sn.sweep.cache import CollisionCache, GeometryCoefficients
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 

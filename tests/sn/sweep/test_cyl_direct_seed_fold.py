@@ -46,7 +46,7 @@ from orpheus.geometry import BC, CoordSystem
 from orpheus.geometry.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.spatial.sweep_cache import GeometryCoefficients
+from orpheus.sn.sweep.cache import GeometryCoefficients
 from orpheus.transport.full_field import FullField
 from orpheus.transport.source_sinks import (
     AngularBoundarySourceSink,
@@ -173,7 +173,7 @@ def test_seed_contribution_is_pure_diagonal_fold():
     (``c_out → c_out − c_in``): a wrong coefficient would leave a nonzero
     off-diagonal or a mismatched diagonal here.
     """
-    from orpheus.sn.spatial.pole_angular_closure import MorelMontryAngularSweep
+    from orpheus.sn.sweep.pole_angular_closure import MorelMontryAngularSweep
 
     sn = _cyl_product_mesh()
     N, nx = sn.quad.N, sn.nx

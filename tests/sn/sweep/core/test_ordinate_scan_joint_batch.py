@@ -2,7 +2,7 @@ r"""Pin the joint-batch behavior of :func:`ordinate_scan` for SLAB.
 
 Issue #196 PR-INDEX-1.  The slab 1-D sweep, after the principled
 index migration (``(N, ng, nx, ny)`` layout), is expected to invoke
-:func:`~orpheus.sn.spatial.scan.ordinate_scan` **exactly twice per
+:func:`~orpheus.sn.sweep.scan.ordinate_scan` **exactly twice per
 sweep** for SLAB: once per chain direction, joint-batched over all
 ordinates in that direction.
 

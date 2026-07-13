@@ -8,7 +8,7 @@ trailing moment axis iff there is more than one moment" **tail** policy
 (:func:`face_moment_tail`), and the rank-based "is this buffer moment-valued?"
 discriminator (:func:`is_moment_valued_by_rank`).
 
-Why ``numerics`` and not ``sn.spatial`` (#245)
+Why ``numerics`` and not ``sn.sweep`` (#245)
 ==============================================
 
 These conventions describe the Kronecker ordering of a tensor-Legendre
