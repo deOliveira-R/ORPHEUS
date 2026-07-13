@@ -63,6 +63,18 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   so the Sphinx build gate does NOT catch a retirement's doc blast radius; (3) **direct
   constructors** of any guarded type (a guard-at-source change reaches every `T(...)` caller,
   not just the factory path). Run all three, then retire.
+- **Mass-deletes are retirements too — and untracked shadow-copies mask the breakage.** A
+  "chore: mass-delete old diagnostics" sweep owes each file the same 3-search audit, with two
+  sharpenings: (a) grep the **module/script NAME**, not only its symbols — a subprocess-worker
+  import (`from diag_x import f` inside a `textwrap.dedent` worker string) is text the call
+  graph never sees; (b) a diagnostic consumed by a tracked test is **production
+  infrastructure** (the instrument behind a pinned baseline), never "shipped/falsified"
+  debris. If a consumer stays green after the delete, check WHERE its import resolves: an
+  untracked shadow (a scratch/ working copy, a stale `__pycache__`) can serve the import and
+  keep the breakage silent until the shadow evaporates. (2026-07-13: `15486f66` mass-deleted
+  `diag_cin_aware_split_basis_keff` while the CP rank-n protocol test's worker consumed it;
+  an untracked scratch copy masked the loss for ten weeks, then vanished — recovery had to
+  route through a surviving `.pyc`'s `co_filename` back into git history.)
 
 ### Exception — keep a relinquished *fuller view* as a verification oracle
 
