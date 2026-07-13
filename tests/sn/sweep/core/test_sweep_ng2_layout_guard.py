@@ -1,4 +1,4 @@
-r"""ng≥2 layout guard for ``transport_sweep`` — the ERR-055 loud-failure gate.
+r"""ng≥2 layout guard for the within-group sweep — the ERR-055 loud-failure gate.
 
 ERR-055 (2026-06-01): six curvilinear sweep-regression tests fed
 ``sig_t`` / ``Q`` in the obsolete ``(nx, ng, ny)`` layout after the
@@ -10,11 +10,14 @@ distinguishes the two axes (``CollisionCache.from_geometry``).
 
 **This guard exists so the convention can never drift silently again.**
 It runs a 1-D *multigroup* (ng=2) sweep through the SAME production
-producer the solver uses (``AngularSourceSink.from_isotropic`` +
-``transport_sweep``). With ng=2 the layout aliasing is broken: a
-``(nx, ng, ny)`` mismatch makes axis 1 size 2 ≠ nx, so any future
-producer/consumer ``(ng, nx, ny)`` drift fails LOUDLY here (axis-size
-mismatch) instead of hiding behind the ng=1 degeneracy.
+producer the solver uses (``AngularSourceSink.from_isotropic`` + the
+``(L + C)`` grid solve, spelled via the typed
+``tests.sn._test_helpers.sweep_once`` successor of the retired
+``transport_sweep`` — campaign step 6, R-6.1). With ng=2 the layout
+aliasing is broken: a ``(nx, ng, ny)`` mismatch makes axis 1 size
+2 ≠ nx, so any future producer/consumer ``(ng, nx, ny)`` drift fails
+LOUDLY here (axis-size mismatch) instead of hiding behind the ng=1
+degeneracy.
 
 It asserts the canonical PR-INDEX-5 output shapes explicitly:
 ``ang.shape == (N, ng, nx, ny)`` and ``phi.shape == (ng, nx, ny)`` —
@@ -30,7 +33,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Region, RegionMesh, StructuredGeometry
+from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from tests.sn._test_helpers import sweep_once
@@ -40,7 +43,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-055")]
 
 
-def _slab_1d(n_cells: int, ng_mix) -> Mesh1D:
+def _slab_1d(n_cells: int) -> Mesh1D:
     geom = StructuredGeometry(
         geometry="SLB",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -49,11 +52,11 @@ def _slab_1d(n_cells: int, ng_mix) -> Mesh1D:
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 
 
-def test_transport_sweep_ng2_layout_shapes():
+def test_sweep_ng2_layout_shapes():
     """1-D ng=2 sweep: output shapes MUST be the PR-INDEX-5 contract.
 
     Routes a 2-group source + ``sig_t`` through the production producer
-    (``AngularSourceSink.from_isotropic`` + ``transport_sweep``) on a
+    (``AngularSourceSink.from_isotropic`` + ``sweep_once``) on a
     10-cell slab and asserts ``(N, ng, nx, ny)`` / ``(ng, nx, ny)``. The
     nx=10 ≠ ng=2 asymmetry is the load-bearing choice: it makes a
     ``(nx, ng, ny)`` axis-swap a SIZE mismatch (loud) rather than the
@@ -62,7 +65,7 @@ def test_transport_sweep_ng2_layout_shapes():
     mix = get_mixture("A", "2g")
     ng = 2
     nx = 10
-    mesh = _slab_1d(nx, mix)
+    mesh = _slab_1d(nx)
     quad = Quadrature.gauss_legendre(8)
     sn_mesh = SNMesh(mesh, quad, {0: mix})
 
@@ -89,7 +92,7 @@ def test_transport_sweep_ng2_layout_shapes():
     assert np.all(np.isfinite(phi)), "Non-finite scalar flux"
 
 
-def test_transport_sweep_ng2_per_group_distinct():
+def test_sweep_ng2_per_group_distinct():
     """The two groups must carry DISTINCT flux (no axis collapse/aliasing).
 
     Group 0 and group 1 of mixture A have different Σ_t, so an
@@ -101,7 +104,7 @@ def test_transport_sweep_ng2_per_group_distinct():
     mix = get_mixture("A", "2g")
     ng = 2
     nx = 4
-    mesh = _slab_1d(nx, mix)
+    mesh = _slab_1d(nx)
     quad = Quadrature.gauss_legendre(8)
     sn_mesh = SNMesh(mesh, quad, {0: mix})
 
@@ -120,7 +123,7 @@ def test_transport_sweep_ng2_per_group_distinct():
         _, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
     # Equilibrium per group: φ_g = Q_g / Σ_t,g (pure-streaming sweep with
-    # no scatter coupling — transport_sweep is the within-group sweep).
+    # no scatter coupling — the within-group sweep carries none).
     expected = Q_iso / sig_t  # (ng, nx)
     np.testing.assert_allclose(
         phi, expected, rtol=1e-6,

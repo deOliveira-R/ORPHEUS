@@ -37,6 +37,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary.angular import IncomingSourceOperator
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
 from orpheus.sn.operators.streaming import InvertibleOperator, StreamingOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
@@ -67,6 +68,19 @@ def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
         geometry="SLB",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
         bcs=(BC.vacuum, BC.vacuum),
+    )
+    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
+def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
+    # The seed-carrying geometry (R12a): the only mesh on which System B —
+    # and therefore A_BB — exists.
+    geom = StructuredGeometry(
+        geometry="SPH",
+        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
+        bcs=(BC.vacuum,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
@@ -312,6 +326,20 @@ class TestPredicateFaithfulness:
             (op, False, True, STRUCTURAL_ABSENT)
             for op in self._transport_energy_operators()
         ]
+        # A_BB — System B's self-block (coupled-block campaign step 4b):
+        # exists ONLY on the seed-carrying sphere, where the direct Carlson
+        # march IS its exact inverse and both transposes are realized, so
+        # the positive surface is (invertible, adjointable) = (True, True).
+        # The canonical durable pin the step-4b follow-up named — gate 5c
+        # of TestA_BB_Forward catches a predicate flip-back dynamically;
+        # this row is the static table entry beside its siblings.
+        sph = _sphere_mesh(ng=2)
+        sigma_sph = MultiplicationOperator.from_mesh(
+            np.ones((sph.ng, *sph.spatial_shape)), sph
+        ).coefficient
+        rows.append(
+            (RadialCharacteristicOperator(sph, sigma_sph), True, True, INVERTIBLE)
+        )
         for op, inv, adj, contract in rows:
             assert_inverse_adjoint_contract(
                 op, invertible=inv, adjointable=adj, inverse_contract=contract
