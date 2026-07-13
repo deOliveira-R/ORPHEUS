@@ -78,6 +78,9 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.transport.source_sinks.angular_boundary_source_sink import (
+        AngularBoundarySourceSink,
+    )
 
 __all__ = ["RadialCharacteristicField"]
 
@@ -189,6 +192,7 @@ class RadialCharacteristicField(
     @classmethod
     def source_from_angular(
         cls, angular_source_values: "NDArray", mesh: "SNMesh",
+        *, boundary_trace: "AngularBoundarySourceSink | None" = None,
     ) -> "RadialCharacteristicField | None":
         r"""Fold a per-ordinate volumetric source into its q½ composite.
 
@@ -219,9 +223,34 @@ class RadialCharacteristicField(
         curvilinear MMS; #282 route (a)).  For an isotropic source the
         higher moments vanish and the fold collapses to
         :math:`\tfrac12 q_0` bit-exactly (so the isotropic eigenvalue /
-        fixed-source paths are unchanged).  The boundary corners stay zero:
-        the inflow-corner datum is the BOUNDARY's job (vacuum ⇒ 0;
-        reflective ⇒ the ``B`` corner arm into the SI rhs).
+        fixed-source paths are unchanged).
+
+        **The inflow-corner law has THREE arms**, one per BC family of the
+        outer face — each datum enters through its own system channel:
+
+        * **vacuum** ⇒ 0 (this factory's zero corners, no trace supplied);
+        * **reflective** ⇒ the ``B_b`` corner GAIN arm — iterate-dependent,
+          added into the SI rhs by the splitting's :math:`N` (never here);
+        * **prescribed inflow** ⇒ the SOURCE's own given datum, delivered
+          HERE via ``boundary_trace``: the seed equation's r = R Dirichlet
+          is :math:`\bar\psi_{1/2}(R) = \psi_{\rm in}(\mu=-1, R)`, and the
+          composite rhs's boundary member carries :math:`\psi_{\rm in}` at
+          the quadrature nodes, so each carrying level's inflow corner
+          receives the trace's MOST-INWARD-ordinate ``xmax`` value — the
+          nearest-node proxy for :math:`\mu = -1` (the pre-#282-route-(a)
+          ``bc_outer_value = inflow[most_inward]`` datum, restored through
+          the source channel; its :math:`O(\Delta\mu)` error sits below the
+          #229 angular floor that governs every curvilinear gate; a
+          half-range Legendre fold to :math:`\mu = -1` is the named
+          upgrade seam if a sub-floor consumer ever appears).
+
+        Omitting ``boundary_trace`` (or passing a zero trace — every
+        vacuum/reflective rhs) leaves the corners zero, byte-identical to
+        the pre-widening factory. The regression this arm closes: the d3
+        carve dropped the prescribed-corner datum when it retired the
+        lagged ``bc_outer_value`` read, and the sphere prescribed-inflow
+        MMS converged to a wrong fixed point (L2 ≈ 0.21 vs the 2.4e-3
+        floor) until step 7 restored it.
 
         Parameters
         ----------
@@ -233,6 +262,13 @@ class RadialCharacteristicField(
             ``radial_characteristic_field_space`` is the R12a presence
             predicate; its ``pole_angular_closure.level_indices`` give each
             level's ordinate bundle for the per-level moment integration).
+        boundary_trace : trace source-sink, optional
+            The SAME composite rhs's boundary member (an
+            ``AngularBoundarySourceSink`` — duck-typed on ``face_view``):
+            the prescribed-inflow given data whose ``xmax`` face feeds the
+            inflow corners as above. ``None`` (the default) for callers
+            whose source carries no boundary member (cold starts, the
+            eigen fission seed).
         """
         from orpheus.numerics.spaces.radial_characteristic_space import (
             fold_moments_to_radial_characteristic,
@@ -266,4 +302,15 @@ class RadialCharacteristicField(
                 seed.interior.cells(p, sign)[...] = (
                     fold_moments_to_radial_characteristic(moments, sign)
                 )
+        if boundary_trace is not None:
+            # The prescribed-inflow corner arm (three-arm law above): the
+            # r = R inward-leg Dirichlet datum per carrying level = the
+            # trace's most-inward (most negative μ) ordinate on the outer
+            # face. Carrying meshes are 1-D curvilinear (R12a), whose one
+            # boundary face is "xmax" (the pole r = 0 is not a face).
+            inflow_at_outer = np.asarray(boundary_trace.face_view("xmax"))
+            for p in seed.interior.space.levels:
+                ords = np.asarray(level_indices[p])
+                most_inward = ords[int(np.argmin(mu[ords]))]
+                seed.boundary.corner(p, -1)[...] = inflow_at_outer[most_inward, :]
         return seed

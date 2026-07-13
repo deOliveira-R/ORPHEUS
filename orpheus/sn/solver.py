@@ -79,6 +79,9 @@ if TYPE_CHECKING:
     # boundary/iteration modules are one-way late imports here).
     from orpheus.numerics.iteration import KrylovAcceleration, SourceIteration
     from orpheus.numerics.operator import LinearOperator
+    from orpheus.transport.source_sinks.angular_boundary_source_sink import (
+        AngularBoundarySourceSink,
+    )
     from .operators.boundary import SNBoundaryOperator
     from .operators.scheduled_invertible import ScheduledInvertibleOperator
     from .operators.streaming import InvertibleOperator
@@ -606,6 +609,7 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
 
 def _radial_characteristic_source_from_per_ordinate(
     per_ordinate_values: "np.ndarray", sn_mesh,
+    *, boundary_trace: "AngularBoundarySourceSink | None" = None,
 ) -> "RadialCharacteristicField | None":
     r"""Fold a PER-ORDINATE source to its q½ composite —
     :meth:`RadialCharacteristicField.source_from_angular` (Legendre-project
@@ -620,9 +624,17 @@ def _radial_characteristic_source_from_per_ordinate(
     emission is already a moment, so the direct fold skips this factory's
     per-ordinate round-trip). Both bottom out in the SAME kernel — no twin, a
     different typed input.
+
+    ``boundary_trace`` (step 7, the prescribed-corner arm): the SAME source
+    composite's boundary member, forwarded so the factory can deliver the
+    prescribed-inflow r = R corner datum to System B's given-data slot —
+    see the factory's three-arm inflow-corner law. Pass it wherever the
+    per-ordinate source HAS a boundary member (the fixed-source rhs);
+    omit for boundary-free folds (cold starts, reconstructions whose
+    corner is populated separately from the converged state).
     """
     return RadialCharacteristicField.source_from_angular(
-        per_ordinate_values, sn_mesh,
+        per_ordinate_values, sn_mesh, boundary_trace=boundary_trace,
     )
 
 
@@ -2443,8 +2455,13 @@ def _build_fixed_source_rhs(
         seed_src.interior.values[...] = explicit_seed.interior.values
         seed_src.boundary.values[...] = explicit_seed.boundary.values
     else:
+        # ``boundary_trace`` = the SAME rhs's boundary member: a prescribed
+        # (non-vacuum) inflow delivers System B's r = R corner datum through
+        # the source channel (the factory's three-arm inflow-corner law —
+        # the step-7 regression fix; zero for vacuum/reflective rhs, so
+        # those paths stay byte-identical).
         seed_src = _radial_characteristic_source_from_per_ordinate(
-            bulk_values, sn_mesh,
+            bulk_values, sn_mesh, boundary_trace=boundary,
         )
     return _coupled_source_state(
         q_a, seed_src, sn_mesh, context="_build_fixed_source_rhs",

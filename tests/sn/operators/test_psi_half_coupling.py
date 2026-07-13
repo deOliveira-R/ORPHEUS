@@ -3793,6 +3793,98 @@ class TestWithinGroupSystemAnchors:
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Step 7 — TestPrescribedCornerDatum: the three-arm inflow-corner law
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.foundation
+class TestPrescribedCornerDatum:
+    r"""The rhs birth delivers the PRESCRIBED-inflow ψ½ corner datum
+    (step 7 — the d3 regression's fast wiring catcher).
+
+    The inflow-corner law has three arms (see
+    :meth:`RadialCharacteristicField.source_from_angular`): vacuum ⇒ 0,
+    reflective ⇒ the ``B_b`` gain arm, prescribed ⇒ the SOURCE's own trace
+    datum at the most-inward ``xmax`` ordinate. The d3 carve wired only the
+    first two; the sphere prescribed-inflow MMS converged to a wrong fixed
+    point (L2 ≈ 0.21 vs the 2.4e-3 floor) with its ONLY catcher slow-marked
+    — five not-slow walls never saw it. This class is the not-slow wiring
+    pin: drop the ``boundary_trace`` threading in
+    ``_build_fixed_source_rhs`` (the recorded red) and the prescribed arm
+    here REDs immediately; the slow MMS gate remains the value-level
+    catcher.
+    """
+
+    def test_prescribed_trace_populates_the_inflow_corner(self):
+        r"""A nonzero (ordinate-asymmetric) prescribed trace lands on every
+        carrying level's inflow corner as the most-inward-ordinate row —
+        the nearest-node proxy for ψ_in(μ=−1), the pre-d3
+        ``bc_outer_value`` datum restored through the source channel. The
+        outflow corner stays zero (the defect row, R13)."""
+        from orpheus.transport.source_sinks import (
+            AngularBoundarySourceSink,
+            AngularSourceSink,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn = _sphere(nx=4, ng=2)
+        rng = np.random.default_rng(7)
+        trace_vals = rng.random((sn.quad.N, sn.ng))
+        bnd = AngularBoundarySourceSink.zeros_on(sn)
+        bnd.face_view("xmax")[...] = trace_vals
+        q = TimedFullField(
+            interior=AngularSourceSink.from_mesh(
+                np.ones((sn.quad.N, sn.ng, sn.nx)), sn,
+            ),
+            boundary=bnd,
+            _history=(),
+            history_depth=2,
+        )
+        rhs = _build_fixed_source_rhs(q, sn)
+        if not isinstance(rhs, CoupledField):
+            pytest.fail("carrying rhs builder did not return the coupled pair")
+        seed = rhs.systems[1]
+        mu = sn.quad.mu_x
+        level_indices = sn.pole_angular_closure.level_indices
+        levels = tuple(seed.boundary.space.levels)
+        if not levels:
+            pytest.fail("sphere rhs has no carrying levels — the pin is vacuous")
+        for p in levels:
+            ords = np.asarray(level_indices[p])
+            most_inward = ords[int(np.argmin(mu[ords]))]
+            np.testing.assert_array_equal(
+                seed.boundary.corner(p, -1), trace_vals[most_inward, :],
+                err_msg=(
+                    f"level {p}: the prescribed trace's most-inward row did "
+                    f"not reach the ψ½ inflow corner — the d3 dropped-corner "
+                    f"regression is back"
+                ),
+            )
+            np.testing.assert_array_equal(
+                seed.boundary.corner(p, +1), np.zeros(sn.ng),
+                err_msg=f"level {p}: the outflow (defect) corner must stay zero",
+            )
+
+    def test_vacuum_rhs_keeps_zero_corners(self):
+        r"""The vacuum arm is untouched: a bare-ndarray (vacuum) rhs leaves
+        every corner zero — the arm is dormant off the prescribed class,
+        so vacuum/reflective solves stay byte-identical."""
+        sn = _sphere(nx=4, ng=2)
+        rhs = _build_fixed_source_rhs(
+            np.ones((sn.quad.N, sn.ng, sn.nx)), sn,
+        )
+        if not isinstance(rhs, CoupledField):
+            pytest.fail("carrying rhs builder did not return the coupled pair")
+        seed = rhs.systems[1]
+        for p in seed.boundary.space.levels:
+            for sign in (-1, +1):
+                np.testing.assert_array_equal(
+                    seed.boundary.corner(p, sign), np.zeros(sn.ng),
+                    err_msg=f"vacuum rhs corner ({p}, {sign:+d}) is nonzero",
+                )
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Step 5 (#41) — TestCoupledSolve: the block solve's SN-bound rows
 # ═══════════════════════════════════════════════════════════════════════
 
