@@ -2467,3 +2467,122 @@ theory-page pass (the solve mode / certificate / two-channel→ONE-
 channel law now includes this step's collapse), promote diag_coupled,
 the FULL-tree not-slow wall (needs the patient uncapped run for the
 >290s SLOW curvilinear tier), close #280/#282 per the roadmap.
+
+### Step 7 (#35) COMPLETE — verify + docs + close-out; the CAMPAIGN CLOSES (2026-07-13)
+
+**The queue item "promote diag_coupled" was already DONE** — absorbed by
+step 0 (#42, `TestRegressionFloor` @ test_psi_half_coupling.py); the
+step-7 card predated step 0's insertion.
+
+**Estate pass (2 commits).** `edce7875`: the ng2 layout guard renamed
+off the retired symbol (`test_sweep_ng2_layout_guard.py`, tests
+`test_sweep_ng2_*`; + unused-import/dead-param riders) and the step-4b
+follow-up's canonical POSITIVE A_BB row in the keystone-v2 capability
+table (`(RadialCharacteristicOperator(sphere), True, True, INVERTIBLE)`
+via the new `_sphere_mesh` helper). `86fa7415`: the transport_sweep
+PROSE residue across 12 test files — 6b renamed the CALLS but left
+stale-as-current claims ("the public typed contract lives at
+transport_sweep") — every one re-pointed at the live surface or
+past-tensed with the R-6.1 citation; the one behavior-adjacent rename
+`TestTransportSweepDelegatesToStrategy → TestSweepEntryDelegatesToStrategy`
+(the honest subject: a FRESH (L+C)'s cached_property consults
+`default_for` once); zero stale-as-current mentions remain in orpheus/ +
+tests/ (18 survivors are retired-marked history). Touched files 220/0.
+
+**Docs pass (archivist, main-agent reviewed + corrected) @ `98fa7197`.**
+`operator_algebra.rst` +708: the `coupled-block-operator` capstone
+section — the two-point-BVP posing, the four blocks (+ the A_BB
+naming gotcha: bare march vs loss self-block march−B_b ∥ A_AA =
+L+C−S−B_a), the N-general machinery + SystemRole, the ONE production
+spelling (`build_within_group_system`; the loss grid's off-diagonal
+sign trap; A = M − N), the block-triangular solve + LU EXTRACT, the
+(B,A)=None Schur/lag argument, the ρ-honest residual + certificate,
+the swap law + the step-6 collapse, the measured-equivalence table,
+the DSA seam (#2 — R/P flagged not-yet-existing); + the A_BA
+Schur-fold prose (the step-2 banked follow-up; HAZARD-5 note); nine
+vv-status-documented labels. `discrete_ordinates.rst` +82: three
+Development-history entries (step 6 / #52 ERR-04x / step 5).
+**Archivist corrections adopted**: A_BA = `RadialCharacteristicEmission`
+(:1187; `Reconstruction` is its inner Fold factor — the brief had them
+conflated); the live fold helper is `fold_moments_to_radial_characteristic`
+in `radial_characteristic_space.py`. **Main-agent corrections applied**:
+the #52 dev-history row's description re-attributed (the archivist
+draft had assigned the invariants to System B's BVP laws — they are the
+ANGULAR-trace realize-seam certification, ERR-041/042/045/047, audit
+64/68 → 68/68); the Issue-column local-task refs normalized to
+GitHub-only per the table idiom. sphinx -W exit 0 (verified twice).
+
+**Verification walls.** Full-tree not-slow in two segments: A =
+sn+numerics+transport+geometry+diffusion **3903/0** (40:35); B =
+remainder **2482/0** (1:57 under 3-way contention) — **6385/0 total**
+(18 skipped, 54 xfailed). Ratchet `transport: 1`; audit ERR 68/68
+(orphan-equations 109/357 = the standing backlog); sphinx -W 0.
+
+**The patient slow run (`--timeout=0`, tests/sn -m slow, 3:44:28) — the
+tier's FIRST run since d3 — came back 3 failed / 73 passed and did its
+job:**
+
+1. `test_slab_sweep_benchmark_under_2ms` — 2.747ms under 3-way CPU
+   contention; PASSES uncontended. Artifact, no action.
+2. `test_d3_admission::test_d3_gauss_seidel_jacobi_fixed_point_invariance`
+   — `NotImplementedError: boundary leakage for a 3-D vacuum face`
+   (solver.py:1411). Bisect: first-bad `1247677c` (the stencil P1
+   k-estimator unification, ON LOCAL MAIN — not this branch); the
+   documented deferral's "first 3-D vacuum eigenvalue consumer" has
+   arrived. Correctness-SAFE loud refusal. **Issue text prepared**
+   (the wire = the transverse-area product; the face-cell-ordering
+   trap named) — to file on the user's go-ahead.
+3. `test_mms_prescribed_inflow_sphere_activates_redistribution` — REAL,
+   deterministic (0.3s), L2 [0.188, 0.209, 0.213] vs the 2.4e-3 floor =
+   the designed dropped-q.boundary signature. **Bisect: first-bad
+   `a29ab2df` = 2.5d d3 itself** (branch-only — OURS to fix before
+   merge). Root cause: the lagged path read the seed's r=R start from
+   the trace's most-inward ordinate (`bc_outer_value =
+   inflow[most_inward]`); d3's explicit corner slot wired only
+   vacuum(0)/reflective(B_b) — a PRESCRIBED inflow is a SOURCE and its
+   corner datum went silently zero. The §16.D acceptance matrix was
+   vacuum/reflective-only; the one catcher is slow-marked (five
+   not-slow walls blind). **FIXED @ `1a5e5dc5`**: the inflow-corner law
+   completed to THREE arms through the system channels —
+   `source_from_angular(..., boundary_trace=)` delivers the prescribed
+   trace's most-inward xmax row to each carrying level's inflow corner
+   (the pre-d3 O(Δμ) proxy restored through the source channel; the
+   half-range fold to μ=−1 is the named upgrade seam);
+   `_build_fixed_source_rhs` threads its own boundary member. Dormant
+   by data off the prescribed class (vacuum/reflective traces are
+   zero): the 257/0 dormancy battery (byte-compare stores, regression
+   floor, r1 reflective-corner, 282 gates, solve/, keff_curvilinear)
+   passed with ZERO re-baselines. Catchers: the slow gate red→green
+   (4/4 file) + the NEW not-slow wiring pin `TestPrescribedCornerDatum`
+   (prescribed + vacuum-control arms), teeth mutation-verified
+   in-process (factory reverted to the d3 state ⟹ RED exit 1).
+
+**Close-out state.** `Closes #280` + `Closes #282` already ride
+`3f0b8c74` (the 2.5e commit) — they fire at the user's push; no new
+trailers needed. The roadmap's prepared issue COMMENTS (#280 / #282 /
+#276 A4-unblocked / #200 curvilinear-posture) remain gated on the
+user's go-ahead. **Frozen baselines KEEP** (already explicitly ruled at
+2.5e per the fuller-view rule; step 6/7 maintained them as live
+canaries — reaffirmed). The roadmap's follow-up (1) (the FullField
+presence invariant) is **DELIVERED by step 6** (presence structural —
+stronger than the proposed `__post_init__`); follow-up (2) (the R9
+`sn/spatial/` rename) still to file. **NEW follow-ups from step 7**:
+(i) the 3-D vacuum-face leakage wire (draft above, main-tree P1
+estate); (ii) the `transport_sweep` DOCS pass (archivist flag: ~15
+SN-page sections present the retired entry as current API — no
+mechanical successor, a behavioral rewrite per site; out of
+coupled-block scope); (iii) the half-range-fold corner upgrade seam
+(named in the factory docstring; build only if a sub-floor consumer
+appears).
+
+**Standing USER decisions (unchanged)**: the cp SLOW-tier scratch
+breakage (`diag_cin_aware_split_basis_keff`); the user-owned
+skills-file commit (ERR-067/068 + the four 041/042/045/047 Status
+lines — the catalog may now also want the d3 corner regression as an
+entry).
+
+**CAMPAIGN COMPLETE.** Steps 0–7 all landed; the joint system has ONE
+spelling (the M grid); presence is structural; the walk is the
+ray-decoupled (A,A) block; the theory pages carry the architecture.
+The branch is ready to ff-merge to main at the user's word (pushes
+HELD; the merge gate numbers above).
