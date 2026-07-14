@@ -195,4 +195,15 @@ has the destination sections for relocated derivations.
   to the "Consuming the frame in SN" stub. Rename audit clean; independent -W build rc0.
   frame.rst 1521→3706; SN page 21881→19788. NEXT = Phase 1b (collapse the 3 SN history surfaces).
   NOTE: archivist also compacted its OWN agent-memory (MEMORY.md 395→140, +L-022) as a side
-  effect — held OUT of the Phase-1a commit, pending user review.
+  effect — user-approved KEEP, committed @ `c7f74c32`.
+- 2026-07-13: **Phase 1b+1c DONE (skeleton scope)** (archivist, reviewed) — machine-header
+  nexus-meta dropdown (§1, unregistered-directive-safe code-block form) + Synopsis (§2, replaces
+  Key Facts, folds in Overview) + consolidated Gotchas (§8, incl. the distilled ERR-025
+  homogeneous-rescale-degeneracy gotcha with verified catcher tests) + §5/§6 automation-pending
+  notes + removed the 2 Investigation-History essays (§9, L10; full text preserved in closeout for
+  optional issue relocation). NO big-block reorder (deferred to 1d per user). One dangling intra-
+  page `:ref:`investigation-err-025`` repointed to the distilled gotcha. Page 19788→19408.
+  Independent -W build rc0. NEXT = Phase 1d (Sweep mega-section decomposition + the deferred
+  physical re-level; opens with a USER CHECKPOINT before big deletions) OR Phase 2 (code-prose).
+  REMOVED ESSAYS pending user decision: post essay-2 → #95 (clean origin fit) / essay-1 → a
+  curvilinear issue, or rely on git history + ERR catalog.

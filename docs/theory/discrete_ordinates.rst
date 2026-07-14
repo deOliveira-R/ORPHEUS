@@ -9,115 +9,118 @@ Discrete Ordinates Method (S\ :sub:`N`)
    :depth: 3
 
 
-Key Facts
-=========
+.. Machine header — the ``nexus-meta`` schema for this page.  Ingestion is
+.. PENDING nexus#1 Phase 2: the ``nexus-meta`` directive is NOT yet
+.. registered, so the schema is rendered here as a collapsed sphinx-design
+.. dropdown and machine-consumed later.
 
-**Read this before modifying the SN solver.**
+.. dropdown:: Machine header — ``nexus-meta`` schema (module · operators · conventions · invariants)
+   :color: muted
 
-- Transport equation: :math:`\mu_m \frac{\partial\psi_m}{\partial x} + \Sigma_t \psi_m = Q/2` (1D slab)
-- Curvilinear adds angular redistribution: :math:`\alpha` coefficients couple ordinates
-- Diamond difference: :math:`\psi^a = (1+\beta)\psi_{\text{out}} - \beta\psi_{\text{in}}`, Morel-Montry sets :math:`\beta = 0`
-- Scattering convention: ``SigS[l][g_from, g_to]`` — source uses **transpose**: ``Q = SigS^T @ phi``
-- GL weights sum to 2; Lebedev/LS/Product sum to :math:`4\pi`
-- **Gotcha**: 1-group tests are degenerate (k = νΣ_f/Σ_a regardless of flux shape)
-- **Gotcha**: homogeneous tests are blind to curvilinear redistribution bugs (flat flux → α terms vanish)
-- **Gotcha**: conservation holds even with wrong per-ordinate balance (telescoping sum identity)
-- The :math:`\alpha` dome must be non-negative; negative → NaN/overflow
-- Fixed-source flat-flux diagnostic (Q/Σ_t) is the most powerful curvilinear bug detector
-- Key reference: Bailey, Morel & Chang (**2010**) NSE 165 ([BaileyMorelChang2010]_)
-  — Eq. 43 (the M-M weight, unique exact-on-linear-in-μ); Hébert (2009)
-  §3.9.4 ([Hebert2009]_) for the dome recursion + Carlson seed.
-- **Curvilinear anisotropic SN** — the "#229 floor" was **three**
-  distinct errors (sphere pole-cell O(h) spatial #233; sphere angular
-  τ-clamp; cylinder angular floor #229), separated by a norm difference
-  (volume-weighted L2 vs L∞).  The sphere τ-clamp is removed (W1, raw
-  Bailey Eq. 43); the cylinder keeps it (structural τ=0).  Two unrelated
-  "anisotropic" paths: geometric α-dome redistribution (P0) vs Legendre
-  P1+ scattering (#9).  Full treatment:
-  :ref:`sn-curvilinear-aniso-norm-reconciliation`.
-- **Curvilinear starting-direction seed** (Issue #282 route (a)): the
-  Morel–Montry recurrence's half-angle seed :math:`\psi_{1/2}` at
-  :math:`\mu_{\rm start}` is **first-class typed state** — System B's own
-  :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
-  composite (its own ``interior ⊕ boundary`` of ψ½ leaves), NOT a lagged
-  extrapolation of the iterate.  The spherical within-group **solve marches
-  it directly** from the true q½ source through System B's named resolvent
-  :meth:`RadialCharacteristicOperator.solve <orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve>`
-  (the Hébert
-  :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
-  engine on the **full** Legendre fold — an :math:`\ell=0`-only fold drops
-  the :math:`-A'` term streaming manufactures), so the cold solve is a
-  single-pass exact inverse (residual :math:`5.18\times10^5 \to
-  2.5\times10^{-16}`).  Only levels with first-ordinate raw
-  :math:`\tau \in (0,1)` carry the block (**R12a** — the sphere;
-  cylinders inline the bit-exact edge extrapolation).  Full treatment:
-  :ref:`sn-282-direct-starting-direction-solve`.
-- Verification uses :ref:`synthetic cross sections <synthetic-xs-library>`, not real nuclear data
-- 2-D wavefront sweep (Wave 2): per-octant batched dispatch via
-  :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`; mesh-time
-  precompute of the per-octant DAG; BC apply once per octant per axis
-  (the L7-trap fix). **Since S6.4(e)** the graph exposes TWO storage
-  walks —
-  :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`
-  (full-cochain oracle) and
-  :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
-  (rolling-frontier production) — each parameterised by a LEVEL
-  OPERATION object (``_CellSolve`` | ``_CellResidual``); the cell math
-  is the discretization's storage-free kernel pair
-  (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
-  / :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`).
-  See :ref:`sweep-octant-dependency-graph`.
-- **Both the 1-D and 2-D sweeps are BARE** (Wave O steps O.4a.2 +
-  O.4b, Issue #208): the 1-D scan
-  (:meth:`~orpheus.sn.loss_representation.CumprodScan.sweep`)
-  and the 2-D :func:`~orpheus.sn.loss_representation._sweep_jacobi` no longer
-  re-apply ``bc`` to the outflow — they read the *seeded* inflow
-  trace directly. The reflective coupling :math:`\psi.\text{inflow} =
-  B\,\psi.\text{outflow}` is delivered as a sibling :math:`-B` source
-  term, NOT re-derived inside the sweep, for every geometry. See
-  :ref:`bare-sweep-extraction` and the canonical algebra
-  :ref:`bc-extraction` in :doc:`operator_algebra`.
-- **2-D Cartesian eigenvalue problems solve via BOTH inner solvers**
-  (Wave O "2-D SI Phase A", Issue #208, 2026-06-04):
-  :func:`~orpheus.sn.solver.solve_sn` runs the source-iteration inner
-  (:meth:`~orpheus.sn.solver.SNSolver._solve_source_iteration`, the
-  default for *every* geometry) AND the Krylov inner
-  (:meth:`~orpheus.sn.solver.SNSolver._solve_krylov`). The SI inner is
-  the geometry-agnostic structural twin of Krylov — same composite RHS,
-  same loss decomposition (the resolvent :math:`L + C` plus the
-  scattering gain :math:`S` and the boundary reflection gain :math:`B`,
-  handed to the variadic driver; zero within-group fission), same
-  angular reduction — differing only in the iteration driver
-  (:class:`~orpheus.numerics.iteration.SourceIteration` vs
-  :class:`~orpheus.numerics.iteration.KrylovAcceleration`). The
-  reflective coupling rides the bare 2-D sweep via the sibling
-  :math:`-B` on the natively four-face
-  :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`. The legacy
-  "B1'' face block" (never a code symbol) is retired. Verified
-  SI ≡ Krylov ≡ closed-form :math:`k_\infty` (1g → 1.5, 2g → 1.875,
-  4g → 1.4878); heterogeneous non-flat 2-D flux shape agrees SI-vs-Krylov
-  to :math:`\sim 10^{-9}`. See
-  :ref:`bc-extraction-2d-si-krylov-twin` in :doc:`operator_algebra`.
-- **The 2-D interior cell-face fluxes are a 1-cochain**
-  :math:`C^1_{\rm int}` (Wave O step #205 Phase 5, Issue #208,
-  2026-06-04): the 2-D wavefront sweep + matvec no longer carry raw
-  ephemeral ``psi_x`` / ``psi_y`` numpy arrays — they are the interior
-  1-cochain :math:`C^1_{\rm int}`, and the boundary seed/absorb are the
-  typed trace operators :math:`\iota_*` / :math:`\iota^*`. A dedicated
-  ``WavefrontFlux`` field carried the cochain from #205 Phase 5 through
-  S6.4; it was **retired at S6.4(f)** (#222) when the walk re-layering
-  moved the seed/absorb verbs into the shared octant frame, and the
-  cochain now lives in the rolling front
-  (``_MovingFrontier``, ``orpheus.sn.loss_representation.sweep_graph``) and the
-  full-cochain oracle history (``_octant_face_cochain``,
-  ``orpheus.sn.loss_representation``).
-  See :ref:`wavefront-flux-cochain` in :doc:`operator_algebra` for the
-  succession.
-- **Storage layout**: angular flux ``(N, ng, nx, ny)``; scalar flux
-  and per-cell cross sections ``(ng, nx, ny)``; 1-D problems keep
-  ``ny = 1`` (singleton, NOT squeezed).  The canonical statement
-  with derivation and migration history lives at
-  :ref:`theory-sn-index-convention`.
+   .. code-block:: yaml
+
+      module: sn
+      method: discrete-ordinates
+      aliases: [SN, discrete ordinates, Sₙ, transport sweep, ordinate method]
+      governing_equation: "(L + C - S - F/k) ψ = q"
+      operators:
+        L: streaming + boundary (Ω·∇ + reflective / vacuum / white trace)
+        C: collision / removal (Σ_t)
+        S: scattering in-scatter gain (Σ_s0ᵀ φ + anisotropic moments)
+        F: fission production (χ ⊗ νΣ_f, rank-1 dyad)
+      key_types: [AngularFlux, SNMesh, HarmonicMomentField, SweepDependencyGraph]
+      entry_points:                    # qualnames; Nexus links via implements edges
+        - orpheus.sn.solver.solve_sn
+        - orpheus.sn.solver.SNSolver
+      conventions:
+        sign: "μ>0 is +x / outward-radial outflow; inward inflow at the left / outer boundary"
+        scattering: "Mixture.SigS[l][g_from, g_to]; the in-scatter source uses the TRANSPOSE  Q = SigSᵀ @ φ"
+        diamond_difference: "ψᵃ = (1+β)ψ_out − β ψ_in; Morel–Montry sets β = 0 (Bailey–Morel–Chang 2010 Eq. 43, unique exact-on-linear-in-μ)"
+        quadrature_norm: "GL weights sum to 2; Lebedev / level-symmetric / product sum to 4π; moments carry NO 4π prefactor (Σw normalisation)"
+        layout: "angular flux (N, ng, nx, ny); scalar flux and per-cell XS (ng, nx, ny); 1-D keeps ny=1 (singleton, not squeezed)"
+        group_ordering: "fast → thermal; downscatter makes SigS upper-triangular"
+        starting_direction: "curvilinear half-angle seed ψ_{1/2} is first-class typed state (System B), marched directly (Issue #282 route (a)); only levels with first-ordinate raw τ ∈ (0,1) carry the block (R12a)"
+      invariants:
+        - "particle balance PER ORDINATE (flat-flux residual = 0) — the strong check, NOT the telescoped scalar balance"
+        - "sweep ≡ matvec (one loss representation, two applications: solve vs residual)"
+        - "α redistribution dome ≥ 0 (negative → NaN / overflow)"
+      depends_on: [transport_methods, operator_algebra, spherical_harmonics, frame]
+      verification: [L0, L1, L2]       # authored claim; cross-checked vs the Verification slice (§ below)
+
+
+.. _sn-synopsis:
+
+Synopsis
+========
+
+The discrete ordinates (S\ :sub:`N`) method solves the
+:ref:`multi-group eigenvalue problem <mg-eigenvalue-problem>` in
+integro-differential form by discretising the direction variable
+:math:`\hat{\Omega}` into a finite ordinate set
+:math:`\{(\hat{\Omega}_m, w_m)\}`, **retaining the angular flux**
+:math:`\psi(\mathbf{r}, \hat{\Omega}, E)` rather than collapsing to the
+scalar flux (contrast the collision-probability integral form).  It resolves
+streaming, anisotropic scattering, and interface angular current directly.
+ORPHEUS supports three coordinate systems under one balance framework:
+**Cartesian** (slab / 2-D, no inter-ordinate coupling), **spherical** (1-D
+radial, a single :math:`\alpha`-redistribution dome coupling all ordinates in
+:math:`\mu`), and **cylindrical** (1-D radial, an independent :math:`\alpha`
+dome per :math:`\mu`-level).  All three share a geometry factor
+:math:`\Delta A / w` that guarantees per-ordinate flat-flux consistency; the
+curvilinear formulation follows [BaileyMorelChang2010]_ (Eq. 43, the
+Morel–Montry angular-closure weight — unique exact-on-linear-in-:math:`\mu`),
+the general framework [LewisMiller1984]_, and the angular discretisation
+[CaseZweifel1967]_ / [Hebert2009]_ (§3.9.4).
+
+The solver is posed as an **operator algebra**: the loss composite
+:math:`A = L + C` (streaming + boundary, plus collision / removal), the
+scattering gain :math:`S`, and the rank-1 fission dyad :math:`F` assemble the
+governing form :math:`(L + C - S - F/k)\psi = q`.  :class:`SNSolver` satisfies
+the :class:`~numerics.eigenvalue.EigenvalueSolver` protocol and
+:func:`solve_sn` returns an :class:`SNResult`.  Because the protocol places the
+scattering source *inside* ``solve_fixed_source``, the inner source iteration
+(in-scatter + anisotropic convergence) stays encapsulated in the SN sweep,
+while the outer :func:`~numerics.eigenvalue.power_iteration` loop is the one
+shared by CP, MoC, diffusion, and the homogeneous solver (see
+:doc:`../api/numerics` for the protocol contract).
+
+The spatial closure is **diamond difference** with the Morel–Montry weight
+(:math:`\beta = 0`); the per-ordinate discrete transport is the **sweep**,
+which is byte-identical to the loss-operator **matvec** — one loss
+representation, two applications (``solve`` vs residual).  Both the 1-D scan
+(:meth:`~orpheus.sn.loss_representation.CumprodScan.sweep`) and the 2-D
+wavefront sweep
+(:class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`,
+per-octant batched dispatch over a mesh-time-precomputed DAG) are **bare**:
+the reflective coupling :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}`
+rides as a sibling :math:`-B` source term rather than a re-applied boundary
+condition (:ref:`bare-sweep-extraction`, and the canonical algebra
+:ref:`bc-extraction` in :doc:`operator_algebra`).  2-D Cartesian eigenvalue
+problems solve through **both** inner drivers —
+:class:`~orpheus.numerics.iteration.SourceIteration` (the geometry-agnostic
+default) and :class:`~orpheus.numerics.iteration.KrylovAcceleration` —
+verified SI ≡ Krylov ≡ closed-form :math:`k_\infty`
+(:ref:`bc-extraction-2d-si-krylov-twin`).  Interior cell-face fluxes are typed
+as an interior 1-cochain :math:`C^1_{\rm int}` carried in the rolling front
+(:ref:`wavefront-flux-cochain`).
+
+Curvilinear redistribution — the geometric :math:`\alpha`-dome, distinct from
+Legendre :math:`P_1^+` scattering anisotropy — and its half-angle
+**starting-direction seed** are first-class typed state.  The Issue #282 route
+(a) design marches :math:`\psi_{1/2}` directly from the true :math:`q_{1/2}`
+source through System B's named resolvent
+:meth:`RadialCharacteristicOperator.solve <orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve>`
+(a single-pass exact inverse on the *full* Legendre fold), only on levels
+whose first-ordinate raw :math:`\tau \in (0,1)` (**R12a**); see
+:ref:`sn-282-direct-starting-direction-solve`.  The "#229 floor" resolution
+— three distinct curvilinear errors separated by a
+volume-weighted-:math:`L_2`-vs-:math:`L_\infty` norm difference — is
+:ref:`sn-curvilinear-aniso-norm-reconciliation`.  The storage / index /
+scattering / closure **conventions** and the load-bearing **invariants** are
+captured structurally in the machine header above and cross-linked below;
+verification is L0–L2 plus semi-analytical (Sood, Case singular-eigenfunction)
+benchmarks; the traps that hide solver bugs behind green tests are collected in
+:ref:`sn-gotchas`.
 
 .. admonition:: Conventions
 
@@ -129,48 +132,15 @@ Key Facts
    - Eigenvalue: :ref:`power-iteration-algorithm` shared with all deterministic solvers
 
 
-Overview
-========
-
-The discrete ordinates (S\ :sub:`N`) method solves the
-:ref:`multi-group eigenvalue problem <mg-eigenvalue-problem>` in
-integro-differential form by discretising the angular variable
-:math:`\hat{\Omega}` into a finite set of directions (ordinates).  Unlike the
-collision probability method (which works with the integral form and the scalar
-flux), S\ :sub:`N` retains the **angular flux**
-:math:`\psi(\mathbf{r}, \hat{\Omega}, E)` and resolves directional effects
-such as streaming, anisotropic scattering, and angular current at interfaces.
-
-Three coordinate systems are supported:
-
-- **Cartesian** (slab / 2D) --- the simplest case; no angular coupling
-  between ordinates.
-- **Spherical** (1D radial) --- angular redistribution in :math:`\mu`;
-  a single dome of :math:`\alpha` coefficients couples all ordinates.
-- **Cylindrical** (1D radial) --- azimuthal redistribution per
-  :math:`\mu`-level; independent :math:`\alpha` domes on each level.
-
-All three share a single balance-equation framework with a geometry
-factor :math:`\Delta A / w` that guarantees per-ordinate flat-flux
-consistency.  The treatment follows [BaileyMorelChang2010]_ for the
-curvilinear formulation, [LewisMiller1984]_ for the general framework, and
-[CaseZweifel1967]_ for the angular discretisation.
-
-The solver is implemented in :class:`SNSolver`, which satisfies the
-:class:`~numerics.eigenvalue.EigenvalueSolver` protocol.  The convenience
-function :func:`solve_sn` runs the full calculation and returns an
-:class:`SNResult`.
-
-Because the protocol puts the scattering source *inside*
-``solve_fixed_source``, the inner source iteration (which converges the
-in-scatter and anisotropic source) stays encapsulated in the SN-specific
-sweep — the outer :func:`~numerics.eigenvalue.power_iteration` loop is
-identical to the one used by CP, MOC, diffusion, and the homogeneous
-solver.  See :doc:`../api/numerics` for the protocol contract.
-
-
 Architecture
 ============
+
+.. note:: **Implementation map — automation pending.**  The auto-generated
+   Nexus filtered flow-graph figure (root symbol + traversal depth →
+   graphviz) that will head this section is blocked on the nexus#20
+   flow-graph directive; until it ships, the architecture below is
+   **hand-authored**.  See :doc:`../api/numerics` for the live
+   operator-protocol surface and :doc:`operator_algebra` for the algebra.
 
 Two-Layer Mesh Pattern
 ----------------------
@@ -15441,35 +15411,6 @@ value is not a regression to be tolerance-matched but a correction to be
 verified against a structurally-independent reference (the fixed-point
 map ratio).
 
-Gotchas
-~~~~~~~
-
-* **Renormalise-then-report ordering.**
-  :func:`~orpheus.numerics.eigenvalue.power_iteration` renormalises
-  :math:`\phi` to unit production **between**
-  :meth:`~orpheus.sn.solver.SNSolver.solve_fixed_source` and
-  :meth:`~orpheus.sn.solver.SNSolver.compute_keff`.  So
-  ``compute_keff`` sees the *renormalised* :math:`\phi`, while the stored
-  ``_psi_typed.boundary`` is the *un-renormalised* trace — the scale
-  bridge above is what makes the leakage term consistent across that
-  boundary.  Reordering the two (report before renormalise) would break
-  the bridge's ``1.0`` shortcut.
-* **The outer iterate must stay a bare** ``np.ndarray``.  The Mode-11
-  live-arm sentinel in
-  ``tests/sn/operators/test_fission_kernel_crosscheck.py`` proves that
-  ``power_iteration`` feeds a **bare** :class:`numpy.ndarray` flux to
-  :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`, so the
-  bare-``np.ndarray`` dispatch arm of
-  :meth:`FissionOperator.apply
-  <orpheus.transport.operators.fission.FissionOperator>` is the *live
-  production arm* (the sentinel wraps that registered leaf in-process and
-  asserts the counter advances).  The estimator's
-  :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
-  evaluations read the same bare array.  Routing the outer iterate
-  through a typed carrier would dark the arm (redding the sentinel) and
-  break the estimator's evaluate path — the bare-array outer iterate is
-  a load-bearing contract, not an implementation accident.
-
 Verification
 ~~~~~~~~~~~~
 
@@ -15531,6 +15472,13 @@ different :math:`\keff` on coarse meshes.  They agree in the limit
 
 Verification
 ============
+
+.. note:: **Verification slice — automation pending.**  The per-page V&V
+   table (equation label × test × level × ERR coverage, auto-filtered
+   from the ``tests/_harness`` registry to this page's equation labels) is
+   blocked on Nexus equation-label ↔ test linking; until it ships, the
+   verification below is **hand-authored**.  The project-wide matrix lives
+   at :doc:`../verification/matrix`.
 
 .. _sn-mms-verification:
 
@@ -17689,8 +17637,9 @@ for verifying the spatial operator, but it **cannot** exercise
 the heterogeneous-interface regime where material
 discontinuities force the operator into its interface-layer
 behaviour --- the regime where a significant fraction of
-production solver bugs live (including ERR-025; see
-:ref:`investigation-err-025`). The Case singular-eigenfunction
+production solver bugs live (including ERR-025 — see the
+:ref:`homogeneous / uniform-rescale gotcha <sn-homogeneous-degeneracy-gotcha>`
+for the mechanism by which it hid). The Case singular-eigenfunction
 method provides the complementary reference: an eigenvalue
 solution with genuine material-interface discontinuities, built
 from the transport equation without running the solver.
@@ -18069,453 +18018,6 @@ Run the full suite::
    pytest tests/sn/ -v -m "not slow"
 
 
-.. _investigation-history:
-
-Investigation History: Curvilinear Bug
-=======================================
-
-This section documents the full history of the cylindrical DD bug and its
-resolution.  It is preserved to prevent future sessions from repeating
-the same dead ends.
-
-Symptoms
---------
-
-1. Homogeneous eigenvalue problems: exact (1G/2G/4G).
-2. Heterogeneous eigenvalue problems: divergent :math:`\keff` with mesh
-   refinement (5 cells: 1.15, 10 cells: 0.90, 20 cells: 0.52).
-3. Fixed-source flux range: ``[0.59, 5.09]`` (should be near-flat).
-4. :math:`\keff` depended strongly on angular quadrature order
-   (4x8 vs 8x8 gave a 67% gap on heterogeneous problems).
-
-The Root Cause
---------------
-
-**Two bugs**, both breaking per-ordinate flat-flux consistency:
-
-**Bug 1: Wrong** :math:`\alpha` **recursion.**  The code used
-:math:`\alpha = \text{cumsum}(+w\xi)` with the azimuthal cosine
-:math:`\xi` (``mu_y``).  The correct recursion ([BaileyMorelChang2010]_,
-the curvilinear :math:`\alpha`-recursion)
-is :math:`\alpha = \text{cumsum}(-w\eta)` with the radial cosine
-:math:`\eta` (``mu_x``), and ordinates must be sorted by increasing
-:math:`\eta` within each level.
-
-**Bug 2: Missing** :math:`\Delta A/w` **geometry factor.**  The
-redistribution term in the balance equation must include
-:math:`\Delta A_i / w_m`.  Without this factor, the streaming and
-redistribution do NOT cancel per-ordinate for a spatially flat flux,
-creating artificial angular anisotropy that worsens with mesh refinement
-near :math:`r = 0`.
-
-Six Failed Approaches
-----------------------
-
-Before the correct fix was found, six approaches were tested.  All
-failed because they addressed symptoms, not the root cause:
-
-1. **Reverse sweep:** Reversed the azimuthal sweep direction.
-   No effect --- the dome shape is symmetric.
-
-2. **Step closure:** Replaced DD (:math:`\tau = 0.5`) with step
-   (:math:`\tau = 1.0`) in angle.  Reduced the divergence slightly
-   but did not eliminate it.
-
-3. **Lewis & Miller starting direction:** Tracked :math:`\alpha\psi`
-   instead of :math:`\psi` alone (Section 4.5.4 of [LewisMiller1984]_).
-   Unnecessary when the :math:`\alpha` recursion is correct, since
-   :math:`\alpha_{1/2} = 0`.
-
-4. **Bidirectional sweep:** Swept azimuthal ordinates in both
-   directions and averaged.  Masked the asymmetry but did not fix it.
-
-5. **Scaled** :math:`\alpha`:  Empirically scaled the :math:`\alpha`
-   coefficients.  Could not find a consistent scaling.
-
-6. **Zero redistribution:** Set :math:`\alpha = 0` to isolate the
-   spatial streaming.  Confirmed the bug was in the redistribution,
-   not the spatial DD.
-
-Why the Original Sign Convention Hypothesis Was Wrong
-------------------------------------------------------
-
-The initial hypothesis was that the minus sign before the redistribution
-in :eq:`transport-cylindrical` required special treatment (tracking
-:math:`\alpha\psi`, using :math:`|\alpha|`, etc.).  This was wrong.
-The sign convention is absorbed into the :math:`\alpha` definition:
-:math:`\text{cumsum}(-\eta w)` with a :math:`+` sign in the balance
-equation gives the same physics as :math:`\text{cumsum}(+\xi w)` with
-a :math:`-` sign, for symmetric quadratures.
-
-The real issue was the missing :math:`\Delta A/w` geometry factor, which
-has nothing to do with signs.
-
-The Fix
--------
-
-Applied the [BaileyMorelChang2010]_ formulation:
-
-1. Corrected :math:`\alpha` recursion:
-   :math:`\alpha_{m+1/2} = \alpha_{m-1/2} - w_m \eta_m`
-   with ordinates sorted by increasing :math:`\eta`.
-
-2. Added :math:`\Delta A/w` geometry factor to both the DD sweep and
-   the BiCGSTAB operator.
-
-3. Added Morel--Montry angular closure weights (M-M) to eliminate the
-   flux dip at :math:`r = 0`.
-
-4. Applied the same :math:`\Delta A/w` fix to the spherical sweep
-   (which had the same missing factor).  The fixed-source flux spike
-   at :math:`r = 0` dropped from 5.1x to 1.1x.
-
-5. Applied the fix to both the spherical and cylindrical **BiCGSTAB
-   operators** (the then-production ``transport_operator_matvec_spherical``,
-   ``transport_operator_matvec_cylindrical`` — the matvec family since
-   deleted, #197 / #280 campaigns).  Multi-group
-   spherical BiCGSTAB had been unstable (keff → NaN for 2G+); the
-   root cause was the same missing :math:`\Delta A/w` factor in the
-   explicit FD operator.  After the fix, 2G and 4G spherical BiCGSTAB
-   converge to :math:`< 10^{-6}` of the analytical eigenvalue.
-
-Results After Fix
-------------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 35 25 25
-
-   * - Test
-     - Before
-     - After
-   * - Homogeneous 1G/2G/4G
-     - Exact
-     - Exact
-   * - Heterogeneous 1G, 5/10/20 cells
-     - 1.15 / 0.90 / 0.52 (diverges)
-     - 0.977 / 0.984 / 0.987 (converges)
-   * - Heterogeneous 2G, 4x8 vs 8x8
-     - 0.54 vs 0.91 (67% gap)
-     - 0.723 vs 0.723 (<0.01%)
-   * - Fixed-source flux range (40 cells)
-     - [0.59, 5.09] (spike)
-     - [0.51, 1.12] (bounded)
-   * - Contamination :math:`\beta` (cylindrical)
-     - ~2.0
-     - ~10\ :sup:`-16` (machine zero)
-
-
-.. _investigation-err-025:
-
-Investigation History: ERR-025 and the Phase 2.1b Case reference
-=================================================================
-
-This section documents the full diagnostic history of ERR-025 and
-the Phase 2.1b Case singular-eigenfunction reference, preserved to
-give future sessions a vivid example of how silent
-derivation-implementation drift can survive every eigenvalue-based
-test a module has.
-
-Symptoms
---------
-
-Phase 2.1b originally set out to land a Case singular-eigenfunction
-eigenvalue reference for the 1-group two-region reflective slab
-(configuration in :ref:`sn-case-heterogeneous-verification`). The
-prototype Case code was self-consistent: homogeneous limits exact,
-region-swap invariance exact, :math:`H_B \to 0` limit matching
-:math:`k_{\infty,\text{fuel}}`, physical-reconstruction residuals at
-machine precision. But the mesh-refined ``solve_sn`` sequence on the
-same configuration converged cleanly to a **different** value:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 20 30 25
-
-   * - Implementation
-     - :math:`k_\text{eff}`
-     - Residual vs Case
-   * - Case singular-eigenfunction
-     - 1.27461604
-     - ---
-   * - CP slab :math:`E_3` kernel (converged)
-     - 1.27442847
-     - :math:`-1.88\times 10^{-4}`
-   * - ``solve_sn`` S\ :sub:`8`, :math:`n=1280`
-     - 1.25986980
-     - :math:`-1.48\times 10^{-2}`
-
-Two independent transport methods (Case + CP) agreed to
-:math:`\sim 2\times 10^{-4}`; ``solve_sn`` disagreed by almost two
-orders of magnitude more. The gap did not shrink with mesh
-refinement or with increasing quadrature order (:math:`S_4` through
-:math:`S_{64}` all converged to the wrong asymptote). It was also
-**invisible on every homogeneous test**: pure fuel slab gave
-:math:`k_\infty = 1.5` exactly, same-material two-region gave
-:math:`k_\infty` exactly, and the Phase 2.1a smooth-:math:`\Sigma`
-heterogeneous MMS test hit :math:`\mathcal O(h^{2})`. The only
-configuration that showed the discrepancy was the one with a
-piecewise-constant material interface under the eigenvalue driver.
-
-Initial Hypothesis (wrong)
---------------------------
-
-The first hypothesis was that the Case implementation was computing
-the **continuous-angle** limit of the SN eigenvalue while
-``solve_sn`` was solving the discrete-:math:`S_8` problem, and the
-:math:`\sim 1.5\%` gap was the quadrature-order error expected for
-:math:`S_8` Gauss--Legendre (:math:`\sim 1/N^{2} \approx 1.5\%`).
-
-Testing this hypothesis with an :math:`S_N` order sweep killed it
-immediately: ``solve_sn`` at :math:`S_4, S_8, S_{16}, S_{32}, S_{64}`
-converged cleanly **in angle** to :math:`\sim 1.2609`, not to
-:math:`1.2746` --- plateau of :math:`\sim 3\times 10^{-5}` at
-:math:`S_{32}`. The two methods were not approaching the same
-continuous-angle answer. The disagreement was structural.
-
-Cross-Check That Localised The Bug
------------------------------------
-
-The next move was to run the same configuration through a
-completely independent transport method: ORPHEUS's collision
-probability solver :func:`orpheus.cp.solver.solve_cp` on a 1D slab
-with the :math:`E_3` kernel. CP uses the Peierls integral equation
---- no diamond difference, no finite-volume discretisation, no
-explicit ordinate sweep --- and its numerical path has nothing in
-common with ``solve_sn``. CP converged to :math:`k = 1.27442847`,
-essentially matching the Case reference to the CP quadrature
-precision.
-
-Result: two independent methods agreed on :math:`k \approx 1.27461`,
-``solve_sn`` disagreed by :math:`\sim 1.5\%`. **The SN solver was
-the outlier.** Since homogeneous and same-material problems worked,
-the bug had to live somewhere that activates specifically at a
-**material interface** in the ``solve_sn`` code path.
-
-Root Cause: ERR-025
--------------------
-
-A focused audit of the four SN sweep paths and the source-builder
-helpers localised the bug to
-``_sweep_1d_cumprod`` (the dissolved ``sweep.py``), the 1D Cartesian
-Gauss--Legendre fast path. Its diamond-difference face-flux
-recurrence coefficients were
-
-.. math::
-
-   a_\text{bug} &= \frac{2\mu}{2\mu + \Delta x\,\Sigma_t}
-     \qquad (\text{WRONG: missing } -\Sigma_t\text{ in numerator}) \\
-   b_\text{bug} &= \frac{0.5\,\Delta x\,Q}{2\mu + \Delta x\,\Sigma_t}
-     \qquad (\text{WRONG: missing } 1/W\text{, extra factor } 0.5)
-
-instead of the canonical diamond-difference recurrence derived
-symbolically in
-:func:`orpheus.derivations.discrete.sn.balance.derive_cumprod_recurrence`:
-
-.. math::
-
-   a &= \frac{2\mu - \Delta x\,\Sigma_t}{2\mu + \Delta x\,\Sigma_t} \\
-   b &= \frac{2\,\Delta x\,(Q/W)}{2\mu + \Delta x\,\Sigma_t}
-
-where :math:`W = \sum_n w_n` is the quadrature weight sum, needed
-because :func:`orpheus.sn.solver.SNSolver._add_scattering_source`
-produces :math:`Q` in **scalar-flux units** while the per-ordinate
-transport equation sees :math:`Q/W` as its right-hand side. The 2D
-wavefront sweep :func:`~orpheus.sn.loss_representation._sweep_jacobi`
-already applied this normalisation via its ``weight_norm = 1/W``
-factor; the 1D fast path had been independently derived without it
-and drifted silently.
-
-Why the Two Errors Cancel For Homogeneous Problems
----------------------------------------------------
-
-The fixed point of the buggy recurrence is
-:math:`\psi_n = Q/(2\Sigma_t)`, half the correct
-:math:`Q/\Sigma_t`. But for Gauss--Legendre on :math:`[-1, 1]`,
-:math:`W = \sum_n w_n = 2`, so the missing :math:`1/W = 1/2`
-multiplies the buggy fixed point by exactly :math:`2`, turning
-:math:`Q/(2\Sigma_t)` back into the correct
-:math:`\psi_n = Q/(W\Sigma_t)` per ordinate. The resulting scalar
-flux
-
-.. math::
-
-   \phi = \sum_n w_n\,\psi_n = W\cdot\frac{Q}{W\Sigma_t} = \frac{Q}{\Sigma_t}
-
-is identical in magnitude to the correct value. This is why every
-homogeneous test passed at machine precision, including
-:math:`k_\infty` assertions to :math:`10^{-8}`.
-
-For an eigenvalue problem, even without the :math:`W=2` coincidence
-rescaling, the Rayleigh quotient
-
-.. math::
-
-   k \;=\; \frac{\nu\Sigma_f\,\phi}{\Sigma_a\,\phi}
-
-is **invariant** under a uniform rescaling :math:`\phi \to C\phi`,
-because :math:`C` cancels between numerator and denominator.
-Homogeneous and same-material-multi-region problems have a
-uniform-in-:math:`x` rescaling, so the buggy :math:`k_\text{eff}`
-is exact. Only at a **material interface** does the rescale factor
-:math:`C(x)` become :math:`x`-dependent (through :math:`\Sigma_t(x)`),
-and only then does the cancellation break and a real error appear.
-
-Dead End #1: "It must be S\ :sub:`8` vs continuous angle"
-----------------------------------------------------------
-
-The :math:`\sim 1.5\%` magnitude is numerically close to the
-typical :math:`1/N^{2}` error for Gauss--Legendre :math:`S_8`,
-which made this hypothesis seductive. Cost to refute: 30 seconds
-with an :math:`S_N` sweep showing the gap was invariant in
-quadrature order. Lesson: **always run the cheapest diagnostic
-first**. A 30-second experiment would have saved an hour of
-grooming the Case code for non-existent quadrature-convention
-bugs.
-
-Dead End #2: "It must be the Case code --- its symmetry checks
-passed but it's newer code"
---------------------------------------------------------------
-
-Before the CP cross-check, the natural first suspicion was the
-Case prototype. It was ephemeral session code with hand-derived
-algebra and no reference implementation to compare against; the
-``solve_sn`` path was production code shipping for months with a
-full test suite. The CP cross-check inverted this: two
-**independent mathematical constructions** (Case via
-eigendecomposition, CP via :math:`E_3` integral kernel) agreed,
-and the production solver was the outlier. Lesson: **trust
-agreement over pedigree**. A test suite that never exercised the
-failure mode is not evidence of correctness, no matter how big
-it is.
-
-Dead End #3: "Maybe the reflective BC is subtly wrong"
--------------------------------------------------------
-
-One hypothesis was that ``_sweep_1d_cumprod``'s reflective BC
-persistence (via the ``psi_bc["bc_1d"]`` dict between outer
-iterations) was mishandling the ordinate pairing at a material
-interface. The bug is upstream of the BC code --- the coefficients
-are wrong before the BC ever touches them --- but the hypothesis
-was plausible enough to warrant an audit of the BC application
-code. It was clean. Lesson: **trace the data flow in order**.
-The BC is applied to the output of the recurrence; if the
-recurrence itself is wrong, the BC can't fix it and can't
-manifest the bug.
-
-Dead End #4: "Maybe it's the ``compute_keff`` volume integration"
------------------------------------------------------------------
-
-Another hypothesis was that :func:`~orpheus.sn.solver.SNSolver.compute_keff`
-was accumulating :math:`\nu\Sigma_f\,\phi\,V` with a wrong
-material-id lookup at the interface cell (e.g., using
-``mat_ids[c+1]`` for cell ``c``'s fission). The code turned out to
-use the correct per-cell material id. Lesson: **read the code
-before blaming it**. The audit took five minutes and ruled out
-two more hypotheses for free (``_add_fission_source`` and
-``_add_scattering_source`` both checked).
-
-The Fix and the Test
----------------------
-
-The fix is a one-formula correction in
-``_sweep_1d_cumprod`` (the dissolved ``sweep.py``) plus a comment block
-pointing at ``sn_balance.derive_cumprod_recurrence`` as the
-source of truth. After the fix, Case :math:`\leftrightarrow`
-``solve_sn`` agreement went from :math:`1.48\times 10^{-2}` to
-:math:`3.4\times 10^{-8}` --- a six-order-of-magnitude
-improvement at matching quadrature order. All 165 SN tests pass,
-and two new tests landed with the fix:
-
-1. **L0 term verification**
-   ``test_sweep_1d_cumprod_recurrence_matches_symbolic_derivation``
-   (since retired with ``_sweep_1d_cumprod`` at the 1-D sweep
-   fold-over-DAG-walk unification; the successor is
-   :func:`tests.sn.sweep.slab.test_dd_recurrence.test_dd_per_cell_recurrence_matches_symbolic_derivation`)
-   --- a white-box test that called ``_sweep_1d_cumprod`` on a
-   1-cell homogeneous slab with a controlled inflow and source,
-   and checks the returned cell-average angular flux against a
-   numerical substitution of the **symbolic** expressions
-   produced by ``derive_cumprod_recurrence()``. This is the
-   minimal isolation of the failure mode; it runs in
-   milliseconds and does not need any reference solver.
-2. **L1 regression**
-   :func:`tests.sn.eigenvalue.test_keff_slab.test_heterogeneous_absolute_keff`
-   --- a black-box test that pins the 2-region A+B reflective
-   slab against the Case reference to :math:`5\times 10^{-4}`.
-   The pre-fix solver (:math:`1.48\times 10^{-2}` error) would
-   fail this assertion by almost two orders of magnitude.
-
-Both tests were verified to **fail** on the buggy code before
-the fix was landed.
-
-Aftermath: Issue #95 and the Broader Audit
--------------------------------------------
-
-ERR-025 was a silent derivation-implementation drift: a symbolic
-derivation existed (``sn_balance.derive_cumprod_recurrence``) and
-was **correct**, but the implementation had independently re-derived
-the coefficients and gotten them wrong, with no mechanical link
-between the two. GitHub issue #95 tracks the follow-up audit work
-to systematically check every solver implementation against its
-symbolic derivation module. During the ERR-025 audit, two
-pre-existing BiCGSTAB inconsistencies were surfaced (Cartesian
-BiCGSTAB using upwind cell-centre FD instead of DD, curvilinear
-BiCGSTAB using arithmetic face averages instead of the sweep's DD
-closure); these are tracked as issues #96 and #97 respectively.
-
-The four sweep paths audited during ERR-025 diagnosis ---
-:func:`~orpheus.sn.loss_representation._sweep_jacobi`,
-``_sweep_1d_spherical`` (the dissolved ``sweep.py``),
-``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``), and
-post-fix ``_sweep_1d_cumprod`` --- were all verified **clean**
-against the ``sn_balance`` symbolic derivation. The source-builder
-helpers (:meth:`~orpheus.sn.solver.SNSolver._add_scattering_source`,
-``_add_fission_source`` — since retired and merged into
-:class:`~orpheus.transport.operators.fission.FissionOperator` —
-:meth:`~orpheus.sn.solver.SNSolver._build_aniso_scattering`) were
-also audited clean.
-
-Meta-Lessons
-------------
-
-1. **Uniform-rescale invariance hides coefficient bugs.** Any
-   eigenvalue problem where :math:`\phi` is the target quantity
-   is invariant under :math:`\phi \to C\phi`, which makes it
-   blind to factor-of-two errors that preserve the flux shape.
-   Homogeneous and same-material-multi-region problems have
-   spatially uniform rescaling; only genuine material
-   interfaces break the cancellation. **Always include at least
-   one absolute-:math:`\phi` test** (fixed-source, or an absolute
-   eigenvalue comparison against an independent reference) to
-   expose rescale-invariant bugs.
-
-2. **Symbolic derivations must be load-bearing, not decorative.**
-   ``sn_balance.derive_cumprod_recurrence`` existed, was correct,
-   and was not referenced from anywhere in the consuming code.
-   It became a museum piece. A comment in the implementation
-   pointing at the derivation function would have caught this at
-   code review. Issue #95 proposes a CI check to flag orphan
-   derivations across the whole codebase.
-
-3. **Cross-check before debugging.** When a self-consistent
-   mathematical construction disagrees with a production solver
-   and you do not know which is right, spend the 30-minute
-   budget to run an **independent third** implementation
-   before going deep on either. CP vs SN vs Case is the pattern
-   that made the ERR-025 diagnosis possible in under an hour.
-   This is explicitly **not** a verification crutch --- the
-   final Phase 2.1b reference stands on its own mathematical
-   merits --- but as an investigation sanity input it is
-   invaluable.
-
-4. **Cheap diagnostic first.** The :math:`S_N` order sweep that
-   killed Dead End #1 took 30 seconds; the CP cross-check took
-   five minutes. Both ran before any serious debugging. Lesson
-   from Phase 1.2 investigation (diffusion): the order of
-   operations matters as much as the operations themselves.
-
-
 Numerical Sensitivities
 ========================
 
@@ -18665,6 +18167,124 @@ bound to any mesh (the **mesh-decoupled** half of the asymmetry law,
 :ref:`sn-condense-homogenize-asymmetry`, :doc:`frame`). A material with
 no flux in a fine group contributes zero weight there; the condense
 frame's Moore–Penrose Gram handles any empty coarse group.
+
+
+.. _sn-gotchas:
+
+Gotchas
+=======
+
+Each gotcha is a **consequence → how it manifests → which test / level
+catches it** — a trap that hides a solver bug behind a green test.  They
+should *shrink* over time as the code hardens.
+
+Degeneracy traps — a passing test that proves nothing
+-----------------------------------------------------
+
+.. admonition:: Gotcha — 1-group eigenvalue tests are degenerate
+   :class: warning
+
+   :math:`k = \nu\Sigma_f / \Sigma_a` is **flux-shape independent**: a
+   1-group eigenvalue is a material-property ratio computable *without*
+   solving the transport equation, so it cannot detect any error in the
+   spatial, angular, or scattering operators.  **Any verification claim
+   needs** :math:`\geq 2` **groups** (``vv-principles`` anti-pattern #3).  A
+   1-group eigenvalue is still fine for a *rate* or *convergence-order*
+   claim — declare the claim layer.
+
+.. _sn-homogeneous-degeneracy-gotcha:
+
+.. admonition:: Gotcha — homogeneous / uniform-rescale invariance hides coefficient bugs
+   :class: warning
+
+   Any eigenvalue problem whose target is the flux :math:`\phi` is invariant
+   under a uniform rescale :math:`\phi \to C\phi` (the factor :math:`C`
+   cancels in the Rayleigh quotient
+   :math:`k = \nu\Sigma_f\,\phi / \Sigma_a\,\phi`).  Homogeneous and
+   same-material multi-region problems have a **spatially-uniform** rescale,
+   so they are blind to factor-of-two coefficient errors that preserve the
+   flux shape — and, in curvilinear geometry, blind to redistribution bugs
+   (flat flux → the :math:`\alpha` terms vanish identically).  Only a
+   genuine **material interface** makes the rescale factor :math:`C(x)`
+   position-dependent and breaks the cancellation.
+
+   This is exactly how **ERR-025** hid.  A missing :math:`1/W` normalisation
+   in the 1-D diamond-difference recurrence halved the per-ordinate flux, but
+   for Gauss–Legendre :math:`W = \sum_n w_n = 2` the missing factor rescaled
+   it back — so every homogeneous test passed at machine precision while the
+   heterogeneous eigenvalue was :math:`\sim 1.5\,\%` wrong and did **not**
+   converge away under mesh or :math:`S_N`-order refinement (the gap
+   plateaued in angle).
+
+   **Catcher:** at least one *absolute*-:math:`\phi` test — the fixed-source
+   flat-flux diagnostic (:math:`Q/\Sigma_t`), or an absolute eigenvalue
+   comparison against a structurally-independent heterogeneous reference.
+   The live pins are the L0 symbolic-recurrence check
+   :func:`tests.sn.sweep.slab.test_dd_recurrence.test_dd_per_cell_recurrence_matches_symbolic_derivation`
+   and the L1 heterogeneous absolute-:math:`k` regression
+   :func:`tests.sn.eigenvalue.test_keff_slab.test_heterogeneous_absolute_keff`
+   (a 2-region A+B reflective slab pinned against the Case
+   singular-eigenfunction reference; the pre-fix :math:`1.48\times10^{-2}`
+   error fails it by two orders of magnitude).
+
+.. admonition:: Gotcha — conservation holds even with wrong per-ordinate balance
+   :class: warning
+
+   Global particle balance **telescopes** by construction, so a *scalar*
+   balance sum can hold to machine precision while the *per-ordinate*
+   flat-flux residual is wrong (``vv-principles`` anti-pattern #8; the
+   identity :math:`\sum_n w_n(\alpha_{n+1/2} - \alpha_{n-1/2}) = 0`
+   annihilates per-ordinate redistribution errors that cancel in the sum).
+   The load-bearing invariant is the **per-ordinate** flat-flux residual
+   (= 0), not the telescoped scalar balance.
+
+Curvilinear redistribution
+--------------------------
+
+.. admonition:: Gotcha — the α redistribution dome must stay non-negative
+   :class: warning
+
+   The curvilinear :math:`\alpha` dome must be non-negative; a negative entry
+   drives NaN / overflow through the angular sweep.  The fixed-source
+   flat-flux diagnostic (:math:`Q/\Sigma_t`) is the single most powerful
+   curvilinear bug detector — a spike at :math:`r = 0` localises a missing
+   :math:`\Delta A / w` geometry factor.
+
+Solver-coordination traps
+-------------------------
+
+* **Renormalise-then-report ordering.**
+  :func:`~orpheus.numerics.eigenvalue.power_iteration` renormalises
+  :math:`\phi` to unit production **between**
+  :meth:`~orpheus.sn.solver.SNSolver.solve_fixed_source` and
+  :meth:`~orpheus.sn.solver.SNSolver.compute_keff`.  So
+  ``compute_keff`` sees the *renormalised* :math:`\phi`, while the stored
+  ``_psi_typed.boundary`` is the *un-renormalised* trace — the scale
+  bridge above is what makes the leakage term consistent across that
+  boundary.  Reordering the two (report before renormalise) would break
+  the bridge's ``1.0`` shortcut.
+* **The outer iterate must stay a bare** ``np.ndarray``.  The Mode-11
+  live-arm sentinel in
+  ``tests/sn/operators/test_fission_kernel_crosscheck.py`` proves that
+  ``power_iteration`` feeds a **bare** :class:`numpy.ndarray` flux to
+  :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`, so the
+  bare-``np.ndarray`` dispatch arm of
+  :meth:`FissionOperator.apply
+  <orpheus.transport.operators.fission.FissionOperator>` is the *live
+  production arm* (the sentinel wraps that registered leaf in-process and
+  asserts the counter advances).  The estimator's
+  :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+  evaluations read the same bare array.  Routing the outer iterate
+  through a typed carrier would dark the arm (redding the sentinel) and
+  break the estimator's evaluate path — the bare-array outer iterate is
+  a load-bearing contract, not an implementation accident.
+
+.. seealso::
+
+   **Sweep-machinery gotchas** — the Krylov ``restart`` sizing bug
+   (ERR-053 family), the product-cylinder edge-extrapolation data-flow
+   invariant, and the Mode-12 / ERR-067 :math:`G`-reciprocity metric catch
+   — are documented alongside the sweep at :ref:`sn-282-gotchas`.
 
 
 .. _sn-development-history:
