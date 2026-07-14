@@ -12,17 +12,20 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 22 documentation/Sphinx/knowledge-architecture
-  lessons (L-001…L-022), read FIRST each dispatch. The spine: a page is done
+- [lessons.md](lessons.md) — 23 documentation/Sphinx/knowledge-architecture
+  lessons (L-001…L-023), read FIRST each dispatch. The spine: a page is done
   when every cross-ref resolves against the LIVE tree, every claim's V&V level
   matches the skill verbatim, every retired symbol leaves no dangling ref, and
   the build's WARNING/ERROR/CRITICAL set is unchanged from the `-E` baseline.
   The per-lesson catalog + war-stories live in lessons.md — do NOT re-summarize
-  them here (this index stays slim). Newest: L-022 — the pedagogical RESTRUCTURE
-  + cross-page THEORY-EVICTION pass (keep-anchor ⇒ ref-safe cross-doc; the
-  part-boundary blank-line ⇒ undefined-label trap; marker-depth shift on
-  re-nested content; general-theory-vs-consumer split; promote-a-buried-crux-
-  note verbatim + one rationale sentence).
+  them here (this index stays slim). Newest: L-023 — the template-skeleton
+  ADDITIVE front-matter pass (nexus-meta machine header = collapsed
+  sphinx-design dropdown + YAML code-block, directive UNregistered; Key-Facts +
+  Overview → one named Synopsis fold, structured→YAML / prose→synopsis /
+  nav-refs→Conventions admonition; essay eviction where an intra-page `:ref:`
+  to the deleted anchor IS `-W`-caught → repoint to the distilled-gotcha
+  successor; a HARD "don't-reorder" non-goal beats a deliverable's own move
+  example → leave-point-flag).
 
 ## 2. Active / doc-debt state — git-true
 
@@ -137,4 +140,9 @@ file (this index stays slim — detail belongs in the `feedback_*.md`).
 - **Doc-architecture redesign (#231, OPEN):** theory-page template, machine header, prose
   rebalancing, V&V slices, bibtex. Spec lives in the issue; coupled to Nexus semantic search.
   The standing target for any "modernize a theory page" task. **Phase 1a DONE** (frame.rst
-  rename + PG-first reorg + SN homog/cond theory eviction — see L-022 / this session).
+  rename + PG-first reorg + SN homog/cond theory eviction — L-022). **Phase 1b+1c DONE**
+  (SN page additive skeleton: nexus-meta machine-header dropdown + Key-Facts/Overview→Synopsis
+  fold + §8 Gotchas consolidation + §5/§6 automation-pending stubs + evicted the two
+  Investigation-History essays; clean `-W` build; 19788→19408 lines — L-023). NEXT = Phase 1d
+  (decompose the ~10k-line Sweep mega-section — CHECKPOINT WITH USER before large deletions),
+  then Phase 2 code-prose rebalancing. Not committed by me — main agent commits.

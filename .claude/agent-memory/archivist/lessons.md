@@ -1626,6 +1626,110 @@ in-memory asserts before write + the clean `-W` build + the matrix.
 
 ---
 
+## L-023 — The template-skeleton ADDITIVE front-matter pass: machine-header dropdown, Key-Facts+Overview→Synopsis fold, gotchas consolidation, essay eviction — under a HARD "don't reorder the middle" non-goal
+
+Distinct from L-022 (a rename+reorg+cross-page eviction): here the SAME
+flagship page gets the 9-section template's FRONT MATTER imposed
+ADDITIVELY, with an explicit SCOPE non-goal forbidding physical reorder of
+the large middle blocks (the aggressive re-level deferred to a later
+phase). The job is: add §1 machine header, fold the front matter into §2
+Synopsis, consolidate scattered gotchas at the tail (§8), stub §5/§6 with
+automation-pending notes, and evict the narrative history essays (§9 keeps
+only the changelog). Disciplines:
+
+- **Machine header = a collapsed sphinx-design `.. dropdown::` wrapping a
+  `.. code-block:: yaml`, NOT a bespoke directive.** VERIFY the intended
+  ingestion directive is unregistered first (`grep add_directive` in the
+  INSTALLED pkg — here `sphinxcontrib.nexus` registers `nexus-graph` /
+  `verifies` / `implements`, NOT `nexus-meta`); an unknown directive fails
+  `-W`. The YAML-in-code-block sidesteps EVERY RST-parse hazard (unicode
+  μ/Σ/ᵀ/≡/→/∈, `#` comments, quotes, no roles/labels) because a code-block
+  is literal text. Author only what the graph can't cheaply derive
+  (conventions, invariants, operator glossary, retrieval aliases); keep
+  entry_points/key_types/governing_equation MINIMAL (Nexus derives the
+  fuller lists). Populate conventions/invariants FROM the current Key-Facts
+  bullets, each fact verified against live code (L-001) — the header is
+  CURRENT structured fact, so a stale convention there is a Rule-1 bug.
+- **Key Facts + Overview → ONE Synopsis (front-matter FOLD, not two
+  sections).** The structured convention/invariant bullets become the
+  machine-header YAML (data for the machine); the prose framing becomes a
+  dense, NAMED, retrieval-targeted synopsis (the primary embedding target —
+  cite methods/operators/decisions BY NAME); the load-bearing clickable
+  `:ref:` navigation list stays as a `.. admonition:: Conventions` block
+  (the data moved to YAML, but the reader still needs the nav — keeping
+  both is NOT a twin-source-of-truth violation: YAML serves the machine,
+  the admonition serves the human). Fold Overview IN (don't keep a near-
+  duplicate section beside the synopsis — that WOULD be a twin path).
+  PRESERVE every citation usage (`[Bailey…]_` etc.) so no definition
+  orphans. FLAG the two-sections→one fold for main-agent review (it is the
+  one consolidation judgment call in an otherwise-additive pass).
+- **`autosectionlabel` OFF ⇒ a section-heading RENAME is fully ref-safe**
+  (no implicit anchor exists to break; only explicit `.. _label:` anchors
+  are targets). Confirm it's off (`grep autosectionlabel docs/conf.py`) +
+  grep the tree for inbound `:ref:` to the old heading's slug (here: none
+  to Key-Facts/Overview) before renaming Key Facts → Synopsis.
+- **Essay eviction: an intra-page `:ref:` to a deleted essay anchor IS
+  `-W`-CAUGHT (unlike a cross-doc `:ref:`, which renders plain-text —
+  L-002).** Grep referrers to BOTH essay anchors BEFORE deleting: essay-1's
+  anchor had zero referrers (safe outright delete); essay-2's anchor had a
+  single INTRA-page referrer, so deleting it would dangle → `-W` fail.
+  Repoint the referrer to the DISTILLED-gotcha anchor — the distillation
+  (the "why the two errors cancel for homogeneous problems" →
+  homogeneous/uniform-rescale gotcha) IS the semantic successor of the
+  evicted essay, so the repoint is meaning-preserving, not a band-aid.
+  Paste each evicted essay's FULL text into the return for issue
+  relocation (git also preserves it) — the outcome already lives in the
+  changelog + ERR catalog, but the narrative goes to the originating issue.
+- **HARD SCOPE non-goal vs a deliverable's own example → the non-goal
+  governs; point, don't move; FLAG.** §D said "move the scattered `~`
+  gotcha subsections", naming one at ~L11835 — but that one sits INSIDE the
+  SCOPE section's protected range ("do NOT touch the Sweep mega-section
+  internals L2534–11895, that is Phase 1d"). When a hard non-goal collides
+  with a deliverable's example, the non-goal wins: LEAVE the protected-range
+  item, add a `.. seealso::` pointer to its anchor from the consolidated
+  section (consolidation-by-discovery), FLAG for the main agent. Extra
+  confirmation here: the sweep gotcha's `.. _sn-282-gotchas:` anchor was
+  referenced ONLY from within the protected range — moving it would drag
+  refs across the Phase-1d boundary. The OTHER named gotcha (~L15444, under
+  SNSolver, OUTSIDE the range, no anchor, no referrers) moved cleanly.
+- **The three degeneracy gotchas were `**Gotcha**:` BULLETS in Key Facts,
+  not a section** — they are load-bearing facts that belong in §8, so lift
+  them OUT of the front matter INTO the Gotchas section (as
+  consequence→manifests→catcher warning boxes), don't leave them to
+  duplicate in the synopsis. Verify the named catcher tests EXIST
+  (`grep def test_…` — both `test_dd_per_cell_recurrence_matches_symbolic_derivation`
+  and `test_heterogeneous_absolute_keff` did; the L0 one had been RENAMED
+  by an earlier fold, so cite the successor the evicted essay already
+  named, L-001).
+- **§5/§6 stub notes are ADDITIVE `.. note::` blocks at the section HEAD,
+  no restructure.** Each names the blocking Nexus issue (flow-graph
+  nexus#20 for the Implementation-map/Architecture section; label↔test
+  linking for the Verification slice) + "hand-authored until then" + a live
+  `:doc:` to the real surface (`../api/numerics`, `../verification/matrix`
+  — verify the target exists).
+- **Mechanics (L-022 reused):** one programmatic slice-and-reassemble
+  script — content-anchored `.index()`/count-asserted `.replace()`,
+  code-point underlines via `len(title)`, structural asserts (new anchors
+  ==1, old anchors ==0, dangling-ref ==0, machine-header<synopsis<Architecture,
+  moved-bullet ==1) that FAIL LOUD before any write (no partial write, no
+  git-checkout recovery). Extract the moved gotcha bullets by substring
+  (between markers) so no retype. Acceptance = the `-E -W` build EXIT=0 with
+  0 WARNING/ERROR/CRITICAL (this branch's Phase-0/1a baseline is a CLEAN
+  build, not 1) + HTML render audit (dropdown `sd-*` classes present, new
+  `id=` anchors present, repointed `:ref:` renders `<a href="#…gotcha">`).
+
+How to apply: for a template-skeleton additive pass, (1) machine header =
+collapsed dropdown + YAML code-block (verify the directive is
+unregistered); (2) fold Key-Facts+Overview → one named Synopsis (structured
+→ YAML, prose → synopsis, nav-refs → Conventions admonition, flag the
+fold); (3) evict essays after grepping BOTH anchors' referrers (intra-page
+`:ref:` IS `-W`-caught → repoint to the distilled gotcha), paste full text
+into the return; (4) when a hard non-goal collides with a move instruction,
+leave-and-point-and-flag; (5) programmatic slice + asserts + clean `-W`
+build + HTML audit.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:
