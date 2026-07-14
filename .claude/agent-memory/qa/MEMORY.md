@@ -2,8 +2,8 @@
 
 ## 1. Lessons (the behavioral spine)
 
-[lessons.md](lessons.md) — 52 behavioral lessons (`## L-NNN -- title`,
-ascending, contiguous L-001..L-052). "What mistake did I make, what did I
+[lessons.md](lessons.md) — 54 behavioral lessons (`## L-NNN -- title`,
+ascending, contiguous L-001..L-054). "What mistake did I make, what did I
 learn that improved my review behaviour." Consult before every review;
 sharpen in place after every task. The recurring spine:
 

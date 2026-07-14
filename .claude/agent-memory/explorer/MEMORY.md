@@ -17,11 +17,24 @@ and are re-derivable in seconds via Nexus. Keep notes here DURABLE, not transien
 
 ## 2. Active / in-flight state
 
-- [#290 diffusion-integration map](campaign_290_diffusion_integration_map.md) —
-  TRANSIENT ground-truth map @ `d2a2a0c` (2026-07-03): claim audit, typing shape,
-  SN mirror pattern, D data seam, retirement blast radius. **Delete when #290
-  merges.** Carries an AGENT.md durable-shape correction: `_reflect_outflow_into_inflow`
-  is NOT fully retired (survives for reconstruction-sweep + G-S, delegating to B).
+> **2026-07-13 hygiene pass:** the #280 walk-unification → coupled-block operator
+> campaign is CLOSED AND MERGED (step-7 "campaign CLOSES" @ `b23e972e`; #34 ray-leg
+> retirement @ `015dcc73`/`03e275e8`; all git-verified ancestors of main `6e3ebad0`).
+> The six transient maps it carried (step-6 audit, 4e un-weave, B.2 blast radius,
+> 2.5 P0-A, 2.5d carrier, product-cyl seed) hit their delete-conditions and were
+> DELETED. Post-campaign durable facts: A_BB = `RadialCharacteristicOperator`
+> (`orpheus/sn/operators/radial_characteristic.py`) now WRAPS the ψ½ march — its
+> `.solve` is the sole production caller of `carlson_inward_sweep_from_source`;
+> the walk executors (`_OneDimScanWalk`/`_loop_walk`/`_dag_legs`) live in
+> `sn/loss_representation/__init__.py`.
+
+- [task #54 sn/spatial rename audit](task54_sn_spatial_rename_audit.md) — TRANSIENT @
+  `6e3ebad0` (2026-07-13): full 3-search blast radius for renaming `orpheus/sn/spatial/`
+  (4 production import files / 7 statements, all direct-module-path — the package
+  `__init__` has ZERO live importers; 20 test import statements / 15 files; 147 doc
+  role occurrences, 10 already dangling; zero string-literal/config refs; mutation
+  TOMLs + diag_276 pre-broken since #272; name-candidate evidence: walk lives in
+  loss_representation, tests/sn/sweep is broader than the package). **Delete when #54 lands.**
 
 The durable SHAPE of the SN operator-algebra subsystem lives in
 `.claude/agents/explorer/AGENT.md` ("SN operator-algebra subsystem — durable

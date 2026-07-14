@@ -11,14 +11,59 @@ Diagnosed on `refactor/inverse-as-operator` (2026-07). READ-ONLY probe of whethe
 curvilinear WDD sweep is an honest direct triangular inverse. Backs `lessons.md` L14.
 
 ## Verdict (per geometry)
-- **SLAB / CYLINDER** = honest `SweepOperator` (direct inverse): seedΔ **0.0** (bit),
-  `‖Aψ−b‖∞/‖b‖∞` **~8e-16 / 7e-16**. Cylinder is seed-blind because each μ-level's
-  α-dome telescopes to 0 at the level edges (absorbs the seed) — same mechanism the
-  ERR-026 docs cite for "cylinder MMS passes despite wrong seed".
-- **SPHERE** = seed-DEPENDENT lagged/preconditioned iteration, exact ONLY at the SI
-  fixed point. seedΔ(X1,X2)=**4.6e-2**, cold-seed round-trip residual **5e5** (abs 1.8e6),
-  localized to the outer |μ|=0.816 level. Calling it a machine-precision one-shot inverse
-  is DIShonest.
+- **SLAB** = honest `SweepOperator` (direct inverse): seedΔ **0.0** (bit), residual **8e-16**.
+- **CYLINDER = QUADRATURE-DEPENDENT** (the old "CYLINDER YES" here was over-generalized
+  from a LEVEL-SYMMETRIC probe; CORRECTED 2026-07-05, #280 Phase 2.5b, product-cyl repro
+  cold err **0.575**):
+  - **level-symmetric** = trivially direct (cold err **7.8e-16**) because the first-swept
+    ordinate has `c_in[m0]=0` (raw τ=1 → (1−τ)/τ=0) — a **DEAD** seed, not "α-dome
+    telescoping" (that mechanism attribution was WRONG).
+  - **product** = **SEED-LAGGED** (cold err **0.575**, threaded→M⁻¹ at 6.7e-16): the #229
+    τ-clamp maps raw τ=0 → ½, so `(1−τ)/τ=1` → `c_in[m0]≠0` → the seed = ψ_{m0} (t=0,
+    first-swept ordinate's own flux) is a LIVE self-coupling read off the ITERATE.
+    **RETIRABLE by a direct single-pass fold** — see the #280 §below.
+- **SPHERE** = WAS seed-DEPENDENT lagged (seedΔ **4.6e-2**, cold residual **5e5**), **FIXED
+  by route (a)** — the direct `carlson_inward_sweep_from_source` starting-direction march
+  (LANDED `a29ab2d`, L15). No longer a lag.
+
+## #280 Phase 2.5b — product-cyl seed lag is FEASIBLE to retire by a single-pass fold
+Ruling (2026-07-05, read-only feasibility): **FEASIBLE (clean pure-diagonal fold).**
+- **Root cause** — the ONLY lagged element is the seed. Seeding the cold solve with the
+  CONVERGED flux → single-pass exact (6.7e-16). Seed = ψ_{m0}, t=0 EXACTLY, m0 =
+  first-swept ordinate (SAME ordinate it feeds) → a per-ordinate self-reference.
+- **The self-coupling is a PURE DIAGONAL fold.** The augmented `(L+C)` matrix M is EXACTLY
+  walk-order triangular (triu=0); the seed ordinate m0's output depends on NOTHING but
+  itself (other-ordinate coupling = 0.0), and its nx×nx self-block is triangular. Zeroing
+  the seed in the matvec changes ONLY the m0 self-block **diagonal** (off-diag change = 0.0
+  exact) — so the seed self-coupling folds into the m0 cell diagonal with coefficient
+  **`κ = dA_w[m0]·c_in[m0]`**, exactly as self-scatter folds. The "seed telescopes away"
+  story (this file's old text, the `test_282` docstring line ~629, ERR-026 docs) is a
+  MIS-ATTRIBUTION for product — the seed genuinely contributes O(1) to the diagonal; M is
+  triangular because that contribution is ON the block-diagonal (forward-sub handles it).
+- **POC** — inject the local triangular solve of each m0 self-block as the seed → cold
+  solve = M⁻¹ single-pass (5e-16). The direct fold reproduces M_aug⁻¹ bit-close.
+- **Change site** — `_run` non-carrying `else` branch, `loss_representation/__init__.py`
+  **4091–4101** (`phi_aux = closure.edge_extrapolated_seed(psi_level, p_idx)` reads the
+  iterate). The **MATVEC needs NO change** (`precompute_psi_state`/`cell_contribution`
+  build the seed from their input = already the correct triangular operator; the solve just
+  must reproduce its forward-substitution). Fix = solve m0 in-place with κ folded into its
+  cell diagonal (NOT read from the iterate) — structurally the cylinder analogue of the
+  sphere's route (a) starting-direction solve, but with a live self-redistribution fold.
+- **Re-baseline** — the fixed point is **MACHINE-IDENTICAL** (lagged-SI-converged ≡ folded ≡
+  M⁻¹ to ~5e-16, different FP paths, far under any keff/MMS rtol). UNLIKE sphere route (a)
+  (which changed the seed VALUE/closure → moved keff(N) at
+  fixed N, L15), the cyl is NON-carrying: the converged seed IS ψ_{m0} either way, so the
+  fold changes only HOW ψ_{m0} is obtained (iterate-lag → in-place). keff / MMS / frozen
+  `walk_matvec_cyl_2g` matvec baselines / converged snapshots **DO NOT MOVE**; only a
+  cold/intermediate single-within-group-sweep value moves (principled: now exact).
+- **LS + degenerate** — LS is INERT (c_in[m0]=0, dead). Degenerate pure-azimuthal ordinates
+  (μ_r≈0, is_degenerate=[2,6,10,…]) sit MID-level DOWNSTREAM of m0 (m0 = most-negative μ_x,
+  never degenerate) → they inherit the correct M-M thread once m0 is folded; no special
+  handling. τ-clamp #229 is NOT an obstruction (it DEFINES κ via (1−τ)/τ=1; triu=0 stands).
+- Diagnostics: `derivations/diagnostics/diag_280_cyl_product_seed_lag.py` (characterization
+  + strict-xfail TARGET gate) + `diag_280_cyl_fold_feasibility.py` (structural proofs +
+  POC). Promote both to `tests/sn/sweep/` (the feasibility proofs are permanent
+  routing/triangularity gates; the xfail flips green when the fold lands).
 
 ## Where the seed enters (file:line)
 SWEEP (`orpheus/sn/loss_representation/__init__.py`):

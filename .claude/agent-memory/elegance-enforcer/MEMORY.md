@@ -110,6 +110,15 @@ Two genuinely OPEN branches (reconcile against git before trusting):
   private; the shim forwards `CAP_SOLVE` with no `solve` method (keystone-armed,
   latent). Reusable when reviewing the Green/Matrix inverse siblings.
 
+- [coupled_block_boundary_unweld_rulings.md](coupled_block_boundary_unweld_rulings.md) —
+  reusable rulings for reviewing a per-system boundary block `B = Σ_x ι_x∘B_x∘π_x`
+  (the SN 1b un-weld, PRECEDENT for DSA/multiphysics). What HELD: present-zero-not-None
+  is FORCED (presence law) + IS the ι∘B∘π embedding; the `isinstance` narrowing before
+  `.split()` is honest (grading lives on B_a not the composite); role grid + twin-delivery
+  single-sourced at the `_reflect_*` cores. Recurring FINDINGS to check next time:
+  role-parse-guard symmetry (L-010), `_RULED_CORNER_KINDS` single-source, dead moved
+  `type: ignore` (L-012), in-diff stale delivery-helper docstring, B_a naming asymmetry.
+
 - [frame_projection_coarsening_shape.md](frame_projection_coarsening_shape.md) —
   homogenize/condense coarsening machinery shape review (P3 merged / P5 draft).
   Six rulings reusable for ANY new coarsening axis: axis-yields-its-views law

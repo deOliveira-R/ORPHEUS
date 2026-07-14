@@ -184,6 +184,30 @@ shipped. Three faces:
   `KEigenvalue`→`A.is_invertible`+`NotInvertible`) AND added a `.. note::`
   flagging the surrounding `inverter` narrative as step-3-stale + deferred. The
   dead-ref fix is in-scope; the deep behavioral rewrite is a separate task.
+- **In a CLAIM-CLASSIFICATION correction sweep (classify each repeated site
+  A/B/C, correct only the false class), the SAME phrase can be TRUE at one site
+  and FALSE at another — the discriminator is a LIVE config detail, not the
+  prose.** Worked (#280 Phase 2.5b, `discrete_ordinates.rst` + `tests/sn/`): the
+  recurring claim "the cylinder α-dome telescopes the seed away / was already
+  exact" is a FALSE mis-attribution for a **product** quadrature (the starting
+  direction coincides with the first-swept ordinate #229, so
+  `c_in[m0]=(1−τ)/τ ≠ 0` is a LIVE self-coupling on the m0 diagonal; the cold
+  `(L+C).solve` was seed-lagged err≈0.57 until the direct-seed fold
+  `c_out→c_out−c_in`) yet genuinely TRUE for a **level-symmetric** one
+  (`c_in[m0]=0` at raw τ=1 — a DEAD first-ordinate weight annihilating the seed
+  at source, NOT telescoping). So a "cylinder was already exact" docstring is
+  only classifiable after grepping the site's LIVE quadrature: a
+  `Quadrature.level_symmetric(4)` fixture makes it TRUE (LEAVE — e.g.
+  `test_282_direct_seed_fixed_point._operator`), a `product` fixture makes it
+  FALSE (CORRECT). Second discriminator, SAME word, different class: "α-dome
+  telescopes" splits (A) seed-absorption-of-the-SOLVE (false, level-symmetric-
+  only) vs (B) weight-summed-scalar-gate-blindness (anti-pattern #8, TRUE, LEAVE
+  — the `Σ_n w_n(α_{n+½}−α_{n−½})=0` identity) by WHAT it claims telescopes —
+  the seed's effect on the fixed point (A) vs a per-ordinate error's effect on a
+  scalar residual (B). Disambiguate by the OBJECT, not the verb. Also: the fix's
+  new changelog bullet + the reframed load-bearing note reference #280 Phase
+  2.5b; leave the main agent's already-corrected model sites untouched (grep the
+  issue tag to find them first).
 
 How to apply: before citing any convention, shape, or design decision,
 confirm it against the live source this session. Cross-refs that render
@@ -379,6 +403,39 @@ verifies-target.
   edge, so retiring just drops one auto-regen row). (Worked: #276
   homogeneous refounding — power iteration → direct `λ_max(A⁻¹F)`;
   4 step labels kept-and-repointed, `convergence-rate` retired.)
+- **PHANTOM verifies-target (the INVERSE of an orphan): a `verifies("X")`
+  marker whose `X` has NO `.. math:: :label:` anywhere under `docs/`.**
+  The audit flags it (`tests/_harness/audit.py` `_phantom_verifies`) — a
+  silently-dropped V&V edge. Fix = EITHER add `:label: X` to the equation
+  the test verifies (only if that equation is UNLABELED) OR repoint the
+  marker to the real label the equation ALREADY carries. Decide by reading
+  what each test verifies + grepping for the equation's existing label:
+  when the topic's equations are ALL already labeled (here the LD slab is
+  `ld-ubld-d1-reduction` (operator) + `ld-ubld-slope-angular-reduction`
+  (the ERR-061 reduction)), the "add a label" branch is impossible (one
+  `.. math::` = one label) → REPOINT, per-test, to the accurate label
+  (convergence test → the operator; diffusion-limit/frame tests → the
+  reduction). BONUS: if the repoint targets were FORMER ORPHANS (labeled,
+  0 tests), the repoint kills the phantom AND covers the orphans in one
+  move — a net V&V-hygiene win that VALIDATES repoint over add-a-label or
+  delete-the-marker. Watch for a SIBLING phantom synonym (here
+  `ld-cartesian-1d`, the un-homed 1-D umbrella parallel to the real
+  `ld-cartesian-2d`) co-declared on the same tests: if it has no free
+  equation home (the natural one is taken by a verifies-target you can't
+  rename per this lesson), it is OUT of a single-label task's scope —
+  FLAG it, don't half-fix. (Worked: stencil-assembly 2b — `ld-slab`
+  4-marker phantom repointed; `ld-cartesian-1d` flagged.) **SEQUEL
+  (Task #55): the flagged `ld-cartesian-1d` was RESOLVED by repoint →
+  `ld-ubld-d1-reduction`** (the 1-D LD operator equation ALREADY labels
+  the natural home; one eq = one label ⇒ mint impossible ⇒ repoint, and
+  dedup the mark that already carried it). The SAME task took the OTHER
+  branch for a sibling phantom `inverse-as-operator`: **MINT**, because
+  its law (`A.inverse().apply ≡ A.solve`, the #226 keystone) was stated
+  in PROSE but UNLABELED. Discriminator: repoint when the law's equation
+  is ALREADY labeled; mint (with `.. vv-status: <label> documented` for a
+  foundation/structural law, L-004, matching a sibling documented label's
+  style) when the law is stated but carries no `.. math:: :label:` yet.
+  Verify the mint lands in the matrix's "Documented-only" bucket.
 
 How to apply: grep the generated matrix (`docs/.../matrix.rst` or the
 audit output) for every label you intend to touch FIRST; preserve
@@ -799,6 +856,671 @@ patch; splice the large block programmatically + translate paths +
 verify the extract; place by anchor; then run the standing
 retirement-audit (repoint xrefs, reconcile same-merge forward-refs,
 fix-or-tombstone stale literals) and the `-E -W` build-count gate.
+
+---
+
+## L-013 — A fix that RETIRES a failed-approach family gets a SUCCESS-resolution chapter, not the 9-step CLOSED arc — and proportionate treatment of the big historical narrative it supersedes
+
+When a landed fix works BY retiring a whole failed-strategy family that
+a large historical arc built up (here #282 route (a) retired the
+`PsiHalfAngleSeed` seed zoo threaded through a 2800-line Phase-D→F→ERR-058
+saga), the doc is a **resolution chapter**, not a CLOSED post-mortem. It
+still borrows the close-out arc's spine (status banner, what-was-tried-
+and-failed table, numerical before/after) but its verdict is "the fix
+shipped", not "the path is dead". The disciplines that made this
+proportionate and correct:
+
+- **New resolution SECTION as the saga's final chapter** (a `-` h2
+  sibling of the close-outs it resolves, placed right before the next
+  `=` h1), with a status banner, the structural defect (the back edge),
+  the fix, the derivation, the **failed-strategy `.. list-table::`**
+  (each retired class as a LITERAL + its failure mode), numerical
+  evidence, and the honest-scope caveat. This is the primary deliverable.
+- **ONE loud supersession banner at the ARC HEAD** (`.. attention::`
+  right under the first superseded section's title) telling the reader
+  every "current default / retained strategy" claim in the sections
+  below is HISTORICAL, with the forward `:ref:`. This lets the whole
+  historical narrative stay as legitimate history WITHOUT rewriting it —
+  proportionate. Do NOT tombstone every stale sentence.
+- **Targeted retraction tombstones ONLY on the bald factual REVERSALS**
+  (an "X is retained (not deleted)" that route (a) deleted; an
+  "Infrastructure retained" table listing the retired classes as
+  production). `.. note:: **Retraction (date, Issue #N).**` per L-007 —
+  the numerical/historical evidence stays; the interpretation gets the
+  tombstone.
+- **The prior close-out's "Open research paths" is a GOLDMINE — flip the
+  one that LANDED.** If the fix implemented a predicted research path
+  (here #1 "TRUE-source-driven sweep-side seed" + the full Legendre
+  fold, AND its proposed "sweep quadrature order" probe was EXACTLY the
+  N-sweep discriminator used), flip it "→ **LANDED as #N**", tell the
+  "predicted exactly / one refinement over the prediction" story
+  (L-007 landed-seam). This is a powerful principled-resolution
+  validation AND closes the research-path loop on the same page.
+- **Literalize the retired family's dead xrefs via `replace_all`**
+  (L-002/L-011): each `:class:`X``/`:meth:`X.__call__``/`:attr:`X.a``
+  is backtick-delimited and unambiguous → `` `X` `` literal naming the
+  historical artifact (NOT the surviving successor — a retired STRATEGY
+  class and a surviving free FUNCTION of a similar name are different
+  concepts; name the class as history, point prose at the function).
+  The `-W` build is BLIND to these (plain-text) — grep-gate is the check.
+- **Reuse the topic's existing verifies-target labels** (`hebert-3-43x`
+  were already the full-fold equations) via `:eq:`; mint new
+  `documented`-status labels only for the fix's OWN structural identities
+  (augmented-composite, block-triangular, the streaming-manufactures-
+  anisotropy identity) — each gets `.. vv-status: <label> documented`
+  (L-004) or it lands in the matrix's "Orphan equations" bucket, not
+  "Documented-only". Verify the bucket in the regenerated `matrix.rst`.
+- The L-012 programmatic-splice + placeholder-underline generator works
+  for a large NEW authored section too (not just merging a branch diff)
+  — it guarantees code-point-correct unicode underlines (L-009).
+
+How to apply: for a "the fix worked by retiring the failed family"
+doc, write the resolution chapter + ONE arc-head supersession banner +
+targeted reversal tombstones + the landed-research-path flip; literalize
+the dead family xrefs; reuse existing verifies-labels, tag new
+structural ones `documented`. Preserve the history, make the
+supersession loud, don't rewrite the saga.
+
+---
+
+## L-014 — Deepening a thorough resolution chapter with physics RULINGS + the current-truth vs PLANNED-design-direction split
+
+Two distinct moves recur when a design session digs deeper physics /
+architecture for a feature whose *representation* is ALREADY thoroughly
+documented (here: the SN curvilinear ψ½ pole seed, whose #282 route-(a)
+resolution chapter already covered the defect/fix/representation, and a
+`facefield_codim1_design.md` note that dug the deeper physics + a
+planned refactor).
+
+- **Augment with the deeper WHY, cross-link the existing WHAT — never
+  duplicate.** When the chapter already documents the representation
+  (the composite, the block-triangular normal form, the role-quadruple),
+  the augmentation's whole value is the PHYSICS beneath it: *why* the
+  direct solve exists (the pole is a straight characteristic → pure 1-D
+  ODE, `(1−μ²)=0` kills redistribution), *why* the presence-predicate
+  looks as it does (topology of the redistribution axis: a periodic CIRCLE
+  gives edge-inclusion free + spectral, an INTERVAL's open GL makes you pay
+  a seed).  ⚠ **The "zero metric is structural / entirely-grazing angular
+  face" ruling this bullet ORIGINALLY carried was REFUTED — see L-015.**
+  The ψ½ block's Hilbert STATE metric is the SPD `G_sd = V_cell`, NOT zero;
+  `(1−μ²)|_pole = 0` is an OPERATOR coefficient (through-flux M2), not the
+  state metric (M3); keep the three measures distinct (M1 moment weight /
+  M2 through-flux coefficient / M3 state metric) — only M2 is zero. Give each ruling
+  its OWN labelled `~~~~` subsection (`documented` vv-status on any
+  literature-transcribed derivation eq per L-004), and cross-link the
+  existing representation eqs (`:eq:`…-block-triangular``) rather than
+  re-deriving them. The "what was tried and declined" belongs here too —
+  a numerically-affordable-but-architecturally-declined alternative (the
+  Gauss–Lobatto pole-node study: ~1.2× penalty, but declined to keep the
+  cell-centred bulk clean) is exactly the Cardinal-Rule-3 "tried and why
+  not adopted" content; cite the scratch-artifact location, mark it
+  uncommitted/promote-only-if-adopted.
+- **A PLANNED refactor on a current-truth page gets a LOUD
+  design-direction admonition + a paired "current state" subsection.**
+  When the design note proposes a refactor NOT yet built (a `FaceField`
+  codim-1 parent, a `face_streaming_normal` measure, mesh-derived
+  presence), the current-truth page must NOT read as if it exists.
+  Recipe: (1) a `.. admonition:: Design direction — … (PLANNED, not
+  built)` `:class: note` opening with an explicit "not implemented — no
+  X/Y/Z type exists yet" + a pointer to the design-note path; (2) unbuilt
+  types are LITERALS (``FaceField``), never `:class:` refs (L-002
+  forward-ref — a `:class:` to a non-existent symbol renders plain-text,
+  no `-W` warning, but is a Cardinal-Rule-1 stale ref); an ASCII
+  hierarchy tree in a `::` block sidesteps the issue (all literal); (3)
+  a SEPARATE "Current state — the `Optional` block and the N guards"
+  subsection stating what IS built, so plan and reality never blur.
+  VERIFY the guard/DOF counts against LIVE code, not the design note — a
+  scoped grep undercounts (a `_require_*` call site lived in a sibling
+  module `operators/streaming.py`, outside the `loss_representation/`
+  scope I first grepped; the note's "3+4=7" was right, my scoped grep
+  said "2+4"). Verify the enclosing CLASS of a cited call site too (the
+  streaming.py site was in `InvertibleOperator`, not `StreamingOperator`).
+- **The same-topic forward-ref in an ADJACENT subsystem is usually
+  already stale — flag with the shipped evidence, don't rewrite (L-007).**
+  A "when #N lands, gate X flips" future-tense claim in a neighbouring
+  section (here the assembly-mode "Cartesian-only scope" §) is a
+  landed-seam once #N ships; the TEST comment confirms the flip
+  (`test_assembly_mode.py`: "route (a) makes the augmented matrix EXACTLY
+  block-lower-triangular … replaces, not relaxes, the RED
+  characterization"). But if it's a behavioral-claim rewrite in a
+  different subsystem (assembly, not the pole-seed physics), FLAG it with
+  the verified shipped shape + exact lines for the main agent — a rewrite
+  needs its own verify-against-live pass and may interact with a claim
+  that DIDN'T change (the bulk assembler staying Cartesian-only).
+
+How to apply: for a "deepen an already-documented feature" task, add the
+physics rulings as labelled subsections that cross-link (not duplicate)
+the existing representation; give any planned refactor a loud
+PLANNED-design-direction admonition (literals for unbuilt types) paired
+with a current-state subsection; verify every count/class against live
+code; flag adjacent same-topic landed-seam staleness rather than
+smuggling a behavioral rewrite into scope.
+
+---
+
+## L-015 — The SUCCESS-CORRECTION doc pass: a doc's own PHYSICS FRAMING was the bug, proven this session; rewrite every site to the corrected story
+
+Distinct from L-013 (retiring a failed APPROACH) and L-014 (deepening a
+resolution chapter): here a framing DOCUMENTED AS CORRECT by prior
+sessions — even by THIS lessons file (L-014's since-corrected "zero metric
+is structural" clause) — was PROVEN WRONG this session and the code fix
+landed (SN ψ½ block metric: the retired "ghost metric" `G_sd ≡ 0` → the
+SPD state metric `G_sd = V_cell`). The doc job is to make every site tell
+the corrected story. The disciplines:
+
+- **Blast radius = the refuted CONCEPT grepped tree-wide, NOT the brief's
+  file list.** The brief named 6 sites; `grep "ghost metric\|G_sd = 0\|
+  all-zero ghost"` across `orpheus/` + `docs/theory/` found 3 MORE
+  (transport-layer field docstrings) carrying the SAME refuted claim. Fix
+  them (clean one-line Cardinal-Rule-1 corrections) and FLAG the
+  scope-expansion. EXCLUDE frozen archaeology (`.claude/plans/*`, other
+  agents' `agent-memory/*`, sibling worktrees) — they keep the old framing
+  as history.
+- **RENAME (not keep) an anchor whose NAME encodes the REFUTED concept**,
+  updating every referencing site — the INVERSE of L-007's
+  keep-the-anchor-when-the-concept-SURVIVES. `sn-282-ghost-metric-face` →
+  `sn-282-pole-state-metric` because the section now REFUTES the ghost
+  framing. Safe only because all inbound refs (here 2, both cross-doc in
+  the page I was already rewriting) were updated in the same pass; VERIFY
+  in built HTML that the new `id=` exists, the old is gone, and each
+  cross-doc `:ref:` resolved to an `<a href>` (section anchors DO resolve
+  cross-doc, unlike eq-labels — L-002).
+- **Preserve the retired-bug WHY in PAST TENSE (L-007), don't erase.**
+  Every `G_sd = 0` / "ghost metric" that SURVIVES the sweep must read as
+  history ("the retired ghost bug installed…", "the shipped `G_sd = 0` WAS
+  a wrong adjoint", "a reverted ghost would ALSO leave a defect"). A final
+  grep re-classifies each survivor KEEP-as-history vs FIX; the ones in the
+  fix's OWN validation body (the error message explaining why `0` is
+  REJECTED) are correct as-is.
+- **The load-bearing content is the CATEGORY-ERROR framing.** When N
+  quantities were conflated into one wrong value, the crisp correction is
+  a per-quantity `.. list-table::` (M1 moment weight / M2 operator
+  coefficient / M3 state metric — each "where it lives / what it governs")
+  + the WHY only ONE is zero: an operator coefficient equals the state
+  metric ONLY when the face's operator self-block is trivial (spatial
+  trace `A_tt` = restriction map → through-flux = state metric; ψ½ `A_ss` =
+  banded radial transport op → through-flux 0 ≠ state metric `V_cell`).
+  Ground "trivial self-block" in MEASURED norms from the
+  derivation-of-record (`A_tt` offdiag ≈2 vs `A_ss` ≈71, ratio ≈35×).
+- **A refuted-framing fix that CLOSES a vv failure mode gets a POSITIVE
+  reframe naming the mechanism.** The old Mode-12 gotcha ("G-recip is
+  IDENTICALLY blind to the seed rows") → "G-recip CATCHES a seed-row error
+  (Mode 12 CLOSED, ERR-067)". NEW closure mechanism (Directive-5 skill
+  proposal, below): a Mode-12 blindness closes EITHER by gating the OBJECT
+  (the skill's canonical remedy) OR by REPAIRING the functional's METRIC so
+  the error class LEAVES the invariance group — available exactly when the
+  metric WAS the bug (correctness fix ≡ Mode-12 closure). Cite the LIVE
+  gate name (grep it — the test was RENAMED `…_is_blind_to_…` →
+  `…_catches_…`) and its both-legs subtlety (control leg: unmutated recip
+  holds `<1e-12`; mutated leg: flip reds `>1e-6` — without the control a
+  broken baseline mimics "caught"). ERR-067 lands in `error_catalog.md`
+  from a concurrent QA agent — verify it exists + your wording matches
+  before citing (it did).
+
+How to apply: grep the refuted CONCEPT tree-wide (blast radius > brief);
+rename refuted-concept anchors + update all refs (verify in HTML);
+preserve the bug's WHY in past tense; correct via a per-quantity
+category-error table grounded in measured norms; give any closed vv
+failure mode a positive reframe naming the closure mechanism; and SHARPEN
+any prior lesson (L-014 here) that carried the now-refuted framing.
+
+---
+
+## L-016 — The EVICTION/re-homing doc-pass: a sub-object leaves a block-ON-a-carrier for its OWN coupled composite — the PHYSICS survives, so reframe the CARRIER narrowly
+
+Distinct from L-007 (retirement) / L-013 (retiring a failed approach) /
+L-015 (a refuted framing): here a correct sub-object (the ψ½ ray) is
+RE-HOMED — it moves from an optional third block ON a carrier
+(`FullField`) to its OWN 2-block composite (`RadialCharacteristicComposite`
+= System B) coupled to System A via a `CoupledField[ψ_A, ψ_B]` pair. The
+governing insight: **an eviction changes the CARRIER, not the PHYSICS**,
+so the doc job is a NARROW carrier reframe, not a chapter rewrite.
+
+- **The brief's "~N stale refs" over-counts because most of the
+  "3-block" chapter is PHYSICS that survived.** The route-(a) resolution
+  chapter (pole straight-characteristic, M1/M2/M3 metric, block-triangular
+  walk order, source fold, R12a, circle-vs-interval) describes System B's
+  physics and is UNCHANGED by the eviction. Grep for the STALE CARRIER
+  FRAMING ("grows a third summand", "augmented (bulk ⊕ trace ⊕ seed)
+  composite", "third (seed) block", "optional third block",
+  "mixed-presence law", "N guards"), NOT the physics terms. The actual
+  stale set was ~4 sites (heading + intro + one gotcha + one gate-norm
+  phrase), not the brief's ~18. Reframe those; add ONE focused
+  "**Where X lives — System B (the eviction)**" prose paragraph after the
+  role-table that states the end-state (2-block carrier + own composite +
+  `CoupledField` + retired presence-law + live-illegal-state
+  unrepresentable + honest DOF + the `Solution.<member>` biconditional)
+  and CROSS-LINKS the coupled 2×2 / M−N algebra to its home page — do not
+  re-derive it. KEEP the total-phase-space eq-label (it is still the
+  honest DOF sum; L-003) and just reframe the prose around it.
+- **A RENAME (helper → new name) is a CLEAN `:func:` repoint, not a
+  literalize-as-dead (L-013).** When the retired symbol SURVIVES under a
+  new name (`_within_group_triple` → `build_within_group_system`, which
+  also grew a record `WithinGroupSystem` carrying the named `A = M − N`
+  splitting), repoint every `:func:`/literal to the LIVE name; keep ONE
+  historical literal ONLY where the doc explicitly narrates the retirement
+  ("the former ``_within_group_triple`` retired into this builder").
+  Verify the rename is LANDED in live code first (`grep` the module: the
+  old name gone, the new imported) — 13 dead `:func:` refs render
+  plain-text with no `-W` warning (L-002), so the grep gate is the only
+  catch. On the general/Cartesian sites, the record DEGRADES to the old
+  triple (`.resolvent=(L+C)`, `.gains=(S,B_a)`) — say so; the coupled M−N
+  grid is the CARRYING-mesh case only.
+- **An IN-FLIGHT concurrent deliverable (the main agent editing prod while
+  you write docs) gets post-state prose + a FLAGGED forward-dependency.**
+  The LC-triplication collapse was being done in solver.py concurrently
+  (`self.L` still live when I read it). The brief directed post-collapse
+  prose; I wrote "the within-group L+C is spelled in ONE place — the
+  builder" WITHOUT asserting solver internals (line numbers / `self.L`),
+  and FLAGGED that the prose asserts the concurrent collapse for the main
+  agent to reconcile at commit. Write what the brief directs, avoid the
+  internals the brief forbids, flag the dependency.
+- **A PLANNED-design admonition whose STRUCTURAL half landed via a
+  SEPARATE commit: correct the false claims, keep the still-planned
+  vision.** The `FaceField` codim-1 admonition said "no `FaceField` ABC
+  exists yet" — but it LANDED (a separate C-series commit,
+  `grep 'class FaceField'` + git log confirmed). Cardinal Rule 1: correct
+  "PLANNED, not built" → "PARTIALLY built" (structural parent landed +
+  ERR-067 metric refutation stands), note the SIBLING mechanism that
+  reached the goal DIFFERENTLY (the eviction made presence
+  unconstructable-by-design via System B, not via the still-unbuilt
+  `PhaseSpaceCarrier`), and preserve the genuinely-unbuilt vision. Verify
+  the guard COUNT is not restated (the old "7 guards" was already stale at
+  17 live sites) — describe the guard FAMILY (`_require_/_refuse_/_require_leg_pair`)
+  and the six-signature leaf-kwarg PROTOCOL (a `.. list-table::` of the
+  apply/solve/transpose read-vs-fill contracts) instead of a call-site
+  count, which sidesteps the L-014 count-drift trap.
+
+How to apply: for an eviction/re-homing doc-pass, grep the CARRIER
+framing not the physics; reframe narrowly + add one end-state paragraph
+cross-linking the coupled algebra; clean-repoint the renamed builder
+(verify landed, keep one historical literal); write post-state prose for
+an in-flight sibling deliverable and flag it; correct a PLANNED
+admonition's now-false claims while keeping its unbuilt vision.
+
+---
+
+## L-017 — The freed-name REMINT collision: a retired symbol's name reused for a DIFFERENT live object — disposition every mention by PASSAGE MEANING, not by name; and record a solve-leg un-weave in current-architecture passages only
+
+The sequel to L-016 (the eviction): a refactor RETIRES a symbol AND
+remints its freed name onto a **different, still-live** object. Here the
+unified ψ½ leaf ``RadialCharacteristicField`` was retired (split into
+``RadialCharacteristicInteriorField`` / ``…BoundaryField``) and its freed
+name reminted onto System B's **composite** (the ``FullField`` mirror,
+``Composite[interior, boundary]``). The name becomes a **homonym across
+the remint commit** — the load-bearing discipline is to disposition each
+mention by WHAT THE PASSAGE DESCRIBES, never by the name:
+
+- **Current-architecture passage → REPOINT** to the live object (the
+  composite ``~orpheus.transport.radial_characteristic_field.RadialCharacteristicField``).
+- **Historical record → REWRITE as history** ("the unified single-buffer
+  leaf, which then held the ``RadialCharacteristicField`` name; reminted
+  onto the composite at 4e-e1b") — a literal, not an xref. A blanket
+  find-replace is WRONG; the same name flips meaning at the remint.
+- **Grep the FULL MODULE PATH, not the bare name.** A partial mechanical
+  rename that already ran (e1b renamed the docs' ``RadialCharacteristicComposite``
+  → ``RadialCharacteristicField``) leaves SOME refs correct (the composite
+  path ``radial_characteristic_field.RadialCharacteristicField``) and
+  OTHERS dead (the retired leaf's ``fields._bases.RadialCharacteristicField``,
+  the unified space's ``…space.RadialCharacteristicSpace``, the unified
+  ``…radial_characteristic_flux.RadialCharacteristicFlux``). The bare-name
+  grep can't tell them apart; the module-path grep + import-gate can.
+  Watch for a role FAMILY that split into ``interior ⊕ boundary`` (flux /
+  source-sink / displacement / residual → 8 leaves): the unified per-role
+  module paths (``…_source_sink.RadialCharacteristicSourceSink``,
+  ``…_displacement.RadialCharacteristicDisplacement``) ALL die together —
+  audit the whole family, not just the head symbol the brief names.
+
+**Recording a solve-leg UN-WEAVE (inline orchestration → named resolvent).**
+When a walk's welded inline orchestration is extracted to a NAMED operator
+(``RadialCharacteristicOperator.solve`` / ``.solve_transpose``, the ``A_BB``
+resolvent), the ENGINE ref (``carlson_inward_sweep_from_source``) stays
+where it names the **march mechanism** (fine — the engine still exists and
+is the single source of the march); the **orchestration** ref becomes the
+operator's ``solve``. Record the un-weave in the CURRENT-architecture
+passages ONLY — the Key-Facts bullet, the walk-triple SOLVE bullet, a
+dedicated Cardinal-Rule-2 ``.. note::``, the six-signature protocol note,
+and the Development-history changelog. The HISTORICAL saga (the Phase D–F
+"one helper, two consumers" sections) that describes the OLD inline
+architecture is PRESERVED per L-013 — it already carries the supersession
+banner; do NOT rewrite it (proportionate). Two traps:
+
+- **A re-aimed sentinel is a stale V&V claim (Directive 5).** The Mode-11
+  wrap-sentinel was re-aimed from the engine onto the operator (class-level
+  wrap of ``RadialCharacteristicOperator.solve``) + a NEW S2 "walk source
+  has zero ``carlson`` references" tripwire. A doc saying "the sentinel
+  confirms the solve executes ``carlson_inward_sweep_from_source``" is
+  STALE — VERIFY against the live test (read the test body) and repoint to
+  the operator + name the S2 tripwire. "carlson refs went N → 0" is a
+  greppable fact — state the measured count.
+- **A refuted-framing survivor on an adjacent HISTORICAL changelog line**
+  (a "zero-metric" the ERR-067 pass corrected to SPD ``V_cell``, which the
+  L-015 tree-wide sweep missed in the Development-history table): fix it
+  when you edit the DEAD ref on the SAME line (Cardinal Rule 1 is supreme —
+  a changelog is current-truth, not licensed to carry a refuted claim), and
+  FLAG the scope-expansion. Don't retroactively inject the LATER
+  architecture (System B) into an EARLIER-dated entry — keep the entry's
+  date-accurate framing, only correct the dead ref + the refuted claim.
+
+How to apply: for a freed-name remint, grep the full MODULE PATH (+ the
+whole split role family), disposition each site by passage meaning
+(repoint-live vs rewrite-history), record the un-weave in
+current-architecture passages only (preserve the historical saga per
+L-013), re-verify any re-aimed sentinel against the live test, and
+fix-plus-flag refuted-framing survivors on lines you touch.
+
+---
+
+## L-018 — The CAPSTONE pass: documenting a COMPLETED multi-block coupled-operator architecture as one new taxonomy-culminating section
+
+The completion (step-7) of the eviction/remint arc (L-016/L-017): the ψ½
+ray, having moved to its own System B, is now one leaf of a full 2×2
+**coupled block operator**, and the campaign LANDED. The doc job is a NEW
+capstone `=` section documenting the whole architecture — not an
+incremental reframe. Disciplines:
+
+- **Place the capstone as the taxonomy's CULMINATION, cross-linking not
+  duplicating.** The coupled block operator is the block-level
+  generalization of the page's existing operator-surface taxonomy
+  (three-layer surface → materialise → assemble → **N×N block grid**):
+  apply→block matvec, assemble→block-offset scatter, solve→block
+  substitution. Place it right after the last taxonomy sibling (the
+  assembly axis), and OPEN by naming the generalization + `:ref:`-linking
+  the sections it generalizes — the section EARNS its narrative place,
+  it isn't a bolted-on appendix. Reconcile the pre-existing forward-ref
+  ("the record bridges System B into a coupled M−N grid") by repointing
+  it to the new same-page `:ref:` and softening stale framing ("bridges"
+  evokes the retired bridge object).
+- **A naming-dense brief on a landed architecture is an L-001 minefield —
+  verify EVERY named object/line-ref/helper against the module-of-record
+  before writing.** The brief conflated `A_BA` with
+  `RadialCharacteristicReconstruction` (:955) — but LIVE `A_BA =
+  RadialCharacteristicEmission` (:1187); Reconstruction is the Fold
+  FACTOR *within* A_BA (`A_BA = Fold ∘ K ∘ integrate`). The brief's fold
+  helper `fold_moments_to_starting_direction`
+  (`starting_direction_space.py`) was renamed to
+  `fold_moments_to_radial_characteristic` (`radial_characteristic_space.py`)
+  by the campaign's OWN step-1 rename. Read the module docstring + class
+  defs + import-verify each symbol before minting a cross-ref; a
+  naming-dense brief's line-refs and class-names are the FIRST thing to
+  go stale on a fast-moving branch.
+- **Document a symbol OVERLOAD as an explicit gotcha, don't paper over
+  it.** The class `RadialCharacteristicOperator` calls itself "A_BB" (the
+  bare radial march μ∂_r+σ_t) AND the builder's local `A_BB = march −
+  B_b` (the loss-grid self-block) — two live meanings. Faithful to the
+  code-of-record: define A_BB = the bare march, spell the loss-grid (B,B)
+  = A_BB − B_b explicitly ("a naming gotcha to spell out"), tie it to the
+  System-A parallel (A_AA = L+C−S−B_a; both self-blocks = transport −
+  gains − boundary; both boundary gains lagged in N). Reader inherits the
+  overload cleanly instead of tripping on it.
+- **The resolvent M and the loss grid A are DIFFERENT grids — state both
+  precisely.** The brief's loose "M grid [[LC, Seeding], [None, A_BB]]"
+  is the RESOLVENT M (bare-march diagonal, (B,A)=None → upper-triangular
+  → direct block substitution). The LOSS grid A is [[L+C−S−B_a,
+  +Seeding], [−Emission, A_BB−B_b]] ((B,A)=−Emission present). The
+  splitting A = M − N puts B_b + the emission gain in N. Give both grids
+  their own `.. math::`; note M(B,B)=bare-march while A(B,B)=march−B_b so
+  A=M−N recovers. (B,A)=None-in-M IS the Schur/lag argument: the emission
+  is the iterating scattering gain (ρ(M⁻¹N)=0.371), it belongs lagged on
+  the rhs, not folded into the one-pass resolvent.
+- **D5 for a campaign that RETIRES symbols: it owns its retirement
+  doc-debt, but a BROAD PRE-EXISTING stale surface with NO 1:1 successor
+  is FLAGGED, not rewritten-in-passing (L-007).** The campaign's OWN
+  retired symbols (the ψ½ kwargs, the fused `CoupledInvertibleOperator`
+  bridge, the presence guards, the `_within_group_triple`) were ALREADY
+  correctly narrated as history by the incremental passes (the step-6
+  "retired estate" section + dated changelog entries — literals in
+  history blocks, not live xrefs) — verify each is history (grep the
+  site's enclosing section title), leave it. But `transport_sweep`
+  (retired by THIS campaign's step 6) had 55 refs across ~15 SN-page
+  sections from many prior waves, MANY presenting it as current API, with
+  NO mechanical successor (the sweep is now the resolvent's `.solve` /
+  `sweep_schedule` per context — a behavioral rewrite per site).
+  Rewriting ~40 current-API sites in a coupled-block docs pass is the
+  exact L-007 anti-pattern. FLAG it (count + no-successor nature) as a
+  dedicated sweep-entry-point-retirement pass; fix only campaign-adjacent
+  current-API sites (here: zero — no transport_sweep site is in a
+  coupled-block section).
+- **New structural eq-labels for a landed architecture are all
+  `documented` (L-004); one per load-bearing identity, grep-collision-
+  check first.** Block matrix, block matvec, the fold, the M−N splitting,
+  the loss grid, the free-identity residual, the block substitution —
+  each representational/structural (not a solver claim), so `.. vv-status:
+  <label> documented`. Grep `:label:` repo-wide before minting (all 9
+  collision-free); verify in built HTML each `id="equation-<label>"`
+  rendered and each in-prose `:eq:` resolved to `<a>`. Code-xrefs to
+  the coupled_system/radial_characteristic classes render PLAIN-TEXT by
+  page convention (not member-automodule'd — L-002; the pre-existing
+  `build_within_group_system` ref already renders plain-text) — the
+  import-gate is the real check, plain-text is NOT a regression.
+
+How to apply: for a completed-campaign capstone, write ONE new
+taxonomy-culminating `=` section (cross-link the siblings it generalizes,
+don't duplicate); verify every named object/line-ref/helper against the
+live module-of-record (naming-dense briefs go stale first); document
+symbol overloads + the resolvent-vs-loss-grid distinction as explicit
+gotchas; leave the campaign's own already-historical retired symbols,
+FLAG the broad pre-existing no-successor surface; tag new structural
+labels `documented`.
+
+---
+
+## L-019 — The context-dependent ENTRY-POINT retirement pass: per-site a/b/c disposition grounded in the LIVE successor, never a 1:1 rename
+
+The EXECUTION of the L-018-flagged "dedicated retirement pass": a widely-
+referenced entry point (here `transport_sweep`, 56 sites × 5 theory
+pages) retires and its successor is **context-dependent** — the same
+retired name maps to DIFFERENT live surfaces per site (production
+resolvent `.solve` vs the scheduling layer vs a raise-guard vs an
+SI-sweep twin method). A mechanical find-replace is FORBIDDEN (per-site
+false-claim risk). Disposition EACH site into one of three, grounded in
+what the LIVE code does THERE:
+
+- **(a) behavioral rewrite** — the section teaches CURRENT API
+  (present-tense claim, OR the whole section framing IS the retired
+  entry). Two sub-shapes: an inline symbol-repoint (a present-tense
+  claim swaps to the live surface — e.g. "the sweep at `X` consumes both"
+  → "the within-group sweep (the resolvent `solve`) consumes both"); and
+  a WHOLE-FRAMING rewrite (a section titled/built around the retired
+  entry, with a stale code block — e.g. "Quadrature Dispatch" / "Typed
+  input") gets its framing rewritten to the current architecture +
+  cross-ref, and the stale code block **DELETED**, not symbol-swapped.
+- **(b) past-tense history literal** — dev-history / changelog /
+  retired-estate / diagnostic narrative. KEEP the name but as a
+  double-backtick LITERAL (never a `:func:`), framed past-tense with the
+  retirement citation ("the then-production ``X`` entry, since retired at
+  step N (R-N.N)"). The campaign's OWN retirement passes usually already
+  literalized their sites (grep: they're `` ``X`` `` not `:func:`X``) —
+  LEAVE those; only literalize the dead `:func:`/`:meth:` refs OTHER
+  waves left behind (they render plain-text, no `-W` warning, L-002 — so
+  grep is the only catch).
+- **(c) delete** — the clause carries no content once the symbol is gone
+  (a "bit-identical to a direct ``X`` call" line; ``X`` as one entry in a
+  list whose OTHER members survive → drop it, keep the survivors).
+
+Disciplines that made it correct:
+- **Ground EVERY successor in live code THIS session (L-001).** The
+  live-grounded successor table is the load-bearing artifact — build it
+  FIRST. A brief's "the successor is X" is a STARTING heuristic; the
+  per-site live read is the rule (a raise-guard's kwarg was
+  `moment_projection` in the doc but `moment_frame` in live code; a
+  separate arg `Q_aniso` was GONE entirely — folded into the source; the
+  SI-sweep twin pairs with the matvec `_apply_walk` as `…ScanWalk.sweep`,
+  found by reading the walk class's methods).
+- **For a big superseded-architecture SECTION prefer the L-013 arc-head
+  supersession banner + past-tense over a full rewrite** (proportionate).
+  A dev-history section framed "Wave-X did Y" that presents the retired
+  entry with a code block: add ONE `.. note:: **Superseded (step N)**`
+  naming the current architecture + `:doc:` link, past-tense the intro
+  verbs, let the historical code block stand under the banner. Reserve
+  the full framing-rewrite for CURRENT-architecture reference sections
+  (early-doc, NOT "Wave-X"-framed).
+- **Retitle a heading that NAMES the retired entry** only after grepping
+  for inbound `:ref:` (autosectionlabel); size the new underline in code
+  points (L-009).
+- **Acceptance = the three-severity `-E -W` count UNCHANGED-from-baseline
+  + a `git grep <symbol> -- docs` survivor audit** where every survivor
+  is a past-tense literal (no live xref; none presenting the symbol as
+  current). The skip-line DIFF (baseline vs post) proves you orphaned no
+  OTHER verifies-target while resolving the in-scope ones.
+
+How to apply: build the live-grounded successor table FIRST; disposition
+each site a/b/c by what live code does there; banner-not-rewrite the big
+history sections; literalize every dead `:func:` (grep-gate — `-W` is
+blind); prove the skip-line diff changed only what you intended.
+
+---
+
+## L-020 — The retired symbol whose deletion is a COROLLARY of a design unification: the enclosing section's THESIS is stale, not just the symbol
+
+The sharpening of L-019 for the hardest retirement case. L-019 dispositions
+each SITE a/b/c and banners a "Wave-X did Y"-FRAMED history section. L-020
+is the case L-019's per-site list UNDERSELLS: the brief hands you a few
+"dead-role lines" but those lines are the visible symptoms of an entire
+doc-SECTION whose THESIS (its design-rationale premise, presented as
+CURRENT) has gone false — because the symbol you were sent to retire is one
+FACET of a deeper architectural UNIFICATION that dissolved the very design
+the section exists to explain.
+
+Worked (Task #57, `transport_operator_matvec` family + `psi_bc`): the brief
+listed 6 sites (discrete_ordinates 13543-13545/13576/13700-13704 +
+index_convention 488/1507/1524). Reading the LIVE code (streaming.py apply →
+`loss_action` → `_apply_walk`; `loss_representation/__init__.py:1458`
+"matvec ≡ sweep, ONE discretization, L21") revealed the matvec deletion was
+a corollary of the #206 Phase-C **matvec ≡ sweep = ONE loss-representation
+walk** unification — which DISSOLVED the "two distinct discretisations
+(FD-operator apply vs WDD sweep) / packed-vector-vs-structured-array layout
+difference / deliberately-legacy-pending-PR-INDEX-7" design that FIVE
+sections were built to teach as CURRENT. The stale unit was the section
+PREMISE, not the line.
+
+The tell (distinct from L-019's "Wave-X-framed" history): a section stated
+its stale design in the PRESENT tense as a live rationale — "apply and solve
+use different closures **by design**", "What **stayed** deliberately legacy",
+"`apply` operates on the **packed 1-D solution vector**". A per-site literalize
+leaves the false THESIS standing.
+
+Disposition ladder for a thesis-stale section:
+- **THESIS-stale reference/rationale section → SUPERSESSION BANNER at the
+  section head** stating the unification + the current one-truth + the campaign
+  cite, then past-tense the body verbs + literalize dead roles, PRESERVING the
+  historical reasoning under the banner (the Wave-D two-closure narrative +
+  ERR-026 stayed — it is still pedagogically load-bearing). Retitle
+  "…**(historical)**". This is L-019's banner move promoted from
+  history-framed sections to present-tense-rationale sections.
+- **The ONE genuinely stale-AS-CURRENT contract → full behavioral section
+  REWRITE** to the unified live contract (here the psi_bc/Q_aniso "Vector
+  layouts" bullet list → the `FullField` composite: source on
+  `rhs.interior.values`, boundary on typed `AngularBoundaryFlux` face views),
+  with the retired triple recorded in a trailing `.. note::`. This rewrite is
+  what actually KILLS the "Persistent boundary-flux dict psi_bc carrying state"
+  bullet (grep it → 0).
+- **A moot FUTURE-WORK section (the unification made the planned migration
+  unnecessary) → retitle "…(obsoleted)" + `.. note:: Obsoleted by deletion`,
+  PRESERVING its `:ref:`-target label** (an `.. _future-work:` anchor is often
+  referenced from elsewhere; deleting it dangles those refs — keep the label,
+  make the CONTENT truthful). Grep the label before touching it.
+- **Co-literalize deleted-SIBLING roles only INSIDE clauses you're already
+  rewriting** (a `:func:solution_to_angular_flux` sitting in the same sentence
+  as your matvec fix — leaving a live dead-role in a line you're editing is a
+  self-inflicted Rule-1 staleness). FLAG the standalone sibling-cluster
+  (EquationMap/codec) for its OWN pass — don't chase it tree-wide (L-007).
+
+Disciplines carried from L-019 unchanged: ground every successor in live code
+FIRST (L-001); grep-gate every new `:func:`/`:class:`/`:meth:` xref against
+live code AND (for Protocol methods) a python `hasattr` probe (L-002 — dead
+roles render plain-text, `-W` blind); size retitled underlines in code points
+(L-009); acceptance = the three-severity `-E -W` count UNCHANGED-from-baseline
++ a `git grep <symbol> -- docs orpheus` survivor audit where every survivor is
+a past-tense literal.
+
+How to apply: after the successor table, read each flagged line's ENCLOSING
+SECTION and ask "is the section's PREMISE still true under live architecture?"
+If the symbol's deletion is a corollary of a unification (grep the live code
+for the "one X" / "matvec ≡ sweep" / "dissolved" fact), the premise is stale
+too — banner the rationale section, rewrite the one stale-as-current contract,
+obsolete-but-preserve the moot future-work section, and preserve the historical
+reasoning under every banner.
+
+---
+
+## L-021 — The bulk-scanner staleness sweep: I am the JUDGMENT layer over a precision-over-recall Haiku pass — re-verify EVERY finding vs LIVE, reject stale-evidence, and a scanner suggestion is a STARTING POINT not the truth
+
+A 200+-finding automated staleness sweep (Haiku scanners, "precision over recall
+with command evidence") is compiled by a weaker model; the dispatch brief itself
+says "you are the judgment layer". The recurring failures are (a) trusting a
+scanner's suggested TARGET, (b) trusting a scanner's stale WARNING-evidence, and
+(c) transcribing a fix that mints a NEW false claim. Disciplines that held across
+29 files / 120→15 dead-role reduction:
+
+- **A scanner's suggested target can name a symbol that does NOT exist.** The
+  scanner conflated a retired Protocol name with the live class:
+  `AngularQuadrature.spherical_harmonics` → the scanner said "retarget to
+  `orpheus.numerics.quadrature.AngularQuadrature.spherical_harmonics`" but
+  `AngularQuadrature` does not exist anywhere (`hasattr` False) — the live class
+  is `Quadrature`. ALWAYS `hasattr`/import-verify the SUGGESTED target, not just
+  confirm the OLD one is dead. The census resolver (getattr-chain longest
+  importable prefix) is the cheap gate: batch-probe every candidate target before
+  editing.
+- **A scanner's "sphinx-build warns: X not found" evidence can be STALE — check
+  the CURRENT clean build.** One finding claimed a `:mod:` bare ref "warns py:mod
+  target not found"; the current `-W` build had NO such warning (bare `:mod:legacy_name`
+  renders plain-text WITHOUT warning, L-002). REJECT the finding (evidence
+  doesn't hold), and if the ref is a page-wide legacy-naming convention used N×,
+  leave it (fixing all N is a rename beyond flagged scope) — record the rejection.
+- **Reproducing a fix routinely surfaces a NEW false claim the scanner didn't
+  flag — fix the CLAIM, not just the role (Cardinal Rule 1 > scope).** Two
+  instances THIS pass: (i) a doc said "verified against **SymPy**'s
+  `sympy.integrate(...)`" but the live test uses `scipy.integrate.quad` singular
+  quadrature — corrected the pillar attribution, not just the test-name role.
+  (ii) I nearly wrote "`wigner_seitz_pin_cell` default of 10 fuel + 3 clad + 7
+  coolant sub-cells" transcribing a `pwr_pin_equivalent` default — but
+  `wigner_seitz_pin_cell` produces region THICKNESSES only; the sub-cell COUNT is
+  a `RegionMesh(n_cells=...)` choice at `Mesh1D.from_geometry`. Caught my own
+  mid-edit false claim by reading the successor's live body (L-001 applied to my
+  OWN draft). RULE: when a retarget crosses a numerical/structural CLAIM, read
+  the successor's live def AND re-verify the surrounding claim's truth before
+  re-spelling it.
+- **THESIS-STALE beats symbol-stale when a whole class/design was deleted.** A
+  deleted carrier class (`GeometrySpec`) staled not just its `:class:` refs but
+  the SCHEMA table, the migration narrative (prospective "Phase B will split"
+  when the split is DONE + the carrier since deleted), the bridge-test bullets,
+  AND the rationale section — a full-section rewrite to the current
+  `geometry_kind: str` + `to_geometry()` form. Similarly a scattering per-ℓ
+  ladder retired for a Funk-Hecke `R∘Λ∘M` kernel staled a `:class:OperatorSum of
+  per-ℓ leaves` TABLE ROW (present-tense architecture), not just the Code-Anchors
+  entry. Read the ENCLOSING claim's premise against live architecture (L-020),
+  not just the flagged line.
+- **A `:ref:` anchor placed AFTER a section title does not resolve as a title
+  target — put `.. _label:` ABOVE the title.** The only real WARNING I introduced:
+  a forward `:ref:` to an anchor I'd defined between a title and its body. Move
+  the anchor above the underlined title (blank line between) so `:ref:` picks up
+  the section title.
+- **Mechanical families are the bulk win — replace_all on unique multi-char
+  strings, count-asserted.** CP/MoC test-filename drift (`test_cp_*.py`/`test_moc_*.py`
+  → `tests/{cp,moc}/test_*.py`), a module rename (`test_galerkin_spectral_symbolic`
+  → `test_carlvik_galerkin_symbolic`, ×8, fn names unchanged), short-path role
+  normalization (`~geometry/numerics/data/sn.*`→`~orpheus.*`), numbered-dir relics
+  (`07.Thermal.Hydraulics/...`→`orpheus/thermal_hydraulics/solver.py`). Use a
+  count-asserting Python script (assert count==1 for uniques, log count>1 for
+  known-duplicates) on the LARGE files where reading 20k lines is impractical —
+  it's auditable and can't introduce a transcription error. Order matters:
+  replace the LONGER stem first (`thermal_hydraulics_dae.py` before
+  `thermal_hydraulics.py`) even when disjoint, to be safe.
+- **The residual census MUST be fully attributed.** After the sweep, every
+  remaining dead-role census hit must map to a KNOWN false-positive class
+  (dataclass-field/ctor-param without default → resolver getattr-chain
+  limitation; historical framing "no longer exists"; planned/future `(planned)`/
+  "scheduled to promote"). Enumerate them; re-read the doc context of any you're
+  unsure of; list any that DON'T fit and fix them. 15/15 residuals attributed
+  this pass — none required fixing.
+
+How to apply: for any bulk-scanner-compiled fix job, batch-probe every SUGGESTED
+target (not just the old one) against live code FIRST; reject findings whose
+build-warning evidence the current clean build contradicts; when a retarget
+crosses a numerical/structural claim, read the successor's live body and
+re-verify the claim; rewrite the enclosing THESIS when a deleted class/design
+staled the whole section; and attribute every census residual to a known FP class.
 
 ---
 

@@ -2076,3 +2076,47 @@ legs; distilled by the qa leg, persisted by the main agent.)
    fixed point is splitting-invariant by construction: it cannot distinguish the fold, or even
    G-S from Jacobi). Minting the forward matvec of the SAME restricted operator (reify
    `M = (L+C-B_lower)`) is the only way to make the round-trip exact.
+
+---
+
+## L-054 -- triaging audit-MISSING `catches("ERR-NNN")`: grep the production RAISE SITE / invariant-enforcement FIRST -- three outcomes, and only one is "add the marker"
+
+(Metadata-only marker-patch task 2026-07-11, branch refactor/sn-walk-unification; 9 MISSING
+ERRs -> 5 tagged, 4 reported NO CATCHER.)
+
+The audit lists an ERR as MISSING when no test carries its `catches` marker. That is NOT
+automatically "add a marker" -- before tagging OR reporting a gap, grep whether the cataloged
+bug is even *reachable*: find the production `raise <ErrorClass>` site (or the enforcement of
+the invariant the ERR broke). Four things it discriminates:
+
+1. **Genuine catcher present -> tag it, mutation-verified.** The exact bug re-introduced reds
+   THIS test (L-007). Verified empirically for ERR-020 (bit-identity `np.all(vol==vol[0])`;
+   edge-derived `**3` round-trip reds it), ERR-031 (positional arg-swap -> the swapped radii
+   `[2.0,0.1]` trip the strictly-increasing guard -> `ValueError`), ERR-040 (tangential
+   ordinate admitted to a selector -> `test_axis_aligned_ordinates_excluded_from_both_selectors`
+   reds). Probe via a `/tmp` script with EXPLICIT boolean prints, never a bare `assert` (L-052).
+2. **Catalog's "L0 test" names a RETIRED test class -> the marker didn't migrate.** ERR-020's
+   entry named `TestZoneSubdivision::test_equal_volume_*` -- retired in Phase F, MOVED to
+   `test_structured_geometry.py` (`test_equal_volume_{cyl,sph}_invariant`), and the marker was
+   left behind in a now-STALE comment claiming the decorators "stay". Retirement-means-test-
+   migration (L-022 family) applies to MARKERS too: re-tag the successor asserting the SAME
+   invariant. This is the usual cause of a MISSING whose catalog "L0 test" still reads plausible.
+3. **Typed error defined+exported but NEVER raised = dead scaffolding -> genuine unbuilt-invariant
+   gap, report NO CATCHER.** ERR-041/045/047: the error classes ship + export + have a catalog
+   entry ("TYPE SHIPPED Wave 3 / catching test ships Wave 7"), but `grep -rn "raise <Class>"
+   orpheus/` is EMPTY and the `assert_*` invariant is a no-op default (no concrete override).
+   The promissory "Wave 7 catching test" was never built; nothing can red on a recurrence.
+   Do NOT invent a marker -- the MISSING is truthful.
+4. **`assert_X` delegates to a WEAKER sibling invariant -> it catches the sibling's bug, NOT its
+   own.** ERR-042 (`assert_geometry_map_measure_preserving`) `self.assert_is_involutive(quad)`
+   and ASSUMES weight-symmetry "by construction" -- so it reds only on non-involution (ERR-044),
+   never on the weight-measure drift ERR-042 documents; no Q4.x quadrature test checks
+   `weights[ref]==weights` either. Tagging its test `catches("ERR-042")` is the exact L-007
+   blind-marker trap (reds on a DIFFERENT class). Report NO CATCHER; the method's name over-
+   claims its body (coding-elegance #20).
+
+The pushback rationale for outcomes 3-4 is already covered by the vv-principles `catches`-marker
+directive (mutation-verify the EXACT bug reds THIS test) -- no new anti-pattern; this is its
+audit-triage application. Marker-only edits: confirm green under canonical `-O` AND that the
+`git status` dirt in do-not-touch files is PRE-EXISTING (grep your own ERR numbers out of their
+diffs) -- a shared working tree makes every dirty file look like yours.

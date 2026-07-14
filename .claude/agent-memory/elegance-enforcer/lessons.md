@@ -262,9 +262,21 @@ self-description of what it retired).
 How to apply: when a carve narrows a type such that an ignore SHOULD have become removable,
 do NOT eyeball it — write a throwaway config at the repo ROOT (so `venvPath`/`ignore` resolve)
 mirroring `pyrightconfig.json` + `"reportUnnecessaryTypeIgnoreComment": "error"` +
-`"include": ["<the one file>"]`, run `npx pyright -p <tmp>.json`, grep the lines, then `rm`
+`"include": ["<the one file>"]`, run `/opt/homebrew/bin/pyright -p <tmp>.json` (repo-root path,
+NOT `/tmp` — venvPath `.` resolves relative to the config's dir), grep the lines, then `rm`
 the config. Read-only — never edit the file under review. Bug habitat = anti-#19: a dead
 `[index]` ignore silences `reportIndexIssue` at that exact site, so the day a future edit
 re-introduces an Optional there the real error is swallowed. Coextensive-today ⟹ NIT, but a
 do-now NIT: the campaign's whole purpose is removing dead suppressions, and the doc that
 CLAIMS they were retired is itself now false. (#226 C5 pyright-burndown review, 2026-07-03.)
+
+**Sharpening (SN un-weld 1b, 2026-07-07):** the check applies to MOVED ignores, not just
+NEW-on-narrowed ones. When a carve relocates a method to a new sibling class (here
+`_reflect_radial_characteristic` → `RadialCharacteristicBoundaryOperator._reflect_corner`),
+a `mesh=seed.mesh  # type: ignore[attr-defined]` it carries along can be dead — and was
+ALREADY dead pre-carve (the field declared `mesh: SNMesh` all along; only 2 of 7
+`RadialCharacteristicSourceSink(...)` sites carried the ignore, the tell). The carve's
+"pyright transport:1 (+0)" gate was TRUE yet HOLLOW at both the moved copy AND the fresh
+duplicate the un-weld minted. Precedent-setting carves make it worse: the dead ignore
+becomes the template every future block operator copies. Run the check on any file that
+gains/moves a `type: ignore`, not only on the Optional→required sites.

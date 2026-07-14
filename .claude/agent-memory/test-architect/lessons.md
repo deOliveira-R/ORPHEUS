@@ -193,6 +193,22 @@ distinct mechanisms, all requiring an explicit liveness proof:
   is even exercised end-to-end — a round-trip pins neither correctness
   nor convention (a matvec runs only under `inner_solver='krylov'`; SI
   sweeps never touch it).
+- **Retiring a runtime guard that had NO negative test → its
+  replacement's teeth are NET-NEW, not migrated.** Before crediting a
+  guard→invariant mechanism-swap as behavior-identical, grep whether ANY
+  test asserts the OLD guard's raise (`pytest.raises(match=<guard msg>)`).
+  If none — common for internal "belt-and-suspenders" consistency
+  asserts (the SN `_require`/`_refuse_starting_direction` biconditional
+  had ZERO negative tests across 7 sites) — the retirement silently
+  drops a REAL-but-unpinned safety net. The plan MUST WRITE the negative
+  test the guard never had, pinned to the NEW consolidated check, or the
+  swap loses teeth invisibly. A `pytest.raises` teeth-gate for such a
+  check MUST `match=` the SPECIFIC consolidated-check message: a
+  downstream crash on the same malformed input (e.g. `precompute_psi_
+  state(None)` → AttributeError) satisfies a bare `pytest.raises(...)`
+  and gives a FALSE-green teeth claim (the xfail-strict cousin). Pair
+  with the positive CONTROL (the correctly-built composite solves) so
+  the raise is attributable to the mismatch, not a broken path.
 
 How to apply: for every gate named as evidence, ask "what mutation
 reddens this, and does it fire under `-O`?" before crediting it.
@@ -977,3 +993,597 @@ direct/iterative tolerance split. The terminal sibling of L13 (the ADDITIVE
 design this EXECUTES) / L14 (the iterative Green) / L7 (regression
 tolerance) / L10 (assert the pyright delta). `vv §Mode-8/11 / bit-identity /
 anti-#2,#11,#19`.
+
+---
+
+## L16 — Verifying a NEW *consumption mode* of a shipped per-cell closure algebra (`assemble()` = the 3rd mode beside `solve`/`apply`) + the relocation-is-behavior-free gate
+
+When a carve adds a THIRD consumption mode of the ONE closure algebra
+(SN/diffusion `solve`=sweep + `apply`=matvec already share the per-cell
+coefficient source; the new `assemble()` emits the SAME coefficients as
+(row,col,value) into a global scipy-sparse `LinearOperator`), and relocates
+its module DOWN a layer (`sn/spatial`→`transport/spatial`), six reusable
+test-design facts (Phase-2 spatial-substrate + assembly campaign,
+`.claude/plans/assembly_mode_crosswalk.md`):
+
+- **The ONE-SOURCE PROOF is the campaign's whole point (the Phase-F twin-path
+  guardrail).** `assemble` MUST consume the same coefficient source `solve`/
+  `apply` do (DD: `cell_balance.cell_balance_for_streaming`; LD:
+  `_ubld.assemble_ubld`+`d1_closed_form`; diffusion:
+  `operators._interior_conductance`/`_boundary_closure`). The proof =
+  a monkeypatch **sign-flip in the SHARED source** must red BOTH the new
+  equivalence gates AND the EXISTING sweep/matvec suites. If ONLY the new gate
+  reds → a parallel stencil (twin path) exists → **STOP, fix, log ERR-NNN**.
+  Classify every mutation shared-source (reds both) vs assembly-local (reds
+  only new: DOF-transposition, wrong-neighbor, walk-order-P). **DD is the
+  HIGHER twin-path risk than LD**: DD has NO dense block (its matvec is the
+  fused scalar `residual_kernel_batch` → a fresh stencil emission is tempting);
+  LD's apply already does `einsum(assemble_ubld["A"], psi)` so LD-assembly is
+  scatter-of-EXISTING-blocks. The M1 sign-flip on the DD shared source is the
+  single highest-value mutation.
+- **Sparse-order ≠ apply-order ⇒ NO gate is 0-ULP; the independence is a
+  FEATURE.** `assembled@x` sums each row in CSR order; `apply(x)` in the
+  native `np.diff`/`einsum`/left-fold order → G1 (`assembled@x≡apply(x)`) is
+  **nulp/`rtol=1e-11`** (bound = row-bandwidth×eps), NEVER `array_equal`
+  (vv §bit-identity crit-3). `solve_triangular` (scipy→LAPACK `dtrtrs`) is a
+  structurally-INDEPENDENT forward substitution vs the ORPHEUS scalar sweep
+  recurrence → G2 (`solve_triangular(P·L·Pᵀ,q)≡sweep.solve(q)`) is **rtol**,
+  and that independence EARNS G2 its L2-cross-check status + **discharges the
+  sweep-inverse contract question object-level** (here #284). G2's
+  triangularity leg (`triu(P·L·Pᵀ,k=1)==0`) is a structural EXACT zero.
+- **The `as_matrix`-DELEGATES-to-assembly TAUTOLOGY trap (proactive refute,
+  L10).** Once `as_matrix` delegates to densified assembly (the R2 design), the
+  naive `op.as_matrix()≡op.assemble().to_dense()` is VACUOUS (assembly vs
+  itself). The fuller-view-oracle gate MUST force the **RETAINED probing
+  fallback** (`_as_matrix_by_probing`, the pre-carve apply-to-basis loop) ≡
+  `assemble().to_dense()`. Keep EXACTLY ONE probed≡assembled pin per family as
+  the permanent oracle (an explicit keep decision, coding-standards fuller-view
+  exception) — the diffusion loss (already has the `as_matrix`≡hand-posed-FD
+  stencil l0 gate) + one DD slab block. Probing `A[i,j]=apply(e_j)[i]` extracts
+  ONE coefficient (no summation) but via apply-arithmetic ≠ direct emission →
+  still nulp, not 0-ULP.
+- **Config: the DOF-transposition + face-pairing mutations are transpose-BLIND
+  on a SYMMETRIC operator (Mode-12).** A row/col swap on `A=Aᵀ` is invisible →
+  the fixture MUST be het + **asymmetric SigS** + **non-uniform h** so `A≠Aᵀ`
+  and the transposition/face-swap is observable (reuse the exact
+  `tests/diffusion/test_operators.py` fixture — it already pulls every lever
+  with the comment "asymmetric Σ_s so a transpose is observable"). G1's `x`
+  MUST be **non-flat fixed-seed random** with non-zero inflow (flat x nulls the
+  DD streaming coupling, §0.6/H2). ≥2G always (anti-#3); exclude 1G explicitly,
+  ship NO 1G "structural smoke".
+- **G1 is object-level ONLY as a matvec, NEVER a derived scalar.** `Δx=0` for a
+  FIXED implementation bug `Δ=A_asm−A_apply` is caught by a single GENERIC
+  random x w.p.1 (kernel measure-zero); K≈8 fixed-seed random = redundancy;
+  G3 (probed≡assembly on the full matrix) is the exhaustive object pin on the
+  anchor member. NEVER gate `keff(assembled)≡keff(apply)` — a similarity/
+  transpose Δ is spectrally invisible (Mode-12, the #226 step-5b overclaim).
+- **The out-of-scope-defect CHARACTERIZATION gate flips LOUD, opposite to
+  xfail.** Curvilinear assembly is OUT (blocked on the #282 lagged-ψ½ pole
+  seed); characterize it by assembling the spherical walk and POSITIVELY
+  asserting `np.any(triu(P·L_sph·Pᵀ,k=1)≠0)` (the defect EXISTS) with an
+  actionable message. NOT xfail: xfail-`strict=False` flips silently to xpass
+  for a not-yet-landed FEATURE; here we want a LOUD RED forcing a rewrite when
+  the defect is FIXED (promote to a G2 triangular gate). Check `error_catalog`
+  for a #282 ERR → `catches()`; else cite the issue.
+- **RELOCATION is behavior-free BY CONSTRUCTION → lean on existing gates, argue
+  AGAINST a new snapshot/hash.** A pure `git mv`+import-rewire changes no
+  numerical-code byte, so a NEW output-hash/snapshot is redundant with the
+  EXISTING `-W error::DriftWarning` snapshot suites (which already pin byte-id;
+  an iterated snapshot is the WRONG bit-id gate anyway, L7). The walls are:
+  existing DriftWarning suites green + Sphinx `-W` clean (a `:mod:`/`:class:`
+  xref at the old path renders as plain text with NO `-W` warning → ALSO)
+  grep-completeness `grep -rn "<old.path>" orpheus/ tests/ docs/` returns ZERO
+  (L15 regrep) + importer-suite nodeid-set identical modulo the moved files'
+  own paths. Tests travel WITH their modules (relocation ≠ retirement — move
+  behavioral AND import-path smokes; markers key on nodeid, `registry.clear()`
+  per-collection so no surgery).
+
+How to apply: for a new-consumption-mode-of-a-shipped-algebra carve, the
+§0.5 named risk is THE one-source proof (shared-source sign-flip reds BOTH new
+AND existing; DD is the twin-path-risk cell). Tolerances: G1 nulp / G2
+rtol-via-independent-scipy / structural-EXACT triangularity; NEVER `array_equal`
+(sparse-order), NEVER a scalar functional (Mode-12). Force the retained probing
+path for the fuller-view-oracle (as_matrix-delegates tautology). Mandatory
+asymmetric-SigS+non-uniform-h (transpose observability) + non-flat random x.
+Characterize an out-of-scope defect with a positive assert-defect + loud-flip
+message, not xfail. Relocation: existing DriftWarning + Sphinx-W + regrep-ZERO,
+no new hash. The consumption-mode sibling of L11 (axis-transpose of a shipped
+reduction) / L12 (fast-path→composed fold); `vv §bit-identity / Mode-8/12 /
+anti-#2,#3,#4,#11`; mirrors L7/L10/L15.
+
+## L17 — Verifying the reverse-SCAN transpose-solve (#280) + its apply-loop unification: the assembled-Mᵀ oracle, the self-referential-relocation trap, and the retired-vocab reconciliation
+
+The #280 carve builds the 4th face of the `(L+C)` 2×2 — the reverse-DAG
+transpose-solve — as a reverse-SCAN coherent with the forward Blelloch
+`_run` (NOT the reverse-LOOP the a3 spec assumed), and first unifies the
+apply-loop family `{_apply_walk (fwd matvec), loss_action_transpose (adj
+matvec)}`. Full recipe `a3_reverse_scan_transpose_verification.md`; the
+durable test-design facts:
+
+- **The operator VOCAB is stale — reconcile against the #226 typed-predicate
+  world FIRST (L10 refute-the-premise).** The a3 spec's
+  `InvertibleOperator.solve_transpose`/`CAP_SOLVE_TRANSPOSE`/`_AdjointOperator.solve`/
+  `CAP_SOLVE` is RETIRED (L13/L15 frozenset→predicate landed). CURRENT
+  primitive = **`SweepOperator.apply_transpose`** (`SweepOperator=(L+C).inverse()`;
+  the reverse-scan IS the inverse operator's transpose matvec), gated by
+  **`SweepOperator.is_adjointable`→True**. The metric transpose-solve
+  `A.inverse().H.apply(b)=G⁻¹·apply_transpose(G·b)` falls out of the EXISTING
+  `_AdjointOperator.apply` FOR FREE — NO `_AdjointOperator.solve` is minted;
+  `_AdjointOperator.inverse()`+`is_invertible` close the coherence
+  `A.H.inverse()≡A.inverse().H`. Design gates against the LIVE surface, never
+  the retired string tags (`InverseWrapMixin` docstring already names #280).
+- **The existing 0-ULP `array_equal` matvec canaries are SELF-REFERENTIAL →
+  necessary-not-sufficient for a RELOCATION.** `test_removal_form_matvec_sweep`'s
+  fwd/adj `array_equal` gates compare `op.apply[_transpose]` against the SAME
+  `loss_action[_transpose]` on a FRESH `StreamingOperator(σ_r)` — a
+  reduction-tree "override-owns-it vs leaf-sum-leak" discriminator, NOT a value
+  oracle. A relocation moving BOTH the SUT path AND the reference path (same
+  relocated code) leaves them GREEN even if values shifted (the twin/Mode-11
+  hazard). The genuine 0-ULP relocation proof is a **FROZEN pre-carve baseline
+  snapshot** (`assert_regression --capture-baseline`, both orientations,
+  slab/sphere/cyl 2G) — structurally independent because captured BEFORE the code.
+- **The new shared 1-D loop frame needs its OWN structural pin (there is NONE
+  today).** Multi-D has `test_one_octant_walk` (runtime `_interior_walk` spy +
+  AST tripwire on `{is_solve,is_apply,is_matvec}`); the 1-D `_OneDimScanWalk`
+  has no spy (its `_apply_walk`/`loss_action_transpose` were verbatim
+  relocations, three separate skeletons). 2.5a CREATES the shared frame → mint
+  the ORIENTATION sibling: a Mode-11-WRAP runtime spy (both orientations route
+  through the ONE method, count>0) + an AST tripwire forbidding
+  `is_adjoint`/`is_forward`/`is_transpose`/`is_reverse` as identifiers, demanding
+  an orientation-carrying OBJECT (like `_ApplyOperands`/`_SolveOperands`).
+- **The assembly mode gives a NEW structurally-independent transpose oracle —
+  Cartesian ONLY.** `permuted=block.as_matrix()[ix_(order,order)]` is
+  walk-order lower-tri; the reverse-solve oracle is
+  `solve_triangular(permuted.T, b[order], lower=False)` (LAPACK back-sub,
+  shares NO code with the ORPHEUS scan). CATCHES the wrong TRANSPOSED-SCAN-
+  COEFFICIENT (a'/b' of the reversed affine recurrence — scan≠loop) + gives the
+  exact triangularity certificate + discharges "reverse-substitution IS
+  sweep_transpose" object-level (transpose analog of #284). But assembly is
+  Cartesian-only (`SNMesh.streaming` gate) → **the SPHERE μ-reversal/mirror bug
+  is INVISIBLE to it; the dense-apply G2 `np.linalg.solve(M.T,b)` (M from fwd
+  apply) stays the KEYSTONE on the mandatory sphere leg.** LD caveat: if
+  `loss_action_transpose` is DD-only (no moment tail), the LD assembled-Mᵀ
+  oracle is moot — verify LD-adjoint scope first.
+- **Reverse-SCAN's NEW modes over the reverse-LOOP:** (i) wrong transposed scan
+  coeffs → G2 dense-Mᵀ + assembled-Mᵀ; (ii) two-denom seam (÷V apply vs ×V
+  `_run` scan, #242) → G1 round-trip + G2; (iii) curvilinear μ-level-coupled scan
+  reversal + `angular_adjoint` + Carlson mirror → G1/G2 SPHERE leg (slab NULLS);
+  all object-level — NEVER credit `sweep_transpose` on `k*`/norm (`eig(Kᵀ)=eig(K)`
+  is adjoint-blind, Mode-12; memory "NEVER keff(asm)≡keff(apply)").
+- **Scaffold: G3 full-loss `(L+C−S−B)` reciprocity lands PRE-carve** (S† at
+  `15185e5`; extend `test_g_adjoint_reciprocity` L+C−B→L+C−S−B, asymmetric SigS
+  ≥2G, per-group one-hot φ vv L27) — it hardens the `apply_transpose` surface
+  2.5a rebuilds, giving the adjoint bit-identity a composite-level canary.
+  #282-fix (CONDITIONAL, unruled): if the augmented ψ(·,μ=−1) state lands in
+  2.5, the `test_282_characterization` loud-flip fires (L16) and its successor
+  is a spherical G2 gate on the augmented system (seed rows first, back edge →
+  forward edge; teeth = swap the seed coupling direction).
+
+How to apply: reverse-DAG transpose-solve or apply-loop-unification carve →
+FIRST reconcile the retired `CAP_*`/`solve_transpose` vocab to the live
+`SweepOperator.apply_transpose`/`is_adjointable`; frozen-baseline the
+relocation (the array_equal canaries are self-referential); mint the
+orientation-OBJECT AST tripwire + 1-D spy (none exists); the assembled-Mᵀ
+oracle is a real Cartesian L2 cross-check but the SPHERE dense-apply G2 is the
+keystone (assembly is Cartesian-only); object-level gates ONLY (Mode-12);
+G3 reciprocity is pre-carve. The transpose/inverse-axis sibling of L13/L14/L15
+(the operator-taxonomy family) + L16 (the assembly consumption mode);
+`vv §bit-identity / Mode-8/11/12 / anti-#2,#3`.
+
+## L18 — Verifying a CARRIER AUGMENTATION's ψ½ block (#282 route (a): the direct μ=−1 starting-direction seed as a typed per-level block). ⚠ SHARPENED 2026-07-06: the "zero-G-weight DOF → reciprocity IDENTICALLY blind → encode the blindness as a positive pin" claim was REFUTED by the derivation-of-record — the STATE metric is G_sd=V_cell (SPD), NOT the ghost zero, so reciprocity CLOSES Mode-12 (a seed-row flip REDS). Still-valid: closed-form-direct-solver pillar, prove-the-block-is-CONSUMED, cold-residual acceptance number, "cylinder unmoved" is a TESTED assertion
+
+The #282 fix adds a typed per-starting-direction-level ψ½ block to the
+curvilinear composite (sphere 1 level, cyl n_polar; slab/cart ABSENT) and makes
+`solve` march the seed rows FIRST via `carlson_inward_sweep_from_source` on the
+TRUE source's q½ block (the lag dies; the sphere solve becomes a genuine
+triangular inverse). Full spec `a3_solve_transpose_verification.md` §16. Durable
+test-design facts (the sub-phase sibling of L16/L17):
+
+- **⚠ CORRECTED: a carrier DOF's Hilbert STATE metric is set by its OPERATOR
+  ROLE, NOT by its angular-INTEGRATION weight — conflating them gives the WRONG
+  (ghost) metric and a Mode-12 FALSE-GREEN** (derivation-of-record
+  `starting_direction_metric_gauge_derivation.md`, 2026-07-06; this REPLACES my
+  earlier "zero-weight DOF is reciprocity-invisible / encode the blindness as a
+  positive pin" claim). The Carlson α₁ᐟ₂=0 is the angular THROUGH-FLUX weight
+  (correctly excludes ψ½ from `φ=Σw_n ψ_n` — an OPERATOR coefficient); the STATE
+  metric is set by ψ½'s role as a first-class RADIAL field (its self-block A_ss
+  is a BANDED radial transport operator `μ∂_r+σ`, not a grazing angular face —
+  diag_gsd_05). So **G_sd = V_cell (SPD)**, mirroring `G_bulk=V·w`; since
+  `apply_transpose≡Aᵀ` EXACTLY, reciprocity is GAUGE-FREE among ALL SPD G_sd.
+  **G_sd=0 is the single FORBIDDEN value**: it puts the seed in null(G), severing
+  the seed→bulk A_bs coupling from `A.H=G⁻¹AᵀG` — a WRONG adjoint the instant the
+  seed carries data (production random-seed defect 1.3e-2), green ONLY because the
+  old gate fed a present-but-ZERO seed. **With SPD G_sd, reciprocity DOES catch a
+  seed-row transpose error (Mode-12 CLOSED)** — INVERT any gate built on the old
+  blindness (rename `_blind_to_` → `_catches_`; assert flip REDS not stays-green).
+- **A Mode-12-CLOSURE reciprocity gate needs BOTH legs — control-holds AND
+  mutated-reds; the mutated leg ALONE is fooled by a broken baseline.** Flip
+  `_seed_rows_forward` (forward A_ss) but NOT `_seed_rows_transpose` (A.H's
+  independent reverse mode) → an apply-vs-transpose inconsistency the SPD metric
+  sees. Assert (1) UNMUTATED nonzero-seed reciprocity HOLDS `<1e-12` (baseline is
+  the honest V_cell adjoint) AND (2) the flip REDS `>1e-6`. WITHOUT leg (1),
+  reverting G_sd→0 gives flip-defect 0.107>tol TOO (baseline broken, flip
+  invisible — a broken baseline MIMICKING "caught") → false green. Measured dense
+  sweep {0/id/V_cell/V·w}×{zero/random/flip}: g_sd=0 → random 0.107 / flip 0.107
+  (BLIND, unchanged); V_cell → random 1e-16 / flip 1.000 (CLOSED); faithfulness
+  `‖G⁺TG−A.H‖`=2.8e-14. The gauge is INERT (control leg c): corner V[-1]→2·V[-1]
+  keeps reciprocity green AND the bulk solve bit-identical (observable-level).
+  Feed the independent `_g_inner` seed term from PRODUCTION's
+  `starting_direction_space.inner_product_weights` (the gauge must MATCH A.H's,
+  else false-red — the seed metric verifies no VALUE, only SPD-ness, so this is
+  NOT reference contamination; the load-bearing content is the TRANSPOSE, caught
+  because the error is in Aᵀ not G). Canonical Mode-12 gate = the promoted
+  `diag_gsd_02` dense sweep; production-path corroboration = the inverted
+  `test_282::test_mode12_g_reciprocity_catches_a_seed_row_flip`.
+- **The direct-solver structural pillar is the closed-form exponential ODE, NOT
+  the recurrence hand-trace.** The μ=−1 equation `−dφ/dr+σφ=q` has
+  `φ(r)=q/σ+(φ_R−q/σ)e^{−σ(R−r)}`; DD converges O(Δr²) to it. The EXISTING
+  Carlson pins hand-trace the SAME DD recurrence (procedural, NOT structural —
+  the ERR-032 shared-upstream hazard) and route through the PROXY `Q̄=σφ₀/Σw`,
+  never the true-source direct entry. Add the convergence pin on an ARBITRARY
+  `Q_bar`; the GRADED-mesh row is MANDATORY (uniform is blind to a `dr[k]` index
+  drift, Mode 5). The q½ source fold needs the anisotropic 2-term
+  `P_ℓ(−1)=(−1)^ℓ` hand-check manufactured FIRST (an all-isotropic suite is
+  silently blind to a dropped/mis-signed φ_ℓ≥1, §0.6).
+- **Prove the new carrier block is CONSUMED before crediting any gate (term
+  activation, Mode-11-adjacent).** Zero the source's q½ block → the solve MUST
+  move (`solve(b_with_q½) ≠ solve(b, q½=0)`); if equal, the whole augmentation
+  is INERT (silent coverage loss). Pair with a Mode-11 WRAP sentinel on
+  `carlson_inward_sweep_from_source` (count>0 on sphere solve, ==0 on slab).
+- **The cold-residual is THE acceptance number, promoted from a diagnostic —
+  a LAG-DEATH classifier, distinct from seed correctness.** `‖A·solve(b)−b‖/‖b‖`
+  over the FULL augmented field, COLD: sphere 5.18e5 → `<1e-11` (slab-level, no
+  iterate-threading, no sphere slack — the fix EARNS the tight tol); slab/cyl
+  controls already ~7e-16 must STAY. It certifies solve↔apply CONSISTENCY (lag
+  dead), NOT coefficients (the direct-solver pin + Euclidean `Mᵀ` own those).
+  Companions: seed-INSENSITIVITY (Δ 4.57e-2 → bitwise), the decisive classifier
+  (`b=A.apply(psi0)`; cold solve recovers `psi0` → the fixed point did not move),
+  the coarse `level_symmetric` S4 end-to-end (SI-NaN/Krylov-negative → finite+
+  positive; a physicality gate, NOT precision NOT keff), the c=0 no-outer-
+  iteration degenerate.
+- **"Curvilinear re-baselines" is too coarse for the CYLINDER — assert-unmoved
+  FIRST.** The cyl seed is weightless (α=0 AND the per-level α-dome telescopes,
+  the #282 0.0-bit row) → the frozen `walk_matvec_cyl_2g` MUST stay `array_equal`
+  (a DIFFERENT ψ½ carrier value gives the SAME physical output iff the seed is
+  truly annihilated). A cyl move HALTS the carve (FP-reorder → re-capture WITH a
+  3-criteria record + "weightless was too strong"; or a leak-bug). Only the
+  SPHERE re-captures (principled, [[feedback-principled-over-bit-identical]]);
+  the slab stays bitwise. Sharper than the roadmap's blanket "curvilinear
+  re-captures" — it pins the seed-weightless INVARIANT a silent re-capture loses.
+- **Sequencing (R10: 2.5d BEFORE 2.5b) sets the gate split.** The fix lands
+  first → the 2.5b sphere G1/G2 `Mᵀ` chain is written EXACT single-pass (rtol
+  1e-11, NO iterate-threading — SUPERSEDES the a3 §0.3 loose-1e-9). 2.5d's own
+  successor to the loud-flipped `test_282_characterization` is triangularity
+  ONLY (`triu(PᵀM_augP,1)==0` on the matvec-probed AUGMENTED matrix, seed-rows-
+  first order — NO assembly-emitter extension); the LAPACK-≡-sweep leg waits for
+  the 2.5b reverse-scan.
+- **Framing-agnostic by construction.** The ψ½ block's storage (F1 third block /
+  F2 angular-boundary-trace / F3 zero-weight extra ordinate) is under concurrent
+  design — write gates against the carrier's PUBLIC contract (presence keyed by
+  curvature both-ways, to_flat round-trip, add/scalar closure, zero-metric-weight,
+  FULL-field residual) so they hold in ALL three; `# FRAMING:` sub-notes ONLY on
+  storage-layout assertions. All three give the seed zero G-weight → the
+  reciprocity-blindness note is framing-independent.
+- **The ℓ=0-ONLY q½ source fold SILENTLY BREAKS the MMS fixed-source — the
+  eigenvalue wall is BLIND (migration wave 3, 2026-07-04, concrete war-story of
+  the anisotropic-`P_ℓ(−1)`-first warning above).** An MMS fixed-source is
+  INHERENTLY anisotropic: the streaming operator `Ω·∇ψ` manufactures a ℓ=1
+  source even for an ISOTROPIC trial `ψ=A(r)` (`Q = μA'(r) + σ_t A(r)`). A
+  `from_angular_source` fold that folds only ℓ=0 (`q½=½q₀`, its documented
+  "honest scope: production sources are isotropic") seeds the pole march with a
+  WRONG q½ → the WHOLE inward march corrupts (interior AND pole wrong; sphere L2
+  stuck ~6.7e-2 vs the frozen O(h²) 3.7e-3; NEGATIVE convergence order). The
+  EIGENVALUE path is BLIND (isotropic fission/scatter → ℓ=0 fold EXACT), so a
+  green k_inf / SI≡Krylov wall MISSES it; ONLY the anisotropic MMS FIXED-SOURCE
+  pole-cell gate reds. Two corollaries for the migration test-architect: (1)
+  before trusting an MMS fixed-source as an ABSORB-gate under a ψ½-source carve,
+  verify the fold's MOMENT REACH ≥ the MMS source's anisotropy — a "production
+  sources are isotropic" scope note is FALSIFIED by the MMS's own streaming
+  source; (2) a pole-cell CONVERGENCE gate cannot be re-baselined (no stored
+  value) — a negative order under the carve is a STOP-and-report, never a
+  re-capture. The isotropic-source solve (reflective `q/Σ_t`) stays green, which
+  is exactly why the break hides until the anisotropic gate runs.
+
+How to apply: a carve that ADDS a zero-measure/zero-weight DOF to a
+metric-carrying composite (a starting-direction seed, a ghost cell, any
+α=0 phase-space DOF) → the G-adjoint reciprocity gate is IDENTICALLY blind
+(Mode 12); constrain the DOF by the EUCLIDEAN transpose oracle + a closed-form
+direct-solver pin + the full-field round-trip, encode the blindness as a
+positive pin, and PROVE the DOF is consumed (zero its source → the solve moves)
+before crediting anything. Promote the seed-lag diagnostics (cold-residual,
+seed-insensitivity, decisive classifier) to acceptance gates. Assert-unmoved
+FIRST on the config where the DOF is weightless (a silent re-capture discards the
+invariance). The direct-solver's structural reference is the closed-form ODE, not
+the recurrence hand-trace (ERR-032). Sub-phase sibling of L16/L17;
+`vv §Mode-10/11/12 / anti-#8 / §bit-identity`.
+
+## L19 — Verifying the adjoint-inverse SWAP-LAW wiring (#280 2.5c, `A.H.inverse() ≡ A.inverse().H`): Gate 1 is a FORWARD-only reciprocity structurally independent of the reverse-scan, `b` MUST be bulk-only source-carried, Gate 2 is a bit-identical OBJECT identity, the `.H`≠Euclidean "slab stays GREEN" discriminator is FALSE, and the predicate flip MUST propagate to the capability-survival CONTRACT
+
+The 2.5c terminal of the #280 reverse-scan sub-campaign wires the swap law
+`(A*)⁻¹ = (A⁻¹)*` as an OBJECT IDENTITY: `_AdjointOperator.inverse() =
+inner.inverse().H`, `SweepOperator.apply_transpose = inner.solve_transpose` (the
+2.5b reverse-scan), `SweepOperator.is_adjointable` flips True over the
+`InvertibleOperator` arm; the metric adjoint-solve `A.H.inverse().apply(b) =
+G⁺·solve_transpose(G·b)` falls out of the EXISTING `_AdjointOperator.apply` FOR
+FREE. Gate file `tests/sn/operators/test_inverse_adjoint_coherence.py` (helpers
+reused from `test_loss_transpose_solve.py`). Durable gate-design facts (the
+wiring-proof sibling of L13–L18):
+
+- **Gate 1 (forward-matvec G-reciprocity `⟨Aψ,x⟩_G=⟨ψ,b⟩_G`, `x=A.H.inverse().apply(b)`)
+  is structurally independent of the reverse-scan BY CONSTRUCTION.** The
+  verification arithmetic is FORWARD `A.apply` + the metric inner product ONLY —
+  it NEVER calls `apply_transpose`/`solve_transpose`; the reverse-scan lives
+  solely inside the SUT `x`. `⟨Aψ,(A*)⁻¹b⟩_G = ⟨ψ,A*(A*)⁻¹b⟩_G = ⟨ψ,b⟩_G` holds
+  iff `x` genuinely solves `A*x=b`, paired against the independently-verified
+  forward operator (the strongest available ground: forward apply is the SoT, the
+  metric is pinned by `test_g_adjoint_reciprocity`). This is the elegant way to
+  gate a reverse solve WITHOUT the reference sharing its code.
+- **`b` MUST be bulk-only source-carried; a random FULL `b` falsely reds Gate 1/3
+  (~1e-1) even UNMUTATED.** solve/apply (and transposes) are genuine inverses only
+  OFF the boundary/seed outflow FREE-DOF slots (#284) AND off the metric null
+  space (tangential trace |Ω·n|=0 ⊕ the all-zero-ghost-metric seed). A bulk-only
+  `b` (zero boundary/seed) lies in the range of `A*` → Gate 1/3 clean to ~1e-16 on
+  slab/sphere/cyl. ψ (the test vector) stays FULL (bulk+trace random) so the trace
+  coupling + trace metric ARE exercised in the pairing; seed present-but-ZERO
+  (Mode-12 regime). The well-posed round-trip is `(A*)⁻¹∘A*` (=I on bulk);
+  Gate 3's `A*∘(A*)⁻¹` is =I only on the source-carried bulk — compare BULK, never
+  the full field.
+- **Gate 2 (swap law) is a BIT-IDENTICAL object identity, NOT an rtol check.**
+  `A.H.inverse()` returns LITERALLY `A.inverse().H`, so both spellings build+run
+  the SAME object graph on the same `b` → `assert_array_equal` (0 ULP), stronger
+  than the spec's allowed rtol=1e-12. Compare bulk ⊕ boundary ⊕ seed.
+- **The M-ADJ-metric "slab stays GREEN" discriminator is FALSE — flag it, don't
+  encode it.** The spec predicted skipping the `G⁺`/`G` wrap in
+  `_AdjointOperator.apply` reds Gate 1 only on sphere/cyl (slab "metric trivial").
+  EMPIRICALLY the composite metric `G = V·w_n` (bulk) ⊕ `|Ω·n|·w_n` (trace) is
+  non-trivial on EVERY geometry (non-uniform mesh + the bulk-vs-trace weight
+  mismatch that streaming couples), so `A*=G⁻¹AᵀG≠Aᵀ` everywhere and Gate 1 reds on
+  slab too (slab 0.33 / sphere 0.19 / cyl 0.13). The `.H`≠Euclidean claim is TRUE
+  universally (the metric wrap is load-bearing on every geometry — STRONGER
+  coverage than the intended discriminator), just NOT a slab-vs-curvilinear split.
+  NEVER design a `.H`≠Euclidean gate as a slab-green discriminator on a composite
+  bulk⊕trace metric — the trace weight `|Ω·n|` ≠ the bulk weight `V` on ANY
+  geometry (sibling of L1: verify the CONCRETE metric before assuming slab nulls a
+  term). The mutation still has teeth (reds all geoms); assert RED on all three.
+- **`A.H.inverse()` needs the Design-C `invertible(A.H)` TypeGuard bridge for
+  pyright.** `.inverse()` lives on `SupportsInverse`; `.H` returns the base
+  `LinearOperator` (which erases it). Wrap: `ah=A.H; if invertible(ah): return
+  ah.inverse()` (`invertible` is a TypeGuard — POSITIVE branch only; a trailing
+  `pytest.fail` is NoReturn). The bridge doubles as a live
+  `_AdjointOperator.is_invertible` pin and reads predicates only (no solve) so it
+  does NOT perturb the Mode-11 counters. `A.inverse().H` needs NO bridge (`A` is a
+  concrete `InvertibleOperator`).
+- **Mode-11 wrap sentinel: wrap `InvertibleOperator.solve_transpose` (>0) AND
+  `.solve` (==0).** `A.H.inverse().apply(b)` MUST enter the reverse-scan and NEVER
+  the forward solve; the routing mutation (`SweepOperator.apply_transpose →
+  inner.solve` forward) reds BOTH counters. All geometries give st=1/solve=0
+  (sphere seed is single-call exact post-2.5d — no iterate-threading).
+- **The predicate flip is SURGICAL and MUST propagate to the capability-survival
+  CONTRACT in the SAME landing.** `SweepOperator.is_adjointable` flips True over
+  `InvertibleOperator`; the sibling wrap-delegates `InverseOperator`/`GreenOperator`
+  STAY False (no override — keyed on `isinstance(inner, InvertibleOperator) and
+  inner.is_adjointable`). **The Part-A landing that flipped it BROKE TWO existing
+  forward canaries (both the same flip; blast radius WIDER than any one contract
+  table — the L14/L15 grep-audit lesson):** (a)
+  `test_capability_survival.py::test_inverse_adjoint_contract_keystone_v2_sn` row
+  `((L+C).inverse(), True, False, INVERTIBLE)` (`adj=False`→`True`); (b)
+  `test_inverse_operator_equivalence.py::test_inverse_returns_sweep_operator_surface`
+  `assert inv.is_invertible is True and inv.is_adjointable is False` (→`is True`).
+  A predicate-flip carve's retirement audit MUST grep EVERY `is_adjointable is
+  False`/`adj=False` assertion on the flipped type (NOT just the contract-table
+  rows) and update them in the same commit; a single-file gate-authoring session
+  downstream cannot fix them (scope) — report as required Part-A completion items.
+
+How to apply: verifying an adjoint-inverse / swap-law wiring (`A.H.inverse()` /
+`A.inverse().H`) → Gate 1 is the FORWARD-only G-reciprocity (structurally
+independent of the reverse-scan, the keystone) on a bulk-only source-carried `b`
+with a FULL ψ; Gate 2 is `array_equal` (object identity); route `A.H.inverse()`
+through the `invertible()` TypeGuard bridge; Mode-11-wrap the reverse+forward
+inner readers. NEVER design a `.H`≠Euclidean gate as a slab-green discriminator —
+the composite bulk⊕trace metric is non-trivial on every geometry. A predicate flip
+MUST propagate to the capability-survival contract table. Terminal wiring-proof of
+the #280 reverse-scan chain (L13→L17 vocab, L18 carrier);
+`vv §Mode-11/12 / L11 structural-independence / L1 config-blindness`.
+
+---
+
+## L20 — Verifying a STRUCTURE-ONLY ABC re-parent + stringly-key→typed-key `[K]` generalization (intended bit-identical): the crux is a MULTI-index synthetic fixture (the shared layout is exercised in production at ONE key-index → the generalized index term is never activated), the metric is a REGRESSION-GUARD (not a new gate) with an ERR-067 "NO metric on the ABC" tripwire, and the load-bearing MRO check is sibling-NOT-child
+
+The C2 `FaceField(Field)` carve (design `facefield_codim1_design.md` §5): introduce a
+parent ABC that owns a shared flat-buffer discipline ONCE, re-parent three sibling
+field types under it (`AngularBoundaryField`/`ScalarBoundaryField`/
+`StartingDirectionField`), and generalize `FaceLayout`/`FaceSlot` from `str` keys to a
+typed key `[K]` so the pole space (`(level,sign)` keys) stops re-implementing
+`_leg_offset`/`cells_slice`/`corner_slice` and shares the ONE impl with the trace
+(`str` keys). Intended bit-identical; nothing numeric moves. Five reusable facts:
+
+- **The crux is a MULTI-INDEX SYNTHETIC fixture — the shared layout is exercised in
+  PRODUCTION at exactly ONE key-index, so the generalized index term is never
+  activated (config-blindness, sharpening of L1/L11).** `StartingDirectionSpace`'s
+  offset formula is `(2·pos + sign_pos)·per_sign` where `pos = levels.index(level)`,
+  but production (sphere-GL) carries a SINGLE seed level → `pos ≡ 0` always → the
+  level-index term is DEAD in every existing pin (`test_starting_direction_carrier.py`
+  builds only `_sphere`). A typed-key `FaceLayout[(level,sign)]` bug in the
+  level-position mapping is INVISIBLE to the whole suite. Fix = a direct
+  `StartingDirectionSpace.for_levels((0,2,5), ng, nx, cell_volumes=…)` synthetic
+  (valid — the ctor guard only rejects empty/non-ascending), forcing `pos ∈ {0,1,2}`.
+  The LOAD-BEARING mutation is `2*pos → 1*pos`: it REDs the multi-level golden at
+  `pos≥1` while the single-level sphere STAYS green — the asymmetry IS the
+  config-blindness evidence (same shape as L11's product-RED/LS-GREEN). The golden is
+  HAND-COMPUTED (`(2·pos+sign_pos)·per_sign`), NOT SUT-captured, so it holds
+  independently of the carve; pin `.offset`+`cells_slice`/`corner_slice` start/stop AND
+  slice CONTENTS via an `np.arange` fingerprint fill (a transposed/mis-offset slot
+  diverges; a bare shape check is blind to a transpose). The `str` regime is already
+  golden'd by `test_face_layout.py::TestFromNamedShapes` (hardcoded `.offset==0/16/32/56`).
+
+- **The metric is a REGRESSION-GUARD, not a new gate — with an ERR-067 tripwire that
+  the ABC stays metric-free.** "Structure-only, metric descends per-leaf" means the
+  carve MUST NOT touch the per-leaf metrics (trace `|Ω·n|·w`, pole `V_cell`). Lean on
+  the EXISTING object-level metric gates kept green + unmodified
+  (`test_starting_direction_metric.py::test_shipped_metric_block_values` `atol=0.0`;
+  `TestA4SeedStateMetricVcell`; the trace 0-ULP `test_one_kernel_reproduces_trace_metric_at_0ulp`).
+  ADD ONE new tripwire: a mutation that gives the ABC a UNIFORM face metric
+  (`(1−µ²)·w ≡ 0` at the pole — the retired ghost!) must RED the byte-exact `V_cell`
+  gate. That is the ERR-067 guardrail: "NO metric on the `FaceField` ABC" is precisely
+  what stops `G_sd=0` from returning. Pole gates are Mode-12-SAFE only because they
+  assert the weight ARRAY object (`assert_array_equal` on `cells_view(weights)`), never
+  a scalar functional; every pole gate feeds a NONZERO seed + a control leg (the twin
+  bulk/trace-only composite) — a zero seed sits in the ghost's invariance group (L18).
+
+- **The load-bearing MRO check is SIBLING-NOT-CHILD.** After `X` and `Y` both become
+  children of the new parent `P`, the dispatch that discriminates them
+  (`isinstance(self.boundary, BoundaryField)` / `isinstance(self.starting_direction,
+  StartingDirectionField)` in `full_field.py:274/280`) survives ONLY if the re-parent
+  keeps them SIBLINGS: `isinstance(sd_field, BoundaryField) is False` and
+  `isinstance(boundary_field, StartingDirectionField) is False` MUST stay — assert both
+  (the cross-slot contamination guard). The break mode to gate against: collapsing the
+  INTERMEDIATE name (`BoundaryField`) INTO the new parent `P` breaks
+  `isinstance(x, BoundaryField)` at the consumer. Also gate `P in cls.__mro__` (between
+  child and `Field`), `P` exported from `__all__`, `isinstance(x, Field)` stays True for
+  every leaf (the `functional.py` consumer), and — the subtle seam — the flat-buffer
+  validation (moving UP from `BoundaryField.__post_init__` onto `P`) fires EXACTLY ONCE
+  through the `super().__post_init__()` chain (a moved-up check must not double-run or
+  skip; pin the layout-less-space raise still fires with the right leaf type-name).
+
+- **`to_flat`/`from_flat` round-trip is bit-identical BY CONSTRUCTION iff the flat
+  offsets are unchanged** — it reads `.values` (the flat buffer), never `FaceLayout`
+  directly. So the offset gate DISCHARGES the round-trip; no new serialization
+  mechanism, just keep the existing `TestA2FlatRoundTrip` green (incl. its dropped-seed
+  `_two_block_to_flat` mutation tooth) and extend the flat-total assertion to the
+  multi-level synthetic.
+
+- **Retest = the offset/metric/MRO seams, not the whole solver.** A structure-only
+  relocation is behavior-free by construction; the proof is (offsets byte-identical
+  both regimes) ⊕ (metric regression-guards green + the ERR-067 tripwire) ⊕ (MRO
+  sibling-not-child + post_init-once) ⊕ (round-trip inherited from offsets). Deliver
+  TWO new files (`test_face_layout_typed_key.py`, `test_facefield_hierarchy.py`); keep
+  the commit-1 metric suite + `test_face_layout.py` + `test_face_streaming_normal.py`
+  UNMODIFIED as guards.
+
+How to apply: for any "introduce a parent ABC + re-parent siblings + generalize a
+stringly-keyed layout to `[K]`" bit-identical carve — (1) find the production
+key-index cardinality; if the shared layout is exercised at ONE index, MANUFACTURE a
+multi-index synthetic and make the load-bearing mutation the generalized index term
+(`n*pos→pos`), demonstrated RED on multi-index / GREEN on single-index; (2) hand-compute
+the offset golden so it is carve-independent, pin slice CONTENTS not just shape; (3)
+treat per-leaf metrics as regression-guards + add ONE "ABC stays metric-free" tripwire
+(the ERR-067/`G_sd=0` guardrail); (4) the MRO gate is sibling-not-child +
+`post_init`-fires-once, and the break mode is collapsing an intermediate class name;
+(5) round-trip is inherited from the offset gate. `vv §Mode-12 / L11 / L1 config-blindness`.
+
+---
+
+## L21 — Verifying a WRAP resolvent operator that DELEGATES to an already-verified free-function engine (`A_BB.solve` WRAPS `carlson_inward_sweep_from_source`; coupled-block campaign step 1c): the equivalence keystone is bit-id INHERITANCE + a Mode-11 call-COUNT spy; structural independence MUST come from the ENGINE's OWN closed-form (NOT its recurrence); and an operator-internal transform line you CANNOT monkeypatch (a `[:, ::-1]` data reversal) is pinned by a spy on the call ARGS + a graded-mesh non-vacuity check
+
+When an operator's `.solve`/`.apply` is a thin WRAP of a standalone engine
+already carrying its own L0/L1 gates (the #282 `carlson_inward_sweep_from_source`
+had a full closed-form convergence gate BEFORE `RadialCharacteristicOperator`
+wrapped it), the operator is the SUT — its gates add the WRAP layer (space
+cells/corner views, source-block reading, the two-leg composition) the engine
+gate never touches. Five reusable test-design facts, recurring across every
+"WRAP→bit-id" step of a block-operator campaign:
+
+- **The equivalence keystone is bit-id INHERITANCE + a Mode-11 call-COUNT
+  sentinel, not a fresh value claim.** Monkeypatch the engine in the OPERATOR's
+  module namespace (`_rc_mod.carlson_inward_sweep_from_source`) with a spy that
+  DELEGATES to the real engine and records `(args, result)`; assert
+  `len(calls) == 2·n_levels` (2 legs/level) AND `solve.values ==`
+  (`array_equal`) an independent two-leg reference built with the REAL engine
+  (imported at test top, UNPATCHED). The count proves the path is EXECUTED (a
+  divergent inlined copy leaves the counter at 0 — Mode-11); the bit-id proves
+  the WRAP changed nothing. Necessary-NOT-sufficient (L2) → pair with a
+  structurally-independent value anchor.
+- **Structural independence is from the ENGINE's OWN gate, not just the SUT
+  (ERR-032).** The operator's convergence anchor MUST be the analytic
+  closed-form ODE (`φ = q/σ + (φ_R − q/σ)e^{−σ(R−r)}` for the μ=−1 ray — a pure
+  exponential, no marching), the SAME reference the engine gate uses — NOT a
+  hand-re-execution of the DD recurrence (procedural, not structural). Anchor
+  the INWARD leg's cells (its entry face φ_R = corner_in is FREELY settable, so
+  it maps 1:1 to the closed form); the outward leg's entry is the derived
+  pole_face (harder to anchor cleanly → cover it via the spy, below). R=1.0
+  keeps σR≤1.3 so the O(Δr²) regime is reached by nx=64 (R=4.0 gave ratios
+  3.16→3.75, still short of the [3.4,4.6] band at nx=64); DISTINCT per-group
+  (σ,q,φ_R) + max-over-groups error makes it genuinely ≥2G and catches a
+  group-axis view transpose.
+- **An operator-INTERNAL transform line you CANNOT monkeypatch (the `[:, ::-1]`
+  outward-leg reversal + `[::-1]` un-reversal) is pinned by the spy on the call
+  ARGS + a graded-mesh non-vacuity check.** You may not `git checkout` the
+  committed operator, and monkeypatching a bare slice inside `solve` is
+  impossible — so assert the outward call received `dr[::-1]`, `q_plus[:,::-1]`,
+  `σ[:,::-1]` (the WRAP's data-carried-orientation contract, the "2.5a
+  discipline"). The `dr`-WIDTH reversal is vv Mode-5 BLIND on a uniform mesh
+  (`dr[::-1]==dr`), so the gate MUST run on a GRADED mesh and assert
+  `dr[::-1] ≠ dr` (non-vacuity) — else a dropped width-reversal hides. (The
+  `q`/`σ` reversals are caught on ANY spatially-varying-data mesh; only the
+  width reversal needs graded. Measured dropped-reversal delta: outward cells
+  move O(1) — 5.3e-1.)
+- **Pole continuation / leg-chaining is pinned by the SAME spy:** outward call's
+  `bc_outer_value` == inward call's returned `phi_face_final` (the exit IS the
+  entry, R13) + assert the exit face is non-trivial (≠0) so the equality is not
+  vacuously satisfied by zeros.
+- **The ISOLATED resolvent adjoint (`solve_transpose`)'s consistency partner is
+  the EUCLIDEAN inner product (plain dot), NOT the `V_cell` Hilbert metric.**
+  The pure ray-block transpose is the Euclidean reverse-mode adjoint; the
+  metric `.H` is realized ONCE at the composite (L19). Do NOT reuse the sibling
+  `_g_recip` (it carries `G_sd`). Gate `⟨solve u,v⟩=⟨u,solve_transpose v⟩`
+  (< 1e-11, het σ, ≥2 draws) + assert the source μ=+1 corner cotangent is
+  EXACTLY 0 (the q½ fold never writes that slot). Teeth: a sign flip in the
+  engine transpose (`−f_bar → +f_bar`) → defect 5.9e-17 → 1.0.
+
+How to apply: for a WRAP operator over a verified engine, ship (1) the count-spy
++ bit-id-reference keystone; (2) an operator-level convergence gate re-anchored
+on the engine's OWN closed form (graded MANDATORY, ≥2G distinct-group,
+φ_R≠q/σ), teethed by monkeypatching the engine with DD-coefficient mutants
+(closure/denom sign, diamond factor RED both meshes; `dr[k]→dr[k−1]` uniform-
+BLIND/graded-RED = the Mode-5 keystone); (3) the spy-on-args reversal +
+pole-continuation gates on a GRADED mesh with non-vacuity checks (the escape
+hatch for un-monkeypatchable internal transforms); (4) Euclidean (not metric)
+adjoint reciprocity + the unused-slot-is-zero pin; (5) constructor negative
+gates for the non-carrying CONTROL (cylinder needs a level-structured
+quadrature — GL is slab-only; `match=` the specific message, + a positive
+build control — L4 net-new teeth). `vv §Mode-11/8 / L1 config-blindness / L2
+structural-independence / L4 gate-liveness`.
+
+## L22 — Verifying a WELDED-fold UN-WELD (a per-cell/per-level closure hand-rolled at N sites → ONE single source; `A_BA` the ψ½ Schur fold, Coupled Block Operator Step 2): the single-source routing proof is a Mode-11 wrap-COUNTER on the object the sites construct (EXACT `2·n_levels`, not `>0`), bit-identity INHERITS from the manufactured-anisotropic fold contract, the transpose must single-source too (a hand-rolled `0.5` = `coeff[0]`), and the S/F arms feed ℓ=0 ONLY so the contract MUST manufacture ℓ≥1
+
+Rule: to gate an un-weld that extracts an inlined closure to one source, ship
+SEVEN gate types — and design against the fold CONTRACT (shape-agnostic), never
+a specific call surface (isolate "how the extracted source is invoked" behind a
+one-line `# BIND:` helper the implementer flips; run the correctness gates
+THROUGH the real consumer operators, which are shape-stable).
+
+Why: (1) the CENTERPIECE is single-source ROUTING — a Mode-11 wrap-counter on
+the SAME object the sites construct, asserting BOTH consumers (S-fwd AND F-fwd)
+ENTER it; a green-but-unrouted arm = a divergent inlined copy = Mode 11. Count
+EXACT `2·n_levels` (not `>0`). The seed arms `local-import` the fold INSIDE
+`apply`, so `monkeypatch.setattr(source_module, fold, spy)` IS picked up. (2)
+Bit-identity `np.array_equal(out, old_loop_ref)` INHERITS verification from the
+fold contract — but PAIR it with a structurally-INDEPENDENT closed form
+(`½·emission`, independent of the fold fn) so it pins the coefficient, not just
+the routing. (3) The convenient config nulls the hardest term: the production
+arms feed **ℓ=0 ONLY**, so an S/F-only gate is STRUCTURALLY blind to `P_ℓ(±1)`
+for ℓ≥1 — MANUFACTURE ℓ=0+ℓ=1 (≥2G distinct-group) and assert
+`Q̄(±1)=½Q₀±(3/2)Q₁`; the tooth (drop `sign^ℓ`) reds anisotropic (`3·|Q₁|`) but
+the SAME mutation on an iso-only input stays 0.0 — the iso-null asymmetry IS the
+necessity proof (L1/L11). (4) A TRANSPOSE hand-coded as a bare constant (the
+S-adjoint's `0.5` = `coeff[0]`, bypassing the fold) needs its OWN single-source:
+gate the helper-level Euclidean contract `⟨fold(m),y⟩=⟨m,fold_T(y)⟩` (tooth: a
+`0.6` ℓ=0 coeff reds) AND the operator-level fwd↔adj CONSISTENCY
+`⟨A_BA φ,χ̄⟩=⟨φ,A_BAᵀ χ̄⟩` (tooth: patch the FORWARD fold→0.6 → the adjoint's
+still-`0.5` DISAGREES → reds). The consistency gate is BLIND to a SHARED
+coefficient (both legs scale together) — it catches the fwd↔adj MISMATCH the
+hand-rolled constant risks; the VALUE is pinned by the fwd contract. If the
+chosen shape is factory-only (no transpose surface), those two carry the whole
+contract — do NOT force a `.apply_transpose` gate; flag the binding.
+
+How to apply: (a) refutation #4 — split configs: the fissile arm (F: `χ·νΣf·φ`)
+is IDENTICALLY zero on a non-fissile mixture → a VACUOUS 0==0 gate; build a
+fissile mixture + a `max|emission|>1e-6` NON-VACUITY guard before the assertion.
+(b) refutation #6 — cylinder+slab (`space is None`) are the non-carrying CONTROL
+(emit `None` ray + counter 0), NOT "other geometries". (c) exercise the arm on a
+HAND-BUILT seed-carrying composite even when the production DRIVER is "dormant"
+(the arm fires on any non-None-ray composite). (d) BIND-isolate the direct
+extracted surface behind `# BIND:`; those rows are `xfail(strict=False,reason=)`
+→ flip to xpass on landing (L4). `vv §Mode-11/8 / L1 config-blindness (ℓ=0
+iso-null) / L2 structural-independence / anti-#3 ≥2G / anti-#4 fissile`. Full
+recipe → §3 [aba-schur-fold-unweld-verification].

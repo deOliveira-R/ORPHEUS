@@ -376,3 +376,49 @@ treating a marginalization as a weight=1 average"). Held for a SECOND sighting
 (a non-XS conserved-collapse — e.g. a probability/measure reduction in MC tally
 binning or a flux-to-current marginalization) before promotion; fire inline
 until then.
+
+---
+
+## L-011 -- A "coupled / nested block system" proposal is a FREE RE-ASSOCIATION of an existing biproduct, not a new object — and "N instances justify the machinery" fails unless the N share a coupling KIND
+
+Two reusable detection moves fired together on the augmented-SN "coupled 2×2
+[[A_AA,A_AB],[A_BA,A_BB]], system=field+BC" adjudication
+([[coupled-system-field-bc-frames]]):
+
+- **Mat∘Mat≅Mat: a coupled 2×2-of-subsystems over a direct-sum carrier that
+  ALREADY carries a biproduct block algebra is that biproduct RE-PARTITIONED,
+  not a new categorical object.** The biproduct `⊕` is coherently associative, so
+  grouping a flat N-block composite into 2 subsystems (`Mat₂(Mat₂(𝒞))≅Mat₄(𝒞)`)
+  is free; the off-diagonals were always there (the seed + the −B boundary block).
+  The G-adjoint composes block-wise for free when G is block-diagonal per subsystem
+  (`A†` reads `G⁻¹AᵀG` at ANY partition granularity). TELL: a proposal says a new
+  type "sits above" the existing block algebra — analogy-language for a theorem
+  (same shape as issue_208's "natural 2×2 / adjoint for free"). DO NOT mint the
+  `CoupledOperator`/nested type: it is a VIEW (redundant) or a twin (Smell #16). The
+  discriminating first test is a CHALLENGE with a definite structural answer: "exhibit
+  a LINEAR coupled system expressible nested but NOT flat" — impossible; every
+  candidate is flat-re-expressible (⇒ view) or nonlinear (⇒ not a LinearOperator, a
+  DIFFERENT abstraction). Before accepting a "coupled/nested/N-way" type, check whether
+  the base algebra's block INDEX is merely FROZEN (here `BlockRole` = a 3-value enum
+  while `_join_block_roles` already treats a role as a set-of-touched-blocks) — if so,
+  the minimal object is "lift the freeze to N-way," not "a new layer above."
+
+- **Defer-until-≥2 counts KINDS of the structure, not INSTANCES of the word.** A
+  build-now case citing N coupled-system instances (ψ½ / DSA / multiphysics) collapses
+  the moment you classify their coupling STRUCTURE: ψ½ = linear/triangular/metric-adjoint
+  off-diagonals; DSA = linear/two-way-iterative/R⊣P-Galerkin off-diagonals; multiphysics
+  = NONLINEAR/fixed-point (not a Mat(𝒞) block matrix at all). Three different kinds ⇒ no
+  two pair up ⇒ the general machinery has no second instance to generalize FROM, and the
+  nonlinear one UNDER-reaches a linear block abstraction (drop it from the count). The
+  over-reach dual: a metric/triangularity/PSD assumption baked from the FIRST kind
+  (ψ½ triangular biproduct, PSD block-diag metric) EXCLUDES the others (DSA two-way; RQI
+  KKT-indefinite-zero-corner). Each kind gets its own home + trigger (ψ½=biproduct-exists;
+  DSA=coupled-iterative-defer, the R⊣P shape DEFINES it when it lands; RQI=saddle-point-defer).
+
+How to apply: at any "unify these coupled/composite subsystems under one new type"
+request, (1) ask if the carrier already has a biproduct — if yes, the coupling is a
+re-association, name the off-diagonals + lift the block-index freeze, do NOT add a layer;
+(2) tabulate each cited instance's (off-diagonal structure, metric definiteness, solve
+kind, linear?) — build only where ≥2 rows MATCH, defer the rest with the row that will
+define them. Pairs with L-004 (property-vs-type by applied morphisms) and L-007 (the
+resolvent backbone predicts which layer is shared).

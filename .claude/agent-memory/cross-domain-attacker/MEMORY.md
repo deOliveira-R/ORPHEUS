@@ -9,7 +9,7 @@ state, (3) durable design pointers (frame-matches that became real architecture)
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 10 process lessons. Spine: a frame-attack's value is
+- [lessons.md](lessons.md) — 11 process lessons. Spine: a frame-attack's value is
   a concrete reformulation with a FAIL-ABLE first test OR a crisply-reasoned
   refutation, never a named-but-payoff-free frame. Refuted-frame reasons are
   first-class (L1); first tests must DISCRIMINATE (L2); Smell #16 four shapes
@@ -20,7 +20,9 @@ state, (3) durable design pointers (frame-matches that became real architecture)
   OWNER+Galerkin/PG discipline are set by the operator's SYMMETRY, not the first
   caller (L9); a conserved-COLLAPSE splits by what's conserved — rate⟹average
   (G⁻¹M) vs probability/mass⟹marginalize (M) — fixing the morphism not a weight
-  (L10).
+  (L10); a coupled/nested block system is a FREE re-association of an existing
+  biproduct (Mat∘Mat≅Mat) not a new object, and defer-until-2 counts coupling
+  KINDS not instances-of-the-word (L11).
 
 ## 2. Active / in-flight state
 
@@ -45,6 +47,21 @@ load-bearing design verdict — keep them as pointers; the detection HABIT is in
 `lessons.md`, the structural CONTENT is here.
 
 ### Operator algebra (the SN/transport algebra spine)
+- [assembly_mode_functor_dag_frames.md](assembly_mode_functor_dag_frames.md) —
+  Phase-2b ASSEMBLY verdict (Cartesian; curvilinear OUT). Q1 `assembled≡probed` IS FUNCTORIALITY of the
+  additive-monoidal `F:Op→Mat` (`as_matrix`=F-dense, `assemble`=F-sparse; the flat C-ravel order IS the
+  Kronecker-factor/monoidal structure, per-carrier via `to_flat`; `SumOfTensorProductsOperator L=Σ_a D_a⊗Ω_a⊗I_g`
+  already names it). Q2 per-octant `(L+C)` = the weighted INCIDENCE matrix of the sweep DAG: triangular ⟺
+  acyclic (`levels`=P, `Pᵀ(L+C)P` strictly-lower-tri); #282 pole-seed = a BACK-EDGE (above-diagonal on the
+  permuted sparsity); assemble per-ordinate blocks + lift (block-diag ⊕ `I_space⊗Λ_moment` scattering), NOT
+  monolith; DSA `R·A·P` = clean triple product on the ANGLE factor. Q3 emission earns NO type (scipy COO/CSR
+  carrier; sum-concat/scale/compose laws INHERITED from the operator algebra via the sparse-Mat functor — a
+  COO-builder-with-laws twins OperatorSum); local-to-global map = the EXISTING carrier ravel
+  (`FullField.to_flat`/`FlattenedOperator` template), SHARE it (Smell #16 shape-2), reify a type only for an
+  UNSTRUCTURED (MoC/DG) consumer. Diffusion `LeakageOperator` FD (probed today) = the 2nd consumer / unify
+  trigger; `assemble_ubld` already emits FEM local element matrices. Smell #16 shape-4 (assemble = 3rd path,
+  fires before code). REFUTED: DEC-homology (`∂²≠0`, belongs to the trace algebra), circulant/FFT (sweep is
+  triangular not periodic), MPO (fixed rank-d, no bond knob).
 - [operator_inverse_taxonomy_frames.md](operator_inverse_taxonomy_frames.md) —
   #226 inverse-as-operator TAXONOMY verdict. TWO LAYERS: SUBSTRATE `LossRepresentation`
   (ONE object, MANY action-views — loss_action/transpose/sweep; "3 actions of 1 object" CORRECT here,
@@ -146,6 +163,40 @@ load-bearing design verdict — keep them as pointers; the detection HABIT is in
   THEOREMS, `solve` is a partial-inverse morphism (not a string tag),
   triangularity is an SN/MoC-only refinement mixin. Smell candidate:
   metric-blindness.
+- [bordered_vs_biproduct_facefield_frames.md](bordered_vs_biproduct_facefield_frames.md) —
+  VERDICT on the `BorderedOperator`(Hyp A)+`FaceField`-codim1-dual(Hyp B) two-primitive proposal for
+  `V=V_bulk⊕V_trace⊕V_sd`. A is an OVER-ABSTRACTION: "append rows" fuses 3 structures w/ different
+  invariants (discriminator=corner block+metric): (1) saddle-point/KKT/bordered (RQI corner=0 EXACT
+  `eigenvalue.py:545`, indefinite, inf-sup; RQI is the ONLY instance→defer), (2) biproduct/dagger-trace
+  (the composite; `A_ss=−B`≠0, PSD block-diag; "border⊣un-border"=the biproduct inject/project dagger
+  pair ALREADY named), (3) Galerkin coarsening (condense/homog=lossy PG `G⁻¹M`, NOT exact Schur
+  `D−CᵀA⁻¹B`). B is RIGHT as mimetic/staggered/Hodge (cell scalar↔face current) NOT cohomology (`ι_*ι*=id`,
+  no d²=0 — L-001 holds); ONE face measure = |streaming-flux normal thru face|, vanishing tangent-to-face
+  (`|Ω·n|` & `(1−µ²)|_{µ=±1}` are 2 instances — built twice today). But ψ½ STRAINS B: it is an ANGULAR
+  trace (full-in-space, keyed by µ-level = `ι*_angle` on the `V_space⊗V_angle` product, already
+  `SumOfTensorProducts`), NOT a spatial-incidence face → BAD first consumer. NOW: name the one measure +
+  generalize `FaceLayout` to a typed key (kills the `StartingDirectionSpace` 2nd flat-layout, Smell #16
+  shape-2). DEFER: structured spatial `FaceSpace` (1st consumer=RT0 mixed-form/CP interface currents);
+  `SaddlePointOperator` (trigger=mixed-form 2nd instance, then retire RQI inline border onto it). SEQUEL =
+  [[coupled-system-field-bc-frames]] (the sharpened coupled-2×2 refinement of this composite).
+- [coupled_system_field_bc_frames.md](coupled_system_field_bc_frames.md) —
+  VERDICT on the SHARPENED "augmented SN = coupled 2×2 `[[A_AA,A_AB],[A_BA,A_BB]]`, system=field+BC" (ψ½ ray
+  = System B, transport = System A; sequel to [[bordered-vs-biproduct-facefield-frames]], C2 FaceField landed
+  @ `4081c0d`). CRUX: the 2×2 is NOT a new object — the EXISTING 3-block composite biproduct RE-PARTITIONED
+  (`Mat₂∘Mat₂≅Mat₄`, ⊕ coherently associative); the user CONVERGED onto the native biproduct frame, "different
+  object" is true only vs the block-DIAGONAL strawman. G-adjoint composes block-wise FREE (G=diag(G_A,G_B),
+  `A†` = `_AdjointOperator`'s A_bs↔A_sbᵀ at 2-subsystem granularity). DO NOT mint `CoupledOperator` (VIEW or
+  Smell-#16 twin); minimal object = lift the `BlockRole` 3-enum FREEZE to the mesh-enumerated block SET
+  (`_join_block_roles` already set-union) + NAME A_BA (the welded fold, Smell #16 shape-4). Q1 system=field+BC
+  = biproduct-carrier + boundary block-ROW (NOT comma/slice — no morphism beyond); RECURSES, System B is a 1-D
+  TWO-POINT BVP (r=R Dirichlet inward RIGOROUS + r=0 pole-reflection outward — "BC=r=R corner" INCOMPLETE). Q3
+  defer JUSTIFIED (3 instances = 3 coupling KINDS: ψ½ linear/triangular/metric-adjoint, DSA linear/two-way/R⊣P,
+  multiphysics NONLINEAR — no 2 match; DROP multiphysics, it under-reaches a Mat(𝒞) block matrix). Q5 over-reach:
+  PSD metric EXCLUDES RQI=KKT (defer, mixed-form trigger), triangularity SN-only, linearity under-reaches
+  multiphysics; DSA's R⊣P = OUTSIDE but the DEFINING trigger for the coupled-ITERATIVE machinery. Q4 guards
+  retire via the fibration/mesh-block-list = FaceField §5.3 (NAME not new power). Pollination: the A_BA weld IS
+  an un-named Schur elimination `A_AA−A_AB A_BB⁻¹ A_BA`. Watch: `carlson_inward_sweep_transpose` is EUCLIDEAN —
+  the coupled seed G-adjoint needs V_cell (ERR-067 family). Distilled into lessons L-011.
 - [issue_208_delta_psi_affine_frames.md](issue_208_delta_psi_affine_frames.md) —
   the affine/torsor + Banach-contraction + Krylov-dual triad for typing a
   solver's two "→0" quantities (increment Δx vs residual r). The affine frame +
@@ -172,6 +223,21 @@ load-bearing design verdict — keep them as pointers; the detection HABIT is in
   CORRECTS the "fused-vs-explicit split" premise: ALREADY collapsed
   (`kernel=frame.conjugate(Λ)` typed `OperatorProduct(R,Λ,M)`; 0-ULP crosscheck
   is DEFINITIONAL not a twin-guard).
+
+### Curvilinear / phase-space boundary
+- [psi_half_seed_angular_trace_frames.md](psi_half_seed_angular_trace_frames.md) —
+  #282/#280 R10 verdict: ψ½(μ=−1) starting-direction seed IS the ANGULAR-INFLOW
+  TRACE of the (r,μ) phase-space rectangle (∂angular, dual to the existing ∂spatial;
+  the M-M `(1−µ²)/r ∂_µ` is a first-order advection in µ with inflow at µ=−1). Third
+  `FullField` block; ZERO-metric GHOST (angular flux (1−µ²)=0 at µ=−1 = the α_{1/2}=0
+  fact; F2's α dual-weight self-refutes; reuse tangential-trace pseudo-inverse); NEVER
+  a fabricated volume metric (over-weights a zero-measure µ-point). Euclidean coupling
+  via `apply_transpose` (G only at outer wrap) ⇒ 2.5b reverse-scan = DAG reversal, 2.5c
+  = existing G-wrap, no new metric math. SPHERE-only (µ=−1∉GL nodes); CYLINDER seed=ψ₀
+  (η₀=−sinθ, τ_raw=0) = DEAD DOF ⇒ curvature+quadrature-keyed presence. F3 REJECTED
+  (trace-as-interior-ordinate, shape earthquake); F4 CONFIRMS index-0 differential ⇒
+  forward-substitutable. New smell candidate "metric-invisible-yet-active DOF" (1st
+  sighting, distinct from zero-in-zero-out tangential slot).
 
 ### Eigenvalue / iteration layering
 - [eigenvalue_posing_layering_frames.md](eigenvalue_posing_layering_frames.md) —

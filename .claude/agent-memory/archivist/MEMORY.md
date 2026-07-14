@@ -12,7 +12,7 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 12 documentation/Sphinx/knowledge-architecture
+- [lessons.md](lessons.md) — 21 documentation/Sphinx/knowledge-architecture
   lessons. The spine: a page is done when every cross-ref resolves
   against the LIVE tree, every claim's V&V level matches the skill
   verbatim, every retired symbol leaves no dangling ref, and the
@@ -30,7 +30,90 @@ SN theory page's "Development history" section.
   unambiguous strings (L11); re-staged-branch doc-merge into a diverged
   tree — programmatic verbatim splice + pre-reorg path translation +
   place-by-anchor + same-merge forward-ref (deferred→landed) tense-flip
-  + literal-vs-dead-xref retirement audit (L12).
+  + literal-vs-dead-xref retirement audit (L12); a fix that RETIRES a
+  failed-approach family gets a SUCCESS-resolution chapter (not the 9-step
+  CLOSED arc) + ONE arc-head supersession banner + targeted reversal
+  tombstones + the landed-"Open research path" flip — proportionate,
+  don't rewrite the superseded historical narrative (L13); deepening an
+  already-thorough resolution chapter with the physics RULINGS beneath it
+  (straight-characteristic / grazing-face-measure / circle-vs-interval
+  topology / affordable-but-declined study) cross-linking not duplicating
+  the representation, + the current-truth vs PLANNED-design-direction
+  split (loud `.. admonition:: Design direction (PLANNED, not built)`,
+  literals for unbuilt types, paired current-state subsection, counts
+  verified vs LIVE code) (L14 — its "grazing-face metric" ruling was later
+  REFUTED, see L15); the SUCCESS-CORRECTION doc pass — a doc's own PHYSICS
+  FRAMING (documented-as-correct, even in this lessons file) proven wrong
+  THIS session + the code fix landed: blast-radius = the refuted CONCEPT
+  grepped tree-wide (>brief), RENAME refuted-concept anchors + update all
+  refs (the INVERSE of L7's keep-when-surviving), preserve the bug's WHY
+  in past tense, correct via a category-error per-quantity table grounded
+  in MEASURED norms (an operator-coefficient equals the state-metric ONLY
+  when the face's operator self-block is trivial), positive-reframe any
+  CLOSED vv failure mode naming the mechanism (a Mode-12 blindness closes
+  by gating the OBJECT or by repairing the METRIC when the metric WAS the
+  bug) (L15); the EVICTION/re-homing doc-pass — a sub-object leaves a
+  block-ON-a-carrier for its OWN coupled composite: PHYSICS survives →
+  reframe the CARRIER narrowly (grep carrier-framing "third summand"/"Nth
+  block" not the physics) + ONE end-state paragraph cross-linking the
+  coupled M−N algebra (keep the total-phase-space eq-label); clean-repoint
+  the RENAMED builder (rename≠delete → live `:func:`, keep one historical
+  literal, verify landed); post-state prose + FLAG for an in-flight
+  concurrent sibling deliverable (main agent editing prod); correct a
+  PLANNED admonition's now-false claims (its structural half landed via a
+  SEPARATE commit) keeping its still-unbuilt vision; describe the guard
+  FAMILY + the six-signature leaf-kwarg PROTOCOL, never a stale call-site
+  count (L16); the freed-name REMINT collision — a retired symbol's name
+  reused for a DIFFERENT live object (unified ψ½ leaf → System-B COMPOSITE)
+  becomes a homonym across the remint: disposition every mention by PASSAGE
+  MEANING (repoint-live composite vs rewrite-as-history literal) NOT by name,
+  grep the FULL module path + the whole split role FAMILY (8 leaves) not the
+  bare head symbol; record a solve-leg UN-WEAVE (walk inline → named
+  `A_BB.solve`/`.solve_transpose` resolvent; ENGINE ref stays, ORCHESTRATION
+  ref → operator; "carlson refs N→0" measured) in current-architecture
+  passages ONLY (preserve the historical saga per L13); re-verify a re-aimed
+  Mode-11 sentinel (engine→operator) against the LIVE test; fix-plus-flag a
+  refuted-framing survivor (a "zero-metric" ERR-067 corrected) on a dead-ref
+  line you touch, without back-dating later architecture into an earlier
+  changelog entry (L17); the CAPSTONE pass (arc completion — the whole
+  landed 2×2 coupled block operator as ONE new taxonomy-culminating `=`
+  section placed after the assembly axis, generalizing three-layer→
+  materialise→assemble→block-grid, cross-link-not-duplicate): verify every
+  named object vs the module-of-record (naming-dense brief conflated
+  A_BA=Emission w/ its Reconstruction fold-FACTOR; fold-helper renamed
+  StartingDirection→RadialCharacteristic), document the A_BB overload
+  (class=bare-march vs loss-grid=march−B_b) + the resolvent-M-vs-loss-A
+  grid distinction as gotchas, leave the campaign's OWN retired symbols
+  (already history) but FLAG the broad pre-existing no-1:1-successor
+  surface `transport_sweep` (L-007 rewrite-in-passing risk), all new
+  structural labels `documented` (L18); the context-dependent ENTRY-POINT
+  retirement pass (retired entry whose successor differs per site):
+  per-site a/b/c disposition (behavioral-rewrite / past-tense-literal /
+  delete) grounded in the LIVE successor NOT a 1:1 rename, banner-not-
+  rewrite big history sections, literalize every dead `:func:` (grep-gate,
+  `-W` blind), skip-line-diff proves no other verifies-target orphaned;
+  phantom-marker repoint-vs-mint discriminator in L-003 (L19); the
+  retired symbol whose deletion is a COROLLARY of a design unification —
+  the enclosing section's present-tense THESIS is stale not just the
+  symbol: banner the rationale section (keep the historical reasoning),
+  full-rewrite the one stale-as-current contract, "(obsoleted)"+preserve-
+  `:ref:`-label the moot future-work section, co-literalize deleted-sibling
+  roles only in clauses you already rewrite + FLAG the standalone cluster
+  (L20); the BULK-SCANNER staleness sweep — I am the JUDGMENT layer over a
+  precision-over-recall Haiku pass: `hasattr`/import-verify every SUGGESTED
+  target (a scanner suggested a retired-Protocol name that doesn't exist),
+  reject findings whose build-warning evidence the CURRENT clean build
+  contradicts (bare `:mod:legacy` renders plain-text no-warn), fix the CLAIM
+  not just the role when a retarget crosses a numerical/structural fact
+  (caught my OWN mid-edit false "wigner_seitz default 10/3/7"; corrected a
+  "verified against SymPy" that the live test does via scipy), THESIS-rewrite
+  when a deleted class staled a whole section (GeometrySpec→geometry_kind),
+  put `.. _label:` ABOVE a title for `:ref:`, replace_all count-asserted on
+  unique multi-char stems (CP/MoC filename drift, module renames), attribute
+  every census residual to a known FP class (dataclass-field/ctor-param/
+  planned/historical), and a BELT-AND-SUSPENDERS tree-wide grep of the
+  already-known-retired NAMES catches the thesis-stale present-tense claims +
+  short-path roles the census/scanners both miss (L21).
 
 ## 2. Active / doc-debt state — git-true
 
@@ -88,6 +171,28 @@ These hold a reusable doc-design RECIPE, not a campaign log:
   structural-obstruction step); realization status via a Development-history
   changelog line (grep the LIVE branch — plan tense lags code). Instance: the
   (Rep × Role) carrier grid as a DOUBLE CATEGORY, `operator_algebra.rst` (#268/#261).
+- [orientation-axis two-frames doc](feedback_orientation_axis_two_frames_doc.md) —
+  8-move recipe for a 2×2-face operator unification where ORIENTATION (fwd↔adjoint) is the
+  coherence axis and execution `{scan/cell-loop/wavefront-graph}` is a NON-free third axis
+  pinned by (kernel,dim): faces table (name the empty cell) → honest fragmentation story →
+  the two frames (apply-loop/solve-scan, forking ONLY at orientation: reversed order +
+  boundary in↔out swap + mirror routing + `angular_adjoint`; orientation an OBJECT,
+  AST-tripwire-pinned) → orientation×kernel×execution `.. list-table::` → Euclidean-transpose
+  `.. warning::` (NOT μ-reversal, NOT continuous adjoint; `.H` rides on top via metrics) →
+  deferral ledger (typed raises = success-sibling of the close-out's "infrastructure
+  retained") → swap law `A.H.inverse()≡A.inverse().H` as OBJECT IDENTITY (metric solve free
+  from `_AdjointOperator.apply`; a planned deliverable dissolves) → initial_guess/warm-start
+  layer split. Traps: endomorphic metric = generic `G` NOT `G_V`/`G_W`; page cross-ref
+  convention is FILE-LOCAL — probe the built HTML (`loss_representations.rst` renders ALL
+  code-refs plain; `discrete_ordinates.rst` links but dev-history-table refs stay plain —
+  put load-bearing nav in grep-gated `:ref:`/`:eq:`); route-(a) re-baseline is STRUCTURAL not
+  accuracy (N-sweep certifies, MMS blind Mode 7). PLUS verify-a-doc-fix-rider
+  secondary-staleness: the flagged line is usually already cleaned, the stale CONVENTION has
+  a 2nd home found only via the LIVE consumer; grep retired NAMES tree-wide ("retired"-tagged
+  =OK tombstone, untagged live-framed=Rule-1 staleness even in `#` comments / non-automodule'd
+  docstrings that DON'T warn); fix in-scope, flag out-of-scope. Instance: #280 Phase 2.5e
+  (`loss_representations.rst` `loss-rep-orientation-two-frames` + `discrete_ordinates.rst`
+  dev-history rows + `pole_angular_closure.py` rider).
 - [carrier-grid-typed-seam-layering](feedback_carrier_grid_typed_seam_layering.md) —
   recipe for a completed NxM typed-carrier grid (N leaves + role-preserving
   vs role-CHANGING edges, grid-as-labelled-`.. math::` + leaf/edge list-table)
@@ -193,6 +298,17 @@ These hold a reusable doc-design RECIPE, not a campaign log:
   |Δk|=0, every k-gate blind → pin the OBJECT `K.as_matrix≡solve(A,F)`;
   vv-status:documented on the identity). Instance: #226 step 5b / task #138
   (`refactor/inverse-as-operator`, `homogeneous.rst` §`spectral-invisibility`).
+- [consumption-mode + capability-axis](feedback_consumption_mode_and_capability_axis.md)
+  — two-page recipe for a NEW consumption mode / capability axis on an operator
+  algebra (solve/apply/ASSEMBLE): domain page's "third mode" narrative (anchor on
+  the existing canonical-operations table; one-source guardrail → kernel-probing
+  affine extraction → walk-order triangularity theorem → frame conjugation →
+  zero-inflow posing → scope+obstruction → gates) + numerics page's "new three-layer
+  axis" (predicate/Protocol/TypeGuard/MissingX minted like inverse/adjoint, composer
+  homomorphism laws, as_matrix delegation ruling, anti-tautology fuller-view oracle,
+  first-consumer + Mode-11 sentinel); changelog on every landing page + L-007
+  reconcile of a prose "deferred extension point" (envisioned-5th-schedule →
+  shipped-3rd-mode). Instance: stencil-assembly 2b (#272/#284/#282).
 - [algebra-of-record stub→narrative](feedback_stub_to_rich_narrative_expansion.md)
   — the SymPy-module-as-canonical-source discipline; per-geometry
   6-subsection shape; the method-implementer-stubs / archivist-expands
@@ -260,6 +376,19 @@ These hold a reusable doc-design RECIPE, not a campaign log:
 - [audit-then-edit partitions](feedback_audit_partition.md) — the
   KEEP/RELOCATE/TRIM/REMOVE partition-table shape for a read-only
   doc-cleanup audit, with the three-categories-of-narrative rubric.
+- [cross-solver unified-law doc architecture](feedback_cross_solver_unified_law_doc_architecture.md)
+  — ONE correctness LAW spanning N solver families: canonical derivation
+  on the architectural-PROTOTYPE page (divergence-telescoping balance +
+  leakage functional + structural-zero + scale bridge + convention-fork
+  algebra + characterization) + SHORT sibling spellings cross-ref'd (per-
+  method taxonomy symptom/root-flip/already-consistent/degenerate, keep
+  verifies-labels + re-baseline note); the retired injection seam as
+  "dead-by-DESIGN" backed by a CONSISTENCY THEOREM (1ᵀ at the fixed point
+  ⟹ hardwired ratio = k*, every consistent estimator collapses ⟹ Pattern
+  4) + honest-`A.apply` contract; the MC "protocol contract a mode WOULD
+  implement, not an existing member" honest-drift fix (grep the pkg
+  first). Instance: k-estimator unification #259/#291 (sn-keff-update on
+  `discrete_ordinates.rst` + moc/cp/mc/operator_algebra spellings).
 - **Doc-architecture redesign (#231, OPEN):** theory-page template,
   machine header, prose rebalancing, V&V slices, bibtex. Spec lives in
   the issue; coupled to Nexus semantic search. The standing target for

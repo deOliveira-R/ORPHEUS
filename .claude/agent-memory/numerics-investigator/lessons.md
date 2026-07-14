@@ -309,16 +309,25 @@ commit `0b3275d` fixed all four `MaterialXSField` moment-scatter verbs
 (`apply_legendre_scattering_moments`{,`_transpose`}, `apply_n2n_moments`{,`_transpose`});
 diagnostic `derivations/diagnostics/diag_276_full_scatter_kernel_ld_trailing_axis.py`.
 
-## L14: The curvilinear `(L+C).solve` is a direct inverse for slab+CYLINDER but a SEED-LAGGED iteration for SPHERE — and the whole MMS ladder is blind to it
+## L14: The curvilinear `(L+C).solve` seed-lag is QUADRATURE-dependent, not geometry-uniform — slab direct; cyl is DEAD (level-symmetric) or LAGGED-but-FOLDABLE (product); sphere WAS lagged (fixed by route (a))
+
+> **CORRECTED 2026-07-05 (#280 Phase 2.5b):** the original "direct inverse for
+> slab+CYLINDER" headline was OVER-GENERALIZED from a level-symmetric probe. The
+> cylinder is quadrature-dependent — see [[curvilinear-inverse-seed-taxonomy]] Verdict
+> + the #280 §. **product-cyl cold err = 0.575** (NOT 0); the "α-dome telescopes the
+> seed away" mechanism was a MIS-ATTRIBUTION (real cause: LS has `c_in[m0]=0` dead seed;
+> product has `c_in[m0]≠0` live via the #229 clamp). The product lag is RETIRABLE by a
+> **pure-diagonal fold** (κ=dA_w[m0]·c_in[m0] into the m0 cell diagonal — POC single-pass
+> = M⁻¹ at 5e-16); fixed point is BIT-IDENTICAL (keff/MMS/matvec gates don't move). The
+> whole MMS ladder is still blind to it (Mode-7, ≤linear-in-μ = seed's exact regime).
 
 `(L+C).solve` (the WDD sweep) is seed-independent + machine-precision ONLY where the
 angular-redistribution seed cancels. Measured (removal-form `InvertibleOperator`, ≥2G,
-random non-flat ψ): SLAB seedΔ=0.0 / residual 8e-16; CYLINDER seedΔ=0.0 / residual 7e-16
-(the per-μ-level α-dome telescopes → seed irrelevant); SPHERE seedΔ(X1,X2)=4.6e-2 /
-`‖Aψ−b‖∞/‖b‖∞ = 5e5`, localizing to the outer |μ|-level. So a curvilinear inverse is NOT
-uniformly a `SweepOperator` — cylinder honestly is, **sphere is a lagged/preconditioned
-iteration, exact ONLY at the SI fixed point** (probe `solve(apply(ψ0),ig=ψ0)≈ψ0` at
-5e-13; cold seed 24–3900× off). The SOLE lagged element is the M-M half-angle starting
+random non-flat ψ): SLAB seedΔ=0.0 / residual 8e-16; CYLINDER **quadrature-dependent**
+(level-symmetric seedΔ=0.0 / residual 7e-16 via a DEAD seed `c_in[m0]=0`; **product cold
+err 0.575** — a LIVE foldable self-coupling, NOT telescoping); SPHERE seedΔ(X1,X2)=4.6e-2 /
+`‖Aψ−b‖∞/‖b‖∞ = 5e5` (WAS lagged, FIXED by route (a) `a29ab2d`, L15). So a curvilinear
+inverse is NOT uniformly a `SweepOperator`. The SOLE lagged element is the M-M half-angle starting
 seed ψ_{1/2} per level, read from `initial_guess.bulk.values` (`_initial_guess_values` →
 `closure.psi_half_seed(psi_level,ctx)` in `loss_representation/__init__.py:3162/3197`;
 `None`→zero). Default seed is `AngularEdgeExtrapolation` (NOT `CarlsonInwardSweep` —
@@ -339,3 +348,129 @@ every c∈[0,0.99]); production dodges it by shipping GMRES with the IDENTITY pr
 is L6 ("curvilinear needs a NON-FLAT per-ordinate reference") realized end-to-end.
 Diagnostics: `/Users/rodrigo/.claude/jobs/84fd66f8/tmp/diag_curvilinear_seed_sensitivity.py`
 (+ `diag_sphere_fixedpoint_consistency.py`). See [[curvilinear-inverse-seed-taxonomy]].
+
+## L15: To rule PRINCIPLED-vs-REGRESSION on a SEED / angular-CLOSURE re-pose, sweep ANGULAR order N at a FIXED fine mesh — NOT h at fixed N. And a carve that GROWS a Krylov composite must resize `restart` from the composite `to_flat`, not the bulk formula
+
+Two durable points from the #282 route-(a) sphere ψ½ re-pose (OLD `edge_extrapolated_seed`
+→ NEW `carlson_inward_sweep_from_source` direct march), diagnosed 2026-07-04 on
+`refactor/sn-walk-unification` (the carve LANDED mid-investigation as commit `a29ab2d`
+"2.5d d3"; pre-carve OLD = `5170f20` dormant-seed — re-run OLD via a worktree at `5170f20`).
+
+**(a) The N-sweep is the discriminator; the h-sweep at fixed N MISLEADS.** A seed IS an
+angular closure. Two seed treatments give DIFFERENT keff(h→0) at a FIXED angular order (their
+low-N angular truncation differs) yet the SAME (h→0, N→∞) answer. Measured (het 1g fuel|mod
+reflective sphere, GL8): NEW keff(h→0)=0.73825, OLD=0.73654 — a 1.7e-3 gap that does NOT
+close under h-refinement (the task's "do they share keff(h→0)?" test FALSELY reads regression).
+But sweeping N at fixed n=80: NEW & OLD AGREE to 1.5e-6 at N=32, 2.7e-6 at N=64 (both→~0.7368);
+dd_regression 2g/3reg agrees to 8e-8 at N=64. ⇒ PRINCIPLED (the seed changes O(N) truncation,
+not the converged value); the frozen N=8 snapshots (`sphere_2g_3reg_dd_n40`) are legitimate
+§16.D re-baselines. This is L14/Mode-7 realized: MMS (≤linear-in-μ) is seed-blind, so MMS
+O(h²) does NOT certify the seed — the N-sweep does. **Honest nuance:** at the test's N=8 the
+OLD edge-extrap seed is actually CLOSER to the N-converged truth (0.7365 vs truth 0.7368) than
+NEW (0.7382 overshoots); route-(a)'s justification is STRUCTURAL (an honest direct inverse —
+cold residual 5e5→1e-11 for #200/#280), NOT angular accuracy. Sub-quadratic keff h-rate is the
+PRE-EXISTING pole-cell O(h^1.4) (homogeneous-vacuum-sphere control isolates it, no interface)
+propagated outward along characteristics — a single O(h) pole cell does NOT give O(h²) global;
+shared by OLD, documented WONTFIX ([[curvilinear-tau-clamp-vs-pole-floor]]), not carve-introduced.
+The n=5→10 near-coincidence (Δ8e-7) is a REAL coarse-mesh feature (persists at keff_tol=1e-12,
+not iteration noise) that trips a fragile `diff_2<diff_1` ladder → robustify to n∈[10,20,40].
+
+**(b) Krylov restart-truncation re-triggered by a grown composite (ERR-053 family).** Route-(a)
+grew the within-group Krylov state from 2-block (bulk⊕trace) to 3-block (bulk⊕trace⊕
+starting_direction seed), but `n_dof`→scipy-gmres `restart` is still the BULK formula
+`N·ng·prod(spatial_shape)` (`solver.py:1511` eig, `:2599` fixed-src). The raveled composite
+`to_flat` is LARGER (n=10: bulk 160 < composite 210 = +42 seed +8 trace), so restarted
+GMRES(160) STAGNATES on the 210-dim augmented system (info=300, residual plateau, 868 s; keff
+best-effort eventually right via the outer loop but WRONG=0.865 under a bounded outer cap).
+Forcing restart=210 → info=0, keff=SI to 3e-10, 45× faster. So the seed block is NOT
+intrinsically zero-metric-weight-unreducible (the task's hypothesis) — it just pushes the
+ravel past the bulk-sized restart. NOT issue #200 (that's the IDENTITY precond, separate);
+this is restart-sizing, route-(a)-introduced. OLD Krylov + the c=0.5 fixed-source path
+converge clean (fit within one restart cycle); the stall needs poor conditioning (moderator
+c=0.95 reflective eig) + the grown composite. Fix LANDED in the SAME `a29ab2d` d3 commit —
+`n_dof=int(initial_guess.to_flat().size)` at both sites (eig + fixed-src); verified end-to-end
+on HEAD (restart 210, info=0, k_SI≡k_Krylov 4.7e-11, 3.4 s). **General rule: any
+operator-algebra carve that adds a block to a Krylov composite MUST re-derive restart/n_dof
+from the composite dimension — grep every `restart=`/`n_dof=` against the ravel, not the bulk.**
+Diagnostics `derivations/diagnostics/diag_282_{krylov_restart_truncation,sphere_repose_convergence}.py`;
+probes `/Users/rodrigo/.claude/jobs/84fd66f8/tmp/probe_0{2,3,7,8}_*.py`.
+
+## L16: To compare two ANGULAR QUADRATURES' accuracy in a curvilinear SN scheme where they differ in the POLE/SEED treatment — build a standalone scheme-faithful driver gated to production, reference = fine-N + a cross-quadrature CONTAMINATION GUARD (MMS is blind), validate the new pole handling with the per-ordinate flat-flux residual
+
+A DESIGN study (Gauss-Legendre vs Gauss-Lobatto for spherical SN, 2026-07-06): would GLob
+(nodes AT μ=±1) make the M-M starting-direction seed ψ½ an ordinary weighted ordinate, erasing
+the seed-block type machinery, and at what accuracy cost? Method that worked:
+1. **Standalone scheme-faithful driver, NOT a production point-swap.** When the quadrature sets
+   the angular DISCRETIZATION (M-M τ/α + pole route), not just moment integration, a point-swap
+   hits SINGULAR coefficients — GLob's μ=−1 node lands ON the lower angular edge → raw
+   **τ_0=0** → the recurrence ψ_{3/2}=(…)/τ_0 divides by zero. So μ=−1 MUST be a straight
+   characteristic (Carlson DD march, (1−μ²)=0), NOT run through the recurrence (caveat 3);
+   production's UNCLAMPED sphere τ + its `starting_direction_levels` predicate (τ_raw,0∈(0,1))
+   both break on GLob ⇒ wiring it in is real surgery. Reimplement the EXACT production M-M
+   weighted-diamond (verify every coeff file:line) parametrized by (μ,w,pole_mode).
+2. **GATE the driver bit-faithful to production GL** on NON-FLAT vacuum bare spheres (flat/
+   homogeneous-reflective is H2-degenerate). Hit rel 1e-11 keff / 1e-10 flux vs `solve_sn`,
+   THEN swap only quadrature+pole — so a driver bug can't masquerade as a GLob effect.
+3. **Reference = fine-N GL + the cross-quadrature CONTAMINATION GUARD** (compute fine-N GLob
+   too, confirm GL_∞==GLob_∞ to ~1e-6): makes the reference quadrature-family-UNBIASED (vv-6).
+   Report BOTH error-vs-ref AND the reference-free matched-N |GL−GLob| diff.
+4. **MMS is BLIND** (L14/vv Mode-7): every curvilinear MMS ansatz is ≤linear-in-μ = the seed's
+   exact regime, certifying neither the seed nor the quadrature accuracy. Anchor correctness
+   with a closed form (k_inf=1.875 hand-derived) + φ=Q/Σt streaming equilibrium instead.
+5. **Per-ordinate flat-flux residual** (vv-H3/L6) validates the NEW pole handling per ordinate
+   (angle-integrated φ is degenerate): all pole modes gave max |ψ_n−C| ~1e-15.
+Verdict: GLob tracks GL at a bounded ~1.2× error penalty at resolved N (N≥8, N>L), regime/c/
+anisotropy-insensitive; affordable for the architectural win. Full recipe + numbers in
+[[glob-vs-gl-spherical-quadrature-study]]; artefacts `scratch/experimental/glob_sphere_study/`
++ `derivations/diagnostics/diag_glob_0{1..5}_*.py` (33 tests green).
+
+## L17: A STATE DOF's Hilbert metric is NOT its angular-integration weight — and when apply_transpose is the EXACT Euclidean transpose (T=Aᵀ), a block metric is GAUGE-FREE (any SPD), the determining equation only forbids DEGENERACY
+
+Deriving the SN curvilinear starting-direction (ψ½) block metric `G_sd` for the augmented
+composite `A` on `bulk⊕trace⊕seed` (#282/#280 2.5d, Mode-12 closure, 2026-07-06). The
+"ghost metric" `G_sd≡0` was justified as the angular through-flux coefficient
+`(1−µ²)|_{µ=±1}=0`. That reasoning is WRONG: it confuses the angular-INTEGRATION weight of
+the µ=±1 ray (correctly zero — which is why the seed does NOT appear in the scalar-flux
+reduction Σ_n w_n ψ_n) with the STATE metric of a discrete DOF. ψ½ is NOT a quadrature node;
+it is a first-class radial state field with a nonzero self-block `A_ss` (‖·‖=4.0) and a
+nonzero seed→bulk coupling `A_bs` (‖·‖=6.0, the M-M recurrence). Its Hilbert metric is fixed
+by its ROLE in the operator algebra, not an angular weight. The radial-field VOLUME makes it
+nonzero; the pole angular weight is a red herring.
+
+**The determining equation `Aᵀ G = G A†`.** The linchpin: is the IMPLEMENTED `A†` the
+metric-daggered `G⁻¹AᵀG`, or an independent transpose kernel? Read `_AdjointOperator.apply`
+(operator.py:1146): `A.H = G⁺·apply_transpose·G` — apply_transpose is INDEPENDENT (#280
+`_seed_rows_transpose` + reverse walk). MEASURED (dense unit-vector probe of `A.apply` /
+`A.apply_transpose` / `A.H.apply` over `to_flat`, sphere GL-S4 2G nx=4): **T = apply_transpose
+== Aᵀ EXACTLY** (‖T−Aᵀ‖=3.6e-16, incl. `T_sb==A_bsᵀ`). ⟹ `A.H=G⁺AᵀG` is the honest
+metric-adjoint for ANY invertible G ⟹ **reciprocity `⟨Aψ,φ⟩_G=⟨ψ,A.Hφ⟩_G` is GAUGE-FREE**:
+holds for EVERY SPD `G_sd` (V_cell 1e-16 / identity 6e-17 / V·w 1e-15 random-seed defect).
+The determining equation pins `G_sd` ONLY up to SPD (in the production diagonal-metric
+architecture: any strictly-positive diagonal). Gauge is PHYSICAL: `A.H` is block-upper-
+triangular with seed at the TOP, so its bulk⊕trace rows are BITWISE gauge-invariant (Δ=0.0
+exact across identity/V_cell/10·V_cell) — only the internal φ†_seed moves; no observable
+reads it. Recommended fixing = **V_cell** (radial volume, matches bulk `G_bulk=V·w_n`; the
+angular w is the sole gauge d.o.f., no canonical value for a single ray).
+
+**Three durable methodology points:**
+1. **`G_block=0` is the ONE forbidden value, and it's WORSE than "blind."** Measured: with
+   `G_sd=0` a random (nonzero-seed) reciprocity probe BREAKS at 1.3e-2 on the production path
+   — the shipped `A.H` is a WRONG adjoint the instant the seed carries data (the `A_bs`
+   coupling is unmatched, `A.H` severs the seed: `H[seed,:]=H[:,seed]=0`). It looks correct
+   ONLY because the gate feeds a present-but-ZERO seed. A zero-weight block in a Hilbert
+   metric is not a conservative default; it silently corrupts the adjoint off the zero-probe
+   regime (vv Mode-12 sharpened).
+2. **Closing a Mode-12 invariant-functional blindness needs TWO changes, not one.** (a) install
+   the non-degenerate metric AND (b) feed NONZERO block data in the gate — a zero-block probe
+   can't activate the block's rows (A_ss·0=0, g_s·0=0) even with a perfect metric. The
+   existing `test_mode12_..._blind_to_a_seed_row_flip` POSITIVELY PINS the blindness with a
+   zero seed; after the fix it must INVERT to assert the flip REDS.
+3. **The dense-probe recipe for any augmented-composite block metric.** Assemble A (forward),
+   T (apply_transpose), G_b/G_t (production `apply_metric`) as dense matrices via unit-vector
+   probing of `FullField.to_flat`; check `T==Aᵀ` (numpy transpose = structurally-independent
+   ground, NOT the operator's own machinery). If T==Aᵀ ⟹ gauge-free, need SPD; if T carries a
+   weight ⟹ pinned by `g_s[i]=g_b[coupled j]`. Faithfulness `G⁺TG==A.H` (2.8e-14) ties the
+   dense reconstruction to production. Forward stays bit-identical under the install (metric
+   read only by A.H + inner_product, #208 trace-metric precedent). Diagnostics
+   `derivations/diagnostics/diag_gsd_0{1,2,3}_*.py` (17 green). See
+   [[starting_direction_metric_gauge_derivation]].
