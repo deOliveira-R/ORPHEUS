@@ -2244,7 +2244,7 @@ corroboration, and the unifying principle *"an operator owns its frame
 iff the frame is its eigenbasis"* (which also explains why energy
 condensation and spatial homogenisation are Petrov-Galerkin, not
 Galerkin) are in :ref:`frame-eigenbasis-ownership`
-(:doc:`galerkin_projection`).
+(:doc:`frame`).
 
 .. vv-status: integral-kernel-category documented
 

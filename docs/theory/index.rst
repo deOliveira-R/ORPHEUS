@@ -72,7 +72,7 @@ that places each transport method in the V&V hierarchy.
    boundary_conditions
    cross_section_data
    discrete_measures
-   galerkin_projection
+   frame
    glossary
    homogeneous
    index_convention

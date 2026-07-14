@@ -114,9 +114,21 @@ lower-priority cluster (dated/benchmark IDs are more defensible as provenance th
 
 ### Phase 1 — `discrete_ordinates.rst` template restructure (BIG; internally phased)
 Order chosen for reversibility + early net-line-reduction wins.
-- [ ] **1a — Evict the two EXTRA sections.** Move `Spatial homogenization` (L18599) and
-      `Energy condensation` (L19657) to their proper pages (galerkin_projection /
-      condensation). Verify no dangling `:ref:` (grep docs/ per retirement-audit search #2).
+- [ ] **1a — Frame page restructure + evict the two SN sections** (user-directed 2026-07-13).
+      RENAME `galerkin_projection.rst` → `frame.rst`, retitle "The Discrete Frame — projection
+      machinery", reorganize into the pedagogical tree: (1) frame theory general → (2) Petrov-
+      Galerkin frame [2a general, 2b **Posing the adjoint** — promote the L482 "not Galerkin-in-
+      weighted-metric" note to a subsection: forward reaction-rate folds into L²(φV) but the
+      eigenvalue-consistent bilinear ⟨φ*,Σφ⟩ has test=φ*≠integrand=φ so no measure-metric
+      reproduces it → discipline on the test side, adjoint falls naturally; + short design-
+      rationale, 2c applied-to-homogenization, 2d applied-to-condensation] → (3) Galerkin frame
+      [3a general, 3b applied-to-spherical-harmonics, ALL terms named: M/R/S₀/Λ/(2ℓ+1)/4π/Funk–
+      Hecke] → (4) advanced retained (ownership/unifying/consumer-table/seam/discipline-as-type/
+      evidence/impl-map/history/refs). Code hierarchy `GalerkinFrame(PetrovGalerkinFrame)`
+      validates PG-first. MOVE the SN page's `Spatial homogenization` (L18599→19657) + `Energy
+      condensation` (L19657→20765) GENERAL theory into 2c/2d; leave a short SN "Consuming the
+      frame in SN" subsection + `:doc:`frame`` link. Rename audit: index.rst toctree L75,
+      spherical_harmonics.rst:213, operator_algebra.rst:2247 (internal anchors already `frame-*`).
       ⏸ commit.
 - [ ] **1b — Collapse three history surfaces → one.** Relocate the two "Investigation
       History" narrative essays (L18075, L18211) into their originating GitHub issues
@@ -174,4 +186,13 @@ has the destination sections for relocated derivations.
   "is-this-contract-grade" judgment may stay main-agent.
 
 ## Status log
-- 2026-07-13: plan created; branch cut; pyproject deps added. NEXT = Phase 0 install + conf.py + seeds.
+- 2026-07-13: plan created; branch cut; pyproject deps added.
+- 2026-07-13: **Phase 0 DONE** @ `8dc3dfca` — bibtex + sphinx-design wired; refs.bib (12 SN
+  cites) + glossary (15 terms) seeded; clean -W build.
+- 2026-07-13: **Phase 1a DONE** (archivist, reviewed) — `galerkin_projection.rst` → `frame.rst`
+  restructured into the frame pedagogy (PG-first; §2b "Posing the adjoint" promoted; §3b all
+  terms named); SN homog/condensation general theory (~2166 lines) evicted → §2c/2d; SN reduced
+  to the "Consuming the frame in SN" stub. Rename audit clean; independent -W build rc0.
+  frame.rst 1521→3706; SN page 21881→19788. NEXT = Phase 1b (collapse the 3 SN history surfaces).
+  NOTE: archivist also compacted its OWN agent-memory (MEMORY.md 395→140, +L-022) as a side
+  effect — held OUT of the Phase-1a commit, pending user review.

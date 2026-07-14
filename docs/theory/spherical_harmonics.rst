@@ -210,7 +210,7 @@ to the scattering operator.
    the frame is its eigenbasis"* that explains why angular scattering
    is Galerkin while energy condensation and spatial homogenisation
    are Petrov-Galerkin — lives in
-   :ref:`frame-eigenbasis-ownership` (:doc:`galerkin_projection`).
+   :ref:`frame-eigenbasis-ownership` (:doc:`frame`).
    The relocation tripwire (when a second consumer with an
    :math:`L` independent of ``scattering_order`` moves the
    constructor ownership off the scattering operator onto the neutral
