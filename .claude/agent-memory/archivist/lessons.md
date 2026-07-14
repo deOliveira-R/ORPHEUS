@@ -1524,6 +1524,108 @@ staled the whole section; and attribute every census residual to a known FP clas
 
 ---
 
+## L-022 — The pedagogical RESTRUCTURE + cross-page THEORY-EVICTION pass: keep-anchor makes it ref-safe; the real traps are marker-depth shift, the part-boundary blank line, and the general-vs-consumer split
+
+A page RENAME + section-tree reorg that also EVICTS large theory blocks
+from a sibling page into it (here `galerkin_projection.rst` → `frame.rst`,
+retitled + reorganized into a Petrov-Galerkin-first tree, absorbing the SN
+page's ~2100-line homogenization + condensation GENERAL theory). Distinct
+from L-012 (merging a re-staged BRANCH diff into a diverged tree): this is
+a clean intra-repo relocation + pedagogical reflow. Disciplines:
+
+- **A cross-page THEORY MOVE is fundamentally ref-safe when you KEEP the
+  labels (don't rename them) — Sphinx labels, eq-labels, AND citations
+  all resolve GLOBALLY cross-doc.** Moving a `.. _anchor:` + its content
+  to another file keeps every `:ref:`/`:eq:` working with ZERO referrer
+  edits, as long as each label stays defined exactly ONCE (move, don't
+  copy). This is L-007's keep-the-anchor applied to a relocation: the
+  brief's "move the label with the content and fix referrers" needs NO
+  referrer fixes at all. Proof-of-pattern for citations: `[Hebert2009]_`
+  was already defined in `collision_probability.rst` and used in
+  `discrete_ordinates.rst` — a live cross-doc citation — so migrating
+  `[WIMSD]_`/`[Rahnema2008]_` REFERENCES into a third page resolves to
+  their definitions on the SN page identically (verify with the build).
+  The ONLY rename that breaks refs is the DOC name (`:doc:X`): fix the
+  toctree entry + every `:doc:old` (3 sites here); the page's own
+  `:ref:`-label (`galerkin-projection`) is KEPT so its 6 external
+  referrers need no touch.
+- **The PART-BOUNDARY blank-line trap (the one real build break).** When
+  you assemble a page programmatically by concatenating slices, a slice
+  that ENDS in content (a migrated block sliced to its last content line,
+  no trailing blank) joined directly before the next part's `.. _anchor:`
+  GLUES the anchor to the preceding paragraph → the label silently fails
+  to register. The symptom is **"undefined label"** (NOT "duplicate") at
+  every referrer, even though `grep` shows the anchor present and at
+  column 0. Fix: join parts with `\n\n` (guarantee ≥1 blank everywhere)
+  or ensure every content-ending slice carries a trailing blank; then a
+  triple-blank normalizer caps runs at 2. A col-0 grep for
+  "`.. _x:` whose previous line is non-blank" is the pre-build catcher.
+- **Marker-depth shift when content re-nests under a DEEPER parent.**
+  Evicted `=`-level sections whose subsections were `-`/`~` land under a
+  new `-` subsection (`§2c Applied to …`), so every migrated underline
+  demotes one level (`-`→`~`, `~`→`^`), LENGTH-PRESERVING (char-for-char
+  swap keeps the code-point count matching the unchanged title, L-009).
+  Detect a section underline robustly as a **col-0** all-one-marker line
+  (len≥4) whose previous **col-0** line is a plain title (non-blank, not
+  `..`, not itself all-marker) — col-0 disambiguates it from bullet `-`,
+  math, and `* -` list-table rows. Strip the evicted block's top `=`
+  title (hand-write the new `-` title + KEEP its anchor); shift only the
+  body.
+- **The general-theory vs consumer-orchestration split is the judgment
+  call — prefer MOVING general theory, keep the consuming stub lean.**
+  Homog/cond theory (rate preservation, the PG-frame derivation, the
+  metric-fold-vs-bilinear adjoint argument, fractional-overlap, the
+  asymmetry law, AND the verification gates — they verify the GENERAL
+  property even when the tests live under `tests.sn.*`) → the theory
+  page. Only the SN-LAYER orchestration stays in the stub: which driver
+  invokes it (`Solution.homogenize`→`MaterialMesh`→re-promote loop;
+  `Solution.condense`→per-material representative spectrum→`dict[int,
+  Mixture]`), plus the ONE SN-specific equation
+  (`energy-condensation-representative-spectrum` — moved to the stub, not
+  the theory page) + `:doc:` links to the full treatment. Split the
+  evicted section's INTRO too: its general "what X is" framing →
+  theory page; its "in ORPHEUS it lives as `Driver.verb` returning T"
+  sentences → stub.
+- **PROMOTING a buried `.. note::` to a proper subsection (the crux
+  content):** preserve the argument VERBATIM (inline math copied
+  exactly), convert `.. note::` prose to subsection prose, KEEP its
+  `.. _anchor:` (referenced from elsewhere — here from the "unifying
+  principle" §), add ONLY the ONE current-architecture design-rationale
+  sentence the brief asks for ("the frame was first posed as Galerkin;
+  the adjoint requirement forced the re-posing as Petrov-Galerkin" — a
+  REASON, not dated process-narrative, L-010), and fix its now-intra-page
+  `(:doc:otherpage)` parentheticals.
+- **Clean up `(:doc:sibling)` parentheticals that became intra-page.**
+  Every `:ref:X (:doc:discrete_ordinates)` where X migrated INTO this page
+  is now a wrong forward-pointer (the reader is sent to the wrong page).
+  `-W` does NOT catch it (the `:ref:` still resolves globally; only the
+  parenthetical lies). Grep `discrete_ordinates` in the destination page
+  → 0 after the pass is the gate. Distinguish from a `:ref:` to SN
+  content that STAYS (`sn-scattering-adjoint`) — that keeps its cross-doc
+  form.
+- **Mechanics that held:** programmatic slice-and-reassemble with
+  boundary ASSERTS (`F[idx]==expected_title`) fail-loud on line drift;
+  compute the new strings and run ALL structural asserts on the in-memory
+  result BEFORE writing either file (a failed assert then leaves the tree
+  untouched — no `git checkout` recovery needed, process-discipline);
+  assert label counts (each verifies-target defined once, in the
+  destination; the SN-only eq NOT leaked), the new headers present, the
+  retitled originals GONE, `discrete_ordinates`∉destination. The clean
+  `-W` build + the regenerated `matrix.rst` mapping every moved
+  verifies-target to its tests (17/8/3) is the final proof no edge
+  orphaned.
+
+How to apply: for a rename+reorg+eviction, KEEP labels (move don't copy →
+ref-safe); fix only `:doc:` (toctree + `:doc:old` sites); `\n\n`-join or
+trailing-blank every slice (the glued-anchor→undefined-label trap);
+depth-shift migrated underlines col-0-detected + length-preserving;
+move general theory + verification, keep a lean SN-orchestration stub with
+the one SN-specific eq; promote a buried crux note verbatim + one
+rationale sentence; scrub now-intra-page `(:doc:sibling)`; gate on
+in-memory asserts before write + the clean `-W` build + the matrix.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:
