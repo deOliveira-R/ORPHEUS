@@ -73,6 +73,7 @@ that places each transport method in the V&V hierarchy.
    cross_section_data
    discrete_measures
    galerkin_projection
+   glossary
    homogeneous
    index_convention
    operator_algebra

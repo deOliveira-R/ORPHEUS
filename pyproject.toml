@@ -58,6 +58,8 @@ docs = [
     "sphinx>=7",
     "sphinx-rtd-theme",
     "sphinxcontrib-nexus>=0.3",
+    "sphinxcontrib-bibtex>=2.6",  # central refs.bib -> Nexus citation nodes (#231 D)
+    "sphinx-design>=0.6",         # dropdowns/cards for machine header + gotchas (#231)
     "sympy>=1.13",
 ]
 dev = [

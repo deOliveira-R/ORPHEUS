@@ -26,7 +26,16 @@ extensions = [
     'sphinx.ext.todo',          # .. todo:: method-implementer stubs (algebra-of-record)
     'matplotlib.sphinxext.plot_directive',  # .. plot:: for auto-generated figures
     'sphinxcontrib.nexus',                  # Knowledge graph extraction
+    'sphinx_design',                        # dropdowns/cards (machine header, gotchas) — #231
+    'sphinxcontrib.bibtex',                 # central refs.bib -> citation nodes — #231
 ]
+
+# sphinxcontrib-bibtex: single source of truth for citations (Zotero is upstream ->
+# manual Better-BibTeX export -> refs.bib). Migrating pages replace docutils
+# ``.. [Key]`` definitions with ``:cite:`Key```; the remaining pages get a mechanical
+# pass afterward (#231 D). Keyed by the existing citation labels for a drop-in swap.
+bibtex_bibfiles = ['refs.bib']
+bibtex_default_style = 'plain'
 
 # Render `.. todo::` blocks in the output. These are the
 # method-implementer's "Archivist expansion needed" stubs per the
