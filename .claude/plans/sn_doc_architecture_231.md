@@ -138,10 +138,28 @@ Order chosen for reversibility + early net-line-reduction wins.
       section headings in order; reorganize existing content under them; author the
       `nexus-meta` machine header; build the Synopsis from Key Facts + Overview;
       consolidate the scattered Gotchas; STUB+track §5 and §6. ⏸ commit.
-- [ ] **1d — Decompose the 10k-line Sweep Algorithm mega-section.** Strip the page's OWN
-      campaign-ID subsection essays (Wave 2/Phase D/F/S2/S3/#282) to production math +
-      relocate narrative → issues. Largest single task; sub-checkpoint internally.
-      **CHECKPOINT WITH USER before large deletions.** ⏸ commit(s).
+- [ ] **1d — Decompose the 10k-line Sweep Algorithm mega-section + the deferred physical
+      re-level.** Largest, riskiest task. Two coupled jobs: (i) strip the Sweep section's OWN
+      campaign-ID subsection essays (Wave 2/Phase D/F/S2/S3/#282) to production math + relocate
+      narrative → issues; (ii) physically re-level the 23 top sections into template order
+      (Scattering→§3, Architecture→§5, etc. — the reorder deferred from 1c), incl. folding the
+      in-place `sn-282-gotchas` block into §8 and reconciling the References/Gotchas/History order.
+
+      **EXECUTION APPROACH (user-directed 2026-07-13/14):**
+      1. **Compact context FIRST** — before executing 1d, /compact so the main agent has budget to
+         genuinely review the archivist's large diff (not rubber-stamp it). This plan file + git log
+         are the re-anchor (per compaction-points discipline).
+      2. **Haiku fan-out pre-catalog** — before the archivist touches the Sweep section, run a
+         cheap-model fan-out (Workflow or parallel `model: haiku` Agents — needs user opt-in) that
+         CHUNKS the ~9,360-line Sweep section and CLASSIFIES each chunk/paragraph into buckets:
+         KEEP (production math/invariant) · ARCHAEOLOGY→ISSUE (Wave/Phase/Step/#NN narrative) ·
+         DISTILL→GOTCHA (current trap) · RELOCATE (→ frame.rst / another page) · with file:line
+         spans. Aggregate → a catalog the archivist EXECUTES against (deterministic, reviewable).
+         Makes both the archivist's job tractable AND the main-agent review a diff-vs-catalog check.
+      3. **Archivist executes** from the catalog; **main agent reviews** the diff against the catalog
+         with fresh (post-compact) context; then commit.
+      **CHECKPOINT WITH USER before large deletions** (confirm the catalog's KEEP/ISSUE/DISTILL/
+      RELOCATE calls before the archivist deletes). ⏸ commit(s).
 
 ### Phase 2 — Code-prose rebalancing (the "improve code quality" deliverable)
 File-by-file in ROI order; each file = one commit; docstring-only, but run the SN test
