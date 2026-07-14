@@ -97,7 +97,7 @@ V_cg.1 — Galerkin LHS = 2 F_m via Legendre orthogonality
    The SymPy derivation lives in
    :mod:`orpheus.derivations.continuous.galerkin_spectral.origins.derivations`
    (function ``derive_galerkin_lhs_identity``). Test gate:
-   :func:`tests.derivations.test_galerkin_spectral_symbolic.test_v_cg_1_galerkin_lhs_identity`.
+   :func:`tests.derivations.test_carlvik_galerkin_symbolic.test_v_cg_1_galerkin_lhs_identity`.
 
    Brief: Multiplying Eq. (1) by :math:`P_m(x)` and integrating over
    :math:`x \in [-1, +1]`, Legendre orthogonality
@@ -112,7 +112,7 @@ V_cg.2 — Eq. (3) matrix eigenvalue structure
 .. note:: TODO — Archivist expansion needed.
 
    ``derive_eq3_matrix_eigenvalue``. Test:
-   :func:`tests.derivations.test_galerkin_spectral_symbolic.test_v_cg_2_eq3_matrix_eigenvalue_form`.
+   :func:`tests.derivations.test_carlvik_galerkin_symbolic.test_v_cg_2_eq3_matrix_eigenvalue_form`.
 
    Brief: Galerkin projection of Eq. (1) yields :math:`(A - 3\bar\mu(c-1)
    B) F = (1/(cd)) F`. The structural decomposition into a
@@ -128,7 +128,7 @@ V_cg.3 — A_{0,0}(a) closed form (slab fundamental)
 .. note:: TODO — Archivist expansion needed.
 
    ``derive_low_order_A_mn_slab``. Test:
-   :func:`tests.derivations.test_galerkin_spectral_symbolic.test_v_cg_3_A_00_closed_form_slab`.
+   :func:`tests.derivations.test_carlvik_galerkin_symbolic.test_v_cg_3_A_00_closed_form_slab`.
 
    Brief: SymPy directly integrates the defining double integral
    :math:`A_{0,0}(a) = \tfrac{1}{2}\int\!\!\int E_1(a|x-y|)\,dy\,dx`,
@@ -144,7 +144,7 @@ V_cg.4 — Slab/sphere basis parity
 .. note:: TODO — Archivist expansion needed.
 
    ``derive_low_order_A_mn_sphere``. Test:
-   :func:`tests.derivations.test_galerkin_spectral_symbolic.test_v_cg_4_basis_parity_slab_vs_sphere`.
+   :func:`tests.derivations.test_carlvik_galerkin_symbolic.test_v_cg_4_basis_parity_slab_vs_sphere`.
 
    Brief: Slab fundamental is even in :math:`x` → uses
    :math:`P_0, P_2, P_4, \ldots`. Sphere fundamental is odd in
@@ -159,7 +159,7 @@ V_cg.5 — B_{m,n} boundary-chord rank-1 structure
 .. note:: TODO — Archivist expansion needed.
 
    ``derive_B_mn_boundary_chord_form``. Test:
-   :func:`tests.derivations.test_galerkin_spectral_symbolic.test_v_cg_5_B_mn_boundary_chord_rank_one`.
+   :func:`tests.derivations.test_carlvik_galerkin_symbolic.test_v_cg_5_B_mn_boundary_chord_rank_one`.
 
    Brief: The boundary-chord term in :math:`B_{m,n}` decomposes as
    a product of two single integrals,
@@ -177,7 +177,7 @@ V_cg.6 — Eq. (4) block-matrix linearization
 .. note:: TODO — Archivist expansion needed.
 
    ``derive_eq4_block_linearization``. Test:
-   :func:`tests.derivations.test_galerkin_spectral_symbolic.test_v_cg_6_eq4_block_linearization`.
+   :func:`tests.derivations.test_carlvik_galerkin_symbolic.test_v_cg_6_eq4_block_linearization`.
 
    Brief: With :math:`G = d(A + 3\bar\mu B)`, :math:`H = -3\bar\mu d B`,
    :math:`K = c F`, the block system
@@ -195,7 +195,7 @@ V_cg.7 — Carlvik 1968 Eq. (4b) sign correction
 .. note:: TODO — Archivist expansion needed.
 
    ``derive_carlvik_eq4b_corrected_form``. Test:
-   :func:`tests.derivations.test_galerkin_spectral_symbolic.test_v_cg_7_carlvik_eq4b_correction_documented`.
+   :func:`tests.derivations.test_carlvik_galerkin_symbolic.test_v_cg_7_carlvik_eq4b_correction_documented`.
 
    Brief: Dahl-Sjöstrand 1979 explicitly flags Carlvik 1968 NSE 31,
    295 Eq. (4b) as misprinted: "Note that the sign of the last term
@@ -214,7 +214,7 @@ V_cg.8 — μ̄ = 0 isotropic limit
 .. note:: TODO — Archivist expansion needed.
 
    ``derive_isotropic_limit``. Test:
-   :func:`tests.derivations.test_galerkin_spectral_symbolic.test_v_cg_8_isotropic_limit`.
+   :func:`tests.derivations.test_carlvik_galerkin_symbolic.test_v_cg_8_isotropic_limit`.
 
    Brief: At :math:`\bar\mu = 0`, Eq. (3) reduces to :math:`A F =
    (1/(cd)) F` — Carlvik 1968's original isotropic eigenvalue

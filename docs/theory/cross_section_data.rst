@@ -20,7 +20,7 @@ Key Facts
   downscatter in the **upper triangle**. Enforced once at the GENDF ingest
   (NJOY is the opposite); see :ref:`canonical-group-convention`.
 - ``Isotope`` dataclass: sig_t, sig_c, sig_f, sig_el, sig_inel, nu, chi (421 groups)
-- Sigma-zero iteration: ``data/macro_xs/sigma_zeros.py`` — self-shielding
+- Sigma-zero iteration: ``orpheus/data/macro_xs/sigma_zeros.py`` — self-shielding
 - ``Mixture`` dataclass: macroscopic XS with ``SigS[l][g_from, g_to]`` convention
 - Consistency: :math:`\Sigma_t = \Sigma_c + \Sigma_f + \sum_{g'} \Sigma_{s,g \to g'}`
 - ``load_isotope()`` auto-selects HDF5 or fallback .m parser
@@ -583,7 +583,7 @@ ORPHEUS **does not extract** into the scattering matrix:
    37, ":math:`(n,4n)`", ~20 MeV+, neutron-induced four-neutron emission
 
 The current scattering-matrix assembly loop at
-``orpheus/data/micro_xs/gendf.py:281`` only iterates over
+``orpheus/data/micro_xs/gendf.py:301`` only iterates over
 MT=51..91 (discrete inelastic levels plus continuum inelastic at
 MT=91), matching the original MATLAB ``convertCSVtoM.m`` that ORPHEUS
 was ported from.
@@ -837,7 +837,7 @@ The ``load_isotope`` function provides a uniform API:
 
 .. code-block:: python
 
-   from data.micro_xs import load_isotope
+   from orpheus.data.micro_xs import load_isotope
 
    iso = load_isotope("U_235", 600)
    # iso.sigC — shape (10, 421), capture XS for 10 sigma-zeros
@@ -854,7 +854,7 @@ To regenerate the HDF5 files from the GENDF sources:
 
 .. code-block:: bash
 
-   cd data/micro_xs
+   cd orpheus/data/micro_xs
    python convert_gxs_to_hdf5.py
 
 This processes all 12 ``.GXS`` files and writes the corresponding

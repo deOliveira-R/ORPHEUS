@@ -73,9 +73,10 @@ the walk is cheap. The one refinement is that a reference whose
 requested:
 
 **Eager tier — cheap analytical / semi-analytical cases**
-   Built when the registry is first touched, by walking
-   ``homogeneous.py``, ``sn.py``, ``cp_slab.py`` / ``cp_cylinder.py``
-   / ``cp_sphere.py``, ``moc.py``, ``mc.py``, and ``diffusion.py``
+   Built when the registry is first touched, by walking the
+   ``continuous.analytical.homogeneous`` case, the
+   ``continuous.cases.{sn, moc, mc, diffusion}`` cases, and the
+   ``continuous.flat_source_cp.{slab, cylinder, sphere}`` modules
    (the legacy table) plus every module exposing a
    ``continuous_cases()`` producer (the Phase-0 table). These use only
    NumPy, SciPy, and SymPy, so building them all is fast. The 9-case
@@ -591,7 +592,10 @@ MOC Properties
 
 - **Particle balance**: production / absorption = keff.
 - **Flux positivity**: scalar flux > 0 everywhere.
-- **from_annular geometry**: material assignment matches radial distances.
+- **Per-material flux**: the MOC per-material scalar flux matches the
+  volume-averaged scalar (``test_flux_per_material_matches_scalar``).
+- **Heterogeneous flux depression**: thermal flux is higher in the
+  moderator than the fuel (``test_heterogeneous_flux_depression``).
 
 MC Properties
 -------------

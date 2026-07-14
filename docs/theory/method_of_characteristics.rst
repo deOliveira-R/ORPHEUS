@@ -94,21 +94,23 @@ Two-Layer Mesh Pattern
 The MOC solver follows the same two-layer pattern as all ORPHEUS
 deterministic solvers:
 
-1. **Base geometry** --- :class:`~geometry.mesh.Mesh1D` with
-   ``CoordSystem.CYLINDRICAL``, typically constructed by
-   :func:`~geometry.factories.pwr_pin_equivalent`.  Stores radial cell
+1. **Base geometry** --- :class:`~orpheus.geometry.mesh.Mesh1D` with
+   ``CoordSystem.CYLINDRICAL``, typically constructed via
+   :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
+   →
+   :meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry`.  Stores radial cell
    edges, material IDs, and volumes.
 
 2. **Augmented geometry** --- :class:`MOCMesh` wraps the ``Mesh1D`` and
    an :class:`MOCQuadrature`, precomputing all ray-tracing data:
    tracks, segments through flat-source regions, effective ray spacings,
    and reflective boundary condition links.  The BC is declared on
-   the base geometry via :class:`~geometry.mesh.BC` on
-   :attr:`Mesh1D.bc_right <geometry.mesh.Mesh1D.bc_right>` and resolved
+   the base geometry via :class:`~orpheus.geometry.mesh.BC` on
+   :attr:`Mesh1D.bc_right <orpheus.geometry.mesh.Mesh1D.bc_right>` and resolved
    at construction time against :attr:`MOCMesh.BC_REGISTRY`.
 
 3. **Solver** --- :class:`MOCSolver` satisfies the
-   :class:`~numerics.eigenvalue.EigenvalueSolver` protocol.
+   :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` protocol.
    :func:`solve_moc` orchestrates the calculation and returns an
    :class:`MoCResult`.
 
@@ -129,7 +131,8 @@ deterministic solvers:
 Inverse Wigner-Seitz Geometry
 -----------------------------
 
-The base ``Mesh1D`` is constructed by :func:`~geometry.factories.pwr_pin_equivalent`, which
+The base ``Mesh1D`` is constructed from
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`, which
 approximates the square unit cell (side = pitch) by a cylinder of equal
 area:
 
@@ -381,7 +384,7 @@ gives :math:`2 \times 0.5 = 1.0`.
      - 0.335074
 
 These tables are hardcoded in :class:`MOCQuadrature` from [Yamamoto2007]_
-Table 2.  Verified by ``test_moc_quadrature.py::test_ty3_values_match_published``.
+Table 2.  Verified by ``tests/moc/test_quadrature.py::test_ty3_values_match_published``.
 
 The combined angular weight normalisation satisfies:
 
@@ -392,7 +395,7 @@ The combined angular weight normalisation satisfies:
 
 The factor of 2 accounts for the two hemispheres (upper = forward sweep,
 lower = backward sweep).  This is verified by
-``test_moc_quadrature.py::test_combined_weight_normalisation``.
+``tests/moc/test_quadrature.py::test_combined_weight_normalisation``.
 
 
 Ray Tracing
@@ -481,7 +484,7 @@ centre belongs to region :math:`k` where
 :math:`r_{k-1} < d \leq r_k` for :math:`k < N-1`, or region
 :math:`N-1` (square border) if :math:`d > r_{N-2}`.
 
-**Verified by** ``test_moc_ray_tracing.py``:
+**Verified by** ``tests/moc/test_ray_tracing.py``:
 
 - ``test_ray_circle_chord_length``: chord length =
   :math:`2\sqrt{R^2 - d^2}` for impact parameter :math:`d`
@@ -496,8 +499,8 @@ Reflective Boundary Conditions
 
 The MOC solver uses the project-wide ``BC_REGISTRY`` pattern for
 boundary condition resolution.  The BC is declared on the base geometry
-via :class:`~geometry.mesh.BC` on :attr:`Mesh1D.bc_right
-<geometry.mesh.Mesh1D.bc_right>` and resolved at :class:`MOCMesh`
+via :class:`~orpheus.geometry.mesh.BC` on :attr:`Mesh1D.bc_right
+<orpheus.geometry.mesh.Mesh1D.bc_right>` and resolved at :class:`MOCMesh`
 construction time.  :attr:`MOCMesh.BC_REGISTRY` currently supports only
 ``"reflective"`` (the default); additional BC types (e.g., vacuum for
 isolated-pin transport) can be registered in the future.
@@ -575,7 +578,7 @@ The target track is found by matching the exit point of one track to the
 entry point (for forward targets) or exit point (for backward targets)
 of a track at the reflected azimuthal angle.  The closest match is used.
 
-**Verified by** ``test_moc_verification.py::TestL0GeometricInvariants::
+**Verified by** ``tests/moc/test_verification.py::TestL0GeometricInvariants::
 test_reflective_links_form_cycles``: following forward links from any
 track must return to the starting track after a finite number of
 reflections (closed cycle).
@@ -811,8 +814,8 @@ Implemented in :meth:`MOCSolver.compute_keff`.  Verified by
 Power Iteration
 ===============
 
-The MOC solver plugs into the generic :func:`~numerics.eigenvalue.power_iteration`
-loop via the :class:`~numerics.eigenvalue.EigenvalueSolver` protocol.  The
+The MOC solver plugs into the generic :func:`~orpheus.numerics.eigenvalue.power_iteration`
+loop via the :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` protocol.  The
 critical structural decision is that the in-scatter source is assembled
 **inside** ``solve_fixed_source`` — each inner transport sweep sees the
 most recent scalar flux, which is how the Gauss–Seidel-style inner
@@ -853,7 +856,7 @@ Cross-Section Data Layout
 
 Cross sections flow through two paths:
 
-1. :class:`~data.macro_xs.mixture.Mixture` --- per-material arrays for
+1. :class:`~orpheus.data.macro_xs.mixture.Mixture` --- per-material arrays for
    :math:`\Sigt{}`, :math:`\Siga{}`, :math:`\nSigf{}`, :math:`\chi`;
    sparse matrices for :math:`\Sigma_s` (``SigS[0]``) and
    :math:`\Sigma_2` (``Sig2``).
@@ -886,38 +889,38 @@ Verification
      - Tests
      - Coverage
    * - L0
-     - ``test_moc_quadrature.py``
+     - ``tests/moc/test_quadrature.py``
      - 24
      - Weight sums, TY values, shapes, validation
    * - L0
-     - ``test_moc_ray_tracing.py``
+     - ``tests/moc/test_ray_tracing.py``
      - 20
      - Ray-circle intersection, region ID, segments, volume, links
    * - L0
-     - ``test_moc_verification.py``
+     - ``tests/moc/test_verification.py``
      - 27
      - Single-track attenuation, equilibrium flux, fission-only, (n,2n),
        scatter isolation, geometric invariants, protocol compliance, volume
        tracking, boundary conditions
    * - L1
-     - ``test_moc.py``
+     - ``tests/moc/test_moc.py``
      - 6
      - Homogeneous eigenvalue (1G/2G/4G), heterogeneous (slow)
    * - L1
-     - ``test_moc_properties.py``
+     - ``tests/moc/test_properties.py``
      - 4
      - Particle balance, positivity, flux consistency, thermal depression
    * - L1
-     - ``test_moc_verification.py``
+     - ``tests/moc/test_verification.py``
      - 13
      - Eigenvalue + flux ratio, heterogeneous + monotonicity, particle
        balance (2G), flux positivity (all groups), material sensitivity
    * - L2
-     - ``test_moc_verification.py``
+     - ``tests/moc/test_verification.py``
      - 4
      - Ray spacing convergence, azimuthal convergence, polar convergence
    * - XV
-     - ``test_moc_verification.py``
+     - ``tests/moc/test_verification.py``
      - 2
      - MOC vs CP cross-verification (slow)
 
@@ -1005,7 +1008,7 @@ eigenvalue is compared against the CP solver on the same geometry:
 
 The ~0.1% gap is consistent with the white-BC (CP) vs reflective-BC
 (MOC) approximation difference.  This is verified by
-``test_moc_verification.py::TestXVCrossVerification``.
+``tests/moc/test_verification.py::TestXVCrossVerification``.
 
 
 Convergence Properties
@@ -1254,8 +1257,9 @@ the MOC geometry directly on the square cell (as the old pedagogical
 solver did with ``MoCGeometry``, now removed).  This would require a separate
 geometry class for the square cell + annuli combination.
 
-**Advantage of the current approach:** The same ``Mesh1D`` created by
-:func:`~geometry.factories.pwr_pin_equivalent` is reused by CP, SN,
+**Advantage of the current approach:** The same ``Mesh1D`` created from
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
+is reused by CP, SN,
 MC, and now MOC.  The pitch is encoded in the outer Wigner-Seitz radius,
 and each solver's augmented geometry recovers whatever it needs.  No
 duplication.
@@ -1284,7 +1288,7 @@ segments in void regions are skipped (no contribution to
 In the ORPHEUS verification library, no test material has
 :math:`\Sigt{} = 0`, so this code path is exercised only by the
 protocol compliance test
-``test_moc_verification.py::TestL0ProtocolCompliance``.
+``tests/moc/test_verification.py::TestL0ProtocolCompliance``.
 
 Effective Spacing vs Requested Spacing
 ---------------------------------------
@@ -1321,9 +1325,11 @@ with :math:`\Sigt{} \sim 0.1` cm\ :sup:`-1`, the optical thickness
 is even smaller.
 
 The flat-source error can be reduced by subdividing regions into
-thinner annuli (more cells in the ``Mesh1D``).  The CP solver's
-:func:`~geometry.factories.pwr_pin_equivalent` default of 10 fuel
-+ 3 clad + 7 coolant sub-cells is adequate for most applications.
+thinner annuli (more cells in the ``Mesh1D``).  The per-region cell
+resolution is chosen at
+:meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry` time via each
+region's ``RegionMesh(n_cells=...)``; a typical 10 fuel + 3 clad + 7
+coolant subdivision is adequate for most applications.
 
 
 MMS Verification (Phase 2.2a)
@@ -1334,7 +1340,7 @@ MMS Verification (Phase 2.2a)
 The Method of Manufactured Solutions (MMS) provides an L1-level
 verification of the flat-source MOC spatial operator.  Unlike the
 SN MMS (which injects a per-ordinate source into
-:func:`~sn.solver.solve_sn_fixed_source`), the MOC MMS requires
+:func:`~orpheus.sn.solver.solve_sn_fixed_source`), the MOC MMS requires
 **per-segment, per-angle manufactured sources** along each
 characteristic because the streaming residual is angle-dependent.
 

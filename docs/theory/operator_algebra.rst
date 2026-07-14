@@ -300,7 +300,7 @@ Key Facts
   \end{smallmatrix}\bigr]` over **System A** (the transport
   :class:`~orpheus.transport.full_field.FullField`) and **System B** (the
   ψ½ radial-characteristic ray, its own
-  :class:`~orpheus.transport.radial_characteristic.RadialCharacteristicField`
+  :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
   closed by a two-point BVP). The four blocks are named operators in
   :mod:`orpheus.sn.operators.radial_characteristic` — the seed
   :math:`A_{AB}` (σ-independent), the emission
@@ -1492,11 +1492,11 @@ they came from. That driver is **to be installed** under the Wave H
 refactor (Issue 14). The Phase 0 module ships the algebra; subsequent
 phases mount the producers and the consumer onto it.
 
-Today the existing
-:func:`build_transport_linear_operator <orpheus.sn.operators.streaming.build_transport_linear_operator>`
-functions in :mod:`orpheus.sn.operators.streaming` continue to wrap their matvec
-in :class:`scipy.sparse.linalg.LinearOperator` directly, untouched by
-this module. The ORPHEUS↔scipy boundary for the Krylov accelerator is
+Previously the ``build_transport_linear_operator`` free functions in
+:mod:`orpheus.sn.operators.streaming` wrapped their matvec
+in :class:`scipy.sparse.linalg.LinearOperator` directly; that wrapper
+family has since been retired. The ORPHEUS↔scipy boundary for the
+Krylov accelerator is
 now internal to :class:`~orpheus.numerics.iteration.KrylovAcceleration`
 — a single ravel-aware adapter lifts the flat scipy vector to the typed
 carrier, runs the carrier-space matvec, and ravels the result back — so
@@ -3952,12 +3952,12 @@ shape choice.
        axes broadcast.
    * - Scattering kernel
        (:math:`S_{\rm aniso}`)
-     - :class:`OperatorSum` of
-       per-ℓ bespoke leaves
-     - ``reduce(add, kernel_summands)`` where each
-       summand is
-       :class:`_PerLegendreOrderScattering(ell=ℓ)`
-       (:attr:`ScatteringOperator.kernel`)
+     - :class:`OperatorProduct`
+       :math:`R \circ \Lambda_{\ell\ge 1} \circ M`
+     - the moment-space integral kernel
+       ``frame.conjugate(Λ)``
+       (:attr:`ScatteringOperator.kernel`), projecting to harmonic
+       moments, applying per-ℓ transfer, reconstructing per-ordinate
      - **MA-Q1 fallback**: the per-material per-ℓ
        einsum
        :meth:`MaterialXSField.apply_legendre_scattering_moments`
@@ -4578,8 +4578,8 @@ do not enter the bulk computation.
 The trace-correct face_view formulation (face_view enters the bulk
 computation as the boundary trace, with a boundary residual driving
 face_view ↔ bulk consistency) caused a 10% k_inf drift in
-experiments — see the existing comment at
-``orpheus/sn/operator.py:843-868``. That rewire requires the BC
+experiments (recorded during the pre-reorganisation ``orpheus/sn/operator.py``
+work, since split into ``orpheus/sn/operators/``). That rewire requires the BC
 realizers to gain a "proper composable algebra" — a payload distinct
 from T.4's per-direction lift. Bundling the two would violate the
 ``feedback_unify_after_two_instances`` discipline (only one working
@@ -4634,12 +4634,12 @@ Wave T's verification chain combines three independent grounds:
      proves".
 
    - **MMS pillar**: P1 anisotropic manufactured-source convergence
-     at ``tests/sn/test_mms_aniso.py``,
-     ``tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py``,
-     ``tests/sn/test_mms_heterogeneous.py``, and
-     ``tests/sn/test_mms_2d.py``. The MMS source is structurally
+     at ``tests/sn/verification/mms/test_mms_aniso.py``,
+     ``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``,
+     ``tests/sn/verification/mms/test_mms_heterogeneous.py``, and
+     ``tests/sn/verification/mms/test_mms_2d.py``. The MMS source is structurally
      independent of the operator-algebra path (derived by SymPy in
-     ``orpheus/derivations/sn/mms_*.py``); it catches flux-shape and
+     ``orpheus/derivations/continuous/mms/sn.py``); it catches flux-shape and
      convergence-order errors that snapshot bit-identity cannot.
 
 4. **Algebraic-identity gates** (new in Wave T). Each touched
@@ -4700,11 +4700,14 @@ broadcasts on the spatial axis; the per-cell material id breaks the
 broadcast contract.
 
 The user-resolved math-honest fallback shipped at commit ``9f85c5d``:
-:class:`OperatorSum` over per-ℓ :class:`_PerLegendreOrderScattering`
+:class:`OperatorSum` over per-ℓ ``_PerLegendreOrderScattering``
 bespoke leaves. The §15.2 *form* is preserved at the summation level
 (one summand per Legendre order); the per-summand decomposition into
 :math:`R_\ell \circ \Lambda_\ell \circ M_\ell` is a procedural
-composition, not a tensor product.
+composition, not a tensor product. (This per-ℓ ladder was itself
+later retired at commit ``93807aa7`` in favour of the single
+Funk–Hecke :math:`R \circ \Lambda_{\ell\ge 1} \circ M` moment-space
+kernel now carried by :attr:`ScatteringOperator.kernel`.)
 
 The same master condition applies to T.4-spatial (per-direction WDD
 recurrence) and T.4-curvilinear (M-M half-grid recurrence). Two of
@@ -4752,10 +4755,8 @@ Cross-references
   - :class:`orpheus.transport.operators.fission.FissionOperator` and its
     :attr:`~orpheus.transport.operators.fission.FissionOperator.kernel` property.
   - :class:`orpheus.transport.operators.scattering.ScatteringOperator` and its
-    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel` /
-    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel_summands`
-    properties; the bespoke
-    :class:`orpheus.transport.operators.scattering._PerLegendreOrderScattering` leaf.
+    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel`
+    property.
   - :class:`orpheus.sn.operators.streaming.StreamingOperator` and its
     :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` /
     :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
@@ -6864,8 +6865,8 @@ Numerical evidence
 ------------------
 
 The defining ground is the dense-probe oracle
-:func:`validate_composite_adjoint <derivations.diagnostics.diag_p42_adjoint_oracle>`
-(``derivations/diagnostics/diag_p42_adjoint_oracle.py``). It is
+``validate_composite_adjoint``
+(committed in ``tests/sn/operators/test_g_adjoint_reciprocity.py``). It is
 **structurally independent** of the production path: it assembles the
 operator's dense matrix by probing :math:`op.\text{apply}` on unit
 vectors, builds the diagonal metric :math:`G` **explicitly** from
@@ -7851,7 +7852,8 @@ The carve has a clean correctness story split in two
 (``vv-principles`` § "Bit-identity vs principled-equivalence").
 
 **The per-step source is bit-identical.** A de-risk probe
-(``derivations/diagnostics/diag_p5a_moment_consuming_scatter.py``) proved
+(``derivations/diagnostics/diag_p5a_moment_consuming_scatter.py``, a
+diagnostic script not retained in the repo) proved
 the **moment arm** :math:`S(M\psi)` equals the **full-angular arm**
 :math:`S(\psi)` **bit for bit** (``np.array_equal``, 0 ULP) before any
 production code was written. Because the moment-projection operator
@@ -7960,7 +7962,8 @@ Honest scope — a persistent-iterate + typed-state win, NOT yet a peak win
      **peak** reduction is only **~1.2×** for a :math:`12\times8` config
      (the held :math:`2\times` iterate restored to full-angular size
      against the windowed ``tracemalloc`` peak;
-     ``derivations/diagnostics/diag_p5a_peak_memory.py``).
+     ``derivations/diagnostics/diag_p5a_peak_memory.py``, a diagnostic
+     script not retained in the repo).
 
    The per-sweep transient has two components, eliminated by two later
    phases. **Phase 5b** (interior-face storage-B — the rolling
@@ -8321,7 +8324,7 @@ slice) catcher.
 .. warning::
 
    The oracle and the system-under-test share the **same** cell kernel
-   (:meth:`~orpheus.sn.scheme.DiamondDifference.cell_kernel_batch`)
+   (:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`)
    and the **same** :math:`Y` / ``weights``, differing only in reduction
    *order*. They are therefore **procedurally** independent, **not
    structurally** independent (``vv-principles`` § "Structural
@@ -10697,11 +10700,14 @@ transport equation's boundary trace. Per Grand Report v3 §5.3 and
 
 .. vv-status: trace-half-decomposition documented
 
-The two halves are represented by typed
-:class:`~orpheus.numerics.space.FunctionSpace` subclasses
-:class:`~orpheus.numerics.spaces.angular_trace_space.InflowTraceSpace` and
-:class:`~orpheus.numerics.spaces.angular_trace_space.OutflowTraceSpace`, which
-carry a **per-face directional mask**:
+The two halves are directional selectors on the single unified
+:class:`~orpheus.numerics.space.FunctionSpace` subclass
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
+(the per-face ``InflowTraceSpace`` / ``OutflowTraceSpace`` classes were
+consolidated into inflow/outflow selectors on it — the
+:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`
+/ :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face`
+methods), which carry a **per-face directional mask**:
 
 .. math::
    :label: per-face-inflow-mask
@@ -10946,7 +10952,8 @@ Splitting the posing into
 
 lets :math:`2a \circ 2b \circ 3 \circ 4` compose cleanly across every
 family. The key consequence:
-:class:`~orpheus.numerics.iteration.KEigenvalue(A, S, F)` is the
+:class:`~orpheus.numerics.iteration.KEigenvalue` (built from the
+``(A, S, F)`` triple) is the
 operator-triple **2b realization** — NOT a problem-type layer. Treating
 the operator triple as a "problem type" was the conflation the
 bifurcation removes.

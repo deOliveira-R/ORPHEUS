@@ -266,8 +266,8 @@ spherical cubature: with the predicate
 
 the partition produces the eight octants of :math:`S^2` (or four
 in 2-D, where :math:`\mu_z = 0` is degenerate and contributes a
-separate ``sign=0`` entry). The four
-:class:`~orpheus.sn.quadrature.AngularQuadrature` adapters expose
+separate ``sign=0`` entry). The
+:class:`~orpheus.numerics.quadrature.Quadrature` class exposes
 ``octants`` as a cached property delegating to ``partition_by`` —
 the SN sweep then iterates **octants** (4 in 2-D — structural)
 and **anti-diagonals per octant** (sweep-DAG topology —
@@ -663,21 +663,22 @@ artifact. The structural-flag tags double as Sphinx teaching content;
 each :class:`~orpheus.numerics.quadrature.registry.QuadratureSpec`
 docstring narrates the trade-off in the rule's design space.
 
-Domain-specific adapters: AngularQuadrature
-===========================================
+Domain-specific quadrature: the Quadrature class
+================================================
 
 The SN solver consumes angular quadratures through ~50
 attribute-access sites (``quad.mu_x``, ``quad.weights``,
 ``quad.reflection_index('x')``, ``quad.spherical_harmonics(L)``, …)
-in sweeps, BiCGSTAB operators, mesh constructors, and solvers.
+in sweeps, operators, mesh constructors, and solvers.
 Re-routing every site through
 :meth:`DiscreteMeasure.integrate` would impose a per-site method-call
-overhead on hot inner loops where the historical attribute access
+overhead on hot inner loops where the attribute access
 costs nothing, and would needlessly couple the entire SN module to
 the measure API.
 
-The Issue 4 design (see ``.claude/plans/sn_reshape.md``) preserves
-both worlds via a **bridge pattern**:
+The design (see ``.claude/plans/sn_reshape.md``) preserves both
+worlds by layering the SN-side derived data over the mathematical
+rule:
 
 * The publication-grade quadrature *rules* live in
   :mod:`orpheus.numerics.quadrature` as free functions returning
@@ -697,22 +698,44 @@ both worlds via a **bridge pattern**:
     polar-times-azimuthal product rule used by the cylindrical SN
     sweep.
 
-* The SN-side adapters at :mod:`orpheus.sn.quadrature` —
-  :class:`~orpheus.sn.quadrature.GaussLegendre1D`,
-  :class:`~orpheus.sn.quadrature.LebedevSphere`,
-  :class:`~orpheus.sn.quadrature.LevelSymmetricSN`,
-  :class:`~orpheus.sn.quadrature.ProductQuadrature` — wrap those
-  rules and **cache numpy views** of the underlying measure's
-  ``nodes`` / ``weights`` arrays as the legacy ``mu_x`` / ``mu_y``
-  / ``mu_z`` / ``weights`` fields. The view aliasing is safe
-  because :class:`DiscreteMeasure` is ``frozen=True``; the cached
-  views never get out of sync with the measure.
+* The single :class:`~orpheus.numerics.quadrature.Quadrature` class
+  wraps a :class:`DiscreteMeasure` and exposes named classmethod
+  factories — :meth:`Quadrature.gauss_legendre(n)
+  <orpheus.numerics.quadrature.Quadrature.gauss_legendre>`,
+  :meth:`Quadrature.lebedev(order)
+  <orpheus.numerics.quadrature.Quadrature.lebedev>`,
+  :meth:`Quadrature.level_symmetric(sn_order)
+  <orpheus.numerics.quadrature.Quadrature.level_symmetric>`,
+  :meth:`Quadrature.product(n_mu, n_phi)
+  <orpheus.numerics.quadrature.Quadrature.product>` — each returning
+  a ``Quadrature`` around the canonical measure produced by the rule
+  function above, plus the SN-side derived data (reflection
+  partners, octant partition, level structure) cached at
+  construction. The legacy ``mu_x`` / ``mu_y`` / ``mu_z`` /
+  ``weights`` / ``N`` surface survives as ``@property`` views over
+  the underlying ``measure.nodes`` / ``measure.weights``, so the ~50
+  consumer sites see no API change.
 
-The cached-view layer means the existing SN consumers see no API
-change: ``quad.mu_x`` is still a numpy array, accessed at the same
-:math:`O(1)` cost. The underlying :class:`DiscreteMeasure` is
-exposed as ``adapter.measure`` for callers that want the
-structurally-richer object — composability via
+.. note::
+
+   **Superseded architecture (R-1 Phase A detour-C).** The original
+   Issue-4 design shipped a *bridge pattern*: four SN-side adapter
+   classes at ``orpheus.sn.quadrature`` (``GaussLegendre1D`` /
+   ``LebedevSphere`` / ``LevelSymmetricSN`` / ``ProductQuadrature``)
+   plus an ``AngularQuadrature`` Protocol, each caching denormalised
+   ``mu_x`` / ``mu_y`` / ``mu_z`` / ``weights`` *fields* over the
+   measure. R-1 Phase A detour-C retired all four classes and the
+   Protocol, collapsing them into the named classmethod factories on
+   the single :class:`Quadrature` class. The Pattern-7 hazard of the
+   old design (four parallel adapter classes each with their own
+   denormalised storage) is closed by construction: there is now
+   exactly one producer of the ordinate data — the ``measure`` — and
+   the named accessors are derived views with no separate storage.
+
+The named accessors keep the same :math:`O(1)` cost as the old
+cached fields. The underlying :class:`DiscreteMeasure` is exposed as
+``quad.measure`` for callers that want the structurally-richer
+object — composability via
 :meth:`~DiscreteMeasure.__mul__` /
 :meth:`~DiscreteMeasure.pushforward` /
 :meth:`~DiscreteMeasure.restrict`, plus the ``invariance_group``
@@ -724,21 +747,20 @@ consumes for automated rule selection.
 The bit-identical contract
 --------------------------
 
-The four legacy classes have ~50 active call sites and 11 frozen
-regression snapshots at ``tests/sn/regression/snapshots/`` (one per
-canonical SN configuration: slab / sphere / cylinder × 1G / 2G ×
-homogeneous / multi-region × DD / aniso). The bridge refactor
-preserves both:
+The consolidation preserved the exact node/weight arrays the four
+legacy adapter classes produced, pinned by two test layers:
 
 * **Bit-identical foundation tests** at
-  ``tests/numerics/test_rules_*.py`` use :func:`numpy.array_equal`
-  (not :func:`numpy.allclose`) to verify that each rule function's
-  nodes/weights are exact-bit equal to the legacy adapter's
-  output.
+  ``tests/numerics/test_rules_1d.py`` /
+  ``tests/numerics/test_rules_product.py`` /
+  ``tests/numerics/test_rules_sphere.py`` use
+  :func:`numpy.array_equal` (not :func:`numpy.allclose`) to verify
+  that each rule function's nodes/weights are exact-bit equal to the
+  legacy reference output.
 * **Regression snapshots** rerun every SN configuration end-to-end
-  through ``DDSweep`` / ``BiCGSTAB`` / power iteration and assert
-  match against the frozen ``.npz`` baselines at the iterative
-  solver's convergence floor (``rtol=1e-12``, ``atol=1e-13``).
+  through the sweep / operator / power-iteration pipeline and assert
+  match against the frozen baselines at the iterative solver's
+  convergence floor (``rtol=1e-12``, ``atol=1e-13``).
 
 Both layers are required: the bit-identical match at the rule level
 guarantees no node-order or floating-point drift entered the

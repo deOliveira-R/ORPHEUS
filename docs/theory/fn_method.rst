@@ -74,7 +74,7 @@ angle-resolved transport eigenvalue and flux-shape problems in compact
 and 2-surface geometries. It already cross-checks against external
 benchmarks: Sood/Forster/Parsons ``Ua-1-0-CY`` cylinder critical
 radius at 8.5e-6 (see
-:func:`tests.derivations.test_trajectory_resolvent_xverif_sood2003_cylinder`).
+:func:`tests.derivations.test_peierls_greens_function_cylinder_xverif_sood2003.test_a2_variant_alpha_agrees_with_sood2003_cylinder`).
 
 That cross-check, however, leans on a single published value. The
 F_N method gives a **second, structurally-independent reference
@@ -374,8 +374,9 @@ Only two things differ:
 The shared assembler at :func:`...core.fn_matrix.assemble_fn_matrix`
 takes :math:`s` as a parameter — slab passes :math:`s = +1`,
 sphere passes :math:`s = -1` — and the recipe is identical
-otherwise. ``MomentSpace`` exposes this duality cleanly: a slab
-and a sphere :class:`~orpheus.derivations.common.geometry_spec.GeometrySpec`
+otherwise. ``MomentSpace`` exposes this duality cleanly: the
+geometry tag (slab vs sphere, carried on the
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`)
 selects which of the two solver families is dispatched, but the
 underlying mathematical object is the same.
 
@@ -2003,9 +2004,11 @@ limit in the form of a guard: when :math:`|s - t|` is smaller than
 the machine-epsilon scale, the :math:`\log|\cdot|`-prefactored terms
 are taken as zero by the limit, leaving the polynomial part.
 
-The closed forms are verified against SymPy's
-:func:`sympy.integrate(s**k * log(abs(t - s)), s)` in
-:func:`tests.derivations.test_atkinson_product_nystrom.test_F_k_log_primitives_match_sympy`.
+The closed-form antiderivatives of :math:`\int s^k \log|t - s|\,ds`
+are verified against :func:`scipy.integrate.quad` with explicit
+singularity subdivision (across regular, endpoint-singular, and
+interior-singular panel configurations) in
+:func:`tests.derivations.test_atkinson_product_nystrom.test_F_k_primitives_match_scipy_singular_quadrature`.
 
 Product-Simpson weight construction
 ------------------------------------
@@ -2339,7 +2342,7 @@ the continuum-correction algorithms is the L1 cross-check evidence.
 After the Atkinson hardening, the empirical agreement is at the
 :math:`O(10^{-5})` level — the F_N moment floor. The numerical
 demonstration is the
-:func:`tests.derivations.test_fn_projection_vs_kll_flux.test_l1_path_ai_atkinson_vs_path_b`
+:func:`tests.derivations.test_fn_projection_vs_kll_flux.test_l1_path_ai_vs_path_b_flux_ratios`
 gate.
 
 References

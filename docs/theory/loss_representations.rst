@@ -233,7 +233,7 @@ it imposes the **load-bearing contract** on every representation:
    make the operator subtract :math:`C` a *second* time — a
    double-counted collision diagonal, a silent sign-and-magnitude error
    (vv-principles failure Mode 3, *missing/duplicated factor*). The
-   convention is pinned by ``test_loss_action_convention.py``: the
+   convention is pinned by ``tests/sn/operators/test_loss_action_convention.py``: the
    non-tautological anchor checks that for a flat reflective field
    :math:`L\psi_{\rm flat} = 0`, so :math:`(L+C)\psi = \sigma_t\psi` —
    proving the action is the *full* :math:`(L+C)` loss, not bare
@@ -2873,5 +2873,5 @@ See also
 * :mod:`orpheus.sn.loss_representation` — the module that implements
   every representation, the selection layer, and the orchestration
   entry.
-* ``.claude/plans/sn_sweep_strategy.md`` — the authoritative locked
+* ``.claude/plans/archive/sn_sweep_strategy.md`` — the authoritative locked
   design (decisions, verification strategy, phases S0–S6).

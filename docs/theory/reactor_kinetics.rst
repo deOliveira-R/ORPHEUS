@@ -47,7 +47,7 @@ transient with open gap (100 s – closure), and transient with closed gap
 (closure – 120 s).
 
 The solver is implemented in :func:`solve_reactor_kinetics` in
-``08.Reactor.Kinetics.0D/reactor_kinetics.py``.
+``orpheus/kinetics/solver.py``.
 
 
 The RIA Scenario

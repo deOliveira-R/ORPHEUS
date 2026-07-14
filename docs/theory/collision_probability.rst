@@ -112,8 +112,8 @@ two layers:
 
 1. **Base geometry** --- :class:`~geometry.mesh.Mesh1D` stores cell edges,
    material IDs, and the coordinate system.  It computes volumes and
-   surfaces via :func:`~geometry.coord.compute_volumes_1d` and
-   :func:`~geometry.coord.compute_surfaces_1d`.
+   face areas via :func:`~geometry.coord.compute_volumes_1d` and
+   :func:`~geometry.coord.compute_areas_1d`.
 
 2. **Augmented geometry** --- :class:`CPMesh` wraps a ``Mesh1D`` and adds
    the CP-specific kernel, quadrature, and
@@ -223,7 +223,7 @@ collision in :math:`j` without leaving the cell.  **Complementarity**:
 
 where :math:`P_{i,\text{out}}` is the escape probability.  In the code:
 ``P_out = 1 - P_cell.sum(axis=1)`` (:meth:`CPMesh._apply_white_bc`).
-Verified by ``test_cp_properties.py::test_row_sums`` for all three
+Verified by ``tests/cp/test_properties.py::test_row_sums`` for all three
 coordinate systems.
 
 
@@ -257,8 +257,8 @@ different sizes and cross sections.
 This halves the computation cost.  In the code,
 :meth:`CPMesh._normalize_rcp` divides the reduced collision probability
 by :math:`\Sigt{i} V_i` for each row.  Reciprocity is verified by
-``test_cp_properties.py::test_reciprocity`` and extended to multi-group
-by ``test_cp_verification.py::TestMultiGroupProperties::test_reciprocity_multigroup``.
+``tests/cp/test_properties.py::test_reciprocity`` and extended to multi-group
+by ``tests/cp/test_verification.py::TestMultiGroupProperties::test_reciprocity_multigroup``.
 
 
 Escape and Re-entry (White Boundary Condition)
@@ -277,7 +277,7 @@ The surface-to-region probability is:
    P_{\text{in},j} = \frac{\Sigt{j} \, V_j \, P_{j,\text{out}}}{S}
 
 where :math:`S` is the cell surface area, accessed uniformly via
-``mesh.surfaces[-1]`` (:func:`~geometry.coord.compute_surfaces_1d`):
+``mesh.areas[-1]`` (:func:`~geometry.coord.compute_areas_1d`):
 
 .. list-table::
    :header-rows: 1
@@ -528,7 +528,7 @@ substitute complementarity :eq:`complementarity` for both sums:
    &= (1 - P_{i,\text{out}})
      + P_{i,\text{out}} \frac{1 - P_{\text{in,out}}}{1 - P_{\text{in,out}}} = 1
 
-Verified numerically by ``test_cp_properties.py::test_row_sums``.
+Verified numerically by ``tests/cp/test_properties.py::test_row_sums``.
 
 .. warning::
 
@@ -1120,7 +1120,7 @@ For **thick regions** (:math:`\tau_i \to \infty`): :math:`E_3(\tau_i) \to 0`,
 so :math:`P_{ii} \to 1 - 1/\tau_i \to 1`.  For **thin regions**
 (:math:`\tau_i \to 0`): :math:`E_3(\tau_i) \to E_3(0) = 1/2`, so
 :math:`P_{ii} \to 0`.  Tested by
-``test_cp_verification.py::TestOpticalLimits``.
+``tests/cp/test_verification.py::TestOpticalLimits``.
 
 In the solver code (:meth:`CPMesh._compute_slab_rcp`)::
 
@@ -1408,7 +1408,7 @@ and the within-cell CP is :math:`P_{ij}^{\text{cell}} = r_{ij} /
 
 Implemented in :meth:`CPMesh._compute_slab_rcp`.  Verified element-by-element
 against ``orpheus/derivations/continuous/flat_source_cp/slab.py::_slab_cp_matrix`` by
-``test_cp_verification.py::TestDirectPinfComparison::test_slab_pinf_matches_derivation``
+``tests/cp/test_verification.py::TestDirectPinfComparison::test_slab_pinf_matches_derivation``
 (tolerance :math:`< 10^{-10}`).
 
 
@@ -1423,8 +1423,8 @@ area.  From area equivalence :math:`p^2 = \pi R_{\text{cell}}^2`:
 
    R_{\text{cell}} = \frac{p}{\sqrt{\pi}}
 
-Geometry built via :func:`~geometry.factories.pwr_pin_equivalent` with
-``coord = CoordSystem.CYLINDRICAL``.
+Geometry built via :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
+(``coord = CoordSystem.CYLINDRICAL``).
 
 .. plot::
    :caption: Wigner--Seitz cylindrical cell with concentric annular regions and a chord at height :math:`y`.
@@ -1535,8 +1535,8 @@ In :meth:`CPMesh._setup_spherical`::
     # Spherical weight: extra factor of y in the quadrature
     self._y_wts = self._y_wts * self._y_pts
 
-Geometry built via :func:`~geometry.factories.mesh1d_from_zones` with
-``coord = CoordSystem.SPHERICAL``.
+Geometry built via :meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry`
+(``coord = CoordSystem.SPHERICAL``).
 
 Second-Difference Formula (Spherical)
 -------------------------------------
@@ -1713,7 +1713,7 @@ Implemented by :func:`~numerics.eigenvalue.power_iteration` via the
       parameter, making it impossible to construct test materials with
       nonzero (n,2n).
 
-      **Test:** ``test_cp_verification.py::TestN2N::test_n2n_solver_keff_matches_analytical``.
+      **Test:** ``tests/cp/test_verification.py::TestN2N::test_n2n_solver_keff_matches_analytical``.
 
       **Lesson:** When adding a new reaction type, trace it through BOTH
       the transport solve AND the eigenvalue estimate.  Test with the
@@ -1810,7 +1810,7 @@ Thermal groups (ratio ~0.6--0.9) need 3--8 inner iterations; fast groups
    corrected residual, thermal groups genuinely require multiple inner
    iterations; fast groups converge in 1.
 
-   **Tests:** ``test_cp_verification.py::TestGSInnerIterations`` ---
+   **Tests:** ``tests/cp/test_verification.py::TestGSInnerIterations`` ---
    ``test_thermal_needs_more_inner_than_fast`` (thermal > fast inner
    counts), ``test_gs_eigenvalue_matches_jacobi`` (same eigenvalue),
    ``test_no_self_scatter_one_inner`` (zero diagonal in :math:`\Sigma_s`
@@ -1837,7 +1837,7 @@ Thermal groups (ratio ~0.6--0.9) need 3--8 inner iterations; fast groups
      - Inner iteration count per group per outer (GS only; ``None`` in Jacobi)
 
 Both modes converge to the **same eigenvalue and flux distribution**
-(``test_cp_verification.py::TestGSInnerIterations::test_gs_eigenvalue_matches_jacobi``).
+(``tests/cp/test_verification.py::TestGSInnerIterations::test_gs_eigenvalue_matches_jacobi``).
 
 .. list-table:: Solver mode comparison
    :header-rows: 1
@@ -1917,15 +1917,15 @@ Eigenvalue Verification Cases
      - Derivation
    * - Slab (:math:`E_3`)
      - :math:`< 10^{-6}`
-     - ``test_cp_slab.py``
+     - ``tests/cp/test_slab.py``
      - ``orpheus/derivations/continuous/flat_source_cp/slab.py``
    * - Cylinder (:math:`\text{Ki}_4`)
      - :math:`< 10^{-5}`
-     - ``test_cp_cylinder.py``
+     - ``tests/cp/test_cylinder.py``
      - ``orpheus/derivations/continuous/flat_source_cp/cylinder.py``
    * - Sphere (:math:`e^{-\tau}`)
      - :math:`< 10^{-5}`
-     - ``test_cp_sphere.py``
+     - ``tests/cp/test_sphere.py``
      - ``orpheus/derivations/continuous/flat_source_cp/sphere.py``
 
 Historically, the cylinder/sphere tolerances were 10× looser
@@ -1940,12 +1940,12 @@ absolute accuracy; the declared ``< 1e-5`` tolerance is now
 (~:math:`10^{-7}`, same kernel on both sides).  See
 :ref:`ki-table-construction` for the full postmortem.  The old
 convergence-with-table-size regression
-``test_cp_verification.py::TestKi4Resolution`` was replaced by
+``tests/cp/test_verification.py::TestKi4Resolution`` was replaced by
 ``test_ki3_kernel_is_insensitive_to_n_ki_table``: ``n_ki_table``
 is now a no-op and ``keff`` is bit-identical across
 ``{5000, 20000, 40000}``.
 
-Additionally, **algebraic property tests** (``test_cp_properties.py``)
+Additionally, **algebraic property tests** (``tests/cp/test_properties.py``)
 are run for all three coordinate systems:
 
 - **Row sums** :math:`= 1` (neutron conservation)
@@ -1957,7 +1957,7 @@ are run for all three coordinate systems:
 Extended Verification (CP-20260405-005)
 ----------------------------------------
 
-31 additional tests in ``test_cp_verification.py`` closing 9 QA gaps:
+31 additional tests in ``tests/cp/test_verification.py`` closing 9 QA gaps:
 
 - **L0 P_inf comparison** (G-1): element-by-element solver vs derivation
   (tolerance :math:`< 10^{-10}`)
@@ -1974,7 +1974,7 @@ Extended Verification (CP-20260405-005)
   no-self-scatter in 1; GS/Jacobi eigenvalue agreement
 - **Ki4 table resolution** (W-6): diminishing returns from 5k to 40k points
 
-Plus 36 diagnostic tests in ``test_cp_diagnostics.py``.
+Plus 36 diagnostic tests in ``tests/cp/test_diagnostics.py``.
 
 ::
 
@@ -2086,7 +2086,7 @@ Both tabulated the functions identically:
    every cylindrical flat-source CP reference value for the life
    of the project.
 
-The old ``test_cp_verification.py::TestKi4Resolution`` confirmed
+The old ``tests/cp/test_verification.py::TestKi4Resolution`` confirmed
 that increasing from 5 000 to 40 000 points produced diminishing
 returns (validating the legacy 20 000 default). It was replaced in
 Phase B.4 by
@@ -2833,8 +2833,9 @@ boundaries, is represented by a piecewise polynomial of degree
 :math:`p-1`. This mirrors the slab composite-panel strategy.
 The total number of radial Nyström unknowns is
 :math:`N = N_{\rm reg} \times n_{\rm panels} \times p`. The builder
-is ``composite_gl_r`` (aliased from ``composite_gl_y`` in
-:mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder`).
+is :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.composite_gl_r`
+(shared with the sphere; the ``composite_gl_y`` alias was retired in
+favour of the single ``composite_gl_r`` name).
 
 **Azimuthal quadrature (Gauss--Legendre on** :math:`[0, \pi]`\ **).**
 With :math:`n_\beta` nodes and weights :math:`w_{\beta,k}`; the
@@ -2866,8 +2867,8 @@ where :math:`L_j` is the degree-:math:`(p-1)` Lagrange polynomial
 supported only on the panel containing :math:`r'_{ikm}`
 (piecewise-polynomial representation matching the composite GL
 radial mesh). The basis is built by
-``_lagrange_basis_on_panels`` in
-:mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder`. Two properties are
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.lagrange_basis_on_panels`.
+Two properties are
 enforced by L0 foundation tests:
 
 - **Partition of unity**: :math:`\sum_j L_j(r) = 1` for any
@@ -2946,13 +2947,15 @@ segments, and a tangent ray that grazes the inner annulus.
 Relationship to the :math:`\tau^{\pm}` chord walker
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The module also exposes a separate walker ``optical_depths_pm``
-that computes the same-side (:math:`\tau^{+}`) and through-centre
-(:math:`\tau^{-}`) branches of the chord form for reference /
-verification purposes. It is not used by
-``build_volume_kernel`` (which operates in polar coordinates)
-but is the primitive that would be needed for any future
-Schur-complemented white-BC boundary closure (see
+The module historically exposed a separate walker
+``optical_depths_pm`` that computed the same-side (:math:`\tau^{+}`)
+and through-centre (:math:`\tau^{-}`) branches of the chord form for
+reference / verification purposes. It was retired in favour of the
+unified :meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.optical_depth_along_ray`,
+which now carries the piecewise chord-integration for both branches.
+The chord form is not used by ``build_volume_kernel`` (which operates
+in polar coordinates) but is the primitive that would be needed for
+any future Schur-complemented white-BC boundary closure (see
 :ref:`peierls-cylinder-white-bc` below), where the relevant
 variable is the chord impact parameter :math:`y`, not the
 observer-centred :math:`\rho`. Its L0 tests live in
@@ -3580,10 +3583,11 @@ piecewise-smooth but has slope discontinuities at material
 boundaries — is represented by a piecewise polynomial of degree
 :math:`p - 1`. This is the same strategy as the cylinder. The
 total number of radial Nyström unknowns is
-:math:`N = N_{\rm reg} \cdot n_{\rm panels} \cdot p`. Builder is
-``composite_gl_r`` (shared with the cylinder; the sphere module
-re-exports it verbatim via
-:mod:`orpheus.derivations.continuous.peierls_nystrom.sphere`).
+:math:`N = N_{\rm reg} \cdot n_{\rm panels} \cdot p`. The builder is
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.composite_gl_r`
+(shared with the cylinder; the sphere module in
+:mod:`orpheus.derivations.continuous.peierls_nystrom.sphere` calls it
+directly).
 
 Verified by ``TestSphereCompositeRadialGL`` in
 ``tests/derivations/test_peierls_sphere_geometry.py``: the weighted
@@ -3626,8 +3630,9 @@ expressed via the panel-local Lagrange basis:
 
 where :math:`L_j` is the degree-:math:`(p-1)` Lagrange polynomial
 supported only on the panel containing :math:`r'_{ikm}`. The basis
-is shared with the cylinder (``_lagrange_basis_on_panels`` in
-:mod:`orpheus.derivations.continuous.peierls_nystrom.geometry`); partition of unity
+is shared with the cylinder
+(:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.lagrange_basis_on_panels`);
+partition of unity
 and polynomial reproduction are L0-verified in the cylinder's
 ``TestLagrangeBasisOnPanels`` and carry over to the sphere case
 without modification.

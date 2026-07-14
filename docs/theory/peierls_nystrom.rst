@@ -394,7 +394,7 @@ integer count, ``orbit_space_class`` is the semantic label (an M/G
 endpoint-count tag made human-readable) for dispatch +
 documentation + test filtering. The plan that introduced this
 concept lives at
-:file:`.claude/plans/topology-based-consolidation.md`.
+:file:`.claude/plans/archive/topology-based-consolidation.md`.
 
 **"F.4"** is **overloaded**. Two distinct referents:
 
@@ -1040,7 +1040,7 @@ would let the bisection actually converge on the offender.
 
 The next-session work on the **parallel Green's function approach**
 (scratched at
-:file:`.claude/plans/peierls-greens-function-approach.md`) is the
+:file:`.claude/plans/archive/peierls-greens-function-approach.md`) is the
 candidate third route. Once it ships and demonstrates bit-exact
 parity with the unified path on the
 ``peierls_slab_2eg_2rg`` fixture, the slab native solver becomes
@@ -3314,7 +3314,7 @@ placement of :math:`(2n+1)` Gelbard factors, no half-range Gram
 rescaling, no (Lambert ↔ Marshak) basis permutation can undo the
 geometric distortion inside the kernel. This was confirmed by the
 60-recipe empirical scan summarised in
-:file:`.claude/agent-memory/numerics-investigator/peierls_rank_n_sanchez_closure_failed.md`:
+:file:`.claude/agent-memory/numerics-investigator/_archive/peierls_rank_n_sanchez_closure_failed.md`:
 every tested assembly reached the same 1.42 % plateau at
 :math:`\sigma_t \cdot R = 5`, :math:`N \ge 2`.
 
@@ -5569,13 +5569,13 @@ Section 10 — Extending to a new geometry: a checklist
    **Status as of 2026-04-18.** The three standard 1-D geometries are
    complete:
 
-   - **Slab (1-D Cartesian)**: Phase-4.1 ✓ (``peierls_slab.py``,
+   - **Slab (1-D Cartesian)**: Phase-4.1 ✓ (``slab.py``,
      :math:`E_1` kernel, rank-2 white-BC closure).
    - **Cylinder (1-D radial)**: Phase-4.2 ✓
-     (``peierls_cylinder.py`` + ``peierls_geometry.py``,
+     (``cylinder.py`` + ``geometry.py``,
      :math:`\mathrm{Ki}_1` kernel, rank-1 white-BC closure).
    - **Sphere (1-D radial)**: Phase-4.3 ✓
-     (``peierls_sphere.py`` + ``peierls_geometry.py``,
+     (``sphere.py`` + ``geometry.py``,
      :math:`e^{-\tau}` kernel, rank-1 white-BC closure with
      geometry-aware :math:`R^{2}` surface divisor).
 
@@ -5651,7 +5651,8 @@ standard tests.
    Peierls reference (:math:`\mathrm{Ki}_1`), a thin façade over the
    unified :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`
    (``kind = "cylinder-1d"``). Eigenvalue driver
-   :func:`~orpheus.derivations.continuous.peierls_nystrom.cylinder.solve_peierls_cylinder_1g`;
+   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
+   (dispatched on the ``CYLINDER_1D`` geometry constant);
    the rank-1 white-BC correction lives at
    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_white_bc_correction`
    on ``CYLINDER_1D``.
@@ -5660,7 +5661,8 @@ standard tests.
    Peierls reference (:math:`e^{-\tau}`), a thin façade over the
    unified :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`
    (``kind = "sphere-1d"``). Eigenvalue driver
-   :func:`~orpheus.derivations.continuous.peierls_nystrom.sphere.solve_peierls_sphere_1g`;
+   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
+   (dispatched on the ``SPHERE_1D`` geometry constant);
    white-BC correction at
    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_white_bc_correction`
    on ``SPHERE_1D``.
@@ -8035,20 +8037,22 @@ governs it:
 Intentional residual ``leggauss`` consumers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Three call sites in :mod:`~orpheus.derivations.continuous.peierls_nystrom.geometry`
-remain on raw :func:`numpy.polynomial.legendre.leggauss` and are
+The residual call sites in :mod:`~orpheus.derivations.continuous.peierls_nystrom.geometry`
+that stayed on raw :func:`numpy.polynomial.legendre.leggauss` are
 **load-bearing for future Phase work** rather than leftover legacy
-code:
+code (the ``_compute_K_bc_sanchez`` consumer in the list below has
+since been retired):
 
 - :func:`compute_T_specular_slab` — slab exemption (the integrand
   :math:`e^{-\tau_{\rm tot}/\mu}` is geometrically immune at
   :math:`\mu \to 0`, so plain GL is already spectral). Plan-exempt
   per §1B step 3 of the rollout plan; tracked in Issue #136 for
   consistency-only contract migration.
-- ``_compute_K_bc_sanchez`` — Sanchez 1986 reference :math:`K_{\rm bc}`
-  closed-form, used as a verification benchmark for the cylinder
-  specular closure. Out of original plan scope; tracked in Issue #136
-  alongside the slab.
+- ``_compute_K_bc_sanchez`` (since retired) — was the Sanchez 1986
+  reference :math:`K_{\rm bc}` closed-form, used as a verification
+  benchmark for the cylinder specular closure. It was out of original
+  plan scope (tracked in Issue #136 alongside the slab) and has since
+  been removed; its leggauss consumption no longer exists.
 - :func:`build_volume_kernel` (the **non-adaptive** variant, not
   :func:`build_volume_kernel_adaptive` which already routes through
   :func:`adaptive_mpmath`) — predates the recipe abstraction and was

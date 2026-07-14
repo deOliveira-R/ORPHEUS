@@ -378,15 +378,16 @@ But some tests exist that are **not** about physics:
      - ``compute_volumes_1d`` returns the right cell volume for
        known edges — a data-structure contract of the
        :class:`~orpheus.geometry.Mesh1D` factory.
-   * - ``test_geometry::TestZoneSubdivision::test_equal_volume_*``
+   * - ``test_structured_geometry::test_equal_volume_{cylindrical,spherical}_invariant``
      - Every cell in an equal-volume zone has bit-identical volume
        by construction (the algebraic invariant that caught
        ERR-020). Not a physics claim — a round-trip
-       correctness property of ``mesh1d_from_zones``.
-   * - ``test_geometry::TestPWRFactories``
-     - ``pwr_pin_equivalent(pitch)`` returns the correct cell
-       radius from the Wigner-Seitz identity. Geometric primitive,
-       not transport physics.
+       correctness property of ``Mesh1D.from_geometry`` equal-volume
+       subdivision.
+   * - ``test_geometry::TestPWRPin2D``
+     - ``StructuredGeometry.wigner_seitz_pin_cell`` returns the
+       correct cell radius from the Wigner-Seitz identity. Geometric
+       primitive, not transport physics.
    * - ``test_geometry::TestMesh1D``
      - ``Mesh1D`` instances are frozen and reject invalid inputs.
        Language-level contract, not a reactor-physics equation.

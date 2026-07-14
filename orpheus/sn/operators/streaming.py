@@ -52,8 +52,8 @@ History
   operator leaf (L / C / S / F).  Operators consume only
   :class:`TimedFullField`.
 * D-J (2026-05-30) — the supporting packed-vector codec family
-  retired: :class:`EquationMap`, :func:`build_equation_map_*`,
-  :func:`solution_to_angular_flux*`, :func:`pack_with_traces`.  The
+  retired: ``EquationMap``, ``build_equation_map_*``,
+  ``solution_to_angular_flux*``, ``pack_with_traces``.  The
   legacy 2-D Cartesian FD matvec ``transport_operator_matvec``
   (and its cartesian / spherical / cylindrical predecessors) had
   retired in D-H.2-C4e.6 (commit ``a614610``).

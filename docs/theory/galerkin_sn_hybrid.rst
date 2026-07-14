@@ -9,7 +9,7 @@ Hybrid collocation-Galerkin-S_N (reserved, lower priority)
    **Stub-grade theory page — implementation deferred (lower
    priority).** Reserves ``:label:`` anchors for the hybrid
    Galerkin-S_N reference-solver theory. Python folder:
-   :mod:`orpheus.derivations.continuous.galerkin_sn_hybrid` (empty;
+   ``orpheus.derivations.continuous.galerkin_sn_hybrid`` (empty;
    README pins canonical references).
 
 

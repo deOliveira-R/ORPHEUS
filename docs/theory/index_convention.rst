@@ -455,7 +455,11 @@ The six PRs
        consumption sites + 3 ``sweep.py`` entry/exit points
        (PR-INDEX-5 removes).  ``EquationMap`` packed-vector
        traversal **deferred** to PR-INDEX-7
-       (see :ref:`sn-index-convention-future-work`).
+       (see :ref:`sn-index-convention-future-work`) — PR-INDEX-7 has
+       since been obsoleted: the packed-vector path (``EquationMap``
+       codec + ``solution_to_angular_flux*``) was deleted at #197
+       Depth-B D-J, so this traversal migration never landed (see the
+       obsoleted-banner in the PR-INDEX-7 section).
    * - PR-INDEX-5
      - ``3356cec``
      - Public API flip:
@@ -882,7 +886,7 @@ the natural numpy reduction shape.
      - 1/(cm³·s)
      - ``(ng, nx, ny)``
      - Computed inline in
-       :func:`~orpheus.sn.solver.compute_group_production_rate`
+       :meth:`~orpheus.sn.solver.SNSolver.compute_group_production_rate`
        / ``..._absorption_rate``
    * - ``GroupRate``
      - :math:`\int_V \sigma \cdot \phi\,dV` --- volume-integrated
@@ -890,7 +894,7 @@ the natural numpy reduction shape.
      - 1/s
      - ``(ng,)``
      - Return of
-       :func:`~orpheus.sn.solver.compute_group_production_rate`
+       :meth:`~orpheus.sn.solver.SNSolver.compute_group_production_rate`
    * - ``CurrentCochain``
      - Face-summed currents (Grand Report v3 §15A.10)
      - n/(cm²·s)
@@ -900,18 +904,21 @@ the natural numpy reduction shape.
      - Map field → scalar response
      - varies
      - scalar
-     - :func:`~orpheus.sn.solver.compute_keff` is a degenerate case
+     - :meth:`~orpheus.sn.solver.SNSolver.compute_keff` is a degenerate case
 
 Iteration state
 ---------------
 
 These are the per-outer / per-inner diagnostic carriers that a
-Solution-class wraps.  Today they live as bare lists on the
-:class:`~orpheus.sn.solver.SNResult` /
-:class:`~orpheus.sn.solver.SNFixedSourceResult` dataclasses; the
-typed-field-contract resume promotes them to an
-``IterationHistory`` dataclass holding the same data with named
-fields.
+solution wraps.  They live on the
+:class:`~orpheus.sn.solution.IterationHistory` dataclass (holding the
+per-outer / per-inner trajectory with named fields and method-style
+accessors such as :attr:`~orpheus.sn.solution.IterationHistory.dominance_ratio`
+/ :attr:`~orpheus.sn.solution.IterationHistory.converged`), which a
+:class:`~orpheus.sn.solution.Solution` carries as an optional field
+(populated for eigenvalue problems).  This pair (Issue #197 PR-TYPED-5)
+replaced the legacy bare-dataclass ``SNResult`` /
+``SNFixedSourceResult`` data bags.
 
 .. list-table:: Iteration state
    :header-rows: 1
@@ -1033,8 +1040,10 @@ Two derived combinations carry their own names:
   rather than the unfused Krylov outer-iteration — the generic
   ``OperatorSum`` carries no ``solve`` at all since carve P4).
 - The multiplication operator :math:`K = A_{\text{loss}}^{-1} F`
-  carries the k-eigenvalue iteration; lives implicitly in
-  :meth:`~orpheus.sn.solver.SNSolver.solve_eigenvalue`.
+  carries the k-eigenvalue iteration; it lives implicitly in the outer
+  :func:`~orpheus.numerics.eigenvalue.power_iteration` loop, which
+  repeatedly calls
+  :meth:`~orpheus.sn.solver.SNSolver.solve_fixed_source`.
 
 Boundary-trace vocabulary
 -------------------------
@@ -1363,7 +1372,8 @@ Zero-field factories
 
 (These leaf-side ``zeros_on`` allocators replaced the retired
 ``SNMesh.zeros_*`` mesh-side factories — see
-:meth:`~orpheus.transport.fields._bases.BulkField.zeros_on`.)
+:meth:`~orpheus.transport.fields._bases.ScalarField.zeros_on` /
+:meth:`~orpheus.transport.fields._bases.AngularField.zeros_on`.)
 
 Cross-type ``__add__`` table
 ----------------------------

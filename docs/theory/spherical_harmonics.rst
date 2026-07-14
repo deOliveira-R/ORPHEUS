@@ -38,7 +38,7 @@ Key Facts
   .. (vv-status rationale) The addition-theorem identity is the
      load-bearing structural identity that the convention is
      designed to make literal. Verified at :math:`\ell \le 3` by
-     ``tests/sn/test_solver_components.py::TestAnisotropicScattering
+     ``tests/sn/operators/test_solver_components.py::TestAnisotropicScattering
      ::test_spherical_harmonics_addition_theorem_L3``.
   .. vv-status: real-sh-addition-theorem documented
 
@@ -589,8 +589,6 @@ References
 * Beckmann, M. and Wieselquist, W. (2017). *Numerical Recipes for
   Real Spherical Harmonics*. Comp. Phys. Comm. 220, 121–133. (Norm
   conventions and recursion stability for high :math:`\ell`.)
-* `transient-giggling-cake.md`_ — Wave 0 step C0.1, "lift
-  ``_build_spherical_harmonics`` to ``orpheus/numerics/``", with
-  the architectural rationale captured here.
-
-.. _transient-giggling-cake.md: ../../.claude/plans/transient-giggling-cake.md
+* A Wave 0 step C0.1 plan ("lift ``_build_spherical_harmonics`` to
+  ``orpheus/numerics/``") captured the architectural rationale
+  reproduced here; that plan file is no longer retained.

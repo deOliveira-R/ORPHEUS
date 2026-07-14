@@ -692,7 +692,7 @@ singularity killed Phase 5.
 The reference implementation of :eq:`peierls-greens-function-architecture`
 is :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function._apply_operator`;
 the public driver is
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_specular_sphere`.
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere`.
 
 
 V_α1 — closed-sphere k_inf identity
@@ -1179,7 +1179,7 @@ eigenvalue, and :math:`k_{\rm eff} = c \cdot \nSigf{}/(\Sigs{} +
 :math:`c = (\Sigs{} + \nSigf{}/k)/\Sigt{}` self-consistently.
 
 Cross-check evidence (table from
-:func:`tests.derivations.test_trajectory_resolvent_xverif_ps1982.test_a2_variant_alpha_agrees_with_ps1982`):
+:func:`tests.derivations.test_peierls_greens_function_xverif_ps1982.test_a2_variant_alpha_agrees_with_ps1982`):
 
 .. list-table:: A2 — Variant α vs PS-1982 vacuum sphere k_eff
    :header-rows: 1
@@ -1504,7 +1504,7 @@ closure** — the BC is absorbed into the kernel via Sanchez Eq. (A1)
 that breaks Phase 4 simply cannot occur structurally.
 
 The test gate
-:func:`tests.derivations.test_trajectory_resolvent_mr.test_mr_issue132_no_catastrophe_closed_sphere`
+:func:`tests.derivations.test_peierls_greens_function_mr.test_mr_issue132_no_catastrophe_closed_sphere`
 pins :math:`0.5 < k_{\rm eff} < 0.95` and explicitly :math:`k_{\rm
 eff} < 1` (ruling out the Phase 4 catastrophe). The spatial mode
 gate
@@ -1730,7 +1730,7 @@ Variant α agreement vs Garcia 2021 Table 5 at default settings
      - < 1 %
 
 Tolerance bands gated by the per-point test
-:func:`tests.derivations.test_trajectory_resolvent_garcia2021.test_garcia_case1_phi_matches_at_point`:
+:func:`tests.derivations.test_peierls_greens_function_garcia2021.test_garcia_case1_phi_matches_at_point`:
 2 % at non-interface points, 15 % at interface-adjacent points
 (within ±2 cm of an interior region boundary).
 
@@ -3863,9 +3863,11 @@ names the load-bearing object:
 - ``CPMesh`` —
   :mod:`...flat_source_cp` (production CP solver).
 
-These are all method-specific computational specializations of
-the abstract
-:class:`~orpheus.derivations.common.geometry_spec.GeometrySpec`.
+These are all independent method-specific *math-heart* classes —
+each names the load-bearing object of its own method; they share no
+common abstract base (the earlier ``GeometrySpec`` carrier that this
+paragraph once invoked was a geometry descriptor, since deleted, and
+never a base of these transfer operators).
 A single problem can spawn multiple methods :math:`\to` multiple
 math-hearts :math:`\to` multiple solutions; the cross-method
 regression net (see :file:`tests/cross_method/`) compares them

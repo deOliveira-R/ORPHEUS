@@ -44,7 +44,7 @@ Key facts
   which materialises a :class:`StructuredGeometry` from the case's
   ``geometry_kind`` tag and ``truth.critical_dimension_mfp`` (cm = mfp / Σ_t).
   Infinite-medium cases raise — for ``k_\infty`` use
-  :func:`~orpheus.derivations.common.eigenvalue.solve_homogeneous_infinite`
+  :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`
   or :meth:`MomentSpace.solve_kinf`.
 * Two non-trivial classmethods earn their keep on
   :class:`StructuredGeometry`:
@@ -320,9 +320,12 @@ per coordinate system:
   <orpheus.geometry.reduced_operator.cylindrical_streaming>` — 1-D
   cylindrical with **per-:math:`\mu`-level** :math:`\alpha`,
   :math:`\Delta A/w`, and :math:`\tau_{mm}` lists.  Requires the
-  angular measure to expose ``level_indices`` (e.g.,
-  :class:`~orpheus.sn.quadrature.LevelSymmetricSN`,
-  :class:`~orpheus.sn.quadrature.ProductQuadrature`).
+  angular measure to expose ``level_indices`` (e.g., a
+  :class:`~orpheus.numerics.quadrature.Quadrature` built from
+  :meth:`Quadrature.level_symmetric
+  <orpheus.numerics.quadrature.Quadrature.level_symmetric>` or
+  :meth:`Quadrature.product
+  <orpheus.numerics.quadrature.Quadrature.product>`).
 
 The per-cell, per-direction inputs needed by a sweep cell update are
 extracted via

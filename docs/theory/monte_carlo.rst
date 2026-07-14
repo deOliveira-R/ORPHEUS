@@ -150,7 +150,7 @@ interchangeably.  Verified by
 **MCMesh vs standalone geometry classes.**  The standalone classes
 predate the unified geometry module.  :class:`MCMesh` integrates with the
 same ``Mesh1D`` factories used by CP and SN (e.g.,
-:func:`~geometry.factories.pwr_pin_equivalent`), enabling cross-method
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`), enabling cross-method
 comparisons on identical base geometry.  Verified:
 ``test_mc_properties.py::test_mcmesh_cylindrical_matches_concentric``
 shows zero mismatches over 10,000 random sample points.
@@ -324,7 +324,7 @@ cylinder, white BCs), the cell areas must match:
    \quad \Longrightarrow \quad
    p = R_{\text{cell}} \sqrt{\pi}
 
-This is the convention used by :func:`~geometry.factories.pwr_pin_equivalent`
+This is the convention used by :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
 (``r_cell = pitch / sqrt(pi)``).
 
 **ERR-017 investigation history.**  The pre-existing heterogeneous tests
@@ -364,8 +364,8 @@ The Monte Carlo Random Walk
 
 The random walk is the heart of the MC solver.  Each neutron undergoes a
 sequence of free flights and collisions until it is absorbed.  The
-implementation in :func:`solve_monte_carlo` (lines 269--328 of
-``monte_carlo.py``) is annotated below.
+implementation in :func:`solve_monte_carlo` (the power-iteration cycle loop at lines 589--623 of
+``orpheus/mc/solver.py``) is annotated below.
 
 
 Free-Flight Distance (Delta-Tracking)

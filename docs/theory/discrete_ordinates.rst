@@ -399,7 +399,8 @@ integrands (degree :math:`2N-1` exact).  Also used for spherical 1D,
 where the single direction cosine :math:`\mu` suffices for the angular
 redistribution.
 
-Implemented in :class:`GaussLegendre1D`.
+Built by :meth:`Quadrature.gauss_legendre(n)
+<orpheus.numerics.quadrature.Quadrature.gauss_legendre>`.
 
 Lebedev (Sphere)
 -----------------
@@ -410,7 +411,8 @@ octahedral symmetry [Lebedev1999]_.  Weights sum to :math:`4\pi`.  On a
 as pure collision; all others stream along *x* with *y*-terms cancelling
 via reflective BCs.
 
-Implemented in :class:`LebedevSphere`.
+Built by :meth:`Quadrature.lebedev(order)
+<orpheus.numerics.quadrature.Quadrature.lebedev>`.
 
 Level-Symmetric S\ :sub:`N`
 ----------------------------
@@ -422,13 +424,14 @@ Equal spacing in :math:`\mu^2` is used with :math:`\mu_1^2 = 4/(N(N+2))`
 [CarlsonLathrop1965]_.
 
 Weights sum to :math:`4\pi`.  Provides the ``level_indices`` structure
-needed by the cylindrical sweep.  Unlike :class:`ProductQuadrature`
+needed by the cylindrical sweep.  Unlike the product quadrature
 (which has one level per :math:`\mu_z` value), the Level-Symmetric
 quadrature groups both :math:`+\mu_z` and :math:`-\mu_z` hemispheres
 on the same level (grouped by :math:`|\mu_z|`).  Within each level,
 ordinates are sorted by increasing :math:`\eta` for the azimuthal sweep.
 
-Implemented in :class:`LevelSymmetricSN`.
+Built by :meth:`Quadrature.level_symmetric(sn_order)
+<orpheus.numerics.quadrature.Quadrature.level_symmetric>`.
 
 Product Quadrature (GL x equispaced)
 -------------------------------------
@@ -447,7 +450,8 @@ increasing :math:`\eta = \sin\theta\cos\varphi` to match the
 :math:`\alpha` recursion convention from [BaileyMorelChang2010]_ (the
 curvilinear :math:`\alpha`-recursion).
 
-Implemented in :class:`ProductQuadrature`.
+Built by :meth:`Quadrature.product(n_mu, n_phi)
+<orpheus.numerics.quadrature.Quadrature.product>`.
 
 Reflection Index
 -----------------
@@ -5593,9 +5597,9 @@ direction:
 
 acting on the octant-restricted tensor space :math:`(N_\sigma,\,n_x,\,n_y,\,n_g)`.
 The direction-cosine partition (Eq. :eq:`octant-sign-predicate`) is
-the predicate the four
-:class:`~orpheus.sn.quadrature.AngularQuadrature` adapters expose as
-their cached :attr:`~orpheus.sn.quadrature.AngularQuadrature.octants`
+the predicate the
+:class:`~orpheus.numerics.quadrature.Quadrature` class exposes as
+its cached :attr:`~orpheus.numerics.quadrature.Quadrature.octants`
 property — a tuple of
 :class:`~orpheus.numerics.measure.DiscreteMeasurePartition`
 entries realised by
@@ -6247,7 +6251,7 @@ discipline):
   - cases 1–6 covering BC mixes, ordinate batching corners, and
     Lebedev (vacuum-BC variant).
 
-* **L2 regression** — existing ``tests/sn/test_mms_2d.py``,
+* **L2 regression** — existing ``tests/sn/verification/mms/test_mms_2d.py``,
   ``test_discrete_ordinates_2d.py``, ``test_streaming_operator.py``,
   ``test_streaming_operator_decomposition.py``,
   ``test_unified_sweep_dispatch.py``, ``tests/sn/regression/``: 56/56
@@ -6522,8 +6526,8 @@ took two passes at the closure:
   to round-off where the sweep does not.
 * **Wave E Round 3** (Issue #98 follow-up) closed the BC-faithfulness
   gap that Round 2 identified: the FD operator's
-  :func:`~orpheus.sn.operators.streaming.solution_to_angular_flux*` and the
-  matvec helpers now consume the
+  then-``solution_to_angular_flux*`` codec and the
+  matvec helpers consumed the
   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances on
   the :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (Wave B Issue 7
   tensor-decomposed BC algebra), dispatching boundary fills via the
@@ -6593,7 +6597,7 @@ one-sided second-order DD diamond extrapolation
 :math:`\psi^{\text{face}}_{N-1/2} = \tfrac{3}{2}\,\psi_{N-1} -
 \tfrac{1}{2}\,\psi_{N-2}` plus a structural decoupling of
 cell-centre storage from BC face-value storage in
-:func:`~orpheus.sn.operators.streaming.solution_to_angular_flux_spherical`
+the then-``solution_to_angular_flux_spherical`` codec
 (returning a ``(fi, boundary_face_flux)`` tuple where ``fi`` was
 pure cell-centre storage and the BC face flux lived in its own
 companion array).
@@ -6659,27 +6663,41 @@ angularly-varying :math:`\psi`.  Phase B lifts this evaluation into
 a :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
 strategy ABC — analogous to Phase A's
 ``BoundaryFaceFlux`` —
-and ships **three concrete strategies** trading off bit-identity,
+and shipped **three concrete strategies** trading off bit-identity,
 flat-flux invariance, and asymptotic accuracy:
 
-* :class:`~orpheus.sn.sweep.pole_angular_closure.LegacyTauSymmetricInterpolation`
+.. note:: **Superseded strategy set (PR-TYPED-6c Step 7, 2026-05-18; #248,
+   2026-06-18).** Of the three Phase-B strategies below, only
+   :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
+   survives — it is now the **sole production curvilinear closure and the
+   default**. The two ablation strategies
+   ``LegacyTauSymmetricInterpolation`` (the pre-Phase-B inlined
+   :math:`\tau`-symmetric form) and ``BaileyFlatFluxRedist`` (the
+   algebraic flat-flux collapse) were retired once
+   ``MorelMontryAngularSweep`` became the default (no production
+   consumer remained), and the divergent
+   ``test_spherical_flat_flux_legacy_matches_bailey_collapse`` gate went
+   with them. The three-strategy exploration is preserved below as the
+   design record of *why* the M-M weighted-DD recurrence is the right
+   closure.
+
+* ``LegacyTauSymmetricInterpolation``
   — bit-for-bit reproduction of the pre-Phase-B inlined math
-  (the :math:`\tau`-symmetric form).  **Default**, preserving the
+  (the :math:`\tau`-symmetric form).  Was the **default** through
+  Phase B, preserving the
   curvilinear regression-snapshot bit-identity contract and the
-  per-ordinate flat-flux invariant the ERR-026 evidence test
-  (:file:`tests/sn/test_sweep_operator_inconsistency.py`) relies on.
-  Carries Defect 3 by design — the truncation gap is *reproducible*
-  so future verification probes can cross-check against the
+  per-ordinate flat-flux invariant the ERR-026 evidence test relied on.
+  Carried Defect 3 by design — the truncation gap was *reproducible*
+  so verification probes could cross-check against the
   documented behaviour.
 
-* :class:`~orpheus.sn.sweep.pole_angular_closure.BaileyFlatFluxRedist`
+* ``BaileyFlatFluxRedist``
   — the algebraic flat-flux collapse
   :math:`R_{n,i,g} = (\Delta A/w)\,(\alpha_{n+1/2} - \alpha_{n-1/2})\,
   \psi_{n,i,g} / V_i = -\mu_n\,\Delta A_i\,\psi_{n,i,g} / V_i`
   (using :eq:`bailey-dome-recursion`).  Equivalent to the legacy form
-  on flat :math:`\psi` (the
-  :func:`tests.sn.l1_analytical.test_pole_closure_flat_flux_identity.test_spherical_flat_flux_legacy_matches_bailey_collapse`
-  test pins this), and used as a structurally simpler bridge to the
+  on flat :math:`\psi` (a now-retired flat-flux-identity test pinned
+  this), and used as a structurally simpler bridge to the
   flat-flux invariant in unit tests.
 
 * :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
@@ -6707,8 +6725,9 @@ flat-flux invariance, and asymptotic accuracy:
   apply matvec requires aligning the spatial closure also (a
   follow-up beyond Phase B's scope — design memo §6.4 / §11).
   :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
-  is therefore **opt-in** in Phase B; the default stays
-  :class:`~orpheus.sn.sweep.pole_angular_closure.LegacyTauSymmetricInterpolation`.
+  was therefore **opt-in** in Phase B (the default was then
+  ``LegacyTauSymmetricInterpolation``); it has since become the sole
+  production strategy and the default (see the supersession note above).
 
 α-recursion normalisation
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -7050,8 +7069,9 @@ The new APIs
 
 Two new APIs surface what the existing infrastructure already knew:
 
-* :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk(*, ordinate_idx=...,
-  direction_sign=..., mu_level_idx=None)` — Issue #196 Phase G
+* :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`
+  (``dag_walk(*, ordinate_idx=..., direction_sign=..., mu_level_idx=None)``)
+  — Issue #196 Phase G
   Step 2.6 (Q3) canonicalised this as the **single iteration
   primitive** for 1-D sweeps, replacing the legacy pair of
   ordinate-keyed / direction-keyed methods.  Exactly one of
@@ -7063,14 +7083,14 @@ Two new APIs surface what the existing infrastructure already knew:
   by :math:`(\mathrm{sign}(\mu_x), \mathrm{sign}(\mu_y))`; the
   direction-keyed branch surfaces that sign-only view as a
   first-class API. A foundation test
-  (:file:`tests/sn/test_dag_walk.py`) pins
+  (:file:`tests/sn/sweep/core/test_dag_walk.py`) pins
   bit-identity between the two invocation modes across sphere /
   slab / cylindrical for every representative ordinate. For
   cylindrical the per-level
   ``mu_level_idx`` is required (the within-level DAG topology
   differs per level).
 
-* :meth:`~orpheus.sn.operators.streaming.EquationMap.unknowns_at_cell_for_mask(cell_idx, ordinate_mask)`
+* ``EquationMap.unknowns_at_cell_for_mask(cell_idx, ordinate_mask)``
   — a precomputed inverse lookup ``(cell, ordinate) → k``. Lazily
   builds an ``(nx, N) int`` table with :math:`-1` sentinels for
   absent ``(ordinate, cell)`` slots; subsequent calls are O(1) per
@@ -7078,6 +7098,10 @@ Two new APIs surface what the existing infrastructure already knew:
   scan the legacy scatter pattern used. The eq_map still iterates
   ``(spatial outer, ordinate inner)`` at construction time; the
   helper just precomputes the inverse for the sweep-frame matvec.
+  (The whole packed-vector ``EquationMap`` codec was subsequently
+  retired at D-J — 2026-05-30 — when the typed :class:`FullField`
+  composite replaced the packed-vector convention; this bullet
+  records the Phase G design as it stood.)
 
 What retires
 ^^^^^^^^^^^^
@@ -7108,10 +7132,10 @@ algebraic extrapolation of cell centres. The retired symbols are:
 * :file:`tests/sn/sweep/test_boundary_face_flux.py` (232 LOC,
   21 foundation tests)
 
-Three additional simplifications ship with the rewrite:
+Three additional simplifications shipped with the rewrite:
 
-* :func:`~orpheus.sn.operators.streaming.solution_to_angular_flux_spherical`
-  (and its cylindrical alias) returns a single ``fi`` array
+* the then-``solution_to_angular_flux_spherical`` codec
+  (and its cylindrical alias) returned a single ``fi`` array
   ``(ng, N, nx, 1)`` instead of the Phase A
   ``(fi, boundary_face_flux)`` tuple. Inward-at-boundary cell-centre
   slots ``fi[:, n_inward, -1, 0]`` are filled with the
@@ -7143,7 +7167,7 @@ What stays
   correctly tracked.
 * The
   :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` +
-  :class:`~orpheus.sn.boundary.realizer.SNMethodSpace` +
+  :class:`~orpheus.sn.mesh.method_space.SNMethodSpace` +
   :class:`~orpheus.numerics.operator.LinearOperator`-1-arg
   ``apply`` substrate (Issues #186 + #176 + #188, Waves 0–12) — the
   BC trace law's realised 1-arg ``apply(outflow) → inflow``
@@ -7369,8 +7393,9 @@ cell centres. The boundary-edge sequence is:
 
 The :class:`~orpheus.numerics.operator.LinearOperator` returned by
 :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`
-internally consumes its
-:class:`~orpheus.numerics.spaces.angular_trace_space.OutflowTraceSpace` mask
+internally consumes the outflow selector
+:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face`
+on the unified :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
 (the ordinate slots with :math:`\mu \cdot \hat n > 0` at the face)
 and writes only the inflow slots; the outflow slots in the output
 are unspecified by the §16A.3 contract and the matvec reads back
@@ -7381,7 +7406,8 @@ defined by the realised BC operator — not extrapolated from
 interior cell centres.
 
 **Gate 1.5** (foundation,
-:func:`tests.sn.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec`)
+:func:`tests.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_vacuum_sphere` /
+:func:`tests.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_reflective_sphere`)
 pins this contract: for each
 :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` concrete kind
 (``VacuumInflow`` / ``ReflectiveBoundary`` / ``WhiteBoundary`` /
@@ -7525,7 +7551,7 @@ ships both as separate test cases (per the Phase B closeout's
 which it nulls" rule).
 
 With the curvilinear default
-:class:`~orpheus.sn.sweep.pole_angular_closure.LegacyTauSymmetricInterpolation`
+``LegacyTauSymmetricInterpolation``
 the rate stays at the pre-Phase-C
 :math:`\mathcal{O}(h^{1.3})` profile. This is the diagnostic that
 **the spatial-closure alignment is necessary but not sufficient**
@@ -7547,7 +7573,7 @@ sweep-frame matvec accidentally moved the convergence rate past
 that demands a fresh investigation), the marker would flip to
 ``xpass`` rather than fail strictly. The strict markers stay on
 the four canonical ERR-026 tripwires
-(:file:`tests/sn/test_mms_curvilinear.py` and the L1 aniso file)
+(:file:`tests/sn/verification/mms/test_mms_curvilinear.py` and the L1 aniso file)
 because those tests cover the closure status that Phase D will
 actually close.
 
@@ -7706,11 +7732,11 @@ The 6th snapshot (``sphere_2g_p1_aniso_dd_n20``) routes to Gate 4.1
 because :math:`P_1` anisotropic eigenvalue is still
 shape-independent for a homogeneous reflective problem.
 
-The test placeholder at
-:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_sn_cylinder_homogeneous_vs_trajectory_resolvent_1g`
-is marked SKIP pending Phase D's pole-face spatial-closure
-refinement. The placeholder is **structurally important**: it pins
-the names of the bare entry points so the Phase D session knows
+The cross-check placeholder landed as the Phase D test
+:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_phase_d_trajectory_resolvent_crosscheck`
+(after the pole-face spatial-closure refinement). It is
+**structurally important**: it pins
+the names of the bare entry points so the reader knows
 exactly where the reference comes from. The structurally-
 independent cross-check is the load-bearing flux-shape evidence
 for ERR-026 → CLOSED — without it the closure narrative would rest
@@ -7868,7 +7894,7 @@ retired Phase A
 ``BoundaryFaceFlux``
 Protocol — but per the empirical Gate 1.1 finding above the
 curvilinear default stays
-:class:`~orpheus.sn.sweep.pole_angular_closure.LegacyTauSymmetricInterpolation`
+``LegacyTauSymmetricInterpolation``
 and the four ``xfail-strict`` curvilinear MMS tripwires STAY xfail.
 ERR-026 remains at **PARTIAL CLOSURE** through Phase C — the
 spatial-closure architecture is aligned (the load-bearing Phase B
@@ -7986,7 +8012,7 @@ CLOSED while keeping the **magnitude** scope open per
    lives in the M-M angular recurrence, not in the WDD spatial
    pole-face IC**.
 2. **Default flip.** :attr:`SNMesh.pole_angular_closure` default
-   :class:`~orpheus.sn.sweep.pole_angular_closure.LegacyTauSymmetricInterpolation`
+   ``LegacyTauSymmetricInterpolation``
    → :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`;
    :class:`~orpheus.sn.solver.SNSolver` curvilinear default
    ``"source_iteration"`` → ``"krylov"``. See
@@ -8048,8 +8074,8 @@ Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
      the canonical Hébert §3.9.4 Eqs. (3.432)–(3.435) inward
      :math:`\mu = -1` sweep output.
    * The seed lives in the **M-M angular recurrence**
-     (``orpheus/sn/sweep/pole_angular_closure.py:411`` —
-     ``_mm_weighted_angular_recurrence_single_level``), **NOT**
+     (:func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
+     in ``orpheus/sn/sweep/pole_angular_closure.py``), **NOT**
      in the WDD spatial pole-face initial condition the
      :ref:`Phase C plan <sn-curvilinear-trajectory-resolvent-crosscheck-section>`
      proposed.  The diagnostic memo at
@@ -8307,7 +8333,7 @@ analytical reference** in the
 identity :math:`(L \cdot \psi_{\text{flat}})_{n,i,g} = \Sigma_t
 \cdot \psi_{n,i,g}` is verifiable by exact algebra on the discrete
 operator, no numerical quadrature required.  The L0 foundation test
-:func:`tests.sn.sweep.curvilinear.test_psi_half_angle_seed.test_l0_flat_psi_reflective_identity_at_C_eq_1`
+:func:`tests.sn.sweep.curvilinear.test_psi_half_angle_seed.TestCarlsonFlatPsiAlgebraicIdentity.test_carlson_flat_psi_identity_reflective`
 pins this identity at machine precision (``rtol=1e-13``).
 
 The corrected injection-point story
@@ -8391,9 +8417,10 @@ broadcast-cell-centre seed ``[D]``.  This is the
 canonical, not as a coincidental match on a degenerate probe.
 
 The pinning test for this structural distinction is
-:func:`tests.sn.sweep.curvilinear.test_psi_half_angle_seed.test_l1_carlson_vs_zero_seed_differ_on_vacuum_bc_probe`
-— a max-abs difference :math:`> 0.05` between Carlson and Zero
-seed residuals on a vacuum-BC probe.  Without this test a future
+:func:`tests.sn.sweep.curvilinear.test_psi_half_angle_seed.TestCarlsonFlatPsiAlgebraicIdentity.test_carlson_vacuum_BC_flat_source_nx_3`
+— a vacuum-BC hand calculation on the Carlson inward sweep
+(``rtol=1e-13``) whose values are distinct from the degenerate
+broadcast-cell-centre seed.  Without this test a future
 regression that replaced the Carlson sweep with a naive
 broadcast-cell-centre would pass every flat-:math:`\psi`
 reflective test silently.
@@ -8587,7 +8614,7 @@ operator-algebra operations of
   — both operations are linear in the input :math:`\psi`.
 
 The foundation test
-:func:`tests.sn.sweep.curvilinear.test_psi_half_angle_seed.test_carlson_inward_sweep_is_linear_in_input`
+:func:`tests.sn.sweep.curvilinear.test_psi_half_angle_seed.TestSeedLinearity.test_carlson_inward_sweep_is_linear`
 pins the linearity directly; the operator-level linearity gate
 in :file:`tests/sn/test_streaming_operator.py` pins it transitively
 at the matvec boundary (``rtol=1e-12`` — relaxed from the
@@ -8645,7 +8672,7 @@ canonical curvilinear closure path:
 #. :attr:`SNMesh.pole_angular_closure
    <orpheus.sn.mesh.augmented_mesh.SNMesh.pole_angular_closure>` default
    flipped from
-   :class:`~orpheus.sn.sweep.pole_angular_closure.LegacyTauSymmetricInterpolation`
+   ``LegacyTauSymmetricInterpolation``
    to
    :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`.
    :class:`MorelMontryAngularSweep`'s own constructor default for
@@ -8689,7 +8716,7 @@ Empirical Gate 1.1 outcome (Phase D — full 12-cell crosstab)
 The Phase D acceptance gate is Gate 1.1 on **all three** pole
 closures across both curvilinear geometries and both :math:`\Sigma_t`
 values.  The parametrised test
-:func:`tests.sn.test_phase_c_gates.test_apply_curvilinear_per_ordinate_flat_flux_residual`
+:func:`tests.sn.sweep.core.test_phase_c_gates.test_apply_curvilinear_per_ordinate_flat_flux_residual`
 produces the 12-cell crosstab:
 
 .. list-table:: Gate 1.1 outcome under Phase D Carlson seed (2026-05-12)
@@ -8803,7 +8830,7 @@ The strengthening matters because the Phase D matvec now calls
    :ref:`affine-bc-form` contract.
 
 The capture-and-compare test
-:func:`tests.sn.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
+:func:`tests.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
 (parametrised over ``vacuum`` and ``reflective``) **locates the
 Phase C call by shape and content matching**: of the two captured
 inputs, the one whose shape matches ``(N, ng)`` and whose values
@@ -8933,8 +8960,10 @@ The full Phase D footprint (per the closeout memo at
 
 * :mod:`orpheus.sn.sweep.pole_angular_closure` —
   :class:`MorelMontryAngularSweep` gains a
-  ``psi_half_seed: PsiHalfAngleSeed`` field;
-  :func:`_mm_weighted_angular_recurrence_single_level` accepts an
+  ``psi_half_seed: PsiHalfAngleSeed`` field; the per-level M-M
+  recurrence (then ``_mm_weighted_angular_recurrence_single_level``,
+  now :func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`)
+  accepts an
   optional ``psi_half_seed`` array; Protocol signatures extended
   with an optional ``carlson_context`` kwarg (Legacy + Bailey
   ignore it).
@@ -9056,7 +9085,7 @@ to seed the M-M half-angle recurrence:
      - Carlson seed site
      - Pre-Phase-F state
    * - Apply matvec (Krylov)
-     - :func:`~orpheus.sn.sweep.pole_angular_closure._mm_weighted_angular_recurrence_single_level`
+     - ``_mm_weighted_angular_recurrence_single_level``
        :math:`\to`
        ``CarlsonInwardSweep``
        via ``MorelMontryAngularSweep.psi_half_seed``
@@ -9544,7 +9573,7 @@ Files touched by Phase F
 
 **Tests added**
 
-* :func:`tests.sn.test_phase_c_gates.test_sweep_curvilinear_per_ordinate_flat_flux_residual`
+* :func:`tests.sn.sweep.core.test_phase_c_gates.test_sweep_curvilinear_per_ordinate_flat_flux_residual`
   — **Gate 1.6**, the dual of Gate 1.1 for the SI/sweep path.
   Parametrised over geometry (sphere × cylinder) and
   :math:`\Sigma_t \in \{0.5, 1.5\}`.  Pins
@@ -9752,7 +9781,7 @@ as :eq:`hebert-3-434` and :eq:`hebert-3-435` but with the
 sweep-path source substitution made explicit.
 
 The new Gate 1.6 test
-:func:`tests.sn.test_phase_c_gates.test_sweep_curvilinear_per_ordinate_flat_flux_residual`
+:func:`tests.sn.sweep.core.test_phase_c_gates.test_sweep_curvilinear_per_ordinate_flat_flux_residual`
 already carries
 ``@pytest.mark.verifies("dd-curvilinear-scalar")`` and
 ``@pytest.mark.catches("ERR-026")``.  Per the project's
@@ -12610,10 +12639,10 @@ The campaign plan called for an automatic ``"krylov"`` dispatch on
 curvilinear meshes in
 :func:`~orpheus.sn.solver.solve_sn_fixed_source` that would silently
 close ERR-026 on the curvilinear vacuum-BC MMS cases.
-Implementation surfaced an unforeseen coupling: the
-:func:`~orpheus.sn.operators.streaming.build_equation_map_spherical` /
+Implementation surfaced an unforeseen coupling: the then-
+``build_equation_map_spherical`` /
 ``build_equation_map_cylindrical`` packed-vector layout that
-:meth:`InvertibleOperator.apply` reuses was designed for the
+:meth:`InvertibleOperator.apply` reused was designed for the
 **reflective** outer-boundary BC only — it has no slot for a vacuum-
 BC outer-incoming :math:`\psi`.  Wave E Round 3 owns the equation-map
 extension that closes the vacuum-BC path; Round 2 ships the krylov
@@ -13002,7 +13031,7 @@ C5.3 the geometry-blind
 raised :class:`NotImplementedError` on those coord systems; the
 ``_BoundBoundaryOperator`` shim carried a dual mode where the
 ``quadrature=`` kwarg, when non-``None``, bound an
-:class:`AngularQuadrature` and forwarded ``inner.apply(psi,
+``AngularQuadrature`` and forwarded ``inner.apply(psi,
 bound_quad)`` to the legacy 2-arg :class:`BoundaryTraceLaw` body.
 The bypass and dual-mode are gone; details and the algebraic
 sequence ("Issue #188 unblocks Issue #176") at
@@ -13422,7 +13451,7 @@ verification of the addition theorem lives at
    refactor is gated by the
    ``slab_2g_p1_aniso_dd_n20`` regression snapshot (rtol=1e-12,
    atol=1e-13) and the full
-   :file:`tests/sn/test_mms_aniso.py` Pℓ MMS convergence suite.
+   :file:`tests/sn/verification/mms/test_mms_aniso.py` Pℓ MMS convergence suite.
 
 Per-cell flux moments :eq:`flux-moments` are computed by the
 discrete projection
@@ -13447,7 +13476,7 @@ normalisation
 (4\pi/(2\ell+1))\,\delta_{\ell\ell'}\delta_{mm'}` working out across
 both projection and reconstruction. The Galerkin frame is **real**
 spherical harmonics (the
-:meth:`~orpheus.sn.quadrature.AngularQuadrature.spherical_harmonics`
+:meth:`~orpheus.numerics.quadrature.Quadrature.spherical_harmonics`
 implementation), not complex --- this is the convention native to
 the Lebedev tabulation and avoids carrying complex arithmetic
 through the source-iteration inner loop.
@@ -13487,8 +13516,8 @@ new operators for the EigenvalueSolver Protocol surface.
 Wave E Round 3 (Issue #98 follow-up) extended the FD operator's
 boundary handling to consume the
 :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` infrastructure
-(Wave B Issue 7), so :func:`solution_to_angular_flux*` and the
-matvec helpers now dispatch boundary fills via the realiser-routed
+(Wave B Issue 7), so the then-``solution_to_angular_flux*`` codec and the
+matvec helpers dispatched boundary fills via the realiser-routed
 1-arg :meth:`apply` on the resolved
 :class:`~orpheus.numerics.operator.LinearOperator` — vacuum,
 reflective, white, albedo, periodic, and mixed BCs are honoured
@@ -13699,7 +13728,7 @@ returned the explicit transpose; that path retired with the bundled
 ``SNStreamingOperator`` class in D-K.
 
 Reciprocity gating today: the foundation linearity gate
-:func:`tests.sn.test_streaming_operator.test_apply_is_linear` catches
+:func:`tests.sn.operators.test_streaming_operator.TestLinearity.test_apply_is_linear` catches
 non-linearity in :meth:`apply`, and the Resolution A bit-exact
 decomposition gate
 :file:`tests/sn/test_streaming_operator_decomposition.py` catches
@@ -14579,7 +14608,7 @@ measured 655 gives ratio **0.90** — the finite-slab leakage +
 multigroup correction discussed in the note above.  The
 **eigenvalue** path surfaces the analogous measurand via
 :attr:`IterationHistory.total_inner_iterations
-<orpheus.numerics.eigenvalue.IterationHistory.total_inner_iterations>`
+<orpheus.sn.solution.IterationHistory.total_inner_iterations>`
 (the Phase 3 measurement seam): A-2g reflective :math:`n=10` gives
 SI ``total_inner`` 371, Krylov 310 (with :math:`n_{\rm outer}=3` for
 both — the **outer** count is splitting-invariant; the inner SI count
@@ -15637,7 +15666,7 @@ reflection step itself).
 
 Successive ratios hit :math:`4.00\pm0.02`, i.e. the measured order
 is exactly the design order of diamond difference.  The L1 test
-:func:`tests.sn.test_mms.test_sn_1d_slab_mms_converges_second_order`
+:func:`tests.sn.verification.mms.test_mms.test_sn_1d_slab_mms_converges_second_order`
 asserts a slightly loose ``order > 1.9`` bracket to leave room for
 round-off at the finest mesh.
 
@@ -15843,13 +15872,13 @@ Gauss--Legendre :math:`S_{16}`):
 Both groups hit the design order independently, confirming
 that the multigroup scatter coupling is correctly exercised.
 The L1 test
-:func:`tests.sn.test_mms_heterogeneous.test_sn_heterogeneous_mms_converges_second_order`
+:func:`tests.sn.verification.mms.test_mms_heterogeneous.test_sn_heterogeneous_mms_converges_second_order`
 asserts ``> 1.9`` to leave round-off headroom at the finest
 mesh.
 
 **What this replaces.** Before Phase 2.1a, the heterogeneous
 SN verification was
-:func:`orpheus.derivations.continuous.cases.sn._derive_sn_heterogeneous`, which
+``orpheus.derivations.continuous.cases.sn._derive_sn_heterogeneous``, which
 computed the reference :math:`k_{\text{eff}}` by running the
 SN solver itself at four mesh refinements and Richardson-
 extrapolating the eigenvalue sequence. That is a **T3 circular
@@ -15934,7 +15963,8 @@ It enters the solver through the ``Q_aniso`` external source slot in
 :func:`orpheus.sn.solve_sn_fixed_source`.
 
 **Quadrature.**  2D problems use Lebedev spherical quadrature
-(:class:`orpheus.sn.quadrature.LebedevSphere`, order 17 = 110 ordinates).
+(:meth:`Quadrature.lebedev(17)
+<orpheus.numerics.quadrature.Quadrature.lebedev>`, order 17 = 110 ordinates).
 Because the ansatz is isotropic in angle, the quadrature-level angular
 integration is exact for *any* quadrature set --- the spatial
 convergence study isolates spatial error exclusively.
@@ -15972,13 +16002,13 @@ diamond-difference design order.
   :class:`orpheus.derivations.continuous.mms.sn.SN2DCartesianMMSCase` and
   :func:`orpheus.derivations.continuous.mms.sn.build_2d_cartesian_mms_case`.
 - Test:
-  :func:`tests.sn.test_mms.test_sn_2d_cartesian_mms_converges_second_order`.
+  :func:`tests.sn.verification.mms.test_mms_2d.test_sn_2d_cartesian_mms_converges_second_order`.
 - Sweep:
   :func:`orpheus.sn.loss_representation._sweep_jacobi` (the 2D diamond-difference
   kernel verified by this test).
 
 **Why this test matters.**  The existing 2D SN tests
-(:mod:`tests.sn.test_discrete_ordinates_2d`) are L2 self-convergence
+(:mod:`tests.sn.sweep.cartesian_2d.test_discrete_ordinates_2d`) are L2 self-convergence
 tests with real cross sections that verify the solver as a black box.
 This MMS test is more incisive: it provides a **closed-form reference
 flux** and asserts the **design convergence order** of the spatial
@@ -16092,7 +16122,7 @@ Both groups achieve the design :math:`\mathcal O(h^{2})` rate.
   :class:`orpheus.derivations.continuous.mms.sn.SN2DCartesian2GHeterogeneousMMSCase`
   and :func:`orpheus.derivations.continuous.mms.sn.build_2d_cartesian_heterogeneous_mms_case`.
 - Test:
-  :func:`tests.sn.test_mms_2d.test_sn_2d_cartesian_2g_heterogeneous_mms_converges_second_order`.
+  :func:`tests.sn.verification.mms.test_mms_2d.test_sn_2d_cartesian_2g_heterogeneous_mms_converges_second_order`.
 
 
 .. _sn-mms-p1-verification:
@@ -16168,7 +16198,7 @@ streaming of :math:`B(x)`.
   :class:`orpheus.derivations.continuous.mms.sn.SNP1AnisoMMSCase` and
   :func:`orpheus.derivations.continuous.mms.sn.build_p1_aniso_mms_case`.
 - Test:
-  :func:`tests.sn.test_mms_aniso.test_sn_p1_aniso_mms_converges_second_order`.
+  :func:`tests.sn.verification.mms.test_mms_aniso.test_sn_p1_aniso_mms_converges_second_order`.
 - P1 assembly:
   :meth:`orpheus.sn.solver.SNSolver._build_aniso_scattering`.
 
@@ -17642,9 +17672,9 @@ Richardson self-test.
 The reference is produced by
 :func:`orpheus.derivations.continuous.cases.sn.derive_sn_heterogeneous_continuous`
 and consumed by
-:func:`tests.sn.test_heterogeneous_transport.test_sn_2region_reflective_case_eigenvalue`
+:func:`tests.sn.eigenvalue.test_heterogeneous_transport.test_sn_2region_reflective_case_eigenvalue`
 (eigenvalue) and
-:func:`tests.sn.test_heterogeneous_transport.test_sn_2region_reflective_flux_shape`
+:func:`tests.sn.eigenvalue.test_heterogeneous_transport.test_sn_2region_reflective_flux_shape`
 (scalar flux shape). The Phase 2.1a smooth-:math:`\Sigma` MMS
 test verifies the **spatial operator** at :math:`\mathcal O(h^{2})`
 design order; this section's Case method verifies the
@@ -18399,8 +18429,11 @@ improvement at matching quadrature order. All 165 SN tests pass,
 and two new tests landed with the fix:
 
 1. **L0 term verification**
-   :func:`tests.sn.test_cartesian.test_sweep_1d_cumprod_recurrence_matches_symbolic_derivation`
-   --- a white-box test that calls ``_sweep_1d_cumprod`` on a
+   ``test_sweep_1d_cumprod_recurrence_matches_symbolic_derivation``
+   (since retired with ``_sweep_1d_cumprod`` at the 1-D sweep
+   fold-over-DAG-walk unification; the successor is
+   :func:`tests.sn.sweep.slab.test_dd_recurrence.test_dd_per_cell_recurrence_matches_symbolic_derivation`)
+   --- a white-box test that called ``_sweep_1d_cumprod`` on a
    1-cell homogeneous slab with a controlled inflow and source,
    and checks the returned cell-average angular flux against a
    numerical substitution of the **symbolic** expressions
@@ -18408,7 +18441,7 @@ and two new tests landed with the fix:
    minimal isolation of the failure mode; it runs in
    milliseconds and does not need any reference solver.
 2. **L1 regression**
-   :func:`tests.sn.test_cartesian.test_heterogeneous_absolute_keff`
+   :func:`tests.sn.eigenvalue.test_keff_slab.test_heterogeneous_absolute_keff`
    --- a black-box test that pins the 2-region A+B reflective
    slab against the Case reference to :math:`5\times 10^{-4}`.
    The pre-fix solver (:math:`1.48\times 10^{-2}` error) would
@@ -18439,7 +18472,8 @@ The four sweep paths audited during ERR-025 diagnosis ---
 post-fix ``_sweep_1d_cumprod`` --- were all verified **clean**
 against the ``sn_balance`` symbolic derivation. The source-builder
 helpers (:meth:`~orpheus.sn.solver.SNSolver._add_scattering_source`,
-:meth:`~orpheus.sn.solver.SNSolver._add_fission_source`,
+``_add_fission_source`` — since retired and merged into
+:class:`~orpheus.transport.operators.fission.FissionOperator` —
 :meth:`~orpheus.sn.solver.SNSolver._build_aniso_scattering`) were
 also audited clean.
 

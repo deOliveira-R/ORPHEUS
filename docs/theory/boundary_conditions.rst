@@ -439,9 +439,10 @@ face names imply axis-aligned outward normals, so the
 :math:`\pm\mu_a` (sign from ``min`` / ``max``). It works for every
 constructible :class:`~orpheus.geometry.mesh.Mesh1D` coord system
 (``CARTESIAN`` / ``SPHERICAL`` / ``CYLINDRICAL`` — all share the
-``("xmin", "xmax")`` radial-axis face structure, with
-:class:`~orpheus.sn.quadrature.GaussLegendre1D`'s :math:`\mu_x` as the
-direction cosine along that axis), for 2-D Cartesian, and — since
+``("xmin", "xmax")`` radial-axis face structure, with the
+:math:`\mu_x` of a :meth:`Quadrature.gauss_legendre
+<orpheus.numerics.quadrature.Quadrature.gauss_legendre>` quadrature as
+the direction cosine along that axis), for 2-D Cartesian, and — since
 C5.5 — for 3-axis Cartesian. The factory has **no** geometry refusal:
 the former ``mesh`` parameter (on the retired
 ``from_mesh_and_quadrature``) was gate-only and is gone (see
@@ -700,7 +701,8 @@ The Wave 5 SN dispatch table is the documented standard:
      - ``ScaledOperator(α, PermutationOperator(...))``
    * - :class:`WhiteBoundary(axis, outward_sign, α)`
      - bare
-       :class:`~orpheus.sn.boundary.angular.AngularAverageOperator.from_quadrature(quad, axis, outward_sign)`
+       :meth:`~orpheus.sn.boundary.angular.AngularAverageOperator.from_quadrature`
+       (``from_quadrature(quad, axis, outward_sign)``)
      - ``ScaledOperator(α, AngularAverageOperator(...))``
    * - :class:`AlbedoBoundary(α)` with α=0
      - :class:`~orpheus.numerics.operator.ZeroOperator`
@@ -718,7 +720,8 @@ The Wave 5 SN dispatch table is the documented standard:
        implementation" follow-up, ``module:sn``)
      - n/a (periodic has no α parameter)
    * - :class:`PrescribedInflow(source)`
-     - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator(source)`
+     - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
+       (``IncomingSourceOperator(source)``)
        — :meth:`apply` ignores the outgoing flux and returns
        ``source.evaluate(probe_inflow_trace)``
      - n/a
@@ -882,8 +885,10 @@ Worked example — end to end
 The following walks the
 ``BC("vacuum") → VacuumInflow → SNBoundaryRealizer.realize →
 IncomingOrdinateMaskTensor`` chain that
-:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh._resolve_bcs` performs at SNMesh
-construction time. The example uses a 1-D Cartesian slab; the same
+:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law`
+performs per face (driven by the shared
+:func:`~orpheus.transport.method.resolve_boundary_conditions` body) at
+SNMesh construction time. The example uses a 1-D Cartesian slab; the same
 chain runs on Mesh2D with face labels ``xmin`` / ``xmax`` /
 ``ymin`` / ``ymax``.
 
@@ -912,8 +917,11 @@ Step 2 — law resolution (in ``SNMesh.__init__``)
 ------------------------------------------------
 
 When :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` is constructed against the
-mesh, its :meth:`_resolve_bcs` method walks the four (1-D: two)
-faces:
+mesh, the shared
+:func:`~orpheus.transport.method.resolve_boundary_conditions` body
+walks the four (1-D: two) faces, calling
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law`
+per face:
 
 .. code-block:: python
 
@@ -933,9 +941,11 @@ dict-entry edit.
 Step 3 — method space construction
 ----------------------------------
 
-:meth:`_resolve_bcs` builds **one** unified
+The per-face
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law`
+calls share **one** unified
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` for the whole
-mesh, once, and stores it on ``self._trace``. The factory is the
+mesh, built once and stored on ``self._trace``. The factory is the
 geometry-blind :meth:`AngularTraceSpace.from_quadrature_and_layout
 <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`
 — it takes the angular quadrature and the mesh's
@@ -1089,7 +1099,7 @@ The shim is **internal** to the package (not in :attr:`__all__`)
 **Historical note (pre Issue #176 / #186).** The Wave-8/9
 implementation carried an optional ``quadrature=`` kwarg that,
 when non-``None``, bound an
-:class:`~orpheus.sn.quadrature.AngularQuadrature` and forwarded
+``AngularQuadrature`` and forwarded
 ``inner.apply(psi, bound_quad)`` to a legacy 2-arg
 :class:`BoundaryTraceLaw` body. That dual-mode existed ONLY
 because the trace factory (then named ``InflowTraceSpace.from_mesh_and_quadrature``,
@@ -2147,7 +2157,7 @@ calls :meth:`bc.apply` twice and the test must locate Call #2 (the
 §16A.3 call) unambiguously.
 
 The Phase D test
-:func:`tests.sn.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
+:func:`tests.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
 (parametrised over ``vacuum`` and ``reflective``):
 
 #. Monkey-patches ``sn_mesh.bc["xmax"].apply`` (the outer radial
@@ -2297,8 +2307,8 @@ per-ordinate sequential rather than once-per-matvec
 collective.
 
 No new Gate 1.5 test variant is needed for the Phase F seed
-call.  The Phase F bit-identity test
-:func:`tests.sn.sweep.core.test_sweep_vs_apply_consistency`
+call.  The Phase F bit-identity test module
+:mod:`tests.sn.sweep.core.test_sweep_vs_apply_consistency`
 (57 foundation tests) pins that the sweep-path's
 ``bc_outer_value`` extraction matches the apply-path's Phase D
 Call #1 result on every test configuration — the structural
@@ -2340,7 +2350,7 @@ legacy 2-arg BC).
 discovered that all three :class:`Mesh1D` coord systems
 (``CARTESIAN`` / ``SPHERICAL`` / ``CYLINDRICAL``) share the same
 ``("left", "right")`` face structure with the radial axis as the
-outward normal and the :class:`~orpheus.sn.quadrature.GaussLegendre1D`
+outward normal and the ``GaussLegendre1D``
 adapter's :math:`\mu_x` as the direction cosine along that axis —
 identically to the slab case. The mask predicate
 :math:`\Omega \cdot \hat n < -\epsilon` therefore applies
@@ -2472,7 +2482,7 @@ single-sourced rendering on the structural face key:
 is THE rendering of the structural identity ``(axis_index,
 endpoint)`` into the ``"{axis}{min|max}"`` string world. Both
 producers — :attr:`SNMesh.boundary_face_layout` and
-:meth:`SNMesh._resolve_bcs` — call it, so a key drift between the
+:meth:`SNMesh.realize_boundary_law` — call it, so a key drift between the
 face layout and the BC dict is **unrepresentable by construction**:
 they cannot disagree because they read the same function over the
 same :func:`~orpheus.transport.mesh.axis.face_labels` inventory.
@@ -3126,7 +3136,7 @@ from the quadrature (the :math:`\mu_x` / :math:`\mu_y` / :math:`\mu_z`
 cosines) and the layout's face names (the axis-aligned normals implied
 by the ``"{axis}{min|max}"`` convention).
 
-With the gate gone, :meth:`SNMesh._resolve_bcs` builds the trace
+With the gate gone, :meth:`SNMesh.realize_boundary_law` builds the trace
 **unconditionally** (the pre-C5.3 ``isinstance`` gate excluded only the
 unconstructible 2-D cylindrical mesh), and :attr:`SNMesh.angular_trace` is typed
 and documented as **always non-None**.

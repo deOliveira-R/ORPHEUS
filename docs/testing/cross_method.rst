@@ -225,9 +225,10 @@ slab regression net:
 
 2. The adapter:
 
-   * pulls XS via :func:`mixture_to_fn_arrays` from the case's
-     ``registry_case.materials`` (or parses inline parameters from
-     ``case.notes``);
+   * reads XS directly off the case's
+     ``registry_case.materials[i]`` :class:`~orpheus.data.macro_xs.mixture.Mixture`
+     (``.SigT`` / ``.SigS`` / ``.SigP``) — or parses inline parameters
+     from ``case.notes``;
    * picks internal numerical parameters (panel count, basis size,
      etc.) appropriate to the case's tolerance floor;
    * performs unit conversions (mfp → cm, half-thickness → full

@@ -631,7 +631,7 @@ multigroup generalisation (all groups share the same spatial
 :math:`\sin(\pi x/L)` shape), multigroup reduces to a
 :math:`ng \times ng` matrix eigenvalue problem in the spectrum
 vector — exactly what
-:func:`orpheus.derivations.continuous.analytical.homogeneous.kinf_and_spectrum_homogeneous`
+:func:`orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
 solves, plus an extra ``D B²`` removal term on the diagonal of
 :math:`\mathbf{A}`.
 

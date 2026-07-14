@@ -443,7 +443,7 @@ counterpart of inverting a Gram matrix in a Galerkin scheme — the
 X-function is the singular-eigenfunction-pillar's Gram operator.
 
 ORPHEUS implements :math:`X(\mu)` in
-:func:`orpheus.derivations.continuous.fn_method.core.x_function.x_function_atalay`
+:func:`orpheus.derivations.continuous.singular_eigenfunction.core.x_function.atalay_X_function`
 with a critical numerical detail: the integrand has an algebraic
 pole at :math:`\mu' = 1` cancelled by an opposing
 :math:`(c\mu'\,\mathrm{atanh}(\mu') - 1)` factor, but ``mp.quad``
@@ -631,29 +631,32 @@ projection).
 
 All three classes:
 
-1. Are **frozen dataclasses** that own a :class:`GeometrySpec` plus
-   method-specific configuration (``fn_order`` for MomentSpace,
+1. Are **frozen dataclasses** that take a
+   :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+   plus method-specific configuration (``fn_order`` for MomentSpace,
    ``alpha_payload`` for Billiard, ``n_modes`` for Spectrum).
-2. Are constructed via a **factory** ``from_problem(materials:
-   dict[int, Mixture], geometry: GeometrySpec, ...)`` that accepts
-   the production-protocol input shape (the same shape the discrete
-   CP/SN/MOC solvers consume).
-3. Expose a **Protocol-conforming surface** — ``materials``,
-   ``geometry_spec``, ``method_name`` — that the unifying
-   :class:`TransportSolver` Protocol consumes for cross-method
-   dispatch.
-4. Return a **shared cross-method result type** —
+2. Are constructed with the production-protocol input shape
+   ``(geometry: StructuredGeometry, materials: dict[int, Mixture], ...)``
+   — the same shape the discrete CP/SN/MOC solvers consume.
+3. Return a **shared cross-method result type** —
    :class:`CriticalSolution` from ``solve_critical``,
    :class:`FluxSolution` from ``solve_fixed_source`` — making
-   results substitutable at the cross-method protocol boundary.
+   results substitutable at the cross-method boundary.
 
-The "≥3 instances" threshold is what *empirically validates* the
-unifying Protocol. With Spectrum landing the third sibling, the
-Protocol's structural design (factory shape, property surface,
-shared return types) is no longer a one-off pattern from
-trajectory_resolvent or a two-off from fn_method + trajectory_resolvent;
-it is a pattern that survived three independent mathematical
-instances. The Protocol is not posited; it is observed.
+.. note::
+
+   **Design-vision framing, partially unrealised.** An earlier
+   revision of this section described a unifying ``TransportSolver``
+   Protocol with a ``from_problem`` factory and a ``geometry_spec`` /
+   ``method_name`` property surface, "observed, not posited" across
+   three sibling classes. The architectural reset deleted the
+   ``GeometrySpec`` carrier and the ``TransportSolver`` Protocol; what
+   survives is the shared **cross-method result types**
+   (:class:`CriticalSolution` / :class:`FluxSolution`) and the common
+   ``(StructuredGeometry, materials-dict)`` construction shape — not a
+   formal Protocol the classes conform to. The "≥3 instances validates
+   a unifying Protocol" narrative is retained here as design rationale,
+   not as a description of a live abstraction.
 
 Construction examples
 ~~~~~~~~~~~~~~~~~~~~~
@@ -664,7 +667,6 @@ isotropic):
 .. code-block:: python
 
    import numpy as np
-   from orpheus.derivations.common.geometry_spec import GeometrySpec
    from orpheus.derivations.common.xs_library import make_mixture
    from orpheus.derivations.continuous.singular_eigenfunction import (
        Spectrum,
@@ -772,7 +774,7 @@ coupled Fredholm system (WM-72 Eqs 30-32, **bare-cylinder limit**
 .. (vv-status rationale) governing: WM-72 Eq 30 in the bare-cylinder reduction (a_0=b_0=1, d_0=0, D=0); the entire Mitsis-WM Fredholm iteration is the verification (test_singular_eigenfunction_cylinder + test_wm72_table_ii_six_configurations).
 .. vv-status: wm72-eq30-bare documented
 
-.. (vv-status rationale) governing: WM-72 Eq 31 — Mitsis-Zweifel singular-subtraction recovery of A'(ν) from Φ'(μ); verified by V_se-cyl.8 (test_v_se_cyl_8_singular_subtraction_eq31).
+.. (vv-status rationale) governing: WM-72 Eq 31 — Mitsis-Zweifel singular-subtraction recovery of A'(ν) from Φ'(μ); verified by V_se-cyl.8 (test_v_se_cyl_8_singular_subtraction).
 .. vv-status: wm72-eq31 documented
 
 .. (vv-status rationale) governing: WM-72 Eq 32 — the bare-cylinder criticality condition; root-find on g(R) = 0 gives the critical radius. Verified at L1 against Sood Ua-1-0-CY (3e-7 relative).
@@ -841,7 +843,7 @@ modern API permits.
    = \int_0^1 \frac{c\,\nu^2\,[\mu^2 \Phi'(\mu) - \nu^2 \Phi'(\nu)]}
                     {\nu^2 - \mu^2}\,d\mu + \nu^2\,\Phi'(\nu) ,
 
-.. (vv-status rationale) derivation: Mitsis-Zweifel singular-subtraction identity — collapses the Cauchy P.V. + λδ continuum-mode kernel into a regular GL-quadrable integrand plus a single residue. Verified by V_se-cyl.8 (test_v_se_cyl_8_singular_subtraction_eq31).
+.. (vv-status rationale) derivation: Mitsis-Zweifel singular-subtraction identity — collapses the Cauchy P.V. + λδ continuum-mode kernel into a regular GL-quadrable integrand plus a single residue. Verified by V_se-cyl.8 (test_v_se_cyl_8_singular_subtraction).
 .. vv-status: wm72-singular-subtraction documented
 
 absorbing both the Cauchy P.V. of the regular-η₂ν part and the
@@ -989,7 +991,7 @@ V_se-cyl.3 — Bessel-Wronskian identity
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_bessel_wronskian_identity`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_3_bessel_wronskian_identity`.
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_3_bessel_wronskian`.
 
 The Bessel-Wronskian identity
 
@@ -1042,7 +1044,7 @@ V_se-cyl.5 — Bare-cylinder criticality structure (catches q-formula typo)
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_bare_cylinder_criticality_condition`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_5_bare_cylinder_criticality_condition`.
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_5_bare_cylinder_criticality`.
 
 The corrected q-formula is
 
@@ -1052,7 +1054,7 @@ The corrected q-formula is
    q(\nu, \mu) = \frac{R}{\nu}\,K_0(R/\mu)\,I_1(R/\nu)
               + \frac{R}{\mu}\,K_1(R/\mu)\,I_0(R/\nu) .
 
-.. (vv-status rationale) derivation: WM-72 q-formula — the second-term denominator must be μ (not R) to satisfy the Wronskian identity q(μ, μ) = 1; corrected from original Phase B1 SymPy. Verified by V_se-cyl.5 (test_v_se_cyl_5_bare_cylinder_criticality_condition).
+.. (vv-status rationale) derivation: WM-72 q-formula — the second-term denominator must be μ (not R) to satisfy the Wronskian identity q(μ, μ) = 1; corrected from original Phase B1 SymPy. Verified by V_se-cyl.5 (test_v_se_cyl_5_bare_cylinder_criticality).
 .. vv-status: wm72-q-formula documented
 
 The :math:`(R/\mu)` denominator in the second term is *forced* by
@@ -1083,7 +1085,7 @@ V_se-cyl.6 — Discrete eigenfunction normalisation
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_discrete_eigenfunction_normalization`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_6_discrete_eigenfunction_normalization`.
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_6_discrete_normalization`.
 
 The discrete normalisation :math:`N_0 = \int_0^1 \mu^2 \eta_0^2(\mu)
 \,d\mu` matches WM-72 Eq 21d. With the corrected V_se-cyl.2
@@ -1109,7 +1111,7 @@ V_se-cyl.7 — Bare-cylinder flux reconstruction
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_flux_reconstruction_bare_cylinder`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_7_flux_reconstruction_bare_cylinder`.
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_7_flux_reconstruction`.
 
 The bare-cylinder neutron density profile is
 
@@ -1118,7 +1120,7 @@ The bare-cylinder neutron density profile is
 
    \rho(r) = b_0\,J_0(r/u_0)
 
-.. (vv-status rationale) governing: Bare-cylinder neutron density profile — the dominant Case eigenfunction with imaginary ν_0 = i u_0 for c > 1; verified by V_se-cyl.7 (test_v_se_cyl_7_flux_reconstruction_bare_cylinder).
+.. (vv-status rationale) governing: Bare-cylinder neutron density profile — the dominant Case eigenfunction with imaginary ν_0 = i u_0 for c > 1; verified by V_se-cyl.7 (test_v_se_cyl_7_flux_reconstruction).
 .. vv-status: wm72-rho-bare-cylinder documented
 
 with :math:`b_0 = 1` per the bare-cylinder normalisation. SymPy
@@ -1135,7 +1137,7 @@ V_se-cyl.8 — Mitsis-Zweifel singular-subtraction structural identity
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_singular_subtraction_eq31`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_8_singular_subtraction_eq31`.
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_8_singular_subtraction`.
 
 V_se-cyl.8 is the load-bearing algebra behind the Branch-2 production
 solver's diagonal handling. The Mitsis-Zweifel identity
@@ -1165,7 +1167,7 @@ at the Sood ``Ua-1-0-CY`` configuration to ≤ 1e-5 relative. Both
 solvers reproduce the published Sood :math:`r_c = 1.72500292` mfp:
 
 * **Variant α** at 8.5e-6 (already shipped at
-  :func:`tests.derivations.test_trajectory_resolvent_cylinder_xverif_sood2003`,
+  :func:`tests.derivations.test_peierls_greens_function_cylinder_xverif_sood2003`,
   via bouncing-characteristic integration with analytical
   bounce-period summation).
 * **WM-72** at ≤ 3e-7 (this module, via singular-eigenfunction
@@ -1778,7 +1780,7 @@ V_case.1 — Linearly-anisotropic dispersion reduction (Atalay Eqs 11→12)
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_dispersion_linear_anisotropic`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_1_atalay_dispersion`.
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_1_dispersion_linear_anisotropic`.
 
 The linearly-anisotropic dispersion relation Eq 11 reduces
 algebraically to Eq 12 — the 1-pair-of-modes form. SymPy verifies the
@@ -1792,7 +1794,7 @@ V_case.2 — Symmetry conditions Eqs 13/14 + 47-49
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_symmetry_conditions_eq13_14_47_to_49`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_2_atalay_symmetry`.
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_2_symmetry_conditions`.
 
 V_case.2 verifies the slab-even / sphere-odd symmetry conditions
 parametrising the parity flip. The slab problem on :math:`[-d, d]`
@@ -1812,7 +1814,7 @@ V_case.3 — Half-range relations Eqs 28-31 (the load-bearing extension)
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_half_range_eqs28_to_31`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_3_half_range`.
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_3_half_range_eqs28_to_31`.
 
 V_case.3 is described in :ref:`theory-case-half-range`. Atalay's
 load-bearing technical contribution — the four parallel half-range
@@ -1829,7 +1831,7 @@ V_case.4 — Fredholm form Eqs 27→32
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_fredholm_form_eq27_to_eq32`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_4_fredholm_form`.
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_4_fredholm_form_eq27_to_eq32`.
 
 V_case.4 verifies the Fredholm-form prefactor reduction Eqs 27 →
 32. The prefactor algebra is a load-bearing step in the Atalay

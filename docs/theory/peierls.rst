@@ -670,11 +670,11 @@ Provenance: local PDFs and codebase pointers
 The literature PDFs cited above are stored in the repo root
 ``/scratch/literature/`` (and a few at the top level):
 
-- ``1982NSE80-481.pdf`` — Pomraning-Siewert 1982 (vacuum sphere
+- ``Pomraning Siewert (1982) On the integral form of the equation of transfer for a homogeneous sphere.pdf`` — Pomraning-Siewert 1982 (vacuum sphere
   integral form). Local copy.
 - ``Hebert(2009)Chapter3.pdf`` — Hébert 2009 Ch. 3 (CP, integral
   transport, white-BC closures). Local copy.
-- ``Sanchez(2002).pdf`` — Sanchez 2002 (periodic-trajectory closure,
+- ``Sanchez(2002) Treatment of Boundary Conditions in Trajectory-Based Deterministic Transport Methods.pdf`` — Sanchez 2002 (periodic-trajectory closure,
   lattice). Local copy.
 - ``Stammler(1983)Chapter4.pdf`` + ``Stammler(1983)Chapter6.pdf`` —
   Stamm'ler 1983 (rank-2 per-face closure; multi-group). Local
@@ -685,7 +685,7 @@ The literature PDFs cited above are stored in the repo root
   multi-region). Local copy.
 - ``Hebert(2009)Chapter3.pdf`` — Hébert 2009 Ch. 3. Local copy.
 - ``Approximate Solutions of the Two-Dimensional Integral Transport
-  Equation by Collision Probability Methods.pdf`` — Sanchez 1982
+  Equation by Collision Probability Methods.pdf`` — Sanchez 1977
   (anisotropic 2D CP). Local copy.
 - ``Collision Probabilities for Finite Cylinders and Cuboids.pdf`` —
   finite-axial-extent cylinder + cuboid CP. Local copy.
@@ -720,7 +720,7 @@ Codebase pointers:
   auto-generated from
   :func:`orpheus.derivations.continuous.peierls_nystrom.cases.capability_rows`;
   rebuilt every Sphinx build by
-  :mod:`tools.verification.generate_peierls_nystrom_matrix`.
+  :mod:`tools.verification.generate_capability_matrices`.
 
 
 Provenance: literature references

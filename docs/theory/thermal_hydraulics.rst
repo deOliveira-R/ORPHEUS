@@ -46,7 +46,7 @@ LOCA blowdown.  Cladding failure (burst) is detected via an event function,
 after which the integration continues with failed-clad boundary conditions.
 
 The solver is implemented in :func:`solve_thermal_hydraulics` in
-``07.Thermal.Hydraulics/thermal_hydraulics.py``.
+``orpheus/thermal_hydraulics/solver.py``.
 
 
 Physics Equations
@@ -485,7 +485,7 @@ The LOCA sequence (default PWR parameters):
      - LOCA blowdown
 
 The exact table values are stored in the ``THParams`` dataclass (lines 63–100
-of ``thermal_hydraulics.py``).
+of ``orpheus/thermal_hydraulics/solver.py``).
 
 
 Numerical Methods
@@ -659,8 +659,8 @@ MATLAB Gap Geometry Bug
    keeping the fuel 332 °C cooler at steady state (808 °C vs 1140 °C).
 
    **Consequence for validation:** Direct comparison of Python and MATLAB is
-   only meaningful using ``thermal_hydraulics_dae.py`` which replicates the
-   MATLAB gap geometry.  The "correct physics" version (``thermal_hydraulics.py``)
+   only meaningful using ``orpheus/thermal_hydraulics/solver_dae.py`` which replicates the
+   MATLAB gap geometry.  The "correct physics" version (``orpheus/thermal_hydraulics/solver.py``)
    has no MATLAB reference — it represents the physically correct solution.
 
 
@@ -674,8 +674,8 @@ Two solver files are maintained for comparison:
    :widths: 25 38 37
 
    * - Property
-     - ``thermal_hydraulics.py``
-     - ``thermal_hydraulics_dae.py``
+     - ``orpheus/thermal_hydraulics/solver.py``
+     - ``orpheus/thermal_hydraulics/solver_dae.py``
    * - Gap geometry
      - Correct: :math:`r_{\text{mid}} = (r_{c,\text{in}} + r_f)/2`
      - MATLAB match: :math:`r_{\text{mid}} = (r_{c,\text{in}} + \Delta z_f)/2`
@@ -696,7 +696,7 @@ Two solver files are maintained for comparison:
 MATLAB Parity (DAE Version)
 ----------------------------
 
-Comparison of ``thermal_hydraulics_dae.py`` against
+Comparison of ``orpheus/thermal_hydraulics/solver_dae.py`` against
 ``matlab_archive/09.Thermal.Hydraulics/results.m`` at key time points.
 All values for outlet node (axial node 2):
 
@@ -748,7 +748,7 @@ coolant enthalpy and 1–2 °C in temperature.
 Correct-Physics Steady-State Check
 ------------------------------------
 
-The correct-physics version (``thermal_hydraulics.py``) has no MATLAB
+The correct-physics version (``orpheus/thermal_hydraulics/solver.py``) has no MATLAB
 reference, but the steady-state fuel centre temperature can be checked
 against an analytical estimate.  For a solid cylindrical pellet with
 uniform volumetric heating:
@@ -872,7 +872,7 @@ Phase 3 — Approaches Tried and Outcome
 
 Approach 4 was adopted as the primary fix because it preserves correct
 physics without replicating the MATLAB bug.  Approach 3 is retained
-in ``thermal_hydraulics_dae.py`` for parity comparison.
+in ``orpheus/thermal_hydraulics/solver_dae.py`` for parity comparison.
 
 
 Known Limitations
@@ -885,7 +885,7 @@ Known Limitations
 
 3. **Axial mesh coarse:** Only :math:`n_z = 2` nodes; no axial conduction.
 
-4. **DAE clad failure timing:** ``thermal_hydraulics_dae.py`` fails at
+4. **DAE clad failure timing:** ``orpheus/thermal_hydraulics/solver_dae.py`` fails at
    379 s vs MATLAB's 425.3 s.  The remaining 46 s gap is due to MATLAB
    indexing quirks in gap temperature and inner gas pressure (not worth
    replicating further).

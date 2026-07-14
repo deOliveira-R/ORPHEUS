@@ -36,7 +36,8 @@ Key Facts
     linearly-anisotropic cases.
   * **Total: 49 cases shipped.**
 - **Production-protocol-aligned**: every case carries
-  ``materials: dict[int, Mixture]`` + ``geometry_spec: GeometrySpec``
+  ``materials: dict[int, Mixture]`` + ``geometry_kind: str`` (one of
+  ``"slab"`` / ``"sphere"`` / ``"cylinder"`` / ``"infinite"``)
   + ``truth: La13511Truth`` — the same objects production solvers
   (:func:`orpheus.cp.solver.solve_cp`, :func:`orpheus.sn.solver.solve_sn`)
   consume directly.
@@ -44,16 +45,20 @@ Key Facts
 
   * Semi-analytical reference solvers (F_N method, PS-1982 wrapper,
     transfer-matrix :math:`k_\infty`, WM-72 cylinder, Atalay
-    slab/sphere) — extract numpy arrays via
-    :func:`mixture_to_fn_arrays`.
+    slab/sphere) — read cross sections directly off the
+    :class:`~orpheus.data.macro_xs.mixture.Mixture` (``mixture.SigT``
+    / ``mixture.SigS`` / ``mixture.SigP``).
   * Production discrete solvers (CP, SN, MOC) — accept the
-    ``materials`` dict + ``geometry_spec.build()`` directly.
+    ``materials`` dict + the
+    :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+    built by :meth:`La13511Case.to_geometry` directly.
 - **Cross-references**: :ref:`theory-fn-method` consumes
   ``LA13511_CASES`` for slab/sphere F_N pinning;
   :ref:`theory-singular-eigenfunction` consumes the Atalay catalogue;
   :ref:`theory-trajectory-resolvent` cross-checks Variant α against
-  ``Ua-1-0-CY`` / ``Ua-1-0-SP``. All consumers share the same
-  ``mixture_to_fn_arrays`` extractor below the trusted-library line.
+  ``Ua-1-0-CY`` / ``Ua-1-0-SP``. All consumers read cross sections
+  directly off the shared :class:`Mixture` below the trusted-library
+  line.
 
 
 .. _sood-registry-purpose:
@@ -83,8 +88,10 @@ The registry decouples the two: the case lives in
 :mod:`sood_registry`, the method lives in its own module
 (:mod:`fn_method`, :mod:`singular_eigenfunction`, etc.), and the
 adapter functions
-(:func:`mixture_to_fn_arrays`, :func:`build_materials`,
-:func:`build_mesh`, :func:`build_cp_params`) bridge the two. Adding
+(:func:`build_materials`,
+:func:`build_mesh`, :func:`build_cp_params`) bridge the two (reference
+solvers read cross sections directly off the shared
+:class:`~orpheus.data.macro_xs.mixture.Mixture`). Adding
 a sixth method to verify against an existing case requires only the
 method's own implementation and a new test file consuming
 ``LA13511_CASES["case_id"]``; no edit to ``sood_registry`` itself.
@@ -107,7 +114,7 @@ Schema
 
 .. _sood-registry-schema:
 
-The :class:`La13511Case` dataclass carries six load-bearing fields:
+The :class:`La13511Case` dataclass carries these load-bearing fields:
 
 .. list-table::
    :header-rows: 1
@@ -130,11 +137,14 @@ The :class:`La13511Case` dataclass carries six load-bearing fields:
      - Macroscopic cross sections keyed by material ID.
        Single-region cases use ``{0: Mixture(...)}``; multi-region
        cases (none in the first slice yet) add more keys.
-   * - ``geometry_spec``
-     - :class:`GeometrySpec`
-     - Geometry kind + critical dimension (mfp + cm) + per-end
-       boundary conditions. The ``build(n_cells)`` method produces
-       a :class:`Mesh1D` at the requested refinement.
+   * - ``geometry_kind``
+     - ``str``
+     - One of ``"slab"`` / ``"sphere"`` / ``"cylinder"`` /
+       ``"infinite"``. The :meth:`La13511Case.to_geometry` method
+       materialises a
+       :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+       for the finite kinds (raises for ``"infinite"``); the published
+       critical dimension lives on ``truth`` (below).
    * - ``scattering_order``
      - ``int``
      - Legendre order of the scattering kernel (0 = isotropic,
@@ -161,18 +171,18 @@ The :class:`La13511Case` dataclass carries six load-bearing fields:
        both forms; Phase F drops the flat fields. ``None`` only on
        cases not yet migrated.
 
-The :class:`GeometrySpec` carries:
-
-* ``geometry`` — one of ``"infinite"``, ``"slab"``, ``"sphere"``,
-  ``"cylinder"``, ``"ISLC"``.
-* ``critical_dimension_mfp``, ``critical_dimension_cm`` — published
-  critical dimension in both unit systems. ``None`` for infinite-
-  medium cases.
-* ``n_groups`` — energy group count.
-* ``mat_id`` — material identifier in the constructed mesh.
-* ``bc_left``, ``bc_right`` — per-end boundary conditions
-  (defaults: vacuum at outer surface; reflective at sphere /
-  cylinder centreline; vacuum at slab face).
+The geometry is carried as the single ``geometry_kind`` string tag;
+the published critical dimension lives on ``truth``
+(:attr:`La13511Truth.critical_dimension_mfp`), and the coordinate
+system, boundary-condition defaults, and material-id default are
+folded into the :meth:`La13511Case.to_geometry` adapter, which
+materialises a
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+(see :ref:`sood-case-to-geometry` below for the per-kind conventions).
+Living the critical dimension on ``truth`` and not on a geometry
+carrier mirrors the architectural fact that the value is a *truth
+claim* ("at this size, the configuration is critical"), not a
+geometric description.
 
 The :class:`La13511Truth` carries:
 
@@ -192,7 +202,7 @@ The :class:`La13511Truth` carries:
   :math:`a` (F_N convention). For ``"sphere"`` / ``"cylinder"``: the
   radius :math:`R`. For ``"infinite"``: ``None``. This is a
   registry-truth value (the published critical configuration);
-  living on ``Truth`` and not on ``geometry_spec`` mirrors the
+  living on ``Truth`` and not on a geometry carrier mirrors the
   architectural fact that the value is a *truth claim* ("at this
   size, the configuration is critical"), not a geometric description.
   Multiply by :math:`1 / \Sigma_t` to convert to cm — that is what
@@ -202,17 +212,18 @@ The :class:`La13511Truth` carries:
   diffusion-theory boundary conditions. Optional metadata; not all
   cases publish it. Currently ``None`` on every catalogue case.
 
-Phase B — case → StructuredGeometry adapter
--------------------------------------------
+Case → StructuredGeometry adapter
+---------------------------------
 
-The ``geometry_spec`` field carries both the *structural*
-description (kind, regions, BCs) and the *truth* values
-(``critical_dimension_mfp`` / ``critical_dimension_cm``). The Phase
-B audit (``.claude/plans/dazzling-cuddling-boot.md``) identified
-that this entanglement should be split: the truth values move onto
-``La13511Truth`` (where they conceptually belong), and the geometry
-itself is built on demand from the truth value via
-:meth:`La13511Case.to_geometry`:
+Historically a single ``GeometrySpec`` carrier entangled the
+*structural* description (kind, regions, BCs) with the *truth* values
+(the critical dimension). The Phase B audit
+(``.claude/plans/dazzling-cuddling-boot.md``) split them, and Phase F
+(2026-05-04) retired the carrier entirely. In the current form the
+truth value lives on :attr:`La13511Truth.critical_dimension_mfp`
+(where it conceptually belongs), the geometry kind is a single
+``geometry_kind`` string tag, and the geometry itself is built on
+demand via :meth:`La13511Case.to_geometry`:
 
 .. code-block:: python
 
@@ -232,18 +243,11 @@ half-symmetry; a future improvement would encode Sood symmetric
 slabs as half-slabs with reflective+vacuum BCs (half the cells in
 production solves at the same accuracy).
 
-Infinite-medium cases (``geometry == "infinite"``) raise
+Infinite-medium cases (``geometry_kind == "infinite"``) raise
 ``ValueError`` from :meth:`La13511Case.to_geometry` with a directive
 message pointing the caller at :meth:`MomentSpace.solve_kinf` /
-:func:`solve_homogeneous_infinite` — those don't have a geometry
-to build.
-
-Phase B is *additive*: legacy consumers reading
-``case.geometry_spec.critical_dimension_mfp`` continue to work
-unchanged. Phase F (after Phases C/D migrate consumers) deletes the
-duplicate fields off ``GeometrySpec`` and the flat
-``sood_table`` / ``primary_reference`` / ``notes`` triple off
-``La13511Case``.
+:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` —
+those don't have a geometry to build.
 
 Cross-method consumer pattern
 ------------------------------
@@ -264,22 +268,24 @@ the materials dict and a built mesh:
    result = solve_cp(materials, mesh, ...)
    # cross-check against case.truth.k_eff_or_kinf
 
-**Semi-analytical reference solvers** extract numpy arrays:
+**Semi-analytical reference solvers** read the cross sections
+directly off the :class:`~orpheus.data.macro_xs.mixture.Mixture`
+(the pre-Phase-D ``mixture_to_fn_arrays`` extractor was retired —
+production solvers and reference solvers now consume the ``Mixture``
+API identically):
 
 .. code-block:: python
 
-   from orpheus.derivations.continuous.sood_registry import (
-       LA13511_CASES, mixture_to_fn_arrays,
-   )
+   from orpheus.derivations.continuous.sood_registry import LA13511_CASES
    from orpheus.derivations.continuous.fn_method.multi_group import (
        compute_kinf_mg,
    )
 
    case = LA13511_CASES["PU-2-0-IN"]
-   sigma_t, sigma_s, nu_sigma_f, chi = mixture_to_fn_arrays(
-       case.materials[0]
+   mix = case.materials[0]
+   k_inf = compute_kinf_mg(
+       mix.SigT, mix.SigS[0].toarray(), mix.SigP, mix.chi
    )
-   k_inf = compute_kinf_mg(sigma_t, sigma_s, nu_sigma_f, chi)
    # cross-check against case.truth.k_eff_or_kinf = 2.683767
 
 The two paths above share the same ``case`` object — guaranteeing
@@ -307,54 +313,60 @@ modules use Sood's symbols verbatim so equations match the LA-13511
 report letter-for-letter; the conversion is purely a relabeling and
 the algebra is identical for either side.
 
-Geometry-spec build conventions
-================================
-
+.. _sood-case-to-geometry:
 .. _sood-registry-mesh-conventions:
 
-The :meth:`GeometrySpec.build` method constructs a :class:`Mesh1D`
-matching the published critical configuration. Conventions per
-geometry:
+Case-to-geometry conventions
+============================
 
-.. list-table:: GeometrySpec.build conventions per geometry
+The :meth:`La13511Case.to_geometry` method materialises a
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+matching the published critical configuration. It reads the published
+critical dimension in mfp off :attr:`La13511Truth.critical_dimension_mfp`
+and the primary material's :math:`\Sigma_t` (group 0), converts to cm
+via :math:`\text{cm} = \text{mfp} / \Sigma_t`, and applies these
+per-``geometry_kind`` conventions:
+
+.. list-table:: ``to_geometry`` conventions per geometry kind
    :header-rows: 1
    :widths: 14 30 28 28
 
-   * - Geometry
+   * - ``geometry_kind``
      - Domain extent (cm)
      - Default BCs
      - Notes
-   * - ``infinite``
-     - n/a (raises)
+   * - ``"infinite"``
+     - n/a (raises ``ValueError``)
      - n/a
-     - Consumers ignore mesh; pass materials to transfer-matrix
-       :math:`k_\infty` solver.
-   * - ``slab``
-     - ``2 * critical_dimension_cm``
+     - No geometry; pass materials to
+       :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`
+       or :meth:`MomentSpace.solve_kinf` for :math:`k_\infty`.
+   * - ``"slab"``
+     - ``2 * cm``
      - vacuum at both ends
      - Builds the FULL symmetric slab :math:`[0, 2a]` where :math:`a`
        is the published critical half-thickness. F_N method's
-       natural domain.
-   * - ``sphere``
-     - ``critical_dimension_cm``
-     - reflective at :math:`r=0`; vacuum at outer
-     - Builds :math:`[0, R]`.
-   * - ``cylinder``
-     - ``critical_dimension_cm``
-     - reflective at :math:`r=0`; vacuum at outer
-     - Builds :math:`[0, R]`. Same as sphere convention.
-   * - ``ISLC``
-     - n/a (raises NotImplementedError)
-     - n/a
-     - Reserved for future Initial-Slab-then-Layered-Cell cases.
+       natural half-thickness is recovered inside
+       :class:`MomentSpace` from ``domain_extent_cm / 2``.
+   * - ``"sphere"``
+     - ``cm``
+     - vacuum at outer; reflective at :math:`r=0` (implicit at the
+       coordinate origin)
+     - Single region of radius :math:`R`.
+   * - ``"cylinder"``
+     - ``cm``
+     - vacuum at outer; reflective at :math:`r=0` (implicit)
+     - Single region of radius :math:`R`. Same as sphere convention.
 
 Cross-method dimension conversion
 ----------------------------------
 
 When the published critical dimension is the **half-thickness**
 (slab) vs the **radius** (sphere/cylinder), method consumers each
-have their own convention. The registry's
-``critical_dimension_cm`` is the **as-published** value; the method
+have their own convention. The registry stores the **as-published**
+value in mean free paths on
+:attr:`La13511Truth.critical_dimension_mfp`; :meth:`to_geometry`
+converts it to cm (via :math:`\text{mfp} / \Sigma_t`) and the method
 consumer is responsible for the correct interpretation:
 
 .. list-table:: Critical-dimension conversions per consumer
@@ -561,7 +573,7 @@ The Atalay 1997 case catalogue lives in
 :mod:`orpheus.derivations.continuous.sood_registry.atalay1997`. It is
 **method-agnostic** in the same sense as the LA-13511 catalogue —
 the case dataclass is :class:`La13511Case` (re-used) carrying
-``materials`` + ``geometry_spec`` + ``truth`` — but parametrises
+``materials`` + ``geometry_kind`` + ``truth`` — but parametrises
 over :math:`(c, R, f_1)` triples rather than material composition,
 mirroring how Atalay published the cases.
 
@@ -634,19 +646,21 @@ The structural-bridge gates live in
 
 * Every registered case has a well-formed
   ``materials: dict[int, Mixture]`` (foundation).
-* The :func:`mixture_to_fn_arrays` extractor returns Sood's published
-  XS values exactly (foundation, parametrised over 1G and 2G cases).
-* Legacy property accessors (``case.sigma_t``, ``case.sigma_s``,
-  ``case.nu_sigma_f``, ``case.chi``) match the extractor — load-
-  bearing back-compat with existing F_N tests (foundation).
-* :class:`GeometrySpec` build conventions hold for every geometry
-  kind (foundation).
+* The :class:`~orpheus.data.macro_xs.mixture.Mixture` objects carry
+  Sood's published XS values exactly — read directly off
+  ``mixture.SigT`` / ``mixture.SigS`` / ``mixture.SigP`` /
+  ``mixture.chi`` (foundation, parametrised over 1G and 2G cases).
+* Every case's ``geometry_kind`` tag is well-formed and matches the
+  expected geometry for that case (foundation).
+* :meth:`La13511Case.to_geometry` builds the FULL symmetric slab
+  domain, the radial sphere/cylinder domains, and raises on
+  ``"infinite"`` (foundation).
 * :func:`kinf_homogeneous` consumes the registry directly and
   reproduces Sood truth at both 1G and 2G cases to ≤ 1e-5
   (foundation).
 * ``solve_cp`` and ``solve_sn`` accept the registry's ``materials``
-  + ``mesh`` without raising (L1 smoke; correctness cross-checks
-  land in Phase B).
+  + the mesh built from :meth:`La13511Case.to_geometry` without
+  raising (L1 smoke).
 
 Why these gates are foundation-tagged and not L1
 -------------------------------------------------
@@ -659,12 +673,13 @@ claims about the underlying physics. Examples:
   case" is a software invariant of the schema. If this breaks, no
   consumer downstream works; it's a foundational property of the
   registry's API contract.
-* "The XS extractor returns the published Sood values exactly" is
-  a software invariant of the extractor function — it must be
-  bit-for-bit because consumers depend on the extractor not
-  changing the values silently.
-* "GeometrySpec.build returns a Mesh1D with the right
-  geometry" is a software invariant of the build interface.
+* "The :class:`Mixture` carries the published Sood values exactly"
+  is a software invariant of the registry data — it must be
+  bit-for-bit because consumers read the values off the ``Mixture``
+  and depend on them not changing silently.
+* ":meth:`La13511Case.to_geometry` returns a
+  :class:`StructuredGeometry` with the right geometry" is a software
+  invariant of the case-to-geometry interface.
 
 These are all **foundation-tagged** because they don't claim
 anything about the *physics* of the cases — they claim only that
@@ -800,8 +815,8 @@ The current registry has two registries side-by-side:
 catalogue (Atalay 1997). Both share the same case schema
 (:class:`La13511Case` is re-used for both, despite the misleading
 name) and both feed the same consumer adapter functions
-(:func:`mixture_to_fn_arrays`, :func:`build_materials`,
-:func:`build_mesh`).
+(:func:`build_materials`, :func:`build_mesh`) and the shared
+:class:`~orpheus.data.macro_xs.mixture.Mixture` API.
 
 The architectural pattern this surfaces — **method-agnostic case
 collections, registered separately, consumed identically** — is

@@ -308,7 +308,7 @@ class La13511Case:
             raise ValueError(
                 f"Case {self.case_id!r} is infinite-medium ("
                 f"truth.k_eff_or_kinf = k_inf, no geometry). Use "
-                f"orpheus.derivations.common.eigenvalue.solve_homogeneous_infinite "
+                f"orpheus.homogeneous.solver.solve_homogeneous_infinite "
                 f"or MomentSpace.solve_kinf(mix) for k_inf cases — "
                 f"to_geometry() is only defined for finite cases."
             )

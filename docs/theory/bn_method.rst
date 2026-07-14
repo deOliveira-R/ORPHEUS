@@ -9,7 +9,7 @@ B_N method — boundary-collocated F_N variant (reserved, lower priority)
    **Stub-grade theory page — implementation deferred (lower
    priority).** Reserves ``:label:`` anchors for the B_N
    reference-solver theory. Python folder:
-   :mod:`orpheus.derivations.continuous.bn_method` (empty; README
+   ``orpheus.derivations.continuous.bn_method`` (empty; README
    pins canonical references).
 
 
