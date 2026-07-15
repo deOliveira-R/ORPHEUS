@@ -511,7 +511,24 @@ Ordered for reversibility and early payoff. **A and B are independently valuable
 
 ---
 
-## 8. Open decisions (for the user)
+## 8. Decisions
+
+### RULED (user, 2026-07-14)
+
+- ✅ **Scope order: Phase A (navigation) BEFORE Phase C (the SN split).** A → B → C. A is cheap
+  and makes everything else discoverable.
+- ✅ **The stale `(L+C−S−F/k)` sites: FIXED NOW** — done @ `0ca0d378` (six sites across
+  `index_convention.rst`, `diffusion_1d.rst`, `discrete_ordinates.rst`; B added as the fifth
+  leaf with a resolve-verified xref). Two sites deliberately kept: a historical narrative
+  (`index_convention.rst:395`, Phase-F material) and the *scattering carrier grid's* different
+  "four leaves" (`operator_algebra.rst:2513,2541,2549`).
+- ✅ **The review's findings: FILED.** **#298** (X2 — `L_full`'s `(s,s)` block written `0` but
+  the table says identity; the identity is what makes the walk triangular) · **#299** (X3 — the
+  blanket Sherman-Morrison dismissal: true of `C`, false of `B`) · **#300** (the payoff — close
+  the boundary SCC in closed form via Woodbury on the rank-1 `B`; CP already does it, SN
+  iterates it; blocked on #299). X1 (`eigenvalue.py`) fixed @ `018ecb7b`.
+
+### STILL OPEN
 
 1. **Chapter filename prefixes** — `01_algebra.rst` (order visible in the tree, but reorder ⇒
    rename ⇒ ref churn) vs **no prefix** (toctree carries order; rename-free; greppable).
@@ -520,11 +537,10 @@ Ordered for reversibility and early payoff. **A and B are independently valuable
    treatment now, or stay single pages until they grow? **Recommend: SN now; others on demand.**
 3. **`conventions/` as Part 0** vs folding it into `foundations/`. **Recommend: Part 0** — it
    is the M1 differentiator and the "read first" surface.
-4. **`index_convention.rst`'s 5 stale `(L+C−S−F/k)` sites** — fix now (small, but the page is
-   slated for absorption) vs fold into Phase A/B. **Recommend: fix now** (Cardinal Rule 1 —
-   it is wrong today, and an agent reads it today).
-5. **Scope order** — Phase A (navigation) before Phase C (SN split), or SN-first?
-   **Recommend: A → B → C.** A is cheap and makes everything else discoverable.
+4. **Lewis & Miller** — not in `scratch/literature/`, unverifiable anywhere online (§3.4). It is
+   the text Stacey defers to for acceleration and the likeliest structural precedent for this
+   mini-book. **ACTION: user to add.** Second priority: Larsen & Morel 2010 (Springer
+   `10.1007/978-90-481-3411-3_1`, 84 pp).
 
 ---
 
