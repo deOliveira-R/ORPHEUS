@@ -28,19 +28,28 @@ The eigenvalue machinery is layered so the algorithm is **method-agnostic**
   :math:`A_{\rm loss}^\dagger \psi^\dagger = \lambda M^\dagger \psi^\dagger`
   are documented future seams.)
 * **Resolvent** :math:`A_{\rm loss}^{-1}` (method-specific): the fixed-source
-  inner solve — SN sweep / Krylov, CP BiCGSTAB, diffusion FD, ...
+  inner solve — SN sweep / Krylov; CP's ``P_inf`` collision-probability kernel;
+  diffusion's and homogeneous's eager LU
+  (:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`).
 * **Algorithm** (this module): :func:`power_iteration` over the
   method-agnostic :class:`EigenvalueSolver` boundary.  It sees ONLY a
   normalized-source fixed-point procedure — never the method's operators or
   sweeps.
 
 :func:`power_iteration` is the **canonical engine**: any deterministic solver
-that expresses its physics in the :class:`EigenvalueSolver` Protocol plugs in —
-INCLUDING methods (CP, diffusion, homogeneous) whose loss operator is a
-monolithic matrix with no :math:`(L, S, F)` factorization.  The operator-triple
-entry point :class:`~orpheus.numerics.iteration.KEigenvalue` is one such
-implementer: it realizes the boundary from an :math:`(L, S, F)` triple and
-delegates the loop here (single source of truth — one loop).
+that expresses its physics in the :class:`EigenvalueSolver` Protocol plugs in.
+The Protocol binds the inner resolvent **late** because the inner-solve
+*strategy* and its *carrier* vary — a sweep, an eager LU, a single Jacobi step,
+or Gauss-Seidel with inners; a typed composite or a bare ``(N, ng)`` array —
+**not** because the loss operator resists factorization.  Every deterministic
+method ORPHEUS ships DOES factor: SN and diffusion as :math:`L+C-S-B`
+(``DiffusionSolver.loss = leakage + collision - scattering - boundary``),
+homogeneous as :math:`A = C - K_{\rm iso}`, and CP applies :math:`S`,
+:math:`(n,2n)`, and :math:`F` explicitly *outside* its ``P_inf`` kernel — that
+kernel IS its :math:`(L+C)^{-1}`.  The operator-triple entry point
+:class:`~orpheus.numerics.iteration.KEigenvalue` is one such implementer: it
+realizes the boundary from an :math:`(L, S, F)` triple and delegates the loop
+here (single source of truth — one loop).
 
 The eigenvector is a **flux distribution** — its shape is determined but its
 absolute scale is arbitrary.  Per-step renormalization to unit production rate
@@ -100,7 +109,7 @@ class EigenvalueSolver(Protocol):
         fission_source: np.ndarray,
         flux_distribution: np.ndarray,
     ) -> np.ndarray:
-        """Apply the transport operator and return an updated flux distribution.
+        r"""Apply the transport operator and return an updated flux distribution.
 
         This method encapsulates the model-specific physics:
 
@@ -108,8 +117,8 @@ class EigenvalueSolver(Protocol):
         * **Discrete ordinates (SN)** — diamond-difference sweep with inner
           scattering iterations.
         * **Method of characteristics** — ray-tracing sweep.
-        * **Diffusion** — implicit solve with BiCGSTAB.
-        * **Homogeneous** — sparse direct solve of the removal matrix.
+        * **Diffusion** — eager LU of the composed loss :math:`L+C-S-B`.
+        * **Homogeneous** — eager LU of :math:`A = C - K_{\rm iso}`.
 
         Scattering and (n,2n) sources must be assembled inside this method
         so that inner iteration schemes (e.g. source iteration in SN) can
