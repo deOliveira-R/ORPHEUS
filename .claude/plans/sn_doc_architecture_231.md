@@ -5,6 +5,26 @@
 **execution** of #231's settled design comment, scoped to the SN flagship.
 **Started:** 2026-07-13.
 
+> ## ⚠ SEQUENCING SUPERSEDED — read `documentation_corpus_architecture.md` FIRST
+>
+> **2026-07-14.** A whole-corpus architecture proposal now exists:
+> **`.claude/plans/documentation_corpus_architecture.md`**. It is the layer ABOVE this plan
+> (#231 designed the *page*; that proposal designs the *corpus*), and **it re-scopes this
+> plan's remaining phases**. It is the authority on WHAT TO DO NEXT.
+>
+> - **Phase 1d below is SUPERSEDED** → it becomes corpus **Phase C** ("split the monoliths into
+>   chapters"), which strictly contains it: *splitting SN into chapters* ⊃ *decomposing the
+>   mega-section in place*. The Haiku fan-out catalog (recorded in 1d) is still the instrument —
+>   it now classifies chunks into **target chapters** as well as KEEP/ARCHAEOLOGY/DISTILL/RELOCATE.
+> - **USER RULING (2026-07-14): corpus Phase A → B → C.** Phase A (the mechanical skeleton:
+>   directories, `git mv`, ref fixes, raise `:maxdepth:`, fix `theory/index`'s one-section defect,
+>   exclude `**/*.inc.rst`) and Phase B (de-duplicate by the `:label:` oracle) both come
+>   **BEFORE** any monolith split. **Do NOT start 1d/C first.**
+> - **Phase 2 (code-prose rebalancing) is unchanged and still valid**, but is downstream of the
+>   corpus skeleton for the same reason (relocation needs its destinations to exist).
+>
+> Phases 0 / 1a / 1b+1c below are **DONE and merged into this branch** — that record stands.
+
 This file is the durable, cross-session plan (Cardinal Rule 4). The authoritative
 DESIGN is issue #231's "Settled design" comment; this file is the SEQUENCED BUILD +
 the three scoping decisions the user made 2026-07-13.
@@ -221,7 +241,26 @@ has the destination sections for relocated derivations.
   notes + removed the 2 Investigation-History essays (§9, L10; full text preserved in closeout for
   optional issue relocation). NO big-block reorder (deferred to 1d per user). One dangling intra-
   page `:ref:`investigation-err-025`` repointed to the distilled gotcha. Page 19788→19408.
-  Independent -W build rc0. NEXT = Phase 1d (Sweep mega-section decomposition + the deferred
-  physical re-level; opens with a USER CHECKPOINT before big deletions) OR Phase 2 (code-prose).
-  REMOVED ESSAYS pending user decision: post essay-2 → #95 (clean origin fit) / essay-1 → a
-  curvilinear issue, or rely on git history + ERR catalog.
+  Independent -W build rc0.
+- 2026-07-14: **CORRECTNESS FIXES** (found while grounding the corpus proposal — the corpus was
+  asserting a RETIRED operator algebra as current fact in four places):
+  `275a753a` the SN machine header + Synopsis (shipped in `afb5571d`) encoded the pre-B-extraction
+  fold `L: streaming + boundary` / `(L+C−S−F/k)`; `018ecb7b` `numerics/eigenvalue.py`'s docstring
+  claimed CP/diffusion/homogeneous have "no (L,S,F) factorization" (**all three do** — it
+  manufactured a wrong taxonomy in-session before the code was read) + made the docstring raw;
+  `0ca0d378` retired the "four-operator algebra" spelling corpus-wide (6 sites / 3 pages; B added
+  as the fifth leaf). Honest algebra: **A = L + C − S − B**, posed `Aψ = (1/k)Fψ` / `Aψ = q`.
+- 2026-07-14: **CORPUS PROPOSAL written** → `.claude/plans/documentation_corpus_architecture.md`
+  (`bb56a33a`). Grounded by a 71-page inventory + a verified literature survey + an adversarial
+  review of the path-integral root. **Issues filed: #298 / #299 / #300.**
+
+### ⏭ NEXT ACTION (post-compaction, authoritative)
+
+**Read `.claude/plans/documentation_corpus_architecture.md` — §7 (migration) + §8 (decisions).**
+Then execute **corpus Phase A** (mechanical skeleton, low risk, user-ruled to go first).
+Do NOT start Phase 1d/C. Phase 2 (code-prose) remains valid but is downstream of A.
+
+**Parked, no decision needed to proceed:** the two removed Investigation-History essays (full text
+in the Phase-1b/1c archivist closeout; git history preserves them; ERR-025/ERR-026 catalog entries
+carry the outcomes). Optional L10-canonical relocation: essay-2 → #95 (clean origin fit); essay-1
+has no clean issue home.

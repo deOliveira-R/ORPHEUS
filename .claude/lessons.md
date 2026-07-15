@@ -953,3 +953,46 @@ Cross-reference: `[[lessons-L29]]` (don't relax an invariant to a weaker downstr
 the tempting simplification" spirit); `[[lessons-L24]]` (re-characterise a plan's verb when the ground —
 here the layering — contradicts it); `.claude/rules/coding-standards.md` ("clean before extending" — the
 assembler is the single generic body both verbs extend through).
+
+## L33 — In a doc-repair campaign the corpus is an ADVERSARY: never cite a doc/docstring as evidence for a structural claim, and never chain a commit after an unread verification (2026-07-14)
+
+Two self-inflicted failures in one session, both while *fixing* documentation:
+
+**(a) A stale docstring manufactured a wrong architecture.** Designing a corpus-wide
+transport-method taxonomy, I asserted "CP has no `(L,S,F)` factorization — CP *is* the
+propagator," citing `numerics/eigenvalue.py:37-43`. The docstring was stale and **the code it
+describes refutes it**: `diffusion/solver.py:240` = `leakage + collision - scattering - boundary`;
+`homogeneous/solver.py:143-146` = `collision - k_iso`; `cp/solver.py:519-520,526` applies S/(n,2n)/F
+explicitly *outside* `P_inf` — and `P_inf` **is** CP's `(L+C)⁻¹`. An adversarial reviewer
+(cross-domain-attacker) killed the taxonomy and traced it to the docstring. Same session, the same
+disease bit twice more: the SN machine header I had shipped that morning encoded the retired
+pre-B-extraction fold (`L: streaming + boundary`), contradicted by its own page 14k lines later,
+and six more sites across three pages asserted the retired "four-operator algebra" as current fact.
+
+> **The rule: a doc or docstring is a CLAIM, not evidence.** Before building any structural
+> argument on a documented assertion, verify it against the code (`grep`/Read the implementation).
+> This is sharpest *during a documentation-repair campaign*, where the corpus you are repairing is
+> exactly the corpus that will mislead you while you repair it — and where a fresh agent's first 50
+> lines (a machine header, a module docstring) are the highest-leverage place for a lie to sit.
+> Corollary: when a doc and the code disagree, that is not a typo — it is an architecture symptom
+> (one fact with no single source of truth). Fix the source, then grep the corpus for its siblings.
+
+**(b) I claimed a verification I never read.** I ran `sphinx -W` with `run_in_background`, then in
+the *next* command chained `cat <log>` and `git commit` with a newline (not `&&`). The build had
+FAILED (on a bug I introduced: `\rm` inside a non-raw docstring → `\r` → broken RST), the log
+printed "BUILD FAILED", and the commit landed anyway carrying the message "Clean -W build." That is
+vv-principles **L12 committed against myself** — the exact fabrication pattern I demand sub-agents
+never do, in a session where `vv-principles` was preloaded.
+
+> **The rule: never sequence a commit after a verification whose result you have not READ.** Read
+> the exit code, then decide. Do not put a verification and a commit in the same Bash call unless
+> they are `&&`-chained. If a commit message asserts a gate ("clean build", "tests pass"), that
+> string is a claim under L12 — it needs the same paste-back discipline as a sub-agent closeout.
+> (Recovery: amend while unpushed so the false claim never becomes history.)
+
+Cross-reference: `[[lessons-L12]]` (sub-agent closeouts fabricate at the summarization boundary —
+here the fabricator was the main agent); `[[lessons-L31]]` (verdict vs attribution — same "verify
+before transcribing" reflex); `.claude/rules/process-discipline.md` (trust git, not a frozen claim
+— generalizes: trust CODE, not a frozen doc). Evidence: `275a753a`, `018ecb7b`, `0ca0d378`;
+`.claude/plans/documentation_corpus_architecture.md` §3.6 (the 12 MUST-NOT claims exist so the next
+author cannot repeat this).
