@@ -22,12 +22,16 @@ Discrete Ordinates Method (S\ :sub:`N`)
       module: sn
       method: discrete-ordinates
       aliases: [SN, discrete ordinates, Sₙ, transport sweep, ordinate method]
-      governing_equation: "(L + C - S - F/k) ψ = q"
+      governing_equation: "A ψ = (1/k) F ψ  [eigenvalue] ;  A ψ = q  [fixed source]"
       operators:
-        L: streaming + boundary (Ω·∇ + reflective / vacuum / white trace)
+        L: streaming, BULK only (Ω·∇) — the boundary law is the sibling B, NOT folded into L
         C: collision / removal (Σ_t)
         S: scattering in-scatter gain (Σ_s0ᵀ φ + anisotropic moments)
+        B: boundary law as a first-class SIBLING operator (reflective / vacuum / white trace), every geometry
         F: fission production (χ ⊗ νΣ_f, rank-1 dyad)
+      composites:
+        A: "L + C - S - B — the within-group loss operator; the Krylov driver applies it"
+        (L+C): "lower-triangular under the upwind cell ordering; (L+C)⁻¹ IS the transport sweep"
       key_types: [AngularFlux, SNMesh, HarmonicMomentField, SweepDependencyGraph]
       entry_points:                    # qualnames; Nexus links via implements edges
         - orpheus.sn.solver.solve_sn
@@ -72,10 +76,16 @@ Morel–Montry angular-closure weight — unique exact-on-linear-in-:math:`\mu`)
 the general framework [LewisMiller1984]_, and the angular discretisation
 [CaseZweifel1967]_ / [Hebert2009]_ (§3.9.4).
 
-The solver is posed as an **operator algebra**: the loss composite
-:math:`A = L + C` (streaming + boundary, plus collision / removal), the
-scattering gain :math:`S`, and the rank-1 fission dyad :math:`F` assemble the
-governing form :math:`(L + C - S - F/k)\psi = q`.  :class:`SNSolver` satisfies
+The solver is posed as an **operator algebra** over five operators: streaming
+:math:`L` (bulk :math:`\hat{\Omega}\cdot\nabla`), collision / removal
+:math:`C`, the scattering gain :math:`S`, the boundary law :math:`B` — a
+first-class **sibling** operator, *not* folded into :math:`L` — and the rank-1
+fission dyad :math:`F`.  They compose the within-group loss operator
+:math:`A = L + C - S - B`, so the eigenvalue problem is
+:math:`A\,\psi = \tfrac{1}{k}\,F\,\psi` (fixed source: :math:`A\,\psi = q`).
+The sub-composite :math:`(L+C)` is lower-triangular under the upwind cell
+ordering, which is exactly why :math:`(L+C)^{-1}` **is** the transport sweep
+(:doc:`loss_representations`).  :class:`SNSolver` satisfies
 the :class:`~numerics.eigenvalue.EigenvalueSolver` protocol and
 :func:`solve_sn` returns an :class:`SNResult`.  Because the protocol places the
 scattering source *inside* ``solve_fixed_source``, the inner source iteration
