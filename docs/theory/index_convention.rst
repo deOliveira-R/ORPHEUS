@@ -34,12 +34,17 @@ this page, this page is correct.
   ``xs.sig_t.T.reshape(ng, nx, ny)[g, i, j] ==
   xs.sig_t.reshape(nx, ny, ng)[i, j, g]``.  Asserted in ``__debug__``
   at :class:`~orpheus.sn.solver.SNSolver` construction.
-- **The four-operator algebra** :math:`(L + C - S - F/k)\psi = q`
-  consumes and returns :math:`\psi` shaped as ``(N, ng, nx, ny)`` at
+- **The five-operator algebra** — the within-group loss composite
+  :math:`A = L + C - S - B`, posed as
+  :math:`A\,\psi = \tfrac{1}{k}\,F\,\psi` (eigenvalue) or
+  :math:`A\,\psi = q` (fixed source) — consumes and returns :math:`\psi`
+  shaped as ``(N, ng, nx, ny)`` at
   every leaf (:class:`~orpheus.sn.operators.streaming.StreamingOperator`,
   the collision multiplier :math:`C = M[\sigma_t]`
   (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
   :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
+  the boundary law :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
+  — a first-class **sibling**, *not* folded into :math:`L` —
   :class:`~orpheus.transport.operators.fission.FissionOperator`).
 - **Historical note (resolved 2026-05)**: a legacy FD-matvec
   packed-vector helper ``solution_to_angular_flux`` returned
@@ -810,7 +815,8 @@ type lands as the typed-field-contract resume).
 Source / RHS vocabulary
 -----------------------
 
-The four-operator algebra :math:`(L + C - S - F/k)\psi = q` has a
+The five-operator algebra — :math:`A\,\psi = q` for a fixed source, with
+the loss composite :math:`A = L + C - S - B` — has a
 typed RHS.  The "source" :math:`q` is a deliberate split into
 direction-independent (``ScalarSourceSink``) and per-ordinate
 (``AngularSourceSink``) contributions — the within-group sweep (the
@@ -987,11 +993,14 @@ The Solution evolution is the SN-specific specialisation of the
 For a fixed-source problem :attr:`Solution.keff` is ``None`` and the
 iteration history records only the relative flux-residual trajectory.
 
-Operator vocabulary --- the four leaves of the algebra
+Operator vocabulary --- the five leaves of the algebra
 -------------------------------------------------------
 
-The four-operator algebra :math:`(L + C - S - F/k)\psi = q` is
-implemented by four leaf operators, each conforming to
+The five-operator algebra — the within-group loss composite
+:math:`A = L + C - S - B`, posed as
+:math:`A\,\psi = \tfrac{1}{k}\,F\,\psi` (eigenvalue) or
+:math:`A\,\psi = q` (fixed source) — is
+implemented by five leaf operators, each conforming to
 :class:`~orpheus.numerics.operator.LinearOperator` with
 ``apply(psi: AngularFlux) -> AngularFlux`` under the typed contract.
 The algebra closes because every operand agrees on the
@@ -1023,6 +1032,16 @@ scale through the same algebra.
        P_\ell\,\phi_{\ell m}`; foldable P₀ within-group part
        :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.foldable_part`
        absorbs into :math:`\Sigma_r`
+   * - :math:`B`
+     - :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
+     - The realized boundary law — a first-class **sibling** operator, *not*
+       folded into :math:`L`.  Reports the same
+       :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` as
+       :math:`L`/:math:`C`/:math:`S`/:math:`F`, so the ``OperatorSum``
+       composition guard accepts :math:`(L + C - S - B - F/k)`.  Acts as the
+       :math:`A_{ss}` block: zero on the bulk, non-zero only on the trace,
+       where the cosine-weighted :math:`|\Omega\cdot n|\,w` partial-current
+       metric lives
    * - :math:`F`
      - :class:`~orpheus.transport.operators.fission.FissionOperator`
      - Fission :math:`\chi_g \sum_{g'} \nu\Sigma_{f,g'}\,\phi_{g'}`;
@@ -1292,8 +1311,8 @@ Cross-references
 
 * :ref:`scattering-matrix-convention` for the ``SigS[g_from, g_to]``
   convention these types' arithmetic respects.
-* :doc:`operator_algebra` for the four-operator algebra
-  ``(L + C − S − F/k) ψ = q`` that the typed fields read as.
+* :doc:`operator_algebra` for the five-operator algebra
+  ``A ψ = (1/k) F ψ``, ``A = L + C − S − B``, that the typed fields read as.
 
 
 .. _theory-sn-typed-sources:
@@ -1303,7 +1322,7 @@ Typed source types (Issue #197 PR-TYPED-3)
 
 Issue #197 PR-TYPED-3 introduces two typed source-density carriers
 that wrap the right-hand side of the transport equation
-:math:`(L + C - S - F/k)\,\psi = q`:
+:math:`A\,\psi = q`, with the loss composite :math:`A = L + C - S - B`:
 
 * :class:`~orpheus.transport.source_sinks.ScalarSourceSink` — the isotropic
   volumetric source :math:`Q(\vec r, g)`, shape ``(ng, nx, ny)``.
@@ -1597,8 +1616,8 @@ PR-INDEX-5; the principled-layout :ref:`sn-field-vocabulary`
 section names every flux / source / rate / trace type the resume
 will eventually surface as a typed field.  Every operator-leaf's
 ``apply`` signature becomes
-``apply(psi: AngularFlux) -> AngularFlux``, with the four-operator
-algebra :math:`(L + C - S - F/k).\texttt{apply}(\psi)` distributing
+``apply(psi: AngularFlux) -> AngularFlux``, with the five-operator
+algebra :math:`(L + C - S - B - F/k).\texttt{apply}(\psi)` distributing
 through :class:`~orpheus.numerics.operator.OperatorSum` unchanged.
 This closes the Issue #197 Wave 1 partial as documented in the memo's
 §6.
@@ -1630,7 +1649,7 @@ Cross-references
 
 - :ref:`theory-discrete-ordinates` --- SN method theory page; the
   Key Facts header references this convention.
-- :ref:`operator-algebra` --- four-operator algebra; every leaf's
+- :ref:`operator-algebra` --- the five-operator algebra; every leaf's
   ``apply`` consumes / returns arrays in the convention defined
   here.
 - :ref:`scattering-matrix-convention` --- the cross-section matrix

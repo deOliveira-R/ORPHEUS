@@ -59,7 +59,8 @@ Key Facts
 - **Operator-family form (production, #290).** ORPHEUS does *not*
   discretise :eq:`diffusion-operator` term-by-term. It poses the
   criticality problem in the shared operator algebra — the same
-  :math:`(L + C - S - F/k)` form the S\ :sub:`N` solver introduced — as
+  loss composite :math:`A = L + C - S - B` the S\ :sub:`N` solver
+  introduced — as
 
   .. math::
      :label: diffusion-operator-family

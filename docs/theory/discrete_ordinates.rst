@@ -18303,7 +18303,8 @@ Development history
 ===================
 
 S\ :sub:`N` is ORPHEUS's **architectural prototype**: the typed-field
-algebra and the composable operator form :math:`(L + C - S - F/k)\psi = q`
+algebra and the composable loss composite :math:`A = L + C - S - B`
+(posed :math:`A\,\psi = \tfrac{1}{k}\,F\,\psi`)
 were developed here *first*, and are the standard the other solvers (CP,
 MoC, MC, diffusion) inherit as they are built — which is why this page
 carries far more development history than any other theory chapter.
