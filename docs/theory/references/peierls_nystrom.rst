@@ -1447,7 +1447,7 @@ housed in:
   (Phase 4.1, shipped).
 - :mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder` — cylinder
   :math:`\mathrm{Ki}_1` reference (Phase 4.2, shipped; companion
-  theory page in :doc:`/theory/methods/collision_probability`).
+  theory page in :doc:`/theory/references/peierls`).
 - :mod:`orpheus.derivations.continuous.peierls_nystrom.sphere` — sphere
   :math:`e^{-\tau}` reference (registry-only façade per Issue #138;
   canonical entry is ``solve_peierls_mg(_pg.SPHERE_1D, ...)``).
@@ -1489,7 +1489,7 @@ This page records that unification in detail sufficient to:
    three separate times.
 
 Nothing on this page replaces the geometry-specific pages in
-:doc:`/theory/methods/collision_probability`. Those pages document the full
+:doc:`/theory/references/peierls`. Those pages document the full
 derivation of each solver including its geometry-specific
 investigation history (the cylinder's chord-form dead-end, the
 slab's :math:`\Sigma_t`-LHS debugging, and so on). This page is
@@ -1643,7 +1643,7 @@ Peierls equation is therefore
 
 This is the form used by :mod:`orpheus.derivations.continuous.peierls_nystrom.slab` and
 documented in the :eq:`peierls-equation` section of
-:doc:`/theory/methods/collision_probability`. The singularity structure of the kernel
+:doc:`/theory/references/peierls`. The singularity structure of the kernel
 comes from the small-:math:`z` asymptote
 
 .. math::
@@ -2126,7 +2126,7 @@ Historical reason 3 — the flat-source Jacobian singularity is
 The chord form carries a Jacobian
 :math:`1/\sqrt{(r^{2}-y^{2})(r'^{2}-y^{2})}` (for the cylinder;
 see the derivation at :eq:`peierls-cylinder-green-2d` in
-:doc:`/theory/methods/collision_probability`) with **two coincident
+:doc:`/theory/references/peierls`) with **two coincident
 integrable singularities** at :math:`y=r` and :math:`y=r'`.
 Pointwise this Jacobian is a numerical nightmare.  But when the
 integrand is integrated over the full region (as it is in flat-source
@@ -2165,7 +2165,7 @@ tensor-product Gauss–Legendre problem.
 
 This is the root of the Phase-4.2 cylinder pivot (see the warning
 admonition near :eq:`peierls-cylinder-green-2d` in
-:doc:`/theory/methods/collision_probability` for the specific Jacobian-factor
+:doc:`/theory/references/peierls` for the specific Jacobian-factor
 regression the chord form would have inflicted).
 
 
@@ -5482,7 +5482,7 @@ Section 9 — Test-bed evidence from Phase 4.2 (cylinder)
 The cylindrical Peierls reference is the most fully-exercised
 instantiation of the unified architecture. The test evidence
 recorded in :ref:`peierls-cylinder-row-sum` of
-:doc:`/theory/methods/collision_probability` provides the numerical weight behind
+:doc:`/theory/references/peierls` provides the numerical weight behind
 the theoretical unification on this page. Three independent
 checks are on the books for the cylinder:
 
@@ -5557,7 +5557,7 @@ verbatim:
   ``tests/cp/test_peierls_sphere_flux.py``.
 
 The rank-1 white-BC deficit is bounded by Issue #103 (N1); see
-:ref:`issue-100-retraction` in :doc:`/theory/methods/collision_probability` for
+:ref:`issue-100-retraction` in :doc:`/theory/references/peierls` for
 the numerical evidence.
 
 
@@ -5630,7 +5630,7 @@ standard tests.
 
 .. seealso::
 
-   :doc:`/theory/methods/collision_probability` — geometry-specific Peierls
+   :doc:`/theory/references/peierls` — geometry-specific Peierls
    sections:
 
    - :ref:`peierls-conservation` and the slab :eq:`peierls-equation`
