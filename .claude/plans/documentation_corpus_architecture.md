@@ -155,7 +155,11 @@ first.**
 
 - **Lewis & Miller could not be verified at all** (Wiley/ScienceDirect/HathiTrust/Archive all
   403 or absent). It is the text Stacey *explicitly defers to* for acceleration and the likely
-  closest structural precedent. **ACTION: add it to `scratch/literature/`.**
+  closest structural precedent. ~~**ACTION: add it to `scratch/literature/`.**~~
+  **RETIRED 2026-07-15 — no OCR'd PDF exists, and the ask was misdirected anyway: the
+  acceleration content we wanted is a SECONDARY summary of `Larsen-Morel-Miller(1987)` +
+  `Larsen-Morel(1989)` + `Bailey-Morel-Chang(2010)`, all three of which are ALREADY in
+  `scratch/literature/`. See §8.3.**
 - **Larsen & Morel 2010** (84 pp, the post-1968 S_N review) and **Adams & Larsen 2002** (157 pp)
   are closed-access with no OA mirror; their section structure is the most relevant map in
   existence for exactly the parts textbooks omit. Their own abstract states our thesis:
@@ -622,15 +626,40 @@ content *into*. Then Phase C (split the monoliths, Haiku-catalog-driven, SN firs
 1. **Chapter filename prefixes** — `01_algebra.rst` (order visible in the tree, but reorder ⇒
    rename ⇒ ref churn) vs **no prefix** (toctree carries order; rename-free; greppable).
    **Recommend: no prefix.** *Not blocking until Phase C mints the first chapters.*
-2. **Are the 7 spectral stubs methods or references?** (P_N / SP_N / B_N / Galerkin-spectral /
-   spectral-collocation / spectral-resolvent / Galerkin-S_N hybrid.) They sit in `references/`
-   today because that is what `reference_solvers.rst` and their code home
-   (`orpheus.derivations.continuous`) say. §4 filed them under `methods/spectral/`. **This is a
-   re-classification, not a move** — surfaced by Phase A, deliberately not decided by it.
-3. **Lewis & Miller** — not in `scratch/literature/`, unverifiable anywhere online (§3.4). It is
-   the text Stacey defers to for acceleration and the likeliest structural precedent for this
-   mini-book. **ACTION: user to add.** Second priority: Larsen & Morel 2010 (Springer
-   `10.1007/978-90-481-3411-3_1`, 84 pp).
+2. ~~**Are the 7 spectral stubs methods or references?**~~ **CLOSED (user, 2026-07-15):
+   REFERENCES — the Phase A placement stands; §4's `methods/spectral/` was wrong.**
+   **The user's criterion:** *"the folders inside `references/` are supposed to be reference
+   analytical or semi-analytical solutions that can be used to verify mathematical correctness
+   of problems."* **The evidence:** every one of the 17 pages in `references/` has its code home
+   under `orpheus/derivations/continuous/` — `bn_method`, `escape_probability`, `fn_method`,
+   `galerkin_sn_hybrid`, `galerkin_spectral`, `peierls_nystrom`, `pn_method`,
+   `singular_eigenfunction`, `sood_registry`, `spectral_collocation`, `spectral_resolvent`,
+   `spn_method`, `trajectory_resolvent` — and **no production package exists for any of them**
+   (`orpheus/` ships `cp`, `sn`, `mc`, `moc`, `diffusion`, `homogeneous`; there is no
+   `orpheus/pn/`). P_N here is the *continuous* semi-analytical reference (the Garcia stable
+   spherical-harmonics benchmarks — six of those papers sit in `scratch/literature/`), **not** a
+   discretized production solver. P3 (mirror the code layering) and the criterion agree.
+   *Residual nit for Phase F, not a placement issue:* the `pn_method` / `spn_method` READMEs
+   frame their subject as "the historical alternative to discrete ordinates" — method prose on a
+   reference page.
+3. ~~**Lewis & Miller**~~ **CLOSED (2026-07-15): the ask is RETIRED — do not re-raise it.** Not
+   local, no OCR'd PDF exists (user searched). More importantly it is **not needed**: what §3.4
+   wanted it for was *acceleration* (the text Stacey defers to) — but L&M is a **secondary**
+   summary, and the **primary** sources are already in `scratch/literature/`:
+   `Larsen-Morel-Miller(1987)` (the asymptotic/admissibility theory itself — already cited by
+   M4b), `Larsen-Morel(1989)` part II, `Bailey-Morel-Chang(2010)` (angular), `Lathrop(2000)`.
+   The corpus's own thesis is to beat textbook summaries by going to primaries; asking for the
+   summary contradicts it. The structural-precedent use is nice-to-have — B&G/Hébert/Stacey
+   already agree on the §3.1 skeleton, and a 4th confirmation adds little.
+   **If a pull IS made opportunistically, these beat L&M and are the real §3.4 gap:**
+   **Larsen & Morel 2010** (Springer `10.1007/978-90-481-3411-3_1`, 84 pp — the post-1968 S_N
+   review) and **Adams & Larsen 2002** (Prog. Nucl. Energy 40(1), 157 pp — acceleration; the
+   M4b/M2 gap). **Neither blocks Phase B.**
+   **When DSA (#2 / stencil P3) starts, the ask is the founding DSA primaries — Alcouffe (1977)
+   and Larsen (1982), both in *Nuclear Science & Engineering*, which the user holds in full.**
+   (`.claude/rules/delegation.md`: check `scratch/literature/` FIRST — it has **66 files**,
+   incl. `Hebert(2009)Chapter3`, `Stacey(2007)Chapter9`, `Ligou(1982)Chapter8`,
+   `Stammler(1983)Chapter4/6`, `Sanchez(1982)`, `Morel(1989)`.)
 
 ---
 
