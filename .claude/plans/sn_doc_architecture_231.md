@@ -34,7 +34,7 @@ the three scoping decisions the user made 2026-07-13.
 ## Scoping decisions (user, 2026-07-13)
 
 1. **Entry point = vertical slice on the flagship SN page.** Restructure
-   `docs/theory/discrete_ordinates.rst` into the 9-section template AND migrate the
+   `docs/theory/methods/sn/index.rst` into the 9-section template AND migrate the
    top SN-file prose + kill task-ID archaeology in one coherent (phased) pass. The
    destination sections and the relocated prose land together.
 2. **Extensions = bibtex + sphinx-design NOW.** The two Nexus-independent wins

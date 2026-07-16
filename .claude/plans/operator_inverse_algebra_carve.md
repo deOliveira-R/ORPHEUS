@@ -521,7 +521,7 @@ leaf capability / swap an `OperatorSum` operand etc.; each MUST turn its gate RE
   `["FullField"]` string proxy only if layering allows (else leave — §7 guard).
 - **Sphinx (Cardinal Rule 3):** this is a real architectural milestone — update the
   operator-algebra theory/docs + the SN theory page "Development history" changelog
-  (`docs/theory/discrete_ordinates.rst`): the inverse-as-operator design, why
+  (`docs/theory/methods/sn/index.rst`): the inverse-as-operator design, why
   capabilities-as-strings was retired, the dual-pair `apply`/`inverse().apply`,
   sweep-vs-Krylov as inverse-operator kinds. Rebuild Sphinx clean.
 

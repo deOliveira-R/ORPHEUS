@@ -1048,6 +1048,19 @@ branch — the `galerkin_projection.rst`→`frame.rst` rename two days earlier o
 `peierls_greens.rst`→`trajectory_resolvent.rst` orphaned 16. **Every rename owes a raw-path
 sweep**; the build will not do it for you.
 
+> **Rule 3 (learned the same day, by re-running the gate at compaction): "archaeology" is a
+> per-FILE judgment, not a per-DIRECTORY one.** Phase A excluded `.claude/plans/` from the sweep
+> wholesale, reasoning that a plan's `← discrete_ordinates.rst` names a move's *source* and
+> rewriting it corrupts the record. True — but true of **exactly one file**
+> (`documentation_corpus_architecture.md`, which describes the moves). Every *other* plan carried
+> **live pointers meant to be followed** ("the ruling is archived in X", "Doc drift for close-out:
+> `X:281`" — the latter in an *active* campaign roadmap). The over-broad exclusion left **9 dead
+> pointers across 7 plans**, including the 2 the explorer had explicitly warned me about. Before
+> excluding a directory, ask *what the text DOES* in each file: a pointer to be followed gets
+> swept; a record OF the move does not. Also: a two-hop rename (`galerkin_projection` → `frame` →
+> `foundations/frame`) needs the **historical alias** in the map — the current-name map alone
+> silently misses every pointer that predates the first hop.
+
 Cross-reference: `[[lessons-L20]]` (retirement requires a dependency audit — this is the audit's
 blind spot); `[[lessons-L33]]` (a doc is a claim, not evidence — here the *rule* was the wrong
 claim, and measurement settled it); `.claude/rules/coding-standards.md` (corrected in `08e58ee6`);

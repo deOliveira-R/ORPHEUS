@@ -289,7 +289,7 @@ synthesis `S₀` = `basis.synthesize`:
   retirement should reduce them).
 - **E. (optional) `ScalarFlux.flux_volume_measure()`** seam + record the principle.
 - **F. Docs** — frame theory + (R,Π) vocabulary on the new module; reconcile the pervasive
-  stale `HarmonicMomentProjection` name in `docs/theory/galerkin_projection.rst` etc., the
+  stale `HarmonicMomentProjection` name in `docs/theory/foundations/frame.rst` etc., the
   phantom `from_spherical_harmonic_space`, the `HarmonicMomentReconstruction(Y, two_l_plus_one)`
   ctor signature. Sphinx build clean.
 

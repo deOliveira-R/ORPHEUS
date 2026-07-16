@@ -186,7 +186,7 @@ gone; only P7's self-contained side-carve + P8 close-out remain).
 close-out list + the archivist brief; docs work is dispatch-heavy, not context-heavy).
 
 ### P8 — Docs + pyright + close-out
-- Archivist dispatch: `docs/theory/diffusion_1d.rst` overhaul (operator-family
+- Archivist dispatch: `docs/theory/methods/diffusion_1d.rst` overhaul (operator-family
   architecture section, Development-history changelog seeded per the doc template, Key
   Facts update, **BC-law semantics rewrite** — vacuum vs zero-flux naming per ruling 3,
   fix the malformed `:class:` ref at :63), `verification.rst:87` wrong module name,
@@ -475,7 +475,7 @@ Design decisions beyond the spec letter (recorded for P4/P7):
    THE unfaithful naming is the island's `_diff_bc_vacuum`
    (`orpheus/diffusion/solver.py:109-114` — "Zero-flux (Dirichlet φ=0)"
    registered under `"vacuum"`) — retired + re-attributed in P6.
-   `docs/theory/boundary_conditions.rst` "one functional + four stubs"
+   `docs/theory/foundations/boundary_conditions.rst` "one functional + four stubs"
    prose is now stale → P8 archivist brief (module docstrings already
    updated in-tree).
 

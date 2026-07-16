@@ -180,7 +180,7 @@ and the derived keeps `cross_section` for the domain handle (`.mesh`, units). Bu
   keep on live consumers" payoff; depth decided with the user when Phases 0–3 land.
 
 ### Phase 5 — Docs / theory (archivist)
-- Re-narrate `docs/theory/operator_algebra.rst` + `docs/api/numerics.rst` (~9 `RankOneOperator` anchors): the
+- Re-narrate `docs/theory/foundations/operator_algebra.rst` + `docs/api/numerics.rst` (~9 `RankOneOperator` anchors): the
   dyad `|v⟩⟨w| = outer(Vector, Functional)`; the **polyadic/BTD framing** (fission = rank-1 term; scattering =
   Frame-managed orthogonal CP sum; collision = diagonal; energy block stays dense); `ReactionRateFunctional`
   as the energy-axis co-vector; the `Functional` category seated at L1 (`InnerProductFunctional`) + L2.
@@ -207,7 +207,7 @@ inline reduction → Mode-11 sentinel counter-0 RED.
   `tests/sn/operators/test_fission_kernel_crosscheck.py` (B.2 → demarcated row + sentinel);
   `tests/transport/{_functional_helpers,_integral_kernel_helpers,test_functional_category,test_integral_kernel_category}.py`
   (rewire → `ReactionRateFunctional`); `test_production_rate_functional.py` (rewire/retire)
-- `docs/theory/operator_algebra.rst`, `docs/api/numerics.rst` (archivist, Phase 5)
+- `docs/theory/foundations/operator_algebra.rst`, `docs/api/numerics.rst` (archivist, Phase 5)
 
 ## Verification (per phase + end-to-end)
 - `.venv/bin/python -O -m pytest tests/numerics tests/sn tests/transport -p no:xdist --timeout=300 -p no:cacheprovider -q -rfE`

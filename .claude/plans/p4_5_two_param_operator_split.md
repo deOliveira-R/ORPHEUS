@@ -304,7 +304,7 @@ cross-method use of `ScatteringOperator` — a `HarmonicFrame` needs an angular 
 LACK, so the frame can't live as a field on the shared operator; resolve by (a) relocate to `Quadrature.angular_frame`
 OR (b) specialize `ScatteringOperator` per method (SN subclass holds the frame; measure-free cross-method base carries
 only Λ). Recorded on #261 + the theory anchor `frame-eigenbasis-relocation-tripwire`.
-**LANDED close-out:** the ruling is archived in `docs/theory/galerkin_projection.rst` (capstone, anchor
+**LANDED close-out:** the ruling is archived in `docs/theory/foundations/frame.rst` (capstone, anchor
 `frame-eigenbasis-ownership`) + `spherical_harmonics.rst` + `operator_algebra.rst` (archivist, Sphinx -W exit 0);
 `frame.conjugate(Λ)` docstring NAMES the double-category 2-cell + the spectral-theorem reading (`frame.py:206`);
 memos `harmonic_frame_ownership_funk_hecke.md` (+ lesson L-009) + `sh_flux_moment_projection_root_cause.md` +

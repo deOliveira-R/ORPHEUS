@@ -143,7 +143,7 @@ sites:**
 - CP: numerator fold mechanical-with-a-transpose ((N,ng) group-LAST arrays); NO
   loss operator exists — denominator stays the explicit additive spelling (#270
   pattern). MoC: substrate work first (no measure object; MOCMesh is not a Mesh).
-- Doc drift for close-out: `docs/theory/monte_carlo.rst:281` (phantom MC
+- Doc drift for close-out: `docs/theory/methods/monte_carlo.rst:281` (phantom MC
   `compute_keff`), `tests/cp/test_verification.py:523-527` (stale docstring).
 
 **Steps:**
