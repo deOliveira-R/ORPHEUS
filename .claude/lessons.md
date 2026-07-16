@@ -1065,3 +1065,50 @@ Cross-reference: `[[lessons-L20]]` (retirement requires a dependency audit — t
 blind spot); `[[lessons-L33]]` (a doc is a claim, not evidence — here the *rule* was the wrong
 claim, and measurement settled it); `.claude/rules/coding-standards.md` (corrected in `08e58ee6`);
 `.claude/plans/documentation_corpus_architecture.md` §7.1.
+
+## L35 — Moving a labelled block: `-W` gates the LINK, never the PROSE around it — two silent-falsehood classes need a bidirectional grep (2026-07-16)
+
+L34 established that `-W` gates broken `:ref:`/`:doc:` (so Phase A trusted the build to find
+page-move/label churn — and it did). Phase B moved four labelled blocks *between* pages and
+found the limit of that trust: because `:ref:`/`:eq:` are **path-immune** (a global label
+resolves from anywhere), a move breaks **no link** — the build stays green — while the PROSE
+the author wrote *around* those links silently goes false. Two classes, neither `-W`-visible:
+
+1. **Directional words.** "`:ref:`windowing-retyped` **above**`" was true when the anchor sat
+   above on the same page; after it moves to another page it is nowhere near "above". The
+   `:ref:` still resolves (green build); the word "above" is now a lie.
+2. **Page-qualifiers.** "`:ref:`bc-extraction` **in :doc:`…/operator_algebra`**`" named the old
+   home; after the block moves to `boundary_conditions` the qualifier sends readers to the
+   wrong page. The `:doc:` resolves (the old page still exists — green build); the claim is
+   false.
+
+Both are the D5 disease the campaign exists to kill (a page that MISINFORMS), and both are
+invisible to every build. The catch is a **grep run THREE ways per move**:
+
+- **staying-content → moved-label** (on the SOURCE page): refs to the departed labels carrying
+  "above/below/here/this section" (now cross-page) OR a `in :doc:`<source>`` self-qualifier.
+- **moved-content → staying-label** (on the moved block): refs BACK into content that stays,
+  same two classes.
+- **bystander page-qualifiers** (any THIRD page): a tree-wide grep for `<moved-label>` co-located
+  with `:doc:`<old-page>``. Block 3's two move-files were clean; **3 stale qualifiers hid in
+  `sn/index.rst`, a bystander that was neither source nor dest.**
+
+> **Rule: after moving a labelled block, grep the moved-label set three ways (source-page refs,
+> moved-block refs, bystander qualifiers), filtering for directional words and `:doc:`
+> qualifiers. The green `-W` build proves the LINKS resolve; it says NOTHING about whether the
+> surrounding prose still tells the truth.** Separate a real falsehood from a false positive: an
+> *intra-block* "below" survives (the whole block moves together, internal order preserved); a
+> demonstrative "that section" bound to the immediately-preceding ref survives cross-page; a
+> *categorical* "one locus down" (cell↔face hierarchy) is not document-position. Fix only what
+> the move actually falsified.
+
+Operational note for **Phase C** (which moves ~63k lines): the sub-agent's default scan is
+`:doc:`-forward and dest-file-focused; it MISSES the reverse direction and the bystanders. I
+found the Block-2 falsehoods post-hoc, then folded the bidirectional+bystander grep into the
+Block-3 brief and the archivist executed it cleanly — **put the three-way grep in the brief, or
+run it yourself before committing.**
+
+Cross-reference: `[[lessons-L34]]` (which reference class the build gates — this is its prose
+corollary: even a GATED role leaves ungated prose); `[[lessons-L33]]` (the corpus is an
+adversary that MISINFORMS — a move is a mechanical way to mint fresh misinformation);
+`.claude/plans/documentation_corpus_architecture.md` §7.2.

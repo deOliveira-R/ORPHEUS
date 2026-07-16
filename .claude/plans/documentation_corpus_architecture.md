@@ -621,6 +621,61 @@ content *into*. Then Phase C (split the monoliths, Haiku-catalog-driven, SN firs
 
 ---
 
+## 7.2 Phase B — what actually landed (2026-07-16)
+
+**Three clean relocations** (Block 1 de-scoped to Phase C per §8's Phase-B ruling), each an
+independent `-W`-gated commit — byte-for-byte moves, zero renames on the moved content:
+
+| Commit | Block | Move | Lines |
+|---|---|---|---|
+| `87c741c1` | B4 Peierls | `collision_probability.rst` slab/cyl/sphere → `references/peierls.rst` | 2,126 |
+| `81f5dd78` | B2 windowing | `operator_algebra.rst` `sn-angular-windowing-*` → `methods/sn/index.rst` | 1,137 |
+| `2a06779b` | B3 BC extraction | `operator_algebra.rst` Span A `bc-extraction-*` → `boundary_conditions.rst` | 1,107 |
+
+(Plan-ruling commit `5d0f73fc`.) **Payoff realized:** D4 (role-mixing) closes for these three;
+the inflated SN↔algebra and CP↔Peierls coupling edges are now honest.
+`operator_algebra.rst` shed **~2,240 ln** (11,435 → 9,196 — windowing + BC Span A);
+`collision_probability.rst` shed its 49 % Peierls half (4,349 → 2,223).
+
+**B3's content-purity execution** (the one non-mechanical block): the general composite adjoint
+STAYED on `operator_algebra`; its orphaned anchor was renamed `bc-extraction-g-adjoint` →
+`g-adjoint` (build-gated — zero tree-wide after), and a two-way cross-ref bridges the split
+narrative.
+
+**Durable findings (outlive Phase B):**
+
+- **The `-W` build gates the LINK, not the PROSE.** `:ref:`/`:eq:` are path-immune, so a move
+  breaks no link (green build) while leaving two SILENT-prose falsehoods: **directional words**
+  ("`:ref:`X` above" → now cross-page) and **page-qualifiers** ("`:ref:`X` in :doc:`<old-home>`").
+  Neither is `-W`-visible. Catch them with a **three-way grep per move** — source-page refs,
+  moved-block refs, and **bystander qualifiers**. Block 2 had 2 (found post-hoc); Block 3 had 4,
+  **3 of them in `sn/index.rst`, a bystander neither source nor dest.** See [[lessons-L35]].
+  **This is the load-bearing procedure for Phase C** (~63k lines moving).
+- **Document-local RST substitutions do NOT cross a move.** Block 4's moved content used
+  `|times|` (defined in the CP footer, staying) → the build ERRORED until the definition was
+  copied to the dest page. Citations resolve cross-document via the global index (`[Kress2014]`
+  did); substitutions have no global index absent `rst_prolog`. Distinguish a LaTeX `|m|` inside
+  a `.. math::` (not a substitution — Block 2's non-issue) from a docutils `|token|`.
+- **The label oracle drives the CLEAN case only.** Blocks 2/3/4 were clean because a *foreign*
+  prefix on the host page is an unambiguous mis-file. Block 1 was not (honest `sn-*` labels →
+  no oracle signal; a rename-heavy dedup) → de-scoped. The oracle finds mis-files; it does not
+  adjudicate general-vs-realization.
+
+**Deferred to Phase C/G (correct-but-unpolished, NOT false — not Phase-B debt):**
+- 7 bare cross-page `:ref:`s in `operator_algebra` to the moved windowing labels (resolve fine;
+  page-qualifying them is polish) + 4 now-redundant on-page self-`:doc:`s inside the moved
+  windowing block (Phase C splits that content anyway).
+- `|times|` now defined twice (CP + peierls) — a corpus-wide substitution duplication an
+  `rst_prolog` consolidation would collapse (Phase-G single-source cleanup).
+- `[Kress2014]` defined-in-CP-used-only-in-peierls (Phase-G locality tidy); the CP footer's
+  "only citations unique to this page are defined locally" note is now mildly stale in spirit.
+
+**⏭ NEXT = Phase C** (split the monoliths into chapters, Haiku-catalog-driven, SN first) — which
+now ALSO absorbs the de-scoped **Block-1 SN-algebra dedup** (§8 Phase-B ruling). Phase I
+(literature survey) remains independently dispatchable in parallel.
+
+---
+
 ## 8. Decisions
 
 ### RULED (user, 2026-07-14)
