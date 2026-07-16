@@ -105,7 +105,7 @@ per-octant batched dispatch over a mesh-time-precomputed DAG) are **bare**:
 the reflective coupling :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}`
 rides as a sibling :math:`-B` source term rather than a re-applied boundary
 condition (:ref:`bare-sweep-extraction`, and the canonical algebra
-:ref:`bc-extraction` in :doc:`/theory/foundations/operator_algebra`).  2-D Cartesian eigenvalue
+:ref:`bc-extraction` in :doc:`/theory/foundations/boundary_conditions`).  2-D Cartesian eigenvalue
 problems solve through **both** inner drivers —
 :class:`~orpheus.numerics.iteration.SourceIteration` (the geometry-agnostic
 default) and :class:`~orpheus.numerics.iteration.KrylovAcceleration` —
@@ -16137,7 +16137,7 @@ named splitting :math:`A = M - N`: the invertible resolvent
 zero within-group fission), handed to the **variadic** driver
 :math:`\text{Driver}(L_{\rm resolvent},\,*\text{gains})` (Wave O step
 O.2a — the transitional :math:`S + B` fold is retired; see
-:ref:`bc-extraction-variadic-driver` in :doc:`/theory/foundations/operator_algebra`).
+:ref:`bc-extraction-variadic-driver` in :doc:`/theory/foundations/boundary_conditions`).
 :func:`_within_group_krylov` wraps the matching
 :class:`~orpheus.numerics.iteration.KrylovAcceleration` — and the
 decomposition is shared verbatim across the eigenvalue source-iteration
@@ -19632,7 +19632,7 @@ branch and have no landed hash yet.
        on a seedless mesh it degrades to the bare ``((L+C), (S, B_a))`` the
        Gauss-Seidel / windowing paths consume zero-touch. The four
        within-group solve sites consume the one record. See
-       :ref:`bc-extraction-variadic-driver` in :doc:`/theory/foundations/operator_algebra`.
+       :ref:`bc-extraction-variadic-driver` in :doc:`/theory/foundations/boundary_conditions`.
      - #280
      - ``refactor/sn-walk-unification`` *(in development, c0f23f6)*
    * - 2026-07-05
