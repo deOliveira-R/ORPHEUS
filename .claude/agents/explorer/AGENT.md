@@ -104,7 +104,7 @@ relevant and how they connect. Then read the specific section.
 The SN transport solve is structured as a **typed operator algebra**, not a
 procedural sweep. This shape recurs across every SN exploration; internalize it
 so you don't re-derive it. (Line numbers drift — find current ones via Nexus
-`context`/`query`; the SHAPE below is stable. Theory: `docs/theory/operator_algebra.rst`.)
+`context`/`query`; the SHAPE below is stable. Theory: `docs/theory/foundations/operator_algebra.rst`.)
 
 - **The equation is `(L + C − S − F − B)ψ = q`**, composed honestly as an
   operator sum. `L` streaming, `C` collision (together the invertible resolvent
@@ -159,12 +159,20 @@ so you don't re-derive it. (Line numbers drift — find current ones via Nexus
 ## Sphinx Documentation (Physics Context)
 
 ```
-docs/theory/discrete_ordinates.rst    — SN method
-docs/theory/collision_probability.rst — CP method
-docs/theory/homogeneous.rst           — Homogeneous reactor
-docs/theory/method_of_characteristics.rst — MOC method
-docs/theory/monte_carlo.rst           — Monte Carlo
+docs/theory/index.rst                             — THE MAP: the parts + how to route
+docs/theory/conventions/                          — read first: symbol/normalization crosswalk
+docs/theory/foundations/                          — the math every method shares
+docs/theory/foundations/operator_algebra.rst      — the spine: A = L + C − S − B
+docs/theory/foundations/infinite_medium.rst       — 0-D infinite-medium (k_inf) baseline
+docs/theory/methods/sn/index.rst                  — SN method (a sub-book)
+docs/theory/methods/collision_probability.rst     — CP method
+docs/theory/methods/method_of_characteristics.rst — MOC method
+docs/theory/methods/monte_carlo.rst               — Monte Carlo
+docs/theory/references/                           — the continuous reference solvers
 ```
+
+`docs/theory/` is a **part tree**, not a flat directory (restructured 2026-07-15).
+Load `theory/index.rst` to route, then the ONE page you need — not the monolith.
 
 These contain full derivations, investigation history, numerical
 evidence, and design rationale. For medium+ thoroughness, ALWAYS
