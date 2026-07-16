@@ -67,13 +67,22 @@ For each chapter, in order:
 5. **Wire the toctree** in `index.rst` — insert the new entry in **§5 reading order**.
 6. **Fix** any L35 prose breaks + copy any document-local substitution (`|times|`-class) the
    span used but whose `.. |x| ::` definition stays behind.
-7. **Gate:** `-E -W` clean (above). Confirm every moved label single-homed (`grep -c` in src = 0).
+7. **Gate:** `-E -W` clean (above). Confirm every moved label single-homed **on its anchor
+   DEFINITION**: `grep -c '^\.\. _<label>:' <source>` = 0 **(NOT raw `grep -c '<label>'`)** +
+   tree-wide `grep -rn '^\.\. _<label>:'` = 1. A router page legitimately KEEPS bare
+   `:ref:` back-refs to labels it exported — those are path-immune and STAY; recut ONLY on a
+   surviving `.. _label:` DEFINITION or a phantom `-E duplicate label`. (Learned on ch12 BC,
+   whose anchor is back-referenced from `index.rst` itself — raw count 2, anchor-def 0.)
 8. **Archivist reports** the diff + grep results + build; **main agent reviews diff-vs-catalog,
    re-runs `-E -W`, commits** with the correct trailer (archivist does NOT commit — Phase B model).
 
-**Delegation:** ch3 done by main agent (pattern-prover). Tier-1/2 clean extractions →
-**archivist**, one chapter per dispatch, brief carries the exact span + this recipe. Tier-3
-(dedup-heavy) stays main-agent + elegance review (it collapses duplicated content, not a move).
+**Delegation (RULED by user, 2026-07-16):** ch3 done by main agent (pattern-prover). Tier-1/2
+clean extractions → **archivist**, one chapter per dispatch (resume the same instance across
+chapters to keep context; main agent reviews diff-vs-catalog + commits with the correct
+trailer — archivist does NOT commit). Tier-3 (dedup-heavy: `algebra`/`iteration`/`solver`)
+stays **main-agent + elegance-enforcer** review (it collapses duplicated content, not a move).
+**Content ruling: PURE structural moves** — verbatim cut, NO synopsis/router prose added
+during the split (that is Phase D). Each chapter = its own reviewable pure-move commit.
 
 ---
 
@@ -85,7 +94,7 @@ leaf first, 3 = dedup-heavy last).
 | §5# | Chapter file | Source `=`-section(s) — grep this title | Anchor | Tier | Status |
 |---|---|---|---|---|---|
 | 3 | `angular_quadrature.rst` | "Angular Quadratures" | `quadrature-types` | 1 | ✅ DONE |
-| 12 | `boundary_conditions.rst` | "Boundary Conditions" | `boundary-conditions` | 1 | pending |
+| 12 | `boundary_conditions.rst` | "Boundary Conditions" | `boundary-conditions` | 1 | ✅ DONE |
 | — | `transport_equation.rst` | "The Transport Equation" (temp SN ch → foundations) | (none) | 1 | pending |
 | — | `verification.rst` | "Verification" + "Numerical Sensitivities" (temp → V&V part) | `sn-keff-estimator` | 1 | pending |
 | — | `history.rst` | "Development history" | `sn-development-history` | 1 | pending |
@@ -115,7 +124,17 @@ spine and the duplicated inverse-realisation labels collapse to one home. Not a 
 
 ## Status log
 
-- **ch3 `angular_quadrature.rst`** — ✅ **MERGED-to-branch @ `5a61fdb5`.** Cut 366–500
-  (135 ln), 1 label `quadrature-types`, 1 inbound ref (MoC, path-immune ✓), 0 directional
-  prose, 0 substitutions. L35+L34 clean; `-E -W` build succeeded (0 warnings). index.rst
-  20,571 → 20,436. Diff was a clean −135/+1 (section out, toctree line in). Pattern proven.
+- **ch3 `angular_quadrature.rst`** — ✅ **@ `5a61fdb5`.** Cut 366–500 (135 ln), 1 label
+  `quadrature-types`, 1 inbound ref (MoC, path-immune ✓), 0 directional prose, 0 subs.
+  L35+L34 clean; `-E -W` 0 warnings. index.rst 20,571 → 20,436. Clean −135/+1. Main-agent
+  pattern-prover.
+- **ch12 `boundary_conditions.rst`** — ✅ (archivist-executed, first delegated chapter). Cut
+  12497–12904 (408 ln), 3 anchors (`boundary-conditions`, `bc-tensor-decompositions`,
+  `bc-sn-resolution-table`) + 3 eq-labels. **1 genuine L35 falsehood found + fixed**: a
+  bystander `:doc:` page-qualifier in `foundations/boundary_conditions.rst` naming the old
+  home → repointed to the new chapter. `-E -W` 0 warnings. index.rst 20,437 → 20,030.
+  Sharpening L-024: single-home on the anchor DEFINITION, not raw mentions (BC's anchor is
+  back-referenced from `index.rst` — those bare `:ref:`s stay, path-immune). Delegated model
+  validated. NB: `methods/sn/boundary_conditions.rst` deliberately parallels
+  `foundations/boundary_conditions.rst` (SN realization ↔ general theory) — disambiguate greps
+  by full path.

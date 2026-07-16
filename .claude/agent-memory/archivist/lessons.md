@@ -1730,6 +1730,52 @@ build + HTML audit.
 
 ---
 
+## L-024 — In a structural chapter-split, the single-homed check is on the anchor DEFINITION, not raw label mentions: a router page KEEPS its bare `:ref:` back-refs to labels it exported
+
+The `sn_split_catalog.md` STEP-5 wording ("`grep -c '<label>'` in
+index.rst MUST be 0") is a *proxy* that only holds when EVERY inbound
+ref to the moved label lives in a DIFFERENT file — true for ch3
+(`quadrature-types`, sole inbound from MoC), FALSE the moment the
+exported label is back-referenced from the router page itself. The
+load-bearing check is the anchor **DEFINITION**: `grep -c '^\.\.
+_<label>:' index.rst` == 0 (source no longer owns it) + `grep -rn
+'^\.\. _<label>:' docs/` == 1 (new chapter owns it). BC was the first
+Phase-C cut to hit this: `boundary-conditions` is back-referenced
+from index.rst:171 and :16169 (was :16577, shifted −408), so raw
+`grep -c` = 2 while anchor-def = 0. Both survivors are bare
+`:ref:`boundary-conditions`` — after the cut they become path-immune
+CROSS-doc refs (resolve globally, NO `-W` warning; L35 family). Do
+NOT "recut" on a nonzero raw count — inspect WHICH lines matched; a
+bare `:ref:` with no directional word and no `:doc:` page-qualifier
+STAYS. The genuine recut triggers are exactly two: a surviving `..
+_<label>:` DEFINITION in source, or a phantom `duplicate label` under
+`-E` (L36).
+
+Second BC-specific trap: a bystander page-qualifier on the general
+foundations page — `at :ref:`bc-tensor-decompositions` (in
+:doc:`/theory/methods/sn/index`)` — is a TRUE falsehood (L35 case c),
+even though `-W` stays silent. The `:ref:` is path-immune, but the
+adjacent `:doc:` NAMES the old home; `:doc:` targets ARE
+path-sensitive, so after the cut the prose sends the reader to the
+page the label just LEFT. Repoint the `:doc:` to the new chapter
+(`/theory/methods/sn/boundary_conditions`). NB this creates a brief
+window where the `:doc:` DANGLES (target file not yet created) — so
+order the moves: fix the qualifier (STEP 1) → create the chapter file
+(STEP 3) → build (STEP 6); never build in the gap.
+
+How to apply: for any verbatim chapter cut, run the L35 three-way
+grep and disambiguate the moving section-anchor label from any
+SUPERSTRING label it collides with (`boundary-conditions` vs the
+foundations `theory-boundary-conditions`). Verify single-homing with
+`grep -c '^\.\. _<label>:'` (definition), not `grep -c '<label>'`
+(mentions). Report the raw count too, naming each surviving line as a
+legitimate bare back-ref. Fix ONLY (a) intra-source directional prose
+whose target left, (b) moved-block prose whose stay-behind target it
+now mis-qualifies, (c) bystander `:doc:` page-qualifiers naming the
+old home — leaving bare `:ref:`/`:eq:` (path-immune) untouched.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

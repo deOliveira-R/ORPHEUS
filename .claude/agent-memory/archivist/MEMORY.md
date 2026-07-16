@@ -12,20 +12,21 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 23 documentation/Sphinx/knowledge-architecture
-  lessons (L-001…L-023), read FIRST each dispatch. The spine: a page is done
+- [lessons.md](lessons.md) — 24 documentation/Sphinx/knowledge-architecture
+  lessons (L-001…L-024), read FIRST each dispatch. The spine: a page is done
   when every cross-ref resolves against the LIVE tree, every claim's V&V level
   matches the skill verbatim, every retired symbol leaves no dangling ref, and
   the build's WARNING/ERROR/CRITICAL set is unchanged from the `-E` baseline.
   The per-lesson catalog + war-stories live in lessons.md — do NOT re-summarize
-  them here (this index stays slim). Newest: L-023 — the template-skeleton
-  ADDITIVE front-matter pass (nexus-meta machine header = collapsed
-  sphinx-design dropdown + YAML code-block, directive UNregistered; Key-Facts +
-  Overview → one named Synopsis fold, structured→YAML / prose→synopsis /
-  nav-refs→Conventions admonition; essay eviction where an intra-page `:ref:`
-  to the deleted anchor IS `-W`-caught → repoint to the distilled-gotcha
-  successor; a HARD "don't-reorder" non-goal beats a deliverable's own move
-  example → leave-point-flag).
+  them here (this index stays slim). Newest: L-024 — the structural
+  chapter-split single-homed check is on the anchor DEFINITION
+  (`grep -c '^\.\. _<label>:'` = 0), NOT raw label mentions: a router page
+  KEEPS its bare `:ref:` back-refs to labels it exported (path-immune
+  cross-doc after the cut, no `-W` warning; L35 family) — recut ONLY on a
+  surviving `.. _label:` DEFINITION or a phantom `-E` `duplicate label`
+  (L36); and fix bystander `:doc:` page-qualifiers naming the old home
+  (path-sensitive → a silent falsehood; order = fix-qualifier → create-file
+  → build so the `:doc:` never dangles at build time).
 
 ## 2. Active / doc-debt state — git-true
 
