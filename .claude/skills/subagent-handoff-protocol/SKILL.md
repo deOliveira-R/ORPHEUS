@@ -508,8 +508,8 @@ brief: |
     - SymPy: /workspaces/.../origins/specular/greens_function.py
     - Tests: tests/derivations/test_..._symbolic.py + ...
     - Closeout memo: .claude/agent-memory/...
-  Output: Sphinx page docs/theory/peierls_greens.rst extended
-  with the new sections; clean -W build.
+  Output: Sphinx page docs/theory/references/trajectory_resolvent.rst
+  extended with the new sections; clean -W build.
 wait_for: clean Sphinx build + section list
 followup: false
 --- END DISPATCH_REQUEST ---

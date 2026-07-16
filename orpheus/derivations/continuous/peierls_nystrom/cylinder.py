@@ -21,10 +21,10 @@ white-BC closures, eigenvalue power iteration — lives in
 :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`
 with ``kind = "cylinder-1d"``.
 
-See :doc:`/theory/peierls_nystrom` for the end-to-end derivation of
+See :doc:`/theory/references/peierls_nystrom` for the end-to-end derivation of
 the unified structure. The cylinder-specific narrative (polar form,
 Jacobian cancellation, rank-1 white-BC limitations) remains in
-:doc:`/theory/collision_probability`.
+:doc:`/theory/methods/collision_probability`.
 
 The cylindrical Peierls equation in observer-centred polar coords:
 

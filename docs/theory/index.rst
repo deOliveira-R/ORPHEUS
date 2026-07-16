@@ -1,100 +1,112 @@
 .. _theory-index:
 
-==========================================
+======================
 Theory and Derivations
-==========================================
+======================
 
-ORPHEUS theory pages document the mathematics behind every solver and
-every reference. They are organised into three branches that
-correspond to three distinct **kinds of mathematical artefact**, each
-with a different audience, lifecycle, and V&V claim:
+The ORPHEUS theory corpus. It is **not** a summary of the code — it is the
+knowledge base the code is written *from*: full derivations, the design
+rationale (not just *what* but *why*), the conventions, the gotchas, and what
+verifies each equation.
+
+**Why read this before the literature.** A textbook can tell you what the
+diamond closure is. It cannot tell you *this project's conventions*, *which
+test pins this equation*, *what breaks when the* :math:`\alpha`-*dome goes
+negative*, or *why the projection frame is Petrov-Galerkin and not Galerkin*.
+Those are the product; the standard derivations are connective tissue. One
+fact about the canon makes the point concrete: grepping all 122 pages of
+Hébert Ch. 3 and all 80 pages of Stacey Ch. 9 for
+``verification | benchmark | manufactured solution`` returns **zero hits in
+both** — and S\ :sub:`N` is a method where *wrong code converges*.
+
+
+The parts
+=========
+
+The tree mirrors the code's dependency layering (``data → geometry →
+numerics → transport → methods/<m>``), so knowing where the code lives tells
+you where its theory lives.
 
 .. list-table::
    :header-rows: 1
-   :widths: 18 22 30 30
+   :widths: 22 48 30
 
-   * - Branch
+   * - Part
      - What it documents
-     - Production status
-     - Audience
-   * - :ref:`theory-infrastructure`
-     - Cross-cutting foundations: cross-section pipeline, homogeneous
-       infinite-medium baseline, boundary-condition trace-law
-       architecture, operator algebra, transport-method overview.
-     - Stable invariants
-     - All sessions touching any solver.
+     - Read it when
+   * - :ref:`theory-conventions`
+     - **Read first.** Symbol, normalization and indexing conventions, and
+       the crosswalk to the literature's mutually-contradictory ones.
+     - Importing any equation from a paper or textbook; debugging an answer
+       that is wrong by a constant factor.
+   * - :ref:`theory-foundations`
+     - The math every method shares: the operator algebra
+       :math:`A = L + C - S - B`, frames and projection, the boundary law,
+       cross-section data, measures, geometry, and the infinite-medium
+       baseline.
+     - Touching any solver. The operator algebra is the spine — the
+       single highest-value page in the corpus.
    * - :ref:`theory-transport-methods`
-     - **Discrete (production) solvers** the user runs for analysis:
-       collision probability, discrete ordinates, method of
-       characteristics, Monte Carlo (and the support solvers:
-       diffusion, fuel behaviour, thermal hydraulics, kinetics).
-     - Production-grade. End-user API.
-     - Sessions modifying or extending a production solver.
+     - The **production solvers** you run for analysis: S\ :sub:`N`,
+       collision probability, method of characteristics, Monte Carlo, and
+       the diffusion (P1) limit.
+     - Modifying or extending a production solver.
    * - :ref:`theory-reference-solvers`
-     - **Continuous (Pillar-2 reference) solvers** that supply the
-       analytical / semi-analytical truth values the verification
-       suite consumes: Peierls Nyström, trajectory resolvent (Variant
-       α), F_N method, singular-eigenfunction expansion, Galerkin
-       spectral, Sood-family case registry, plus reserved slots for
-       methods queued for implementation.
-     - Verification infrastructure. NOT user-facing solvers.
-     - Sessions writing a new reference, debugging a verification
-       gap, or extending a Pillar-2 truth set.
+     - The **continuous reference solvers** that supply the analytical and
+       semi-analytical truth values the verification suite consumes — plus
+       reserved slots for methods queued for implementation.
+     - Writing a new reference, debugging a verification gap, or extending a
+       truth set.
 
-The split is **load-bearing**, not cosmetic. Discrete solvers and
-reference solvers serve different masters:
+The production/reference split is **load-bearing**, not cosmetic. The two
+serve different masters:
 
-- Discrete solvers are tuned for **scale** — they must be fast on
-  realistic problems with realistic mesh refinement, multi-region
-  pin cells, full multi-group cross-section data. Their error budget
-  is a discretisation error that decreases under refinement.
-- Reference solvers are tuned for **accuracy** — they must be
-  arbitrary-precision evaluable on the **specialised problems** that
-  yield analytical or semi-analytical solutions. Their error budget
-  is a numerical-quadrature floor, typically 10⁻⁸ or better.
+- **Production solvers are tuned for scale.** They must be fast on realistic
+  problems: real mesh refinement, multi-region pin cells, full multi-group
+  cross-section data. Their error budget is a discretisation error that
+  decreases under refinement.
+- **Reference solvers are tuned for accuracy.** They must be
+  arbitrary-precision evaluable on the **specialised** problems that admit
+  analytical or semi-analytical solutions. Their error budget is a
+  numerical-quadrature floor, typically :math:`10^{-8}` or better.
 
-Mixing the two confuses readers and corrupts the V&V vocabulary.
-This page is the canonical entry point that prevents the confusion.
-
-
-.. _theory-infrastructure:
-
-Infrastructure
-==============
-
-Cross-cutting theory shared across every solver — cross-section data,
-the homogeneous infinite-medium reference, and the high-level taxonomy
-that places each transport method in the V&V hierarchy.
+Mixing the two confuses readers and corrupts the V&V vocabulary. This page is
+the canonical entry point that prevents the confusion.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
+   :caption: The corpus
 
-   boundary_conditions
-   cross_section_data
-   discrete_measures
-   frame
+   conventions/index
+   foundations/index
+   methods/index
+   references/index
+
+
+Cross-cutting
+=============
+
+The shared vocabulary, and the map of what verifies what.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Cross-cutting
+
    glossary
-   homogeneous
-   index_convention
-   operator_algebra
-   spherical_harmonics
-   structured_geometry
    verification
 
 
+Multiphysics
+============
+
+Support solvers outside the neutron-transport core. Their long-term home is
+undecided — they may be extracted from this repository — so they are
+deliberately carried unrestructured rather than filed into a part.
+
 .. toctree::
    :maxdepth: 1
-   :caption: Discrete (production) solver theory
+   :caption: Multiphysics
 
-   transport_methods
-   diffusion_1d
-   fuel_behaviour
    thermal_hydraulics
+   fuel_behaviour
    reactor_kinetics
-
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Continuous (reference) solver theory
-
-   reference_solvers

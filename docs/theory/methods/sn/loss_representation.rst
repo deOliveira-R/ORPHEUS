@@ -15,7 +15,7 @@ algorithm a mesh gets, and the L21 theorem that makes "matvec is the
 same operator as the sweep" a type fact rather than a coincidence.
 
 It deliberately does **not** re-derive the cell-level mathematics.
-Those live in :doc:`discrete_ordinates`:
+Those live in :doc:`/theory/methods/sn/index`:
 
 * the WDD cell balance and closure — :eq:`dd-cartesian-1d`,
   :eq:`dd-cartesian-2d`, :eq:`dd-2d-balance-form`;
@@ -24,7 +24,7 @@ Those live in :doc:`discrete_ordinates`:
 * the three-layer **walk / level-op / kernel** stack — the
   :ref:`sweep-dispatch-relayering` section (S6.4(e)).
 
-…and the operator algebra lives in :doc:`operator_algebra`:
+…and the operator algebra lives in :doc:`/theory/foundations/operator_algebra`:
 
 * the typed forward/solve/adjoint actions —
   :eq:`operator-apply`, :eq:`operator-solve`,
@@ -151,7 +151,7 @@ The native mathematical frame: a lower-triangular operator
 
 The within-group discrete-ordinates balance, for one ordinate
 :math:`\Omega_n` and one cell, is the WDD relation derived in
-:doc:`discrete_ordinates` (:eq:`dd-cartesian-2d`). Collect every cell
+:doc:`/theory/methods/sn/index` (:eq:`dd-cartesian-2d`). Collect every cell
 and every ordinate into the within-group operator
 
 .. math::
@@ -298,7 +298,7 @@ crux of the carve is that this leaf sum is value-correct **only by
 coincidence** — a coincidence that follows from a structural property of the
 *forward* (apply) direction that does **not** hold in the sweep direction.
 
-Start from the WDD cell balance derived in :doc:`discrete_ordinates`. In the
+Start from the WDD cell balance derived in :doc:`/theory/methods/sn/index`. In the
 forward (apply) direction the cell average :math:`\bar\psi` is **known**: it is
 the input. The matvec is the *row action* — it reconstructs the residual that
 the balance would have to absorb,
@@ -751,7 +751,7 @@ forward-substitution discharge, DSA's :math:`R\,A\,P` moment reduction
 for #2 / #200) poses the problem at zero inflow, so the bulk block is
 exactly what they need; the boundary law :math:`B` is the sibling
 operator that supplies the trace coupling in the full
-:math:`(L+C-S-F-B)` algebra (:doc:`operator_algebra`).
+:math:`(L+C-S-F-B)` algebra (:doc:`/theory/foundations/operator_algebra`).
 
 .. _loss-rep-assembly-cartesian-scope:
 
@@ -2817,7 +2817,7 @@ Literature
 The cell-level mathematics these representations *schedule* is sourced
 from the standard discrete-ordinates references, anchored in the
 :class:`~orpheus.transport.spatial.diamond.DiamondDifference` docstring and
-:doc:`discrete_ordinates`:
+:doc:`/theory/methods/sn/index`:
 
 .. list-table::
    :header-rows: 1
@@ -2862,11 +2862,11 @@ from the standard discrete-ordinates references, anchored in the
 See also
 ========
 
-* :doc:`discrete_ordinates` — the cell-level WDD algebra, the 1-D
+* :doc:`/theory/methods/sn/index` — the cell-level WDD algebra, the 1-D
   cumprod recurrence (:ref:`sweep-cumprod`), the 2-D anti-diagonal
   wavefront (:ref:`sweep-wavefront`), and the three-layer walk /
   level-op / kernel stack (:ref:`sweep-dispatch-relayering`).
-* :doc:`operator_algebra` — the Wave-O typed operator algebra
+* :doc:`/theory/foundations/operator_algebra` — the Wave-O typed operator algebra
   (:eq:`operator-apply`, :eq:`operator-solve`,
   :eq:`operator-apply-transpose`) and the interior face-flux cochain
   (:ref:`wavefront-flux-cochain`).

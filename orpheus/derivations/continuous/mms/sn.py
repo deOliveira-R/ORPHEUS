@@ -48,7 +48,7 @@ inflow-flux bookkeeping is required by the caller.
 
 .. seealso::
 
-   - :doc:`/theory/discrete_ordinates` — MMS verification section
+   - :doc:`/theory/methods/sn/index` — MMS verification section
      with the full derivation and convergence-rate argument.
    - :func:`orpheus.sn.solve_sn_fixed_source` — consumer of the
      external source produced here.
@@ -326,7 +326,7 @@ the refinements used.
       reference solution.
     - ``tests/sn/test_mms_heterogeneous.py`` — the L1 convergence
       consumer test.
-    - ``docs/theory/discrete_ordinates.rst`` — the heterogeneous
+    - ``docs/theory/methods/sn/index.rst`` — the heterogeneous
       MMS verification section.
 """
 
@@ -643,7 +643,7 @@ The ansatz vanishes on all four edges, so vacuum BCs are automatic.
 
 .. seealso::
 
-    - :doc:`/theory/discrete_ordinates` — 2D Cartesian MMS section.
+    - :doc:`/theory/methods/sn/index` — 2D Cartesian MMS section.
     - :func:`orpheus.sn.solve_sn_fixed_source` — consumer.
 """
 
@@ -1400,7 +1400,7 @@ class SN2DCartesianLDStressMMSCase:
     tolerance: str = "O(h^2)"
     equation_labels: tuple[str, ...] = (
         # ``ld-cartesian-2d`` is a NEW label D6 (archivist) mints in
-        # docs/theory/discrete_ordinates.rst — carried here now (the verifies
+        # docs/theory/methods/sn/index.rst — carried here now (the verifies
         # edge is written by Nexus; the label block is the archivist's stub).
         "ld-cartesian-2d",
         "transport-cartesian-2d",
@@ -2758,7 +2758,7 @@ the converged-VALUE assertion catch a dropped ``q.boundary``.
    - ``.claude/skills/vv-principles/SKILL.md`` failure mode #7 + Mode 9.
    - :class:`SNSlabNonVacuumMMSCase`, :class:`SNSphericalNonVacuumMMSCase`
      (Branch-2 numerical factories).
-   - ``docs/theory/discrete_ordinates.rst`` labels
+   - ``docs/theory/methods/sn/index.rst`` labels
      ``sn-mms-nonvacuum-psi``/``-qext`` (slab),
      ``sn-mms-nonvacuum-sph-psi``/``-qext`` (sphere).
 """

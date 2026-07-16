@@ -1,7 +1,7 @@
 r"""Unified flat-source collision-probability construction.
 
 Level-3 sibling of :mod:`~orpheus.derivations.continuous.peierls_nystrom.geometry`.
-See :doc:`/theory/peierls_nystrom` §§11-17 for the end-to-end
+See :doc:`/theory/references/peierls_nystrom` §§11-17 for the end-to-end
 derivation of the three-tier kernel hierarchy and the factorisation
 
 .. math::

@@ -23,7 +23,7 @@ by construction.  This is precisely why issue #233 is INVISIBLE to the
 production L2/keff gates and required an L-infinity / per-cell-rate
 probe to surface.
 
-Root cause (see #233 + ``docs/theory/discrete_ordinates.rst``,
+Root cause (see #233 + ``docs/theory/methods/sn/index.rst``,
 :eq:`dd-curvilinear-scalar`): at the pole the inner face area
 A_{i-1/2} = A(0) = 0, so the diamond closure psi_bar = 1/2(psi_in +
 psi_out) over-predicts the pole OUTER face by exactly +50%

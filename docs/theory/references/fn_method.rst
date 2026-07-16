@@ -68,7 +68,7 @@ registry function
 Why F_N at all?
 ================
 
-The Variant α Green's-function family (:doc:`trajectory_resolvent`) is
+The Variant α Green's-function family (:doc:`/theory/references/trajectory_resolvent`) is
 ORPHEUS's primary continuous-:math:`\mu` reference for the
 angle-resolved transport eigenvalue and flux-shape problems in compact
 and 2-surface geometries. It already cross-checks against external
@@ -107,7 +107,7 @@ reference can provide. This is the same role the PS-1982 Nyström
 reference plays for Variant α at vacuum BC: an independent
 published-method anchor that exposes any structural bug Variant α
 might be hiding behind its own algebra (see
-:doc:`peierls_nystrom`).
+:doc:`/theory/references/peierls_nystrom`).
 
 .. _fn-method-moment-space:
 
@@ -176,7 +176,7 @@ structural difference is enough to break the F_N method (the
 Mitsis-style Wiener-Hopf reduction is non-convergent for the bare
 cylinder, see Westfall–Metcalf 1972). Cylinder critical dimensions
 ship instead via the Mitsis–Westfall–Metcalf Fredholm pillar in
-:doc:`singular_eigenfunction`.
+:doc:`/theory/references/singular_eigenfunction`.
 
 Half-range decomposition at the boundary
 -----------------------------------------
@@ -568,7 +568,7 @@ But they attack different *mathematical structures*:
   + collision along the bouncing rays.
 
 The Sanchez–Chandrasekhar **three meanings of the Green's function**
-taxonomy (see :doc:`reference_solvers`) locates both methods within
+taxonomy (see :doc:`/theory/references/index`) locates both methods within
 the same Green's-function landscape. The F_N method is the
 **spectral** realisation of the resolvent: an eigenfunction
 expansion in the Case spectrum that converges to the Green's
@@ -712,7 +712,7 @@ reverse of typical nuclear-engineering convention. ORPHEUS uses the
 :math:`g=0` (fast) → :math:`g=N-1` (slow). The
 :mod:`orpheus.derivations.continuous.sood_registry.la13511`
 catalogue (formerly ``fn_method.benchmarks.la13511``; now method-
-agnostic — see :doc:`sood_registry`) does the conversion at load
+agnostic — see :doc:`/theory/references/sood_registry`) does the conversion at load
 time so consumers see ORPHEUS ordering directly. The Branch-1 SymPy
 module
 (:mod:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations`)
@@ -2447,8 +2447,8 @@ Internal references:
   ``.claude/agent-memory/numerics-investigator/atkinson_path_ai_log_kernel.md``.
 * Method-implementer closeout:
   ``.claude/agent-memory/method-implementer/fn_method_kinf_first_slice.md``.
-* :doc:`trajectory_resolvent` — companion Variant α reference family.
-* :doc:`singular_eigenfunction` — Atalay 1997 + WM-72 reflected /
+* :doc:`/theory/references/trajectory_resolvent` — companion Variant α reference family.
+* :doc:`/theory/references/singular_eigenfunction` — Atalay 1997 + WM-72 reflected /
   cylinder family.
-* :doc:`peierls_nystrom` — direct Peierls-integral reference solver
+* :doc:`/theory/references/peierls_nystrom` — direct Peierls-integral reference solver
   (the third pillar after F_N and Variant α).

@@ -1,6 +1,6 @@
 """L0 verification of the macro-sum equation.
 
-Sphinx label: ``math:equation:macro-sum`` (docs/theory/homogeneous.rst:622)
+Sphinx label: ``math:equation:macro-sum`` (docs/theory/foundations/infinite_medium.rst:622)
 
 The macro-sum equation states
 

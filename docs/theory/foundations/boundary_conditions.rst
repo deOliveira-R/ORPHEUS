@@ -123,7 +123,7 @@ Key Facts
   bare); it is delivered as the off-diagonal :math:`-B` source term and
   the outer Krylov / SI loop drives the boundary consistency residual
   to zero. The full block-matrix derivation and design rationale live
-  at :ref:`bc-extraction` in :doc:`operator_algebra`.
+  at :ref:`bc-extraction` in :doc:`/theory/foundations/operator_algebra`.
 
 .. admonition:: V&V status
 
@@ -2076,7 +2076,7 @@ landed on ``refactor/sn-operator-algebra``) extends the matvec with
 a **second** BC apply call, used to build the Carlson coupled-pole
 seed's ``bc_outer_value`` (see
 :ref:`sn-phase-d-carlson-coupled-pole-sweep` in
-:doc:`discrete_ordinates` for the math).  The §16A.3 affine trace
+:doc:`/theory/methods/sn/index` for the math).  The §16A.3 affine trace
 law contract is therefore exercised **twice per matvec** in the
 post-Phase-D code path:
 
@@ -2211,7 +2211,7 @@ retired at the coupled-block campaign step 6 (R-6.1, 2026-07-12) —
 dispatching to ``_sweep_1d_spherical`` (the dissolved ``sweep.py``) /
 ``_sweep_1d_cylindrical``).  See
 :ref:`sn-phase-f-carlson-sweep-path-backport` in
-:doc:`discrete_ordinates` for the math and the
+:doc:`/theory/methods/sn/index` for the math and the
 twin-path-fix-incompleteness anti-pattern that motivated the
 backport.
 
@@ -2609,7 +2609,7 @@ at :math:`r=0` is the angular closure's regularity condition (the
 :math:`\mu=\pm 1`; the inward sweep seeds from a moment-folded
 source at :math:`\mu=-1` — see
 :ref:`sn-pole-angular-closure-protocol` in
-:doc:`discrete_ordinates`), not a BC trace law.
+:doc:`/theory/methods/sn/index`), not a BC trace law.
 
 C4 **sharpens** the pre-existing Pattern-4 treatment of the pole.
 Pre-C4 the pole-as-non-BC was spelled by an explicit null:
@@ -3500,7 +3500,7 @@ References
   boundary conditions).
 * The tensor decomposition equation :eq:`bc-tensor-decomposition`
   at :ref:`bc-tensor-decompositions` (in
-  :doc:`discrete_ordinates`) shows the algebra
+  :doc:`/theory/methods/sn/index`) shows the algebra
   :math:`R = \sum_\alpha G_\alpha \otimes A_\alpha` that this page
   refines into the affine form :eq:`affine-bc-form`.
 * :ref:`operator-algebra` for the Wave-0 primitives the realized

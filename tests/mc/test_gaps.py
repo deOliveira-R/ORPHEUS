@@ -591,7 +591,7 @@ def test_xs_consistency_in_solver():
     """L1-MC-010: sig_t used in solver = SigF + SigC + SigL + sig_s_sum.
 
     Also verifies :label:`sigT-computed` from
-    docs/theory/cross_section_data.rst. The theory-page formula also
+    docs/theory/foundations/cross_section_data.rst. The theory-page formula also
     includes a rowsum(Sig_2n) term; this test exercises the Sig2 = 0
     subset (regions A/B/C/D from the synthetic library all have
     Sig2 = 0). The nonzero-Sig2 path added by issue #23 is covered

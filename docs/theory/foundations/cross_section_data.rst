@@ -204,7 +204,7 @@ Three reasons, in order of weight:
    the GENDF pipeline was the *lone* group-0-thermal outlier. The
    synthetic verification cross sections
    (:mod:`~orpheus.derivations.common.xs_library`), the Sood benchmark
-   registry (:doc:`sood_registry`), the :mod:`~orpheus.diffusion`
+   registry (:doc:`/theory/references/sood_registry`), the :mod:`~orpheus.diffusion`
    solver, the test fixtures, and **every theory page** were already
    group-0-fast. Reversing the GENDF data on ingest makes the production
    nuclear data agree with all of them for the first time, removing a

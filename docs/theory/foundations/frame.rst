@@ -2703,7 +2703,7 @@ above). The whole kernel is the spectral theorem
 :math:`S = R\circ\Lambda\circ M = U\Sigma U^*` written out.
 
 The anisotropic scattering source operator is an angular **integral
-kernel** (:ref:`integral-kernel-category`, :doc:`operator_algebra`):
+kernel** (:ref:`integral-kernel-category`, :doc:`/theory/foundations/operator_algebra`):
 the source at ordinate :math:`\hat\Omega` reads the flux at *every*
 ordinate, weighted by the scattering kernel
 
@@ -2759,7 +2759,7 @@ section**, :math:`\lambda_\ell = \Sigma_{s,\ell}` — which are
 precisely the per-:math:`\ell` block entries of the diagonal operator
 :math:`\Lambda` =
 :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`
-(:eq:`scattering-as-tensor-product-sum`, :doc:`operator_algebra`). The
+(:eq:`scattering-as-tensor-product-sum`, :doc:`/theory/foundations/operator_algebra`). The
 spherical harmonics are therefore not *a* convenient basis for
 scattering — they are *the* eigenbasis, forced by the rotational
 invariance of the kernel.
@@ -2801,7 +2801,7 @@ projector onto the degree-:math:`\ell` eigenspace as an outer product
 of harmonics. Reading :math:`S = R\circ\Lambda\circ M` as
 :math:`U\Sigma U^*` is what makes the conjugation
 :math:`S = \texttt{frame.conjugate}(\Lambda)` (the scattering **2-cell**
-of the operator-algebra double category, :doc:`operator_algebra`) a
+of the operator-algebra double category, :doc:`/theory/foundations/operator_algebra`) a
 *spectral* statement and not merely a convenient bracketing.
 
 **Schur's lemma fixes the block structure and the weights.** The

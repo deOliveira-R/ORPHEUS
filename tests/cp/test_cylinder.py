@@ -19,7 +19,7 @@ pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "mg-balance",
     # B.4 (#87) carry-over from B.2: tau_m and tau_p are the two
     # optical-path flavours defined in
-    # docs/theory/collision_probability.rst for the cylinder chord
+    # docs/theory/methods/collision_probability.rst for the cylinder chord
     # integration (same-side and through-centre paths). Every
     # cylindrical CP test evaluates both implicitly when building
     # the second-difference rcp via _compute_radial_rcp, and the

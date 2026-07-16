@@ -71,7 +71,7 @@ See also
 * :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` — the
   Protocol this strategy satisfies.
 * :func:`cell_balance_terms` — the unified algebra (Step 2.5).
-* :doc:`/theory/discrete_ordinates`, "Cell update strategies (the
+* :doc:`/theory/methods/sn/index`, "Cell update strategies (the
   strategy contract)" → "Diamond Difference" — the theory page.
 """
 

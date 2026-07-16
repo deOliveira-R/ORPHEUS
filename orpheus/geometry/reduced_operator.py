@@ -69,9 +69,9 @@ This raw weight is the UNIQUE choice exact for a flux linear in
 :math:`[1/2, 1]`-clamp history, the W1 mis-citation finding, and the
 geometry split are on the theory page — see
 :eq:`morel-montry-clamp` (the equation-of-record) in
-:doc:`/theory/structured_geometry` and the comprehensive vindication
+:doc:`/theory/foundations/structured_geometry` and the comprehensive vindication
 at :ref:`sn-curvilinear-aniso-norm-reconciliation` in
-:doc:`/theory/discrete_ordinates`.
+:doc:`/theory/methods/sn/index`.
 
 **Geometry split (W1, 2026-06-13; see** :func:`spherical_streaming` /
 :func:`cylindrical_streaming` **for the implementations).**
@@ -140,7 +140,7 @@ See also
   (#197) / walk-unification (#280 campaigns) refactors.)
   MoC and CP campaigns (post-Wave-1) reuse this primitive with their
   own consumption patterns.
-* :doc:`/theory/structured_geometry` — the architecture page;
+* :doc:`/theory/foundations/structured_geometry` — the architecture page;
   see "Connection coefficients (reduced streaming operator)".
 """
 

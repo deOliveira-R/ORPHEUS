@@ -706,7 +706,7 @@ The Sanchez–Chandrasekhar three-meanings taxonomy
 --------------------------------------------------
 
 The Sanchez–Chandrasekhar three-meanings taxonomy (see
-:doc:`/theory/reference_solvers` § three-meanings) locates each of
+:doc:`/theory/references/index` § three-meanings) locates each of
 the math-heart classes within the same Green's-function landscape
 of one-speed neutron transport:
 

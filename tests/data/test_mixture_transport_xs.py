@@ -11,7 +11,7 @@ Structure:
   P0-only limit, the CORE1D.m encoding bridge, the positivity guard).
   Software invariants on derived properties; no ``verifies(...)``.
 * L1 — ``D = 1/(3 Σ_tr)`` against the theory equation
-  ``:label: diffusion-coefficient`` (``docs/theory/diffusion_1d.rst``),
+  ``:label: diffusion-coefficient`` (``docs/theory/methods/diffusion_1d.rst``),
   hand-computed on a mixture with a genuine P1 moment.
 """
 

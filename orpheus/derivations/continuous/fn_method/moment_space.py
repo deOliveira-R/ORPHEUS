@@ -59,7 +59,7 @@ References
   Theory", *Nuclear Science and Engineering* **54**, 94–98.
 * Atkinson, K.E. (1997) *The Numerical Solution of Integral
   Equations of the Second Kind*. Cambridge University Press.
-* :doc:`/theory/fn_method` — the canonical theory exposition.
+* :doc:`/theory/references/fn_method` — the canonical theory exposition.
 """
 from __future__ import annotations
 

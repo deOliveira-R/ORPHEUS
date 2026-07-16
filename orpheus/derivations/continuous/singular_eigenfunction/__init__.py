@@ -102,7 +102,7 @@ Discipline
   (trusted-library line) but the criticality search, matrix
   machinery, and flux reconstruction are independent.
 
-The Sphinx narrative lives in :doc:`/theory/singular_eigenfunction`.
+The Sphinx narrative lives in :doc:`/theory/references/singular_eigenfunction`.
 
 References
 ----------

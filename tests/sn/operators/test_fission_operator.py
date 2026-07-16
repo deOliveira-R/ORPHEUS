@@ -86,7 +86,7 @@ class TestBitIdenticalExtraction:
     """FissionOperator math must match the legacy compute_fission_source."""
 
     def test_apply_matches_legacy_compute_at_k_eq_1(self, solver_2g):
-        """apply(φ) = compute_fission_source(φ, k=1.0) within nulp=4.
+        r"""apply(φ) = compute_fission_source(φ, k=1.0) within nulp=4.
 
         Wave T step T.2 relaxed this from ``np.array_equal`` to
         ``assert_array_almost_equal_nulp(nulp=4)`` per the

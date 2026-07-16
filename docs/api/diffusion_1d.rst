@@ -6,7 +6,7 @@ operator-algebra diffusion solver: the scalar-composite operator family
 :math:`A = L + C - S - B`, the albedo-family boundary realizer
 (:math:`J^- = \mathcal A\,J^+`), and the k-eigenvalue solver on the
 shared :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` engines.
-The underlying theory is covered in :doc:`/theory/diffusion_1d` and
+The underlying theory is covered in :doc:`/theory/methods/diffusion_1d` and
 verified against the analytical / semi-analytical references built by
 :mod:`orpheus.derivations.continuous.cases.diffusion`.
 

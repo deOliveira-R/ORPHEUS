@@ -8,7 +8,7 @@ ascending energy); the single normalisation at the data-ingest boundary
 :func:`~orpheus.data.micro_xs.gendf._reverse_groups_2d` for the matrix channels)
 flips it once, so every downstream consumer is order-transparent.
 
-See ``docs/theory/cross_section_data.rst`` (canonical group convention).
+See ``docs/theory/foundations/cross_section_data.rst`` (canonical group convention).
 """
 from __future__ import annotations
 

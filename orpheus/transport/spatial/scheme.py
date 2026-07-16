@@ -150,7 +150,7 @@ References
   diffusion equation for arbitrary polyhedral grids*.
   JCP 227, 3738--3757.  Eq. 50 (dome recursion) and Eq. 74
   (Morel--Montry) feed the curvilinear cell update.
-* See also :doc:`/theory/discrete_ordinates`, "Cell update
+* See also :doc:`/theory/methods/sn/index`, "Cell update
   strategies (the strategy contract)".
 
 See also
@@ -727,7 +727,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     closed-form-at-arbitrary-Σ positive + the Σ-statelessness teeth).  The full
     Step/DD/LD ↔ advection-scheme narrative (box ≡ diamond, the Péclet coupling,
     the spatial ⊗ angular factorization) is the #240 Step D6 deliverable on
-    :doc:`/theory/discrete_ordinates`.
+    :doc:`/theory/methods/sn/index`.
 
     The model-agnostic parameter rename is DONE (#241): the coefficient +
     kernel reaction-rate parameter — formerly spelled three ways across these

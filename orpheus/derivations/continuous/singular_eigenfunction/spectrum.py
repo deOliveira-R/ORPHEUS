@@ -126,10 +126,10 @@ References
   transport theory", *Prog. Nucl. Energy* **31**(3), 229-252.
   Linear anisotropy + half-range bi-orthogonality + first-order
   Fredholm iteration.
-* :doc:`/theory/singular_eigenfunction` — the canonical theory
+* :doc:`/theory/references/singular_eigenfunction` — the canonical theory
   exposition; the "Case spectrum and the expansion theorem" section
   is the rich-narrative companion to this module's docstring.
-* :doc:`/theory/reference_solvers` § :ref:`reference-solvers-three-meanings`
+* :doc:`/theory/references/index` § :ref:`reference-solvers-three-meanings`
   — locates Spectrum (γ: singular-eigenfunction angular Green's),
   Billiard (α: trajectory resolvent), and MomentSpace (γ: F_N is also
   in the singular-eigenfunction pillar but uses a *different*
@@ -479,7 +479,7 @@ class Spectrum:
          to :math:`N+1` moments.
 
        The Sanchez–Chandrasekhar three-meanings taxonomy
-       (:doc:`/theory/reference_solvers` § :ref:`reference-solvers-three-meanings`)
+       (:doc:`/theory/references/index` § :ref:`reference-solvers-three-meanings`)
        locates ``Spectrum`` under meaning **(γ): singular-eigenfunction
        angular Green's function** — directly construct
        :math:`G(\tau, \tau'; \mu, \mu')` as a sum over ν-spectrum

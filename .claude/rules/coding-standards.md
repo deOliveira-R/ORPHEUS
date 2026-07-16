@@ -59,10 +59,15 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   sufficient; the call graph misses property-reached leaves (`callers()==0` but live via a
   `cached_property`), class-name *bypass* consumers, and direct constructors of a guarded
   type; (2) **text-grep the symbol across code, tests, AND `docs/`** — an unresolved
-  `:func:`/`:class:`/`:ref:` cross-reference renders as plain text with **no `-W` warning**,
-  so the Sphinx build gate does NOT catch a retirement's doc blast radius; (3) **direct
-  constructors** of any guarded type (a guard-at-source change reaches every `T(...)` caller,
-  not just the factory path). Run all three, then retire.
+  **Python-domain** cross-reference (`:func:`/`:class:`/`:meth:`/`:mod:`) renders as plain
+  text with **no `-W` warning** unless the build runs `-n` (nitpicky), so the Sphinx gate
+  does NOT catch a code retirement's doc blast radius. (Measured 2026-07-15, Sphinx 9.1.0:
+  `:doc:` and `:ref:` **do** warn — `ref.doc` / `ref.ref` — so *page* moves and *label*
+  retirements ARE gated by `-W`; the silent class is the Python-domain roles, plus **raw path
+  strings** in prose/docstrings, which no build ever checks. A path assembled from segments —
+  `REPO_ROOT / "docs" / "theory"` — is invisible to a path-grep too; grep the **last
+  segment**.) (3) **direct constructors** of any guarded type (a guard-at-source change
+  reaches every `T(...)` caller, not just the factory path). Run all three, then retire.
 - **Mass-deletes are retirements too — and untracked shadow-copies mask the breakage.** A
   "chore: mass-delete old diagnostics" sweep owes each file the same 3-search audit, with two
   sharpenings: (a) grep the **module/script NAME**, not only its symbols — a subprocess-worker

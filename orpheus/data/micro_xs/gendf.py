@@ -343,7 +343,7 @@ def _build_isotope(
 # ``SigS[g_from, g_to]`` downscatter in the UPPER triangle. We normalise the
 # foreign NJOY order ONCE here, at the data-ingest boundary, so every downstream
 # consumer (Mixture, cell_xs, every solver) is order-transparent.
-# See docs/theory/cross_section_data.rst (canonical group convention).
+# See docs/theory/foundations/cross_section_data.rst (canonical group convention).
 
 
 def _reverse_groups_2d(m: csr_matrix) -> csr_matrix:

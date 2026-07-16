@@ -176,7 +176,7 @@ Key Facts
   registry; a diffusion phase space with unresolved boundary conditions
   is unrepresentable. The three-layer decomposition (trace structure /
   physical law / method realisation) is documented on
-  :doc:`/theory/boundary_conditions`.
+  :doc:`/theory/foundations/boundary_conditions`.
 
 
 .. _diffusion-operator-family-section:
@@ -186,7 +186,7 @@ Operator-family architecture (production)
 
 The production solver (#290) does not carry a diffusion-specific matvec.
 It composes the loss :math:`A = L + C - S - B` and the gain :math:`F`
-from the shared operator algebra of :doc:`/theory/operator_algebra`,
+from the shared operator algebra of :doc:`/theory/foundations/operator_algebra`,
 inverts :math:`A` exactly, and drives the outer power iteration through
 the *same* :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver`
 protocol boundary the S\ :sub:`N`, CP, and homogeneous solvers plug
@@ -321,7 +321,7 @@ gated directly (:ref:`diffusion-operator-family-verification`). The
 :math:`(n,2n)` channel is **loss-side** — :math:`S` carries the full
 K_iso pair :math:`\Sigma_{s0}^{\mathsf T} + 2\Sigma_2^{\mathsf T}` while
 :math:`F` and the production rate are :math:`\nu\Sigma_f` only, mirroring
-the homogeneous solver (:doc:`/theory/homogeneous`); S\ :sub:`N` poses
+the homogeneous solver (:doc:`/theory/foundations/infinite_medium`); S\ :sub:`N` poses
 :math:`(n,2n)` production-side instead — both are consistent posings of
 the same balance. Because the group coupling lives entirely in the
 shared kernels, the solver is **ng-generic by construction**: the
@@ -366,7 +366,7 @@ basis dimension for free.
    the Neumann series **diverges** on fine meshes. The explicit dense
    inverse is exact regardless of conditioning — the same choice, and
    the same ``MatrixInverseOperator(loss) @ F`` precedent, the 0-D
-   homogeneous solver makes (:doc:`/theory/homogeneous`).
+   homogeneous solver makes (:doc:`/theory/foundations/infinite_medium`).
 
 .. _diffusion-data-seam:
 
@@ -428,7 +428,7 @@ differs (the diffusion arm builds the albedo operator via
 Conformance is structural — neither mesh imports the Protocol. The
 realizer mechanics (the three-layer descriptor / law / realizer
 decomposition and the rank-N composition walker) live on
-:doc:`/theory/boundary_conditions`.
+:doc:`/theory/foundations/boundary_conditions`.
 
 .. _diffusion-solver-engines:
 
@@ -511,7 +511,7 @@ SN\ :math:`\to`\ diffusion boundary restriction is the :math:`\ell = 0`
 half-range moment of the angular trace under the shared
 :math:`\lvert\Omega\cdot\hat n\rvert\,w` metric — the reason ruling 2
 posed the trace in partial-current variables. See
-:doc:`/theory/operator_algebra` for the DSA-consumer discussion and the
+:doc:`/theory/foundations/operator_algebra` for the DSA-consumer discussion and the
 seam contract.
 
 .. _diffusion-operator-family-verification:

@@ -45,7 +45,11 @@ bibtex_default_style = 'plain'
 todo_include_todos = True
 
 templates_path = ['_templates']
-exclude_patterns = ['_build', '_generated', 'Thumbs.db', '.DS_Store']
+# '**/*.inc.rst' — fragments meant only for `.. include::`. Without this they
+# ALSO build as standalone documents, so each renders twice and, being in no
+# toctree, warns as an orphan. `.. include::` reads them as raw text and is
+# unaffected by exclusion.
+exclude_patterns = ['_build', '_generated', '**/*.inc.rst', 'Thumbs.db', '.DS_Store']
 
 # -- Options for HTML output -------------------------------------------
 

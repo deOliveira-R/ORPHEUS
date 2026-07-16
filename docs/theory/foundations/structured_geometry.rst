@@ -285,7 +285,7 @@ admissible range :math:`\tau \in [0, 1]`.
   spurious on physical fields and re-floored the anisotropic solution.
   The full vindication is at
   :ref:`sn-curvilinear-aniso-norm-reconciliation` in
-  :doc:`discrete_ordinates`.
+  :doc:`/theory/methods/sn/index`.
 * **CYLINDER** retains the clamp :math:`\tau_m =
   \mathrm{clip}(\tau_m^{\rm raw}, \tfrac12, 1)`: product / level-
   symmetric quadratures put the most-inward azimuthal ordinate exactly
@@ -339,7 +339,7 @@ The two trailing fields ``volume`` and ``abs_mu`` carry the per-cell
 volume :math:`V_i` and the absolute primary direction cosine
 :math:`|\mu|` (sphere) / :math:`|\eta|` (cylinder, radial) /
 :math:`|\mu_x|` (slab).  They are populated by all three factories so
-a downstream sweep cell update — see :doc:`discrete_ordinates`,
+a downstream sweep cell update — see :doc:`/theory/methods/sn/index`,
 "Cell update strategies (the strategy contract)" — receives a
 self-contained per-cell, per-direction packet and need not reach back
 into ``SNMesh`` or the ``AngularQuadrature``.  The ``alpha_in is

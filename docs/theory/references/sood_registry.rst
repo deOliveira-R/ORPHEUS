@@ -911,9 +911,9 @@ Internal references:
   ``.claude/agent-memory/method-implementer/sood_registry_cache_phase_b4.md``.
 * Wave 3 architectural plan:
   ``.claude/plans/wave3/architecture.md``.
-* :doc:`fn_method` — primary consumer of the LA-13511 catalogue
+* :doc:`/theory/references/fn_method` — primary consumer of the LA-13511 catalogue
   (k_inf cases + slab/sphere bare-critical + reflected slab).
-* :doc:`singular_eigenfunction` — primary consumer of the Atalay
+* :doc:`/theory/references/singular_eigenfunction` — primary consumer of the Atalay
   catalogue + cylinder LA-13511 truth values.
-* :doc:`trajectory_resolvent` — Variant α cross-checks on shared
+* :doc:`/theory/references/trajectory_resolvent` — Variant α cross-checks on shared
   Sood truth values.

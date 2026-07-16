@@ -803,7 +803,7 @@ When :math:`\Sigma_2 = 0`, :eq:`moc-keff-update` reduces to the standard
    (:math:`\nu\Sigma_f = 0.25`, :math:`\Sigma_c + \Sigma_f - \Sigma_2 =
    0.2`).  The old value was not a regression to tolerance-match but a
    different functional; see the SN close-out of the same discipline
-   (:ref:`sn-keff-estimator` in :doc:`discrete_ordinates`).  The MoC
+   (:ref:`sn-keff-estimator` in :doc:`/theory/methods/sn/index`).  The MoC
    diagnostic ``print`` of the old ratio was retired with the fix.
 
 Implemented in :meth:`MOCSolver.compute_keff`.  Verified by
@@ -820,7 +820,7 @@ critical structural decision is that the in-scatter source is assembled
 **inside** ``solve_fixed_source`` — each inner transport sweep sees the
 most recent scalar flux, which is how the Gauss–Seidel-style inner
 iteration converges the scattering source without leaking MOC-specific
-logic into the outer eigenvalue loop (see :doc:`../api/numerics`).
+logic into the outer eigenvalue loop (see :doc:`/api/numerics`).
 
 1. **Fission source** (:meth:`MOCSolver.compute_fission_source`):
    :math:`F_{i,g} = \chi_{i,g} \cdot (\nSigf{i} \cdot \phi_i) / k`

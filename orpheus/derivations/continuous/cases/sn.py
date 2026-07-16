@@ -20,7 +20,7 @@ Three problem families:
    ``solve_sn`` to machine precision once spatial discretisation
    converges. See :func:`derive_sn_heterogeneous_continuous` and the
    "Case singular-eigenfunction method" section of
-   :doc:`/theory/discrete_ordinates`.
+   :doc:`/theory/methods/sn/index`.
 
 The Case-method implementation follows the same real-basis
 mode-decomposition pattern as :mod:`orpheus.derivations.diffusion`:
@@ -59,7 +59,7 @@ becomes block-diagonal in ordinate with per-group off-diagonal blocks
 from scattering and fission. The current implementation is 1-group only;
 multigroup is a Phase 2.1b+ follow-up.
 
-See :doc:`/theory/discrete_ordinates` "Case singular-eigenfunction
+See :doc:`/theory/methods/sn/index` "Case singular-eigenfunction
 method" section for the full mathematical treatment with equation
 labels, and :doc:`/verification/reference_solutions` for the campaign
 philosophy.
@@ -157,7 +157,7 @@ def all_cases() -> list[VerificationCase]:
 # Phase 1.2 diffusion transcendental reference
 # (:func:`orpheus.derivations.diffusion.derive_2rg_continuous`); all
 # four diffusion dead ends documented in
-# ``docs/theory/diffusion_1d.rst`` "Investigation history" apply
+# ``docs/theory/methods/diffusion_1d.rst`` "Investigation history" apply
 # verbatim here and are handled the same way.
 
 
@@ -730,7 +730,7 @@ def derive_sn_heterogeneous_continuous(
 
     Notes
     -----
-    See :doc:`/theory/discrete_ordinates` "Case singular-eigenfunction
+    See :doc:`/theory/methods/sn/index` "Case singular-eigenfunction
     method" section for the full derivation. The investigation
     history section of that page records the dead ends encountered
     during the Phase 2.1b prototype work — in particular the

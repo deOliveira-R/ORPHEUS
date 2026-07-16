@@ -45,7 +45,7 @@ form scalar from the homogeneous reflective infinite-medium balance,
 not derived from any discretisation).  This test compares each
 production path against the analytical truth and tagged as L0 —
 the canonical streaming-equilibrium gate per
-:doc:`docs/theory/discrete_ordinates`.
+:doc:`docs/theory/methods/sn/index`.
 
 References
 ----------

@@ -29,7 +29,7 @@ a new test, or auditing the V&V status of a solver.**
   * :doc:`matrix` — auto-generated V&V matrix from the test registry
     (level × module × equation grid), equation coverage table,
     L0 error-catalog coverage, and the orphan-equation list.
-  * :doc:`/theory/reference_solvers` — the Pillar-2 reference-solver
+  * :doc:`/theory/references/index` — the Pillar-2 reference-solver
     catalogue with the three-meanings Green's-function taxonomy and
     per-solver pillar classification.
 
@@ -130,7 +130,7 @@ problem class.
 Three-meanings taxonomy (where this verification suite consumes it)
 ====================================================================
 
-The reference solvers in :doc:`/theory/reference_solvers` realise
+The reference solvers in :doc:`/theory/references/index` realise
 three structurally-independent constructions of the Green's function
 (Meanings α / β / γ). The verification matrix exploits this:
 

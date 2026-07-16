@@ -2,8 +2,10 @@
 
 Discovers ``cases.py:capability_rows()`` across every package in
 ``orpheus.derivations.continuous`` and emits one
-``docs/theory/_<package_name>_capability_matrix.inc.rst`` per
-discovered package. Replaces per-method generators
+``docs/theory/references/_<package_name>_capability_matrix.inc.rst``
+per discovered package. Every discovered package is by construction a
+reference solver, so ``references/`` is the whole output surface — not
+a per-method special case. Replaces per-method generators
 (``generate_peierls_nystrom_matrix.py``,
 ``generate_fn_method_matrix.py``) with a single tool that scales
 linearly with new methods at zero per-method generator cost.
@@ -51,11 +53,11 @@ For each ``pkg`` in ``pkgutil.iter_modules(orpheus.derivations.continuous)``:
 3. If the module imports but has no ``capability_rows`` attribute,
    skip silently.
 4. Otherwise call ``capability_rows()`` and render to
-   ``docs/theory/_{pkg.name}_capability_matrix.inc.rst``.
+   ``docs/theory/references/_{pkg.name}_capability_matrix.inc.rst``.
 
 At the start of each run, all existing
-``docs/theory/_*_capability_matrix.inc.rst`` files are wiped — stale
-matrices for now-removed packages are removed automatically.
+``docs/theory/references/_*_capability_matrix.inc.rst`` files are wiped
+— stale matrices for now-removed packages are removed automatically.
 
 Modes
 -----
@@ -80,7 +82,11 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DOCS_THEORY_DIR = REPO_ROOT / "docs" / "theory"
+#: The sole output surface, and the sole source of truth for it — the test
+#: suite imports this rather than re-deriving the path. Every discovered
+#: package lives under ``orpheus.derivations.continuous``, i.e. is a reference
+#: solver, so its matrix belongs beside the reference-solver theory pages.
+MATRIX_OUTPUT_DIR = REPO_ROOT / "docs" / "theory" / "references"
 MATRIX_GLOB = "_*_capability_matrix.inc.rst"
 
 
@@ -297,8 +303,12 @@ def _discover_packages() -> list[tuple[str, list[dict[str, Any]]]]:
 
 
 def _wipe_existing_matrices() -> None:
-    """Remove every ``_*_capability_matrix.inc.rst`` under docs/theory/."""
-    for path in sorted(DOCS_THEORY_DIR.glob(MATRIX_GLOB)):
+    """Remove every generated matrix under :data:`MATRIX_OUTPUT_DIR`.
+
+    The glob is deliberately non-recursive: the output surface is one
+    directory, so a match outside it would be a file this tool does not own.
+    """
+    for path in sorted(MATRIX_OUTPUT_DIR.glob(MATRIX_GLOB)):
         path.unlink()
 
 
@@ -317,7 +327,7 @@ def main(argv: list[str] | None = None) -> int:
     rendered: list[tuple[Path, str]] = []
     for pkg_name, rows in discovered:
         out_path = (
-            DOCS_THEORY_DIR
+            MATRIX_OUTPUT_DIR
             / f"_{pkg_name}_capability_matrix.inc.rst"
         )
         rst = _render(pkg_name, rows)
@@ -328,7 +338,7 @@ def main(argv: list[str] | None = None) -> int:
         # exit 1 if any differ. Also flag stale on-disk matrices that
         # do not correspond to any discovered package.
         rendered_paths = {p for p, _ in rendered}
-        existing_paths = set(DOCS_THEORY_DIR.glob(MATRIX_GLOB))
+        existing_paths = set(MATRIX_OUTPUT_DIR.glob(MATRIX_GLOB))
         stale = sorted(existing_paths - rendered_paths)
         differences: list[str] = []
         for stale_path in stale:

@@ -1,7 +1,7 @@
 r"""Issue #168 Phase C — Gate Set 1 verification gates.
 
 Gates pin the sweep-frame apply matvec rewrite at the architectural
-level (per :doc:`/theory/discrete_ordinates` Phase C subsection and
+level (per :doc:`/theory/methods/sn/index` Phase C subsection and
 .claude/plans/issue_168_phase_c.md §5):
 
 * Gate 1.1 — per-ordinate flat-flux residual on reflective sphere /

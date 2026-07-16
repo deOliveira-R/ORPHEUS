@@ -6,7 +6,7 @@ equation, applying diamond-difference and weighted-diamond-difference
 closures.  Each derivation is verified symbolically with SymPy.
 
 This script is the **source of truth** for the equations in
-``docs/theory/discrete_ordinates.rst``.  If an equation in the RST
+``docs/theory/methods/sn/index.rst``.  If an equation in the RST
 cannot be derived from this script, it must be added here first.
 
 Equations verified

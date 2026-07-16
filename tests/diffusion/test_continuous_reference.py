@@ -37,7 +37,7 @@ the cross-check's job — locking in the transcendental replacement at
 the ~1e-7 level, inside the Richardson ~1e-5 floor — was completed
 before retirement.
 
-See :doc:`/theory/diffusion_1d` for the operator form the tests
+See :doc:`/theory/methods/diffusion_1d` for the operator form the tests
 commit to, and :doc:`/verification/reference_solutions` for the
 campaign philosophy.
 """

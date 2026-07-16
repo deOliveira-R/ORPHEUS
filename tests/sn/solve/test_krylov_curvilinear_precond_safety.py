@@ -61,7 +61,7 @@ References
   inverse pitfall.
 - ``.claude/lessons.md`` L21 — sweep and matvec are different
   applications of the same operator → share ONE strategy.
-- Sphinx theory: ``docs/theory/discrete_ordinates.rst``
+- Sphinx theory: ``docs/theory/methods/sn/index.rst``
   (transport-cartesian, sn-curvilinear-homogeneous-kinf-recovery).
 - ERR catalog: ERR-050 — Silent preconditioner fallback breaks
   stateful-inverse contract (Phase 1.4).

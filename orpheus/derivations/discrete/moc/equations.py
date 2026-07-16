@@ -1,7 +1,7 @@
 """Symbolic verification of MOC equations.
 
 Independent SymPy derivations of the key formulas in the MOC theory
-chapter (docs/theory/method_of_characteristics.rst).  These serve as
+chapter (docs/theory/methods/method_of_characteristics.rst).  These serve as
 the derivation source-of-truth for the documented equations.
 
 Each function prints the derivation steps and asserts the final result

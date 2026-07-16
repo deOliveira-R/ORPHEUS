@@ -45,7 +45,7 @@ anchor, strictly more accurate than the Richardson value it
 replaced (~1e-7 vs ~1e-5 floors; the two were cross-checked during
 the migration window before the legacy tier retired).
 
-See :doc:`/theory/diffusion_1d` for the full mathematical
+See :doc:`/theory/methods/diffusion_1d` for the full mathematical
 treatment with equation labels, and
 :doc:`/verification/reference_solutions` for the campaign
 philosophy.
@@ -130,7 +130,7 @@ def derive_1rg(fuel_height: float = 50.0) -> VerificationCase:
         tolerance="O(h²)",
         vv_level="L1",
         # Same math as derive_1rg_continuous — the labels live on
-        # docs/theory/diffusion_1d.rst.
+        # docs/theory/methods/diffusion_1d.rst.
         equation_labels=(
             "diffusion-operator",
             "diffusion-coefficient",
@@ -164,7 +164,7 @@ def all_cases() -> list[VerificationCase]:
 #
 # with S(k) = [[0, -D^-1], [-M(k), 0]] and M(k) the net removal
 # matrix diag(absorption + out-scatter) − downscatter_coupling
-# − (1/k)·chi ⊗ (nu·Sigma_f). See docs/theory/diffusion_1d.rst
+# − (1/k)·chi ⊗ (nu·Sigma_f). See docs/theory/methods/diffusion_1d.rst
 # :eq:`diffusion-region-ode` and :eq:`diffusion-M-matrix` for the
 # derivation, and :eq:`diffusion-mode-decomposition`,
 # :eq:`diffusion-exponential-branch`, and

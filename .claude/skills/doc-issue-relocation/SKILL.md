@@ -110,7 +110,7 @@ directives. Convert the verbatim block element-by-element.
 | `.. list-table::` w/ `:header-rows: 1`           | GitHub pipe table. Multi-paragraph cells flatten with `<br>` or a sibling `*notes*` row.                          |
 | Multi-line `* -` rows                            | Collapse to single-line; sub-bullets become `<br>·` separated runs.                                               |
 | `[CitationKey]_` references                      | Plain-text `[CitationKey]` (no underscore). Repeat the bibliography under `## References:`.                       |
-| `:ref:\`some-anchor\``, `:eq:\`label\``          | Backticked anchor name + a sentence describing what the anchor names; cite the file path: `` `docs/theory/peierls_nystrom.rst` ≈ lines 5410–5476 ``. |
+| `:ref:\`some-anchor\``, `:eq:\`label\``          | Backticked anchor name + a sentence describing what the anchor names; cite the file path: `` `docs/theory/references/peierls_nystrom.rst` ≈ lines 5410–5476 ``. |
 | `.. note::`, `.. warning::` admonitions          | Markdown blockquote `> **Note.**` / `> **Warning.**` followed by the body indented under the quote.               |
 | `**bold**` / `*italic*`                          | Stay as-is — both renderers agree.                                                                                |
 | `.. code-block:: python`                         | Fenced ``` ```python ``` block.                                                                                    |
@@ -140,7 +140,7 @@ GitHub-Markdown:
 
 The escape kernel reduces to $\frac{1}{2} E_2(\tau)$ — see
 `compute_P_esc_outer` and the surviving doc anchor
-`theory-peierls-slab-polar` in `docs/theory/peierls_nystrom.rst`.
+`theory-peierls-slab-polar` in `docs/theory/references/peierls_nystrom.rst`.
 ````
 
 ## Collapsibles for ≥ 50-LoC verbatim blocks
@@ -269,7 +269,7 @@ the orphan list shrinks accordingly.
 3. **Cross-doc references.** RST `:ref:\`anchor\`` and `:eq:\`label\``
    cannot resolve in GitHub markdown. Convert to backticked anchor
    names with a sentence describing what they point to. Cite the file
-   path explicitly: `` `docs/theory/peierls_nystrom.rst` ≈ lines 5410–5476 ``.
+   path explicitly: `` `docs/theory/references/peierls_nystrom.rst` ≈ lines 5410–5476 ``.
 
 4. **Citation entries.** RST `[CitationKey]_` reference blocks must be
    repeated as plain-text lines under `## References:`. The GitHub

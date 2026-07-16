@@ -17,11 +17,15 @@ geometry-specific kernel or sweep algorithm:
 - :ref:`theory-monte-carlo` — stochastic transport via Woodcock delta-tracking
   with analog absorption and weight-based population control.
 
+- :ref:`theory-diffusion-1d` — the P1 (lowest-order) angular limit; not a
+  transport solver in the strict sense, but the workhorse of reactor design
+  and the target of the DSA acceleration seam.
+
 .. toctree::
    :maxdepth: 2
 
+   sn/index
    collision_probability
-   discrete_ordinates
-   loss_representations
    method_of_characteristics
    monte_carlo
+   diffusion_1d

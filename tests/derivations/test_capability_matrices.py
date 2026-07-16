@@ -25,9 +25,12 @@ from pathlib import Path
 
 import pytest
 
+from tools.verification.generate_capability_matrices import (
+    MATRIX_GLOB,
+    MATRIX_OUTPUT_DIR,
+)
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DOCS_THEORY_DIR = REPO_ROOT / "docs" / "theory"
-MATRIX_GLOB = "_*_capability_matrix.inc.rst"
 
 
 def _run_generator(*extra_args: str) -> subprocess.CompletedProcess:
@@ -80,7 +83,7 @@ def test_generation_is_deterministic():
 
     first_contents = {
         path.name: path.read_text(encoding="utf-8")
-        for path in sorted(DOCS_THEORY_DIR.glob(MATRIX_GLOB))
+        for path in sorted(MATRIX_OUTPUT_DIR.glob(MATRIX_GLOB))
     }
     assert first_contents, "no capability matrices found after first write"
 
@@ -89,7 +92,7 @@ def test_generation_is_deterministic():
 
     second_contents = {
         path.name: path.read_text(encoding="utf-8")
-        for path in sorted(DOCS_THEORY_DIR.glob(MATRIX_GLOB))
+        for path in sorted(MATRIX_OUTPUT_DIR.glob(MATRIX_GLOB))
     }
 
     assert first_contents.keys() == second_contents.keys(), (
@@ -119,7 +122,7 @@ def test_at_least_peierls_nystrom_and_fn_method_discovered():
     assert write_result.returncode == 0, write_result.stderr
 
     found = {
-        path.name for path in DOCS_THEORY_DIR.glob(MATRIX_GLOB)
+        path.name for path in MATRIX_OUTPUT_DIR.glob(MATRIX_GLOB)
     }
     expected = {
         "_peierls_nystrom_capability_matrix.inc.rst",

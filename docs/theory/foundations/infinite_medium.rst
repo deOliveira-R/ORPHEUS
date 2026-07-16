@@ -1541,7 +1541,7 @@ Verification
 The homogeneous solver is verified against **analytical eigenvalues**
 derived symbolically with SymPy (see :mod:`orpheus.derivations.continuous.analytical.homogeneous`).
 The same :class:`~orpheus.derivations.common.verification_case.VerificationCase` objects serve
-both the documentation (LaTeX equations in :doc:`verification`) and the
+both the documentation (LaTeX equations in :doc:`/theory/verification`) and the
 test suite.
 
 .. list-table::

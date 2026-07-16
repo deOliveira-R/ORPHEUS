@@ -21,7 +21,7 @@ chain: they verify each formula matches a hand calculation, with no
 solver or eigenvalue involved. See :ref:`vv-foundation-tests` in
 ``docs/testing/architecture.rst`` for the L0 vs. foundation
 distinction — these are physics-equation tests (the equations live
-in ``docs/theory/homogeneous.rst`` and ``cross_section_data.rst``),
+in ``docs/theory/foundations/infinite_medium.rst`` and ``cross_section_data.rst``),
 not software-invariant tests.
 """
 

@@ -728,8 +728,9 @@ have caught earlier):
 
 **Sphinx**:
 
-- Stub at `docs/theory/peierls_greens.rst` (extended into rich
-  narrative by archivist after each phase).
+- Stub at `docs/theory/references/trajectory_resolvent.rst` (extended
+  into rich narrative by archivist after each phase; the page was named
+  `peierls_greens.rst` at the time of this campaign).
 
 **Discipline deviation that would have been caught**:
 

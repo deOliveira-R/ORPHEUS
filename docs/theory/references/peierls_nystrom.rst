@@ -1211,7 +1211,7 @@ is written as one product at a single argument :math:`r`.
    re-introduce the sink index.
 
 **Independent structural witness.** The sibling Variant-α
-:doc:`trajectory-resolvent / Green's-function <trajectory_resolvent>`
+:doc:`trajectory-resolvent / Green's-function </theory/references/trajectory_resolvent>`
 solver family already source-indexes χ correctly (the per-node spectrum
 :math:`\chi` multiplies the *local* fission rate at each node before
 the trajectory kernel is applied). That a structurally distinct kernel
@@ -1447,7 +1447,7 @@ housed in:
   (Phase 4.1, shipped).
 - :mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder` — cylinder
   :math:`\mathrm{Ki}_1` reference (Phase 4.2, shipped; companion
-  theory page in :doc:`collision_probability`).
+  theory page in :doc:`/theory/methods/collision_probability`).
 - :mod:`orpheus.derivations.continuous.peierls_nystrom.sphere` — sphere
   :math:`e^{-\tau}` reference (registry-only façade per Issue #138;
   canonical entry is ``solve_peierls_mg(_pg.SPHERE_1D, ...)``).
@@ -1489,7 +1489,7 @@ This page records that unification in detail sufficient to:
    three separate times.
 
 Nothing on this page replaces the geometry-specific pages in
-:doc:`collision_probability`. Those pages document the full
+:doc:`/theory/methods/collision_probability`. Those pages document the full
 derivation of each solver including its geometry-specific
 investigation history (the cylinder's chord-form dead-end, the
 slab's :math:`\Sigma_t`-LHS debugging, and so on). This page is
@@ -1643,7 +1643,7 @@ Peierls equation is therefore
 
 This is the form used by :mod:`orpheus.derivations.continuous.peierls_nystrom.slab` and
 documented in the :eq:`peierls-equation` section of
-:doc:`collision_probability`. The singularity structure of the kernel
+:doc:`/theory/methods/collision_probability`. The singularity structure of the kernel
 comes from the small-:math:`z` asymptote
 
 .. math::
@@ -2099,7 +2099,7 @@ the double integral to a **second-difference formula** in
 
 as documented in :eq:`second-diff-general`, :eq:`self-slab`,
 :eq:`second-diff-cyl`, and :eq:`second-diff-sph` of
-:doc:`collision_probability`. This reduction is the *selling point*
+:doc:`/theory/methods/collision_probability`. This reduction is the *selling point*
 of the flat-source CP method: all the angular and geometric
 integration collapses to one evaluation per pair of regions
 ([Carlvik1966]_, [Stamm1983]_ §6.4). The polar form does not give
@@ -2126,7 +2126,7 @@ Historical reason 3 — the flat-source Jacobian singularity is
 The chord form carries a Jacobian
 :math:`1/\sqrt{(r^{2}-y^{2})(r'^{2}-y^{2})}` (for the cylinder;
 see the derivation at :eq:`peierls-cylinder-green-2d` in
-:doc:`collision_probability`) with **two coincident
+:doc:`/theory/methods/collision_probability`) with **two coincident
 integrable singularities** at :math:`y=r` and :math:`y=r'`.
 Pointwise this Jacobian is a numerical nightmare.  But when the
 integrand is integrated over the full region (as it is in flat-source
@@ -2165,7 +2165,7 @@ tensor-product Gauss–Legendre problem.
 
 This is the root of the Phase-4.2 cylinder pivot (see the warning
 admonition near :eq:`peierls-cylinder-green-2d` in
-:doc:`collision_probability` for the specific Jacobian-factor
+:doc:`/theory/methods/collision_probability` for the specific Jacobian-factor
 regression the chord form would have inflicted).
 
 
@@ -5437,7 +5437,7 @@ shipped a parallel research-grade reference that uses the
 Sanchez Eq. (A1) split with BC absorbed via Eq. (A5), bounce sum
 closed in :math:`T(\mu_{\rm surf}) = 1/(1 - e^{-\Sigt{}\,L_p})` —
 giving exact :math:`k_{\rm eff} = \kinf` for the closed homogeneous
-sphere. See :doc:`trajectory_resolvent` for the architecture, V_α1 / V_α2
+sphere. See :doc:`/theory/references/trajectory_resolvent` for the architecture, V_α1 / V_α2
 / V_α3 algebraic identities, and the cross-verification matrix
 showing Phase 4 N=3 differs from Variant α by 0.12 % on a fuel-A-like
 sphere. **Variant α is a parallel reference, not a production
@@ -5482,7 +5482,7 @@ Section 9 — Test-bed evidence from Phase 4.2 (cylinder)
 The cylindrical Peierls reference is the most fully-exercised
 instantiation of the unified architecture. The test evidence
 recorded in :ref:`peierls-cylinder-row-sum` of
-:doc:`collision_probability` provides the numerical weight behind
+:doc:`/theory/methods/collision_probability` provides the numerical weight behind
 the theoretical unification on this page. Three independent
 checks are on the books for the cylinder:
 
@@ -5557,7 +5557,7 @@ verbatim:
   ``tests/cp/test_peierls_sphere_flux.py``.
 
 The rank-1 white-BC deficit is bounded by Issue #103 (N1); see
-:ref:`issue-100-retraction` in :doc:`collision_probability` for
+:ref:`issue-100-retraction` in :doc:`/theory/methods/collision_probability` for
 the numerical evidence.
 
 
@@ -5630,7 +5630,7 @@ standard tests.
 
 .. seealso::
 
-   :doc:`collision_probability` — geometry-specific Peierls
+   :doc:`/theory/methods/collision_probability` — geometry-specific Peierls
    sections:
 
    - :ref:`peierls-conservation` and the slab :eq:`peierls-equation`
@@ -5639,7 +5639,7 @@ standard tests.
      — cylinder :math:`\mathrm{Ki}_1` kernel, polar form,
      Lagrange interpolation, and the chord-form pivot.
 
-   :doc:`../verification/reference_solutions` — :math:`E_n` and
+   :doc:`/verification/reference_solutions` — :math:`E_n` and
    :math:`\mathrm{Ki}_n` kernel primitives
    (:eq:`en-definition`, :eq:`kin-definition`,
    :eq:`en-kernel-integral`, :eq:`kin-kernel-derivative`).
@@ -5894,9 +5894,9 @@ the quantity we track here is the reduced collision probability
 
 which differs from :math:`P_{ij}\,\Sigma_{t,i}\,V_i` only by the
 kernel's normalisation convention and by the white-BC closure added
-on top (see :eq:`p-inf` in :doc:`collision_probability`).
+on top (see :eq:`p-inf` in :doc:`/theory/methods/collision_probability`).
 
-The derivation in :doc:`collision_probability`, §
+The derivation in :doc:`/theory/methods/collision_probability`, §
 :ref:`second-diff-derivation`, performs the double integral in
 **chord coordinates** :math:`(y, s, t)` where :math:`y` is the impact
 parameter of the chord through the pair of annuli, :math:`s` is the
@@ -5910,7 +5910,7 @@ the hierarchy.
 That derivation — the integration-by-parts chain from
 :eq:`peierls-point-kernel-3d` to the four-term
 :eq:`rcp-from-double-antideriv` — is already presented at full length
-in :doc:`collision_probability`. We restate its result here in the
+in :doc:`/theory/methods/collision_probability`. We restate its result here in the
 language of the three-tier hierarchy and use it to identify the
 **geometry-invariant operator** that underwrites the Phase B unified
 architecture.
@@ -6002,7 +6002,7 @@ evaluating the double antiderivative :math:`\hat{\hat F_1} = F_3`
 at the four corners :math:`(0, 0), (\tau_i, 0), (0, \tau_j),
 (\tau_i, \tau_j)` after the change of variable to optical path. The
 full step-by-step derivation is the content of
-:eq:`rcp-from-double-antideriv` in :doc:`collision_probability`.
+:eq:`rcp-from-double-antideriv` in :doc:`/theory/methods/collision_probability`.
 
 The four-argument structure is the geometry-invariant core of
 flat-source CP. Factor it out as an **operator**:
@@ -6063,7 +6063,7 @@ three geometries; three one-line kernel methods
 .. tip::
 
    **Why ":math:`\Delta^{2}`" and not ":math:`\Delta_2`"?** The
-   existing flat-source derivation in :doc:`collision_probability`
+   existing flat-source derivation in :doc:`/theory/methods/collision_probability`
    (:eq:`second-diff-general`, :eq:`rcp-from-double-antideriv`)
    writes the operator as :math:`\Delta_2[F]`. The two notations
    name the same object. We adopt :math:`\Delta^{2}` on this page
@@ -6095,13 +6095,13 @@ recovering the small-:math:`\tau` limit :math:`\text{rcp}_{ii}
 \sim \tau\,V_i` that the self-collision probability must satisfy.
 This limit is checked inside the diagonal self-collision formula
 documented at :eq:`self-slab`, :eq:`self-cyl`, and :eq:`self-sph` of
-:doc:`collision_probability`.
+:doc:`/theory/methods/collision_probability`.
 
 The derivation source of record
 -------------------------------
 
 The IBP chain above is verified programmatically by the SymPy script
-embedded in :ref:`second-diff-derivation` (:doc:`collision_probability`,
+embedded in :ref:`second-diff-derivation` (:doc:`/theory/methods/collision_probability`,
 lines under "SymPy verification of the four-term structure"). That
 script builds the double integral :math:`\int_0^{\tau_i}\int_0^{\tau_j}
 F_1((\tau_j - s) + g + t)\,\mathrm ds\,\mathrm dt` for a *generic*
@@ -6155,7 +6155,7 @@ Concretely:
 where "SS" and "TC" are the **same-side** and **through-centre**
 chord branches documented at :eq:`tau-m`, :eq:`tau-p`,
 :eq:`dd-slab`, :eq:`dc-slab`, :eq:`second-diff-cyl`, and
-:eq:`second-diff-sph` of :doc:`collision_probability`.
+:eq:`second-diff-sph` of :doc:`/theory/methods/collision_probability`.
 
 .. list-table:: Outer-integration rule per geometry
    :header-rows: 1
@@ -6283,7 +6283,7 @@ position). The Level-3 abstraction follows the same pattern:
        """Level-3 flat-source CP abstraction.
 
        Mirrors CurvilinearGeometry at a different rung of the
-       three-tier hierarchy. See docs/theory/peierls_nystrom.rst
+       three-tier hierarchy. See docs/theory/references/peierls_nystrom.rst
        §14 for the design rationale.
        """
 
@@ -6394,7 +6394,7 @@ Implementation shape
    def _second_difference(kernel, gap, tau_i, tau_j):
        """The geometry-invariant operator Δ²[F](τ_i, τ_j; gap).
 
-       See docs/theory/peierls_nystrom.rst §12 for the derivation.
+       See docs/theory/references/peierls_nystrom.rst §12 for the derivation.
        """
        return (kernel(gap)
                - kernel(gap + tau_i)
@@ -6717,7 +6717,7 @@ No equation on this page originates here — all four derivations
 :eq:`cp-inner-integral-antiderivative`,
 :eq:`cp-outer-integral-antiderivative`,
 :eq:`cp-second-difference-operator`) reproduce steps already in the
-classical references or in :doc:`collision_probability`. What is new
+classical references or in :doc:`/theory/methods/collision_probability`. What is new
 is the *organisation*: naming the levels, naming the operator, and
 factoring the per-geometry data into four primitives + two flags.
 
@@ -8092,7 +8092,7 @@ ray) reaches :math:`\tau_i`. In heterogeneous media the walk uses a
 majorant :math:`\Sigma_{\max} \ge \max_r \Sigma_t(r)` and accepts /
 rejects virtual collisions at each trial point; this is a variance
 reduction on top of the underlying :math:`\tau \sim \text{Exp}(1)`
-sampling. The full algorithm is described in :doc:`monte_carlo`
+sampling. The full algorithm is described in :doc:`/theory/methods/monte_carlo`
 §"Woodcock delta-tracking".
 
 The deterministic τ-coordinate Peierls Nyström
@@ -8162,7 +8162,7 @@ history.**
 
 The existence of the τ-Nyström (Phase H.2+) and the Woodcock tracker
 (already shipped in :mod:`orpheus.mc.solver` per the
-:doc:`monte_carlo` documentation) creates a new **deterministic ↔
+:doc:`/theory/methods/monte_carlo` documentation) creates a new **deterministic ↔
 stochastic verification band** that has no precedent in ORPHEUS's
 current L0–L3 ladder.
 
@@ -8467,11 +8467,11 @@ re-derivation.
 
    **Theory cross-references:**
 
-   :doc:`collision_probability` §:ref:`second-diff-derivation` —
+   :doc:`/theory/methods/collision_probability` §:ref:`second-diff-derivation` —
    the full IBP chain underlying :eq:`cp-flat-source-derivation`,
    already programmatically verified by an embedded SymPy script.
 
-   :doc:`collision_probability` §:ref:`ki-table-construction` —
+   :doc:`/theory/methods/collision_probability` §:ref:`ki-table-construction` —
    historical documentation of the retired ``BickleyTables``
    tabulation.
 

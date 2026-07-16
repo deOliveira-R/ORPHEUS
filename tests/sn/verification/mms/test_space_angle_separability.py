@@ -20,7 +20,7 @@ product of two independently-selectable axes (a SPATIAL closure, mesh refinement
 
 * **Curvilinear (sphere / cylinder):** the Morel–Montry angular thread couples
   space and angle through the shared cell-balance denominator (see the coupling
-  memo + ``docs/theory/discrete_ordinates.rst`` :eq:`dd-curvilinear-scalar` /
+  memo + ``docs/theory/methods/sn/index.rst`` :eq:`dd-curvilinear-scalar` /
   :eq:`mm-weights`).  The error does NOT separate additively — it GATES:
   :math:`E(h,N) \approx \max(E_{\rm space}(h), E_{\rm angle}(N))`.  You cannot
   harvest fine-``h`` accuracy without also refining ``N``.  Signature: at a coarse

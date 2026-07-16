@@ -293,7 +293,7 @@ the offending factor.
   `F_k(s;t) = ∫sᵏ log|t-s| ds` for k = 0, 1, 2 (product-Simpson);
   Gauss-Legendre handles the smooth remainder. With graded mesh
   `t_j = (j/n)^q, q = 4`, recovers full O(h⁴ log h) convergence.
-  See `docs/theory/fn_method.rst` and Atkinson 1976 / 1997.
+  See `docs/theory/references/fn_method.rst` and Atkinson 1976 / 1997.
 
 ---
 
@@ -598,7 +598,7 @@ asymptote when the reference is built from the same buggy code
 (self-referencing Richardson). Convergence-rate tests must use
 an external reference (analytical, MMS, or independently-verified
 solver) — see the T3 dead-end pattern in
-`docs/theory/diffusion_1d.rst`.
+`docs/theory/methods/diffusion_1d.rst`.
 
 ### H5: Test count is not coverage
 

@@ -85,14 +85,14 @@ fission dyad :math:`F`.  They compose the within-group loss operator
 :math:`A\,\psi = \tfrac{1}{k}\,F\,\psi` (fixed source: :math:`A\,\psi = q`).
 The sub-composite :math:`(L+C)` is lower-triangular under the upwind cell
 ordering, which is exactly why :math:`(L+C)^{-1}` **is** the transport sweep
-(:doc:`loss_representations`).  :class:`SNSolver` satisfies
+(:doc:`/theory/methods/sn/loss_representation`).  :class:`SNSolver` satisfies
 the :class:`~numerics.eigenvalue.EigenvalueSolver` protocol and
 :func:`solve_sn` returns an :class:`SNResult`.  Because the protocol places the
 scattering source *inside* ``solve_fixed_source``, the inner source iteration
 (in-scatter + anisotropic convergence) stays encapsulated in the SN sweep,
 while the outer :func:`~numerics.eigenvalue.power_iteration` loop is the one
 shared by CP, MoC, diffusion, and the homogeneous solver (see
-:doc:`../api/numerics` for the protocol contract).
+:doc:`/api/numerics` for the protocol contract).
 
 The spatial closure is **diamond difference** with the Morel–Montry weight
 (:math:`\beta = 0`); the per-ordinate discrete transport is the **sweep**,
@@ -105,7 +105,7 @@ per-octant batched dispatch over a mesh-time-precomputed DAG) are **bare**:
 the reflective coupling :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}`
 rides as a sibling :math:`-B` source term rather than a re-applied boundary
 condition (:ref:`bare-sweep-extraction`, and the canonical algebra
-:ref:`bc-extraction` in :doc:`operator_algebra`).  2-D Cartesian eigenvalue
+:ref:`bc-extraction` in :doc:`/theory/foundations/operator_algebra`).  2-D Cartesian eigenvalue
 problems solve through **both** inner drivers —
 :class:`~orpheus.numerics.iteration.SourceIteration` (the geometry-agnostic
 default) and :class:`~orpheus.numerics.iteration.KrylovAcceleration` —
@@ -149,8 +149,8 @@ Architecture
    Nexus filtered flow-graph figure (root symbol + traversal depth →
    graphviz) that will head this section is blocked on the nexus#20
    flow-graph directive; until it ships, the architecture below is
-   **hand-authored**.  See :doc:`../api/numerics` for the live
-   operator-protocol surface and :doc:`operator_algebra` for the algebra.
+   **hand-authored**.  See :doc:`/api/numerics` for the live
+   operator-protocol surface and :doc:`/theory/foundations/operator_algebra` for the algebra.
 
 Two-Layer Mesh Pattern
 ----------------------
@@ -244,7 +244,7 @@ multi-D anti-hyperplane wavefront — and the operator then calls it
 branchlessly.  (This replaced the pre-carve procedural branch on the
 ``SNMesh.curvature`` string tags and the since-retired operator-free
 ``transport_sweep`` entry; the full carve is documented in
-:doc:`loss_representations`.)  Boundary conditions are **not** passed as
+:doc:`/theory/methods/sn/loss_representation`.)  Boundary conditions are **not** passed as
 a parameter to the sweep --- it reads the resolved BC kind strings
 directly from the face-name-keyed :attr:`SNMesh.bc` dict
 (``sn_mesh.bc["xmin"]``, ``sn_mesh.bc["xmax"]``, ...; see
@@ -2328,7 +2328,7 @@ The numerical threshold is ``streaming_terms.abs_mu < 1e-15``, with
 ``abs_mu`` populated from the **global ordinate**
 :math:`|\eta|` on the streaming-terms packet (resolved through
 ``level_indices`` for cylindrical geometry — see
-:doc:`structured_geometry`, "Connection coefficients (reduced
+:doc:`/theory/foundations/structured_geometry`, "Connection coefficients (reduced
 streaming operator)").  In this case
 :meth:`SNMesh.dag_walk
 <orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk>` yields visits with
@@ -2504,7 +2504,7 @@ See also
 * :mod:`orpheus.transport.spatial.diamond` — the
   :class:`~orpheus.transport.spatial.diamond.DiamondDifference` concrete
   strategy.
-* :doc:`structured_geometry`, "Connection coefficients (reduced
+* :doc:`/theory/foundations/structured_geometry`, "Connection coefficients (reduced
   streaming operator)" — the upstream side of the contract: where the
   per-cell, per-direction streaming-terms packet is built.
 
@@ -5384,7 +5384,7 @@ The projector descends ONLY from the case's manufactured harmonics
 (``_drivers``) and :func:`numpy.polynomial.legendre.leggauss` — NEVER
 ``_inflow_to_moments``, ``_ubld``, any LD operator, or the test-side
 projectors (the L11 structural-independence discipline of the
-:doc:`algebra-of-record </theory/reference_solvers>` pillar).  Per transverse
+:doc:`algebra-of-record </theory/references/index>` pillar).  Per transverse
 cell :math:`[t_L, t_R]` mapped to :math:`\xi \in [-1, 1]`, it projects onto the
 BARE per-cell Legendre coefficients
 
@@ -5585,7 +5585,7 @@ property — a tuple of
 entries realised by
 :meth:`~orpheus.numerics.measure.DiscreteMeasure.partition_by`
 (see :ref:`tensorial-framing` and the
-:doc:`discrete_measures` consumer table).
+:doc:`/theory/foundations/discrete_measures` consumer table).
 
 For each non-degenerate octant :math:`\sigma`, the action of
 :math:`A^{-1}_\sigma` is a **forward substitution along a per-octant
@@ -6127,7 +6127,7 @@ solver.
 By contrast, the **angular octant partition** primitive
 (:meth:`~orpheus.numerics.measure.DiscreteMeasure.partition_by`) is
 genuinely shared infrastructure — see the cross-method consumer
-table at :doc:`discrete_measures` (octant partition consumed by SN
+table at :doc:`/theory/foundations/discrete_measures` (octant partition consumed by SN
 2-D, MoC track-bundle direction grouping, MC boundary-current
 hemisphere scoring, future SN boundary realiser).  The split is
 **measure-level primitives are shared, sweep-level orchestration
@@ -6255,7 +6255,7 @@ References and pointers
   verification-first harness design.
 * Wave 0 :meth:`~orpheus.numerics.measure.DiscreteMeasure.partition_by`
   primitive — the measure-level partition that the SN ``octants``
-  property delegates to.  See :doc:`discrete_measures`.
+  property delegates to.  See :doc:`/theory/foundations/discrete_measures`.
 * Wave 1 :math:`R \circ \Lambda \circ M` Galerkin scattering
   composition — the parallel "metric knows its iterative structure"
   refactor for the scattering source build.  See
@@ -6330,7 +6330,7 @@ Unified sweep dispatch
    polymorphism (:func:`~orpheus.sn.loss_representation.default_for` selects
    :class:`~orpheus.sn.loss_representation.CumprodScan` for the 1-D scan,
    the anti-hyperplane wavefront for multi-D), documented in
-   :doc:`loss_representations`.  The Wave-D narrative below is preserved as
+   :doc:`/theory/methods/sn/loss_representation`.  The Wave-D narrative below is preserved as
    the origin of that unification: read ``transport_sweep`` and the
    ``ReducedStreamingOperator`` boolean-dispatch code as the then-current
    implementation, not today's.
@@ -6629,7 +6629,7 @@ The pole angular closure (Issue #168 Phase B)
    reasoning; read "strategy ABC" wherever the original said "strategy
    Protocol". The section anchor ``sn-pole-angular-closure-protocol``
    is retained (it is cross-referenced from
-   :doc:`/theory/boundary_conditions` and elsewhere); only the human
+   :doc:`/theory/foundations/boundary_conditions` and elsewhere); only the human
    label "protocol" is now loose — the contract is an ABC.
 
 Phase B addresses **Defect 3** of Issue #168 — the angular-redistribution
@@ -7312,9 +7312,9 @@ BC trace contract respected by matvec
    local variable, and :math:`B` reads it as
    :math:`B\,\psi.\text{outflow}`. See :ref:`bare-sweep-extraction`
    below and the canonical algebra at :ref:`bc-extraction` in
-   :doc:`operator_algebra`.
+   :doc:`/theory/foundations/operator_algebra`.
 
-The :doc:`boundary_conditions` :ref:`affine-bc-form` (§16A.3) reads
+The :doc:`/theory/foundations/boundary_conditions` :ref:`affine-bc-form` (§16A.3) reads
 
 .. math::
 
@@ -7458,7 +7458,7 @@ The full block-matrix derivation, the three design corrections (keep
 the outflow defect; project :math:`B` to the inflow row; seed from
 :math:`\text{rhs.boundary}`), the two delivery routes, and the O.2
 forcing function all live at :ref:`bc-extraction` in
-:doc:`operator_algebra` — the canonical home for the SN transport
+:doc:`/theory/foundations/operator_algebra` — the canonical home for the SN transport
 operator algebra.
 
 Step **O.4b** extended the bare sweep to the **2-D Cartesian
@@ -7477,7 +7477,7 @@ operators :math:`\iota_*` / :math:`\iota^*` (#205 Phase 5; the
 ``WavefrontFlux`` carrier that named the cochain is retired at
 S6.4(f), the cochain now living in ``_MovingFrontier`` /
 ``_octant_face_cochain`` — see :ref:`wavefront-flux-cochain` in
-:doc:`operator_algebra`).
+:doc:`/theory/foundations/operator_algebra`).
 
 .. _sn-mms-spherical-aniso-spatial-convergence:
 
@@ -9811,7 +9811,7 @@ Pointers
   #6 CLOSED, #7 (new) OPEN.
 * **Sister section on the BC apply call sequence**:
   :ref:`bc-phase-f-three-bc-applies-per-sweep-iteration` in
-  :doc:`boundary_conditions` — extends the Phase D
+  :doc:`/theory/foundations/boundary_conditions` — extends the Phase D
   two-BC-applies-per-matvec narrative to cover the SI sweep's
   Phase F invocation.
 
@@ -11068,7 +11068,7 @@ threaded through the within-group 2×2 loss grid (blocks :math:`A_{AA}`,
 :math:`A_{AB}`, :math:`A_{BA}`, :math:`A_{BB}` — the :math:`A = M - N`
 splitting built by
 :func:`~orpheus.sn.coupled_system.build_within_group_system`; the grid
-algebra is on :doc:`operator_algebra`).  The transitional 2.5d interim —
+algebra is on :doc:`/theory/foundations/operator_algebra`).  The transitional 2.5d interim —
 ψ½ as an **optional third block** on ``FullField`` with a mesh-keyed
 *mixed-presence law* and runtime presence pins — is **retired**: a
 live-ray :math:`\psi_A` is now **unrepresentable** (the type system is the
@@ -12050,7 +12050,7 @@ zero") — an unclamped recurrence divides by zero there.  This is a
 genuine *structural* singularity the sphere provably lacks; the
 cylinder's real fix is a 2-D :math:`(\eta, \varphi)` closure
 (:ref:`sn-cylinder-angular-floor`), not unclamping.  See
-:eq:`morel-montry-clamp` in :doc:`structured_geometry` for the
+:eq:`morel-montry-clamp` in :doc:`/theory/foundations/structured_geometry` for the
 equation-of-record carrying both branches.
 
 **Mixed accuracy signature (the gotcha).**  Unclamping does NOT
@@ -13243,7 +13243,7 @@ The 421-group cross-section library provides both P0 and P1 matrices.
    (:math:`\phi_\ell^m \mathrel{+}= \sum_n w_n Y_\ell^m \psi_n`), so the
    full per-ordinate field is never materialized in the windowed iterate
    (a 3.06× peak-memory win). See :ref:`sn-angular-windowing` in
-   :doc:`operator_algebra` for the derivation, the geometry restriction,
+   :doc:`/theory/foundations/operator_algebra` for the derivation, the geometry restriction,
    and the bit-identity / principled-equivalence story, and
    :ref:`sn-angular-windowing-in-sweep-accumulation` for the in-sweep
    accumulation.
@@ -14082,7 +14082,7 @@ where
   realised by :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`,
   delivering :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}` on
   specular faces (see :ref:`bc-extraction` in
-  :doc:`operator_algebra`);
+  :doc:`/theory/foundations/operator_algebra`);
 * :math:`q` is the external/fission within-group source
   (:eq:`phase-f-q-1d-decomposition`).
 
@@ -14776,13 +14776,13 @@ operand's mathematical structure (historically selected by the
   :class:`~orpheus.numerics.operator.OperatorSum` (the Neumann /
   multiple-scattering series :math:`\sum_k (A^{-1}B)^{k} A^{-1}`, wrapping
   the SAME :class:`SourceIteration` driver as its application engine).
-  See :ref:`green-operator` (:doc:`operator_algebra`).
+  See :ref:`green-operator` (:doc:`/theory/foundations/operator_algebra`).
 * :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
   — the **dense direct LU factorisation** (materialise :math:`[A]`,
   factor once, back-solve per :meth:`apply`).  The natural realisation
   for the synthetic L0 case (``A`` a small dense matrix) and any small
   exactly-solvable block.  See :ref:`matrix-inverse-operator`
-  (:doc:`operator_algebra`).
+  (:doc:`/theory/foundations/operator_algebra`).
 * :class:`~orpheus.numerics.operator.InverseOperator` — the **generic
   solve-backed wrapper** for a value-bearing leaf (a diagonal or
   cross-section multiplier), whose :meth:`apply` delegates to the leaf's
@@ -15000,7 +15000,7 @@ named splitting :math:`A = M - N`: the invertible resolvent
 zero within-group fission), handed to the **variadic** driver
 :math:`\text{Driver}(L_{\rm resolvent},\,*\text{gains})` (Wave O step
 O.2a — the transitional :math:`S + B` fold is retired; see
-:ref:`bc-extraction-variadic-driver` in :doc:`operator_algebra`).
+:ref:`bc-extraction-variadic-driver` in :doc:`/theory/foundations/operator_algebra`).
 :func:`_within_group_krylov` wraps the matching
 :class:`~orpheus.numerics.iteration.KrylovAcceleration` — and the
 decomposition is shared verbatim across the eigenvalue source-iteration
@@ -15488,7 +15488,7 @@ Verification
    from the ``tests/_harness`` registry to this page's equation labels) is
    blocked on Nexus equation-label ↔ test linking; until it ships, the
    verification below is **hand-authored**.  The project-wide matrix lives
-   at :doc:`../verification/matrix`.
+   at :doc:`/verification/matrix`.
 
 .. _sn-mms-verification:
 
@@ -15652,7 +15652,7 @@ round-off at the finest mesh.
   and heterogeneous MMS extensions are tracked as follow-ups for
   richer operator coverage.
 
-**Follow-ups.**  MMS for :doc:`method_of_characteristics`, diffusion,
+**Follow-ups.**  MMS for :doc:`/theory/methods/method_of_characteristics`, diffusion,
 and spherical / cylindrical curvilinear SN is tracked in GitHub
 Issues (see ``type:feature level:L1``).  The curvilinear sweeps
 need their own ansatz because their vacuum BC plumbing is not
@@ -18118,7 +18118,7 @@ metric-fold-vs-bilinear adjoint argument, fractional-overlap re-binning,
 the condense/homogenize asymmetry law, and the verification gates — is
 the frame page's headline **Petrov-Galerkin** consumer; see
 :ref:`sn-spatial-homogenization` and :ref:`sn-energy-condensation`
-(:doc:`frame`). This section keeps only the **SN-layer orchestration**:
+(:doc:`/theory/foundations/frame`). This section keeps only the **SN-layer orchestration**:
 how the SN :class:`~orpheus.sn.solution.Solution` drives that machinery
 from a converged flux.
 
@@ -18135,14 +18135,14 @@ geometry already carrying one freshly-homogenised effective
 layer is what builds the flux-weighted **test** basis the frame consumes;
 the frame itself, and the rate-preservation theory that *forces* the flux
 weighting (rather than a plain volume average), live in
-:ref:`sn-spatial-homogenization` (:doc:`frame`). The returned
+:ref:`sn-spatial-homogenization` (:doc:`/theory/foundations/frame`). The returned
 ``MaterialMesh`` is re-promoted to a solvable phase space by
 :meth:`SNMesh.from_material_mesh
 <orpheus.sn.mesh.augmented_mesh.SNMesh.from_material_mesh>`, closing the
 **solve → homogenize → re-solve** loop. The return type is
 **mesh-coupled** (geometry and materials born together) — the space half
 of the condense/homogenize asymmetry law
-(:ref:`sn-condense-homogenize-asymmetry`, :doc:`frame`).
+(:ref:`sn-condense-homogenize-asymmetry`, :doc:`/theory/foundations/frame`).
 
 Condensation: per-material representative spectra
 -------------------------------------------------
@@ -18169,12 +18169,12 @@ flux over the cells where the material appears:
 used as the test weight in :meth:`Mixture.condense
 <orpheus.data.macro_xs.mixture.Mixture.condense>` — the data-layer
 collapse verb, whose spectrum-weighted-collapse theory is
-:ref:`sn-energy-condensation` (:doc:`frame`) — mirroring how
+:ref:`sn-energy-condensation` (:doc:`/theory/foundations/frame`) — mirroring how
 :meth:`Solution.homogenize` derives its flux weight from the same solved
 flux. The result is a **portable** ``dict[int, Mixture]`` keyed by
 material id — few-group cross sections carrying the coarse ``eg``, not
 bound to any mesh (the **mesh-decoupled** half of the asymmetry law,
-:ref:`sn-condense-homogenize-asymmetry`, :doc:`frame`). A material with
+:ref:`sn-condense-homogenize-asymmetry`, :doc:`/theory/foundations/frame`). A material with
 no flux in a fine group contributes zero weight there; the condense
 frame's Moore–Penrose Gram handles any empty coarse group.
 
@@ -18351,7 +18351,7 @@ branch and have no landed hash yet.
        the type system carries the biconditional. Sphere re-baselines are
        sphere-only FP-grain (the fused → block-sum association class
        ~1e-15); slab/cylinder byte-identical through a full re-save. See
-       :ref:`coupled-block-operator` in :doc:`operator_algebra`.
+       :ref:`coupled-block-operator` in :doc:`/theory/foundations/operator_algebra`.
      - #280
      - ``refactor/sn-walk-unification`` *(in development, 015dcc73)*
    * - 2026-07-12
@@ -18403,7 +18403,7 @@ branch and have no landed hash yet.
        A.\text{inverse}().H` swap-law arm went live on the grid. The EXTRACT
        is principled-equivalent (:math:`5.5\text{e-}16` vs the dense-LU
        oracle), not bit-identical. See :ref:`coupled-block-operator` in
-       :doc:`operator_algebra`.
+       :doc:`/theory/foundations/operator_algebra`.
      - #280 #282
      - ``refactor/sn-walk-unification`` *(in development, 0e03c304)*
    * - 2026-07-11
@@ -18495,7 +18495,7 @@ branch and have no landed hash yet.
        on a seedless mesh it degrades to the bare ``((L+C), (S, B_a))`` the
        Gauss-Seidel / windowing paths consume zero-touch. The four
        within-group solve sites consume the one record. See
-       :ref:`bc-extraction-variadic-driver` in :doc:`operator_algebra`.
+       :ref:`bc-extraction-variadic-driver` in :doc:`/theory/foundations/operator_algebra`.
      - #280
      - ``refactor/sn-walk-unification`` *(in development, c0f23f6)*
    * - 2026-07-05
@@ -18621,7 +18621,7 @@ branch and have no landed hash yet.
        assembly stays OUT (**#282 characterized** as a walk-order back
        edge — the lagged pole seed reads later-ordinate columns). Numerics
        carrier + three-layer ``assemble()`` surface + composer laws land
-       in :doc:`operator_algebra`; every diffusion loss leaf emits and the
+       in :doc:`/theory/foundations/operator_algebra`; every diffusion loss leaf emits and the
        resolvent runs assembled (bit-identical). See
        :ref:`loss-rep-three-modes`.
      - #272 #284
@@ -18819,7 +18819,7 @@ branch and have no landed hash yet.
        invisible** (similar matrices ⇒ :math:`|\Delta k| = 0` exactly) —
        every k-level gate is blind to them; the committed catcher is the
        object-level ``K.as_matrix() ≡ solve(A, F)`` intrinsic gate. See
-       :ref:`spectral-invisibility` (:doc:`homogeneous`).
+       :ref:`spectral-invisibility` (:doc:`/theory/foundations/infinite_medium`).
      - #226
      - *(in development)*
        ``refactor/inverse-as-operator``
@@ -18879,7 +18879,7 @@ branch and have no landed hash yet.
        anchor + five-row factor-kind matrix vs a pre-carve baseline) and the
        full 127-read / 36-file migration with a ZERO-hit completeness re-grep.
        Full tier ``-O`` serial **3853 / 0**; pyright ratchet re-baselined DOWN
-       **148 → 145**. See :ref:`capability-set-semantics` (:doc:`operator_algebra`).
+       **148 → 145**. See :ref:`capability-set-semantics` (:doc:`/theory/foundations/operator_algebra`).
      - #226
      - *(in development)*
        ``f4919b1``
@@ -18930,7 +18930,7 @@ branch and have no landed hash yet.
        oracle (zero production consumers). Gates:
        ``tests/numerics/test_matrix_inverse_operator.py`` + extensions;
        **14 mutations verified**, pyright ratchet exactly 148. See
-       :ref:`matrix-inverse-operator` (:doc:`operator_algebra`).
+       :ref:`matrix-inverse-operator` (:doc:`/theory/foundations/operator_algebra`).
      - #226 / #285
      - *(in development)*
        ``refactor/inverse-as-operator``
@@ -18982,7 +18982,7 @@ branch and have no landed hash yet.
        ``tests/sn/operators/test_green_operator_sn.py`` (het-2G vacuum slab
        with a trace-consistent manufactured anchor resolving the #284 source
        subspace); **14 mutations verified**. See :ref:`green-operator`
-       (:doc:`operator_algebra`).
+       (:doc:`/theory/foundations/operator_algebra`).
      - #226 / #285
      - *(in development)*
        ``refactor/inverse-as-operator``
@@ -19022,7 +19022,7 @@ branch and have no landed hash yet.
        teeth) and
        ``test_2d_windowed_product_over_gauss_seidel_M_equals_post_projection``
        (the windowed×G-S corner). See :ref:`inverse-application-driver`
-       (:doc:`operator_algebra`).
+       (:doc:`/theory/foundations/operator_algebra`).
      - #226
      - *(in development)*
        ``refactor/inverse-as-operator``
@@ -19060,7 +19060,7 @@ branch and have no landed hash yet.
        split-exactness / FP-invariance + M-SPLIT-DIR / M-SPLIT-PART
        mutations) and ``test_2d_windowed_product_equals_post_projection``.
        See :ref:`si-gauss-seidel-reification` and
-       :ref:`windowing-retyped` (:doc:`operator_algebra`).
+       :ref:`windowing-retyped` (:doc:`/theory/foundations/operator_algebra`).
      - #226
      - *(in development)*
        ``refactor/inverse-as-operator``
@@ -19417,3 +19417,18 @@ References
    group structures ORPHEUS condenses onto; Table 11.3 is the
    derivation-validation oracle for the containing-interval partition.
    Cited at :ref:`sn-condensation-fractional-overlap`.
+
+.. _sn-chapters:
+
+Chapters in this sub-book
+=========================
+
+This page is the S\ :sub:`N` sub-book's index. It currently carries the
+bulk of the method's theory inline; the decomposition into chapters is
+tracked as issue `#231 <https://github.com/deOliveira-R/ORPHEUS/issues/231>`_.
+Chapters split out so far:
+
+.. toctree::
+   :maxdepth: 2
+
+   loss_representation

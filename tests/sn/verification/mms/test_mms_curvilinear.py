@@ -30,7 +30,7 @@ nx ∈ {20..320} (orders 2.00–2.01); cylinder ``[2.16e-3, 5.39e-4,
 1.35e-4, 3.37e-5]`` at nx ∈ {20..160} (orders 2.00).  Both
 assertions (rate AND magnitude band) now hold as plain tests.
 
-See :doc:`/theory/discrete_ordinates` (curvilinear MMS sections)
+See :doc:`/theory/methods/sn/index` (curvilinear MMS sections)
 for the full derivation, and ``error_catalog.md`` ERR-058.
 """
 

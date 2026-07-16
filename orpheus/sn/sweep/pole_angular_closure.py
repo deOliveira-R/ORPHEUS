@@ -157,7 +157,7 @@ References
 * Bailey, T. S., Morel, J. E., & Chang, J. H. (2010). *Asymptotic
   Diffusion-Limit Accuracy of Sn Angular Differencing Schemes*. NSE
   165(2):149-169.  Auxiliary justification for the M-M clamp.
-* :doc:`/theory/discrete_ordinates` — "PoleAngularClosure (Issue
+* :doc:`/theory/methods/sn/index` — "PoleAngularClosure (Issue
   #168 Phase B)".
 * Issue #168 design memo — ``.claude/plans/issue_168_design.md``.
 * Phase A closeout —

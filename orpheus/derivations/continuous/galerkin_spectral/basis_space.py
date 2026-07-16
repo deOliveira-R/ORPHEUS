@@ -137,7 +137,7 @@ References
   ``*-1-1-SL/SP`` benchmark cases (linearly anisotropic
   slab/sphere with :math:`P_1` scattering) that ``BasisSpace``
   targets.
-* :doc:`/theory/galerkin_spectral` — the canonical theory
+* :doc:`/theory/references/galerkin_spectral` — the canonical theory
   exposition. The "Galerkin spectral basis space and the
   variational principle" section is the rich-narrative companion
   to this module's docstrings.
@@ -437,7 +437,7 @@ class BasisSpace:
     ---------------------------------------------------------------
 
     The Sanchez–Chandrasekhar three-meanings taxonomy (see
-    :doc:`/theory/reference_solvers` § three-meanings) locates
+    :doc:`/theory/references/index` § three-meanings) locates
     each of the three math-heart classes within the same
     Green's-function landscape:
 

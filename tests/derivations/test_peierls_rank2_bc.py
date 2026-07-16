@@ -472,7 +472,7 @@ class TestRank2SlabKEffKInfConvergence:
         default quadrature. Hollow sphere fares better than cylinder
         under the same rank-1-per-face closure because the sphere's
         higher symmetry captures more of the physics at the scalar
-        mode — see table in ``docs/theory/peierls_nystrom.rst``.
+        mode — see table in ``docs/theory/references/peierls_nystrom.rst``.
         """
         from orpheus.derivations.continuous.peierls_nystrom.geometry import (
             CurvilinearGeometry,

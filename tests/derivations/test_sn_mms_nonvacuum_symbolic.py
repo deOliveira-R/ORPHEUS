@@ -37,7 +37,7 @@ Tiers:
 See:
 - ``.claude/skills/vv-principles/SKILL.md`` (failure mode #7).
 - ``.claude/skills/algebra-of-record/SKILL.md`` (Branch 1 / Branch 2).
-- ``docs/theory/discrete_ordinates.rst`` labels
+- ``docs/theory/methods/sn/index.rst`` labels
   ``sn-mms-nonvacuum-psi``/``-qext`` (slab),
   ``sn-mms-nonvacuum-sph-psi``/``-qext`` (sphere).
 """

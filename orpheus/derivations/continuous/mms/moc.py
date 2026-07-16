@@ -82,7 +82,7 @@ fixed track spacing and angular quadrature).
 
 .. seealso::
 
-   - :doc:`/theory/method_of_characteristics` — MMS verification section
+   - :doc:`/theory/methods/method_of_characteristics` — MMS verification section
    - :mod:`orpheus.derivations.continuous.mms.sn` — analogous SN MMS module
 """
 

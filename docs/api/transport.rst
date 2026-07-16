@@ -21,7 +21,7 @@ boundary operators through the per-method ``realize_boundary_law``
 hook. The module docstring carries the full design record (the
 two-witness genesis, the instance-surface-only ruling, and the
 realizer-registry dissolution rationale); the boundary-architecture
-narrative lives at :doc:`/theory/boundary_conditions`.
+narrative lives at :doc:`/theory/foundations/boundary_conditions`.
 
 .. automodule:: orpheus.transport.method
    :members:

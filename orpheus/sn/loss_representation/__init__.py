@@ -98,7 +98,7 @@ Carve history (the sweep-strategy carve, COMPLETE 2026-06-11)
 ==============================================================
 
 The S0–S6.9 arc that produced this module — full narrative + rationale on
-the theory page :doc:`/theory/loss_representations` (§History):
+the theory page :doc:`/theory/methods/sn/loss_representation` (§History):
 
 * **S1–S4**: the protocol + thin-wrapper strategies (bit-identical rewire),
   the ``loss_action`` matvec twin (the five operator gates collapsed), the
@@ -117,7 +117,7 @@ the theory page :doc:`/theory/loss_representations` (§History):
 See also
 ========
 
-* :doc:`/theory/loss_representations` — the capstone architecture page
+* :doc:`/theory/methods/sn/loss_representation` — the capstone architecture page
   (the native lower-triangular frame, the four schedules, the selection
   SSOT, the one-walk/one-instance theorems, the Fork-B2 evidence).
 * ``.claude/plans/sn_sweep_strategy.md`` — the authoritative design (the

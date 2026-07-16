@@ -87,7 +87,7 @@ def test_post_solve_production_rate_is_100():
 
        \\nu\\Sigma_f \\cdot \\boldsymbol{\\phi} = 100
 
-    (see Eq. ``normalisation`` in docs/theory/homogeneous.rst).
+    (see Eq. ``normalisation`` in docs/theory/foundations/infinite_medium.rst).
     Production is :math:`\\nu\\Sigma_f` only — the (n,2n) reaction is a
     loss-side transfer folded into the loss matrix as
     :math:`2\\Sigma_2^T`, NOT a production channel (it does NOT enter

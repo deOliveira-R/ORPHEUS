@@ -3,7 +3,7 @@ r"""Boundary conditions for transport solvers — trace-law architecture.
 This package ships the post-12-wave **trace-law / realizer / tensor-
 algebra** architecture for transport-equation boundary conditions
 described by Grand Report v3 §16, §16A, and §16A.10. The narrative
-theory page is :doc:`/theory/boundary_conditions`; the design plan
+theory page is :doc:`/theory/foundations/boundary_conditions`; the design plan
 is ``.claude/plans/transient-giggling-cake.md`` (the 12-wave
 "transient-giggling-cake" effort).
 
@@ -229,7 +229,7 @@ Two retired predecessors converged on this design:
   while behaving as a descriptor tree at runtime.
 
 See Bell & Glasstone 1970 §1.5 for the physics; see
-:doc:`/theory/boundary_conditions` § "Descriptor-tree algebra for
+:doc:`/theory/foundations/boundary_conditions` § "Descriptor-tree algebra for
 rank-N boundaries" and § "The trace-law descriptor model
 (Issue #186 / B3 + β2)" for the architectural retrospective.
 
@@ -368,21 +368,21 @@ be removed in a future cleanup wave once every consumer migrates.
 Cross-references
 ================
 
-* :doc:`/theory/boundary_conditions` — the master theory page
+* :doc:`/theory/foundations/boundary_conditions` — the master theory page
   carrying the full §16A.3 three-layer decomposition, the affine
   form derivation, the dual-registry design, the universal
   invariants, the named-error catalog, the vacuum semantic
   correction (§16A.5), the Wave-0 rank-N algebra, the
   worked end-to-end example, and the Cartesian / curvilinear
   split.
-* :doc:`/theory/discrete_ordinates` § "Boundary Conditions" —
+* :doc:`/theory/methods/sn/index` § "Boundary Conditions" —
   the SN-side consumption: the shared
   :func:`~orpheus.transport.method.resolve_boundary_conditions` body
   walks the mesh axes' declarations and dispatches each parsed law
   through ``SNMesh.realize_boundary_law`` →
   :class:`SNBoundaryRealizer` to produce the resolved 1-arg
   :class:`~orpheus.numerics.operator.LinearOperator`.
-* :doc:`/theory/operator_algebra` § "Boundary conditions as
+* :doc:`/theory/foundations/operator_algebra` § "Boundary conditions as
   Wave-0 / Wave-1 primitives" — the operator-algebra view of the
   realisation: every realised BC IS a Wave-0
   :class:`LinearOperator` composable with the rest of the algebra.

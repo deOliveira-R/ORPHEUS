@@ -54,7 +54,7 @@ eigenvector/bilinear functionals (φ*-weighted reaction rates,
 biorthogonality) instead.
 
 **References.** Full similarity derivation + the T1–T5 mutation
-measurements: `docs/theory/homogeneous.rst`, the
+measurements: `docs/theory/foundations/infinite_medium.rst`, the
 `spectral-invisibility` section. The committed catcher:
 `tests/homogeneous/test_homogeneous.py::test_K_operator_as_matrix_is_the_resolvent`.
 Origin: #226 taxonomy step 5b, commit `394d8c0`

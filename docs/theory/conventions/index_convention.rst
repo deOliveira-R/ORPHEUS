@@ -1311,7 +1311,7 @@ Cross-references
 
 * :ref:`scattering-matrix-convention` for the ``SigS[g_from, g_to]``
   convention these types' arithmetic respects.
-* :doc:`operator_algebra` for the five-operator algebra
+* :doc:`/theory/foundations/operator_algebra` for the five-operator algebra
   ``A ψ = (1/k) F ψ``, ``A = L + C − S − B``, that the typed fields read as.
 
 
@@ -1594,7 +1594,7 @@ has been corrected to the principled layout — see the memo's
 correction banner).  The resume plan with PR boundaries and
 acceptance criteria lives in
 ``.claude/plans/principled_index_migration.md`` §10.  The public
-API reference at :doc:`../api/discrete_ordinates` will gain typed
+API reference at :doc:`/api/discrete_ordinates` will gain typed
 signatures as the resume PRs land.
 
 The dataclasses on first landing are:

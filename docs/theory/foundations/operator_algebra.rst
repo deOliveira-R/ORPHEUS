@@ -2022,7 +2022,7 @@ Petrov–Galerkin bilinear :math:`\langle\phi^\dagger, M[\Sigma_x]\,\phi
    <orpheus.transport.reaction_rate_functional.IntegratedReactionRate>`
    for **both** its numerator and denominator. Diffusion (#290) routes
    its **production** rate through the same functional (the #270
-   diffusion arm — see :doc:`/theory/diffusion_1d`), but poses its
+   diffusion arm — see :doc:`/theory/methods/diffusion_1d`), but poses its
    denominator as the integrated loss-operator action
    :math:`\langle 1, (A\psi)_{\rm bulk}\rangle_V` (= absorption +
    leakage by the column-sum theorem), not a second reaction-rate
@@ -2140,7 +2140,7 @@ claim.
    inconsistent (illegal states unrepresentable).  See the full R8
    rationale — the consistency theorem and the honest-``A.apply``
    contract — in the *KEigenvalue: outer power iteration* section of
-   :doc:`discrete_ordinates`.
+   :doc:`/theory/methods/sn/index`.
 
 .. note::
 
@@ -2244,7 +2244,7 @@ corroboration, and the unifying principle *"an operator owns its frame
 iff the frame is its eigenbasis"* (which also explains why energy
 condensation and spatial homogenisation are Petrov-Galerkin, not
 Galerkin) are in :ref:`frame-eigenbasis-ownership`
-(:doc:`frame`).
+(:doc:`/theory/foundations/frame`).
 
 .. vv-status: integral-kernel-category documented
 
@@ -4315,7 +4315,7 @@ what actually happened, is:
        backward. That diffusion operator now **exists** —
        :math:`A_{\rm diff} = L + C - S - B` on the scalar composite
        (:mod:`orpheus.diffusion.operators`, #290 P4;
-       :doc:`/theory/diffusion_1d`), inverted by an explicit
+       :doc:`/theory/methods/diffusion_1d`), inverted by an explicit
        :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
        and correctness-safe by construction (its low-order correction
        :math:`\to 0` at convergence). The accelerator (Issue #2) itself
@@ -4409,7 +4409,7 @@ and verified end-to-end by the anisotropic curvilinear MMS
    coupling itself is the object being preconditioned (e.g. the
    in-algebra diffusion operator for DSA — now built as
    :math:`A_{\rm diff} = L + C - S - B`, #290 P4,
-   :doc:`/theory/diffusion_1d` — per the architecture decided on
+   :doc:`/theory/methods/diffusion_1d` — per the architecture decided on
    Issue #2), not a re-split of the sweep into directions that secretly
    share state.
    The fused
@@ -4441,7 +4441,7 @@ direction frame as a particle streams along a curved trajectory. For
 the sphere this is :math:`\frac{1-\mu^2}{r}\,\partial\psi/\partial\mu`;
 for the cylinder it is :math:`-\frac1r\,\partial(\xi\psi)/\partial\varphi`.
 Discretised over the cell volume (see the canonical derivation in
-:doc:`discrete_ordinates`, Step 2–3, Eq. :eq:`balance-general`), it
+:doc:`/theory/methods/sn/index`, Step 2–3, Eq. :eq:`balance-general`), it
 becomes a *half-grid* difference between angular faces
 :math:`m\pm\tfrac12`,
 
@@ -5012,7 +5012,7 @@ fix*: the outflow slots carried nonzero :math:`R\cdot\psi.\text{inflow}`.
 **3. The bare sweep seeds inflow from** :math:`\text{rhs.boundary}`,
 **not** :math:`\text{initial\_guess.boundary}`.
 Under the extraction the WDD sweep ``(L+C).solve`` is **bare** (see
-:ref:`bare-sweep-extraction` in :doc:`discrete_ordinates`): it reads
+:ref:`bare-sweep-extraction` in :doc:`/theory/methods/sn/index`): it reads
 the seeded inflow trace directly instead of re-applying ``bc``.
 :meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`
 must therefore seed the sweep's boundary buffer from
@@ -5095,12 +5095,12 @@ boundary reflection gain
 ψ½ System B as the second row of a coupled :math:`M - N` block grid — the
 full 2×2 coupled block operator documented in
 :ref:`coupled-block-operator` (its starting-direction physics in
-:ref:`sn-282-direct-starting-direction-solve` in :doc:`discrete_ordinates`);
+:ref:`sn-282-direct-starting-direction-solve` in :doc:`/theory/methods/sn/index`);
 the former ``_within_group_triple`` / ``_lagged_gains`` construction pair
 retired into this one builder at B.2d. The :math:`B\,\psi.\text{outflow}`
 term lands on :math:`\text{rhs.boundary}`, which the bare ``(L+C).solve``
 sweep reads as the inflow seed (:ref:`bare-sweep-extraction` in
-:doc:`discrete_ordinates`).
+:doc:`/theory/methods/sn/index`).
 
 **This retires the transitional** :math:`S + B` **fold.** The
 predecessor packed the boundary reflection into the *middle slot* of
@@ -6349,7 +6349,7 @@ substrate the **consistent DSA** low-order correction (Issue #2) will
 consume — DSA computes the transport residual, then a diffusion
 correction through the in-algebra diffusion operator
 :math:`A_{\rm diff} = L + C - S - B` (now built, #290 P4;
-:doc:`/theory/diffusion_1d`); :eq:`affine-typed-residual-eq` is that
+:doc:`/theory/methods/diffusion_1d`); :eq:`affine-typed-residual-eq` is that
 transport residual, typed. (``as_dsa_source`` lands WITH DSA #2, per
 the build-the-genuine-primitive-defer-the-speculative-tail discipline.)
 
@@ -7007,7 +7007,7 @@ The interior face-flux cochain — :math:`C^1_{\rm int}`
    is the right one.
 
    **Why it retired.** The S6.4 walk re-layering (see
-   :ref:`sweep-dispatch-relayering` in :doc:`discrete_ordinates`)
+   :ref:`sweep-dispatch-relayering` in :doc:`/theory/methods/sn/index`)
    dissolved the type's two load-bearing verbs — the whole-trace
    :math:`\iota_*` ``seed`` (read the octant inflow into the
    domain-edge slots) and the whole-trace :math:`\iota^*` ``absorb``
@@ -7526,7 +7526,7 @@ The 1-D sweep is a scan, not a wavefront — deferred to ``nd_foundation``
    efficiency. **That collapse has since landed** (the ``CumprodScan``
    d=1 sibling and the ``_DAGWavefront`` family share the per-octant
    DAG; see :ref:`sweep-dispatch-relayering` in
-   :doc:`discrete_ordinates`), which is part of *why* the standalone
+   :doc:`/theory/methods/sn/index`), which is part of *why* the standalone
    ``WavefrontFlux`` carrier became redundant at S6.4(f): the
    :math:`d`-generic walk supplies the front (``_MovingFrontier``) and
    the oracle history (``_octant_face_cochain``) for every :math:`d`. A
@@ -7622,7 +7622,7 @@ fixed-point problem
 where :math:`L + C` is the within-group **invertible resolvent** (the
 streaming + collision the sweep inverts directly), :math:`S` is the
 within-group scattering gain (:ref:`pn-scattering` in
-:doc:`discrete_ordinates`), :math:`B` is the reflective boundary
+:doc:`/theory/methods/sn/index`), :math:`B` is the reflective boundary
 coupling (:ref:`bc-extraction`), and :math:`q` the fixed external /
 fission source. Both :math:`S` and :math:`B` are **lagged gains** — the
 sweep never re-scatters mid-sweep (cf. the variadic driver,
@@ -7998,7 +7998,7 @@ Implementation map
   within-group forward :math:`A`'s inverse (the Jacobi
   :math:`(L+C)^{-1}`, or the reified splitting matrix :math:`M^{-1}`,
   :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
-  — see :ref:`si-gauss-seidel-reification` in :doc:`discrete_ordinates`)
+  — see :ref:`si-gauss-seidel-reification` in :doc:`/theory/methods/sn/index`)
   and hands it to the :class:`~orpheus.numerics.iteration.SourceIteration`
   driver, which **applies** it directly (#226 taxonomy step 3 —
   :ref:`inverse-application-driver`; the transitional
@@ -8033,7 +8033,7 @@ Implementation map
 
 Cross-references: the moment math :eq:`flux-moments` / :eq:`pn-scatter`
 and the :math:`Y_\ell^m` convention live in :ref:`pn-scattering`
-(:doc:`discrete_ordinates`); the projection :math:`M`
+(:doc:`/theory/methods/sn/index`); the projection :math:`M`
 (equation :math:`\phi_\ell^m = \sum_n w_n Y_\ell^m \psi_n`) and the
 addition-theorem reconstruction :math:`R` are the spherical-harmonic
 :class:`~orpheus.numerics.frame.GalerkinFrame`'s ``analysis`` /
@@ -8667,7 +8667,7 @@ Cross-references: the reduction :math:`M_{\rm frame}` is
 (:ref:`galerkin-projection`); the two-layer "operators, not views" law is
 :ref:`operator-algebra`; the reified :math:`M = (L+C-B_{\rm lower})` the
 windowed forward may wrap is :ref:`si-gauss-seidel-reification`
-(:doc:`discrete_ordinates`); the invertibility-closure and
+(:doc:`/theory/methods/sn/index`); the invertibility-closure and
 principled-equivalence framework is ``vv-principles`` § "Bit-identity vs
 principled-equivalence".
 
@@ -8681,7 +8681,7 @@ Steps 1–2 reified the inverse *operators* — the schedule-triangular
 :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (step 1, the
 WDD sweep as :math:`(L+C)^{-1}`), the reified splitting matrix
 :math:`M=(L+C)-B_{\rm lower}` (step 2, :ref:`si-gauss-seidel-reification`
-in :doc:`discrete_ordinates`), and the windowed composition
+in :doc:`/theory/methods/sn/index`), and the windowed composition
 :math:`P\circ A^{-1}` (step 2, :ref:`windowing-retyped` above). **Step 3
 retypes the driver–inverse boundary.** The solver (posing) layer builds
 the inverse *once*, and the iteration primitive
@@ -9756,7 +9756,7 @@ bullet). The consumers, from latent to landed:
   See :ref:`direct-eigensolve-solve`.
 * **CP :math:`[P]` — the next production method in line.** The
   collision-probability matrix is dense **by construction**
-  (:doc:`collision_probability`, §14b), so a CP ``.inverse()`` realized as a
+  (:doc:`/theory/methods/collision_probability`, §14b), so a CP ``.inverse()`` realized as a
   ``MatrixInverseOperator`` is the next production consumer after homogeneous.
 
 This is the **same consumer ruling** ``GreenOperator`` shipped under at step
@@ -9836,8 +9836,8 @@ probing (:eq:`matrix-functor-out`), and deferred a *sparse* override with
 its consumer. Stencil-assembly 2b lands that override — as a full
 **assembly axis** parallel to the inverse and adjoint axes. The
 per-method cell mathematics (the SN closure walk, the diffusion FD
-stencil) is developed in :doc:`loss_representations`
-(:ref:`loss-rep-three-modes`) and :doc:`diffusion_1d`; this section is
+stencil) is developed in :doc:`/theory/methods/sn/loss_representation`
+(:ref:`loss-rep-three-modes`) and :doc:`/theory/methods/diffusion_1d`; this section is
 the *operator-algebra* view: how emission threads through the composers,
 how ``as_matrix`` delegates, and why the retained probing pathway is
 kept as a permanent oracle.
@@ -9988,7 +9988,7 @@ The assembly axis is not a primitive-without-a-product: its first
 production consumer is the **diffusion resolvent**. The exact inner
 solve is ``MatrixInverseOperator(FlattenedOperator(A, template))`` — one
 eager LU at construction, one back-substitution per outer iteration
-(:doc:`diffusion_1d`). Because every diffusion loss leaf now emits,
+(:doc:`/theory/methods/diffusion_1d`). Because every diffusion loss leaf now emits,
 ``A.as_matrix()`` routes through the R2 delegation, so
 :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
 LU-factors the **assembled** matrix automatically — no consumer-side
@@ -10033,7 +10033,7 @@ the N-general machinery, the one production spelling, the block solve,
 the convergence certificate, and the swap law. The starting-direction
 physics (the pole as a straight characteristic, the M1/M2/M3 metric
 distinction, R12a presence) lives in
-:ref:`sn-282-direct-starting-direction-solve` in :doc:`discrete_ordinates`;
+:ref:`sn-282-direct-starting-direction-solve` in :doc:`/theory/methods/sn/index`;
 here we document the **algebra** the physics is posed in.
 
 Why ψ½ is a system, not a kwarg — the two-point radial BVP
@@ -10609,7 +10609,7 @@ explicit grid block). The eigenvalue finalize re-routes through the SAME
 every driver consumes. The mesh remains the single authority on presence;
 what changed is that nothing *checks* against it anymore — the type system
 carries the biconditional. The narrative of the walk's own view of this
-collapse lives in :doc:`loss_representations`.
+collapse lives in :doc:`/theory/methods/sn/loss_representation`.
 
 Numerical evidence
 ------------------
@@ -11135,7 +11135,7 @@ a single direct inverse). The early-bound layer can only express
 methods whose resolvent factors as :math:`(A-S)^{-1}` from a triple via
 that inner sweep — strictly narrower. Diffusion is the instructive case:
 it *does* now carry an in-algebra :math:`(L, C, S, F)` family (#290;
-:doc:`/theory/diffusion_1d`), yet it still belongs to the monolithic
+:doc:`/theory/methods/diffusion_1d`), yet it still belongs to the monolithic
 camp, because it has **no sweep** — its resolvent is the explicit
 :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
 of the *fused* :math:`A = L + C - S - B` (the scattering already

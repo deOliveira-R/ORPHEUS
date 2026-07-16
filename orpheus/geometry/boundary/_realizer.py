@@ -66,7 +66,7 @@ References
   vocabulary), §16A.3 (realizer-as-third-layer motivation).
 * ``.claude/plans/diffusion_integration_290.md`` §P7b (the walker
   move + registry dissolution).
-* :doc:`/theory/boundary_conditions` § "Rank-N boundaries".
+* :doc:`/theory/foundations/boundary_conditions` § "Rank-N boundaries".
 """
 
 from __future__ import annotations

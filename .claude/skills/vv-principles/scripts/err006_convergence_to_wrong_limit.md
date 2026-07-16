@@ -45,7 +45,7 @@ independence) and §4.4 (semi-analytical 2-step ladder, where the
 "reduction correctness" step is exactly what fails here).
 
 **References.** ERR-006 in `error_catalog.md`;
-`docs/theory/discrete_ordinates.rst` §Investigation History (six
+`docs/theory/methods/sn/index.rst` §Investigation History (six
 failed hypotheses before root cause); numerics-investigator agent
 memory L1, L2 (diagnostic cascade order; curvilinear redistribution
 as prime suspect); `@pytest.mark.catches("ERR-006")` regression

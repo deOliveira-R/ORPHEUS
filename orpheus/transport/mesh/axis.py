@@ -21,11 +21,13 @@ axis tuples** — :func:`spatial_shape`, :func:`face_labels`,
 :func:`n_unknowns_flat`. The :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` class
 delegates to these so 3-D admission gates can exercise the shape
 algebra on a synthetic axis tuple without instantiating a full SN
-phase space (no ``Mesh3D`` exists today — D9 of
-``r1_phase_a_dim_agnostic_ultraplan.md``).
+phase space — no ``Mesh3D`` exists today, and the pure-function form
+is what lets the gates run without one.
 
-See ``docs/theory/sn_dim_agnostic.rst`` (lands in C8) for the
-architectural narrative; this module is its implementation.
+See :doc:`/theory/foundations/boundary_conditions` for the
+architectural narrative — the axis tuple as the load-bearing key for
+the dimension-agnostic face inventory, and why a 3-axis tuple had
+nowhere to round-trip through before the mesh became dim-agnostic.
 """
 
 from __future__ import annotations

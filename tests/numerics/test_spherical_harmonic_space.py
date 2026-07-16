@@ -7,7 +7,7 @@ that the (R, Π^T, Π^*) operators are separately typed with
 mathematically distinct semantics.
 
 The ``@pytest.mark.verifies(<label>)`` markers reference equation
-labels that ship in the Sphinx ``docs/theory/spherical_harmonics.rst``
+labels that ship in the Sphinx ``docs/theory/foundations/spherical_harmonics.rst``
 page under P1.6. The labels follow the ``sh-`` prefix established by
 the test-architect's verification plan so that Phase 2's ``dual-`` /
 ``tensor-`` / ``sum-`` labels sit alongside in the same namespace.

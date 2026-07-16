@@ -1949,7 +1949,7 @@ tabulates:
 * :math:`f_1 = 0.10` only (sphere, odd modes, Table 10).
 
 The current ORPHEUS Atalay case catalogue ships 7 cases (6 slab + 1
-sphere); see :doc:`sood_registry` for the full list.
+sphere); see :doc:`/theory/references/sood_registry` for the full list.
 
 .. _theory-se-errata:
 
@@ -2069,8 +2069,8 @@ Internal references:
   (ERR-038),
   ``.claude/agent-memory/numerics-investigator/kj_residual_xfunction_divergent_2026_05_03.md``
   (X-function divergent integrand).
-* :doc:`fn_method` — companion F_N collocation reference, sharing
+* :doc:`/theory/references/fn_method` — companion F_N collocation reference, sharing
   the Wiener-Hopf X-function below the trusted-library line.
-* :doc:`trajectory_resolvent` — Variant α reference family on the
+* :doc:`/theory/references/trajectory_resolvent` — Variant α reference family on the
   same Sood ``Ua-1-0-CY`` truth value (cylinder cross-check).
-* :doc:`sood_registry` — Sood + Atalay case catalogue.
+* :doc:`/theory/references/sood_registry` — Sood + Atalay case catalogue.

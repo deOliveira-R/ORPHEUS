@@ -164,7 +164,7 @@ See also
   strategy satisfies; :class:`~orpheus.transport.spatial.diamond.DiamondDifference`
   — the single-moment sibling whose ``update`` / ``residual`` shape this
   mirrors.
-* :doc:`/theory/discrete_ordinates`, "Cell update strategies" → "Linear
+* :doc:`/theory/methods/sn/index`, "Cell update strategies" → "Linear
   Discontinuous".
 """
 

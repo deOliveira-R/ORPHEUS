@@ -7,7 +7,7 @@ objects that carry its structure:
 * ``EnergyGrid`` — the energy analogue of a coarse ``Mesh``: a strictly
   DESCENDING boundary array (the canonical fast-first convention — see
   ``tests/data/test_gendf_canonical_order.py`` and
-  ``docs/theory/cross_section_data.rst``). N+1 boundaries → N groups. It
+  ``docs/theory/foundations/cross_section_data.rst``). N+1 boundaries → N groups. It
   yields the binary fine→coarse mismatch treatment ``fine.overlap_to(
   coarse)``.
 * ``OverlapBasis`` (returned by ``overlap_to``) — the fine→coarse trial
