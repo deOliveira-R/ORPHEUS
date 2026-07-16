@@ -160,11 +160,20 @@ first.**
   acceleration content we wanted is a SECONDARY summary of `Larsen-Morel-Miller(1987)` +
   `Larsen-Morel(1989)` + `Bailey-Morel-Chang(2010)`, all three of which are ALREADY in
   `scratch/literature/`. See §8.3.**
-- **Larsen & Morel 2010** (84 pp, the post-1968 S_N review) and **Adams & Larsen 2002** (157 pp)
-  are closed-access with no OA mirror; their section structure is the most relevant map in
-  existence for exactly the parts textbooks omit. Their own abstract states our thesis:
+- ~~**Larsen & Morel 2010** (84 pp, the post-1968 S_N review) and **Adams & Larsen 2002** (157 pp)
+  are closed-access with no OA mirror~~ — **BOTH NOW LOCAL AND OCR'd (user, 2026-07-16). This
+  gap is CLOSED; the §3.2 table's two "unverified — closed access" rows are now VERIFIABLE and
+  should be filled by a survey pass.** Their section structure is the most relevant map in
+  existence for exactly the parts textbooks omit, and their own abstract states our thesis:
   *"several books and reviews … have been published, but none of these covers the advanced work
   done during the past 20 years."*
+  - `scratch/literature/Nuclear Computational Science - A Century in Review.pdf` — the **whole
+    Azmy & Sartori book**, 476 pp, searchable. Ch. 1 = Larsen & Morel, pp. 1–84 (TOC-verified:
+    ch. 2 opens at p. 85). **Ch. 2 is "Second-Order Neutron Transport Methods" by E. E. Lewis** —
+    i.e. the book we chased for the Lewis & Miller structural precedent contains a Lewis chapter,
+    on even-parity/second-order transport.
+  - `scratch/literature/Adams-Larsen(2002) Fast iterative methods for discrete-ordinates particle
+    transport calculations.pdf`.
 - `Stammler(1983)` and `Ligou(1982)` are present locally but **image-only, no OCR layer**.
 
 ### 3.5 Pedagogy to steal (verified)
@@ -514,6 +523,22 @@ Ordered for reversibility and early payoff. **A and B are independently valuable
 - **Phase E — Conventions part** (M1) — mostly new writing; the biggest differentiator.
 - **Phase F — Archaeology sweep (P7)** — 130 campaign-named headings; the 3.7:1 (b):(a) ratio.
 - **Phase G — Backfill** — equation labels, `:term:` wiring, `:cite:` migration, V&V slices.
+- **Phase H — THE ROOT PAGE** (`foundations/path_integral.rst`, §3.6) — *added 2026-07-16: §3.6
+  specifies this page in 24 numbered claims and §4 calls it "the corpus's first page", but the
+  migration path never scheduled it. That was a hole, not a decision.* It is the corpus's
+  single most distinctive deliverable — the frame from which every method branches. **Gated:**
+  §3.6's own "Blocking defects" list says the root page must not cite X2/X3 until they are
+  fixed ⟹ **blocked on #298 + #299**; X1 is fixed. **Read §3.6's 12 MUST-NOT claims before
+  writing a word.** Wants Phase I's survey as an input (the taxonomy needs the post-1968 map).
+- **Phase I — Literature survey pass** (*added 2026-07-16*) — the two §3.2 rows that read
+  *"unverified — closed access"* are now local and OCR'd: **Larsen & Morel 2010** (ch. 1 of the
+  Azmy & Sartori book, pp. 1–84) and **Adams & Larsen 2002** (157 pp). Fill the table; harvest
+  **M4b** (convergence theory / the asymptotic diffusion limit / a ρ ≈ c predictor — a **zero**
+  in both textbooks) and **M2** (symptom→cause diagnostics). Larsen & Morel's section structure
+  is also the closest structural precedent that exists for the S_N mini-book (§5) — it is what
+  the retired Lewis & Miller ask was actually reaching for. **Independent of B/C/D — dispatchable
+  in parallel any time.** The DSA primaries (`Alcouffe(1977)`, `Larsen(1982)` I+II,
+  `Morel(1982)`, `Hammer-Morel-Wang(2019)`) are for **#2 / stencil-P3**, not this campaign.
 
 ---
 
@@ -642,24 +667,36 @@ content *into*. Then Phase C (split the monoliths, Haiku-catalog-driven, SN firs
    *Residual nit for Phase F, not a placement issue:* the `pn_method` / `spn_method` READMEs
    frame their subject as "the historical alternative to discrete ordinates" — method prose on a
    reference page.
-3. ~~**Lewis & Miller**~~ **CLOSED (2026-07-15): the ask is RETIRED — do not re-raise it.** Not
-   local, no OCR'd PDF exists (user searched). More importantly it is **not needed**: what §3.4
-   wanted it for was *acceleration* (the text Stacey defers to) — but L&M is a **secondary**
-   summary, and the **primary** sources are already in `scratch/literature/`:
-   `Larsen-Morel-Miller(1987)` (the asymptotic/admissibility theory itself — already cited by
-   M4b), `Larsen-Morel(1989)` part II, `Bailey-Morel-Chang(2010)` (angular), `Lathrop(2000)`.
-   The corpus's own thesis is to beat textbook summaries by going to primaries; asking for the
-   summary contradicts it. The structural-precedent use is nice-to-have — B&G/Hébert/Stacey
-   already agree on the §3.1 skeleton, and a 4th confirmation adds little.
-   **If a pull IS made opportunistically, these beat L&M and are the real §3.4 gap:**
-   **Larsen & Morel 2010** (Springer `10.1007/978-90-481-3411-3_1`, 84 pp — the post-1968 S_N
-   review) and **Adams & Larsen 2002** (Prog. Nucl. Energy 40(1), 157 pp — acceleration; the
-   M4b/M2 gap). **Neither blocks Phase B.**
-   **When DSA (#2 / stencil P3) starts, the ask is the founding DSA primaries — Alcouffe (1977)
-   and Larsen (1982), both in *Nuclear Science & Engineering*, which the user holds in full.**
-   (`.claude/rules/delegation.md`: check `scratch/literature/` FIRST — it has **66 files**,
-   incl. `Hebert(2009)Chapter3`, `Stacey(2007)Chapter9`, `Ligou(1982)Chapter8`,
-   `Stammler(1983)Chapter4/6`, `Sanchez(1982)`, `Morel(1989)`.)
+3. ~~**Lewis & Miller**~~ **CLOSED (2026-07-16): the ask is RETIRED — do not re-raise it, and
+   the literature gap it stood for is now FILLED.** L&M itself has no OCR'd PDF (user searched),
+   but the ask was misdirected anyway: §3.4 wanted it for *acceleration*, and L&M is a
+   **secondary** summary of primaries we already held (`Larsen-Morel-Miller(1987)` — the
+   asymptotic/admissibility theory itself, already cited by M4b; `Larsen-Morel(1989)` II;
+   `Bailey-Morel-Chang(2010)`; `Lathrop(2000)`). The corpus's own thesis is to beat textbook
+   summaries by going to primaries — asking for the summary contradicted it.
+   **What the user supplied instead (2026-07-15/16) is strictly better, and it is ALL LOCAL AND
+   OCR'd** in `scratch/literature/` (now **73 files** — `.claude/rules/delegation.md`: check
+   this folder FIRST):
+   - **The complete DSA primary lineage** — `Alcouffe(1977)` (founds it) · `Larsen(1982)` Parts
+     **I + II** (unconditional stability) · `Morel(1982)` (**highly anisotropic scattering** —
+     directly relevant to ORPHEUS's `S = Σ_s0ᵀ + 2Σ₂ᵀ`) · `Adams-Larsen(2002)` (the 157-pp
+     synthesis) · `Hammer-Morel-Wang(2019)` (nonlinear diffusion acceleration, **voids**).
+     ⟹ **#2 / stencil-P3 (DSA) now has its sources. No literature ask remains for it.**
+   - **`Nuclear Computational Science - A Century in Review.pdf`** — the whole Azmy & Sartori
+     book (it was in the user's personal library all along). **Ch. 1 = Larsen & Morel 2010,
+     pp. 1–84**, the post-1968 S_N review. This ALSO serves the structural-precedent purpose the
+     L&M ask originally had — better, because it covers exactly the post-1968 material the
+     textbooks omit.
+   **Canonical citation (verified 3 ways — Crossref, the book's title page, its TOC):**
+   Larsen, E. W., and J. E. Morel, "Advances in Discrete-Ordinates Methodology," Ch. 1 in
+   *Nuclear Computational Science: A Century in Review*, Y. Azmy and E. Sartori (eds.), Springer
+   Netherlands, Dordrecht, 2010, pp. 1–84. DOI `10.1007/978-90-481-3411-3_1`; ISBN
+   978-90-481-3410-6 (print) / 978-90-481-3411-3 (online). *(Crossref stamps the chapter
+   2009-12-24 online-first; cite 2010.)*
+   **⚠ Nothing here is read yet. Acquisition ≠ survey.** Filling the §3.2 table's two rows and
+   harvesting M4b/M2 is **Phase I** (§7), not a completed fact — do NOT cite these as surveyed,
+   or restate their content, until someone has actually read them. ([[lessons-L33]]: a claim is
+   not evidence; that applies to a claim about a PDF we merely possess.)
 
 ---
 
