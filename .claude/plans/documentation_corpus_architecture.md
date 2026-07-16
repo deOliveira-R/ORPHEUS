@@ -512,9 +512,12 @@ Ordered for reversibility and early payoff. **A and B are independently valuable
   `exclude_patterns`; retitle `homogeneous`→`infinite_medium`. **No content rewriting.**
   Payoff: navigation exists. **See §7.1 for what actually landed** — the tree deviates from
   §4 in three places, each for a reason worth keeping.
-- **Phase B — De-duplicate by the label oracle (P9/P10).** Move the four mis-filed blocks to
-  their labelled homes (SN-algebra→foundations; windowing→SN; BC→BC; Peierls→references);
-  re-namespace labels as they land. Payoff: the coupling graph becomes honest; D4 closes.
+- **Phase B — De-duplicate by the label oracle (P9/P10).** **REVISED after mapping — see §8
+  "RULED (Phase B)".** THREE clean relocations (Peierls→references; windowing→SN; BC→BC),
+  sequence 4→2→3, each an independent `-W`-gated commit with zero renames on the moved
+  content. The proposed fourth (SN-algebra→foundations) is NOT a mis-file — it is a
+  rename-heavy dedup, **de-scoped to the Phase C SN split**. Payoff: the inflated SN↔algebra
+  coupling becomes honest; D4 closes.
 - **Phase C — Split the monoliths into chapters**, driven by the **Haiku fan-out catalog**
   (chunk → classify KEEP / ARCHAEOLOGY→history / DISTILL→gotcha / RELOCATE → aggregate →
   archivist executes → main-agent reviews diff-vs-catalog). Start with SN (§5). **This is
@@ -645,6 +648,45 @@ content *into*. Then Phase C (split the monoliths, Haiku-catalog-driven, SN firs
   `index_convention.rst` today; `notation.rst` + `normalization.rst` are Phase E writing.
 - ✅ **V&V consolidation: its own phase, not Phase A.** See §7.1 ruling 2.
 - ✅ **Multiphysics: left flat at the theory root, no effort.** See §7.1 ruling 3.
+
+### RULED (user, 2026-07-16 — Phase B)
+
+Phase B mapped (explorer, verified against the current tree). Two forks ruled; the frozen
+block-counts corrected. **Phase B = THREE clean relocations, not four.**
+
+- ✅ **Block 1 (SN-algebra → foundations): DE-SCOPED to the Phase C SN split.** It is NOT a
+  mis-file — its content carries honest `sn-*`/`si-*` labels, so the `:label:` oracle gives
+  no signal. What is there is *duplication* (the `(A−S−F)ψ=q` spine restated 3× at
+  `sn/index.rst` ~13330/13524/13953; `choosing-inverse-realisation` dupes
+  `inverse-application-driver`/`green-operator`/`matrix-inverse-operator`;
+  `cross-solver-eigenvalue-consumers` overlaps `matrix-inverse-consumers`) — a rename-heavy
+  dedup, a *different operation* from the three clean relocations. Its content sits on the SN
+  monolith that is **Phase C's first split target**, so its cleanup folds INTO that split
+  (operate on the monolith once, not twice). Matches the plan's own "Phase C — de-duplicate"
+  language.
+- ✅ **Block 3 Span B (`bc-extraction-g-adjoint`): STAYS in `operator_algebra` (content-purity
+  over the label oracle).** The section's content is the GENERAL composite adjoint
+  `A†=G⁻¹AᵀG` (applies to L,C,S,F,B alike); general adjoint machinery belongs on the general
+  page. ⟹ Block 3 becomes the **contiguous** cut `4780–5886` (Span A only, ≈1,107 ln); the
+  now-orphaned `bc-extraction-g-adjoint` anchor is **renamed** to a general prefix (its
+  narrative having left) with inbound refs fixed (`-W`-gated), and a cross-ref bridges the
+  moved narrative ↔ the staying g-adjoint.
+- **The three clean blocks (sequence 4 → 2 → 3), each an independent `-W`-gated commit, zero
+  renames on the moved content:**
+  - **B4 Peierls** — `collision_probability.rst:2205–4330` (contiguous, 2,126 ln = 49% ✓) →
+    `references/peierls.rst` after `peierls-bc-foundations` §309. 3 anchors + 20 eq-labels +
+    `issue-100-retraction` move unchanged. **Audit `peierls_nystrom.rst`'s ~20 `:doc:`→CP
+    prose links** — repoint the Peierls-specific ones; a `:doc:` to a still-valid page is NOT
+    `-W`-gated (silent drift).
+  - **B2 windowing** — `operator_algebra.rst:7538–8674` (core + `windowing-retyped` tail,
+    1,137 ln ✓) → `sn/index.rst` after `sn-scattering-adjoint` §13797. 14
+    `sn-angular-windowing-*` + 5 eq-labels + `windowing-retyped` move unchanged.
+  - **B3 BC extraction** — `operator_algebra.rst:4780–5886` (Span A, contiguous; the
+    `affine-typed*` 5887–6408 AND the g-adjoint 6409–6985 STAY) → `boundary_conditions.rst`
+    after `bc-realizer-layer` §307. 12 `bc-extraction-*` anchors + 7 eq-labels move unchanged.
+- **Frozen-count corrections:** B3 is **12** `bc-extraction-*` anchors, not 14; B4's "3" was
+  the *anchor* count (there are **20** eq-labels in the span); the "41 `sn-*`" figure did not
+  reproduce. Authoritative per-family counts live in the move-map (this session).
 
 ### STILL OPEN
 
