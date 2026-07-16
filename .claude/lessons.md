@@ -996,3 +996,59 @@ before transcribing" reflex); `.claude/rules/process-discipline.md` (trust git, 
 — generalizes: trust CODE, not a frozen doc). Evidence: `275a753a`, `018ecb7b`, `0ca0d378`;
 `.claude/plans/documentation_corpus_architecture.md` §3.6 (the 12 MUST-NOT claims exist so the next
 author cannot repeat this).
+
+## L34 — A path built from SEGMENTS is invisible to a path-grep; and know which reference class your build actually gates (2026-07-15)
+
+Corpus Phase A moved 33 documentation pages. The move's blast-radius audit was three greps
+(`:doc:` roles, toctree entries, raw `docs/theory/...` strings) and it found 258 real sites. It
+**could not see the single biggest hazard**, because that hazard contains no greppable path:
+
+```python
+DOCS_THEORY_DIR = REPO_ROOT / "docs" / "theory"     # no "docs/theory/" substring exists
+```
+
+`tools/verification/generate_capability_matrices.py` assembles its output directory from
+*segments*, fires on Sphinx's `builder-inited`, wipes with a **non-recursive** glob, and rewrites
+its `.inc.rst` outputs. Post-move it would have wiped nothing (the real files had moved out of its
+glob), written **duplicates** at the dead flat path, and orphan-errored — while every grep in the
+audit reported clean. A dispatched **explorer** found it by *reading the tool* rather than
+searching for the string. Compounding it, the pinning test carried a **twin copy** of the same
+constant (`tests/.../test_capability_matrices.py:29`) — two sources of truth for one path, which
+is what made the drift possible at all (Pattern 2).
+
+> **Rule 1: when auditing a move/rename, grep the LAST SEGMENT (`"theory"`, `"peierls_nystrom"`),
+> not the joined path** — and read any tool that *writes into* the moved tree. `Path` /
+> `os.path.join` / f-string assembly, and any config value built the same way, are structurally
+> invisible to the obvious search. Corollary: a path constant gets **one** home; consumers
+> (including tests) **import** it.
+
+The same phase corrected a load-bearing false belief about the build gate. `.claude/rules/
+coding-standards.md` claimed an unresolved `:func:`/`:class:`/**`:ref:`** "renders as plain text
+with no `-W` warning." A 60-second probe (a scratch Sphinx project with one deliberately-broken
+ref of each species) measured otherwise on Sphinx 9.1.0:
+
+| broken ref | warns? | gated by `-W`? |
+|---|---|---|
+| `:doc:` → missing page | **yes** (`ref.doc`) | ✅ |
+| `:ref:` → missing label | **yes** (`ref.ref`) | ✅ |
+| `:func:` / `:class:` / `:mod:` | **no** (needs `-n`) | ❌ |
+| raw path string in prose/docstring | **no** — it is just text | ❌ |
+
+> **Rule 2: know which reference class your gate covers, by measurement, before you rely on it.**
+> Here it *inverted* the plan: page moves and label retirements ARE build-gated (so `:doc:`/toctree
+> churn needs no hand-audit — let `-W` find it, and it found all 7), while the classes that need a
+> hand-built gate are the Python-domain roles and **raw text**. Phase A's raw-path gate was a
+> filesystem check (57 live / 0 dead) because no build can do it. It found 3 dead pointers, all
+> **pre-existing**: `axis.py` promised `docs/theory/sn_dim_agnostic.rst` — a page git shows was
+> **never written** — citing "D9 of `<a plan that no longer exists>`", which is *precisely* the
+> untraceable reference #231 exists to eliminate.
+
+**The hazard is not hypothetical: it had already fired 3× in this repo**, including on this very
+branch — the `galerkin_projection.rst`→`frame.rst` rename two days earlier orphaned 2 raw paths;
+`peierls_greens.rst`→`trajectory_resolvent.rst` orphaned 16. **Every rename owes a raw-path
+sweep**; the build will not do it for you.
+
+Cross-reference: `[[lessons-L20]]` (retirement requires a dependency audit — this is the audit's
+blind spot); `[[lessons-L33]]` (a doc is a claim, not evidence — here the *rule* was the wrong
+claim, and measurement settled it); `.claude/rules/coding-standards.md` (corrected in `08e58ee6`);
+`.claude/plans/documentation_corpus_architecture.md` §7.1.

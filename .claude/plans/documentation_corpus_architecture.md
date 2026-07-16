@@ -493,10 +493,12 @@ their **home** changes (subject-level → router; concept-level → chapter).
 
 Ordered for reversibility and early payoff. **A and B are independently valuable.**
 
-- **Phase A — Skeleton (mechanical, low risk).** Create the directories + part indexes;
-  `git mv` pages; fix every `:doc:`/`:ref:`; raise `:maxdepth:`; fix `theory/index`'s
-  1-section defect; add `'**/*.inc.rst'` to `exclude_patterns`; retitle
-  `homogeneous`→`infinite_medium`. **No content rewriting.** Payoff: navigation exists.
+- **Phase A — Skeleton (mechanical, low risk). ✅ DONE @ `08e58ee6` (2026-07-15).**
+  Create the directories + part indexes; `git mv` pages; fix every `:doc:`/`:ref:`; raise
+  `:maxdepth:`; fix `theory/index`'s 1-section defect; add `'**/*.inc.rst'` to
+  `exclude_patterns`; retitle `homogeneous`→`infinite_medium`. **No content rewriting.**
+  Payoff: navigation exists. **See §7.1 for what actually landed** — the tree deviates from
+  §4 in three places, each for a reason worth keeping.
 - **Phase B — De-duplicate by the label oracle (P9/P10).** Move the four mis-filed blocks to
   their labelled homes (SN-algebra→foundations; windowing→SN; BC→BC; Peierls→references);
   re-namespace labels as they land. Payoff: the coupling graph becomes honest; D4 closes.
@@ -508,6 +510,82 @@ Ordered for reversibility and early payoff. **A and B are independently valuable
 - **Phase E — Conventions part** (M1) — mostly new writing; the biggest differentiator.
 - **Phase F — Archaeology sweep (P7)** — 130 campaign-named headings; the 3.7:1 (b):(a) ratio.
 - **Phase G — Backfill** — equation labels, `:term:` wiring, `:cite:` migration, V&V slices.
+
+---
+
+## 7.1 Phase A — what actually landed (`08e58ee6`, 2026-07-15)
+
+**The tree as built** (33 moves; 39 pages all accounted for):
+
+```
+docs/theory/
+  index.rst · glossary.rst · verification.rst          <- root
+  thermal_hydraulics.rst · fuel_behaviour.rst · reactor_kinetics.rst
+  conventions/   index.rst [NEW] · index_convention.rst
+  foundations/   index.rst [NEW] · operator_algebra · frame · boundary_conditions
+                 cross_section_data · discrete_measures · spherical_harmonics
+                 structured_geometry · infinite_medium
+  methods/       index.rst (<- transport_methods) · collision_probability
+                 method_of_characteristics · monte_carlo · diffusion_1d
+                 sn/  index.rst (<- discrete_ordinates) · loss_representation
+  references/    index.rst (<- reference_solvers) · peierls · peierls_nystrom
+                 trajectory_resolvent · fn_method · singular_eigenfunction
+                 galerkin_spectral · sood_registry · escape_probability
+                 + the 7 reserved stubs
+```
+
+**User rulings (2026-07-15).**
+
+1. **Sub-book dirs: SN only.** SN is the only sub-book §5 actually specs, and it is Phase C's
+   first target — so its dir is earned and Phase C becomes pure *addition* (zero `:doc:`
+   churn). Every other monolith stays flat in its part; **its dir appears when its split
+   does.**
+2. **V&V consolidation: deferred to its own phase.** Not mechanical — `docs/verification/
+   matrix.rst` is auto-generated (`generate_matrix.py`), `testing/`+`verification/` are
+   top-level *siblings* of `theory/` in `docs/index.rst` (folding them under `theory/`
+   demotes V&V — an IA judgment), and the three homes soft-contradict each other.
+3. **Multiphysics: left flat at the root, no effort** — they may be extracted from the repo.
+
+**Deviations from §4, each with its reason — do NOT "fix" these back:**
+
+| §4 proposed | What landed | Why |
+|---|---|---|
+| `diffusion.rst ← diffusion_1d.rst` | **kept `diffusion_1d.rst`** | `DiffusionMesh` **refuses a multi-D mesh at construction** (`augmented_mesh.py:130`). The `_1d` is load-bearing; the rename would have made the corpus misinform — the exact D5 disease. |
+| `methods/spectral/` ← 7 stubs | **stubs stay in `references/`** | They live under `orpheus.derivations.continuous` and `reference_solvers.rst` calls them *"Reserved **reference** solvers"*. Moving them to `methods/` is a **re-classification** (is P_N a method or a reference?), not a move — a real open question, and not Phase A's business. |
+| `geometry_and_meshes.rst ← structured_geometry.rst` | **kept `structured_geometry.rst`** | No justification beyond aesthetics; renames cost ref churn. `infinite_medium` earned its rename (a documented retrieval collision); this one didn't. |
+| `theory/verification/` part | **`theory/verification.rst` at root** | Ruling 2. |
+
+**Durable findings (these outlive Phase A):**
+
+- **`-W` gates more than the rules claimed.** Measured, Sphinx 9.1.0: broken `:doc:` →
+  `ref.doc` **warns**; broken `:ref:` → `ref.ref` **warns**. Only the *Python-domain* roles
+  (`:func:`/`:class:`/`:mod:`) are silent without `-n`. `.claude/rules/coding-standards.md`
+  said `:ref:` was silent — **corrected in this commit**. Consequence: **page moves and label
+  retirements ARE gated by the build**; only raw text is not.
+- **`:ref:` is path-immune** — all 1076 needed zero work. Labels survive any move. The
+  restructure surface is `:doc:` + toctree + `.. include::` + raw text, nothing else.
+- **A path built from SEGMENTS is invisible to a path-grep.** `REPO_ROOT / "docs" /
+  "theory"` carries no `docs/theory/` substring. This was the single biggest hazard and no
+  grep in the audit could see it — the **explorer found it by reading the tool**. When
+  auditing a move, grep the **last path segment**, not the joined path.
+- **All `:doc:` under `docs/theory/` are now ABSOLUTE** (Pattern 7). A future *source* move
+  cannot break them — which is exactly what Phase C does. Keep them absolute.
+- **The stale-path hazard is not hypothetical — it had already fired 3×**, incl. on this
+  branch: the `galerkin_projection.rst`→`frame.rst` rename (`3de297a3`, two days earlier)
+  orphaned 2 raw paths; `peierls_greens.rst`→`trajectory_resolvent.rst` orphaned 16; and
+  `axis.py` promised a page (`sn_dim_agnostic.rst`) git shows was **never written**, citing a
+  plan that no longer exists. **Every rename owes a raw-path sweep** — the build will not
+  do it for you.
+- **The fix surface excludes archaeology on purpose**: `.claude/{plans,agent-memory,scratch}`
+  and `.claude/worktrees` (a separate checkout) were NOT rewritten. A plan's
+  "← discrete_ordinates.rst" names a move's *source*; rewriting it corrupts the record.
+
+**Phase A gate (what "done" meant):** `sphinx -W` exit 0 + clean log · 21 tests green ·
+pyright 0 in every touched file (`orpheus/` unchanged at its 1 accepted #288 residual) ·
+a **filesystem gate over raw path strings** (57 live / 0 dead), since no build checks those.
+
+**⏭ NEXT = Phase B** (de-duplicate by the `:label:` oracle) — the tree now exists to move
+content *into*. Then Phase C (split the monoliths, Haiku-catalog-driven, SN first).
 
 ---
 
@@ -528,16 +606,28 @@ Ordered for reversibility and early payoff. **A and B are independently valuable
   the boundary SCC in closed form via Woodbury on the rank-1 `B`; CP already does it, SN
   iterates it; blocked on #299). X1 (`eigenvalue.py`) fixed @ `018ecb7b`.
 
+### RULED (user, 2026-07-15 — Phase A)
+
+- ✅ **Depth of the method sub-books: SN now; others on demand.** Landed — only `methods/sn/`
+  is a directory. See §7.1 ruling 1.
+- ✅ **`conventions/` as Part 0: YES.** Landed as `docs/theory/conventions/` with a router that
+  opens on the M1 argument (the canon contradicts itself on weight sums, the `(2ℓ+1)`
+  prefactor, and the scattering arrow — each with an ERR catcher). It carries
+  `index_convention.rst` today; `notation.rst` + `normalization.rst` are Phase E writing.
+- ✅ **V&V consolidation: its own phase, not Phase A.** See §7.1 ruling 2.
+- ✅ **Multiphysics: left flat at the theory root, no effort.** See §7.1 ruling 3.
+
 ### STILL OPEN
 
 1. **Chapter filename prefixes** — `01_algebra.rst` (order visible in the tree, but reorder ⇒
    rename ⇒ ref churn) vs **no prefix** (toctree carries order; rename-free; greppable).
-   **Recommend: no prefix.**
-2. **Depth of the method sub-books** — S_N gets ~14 chapters. Do CP/MoC/MC get the same
-   treatment now, or stay single pages until they grow? **Recommend: SN now; others on demand.**
-3. **`conventions/` as Part 0** vs folding it into `foundations/`. **Recommend: Part 0** — it
-   is the M1 differentiator and the "read first" surface.
-4. **Lewis & Miller** — not in `scratch/literature/`, unverifiable anywhere online (§3.4). It is
+   **Recommend: no prefix.** *Not blocking until Phase C mints the first chapters.*
+2. **Are the 7 spectral stubs methods or references?** (P_N / SP_N / B_N / Galerkin-spectral /
+   spectral-collocation / spectral-resolvent / Galerkin-S_N hybrid.) They sit in `references/`
+   today because that is what `reference_solvers.rst` and their code home
+   (`orpheus.derivations.continuous`) say. §4 filed them under `methods/spectral/`. **This is a
+   re-classification, not a move** — surfaced by Phase A, deliberately not decided by it.
+3. **Lewis & Miller** — not in `scratch/literature/`, unverifiable anywhere online (§3.4). It is
    the text Stacey defers to for acceleration and the likeliest structural precedent for this
    mini-book. **ACTION: user to add.** Second priority: Larsen & Morel 2010 (Springer
    `10.1007/978-90-481-3411-3_1`, 84 pp).

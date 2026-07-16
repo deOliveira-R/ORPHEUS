@@ -256,9 +256,21 @@ has the destination sections for relocated derivations.
 
 ### ⏭ NEXT ACTION (post-compaction, authoritative)
 
-**Read `.claude/plans/documentation_corpus_architecture.md` — §7 (migration) + §8 (decisions).**
-Then execute **corpus Phase A** (mechanical skeleton, low risk, user-ruled to go first).
-Do NOT start Phase 1d/C. Phase 2 (code-prose) remains valid but is downstream of A.
+**Read `.claude/plans/documentation_corpus_architecture.md` — §7.1 (what Phase A landed) +
+§8 (decisions).** It is the authority on sequencing.
+
+**Corpus Phase A is ✅ DONE @ `08e58ee6`** (2026-07-15): `docs/theory/` is no longer flat —
+it is `conventions/ · foundations/ · methods/{sn/} · references/`, every `:doc:` under it is
+absolute, and `-W` is clean. **This page's SN content now lives at
+`docs/theory/methods/sn/index.rst`.**
+
+**⏭ NEXT = corpus Phase B** (de-duplicate by the `:label:` oracle — move the four mis-filed
+blocks to their labelled homes; re-namespace labels as they land). **Then** Phase C, which is
+this plan's old Phase 1d re-scoped: split the SN monolith into §5's chapters, driven by the
+Haiku fan-out catalog. Because `methods/sn/` already exists and its index is the final URL,
+Phase C is **pure addition** — it adds chapters and shrinks `index.rst` into a router; it
+moves nothing and breaks no refs. Do NOT start C before B. Phase 2 (code-prose) remains
+valid but is downstream.
 
 **Parked, no decision needed to proceed:** the two removed Investigation-History essays (full text
 in the Phase-1b/1c archivist closeout; git history preserves them; ERR-025/ERR-026 catalog entries
