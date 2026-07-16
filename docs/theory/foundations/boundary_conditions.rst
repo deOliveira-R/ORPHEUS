@@ -4611,7 +4611,7 @@ References
   boundary conditions).
 * The tensor decomposition equation :eq:`bc-tensor-decomposition`
   at :ref:`bc-tensor-decompositions` (in
-  :doc:`/theory/methods/sn/index`) shows the algebra
+  :doc:`/theory/methods/sn/boundary_conditions`) shows the algebra
   :math:`R = \sum_\alpha G_\alpha \otimes A_\alpha` that this page
   refines into the affine form :eq:`affine-bc-form`.
 * :ref:`operator-algebra` for the Wave-0 primitives the realized
