@@ -1112,3 +1112,28 @@ Cross-reference: `[[lessons-L34]]` (which reference class the build gates — th
 corollary: even a GATED role leaves ungated prose); `[[lessons-L33]]` (the corpus is an
 adversary that MISINFORMS — a move is a mechanical way to mint fresh misinformation);
 `.claude/plans/documentation_corpus_architecture.md` §7.2.
+
+## L36 — Moving a label between files: the incremental Sphinx build raises a PHANTOM `duplicate label` — force `-E` for the gate (2026-07-16)
+
+[[lessons-L35]] is about the PROSE a label move falsifies; this is about the BUILD TOOL itself
+lying *during* the move. When a `.. _label:` moves from page A to page B, an INCREMENTAL
+`sphinx-build -W` (reusing the saved `docs/_build/doctrees` environment) can raise
+`WARNING: duplicate label <x>, other instance in <A>` — even though A no longer contains it.
+Sphinx re-reads the changed/new files, but the label registry from the cached environment still
+holds A's stale registration when B's fresh copy is registered; the two collide transiently. A
+plain `-W` *rerun* then flips to exit 0 once the environment settles — so on a label move
+NEITHER incremental result is trustworthy (one false-RED, the next false-GREEN).
+
+> **Rule: the Phase-C / any-label-move build gate is `sphinx-build -E -W` (`-E` = discard the
+> saved environment, full re-read), NOT plain `-W`.** `-E` makes the label registry consistent
+> in one pass. Confirm independently that each moved label is single-homed:
+> `grep -c '<label>' <source>` (must be 0) + tree-wide `grep -rn '^\.\. _<label>:'` (exactly 1).
+> Do NOT `rm -rf docs/_build` to force it — that trips the host permission gate; `-E` achieves
+> the same without deletion.
+
+Worked (ch3 `angular_quadrature` extraction): the `--keep-going` incremental build showed the
+phantom `duplicate label quadrature-types`; `grep -c` proved it 0-in-source / 1-tree-wide;
+`-E -W` came back "build succeeded", 0 warnings.
+
+Cross-reference: `[[lessons-L35]]` (the prose corollary), `[[lessons-L34]]` (which reference
+class the build gates); `.claude/plans/sn_split_catalog.md` (the Phase-C build-gate section).
