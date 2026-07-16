@@ -122,6 +122,39 @@ spine and the duplicated inverse-realisation labels collapse to one home. Not a 
 
 ---
 
+## User content directives (2026-07-16) — the method-chapter content contract
+
+Governs how the **algebra / discrete_balance / loss_representation / iteration** chapters are
+built (Tier-3 + the two Tier-2 discretization chapters). NOT a Phase-C structural concern —
+the content mostly already exists in the monolith; this is the ORGANIZING contract and a
+gap-list for Phase D/G. (User, answering the transport_equation question — a directive, not a
+placement.)
+
+1. **General → method-specific derivation is per-method, shown in full.** The abstract
+   transport equation lives at the ROUTING level (the `methods/index` router + the Phase-H
+   root); each method chapter (here S_N) then SHOWS how that general equation becomes THAT
+   method's equation, with detailed discretization steps. ⟹ SN's "Transport Equation" section
+   (the per-geometry continuous forms) is **SN-book intro and STAYS in the SN book** (feeds the
+   `algebra` chapter); it is **NOT minted as a chapter and NOT extracted to
+   `foundations/transport_equation.rst`** — that §4 plan is **superseded** for the SN geometry
+   forms (the shared root is the more abstract method-invariant operator, Phase H).
+2. **Show the loss-representation MATRIX SHAPE.** Each method states the shape of its loss
+   representation (SN's `(L+C)` is lower-triangular; others dense; etc.). **The matrix
+   representation is the MINIMAL / baseline representation.**
+3. **Every non-matrix loss representation must show its strategy to AVOID materializing the
+   matrix, and LINK the shape to the strategy** — lower-triangular ⟹ a sweep; a Krylov
+   subspace projection; etc.
+4. **If a strategy's representation is reached by an operator-algebra operation that POSES the
+   problem into the strategy-enabling shape, the operations FROM the general representation TO
+   that strategic loss representation must be SHOWN** (the algebra that transforms `A` into the
+   sweep-able / Krylov-able form). This is the core job of the `loss_representation` +
+   `iteration` + `algebra` chapters. [[feedback-build-the-machinery-operator-algebra]]
+
+**Verification scope (RULED):** `verification.rst` = "Verification" + "Numerical
+Sensitivities"; "Consuming the frame in SN" → the `solver` chapter.
+
+---
+
 ## Status log
 
 - **ch3 `angular_quadrature.rst`** — ✅ **@ `5a61fdb5`.** Cut 366–500 (135 ln), 1 label
