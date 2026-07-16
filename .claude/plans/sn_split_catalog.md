@@ -97,7 +97,7 @@ leaf first, 3 = dedup-heavy last).
 | 12 | `boundary_conditions.rst` | "Boundary Conditions" | `boundary-conditions` | 1 | ✅ DONE |
 | — | `transport_equation.rst` | "The Transport Equation" (temp SN ch → foundations) | (none) | 1 | pending |
 | — | `verification.rst` | "Verification" + "Numerical Sensitivities" (temp → V&V part) | `sn-keff-estimator` | 1 | pending |
-| — | `history.rst` | "Development history" | `sn-development-history` | 1 | pending |
+| — | `history.rst` | "Development history" | `sn-development-history` | 1 | ✅ DONE |
 | 5 | `discrete_balance.rst` | "The Discrete Balance Equation" (balance/α/geom-factor/streaming-eq/Morel-Montry dip — up to the WDD weights) | (none) | 2 | pending |
 | 6 | `spatial_closures.rst` | rest of "The Discrete Balance Equation" (WDD & Morel-Montry weights, closure substitution) + "Cell update strategies" | `cell-update-strategies` | 2 | pending |
 | 9 | `sweep_1d.rst` | "Sweep Algorithm" intro + Cartesian-1D cumprod + affine outflow | `sweep-algorithm` | 2 | pending |
@@ -138,3 +138,12 @@ spine and the duplicated inverse-realisation labels collapse to one home. Not a 
   validated. NB: `methods/sn/boundary_conditions.rst` deliberately parallels
   `foundations/boundary_conditions.rst` (SN realization ↔ general theory) — disambiguate greps
   by full path.
+- **`history.rst`** — ✅ @ `80228085` (archivist-executed). Cut 18894–19912 (1,019 ln), 1
+  anchor `sn-development-history`, 0 eq-labels, **0 inbound refs, 0 prose fixes** — the
+  cleanest cut. Confirmed L-024's `:doc:`-qualifier discriminator: the 9 `:doc:` qualifiers
+  in the span all name THIRD (foundations) pages, not the old home, so none went false.
+  `-E -W` 0 warnings. index.rst 20,030 → 19,012. Toctree now: angular_quadrature,
+  loss_representation, boundary_conditions, history.
+
+**Progress: 3 chapters (135 + 408 + 1,019 = 1,562 ln), index.rst 20,571 → 19,012 (−7.6%).**
+Delegated model validated across three scales, zero warnings throughout.
