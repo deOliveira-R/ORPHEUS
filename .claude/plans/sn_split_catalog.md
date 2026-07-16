@@ -53,7 +53,10 @@ For each chapter, in order:
 
 1. **Re-derive the span.** Line numbers shift with every cut — grep the **section title** (or
    its anchor label, below) to find the current start; find the next same-or-higher `=`-header
-   for the end. (`rst_skeleton.py <file>` in the job tmp re-dumps the tree.)
+   for the end. (`rst_skeleton.py <file>` in the job tmp re-dumps the tree.) **END-boundary
+   rule (learned on verification):** if the NEXT section's `.. _anchor:` sits ABOVE its header
+   (the common style here), the cut END is `anchor_line − 1`, NOT `header_line − 1` — that
+   anchor belongs to the STAYING section; stopping at `header − 1` drags it into the new file.
 2. **L35 three-way grep** (the load-bearing move check — `-W` gates the LINK, never the PROSE):
    - inbound refs to every label in the span (`grep -rn '<label>' docs/ orpheus/`) — path-immune,
      they survive, but note directional/qualifier prose *in the referring page*;
@@ -73,6 +76,13 @@ For each chapter, in order:
    `:ref:` back-refs to labels it exported — those are path-immune and STAY; recut ONLY on a
    surviving `.. _label:` DEFINITION or a phantom `-E duplicate label`. (Learned on ch12 BC,
    whose anchor is back-referenced from `index.rst` itself — raw count 2, anchor-def 0.)
+   **Dual-namespace (learned on verification):** a name can be BOTH a `.. _X:` section anchor
+   (std domain, `:ref:`) AND a `:label: X` equation label (math domain, `:eq:`) — different
+   Sphinx domains, so they coexist with no dup-label warning. If a split moves only ONE, single-
+   home on the CORRECT namespace: a moving eq-label ⇒ `grep -c ':label: X'` (=0 source, =1 tree);
+   a moving section anchor ⇒ `grep -c '^\.\. _X:'`. The same-named member that STAYS reads as
+   count 1 in the other namespace and is NOT a recut trigger. The `-E` build is the collision
+   oracle (a clean baseline proves the two domains don't collide).
 8. **Archivist reports** the diff + grep results + build; **main agent reviews diff-vs-catalog,
    re-runs `-E -W`, commits** with the correct trailer (archivist does NOT commit — Phase B model).
 
@@ -95,8 +105,8 @@ leaf first, 3 = dedup-heavy last).
 |---|---|---|---|---|---|
 | 3 | `angular_quadrature.rst` | "Angular Quadratures" | `quadrature-types` | 1 | ✅ DONE |
 | 12 | `boundary_conditions.rst` | "Boundary Conditions" | `boundary-conditions` | 1 | ✅ DONE |
-| — | `transport_equation.rst` | "The Transport Equation" (temp SN ch → foundations) | (none) | 1 | pending |
-| — | `verification.rst` | "Verification" + "Numerical Sensitivities" (temp → V&V part) | `sn-keff-estimator` | 1 | pending |
+| — | ~~`transport_equation.rst`~~ | "The Transport Equation" — **STAYS in index as SN intro** (user directive; NOT a chapter, NOT → foundations, §4 superseded) | (none) | — | N/A |
+| — | `verification.rst` | "Verification" + "Numerical Sensitivities" (temp → V&V part) | (none above h1) | 1 | ✅ DONE |
 | — | `history.rst` | "Development history" | `sn-development-history` | 1 | ✅ DONE |
 | 5 | `discrete_balance.rst` | "The Discrete Balance Equation" (balance/α/geom-factor/streaming-eq/Morel-Montry dip — up to the WDD weights) | (none) | 2 | pending |
 | 6 | `spatial_closures.rst` | rest of "The Discrete Balance Equation" (WDD & Morel-Montry weights, closure substitution) + "Cell update strategies" | `cell-update-strategies` | 2 | pending |
@@ -178,5 +188,22 @@ Sensitivities"; "Consuming the frame in SN" → the `solver` chapter.
   `-E -W` 0 warnings. index.rst 20,030 → 19,012. Toctree now: angular_quadrature,
   loss_representation, boundary_conditions, history.
 
-**Progress: 3 chapters (135 + 408 + 1,019 = 1,562 ln), index.rst 20,571 → 19,012 (−7.6%).**
-Delegated model validated across three scales, zero warnings throughout.
+- **`verification.rst`** — ✅ (archivist-executed). Cut 16077–18701 (2,625 ln = "Verification"
+  + "Numerical Sensitivities"; "Consuming the frame" correctly STAYED for `solver`). 41 labels
+  (10 section anchors + 31 eq-labels), **0 prose fixes** (all inbound are bare cross-doc
+  `:ref:`/`:eq:` or global label-name strings in the V&V registry/matrix/tests). Two new
+  subtleties, both handled + folded into recipe steps 1 & 7: the **END-boundary rule**
+  (stopped at 18701 so the next section's `sn-consuming-the-frame` anchor stayed) and the
+  **dual-namespace** pair (`sn-mms-{spherical,cylindrical}-aniso-spatial-convergence` = section
+  anchor in the sweep area (stays) + eq-label in Verification (moves) — single-homed per
+  domain). `-E -W` 0 warnings. index.rst 19,012 → 16,388.
+
+**✅ TIER-1 COMPLETE — 4 chapters (135 + 408 + 1,019 + 2,625 = 4,187 ln), index.rst 20,571 →
+16,388 (−20.3%).** Delegated archivist model validated across four scales incl. a 41-label
+2,625-ln cut; zero build warnings throughout; recipe hardened with L-024 (+ END-boundary +
+dual-namespace). transport_equation ruled to STAY as intro. **NEXT = Tier-2** (Discrete Balance
+→ discrete_balance + spatial_closures; the 9,360-ln Sweep giant → sweep_1d / linear_discontinuous
+/ sweep_multid / curvilinear) — carries 3 boundary decisions: (a) the ch5/ch6 split needs a new
+H1 for spatial_closures (second chapter starts at an H2); (b) the UBLD section embeds a ~1,356-ln
+2-D LD stress MMS that §4 routes to V&V — home decision now that verification.rst exists;
+(c) sweep_multid/curvilinear INTERLEAVE (the "unified sweep dispatch" sits between them).

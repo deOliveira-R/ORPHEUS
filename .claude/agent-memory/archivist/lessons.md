@@ -1763,6 +1763,30 @@ window where the `:doc:` DANGLES (target file not yet created) — so
 order the moves: fix the qualifier (STEP 1) → create the chapter file
 (STEP 3) → build (STEP 6); never build in the gap.
 
+Third trap (Verification chapter, 2625-ln / 41-label cut): a name can
+be a `.. _X:` **section anchor** (std:label domain, `:ref:`-resolved)
+AND a `.. math:: :label: X` **equation label** (math domain,
+`:eq:`-resolved) SIMULTANEOUSLY — DIFFERENT Sphinx domains, so they
+coexist with NO duplicate-label warning (a clean `-E` baseline proves
+it). When the two live in different parts of the page and the split
+moves ONLY one, single-homing MUST check the CORRECT namespace: a
+MOVING eq-label is verified with `grep -c ':label: <name>'` (== 0 in
+source, == 1 tree-wide), NOT `grep -c '^\.\. _<name>:'` — the latter
+shows the same-named SECTION anchor that legitimately STAYS and would
+falsely read as a recut trigger. Instance:
+`sn-mms-{spherical,cylindrical}-aniso-spatial-convergence` each exist
+as a section anchor in the sweep area (stays in index.rst) AND an
+eq-label in the Verification block (moves to verification.rst); after
+the split `:ref:`→section (index) and `:eq:`→equation (verification)
+both resolve globally cross-doc. So a name owning BOTH namespaces is
+TWO independent single-home checks, not one — and the `-E` build is
+the collision oracle (splitting the pair across two files stays clean
+BECAUSE the domains differ). Also note the END-boundary rule for a
+next-section whose `.. _anchor:` sits ABOVE its header: stop the cut
+BEFORE that anchor (it belongs to the STAYING section), not at
+header−1 — else the split drags the next section's anchor into the
+new file.
+
 How to apply: for any verbatim chapter cut, run the L35 three-way
 grep and disambiguate the moving section-anchor label from any
 SUPERSTRING label it collides with (`boundary-conditions` vs the
