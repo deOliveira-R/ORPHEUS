@@ -148,6 +148,36 @@ type + properties; the method page adds the expansion.
 
 ---
 
+### 2.3 The transport-methods entry (`methods/index.rst`, label `theory-transport-methods`)
+
+**Placement ruling (user, 2026-07-17):** the *meaning* of the continuous transport equation's
+terms — above all the **streaming term** — is method-invariant (SN/CP/MoC/diffusion all inherit
+it), so it belongs on the **transport-methods entry page** from which methods branch, **NOT** on
+the discretization page (which takes the continuous equation as given and turns it into
+algebra). Discretization references upstream for what the terms *mean*; it owns only the
+discretize-it machinery. ⟹ the continuous transport equation + term meanings move UP to the
+entry page; `discretization.rst` §2.1 trims to a reference.
+
+**The streaming-term derivation to host here — `Ω̂·∇ψ = ∇·(Ω̂ψ)`, proven:**
+- `Ω̂` = the unit flight direction, an **independent phase-space coordinate** (fixed under `∇_r`).
+- **Lagrangian reading** (how the user saw it): `Ω̂·∇ψ = dψ/ds` along the ray `r(s)=r₀+sΩ̂` —
+  the rate of change of the angular flux along the neutron's own line of flight.
+- **Eulerian reading** (the one the user asked to prove): define the **angular (per-solid-angle)
+  current** `J(Ω̂)=Ω̂ψ`; then `∇·(Ω̂ψ) = ψ(∇·Ω̂) + Ω̂·∇ψ`, and `∇·Ω̂ = 0` (Ω̂ is r-independent),
+  so **`Ω̂·∇ψ = ∇·J`**. By the divergence theorem this is the net rate direction-`Ω̂` neutrons
+  stream OUT of a unit volume — the leakage **sink**.
+- **One operator, two hats** — follow-the-ray vs audit-the-box; proving them equal is the
+  articulation payoff.
+- **Diffusion seed (user):** the conservative form `∇·J` is what Fick's law couples to → the
+  diffusion derivation lives downstream of this. And the curvilinear angular term is **NOT**
+  `∇·Ω̂≠0` (that is 0) — it comes from measuring `μ` in the *local* frame (chain rule → `∂/∂μ`),
+  the bridge to the discretization keystone's §5.
+
+This entry page is a shared foundation (like `discretization`, §2.1, and `operator_algebra`,
+§2.2). Authoring it = the continuous transport equation + its term meanings (streaming
+Eulerian/Lagrangian, collision, source) + how the deterministic methods branch (each a
+discretization → link the keystone). **NEW page-level task, sequence TBD with the user.**
+
 ## 3. S_N realizes and extends the shared concepts
 
 ### 3.1 S_N's extension of the shared operators

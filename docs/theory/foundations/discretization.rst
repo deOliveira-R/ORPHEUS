@@ -207,9 +207,14 @@ where the source
    source (scattering + fission); definitional, not a solver claim.
 
 collects in-scatter and fission. The **streaming** term
-:math:`\hat\Omega\cdot\nabla\psi` is the divergence of the angular current — it
-is the "sink" side's leakage; the **collision** term
-:math:`\Sigma_t\psi` is the local removal rate. Equation
+:math:`\hat\Omega\cdot\nabla\psi` is the **leakage** along the direction of
+flight and the **collision** term :math:`\Sigma_t\psi` the local removal rate —
+the two "sink" contributions. (What :math:`\hat\Omega\cdot\nabla\psi` *means* —
+the directional derivative along the neutron's ray, equivalently the divergence
+of the angular current :math:`\hat\Omega\psi`, and the proof the two readings
+agree — is derived once at the :doc:`transport-methods entry
+</theory/methods/index>`, upstream of every method; this page takes the
+continuous equation as given and discretizes it.) Equation
 :eq:`discretization-continuous` *is* :eq:`discretization-invariant-eq` written
 differentially: streaming (net leakage) + collision (removal) = source. It holds
 at every :math:`(\mathbf r,\hat\Omega,E)`.
