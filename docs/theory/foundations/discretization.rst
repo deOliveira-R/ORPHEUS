@@ -768,23 +768,26 @@ Larsen & Morel 1989 Eq. (4.3b)), the per-cell system is a
 .. math::
    :label: discretization-ld-system
 
-   \begin{bmatrix}
+   \underbrace{\begin{bmatrix}
      \Sigma_t h + |\mu| & |\mu| \\[3pt]
-     -\,|\mu|/\theta & \Sigma_t h + |\mu|/\theta
-   \end{bmatrix}
+     -\,|\mu| & \Sigma_t\theta h + |\mu|
+   \end{bmatrix}}_{\mathbf A}
    \begin{bmatrix} \bar\psi \\[3pt] \hat\psi \end{bmatrix}
    =
    \begin{bmatrix}
      \bar q\,h + |\mu|\,\psi_{\rm in} \\[3pt]
-     \hat q\,h - (|\mu|/\theta)\,\psi_{\rm in}
+     \theta\,\hat q\,h - |\mu|\,\psi_{\rm in}
    \end{bmatrix}.
 
 .. vv-status: discretization-ld-system documented
 .. (vv-status rationale) the slab-LD 2×2 moment system (Larsen & Morel 1989
-   Eqs. 4.3a-b, θ=1/3), regenerated symbolically and validated exact-on-linear.
-   Implemented in :mod:`orpheus.transport.spatial._ubld` /
-   :class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous`;
-   literature-transcribed, not a solver claim.
+   Eqs. 4.3a-b, θ=1/3). This is the exact natural (mass-weighted) matrix the
+   SymPy algebra-of-record assembles — :math:`\mathbf A` and its RHS are the
+   verbatim output of
+   :func:`orpheus.derivations.discrete.sn.ld_ubld.assemble_ubld` /
+   :func:`~orpheus.derivations.discrete.sn.ld_ubld.derive_d1_reduction_to_production`
+   (which proves it equals the production ``_LDCellTerms`` 2×2 symbolically),
+   not a hand-rearranged variant. Structural, not a solver claim.
 
 The top row is the cell balance itself: expanding it,
 :math:`(\Sigma_t h+|\mu|)\bar\psi + |\mu|\hat\psi = \bar q h + |\mu|\psi_{\rm in}`,
@@ -807,24 +810,55 @@ slope moment adds.
    pinned by the foundation tests in
    ``tests/transport/spatial/test_linear_discontinuous.py``.
 
-**The Schur-complement scalar form.** The slope :math:`\hat\psi` is a *local*
-quantity — it appears only within this cell — so it is eliminated by the Schur
-complement of the :math:`2\times2` with respect to the slope row, collapsing the
-update to a **scalar** relation in :math:`\bar\psi`:
+**The Schur-complement scalar form.** The slope :math:`\hat\psi` is *local* to
+the cell — it appears in no other cell's equations — so eliminate it. The
+**slope row** of :eq:`discretization-ld-system`,
+:math:`-|\mu|\,\bar\psi + (\Sigma_t\theta h + |\mu|)\,\hat\psi
+= \theta\,\hat q\,h - |\mu|\,\psi_{\rm in}`, solves for :math:`\hat\psi` in terms
+of :math:`\bar\psi`, with the **slope denominator**
+:math:`D_2' \equiv \Sigma_t\theta h + |\mu|` (the slope-row diagonal
+:math:`\mathbf A_{22}`):
+
+.. math::
+   :label: discretization-ld-slope-elim
+
+   \hat\psi = \frac{|\mu|\,\bar\psi + \theta\,\hat q\,h - |\mu|\,\psi_{\rm in}}{D_2'} .
+
+.. vv-status: discretization-ld-slope-elim documented
+.. (vv-status rationale) the slope-row elimination ψ̂(ψ̄) of the LD 2×2 — the ψ̂
+   closed form produced by
+   :func:`orpheus.derivations.discrete.sn.ld_ubld.derive_d1_reduction_to_production`;
+   foundation-level algebra, not a solver claim.
+
+Substituting into the **average row**
+:math:`(\Sigma_t h + |\mu|)\,\bar\psi + |\mu|\,\hat\psi
+= \bar q\,h + |\mu|\,\psi_{\rm in}` and collecting :math:`\bar\psi` collapses the
+cell to a **scalar** balance — the Schur complement
+:math:`S = \mathbf A_{11} - \mathbf A_{12}\mathbf A_{21}/\mathbf A_{22}` of the
+:math:`2\times2` with respect to the slope row:
 
 .. math::
    :label: discretization-ld-schur
 
-   S\,\bar\psi = \mathrm{rhs},
+   \underbrace{\Bigl[(\Sigma_t h + |\mu|) + \tfrac{|\mu|^2}{D_2'}\Bigr]}_{\displaystyle S}\,\bar\psi
+   \;=\;
+   \underbrace{\bar q\,h + |\mu|\,\psi_{\rm in}
+     - \tfrac{|\mu|\,(\theta\,\hat q\,h - |\mu|\,\psi_{\rm in})}{D_2'}}_{\text{effective source}\,+\,\text{upstream}},
    \qquad
-   D_2' = \Sigma_t\theta h + |\mu|,
-   \qquad
-   S = \frac{|\mu|^2 + (\Sigma_t h + |\mu|)\,D_2'}{D_2'} .
+   S = \frac{|\mu|^2 + (\Sigma_t h + |\mu|)\,D_2'}{D_2'} ,
 
 .. vv-status: discretization-ld-schur documented
-.. (vv-status rationale) the Schur-complement reduction of the LD 2×2 to a
-   scalar balance in ψ̄; foundation-level algebra implemented in
-   :func:`orpheus.transport.spatial._ubld.d1_closed_form`, not a solver claim.
+.. (vv-status rationale) the Schur complement S = A₁₁ − A₁₂A₂₁/A₂₂ of the LD 2×2
+   (the slope elimination above, substituted into the average row); expressed
+   here from
+   :func:`orpheus.derivations.discrete.sn.ld_ubld.derive_d1_reduction_to_production`,
+   which proves S / D₂' / ψ̄ / ψ̂ equal the production
+   :func:`orpheus.transport.spatial._ubld.d1_closed_form` symbolically. Not a
+   solver claim.
+
+so :math:`\bar\psi = \text{rhs}/S`, with :math:`S` a manifestly positive
+denominator and the slope recovered locally from
+:eq:`discretization-ld-slope-elim` afterward.
 
 This has **exactly the shape of the DD balance**
 :math:`(\text{denom})\,\bar\psi = \text{source} + \text{upstream}`, so LD fits

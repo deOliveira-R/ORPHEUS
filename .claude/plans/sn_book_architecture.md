@@ -22,6 +22,39 @@ Practical test per page: "if a fresh LLM read ONLY this, could it losslessly rea
 concept?" Get the **disassembly (outline) right before prose**; eliminate duplication/noise (that
 is what raises signal); pose every concept **by its invariant** (§1).
 
+## Doc-generation methodology (user, 2026-07-17)
+
+**The algebra-of-record GENERATES the documentation — not the reverse.** The SymPy in
+`orpheus/derivations/` exists SO THAT the doc's math is generated/expressed FROM it (the doc is
+the *presentation layer* of the verified symbolic source). Direction is **SymPy → doc**:
+
+- **Leverage where it exists.** Wherever an algebra-of-record produces a derivation, the doc
+  EXPRESSES that derivation inline (the exact symbolic forms) — never *references* the SymPy as
+  "see the module for the full derivation." (Corrected on the LD Schur: the first draft pointed
+  to `derive_d1_reduction_to_production` instead of expressing its 2×2 + Schur elimination; now
+  fixed to show the exact `assemble_ubld` matrix and the `S = A₁₁ − A₁₂A₂₁/A₂₂` elimination
+  inline.)
+- **Develop where it doesn't.** If the algebra-of-record is not developed enough to express
+  something, DEVELOP the algebra-of-record (add the symbolic derivation), then express it.
+- **Mechanism + strategic direction.** `orpheus/derivations/generate_rst.py` already
+  auto-generates RST *verification-value tables* into `docs/_generated/`. The strategic
+  direction is to EXTEND it to auto-generate *derivation fragments* (SymPy → RST for the
+  derivations themselves), so the doc math is generated and always in sync with the verified
+  source. **[OPEN for the user: build the derivation-fragment generator now, vs manual-leverage
+  now + track the generator as a follow-up.]**
+
+**Analytical order ≠ MMS (user, 2026-07-17).** A method's convergence order (Step O(h),
+DD/LD O(h²)) is a THEORETICAL property, proven ANALYTICALLY by series/Taylor expansion (which
+the discretization chapter does). MMS does NOT prove the order theoretically — it proves the
+IMPLEMENTATION is correct by RECOVERING the theoretical order numerically. So the analytical
+order belongs in the foundations chapter; an MMS convergence table is
+implementation-verification (recovery-of-order, not proof-of-order) and belongs in the V&V
+chapter. (Sharpens `vv-principles`.)
+
+**Step implementation prioritized (user, 2026-07-17).** After the documentation polish, Step
+(#158 — the unbuilt spatial-scheme arm the discretization chapter documents) gets implemented as
+a priority, so it becomes real rather than aspirational.
+
 **Methodological shift this forces:** the monolith is organized by *topic* (all balance
 together, all sweep together). This design is organized by *dimension/broadening* and by
 *shared-concept-then-extension*. So the remaining core content is **gathered and re-sequenced +
