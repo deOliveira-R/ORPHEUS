@@ -1800,6 +1800,100 @@ old home — leaving bare `:ref:`/`:eq:` (path-immune) untouched.
 
 ---
 
+## L-025 — AUTHORING a NEW keystone foundational chapter (gather method-specific verified math → GENERALIZE to the abstract object): the within-doc symbol-collision hunt is the sharpest new gate, and the algebra-of-record is the correctness spine
+
+Distinct task-shape from the split/eviction/close-out passes: writing a
+NEW shared method-invariant chapter (`foundations/discretization.rst` —
+cell balance + Step/DD/LD, derived once so SN/CP/MoC never re-derive).
+The move is *gather the already-verified method-specific derivations,
+GENERALIZE them to the abstract object, author generically*. Disciplines:
+
+- **The algebra-of-record is the correctness spine — READ it, then RUN
+  it, before writing a single equation.** The SN-specific SymPy
+  (`orpheus.derivations.discrete.sn.balance`, 7 `derive_*` foundation
+  tests) IS the source of truth for the cell balance / DD / WDD /
+  curvilinear / flat-flux math (algebra-of-record skill). Generalizing
+  = stripping the SN-specific specialization (face areas → 1 for the
+  planar cell, keep the generic `|μ|(ψ_out−ψ_in)+Σ_t h ψ̄ = q h`) while
+  quoting the SymPy identity verbatim. `pytest`-run the module (7/7
+  green) so the presented equations are grounded, not transcribed
+  (Cardinal Rule 1). A DIFFERENT concept in the same page can have a
+  DIFFERENT algebra-of-record module (LD's 2×2 is `ld_ubld.py` +
+  `_ubld.py`, NOT `balance.py`) — name each precisely in the seealso;
+  don't let one `:mod:` cite stand for all the math.
+- **A NEW page assembled from MULTIPLE overloading sources is the prime
+  site for a WITHIN-document symbol collision — hunt it before the
+  build (the build is BLIND to it).** L-011 was a cross-PAGE convention
+  sweep; this is the NEW-page twin: when you gather from sources that
+  each overload a letter, the SAME letter can carry two meanings in ONE
+  page. Here `w` = the cell-average BLEND weight (Step w=1, DD w=½) from
+  the scheme code AND `w` = the angular QUADRATURE weight in the SymPy
+  `ΔA/w` geometry factor — a genuine ambiguity a teaching page must not
+  ship (Cardinal Rule 1). `-W` NEVER catches it (both render fine). The
+  gate is a manual re-read hunting every reused glyph across the
+  gathered sources; resolve by subscripting the lower-frequency meaning
+  (`w_m` for the quadrature weight) + a one-line disambiguation note at
+  first collision ("`w_m` is the quadrature weight — *not* the blend
+  weight `w`; they share a letter in the literature"). Grep the fix is
+  complete (`grep -nE '\\Delta A\}\{w\}'` → 0 residual).
+- **A designed-but-UNBUILT scheme is a code LITERAL + a traits-anticipated
+  note, never a `:class:` (L-002 forward-ref rule, applied to a THIRD
+  sibling).** Step is the open #158 arm — `class Step` exists only as a
+  docstring EXAMPLE in `scheme.py`, not an importable class. Grep
+  confirms (`grep -rn 'class Step' orpheus/` → only the docstring line).
+  So write ``Step`` (literal), derive its math on its own merits (the
+  w=1 case of the verified blend framework — code-grounded even without
+  a Step-specific SymPy), and add a `.. note:: ORPHEUS status` naming
+  the anticipated traits on the base Protocol (`is_positivity_preserving
+  = True`, the w=1 upwind blend) + the issue. Honest: documents the
+  concept fully without claiming a link to a symbol that isn't there.
+- **A LOAD-BEARING worked example gets RUN against the live code before
+  it's written (Cardinal Rule 1 / Quality item 6).** The thick-cell
+  negative-flux contrast (Step +1/5 positive, DD −1/3 strongly negative,
+  LD −1/19 mildly negative — "LD better positivity than DD" made
+  concrete) was computed by hand THEN reproduced through the real
+  `DiamondDifference.update` / `LinearDiscontinuous.update` (build a
+  `StreamingTerms` + `CellVisit` + `UpstreamState` directly; `slab_streaming`
+  is a mesh-level factory, not a single-cell builder — construct the
+  frozen dataclass fields by hand). Exact fractions matched to machine
+  precision → the example is verified, not plausible.
+- **The two-axis articulation catch: a "spectrum" parameter is often ONE
+  of two orthogonal axes — say so, or a fresh reader over-collapses.**
+  The blend weight `w` (Step 1 → DD ½ → LD adaptive 1/(1+k)) orders the
+  FACE reconstruction; the MOMENT count (Step/DD: 1, LD: 2) is a SECOND,
+  orthogonal axis, and the diffusion limit lives in the moment count NOT
+  the blend. "LD→Step as w→1 (thick)" is TRUE of the face blend and
+  FALSE of the scheme (LD keeps the slope Step lacks). An `.. important::`
+  block pinning "the blend is one axis, the moment count another"
+  pre-empts the natural mis-read — the doc-side inoculation move
+  (vv-principles Mode-10 doc companion generalized to any seductive
+  over-collapse).
+- **Zero-warning gate on a NEW standalone page ⇒ ALL references PLAIN-TEXT
+  (no `.. [Key]` defs, no `[Key]_` cites).** L-006 says standalone pages
+  accept duplicate-citation warnings as a trade-off — but a strict
+  "0 warnings" brief forbids introducing ANY (a `[Key]_` cite is
+  undefined on the new page → warns; a `.. [Key]` def collides with the
+  existing def elsewhere → dup-citation warns). Resolve by citing every
+  reference as PLAIN TEXT in a Literature `.. list-table::` (author,
+  year, title, journal, the load-bearing eq/§ numbers inline) — zero
+  citation machinery, zero warnings, AND higher articulation (the
+  equation numbers sit in the prose). Mixing plain-text + `[Key]_` is
+  inconsistent; go all-plain-text.
+
+How to apply: for a NEW foundational chapter — (1) read+RUN the
+algebra-of-record module(s), one per distinct concept; (2) get the
+disassembly/outline right before prose (the 7-part skeleton), namespace
+every section anchor AND every eq-label to the page (`<page>-` prefix,
+grep-confirmed collision-free); (3) hunt within-doc symbol collisions
+across the gathered sources (subscript the rarer meaning + a note);
+(4) code-literal any unbuilt sibling; (5) RUN every load-bearing worked
+number through the live code; (6) all-plain-text references; (7) tag
+every eq-label `.. vv-status: <label> documented` with a rationale
+comment naming the SymPy/foundation gate (L-004 — they land in
+Documented-only, not flagged as unverified solver claims).
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

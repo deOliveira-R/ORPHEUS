@@ -12,21 +12,23 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 24 documentation/Sphinx/knowledge-architecture
-  lessons (L-001…L-024), read FIRST each dispatch. The spine: a page is done
+- [lessons.md](lessons.md) — 25 documentation/Sphinx/knowledge-architecture
+  lessons (L-001…L-025), read FIRST each dispatch. The spine: a page is done
   when every cross-ref resolves against the LIVE tree, every claim's V&V level
   matches the skill verbatim, every retired symbol leaves no dangling ref, and
   the build's WARNING/ERROR/CRITICAL set is unchanged from the `-E` baseline.
   The per-lesson catalog + war-stories live in lessons.md — do NOT re-summarize
-  them here (this index stays slim). Newest: L-024 — the structural
-  chapter-split single-homed check is on the anchor DEFINITION
-  (`grep -c '^\.\. _<label>:'` = 0), NOT raw label mentions: a router page
-  KEEPS its bare `:ref:` back-refs to labels it exported (path-immune
-  cross-doc after the cut, no `-W` warning; L35 family) — recut ONLY on a
-  surviving `.. _label:` DEFINITION or a phantom `-E` `duplicate label`
-  (L36); and fix bystander `:doc:` page-qualifiers naming the old home
-  (path-sensitive → a silent falsehood; order = fix-qualifier → create-file
-  → build so the `:doc:` never dangles at build time).
+  them here (this index stays slim). Newest: L-025 — AUTHORING a NEW keystone
+  foundational chapter (gather method-specific verified math → GENERALIZE to
+  the abstract object): READ+RUN the algebra-of-record module(s) as the
+  correctness spine (one per distinct concept — DD in `balance.py`, LD in
+  `ld_ubld.py`); the sharpest NEW gate is the WITHIN-doc symbol-collision hunt
+  (`w` blend-weight vs `w_m` quadrature-weight — `-W` is blind; subscript the
+  rarer meaning + a disambiguation note); code-literal any unbuilt sibling
+  (Step, #158 arm — `class Step` is only a docstring example); RUN every
+  load-bearing worked number through the live code; all-plain-text references
+  under a strict 0-warning gate; the two-axis articulation catch (blend weight
+  ≠ moment count — the diffusion limit lives in the moment count).
 
 ## 2. Active / doc-debt state — git-true
 
