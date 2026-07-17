@@ -7,6 +7,28 @@ Run before sphinx-build:
     python -m derivations.generate_rst
 """
 
+# ---------------------------------------------------------------------------
+# TODO(#231) DERIVATION-FRAGMENT-GENERATOR -- deferred (manual-leverage until then)
+#
+# This generator currently emits only VERIFICATION-VALUE tables. The documentation
+# methodology (.claude/plans/sn_book_architecture.md, "Doc-generation methodology")
+# is that the algebra-of-record GENERATES the documentation: the doc's math should
+# be rendered straight from the verified SymPy so it can never drift -- NOT
+# hand-transcribed, and NEVER merely referenced ("see the module for the derivation").
+#
+# Extend this module to emit DERIVATION FRAGMENTS -- the symbolic derivations
+# themselves (2x2 cell systems, Schur eliminations, cell-balance solves) as
+# RST + LaTeX generated from the derive_*/prove_* functions in
+# orpheus.derivations.discrete.sn.* -- so a chapter ``.. include::``s the generated
+# fragment instead of hand-writing the algebra.
+#
+# Until this ships, derivations are MANUAL-LEVERAGED: hand-expressed faithfully from
+# the SymPy (worked example: docs/theory/foundations/discretization.rst's LD Schur,
+# expressed from derive_d1_reduction_to_production). Deferred 2026-07-17 (user):
+# build the generator once the S_N-book chapter patterns stabilise so the fragment
+# format targets a stable structure. Greppable tag: DERIVATION-FRAGMENT-GENERATOR.
+# ---------------------------------------------------------------------------
+
 from __future__ import annotations
 
 from pathlib import Path
