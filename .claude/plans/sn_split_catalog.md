@@ -1,5 +1,18 @@
 # SN monolith split — the Phase C execution catalog
 
+> **⚠ RE-SCOPED (user, 2026-07-16).** The SN book is being re-architected around the
+> **invariant-first broadening progression** — see **`sn_book_architecture.md`** (CONFIRMED),
+> which supersedes the *topic-based* Tier-2/Tier-3 plan below. What **remains valid**: the four
+> **Tier-1 shared chapters** already extracted (`angular_quadrature`, `boundary_conditions`,
+> `verification`, `history` — orthogonal to the progression) and the **per-chapter recipe +
+> lessons** (L-024 / END-boundary / dual-namespace / the `-E` build gate). What is **superseded**:
+> the topic chapters (`algebra`/`scattering`/`discrete_balance`/`spatial_closures`/`sweep_*`/
+> `curvilinear` as separate topic pages) — that CORE content now gathers into the progression
+> chapters (Cartesian slab 1g → energy → multi-D; then curvilinear) via a reorganization +
+> connective rewrite, and the build order starts with **`foundations/discretization.rst`**.
+
+
+
 **Subordinate to** `documentation_corpus_architecture.md` §5 (the SN mini-book chapter
 table), §7 Phase C, §7.2 (Phase B landed), §8 (rulings). This is the **working driver**:
 the span→chapter map + per-chapter status. Read the corpus plan for the *why*; read this for
