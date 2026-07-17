@@ -27,6 +27,12 @@ scattering, and fission *are*.
        (fixed source). :math:`B` is a first-class **sibling**, not folded
        into :math:`L`; :math:`(L+C)` is the sub-composite whose inverse
        **is** the transport sweep.
+   * - :doc:`/theory/foundations/discretization`
+     - How a continuous conservation law becomes a finite algebraic system:
+       the **cell-balance** invariant (sinks = sources) and its **closures** —
+       Step (upwind), Diamond Difference (central), Linear Discontinuous
+       (linear upwind), derived once and dimension-agnostic (the same closure
+       in space **and** angle).
    * - :doc:`/theory/foundations/frame`
      - Frames, and why projection is **Petrov-Galerkin**: the trial/test
        split, the adjoint, and the realizations (spherical-harmonics
@@ -51,6 +57,7 @@ scattering, and fission *are*.
    :maxdepth: 2
 
    operator_algebra
+   discretization
    frame
    boundary_conditions
    cross_section_data

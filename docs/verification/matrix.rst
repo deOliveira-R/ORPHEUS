@@ -833,7 +833,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **294** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **319** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -885,6 +885,31 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``discrete-measure-definition``
 - ``discrete-measure-partition``
 - ``discrete-measure-pushforward``
+- ``discretization-1d-transport``
+- ``discretization-angular-closure``
+- ``discretization-blend``
+- ``discretization-cell-balance-divided``
+- ``discretization-cell-balance-eq``
+- ``discretization-continuous``
+- ``discretization-curvilinear-balance``
+- ``discretization-dd-closure``
+- ``discretization-dd-negative``
+- ``discretization-dd-solve``
+- ``discretization-dd-truncation``
+- ``discretization-flat-flux``
+- ``discretization-fully-discrete``
+- ``discretization-invariant-eq``
+- ``discretization-ld-blend``
+- ``discretization-ld-face``
+- ``discretization-ld-moments``
+- ``discretization-ld-schur``
+- ``discretization-ld-system``
+- ``discretization-outflow-reconstruction``
+- ``discretization-semidiscrete-angle``
+- ``discretization-semidiscrete-energy``
+- ``discretization-source``
+- ``discretization-step-closure``
+- ``discretization-step-solve``
 - ``doppler-feedback``
 - ``e1-small-tau-expansion``
 - ``eigen-standard-form``
