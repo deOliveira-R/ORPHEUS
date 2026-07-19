@@ -110,7 +110,16 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
 
 ## 5a. STATUS
 
-- **P2 split 2/3 DONE @ (pending commit)** — `operator_tensor_network.rst` extracted (Wave-T
+- **P2 COMPLETE (3/3 split) @ (pending commit)** — `operator_adjoint.rst` extracted (the composite
+  metric adjoint `op.H = G⁻¹AᵀG` over FullFieldSpace; 581 ln; `g-adjoint` + 6 eq-labels carried;
+  source 6928→6365). Own page (revised from frame.rst fold); intro carries an `.. important::`
+  drawing the operator-adjoint vs frame `R.H` test-space-adjoint distinction; cross-links frame.rst.
+  The 2× `(L+C−S−F−B)†` confirmed LEGIT (full-operator "intentionally unreachable" + the honest-algebra
+  "never fused" affirmation) — left verbatim, matches the carry-forward. Also fixed a pre-existing
+  dangling ref ("reachability table below" → the real Supersession note). `-E -W` clean.
+  **Page arc: ~9223 → 6365 ln (−31%); 3 new sub-pages (inverse-family 1388 / tensor-network 1023 /
+  adjoint 630). NEXT = P3 SN-leaning splits (field_algebra, wavefront_cochain, coupled_block_operator).**
+- **P2 split 2/3 DONE @ 077ed7bc** — `operator_tensor_network.rst` extracted (Wave-T
   tensor-network decomposition; 973 ln; 10 labels — 5 anchors + 5 eq — carried; source 7891→6928).
   Pointer + toctree/list-table wired. `-E -W` clean. 1 L35 fix (a cross-page "above"→`:doc:`);
   the S\ :sub:`N` inline-role title mirrors the SN book H1 convention. **NEXT P2 split 3/3 =

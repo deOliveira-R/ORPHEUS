@@ -44,6 +44,12 @@ scattering, and fission *are*.
        factored shape each S\ :sub:`N` operator leaf takes, the **MA-Q1**
        admissibility condition, and why streaming's in-sweep recurrence
        resists a clean tensor product — **five distinct shapes, not one**.
+   * - :doc:`/theory/foundations/operator_adjoint`
+     - The **composite metric adjoint** of that algebra: the Hilbert
+       adjoint :math:`A^{\dagger} = G^{-1} A^{\mathsf T} G` (``op.H``) over
+       the block-diagonal ``FullFieldSpace`` metric, its singular-trace
+       Moore–Penrose pseudo-inverse — the **operator's** adjoint, distinct
+       from the **frame's** Petrov–Galerkin test-space adjoint.
    * - :doc:`/theory/foundations/discretization`
      - How a continuous conservation law becomes a finite algebraic system:
        the **cell-balance** invariant (sinks = sources) and its **closures** —
@@ -77,6 +83,7 @@ scattering, and fission *are*.
    operator_algebra
    operator_inverse_family
    operator_tensor_network
+   operator_adjoint
    discretization
    frame
    boundary_conditions
