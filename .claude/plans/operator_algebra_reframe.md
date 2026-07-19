@@ -74,7 +74,11 @@ labels with the content** (labels are path-immune — inbound `:ref:`/`:eq:` sur
   Labels: `inverse-application-driver`, `green-operator`, `matrix-inverse-operator`, `operator-algebra-assembly-axis`.
 - `operator_tensor_network.rst` ← Tensor-Network Decomposition Wave T (§3810). ~970 ln.
   Labels: `wave-t-tensor-network`, `wave-t-shape-table`, `wave-t-orchestrated-apply`.
-- G-adjoint (§5305) → **fold into `foundations/frame.rst`** (frame already owns `.H`/adjoint) OR own page. Label `g-adjoint`.
+- G-adjoint (§5305) → **own page `foundations/operator_adjoint.rst`** (REVISED 2026-07-19 from the
+  frame.rst fold). Reason: the G-adjoint is the OPERATOR's composite metric adjoint
+  `op.H = G⁻¹AᵀG` over `FullFieldSpace` (block-diagonal metric, singular-trace pseudo-inverse) —
+  operator-algebra content. `frame.rst`'s adjoint is the `R.H` / Petrov-Galerkin **test-space**
+  adjoint — a different level. Cross-link both. Label `g-adjoint` (×3 docs) travels to the new page.
 
 **SPLIT — SN-LEANING deep-dives → INTERIM FOUNDATION PAGES (user ruling 2026-07-19: decouple
 from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
@@ -106,7 +110,12 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
 
 ## 5a. STATUS
 
-- **P2 split 1/3 DONE @ (pending commit)** — `operator_inverse_family.rst` extracted (#226
+- **P2 split 2/3 DONE @ (pending commit)** — `operator_tensor_network.rst` extracted (Wave-T
+  tensor-network decomposition; 973 ln; 10 labels — 5 anchors + 5 eq — carried; source 7891→6928).
+  Pointer + toctree/list-table wired. `-E -W` clean. 1 L35 fix (a cross-page "above"→`:doc:`);
+  the S\ :sub:`N` inline-role title mirrors the SN book H1 convention. **NEXT P2 split 3/3 =
+  `operator_adjoint.rst` (g-adjoint, OWN page — see §4 revision).**
+- **P2 split 1/3 DONE @ fa3afdf4** — `operator_inverse_family.rst` extracted (#226
   taxonomy: driver-applied inverse / Green / dense matrix-inverse / assembly axis; ~1,340 ln;
   6 anchors + 6 eq-labels carried; source 9223→7891). Pointer stub + toctree/list-table wired.
   `-E -W` clean. Archivist L-026: an f-string mangled `:math:`A^{-1}`` → `A^-1` in authored prose
