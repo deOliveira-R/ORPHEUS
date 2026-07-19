@@ -1988,6 +1988,38 @@ in the AUTHORED header you wrap around it.
   moved range first). Calibration: in a self-contained deep-dive block, ~1-in-6
   directional phrases need a fix; classify each by whether its referent travels
   or stays, don't blanket-rewrite.
+- **Split-#3 calibrations (g-adjoint → `operator_adjoint.rst`; the recipe's THIRD
+  single-H1 run held perfectly, ZERO L35 fixes).**
+  (a) **STRONGEST f-string-trap defense — author the header/intro AND the pointer
+  as pure literals via the Write tool, not through ANY Python string.** The trap is
+  a Python string layer corrupting LaTeX; eliminate the layer. `Write` the head to
+  `/tmp/head.rst` and the pointer to `/tmp/pointer.rst` — the Write `content` is a
+  pure literal (no f-string interpolation AND no backslash-escape processing, so
+  `\frac`/`\nabla`/`\dagger`/`{-1}` are ALL safe — even safer than a raw
+  `r"""..."""`). The Python assembler then ONLY does read+slice+concat+write; its
+  sole string literals are file paths and the guard-assert boundary strings
+  (`.. _g-adjoint:` + newline), NEVER math. Still run the mangle-grep (`A\^-1|G\^-1`)
+  on the temp files as the gate (confirmed clean). Zero Python string layer over
+  authored math = the trap cannot fire.
+  (b) **A page's OWN other sections can `:ref:` the to-be-moved label — those become
+  source→new-page cross-refs and are path-immune too.** Beyond EXTERNAL inbound refs,
+  `grep <label>` the SOURCE page OUTSIDE the moved block: operator_algebra.rst had 5
+  in-section `:ref:`g-adjoint`` (Key Facts + eigenvalue-posing region) that, post-move,
+  resolve cross-page (HTML-audited: all 5 href `operator_adjoint.html#g-adjoint`, ZERO
+  stale to the old location). No edits — same-file path-immunity works exactly like
+  cross-file. Orphan gate: `grep -oE 'href="[^"]*oldpage.html#<label>"'` over the WHOLE
+  built tree must be 0, then discriminate any hit by source-`.rst` existence.
+  (c) **L35 gains two more no-fix categories: the TEMPORAL false-positive and the GONE
+  referent.** Split #2 had 1 fix; #3 had ZERO. The 5 grep hits split: 3 intra-block
+  ("(above)" / "following argument" / "below (≤3.6e-15)" — travel), 1 **temporal** ("an
+  earlier version of this section" — a prior REVISION, not a spatial section; no fix),
+  and 1 **gone referent** ("the reachability table below … see its retraction note" —
+  the below/retraction-note direction still resolves to the intra-block Supersession
+  `.. note::` that travels, but the "reachability table" itself no longer exists
+  ANYWHERE on the page, removed in a prior edit). A gone referent is neither travels nor
+  stays → OUT of L35 scope (L35 fixes only move-INDUCED breaks) → FLAG as pre-existing
+  staleness (L-007), do NOT rewrite. Add temporal + gone to the per-phrase triage so
+  the grep's false-positives are dispatched without a fix.
 
 How to apply: title-locate → prove contiguity → grep-inventory every
 label → programmatic guarded slice → author the header WITHOUT an
