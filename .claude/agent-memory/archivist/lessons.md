@@ -1960,6 +1960,34 @@ in the AUTHORED header you wrap around it.
   to fix. (Worked: `discrete_ordinates.html`/`loss_representations.html`
   orphans from prior renames carried the pre-move `operator_algebra.html#green-operator`
   href; their sources were long gone — irrelevant to the split.)
+- **Split-#2 calibrations (extracting a SINGLE H1 section, vs #1's four).**
+  (a) **Single-H1 → near-duplicate page/section title is ACCEPTED.** When the
+  extracted block is ONE H1 section, the new page-top title and the block's own
+  verbatim H1 are near-identical (page "Tensor-Network Decomposition of S_N
+  Operators" over section "Tensor-Network Decomposition of SN Operators (Wave
+  T)"). Do NOT "fix" it by rewriting the block's H1 — verbatim is the rule; the
+  page-title + block-H1 pair is exactly split-#1's structure (page-title `===`
+  followed by moved `===` sections) and builds `-E -W` clean. The two anchors
+  differ (`operator-tensor-network` vs `wave-t-tensor-network`) and the titles
+  aren't textually identical, so no duplicate-implicit-target warning.
+  (b) **Inline `:sub:` in an over+under `=` title is a PROVEN pattern** — the SN
+  book's own H1 is `Discrete Ordinates Method (S\ :sub:`N`)`. Mirror it
+  (`... of S\ :sub:`N` Operators`), size the bar with `len(raw_title)` in code
+  points (L-009; the role markup counts — 53 here), NO redundant `**bold**`
+  (titles are already styled; the house convention uses `:sub:`/`:math:` bare).
+  (c) **Directional-prose (L35) is mostly a NO-OP — fix ONLY phrases pointing at
+  content that STAYS on the source page.** A grep of the block for
+  above/below/earlier/later flagged 6 hits; FIVE were intra-block ("MA-Q1
+  master condition above", "equations below", "coupling below" — all reference
+  sibling subsections/eqs that TRAVEL with the block, so the relative direction
+  is preserved on the new page) and one temporal ("later retired at commit").
+  Exactly ONE was a genuine cross-page pointer ("operator-algebra types
+  documented above" → the tensor-product TYPES that stay on the parent page) →
+  rewrote to "documented in :doc:`/theory/foundations/operator_algebra`" (verify
+  the target genuinely stays: grep the types on the source page OUTSIDE the
+  moved range first). Calibration: in a self-contained deep-dive block, ~1-in-6
+  directional phrases need a fix; classify each by whether its referent travels
+  or stays, don't blanket-rewrite.
 
 How to apply: title-locate → prove contiguity → grep-inventory every
 label → programmatic guarded slice → author the header WITHOUT an
