@@ -21,6 +21,12 @@ scattering, and fission *are*.
 
    * - Page
      - What it settles
+   * - :doc:`/theory/foundations/path_integral`
+     - **The root of the corpus** — the one object all methods discretize
+       (the sum over neutron histories), what is invariant
+       (:math:`C, S, F`), what varies, the three axes on which methods
+       differ, and where each lands. The parent of
+       :doc:`/theory/methods/index`. *(Scaffold; authored at Phase H.)*
    * - :doc:`/theory/foundations/operator_algebra`
      - The operator algebra itself: :math:`A = L + C - S - B`, posed
        :math:`A\psi = \tfrac{1}{k}F\psi` (eigenvalue) or :math:`A\psi = q`
@@ -56,6 +62,7 @@ scattering, and fission *are*.
 .. toctree::
    :maxdepth: 2
 
+   path_integral
    operator_algebra
    discretization
    frame
