@@ -110,7 +110,13 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
 
 ## 5a. STATUS
 
-- **P2 COMPLETE (3/3 split) @ (pending commit)** — `operator_adjoint.rst` extracted (the composite
+- **⏸ COMPACTION POINT (2026-07-19): P2 COMPLETE, resume at P3.** Tree clean, HEAD builds `-E -W`
+  clean. NEXT = P3 (three SN-leaning splits → `field_algebra.rst`, `wavefront_cochain.rst`,
+  `coupled_block_operator.rst`, per §4; recipe = archivist L-026 + the split-#1/2/3 calibrations;
+  carry-forwards to adjudicate at their split: `A=L+C` naming ~L4832/4867 → field_algebra;
+  `V_inflow⊕V_outflow` ~L6063 → wavefront_cochain). Then P4 (dev-history→changelog) + P5 (spine
+  reorder to lead with the intrinsic types + file the algebra-of-record issue §6).
+- **P2 COMPLETE (3/3 split) @ 69abc073** — `operator_adjoint.rst` extracted (the composite
   metric adjoint `op.H = G⁻¹AᵀG` over FullFieldSpace; 581 ln; `g-adjoint` + 6 eq-labels carried;
   source 6928→6365). Own page (revised from frame.rst fold); intro carries an `.. important::`
   drawing the operator-adjoint vs frame `R.H` test-space-adjoint distinction; cross-links frame.rst.
