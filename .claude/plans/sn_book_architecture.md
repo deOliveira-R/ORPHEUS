@@ -148,35 +148,41 @@ type + properties; the method page adds the expansion.
 
 ---
 
-### 2.3 The transport-methods entry (`methods/index.rst`, label `theory-transport-methods`)
+### 2.3 The path-integral ROOT + the transport-methods entry (RECONCILED, user 2026-07-17/19)
 
-**Placement ruling (user, 2026-07-17):** the *meaning* of the continuous transport equation's
-terms — above all the **streaming term** — is method-invariant (SN/CP/MoC/diffusion all inherit
-it), so it belongs on the **transport-methods entry page** from which methods branch, **NOT** on
-the discretization page (which takes the continuous equation as given and turns it into
-algebra). Discretization references upstream for what the terms *mean*; it owns only the
-discretize-it machinery. ⟹ the continuous transport equation + term meanings move UP to the
-entry page; `discretization.rst` §2.1 trims to a reference.
+**The "general path integral → methods" page ALREADY has a home: the ROOT page
+`foundations/path_integral.rst`** — corpus plan **§3.6** ("THE ROOT"), scheduled **Phase H**. It
+is the corpus's FIRST page and the **parent of `methods/index`**: the one object (the sum over
+neutron histories / first moment of one branching PDMP), what is invariant (`C/S/F`), what varies
+(the streaming/propagator realization), the **three orthogonal axes** (A1 how `(L+C)⁻¹` is
+realized · A2 where `S` is resummed · A3 angular representation), where each method lands, and the
+eigenvalue posing (k/α before any discretization). Guarded by **12 adversarially-verified
+MUST-NOT claims** (§3.6). **GATED: blocked on #298 + #299; wants the Phase-I survey as input.**
 
-**The streaming-term derivation to host here — `Ω̂·∇ψ = ∇·(Ω̂ψ)`, proven:**
-- `Ω̂` = the unit flight direction, an **independent phase-space coordinate** (fixed under `∇_r`).
-- **Lagrangian reading** (how the user saw it): `Ω̂·∇ψ = dψ/ds` along the ray `r(s)=r₀+sΩ̂` —
-  the rate of change of the angular flux along the neutron's own line of flight.
-- **Eulerian reading** (the one the user asked to prove): define the **angular (per-solid-angle)
-  current** `J(Ω̂)=Ω̂ψ`; then `∇·(Ω̂ψ) = ψ(∇·Ω̂) + Ω̂·∇ψ`, and `∇·Ω̂ = 0` (Ω̂ is r-independent),
-  so **`Ω̂·∇ψ = ∇·J`**. By the divergence theorem this is the net rate direction-`Ω̂` neutrons
-  stream OUT of a unit volume — the leakage **sink**.
-- **One operator, two hats** — follow-the-ray vs audit-the-box; proving them equal is the
-  articulation payoff.
-- **Diffusion seed (user):** the conservative form `∇·J` is what Fick's law couples to → the
-  diffusion derivation lives downstream of this. And the curvilinear angular term is **NOT**
-  `∇·Ω̂≠0` (that is 0) — it comes from measuring `μ` in the *local* frame (chain rule → `∂/∂μ`),
-  the bridge to the discretization keystone's §5.
+**My earlier transport-entry plan MIS-SCOPED** — its "the fork / comparative map (how methods
+differ)" IS the root's job (the three axes / where each lands), a weaker duplicate. Corrected
+division:
 
-This entry page is a shared foundation (like `discretization`, §2.1, and `operator_algebra`,
-§2.2). Authoring it = the continuous transport equation + its term meanings (streaming
-Eulerian/Lagrangian, collision, source) + how the deterministic methods branch (each a
-discretization → link the keystone). **NEW page-level task, sequence TBD with the user.**
+- **`path_integral.rst` (root, §3.6, Phase H)** = the frame every method derives FROM (the one
+  object · invariant · three axes · where each lands · eigenvalue posing). **Owns the comparative
+  map.**
+- **`methods/index.rst` (thin child)** = a pointer UP to the root for the frame + the
+  **differential** transport equation (the local form the deterministic methods discretize) +
+  the toctree / reading tracks. **NOT its own comparative map.**
+- **The streaming Eulerian proof `Ω̂·∇ψ = ∇·J` → the DIFFUSION page**, not the entry: it is the
+  0th angular moment `∫(Ω̂·∇ψ)dΩ = ∇·J`, i.e. the diffusion continuity `∇·J + Σ_aφ = q`, which
+  Fick's law `J = −D∇φ` closes into diffusion. The entry gives streaming its intuitive
+  **Lagrangian** meaning (leakage along flight) + a forward-link to diffusion. **The full proof
+  (for the diffusion page):** Lagrangian `dψ/ds` along the ray; Eulerian `J=Ω̂ψ`,
+  `∇·(Ω̂ψ)=ψ∇·Ω̂+Ω̂·∇ψ`, `∇·Ω̂=0` ⟹ `Ω̂·∇ψ=∇·J`; the curvilinear angular term is NOT `∇·Ω̂≠0`
+  (that is 0) but the local-frame `μ` chain rule → `∂/∂μ` (the bridge to discretization §5).
+
+**DECISION (user, 2026-07-19): SKELETON `path_integral.rst` FIRST.** A labelled scaffold —
+section anchors (`.. _path-integral-*:`) matching §3.6's structure + a synopsis + a one-line
+placeholder per section marked "authored at Phase H" — so the SN chapters and `methods/index`
+can cross-link the root's labels NOW; full authoring deferred to Phase H (after the #298/#299
+gates + the Phase-I survey). **Read §3.6's 12 MUST-NOT claims before writing even the skeleton's
+prose** — do not assert a MUST-NOT. Wire it into `foundations/index` toctree; `-E -W` clean.
 
 ## 3. S_N realizes and extends the shared concepts
 
