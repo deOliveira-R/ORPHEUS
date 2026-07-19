@@ -12,23 +12,23 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 25 documentation/Sphinx/knowledge-architecture
-  lessons (L-001…L-025), read FIRST each dispatch. The spine: a page is done
+- [lessons.md](lessons.md) — 26 documentation/Sphinx/knowledge-architecture
+  lessons (L-001…L-026), read FIRST each dispatch. The spine: a page is done
   when every cross-ref resolves against the LIVE tree, every claim's V&V level
   matches the skill verbatim, every retired symbol leaves no dangling ref, and
   the build's WARNING/ERROR/CRITICAL set is unchanged from the `-E` baseline.
   The per-lesson catalog + war-stories live in lessons.md — do NOT re-summarize
-  them here (this index stays slim). Newest: L-025 — AUTHORING a NEW keystone
-  foundational chapter (gather method-specific verified math → GENERALIZE to
-  the abstract object): READ+RUN the algebra-of-record module(s) as the
-  correctness spine (one per distinct concept — DD in `balance.py`, LD in
-  `ld_ubld.py`); the sharpest NEW gate is the WITHIN-doc symbol-collision hunt
-  (`w` blend-weight vs `w_m` quadrature-weight — `-W` is blind; subscript the
-  rarer meaning + a disambiguation note); code-literal any unbuilt sibling
-  (Step, #158 arm — `class Step` is only a docstring example); RUN every
-  load-bearing worked number through the live code; all-plain-text references
-  under a strict 0-warning gate; the two-axis articulation catch (blend weight
-  ≠ moment count — the diffusion limit lives in the moment count).
+  them here (this index stays slim). Newest: L-026 — the SPLIT-to-new-page
+  pattern (extract N contiguous H1 sections into a foundations page, #231
+  corpus splits): locate by STABLE title (line numbers drift) + prove
+  contiguity, grep-inventory EVERY traveling `.. _label:`/`:label:` (path-immune
+  — inbound `:ref:` survive the move), slice PROGRAMMATICALLY with guarded
+  boundaries (L-012). The sharp NEW gate: an f-string over the AUTHORED
+  header/intro MANGLES LaTeX braces (``:math:`A^{-1}` `` → `A^-1`; `\tfrac{}{}`
+  likewise) and `-W` is BLIND (valid math, wrong render) — don't f-string
+  math-bearing prose (or escape `{{ }}`) and grep the authored region before
+  building; the verbatim block via `"".join` is safe. Discriminate orphaned
+  `-E` HTML artifacts (renamed-source hrefs) by "does the source `.rst` exist?".
 
 ## 2. Active / doc-debt state — git-true
 

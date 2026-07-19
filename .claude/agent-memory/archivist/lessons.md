@@ -1894,6 +1894,81 @@ Documented-only, not flagged as unverified solver claims).
 
 ---
 
+## L-026 — The split-to-new-page pattern (extract N contiguous H1 sections into a foundations page): identify by STABLE title, slice PROGRAMMATICALLY, carry every label; and the build-INVISIBLE f-string LaTeX-brace trap in the AUTHORED header
+
+The #231 corpus campaign repeatedly splits a monolith page's advanced
+deep-dives into their own pages (the operator_algebra reframe alone owes
+`operator_inverse_family` / `operator_tensor_network` /
+`coupled_block_operator` / `field_algebra` / `wavefront_cochain`). The
+mechanical MOVE is a solved recipe; the sharp, build-invisible hazard is
+in the AUTHORED header you wrap around it.
+
+- **Locate by STABLE title, never the plan's line numbers** (they drift
+  as the monolith is edited). `grep -n "<exact title>"` the four/N
+  section titles + the FOLLOWING section's title (the exclusive upper
+  bound). Then **prove contiguity**: `awk` the full-width `===` H1
+  underline rows in the range and confirm ONLY your N titles appear —
+  nothing else lives between the first and last section.
+- **Inventory the traveling labels FIRST.** `awk` the range for BOTH
+  `^\.\. _<label>:` (section/ref anchors) AND `:label:` (equation
+  labels). ALL of them travel verbatim with the content — the plan
+  usually names only the headline anchors ("and others"); the grep is
+  authoritative. Labels are **path-immune**: inbound `:ref:`/`:eq:` from
+  other docs resolve by NAME wherever the label lives, so they survive
+  the move with zero edits on the consuming pages.
+- **Slice PROGRAMMATICALLY (L-012), never hand-retype.** A Python splice
+  reads the source, `block = lines[start-1:end]`, writes `header + intro
+  + "".join(block)` to the new page and `prefix + pointer + suffix` back
+  to the source. **Guard-assert the boundaries on the LIVE file**: first
+  block line == the start `.. _<label>:`, the line after the block ==
+  the next section's `.. _<label>:`, and `len(block)`. The verbatim
+  block via `"".join` is transcription-safe.
+- **⚠ THE TRAP — a Python f-string mangles LaTeX braces in the AUTHORED
+  header, and `-W` is BLIND to it.** The moved block is safe (`"".join`,
+  no interpolation); the header/intro YOU author is the risk. In an
+  `f"""..."""`, ``:math:`A^{-1}` `` becomes ``A^-1`` (the f-string
+  evaluates `{-1}` → the string "-1"); `\tfrac{1}{k}`, `{\rm loss}`,
+  `\frac{a}{b}` corrupt identically. The mangled ``A^-1`` is **valid
+  LaTeX math** — it renders (wrongly, as A⁻1 not A⁻¹), so `-W` never
+  warns. This is a Cardinal-Rule-1 teaching defect on a NEW page.
+  **Defense:** prefer plain concatenation (not an f-string) for
+  math-bearing prose, OR escape every literal brace `{{ }}`; and ALWAYS
+  grep the AUTHORED region before building — `grep -nE '\^-1|\{[^}]*\}'`
+  over the header/intro lines only (the block's correct `A^{-1}` must
+  not be touched) — then eyeball the rendered head. (Worked: split #1
+  operator_inverse_family — the intro's two `A^{-1}` mangled to `A^-1`;
+  caught by the visual head-read + a `grep 'A\^-1'`, fixed before the
+  final build. The 1339-line verbatim block was untouched.) This is
+  L-002 (build-blind correctness) ∩ L-012 (programmatic splice).
+- **New page shape** (model `discretization.rst`): top `.. _<label>:` →
+  over+under `=` title (size the bar with `len(title)` in CODE POINTS,
+  L-009) → `.. contents::` `:local:` `:depth: 2` → a PROVISIONAL
+  `.. dropdown:: Machine header — \`\`nexus-meta\`\` schema (PROVISIONAL)`
+  `:color: muted` with a `code-block:: yaml` → a 1–2¶ intro that links
+  UP to the parent (`:doc:`) and gives a semantic-TOC of the N sections
+  (same-page `:ref:` to each moved anchor — guaranteed to resolve). The
+  source's excised block becomes a **1-paragraph `:doc:` pointer**
+  section (do NOT reuse the new page's top label). Wire the new page
+  into the `index.rst` toctree (right after its sibling) AND add the
+  intro `list-table` row.
+- **Orphaned-HTML audit noise.** A `-E` build regenerates every LIVE
+  page but does NOT garbage-collect HTML from renamed/deleted sources.
+  A safety grep for `oldpage.html#<moved-label>` in the built tree WILL
+  hit those orphans and look like a live stale ref. **Discriminate by
+  "does the source `.rst` still exist?"** — absent ⇒ stale build
+  artifact, out of scope (do not chase it); present ⇒ a real stale ref
+  to fix. (Worked: `discrete_ordinates.html`/`loss_representations.html`
+  orphans from prior renames carried the pre-move `operator_algebra.html#green-operator`
+  href; their sources were long gone — irrelevant to the split.)
+
+How to apply: title-locate → prove contiguity → grep-inventory every
+label → programmatic guarded slice → author the header WITHOUT an
+f-string over math (or escape braces) and grep it → build `-E -W` to the
+unchanged baseline → HTML link-audit the inbound refs land on the new
+page → discriminate orphan artifacts by source existence.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:
