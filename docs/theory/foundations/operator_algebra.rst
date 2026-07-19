@@ -5,17 +5,42 @@ Operator Algebra Architecture
 =============================
 
 ORPHEUS' transport, eigenvalue, and Krylov solvers all act on a flux
-distribution by composing a small set of linear operators — the
-invertible loss operator :math:`A = L + C` (streaming :math:`L =
-\Omega\cdot\nabla` plus collision :math:`C = \Sigma_t`), the scattering
-operator :math:`S`, the fission operator :math:`F`. The
-:mod:`orpheus.numerics.operator` module installs these as a uniform
-*matrix-free* algebra so that the eigenvalue, fixed-source, and
-preconditioned Krylov code can consume any solver method (SN / MoC /
-CP / diffusion) without knowing which transport discretisation lives
-underneath. This page is the **Phase 0** stub for that algebra; the
-full unifying narrative lands progressively under the Wave H refactor
-(Issue 18).
+distribution :math:`\psi` by composing a small set of linear operators,
+each with a **distinct intrinsic mathematical type**:
+
+- **collision** :math:`C = M[\sigma_t]` — a *multiplication operator*
+  (diagonal; pointwise multiplication by the total cross section);
+- **scattering** :math:`S = R\circ\Lambda\circ M` and **fission**
+  :math:`F = |\chi\rangle\langle\nu\Sigma_f|` — *integral kernels*
+  (nonlocal: scattering redistributes in angle, fission is the rank-1
+  emission dyad);
+- **streaming** :math:`L = \hat\Omega\cdot\nabla` and the **boundary
+  law** :math:`B` — the leakage and its trace closure.
+
+They compose into the **within-group transport operator**
+
+.. math::
+
+   A \;=\; L + C - S - B ,
+
+posed either as an eigenvalue problem :math:`A\psi = \tfrac{1}{k}F\psi`
+or a fixed-source problem :math:`A\psi = q`. Here :math:`A` is the
+**loss operator** — removal and leakage net of the within-group gains —
+against the fission **gain** :math:`F`. The boundary law :math:`B` is a
+**first-class sibling** (not folded into :math:`L`), and :math:`F` sits
+on the **right-hand side** — never inside :math:`A`. The invertible
+sub-composite :math:`L+C` — streaming leakage plus total collision — has
+the transport **sweep** as its exact inverse; :math:`S` and :math:`B`
+are the within-group gains the outer iteration lags.
+
+The :mod:`orpheus.numerics.operator` module installs these as a uniform
+*matrix-free* algebra, so the eigenvalue, fixed-source, and
+preconditioned-Krylov code consumes any method (S\ :sub:`N` / MoC / CP /
+diffusion) without knowing which transport discretisation lives
+underneath. This page is that algebra's reference: the intrinsic type of
+each operator, the composition laws, the invertible :math:`L+C` and its
+sweep, and how a method extends the shared operators (S\ :sub:`N`
+expands :math:`S` for anisotropy).
 
 .. contents::
    :local:
@@ -26,16 +51,18 @@ Key Facts
 =========
 
 - **The realized boundary law** :math:`B` **is a first-class sibling
-  operator** (Wave O step O.4a.2, Issue #208, 2026-06-03): the
-  canonical SN transport algebra is now
-  :math:`(L_{\rm full} + C - S - F - B)\,\psi = q` on the direct-sum
-  transport state :math:`V = V_{\rm bulk} \oplus V_{\rm inflow} \oplus
-  V_{\rm outflow}`. The boundary reflection is **no longer re-applied
-  inside the streaming sweep** (the deleted "keystone"); it is
-  delivered as the off-diagonal :math:`-B` source term and the outer
-  Krylov / SI loop drives the boundary consistency residual
-  :math:`\psi.\text{inflow} - B\,\psi.\text{outflow} - q.\text{inflow}
-  \to 0`. See :ref:`bc-extraction`.
+  operator** (Issue #208, 2026-06-03): the within-group transport
+  operator is :math:`A = L + C - S - B` on the **two-block** transport
+  state :math:`V = V_{\rm bulk} \oplus V_{\rm boundary}` (the bulk
+  angular flux :math:`\oplus` a single boundary trace — inflow and
+  outflow fold into one :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`),
+  posed :math:`A\psi = \tfrac{1}{k}F\psi` or :math:`A\psi = q`. The
+  fission gain :math:`F` **never enters** :math:`A` — it is applied on
+  the right-hand side and divided by :math:`k` at the eigenvalue layer.
+  The boundary reflection is **no longer re-applied inside the streaming
+  sweep** (the deleted "keystone"); it is delivered as the off-diagonal
+  :math:`-B` coupling, and the outer Krylov / SI loop drives the
+  boundary-consistency residual to zero. See :ref:`bc-extraction`.
 
 - **Every operator's** ``.apply`` **output boundary is a**
   :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
@@ -167,38 +194,38 @@ Key Facts
   (never a code symbol; a 1-D boundary-closure *name*) is retired. See
   :ref:`bc-extraction-2d-si-krylov-twin`.
 
-- The transport eigenvalue and fixed-source problems share a single
-  operator algebra (Trefethen & Bau 1997, §3.2):
+- The transport eigenvalue and fixed-source problems share **one**
+  operator algebra: they differ only in what sits on the right of the
+  within-group transport operator :math:`A = L + C - S - B`.
 
-  .. (vv-status rationale) Phase 0 stub label for the transport
-     fixed-source operator-algebra form. The verifiable claim — that
-     a Phase-1 SN/MoC/CP solver assembles its operator triple
-     (A, S, F) and lets ``op = A - S - F`` agree with the legacy
-     fixed-source path bit-for-bit — is queued for Issues 9-13.
+  .. (vv-status rationale) The within-group fixed-source form
+     A ψ = q, A = L+C-S-B. Verified by the operator-algebra assembly
+     (build_within_group_system) and the fixed-source solver suites.
   .. vv-status: operator-fixed-source documented
 
   .. math::
      :label: operator-fixed-source
 
-     (A - S - F)\,\psi \;=\; q
+     A\,\psi \;=\; q
      \qquad \text{(fixed source)}
 
-  .. (vv-status rationale) Phase 0 stub label for the transport
-     eigenvalue operator-algebra form. Verified by Issue 14's unified
-     iteration driver consuming (A - S, F) triples, and by the
-     existing eigenvalue test suites once they are migrated to the
-     new contract.
+  .. (vv-status rationale) The k-eigenvalue form A ψ = (1/k) F ψ,
+     A = L+C-S-B, with F the right-hand-side fission gain. Verified by
+     the eigenvalue engines (power iteration and K = A⁻¹F) against the
+     closed-form k∞ oracle.
   .. vv-status: operator-eigenvalue documented
 
   .. math::
      :label: operator-eigenvalue
 
-     (A - S)\,\psi \;=\; \tfrac{1}{k}\,F\,\psi
+     A\,\psi \;=\; \tfrac{1}{k}\,F\,\psi
      \qquad \text{(eigenvalue)}
 
-  Both are built from operator addition, scalar multiplication, and
-  composition (``+``, ``-``, ``*``, ``@``) acting on
-  :class:`~orpheus.numerics.operator.LinearOperator` instances.
+  Both are built from operator addition, subtraction, scalar
+  multiplication, and composition (``+``, ``-``, ``*``, ``@``) acting on
+  :class:`~orpheus.numerics.operator.LinearOperator` instances; the
+  fission gain :math:`F` is applied on the right and never enters
+  :math:`A`.
 
 - **The eigenvalue problem is layered into four tiers — leaves,
   posing, resolvent, algorithm** (2026-06-05, ``650032e`` /

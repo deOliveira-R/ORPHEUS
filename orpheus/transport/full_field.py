@@ -5,8 +5,9 @@ L2 (transport, method-agnostic). This module holds TWO things:
 * :class:`Composite` — the **generic** two-block composite
   ``Composite[Interior, Boundary]``: an ``interior`` field paired with its
   ``boundary`` partner, carrying the vector-space algebra ONCE. It is the
-  structural object the transport operator algebra
-  :math:`(L + C - S - F - B)\,\psi = q` acts on — every operator leaf maps a
+  structural object the within-group transport operator
+  :math:`A = L + C - S - B` acts on (the fission gain :math:`F` sits on the
+  right-hand side, never inside :math:`A`) — every operator leaf maps a
   composite to a composite (the inner role may change, flux → source, but the
   carrier type does not). The name is **structural, not domain-role**: a
   domain meaning arises from the *specialization* — ``SN`` is
