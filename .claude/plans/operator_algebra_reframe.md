@@ -106,7 +106,13 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
 
 ## 5a. STATUS
 
-- **P1 DONE @ (pending commit)** — honest-algebra reconciliation: intro rewritten (intrinsic-types
+- **P2 split 1/3 DONE @ (pending commit)** — `operator_inverse_family.rst` extracted (#226
+  taxonomy: driver-applied inverse / Green / dense matrix-inverse / assembly axis; ~1,340 ln;
+  6 anchors + 6 eq-labels carried; source 9223→7891). Pointer stub + toctree/list-table wired.
+  `-E -W` clean. Archivist L-026: an f-string mangled `:math:`A^{-1}`` → `A^-1` in authored prose
+  (`-W`-blind, valid LaTeX) — spot-check authored math after any programmatic templating.
+  **NEXT P2 split 2/3 = `operator_tensor_network.rst` (Wave T).**
+- **P1 DONE @ 167ac25b** — honest-algebra reconciliation: intro rewritten (intrinsic-types
   lead + `A=L+C−S−B`, F on RHS, `L+C`=invertible sub-composite→sweep, `A`=loss operator); the stale
   3-block `(L_full+C−S−F−B)ψ=q` Key Fact → honest 2-block; the `operator-fixed-source`/`-eigenvalue`
   equations → `Aψ=q` / `Aψ=(1/k)Fψ`; `full_field.py:9` docstring fixed. `-E -W` clean.

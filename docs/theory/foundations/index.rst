@@ -33,6 +33,12 @@ scattering, and fission *are*.
        (fixed source). :math:`B` is a first-class **sibling**, not folded
        into :math:`L`; :math:`(L+C)` is the sub-composite whose inverse
        **is** the transport sweep.
+   * - :doc:`/theory/foundations/operator_inverse_family`
+     - The **inverse family** of that algebra: the four realizations of
+       "apply :math:`A^{-1}` / materialize :math:`A`" the #226 taxonomy
+       separates — the driver-applied sweep, the Green preconditioned
+       inverse, the dense materialising inverse, and the sparse assembly
+       axis.
    * - :doc:`/theory/foundations/discretization`
      - How a continuous conservation law becomes a finite algebraic system:
        the **cell-balance** invariant (sinks = sources) and its **closures** —
@@ -64,6 +70,7 @@ scattering, and fission *are*.
 
    path_integral
    operator_algebra
+   operator_inverse_family
    discretization
    frame
    boundary_conditions
