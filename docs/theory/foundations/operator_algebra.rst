@@ -51,7 +51,7 @@ Key Facts
 =========
 
 - **The realized boundary law** :math:`B` **is a first-class sibling
-  operator** (Issue #208, 2026-06-03): the within-group transport
+  operator** (Issue #208): the within-group transport
   operator is :math:`A = L + C - S - B` on the **two-block** transport
   state :math:`V = V_{\rm bulk} \oplus V_{\rm boundary}` (the bulk
   angular flux :math:`\oplus` a single boundary trace — inflow and
@@ -66,11 +66,11 @@ Key Facts
 
 - **Every operator's** ``.apply`` **output boundary is a**
   :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
-  (Wave O step B.5.2, Issue #208, ``6ef5063``, 2026-06-03), completing
+  (Issue #208), completing
   the boundary half of the operator-output "dimensional-sin" carve (the
   bulk half — ``.apply.bulk`` →
-  :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
-  — landed in ``f400743``). The governing principle: an operator output
+  :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`).
+  The governing principle: an operator output
   is :math:`A\psi` — a **source/sink**, NOT a residual; the residual
   arises ONLY from an explicit :meth:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual.from_balance`
   of the output against a source. The completed boundary role grid
@@ -82,12 +82,12 @@ Key Facts
 
 - **Flux states form an affine space; the iterate increment is a typed
   displacement, and** ``flux + flux`` **is a** :class:`TypeError`
-  (Wave O step O.2 close-out, Issue #208/#201, 2026-06-08). The flux
+  (Issue #208/#201). The flux
   states :class:`~orpheus.transport.fields.angular_flux.AngularFlux` /
   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` /
   :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
   / :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` are an
-  **affine space** :math:`A` over a distinct **difference vector space**
+  **affine space** :math:`\mathbb{A}` over a distinct **difference vector space**
   :math:`V`. The source-iteration increment
   :math:`\Delta\psi = \psi^{(i)} \ominus \psi^{(i-1)}` is an element of
   :math:`V` — a :class:`~orpheus.transport.displacements._displacement.Displacement`,
@@ -105,8 +105,7 @@ Key Facts
 
 - **The carriers form a** :math:`(\text{Representation} \times
   \text{Role})` **double category, and the operator algebra traverses
-  it** (Frame-projection campaign P4.5, branch
-  ``refactor/operator-inverse-algebra``, 2026-06-25). A carrier is a cell
+  it**. A carrier is a cell
   :math:`(\text{Representation}, \text{Role})`: **Representation**
   :math:`\in \{\text{Angular}, \text{Moment}, \text{Scalar},
   \text{Trace}\}` sets the array shape and carries the change-of-basis
@@ -136,8 +135,7 @@ Key Facts
   :ref:`carrier-grid-flat-leaf-normal-form`.
 
 - **The interior cell-face angular fluxes are a 1-cochain**
-  :math:`C^1_{\rm int}` (Wave O step #205 Phase 5, Issue #208,
-  2026-06-04): the 2-D wavefront sweep and matvec no
+  :math:`C^1_{\rm int}` (Issue #208): the 2-D wavefront sweep and matvec no
   longer carry raw ephemeral ``psi_x`` / ``psi_y`` numpy arrays. The
   interior 1-cochain :math:`C^1_{\rm int}` and the boundary trace
   :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
@@ -149,14 +147,13 @@ Key Facts
   operators :math:`\iota_*` / :math:`\iota^*`, with the "absorption =
   identity" fact the provable biproduct law :math:`\iota^* \circ
   \iota_* = \mathrm{id}`. The dedicated ``WavefrontFlux`` carrier was
-  **retired at S6.4(f)** (#222): the cochain now lives in the rolling
+  **retired** (#222): the cochain now lives in the rolling
   front (``_MovingFrontier``) and the full-cochain oracle history
   (``_octant_face_cochain``). See :ref:`wavefront-flux-cochain` for the
   succession.
 
-- **The 2-D Cartesian SI iterate lives in moment space** (Wave O step
-  #205 **Phase 5a**, ``93807aa`` / ``b97d4f9`` / ``13ca001``,
-  2026-06-07): the within-group source-iteration fixed point
+- **The 2-D Cartesian SI iterate lives in moment space** — the
+  within-group source-iteration fixed point
   :math:`\psi_{k+1} = (L{+}C)^{-1}(S\psi_k + B\psi_k + q)` consumes
   :math:`\psi` only through its flux moments :math:`\phi_\ell^m =
   (M\psi)_\ell^m`, so the *persistent* iterate is held as the moment
@@ -174,7 +171,7 @@ Key Facts
   :math:`C^1_\partial` stays un-reduced. See :ref:`sn-angular-windowing`.
 
 - **2-D Cartesian eigenvalue problems solve via BOTH inner solvers**
-  (Wave O "2-D SI Phase A", Issue #208, 2026-06-04): the
+  (Issue #208): the
   source-iteration inner
   (:meth:`SNSolver._solve_source_iteration <orpheus.sn.solver.SNSolver._solve_source_iteration>`,
   the :func:`~orpheus.sn.solver.solve_sn` default for *every* geometry)
@@ -228,8 +225,7 @@ Key Facts
   :math:`A`.
 
 - **The eigenvalue problem is layered into four tiers — leaves,
-  posing, resolvent, algorithm** (2026-06-05, ``650032e`` /
-  ``7603c8e``). The canonical **standard form** is the generalized
+  posing, resolvent, algorithm**. The canonical **standard form** is the generalized
   eigenproblem :math:`A_{\rm loss}\,\psi = \lambda\,M\,\psi`, whose
   power-method realization is the dominant eigenpair of the
   **resolvent** :math:`A_{\rm loss}^{-1} M`. The **k-eigenvalue** row
@@ -248,15 +244,14 @@ Key Facts
   :ref:`eigenvalue-posing`.
 
 - **The Hilbert adjoint** ``op.H`` **is the metric-correct G-adjoint**
-  :math:`A^{\dagger} = G^{-1} A^{\mathsf T} G` (step O.2b R5,
-  ``5c06196``), NOT the Euclidean transpose. For the SN composite the
+  :math:`A^{\dagger} = G^{-1} A^{\mathsf T} G`, NOT the Euclidean transpose. For the SN composite the
   metric :math:`G` is **block-diagonal** on :math:`V_{\rm
   bulk}\oplus V_{\rm trace}`: bulk :math:`V_{\rm cell}\,w_n` (phase-space
   measure) :math:`\oplus` trace :math:`|\Omega\cdot\hat n_f|\,w_n`
   (partial-current surface measure, pseudo-inverted on the singular
   tangential ordinates). The carrier is
   :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`;
-  ``L``/``C``/``S``/``F``/``B`` all carry it (P4.5 W-D) so the
+  ``L``/``C``/``S``/``F``/``B`` all carry it so the
   within-group :class:`~orpheus.numerics.operator.OperatorSum` guard
   VALIDATES the composition, and — because every loss leaf carries the
   composite metric — the adjoint is applied **once at the op level**
@@ -271,9 +266,9 @@ Key Facts
 
 - The :class:`~orpheus.numerics.operator.LinearOperator` Protocol
   carries one mandatory method (``apply``) and, per optional axis
-  (inverse, adjoint, and — since stencil-assembly 2b — **assembly**,
+  (inverse, adjoint, and **assembly**,
   :ref:`operator-algebra-assembly-axis`), a **three-layer structural
-  surface** (#226 carve P4, Design C): a runtime **predicate**
+  surface** (#226): a runtime **predicate**
   (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable` /
   :attr:`~orpheus.numerics.operator.LinearOperator.is_assemblable`), an
@@ -318,8 +313,7 @@ Key Facts
   object exists.
 
 - **The curvilinear ψ½ ray is System B of a 2×2 coupled block operator**
-  (coupled-block campaign, GH #280/#282, branch
-  ``refactor/sn-walk-unification``, 2026-07-12). The within-group
+  (GH #280/#282). The within-group
   augmented S\ :sub:`N` problem is posed as
   :math:`\bigl[\begin{smallmatrix} A_{AA} & A_{AB} \\ A_{BA} & A_{BB}
   \end{smallmatrix}\bigr]\bigl[\begin{smallmatrix} \psi_A \\ \psi_B
@@ -4402,6 +4396,22 @@ for merge status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-07-12
+     - **The curvilinear ψ½ ray is System B of a 2×2 coupled block
+       operator** — the augmented S\ :sub:`N` within-group problem is
+       posed as a 2×2 block system over **System A** (the transport
+       :class:`~orpheus.transport.full_field.FullField`) and **System B**
+       (the ψ½ radial-characteristic ray). The four blocks — the seed
+       :math:`A_{AB}`, the emission :math:`A_{BA}`, the radial march
+       :math:`A_{BB}` (its direct Carlson solve IS the inverse) — are
+       named operators assembled by the N-general
+       :class:`~orpheus.numerics.coupled_system.CoupledOperator`
+       machinery; :func:`~orpheus.sn.coupled_system.build_within_group_system`
+       is the one production spelling, and System B's presence is
+       **structural** (it exists iff the mesh carries a ray). See
+       :ref:`coupled-block-operator`.
+     - #280 / #282
+     - ``main`` (``6732778a``)
    * - in dev
        (2026-07-04)
      - **The assembly axis — structural sparse emission as the third
@@ -4491,6 +4501,66 @@ for merge status.
        the carrier grid.
      - #208 / #201
      - ``main`` (Wave O step O.2)
+   * - 2026-06-07
+     - **The 2-D Cartesian SI iterate lives in moment space** — the
+       within-group source-iteration fixed point consumes :math:`\psi`
+       only through its flux moments, so the *persistent* iterate is held
+       as the moment tensor
+       :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
+       rather than the full per-ordinate
+       :class:`~orpheus.transport.fields.angular_flux.AngularFlux`; the
+       source stays bit-identical (shared :math:`R\,\Lambda`
+       reconstruction), only the SI convergence test moves to the moment
+       :math:`L^2` (principled-equivalence). 2-D Cartesian, interior-bulk
+       only. See :ref:`sn-angular-windowing`.
+     - #205
+     - ``main`` (Phase 5a, ``93807aa`` / ``b97d4f9`` / ``13ca001``)
+   * - 2026-06-05
+     - **The eigenvalue problem is layered into four tiers** (leaves /
+       posing / resolvent / algorithm): the generalized eigenproblem
+       :math:`A_{\rm loss}\,\psi = \lambda\,M\,\psi` (k-row
+       :math:`A_{\rm loss} = L+C-S-B`, :math:`M = F`) has its power-method
+       realization as the dominant eigenpair of the resolvent
+       :math:`A_{\rm loss}^{-1} M`;
+       :func:`~orpheus.numerics.eigenvalue.power_iteration` is the
+       canonical Layer-4 algorithm and
+       :class:`~orpheus.numerics.iteration.KEigenvalue` delegates its loop
+       to it (one loop, Cardinal Rule 2). See :ref:`eigenvalue-posing`.
+     - —
+     - ``main`` (``650032e`` / ``7603c8e``)
+   * - 2026-06-05
+     - **The Hilbert adjoint** ``op.H`` **is the metric-correct
+       G-adjoint** :math:`A^{\dagger} = G^{-1} A^{\mathsf T} G` over the
+       block-diagonal
+       :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+       metric (:math:`V_{\rm bulk} \oplus V_{\rm trace}`; singular trace
+       block pseudo-inverted) — NOT the Euclidean transpose; applied
+       **once at the operator level** and raising
+       :class:`~orpheus.numerics.operator.MissingAdjoint` eagerly rather
+       than silently going Euclidean. See :ref:`g-adjoint`.
+     - —
+     - ``main`` (Wave O step O.2b R5, ``5c06196``)
+   * - 2026-06-04
+     - **2-D Cartesian eigenvalue problems solve via BOTH inner solvers**
+       — the source-iteration inner is the geometry-agnostic structural
+       twin of the Krylov inner: identical composite RHS, identical loss
+       decomposition (the invertible resolvent :math:`L + C` plus the two
+       lagged coupling gains — scattering :math:`S`, boundary reflection
+       :math:`B` — on the variadic driver), differing **only** in the
+       iteration driver. See :ref:`bc-extraction-2d-si-krylov-twin`.
+     - #208
+     - ``main`` (Wave O 2-D SI Phase A)
+   * - 2026-06-04
+     - **The interior cell-face angular fluxes are a 1-cochain**
+       :math:`C^1_{\rm int}` — with the boundary trace
+       (:math:`C^1_\partial`) it biproduct-decomposes the full face
+       cochain :math:`C^1 = C^1_{\rm int} \oplus C^1_\partial`; the
+       sweep's seed/absorb are the typed trace operators :math:`\iota_*`
+       / :math:`\iota^*` (``absorption = identity`` is the biproduct law
+       :math:`\iota^* \circ \iota_* = \mathrm{id}`). The ``WavefrontFlux``
+       carrier retired at S6.4(f). See :ref:`wavefront-flux-cochain`.
+     - #208 / #222
+     - ``main`` (Wave O #205 Phase 5)
    * - 2026-06-03
      - **The boundary law** :math:`B` **becomes a first-class sibling
        operator** and every operator's ``.apply`` output is typed as a
