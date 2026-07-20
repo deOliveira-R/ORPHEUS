@@ -110,12 +110,20 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
 
 ## 5a. STATUS
 
-- **⏸ COMPACTION POINT (2026-07-19): P2 COMPLETE, resume at P3.** Tree clean, HEAD builds `-E -W`
-  clean. NEXT = P3 (three SN-leaning splits → `field_algebra.rst`, `wavefront_cochain.rst`,
-  `coupled_block_operator.rst`, per §4; recipe = archivist L-026 + the split-#1/2/3 calibrations;
-  carry-forwards to adjudicate at their split: `A=L+C` naming ~L4832/4867 → field_algebra;
-  `V_inflow⊕V_outflow` ~L6063 → wavefront_cochain). Then P4 (dev-history→changelog) + P5 (spine
-  reorder to lead with the intrinsic types + file the algebra-of-record issue §6).
+- **P3 IN PROGRESS (2026-07-19).** Split 1/3 DONE; split 2/3 (wavefront) in flight. Tree clean,
+  HEAD builds `-E -W` clean. Remaining after #2: split 3/3 (coupled-block, anchor
+  `coupled-block-operator`) → then P4 (dev-history→changelog) + P5 (spine reorder to lead with the
+  intrinsic types + file the algebra-of-record issue §6).
+- **P3 split 1/3 DONE @ 84dcb512** (+ memory chore `22c36de0`) — `field_algebra.rst` (581 ln; the
+  affine torsor + state/displacement/residual/source role grid). 6 labels carried (path-immune);
+  source 6365→5856. RECONCILIATION applied (clean Option-Y, escape hatch did NOT fire — the torsor
+  rests on flux-state geometry, operator-independent): operator `A = L+C−S−B` page-wide; the sweep
+  demoted to `(L+C)⁻¹` = inner kernel of `A⁻¹` (never `A⁻¹`=the sweep); SI-increment
+  `M = (L+C)⁻¹(S+B)`; affine SPACE renamed off bare `A` → `\mathbb{A}` (+ head disambiguation note).
+  BOUNDARY CATCH: the brief's range (3844–4383) OVERSHOT — an anchorless "composite metric adjoint"
+  pointer stub (P2's link to `operator_adjoint`) sat inside it; extracted only 3844–4372, the stub
+  STAYS on the spine (operator's adjoint face, not field content). Carry-forward #2
+  (`V_inflow⊕V_outflow`) pre-verified legit face-level (no change). `-E -W` clean, 0 warnings.
 - **P2 COMPLETE (3/3 split) @ 69abc073** — `operator_adjoint.rst` extracted (the composite
   metric adjoint `op.H = G⁻¹AᵀG` over FullFieldSpace; 581 ln; `g-adjoint` + 6 eq-labels carried;
   source 6928→6365). Own page (revised from frame.rst fold); intro carries an `.. important::`
@@ -154,6 +162,11 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
 - **Issue (new):** build an operator-algebra algebra-of-record (SymPy for C/S/F/L + composition) so
   the page becomes generator-expressed, not manually-leveraged. Greppable tag + #231 note.
 - The `eigenvalue-posing` home may reconcile with the path-integral root's eigenvalue anchor (Phase H).
+- **Code follow-up (out of scope this doc campaign; flagged by archivist during P3 split #1):**
+  `orpheus/transport/fields/_flux_role.py:115` — `FluxRole.__add__`'s `TypeError` message reads
+  "rate-density L-actions (sources / residuals)", using the pre-reframe `L` symbol. Rate-density is
+  the codomain of the full loss operator `A = L+C−S−B`, not of `L` (streaming) — the message is a
+  candidate for the same `A`-reframe. One-line wording fix; ride it with a future SN-message pass.
 
 ## 7. Compaction protocol
 Commit → checkpoint this plan (STATUS + last commit) → /compact re-anchors from this file + git log,
