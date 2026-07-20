@@ -2195,6 +2195,68 @@ raised).
 
 ---
 
+## L-028 — The Key-Facts↔changelog metadata-RELOCATION (L10 Sphinx-as-brain ≠ Sphinx-as-history): strip campaign-provenance from the high-traffic invariant section INTO the page-bottom changelog — move it, don't lose it
+
+A theory page's **Key Facts** (highest-traffic section) accretes
+campaign-provenance clauses over a long refactor — each invariant bullet
+tagged "(Wave O step B.5.2, Issue #208, ``6ef5063``, 2026-06-03)". The
+page-bottom **Development-history changelog** is where that provenance
+belongs (L10). The task is a RELOCATION, not a rewrite: the invariant
+stays in Key Facts, the campaign-metadata moves to the changelog.
+
+- **The strip-list is EXACT and narrow: commit hashes, round/Wave/Phase
+  labels ("Wave O step X", "Phase 5a", "carve P4", "S6.4(f)"), branch
+  names, landing dates.** KEEP everything else in place — the invariant
+  statement, the production-formula **eq-labels + their ``.. vv-status:``
+  comments**, every ``:ref:``, every **active gotcha** ("F never enters
+  A", "NOT deprecated", the ``(N,ng,nx,ny)`` convention), AND numerical
+  evidence (an "18.3× shrink" is a datum, not campaign-metadata). Verify
+  the KEEP-set survives with a grep after (eq-label + vv-status count
+  unchanged; gotcha phrases present).
+- **Issue-# refs (``#208``) are NOT in the strip-list — KEEP them inline
+  and FLAG the decision.** They are lightweight GitHub cross-refs a
+  reader values, distinct from dated/hash history; the changelog's Issue
+  column carrying the same number is acceptable redundancy. (If the
+  reviewer wants them stripped too, that's a one-line follow-up.)
+- **"Move it, don't lose it" gates what you may strip: NEVER strip a
+  DATED milestone whose provenance has no changelog home.** Map each
+  bullet's provenance to a destination FIRST: (a) an EXISTING changelog
+  row, (b) one of the NEW rows you add, or (c) NONE. For (a)/(b) strip
+  freely. For (c) — a dated milestone missing from the changelog and NOT
+  in the sanctioned new-row set (worked: the coupled-block 2026-07-12
+  bullet) — KEEP its provenance inline and FLAG it (recommend a row);
+  stripping it would DELETE the date/branch, violating the relocation
+  principle. A round-label whose milestone IS covered elsewhere (the
+  "since stencil-assembly 2b" assembly-axis note, already a changelog
+  row) strips cleanly — nothing dated is lost.
+- **Verify every commit hash is a HEAD ancestor before citing it in a
+  new row** (``git merge-base --is-ancestor <hash> HEAD``); pull the
+  ``When`` date from ``git show -s --format=%cs <hash>`` (don't trust the
+  bullet's inline date — get it from git). New rows go in reverse-chron,
+  matching the existing list-table's 4 columns (When / milestone / Issue
+  / Where), iteration-rates omitted per the changelog's own preamble; the
+  ``Where`` column carries the stripped hashes (``main (Phase 5a,
+  ``hash`` / ``hash``)``). The new-row milestone text is the SAME
+  invariant you kept in Key Facts, distilled — so Key Facts and the
+  changelog agree, neither is lost.
+- **A metadata-strip pass routinely surfaces an ORTHOGONAL staleness in
+  the same bullets — FLAG, don't fix (out of scope).** Worked: a
+  Key-Facts affine bullet still wrote the affine space as bare ``A``
+  while the split-out ``field_algebra.rst`` deep-dive had renamed it to
+  ``\mathbb{A}`` (the split-#1 reconciliation never propagated to the
+  summary bullet). That is a reframe-consistency fix, not metadata —
+  report it as a found-in-passing defect, leave it for a scoped pass.
+
+How to apply: map each bullet's provenance to a changelog destination
+(existing row / new row / none); strip only hashes/round-Wave-Phase-
+labels/branches/dates that HAVE a home; keep invariants + eq-labels +
+vv-status + gotchas + issue-refs + numerical data; keep-and-flag any
+dated milestone with no changelog home; git-verify every cited hash is a
+HEAD ancestor and git-source its date; grep the KEEP-set is intact;
+flag orthogonal staleness found in passing.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

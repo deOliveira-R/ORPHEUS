@@ -12,54 +12,37 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 27 documentation/Sphinx/knowledge-architecture
-  lessons (L-001…L-027), read FIRST each dispatch. The spine: a page is done
-  when every cross-ref resolves against the LIVE tree, every claim's V&V level
-  matches the skill verbatim, every retired symbol leaves no dangling ref, and
-  the build's WARNING/ERROR/CRITICAL set is unchanged from the `-E` baseline.
-  The per-lesson catalog + war-stories live in lessons.md — do NOT re-summarize
-  them here (this index stays slim). Newest: L-027 — a "RELOCATE section to page
-  X" brief that the mandated CLOSE READ reveals is ALREADY-fully-on-X →
-  Cardinal-Rule-2 DE-DUPLICATE (replace with a `:doc:` pointer preserving the
-  conceptual bridge, merge NOTHING, carry `.. _` aliases onto the canonical
-  content), NOT relocate+merge; FLAG the inversion (the brief's "additive parts"
-  list was the scoping estimate). NEW `-W`-caught class: `ref.ref` "A title or
-  caption not found" fires on a BARE `:ref:` to a `.. _label:` before a
-  paragraph (no title/caption) — fix by anchoring before a titled/CAPTIONED
-  element (section title / `.. list-table:: Caption`) OR explicit-text
-  `:ref:`text <label>``. Reframe-consistency applies to a FOLD too (a fold is a
-  move — spell the sub-composite `(L+C)`, result is full `A=L+C−S−B`). Stale
-  deferred-issue tags distill by `git merge-base --is-ancestor`, keeping the
-  design rationale. L-026 (prior): the SPLIT-to-new-page pattern — locate by
-  STABLE title + prove contiguity, grep-inventory traveling labels, slice
-  PROGRAMMATICALLY; the f-string-over-authored-LaTeX brace-mangle trap (`-W`
-  blind) — don't f-string math-bearing prose; discriminate orphaned `-E` HTML
-  by "does the source `.rst` exist?".
+- [lessons.md](lessons.md) — 28 lessons (L-001…L-028), read FIRST each dispatch.
+  The spine: a page is done when every cross-ref resolves against the LIVE tree,
+  every claim's V&V level matches the skill verbatim, every retired symbol leaves
+  no dangling ref, and the build's WARNING/ERROR/CRITICAL set is unchanged from
+  the `-E` baseline. Per-lesson detail is in lessons.md — do NOT re-summarize here
+  (this index stays slim). Newest L-028: the Key-Facts↔changelog metadata-
+  RELOCATION — strip campaign-provenance (hashes / Wave-Phase labels / branches /
+  dates) INTO the page-bottom changelog; KEEP invariants + eq-labels + vv-status +
+  gotchas + issue-refs; "move it, don't lose it" (never strip a dated milestone
+  with no changelog home); git-verify cited hashes are HEAD ancestors. (L-026/027
+  = the #231 corpus split→de-dup patterns.)
 
 ## 2. Active / doc-debt state — git-true
 
-**No owed Sphinx pass on merged work.** Every SN documentation campaign
-this index once tracked — field-typed operator algebra, LD-on-the-DAG,
-the foundation-cleanup cluster, Wave-O role-typing, the matvec carve,
-the eigenvalue-verification close-outs, the χ source-index fix — is
-**MERGED to main** (git-verified 2026-06-21). Their landed milestones
-live in the SN theory page's **"Development history"** section
-(`docs/theory/discrete_ordinates.rst:15338`); their behavioral lessons
-are in `lessons.md`.
+**No owed Sphinx pass on merged work.** Every SN doc campaign this index
+once tracked is **MERGED to main** (git-verified); landed milestones live in
+the SN theory page's **"Development history"** section
+(`docs/theory/discrete_ordinates.rst`), behavioral lessons in `lessons.md`.
+The active track is the **#231 doc-architecture corpus** (see §3) — the
+`operator_algebra.rst` reframe + Phase-3 splits + Phase-4/5a cleanup; main
+agent commits, I stage + gate. Only OPEN SN branch: **#236**
+(`feature/sn-spatial-angular-product`, not a main ancestor); no pending #236
+doc work.
 
-The only OPEN SN branch is **#236** (`feature/sn-spatial-angular-product`,
-NOT an ancestor of main). I carry no pending #236 doc work; if a #236
-docs slice arrives, follow the stub-expansion / capstone patterns in §3.
-
-> Merge-status in memory goes STALE — a note frozen mid-flight merges in
-> a later session. ALWAYS reconcile any "resume / in-flight / NOT pushed"
-> claim against `git merge-base --is-ancestor <hash> HEAD` before acting;
-> never trust a frozen "NOT merged". (This index was rebuilt on that rule.)
+> Merge-status in memory goes STALE. ALWAYS reconcile any "resume / in-flight
+> / NOT pushed" claim against `git merge-base --is-ancestor <hash> HEAD`
+> before acting; never trust a frozen "NOT merged".
 
 ## 3. Durable reference (reusable doc-architecture)
 
-Each entry is a ONE-LINE pointer; the full recipe lives in the linked topic
-file (this index stays slim — detail belongs in the `feedback_*.md`).
+Each entry is a ONE-LINE pointer; the full recipe lives in the linked `feedback_*.md`.
 
 - **Landed-milestone record:** the SN theory page's "Development history" section
   (`docs/theory/discrete_ordinates.rst`) — architectural-changelog of every landed
@@ -128,9 +111,8 @@ file (this index stays slim — detail belongs in the `feedback_*.md`).
   Galerkin DEGENERATE of the φ*≠φ bilinear ⟨φ*,Σφ⟩ case); 9-piece order. Instance:
   `Solution.homogenize` (#268).
 - [Galerkin-natural-metric reframe](feedback_galerkin_natural_metric_reframe.md) —
-  **SUPERSEDED 2026-06-24** by the entry above (its "Galerkin in L²(φV)" framing was reversed
-  to PG). Kept ONLY for why-it-was-tried (the metric-fold IS a real identity for φ*=φ). Do
-  NOT follow its "Galerkin" framing.
+  **SUPERSEDED** by the PG-homogenization entry above; kept only for why-it-was-tried
+  (the metric-fold IS a real identity for φ*=φ). Do NOT follow its "Galerkin" framing.
 - [domain-op + L2-promotion + asymmetry-law](feedback_domain_op_l2_promotion_asymmetry_law.md)
   — 6-part section shape for a domain OPERATION (transform on a `Solution`, not a solver step)
   born from an L2 promotion + data/behavior split; lead with THE preservation identity as the
