@@ -56,6 +56,12 @@ scattering, and fission *are*.
        vector space :math:`V`, the **state / displacement / residual /
        source** role grid, and the convergence diagnostics (contraction
        ratio, true-error estimate, per-cell map) the displacement carries.
+   * - :doc:`/theory/foundations/wavefront_cochain`
+     - The **interior face-flux cochain** :math:`C^1_{\rm int}` — the
+       sweep-internal cochain that carries flux across cell faces during a
+       sweep, its biproduct :math:`C^1 = C^1_{\rm int} \oplus C^1_\partial`
+       and trace algebra, and why the typed ``WavefrontFlux`` carrier
+       retired (the concept survives in its two native realizations).
    * - :doc:`/theory/foundations/discretization`
      - How a continuous conservation law becomes a finite algebraic system:
        the **cell-balance** invariant (sinks = sources) and its **closures** —
@@ -91,6 +97,7 @@ scattering, and fission *are*.
    operator_tensor_network
    operator_adjoint
    field_algebra
+   wavefront_cochain
    discretization
    frame
    boundary_conditions
