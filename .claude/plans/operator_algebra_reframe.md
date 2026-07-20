@@ -110,15 +110,26 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
 
 ## 5a. STATUS
 
-- **⏸ COMPACTION POINT — P4 COMPLETE (2026-07-19).** Evaluate-set adjudicated + executed; the
-  algebra-of-record issue FILED (**#301**). Tree clean, HEAD builds `-E -W` clean.
-  `operator_algebra.rst` now **4503 ln** (9223 → 4503 since P1, **−51%**). NEXT = **P5** — the payoff
-  SPINE REORDER (physically lead the page with the intrinsic types: type partition → C → functional →
-  F/S) + the DEFERRED Key-Facts↔changelog reconciliation (strip the Wave-labeled metadata from Key
-  Facts AND add the ~5 missing milestone rows — the 4-tier eigenvalue `650032e`/`7603c8e`, G-adjoint
-  O.2b `5c06196`, moment-space Phase 5a, 2-D SI Phase A, interior-cochain Phase 5 — in ONE pass with
-  the reorder; strip-then-reorder is wasteful) + the optional T2/#263 relocate-to-a-design-principles
-  home question.
+- **⏸ COMPACTION POINT — P5a COMPLETE, P5b (SPINE REORDER) NEXT (2026-07-19).** Tree clean, HEAD
+  builds `-E -W` clean. `operator_algebra.rst` now **4573 ln**. **NEXT = P5b: the spine reorder** —
+  physically lead the page with the intrinsic types. Two CORE moves: (1) MERGE the four scattered
+  surface sections {`Definitions`, "apply is linear / solve is not", "three-layer operator surface",
+  "Composition algebra"} into one **"The operator surface"** H1; (2) PULL the composite/sweep section
+  ("Pure-L streaming + the affine collision split", currently too EARLY at ~L528, interleaved between
+  Definitions and apply/solve) DOWN to after the integral-kernel (F/S) section — it is the ASSEMBLY of
+  the typed operators, belongs after C/S/F are introduced. Target body order: KeyFacts → [Operator
+  surface] → [type partition framing] → C (diagonal/multiplication) → Functional → F/S (integral-kernel)
+  → [composite A=L+C−S−B + sweep] → supporting (tensor-product) → moment-type #263 → eigenvalue/trace →
+  BC + 6 deep-dive stubs → Development-history changelog. **Dispatch a FRESH archivist** (the P3–P5a
+  instance is ~900K tokens deep). Optional tail: the T2/#263 relocate-to-a-design-principles-home
+  question; the #301 algebra-of-record is FILED.
+- **P5a DONE** (Key-Facts↔changelog reconciliation; committed this session) — 10 Wave-metadata strips
+  from the high-traffic Key Facts (hashes / round-labels / branches / dates → relocated to the
+  changelog; the invariants + the 2 eq-labels + their vv-status + the active gotchas KEPT) + **6
+  changelog rows** added (the 5 scoped milestones + a 6th for the coupled-block / walk-unification
+  #280/#282 @ `6732778a`, all git-verified as HEAD ancestors). Also fixed the affine-space straggler
+  `A`→`\mathbb{A}` in Key Facts (split #1's rename had not reached the summary bullet; the 7
+  operator-`A` sites left intact). `-E -W` clean.
 - **P4 dispositions (adjudicated + verified 2026-07-19):** **T1** cross-solver — ¶2 (live
   `_as_scipy_linop` SSOT + #2-DSA "generalise-don't-resurrect" guidance) FOLDED into Composition-
   algebra, reframe-fixed (`loss_minus_gains = (L+C)ψ − Σ g ψ = Aψ`); ¶1 forward-ref DELETED (distilled
