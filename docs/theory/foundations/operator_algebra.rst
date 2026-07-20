@@ -1505,43 +1505,29 @@ verb at all (Design B): solving with it IS applying its inverse object,
 downstream consumer that spells :math:`L = A + 0` and asks for its
 inverse action cannot silently receive :math:`A^{-1} + 0^{-1}`.
 
-
-Cross-solver consumption (forward reference)
-============================================
-
-The Phase 0 algebra is the foundation for the cross-solver migration
-sequence: SN, MoC, CP, and diffusion will each expose their natural
-operator triple :math:`(A, S, F)` as
-:class:`~orpheus.numerics.operator.LinearOperator` instances, and a
-unified iteration driver in :mod:`orpheus.numerics.iteration` will
-consume those triples without knowing which transport discretisation
-they came from. That driver is **to be installed** under the Wave H
-refactor (Issue 14). The Phase 0 module ships the algebra; subsequent
-phases mount the producers and the consumer onto it.
-
-Previously the ``build_transport_linear_operator`` free functions in
-:mod:`orpheus.sn.operators.streaming` wrapped their matvec
-in :class:`scipy.sparse.linalg.LinearOperator` directly; that wrapper
-family has since been retired. The ORPHEUS↔scipy boundary for the
-Krylov accelerator is
-now internal to :class:`~orpheus.numerics.iteration.KrylovAcceleration`
-— a single ravel-aware adapter lifts the flat scipy vector to the typed
-carrier, runs the carrier-space matvec, and ravels the result back — so
-both the system matvec and the preconditioner route through one site
-(single source of truth, #257 S7). Concretely, the within-group system
-matvec is the named carrier-space closure ``loss_minus_gains(psi) =
-A.apply(psi) - Σ_gains g.apply(psi)`` (it reads like the within-group
-operator instead of being buried under ravel plumbing), and *both* it
-and the preconditioner are wrapped by the **one** module-private
-``_as_scipy_linop(carrier_matvec, template, n)`` adapter, whose
-``template`` argument carries the typed carrier so ``from_flat`` /
-``to_flat`` round-trip the scipy vector. The flat-only public twin
-``as_scipy_linop`` (a zero-production-caller adapter, the degenerate flat
-case of the ravel-aware one) was retired in the consolidation; a future
-caller needing a standalone operator→scipy adapter (e.g. a DSA
-preconditioner built as an operator, #2) should *generalise*
-``_as_scipy_linop`` to accept an ``op.apply`` callable, not resurrect the
-flat twin.
+When a composed within-group operator meets the Krylov accelerator's
+:mod:`scipy.sparse.linalg` interface, the ORPHEUS↔scipy boundary is
+crossed at a **single** site internal to
+:class:`~orpheus.numerics.iteration.KrylovAcceleration`: one ravel-aware
+adapter ``_as_scipy_linop(carrier_matvec, template, n)`` lifts the flat
+scipy vector to the typed carrier (via ``from_flat``), runs the
+carrier-space matvec, and ravels the result back — so both the system
+matvec and the preconditioner route through one source of truth (#257
+S7; the per-operator ``build_transport_linear_operator`` scipy wrappers
+it replaced are retired). The system matvec is the named carrier-space
+closure ``loss_minus_gains`` — the invertible resolvent minus the lagged
+coupling gains, :math:`(L{+}C)\,\psi - \sum_{\rm gains} g\,\psi`, i.e.
+the honest full within-group operator :math:`A = L + C - S - B` applied
+(the gains are the scattering :math:`S` and the boundary reflection
+:math:`B`) — which reads like the operator rather than ravel plumbing.
+Because it is expressed purely through the operator algebra, it is the
+discretisation-agnostic form a unified cross-solver iteration driver
+(SN / MoC / CP / diffusion, Issue #14) consumes without knowing which
+transport discretisation produced the triple. A future consumer needing
+a standalone operator→scipy adapter (e.g. a DSA preconditioner built as
+an operator, Issue #2) should **generalise** ``_as_scipy_linop`` to
+accept an ``op.apply`` callable, **not** resurrect the retired flat-only
+``as_scipy_linop`` twin.
 
 
 .. _diagonal-operator:
@@ -3311,9 +3297,9 @@ router-over-shared-primitives shape falls out of the sharing.
    0-ULP de-risk). Scattering cross-check:
    ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` (the
    :math:`S.\mathrm{kernel}.\mathrm{apply} \equiv R\circ\Lambda\circ M`
-   0-ULP equivalence). Deferred follow-ups: #260
+   0-ULP equivalence). Deferred follow-up: #260
    (:class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
-   un-orphaning), #261 (core relocation + CP / MoC carrier unification).
+   un-orphaning).
 
 
 .. _tensorial-framing:
@@ -3665,171 +3651,31 @@ family (like ``truncate``), not a new field type, because those morphisms are
 canonical within one Legendre tower.
 
 
-.. _bc-tensor-primitives:
+Boundary conditions as operators
+================================
 
-Boundary conditions as Wave-0 / Wave-1 primitives
-=================================================
+Every *realised* boundary condition IS a Wave-0
+:class:`~orpheus.numerics.operator.LinearOperator`, composable with the
+streaming / collision / scattering / fission operators through the same
+algebra dunders — which is why the boundary law :math:`B` enters
+:math:`A = L + C - S - B` as a first-class sibling rather than being
+folded into streaming. A boundary *law* is a pure descriptor with **no**
+``apply``; only its *realisation* through
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` is a Wave-0
+operator.
 
-The boundary trace-law refactor (12-wave effort,
-``.claude/plans/transient-giggling-cake.md``, archival narrative
-in :ref:`theory-boundary-conditions`) lifted boundary-condition
-**realisation** into the same operator algebra documented in this
-page: every *realised* BC IS a Wave-0
-:class:`~orpheus.numerics.operator.LinearOperator`, composable
-with the streaming / scattering / fission operators through the
-same algebra dunders.
-
-.. note::
-
-   **A boundary law is NOT itself a Wave-0 operator.** Post Issue
-   #186 / B3 + β2 (2026-05-11), the
-   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` ABC is a
-   **pure descriptor** carrying no :meth:`apply` method (the
-   :class:`LinearOperator` inheritance was dropped). The
-   table below lists the **realised** output produced by
-   :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` — that
-   output IS a Wave-0 :class:`LinearOperator`. The law-to-operator
-   transition is the §16A.3 three-layer architecture's realiser
-   bridge, enforced statically by the type system rather than by
-   convention. See :ref:`bc-trace-law-descriptor-model` for the
-   design rationale.
-
-Three new primitives in :mod:`orpheus.numerics.operator`
-(Wave 0 of the BC refactor) plus one SN-specific primitive in
-:mod:`orpheus.sn.boundary.angular` (Wave 1) form the realisation
-target set:
-
-.. list-table:: BC realization primitives — the §15.2 G_α geometric operators
-   :header-rows: 1
-   :widths: 26 36 38
-
-   * - Primitive
-     - Mathematical action
-     - Realizes which BC
-   * - :class:`~orpheus.numerics.operator.PermutationOperator`
-     - ``np.take(x, perm, axis=axis)`` with optional
-       involution-detection
-     - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
-       (specular reflection via
-       ``quadrature.reflection_index(axis)``)
-   * - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
-     - Sparse mask zeroing only the inflow ordinates at one face;
-       preserves outflow rows. Self-adjoint + idempotent
-       (projector).
-     - :class:`~orpheus.geometry.boundary.VacuumInflow` (§16A.10
-       trace-correct vacuum)
-   * - :class:`~orpheus.numerics.operator.PeriodicWrapOperator`
-     - Today: angular identity (the SN realization of
-       :class:`~orpheus.geometry.boundary.PeriodicBoundary`).
-       Reserved for future spatial-pushforward extension.
-     - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
-   * - :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`
-     - Cosine-weighted Lambertian average over an outgoing
-       hemisphere: scalar-broadcasts to all inflow ordinates.
-       SN-specific (depends on
-       :class:`~orpheus.numerics.quadrature.Quadrature`).
-     - :class:`~orpheus.geometry.boundary.WhiteBoundary`
-   * - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
-     - Ignores the outgoing flux; returns the prescribed source
-       value via :meth:`InflowSourceSpec.evaluate`.
-     - :class:`~orpheus.geometry.boundary.PrescribedInflow`
-
-The rank-N case (Marshak / partial-current) is built directly
-through the algebra dunders:
-
-.. math::
-   :label: bc-rank-n-as-sum-of-products
-
-   R \;=\; \sum_\alpha G_\alpha \otimes A_\alpha,
-   \qquad
-   G_\alpha \in \{\text{permutation, mask, average, wrap, identity}\},
-   \quad A_\alpha \in [0, 1].
-
-.. vv-status: bc-rank-n-as-sum-of-products documented
-
-For the SN realisation, the tensor product :math:`G_\alpha \otimes
-A_\alpha` collapses to a scalar amplification:
-:class:`~orpheus.numerics.operator.ScaledOperator` ``(α, G)``. The
-canonical Marshak BC
-
-.. math::
-
-   R_{\text{Marshak}}
-   \;=\; c_1 \, G_{\text{refl}} \;+\; c_2 \, G_{\text{diff}}
-   \qquad (c_1 + c_2 \leq 1)
-
-becomes the Wave-0 expression
-``c1 * PermutationOperator(perm) + c2 * AngularAverageOperator(...)``
-— an :class:`~orpheus.numerics.operator.OperatorSum` of
-:class:`~orpheus.numerics.operator.ScaledOperator`-wrapped
-primitives — **after** the descriptor tree has been realised.
-
-.. _bc-descriptor-tree-vs-operator-tree:
-
-The descriptor-tree algebra is a separate type family
------------------------------------------------------
-
-The rank-N composition is **not** built directly on the operator
-tree. Two distinct algebras are layered:
-
-.. list-table:: Two algebras, two type families
-   :header-rows: 1
-   :widths: 22 30 24 24
-
-   * - Layer
-     - Node types
-     - Has ``apply``?
-     - When it's built
-   * - Descriptor tree
-     - :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` leaves;
-       :class:`~orpheus.geometry.boundary.LawSum` /
-       :class:`~orpheus.geometry.boundary.LawScaled` composers
-     - **No** (static type error to call)
-     - User code at law-declaration time
-   * - Operator tree
-     - :class:`~orpheus.numerics.operator.LinearOperator` leaves;
-       :class:`~orpheus.numerics.operator.OperatorSum` /
-       :class:`~orpheus.numerics.operator.ScaledOperator` composers
-     - **Yes** (1-arg :meth:`apply`)
-     - Realiser code at face-resolution time
-
-The user writes ``0.3 * spec + 0.7 * white`` — a descriptor tree.
-:func:`~orpheus.geometry.boundary.realize_recursively` (method-blind
-since #290 P7b) walks the tree, realises each leaf via the
-explicitly-passed realizer (e.g.
-:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`), and
-re-assembles the result through the matching Wave-0 composers
-(:class:`OperatorSum` ↔ :class:`LawSum`,
-:class:`ScaledOperator` ↔ :class:`LawScaled`). The output is the
-operator tree.
-
-**Mixing the two algebras is a type error.** ``LawSum + OperatorSum``
-or ``LinearOperator + LawScaled`` are rejected statically (no
-matching dunder) — callers MUST realise the descriptor tree first
-before composing with the operator algebra. This separation is
-the load-bearing payoff of the Issue #186 / B3 + β2 cleanup:
-"this is a law, that is an operator" becomes a type-system claim
-rather than a convention.
-
-The pre-refactor implementations had two predecessors that
-converged on this design:
-
-* **Wave 11** retired the dedicated
-  ``MixedBoundaryOperator(components: list[tuple[float, BC]])``
-  class — its delayed-realisation pattern broke down once vacuum
-  needed per-face inflow indices that the bare-law container
-  could not deliver.
-* **β1 interim** (Issue #186 / B3, pre-cleanup) kept
-  :class:`LinearOperator` on :class:`BoundaryTraceLaw`, so
-  ``0.3 * spec + 0.7 * white`` produced an :class:`OperatorSum`
-  with raw-law leaves. β1 was algebraically equivalent to β2 but
-  conflated the two type families — the type checker could not
-  distinguish a not-yet-realised "operator" from a real operator.
-  β2 separates them explicitly (the present design).
-
-See :ref:`bc-realize-recursively` for the walker semantics and
-:ref:`bc-rank-n-algebra` for the rank-N algebra in detail.
-
+The full treatment — the §15.2 :math:`G_\alpha` geometric realisation
+primitives (permutation, mask, average, wrap, source; the law→primitive
+map), the rank-N Marshak / partial-current **descriptor-tree algebra**
+(``LawSum`` / ``LawScaled`` realised by
+:func:`~orpheus.geometry.boundary.realize_recursively`), and the
+load-bearing **descriptor-tree vs operator-tree** type separation
+("mixing the two algebras is a type error") — is documented on the
+boundary-condition page: see the :ref:`extraction narrative
+<bc-extraction>`, the :ref:`law→primitive realisation map
+<bc-tensor-primitives>`, and the :ref:`recursive realiser
+<bc-realize-recursively>` in
+:doc:`/theory/foundations/boundary_conditions`.
 
 Tensor-network decomposition
 ============================

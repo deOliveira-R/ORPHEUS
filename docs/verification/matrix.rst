@@ -718,7 +718,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **109** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **108** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -729,7 +729,6 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``apply-solve-parallel-identity``
 - ``apply-solve-source-iteration-series``
 - ``apply-solve-within-group-balance``
-- ``bc-rank-n-tensor-decomposition``
 - ``bc-tensor-decomposition``
 - ``billiard-rank2-S``
 - ``billiard-rank2-T``
@@ -850,7 +849,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``bc-extraction-two-residuals``
 - ``bc-extraction-variadic-matvec``
 - ``bc-extraction-within-group-decomposition``
-- ``bc-rank-n-as-sum-of-products``
+- ``bc-rank-n-tensor-decomposition``
 - ``bessel-wronskian``
 - ``bickley-integral``
 - ``boltzmann``

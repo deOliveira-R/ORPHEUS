@@ -1789,7 +1789,10 @@ have different optimal dispatch strategies. The SN realizer uses
 realizer that needs runtime extension might use the
 :class:`~orpheus.numerics.registry.RegistryMixin` machinery instead.
 
-The Wave 5 SN dispatch table is the documented standard:
+The Wave 5 SN dispatch table is the documented standard — the §15.2
+:math:`G_\alpha` geometric primitives, one per boundary law:
+
+.. _bc-tensor-primitives:
 
 .. list-table:: SN realization map (law → Wave-0 / Wave-1 primitive)
    :header-rows: 1
@@ -2416,6 +2419,8 @@ typed subclass to recover the offending law name from
 
 .. _bc-rank-n-algebra:
 
+.. _bc-descriptor-tree-vs-operator-tree:
+
 Descriptor-tree algebra for rank-N boundaries
 =============================================
 
@@ -2442,6 +2447,8 @@ The §15.2 sum-of-tensor-products form
    \qquad c_{\alpha} \in \mathbb{R},
    \quad G_{\alpha} \in
    \{\text{permutation, average, mask, wrap, identity, source}\},
+
+.. vv-status: bc-rank-n-tensor-decomposition documented
 
 maps onto the LawXxx algebra as ``c1 * law_1 + c2 * law_2 + ...``,
 where each ``c_i * law_i`` term is a :class:`LawScaled` node and
