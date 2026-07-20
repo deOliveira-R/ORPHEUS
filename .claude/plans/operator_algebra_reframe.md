@@ -110,6 +110,19 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
 
 ## 5a. STATUS
 
+- **✅ REFRAME COMPLETE (2026-07-20). P1–P5b all landed + committed on `docs/sn-doc-architecture`.**
+  `operator_algebra.rst` **9223 → 4599 ln (−50%)**. The page now LEADS with the honest algebra
+  `A = L+C−S−B` (F on the RHS) + the intrinsic-type partition (Operator / Kernel / Functional, surfaced
+  before the first type section); the 6 cross-method + SN-leaning deep-dives live on their own
+  foundation pages; the campaign-log is a page-bottom Development-history changelog (10 rows); Key Facts
+  is provenance-free. **User ruling (2026-07-20): streaming stays EARLY** — it is apply/solve's
+  foundation, so relocating it late (the planned "Move A") would invert premise↔conclusion, and the
+  page leads with the types regardless. Move A abandoned + Move B (surface preamble) skipped; **P5b =
+  the additive `intrinsic-operator-types` preview H1 before the C block ONLY** (commit `2d2d7595`).
+  Tail reorder (eigenvalue/trace above BC) DEFERRED as out-of-scope. Follow-ups: **#301** (algebra-of-
+  record, FILED); `_flux_role.py:115` code message (§6); optional T2/#263 design-principles home. This
+  plan is now ARCHAEOLOGY — the durable record is the doc pages + the archivist L-026..L-029 calibrations.
+
 - **⏸ COMPACTION POINT — P5a COMPLETE, P5b (SPINE REORDER) NEXT (2026-07-19).** Tree clean, HEAD
   builds `-E -W` clean. `operator_algebra.rst` now **4573 ln**. **NEXT = P5b: the spine reorder** —
   physically lead the page with the intrinsic types. Two CORE moves: (1) MERGE the four scattered
