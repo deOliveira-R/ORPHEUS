@@ -2257,6 +2257,68 @@ flag orthogonal staleness found in passing.
 
 ---
 
+## L-029 — The additive "surface the taxonomy up front" framing pass: verify the gap is REAL (a sibling taxonomy present ≠ THIS one surfaced), then PREVIEW + `:ref:` to the SSOT — never a twin table
+
+When a scoping pass finds a governing taxonomy (a 3-way type partition,
+a classification law) stated only MID-STREAM — in the 2nd of the
+sections it frames, so a linear reader meets the 1st with no roadmap —
+the fix is ONE short additive framing section, not a reorder. (Meta:
+the scoping earned its keep by KILLING the big mechanical move — the
+flagged apply/solve↔streaming dependency-INVERSION led the coordinator
+to KEEP-the-early-section and ABANDON the relocation, leaving this one
+high-value additive item. A load-bearing dependency flag can collapse a
+multi-move plan to a single preview.)
+
+- **Escape-hatch FIRST — verify the gap is REAL, and MATCH the specific
+  taxonomy, not "is there any framing."** The trap: the upstream
+  "already there" candidate (Key Facts) stated a DIFFERENT partition —
+  the Representation×Role CARRIER taxonomy — which is NOT the
+  Operator/Kernel/Functional CODOMAIN partition. The presence of A
+  taxonomy is not the presence of THIS one; two coexist in the same
+  page. Read/grep for the EXACT partition before concluding it's
+  un-surfaced. If it IS already surfaced clearly upstream, FLAG that
+  (decline to add ceremony) rather than force the section — the
+  coordinator's explicit escape hatch, and Cardinal Rule 2 (no
+  ceremony).
+- **SSOT-vs-twin — the preview is a prose ROADMAP + `:ref:`, NEVER a
+  copied table.** Naming the three arms in prose and `:ref:`-ing the
+  canonical codomain-partition table is a pointer that cannot harmfully
+  drift; COPYING the table into the preview is the Cardinal-Rule-2 twin.
+  When offered "a light RELOCATION of the existing framing" as the
+  elegant alternative (SSOT over preview+ref), prefer the additive
+  preview when relocation would (a) touch a section you were told NOT to
+  modify, or (b) orphan the framing's double-duty — here the partition
+  statement is ALSO the Functional section's OWN opening paragraph, so
+  relocating it guts that intro. The SSOT stays where it is; the preview
+  points at it.
+- **`:ref:` the SSOT SECTION anchor, verified live — not a sub-anchor
+  that doesn't exist.** The canonical table lived inside the Functional
+  section under an UN-anchored subsection; point `:ref:` at the section
+  anchor that HOSTS it (``functional-category``), not the subsection.
+  Intra-doc `:ref:` warns if dangling (L-002), so the clean `-E -W`
+  build confirms resolution, and the HTML link-audit
+  (``href="#functional-category"`` with the target title as link text,
+  not a plain ``<code>``) confirms it rendered as a hyperlink.
+- **Baseline is FRESH, not frozen.** Measure the `-E` baseline THIS
+  session before crediting "count-unchanged" — the AGENT.md "1 warning
+  (mesh.py ``:paramref:``)" note was STALE (true baseline 0 on
+  ``docs/sn-doc-architecture``; baselines drift 9→1→0). An additive
+  preview with no new `:label:`/citation and one live `:ref:` is
+  provably warning-neutral; the pre/post SET-diff (both 0) proves it,
+  and a pure-additive H1 needs the ``len(title)``-sized underline
+  (L-009) — 28 code points here.
+
+How to apply: verify the taxonomy is genuinely un-surfaced upstream
+(match the SPECIFIC partition, not any framing; flag-and-decline if it's
+already there) → author a prose-roadmap preview naming the arms +
+`:ref:` to the SSOT section anchor (never copy the table) → prefer the
+additive preview over relocation when relocation touches a frozen or
+double-duty section → point `:ref:` at a live anchor and HTML-audit the
+rendered hyperlink → measure the `-E` baseline fresh and diff the
+WARNING/ERROR/CRITICAL set pre/post.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

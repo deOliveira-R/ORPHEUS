@@ -12,17 +12,19 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 28 lessons (L-001…L-028), read FIRST each dispatch.
+- [lessons.md](lessons.md) — 29 lessons (L-001…L-029), read FIRST each dispatch.
   The spine: a page is done when every cross-ref resolves against the LIVE tree,
   every claim's V&V level matches the skill verbatim, every retired symbol leaves
   no dangling ref, and the build's WARNING/ERROR/CRITICAL set is unchanged from
   the `-E` baseline. Per-lesson detail is in lessons.md — do NOT re-summarize here
-  (this index stays slim). Newest L-028: the Key-Facts↔changelog metadata-
-  RELOCATION — strip campaign-provenance (hashes / Wave-Phase labels / branches /
-  dates) INTO the page-bottom changelog; KEEP invariants + eq-labels + vv-status +
-  gotchas + issue-refs; "move it, don't lose it" (never strip a dated milestone
-  with no changelog home); git-verify cited hashes are HEAD ancestors. (L-026/027
-  = the #231 corpus split→de-dup patterns.)
+  (this index stays slim). Newest L-029: the additive "surface the taxonomy up
+  front" framing pass — verify the gap is REAL (a sibling taxonomy present ≠ THIS
+  one surfaced; the Key-Facts Representation×Role CARRIER taxonomy ≠ the
+  Operator/Kernel/Functional CODOMAIN partition), then PREVIEW + `:ref:` to the
+  SSOT, NEVER a twin table; a load-bearing dependency-flag can collapse a
+  multi-move reorder to one additive section; baseline is FRESH not frozen
+  (drift 9→1→0). (L-026/027/028 = the #231 corpus split→de-dup→metadata-
+  relocation patterns.)
 
 ## 2. Active / doc-debt state — git-true
 
