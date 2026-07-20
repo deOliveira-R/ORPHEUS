@@ -62,6 +62,13 @@ scattering, and fission *are*.
        sweep, its biproduct :math:`C^1 = C^1_{\rm int} \oplus C^1_\partial`
        and trace algebra, and why the typed ``WavefrontFlux`` carrier
        retired (the concept survives in its two native realizations).
+   * - :doc:`/theory/foundations/coupled_block_operator`
+     - The **2×2 coupled block operator** — the curvilinear
+       starting-direction flux :math:`\psi_{1/2}` (the ψ½ ray) as a
+       first-class **System B**, its four named blocks (:math:`A_{AA}`
+       the within-group loss composite, plus the seed / emission / march
+       couplings), the N-general block machinery, and the structure-keyed
+       block solve.
    * - :doc:`/theory/foundations/discretization`
      - How a continuous conservation law becomes a finite algebraic system:
        the **cell-balance** invariant (sinks = sources) and its **closures** —
@@ -98,6 +105,7 @@ scattering, and fission *are*.
    operator_adjoint
    field_algebra
    wavefront_cochain
+   coupled_block_operator
    discretization
    frame
    boundary_conditions
