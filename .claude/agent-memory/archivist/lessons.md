@@ -2020,6 +2020,41 @@ in the AUTHORED header you wrap around it.
   stays → OUT of L35 scope (L35 fixes only move-INDUCED breaks) → FLAG as pre-existing
   staleness (L-007), do NOT rewrite. Add temporal + gone to the per-phrase triage so
   the grep's false-positives are dispatched without a fix.
+- **Split-#4 calibrations (affine field algebra → `field_algebra.rst`; the FIRST split where
+  the brief's line-range OVERSHOT the genuine section — the contiguity proof EARNED its keep).**
+  (a) **"Prove contiguity" must count ALL H1 `===` underlines, not just anchored ones — an
+  ANCHORLESS sibling H1 inside the brief's range is INVISIBLE to the anchor-grep the brief
+  author set the boundary with.** The brief's "3844–4383 / up to the next anchor
+  `wavefront-flux-cochain`" overshot: an anchorless "The composite metric adjoint" H1 (a
+  `:doc:` pointer stub a PRIOR split left behind) sat between the affine section and the next
+  `.. _label:`. A boundary set by "section anchor → next `.. _label:`" jumps clean over it.
+  The `awk`-all-`===`-underlines proof (step 1) CAUGHT it (2 H1s in the range, not 1) — the
+  contiguity proof is NOT a formality, it is the gate for exactly this. (b) **Narrow the
+  extraction to the GENUINE titled section when the trailing sibling's prose ties it to the
+  SOURCE page.** The stub said "the adjoint face of the operator algebra **on this page**" —
+  a bare directional coda (L35) that BREAKS if moved (the operator algebra stays on source),
+  AND it is thematically the operator's adjoint, not the flux field algebra → LEAVE on source,
+  move only `affine anchor → composite-adjoint H1`. The stable-title method (which L-026
+  PRIORITIZES over line numbers) ends the section at the next H1; the brief's line-range was
+  the author's anchor-scan estimate. FLAG the narrowing prominently — the coordinator set the
+  wider range and reviews before commit. (c) **A three-way symbol collision folded into the
+  split is a mini-L-011 done via the Edit tool BEFORE slicing (brace-safe), NOT in the
+  f-string-risky head.** The reframe reserved `A` = full operator `L+C−S−B`; the block misused
+  `A` for the sub-composite `L+C` (apply/solve headline + SI-increment machinery `M=A⁻¹(S+B)`,
+  `Δψ=A⁻¹r̃`) AND the affine SPACE. Classify each `A`: full-op defect/solve → keep `A` (the
+  residual `r=Aψ−q` was already full — reframe the headline TO match it); SI-increment
+  machinery → genuinely the SWEEP `(L+C)⁻¹` (the honest spelling once `A` is the full solve —
+  else Cardinal-Rule-1-wrong); affine space → `\mathbb{A}`. Apply on the SOURCE via Edit tool
+  (exact-literal replacement is brace-safe) BEFORE the programmatic slice; the reconciled block
+  then travels verbatim. Escape hatch (does the affine ARGUMENT require `L+C`?) did NOT fire —
+  the torsor structure rests on flux-state geometry (no natural zero), independent of which
+  operator connects the universes; test the ARGUMENT, not the symbol. (d) **Two guard-gotchas:**
+  the mangle-grep FALSE-positives on `\mathbb{A}` + closing backtick (`mathbb\{A\}[^ ]` matches
+  the `` ` `` after intact `{A}`) — the REAL gate is "any BARE `A^-1` (no braces)?" = ZERO; and a
+  `.count(r"\mathbb{A}")` guard-assert counts OCCURRENCES not grep-LINES (a
+  `\mathbb{A}\times V\to \mathbb{A}` line carries 2), so an `==10`-from-a-line-grep assert
+  RED-flags its own miscount at 11 — a GOOD failure (asserts run before any write; content was
+  right, the assert wrong). Fix the number, re-run; never loosen the assert to make it pass.
 
 How to apply: title-locate → prove contiguity → grep-inventory every
 label → programmatic guarded slice → author the header WITHOUT an
