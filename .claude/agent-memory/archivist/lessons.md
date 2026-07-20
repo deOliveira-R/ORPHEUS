@@ -2062,12 +2062,34 @@ in the AUTHORED header you wrap around it.
   `\mathbb{A}\times V\to \mathbb{A}` line carries 2), so an `==10`-from-a-line-grep assert
   RED-flags its own miscount at 11 — a GOOD failure (asserts run before any write; content was
   right, the assert wrong). Fix the number, re-run; never loosen the assert to make it pass.
+- **Split-#3/final calibration (coupled block operator → `coupled_block_operator.rst`; the NEW,
+  build-INVISIBLE break class my #1/#2 closeouts MISSED — "named-source-page" consuming prose).**
+  The inbound-ref audit is NOT just "does the `:ref:`/`:eq:` resolve?" — it ALWAYS does
+  (path-immune, auto-repoints to wherever the label now lives). The break is in CONSUMING-FILE
+  PROSE that NAMES the source page: ``see :ref:`X` in :doc:`.../operator_algebra` `` — after the
+  move the `:ref:` links to the NEW page while the adjacent "in operator_algebra" sends the
+  reader to the OLD page (now just a pointer stub). `-W` is BLIND (the ref resolves; only the
+  prose lies) — a Cardinal-Rule-1 staleness the build never catches. **The L35 scan MUST extend
+  beyond the moved block + source boundary to a whole-tree sweep of every consuming file** for
+  ``:ref:`<moved-label>` … :doc:`<source-page>` `` (whitespace-FLATTENED / multi-line-aware —
+  the "in" and the `:doc:` routinely wrap across two RST lines, so a line-grep misses them; use
+  a `re.sub(r'\s+',' ',text)` python scan). Repoint the stale `:doc:` page-pointer to the new
+  page; leave bare `:ref:`s (no page-pointer prose) and "see X **for the** …" phrasings alone.
+  This session the sweep caught 2 in `sn/history.rst` (this split) AND a LEFTOVER from the
+  committed split #2 (`sn/index.rst`: ``wavefront-flux-cochain` in :doc:`operator_algebra` ``) —
+  fixed both, flagged the #2 leftover. LESSON: run this flattened consuming-prose sweep on EVERY
+  split (the "all inbound refs resolve cross-page" HTML audit is necessary but NOT sufficient —
+  it proves the LINKS work, not that the PROSE naming the old page is current). When the boundary
+  is a real anchor (not an anchorless stub), the contiguity proof is clean — split #3 had exactly
+  ONE H1 as the coordinator pre-scanned; still ran the count-all-H1 proof to confirm.
 
-How to apply: title-locate → prove contiguity → grep-inventory every
-label → programmatic guarded slice → author the header WITHOUT an
-f-string over math (or escape braces) and grep it → build `-E -W` to the
-unchanged baseline → HTML link-audit the inbound refs land on the new
-page → discriminate orphan artifacts by source existence.
+How to apply: title-locate → prove contiguity (count ALL `===` H1s) →
+grep-inventory every label → programmatic guarded slice → author the
+header WITHOUT an f-string over math (or escape braces) and grep it →
+build `-E -W` to the unchanged baseline → HTML link-audit the inbound
+refs land on the new page → **flattened consuming-prose sweep for
+`<moved-label> … in :doc:<source-page>` and repoint the stale
+page-pointer** → discriminate orphan artifacts by source existence.
 
 ---
 
