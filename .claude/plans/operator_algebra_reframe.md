@@ -110,14 +110,28 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
 
 ## 5a. STATUS
 
-- **⏸ COMPACTION POINT — P3 COMPLETE (2026-07-19).** All three SN-leaning deep-dives split to
-  interim foundation pages; consuming-prose hygiene swept tree-wide (P2+P3). Tree clean, HEAD builds
-  `-E -W` clean. `operator_algebra.rst` **6365 → 4657 ln** across P3 (**9223 → 4657 since P1**).
-  Foundations now carries 6 deep-dive sub-pages (P2: inverse-family / tensor-network / adjoint;
-  P3: field_algebra / wavefront_cochain / coupled_block_operator). NEXT = **P4** (relocate the
-  dev-history to a Development-history changelog + retire/relocate the evaluate-set §4, 3-search
-  audits) then **P5** (the payoff SPINE REORDER — physically lead the page with the intrinsic types:
-  type partition → C → functional → F/S; + file the algebra-of-record issue §6).
+- **⏸ COMPACTION POINT — P4 COMPLETE (2026-07-19).** Evaluate-set adjudicated + executed; the
+  algebra-of-record issue FILED (**#301**). Tree clean, HEAD builds `-E -W` clean.
+  `operator_algebra.rst` now **4503 ln** (9223 → 4503 since P1, **−51%**). NEXT = **P5** — the payoff
+  SPINE REORDER (physically lead the page with the intrinsic types: type partition → C → functional →
+  F/S) + the DEFERRED Key-Facts↔changelog reconciliation (strip the Wave-labeled metadata from Key
+  Facts AND add the ~5 missing milestone rows — the 4-tier eigenvalue `650032e`/`7603c8e`, G-adjoint
+  O.2b `5c06196`, moment-space Phase 5a, 2-D SI Phase A, interior-cochain Phase 5 — in ONE pass with
+  the reorder; strip-then-reorder is wasteful) + the optional T2/#263 relocate-to-a-design-principles
+  home question.
+- **P4 dispositions (adjudicated + verified 2026-07-19):** **T1** cross-solver — ¶2 (live
+  `_as_scipy_linop` SSOT + #2-DSA "generalise-don't-resurrect" guidance) FOLDED into Composition-
+  algebra, reframe-fixed (`loss_minus_gains = (L+C)ψ − Σ g ψ = Aψ`); ¶1 forward-ref DELETED (distilled
+  to one clause). **T2** moment-type #263 — KEPT in place (durable invariant; legit floor-rule/ceiling-
+  theory split). **T3** BC-primitives — **DISPOSITION INVERTED by the close read: relocate+merge →
+  DE-DUP** (Cardinal Rule 2). The section was near-total duplication of `boundary_conditions.rst`
+  (§1797 realization-map G_α table is RICHER; §2424 descriptor-tree algebra covers the rank-N eq /
+  Marshak / two-families / Wave-11-β1-β2 history in more detail; T3's `R=Σ G_α⊗A_α, A_α∈[0,1]` is just
+  the scalar `Σ c_α G_α` in tensor dress — nothing lost). → 24-ln `:doc:` pointer KEEPING the bridge
+  (B a first-class sibling in A=L+C−S−B); 2 labels re-anchored onto canonical content, eq-label
+  `bc-rank-n-as-sum-of-products` dropped (duplicated). **T4** SumOfTensorProducts — KEPT the live-type
+  H2 + rationale; #261 dropped from the deferred-list (verified LANDED @ `bbe8a51d`), #260 kept open.
+  All three verified in review (T3 de-dup checked against both boundary_conditions sections).
 - **NEW DISCIPLINE for every P4/P5 move (discovered P3 split 3; now archivist L-026):** a split's
   inbound `:ref:`/`:eq:` auto-repoint (path-immune), BUT **consuming PROSE that names the old host
   page** ("see `:ref:`X`` in `:doc:`operator_algebra``") silently misdirects the reader and is
@@ -182,8 +196,9 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
   - 40× `A_{\rm loss}` — a valid synonym for `A` (both = the loss operator `L+C−S−B`); no rename needed.
 
 ## 6. Follow-ups
-- **Issue (new):** build an operator-algebra algebra-of-record (SymPy for C/S/F/L + composition) so
-  the page becomes generator-expressed, not manually-leveraged. Greppable tag + #231 note.
+- **Issue FILED @ #301** (2026-07-19): build an operator-algebra algebra-of-record (SymPy for
+  C/S/F/L + composition) so the page becomes generator-expressed, not manually-leveraged. Carries
+  the `_flux_role.py:115` minor code follow-up as a note.
 - The `eigenvalue-posing` home may reconcile with the path-integral root's eigenvalue anchor (Phase H).
 - **Code follow-up (out of scope this doc campaign; flagged by archivist during P3 split #1):**
   `orpheus/transport/fields/_flux_role.py:115` — `FluxRole.__add__`'s `TypeError` message reads
