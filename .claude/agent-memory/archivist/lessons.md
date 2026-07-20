@@ -2020,16 +2020,23 @@ in the AUTHORED header you wrap around it.
   stays → OUT of L35 scope (L35 fixes only move-INDUCED breaks) → FLAG as pre-existing
   staleness (L-007), do NOT rewrite. Add temporal + gone to the per-phrase triage so
   the grep's false-positives are dispatched without a fix.
-- **Split-#4 calibrations (affine field algebra → `field_algebra.rst`; the FIRST split where
-  the brief's line-range OVERSHOT the genuine section — the contiguity proof EARNED its keep).**
+- **Split-#4/#5 calibrations (affine field algebra → `field_algebra.rst`; wavefront cochain →
+  `wavefront_cochain.rst`; the brief's line-range OVERSHOT the genuine section BOTH times — the
+  contiguity proof EARNED its keep, and this is now a STRUCTURAL, RECURRING pattern, not a
+  one-off).**
   (a) **"Prove contiguity" must count ALL H1 `===` underlines, not just anchored ones — an
   ANCHORLESS sibling H1 inside the brief's range is INVISIBLE to the anchor-grep the brief
-  author set the boundary with.** The brief's "3844–4383 / up to the next anchor
-  `wavefront-flux-cochain`" overshot: an anchorless "The composite metric adjoint" H1 (a
-  `:doc:` pointer stub a PRIOR split left behind) sat between the affine section and the next
-  `.. _label:`. A boundary set by "section anchor → next `.. _label:`" jumps clean over it.
-  The `awk`-all-`===`-underlines proof (step 1) CAUGHT it (2 H1s in the range, not 1) — the
-  contiguity proof is NOT a formality, it is the gate for exactly this. (b) **Narrow the
+  author set the boundary with.** Split #4's brief "3844–4383 / up to the next anchor
+  `wavefront-flux-cochain`" overshot an anchorless "The composite metric adjoint" H1; split
+  #5's brief "3875–4434 / up to `coupled-block-operator`" overshot an anchorless "The inverse
+  family" H1 — BOTH `:doc:` pointer stubs a PRIOR split left behind, sitting between the target
+  section and the next `.. _label:`. A boundary set by "section anchor → next `.. _label:`"
+  jumps clean over a stub (stubs carry no anchor). The `awk`-all-`===`-underlines proof (step
+  1) CAUGHT both (2 H1s in the range, not 1). **This ALWAYS happens when the extracted section
+  is immediately followed by a prior split's leftover pointer-stub H1 — endemic to a multi-split
+  campaign; EXPECT it and run the count-all-H1 proof every time** (in split #5 the coordinator
+  even pre-warned "confirm no anchorless sibling H1 inside the range"). The contiguity proof is
+  NOT a formality, it is the gate for exactly this. (b) **Narrow the
   extraction to the GENUINE titled section when the trailing sibling's prose ties it to the
   SOURCE page.** The stub said "the adjoint face of the operator algebra **on this page**" —
   a bare directional coda (L35) that BREAKS if moved (the operator algebra stays on source),
