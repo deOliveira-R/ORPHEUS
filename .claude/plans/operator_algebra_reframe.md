@@ -110,10 +110,33 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
 
 ## 5a. STATUS
 
-- **P3 IN PROGRESS (2026-07-19).** Split 1/3 DONE; split 2/3 (wavefront) in flight. Tree clean,
-  HEAD builds `-E -W` clean. Remaining after #2: split 3/3 (coupled-block, anchor
-  `coupled-block-operator`) → then P4 (dev-history→changelog) + P5 (spine reorder to lead with the
-  intrinsic types + file the algebra-of-record issue §6).
+- **⏸ COMPACTION POINT — P3 COMPLETE (2026-07-19).** All three SN-leaning deep-dives split to
+  interim foundation pages; consuming-prose hygiene swept tree-wide (P2+P3). Tree clean, HEAD builds
+  `-E -W` clean. `operator_algebra.rst` **6365 → 4657 ln** across P3 (**9223 → 4657 since P1**).
+  Foundations now carries 6 deep-dive sub-pages (P2: inverse-family / tensor-network / adjoint;
+  P3: field_algebra / wavefront_cochain / coupled_block_operator). NEXT = **P4** (relocate the
+  dev-history to a Development-history changelog + retire/relocate the evaluate-set §4, 3-search
+  audits) then **P5** (the payoff SPINE REORDER — physically lead the page with the intrinsic types:
+  type partition → C → functional → F/S; + file the algebra-of-record issue §6).
+- **NEW DISCIPLINE for every P4/P5 move (discovered P3 split 3; now archivist L-026):** a split's
+  inbound `:ref:`/`:eq:` auto-repoint (path-immune), BUT **consuming PROSE that names the old host
+  page** ("see `:ref:`X`` in `:doc:`operator_algebra``") silently misdirects the reader and is
+  **`-W`-blind** (the link resolves; only the prose lies). Every move MUST run a whitespace-flattened
+  consuming-prose sweep (the `prose_sweep2.py` pattern in `$CLAUDE_JOB_DIR/tmp`) and repoint each
+  `:doc:` to the label's real home. P2's inverse-family/adjoint splits were swept retroactively here.
+- **P3 split 3/3 DONE @ 7ae71f60** — `coupled_block_operator.rst` (709 ln; the ψ½ ray as System B of
+  the 2×2 block-triangular operator; 10 labels). Clean contiguous relocation, NO reconciliation
+  (block notation `A_AA/A_AB/A_BA/A_BB` reframe-consistent — the diagonal `A_AA` IS `L+C−S−B`);
+  trace-spaces stays on the spine. source 5315→4657.
+- **P3 split 2/3 DONE @ f45527d4** (+ chore `d190d47c`) — `wavefront_cochain.rst` (592 ln; the
+  interior face-flux cochain C¹_int; 5 labels). Pure mechanical, no reconciliation. Boundary catch:
+  the anchorless "inverse family" pointer stub (P2's) sat in the briefed range; extracted only
+  3875–4426, the stub stays. Carry-forward (`V_inflow⊕V_outflow`) pre-verified legit face-level.
+  source 5856→5315.
+- **Consuming-prose hygiene @ 31829fe0** — tree-wide repoint of prose naming the old host page for
+  all 6 moved sections: g-adjoint→`operator_adjoint` (boundary_conditions); green-operator /
+  matrix-inverse-operator / inverse-application-driver → `operator_inverse_family` (sn/history,
+  sn/index). STAY-spine refs (`capability-set-semantics`, `field-type-vs-property-criterion`) left.
 - **P3 split 1/3 DONE @ 84dcb512** (+ memory chore `22c36de0`) — `field_algebra.rst` (581 ln; the
   affine torsor + state/displacement/residual/source role grid). 6 labels carried (path-immune);
   source 6365→5856. RECONCILIATION applied (clean Option-Y, escape hatch did NOT fire — the torsor
