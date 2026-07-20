@@ -50,6 +50,12 @@ scattering, and fission *are*.
        the block-diagonal ``FullFieldSpace`` metric, its singular-trace
        Moore–Penrose pseudo-inverse — the **operator's** adjoint, distinct
        from the **frame's** Petrov–Galerkin test-space adjoint.
+   * - :doc:`/theory/foundations/field_algebra`
+     - The **affine-typed field algebra** those operators act on: flux
+       **states** as an affine space :math:`\mathbb{A}` over a displacement
+       vector space :math:`V`, the **state / displacement / residual /
+       source** role grid, and the convergence diagnostics (contraction
+       ratio, true-error estimate, per-cell map) the displacement carries.
    * - :doc:`/theory/foundations/discretization`
      - How a continuous conservation law becomes a finite algebraic system:
        the **cell-balance** invariant (sinks = sources) and its **closures** —
@@ -84,6 +90,7 @@ scattering, and fission *are*.
    operator_inverse_family
    operator_tensor_network
    operator_adjoint
+   field_algebra
    discretization
    frame
    boundary_conditions
