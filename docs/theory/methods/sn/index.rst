@@ -7342,7 +7342,7 @@ operators :math:`\iota_*` / :math:`\iota^*` (#205 Phase 5; the
 ``WavefrontFlux`` carrier that named the cochain is retired at
 S6.4(f), the cochain now living in ``_MovingFrontier`` /
 ``_octant_face_cochain`` — see :ref:`wavefront-flux-cochain` in
-:doc:`/theory/foundations/operator_algebra`).
+:doc:`/theory/foundations/wavefront_cochain`).
 
 .. _sn-mms-spherical-aniso-spatial-convergence:
 
@@ -15370,13 +15370,13 @@ operand's mathematical structure (historically selected by the
   :class:`~orpheus.numerics.operator.OperatorSum` (the Neumann /
   multiple-scattering series :math:`\sum_k (A^{-1}B)^{k} A^{-1}`, wrapping
   the SAME :class:`SourceIteration` driver as its application engine).
-  See :ref:`green-operator` (:doc:`/theory/foundations/operator_algebra`).
+  See :ref:`green-operator` (:doc:`/theory/foundations/operator_inverse_family`).
 * :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
   — the **dense direct LU factorisation** (materialise :math:`[A]`,
   factor once, back-solve per :meth:`apply`).  The natural realisation
   for the synthetic L0 case (``A`` a small dense matrix) and any small
   exactly-solvable block.  See :ref:`matrix-inverse-operator`
-  (:doc:`/theory/foundations/operator_algebra`).
+  (:doc:`/theory/foundations/operator_inverse_family`).
 * :class:`~orpheus.numerics.operator.InverseOperator` — the **generic
   solve-backed wrapper** for a value-bearing leaf (a diagonal or
   cross-section multiplier), whose :meth:`apply` delegates to the leaf's

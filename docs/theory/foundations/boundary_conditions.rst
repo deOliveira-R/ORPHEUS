@@ -356,7 +356,7 @@ Boundary-condition extraction — :math:`B` as a sibling operator (Wave O)
 
 The composite metric-correct G-adjoint that closes this extraction
 narrative is documented at :ref:`g-adjoint` in
-:doc:`/theory/foundations/operator_algebra`.
+:doc:`/theory/foundations/operator_adjoint`.
 
 Wave O step O.4a.2 (`Issue #208
 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_, three commits

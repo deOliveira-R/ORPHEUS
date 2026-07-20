@@ -52,7 +52,7 @@ branch and have no landed hash yet.
        the type system carries the biconditional. Sphere re-baselines are
        sphere-only FP-grain (the fused → block-sum association class
        ~1e-15); slab/cylinder byte-identical through a full re-save. See
-       :ref:`coupled-block-operator` in :doc:`/theory/foundations/operator_algebra`.
+       :ref:`coupled-block-operator` in :doc:`/theory/foundations/coupled_block_operator`.
      - #280
      - ``refactor/sn-walk-unification`` *(in development, 015dcc73)*
    * - 2026-07-12
@@ -104,7 +104,7 @@ branch and have no landed hash yet.
        A.\text{inverse}().H` swap-law arm went live on the grid. The EXTRACT
        is principled-equivalent (:math:`5.5\text{e-}16` vs the dense-LU
        oracle), not bit-identical. See :ref:`coupled-block-operator` in
-       :doc:`/theory/foundations/operator_algebra`.
+       :doc:`/theory/foundations/coupled_block_operator`.
      - #280 #282
      - ``refactor/sn-walk-unification`` *(in development, 0e03c304)*
    * - 2026-07-11
@@ -631,7 +631,7 @@ branch and have no landed hash yet.
        oracle (zero production consumers). Gates:
        ``tests/numerics/test_matrix_inverse_operator.py`` + extensions;
        **14 mutations verified**, pyright ratchet exactly 148. See
-       :ref:`matrix-inverse-operator` (:doc:`/theory/foundations/operator_algebra`).
+       :ref:`matrix-inverse-operator` (:doc:`/theory/foundations/operator_inverse_family`).
      - #226 / #285
      - *(in development)*
        ``refactor/inverse-as-operator``
@@ -683,7 +683,7 @@ branch and have no landed hash yet.
        ``tests/sn/operators/test_green_operator_sn.py`` (het-2G vacuum slab
        with a trace-consistent manufactured anchor resolving the #284 source
        subspace); **14 mutations verified**. See :ref:`green-operator`
-       (:doc:`/theory/foundations/operator_algebra`).
+       (:doc:`/theory/foundations/operator_inverse_family`).
      - #226 / #285
      - *(in development)*
        ``refactor/inverse-as-operator``
@@ -723,7 +723,7 @@ branch and have no landed hash yet.
        teeth) and
        ``test_2d_windowed_product_over_gauss_seidel_M_equals_post_projection``
        (the windowed×G-S corner). See :ref:`inverse-application-driver`
-       (:doc:`/theory/foundations/operator_algebra`).
+       (:doc:`/theory/foundations/operator_inverse_family`).
      - #226
      - *(in development)*
        ``refactor/inverse-as-operator``
