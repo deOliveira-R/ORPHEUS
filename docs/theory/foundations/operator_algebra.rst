@@ -1524,6 +1524,32 @@ accept an ``op.apply`` callable, **not** resurrect the retired flat-only
 ``as_scipy_linop`` twin.
 
 
+.. _intrinsic-operator-types:
+
+The intrinsic operator types
+============================
+
+The maps of the algebra fall into a three-way partition by what their
+action *returns* — the grand report §5.6 **suffix law**. An
+**Operator** carries a field to a field: the local multiplication
+:math:`C = M[\sigma_t]` (the collision diagonal, §5.7) and the
+streaming leaf :math:`L` are its transport instances. A **Kernel** is
+the nonlocal refinement — an Operator whose output at a point
+*integrates* the input across an axis — realized by the two Boltzmann
+emission kernels, scattering :math:`S = R\circ\Lambda\circ M` and
+fission :math:`F = |\chi\rangle\langle\nu\Sigma_f|`. A **Functional**
+is the disjoint sibling that maps a field to a **scalar** — the
+reaction-rate integrals behind the :math:`k`-eigenvalue. The
+discriminator between the local Operator and the nonlocal Kernel is
+**locality**: multiplication is the diagonal sub-algebra, whose output
+at a phase-space point reads the input only there, and the kernels are
+everything off-diagonal. The three type sections below develop this
+partition in order — the diagonal / multiplication Operator, then the
+Functional, then the two integral Kernels — and the full codomain
+partition with its type-system table is set out in
+:ref:`functional-category`.
+
+
 .. _diagonal-operator:
 
 Diagonal operator on a tagged axis
