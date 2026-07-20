@@ -12,23 +12,29 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 26 documentation/Sphinx/knowledge-architecture
-  lessons (L-001…L-026), read FIRST each dispatch. The spine: a page is done
+- [lessons.md](lessons.md) — 27 documentation/Sphinx/knowledge-architecture
+  lessons (L-001…L-027), read FIRST each dispatch. The spine: a page is done
   when every cross-ref resolves against the LIVE tree, every claim's V&V level
   matches the skill verbatim, every retired symbol leaves no dangling ref, and
   the build's WARNING/ERROR/CRITICAL set is unchanged from the `-E` baseline.
   The per-lesson catalog + war-stories live in lessons.md — do NOT re-summarize
-  them here (this index stays slim). Newest: L-026 — the SPLIT-to-new-page
-  pattern (extract N contiguous H1 sections into a foundations page, #231
-  corpus splits): locate by STABLE title (line numbers drift) + prove
-  contiguity, grep-inventory EVERY traveling `.. _label:`/`:label:` (path-immune
-  — inbound `:ref:` survive the move), slice PROGRAMMATICALLY with guarded
-  boundaries (L-012). The sharp NEW gate: an f-string over the AUTHORED
-  header/intro MANGLES LaTeX braces (``:math:`A^{-1}` `` → `A^-1`; `\tfrac{}{}`
-  likewise) and `-W` is BLIND (valid math, wrong render) — don't f-string
-  math-bearing prose (or escape `{{ }}`) and grep the authored region before
-  building; the verbatim block via `"".join` is safe. Discriminate orphaned
-  `-E` HTML artifacts (renamed-source hrefs) by "does the source `.rst` exist?".
+  them here (this index stays slim). Newest: L-027 — a "RELOCATE section to page
+  X" brief that the mandated CLOSE READ reveals is ALREADY-fully-on-X →
+  Cardinal-Rule-2 DE-DUPLICATE (replace with a `:doc:` pointer preserving the
+  conceptual bridge, merge NOTHING, carry `.. _` aliases onto the canonical
+  content), NOT relocate+merge; FLAG the inversion (the brief's "additive parts"
+  list was the scoping estimate). NEW `-W`-caught class: `ref.ref` "A title or
+  caption not found" fires on a BARE `:ref:` to a `.. _label:` before a
+  paragraph (no title/caption) — fix by anchoring before a titled/CAPTIONED
+  element (section title / `.. list-table:: Caption`) OR explicit-text
+  `:ref:`text <label>``. Reframe-consistency applies to a FOLD too (a fold is a
+  move — spell the sub-composite `(L+C)`, result is full `A=L+C−S−B`). Stale
+  deferred-issue tags distill by `git merge-base --is-ancestor`, keeping the
+  design rationale. L-026 (prior): the SPLIT-to-new-page pattern — locate by
+  STABLE title + prove contiguity, grep-inventory traveling labels, slice
+  PROGRAMMATICALLY; the f-string-over-authored-LaTeX brace-mangle trap (`-W`
+  blind) — don't f-string math-bearing prose; discriminate orphaned `-E` HTML
+  by "does the source `.rst` exist?".
 
 ## 2. Active / doc-debt state — git-true
 

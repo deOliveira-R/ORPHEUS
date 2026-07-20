@@ -2093,6 +2093,108 @@ page-pointer** → discriminate orphan artifacts by source existence.
 
 ---
 
+## L-027 — The "relocate to page X" brief that the CLOSE READ reveals is ALREADY-fully-on-X → Cardinal-Rule-2 DE-DUPLICATE, not relocate+merge; plus the `ref.ref` caption-gotcha on an alias anchor, and reframe-consistency in a FOLD
+
+A doc-cleanup brief can say "RELOCATE section S from page A to page B,
+merging its additive parts in" — and the mandated close read of page B
+reveals S is **already fully documented on B**, in equal or greater
+detail. The scoping estimate (from a partial read) said "partial
+overlap, ~1 additive artifact"; the CLOSE read (of every candidate
+landing section) inverts it to "total duplication, ZERO additive."
+
+- **When the content is already canonical on the target, the correct
+  action is DE-DUPLICATION, not relocate+merge (Cardinal Rule 2).**
+  Replace the source copy with a brief `:doc:` pointer that preserves
+  the CONCEPTUAL BRIDGE (why the topic matters to the source page) and
+  names the sub-topics, pointing at the canonical target sections; merge
+  in NOTHING that already exists. Worked (#231 P4-T3): the "Boundary
+  conditions as Wave-0/1 primitives" section on `operator_algebra.rst`
+  was ~fully duplicated by `boundary_conditions.rst` — the G_α
+  "primitives table" (its supposed one additive artifact) already lived
+  there as the richer "SN realization map" list-table (§1794, with α=1
+  fast-path columns + a bit-identity note the operator-algebra copy
+  lacked); the rank-N eq, the Marshak example, the descriptor-vs-operator
+  separation, AND the Wave-11/β1 predecessors were ALL already present.
+  So: replace with a `:doc:` pointer, merge nothing.
+- **The brief's "additive parts to MERGE IN" list is the SCOPING
+  estimate, NOT ground truth — the close read overrides it. FLAG the
+  inversion loudly** (the reviewer built the brief on the partial-read
+  model). Report each "additive" item as "already at §X of the target,
+  deduped" with the section reference, so the reviewer's close review
+  can restore any specific piece. This is the T-relocate analogue of the
+  split-#4 anchorless-sibling discovery: the contiguity/close-read gate
+  is what catches the brief's wrong structural assumption.
+- **Carry the moved section's `:ref:`-able labels as ALIAS anchors onto
+  the canonical target content** (zero-inbound-ref labels still get
+  carried "for outbound-ref integrity" per the brief) — BUT an EQ-label
+  (`:label:`, used via `:eq:`) CANNOT be aliased onto a different eq;
+  drop it if its eq is duplicated and it has zero `:eq:` refs (flag the
+  drop). Std `.. _` anchors alias fine.
+- **⚠ NEW `-W`-CAUGHT warning class — `ref.ref` "A title or caption not
+  found".** A `.. _label:` placed before a **paragraph** (or any element
+  with no title/caption) makes a BARE `:ref:`label`` FAIL under `-W`
+  ("Failed to create a cross reference. A title or caption not found").
+  Unlike a dead code-xref (plain-text, L-002-silent), THIS one IS gated
+  by `-W`. Two fixes: (a) place the alias anchor before a TITLED or
+  CAPTIONED element (a section title, or a ``.. list-table:: Caption`` /
+  figure — then the caption becomes the link text), OR (b) use
+  EXPLICIT-text `:ref:`link text <label>`` (resolves regardless of what
+  the label precedes). An anchor before a SECTION TITLE is already safe
+  (bare ref gets the title); an anchor before a paragraph/list needs (a)
+  or (b). (Worked: `bc-descriptor-tree-vs-operator-tree` before §2419's
+  title was fine; `bc-tensor-primitives` before a paragraph warned — I
+  moved it before the captioned list-table AND made the pointer
+  explicit-text.)
+- **Reframe-consistency applies to a FOLD, not only a split/move.** When
+  folding a paragraph into a keeper section, the SAME overloaded-symbol
+  reconciliation applies: T1's `loss_minus_gains(psi) = A.apply − Σ
+  g.apply` used `A` for the sub-composite `(L+C)` (gains = S,B) — the
+  pre-reframe collision. Verify against LIVE code (`iteration.py:903` +
+  its docstring "the matvec IS the honest `(L+C−S−B)·ψ`"), then fold
+  reframe-consistently: spell the sub-composite `(L{+}C)` explicitly and
+  identify the result as the full `A = L+C−S−B` applied. A fold is a
+  move; a move re-exposes every reconciliation the source had.
+- **A stale deferred-follow-up ISSUE-tag is distilled by git, not
+  guessed.** T4's "Deferred follow-ups: #260 …, #261 (core relocation…)"
+  — `git merge-base --is-ancestor <#261-commit> HEAD` proved #261 landed
+  → drop it, keep the still-open #260 (singularize "follow-ups"→
+  "follow-up"). Keep the DESIGN RATIONALE ("considered-and-rejected: R/M
+  are rank-changing einsums, not valid tensor factors") — only the dated
+  tracking tail distills.
+- **⚠ Dropping a duplicated EQ-label ALSO drops its `.. vv-status:` — check the
+  V&V-matrix consequence and MOVE the status to the survivor.** A de-duplicated
+  concept can carry TWO `:label:`s with DIFFERENT V&V status — a `documented`
+  twin and an `orphan` twin (same math). Dropping the `documented` one (because
+  it is the duplicate) silently DEMOTES the concept to `orphan` (untracked), and
+  `-W` is BLIND: the orphan-equation gate is a `docs/verification/matrix.rst`
+  REPORT auto-regenerated by `conf.py`'s `generate_matrix` hook, NOT a
+  build-breaking check. If the concept is genuinely documented-only (a
+  declarative/definitional eq with no numerical result to test — e.g. a
+  BC-algebra decomposition), ADD `.. vv-status: <survivor-label> documented` to
+  the surviving canonical eq so the accounting is preserved through the de-dup.
+  Worked (#231 P4-T3, caught by the main agent in review): dropping
+  `bc-rank-n-as-sum-of-products` (documented) left only the orphan
+  `bc-rank-n-tensor-decomposition` — fixed by marking the survivor `documented`.
+  The retirement-audit's "handle the V&V edges" includes the vv-status
+  directive, not just the `:eq:` refs.
+
+How to apply: on a "relocate to X" brief, CLOSE-read every candidate
+landing section on X FIRST; if the content is already there, de-dup by
+`:doc:` pointer (merge nothing) and FLAG the inversion; carry `.. _`
+aliases onto the canonical content (before a titled/captioned element,
+or use explicit-text refs to dodge `ref.ref`); a fold is a move — apply
+the reframe reconciliation; distill stale issue-tags by `git
+merge-base`, keeping the design rationale; when dropping a duplicated
+eq-label, MOVE its `.. vv-status:` to the survivor (the `-W`-blind
+orphan-demotion). **Mechanical:** a full `-E`
+rebuild here EXCEEDS the 120s foreground cap — use `run_in_background`
+for the authoritative gate (a foreground poll-loop gets SIGTERM'd at
+2 min, killing the build at the final line before "build succeeded"
+prints, so the summary never lands even though zero warnings were
+raised).
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:
