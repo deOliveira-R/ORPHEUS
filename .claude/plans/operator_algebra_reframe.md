@@ -123,6 +123,25 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
   BC + 6 deep-dive stubs → Development-history changelog. **Dispatch a FRESH archivist** (the P3–P5a
   instance is ~900K tokens deep). Optional tail: the T2/#263 relocate-to-a-design-principles-home
   question; the #301 algebra-of-record is FILED.
+- **P5b SCOPED (fresh archivist `a35ca096`, 2026-07-19) — core decision ESCALATED to the user.**
+  Close-read findings: (1) **Move A's hazard** — relocating "Pure-L streaming + the affine collision
+  split" (522–717) after the types creates a **pedagogical inversion**: the EARLY apply/solve section's
+  argument ("invert the SUM, not the leaves") rests on the streaming affine split
+  (`streaming-action-pure-l`/`-cell-balance`); moving streaming late makes apply/solve forward-ref its
+  own foundation (4 `:eq:` + prose L983 "the previous subsection" → wrong). Survivable but a real
+  premise↔conclusion flip → **user taste call** (keep-early recommended; the page already leads with
+  C/S/F after the surface regardless). (2) Re-title "The composite A=L+C−S−B" **over-claims** — the
+  section assembles only the `L+C` LOSS sub-composite (S,B are source-iteration; the sweep/resolvent
+  lives in apply/solve). Use "Assembling the loss operator: the streaming leaf L and the L+C composite".
+  (3) **Hidden siblings:** C = TWO H1s (`diagonal-operator` 1529 + `multiplication-operator-promotion`
+  1606 — move as a unit); "Trace spaces Γ∓" (3747) is REAL content, not a stub (it is the "trace" in
+  the tail). (4) **Move B** = LIGHT grouping (a short "The operator surface" preamble H1 after Key
+  Facts) — reject the full H1→H2 heading-cascade merge (`-E -W` risk). (5) Type-partition framing
+  already exists (Functional §5.6 suffix-law + codomain table) but appears mid-stream; optional light
+  preview H1 before the C block (preview + `:ref:`, no table copy). (6) **Ambiguity C — tail reorder**
+  (eigenvalue/trace above BC) is a THIRD move, NOT P5b scope → **DEFER, leave tail as-is.** Full
+  proposal in the archivist transcript. Blast radius: 2 moving eq-labels path-immune; only real prose
+  break = L983. **HOLD all P5b execution until the streaming-positioning ruling.**
 - **P5a DONE** (Key-Facts↔changelog reconciliation; committed this session) — 10 Wave-metadata strips
   from the high-traffic Key Facts (hashes / round-labels / branches / dates → relocated to the
   changelog; the invariants + the 2 eq-labels + their vv-status + the active gotchas KEPT) + **6
