@@ -269,21 +269,8 @@ homogeneous problems (verified to machine precision for 1G/2G/4G).
 The Transport Equation
 ======================
 
-Cartesian 1D (Slab)
---------------------
-
-The steady-state transport equation in a 1D slab:
-
-.. math::
-   :label: transport-cartesian
-
-   \mu \frac{\partial \psi(x, \mu)}{\partial x}
-   + \Sigt{} \, \psi(x, \mu)
-   = \frac{Q}{W}
-
-where :math:`\mu = \cos\theta` is the direction cosine, :math:`Q` is the
-total isotropic source (fission + scattering), and :math:`W = \sum_n w_n`
-is the quadrature weight sum.
+The 1-D slab form — the base of the broadening progression — is
+posed in :doc:`slab_one_group`; the geometries below extend it.
 
 Cartesian 2D
 --------------
@@ -370,38 +357,7 @@ This is the core of the S\ :sub:`N` method.  The balance equations are
 presented from simplest to most complex: Cartesian geometries have no
 angular redistribution; curvilinear geometries add :math:`\alpha` coupling
 and a geometry factor :math:`\Delta A/w`.
-
-.. _balance-cartesian-1d:
-
-Cartesian 1D Balance Equation
-------------------------------
-
-Integrating :eq:`transport-cartesian` over a spatial cell
-:math:`[x_{i-1/2}, x_{i+1/2}]` of width :math:`\Delta x_i` and applying
-the divergence theorem to the streaming term:
-
-.. math::
-
-   \mu_n \bigl[\psi_{i+\frac12} - \psi_{i-\frac12}\bigr]
-   + \Sigt{} \Delta x_i\, \psi_{n,i} = S_i \Delta x_i
-
-where :math:`S_i = Q_i / W` and face areas are unity in slab geometry.
-Applying the diamond-difference closure
-:math:`\psi_{n,i} = \frac{1}{2}(\psi_{\rm in} + \psi_{\rm out})` and
-:math:`\psi_{\rm out} = 2\psi_{n,i} - \psi_{\rm in}`, we solve for the
-cell-average angular flux:
-
-.. math::
-   :label: dd-cartesian-1d
-
-   \psi_{n,i}
-   = \frac{S_i + \dfrac{2|\mu_n|}{\Delta x_i}\, \psi_{\rm in}}
-          {\Sigt{} + \dfrac{2|\mu_n|}{\Delta x_i}}
-
-This is the simplest balance equation: no :math:`\alpha` redistribution
-and no :math:`\Delta A` factor, because slab geometry has no curvature.
-The streaming coefficient :math:`2|\mu|/\Delta x` is precomputed by
-:class:`SNMesh` as ``streaming(0)[n, i]``.
+The 1-D slab balance is derived in :doc:`slab_one_group`.
 
 .. _balance-cartesian-2d:
 
@@ -2207,7 +2163,8 @@ The DD recurrence
 
 For non-degenerate cells, the closure relation reduces — for slab
 geometry, the cell-update math is the DD recurrence
-:eq:`dd-recurrence` (see :ref:`sweep-cumprod` below); for curvilinear
+:eq:`dd-recurrence` (derived at :ref:`sweep-cumprod` in
+:doc:`slab_one_group`); for curvilinear
 geometry, it is the curvilinear DD form combining the
 :math:`\Delta A/w` redistribution with the M-M angular closure.  The
 sweep driver inlines this math today; Wave D (Issue #159) will
@@ -2383,177 +2340,9 @@ Because each cell's outgoing flux becomes the next cell's incoming flux,
 the equations must be solved in the direction of neutron travel --- this
 is called a **transport sweep**.
 
-.. _sweep-cumprod:
-
-Cartesian 1D: Cumprod Recurrence
----------------------------------
-
-For the 1D slab with Gauss--Legendre quadrature, the DD equation
-:eq:`dd-cartesian-1d` defines a recurrence for the outgoing face flux:
-
-.. math::
-   :label: dd-recurrence
-
-   \psi_{\rm out} = a_i\, \psi_{\rm in} + b_i
-
-where the coefficients for cell :math:`i` are:
-
-.. math::
-
-   a_i = \frac{2|\mu_n|/\Delta x_i - \Sigt{}}
-              {2|\mu_n|/\Delta x_i + \Sigt{}},
-   \qquad
-   b_i = \frac{S_i}
-              {2|\mu_n|/\Delta x_i + \Sigt{}}
-
-This arises from substituting the DD closure
-:math:`\psi_{\rm out} = 2\psi_{\rm avg} - \psi_{\rm in}` into
-:eq:`dd-cartesian-1d`.  The coefficient :math:`a_i` is the
-**stream-to-collision ratio**: it controls how much incoming flux
-propagates through cell :math:`i`.
-
-Unrolling the recurrence :math:`\psi_{\rm out}^{(i)} = a_i\, \psi_{\rm out}^{(i-1)} + b_i`
-gives a linear first-order relation that can be solved analytically
-using **cumulative products**.  Define:
-
-.. math::
-
-   C_i = \prod_{k=0}^{i} a_k, \qquad
-   R_i = \sum_{k=0}^{i} \frac{b_k}{C_k}
-
-Then the incoming face flux at cell :math:`i+1` is:
-
-.. math::
-
-   \psi_{\rm in}^{(i+1)} = C_i \bigl(\psi_{\rm in}^{(0)} + R_i\bigr)
-
-and the cell-average flux is :math:`\psi_{\rm avg}^{(i)} = \frac{1}{2}(\psi_{\rm in}^{(i)} + \psi_{\rm out}^{(i)})`.
-
-The implementation in :func:`_sweep_1d_cumprod` computes :math:`C` and
-:math:`R` via ``np.cumprod`` and ``np.cumsum``, giving an
-:math:`O(N \cdot n_x)` **vectorised** sweep --- all spatial cells for a
-given ordinate are resolved simultaneously in numpy array operations,
-with no Python-level cell loop.  This typically runs in sub-millisecond
-time for practical meshes.
-
-Exploiting GL symmetry, only positive-:math:`\mu` ordinates are swept
-forward; negative-:math:`\mu` ordinates are obtained by reversing the
-cell array and sweeping with the same coefficients.
-
-.. _sn-affine-outgoing-face-reconstruction:
-
-Generic affine outflow reconstruction
---------------------------------------
-
-.. math::
-   :label: sn-affine-outgoing-face-reconstruction-eq
-
-   \psi_{\rm out} = \frac{\bar\psi - (1-w)\,\psi_{\rm in}}{w}
-
-The single-source inverse of the convex cell-average blend
-:math:`\bar\psi = (1-w)\psi_{\rm in} + w\,\psi_{\rm out}`
-(:eq:`dd-recurrence` closure :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}`
-is the :math:`w=\tfrac12` case).  Every consistent affine spatial scheme
-reconstructs its downstream face from this one parameterized formula: Diamond
-Difference at :math:`w=\tfrac12` (diamond mean), Linear Discontinuous at
-:math:`w = 1/(1+k)` with :math:`k = (|\mu|/\theta)/D_2`.  At :math:`w=\tfrac12`
-the reconstruction is byte-identical to the inlined :math:`2\bar\psi - \psi_{\rm in}`
-(division by :math:`\tfrac12` is the exact power-of-two doubling, which commutes
-with round-to-nearest); LD's :math:`w=1/(1+k)` is algebraically equal to its
-inlined Schur form :math:`\bar\psi + (|\mu|/\theta)(\bar\psi - \psi_{\rm in})/D_2`
-but takes a different floating-point reduction tree (a principled
-:math:`\sim`\ 1-ULP re-baseline).
-
-The one parameterized formula above is the **single source** of the
-downstream-face reconstruction for *every* affine 1-D spatial scheme.  It is
-homed (with its forward partner, the cell-average blend
-:math:`\bar\psi = (1-w)\psi_{\rm in} + w\,\psi_{\rm out}`, and the source
-emission) as a ``@staticmethod`` on the
-:class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`, so the per-scheme
-classes (:class:`~orpheus.transport.spatial.diamond.DiamondDifference`,
-:class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous`, Step)
-carry NO inlined reconstruction of their own — they differ only by the value
-they pass for the blend weight :math:`w`.  The #240 Phase 2 Step D1 carve
-collapsed the previously-duplicated inline forms (Diamond Difference's
-:math:`2\bar\psi - \psi_{\rm in}`, Linear Discontinuous's
-:math:`(1+k)\bar\psi - k\,\psi_{\rm in}`) onto this one op
-(:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`),
-the algebraic inverse of
-:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average`; Step D2
-made the trio (``source_emission`` / ``cell_average`` /
-``outgoing_face_from_average``) generic advection–reaction reconstructions
-(diffusion-consumable, retiring the dangling ``affine_closure`` module).  The
-unit gate is :mod:`tests.transport.spatial.test_affine_closure`: the exact-inverse
-round-trip :math:`\bar\psi(\,\psi_{\rm in}, \psi_{\rm out}(\psi_{\rm in}, \bar\psi)\,) = \bar\psi`,
-the DD :math:`w = \tfrac12` byte-identity, and the LD :math:`w = 1/(1+k)`
-algebraic equality.
-
-The Step / DD / LD ladder is the transport-sweep face of a correspondence
-familiar from finite-volume advection: each scheme is one choice of how the
-**downstream** face value is reconstructed from the cell average and the
-**upstream** face value, parameterized by the convex blend weight :math:`w`.
-
-.. list-table:: The affine spatial schemes as advection-flux reconstructions
-   :header-rows: 1
-   :widths: 16 14 30 40
-
-   * - Scheme
-     - Blend :math:`w`
-     - Face reconstruction
-     - Advection-scheme analog
-   * - **Step** (upwind)
-     - :math:`w \to 1`
-     - :math:`\psi_{\rm out} = \bar\psi` (cell value carried to the
-       downstream face)
-     - first-order **upwind**: the outgoing flux IS the cell-centre value, no
-       slope.  Monotone, unconditionally positive, :math:`O(h)`.
-   * - **Diamond Difference**
-     - :math:`w = \tfrac12`
-     - :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}` (central / box mean)
-     - **box / central** difference: the cell average is the arithmetic mean of
-       the two faces.  :math:`O(h^2)`, but can go negative (the DD flux dip).
-   * - **Linear Discontinuous**
-     - :math:`w = 1/(1+k)`,
-       :math:`k = (|\mu|/\theta)/D_2`
-     - :math:`\psi_{\rm out} = \bar\psi + \hat\psi` (DG-P1 upstream trace)
-     - **DG-P1 with upwind face flux**: a discontinuous linear profile per cell,
-       the downstream face is the cell's own :math:`P_0 + P_1` trace.
-       :math:`O(h^2)`, diffusion-limit-consistent (slope-source-fed).
-
-The weight :math:`w = 1/(1+k)` is a **Péclet-type blend**: writing
-:math:`k = (|\mu|/\theta)/D_2` (the stream-to-collision ratio of
-:eq:`ld-ubld-scale-free-invariants`, scaled by the Legendre normalization
-:math:`\theta = \tfrac13`), the optically thin cell (:math:`\Sigma_t h \to 0`,
-streaming-dominated, :math:`k \to \infty`) drives :math:`w \to 0` so the
-downstream face approaches the *upstream* face (the streaming limit, no
-collisional re-equilibration within the cell); the optically thick cell
-(:math:`\Sigma_t h \to \infty`, collision-dominated, :math:`k \to 0`) drives
-:math:`w \to 1` so the downstream face approaches the cell average (the
-diffusive limit).  This is exactly the role the Péclet number plays in a
-:math:`\kappa`-scheme advection blend — :math:`w` interpolates between upwind
-(:math:`w=1`) and central (:math:`w=\tfrac12`) as a function of the cell
-optical thickness.  Diamond Difference's fixed :math:`w=\tfrac12` is the
-:math:`\Sigma_t = 0` (pure streaming) value of the LD weight only in the
-degenerate sense that DD ignores the within-cell collision balance the LD
-slope resolves; the two coincide on the *average* but DD has no slope row at
-all.
-
-.. note::
-
-   **The spatial closure factors out of the angular index, and the multi-D
-   extension factors out of the dimension.**  The reconstruction op above is
-   stated per ordinate per axis, so it is a *spectator* to the angular moment
-   axis (the angular reduction :eq:`two-moment-angular` rides over it, see
-   :ref:`two-moment-axes`) — the same op serves a P0 and a P3 calculation
-   unchanged.  In the same spirit, the multi-dimensional LD closure
-   (:ref:`ld-ubld-multidim`, next) is the **tensor product** of this 1-D
-   per-axis reconstruction across :math:`d` axes: the per-cell
-   :math:`2^d \times 2^d` operator is assembled as a Kronecker product of the
-   verified 1-D factor operators, so the affine 1-D closure documented here is
-   the literal :math:`d=1` building block of the :math:`d`-generic UBLD system
-   :eq:`ld-ubld-cell-system`.  Spatial scheme :math:`\otimes` angular order
-   :math:`\otimes` dimension: three orthogonal axes of choice, each a tensor
-   factor, none special-casing the others.
+The 1-D slab sweep — the cumprod recurrence and the generic affine
+outflow reconstruction — is derived in :doc:`slab_one_group`; the
+sections below build the multi-dimensional and curvilinear machinery.
 
 .. _ld-ubld-multidim:
 
@@ -12413,86 +12202,6 @@ Session trail (V&V audit trail)
    admission gates named above — so these eq-labels are ``documented``.
 
 
-Krylov inner solver
-===================
-
-Instead of sweep-based source iteration, the within-group transport
-problem can be solved directly using a Krylov method.  Wave E Round 2
-(Issue #164) replaces the legacy BiCGSTAB FD-operator path with GMRES
-on :meth:`InvertibleOperator.apply` (the symmetric closure carried
-by the operator algebra) with the sweep as a left preconditioner —
-the SAILOR / Larsen-Adams preconditioned-Krylov framework
-([AdamsLarsen2002]_ §III).
-
-Operator equation
------------------
-
-The invertible loss operator :math:`A = L + C` (streaming
-:math:`L = \mu_n\nabla` plus collision :math:`C = \Sigt{}`) is formed
-explicitly via
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator`:
-
-.. math::
-
-   A\psi = \mu_n \nabla\psi + \Sigt{}\psi
-
-For Cartesian geometry, this is a banded matrix with upwind cell-
-centre finite-difference gradients.  For curvilinear geometries, the
-operator includes the :math:`\Delta A/w` geometry factor and the
-**symmetric** Morel--Montry angular face-flux interpolation
-:math:`\psi_{n\pm 1/2} = \tau\,\psi_{\rm next} + (1-\tau)\,
-\psi_{\rm this}`, which is distinct from the WDD asymmetric closure
-:math:`\psi_{n+1/2} = (\overline{\psi} - (1-\tau)\,\psi_{n-1/2})/\tau`
-used by the sweep.
-
-The system :math:`A\,\psi = b` is solved with
-``scipy.sparse.linalg.gmres`` (replacing the legacy BiCGSTAB), with
-the sweep wrapped as a scipy ``LinearOperator`` preconditioner ``M``.
-On uniform meshes the symmetric and WDD closures converge to the
-same physics in the fine-mesh limit; on curvilinear meshes the
-sweep's WDD closure has the ERR-026 closure-bias-driven self-
-consistent fixed point that is now bypassed by the Krylov-on-
-:meth:`apply` path.
-
-Consistency with the Sweep
----------------------------
-
-Both the sweep and the Krylov path must use the **same** spatial
-discretisation to produce identical eigenvalues.  In practice:
-
-- The sweep uses diamond-difference (DD): :math:`A^{-1}` is applied
-  implicitly via forward substitution along sweep-direction visits.
-- The Krylov path forms :math:`A` explicitly via the symmetric-
-  closure FD operator and inverts it via GMRES.
-
-On coarse meshes, DD and FD have different truncation error
-constants, so the two paths may give slightly different :math:`\keff`
-values.  They converge to the same answer as :math:`h \to 0`.
-
-The curvilinear FD operator reads ``alpha_half`` / ``redist_dAw``
-(spherical) and the per-level analogues (cylindrical) from
-``SNMesh.reduced``, and the Morel--Montry weight :math:`\tau` from the
-pole-angular closure (since Issue #236 Step C — see
-:ref:`sn-tau-c-on-cellvisit-live`).  This ensures both paths share
-exactly the same connection-coefficient infrastructure.
-
-Round 2 deviation
------------------
-
-The campaign plan called for an automatic ``"krylov"`` dispatch on
-curvilinear meshes in
-:func:`~orpheus.sn.solver.solve_sn_fixed_source` that would silently
-close ERR-026 on the curvilinear vacuum-BC MMS cases.
-Implementation surfaced an unforeseen coupling: the then-
-``build_equation_map_spherical`` /
-``build_equation_map_cylindrical`` packed-vector layout that
-:meth:`InvertibleOperator.apply` reused was designed for the
-**reflective** outer-boundary BC only — it has no slot for a vacuum-
-BC outer-incoming :math:`\psi`.  Wave E Round 3 owns the equation-map
-extension that closes the vacuum-BC path; Round 2 ships the krylov
-inner solver as an explicit opt-in for the reflective-BC eigenvalue
-case where it is bit-identical math to the legacy BiCGSTAB FD path.
-
 
 Scattering
 ==========
@@ -12535,19 +12244,9 @@ the in-scatter contribution, so :math:`\text{diag}(\Sigt{}) - \text{SigS}^T`
 is the net removal matrix.  See :ref:`scattering-matrix-convention` for the
 full derivation of this convention.
 
-P\ :sub:`0` Isotropic Scattering
-----------------------------------
-
-The default mode (``scattering_order=0``).  A direction-independent
-source is added to all ordinates equally:
-
-.. math::
-
-   Q_{\rm scatter}(\hat{\Omega}_n)
-   = \sum_{g'} \Sigs{g'\to g}^{(0)}\, \phi_{g'} / W
-
-Implemented in :meth:`SNSolver._add_scattering_source`, which performs
-``phi @ SigS[0]`` per material.
+P\ :sub:`0` isotropic scattering — the within-group projection
+:math:`S = \Sigma_{s,0}\,P_{\rm iso}` — is derived in
+:doc:`slab_one_group`.
 
 .. _pn-scattering:
 
@@ -12962,83 +12661,16 @@ descriptor; the SN realiser produces the callable. See
 :ref:`bc-trace-law-descriptor-model`.)
 
 
-.. _sn-streaming-operator:
-
 InvertibleOperator: the streaming-collision operator algebra
 ==============================================================
 
-Wave D Round 3 (Issue #160) installs
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` as the unified
-:class:`~orpheus.numerics.operator.LinearOperator` for the invertible
-loss operator
-:math:`A = L + C = \Omega\cdot\nabla + \Sigma_t`.  This is the Wave D
-**capstone**: with :math:`A`, :math:`S`, and :math:`F` all carrying
-the Wave A operator-algebra contract, the operator-form transport
-equation
-
-.. math::
-
-    (A - S - F)\,\psi = q
-    \qquad\text{(fixed source)}
-
-.. math::
-
-    (A - S)\,\psi = \tfrac{1}{k}\,F\,\psi
-    \qquad\text{(eigenvalue)}
-
-is now expressible in ORPHEUS as a single Python expression composed
-from three :class:`LinearOperator` objects.  The Wave A composers
-(:class:`~orpheus.numerics.operator.OperatorSum`,
-:class:`~orpheus.numerics.operator.OperatorProduct`,
-:class:`~orpheus.numerics.operator.ScaledOperator`) compute their
-:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
-:attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
-recursively from the constituents per the closure laws (see
-:ref:`operator-algebra`).
-
-The full operator surface — apply, solve, apply_transpose
----------------------------------------------------------
-
-:class:`InvertibleOperator` realizes all three verbs — ``apply``,
-``solve``, ``apply_transpose`` — and reports both ``is_invertible`` and
-``is_adjointable`` ``True`` (the retired ``{"apply", "solve",
-"apply_transpose"}`` capability frozenset advertised exactly this;
-:ref:`capability-set-semantics`):
-
-* :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` —
-  matrix-free forward action :math:`A\,\psi = (L+C)\,\psi` via the
-  operator's own
-  :attr:`~orpheus.sn.operators.streaming.InvertibleOperator.loss_representation`
-  through the shared apply-direction walk
-  (:meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action`,
-  the ``(L+C)ψ`` single emission — the apply-direction twin of
-  :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep`,
-  L21 "matvec ≡ sweep"; #206 Phase C).  (Historically ``apply``
-  reused the symmetric-closure math extracted verbatim from the
-  per-geometry ``transport_operator_matvec*`` functions of the
-  BiCGSTAB FD operator; that whole family and its unified successor
-  were deleted in the typed-field (#197) and walk-unification
-  (#280 campaigns) refactors.)
-
-* :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` —
-  inverse action :math:`A^{-1}\,q` via the operator's own
-  :attr:`~orpheus.sn.operators.streaming.InvertibleOperator.loss_representation`
-  sweep (the WDD forward substitution; the 1-D scan or multi-D wavefront
-  selected by :func:`~orpheus.sn.loss_representation.default_for`).
-
-* :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose` —
-  adjoint action :math:`A^{\mathsf T}\,\phi` via the loss-representation's
-  named
-  :meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action_transpose`
-  (the reverse-direction walk carrying the second angular triangular
-  factor on curvilinear; the multi-D Cartesian adjoint is an honest
-  deferral raise, never a silent wrong answer).  It gates the
-  reciprocity invariant :math:`\langle A\,\psi,\,\varphi\rangle =
-  \langle\psi,\,A^{\mathsf T}\,\varphi\rangle` (see "Reciprocity"
-  subsection below).  (The pre-Depth-B path assembled a dense matrix by
-  probing :meth:`apply` with unit basis vectors and returned its explicit
-  transpose; that retired with the bundled ``SNStreamingOperator`` class
-  in D-K.)
+The streaming-collision loss composite :math:`L+C` — its operator
+surface (``apply`` / ``solve`` / ``apply_transpose``), the one-walk
+matvec ≡ sweep fact, reciprocity, and the typed carrier — is
+documented in :doc:`slab_one_group` (:ref:`sn-streaming-operator`).
+This section retains the historical record of the superseded
+two-closure design (kept for the ERR-026 closure-bias reasoning it
+records) and the scattering adjoint.
 
 Apply and solve use **different** closures by design (historical)
 -----------------------------------------------------------------
@@ -13110,146 +12742,6 @@ poisoning the converged solution with its closure bias.  ERR-026
 closes when Wave E lands; the 2 xfail-strict tripwires at
 :file:`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
 are the gating bug-catchers for that closure.
-
-Why ship :meth:`solve` at all if it carries the WDD closure?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Two reasons:
-
-1. **The Wave D Round 2 unified sweep is bit-identically used as a
-   preconditioner.**  Wave E's Krylov-on-apply needs an effective
-   preconditioner; the sweep's :math:`O(N\cdot N_{\rm cells})`
-   forward substitution is the canonical SN preconditioner (Lewis
-   & Miller §4.5; Adams & Larsen 2002 review).  Exposing
-   :meth:`solve` keeps that path discoverable through the
-   operator surface (it reports ``is_invertible = True``).
-
-2. **The composers (Wave A) need a uniform contract.**  When a
-   downstream agent composes :math:`(A - S - F)`, the composition's
-   :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
-   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable` are
-   derived recursively from each operand.  If
-   :class:`InvertibleOperator` shipped only :meth:`apply`, the
-   composition would report ``is_invertible = False`` and the Wave E
-   Krylov-on-apply path could not request a sweep-preconditioned matvec
-   without bypassing the algebra.
-
-Reciprocity invariant
----------------------
-
-The reciprocity identity is the defining property of the operator-
-transpose pairing under the discrete L\ :sup:`2` inner product:
-
-.. math::
-    :label: sn-streaming-reciprocity
-
-    \langle A\,\psi,\,\varphi\rangle \;=\;
-    \langle\psi,\,A^*\,\varphi\rangle
-
-for any pair :math:`(\psi, \varphi)` in the discrete unknown space
-(packed solution vectors of length ``n_unknowns``).  Per Lewis &
-Miller §10 (adjoint transport), this identity links forward and
-adjoint sources / fluxes; it is the foundation on which detector
-sensitivity, perturbation theory, and adjoint-weighted kinetics
-all rest.
-
-Post-Depth-B (2026-05), :meth:`apply_transpose` on
-:class:`InvertibleOperator` is inherited from
-:class:`~orpheus.numerics.operator.OperatorSum`'s adjoint-propagation
-closure law: each leaf's ``.H`` adjoint composes via the sum/
-difference algebra, so the composite transpose is built analytically
-(no dense-matrix probing).  The pre-Depth-B implementation assembled
-a dense matrix by probing :meth:`apply` with unit basis vectors and
-returned the explicit transpose; that path retired with the bundled
-``SNStreamingOperator`` class in D-K.
-
-Reciprocity gating today: the foundation linearity gate
-:func:`tests.sn.operators.test_streaming_operator.TestLinearity.test_apply_is_linear` catches
-non-linearity in :meth:`apply`, and the Resolution A bit-exact
-decomposition gate
-:file:`tests/sn/test_streaming_operator_decomposition.py` catches
-:math:`(L+C).{\rm apply} \neq M(\psi;\sigma_t)` drift.  The full
-analytical-adjoint Gate 1.3 round-off pin lands with **Wave O**
-(`Issue #208 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_,
-the BulkOperator / FullOperator / BoundaryOperator
-adjoint algebra); see ``test_phase_c_gates.py`` for the current
-xfail-strict placeholder.
-
-Vector layouts (``apply`` vs ``solve``)
----------------------------------------
-
-Today :meth:`apply`, :meth:`apply_transpose`, and :meth:`solve` all
-operate on the **same** typed composite carrier
-:class:`~orpheus.transport.full_field.FullField` (bulk
-:class:`~orpheus.transport.fields.angular_flux.AngularFlux` +
-boundary :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`),
-in the principled ``(N, ng, nx, ny)`` layout
-(see :ref:`theory-sn-index-convention`).  The source and its state
-ride on the composite's typed members:
-
-* **Source** — carried as the composite bulk
-  (``rhs.interior.values``, per-ordinate shape ``(N, ng, nx, ny)``);
-  the P\ :sub:`ℓ` (:math:`\ell\ge 1`) anisotropic contribution is
-  folded into this one per-ordinate source (the separate ``Q_aniso``
-  kwarg is gone).
-* **Boundary state** — carried as the typed
-  :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-  face views on ``rhs.boundary`` (keyed by face name), replacing the
-  former stringly-typed ``psi_bc`` dict; the sweep seeds its mutable
-  boundary buffer from these trace slots and persists reflective/pole
-  state through them between outer iterations.
-
-.. note:: **Superseded packed-vector layout (Wave D / early Wave E).**
-   The previous design gave :meth:`apply` / :meth:`apply_transpose` a
-   **packed 1-D solution vector** (an ``EquationMap`` selecting the
-   unknown ``(ordinate, cell)`` combinations, laid out group-major in
-   Fortran order for :func:`scipy.sparse.linalg.bicgstab`) that
-   differed from :meth:`solve`'s structured arrays, and ``solve``
-   consumed a separate ``Q`` / ``psi_bc`` dict / optional ``Q_aniso``
-   triple.  The typed-field campaign (#197, then Depth-B D-H/D-I/D-J)
-   retired the packed-vector convention, the ``EquationMap`` codec
-   family, and the ``psi_bc`` dict in favour of the single
-   :class:`~orpheus.transport.full_field.FullField` composite above; the
-   ``Q_aniso`` kwarg folded into the one per-ordinate source.  There is
-   no longer a layout difference between :meth:`apply` and
-   :meth:`solve`.
-
-Why not extract :meth:`apply_transpose` analytically?
------------------------------------------------------
-
-For a continuous operator :math:`A = \Omega\cdot\nabla + \Sigma_t`,
-the L\ :sup:`2`-adjoint is :math:`A^* = -\Omega\cdot\nabla +
-\Sigma_t` (the streaming term flips sign under integration by
-parts; the collision term is self-adjoint).  Discretising the
-adjoint analytically would require:
-
-* Reversing the upwind FD direction (:math:`\Omega \to -\Omega`)
-  for the Cartesian streaming term.
-* Transposing the τ-symmetric M-M angular interpolation closure.
-* Re-deriving the adjoint of the per-level azimuthal redistribution
-  for cylindrical.
-* Handling adjoint boundary conditions (vacuum and reflective BCs
-  are self-adjoint, so this term is benign in current ORPHEUS
-  configurations — but a future ``albedo`` or ``albedo_white`` BC
-  would need its own adjoint derivation).
-
-Each of these analytical steps is a chance to introduce a sign
-flip, a missing factor, or a transposed index — exactly the AI
-failure modes the V&V framework names (modes #1, #2, #3, #5 in
-``vv-principles``).  The dense-transpose path bypasses all of
-them: the transpose of the discrete operator's matrix *is* the
-operator's transpose, with no per-geometry derivation to verify.
-
-The cost is :math:`O(n_{\rm unknowns}^2)` time and space for the
-dense matrix, dominated by the :math:`n_{\rm unknowns}` calls to
-:meth:`apply`.  For verification problems
-(``n_unknowns ~ 30-1000``) the cost is negligible; for production-
-scale problems (``n_unknowns ~ 10^4-10^6``) the dense path is
-unsuitable.  Wave E will ship an :math:`O(n)` analytic-adjoint
-matvec when production reciprocity becomes performance-critical
-(currently it is not — :meth:`apply_transpose` is only consumed
-by adjoint-flux post-processing in the Wave A operator algebra).
-
 
 .. _sn-scattering-adjoint:
 
@@ -14535,219 +14027,16 @@ Wave A :class:`~orpheus.numerics.operator.LinearOperator` Protocol
 triple :math:`(A, S, F)` directly — no transport-solver knowledge
 beyond the operator contract.
 
-The :math:`(A - S - F)\,\psi = q_{\rm ext}` framing
-----------------------------------------------------
+The boundary Gauss-Seidel schedule (multi-D)
+--------------------------------------------
 
-The Boltzmann transport equation in its operator-algebra form
-factors into three pieces (Lewis & Miller 1984 §6.4; Trefethen &
-Bau 1997 §3.2 frame the matrix-free Krylov view):
-
-.. math::
-
-    (A - S - F)\,\psi = q_{\rm ext}
-    \qquad\text{(within-group fixed source)}
-
-.. math::
-
-    (A - S)\,\psi = \tfrac{1}{k}\,F\,\psi
-    \qquad\text{(eigenvalue)}
-
-where :math:`A = L + C = \Omega\cdot\nabla + \Sigma_t` is the
-invertible loss (streaming-collision) operator (see
-:ref:`sn-streaming-operator`),
-:math:`S` is the scattering source operator
-(see :class:`~orpheus.transport.operators.scattering.ScatteringOperator`),
-:math:`F = \chi\otimes\nu\Sigma_f` is the rank-1-in-energy fission
-emission operator (see :class:`~orpheus.transport.operators.fission.FissionOperator`),
-and :math:`q_{\rm ext}` is an external source.
-
-SourceIteration: discrete fixed-point realisation
---------------------------------------------------
-
-:class:`~orpheus.numerics.iteration.SourceIteration` solves the
-fixed-source equation by classical fixed-point iteration:
-
-.. math::
-
-    \psi_{n+1} \;=\; A^{-1}\,(S\,\psi_n + F\,\psi_n + q_{\rm ext}).
-
-The convergence rate is bounded by the spectral radius
-:math:`\rho(A^{-1}(S+F))`.  For an SN sweep applied to a homogeneous
-infinite medium with isotropic scattering, this radius equals the
-scattering ratio :math:`c = \Sigma_s/\Sigma_t` — convergence is
-geometric at rate :math:`c` (Lewis & Miller §4.4).  The formal
-derivation, the iterations-to-tolerance estimate, and the Phase 3
-boundary Gauss-Seidel rate recovery are in
-:ref:`si-within-group-splitting`; the labelled spectral-rate
-identity is :eq:`si-spectral-rate`.
-
-The convergence test is the relative L2 residual on the iterate — the
-same metric :meth:`SNSolver._solve_source_iteration` uses, since that
-within-group inner now consumes this primitive directly (Phase 1 R1,
-via the :func:`~orpheus.sn.coupled_system.build_within_group_system`
-single-source-of-truth builder):
-
-.. math::
-
-    {\rm res}_n \;=\; \frac{\|\psi_n - \psi_{n-1}\|_2}
-                            {\max(\|\psi_n\|_2,\,10^{-30})}
-
-with the iteration breaking when :math:`{\rm res}_n < {\rm tol}`.
-
-.. _si-within-group-splitting:
-
-The within-group SI splitting and its spectral rate
-----------------------------------------------------
-
-This subsection derives the source-iteration spectral radius
-:math:`\rho_J = c` from the within-group operator splitting, gives
-the iterations-to-tolerance estimate the rate implies, and then
-documents the Phase 3 *boundary Gauss-Seidel* rate recovery — what
-it accelerates, what it does **not** (the load-bearing honest
-scope), the failed σ\ :sub:`r`-fold that motivated it (GitHub
-issue #215), and the diagonal-cubature shared-face correctness rule
-(ERR-056).  The polymorphic schedule lives in
-:mod:`orpheus.sn.loss_representation.sweep_schedule`; since #226 step 2 it
-feeds :meth:`SNBoundaryOperator.split <orpheus.sn.operators.boundary.SNBoundaryOperator.split>`,
-which reifies the within-group forward as the **regular splitting matrix**
-:math:`M = (L+C-B_{\rm lower})`
-(:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`,
-:ref:`si-gauss-seidel-reification` below — this replaces the dissolved
-``_GaussSeidelResolvent``); the public entry is
-:func:`~orpheus.sn.solver.solve_sn_fixed_source` via the
-``inner_schedule`` keyword.
-
-.. admonition:: Key Facts (SI rate)
-   :class: tip
-
-   * The within-group SI iteration matrix is
-     :math:`(L+C)^{-1}(S+B)`; its spectral radius is the scattering
-     ratio :math:`\rho_J = c = \max_g \Sigma_{s,g}/\Sigma_{t,g}`
-     (:eq:`si-spectral-rate`).  Iterations to relative tolerance
-     :math:`\varepsilon`: :math:`n_{\rm Jacobi} \approx
-     \log\varepsilon / \log c`.
-   * **Boundary Gauss-Seidel** (Phase 3, ``inner_schedule=
-     "gauss_seidel"``, default) folds **only** the boundary
-     reflection :math:`B` into the resolvent
-     (:math:`(L+C-B_{\rm lower})^{-1}` forward substitution).  It
-     accelerates the *boundary-layer transient* by a measured,
-     regime-independent **~0.86–0.92×**, NOT the dominant flat
-     scattering :math:`c`-mode.  **This is NOT the textbook
-     scattering-G-S** :math:`c^2`-halving.
-   * The dominant within-group scattering rate is recovered ONLY by
-     **Krylov** (already production — rate-optimal,
-     splitting-invariant) or by **consistent DSA** (future, GitHub
-     issue #2).  The scattering :math:`c`-mode **cannot** be folded
-     into the directional sweep (the σ\ :sub:`r`-fold trap, issue
-     #215).
-   * The converged fixed point is **invariant** under the schedule
-     (any consistent splitting of :math:`(L+C-S-B)\psi=q` shares
-     :math:`\psi^\ast`); only the SI spectral rate changes.  Krylov
-     ignores the schedule entirely.
-   * 1-D meshes always fall back to Jacobi (the 1-D scan is not a
-     wavefront; the regime is scattering-dominated — boundary G-S is
-     a no-op).
-
-The four-operator within-group equation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Within a single energy group, the steady transport equation factors
-into four operators acting on the angular flux :math:`\psi`:
-
-.. math::
-   :label: si-within-group-operator-eq
-
-   (L + C - S - B)\,\psi \;=\; q,
-
-where
-
-* :math:`L = \hat\Omega\cdot\nabla` is **streaming** (the sweep's
-  spatial derivative — see :ref:`sn-streaming-operator`);
-* :math:`C = \Sigma_t\,\mathbb{I}` is the **collision** (total
-  removal) operator, diagonal in angle;
-* :math:`S = \Sigma_{s,0}\,P_{\rm iso}` is the **within-group
-  scattering** gain — it couples back through the scalar flux
-  :math:`\phi = \int\psi\,d\Omega`, so :math:`P_{\rm iso}\psi =
-  \phi/\!\sum_n\mathcal{W}_n` is the isotropic-projection (rank-1
-  in angle) operator (the convention used by
-  :class:`~orpheus.transport.operators.scattering.ScatteringOperator`; higher
-  Legendre orders add the :math:`P_\ell` blocks);
-* :math:`B` is the **boundary reflection** gain — trace-only,
-  realised by :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`,
-  delivering :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}` on
-  specular faces (see :ref:`bc-extraction` in
-  :doc:`/theory/foundations/operator_algebra`);
-* :math:`q` is the external/fission within-group source
-  (:eq:`phase-f-q-1d-decomposition`).
-
-Source iteration is a **splitting** of :eq:`si-within-group-operator-eq`:
-the **streaming-collision** part :math:`(L+C)` is kept on the LHS
-(inverted exactly by **one WDD sweep** — a triangular
-forward-substitution, since the sweep visits cells in causal order),
-while the **scattering** :math:`S` and the **boundary reflection**
-:math:`B` are *lagged* on the RHS, evaluated from the previous
-iterate :math:`\psi_n`:
-
-.. math::
-   :label: si-jacobi-fixed-point
-
-   \psi_{n+1} \;=\; (L+C)^{-1}\bigl(S\,\psi_n
-                    \;+\; B\,\psi_n \;+\; q\bigr).
-
-The iteration matrix is therefore :math:`M = (L+C)^{-1}(S+B)`, and
-the asymptotic convergence rate is :math:`\rho(M)`.
-
-Spectral radius :math:`\rho_J = c`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-For an infinite homogeneous medium with isotropic scattering, the
-boundary term vanishes (:math:`B=0`) and the streaming derivative
-:math:`L` drops in the flat-flux Fourier mode :math:`k\to0`.  The
-spatial operator :math:`(L+C)^{-1}` then reduces to multiplication by
-:math:`1/\Sigma_t`, and the isotropic-scattering gain :math:`S`
-contributes :math:`\Sigma_{s,0}` per collision.  The dominant
-eigenvalue of :math:`(L+C)^{-1}S` is thus the **scattering ratio**:
-
-.. math::
-   :label: si-spectral-rate
-
-   \rho_J \;=\; \rho\!\bigl((L+C)^{-1}(S+B)\bigr) \;=\;
-   c \;\equiv\; \max_g \frac{\Sigma_{s,g}}{\Sigma_{t,g}},
-   \qquad
-   n_{\rm Jacobi} \;\approx\; \frac{\log\varepsilon}{\log c}
-
-(the Fourier / mode analysis of Lewis & Miller §4.4, Adams & Larsen
-2002 §II).  The right-hand identity gives the iterations
-:math:`n_{\rm Jacobi}` needed to drive the relative residual to a
-tolerance :math:`\varepsilon`: each iteration multiplies the error
-by :math:`c`, so :math:`c^{\,n} = \varepsilon` solves to
-:math:`n = \log\varepsilon/\log c`.  Because :math:`c\to1` for a
-nearly-pure scatterer, source iteration becomes arbitrarily slow as
-:math:`c\to1` — the canonical motivation for acceleration (DSA,
-Krylov).
-
-.. note::
-
-   The :math:`c` in :eq:`si-spectral-rate` is the **within-group
-   scattering ratio** :math:`\Sigma_{s,0}^{g\to g}/\Sigma_{t,g}` that
-   governs the *within-group* fixed point.  The
-   :meth:`Mixture.scattering_ratio <orpheus.data.macro_xs.mixture.Mixture.scattering_ratio>`
-   property exposes the slightly larger **Case–Zweifel** secondaries-
-   per-collision parameter :math:`c_g = (\Sigma_{s,g} +
-   \nu\Sigma_{f,g})/\Sigma_{t,g}` (it folds in fission emission for a
-   multiplying medium).  The L1 rate anchor
-   :func:`tests.sn.verification.analytical.test_si_convergence_rate.test_si_jacobi_rate_matches_scattering_ratio`
-   pins :math:`n_{\rm Jacobi}` against ``log(tol)/log(c_max)`` using
-   the Case–Zweifel form and accepts a 0.6–1.2 band: the measured
-   B-2g slab count was **655** against a predicted
-   :math:`\log(10^{-8})/\log(0.975) = 728` (ratio **0.90** — the
-   gap is the finite-slab leakage that lowers the effective rate
-   below the infinite-medium :math:`c`, plus the multigroup
-   coupling).  This is the structurally-independent target the
-   recovery improves upon, NOT another ORPHEUS solver
-   (``vv-principles`` structural-independence; MMS is **not** paired
-   here because MMS does not prove rates against an eigenvalue —
-   the rate is a closed-form property of the cross sections).
+The source-iteration splitting and its spectral rate
+:math:`\rho_J = c` are derived in :doc:`slab_one_group`
+(:ref:`si-within-group-splitting`). The subsections below document
+the multi-D *boundary Gauss-Seidel* schedule — what it accelerates,
+what it does **not**, the reified splitting matrix, the
+diagonal-cubature shared-face correctness rule (ERR-056), and the
+measured evidence.
 
 Jacobi vs Gauss-Seidel — the Phase 3 boundary recovery
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -15002,81 +14291,6 @@ theory-page ``:label:`` and no ``verifies()``).
    **consistent DSA** (a future feature, GitHub issue #2, with
    :math:`\rho\approx0.22` independent of :math:`c`).  A future
    reader must not mistake boundary-G-S for a scattering accelerator.
-
-Why the scattering :math:`c`-mode cannot be folded into the sweep
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-It is tempting to try to fold the within-group self-scatter
-:math:`\Sigma_{s,0}^{g\to g}` *into* the sweep — to accelerate the
-:math:`c`-mode by absorbing the self-scatter into the cell-balance
-denominator as a **removal cross-section** :math:`\sigma_r =
-\Sigma_t - \Sigma_{s,0}^{g\to g}`, then iterating only on the
-residual scattering :math:`\psi_{n+1} = A_{\rm wg}^{-1}(S_{\rm
-residual}\psi_n + q)` with a :math:`\sigma_r`-sweep as :math:`A_{\rm
-wg}^{-1}`.  **This is a latent correctness trap** (GitHub issue
-#215, measured 2026-06-05), and documenting *why* it fails prevents
-a future session from re-attempting it.
-
-The σ\ :sub:`r`-sweep inverts :math:`(\hat\Omega\cdot\nabla +
-\sigma_r\,\mathbb{I})` — a removal that is **diagonal in angle**.
-But the within-group self-scatter is :math:`S_{\rm foldable} =
-\Sigma_{s,0}\,P_{\rm iso}` — the **isotropic-projection** operator
-(rank-1 in angle, :math:`\phi/\!\sum_n\mathcal{W}_n`).  The two
-operators **coincide only for isotropic flux**:
-
-.. math::
-   :label: si-sigma-r-fold-mismatch
-
-   \underbrace{\sigma_r\,\mathbb{I}}_{\text{diagonal in angle}}
-   \;\ne\;
-   \underbrace{\Sigma_{s,0}\,P_{\rm iso}}_{\text{isotropic projection}}
-   \qquad\text{unless }\psi\text{ is isotropic, i.e. }
-   \psi_n = \tfrac{\phi}{\sum_n\mathcal{W}_n}\ \forall n.
-
-The consequence is a verification-mode-2 (variable-swap / operator
-mismatch) bug that the *standard* test regime cannot see:
-
-.. list-table:: σ\ :sub:`r`-fold failure across the BC regime (issue #215)
-   :header-rows: 1
-   :widths: 30 22 48
-
-   * - Variant
-     - Result
-     - Why
-   * - σ\ :sub:`r`-sweep approximation, **fully-reflective uniform**
-       box
-     - **exact** (round-off)
-     - Flux is isotropic ⟹
-       :math:`\sigma_r\mathbb{I}\equiv\Sigma_{s,0}P_{\rm iso}`.  The
-       isotropic unit tests pass.
-   * - σ\ :sub:`r`-sweep approximation, **anisotropic**
-       (vacuum / heterogeneous)
-     - **46–56 % flux error**
-     - Flux is anisotropic ⟹ the diagonal removal is the wrong
-       operator; the error is silent (no crash) and corrupts real
-       cases.
-   * - "exact" variant (keep the :math:`-\Sigma_{s,0}\!\odot\!\psi`
-       remnant on the RHS)
-     - **DIVERGES**
-     - The remnant gain has spectral radius
-       :math:`\Sigma_{s,0}/\sigma_r \approx 39` — the splitting is
-       unstable.
-
-This is the textbook reason **DSA needs a *consistent* diffusion
-operator**: the correct synthetic acceleration of the
-isotropic-projection self-scatter is a diffusion solve whose removal
-matches the transport operator's low-order limit, not a directional
-sweep with a doctored denominator.  The
-:meth:`ScatteringOperator.foldable_part <orpheus.transport.operators.scattering.ScatteringOperator.foldable_part>`
-/ :meth:`residual_part <orpheus.transport.operators.scattering.ScatteringOperator.residual_part>`
-split (the data API landed under Issue #197 PR-TYPED-1) produces
-:math:`\Sigma_{s,0}^{g\to g}` precisely as the input a DSA
-preconditioner consumes (the diffusion removal coefficient) — it is
-the right input **for DSA**, NOT for a sweep fold.  Any future
-within-group accelerator MUST be gated on an **anisotropic** config;
-the isotropic box cannot see this error (``vv-principles``
-anti-pattern #4: homogeneous/isotropic verification is blind to the
-angular structure).
 
 The diagonal-cubature shared-face rule (ERR-056)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -16053,25 +15267,25 @@ Two Inner Solvers
 
 **Krylov (direct operator):**
 
-- Operator: :math:`A = \mu \nabla + \Sigt{}` (finite-difference
-  gradients, symmetric closure carried by
-  :meth:`InvertibleOperator.apply`)
+- Operator: :math:`L + C` applied matrix-free
+  (:meth:`InvertibleOperator.apply` — the same one-walk
+  discretization as the sweep; L21 matvec ≡ sweep)
 - Solution variable: angular flux :math:`\psi(x, y, n, g)` (much
   larger than scalar flux)
-- System: :math:`A\psi = b` where :math:`b` = fission + scattering
+- System: :math:`(L+C)\psi = b` where :math:`b` = fission + scattering
 - Convergence: GMRES with sweep preconditioner, typically ~100
   Krylov iterations at ``tol=1e-4`` (always converges)
 - Available for all geometries (Cartesian, spherical, cylindrical)
-  with reflective outer-BC equation maps
 
 Wave E Round 2 (Issue #164) replaced the legacy BiCGSTAB FD-operator
-path with this Krylov path.  See `Krylov inner solver`_ above for
-the full discussion.
+path with this Krylov path.  See the Krylov alternative in
+:doc:`slab_one_group` for the full discussion.
 
-The two architectures use **different spatial closures** (WDD
-asymmetric sweep vs symmetric FD operator) that converge to
-different :math:`\keff` on coarse meshes.  They agree in the limit
-:math:`h \to 0`.
+The two paths share the **one** loss-representation discretization
+(matvec ≡ sweep, #206 Phase C), so they converge to the same fixed
+point; the Wave-D-era design in which they carried different spatial
+closures — and disagreed on coarse-mesh :math:`\keff` — is recorded
+in the streaming-collision history section above.
 
 
 .. _sn-consuming-the-frame:
@@ -16331,10 +15545,10 @@ References
    "An algorithm for parallel S\ :sub:`n` sweeps on unstructured
    meshes," *Nuclear Science and Engineering*, 140(2):111--136, 2002.
    The KBA-style wavefront octant-scheduling reference.  Cited at
-   :ref:`si-within-group-splitting` for the shared-face fan-in rule
-   (ERR-056): a boundary face outflowed by several octants must be
-   reduced (reflected) only after the LAST contributing octant group
-   has swept it.
+   the diagonal-cubature shared-face rule (ERR-056), under the
+   boundary Gauss-Seidel schedule above: a boundary face outflowed
+   by several octants must be reduced (reflected) only after the
+   LAST contributing octant group has swept it.
 
 .. [Pomraning1989] G.C. Pomraning,
    "The transport equation in general geometry,"
@@ -16381,6 +15595,7 @@ Chapters split out so far:
 .. toctree::
    :maxdepth: 2
 
+   slab_one_group
    angular_quadrature
    loss_representation
    boundary_conditions
