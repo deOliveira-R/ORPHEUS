@@ -405,3 +405,21 @@ naming the old home of `sweep-dispatch-relayering` (Stage 1) ·
 `tests/derivations/test_sn_mms_ld_2d_stress_symbolic.py:47` docstring +
 `orpheus/derivations/continuous/mms/sn.py:1402` comment naming `ld-cartesian-2d`'s home
 (Stage 2) · rump pointers per stage. Gate `-E -W --keep-going` throughout.
+
+**Stage 1 ✅ @ `e0a4e8b3` (2026-07-21)** — W1/W2/W4/W5 landed: chapter `cartesian_multid.rst`
+962 ln (posing · 2-D balance · anti-diagonal wavefront · octant DAG · fresh thin
+representation-layer section); index 14,780 → 13,964. Byte-exact SPLICE method (script
+extracts spans; only transforms = underline promotion `-`→`=`/`~`→`-` + one in-span L35
+"above" fix + the **Option-Y respelling** of the §15A.2 caption — sweep = `(L+C)⁻¹`, never
+"A⁻¹ = sweep"; `A` bound locally for the verbatim eq). 11 labels single-homed. Enforcer:
+COMMIT-READY zero MUST-FIX (its dual-`A` CONCERN = the Option-Y fix, applied; Fork-B2
+provenance de-twinned to the capstone). L35 ×4 external/in-span; loss_representation intro's
+pre-existing half-falsehood fixed. `-E -W` 0 warnings.
+**⏭ NEXT = Stage 2:** W3a (UBLD core, grep "Multi-dimensional LD: the tensor-product
+bilinear" — anchor `ld-ubld-multidim`) → chapter §LD (insert BEFORE the wavefront section?
+NO — reading order ruled: balance → wavefront → LD-as-higher-order-closure AFTER the
+dispatch section, before "What broadens next"); W3b (grep "The 2-D Cartesian LD stress MMS",
+anchor `ld-cartesian-2d`) → `methods/sn/verification.rst` per ruling 1; Sweep-Algorithm H1
+pointer revised ("multi-dimensional LD" clause drops); L35: the test docstring + mms/sn.py
+comment sites; expect stale-vs-code adjudications in the S2/S3 "owed" notes — verify against
+code at reading time.

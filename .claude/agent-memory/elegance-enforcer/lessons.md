@@ -342,3 +342,25 @@ but a one-line surgical drop of the stale term. Everything else (5/5 labeled eqs
 13 unlabeled displays verbatim, all hunks accounted incl. two boundary-context headers that STAY
 in the monolith, catalog compression + section retirement clean, both forward-promises landed) was
 exemplary — a single inline-math harmonization miss in an otherwise clean 933-line carve.
+
+**Sharpening 2 — the traveled-verbatim-vs-fresh discriminator decides MUST-FIX vs CONCERN on a
+dual-`A` overload (cartesian_multid ch.3 Stage-1, 2026-07-21).** Same dual-meaning-of-`A` smell
+recurred (fresh intro `A = L+C−S−B` juxtaposed with a §15A.2 display `A^{-1} = (L+C)^{-1}` that
+only parses if `A = L+C`). Last chapter I called the analogue a MUST-FIX; here CONCERN. The
+discriminator that flips the verdict is **did the author TOUCH the stale text, or splice it
+byte-exact?** — settled by extracting the paragraph around the label from `git show HEAD` and
+char-diffing. slab_multigroup:864 was FRESH-EDITED prose (author reworded the sentence, left the
+math) + a real physics error (fission in a within-group operator) + in the declared harmonization
+scope ⟹ MUST-FIX. cartesian_multid §15A.2 traveled BYTE-EXACT (verbatim splice, author never
+touched it), is LOCALLY correct (`A=L+C` bound in-section by "the loss inverse (the sweep)"), and
+the brief's declared staging method explicitly scopes traveled content as verbatim-verified /
+harmonization-DEFERRED ⟹ CONCERN, deferrable to the Stage-2 harmonization of that section. Rule:
+when a staged carve declares "traveled = byte-exact, fresh = harmonized," hold ONLY fresh content
+to the honest-algebra standard; a stale spelling in a byte-exact span is out-of-scope-this-stage
+(flag as forward-looking CONCERN, not MUST-FIX) — UNLESS the author edited it, which pulls it back
+into scope. The fresh intro that NEWLY introduces the colliding binding is what makes it worth a
+CONCERN at all. Also new this review: the scripted byte-exact splice made the WHOLE math layer
+trivially verifiable — 4/4 labeled + 8/8 blocks verbatim, 0 fresh math blocks — so the review
+collapses to (1) confirm the 3 declared transforms are the ONLY diffs [underline promotion, one
+"above"→"" fix, W1/W2 title re-authoring], (2) fresh-prose honesty + dispatch-facts-vs-owning-page,
+(3) label/hunk accounting. Verdict COMMIT-READY, zero MUST-FIX.
