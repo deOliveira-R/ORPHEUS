@@ -62,7 +62,8 @@ the N-general machinery, the one production spelling, the block solve,
 the convergence certificate, and the swap law. The starting-direction
 physics (the pole as a straight characteristic, the M1/M2/M3 metric
 distinction, R12a presence) lives in
-:ref:`sn-282-direct-starting-direction-solve` in :doc:`/theory/methods/sn/index`;
+:ref:`sn-282-direct-starting-direction-solve` in
+:doc:`/theory/methods/sn/curvilinear_one_group`;
 here we document the **algebra** the physics is posed in.
 
 Why ψ½ is a system, not a kwarg — the two-point radial BVP

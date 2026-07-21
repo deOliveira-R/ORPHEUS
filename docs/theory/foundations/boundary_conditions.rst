@@ -652,7 +652,8 @@ fix*: the outflow slots carried nonzero :math:`R\cdot\psi.\text{inflow}`.
 **3. The bare sweep seeds inflow from** :math:`\text{rhs.boundary}`,
 **not** :math:`\text{initial\_guess.boundary}`.
 Under the extraction the WDD sweep ``(L+C).solve`` is **bare** (see
-:ref:`bare-sweep-extraction` in :doc:`/theory/methods/sn/index`): it reads
+:ref:`bare-sweep-extraction` in
+:doc:`/theory/methods/sn/curvilinear_one_group`): it reads
 the seeded inflow trace directly instead of re-applying ``bc``.
 :meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`
 must therefore seed the sweep's boundary buffer from
@@ -735,12 +736,13 @@ boundary reflection gain
 ψ½ System B as the second row of a coupled :math:`M - N` block grid — the
 full 2×2 coupled block operator documented in
 :ref:`coupled-block-operator` (its starting-direction physics in
-:ref:`sn-282-direct-starting-direction-solve` in :doc:`/theory/methods/sn/index`);
+:ref:`sn-282-direct-starting-direction-solve` in
+:doc:`/theory/methods/sn/curvilinear_one_group`);
 the former ``_within_group_triple`` / ``_lagged_gains`` construction pair
 retired into this one builder at B.2d. The :math:`B\,\psi.\text{outflow}`
 term lands on :math:`\text{rhs.boundary}`, which the bare ``(L+C).solve``
 sweep reads as the inflow seed (:ref:`bare-sweep-extraction` in
-:doc:`/theory/methods/sn/index`).
+:doc:`/theory/methods/sn/curvilinear_one_group`).
 
 **This retires the transitional** :math:`S + B` **fold.** The
 predecessor packed the boundary reflection into the *middle slot* of
@@ -3801,7 +3803,7 @@ at :math:`r=0` is the angular closure's regularity condition (the
 :math:`\mu=\pm 1`; the inward sweep seeds from a moment-folded
 source at :math:`\mu=-1` — see
 :ref:`sn-pole-angular-closure-protocol` in
-:doc:`/theory/methods/sn/index`), not a BC trace law.
+:doc:`/theory/methods/sn/curvilinear_one_group`), not a BC trace law.
 
 C4 **sharpens** the pre-existing Pattern-4 treatment of the pole.
 Pre-C4 the pole-as-non-BC was spelled by an explicit null:
