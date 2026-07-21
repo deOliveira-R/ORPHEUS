@@ -987,8 +987,8 @@ the tensor-product basis separates):
 .. math::
    :label: ld-ubld-cell-system
 
-   A\,\vec\psi = \vec R, \qquad
-   A = G + F_{\rm out} + \Sigma_t M, \qquad
+   A_{\rm cell}\,\vec\psi = \vec R, \qquad
+   A_{\rm cell} = G + F_{\rm out} + \Sigma_t M, \qquad
    \vec R = M\,\vec S + F_{\rm in}\,\psi_{\rm in}^{\rm traces},
 
 a :math:`2^d \times 2^d` dense non-symmetric solve, with
@@ -1001,7 +1001,7 @@ downstream-face trace.
 .. math::
    :label: ld-ubld-d1-reduction
 
-   A\big|_{d=1} =
+   A_{\rm cell}\big|_{d=1} =
    \begin{bmatrix} \Sigma_t h + |\mu| & |\mu| \\
                    -|\mu| & \Sigma_t \theta h + |\mu| \end{bmatrix}
 
@@ -1055,7 +1055,7 @@ gives three operators per cell — the **mass** :math:`M_{ij} = \int_K B_i B_j`
 implicit, the cell's own unknowns) and an INFLOW block (:math:`\Omega\cdot\hat n < 0`,
 **upwind**: the incoming face value is the upstream neighbour's outflow trace,
 moved to the RHS).  Assembling gives exactly the dense system
-:eq:`ld-ubld-cell-system`, :math:`A = G + F_{\rm out} + \Sigma_t M`,
+:eq:`ld-ubld-cell-system`, :math:`A_{\rm cell} = G + F_{\rm out} + \Sigma_t M`,
 :math:`\vec R = M\vec S + F_{\rm in}\,\psi_{\rm in}^{\rm traces}`.
 
 Why bilinear, not simplex-P1
@@ -1187,8 +1187,9 @@ Eqs. 1–12; the Adams-2001 thick-diffusion verdict; BLA-1992); the closeout is
    the :math:`d=1` tests stay green (proving they are blind to the bug class).
    This is the algebra-of-record discipline working as designed — the bug never
    reached production.  (The ERR-060 marker belongs on the *exact-on-bilinear*
-   gates, NOT on the cell-matrix ``A == A`` pin, which checks
-   ``assemble_ubld``'s A/M/G/:math:`F_{\rm out}` and is structurally blind to the
+   gates, NOT on the cell-matrix ``A == A`` pin (the code binds
+   :math:`A_{\rm cell}` as ``A``), which checks ``assemble_ubld``'s
+   ``A``/``M``/``G``/``F_out`` and is structurally blind to the
    dropped inflow factor — see ``error_catalog.md`` ERR-060.)
 
 .. _ld-ubld-branch2-primitive:
@@ -2142,9 +2143,9 @@ genuine global degree of freedom in **every** dimension.
 
    (L+C)\,\vec\psi
    \;=\;
-   M^{-1}\bigl(A\,\vec\psi - F_{\rm in}\bigr),
+   M^{-1}\bigl(A_{\rm cell}\,\vec\psi - F_{\rm in}\bigr),
    \qquad
-   A = (L+C-S)\ \Longleftrightarrow\
+   (L+C-S)\,\vec\psi = \vec q_{\rm ext}\ \Longleftrightarrow\
    (L+C)\,\vec\psi - S\,\vec\psi = \vec q_{\rm ext}
 
 A matvec is a forward APPLY: applying the per-cell
@@ -2155,7 +2156,7 @@ Schur-reduced scalar arm — and the :math:`d \ge 2` raise — are both retired)
 The :math:`M^{-1}` factor in :eq:`ld-ubld-unified-moment-residual` is the
 matvec/sweep moment-source consistency: the UBLD RHS folds the cell source
 mass-weighted (:math:`R = M\vec S`, the test-function projection), but the
-operator algebra :math:`A = (L+C) - S` subtracts :math:`S\vec\psi` RAW at the
+operator algebra :math:`(L+C) - S` subtracts :math:`S\vec\psi` RAW at the
 ``OperatorSum`` level, so the residual is divided by the diagonal Legendre mass
 to put :math:`(L+C)\vec\psi` in raw per-moment units (the slope rows would
 otherwise disagree by :math:`M_{ii} = \theta^{|i|}`).
@@ -2925,7 +2926,7 @@ Implementation map
 * The solver's :func:`_maybe_window <orpheus.sn.solver._maybe_window>`
   builds the typed windowed composition ``P @ A.inverse()`` — the
   :class:`~orpheus.sn.operators.windowing.WindowedSweep` — over the
-  within-group forward :math:`A`'s inverse (the Jacobi
+  swept composite :math:`A`'s inverse (the Jacobi
   :math:`(L+C)^{-1}`, or the reified splitting matrix :math:`M^{-1}`,
   :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
   — see :ref:`si-gauss-seidel-reification`)
@@ -3488,10 +3489,13 @@ object is therefore
            \;\oplus\;
            \underbrace{\mathrm{Id}}_{\text{on the trace}},
 
-where :math:`A^{-1}` is the within-group forward's inverse
+where :math:`A^{-1}` is the swept loss inverse — this section's
+:math:`A` abbreviates the swept composite
 (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` on
 :math:`L+C`, or on the reified splitting matrix :math:`M` —
-:ref:`si-gauss-seidel-reification`) and :math:`M_{\rm frame}` is the
+:ref:`si-gauss-seidel-reification`), the **inner kernel** of the
+honest within-group :math:`(L+C-S-B)^{-1}`, never the full solve —
+and :math:`M_{\rm frame}` is the
 scattering frame's :attr:`~orpheus.numerics.frame.FrameBase.analysis`
 face, the angular→moment reduction :math:`\phi_\ell^m = \sum_n w_n
 Y_\ell^m \psi_n` (:eq:`harmonic-moment-projection`). The boundary trace

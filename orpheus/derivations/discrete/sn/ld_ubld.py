@@ -55,8 +55,8 @@ The assembled per-cell system (MRM-2016 Eq. 12) is
 
 .. math::
 
-   A\,\vec\psi = \vec R, \qquad
-   A = G + F_{\rm out} + \Sigma_t M, \qquad
+   A_{\rm cell}\,\vec\psi = \vec R, \qquad
+   A_{\rm cell} = G + F_{\rm out} + \Sigma_t M, \qquad
    \vec R = M\,\vec S + F_{\rm in}\,\psi_{\rm in}^{\rm traces},
 
 a ``2^d × 2^d`` dense non-symmetric solve.  ``d=1`` is the
@@ -69,7 +69,7 @@ Verification functions
 ======================
 
 * :func:`derive_d1_reduction_to_production` — Oracle (i): the assembled
-  ``d=1`` ``A`` / ``R`` / Schur ``S`` / slope ``ψ̂`` / ``D₂'`` reduce
+  ``d=1`` ``A`` (the code binding of :math:`A_{\rm cell}`) / ``R`` / Schur ``S`` / slope ``ψ̂`` / ``D₂'`` reduce
   symbolically to the production ``_LDCellTerms`` / ``_schur_terms``
   closed forms.
 * :func:`derive_d1_kernel_view_equals` — Oracle (i), ÷V view: the

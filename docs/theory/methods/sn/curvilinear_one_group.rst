@@ -103,7 +103,8 @@ re-derived.
      (:eq:`phase-c-wdd-recurrence`): apply and solve consume the
      same three primitives — the WDD closure, the direction-keyed
      DAG walk, and the BC trace law at the boundary edge — so the
-     two paths to the operator :math:`A` agree by construction.
+     two paths to the loss operator :math:`L+C` agree by
+     construction.
    * The starting-direction flux :math:`\psi_{1/2}` is
      **first-class typed state** (System B): route (a) (#282)
      marches it directly from the true within-group source through
@@ -2328,8 +2329,8 @@ apply ↔ sweep structural equivalence
 -------------------------------------
 
 Pre-Phase-C, the matvec's :meth:`apply` and the sweep's :meth:`solve`
-were structurally distinct paths to the **same** discrete operator
-:math:`A`: :meth:`apply` walked cell-centre storage with arithmetic
+were structurally distinct paths to the **same** discrete loss
+operator :math:`L+C`: :meth:`apply` walked cell-centre storage with arithmetic
 face averages, :meth:`solve` walked face storage with WDD
 asymmetric propagation. The cross-domain-attacker frame analysis
 (Smell 16, ``.claude/agent-memory/cross-domain-attacker/issue_168_phase_c_sweep_frame.md``)
@@ -2356,20 +2357,20 @@ construction** post-Phase-C: extracting the implicit face fluxes
 from ``apply`` (by inverting the cell-balance equation) recovers
 the same WDD recurrence the sweep walks. The structural-frame
 identity is the load-bearing acceptance criterion for
-preconditioned-Krylov stability — when ``apply`` is the operator
-:math:`A` and the sweep is :math:`A^{-1}` (approximately), they
-must agree on what :math:`A` **is**. Foundation tests in
+preconditioned-Krylov stability — when ``apply`` is the loss
+operator :math:`L+C` and the sweep is :math:`(L+C)^{-1}`
+(approximately), they must agree on what :math:`L+C` **is**. Foundation tests in
 :file:`tests/sn/test_phase_c_gates.py` pin this via
 ``np.array_equal`` on:
 
 * **Gate 1.2** (apply determinism) — repeat-call invariance
   ``apply(ψ) == apply(ψ)`` bit-identical across two invocations.
 * **Gate 1.3** (apply ↔ apply_transpose reciprocity)
-  :math:`\langle A\psi, \phi \rangle = \langle \psi, A^T\phi \rangle`
+  :math:`\langle (L+C)\psi, \phi \rangle = \langle \psi, (L+C)^T\phi \rangle`
   to ``rtol=1e-12, atol=1e-13``. Free if Gate 1.4 (linearity)
   passes.
-* **Gate 1.4** (apply linearity) :math:`A(\alpha\psi + \beta\phi)
-  = \alpha A\psi + \beta A\phi` to ``rtol=1e-13``.
+* **Gate 1.4** (apply linearity) :math:`(L+C)(\alpha\psi + \beta\phi)
+  = \alpha (L+C)\psi + \beta (L+C)\phi` to ``rtol=1e-13``.
   **Precondition** for Gates 1.2 + 1.3 + the dense-probe
   ``apply_transpose`` construction.
 
@@ -3133,6 +3134,9 @@ Route (a) — the direct starting-direction ψ½ solve (Issue #282)
 
    **Keystone:** the sphere cold-start residual
    :math:`\lVert A\cdot\mathrm{solve}(b) - b\rVert_\infty / \lVert b\rVert_\infty`
+   (:math:`A` here and throughout this section: the **augmented loss**
+   :math:`L+C` on the System A :math:`\oplus` System B composite — the
+   swept sub-composite of the honest :math:`A = L+C-S-B`)
    collapses from :math:`5.18\times10^{5}` to
    :math:`2.5\times10^{-16}`, and the seed-insensitivity
    :math:`\Delta` from :math:`4.57\times10^{-2}` to :math:`0` **bitwise**.
