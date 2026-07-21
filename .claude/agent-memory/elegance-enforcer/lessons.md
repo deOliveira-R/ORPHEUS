@@ -364,3 +364,34 @@ trivially verifiable — 4/4 labeled + 8/8 blocks verbatim, 0 fresh math blocks 
 collapses to (1) confirm the 3 declared transforms are the ONLY diffs [underline promotion, one
 "above"→"" fix, W1/W2 title re-authoring], (2) fresh-prose honesty + dispatch-facts-vs-owning-page,
 (3) label/hunk accounting. Verdict COMMIT-READY, zero MUST-FIX.
+
+**Sharpening 3 — when the byte-exact core certifies clean, the ONLY live finding is the L-004
+EXTERNAL-repoint blast radius; a doc-split's transform-5 that sweeps CODE-file qualifiers but
+misses the TEST-file twins (cartesian_multid ch.3 Stage-2, 2026-07-21).** The two-span move
+(W3a UBLD → cartesian_multid, W3b 2-D LD stress MMS → verification) certified PERFECTLY:
+promotion counts 30/24 exact, underline census exactly 3 levels (no un-mapped 4th → no nesting
+hazard), 31/31 labeled eqs char-identical, W3a = 2 declared annotations only + W3b = 0 drift,
+section hierarchy nests with ZERO level jumps (the chapter's FLAT multi-`=` top level, set in
+Stage-1, is why `-`→`=` correctly makes the span a top-level SIBLING — verify the promotion is
+STRUCTURALLY right, not just count-right, by extracting the whole header tree and checking each
+child sits exactly one level under its parent). Annotations truthful (every claimed code symbol
+grep-confirmed: `spatial_moments=` threading, `D1ClosedForm.*`, `_moment_broadcast_sigma`,
+`moment_scan_closure`). Dual-`A` recurred (`ld-ubld-cell-system` per-cell dense `A=G+F_out+ΣtM`
+vs `ld-ubld-unified-moment-residual` operator `A=(L+C-S)`) — both traveled BYTE-EXACT + inline-
+defined at point of use + the operator one is a legit L+C-S / F_in-on-RHS split (−B carried by
+F_in, NOT forgotten) ⟹ CONCERN, exactly per Sharpening-2. So the whole in-diff review was PASS.
+The decisive finding lived OUTSIDE the diff: `git grep methods/sn/index -- '*.py' '*.rst'` |
+filter-to-moved-topics surfaced 4 un-repointed TEST files. Discriminate by CAUSATION with a
+HEAD-vs-worktree count: `git show HEAD:index.rst | grep -c <label>` NONZERO + worktree `grep -c`
+ZERO ⟹ THIS stage moved it ⟹ MUST-FIX (test_mms_2d.py:13, the 2-D Cartesian MMS `:doc:` still
+naming index — the direct test twin of the mms/sn.py:646 repoint the author DID make). The other
+3 (heterogeneous/nonvacuum, index=0 but moved in Tier-1) are pre-existing ⟹ SHOULD-FIX-for-
+completeness (the author's own transform-5 already reached the mms/sn.py twins of that family, so
+leaving the test twins is an internally-inconsistent half-cleanup). NOT-flagged control: the
+curvilinear/aniso refs where the target is SPLIT (verification=34 / index=51) — content genuinely
+still partly in index, so NOT cleanly stale; a HEAD-vs-worktree count keeps me from over-calling
+those. Rule: a doc-split's transform-5 (external stale-qualifier repoints) is a RETIREMENT whose
+blast radius is code + tests + docs (three searches, standing L-004) — the author almost always
+greps the SOURCE tree and forgets `tests/`; the twin the MOVE ITSELF freshly staled is the hard
+MUST-FIX, and the HEAD-nonzero/worktree-zero count is the causation oracle. Verdict: MUST-FIX
+(1 in-scope + 3 completeness), everything else exemplary.
