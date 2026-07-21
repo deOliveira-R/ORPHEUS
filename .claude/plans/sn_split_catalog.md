@@ -525,7 +525,36 @@ foundation-docs inbound-ref class the code/test sweep misses; ADD `docs/theory/f
 to the per-label oracle sweep at S3/S4. Two staying ERR-058 "Phase A–F above" claims made
 honest (B/C now in the chapter).
 
-**⏭ NEXT = Stage 3: the campaign chapter → `curvilinear_numerics.rst` (NEW).** Span (in the
+**✅ Stage 3 @ `550cee49` — `curvilinear_numerics.rst` MINTED (2,981 ln; monolith 5,560 →
+2,627).** Two spans: the W6-nested prologue (888–1028, {`~`→`=`} {2}) + the contiguous
+D/F/ERR-058/#196 block (1029–3822, {`-`→`=`, `~`→`-`, `^`→`~`} {3,40,9}). 18 anchors + 12
+eqs single-homed; parity 18/18. FB1 dead `:func:` on retired `_sweep_1d_spherical` →
+literal. Router #2; toctree. Externals: bc.rst ×2 Phase-D/F qualifiers → numerics; the
+kinf-recovery compound split applied to BOTH test twins (krylov-precond + invertible-operator
+— the second enforcer-caught, SHOULD-FIX). Enforcer: COMMIT-READY, ZERO MUST-FIX; W6 rump =
+head + 2 H3s, no dangling refs; all Stage-2 findings verified resolved.
+
+**⏭ NEXT = Stage 4 (FINAL): the floor → `verification.rst` + campaign closeout.** Floor
+span in the 2,627-ln monolith: 890–1565 (anchor `sn-curvilinear-aniso-norm-reconciliation`
+→ before the InvertibleOperator H1's `sn-streaming-operator` anchor). **DEMOTION** map
+{`=`→`-`, `-`→`~`, `~`→`^`} census {1,8,6} — the floor lands as an H2 in verification.rst's
+"Verification" H1, spliced BEFORE "The 2-D Cartesian LD stress MMS (D5b-S4)" (~1021), i.e.
+directly after the "Curvilinear anisotropic MMS" case it reconciles. 5 anchors
+(reconciliation, tau-clamp-vindication, cylinder-angular-floor, pole-cell-spatial-closure,
+p1-scattering-curvilinear) + 4 eqs (sn-tau-mm-raw, sn-pole-cell-shell-average,
+sn-p1-{sphere,cylinder}-hand-ref). In-span F-fixes (scanned): F1 ~937 "closure-seed family
+above" + F2 ~945 "ERR-058 close-out (above)" — both → `:doc:`curvilinear_numerics`` (the
+family left at S3); the other directional hits (1227/1371/1527/1565) verified in-span.
+External repoints owed (all pre-existing stale after earlier extractions, fixed at this
+verification-focused stage): `reduced_operator.py:74` (floor ref → verification);
+`cases/sn.py` ×3 (~23/62/733, Case singular-eigenfunction → verification);
+`test_sn_mms_anisotropic_symbolic.py:40` (aniso-MMS labels → verification);
+`test_mms_curvilinear.py:33`, `test_mms_aniso.py:15`, `test_mms.py:11` (MMS sections →
+verification). NOT owed: `test_curvilinear_pole_cell_characterization.py:26` (its ref is
+`dd-curvilinear-scalar`, which stays in index's cell-update H1). Closeout: update the
+monolith's "Chapters split out so far" blurb (no longer "carries the bulk inline"); catalog
+CHAPTER(S)-COMPLETE record; memory-router terminal update; verify the arch §4 open
+questions 2 (resolved: minted) + the toctree. Span (in the
 5,560-ln monolith; re-derive by title): the two W6-nested H3s "ERR-026 closure status
 (partial through Wave E)" ~888 + "Boundary face-flux strategies — Phase A" ~993 (promote
 {`~`→`=`}), then contiguous "Phase D Carlson coupled-pole sweep" ~1031 + "Phase F Carlson
