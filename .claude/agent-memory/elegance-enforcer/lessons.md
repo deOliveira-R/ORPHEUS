@@ -323,3 +323,22 @@ and the verification is fully mechanical — do NOT eyeball 700 lines:
    ∈[0,1)`, `w∈[½,1]`). Also verify a CHANGED `:doc:` hint points where the `:ref:` actually
    lives — here the chapter *improved* on the source (`bc-extraction` hint corrected
    operator_algebra→boundary_conditions). Clean carves earn the credit; say so.
+
+**Sharpening (slab_multigroup chapter 2, 2026-07-20):** when a gather/split ALSO declares a
+convention-**harmonization** pass (here: retire local `A = L+C` → honest `A = L+C−S−B`, move
+`F` to the eigenvalue RHS), the highest-value residue is a **stale-convention survivor in an
+inline `:math:` inside a REWORDED-prose sentence.** The `.. math::`-block set-diff (extract all
+`.. math::` bodies from HEAD-windows vs chapter, compare as sets) is necessary but BLIND to it:
+the survivor is an *inline* `:math:` (not a block), so it lands in neither the "removed" nor the
+"traveled-verbatim" set — it just rides along in prose. Prose-rewording and math-harmonization
+are SEPARATE edits; the author reworded the KrylovAcceleration bullet (`inverter`→`preconditioner`,
+"A⁻¹ step"→"step inverse") but left the embedded `M ≈ (A − S − F)^{-1}` in the retired convention
+(`A=L+C` ⟹ `L+C−S−F`), which then CONTRADICTS the chapter's own harmonized posing `L+C−S−B`
+(−F where the honest operator has −B; fission is cross-group, never a within-group loss term). The
+L-013 point-4 targeted honest-algebra GREP (`A ?- ?S`, `\sum(A`, `A\psi`, `A = L \+ C` as identity)
+is what catches it — run it over the WHOLE chapter, inline math included, NOT just the block
+set-diff. Verdict = MUST-FIX (a math/physics contradiction in NEW scientific doc, Cardinal Rule 1),
+but a one-line surgical drop of the stale term. Everything else (5/5 labeled eqs byte-identical,
+13 unlabeled displays verbatim, all hunks accounted incl. two boundary-context headers that STAY
+in the monolith, catalog compression + section retirement clean, both forward-promises landed) was
+exemplary — a single inline-math harmonization miss in an otherwise clean 933-line carve.
