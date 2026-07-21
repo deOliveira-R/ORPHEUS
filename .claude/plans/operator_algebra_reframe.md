@@ -120,8 +120,11 @@ from the SN-book campaign; SN book can absorb later if genuinely SN-only):**
   page leads with the types regardless. Move A abandoned + Move B (surface preamble) skipped; **P5b =
   the additive `intrinsic-operator-types` preview H1 before the C block ONLY** (commit `2d2d7595`).
   Tail reorder (eigenvalue/trace above BC) DEFERRED as out-of-scope. Follow-ups: **#301** (algebra-of-
-  record, FILED); `_flux_role.py:115` code message (§6); optional T2/#263 design-principles home. This
-  plan is now ARCHAEOLOGY — the durable record is the doc pages + the archivist L-026..L-029 calibrations.
+  record, FILED); `_flux_role.py:115` code message (§6); the **T2/#263 design-principles-home trigger is
+  RECORDED in #263** (comment: relocate the `field-type-vs-property-criterion` section to a dedicated
+  cross-cutting "design principles" page only once ≥2 genuinely-homeless principles exist — this section
+  is the first resident; until then it stays on `operator_algebra.rst`). This plan is now ARCHAEOLOGY —
+  the durable record is the doc pages + the archivist L-026..L-029 calibrations.
 
 - **⏸ COMPACTION POINT — P5a COMPLETE, P5b (SPINE REORDER) NEXT (2026-07-19).** Tree clean, HEAD
   builds `-E -W` clean. `operator_algebra.rst` now **4573 ln**. **NEXT = P5b: the spine reorder** —
