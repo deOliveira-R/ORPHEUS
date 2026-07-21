@@ -121,8 +121,8 @@ leaf first, 3 = dedup-heavy last).
 | — | ~~`transport_equation.rst`~~ | "The Transport Equation" — **STAYS in index as SN intro** (user directive; NOT a chapter, NOT → foundations, §4 superseded) | (none) | — | N/A |
 | — | `verification.rst` | "Verification" + "Numerical Sensitivities" (temp → V&V part) | (none above h1) | 1 | ✅ DONE |
 | — | `history.rst` | "Development history" | `sn-development-history` | 1 | ✅ DONE |
-| 5 | ~~`discrete_balance.rst`~~ | **SUPERSEDED by progression** — the Cartesian balances → `slab_one_group`/`cartesian_multid`; the curvilinear balance H2s (331–1810) remain in index → the curvilinear chapters | (none) | — | absorbed/pending-curvilinear |
-| 6 | ~~`spatial_closures.rst`~~ | **SUPERSEDED by progression** — generic closures live in `foundations/discretization`; WDD/Morel-Montry + closure substitution remain in index → the curvilinear chapters; "Cell update strategies" H1 STAYS (cross-geometry contract, Stage-1 adjudication) | `cell-update-strategies` | — | absorbed/pending-curvilinear |
+| 5 | ~~`discrete_balance.rst`~~ | **SUPERSEDED by progression** — the Cartesian balances → `slab_one_group`/`cartesian_multid`; the curvilinear balance H2s gathered by `curvilinear_one_group` @ `6b8b0ff0` (the Discrete-Balance H1 stays as a 3-chapter router) | (none) | — | absorbed |
+| 6 | ~~`spatial_closures.rst`~~ | **SUPERSEDED by progression** — generic closures live in `foundations/discretization`; WDD/Morel-Montry + closure substitution (+ the #236 τ/product capstones per steer Q3) gathered by `curvilinear_one_group` @ `6b8b0ff0`; "Cell update strategies" H1 STAYS (cross-geometry contract, Stage-1 adjudication) | `cell-update-strategies` | — | absorbed |
 | 9 | ~~`sweep_1d.rst`~~ | **SUPERSEDED by progression** — Cartesian-1D cumprod + affine outflow gathered by `slab_one_group` @ `2c60d6a5`; the "Sweep Algorithm" H1 intro stays as the router pointer | `sweep-algorithm` (still in index) | — | absorbed |
 | 7 | ~~`linear_discontinuous.rst`~~ | **SUPERSEDED by progression** — the UBLD core → `cartesian_multid` @ `eb96f424`; the 2-D LD stress MMS → `verification.rst` (same commit) | — | — | absorbed |
 | 10 | ~~`sweep_multid.rst`~~ | **SUPERSEDED by progression** — wavefront + octant DAG → `cartesian_multid` @ `e0a4e8b3` | — | — | absorbed |
@@ -473,8 +473,54 @@ Gauss-Seidel → what broadens next (curvature = Part B). Across the 3 stages: i
 14,780 → 9,588 (−5,192); 78 labels single-homed; every stage enforcer-certified byte-exact
 and `-E -W`-gated. Carried deferral: the **dual-`A` one-pass harmonization** (above).
 
-**⏭ NEXT = `curvilinear_one_group.rst` (Part B) — the RESUME BRIEF (queued 2026-07-21,
-post-compaction start).**
+**⏭ IN FLIGHT = `curvilinear_one_group.rst` (Part B) — steered + Stage 1 landed (2026-07-21).**
+
+**The four steer rulings (user, 2026-07-21 — all recommendations ratified):**
+
+1. **Topology: TWO chapters, route-(a) in base.** `curvilinear_one_group` = posing →
+   balance → WDD/M-M closure → sequential sweep → pole closure (Phase B) → sweep-frame
+   matvec (Phase C) → route-(a) production ψ½. `curvilinear_numerics` (name provisional) =
+   the #168 seed-strategy campaign record: ERR-026 Wave-E status, retired Phase A, Carlson
+   Phase D, Phase F, ERR-058. Arch §4 open question 2 RESOLVED. (Finding recorded: route-(a)
+   is present-state production math — the arch gathers-list "pole/ψ½ start · radial
+   characteristics" content — despite the provisional arch row parking it in numerics; its
+   banner's "saga documented above" pointers become cross-chapter :ref:s.)
+2. **The aniso-MMS floor H1 → `verification.rst`** (three-layer V&V ruling, W3b precedent);
+   the same ruling governs Phase C's four nested MMS-gate subsections at authoring time.
+3. **The #236 capstones travel with WDD** into `curvilinear_one_group` (S3-A precedent). ✅
+   done at Stage 1.
+4. **Staging: 4 staged commits** — S1 balance+closure core; S2 sweep+pole+matvec+route-(a);
+   S3 the campaign chapter; S4 floor→verification + closeout.
+   (Also found at disassembly: ZERO genuine multigroup content in the curvilinear zones —
+   `curvilinear_multigroup` receives nothing from this split; authored fresh later.)
+
+**✅ Stage 1 @ `6b8b0ff0` — balance+closure core (monolith 329–1854 → chapter, 9,588 →
+8,065).** Skeleton fresh-authored (anchor `sn-curvilinear-one-group`, "angle enters the
+walk", §3.2 chain, 6 Key Facts). Promotion {`-`→`=`, `~`→`-`, `^`→`~`} census {8,6,12}; 29
+math blocks / 13 eq labels / 7 anchors char-identical + single-homed (enforcer-verified
+mechanically: 31 hunks = 26 promotions + 5 declared fixes, zero undeclared drift; zero
+dual-`A` concern). Declared fixes F1–F5 all pre-existing falsehoods (retired
+`_sweep_1d_*` symbols; stale `derivations.sn_contamination` path; retired
+`SNMesh.alpha_half`/`redist_dAw` accessor family → `mesh.reduced.*`). Monolith: Discrete-
+Balance H1 → 3-chapter router; M2 cell-update fossil; M3 toctree. External: E1
+operator_tensor_network Step-2–3 qualifier; E2 balance.py source-of-truth; E3
+test_ld_slope_frame (cartesian-stage miss); + 2 enforcer-caught test stragglers
+(test_streaming_equilibrium_curvilinear L0-gate pointer MUST-FIX;
+test_space_angle_separability mm-weights half). Enforcer lesson for S2–S4: partition the
+tree-wide `methods/sn/index` grep hits by the per-label HEAD-vs-worktree oracle BEFORE the
+commit — the test-tree stragglers of THIS stage's move are the recurring miss class.
+
+**⏭ NEXT = Stage 2: the sweep core → `curvilinear_one_group`.** Windows (titles stable;
+line #s in the 8,065-ln monolith = old − 1,526): "Curvilinear 1D: Sequential Ordinate
+Sweep" (old 2262–2299, thin) · pole closure "The pole angular closure (Issue #168 Phase B)"
+(old 2586–2800) · "Sweep-frame apply matvec (Issue #168 Phase C)" (old 2801–4005; its four
+MMS-gate H4s route per ruling 2 at authoring) · "Route (a) — the direct starting-direction
+ψ½ solve (Issue #282)" (old 6800–7854). The W6 dispatch head + strategy parameter + cumprod
+fast path STAY (Stage-1 W6 ruling); ERR-026 Wave-E status + retired Phase A travel at S3
+(saga prologue). Known F2-class fixes owed in S2 windows: `_sweep_1d_spherical` mentions at
+old 2297 (present-tense "Implemented in") and the historical ones at old 2168/4985/5058/5527.
+
+*The original disassembly brief (kept for the S2–S4 window maps):*
 
 *The model (ratified, unchanged):* disassembly (windows by stable title + per-window
 stays-adjudications) → **AskUserQuestion steer** → author/splice (the *Method* pattern
