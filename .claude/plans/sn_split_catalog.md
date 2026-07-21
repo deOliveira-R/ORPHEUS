@@ -214,9 +214,39 @@ Sensitivities"; "Consuming the frame in SN" → the `solver` chapter.
 **✅ TIER-1 COMPLETE — 4 chapters (135 + 408 + 1,019 + 2,625 = 4,187 ln), index.rst 20,571 →
 16,388 (−20.3%).** Delegated archivist model validated across four scales incl. a 41-label
 2,625-ln cut; zero build warnings throughout; recipe hardened with L-024 (+ END-boundary +
-dual-namespace). transport_equation ruled to STAY as intro. **NEXT = Tier-2** (Discrete Balance
-→ discrete_balance + spatial_closures; the 9,360-ln Sweep giant → sweep_1d / linear_discontinuous
-/ sweep_multid / curvilinear) — carries 3 boundary decisions: (a) the ch5/ch6 split needs a new
-H1 for spatial_closures (second chapter starts at an H2); (b) the UBLD section embeds a ~1,356-ln
-2-D LD stress MMS that §4 routes to V&V — home decision now that verification.rst exists;
-(c) sweep_multid/curvilinear INTERLEAVE (the "unified sweep dispatch" sits between them).
+dual-namespace). transport_equation ruled to STAY as intro. ~~NEXT = Tier-2~~ **SUPERSEDED by
+the progression (`sn_book_architecture.md`)** — the three old Tier-2 boundary decisions carry
+over as progression-time decisions: (a → the multi-D chapter), (b) the ~1,356-ln 2-D LD stress
+MMS → V&V-vs-`cartesian_multid` home, (c) the sweep_multid/curvilinear interleave (the
+"unified sweep dispatch" section).
+
+---
+
+## Phase C progression — slab_one_group disassembly (RATIFIED, user 2026-07-20)
+
+**Rulings:** (1) **Main agent authors** (pattern-prover, mirroring ch3→Tier-1; delegation
+revisited after this chapter proves the pattern); elegance-enforcer reviews the draft; user
+steers at outline (done) + commit. (2) **Krylov H1 gathers into §7** (the Cartesian core — the
+§3.2 step-4 "alternative strategy encodings" completes in the base chapter; its curvilinear
+paragraphs stay behind for Part B). (3) One commit per chapter, gathered spans CUT in the same
+commit (no twin homes, atomically); interleaved campaign material stays until its chapter.
+(4) Names confirmed by use: `slab_one_group.rst`, then `slab_multigroup.rst`,
+`cartesian_multid.rst`, `curvilinear_one_group.rst`, `curvilinear_multigroup.rst`.
+
+**The gather map** (monolith line #s advisory, re-derive by title per recipe step 1):
+
+| § | slab_one_group section | Gathers (span) | Cross-links (no re-derivation) |
+|---|---|---|---|
+| 1 | Synopsis + Key Facts | (new) | — |
+| 2 | The posing (slab eqn + invariant) | "The Transport Equation" intro + "Cartesian 1D (Slab)" (269–287) | discretization §1–2; path_integral skeleton |
+| 3 | The discrete balance → per-cell update | "Cartesian 1D Balance Equation" (376–405, eq `dd-cartesian-1d`) + slab parts of "The DD recurrence"/"Diamond Difference" (2205–2350) | discretization §3–4 (Step/DD/LD live THERE) |
+| 4 | The within-group operator (A = L+C−S; WHY invertible = lower-triangular; matrix = rawest) | "InvertibleOperator" Cartesian core (12967–13255; the historical two-closures + curvilinear H2s STAY) | loss_representation; discretization §7 |
+| 5 | The sweep = forward substitution | "Cartesian 1D: Cumprod" (2388–2444) + "Generic affine outflow" (2445–2559) | methods/sn/boundary_conditions |
+| 6 | P₀ scattering (S as projection) | "P₀ Isotropic Scattering" (12538–12553) | operator_algebra intrinsic types |
+| 7 | Source iteration + Krylov alternative | SI/splitting/ρ=c slab core (14564–14751 + the c-mode-fold impossibility 15006–15080) + Krylov H1 Cartesian core (12416–12496) | iteration leftovers stay for later chapters |
+| 8 | Verification hooks + gotchas + code map | (new, thin) | verification.rst (analytical-order ≠ MMS ruling) |
+
+**Leave-behind (stays in monolith):** everything curvilinear (incl. "Substituting the WDD
+Closure" 1907–1941 = the α/ΔA/τ update, eq `dd-solve`), multi-D, P_N/multigroup scattering,
+the τ-campaign H3s (838–1495), LD-moment S3/D5b blocks, Jacobi-vs-G-S boundary recovery +
+reified splitting + ERR-056 (14752–15005, 15081+), solver-coordinator, frame, Gotchas index.
