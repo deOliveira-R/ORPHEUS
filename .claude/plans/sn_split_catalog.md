@@ -128,11 +128,11 @@ leaf first, 3 = dedup-heavy last).
 | 10 | ~~`sweep_multid.rst`~~ | **SUPERSEDED by progression** — wavefront + octant DAG → `cartesian_multid` @ `e0a4e8b3` | — | — | absorbed |
 | 11 | ~~`curvilinear.rst`~~ | **SUPERSEDED by progression — DONE**: sequential sweep + pole closure + sweep-frame matvec + route-(a) → `curvilinear_one_group` @ `6b5848cd`; ERR-026-WaveE + Phase A + Carlson D/F + ERR-058 + #196 → `curvilinear_numerics` @ `550cee49`; the floor → `verification.rst` @ `50dcdfe1`; the W6 dispatch head STAYS (ruling 2) | `sn-curvilinear-aniso-norm-reconciliation` (→ verification) | — | absorbed |
 | 4 | ~~`scattering_and_moments.rst`~~ | **SUPERSEDED by progression** — "Scattering" + "Scattering and fission as LinearOperators" gathered by `slab_multigroup` @ `b7166ed6`; "Angular windowing" → `cartesian_multid` @ `1722d438` | — | — | absorbed |
-| 8 | (append to `loss_representation.rst`) | "InvertibleOperator: the streaming-collision operator algebra" | (H1 has NO anchor — `sn-streaming-operator` lives in `slab_one_group.rst:145` since an earlier extraction; the stale claim here aborted the S4 script's landmark assert, 2026-07-21) | 3 | pending |
+| 8 | ~~(append to `loss_representation.rst`)~~ | **DONE @ `0b96db7f` (2026-07-21, user-ratified SPLIT-BY-CONTENT — the whole-append superseded)**: the two-closure chronicle + Wave-E record → loss_representation "History and rationale" FIRST H2 (Wave-E its H3); the scattering adjoint → the new `adjoint.rst`; the H1 rump DISSOLVED (router intro's facts live in slab_one_group; refs split — L&M §10 → adjoint, A-L merged, T&B new row). The LAST dual-A local-convention zone harmonized at the move; the chronicle's falsified ERR-026 narrative tombstone-extended (ERR-058/#196 anchors) | — | ✅ DONE |
 | 13 | ~~`iteration.rst`~~ | **SUPERSEDED by progression** — Krylov H1 → `slab_one_group` @ `2c60d6a5`; KEigenvalue/choosing/operand/FEAST/cross-solver → `slab_multigroup` @ `b7166ed6`; the boundary G-S schedule → `cartesian_multid` @ `1722d438` (the `sn-iteration-primitives` H1 DISSOLVED; its Wave-E-R1 fact → slab_multigroup) | — | — | absorbed |
 | 14 | `solver.rst` | "SNSolver as an operator-algebra coordinator" + "Consuming the frame in SN" | `sn-solver-operator-algebra-coordinator`, `sn-consuming-the-frame` | 3 | pending |
 | 2 | `algebra.rst` ★★ | THE SPINE — synthesized: dedup the `(A−S−F)ψ=q` spine (restated 3× — remaining sites: the SNSolver-coordinator + Angular-windowing H1s). ~~collapse `choosing-inverse-realisation` vs the inverse-family labels~~ (DONE @ `b7166ed6` — compressed into `slab_multigroup`, foundations owns the catalog); ~~`cross-solver-eigenvalue-consumers` vs `matrix-inverse-consumers`~~ (RULED no-collision — different concepts) | (new) | 3 | partially absorbed |
-| 15 | `adjoint.rst` | "The scattering adjoint, free from the harmonic frame" (subsection of InvertibleOperator) + new S†/daggered-posing/φ* | (new) | 3 | pending |
+| 15 | `adjoint.rst` | **CHAPTER MINTED @ `0b96db7f`** (extraction half pulled forward at ch8): anchor `sn-adjoint`, thin frame (3-layer scope + 4 Key Facts) + the traveled `sn-scattering-adjoint` section promoted to its spine. **Authoring half PENDING** — daggered posing / ψ* / φ*-consumers land with #276 A4/A5 (+ #51/#281); the traveled body's `(L+C−S)ᵀ` shorthand gets the B-note treatment then (the fresh frame already carries it) | `sn-adjoint`, `sn-scattering-adjoint` | 3 | extraction ✅ / authoring pending |
 | 1 | `placement.rst` | NEW writing (why SN vs CP/MoC/P_N/diffusion, M7) | (new) | — | Phase D/defer |
 
 **Stays in `index.rst` (the router):** title/intro (`theory-discrete-ordinates`), "Synopsis"
@@ -593,115 +593,36 @@ unresolved refs — sweep/spatial/coupled-system modules have no autodoc target;
 counts on the issue). Agent-memory round @ `1f2f3c7d`. **Part B is now COMPLETE including
 its energy rung; the broadening progression (arch §3.4) is fully realized.**
 
-**Then (the remaining catalog):** ch8 (append InvertibleOperator H1 → loss_representation;
-row 8 — mind the corrected anchor note) · ch14 `solver.rst` (SNSolver H1) · ch15
-`adjoint.rst` · ch2 `algebra.rst` Tier-3 dedup · ch1 placement (Phase D/defer) · then the
-campaign phases D (routers) → E (conventions) → F (archaeology) → G (backfill) → H (root
-page) → I (literature survey) · #231 Phase 2 (code-prose rebalancing) · the deferred dual-`A`
-one-pass · task #10 (three-layer V&V part build-out). Floor
-span in the 2,627-ln monolith: 890–1565 (anchor `sn-curvilinear-aniso-norm-reconciliation`
-→ before the InvertibleOperator H1's `sn-streaming-operator` anchor). **DEMOTION** map
-{`=`→`-`, `-`→`~`, `~`→`^`} census {1,8,6} — the floor lands as an H2 in verification.rst's
-"Verification" H1, spliced BEFORE "The 2-D Cartesian LD stress MMS (D5b-S4)" (~1021), i.e.
-directly after the "Curvilinear anisotropic MMS" case it reconciles. 5 anchors
-(reconciliation, tau-clamp-vindication, cylinder-angular-floor, pole-cell-spatial-closure,
-p1-scattering-curvilinear) + 4 eqs (sn-tau-mm-raw, sn-pole-cell-shell-average,
-sn-p1-{sphere,cylinder}-hand-ref). In-span F-fixes (scanned): F1 ~937 "closure-seed family
-above" + F2 ~945 "ERR-058 close-out (above)" — both → `:doc:`curvilinear_numerics`` (the
-family left at S3); the other directional hits (1227/1371/1527/1565) verified in-span.
-External repoints owed (all pre-existing stale after earlier extractions, fixed at this
-verification-focused stage): `reduced_operator.py:74` (floor ref → verification);
-`cases/sn.py` ×3 (~23/62/733, Case singular-eigenfunction → verification);
-`test_sn_mms_anisotropic_symbolic.py:40` (aniso-MMS labels → verification);
-`test_mms_curvilinear.py:33`, `test_mms_aniso.py:15`, `test_mms.py:11` (MMS sections →
-verification). NOT owed: `test_curvilinear_pole_cell_characterization.py:26` (its ref is
-`dd-curvilinear-scalar`, which stays in index's cell-update H1). Closeout: update the
-monolith's "Chapters split out so far" blurb (no longer "carries the bulk inline"); catalog
-CHAPTER(S)-COMPLETE record; memory-router terminal update; verify the arch §4 open
-questions 2 (resolved: minted) + the toctree. Span (in the
-5,560-ln monolith; re-derive by title): the two W6-nested H3s "ERR-026 closure status
-(partial through Wave E)" ~888 + "Boundary face-flux strategies — Phase A" ~993 (promote
-{`~`→`=`}), then contiguous "Phase D Carlson coupled-pole sweep" ~1031 + "Phase F Carlson
-seed sweep-path backport" ~1993 + "ERR-058 — the curvilinear closure-seed fix" ~2826 through
-the line before `.. _sn-curvilinear-aniso-norm-reconciliation:` (~3823) (promote {`-`→`=`,
-`~`→`-`, `^`→`~`}; census asserted at scripting — ~{3,40,9}). 18 anchors + 12 eqs (incl. the
-`hebert-3-43x` family route-(a) cross-refs). Skeleton drafted in-session: anchor
-`sn-curvilinear-numerics`, title "The curvilinear seed-strategy campaign (#168 → #282)",
-intro (campaign-record framing; B/C + resolution live in the base chapter), 4 Key Facts
-(two flat-field-exact wrong seeds; D→F twin-path backport; the proxy-source defect →
-AngularEdgeExtrapolation → itself the #282 back edge; #196 SI≡Krylov permanent gate).
-Owed in-span F-fixes: the Phase-F `:func:`_sweep_1d_spherical`` without the dissolved
-qualifier (~2545); check `test_krylov_curvilinear_precond_safety.py:64` (names index for
-SI-vs-Krylov content — S3 if ERR-058/#196-homed). Monolith after: Sweep-Algorithm H1 =
-router + W6 head trio only; router rewrite #2 (campaign record → curvilinear_numerics).
-Toctree + arch §3.4 row: chapter minted per steer ruling 1.
-S4 owed externals (deferred): `reduced_operator.py:74`, `cases/sn.py:23`,
-`test_sn_mms_anisotropic_symbolic.py:40`, `test_mms_curvilinear.py:33`, `test_mms_aniso.py:15`,
-`test_mms.py:11`, `test_curvilinear_pole_cell_characterization.py:26` (floor/MMS-section
-pointers → verification.rst at S4). Windows (titles stable;
-line #s in the 8,065-ln monolith = old − 1,526): "Curvilinear 1D: Sequential Ordinate
-Sweep" (old 2262–2299, thin) · pole closure "The pole angular closure (Issue #168 Phase B)"
-(old 2586–2800) · "Sweep-frame apply matvec (Issue #168 Phase C)" (old 2801–4005; its four
-MMS-gate H4s route per ruling 2 at authoring) · "Route (a) — the direct starting-direction
-ψ½ solve (Issue #282)" (old 6800–7854). The W6 dispatch head + strategy parameter + cumprod
-fast path STAY (Stage-1 W6 ruling); ERR-026 Wave-E status + retired Phase A travel at S3
-(saga prologue). Known F2-class fixes owed in S2 windows: `_sweep_1d_spherical` mentions at
-old 2297 (present-tense "Implemented in") and the historical ones at old 2168/4985/5058/5527.
+**✅ ch8 — the InvertibleOperator H1 dissolution @ `0b96db7f` (2026-07-21).** Steer:
+SPLIT-BY-CONTENT (the row's whole-append superseded by disassembly) + MINT thin
+`adjoint.rst` now (ch15's extraction half — the label moves ONCE). The chronicle + Wave-E
+→ loss_representation's "History and rationale" (first H2 + its H3), shelved beside the
+one-walk theorems they pre-date; Option-Y harmonization of the LAST local-convention zone
+(`A = Ω·∇+Σ_t` → `L+C`); the tombstone note extended with the falsification record
+(ERR-058/#195 seed-family re-adjudication + #196 SI≡Krylov, both anchors cited).
+Current-truth transforms: Wave O/O.2b LANDED the analytic reverse-direction adjoint matvec
+— the dense-transpose-fallback claims and the "Forward" bullet updated; 2 fossil pointers
+to the retired FD-family docs dropped. **The l1_analytical fossil family** (6 stale path
+strings across 4 pages, found by the L34 sweep) fixed in-pass — aniso tripwires →
+`verification/mms/test_curvilinear_aniso_convergence.py`, kinf → `verification/analytical/`
+(2 foundations pages), the flat-flux-identity mention → retirement note (file retired with
+Legacy/BFF, `2f24ae4a`); exactly ONE historical residual by design. index 1,952 → 1,736;
+toctree + router updated. Enforcer (resumed instance): **COMMIT-READY, zero MUST-FIX** —
+"every moved span char-diffs to exactly the declared transforms"; the one deferrable
+CONCERN (B elided in the daggered-posing shorthand) closed in-commit in the fresh frame.
+Gate `-E -W` GREEN. Agent-memory @ `b55257a5`.
 
-*The original disassembly brief (kept for the S2–S4 window maps):*
+**⏭ The remaining catalog:** ch14 `solver.rst` (SNSolver H1 + Consuming-the-frame — row 14)
+· ch15 authoring half (daggered posing/ψ*, blocked on #276 A4/A5) · ch2 `algebra.rst`
+Tier-3 dedup (the thrice-restated spine — remaining sites: the SNSolver-coordinator +
+Angular-windowing H1s) · ch1 `placement.rst` (Phase D/defer) · then the campaign phases
+D (routers) → E (conventions) → F (archaeology) → G (backfill) → H (root page) → I
+(literature survey) · #231 Phase 2 (code-prose rebalancing) · task #10 (three-layer V&V
+part build-out).
 
-*The model (ratified, unchanged):* disassembly (windows by stable title + per-window
-stays-adjudications) → **AskUserQuestion steer** → author/splice (the *Method* pattern
-above) → `-E -W` gate → elegance-enforcer review (post-compaction the Stage-2/3 instance is
-lost — FRESH dispatch with the L-013 + declared-transform framing; the two review briefs in
-this session's git range `eb96f424`/`1722d438` commit messages record the shape) → commit →
-checkpoint here. Content authority = `sn_book_architecture.md` §3.4 (the curvilinear rows) +
-§3.2; the struck ch11 topic-row above lists the topic inventory.
-
-*The fresh monolith map (@ 9,588 ln; line #s advisory — re-derive by title):* H1s =
-Synopsis 57 · Architecture 145 · Transport Equation 269 · **Discrete Balance 319** · **Cell
-update strategies 1857** (STAYS — Stage-1 adjudication, cross-geometry strategy contract) ·
-**Sweep Algorithm 2248** · **curvilinear-aniso-MMS "floor" 7855** · InvertibleOperator 8534
-(→ ch8/loss_representation, separate) · SNSolver 8753 · Consuming-the-frame 9265 · Gotchas
-9339 · References 9455 · toctree 9570.
-
-*Window candidates (grep these stable titles):*
-
-- **Balance H1 curvilinear H2s (331–1810):** "Curvilinear Balance Equation (Spherical and
-  Cylindrical)" 331 · "The Alpha Redistribution Coefficients" 420 · "The Geometry Factor
-  and Why It Is Needed" 470 · "The Streaming-Equilibrium Identity (canonical L0 gate)" 524 ·
-  "The Morel--Montry Flux Dip" 573 · "Weighted Diamond Difference (WDD) and Morel--Montry
-  Weights" 614 (**1,160 ln — contains the τ-campaign H3s**, the #236 characterization
-  capstone Stage 1 adjudicated STAYS-for-later; RE-adjudicate at steer) · "Substituting the
-  WDD Closure into the Balance Equation" 1775 (eq `dd-solve`, the α/ΔA/τ update — the
-  slab_one_group leave-behind) · "Geometry Comparison" 1810.
-- **Sweep H1 curvilinear region (2262–7854):** "Curvilinear 1D: Sequential Ordinate Sweep"
-  2262 (thin, ~38 ln) · **"Unified sweep dispatch" 2300–4005 — ⚠ STRUCTURAL TRAP:** the
-  Stage-1 W6 stays-ruling covered the SUPERSEDED dispatch story, but this H2 PARENTS six
-  H3s of #168-campaign curvilinear machinery ("Cell update strategy parameter" 2357 ·
-  "The 1-D cumprod fast path (DD-only)" 2399 · "ERR-026 closure status" 2443 · the retired
-  "Boundary face-flux strategies — Phase A" 2548 · **"The pole angular closure (Issue #168
-  Phase B)" 2586** · **"Sweep-frame apply matvec (Issue #168 Phase C)" 2801–4005**, with
-  "The pole-face Carlson starting direction" H4 ~3137) — the disassembly must SPLIT the
-  dispatch head (stays, ruling 2) from the nested curvilinear content (travel candidates);
-  a steer question · "Phase D Carlson coupled-pole sweep (Issue #168 Phase D)" 4006 ·
-  "Phase F Carlson seed sweep-path backport (Issue #168 Phase F)" 4968 · "ERR-058 — the
-  curvilinear closure-seed fix (Issue #195 CLOSED)" 5801 · "Route (a) — the direct
-  starting-direction ψ½ solve (Issue #282)" 6800.
-- **"The curvilinear anisotropic-MMS 'floor', reconciled (W1–W5)" H1** 7855–8533.
-
-*Known steer questions to prepare:* (1) the **aniso-MMS-floor H1** — chapter vs
-`methods/sn/verification.rst` (the three-layer V&V-part ruling; the W3b precedent routes
-case descriptions to the per-method verification section); (2) the **one-group vs
-multigroup curvilinear split** (arch §3.4 — most monolith curvilinear content is 1-group;
-check what genuinely feeds `curvilinear_multigroup`); (3) the **W6-nested #168 archaeology**
-— travel vs stay-as-origin-history, per H3; (4) the **τ-capstone re-adjudication** (inside
-the WDD H2); (5) **staged vs single commit** (~7,000 source ln in play — staging
-near-certain; propose the stage cut at steer, the cartesian_multid precedent).
-
-*Standing facts:* the dual-`A` one-pass harmonization stays deferred (above);
-`[Pautz2002]_`-class citations + eq-labels are project-global; recipe = "The per-chapter
-recipe" + the *Method* paragraph above; L35 three-way grep + L34 filename sweep per recipe
-(Stage 2/3 found most breaks were PRE-existing fossils from earlier extractions — grep
-"above|below|the note|the section" in every window against the CURRENT homes of what they
-cite).
+*Standing facts:* branch `docs/sn-doc-architecture` UNPUSHED; citations + eq-labels are
+project-global; recipe = "The per-chapter recipe" section above (L35 three-way grep + L34
+filename sweep per chapter — Stages 2/3 and ch8 found most breaks are PRE-existing fossils
+from earlier extractions, so grep every window's directional prose and path strings against
+the CURRENT homes of what they cite); the elegance-enforcer review instance persists
+within a session — resume it; re-brief fresh only after compaction.
