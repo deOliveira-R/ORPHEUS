@@ -931,11 +931,14 @@ Verification hooks
 What broadens next
 ==================
 
-* **Space** (2-D/3-D Cartesian): streaming becomes a true gradient, the sweep
+* **Space** (2-D/3-D Cartesian, :doc:`cartesian_multid`): streaming
+  becomes a true gradient, the sweep
   becomes a wavefront over a dependency DAG, and the within-group
   iterate can live in moment space (angular windowing,
   :ref:`sn-angular-windowing`) — the energy machinery of this chapter
   rides along unchanged.
-* **Curvature** (spherical/cylindrical): the angular cell balance
+* **Curvature** (spherical/cylindrical, :doc:`curvilinear_one_group`):
+  the angular cell balance
   activates redistribution and the starting-direction state; the
-  group axis again rides along unchanged.
+  group axis again rides along unchanged
+  (:doc:`curvilinear_multigroup`).

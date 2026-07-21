@@ -736,7 +736,9 @@ LD stress MMS in :doc:`verification`; the curvilinear machinery — the
 sequential ordinate sweep, the pole angular closure (#168 Phase B),
 the sweep-frame apply matvec (Phase C), and the direct :math:`\psi_{1/2}`
 starting-direction solve (#282 route (a)) — in
-:doc:`curvilinear_one_group`. The #168 Phases A/D/F, ERR-058, and #196
+:doc:`curvilinear_one_group` (the group axis rides that machinery as
+data — :doc:`curvilinear_multigroup`). The #168 Phases A/D/F, ERR-058,
+and #196
 campaign record is preserved in :doc:`curvilinear_numerics`; the
 section below preserves the dispatch-consolidation record (Wave D
 Round 2, superseded by the ``LossRepresentation`` polymorphism).
@@ -1941,6 +1943,7 @@ The chapters:
    slab_multigroup
    cartesian_multid
    curvilinear_one_group
+   curvilinear_multigroup
    curvilinear_numerics
    angular_quadrature
    loss_representation

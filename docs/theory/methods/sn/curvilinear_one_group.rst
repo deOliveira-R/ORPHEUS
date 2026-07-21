@@ -41,8 +41,8 @@ The chain of the book repeats on the new axis:
 
 What does *not* change: space stays 1-D radial (the multi-D walk of
 :doc:`cartesian_multid` is not needed), the energy axis stays a single
-group (multigroup returns in the next Part-B chapter), and the closure
-machinery is still the generic
+group (multigroup returns in :doc:`curvilinear_multigroup`), and the
+closure machinery is still the generic
 :doc:`/theory/foundations/discretization`, cross-linked never
 re-derived.
 
