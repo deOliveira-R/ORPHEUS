@@ -15,7 +15,7 @@ algorithm a mesh gets, and the L21 theorem that makes "matvec is the
 same operator as the sweep" a type fact rather than a coincidence.
 
 It deliberately does **not** re-derive the cell-level mathematics.
-Those live in :doc:`/theory/methods/sn/index`:
+Those live in the S\ :sub:`N` book chapters:
 
 * the WDD cell balance and closure — :eq:`dd-cartesian-1d`,
   :eq:`dd-cartesian-2d`, :eq:`dd-2d-balance-form`;

@@ -64,7 +64,7 @@ The interior face-flux cochain — :math:`C^1_{\rm int}`
    is the right one.
 
    **Why it retired.** The S6.4 walk re-layering (see
-   :ref:`sweep-dispatch-relayering` in :doc:`/theory/methods/sn/index`)
+   :ref:`sweep-dispatch-relayering` in :doc:`/theory/methods/sn/cartesian_multid`)
    dissolved the type's two load-bearing verbs — the whole-trace
    :math:`\iota_*` ``seed`` (read the octant inflow into the
    domain-edge slots) and the whole-trace :math:`\iota^*` ``absorb``
@@ -583,7 +583,7 @@ The 1-D sweep is a scan, not a wavefront — deferred to ``nd_foundation``
    efficiency. **That collapse has since landed** (the ``CumprodScan``
    d=1 sibling and the ``_DAGWavefront`` family share the per-octant
    DAG; see :ref:`sweep-dispatch-relayering` in
-   :doc:`/theory/methods/sn/index`), which is part of *why* the standalone
+   :doc:`/theory/methods/sn/cartesian_multid`), which is part of *why* the standalone
    ``WavefrontFlux`` carrier became redundant at S6.4(f): the
    :math:`d`-generic walk supplies the front (``_MovingFrontier``) and
    the oracle history (``_octant_face_cochain``) for every :math:`d`. A
