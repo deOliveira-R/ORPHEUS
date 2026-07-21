@@ -1,11 +1,18 @@
 # operator_algebra #298 + #299 — correctness fixes (NEXT phase, queued 2026-07-20)
 
-**Status:** QUEUED. The user chose these as the next phase after the #231 operator-algebra
-reframe (P1–P5b, done). Do them **before** Phase C (the SN split). Both are Cardinal-Rule-1
-doc bugs on the (now-reframed) operator-algebra pages AND the **X2/X3 blockers for Phase H**
-(the `foundations/path_integral.rst` root page must not cite them until fixed; X1 already
-fixed @ `018ecb7b`). Branch `docs/sn-doc-architecture`. **Gate every commit `-E -W`** (this
-branch's true baseline is **0** warnings — the AGENT.md "1 warning" note is stale here).
+**Status:** ✅ DONE (2026-07-20). **#298 fixed @ `639cec9e`** — the block matrix's (s,s)
+entry corrected to `A_ss` + the trace-resolved refinement equation
+(`bc-extraction-trace-blocks`: L_full unit-lower-triangular `[[I,0],[−T,I]]` vs B
+strictly-upper `[[0,R],[0,0]]` on `V_inflow ⊕ V_outflow`; the identity diagonal =
+triangularity = sweep-as-forward-substitution, verified against `streaming.py` O.4a.2 +
+`boundary.py`); matrix.rst regenerated (321 documented). **#299 fixed @ `4425516c`** — the
+audit widened the issue's 3 sites to **5** (+ the published `green_operator.py` /
+`operator.py` docstrings) + the boundary-law census correction (reflective/albedo are
+angular permutations rank N/2, NOT rank-1 — the old prose contradicted its own G_α table);
+canonical statement at the `smw-low-rank-exception` anchor, compact pointers elsewhere.
+Both commits gated `-E -W` green (0 warnings). **Phase H's X2/X3 blockers cleared** (X1 was
+`018ecb7b`). #298/#299 close on merge via `Closes` trailers (branch unpushed); breadcrumb
+left on #300.
 
 > ⚠ **Content moved during the reframe.** Both issues cite the pre-reframe
 > `docs/theory/operator_algebra.rst:<line>`; that page is now
