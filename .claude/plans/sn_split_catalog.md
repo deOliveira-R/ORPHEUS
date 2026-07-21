@@ -250,3 +250,28 @@ commit (no twin homes, atomically); interleaved campaign material stays until it
 Closure" 1907–1941 = the α/ΔA/τ update, eq `dd-solve`), multi-D, P_N/multigroup scattering,
 the τ-campaign H3s (838–1495), LD-moment S3/D5b blocks, Jacobi-vs-G-S boundary recovery +
 reified splitting + ERR-056 (14752–15005, 15081+), solver-coordinator, frame, Gotchas index.
+
+### ✅ slab_one_group.rst — DONE @ `2c60d6a5` (2026-07-20)
+
+Authored ~735 ln; index.rst 16,388 → 15,603 (−828/+43). 14 labels traveled single-homed;
+9 labeled eqs character-identical (elegance-enforcer verified); matrix.rst unchanged.
+**Adjudications beyond the map** (each verified against code): (1) the DiamondDifference
+class-doc (2205–2350) STAYED intact — the chapter cross-links its slab branch (gutting the
+3-branch dispatch doc would break D5); (2) the monolith's blend/Péclet passage RETIRED as
+superseded — its thin-limit claim (k→∞, w→0) contradicts `_ubld.d1_closed_form`
+(k∈[0,1), w∈[½,1]); spectrum single-sourced at `discretization-ld-blend`; (3) the Krylov
+H1's "Consistency" DD-vs-FD story + "Round 2 deviation" RETIRED (FD family deleted;
+matvec ≡ sweep one walk, #206 Phase C) — chapter states the current truth; (4) "Why not
+extract apply_transpose analytically?" RETIRED (pro-dense-probe argument in present tense;
+the analytic reverse walk shipped, dense path retired in D-K); (5) "Two Inner Solvers"
+stale two-closure claims rewritten to one-walk truth + its broken `Krylov inner solver`_
+title-ref repointed; (6) Pautz2002 citation repointed at the staying ERR-056 rule; (7) new
+H2 "The boundary Gauss-Seidel schedule (multi-D)" parents the staying G-S H3s; (8) the
+(A−S−F)/A=L+C local convention harmonized to the honest algebra in ALL chapter + inserted
+text (monolith's remaining old-convention sections harmonize when their chapters come).
+L35 breaks found+fixed: 3 (a "below", the title-ref, the Pautz "cited at" semantics).
+
+**NEXT = `slab_multigroup.rst`** (broadens ENERGY): gathers Matrix Convention + P_N
+anisotropic scattering (12454+ post-cut), scattering/fission LinearOperators, fission/χ,
+k-eigenvalue + power iteration (KEigenvalue H2, choosing-A⁻¹), multigroup framing. Needs
+its own disassembly + user steer per the ratified per-chapter model.
