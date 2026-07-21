@@ -28,13 +28,9 @@ and are re-derivable in seconds via Nexus. Keep notes here DURABLE, not transien
 > the walk executors (`_OneDimScanWalk`/`_loop_walk`/`_dag_legs`) live in
 > `sn/loss_representation/__init__.py`.
 
-- [task #54 sn/spatial rename audit](task54_sn_spatial_rename_audit.md) — TRANSIENT @
-  `6e3ebad0` (2026-07-13): full 3-search blast radius for renaming `orpheus/sn/spatial/`
-  (4 production import files / 7 statements, all direct-module-path — the package
-  `__init__` has ZERO live importers; 20 test import statements / 15 files; 147 doc
-  role occurrences, 10 already dangling; zero string-literal/config refs; mutation
-  TOMLs + diag_276 pre-broken since #272; name-candidate evidence: walk lives in
-  loss_representation, tests/sn/sweep is broader than the package). **Delete when #54 lands.**
+> **2026-07-21:** task #54 (`sn/spatial` → `sn/sweep`) is MERGED (`588f2429`
+> git-verified ancestor); its transient audit memory hit the delete-condition and
+> was DELETED.
 
 The durable SHAPE of the SN operator-algebra subsystem lives in
 `.claude/agents/explorer/AGENT.md` ("SN operator-algebra subsystem — durable
@@ -57,6 +53,11 @@ These are convention/units facts that a line-number drift cannot invalidate —
 they pin WHY a quantity carries the units it does. Keep them; everything else
 in the old index was a frozen carve-map and is proposed for retirement.
 
+- [SN multigroup axis structure](sn_multigroup_axis_structure.md) — three-tier
+  group-blindness (structure / group-diagonal data / S+F coupling); NO group loop
+  ("within-group" = fission-external, full multigroup S inside); τ/c are ANGULAR
+  closure weights not optical thicknesses; AGENT.md drift: `_within_group_triple`
+  → `build_within_group_system` (coupled_system.py).
 - [HarmonicMomentField UNITS convention](harmonic_moment_field_units_convention.md)
   — why a stored SH moment carries SCALAR-flux units (no-prefactor SH, Y₀⁰=1,
   weights sum to 4π → sr cancels); R≠M*; the ERR-039/ERR-051 history behind it.
