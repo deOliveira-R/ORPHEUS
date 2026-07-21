@@ -56,9 +56,9 @@ Steps 1–2 reified the inverse *operators* — the schedule-triangular
 :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (step 1, the
 WDD sweep as :math:`(L+C)^{-1}`), the reified splitting matrix
 :math:`M=(L+C)-B_{\rm lower}` (step 2, :ref:`si-gauss-seidel-reification`
-in :doc:`/theory/methods/sn/index`), and the windowed composition
+in :doc:`/theory/methods/sn/cartesian_multid`), and the windowed composition
 :math:`P\circ A^{-1}` (step 2, :ref:`windowing-retyped` in
-:doc:`/theory/methods/sn/index`). **Step 3
+:doc:`/theory/methods/sn/cartesian_multid`). **Step 3
 retypes the driver–inverse boundary.** The solver (posing) layer builds
 the inverse *once*, and the iteration primitive
 (:class:`~orpheus.numerics.iteration.SourceIteration`) *applies* it:

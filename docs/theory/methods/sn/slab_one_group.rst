@@ -500,7 +500,7 @@ the within-group operator splitting and gives the
 iterations-to-tolerance estimate the rate implies. (The multi-D
 boundary Gauss-Seidel schedule, its honest scope, and the
 diagonal-cubature shared-face rule ERR-056 are documented with the
-multi-D machinery in :doc:`index`; the reified splitting matrix is
+multi-D machinery in :doc:`cartesian_multid`; the reified splitting matrix is
 :ref:`si-gauss-seidel-reification`.)
 
 .. admonition:: Key Facts (SI rate)

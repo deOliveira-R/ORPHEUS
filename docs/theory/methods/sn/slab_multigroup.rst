@@ -558,6 +558,13 @@ through the source-iteration inner loop.
 Development history — the Wave D/E wiring
 -----------------------------------------
 
+Wave E Round 1 (Issue #163) lifted the iteration primitives out of
+:class:`~orpheus.sn.solver.SNSolver` into stand-alone operator-algebra
+consumers in :mod:`orpheus.numerics.iteration`, consuming the Wave A
+:class:`~orpheus.numerics.operator.LinearOperator` Protocol triple
+:math:`(A, S, F)` directly — no transport-solver knowledge beyond the
+operator contract.
+
 Wave E Round 2 (Issue #164) wired the operator algebra
 :math:`(A, S, F)` into :class:`SNSolver` and replaced the legacy
 BiCGSTAB inner-solver path with Krylov-on-:meth:`A.apply` (GMRES
