@@ -424,7 +424,7 @@ families occupy disjoint blocks of the :math:`2\times 2` block matrix
    }_{C,\,S,\,F\;(\text{BULK})}
    \;+\;
    \underbrace{
-   \begin{bmatrix} A_{bb} & A_{bs} \\ A_{sb} & 0 \end{bmatrix}
+   \begin{bmatrix} A_{bb} & A_{bs} \\ A_{sb} & A_{ss} \end{bmatrix}
    }_{L_{\rm full}\;(\text{FULL})}
    \;-\;
    \underbrace{
@@ -432,6 +432,67 @@ families occupy disjoint blocks of the :math:`2\times 2` block matrix
    }_{B\;(\text{BOUNDARY})}
 
 .. vv-status: bc-extraction-block-matrix documented
+
+The position :math:`A_{ss}` is occupied by **both** :math:`L_{\rm full}`
+and :math:`B` — with complementary triangle structure on the trace
+splitting :math:`V_{\rm boundary} = V_{\rm inflow} \oplus V_{\rm outflow}`:
+
+.. math::
+   :label: bc-extraction-trace-blocks
+
+   \underbrace{
+   \begin{bmatrix} I & 0 \\ -T & I \end{bmatrix}
+   }_{A_{ss}\ \text{of}\ L_{\rm full}}
+   \qquad\text{vs.}\qquad
+   \underbrace{
+   \begin{bmatrix} 0 & R \\ 0 & 0 \end{bmatrix}
+   }_{A_{ss}\ \text{of}\ B}
+   \qquad\text{on}\quad
+   \begin{bmatrix} \psi.\text{inflow} \\ \psi.\text{outflow} \end{bmatrix}.
+
+.. vv-status: bc-extraction-trace-blocks documented
+
+:math:`L_{\rm full}`'s trace–trace block is **unit-lower-triangular**,
+with the identity on BOTH diagonal sub-blocks: the inflow row is the
+carried identity :math:`I\cdot\psi.\text{inflow}` (it reads nothing
+else), and the outflow row is the self-consistency defect's
+stored-unknown identity :math:`I\cdot\psi.\text{outflow}` (design
+correction 1 below; the per-row sign is free because
+:math:`q.\text{outflow} \equiv 0` — the 2-D path spells the outflow
+row with the opposite sign, same diagonal-bearing structure).
+:math:`T` is the closure's **direct inflow→outflow transmission**: the
+strictly-sub-diagonal coefficient the sweep chain hands the outflow
+face in terms of the inflow face that seeded it — nonzero whenever a
+direction's chain runs face-to-face (e.g. diamond difference on a
+slab), zero when the chain terminates on the :math:`r = 0`
+pole-regularity seed instead of a face, or under a pure-upwind
+closure whose faces read cells only.
+
+That identity diagonal is **load-bearing twice over** (Issue #298):
+
+* It is what makes every trace row of :math:`L_{\rm full} + C`
+  **diagonal-bearing**, so the augmented within-group operator is
+  block lower-triangular in the ordering inflow → bulk → outflow —
+  and fully triangular once the bulk is ordered by the sweep
+  schedule. Its direct solve IS the sweep, literally **forward
+  substitution**: read the given inflow, sweep the bulk, define the
+  outflow.
+* It is the diagonal the sibling :math:`-B` leans on: :math:`B`'s
+  :math:`A_{ss}` (:math:`R` the realized per-face law,
+  :ref:`bc-law-layer`) sits **strictly upper** on the same ordering —
+  the inflow row reading the outflow column — the ONE up-edge that
+  closes the boundary cycle. Vacuum kills it (:math:`B = 0`, pure
+  forward substitution); SI/Krylov iterates it
+  (:eq:`bc-extraction-two-residuals`); and :math:`B`'s low rank is
+  what lets a Woodbury closure solve it in closed form instead
+  (Issue #300).
+
+(The block matrix above wrote :math:`L_{\rm full}`'s :math:`(s,s)`
+entry as :math:`0` until Issue #298 — silently contradicting the role
+table below, whose inflow-identity and outflow-defect rows are both
+:math:`(s,s)` content. The :math:`0` was never load-bearing — no
+downstream derivation consumed it — but the root-page triangularity
+argument was about to.)
 
 The three operator roles (Wave O block-role typing, Issue #208) read
 off the block structure directly:
@@ -452,7 +513,9 @@ off the block structure directly:
        :math:`\psi.\text{inflow}` trace; writes :math:`\psi.\text{bulk}`
        and the :math:`\psi.\text{outflow}` trace.
      - :math:`A_{bb}` (streaming) + :math:`A_{bs}` (inflow seeds the
-       sweep) + :math:`A_{sb}` (sweep produces outflow). The
+       sweep) + :math:`A_{sb}` (sweep produces outflow) +
+       :math:`A_{ss}` (the trace rows' unit-triangular structure,
+       :eq:`bc-extraction-trace-blocks`). The
        **outflow row keeps the self-consistency defect**
        :math:`\psi.\text{outflow} - \text{streamed}`; the **inflow
        row carries the identity** :math:`I\cdot\psi.\text{inflow}`.
@@ -471,8 +534,9 @@ off the block structure directly:
      - Maps :math:`V_{\rm outflow} \to V_{\rm inflow}` via the
        realized per-face law :math:`\psi.\text{inflow} =
        B\,\psi.\text{outflow}`.
-     - :math:`A_{ss}` only; emits on the **inflow row ONLY**
-       (see design correction 2 below).
+     - :math:`A_{ss}` only — strictly upper on the trace splitting
+       (:eq:`bc-extraction-trace-blocks`); emits on the **inflow row
+       ONLY** (see design correction 2 below).
 
 The outer Krylov / SI loop drives **two residuals to zero**
 simultaneously:
