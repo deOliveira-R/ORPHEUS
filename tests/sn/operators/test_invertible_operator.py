@@ -685,7 +685,9 @@ class TestInvertibleSolveBridgeRegression:
     - ``.claude/lessons.md`` L18 — Pattern 7 producer-side normalisation.
     - ``.claude/lessons.md`` L21 — sweep and matvec share ONE strategy.
     - Sphinx theory: ``docs/theory/methods/sn/index.rst``
-      (transport-cartesian, sn-curvilinear-homogeneous-kinf-recovery).
+      (transport-cartesian) and
+      ``docs/theory/methods/sn/curvilinear_one_group.rst``
+      (sn-curvilinear-homogeneous-kinf-recovery).
     - ERR catalog: ERR-049 — convention drift (Phase 1.4).
     - Issue #202 — closed by Phase 1.1 commit ``de8822d``.
     - Issue #204 — A5 promote diagnostics to permanent L1.

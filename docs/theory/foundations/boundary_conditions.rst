@@ -3270,7 +3270,7 @@ landed on ``refactor/sn-operator-algebra``) extends the matvec with
 a **second** BC apply call, used to build the Carlson coupled-pole
 seed's ``bc_outer_value`` (see
 :ref:`sn-phase-d-carlson-coupled-pole-sweep` in
-:doc:`/theory/methods/sn/index` for the math).  The §16A.3 affine trace
+:doc:`/theory/methods/sn/curvilinear_numerics` for the math).  The §16A.3 affine trace
 law contract is therefore exercised **twice per matvec** in the
 post-Phase-D code path:
 
@@ -3405,7 +3405,7 @@ retired at the coupled-block campaign step 6 (R-6.1, 2026-07-12) —
 dispatching to ``_sweep_1d_spherical`` (the dissolved ``sweep.py``) /
 ``_sweep_1d_cylindrical``).  See
 :ref:`sn-phase-f-carlson-sweep-path-backport` in
-:doc:`/theory/methods/sn/index` for the math and the
+:doc:`/theory/methods/sn/curvilinear_numerics` for the math and the
 twin-path-fix-incompleteness anti-pattern that motivated the
 backport.
 

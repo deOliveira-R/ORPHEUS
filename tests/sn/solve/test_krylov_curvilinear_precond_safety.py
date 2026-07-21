@@ -62,7 +62,9 @@ References
 - ``.claude/lessons.md`` L21 — sweep and matvec are different
   applications of the same operator → share ONE strategy.
 - Sphinx theory: ``docs/theory/methods/sn/index.rst``
-  (transport-cartesian, sn-curvilinear-homogeneous-kinf-recovery).
+  (transport-cartesian) and
+  ``docs/theory/methods/sn/curvilinear_one_group.rst``
+  (sn-curvilinear-homogeneous-kinf-recovery).
 - ERR catalog: ERR-050 — Silent preconditioner fallback breaks
   stateful-inverse contract (Phase 1.4).
 - Issue #203 — closed by Phase 1.2 supersession (``c93355c``).
