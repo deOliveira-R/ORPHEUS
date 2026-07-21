@@ -280,3 +280,46 @@ ALREADY dead pre-carve (the field declared `mesh: SNMesh` all along; only 2 of 7
 duplicate the un-weld minted. Precedent-setting carves make it worse: the dead ignore
 becomes the template every future block operator copies. Run the check on any file that
 gains/moves a `type: ignore`, not only on the Optional→required sites.
+
+## L-013 -- A doc gather/split (monolith → chapter) is a RETIREMENT review; the recipe is mechanical and the spelling axis is project-specific
+
+Reviewed the first SN mini-book chapter carve (`slab_one_group.rst` gathered from 8
+regions of the 16k-line `index.rst`; branch `docs/sn-doc-architecture`, more chapters
+coming — slab_multigroup / cartesian_multid / curvilinear_*). A doc extraction is a
+`coding-elegance` Pattern-2 (single-source) + aggressive-retirement review wearing prose,
+and the verification is fully mechanical — do NOT eyeball 700 lines:
+
+1. **Twin content = label uniqueness + distinctive-prose grep.** Sphinx `-W` already
+   guarantees no duplicate `:label:`/`.. _anchor:` across files (a genuine twin would red
+   the gate the brief says is green) — so a moved label showing in BOTH files is either a
+   real duplicate OR a `\b`-word-boundary false positive (`transport-cartesian` matched
+   `transport-cartesian-2d`). Resolve by exact `grep -n`. For UNLABELED prose/eq (invisible
+   to `-W`), grep distinctive fragments and assert count-in-chapter vs count-in-index is
+   never "both".
+2. **Math fidelity = extract-from-git-HEAD + char-diff, never by eye.** `git show
+   HEAD:…/index.rst`, parse each `:label:` body out of both files with a tiny python
+   extractor, assert byte-equality. Caught nothing wrong here (9/9 identical) but that IS
+   the point — the char-diff is what lets me CERTIFY "verbatim travel", which eyeballing
+   cannot.
+3. **Account for EVERY deleted hunk** against {traveled | retired-as-named | stays}. The
+   brief's retirement list is a CLAIM: grep the retired section's present-tense argument
+   is ABSENT from the chapter (e.g. "Why not extract apply_transpose analytically" pro-dense
+   argument — gone; the past-tense "that path retired in D-K" note is the KEEP, don't confuse
+   them). A rewritten section (Krylov H1 → "The Krylov alternative") is faithful iff the
+   stale story ("Consistency with the Sweep", "Round 2 deviation") is gone from BOTH files.
+4. **The spelling axis is the project-specific discriminator (reusable every chapter):**
+   the honest algebra is `A = L + C − S − B` (A = the FULL within-group operator); the sweep
+   is `(L+C)^{-1}`, "the inner kernel of the full inverse, **never** the full inverse itself"
+   — so **`A = L+C` and `A^{-1}`-for-the-sweep are the stale spelling to flag**. Scope: only
+   NEW text (the chapter + inserted pointer paragraphs + rewritten blocks) must harmonize;
+   RETAINED monolith sections keep the old local convention until their own chapter (brief
+   said so — don't flag them). `A` as a generic bound variable in the reciprocity identity
+   `⟨Aψ,φ⟩=⟨ψ,A*φ⟩` is fine (and char-identity-required). `A_wg^{-1}` inside a *refuted*
+   approach is a defensible NIT, not a MUST-FIX.
+5. **Diff boundary ≠ review boundary (L-004 again):** the retired blend-weight/Péclet
+   spectrum's *correct home* (`discretization.rst`, the cross-link TARGET, outside the diff)
+   had to be opened to confirm (a) the chapter only cross-links, doesn't restate, and (b) the
+   monolith's retired version was genuinely WRONG (`k→∞,w→0` vs the code's `k=(g/θ)/(g/θ+Σt)
+   ∈[0,1)`, `w∈[½,1]`). Also verify a CHANGED `:doc:` hint points where the `:ref:` actually
+   lives — here the chapter *improved* on the source (`bc-extraction` hint corrected
+   operator_algebra→boundary_conditions). Clean carves earn the credit; say so.

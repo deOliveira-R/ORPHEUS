@@ -24,7 +24,11 @@ retired — the behavioral lesson is lifted to `lessons.md`.
   a claim to verify against live `git status` — a stale snapshot manufactured a false
   "ungated / promise-not-backed-by-test" finding (L11); PROVE a dead `# type: ignore`
   via a throwaway `reportUnnecessaryTypeIgnoreComment` config — the error-count ratchet
-  is blind to it, so a carve can leave dead ignores while claiming it retired them (L12).
+  is blind to it, so a carve can leave dead ignores while claiming it retired them (L12);
+  a doc gather/split (monolith → chapter) is a RETIREMENT review — verify twin-content by
+  label-uniqueness+prose-grep, math-fidelity by git-HEAD extract+char-diff, account every
+  deleted hunk, and flag stale `A=L+C`/`A^{-1}`-for-sweep spelling in NEW text only (the
+  honest algebra is `A=L+C−S−B`, sweep=`(L+C)^{-1}`) (L13).
 
 ## 2. Active / in-flight state
 
