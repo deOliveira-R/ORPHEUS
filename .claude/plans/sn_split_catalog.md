@@ -126,9 +126,9 @@ leaf first, 3 = dedup-heavy last).
 | 9 | ~~`sweep_1d.rst`~~ | **SUPERSEDED by progression** — Cartesian-1D cumprod + affine outflow gathered by `slab_one_group` @ `2c60d6a5`; the "Sweep Algorithm" H1 intro stays as the router pointer | `sweep-algorithm` (still in index) | — | absorbed |
 | 7 | ~~`linear_discontinuous.rst`~~ | **SUPERSEDED by progression** — the UBLD core → `cartesian_multid` @ `eb96f424`; the 2-D LD stress MMS → `verification.rst` (same commit) | — | — | absorbed |
 | 10 | ~~`sweep_multid.rst`~~ | **SUPERSEDED by progression** — wavefront + octant DAG → `cartesian_multid` @ `e0a4e8b3` | — | — | absorbed |
-| 11 | `curvilinear.rst` | "Sweep Algorithm" → curvilinear sequential sweep + unified dispatch + Carlson D/F + ERR-058 + route-(a); PLUS "The curvilinear anisotropic-MMS floor" | `sn-curvilinear-aniso-norm-reconciliation` | 2 | pending |
+| 11 | ~~`curvilinear.rst`~~ | **SUPERSEDED by progression — DONE**: sequential sweep + pole closure + sweep-frame matvec + route-(a) → `curvilinear_one_group` @ `6b5848cd`; ERR-026-WaveE + Phase A + Carlson D/F + ERR-058 + #196 → `curvilinear_numerics` @ `550cee49`; the floor → `verification.rst` @ `50dcdfe1`; the W6 dispatch head STAYS (ruling 2) | `sn-curvilinear-aniso-norm-reconciliation` (→ verification) | — | absorbed |
 | 4 | ~~`scattering_and_moments.rst`~~ | **SUPERSEDED by progression** — "Scattering" + "Scattering and fission as LinearOperators" gathered by `slab_multigroup` @ `b7166ed6`; "Angular windowing" → `cartesian_multid` @ `1722d438` | — | — | absorbed |
-| 8 | (append to `loss_representation.rst`) | "InvertibleOperator: the streaming-collision operator algebra" | `sn-streaming-operator` | 3 | pending |
+| 8 | (append to `loss_representation.rst`) | "InvertibleOperator: the streaming-collision operator algebra" | (H1 has NO anchor — `sn-streaming-operator` lives in `slab_one_group.rst:145` since an earlier extraction; the stale claim here aborted the S4 script's landmark assert, 2026-07-21) | 3 | pending |
 | 13 | ~~`iteration.rst`~~ | **SUPERSEDED by progression** — Krylov H1 → `slab_one_group` @ `2c60d6a5`; KEigenvalue/choosing/operand/FEAST/cross-solver → `slab_multigroup` @ `b7166ed6`; the boundary G-S schedule → `cartesian_multid` @ `1722d438` (the `sn-iteration-primitives` H1 DISSOLVED; its Wave-E-R1 fact → slab_multigroup) | — | — | absorbed |
 | 14 | `solver.rst` | "SNSolver as an operator-algebra coordinator" + "Consuming the frame in SN" | `sn-solver-operator-algebra-coordinator`, `sn-consuming-the-frame` | 3 | pending |
 | 2 | `algebra.rst` ★★ | THE SPINE — synthesized: dedup the `(A−S−F)ψ=q` spine (restated 3× — remaining sites: the SNSolver-coordinator + Angular-windowing H1s). ~~collapse `choosing-inverse-realisation` vs the inverse-family labels~~ (DONE @ `b7166ed6` — compressed into `slab_multigroup`, foundations owns the catalog); ~~`cross-solver-eigenvalue-consumers` vs `matrix-inverse-consumers`~~ (RULED no-collision — different concepts) | (new) | 3 | partially absorbed |
@@ -534,7 +534,36 @@ kinf-recovery compound split applied to BOTH test twins (krylov-precond + invert
 — the second enforcer-caught, SHOULD-FIX). Enforcer: COMMIT-READY, ZERO MUST-FIX; W6 rump =
 head + 2 H3s, no dangling refs; all Stage-2 findings verified resolved.
 
-**⏭ NEXT = Stage 4 (FINAL): the floor → `verification.rst` + campaign closeout.** Floor
+**✅ Stage 4 @ `50dcdfe1` — the floor → `verification.rst` (monolith 2,627 → 1,949;
+verification 3,982 → 4,662).** First DEMOTION splice: {`=`→`-`, `-`→`~`, `~`→`^`} {1,8,6};
+spliced before `ld-cartesian-2d`; 5 anchors + 4 eqs single-homed; F1/F2 "above" fossils →
+`:doc:`curvilinear_numerics``. Blurb rewritten honest; 7 external repoints (+ the enforcer
+MUST-FIX `structured_geometry.rst:288` — the foundation-doc twin class again). ⚠ the S4
+script aborted on the row-8 stale anchor claim (now corrected in the table) — the doc writes
+had landed; externals applied by follow-up script, no double-application
+(enforcer-triple-checked).
+
+### ✅ PART B COMPLETE — the curvilinear campaign (4 staged commits, 2026-07-21)
+
+`curvilinear_one_group.rst` (4,160 ln: posing → balance → WDD/M-M closure + #236 capstones →
+sequential sweep → pole closure B → sweep-frame matvec C → route-(a) ψ½) + NEW
+`curvilinear_numerics.rst` (2,981 ln: the #168→#282 seed-strategy campaign record) + the
+floor in `verification.rst`. Monolith 9,588 → 1,949 (Synopsis · Architecture · Transport Eq ·
+Balance router · Cell-update H1 · Sweep/dispatch rump · InvertibleOperator · SNSolver ·
+frame · Gotchas · References · toctree). Commits: S1 `6b8b0ff0` · S2 `6b5848cd` · S3
+`550cee49` · S4 `50dcdfe1` (+ checkpoints/lessons between). Enforcer: char-identity verified
+mechanically at every stage; every MUST-FIX closed within its stage; dual-`A` remains the
+single deferred CONCERN (the one-pass harmonization). Arch §4 open question 2 RESOLVED
+(numerics minted); question 3 (multi-D curvilinear) remains out of scope — nothing in the
+monolith. `curvilinear_multigroup` receives NOTHING from the split (zero multigroup content
+found) — authored fresh when Part B's energy chapter comes.
+
+**⏭ NEXT (the remaining catalog):** ch8 (append InvertibleOperator H1 → loss_representation;
+row 8 — mind the corrected anchor note) · ch14 `solver.rst` (SNSolver H1) · ch15
+`adjoint.rst` · ch2 `algebra.rst` Tier-3 dedup · ch1 placement (Phase D/defer) · then the
+campaign phases D (routers) → E (conventions) → F (archaeology) → G (backfill) → H (root
+page) → I (literature survey) · #231 Phase 2 (code-prose rebalancing) · the deferred dual-`A`
+one-pass · task #10 (three-layer V&V part build-out). Floor
 span in the 2,627-ln monolith: 890–1565 (anchor `sn-curvilinear-aniso-norm-reconciliation`
 → before the InvertibleOperator H1's `sn-streaming-operator` anchor). **DEMOTION** map
 {`=`→`-`, `-`→`~`, `~`→`^`} census {1,8,6} — the floor lands as an H2 in verification.rst's
