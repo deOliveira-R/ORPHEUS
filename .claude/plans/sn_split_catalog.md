@@ -510,7 +510,42 @@ test_space_angle_separability mm-weights half). Enforcer lesson for S2–S4: par
 tree-wide `methods/sn/index` grep hits by the per-label HEAD-vs-worktree oracle BEFORE the
 commit — the test-tree stragglers of THIS stage's move are the recurring miss class.
 
-**⏭ NEXT = Stage 2: the sweep core → `curvilinear_one_group`.** Windows (titles stable;
+**✅ Stage 2 @ `6b5848cd` — the sweep core (monolith 8,065 → 5,560; chapter → 4,160).**
+Three spans: W2a sequential sweep (738–773, {`-`→`=`}), W2bc Phase B pole closure + Phase C
+sweep-frame matvec contiguous (1060–2479, {`~`→`=`, `^`→`-`, `'`→`~`} {2,20,2}), W2d
+route-(a) (5274–6328, {`-`→`=`, `~`→`-`}). 19 anchors + 11 eqs single-homed; parity 48=29+19.
+**Adjudication (enforcer concurred): Phase C's MMS-gate subsections = tombstoned chronicle —
+travel WITH Phase C, NOT verification.rst** (the W3b precedent is for LIVING cases; the floor
+goes to verification.rst at S4). F1 retired `_sweep_1d_*` → the live walk; F2/F3 saga
+"above/below" cross-file; F4/F5 bc-extraction home = boundary_conditions.rst:352 (NOT
+operator_algebra — moved by the corpus campaign; pre-existing). 4 Key Facts bullets added.
+Enforcer MUST-FIX ×5: stale `:doc:index` page-qualifiers on moved anchors in
+boundary_conditions.rst (655/738/743/3804) + coupled_block_operator.rst (65) — the
+foundation-docs inbound-ref class the code/test sweep misses; ADD `docs/theory/foundations/`
+to the per-label oracle sweep at S3/S4. Two staying ERR-058 "Phase A–F above" claims made
+honest (B/C now in the chapter).
+
+**⏭ NEXT = Stage 3: the campaign chapter → `curvilinear_numerics.rst` (NEW).** Span (in the
+5,560-ln monolith; re-derive by title): the two W6-nested H3s "ERR-026 closure status
+(partial through Wave E)" ~888 + "Boundary face-flux strategies — Phase A" ~993 (promote
+{`~`→`=`}), then contiguous "Phase D Carlson coupled-pole sweep" ~1031 + "Phase F Carlson
+seed sweep-path backport" ~1993 + "ERR-058 — the curvilinear closure-seed fix" ~2826 through
+the line before `.. _sn-curvilinear-aniso-norm-reconciliation:` (~3823) (promote {`-`→`=`,
+`~`→`-`, `^`→`~`}; census asserted at scripting — ~{3,40,9}). 18 anchors + 12 eqs (incl. the
+`hebert-3-43x` family route-(a) cross-refs). Skeleton drafted in-session: anchor
+`sn-curvilinear-numerics`, title "The curvilinear seed-strategy campaign (#168 → #282)",
+intro (campaign-record framing; B/C + resolution live in the base chapter), 4 Key Facts
+(two flat-field-exact wrong seeds; D→F twin-path backport; the proxy-source defect →
+AngularEdgeExtrapolation → itself the #282 back edge; #196 SI≡Krylov permanent gate).
+Owed in-span F-fixes: the Phase-F `:func:`_sweep_1d_spherical`` without the dissolved
+qualifier (~2545); check `test_krylov_curvilinear_precond_safety.py:64` (names index for
+SI-vs-Krylov content — S3 if ERR-058/#196-homed). Monolith after: Sweep-Algorithm H1 =
+router + W6 head trio only; router rewrite #2 (campaign record → curvilinear_numerics).
+Toctree + arch §3.4 row: chapter minted per steer ruling 1.
+S4 owed externals (deferred): `reduced_operator.py:74`, `cases/sn.py:23`,
+`test_sn_mms_anisotropic_symbolic.py:40`, `test_mms_curvilinear.py:33`, `test_mms_aniso.py:15`,
+`test_mms.py:11`, `test_curvilinear_pole_cell_characterization.py:26` (floor/MMS-section
+pointers → verification.rst at S4). Windows (titles stable;
 line #s in the 8,065-ln monolith = old − 1,526): "Curvilinear 1D: Sequential Ordinate
 Sweep" (old 2262–2299, thin) · pole closure "The pole angular closure (Issue #168 Phase B)"
 (old 2586–2800) · "Sweep-frame apply matvec (Issue #168 Phase C)" (old 2801–4005; its four
