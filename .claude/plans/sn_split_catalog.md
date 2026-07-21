@@ -552,13 +552,47 @@ floor in `verification.rst`. Monolith 9,588 → 1,949 (Synopsis · Architecture 
 Balance router · Cell-update H1 · Sweep/dispatch rump · InvertibleOperator · SNSolver ·
 frame · Gotchas · References · toctree). Commits: S1 `6b8b0ff0` · S2 `6b5848cd` · S3
 `550cee49` · S4 `50dcdfe1` (+ checkpoints/lessons between). Enforcer: char-identity verified
-mechanically at every stage; every MUST-FIX closed within its stage; dual-`A` remains the
-single deferred CONCERN (the one-pass harmonization). Arch §4 open question 2 RESOLVED
+mechanically at every stage; every MUST-FIX closed within its stage.
+
+**✅ The dual-`A` one-pass harmonization @ `3872cf9d` (user-ordered, 2026-07-21) — the
+standing CONCERN DISCHARGED.** Option-Y realized across the campaign pages: the per-cell
+UBLD matrix renamed `A_cell` (eqs + the record docstring in `ld_ubld.py`; the ``A == A``
+pin literals KEPT matching the code dict key, bridged); the dated `A = (L+C−S)` binding
+de-bound to the explicit equivalence (a type-improvement, enforcer-certified); the W7 +
+`_maybe_window` bindings sharpened to "the swept composite — the inner kernel of the honest
+(L+C−S−B)⁻¹, never the full solve" (local `A` kept: the swept object ranges over {L+C, M});
+Phase-C apply↔sweep respelled `L+C` end-to-end (sentence, gates, intro, Key Facts); the
+route-(a) banner carries the section binding (augmented loss `L+C`, System A ⊕ B).
+Neighbor sweep clean (slab/loss_representation/foundations all honest-`A`). REMAINING
+local-convention zone: the monolith InvertibleOperator H1 (`A = Ω·∇+Σ_t`, "A⁻¹ is the WDD
+asymmetric sweep") — harmonize AT its ch8 move to loss_representation. Arch §4 open question 2 RESOLVED
 (numerics minted); question 3 (multi-D curvilinear) remains out of scope — nothing in the
 monolith. `curvilinear_multigroup` receives NOTHING from the split (zero multigroup content
 found) — authored fresh when Part B's energy chapter comes.
 
-**⏭ NEXT (the remaining catalog):** ch8 (append InvertibleOperator H1 → loss_representation;
+**⏭ IMMEDIATE NEXT = `curvilinear_multigroup` — FRESH AUTHORING + user steer (queued at
+compaction, 2026-07-21).** The split found ZERO multigroup-curvilinear content (S2-verified:
+2 incidental mentions) — nothing to splice; this is an AUTHORED chapter (the Part-B energy
+step, arch §3.4 row "curvilinear + multigroup"), the first fresh-authored progression
+chapter since the splice campaign. **Post-compaction opening move = the steer** (new chapter
+= user decision point; AskUserQuestion): the SHAPE — (a) a thin no-op-broadening chapter:
+the payoff statement that the group axis rides the curvilinear walk UNTOUCHED (S/F gain
+group structure exactly as :doc:`slab_multigroup` derived; the α-cascade/τ/c/ψ½ machinery is
+group-blind — per-level angular arrays, group axes broadcast as data) + the curvilinear
+multigroup verification pointers (the 2G k∞ recovery + trajectory-resolvent MR↔MG table now
+in `curvilinear_one_group`; #196 eigenvalue-equivalence in `curvilinear_numerics`); (b) fold
+that statement as a tail section of `curvilinear_one_group` instead (no new file); (c) defer
+until genuinely-new content exists. Recommendation to carry: (a) — the progression's
+symmetry (Part A has slab_multigroup) and the no-op-through-the-generic-body statement IS
+the operator-algebra payoff; keep it thin and honest. Authoring model: main-agent authored
+(fresh prose, honest algebra, claims verified against code) → `-E -W` gate → FRESH
+elegance-enforcer dispatch (the review instance dies at compaction; brief it with the
+Option-Y law + the foundations-sweep lesson) → commit → checkpoint. Standing facts: branch
+`docs/sn-doc-architecture` UNPUSHED; HEAD after closeout; recipe + Method paragraphs above;
+the per-label foundations sweep for any content that MOVES (none expected — fresh authoring
+moves nothing).
+
+**Then (the remaining catalog):** ch8 (append InvertibleOperator H1 → loss_representation;
 row 8 — mind the corrected anchor note) · ch14 `solver.rst` (SNSolver H1) · ch15
 `adjoint.rst` · ch2 `algebra.rst` Tier-3 dedup · ch1 placement (Phase D/defer) · then the
 campaign phases D (routers) → E (conventions) → F (archaeology) → G (backfill) → H (root
