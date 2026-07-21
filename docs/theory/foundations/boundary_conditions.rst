@@ -1722,15 +1722,25 @@ aliases in the package ``__init__`` (see :ref:`bc-naming-audit`).
      - :math:`q \in \Gamma_-`
      - ``False``
 
-Two are rank-1 in space (periodic), four are rank-1 in angle
-(reflective, white, albedo) and write the same incoming flux to
-every inflow ordinate; one is rank-0 (vacuum / prescribed inflow);
-and Marshak / partial-current boundaries are rank-N via the
+Per-law rank census (each kernel read off the :math:`G_\alpha`
+column above): vacuum and prescribed inflow carry no response
+kernel (rank-0). White is **rank-1 in angle** — one isotropic
+re-entry mode, fed by the cosine-weighted (Lambertian) outflow
+average, written to every inflow ordinate. Reflective and albedo
+are **angular permutations** (axis-reflection and identity
+respectively, scaled by the albedo factor) — rank :math:`N/2` per
+slab face: structured, trace-sized, NOT rank-1. Periodic is a
+**spatial pushforward** pairing opposite faces. Marshak /
+partial-current boundaries are rank-N via the
 **descriptor-tree algebra** on the unrealised laws (:class:`LawSum`
 / :class:`LawScaled` over :class:`BoundaryTraceLaw` leaves) —
 realised once per face by
-:func:`~orpheus.geometry.boundary.realize_recursively`. See
-:ref:`bc-rank-n-algebra` below.
+:func:`~orpheus.geometry.boundary.realize_recursively`; see
+:ref:`bc-rank-n-algebra` below. Every one of these kernels is
+**trace-sized** — tiny against the bulk dimension — which is
+exactly the low-rank/structured shape a Woodbury boundary closure
+exploits (:ref:`the scoped SMW statement <smw-low-rank-exception>`,
+Issue #300).
 
 
 .. _bc-naming-audit:

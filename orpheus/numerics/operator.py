@@ -1321,7 +1321,9 @@ class OperatorSum(
     * Invertibility does NOT propagate operand-wise: there is no
       algorithm for :math:`(A + B)^{-1}` from :math:`A^{-1}` and
       :math:`B^{-1}` alone — Sherman–Morrison–Woodbury applies only
-      under low-rank structure.  What a sum DOES have, when its LEADING
+      under low-rank structure (which the boundary block B has — rank
+      ≤ N/2 per face, Issue #300 — and the bulk C, L do not).  What a
+      sum DOES have, when its LEADING
       (left-spine head) term is invertible, is a
       preconditioned-SPLITTING inverse: :meth:`inverse` returns a
       :class:`~orpheus.numerics.green_operator.GreenOperator` iterating

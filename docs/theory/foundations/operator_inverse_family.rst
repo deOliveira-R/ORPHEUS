@@ -394,7 +394,10 @@ The convergent :math:`A`-preconditioned splitting
 
 A general operator sum has **no operand-wise inverse**: :math:`(A+B)^{-1}`
 is not a function of :math:`A^{-1}` and :math:`B^{-1}`
-(Sherman–Morrison–Woodbury applies only under low-rank structure), and —
+(Sherman–Morrison–Woodbury applies only under low-rank structure — absent
+from the bulk blocks :math:`L`, :math:`C`, but exactly what the boundary
+block :math:`B` has: :ref:`the scoped statement <smw-low-rank-exception>`,
+Issue #300), and —
 unlike the schedule-triangular ``(L+C)`` — there is no substitution order
 that solves it in one pass. What a sum *does* have, when its **leading**
 term :math:`A` is invertible, is a convergent **splitting**. Write the sum

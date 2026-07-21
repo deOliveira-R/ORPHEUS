@@ -3,7 +3,9 @@ r"""The Green inverse operator — the preconditioned-splitting member of the
 
 A general operator SUM has no direct inverse: :math:`(A + B)^{-1}` is not a
 function of :math:`A^{-1}` and :math:`B^{-1}` (Sherman–Morrison–Woodbury
-applies only under low-rank structure), and — unlike the schedule-triangular
+applies only under low-rank structure — which the bulk blocks L, C lack
+and the boundary block B HAS: rank ≤ N/2 per face, Issue #300), and —
+unlike the schedule-triangular
 ``(L+C)`` — there is no substitution order that solves it in one pass.  What
 it DOES have, when its LEADING term :math:`A` is invertible, is a convergent
 SPLITTING: write the sum :math:`A - B` (gains carried with their signs), and

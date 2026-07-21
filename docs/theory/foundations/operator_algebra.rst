@@ -759,8 +759,29 @@ anchor is the scalar case: :math:`(3+5)^{-1} = 1/8 = 0.125`, whereas
 the same fact that the :ref:`composition algebra
 <composition-algebra>` table encodes as "``OperatorSum`` does not
 propagate ``solve``": no general algorithm exists for :math:`(A+B)^{-1}`
-from :math:`A^{-1}` and :math:`B^{-1}` (Sherman–Morrison–Woodbury applies
-only under low-rank structure, which the dense collision diagonal is not).
+from :math:`A^{-1}` and :math:`B^{-1}`.
+
+.. _smw-low-rank-exception:
+
+The lone systematic exception is **low-rank structure**:
+Sherman–Morrison–Woodbury rebuilds :math:`(A + U V^{\mathsf T})^{-1}`
+from :math:`A^{-1}` at the price of one dense solve of rank size — and
+that exception must be scoped honestly **per block**, not read as a
+claim about the whole algebra (Issue #299). The dense collision
+diagonal :math:`C` and the streaming operator :math:`L` carry no
+low-rank split, so SMW buys nothing for the bulk pair. But the
+boundary operator :math:`B` **is** exactly that structure: rank-1 per
+face for the isotropically re-entering white/albedo laws (one
+re-entry mode fed by a cosine-weighted outflow average), and an
+ordinate permutation — rank :math:`N/2` on a slab face, trace-sized
+rather than bulk-sized — for specular reflection (see the
+:ref:`boundary-law census <bc-law-layer>` and
+:ref:`bc-rank-n-algebra`). CP already exploits precisely this: its
+white-boundary re-entry closes in **closed form** as the rank-1
+update :math:`P_\infty = P_{\rm cell} + P_{\rm out} \otimes
+P_{\rm in} / (1 - P_{\rm inout})` (``orpheus/cp/solver.py``), and
+borrowing the same Woodbury closure for SN's boundary cycle — which
+source iteration currently *iterates* — is Issue #300.
 
 What each separate inverse would mean physically
 ------------------------------------------------
@@ -1455,7 +1476,9 @@ following closure laws:
      - **Does not propagate.** No general algorithm exists for
        :math:`(A + B)^{-1}` from :math:`A^{-1}, B^{-1}`
        (Sherman-Morrison-Woodbury applies only under low-rank
-       structure).
+       structure — which the boundary block :math:`B` HAS, unlike
+       the bulk :math:`C`, :math:`L`;
+       :ref:`the scoped statement <smw-low-rank-exception>`).
      - Both must have ``apply_transpose``;
        :math:`(A + B)^T = A^T + B^T`.
    * - :class:`~orpheus.numerics.operator.OperatorProduct`
