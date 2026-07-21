@@ -744,7 +744,8 @@ class KrylovAcceleration(Generic[V]):
     =====================================================
 
     The GMRES PRECONDITIONER approximates the FULL within-group system
-    inverse, :math:`M \approx (A - S - F)^{-1}`.  The natural choice for
+    inverse, :math:`M \approx \bigl(A - \sum_i g_i\bigr)^{-1}` (for SN
+    within-group, :math:`(L+C-S-B)^{-1}`).  The natural choice for
     transport problems is :math:`M = A^{-1}` (the sweep) — this is the
     "transport-corrected" preconditioner from Adams & Larsen 2002 §III.
     When :math:`c` is small, the sweep is an excellent preconditioner;
@@ -755,7 +756,7 @@ class KrylovAcceleration(Generic[V]):
     in :class:`SourceIteration` the ``inverter`` realised the
     iteration's INVERSE step :math:`A^{-1}`, whereas here ``M`` is the
     GMRES left preconditioner (an approximation to the FULL inverse
-    :math:`(A - S - F)^{-1}`).  The rename surfaces the distinction and
+    :math:`\bigl(A - \sum_i g_i\bigr)^{-1}`).  The rename surfaces the distinction and
     decouples the two surfaces (R-1 Step B, 2026-05-19).
 
     * ``preconditioner = None`` (default): if ``A`` is invertible

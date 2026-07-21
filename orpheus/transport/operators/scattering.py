@@ -73,7 +73,7 @@ is projected onto the real spherical harmonics
     \;\approx\; \sum_n w_n\,\psi_{n,g}(\vec r)\,Y_\ell^m(\hat\Omega_n)
 
 (the right-hand side is the discrete quadrature; canonical equation
-label :eq:`flux-moments` lives in :ref:`theory-discrete-ordinates`).
+label :eq:`flux-moments` lives in :ref:`sn-slab-multigroup`).
 The :math:`\ell\ge 1` contribution to the per-ordinate scattering
 source uses the addition theorem
 :math:`\sum_m Y_\ell^m(\hat\Omega)\,Y_\ell^m(\hat\Omega') =
@@ -1168,7 +1168,7 @@ class ScatteringOperator(LinearOperator):
 
         Implements the Galerkin reconstruction :eq:`pn-scatter` from
         the angular-flux moments :eq:`flux-moments` (declared in
-        :ref:`theory-discrete-ordinates`) as the **literal operator
+        :ref:`sn-slab-multigroup`) as the **literal operator
         composition**
 
         .. math::
