@@ -570,27 +570,28 @@ asymmetric sweep") — harmonize AT its ch8 move to loss_representation. Arch §
 monolith. `curvilinear_multigroup` receives NOTHING from the split (zero multigroup content
 found) — authored fresh when Part B's energy chapter comes.
 
-**⏭ IMMEDIATE NEXT = `curvilinear_multigroup` — FRESH AUTHORING + user steer (queued at
-compaction, 2026-07-21).** The split found ZERO multigroup-curvilinear content (S2-verified:
-2 incidental mentions) — nothing to splice; this is an AUTHORED chapter (the Part-B energy
-step, arch §3.4 row "curvilinear + multigroup"), the first fresh-authored progression
-chapter since the splice campaign. **Post-compaction opening move = the steer** (new chapter
-= user decision point; AskUserQuestion): the SHAPE — (a) a thin no-op-broadening chapter:
-the payoff statement that the group axis rides the curvilinear walk UNTOUCHED (S/F gain
-group structure exactly as :doc:`slab_multigroup` derived; the α-cascade/τ/c/ψ½ machinery is
-group-blind — per-level angular arrays, group axes broadcast as data) + the curvilinear
-multigroup verification pointers (the 2G k∞ recovery + trajectory-resolvent MR↔MG table now
-in `curvilinear_one_group`; #196 eigenvalue-equivalence in `curvilinear_numerics`); (b) fold
-that statement as a tail section of `curvilinear_one_group` instead (no new file); (c) defer
-until genuinely-new content exists. Recommendation to carry: (a) — the progression's
-symmetry (Part A has slab_multigroup) and the no-op-through-the-generic-body statement IS
-the operator-algebra payoff; keep it thin and honest. Authoring model: main-agent authored
-(fresh prose, honest algebra, claims verified against code) → `-E -W` gate → FRESH
-elegance-enforcer dispatch (the review instance dies at compaction; brief it with the
-Option-Y law + the foundations-sweep lesson) → commit → checkpoint. Standing facts: branch
-`docs/sn-doc-architecture` UNPUSHED; HEAD after closeout; recipe + Method paragraphs above;
-the per-label foundations sweep for any content that MOVES (none expected — fresh authoring
-moves nothing).
+**✅ `curvilinear_multigroup` — DONE @ `dc9d9a56` (fresh-authored, 2026-07-21).** Steer
+ratified **(a) thin standalone chapter** ("Curvilinear multigroup: the group axis rides the
+walk", anchor `sn-curvilinear-multigroup`, ~340 ln); toctree slot between
+`curvilinear_one_group` and `curvilinear_numerics`. **The queued brief's parenthetical was
+WRONG and the explorer grounding corrected it before authoring**: Morel–Montry τ/c are
+GROUP-BLIND angular weights from (μ,w) alone (the #236 Step C ruling) — NOT per-group; the
+per-group data is the WDD denominator/attenuation (Σ_t,g·V, the sole group dependence of
+the cell update — `cell_balance_for_streaming`) and ψ½. The chapter states the honest
+THREE-TIER claim (structure: no ng axis / data: group-diagonal lanes / coupling: S+F only)
+plus the monolithic-iteration fact (NO group loop; full multigroup S inside the
+within-group system, fission external; NOT group-by-group Gauss-Seidel — the two spellings
+of "per group" kept apart). ZERO new eq labels (posing = :eq:`multigroup` ∘
+:eq:`balance-general` by reference; 2 unlabeled displays). Enforcer (FRESH instance):
+SHIP-WITH-FIXES → all 4 landed in-commit (byte-for-byte overclaim → "same operators,
+consumed by composition"; per-geometry resolution-ledger precision; assembly-loop count;
+source-wrap) → COMMIT-READY; "perfect Option-Y honest algebra"; every load-bearing claim
+verified EXACT vs the live tree. Sibling edits: index router clause + toctree;
+curvilinear_one_group:44 live :doc: link; slab_multigroup closing bullets linked. Gate
+`-E -W` GREEN. **#302 filed**: the family-wide silent py-domain xref condition (65+
+unresolved refs — sweep/spatial/coupled-system modules have no autodoc target; measured
+counts on the issue). Agent-memory round @ `1f2f3c7d`. **Part B is now COMPLETE including
+its energy rung; the broadening progression (arch §3.4) is fully realized.**
 
 **Then (the remaining catalog):** ch8 (append InvertibleOperator H1 → loss_representation;
 row 8 — mind the corrected anchor note) · ch14 `solver.rst` (SNSolver H1) · ch15
