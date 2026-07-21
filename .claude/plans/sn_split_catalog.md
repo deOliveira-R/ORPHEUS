@@ -124,12 +124,12 @@ leaf first, 3 = dedup-heavy last).
 | 5 | `discrete_balance.rst` | "The Discrete Balance Equation" (balance/α/geom-factor/streaming-eq/Morel-Montry dip — up to the WDD weights) | (none) | 2 | pending |
 | 6 | `spatial_closures.rst` | rest of "The Discrete Balance Equation" (WDD & Morel-Montry weights, closure substitution) + "Cell update strategies" | `cell-update-strategies` | 2 | pending |
 | 9 | `sweep_1d.rst` | "Sweep Algorithm" intro + Cartesian-1D cumprod + affine outflow | `sweep-algorithm` | 2 | pending |
-| 7 | `linear_discontinuous.rst` | "Sweep Algorithm" → UBLD tensor-product bilinear cell system | — | 2 | pending |
-| 10 | `sweep_multid.rst` | "Sweep Algorithm" → Cartesian-2D wavefront + octant DAG | — | 2 | pending |
+| 7 | ~~`linear_discontinuous.rst`~~ | **SUPERSEDED by progression** — the UBLD core → `cartesian_multid` @ `eb96f424`; the 2-D LD stress MMS → `verification.rst` (same commit) | — | — | absorbed |
+| 10 | ~~`sweep_multid.rst`~~ | **SUPERSEDED by progression** — wavefront + octant DAG → `cartesian_multid` @ `e0a4e8b3` | — | — | absorbed |
 | 11 | `curvilinear.rst` | "Sweep Algorithm" → curvilinear sequential sweep + unified dispatch + Carlson D/F + ERR-058 + route-(a); PLUS "The curvilinear anisotropic-MMS floor" | `sn-curvilinear-aniso-norm-reconciliation` | 2 | pending |
-| 4 | ~~`scattering_and_moments.rst`~~ | **SUPERSEDED by progression** — "Scattering" + "Scattering and fission as LinearOperators" gathered by `slab_multigroup` @ `b7166ed6`; "Angular windowing" STAYS for `cartesian_multid` | `sn-angular-windowing` (still in index) | — | absorbed |
+| 4 | ~~`scattering_and_moments.rst`~~ | **SUPERSEDED by progression** — "Scattering" + "Scattering and fission as LinearOperators" gathered by `slab_multigroup` @ `b7166ed6`; "Angular windowing" → `cartesian_multid` @ `1722d438` | — | — | absorbed |
 | 8 | (append to `loss_representation.rst`) | "InvertibleOperator: the streaming-collision operator algebra" | `sn-streaming-operator` | 3 | pending |
-| 13 | ~~`iteration.rst`~~ | **SUPERSEDED by progression** — Krylov H1 → `slab_one_group` @ `2c60d6a5`; KEigenvalue/choosing/operand/FEAST/cross-solver → `slab_multigroup` @ `b7166ed6`; the boundary G-S schedule H2 STAYS under `sn-iteration-primitives` for `cartesian_multid` | `sn-iteration-primitives` (still in index) | — | absorbed |
+| 13 | ~~`iteration.rst`~~ | **SUPERSEDED by progression** — Krylov H1 → `slab_one_group` @ `2c60d6a5`; KEigenvalue/choosing/operand/FEAST/cross-solver → `slab_multigroup` @ `b7166ed6`; the boundary G-S schedule → `cartesian_multid` @ `1722d438` (the `sn-iteration-primitives` H1 DISSOLVED; its Wave-E-R1 fact → slab_multigroup) | — | — | absorbed |
 | 14 | `solver.rst` | "SNSolver as an operator-algebra coordinator" + "Consuming the frame in SN" | `sn-solver-operator-algebra-coordinator`, `sn-consuming-the-frame` | 3 | pending |
 | 2 | `algebra.rst` ★★ | THE SPINE — synthesized: dedup the `(A−S−F)ψ=q` spine (restated 3× — remaining sites: the SNSolver-coordinator + Angular-windowing H1s). ~~collapse `choosing-inverse-realisation` vs the inverse-family labels~~ (DONE @ `b7166ed6` — compressed into `slab_multigroup`, foundations owns the catalog); ~~`cross-solver-eigenvalue-consumers` vs `matrix-inverse-consumers`~~ (RULED no-collision — different concepts) | (new) | 3 | partially absorbed |
 | 15 | `adjoint.rst` | "The scattering adjoint, free from the harmonic frame" (subsection of InvertibleOperator) + new S†/daggered-posing/φ* | (new) | 3 | pending |
@@ -359,7 +359,7 @@ posings (ln 1/7/32/861) + operator.py:9 keep the dated `(A−S−F)ψ=q_ext` loc
 internally consistent, no adjacent contradiction; they fall to the algebra/solver-chapter
 passes (+ #231 Phase 2 code-prose rebalancing).
 
-## ⏭ ACTIVE = `cartesian_multid.rst` (space broadening) — disassembly RATIFIED (user, 2026-07-21)
+## ✅ `cartesian_multid.rst` (space broadening) — COMPLETE (3 staged commits, 2026-07-21)
 
 **The gather windows** (line #s advisory @ 14,780-ln monolith; re-derive by title):
 W1 "Cartesian 2D" transport H2 (276–293, eq `transport-cartesian-2d`) · W2 "Cartesian 2D
@@ -448,10 +448,35 @@ replacements with unique-landmark assertions. Zero retyping ⟹ char-identical m
 construction (the enforcer certifies trivially). Stage-1 reference script:
 `stage1_cartesian_multid.py` pattern (job tmp, ephemeral — the pattern above is the record).
 
-**⏭ NEXT = Stage 3** — W7 (Angular windowing H1, 15 `sn-angular-windowing*` anchors + 5
-eq-labels) + W8 (boundary G-S, `si-gauss-seidel-reification`), windows + labels in the
-ratified-disassembly section above; the `sn-iteration-primitives` H1 + its pointer
-paragraph DISSOLVE (zero inbound). Re-derive spans by title in the 11,125-ln monolith;
-same splice method (the *Method* paragraph above is the durable pattern). Per-stage: gate
-`-E -W --keep-going` → enforcer review (L-013 + the declared-transform framing) → commit →
-one-line checkpoint here. Then: full chapter checkpoint + memory-router update.
+**Stage 3 ✅ @ `1722d438` (2026-07-21)** — W7 (Angular windowing H1, 8751–9887 @ the
+11,125-ln monolith; **IDENTITY promotion** — the chapter's flat multi-`=` top level absorbs
+H1/H2/H3 verbatim, census 1/8/8) + W8 (boundary G-S H2, 9906–10287; promoted `-`→`=`/`~`→`-`/
+`^`→`~`, census 1/4/4) → the chapter after UBLD, before "What broadens next". The
+`sn-iteration-primitives` H1 wrapper (9888–9905) DISSOLVED — zero inbound; its one
+info-bearing fact (Wave E Round 1 #163, the iteration-primitives lift into
+`orpheus.numerics.iteration`) preserved as the leading paragraph of slab_multigroup's
+"Development history" (completing R1→R2→R3). 7 declared in-span fixes, every one a
+PRE-EXISTING cross-file falsehood ("above/below" fossils for content that moved to
+`foundations/wavefront_cochain` and `slab_one_group` in earlier extractions; two same-file
+qualifiers on `si-gauss-seidel-reification`). One Key Facts bullet (windowing + G-S);
+external repoints: `slab_one_group` ×1 + `operator_inverse_family` ×2. 21 labels
+single-homed (the 4 `.. vv-status:` markers traveled with their eq-labels). Enforcer:
+COMMIT-READY zero MUST-FIX, zero undeclared drift — 5/5 labeled eqs + all 10 math blocks
+char-identical; the windowing-retyped → boundary-G-S seam judged BETTER than the wrapper
+provided. `-E -W` 0 warnings first pass. index 11,125 → 9,588.
+
+### ✅ CHAPTER COMPLETE — `cartesian_multid.rst`, 3,998 ln
+
+Reading order: posing → 2-D balance → anti-diagonal wavefront → octant DAG → choosing the
+schedule (representation layer) → UBLD tensor-product closure → angular windowing → boundary
+Gauss-Seidel → what broadens next (curvature = Part B). Across the 3 stages: index.rst
+14,780 → 9,588 (−5,192); 78 labels single-homed; every stage enforcer-certified byte-exact
+and `-E -W`-gated. Carried deferral: the **dual-`A` one-pass harmonization** (above).
+
+**⏭ NEXT chapter = `curvilinear_one_group.rst` (Part B, arch §3.4)** — disassembly of the
+staying curvilinear machinery (the Sweep-Algorithm curvilinear H2s incl. eq `dd-solve` +
+"Substituting the WDD Closure", the Carlson D/F + ERR-058 + route-(a) story, the
+curvilinear-aniso-floor H1, the τ-campaign stays-adjudication) → **user steer** → author →
+review → commit, per the ratified per-chapter model. The remaining monolith (9,588 ln) =
+Transport-Equation/Balance/Sweep H1 intros + curvilinear content + cell-update strategies +
+τ-capstone + InvertibleOperator + SNSolver/frame + Gotchas index + References + toctree.
