@@ -415,61 +415,31 @@ extracts spans; only transforms = underline promotion `-`→`=`/`~`→`-` + one 
 COMMIT-READY zero MUST-FIX (its dual-`A` CONCERN = the Option-Y fix, applied; Fork-B2
 provenance de-twinned to the capstone). L35 ×4 external/in-span; loss_representation intro's
 pre-existing half-falsehood fixed. `-E -W` 0 warnings.
-**⏭ NEXT = Stage 2 — the RESUME BRIEF (queued 2026-07-21, post-compaction start).**
+**Stage 2 ✅ @ `eb96f424` (2026-07-21)** — W3a (UBLD core, 2261–3744 @ the 13,964-ln
+monolith) → the chapter between "Choosing the schedule" and "What broadens next" (964 →
+2,469 ln); W3b (the stress MMS + Leg A #247 + Leg B #251 + S9 #257, 3745–5100) →
+`verification.rst` at the END of the MMS case run, before `sn-composite-fixed-source`
+(2,625 → 3,982 ln); index → 11,125. Byte-exact splice (promotion count-asserted 30+24
+headers incl. W3b's 4th level `'`→`^`; enforcer certified 31/31 labeled eqs
+char-identical, W3b zero drift, hierarchy zero level-jumps). The S3-A "PARTIAL"/"What is
+still owed" chronicle got two present-state annotations (every owed item verified LANDED
+in code: `spatial_moments=` threaded from field properties; `_slope_fold`/`schur_xV`/
+`scan_slope_face_source`/`scan_reconstruct`/`octant_moment_frame_signs`/
+`_moment_broadcast_sigma`/`moment_scan_closure` all live) — the owed-lists preserved as
+campaign-time boundary records. L35: Sweep-Algorithm H1 pointer extended (chapter +
+verification); 11 stale qualifiers repointed (sn.py ×5 + test docstrings ×5, mostly
+pre-existing Tier-1 debt caught by the enforcer's blast-radius sweep, + the Stage-1-missed
+`loss_representation.rst` `dd-cartesian-2d` page qualifier). `-E -W` 0 warnings ×2; zero
+staying-monolith back-refs; all cross-span refs path-immune.
 
-*The two moves:* **W3a** (UBLD core; grep "Multi-dimensional LD: the tensor-product
-bilinear"; span starts at the `.. _ld-ubld-multidim:` anchor, ends at the `.. _ld-cartesian-2d:`
-anchor — END-boundary rule) → the CHAPTER, inserted **after "Choosing the schedule" and
-before "What broadens next"** (reading order ruled: balance → wavefront → LD as the
-higher-order closure through the same walk). **W3b** (grep "The 2-D Cartesian LD stress
-MMS"; span = `.. _ld-cartesian-2d:` anchor through the line above `.. _sweep-wavefront:`'s
-OLD position — now: through the end of the S9 subsection, ends before "Curvilinear 1D:
-Sequential Ordinate Sweep" region seam) → **`methods/sn/verification.rst`** per ruling 1;
-derive the insertion point from that file's outline at execution time (it is the Tier-1
-"Verification"+"Numerical Sensitivities" extraction — the stress MMS lands in its MMS
-case-description area; the ruling fixes only the FILE).
+**Deferred → the algebra/harmonization pass:** the dual-`A` overload in the traveled UBLD
+text — `ld-ubld-cell-system` (per-cell dense `A = G + F_out + Σ_t M`) vs
+`ld-ubld-unified-moment-residual` (operator `A = L+C−S`) — both byte-exact-traveled, both
+inline-defined at point of use (enforcer CONCERN, recurring from Stage-1 §15A.2). Remedy
+in ONE pass across the UBLD chapter: rename the per-cell matrix `A_cell` (or add a
+reconciling note), reserving `A` for the honest operator.
 
-*Label inventory (the single-homing checklist):* W3a anchors (11): `ld-ubld-multidim`,
-`ld-ubld-branch2-primitive`, `ld-ubld-d2-wavefront-wiring`, `two-moment-axes`,
-`ld-ubld-scattering-moment-lift`, `spatial-moment-space`, `ld-ubld-unified-moment-matvec`,
-`ld-ubld-sweep-global-frame`, `ld-ubld-pure-z-collision-twin`, `ld-ubld-moment-scan` (+
-`ld-cartesian-2d` belongs to W3b); W3a eq-labels (25): `ld-ubld-cell-system`,
-`ld-ubld-d1-reduction`, `ld-ubld-exact-on-bilinear`, `ld-ubld-weak-form`,
-`ld-ubld-kronecker-factors`, `ld-ubld-kronecker-assembly`, `ld-ubld-mass-weights`,
-`ld-ubld-scale-free-invariants`, `ld-ubld-rule-of-three-collapse`,
-`ld-ubld-n-spatial-moments`, `ld-ubld-divv-scale-free-kernel`, `two-moment-angular`,
-`two-moment-spatial`, `two-moment-tensor-product`, `two-moment-carrier-space`,
-`ld-ubld-scattering-moment-lift` (eq, dual-namespace with its anchor!),
-`ld-ubld-s2-s3-operators`, `spatial-moment-space-size`, `spatial-moment-kronecker-order`,
-`spatial-moment-append-policy`, `ld-ubld-unified-moment-residual`,
-`ld-ubld-slope-angular-reduction`, `ld-ubld-octant-moment-frame-signs`,
-`ld-ubld-pure-z-collision`, `ld-ubld-moment-scan-source`. W3b anchors (5):
-`ld-cartesian-2d`, `ld-cartesian-2d-slope-source`, `ld-cartesian-2d-legA`,
-`ld-cartesian-2d-legB`, `ld-cartesian-2d-coherent-promise`; W3b eq-labels (6):
-`ld-cartesian-2d` (dual-namespace with its anchor), `ld-cartesian-2d-projection-coeff`,
-`ld-cartesian-2d-bilinear-coeffs`, `ld-cartesian-2d-face-slot-shape`,
-`ld-cartesian-2d-face-projection-coeff`, `ld-cartesian-2d-face-bilinear-coeffs`.
-
-*Stage-2-specific L35 hazards:* (1) **W3a ↔ W3b were ADJACENT in the monolith and split to
-DIFFERENT files** — grep directional prose between them both ways ("above/below/earlier"
-crossing the seam goes cross-doc-false); their `:ref:`/`:eq:` cross-refs are path-immune.
-(2) The pre-identified external sites:
-`tests/derivations/test_sn_mms_ld_2d_stress_symbolic.py:47` docstring says the
-`ld-cartesian-2d` label lives in ":doc:`/theory/methods/sn/index`" → repoint to
-verification; `orpheus/derivations/continuous/mms/sn.py:1402` comment ("a NEW label D6
-mints in index") → check context, likely history-true, touch only if it names the CURRENT
-home. (3) The `@verifies("ld-cartesian-2d", ...)` tag strings are registry keys —
-path-immune, do NOT touch. (4) Sweep-Algorithm H1 pointer: drop the "multi-dimensional LD
-system and" clause (only curvilinear machinery remains below after W3a leaves).
-
-*Expected adjudications:* the S3-A "What is still owed (the iterate carrier and the source
-seams)" H4 + S2 "scope boundaries" notes may be STALE vs current code (the owed items may
-have landed in later campaigns) — verify each owed-claim against code before traveling
-verbatim; harmonize-or-annotate per the slab_one_group supersession pattern. The dual-`A`
-in traveled UBLD text (if any "A = L+C" caption appears) gets the same Option-Y respell as
-Stage 1's §15A.2 caption.
-
-*Method (proven Stage 1):* author the chapter/verification insertions as a skeleton with
+*Method (proven Stages 1–2):* author the chapter/verification insertions as a skeleton with
 `<<<SPLICE:Wx>>>` markers, then a python script: extract spans byte-exact from index.rst by
 line range (assert content anchors), PROMOTE underlines one level (`-`→`=`, `~`→`-`; only
 pure runs below nonblank titles — never transitions after blanks), apply declared in-span
@@ -478,8 +448,10 @@ replacements with unique-landmark assertions. Zero retyping ⟹ char-identical m
 construction (the enforcer certifies trivially). Stage-1 reference script:
 `stage1_cartesian_multid.py` pattern (job tmp, ephemeral — the pattern above is the record).
 
-*Then Stage 3* (windowing W7 + boundary G-S W8, windows + labels in the ratified-disassembly
-section above; the `sn-iteration-primitives` H1 + my pointer paragraph dissolve — zero
-inbound). Per-stage: gate `-E -W --keep-going` → enforcer review (same instance if alive,
-L-013 + the declared-transform framing) → commit → one-line checkpoint here. Full chapter
-checkpoint + memory-router update after Stage 3.
+**⏭ NEXT = Stage 3** — W7 (Angular windowing H1, 15 `sn-angular-windowing*` anchors + 5
+eq-labels) + W8 (boundary G-S, `si-gauss-seidel-reification`), windows + labels in the
+ratified-disassembly section above; the `sn-iteration-primitives` H1 + its pointer
+paragraph DISSOLVE (zero inbound). Re-derive spans by title in the 11,125-ln monolith;
+same splice method (the *Method* paragraph above is the durable pattern). Per-stage: gate
+`-E -W --keep-going` → enforcer review (L-013 + the declared-transform framing) → commit →
+one-line checkpoint here. Then: full chapter checkpoint + memory-router update.
