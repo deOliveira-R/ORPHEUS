@@ -5,9 +5,11 @@ Derives the discrete balance equations for all three coordinate systems
 equation, applying diamond-difference and weighted-diamond-difference
 closures.  Each derivation is verified symbolically with SymPy.
 
-This script is the **source of truth** for the equations in
-``docs/theory/methods/sn/index.rst``.  If an equation in the RST
-cannot be derived from this script, it must be added here first.
+This script is the **source of truth** for the balance equations in the
+SN theory chapters under ``docs/theory/methods/sn/``
+(``slab_one_group.rst``, ``cartesian_multid.rst``,
+``curvilinear_one_group.rst``).  If an equation in the RST cannot be
+derived from this script, it must be added here first.
 
 Equations verified
 ------------------

@@ -28,7 +28,7 @@ The fix lifts the slope to the global frame at the octant boundary (the
   slope-moment frame independent of ORPHEUS's code.
 
 Failure mode #1 (sign flip) + #6 (convention drift, sweep-frame producer vs
-global-frame consumer).  See ERR-061 and ``docs/theory/methods/sn/index.rst``.
+global-frame consumer).  See ERR-061 and ``docs/theory/methods/sn/cartesian_multid.rst``.
 """
 
 from __future__ import annotations

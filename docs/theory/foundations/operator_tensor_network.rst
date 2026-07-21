@@ -687,7 +687,8 @@ direction frame as a particle streams along a curved trajectory. For
 the sphere this is :math:`\frac{1-\mu^2}{r}\,\partial\psi/\partial\mu`;
 for the cylinder it is :math:`-\frac1r\,\partial(\xi\psi)/\partial\varphi`.
 Discretised over the cell volume (see the canonical derivation in
-:doc:`/theory/methods/sn/index`, Step 2–3, Eq. :eq:`balance-general`), it
+:doc:`/theory/methods/sn/curvilinear_one_group`, Step 2–3,
+Eq. :eq:`balance-general`), it
 becomes a *half-grid* difference between angular faces
 :math:`m\pm\tfrac12`,
 
