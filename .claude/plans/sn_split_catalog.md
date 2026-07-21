@@ -127,11 +127,11 @@ leaf first, 3 = dedup-heavy last).
 | 7 | `linear_discontinuous.rst` | "Sweep Algorithm" → UBLD tensor-product bilinear cell system | — | 2 | pending |
 | 10 | `sweep_multid.rst` | "Sweep Algorithm" → Cartesian-2D wavefront + octant DAG | — | 2 | pending |
 | 11 | `curvilinear.rst` | "Sweep Algorithm" → curvilinear sequential sweep + unified dispatch + Carlson D/F + ERR-058 + route-(a); PLUS "The curvilinear anisotropic-MMS floor" | `sn-curvilinear-aniso-norm-reconciliation` | 2 | pending |
-| 4 | `scattering_and_moments.rst` | "Scattering" + "Scattering and fission as LinearOperators" + "Angular windowing" | `sn-scattering-fission-operators`, `sn-angular-windowing` | 3 | pending |
+| 4 | ~~`scattering_and_moments.rst`~~ | **SUPERSEDED by progression** — "Scattering" + "Scattering and fission as LinearOperators" gathered by `slab_multigroup` @ `b7166ed6`; "Angular windowing" STAYS for `cartesian_multid` | `sn-angular-windowing` (still in index) | — | absorbed |
 | 8 | (append to `loss_representation.rst`) | "InvertibleOperator: the streaming-collision operator algebra" | `sn-streaming-operator` | 3 | pending |
-| 13 | `iteration.rst` | "Krylov inner solver" + "Iteration primitives (operator algebra)" | `sn-iteration-primitives` | 3 | pending |
+| 13 | ~~`iteration.rst`~~ | **SUPERSEDED by progression** — Krylov H1 → `slab_one_group` @ `2c60d6a5`; KEigenvalue/choosing/operand/FEAST/cross-solver → `slab_multigroup` @ `b7166ed6`; the boundary G-S schedule H2 STAYS under `sn-iteration-primitives` for `cartesian_multid` | `sn-iteration-primitives` (still in index) | — | absorbed |
 | 14 | `solver.rst` | "SNSolver as an operator-algebra coordinator" + "Consuming the frame in SN" | `sn-solver-operator-algebra-coordinator`, `sn-consuming-the-frame` | 3 | pending |
-| 2 | `algebra.rst` ★★ | THE SPINE — synthesized: dedup the `(A−S−F)ψ=q` spine (restated 3× at ~13330/13524/13953), collapse `choosing-inverse-realisation` vs `inverse-application-driver`/`green-operator`/`matrix-inverse-operator`, `cross-solver-eigenvalue-consumers` vs `matrix-inverse-consumers` | (new) | 3 | pending |
+| 2 | `algebra.rst` ★★ | THE SPINE — synthesized: dedup the `(A−S−F)ψ=q` spine (restated 3× — remaining sites: the SNSolver-coordinator + Angular-windowing H1s). ~~collapse `choosing-inverse-realisation` vs the inverse-family labels~~ (DONE @ `b7166ed6` — compressed into `slab_multigroup`, foundations owns the catalog); ~~`cross-solver-eigenvalue-consumers` vs `matrix-inverse-consumers`~~ (RULED no-collision — different concepts) | (new) | 3 | partially absorbed |
 | 15 | `adjoint.rst` | "The scattering adjoint, free from the harmonic frame" (subsection of InvertibleOperator) + new S†/daggered-posing/φ* | (new) | 3 | pending |
 | 1 | `placement.rst` | NEW writing (why SN vs CP/MoC/P_N/diffusion, M7) | (new) | — | Phase D/defer |
 
@@ -271,7 +271,7 @@ H2 "The boundary Gauss-Seidel schedule (multi-D)" parents the staying G-S H3s; (
 text (monolith's remaining old-convention sections harmonize when their chapters come).
 L35 breaks found+fixed: 3 (a "below", the title-ref, the Pautz "cited at" semantics).
 
-## ⏭ NEXT = `slab_multigroup.rst` — the RESUME BRIEF (queued 2026-07-20, post-compaction start)
+## Phase C progression — slab_multigroup disassembly (brief queued + executed 2026-07-20)
 
 **Broadens ENERGY** (arch §3.4 row 2): group-to-group + P_N anisotropy (§3.1 `S=R∘Λ∘M`) ·
 fission/χ · k-eigenvalue · power iteration. Same ratified per-chapter model: **disassembly →
@@ -314,3 +314,58 @@ during the disassembly):
 
 **Gate**: `-E -W --keep-going` (the `-E` phantom-duplicate note above). L35 three-way grep +
 L34 filename sweep per recipe; single-home every traveling label on its DEFINITION.
+
+### ✅ slab_multigroup.rst — DONE @ `b7166ed6` (2026-07-20)
+
+Authored 934 ln; index.rst 15,603 → 14,780 (−842/+19). 10 traveled labels single-homed (5
+anchors `pn-scattering` / `n2n-reactions` / `sn-scattering-fission-operators` /
+`choosing-inverse-realisation` / `cross-solver-eigenvalue-consumers` + 5 eq-labels
+`multigroup` / `pn-scatter` / `flux-moments` / `real-spherical-harmonics` /
+`addition-theorem`) + 2 new (`sn-slab-multigroup`, `sn-mg-eigenvalue-posing`); 5 labeled
+eqs char-identical (enforcer-verified). Lands both slab_one_group forward promises
+(in-scatter sum; the eigenvalue posing `(L+C−S−B)ψ=(1/k)Fψ`, `K=A⁻¹F`).
+
+**User rulings (AskUserQuestion, all recommendations accepted):** (1) "Choosing the A⁻¹
+realisation" COMPRESSED — foundations/operator_inverse_family owns the family catalog, the
+chapter keeps SN consumption (MRO shadow → SweepOperator; ERR-058 reframe note;
+rate-not-correctness); (2) cross-solver-consumers TRAVELED to the chapter (Phase-D
+foundations promotion stays open); (3) "Backward references — Wave E status" traveled as
+the operators' development-history note.
+
+**Adjudications:** (n,2n) twin sections MERGED (physics/storage + algebra-slot rationale →
+one section); k∞ block compressed to `mg-eigenvalue-problem` + `scattering-matrix-convention`
+links (foundations/infinite_medium owns the derivation); informal iteration-refs list
+RETIRED → formal `[TrefethenBau1997]` / `[Polizzi2009]` entries minted in the monolith
+bibliography; label near-dup `cross-solver-eigenvalue-consumers` vs
+`matrix-inverse-consumers` = NO-COLLISION (power_iteration's five families vs
+MatrixInverseOperator's consumer ruling); BiCGSTAB sentence generalized (path retired Wave
+E R2); KEigenvalue harmonized WITHOUT falsifying the class contract (constructor operand
+``A`` = the invertible loss; B is method-layer — new explanatory paragraph; SN implements
+the Protocol directly).
+
+**Defects found + fixed:** pre-existing FALSE page-qualifier (`sn-angular-windowing`
+claimed foundations/operator_algebra; actually defined in the monolith) — qualifier
+dropped; 2 scattering.py docstring label-homes repointed (`theory-discrete-ordinates` →
+`sn-slab-multigroup`); 2 windowing page-qualifiers repointed to the chapter; **enforcer
+MUST-FIX** — a stale `M ≈ (A−S−F)⁻¹` display survived the harmonization in the
+KrylovAcceleration bullet. Harmonized to the class's variadic algebra-of-record
+`M ≈ (A−Σᵢgᵢ)⁻¹` (for SN, `(L+C−S−B)⁻¹`); the enforcer's proposed `(A−S)⁻¹` was
+**overridden** — it drops B, contradicting iteration.py's own "the matvec IS the honest
+(L+C−S−B)·ψ". The same stale pair fixed at iteration.py:747/758 (they contradicted the
+adjacent algebra-of-record).
+
+**Deferred (harmonize when their chapters come):** the iteration.py MODULE-docstring
+posings (ln 1/7/32/861) + operator.py:9 keep the dated `(A−S−F)ψ=q_ext` local posing —
+internally consistent, no adjacent contradiction; they fall to the algebra/solver-chapter
+passes (+ #231 Phase 2 code-prose rebalancing).
+
+## ⏭ NEXT = `cartesian_multid.rst` (space broadening) — needs its own disassembly + user steer
+
+Biggest chapter of the progression. Gather candidates (stable titles): the "Sweep
+Algorithm" multi-D H2s (anti-diagonal wavefront, octant DAG, unified dispatch — the old
+Tier-2 interleave decision (c)); "Angular windowing" H1 (`sn-angular-windowing`); the
+boundary G-S schedule H2 (under `sn-iteration-primitives`); the multi-D LD/UBLD tree
+(old decision (b): the ~1,356-ln 2-D LD stress MMS → V&V-vs-chapter home). Expect the
+Cartesian-2D/curvilinear seam adjudications to dominate. Same ratified model:
+disassembly → user steers → main-agent authors → enforcer review → ONE atomic commit →
+checkpoint.
