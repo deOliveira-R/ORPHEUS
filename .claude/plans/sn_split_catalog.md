@@ -415,11 +415,71 @@ extracts spans; only transforms = underline promotion `-`→`=`/`~`→`-` + one 
 COMMIT-READY zero MUST-FIX (its dual-`A` CONCERN = the Option-Y fix, applied; Fork-B2
 provenance de-twinned to the capstone). L35 ×4 external/in-span; loss_representation intro's
 pre-existing half-falsehood fixed. `-E -W` 0 warnings.
-**⏭ NEXT = Stage 2:** W3a (UBLD core, grep "Multi-dimensional LD: the tensor-product
-bilinear" — anchor `ld-ubld-multidim`) → chapter §LD (insert BEFORE the wavefront section?
-NO — reading order ruled: balance → wavefront → LD-as-higher-order-closure AFTER the
-dispatch section, before "What broadens next"); W3b (grep "The 2-D Cartesian LD stress MMS",
-anchor `ld-cartesian-2d`) → `methods/sn/verification.rst` per ruling 1; Sweep-Algorithm H1
-pointer revised ("multi-dimensional LD" clause drops); L35: the test docstring + mms/sn.py
-comment sites; expect stale-vs-code adjudications in the S2/S3 "owed" notes — verify against
-code at reading time.
+**⏭ NEXT = Stage 2 — the RESUME BRIEF (queued 2026-07-21, post-compaction start).**
+
+*The two moves:* **W3a** (UBLD core; grep "Multi-dimensional LD: the tensor-product
+bilinear"; span starts at the `.. _ld-ubld-multidim:` anchor, ends at the `.. _ld-cartesian-2d:`
+anchor — END-boundary rule) → the CHAPTER, inserted **after "Choosing the schedule" and
+before "What broadens next"** (reading order ruled: balance → wavefront → LD as the
+higher-order closure through the same walk). **W3b** (grep "The 2-D Cartesian LD stress
+MMS"; span = `.. _ld-cartesian-2d:` anchor through the line above `.. _sweep-wavefront:`'s
+OLD position — now: through the end of the S9 subsection, ends before "Curvilinear 1D:
+Sequential Ordinate Sweep" region seam) → **`methods/sn/verification.rst`** per ruling 1;
+derive the insertion point from that file's outline at execution time (it is the Tier-1
+"Verification"+"Numerical Sensitivities" extraction — the stress MMS lands in its MMS
+case-description area; the ruling fixes only the FILE).
+
+*Label inventory (the single-homing checklist):* W3a anchors (11): `ld-ubld-multidim`,
+`ld-ubld-branch2-primitive`, `ld-ubld-d2-wavefront-wiring`, `two-moment-axes`,
+`ld-ubld-scattering-moment-lift`, `spatial-moment-space`, `ld-ubld-unified-moment-matvec`,
+`ld-ubld-sweep-global-frame`, `ld-ubld-pure-z-collision-twin`, `ld-ubld-moment-scan` (+
+`ld-cartesian-2d` belongs to W3b); W3a eq-labels (25): `ld-ubld-cell-system`,
+`ld-ubld-d1-reduction`, `ld-ubld-exact-on-bilinear`, `ld-ubld-weak-form`,
+`ld-ubld-kronecker-factors`, `ld-ubld-kronecker-assembly`, `ld-ubld-mass-weights`,
+`ld-ubld-scale-free-invariants`, `ld-ubld-rule-of-three-collapse`,
+`ld-ubld-n-spatial-moments`, `ld-ubld-divv-scale-free-kernel`, `two-moment-angular`,
+`two-moment-spatial`, `two-moment-tensor-product`, `two-moment-carrier-space`,
+`ld-ubld-scattering-moment-lift` (eq, dual-namespace with its anchor!),
+`ld-ubld-s2-s3-operators`, `spatial-moment-space-size`, `spatial-moment-kronecker-order`,
+`spatial-moment-append-policy`, `ld-ubld-unified-moment-residual`,
+`ld-ubld-slope-angular-reduction`, `ld-ubld-octant-moment-frame-signs`,
+`ld-ubld-pure-z-collision`, `ld-ubld-moment-scan-source`. W3b anchors (5):
+`ld-cartesian-2d`, `ld-cartesian-2d-slope-source`, `ld-cartesian-2d-legA`,
+`ld-cartesian-2d-legB`, `ld-cartesian-2d-coherent-promise`; W3b eq-labels (6):
+`ld-cartesian-2d` (dual-namespace with its anchor), `ld-cartesian-2d-projection-coeff`,
+`ld-cartesian-2d-bilinear-coeffs`, `ld-cartesian-2d-face-slot-shape`,
+`ld-cartesian-2d-face-projection-coeff`, `ld-cartesian-2d-face-bilinear-coeffs`.
+
+*Stage-2-specific L35 hazards:* (1) **W3a ↔ W3b were ADJACENT in the monolith and split to
+DIFFERENT files** — grep directional prose between them both ways ("above/below/earlier"
+crossing the seam goes cross-doc-false); their `:ref:`/`:eq:` cross-refs are path-immune.
+(2) The pre-identified external sites:
+`tests/derivations/test_sn_mms_ld_2d_stress_symbolic.py:47` docstring says the
+`ld-cartesian-2d` label lives in ":doc:`/theory/methods/sn/index`" → repoint to
+verification; `orpheus/derivations/continuous/mms/sn.py:1402` comment ("a NEW label D6
+mints in index") → check context, likely history-true, touch only if it names the CURRENT
+home. (3) The `@verifies("ld-cartesian-2d", ...)` tag strings are registry keys —
+path-immune, do NOT touch. (4) Sweep-Algorithm H1 pointer: drop the "multi-dimensional LD
+system and" clause (only curvilinear machinery remains below after W3a leaves).
+
+*Expected adjudications:* the S3-A "What is still owed (the iterate carrier and the source
+seams)" H4 + S2 "scope boundaries" notes may be STALE vs current code (the owed items may
+have landed in later campaigns) — verify each owed-claim against code before traveling
+verbatim; harmonize-or-annotate per the slab_one_group supersession pattern. The dual-`A`
+in traveled UBLD text (if any "A = L+C" caption appears) gets the same Option-Y respell as
+Stage 1's §15A.2 caption.
+
+*Method (proven Stage 1):* author the chapter/verification insertions as a skeleton with
+`<<<SPLICE:Wx>>>` markers, then a python script: extract spans byte-exact from index.rst by
+line range (assert content anchors), PROMOTE underlines one level (`-`→`=`, `~`→`-`; only
+pure runs below nonblank titles — never transitions after blanks), apply declared in-span
+fixes by asserted string-replace, splice markers, cut monolith descending, do pointer
+replacements with unique-landmark assertions. Zero retyping ⟹ char-identical math by
+construction (the enforcer certifies trivially). Stage-1 reference script:
+`stage1_cartesian_multid.py` pattern (job tmp, ephemeral — the pattern above is the record).
+
+*Then Stage 3* (windowing W7 + boundary G-S W8, windows + labels in the ratified-disassembly
+section above; the `sn-iteration-primitives` H1 + my pointer paragraph dissolve — zero
+inbound). Per-stage: gate `-E -W --keep-going` → enforcer review (same instance if alive,
+L-013 + the declared-transform framing) → commit → one-line checkpoint here. Full chapter
+checkpoint + memory-router update after Stage 3.
