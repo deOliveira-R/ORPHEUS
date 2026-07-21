@@ -396,6 +396,40 @@ greps the SOURCE tree and forgets `tests/`; the twin the MOVE ITSELF freshly sta
 MUST-FIX, and the HEAD-nonzero/worktree-zero count is the causation oracle. Verdict: MUST-FIX
 (1 in-scope + 3 completeness), everything else exemplary.
 
+**Sharpening 5 — the test-straggler MUST-vs-SHOULD discriminator is PER-REFERENCE / PER-LABEL, settled by
+"does the moved content leave a correct anchor in the old page?" (curvilinear_one_group ch.4 Stage-1,
+2026-07-21, COMMIT-READY-after-1-MUST-FIX).** The scripted byte-exact core certified PERFECTLY again:
+31 non-equal hunks = exactly {26 promotions + F1–F5}; census by type {8→=,6→-,12→~} exact, all underline
+LENGTHS preserved, F4/F5 SHAPES re-verified live on the migrated home (`ReducedStreamingOperator`
+reduced_operator.py:421-428 — the fix kept the shape annotations, so keeping them is correct not a fresh
+falsehood; VERIFY this, a transposed migration would inject a lie), F2 repoint's live consumers confirmed
+(`cell_balance_terms`→`DiamondDifference.update` diamond.py:213; `_sweep_1d_*` retired = 0 prod matches),
+header tree {9=,6-,12~} zero level-jumps, rump H1 router-only. FIRST fully-clean honest-algebra chapter —
+ZERO dual-A anywhere (skeleton `A=L+C−S−B`, sweep never spelled `A^{-1}`), so the standing deferred CONCERN
+didn't even arise. As Sharpening-3 predicted, the ONLY live findings were L-004 test stragglers the author's
+source-tree sweep missed (E1 doc / E2 code-docstring / E3 test all repointed, but E3 was a CARTESIAN
+straggler → the author never swept for CURVILINEAR test stragglers THIS stage's move creates; `grep -rn
+curvilinear_one_group tests/` = 0). The NEW method beyond Sharpening-3: when a straggler is a COMPOUND
+reference (one parenthetical citing ≥2 labels), run the HEAD-vs-worktree causation oracle PER LABEL, because
+one can move while the other stays — and that partition IS the MUST-vs-SHOULD discriminator:
+- **MUST-FIX** = the reference's target FULLY moved with NO correct anchor left in the old page — an
+  ownership TRANSFER (a "canonical X gate" section whose title + `:label:` both left). Confirming query:
+  `grep -c '<Section Title>' index` = 0 AND `grep -c ':label: <lab>' index` = 0 AND `=1` in the chapter.
+  (test_streaming_equilibrium_curvilinear.py:48 — sole `:doc:index` pointer for "the canonical
+  streaming-equilibrium gate"; the section+eq fully transferred → a maintainer following it lands on index,
+  greps, finds the gate gone. Silent: `:doc:index` resolves, no `-W`.)
+- **SHOULD-FIX** = a COMPOUND ref where one cited label moved and a sibling label STAYED and still anchors
+  the prose (test_space_angle_separability.py:23 — ``index.rst`` :eq:`dd-curvilinear-scalar`(STAYS)
+  / :eq:`mm-weights`(MOVED); both `:eq:` still resolve globally, only the page-attribution is half-stale).
+  Don't over-call it MUST — the retained label makes the sentence partly-true and nothing is broken.
+NOT-flagged controls (per-label oracle keeps me honest): test_phase_c_gates (#168 Phase C content is
+Stage-2, retained now: phase-c-sweep-frame-matvec WORK=2), test_invertible_operator (transport-cartesian +
+kinf-recovery, neither moved), test_curvilinear_pole_cell (dd-curvilinear-scalar STAYS), history.rst (bare
+cross-chapter changelog refs, no page qualifier), index:275 "curvilinear geometries below extend" (points
+at the RETAINED continuous-form Spherical/Cylindrical subsections, not the moved discrete balance — the
+DISCRETE balance moved, the CONTINUOUS transport-equation forms stayed). Verdict: 1 MUST-FIX + 1 SHOULD-FIX,
+both one-line test-docstring repoints, bundle into the same commit; the doc carve itself is exemplary.
+
 **Sharpening 4 — two new verification wrinkles: DECLARED-IN-SPAN-FIXES as the expected residual,
 and a WRAPPER DISSOLUTION (cartesian_multid ch.3 Stage-3, 2026-07-21, COMMIT-READY).** Final stage
 moved W7 (angular windowing, IDENTITY promotion) + W8 (boundary G-S, `-`→`=`/`~`→`-`/`^`→`~`) and
