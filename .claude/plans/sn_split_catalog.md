@@ -612,13 +612,48 @@ toctree + router updated. Enforcer (resumed instance): **COMMIT-READY, zero MUST
 CONCERN (B elided in the daggered-posing shorthand) closed in-commit in the fresh frame.
 Gate `-E -W` GREEN. Agent-memory @ `b55257a5`.
 
-**⏭ The remaining catalog:** ch14 `solver.rst` (SNSolver H1 + Consuming-the-frame — row 14)
-· ch15 authoring half (daggered posing/ψ*, blocked on #276 A4/A5) · ch2 `algebra.rst`
-Tier-3 dedup (the thrice-restated spine — remaining sites: the SNSolver-coordinator +
-Angular-windowing H1s) · ch1 `placement.rst` (Phase D/defer) · then the campaign phases
-D (routers) → E (conventions) → F (archaeology) → G (backfill) → H (root page) → I
-(literature survey) · #231 Phase 2 (code-prose rebalancing) · task #10 (three-layer V&V
-part build-out).
+**⏭ IMMEDIATE NEXT = ch14 `solver.rst` — queued at compaction (2026-07-21).**
+
+*Sources* (index @ `1564ef9f`, 1,736 ln; line #s advisory — re-derive by title):
+**"SNSolver as an operator-algebra coordinator"** H1 @ ~894 (anchor
+`sn-solver-operator-algebra-coordinator`; H2s: "The within-group inner solve consumes the
+primitives directly" · "The (L − S − F)·ψ = (1/k)·F·ψ framing at the solver level" (the
+title's own spelling — verify exact; it omits C and B) · "The reported eigenvalue: fission
+production over net removal" (~350 ln — the `sn-keff-estimator`-class inbound lives here) ·
+"Two Inner Solvers") **+ "Consuming the frame in SN"** H1 @ ~1406 (anchor
+`sn-consuming-the-frame`; H2s Homogenisation + Condensation — the
+`sn-condensation-*`/`sn-homogenization-*` inbound classes). Spans ≈ 512 + 74 ln. Pairing
+already RULED (content directive 2026-07-16: "Consuming the frame in SN" → the `solver`
+chapter); Tier-3 = **main-agent + elegance-enforcer** (delegation ruling — dedup-heavy
+chapters never go to the archivist).
+
+*Post-compaction opening move = the STEER* (AskUserQuestion): **(1) pure-move vs
+harmonize-at-move** — the SNSolver H1 is BOTH one of the spine-restatement sites (ch2's
+dedup list) AND the named home of the deferred dated-posing harmonization (iteration.py
+module-docstring posings + operator.py:9's `(A−S−F)ψ=q_ext` — the memory router's deferred
+item names "the algebra/solver chapters"). Recommendation to carry: move + harmonize the
+DATED POSINGS as declared transforms (the ch8 Option-Y precedent — doc math only; code
+docstrings are a separate commit if touched), DEFER the cross-page spine DEDUP to ch2 (it
+needs `algebra.rst` to exist as the single home). **(2) staging** — single commit (~586 ln)
+vs one per H1 (the natural cut if staged). **(3) the index rump** — the toctree-intro
+sentence "the not-yet-chaptered sections (SNSolver, consuming-the-frame)" EMPTIES at this
+move; rewrite it; predicted rump = Synopsis · Architecture · Transport Equation ·
+Discrete-Balance router · Cell-update H1 · Sweep-Algorithm rump · Gotchas index ·
+References · toctree (the "Stays in index" list above).
+
+*Model:* disassembly (label map + L35 three-way grep + L34 filename sweep; expect
+pre-existing fossils — ch8 found 6) → steer → splice script (byte-exact spans + declared
+transforms, asserts BEFORE writes) → `-E -W` gate → **FRESH elegance-enforcer dispatch**
+(the ch8 review instance is LOST at compaction — brief it with: L-013 char-identity vs
+`git show HEAD:`, the declared-transform framing, the Option-Y law, the per-label
+foundations sweep, #302 out-of-scope) → commit → checkpoint here.
+
+**Then:** ch15 authoring half (daggered posing/ψ*, blocked on #276 A4/A5) · ch2
+`algebra.rst` Tier-3 dedup (the thrice-restated spine — remaining sites: the
+SNSolver-coordinator + Angular-windowing H1s) · ch1 `placement.rst` (Phase D/defer) · the
+campaign phases D (routers) → E (conventions) → F (archaeology) → G (backfill) → H (root
+page) → I (literature survey) · #231 Phase 2 (code-prose rebalancing) · task #10
+(three-layer V&V part build-out).
 
 *Standing facts:* branch `docs/sn-doc-architecture` UNPUSHED; citations + eq-labels are
 project-global; recipe = "The per-chapter recipe" section above (L35 three-way grep + L34
