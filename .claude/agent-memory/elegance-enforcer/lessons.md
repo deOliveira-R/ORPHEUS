@@ -395,3 +395,36 @@ blast radius is code + tests + docs (three searches, standing L-004) — the aut
 greps the SOURCE tree and forgets `tests/`; the twin the MOVE ITSELF freshly staled is the hard
 MUST-FIX, and the HEAD-nonzero/worktree-zero count is the causation oracle. Verdict: MUST-FIX
 (1 in-scope + 3 completeness), everything else exemplary.
+
+**Sharpening 4 — two new verification wrinkles: DECLARED-IN-SPAN-FIXES as the expected residual,
+and a WRAPPER DISSOLUTION (cartesian_multid ch.3 Stage-3, 2026-07-21, COMMIT-READY).** Final stage
+moved W7 (angular windowing, IDENTITY promotion) + W8 (boundary G-S, `-`→`=`/`~`→`-`/`^`→`~`) and
+DISSOLVED the `sn-iteration-primitives` H1 wrapper between them. Two method wrinkles beyond the
+Stage-1/2 recipe: (a) **Fixes-as-residual**: when the brief declares N in-span fixes (here 7:
+5×"drop stale same-page `above`/`:doc:.../index` qualifier", 2× repoint-to-slab_one_group), the
+byte-exact `SequenceMatcher` diff must show EXACTLY those N hunks and NOTHING else — census (1/8/8,
+1/4/4) + promotion-count (9) still exact, 5/5 labeled + 10/10 all math blocks verbatim (fixes were
+100% prose, never touched an eq). Then EACH fix must repair a GENUINE falsehood, verified by
+grepping the referenced content's ACTUAL home: `above`→cross-file was true (wavefront-flux-cochain
+lives in foundations/wavefront_cochain.rst; the leakage-note + σ_r-fold live in slab_one_group.rst:
+642/481); `:doc:.../index`→same-file-drop was true (si-gauss-seidel-reification + windowing-retyped
+now in cartesian_multid via W8; inverse-application-driver stays foundations so F4 rightly kept
+"below" only on windowing-retyped). A fix that DIDN'T map to a real home would be editorializing —
+flag it. (b) **Wrapper dissolution** = a mini-retirement: verify (i) the info-bearing content is
+preserved faithfully at its new home (the Wave-E-R1/#163 lift paragraph → slab_multigroup "Dev
+history", tense-shifted "lifts"→"lifted" + sentence-joined, all 3 facts intact, placed before R2 to
+complete R1→R2→R3), (ii) the rest was PURE POINTER (Para-2 "documented in slab_multigroup; this
+section retains…" carried nothing unique), (iii) the anchor is gone from SOURCE with zero inbound —
+GOTCHA: `grep -rl` returned 90 hits, ALL stale `docs/_build` HTML; grep source-only (`--include=*.rst
+--include=*.py | grep -v _build`) → empty, and the `-W` build (catches broken `:ref:` as ref.ref)
+confirms zero live inbound, (iv) no DUPLICATION at the destination (`grep -c "Round 1"` slab_multigroup
+= 1, the new para only). The delicate seam is the dissolution point itself (W7→W8): confirm no
+orphaned wrapper title / dangling "this section retains…" survives and the two now-adjacent sections
+hand off sensibly (windowing-retyped closes "the reified M … is `si-gauss-seidel-reification`" → W8
+IS the boundary-G-S schedule that DEFINES M — a better seam than the wrapper gave). L-004 sweep CLEAN
+this time (no test stragglers — windowing/boundary-G-S content is internal, few external qualifiers;
+contrast Stage-2's MMS). Fresh Key Facts bullet honest (`M=L+C−B_lower` correctly labeled the G-S
+*regular splitting*, NOT conflated with `A=L+C−S−B`; "boundary-transient accelerator NOT scattering"
+scopes S's absence). Dual-`A` (forward=L+C-or-M) purely traveled-verbatim + no fresh colliding
+binding ⟹ the standing deferred CONCERN, no new action. Verdict COMMIT-READY, zero MUST-FIX — the
+cleanest of the three cartesian_multid stages.
