@@ -271,7 +271,46 @@ H2 "The boundary Gauss-Seidel schedule (multi-D)" parents the staying G-S H3s; (
 text (monolith's remaining old-convention sections harmonize when their chapters come).
 L35 breaks found+fixed: 3 (a "below", the title-ref, the Pautz "cited at" semantics).
 
-**NEXT = `slab_multigroup.rst`** (broadens ENERGY): gathers Matrix Convention + P_N
-anisotropic scattering (12454+ post-cut), scattering/fission LinearOperators, fission/χ,
-k-eigenvalue + power iteration (KEigenvalue H2, choosing-A⁻¹), multigroup framing. Needs
-its own disassembly + user steer per the ratified per-chapter model.
+## ⏭ NEXT = `slab_multigroup.rst` — the RESUME BRIEF (queued 2026-07-20, post-compaction start)
+
+**Broadens ENERGY** (arch §3.4 row 2): group-to-group + P_N anisotropy (§3.1 `S=R∘Λ∘M`) ·
+fission/χ · k-eigenvalue · power iteration. Same ratified per-chapter model: **disassembly →
+user steers → main-agent authors → elegance-enforcer review (its L-013 recipe) → ONE atomic
+commit (chapter + cuts) → catalog checkpoint.** Recipe = "The per-chapter recipe" above
+(re-derive spans by TITLE — the monolith is now 15,603 ln, all pre-cut line #s stale).
+
+**Gather candidates** (grep these stable titles in `methods/sn/index.rst`; adjudicate each
+during the disassembly):
+
+- "Multi-Group Extension" (H2 under The Transport Equation) — the multigroup continuous form.
+- "Scattering" H1: "Matrix Convention" (SigS[g_from,g_to], the transpose convention,
+  `scattering-matrix-convention` ref), "P_N Anisotropic Scattering" (anchor `pn-scattering`),
+  "(n,2n) Reactions", "Normalization Chain".
+- "Scattering and fission as LinearOperators" H1 (anchor `sn-scattering-fission-operators`):
+  apply-only rationale, Pℓ Galerkin projection on Y_ℓ^m, (n,2n) doubling.
+- Iteration-primitives rump: "KEigenvalue: outer power iteration", "Choosing the A⁻¹
+  realisation (the inverse-operator family)", "Operand requirements", "Forward hook: FEAST",
+  "Cross-solver consumers of power_iteration".
+- The chapter also OWNS the eigenvalue posing `(L+C−S−B)ψ = (1/k)Fψ` + `K = A⁻¹F`
+  (cross-link `foundations/operator_algebra` + `operator_inverse_family`; #226 taxonomy).
+
+**Expected adjudications** (the slab_one_group pattern predicts these):
+
+1. **Twin risk — "Choosing the A⁻¹ realisation" vs `foundations/operator_inverse_family.rst`**
+   (a reframe deep-dive): the monolith section predates the reframe — expect overlap; the
+   inverse-FAMILY taxonomy lives on foundations, the SN-specific consumption in the chapter.
+   Same disposition class as the Péclet retirement (keystone wins; chapter cross-links).
+2. **Harmonization**: the KEigenvalue/choosing sections use the OLD local `A = L+C(−S)`
+   convention — chapter text harmonizes to the honest algebra (A = L+C−S−B; sweep=(L+C)⁻¹;
+   `K = A⁻¹F` per the taxonomy); retained monolith sections keep theirs until their chapter.
+3. **Old Tier-3 note**: `cross-solver-eigenvalue-consumers` vs `matrix-inverse-consumers`
+   label near-duplication (see the superseded ch2 row above) — check while gathering the
+   cross-solver-consumers section.
+4. **Angular windowing H1 is NOT multigroup** — it is the 2-D SI-iterate machinery; leave
+   for `cartesian_multid`. The scattering-adjoint H2 stays for the adjoint chapter.
+5. **P₀ back-link**: slab_one_group §"P₀ scattering" carries the forward note "the
+   coefficient becomes the in-scatter sum … next chapter" — slab_multigroup must land that
+   promise (and the `pn-scattering` anchor travels to it).
+
+**Gate**: `-E -W --keep-going` (the `-E` phantom-duplicate note above). L35 three-way grep +
+L34 filename sweep per recipe; single-home every traveling label on its DEFINITION.
