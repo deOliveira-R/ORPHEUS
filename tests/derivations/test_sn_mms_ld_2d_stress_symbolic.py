@@ -44,7 +44,7 @@ References
 - ``.claude/skills/vv-principles/SKILL.md`` (Mode 7 — MMS simplification bias).
 - ``.claude/skills/algebra-of-record/SKILL.md`` (Branch 1 / Branch 2 / L11).
 - :class:`SN2DCartesianLDStressMMSCase` (Branch-2 numerical factory).
-- :doc:`/theory/methods/sn/index` — label ``ld-cartesian-2d`` (D6/archivist
+- :doc:`/theory/methods/sn/verification` — label ``ld-cartesian-2d`` (D6/archivist
   mints it).
 """
 

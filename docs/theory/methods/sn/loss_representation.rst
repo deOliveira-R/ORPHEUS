@@ -151,7 +151,7 @@ The native mathematical frame: a lower-triangular operator
 
 The within-group discrete-ordinates balance, for one ordinate
 :math:`\Omega_n` and one cell, is the WDD relation derived in
-:doc:`/theory/methods/sn/index` (:eq:`dd-cartesian-2d`). Collect every cell
+:doc:`/theory/methods/sn/cartesian_multid` (:eq:`dd-cartesian-2d`). Collect every cell
 and every ordinate into the within-group operator
 
 .. math::

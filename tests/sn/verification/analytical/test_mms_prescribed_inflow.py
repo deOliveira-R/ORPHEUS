@@ -40,7 +40,7 @@ See:
 - ``.claude/skills/vv-principles/SKILL.md`` (failure mode #7, H4).
 - ``.claude/plans/phase4_o2b_46_nonvacuum_mms_plan.md`` (decision E — bypass).
 - :mod:`orpheus.derivations.continuous.mms.sn` (the Branch-1/Branch-2 cases).
-- ``docs/theory/methods/sn/index.rst`` labels ``sn-mms-nonvacuum-*``.
+- ``docs/theory/methods/sn/verification.rst`` labels ``sn-mms-nonvacuum-*``.
 """
 from __future__ import annotations
 
