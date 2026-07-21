@@ -131,7 +131,7 @@ correct for constant-source problems but not the right default
 for MMS.
 
 The two ``xfail-strict`` tripwires at
-``tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py``
+``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``
 remain ``xfail`` through Round 3 with updated reason strings
 reflecting the partial closure.  Full ERR-026 closure on MMS
 depends on a follow-up that extrapolates the curvilinear
@@ -615,7 +615,8 @@ How the wrong seed survived Phase B
 ------------------------------------
 
 The zero seed survived Phase B's L1 flat-flux-identity test
-(:file:`tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`)
+(:file:`tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`,
+since retired with the Legacy/BFF closures it compared)
 because that test compared the three closures (Legacy / BFF /
 M-M) **against each other on flat ψ**, NOT against the closed-form
 fixed-point identity :math:`L \cdot \psi = \Sigma_t \cdot \psi`.
@@ -1063,7 +1064,7 @@ follow-up paths (higher-order pole-face spatial closure, or a
 output rather than the cell-centred input).
 
 The 4 ``xfail-strict`` ERR-026 tripwires
-(:file:`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`,
+(:file:`tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`,
 sphere + cylinder × isotropic + anisotropic ansatz) therefore
 **stay xfail** through Phase D Step 3.  They will ``xpass`` under
 the Phase D defaults (which is what triggers the deferred Step 5

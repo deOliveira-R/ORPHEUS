@@ -1159,7 +1159,7 @@ reference:
        :math:`\phi = q/\Sigma_t` (closed-form)
      - ``source_iteration`` AND ``krylov``
    * - Reflective :math:`k_\infty` homogeneous
-       (``tests/sn/l1_analytical/test_kinf_homogeneous.py``)
+       (``tests/sn/verification/analytical/test_kinf_homogeneous.py``)
      - :math:`k_\infty = \nu\Sigma_f / \Sigma_a` (closed-form
        eigenvalue — MMS does NOT prove eigenvalues)
      - both

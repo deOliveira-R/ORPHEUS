@@ -875,7 +875,7 @@ Wave T's verification chain combines three independent grounds:
 
    - **Closed-form pillar**: :math:`k_\infty = \nu\Sigma_f / \Sigma_a`
      on homogeneous reflective slab / sphere / cylinder. Verified at
-     ``tests/sn/l1_analytical/test_kinf_homogeneous.py``. This is the
+     ``tests/sn/verification/analytical/test_kinf_homogeneous.py``. This is the
      eigenvalue reference — MMS does NOT prove eigenvalues per
      the ``vv-principles`` skill §"What each pillar
      proves".

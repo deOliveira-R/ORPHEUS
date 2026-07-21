@@ -2705,6 +2705,106 @@ failure Mode 8).
 History and rationale: what was tried, measured, decided
 ========================================================
 
+Apply and solve use **different** closures by design (historical)
+-----------------------------------------------------------------
+
+.. note:: **Superseded architecture (Wave D / early Wave E).**  This
+   subsection describes a design in which ``apply`` (a separate
+   finite-difference operator) and ``solve`` (the WDD sweep) were
+   **two distinct discretisations** of :math:`L+C`.  That split was
+   dissolved by the #206 Phase C **matvec ≡ sweep** unification: today
+   ``apply`` and ``solve`` run the **one** loss-representation walk
+   (:meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action`
+   for the matvec, :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep`
+   for the inverse — "one walk", a code fact per L21), so there is no
+   longer a separate FD operator and no by-design bit-difference between
+   the two directions.  The FD-operator family
+   (``transport_operator_matvec*`` and its unified successor) was deleted
+   in the typed-field (#197) and walk-unification (#280 campaigns)
+   refactors.  The historical two-closure narrative below is retained for
+   the ERR-026 closure-bias reasoning it records.  The ERR-026
+   *attribution* it carries was itself later re-adjudicated: the wrong
+   curvilinear fixed point was the closure-**seed** family, not the WDD
+   closure bias (ERR-058 / #195 —
+   :ref:`sn-err-058-closure-seed-closeout`), and post-fix
+   SI :math:`\equiv` Krylov is **bit-identical** (#196 —
+   :ref:`sn-issue-196-eigenvalue-equivalence`) — so the reconciliation
+   this narrative anticipated ("Krylov on ``apply`` avoids the closure
+   bias") was falsified: the two paths are ONE discrete system.
+
+This was the load-bearing architectural fact about
+:class:`InvertibleOperator`, and the reason the operator's
+:meth:`apply` was **not** bit-identical to its :meth:`solve`.
+
+The Wave-D-era SN dispatch in ORPHEUS shipped **two distinct
+discretisations** of the same continuous operator
+:math:`L+C = \Omega\cdot\nabla + \Sigma_t`, built at different times
+for different consumers:
+
+* The **finite-difference operator** (the ``transport_operator_matvec_*``
+  family in :mod:`orpheus.sn.operators.streaming`, since deleted) was
+  built for the BiCGSTAB inner
+  solver path (:meth:`SNSolver._solve_bicgstab_*`).  It used
+  upwind cell-center FD on Cartesian and arithmetic face averages
+  with **τ-symmetric Morel-Montry angular interpolation** on
+  curvilinear (the FD family's own documentation and the module-head
+  warning were retired with the code).
+
+* The **sweep operator**
+  (:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`,
+  dispatching its selected representation through the
+  :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`
+  Protocol with :class:`~orpheus.transport.spatial.diamond.DiamondDifference`
+  as the default strategy) uses the **WDD asymmetric closure**
+  :math:`\psi_{n+1/2} = (\overline\psi - (1-\tau)\,\psi_{n-1/2})/\tau`.
+  This is the historical SN sweep's closure: the upper-triangular
+  forward-substitution form that lets a sweep run in
+  :math:`O(N\cdot N_{\rm cells})` work.
+
+In the fine-mesh limit both discretisations converge to the same
+continuous operator.  On coarse meshes they differ:
+
+* For Cartesian the difference is :math:`O(h)` (upwind FD has
+  the same first-order consistency as DD on uniform meshes;
+  divergence appears on non-uniform meshes).
+* For curvilinear the WDD asymmetric closure has a closure-bias-
+  driven self-consistent fixed point that is **not** the
+  fine-mesh-limit transport solution (ERR-026).
+
+The reconciliation is **Wave E Issue 15**: the SN solver's inner
+loop migrates from "sweep with WDD closure" to "Krylov on apply,
+sweep as preconditioner".  Krylov on :meth:`apply` uses the
+symmetric closure (the one that agrees with analytical references)
+as the system to solve; the WDD sweep is invoked only as a
+preconditioner that accelerates the Krylov iteration without
+poisoning the converged solution with its closure bias.  ERR-026
+closes when Wave E lands; the 2 xfail-strict tripwires at
+:file:`tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`
+are the gating bug-catchers for that closure.
+
+Wave E and beyond — landed and forward
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* **Wave E Issue 14 lifted** the iteration primitives (power
+  iteration, source iteration) into stand-alone operator-algebra
+  consumers in :mod:`orpheus.numerics.iteration`, decoupling them
+  from :class:`SNSolver`.
+* **Wave E Issue 15 wired** :class:`SNSolver` to
+  :class:`InvertibleOperator`: the inner solve becomes Krylov on
+  :meth:`apply` with sweep as preconditioner, which removes the WDD
+  asymmetric closure from the converged-solution path for the
+  reflective-BC eigenvalue case.  Wave E Round 3 will extend the
+  equation-map layout to the vacuum-BC path that closes ERR-026
+  for fixed-source curvilinear MMS.
+* **Forward → landed (Wave O / O.2b, #208)**: the analytic
+  reverse-direction adjoint matvec replaced the dense-transpose
+  fallback (:meth:`InvertibleOperator.apply_transpose
+  <orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose>`,
+  single-sourced through the representation's
+  ``loss_action_transpose``); the reciprocity gates live in
+  :file:`tests/sn/operators/test_streaming_operator.py` and
+  :file:`tests/sn/sweep/core/test_phase_c_gates.py` Gate 1.3.
+
 The carve arc (the WHY of the final shape)
 ------------------------------------------
 
@@ -2843,7 +2943,13 @@ from the standard discrete-ordinates references, anchored in the
        discrete-ordinates particle transport calculations*, §III
      - The within-group iteration framing in which the sweep
        :math:`(L+C)^{-1}` is the transport operator and the matvec
-       :math:`(L+C)` its twin.
+       :math:`(L+C)` its twin, and the Krylov-on-``apply`` /
+       sweep-preconditioning survey the two-closure history
+       (:ref:`loss-rep-history`) invokes.
+   * - Trefethen & Bau (1997), *Numerical Linear Algebra*, §3.2
+     - The matrix-free Krylov view under which ``apply`` is the
+       operator's action and the sweep its preconditioner — the frame
+       of the two-closure reconciliation record.
    * - Maginot, Ragusa & Morel (2016), *A non-negative moment-preserving
        spatial discretization scheme for solving the
        discrete-ordinates equations* (Upstream / UBLD)
