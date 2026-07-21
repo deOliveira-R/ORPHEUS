@@ -359,13 +359,49 @@ posings (ln 1/7/32/861) + operator.py:9 keep the dated `(A−S−F)ψ=q_ext` loc
 internally consistent, no adjacent contradiction; they fall to the algebra/solver-chapter
 passes (+ #231 Phase 2 code-prose rebalancing).
 
-## ⏭ NEXT = `cartesian_multid.rst` (space broadening) — needs its own disassembly + user steer
+## ⏭ ACTIVE = `cartesian_multid.rst` (space broadening) — disassembly RATIFIED (user, 2026-07-21)
 
-Biggest chapter of the progression. Gather candidates (stable titles): the "Sweep
-Algorithm" multi-D H2s (anti-diagonal wavefront, octant DAG, unified dispatch — the old
-Tier-2 interleave decision (c)); "Angular windowing" H1 (`sn-angular-windowing`); the
-boundary G-S schedule H2 (under `sn-iteration-primitives`); the multi-D LD/UBLD tree
-(old decision (b): the ~1,356-ln 2-D LD stress MMS → V&V-vs-chapter home). Expect the
-Cartesian-2D/curvilinear seam adjudications to dominate. Same ratified model:
-disassembly → user steers → main-agent authors → enforcer review → ONE atomic commit →
-checkpoint.
+**The gather windows** (line #s advisory @ 14,780-ln monolith; re-derive by title):
+W1 "Cartesian 2D" transport H2 (276–293, eq `transport-cartesian-2d`) · W2 "Cartesian 2D
+Balance Equation" H2 (344–398, `balance-cartesian-2d` + eq `dd-cartesian-2d`) · W3a the
+UBLD core (2329–3812: Branch-1/2, S2 wiring, two-moment axes, Σ_s⊗I lift,
+SpatialMomentSpace, moment matvec+scan — 11 anchors, 25 eq-labels) · W3b the 2-D LD
+stress MMS D5b-S4 (3813–5168, 5 anchors + 6 eq-labels `ld-cartesian-2d*`) · W4
+anti-diagonal wavefront (5169–5299, `sweep-wavefront`) · W5 octant DAG (5300–5917,
+`sweep-dispatch-relayering` +2) · W7 Angular windowing H1 (12407–13543, 15
+`sn-angular-windowing*` anchors + 5 eq-labels) · W8 boundary G-S (13546–13943,
+`si-gauss-seidel-reification`; the `sn-iteration-primitives` H1 DISSOLVES — anchor has
+ZERO inbound).
+
+**User rulings (2026-07-21):**
+1. **W3b → the SN section inside verification** (= `methods/sn/verification.rst`, the
+   designated temp→V&V-part home) per the analytical-order≠MMS ruling. **NEW V&V-part
+   architecture (user, verbatim intent):** the verification ENTRY page explains the
+   correctness/science/logic of verification (what the `vv-principles` skill +
+   `reference.md` encode); a SUMMARY page compiles all verification RESULTS across ALL
+   transport methods (per-method tables, key metrics); per-method SECTIONS hold the case
+   descriptions (SN's gets W3b). Full build-out = the V&V-consolidation task (#10 in the
+   session tracker) — record there; this chapter only lands W3b in the SN section.
+2. **W6 "Unified sweep dispatch" STAYS** (it carries a SUPERSEDED banner — Wave-D
+   archaeology preserved-as-origin; live dispatch = `LossRepresentation` polymorphism in
+   `loss_representation.rst`). The chapter authors its dispatch section FRESH against the
+   live story, cross-linking loss_representation.
+3. **W7 + W8 both travel** (2-D/multi-D iteration machinery; iteration-primitives H1
+   dissolves cleanly).
+4. **STAGED atomic commits** (deviation from one-commit-per-chapter, for cause at 3,900
+   source ln): Stage 1 = posing+balance+sweep [W1/W2/W4/W5] + chapter skeleton; Stage 2 =
+   UBLD [W3a → chapter] + W3b → sn/verification.rst; Stage 3 = windowing+G-S [W7/W8].
+   Each stage: cut+land atomically (no twin homes at any point), `-E -W` gated,
+   enforcer-reviewed (L-013), committed, one-line catalog status appended (compaction
+   safety). Full checkpoint after Stage 3.
+
+**Stays (adjudicated):** "Cell update strategies" H1 (cross-geometry strategy contract;
+chapter cross-links CellVisit/DAG H2) · the τ-campaign + space⊗angle separability capstone
+(684–1843, #236 characterization) · the Transport-Equation / Balance / Sweep-Algorithm H1
+headers+intros (parent staying curvilinear H2s; pointers extend) · W6 (ruling 2).
+
+**L35 blast radius (identified pre-cut):** `wavefront_cochain.rst:67,585` page-qualifiers
+naming the old home of `sweep-dispatch-relayering` (Stage 1) ·
+`tests/derivations/test_sn_mms_ld_2d_stress_symbolic.py:47` docstring +
+`orpheus/derivations/continuous/mms/sn.py:1402` comment naming `ld-cartesian-2d`'s home
+(Stage 2) · rump pointers per stage. Gate `-E -W --keep-going` throughout.
