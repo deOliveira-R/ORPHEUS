@@ -121,9 +121,9 @@ leaf first, 3 = dedup-heavy last).
 | — | ~~`transport_equation.rst`~~ | "The Transport Equation" — **STAYS in index as SN intro** (user directive; NOT a chapter, NOT → foundations, §4 superseded) | (none) | — | N/A |
 | — | `verification.rst` | "Verification" + "Numerical Sensitivities" (temp → V&V part) | (none above h1) | 1 | ✅ DONE |
 | — | `history.rst` | "Development history" | `sn-development-history` | 1 | ✅ DONE |
-| 5 | `discrete_balance.rst` | "The Discrete Balance Equation" (balance/α/geom-factor/streaming-eq/Morel-Montry dip — up to the WDD weights) | (none) | 2 | pending |
-| 6 | `spatial_closures.rst` | rest of "The Discrete Balance Equation" (WDD & Morel-Montry weights, closure substitution) + "Cell update strategies" | `cell-update-strategies` | 2 | pending |
-| 9 | `sweep_1d.rst` | "Sweep Algorithm" intro + Cartesian-1D cumprod + affine outflow | `sweep-algorithm` | 2 | pending |
+| 5 | ~~`discrete_balance.rst`~~ | **SUPERSEDED by progression** — the Cartesian balances → `slab_one_group`/`cartesian_multid`; the curvilinear balance H2s (331–1810) remain in index → the curvilinear chapters | (none) | — | absorbed/pending-curvilinear |
+| 6 | ~~`spatial_closures.rst`~~ | **SUPERSEDED by progression** — generic closures live in `foundations/discretization`; WDD/Morel-Montry + closure substitution remain in index → the curvilinear chapters; "Cell update strategies" H1 STAYS (cross-geometry contract, Stage-1 adjudication) | `cell-update-strategies` | — | absorbed/pending-curvilinear |
+| 9 | ~~`sweep_1d.rst`~~ | **SUPERSEDED by progression** — Cartesian-1D cumprod + affine outflow gathered by `slab_one_group` @ `2c60d6a5`; the "Sweep Algorithm" H1 intro stays as the router pointer | `sweep-algorithm` (still in index) | — | absorbed |
 | 7 | ~~`linear_discontinuous.rst`~~ | **SUPERSEDED by progression** — the UBLD core → `cartesian_multid` @ `eb96f424`; the 2-D LD stress MMS → `verification.rst` (same commit) | — | — | absorbed |
 | 10 | ~~`sweep_multid.rst`~~ | **SUPERSEDED by progression** — wavefront + octant DAG → `cartesian_multid` @ `e0a4e8b3` | — | — | absorbed |
 | 11 | `curvilinear.rst` | "Sweep Algorithm" → curvilinear sequential sweep + unified dispatch + Carlson D/F + ERR-058 + route-(a); PLUS "The curvilinear anisotropic-MMS floor" | `sn-curvilinear-aniso-norm-reconciliation` | 2 | pending |
@@ -439,7 +439,7 @@ inline-defined at point of use (enforcer CONCERN, recurring from Stage-1 §15A.2
 in ONE pass across the UBLD chapter: rename the per-cell matrix `A_cell` (or add a
 reconciling note), reserving `A` for the honest operator.
 
-*Method (proven Stages 1–2):* author the chapter/verification insertions as a skeleton with
+*Method (proven Stages 1–3):* author the chapter/verification insertions as a skeleton with
 `<<<SPLICE:Wx>>>` markers, then a python script: extract spans byte-exact from index.rst by
 line range (assert content anchors), PROMOTE underlines one level (`-`→`=`, `~`→`-`; only
 pure runs below nonblank titles — never transitions after blanks), apply declared in-span
@@ -473,10 +473,61 @@ Gauss-Seidel → what broadens next (curvature = Part B). Across the 3 stages: i
 14,780 → 9,588 (−5,192); 78 labels single-homed; every stage enforcer-certified byte-exact
 and `-E -W`-gated. Carried deferral: the **dual-`A` one-pass harmonization** (above).
 
-**⏭ NEXT chapter = `curvilinear_one_group.rst` (Part B, arch §3.4)** — disassembly of the
-staying curvilinear machinery (the Sweep-Algorithm curvilinear H2s incl. eq `dd-solve` +
-"Substituting the WDD Closure", the Carlson D/F + ERR-058 + route-(a) story, the
-curvilinear-aniso-floor H1, the τ-campaign stays-adjudication) → **user steer** → author →
-review → commit, per the ratified per-chapter model. The remaining monolith (9,588 ln) =
-Transport-Equation/Balance/Sweep H1 intros + curvilinear content + cell-update strategies +
-τ-capstone + InvertibleOperator + SNSolver/frame + Gotchas index + References + toctree.
+**⏭ NEXT = `curvilinear_one_group.rst` (Part B) — the RESUME BRIEF (queued 2026-07-21,
+post-compaction start).**
+
+*The model (ratified, unchanged):* disassembly (windows by stable title + per-window
+stays-adjudications) → **AskUserQuestion steer** → author/splice (the *Method* pattern
+above) → `-E -W` gate → elegance-enforcer review (post-compaction the Stage-2/3 instance is
+lost — FRESH dispatch with the L-013 + declared-transform framing; the two review briefs in
+this session's git range `eb96f424`/`1722d438` commit messages record the shape) → commit →
+checkpoint here. Content authority = `sn_book_architecture.md` §3.4 (the curvilinear rows) +
+§3.2; the struck ch11 topic-row above lists the topic inventory.
+
+*The fresh monolith map (@ 9,588 ln; line #s advisory — re-derive by title):* H1s =
+Synopsis 57 · Architecture 145 · Transport Equation 269 · **Discrete Balance 319** · **Cell
+update strategies 1857** (STAYS — Stage-1 adjudication, cross-geometry strategy contract) ·
+**Sweep Algorithm 2248** · **curvilinear-aniso-MMS "floor" 7855** · InvertibleOperator 8534
+(→ ch8/loss_representation, separate) · SNSolver 8753 · Consuming-the-frame 9265 · Gotchas
+9339 · References 9455 · toctree 9570.
+
+*Window candidates (grep these stable titles):*
+
+- **Balance H1 curvilinear H2s (331–1810):** "Curvilinear Balance Equation (Spherical and
+  Cylindrical)" 331 · "The Alpha Redistribution Coefficients" 420 · "The Geometry Factor
+  and Why It Is Needed" 470 · "The Streaming-Equilibrium Identity (canonical L0 gate)" 524 ·
+  "The Morel--Montry Flux Dip" 573 · "Weighted Diamond Difference (WDD) and Morel--Montry
+  Weights" 614 (**1,160 ln — contains the τ-campaign H3s**, the #236 characterization
+  capstone Stage 1 adjudicated STAYS-for-later; RE-adjudicate at steer) · "Substituting the
+  WDD Closure into the Balance Equation" 1775 (eq `dd-solve`, the α/ΔA/τ update — the
+  slab_one_group leave-behind) · "Geometry Comparison" 1810.
+- **Sweep H1 curvilinear region (2262–7854):** "Curvilinear 1D: Sequential Ordinate Sweep"
+  2262 (thin, ~38 ln) · **"Unified sweep dispatch" 2300–4005 — ⚠ STRUCTURAL TRAP:** the
+  Stage-1 W6 stays-ruling covered the SUPERSEDED dispatch story, but this H2 PARENTS six
+  H3s of #168-campaign curvilinear machinery ("Cell update strategy parameter" 2357 ·
+  "The 1-D cumprod fast path (DD-only)" 2399 · "ERR-026 closure status" 2443 · the retired
+  "Boundary face-flux strategies — Phase A" 2548 · **"The pole angular closure (Issue #168
+  Phase B)" 2586** · **"Sweep-frame apply matvec (Issue #168 Phase C)" 2801–4005**, with
+  "The pole-face Carlson starting direction" H4 ~3137) — the disassembly must SPLIT the
+  dispatch head (stays, ruling 2) from the nested curvilinear content (travel candidates);
+  a steer question · "Phase D Carlson coupled-pole sweep (Issue #168 Phase D)" 4006 ·
+  "Phase F Carlson seed sweep-path backport (Issue #168 Phase F)" 4968 · "ERR-058 — the
+  curvilinear closure-seed fix (Issue #195 CLOSED)" 5801 · "Route (a) — the direct
+  starting-direction ψ½ solve (Issue #282)" 6800.
+- **"The curvilinear anisotropic-MMS 'floor', reconciled (W1–W5)" H1** 7855–8533.
+
+*Known steer questions to prepare:* (1) the **aniso-MMS-floor H1** — chapter vs
+`methods/sn/verification.rst` (the three-layer V&V-part ruling; the W3b precedent routes
+case descriptions to the per-method verification section); (2) the **one-group vs
+multigroup curvilinear split** (arch §3.4 — most monolith curvilinear content is 1-group;
+check what genuinely feeds `curvilinear_multigroup`); (3) the **W6-nested #168 archaeology**
+— travel vs stay-as-origin-history, per H3; (4) the **τ-capstone re-adjudication** (inside
+the WDD H2); (5) **staged vs single commit** (~7,000 source ln in play — staging
+near-certain; propose the stage cut at steer, the cartesian_multid precedent).
+
+*Standing facts:* the dual-`A` one-pass harmonization stays deferred (above);
+`[Pautz2002]_`-class citations + eq-labels are project-global; recipe = "The per-chapter
+recipe" + the *Method* paragraph above; L35 three-way grep + L34 filename sweep per recipe
+(Stage 2/3 found most breaks were PRE-existing fossils from earlier extractions — grep
+"above|below|the note|the section" in every window against the CURRENT homes of what they
+cite).
