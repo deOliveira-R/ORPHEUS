@@ -285,7 +285,7 @@ admissible range :math:`\tau \in [0, 1]`.
   spurious on physical fields and re-floored the anisotropic solution.
   The full vindication is at
   :ref:`sn-curvilinear-aniso-norm-reconciliation` in
-  :doc:`/theory/methods/sn/index`.
+  :doc:`/theory/methods/sn/verification`.
 * **CYLINDER** retains the clamp :math:`\tau_m =
   \mathrm{clip}(\tau_m^{\rm raw}, \tfrac12, 1)`: product / level-
   symmetric quadratures put the most-inward azimuthal ordinate exactly

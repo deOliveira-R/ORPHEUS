@@ -1016,6 +1016,686 @@ Branch-2 numpy production, structurally-independent L1 cross-check):
   (planned).
 
 
+.. _sn-curvilinear-aniso-norm-reconciliation:
+
+The curvilinear anisotropic-MMS "floor", reconciled (W1–W5)
+-----------------------------------------------------------
+
+.. admonition:: Key Facts — curvilinear anisotropic SN
+   :class: important
+
+   - **The single "#229 floor" was three distinct errors**, separated
+     by a *norm difference*: the production gates measure a
+     **volume-weighted L2** :math:`\sqrt{\sum_i V_i\,\Delta_i^2}`; the
+     root-cause probes measured **pointwise / L∞**.  An error
+     concentrated at the :math:`r \to 0` pole cell is loud in L∞ and
+     near-silent in L2.
+   - **(a) Sphere central-cell** :math:`\mathcal{O}(h)` **spatial
+     closure (#233)** — L∞-only; :math:`\sim 75\,\%` an MMS
+     midpoint-vs-shell-volume-average comparison artifact +
+     :math:`\sim 25\,\%` genuine but **inherent** first order.  WONTFIX
+     for diamond difference (Hébert §3.9.4 / Stacey §9.9 use plain
+     diamond at the central cell).  See
+     :ref:`sn-pole-cell-spatial-closure`.
+   - **(b) Sphere angular** :math:`\tau`-**clamp floor** — fixed by W1
+     (the clamp was mis-cited and 100 % spurious on physical fields).
+     The sphere now uses the raw Bailey-Morel-Chang 2010 Eq. 43 weight.
+     See :ref:`sn-tau-clamp-vindication`.
+   - **(c) Cylinder angular floor (#229)** — the half-angle-thread
+     INTERPOLATION floor; scales with the **azimuthal** quadrature
+     :math:`n_\varphi`, structurally blocked (needs a 2-D
+     :math:`(\eta, \varphi)` closure).  The sphere has a pre-floor
+     :math:`\mathcal{O}(h^2)` window (clean at S32); the cylinder does
+     **not** at any practical quadrature.  See
+     :ref:`sn-cylinder-angular-floor`.
+   - **Two unrelated "anisotropic" paths** (Issue #9): Path-(I) =
+     geometric angular redistribution :math:`(1-\mu^2)/r\,\partial_\mu`
+     (the M-M :math:`\alpha`-dome, P0-only — what #229 concerns);
+     Path-(II) = :math:`P_1{+}` Legendre SCATTERING
+     :math:`R\,\Lambda\,M` (geometry-agnostic).  See
+     :ref:`sn-p1-scattering-curvilinear`.
+   - **Norm gotcha**: a convergence-rate gate on a volume-weighted L2
+     norm CANNOT see a pole-cell defect (the pole sits at one cell of
+     :math:`V \sim h^3` → :math:`\sqrt{V} \sim h^{1.5}` →
+     :math:`\sim h^{2.5}` contribution → subdominant).  A pointwise /
+     L∞ probe is required to surface it.
+
+This section closes the curvilinear-anisotropic-SN investigation
+program (W1–W5, branch ``fix/curvilinear-aniso-pole-and-clamp``,
+2026-06-13).  It is the sequel to the ERR-058 / #195 / #196 curvilinear
+*isotropic* closure-seed family (:doc:`curvilinear_numerics`); that
+family fixed the
+wrong-fixed-point class (now formally retired), and what remained was
+the *anisotropic* floor — which this program resolved into three
+distinct, separately-actionable errors.
+
+The headline — one floor was three errors, settled by a norm difference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ERR-058 close-out (:doc:`curvilinear_numerics`) deferred a
+residual "anisotropic angular
+floor" to Issue #229, citing a single
+:ref:`floor table <sn-err-058-aniso-floor>`.  The W1–W5 root-cause
+program found that the apparent single floor was **three structurally
+distinct errors**, and the reason they had been conflated is a **norm
+difference** in how two independent investigations measured the same
+solves:
+
+* The verification gates (test-architect) measure the **volume-weighted
+  L2** norm :math:`\|\Delta\|_{2,V} = \sqrt{\sum_i V_i\,\Delta_i^2}` —
+  the natural norm for a finite-volume scheme whose unknown is a
+  cell-volume average.
+* The diagnostic probes (numerics-investigator) measured **pointwise /
+  L∞** — :math:`\max_i |\Delta_i|`.
+
+The two norms weight the :math:`r \to 0` pole cell completely
+differently.  Under the spherical volume weight :math:`V \sim h^3`, a
+fixed pointwise error at the single pole cell contributes
+:math:`\sqrt{V} \sim h^{1.5}` to the L2 sum, so an L∞-:math:`\mathcal{O}(h)`
+pole error appears as :math:`\sim h^{2.5}` in L2 — **subdominant to the
+interior** :math:`\mathcal{O}(h^2)`, hence invisible.  This is exactly
+why the production L2 gate stayed green throughout while a pointwise
+probe found a first-order pole cell.
+
+.. list-table:: The three errors behind the "#229 floor"
+   :header-rows: 1
+   :widths: 6 38 22 16 18
+
+   * - #
+     - Error
+     - Dominant norm
+     - Quadrature-scaling?
+     - Status
+   * - (a)
+     - Sphere pole-cell spatial closure :math:`\mathcal{O}(h)` at
+       :math:`r \to 0`
+     - L∞ / pointwise central flux (diluted in L2 by :math:`V \propto
+       r^2`; invisible in :math:`k_{\rm eff}`)
+     - no (spatial)
+     - **#233 — documented inherent limitation (ERR-059, WONTFIX-for-DD)**
+   * - (b)
+     - Sphere angular :math:`\tau`-clamp floor (:math:`\sim 7\mathrm{e}{-4}`
+       @ S16)
+     - volume-weighted L2 at fine mesh
+     - yes (angular)
+     - **fixed (W1 unclamp)**
+   * - (c)
+     - Cylinder angular floor
+     - both
+     - yes (azimuthal :math:`n_\varphi`)
+     - **structurally blocked (#229)**
+
+The remainder of this section treats each error in turn, then the two
+unrelated anisotropic paths (Issue #9).
+
+.. _sn-tau-clamp-vindication:
+
+(b) The :math:`\tau`-clamp vindication (W1)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The spherical Morel--Montry weighted-diamond weight is
+
+.. math::
+   :label: sn-tau-mm-raw
+
+   \tau_n^{\rm raw}
+       \;=\; \frac{\mu_n - \mu_{n-1/2}}{\mu_{n+1/2} - \mu_{n-1/2}}
+       \;\in\; [0, 1],
+
+the **unique** weight exact for an angular flux linear in :math:`\mu`
+([BaileyMorelChang2010]_ Eq. 43; the same object as
+:eq:`mm-weights`).  The production code had wrapped it in a
+:math:`[\tfrac12, 1]` clamp,
+:math:`\tau_n = \mathrm{clip}(\tau_n^{\rm raw}, \tfrac12, 1)`, cited
+to Lewis & Miller §4.5.
+
+W1 established, by three independent lines of evidence, that the clamp
+is **mis-cited and 100 % spurious on physical fields**:
+
+#. **Literature.** [BaileyMorelChang2010]_ state the admissible range
+   is :math:`\tau \in [0, 1]` and recommend *exactly* the unclamped
+   :math:`\tau^{\rm raw}` (their Eq. 43) as the unique exact-on-linear
+   weight; Hébert §3.9.4 uses pure diamond (:math:`\tau = \tfrac12`),
+   no clamp.  Lewis & Miller §4.5 does **not** prescribe the
+   :math:`[\tfrac12, 1]` clamp — the citation was wrong.
+#. **Positivity is never needed.** On every realistic converged solve
+   (smooth MMS, homogeneous eigenvalue :math:`k_{\rm eff} = 1`, thick
+   absorber) there are ZERO negative half-angle fluxes, clamped or
+   unclamped — every clamp activation is spurious (measured: 160 / 320
+   / 80 / 240 activations across stress configs, 0 protective).  The
+   half-flux negativity that *does* transiently appear in early SI
+   iterates is inherited from a negative *input* :math:`\psi` and the
+   clamp barely reduces it.  On Gauss--Legendre quadrature
+   :math:`\tau^{\rm raw} \in [0.39, 0.61]` (never 0), so the unclamped
+   weight is always interior to :math:`[0, 1]`.
+#. **Stability without it.** Unclamped sphere source iteration
+   converges with strictly positive, finite scalar flux on every
+   stress config (thick absorber, near-vacuum, :math:`c = 0.999`, S64);
+   the clamp costs a few SI iterations on low-scattering problems but is
+   dispensable for stability.
+
+.. admonition:: The architectural reason the static removal is correct
+   :class: note
+
+   A *dynamic* negative-flux fixup (where :math:`\tau` depends on the
+   iterate :math:`\psi`) would make the streaming operator
+   **nonlinear**, breaking the linear-Krylov matvec and the SI ≡ Krylov
+   twin identity (Pattern-2 discipline, Cardinal Rule 2).  Because the
+   fixup is *never needed* on physical fields, the principled W1 fix is
+   to **drop the clamp** (a config-time, static change) and use the
+   linear unclamped :math:`\tau^{\rm raw}`.  The weight :math:`\tau` is
+   single-sourced in the pole-angular closure
+   (:func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`,
+   since Issue #236 Step C — see :ref:`sn-tau-c-on-cellvisit-live`) and
+   inherited by every consumer (the SI sweep and the Krylov matvec
+   both), so both twins stay linear and stay identical.
+
+**Geometry split.**  W1 removed the clamp for the **sphere only**.  The
+**cylinder keeps** it: product / level-symmetric quadratures place the
+most-inward azimuthal ordinate exactly on :math:`\eta = -\sin\theta`,
+giving :math:`\tau^{\rm raw} = 0` **exactly** (bit-exact, not "near
+zero") — an unclamped recurrence divides by zero there.  This is a
+genuine *structural* singularity the sphere provably lacks; the
+cylinder's real fix is a 2-D :math:`(\eta, \varphi)` closure
+(:ref:`sn-cylinder-angular-floor`), not unclamping.  See
+:eq:`morel-montry-clamp` in :doc:`/theory/foundations/structured_geometry` for the
+equation-of-record carrying both branches.
+
+**Mixed accuracy signature (the gotcha).**  Unclamping does NOT
+uniformly improve the anisotropic solve.  It *cleans the coarse
+convergence rate* (sphere S16 coarse orders 1.978 → 1.995) but *raises
+the S16 fine-mesh floor* (:math:`7.3\mathrm{e}{-4} \to 1.2\mathrm{e}{-3}`):
+
+.. list-table:: W1 sphere aniso MMS, matched-quadrature S16 (volume-weighted L2)
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - :math:`n_x`
+     - Clamped (pre-W1)
+     - Unclamped (post-W1)
+   * - 10 → 40
+     - coarse orders 1.979 / 1.978
+     - coarse orders 1.995 / 1.999
+   * - 80
+     - 1.16e-3
+     - 1.40e-3
+   * - 160 (floor)
+     - **7.3e-4**
+     - **1.2e-3**
+
+The lower *clamped* floor was a **fortuitous cancellation**, not a
+genuine accuracy gain — the clamp's constant bias happened to partly
+offset the angular-thread interpolation floor at S16.  Removing it
+exposes the true #229 floor (next subsection), which is what the
+unclamped weight should converge to.  Iso solves are unchanged in real
+arithmetic (the clamp is silent on flat-in-:math:`\mu` fields) but
+**not bit-identical** at IEEE-754: the closure
+:math:`(\overline\psi - (1-\tau)\psi_{\rm in})/\tau` returns
+:math:`\psi` exactly only :math:`\sim 81\,\%` of the time and within
+1 ULP otherwise (reduction-order non-associativity), so the converged
+homogeneous-reflective sphere drifts :math:`|\Delta k| = 2.3\mathrm{e}{-13}`,
+:math:`\max|\Delta\phi| = 4.4\mathrm{e}{-13}` — an FP-tail, anchored to
+the closed-form :math:`k_\infty = 1.875`.  One snapshot
+(``sphere_2g_3reg_dd_n40``, genuinely non-flat) was regenerated
+(:math:`k\;1.380766 \to 1.381001`); the two flat snapshots drift only
+in the FP tail and were not regenerated.
+
+**W1 gates.** ``tests/sn/sweep/curvilinear/test_w1_clamp_silent_on_flat.py``
+(closure-unit :math:`\tau`-independence on flat fields; converged
+homogeneous-reflective iso anchored to :math:`k_\infty`; unclamped
+positivity) + the W1 ``@slow`` aniso gates appended to
+``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``
+(the S32 clean-:math:`\mathcal{O}(h^2)` full-ladder claim; the S16
+coarse-rate-cleaner-unclamped discriminator; the floor-scales-with-
+quadrature pin).  Landed in commit ``b2d8a6d``.
+
+.. _sn-cylinder-angular-floor:
+
+(c) The cylinder angular floor (#229) — structurally blocked
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The anisotropic ansatz :math:`\psi_{\rm chosen} = (A(r) + B(r)\,\mu)/W`
+imposes :math:`\psi_n` per ordinate, so there is **no angular error at
+the imposed ordinates**.  But the M-M redistribution consumes
+half-angle THREAD values :math:`\psi_{m\pm 1/2}` that the recurrence
+**interpolates** (they are not imposed).  On an angle-varying ansatz the
+thread's interpolation error is an angular-quadrature-resolution effect:
+under spatial refinement at fixed quadrature the solution converges to
+an angular floor, and a pure-spatial-rate assertion cannot hold once
+the spatial error drops below it.
+
+**The cylinder floor scales with the AZIMUTHAL quadrature**
+:math:`n_\varphi`, **not the polar** :math:`n_\mu`.  This is the
+load-bearing physical fact (and a correction to an earlier mislabel):
+the radial direction cosine is :math:`\eta = \sin\theta\,\cos\varphi`,
+so the M-M thread marches in azimuth :math:`\varphi` *per polar
+:math:`\mu`-level*.  Measured at :math:`n_x = 80`:
+
+.. list-table:: Cylinder aniso floor vs azimuthal quadrature (:math:`n_x = 80`, volume-weighted L2)
+   :header-rows: 1
+   :widths: 25 25 50
+
+   * - :math:`n_\varphi`
+     - L2 error
+     - Behaviour
+   * - 8
+     - 1.90e-2
+     - hard floor
+   * - 16
+     - 7.37e-3
+     - drops :math:`2.58\times`
+   * - 32
+     - 3.10e-3
+     - drops :math:`2.38\times`
+
+while :math:`n_\mu` (polar) refinement at fixed :math:`n_\varphi`
+leaves the floor **flat**.
+
+**Why it is structurally blocked.**  Product and level-symmetric
+quadratures carry **duplicate azimuthal** :math:`\eta`: ordinates come
+in :math:`\pm\varphi` symmetry pairs with the same :math:`|\eta|` but
+opposite :math:`\xi` (e.g. :math:`\varphi = \pi/4` and
+:math:`\varphi = 7\pi/4` both give
+:math:`\eta = \sin\theta/\sqrt 2`).  The M-M thread marches in
+:math:`\eta` alone, so a field whose true variation is in the full
+:math:`(\eta, \varphi)` plane is **not threadable exactly** by a 1-D
+:math:`\eta`-march — a structural mismatch, not a tuning problem.  No
+partition (midpoint / cumulative-weight / ordinate-interior) gives
+:math:`\tau^{\rm raw} \in [\tfrac12, 1]` with bounded edges; the
+cumulative-weight partition is exact on level-symmetric but needs
+:math:`\tau^{\rm raw} \in [-4.5, 5.5]` (edges outside the level).
+Closing the cylinder floor requires a genuine 2-D
+:math:`(\eta, \varphi)` angular closure — **out of scope**, tracked by
+`Issue #229 <https://github.com/deOliveira-R/ORPHEUS/issues/229>`_.
+
+**The sphere–cylinder asymmetry.**  The sphere DOES have a pre-floor
+:math:`\mathcal{O}(h^2)` window: at S16 the coarse orders clear 1.99 and
+the floor (:math:`\approx 2.9\mathrm{e}{-4}` at S32, :math:`n_x = 160`)
+sits below the segment's finest spatial error, so the clean
+second-order window extends to :math:`n_x = 80` at S32.  The cylinder
+has **no** such window at *any* practical quadrature — even
+:math:`n_\mu = 16` (:math:`N = 512`) reaches only order 1.80 on the
+coarsest :math:`\{5, 10, 20\}` segment before the angular floor
+dominates.  The mathematics, not runtime, is the blocker.
+
+**W3 gate retune (Issue #229).**  Per the vv-principles anti-pattern
+"a claim that cannot hold MUST NOT be asserted; pin what IS true
+instead", W3 removed all five aniso xfail markers and migrated the six
+equation labels to green tests:
+
+* **Sphere** ``test_sn_spherical_aniso_mms_converges_second_order`` →
+  coarse-segment ``orders[:2] > 1.9`` + magnitude band
+  :math:`1\mathrm{e}{-8} < \mathrm{err}[-1] < 5\mathrm{e}{-3}`
+  (loosened from :math:`1\mathrm{e}{-3}` because the W1 unclamp removed
+  the fortuitous-cancellation lower floor) + ``catches("ERR-026")``.
+* **Cylinder** ``test_sn_cylindrical_aniso_mms_converges_second_order``
+  → floor band :math:`1\mathrm{e}{-3} < \mathrm{err}[-1] <
+  5\mathrm{e}{-2}`, **no rate claim** (the floor dominates).  The
+  cylinder phase-C spatial test was **repurposed** into
+  ``test_cyl_aniso_floor_scales_with_quadrature``
+  (:math:`\mathrm{err}(n_\varphi{=}16) < \mathrm{err}(n_\varphi{=}8)/2`
+  — the verified-floor second claim that pins the angular attribution).
+* The sphere prescribed-inflow redistribution test dropped its
+  strict-xfail and rate gate (band :math:`1\mathrm{e}{-8} <
+  \mathrm{err} < 5\mathrm{e}{-3}` + a kept converged-value
+  ``assert_allclose(2e-2)``).
+
+Landed in commit ``679a1e6`` (audit exit 0; the
+:eq:`sn-mms-spherical-psi` / ``-qext`` / :eq:`sn-mms-cylindrical-psi` /
+``-qext`` labels and the two spatial-convergence labels are now all
+green-tested).
+
+.. _sn-pole-cell-spatial-closure:
+
+(a) The sphere/cylinder pole-cell :math:`\mathcal{O}(h)` spatial closure (#233, ERR-059)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is the **new** discovery of the program and the one *surviving*
+manifestation in the curvilinear-SN family.  The curvilinear scalar
+flux is **first-order** :math:`\mathcal{O}(h)` at the :math:`r \to 0`
+central cell in the pointwise / L∞ norm — distinct from #168 (outer
+face, CLOSED), ERR-058 (the closure seed, CLOSED), and the angular
+floors above.  It decomposes into three parts, **none** of which
+warrants a code fix.
+
+Decomposition
+^^^^^^^^^^^^^
+
+**Part 1 — :math:`\sim 75\,\%` MMS comparison artifact (not a solver
+bug at all).**  The production spherical MMS evaluates the source at the
+cell MIDPOINT ``mesh.centers`` and compares
+:math:`\phi_{\rm solver}` against :math:`\phi_{\rm exact}(\text{midpoint})`.
+But the spherical DD discrete unknown **IS** the cell-volume average
+
+.. math::
+   :label: sn-pole-cell-shell-average
+
+   \overline{\phi}_{n,i}
+       \;=\; \frac{4\pi}{V_i}\int_{r_{i-1/2}}^{r_{i+1/2}} r^2\,\phi_n(r)\,dr
+
+([Hebert2009]_ Eq. 3.430 — the unknown is *defined* as the shell
+average, not a point value; the diamond relation Eq. 3.431 relates it to
+the face fluxes).  Under :math:`r^2\,dr` weighting the volume-average and
+the midpoint point-value differ by :math:`\mathcal{O}(h)` at the pole
+cell, because :math:`r_{\rm lo} = 0` maximally skews the weight (the
+volume-centroid sits at :math:`\tfrac34 h`, not :math:`\tfrac12 h`).
+Using the *shell-averaged* source AND comparing against the
+*shell-volume-average* drops the pole error :math:`\sim 4\times`
+(:math:`0.0212 \to 0.00497`) — confirming the bulk of the apparent
+error is a comparison subtlety, not solver truncation.
+
+**Part 2 — :math:`\sim 25\,\%` genuine but LITERATURE-ACCEPTED INHERENT
+first order.**  Even the fully consistent finite-volume MMS (shell-avg
+source + shell-avg reference) leaves the pole at clean
+:math:`\mathcal{O}(h^{1.00})`.  The root cause: at :math:`r_{\rm lo} = 0`
+the inner face area :math:`A(0) = 0`, so the diamond closure
+:math:`\overline\psi = \tfrac12(\psi_{\rm in} + \psi_{\rm out})` gives
+:math:`\psi_{\rm out} = 2\overline\psi`, **over-predicting the pole
+outer face by exactly +50 %** (mesh-independent rel. error 0.5000), while
+the true face is :math:`A(h)` and :math:`2\langle A\rangle_{\rm vol} =
+2\cdot\tfrac34 A(h) = 1.5\,A(h)`.  Deeper still, the conservative
+*balance itself* is inconsistent at the pole: fed the EXACT cell average
+and EXACT inflow it solves for an outer face :math:`-46\,\%` wrong, and
+the residual-per-volume plateaus mesh-independently — because
+:math:`A_{\rm in} = 0` degenerates the streaming surface integral while
+:math:`V \sim h^3`.
+
+[Hebert2009]_ §3.9.4 and Stacey §9.9 **both** use exactly this plain
+diamond + Carlson-starting-direction + symmetry scheme at the central
+cell with **no special** :math:`\mathcal{O}(h^2)` **closure, and
+neither flags reduced order there**.  First-order at the single pole
+cell is the accepted, unflagged behaviour of the standard scheme.
+
+**Part 3 — NOT cleanly fixable by a local closure.**  W2 tested the
+volume-weighted linear reconstruction
+:math:`\overline\psi = \beta\,\psi_{\rm out} + (1-\beta)\,\psi_{\rm in}`
+with :math:`\beta = \tfrac34` at the pole (the value that makes
+:math:`\overline\psi` :math:`\mathcal{O}(h^3)`-consistent against
+:math:`\langle A\rangle_{\rm vol}` at exact faces).  Validated
+end-to-end with a faithful production-sweep monkeypatch (and a
+:math:`\beta = \tfrac12`-identity regression guard verified to
+:math:`3\mathrm{e}{-16}`): :math:`\beta = \tfrac34` does **NOT** restore
+:math:`\mathcal{O}(h^2)` — the pole stays :math:`\mathcal{O}(h)`,
+magnitude slightly *worse* (:math:`0.0050 \to 0.0106`), and a full-mesh
+:math:`\beta` degrades the interior.  Closure-consistency at exact faces
+:math:`\neq` fixed-point accuracy: the propagated face flux couples back
+through the balance.  A genuine fix needs a non-local higher-order
+central-cell reconstruction the canon does not provide — a linear-
+discontinuous (Issue #6), cell-update (#158), or nodal scheme
+([WuXieFischer1999]_ NSE 133).
+
+Why it is invisible to L2 and to :math:`k_{\rm eff}`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The production ``test_sn_spherical_mms_converges_second_order`` uses the
+volume-weighted L2 norm.  The pole :math:`\mathcal{O}(h)` at one cell of
+:math:`V \sim h^3` contributes :math:`\sqrt V \sim h^{1.5}` →
+:math:`h^{2.5}` to L2 — subdominant.  Both midpoint and volume-average
+L2 references converge clean :math:`\mathcal{O}(h^{2.00})`; only the L∞
+(pole) is :math:`\mathcal{O}(h)`.  For :math:`k_{\rm eff}`: a reflective
+sphere recovers :math:`k_\infty = 1.875` exactly, mesh-independent; a
+vacuum sphere converges monotone to :math:`\sim 1.78590` at
+:math:`\mathcal{O}(h^{1.48})` (combined pole + outer-face first order;
+increments :math:`2\mathrm{e}{-5}` at :math:`n_x = 160`, far below
+engineering tolerance).  **This is why #233 needed an L∞ / per-cell
+probe to surface** — no L2 or eigenvalue gate could see it.
+
+The cylinder shares the same defect, masked
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The cylinder pole vs. **midpoint** is :math:`\mathcal{O}(h^2)`
+(1.94 / 1.97 / 1.98) but vs. the **volume average** is
+:math:`\mathcal{O}(h)` (0.99 / 0.99 / 1.00) — the SAME diamond
+inconsistency, masked by the midpoint comparison: the cylinder's
+:math:`r\,dr` (linear) weight puts the volume-centroid at
+:math:`\tfrac23 h` while diamond's :math:`\tfrac12 A(h)` happens to
+:math:`\approx` the midpoint :math:`A(h/2)`, so the midpoint comparison
+the gate uses is *accidentally* :math:`\mathcal{O}(h^2)` for the
+cylinder.  The cylinder pole is therefore **not** "clean
+:math:`\mathcal{O}(h^2)`" — it is the same :math:`\mathcal{O}(h)`
+volume-average defect, hidden by the comparison choice.  Cylinder global
+L2 is also clean :math:`\mathcal{O}(h^{2.00})`.
+
+The characterization gate (W2, #233)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Per the vv-principles "pin what is TRUE + protect the floor WITHOUT
+calcifying the limitation" discipline, W2 ships a **characterization**
+gate, not a fix gate
+(``tests/sn/verification/mms/test_curvilinear_pole_cell_characterization.py``,
+commit ``255eba4``):
+
+* **Guarantee tests** (carry ``verifies("dd-curvilinear-scalar", ...)``,
+  the :eq:`dd-curvilinear-scalar` cell-update label): global
+  volume-weighted L2 is :math:`\mathcal{O}(h^2)` (``orders > 1.9``).
+  The sphere is asserted under **both** references — midpoint AND the
+  Hébert-3.430 shell-volume-average :eq:`sn-pole-cell-shell-average`,
+  built from ``scipy.integrate.quad`` (a trusted-library integrator,
+  structurally independent of the solver).  Agreement on the order
+  across two structurally-different references proves the L2 order is
+  REAL, not a midpoint artifact.
+* **Characterization tests** (NO ``verifies`` — they pin a *limitation*,
+  not a correctness claim): the pole L∞ order is **lower-bounded only**
+  (:math:`> 0.8` — "at least first order, does not regress"), the pole
+  is the L∞-dominant cell (fraction :math:`> 0.99`), and the interior
+  is clean :math:`\mathcal{O}(h^2)` (:math:`> 1.8`).  **No upper bound**
+  on the pole order, so a future LD / nodal scheme that lifts the pole
+  to :math:`\mathcal{O}(h^2)` keeps the gate green
+  (:math:`2.0 > 0.8`) — the characterization gate pins what is true and
+  the regression floor without blocking a legitimate improvement
+  (vv-principles anti-patterns #5 / #17).
+
+Measured (sphere :math:`n_{\rm ord} = 16`, ladder
+:math:`[40, 80, 160, 320]`): L2 midpoint orders :math:`2.01\times3`; L2
+shell-average :math:`2.00\times3`; L∞ (pole) :math:`0.91 / 0.95 / 0.97`;
+interior :math:`1.84 / 1.92 / 1.96`; pole fraction :math:`1.00` every
+mesh.  Cylinder pole-vs-midpoint :math:`1.94 / 1.97 / 1.98`;
+pole-vs-volavg :math:`0.99 / 0.99 / 1.00`.
+
+.. _sn-p1-scattering-curvilinear:
+
+Issue #9 — :math:`P_1` anisotropic SCATTERING in curvilinear (the two unrelated paths)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A persistent source of confusion in this cluster is that "anisotropic"
+names **two structurally unrelated** things in a curvilinear SN solve.
+Issue #9 is about the *second*; everything above (#229, the
+:math:`\alpha`-dome, the :math:`\tau`-clamp) is about the *first*.
+
+* **Path-(I) — geometric angular redistribution.**  The
+  :math:`(1-\mu^2)/r\,\partial_\mu\psi` term (sphere) /
+  :math:`\xi^2 B / r` (cylinder), threaded by the Morel--Montry Carlson
+  :math:`\alpha`-dome.  This is **P0-only**; the "anisotropy" lives in
+  the *angular-flux ansatz*, not in the scattering kernel.  The
+  existing curvilinear aniso MMS cases
+  (:math:`\psi = (A + \zeta B)/W`) exercise ONLY this path.  #229 is a
+  Path-(I) test-design floor.
+* **Path-(II) — Legendre SCATTERING moments.**  The
+  :math:`P_1{+}` scattering source :math:`R\,\Lambda\,M`
+  (``scattering.build_aniso_source``, ``scattering_order ≥ 1``),
+  geometry-**agnostic**, wired identically for all geometries through
+  :func:`~orpheus.sn.coupled_system.build_within_group_system` (the
+  :math:`S` gain of the :math:`(L+C),\,S,\,B` decomposition carries
+  :math:`P_1` when
+  ``scattering_order = 1``).  No curvilinear test exercised Path-(II)
+  before #9 — it is NEW coverage of an existing capability (NO
+  ``orpheus/`` change; Path-(II) works as-is).
+
+L0 — the operator-admits trick
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Rather than derive a costly symbolic :math:`P_1`-source MMS, W4 feeds a
+*known* anisotropic angular flux :math:`\psi_{{\rm ref},n} = (A + \zeta
+B)/W` to the within-group :math:`S` operator at
+``scattering_order = 1`` and isolates the :math:`P_1` contribution as
+:math:`S_1.\mathrm{apply}(\psi) - S_0.\mathrm{apply}(\psi)`, asserted
+**per ordinate** (NOT weight-summed — the :math:`\alpha`-dome
+telescopes, vv anti-pattern #8) against a structurally-independent
+hand-reference:
+
+* **Sphere** (fully SH-table-INDEPENDENT — :math:`P_1(\mu) = \mu`
+  directly):
+
+  .. math::
+     :label: sn-p1-sphere-hand-ref
+
+     q_n^{P_1} \;=\; \frac{1}{W}\,3\,\mu_n\,\Sigma_{s1}\,\phi_1,
+     \qquad
+     \phi_1 \;=\; B(r)\,\frac{\sum_n w_n\,\mu_n^2}{W}.
+
+* **Cylinder** (explicit :math:`Y_1^m` moment-sum, independent of the
+  production :math:`R\,\Lambda\,M` einsum):
+
+  .. math::
+     :label: sn-p1-cylinder-hand-ref
+
+     q_n^{P_1} \;=\; \frac{1}{W}\,3\,\Sigma_{s1}
+                  \sum_m Y_1^m(\Omega_n)\,\phi_1^m,
+     \qquad
+     \phi_1^m \;=\; \sum_n w_n\,Y_1^m(\Omega_n)\,\psi_n.
+
+Both agree at machine precision (rel. :math:`4.7\mathrm{e}{-15}` sphere /
+:math:`5.6\mathrm{e}{-15}` cylinder), with a
+``max|S₁−S₀| > 1e-6`` negative control (vv anti-pattern #11 — a dropped
+:math:`P_1` makes :math:`S_1 - S_0 \equiv 0` and fails the non-zero
+hand-ref match).  **1-group is legitimate here**: this is a
+flux-shape / OPERATOR claim (the per-ordinate :math:`P_1` source reads
+:math:`\phi_1`, flux-shape-dependent by construction), NOT an eigenvalue
+claim — the 1-group-degeneracy rule applies only to *eigenvalue*
+verification.
+
+L1 — the directional eigenvalue
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Forward-peaked :math:`P_1` scattering (:math:`\bar\mu > 0`) **lowers**
+:math:`k_{\rm eff}` versus :math:`P_0`.  The physics: positive
+:math:`\bar\mu` preserves the forward direction, so in a finite,
+vacuum-bounded sphere forward-preserved scattered neutrons are more
+likely to cross the outer boundary → **enhanced leakage** → lower
+:math:`k_{\rm eff}`.  This requires a **vacuum** outer BC (a reflective
+sphere has no leakage → :math:`P_0 \equiv P_1`).  Validated robust:
+
+* Homogeneous vacuum sphere :math:`R = 4 / 10 / 25`:
+  :math:`\Delta = k_{\rm eff}^{P_1} - k_{\rm eff}^{P_0} =
+  -3.76\mathrm{e}{-3} / -1.32\mathrm{e}{-3} / -2.88\mathrm{e}{-4}` — sign
+  always negative, :math:`|\Delta|` **grows as the sphere shrinks**
+  (the leakage-monotone signature, the structural negative control a
+  sign-flipped or absorption-mimicking :math:`P_1` would violate).
+* Heterogeneous fuel-core(:math:`r < 5`)+moderator-shell vacuum sphere
+  :math:`R = 10`: :math:`\Delta = -1.40\mathrm{e}{-2}` (:math:`140\times`
+  the :math:`1\mathrm{e}{-3}` detection bar), with materials
+  ``get_mixture("A","2g")`` (the only fissile 2-group mixture;
+  asymmetric downscatter-only P0 avoids the 1-group degeneracy) and
+  ``get_mixture("C","2g")``.
+
+Two L1 rows pin this: a heterogeneous-sphere
+:math:`k_{\rm eff}^{P_1} < k_{\rm eff}^{P_0}` AND
+:math:`1\mathrm{e}{-3} < (P_0 - P_1) < 5\mathrm{e}{-2}`; and a
+leakage-monotone control
+:math:`(P_0 - P_1)|_{R=4} > (P_0 - P_1)|_{R=25} > 0` (the mechanism
+pin).  These are the **first curvilinear exercise** of the
+geometry-agnostic ``pn-scatter`` / ``flux-moments`` labels (prior tests
+were 2-D Cartesian only).  L0 lands in
+``tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py``,
+L1 in ``tests/sn/eigenvalue/test_keff_curvilinear.py::TestSphereP1DirectionalEigenvalue``
+(commit ``d5878e9``).  L2 is deferred (subsumed by L0+L1; a
+:math:`P_1`-convergence L2 needs the :math:`\sigma_{s1}`-MMS source and
+rides the same #229 floor).
+
+Infrastructure retained
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Per the aggressive-retirement exception, the program deletes no correct
+machinery:
+
+.. list-table:: Curvilinear aniso program — primitives status
+   :header-rows: 1
+   :widths: 34 18 48
+
+   * - Primitive
+     - Status
+     - Why kept / what changed
+   * - Spherical :math:`\tau_m^{\rm raw}` (unclamped)
+     - **production**
+     - W1: the unique exact-on-linear weight; single-sourced in
+       :func:`~orpheus.geometry.reduced_operator.spherical_streaming`,
+       inherited by SI sweep + Krylov matvec.
+   * - Cylindrical :math:`\tau_m` clamp
+     - **production**
+     - Retained — the :math:`\tau^{\rm raw} = 0` structural
+       :math:`\div 0` block; removing it needs a 2-D
+       :math:`(\eta,\varphi)` closure (#229).
+   * - Pole-cell characterization gate
+     - **regression net**
+     - Pins the inherent :math:`\mathcal{O}(h)` pole limitation
+       (lower-bounded, not calcified) + the global :math:`\mathcal{O}(h^2)`
+       guarantee under two independent references.
+   * - Shell-volume-average reference :eq:`sn-pole-cell-shell-average`
+     - **oracle**
+     - The Hébert-3.430 finite-volume unknown; the principled MMS
+       reference that removes the :math:`\sim 75\,\%` comparison
+       artifact.  Built from ``scipy.integrate.quad``.
+
+Open research paths (research-tag, not production-blocking)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#. **Higher-order central-cell spatial scheme** (lifts the #233 pole
+   :math:`\mathcal{O}(h)`).  The canon ([Hebert2009]_ §3.9.4, Stacey
+   §9.9) provides no drop-in :math:`\mathcal{O}(h^2)` central-cell
+   diamond closure; the documented route is a non-local higher-order
+   *spatial* scheme — linear-discontinuous (Issue #6), step-
+   characteristic, or the Green's-function nodal method of
+   [WuXieFischer1999]_ (NSE 133, "very high precision on coarse meshes
+   relative to standard fine-mesh DD").  Likely diagnostic probe: the
+   pole-cell per-cell rate under the shell-average reference, holding
+   quadrature fixed.
+#. **2-D** :math:`(\eta, \varphi)` **cylinder angular closure** (lifts
+   the #229 cylinder floor).  The 1-D :math:`\eta`-thread cannot
+   represent the duplicate-azimuthal-:math:`\eta` variation of product /
+   level-symmetric quadratures; a genuine 2-D angular closure (or a
+   Gauss-type azimuthal quadrature with distinct :math:`\eta` values,
+   GitHub Issue #1) is required.  Likely probe: the floor-scaling table
+   above with the azimuthal quadrature replaced by a distinct-:math:`\eta`
+   set.
+
+Session trail (V&V audit trail)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* **Commits** (branch ``fix/curvilinear-aniso-pole-and-clamp``,
+  2026-06-13): ``b2d8a6d`` (W1 sphere unclamp), ``255eba4`` (W2 #233
+  pole-cell characterization gate), ``d5878e9`` (W4 #9 :math:`P_1`
+  scattering coverage), ``679a1e6`` (W3 #229 gate retune).
+* **Diagnostics**: the W1–W4 ``diag_01..31`` decomposition probes (the
+  decisive ones: the
+  :math:`E_{\rm test} = E_{\rm artifact}(\text{midpoint} -
+  \text{volavg}) + E_{\rm true}(\text{solver} - \text{volavg})`
+  decomposition; the discrete-balance residual fed exact fields; the
+  faithful production-sweep monkeypatch with a :math:`\beta = \tfrac12`
+  identity guard).
+* **Literature**: [Hebert2009]_ §3.9.4, Stacey §9.9 (plain diamond at
+  the central cell, no special closure), [BaileyMorelChang2010]_ Eq. 43
+  (the exact-on-linear weight), [WuXieFischer1999]_ (the nodal route to
+  :math:`\mathcal{O}(h^2)` at the origin).
+* **vv catalogue**: ``error_catalog.md`` — ERR-059 (the pole-cell
+  inherent limitation) + the :math:`\tau`-clamp mis-citation finding +
+  the ERR-026 surviving-manifestation note.
+* **Issues**: #229 (cylinder floor + sphere gate retune), #9
+  (:math:`P_1` curvilinear scattering), #233 (pole-cell, stays OPEN to
+  track the future higher-order scheme).
+
+.. note:: **vv-status (eq-labels added by this section).**  The labels
+   :eq:`sn-tau-mm-raw`, :eq:`sn-pole-cell-shell-average`,
+   :eq:`sn-p1-sphere-hand-ref`, and :eq:`sn-p1-cylinder-hand-ref` are
+   *structural / representational* identities (the literature-
+   transcribed M-M weight; the Hébert-3.430 finite-volume unknown; the
+   structurally-independent :math:`P_1` hand-references).  They are NOT
+   solver claims.  The :math:`\tau`-clamp / pole-cell / :math:`P_1`
+   *verifiable* content is the W1 clamp-silence + positivity gates, the
+   W2 ``verifies("dd-curvilinear-scalar")`` guarantee tests, and the W4
+   ``verifies("pn-scatter","flux-moments")`` per-ordinate operator-
+   admission gates named above — so these eq-labels are ``documented``.
+
+
 .. _ld-cartesian-2d:
 
 The 2-D Cartesian LD stress MMS (D5b-S4)
