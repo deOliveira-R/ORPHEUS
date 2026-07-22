@@ -31,13 +31,14 @@ part.
 
 .. note::
 
-   This part is a **skeleton**. The symbol table, the literature crosswalk
-   (ORPHEUS ↔ Hébert ↔ Bell & Glasstone ↔ Stacey), and the normalization
-   page are queued as new writing — see issue
-   `#231 <https://github.com/deOliveira-R/ORPHEUS/issues/231>`_. Today the
-   part carries the indexing and cross-section conventions only.
+   Still growing: the normalization page (weight sums, the
+   :math:`(2\ell+1)` prefactor family, the :math:`\alpha`-recursion
+   crosswalk) and the split of the indexing / cross-section page are
+   queued — see issue
+   `#231 <https://github.com/deOliveira-R/ORPHEUS/issues/231>`_.
 
 .. toctree::
    :maxdepth: 2
 
+   notation
    index_convention
