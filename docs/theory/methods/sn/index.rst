@@ -1073,7 +1073,9 @@ and dispatch contracts; the chapter decomposition is tracked as issue
 Several orders through the book serve different jobs (tracks, not one
 sequence):
 
-* **Newcomer** — the broadening progression in toctree order:
+* **Newcomer** — :doc:`placement` first (*why* discrete ordinates —
+  the trade-space against CP/MoC/P\ :sub:`N`/diffusion/MC), then the
+  broadening progression in toctree order:
   :doc:`slab_one_group` (the whole machine at its simplest) →
   :doc:`slab_multigroup` (energy and the eigenvalue) →
   :doc:`cartesian_multid` (space) → :doc:`curvilinear_one_group` →
@@ -1100,6 +1102,7 @@ The chapters:
 .. toctree::
    :maxdepth: 2
 
+   placement
    slab_one_group
    slab_multigroup
    cartesian_multid
