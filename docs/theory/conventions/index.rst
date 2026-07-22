@@ -18,15 +18,10 @@ is pinned — with equation numbers — in the :ref:`literature crosswalk
 <notation-crosswalk>` and on :doc:`normalization`. Every import of an
 external equation must cross the boundary through this part.
 
-.. note::
-
-   Still growing: the split of the indexing / cross-section page into
-   its layout and cross-section halves is queued — see issue
-   `#231 <https://github.com/deOliveira-R/ORPHEUS/issues/231>`_.
-
 .. toctree::
    :maxdepth: 2
 
    notation
    normalization
-   index_convention
+   indexing_and_layout
+   cross_section_conventions
