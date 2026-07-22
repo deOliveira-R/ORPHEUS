@@ -650,6 +650,7 @@ are **affine** in the cell moments :math:`\bar\psi`, the inflow face
 traces :math:`\psi^{\rm in}_b`, and the source :math:`\bar Q`:
 
 .. math::
+   :label: loss-rep-affine-kernel-maps
 
    r \;=\; \bar A\,\vec\psi \;-\; \sum_b C_b\,\psi^{\rm in}_b \;-\; \bar Q,
    \qquad
@@ -691,6 +692,7 @@ inflow face is the zero block, the zero-inflow posing below). Per cell
 :math:`c`:
 
 .. math::
+   :label: loss-rep-walk-order-rows
 
    \operatorname{rows}(c) \;=\; \bar A_c\,E_c \;-\; \sum_b C_{b,c}\,R^{\rm in}_b,
    \qquad
@@ -728,6 +730,7 @@ with the single-sourced sign involution
 *same* involution as a similarity conjugation of the whole block,
 
 .. math::
+   :label: loss-rep-sweep-global-conjugation
 
    M_{\rm global} \;=\; \Phi\,M_{\rm sweep}\,\Phi,
    \qquad

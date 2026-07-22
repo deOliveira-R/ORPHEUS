@@ -384,6 +384,7 @@ the coupling between the leading-order scalar flux and the first-order
 current in the asymptotic diffusion limit.  For spherical geometry:
 
 .. math::
+   :label: sn-contamination-factor
 
    \beta = \frac{1}{2} \sum_{n=1}^{N} \mu_n
    \bigl[\alpha_{n+\frac12}\, \mu_{n+\frac12}
@@ -3750,6 +3751,7 @@ Morel–Montry weight
 read by :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`):
 
 .. math::
+   :label: sn-282-r12a-predicate
 
    \text{level } p \text{ carries a ψ½ block}
    \quad\Longleftrightarrow\quad

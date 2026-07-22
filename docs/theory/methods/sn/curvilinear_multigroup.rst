@@ -201,6 +201,7 @@ through exactly one algebraic door,
 where the WDD cell update's denominator picks up the collision term:
 
 .. math::
+   :label: sn-curvilinear-mg-cell-denominator
 
    \text{denom}_{g,n}
    \;=\; 2\,|\mu_n|\,A_{{\rm down},n}

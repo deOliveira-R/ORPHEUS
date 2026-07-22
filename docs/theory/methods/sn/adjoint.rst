@@ -80,6 +80,7 @@ The modernised in-scatter source is ONE frame-conjugated operator
 (:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`):
 
 .. math::
+   :label: sn-scattering-adjoint-kernel
 
    \mathrm{full\_scatter\_kernel}
    \;=\; R \circ (\Lambda_{\ell\ge 0} + N_{2n}) \circ M ,
@@ -96,6 +97,7 @@ P0 + :math:`\ell\ge1` + :math:`(n,2n)` source.  Its transpose is therefore
 the product transpose
 
 .. math::
+   :label: sn-scattering-adjoint-kernel-transpose
 
    \mathrm{full\_scatter\_kernel}^{T}
    \;=\; M^{T} \circ (\Lambda + N_{2n})^{T} \circ R^{T},
@@ -109,6 +111,7 @@ derivation to verify** (the trap the streaming adjoint above could not
 avoid).  The per-ordinate adjoint scattering source is then
 
 .. math::
+   :label: sn-scattering-adjoint-source
 
    S^{T}\chi \;=\; \tfrac{1}{W}\,\mathrm{full\_scatter\_kernel}^{T}\,\chi ,
 

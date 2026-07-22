@@ -122,6 +122,7 @@ Integrating :eq:`transport-cartesian-2d` over a rectangular cell
 :math:`\Delta x_i \times \Delta y_j`:
 
 .. math::
+   :label: balance-cartesian-2d-eq
 
    \mu_{x,n}\bigl[\psi_{i+\frac12,j} - \psi_{i-\frac12,j}\bigr] \Delta y_j
    + \mu_{y,n}\bigl[\psi_{i,j+\frac12} - \psi_{i,j-\frac12}\bigr] \Delta x_i
@@ -152,6 +153,7 @@ yields the 2D DD equation:
 where the streaming coefficients are:
 
 .. math::
+   :label: dd-cartesian-2d-streaming-coeffs
 
    s_x = \frac{2|\mu_{x,n}|}{\Delta x_i}, \qquad
    s_y = \frac{2|\mu_{y,n}|}{\Delta y_j}
@@ -3482,6 +3484,7 @@ second arrow, never a configuration flag on :math:`A^{-1}`. The honest
 object is therefore
 
 .. math::
+   :label: angular-windowing-operator
 
    \text{windowed} \;=\; P \circ A^{-1},
    \qquad
@@ -3707,6 +3710,7 @@ The boundary Gauss-Seidel is exactly a **regular matrix splitting** of the
 within-group loss:
 
 .. math::
+   :label: si-gauss-seidel-splitting
 
    (L+C-B) \;=\; \underbrace{(L+C-B_{\rm lower})}_{M}
              \;-\; \underbrace{B_{\rm upper}}_{N},

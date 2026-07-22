@@ -57,6 +57,7 @@ level has the same number of azimuthal points, giving a clean level
 structure ideal for the cylindrical sweep.  Weights:
 
 .. math::
+   :label: quadrature-product-weights
 
    w_{p,m} = w_{\text{GL}}(\mu_p) \cdot \frac{2\pi}{N_\varphi}
 
@@ -82,6 +83,7 @@ Euclidean distance between the target direction (with one component
 negated) and all ordinate directions, then returns the closest match:
 
 .. math::
+   :label: quadrature-reflection-index
 
    n' = \arg\min_j \bigl[
        (\mu_{x,j} - (-\mu_{x,n}))^2

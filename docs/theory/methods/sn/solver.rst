@@ -228,6 +228,7 @@ group-summed discrete cell balance for cell :math:`i` in the posed
 eigenproblem is
 
 .. math::
+   :label: sn-keff-cell-balance
 
    \underbrace{\sum_{f\in\partial i}\!\bigl(\textstyle\sum_g J_g\bigr)\,\Delta A_f}
               _{\text{net face flow}}
@@ -261,6 +262,7 @@ The leakage functional
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. math::
+   :label: sn-leakage-functional
 
    L \;=\; \sum_{f\,\in\,\text{vacuum}} \oint_{f} dA\,
            \sum_g J_g(\mathbf{r}_f)\,,
@@ -395,6 +397,7 @@ The historical spelling put the :math:`(n,2n)` emission in the
 **numerator** as production,
 
 .. math::
+   :label: sn-keff-old-n2n
 
    k_{\text{old}} \;=\; \frac{R_{\nu\Sigma_f} + E_{2n}}{R_{\Sigma_a}},
 
@@ -410,6 +413,7 @@ not recover it.  Writing :math:`f = R_{\nu\Sigma_f}`,
 :math:`f = k^\star (a - e)`:
 
 .. math::
+   :label: sn-keff-old-bias
 
    k_{\text{old}}
    \;=\; \frac{k^\star (a - e) + e}{a}

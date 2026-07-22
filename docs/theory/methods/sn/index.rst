@@ -661,6 +661,7 @@ radial face flow — the :math:`2|\mu| A_{\rm out}` and
 contributions drop out:
 
 .. math::
+   :label: dd-cylindrical-degenerate
 
    \mathrm{denom} \;=\; (\Delta A / w)\,c_{\rm out} + \Sigma_t\,V_i,
    \qquad

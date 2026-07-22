@@ -149,6 +149,7 @@ For the in-scatter source (total scattering into group :math:`g` from
 all groups :math:`g'`):
 
 .. math::
+   :label: mg-inscatter-source
 
    Q_{\rm scatter}[g]
    = \sum_{g'} \Sigs{g'\to g}\, \phi_{g'}
@@ -217,6 +218,7 @@ polynomial of degree :math:`\leq L`.
    ``discreteOrdinatesPWR.m`` reference for :math:`\ell \le 1`:
 
    .. math::
+      :label: real-spherical-harmonics-l1
 
       Y_0^0 &= 1 = P_0(\cos\theta)\\
       Y_1^{-1} &= \sin\theta\,\sin\phi = \mu_z\\
@@ -255,6 +257,7 @@ polynomial of degree :math:`\leq L`.
    exact for polynomials of degree :math:`\ge 2\ell` reads
 
    .. math::
+      :label: harmonic-discrete-orthogonality
 
       \sum_{n=1}^{N} w_n \, Y_\ell^m(\hat{\Omega}_n)\,
                             Y_{\ell'}^{m'}(\hat{\Omega}_n)
@@ -341,6 +344,7 @@ matrix ``Mixture.Sig2`` with the same ``[g_from, g_to]`` convention as
 the scattering matrix.  The source contribution is:
 
 .. math::
+   :label: n2n-source
 
    Q_{(n,2n)}(g) = 2 \sum_{g'} \Sigma_{2,g'\to g}\, \phi_{g'}
 
@@ -510,6 +514,7 @@ verification of the addition theorem lives at
    is now the literal §9 line 1230 operator-algebra composition
 
    .. math::
+      :label: pn-scatter-rlm
 
       Q^{\rm aniso}_n(\vec r) \;=\; R\,\Lambda\,M\,\psi
 
@@ -601,6 +606,7 @@ steady flux exist?* — is the criticality eigenproblem.  Scale the
 production by :math:`1/k` and demand balance:
 
 .. math::
+   :label: sn-mg-eigenvalue-posing-eq
 
    (L + C - S - B)\,\psi \;=\; \frac{1}{k}\,F\,\psi .
 
@@ -613,6 +619,7 @@ algorithm, and the :math:`\alpha`/adjoint seams) lives at
 standard eigenproblem for the **multiplication operator**
 
 .. math::
+   :label: mg-multiplication-operator
 
    K \;=\; A^{-1} F ,
    \qquad
@@ -651,10 +658,12 @@ is classical power iteration on the :math:`k`-update, with
 :class:`SourceIteration` driving the inner fixed-source solve:
 
 .. math::
+    :label: power-iteration-flux-update
 
     \psi_{n+1} \;=\; \bigl((L{+}C) - S\bigr)^{-1}\,F\,\psi_n / k_n
 
 .. math::
+    :label: power-iteration-keff-update
 
     k_{n+1} \;=\; \frac{\sum (F\,\psi_{n+1})}
                        {\sum \bigl((L{+}C)\,\psi_{n+1}\bigr)

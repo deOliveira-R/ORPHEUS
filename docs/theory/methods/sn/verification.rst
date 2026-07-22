@@ -3128,6 +3128,7 @@ prescribed inflow is a non-zero :math:`q_\partial`. The natural object
 is therefore the **direct sum** of the two:
 
 .. math::
+   :label: sn-fixed-source-direct-sum
 
    q \;=\; q_{\text{bulk}} \,\oplus\, q_\partial,
 
@@ -3685,6 +3686,7 @@ the shared shape, :math:`A_g(x) = c_g(a_0 + a_1\sin kx)` and
 in-scatter term
 
 .. math::
+   :label: sn-mms-nonvacuum-qext-mg
 
    Q^{\text{ext}}_{n,g}(x) = \mu_n A_g'(x) + \mu_n^2 B_g'(x)
        + \Sigma_{t,g}\,A_g(x) + \Sigma_{t,g}\,\mu_n B_g(x)

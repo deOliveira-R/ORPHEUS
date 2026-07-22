@@ -100,6 +100,7 @@ Integrating :eq:`transport-cartesian` over a spatial cell
 the divergence theorem to the streaming term:
 
 .. math::
+   :label: balance-cartesian-1d-eq
 
    \mu_n \bigl[\psi_{i+\frac12} - \psi_{i-\frac12}\bigr]
    + \Sigt{} \Delta x_i\, \psi_{n,i} = S_i \Delta x_i
@@ -343,6 +344,7 @@ For the 1D slab with Gauss–Legendre quadrature, the DD equation
 where the coefficients for cell :math:`i` are:
 
 .. math::
+   :label: dd-recurrence-coefficients
 
    a_i = \frac{2|\mu_n|/\Delta x_i - \Sigt{}}
               {2|\mu_n|/\Delta x_i + \Sigt{}},
@@ -361,6 +363,7 @@ gives a linear first-order relation that can be solved analytically
 using **cumulative products**.  Define:
 
 .. math::
+   :label: sweep-cumprod-factors
 
    C_i = \prod_{k=0}^{i} a_k, \qquad
    R_i = \sum_{k=0}^{i} \frac{b_k}{C_k}
@@ -368,6 +371,7 @@ using **cumulative products**.  Define:
 Then the incoming face flux at cell :math:`i+1` is:
 
 .. math::
+   :label: sweep-cumprod-solution
 
    \psi_{\rm in}^{(i+1)} = C_i \bigl(\psi_{\rm in}^{(0)} + R_i\bigr)
 
@@ -462,6 +466,7 @@ source is added to all ordinates equally; in the one-group problem the
 within-group scattering source is
 
 .. math::
+   :label: p0-scatter-source
 
    Q_{\rm scatter}(\hat{\Omega}_n) = \Sigma_{s,0}\, \phi / W ,
    \qquad \phi = \sum_n w_n\, \psi_n .
@@ -589,6 +594,7 @@ within-group inner consumes this primitive directly (via the
 single-source-of-truth builder):
 
 .. math::
+    :label: si-convergence-residual
 
     {\rm res}_n \;=\; \frac{\|\psi_n - \psi_{n-1}\|_2}
                             {\max(\|\psi_n\|_2,\,10^{-30})}

@@ -301,6 +301,7 @@ Discretising Eq. :eq:`hebert-3-432` on a sub-mesh of cell width
 :math:`\Delta r_i` gives the DD cell-balance Hébert Eq. (3.433):
 
 .. math::
+   :label: hebert-3-433
 
    -\bigl(\bar\phi_{i+1/2} - \bar\phi_{i-1/2}\bigr)
    \;+\; \Delta r_i \cdot \Sigma_i \cdot \bar\phi_i
