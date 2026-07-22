@@ -250,6 +250,7 @@ different sizes and cross sections.
 :math:`j \ge i`; the lower triangle follows from:
 
 .. math::
+   :label: reciprocity-lower-triangle
 
    P_{ji}^{\text{cell}} = P_{ij}^{\text{cell}}
    \cdot \frac{\Sigt{i} \, V_i}{\Sigt{j} \, V_j}
@@ -507,6 +508,7 @@ Factory docstrings serve as descriptions for programmatic query::
 Summing:
 
 .. math::
+   :label: cp-infinite-lattice-sum
 
    P_{ij}^{\infty} &= P_{ij}^{\text{cell}}
      + P_{i,\text{out}} P_{\text{in},j}
@@ -1113,6 +1115,7 @@ The normalised self-collision probability is
 which is equivalently written as:
 
 .. math::
+   :label: self-collision-probability-slab
 
    P_{ii} = 1 - \frac{2(E_3(0) - E_3(\tau_i))}{\tau_i}
 
@@ -1303,6 +1306,7 @@ Cumulative optical distance from the chord midpoint to the outer boundary
 of region :math:`k`:
 
 .. math::
+   :label: cumulative-optical-path-radial
 
    x_k(y) = \sum_{m=1}^{k} \tau_m(y), \quad x_0 = 0
 
@@ -1366,6 +1370,7 @@ Let :math:`\tau_k = \Sigt{k} \, t_k` be the optical thickness of region
 :math:`k`, and define the cumulative optical path from the cell centre:
 
 .. math::
+   :label: cumulative-optical-path-slab
 
    x_0 = 0, \quad x_{k} = \sum_{m=0}^{k-1} \tau_m
 
@@ -1400,6 +1405,7 @@ path types:
 The total reduced CP for :math:`i \ne j` is:
 
 .. math::
+   :label: rcp-slab-total
 
    r_{ij} = \frac{1}{2}(\delta_d + \delta_c)
 
@@ -1773,6 +1779,7 @@ self-scatter before proceeding to :math:`g+1`.
 The inner iteration solves the fixed-point equation:
 
 .. math::
+   :label: cp-within-group-fixed-point
 
    \phi_g = T_g\!\bigl[Q_g^{\text{ext}} + \Sigs{g \to g} \phi_g\bigr]
 
@@ -1994,6 +2001,7 @@ balance :eq:`collision-rate` sums over birth regions (first index of
 :math:`P`), which is a column sum.  In matrix form:
 
 .. math::
+   :label: p-transpose-flux-balance
 
    \Sigt{} V \phi = P^T V Q
 
@@ -2117,6 +2125,7 @@ Equal-Volume Mesh Subdivision
 :math:`\pi R_k^2 = \pi R_0^2 + k \cdot \pi(R_N^2 - R_0^2)/N`, giving:
 
 .. math::
+   :label: equal-volume-radius-cylindrical
 
    R_k = \sqrt{R_0^2 + \frac{k}{N}(R_N^2 - R_0^2)}
 
@@ -2126,6 +2135,7 @@ For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
 :math:`V = \frac{4}{3}\pi(R_k^3 - R_{k-1}^3) = \text{const}`, giving:
 
 .. math::
+   :label: equal-volume-radius-spherical
 
    R_k = \left(R_0^3 + \frac{k}{N}(R_N^3 - R_0^3)\right)^{1/3}
 

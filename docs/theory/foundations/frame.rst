@@ -221,6 +221,7 @@ Key Facts
   sufficiently-exact quadrature:
 
   .. math::
+     :label: galerkin-frame-idempotency
 
      M \, R \;=\; c_{V}\,I_{W},
 
@@ -761,6 +762,7 @@ the one weight, the homogenized balance is the *same convex average* of
 the fine balances:
 
 .. math::
+   :label: sn-homogenization-balance-preservation
 
    \Sigma_{t,R,g}
    - \Big(\Sigma_{c,R,g} + \Sigma_{L,R,g} + \Sigma_{f,R,g}
@@ -908,6 +910,7 @@ the indicators (trial *and* test) have **disjoint support**, the
 **cross-Gram**
 
 .. math::
+   :label: sn-homogenization-cross-gram
 
    G_{RS} \;=\; \langle \chi_R,\, \mathbf{1}_S \rangle_{V}
    \;=\; \delta_{RS}\,\sum_{i\in R} V_i\,\phi_{i,g}
@@ -1827,6 +1830,7 @@ contributing different spectra to one coarse cell, so they must be
 probability mass. The sum **preserves the simplex**:
 
 .. math::
+   :label: energy-condensation-chi-simplex-preservation
 
    \sum_G \chi_G
    \;=\;
@@ -1900,6 +1904,7 @@ the one weight :math:`\varphi_g`, the condensed balance is the *same
 flux-weighted average* of the fine balances:
 
 .. math::
+   :label: energy-condensation-balance-preservation
 
    \Sigma_{t,G}
    - \Big(\Sigma_{c,G} + \Sigma_{L,G} + \Sigma_{f,G}
@@ -2033,6 +2038,7 @@ duplicated or dropped — the collapse stays conservative, and the χ-sum
 stays a simplex. The general fractional collapse
 
 .. math::
+   :label: energy-condensation-fractional-collapse
 
    \Sigma_G
    \;=\;
@@ -2620,6 +2626,7 @@ why a single basis :math:`\{e_k\}` produces both :math:`M` and
    needs:
 
    .. math::
+      :label: galerkin-strict-adjoint-vs-reconstruction
 
       (M^* c)_n
       &\;=\; \sum_{\ell, m} Y_\ell^m(\hat\Omega_n)\,c_\ell^m
@@ -3377,6 +3384,7 @@ projection reactor physics ultimately wants. The general,
 **adjoint** flux :math:`\varphi^*`, preserving the bilinear functional
 
 .. math::
+   :label: sn-homogenization-adjoint-weighted
 
    \Sigma_R \;=\;
    \frac{\int_R \varphi^*\,\Sigma\,\varphi\;\mathrm{d}V}

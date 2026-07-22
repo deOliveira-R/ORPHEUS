@@ -360,6 +360,7 @@ independent per-axis broadcasts.
 cell-averaged in-group source :math:`\bar Q_i`) is
 
 .. math::
+   :label: wdd-cell-balance
 
    |\mu|\,\bigl[(\psi_{\text{face,out}})_i - (\psi_{\text{face,in}})_i\bigr]
    \;+\; \Sigma_t(i)\,\Delta x_i\,\bar\psi_i
@@ -372,6 +373,7 @@ second relation, asserting the cell average is the arithmetic mean of
 the two faces,
 
 .. math::
+   :label: wdd-diamond-closure
 
    \bar\psi_i \;=\;
      \tfrac12\bigl[(\psi_{\text{face,in}})_i + (\psi_{\text{face,out}})_i\bigr]
@@ -693,6 +695,7 @@ becomes a *half-grid* difference between angular faces
 :math:`m\pm\tfrac12`,
 
 .. math::
+   :label: mm-angular-redistribution
 
    \int_{V_i}\frac{1-\mu^2}{r}\frac{\partial\psi}{\partial\mu}\,dV
    \;\approx\;
@@ -756,6 +759,7 @@ decomposes additively into three terms:
      {\rm collision\_denom\_term}
 
 .. math::
+   :label: wave-t-cell-balance-numerator
 
    {\rm numer\_upstream} \;=\;
      {\rm spatial\_upstream\_term} \;+\;
@@ -764,6 +768,7 @@ decomposes additively into three terms:
 The angular-redistribution contribution to the cell balance is
 
 .. math::
+   :label: wave-t-angular-redist-contribution
 
    m_{\rm angular\_redist} \;=\;
      \frac{1}{V_i}\bigl[
@@ -927,6 +932,7 @@ Grand Report v3 §15.2 (lines 2046-2086) names the canonical scattering
 form
 
 .. math::
+   :label: sotp-scattering-form
 
    S \;=\; \sum_{\ell=0}^{L}
      \Sigma_{s,\ell}\, \otimes\, A_\ell\, \otimes\, G_\ell

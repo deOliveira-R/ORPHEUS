@@ -20,6 +20,7 @@ each with a **distinct intrinsic mathematical type**:
 They compose into the **within-group transport operator**
 
 .. math::
+   :label: operator-within-group-composition
 
    A \;=\; L + C - S - B ,
 
@@ -2663,6 +2664,7 @@ The kernel of the previous subsection is the composite of these three
 edges plus the producer-side normalisation,
 
 .. math::
+   :label: scattering-aniso-composite
 
    S_{\rm aniso} \;=\; \tfrac{1}{W}\,(R \circ \Lambda \circ M)
    \;:\; \texttt{AngularFlux} \longrightarrow \texttt{AngularSourceSink},
@@ -2976,6 +2978,7 @@ therefore the transport layer, in
 :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`:
 
 .. math::
+   :label: harmonic-frame-is-galerkin
 
    \texttt{HarmonicFrame} \;\text{IS-A}\; \texttt{GalerkinFrame}
    \qquad(\text{Liskov — the angular SH projection is the canonical

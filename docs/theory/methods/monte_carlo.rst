@@ -428,6 +428,7 @@ The probability of a neutron at :math:`\mathbf{r}_0` reaching distance
 :math:`s` without any (real or virtual) collision is:
 
 .. math::
+   :label: majorant-no-collision
 
    P(\text{no collision up to } s)
    = e^{-\Sigma_{\text{maj},g} \, s}
@@ -436,6 +437,7 @@ At each collision site :math:`\mathbf{r}_0 + s\hat{\Omega}`, the collision
 is real with probability:
 
 .. math::
+   :label: majorant-real-collision
 
    P(\text{real} | \text{collision at } s)
    = \frac{\Sigma_{t,g}(\mathbf{r}_0 + s\hat{\Omega})}{\Sigma_{\text{maj},g}}
@@ -443,6 +445,7 @@ is real with probability:
 The joint probability of first real collision at distance :math:`s` is:
 
 .. math::
+   :label: delta-tracking-collision-pdf
 
    p(s) \, ds
    = \Sigma_{\text{maj},g} \, e^{-\Sigma_{\text{maj},g} \, s}
@@ -472,6 +475,7 @@ In the code::
 The virtual collision probability at the collision site is:
 
 .. math::
+   :label: virtual-collision-probability
 
    P_{\text{virtual}} = \frac{\Sigma_{\text{maj},g} - \Sigma_{t,g}}
                               {\Sigma_{\text{maj},g}}
@@ -735,6 +739,7 @@ The probability of reaching the :math:`n`-th collision is :math:`c^n`.
 The expected multiplication per generation is:
 
 .. math::
+   :label: mc-analog-multiplication
 
    k = (1-c) \cdot \frac{\nu\Sigma_f}{\Sigma_a} \cdot \sum_{n=0}^{\infty} c^n
      = (1-c) \cdot \frac{\nu\Sigma_f}{\Sigma_a} \cdot \frac{1}{1-c}
@@ -874,6 +879,7 @@ weight = :math:`N \cdot (w/N) = w`.  No stochastic noise.
 Let :math:`f = w - \lfloor w \rfloor` and :math:`n = \lfloor w \rfloor`:
 
 .. math::
+   :label: splitting-weight-conservation
 
    E[N] = n(1-f) + (n+1)f = n + f = w
 
@@ -999,6 +1005,7 @@ spectrum output, not keff.
    group is therefore negative,
 
    .. math::
+      :label: mc-lethargy-width-sign
 
       \Delta u_g = \ln\!\frac{E_{g+1}}{E_g}
                  = \ln\frac{\mathrm{eg}[g+1]}{\mathrm{eg}[g]} < 0,

@@ -3910,6 +3910,7 @@ producers, makes the keys of the layout and the BC dict identical by
 construction:
 
 .. math::
+   :label: bc-face-name-key-identity
 
    \operatorname{set}(\texttt{sn\_mesh.bc})
    = \operatorname{set}(\texttt{boundary\_face\_layout.faces})

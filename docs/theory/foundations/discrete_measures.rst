@@ -370,6 +370,7 @@ every :math:`g \in G` permutes the support points among themselves
 in a weight-preserving way:
 
 .. math::
+   :label: discrete-measure-g-invariance
 
    \forall g \in G,\;\;\;
    \exists \text{ a permutation } \pi_g \in S_N

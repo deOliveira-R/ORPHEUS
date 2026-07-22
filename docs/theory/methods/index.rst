@@ -22,6 +22,7 @@ The deterministic methods discretize the **local
 for each energy group :math:`g` and direction :math:`\hat\Omega`,
 
 .. math::
+   :label: methods-local-transport-equation
 
    \underbrace{\hat\Omega\cdot\nabla\,
       \psi_g(\mathbf r,\hat\Omega)}_{\text{streaming}}
@@ -49,6 +50,7 @@ flight at direction :math:`\hat\Omega`, parametrised by arc length
 :math:`s`, the angular flux changes only by collision and emission —
 
 .. math::
+   :label: methods-lagrangian-streaming
 
    \frac{d\psi}{ds} \;=\; \hat\Omega\cdot\nabla\psi ,
 

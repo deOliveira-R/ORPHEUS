@@ -214,6 +214,7 @@ cross-term, the two integrals are over different domains):
 inner product is the discretization of the full phase-space integral
 
 .. math::
+   :label: g-adjoint-bulk-inner-product
 
    \langle a, b\rangle_{G_{\rm bulk}}
    \;=\;
@@ -250,6 +251,7 @@ The boundary inner product is the discretization of the **partial-current
 surface** integral
 
 .. math::
+   :label: g-adjoint-trace-inner-product
 
    \langle a, b\rangle_{G_{\rm trace}}
    \;=\;

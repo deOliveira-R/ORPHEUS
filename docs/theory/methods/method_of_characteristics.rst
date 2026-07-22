@@ -162,6 +162,7 @@ The outermost region is bounded by the last circle and the cell walls.
 **Region areas** are exact:
 
 .. math::
+   :label: region-areas-pincell
 
    A_k = \begin{cases}
      \pi(r_{k+1}^2 - r_k^2) & k < N-1 \text{ (annular)} \\
@@ -203,6 +204,7 @@ A **characteristic** (ray) is parametrised by arc length :math:`s` along
 the direction :math:`\hat{\Omega}`:
 
 .. math::
+   :label: characteristic-ray-parametrization
 
    \mathbf{r}(s) = \mathbf{r}_0 + s \, \hat{\Omega}, \quad s \geq 0
 
@@ -282,6 +284,7 @@ For isotropic scattering and isotropic fission emission:
 where :math:`F_{i,g}` is the fission source (from the outer iteration):
 
 .. math::
+   :label: moc-fission-source
 
    F_{i,g} = \frac{\chi_{i,g}}{k_{\text{eff}}} \sum_{g'=1}^{G} \nu\Sigf{i,g'} \, \phi_{i,g'}
 
@@ -411,6 +414,7 @@ perpendicular spacing :math:`t_s`.
 The perpendicular coordinate of a ray is:
 
 .. math::
+   :label: ray-perpendicular-coordinate
 
    t = -x \sin\varphi_m + y \cos\varphi_m
 
@@ -1162,6 +1166,7 @@ Why It Was Invisible to Homogeneous Tests
 For homogeneous material with converged boundary fluxes:
 
 .. math::
+   :label: moc-homogeneous-weight-degeneracy
 
    \psi_{\text{in}} = \frac{Q}{\Sigt{}} \implies \Delta\psi = 0
    \implies \delta\phi = 0
@@ -1409,6 +1414,7 @@ standard Boyd Eq. 45 equilibrium term
 computed analytically:
 
 .. math::
+   :label: moc-mms-reference-equilibrium
 
    \langle\phi_{\text{ref}}\rangle_i
    = 1 + \frac{A\,R^{2}}{\pi\,(r_2^{2} - r_1^{2})}
@@ -1418,6 +1424,7 @@ and the transport correction :math:`\delta\phi_i` from the sweep
 is added:
 
 .. math::
+   :label: moc-scalar-flux-reconstruction
 
    \phi_i = \langle\phi_{\text{ref}}\rangle_i
           + \frac{\delta\phi_i}{A_i\,\Sigma_t}

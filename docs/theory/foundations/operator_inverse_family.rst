@@ -64,6 +64,7 @@ the inverse *once*, and the iteration primitive
 (:class:`~orpheus.numerics.iteration.SourceIteration`) *applies* it:
 
 .. math::
+   :label: inverse-driver-si-update
 
    \psi_{n+1} \;=\; A_{\rm inv}.\mathrm{apply}
    \Bigl(q_{\rm ext} + \textstyle\sum_i g_i\,\psi_n,\;
@@ -98,6 +99,7 @@ The inverse family exposes ONE canonical apply signature — the static
 contract :class:`~orpheus.numerics.iteration.SupportsSeededApply`:
 
 .. math::
+   :label: seeded-apply-signature
 
    \mathrm{apply}(\text{rhs},\; *,\; \text{initial\_guess}=\text{None})
    \ \longrightarrow\ \text{codomain} .
@@ -437,6 +439,7 @@ which converge iff the iteration matrix is a contraction,
 bound
 
 .. math::
+   :label: green-scattering-ratio-bound
 
    \rho\bigl((L+C)^{-1}S\bigr)
    \;\le\; \max_{\rm cell}\ \frac{\Sigma_s}{\Sigma_t} \;=\; c \;<\; 1 ,
@@ -1301,6 +1304,7 @@ stencils. Each composer carries one homomorphism law in its
 conjunction over its legs:
 
 .. math::
+   :label: matrix-functor-homomorphism
 
    [A+B] = [A] + [B], \qquad
    [A\,B] = [A]\,[B], \qquad

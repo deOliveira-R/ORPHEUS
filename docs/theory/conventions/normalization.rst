@@ -54,6 +54,7 @@ Any weight-bearing formula must be read against its *page-local*
 path's precomputed recurrence needed
 
 .. math::
+   :label: normalization-dd-source-coefficient
 
    b \;=\; \frac{2\,\Delta x\,(Q/W)}{2\mu + \Delta x\,
    \Sigma_{\mathrm{t}}},

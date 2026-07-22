@@ -107,6 +107,7 @@ Miller 1993, §4.7) **always** writes the Pℓ scattering reconstruction
 in the form
 
 .. math::
+   :label: sh-pl-scattering-reconstruction
 
    q(\hat\Omega) \;=\; \sum_{\ell} (2\ell+1)
      \sum_m Y_\ell^m(\hat\Omega)\,\phi^{\ell m},
@@ -152,6 +153,7 @@ scattering operator*.
 The anisotropic scattering source is the integral operator
 
 .. math::
+   :label: sh-aniso-scattering-operator
 
    (S_{\rm aniso}\,\psi)(\hat\Omega)
    \;=\; \int_{4\pi}
@@ -165,6 +167,7 @@ are the eigenfunctions of any zonal kernel, with an eigenvalue that
 depends on :math:`\ell` only:
 
 .. math::
+   :label: sh-funk-hecke-eigenvalue
 
    S_{\rm aniso}\,Y_\ell^m \;=\; \Sigma_{s,\ell}\,Y_\ell^m,
    \qquad

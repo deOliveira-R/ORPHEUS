@@ -274,6 +274,7 @@ converged limit of the solver itself, estimated by running at 4 mesh
 refinement levels and extrapolating assuming O(h²) convergence:
 
 .. math::
+   :label: richardson-extrapolation-formula
 
    k_{\rm ref} \approx k_h + \frac{k_h - k_{2h}}{2^p - 1}
 

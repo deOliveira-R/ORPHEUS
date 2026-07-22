@@ -352,6 +352,7 @@ The neutron balance :eq:`mg-balance` requires the **in-scattering** into
 group :math:`g` from all groups :math:`g'`:
 
 .. math::
+   :label: sigs-in-scatter-transpose
 
    \sum_{g'} \Sigs{g' \to g} \phi_{g'}
    = \bigl(\boldsymbol{\Sigma}_{\mathrm{s}}^T \cdot \boldsymbol{\phi}\bigr)_g
@@ -843,6 +844,7 @@ On a **flux-per-lethargy** plot, the 1/E region appears as a
 horizontal plateau:
 
 .. math::
+   :label: flux-per-lethargy-plateau
 
    \frac{\phi}{du} = \frac{\phi(E) \cdot E}{\Delta u}
    \propto \frac{1}{E} \cdot E = \text{const}
@@ -1207,6 +1209,7 @@ gate, not a spectral one: ``test_K_operator_as_matrix_is_the_resolvent``
 asserts the *materialized matrix itself* equals the reference resolvent,
 
 .. math::
+   :label: resolvent-object-gate
 
    [\mathbf{K}] \;=\; \texttt{np.linalg.solve}(\mathbf{A},\,\mathbf{F})
    \qquad (\text{rtol} = 10^{-12}),
@@ -1463,6 +1466,7 @@ The geometric homogenisation uses volume fractions from the pin-cell
 geometry:
 
 .. math::
+   :label: pin-cell-volume-fractions
 
    f_\mathrm{fuel} = \frac{r_\mathrm{fuel}^2}{r_\mathrm{cell}^2}, \quad
    f_\mathrm{clad} = \frac{r_\mathrm{clad,out}^2 - r_\mathrm{clad,in}^2}

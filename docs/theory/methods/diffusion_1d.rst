@@ -75,6 +75,7 @@ Key Facts
   production :math:`\chi\otimes\nu\Sigma_f`. The removal cross section
 
   .. math::
+     :label: diffusion-removal-xs
 
      \Sigma_{r,g} \;=\; \Sigma_{t,g} - \Sigma_{s,g\to g}
 
@@ -111,6 +112,7 @@ Key Facts
   scalar response per face,
 
   .. math::
+     :label: diffusion-albedo-law
 
      J^- \;=\; \mathcal{A}\,J^+ .
 
@@ -201,6 +203,7 @@ The scalar composite
 Diffusion acts on the **scalar composite** field
 
 .. math::
+   :label: diffusion-scalar-composite
 
    \psi \;=\; \text{FullField}\bigl(\text{bulk}=\phi,\;
               \text{boundary}=(J^+, J^-)\bigr),
@@ -594,6 +597,7 @@ law of ruling 3, *not* the Marshak vacuum) and a single energy group.
 The diffusion equation collapses to
 
 .. math::
+   :label: bare-slab-diffusion-equation
 
    -D\,\phi''(x) + \Sigma_r\,\phi(x)
       = \frac{1}{k}\,\nu\Sigma_f\,\phi(x)
@@ -624,6 +628,7 @@ equation yields the eigenvalue condition
 which solves to
 
 .. math::
+   :label: bare-slab-keff
 
    k \;=\; \frac{\nu\Sigma_f}{D\,B^{2} + \Sigma_r}.
 
@@ -955,6 +960,7 @@ propagate it through each region by the matrix exponential
 :math:`\mathbf T(t) = \exp(\mathbf S\,t)` where
 
 .. math::
+   :label: diffusion-expm-state-matrix
 
    \mathbf S(k) \;=\;
    \begin{pmatrix} \mathbf 0 & -\mathbf D^{-1} \\
