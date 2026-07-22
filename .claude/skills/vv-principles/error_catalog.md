@@ -2987,7 +2987,7 @@ that advertises CAP_APPLY_TRANSPOSE or CAP_SOLVE MUST ship with a
 direct test of that method against an independent reference (the
 adjoint identity, or the solve round-trip on a non-trivial input).
 
-**Test reference (Wave 0 / Round 1):** `tests/numerics/test_projection_operators.py::TestApplyTransposeIsWWeightedAdjoint::test_adjoint_identity_matches_production` and `::test_apply_transpose_no_2l_plus_1_factor`. Tagged `@pytest.mark.l1` and `@pytest.mark.catches("ERR-039")`.
+**Test reference (Wave 0 / Round 1):** `tests/numerics/test_projection_operators.py::TestApplyTransposeIsWWeightedAdjoint::test_adjoint_identity_matches_production` and `::test_apply_transpose_no_2l_plus_1_factor`. Tagged `@pytest.mark.l1` and `@pytest.mark.catches("ERR-039")`. *(2026-07-21 sync: this file and class no longer exist — the live catchers are the Round-2 reference below.)*
 
 ---
 
@@ -3033,7 +3033,7 @@ a deeper fix would have asked: "what IS the right adjoint?" rather
 than "what was wrong about the old one?". See ERR-051 for the related
 discipline failure on the validation-method side.
 
-**Phase 1 test reference (Round 2):** `tests/numerics/test_spherical_harmonic_space.py` (full file, 13 tests) + `tests/numerics/test_projection_operators.py::TestApplyTransposeIsRepresentationTranspose` + `::TestHilbertAdjointViaGenericMachinery`. Phase 1 commits: 0eb9cf3..c5be4b0 on `refactor/moment-space-and-layering`.
+**Phase 1 test reference (Round 2; synced 2026-07-21):** `tests/numerics/test_spherical_harmonic_space.py` — the live catcher set (8 tests marked `@pytest.mark.catches("ERR-039")`). The adjoint endpoint is `test_H_equals_g_C_times_S0` (pins `M.H ≡ g_C · S₀`, the metric times the naked synthesis); `test_R_equals_2l_plus_1_times_S0` pins the complementary (2ℓ+1)-lives-in-R side. `tests/numerics/test_projection_operators.py` (with its `TestApplyTransposeIsRepresentationTranspose` / `TestHilbertAdjointViaGenericMachinery` classes) was retired tree-wide by the Frame campaign; its coverage lives in `test_spherical_harmonic_space.py`. Phase 1 commits: 0eb9cf3..c5be4b0 on `refactor/moment-space-and-layering`.
 
 
 ---
@@ -4051,7 +4051,7 @@ The test pattern is: "construct a broken pair → call the method → assert it 
 
 **Fix:** Delete the method and its sole caller (P1.6). The genuine identity is now pinned by:
 - `tests/numerics/test_spherical_harmonic_space.py::test_pi_R_is_4pi_identity_on_band_limited` (uses `@pytest.mark.verifies("pi-r-equals-4pi-i")` — the existing Sphinx equation label).
-- `tests/numerics/test_projection_operators.py::TestGalerkinIdempotencyOnLebedev::test_pi_R_is_identity_on_band_limited` (the sibling test that already pinned :math:`\Pi R = 4\pi \cdot I` correctly — pre-existed; was orphaned by the wrong-identity method's coexistence).
+- `tests/numerics/test_projection_operators.py::TestGalerkinIdempotencyOnLebedev::test_pi_R_is_identity_on_band_limited` (the sibling test that already pinned :math:`\Pi R = 4\pi \cdot I` correctly — pre-existed; was orphaned by the wrong-identity method's coexistence). *(2026-07-21 sync: this sibling file was retired by the Frame campaign; the surviving pin is the `test_spherical_harmonic_space.py` test above.)*
 
 **Lesson:** **Every contract-validation method (``assert_X``, ``check_X``, ``verify_X``) MUST be tested against AT LEAST one correct instance where it must NOT raise AND AT LEAST one broken instance where it MUST raise.** Negative-only testing ("we fed it a broken case and it raised") validates the method's *raising behavior* but NOT its *invariant claim*. The bug surface in this defect was the TEST, not the method per se — the test never asked "does the method correctly distinguish correct from broken?", only "does it raise on broken?". Both halves are needed; either alone is a discipline failure that hides wrong-invariant claims indefinitely.
 
