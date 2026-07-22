@@ -69,6 +69,19 @@ consumers (diffusion, infinite-medium), the same package's anisotropic
 :class:`~orpheus.transport.operators.ScatteringOperator` kernel for
 S\ :sub:`N`. A method is a choice of how to realize what remains.
 
+The five, by name: **discrete ordinates** (S\ :sub:`N`), the **method of
+characteristics** (MoC), **collision probability** (CP), **Monte Carlo**
+(MC), and **diffusion** — the production methods of this corpus, each
+with its own book under the :doc:`transport-methods entry
+</theory/methods/index>`. The taxonomy of this page also places two
+families that sit *outside* the production five: **P**\ :sub:`N`
+(diffusion's spherical-harmonics siblings, sharing its column of the
+axis table) and **Case / F**\ :sub:`N` (the exact-spectral family,
+realized in this corpus as :doc:`reference solvers
+</theory/references/index>`, not as a production method) — which is why
+the axis table of Section :ref:`5 <path-integral-axes>` carries six
+columns for five methods.
+
 One distinction keeps this thesis honest, and the reader should carry it
 through the whole page: the *one object* is the **physical quantity** —
 the expected outcome of the neutron histories. Two methods that
@@ -272,9 +285,10 @@ them:
   collisions they have suffered*. The :math:`k`-th class is the flux of
   neutrons scattered exactly :math:`k` times, and the sum over classes is
   the **Neumann–Peierls collision-number expansion**
-  :cite:`Peierls1939` — the series
-  :eq:`apply-solve-source-iteration-series` whose per-term inverter is the
-  sweep and whose outer summation is source iteration. This is the reading
+  :cite:`Peierls1939` — the series the operator algebra states as
+  :eq:`apply-solve-source-iteration-series` and names "the Peierls
+  collision-number expansion"; its per-term inverter is the
+  sweep and its outer summation is source iteration. This is the reading
   the deterministic methods discretize, and the iteration literature
   leans on its physical meaning: with a zero initial guess, the
   :math:`\ell`-th source iterate *is* the flux of particles that have
@@ -282,7 +296,9 @@ them:
 - **A resolvent** — read the stationary problem as the time-integral of
   an evolution: the transport generator :math:`\mathcal{A}` advances an
   initial population, and the stationary flux is the accumulated exposure
-  :math:`\int_0^\infty e^{t\mathcal{A}} q\, \mathrm{d}t = (-\mathcal{A})^{-1} q`.
+  :math:`\int_0^\infty e^{t\mathcal{A}} q\, \mathrm{d}t = (-\mathcal{A})^{-1} q`
+  — when the integral converges, which is the subcriticality condition
+  Section :ref:`4 <path-integral-generator-splitting>` states precisely.
   This reading carries the functional-analytic content — which splittings
   of :math:`\mathcal{A}` converge, and why — and Section
   :ref:`4 <path-integral-generator-splitting>` gives its honest name
@@ -679,9 +695,11 @@ thresholds together. It is *not* a generic operator identity.)
 The hypothesis deserves its physics name: **sub-stochasticity of the
 collision** — on average, a collision must not return more than one
 neutron through the channels ridden by :math:`S`. The classical bound is
-the :term:`scattering ratio` :math:`c`,
-:math:`\rho[(L+C)^{-1}S] \le \max_g c_g`, and two honesty clauses attach
-to it:
+the :term:`scattering ratio` :math:`c`:
+:math:`\rho[(L+C)^{-1}S] \le \max_g c_g` **when** :math:`S` **carries
+scattering alone** — once :math:`(n,2n)` rides inside :math:`S`, as it
+does in ORPHEUS, the operative per-collision count is the :math:`c^\ast`
+of clause 2 below. Two honesty clauses attach:
 
 1. **The bound is a supremum, not an identity.** :math:`\rho = c` is
    attained only in the infinite-homogeneous limit; any finite medium
@@ -698,17 +716,20 @@ to it:
       \Sigma_t
       \;=\;
       \Sigma_c + \Sigma_L + \Sigma_f
-      + \Sigma_{s0,\mathrm{out}} + \Sigma_{2n,\mathrm{out}},
+      + \Sigma_{s0} + \Sigma_{2n},
 
    with :math:`\Sigma_c` capture, :math:`\Sigma_L` the
-   :math:`(n,\alpha)`-family absorption, and the :math:`(n,2n)` channel
-   emitting **two** neutrons per event (the factor of 2 is applied at the
+   :math:`(n,\alpha)`-family absorption, :math:`\Sigma_{s0}` the **full**
+   P\ :sub:`0` scattering row sum — in-group scatter included, because
+   the total cross section counts *every* collision — and
+   :math:`\Sigma_{2n}` the :math:`(n,2n)` row sum, a channel emitting
+   **two** neutrons per event (the factor of 2 is applied at the
    scattering-source assembly in
    :class:`~orpheus.transport.operators.IsotropicN2N` and the
    infinite-medium solver). The mean number of secondaries per collision,
    fission excluded, is
-   :math:`c^\ast = (\Sigma_{s0,\mathrm{out}} +
-   2\,\Sigma_{2n,\mathrm{out}})/\Sigma_t`, and the balance identity turns
+   :math:`c^\ast = (\Sigma_{s0} +
+   2\,\Sigma_{2n})/\Sigma_t`, and the balance identity turns
    the sub-stochasticity check into a one-line criterion:
 
    .. math::
@@ -716,7 +737,7 @@ to it:
 
       c^\ast > 1
       \quad\Longleftrightarrow\quad
-      \Sigma_{2n,\mathrm{out}} \;>\; \Sigma_c + \Sigma_L + \Sigma_f .
+      \Sigma_{2n} \;>\; \Sigma_c + \Sigma_L + \Sigma_f .
 
    A group where :math:`(n,2n)` production outweighs all absorption is
    *locally* super-stochastic without any fission — the collision-order
@@ -996,9 +1017,11 @@ and ORPHEUS treats it as one:
   machine precision.
 - **The falsification on record.** The certificate has teeth because it
   has fired: Issue #282 records a defensible-looking closure whose
-  coupling **broke** acyclicity — cold residual :math:`5.18 \times
-  10^{5}`, NaN under sweep — caught by exactly these gates. A theorem
-  about a triple can be false for a new triple; certify, don't assume.
+  coupling **broke** acyclicity — a cold residual of :math:`5.2 \times
+  10^{5}` in the operator-level probes, with the seed iteration
+  diverging geometrically — exactly the back-edge the triangularity
+  certification exists to catch. A theorem about a triple can be false
+  for a new triple; certify, don't assume.
 - **Reflection does not automatically force extraction.** The folklore
   "a reflective boundary creates a cycle, so the reflected coupling must
   be extracted from the sweep" is *false as stated*: ORPHEUS keeps the
@@ -1132,37 +1155,45 @@ ORPHEUS realizes the posing exactly at this level of generality. The
 canonical engine (:mod:`orpheus.numerics.eigenvalue`) poses the
 **generalized eigenproblem**
 :math:`A_{\mathrm{loss}}\, \psi = \lambda\, M \psi` and solves it by
-power iteration on the resolvent :math:`A_{\mathrm{loss}}^{-1} M`; a
-*posing* is a row of assignments:
+power iteration on the resolvent :math:`A_{\mathrm{loss}}^{-1} M`, whose
+dominant eigenvalue :math:`\mu = 1/\lambda` is what the iteration
+delivers; a *posing* is a row of assignments:
 
 - **k-eigenvalue**: :math:`A_{\mathrm{loss}} = L + C - S - B`,
-  :math:`M = F`, :math:`k = \lambda`. The **static** eigenvalue:
-  fission is rescaled, time never appears. :math:`k` answers a
-  bookkeeping question — *by what factor must fission be diluted for a
+  :math:`M = F`, :math:`k = \mu` — the multiplication factor *is* the
+  resolvent's dominant eigenvalue, :math:`\rho(A^{-1}F)`, consistent
+  with :eq:`path-integral-generation-series` (the pencil eigenvalue is
+  its reciprocal, :math:`\lambda = 1/k`, matching the
+  :math:`A\psi = \frac{1}{k}F\psi` posing above). The **static**
+  eigenvalue: fission is rescaled, time never appears. :math:`k` answers
+  a bookkeeping question — *by what factor must fission be diluted for a
   steady state to exist?*
 - **α-eigenvalue**: :math:`A_{\mathrm{loss}} = L + C - S - F - B`,
-  :math:`M = 1/v`. The **dynamic** eigenvalue: the full prompt operator
-  is kept and the spectrum of the *free evolution* is asked for —
-  :math:`\alpha` is the growth rate of the slowest-decaying (or
-  fastest-growing) mode, :math:`\psi \sim e^{\alpha t}`. In
-  branching-process language :math:`\alpha` is the **Malthusian
-  parameter** of the neutron population — the same object that names
-  exponential growth in every branching model — and its spectrum for
-  multiplying slabs and spheres is classical territory
-  :cite:`DahlSjostrand1979`.
+  :math:`M = 1/v`, :math:`\alpha = -1/\mu`. The **dynamic** eigenvalue:
+  the full prompt operator is kept and the spectrum of the *free
+  evolution* is asked for — :math:`\alpha` is the growth rate of the
+  slowest-decaying (or fastest-growing) mode,
+  :math:`\psi \sim e^{\alpha t}`. In branching-process language
+  :math:`\alpha` is the **Malthusian parameter** of the neutron
+  population — the same object that names exponential growth in every
+  branching model — and its spectrum for multiplying slabs and spheres
+  is classical territory :cite:`DahlSjostrand1979`. (In the engine this
+  row is a *documented future seam* — the posing is stated, the solver
+  wiring is not yet built.)
 
 The two agree exactly at criticality — :math:`k = 1 \Leftrightarrow
 \alpha = 0` — and answer different questions away from it: :math:`k`
 compares generations, :math:`\alpha` compares instants. Both are posed
 on the operator, so both are *method-portable by construction*: the
 power iteration sees only a normalized-source fixed-point procedure over
-an abstract resolvent, and each method contributes exactly its **A1
-value** (Section :ref:`5 <path-integral-axes>`) as the inner solve — the
-S\ :sub:`N` sweep or Krylov solve, CP's ``P_inf`` kernel, diffusion's
-and the infinite-medium solver's eager LU. One engine, one posing, five
-inner resolvents — the module's own docstring now states precisely this
-layering, and the eigenvalue chapters of the method books derive their
-solvers from this section rather than re-posing the problem.
+an abstract resolvent, and each deterministic consumer contributes
+exactly its **A1 value** (Section :ref:`5 <path-integral-axes>`) as the
+inner solve — the S\ :sub:`N` sweep or Krylov solve, CP's ``P_inf``
+kernel, diffusion's and the infinite-medium solver's eager LU. One
+engine, one posing, one inner resolvent per consumer — the module's own
+docstring now states precisely this layering, and the eigenvalue
+chapters of the method books derive their solvers from this section
+rather than re-posing the problem.
 
 That closes the loop the page opened: the object is one; the invariant
 operators carry the physics; the propagator realization, the generator
