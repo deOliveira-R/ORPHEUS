@@ -667,17 +667,56 @@ adversarial CONCUR: candidate additions would TWIN existing routing; verificatio
 three-layer future = #10); (4) the corpus root's orient-and-delegate paragraph @
 `60790f4b`. `placement.rst` deferred to Phase-H adjacency (user-ruled).
 
-**⏭ NEXT = Phase E (the conventions part, M1)** — "mostly new writing; the biggest
-differentiator": `conventions/` today = a 43-ln index + `index_convention.rst`;
-`notation.rst` + `normalization.rst` are the Phase-E writing (the M1 evidence: the canon
-contradicts itself — Hébert's Σw = 2 vs Σw = 1 five pages apart, the (2ℓ+1)/4π prefactor
-tied silently to dimensionality, destination-first vs source-first scattering arrows; the
-ORPHEUS answer = the crosswalk + the machine headers). Opening move = disassembly of the
-existing conventions surfaces (the SN machine header · `index_convention.rst` ·
-foundations normalization passages · the M1/M5 survey harvests incl. L&M's β/α
-symbol-collision row) + an outline steer. **Then:** Phase F (archaeology) → G (backfill)
-→ H (root page — Phase-I input in hand; still gated on #298/#299) · ch15 authoring half
-(#276-blocked) · #231 Phase 2 (code-prose rebalancing) · task #10 (three-layer V&V part).
+**⏭ IMMEDIATE NEXT = Phase E (the conventions part, M1) — queued at compaction
+(2026-07-21).** "Mostly new writing; the biggest differentiator."
+
+*The ruled target tree* (corpus plan §4 tree spec, the `conventions/ ── PART 0` block):
+`index.rst` (EXISTS, 43 ln — already carries the M1 evidence inline + a skeleton note
+naming exactly this work) · **`notation.rst` [NEW]** (symbol table + the literature
+crosswalk) · **`normalization.rst` [NEW]** (weight sums, 4π, the (2ℓ+1) prefactor, the
+1/W trap) · **`indexing_and_layout.rst` ← `index_convention.rst` (layout half)** ·
+**`cross_section_conventions.rst` ← `index_convention.rst` (XS half)** — one split of
+today's 1,681-ln `index_convention.rst`. ⚠ The spec line says "ORPHEUS↔Hébert↔
+Lewis&Miller" — STALE: the L&M-**textbook** ask was RETIRED 2026-07-15 (corpus §3.4/§8.3,
+no OCR exists); the crosswalk's source set is the SURVEYED canon: Hébert · B&G · Stacey
+(§3.2/§3.3 verbatim evidence) **+ the two surveyed reviews** (`.claude/plans/
+phase_i_survey_{larsen_morel_2010,adams_larsen_2002}.md` — incl. L&M-2010's β/α
+SYMBOL-COLLISION row: their β ≡ BMC's sphere α with the sign absorbed, their α = the
+spatial WD weight; and A&L's λ-in-mfp-units + cylinder-μ-is-an-angle flags).
+
+*The source surfaces to disassemble:* `conventions/index.rst` (the M1 evidence + the
+skeleton note) · `index_convention.rst` (the layout/XS halves) · the SN machine header's
+conventions block (`sn/index.rst` ~:39–46 — sign/scattering/DD/quadrature_norm/layout/
+group_ordering/starting_direction; the porting-track already routes through it) ·
+foundations passages (`scattering-matrix-convention` @ infinite_medium ·
+angular_quadrature's Σw · spherical_harmonics' prefactor) · the ERR catalog rows the part
+must cite as catchers (ERR-025 = the missing 1/W; ERR-039 = the SH prefactor) · the M5
+α-recursion four-ways table (Stacey 9.213 `α−μw` · Hébert 3.424 sphere `α−2wμ` · Hébert
+3.399 cylinder `α+wμ` · B&G 5.21 ΔA-folded) + the researcher's accumulating
+α-normalization table (`.claude/agent-memory/literature-researcher/
+curvilinear_sweep_directness_ruling.md`).
+
+*Post-compaction opening move = the STEER* (AskUserQuestion): **(1) crosswalk source
+set** — carry the recommendation: Hébert/B&G/Stacey + the two surveyed reviews (the
+retired L&M-textbook mention in the spec is superseded). **(2) the M5 α-crosswalk's
+home** — recommendation: the cross-SOURCE convention table lives in `normalization.rst`
+(it IS an M1-class trap), `curvilinear_one_group` cross-links it (its α-dome machinery
+stays put). **(3) staging** — recommendation: 3 commits (notation.rst; normalization.rst;
+the index_convention split — the split is a label-oracle move, `-E` gate per the recipe).
+**(4) delegation** — recommendation: MAIN AGENT authors the two NEW pages (M1's
+wrong-by-a-constant class is the highest-stakes prose in the corpus; needs the
+ERR-catalog + machine-header context); archivist MAY execute the mechanical
+index_convention split (the Tier-1 model); elegance-enforcer reviews everything (FRESH
+instance — the Phase-D reviewer dies at compaction; brief it with: claim-truth-vs-live-
+tree framing for fresh prose, the L-013 char-identity discipline for the split halves,
+the Option-Y law, #302 out-of-scope, per-label single-homing on the split). P8 governs:
+"every part index opens on conventions."
+
+**Then:** Phase F (archaeology sweep, 130 campaign-named headings) → G (backfill:
+eq-labels, :term: wiring — glossary has 0 inbound, :cite: migration, V&V slices) → H
+(the root page — Phase-I input IN HAND; still gated on #298/#299; placement.rst rides
+its adjacency) · ch15 authoring half (#276 A4/A5-blocked) · #231 Phase 2 (code-prose
+rebalancing) · task #10 (three-layer V&V part).
 
 *Standing facts:* branch `docs/sn-doc-architecture` UNPUSHED; citations + eq-labels are
 project-global; recipe = "The per-chapter recipe" section above (L35 three-way grep + L34
