@@ -1251,8 +1251,8 @@ quadrature pin).  Landed in commit ``b2d8a6d``.
 
 .. _sn-cylinder-angular-floor:
 
-(c) The cylinder angular floor (#229) — structurally blocked
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+(c) The cylinder angular floor — structurally blocked
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The anisotropic ansatz :math:`\psi_{\rm chosen} = (A(r) + B(r)\,\mu)/W`
 imposes :math:`\psi_n` per ordinate, so there is **no angular error at
@@ -1456,8 +1456,8 @@ cylinder.  The cylinder pole is therefore **not** "clean
 volume-average defect, hidden by the comparison choice.  Cylinder global
 L2 is also clean :math:`\mathcal{O}(h^{2.00})`.
 
-The characterization gate (W2, #233)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The characterization gate (#233)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Per the vv-principles "pin what is TRUE + protect the floor WITHOUT
 calcifying the limitation" discipline, W2 ships a **characterization**
@@ -1494,8 +1494,8 @@ pole-vs-volavg :math:`0.99 / 0.99 / 1.00`.
 
 .. _sn-p1-scattering-curvilinear:
 
-Issue #9 — :math:`P_1` anisotropic SCATTERING in curvilinear (the two unrelated paths)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:math:`P_1` anisotropic SCATTERING in curvilinear — the two unrelated paths
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A persistent source of confusion in this cluster is that "anisotropic"
 names **two structurally unrelated** things in a curvilinear SN solve.
@@ -1924,8 +1924,8 @@ see the honest-scope note below.
 
 .. _ld-cartesian-2d-legA:
 
-Leg A — the external slope-moment source :math:`\hat Q` (#247)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Leg A — the external slope-moment source :math:`\hat Q`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This subsection is the rich record of the EXTERNAL half of the slope-SOURCE
 trap, closed under Issue #247.  The change is small in code (two named sites in
@@ -2299,8 +2299,8 @@ moved — the typed-union widening leaves the flat path byte-identical).
 
 .. _ld-cartesian-2d-legB:
 
-Leg B — the boundary transverse-face-slope (#251)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Leg B — the boundary transverse-face-slope
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This subsection is the rich record of the BOUNDARY half of the slope-SOURCE
 trap, closed under Issue #251 (split from #247).  Where Leg A widened the BULK
@@ -2773,8 +2773,8 @@ negative pin), with the face-projection foundation sub-gates
 
 .. _ld-cartesian-2d-coherent-promise:
 
-S9 — the coherent boundary promise and the property-vs-type seam (#257)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The coherent boundary promise and the property-vs-type seam
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Leg B (:ref:`ld-cartesian-2d-legB`, #251) landed the boundary CONSUMPTION
 path: the trace ``mesh.angular_trace`` carries the transverse moment axis end to end,
@@ -3343,8 +3343,8 @@ better. The first consumer is the non-vacuum prescribed-inflow MMS of
 
 .. _sn-mms-nonvacuum:
 
-Non-vacuum prescribed-inflow MMS (Phase 4 / O.2b 4.6)
-------------------------------------------------------
+Non-vacuum prescribed-inflow MMS
+--------------------------------
 
 .. admonition:: Key Facts
    :class: important
@@ -3983,13 +3983,29 @@ therefore mandatory** (NEVER ship slab-only — ERR-026 territory). The
 sphere activates the redistribution term under non-vacuum inflow,
 closing the Mode-7 declaration.
 
-T3 (sphere) — why ``xfail(strict)``, now on Issue #229
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+T3 (sphere) — the retired ``xfail(strict)`` and the angular floor
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note:: **Terminal (2026-06-13, the #229 retune landed — the xfail
+   was REMOVED).**
+
+   The strict-xfail this section explains was removed by the #229
+   quadrature-aware retune (post-W1 unclamp; recorded in the test's
+   own docstring).  The row now **passes** as a converged-VALUE +
+   magnitude-band gate: the solution converges to the manufactured
+   :math:`\phi` to ~0.26 % max relative error at ``nx = 160``, but
+   NOT in rate — the volume-weighted L2 floors at the angular
+   half-angle-thread interpolation floor (~2.4e-3), and the
+   pole-cell :math:`\mathcal{O}(h)` term (#233) dominates the finest
+   cells, so no rate claim is asserted.  What follows is the
+   diagnostic history: the #195 → #229 re-scoping and the bug-era
+   stagnation evidence.
 
 The sphere row
 (:func:`tests.sn.verification.analytical.test_mms_prescribed_inflow.test_mms_prescribed_inflow_sphere_activates_redistribution`)
-ships ``@pytest.mark.xfail(strict=True)`` with ``catches("ERR-026")``.
-The reason is **not** that the non-vacuum machinery fails.
+shipped ``@pytest.mark.xfail(strict=True)`` with ``catches("ERR-026")``
+(the marker is retired; the ``catches`` tag remains).  The reason was
+**not** that the non-vacuum machinery fails.
 
 .. note:: **Re-scoped (2026-06-12, Issue #195 CLOSED → Issue #229).**
 

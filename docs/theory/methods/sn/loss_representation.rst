@@ -69,7 +69,10 @@ Key Facts
      and *assemble* share ONE coefficient source by construction. The
      assembled block is **lower-triangular in walk order** — the
      object-level statement that *the sweep IS forward substitution*
-     (the #284 discharge). Cartesian only; curvilinear waits on #282.
+     (the sweep-inverse-contract discharge, #284). The bulk assembler
+     is Cartesian-only; the
+     curvilinear pole-seed back edge is gone (#282 landed) and the
+     augmented walk order is certified triangular by matvec probe.
 
    * **The four representations**
      (:mod:`orpheus.sn.loss_representation`), each a stateless frozen
@@ -755,8 +758,8 @@ operator that supplies the trace coupling in the full
 
 .. _loss-rep-assembly-cartesian-scope:
 
-Cartesian-only scope and the #282 back edge
--------------------------------------------
+Cartesian-only scope and the pole-seed back edge
+------------------------------------------------
 
 The per-ordinate block factorisation exists only in Cartesian geometry.
 A curvilinear ordinate couples its angular neighbour through the
@@ -789,8 +792,8 @@ certificate, not an assembler capability.
 
 .. _loss-rep-assembly-verification:
 
-Verification — the gates and the #284 discharge
------------------------------------------------
+Verification — the gates and the sweep-inverse-contract discharge
+-----------------------------------------------------------------
 
 The assembly mode is pinned by three gate families (in
 ``tests/sn/sweep/test_assembly_mode.py`` and the diffusion
@@ -803,7 +806,7 @@ The assembly mode is pinned by three gate families (in
   duplicate-summing order differs from ``apply``'s grouping — and never a
   scalar functional, whose invariance group could hide a block error,
   vv Mode 12); the measured agreement is :math:`\sim 6\times10^{-16}`.
-* **G2 — the #284 discharge.**
+* **G2 — the sweep-inverse-contract discharge (#284).**
   ``scipy.linalg.solve_triangular(PᵀMP, Pᵀq) ≡ (L+C).solve(q)``. LAPACK's
   ``dtrtrs`` is a **structurally independent** forward substitution — it
   is not the ORPHEUS sweep recurrence — so its agreement (again
@@ -1020,8 +1023,8 @@ follow-on).
 
 .. _loss-rep-scanmarch-coefficient-model:
 
-ScanMarch on the coefficient model (the #239 lift)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ScanMarch on the coefficient model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Before #240 Phase 2 Step D5a (committed ``66dbd9a``, 2026-06-16) the 2-D
 row-march **hard-coded** Diamond Difference's

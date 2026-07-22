@@ -261,8 +261,8 @@ operators, pick the amplitudes, sum. New BCs are one
 
 .. _bc-sn-resolution-table:
 
-SN BC resolution table (post-Issue-#188+#176 wiring)
------------------------------------------------------
+SN BC resolution table
+----------------------
 
 The :meth:`SNMesh._resolve_one` dispatch is summarized below.
 Each row maps the user-facing :class:`~orpheus.geometry.mesh.BC`

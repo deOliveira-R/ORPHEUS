@@ -493,8 +493,8 @@ produced **solely** by the closure (see :ref:`sn-tau-c-on-cellvisit-live`).
 
 .. _sn-tau-closure-owned:
 
-τ is an angular-scheme property — the closure owns it (Issue #236 Phase 2)
-------------------------------------------------------------------------------
+τ is an angular-scheme property — the closure owns it
+------------------------------------------------------
 
 .. todo:: Archivist expansion needed.
 
@@ -1151,8 +1151,8 @@ reference.  Migrate-then-delete preserved the floor:
 
 .. _sn-space-angle-separability-section:
 
-Space ⊗ angle separability — the (spatial ⊗ angular) product capstone (Issue #236 Phase 3)
------------------------------------------------------------------------------------------------
+Space ⊗ angle separability — the (spatial ⊗ angular) product capstone
+----------------------------------------------------------------------
 
 This section closes the Issue #236 *(spatial* :math:`\otimes` *angular)
 product* narrative on the theory page.  The campaign had three phases:
@@ -1495,11 +1495,11 @@ The reading of the table:
    :math:`W = \sum_n w_n` before comparison, else a 2× mismatch swamps
    the metric.
 
-The #233 pole-cell × #229 azimuthal-floor interference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The pole-cell (#233) × azimuthal-floor interference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The gating law has a concrete consequence for the two open curvilinear
-defects.  The spatial pole-cell :math:`\mathcal{O}(h)` order (#233,
+The gating law has a concrete consequence for the two curvilinear
+defect families.  The spatial pole-cell :math:`\mathcal{O}(h)` order (#233,
 documented at :ref:`sn-pole-cell-spatial-closure` and minted as ERR-059
 in :ref:`sn-curvilinear-aniso-norm-reconciliation`) and the azimuthal
 angular floor (#229) are **not independent contributors** to the
@@ -1688,8 +1688,8 @@ with the vectorized
 
 .. _sn-pole-angular-closure-protocol:
 
-The pole angular closure (Issue #168 Phase B)
-===============================================
+The pole angular closure
+========================
 
 .. note:: **Contract evolution (Issue #236 Phase 2 B2 → Issue #248).**
    This subsection originally introduced the angular-closure contract
@@ -1835,8 +1835,8 @@ discretization in this codebase; Bailey-Morel-Chang 2010 is the
 auxiliary justification for the M-M weighted-diamond :math:`\tau`
 clamp.
 
-ERR-026 closure status (Phase B partial)
-----------------------------------------
+ERR-026 closure status after the pole closure
+---------------------------------------------
 
 Phase B ships the architectural infrastructure for closing Defect 3
 (the :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
@@ -1856,8 +1856,8 @@ becomes the natural default.
 
 .. _sn-pole-closure-compute-psi-half:
 
-Half-angle grid exposure (Issue #197 PR-TYPED-6b)
--------------------------------------------------
+Half-angle grid exposure
+------------------------
 
 .. todo:: Archivist expansion needed.
 
@@ -1908,8 +1908,8 @@ Half-angle grid exposure (Issue #197 PR-TYPED-6b)
 
 .. _phase-c-sweep-frame-matvec:
 
-Sweep-frame apply matvec (Issue #168 Phase C)
-=============================================
+Sweep-frame apply matvec
+========================
 
 .. admonition:: Key Facts
    :class: important
@@ -1994,8 +1994,8 @@ resumed:
    conventions" (cross-domain-attacker Smell 16) is the trigger for
    the unification.
 
-The pre-Phase-C arithmetic spatial closure
---------------------------------------------
+The superseded arithmetic spatial closure
+-----------------------------------------
 
 Pre-Phase-C, the matvec interior face values were computed as the
 arithmetic average of cell-centre values
@@ -2497,8 +2497,8 @@ returning silently.
 
 .. _bare-sweep-extraction:
 
-The bare sweep (Wave O step O.4a.2)
------------------------------------
+The bare sweep
+--------------
 
 Wave O step O.4a.2 (Issue #208, commits ``d7e1316`` / ``4c0ff96`` /
 ``2bdc66d``, 2026-06-03) **removed the boundary law from the 1-D
@@ -2571,8 +2571,8 @@ S6.4(f), the cochain now living in ``_MovingFrontier`` /
 
 .. _sn-mms-spherical-aniso-spatial-convergence:
 
-Spherical anisotropic-ansatz MMS convergence (Phase C)
--------------------------------------------------------
+Spherical anisotropic-ansatz MMS convergence
+--------------------------------------------
 
 .. note:: **Retraction (2026-06-13, Issues #229 / #195).**
 
@@ -2649,8 +2649,8 @@ actually close.
 
 .. _sn-mms-cylindrical-aniso-spatial-convergence:
 
-Cylindrical anisotropic-ansatz MMS convergence (Phase C)
----------------------------------------------------------
+Cylindrical anisotropic-ansatz MMS convergence
+----------------------------------------------
 
 .. note:: **Retraction (2026-06-13, Issue #229).**
 
@@ -2704,8 +2704,8 @@ discretisation cannot resolve away.
 
 .. _sn-curvilinear-homogeneous-kinf-recovery-section:
 
-Homogeneous-reflective k\ :sub:`∞` recovery (Phase C)
-------------------------------------------------------
+Homogeneous-reflective k\ :sub:`∞` recovery
+--------------------------------------------
 
 Gate 4.1 verifies the eigenvalue claim using a closed-form
 reference: the 2-group homogeneous reflective sphere recovers the
@@ -2752,8 +2752,8 @@ independent flux-shape evidence from Phase D.
 
 .. _sn-curvilinear-trajectory-resolvent-crosscheck-section:
 
-Trajectory-resolvent cross-check (Phase C → Phase D)
------------------------------------------------------
+Trajectory-resolvent cross-check
+--------------------------------
 
 Gate 4.2 is the **flux-shape cross-check** against the
 structurally-independent trajectory_resolvent Green's-function
@@ -2955,8 +2955,8 @@ sweep-frame architecture; the Phase D additional refinement
 targets the spherical pole-face only and inherits cylindrical
 behaviour for free.
 
-ERR-026 closure status (Phase C — sweep-frame matvec aligned)
---------------------------------------------------------------
+ERR-026 closure status after the matvec alignment
+-------------------------------------------------
 
 Phase C ships the architectural alignment — sweep-frame matvec
 with WDD spatial closure + BC trace law at the boundary edge +
@@ -3113,8 +3113,8 @@ CLOSED while keeping the **magnitude** scope open per
 
 .. _sn-282-direct-starting-direction-solve:
 
-Route (a) — the direct starting-direction ψ½ solve (Issue #282)
-===============================================================
+The direct starting-direction ψ½ solve
+======================================
 
 .. admonition:: Status banner
    :class: important
@@ -3159,8 +3159,8 @@ Route (a) — the direct starting-direction ψ½ solve (Issue #282)
    the ``PsiHalfAngleSeed`` strategy family they built is **retired**
    here (see :ref:`sn-282-seed-strategy-zoo`).
 
-The lagged pole seed was a walk-order back edge (the #282 defect)
------------------------------------------------------------------
+The lagged pole seed was a walk-order back edge
+-----------------------------------------------
 
 The curvilinear Morel–Montry angular recurrence :eq:`pole-mm-recurrence`
 marches half-angle face fluxes :math:`\phi_{n+1/2,i}` up the

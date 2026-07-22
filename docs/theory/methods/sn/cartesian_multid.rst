@@ -305,8 +305,8 @@ described next.
 
 .. _sweep-octant-dependency-graph:
 
-Cartesian 2D: Octant Dependency Graph (Wave 2)
-===============================================
+Cartesian 2D: Octant Dependency Graph
+=====================================
 
 This section documents the **§15A.2 "upwind trace complex / causal
 transport DAG / direction sweep ordering" primitive** as it lives in
@@ -2468,8 +2468,8 @@ limit on the SI path, the same ERR-061 catcher the matvec uses); the closeout is
 
 .. _sn-angular-windowing:
 
-Angular windowing — the SI iterate lives in moment space (Phase 5a)
-===================================================================
+Angular windowing — the SI iterate lives in moment space
+========================================================
 
 Wave O step #205 **Phase 5a** (commits ``93807aa`` factoring / ``b97d4f9``
 eigenvalue inner / ``13ca001`` fixed-source inner, 2026-06-07) is a
@@ -3381,8 +3381,8 @@ iterate makes possible.
 
 .. _sn-angular-windowing-in-sweep-implementation:
 
-Implementation map (Phase 5c)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Implementation map — the moment-output threading
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The moment OUTPUT mode threads as an **optional projection**
 (``moment_frame=None``), mirroring the ``reflect=None``
@@ -3460,8 +3460,8 @@ principled-equivalence".
 
 .. _windowing-retyped:
 
-Windowing retyped — the moment emit as a composition (#226 step 2)
-------------------------------------------------------------------
+Windowing retyped — the moment emit as a composition
+----------------------------------------------------
 
 Phases 5a–5c built the moment-windowed path as a pair of **named
 methods** on the resolvent surface: ``solve`` returned the full angular
@@ -3617,8 +3617,8 @@ what it does **not**, the reified splitting matrix, the
 diagonal-cubature shared-face correctness rule (ERR-056), and the
 measured evidence.
 
-Jacobi vs Gauss-Seidel — the Phase 3 boundary recovery
----------------------------------------------------------
+Jacobi vs Gauss-Seidel — recovering the reflective-coupling rate
+----------------------------------------------------------------
 
 The Wave O BC extraction (steps O.4a.2 + O.4b, Issue #208) made the
 2-D sweep **bare**: it reads ``psi.boundary.inflow`` as *given* for
@@ -3690,8 +3690,8 @@ mid-sweep.  Only the boundary coupling gets the Gauss-Seidel treatment.
 
 .. _si-gauss-seidel-reification:
 
-The reified splitting matrix (#226 step 2)
---------------------------------------------
+The reified splitting matrix
+----------------------------
 
 The #226 taxonomy step-2 carve replaced the duck-typed
 ``_GaussSeidelResolvent`` with an honest **reified splitting matrix**.
