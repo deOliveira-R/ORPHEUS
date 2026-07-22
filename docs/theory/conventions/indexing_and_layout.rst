@@ -1211,8 +1211,8 @@ Three array shapes that look like exceptions but are not:
 
 .. _theory-sn-typed-fields:
 
-Typed field types (Issue #197 PR-TYPED-2)
-=========================================
+Typed field types
+=================
 
 The principled-layout migration (Issue #196 PR-INDEX-1..7) flipped the
 bare ndarray storage to ``(N, ng, nx, ny)``.  Issue #197 PR-TYPED-2
@@ -1301,8 +1301,8 @@ Cross-references
 
 .. _theory-sn-typed-sources:
 
-Typed source types (Issue #197 PR-TYPED-3)
-==========================================
+Typed source types
+==================
 
 Issue #197 PR-TYPED-3 introduces two typed source-density carriers
 that wrap the right-hand side of the transport equation

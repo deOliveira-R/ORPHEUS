@@ -1332,8 +1332,8 @@ region's ``RegionMesh(n_cells=...)``; a typical 10 fuel + 3 clad + 7
 coolant subdivision is adequate for most applications.
 
 
-MMS Verification (Phase 2.2a)
-=============================
+MMS Verification
+================
 
 .. _moc-mms-verification:
 
