@@ -881,6 +881,31 @@ linearity legalizes many-to-one; fission ⟹ multiplicative functional
 >1) · MUST-NOT-8 confirmed (ρ(A⁻¹F)=k; series diverges k>1;
 Krein–Rutman = the rescue; α = Malthusian).
 
+*User addition (2026-07-22) — the kinetic-theory opener for §1*
+("Where the object comes from, and why it is linear", ~60–100 ln,
+strengthens MAY-1, conflicts with nothing): the semiclassical hybrid
+(ballistic flight λ_dB ≪ mfp justifies the phase-space density; ALL
+quantum content enters through evaluated σ — and the alignment IS the
+thesis: quantum data lives exactly in the invariant C,S,F, classical
+ballistics exactly in the varying (L+C)⁻¹ realization); the two-species
+ledger done honestly (one n–A EVENT with two faces Q_nA/Q_An + the two
+self-terms) reduced by THREE switches — (1) drop Q_nn, (2) freeze f_A =
+Maxwellian(T) (A–A not ignored but PRESUMED COMPLETE; it survives inside
+S(α,β) — Bragg cutoff = interatomic physics inside σ), (3) keep Q_nA
+against frozen f_A; **linearity needs switches 1 AND 2** (bilinear Q_nA
+with live f_A is effectively nonlinear through the coupling). AUDITED
+verdicts on the user's conjecture: the thermal-scattering treatment
+(free-gas/Wigner–Wilkins, S(α,β), Doppler) IS the recovery of the
+target-MOTION channel (A→n energy flow) when E≫kT fails — detailed
+balance is the fingerprint, and f_A stays frozen so linearity survives;
+the back-REACTION channel (f_A shifted by neutrons) is NOT recovered by
+the kernel — it returns quasi-statically as multiphysics feedback Σ(T)
+OUTSIDE the operator (the thermal_hydraulics module's architectural
+seat); its drop is a DENSITY/TIMESCALE argument, not an energy argument
+(the energy argument governs stationary-target WITHIN the kernel).
+Failure regimes to mark: neutron-star n–n; strong heating; the thermal
+range.
+
 *Write mechanics:* expand the 7-section scaffold IN PLACE — ALL SEVEN
 anchors STABLE (consumed by methods/index ×5 + slab_one_group +
 foundations/index); ~1200 ln; citations via `:cite:` (G2); new eq-labels
