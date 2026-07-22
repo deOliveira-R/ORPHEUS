@@ -705,36 +705,34 @@ archivist lesson. New labels: `theory-conventions-notation`,
 `normalization-{weight-sum,prefactor,alpha-crosswalk}`, `sn-alpha-normalization`,
 `theory-conventions-cross-sections`.
 
-**⏭ IN FLIGHT = Phase F (the archaeology sweep, P7).** Kickoff rulings (user,
-2026-07-21): **per-part batches, 4 commits** · **draft-and-execute** (main agent
-names + applies; the old→new map rides each commit message; enforcer verifies;
-user veto-after). The ratified discriminator: Development-history/changelog
-sections AND campaign-record-chartered chapters KEEP campaign names; the sweep
-targets DESIGN headings wearing campaign labels; open-seam issue refs stay (P7
-allows); ERR-NNN = timeless catalog vocabulary; campaign-named LABELS untouched
-(P10 re-namespacing out of scope). Issue-state ground truth pulled (gh, not
-memory): OPEN #197/#226/#233/#263; CLOSED #9/#176/#188/#195/#196/#229/#236/
-#239/#247/#251/#257/#282/#284 — ⚠ #9 and #229 were CLOSED though memory said
-open; two stale-deferral doc claims found + fixed in batch 1.
+**✅ Phase F DONE (2026-07-21, one session) — the archaeology sweep, P7.**
+~90 retitles across 4 per-part batches, each enforcer-certified READY:
+**batch 1 methods/sn @ `41a93d37`** (34 retitles; `curvilinear_numerics` ruled
+KEEP-all — a campaign-record chapter BY CHARTER; + 2 stale-deferral content
+fixes: T3's removed-xfail terminal note, loss_representation's "waits on #282"
+retired; + the test banner @ `b0f7b25a`) · **batch 2 foundations @ `2220fe05`**
+(25; the six BC "Step N" pipeline stages ruled false positives; bc:1446's
+forward-looking "What remains for Wave O" flipped to the verified discharge
+record) · **batch 3 references @ `3fd96012`** (28 + the continuous-µ-retreat
+name harmonization; peierls/trajectory/fn ruled DESIGN pages, their
+history/close-out records KEPT; the trajectory phase↔geometry rosetta kept as
+the information-loss guard; the three "Numerical verification status"
+headings de-collided by variant) · **batch 4 tail @ `689b9377`** (3).
+Kickoff rulings (user): per-part 4 commits · draft-and-execute (map in each
+commit message; enforcer verifies; veto-after). The ratified discriminator
+held across ~90 retitles + ~30 KEEPs with zero reversals (enforcer closeout).
+Issue-state ground truth pulled via gh (⚠ #9 and #229 were CLOSED though
+memory said open — trust git/gh). **The residue a heading-scoped sweep cannot
+reach = #304** (P10 label re-namespacing · code-side campaign comments ·
+2 prose two-spellings, low/optional).
 
-**Batch 1 (methods/sn) ✅ @ `41a93d37` + `b0f7b25a`**: 34 retitles across 5
-pages (map in the commit message); `curvilinear_numerics` ruled KEEP-all (a
-campaign-record chapter BY CHARTER, opener :6); 2 stale-deferral content fixes
-(T3's removed xfail terminal note; loss_representation's "waits on #282"
-retired); enforcer READY zero-MUST-FIX. Discovery basis: the underline-adjacency
-awk over campaign tokens (172 raw candidates; false positives = "Phase space",
-Wavefront, legit open seams).
-
-**NEXT = batch 2 (foundations)**: `boundary_conditions.rst` (24 candidates) ·
-`operator_tensor_network` (4) · `operator_inverse_family` (4) + tail (incl.
-`discrete_measures.rst:42` prose "(Wave 2)"). Then **batch 3 (references)**:
-`trajectory_resolvent` (21) · `peierls_nystrom` (17) · `singular_eigenfunction`
-(5) — ⚠ check each reference page's opener for a campaign-record charter before
-retitling. Then **batch 4 (conventions + tail)** (incl.
-`indexing_and_layout` 3). Same per-batch loop: classify (KEEP/RETITLE/FALSE-POS
-with issue states) → context-read ambiguous bodies → retitle (underline ≥
-title, level char preserved) → L35 old-title prose sweep → `-E -W` gate →
-enforcer review → commit with the map.
+**⏭ IMMEDIATE NEXT = Phase G (backfill).** Charter (corpus plan): equation
+labels on unlabeled load-bearing displays · `:term:` wiring (the glossary has
+ZERO inbound links today) · `:cite:` migration (reST citations → bibtex where
+ruled) · V&V slices. Verify the exact spec at the corpus plan's Phase-G line
+before kickoff; expect a scoping steer (which of the four backfill families
+first, and whether `:cite:` migration is ruled at all — check #231's settled
+design + the Phase-0 bibtex state).
 
 **Then:** G (backfill: eq-labels, :term: wiring — glossary has 0 inbound, :cite:
 migration, V&V slices) → H (the root page — Phase-I input IN HAND; still gated on
