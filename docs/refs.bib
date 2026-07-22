@@ -1,57 +1,351 @@
 % ORPHEUS bibliography — single source of truth for theory-page citations.
 %
-% Upstream source of truth is Zotero (manual Better-BibTeX export). This file is
-% seeded (issue #231) from the SN page's existing docutils ``.. [Key]`` citation
-% definitions, migrated verbatim in bibliographic content and keyed by the SAME
-% labels so a page can swap ``[Key]_`` -> ``:cite:`Key``` with no key churn. The
-% remaining theory pages get a mechanical migration pass afterward (#231 D).
+% Upstream source of truth is Zotero (manual Better-BibTeX export). Phase G2 of
+% issue #231 completed this file: it now covers ALL 59 docutils ``.. [Key]``
+% citation definitions across docs/theory/**/*.rst, keyed by the SAME labels so
+% a page can swap ``[Key]_`` -> ``:cite:`Key``` with no key churn. Keys are
+% IMMUTABLE — they must match the in-text bracket labels verbatim.
+%
+% Metadata was reconciled against the local literature folder
+% (scratch/literature/ title pages) and CrossRef (all DOIs below resolved and
+% verified 2026-07-22). Where an in-text definition disagreed with the published
+% record (pages, volume, author list), the FIELD values here follow the
+% published record; the key is never touched. Discrepancies are logged in the
+% Phase-G2 report (see the #231 catalog).
 %
 % Keep entries to bibliographic CORE (author/title/journal/vol/pages/year/DOI).
-% The "cited at :ref:`...` because ..." annotation prose stays INLINE on the page
-% next to the citation, where its cross-references resolve.
+% The "cited at :ref:`...` because ..." annotation prose stays INLINE on the
+% page next to the citation, where its cross-references resolve.
+%
+% Known intentional twins: [PS1982] (references/peierls.rst) and
+% [PomraningSiewert1982] (references/trajectory_resolvent.rst) are the SAME
+% work under two labels; both keys are kept so the mechanical swap stays 1:1.
+% Consolidate during (or after) the in-text swap if desired.
+%
+% Sorted alphabetically by key, case-insensitive.
+
+@book{AbramowitzStegun1964,
+  editor    = {Abramowitz, Milton and Stegun, Irene A.},
+  title     = {Handbook of Mathematical Functions with Formulas, Graphs, and Mathematical Tables},
+  series    = {National Bureau of Standards Applied Mathematics Series},
+  number    = {55},
+  publisher = {U.S. Government Printing Office},
+  address   = {Washington, D.C.},
+  year      = {1964},
+}
+
+@article{AdamsLarsen2002,
+  author  = {Adams, Marvin L. and Larsen, Edward W.},
+  title   = {Fast Iterative Methods for Discrete-Ordinates Particle Transport Calculations},
+  journal = {Progress in Nuclear Energy},
+  volume  = {40},
+  number  = {1},
+  pages   = {3--159},
+  year    = {2002},
+  doi     = {10.1016/S0149-1970(01)00023-3},
+}
+
+@techreport{Askew1972,
+  author      = {Askew, J. R.},
+  title       = {A Characteristics Formulation of the Neutron Transport Equation in Complicated Geometries},
+  number      = {AEEW-M 1108},
+  institution = {United Kingdom Atomic Energy Authority, Atomic Energy Establishment Winfrith},
+  address     = {Winfrith},
+  year        = {1972},
+}
+
+@article{Atalay1997,
+  author  = {Atalay, M. A.},
+  title   = {The Reflected Slab and Sphere Criticality Problem with Anisotropic Scattering in One-Speed Neutron Transport Theory},
+  journal = {Progress in Nuclear Energy},
+  volume  = {31},
+  number  = {3},
+  pages   = {229--252},
+  year    = {1997},
+  doi     = {10.1016/0149-1970(95)00094-1},
+}
+
+@book{Atkinson1997,
+  author    = {Atkinson, Kendall E.},
+  title     = {The Numerical Solution of Integral Equations of the Second Kind},
+  series    = {Cambridge Monographs on Applied and Computational Mathematics},
+  number    = {4},
+  publisher = {Cambridge University Press},
+  address   = {Cambridge},
+  year      = {1997},
+  doi       = {10.1017/CBO9780511626340},
+}
 
 @article{BaileyMorelChang2010,
-  author  = {Bailey, T. S. and Morel, J. E. and Chang, J. H.},
+  author  = {Bailey, Teresa S. and Morel, Jim E. and Chang, Jae H.},
   title   = {The Asymptotic Diffusion-Limit Accuracy of {$S_N$} Angular Differencing Schemes},
   journal = {Nuclear Science and Engineering},
   volume  = {165},
   number  = {2},
   pages   = {149--169},
   year    = {2010},
+  doi     = {10.13182/NSE08-66},
   note    = {LLNL preprint LLNL-JRNL-420356},
   url     = {https://www.osti.gov/servlets/purl/1020346},
 }
 
-@article{WuXieFischer1999,
-  author  = {Wu, G. and Wu, Z. and Fischer, B.},
-  title   = {A Discrete Ordinates Nodal Method for One-Dimensional Neutron Transport Calculation in Curvilinear Geometries},
+@book{BellGlasstone1970,
+  author    = {Bell, George I. and Glasstone, Samuel},
+  title     = {Nuclear Reactor Theory},
+  publisher = {Van Nostrand Reinhold},
+  address   = {New York},
+  year      = {1970},
+}
+
+@article{Bickley,
+  author  = {Bickley, W. G. and Naylor, J.},
+  title   = {A Short Table of the Functions {$\mathrm{Ki}_n(x)$}, from {$n=1$} to {$n=16$}},
+  journal = {The London, Edinburgh, and Dublin Philosophical Magazine and Journal of Science, Series 7},
+  volume  = {20},
+  pages   = {343--347},
+  year    = {1935},
+  doi     = {10.1080/14786443508561483},
+}
+
+@techreport{Blelloch1990,
+  author      = {Blelloch, Guy E.},
+  title       = {Prefix Sums and Their Applications},
+  number      = {CMU-CS-90-190},
+  institution = {School of Computer Science, Carnegie Mellon University},
+  address     = {Pittsburgh, Pennsylvania},
+  year        = {1990},
+}
+
+@book{Bondarenko1964,
+  author    = {Bondarenko, I. I. and others},
+  title     = {Group Constants for Nuclear Reactor Calculations},
+  publisher = {Consultants Bureau},
+  address   = {New York},
+  year      = {1964},
+}
+
+@article{Boyd2014,
+  author  = {Boyd, William R. D. and Shaner, Samuel and Li, Lulu and Forget, Benoit and Smith, Kord},
+  title   = {The {OpenMOC} Method of Characteristics Neutral Particle Transport Code},
+  journal = {Annals of Nuclear Energy},
+  volume  = {68},
+  pages   = {43--52},
+  year    = {2014},
+  doi     = {10.1016/j.anucene.2013.12.012},
+}
+
+@article{Brent1974,
+  author  = {Brent, Richard P.},
+  title   = {The Parallel Evaluation of General Arithmetic Expressions},
+  journal = {Journal of the ACM},
+  volume  = {21},
+  number  = {2},
+  pages   = {201--206},
+  year    = {1974},
+  doi     = {10.1145/321812.321815},
+}
+
+@techreport{Brown2005,
+  author      = {Brown, Forrest B.},
+  title       = {Fundamentals of {Monte Carlo} Particle Transport},
+  number      = {LA-UR-05-4983},
+  institution = {Los Alamos National Laboratory},
+  address     = {Los Alamos, New Mexico},
+  year        = {2005},
+}
+
+@article{BurkartIshiguroSiewert1976,
+  author  = {Burkart, A. R. and Ishiguro, Y. and Siewert, C. E.},
+  title   = {Neutron Transport in Two Dissimilar Media with Anisotropic Scattering},
   journal = {Nuclear Science and Engineering},
-  volume  = {133},
-  year    = {1999},
-  doi     = {10.13182/NSE99-A2095},
+  volume  = {61},
+  number  = {1},
+  pages   = {72--77},
+  year    = {1976},
+  doi     = {10.13182/NSE76-A28462},
 }
 
-@article{MorelMontry1984,
-  author  = {Morel, J. E. and Montry, G. R.},
-  title   = {Analysis and Elimination of the Discrete-Ordinates Flux Dip},
-  journal = {Transport Theory and Statistical Physics},
-  volume  = {13},
-  number  = {5},
-  year    = {1984},
+@incollection{CarlsonLathrop1965,
+  author    = {Carlson, Bengt G. and Lathrop, Kaye D.},
+  title     = {Transport Theory --- The Method of Discrete Ordinates},
+  booktitle = {Computing Methods in Reactor Physics},
+  editor    = {Greenspan, H. and Kelber, C. N. and Okrent, D.},
+  publisher = {Gordon and Breach},
+  address   = {New York},
+  year      = {1968},
 }
 
-@book{LewisMiller1984,
-  author    = {Lewis, E. E. and Miller, Jr., W. F.},
-  title     = {Computational Methods of Neutron Transport},
-  publisher = {John Wiley \& Sons},
-  year      = {1984},
+@inproceedings{Carlvik1966,
+  author    = {Carlvik, I.},
+  title     = {A Method for Calculating Collision Probabilities in General Cylindrical Geometry and Applications to Flux Distributions and {Dancoff} Factors},
+  booktitle = {Proceedings of the Third United Nations International Conference on the Peaceful Uses of Atomic Energy, Geneva, 1964},
+  volume    = {2},
+  pages     = {225},
+  publisher = {United Nations},
+  address   = {New York},
+  year      = {1965},
+  note      = {Paper P/681},
+}
+
+@article{Carlvik1968,
+  author  = {Carlvik, I.},
+  title   = {Monoenergetic Critical Parameters and Decay Constants for Small Homogeneous Spheres and Thin Homogeneous Slabs},
+  journal = {Nuclear Science and Engineering},
+  volume  = {31},
+  number  = {2},
+  pages   = {295--303},
+  year    = {1968},
+  doi     = {10.13182/NSE31-295},
+}
+
+@article{Case1960,
+  author  = {Case, K. M.},
+  title   = {Elementary Solutions of the Transport Equation and Their Applications},
+  journal = {Annals of Physics},
+  volume  = {9},
+  number  = {1},
+  pages   = {1--23},
+  year    = {1960},
+  doi     = {10.1016/0003-4916(60)90060-9},
 }
 
 @book{CaseZweifel1967,
   author    = {Case, K. M. and Zweifel, P. F.},
   title     = {Linear Transport Theory},
   publisher = {Addison-Wesley},
+  address   = {Reading, Massachusetts},
   year      = {1967},
+}
+
+@article{DahlSjostrand1979,
+  author  = {Dahl, E. B. and Sj{\"o}strand, N. G.},
+  title   = {Eigenvalue Spectrum of Multiplying Slabs and Spheres for Monoenergetic Neutrons with Anisotropic Scattering},
+  journal = {Nuclear Science and Engineering},
+  volume  = {69},
+  number  = {1},
+  pages   = {114--125},
+  year    = {1979},
+  doi     = {10.13182/NSE69-114},
+}
+
+@book{Davison1957,
+  author    = {Davison, B.},
+  title     = {Neutron Transport Theory},
+  publisher = {Clarendon Press},
+  address   = {Oxford},
+  year      = {1957},
+}
+
+@book{Duderstadt1976,
+  author    = {Duderstadt, James J. and Hamilton, Louis J.},
+  title     = {Nuclear Reactor Analysis},
+  publisher = {John Wiley \& Sons},
+  address   = {New York},
+  year      = {1976},
+}
+
+@techreport{ENDF102,
+  author      = {{Cross Section Evaluation Working Group}},
+  title       = {{ENDF-6} Formats Manual: Data Formats and Procedures for the Evaluated Nuclear Data Files},
+  number      = {ENDF-102 / BNL-NCS-44945 (Rev. 2012)},
+  institution = {National Nuclear Data Center, Brookhaven National Laboratory},
+  address     = {Upton, New York},
+  year        = {2012},
+  note        = {The in-text definition also cites Kellett, Bersillon, and Mills, \emph{The JEFF-3.1/-3.1.1 Radioactive Decay Data and Fission Yields Sub-libraries}, JEFF Report 20, OECD/NEA (2009) --- a distinct work; see the Phase-G2 flags},
+}
+
+@article{Garcia2020,
+  author  = {Garcia, R. D. M.},
+  title   = {A Numerically Stable Spherical Harmonics Solution for the Neutron Transport Equation in a Spherical Shell},
+  journal = {Journal of Computational Physics},
+  volume  = {405},
+  pages   = {109139},
+  year    = {2020},
+  doi     = {10.1016/j.jcp.2019.109139},
+}
+
+@article{Garcia2021,
+  author  = {Garcia, R. D. M.},
+  title   = {Accurate Spherical Harmonics Solutions for Neutron Transport Problems in Multi-Region Spherical Geometry},
+  journal = {Journal of Computational Physics},
+  volume  = {424},
+  pages   = {109856},
+  year    = {2021},
+  doi     = {10.1016/j.jcp.2020.109856},
+}
+
+@book{Hebert2009,
+  author    = {H{\'e}bert, Alain},
+  title     = {Applied Reactor Physics},
+  publisher = {Presses Internationales Polytechnique},
+  address   = {Montr{\'e}al},
+  year      = {2009},
+}
+
+@book{Hebert2020,
+  author    = {H{\'e}bert, Alain},
+  title     = {Applied Reactor Physics},
+  edition   = {3rd},
+  publisher = {Presses Internationales Polytechnique},
+  address   = {Montr{\'e}al},
+  year      = {2020},
+  doi       = {10.1515/9782553017445},
+}
+
+@misc{IAPWS2008,
+  author       = {{International Association for the Properties of Water and Steam}},
+  title        = {Release on the {IAPWS} Formulation 2008 for the Viscosity of Ordinary Water Substance},
+  howpublished = {IAPWS R12-08},
+  year         = {2008},
+}
+
+@incollection{KnottYamamoto2010,
+  author    = {Knott, Dave and Yamamoto, Akio},
+  title     = {Lattice Physics Computations},
+  booktitle = {Handbook of Nuclear Engineering},
+  editor    = {Cacuci, Dan Gabriel},
+  chapter   = {9},
+  pages     = {913--1239},
+  publisher = {Springer},
+  address   = {New York},
+  year      = {2010},
+  doi       = {10.1007/978-0-387-98149-9_9},
+}
+
+@article{Knyazev1993,
+  author  = {Knyazev, A. P.},
+  title   = {Solution of the Transport Equation in Integral Form in a One-Dimensional Cylindrical Geometry with Linearly Anisotropic Scattering},
+  journal = {Atomic Energy},
+  volume  = {74},
+  number  = {5},
+  pages   = {368--374},
+  year    = {1993},
+  doi     = {10.1007/BF00844623},
+}
+
+@book{Kress2014,
+  author    = {Kress, Rainer},
+  title     = {Linear Integral Equations},
+  edition   = {3rd},
+  series    = {Applied Mathematical Sciences},
+  number    = {82},
+  publisher = {Springer},
+  address   = {New York},
+  year      = {2014},
+  doi       = {10.1007/978-1-4614-9593-2},
+}
+
+@incollection{LarsenMorel2010,
+  author    = {Larsen, E. W. and Morel, J. E.},
+  title     = {Advances in Discrete-Ordinates Methodology},
+  booktitle = {Nuclear Computational Science: A Century in Review},
+  editor    = {Azmy, Y. and Sartori, E.},
+  chapter   = {1},
+  pages     = {1--84},
+  publisher = {Springer Netherlands},
+  address   = {Dordrecht},
+  year      = {2010},
+  doi       = {10.1007/978-90-481-3411-3_1},
 }
 
 @article{Lebedev1999,
@@ -64,32 +358,91 @@
   year    = {1999},
 }
 
-@incollection{CarlsonLathrop1965,
-  author    = {Carlson, B. G. and Lathrop, K. D.},
-  title     = {Transport Theory --- The Method of Discrete Ordinates},
-  booktitle = {Computing Methods in Reactor Physics},
-  publisher = {Gordon and Breach},
-  year      = {1968},
+@book{LewisMiller1984,
+  author    = {Lewis, E. E. and Miller, Jr., W. F.},
+  title     = {Computational Methods of Neutron Transport},
+  publisher = {John Wiley \& Sons},
+  address   = {New York},
+  year      = {1984},
 }
 
-@article{AdamsLarsen2002,
-  author  = {Adams, M. L. and Larsen, E. W.},
-  title   = {Fast Iterative Methods for Discrete-Ordinates Particle Transport Calculations},
-  journal = {Progress in Nuclear Energy},
-  volume  = {40},
-  number  = {1},
-  pages   = {3--159},
-  year    = {2002},
+@book{Lux1991,
+  author    = {Lux, Iv{\'a}n and Koblinger, L{\'a}szl{\'o}},
+  title     = {{Monte Carlo} Particle Transport Methods: Neutron and Photon Calculations},
+  publisher = {CRC Press},
+  address   = {Boca Raton, Florida},
+  year      = {1991},
+}
+
+@techreport{MATPRO2003,
+  author      = {Hagrman, D. L. and others},
+  title       = {{MATPRO} --- A Library of Materials Properties for Light-Water-Reactor Accident Analysis},
+  number      = {NUREG/CR-6150},
+  institution = {Idaho National Laboratory},
+  year        = {2003},
+}
+
+@article{McCormickKuscer1965,
+  author  = {McCormick, N. J. and Ku{\v{s}}{\v{c}}er, I.},
+  title   = {Half-Space Neutron Transport with Linearly Anisotropic Scattering},
+  journal = {Journal of Mathematical Physics},
+  volume  = {6},
+  number  = {12},
+  pages   = {1939--1945},
+  year    = {1965},
+  doi     = {10.1063/1.1704744},
+  note    = {The bi-orthogonality-relations companion paper is J. Math. Phys. 7, 2036--2045 (1966), DOI 10.1063/1.1704886},
+}
+
+@techreport{Mitsis1963,
+  author      = {Mitsis, George J.},
+  title       = {Transport Solutions to the Monoenergetic Critical Problems},
+  number      = {ANL-6787},
+  institution = {Argonne National Laboratory},
+  address     = {Argonne, Illinois},
+  year        = {1963},
+  note        = {Reproduced from a University of Michigan PhD thesis},
+}
+
+@article{MorelMontry1984,
+  author  = {Morel, J. E. and Montry, G. R.},
+  title   = {Analysis and Elimination of the Discrete-Ordinates Flux Dip},
+  journal = {Transport Theory and Statistical Physics},
+  volume  = {13},
+  number  = {5},
+  pages   = {615--633},
+  year    = {1984},
+  doi     = {10.1080/00411458408211661},
+}
+
+@book{Ott1985,
+  author    = {Ott, Karl O. and Neuhold, Robert J.},
+  title     = {Introductory Nuclear Reactor Dynamics},
+  publisher = {American Nuclear Society},
+  address   = {La Grange Park, Illinois},
+  year      = {1985},
 }
 
 @article{Pautz2002,
-  author  = {Pautz, S. D.},
+  author  = {Pautz, Shawn D.},
   title   = {An Algorithm for Parallel {$S_n$} Sweeps on Unstructured Meshes},
   journal = {Nuclear Science and Engineering},
   volume  = {140},
   number  = {2},
   pages   = {111--136},
   year    = {2002},
+  doi     = {10.13182/NSE02-1},
+}
+
+@article{Polizzi2009,
+  author  = {Polizzi, Eric},
+  title   = {Density-Matrix-Based Algorithm for Solving Eigenvalue Problems},
+  journal = {Physical Review B},
+  volume  = {79},
+  number  = {11},
+  pages   = {115112},
+  year    = {2009},
+  doi     = {10.1103/PhysRevB.79.115112},
 }
 
 @article{Pomraning1989,
@@ -97,18 +450,133 @@
   title   = {The Transport Equation in General Geometry},
   journal = {Nuclear Science and Engineering},
   volume  = {101},
+  number  = {4},
   pages   = {330--340},
   year    = {1989},
+  doi     = {10.13182/NSE89-A23622},
+}
+
+% [PomraningSiewert1982] and [PS1982] are the SAME work under two in-text
+% labels (trajectory_resolvent.rst vs peierls.rst). Twins kept for the 1:1 swap.
+@article{PomraningSiewert1982,
+  author  = {Pomraning, G. C. and Siewert, C. E.},
+  title   = {On the Integral Form of the Equation of Transfer for a Homogeneous Sphere},
+  journal = {Journal of Quantitative Spectroscopy and Radiative Transfer},
+  volume  = {28},
+  number  = {6},
+  pages   = {503--506},
+  year    = {1982},
+  doi     = {10.1016/0022-4073(82)90016-4},
+}
+
+@article{PS1982,
+  author  = {Pomraning, G. C. and Siewert, C. E.},
+  title   = {On the Integral Form of the Equation of Transfer for a Homogeneous Sphere},
+  journal = {Journal of Quantitative Spectroscopy and Radiative Transfer},
+  volume  = {28},
+  number  = {6},
+  pages   = {503--506},
+  year    = {1982},
+  doi     = {10.1016/0022-4073(82)90016-4},
 }
 
 @article{Rahnema2008,
-  author  = {Rahnema, F. and Douglass, S. and Forget, B.},
+  author  = {Rahnema, Farzad and Douglass, Steven and Forget, Benoit},
   title   = {Generalized Energy Condensation Theory},
   journal = {Nuclear Science and Engineering},
   volume  = {160},
   pages   = {41--58},
   year    = {2008},
   doi     = {10.13182/NSE160-41},
+}
+
+@article{Sanchez1982,
+  author  = {Sanchez, R. and McCormick, N. J.},
+  title   = {A Review of Neutron Transport Approximations},
+  journal = {Nuclear Science and Engineering},
+  volume  = {80},
+  number  = {4},
+  pages   = {481--535},
+  year    = {1982},
+  doi     = {10.13182/NSE80-04-481},
+}
+
+@article{Sanchez2002,
+  author  = {Sanchez, Richard and Mao, Li and Santandrea, Simone},
+  title   = {Treatment of Boundary Conditions in Trajectory-Based Deterministic Transport Methods},
+  journal = {Nuclear Science and Engineering},
+  volume  = {140},
+  number  = {1},
+  pages   = {23--50},
+  year    = {2002},
+  doi     = {10.13182/NSE140-23},
+}
+
+@article{SanchezTTSP1986,
+  author  = {Sanchez, Richard},
+  title   = {Integral Form of the Equation of Transfer for a Homogeneous Sphere with Linearly Anisotropic Scattering},
+  journal = {Transport Theory and Statistical Physics},
+  volume  = {15},
+  number  = {3},
+  pages   = {333--343},
+  year    = {1986},
+  doi     = {10.1080/00411458608210456},
+}
+
+@techreport{SoodLA13511_1999,
+  author      = {Sood, Avneet and Forster, R. Arthur and Parsons, D. Kent},
+  title       = {Analytical Benchmark Test Set for Criticality Code Verification},
+  number      = {LA-13511},
+  institution = {Los Alamos National Laboratory},
+  address     = {Los Alamos, New Mexico},
+  year        = {1999},
+}
+
+@book{Stacey2007,
+  author    = {Stacey, Weston M.},
+  title     = {Nuclear Reactor Physics},
+  edition   = {2nd},
+  publisher = {Wiley-VCH},
+  address   = {Weinheim},
+  year      = {2007},
+}
+
+@book{Stamm1983,
+  author    = {Stamm'ler, Rudi J. J. and Abbate, M{\'a}ximo J.},
+  title     = {Methods of Steady-State Reactor Physics in Nuclear Design},
+  publisher = {Academic Press},
+  address   = {London},
+  year      = {1983},
+}
+
+@article{Stepanek1981,
+  author  = {Stepanek, Jiri},
+  title   = {The {DP$_N$} Surface Flux Integral Neutron Transport Method for Slab Geometry},
+  journal = {Nuclear Science and Engineering},
+  volume  = {78},
+  number  = {1},
+  pages   = {53--65},
+  year    = {1981},
+  doi     = {10.13182/NSE81-A19606},
+}
+
+@book{TrefethenBau1997,
+  author    = {Trefethen, Lloyd N. and Bau, III, David},
+  title     = {Numerical Linear Algebra},
+  publisher = {Society for Industrial and Applied Mathematics},
+  address   = {Philadelphia},
+  year      = {1997},
+}
+
+@article{WestfallMetcalf1973,
+  author  = {Westfall, Robert M. and Metcalf, Dale R.},
+  title   = {Singular Eigenfunction Solution of the Monoenergetic Neutron Transport Equation for Finite Radially Reflected Critical Cylinders},
+  journal = {Nuclear Science and Engineering},
+  volume  = {52},
+  number  = {1},
+  pages   = {1--11},
+  year    = {1973},
+  doi     = {10.13182/NSE73-A23285},
 }
 
 @techreport{WIMSD,
@@ -118,4 +586,36 @@
   number      = {STI/PUB/1264},
   address     = {Vienna},
   year        = {2007},
+}
+
+@inproceedings{Woodcock1965,
+  author    = {Woodcock, E. R. and Murphy, T. and Hemmings, P. J. and Longworth, T. C.},
+  title     = {Techniques Used in the {GEM} Code for {Monte Carlo} Neutronics Calculations in Reactors and Other Systems of Complex Geometry},
+  booktitle = {Proceedings of the Conference on Applications of Computing Methods to Reactor Problems},
+  pages     = {557},
+  organization = {Argonne National Laboratory},
+  note      = {ANL-7050},
+  year      = {1965},
+}
+
+@article{WuXieFischer1999,
+  author  = {Wu, Yican and Xie, Zhongsheng and Fischer, Ulrich},
+  title   = {A Discrete Ordinates Nodal Method for One-Dimensional Neutron Transport Calculation in Curvilinear Geometries},
+  journal = {Nuclear Science and Engineering},
+  volume  = {133},
+  number  = {3},
+  pages   = {350--357},
+  year    = {1999},
+  doi     = {10.13182/NSE99-A2095},
+}
+
+@article{Yamamoto2007,
+  author  = {Yamamoto, Akio and Tabuchi, Masato and Sugimura, Naoki and Ushio, Tadashi and Mori, Masaaki},
+  title   = {Derivation of Optimum Polar Angle Quadrature Set for the Method of Characteristics Based on Approximation Error for the {Bickley} Function},
+  journal = {Journal of Nuclear Science and Technology},
+  volume  = {44},
+  number  = {2},
+  pages   = {129--136},
+  year    = {2007},
+  doi     = {10.1080/18811248.2007.9711266},
 }

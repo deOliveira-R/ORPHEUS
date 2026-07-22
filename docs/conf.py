@@ -35,7 +35,30 @@ extensions = [
 # ``.. [Key]`` definitions with ``:cite:`Key```; the remaining pages get a mechanical
 # pass afterward (#231 D). Keyed by the existing citation labels for a drop-in swap.
 bibtex_bibfiles = ['refs.bib']
-bibtex_default_style = 'plain'
+
+# Bibliography labels = the BibTeX key itself ([LewisMiller1984]), so the
+# post-migration inline rendering is character-identical to the historical
+# docutils bracket citations — the drop-in-swap promise above extends to the
+# READER, not just the author. pybtex's stock styles would relabel every
+# citation numerically ([1]) and silently break the author-year signal the
+# corpus prose leans on.
+from pybtex.plugin import register_plugin
+from pybtex.style.formatting.plain import Style as PlainStyle
+from pybtex.style.labels import BaseLabelStyle
+
+
+class _KeyLabelStyle(BaseLabelStyle):
+    def format_labels(self, sorted_entries):
+        for entry in sorted_entries:
+            yield entry.key
+
+
+class _KeyLabelPlainStyle(PlainStyle):
+    default_label_style = _KeyLabelStyle
+
+
+register_plugin('pybtex.style.formatting', 'keylabel', _KeyLabelPlainStyle)
+bibtex_default_style = 'keylabel'
 
 # Render `.. todo::` blocks in the output. These are the
 # method-implementer's "Archivist expansion needed" stubs per the
