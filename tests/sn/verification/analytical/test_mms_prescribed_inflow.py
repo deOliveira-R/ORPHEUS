@@ -192,7 +192,7 @@ def test_mms_prescribed_inflow_slab_converges_second_order(case_kind: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# T3 — sphere non-vacuum (activates curvilinear redistribution); xfail #195
+# T3 — sphere non-vacuum (activates curvilinear redistribution); value+band gate
 # ═══════════════════════════════════════════════════════════════════════
 
 
