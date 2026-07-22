@@ -804,16 +804,95 @@ populated (206 edges). Deferred-with-owner: vv-status/verifies()
 classification → task #10; glossary growth → the 9 candidates on #231;
 label-token residue → #304.
 
-**⏭ NEXT = Phase H — THE ROOT PAGE** (`foundations/path_integral.rst`,
-corpus plan §3.6): UNBLOCKED (the #298/#299 fixes are in-branch @
-`639cec9e`/`4425516c`; issues auto-close at push). **Read §3.6's 12
-MUST-NOT claims before writing a word**; Phase-I survey input in hand
-(`.claude/plans/phase_i_survey_{larsen_morel_2010,adams_larsen_2002}.md`);
-placement.rst (M7) rides its adjacency. Opening move = re-read corpus
-plan §3.6 + the two survey files, then steer scope/structure with the
-user. The CLI task tracker mirrors the queue (task #7 = Phase G
-COMPLETED; #8 = Phase H next; #10 = V&V part + slices + vv-status tags;
-#15 = #304 residue; #16 = ch15).
+**⏳ Phase H — THE ROOT PAGE: AUDIT ✅ DONE 2026-07-22; NEXT = THE WRITE.**
+User directive: do NOT take §3.6 at face value — prove/falsify as
+mathematician/physicist. Audit ran two fronts (main-agent math + explorer
+code-facts @ `1f89c4ba`: 8 HOLD · 5 DRIFTED-BUT-HOLD · 0 BROKEN · 0 GONE).
+**THIS BLOCK = THE WRITING CONTRACT** (fresh session needs only this +
+the scaffold + corpus plan §3.6).
+
+*Falsified (1):* **MAY-8 "pole" → ZERO** — [1/1] Padé (2−τ)/(2+τ) has its
+pole at τ=−2 (unreachable); negativity past τ=2 = the NUMERATOR sign
+change. The error is LIVE in the scaffold §6 (~:188) — dies in the
+rewrite. ENRICH into the Padé-table theorem: step=[0/1]=1/(1+τ) positive
+∀τ>0 (why step never goes negative, cost = order); DD=[1/1] second-order
+but sign-violating past τ=2; MoC = exact e^{−τ}; positivity-vs-order =
+which approximants preserve sign. Ground: `transport/spatial/diamond.py:588`
+(NOT sn/) + `sn/sweep/cache.py:74` ((2−τ)/(2+τ) verbatim).
+
+*User-ruled (3):* **τ = optical thickness on the root page** (CP/MoC
+sense, crosswalk row 7); the MM closure weight is NAMED IN WORDS
+("the Morel–Montry weight"), NEVER τ in-page; add the root page to
+notation row 7's ledger. · **Reconciliation = the object ≠ operator
+lever**: the thesis is about the OBJECT (one path sum); the 4 denial
+sites (peierls.rst:37-39 · trajectory_resolvent.rst:358,396 ·
+peierls_nystrom.rst:5416) are about OPERATORS and stay TRUE — state the
+distinction, cite them as instances; the three-meanings taxonomy
+(references/index.rst:149-155 `_reference-solvers-three-meanings` + twin
+docs/verification/reference_solutions.rst:113-122) survives as
+reference-KERNEL realizations; NO retirement. · **Write FRESH next
+session** (this checkpoint = the contract).
+
+*Sharpenings (write these forms):* MAY-4 RN → the Girsanov statement:
+dP_t/dP_maj = exp(∫(Σ_maj−Σ_t)v ds)·Π_jumps(Σ_t/Σ_maj); the delta-tracking
+acceptance = the per-jump factor; virtual scatters = the compensator.
+· MAY-7: "three INDEPENDENT axes; the product is partially populated"
+(MC has no A2; diffusion/Case no A1) — not bare "orthogonal". · MUST-NOT-2:
+value-equivalence (both exact representations) vs structure-non-equivalence
+(different splittings) — deny interchangeability, not representation.
+· MAY-3: "never gives unboundedness as the REASON" (the word exists at
+operator_algebra:2010, typevar sense); "rank-deficient" → "non-trivial
+kernel (constants along characteristics); the unbounded piece must ride
+INSIDE the resolved unit — the perturbation must be the bounded part";
+drifted anchors: scalar analogy :756, resistor :943. · MAY-5 scoping:
+MultiplicationOperator+FissionOperator shared by ALL THREE;
+IsotropicScattering/IsotropicN2N = diffusion+homogeneous only; SN routes
+the same package's ScatteringOperator kernel — "C and F shared classes
+across all three; S a shared package/kernel with iso specializations".
+· MAY-12: SweepStrongComponent/ReflectiveSweepCycle are PROPOSED names
+(grand report v3 :2158,:2160), not shipped — "proposes", never "ships".
+· MAY-2: name-chain roles spelled precisely (Hille–Yosida = generation
+theorem · Dynkin = probabilistic resolvent · Dyson–Phillips =
+time-dependent perturbation · Neumann–Peierls = stationary series
+(phrase survives @ operator_algebra:971-972) · FK-PDMP = the MC reading);
+state as ONE theorem that a single subcriticality condition governs the
+Neumann series AND the semigroup time-integral.
+
+*Confirmed exactly (cite these):* (n,2n) bound — SigL=(n,α)
+(mixture.py:30-31); balance Σt=Σc+ΣL+Σf+Σs0,out+Σ2n,out (:559);
+c*>1 ⟺ Σ2n>Σc+ΣL+Σf; factor 2 @ isotropic_scattering.py:428 +
+homogeneous/solver.py:122-123. · CE-1 @ mixture.py:166 (Σtr=Σt−Σs1_out,
+Stamm'ler outflow) + :191 (D=1/(3Σtr)). · CP SMW longhand @
+cp/solver.py:389-397 (rank-1 @ :395); **#300 ALREADY FILED** + named @
+operator_algebra.rst:765-784 `_smw-low-rank-exception` (+ :1479-1482) —
+cite as the open seam. · B = LAW∘TRACE @ transport/method.py:199 + :215
+(the ONE generic body, #290 P7b); trace-is-angular @ :48-53. · Pole
+mirror @ loss_representation/__init__.py:2836-2846 + :3654-3660 (exact),
+certificate :3840-3842. · DAG certification @
+tests/sn/sweep/test_assembly_mode.py:185 (triu==0), :208/:227 (LAPACK ≡
+sweep, RTOL 1e-11, measured ~6e-16 @ :82), :634 (#282 augmented), :684
+(teeth). · X2's landed fix is STRONGER than §3.6's sketch — use
+boundary_conditions.rst:427-471 (A_ss(L_full)=[I 0; −T I] unit-lower-
+triangular, identity on BOTH sub-blocks, #298 "load-bearing twice";
+L_full vs B on complementary triangles; the L_full material moved OUT of
+operator_algebra). · X1 fixed — cite eigenvalue.py:30-49 POSITIVELY.
+· MAY-1 attributions verified (LPP95 spine · Hardy–Harris 2009;
+linearity legalizes many-to-one; fission ⟹ multiplicative functional
+>1) · MUST-NOT-8 confirmed (ρ(A⁻¹F)=k; series diverges k>1;
+Krein–Rutman = the rescue; α = Malthusian).
+
+*Write mechanics:* expand the 7-section scaffold IN PLACE — ALL SEVEN
+anchors STABLE (consumed by methods/index ×5 + slab_one_group +
+foundations/index); ~1200 ln; citations via `:cite:` (G2); new eq-labels
+part-prefixed `path-integral-*` + global-uniqueness grep (G1 doctrine);
+:term: wiring per G3 policy; machine header's gated_on now satisfied —
+update it; consult the Phase-I surveys
+(.claude/plans/phase_i_survey_{larsen_morel_2010,adams_larsen_2002}.md)
+for post-1968 texture; eigenvalue posing lives here (B&G §1.5);
+placement.rst (M7) rides adjacency. Post-draft: fresh elegance-enforcer
++ qa review; archivist touches notation row 7's ledger. The CLI task
+tracker mirrors the queue (task #8 = Phase H in_progress-audit-done;
+#10 · #15 · #16 as before).
 
 **Then:** H (the root page — Phase-I input IN HAND; **UNBLOCKED**: the
 #298/#299 fixes are in-branch @ `639cec9e`/`4425516c`, marked DONE @
