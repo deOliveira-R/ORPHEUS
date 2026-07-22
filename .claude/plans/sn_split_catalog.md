@@ -705,17 +705,36 @@ archivist lesson. New labels: `theory-conventions-notation`,
 `normalization-{weight-sum,prefactor,alpha-crosswalk}`, `sn-alpha-normalization`,
 `theory-conventions-cross-sections`.
 
-**⏭ IMMEDIATE NEXT = Phase F (the archaeology sweep).** Charter (verify the exact spec
-at the corpus plan's Phase-F section before kickoff): the ~130 campaign-named headings
-across `docs/theory` ("Wave N", "Phase X", "PR-", "Round N", issue-numbered) retitle
-to TIMELESS names; the campaign narrative they carry absorbs into the per-page
-Development-history changelogs (create where missing). Discipline: pure retitles +
-narrative moves, no content rewrites; labels are unaffected by heading text but grep
-inbound title-references anyway; the L35 whitespace-flattened consuming-prose sweep
-per touched page; `-E -W` gate per batch. Discovery:
-`grep -rnE "^(Wave|Phase|PR-|Round)" docs/theory --include="*.rst"` plus
-underline-adjacency filtering (calibrate the real count against the corpus plan's 130
-estimate). Kickoff steer for the user: commit batching (per-part vs per-page).
+**⏭ IN FLIGHT = Phase F (the archaeology sweep, P7).** Kickoff rulings (user,
+2026-07-21): **per-part batches, 4 commits** · **draft-and-execute** (main agent
+names + applies; the old→new map rides each commit message; enforcer verifies;
+user veto-after). The ratified discriminator: Development-history/changelog
+sections AND campaign-record-chartered chapters KEEP campaign names; the sweep
+targets DESIGN headings wearing campaign labels; open-seam issue refs stay (P7
+allows); ERR-NNN = timeless catalog vocabulary; campaign-named LABELS untouched
+(P10 re-namespacing out of scope). Issue-state ground truth pulled (gh, not
+memory): OPEN #197/#226/#233/#263; CLOSED #9/#176/#188/#195/#196/#229/#236/
+#239/#247/#251/#257/#282/#284 — ⚠ #9 and #229 were CLOSED though memory said
+open; two stale-deferral doc claims found + fixed in batch 1.
+
+**Batch 1 (methods/sn) ✅ @ `41a93d37` + `b0f7b25a`**: 34 retitles across 5
+pages (map in the commit message); `curvilinear_numerics` ruled KEEP-all (a
+campaign-record chapter BY CHARTER, opener :6); 2 stale-deferral content fixes
+(T3's removed xfail terminal note; loss_representation's "waits on #282"
+retired); enforcer READY zero-MUST-FIX. Discovery basis: the underline-adjacency
+awk over campaign tokens (172 raw candidates; false positives = "Phase space",
+Wavefront, legit open seams).
+
+**NEXT = batch 2 (foundations)**: `boundary_conditions.rst` (24 candidates) ·
+`operator_tensor_network` (4) · `operator_inverse_family` (4) + tail (incl.
+`discrete_measures.rst:42` prose "(Wave 2)"). Then **batch 3 (references)**:
+`trajectory_resolvent` (21) · `peierls_nystrom` (17) · `singular_eigenfunction`
+(5) — ⚠ check each reference page's opener for a campaign-record charter before
+retitling. Then **batch 4 (conventions + tail)** (incl.
+`indexing_and_layout` 3). Same per-batch loop: classify (KEEP/RETITLE/FALSE-POS
+with issue states) → context-read ambiguous bodies → retitle (underline ≥
+title, level char preserved) → L35 old-title prose sweep → `-E -W` gate →
+enforcer review → commit with the map.
 
 **Then:** G (backfill: eq-labels, :term: wiring — glossary has 0 inbound, :cite:
 migration, V&V slices) → H (the root page — Phase-I input IN HAND; still gated on
