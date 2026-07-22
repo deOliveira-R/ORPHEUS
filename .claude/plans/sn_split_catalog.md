@@ -726,19 +726,25 @@ memory said open — trust git/gh). **The residue a heading-scoped sweep cannot
 reach = #304** (P10 label re-namespacing · code-side campaign comments ·
 2 prose two-spellings, low/optional).
 
-**⏭ IMMEDIATE NEXT = Phase G (backfill).** Charter (corpus plan): equation
-labels on unlabeled load-bearing displays · `:term:` wiring (the glossary has
-ZERO inbound links today) · `:cite:` migration (reST citations → bibtex where
-ruled) · V&V slices. Verify the exact spec at the corpus plan's Phase-G line
-before kickoff; expect a scoping steer (which of the four backfill families
-first, and whether `:cite:` migration is ruled at all — check #231's settled
-design + the Phase-0 bibtex state).
+**⏭ IMMEDIATE NEXT = Phase G (backfill) — queued at compaction (2026-07-22).**
+Charter (corpus plan): equation labels on unlabeled load-bearing displays ·
+`:term:` wiring (the glossary has ZERO inbound links today) · `:cite:`
+migration (reST citations → bibtex where ruled) · V&V slices. *Post-compaction
+opening move = the scoping STEER*: verify the exact spec at the corpus plan's
+Phase-G line first, then ask (1) which of the four backfill families first,
+(2) whether `:cite:` migration is ruled at all (check #231's settled design +
+the Phase-0 bibtex state before asking). The CLI task tracker mirrors the
+queue (task #7 = Phase G; #8 = Phase H unblocked; #15 = #304 residue; #16 =
+ch15). The elegance-enforcer instance dies at compaction — Phase G briefs a
+fresh one per its own review needs.
 
-**Then:** G (backfill: eq-labels, :term: wiring — glossary has 0 inbound, :cite:
-migration, V&V slices) → H (the root page — Phase-I input IN HAND; still gated on
-#298/#299; placement.rst rides its adjacency) · ch15 authoring half (#276
-A4/A5-blocked) · #231 Phase 2 (code-prose rebalancing) · task #10 (three-layer V&V
-part).
+**Then:** H (the root page — Phase-I input IN HAND; **UNBLOCKED**: the
+#298/#299 fixes are in-branch @ `639cec9e`/`4425516c`, marked DONE @
+`68c39c28`, the issues auto-close at push — the earlier "still gated" note
+was the frozen claim; §3.6's 12 MUST-NOT claims still apply; placement.rst
+rides its adjacency) · #304 (the Phase-F residue: P10 labels · code comments
+· prose two-spellings) · ch15 authoring half (#276 A4/A5-blocked) · #231
+Phase 2 (code-prose rebalancing) · task #10 (three-layer V&V part).
 
 *Standing facts:* branch `docs/sn-doc-architecture` UNPUSHED; citations + eq-labels are
 project-global; recipe = "The per-chapter recipe" section above (L35 three-way grep + L34
