@@ -131,7 +131,7 @@ leaf first, 3 = dedup-heavy last).
 | 8 | ~~(append to `loss_representation.rst`)~~ | **DONE @ `0b96db7f` (2026-07-21, user-ratified SPLIT-BY-CONTENT — the whole-append superseded)**: the two-closure chronicle + Wave-E record → loss_representation "History and rationale" FIRST H2 (Wave-E its H3); the scattering adjoint → the new `adjoint.rst`; the H1 rump DISSOLVED (router intro's facts live in slab_one_group; refs split — L&M §10 → adjoint, A-L merged, T&B new row). The LAST dual-A local-convention zone harmonized at the move; the chronicle's falsified ERR-026 narrative tombstone-extended (ERR-058/#196 anchors) | — | ✅ DONE |
 | 13 | ~~`iteration.rst`~~ | **SUPERSEDED by progression** — Krylov H1 → `slab_one_group` @ `2c60d6a5`; KEigenvalue/choosing/operand/FEAST/cross-solver → `slab_multigroup` @ `b7166ed6`; the boundary G-S schedule → `cartesian_multid` @ `1722d438` (the `sn-iteration-primitives` H1 DISSOLVED; its Wave-E-R1 fact → slab_multigroup) | — | — | absorbed |
 | 14 | `solver.rst` | **DONE @ `48750bc4`** — both H1s traveled identity-promoted, harmonized-at-move (Option-Y + current-truth transforms); companion numerics respell @ `19e8b688` | `sn-solver-operator-algebra-coordinator`, `sn-consuming-the-frame` | 3 | ✅ DONE |
-| 2 | `algebra.rst` ★★ | THE SPINE — synthesized: dedup the posing spine (remaining sites after the ch14 harmonization: `solver.rst`'s "(L + C − S − B)·ψ = (1/k)·F·ψ framing" H2 + `cartesian_multid`'s Angular-windowing binding; the index's Transport-Equation intro feeds it). ~~collapse `choosing-inverse-realisation` vs the inverse-family labels~~ (DONE @ `b7166ed6` — compressed into `slab_multigroup`, foundations owns the catalog); ~~`cross-solver-eigenvalue-consumers` vs `matrix-inverse-consumers`~~ (RULED no-collision — different concepts) | (new) | 3 | partially absorbed |
+| 2 | ~~`algebra.rst`~~ | **CLOSED AS ABSORBED (user-ratified 2026-07-21).** The architecture (sn_book_architecture §4) supersedes the topic chapter; the content contract is realized by DISTRIBUTION — the posing spine single-homed at slab_multigroup `sn-mg-eigenvalue-posing` (`(L+C−S−B)ψ=(1/k)Fψ` · `A_loss=λM` → foundations `eigenvalue-posing` · `K=A⁻¹F` · the resolvent-reuse story); the §3.2 chain (invariant → why-invertible=lower-triangular → matrix=rawest → strategy-encoding) verbatim in slab_one_group "The within-group operator"; the strategy catalog = loss_representation (triangularity theorem, four representations, consumption modes); the shared §2.2 types = foundations/operator_algebra "The intrinsic operator types" (#226, the corrected S=kernel form). The residual restatements (solver framing H2, windowing Key Facts) are harmonized local-consumption one-liners, NOT re-derivations (the third site — iteration-primitives — dissolved at cartesian S3). ~~`choosing-inverse-realisation`~~ DONE @ `b7166ed6`; ~~label near-dup~~ RULED no-collision | (none) | — | ✅ absorbed |
 | 15 | `adjoint.rst` | **CHAPTER MINTED @ `0b96db7f`** (extraction half pulled forward at ch8): anchor `sn-adjoint`, thin frame (3-layer scope + 4 Key Facts) + the traveled `sn-scattering-adjoint` section promoted to its spine. **Authoring half PENDING** — daggered posing / ψ* / φ*-consumers land with #276 A4/A5 (+ #51/#281); the traveled body's `(L+C−S)ᵀ` shorthand gets the B-note treatment then (the fresh frame already carries it) | `sn-adjoint`, `sn-scattering-adjoint` | 3 | extraction ✅ / authoring pending |
 | 1 | `placement.rst` | NEW writing (why SN vs CP/MoC/P_N/diffusion, M7) | (new) | — | Phase D/defer |
 
@@ -646,20 +646,31 @@ GREEN. Agent-memory @ `8e41e0a1`.
 monolith; the index is the ruled rump. What remains in the campaign is SYNTHESIS and
 polish, not moves.
 
-**⏭ NEXT = ch2 `algebra.rst`** — Tier-3 SYNTHESIS (a merge, not a move; main-agent +
-elegance-enforcer). The spine's single home, governed by the four 2026-07-16 content
-directives (general→method derivation shown per-method; the loss-representation MATRIX
-SHAPE as the baseline representation; every non-matrix representation shows its
-avoid-materializing strategy + the shape→strategy link; the operator algebra FROM the
-general representation TO each strategic form SHOWN). Sources to reconcile: the index's
-Transport-Equation intro (ruled STAYS as SN-book intro *feeding* algebra), `solver.rst`'s
-"framing at the solver level" H2, `cartesian_multid`'s Angular-windowing binding,
-`loss_representation` (which owns representation/strategy already — the boundary between
-ch2 and that page needs a steer). Opening move = disassembly of the restatement sites +
-an outline steer. **Then:** ch15 authoring half (daggered posing/ψ*, blocked on #276
-A4/A5) · ch1 `placement.rst` (Phase D/defer) · phases D (routers) → E (conventions) → F
-(archaeology) → G (backfill) → H (root page) → I (literature survey) · #231 Phase 2
-(code-prose rebalancing) · task #10 (three-layer V&V part build-out).
+**✅ ch2 DISPOSITION (user-ratified 2026-07-21): CLOSED AS ABSORBED — no `algebra.rst`.**
+The disassembly showed the confirmed architecture's §4 supersession holds AND the four
+content directives are realized by distribution (the realization map is in the table row
+above). With this, **every row of the chapter catalog is terminal** (✅/absorbed/N/A)
+except ch15's #276-blocked authoring half and ch1 `placement.rst` (Phase-D scoped) —
+**Phase C is CLOSED end-to-end.**
+
+**⏭ NEXT = Phase D (routers) — the main thread; Phase I (literature survey) DISPATCHED
+in parallel (2026-07-21).** Phase D per the corpus plan: P2 "router + leaves" (every part
+gets a ~150-ln GENUINE-map index; agent loads the router, then exactly one leaf) + P5
+tracks (newcomer · modifying-the-sweep · porting-an-equation · debugging-a-wrong-k) + the
+M2 answer (a symptom→chapter diagnostic table in each part index); ch1 `placement.rst`
+(why-SN-vs-CP/MoC/P_N/diffusion, M7) is Phase-D scoped. Opening move = the router-surface
+disassembly (inventory every part index vs the P2 bar) + a scope/order steer. Phase I:
+two literature-researcher agents on the OCR'd local texts (L&M 2010 = ch.1 of
+`scratch/literature/Nuclear Computational Science - A Century in Review.pdf` pp. 1–84;
+`scratch/literature/Adams-Larsen(2002) Fast iterative methods for discrete-ordinates
+particle transport calculations.pdf`) — fill the corpus §3.2 table rows, harvest M4b
+(ρ≈c / Fourier / asymptotic diffusion limit / admissibility) + M2 (symptom→cause),
+extract the L&M section structure (the mini-book's closest structural precedent);
+deliverables → `.claude/plans/phase_i_survey_{larsen_morel_2010,adams_larsen_2002}.md`
+(main agent merges into the corpus plan — agents do NOT edit it). **Then:** ch15
+authoring half (daggered posing/ψ*, blocked on #276 A4/A5) · phases E (conventions) → F
+(archaeology) → G (backfill) → H (root page, feeds on Phase I) · #231 Phase 2 (code-prose
+rebalancing) · task #10 (three-layer V&V part build-out).
 
 *Standing facts:* branch `docs/sn-doc-architecture` UNPUSHED; citations + eq-labels are
 project-global; recipe = "The per-chapter recipe" section above (L35 three-way grep + L34
