@@ -11,8 +11,8 @@ in the entire span compares Monte Carlo *estimators to each other* — so
 the question an engineer actually faces first, *"when do I reach for*
 S\ :sub:`N` *instead of CP, or MoC, or diffusion?"*, has no chapter
 anywhere. The review that comes closest, Sanchez & McCormick
-:cite:`Sanchez1982`, is organized by *approximation* rather than by
-method — the right axis — and its introduction is the canon's one
+:cite:`Sanchez1982`, is organized by *formulation* — the approximation
+axis, not the named-method axis — and its introduction is the canon's one
 genuinely comparative page: it states the selection criteria (the
 spatial and angular detail required, the scattering anisotropy, the
 heterogeneity, the optical size of the regions — and, "perhaps, most
@@ -32,8 +32,9 @@ three independent axes — S\ :sub:`N` realizes the propagator
 :math:`(L+C)^{-1}` as a cell-DAG :term:`sweep` with
 rational-approximant transmission (A1), resums scattering by outer
 Neumann iteration or Krylov (A2), and represents angle by
-:term:`ordinates <ordinate>` (A3)
-(:ref:`path-integral-method-map`). This chapter answers the question
+:term:`ordinates <ordinate>` (A3) — the axes are defined at
+:ref:`path-integral-axes`, and the landing of every method on them at
+:ref:`path-integral-method-map`. This chapter answers the question
 the axes cannot: **when is that point in the product space the right
 place to stand** — what the position costs, what it buys, and which
 problem regimes reward it.
@@ -77,8 +78,12 @@ a *collocation* in angle. Everything S\ :sub:`N` is good at, and
 everything it suffers from, follows from those two facts.
 
 **The buy side.** Because angle is collocated rather than coupled, the
-within-group operator decouples direction by direction, and each
-direction's spatial system is triangular under the sweep order — the
+within-group operator decouples direction by direction in Cartesian
+geometry, and each direction's spatial system is triangular under the
+sweep order. (Curvilinear geometry couples ordinates through the
+angular-redistribution term — yet the *augmented* space-and-angle walk
+remains triangular, so the economics survive the coupling;
+:doc:`curvilinear_one_group`.) Either way the
 propagator is applied by **forward substitution, with no assembled
 matrix**, at :math:`O(N_{\mathrm{cells}} N_{\mathrm{ord}} N_g)` per
 source iteration (the root's A1 cell; certified per (mesh, closure,
@@ -141,10 +146,14 @@ collision probabilities — carries the exact streaming attenuation
 between every region pair (:doc:`/theory/methods/collision_probability`).
 What that buys: *no ray effects at all* (angle was never collocated),
 *no sweep ordering* (the kernel is assembled, not marched), exactness
-in angle within its assumptions, and a boundary condition folded into
-the kernel in closed form — the rank-1 Sherman–Morrison update the
-root page names as the move S\ :sub:`N` has yet to borrow
-(:ref:`path-integral-method-map`, Issue #300). What it pays: the
+in angle within its assumptions, and its **white (isotropic-return)
+boundary** folded into the kernel in closed form — the rank-1
+Sherman–Morrison update the root page names as the move S\ :sub:`N`
+has yet to borrow (:ref:`path-integral-method-map`, Issue #300). What
+it pays: that closed-form boundary is itself an approximation — an
+isotropic re-entry standing in for a true reflective edge, a gap the
+CP chapter quantifies against reflective S\ :sub:`N`, whose angular
+trace reflects *exactly*; the
 kernel is **dense** — the 1982 review derives this from balance
 locality, the mirror of S\ :sub:`N`'s sparsity: the integral equation
 rests on a *global* balance along each direction, so it is "strongly
