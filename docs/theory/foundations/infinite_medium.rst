@@ -121,7 +121,7 @@ integro-differential form :cite:`Duderstadt1976`:
 
 .. vv-status: boltzmann documented
 
-Here :math:`\psi(\mathbf{r}, \hat{\Omega}, E)` is the angular flux,
+Here :math:`\psi(\mathbf{r}, \hat{\Omega}, E)` is the :term:`angular flux`,
 :math:`\phi(\mathbf{r}, E) = \int_{4\pi} \psi \, d\Omega` is the scalar
 flux, :math:`\chi(E)` is the fission spectrum, and :math:`k` is the
 multiplication factor eigenvalue.
@@ -186,7 +186,7 @@ runs :math:`g = 0` (fastest) to :math:`g = G-1` (thermal), while the
 presentation choice for the slowing-down algebra. For synthetic verification cases (Sood-style
 abstract XS, MMS test mixtures), :attr:`Mixture.eg` is ``None`` —
 there is no real grid, only a discrete set of group cross-sections.
-Per-energy diagnostics (lethargy widths, flux-per-energy plots,
+Per-energy diagnostics (:term:`lethargy` widths, flux-per-energy plots,
 spectrum-weighted condensation) require the grid to be populated and
 gracefully skip the synthetic-XS path.
 
@@ -1247,7 +1247,7 @@ the same generalised eigenproblem
      - iterative, **linear** (rate :math:`|k_1/k_0|`)
      - Large, **sweep-only** loss operators that are never densely formed
        (SN, CP, MoC, diffusion).  These only *apply* :math:`\mathbf{A}^{-1}`
-       — a sweep or Krylov inner solve — and drive :math:`k` up the dominant
+       — a :term:`sweep` or Krylov inner solve — and drive :math:`k` up the dominant
        mode through the
        :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol, which
        sees only a normalised-source fixed point, never a dense matrix.

@@ -46,7 +46,7 @@ Synopsis
 Every deterministic transport solver answers the same structural question:
 **how does a continuous conservation law become a finite system of algebraic
 equations that a computer can solve?** This chapter derives that pipeline
-**once**, generically, so that the discrete-ordinates, collision-probability,
+**once**, generically, so that the :term:`discrete-ordinates <ordinate>`, collision-probability,
 and method-of-characteristics chapters can *apply* it rather than re-derive it.
 
 The spine is a single principle: **a problem is posed by naming what it holds
@@ -75,11 +75,11 @@ same invariant differently*. Three moves realize it:
 The final, unifying observation is that the cell-balance-plus-closure is
 **dimension-agnostic**: the "cell" may be a spatial interval *or* an angular
 interval. In curvilinear :math:`S_N` the angular redistribution is literally the
-same weighted-diamond closure applied to an *angular* cell — space and angle are
+same :term:`weighted-diamond <weighted diamond difference>` closure applied to an *angular* cell — space and angle are
 discretized by one and the same machine. The chapter closes by connecting the
 discretized balance to the operator algebra: the assembled cell balance **is**
 the loss operator :math:`L+C`, and the closure is what fixes its matrix
-structure (and, for the diamond family, what makes it invertible by a sweep).
+structure (and, for the diamond family, what makes it invertible by a :term:`sweep`).
 
 The derivations here are the presentation layer of the SymPy
 **algebra-of-record** in
@@ -225,7 +225,7 @@ Semi-discrete — the per-direction (or per-group) invariant
 Discretize **one** axis while leaving the others continuous. Two canonical
 choices:
 
-**Angle → discrete ordinates** (the :math:`S_N` move). Choose a quadrature set
+**Angle → discrete ordinates** (the :math:`S_N` move). Choose a :term:`quadrature` set
 :math:`\{(\hat\Omega_m, w_m)\}_{m=1}^{M}` on the unit sphere and require
 :eq:`discretization-continuous` to hold along each direction
 :math:`\hat\Omega_m`:
@@ -576,7 +576,7 @@ are needed for accuracy. **Step is exact only on a spatially constant flux**
 Diamond Difference — the central / box scheme
 ---------------------------------------------
 
-**The closure.** Diamond Difference (DD) assumes the in-cell flux is **linear**
+**The closure.** :term:`Diamond Difference <diamond difference>` (DD) assumes the in-cell flux is **linear**
 and takes the cell average to be the **arithmetic mean of the two faces**:
 
 .. math::
@@ -670,7 +670,7 @@ cell (:math:`q=0`) with positive inflow. Then
    from the DD reconstruction; the canonical positivity counter-example
    (Lewis & Miller §5.3). Pedagogical, not a solver claim.
 
-So an **optically thick cell** — one whose optical thickness
+So an **optically thick cell** — one whose :term:`optical thickness`
 :math:`\Sigma_t h` exceeds :math:`2|\mu|` — produces a negative outflow face
 flux from a perfectly physical positive inflow. This is the canonical DD
 counter-example (Lewis & Miller 1984, §5.3), and the reason
@@ -893,7 +893,7 @@ clean linear :math:`2\times2`.
 limit**. In optically thick, scattering-dominated media the transport equation
 limits to a diffusion equation; a spatial scheme is *diffusion-limit consistent*
 if its thick limit is a consistent diffusion discretization of the leading-order
-scalar flux. Step has **no** valid diffusion limit; DD has the leading-order
+:term:`scalar flux`. Step has **no** valid diffusion limit; DD has the leading-order
 limit but can oscillate at cell edges; **full LD has all four diffusion limits**
 (Larsen, Morel & Miller 1987, Table I; Larsen & Morel 1989, Part II) — provided
 the *slope source* moment :math:`\Sigma_s\hat\phi` is threaded through the
@@ -1140,7 +1140,7 @@ property of the curvilinear discretization.
    angular scheme would be Step or LD applied to the angular cell, exactly as
    they apply to the spatial cell. The full curvilinear :math:`S_N`
    construction — the :math:`\alpha`-dome recursion, the geometry factor, the
-   half-angle starting direction, and radial characteristics — lives in
+   half-angle :term:`starting direction`, and radial characteristics — lives in
    :ref:`theory-discrete-ordinates`; this chapter supplies the shared skeleton
    it specializes.
 

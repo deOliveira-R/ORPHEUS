@@ -63,7 +63,7 @@ integro-differential form by discretising the direction variable
 :math:`\hat{\Omega}` into a finite ordinate set
 :math:`\{(\hat{\Omega}_m, w_m)\}`, **retaining the angular flux**
 :math:`\psi(\mathbf{r}, \hat{\Omega}, E)` rather than collapsing to the
-scalar flux (contrast the collision-probability integral form).  It resolves
+:term:`scalar flux` (contrast the collision-probability integral form).  It resolves
 streaming, anisotropic scattering, and interface angular current directly.
 ORPHEUS supports three coordinate systems under one balance framework:
 **Cartesian** (slab / 2-D, no inter-ordinate coupling), **spherical** (1-D
@@ -84,7 +84,7 @@ fission dyad :math:`F`.  They compose the within-group loss operator
 :math:`A = L + C - S - B`, so the eigenvalue problem is
 :math:`A\,\psi = \tfrac{1}{k}\,F\,\psi` (fixed source: :math:`A\,\psi = q`).
 The sub-composite :math:`(L+C)` is lower-triangular under the upwind cell
-ordering, which is exactly why :math:`(L+C)^{-1}` **is** the transport sweep
+ordering, which is exactly why :math:`(L+C)^{-1}` **is** the transport :term:`sweep`
 (:doc:`/theory/methods/sn/loss_representation`).  :class:`SNSolver` satisfies
 the :class:`~numerics.eigenvalue.EigenvalueSolver` protocol and
 :func:`solve_sn` returns an :class:`SNResult`.  Because the protocol places the
@@ -95,7 +95,7 @@ shared by CP, MoC, diffusion, and the homogeneous solver (see
 :doc:`/api/numerics` for the protocol contract).
 
 The spatial closure is **diamond difference** with the Morel–Montry weight
-(:math:`\beta = 0`); the per-ordinate discrete transport is the **sweep**,
+(:math:`\beta = 0`); the :term:`per-ordinate <ordinate>` discrete transport is the **sweep**,
 which is byte-identical to the loss-operator **matvec** — one loss
 representation, two applications (``solve`` vs residual).  Both the 1-D scan
 (:meth:`~orpheus.sn.loss_representation.CumprodScan.sweep`) and the 2-D
@@ -171,7 +171,7 @@ mesh) is shared with :ref:`theory-collision-probability` and
    See :ref:`boundary-conditions` for details.
 
 2. **Augmented geometry** --- :class:`SNMesh` pairs the spatial mesh
-   with an angular quadrature, precomputing the coordinate-specific
+   with an angular :term:`quadrature`, precomputing the coordinate-specific
    streaming stencil.  Its **primary representation is the per-axis
    tuple** :attr:`SNMesh.axes` (the SN phase space factors as a tensor
    product of per-axis 1-D meshes): a legacy ``Mesh1D`` / ``Mesh2D`` is
@@ -211,7 +211,7 @@ mesh) is shared with :ref:`theory-collision-probability` and
    Step C (see :ref:`sn-tau-c-on-cellvisit-live`).  The geometry
    factories carry **geometry only** — face areas, the
    :math:`\alpha`-dome, the redistribution factor :math:`\Delta A/w`,
-   and the level starting-direction edge :math:`\mu_{1/2}`.
+   and the level :term:`starting-direction <starting direction>` edge :math:`\mu_{1/2}`.
 
 3. **Solver** --- :func:`solve_sn` creates an ``SNMesh``, builds the
    ``SNSolver``, and runs power iteration. At :math:`d \le 2` the input
@@ -291,7 +291,7 @@ redistribution term** that couples ordinates:
 The curvature term :math:`(1 - \mu^2)/r \cdot \partial\psi/\partial\mu`
 arises because a neutron streaming radially at angle :math:`\mu` *rotates*
 its direction cosine as it moves to a different radius.  Discretising this
-term requires diamond difference in **both space and angle**.
+term requires :term:`diamond difference` in **both space and angle**.
 
 Cylindrical 1D
 ---------------

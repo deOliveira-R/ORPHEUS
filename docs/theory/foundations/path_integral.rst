@@ -81,7 +81,7 @@ what remains.
 
 Every ORPHEUS method computes the **first moment of one branching
 stochastic process** — a neutron released into the medium, streaming
-between collisions and branching at them, with the scalar flux the
+between collisions and branching at them, with the :term:`scalar flux` the
 expected track-length density summed over all histories. Linearity is what
 lets the branching walk collapse to a single weighted path (the
 many-to-one / spine decomposition), so the *same* object admits three
@@ -127,7 +127,7 @@ divergence of the angular current — is taken up on the :doc:`diffusion page
 Fick's law closes.) The realization is *not* the only thing that changes
 across methods: the split of the generator into :math:`L`, :math:`C` and
 :math:`S` is itself method-dependent, and **diffusion is the one genuine
-exception** — a limit of the object rather than a quadrature of it.
+exception** — a limit of the object rather than a :term:`quadrature` of it.
 
 *Authored at Phase H.*
 
@@ -160,14 +160,14 @@ deterministic-versus-stochastic distinction falls along this line.
 Once the object is fixed, a method is located by **three orthogonal
 choices**, not a single dichotomy:
 
-- **A1 — how** :math:`(L+C)^{-1}` **is realized:** a sweep over a cell
+- **A1 — how** :math:`(L+C)^{-1}` **is realized:** a :term:`sweep` over a cell
   dependency DAG (S\ :sub:`N`), exact exponential attenuation along tracks
   (method of characteristics), a region-to-region kernel (collision
   probability), sampled histories (Monte Carlo), or **not realized at all**
   (diffusion — a limit).
 - **A2 — where** :math:`S` **is resummed:** an outer Neumann iteration
   (source iteration), a direct inverse, or an exact spectral resummation.
-- **A3 — the angular representation:** discrete ordinates, spherical
+- **A3 — the angular representation:** :term:`discrete ordinates <ordinate>`, spherical
   harmonics, a continuous direction, or a Case discrete-plus-continuum
   spectrum. The angular representation is also what fixes the **trace** of
   the boundary law :math:`B`.
@@ -183,7 +183,7 @@ choices**, not a single dichotomy:
 With the axes fixed, each method is a **point in their product space** —
 and neighbours that a textbook keeps in separate chapters turn out
 adjacent. S\ :sub:`N` and the method of characteristics sit on the **same
-side**: a diamond-difference sweep is a rational (Padé) approximant of the
+side**: a :term:`diamond-difference <diamond difference>` sweep is a rational (Padé) approximant of the
 exponential that characteristics integrate exactly, so "negative flux in an
 optically thick cell" is the pole of that approximant, not a scheme
 pathology. The operator algebra :math:`A = L + C - S - B` is the form this

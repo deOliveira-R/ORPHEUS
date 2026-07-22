@@ -15,9 +15,9 @@ P_N method — spherical-harmonics expansion (reserved)
 Why this folder exists
 ======================
 
-The P_N method expands the angular flux in Legendre / spherical-
+The P_N method expands the :term:`angular flux` in Legendre / spherical-
 harmonic polynomials. It is the historical alternative to the
-discrete-ordinates S_N family, with a different error structure
+:term:`discrete-ordinates <ordinate>` S_N family, with a different error structure
 (modal truncation vs. ordinate-set discretisation).
 
 Within the ORPHEUS verification stack, P_N is the **natural

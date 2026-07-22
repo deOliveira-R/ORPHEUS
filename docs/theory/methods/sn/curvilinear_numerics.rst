@@ -17,7 +17,7 @@ by making :math:`\psi_{1/2}` first-class marched state — is
 :ref:`sn-282-direct-starting-direction-solve`.
 
 Read this chapter for the *why*: why anyone tried a Carlson inward
-sweep, an apply-vs-sweep twin audit, a Krylov default flip — and how
+:term:`sweep`, an apply-vs-sweep twin audit, a Krylov default flip — and how
 every gate stayed green while the fixed point was wrong (the blindness
 analysis inside the ERR-058 closeout).  Present-tense design claims in
 the preserved sections are historical; each section carries its
@@ -197,7 +197,7 @@ Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
    (``ZeroSeed`` / ``CarlsonInwardSweep`` / ``AngularEdgeExtrapolation``)
    whose design this section — and the Phase F and ERR-058 sections that
    follow — build up was **retired** by Issue #282 route (a).  The
-   starting-direction half-angle flux :math:`\psi_{1/2}` is now
+   :term:`starting-direction <starting direction>` half-angle flux :math:`\psi_{1/2}` is now
    **first-class typed state** the sweep marches *directly* from the true
    within-group source, not a functional of the previous iterate.  Any
    "current default / retained strategy / the seed lives as a strategy
@@ -273,7 +273,7 @@ The subscript :math:`-1/2` is Hébert's half-integer index for the
 auxiliary starting ordinate — it labels the **inward
 zero-weight** direction that sits one half-step above
 :math:`\mu = -1` in the :math:`\alpha`-cascade, not a physical
-ordinate at :math:`\mu = -0.5`.  The right-hand side is the
+:term:`ordinate` at :math:`\mu = -0.5`.  The right-hand side is the
 Legendre expansion of the scattering source :math:`Q` evaluated
 at :math:`\mu = -1`, where :math:`P_\ell(-1) = (-1)^\ell`.
 
@@ -373,7 +373,7 @@ Why :math:`\mu = -1` is the natural starting direction
 -------------------------------------------------------
 
 The M-M angular closure on sphere is a per-cell
-:math:`\alpha`-cascade that **couples** the angular flux across
+:math:`\alpha`-cascade that **couples** the :term:`angular flux` across
 ordinates within one spatial cell: ordinate :math:`n` reads
 :math:`\alpha_{n-1/2}` from the previous (more-inward-:math:`\mu`)
 ordinate.  To start the cascade at the smallest-:math:`\mu`
@@ -415,7 +415,7 @@ admissible starting direction in any curvilinear geometry.
 Why "zero-weight"
 -----------------
 
-In an :math:`N`-point Gauss–Legendre quadrature on :math:`[-1, 1]`
+In an :math:`N`-point Gauss–Legendre :term:`quadrature` on :math:`[-1, 1]`
 the endpoints :math:`\mu = \pm 1` are **not** base points (the
 polynomial is approximated by interior nodes only).  They have no
 quadrature weight, hence "zero-weight" — the flux value at
@@ -1396,7 +1396,7 @@ within-group source
    \;+\; Q^{\text{ext}}(i, g),
 
 i.e. the **isotropic** within-group source from the previous
-power-iteration's scalar flux + fission moment + external
+power-iteration's :term:`scalar flux` + fission moment + external
 source.
 
 On the fixed-point solution of the SI loop, the operator

@@ -16,7 +16,7 @@ Key Facts
 
 **Read this before modifying the CP solver.**
 
-- CP works with **scalar flux** :math:`\phi`, not angular flux :math:`\psi`
+- CP works with **scalar flux** :math:`\phi`, not :term:`angular flux` :math:`\psi`
 - :math:`P_{ij}` = probability that neutron born in *j* has first collision in *i*
 - Convention: ``P[i,j]`` = birth in *j*, collision in *i*; flux update uses :math:`P^T` (see :ref:`scattering-matrix-convention`)
 - Row sums = 1 (conservation), reciprocity: :math:`\Sigma_{t,i} V_i P(i,j) = \Sigma_{t,j} V_j P(j,i)`
@@ -45,7 +45,7 @@ Overview
 The collision probability (CP) method solves the
 :ref:`multi-group eigenvalue problem <mg-eigenvalue-problem>` in integral
 form.  Rather than tracking the angular flux
-:math:`\psi(\mathbf{r}, \hat{\Omega}, E)` as in discrete ordinates or
+:math:`\psi(\mathbf{r}, \hat{\Omega}, E)` as in :term:`discrete ordinates <ordinate>` or
 method of characteristics, the CP method works directly with the
 **scalar flux** :math:`\phi(\mathbf{r}, E)` by integrating out the
 angular variable analytically.
@@ -116,7 +116,7 @@ two layers:
    :func:`~geometry.coord.compute_areas_1d`.
 
 2. **Augmented geometry** --- :class:`CPMesh` wraps a ``Mesh1D`` and adds
-   the CP-specific kernel, quadrature, and
+   the CP-specific kernel, :term:`quadrature`, and
    :meth:`CPMesh.compute_pinf_group`.  The kernel is selected
    automatically from the mesh's coordinate system via a ``match``
    statement in :meth:`CPMesh.__init__`.
@@ -240,7 +240,7 @@ From detailed balance :cite:`Hebert2009` section 3.2:
 
 **Why reciprocity holds.**  Time-reversal invariance: a neutron born in
 :math:`i` colliding in :math:`j` traces a path identical (in reverse) to
-one born in :math:`j` colliding in :math:`i`.  The optical thickness
+one born in :math:`j` colliding in :math:`i`.  The :term:`optical thickness`
 along any chord is direction-independent.  The factor :math:`\Sigt{i} V_i`
 converts from "per neutron born" (probability) to "per unit source
 intensity" (rate), accounting for different source strengths in regions of

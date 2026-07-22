@@ -55,7 +55,7 @@ inner (:meth:`SNSolver._solve_krylov`), and both fixed-source paths.
      :math:`1/k`-scaled outer source.
    * Both inner paths — source iteration and Krylov — consume that SAME
      decomposition over the SAME one-walk discretization (matvec ≡
-     sweep, #206 Phase C): the same fixed point, different rate and
+     :term:`sweep`, #206 Phase C): the same fixed point, different rate and
      memory.
    * :meth:`~orpheus.sn.solver.SNSolver.compute_keff` reports **fission
      production over net removal** (:eq:`sn-keff-update`) — the
@@ -89,7 +89,7 @@ instances.
 
 The primitive is **type-agnostic and angular-capable**: it operates on
 the typed :class:`~orpheus.transport.timed_full_field.TimedFullField`
-composite, which carries the full angular flux on its bulk.  Pℓ
+composite, which carries the full :term:`angular flux` on its bulk.  Pℓ
 anisotropic scattering therefore rides the angular bulk with no special
 plumbing — :meth:`ScatteringOperator.apply` on the timeless
 :class:`~orpheus.transport.full_field.FullField` operator carrier (the
@@ -98,7 +98,7 @@ reaches it via MRO) reads the angular moments off the composite and builds
 the anisotropic source via :meth:`ScatteringOperator.build_aniso_source`,
 all inside the primitive's normal RHS path.  There is **no scalar-flux
 limitation** and **no pending "Approach A" cleanup**: the earlier
-framing — that :class:`SourceIteration` carried only scalar flux and SN
+framing — that :class:`SourceIteration` carried only :term:`scalar flux` and SN
 had to replicate the loop verbatim until the angular state could be
 threaded through — was a property of an interim scalar-only carrier
 that the typed composite retired.  The
@@ -283,7 +283,7 @@ projection table
 and the :math:`|\Omega\cdot\hat n|\odot w` partial-current metric (using
 the identity :math:`\operatorname{sign}(\Omega\cdot\hat n)\cdot
 |\Omega\cdot\hat n|\,w = \Omega\cdot\hat n\,w`) — so no consumer
-re-derives the cosine weighting.  Tangential ordinates carry zero weight
+re-derives the cosine weighting.  Tangential :term:`ordinates <ordinate>` carry zero weight
 and drop out.
 
 The face measure :math:`dA` is supplied by
@@ -523,7 +523,7 @@ Two Inner Solvers
 - Fixed-point: :math:`\psi^{(k+1)} = (L+C)^{-1}(S\,\psi^{(k)} +
   B\,\psi^{(k)} + q_{\rm ext})`
 - Convergence rate: spectral radius of :math:`(L+C)^{-1}(S+B)` — the
-  scattering ratio :math:`c` (:doc:`slab_one_group`)
+  :term:`scattering ratio` :math:`c` (:doc:`slab_one_group`)
 - Cost per iteration: one transport sweep
 - Works for all geometries
 

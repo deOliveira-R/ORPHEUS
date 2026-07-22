@@ -20,7 +20,7 @@ Key Facts
   :math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q`, where
   :math:`\gamma_\pm` are the inflow / outflow trace operators,
   :math:`G` is a geometric map (permutation, pushforward, angular
-  average), :math:`R` is a response amplitude (albedo, sub-Markov
+  average), :math:`R` is a response amplitude (:term:`albedo`, sub-Markov
   kernel), and :math:`q` is an optional prescribed inflow source.
   See :eq:`affine-bc-form`.
 - The architecture has **three concrete layers**, connected by the
@@ -80,7 +80,7 @@ Key Facts
   directly — no central registration step.
 - The :attr:`creates_sweep_cycle` ``ClassVar`` flag on each
   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` subclass
-  signals to the SN sweep planner (§15A.2) which boundary types
+  signals to the SN :term:`sweep` planner (§15A.2) which boundary types
   introduce cycles in the directed cell-visit graph. ``True`` on
   :class:`~orpheus.geometry.boundary.ReflectiveBoundary` and
   :class:`~orpheus.geometry.boundary.PeriodicBoundary`; ``False``
@@ -164,7 +164,7 @@ The §16A three-layer decomposition
 
 A boundary condition in transport-theory codes is, in the
 discrete-form-typical mathematical sense, a **single linear operator**
-that takes the outgoing angular flux at a face and returns the
+that takes the outgoing :term:`angular flux` at a face and returns the
 incoming angular flux. In ORPHEUS we explicitly factor that single
 operator into three layers because each layer carries different
 mathematical, physical, and architectural responsibilities. The split
@@ -289,7 +289,7 @@ exposes inflow / outflow as two directional **selectors** over it:
    into the single :class:`AngularTraceSpace
    <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace>` on the observation
    that **inflow and outflow are operations on one space, not two
-   spaces**: whether an ordinate is incoming or outgoing at a face is a
+   spaces**: whether an :term:`ordinate` is incoming or outgoing at a face is a
    *predicate* — :math:`\mathrm{sign}(\Omega \cdot \hat n_f)` —
    evaluated against the same signed-projection data, not a property of
    the space's identity. :class:`AngularTraceSpace` stores the signed
@@ -323,7 +323,7 @@ P7b) — instantiates it directly.
 
 The realizer's :meth:`realize` method takes the law plus a
 **method space** — a method-specific container holding the
-quadrature, mesh, trace masks, and any other discretization
+:term:`quadrature`, mesh, trace masks, and any other discretization
 metadata the realizer needs — and returns a 1-arg
 :class:`~orpheus.numerics.operator.LinearOperator` whose
 :meth:`apply` carries the method-specific realization of the

@@ -6,7 +6,7 @@ Selectable Representations of the S\ :sub:`N` Loss Operator
 
 This is the **capstone architecture page** for the within-group
 S\ :sub:`N` loss operator :math:`(L+C)` — the streaming-plus-collision
-operator whose inverse *is* the transport sweep. It documents the
+operator whose inverse *is* the transport :term:`sweep`. It documents the
 final state of issue #222 (the *sweep-strategy carve* + the S6
 operator/representation re-layering, complete 2026-06-11 at the
 Fork-B2 default flip): one lower-triangular operator, several
@@ -152,7 +152,7 @@ Key Facts
 The native mathematical frame: a lower-triangular operator
 ==========================================================
 
-The within-group discrete-ordinates balance, for one ordinate
+The within-group discrete-ordinates balance, for one :term:`ordinate`
 :math:`\Omega_n` and one cell, is the WDD relation derived in
 :doc:`/theory/methods/sn/cartesian_multid` (:eq:`dd-cartesian-2d`). Collect every cell
 and every ordinate into the within-group operator
@@ -781,7 +781,7 @@ asserted the back edge was present (``np.any(triu ≠ 0)``), never an
 cylinder control shows exact triangularity because its first-ordinate
 seed is a rank-duplicate of :math:`\psi_0` (:math:`\tau_{{\rm raw},0} =
 0`; see :ref:`sn-282-circle-vs-interval`), so there is no independent
-seed row to order. The closed starting-direction solve of Hébert
+seed row to order. The closed :term:`starting-direction <starting direction>` solve of Hébert
 §3.432–3.435 has since **landed** (#282 route (a), #280 Phase 2.5d): the
 :math:`\psi_{1/2}` pole seed is now a first-class STATE block whose rows
 the augmented :math:`(L+C)` emits, and the gate **flipped** — it now
@@ -923,7 +923,7 @@ first-order linear scan* — **marched over the transverse axes**:
      \mathrm{scan}(x)\circ\mathrm{march}(y,z) & d = 3.
    \end{cases}
 
-Within each transverse row the diamond-difference x-face recurrence is
+Within each transverse row the :term:`diamond-difference <diamond difference>` x-face recurrence is
 the **same Blelloch scan** that
 :class:`~orpheus.sn.loss_representation.CumprodScan` uses
 (:func:`~orpheus.sn.sweep.scan._scanmarch_row`); the transverse
@@ -1328,7 +1328,7 @@ is the deliberate **aggressive-retirement exception**: the production
 paths could not be cross-checked structurally without it. It is the one
 genuinely d-generic body (``supports`` is any-d Cartesian), so it is
 also the admission spine for synthetic d=3 correctness tests before any
-3-axis mesh exists (the angular quadrature is already 3-cosine with all
+3-axis mesh exists (the angular :term:`quadrature` is already 3-cosine with all
 8 sign-octants — what is missing at d=3 is ``Mesh3D``, not the
 quadrature), and the representation a d=3 Cartesian mesh falls through
 ``default_for`` to (C3.6: :class:`ScanMarch` narrowed its ``supports``
@@ -1638,7 +1638,7 @@ scheme declares ``transverse_coupling_is_facewise = True``
 Linear Discontinuous: slope-wise (non-separable)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Linear Discontinuous (DG-P1-upwind) represents the in-cell angular flux as a
+Linear Discontinuous (DG-P1-upwind) represents the in-cell :term:`angular flux` as a
 **linear function** rather than a constant, so each cell carries a *second*
 spatial moment, the slope :math:`\hat\psi`, alongside the average
 :math:`\bar\psi` (the 1-D two-moment system and its Schur-complement

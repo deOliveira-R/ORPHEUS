@@ -29,7 +29,7 @@ The Coupled Block Operator
 
 This page develops the **coupled block operator** — the 2×2 block system
 that gives the curvilinear-S\ :sub:`N` within-group problem its capstone
-form, promoting the starting-direction flux :math:`\psi_{1/2}` (the ψ½
+form, promoting the :term:`starting-direction <starting direction>` flux :math:`\psi_{1/2}` (the ψ½
 ray) to a first-class **System B** alongside the angular-flux **System
 A**. It is the block-level generalisation of the operator algebra
 developed in :doc:`/theory/foundations/operator_algebra`: where that
@@ -54,7 +54,7 @@ runs structure-keyed block substitution — and it is where the
 curvilinear starting-direction flux :math:`\psi_{1/2}` finally earns a
 first-class home. The campaign that built it (``coupled_block_operator``,
 GH #280 the walk unification / #282 the direct ψ½ seed) replaced a
-*fused* implementation — the ψ½ seed hand-rolled inside the sweep and
+*fused* implementation — the ψ½ seed hand-rolled inside the :term:`sweep` and
 inside the model-generic scattering gain — with an explicit block system
 in which every coupling is a named operator and a wrong pairing is
 **unconstructable**. This section documents the posing, the four blocks,
@@ -73,7 +73,7 @@ At the two closed :math:`\mu = \pm 1` rays of a curvilinear μ-level the
 angular-redistribution coefficient :math:`1-\mu^2` vanishes
 (:math:`\alpha_{1/2}=0`, Hébert 3.423), so the streaming–collision
 balance for :math:`\psi_{1/2}` **decouples** from the α-cascade and
-reduces to a plain diamond-difference recurrence in radius —
+reduces to a plain :term:`diamond-difference <diamond difference>` recurrence in radius —
 :math:`\mu\,\partial_r + \sigma_t`, a *straight characteristic* (Hébert
 §3.9.4). This ODE is not a scalar boundary datum the bulk sweep can
 consume as a kwarg: it is a **two-point boundary-value problem** in its
@@ -211,7 +211,7 @@ the Morel–Montry angular recurrence (Hébert §3.9.4)
      = \frac{\psi_{m,\,i} - (1-\tau_m)\,\psi_{m-1/2,\,i}}{\tau_m},
    \qquad \psi_{-1/2,\,i} \equiv \psi_{1/2}(i),
 
-run over ordinates :math:`m` at a **fixed** cell :math:`i`. The upstream
+run over :term:`ordinates <ordinate>` :math:`m` at a **fixed** cell :math:`i`. The upstream
 half-flux enters that cell's balance as the angular numerator
 :math:`(\Delta A/w)\,c_{\rm in}\,\psi_{m-1/2,\,i}`. So the seed at cell
 :math:`i` couples ONLY to the bulk ordinates at the *same* cell — there
@@ -225,7 +225,7 @@ cotangent ``seed_cells_bar`` — the Euclidean transpose
 :math:`A_{AB}^{\mathsf T}`). It needs **no** :math:`\sigma_t`: with the
 bulk zeroed the collision/streaming terms drop out and only the
 σ-independent angular numerator survives, so the coupling is a pure
-function of the mesh geometry and quadrature. That σ-independence is a
+function of the mesh geometry and :term:`quadrature`. That σ-independence is a
 **type fact** — the constructor takes only the mesh.
 
 .. vv-status: coupled-ab-seed documented

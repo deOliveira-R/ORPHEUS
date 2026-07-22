@@ -251,7 +251,7 @@ Terminology: "group" — energy group vs. octant group
 The word **"group"** is overloaded in transport, and the two meanings
 live on **orthogonal axes**. The canonical convention above is entirely
 about the *energy* axis; do **not** conflate it with the *angular* sense
-the SN sweep uses.
+the SN :term:`sweep` uses.
 
 .. list-table::
    :header-rows: 1
@@ -266,7 +266,7 @@ the SN sweep uses.
      - ``eg``, ``SigS[g_from, g_to]``, :math:`\phi_g`, every cross
        section. **This** is what the canonical convention orders.
    * - **Angular (SN sweep)**
-     - An **octant group**: a set of ordinate directions that share a
+     - An **octant group**: a set of :term:`ordinate` directions that share a
        sweep direction (a wavefront sweeps the spatial mesh once per
        octant group).
      - The ``inner_schedule="gauss_seidel"`` sweep schedule

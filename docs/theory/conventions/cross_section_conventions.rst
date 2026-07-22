@@ -16,7 +16,7 @@ layout beneath is the sibling :doc:`indexing_and_layout` page.
 Cross-section convention
 ========================
 
-Cross sections follow the same priority as the scalar flux:
+Cross sections follow the same priority as the :term:`scalar flux`:
 :math:`g` first, then spatial.  The canonical per-cell XS state is
 **one attribute** --- ``SNSolver.mat_xs``, a
 :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`

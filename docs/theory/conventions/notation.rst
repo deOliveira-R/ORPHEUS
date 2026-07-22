@@ -45,18 +45,18 @@ Phase space and fields
      - Meaning
    * - :math:`\psi`
      - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-     - Angular flux on the ``(N, ng, nx, ny)`` layout
+     - :term:`Angular flux <angular flux>` on the ``(N, ng, nx, ny)`` layout
        (:ref:`theory-sn-index-convention`).
    * - :math:`\phi_{\ell m}`, :math:`\phi`
      - :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
      - Harmonic flux moments; :math:`\phi \equiv \phi_{00}` is the
-       scalar flux. Moments carry **no** :math:`4\pi` prefactor —
+       :term:`scalar flux`. Moments carry **no** :math:`4\pi` prefactor —
        the :math:`\Sigma w` normalization does the work (see
        :doc:`normalization`).
    * - :math:`\hat\Omega_m`, :math:`w_m`
      - :class:`~orpheus.numerics.quadrature.directional.Quadrature`
        — ``.mu_x`` / ``.mu_y`` / ``.mu_z``, ``.weights``
-     - Ordinate directions and weights. The accessors are derived
+     - :term:`Ordinate <ordinate>` directions and weights. The accessors are derived
        views over the one discrete measure
        (:doc:`/theory/foundations/discrete_measures`) — the
        canonical dim-agnostic form is ``axis_cosines(i)`` — and
@@ -145,7 +145,7 @@ The five leaves and their composites
    * - :math:`A = L + C - S - B`
      - **The honest within-group operator.** Page-wide, the bare
        letter :math:`A` means exactly this composite;
-       :math:`(L+C)^{-1}` is the transport sweep — the inner kernel
+       :math:`(L+C)^{-1}` is the transport :term:`sweep` — the inner kernel
        of :math:`A^{-1}`, never "the sweep is :math:`A^{-1}`". Any
        local rebinding of :math:`A` must be declared where it is
        used (crosswalk row 8).
@@ -171,7 +171,7 @@ Discretization factors
        source (crosswalk row 5 and
        :ref:`normalization-alpha-crosswalk`).
    * - :math:`\tau`
-     - In the S\ :sub:`N` sweep: the weighted-diamond **closure
+     - In the S\ :sub:`N` sweep: the :term:`weighted-diamond <weighted diamond difference>` **closure
        weight** (:cite:`BaileyMorelChang2010` Eq. (15);
        :doc:`/theory/methods/sn/curvilinear_one_group`). In CP /
        MoC: the **optical path length** :math:`\Sigma_{\mathrm{t}}

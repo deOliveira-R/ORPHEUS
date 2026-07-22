@@ -14,7 +14,7 @@ whole book repeats:
 1. **the invariant** (sinks = sources on the cell) → *pose* the balance;
 2. **the within-group operator** :math:`A = L + C - S - B`, and *why*
    its streaming-collision part :math:`L+C` is invertible — the
-   lower-triangular structure in sweep order;
+   lower-triangular structure in :term:`sweep` order;
 3. **the matrix representation** — the rawest form of the invertible
    operator;
 4. **the strategy-encoding operators** — the sweep (the triangular
@@ -42,7 +42,7 @@ re-derived**. This chapter instantiates it on the slab.
    * :math:`L+C` is invertible in one pass because it is
      **lower-triangular in sweep order**; the DD recurrence
      :eq:`dd-recurrence` unrolls to a vectorised cumulative product.
-   * Source iteration converges geometrically at the scattering ratio
+   * Source iteration converges geometrically at the :term:`scattering ratio`
      :math:`\rho_J = c = \Sigma_s/\Sigma_t` (:eq:`si-spectral-rate`);
      it slows arbitrarily as :math:`c \to 1` — the canonical motivation
      for Krylov and DSA.
@@ -73,12 +73,12 @@ transport equation:
    = \frac{Q}{W}
 
 where :math:`Q` is the total isotropic source (fission + scattering)
-and :math:`W = \sum_n w_n` is the quadrature weight sum. The two
+and :math:`W = \sum_n w_n` is the :term:`quadrature` weight sum. The two
 left-hand terms are the sinks seen by the beam at :math:`(x,\mu)` —
 streaming out of the volume, and removal by collision — and the
 right-hand side is the source into it. There is no angular derivative:
 in Cartesian geometry a neutron's direction cosine never changes along
-its flight, so each ordinate couples to the others only through the
+its flight, so each :term:`ordinate` couples to the others only through the
 source term. This is the structural fact the whole method exploits.
 
 Discretizing angle on the ordinate set :math:`\{\mu_n, w_n\}` (the
@@ -111,12 +111,12 @@ has the one-equation-two-unknowns shape that every discretization must
 close (:doc:`/theory/foundations/discretization` §3): the cell average
 :math:`\psi_{n,i}` and the downstream face are both unknown.
 
-Applying the diamond-difference closure
+Applying the :term:`diamond-difference <diamond difference>` closure
 :math:`\psi_{n,i} = \frac{1}{2}(\psi_{\rm in} + \psi_{\rm out})` and
 :math:`\psi_{\rm out} = 2\psi_{n,i} - \psi_{\rm in}` (the
 :math:`w = \tfrac12` point of the closure spectrum,
 :doc:`/theory/foundations/discretization` §4), we solve for the
-cell-average angular flux:
+cell-average :term:`angular flux`:
 
 .. math::
    :label: dd-cartesian-1d
@@ -209,7 +209,7 @@ the loss composite :math:`L + C` with all three verbs — ``apply``,
 * :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` —
   inverse action :math:`(L+C)^{-1}\,q` via the operator's own
   :attr:`~orpheus.sn.operators.streaming.InvertibleOperator.loss_representation`
-  sweep (the weighted-diamond-difference — WDD — forward
+  sweep (the :term:`weighted-diamond-difference <weighted diamond difference>` — WDD — forward
   substitution; the 1-D scan or multi-D wavefront selected by
   :func:`~orpheus.sn.loss_representation.default_for`).
 
@@ -479,7 +479,7 @@ performs ``phi @ SigS[0]`` per material.)
 As an operator this is :math:`S = \Sigma_{s,0}\, P_{\rm iso}` with
 :math:`P_{\rm iso}\,\psi = \phi / \sum_n w_n` — a **rank-1-in-angle
 projection**, not a diagonal: it couples every ordinate to every other
-through the scalar flux. In the intrinsic-type partition of
+through the :term:`scalar flux`. In the intrinsic-type partition of
 :doc:`/theory/foundations/operator_algebra`, :math:`S` is a *kernel*
 (nonlocal in angle) where :math:`C` is a *local multiplication
 operator* — and that type difference is precisely what makes the

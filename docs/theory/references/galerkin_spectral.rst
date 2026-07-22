@@ -72,7 +72,7 @@ explicit explanation:
 
 The same discipline applies elsewhere in ORPHEUS: ``fn_method/`` is a
 method (the F_N family), ``peierls_nystrom/`` names the Peierls
-integral form + Nyström quadrature (both textbook method names, not
+integral form + Nyström :term:`quadrature` (both textbook method names, not
 authors), but the inline ``bickley_naylor.py`` would be allowed because
 "Bickley–Naylor functions" name a primitive. The boundary is
 **method ↔ folder, primitive ↔ filename**.
@@ -258,7 +258,7 @@ Boltzmann transport equation is
        = \tfrac{c\Sigma_t}{2}\big[\phi(r) + 3\bar\mu\,J(r)\,\mu\big]
 
 where :math:`\phi(r) = \int_{-1}^{+1} \psi(r, \mu)\, d\mu` is the
-scalar flux, :math:`J(r) = \int_{-1}^{+1} \mu\,\psi(r, \mu)\, d\mu`
+:term:`scalar flux`, :math:`J(r) = \int_{-1}^{+1} \mu\,\psi(r, \mu)\, d\mu`
 is the current, :math:`c = (\Sigma_s + \nu\Sigma_f) / \Sigma_t` is
 the mean number of secondaries per collision, and
 :math:`\bar\mu = \Sigma_{s,1} / \Sigma_{s,0}` is the linearly-

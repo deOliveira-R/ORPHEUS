@@ -37,7 +37,7 @@ this page, this page is correct.
   ``(ng, nx, ny)`` --- energy first, spatial last.  Same trailing
   ``ny = 1`` rule for 1-D.
 - **External source** :math:`q`: ``(ng, nx, ny)`` (isotropic) or
-  ``(N, ng, nx, ny)`` (anisotropic / per-ordinate).
+  ``(N, ng, nx, ny)`` (anisotropic / :term:`per-ordinate <ordinate>`).
 - **Cell-flattening invariant**: the principled storage round-trips
   with the legacy one under transpose:
   ``xs.sig_t.T.reshape(ng, nx, ny)[g, i, j] ==
@@ -109,7 +109,7 @@ The SN solver discretises four indices:
 A storage decision picks one ordering of these axes for every flux,
 source, and cross-section array.  The decision is consequential: it
 affects how every operator-leaf ``apply`` body indexes, how the
-sweep's hot loop traverses memory, and how a future JAX or GPU port
+:term:`sweep`'s hot loop traverses memory, and how a future JAX or GPU port
 maps batched dimensions to the device grid.
 
 Before Issue #196 the codebase carried ``(N, nx, ny, ng)`` for
@@ -172,7 +172,7 @@ Two observations make the storage decision:
 
 2. **No cross-ordinate coupling for the within-group P\ :sub:`0`
    problem.** When scattering is :math:`P_0` (isotropic), the
-   right-hand side is a scalar flux :math:`\phi(r)` that does not
+   right-hand side is a :term:`scalar flux` :math:`\phi(r)` that does not
    depend on the outgoing ordinate.  Different ordinates therefore
    solve *the same source* through different streaming directions,
    and an outer Krylov batch can compute their residuals in parallel.

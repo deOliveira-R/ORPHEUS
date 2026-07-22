@@ -107,7 +107,7 @@ Key Facts
      product of independent per-axis operations. *Coupled physics* —
      per-material XS lookup that ties group to spatial cell,
      sequential WDD recurrence that ties spatial cells, M-M half-grid
-     recurrence that ties angular ordinates — falls back to
+     recurrence that ties angular :term:`ordinates <ordinate>` — falls back to
      :class:`OperatorSum` over bespoke :class:`LinearOperator`
      summands, **NOT** SOTP.
 
@@ -300,7 +300,7 @@ cross-sections does not admit it for scattering and streaming.
    operator without information loss.
 
 2. **Sequential WDD recurrence** (T.4 streaming, spatial). The
-   diamond-difference closure :math:`\psi_{\text{face,out}} =
+   :term:`diamond-difference <diamond difference>` closure :math:`\psi_{\text{face,out}} =
    2\bar\psi_{\text{cell}} - \psi_{\text{face,in}}` makes the cell
    :math:`i+1` value depend on the cell :math:`i` value. A
    per-direction sweep summand IS the WDD recurrence as a single

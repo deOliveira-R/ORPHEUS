@@ -99,7 +99,7 @@ genuinely disjoint:
   analytical bounce-period summation closing the operator at the
   surface. The discrete eigenvalue problem is in the surface
   amplitude space; the radial profile is reconstructed *afterwards*
-  by quadrature along characteristics.
+  by :term:`quadrature` along characteristics.
 
 When both methods agree at 5+ digits across the LA-13511 catalogue,
 the verification chain is structurally far stronger than any single
@@ -116,7 +116,7 @@ Mathematical structure of the F_N moment space
 
 This section is a graduate-textbook-level exposition of the
 mathematical home of the F_N method: the **moment space**, a
-:math:`(N+1)`-dimensional vector space onto which the angular flux
+:math:`(N+1)`-dimensional vector space onto which the :term:`angular flux`
 :math:`\psi(r, \mu)` is projected via Galerkin half-range
 quadrature. The class :class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`
 is the computational realisation of this object — the data
@@ -498,7 +498,7 @@ Connection to flux reconstruction
 
 The F_N coefficients :math:`(a_0, \ldots, a_N)` define the boundary
 angular flux :math:`\psi(\pm a, \mu)` as a polynomial in
-:math:`\mu`. Reconstructing the *interior* scalar flux
+:math:`\mu`. Reconstructing the *interior* :term:`scalar flux`
 :math:`\phi(z)` requires evaluating the Peierls integral
 
 .. math::

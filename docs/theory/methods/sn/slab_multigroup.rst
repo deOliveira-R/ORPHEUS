@@ -8,8 +8,8 @@ This chapter broadens exactly one axis of :doc:`slab_one_group`:
 things one group could not express: group-to-group scattering transfer
 (including the P\ :sub:`N` anisotropy expansion), fission with its
 emission spectrum :math:`\chi`, and the :math:`k`-eigenvalue problem
-that fission poses. Everything else — the mesh, the quadrature, the
-cell balance and its closure, the sweep, source iteration and its
+that fission poses. Everything else — the mesh, the :term:`quadrature`, the
+cell balance and its closure, the :term:`sweep`, source iteration and its
 Krylov alternative — is **reused unchanged**: the group axis couples
 the transport equations *only through their sources*, so each group's
 within-group problem is precisely the machine of the previous chapter.
@@ -17,7 +17,7 @@ within-group problem is precisely the machine of the previous chapter.
 The chain of the book (:doc:`slab_one_group`, intro) repeats on the
 new axis:
 
-1. **the invariant** — sinks = sources, now per (cell × ordinate ×
+1. **the invariant** — sinks = sources, now per (cell × :term:`ordinate` ×
    group) → *pose* the multigroup balance;
 2. **the operators** — scattering becomes a group-coupling kernel,
    fission a rank-1-in-energy emitter; the within-group operator
@@ -46,7 +46,7 @@ new axis:
      :math:`Q = \text{SigS}^T \phi`
      (:ref:`scattering-matrix-convention`).
    * P\ :sub:`N` anisotropic scattering :eq:`pn-scatter` reaches the
-     angular flux **only through its moments** :eq:`flux-moments` —
+     :term:`angular flux` **only through its moments** :eq:`flux-moments` —
      the factored composition :math:`S_{\rm aniso} = R\,\Lambda\,M`
      with the :math:`(2\ell+1)` addition-theorem normalisation
      :eq:`addition-theorem`.
@@ -90,7 +90,7 @@ transport equation becomes a coupled system with scattering transfer
 
 where the streaming operator depends on the coordinate system (for
 the slab, :math:`\mu\,\partial_x` as in :eq:`transport-cartesian`)
-and :math:`\phi_g = \sum_n w_n \psi_{g,n}` is the scalar flux.
+and :math:`\phi_g = \sum_n w_n \psi_{g,n}` is the :term:`scalar flux`.
 
 The structural fact that organizes everything downstream: the
 left-hand side — streaming and collision — is **diagonal in the group

@@ -47,7 +47,7 @@ eigenvalue is introduced *before* any discretization
 
 Streaming reads most naturally in its **Lagrangian** form: along a
 flight at direction :math:`\hat\Omega`, parametrised by arc length
-:math:`s`, the angular flux changes only by collision and emission —
+:math:`s`, the :term:`angular flux` changes only by collision and emission —
 
 .. math::
    :label: methods-lagrangian-streaming
@@ -81,7 +81,7 @@ One line each — what the chapter *is*, not how the methods compare
 :ref:`path-integral-method-map`):
 
 - :ref:`theory-discrete-ordinates` — differential transport via
-  angular quadrature and spatial sweeps; the corpus's most developed
+  angular :term:`quadrature` and spatial sweeps; the corpus's most developed
   method (a sub-book: Cartesian 1-D/2-D, curvilinear 1-D, adjoint,
   representations).
 - :ref:`theory-collision-probability` — integral transport via the
@@ -103,7 +103,7 @@ Several orders through this part serve different jobs
 
 * **Newcomer** — read the S\ :sub:`N` base chapter first:
   :doc:`sn/slab_one_group` shows the *whole machine* (posing →
-  balance → operator → sweep → iteration) at its simplest, then
+  balance → operator → :term:`sweep` → iteration) at its simplest, then
   :doc:`sn/slab_multigroup` adds energy and the eigenvalue, then
   :doc:`diffusion_1d` shows the P\ :sub:`1` limit the accelerators
   lean on.  Broaden afterwards: :doc:`collision_probability` and

@@ -9,7 +9,7 @@ Infrastructure
 Boundary conditions are declared on the **geometry mesh** and resolved
 by the **solver's augmented mesh** at construction time.  This two-stage
 design separates physics intent (what condition to apply) from solver
-mechanics (how to enforce it in the sweep).
+mechanics (how to enforce it in the :term:`sweep`).
 
 **Stage 1 --- Geometry declaration.**
 :class:`~geometry.mesh.Mesh1D` carries ``bc_left: BC | None`` and
@@ -116,7 +116,7 @@ Supported Types
 
 **Reflective** (specular reflection).
 At the outer boundary :math:`r = R` (or :math:`x = L`), the incoming
-flux for ordinate :math:`n` is set to the outgoing flux of its reflected
+flux for :term:`ordinate` :math:`n` is set to the outgoing flux of its reflected
 partner:
 
 .. math::
@@ -126,7 +126,7 @@ partner:
 
 where :math:`n'` is the reflected partner ordinate (negating the
 appropriate direction cosine).  Reflective partner indices are precomputed
-by each quadrature's :meth:`reflection_index` method.  This is the
+by each :term:`quadrature`'s :meth:`reflection_index` method.  This is the
 default for eigenvalue problems (infinite lattice / infinite medium).
 The CP solver uses white (isotropic) BCs instead; see
 :ref:`white-bc-quality` for a comparison showing the ~1% gap between
@@ -171,7 +171,7 @@ incoming angular flux:
 
 where :math:`G_\alpha` is a **geometric operator** (permutation,
 pushforward, angular average, spatial wrap) and :math:`A_\alpha` is a
-**scalar amplitude** (typically an albedo :math:`\in [0, 1]`).
+**scalar amplitude** (typically an :term:`albedo` :math:`\in [0, 1]`).
 
 This is the same algebra Lewis & Miller (1984) §3.4 use to introduce
 boundary conditions in transport: every BC of practical interest is

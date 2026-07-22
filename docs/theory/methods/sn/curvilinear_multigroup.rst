@@ -10,7 +10,7 @@ headline is a deliberate anticlimax: **there is nothing to derive.**
 The group axis couples the transport equations *only through their
 sources* — that was the structural fact of :doc:`slab_multigroup` —
 and everything curvature added in the previous chapter is streaming:
-the redistribution cascade, the geometry factor, the starting-direction
+the redistribution cascade, the geometry factor, the :term:`starting-direction <starting direction>`
 state are all *in-flight* physics.  A neutron flying through a curved
 coordinate system changes its local direction coordinate; it does not
 change its energy.  Group transfer happens at collision events, and
@@ -19,7 +19,7 @@ never touched.
 
 That "nothing" is this chapter's content, because it is a *claim about
 the architecture*, not an absence of one: the curvilinear walk is a
-geometry :math:`\times` quadrature object, and energy is a data axis
+geometry :math:`\times` :term:`quadrature` object, and energy is a data axis
 that broadcasts along it.  The claim is checkable — arrays either
 carry a group axis or cannot — and this chapter states exactly which
 do, where the axis enters, and which tests pin the composition.  The
@@ -53,7 +53,7 @@ cross-reference:
      Morel--Montry weights :eq:`mm-weights` and their derived
      constants :math:`c_{\rm in}/c_{\rm out}`, the geometry factor
      :math:`\Delta A_i/w_n` — is computed from geometry and quadrature
-     alone and **carries no group axis**.  The realized sweep
+     alone and **carries no group axis**.  The realized :term:`sweep`
      **data** — the WDD denominator and attenuation (through
      :math:`\Sigt{g} V_i`) and the starting-direction state
      :math:`\psi_{1/2,g}` — is per-group, **group-diagonal**: parallel
@@ -61,7 +61,7 @@ cross-reference:
    * **Vocabulary trap**: in this book :math:`\tau` and
      :math:`c_{\rm in}/c_{\rm out}` are the Morel--Montry *angular*
      closure weights — functions of :math:`(\mu, w)` only, shape
-     ``(N,)``, no group axis.  They are **not** optical thicknesses.
+     ``(N,)``, no group axis.  They are **not** :term:`optical thicknesses <optical thickness>`.
      The per-group "optical" quantity is the WDD denominator /
      attenuation of the cross-section stratum.
    * **No group loop exists on the iterative path.**  The within-group
@@ -149,7 +149,7 @@ These objects have **no group axis at all** — their arrays are shaped
 by quadrature and mesh, and no cross section enters their
 construction:
 
-* **The walk itself.**  ``SNMesh.dag_walk`` yields the per-(ordinate,
+* **The walk itself.**  ``SNMesh.dag_walk`` yields the per-(:term:`ordinate`,
   cell) visit sequence — the direction-keyed topological order the
   sweep follows — as
   :class:`~orpheus.transport.spatial.scheme.CellVisit` packets

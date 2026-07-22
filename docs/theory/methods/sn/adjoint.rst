@@ -108,7 +108,7 @@ the leaf transposes — the frame's :math:`M^{T}` / :math:`R^{T}` faces (landed
 in the Frame/Basis carve), the per-:math:`\ell` group transpose
 :math:`\Lambda^{T}`, and :math:`N_{2n}^{T}` — with **no per-geometry
 derivation to verify** (the trap the streaming adjoint above could not
-avoid).  The per-ordinate adjoint scattering source is then
+avoid).  The :term:`per-ordinate <ordinate>` adjoint scattering source is then
 
 .. math::
    :label: sn-scattering-adjoint-source

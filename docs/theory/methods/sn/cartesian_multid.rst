@@ -5,7 +5,7 @@ Cartesian multi-D: space enters the walk
 
 This chapter broadens exactly one axis of the slab chapters:
 **space**. Streaming becomes a true directional gradient — two (in 3-D,
-three) sink terms instead of one — and with it the sweep stops being a
+three) sink terms instead of one — and with it the :term:`sweep` stops being a
 chain and becomes a **wavefront over a causal dependency graph**. What
 does *not* change is the algebra: Cartesian geometry keeps a neutron's
 direction constant in flight, so there is still no angular coupling
@@ -28,7 +28,7 @@ The chain of the book repeats on the new axis:
    pair), and the representation layer that selects among schedules
    (:doc:`loss_representation`).
 
-The angular quadrature now genuinely uses both direction cosines
+The angular :term:`quadrature` now genuinely uses both direction cosines
 (:doc:`angular_quadrature`); the generic discretization machinery is
 still :doc:`/theory/foundations/discretization`, cross-linked never
 re-derived.
@@ -69,7 +69,7 @@ re-derived.
      reduced after its LAST outflowing octant group (ERR-056) — a
      boundary-transient accelerator, NOT a scattering accelerator.
    * Boundary conditions apply **once per octant per axis**, never per
-     ordinate — the L7 trap (ERR-003): per-ordinate BC application is
+     ordinate — the L7 trap (ERR-003): :term:`per-ordinate <ordinate>` BC application is
      redundant in cost and order-sensitive in correctness.
    * The per-cell operation order is **bit-identity-load-bearing**:
      different *schedules* of the same operator are compared by
@@ -85,7 +85,7 @@ phase space (:doc:`slab_one_group`, The Posing). Space enters through
 the streaming term alone: on a 2-D Cartesian phase space the beam at
 :math:`(x, y, \hat\Omega_n)` leaks through faces on both axes.
 
-In two Cartesian dimensions the angular flux depends on two direction
+In two Cartesian dimensions the :term:`angular flux` depends on two direction
 cosines :math:`\mu_x` and :math:`\mu_y`:
 
 .. math::
@@ -130,7 +130,7 @@ Integrating :eq:`transport-cartesian-2d` over a rectangular cell
    = S_{i,j}\, \Delta x_i \Delta y_j
 
 Dividing through by :math:`\Delta x_i \Delta y_j` and applying
-diamond-difference closures in **both** directions simultaneously:
+:term:`diamond-difference <diamond difference>` closures in **both** directions simultaneously:
 
 .. math::
 

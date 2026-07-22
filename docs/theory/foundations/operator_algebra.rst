@@ -40,7 +40,7 @@ preconditioned-Krylov code consumes any method (S\ :sub:`N` / MoC / CP /
 diffusion) without knowing which transport discretisation lives
 underneath. This page is that algebra's reference: the intrinsic type of
 each operator, the composition laws, the invertible :math:`L+C` and its
-sweep, and how a method extends the shared operators (S\ :sub:`N`
+:term:`sweep`, and how a method extends the shared operators (S\ :sub:`N`
 expands :math:`S` for anisotropy).
 
 .. contents::
@@ -55,7 +55,7 @@ Key Facts
   operator** (Issue #208): the within-group transport
   operator is :math:`A = L + C - S - B` on the **two-block** transport
   state :math:`V = V_{\rm bulk} \oplus V_{\rm boundary}` (the bulk
-  angular flux :math:`\oplus` a single boundary trace — inflow and
+  :term:`angular flux` :math:`\oplus` a single boundary trace — inflow and
   outflow fold into one :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`),
   posed :math:`A\psi = \tfrac{1}{k}F\psi` or :math:`A\psi = q`. The
   fission gain :math:`F` **never enters** :math:`A` — it is applied on
@@ -160,7 +160,7 @@ Key Facts
   (M\psi)_\ell^m`, so the *persistent* iterate is held as the moment
   tensor :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
   (:math:`N \to (L{+}1)(2L{+}1)`, measured **18.3×** shrink at
-  :math:`N=110`, :math:`L=1`) rather than the full per-ordinate
+  :math:`N=110`, :math:`L=1`) rather than the full :term:`per-ordinate <ordinate>`
   :class:`~orpheus.transport.fields.angular_flux.AngularFlux`. The
   source is **bit-identical** (the moment arm of
   :meth:`ScatteringOperator.apply <orpheus.transport.operators.scattering.ScatteringOperator.apply>`
@@ -295,7 +295,7 @@ Key Facts
   :class:`~orpheus.transport.operators.fission.FissionOperator`): the
   ``apply(psi) -> psi'`` contract consumes and returns
   ``psi.shape == (N, ng, nx, ny)`` for angular flux,
-  ``phi.shape == (ng, nx, ny)`` for scalar flux.  The canonical
+  ``phi.shape == (ng, nx, ny)`` for :term:`scalar flux`.  The canonical
   statement with derivation and migration history lives at
   :ref:`theory-sn-index-convention`.
 
@@ -864,7 +864,7 @@ The crispest proof — the WDD cell denominator
 ---------------------------------------------
 
 The non-separability is visible inside a **single cell**, before any
-global coupling enters. The diamond-difference cell update solves the
+global coupling enters. The :term:`diamond-difference <diamond difference>` cell update solves the
 balance :eq:`streaming-action-cell-balance` for the cell-average flux:
 
 .. math::
@@ -972,7 +972,7 @@ outer source iteration sums the series. This is the Peierls
 collision-number expansion (each term :math:`k` is the flux of neutrons
 that have scattered exactly :math:`k` times). The series converges with
 spectral radius :math:`\rho\bigl[(L+C)^{-1}S\bigr] \le \max_g
-\Sigma_{s,g}/\Sigma_{t,g} = c` (the scattering ratio;
+\Sigma_{s,g}/\Sigma_{t,g} = c` (the :term:`scattering ratio`;
 :ref:`affine-typed-field-algebra` documents the matching contraction
 :math:`M = (L+C)^{-1}(S+B)` carried as a typed diagnostic on the SI
 iterate). The sweep :math:`(L+C)^{-1}` being a *single bundled* inverse —
@@ -2482,7 +2482,7 @@ not a new reference.
    that path is tracked as the un-orphaning of
    :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator` on
    #260. The :math:`1/W` per-ordinate normalisation lives *outside* the
-   kernel (the kernel is the redistribution, not the quadrature
+   kernel (the kernel is the redistribution, not the :term:`quadrature`
    weighting).
 
 .. _emission-kernels-btd:

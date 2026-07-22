@@ -6,7 +6,7 @@
 
 The diffusion equation is the lowest-order angular approximation of
 the neutron transport equation: the P1 (first spherical-harmonic)
-expansion truncated to the scalar flux. It is not a transport
+expansion truncated to the :term:`scalar flux`. It is not a transport
 solver in the strict sense — it discards angular information
 beyond the current — but it is the workhorse of reactor design and
 its verification is a mathematical problem in its own right.
@@ -71,7 +71,7 @@ Key Facts
   the elliptic **leakage** leaf :math:`-\nabla\!\cdot D\nabla`,
   :math:`C` the **collision** multiplication by :math:`\Sigma_t`,
   :math:`S` the **scattering** kernels, :math:`B` the realized
-  **boundary** albedo block, and :math:`F` the rank-1 fission
+  **boundary** :term:`albedo` block, and :math:`F` the rank-1 fission
   production :math:`\chi\otimes\nu\Sigma_f`. The removal cross section
 
   .. math::
@@ -412,8 +412,8 @@ agnostic mesh + materials **data**) augmented with the diffusion method's
 **behaviour** — the scalar trace, the composite carrier
 ``full_field_space``, and the per-face boundary laws **realized at
 construction**. It is the structural sibling of
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (mesh + quadrature +
-sweep machinery + angular trace): one method-agnostic data carrier, one
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (mesh + :term:`quadrature` +
+:term:`sweep` machinery + angular trace): one method-agnostic data carrier, one
 method layer per transport method. Every admission gate (1-D, bounded
 geometry, supported BC tags) fires at construction — an operator built
 on a bad phase space is action-at-a-distance otherwise — so a diffusion
@@ -1448,7 +1448,7 @@ References
   boundary algebra.
 - Marshak, R. E., "Note on the spherical harmonic method as applied to
   the Milne problem for a sphere", *Phys. Rev.* **71**, 443 (1947) —
-  the zero-incoming-partial-current (Marshak) vacuum boundary condition
+  the zero-incoming-partial-current (Marshak) :term:`vacuum boundary condition`
   :math:`J^- = 0`.
 - Baliga, B. R. and Patankar, S. V., "A control-volume finite-element
   method for two-dimensional fluid flow and heat transfer",

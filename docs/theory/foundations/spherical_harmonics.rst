@@ -5,8 +5,8 @@ Real Spherical Harmonics on a Direction Set
 ===========================================
 
 Real spherical harmonics :math:`Y_\ell^m(\hat\Omega)` are the Galerkin
-basis ORPHEUS uses to project an angular flux onto its Pℓ moments and
-to reconstruct a per-ordinate scattering source from those moments.
+basis ORPHEUS uses to project an :term:`angular flux` onto its Pℓ moments and
+to reconstruct a :term:`per-ordinate <ordinate>` scattering source from those moments.
 This page is the canonical home for the **convention**, the
 **addition-theorem identity** that the convention is engineered to
 make literal, and the cross-method use of the

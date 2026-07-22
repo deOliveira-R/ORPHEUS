@@ -30,7 +30,7 @@ This page is the **inverse family** of the operator algebra: the four
 realizations of "apply :math:`A^{-1}` / materialize :math:`A`" that the #226
 operator taxonomy separates. The operators being inverted — the loss
 composite :math:`A = L + C - S - B`, and its invertible sub-composite
-:math:`L + C` whose inverse **is** the transport sweep — are developed in
+:math:`L + C` whose inverse **is** the transport :term:`sweep` — are developed in
 :doc:`/theory/foundations/operator_algebra`. This page picks up at the
 inverse itself and follows it through four distinct realizations:
 
@@ -124,13 +124,13 @@ it, each documented per type:
        (curvilinear 1-D)
      - **threaded**
      - The M–M Carlson closure seeds the :math:`\mu=-1`
-       starting-direction flux from the previous iterate's per-ordinate
+       starting-direction flux from the previous iterate's :term:`per-ordinate <ordinate>`
        :math:`\psi`; ``apply`` delegates to ``inner.solve(rhs,
        initial_guess=...)`` which reads it.
    * - :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
        (2-D Cartesian DD)
      - accepted, ignored
-     - The diamond-difference wavefront is a direct forward substitution
+     - The :term:`diamond-difference <diamond difference>` wavefront is a direct forward substitution
        down the upwind DAG — no interior-iterate seed. The kwarg threads
        through harmlessly.
    * - :class:`~orpheus.numerics.operator.InverseOperator`
@@ -621,7 +621,7 @@ orders of magnitude off the equation. The promise is therefore read on the
 Crucially the promise is **driven, not merely checked**. A check-only design
 (raise whenever :eq:`green-true-residual` fails at increment-stop) would
 falsely raise for **every** split with :math:`\rho > 1/2` — i.e. most
-physical scattering ratios — because increment-stop delivers only
+physical :term:`scattering ratios <scattering ratio>` — because increment-stop delivers only
 :math:`\rho/(1-\rho)\cdot{\rm tol}` there.
 :meth:`GreenOperator.apply <orpheus.numerics.green_operator.GreenOperator.apply>`
 instead runs a **refinement loop**: after each increment-stopped driver

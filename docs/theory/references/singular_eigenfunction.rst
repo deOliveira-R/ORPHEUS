@@ -27,7 +27,7 @@ Key Facts
   * **Closed-form** for the criticality determinants (Atalay Eqs 46
     / 54 reduce to scalar arctan-equation roots in :math:`d`).
   * **Semi-analytical** for the cylinder Mitsis-WM Fredholm
-    coupling (WM-72 Eqs 30-32 with mpmath/scipy quadrature) and
+    coupling (WM-72 Eqs 30-32 with mpmath/scipy :term:`quadrature`) and
     for the linear-anisotropy machinery (X-function Eq 40,
     extrapolated endpoint Eq 42, K_j moments).
 
@@ -151,7 +151,7 @@ fundamentally different.
 * **F_N (slab/sphere).** Imposes the exact half-space exit-distribution
   equation at :math:`(N+1)` collocation points and solves a
   determinantal equation :math:`\det M(R) = 0`. Slab and sphere are
-  unified by a geometry sign :math:`s = \pm 1`; the scalar flux is
+  unified by a geometry sign :math:`s = \pm 1`; the :term:`scalar flux` is
   recovered post-hoc via the KLL 1974 Fredholm iteration on
   :math:`A(\nu)` (see :ref:`theory-fn-method`).
 
@@ -366,7 +366,7 @@ The load-bearing claim that justifies *using* the Case spectrum is
 the **expansion theorem**:
 
   **Theorem (Case 1960, Theorem 1; completeness in Mika 1961).**
-  Any admissible angular flux on the homogeneous transport
+  Any admissible :term:`angular flux` on the homogeneous transport
   equation in a finite spatial domain admits a unique expansion
 
   .. math::

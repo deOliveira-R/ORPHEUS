@@ -37,7 +37,7 @@ to the operator algebra developed in
 :doc:`/theory/foundations/operator_algebra`: that page types the
 **operators** — the within-group loss composite :math:`A = L + C - S - B`
 and its invertible sub-composite :math:`L + C`, whose inverse
-:math:`(L+C)^{-1}` is the transport sweep — while this page types the
+:math:`(L+C)^{-1}` is the transport :term:`sweep` — while this page types the
 **fields** those operators act on.
 
 .. note::
@@ -421,7 +421,7 @@ the tail sum
 .. vv-status: affine-true-error documented
 
 so the bare increment :math:`\lVert\Delta\psi\rVert` **understates** the
-true error by a factor :math:`1/(1-\rho)`. As the scattering ratio
+true error by a factor :math:`1/(1-\rho)`. As the :term:`scattering ratio`
 :math:`c \to 1` (optically thick, near-pure-scatter), :math:`\rho \to
 1` and the understatement blows up: at :math:`c = 0.99`,
 :math:`\rho\approx 0.99` and the true error is :math:`\sim 100\times`
@@ -440,7 +440,7 @@ increment) — data a flux state cannot hold.
 **The convergence map.**
 :meth:`~orpheus.transport.displacements._displacement.Displacement.where_largest`
 returns the :math:`k` index tuples with the largest
-:math:`|\Delta\psi|` — the per-cell / per-group / per-ordinate
+:math:`|\Delta\psi|` — the per-cell / per-group / :term:`per-ordinate <ordinate>`
 convergence map (which entries are not converging: a pole-cell
 resonance, a material-interface slow mode, a lagging group).
 

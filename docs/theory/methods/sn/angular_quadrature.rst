@@ -22,7 +22,7 @@ Lebedev (Sphere)
 
 For 2D/3D Cartesian geometry: :math:`N` points on the unit sphere with
 octahedral symmetry :cite:`Lebedev1999`.  Weights sum to :math:`4\pi`.  On a
-1D mesh, z-directed ordinates (:math:`\mu_x = \mu_y = 0`) are handled
+1D mesh, z-directed :term:`ordinates <ordinate>` (:math:`\mu_x = \mu_y = 0`) are handled
 as pure collision; all others stream along *x* with *y*-terms cancelling
 via reflective BCs.
 
@@ -32,14 +32,14 @@ Built by :meth:`Quadrature.lebedev(order)
 Level-Symmetric S\ :sub:`N`
 ----------------------------
 
-Standard triangular quadrature with :math:`N/2` distinct :math:`\mu_z`
+Standard triangular :term:`quadrature` with :math:`N/2` distinct :math:`\mu_z`
 values per hemisphere.  Ordinates on each level are permutations of the
 direction cosine set satisfying :math:`\eta^2 + \xi^2 + \mu^2 = 1`.
 Equal spacing in :math:`\mu^2` is used with :math:`\mu_1^2 = 4/(N(N+2))`
 :cite:`CarlsonLathrop1965`.
 
 Weights sum to :math:`4\pi`.  Provides the ``level_indices`` structure
-needed by the cylindrical sweep.  Unlike the product quadrature
+needed by the cylindrical :term:`sweep`.  Unlike the product quadrature
 (which has one level per :math:`\mu_z` value), the Level-Symmetric
 quadrature groups both :math:`+\mu_z` and :math:`-\mu_z` hemispheres
 on the same level (grouped by :math:`|\mu_z|`).  Within each level,
@@ -99,7 +99,7 @@ For multi-dimensional quadratures (Lebedev, Level-Symmetric, Product),
 the reflection indices are precomputed at construction time for all
 three axes (*x*, *y*, *z*) and stored as ``_ref_x``, ``_ref_y``,
 ``_ref_z``.  These indices are used by the sweep to implement
-reflective boundary conditions (see :ref:`boundary-conditions`).
+:term:`reflective boundary conditions <reflective boundary condition>` (see :ref:`boundary-conditions`).
 
 Comparison Table
 -----------------

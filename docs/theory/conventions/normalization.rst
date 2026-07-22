@@ -7,7 +7,7 @@ Normalization
 :doc:`notation` fixes *which* symbol means what. This page fixes the
 second axis of the wrong-by-a-constant failure class: *what size*
 everything is. Three normalization families cover every constant-level
-trap recorded in this codebase — the quadrature **weight sum**
+trap recorded in this codebase — the :term:`quadrature` **weight sum**
 :math:`W`, the **harmonic prefactor** :math:`(2\ell+1)/4\pi`, and the
 curvilinear :math:`\alpha`-**recursion scale**. For each family this
 page states the ORPHEUS law once, shows where the canon spreads, and
@@ -31,7 +31,7 @@ The measure is the *only* normalization carrier, which fixes where
 :math:`W` may and may not appear:
 
 - **Moments carry no** :math:`1/W` **and no** :math:`1/4\pi`. A flux
-  moment is a plain weighted sum over ordinates — the projection
+  moment is a plain weighted sum over :term:`ordinates <ordinate>` — the projection
   :math:`\Pi` applies the weights and nothing else (next section).
 - **An isotropic scalar-rate source enters the per-ordinate equation
   as** :math:`Q/W`, so that its weighted sum returns :math:`Q`. The
@@ -50,7 +50,7 @@ octant — the same symbol :math:`w_n`, two normalizations, no note.
 Any weight-bearing formula must be read against its *page-local*
 :math:`\sum w` before import.
 
-**The recorded cost — ERR-025.** The 1-D diamond-difference fast
+**The recorded cost — ERR-025.** The 1-D :term:`diamond-difference <diamond difference>` fast
 path's precomputed recurrence needed
 
 .. math::
@@ -159,7 +159,7 @@ review literature under a *different letter*. The factor of two and
 the sign **move between the recursion and the balance-equation
 divisor**; neither half is meaningful alone. The invariants that hold
 across every row: :math:`\alpha_{1/2} = 0` seeds the recursion, and
-the resulting system is lower-triangular (a direct one-pass sweep).
+the resulting system is lower-triangular (a direct one-pass :term:`sweep`).
 
 .. list-table::
    :header-rows: 1
@@ -213,7 +213,7 @@ the resulting system is lower-triangular (a direct one-pass sweep).
        :math:`\alpha` with the sign absorbed
      - :math:`\sum w = 2`
      - :math:`(r/w_n)` in the :math:`r^2`-form (1.23a); ⚠ their
-       :math:`\alpha` is the **spatial** weighted-diamond weight
+       :math:`\alpha` is the **spatial** :term:`weighted-diamond <weighted diamond difference>` weight
        (1.30)
 
 Every row is correct *in its own convention*. The import rule follows:

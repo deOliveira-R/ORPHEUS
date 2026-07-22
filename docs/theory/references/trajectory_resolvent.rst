@@ -25,7 +25,7 @@ Key Facts
   two-surface (2 physical endpoints of M/G); see
   :ref:`orbit-space-m-g-classification` for the structural
   signature.
-- **Pillar classification**: semi-analytical (ray-traced quadratures
+- **Pillar classification**: semi-analytical (ray-traced :term:`quadratures <quadrature>`
   + geometric multi-bounce series). The **β-sister** pillar
   (closed-form spectral μ-integration) is reserved at
   :ref:`theory-spectral-resolvent` and constitutes the headline
@@ -940,7 +940,7 @@ the Phase 4 path due to the rank-N truncation bias.
 
 **Configuration**: fuel-A-like 1G XS, :math:`R = 5`,
 :math:`\Sigt{} = 0.5`, :math:`\Sigs{} = 0.38`, :math:`\nSigf{} =
-0.025`. Optical thickness :math:`\tau_R = \Sigt{} R = 2.5`.
+0.025`. :term:`Optical thickness <optical thickness>` :math:`\tau_R = \Sigt{} R = 2.5`.
 Analytic infinite-medium :math:`\kinf = 0.025/0.12 = 0.2083\overline{3}`.
 
 .. list-table:: Cross-verification: closed homogeneous sphere with perfect specular BC
@@ -1176,7 +1176,7 @@ log-singularity at :math:`r = x` handled by QUADPACK QAGS. Power
 iteration on the integral kernel
 :math:`(c/2)\,x\,[E_1(|r-x|) - E_1(r+x)]` extracts the dominant
 eigenvalue, and :math:`k_{\rm eff} = c \cdot \nSigf{}/(\Sigs{} +
-\nSigf{})` from the converged scattering ratio
+\nSigf{})` from the converged :term:`scattering ratio`
 :math:`c = (\Sigs{} + \nSigf{}/k)/\Sigt{}` self-consistently.
 
 Cross-check evidence (table from
@@ -1291,7 +1291,7 @@ with shared per-group operator
 no regression in the 25 prior 1G tests). At each outer iteration,
 the solver:
 
-1. Computes scalar fluxes :math:`\phi_g(r) = 2\pi\!\int\psi_g(r,\mu)
+1. Computes :term:`scalar fluxes <scalar flux>` :math:`\phi_g(r) = 2\pi\!\int\psi_g(r,\mu)
    \,\mathrm d\mu` per group.
 2. Computes total fission rate :math:`F(r) = \sum_{g'}\nSigf{g'}\,
    \phi_{g'}(r)` once at each radial node.
@@ -3696,7 +3696,7 @@ rank-2 because the two practical orbit-space classes
 Specular ↔ ergodic ↔ vacuum: the three regimes
 -----------------------------------------------
 
-The boundary albedo :math:`\alpha` parametrises three qualitatively
+The boundary :term:`albedo` :math:`\alpha` parametrises three qualitatively
 different billiard regimes. Each has a clean signature in the
 resolvent:
 

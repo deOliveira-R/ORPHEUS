@@ -91,7 +91,7 @@ see :ref:`peierls-rank-n-per-face-closeout` and
   smooth; the slab (:math:`d=1`) retains a mild :math:`-\ln\rho`
   singularity because there is no :math:`\rho^{d-1}` factor to cancel.
 - The resulting Nyström operator has an identical scaffolding for
-  all three geometries: angular quadrature, per-ray ρ-quadrature,
+  all three geometries: angular :term:`quadrature`, per-ray ρ-quadrature,
   optical-depth walker, Lagrange interpolation of the source on a
   composite-panel radial grid, kernel evaluation, assembly.
 - Only four functions are geometry-specific — the angular measure,
@@ -1501,7 +1501,7 @@ Section 1 — The 3-D point kernel
 ================================
 
 The starting point is the steady-state, monoenergetic (one-group),
-isotropic-emission transport equation for the angular flux
+isotropic-emission transport equation for the :term:`angular flux`
 :math:`\psi(\mathbf r,\mathbf\Omega)` inside a possibly
 heterogeneous medium with total cross-section :math:`\Sigma_t(\mathbf r)`
 and isotropic source :math:`q(\mathbf r)`:
@@ -2233,7 +2233,7 @@ Abstract operations
    angular-measure normalisation (and the additional factor of 2
    from the cylinder's :math:`\beta \to -\beta` fold).
 
-7. **Eigenvalue power iteration**. For a fixed scalar flux guess
+7. **Eigenvalue power iteration**. For a fixed :term:`scalar flux` guess
    :math:`\varphi^{(n)}`, compute the fission source
    :math:`B\varphi^{(n)} = K\,\mathrm{diag}(\nu\Sigma_f)\,\varphi^{(n)}`,
    solve the within-group system
@@ -3351,7 +3351,7 @@ Production closure decision
 ---------------------------
 
 **F.4 scalar rank-2 per-face is production.** Its residual across
-optical thickness at :math:`r_0/R = 0.3` (from
+:term:`optical thickness` at :math:`r_0/R = 0.3` (from
 :file:`scratch/derivations/diagnostics/diag_rank_n_closure_characterization.py`):
 
 .. list-table:: F.4 scalar rank-2 residual, hollow sphere, :math:`r_0/R = 0.3`
@@ -8775,7 +8775,7 @@ supported in 1-D radial transport corresponds to a specific choice of
      - Cell-to-cell mode coupling
 
 The rank-progression Mark → Marshak is now just the dimension of the
-mode subspace :math:`R` acts on non-trivially. Albedo, partial
+mode subspace :math:`R` acts on non-trivially. :term:`Albedo <albedo>`, partial
 reflection, lattice coupling — all are different :math:`R`'s. The
 geometry-specific tensors :math:`P` and :math:`G` are **shared** across
 every BC of a given cell.

@@ -54,7 +54,7 @@ The Phase 5 retreat (Issue #133, CLOSED 2026-04-28; documented at
 :ref:`peierls-phase5-retreat`) established that the
 **angle-integrated** kernel :math:`g_\alpha` for specular BC is
 *hypersingular* (Hadamard finite-part) — Nyström sampling diverges
-at the diagonal and no quadrature trick rescues it. The
+at the diagonal and no :term:`quadrature` trick rescues it. The
 matrix-Galerkin form's mode-mixing absorbs the singularity via basis
 projection, which is why ``boundary="specular_multibounce"`` works
 (rank-N gating reflects the kernel's intrinsic difficulty, not a
@@ -77,7 +77,7 @@ Motivation: why integral-transport / Peierls instead of S_N or MoC
 ==================================================================
 
 The Peierls integral form is the spatial-integral analogue of the
-discrete-ordinates / method-of-characteristics (MoC) sweeps used
+discrete-ordinates / method-of-characteristics (MoC) :term:`sweeps <sweep>` used
 elsewhere in ORPHEUS. The angular and free-flight degrees of freedom
 have already been integrated out into the kernel
 :math:`g_d(\rho'\to\rho)`; what remains is a single integral equation
@@ -105,7 +105,7 @@ Why this matters for verification:
    :ref:`theory-peierls-nystrom`.
 
 3. **No ray effects.** The angular integration has already been
-   performed analytically. There is no discrete-ordinates ray-effect
+   performed analytically. There is no :term:`discrete-ordinates <ordinate>` ray-effect
    contamination — the artefact pattern that plagues S_N at coarse
    :math:`N` and dominates the lattice-boundary signature at low
    :math:`S_N` orders. Peierls is the structurally correct reference
@@ -132,7 +132,7 @@ The transport equation in integral form
 =========================================
 
 The starting point is the steady-state, monoenergetic, isotropic-
-emission transport equation for the angular flux
+emission transport equation for the :term:`angular flux`
 :math:`\psi(\mathbf r,\Omega)`,
 
 .. math::
@@ -149,7 +149,7 @@ where :math:`Q(\mathbf r) = \Sigs{}\,\phi(\mathbf r) +
 (\nSigf{}/k)\,\phi(\mathbf r)` is the isotropic emission density
 (scattering + fission, k-eigenvalue normalisation), and
 :math:`\phi(\mathbf r) = \int\psi(\mathbf r,\Omega)\,\mathrm d\Omega`
-is the scalar flux. Anisotropic scattering and the
+is the :term:`scalar flux`. Anisotropic scattering and the
 :math:`\omega_1\,\Omega\cdot J(\mathbf r)` linear-anisotropic-source
 term (Sanchez 1986 Eq. (1)) are out of scope on this page; both
 implementations share the isotropic restriction, but the structural
@@ -2297,7 +2297,7 @@ structure with :math:`K_{\rm bc}` the rank-1 outer product derived
 above, solved by the same power iteration via
 :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
 (with ``geometry=_pg.SPHERE_1D``) and ``boundary="white"``. Accuracy is governed by the cell
-optical thickness (``test_thin_sphere_rank1_error_bounded`` /
+:term:`optical thickness` (``test_thin_sphere_rank1_error_bounded`` /
 ``test_medium_sphere_rank1_error_bounded`` /
 ``test_thick_sphere_rank1_near_k_inf``).
 

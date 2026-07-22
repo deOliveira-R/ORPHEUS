@@ -18,7 +18,7 @@ Why this folder exists
 
 The hybrid collocation-Galerkin-S_N angular discretisation
 (Morel 1989) sits between modal expansion (P_N) and discrete-
-ordinates (S_N): it keeps discrete-ordinate sweeps as the spatial
+ordinates (S_N): it keeps discrete-ordinate :term:`sweeps <sweep>` as the spatial
 mechanism while applying Galerkin projection in the angular variable.
 
 The hybrid is useful for problems where neither P_N nor S_N alone

@@ -256,7 +256,7 @@ Semi-Analytical
 
 The reference involves a special function (E₃, Ki₃/Ki₄) evaluated to
 integrator precision, followed by a finite matrix eigenvalue.  The only
-approximation is the numerical quadrature for the special function, which
+approximation is the numerical :term:`quadrature` for the special function, which
 is controlled to machine precision via ``scipy.special.expn`` (E₃) or
 high-resolution lookup tables (Ki₃/Ki₄ with 20,000 points).
 
@@ -278,7 +278,7 @@ refinement levels and extrapolating assuming O(h²) convergence:
 
    k_{\rm ref} \approx k_h + \frac{k_h - k_{2h}}{2^p - 1}
 
-where :math:`p = 2` for diamond-difference and finite-difference schemes.
+where :math:`p = 2` for :term:`diamond-difference <diamond difference>` and finite-difference schemes.
 
 This is legitimate formal verification of the **convergence rate** — it
 tests that the implementation converges at the theoretically expected order,
@@ -319,7 +319,7 @@ Discrete Ordinates (S\ :sub:`N`)
 =================================
 
 The S\ :sub:`N` method discretises the angular variable into a finite set of
-directions.  For a homogeneous medium with reflective boundary conditions,
+directions.  For a homogeneous medium with :term:`reflective boundary conditions <reflective boundary condition>`,
 the derivation starts from the 1D S\ :sub:`N` transport equation:
 
 .. math::
@@ -350,7 +350,7 @@ Slab Collision Probability
 
 The slab CP method uses the E₃ exponential integral kernel to compute
 first-collision probabilities in a 1D half-cell with reflective centre and
-white boundary condition at the cell edge.
+:term:`white boundary condition` at the cell edge.
 
 The CP matrix :math:`P_{\infty}(i,j,g)` gives the probability that a neutron
 born uniformly in region *j* has its first collision in region *i*, for energy
@@ -441,7 +441,7 @@ Method of Characteristics (MOC)
 ================================
 
 The MOC method solves the transport equation along characteristic rays.  The
-characteristic ODE for angular flux along a ray with direction :math:`\hat\Omega`:
+characteristic ODE for :term:`angular flux` along a ray with direction :math:`\hat\Omega`:
 
 .. math::
 
@@ -484,7 +484,7 @@ Diffusion (Buckling Eigenvalue)
 ================================
 
 The 1D finite-difference diffusion solver is verified against the analytical
-buckling eigenvalue for a bare homogeneous slab with vacuum boundary conditions:
+buckling eigenvalue for a bare homogeneous slab with :term:`vacuum boundary conditions <vacuum boundary condition>`:
 
 .. math::
 
@@ -592,7 +592,7 @@ MOC Properties
 --------------
 
 - **Particle balance**: production / absorption = keff.
-- **Flux positivity**: scalar flux > 0 everywhere.
+- **Flux positivity**: :term:`scalar flux` > 0 everywhere.
 - **Per-material flux**: the MOC per-material scalar flux matches the
   volume-averaged scalar (``test_flux_per_material_matches_scalar``).
 - **Heterogeneous flux depression**: thermal flux is higher in the

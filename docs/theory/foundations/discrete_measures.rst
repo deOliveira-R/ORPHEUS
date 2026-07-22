@@ -28,11 +28,11 @@ Key Facts
     :math:`\mu \otimes \nu` on
     :math:`\mathcal{X} \times \mathcal{Y}`.
   - **Direct sum** ``μ + ν`` — concatenation of atoms on a shared
-    space; the foundation of composite (panelled) quadrature.
+    space; the foundation of composite (panelled) :term:`quadrature`.
   - **Pushforward** ``μ.pushforward(φ)`` — image measure
     :math:`\varphi_* \mu` (:eq:`discrete-measure-pushforward`).
   - **Restriction** ``μ.restrict(E)`` — indicator-multiplication
-    :math:`\mathbf{1}_E \cdot \mu`; supports half-range SN sweeps
+    :math:`\mathbf{1}_E \cdot \mu`; supports half-range SN :term:`sweeps <sweep>`
     and bundle cuts.
 
 - :class:`~orpheus.numerics.measure.BundleMeasure` carries the
@@ -271,7 +271,7 @@ separate ``sign=0`` entry). The
 ``octants`` as a cached property delegating to ``partition_by`` —
 the SN sweep then iterates **octants** (4 in 2-D — structural)
 and **anti-diagonals per octant** (sweep-DAG topology —
-structural), with the ordinate axis (:math:`N_{\text{oct}}`)
+structural), with the :term:`ordinate` axis (:math:`N_{\text{oct}}`)
 **internal** to every :meth:`apply` call within an octant.
 
 This is the operator-algebra-level realisation of the SN

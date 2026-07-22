@@ -16,13 +16,13 @@ Method of Manufactured Solutions (1D slab)
 Homogeneous and heterogeneous eigenvalue tests verify :math:`\keff`
 --- a scalar. They do not tell us whether the **spatial operator**
 itself converges at the design order :math:`\mathcal O(h^{2})` of
-diamond difference.  The Method of Manufactured Solutions closes
+:term:`diamond difference`.  The Method of Manufactured Solutions closes
 that gap by constructing a fixed-source problem whose exact angular
 flux is known in closed form, so the error against the prescribed
 flux is pure spatial-discretisation error.
 
 **Ansatz.**  For a vacuum-BC slab of length :math:`L` in one energy
-group, pick an isotropic angular flux
+group, pick an isotropic :term:`angular flux`
 
 .. math::
    :label: sn-mms-psi
@@ -31,12 +31,12 @@ group, pick an isotropic angular flux
    \qquad A(x) = \sin\!\left(\frac{\pi x}{L}\right),
 
 where :math:`W = \sum_n w_n = 2` for Gauss--Legendre.  Because
-:math:`A(0) = A(L) = 0`, every ordinate vanishes at both faces ---
-the vacuum boundary conditions are satisfied automatically, with no
+:math:`A(0) = A(L) = 0`, every :term:`ordinate` vanishes at both faces ---
+the :term:`vacuum boundary conditions <vacuum boundary condition>` are satisfied automatically, with no
 inflow bookkeeping required on the caller side.  Since :math:`\psi_n`
-is independent of ordinate, the scalar flux recovered by any
+is independent of ordinate, the :term:`scalar flux` recovered by any
 quadrature order is *exactly* :math:`\phi(x) = A(x)` --- the test
-isolates spatial error from angular quadrature error.
+isolates spatial error from angular :term:`quadrature` error.
 
 **Manufactured source.**  Substituting :eq:`sn-mms-psi` into the
 discrete ordinates transport equation :eq:`transport-cartesian`
@@ -82,7 +82,7 @@ leading truncation term cleanly.
 consumed by :func:`orpheus.sn.solve_sn_fixed_source`.  The latter
 accepts a per-ordinate external source of shape
 :math:`(N, n_g, n_x, n_y)` (Issue #196 PR-INDEX-5 principled layout,
-the ``g`` axis directly after ``N``) and threads it through the sweep's
+the ``g`` axis directly after ``N``) and threads it through the :term:`sweep`'s
 :math:`Q_{\rm aniso}` slot --- merging additively with any P1+
 scattering contribution the solver itself builds.  This bare-array form
 is the **bulk-only / vacuum** special case of the composite source
@@ -298,7 +298,7 @@ trivially and
 :math:`\Sigma_{a,2}(x) = 0.5 + 0.3\cos(\pi x/L) - 0.15\sin(\pi x/L)`,
 bounded below by :math:`0.5 - \sqrt{0.3^{2} + 0.15^{2}} \approx
 0.165 > 0`, so the cross sections are physical everywhere. The
-scattering ratios :math:`c_g = \Sigma_{s,\text{tot},g}/\Sigma_{t,g}`
+:term:`scattering ratios <scattering ratio>` :math:`c_g = \Sigma_{s,\text{tot},g}/\Sigma_{t,g}`
 stay around :math:`0.5` for both groups, which means source
 iteration converges geometrically at rate :math:`\sim 0.5^n`
 per sweep.
@@ -1133,7 +1133,7 @@ unrelated anisotropic paths (Issue #9).
 (b) The :math:`\tau`-clamp vindication (W1)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The spherical Morel--Montry weighted-diamond weight is
+The spherical Morel--Montry :term:`weighted-diamond <weighted diamond difference>` weight is
 
 .. math::
    :label: sn-tau-mm-raw

@@ -28,7 +28,7 @@ The Interior Face-Flux Cochain
 
 
 This page develops the **interior face-flux cochain**
-:math:`C^1_{\rm int}` — the sweep-internal record of the angular flux on
+:math:`C^1_{\rm int}` — the sweep-internal record of the :term:`angular flux` on
 interior cell faces, distinct from the *iterate state* of the field
 algebra. It is a companion to the operator algebra developed in
 :doc:`/theory/foundations/operator_algebra`: where that page types the
@@ -121,7 +121,7 @@ The native frame — discrete exterior calculus / cochains
 The native mathematical structure of the SN face fluxes (validated by
 the cross-domain-attacker, frame memo
 ``field_role_typing_faceflux_frames.md``) is **discrete exterior
-calculus**. The per-ordinate angular flux crossing faces is a primal
+calculus**. The :term:`per-ordinate <ordinate>` angular flux crossing faces is a primal
 **1-cochain** — an assignment of a value to each oriented face:
 
 .. (vv-status rationale) Structural framing of the SN face fluxes as a
@@ -142,7 +142,7 @@ calculus**. The per-ordinate angular flux crossing faces is a primal
    \qquad (\text{a value per oriented face, per ordinate } \Omega).
 
 The cell-average :math:`\bar\psi` is a **0-cochain**
-:math:`\bar\psi^{(0)} \in C^0`, and the diamond-difference closure
+:math:`\bar\psi^{(0)} \in C^0`, and the :term:`diamond-difference <diamond difference>` closure
 :math:`\psi^{\rm out} = 2\bar\psi - \psi^{\rm in}` is the discrete
 statement that :math:`\bar\psi` is the *midpoint* of the face-pair
 bounding the cell — i.e. the **averaging map**

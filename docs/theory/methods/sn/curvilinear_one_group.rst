@@ -6,7 +6,7 @@ Curvilinear one-group: angle enters the walk
 This chapter opens Part B of the S\ :sub:`N` book: **curvilinear
 geometry** — the 1-D sphere and the axially-infinite cylinder — at one
 energy group.  Exactly one thing is new.  In Cartesian geometry a
-neutron's direction is constant in flight, so ordinates couple only
+neutron's direction is constant in flight, so :term:`ordinates <ordinate>` couple only
 through the sources; on a curved coordinate frame the *same straight
 flight line* changes its **local** direction coordinate as it advances
 — the radial cosine (:math:`\mu` on the sphere, :math:`\eta` on the
@@ -27,8 +27,8 @@ The chain of the book repeats on the new axis:
    and force the geometry factor :math:`\Delta A/w` from that
    invariant;
 2. **the operator** — :math:`A = L + C - S - B` keeps its honest shape
-   and :math:`L+C` stays **lower-triangular**: sweep order now threads
-   the angular cascade (seeded at each level's starting direction,
+   and :math:`L+C` stays **lower-triangular**: :term:`sweep` order now threads
+   the angular cascade (seeded at each level's :term:`starting direction`,
    with :math:`\alpha_{1/2} = 0` closing the recursion) through the
    radial march;
 3. **the matrix picture** — the per-cell system gains one more
@@ -67,7 +67,7 @@ re-derived.
      drives the diffusion-limit contamination :math:`\beta` to
      machine zero, eliminating the M-M flux dip.  **Sphere
      unclamped**; **cylinder clipped** to :math:`[\tfrac12, 1]`
-     (product quadratures put :math:`\tau = 0` on the most-inward
+     (product :term:`quadratures <quadrature>` put :math:`\tau = 0` on the most-inward
      azimuthal ordinate).
    * :math:`\tau` is an **angular-scheme property the closure owns**
      (#236 Phase 2): produced solely by the pole-angular closure and
@@ -207,7 +207,7 @@ flux.
 The Alpha Redistribution Coefficients
 ======================================
 
-The :math:`\alpha` coefficients encode how the angular flux redistributes
+The :math:`\alpha` coefficients encode how the :term:`angular flux` redistributes
 between neighbouring ordinates due to the geometry curvature.  They are
 defined recursively:
 
@@ -363,7 +363,7 @@ The Morel--Montry Flux Dip
 ============================
 
 Even with the correct :math:`\Delta A/w` factor, the standard
-diamond-difference closure (equal weight :math:`\tau = 0.5`) introduces
+:term:`diamond-difference <diamond difference>` closure (equal weight :math:`\tau = 0.5`) introduces
 a flux error near :math:`r = 0` known as the **Morel--Montry flux dip**
 :cite:`MorelMontry1984`.
 
@@ -380,7 +380,7 @@ This can be rewritten as:
    \psi_{n+\frac12} = 2\psi_{n,i} - \psi_{n-\frac12}
 
 The contamination factor :math:`\beta` (:cite:`BaileyMorelChang2010`) quantifies
-the coupling between the leading-order scalar flux and the first-order
+the coupling between the leading-order :term:`scalar flux` and the first-order
 current in the asymptotic diffusion limit.  For spherical geometry:
 
 .. math::
@@ -537,7 +537,7 @@ c_in / c_out are angular-closure constants — Step B1 (one site folded)
 
 .. todo:: Archivist expansion needed.
 
-   The weighted-diamond constants
+   The :term:`weighted-diamond <weighted diamond difference>` constants
 
    .. math::
 

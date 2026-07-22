@@ -103,7 +103,7 @@ If a future method is adding a parameter that *every solver* on the
 case would care about (e.g. published flux table, published
 :math:`k_\infty`), it goes in :class:`La13511Truth`. If it's a
 parameter only the new method cares about (e.g. F_N collocation
-order, Variant α quadrature points), it stays in the new method's
+order, Variant α :term:`quadrature` points), it stays in the new method's
 config — never in the registry.
 
 The full design rationale lives in the closeout memo
@@ -195,7 +195,7 @@ The :class:`La13511Truth` carries:
   ``Mapping[int, float]`` mapping ORPHEUS group index to
   :math:`\phi_g/\phi_0` (ratio relative to ORPHEUS group 0 = fast).
 * ``angular_flux_at_surface`` — reserved for future cases that
-  publish surface angular flux :math:`\psi(\mu, r=R)`. ``None`` for
+  publish surface :term:`angular flux` :math:`\psi(\mu, r=R)`. ``None`` for
   first-slice cases.
 * ``critical_dimension_mfp`` — Phase B addition. Published critical
   dimension in mean free paths. For ``"slab"``: the half-thickness

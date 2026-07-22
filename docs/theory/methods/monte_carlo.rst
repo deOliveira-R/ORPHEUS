@@ -959,7 +959,7 @@ Verified by ``test_mc_convergence.py::test_inactive_cycles_reduce_bias``.
 Flux Tally (Collision Estimator)
 --------------------------------
 
-The scalar flux in each energy group is accumulated with the standard
+The :term:`scalar flux` in each energy group is accumulated with the standard
 **collision estimator**
 
 .. math::
@@ -1001,7 +1001,7 @@ spectrum output, not keff.
    ``flux_per_lethargy`` entry through :math:`y = 0`. ORPHEUS orders
    energy groups **fastest-first**, so the group-boundary array ``eg`` is
    strictly **descending** (:ref:`canonical-group-convention`):
-   :math:`\mathrm{eg}[g+1] < \mathrm{eg}[g]`. The lethargy width per
+   :math:`\mathrm{eg}[g+1] < \mathrm{eg}[g]`. The :term:`lethargy` width per
    group is therefore negative,
 
    .. math::

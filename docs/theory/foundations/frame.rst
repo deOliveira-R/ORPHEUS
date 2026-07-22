@@ -5,7 +5,7 @@ The Discrete Frame — projection machinery
 =========================================
 
 Every method in ORPHEUS that transitions a function between a **fine**
-representation and a **coarse** one — discrete-ordinate angular flux to
+representation and a **coarse** one — discrete-ordinate :term:`angular flux` to
 spherical-harmonic moments, fine-energy fluxes to broad-group cross
 sections, regional flux to homogenised cross sections — does so via a
 **(reconstruction, analysis)** pair of linear operators :math:`(R, M)`.
@@ -151,7 +151,7 @@ Key Facts
 
 - **The measure never carries the discipline.** The
   :class:`~orpheus.numerics.measure.DiscreteMeasure` carries the axis
-  and a fixed :math:`L^2` metric (the quadrature weights). The
+  and a fixed :math:`L^2` metric (the :term:`quadrature` weights). The
   solution-weighting (forward flux :math:`\phi`, adjoint
   :math:`\varphi^*`) that distinguishes a Petrov-Galerkin instance is
   a first-class **test basis** — the test *space* — not a metric on
@@ -493,7 +493,7 @@ reaction rate** in each region and group,
 
 the sum over the fine cells :math:`i` contained in coarse cell
 :math:`R`, with :math:`V_i` the fine-cell volume,
-:math:`\phi_{i,g}` the converged fine scalar flux, and
+:math:`\phi_{i,g}` the converged fine :term:`scalar flux`, and
 :math:`\Sigma_{i,g}` the fine cross section for whatever channel (total,
 capture, fission, …) is in question. The coarse model carries one
 effective cross section :math:`\Sigma_{R,g}` and one region flux
@@ -1570,7 +1570,7 @@ reaction rate of any vector channel is
 with :math:`\varphi_g` the per-material representative flux (the test
 weight, fixed below) and :math:`\Sigma_g` the fine cross section for
 whatever channel (total, capture, fission, …) is in question. The sum
-has **no** :math:`\mathrm{d}E` or lethargy width because ORPHEUS's
+has **no** :math:`\mathrm{d}E` or :term:`lethargy` width because ORPHEUS's
 :math:`\varphi_g` is already the group-integrated flux
 :math:`\int_g \phi\,\mathrm{d}E` — the bin width is baked into the flux
 (:eq:`energy-condensation-counting-measure`). The coarse model carries
@@ -2711,7 +2711,7 @@ above). The whole kernel is the spectral theorem
 
 The anisotropic scattering source operator is an angular **integral
 kernel** (:ref:`integral-kernel-category`, :doc:`/theory/foundations/operator_algebra`):
-the source at ordinate :math:`\hat\Omega` reads the flux at *every*
+the source at :term:`ordinate` :math:`\hat\Omega` reads the flux at *every*
 ordinate, weighted by the scattering kernel
 
 .. math::

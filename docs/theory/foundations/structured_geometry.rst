@@ -207,14 +207,14 @@ the spherical redistribution term :math:`(1-\mu^2)/r\,\partial_\mu`
 and the cylindrical redistribution term
 :math:`-(1/r)\,\partial_\varphi(\xi\,\cdot)` are the **same
 connection-coefficient operator** viewed in two coordinate charts.
-SN, MoC, and CP curvilinear sweeps all march through the same data:
+SN, MoC, and CP curvilinear :term:`sweeps <sweep>` all march through the same data:
 
 * **chord lengths**: cell radial widths
   (:attr:`~orpheus.geometry.mesh.Mesh1D.widths`),
 * **face areas**: :math:`A_{i+1/2} = 4\pi r_{i+1/2}^2` (sphere) or
   :math:`2\pi r_{i+1/2}` (cylinder),
 * **the geometry factor** :math:`\Delta A_i / w_n` that ensures
-  per-ordinate flat-flux consistency,
+  :term:`per-ordinate <ordinate>` flat-flux consistency,
 * **the Bailey 2009 dome recursion** for :math:`\alpha`, and
 * **the Morel--Montry angular closure** :math:`\tau_{mm}`
   (unclamped raw weight on the sphere; :math:`[1/2, 1]`-clamped on the
@@ -237,7 +237,7 @@ The Bailey 2009 dome recursion (sphere):
 
 .. vv-status: bailey-dome-recursion documented
 
-For Gauss--Legendre quadrature with :math:`\mu` sorted ascending in
+For Gauss--Legendre :term:`quadrature` with :math:`\mu` sorted ascending in
 :math:`[-1, 1]`, the recursion produces a non-negative dome
 (:math:`\alpha_{1/2} = 0 \to \text{peak} \to \alpha_{N+1/2} = 0`)
 that closes back to zero at the upper boundary by GL antisymmetry.

@@ -127,7 +127,7 @@ wrapper**.
      **Supersession note below** records the retirement of an earlier
      ``S`` / ``F`` no-``apply_transpose`` mechanism that predated the
      #112 / #118 / #276 adjoint work.)
-   - **The trace metric is singular** on tangential ordinates
+   - **The trace metric is singular** on tangential :term:`ordinates <ordinate>`
      (:math:`|\Omega\cdot\hat n| = 0`), so :math:`G^{-1}` is the
      **Moore–Penrose pseudo-inverse** (zero on the null space). This is
      **exact** for the adjoint: the inflow / outflow selectors exclude
@@ -224,7 +224,7 @@ inner product is the discretization of the full phase-space integral
    \sum_{i\in\text{cells}} V_i
    \sum_{n\in\text{ordinates}} w_n \; a_{n,i}\,b_{n,i} .
 
-The two quadratures factor: the **cell volume** :math:`V_i`
+The two :term:`quadratures <quadrature>` factor: the **cell volume** :math:`V_i`
 discretizes :math:`\mathrm dV` and the **angular quadrature weight**
 :math:`w_n` discretizes :math:`\mathrm d\Omega`. The product
 :math:`V_i\,w_n` is therefore the diagonal phase-space measure
@@ -261,7 +261,7 @@ surface** integral
    \sum_{f\in\text{faces}}
    \sum_{n} |\Omega_n\cdot\hat n_f|\,w_n \; a_{n,f}\,b_{n,f} .
 
-The boundary degrees of freedom are angular fluxes *on a surface*, and
+The boundary degrees of freedom are :term:`angular fluxes <angular flux>` *on a surface*, and
 the physically meaningful surface functional is the **partial current**
 :math:`J^{\pm} = \int_{\Omega\cdot\hat n \gtrless 0} |\Omega\cdot\hat
 n|\,\psi\,\mathrm d\Omega`, so the surface measure carries the
@@ -610,7 +610,7 @@ operator-algebra ground truth — they carry **no** ``verifies()`` label
 because there is no solver-level theory equation being checked; the
 defining identity is the algebra of :eq:`g-adjoint-definition` itself,
 anchored to the structurally-independent oracle, not to a discretization
-claim). The **forward path is bit-identical**: the diamond-difference
+claim). The **forward path is bit-identical**: the :term:`diamond-difference <diamond difference>`
 regression suite (69 passed) confirms the adjoint addition does not
 perturb the forward matvec — R5 added a *new* capability (``.H``), it
 did not touch ``apply``.
