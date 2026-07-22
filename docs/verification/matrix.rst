@@ -718,7 +718,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **243** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **254** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -857,6 +857,17 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``ordinate-partition-inflow-outflow``
 - ``p-transpose-flux-balance``
 - ``p0-scatter-source``
+- ``path-integral-generation-series``
+- ``path-integral-generator-splitting-eq``
+- ``path-integral-girsanov``
+- ``path-integral-many-to-one``
+- ``path-integral-n2n-criterion``
+- ``path-integral-pade-table``
+- ``path-integral-subcriticality``
+- ``path-integral-substochasticity-bound``
+- ``path-integral-track-length-moment``
+- ``path-integral-transport-correction``
+- ``path-integral-two-species-ledger``
 - ``peierls-cyl-3d-gbc-mode-formula``
 - ``peierls-cylinder-chord-form``
 - ``peierls-escape-probability``

@@ -8,12 +8,17 @@ The mathematics **every** method shares. A concept lives here once; each
 method's chapter carries only *its realization* plus a link back.
 
 This part exists because the shared content is genuinely shared **in code,
-not by analogy**: :class:`~orpheus.transport.operators.MultiplicationOperator`,
-:class:`~orpheus.transport.operators.IsotropicScattering` and the fission
-operator are the *same Python objects* imported by S\ :sub:`N`, diffusion and
-the infinite-medium solver from :mod:`orpheus.transport.operators`. What
-varies between methods is how streaming is represented — not what collision,
-scattering, and fission *are*.
+not by analogy**: :class:`~orpheus.transport.operators.MultiplicationOperator`
+and :class:`~orpheus.transport.operators.FissionOperator` are the *same
+Python classes* instantiated by S\ :sub:`N`, diffusion and the
+infinite-medium solver, and all three draw their scattering from the same
+:mod:`orpheus.transport.operators` package
+(:class:`~orpheus.transport.operators.IsotropicScattering` /
+:class:`~orpheus.transport.operators.IsotropicN2N` for the isotropic
+consumers, the same package's
+:class:`~orpheus.transport.operators.ScatteringOperator` kernel for
+S\ :sub:`N`). What varies between methods is how streaming is represented —
+not what collision, scattering, and fission *are*.
 
 .. list-table::
    :header-rows: 1
@@ -23,10 +28,11 @@ scattering, and fission *are*.
      - What it settles
    * - :doc:`/theory/foundations/path_integral`
      - **The root of the corpus** — the one object all methods discretize
-       (the sum over neutron histories), what is invariant
-       (:math:`C, S, F`), what varies, the three axes on which methods
-       differ, and where each lands. The parent of
-       :doc:`/theory/methods/index`. *(Scaffold; authored at Phase H.)*
+       (the sum over neutron histories), where it comes from and why it is
+       linear, what is invariant (:math:`C, S, F`), what varies, the three
+       independent axes on which methods differ, where each lands, and the
+       eigenvalue posing every method inherits. The parent of
+       :doc:`/theory/methods/index`.
    * - :doc:`/theory/foundations/operator_algebra`
      - The operator algebra itself: :math:`A = L + C - S - B`, posed
        :math:`A\psi = \tfrac{1}{k}F\psi` (eigenvalue) or :math:`A\psi = q`
