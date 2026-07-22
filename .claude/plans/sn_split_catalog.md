@@ -667,56 +667,61 @@ adversarial CONCUR: candidate additions would TWIN existing routing; verificatio
 three-layer future = #10); (4) the corpus root's orient-and-delegate paragraph @
 `60790f4b`. `placement.rst` deferred to Phase-H adjacency (user-ruled).
 
-**⏭ IMMEDIATE NEXT = Phase E (the conventions part, M1) — queued at compaction
-(2026-07-21).** "Mostly new writing; the biggest differentiator."
+**✅ Phase E DONE (2026-07-21, one session) — the conventions part is WHOLE:**
+`conventions/{index, notation, normalization, indexing_and_layout,
+cross_section_conventions}`. Steer rulings: crosswalk source set = the SURVEYED canon
+(Hébert · B&G · Stacey + the two Phase-I reviews), with the user's correction —
+**`scratch/literature/Nuclear Computational Science - A Century in Review.pdf` IS
+local** (the 2010 Azmy/Sartori volume: the surveyed L&M-2010 chapter + a Lewis
+chapter); **INTERNAL CONSISTENCY = the prime directive** ("one concept, one spelling"
+across code+docs; a deliberate two-binding case is documented at both ends — the
+doctrine now opens `notation.rst`); the α-crosswalk homed at `normalization.rst`
+(curvilinear cross-links it, machinery stays); 3 ruled commits landed; main agent
+authored the two NEW pages, archivist executed the split (L-013; git rename-detect
+97%), the fresh enforcer reviewed everything (READY×4; ONE MUST-FIX total: the ERR-039
+catcher citation copied the catalog's own stale Round-1 test-ref — the catalog was the
+armed trap, defused @ `d8e0f6bf`).
 
-*The ruled target tree* (corpus plan §4 tree spec, the `conventions/ ── PART 0` block):
-`index.rst` (EXISTS, 43 ln — already carries the M1 evidence inline + a skeleton note
-naming exactly this work) · **`notation.rst` [NEW]** (symbol table + the literature
-crosswalk) · **`normalization.rst` [NEW]** (weight sums, 4π, the (2ℓ+1) prefactor, the
-1/W trap) · **`indexing_and_layout.rst` ← `index_convention.rst` (layout half)** ·
-**`cross_section_conventions.rst` ← `index_convention.rst` (XS half)** — one split of
-today's 1,681-ln `index_convention.rst`. ⚠ The spec line says "ORPHEUS↔Hébert↔
-Lewis&Miller" — STALE: the L&M-**textbook** ask was RETIRED 2026-07-15 (corpus §3.4/§8.3,
-no OCR exists); the crosswalk's source set is the SURVEYED canon: Hébert · B&G · Stacey
-(§3.2/§3.3 verbatim evidence) **+ the two surveyed reviews** (`.claude/plans/
-phase_i_survey_{larsen_morel_2010,adams_larsen_2002}.md` — incl. L&M-2010's β/α
-SYMBOL-COLLISION row: their β ≡ BMC's sphere α with the sign absorbed, their α = the
-spatial WD weight; and A&L's λ-in-mfp-units + cylinder-μ-is-an-angle flags).
+Commits: `f297d584` fix (infinite_medium stored-SigS triangularity lower→UPPER — its
+own equation + the gendf canonical-order test both say upper; machine-header
+`HarmonicMomentField`→`Flux`) · `8ef8bbd3` **notation** (symbol table with the
+enforcing-test column · the 8-row literature crosswalk incl. the operator-letters row
+(A&L A≡I−L⁻¹S ≠ ours), the same-symbol collisions row (L&M-2010 β/α, A&L angle-μ,
+mfp-λ), and the ORPHEUS-internal dual-A row as a declared bridge · the 3-question
+import boundary · defines `[LarsenMorel2010]`) · `608e9c9b` **normalization** (the W
+law + the ERR-025 anatomy · the (2ℓ+1)/W prefactor LEDGER — each constant ONE home;
+Hébert's 4π-vs-2 = ONE object (2ℓ+1)/W at two weight sums, code-true at
+scattering.py:1695 · the 8-row α-recursion crosswalk = the M5 deliverable, merged from
+the catalog four-ways + the researcher's six-row table · enforcer N1 taken: the
+part-index M1 bullets thinned to a router pitch, equation numbers single-homed) ·
+`d8e0f6bf` chore(vv) catalog test-ref sync · `359d4b4d` the split (all 10 labels stay
+on `indexing_and_layout` — 9 external referencers resolve untouched; the one new label
+`theory-conventions-cross-sections`) · `93138008` XS-page truth sync (NuSigF→`SigP`;
+the retired per-attribute SNSolver surface → the `mat_xs` `MaterialXSField` single
+source, PR-TYPED-1/2) · `75f68397` solver.py stale-comment retire · `2abb0b7f`
+archivist lesson. New labels: `theory-conventions-notation`,
+`notation-{symbol-table,crosswalk,import-boundary}`,
+`theory-conventions-normalization`,
+`normalization-{weight-sum,prefactor,alpha-crosswalk}`, `sn-alpha-normalization`,
+`theory-conventions-cross-sections`.
 
-*The source surfaces to disassemble:* `conventions/index.rst` (the M1 evidence + the
-skeleton note) · `index_convention.rst` (the layout/XS halves) · the SN machine header's
-conventions block (`sn/index.rst` ~:39–46 — sign/scattering/DD/quadrature_norm/layout/
-group_ordering/starting_direction; the porting-track already routes through it) ·
-foundations passages (`scattering-matrix-convention` @ infinite_medium ·
-angular_quadrature's Σw · spherical_harmonics' prefactor) · the ERR catalog rows the part
-must cite as catchers (ERR-025 = the missing 1/W; ERR-039 = the SH prefactor) · the M5
-α-recursion four-ways table (Stacey 9.213 `α−μw` · Hébert 3.424 sphere `α−2wμ` · Hébert
-3.399 cylinder `α+wμ` · B&G 5.21 ΔA-folded) + the researcher's accumulating
-α-normalization table (`.claude/agent-memory/literature-researcher/
-curvilinear_sweep_directness_ruling.md`).
+**⏭ IMMEDIATE NEXT = Phase F (the archaeology sweep).** Charter (verify the exact spec
+at the corpus plan's Phase-F section before kickoff): the ~130 campaign-named headings
+across `docs/theory` ("Wave N", "Phase X", "PR-", "Round N", issue-numbered) retitle
+to TIMELESS names; the campaign narrative they carry absorbs into the per-page
+Development-history changelogs (create where missing). Discipline: pure retitles +
+narrative moves, no content rewrites; labels are unaffected by heading text but grep
+inbound title-references anyway; the L35 whitespace-flattened consuming-prose sweep
+per touched page; `-E -W` gate per batch. Discovery:
+`grep -rnE "^(Wave|Phase|PR-|Round)" docs/theory --include="*.rst"` plus
+underline-adjacency filtering (calibrate the real count against the corpus plan's 130
+estimate). Kickoff steer for the user: commit batching (per-part vs per-page).
 
-*Post-compaction opening move = the STEER* (AskUserQuestion): **(1) crosswalk source
-set** — carry the recommendation: Hébert/B&G/Stacey + the two surveyed reviews (the
-retired L&M-textbook mention in the spec is superseded). **(2) the M5 α-crosswalk's
-home** — recommendation: the cross-SOURCE convention table lives in `normalization.rst`
-(it IS an M1-class trap), `curvilinear_one_group` cross-links it (its α-dome machinery
-stays put). **(3) staging** — recommendation: 3 commits (notation.rst; normalization.rst;
-the index_convention split — the split is a label-oracle move, `-E` gate per the recipe).
-**(4) delegation** — recommendation: MAIN AGENT authors the two NEW pages (M1's
-wrong-by-a-constant class is the highest-stakes prose in the corpus; needs the
-ERR-catalog + machine-header context); archivist MAY execute the mechanical
-index_convention split (the Tier-1 model); elegance-enforcer reviews everything (FRESH
-instance — the Phase-D reviewer dies at compaction; brief it with: claim-truth-vs-live-
-tree framing for fresh prose, the L-013 char-identity discipline for the split halves,
-the Option-Y law, #302 out-of-scope, per-label single-homing on the split). P8 governs:
-"every part index opens on conventions."
-
-**Then:** Phase F (archaeology sweep, 130 campaign-named headings) → G (backfill:
-eq-labels, :term: wiring — glossary has 0 inbound, :cite: migration, V&V slices) → H
-(the root page — Phase-I input IN HAND; still gated on #298/#299; placement.rst rides
-its adjacency) · ch15 authoring half (#276 A4/A5-blocked) · #231 Phase 2 (code-prose
-rebalancing) · task #10 (three-layer V&V part).
+**Then:** G (backfill: eq-labels, :term: wiring — glossary has 0 inbound, :cite:
+migration, V&V slices) → H (the root page — Phase-I input IN HAND; still gated on
+#298/#299; placement.rst rides its adjacency) · ch15 authoring half (#276
+A4/A5-blocked) · #231 Phase 2 (code-prose rebalancing) · task #10 (three-layer V&V
+part).
 
 *Standing facts:* branch `docs/sn-doc-architecture` UNPUSHED; citations + eq-labels are
 project-global; recipe = "The per-chapter recipe" section above (L35 three-way grep + L34
