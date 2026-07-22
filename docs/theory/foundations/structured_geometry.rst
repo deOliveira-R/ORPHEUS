@@ -403,8 +403,8 @@ and the BiCGSTAB curvilinear operator) are unaffected because the
 two paths compute the same data; tomorrow's consumers can bind to
 the geometry-layer primitive instead of duplicating the math.
 
-SNMesh as router (post-Round-1.1 of Wave D)
---------------------------------------------
+SNMesh as router
+----------------
 
 After Round 1.1 of Wave D of the SN reshape campaign, :class:`SNMesh`
 **routes** to :class:`ReducedStreamingOperator` rather than computing

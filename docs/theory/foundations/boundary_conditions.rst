@@ -351,8 +351,8 @@ dissolved at #290 P7b).
 
 .. _bc-extraction:
 
-Boundary-condition extraction — :math:`B` as a sibling operator (Wave O)
-========================================================================
+Boundary-condition extraction — :math:`B` as a sibling operator
+===============================================================
 
 The composite metric-correct G-adjoint that closes this extraction
 narrative is documented at :ref:`g-adjoint` in
@@ -666,8 +666,8 @@ only the boundary seed moved.
 
 .. _bc-extraction-variadic-driver:
 
-The honest :math:`L+C-S-B` driver via variadic couplings (Wave O step O.2a)
----------------------------------------------------------------------------
+The honest :math:`L+C-S-B` driver via variadic couplings
+--------------------------------------------------------
 
 The within-group inner solve no longer hands the drivers a fixed
 :math:`(A, S, F)` operator *triple*. Wave O step O.2a generalised both
@@ -1208,8 +1208,8 @@ dimensionally-explainable drift), so no contract relaxation is needed.
 
 .. _bc-extraction-operator-output-typing:
 
-Operator-output role typing — :math:`A\psi` is a source/sink (Wave O step B.5.2)
---------------------------------------------------------------------------------
+Operator-output role typing — :math:`A\psi` is a source/sink
+------------------------------------------------------------
 
 Wave O step B.5.2 (`Issue #208
 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_, commit
@@ -1443,8 +1443,8 @@ runtime imports were retired from the retyped sites.
 
 .. _bc-extraction-operator-output-o2:
 
-What remains for Wave O step O.2
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The extraction close-out — where the remaining items landed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Wave O step **O.2a has landed the honest** :math:`L+C-S-B` **driver**
 via the variadic couplings of :ref:`bc-extraction-variadic-driver`:
@@ -2763,8 +2763,8 @@ the in-tree Wave-0 algebra. Removing them clarified the walker's
 role: it is **exactly** the type transformer between the two
 algebras, nothing more.
 
-Placement — the deferral that fired at method #2 (#290 P7b)
------------------------------------------------------------
+Placement — the deferral that fired at the second method
+--------------------------------------------------------
 
 The walker lives in :mod:`orpheus.geometry.boundary` (the
 ``_realizer`` module — the realization seam, next to the
@@ -2985,8 +2985,8 @@ because there is only one path. See
 
 .. _bc-trace-law-descriptor-model:
 
-The trace-law descriptor model (Issue #186 / B3 + β2)
-=====================================================
+The trace-law descriptor model
+==============================
 
 Issue #186 / Scope B3 + β2 (landed 2026-05-11 on branch
 ``feature/bc-curvilinear-realizer-cleanup``) is the architectural
@@ -3259,8 +3259,8 @@ deleted internal mixed-BC path was already composing via
 
 .. _bc-phase-d-two-bc-applies-per-matvec:
 
-Phase D extension — two BC apply calls per curvilinear matvec
-==============================================================
+Two BC apply calls per curvilinear matvec
+=========================================
 
 Phase C (:ref:`bc-trace-contract-respected-by-matvec`) established
 that the SN curvilinear matvec applies the BC trace law **once per
@@ -3387,8 +3387,8 @@ matching, not just shape matching.
 
 .. _bc-phase-f-three-bc-applies-per-sweep-iteration:
 
-Phase F extension — BC applies in the SI sweep path
-====================================================
+BC applies in the SI sweep path
+===============================
 
 Phase D (Issue #168 Phase D, :ref:`bc-phase-d-two-bc-applies-per-matvec`
 above) instituted the *two BC apply calls per curvilinear matvec*
@@ -3512,8 +3512,8 @@ inputs subsumes the BC-apply-input pinning.
 
 .. _bc-curvilinear-realizer-unification:
 
-Curvilinear realizer unification (Issue #188 + #176 close-out)
-==============================================================
+Curvilinear realizer unification
+================================
 
 The pre-cleanup architecture carried a **Cartesian / curvilinear
 split** at :meth:`SNMesh._resolve_one`: the slab and 2-D Cartesian
@@ -3582,8 +3582,8 @@ The architectural sequence is therefore:
 
 .. _bc-face-name-carve:
 
-The face-name carve — one crosswalk, one face-keyed BC dict (C4 / Issue #220)
-=============================================================================
+The face-name carve — one crosswalk, one face-keyed BC dict
+===========================================================
 
 Wave 8 through Issue #186 settled *how a single boundary law is
 realized* (the law / realizer / shim split of
@@ -4078,8 +4078,8 @@ zeros-all path no longer exists.
 
 .. _sn-axis-primary-c5:
 
-The axis-primary inversion and 3-D admission (C5 / Issue #225)
-==============================================================
+The axis-primary inversion and 3-D admission
+============================================
 
 C4 (:ref:`bc-face-name-carve`) made the *boundary keying*
 dimension-agnostic. C5 makes the **whole mesh** dimension-agnostic and
@@ -4224,8 +4224,8 @@ that masking is gone.)
 
 .. _sn-c5-phantom-retirement:
 
-C5.2 — the phantom shims retire (ny, dy, dx)
---------------------------------------------
+The phantom shims retire (ny, dy, dx)
+-------------------------------------
 
 With per-axis widths and the rank-generic :attr:`SNMesh.spatial_shape`
 now native, the legacy phantom-bearing metadata retires. Every spatial
@@ -4289,8 +4289,8 @@ the axis-native arm lands with C5.5.
 
 .. _sn-c5-geometry-blind-trace:
 
-C5.3 — the geometry-blind trace space (z faces admitted)
---------------------------------------------------------
+The geometry-blind trace space (z faces admitted)
+-------------------------------------------------
 
 The trace layer (:ref:`bc-trace-structure`) carried two C5-blockers:
 a hand-listed face-normal table that **silently lacked the z faces**,
@@ -4352,8 +4352,8 @@ realizer chain reads it, and an axis-native :class:`SNMesh` passes
 
 .. _sn-c5-windowing-gs-gate:
 
-C5.4 — windowing and Gauss–Seidel gate on genuine dimensionality (vv Mode 9)
-----------------------------------------------------------------------------
+Windowing and Gauss–Seidel gate on genuine dimensionality (vv Mode 9)
+---------------------------------------------------------------------
 
 C5.4 is the **highest-risk edit of the campaign** — a textbook
 ``vv-principles`` **Mode 9** case (a splitting / optimization verified
@@ -4416,8 +4416,8 @@ not a proxy — it is the genuine guard.
 
 .. _sn-c5-3d-admission:
 
-C5.5 — 3-D Cartesian admission: the axes tuple is the only 3-D entry
---------------------------------------------------------------------
+3-D Cartesian admission: the axes tuple is the only 3-D entry
+-------------------------------------------------------------
 
 After the C5.1–C5.4 cleanup, the :math:`d = 3` admission is an
 **extension, not a new arm**. A 3-axis Cartesian :class:`SNMesh` now

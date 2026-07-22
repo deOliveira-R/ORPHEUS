@@ -51,8 +51,8 @@ in :doc:`/theory/foundations/operator_algebra`.
 
 .. _g-adjoint:
 
-The composite metric-correct G-adjoint — ``op.H`` over ``FullFieldSpace`` (Wave O step O.2b R5)
-===============================================================================================
+The composite metric-correct G-adjoint — ``op.H`` over ``FullFieldSpace``
+=========================================================================
 
 This section completes the boundary-condition extraction narrative
 documented at :ref:`bc-extraction` in

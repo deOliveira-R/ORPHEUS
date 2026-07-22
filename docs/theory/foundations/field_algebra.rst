@@ -54,8 +54,8 @@ and its invertible sub-composite :math:`L + C`, whose inverse
 
 .. _affine-typed-field-algebra:
 
-The affine-typed SN field algebra — state, displacement, residual (Wave O step O.2 close-out)
-=============================================================================================
+The affine-typed SN field algebra — state, displacement, residual
+=================================================================
 
 Wave O step **O.2** (`Issue #208
 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_, which subsumes

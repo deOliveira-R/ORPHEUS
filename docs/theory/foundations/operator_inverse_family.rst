@@ -49,8 +49,8 @@ inverse itself and follows it through four distinct realizations:
 
 .. _inverse-application-driver:
 
-The solver builds the inverse; the driver applies it (#226 taxonomy step 3)
-===========================================================================
+The solver builds the inverse; the driver applies it
+====================================================
 
 Steps 1–2 reified the inverse *operators* — the schedule-triangular
 :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (step 1, the
@@ -203,8 +203,8 @@ Two further gates dissolved with it:
   rather than an illegal state needing an adapter.
 
 
-The narrowing boundary and the structural resolution (#285)
------------------------------------------------------------
+The narrowing boundary and the structural resolution
+----------------------------------------------------
 
 ``SupportsSeededApply`` and ``SupportsInverse`` are not
 ``runtime_checkable`` (an ``isinstance`` against a Protocol carrying only
@@ -373,8 +373,8 @@ from the pyright ratchet (152 → 148).
 
 .. _green-operator:
 
-The Green operator — the preconditioned-splitting sum inverse (#226 step 4)
-===========================================================================
+The Green operator — the preconditioned-splitting sum inverse
+=============================================================
 
 Steps 1–3 delivered the *exact/direct* inverse family: the leaf
 :class:`~orpheus.numerics.operator.InverseOperator` (a pointwise division)
@@ -766,8 +766,8 @@ at baseline; the Sphinx build stayed ``-W`` clean.
 
 .. _matrix-inverse-operator:
 
-The materialising functor and the dense direct inverse (#226 step 5)
-====================================================================
+The materialising functor and the dense direct inverse
+======================================================
 
 Steps 1–4 built the inverse *operators* — the exact leaf
 :class:`~orpheus.numerics.operator.InverseOperator`, the

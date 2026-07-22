@@ -51,8 +51,8 @@ sequentially, resists a clean tensor product altogether.
 
 .. _wave-t-tensor-network:
 
-Tensor-Network Decomposition of SN Operators (Wave T)
-=====================================================
+Tensor-Network Decomposition of SN Operators
+============================================
 
 Wave T (May 2026, commits ``fa13e78`` / ``0b2848b`` / ``9f85c5d`` /
 ``03bcdba`` / ``cb18fdb`` / ``c55b505`` / ``90e7d4e``) lifted the four
@@ -83,8 +83,8 @@ uses, and documents the architectural rationale for the per-direction
 streaming split.
 
 
-Key Facts (Wave T)
-------------------
+Key Facts
+---------
 
 - **The SN flux state lives on a tensor-product space** :math:`V = X
   \otimes \Omega \otimes G` (Grand Report v3 §15 line 2003-2019). The
@@ -598,8 +598,8 @@ what actually happened, is:
        that the split *reconstructed itself*, not that either branch was
        correct.
 
-Why #238 retired the split — the orphan-smell one level down
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Why the split was retired — the orphan-smell one level down
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 After #206 moved the 1-D matvec walk into the loss representation, the
 ``_SpatialSweepDirection`` / ``_MSpatialOperatorSum`` /
