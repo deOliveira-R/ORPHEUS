@@ -222,9 +222,9 @@ The principle generalises:
    for the within-group system belong before the axes that carry a
    sequential dependency.**
 
-[LewisMiller1984]_ §4.5 ("Source Iteration") gives the same
+:cite:`LewisMiller1984` §4.5 ("Source Iteration") gives the same
 block-diagonal structure as the textbook proof that the within-group
-problem decouples; [AdamsLarsen2002]_ §III confirms the same picture
+problem decouples; :cite:`AdamsLarsen2002` §III confirms the same picture
 for the SAILOR preconditioner family.  The block structure is the
 mathematical reason every modern transport code (PARTISN, Denovo,
 JAGUAR, OpenMOC) carries the same ``(angular, energy, spatial)``
@@ -272,7 +272,7 @@ In numpy this is three ops:
 no Python loop over cells.  The pair-monoid composition
 :math:`(\alpha_1,\beta_1) \oplus (\alpha_2,\beta_2) =
 (\alpha_1 \alpha_2,\, \alpha_2 \beta_1 + \beta_2)` is associative
-([Blelloch1990]_ §1.5; [Brent1974]_), so the same closed form admits
+(:cite:`Blelloch1990` §1.5; :cite:`Brent1974`), so the same closed form admits
 Brent's :math:`O(N/\log N)`-work parallel decomposition if a future
 GPU port adopts a parallel-prefix backend.  The
 ``tests/sn/sweep/core/test_ordinate_scan.py`` algebraic-theorem suite
@@ -1627,33 +1627,20 @@ References
 The layout derivation is grounded in the standard SN textbook
 treatment of the within-group source iteration.
 
-- [LewisMiller1984]_ §4.5 ("Source Iteration") --- block-diagonality
+- :cite:`LewisMiller1984` §4.5 ("Source Iteration") --- block-diagonality
   of the within-group system.
-- [AdamsLarsen2002]_ §III --- the SAILOR / Larsen-Adams
+- :cite:`AdamsLarsen2002` §III --- the SAILOR / Larsen-Adams
   preconditioned-Krylov framework that motivates the
   ``(N, ng)`` joint-batch storage.
-- [BaileyMorelChang2010]_ (the curvilinear :math:`\alpha` recursion) and
+- :cite:`BaileyMorelChang2010` (the curvilinear :math:`\alpha` recursion) and
   Eq. 43 (Morel--Montry weights) --- the curvilinear M--M angular
   thread that obstructs joint-batch over ordinates and motivates
   the principled :math:`n` leading layout.
-- [Blelloch1990]_ §1.5 ("First-Order Linear Recurrences") --- the
+- :cite:`Blelloch1990` §1.5 ("First-Order Linear Recurrences") --- the
   closed-form scan factorisation in :eq:`blelloch-1990-eq-1-5` that
   underlies :func:`~orpheus.sn.sweep.scan.ordinate_scan` and the
   slab joint-batch hot path.
-- [Brent1974]_ --- Brent's theorem on work-efficient associative-scan
+- :cite:`Brent1974` --- Brent's theorem on work-efficient associative-scan
   reduction.  The pair-monoid associativity test in
   ``tests/sn/sweep/core/test_ordinate_scan.py`` is the algebraic
   justification for the closed form.
-
-.. [Blelloch1990] G.E. Blelloch,
-   *Prefix Sums and Their Applications*,
-   CMU-CS-90-190 Technical Report, Carnegie Mellon University, 1990.
-   §1.5 derives the first-order linear-recurrence closed form
-   :eq:`blelloch-1990-eq-1-5` that ORPHEUS's slab joint-batch sweep
-   consumes through :func:`~orpheus.sn.sweep.scan.ordinate_scan`.
-
-.. [Brent1974] R.P. Brent,
-   "The parallel evaluation of general arithmetic expressions,"
-   *Journal of the ACM*, 21(2):201--206, 1974.
-   Brent's theorem on the :math:`O(N/\log N)`-work parallel-prefix
-   decomposition of an associative scan.

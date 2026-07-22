@@ -242,7 +242,7 @@ documented in dedicated sections per the
 - **Closed homogeneous sphere, specular BC** (V_α1, B-phase shipped).
   :math:`k_{\rm eff} = k_\infty` to machine precision.
 - **Vacuum BC** (A1+A2 follow-on) — :math:`\alpha = 0` parametrisation.
-  Cross-checked against PS-1982 [PS1982]_ Eq. (21) reference solver
+  Cross-checked against PS-1982 :cite:`PomraningSiewert1982` Eq. (21) reference solver
   to ≤ 1e-4 relative on k_eff across four (R, c) configurations
   (τ_R ∈ {2.5, 5}, c ∈ {0.4, 0.6}).
 - **Multi-group homogeneous sphere** (A3 follow-on) —
@@ -259,7 +259,7 @@ documented in dedicated sections per the
   avoided).
 - **Multi-region sphere fixed-source** (Plan-(b) Option 1) —
   :func:`solve_greens_function_sphere_mr_fixed_source`.
-  Cross-checked against Garcia 2021 [Garcia2021]_ Table 5
+  Cross-checked against Garcia 2021 :cite:`Garcia2021` Table 5
   (Williams 1991 Case 1, 3-region sphere) at 15 r-points: < 2 %
   agreement at non-interface points, < 12 % near interfaces (cubic-
   spline source-interpolation smooths the discontinuous σ_s — known
@@ -364,7 +364,7 @@ Motivation: the continuous-µ retreat made angle-resolution structurally necessa
 =================================================================================
 
 The Phase 5 investigation (Issue #133, CLOSED 2026-04-28) attempted
-to discretise the **angle-integrated** Sanchez 1986 [SanchezTTSP1986]_
+to discretise the **angle-integrated** Sanchez 1986 :cite:`SanchezTTSP1986`
 Eq. (A6) kernel
 
 .. math::
@@ -420,7 +420,7 @@ from the angle-integrated kernel to the angle-resolved kernel.
 The angle-resolved Green's function with BC absorbed
 =====================================================
 
-Following Sanchez 1986 [SanchezTTSP1986]_ §2 and Appendix, the
+Following Sanchez 1986 :cite:`SanchezTTSP1986` §2 and Appendix, the
 Green's function :math:`t(r',\Omega' \to r,\Omega)` for the
 homogeneous sphere is the unique solution of
 
@@ -1159,7 +1159,7 @@ The vacuum-BC k-eigenvalue is non-trivial — leakage forces
 :math:`k_{\rm eff} < k_\infty` and the spatial mode is peaked at the
 centre with a non-trivial profile. Variant α at :math:`\alpha = 0`
 therefore needs a **structurally-independent** L1 cross-check.
-[PS1982]_ Eq. (21) provides this: Pomraning-Siewert 1982's
+:cite:`PomraningSiewert1982` Eq. (21) provides this: Pomraning-Siewert 1982's
 integral-equation form for the homogeneous vacuum sphere with
 isotropic scattering uses a different mathematical path
 (integrate-over-:math:`\mu` then add half-spaces) than Sanchez 1986's
@@ -1168,7 +1168,7 @@ cosh-even-extension. The two derivations arrive at the same
 independent routes; PS-1982 itself confirmed via
 method-of-characteristics is a third independent confirmation.
 
-Implementation: a Nyström solver for [PS1982]_ Eq. (21) lives in
+Implementation: a Nyström solver for :cite:`PomraningSiewert1982` Eq. (21) lives in
 :func:`orpheus.derivations.continuous.peierls_nystrom.ps1982_reference.solve_ps1982_vacuum_sphere`
 — Gauss-Legendre quadrature on :math:`(0, R\Sigt{}]` (optical
 units), :math:`E_1` evaluated via :func:`mpmath.expint`, the kernel
@@ -1529,7 +1529,7 @@ Option 1 fixed-source benchmark below.
 Garcia 2021 fixed-source cross-check (Plan-(b) Option 1)
 ========================================================
 
-[Garcia2021]_ ships a stable :math:`P_N` solver for the multi-region
+:cite:`Garcia2021` ships a stable :math:`P_N` solver for the multi-region
 sphere with internal sources and externally incident angular flux.
 The paper is **subcritical-only** — criticality is explicitly out
 of scope (paper §III.A; documented at
@@ -1762,7 +1762,7 @@ The Variant α architecture now covers sphere-only with arbitrary
 :math:`\alpha\in[0,1]`, multi-group (any G), and multi-region
 (piecewise homogeneous). The following extensions are flagged for
 future work but not blocking — the production reference families
-([Garcia2021]_ for multi-region fixed-source + the Phase 4 Nyström
+(:cite:`Garcia2021` for multi-region fixed-source + the Phase 4 Nyström
 family for cylinder + slab) cover the gaps for now.
 
 Cylinder geometry
@@ -1804,12 +1804,12 @@ term per :math:`\omega_1` component.
 External cross-check via Garcia stable :math:`P_N` (k-eigenvalue)
 ------------------------------------------------------------------
 
-Garcia 2021 [Garcia2021]_ has been pulled and is the L1 reference
+Garcia 2021 :cite:`Garcia2021` has been pulled and is the L1 reference
 for the multi-region **fixed-source** sphere — see
 :ref:`peierls-greens-garcia2021`. The k-eigenvalue cross-check
 remains an open gap: Garcia 2021 is **subcritical-only**
 (criticality is "future work" per paper §III.A); Garcia 2020
-[Garcia2020]_ covers homogeneous sphere reflective BC but is also
+:cite:`Garcia2020` covers homogeneous sphere reflective BC but is also
 fixed-source-only. There is **no published L1 multi-region critical
 sphere k-eigenvalue benchmark** for the Issue #132 fuel/moderator
 configuration as of 2026-05-01. Candidate sources for a future
@@ -5700,29 +5700,29 @@ Literature provenance
    * - Reference
      - Role
      - Local copy?
-   * - Sanchez 1986 [SanchezTTSP1986]_
+   * - Sanchez 1986 :cite:`SanchezTTSP1986`
      - Primary source. Eqs. (A1)–(A7) define the angle-resolved
        Green's function with BC absorbed; Eq. (A6) is the
        angle-integrated reduction whose hypersingularity Phase 5
        fought (and lost). Variant α uses Eqs. (A1) and (A5)
        directly.
      - YES (PDF in repo root)
-   * - Pomraning-Siewert 1982 [PomraningSiewert1982]_
+   * - Pomraning-Siewert 1982 :cite:`PomraningSiewert1982`
      - Precursor for :math:`\omega_1 = 0` (isotropic-scattering)
        case with vacuum BC — the truth source for the V_α3
        reduction once the prototype is extended to vacuum BC.
      - NO (paywalled)
-   * - Hébert 2009 [Hebert2020]_ §3.8.5
+   * - Hébert 2009 :cite:`Hebert2020` §3.8.5
      - Rank-1 white-BC closure :math:`(1 - P_{ss})^{-1}` — the
        V_α2 algebraic anchor.
      - YES (Hebert(2009)Chapter3.pdf in repo root)
-   * - Garcia 2020 / 2021 / 2018 [Garcia2020]_ [Garcia2021]_
+   * - Garcia 2020 / 2021 / 2018 :cite:`Garcia2020` :cite:`Garcia2021`
      - Modern stable :math:`P_N` spherical-harmonic reference for
        homogeneous-sphere reflective-BC k_eigenvalue, plus
        multi-region extension. The only external numerical reference
        for this problem class.
      - NO (all paywalled)
-   * - Sanchez 2002 [Sanchez2002]_
+   * - Sanchez 2002 :cite:`Sanchez2002`
      - Periodic-trajectory closure for *lattice* geometries —
        algebraic structure :math:`1/(1 - \psi_{bd})` parallel to
        Variant α's :math:`T(\mu_{\rm surf})`, but for a different
@@ -5873,29 +5873,3 @@ Memo provenance
 - :file:`.claude/plans/peierls-greens-function-approach.md` — Plan 2
   master plan (Part A reorganisation + Part B Green's function).
 
-
-.. [PomraningSiewert1982] G.C. Pomraning and C.E. Siewert,
-   "On the integral form of the equation of transfer for a
-   homogeneous sphere," *J. Quant. Spec. Rad. Transfer* **28**,
-   503–506 (1982). DOI: 10.1016/0022-4073(82)90016-4. Cited by
-   Sanchez 1986 as the :math:`\omega_1 = 0` (isotropic-scattering)
-   precursor; vacuum BC; sphere only.
-
-.. [Garcia2020] R.D.M. Garcia, "A numerically stable spherical
-   harmonics solution for the neutron transport equation in a
-   sphere," *J. Comp. Phys.* **393**, 109139 (2020).
-   DOI: 10.1016/j.jcp.2019.109139.
-
-.. [Garcia2021] R.D.M. Garcia, "Accurate spherical harmonics solutions
-   for neutron transport problems in multi-region spherical
-   geometries," *J. Comp. Phys.* **433**, 109856 (2021).
-   DOI: 10.1016/j.jcp.2020.109856.
-
-.. [Sanchez2002] R. Sanchez, "Treatment of Boundary Conditions in
-   Trajectory-Based Deterministic Transport Methods," *Nucl. Sci.
-   Eng.* **140**, 23–50 (2002). DOI: 10.13182/NSE140-23. Periodic-
-   trajectory closure :math:`\psi = \psi_q(L)/(1 - \psi_{bd}(L))
-   \cdot \psi_{bd} + \psi_q` (Eq. 15) for lattice geometries —
-   parallel algebraic structure to Variant α's
-   :math:`\psi_{\rm surf} = T(\mu_{\rm surf})\,B(\mu_{\rm surf})`,
-   different geometry.

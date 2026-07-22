@@ -1,7 +1,7 @@
 r"""Case singular eigenfunction expansion family.
 
 This package collects ORPHEUS Branch-2 production solvers built on
-**Case's singular eigenfunction expansion** [Case1960]_ — the
+**Case's singular eigenfunction expansion** :cite:`Case1960` — the
 foundational analytic technique for the one-speed (1G) integral
 transport equation. The package is organized by geometry and
 scattering anisotropy:
@@ -104,42 +104,6 @@ Discipline
 
 The Sphinx narrative lives in :doc:`/theory/references/singular_eigenfunction`.
 
-References
-----------
-
-.. [Case1960] Case, K. M. (1960). "Elementary Solutions of the
-   Transport Equation and Their Applications." *Annals of Physics*
-   **9**, 1-23.
-
-.. [Mitsis1963] Mitsis, G. F. (1963). "Transport Solutions to the
-   Monoenergetic Critical Problems." Argonne National Laboratory
-   report ANL-6787.
-
-.. [WestfallMetcalf1973] Westfall, R. M. & Metcalf, D. R. (1973).
-   "Singular Eigenfunction Solution of the Monoenergetic Neutron
-   Transport Equation for Finite Radially Reflected Critical
-   Cylinders." *Nuclear Science and Engineering* **52**, 1-11.
-   DOI 10.13182/NSE73-A23285.
-
-.. [Atalay1997] Atalay, M.A. (1997).
-   "The reflected slab and sphere criticality problem with anisotropic
-   scattering in one-speed neutron transport theory."
-   *Progress in Nuclear Energy* **31**(3), 229-252.
-   DOI: 10.1016/0149-1970(95)00094-1.
-
-.. [BurkartIshiguroSiewert1976] Burkart, A.R., Ishiguro, Y., Siewert, C.E. (1976).
-   "Neutron transport in two dissimilar media with anisotropic scattering."
-   *Nuclear Science and Engineering* **61**, 72-81.
-   (Used as cross-check for Atalay vacuum-slab + anisotropic results.)
-
-.. [McCormickKuscer1965] McCormick, N.J., Kušcer, I. (1965).
-   "Bi-orthogonality relations for solving half-space transport problems."
-   *J. Math. Phys.* **6**, 1939.
-
-.. [Sood1999] Sood, A., Forster, R. A., Parsons, D. K. (1999).
-   "Analytical Benchmark Test Set for Criticality Code Verification."
-   Los Alamos National Laboratory report LA-13511, Table 13
-   (case ``Ua-1-0-CY``).
 """
 from __future__ import annotations
 

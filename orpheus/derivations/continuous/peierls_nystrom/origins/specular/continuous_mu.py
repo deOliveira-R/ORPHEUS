@@ -3,7 +3,7 @@ multi-bounce specular kernel.
 
 This module is the **math origin** for
 :func:`compute_K_bc_specular_continuous_mu_sphere` in
-:mod:`peierls_geometry`. It pins the Sanchez 1986 [SanchezTTSP1986]_
+:mod:`peierls_geometry`. It pins the Sanchez 1986 :cite:`SanchezTTSP1986`
 Eq. (A6) ↔ ORPHEUS M1 sketch equivalence (the µ-weight convention
 question that R1 closure required) and the diagonal-singularity
 finding that blocks production wiring of

@@ -177,8 +177,8 @@ see :ref:`peierls-rank-n-per-face-closeout` and
   :math:`r_0 = 0.2 R` → 1.2 % (24×),
   :math:`r_0 = 0.3 R` → 3.3 % (10×).
 - **Why polar form, not chord coordinates.** Standard references
-  ([Sanchez1982]_, [Hebert2020]_, [Stamm1983]_, [BellGlasstone1970]_,
-  [CaseZweifel1967]_) present each geometry in **chord coordinates**
+  (:cite:`Sanchez1982`, :cite:`Hebert2020`, :cite:`Stamm1983`, :cite:`BellGlasstone1970`,
+  :cite:`CaseZweifel1967`) present each geometry in **chord coordinates**
   :math:`(y, r')` because those coordinates admit closed-form flat-source
   annular integrals that collapse to the :math:`\mathrm{Ki}_n` /
   :math:`E_n` second-difference formulae used by flat-source CP. The
@@ -1185,7 +1185,7 @@ the neutron has streamed anywhere. The neutron then transports from
 it is later observed, so a sink-indexed
 :math:`\chi_{g_{\rm out}}(r_i)` is causally meaningless. This is the
 convention of Hébert (2009) *Applied Reactor Physics* Ch. 3,
-Eq. 3.57/3.58 [Hebert2009]_, where the fission source
+Eq. 3.57/3.58 :cite:`Hebert2009`, where the fission source
 :math:`Q^{\rm fiss}(r) = \chi(r)\sum_{g'}\nu\Sigma_{f,g'}(r)\,\varphi_{g'}(r)`
 is written as one product at a single argument :math:`r`.
 
@@ -1457,8 +1457,8 @@ equations with three different kernels (:math:`E_1`,
 :math:`\mathrm{Ki}_1`, :math:`e^{-\tau}`), three different singular
 structures (logarithmic, integrable, smooth), and three different
 chord parametrisations. The literature
-([Sanchez1982]_ §IV, [Hebert2020]_ Chapter 3, [Stamm1983]_ Chapter 6,
-[CaseZweifel1967]_ Chapter 2) reinforces this impression by
+(:cite:`Sanchez1982` §IV, :cite:`Hebert2020` Chapter 3, :cite:`Stamm1983` Chapter 6,
+:cite:`CaseZweifel1967` Chapter 2) reinforces this impression by
 presenting each geometry with its own derivation, its own
 nomenclature, and its own table of special functions.
 
@@ -1652,9 +1652,9 @@ comes from the small-:math:`z` asymptote
    E_1(z) \;=\; -\ln z - \gamma + z - \tfrac{z^{2}}{4} + \cdots,
    \qquad z \to 0^{+},
 
-(A&S 5.1.11, [AbramowitzStegun1964]_), which is the log singularity
+(A&S 5.1.11, :cite:`AbramowitzStegun1964`), which is the log singularity
 handled in :mod:`peierls_slab` by the singularity-subtraction /
-product-integration recipe [Atkinson1997]_.
+product-integration recipe :cite:`Atkinson1997`.
 
 Cylinder geometry — the :math:`\mathrm{Ki}_1` kernel
 ----------------------------------------------------
@@ -2067,8 +2067,8 @@ Section 5 — Why the literature doesn't write it this way
 ========================================================
 
 The unified form above is mathematically equivalent to the
-standard chord-form presentations in [Sanchez1982]_, [Hebert2020]_,
-[Stamm1983]_, [BellGlasstone1970]_, [Carlvik1966]_ — they are the
+standard chord-form presentations in :cite:`Sanchez1982`, :cite:`Hebert2020`,
+:cite:`Stamm1983`, :cite:`BellGlasstone1970`, :cite:`Carlvik1966` — they are the
 same integral equation in two different coordinate systems. The
 literature's preference for the chord form is not an oversight;
 it reflects the historical context in which integral transport
@@ -2103,7 +2103,7 @@ as documented in :eq:`second-diff-general`, :eq:`self-slab`,
 :doc:`/theory/methods/collision_probability`. This reduction is the *selling point*
 of the flat-source CP method: all the angular and geometric
 integration collapses to one evaluation per pair of regions
-([Carlvik1966]_, [Stamm1983]_ §6.4). The polar form does not give
+(:cite:`Carlvik1966`, :cite:`Stamm1983` §6.4). The polar form does not give
 this closed-form reduction; it requires numerical quadrature
 over :math:`(\rho,\Omega)`, which was prohibitive before modern
 computing.
@@ -2111,7 +2111,7 @@ computing.
 Historical reason 2 — pre-computer kernel tables
 ------------------------------------------------
 
-[Bickley]_ and subsequent authors tabulated :math:`\mathrm{Ki}_n`
+:cite:`Bickley` and subsequent authors tabulated :math:`\mathrm{Ki}_n`
 values at selected :math:`\tau` for hand-calculation of CP matrices.
 The chord form permits the user to read :math:`\mathrm{Ki}_3(\tau)`
 off a table and multiply by a small number of geometric factors
@@ -2682,9 +2682,9 @@ volume-kernel layer. Vacuum-BC verification is complete at the K
 level, and the BC tensor-network expansion (Mark / Marshak DP_N /
 albedo closures) proceeds on a verified foundation.
 
-**References.** [BellGlasstone1970]_ Ch. 2 (chord integration for
+**References.** :cite:`BellGlasstone1970` Ch. 2 (chord integration for
 cylindrical and spherical cells with isotropic volume sources);
-[CaseZweifel1967]_ Ch. 3 (point-kernel volume integration).
+:cite:`CaseZweifel1967` Ch. 3 (point-kernel volume integration).
 
 
 .. _peierls-slab-white-bc-analytical:
@@ -2827,8 +2827,8 @@ support landed with these fixes:
    than :math:`\mathbb{R}^N`), which is a scope extension tracked
    separately.
 
-**References.** [Davison1957]_ Ch. 5 (half-range isotropic re-entry
-partial-current balance); [CaseZweifel1967]_ Ch. 6 (albedo-1 BC
+**References.** :cite:`Davison1957` Ch. 5 (half-range isotropic re-entry
+partial-current balance); :cite:`CaseZweifel1967` Ch. 6 (albedo-1 BC
 analytical solutions); Wigner & Seitz lattice-cell approximation.
 
 
@@ -5424,7 +5424,7 @@ multi-bounce specular at all three geometries. The
 :func:`compute_K_bc_specular_continuous_mu_sphere` is preserved
 because the SymPy 4/4 verifications in
 :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.continuous_mu` pass against
-Sanchez 1986 [SanchezTTSP1986]_ Eq. (A6) (pinned by
+Sanchez 1986 :cite:`SanchezTTSP1986` Eq. (A6) (pinned by
 ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``),
 but the Sanchez↔ORPHEUS
 Jacobian conversion and the diagonal singularity remain open.
@@ -5462,11 +5462,6 @@ tried, and the structural-conclusion consensus) is in
 <https://github.com/deOliveira-R/ORPHEUS/issues/133#issuecomment-4348746147>`_;
 investigator memos at
 :file:`.claude/agent-memory/numerics-investigator/phase5_*.md`.
-
-.. [SanchezTTSP1986] R. Sanchez, "Integral form of the equation of
-   transfer for a homogeneous sphere with linearly anisotropic
-   scattering," *Transport Theory & Statistical Physics*, vol. 14,
-   pp. 333–343 (1986). DOI: 10.1080/00411458608210456.
 
 References and further reading
 ------------------------------
@@ -5506,7 +5501,7 @@ at :math:`r_i \le R/2`. Tested in
 **Sanchez–McCormick 1982 tie-point.** For a bare 1-G homogeneous
 cylinder with :math:`\Sigma_t = 1` cm⁻¹,
 :math:`(\Sigma_s, \nu\Sigma_f) = (0.5, 0.75)` giving :math:`k_\infty
-= 1.5`, [Sanchez1982]_ Table IV reports :math:`R_{\rm crit} = 1.9798`
+= 1.5`, :cite:`Sanchez1982` Table IV reports :math:`R_{\rm crit} = 1.9798`
 cm. Present solver gives
 :math:`k_{\rm eff}(R = 1.9798) = 1.00421 \pm 10^{-5}` under
 polar-quadrature refinement. 0.42 % offset from unity reflects the
@@ -5834,7 +5829,7 @@ Hierarchy in one picture
    a sign that the sphere is "skipping levels"; the integration is
    still being performed, it just happens to close on itself.
 
-   In the CP literature ([BellGlasstone1970]_ §2.7, [Stamm1983]_
+   In the CP literature (:cite:`BellGlasstone1970` §2.7, :cite:`Stamm1983`
    §6.4) this is sometimes reported as "the sphere kernel needs no
    special functions". That statement is correct only after the three
    levels have been identified — before that, it sounds like an
@@ -6648,29 +6643,29 @@ specialisations that each contributed:
 
 - **Slab** :math:`\Delta^{2}[E_3]`. The four-term structure was in
   wide use by the 1960s; it appears explicitly in
-  [Carlvik1966]_ §III for the infinite-cylinder case (with a brief
+  :cite:`Carlvik1966` §III for the infinite-cylinder case (with a brief
   side-remark on the slab analogue obtained by the :math:`\sin\theta
-  \to 1` limit) and is presented in full in [Stamm1983]_ §6.3 with
+  \to 1` limit) and is presented in full in :cite:`Stamm1983` §6.3 with
   the :math:`E_n` derivative identity :math:`E_n' = -E_{n-1}` made
   explicit. The slab second-difference formula has no single
   canonical citation because it emerged as a straightforward
   specialisation of the cylinder derivation.
-- **Cylinder** :math:`\Delta^{2}[\mathrm{Ki}_3]`. [Carlvik1966]_ is
+- **Cylinder** :math:`\Delta^{2}[\mathrm{Ki}_3]`. :cite:`Carlvik1966` is
   the canonical modern reference: it introduces the chord-form
   :math:`y`-quadrature, derives the four-term
   :math:`\mathrm{Ki}_3`-based formula, and applies it to Dancoff
-  factors. [Stamm1983]_ §6.4 presents a cleaner exposition with
+  factors. :cite:`Stamm1983` §6.4 presents a cleaner exposition with
   careful attention to the annular geometry's SS / TC branch
   distinction (§13 above) and to the :math:`\mathrm{Ki}_n`
   derivative identity. The derivation in our
-  :mod:`~orpheus.derivations.continuous.flat_source_cp.cylinder` follows [Stamm1983]_
-  more closely than [Carlvik1966]_.
-- **Sphere** :math:`\Delta^{2}[e^{-\tau}]`. [BellGlasstone1970]_
+  :mod:`~orpheus.derivations.continuous.flat_source_cp.cylinder` follows :cite:`Stamm1983`
+  more closely than :cite:`Carlvik1966`.
+- **Sphere** :math:`\Delta^{2}[e^{-\tau}]`. :cite:`BellGlasstone1970`
   §2.7 derives the spherical CP matrix with the bare
   :math:`e^{-\tau}` kernel and the :math:`y\,\mathrm dy` outer
   measure. The derivation is brief because the spherical case
   inherits the chord machinery verbatim from the cylinder — only
-  the outer weight changes. [BellGlasstone1970]_ also presents
+  the outer weight changes. :cite:`BellGlasstone1970` also presents
   the limiting cases (small :math:`R`, large :math:`R`) as
   sanity checks on the formula, which
   :mod:`~orpheus.derivations.continuous.flat_source_cp.sphere` replicates at
@@ -6696,7 +6691,7 @@ method had its own decade of established engineering use. The
 pointwise Peierls Nyström formulation — the basis for the modern
 verification pipeline — therefore was *not* developed in parallel
 with flat-source CP. It emerged later, from the integral-transport
-verification literature (e.g. [Sanchez1982]_, then the integral
+verification literature (e.g. :cite:`Sanchez1982`, then the integral
 benchmark programmes of the 1990s-2000s), and used the polar form
 because by then :math:`\mathrm{Ki}_1` was cheaper to evaluate than
 :math:`\mathrm{Ki}_3` (one fewer antiderivation, and
@@ -6864,8 +6859,8 @@ quadrature rules become natural.
 The chord-form Peierls integrand for a curvilinear geometry
 (cylinder or sphere) has a Jacobian singularity
 :math:`1/\sqrt{r'^2 - y^2}` at the tangent radius :math:`r' = y`.
-Textbook treatments ([Sanchez1982]_ §IV, [Carlvik1966]_,
-[Stamm1983]_ §6.4) absorb this singularity via the
+Textbook treatments (:cite:`Sanchez1982` §IV, :cite:`Carlvik1966`,
+:cite:`Stamm1983` §6.4) absorb this singularity via the
 **half-chord substitution**
 
 .. math::
@@ -7073,7 +7068,7 @@ history walks straight through a cavity without advancing its sampled
 :math:`\tau`. The deterministic Nyström and Woodcock delta-tracking
 are the same integral evaluated two ways — see §23.1 for the
 deterministic-↔-stochastic equivalence (originating reference
-[Woodcock1965]_).
+:cite:`Woodcock1965`).
 
 Quadrature choice
 ~~~~~~~~~~~~~~~~~
@@ -7163,7 +7158,7 @@ boundary):
      \;=\; \frac{1}{2}\,E_1^{\rm eff}(\Sigma_t L),
 
 where the final equality is the slab vacuum-boundary escape
-probability, as given for example in [BellGlasstone1970]_ §2.6.
+probability, as given for example in :cite:`BellGlasstone1970` §2.6.
 Substitute :math:`v = -\ln\mu`:
 
 .. math::
@@ -7197,7 +7192,7 @@ E_1(a)`, so:
      \;\equiv\; E_2(\Sigma_t L)
 
 (the last equality is the standard recursion
-:math:`E_2(x) = e^{-x} - x E_1(x)`, [AbramowitzStegun1964]_ §5.1.14).
+:math:`E_2(x) = e^{-x} - x E_1(x)`, :cite:`AbramowitzStegun1964` §5.1.14).
 The exp-stretched polar-form slab is **numerically equivalent** to the
 :math:`E_n`-Nyström form: it is the same integral evaluated through a
 different quadrature rule.
@@ -7318,8 +7313,8 @@ unknown**.
 
 Davison's substitution is attributed to B. Davison in the classical
 spherical transport literature; it appears in
-[BellGlasstone1970]_ §2.7 and is a standard technique in the bare-sphere
-analytic solutions of [CaseZweifel1967]_ Chapter 2 (where it is the
+:cite:`BellGlasstone1970` §2.7 and is a standard technique in the bare-sphere
+analytic solutions of :cite:`CaseZweifel1967` Chapter 2 (where it is the
 canonical change of variable for the Case-de Hoffmann-Placzek bare-sphere
 critical-radius derivations).
 
@@ -7353,7 +7348,7 @@ Where Davison's substitution remains useful
   coordinate singularity, for which :math:`u = r\varphi` is the
   standard regulariser.
 - **Analytic bare-sphere critical radii** (Case-Zweifel, Milne-problem
-  asymptotics): closed-form work in [CaseZweifel1967]_ Chapter 2
+  asymptotics): closed-form work in :cite:`CaseZweifel1967` Chapter 2
   flows naturally through :math:`u = r\varphi`. Any future analytic
   cross-check would use this form.
 
@@ -8079,7 +8074,7 @@ Section 23 — Monte Carlo connections
 
 The τ-coordinate unification of §22.3 is the deterministic analogue of
 a family of Monte Carlo algorithms that have been standard since the
-GEM code introduced delta-tracking in 1965 ([Woodcock1965]_). This
+GEM code introduced delta-tracking in 1965 (:cite:`Woodcock1965`). This
 section makes the correspondence explicit, and identifies a new V&V
 band — cross-stochastic-deterministic verification — that becomes
 possible once the τ-Nyström is implemented (Phase H.2+).
@@ -8935,7 +8930,7 @@ is needed.
 accept sub-optimality, gain interpretability and geometry independence.
 This is the same trade-off that motivates POD vs physics-based modal
 bases throughout reduced-order modelling; see for example
-[Atkinson1997]_ §6 on projection methods for integral equations.
+:cite:`Atkinson1997` §6 on projection methods for integral equations.
 
 
 Section 29 — Phases A and C: canonical Marshak investigated, deferred
@@ -9045,7 +9040,7 @@ A principled path forward
 -------------------------
 
 The canonical resolution requires **calibration against a published
-reference**. Stepanek 1981 ([Stepanek1981]_) provides the slab
+reference**. Stepanek 1981 (:cite:`Stepanek1981`) provides the slab
 DP\ :sub:`N` :math:`k_{\rm eff}` tables at Marshak rank 0, 1, 2 for a
 range of :math:`R/\mathrm{MFP}`, with the canonical expansion and
 closure conventions fixed. Calibrating a new ORPHEUS
@@ -9066,7 +9061,7 @@ Phase-A-true needs Stepanek slab calibration as the anchor.
 
 **Phase C** (cylinder divergence at :math:`N \ge 3`): **deferred**
 for the same reason. The :math:`\mathrm{Ki}_{2+k}` polynomial
-expansion infrastructure from [Knyazev1993]_ is theoretically ready
+expansion infrastructure from :cite:`Knyazev1993` is theoretically ready
 (the polar-angle integration of
 :math:`\tilde P_n(\sin\theta_p \cdot \mu_{s,2D})` against
 :math:`\exp(-\tau/\sin\theta_p)` produces exactly this series) but
@@ -9183,67 +9178,3 @@ tests, software-invariant contracts):
 Together these gates ensure that any future refactor — including
 the Phase A basis change and the Phase C 3-D frame — cannot break
 the tensor-network structure without one of these contracts firing.
-
-
-References
-==========
-
-.. [Sanchez1982] R. Sanchez and N.J. McCormick, "A Review of Neutron
-   Transport Approximations," *Nucl. Sci. Eng.* **80**, 481–535
-   (1982). DOI: 10.13182/nse80-04-481.
-
-.. [Hebert2020] A. Hébert, *Applied Reactor Physics*, 3rd ed.,
-   Presses Internationales Polytechnique, 2020.
-   DOI: 10.1515/9782553017445.
-
-.. [Stamm1983] R. Stamm'ler and M.J. Abbate, *Methods of Steady-State
-   Reactor Physics in Nuclear Design*, Academic Press, 1983.
-
-.. [BellGlasstone1970] G.I. Bell and S. Glasstone, *Nuclear Reactor
-   Theory*, Van Nostrand Reinhold, 1970.
-
-.. [Carlvik1966] I. Carlvik, "A method for calculating collision
-   probabilities in general cylindrical geometry and applications to
-   flux distributions and Dancoff factors," *Proc. Third United Nations
-   Int. Conf. Peaceful Uses of Atomic Energy*, Vol. 2, 1966.
-
-.. [Davison1957] B. Davison, *Neutron Transport Theory*,
-   Clarendon Press, 1957. Ch. 5 covers the slab albedo / partial-current
-   balance relations that underpin the Mark (isotropic rank-1)
-   white-BC closed form :eq:`peierls-white-bc-slab`.
-
-.. [Atkinson1997] K.E. Atkinson, *The Numerical Solution of Integral
-   Equations of the Second Kind*, Cambridge University Press, 1997.
-
-.. [AbramowitzStegun1964] M. Abramowitz and I.A. Stegun (eds.),
-   *Handbook of Mathematical Functions with Formulas, Graphs, and
-   Mathematical Tables*, National Bureau of Standards Applied
-   Mathematics Series 55 (1964); §5.1 (exponential integral
-   :math:`E_n`), §11.2 (Bickley–Naylor functions
-   :math:`\mathrm{Ki}_n`).
-
-.. [Bickley] W.G. Bickley and J. Naylor, "A short table of the
-   functions :math:`\mathrm{Ki}_n(x)`, from :math:`n=1` to
-   :math:`n=16`," *Philosophical Magazine Series 7*,
-   **20**, 343–347 (1935).
-
-.. [Stepanek1981] J. Stepanek, "The DP\ :sub:`N` Surface Flux Integral
-   Neutron Transport Method for Slab Geometry," *Nuclear Science and
-   Engineering* **78**, 171–179 (1981).
-   DOI: 10.13182/NSE81-A19606. Canonical derivation of the rank-N DP
-   closure for the surface-flux integral equation in slab geometry;
-   the slab DP\ :sub:`N` k\ :sub:`eff` tables in Tables I–III are the
-   calibration anchor for the Phase-A sphere normalisation audit
-   (see :ref:`theory-peierls-nystrom` §29 and Issue #112).
-
-.. [Knyazev1993] A.P. Knyazev, "Solution of the transport equation in
-   integral form in a one-dimensional cylindrical geometry with
-   linearly anisotropic scattering," *Atomic Energy* **74** (5),
-   385–389 (1993). DOI: 10.1007/BF00844623. Derivation of the
-   higher-order Bickley-Naylor functions :math:`\mathrm{Ki}_{2+k}`
-   arising from the :math:`P_n`-weighted polar-angle integration in
-   cylindrical geometry — the analytic identity behind the Phase-C
-   3-D angular-quadrature reformulation of the cylinder
-   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc_mode` /
-   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_mode`
-   primitives (Issue #112).

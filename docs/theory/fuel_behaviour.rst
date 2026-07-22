@@ -173,7 +173,7 @@ swelling divided equally among the three directions.
 Fuel Swelling
 -------------
 
-The volumetric fuel swelling rate has two contributions (MATPRO [MATPRO2003]_):
+The volumetric fuel swelling rate has two contributions (MATPRO :cite:`MATPRO2003`):
 
 .. math::
    :label: fb-swelling
@@ -437,7 +437,7 @@ between the plenum and the gap/void volumes:
        + \frac{V_{\text{gap}}}{T_{\text{gap}}}}
 
 The gap gas conductivity is computed using the Prandtl mixing rule for
-He–Kr–Xe mixtures (MATPRO [MATPRO2003]_):
+He–Kr–Xe mixtures (MATPRO :cite:`MATPRO2003`):
 
 .. math::
 
@@ -542,11 +542,3 @@ Known Limitations
 
 5. **Simplified creep** — single-term Arrhenius correlations.  No
    irradiation creep, no stress relaxation.
-
-
-References
-==========
-
-.. [MATPRO2003] D.L. Hagrman et al., *MATPRO — A Library of Materials
-   Properties for Light-Water-Reactor Accident Analysis*, NUREG/CR-6150,
-   Idaho National Laboratory, 2003.

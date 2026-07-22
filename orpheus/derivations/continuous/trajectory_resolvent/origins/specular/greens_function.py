@@ -3,7 +3,7 @@ r"""SymPy derivation — operator-level identities for the Plan 2
 
 Companion to :mod:`.continuous_mu` (which carries the kernel-form
 identities V1–V4 from Phase 5). This module steps up to the
-**operator level**: rather than verifying the Sanchez 1986 [SanchezTTSP1986]_
+**operator level**: rather than verifying the Sanchez 1986 :cite:`SanchezTTSP1986`
 Eq. (A6) integrand pointwise, it verifies that the integral operator
 :math:`K` defined by the angle-resolved Green's function
 :math:`\tilde t(r' \to r, \mu)` (Sanchez Eq. A5 specular leg, :math:`\alpha=1`)

@@ -21,7 +21,7 @@ Lebedev (Sphere)
 -----------------
 
 For 2D/3D Cartesian geometry: :math:`N` points on the unit sphere with
-octahedral symmetry [Lebedev1999]_.  Weights sum to :math:`4\pi`.  On a
+octahedral symmetry :cite:`Lebedev1999`.  Weights sum to :math:`4\pi`.  On a
 1D mesh, z-directed ordinates (:math:`\mu_x = \mu_y = 0`) are handled
 as pure collision; all others stream along *x* with *y*-terms cancelling
 via reflective BCs.
@@ -36,7 +36,7 @@ Standard triangular quadrature with :math:`N/2` distinct :math:`\mu_z`
 values per hemisphere.  Ordinates on each level are permutations of the
 direction cosine set satisfying :math:`\eta^2 + \xi^2 + \mu^2 = 1`.
 Equal spacing in :math:`\mu^2` is used with :math:`\mu_1^2 = 4/(N(N+2))`
-[CarlsonLathrop1965]_.
+:cite:`CarlsonLathrop1965`.
 
 Weights sum to :math:`4\pi`.  Provides the ``level_indices`` structure
 needed by the cylindrical sweep.  Unlike the product quadrature
@@ -63,7 +63,7 @@ structure ideal for the cylindrical sweep.  Weights:
 
 Sum to :math:`4\pi`.  Within each level, ordinates are sorted by
 increasing :math:`\eta = \sin\theta\cos\varphi` to match the
-:math:`\alpha` recursion convention from [BaileyMorelChang2010]_ (the
+:math:`\alpha` recursion convention from :cite:`BaileyMorelChang2010` (the
 curvilinear :math:`\alpha`-recursion).
 
 Built by :meth:`Quadrature.product(n_mu, n_phi)

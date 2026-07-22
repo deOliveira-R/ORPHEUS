@@ -1,6 +1,6 @@
 r"""Carlvik-Galerkin spectral solver for monoenergetic anisotropic transport.
 
-Mounted on Dahl & Sjostrand (1979) NSE 69, 114-125 [DahlSjostrand1979]_:
+Mounted on Dahl & Sjostrand (1979) NSE 69, 114-125 :cite:`DahlSjostrand1979`:
 **Legendre-Galerkin spectral expansion of Carlvik's integral equation**
 for one-speed transport in a homogeneous slab or sphere with linearly
 anisotropic scattering and vacuum boundary conditions.
@@ -69,14 +69,6 @@ Layout
 * :mod:`.sphere` — Branch-2 production: :func:`.sphere.solve_galerkin_spectral_sphere`
   for bare-critical spheres. Reproduces Dahl-Sjostrand Table I.
 
-References
-----------
-
-.. [DahlSjostrand1979] Dahl, E. B. & Sjostrand, N. G. (1979).
-   "Eigenvalue spectrum of multiplying slabs and spheres for
-   monoenergetic neutrons with anisotropic scattering."
-   *Nuclear Science and Engineering* **69**, 114-125.
-   DOI: 10.13182/NSE69-114.
 """
 from __future__ import annotations
 

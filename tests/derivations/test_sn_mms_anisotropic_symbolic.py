@@ -40,7 +40,7 @@ References
 - :doc:`/theory/methods/sn/verification` — anisotropic curvilinear MMS
   section (labels ``sn-mms-spherical-aniso-psi``, ``sn-mms-spherical-aniso-qext``,
   ``sn-mms-cylindrical-aniso-psi``, ``sn-mms-cylindrical-aniso-qext``).
-- [BaileyMorelChang2010]_ for the spherical and cylindrical
+- :cite:`BaileyMorelChang2010` for the spherical and cylindrical
   angular redistribution operator structure.
 """
 from __future__ import annotations

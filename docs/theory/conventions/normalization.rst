@@ -43,7 +43,7 @@ The measure is the *only* normalization carrier, which fixes where
   ``measure.restrict`` yields a valid sub-quadrature whose weights
   keep their meaning.
 
-**The canon trap.** Hébert [Hebert2009]_ §3.9.1 normalizes 1-D
+**The canon trap.** Hébert :cite:`Hebert2009` §3.9.1 normalizes 1-D
 Gauss–Legendre to :math:`\sum w = 2`; five pages later,
 Eqs. (3.363)–(3.364) normalize to :math:`\sum w = 1` over the positive
 octant — the same symbol :math:`w_n`, two normalizations, no note.
@@ -175,17 +175,17 @@ the resulting system is lower-triangular (a direct one-pass sweep).
        - \mu_m w_m`
      - :math:`\sum w = 2`
      - :math:`\Delta A_i / w_m`
-   * - Stacey (9.213) [Stacey2007]_
+   * - Stacey (9.213) :cite:`Stacey2007`
      - :math:`\alpha_{m+\frac{1}{2}} = \alpha_{m-\frac{1}{2}}
        - \mu_m w_m`
      - :math:`\sum w = 2`
      - :math:`\Delta A / w` form (the Carlson lineage)
-   * - Bell & Glasstone (5.21) [BellGlasstone1970]_
+   * - Bell & Glasstone (5.21) :cite:`BellGlasstone1970`
      - :math:`\alpha_{m+\frac{1}{2}} = \alpha_{m-\frac{1}{2}}
        - \mu_m w_m (A_{i+1} - A_i)`
      - —
      - **folded**: :math:`\Delta A` lives inside :math:`\alpha`
-   * - Hébert sphere (3.424) [Hebert2009]_
+   * - Hébert sphere (3.424) :cite:`Hebert2009`
      - :math:`\alpha_{n+\frac{1}{2}} = \alpha_{n-\frac{1}{2}}
        - 2\,\mathcal{W}_n \mu_n`
      - GL on :math:`[-1,1]`
@@ -196,7 +196,7 @@ the resulting system is lower-triangular (a direct one-pass sweep).
      - per level
      - :math:`-(1/\mathcal{W}_{p,q})[\,\cdot\,]` in (3.400) —
        **sign-flipped against its own sphere, four pages apart**
-   * - Bailey–Morel–Chang sphere (11) [BaileyMorelChang2010]_
+   * - Bailey–Morel–Chang sphere (11) :cite:`BaileyMorelChang2010`
      - :math:`\alpha_{m+\frac{1}{2}} = \alpha_{m-\frac{1}{2}}
        - 2\mu_m w_m`
      - :math:`\sum w = 2`
@@ -206,7 +206,7 @@ the resulting system is lower-triangular (a direct one-pass sweep).
        - \mu_{m,n} w_{m,n}` per :math:`\xi`-level
      - :math:`\sum\sum w = 4\pi`
      - :math:`1/(r\,w_{m,n})`
-   * - Larsen–Morel review (1.23b) [LarsenMorel2010]_ — symbol
+   * - Larsen–Morel review (1.23b) :cite:`LarsenMorel2010` — symbol
        :math:`\beta`
      - :math:`\beta_{n+\frac{1}{2}} = \beta_{n-\frac{1}{2}}
        - 2\mu_n w_n` — **identical to the BMC sphere**

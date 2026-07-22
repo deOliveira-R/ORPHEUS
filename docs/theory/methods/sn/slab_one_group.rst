@@ -232,7 +232,7 @@ history section of :doc:`index`.)
 Why ship :meth:`solve` at all, if Krylov can invert with ``apply``
 alone? Two reasons. First, the sweep's
 :math:`O(N\cdot N_{\rm cells})` forward substitution is the canonical
-S\ :sub:`N` preconditioner ([AdamsLarsen2002]_ review; Lewis & Miller
+S\ :sub:`N` preconditioner (:cite:`AdamsLarsen2002` review; Lewis & Miller
 §4.5) — exposing ``solve`` keeps that path discoverable through the
 operator surface. Second, the composers need a uniform contract: when
 a downstream consumer composes the full operator, its
@@ -735,7 +735,7 @@ Instead of lagging the gains, the within-group problem can be handed
 to a Krylov method: GMRES on
 :meth:`InvertibleOperator.apply <orpheus.sn.operators.streaming.InvertibleOperator.apply>`
 with the sweep wrapped as a left preconditioner — the SAILOR /
-Larsen–Adams preconditioned-Krylov framework ([AdamsLarsen2002]_
+Larsen–Adams preconditioned-Krylov framework (:cite:`AdamsLarsen2002`
 §III). The preconditioned iteration converges at the rate of the
 *preconditioned* spectrum rather than the raw scattering ratio, so it
 recovers the :math:`c`-mode that source iteration cannot; it is

@@ -247,7 +247,7 @@ Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
 The Hébert §3.9.4 equations
 ----------------------------
 
-Hébert §3.9.4 (pp. 141–144 of [Hebert2009]_) opens the sphere
+Hébert §3.9.4 (pp. 141–144 of :cite:`Hebert2009`) opens the sphere
 difference relations at Eq. (3.418) (angularly-integrated
 divergence form), introduces the :math:`\alpha`-recursion
 :eq:`bailey-dome-recursion` and the cell-balance with
@@ -650,7 +650,7 @@ PASS.
 Pomraning structural-singularity cross-reference
 ------------------------------------------------
 
-Pomraning (1989) [Pomraning1989]_ frames the curvilinear pole
+Pomraning (1989) :cite:`Pomraning1989` frames the curvilinear pole
 problem as **geometric**: :math:`r = 0` is structurally singular
 in any curvilinear streaming operator because the
 angular-derivative coefficients in the streaming term (the

@@ -2,7 +2,7 @@ r"""SymPy algebra-of-record for Atalay 1997 Case singular-eigenfunction
 method (linearly anisotropic, reflected slab + sphere).
 
 Each ``derive_*()`` function verifies one published algebraic identity
-from [Atalay1997]_. The verifications are State-1A closed-form unless
+from :cite:`Atalay1997`. The verifications are State-1A closed-form unless
 explicitly noted as State-1B (semi-analytical: SymPy integrand +
 mpmath quadrature).
 
@@ -28,11 +28,6 @@ Notation map (Atalay → SymPy)
 * :math:`T_1(R, \mu) = (R e^{d/\mu} + e^{-d/\mu})/(R e^{-d/\mu} + e^{d/\mu})`
   (Atalay Eq. 50) — sphere T-function (the parity-flipped sign).
 
-References
-----------
-
-.. [Atalay1997] Atalay, M.A. (1997).
-   *Progress in Nuclear Energy* **31**(3), 229-252.
 """
 from __future__ import annotations
 

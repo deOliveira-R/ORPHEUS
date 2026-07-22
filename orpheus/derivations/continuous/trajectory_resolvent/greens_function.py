@@ -2,7 +2,7 @@ r"""Plan-2 **Variant α** Green's function reference for sphere homogeneous
 specular — research-grade prototype.
 
 Iterates the angle-resolved Green's function :math:`\tilde t(r' \to r,
-\mu)` (Sanchez 1986 [SanchezTTSP1986]_ Eq. A5 specular leg, :math:`\alpha
+\mu)` (Sanchez 1986 :cite:`SanchezTTSP1986` Eq. A5 specular leg, :math:`\alpha
 = 1`) along **bouncing characteristics** rather than assembling the
 angle-integrated Peierls kernel :math:`g_\alpha(\rho' \to \rho)` (the
 hypersingular form that killed Phase 5; see

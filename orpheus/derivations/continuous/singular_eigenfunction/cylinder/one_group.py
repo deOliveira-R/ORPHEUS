@@ -1,7 +1,7 @@
 r"""Westfall-Metcalf 1973 bare-critical infinite-cylinder solver
 implementing the FULL Mitsis-WM Fredholm-iteration method.
 
-Implements [WestfallMetcalf1973]_ for the **bare** infinite cylinder
+Implements :cite:`WestfallMetcalf1973` for the **bare** infinite cylinder
 (no reflector) with monoenergetic, isotropic scattering. This is the
 post-hardening implementation: the original Phase B1 prototype used a
 direct Nyström discretisation of the integral form (Eq. 6a) with
@@ -131,22 +131,6 @@ Wall-clock timings on a typical container CPU:
 (See ``tests/derivations/test_singular_eigenfunction_cylinder.py``
 ``test_wm72_table_ii_six_configurations`` for the full pinning.)
 
-References
-----------
-
-.. [WestfallMetcalf1973] Westfall, R. M. & Metcalf, D. R. (1973).
-   "Singular Eigenfunction Solution of the Monoenergetic Neutron
-   Transport Equation for Finite Radially Reflected Critical
-   Cylinders." *Nuclear Science and Engineering* **52**, 1-11.
-   DOI 10.13182/NSE73-A23285.
-
-.. [Mitsis1963] Mitsis, G. F. (1963). "Transport Solutions to the
-   Monoenergetic Critical Problems." Argonne National Laboratory
-   report ANL-6787.
-
-.. [MetcalfZweifel1968] Metcalf, D. R. & Zweifel, P. F. (1968).
-   *Nucl. Sci. Eng.* **33**, 318. — singular-subtraction technique
-   used for Eqs. 31 and 33 of WM-72.
 """
 from __future__ import annotations
 

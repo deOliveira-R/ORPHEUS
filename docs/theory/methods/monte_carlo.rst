@@ -44,8 +44,8 @@ The Monte Carlo (MC) method solves the neutron transport equation by
 discretising the phase space (angle, energy, space) as deterministic methods
 do, MC tracks particles through a geometry, sampling collision events from
 probability distributions derived from the underlying cross sections.
-The classical textbook treatment is [Lux1991]_; a more recent pedagogical
-overview aimed at reactor-physics practitioners is [Brown2005]_.
+The classical textbook treatment is :cite:`Lux1991`; a more recent pedagogical
+overview aimed at reactor-physics practitioners is :cite:`Brown2005`.
 
 ORPHEUS implements a **power iteration Monte Carlo** solver for the
 :math:`k`-eigenvalue problem in a 2-D unit cell with periodic boundary
@@ -373,7 +373,7 @@ Free-Flight Distance (Delta-Tracking)
 
 Standard Monte Carlo tracks a neutron to the nearest material boundary,
 then samples a collision within the current region.  **Woodcock
-delta-tracking** [Woodcock1965]_ eliminates the distance-to-surface
+delta-tracking** :cite:`Woodcock1965` eliminates the distance-to-surface
 calculation by introducing a fictitious **majorant** cross section:
 
 .. math::
@@ -1313,19 +1313,3 @@ Limitations and Future Work
    * - MT-20260406-010
      - Parallel neutron transport (``multiprocessing`` with per-worker
        RNG via ``SeedSequence.spawn``)
-
-
-References
-==========
-
-.. [Woodcock1965] E.R. Woodcock, T. Murphy, P.J. Hemmings, and
-   T.C. Longworth, "Techniques used in the GEM code for Monte Carlo
-   neutronics calculations in reactors and other systems of complex
-   geometry," *Proc. Conf. Applications of Computing Methods to Reactor
-   Problems*, ANL-7050, 1965.
-
-.. [Lux1991] I. Lux and L. Koblinger, *Monte Carlo Particle Transport
-   Methods: Neutron and Photon Calculations*, CRC Press, 1991.
-
-.. [Brown2005] F.B. Brown, "Fundamentals of Monte Carlo Particle
-   Transport," LA-UR-05-4983, Los Alamos National Laboratory, 2005.

@@ -335,6 +335,18 @@ positions while implementation is queued.
    galerkin_sn_hybrid
    spectral_collocation
 
+Corpus bibliography
+-------------------
+
+The centralised citation home for the entire theory corpus — every
+``:cite:`` role across ``docs/theory/`` resolves to an entry here. The
+bibliographic records live in ``docs/refs.bib`` (Zotero upstream).
+
+.. toctree::
+   :maxdepth: 1
+
+   bibliography
+
 
 Cross-references
 ================

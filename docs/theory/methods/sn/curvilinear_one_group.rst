@@ -183,7 +183,7 @@ For cylindrical (per :math:`\mu`-level):
 **Step 3: Apply the geometry factor** :math:`\Delta A / w`.
 
 The raw discretisation above does NOT preserve per-ordinate flat-flux
-consistency.  The correct form from [BaileyMorelChang2010]_ includes the
+consistency.  The correct form from :cite:`BaileyMorelChang2010` includes the
 geometry factor :math:`\Delta A_i / w_n`:
 
 .. math::
@@ -196,7 +196,7 @@ geometry factor :math:`\Delta A_i / w_n`:
    + \Sigt{} V_i \psi_{n,i} = S_i V_i
 
 where :math:`\Delta A_i = A_{i+1/2} - A_{i-1/2}`.  This is the curvilinear
-balance form of [BaileyMorelChang2010]_ for both spherical and cylindrical
+balance form of :cite:`BaileyMorelChang2010` for both spherical and cylindrical
 geometry.
 
 Note why :eq:`dd-cartesian-1d` has no :math:`\alpha` or :math:`\Delta A`
@@ -236,7 +236,7 @@ recursion uses :math:`\eta` instead of :math:`\mu`:
 
    \alpha_{p,m+\frac12} = \alpha_{p,m-\frac12} - w_m \eta_m
 
-This is the [BaileyMorelChang2010]_ curvilinear :math:`\alpha`-recursion.
+This is the :cite:`BaileyMorelChang2010` curvilinear :math:`\alpha`-recursion.
 Each level's :math:`\alpha` values form an independent dome from
 :math:`\eta = -\sin\theta` to :math:`\eta = +\sin\theta`.
 
@@ -365,7 +365,7 @@ The Morel--Montry Flux Dip
 Even with the correct :math:`\Delta A/w` factor, the standard
 diamond-difference closure (equal weight :math:`\tau = 0.5`) introduces
 a flux error near :math:`r = 0` known as the **Morel--Montry flux dip**
-[MorelMontry1984]_.
+:cite:`MorelMontry1984`.
 
 The standard DD angular closure is:
 
@@ -379,7 +379,7 @@ This can be rewritten as:
 
    \psi_{n+\frac12} = 2\psi_{n,i} - \psi_{n-\frac12}
 
-The contamination factor :math:`\beta` ([BaileyMorelChang2010]_) quantifies
+The contamination factor :math:`\beta` (:cite:`BaileyMorelChang2010`) quantifies
 the coupling between the leading-order scalar flux and the first-order
 current in the asymptotic diffusion limit.  For spherical geometry:
 
@@ -406,7 +406,7 @@ Weighted Diamond Difference (WDD) and Morel--Montry Weights
 =============================================================
 
 The Morel--Montry (M-M) angular closure replaces the equal-weight DD
-with position-dependent weights :math:`\tau_n` [BaileyMorelChang2010]_ Eq. 43:
+with position-dependent weights :math:`\tau_n` :cite:`BaileyMorelChang2010` Eq. 43:
 
 .. math::
    :label: wdd-closure
@@ -1287,7 +1287,7 @@ conditions live on two separate axes.
   alone** — the angular order does not enter.
 
 * **The angular condition** — Bailey, Morel & Chang,
-  [BaileyMorelChang2010]_, "The asymptotic diffusion-limit accuracy of
+  :cite:`BaileyMorelChang2010`, "The asymptotic diffusion-limit accuracy of
   S\ :sub:`N` angular differencing schemes," *Nuclear Science and
   Engineering* **165(2):149--169 (2010)**, DOI
   `10.13182/NSE08-66 <https://doi.org/10.13182/NSE08-66>`_.  BMC analyse
@@ -2279,7 +2279,7 @@ invariant on **all three** Phase B pole-closure strategies:
    \psi^{\text{face}}_3 = 2c - 0 = 2c, \ldots
 
 The correct initial condition is the **Carlson starting-direction
-seed** of [LewisMiller1984]_ §4.5 (paraphrased in Hébert §3.9.4
+seed** of :cite:`LewisMiller1984` §4.5 (paraphrased in Hébert §3.9.4
 Eqs. 3.432–3.435 for the angular analogue):
 :math:`\psi^{\text{face}}_{\text{in}}(\text{pole}) =
 \psi^{\text{cell}}(\text{first cell})`. For true flat :math:`\psi`
@@ -2304,9 +2304,9 @@ cell-by-cell WDD propagation across the interior.
 Why Lewis–Miller §4.5 is the canonical reference: at the spherical
 centre :math:`r=0` and the cylindrical axis the angular dependence
 of :math:`\psi` becomes **structurally singular** in the
-transport-theory sense ([Pomraning1989]_ p. 339; see also
+transport-theory sense (:cite:`Pomraning1989` p. 339; see also
 :ref:`sn-phase-d-pomraning-structural-singularity` and earlier
-treatments in [LewisMiller1984]_ §4.5) — the angular flux is not a
+treatments in :cite:`LewisMiller1984` §4.5) — the angular flux is not a
 separable function of
 :math:`(\mu, r)` in any neighbourhood of the singular point because
 the inward and outward ordinate cones meet there. Lewis–Miller's

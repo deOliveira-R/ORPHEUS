@@ -1,10 +1,12 @@
 % ORPHEUS bibliography — single source of truth for theory-page citations.
 %
 % Upstream source of truth is Zotero (manual Better-BibTeX export). Phase G2 of
-% issue #231 completed this file: it now covers ALL 59 docutils ``.. [Key]``
-% citation definitions across docs/theory/**/*.rst, keyed by the SAME labels so
-% a page can swap ``[Key]_`` -> ``:cite:`Key``` with no key churn. Keys are
-% IMMUTABLE — they must match the in-text bracket labels verbatim.
+% issue #231 completed this file: it covers every docutils ``.. [Key]``
+% citation definition in docs/theory/**/*.rst PLUS the docstring-only
+% definitions found by the retirement audit (orpheus/derivations/continuous/
+% singular_eigenfunction/ — MetcalfZweifel1968). Keys match the in-text labels
+% verbatim so the swap ``[Key]_`` -> ``:cite:`Key``` is mechanical. Keys are
+% IMMUTABLE — except the ruled consolidations listed below.
 %
 % Metadata was reconciled against the local literature folder
 % (scratch/literature/ title pages) and CrossRef (all DOIs below resolved and
@@ -17,10 +19,11 @@
 % The "cited at :ref:`...` because ..." annotation prose stays INLINE on the
 % page next to the citation, where its cross-references resolve.
 %
-% Known intentional twins: [PS1982] (references/peierls.rst) and
-% [PomraningSiewert1982] (references/trajectory_resolvent.rst) are the SAME
-% work under two labels; both keys are kept so the mechanical swap stays 1:1.
-% Consolidate during (or after) the in-text swap if desired.
+% Ruled consolidations (one-concept-one-spelling): the in-text swap MUST map
+%   [PS1982]_   -> :cite:`PomraningSiewert1982`  (same work; PS1982 has no entry)
+%   [Sood1999]_ -> :cite:`SoodLA13511_1999`      (same work; docstring-only key,
+%                                                 no entry)
+% No other alias keys exist.
 %
 % Sorted alphabetically by key, case-insensitive.
 
@@ -394,6 +397,18 @@
   note    = {The bi-orthogonality-relations companion paper is J. Math. Phys. 7, 2036--2045 (1966), DOI 10.1063/1.1704886},
 }
 
+@article{MetcalfZweifel1968,
+  author  = {Metcalf, D. R. and Zweifel, P. F.},
+  title   = {Solution of the Two-Group Neutron Transport Equation---{II}},
+  journal = {Nuclear Science and Engineering},
+  volume  = {33},
+  number  = {3},
+  pages   = {318--326},
+  year    = {1968},
+  doi     = {10.13182/NSE68-A19240},
+  note    = {Part I is Nucl. Sci. Eng. 33, 307--317 (1968), DOI 10.13182/NSE68-A19239},
+}
+
 @techreport{Mitsis1963,
   author      = {Mitsis, George J.},
   title       = {Transport Solutions to the Monoenergetic Critical Problems},
@@ -456,8 +471,6 @@
   doi     = {10.13182/NSE89-A23622},
 }
 
-% [PomraningSiewert1982] and [PS1982] are the SAME work under two in-text
-% labels (trajectory_resolvent.rst vs peierls.rst). Twins kept for the 1:1 swap.
 @article{PomraningSiewert1982,
   author  = {Pomraning, G. C. and Siewert, C. E.},
   title   = {On the Integral Form of the Equation of Transfer for a Homogeneous Sphere},
@@ -467,17 +480,7 @@
   pages   = {503--506},
   year    = {1982},
   doi     = {10.1016/0022-4073(82)90016-4},
-}
-
-@article{PS1982,
-  author  = {Pomraning, G. C. and Siewert, C. E.},
-  title   = {On the Integral Form of the Equation of Transfer for a Homogeneous Sphere},
-  journal = {Journal of Quantitative Spectroscopy and Radiative Transfer},
-  volume  = {28},
-  number  = {6},
-  pages   = {503--506},
-  year    = {1982},
-  doi     = {10.1016/0022-4073(82)90016-4},
+  note    = {Historically also keyed PS1982 in the theory pages; consolidated under this key},
 }
 
 @article{Rahnema2008,

@@ -4,7 +4,7 @@ expansion of the bare-critical infinite cylinder.
 This module is the **algebra-of-record** for the
 :mod:`...singular_eigenfunction.cylinder.one_group` Branch-2 production
 solver. Each ``derive_*()`` function pins one identity from
-[WestfallMetcalf1973]_ symbolically; the matching foundation tests live
+:cite:`WestfallMetcalf1973` symbolically; the matching foundation tests live
 at :mod:`tests.derivations.test_singular_eigenfunction_cylinder`.
 
 The Westfall-Metcalf chain of derivations (Eqs. 1-8 of the paper)
@@ -92,19 +92,6 @@ ERR-032 family of "two implementations agreed via a shared upstream
 identity" bugs, both prove that re-deriving even simple-looking
 published equations is a load-bearing V&V practice, not boilerplate.
 
-References
-----------
-
-.. [WestfallMetcalf1973] Westfall, R. M. & Metcalf, D. R. (1973).
-   "Singular Eigenfunction Solution of the Monoenergetic Neutron
-   Transport Equation for Finite Radially Reflected Critical
-   Cylinders." *Nuclear Science and Engineering* **52**, 1-11.
-
-.. [Case1960] Case, K. M. (1960). "Elementary Solutions of the
-   Transport Equation and Their Applications." *Ann. Phys.* **9**, 1.
-
-.. [Mitsis1963] Mitsis, G. F. (1963). "Transport Solutions to the
-   Monoenergetic Critical Problems." ANL-6787.
 """
 from __future__ import annotations
 
@@ -127,7 +114,7 @@ def derive_dispersion_function() -> dict:
        \Lambda(\nu) = 1 - c\,\nu\,\mathrm{atanh}(1/\nu) = 0
 
     is the same dispersion relation as Case 1960 (slab plane geometry,
-    Eq. 51 of ref [Case1960]_), Siewert-Benoist 1979 (slab F_N), and
+    Eq. 51 of ref :cite:`Case1960`), Siewert-Benoist 1979 (slab F_N), and
     Siewert-Thomas 1986 (sphere F_N).
 
     The mathematical reason: separating
@@ -1093,7 +1080,7 @@ def derive_singular_subtraction_eq31() -> dict:
 
     a Cauchy-P.V. plus a Dirac delta. Standard quadrature on the P.V.
     part fails at the diagonal :math:`\mu = \nu`. The
-    [MetcalfZweifel1968]_ singular-subtraction technique cited by WM-72
+    :cite:`MetcalfZweifel1968` singular-subtraction technique cited by WM-72
     p. 7 ("the singular integrals appearing in Eqs. (31) and (33) were
     evaluated by subtracting the singularity") reduces the integral to
     a regular form plus an additive boundary term:
@@ -1170,12 +1157,6 @@ def derive_singular_subtraction_eq31() -> dict:
     SymPy verifies steps 1-5 algebraically, including the dispersion
     identity collapse :math:`(1-\lambda) + \lambda = 1`.
 
-    References
-    ----------
-
-    .. [MetcalfZweifel1968] Metcalf, D. R. & Zweifel, P. F. (1968).
-       *Nucl. Sci. Eng.* **33**, 318. — the singular-subtraction trick
-       for ηᵥ-weighted integrals on the half-range.
     """
     mu, nu, c = sp.symbols("mu nu c", positive=True, real=True)
 

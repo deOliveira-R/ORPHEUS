@@ -1,7 +1,7 @@
 r"""Bare-critical multiplying sphere eigenvalue spectrum via Dahl-Sjostrand 1979.
 
 Solves the Galerkin spectral expansion of Carlvik's integral equation
-[DahlSjostrand1979]_ Eq. (1) in the sphere case (q=1, odd-Legendre
+:cite:`DahlSjostrand1979` Eq. (1) in the sphere case (q=1, odd-Legendre
 basis :math:`P_1, P_3, \ldots, P_{2N-1}` for the reduced flux
 :math:`r \phi(r)`), via Eq. (4) block-matrix linearization.
 

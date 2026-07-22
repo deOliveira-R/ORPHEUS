@@ -18,10 +18,10 @@ Key Facts
 - **What this is**: a Pillar-2 reference family realising the angular
   Green's function :math:`G(\tau, \tau'; \mu, \mu')` constructed via
   Case ν-spectrum + half-range completeness. Built originally by
-  K.M. Case 1960 [Case1960]_; extended to spheres by Mitsis 1963
-  [Mitsis1963]_; extended to cylinders by Westfall–Metcalf 1973
-  [WestfallMetcalf1973]_; extended to linearly-anisotropic
-  reflected slabs and spheres by Atalay 1997 [Atalay1997]_.
+  K.M. Case 1960 :cite:`Case1960`; extended to spheres by Mitsis 1963
+  :cite:`Mitsis1963`; extended to cylinders by Westfall–Metcalf 1973
+  :cite:`WestfallMetcalf1973`; extended to linearly-anisotropic
+  reflected slabs and spheres by Atalay 1997 :cite:`Atalay1997`.
 - **Pillar classification**:
 
   * **Closed-form** for the criticality determinants (Atalay Eqs 46
@@ -75,24 +75,24 @@ slab + sphere with linear anisotropy) and ``singular_eigenfunction/``
 (Westfall–Metcalf 1973 cylinder, isotropic) folders/pages. The merge is
 justified because **all primary authors of the constituent papers
 explicitly call this technique "Case singular eigenfunction expansion"**
-and cite Case 1960 [Case1960]_ as the foundational source:
+and cite Case 1960 :cite:`Case1960` as the foundational source:
 
-* **Case 1960** [Case1960]_ — the foundational source. Introduces the
+* **Case 1960** :cite:`Case1960` — the foundational source. Introduces the
   *elementary solutions* (a discrete pair :math:`\pm\nu_0` plus a
   continuum on :math:`(-1, 1)`) that subsequent authors named the
   "Case singular eigenfunctions" after.
 
-* **Mitsis 1963 (ANL-6787)** [Mitsis1963]_, abstract:
+* **Mitsis 1963 (ANL-6787)** :cite:`Mitsis1963`, abstract:
   *"Transport solutions to the monoenergetic plane, spherical, and
   cylindrical critical problems with isotropic scattering are developed
   by the method of singular expansion modes."*
 
-* **Westfall–Metcalf 1973** [WestfallMetcalf1973]_, introduction:
+* **Westfall–Metcalf 1973** :cite:`WestfallMetcalf1973`, introduction:
   *"Since the introduction of the singular eigenfunction expansion
   technique by Case [Ref. 1] in 1960, a wide variety of transport
   problems have been treated by this method."*
 
-* **Atalay 1997** [Atalay1997]_, abstract: *"Case's singular
+* **Atalay 1997** :cite:`Atalay1997`, abstract: *"Case's singular
   eigenfunction method is used to formulate the criticality conditions.
   In addition to available bi-orthogonality relations in the literature,
   some parallel relations are derived to obtain the solution."*
@@ -1212,7 +1212,7 @@ The four new parallel half-range relations
 --------------------------------------------------------------------------------
 
 The McCormick–Kušcer 1965 bi-orthogonality relations
-[McCormickKuscer1965]_ (Atalay Eqs 18-21) integrate the weight
+:cite:`McCormickKuscer1965` (Atalay Eqs 18-21) integrate the weight
 
 .. math::
 
@@ -1439,7 +1439,7 @@ isotropic-limit closed form:
 
 For multi-line continued-Plemelj derivations connecting Eq 40 to
 Eq 26 (the implicit X-function definition via Plemelj-Sokhotski),
-see Case 1960 [Case1960]_ § IV and Case-Zweifel 1967 § 4.
+see Case 1960 :cite:`Case1960` § IV and Case-Zweifel 1967 § 4.
 
 .. note:: **X-function divergent integrand** (open investigation).
    Phase-2.2 of the ERR-038 cascade discovered that the Atalay Eq 40
@@ -1945,7 +1945,7 @@ The Atalay-anchored case catalogue lives in
 covers the **reflected + linearly-anisotropic cross-product cases**
 that lie outside both the Sood/Forster/Parsons LA-13511 truth set
 (which focuses on bare configurations) and the Burkart-Ishiguro-
-Siewert 1976 F_N reference [BurkartIshiguroSiewert1976]_ (vacuum-only). Specifically, Atalay
+Siewert 1976 F_N reference :cite:`BurkartIshiguroSiewert1976` (vacuum-only). Specifically, Atalay
 tabulates:
 
 * :math:`(c, R, f_1)` triples for :math:`R \in \{0, 0.25, 0.50,
@@ -2013,34 +2013,6 @@ now both empirically validated as load-bearing for V&V correctness.
 
 References
 ==========
-
-.. [Case1960] Case, K. M. (1960). "Elementary Solutions of the
-   Transport Equation and Their Applications." *Annals of Physics*
-   **9**, 1-23.
-
-.. [Mitsis1963] Mitsis, G. F. (1963). "Transport Solutions to the
-   Monoenergetic Critical Problems." Argonne National Laboratory
-   report ANL-6787.
-
-.. [WestfallMetcalf1973] Westfall, R. M. & Metcalf, D. R. (1973).
-   "Singular Eigenfunction Solution of the Monoenergetic Neutron
-   Transport Equation for Finite Radially Reflected Critical
-   Cylinders." *Nuclear Science and Engineering* **52**, 1-11.
-   DOI 10.13182/NSE73-A23285.
-
-.. [Atalay1997] Atalay, M.A. (1997).
-   "The reflected slab and sphere criticality problem with anisotropic
-   scattering in one-speed neutron transport theory."
-   *Progress in Nuclear Energy* **31**\ (3), 229-252.
-   DOI: 10.1016/0149-1970(95)00094-1.
-
-.. [McCormickKuscer1965] McCormick, N.J., Kušcer, I. (1965).
-   "Bi-orthogonality relations for solving half-space transport problems."
-   *J. Math. Phys.* **6**, 1939.
-
-.. [BurkartIshiguroSiewert1976] Burkart, A.R., Ishiguro, Y., Siewert, C.E. (1976).
-   "Neutron transport in two dissimilar media with anisotropic scattering."
-   *Nuclear Science and Engineering* **61**, 72-81.
 
 * **Metcalf & Zweifel 1968** — *Nucl. Sci. Eng.* **33**, 318. — the
   singular-subtraction technique used in WM-72 Eqs 31 and 33.

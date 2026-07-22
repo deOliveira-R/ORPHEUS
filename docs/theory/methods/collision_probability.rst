@@ -53,7 +53,7 @@ angular variable analytically.
 The key quantity is the **collision probability** :math:`P_{ij}`: the
 probability that a neutron born uniformly and isotropically in region
 :math:`i` has its *first* collision in region :math:`j`
-[Stamm1983]_.  Once the
+:cite:`Stamm1983`.  Once the
 :math:`P_{ij}` matrix is known, the transport problem reduces to a
 matrix equation in the region-averaged scalar fluxes.
 
@@ -230,7 +230,7 @@ coordinate systems.
 Reciprocity
 -----------
 
-From detailed balance [Hebert2009]_ section 3.2:
+From detailed balance :cite:`Hebert2009` section 3.2:
 
 .. math::
    :label: reciprocity
@@ -305,7 +305,7 @@ surface source and the volume source in region :math:`j`:
 The factor :math:`S/4` is the effective surface source strength for an
 isotropic inward flux on a convex surface.  It originates from the
 **Cauchy--Dirac mean chord length theorem**: :math:`\bar{\ell} = 4V/S`
-for a convex body ([Hebert2009]_ section 3.3).  Physically: an isotropic
+for a convex body (:cite:`Hebert2009` section 3.3).  Physically: an isotropic
 flux crossing a convex surface sees, on average, a path length of
 :math:`4V/S` through the interior.  Solving :eq:`pin-from-reciprocity`:
 
@@ -313,7 +313,7 @@ flux crossing a convex surface sees, on average, a path length of
 
    P_{\text{in},j} = \frac{4 \Sigt{j} V_j P_{j,\text{out}}}{S}
 
-In the standard CP formulation [Stamm1983]_ section 3.5, the
+In the standard CP formulation :cite:`Stamm1983` section 3.5, the
 surface-to-region probability is defined per unit inward current
 :math:`J^-`, and the normalisation convention absorbs the factor of 4.
 ORPHEUS uses this convention in the white-BC transform::
@@ -696,7 +696,7 @@ level, leaving :math:`\text{Ki}_4`.
 The Ki\ :sub:`3` function plays the same role for cylindrical geometry
 that :math:`E_3` plays for slab geometry: it represents the probability
 of a neutron travelling a certain optical distance in the medium
-[Carlvik1966]_.
+:cite:`Carlvik1966`.
 
 :math:`\text{Ki}_3(0) = 1` (under the sine-weighted convention used
 in :eq:`ki3-def`) and :math:`\text{Ki}_3(x) \to 0` exponentially.
@@ -1755,7 +1755,7 @@ for the general formulation.
 
 The power iteration converges to the **dominant eigenvalue**
 (:math:`\keff`) and the **fundamental mode** --- the unique non-negative
-eigenvector (Perron--Frobenius theorem) [Hebert2009]_.
+eigenvector (Perron--Frobenius theorem) :cite:`Hebert2009`.
 
 This is implemented in :class:`CPSolver`, which satisfies the
 :class:`~numerics.eigenvalue.EigenvalueSolver` protocol.
@@ -2210,24 +2210,6 @@ convention drifts are invisible.  The suite tests 1, 2, AND 4 groups.
    ERR-002 (scattering transpose), ERR-004 (BiCGSTAB normalisation),
    ERR-009 (CP transpose), and ERR-015 ((n,2n) keff) --- all caught
    only by multi-group tests.  See ``.claude/skills/vv-principles/error_catalog.md``.
-
-
-References
-==========
-
-.. note::
-
-   Citations shared across pages are defined in
-   :doc:`/theory/references/peierls_nystrom` (the deeper treatment) and
-   :doc:`/theory/methods/sn/index`; ``[Foo1234]_`` references on
-   this page resolve cross-document via Sphinx's docutils citation
-   index. Only citations unique to this page are defined locally.
-
-.. [Hebert2009] A. Hebert, *Applied Reactor Physics*, Presses
-   internationales Polytechnique, 2009.
-
-.. [Kress2014] R. Kress, *Linear Integral Equations*, 3rd ed.,
-   Springer, 2014.
 
 
 .. |times| unicode:: U+00D7

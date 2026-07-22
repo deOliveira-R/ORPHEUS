@@ -172,7 +172,7 @@ Discretization factors
        :ref:`normalization-alpha-crosswalk`).
    * - :math:`\tau`
      - In the S\ :sub:`N` sweep: the weighted-diamond **closure
-       weight** ([BaileyMorelChang2010]_ Eq. (15);
+       weight** (:cite:`BaileyMorelChang2010` Eq. (15);
        :doc:`/theory/methods/sn/curvilinear_one_group`). In CP /
        MoC: the **optical path length** :math:`\Sigma_{\mathrm{t}}
        s`. Two canonical-in-their-literature objects sharing one
@@ -180,9 +180,9 @@ Discretization factors
    * - :math:`\beta`
      - The angular-closure parametrization on the S\ :sub:`N`
        machine header (:doc:`/theory/methods/sn/index`); the
-       Morel–Montry choice [MorelMontry1984]_ is the unique
+       Morel–Montry choice :cite:`MorelMontry1984` is the unique
        exact-on-linear-in-:math:`\mu` member
-       ([BaileyMorelChang2010]_ Eq. (43)). ⚠ Collides with the
+       (:cite:`BaileyMorelChang2010` Eq. (43)). ⚠ Collides with the
        Larsen–Morel review's :math:`\beta` = sphere
        *redistribution* coefficient (crosswalk row 7).
    * - :math:`\Delta A / w`
@@ -217,10 +217,10 @@ from each other, or from itself.
        **transpose**: in-scatter into :math:`g` is
        :math:`(\boldsymbol{\Sigma}_{\mathrm{s}}^T
        \boldsymbol{\phi})_g`.
-     - Hébert [Hebert2009]_ writes **destination-first**
+     - Hébert :cite:`Hebert2009` writes **destination-first**
        :math:`\Sigma_{\mathrm{s}}(E \leftarrow E', \Omega \leftarrow
-       \Omega')`; Bell & Glasstone [BellGlasstone1970]_
-       (:math:`\sigma(x, E' \to E)`) and Stacey [Stacey2007]_
+       \Omega')`; Bell & Glasstone :cite:`BellGlasstone1970`
+       (:math:`\sigma(x, E' \to E)`) and Stacey :cite:`Stacey2007`
        (:math:`\Sigma_{\mathrm{s}}(\Omega' \to \Omega)`) are
        **source-first**. Importing a destination-first matrix
        requires a transpose relative to ORPHEUS storage;
@@ -266,7 +266,7 @@ from each other, or from itself.
    * - 6 — the operator letters
      - :math:`L` = bulk streaming **only**; :math:`A = L+C-S-B`
        is the honest within-group operator.
-     - Adams & Larsen [AdamsLarsen2002]_ define
+     - Adams & Larsen :cite:`AdamsLarsen2002` define
        :math:`A \equiv I - L^{-1}S` (their Eq. (1.27)) — a
        **sweep-preconditioned fixed-point map** (ORPHEUS's *Krylov
        system* operator, not its :math:`A`); their eigenvalue
@@ -279,9 +279,9 @@ from each other, or from itself.
        parametrization; :math:`\tau` = closure weight
        (S\ :sub:`N`) vs optical path (CP / MoC); :math:`\mu` = a
        **cosine**; Fourier :math:`\lambda` carries length units.
-     - The Larsen–Morel review [LarsenMorel2010]_ writes the sphere
+     - The Larsen–Morel review :cite:`LarsenMorel2010` writes the sphere
        redistribution coefficient as :math:`\beta` (their
-       Eq. (1.23b) — identical to [BaileyMorelChang2010]_'s
+       Eq. (1.23b) — identical to :cite:`BaileyMorelChang2010`'s
        :math:`\alpha` with the sign absorbed) and uses
        :math:`\alpha` for the **spatial** weighted-diamond weight
        (their Eq. (1.30)). Adams & Larsen's 1-D cylinder
@@ -348,11 +348,3 @@ pinned in the test suite. The per-method machine headers (each
 method's index page opens with its conventions block — sign,
 scattering, quadrature norm, layout) restate the local answers so a
 reader entering through any method page hits the conventions first.
-
-References
-==========
-
-.. [LarsenMorel2010] E. W. Larsen and J. E. Morel, "Advances in
-   Discrete-Ordinates Methodology," in *Nuclear Computational
-   Science: A Century in Review*, Y. Azmy and E. Sartori (eds.),
-   Springer (2010), pp. 1–84.

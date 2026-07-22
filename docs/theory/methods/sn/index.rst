@@ -71,10 +71,10 @@ radial, a single :math:`\alpha`-redistribution dome coupling all ordinates in
 :math:`\mu`), and **cylindrical** (1-D radial, an independent :math:`\alpha`
 dome per :math:`\mu`-level).  All three share a geometry factor
 :math:`\Delta A / w` that guarantees per-ordinate flat-flux consistency; the
-curvilinear formulation follows [BaileyMorelChang2010]_ (Eq. 43, the
+curvilinear formulation follows :cite:`BaileyMorelChang2010` (Eq. 43, the
 Morel–Montry angular-closure weight — unique exact-on-linear-in-:math:`\mu`),
-the general framework [LewisMiller1984]_, and the angular discretisation
-[CaseZweifel1967]_ / [Hebert2009]_ (§3.9.4).
+the general framework :cite:`LewisMiller1984`, and the angular discretisation
+:cite:`CaseZweifel1967` / :cite:`Hebert2009` (§3.9.4).
 
 The solver is posed as an **operator algebra** over five operators: streaming
 :math:`L` (bulk :math:`\hat{\Omega}\cdot\nabla`), collision / removal
@@ -1059,119 +1059,6 @@ Solver-coordination traps
    invariant, and the Mode-12 / ERR-067 :math:`G`-reciprocity metric catch
    — are documented alongside the sweep at :ref:`sn-282-gotchas`.
 
-
-References
-==========
-
-.. _bib-bailey-morel-chang-2010:
-
-.. [BaileyMorelChang2010] T.S. Bailey, J.E. Morel, and J.H. Chang,
-   "The asymptotic diffusion-limit accuracy of S\ :sub:`N` angular
-   differencing schemes," *Nuclear Science and Engineering*,
-   165(2):149--169, 2010 (LLNL preprint LLNL-JRNL-420356; OA at
-   https://www.osti.gov/servlets/purl/1020346).  **Eq. 43** gives the
-   Morel--Montry weight :math:`\tau_n = (\mu_n - \mu_{n-1/2}) /
-   (\mu_{n+1/2} - \mu_{n-1/2})` as the unique weight exact for a flux
-   linear in :math:`\mu`, with admissible range :math:`\tau \in [0,1]`
-   — the W1 source for dropping the spherical clamp
-   (:ref:`sn-tau-clamp-vindication`).  The paper's diffusion-limit
-   analysis keeps :math:`r` continuous (it deliberately removes spatial
-   differencing to isolate the angular error), so it cannot speak to the
-   spatial pole-cell order of :ref:`sn-pole-cell-spatial-closure`.
-
-.. [WuXieFischer1999] G. Wu, Z. Wu, and B. Fischer,
-   "A discrete ordinates nodal method for one-dimensional neutron
-   transport calculation in curvilinear geometries,"
-   *Nuclear Science and Engineering*, 133, 1999
-   (DOI 10.13182/NSE99-A2095).  Green's-function nodal S\ :sub:`N` with
-   Legendre spatial expansion — "very high precision on coarse spatial
-   meshes relative to the standard fine-mesh S\ :sub:`N` method with the
-   spatial diamond-differencing scheme."  The documented route to
-   better-than-diamond central-cell *spatial* order; cited at
-   :ref:`sn-pole-cell-spatial-closure` as the class of fix that would
-   lift the inherent pole-cell :math:`\mathcal{O}(h)`.
-
-.. [MorelMontry1984] J.E. Morel and G.R. Montry,
-   "Analysis and elimination of the discrete-ordinates flux dip,"
-   *Transport Theory and Statistical Physics*, 13:5, 1984.
-
-.. [LewisMiller1984] E.E. Lewis and W.F. Miller, Jr.,
-   *Computational Methods of Neutron Transport*,
-   John Wiley & Sons, 1984.
-
-.. [CaseZweifel1967] K.M. Case and P.F. Zweifel,
-   *Linear Transport Theory*,
-   Addison-Wesley, 1967.
-
-.. [Lebedev1999] V.I. Lebedev and D.N. Laikov,
-   "A quadrature formula for the sphere of the 131st algebraic order
-   of accuracy," *Doklady Mathematics*, 59(3):477--481, 1999.
-
-.. [CarlsonLathrop1965] B.G. Carlson and K.D. Lathrop,
-   "Transport theory -- the method of discrete ordinates,"
-   in *Computing Methods in Reactor Physics*,
-   Gordon and Breach, 1968.
-
-.. [AdamsLarsen2002] M.L. Adams and E.W. Larsen,
-   "Fast iterative methods for discrete-ordinates particle transport
-   calculations," *Progress in Nuclear Energy*, 40(1):3--159, 2002.
-   Reviews the SAILOR / Larsen-Adams preconditioned-Krylov framework
-   that the Wave E Round 2 inner solver implements.  §II gives the
-   source-iteration spectral radius :math:`\rho = c`; §VI reviews the
-   KBA / wavefront parallel-sweep ordering whose fan-in discipline the
-   octant-group Gauss-Seidel schedule inherits.
-
-.. [TrefethenBau1997] L.N. Trefethen and D. Bau, III,
-   *Numerical Linear Algebra*, SIAM, 1997.  §27 (power-iteration
-   analysis; the dominance-ratio convergence bound); §3.2 (the
-   matrix-free Krylov view).
-
-.. [Polizzi2009] E. Polizzi,
-   "Density-matrix-based algorithm for solving eigenvalue
-   problems," *Physical Review B*, 79, 115112, 2009.  The FEAST
-   contour-integral algorithm — the ``eigenvalue_method``
-   forward-hook target.
-
-.. [Pautz2002] S.D. Pautz,
-   "An algorithm for parallel S\ :sub:`n` sweeps on unstructured
-   meshes," *Nuclear Science and Engineering*, 140(2):111--136, 2002.
-   The KBA-style wavefront octant-scheduling reference.  Cited at
-   the diagonal-cubature shared-face rule (ERR-056), under the
-   boundary Gauss-Seidel schedule above: a boundary face outflowed
-   by several octants must be reduced (reflected) only after the
-   LAST contributing octant group has swept it.
-
-.. [Pomraning1989] G.C. Pomraning,
-   "The transport equation in general geometry,"
-   *Nuclear Science and Engineering*, 101:330--340, 1989.
-   Page 339 frames the curvilinear pole singularity as **structural**:
-   :math:`r = 0` is intrinsically singular in any curvilinear streaming
-   operator because the angular-derivative coefficients contain
-   :math:`1/r`.  Cited at
-   :ref:`sn-phase-d-pomraning-structural-singularity` as the deeper
-   reason :math:`\mu = \pm 1` is the only admissible Carlson starting
-   direction.
-
-.. [Rahnema2008] F. Rahnema, S. Douglass, and B. Forget,
-   "Generalized Energy Condensation Theory,"
-   *Nuclear Science and Engineering*, 160:41--58, 2008.
-   DOI `10.13182/NSE160-41 <https://doi.org/10.13182/NSE160-41>`_.
-   Expands the within-coarse-group flux in a set of orthogonal functions;
-   the **zeroth moment** (the piecewise-constant basis function on the
-   coarse group) recovers the standard flux-weighted multigroup average
-   exactly, and the higher moments add the within-group spectral detail.
-   Cited at :ref:`sn-condensation-petrov-galerkin-frame` as the rank-0
-   precedent for the spectrum-weighted collapse (rank-:math:`>0` faithful
-   reconstruction is deferred, `Issue #275
-   <https://github.com/deOliveira-R/ORPHEUS/issues/275>`_).
-
-.. [WIMSD] International Atomic Energy Agency,
-   *WIMS-D Library Update*, IAEA-TECDOC / STI/Pub/1264, IAEA, Vienna,
-   2007. Tables 11.1 (69-group) and 11.2 (172-group) energy-group
-   structures, and Table 11.3 (the 172→69 correspondence). The coarse
-   group structures ORPHEUS condenses onto; Table 11.3 is the
-   derivation-validation oracle for the containing-interval partition.
-   Cited at :ref:`sn-condensation-fractional-overlap`.
 
 .. _sn-chapters:
 

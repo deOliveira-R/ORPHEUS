@@ -979,10 +979,10 @@ iterate). The sweep :math:`(L+C)^{-1}` being a *single bundled* inverse —
 not :math:`L^{-1} + C^{-1}` — is exactly the point: it is the WDD
 forward-substitution on :eq:`apply-solve-cell-resolvent`, dividing by the
 summed denominator cell-by-cell in inflow-to-outflow order. See Lewis &
-Miller, *Computational Methods of Neutron Transport* ([LewisMiller1984]_,
+Miller, *Computational Methods of Neutron Transport* (:cite:`LewisMiller1984`,
 §3.2 for the sweep as the discrete-ordinates resolvent and §4 for the
 source-iteration / Neumann scattering series), and Adams & Larsen 2002
-([AdamsLarsen2002]_, §II for the spectral radius :math:`\rho = c`).
+(:cite:`AdamsLarsen2002`, §II for the spectral radius :math:`\rho = c`).
 
 Why this is the right architecture, not a limitation
 ----------------------------------------------------
@@ -1015,7 +1015,7 @@ sides of the algebra:
   **does not propagate** ``solve`` (:ref:`composition-algebra`); the
   :class:`~orpheus.sn.operators.streaming.InvertibleOperator` *adds it back* via the
   SN-specific algebraic identity "WDD sweep :math:`\approx (L+C)^{-1}`"
-  ([LewisMiller1984]_ §3.2). The composite owns ``apply``, ``solve``, and
+  (:cite:`LewisMiller1984` §3.2). The composite owns ``apply``, ``solve``, and
   ``apply_transpose`` as three actions of **one** operator on a single
   shared
   :class:`~orpheus.sn.loss_representation.LossRepresentation` (L21 —

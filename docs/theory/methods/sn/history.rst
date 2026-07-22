@@ -807,7 +807,7 @@ branch and have no landed hash yet.
        within-group flux model
        (:class:`~orpheus.data.energy_grid.WithinGroupSpectrum`, 1/E
        first) — the flux-weighted average is the rank-0 moment of
-       Generalized Energy Condensation ([Rahnema2008]_). Downsampling-only
+       Generalized Energy Condensation (:cite:`Rahnema2008`). Downsampling-only
        (the upscaling guard refuses a finer target). See
        :ref:`sn-energy-condensation`.
      - #274

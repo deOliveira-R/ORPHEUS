@@ -6,8 +6,8 @@ makes — every entry in Dahl-Sjostrand 1979 Tables I/II that the
 Branch-2 production code reproduces — is bound to a foundation-tagged
 test that calls one of the ``derive_*()`` functions below.
 
-The derivations follow Dahl-Sjostrand 1979 [DahlSjostrand1979]_
-notation throughout, with the Carlvik 1968 [Carlvik1968]_ sign
+The derivations follow Dahl-Sjostrand 1979 :cite:`DahlSjostrand1979`
+notation throughout, with the Carlvik 1968 :cite:`Carlvik1968` sign
 correction noted in Section :func:`derive_carlvik_eq4b_corrected_form`.
 
 Verification claim list
@@ -36,21 +36,6 @@ Verification claim list
   Eq. (3) reduces to :math:`A F = (1/(cd)) F`, the original Carlvik
   1968 isotropic eigenvalue equation.
 
-References
-----------
-
-.. [Carlvik1968] Carlvik, I. (1968). "A method for calculating
-   collision probabilities in general cylindrical geometry and
-   applications to flux distributions and Dancoff factors."
-   *Nuclear Science and Engineering* **31**, 295-300.
-
-   .. note::
-
-      Dahl-Sjostrand 1979 explicitly flags Carlvik 1968 Eq. (4b)
-      as misprinted: "Note that the sign of the last term in
-      Carlvik's expression (4b) has been misprinted." Use the
-      Dahl-Sjostrand recurrences as the corrected master, not
-      Carlvik 1968 directly.
 """
 from __future__ import annotations
 

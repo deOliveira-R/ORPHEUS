@@ -61,11 +61,11 @@ cell, MOC offers several advantages over the other ORPHEUS solvers:
 - **Reflective boundary conditions** --- exact, without the isotropic
   re-entry assumption of the CP white BC.
 
-The implementation follows [Boyd2014]_ (the OpenMOC formulation) for
-the transport sweep and scalar flux update, and [Yamamoto2007]_ for
+The implementation follows :cite:`Boyd2014` (the OpenMOC formulation) for
+the transport sweep and scalar flux update, and :cite:`Yamamoto2007` for
 the Tabuchi-Yamamoto (TY) polar quadrature.  The original MOC
-formulation for reactor physics is due to [Askew1972]_; the TY
-quadrature tables are also documented in [KnottYamamoto2010]_.
+formulation for reactor physics is due to :cite:`Askew1972`; the TY
+quadrature tables are also documented in :cite:`KnottYamamoto2010`.
 
 **Derivation sources.**  The analytical eigenvalues used for
 verification are computed by:
@@ -342,7 +342,7 @@ angular integration involves the Bickley function:
 
 .. vv-status: bickley-integral documented
 
-Yamamoto et al. [Yamamoto2007]_ derived optimal polar angles and
+Yamamoto et al. :cite:`Yamamoto2007` derived optimal polar angles and
 weights that minimise the maximum approximation error of the
 Bickley function.  The TY quadrature with :math:`N_p = 3` polar
 angles per half-space achieves accuracy comparable to Gauss-Legendre
@@ -353,7 +353,7 @@ angular measure :math:`d\Omega = \sin\theta \, d\theta \, d\varphi`.
 They sum to 0.5 for one hemisphere (upper or lower); the full sphere
 gives :math:`2 \times 0.5 = 1.0`.
 
-.. list-table:: Tabuchi-Yamamoto quadrature tables [Yamamoto2007]_
+.. list-table:: Tabuchi-Yamamoto quadrature tables :cite:`Yamamoto2007`
    :header-rows: 1
    :widths: 10 10 20 20
 
@@ -386,7 +386,7 @@ gives :math:`2 \times 0.5 = 1.0`.
      - 0.932954
      - 0.335074
 
-These tables are hardcoded in :class:`MOCQuadrature` from [Yamamoto2007]_
+These tables are hardcoded in :class:`MOCQuadrature` from :cite:`Yamamoto2007`
 Table 2.  Verified by ``tests/moc/test_quadrature.py::test_ty3_values_match_published``.
 
 The combined angular weight normalisation satisfies:
@@ -707,7 +707,7 @@ absorbed into the summation over both sweep directions):
    \right]
    }
 
-This is [Boyd2014]_ Equation 45 (with our weight normalisation
+This is :cite:`Boyd2014` Equation 45 (with our weight normalisation
 convention).
 
 **Implementation.**  In :meth:`MOCSolver.solve_fixed_source`, the
@@ -1239,7 +1239,7 @@ Gauss-Legendre (GL) quadrature optimises polynomial integration, which
 is not the relevant function form.
 
 For the same number of polar points, TY gives ~2--5× smaller angular
-error than GL ([Yamamoto2007]_ Table 3).  TY-3 (3 points) matches GL
+error than GL (:cite:`Yamamoto2007` Table 3).  TY-3 (3 points) matches GL
 with 12--16 points on typical LWR pin-cell problems.
 
 **Connection to CP:** The :ref:`collision probability method
@@ -1481,23 +1481,3 @@ Tracked in GitHub Issues (label ``module:moc``):
   Cyclic track linking for single-sweep BC convergence
 - `#16 <https://github.com/deOliveira-R/ORPHEUS/issues/16>`_:
   CMFD coarse-mesh acceleration
-
-
-References
-==========
-
-.. [Boyd2014] W.R.D. Boyd, S. Shaner, L. Li, B. Forget, K. Smith,
-   "The OpenMOC Method of Characteristics Neutral Particle Transport Code,"
-   *Annals of Nuclear Energy*, 68, 43--52, 2014.
-
-.. [Yamamoto2007] A. Yamamoto, M. Tabuchi, N. Sugimura, T. Ushio, M. Mori,
-   "Derivation of Optimum Polar Angle Quadrature Set for the Method of
-   Characteristics Based on Approximation Error for the Bickley Function,"
-   *Journal of Nuclear Science and Technology*, 44(2), 129--136, 2007.
-
-.. [Askew1972] J.R. Askew, "A Characteristics Formulation of the Neutron
-   Transport Equation in Complicated Geometries," AEEW-M 1108, Winfrith, 1972.
-
-.. [KnottYamamoto2010] D. Knott and A. Yamamoto, "Lattice Physics
-   Computations," Chapter 9 in *Handbook of Nuclear Engineering*,
-   Springer, 2010.

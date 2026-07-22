@@ -15,9 +15,9 @@ Key Facts
 **Read this before modifying the Galerkin spectral reference solver.**
 
 - **What this implements**: Galerkin spectral expansion of Carlvik's
-  integral equation [Carlvik1968]_ for the criticality of a
+  integral equation :cite:`Carlvik1968` for the criticality of a
   multiplying slab/sphere with linearly anisotropic scattering,
-  following Dahl & Sjöstrand (1979) [DahlSjostrand1979]_.
+  following Dahl & Sjöstrand (1979) :cite:`DahlSjostrand1979`.
 - **Position in the V&V stack**: third structurally-independent
   Pillar-2 verification method, alongside
   :ref:`F_N collocation <theory-fn-method>` and
@@ -45,7 +45,7 @@ Carlvik recurrences as named primitives (folder-naming rationale)
 The folder is named ``galerkin_spectral/`` (method-canonical) rather
 than ``carlvik_galerkin/`` (its previous half-author/half-method name),
 but the integral-form recurrences introduced by Carlvik (1968)
-[Carlvik1968]_ remain first-class objects inside the package as
+:cite:`Carlvik1968` remain first-class objects inside the package as
 :mod:`...galerkin_spectral.core.carlvik_recurrences`. This deserves
 explicit explanation:
 
@@ -77,7 +77,7 @@ authors), but the inline ``bickley_naylor.py`` would be allowed because
 "Bickley–Naylor functions" name a primitive. The boundary is
 **method ↔ folder, primitive ↔ filename**.
 
-The Sood/Forster/Parsons LA-13511 (1999) [SoodLA13511_1999]_
+The Sood/Forster/Parsons LA-13511 (1999) :cite:`SoodLA13511_1999`
 ``*-1-1-SL/SP`` benchmark cases (anisotropic slab + sphere) are
 verified by this package against the Dahl-Sjöstrand 1979 Tables I
 and II tabulations.
@@ -757,22 +757,3 @@ roles. The reference solvers now consume :class:`StructuredGeometry`
 directly via their frozen ``__init__``; the production solvers
 consume ``(materials, mesh, params)`` via the canonical free
 functions ``solve_cp`` / ``solve_sn`` / ``solve_moc``.
-
-References
-----------
-
-.. [DahlSjostrand1979] Dahl, E. B. & Sjöstrand, N. G. (1979).
-   "Eigenvalue spectrum of multiplying slabs and spheres for
-   monoenergetic neutrons with anisotropic scattering."
-   *Nuclear Science and Engineering* **69**, 114-125.
-   DOI: 10.13182/NSE69-114.
-
-.. [Carlvik1968] Carlvik, I. (1968).
-   *Nuclear Science and Engineering* **31**, 295-300.
-   (Original derivation of :math:`A_{m,n}` and :math:`B_{m,n}`
-   recurrences. Eq. (4b) printed sign typo corrected by
-   Dahl-Sjöstrand 1979.)
-
-.. [SoodLA13511_1999] Sood, A., Forster, R.A., Parsons, D.K. (1999).
-   "Analytical Benchmark Test Set for Criticality Code Verification."
-   Los Alamos National Laboratory report LA-13511.

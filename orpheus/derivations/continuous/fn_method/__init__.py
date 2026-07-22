@@ -2,7 +2,7 @@ r"""F_N method analytical benchmark family — Sood/Forster/Parsons LA-13511 (19
 
 This package is a structurally-independent verification ground for
 ORPHEUS transport solvers, mounted on the published Sood/Forster/Parsons
-analytical benchmark test set [SoodLA13511_1999]_. The benchmark
+analytical benchmark test set :cite:`SoodLA13511_1999`. The benchmark
 catalogue contains 75 critical configurations (43 1G, 30 2G, 1 3G, 1 6G;
 24 infinite, 24 slabs, 9 cylinders, 14 spheres, 4 ISLC) whose critical
 radii, :math:`k_\infty`, and selected scalar-flux ratios were computed
@@ -36,12 +36,5 @@ the Branch-1/Branch-2 pattern works at this complexity, and serve as
 the V&V ground floor for the multi-group infrastructure that the F_N
 method extensions will need.
 
-References
-----------
-
-.. [SoodLA13511_1999] Sood, A., Forster, R.A., Parsons, D.K. (1999).
-   "Analytical Benchmark Test Set for Criticality Code Verification."
-   Los Alamos National Laboratory report LA-13511. 75 problems, 67
-   tables. PNE-2003 is the journal-published condensation.
 """
 from __future__ import annotations

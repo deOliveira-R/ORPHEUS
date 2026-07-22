@@ -3,7 +3,7 @@ continuous-:math:`\mu` multi-bounce specular kernel.
 
 Math-origin pattern: the SymPy derivation in
 :mod:`orpheus.derivations.peierls_specular.continuous_mu` is the
-**source of truth** for the Sanchez 1986 [SanchezTTSP1986]_ Eq. (A6)
+**source of truth** for the Sanchez 1986 :cite:`SanchezTTSP1986` Eq. (A6)
 ↔ ORPHEUS M1 sketch equivalence and the diagonal-singularity finding
 that blocks production wiring of ``boundary="specular_continuous_mu"``.
 

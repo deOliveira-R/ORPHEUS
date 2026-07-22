@@ -105,7 +105,7 @@ The Boltzmann Transport Equation
 ---------------------------------
 
 The starting point is the steady-state neutron transport equation in its
-integro-differential form [Duderstadt1976]_:
+integro-differential form :cite:`Duderstadt1976`:
 
 .. math::
    :label: boltzmann
@@ -317,7 +317,7 @@ across the emission spectrum :math:`\boldsymbol{\chi}`.
 
 The eigenvalue :math:`k = \kinf` is the largest eigenvalue of the
 generalised problem :eq:`matrix-eigenvalue`.  By the Perron–Frobenius
-theorem [Hebert2009]_, the dominant eigenvector :math:`\boldsymbol{\phi}`
+theorem :cite:`Hebert2009`, the dominant eigenvector :math:`\boldsymbol{\phi}`
 is the unique non-negative solution — the **fundamental mode** — which
 is the physically meaningful neutron spectrum.
 
@@ -401,7 +401,7 @@ group 1), and the eigenvalue problem gives immediately:
 
 This is the most fundamental result in reactor physics.  It states that
 :math:`\kinf` is the ratio of neutron production to neutron absorption,
-which is the definition of the infinite multiplication factor [Stacey2007]_.
+which is the definition of the infinite multiplication factor :cite:`Stacey2007`.
 
 For the connection to the **four-factor formula**: in a single-material
 homogeneous medium the thermal utilisation :math:`f = 1`, the resonance
@@ -662,7 +662,7 @@ Sigma-Zero Self-Shielding
 Cross sections in the resonance region depend strongly on the
 **background cross section** :math:`\sigma_{0,i,g}` — a measure of how
 "dilute" isotope :math:`i` is relative to its neighbours.  The
-background cross section is defined as [Bondarenko1964]_:
+background cross section is defined as :cite:`Bondarenko1964`:
 
 .. math::
    :label: sigma-zero
@@ -705,7 +705,7 @@ This is implemented in :func:`~data.macro_xs.sigma_zeros.solve_sigma_zeros`.
    mixture.  For **heterogeneous** cells (fuel pins), the escape cross
    section :math:`\Sigma_e = \Sigma_\mathrm{pot} / \bar{\ell}
    \approx S/(4V)` accounts for spatial self-shielding via the
-   equivalence theory of Bondarenko [Bondarenko1964]_.
+   equivalence theory of Bondarenko :cite:`Bondarenko1964`.
 
 
 Cross-Section Interpolation
@@ -902,7 +902,7 @@ it is solved depends on whether the problem couples space:
 - **Spatially-coupled solvers** (SN, CP, MoC, diffusion) cannot afford a
   dense inverse of the full loss operator, so they sweep/solve the loss
   once per outer step and drive :math:`k` up the dominant mode by
-  **power iteration** on the fission source [Hebert2009]_.  Those
+  **power iteration** on the fission source :cite:`Hebert2009`.  Those
   realisations live in the spatial theory pages (e.g.
   :eq:`cp-keff-update`, :eq:`moc-keff-update`); this section is the
   shared conceptual hub they cross-reference.
@@ -1032,7 +1032,7 @@ inverted explicitly), giving the :math:`G \times G` eigenvalue matrix
    \boldsymbol{\phi} \;=\; \text{the dominant right eigenvector of }\mathbf{M},
 
 selected as the eigenpair with the largest real eigenvalue.  By the
-Perron–Frobenius theorem [Hebert2009]_ this dominant eigenvector is the
+Perron–Frobenius theorem :cite:`Hebert2009` this dominant eigenvector is the
 unique non-negative solution — the **fundamental mode** — so the spectrum
 is sign-normalised to non-negative components.
 
@@ -1641,16 +1641,3 @@ spatially-dependent solvers available in ORPHEUS:
      - :class:`CPSolver`
      - :class:`SNSolver`
      - :class:`DiffusionSolver`
-
-
-References
-==========
-
-.. [Duderstadt1976] J.J. Duderstadt and L.J. Hamilton, *Nuclear Reactor
-   Analysis*, Wiley, 1976.
-
-.. [Bondarenko1964] I.I. Bondarenko et al., *Group Constants for Nuclear
-   Reactor Calculations*, Consultants Bureau, 1964.
-
-.. [Stacey2007] W.M. Stacey, *Nuclear Reactor Physics*, 2nd ed.,
-   Wiley-VCH, 2007.

@@ -670,7 +670,7 @@ is classical power iteration on the :math:`k`-update, with
                         - \sum (S\,\psi_{n+1})}
 
 The dominance ratio :math:`|k_1/k_0|` governs outer-loop
-convergence ([TrefethenBau1997]_ §27).  The inner solve uses
+convergence (:cite:`TrefethenBau1997` §27).  The inner solve uses
 :class:`SourceIteration` with operator triple :math:`(L{+}C, S, 0)` —
 the fission contribution at the inner level is the **external
 source** :math:`F\psi_n/k_n`, NOT a within-group fixed-point term.
@@ -784,7 +784,7 @@ Forward hook: FEAST and beyond
 
 :class:`KEigenvalue` accepts ``eigenvalue_method``, currently only
 ``"power"``.  The hook reserves a path for FEAST-style contour-
-integral methods ([Polizzi2009]_) and Krylov-Schur deflation methods
+integral methods (:cite:`Polizzi2009`) and Krylov-Schur deflation methods
 (Stewart 2001) when accuracy on closely-spaced eigenvalues becomes
 load-bearing.  Other values raise :class:`NotImplementedError` at
 construction time.
@@ -898,7 +898,7 @@ records only the SN-specific consumption:
    realisation survives — as a **type choice, not a callable
    injection** — but it is a choice of **rate**, not of fixed point:
    the standard transport-Krylov win as :math:`c \to 1`
-   ([AdamsLarsen2002]_).
+   (:cite:`AdamsLarsen2002`).
 
 Because every family member conforms to the one seeded-apply
 contract, the driver is **inversion-strategy-agnostic**: the same

@@ -419,8 +419,8 @@ The right-hand side is the **Neumann series** of the :math:`A`-preconditioned
 splitting. In transport it *is* the **multiple-scattering expansion**:
 :math:`A^{-1}q` is the uncollided flux, :math:`(A^{-1}S)\,A^{-1}q` the
 once-rescattered contribution, :math:`(A^{-1}S)^{k}A^{-1}q` the
-:math:`k`-times-rescattered contribution ([LewisMiller1984]_ §3.2;
-[AdamsLarsen2002]_ §II). Its partial sums are **exactly** the Richardson /
+:math:`k`-times-rescattered contribution (:cite:`LewisMiller1984` §3.2;
+:cite:`AdamsLarsen2002` §II). Its partial sums are **exactly** the Richardson /
 source-iteration iterates started from zero,
 
 .. math::
@@ -445,7 +445,7 @@ bound
    \;\le\; \max_{\rm cell}\ \frac{\Sigma_s}{\Sigma_t} \;=\; c \;<\; 1 ,
 
 guaranteed below unity for any absorbing (physical) medium
-([AdamsLarsen2002]_ §II: :math:`\rho = c`). The convergence is thus a
+(:cite:`AdamsLarsen2002` §II: :math:`\rho = c`). The convergence is thus a
 material property, not a numerical accident — and it is precisely why the
 sum has an inverse *operator* at all.
 

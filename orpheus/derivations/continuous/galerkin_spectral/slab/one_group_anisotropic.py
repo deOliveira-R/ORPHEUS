@@ -1,7 +1,7 @@
 r"""Bare-critical multiplying slab eigenvalue spectrum via Dahl-Sjostrand 1979.
 
 Solves the Galerkin spectral expansion of Carlvik's integral equation
-[DahlSjostrand1979]_ Eq. (1), in the slab case (q=0, even-Legendre
+:cite:`DahlSjostrand1979` Eq. (1), in the slab case (q=0, even-Legendre
 basis :math:`P_0, P_2, \ldots, P_{2(N-1)}`), via the block-matrix
 linearization Eq. (4). Returns the **full eigenvalue spectrum**
 (typically 2N values, including complex-conjugate pairs at high

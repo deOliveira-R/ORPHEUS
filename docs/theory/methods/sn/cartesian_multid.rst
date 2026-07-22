@@ -3914,7 +3914,7 @@ seed (the valid cyclic back-edge → partial one-pass G-S).  This is
 the general principle that *a face shared by multiple work-units
 must be reduced only after the last contributing unit completes* —
 the same fan-in discipline KBA wavefront scheduling
-([Pautz2002]_; Adams & Larsen 2002 §VI on parallel sweeps) and
+(:cite:`Pautz2002`; Adams & Larsen 2002 §VI on parallel sweeps) and
 multigroup Gauss-Seidel over shared down-scatter targets require.
 The full post-mortem (symptom, root cause, the
 ``test_gs_diagonal_quadrature_shared_face_assigned_to_last_group_only``

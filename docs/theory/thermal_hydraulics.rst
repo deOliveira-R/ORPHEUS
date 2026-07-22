@@ -130,7 +130,7 @@ for node :math:`j` is:
 where :math:`m_j = \rho_f V_j` is the ring mass and
 :math:`V_j = \pi(r_{j+1}^2 - r_j^2) \Delta z` is the ring volume.
 
-**Material properties** (MATPRO correlations [MATPRO2003]_ in ``matpro.py``):
+**Material properties** (MATPRO correlations :cite:`MATPRO2003` in ``matpro.py``):
 
 .. math::
 
@@ -571,7 +571,7 @@ IAPWS Viscosity Fallback
         H_{ij}\,(1/\bar{T} - 1)^j\,(\bar{\rho} - 1)^i\right)
 
    The :math:`H_{ij}` coefficient matrix (7 × 6, mostly sparse) is from
-   the IAPWS release [IAPWS2008]_.  At low pressures (< 1 MPa) and high
+   the IAPWS release :cite:`IAPWS2008`.  At low pressures (< 1 MPa) and high
    temperatures, :math:`\bar{\rho} \ll 1` so :math:`\mu_1 \approx 1` and the
    viscosity is dominated by the dilute-gas term.
 
@@ -889,11 +889,3 @@ Known Limitations
    379 s vs MATLAB's 425.3 s.  The remaining 46 s gap is due to MATLAB
    indexing quirks in gap temperature and inner gas pressure (not worth
    replicating further).
-
-
-References
-==========
-
-.. [IAPWS2008] IAPWS, *Release on the IAPWS Formulation 2008 for the
-   Viscosity of Ordinary Water Substance*, 2008.  The correlation
-   implemented in ``_iapws_viscosity`` and in XSteam/pyXSteam.

@@ -1,6 +1,6 @@
 r"""Atalay 1997 reflected-slab and sphere case catalogue.
 
-Atalay (1997) [Atalay1997]_ tabulates critical thicknesses :math:`2d`
+Atalay (1997) :cite:`Atalay1997` tabulates critical thicknesses :math:`2d`
 (slab) and eigenvalues :math:`c` (slab + sphere) for the **reflected**
 slab and sphere with linearly-anisotropic scattering — a regime that
 is **not** in standard Sood/Forster/Parsons LA-13511 tables (which
@@ -30,14 +30,6 @@ material composition, mirroring how Atalay published them.
 For mapping back to specific Sood materials (e.g., ``Ua-1-0-SL`` has
 :math:`c = 1.30`), see the case ``description`` field.
 
-References
-----------
-
-.. [Atalay1997] Atalay, M.A. (1997).
-   "The reflected slab and sphere criticality problem with anisotropic
-   scattering in one-speed neutron transport theory."
-   *Progress in Nuclear Energy* **31**(3), 229-252.
-   DOI: 10.1016/0149-1970(95)00094-1.
 """
 from __future__ import annotations
 

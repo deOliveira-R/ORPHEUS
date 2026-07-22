@@ -273,7 +273,7 @@ the literature:
   .. vv-status: peierls-sph-ps1982-foundations documented
 
 
-  derived in [PS1982]_ Eq. (21) (vacuum BC, isotropic source,
+  derived in :cite:`PomraningSiewert1982` Eq. (21) (vacuum BC, isotropic source,
   homogeneous medium). The :math:`r\phi(r)` device makes the radial
   problem behave like a slab on :math:`r \in [-R, R]` with
   reflective symmetry at :math:`r = 0`.
@@ -313,7 +313,7 @@ Boundary conditions parametrised by α + β (Sanchez 1986 Eq. A3.a)
 =================================================================
 
 The **most general** linear boundary condition for the integral
-transport equation, following Sanchez 1986 [SanchezTTSP1986]_ Eq.
+transport equation, following Sanchez 1986 :cite:`SanchezTTSP1986` Eq.
 (A3.a), parametrises the BC by two coefficients :math:`\alpha` and
 :math:`\beta`:
 
@@ -336,7 +336,7 @@ direction, :math:`n` is the outward normal at the boundary point
 incident flux, and :math:`\chi(\Omega)` is a normalised diffuse
 re-emission angular distribution
 (:math:`\int\chi(\Omega)(\Omega\cdot n)\,\mathrm d\Omega = 1` per
-[SanchezTTSP1986]_ Eq. (A3.b)).
+:cite:`SanchezTTSP1986` Eq. (A3.b)).
 
 Five canonical BC choices fall out of :math:numref:`peierls-bc-general`:
 
@@ -530,7 +530,7 @@ Nystrom method details
 
 The Nystrom method converts the integral equation into a matrix
 eigenvalue problem by approximating the integral with a quadrature rule
-[Kress2014]_.  For the Peierls equation, the key challenge is the
+:cite:`Kress2014`.  For the Peierls equation, the key challenge is the
 logarithmic singularity in :math:`E_1` at :math:`x = x'`.
 
 **Composite Gauss--Legendre panels.**
@@ -599,7 +599,7 @@ the production code and the reference agree to machine
 :math:`\mathrm{dps}` by construction.
 
 **Why adaptive quadrature over the alternatives.**
-Four strategies exist for the Peierls log singularity [Atkinson1997]_:
+Four strategies exist for the Peierls log singularity :cite:`Atkinson1997`:
 
 1. *Graded meshes* (cluster GL nodes near the diagonal): algebraic
    convergence only; many nodes needed for high accuracy.
@@ -842,8 +842,8 @@ on a bare cylinder of radius :math:`R` is therefore
             {|\mathbf{r}-\mathbf{r}'|}\,q(\mathbf{r}')\,\mathrm{d}^{2}r'
      \;+\; \varphi_{\rm bc}(\mathbf{r}).
 
-The classical textbook presentation ([Sanchez1982]_ §IV.A,
-Eqs. 47--49; [Stamm1983]_ §6.2--6.3; [Hebert2020]_ Eqs. 3.95--3.110)
+The classical textbook presentation (:cite:`Sanchez1982` §IV.A,
+Eqs. 47--49; :cite:`Stamm1983` §6.2--6.3; :cite:`Hebert2020` Eqs. 3.95--3.110)
 rotates the 2-D integral to the **chord** coordinate
 system :math:`(y, r')`, where :math:`y` is the perpendicular distance
 from the cylinder axis to the straight-line trajectory through
@@ -1204,7 +1204,7 @@ identity-LHS kernel :eq:`peierls-cylinder-nystrom` is
 The finite-cylinder deficit
 :math:`\Sigma_t - \sum_j K_{ij}` equals the uncollided escape
 probability :math:`\Sigma_t\,P_{\rm esc}(r_i)` times :math:`\Sigma_t`
-(a standard result: [BellGlasstone1970]_ §2.7; [Hebert2020]_
+(a standard result: :cite:`BellGlasstone1970` §2.7; :cite:`Hebert2020`
 Eq. 3.101), and for :math:`R = 10` MFP this deficit is
 :math:`< 10^{-3}` at :math:`r_i \le R/2`. Tested in
 ``TestRowSumIdentity.test_interior_row_sum_equals_sigma_t`` in
@@ -1300,11 +1300,11 @@ The two implementable options are:
 (a) **Reduced form.** Eliminate the boundary-current unknowns
     by Schur complement; the result is an effective boundary
     source :math:`S_{\rm bc}(r_i)` that is a smooth integral
-    operator of the volume unknowns :math:`\varphi_j`. [Sanchez1982]_
+    operator of the volume unknowns :math:`\varphi_j`. :cite:`Sanchez1982`
     §IV.B.3 uses this form.
 (b) **Full form.** Keep the boundary currents :math:`J^\pm(y_\ell)`
     as explicit unknowns and solve the coupled
-    :math:`(\varphi, J^{+}, J^{-})` block system. [Hebert2020]_
+    :math:`(\varphi, J^{+}, J^{-})` block system. :cite:`Hebert2020`
     uses this form because the coupling block is trivially
     populated from the :math:`\tau^{\pm}` walker.
 
@@ -1332,7 +1332,7 @@ Three independent checks gate the Peierls cylinder implementation.
 **Sanchez--McCormick 1982 tie-point.** For a bare 1-group
 homogeneous cylinder with :math:`\Sigma_t = 1` cm⁻¹,
 :math:`(\Sigma_s, \nu\Sigma_f) = (0.5, 0.75)` — giving
-:math:`k_\infty = \nu\Sigma_f/\Sigma_a = 1.5` — [Sanchez1982]_
+:math:`k_\infty = \nu\Sigma_f/\Sigma_a = 1.5` — :cite:`Sanchez1982`
 Table IV reports a critical radius :math:`R = 1.9798` cm.
 At that :math:`R` the present solver gives
 
@@ -2460,7 +2460,7 @@ unchanged.
      - :math:`L^2 < 5\%`
      - :eq:`second-diff-sph`
 
-[CaseZweifel1967]_ tabulates bare-sphere critical-radius
+:cite:`CaseZweifel1967` tabulates bare-sphere critical-radius
 :math:`R_c` values as a function of :math:`c = \nu\Sigma_f /
 \Sigma_a` (1-group) and offers a literature tie-point analogous to
 the cylinder's Sanchez 1982 tie-point. The Peierls-sphere test
@@ -2677,7 +2677,7 @@ truncation error :math:`\sim 0.27\,\%/0.25\,\%/0.12\,\%` for
 The Pomraning-Siewert 1982 vacuum sphere
 -----------------------------------------
 
-[PS1982]_ Eq. (21) is the **structurally-independent** vacuum-sphere
+:cite:`PomraningSiewert1982` Eq. (21) is the **structurally-independent** vacuum-sphere
 reference for both families. Its derivation path
 (integrate-over-:math:`\mu` then add half-spaces) is genuinely
 different from the Sanchez 1986 cosh-even-extension path; PS-1982
@@ -2697,7 +2697,7 @@ Nyström family's vacuum sphere closure when high precision is needed.
 The Sanchez 1986 / 2002 architecture references
 ------------------------------------------------
 
-[SanchezTTSP1986]_ is the load-bearing literature for both families.
+:cite:`SanchezTTSP1986` is the load-bearing literature for both families.
 Its Appendix gives the Green's function :math:`t(r',\Omega'\to r,
 \Omega)` for sphere with the full
 :math:`(\alpha,\beta)`-parametrised BC; the angle-integrated reduction
@@ -2707,7 +2707,7 @@ Green's function family *avoids* discretising (Variant α works with
 :math:`t` directly). Both perspectives are correct math; the
 discretisation choice is what makes them different.
 
-[Sanchez2002]_ extends the trajectory architecture to *lattice*
+:cite:`Sanchez2002` extends the trajectory architecture to *lattice*
 geometries via the periodic-trajectory closure
 :math:`\psi = \psi_q(L)/(1-\psi_{bd}(L))\cdot\psi_{bd} + \psi_q`
 (Eq. 15) — algebraically parallel to Variant α's
@@ -2718,10 +2718,10 @@ universality of the multi-bounce factor.
 Hébert 2009 and Stamm'ler 1983
 -------------------------------
 
-[Hebert2020]_ Chapter 3 is the textbook reference for the
+:cite:`Hebert2020` Chapter 3 is the textbook reference for the
 **rank-1** white-BC closure :math:`(1-P_{ss})^{-1}` (§3.8.5;
 Eq. 3.323 = :math:numref:`hebert-3-323`) and the rank-2 per-face
-F.4 closure (§3.8.4). [Stamm1983]_ Chapter 4 gives the same closure
+F.4 closure (§3.8.4). :cite:`Stamm1983` Chapter 4 gives the same closure
 in a different notation (Stamm'ler Eq. 34 = Hébert 3.323). Variant α's
 V_α2 algebraic identity :math:`T_{00}^{\rm sphere} =
 P_{ss}^{\rm sphere}` (Eq. :math:numref:`peierls-greens-V-alpha-2` in
@@ -2731,7 +2731,7 @@ agrees bit-for-bit with the existing Phase 4
 ``boundary="white_hebert"`` rank-1: all three reduce to the same
 closed-form geometric series.
 
-[Stamm1983]_ Chapter 6 is the architectural reference for the
+:cite:`Stamm1983` Chapter 6 is the architectural reference for the
 **multi-group** Peierls form — group-wise iteration with
 cross-group + fission source. The same form is implemented in
 both ORPHEUS families
@@ -2743,8 +2743,8 @@ for the Green's function family).
 The Garcia 2018 / 2020 / 2021 stable :math:`P_N` family
 --------------------------------------------------------
 
-Garcia's stable-:math:`P_N` family of papers ([Garcia2020]_,
-[Garcia2021]_; the 2018 JCTT predecessor that establishes the
+Garcia's stable-:math:`P_N` family of papers (:cite:`Garcia2020`,
+:cite:`Garcia2021`; the 2018 JCTT predecessor that establishes the
 exterior-of-sphere stability) is the only modern external numerical
 reference in the published literature for sphere homogeneous +
 multi-region transport with reflective BC. Garcia 2021 specifically
@@ -2823,9 +2823,9 @@ The literature PDFs cited above are stored in the repo root
 - ``Integral form of the equation of transfer for a homogeneous
   sphere with linearly anisotropic scattering.pdf`` — Sanchez 1986
   precursor (linearly anisotropic scattering). Local copy.
-- Sanchez 1986 [SanchezTTSP1986]_ — primary; PDF in repo root as
+- Sanchez 1986 :cite:`SanchezTTSP1986` — primary; PDF in repo root as
   ``Sanchez(1986)TTSP14.pdf``.
-- Garcia 2018 / 2020 / 2021 [Garcia2020]_ [Garcia2021]_ — paywalled;
+- Garcia 2018 / 2020 / 2021 :cite:`Garcia2020` :cite:`Garcia2021` — paywalled;
   no local copy.
 - Mitsis 1963 (ANL-6787) — pseudo-slab equivalence for vacuum sphere;
   numerical reference. No local copy.
@@ -2852,17 +2852,6 @@ Codebase pointers:
   :func:`orpheus.derivations.continuous.peierls_nystrom.cases.capability_rows`;
   rebuilt every Sphinx build by
   :mod:`tools.verification.generate_capability_matrices`.
-
-
-Provenance: literature references
-==================================
-
-.. [PS1982] G.C. Pomraning and C.E. Siewert, "On the integral form of
-   the equation of transfer for a homogeneous sphere," *J. Quant.
-   Spec. Rad. Transfer* **28**, 503–506 (1982).
-   DOI: 10.1016/0022-4073(82)90016-4. The vacuum-sphere reduction
-   used by both ORPHEUS Peierls families as a structurally-independent
-   L1 cross-check.
 
 
 .. |times| unicode:: U+00D7

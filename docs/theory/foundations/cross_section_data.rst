@@ -322,7 +322,7 @@ Record Layout
 --------------
 
 Every line in a GENDF file is exactly 80 characters wide, following the
-ENDF-6 format [ENDF102]_ inherited from the punched-card era:
+ENDF-6 format :cite:`ENDF102` inherited from the punched-card era:
 
 .. code-block:: text
 
@@ -1371,11 +1371,3 @@ solver output.
    - :ref:`theory-collision-probability`, :ref:`theory-discrete-ordinates`,
      :ref:`theory-method-of-characteristics`, :ref:`theory-monte-carlo` — all
      transport solvers consume ``Mixture`` objects from this pipeline.
-
-
-References
-===========
-
-.. [ENDF102] M.A. Kellett, O. Bersillon, R.W. Mills, "The JEFF-3.1/-3.1.1
-   Radioactive Decay Data and Fission Yields Sub-libraries", OECD/NEA,
-   2009.  ENDF-6 format manual: BNL-NCS-44945 (Rev. 2012).

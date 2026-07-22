@@ -1501,7 +1501,7 @@ it collapses a fine-group cross-section set onto a coarser group
 structure, **spectrum-weighted**, so that each coarse group reproduces
 the fine reaction rate. The two are the classical pair of "smear the
 detail you have resolved into effective constants for a coarser
-calculation" moves (Hébert, *Applied Reactor Physics* [Hebert2009]_,
+calculation" moves (Hébert, *Applied Reactor Physics* :cite:`Hebert2009`,
 §13 for space, §3.5 for energy).
 
 In ORPHEUS condensation lives at two layers, mirroring how
@@ -1547,7 +1547,7 @@ Condensation, like homogenization, is defined by *what it must
 preserve*, not by an averaging recipe. The quantity a transport
 calculation consumes is the **reaction rate** in each group, and the
 group-collapse cross section is *defined* so as to preserve it (Hébert
-[Hebert2009]_ Eq. 3.103; Stamm'ler & Abbate, *Methods of Steady-State
+:cite:`Hebert2009` Eq. 3.103; Stamm'ler & Abbate, *Methods of Steady-State
 Reactor Physics in Simplified Geometry* (1983), Eq. VI(6b) — two
 independent authoritative textbooks state it identically). Fix a coarse
 group :math:`G`, made up of fine groups :math:`g \in G`. The fine-group
@@ -1627,7 +1627,7 @@ effective cross section gives the **spectrum-weighted average**
 .. vv-status: energy-condensation-vector-collapse documented
 
 the flux-weighted reaction-rate-preserving average (Hébert
-[Hebert2009]_ Eq. 3.103 ≡ Stamm'ler VI(6b)). Because the weight
+:cite:`Hebert2009` Eq. 3.103 ≡ Stamm'ler VI(6b)). Because the weight
 :math:`\varphi_g` appears in both the numerator (rate) and denominator
 (flux), :math:`\Sigma_G` is a genuine convex combination of the fine
 values: it is bracketed by the group's fine extremes
@@ -1820,7 +1820,7 @@ the simplex. The rate-preserving choice is the **pure birth-group sum**
 .. vv-status: energy-condensation-chi-collapse documented
 
 — the probability mass of the fine birth groups landing in coarse group
-:math:`G`, summed (Hébert [Hebert2009]_ Eq. 3.112; Stamm'ler VI(6a)).
+:math:`G`, summed (Hébert :cite:`Hebert2009` Eq. 3.112; Stamm'ler VI(6a)).
 This **differs from spatial homogenization**, whose :math:`\chi`
 collapse is a *production-weighted convex average across cells*
 (:eq:`sn-homogenization-chi-collapse`): there are many fine cells
@@ -1943,7 +1943,7 @@ Why one-hot containing-interval fails
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ORPHEUS condenses a **421-group** library onto the WIMS-D 69- and
-172-group structures ([WIMSD]_). These structures were defined
+172-group structures (:cite:`WIMSD`). These structures were defined
 *independently* of the 421-group grid, so their boundaries do **not**
 align with the fine grid (the draft boundary-mismatch report flags 19
 non-coincident boundaries for 172→69 alone), and — the harder part —
@@ -2229,7 +2229,7 @@ discipline*). Three structural grounds, identical to the spatial case:
    test basis) carries the discipline.
 
 The flux-weighted average is the **rank-0 moment** of **Generalized
-Energy Condensation** (Rahnema, Douglass & Forget 2008 [Rahnema2008]_):
+Energy Condensation** (Rahnema, Douglass & Forget 2008 :cite:`Rahnema2008`):
 GEC expands the within-coarse-group flux in orthogonal functions
 :math:`\varphi(E)\approx\sum_n\varphi_{n,G}P_n(E)`, and the zeroth
 moment (the constant / piecewise-constant basis function on :math:`G`)
@@ -2532,7 +2532,7 @@ The discriminator and the companion invariants:
        the negative leg pins the *invariant*, not merely the raising).
    * - ``TestG5WimsDerivationValidation`` (Table 11.3)
      - The containing-interval partition derived by the rule reproduces
-       the published ``CONDENSE_172_TO_69`` ([WIMSD]_ Table 11.3) on the
+       the published ``CONDENSE_172_TO_69`` (:cite:`WIMSD` Table 11.3) on the
        coincident-boundary groups, collecting the known 19 non-coincident
        boundaries as expected (failing only on a *new* mismatch).
    * - ``test_real_pwr_421_to_wims69_condensation_succeeds``

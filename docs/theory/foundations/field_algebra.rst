@@ -387,7 +387,7 @@ the Banach frame: the SI iterate increment obeys
 :math:`\Delta\psi^{(i+1)} = M\,\Delta\psi^{(i)}` with
 :math:`M = (L+C)^{-1}(S+B)`, a contraction with spectral radius
 :math:`\rho(M) \le \max_g \Sigma_{s,g}/\Sigma_{t,g} = c`
-([AdamsLarsen2002]_).
+(:cite:`AdamsLarsen2002`).
 
 **The contraction ratio.**
 :meth:`~orpheus.transport.displacements._displacement.Displacement.contraction_ratio`
@@ -429,7 +429,7 @@ the increment — so a solve that "converges" at
 :math:`\lVert\Delta\psi\rVert < \text{tol}` is actually
 :math:`\sim 100\cdot\text{tol}` from the solution. This is the
 canonical source-iteration stall-masking-as-convergence trap
-([AdamsLarsen2002]_).
+(:cite:`AdamsLarsen2002`).
 :meth:`~orpheus.transport.displacements._displacement.Displacement.true_error_estimate`
 surfaces it (it raises if :math:`\rho \notin [0,1)` — a
 non-contracting iteration has no finite geometric-tail estimate). The

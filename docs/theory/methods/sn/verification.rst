@@ -1143,7 +1143,7 @@ The spherical Morel--Montry weighted-diamond weight is
        \;\in\; [0, 1],
 
 the **unique** weight exact for an angular flux linear in :math:`\mu`
-([BaileyMorelChang2010]_ Eq. 43; the same object as
+(:cite:`BaileyMorelChang2010` Eq. 43; the same object as
 :eq:`mm-weights`).  The production code had wrapped it in a
 :math:`[\tfrac12, 1]` clamp,
 :math:`\tau_n = \mathrm{clip}(\tau_n^{\rm raw}, \tfrac12, 1)`, cited
@@ -1152,7 +1152,7 @@ to Lewis & Miller §4.5.
 W1 established, by three independent lines of evidence, that the clamp
 is **mis-cited and 100 % spurious on physical fields**:
 
-#. **Literature.** [BaileyMorelChang2010]_ state the admissible range
+#. **Literature.** :cite:`BaileyMorelChang2010` state the admissible range
    is :math:`\tau \in [0, 1]` and recommend *exactly* the unclamped
    :math:`\tau^{\rm raw}` (their Eq. 43) as the unique exact-on-linear
    weight; Hébert §3.9.4 uses pure diamond (:math:`\tau = \tfrac12`),
@@ -1373,7 +1373,7 @@ But the spherical DD discrete unknown **IS** the cell-volume average
    \overline{\phi}_{n,i}
        \;=\; \frac{4\pi}{V_i}\int_{r_{i-1/2}}^{r_{i+1/2}} r^2\,\phi_n(r)\,dr
 
-([Hebert2009]_ Eq. 3.430 — the unknown is *defined* as the shell
+(:cite:`Hebert2009` Eq. 3.430 — the unknown is *defined* as the shell
 average, not a point value; the diamond relation Eq. 3.431 relates it to
 the face fluxes).  Under :math:`r^2\,dr` weighting the volume-average and
 the midpoint point-value differ by :math:`\mathcal{O}(h)` at the pole
@@ -1400,7 +1400,7 @@ the residual-per-volume plateaus mesh-independently — because
 :math:`A_{\rm in} = 0` degenerates the streaming surface integral while
 :math:`V \sim h^3`.
 
-[Hebert2009]_ §3.9.4 and Stacey §9.9 **both** use exactly this plain
+:cite:`Hebert2009` §3.9.4 and Stacey §9.9 **both** use exactly this plain
 diamond + Carlson-starting-direction + symmetry scheme at the central
 cell with **no special** :math:`\mathcal{O}(h^2)` **closure, and
 neither flags reduced order there**.  First-order at the single pole
@@ -1422,7 +1422,7 @@ magnitude slightly *worse* (:math:`0.0050 \to 0.0106`), and a full-mesh
 through the balance.  A genuine fix needs a non-local higher-order
 central-cell reconstruction the canon does not provide — a linear-
 discontinuous (Issue #6), cell-update (#158), or nodal scheme
-([WuXieFischer1999]_ NSE 133).
+(:cite:`WuXieFischer1999` NSE 133).
 
 Why it is invisible to L2 and to :math:`k_{\rm eff}`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1640,12 +1640,12 @@ Open research paths (research-tag, not production-blocking)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #. **Higher-order central-cell spatial scheme** (lifts the #233 pole
-   :math:`\mathcal{O}(h)`).  The canon ([Hebert2009]_ §3.9.4, Stacey
+   :math:`\mathcal{O}(h)`).  The canon (:cite:`Hebert2009` §3.9.4, Stacey
    §9.9) provides no drop-in :math:`\mathcal{O}(h^2)` central-cell
    diamond closure; the documented route is a non-local higher-order
    *spatial* scheme — linear-discontinuous (Issue #6), step-
    characteristic, or the Green's-function nodal method of
-   [WuXieFischer1999]_ (NSE 133, "very high precision on coarse meshes
+   :cite:`WuXieFischer1999` (NSE 133, "very high precision on coarse meshes
    relative to standard fine-mesh DD").  Likely diagnostic probe: the
    pole-cell per-cell rate under the shell-average reference, holding
    quadrature fixed.
@@ -1672,9 +1672,9 @@ Session trail (V&V audit trail)
   decomposition; the discrete-balance residual fed exact fields; the
   faithful production-sweep monkeypatch with a :math:`\beta = \tfrac12`
   identity guard).
-* **Literature**: [Hebert2009]_ §3.9.4, Stacey §9.9 (plain diamond at
-  the central cell, no special closure), [BaileyMorelChang2010]_ Eq. 43
-  (the exact-on-linear weight), [WuXieFischer1999]_ (the nodal route to
+* **Literature**: :cite:`Hebert2009` §3.9.4, Stacey §9.9 (plain diamond at
+  the central cell, no special closure), :cite:`BaileyMorelChang2010` Eq. 43
+  (the exact-on-linear weight), :cite:`WuXieFischer1999` (the nodal route to
   :math:`\mathcal{O}(h^2)` at the origin).
 * **vv catalogue**: ``error_catalog.md`` — ERR-059 (the pole-cell
   inherent limitation) + the :math:`\tau`-clamp mis-citation finding +
