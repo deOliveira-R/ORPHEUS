@@ -12,20 +12,22 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 30 lessons (L-001…L-030), read FIRST each dispatch.
+- [lessons.md](lessons.md) — 31 lessons (L-001…L-031), read FIRST each dispatch.
   The spine: a page is done when every cross-ref resolves against the LIVE tree,
   every claim's V&V level matches the skill verbatim, every retired symbol leaves
   no dangling ref, and the build's WARNING/ERROR/CRITICAL set is unchanged from
   the `-E` baseline. Per-lesson detail is in lessons.md — do NOT re-summarize here
-  (this index stays slim). Newest L-030: the #231 G1 additive `:label:` backfill
-  playbook — on a derivation-MIRROR page the skeleton is already labeled so BARE
-  dominates (restatements/substitutions/companion-defs/std special-fns all stay
-  bare); fill only 5 gap classes (governing-eq parallel · unlabeled named-object
-  def · geometry-parallel · sibling-parallel · paper-`-eqNN` in the page family);
-  zsh does NOT word-split an unquoted `$var` so a naive uniqueness loop lies "0",
-  aligned `\\` blocks are ONE label-safe env, list-nested math labels at 5 spaces.
-  (L-026/027/028/029 = the #231 corpus split→de-dup→metadata→surface-taxonomy
-  patterns.)
+  (this index stays slim). Newest L-031: the #231 G2 docutils→bibtex citation
+  migration playbook — WHITELIST-scope the `[Key]_`→``:cite:`Key``` swap (built
+  from refs.bib keys + consolidation aliases) so non-keys auto-skip (`[A]_{:,j}`,
+  ``[Foo1234]_``, `[#footnote]_`) with no line-logic; the def-block remover must
+  be INDENTATION-keyed (a citation body holds an internal-blank nested `.. note::`)
+  AND whitelist-keyed (footnotes `.. [#name]` survive); 3-signal-gate every empty-
+  "References" heading removal (autosectionlabel off + no inbound `:ref:` + no
+  directional prose ⟹ remove); keylabel style ⟹ char-identical output; verify
+  `.py` diffs are docstring-only via git-diff grep; bibliography page gets its OWN
+  toctree subsection (not a solver toctree). (L-026/027/028/029/030 = the #231
+  corpus split→de-dup→metadata→surface-taxonomy→`:label:`-backfill patterns.)
 
 ## 2. Active / doc-debt state — git-true
 

@@ -131,6 +131,15 @@ Two genuinely OPEN branches (reconcile against git before trusting):
   diagonal/PoU special case (type the Gram-structure seam, don't build the dense
   solve), `Mixture.eg` bare-numpy, defer `OverlapBasis`-for-space.
 
+- [doc_label_naming_certification.md](doc_label_naming_certification.md) — method +
+  rulings for certifying descriptive equation `:label:` NAMING on the #231 theory
+  corpus (greppability / one-concept-one-spelling). Durable ruling: "one domain term,
+  two legitimate concepts" (`mg-multiplication-operator` K=A⁻¹F vs
+  `multiplication-operator-*` M[f]) = SHOULD-CONSIDER not MUST-FIX — the fix trades
+  token-overload for label-vs-prose divergence on entrenched vocab. Includes the
+  collision-scan-by-concept-token method, the section-anchor `-eq` rule, and
+  non-collisions that look like collisions (P_ii vs r_ii; areas vs fractions).
+
 Sibling-repo (`sphinxcontrib-nexus`, the project's Nexus engine) reviews — kept
 because the invariants are reusable and the repo shares the elegance discipline:
 

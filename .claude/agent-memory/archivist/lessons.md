@@ -2428,6 +2428,85 @@ confirm math unchanged / labels +N.
 
 ---
 
+## L-031 — The docutils→bibtex citation migration: whitelist-scope the swap (auto-skips non-keys), indentation-key the block remover (preserves nested notes + footnotes), 3-signal-gate every heading removal
+
+A corpus-wide `[Key]_` → ``:cite:`Key``` migration (sphinxcontrib-bibtex,
+#231 Phase G2: 233 swaps + 78 def-blocks across 46 files) is mechanical
+but has four traps a blanket regex walks straight into.
+
+- **Scope the swap by a WHITELIST built from `refs.bib` keys (+ ruled
+  consolidation aliases), NOT a blanket `\[\w+\]_` regex.** A non-key is
+  simply never a replacement target, so the whitelist auto-skips every
+  pseudo-site with ZERO line-number logic: `[A]_{:,j}` matrix notation,
+  a ``[Foo1234]_`` syntax example, and footnote uses `[#name]_` (the `#`
+  is outside `[A-Za-z0-9_]`). Literal `str.replace('[K]_', ':cite:`K`')`
+  preserves surrounding punctuation exactly and can NOT touch the def
+  line (`.. [K] ` ends in a space, not `]_`), so swap-order is irrelevant.
+  Consolidations map alias→canonical (`[PS1982]_`→``:cite:`Pomraning…```);
+  the alias key is REMOVED from refs.bib by the bib owner, so emit only
+  the canonical and verify zero leaked ``:cite:`AliasKey``` after.
+- **Def-block removal MUST be INDENTATION-based, not blank-delimited.** A
+  citation body can carry an INTERNAL blank line — a nested `.. note::`
+  admonition inside the `.. [Key]` block — so a "consume until blank"
+  remover ORPHANS the note (a real dry-run hit). Consume the `.. [Key]`
+  line + every following line indented deeper than the marker (internal
+  blanks folded in via lookahead: a blank whose next non-blank is
+  deeper-indented is internal), stopping at the first dedent-to-base.
+  KEY THE REMOVER TO THE WHITELIST so footnotes (`.. [#name]`) and any
+  non-citation `.. [x]` survive — a `[^\]]+` remover eats footnotes.
+- **Footnotes are a DIFFERENT docutils construct — preserve both halves.**
+  Always DRY-RUN-categorize every `[x]_` use AND every `.. [x]` def
+  against the whitelist first, printing UNKNOWN keys + STRAY brackets;
+  the dry-run is what surfaces the `.. [#name]` footnote family (3 here)
+  and any typo'd key before a single byte is written.
+- **Emptied-"References"-section removal needs a 3-SIGNAL cleanliness gate
+  (grep BEFORE removing any heading):** (1) is `autosectionlabel` enabled
+  in conf.py? — if OFF, a bare `References` heading is NOT a cross-ref
+  target; (2) any inbound `:ref:` to the section's explicit `.. _anchor:`
+  (grep tree-wide — here the sole `.. _bib-*:` citation anchor had zero
+  referrers → safe to drop with its citation); (3) directional prose
+  ("listed below", "the references section"). All three clean ⟹ REMOVE
+  heading+underline+preceding-blanks (asserted script: strip trailing
+  blanks, assert underline, assert heading text, pop). Referenced ⟹ keep
+  + one pointer line to the bibliography page. MIXED section (docutils
+  defs + a plain-text further-reading bullet list / "Internal references"
+  subsection) ⟹ KEEP the heading, delete only the def blocks.
+- **A NOTE describing the RETIRED docutils cross-doc citation mechanism is
+  Cardinal-Rule-1 obsolete post-migration — remove it.** ("Citations
+  shared across pages resolve cross-document via Sphinx's docutils
+  citation index; only local citations defined here" is now false under a
+  central refs.bib.) It housed the ``[Foo1234]_`` skip example, which
+  correctly vanishes with it — SKIPPING a pseudo-site (don't swap) is not
+  PRESERVING it forever; report the removal as a per-page decision.
+- **keylabel style ⟹ the migration is INVISIBLE to readers.**
+  `bibtex_default_style = 'keylabel'` renders the label AS the key, so
+  ``:cite:`Hebert2009``` displays `[Hebert2009]` — character-identical to
+  the retired bracket label. State this in the bibliography page's lead.
+- **Python docstring-only constraint is git-diff-verifiable.** A `]_`
+  operator can't appear in executable Python, so citation uses/defs live
+  ONLY in docstrings — but still GATE it: `git diff <pyfiles> | grep
+  '^[-+]' | grep -vE '^[-+]{3}'` and confirm every changed line is
+  docstring/reference text, zero `def`/`import`/logic. Confirm the one
+  math-notation skip file (`operator.py` `[A]_`) has an EMPTY diff.
+- **The new bibliography page is NOT a reference SOLVER.** `.. _anchor:`
+  above title, lead para (single citation home; entries in refs.bib /
+  Zotero upstream; keylabel; per-page lists retired), then a BARE
+  `.. bibliography::` (only cited entries render). Grep for a pre-existing
+  `.. bibliography::` (a second one warns) + label collision first. Place
+  it in its OWN labelled toctree subsection — dropping it into a
+  reference-SOLVER toctree miscategorises it; give it a `-` subsection
+  under "Pages" (size the underline in code points, L-009).
+
+How to apply: dry-run-categorize uses+defs against the refs.bib whitelist
+and report unknowns; literal-swap only whitelist keys (aliases→canonical);
+indentation-key the whitelist-scoped block remover (nested notes +
+footnotes survive); 3-signal-gate every heading removal (autosectionlabel
++ inbound `:ref:` + directional prose); remove stale mechanism-notes;
+verify `.py` diffs are docstring-only; give the bibliography its own
+toctree subsection. Full inline-output identity comes free from keylabel.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

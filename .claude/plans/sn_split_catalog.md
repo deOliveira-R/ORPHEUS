@@ -760,23 +760,39 @@ Cross-doc prose-ref polish candidates (NOT done, out of labels scope):
 cartesian_multid ~L3513 → :eq:`pi-r-equals-4pi-i`; sn/verification ~L4559
 → kinf-1g.
 
-**⏭ NEXT = G2 (`:cite:` migration).** Scope verified: 59 bracket-style
-defs across ~15 theory files, ALL UNIQUE keys; refs.bib has 12 entries
-(overlap: WuXieFischer1999, WIMSD, AdamsLarsen2002 at least); NO
-`.. bibliography::` directive exists; `bibtex_default_style='plain'`
-renders NUMERIC labels — decide a key-visible label style (custom pybtex
-key-label recipe in conf.py) so prose keeps the [LewisMiller1984]-style
-signal (internal consistency; zero prose-meaning drift). Plan: (1)
-literature-researcher builds complete refs.bib from the existing
-definition text (check scratch/literature/ FIRST per the delegation rule;
-Zotero MCP NOT wired this session — craft entries Zotero-reconcilable),
-(2) archivist swaps `[Key]_` → `:cite:` + deletes defs + adds the central
-bibliography page (docs/theory/references/bibliography.rst, toctree'd),
-(3) -W gate enforces closure (undefined citation = red). All-at-once swap,
-no coexistence window. Then G3 (`:term:` wiring — glossary exists, 0
-inbound). The CLI task tracker mirrors the queue (task #7 = Phase G
-in_progress; #8 = Phase H unblocked; #10 = V&V part + slices + vv-status
-tags; #15 = #304 residue; #16 = ch15).
+**✅ G2 DONE 2026-07-22** — the corpus is on sphinxcontrib-bibtex
+end-to-end. Infra @ `30a073fe`: refs.bib 12→59 entries (keys verbatim =
+drop-in swap; 33 CrossRef DOIs; **11 field-level errors in the old
+definition texts corrected INTO the bib** — the bib outranks any old page
+text; ledger = `.claude/agent-memory/literature-researcher/
+refs_bib_g2_corrections.md`); conf.py `keylabel` pybtex style →
+bibliography labels ARE the BibTeX keys, inline rendering
+character-identical to the old brackets. Matrix regen @ `56f0705b` (G1
+fallout: orphans 108→243; classification deferred to task #10). The
+atomic swap @ `263a7a4b` (49 files, +277/−736): 233 uses → `:cite:` (213
+rst + 20 docstring), 78 defs deleted (59 rst + 19 docstring — none of the
+docstring modules is automodule'd, so that front is source-consistency),
+`references/bibliography.rst` = the single citation home (toctree-wired);
+13 emptied References headings removed grep-verified, 1 mixed kept
+(singular_eigenfunction); RST footnotes + the two `[A]_` math
+pseudo-sites preserved. Consolidations (one concept, one spelling):
+PS1982→PomraningSiewert1982 · Sood1999→SoodLA13511_1999 ·
++MetcalfZweifel1968 (NSE 33(3):318–326 = Part II of the 1968 pair,
+CrossRef-resolved; companion noted). Citation-hygiene residue for a
+future editorial pass (flagged in the ledger, non-blocking):
+McCormickKuscer1965 (the 1966 companion is cross-ref'd in the note),
+ENDF102 (split keys if decay-data provenance wanted), MATPRO2003 (thin),
+Bondarenko1964 (full author list available).
+
+**⏳ G3 IN FLIGHT — `:term:` wiring.** 15 glossary terms, ZERO inbound
+today. Policy: first significant mention per page, wrap-don't-reword,
+inflections via ``:term:`x <term>``, no headings/math/literals,
+sense-checked per site (transport sweep ≠ parameter sweep);
+TH/fuel/kinetics excluded (no-investment rule); missing-term candidates
+REPORTED, not minted. Then: gate → commit → Phase-G record to GitHub
+#231 + tracker close. The CLI task tracker mirrors the queue (task #7 =
+Phase G in_progress; #8 = Phase H unblocked; #10 = V&V part + slices +
+vv-status tags; #15 = #304 residue; #16 = ch15).
 
 **Then:** H (the root page — Phase-I input IN HAND; **UNBLOCKED**: the
 #298/#299 fixes are in-branch @ `639cec9e`/`4425516c`, marked DONE @

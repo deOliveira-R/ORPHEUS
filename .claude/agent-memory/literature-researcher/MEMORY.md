@@ -84,6 +84,9 @@ Section 3 = git-true active state.
 - [dahl_sjostrand_1979_anisotropic_slab_sphere.md](dahl_sjostrand_1979_anisotropic_slab_sphere.md) — D-S 1979 NSE 69:114-125. Legendre-Galerkin on Carlvik integral eq; full c-eigenvalue SPECTRUM (≤11 eigenvalues) × {µ̄, d}; PRIMARY for P_1 slab+sphere; structurally INDEPENDENT of Sood F_N. NOT F_N.
 - [neshat_maiorino_1980_reflected_slab_fn.md](neshat_maiorino_1980_reflected_slab_fn.md) — N-M 1980 ANE 7:79-81, PDF read. Reflected-slab F_N (3 boundary integrals → 3(N+1) system); TRIVIAL extension of bare-slab F_N; unlocks ~10-14 Sood reflected-slab cases; Table 1 critical τ_c values.
 
+### Corpus bibliography (#231 Phase G2)
+- [refs_bib_g2_corrections.md](refs_bib_g2_corrections.md) — `docs/refs.bib` COMPLETE (59 entries; 59 rst + 2 docstring-only keys − 2 ruled aliases; pybtex-clean, DOIs CrossRef-verified); ledger of in-text-def errors corrected in FIELDS (keys immutable): WuXieFischer authors, Sanchez2002 coauthors, TTSP vol 15, Stepanek 53-65, Knyazev 368-374, Garcia vols 405/424, BIS 72-77, Carlvik-1965, Mitsis G.J., McCormick-Kuscer + ENDF102 conflations; +MetcalfZweifel1968 = NSE 33(3):318-326 Part II (A19240); swap MUST map PS1982→PomraningSiewert1982, Sood1999→SoodLA13511_1999. Trust the BIB over page/docstring defs.
+
 ### Tooling
 - [reference_zotero_flakiness.md](reference_zotero_flakiness.md) — diagnose a broken Zotero MCP server (0-hit + conn-refused on port 23119) and fail over to Tier 2 (see L7).
 
