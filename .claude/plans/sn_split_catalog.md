@@ -726,17 +726,57 @@ memory said open — trust git/gh). **The residue a heading-scoped sweep cannot
 reach = #304** (P10 label re-namespacing · code-side campaign comments ·
 2 prose two-spellings, low/optional).
 
-**⏭ IMMEDIATE NEXT = Phase G (backfill) — queued at compaction (2026-07-22).**
-Charter (corpus plan): equation labels on unlabeled load-bearing displays ·
-`:term:` wiring (the glossary has ZERO inbound links today) · `:cite:`
-migration (reST citations → bibtex where ruled) · V&V slices. *Post-compaction
-opening move = the scoping STEER*: verify the exact spec at the corpus plan's
-Phase-G line first, then ask (1) which of the four backfill families first,
-(2) whether `:cite:` migration is ruled at all (check #231's settled design +
-the Phase-0 bibtex state before asking). The CLI task tracker mirrors the
-queue (task #7 = Phase G; #8 = Phase H unblocked; #15 = #304 residue; #16 =
-ch15). The elegance-enforcer instance dies at compaction — Phase G briefs a
-fresh one per its own review needs.
+**⏳ IN FLIGHT = Phase G (backfill) — steer RULED 2026-07-22.** Order =
+**G1 equation labels → G2 `:cite:` → G3 `:term:`**; **V&V slices FOLD INTO
+task #10** (the three-layer part design dictates the slice format — no
+provisional per-page slices). `:cite:` confirmed ruled (Option 1 per corpus
+plan §9; bibtex WIRED but INERT — `sphinxcontrib.bibtex` + `refs.bib` with 12
+orphan entries, zero `:cite:` uses, NO `.. bibliography::` directive; theory
+carries 59 bracket-style defs, ALL UNIQUE keys — #231's "duplicated across
+pages" claim is stale, the campaign consolidation dedup'd them). G1 scope:
+~450 unlabeled displays (1127 math / 677 labeled), MINUS
+thermal_hydraulics(25)/fuel_behaviour(16)/reactor_kinetics(4) — EXCLUDED
+under the no-investment rule (subsystem fate undecided) → ~405 to adjudicate
+in 3 parallel archivist batches: A = methods/sn (~92) · B =
+foundations+methods-non-sn+conventions+root-verification (~106) · C =
+references (~194, derivation-heavy — label the skeleton, not every vertebra).
+
+**✅ G1 DONE 2026-07-22** — 135 labels / 405 adjudicated (A 38/96 @
+`91477611` · B 66/111 @ `85f2222b` · C 31/198 @ `72146f0a`), ~270
+deliberately bare (restatements / intermediate algebra / worked numbers).
+Enforcer certify: all three batches CERTIFIED, ZERO must-fix (matrix
+orphan-count 108→243 = independent collision-free proof). SC dispositions:
+SC-1 multiplication-operator term collision → **ledgered as notation
+crosswalk row 9** (domain-inherent: reactor-physics K=A⁻¹F vs
+functional-analysis M[f]; label namespaces already disjoint — NO rename);
+SC-3 bte/transport-equation + SC-4 pincell/pin-cell → **filed on #304**;
+SC-2 balance-prefix (anchor-mirroring, deliberate) + SC-5 accepted as-is.
+**vv-status tagging of the new labels DEFERRED to task #10** (per-equation
+V&V classification = the slice format; ~43 of B's 66 sit on vv-status
+pages, all documentation/definitional class; A flagged
+sn-mms-nonvacuum-qext-mg → inherit sibling's `verified` if SymPy-covered;
+`resolvent-object-gate` = natural verifies() target for the Mode-12 test).
+Cross-doc prose-ref polish candidates (NOT done, out of labels scope):
+cartesian_multid ~L3513 → :eq:`pi-r-equals-4pi-i`; sn/verification ~L4559
+→ kinf-1g.
+
+**⏭ NEXT = G2 (`:cite:` migration).** Scope verified: 59 bracket-style
+defs across ~15 theory files, ALL UNIQUE keys; refs.bib has 12 entries
+(overlap: WuXieFischer1999, WIMSD, AdamsLarsen2002 at least); NO
+`.. bibliography::` directive exists; `bibtex_default_style='plain'`
+renders NUMERIC labels — decide a key-visible label style (custom pybtex
+key-label recipe in conf.py) so prose keeps the [LewisMiller1984]-style
+signal (internal consistency; zero prose-meaning drift). Plan: (1)
+literature-researcher builds complete refs.bib from the existing
+definition text (check scratch/literature/ FIRST per the delegation rule;
+Zotero MCP NOT wired this session — craft entries Zotero-reconcilable),
+(2) archivist swaps `[Key]_` → `:cite:` + deletes defs + adds the central
+bibliography page (docs/theory/references/bibliography.rst, toctree'd),
+(3) -W gate enforces closure (undefined citation = red). All-at-once swap,
+no coexistence window. Then G3 (`:term:` wiring — glossary exists, 0
+inbound). The CLI task tracker mirrors the queue (task #7 = Phase G
+in_progress; #8 = Phase H unblocked; #10 = V&V part + slices + vv-status
+tags; #15 = #304 residue; #16 = ch15).
 
 **Then:** H (the root page — Phase-I input IN HAND; **UNBLOCKED**: the
 #298/#299 fixes are in-branch @ `639cec9e`/`4425516c`, marked DONE @

@@ -2346,6 +2346,88 @@ WARNING/ERROR/CRITICAL set pre/post.
 
 ---
 
+## L-030 — Additive `:label:` backfill on a derivation-mirror page: the skeleton is already labeled, so BARE dominates; fill only 5 recognizable gap classes
+
+The #231 G1 batches insert descriptive `:label:` under unlabeled
+`.. math::` on the literature-mirror corpus (`docs/theory/references/*`).
+PURE ADDITIVE — a `:label:` line only, at option indent, immediately
+after the `.. math::`; touch no content/prose/headings. Recount per
+file yourself (`grep -cE "^\s*\.\. math::"` vs `grep -cE "^\s+:label:"`),
+never trust the brief's count. The adjudication discipline:
+
+- **On a page that mirrors a published derivation CHAIN, the checkpoints
+  are usually ALREADY labeled** (governing eq, named kernels/Green's/
+  resolvents, final boxed results, paper-numbered key eqs). So the
+  unlabeled residue is dominated by TRUE intermediates that correctly
+  STAY BARE — "label the skeleton, not every vertebra." The BARE classes
+  (each recurred dozens of times): step-to-step algebra between two
+  labeled checkpoints; substitution/change-of-variable steps; an
+  immediate RESTATEMENT of an already-labeled eq (often cross-ref'd with
+  `:eq:` right there — a dead giveaway); a COMPANION definition under a
+  labeled eq (the `K_ij = …` under a labeled Nyström eq; the `where
+  T_vol is …` operator/kernel defs under a labeled operator form; the
+  `where B_LR = …` under a labeled closure); a STANDARD special-function
+  integral representation (E₁, Ki₁, Ki₃ — labeled once via its own
+  derivation, then restated bare); a test-gate closed-form realization;
+  a cost/complexity model; a geometric parametrisation (chord length,
+  ρ_max, law of cosines); a SCHEMATIC contrast (`∝`, a template with a
+  text "(geometry factor)" placeholder); a numerical RESULT / sanity-
+  check evaluation (`k_eff = 1.00421`, a vacuum-limit = 4); and
+  deferred-investigation or falsified-heuristic components. Ratios land
+  low BY DESIGN — trajectory_resolvent was 2 labeled / 31 bare,
+  peierls_nystrom 8 / 88; that is the guidance applied correctly, not
+  under-labeling.
+
+- **The GENUINE gaps are a small, recognizable set — fill these:**
+  (a) **Governing-eq parallel** — a page's BTE / 3-D transport eq when a
+  SIBLING page already labels its own (galerkin_spectral `-bte` →
+  mirror on fn_method `fn-method-bte`, peierls_nystrom
+  `peierls-transport-equation-3d`); label for cross-page consistency.
+  (b) **Unlabeled named-object definition** the page/corpus uses BY NAME
+  but never labeled — escape probability `P_esc`, a continuum dispersion
+  function `λ(ν)`, a discrete pseudo-eigenfunction, an L² inner product /
+  Galerkin-orthogonality principle. (c) **Geometry-parallel gap** —
+  cylinder+sphere carry `-nystrom`/`-row-sum-identity` but slab doesn't
+  (fill the slab), or vice-versa. (d) **Sibling-parallel result** —
+  sphere T-matrix labeled but cylinder/slab aren't; slab labels BOTH P
+  and G mode formulas but cylinder only labels P (fill the cylinder G) —
+  so grep finds the whole set. (e) **Paper-numbered key eq** in the
+  page's ESTABLISHED `<page>-eqNN` family (`galerkin-spectral-eq3`
+  joining `-eq4`; `singular-eigenfunction-eq47` joining `-eq46/-eq54`;
+  `wm72-eq21d-normalization` joining `wm72-eq30/31/32`). The `-eqNN`
+  domain-form-with-number IS the page's precedent, NOT the forbidden
+  bare-positional `eq7` — match the family, don't invent a scheme.
+
+- **Mechanics that bit this task (all avoidable):**
+  - **zsh does NOT word-split an unquoted `$var`** (bash does). A
+    `for n in $names` uniqueness loop silently ran ONCE on the whole
+    concatenated string and printed a false "0 collisions". Use an
+    explicit literal list (`for n in a b c …`) or `${=names}`. The
+    per-name `grep -rn ":label: $n\$" docs/theory` gate (must return
+    NOTHING before finalizing) is mandatory — labels are PROJECT-GLOBAL,
+    a dup fails `-W`.
+  - **Edit `old_string` must match LIVE bytes, not a prior render.** A
+    block read earlier as `\mathrm dy` was actually `\mathrm{d}y`
+    (braces); the edit missed → re-read the exact lines and retry.
+  - **An aligned block (`A &= … \\ B &= …`, NO blank line) is a SINGLE
+    align environment** — one `:label:` labels the whole block, SAFE.
+    The "don't label multi-equation blocks" rule targets only
+    BLANK-line-separated sub-equations (none appeared in this corpus).
+  - **A list-nested `.. math::` (2-space indent) takes its `:label:` at
+    5 spaces** (directive-indent + 3), not 3.
+  - Do NOT run sphinx-build (main agent runs the gate once post-batch).
+    Verify instead by recount (math count UNCHANGED ⇒ no block corrupted;
+    label count up by exactly N) + the per-name uniqueness grep.
+
+How to apply: recount yourself → learn each page's existing label
+FAMILIES first (`grep -nE "^\s+:label:"`) → read each unlabeled block's
+surrounding prose and default BARE unless it hits one of the 5 gap
+classes → name in the page's family word-order → per-name uniqueness
+grep (with a shell that actually word-splits) → apply, then recount to
+confirm math unchanged / labels +N.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:
