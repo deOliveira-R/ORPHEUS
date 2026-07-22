@@ -291,7 +291,7 @@ estimator** — fission production over net removal,
 
 the eigenvalue of the fixed-source map that scales only fission by
 :math:`1/k` (derived in :ref:`sn-keff-estimator` in
-:doc:`/theory/methods/sn/index`).
+:doc:`/theory/methods/sn/solver`).
 
 The MC solver (:mod:`orpheus.mc`) has **no** ``compute_keff`` member and
 does not implement this deterministic protocol: its

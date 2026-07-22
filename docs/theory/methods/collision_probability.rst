@@ -1735,7 +1735,7 @@ Implemented by :func:`~numerics.eigenvalue.power_iteration` via the
       fission scaled by :math:`1/k`).  The same discipline was
       retrofitted onto SN (the #291 boundary-leakage term) and MoC (the
       R7 numerator/denominator flip); see :ref:`sn-keff-estimator` in
-      :doc:`/theory/methods/sn/index`.  Only the **substrate** still differs —
+      :doc:`/theory/methods/sn/solver`.  Only the **substrate** still differs —
       CP contracts group-last ``CellXS`` arrays where SN uses the typed
       :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
       fields — and unifying that is the #259 close-out follow-up.

@@ -61,7 +61,7 @@ References
   inverse pitfall.
 - ``.claude/lessons.md`` L21 — sweep and matvec are different
   applications of the same operator → share ONE strategy.
-- Sphinx theory: ``docs/theory/methods/sn/index.rst``
+- Sphinx theory: ``docs/theory/methods/sn/slab_one_group.rst``
   (transport-cartesian) and
   ``docs/theory/methods/sn/curvilinear_one_group.rst``
   (sn-curvilinear-homogeneous-kinf-recovery).

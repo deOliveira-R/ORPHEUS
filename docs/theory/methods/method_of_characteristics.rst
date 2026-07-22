@@ -803,7 +803,7 @@ When :math:`\Sigma_2 = 0`, :eq:`moc-keff-update` reduces to the standard
    (:math:`\nu\Sigma_f = 0.25`, :math:`\Sigma_c + \Sigma_f - \Sigma_2 =
    0.2`).  The old value was not a regression to tolerance-match but a
    different functional; see the SN close-out of the same discipline
-   (:ref:`sn-keff-estimator` in :doc:`/theory/methods/sn/index`).  The MoC
+   (:ref:`sn-keff-estimator` in :doc:`/theory/methods/sn/solver`).  The MoC
    diagnostic ``print`` of the old ratio was retired with the fix.
 
 Implemented in :meth:`MOCSolver.compute_keff`.  Verified by

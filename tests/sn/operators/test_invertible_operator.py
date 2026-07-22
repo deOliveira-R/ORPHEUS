@@ -684,7 +684,7 @@ class TestInvertibleSolveBridgeRegression:
 
     - ``.claude/lessons.md`` L18 — Pattern 7 producer-side normalisation.
     - ``.claude/lessons.md`` L21 — sweep and matvec share ONE strategy.
-    - Sphinx theory: ``docs/theory/methods/sn/index.rst``
+    - Sphinx theory: ``docs/theory/methods/sn/slab_one_group.rst``
       (transport-cartesian) and
       ``docs/theory/methods/sn/curvilinear_one_group.rst``
       (sn-curvilinear-homogeneous-kinf-recovery).
