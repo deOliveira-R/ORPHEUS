@@ -1,9 +1,18 @@
 # Interlude — the literature OCR tool (Mistral) for the literature-researcher
 
-**Status: ⏭ NEXT after compaction (user-ruled 2026-07-22).** Build → use on the
-library → compact again → resume the #231 queue (#304 · ch15 · #231 Phase 2 ·
-task #10). This file is the whole re-anchor; a fresh session needs only it plus
-the referenced RX7 files.
+**Status: ✅ DONE 2026-07-22.** The tool is `tools/ocr_literature.py`
+(pyright-CLI clean). Sweep result: **58/58 PDFs → 2223 pages, ~$2.17**
+(one transient Mistral 500 on Westfall-Metcalf, retried clean; the 30 MB
+Calvik and the 476-page Century-in-Review volume both passed). Validation
+anchor held: all 8 visually-verified Sanchez memo quotes found **on the
+correct pages** (`## p. 3` = printed 482, `## p. 33` = printed 512), and
+the printed-page mapping auto-detected **+479 with 55/56 supporting
+pages** — exactly the memo's page map. Rules landed: `delegation.md`
+sidecar-first/scan-SSOT/filter-discipline section + a **Tier 0 — local
+library** block in the literature-researcher AGENT.md (loads fresh per
+dispatch). Sidecars + caches live untracked in `scratch/literature_ocr/`
+(12 MB; regeneration from cache is free). Next: compact, then the #231
+queue (#304 · ch15 · #231 Phase 2 · task #10).
 
 ## Why (the incident)
 

@@ -42,3 +42,23 @@ locally.
   folder; acquire it, or will you add it?" — NOT a unilateral pivot to a secondary source.
 - Pivoting to a secondary source is a structural decision (different math path, possibly
   weaker verification claim) that needs **user approval**, not agent autonomy.
+
+### OCR sidecars — the search/quote surface; the scan stays the SSOT
+
+Every library PDF has a Mistral-OCR sidecar at `scratch/literature_ocr/<stem>.md`
+(per-page `## p. <N>` sections, N = 1-based PDF page = the number `Read pages=` takes;
+the provenance header carries the printed-page mapping). Regenerate/extend with
+`.venv/bin/python tools/ocr_literature.py` (cache-idempotent; re-runs never re-bill).
+
+- **Sidecar FIRST**: grep/read the sidecar before any visual page read — it is the
+  search, navigation, and prose-quotation surface. Visual reads (`Read` with `pages=`)
+  are for verification and for figures/layout the OCR can't carry.
+- **The scan is the SSOT**: any **load-bearing equation** is spot-verified against the
+  rendered page before it is transcribed into a theory page or a solver (the
+  ERR-032-class hazard: a plausible-but-wrong reference equation).
+- **Output discipline (the 2026-07-22 content-filter lesson)**: two agents died on
+  `400 Output blocked by content filtering policy` while *generating* long verbatim
+  transcriptions of scanned nuclear literature. Paraphrase + page-cite; keep verbatim
+  quotes short; SELECT from the sidecar text instead of transcribing from page renders;
+  and write findings to the deliverable file INCREMENTALLY so a mid-run kill preserves
+  progress (both dead agents lost everything — zero bytes written).

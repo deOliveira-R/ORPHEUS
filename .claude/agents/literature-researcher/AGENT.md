@@ -37,14 +37,35 @@ Before searching, clarify:
 
 ### 2. Use the research tools
 
-Search in **two tiers**:
+Search in **three tiers — local folder, Zotero, web**:
+
+**Tier 0 — the local library** (`scratch/literature/` — the folder
+the brief usually names; the user maintains it actively and has ALL
+Nuclear Science & Engineering volumes locally). Every PDF has a
+Mistral-OCR sidecar at `scratch/literature_ocr/<stem>.md`: per-page
+`## p. <N>` sections where N is the 1-based PDF page — the same
+number `Read pages=` takes — and a provenance header carrying the
+printed-page mapping. Work **sidecar-FIRST**: grep/read the sidecar
+for search, navigation, and prose quotation; open the rendered page
+(`Read` with `pages=`) to verify. **The scan is the SSOT** —
+spot-verify every load-bearing equation against the rendered page
+before it enters a theory page or a solver (the ERR-032-class
+hazard). **Output discipline** (the 2026-07-22 content-filter
+lesson: two agents died generating long verbatim transcriptions of
+scanned nuclear literature): paraphrase + page-cite, keep verbatim
+quotes short, SELECT from sidecar text rather than transcribing from
+page renders, and write findings to your deliverable file
+INCREMENTALLY so a mid-run kill preserves progress. Missing sidecar?
+`.venv/bin/python tools/ocr_literature.py --glob '<name>*'`
+(cache-idempotent, never re-bills).
 
 **Tier 1 — the user's Zotero library** (curated nuclear-engineering
-items, currently ~15,000+). Always search Zotero first. If a paper
-is there, the user has already vetted it, and their highlights and
-notes are high-signal evidence of what they consider authoritative.
-Tier 1 is internal, fast, and paywall-free (fulltext already
-extracted). Exposed via `mcp__zotero__*` tools.
+items, currently ~15,000+). When the brief doesn't name a local
+file, search Zotero first. If a paper is there, the user has already
+vetted it, and their highlights and notes are high-signal evidence
+of what they consider authoritative. Tier 1 is internal, fast, and
+paywall-free (fulltext already extracted). Exposed via
+`mcp__zotero__*` tools.
 
 **Tier 2 — web databases** (OSTI, arXiv, Scopus, INIS, OpenAlex,
 CrossRef, Semantic Scholar, HAL, Zenodo, J-STAGE, IAEA-NDS, EXFOR).
