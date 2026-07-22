@@ -2082,6 +2082,33 @@ in the AUTHORED header you wrap around it.
   it proves the LINKS work, not that the PROSE naming the old page is current). When the boundary
   is a real anchor (not an anchorless stub), the contiguity proof is clean — split #3 had exactly
   ONE H1 as the coordinator pre-scanned; still ran the count-all-H1 proof to confirm.
+- **Split-#6 calibration (BISECTION: one page → TWO new children, source page DELETED — NOT the
+  "extract-N-into-one-page, source-survives-as-a-`:doc:`-stub" model of #1–#5). Two structural
+  facts the survivor-stub model never surfaces.** (a) **The source page-LABEL is RE-HOMED to the
+  MAJORITY child, not left on a stub.** The source dissolves entirely, so its top
+  `.. _<page-label>:` travels (verbatim) above the majority child's NEW title; every external
+  inbound `:ref:` (audit the count — 9 sites here) auto-repoints to the child's new FILENAME with
+  ZERO edits on the consumers (label path-immunity, exactly like a moved section anchor — HTML-audit
+  that they land on `<majority-child>.html#<page-label>`, not the deleted file). The MINORITY child
+  gets a BRAND-NEW label (absent pre-split). Single-homing is still the anchor-DEFINITION check
+  (L-024): each `^\.\. _<name>:` == 1 tree-wide. (b) **Extracting a MIDDLE H1 while KEEPING its
+  trailing H2 subsection → the H2 AUTO-REPARENTS to the PRECEDING H1.** When the brief keeps a
+  subsection whose PARENT H1 is the one being extracted (keep "Cell-flattening invariant" H2, extract
+  its parent "Cross-section convention" H1), removing the parent header re-attaches the orphaned H2 to
+  the nearest preceding higher section (the previous chapter's H1 — "Derivation"). VERIFY TWO things:
+  no title-level SKIP results (H1→H2 is legal and builds clean; H1→H3 would warn), AND the reparent is
+  SEMANTICALLY intended (the kept subsection must belong under its new parent — the layout round-trip
+  genuinely IS derivation content, even though it uses `sig_t` as the example). The brief's
+  heading-LEVEL claim can be flatly wrong ("an H3 inside the Derivation chapter" for what the live
+  `awk`/grep proves is an H1 SIBLING of Derivation) — L-001: the live underline rows are authoritative,
+  and the programmatic guard-asserts on the EXACT header+underline strings catch a drifted boundary
+  before any write. (c) **Blank-line glue at each splice follows the file's LOCAL convention** (this
+  file: 1 blank between H2 siblings, 2 at H1 transitions) — after removing a middle span, DISCARD the
+  bracketing structural blanks so the survivor spacing matches its new neighbours (char-identity applies
+  to the moved CONTENT, L-013; the glue matches the destination, L-009). Boundary-crossing `:ref:`
+  (a moved span references a label that STAYS, or vice-versa) needs NO syntax change — it silently
+  becomes a cross-doc ref and resolves by name; HTML-audit it lands (here the XS page's
+  `:ref:`…<sn-cell-flattening-invariant>`` → `indexing_and_layout.html#…`).
 
 How to apply: title-locate → prove contiguity (count ALL `===` H1s) →
 grep-inventory every label → programmatic guarded slice → author the
