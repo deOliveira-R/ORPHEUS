@@ -784,15 +784,36 @@ McCormickKuscer1965 (the 1966 companion is cross-ref'd in the note),
 ENDF102 (split keys if decay-data provenance wanted), MATPRO2003 (thin),
 Bondarenko1964 (full author list available).
 
-**⏳ G3 IN FLIGHT — `:term:` wiring.** 15 glossary terms, ZERO inbound
-today. Policy: first significant mention per page, wrap-don't-reword,
-inflections via ``:term:`x <term>``, no headings/math/literals,
-sense-checked per site (transport sweep ≠ parameter sweep);
-TH/fuel/kinetics excluded (no-investment rule); missing-term candidates
-REPORTED, not minted. Then: gate → commit → Phase-G record to GitHub
-#231 + tracker close. The CLI task tracker mirrors the queue (task #7 =
-Phase G in_progress; #8 = Phase H unblocked; #10 = V&V part + slices +
-vv-status tags; #15 = #304 residue; #16 = ch15).
+**✅ G3 DONE 2026-07-22 @ `2ebc4326`** — 206 `:term:` wires / 48 pages;
+all 15 terms connected (white-BC = 1 by exhaustion — every other
+occurrence is a heading/bold/class name; lethargy = 3, elsewhere a code
+identifier); wrap-only mechanically proven (strip-markup diff invariant,
+206+/206−); sense-skips held (energy/parameter sweeps NOT wired);
+sn/history left unwired (changelog asides — flag if wanted). **9
+missing-glossary-term candidates** recorded on #231 (source iteration ·
+within-group operator · streaming operator · angular redistribution ·
+closure · moment · partial current · MMS · ray effect) for a future
+entry batch.
+
+**═══ PHASE G CLOSED end-to-end 2026-07-22 ═══** (G1 labels @
+`91477611`/`85f2222b`/`72146f0a`+`893cfc85` · G2 bibtex @
+`30a073fe`/`56f0705b`/`263a7a4b` · G3 terms @ `2ebc4326`; records @
+`279bcd2f`/`3d79e1f0`). The graph payload: +135 equation nodes, the
+citation corpus centralized (59 keys, DOI-enriched), the TERM node type
+populated (206 edges). Deferred-with-owner: vv-status/verifies()
+classification → task #10; glossary growth → the 9 candidates on #231;
+label-token residue → #304.
+
+**⏭ NEXT = Phase H — THE ROOT PAGE** (`foundations/path_integral.rst`,
+corpus plan §3.6): UNBLOCKED (the #298/#299 fixes are in-branch @
+`639cec9e`/`4425516c`; issues auto-close at push). **Read §3.6's 12
+MUST-NOT claims before writing a word**; Phase-I survey input in hand
+(`.claude/plans/phase_i_survey_{larsen_morel_2010,adams_larsen_2002}.md`);
+placement.rst (M7) rides its adjacency. Opening move = re-read corpus
+plan §3.6 + the two survey files, then steer scope/structure with the
+user. The CLI task tracker mirrors the queue (task #7 = Phase G
+COMPLETED; #8 = Phase H next; #10 = V&V part + slices + vv-status tags;
+#15 = #304 residue; #16 = ch15).
 
 **Then:** H (the root page — Phase-I input IN HAND; **UNBLOCKED**: the
 #298/#299 fixes are in-branch @ `639cec9e`/`4425516c`, marked DONE @
