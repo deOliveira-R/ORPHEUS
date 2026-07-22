@@ -32,7 +32,7 @@ Discrete Ordinates Method (S\ :sub:`N`)
       composites:
         A: "L + C - S - B — the within-group loss operator; the Krylov driver applies it"
         (L+C): "lower-triangular under the upwind cell ordering; (L+C)⁻¹ IS the transport sweep"
-      key_types: [AngularFlux, SNMesh, HarmonicMomentField, SweepDependencyGraph]
+      key_types: [AngularFlux, SNMesh, HarmonicMomentFlux, SweepDependencyGraph]
       entry_points:                    # qualnames; Nexus links via implements edges
         - orpheus.sn.solver.solve_sn
         - orpheus.sn.solver.SNSolver

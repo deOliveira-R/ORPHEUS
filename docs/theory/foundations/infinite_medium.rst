@@ -340,9 +340,13 @@ is stored in the **from-row, to-column** convention:
 
 That is, row :math:`g'` gives the **source group** and column :math:`g`
 gives the **destination group**.  A downscatter-only matrix is therefore
-**lower-triangular**: non-zero entries only below (or on) the diagonal,
+**upper-triangular**: non-zero entries only on or above the diagonal,
 because :math:`\Sigs{g' \to g} = 0` when :math:`g < g'` (no neutrons
-scatter from thermal to fast).
+scatter from thermal to fast).  Its transpose — the form that acts on
+:math:`\boldsymbol{\phi}` in the in-scattering sum below — is
+correspondingly lower-triangular, which is why the two-group operator
+:eq:`two-group-A` carries its off-diagonal entry
+:math:`-\Sigs{1 \to 2}` below the diagonal.
 
 The neutron balance :eq:`mg-balance` requires the **in-scattering** into
 group :math:`g` from all groups :math:`g'`:
