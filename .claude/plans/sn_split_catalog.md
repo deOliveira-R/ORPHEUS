@@ -653,24 +653,31 @@ above). With this, **every row of the chapter catalog is terminal** (✅/absorbe
 except ch15's #276-blocked authoring half and ch1 `placement.rst` (Phase-D scoped) —
 **Phase C is CLOSED end-to-end.**
 
-**⏭ NEXT = Phase D (routers) — the main thread; Phase I (literature survey) DISPATCHED
-in parallel (2026-07-21).** Phase D per the corpus plan: P2 "router + leaves" (every part
-gets a ~150-ln GENUINE-map index; agent loads the router, then exactly one leaf) + P5
-tracks (newcomer · modifying-the-sweep · porting-an-equation · debugging-a-wrong-k) + the
-M2 answer (a symptom→chapter diagnostic table in each part index); ch1 `placement.rst`
-(why-SN-vs-CP/MoC/P_N/diffusion, M7) is Phase-D scoped. Opening move = the router-surface
-disassembly (inventory every part index vs the P2 bar) + a scope/order steer. Phase I:
-two literature-researcher agents on the OCR'd local texts (L&M 2010 = ch.1 of
-`scratch/literature/Nuclear Computational Science - A Century in Review.pdf` pp. 1–84;
-`scratch/literature/Adams-Larsen(2002) Fast iterative methods for discrete-ordinates
-particle transport calculations.pdf`) — fill the corpus §3.2 table rows, harvest M4b
-(ρ≈c / Fourier / asymptotic diffusion limit / admissibility) + M2 (symptom→cause),
-extract the L&M section structure (the mini-book's closest structural precedent);
-deliverables → `.claude/plans/phase_i_survey_{larsen_morel_2010,adams_larsen_2002}.md`
-(main agent merges into the corpus plan — agents do NOT edit it). **Then:** ch15
-authoring half (daggered posing/ψ*, blocked on #276 A4/A5) · phases E (conventions) → F
-(archaeology) → G (backfill) → H (root page, feeds on Phase I) · #231 Phase 2 (code-prose
-rebalancing) · task #10 (three-layer V&V part build-out).
+**✅ Phase D DONE + Phase I LANDED (both 2026-07-21, one session).** Phase I: both surveys
+delivered (`.claude/plans/phase_i_survey_{larsen_morel_2010,adams_larsen_2002}.md`, §3.2
+rows filled @ `be765fce` — the niche thesis SURVIVED sharpened: verification ZERO in both
+reviews; L&M spatial-half-only (BMC absent from its bibliography); A&L confirms no
+discrete curvilinear Fourier exists; the A&L p. 140 GMRES-outside-DSA quote licenses
+#200/#2; the #2 DSA reading map's four primaries all local). Phase D (ratified order):
+(1) `methods/index` §2.3 rebuild @ `8c4fa608` (thin child of the root; the diffusion
+moment-reduction gap → **#303**); (2) the SN router @ `366e0bec` — the four P5 tracks +
+the 11-row `sn-symptom-table` (every row enforcer-verified to ANSWER its symptom);
+(3) foundations/theory-root/verification **NO CHANGE — already at the P2 bar** (enforcer
+adversarial CONCUR: candidate additions would TWIN existing routing; verification's
+three-layer future = #10); (4) the corpus root's orient-and-delegate paragraph @
+`60790f4b`. `placement.rst` deferred to Phase-H adjacency (user-ruled).
+
+**⏭ NEXT = Phase E (the conventions part, M1)** — "mostly new writing; the biggest
+differentiator": `conventions/` today = a 43-ln index + `index_convention.rst`;
+`notation.rst` + `normalization.rst` are the Phase-E writing (the M1 evidence: the canon
+contradicts itself — Hébert's Σw = 2 vs Σw = 1 five pages apart, the (2ℓ+1)/4π prefactor
+tied silently to dimensionality, destination-first vs source-first scattering arrows; the
+ORPHEUS answer = the crosswalk + the machine headers). Opening move = disassembly of the
+existing conventions surfaces (the SN machine header · `index_convention.rst` ·
+foundations normalization passages · the M1/M5 survey harvests incl. L&M's β/α
+symbol-collision row) + an outline steer. **Then:** Phase F (archaeology) → G (backfill)
+→ H (root page — Phase-I input in hand; still gated on #298/#299) · ch15 authoring half
+(#276-blocked) · #231 Phase 2 (code-prose rebalancing) · task #10 (three-layer V&V part).
 
 *Standing facts:* branch `docs/sn-doc-architecture` UNPUSHED; citations + eq-labels are
 project-global; recipe = "The per-chapter recipe" section above (L35 three-way grep + L34

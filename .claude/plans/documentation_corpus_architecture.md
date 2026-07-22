@@ -537,10 +537,17 @@ Ordered for reversibility and early payoff. **A and B are independently valuable
   archivist executes → main-agent reviews diff-vs-catalog). Start with SN (§5). **This is
   Phase 1d of the in-flight campaign, re-scoped: "split into chapters" ⊃ "decompose in place."**
 - **Phase D — Write the routers** (indexes, tracks, diagnostic tables). Payoff: P2 realized.
-  **STARTED 2026-07-21 (user-ratified order):** (1) `methods/index` §2.3-corrected rebuild →
-  (2) the SN sub-book router (tracks + the M2 symptom→chapter table) → (3) foundations /
-  theory-root / verification polish → (4) the corpus root. `placement.rst` (M7) **deferred to
-  Phase-H adjacency** (the root owns the comparative map; Sanchez(1982) is local when needed).
+  **✅ DONE 2026-07-21 (user-ratified order, 4 items):** (1) `methods/index` rebuilt to the
+  §2.3 corrected division @ `8c4fa608` (thin child: root pointer + the differential transport
+  equation + one-line identifications + tracks; the transport→P1 moment-reduction gap it
+  surfaced = **#303**); (2) the SN sub-book router @ `366e0bec` (the four P5 tracks + the M2
+  **symptom→chapter table**, anchor `sn-symptom-table`, 11 rows each verified to ANSWER its
+  symptom); (3) foundations / theory-root / verification adjudicated **NO CHANGE — already at
+  the P2 bar** (enforcer adversarial pass CONCURRED: the candidate additions would TWIN the
+  SN symptom table / theory-root routing rows; verification's three-layer future = task #10);
+  (4) the corpus root's orient-and-delegate paragraph @ `60790f4b`. `placement.rst` (M7)
+  **deferred to Phase-H adjacency** (the root owns the comparative map; Sanchez(1982) is
+  local when needed).
 - **Phase E — Conventions part** (M1) — mostly new writing; the biggest differentiator.
 - **Phase F — Archaeology sweep (P7)** — 130 campaign-named headings; the 3.7:1 (b):(a) ratio.
 - **Phase G — Backfill** — equation labels, `:term:` wiring, `:cite:` migration, V&V slices.
