@@ -28,7 +28,9 @@ Section 3 = git-true active state.
 - [space_angle_discretization_separability.md](space_angle_discretization_separability.md) — diffusion-limit lit SPLITS into spatial (Larsen-Morel-Miller JCP 69 1987) + angular (Bailey-Morel-Chang NSE 165 2010) per-axis conditions; factorize but jointly required → tensor-product architecture.
 
 ### SN solver / sweep theory
+- [adams_larsen_2002_iteration_theory.md](adams_larsen_2002_iteration_theory.md) — A&L PNE 40 FULLY extracted → `.claude/plans/phase_i_survey_adams_larsen_2002.md`: ρ_SI=c (2.17/3.30), DSA 0.2247c (2.50/3.65), consistency+four-step, Krylov Tables 1/2 + p.140 GMRES-outside-DSA quote, 14 M2 triples; traps (λ in mfp units; cyl µ=angle; OCR ⅓→½; SPI [131] slip).
 - [morel_1989_si_vs_apply_equivalence.md](morel_1989_si_vs_apply_equivalence.md) — Morel 1989 p.75: SI sweep ≡ discrete-ordinates linear system iff angular leakage matrix is lower-triangular; full matrix → Jacobi-on-RHS, ρ→1.
+- [larsen_morel_2010_review_extraction.md](larsen_morel_2010_review_extraction.md) — L&M-2010 84-pp review surveyed for the doc corpus: NO cyl-SN/adjoint/k-posing/verification; ρ=c + DSA 0.23c + thick-limit eq map; their β≡BMC α, their α=SPATIAL WD; book-PDF offset +12.
 - [method_canonical_naming_evidence.md](method_canonical_naming_evidence.md) — verbatim quotes pinning "singular eigenfunction expansion" (Mitsis/WM-72/Atalay/Sanchez-1977) and "trajectory-based/resolvent" (Sanchez 2002/1986, PS-1982).
 
 ### Multi-group source indexing

@@ -77,6 +77,7 @@ construction ((1−μ²)→0), per-iteration cost O(ng·nx).
 | Hébert sphere (3.424) | α_{n+1/2}=α_{n−1/2}−2𝒲_nμ_n | GL on [−1,1] | ΔS_i/(2𝒲_n) |
 | Hébert cyl (3.399) | α_{p,q+1/2}=α_{p,q−1/2}**+**𝒲_{p,q}μ_{p,q} | per-level | **−**(1/𝒲_{p,q})[…] in (3.400) |
 | Carlson/L&M convention (user's form) | α_{m+1/2}=α_{m−1/2}−μ_m w_m | Σw=2 | (ΔA/w_m)[…] |
+| Larsen-Morel-2010 review sphere (1.23b), symbol **β** | β_{n+1/2}=−2Σ_{n'≤n}μ_{n'}w_{n'} ⇔ β_{n+1/2}=β_{n−1/2}−2μ_n w_n | Σw=2 | +(r/w_n)[βψ−βψ] in r²-form (1.23a); ≡ BMC sphere α exactly; ⚠ their α = SPATIAL WD weight (1.30) |
 
 Factor-of-2 and sign move between the recursion and the balance-equation
 divisor; α_{1/2}=0 and lower-triangularity are invariant across ALL.
