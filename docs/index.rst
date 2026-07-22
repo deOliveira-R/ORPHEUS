@@ -1,6 +1,18 @@
 ORPHEUS — Open Reactor Physics Educational University System
 =============================================================
 
+Neutron-transport theory and verified solvers, documented as one
+corpus: full derivations, design rationale, conventions, gotchas, and
+what verifies each equation.
+
+**Where to start.** :doc:`theory/index` is the canonical entry — its
+part table routes by task (importing an equation, touching a solver,
+writing a reference). The S\ :sub:`N` sub-book is the most developed
+method treatment (:doc:`theory/methods/sn/index`, with reading tracks
+and a symptom → chapter diagnostic table); the V&V infrastructure and
+the auto-generated verification matrix live at
+:doc:`verification/index`.
+
 .. toctree::
    :maxdepth: 2
    :caption: Theory & Derivations
