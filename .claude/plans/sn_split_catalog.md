@@ -804,12 +804,32 @@ populated (206 edges). Deferred-with-owner: vv-status/verifies()
 classification → task #10; glossary growth → the 9 candidates on #231;
 label-token residue → #304.
 
-**⏳ Phase H — THE ROOT PAGE: AUDIT ✅ DONE 2026-07-22; NEXT = THE WRITE.**
-User directive: do NOT take §3.6 at face value — prove/falsify as
-mathematician/physicist. Audit ran two fronts (main-agent math + explorer
-code-facts @ `1f89c4ba`: 8 HOLD · 5 DRIFTED-BUT-HOLD · 0 BROKEN · 0 GONE).
-**THIS BLOCK = THE WRITING CONTRACT** (fresh session needs only this +
-the scaffold + corpus plan §3.6).
+**✅ Phase H — THE ROOT PAGE: CLOSED END-TO-END 2026-07-22.**
+THE WRITE @ `9f305683` (scaffold 214 ln → authored 1200 ln, gate green
+first run; all 7 anchors stable; refs.bib +3 keys **Peierls1939 /
+LyonsPemantlePeres1995 / HardyHarris2009 — USER ACTION: back-port into
+Zotero**; foundations/index MAY-5 rider). Notation row-7 τ ledger @
+`e697c204` (archivist; flagged it ran on Opus 4.8 but stamped the
+campaign Fable-5 trailer per the truthful-attribution ruling's worked
+exception). Post-draft reviews (fresh enforcer + qa, findings-only) →
+fixes @ `51c91b33`: enforcer PASS 0-MUST-FIX all-7-constraints-verified
+(1 SHOULD-FIX: enumerate the five + place P_N/Case outside; 3 POLISH);
+qa 11/13 CONFIRMED with **2 real catches — LESSON: the audit's own
+"confirmed exactly" list carried them**: (a) the balance's scatter term
+is the FULL P0 row sum (in-group counts toward Σt), NOT Σs0,out — the
+contract's spelling was the code's WRONG property; (b) k = μ (the
+RESOLVENT eigenvalue), not k = λ (the pencil's — reciprocal slip);
+plus #282 wording matched to the issue (5.2e5, geometric divergence,
+no NaN) and the α row flagged future-seam. The code outranks the
+contract, always — re-verify even "confirmed" facts at consumption.
+Durable page facts: the Padé-table sign theorem (step=[0/1] positive;
+DD=[1/1] numerator-zero at τ=2, pole at −2 unreachable; [2/2]
+positive+4th-order ⟹ table property not order ladder); the kinetic
+ledger (3 switches, linearity = 1∧2, thermal recovery = target-motion
+face, Σ(T) = back-reaction outside); the Girsanov delta-tracking RN
+derivative; ONE subcriticality condition (+ c* criterion, full-row-sum
+form); axes independent + partially populated; object ≠ operator lever
+realized (denial sites cited as true, zero retirement).
 
 *Falsified (1):* **MAY-8 "pole" → ZERO** — [1/1] Padé (2−τ)/(2+τ) has its
 pole at τ=−2 (unreachable); negativity past τ=2 = the NUMERATOR sign
@@ -906,26 +926,18 @@ seat); its drop is a DENSITY/TIMESCALE argument, not an energy argument
 Failure regimes to mark: neutron-star n–n; strong heating; the thermal
 range.
 
-*Write mechanics:* expand the 7-section scaffold IN PLACE — ALL SEVEN
-anchors STABLE (consumed by methods/index ×5 + slab_one_group +
-foundations/index); ~1200 ln; citations via `:cite:` (G2); new eq-labels
-part-prefixed `path-integral-*` + global-uniqueness grep (G1 doctrine);
-:term: wiring per G3 policy; machine header's gated_on now satisfied —
-update it; consult the Phase-I surveys
-(.claude/plans/phase_i_survey_{larsen_morel_2010,adams_larsen_2002}.md)
-for post-1968 texture; eigenvalue posing lives here (B&G §1.5);
-placement.rst (M7) rides adjacency. Post-draft: fresh elegance-enforcer
-+ qa review; archivist touches notation row 7's ledger. The CLI task
-tracker mirrors the queue (task #8 = Phase H in_progress-audit-done;
-#10 · #15 · #16 as before).
+*(The audit-era contract details — falsified/user-ruled/sharpenings/
+confirmed lists, the kinetic-opener spec, write mechanics — are realized
+in the page and its two commits; the git record + the page's own
+Development-history dropdown are the archive. The Phase-I surveys stay
+on disk as reference.)*
 
-**Then:** H (the root page — Phase-I input IN HAND; **UNBLOCKED**: the
-#298/#299 fixes are in-branch @ `639cec9e`/`4425516c`, marked DONE @
-`68c39c28`, the issues auto-close at push — the earlier "still gated" note
-was the frozen claim; §3.6's 12 MUST-NOT claims still apply; placement.rst
-rides its adjacency) · #304 (the Phase-F residue: P10 labels · code comments
-· prose two-spellings) · ch15 authoring half (#276 A4/A5-blocked) · #231
+**Then:** placement.rst (M7 — the root page's adjacency rider, NOT yet
+done) · #304 (the Phase-F residue: P10 labels · code comments · prose
+two-spellings) · ch15 authoring half (#276 A4/A5-blocked) · #231
 Phase 2 (code-prose rebalancing) · task #10 (three-layer V&V part).
+(#298/#299 fixes in-branch @ `639cec9e`/`4425516c`, DONE @ `68c39c28`;
+the issues auto-close at push.)
 
 *Standing facts:* branch `docs/sn-doc-architecture` UNPUSHED; citations + eq-labels are
 project-global; recipe = "The per-chapter recipe" section above (L35 three-way grep + L34

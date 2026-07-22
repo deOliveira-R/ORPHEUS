@@ -161,6 +161,16 @@ read; tree moving."
 
 ---
 
+## L-008 -- zsh: an unquoted separator starting with `=` aborts the WHOLE compound command
+
+`echo ===` (or any unquoted word starting with `=`) triggers zsh's `=cmd`
+expansion; the lookup fails ("== not found") and the ENTIRE command line is
+aborted — including greps sequenced after the echo, silently costing a
+round-trip. Quote separators (`printf 'NAME\n'` or `echo "---"`), never bare
+`===`, when batching multiple searches into one Bash call.
+
+---
+
 ## L-006 -- A "shape probe" is not always a missing predicate — split boolean-presence from integer-width before proposing a typed swap
 
 Asked to collapse N value-based `arr.shape[-1] > 1`-style probes into one typed
