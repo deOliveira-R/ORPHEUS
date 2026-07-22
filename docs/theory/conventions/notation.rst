@@ -30,8 +30,8 @@ The ORPHEUS symbol table
 
 The columns are the discipline: a symbol without a code spelling is
 not yet realized; a code object without a documented symbol is not yet
-articulated. Rows whose *normalization* carries the trap point at the
-normalization page.
+articulated. Rows whose *normalization* carries the trap point at
+:doc:`normalization`.
 
 Phase space and fields
 ----------------------
@@ -51,8 +51,8 @@ Phase space and fields
      - :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
      - Harmonic flux moments; :math:`\phi \equiv \phi_{00}` is the
        scalar flux. Moments carry **no** :math:`4\pi` prefactor —
-       the :math:`\Sigma w` normalization does the work (see the
-       normalization page).
+       the :math:`\Sigma w` normalization does the work (see
+       :doc:`normalization`).
    * - :math:`\hat\Omega_m`, :math:`w_m`
      - :class:`~orpheus.numerics.quadrature.directional.Quadrature`
        — ``.mu_x`` / ``.mu_y`` / ``.mu_z``, ``.weights``
@@ -168,8 +168,8 @@ Discretization factors
      - Curvilinear angular-redistribution coefficients.
        :math:`\alpha_{1/2} = 0` seeds the recursion in **every**
        published convention — the recursion's *spelling* varies by
-       source (crosswalk row 5 and the normalization page's
-       :math:`\alpha` table).
+       source (crosswalk row 5 and
+       :ref:`normalization-alpha-crosswalk`).
    * - :math:`\tau`
      - In the S\ :sub:`N` sweep: the weighted-diamond **closure
        weight** ([BaileyMorelChang2010]_ Eq. (15);
@@ -262,7 +262,7 @@ from each other, or from itself.
        Hébert cylinder (3.399, sign-flipped against its own sphere
        four pages earlier), Bell & Glasstone (5.21, with
        :math:`\Delta A` folded inside). The full crosswalk table is
-       on the normalization page.
+       tabulated at :ref:`normalization-alpha-crosswalk`.
    * - 6 — the operator letters
      - :math:`L` = bulk streaming **only**; :math:`A = L+C-S-B`
        is the honest within-group operator.

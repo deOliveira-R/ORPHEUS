@@ -1794,6 +1794,8 @@ flat-flux invariance, and asymptotic accuracy:
   ``LegacyTauSymmetricInterpolation``); it has since become the sole
   production strategy and the default (see the supersession note above).
 
+.. _sn-alpha-normalization:
+
 α-recursion normalisation
 -------------------------
 
@@ -1806,7 +1808,10 @@ factor of 2 into the recurrence; the redistribution divisor reads
 mathematically equivalent.  This normalisation is documented in
 :mod:`orpheus.geometry.reduced_operator` and re-stated explicitly in
 :mod:`orpheus.sn.sweep.pole_angular_closure` so the Hébert canonical
-form's connection to the ORPHEUS arrays is transparent.
+form's connection to the ORPHEUS arrays is transparent.  The full
+cross-source picture — the same recursion spelled four ways across
+three texts, plus the review literature's :math:`\beta` spelling — is
+tabulated at :ref:`normalization-alpha-crosswalk`.
 
 Citation correction
 -------------------
