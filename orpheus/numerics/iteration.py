@@ -1,44 +1,50 @@
-r"""Iteration primitives for the operator-algebra :math:`(A - S - F)`.
+r"""Iteration primitives for the operator-algebra :math:`(A - \sum_i g_i)`.
 
 The neutron transport equation, in its operator-algebra form, is
 
 .. math::
 
-    (A - S - F)\,\psi = q_{\rm ext}
+    \Bigl(A - \sum_i g_i\Bigr)\,\psi = q_{\rm ext}
     \qquad\text{(fixed source)}
 
 .. math::
 
-    (A - S)\,\psi = \tfrac{1}{k}\,F\,\psi
+    \Bigl(A - \sum_i g_i\Bigr)\,\psi = \tfrac{1}{k}\,F\,\psi
     \qquad\text{(eigenvalue)}
 
-where :math:`A` is the INVERTIBLE loss operator — the left-hand side
-whose inverse the iteration applies; for SN this is the composite
-:math:`A = L + C` (streaming :math:`L = \Omega\cdot\nabla` plus
-collision :math:`C = \Sigma_t\cdot`), but this layer never sees the
-leaves — :math:`S` is the scattering source operator, and :math:`F`
-is the fission source operator (Lewis & Miller §6.4 frame this
-decomposition; Trefethen & Bau 1997 §3.2 give the matrix-free Krylov
-view).  The letter matters: project-wide, ``L`` names the STREAMING
-LEAF (which alone is not invertible), and invertible left-hand-side
-composites are the ``A`` family (``A``, ``A_loss = A - S``) — this
-module follows that convention.
+where :math:`A` is the INVERTIBLE resolvent operand — the left-hand
+side whose inverse the iteration applies — and the :math:`g_i` are the
+lagged coupling gains, handed to the variadic drivers as
+``(A, *gains)``.  For SN the binding is :math:`A = L + C` (streaming
+:math:`L = \Omega\cdot\nabla` plus collision :math:`C = \Sigma_t\cdot`)
+with gains :math:`(S,\ B)` — the honest within-group operator
+:math:`A - \sum_i g_i = L+C-S-B` — but this layer never sees the
+leaves; a matrix method hands its full assembled loss matrix as
+:math:`A` with a shorter gain tuple.  Fission :math:`F` is never a
+gain in the eigenvalue posing — the outer loop scales it by
+:math:`1/k` (Lewis & Miller §6.4 frame the decomposition; Trefethen &
+Bau 1997 §3.2 give the matrix-free Krylov view).  The letter matters:
+project-wide, ``L`` names the STREAMING LEAF (which alone is not
+invertible), and invertible left-hand-side operands are the ``A``
+family (the resolvent operand ``A``; the k-posing's
+``A_loss = A - S``) — this module follows that convention.
 
 This module installs the iteration primitives that consume the Wave A
 :class:`~orpheus.numerics.operator.LinearOperator` Protocol and operate on
-the operator triple :math:`(A, S, F)`:
+the resolvent operand :math:`A`, its lagged gains, and — at the
+eigenvalue layer — the fission operator :math:`F`:
 
 * :class:`SourceIteration` solves the within-group fixed-source
-  problem :math:`(A - S - F)\,\psi = q_{\rm ext}` by a fixed-point
-  iteration
+  problem :math:`(A - \sum_i g_i)\,\psi = q_{\rm ext}` by a
+  fixed-point iteration
 
   .. math::
 
-      \psi_{n+1} \;=\; A^{-1}\,(S\,\psi_n + F\,\psi_n + q_{\rm ext}).
+      \psi_{n+1} \;=\; A^{-1}\,\Bigl(\sum_i g_i\,\psi_n + q_{\rm ext}\Bigr).
 
   The convergence rate is bounded by the spectral radius
-  :math:`\rho(A^{-1}(S+F)) \le \max_{\rm cell}\,\Sigma_s/\Sigma_t`
-  for an SN sweep.  Trefethen & Bau §3.2.
+  :math:`\rho(A^{-1}\sum_i g_i) \le \max_{\rm cell}\,\Sigma_s/\Sigma_t`
+  for the SN binding.  Trefethen & Bau §3.2.
 
 * :class:`KEigenvalue` poses the k-eigenvalue problem
   :math:`(A - S)\,\psi = F\,\psi/k` from its operator triple and
@@ -858,7 +864,7 @@ class KrylovAcceleration(Generic[V]):
         q_ext: V,
         initial_guess: V | None = None,
     ) -> tuple[V, list[float]]:
-        r"""Run GMRES on :math:`(A - S - F)\,\psi = q_{\rm ext}` to convergence.
+        r"""Run GMRES on :math:`(A - \sum_i g_i)\,\psi = q_{\rm ext}` to convergence.
 
         Parameters
         ----------

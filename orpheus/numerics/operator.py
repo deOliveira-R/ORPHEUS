@@ -6,21 +6,25 @@ on a discrete flux distribution :math:`\psi`:
 
 .. math::
 
-    (A - S - F)\,\psi \;=\; q
+    \Bigl(A - \sum_i g_i\Bigr)\,\psi \;=\; q
     \qquad \text{(fixed source)}
 
 .. math::
 
-    (A - S)\,\psi \;=\; \tfrac{1}{k}\,F\,\psi
+    \Bigl(A - \sum_i g_i\Bigr)\,\psi \;=\; \tfrac{1}{k}\,F\,\psi
     \qquad \text{(eigenvalue)}
 
-where :math:`A` is the INVERTIBLE loss operator — for SN the composite
-:math:`A = L + C`, streaming plus collision; the letter matters:
-project-wide, ``L`` names the STREAMING LEAF (alone not invertible)
-and invertible left-hand-side composites are the ``A`` family —
-:math:`S` is the scattering source operator, :math:`F` is the fission
-source operator, and :math:`q` is an external source (Trefethen & Bau
-1997, §3.2 frame the matrix-free Krylov view). For an SN sweep, an MoC
+where :math:`A` is the INVERTIBLE resolvent operand and the
+:math:`g_i` are the lagged coupling gains — for SN the binding is
+:math:`A = L + C`, streaming plus collision, with gains
+:math:`(S,\ B)`, the honest within-group operator :math:`L+C-S-B`;
+the letter matters: project-wide, ``L`` names the STREAMING LEAF
+(alone not invertible) and the invertible left-hand-side operand is
+``A`` — :math:`S` is the scattering source operator, :math:`F` is the
+fission source operator (never a gain in the eigenvalue posing: the
+outer loop scales it by :math:`1/k`), and :math:`q` is an external
+source (Trefethen & Bau 1997, §3.2 frame the matrix-free Krylov
+view). For an SN sweep, an MoC
 ray-tracer, a CP collision-probability matrix, or a diffusion BiCGSTAB
 solve, the *outer* algebra is identical even though the *implementation*
 of each operator differs by orders of magnitude in cost and structure.
