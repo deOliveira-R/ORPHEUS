@@ -17,25 +17,25 @@ Cross-section convention
 ========================
 
 Cross sections follow the same priority as the scalar flux:
-:math:`g` first, then spatial.  Per-cell cross sections are stored as
-``(ng, nx, ny)`` numpy arrays on
-:class:`~orpheus.sn.solver.SNSolver`:
-
-.. code-block:: python
-
-   class SNSolver:
-       sig_t: np.ndarray   # (ng, nx, ny) total
-       sig_a: np.ndarray   # (ng, nx, ny) absorption
-       sig_p: np.ndarray   # (ng, nx, ny) production (νΣ_f)
-       chi:   np.ndarray   # (ng, nx, ny) fission spectrum
+:math:`g` first, then spatial.  The canonical per-cell XS state is
+**one attribute** --- ``SNSolver.mat_xs``, a
+:class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
+wrapping the per-material
+:class:`~orpheus.data.macro_xs.mixture.Mixture` data together with
+the per-cell typed views (Issue #197 PR-TYPED-1; the earlier
+per-attribute surface ``sig_t`` / ``sig_a`` / ``sig_p`` / ``chi``
+was retired by PR-TYPED-2).  Every operator (:math:`L, C, S, F`)
+reads cross sections through this single source; its accessors
+(e.g. ``mat_xs.total_cross_section``) yield the principled
+``(ng, nx, ny)`` layout.
 
 The producer :func:`~orpheus.data.macro_xs.assemble_cell_xs`
 emits the flat ``(N_cells, ng)`` shape (CP also consumes that flat
 shape --- the producer is *unchanged* by the SN migration).  The
-``.T.reshape(ng, nx, ny)`` bridge lives at exactly one site,
-:meth:`SNSolver.__init__`, and the
-:ref:`cell-flattening invariant <sn-cell-flattening-invariant>`
-asserts the round-trip in ``__debug__`` builds.
+:ref:`cell-flattening invariant <sn-cell-flattening-invariant>` is
+asserted in ``__debug__`` builds at construction, exercised through
+the ``mat_xs.total_cross_section`` accessor against the producer's
+legacy flat shape.
 
 
 SigS scattering convention --- still ``[g_from, g_to]``
@@ -53,13 +53,14 @@ arrays, not the **convention** of the cross-section matrices.
 Per-material vs per-cell cross sections
 =======================================
 
-:attr:`Mixture.SigT`, :attr:`Mixture.NuSigF`, etc. are stored per-mixture
-as shape ``(ng,)`` (group-only).  The per-cell arrays on
-:class:`SNSolver` (``sig_t``, ``sig_a``, ``sig_p``, ``chi``) are
-shape ``(ng, nx, ny)`` --- group first, then spatial.  The bridge is
+:attr:`Mixture.SigT`, :attr:`Mixture.SigP`, etc. are stored
+per-mixture as shape ``(ng,)`` (group-only).  The per-cell views on
+``SNSolver.mat_xs`` are shape ``(ng, nx, ny)`` --- group first, then
+spatial.  The bridge is
 :func:`~orpheus.data.macro_xs.assemble_cell_xs`, which lifts the
 per-mixture group-only array to the per-cell flat shape
-``(N_cells, ng)``; :meth:`SNSolver.__init__` then transposes and
-reshapes to the principled per-cell ``(ng, nx, ny)``.  CP consumes
-the producer's flat shape directly --- CP is unaffected by the SN
-migration.
+``(N_cells, ng)``; the
+:class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
+accessors expose the principled per-cell ``(ng, nx, ny)``.  CP
+consumes the producer's flat shape directly --- CP is unaffected by
+the SN migration.
