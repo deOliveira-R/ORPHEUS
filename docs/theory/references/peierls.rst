@@ -281,6 +281,7 @@ the literature:
 - The **Sanchez 1986** form (cosh-even-extension):
 
   .. math::
+     :label: peierls-sph-sanchez-foundations
 
      \bar g_2(\rho'\to\rho) = (\rho'/\rho)\,
          \bigl[\,E_1(\Sigt{}\,|r-r'|) - E_1(\Sigt{}\,(r+r'))\,\bigr]
@@ -575,6 +576,7 @@ assembly described next is the production path.
 Every :math:`K[i, j]` is computed directly as
 
 .. math::
+   :label: peierls-slab-nystrom
 
    K[i, j] \;=\; \tfrac{1}{2} \int_{p_a}^{p_b}
                   E_1\!\bigl(\tau(x_i, x')\bigr)\,L_j(x')\,\mathrm{d}x'
@@ -653,6 +655,7 @@ For the :math:`\varphi` equation (identity on the LHS, not
 conservation identity for constant unit flux with white BC:
 
 .. math::
+   :label: peierls-slab-row-sum-identity
 
    \sum_{j=1}^{N} K_{\rm total}[i, j]\,w_j = \frac{1}{\Sigt{i}}
    \qquad\text{(row-sum identity)}
@@ -850,6 +853,7 @@ from the cylinder axis to the straight-line trajectory through
 branches gives
 
 .. math::
+   :label: peierls-cylinder-chord-form
 
    \Sigma_t(r)\,\varphi(r)
      \;=\; \frac{1}{\pi}
@@ -2117,6 +2121,7 @@ correction to the volume kernel is of outer-product form
 :math:`K_{\rm bc}[i, j] = u_i\,v_j` with
 
 .. math::
+   :label: peierls-rank1-white-bc-factors
 
    u_i \;=\; \frac{\Sigma_t(r_i)\,G_{\rm bc}(r_i)}{A_d},
    \qquad

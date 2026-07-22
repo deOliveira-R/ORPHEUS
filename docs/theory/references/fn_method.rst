@@ -138,6 +138,7 @@ The angular flux as an element of L²(domain × sphere)
 The one-speed neutron transport equation in vacuum,
 
 .. math::
+   :label: fn-method-bte
 
    \mu \frac{\partial \psi}{\partial r} + \Sigma_t\, \psi
    = \frac{\Sigma_s}{2} \int_{-1}^{1} \psi(r, \mu')\, d\mu'
@@ -152,6 +153,7 @@ square-integrable functions on the spatial domain :math:`\times`
 angular sphere, equipped with the inner product
 
 .. math::
+   :label: fn-method-inner-product
 
    \langle \psi_1, \psi_2 \rangle =
        \int_0^R \int_{-1}^{1}
@@ -237,6 +239,7 @@ trial space :math:`V_N \subset L^2`, picks the unique
 trial against the original equation is **orthogonal to** :math:`V_N`:
 
 .. math::
+   :label: fn-method-galerkin-orthogonality
 
    \langle \mathcal{L}\, \psi_N - \mathrm{RHS},\, v \rangle = 0
    \quad\forall v \in V_N ,
@@ -389,6 +392,7 @@ Non-trivial solutions :math:`(a_0, \ldots, a_N) \neq 0` exist if
 and only if the system matrix :math:`M` has zero determinant:
 
 .. math::
+   :label: fn-critical-condition
 
    \det M(\tau) = 0 .
 
@@ -1115,6 +1119,7 @@ with closed-form moment recursions derived in V_fn-slab.1 — V_fn-slab.4
 (see below):
 
 .. math::
+   :label: fn-slab-moment-recursions
 
    B_\alpha(\xi) &= \xi B_{\alpha-1}(\xi) - 1/(\alpha+1), \\
    A_\alpha(\xi) &= -\xi A_{\alpha-1}(\xi) + 1/(\alpha+1),
@@ -1122,6 +1127,7 @@ with closed-form moment recursions derived in V_fn-slab.1 — V_fn-slab.4
 and seeds
 
 .. math::
+   :label: fn-slab-recursion-seeds
 
    B_0(\xi) &= 2/c - 1 - \xi\log(1 + 1/\xi), \\
    A_0(\xi) &= 1 - \xi\log(1 + 1/\xi) .
@@ -1196,6 +1202,7 @@ shifted Chebyshev-of-the-first-kind nodes strictly inside :math:`(0,
 1)`,
 
 .. math::
+   :label: fn-sphere-collocation-grid
 
    \xi_\beta = \frac{1}{2}\left[1 + \cos\!\left(\frac{\beta\pi}{N+1}
    \right)\right], \qquad \beta = 1, \ldots, N,
@@ -1375,6 +1382,7 @@ These two BCs differ by a single geometry sign :math:`s \in \{+1, -1\}`.
 SymPy verifies the parametrised BC
 
 .. math::
+   :label: fn-unified-bc-sign
 
    \Psi(-a, \mu) = s\,\Psi(a, -s\mu),
    \qquad s = +1 \text{ slab},\; s = -1 \text{ sphere}

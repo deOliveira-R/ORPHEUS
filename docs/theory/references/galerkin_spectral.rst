@@ -269,6 +269,7 @@ The natural function space is
 integrable :math:`(r, \mu)` functions with the inner product
 
 .. math::
+   :label: galerkin-spectral-inner-product
 
    \langle f, g\rangle = \int_0^R\!\!\int_{-1}^{+1}
        f(r, \mu)\, g(r, \mu)\, d\mu\, dr.
@@ -481,6 +482,7 @@ correction. Galerkin projection of this Volterra operator onto
 :math:`\{P_n(x)\}_n` produces the matrix
 
 .. math::
+   :label: galerkin-spectral-eq3
 
    2 F_m = c\,d\sum_n \big[A_{m,n}(a) - 3\bar\mu(c-1)B_{m,n}(a)\big] F_n
 
@@ -489,6 +491,7 @@ V_cg.1) where :math:`d = 2a` is the slab thickness in mean free
 paths and the matrix elements are
 
 .. math::
+   :label: galerkin-spectral-matrix-elements
 
    A_{m,n}(a) &= \tfrac{2n+1}{2}
        \int_{-1}^{+1}\!\!\int_{-1}^{+1}

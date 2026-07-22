@@ -1507,6 +1507,7 @@ heterogeneous medium with total cross-section :math:`\Sigma_t(\mathbf r)`
 and isotropic source :math:`q(\mathbf r)`:
 
 .. math::
+   :label: peierls-transport-equation-3d
 
    \mathbf\Omega\cdot\nabla\psi(\mathbf r,\mathbf\Omega)
      + \Sigma_t(\mathbf r)\,\psi(\mathbf r,\mathbf\Omega)
@@ -2477,6 +2478,7 @@ The infinite-medium identity therefore closes *for all three
 geometries*:
 
 .. math::
+   :label: peierls-unified-row-sum-identity
 
    \sum_{j=1}^{N} K_{ij}\cdot\Sigma_t(r_j) \;=\; \Sigma_t(r_i)
    \qquad (R \to \infty).
@@ -2498,6 +2500,7 @@ For a finite geometry with vacuum BC, the row-sum identity picks
 up a deficit equal to the **uncollided escape probability**:
 
 .. math::
+   :label: peierls-finite-cell-deficit
 
    \Sigma_t(r_i) - \sum_{j=1}^{N} K_{ij}\,\Sigma_t(r_j)
      \;=\; \Sigma_t(r_i)\,P_{\rm esc}(r_i),
@@ -2505,6 +2508,7 @@ up a deficit equal to the **uncollided escape probability**:
 with
 
 .. math::
+   :label: peierls-escape-probability
 
    P_{\rm esc}(r_i) \;=\; \frac{1}{S_d}
      \int_{\Omega_d}\!\mathrm d\Omega\,
@@ -2868,6 +2872,7 @@ the :math:`j`-th node (:math:`r_j^{d-1} w_j` up to normalisation),
 gives the **rank-1** correction
 
 .. math::
+   :label: peierls-rank1-white-bc-correction
 
    K_{\rm bc}[i, j] \;=\; \frac{\Sigma_t(r_i)\,G_{\rm bc}(r_i)}{A_d}
        \,\cdot\, r_j^{d-1}\,w_j\,P_{\rm esc}(r_j)
@@ -4755,6 +4760,7 @@ The resulting cylinder mode-N primitives are
        \mathrm{Ki}_{k+2}\!\bigl(\tau_{\rm 2D}(\omega)\bigr)\,\mathrm d\omega,
 
 .. math::
+   :label: peierls-cyl-3d-gbc-mode-formula
 
    G_{\rm bc}^{(n,3d)}(r_i) = \frac{4}{\pi}\!\int_0^\pi\sum_{k=0}^n
        c_n^k\,\mu_{\rm 2D}(\omega)^k\,
@@ -5177,6 +5183,7 @@ identity, verified to :math:`10^{-16}` in
 **Cylinder** (:func:`compute_T_specular_cylinder_3d`):
 
 .. math::
+   :label: peierls-specular-T-matrix-cylinder
 
    T_{mn}^{\rm cyl} \;=\; \frac{4}{\pi}\!\int_0^{\pi/2}\!\cos\alpha\,
         \sum_{k_m, k_n}\!c_m^{k_m}\,c_n^{k_n}\,
@@ -5219,6 +5226,7 @@ purely block off-diagonal:
 with the homogeneous off-diagonal block
 
 .. math::
+   :label: peierls-specular-T-matrix-slab
 
    T_{oi}^{(mn)} \;=\; 2\!\int_0^1\!\mu\,\tilde P_m(\mu)\,
                        \tilde P_n(\mu)\,e^{-\tau_{\rm tot}/\mu}\,\mathrm d\mu

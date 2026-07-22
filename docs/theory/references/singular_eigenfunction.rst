@@ -320,6 +320,7 @@ distribution that integrates against test functions by deleting an
 continuum,
 
 .. math::
+   :label: spectrum-continuum-dispersion-function
 
    \lambda(\nu) = 1 - c\,\nu\,\mathrm{atanh}(\nu),
 
@@ -959,6 +960,7 @@ V_se-cyl.2 — Discrete pseudo-eigenfunction (catches WM-72 Eq 17 typo)
 The discrete pseudo-eigenfunction is
 
 .. math::
+   :label: wm72-discrete-pseudo-eigenfunction
 
    \eta_0(\mu) = \frac{c\,\nu_0^2}{\nu_0^2 - \mu^2} ,
 
@@ -1093,6 +1095,7 @@ The discrete normalisation :math:`N_0 = \int_0^1 \mu^2 \eta_0^2(\mu)
 evaluates to
 
 .. math::
+   :label: wm72-eq21d-normalization
 
    N_0 = \frac{c^2\,\nu_0^4}{2}\!\left[\frac{1}{1 - \nu_0^2}
                                        + \frac{1 - 2\nu_0^2}{2\nu_0^2}\,
@@ -1365,6 +1368,7 @@ The sphere problem is treated as the **odd-mode** of the slab
 problem on :math:`[-R, R]` via the antisymmetric BC
 
 .. math::
+   :label: singular-eigenfunction-eq47
 
    \psi(x, \mu) = -\psi(-x, -\mu)
 
@@ -1426,6 +1430,7 @@ the integrand structure against Atalay Eq 40 and against the
 isotropic-limit closed form:
 
 .. math::
+   :label: singular-eigenfunction-x-function-isotropic-limit
 
    X^{\rm iso}(\mu) = \frac{1}{1 - \mu}\,
                        \exp\!\left[\frac{1}{\pi}\int_0^1

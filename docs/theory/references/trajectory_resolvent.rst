@@ -1314,6 +1314,7 @@ and the multi-group fission-source eigenvalue equation reduces to
 the *infinite-medium* multi-group balance
 
 .. math::
+   :label: peierls-greens-mg-kinf-balance
 
    (\Sigt{g} - \Sigs{g\to g})\,\phi_g
    = \sum_{g'\ne g}\Sigs{g'\to g}\,\phi_{g'} +
@@ -4299,6 +4300,7 @@ algebraic identity
 The closed form is
 
 .. math::
+   :label: peierls-greens-slab-V-alpha-2
 
    T_{00}^{\rm slab} = P_{\rm ss}^{\rm slab} = 2\,E_3(\Sigma_t L)
 
