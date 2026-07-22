@@ -305,6 +305,21 @@ from each other, or from itself.
        :mod:`orpheus.numerics.operator`, and the solver page).
        Fission is **never** a gain in the eigenvalue posing — it
        stays on the right-hand side under :math:`1/k`.
+   * - 9 — the term *multiplication operator*
+     - Two senses, kept apart by context and by label namespace:
+       :math:`K = A^{-1}F` is the reactor-physics **multiplication
+       operator** (the symbol table above — its dominant eigenvalue
+       is :math:`k`); :math:`M[f]\psi = f\,\psi` is the
+       functional-analysis **multiplier embedding** behind the
+       collision operator :math:`C = M[\Sigma_{\mathrm{t}}]`
+       (:doc:`/theory/foundations/operator_algebra`).
+     - Not a canon row — a domain-inherent collision: both
+       vocabularies own the term natively and the corpus
+       deliberately spans both, so neither side is renamed.
+       Equation labels keep the namespaces disjoint:
+       ``mg-multiplication-operator`` (the :math:`K` eigenvalue
+       posing) vs ``multiplication-operator-embedding`` /
+       ``-action`` (the :math:`M[f]` algebra).
 
 .. _notation-import-boundary:
 
