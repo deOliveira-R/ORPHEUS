@@ -1556,8 +1556,8 @@ Flux reconstruction — KLL 1974 interior-flux extension
 
 .. _fn-method-flux-recon-overview:
 
-Overview — Phase B2 rich-machinery extension
-----------------------------------------------
+Overview — the rich-machinery extension
+---------------------------------------
 
 The F_N solvers (:mod:`...slab.one_group`, :mod:`...sphere.one_group`)
 return only the **boundary** angular-flux representation
@@ -1785,8 +1785,8 @@ agrees with the KLL benchmark tables at the following tolerances:
 
 .. _fn-method-atkinson-product-nystrom:
 
-Atkinson product-Nyström — the Path A.i hardening (ERR-036)
-=============================================================
+Atkinson product-Nyström — the ERR-036 hardening
+================================================
 
 **This section is the load-bearing narrative for the Atkinson
 1972/1997 product-Nyström hardening of the Path A.i flux

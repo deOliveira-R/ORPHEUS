@@ -467,8 +467,8 @@ Per-case provenance + cross-method status:
   KLL Table VII flux ratios populated from KLL 1974 Table VII c=1.30
   row.
 
-Phase B3 — wide enumeration coverage
-=====================================
+Wide enumeration coverage
+=========================
 
 .. _sood-registry-phase-b3-wide:
 
@@ -805,8 +805,8 @@ invalidation, hash stability, ``clear()``, decorator integration,
 and an L1 smoke against the transfer-matrix :math:`k_\infty`
 reference solver on Sood ``PUa-1-0-IN``.
 
-Forward-looking — Wave 3 meta-registry
-=========================================
+Forward-looking — the meta-registry
+===================================
 
 .. _sood-registry-wave-3-foreshadowing:
 

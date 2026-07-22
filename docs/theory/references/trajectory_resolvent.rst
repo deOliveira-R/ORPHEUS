@@ -231,7 +231,8 @@ see :ref:`theory-peierls`. For the parallel Nyström / matrix-Galerkin
 architecture (rank-:math:`N` closures, Phase 4
 ``specular_multibounce``, slab + cyl + sph) see
 :ref:`theory-peierls-nystrom`. For the predecessor that motivates
-this page — the Phase 5 retreat — see :ref:`peierls-phase5-retreat`.
+this page — the continuous-µ retreat — see
+:ref:`peierls-phase5-retreat`.
 
 **Sphere prototype scope as of 2026-05-02** (Plan 2 Part B +
 A1/A2/A3/Plan-(b) follow-ons all closed; sister-geometry coverage
@@ -349,8 +350,8 @@ documented in dedicated sections per the
   annulus). Phase 2 unification SHIPPED at commits ``efbae9c`` /
   ``92d4f10`` / ``166b9ae``; rank-2 framework SHIPPED at commit
   ``7cb5bc6`` (Phase 3B).
-- **Phase 5 framing**. The Phase 5 retreat is a structural finding,
-  not a failure narrative. The retreat established that the
+- **Retreat framing**. The continuous-µ retreat is a structural
+  finding, not a failure narrative. The retreat established that the
   **angle-integrated** kernel :math:`g_\alpha` is hypersingular —
   Variant α exploits the **angle-resolved** kernel
   :math:`\tilde t(r'\to r,\mu)`, which is a different mathematical
@@ -359,8 +360,8 @@ documented in dedicated sections per the
   same physical content.
 
 
-Motivation: the Phase 5 retreat made angle-resolution structurally necessary
-============================================================================
+Motivation: the continuous-µ retreat made angle-resolution structurally necessary
+=================================================================================
 
 The Phase 5 investigation (Issue #133, CLOSED 2026-04-28) attempted
 to discretise the **angle-integrated** Sanchez 1986 [SanchezTTSP1986]_
@@ -1836,8 +1837,8 @@ benchmark is the closest published reference and is documented at
 What is permanently dead
 -------------------------
 
-The Phase 5 retreat closed several research paths that should *not*
-be revisited:
+The continuous-µ retreat closed several research paths that should
+*not* be revisited:
 
 - Nyström sampling of the angle-integrated kernel
   :math:`g_h(\rho'\to\rho)` — diverges at the surface diagonal for
@@ -1863,8 +1864,8 @@ above.
 
 .. _peierls-greens-cylinder:
 
-Cylinder Variant α (Phase 1 standalone)
-========================================
+Cylinder Variant α (standalone)
+===============================
 
 Phase-1 cylinder Variant α is the **first sister geometry of the sphere
 prototype**. It mirrors the sphere architecture
@@ -2184,7 +2185,7 @@ carries leading factor :math:`\alpha`, so :math:`\psi_{\rm surf}
 \to 0` at :math:`\alpha = 0`. Vacuum BC is the trivial limit; no
 special-case branch. Same V_α3 structure as sphere.
 
-Numerical verification status (Phase 1 standalone)
+Numerical verification status (cylinder standalone)
 ---------------------------------------------------
 
 The full numerical evidence chain from the closeout memo
@@ -2335,8 +2336,8 @@ Source code, tests, and provenance
 
 .. _peierls-greens-cylinder-mr:
 
-Cylinder Variant α — Phase 1b multi-region extension
-=====================================================
+Cylinder Variant α — the multi-region extension
+===============================================
 
 Phase 1b extends the cylinder Variant α solver from the homogeneous
 case (single :math:`\Sigma_t`, see
@@ -3326,8 +3327,8 @@ Phase 1b ship list
 
 .. _peierls-greens-unification:
 
-Operator-theoretic unification (Phase 2, ``variant_alpha_core``)
-================================================================
+Operator-theoretic unification (``variant_alpha_core``)
+=======================================================
 
 The sphere and cylinder Phase-1 prototypes were structurally identical
 at the closure level but inlined the bounce-sum closure as
@@ -3416,8 +3417,8 @@ abstraction has earned the right to stay frozen, and any future
 extension that requires modifying :mod:`.variant_alpha_core` should
 be treated as a structural alarm.
 
-Bit-equality preservation under refactor (Phase 2 evidence)
------------------------------------------------------------
+Bit-equality preservation under refactor
+----------------------------------------
 
 The Phase 2 refactor's load-bearing acceptance criterion was
 **bit-equal accuracy preservation** — the unified primitive must
@@ -4072,8 +4073,8 @@ the L11 discipline.
 
 .. _peierls-greens-slab:
 
-Slab Variant α (Phase 3A — symmetric reflective, post-ERR-035 delegation)
-==========================================================================
+Slab Variant α (symmetric reflective, post-ERR-035 delegation)
+==============================================================
 
 Phase-3A slab Variant α was the first 2-bounce-per-period geometry
 attacked by the family. **It now exists as a thin wrapper** that
@@ -4330,8 +4331,8 @@ leading factor :math:`\alpha`; :math:`\psi_{\rm surf} \to 0` at
 :math:`\alpha = 0`. Vacuum BC is the trivial limit; no special-case
 branch. Same V_α3 structure as sphere/cylinder.
 
-Numerical verification status (Phase 3A, post-ERR-034 + ERR-035 fixes)
------------------------------------------------------------------------
+Numerical verification status (symmetric slab, post-ERR-034 + ERR-035)
+----------------------------------------------------------------------
 
 Acceptance gates are tagged ``@pytest.mark.l1`` in
 :file:`tests/derivations/test_trajectory_resolvent_slab_solver.py`.
@@ -4446,8 +4447,8 @@ Source code, tests, and provenance
 
 .. _peierls-greens-slab-asym:
 
-Slab asymmetric Variant α (Phase 3B — rank-2 resolvent)
-========================================================
+Slab asymmetric Variant α (rank-2 resolvent)
+============================================
 
 Phase-3B asymmetric slab Variant α extends the BC parameter space
 from one scalar :math:`\alpha \in [0, 1]` to TWO independent per-wall
@@ -4717,8 +4718,8 @@ on the rank-2 form):
   vacuum BC is the trivial limit; bit-equal to the Phase-3A rank-1
   vacuum path (both bypass the closure entirely).
 
-Numerical verification status (Phase 3B)
------------------------------------------
+Numerical verification status (asymmetric slab)
+-----------------------------------------------
 
 - **k_inf exactness at α_L=α_R=1** — fuel-A-like XS, both thin
   (:math:`\tau_L = 1`) and moderate (:math:`\tau_L = 5`):
@@ -4929,8 +4930,8 @@ Source code, tests, and provenance
 
 .. _peierls-greens-hollow-sph:
 
-Hollow sphere Variant α (Phase 3C-1 — rank-2 + impact-parameter partition)
-===========================================================================
+Hollow sphere Variant α (rank-2 + impact-parameter partition)
+=============================================================
 
 Phase-3C-1 hollow sphere Variant α extends the rank-2 BIE block
 resolvent (validated in Phase 3B for asymmetric slab) to the first
@@ -5301,8 +5302,8 @@ Source code, tests, and provenance
 
 .. _peierls-greens-annulus:
 
-Annulus Variant α (Phase 3C-2 — rank-2 + cylinder 3D angular phase-space)
-===========================================================================
+Annulus Variant α (rank-2 + cylinder 3D angular phase-space)
+============================================================
 
 Phase-3C-2 annulus Variant α extends the rank-2 BIE block resolvent
 (validated in Phase 3B for asymmetric slab; lifted to curvilinear
@@ -5865,8 +5866,8 @@ Memo provenance
   — Plan 2 B6 closeout (cross-verification matrix, parallel
   research-grade-reference decision).
 - :file:`.claude/agent-memory/numerics-investigator/_archive/specular_continuous_mu_phase5_retreat.md`
-  — Phase 5 retreat (predecessor, motivates the angle-resolved
-  reformulation).
+  — the continuous-µ retreat record (predecessor, motivates the
+  angle-resolved reformulation).
 - :file:`.claude/plans/peierls-greens-function-approach.md` — Plan 2
   master plan (Part A reorganisation + Part B Green's function).
 

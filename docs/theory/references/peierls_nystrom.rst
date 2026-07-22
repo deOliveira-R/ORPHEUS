@@ -751,8 +751,8 @@ time. Do not delete.
 
 .. _theory-peierls-slab-polar-g5-routing:
 
-Subsection — Phase G.5 slab routing switch (Issue #130)
---------------------------------------------------------
+The slab routing switch
+-----------------------
 
 **Status (2026-04-24): activated, bit-exact parity.**
 
@@ -805,8 +805,8 @@ same ``solve_peierls_mg`` API surface.
 
 .. _theory-peierls-slab-polar-g5-diagnosis:
 
-Subsubsection — How the 1.5 % gap was diagnosed (Issue #131)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+How the 1.5 % gap was diagnosed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 `Issue #131 <https://github.com/deOliveira-R/ORPHEUS/issues/131#issuecomment-4348745846>`_
 closed the original 1.5 % multi-region gap — see the close-out comment
@@ -1058,8 +1058,8 @@ its bit-exact parity with the unified path on the shipped fixtures.
 
 .. _theory-peierls-multigroup:
 
-Multi-group Peierls eigenvalue driver (Issue #104)
-==================================================
+Multi-group Peierls eigenvalue driver
+=====================================
 
 **This section documents the multi-group extension
 (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`) that
@@ -3132,8 +3132,8 @@ absorber, which the Jacobian fix preserves uniformly across
 
 .. _peierls-rank-n-per-face-closeout:
 
-Phase F.5 — Rank-N per-face closure: five-reference synthesis and structural close-out (Issue #119, CLOSED 2026-04-21)
-======================================================================================================================
+Rank-N per-face closure — five-reference synthesis and structural close-out
+===========================================================================
 
 Status
 ------
@@ -3384,8 +3384,8 @@ the angular representation.
 
 .. _peierls-f4-rank-1-gauge-why:
 
-Why F.4 works at rank-1 but does not generalise (Issue #122 close-out)
-----------------------------------------------------------------------
+Why F.4 works at rank-1 but does not generalise
+-----------------------------------------------
 
 F.4 scalar (Eq. 3.323 of Hébert 2009) pairs **Lambert-basis**
 :math:`P_{\rm esc}, G_{bc}` (integrand has no :math:`\mu` weight on
@@ -3518,8 +3518,8 @@ calibration plan — is in
 
 .. _peierls-rank-n-stability:
 
-Rank-N stability protocol (L19, tracked in Issue #123)
-------------------------------------------------------
+Rank-N stability protocol (tracked in #123)
+-------------------------------------------
 
 A rank-N white-BC closure candidate :math:`C` claims to beat F.4 at a
 reference point :math:`(\tau, \rho)` if and only if the claim survives
@@ -3645,8 +3645,8 @@ mathematics outside the five-reference corpus:
 
 .. _peierls-rank-n-class-b-mr-mg-falsification:
 
-Phase F.6 — Rank-N on Class B (solid cyl/sph) MR×MG: empirical falsification + Issue #132 (open 2026-04-25)
-============================================================================================================
+Rank-N on Class B (solid cyl/sph) MR×MG — empirical falsification (#132 open)
+=============================================================================
 
 Status
 ------
@@ -4971,8 +4971,8 @@ vs the per-face block-diagonal restriction, and (d) the
 on sphere/cyl plus the slab :math:`T_{oi}^{(0,0)} = 2 E_3(\tau_{\rm tot})`
 identity. Use ``pytest --collect-only`` for the live inventory.
 
-Multi-energy / multi-region convergence (Phase 2)
--------------------------------------------------
+Multi-energy / multi-region convergence
+---------------------------------------
 
 The 1G/1R verification above pins the rank-N closure at the
 homogeneous single-group level. Production use requires multi-group
@@ -5110,8 +5110,8 @@ sweet spot for plain ``boundary="specular"`` is therefore
 ``boundary="specular_multibounce"`` at :math:`N \in \{1, 2, 3\}`
 (see the multi-bounce subsection below).
 
-Multi-bounce-corrected specular (sphere / cylinder / slab — Phase 4)
---------------------------------------------------------------------
+Multi-bounce-corrected specular (sphere / cylinder / slab)
+----------------------------------------------------------
 
 For thin cells (:math:`\tau \lesssim 5`) the bare
 ``boundary="specular"`` closure plateaus several percent below
@@ -5391,8 +5391,8 @@ Best-use envelope
 
 .. _peierls-phase5-retreat:
 
-Phase 5 — continuous-µ retreat (Issue #133, CLOSED wontfix)
------------------------------------------------------------
+The continuous-µ retreat (closed wontfix)
+-----------------------------------------
 
 The Phase 5 continuous-:math:`\mu` reformulation, intended to
 structurally fix the matrix-Galerkin
@@ -5476,8 +5476,8 @@ References and further reading
 
 .. _peierls-rank-n-bc-closure-section:
 
-Section 9 — Test-bed evidence from Phase 4.2 (cylinder)
-========================================================
+Section 9 — Test-bed evidence (cylinder)
+========================================
 
 The cylindrical Peierls reference is the most fully-exercised
 instantiation of the unified architecture. The test evidence

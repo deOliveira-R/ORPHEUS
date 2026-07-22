@@ -1982,8 +1982,8 @@ which:
 
 V_se-cyl.2 caught the typo on first SymPy run.
 
-q-formula in Phase B1 SymPy — :math:`R` should be :math:`R/\mu`
-----------------------------------------------------------------
+q-formula in the SymPy reference — :math:`R` should be :math:`R/\mu`
+--------------------------------------------------------------------
 
 The Phase B1 SymPy module wrote :math:`q(\nu, \mu) = (R/\nu)\,K_0\,
 I_1 + R\,K_1\,I_0`, but the WM-72 paper (Eq 28 footnote) actually
