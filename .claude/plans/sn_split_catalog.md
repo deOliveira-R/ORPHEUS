@@ -133,7 +133,7 @@ leaf first, 3 = dedup-heavy last).
 | 14 | `solver.rst` | **DONE @ `48750bc4`** — both H1s traveled identity-promoted, harmonized-at-move (Option-Y + current-truth transforms); companion numerics respell @ `19e8b688` | `sn-solver-operator-algebra-coordinator`, `sn-consuming-the-frame` | 3 | ✅ DONE |
 | 2 | ~~`algebra.rst`~~ | **CLOSED AS ABSORBED (user-ratified 2026-07-21).** The architecture (sn_book_architecture §4) supersedes the topic chapter; the content contract is realized by DISTRIBUTION — the posing spine single-homed at slab_multigroup `sn-mg-eigenvalue-posing` (`(L+C−S−B)ψ=(1/k)Fψ` · `A_loss=λM` → foundations `eigenvalue-posing` · `K=A⁻¹F` · the resolvent-reuse story); the §3.2 chain (invariant → why-invertible=lower-triangular → matrix=rawest → strategy-encoding) verbatim in slab_one_group "The within-group operator"; the strategy catalog = loss_representation (triangularity theorem, four representations, consumption modes); the shared §2.2 types = foundations/operator_algebra "The intrinsic operator types" (#226, the corrected S=kernel form). The residual restatements (solver framing H2, windowing Key Facts) are harmonized local-consumption one-liners, NOT re-derivations (the third site — iteration-primitives — dissolved at cartesian S3). ~~`choosing-inverse-realisation`~~ DONE @ `b7166ed6`; ~~label near-dup~~ RULED no-collision | (none) | — | ✅ absorbed |
 | 15 | `adjoint.rst` | **CHAPTER MINTED @ `0b96db7f`** (extraction half pulled forward at ch8): anchor `sn-adjoint`, thin frame (3-layer scope + 4 Key Facts) + the traveled `sn-scattering-adjoint` section promoted to its spine. **Authoring half PENDING** — daggered posing / ψ* / φ*-consumers land with #276 A4/A5 (+ #51/#281); the traveled body's `(L+C−S)ᵀ` shorthand gets the B-note treatment then (the fresh frame already carries it) | `sn-adjoint`, `sn-scattering-adjoint` | 3 | extraction ✅ / authoring pending |
-| 1 | `placement.rst` | NEW writing (why SN vs CP/MoC/P_N/diffusion, M7) | (new) | — | Phase D/defer |
+| 1 | `placement.rst` | **DONE @ `93ac899a` + review fixes `43530f8d` (2026-07-22, Phase-H adjacency)** — the M7 trade-space chapter (406 ln, toctree slot 1, Newcomer step 0): Key-Facts decision summary · buy/pay from the one invariant (retain ψ + collocate angle; Cartesian decoupling scoped, curvilinear α-coupling acknowledged) · 5 trade subsections each with the flip condition (CP white-BC buy/cost two-sided per enforcer B-1) · regime map · ORPHEUS at-fixed-data positioning · routes to `sn-symptom-table`. Sanchez-McCormick 1982 woven from a targeted MAIN-AGENT visual read (2 literature-researcher dispatches died on content-filter errors over the textless scan; memo = `phase_i_survey_sanchez_mccormick_1982.md`, coverage partial-marked): the p. 482 selection-criteria page + the NO-CONCLUSIONS finding (= the M7 gap itself). Reviews: enforcer 0-MUST-FIX (claim hygiene clean) · qa ZERO wrong claims | `sn-placement` | — | ✅ DONE |
 
 **Stays in `index.rst` (the router):** title/intro (`theory-discrete-ordinates`), "Synopsis"
 (`sn-synopsis`), "Architecture", the "Gotchas" *index* (`sn-gotchas` — content distributes
@@ -932,10 +932,12 @@ in the page and its two commits; the git record + the page's own
 Development-history dropdown are the archive. The Phase-I surveys stay
 on disk as reference.)*
 
-**Then:** placement.rst (M7 — the root page's adjacency rider, NOT yet
-done) · #304 (the Phase-F residue: P10 labels · code comments · prose
-two-spellings) · ch15 authoring half (#276 A4/A5-blocked) · #231
-Phase 2 (code-prose rebalancing) · task #10 (three-layer V&V part).
+**Then** (placement.rst ✅ DONE @ `93ac899a`+`43530f8d` — the ch1 row
+above; with it EVERY catalog row is terminal except ch15's
+#276-blocked authoring half): #304 (the Phase-F residue: P10 labels ·
+code comments · prose two-spellings) · ch15 authoring half (#276
+A4/A5-blocked) · #231 Phase 2 (code-prose rebalancing) · task #10
+(three-layer V&V part).
 (#298/#299 fixes in-branch @ `639cec9e`/`4425516c`, DONE @ `68c39c28`;
 the issues auto-close at push.)
 
