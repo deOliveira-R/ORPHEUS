@@ -57,7 +57,9 @@ quotes short, SELECT from sidecar text rather than transcribing from
 page renders, and write findings to your deliverable file
 INCREMENTALLY so a mid-run kill preserves progress. Missing sidecar?
 `.venv/bin/python tools/ocr_literature.py --glob '<name>*'`
-(cache-idempotent, never re-bills).
+(cache-idempotent, never re-bills; the full operational reference —
+flags, cache semantics, failure modes — is the `research` skill's
+Tier-0 section).
 
 **Tier 1 — the user's Zotero library** (curated nuclear-engineering
 items, currently ~15,000+). When the brief doesn't name a local

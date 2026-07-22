@@ -2,19 +2,75 @@
 name: research
 description: >
   Use when the user or an agent needs to search scientific literature,
-  resolve DOIs, explore citation graphs, or query nuclear data.
-  12 databases: OSTI, arXiv, Scopus, INIS, OpenAlex, CrossRef, Semantic
-  Scholar, HAL, Zenodo, J-STAGE, IAEA-NDS, EXFOR. Examples: "Find
-  papers on collision probability", "Look up Bailey 2009", "What
-  cites this DOI?", "U-235 ground state data", "Find Sanchez/Hébert
-  HAL deposits", "OpenMC release on Zenodo", "JNST resonance papers",
-  "U-235 (n,f) experimental cross sections"
+  resolve DOIs, explore citation graphs, or query nuclear data. The
+  LOCAL OCR'd library comes first (scratch/literature_ocr/ sidecars +
+  tools/ocr_literature.py), then 12 databases: OSTI, arXiv, Scopus,
+  INIS, OpenAlex, CrossRef, Semantic Scholar, HAL, Zenodo, J-STAGE,
+  IAEA-NDS, EXFOR. Examples: "Find papers on collision probability",
+  "Look up Bailey 2009", "What cites this DOI?", "U-235 ground state
+  data", "Find Sanchez/Hébert HAL deposits", "OpenMC release on
+  Zenodo", "JNST resonance papers", "U-235 (n,f) experimental cross
+  sections", "Extract equations from the local Sanchez 1982 PDF"
 ---
 
 # Literature & Nuclear Data Search Skill
 
 Search scientific databases for nuclear engineering literature, resolve
 DOIs, explore citation networks, and query nuclear structure data.
+Before ANY database: check the local library.
+
+## Tier 0 — the local OCR'd library (search it FIRST)
+
+`scratch/literature/` is the user's actively-maintained PDF folder (ALL
+Nuclear Science & Engineering volumes are local). Every PDF has a
+Mistral-OCR **sidecar** at `scratch/literature_ocr/<stem>.md` plus a raw
+cache `<stem>.mocr.json`. Sidecar anatomy:
+
+- `## p. <N>` sections — N is the **1-based PDF page**, the same number
+  the Read tool's `pages=` takes. Page boundaries are never flattened.
+- A provenance header with the **printed-page mapping** (e.g.
+  `printed p. ≈ PDF p. + 479`) and text-layer telemetry; per-page
+  printed headers/footers carried as `*[printed header: …]*` lines.
+- Equations arrive as LaTeX with the paper's own `\tag{N}` numbers.
+
+Search the library by grepping sidecars, then open the exact page:
+
+```bash
+grep -rln "collision probability" scratch/literature_ocr/ --include='*.md'
+grep -n "ray effect" "scratch/literature_ocr/<stem>.md"   # → its '## p. N'
+# then: Read the PDF with pages=N to verify against the rendered page
+```
+
+**Discipline (normative owner: `.claude/rules/delegation.md` + the
+literature-researcher Tier-0 block):** the scan is the SSOT — spot-verify
+load-bearing equations against the rendered page before they enter docs
+or code; paraphrase + page-cite, keep verbatim quotes short, SELECT from
+sidecar text rather than transcribing page renders (content-filter
+lesson), write findings to the deliverable incrementally.
+
+### Operating `tools/ocr_literature.py` (regenerate / extend sidecars)
+
+Host env: always `.venv/bin/python`. Key: `MISTRAL_API_KEY` in the
+ORPHEUS-root `.env` (gitignored — never print it).
+
+```bash
+# New PDF landed in scratch/literature/ → sidecar it (one file):
+.venv/bin/python tools/ocr_literature.py --glob '<name>*'
+# Cheap pipeline check first (OCRs page 0 only, prints it, writes nothing):
+.venv/bin/python tools/ocr_literature.py --validate --glob '<name>*'
+# Full-library sweep (cache-idempotent — already-done files cost nothing):
+.venv/bin/python tools/ocr_literature.py
+```
+
+- **Cache semantics**: raw responses cache to `<stem>.mocr.json`;
+  re-runs never re-bill (~$1 / 1000 pages, the 58-file library was
+  ~$2.17). Sidecars regenerate from cache on every run, so emitter
+  improvements are free — safe to re-run anytime.
+- `--force` re-OCRs past the cache (only for a corrupt/partial cache).
+- **Failure modes**: a transient Mistral 500 fails ONE file and the
+  sweep continues — just re-run (cache skips completed files). A
+  missing-key exit names the fix. Sidecars + caches stay untracked
+  (derived artifacts of the untracked library).
 
 ## Available Databases
 
@@ -42,6 +98,10 @@ DOIs, explore citation networks, and query nuclear structure data.
 
 ## When to Use Which
 
+- **The brief names a local file, or the topic plausibly lives in the
+  user's library** → Tier 0 FIRST: grep `scratch/literature_ocr/`
+  sidecars, verify on the rendered page. Databases are for what the
+  library lacks (and for provenance cross-checks).
 - **DOE lab report or NUREG** → OSTI
 - **Recent/unpublished work** → arXiv
 - **Specific journal article** (by DOI, author, journal) → Scopus or CrossRef
