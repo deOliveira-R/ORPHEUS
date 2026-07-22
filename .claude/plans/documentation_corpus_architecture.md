@@ -123,8 +123,22 @@ symptom, not a typo.
 | **Hébert 2009** | 19 | **YES, 5 pp** (only text) | No | No — filed under **CP §3.8.2** | **0 hits** |
 | **Stacey 2007** | 17 | **No** | No (Ch.13) | No — filed under **spherical S_N §9.9** | **0 hits** |
 | Duderstadt & Hamilton 1976 | **~0** | — | — | — | — |
-| Larsen & Morel 2010 (review) | 84 | *unverified — closed access* | | | |
-| Adams & Larsen 2002 (review) | 157 (accel.) | *unverified — closed access* | | | |
+| Larsen & Morel 2010 (review) | 84 | **No** — 1-D sphere only (~5 pp, Eqs. 1.20–1.26 + 1.92–1.93); 2-D cyl = one sentence | **No** — adjoint only as VR input (pp. 21–23); the discretization's adjoint never constructed | **No** — Eq. (1.1) fission-inline fixed-source; k only as bib [126] | **0 hits** (one MCNP-vs-ATTILA anecdote, p. 22) |
+| Adams & Larsen 2002 (review) | 157 (accel.; P_N excluded p. 6) | ⅓ p., zero eqs ("no major surprises", p. 80); sphere 3 pp; **no discrete curvilinear Fourier exists** (p. 79) | No (8 instrumental hits) | **YES — own chapter** (VIII, 12 pp): dominance ratio r = \|k₂\|/k₁ "same role as c" (p. 127); SPI/Wielandt (8.18)–(8.25) | 1 hit `benchmark`; 0 manufactured/verification; de-facto discipline = Fourier-σ vs observed (§III.J) |
+
+> **Phase-I survey (2026-07-21): the two rows above are now FILLED from the local OCR'd texts.**
+> Full page-cited harvests: `.claude/plans/phase_i_survey_larsen_morel_2010.md` (M4b: ρ_SI = c
+> Eq. 1.34 + full Fourier 1.165–1.176; DSA ≈ 0.23c + the Alcouffe consistency history; the
+> thick-diffusion-limit derivation 1.74–1.91 + the 12-item admissibility inventory; 16 M2
+> triples; **no angular asymptotics — BMC 2010 absent from its bibliography**) and
+> `.claude/plans/phase_i_survey_adams_larsen_2002.md` (M4b: the 5-step Fourier recipe §II.A;
+> discrete ρ = c ∀(N, h) Eq. 3.30; DSA σ ≤ 0.2247c Eq. 2.51 + the consistency story
+> 3.44–3.65; the full acceleration taxonomy + the Krylov T = I−X_SI mapping onto the ORPHEUS
+> GMRES-on-sweep path with the p. 140 design-guidance quote licensing #200/#2; 14 M2 triples
+> incl. the false-convergence ε(1−σ̂) criterion Stacey lacks; the #2 DSA reading map — all four
+> primaries local). **The niche thesis SURVIVED sharpened:** verification is a ZERO in both
+> reviews too, L&M covers only the spatial half of the consistency story, and A&L confirms no
+> discrete curvilinear Fourier analysis exists — the M4/M4b/M5 gaps hold against the full canon.
 
 > **The niche, in the survey's own words:** *"The 1970 text is still the most complete textbook
 > treatment of S_N-the-method, and the two modern textbooks are each ~18 pages that omit
@@ -523,6 +537,10 @@ Ordered for reversibility and early payoff. **A and B are independently valuable
   archivist executes → main-agent reviews diff-vs-catalog). Start with SN (§5). **This is
   Phase 1d of the in-flight campaign, re-scoped: "split into chapters" ⊃ "decompose in place."**
 - **Phase D — Write the routers** (indexes, tracks, diagnostic tables). Payoff: P2 realized.
+  **STARTED 2026-07-21 (user-ratified order):** (1) `methods/index` §2.3-corrected rebuild →
+  (2) the SN sub-book router (tracks + the M2 symptom→chapter table) → (3) foundations /
+  theory-root / verification polish → (4) the corpus root. `placement.rst` (M7) **deferred to
+  Phase-H adjacency** (the root owns the comparative map; Sanchez(1982) is local when needed).
 - **Phase E — Conventions part** (M1) — mostly new writing; the biggest differentiator.
 - **Phase F — Archaeology sweep (P7)** — 130 campaign-named headings; the 3.7:1 (b):(a) ratio.
 - **Phase G — Backfill** — equation labels, `:term:` wiring, `:cite:` migration, V&V slices.
@@ -533,7 +551,10 @@ Ordered for reversibility and early payoff. **A and B are independently valuable
   §3.6's own "Blocking defects" list says the root page must not cite X2/X3 until they are
   fixed ⟹ **blocked on #298 + #299**; X1 is fixed. **Read §3.6's 12 MUST-NOT claims before
   writing a word.** Wants Phase I's survey as an input (the taxonomy needs the post-1968 map).
-- **Phase I — Literature survey pass** (*added 2026-07-16*) — the two §3.2 rows that read
+- **Phase I — Literature survey pass** (*added 2026-07-16*) — **✅ SURVEYED 2026-07-21** (two
+  parallel literature-researcher passes on the local OCR'd texts; §3.2 rows filled; deliverables
+  `.claude/plans/phase_i_survey_{larsen_morel_2010,adams_larsen_2002}.md` — the M4b/M2 harvests
+  + section structures + the #2 DSA reading map now feed Phases D–H). Original scope: the two §3.2 rows that read
   *"unverified — closed access"* are now local and OCR'd: **Larsen & Morel 2010** (ch. 1 of the
   Azmy & Sartori book, pp. 1–84) and **Adams & Larsen 2002** (157 pp). Fill the table; harvest
   **M4b** (convergence theory / the asymptotic diffusion limit / a ρ ≈ c predictor — a **zero**
