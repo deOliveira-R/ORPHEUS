@@ -934,10 +934,13 @@ on disk as reference.)*
 
 **Then** (placement.rst ✅ DONE @ `93ac899a`+`43530f8d` — the ch1 row
 above; with it EVERY catalog row is terminal except ch15's
-#276-blocked authoring half): #304 (the Phase-F residue: P10 labels ·
-code comments · prose two-spellings) · ch15 authoring half (#276
-A4/A5-blocked) · #231 Phase 2 (code-prose rebalancing) · task #10
-(three-layer V&V part).
+#276-blocked authoring half): **⏭ the OCR-tool INTERLUDE first**
+(user-ruled 2026-07-22; task #18; plan =
+`.claude/plans/literature_ocr_tool.md` — Mistral sidecars for the
+literature folder, born from the Sanchez filter incident) · then #304
+(the Phase-F residue: P10 labels · code comments · prose
+two-spellings) · ch15 authoring half (#276 A4/A5-blocked) · #231
+Phase 2 (code-prose rebalancing) · task #10 (three-layer V&V part).
 (#298/#299 fixes in-branch @ `639cec9e`/`4425516c`, DONE @ `68c39c28`;
 the issues auto-close at push.)
 
