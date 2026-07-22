@@ -130,8 +130,8 @@ leaf first, 3 = dedup-heavy last).
 | 4 | ~~`scattering_and_moments.rst`~~ | **SUPERSEDED by progression** — "Scattering" + "Scattering and fission as LinearOperators" gathered by `slab_multigroup` @ `b7166ed6`; "Angular windowing" → `cartesian_multid` @ `1722d438` | — | — | absorbed |
 | 8 | ~~(append to `loss_representation.rst`)~~ | **DONE @ `0b96db7f` (2026-07-21, user-ratified SPLIT-BY-CONTENT — the whole-append superseded)**: the two-closure chronicle + Wave-E record → loss_representation "History and rationale" FIRST H2 (Wave-E its H3); the scattering adjoint → the new `adjoint.rst`; the H1 rump DISSOLVED (router intro's facts live in slab_one_group; refs split — L&M §10 → adjoint, A-L merged, T&B new row). The LAST dual-A local-convention zone harmonized at the move; the chronicle's falsified ERR-026 narrative tombstone-extended (ERR-058/#196 anchors) | — | ✅ DONE |
 | 13 | ~~`iteration.rst`~~ | **SUPERSEDED by progression** — Krylov H1 → `slab_one_group` @ `2c60d6a5`; KEigenvalue/choosing/operand/FEAST/cross-solver → `slab_multigroup` @ `b7166ed6`; the boundary G-S schedule → `cartesian_multid` @ `1722d438` (the `sn-iteration-primitives` H1 DISSOLVED; its Wave-E-R1 fact → slab_multigroup) | — | — | absorbed |
-| 14 | `solver.rst` | "SNSolver as an operator-algebra coordinator" + "Consuming the frame in SN" | `sn-solver-operator-algebra-coordinator`, `sn-consuming-the-frame` | 3 | pending |
-| 2 | `algebra.rst` ★★ | THE SPINE — synthesized: dedup the `(A−S−F)ψ=q` spine (restated 3× — remaining sites: the SNSolver-coordinator + Angular-windowing H1s). ~~collapse `choosing-inverse-realisation` vs the inverse-family labels~~ (DONE @ `b7166ed6` — compressed into `slab_multigroup`, foundations owns the catalog); ~~`cross-solver-eigenvalue-consumers` vs `matrix-inverse-consumers`~~ (RULED no-collision — different concepts) | (new) | 3 | partially absorbed |
+| 14 | `solver.rst` | **DONE @ `48750bc4`** — both H1s traveled identity-promoted, harmonized-at-move (Option-Y + current-truth transforms); companion numerics respell @ `19e8b688` | `sn-solver-operator-algebra-coordinator`, `sn-consuming-the-frame` | 3 | ✅ DONE |
+| 2 | `algebra.rst` ★★ | THE SPINE — synthesized: dedup the posing spine (remaining sites after the ch14 harmonization: `solver.rst`'s "(L + C − S − B)·ψ = (1/k)·F·ψ framing" H2 + `cartesian_multid`'s Angular-windowing binding; the index's Transport-Equation intro feeds it). ~~collapse `choosing-inverse-realisation` vs the inverse-family labels~~ (DONE @ `b7166ed6` — compressed into `slab_multigroup`, foundations owns the catalog); ~~`cross-solver-eigenvalue-consumers` vs `matrix-inverse-consumers`~~ (RULED no-collision — different concepts) | (new) | 3 | partially absorbed |
 | 15 | `adjoint.rst` | **CHAPTER MINTED @ `0b96db7f`** (extraction half pulled forward at ch8): anchor `sn-adjoint`, thin frame (3-layer scope + 4 Key Facts) + the traveled `sn-scattering-adjoint` section promoted to its spine. **Authoring half PENDING** — daggered posing / ψ* / φ*-consumers land with #276 A4/A5 (+ #51/#281); the traveled body's `(L+C−S)ᵀ` shorthand gets the B-note treatment then (the fresh frame already carries it) | `sn-adjoint`, `sn-scattering-adjoint` | 3 | extraction ✅ / authoring pending |
 | 1 | `placement.rst` | NEW writing (why SN vs CP/MoC/P_N/diffusion, M7) | (new) | — | Phase D/defer |
 
@@ -612,48 +612,54 @@ toctree + router updated. Enforcer (resumed instance): **COMMIT-READY, zero MUST
 CONCERN (B elided in the daggered-posing shorthand) closed in-commit in the fresh frame.
 Gate `-E -W` GREEN. Agent-memory @ `b55257a5`.
 
-**⏭ IMMEDIATE NEXT = ch14 `solver.rst` — queued at compaction (2026-07-21).**
+**✅ ch14 `solver.rst` — DONE @ `48750bc4` + `19e8b688` (2026-07-21).** Steer: all three
+recommendations ratified, Q1 UPGRADED by the user to "also respell the code posings" (its
+own commit). The two H1s traveled IDENTITY-promoted (flat multi-`=` top level; fresh
+opener + Key Facts frame); index 1,736 → 1,149 — **the predicted rump exactly** (Synopsis ·
+Architecture · Transport Eq · Cell-update H1 · Sweep rump · Gotchas index · References ·
+toctree, all ruled STAYS). Declared transforms: **Option-Y** (the `(A,S,F)` triple →
+`(L+C, S, F)`; `(A−S)ψ=q_ext` → `(L+C−S−B)ψ=q_ext`; "A⁻¹ is the WDD asymmetric sweep" →
+the resolvent `(L+C)⁻¹`; the H2 title → "The (L + C − S − B)·ψ = (1/k)·F·ψ framing at the
+solver level"); **current-truth** (stale ERR-026 + "Reflective-BC equation map only
+(Round 3…)" dropped — live solver.py confirms retired; "Two Inner Solvers" honest: T⁻¹ →
+`(L+C)⁻¹`, both paths iterate the typed composite, the Krylov system = the honest
+`(L+C−S−B)` with gains in the operator, the unverifiable "~0.97 @ 421 groups" figure
+dropped for ρ=c → slab_one_group, ERR-053 restart×n_dof memory note); **move-created
+fossils** ("the streaming-collision history section above" → `loss-rep-history`;
+"elsewhere on this page" → verification); T18 the Gotchas "scale bridge above" →
+`sn-keff-estimator`; E1–E3 the MoC/CP/MC `sn-keff-estimator` page-qualifiers → sn/solver;
+E4/E5 the pre-existing transport-cartesian test-docstring fossils → slab_one_group. 5
+labels single-homed (vv-status markers traveled). **The numerics respell** (`19e8b688`):
+the iteration.py/operator.py module-head posings → the variadic `(A − Σᵢgᵢ)`
+algebra-of-record (A = the resolvent OPERAND = the literal constructor parameter,
+unrenamed; SN binding `A = L+C` ⊕ gains `(S, B)`; fission never a gain in the eigenvalue
+posing); the KEigenvalue-layer `(A,S,F)`/`A_loss = A−S` sites deliberately KEPT (B is
+method-layer — that class's own harmonized contract) — **the slab_multigroup dated-posing
+deferral is CLOSED**. Enforcer (FRESH instance, persists this session): **COMMIT-READY,
+zero MUST-FIX** — "exactly 11 non-equal hunks, each a declared transform or fresh-frame
+insertion"; the ~380-ln keff record + the whole frame H1 byte-identical; the cross-layer
+dual-`A` ruled a NON-finding (the mapping is spelled in-code both directions —
+iteration.py's `A = L+C` head binding + its `A_loss = L+C−S−B` comment). Gate `-E -W`
+GREEN. Agent-memory @ `8e41e0a1`.
 
-*Sources* (index @ `1564ef9f`, 1,736 ln; line #s advisory — re-derive by title):
-**"SNSolver as an operator-algebra coordinator"** H1 @ ~894 (anchor
-`sn-solver-operator-algebra-coordinator`; H2s: "The within-group inner solve consumes the
-primitives directly" · "The (L − S − F)·ψ = (1/k)·F·ψ framing at the solver level" (the
-title's own spelling — verify exact; it omits C and B) · "The reported eigenvalue: fission
-production over net removal" (~350 ln — the `sn-keff-estimator`-class inbound lives here) ·
-"Two Inner Solvers") **+ "Consuming the frame in SN"** H1 @ ~1406 (anchor
-`sn-consuming-the-frame`; H2s Homogenisation + Condensation — the
-`sn-condensation-*`/`sn-homogenization-*` inbound classes). Spans ≈ 512 + 74 ln. Pairing
-already RULED (content directive 2026-07-16: "Consuming the frame in SN" → the `solver`
-chapter); Tier-3 = **main-agent + elegance-enforcer** (delegation ruling — dedup-heavy
-chapters never go to the archivist).
+**Phase C's structural-move program is COMPLETE.** Every movable chapter is out of the
+monolith; the index is the ruled rump. What remains in the campaign is SYNTHESIS and
+polish, not moves.
 
-*Post-compaction opening move = the STEER* (AskUserQuestion): **(1) pure-move vs
-harmonize-at-move** — the SNSolver H1 is BOTH one of the spine-restatement sites (ch2's
-dedup list) AND the named home of the deferred dated-posing harmonization (iteration.py
-module-docstring posings + operator.py:9's `(A−S−F)ψ=q_ext` — the memory router's deferred
-item names "the algebra/solver chapters"). Recommendation to carry: move + harmonize the
-DATED POSINGS as declared transforms (the ch8 Option-Y precedent — doc math only; code
-docstrings are a separate commit if touched), DEFER the cross-page spine DEDUP to ch2 (it
-needs `algebra.rst` to exist as the single home). **(2) staging** — single commit (~586 ln)
-vs one per H1 (the natural cut if staged). **(3) the index rump** — the toctree-intro
-sentence "the not-yet-chaptered sections (SNSolver, consuming-the-frame)" EMPTIES at this
-move; rewrite it; predicted rump = Synopsis · Architecture · Transport Equation ·
-Discrete-Balance router · Cell-update H1 · Sweep-Algorithm rump · Gotchas index ·
-References · toctree (the "Stays in index" list above).
-
-*Model:* disassembly (label map + L35 three-way grep + L34 filename sweep; expect
-pre-existing fossils — ch8 found 6) → steer → splice script (byte-exact spans + declared
-transforms, asserts BEFORE writes) → `-E -W` gate → **FRESH elegance-enforcer dispatch**
-(the ch8 review instance is LOST at compaction — brief it with: L-013 char-identity vs
-`git show HEAD:`, the declared-transform framing, the Option-Y law, the per-label
-foundations sweep, #302 out-of-scope) → commit → checkpoint here.
-
-**Then:** ch15 authoring half (daggered posing/ψ*, blocked on #276 A4/A5) · ch2
-`algebra.rst` Tier-3 dedup (the thrice-restated spine — remaining sites: the
-SNSolver-coordinator + Angular-windowing H1s) · ch1 `placement.rst` (Phase D/defer) · the
-campaign phases D (routers) → E (conventions) → F (archaeology) → G (backfill) → H (root
-page) → I (literature survey) · #231 Phase 2 (code-prose rebalancing) · task #10
-(three-layer V&V part build-out).
+**⏭ NEXT = ch2 `algebra.rst`** — Tier-3 SYNTHESIS (a merge, not a move; main-agent +
+elegance-enforcer). The spine's single home, governed by the four 2026-07-16 content
+directives (general→method derivation shown per-method; the loss-representation MATRIX
+SHAPE as the baseline representation; every non-matrix representation shows its
+avoid-materializing strategy + the shape→strategy link; the operator algebra FROM the
+general representation TO each strategic form SHOWN). Sources to reconcile: the index's
+Transport-Equation intro (ruled STAYS as SN-book intro *feeding* algebra), `solver.rst`'s
+"framing at the solver level" H2, `cartesian_multid`'s Angular-windowing binding,
+`loss_representation` (which owns representation/strategy already — the boundary between
+ch2 and that page needs a steer). Opening move = disassembly of the restatement sites +
+an outline steer. **Then:** ch15 authoring half (daggered posing/ψ*, blocked on #276
+A4/A5) · ch1 `placement.rst` (Phase D/defer) · phases D (routers) → E (conventions) → F
+(archaeology) → G (backfill) → H (root page) → I (literature survey) · #231 Phase 2
+(code-prose rebalancing) · task #10 (three-layer V&V part build-out).
 
 *Standing facts:* branch `docs/sn-doc-architecture` UNPUSHED; citations + eq-labels are
 project-global; recipe = "The per-chapter recipe" section above (L35 three-way grep + L34
