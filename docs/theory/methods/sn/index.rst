@@ -898,6 +898,58 @@ Each gotcha is a **consequence → how it manifests → which test / level
 catches it** — a trap that hides a solver bug behind a green test.  They
 should *shrink* over time as the code hardens.
 
+.. _sn-symptom-table:
+
+Where to look first — symptom → chapter
+----------------------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 32 30
+
+   * - Symptom
+     - First suspect
+     - Go to
+   * - :math:`k` wrong on a vacuum-bounded problem (overshoot
+       :math:`\approx L/A`)
+     - the reported-:math:`k` functional omitting leakage (the #291
+       class)
+     - :ref:`sn-keff-estimator`
+   * - :math:`k` wrong only when :math:`(n,2n)` is present
+     - the emission mis-posed as production (the R7 fork)
+     - :ref:`sn-keff-estimator`
+   * - :math:`k` right on 1-group / reflective, wrong on multigroup
+       heterogeneous
+     - scattering-matrix orientation drift — a 1-group green proves
+       nothing (degeneracy trap below)
+     - :ref:`scattering-matrix-convention`, :doc:`slab_multigroup`
+   * - flux spike at :math:`r = 0` on a curvilinear fixed source
+     - a missing :math:`\Delta A/w` geometry factor
+     - :ref:`balance-curvilinear`
+   * - NaN / overflow marching through the angular sweep
+     - a negative :math:`\alpha`-dome entry (warning below)
+     - :doc:`curvilinear_one_group`
+   * - negative or oscillating flux on coarse Cartesian cells
+     - the DD closure's unboundedness — refine or change closure
+     - :doc:`/theory/foundations/discretization`,
+       :ref:`ld-ubld-multidim`
+   * - SI iteration count blows up as :math:`c \to 1`
+     - :math:`\rho = c` physics, not a bug (acceleration is the fix)
+     - :ref:`si-within-group-splitting`
+   * - sweep and matvec disagree
+     - forbidden post-#206 (one walk) — a representation-seam
+       regression
+     - :ref:`loss-rep-one-walk-one-instance`
+   * - Krylov stalls or diverges after a composite-sizing refactor
+     - ``restart`` / ``n_dof`` sizing (the ERR-053 family)
+     - :ref:`sn-282-gotchas`
+   * - MMS recovers a lower order than theory
+     - the ansatz nulls the term (Mode 7) or the regime is degenerate
+     - :doc:`verification`
+   * - the adjoint reciprocity gate reds
+     - the three-transposes landmine (Euclidean / Hilbert / walk)
+     - :ref:`sn-adjoint`
+
 Degeneracy traps — a passing test that proves nothing
 -----------------------------------------------------
 
@@ -1129,6 +1181,32 @@ This page is the S\ :sub:`N` sub-book's index: the synopsis, the
 architecture map, the transport equation, and the shared cell-update
 and dispatch contracts; the chapter decomposition is tracked as issue
 `#231 <https://github.com/deOliveira-R/ORPHEUS/issues/231>`_.
+
+Several orders through the book serve different jobs (tracks, not one
+sequence):
+
+* **Newcomer** — the broadening progression in toctree order:
+  :doc:`slab_one_group` (the whole machine at its simplest) →
+  :doc:`slab_multigroup` (energy and the eigenvalue) →
+  :doc:`cartesian_multid` (space) → :doc:`curvilinear_one_group` →
+  :doc:`curvilinear_multigroup`, with :doc:`angular_quadrature` and
+  :doc:`boundary_conditions` as on-ramp references.
+* **Modifying the sweep** — :doc:`loss_representation` (the
+  representation catalog and the one-walk theorems,
+  :ref:`loss-rep-one-walk-one-instance`) → the strategy contract on
+  this page (:ref:`cell-update-strategies`) → the multi-D schedule
+  (:ref:`sweep-octant-dependency-graph`) → the curvilinear sequential
+  sweep (:doc:`curvilinear_one_group`) → the sweep-machinery gotchas
+  (:ref:`sn-282-gotchas`).
+* **Porting an equation from the literature** — the machine header at
+  the top of this page (sign / normalization / layout / ordering
+  conventions) → :doc:`angular_quadrature` (weight normalization) →
+  the scattering-matrix convention
+  (:ref:`scattering-matrix-convention`) and :ref:`pn-scattering` →
+  :doc:`verification` for the gate the new equation ships with.
+* **Debugging a wrong answer** — start at the symptom table
+  (:ref:`sn-symptom-table`), then the gotcha catalog below it.
+
 The chapters:
 
 .. toctree::
