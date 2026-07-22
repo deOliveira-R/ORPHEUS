@@ -29,3 +29,6 @@ pyrightconfig.json
 
 # System-dependent container config
 .devcontainer/
+
+# Secrets — API keys live here, never committed
+.env

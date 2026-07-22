@@ -70,10 +70,11 @@ literature tool is the slim path: render→OCR→cache→markdown sidecar.
    citation discipline is page-anchored.
 5. Print a cost/pages summary at the end.
 
-Housekeeping in the same commit: add `.env` to `.gitignore` (**it is NOT
-currently ignored** — verified 2026-07-22); add `mistralai` + `pypdf` (already
-present) + `python-dotenv` to the dev environment (document: installed into
-`.venv`, not added to `pyproject.toml` production deps — it is tooling).
+Housekeeping: `.env` gitignored ✅ DONE pre-compaction (the key landed before
+the interlude, so the ignore line moved up with it); still to do — add
+`mistralai` + `python-dotenv` to the dev environment (`pypdf` already present;
+document: installed into `.venv`, not added to `pyproject.toml` production
+deps — it is tooling).
 `scratch/literature_ocr/` is untracked by design (derived artifacts of the
 user's untracked library). The KEY: the user copies `MISTRAL_API_KEY` into an
 ORPHEUS-root `.env` (a working key exists in the RX7 repo's `.env` — never
@@ -102,10 +103,11 @@ pipeline is trustworthy for prose; then sweep the folder.
 
 ## Sequence for the executing session
 
-1. Build `tools/ocr_literature.py` (lift from the RX7 anchors) + `.gitignore`
-   `.env` line + deps into `.venv`.
-2. Ask the user to drop `MISTRAL_API_KEY` into the ORPHEUS-root `.env` (blocked
-   on the user only here).
+1. Build `tools/ocr_literature.py` (lift from the RX7 anchors) + deps into
+   `.venv`. (`.gitignore` `.env` line ✅ already landed.)
+2. ~~Ask the user for the key~~ — **✅ DONE pre-compaction: `MISTRAL_API_KEY`
+   is in the ORPHEUS-root `.env` (verified present, never printed). NOT
+   blocked on the user; start straight at the build.**
 3. `--validate` on Sanchez-1982 → full Sanchez run → diff vs the memo.
 4. Sweep `scratch/literature/` (57 top-level PDFs; report page count + cost as
    it goes; the cache makes re-runs free).
