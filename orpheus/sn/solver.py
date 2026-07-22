@@ -963,11 +963,9 @@ class SNSolver:
         # into ``self.mat_xs.*`` accessors.
         #
         # The thin ``sig_t / sig_a / sig_p / chi`` read-through
-        # properties below preserve the SNSolver API surface for the
-        # one-PR migration window (downstream consumers that read
-        # ``solver.sig_t`` etc.).  PR-TYPED-2 retires them by rewiring
-        # consumers to read ``solver.mat_xs.total_cross_section`` etc.
-        # directly.
+        # properties that bridged the one-PR migration window were
+        # retired by PR-TYPED-2 — consumers read
+        # ``solver.mat_xs.total_cross_section`` etc. directly.
         self.mat_xs = sn_mesh.material_xs_field()
 
         # __debug__ cell-flattening invariant pinning (formerly at
