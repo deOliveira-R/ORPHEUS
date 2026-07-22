@@ -175,8 +175,11 @@ Discretization factors
        weight** (:cite:`BaileyMorelChang2010` Eq. (15);
        :doc:`/theory/methods/sn/curvilinear_one_group`). In CP /
        MoC: the **optical path length** :math:`\Sigma_{\mathrm{t}}
-       s`. Two canonical-in-their-literature objects sharing one
-       letter; module context disambiguates (crosswalk row 7).
+       s` — the sense the corpus root page
+       (:doc:`/theory/foundations/path_integral`) adopts page-wide,
+       naming the closure weight in words there. Two
+       canonical-in-their-literature objects sharing one letter;
+       module context disambiguates (crosswalk row 7).
    * - :math:`\beta`
      - The angular-closure parametrization on the S\ :sub:`N`
        machine header (:doc:`/theory/methods/sn/index`); the
