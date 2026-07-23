@@ -40,56 +40,50 @@ flat-source solution is exact.  The eigenvalue is then :math:`k = \nu\Sigma_f/\S
 Test suite
 ==========
 
-102 Tests Across Four Levels
-----------------------------
+The test suite across four levels
+---------------------------------
+
+What each MOC test file covers, by V&V level (the live per-module
+test counts are in the auto-generated :doc:`matrix`):
 
 .. list-table::
    :header-rows: 1
-   :widths: 10 20 15 35
+   :widths: 10 25 65
 
    * - Level
      - File(s)
-     - Tests
      - Coverage
    * - L0
      - ``tests/moc/test_quadrature.py``
-     - 24
      - Weight sums, TY values, shapes, validation
    * - L0
      - ``tests/moc/test_ray_tracing.py``
-     - 20
      - Ray-circle intersection, region ID, segments, volume, links
    * - L0
      - ``tests/moc/test_verification.py``
-     - 27
      - Single-track attenuation, equilibrium flux, fission-only, (n,2n),
        scatter isolation, geometric invariants, protocol compliance, volume
        tracking, boundary conditions
    * - L1
      - ``tests/moc/test_moc.py``
-     - 6
      - Homogeneous eigenvalue (1G/2G/4G), heterogeneous (slow)
    * - L1
      - ``tests/moc/test_properties.py``
-     - 4
      - Particle balance, positivity, flux consistency, thermal depression
    * - L1
      - ``tests/moc/test_verification.py``
-     - 13
      - Eigenvalue + flux ratio, heterogeneous + monotonicity, particle
        balance (2G), flux positivity (all groups), material sensitivity
    * - L2
      - ``tests/moc/test_verification.py``
-     - 4
      - Ray spacing convergence, azimuthal convergence, polar convergence
    * - XV
      - ``tests/moc/test_verification.py``
-     - 2
      - MOC vs CP cross-verification (slow)
 
 Run the full suite (excluding slow tests)::
 
-   pytest tests/moc/ -v -k "not slow"
+   python -O -m pytest tests/moc -m "not slow"
 
 
 Homogeneous Infinite Medium

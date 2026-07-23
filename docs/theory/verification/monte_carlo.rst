@@ -130,30 +130,28 @@ cylinder derivation** (:func:`~orpheus.derivations.common.eigenvalue.kinf_from_c
 Verification Suite
 ==================
 
-The MC solver is verified by **55 tests** across four levels:
+The MC test tree (``tests/mc/``) verifies the solver across four
+levels (the live per-module test counts are in the auto-generated
+:doc:`matrix`):
 
 .. list-table:: Verification test summary
    :header-rows: 1
-   :widths: 10 8 52
+   :widths: 10 60
 
    * - Level
-     - Count
      - Description
    * - L0
-     - 31
      - Term-level isolation of each algorithmic component
    * - L1
-     - 18
      - Eigenvalue: {1,2,4}G × {1,2,4}-region
    * - L2
-     - 3
      - Convergence: :math:`\sigma \sim 1/\sqrt{N}`, bias, inactive cycles
    * - XV
-     - 2
      - Cross-verification: MC vs CP (cylinder, slab)
 
-**Determinism.**  Verified by ``test_mc_gaps.py::test_seed_reproducibility``
-(same seed → identical results) and ``test_different_seeds_differ`` (different
+**Determinism.**  Verified by
+``tests/mc/test_gaps.py::test_seed_reproducibility`` (same seed →
+identical results) and ``test_different_seeds_differ`` (different
 seeds → different histories).
 
 

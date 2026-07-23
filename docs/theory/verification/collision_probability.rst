@@ -105,8 +105,10 @@ used by the test harness (see :doc:`/theory/verification/harness`).
 Test suite
 ==========
 
-**106 tests** across 6 test files verify the CP implementation against
-analytical eigenvalues computed independently by the derivation modules.
+The CP test tree (``tests/cp/``) verifies the implementation against
+analytical eigenvalues computed independently by the derivation
+modules; the auto-generated :doc:`matrix` carries the current
+per-module test counts.
 
 Consolidated Eigenvalue Solvers (CP-20260405-007)
 -------------------------------------------------

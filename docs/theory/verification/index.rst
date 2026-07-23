@@ -97,9 +97,10 @@ The chapters
        cases with measured orders, and the retired-Richardson record.
      - Working on the diffusion solver.
    * - :doc:`summary`
-     - The cross-suite evidence compilation: reference-case tables,
-       structural unit-test inventory, convergence studies, and the
-       run-book.
+     - The cross-suite evidence compilation: the per-method evidence
+       map, the registry-generated reference-case table, cross-method
+       coverage, the structural property-test inventory, convergence
+       studies, and the run-book.
      - Surveying the whole suite's results; running the tests.
    * - :doc:`matrix`
      - **Auto-generated** on every Sphinx build from the test

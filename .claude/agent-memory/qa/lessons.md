@@ -2205,3 +2205,52 @@ Python-roles silent under `-W`" rule. (#10 stage V5 principles.rst review, 2026-
 [dead `:mod:` peierls path; "evaluated in mpmath" on a brentq/double reference] + 1 SHOULD-FIX
 [carried "twenty one-group tests" where 3 sources say "20 passing tests", a mix]; the ~40-claim
 doctrine body otherwise faithful.)
+
+---
+
+## L-057 -- reviewing a results-COMPILATION page (de-freeze + evidence-map + run-book): the count-de-freeze is CERTIFIABLE by live collect, a retitle can beat the test's OWN stale docstring, and a run-book that cites config for "operational detail" can point at a note that CONTRADICTS its headline
+
+#231 task-#10 stage V6 = authoring `docs/theory/verification/summary.rst` (the V&V-part
+results compilation) + de-freezing 4 frozen test-counts across the per-method chapters.
+VERDICT PASS; the ~50-claim page was faithful end-to-end. Three reusable techniques:
+
+1. **A count-DE-FREEZE is certifiable, not taken on faith.** When a diff removes a frozen
+   "N tests across M files" and replaces it with "the auto-generated matrix carries the live
+   counts", PROVE the old number was stale by `pytest <dir> --collect-only -q | tail -1`:
+   CP 106/6→**154/11**, MC 55→**57**, MOC 102→**104** — all three old literals genuinely
+   lied, so the de-freeze is warranted (not an invented rationale). The NEW page states NO
+   count (counts-de-freeze doctrine), so a brief's own count claim ("48 rows") is NOT a
+   doc-truth defect even when the live table is **47** — but report the delta so the parent
+   doesn't propagate the wrong number. Structural counts that SURVIVE (the 27-case CP grid =
+   3×3×3, the 4/3/4/1/5 cross-method list lengths) ARE verifiable: `.venv/bin/python -c` the
+   list lengths + `ADAPTERS_BY_NAME` (6) at runtime, don't eyeball.
+2. **A doc-RETITLE can be MORE accurate than the test's own name/docstring — verify against
+   the live ASSERTION body.** V6 retitled the SN property "Flux symmetry"→"Flux flatness";
+   `tests/sn/primitives/test_properties.py::test_flux_symmetry` is NAMED "symmetry" and its
+   docstring says "must be symmetric about the center", but the LIVE assertion is
+   `assert_allclose(flux, flux[0], rtol=1e-6)` ("homogeneous slab flux is exactly flat"). The
+   retitle correctly describes the assertion, not the stale name. So a retitle-faithfulness
+   check reads the `assert`, NEVER the test name or its (possibly-stale) docstring — same
+   "code outranks doc" as L-056, applied to test-name vs test-body. (Diffusion vacuum→Marshak
+   was the same shape: the doc states the ASSERTED framing `J⁻=0 @ 1e-12·scale AND
+   boundary-cell flux>0`, matching the body, not the old "flux is small" scaffold.)
+3. **A run-book that cites config for "operational detail" can point at a note that
+   contradicts its own headline.** V6's run-book calls `python -O -m pytest -m "not slow"`
+   "the pre-merge gate: the full tree ... single-process" and says the `[test]` extra's
+   pyproject notes "carry the operational detail" — but those notes say "The SN suite OOMs
+   when run as ONE single-process invocation ... **NO whole-tree single-process run**"
+   (per-tier is the memory-safe default). A whole-REPO single-process run executes the whole
+   SN tree in one process = exactly what the cited note warns against. RECONCILABLE (the
+   pyproject note is inner-loop SN-iteration memory advice; the pre-merge gate genuinely IS
+   the full-tree SERIAL run — `reference_test_execution_env` memory: completes 6391/0 in
+   ~52 min, xdist UNSTABLE so serial is canonical), and the xdist "within-tier" statement IS
+   faithful to pyproject — so it is a NIT (surface the pre-merge-gate vs inner-loop-per-tier
+   distinction), not a falsehood. The lesson: when a run-book delegates to a config file for
+   detail, READ that file and check the delegated-to text doesn't read as contradicting the
+   delegating headline. Not a vv anti-pattern (doc internal-consistency, #231 prime directive)
+   → qa-lessons only, no skill edit. Everything else — 6 evidence-map anchors resolving to
+   CLAIMED content (not just resolving), the 8-case SN MMS ladder→files, the Mode-12
+   homogeneous K=A⁻¹F matrix-object gate, the `compute_kinf_*`-vs-`kinf_homogeneous` footnote,
+   the 10 matrix.rst headings, Peierls `precision_digits=30`, the `sentinel` marker "run
+   WITHOUT -O", `generate_rst` runnable as `-m` + `reference_values` pkgutil auto-discovery —
+   verified faithful. (#231 #10 V6, 2026-07-23.)

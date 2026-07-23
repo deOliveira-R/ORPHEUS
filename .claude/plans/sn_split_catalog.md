@@ -1154,7 +1154,10 @@ heuristic = discovery layer; record in harness.rst + extractor ask on nexus#1.
   V2; measured, not the +9 estimate) in archivist batches {needs-sentinel | wire-to-existing-test | genuine gap →
   issue}; the flagged wirings (resolvent-object-gate → Mode-12 test;
   sn-mms-nonvacuum-qext-mg sibling-inherit); 39 unmarked tests (punch #11);
-  template-B sections across remaining chapters. ⏸ COMPACTION.
+  template-B sections across remaining chapters; tree-wide
+  frozen-suite-totals de-freeze sweep (V6 enforcer:
+  `foundations/boundary_conditions.rst:3980` "1455 tests" + any
+  siblings — point at the matrix per the V6 pattern). ⏸ COMPACTION.
 - **V8 — regen + closeout:** full gates (build exit 0, collect 6652, pyright
   floor 1), matrix regenerated honest, catalog checkpoint, #231 comment,
   memory router update.
@@ -1332,3 +1335,62 @@ heuristic = discovery layer; record in harness.rst + extractor ask on nexus#1.
   mid-stage warning pair root-caused to the below-title anchor);
   collect 6659 / orphans 256 / documented 321 invariant; matrix
   BYTE-STABLE; skip-set the 2 known carriers; ERR coverage 69/69.
+- **V6 ✅ 2026-07-23** — summary.rst AUTHORED (337 ln; the
+  results-compilation home): intro states the de-freeze doctrine
+  ("structure here, totals there" + upstream authorities) · **the
+  evidence map** (6 method rows — the seealso DISSOLVED into it; the
+  2 Richardson-live rows NOT re-emitted, discharging the
+  V3-inherited CONCERN; a diffusion row ADDED — the old seealso
+  omitted it) · registry-view intro over the `verification_table`
+  include (tolerance-column semantics incl. the O(h²) diffusion row;
+  47 data rows — not 48, the thead row fooled my grep, qa caught it)
+  · **cross-method coverage** (the matrix MOVED from cross_method +
+  DE-FROZEN: the "As of 2026-05-03" date + 17-case/84-test totals
+  dropped — 84 LIED, live 89; structure re-verified against
+  cases.py/adapters.py: sets 4/3/4/1/5, exactly 6 adapters,
+  sidedness + 2 footnoted asymmetries; polymorphism net added; label
+  `verification-cross-method-coverage` minted P10-placed;
+  cross_method keeps a 2-sentence signpost + live-diagnostic pointer
+  — enforcer adjudicated the residual heading RIGHT) · structural
+  property tests (CP/MOC/MC verbatim + file pointers; SN "Flux
+  symmetry" RETITLED "Flux flatness" — the live gate asserts exact
+  flatness, more accurate than the test's own stale docstring per
+  qa; diffusion REWRITTEN off the live Marshak gate — the old "flux
+  small at boundary" was CONTRADICTED by
+  test_vacuum_means_zero_incoming_current) · convergence studies (3
+  kept + 3 compiled; SN items re-pointed off DEAD test_sn_1d.py —
+  only stale .pyc shadows remain — →
+  test_keff_slab.py::{test_spatial,test_angular}_convergence) ·
+  matrix intro (the 10 live sections enumerated 1:1) · run-book
+  de-staled (slow-tier "(Richardson, MC, curvilinear)" → the real 4
+  families per the slow-marker census; -O policy + Mode-8 sentinel
+  exception + the sentinel-net command; gate-vs-inner-loop regimes
+  distinguished per qa NIT — the pyproject note is inner-loop SN
+  advice, the pre-merge gate stays full-tree serial).
+  FROZEN-COUNT DE-FREEZE part-wide — every dropped count LIED: CP
+  "106 tests/6 files" (live 154/11), MOC "102 Tests" heading (104) +
+  its per-file Tests column + `-k "not slow"` → `-m` (the -k was a
+  keyword-filter bug), MC "55 tests" (57) + Count column +
+  test_mc_gaps.py → tests/mc/test_gaps.py, cross-method 84 (89).
+  KEPT structural counts adjudicated by enforcer as the data-model
+  boundary: CP 27-grid = the designed 3×3×3; cross-method set sizes
+  = literal cases.py list lengths. MACHINERY: conf.py builder-inited
+  hook #3 regenerates docs/_generated/ on every build (was
+  manual-only — the matrix/tables freshness asymmetry retired;
+  byte-stable no-op proven on the in-sync tree), then all 3 hooks
+  FOLDED into _make_regenerator + a _GENERATORS table (enforcer F1
+  SHOULD-FIX applied — the 3rd copy was the collapse trigger; #79 +
+  app.warn provenance comments preserved on the table rows). Router
+  summary row updated (enforcer D: 6/7 h2s, the matrix-signpost
+  omission adjudicated defensible). Reviews: **qa PASS** (every
+  path/role/numeric/physics claim certified against code; 1 NIT
+  applied; anchors verified to-the-claimed-content, not merely
+  resolving) · **enforcer PASS** (accounting ledger 7/7
+  LOSSLESS/ADAPTED-AS-DECLARED; F2/F3/F4 NITs adjudicated
+  no-change). V7 INHERITS: the tree-wide frozen-suite-totals sweep
+  (enforcer surfaced foundations/boundary_conditions.rst:3980 "1455
+  tests" — out of V6's charter; V7 stage line updated). Gates:
+  `-E -W` exit 0 ×2 (re-certified after the hook fold); collect 6659
+  / orphans 256 / documented 321 invariant; matrix + docs/_generated
+  byte-stable through the new hook; skip-set the 2 known carriers;
+  ERR coverage 69/69.

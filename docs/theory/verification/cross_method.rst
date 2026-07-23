@@ -164,56 +164,16 @@ Examples currently shipped:
 * "Closed-form k_inf = νΣ_f/Σ_a; V_α1 algebraic identity" — V_α1
   closed-sphere identity (algebraic-of-record evidence).
 
-Coverage matrix (current)
---------------------------
+Coverage matrix
+---------------
 
-The :func:`~tests.cross_method.test_eigenvalue.test_coverage_matrix_diagnostic`
-foundation gate prints the (case × adapter) matrix on every run.
-As of 2026-05-03:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 32 12 12 16 16 12
-
-   * - Case set
-     - n_cases
-     - fn_method
-     - trajectory_resolvent
-     - L1 truth backing
-     - Agreement gate
-   * - Bare-critical slab
-     - 4
-     - ✓
-     - ✓
-     - Sood / KLL
-     - ✓ (slow)
-   * - Bare-critical sphere
-     - 3
-     - ✓
-     - ✓
-     - Sood / KLL
-     - ✓
-   * - Reflected slab
-     - 4
-     - ✓
-     - —
-     - Sood + NM 1980
-     - one-sided
-   * - Closed sphere k_inf
-     - 1
-     - ✗ (uses ``compute_kinf_*`` direct)
-     - ✓
-     - V_α1 identity
-     - one-sided
-   * - GS Table XI parametric
-     - 5
-     - ✓
-     - — (no registry case)
-     - GS 1979
-     - one-sided
-
-Total: **17 cross-method cases**, **84 collected tests** (foundation
-+ truth + agreement gates parametrised over the case sets).
+The compiled coverage view — which case sets exist, which solver
+families cover them, and what truth backs each — lives with the
+other cross-suite results at :ref:`verification-cross-method-coverage`.
+The live (case × adapter) matrix with current totals is printed by
+the
+:func:`~tests.cross_method.test_eigenvalue.test_coverage_matrix_diagnostic`
+foundation gate on every run.
 
 Adding a new solver
 -------------------

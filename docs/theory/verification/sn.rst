@@ -4613,7 +4613,8 @@ Spatial and Angular Convergence
 
 The diamond-difference scheme converges at :math:`O(h^2)` with mesh
 refinement.  Gauss--Legendre quadrature shows spectral convergence in
-angle.  Both are verified in ``test_sn_1d.py``.
+angle.  Both are verified in ``tests/sn/eigenvalue/test_keff_slab.py``
+(``test_spatial_convergence`` and ``test_angular_convergence``).
 
 Property Tests
 ---------------
@@ -4628,7 +4629,7 @@ For all geometries:
 
 Run the full suite::
 
-   pytest tests/sn/ -v -m "not slow"
+   python -O -m pytest tests/sn -m "not slow"
 
 
 Numerical Sensitivities

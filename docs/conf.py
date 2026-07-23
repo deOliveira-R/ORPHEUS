@@ -111,66 +111,56 @@ autodoc_typehints = 'description'
 
 napoleon_use_ivar = True
 
-# -- Auto-generate verification matrix page ---------------------------
+# -- Auto-generate documentation fragments ----------------------------
 #
-# Runs `python -m tools.verification.generate_matrix` before Sphinx
-# collects sources so `docs/theory/verification/matrix.rst` is always
-# in sync with the pytest test registry. Closes ORPHEUS issue #79.
+# Each entry runs `python -m <module>` before Sphinx collects sources
+# so generated pages always match their live producer — a hand-run
+# generator is a frozen-results hazard. The shared failure handler
+# uses `sphinx.util.logging` (Sphinx 9.1 removed ``app.warn``; the
+# old call would itself AttributeError on the failure path, masking
+# the real error — flagged by the archivist at Wave T T.5.2 close-out,
+# commit `40e9ccc`).
 
-def _regenerate_verification_matrix(app):
-    import subprocess
-    from sphinx.util.logging import getLogger
-    try:
-        subprocess.run(
-            [sys.executable, "-m", "tools.verification.generate_matrix"],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except subprocess.CalledProcessError as e:
-        # Sphinx 9.1 removed ``app.warn``; use the canonical
-        # ``sphinx.util.logging`` logger instead (per Sphinx 9.0+
-        # migration notes).  Flagged by the archivist during Wave T
-        # T.5.2 close-out (commit `40e9ccc`).
-        getLogger(__name__).warning(
-            f"verification matrix regeneration failed: {e.stderr}"
-        )
+_GENERATORS = [
+    # docs/theory/verification/matrix.rst from the pytest test
+    # registry. Closes ORPHEUS issue #79.
+    ("tools.verification.generate_matrix", "verification matrix"),
+    # One docs/theory/_<pkg>_capability_matrix.inc.rst per package in
+    # `orpheus.derivations.continuous` exposing
+    # `cases.py:capability_rows()` (auto-discovered; replaced the
+    # per-method hooks for peierls_nystrom and fn_method).
+    ("tools.verification.generate_capability_matrices",
+     "capability matrices"),
+    # The docs/_generated/ fragments — the verification-case table
+    # included by docs/theory/verification/summary.rst and the
+    # per-method derivation tables — from the continuous-reference
+    # registry.
+    ("orpheus.derivations.generate_rst", "reference tables"),
+]
 
 
-# -- Auto-generate per-package capability matrices --------------------
-#
-# Runs `python -m tools.verification.generate_capability_matrices`
-# before Sphinx collects sources. The meta-generator auto-discovers
-# every package in `orpheus.derivations.continuous` that exposes
-# `cases.py:capability_rows()` and emits one
-# `docs/theory/_<package_name>_capability_matrix.inc.rst` per
-# discovered package. Replaces the per-method hooks for
-# peierls_nystrom and fn_method (and any future method).
-
-def _regenerate_capability_matrices(app):
-    import subprocess
-    from sphinx.util.logging import getLogger
-    try:
-        subprocess.run(
-            [sys.executable, "-m", "tools.verification.generate_capability_matrices"],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except subprocess.CalledProcessError as e:
-        # Sphinx 9.1 removed ``app.warn`` — same fix as the matrix
-        # hook above; the old call would itself AttributeError on the
-        # failure path, masking the real error.
-        getLogger(__name__).warning(
-            f"capability matrices regeneration failed: {e.stderr}"
-        )
+def _make_regenerator(module, label):
+    def _regenerate(app):
+        import subprocess
+        from sphinx.util.logging import getLogger
+        try:
+            subprocess.run(
+                [sys.executable, "-m", module],
+                cwd=project_root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            getLogger(__name__).warning(
+                f"{label} regeneration failed: {e.stderr}"
+            )
+    return _regenerate
 
 
 def setup(app):
-    app.connect("builder-inited", _regenerate_verification_matrix)
-    app.connect("builder-inited", _regenerate_capability_matrices)
+    for module, label in _GENERATORS:
+        app.connect("builder-inited", _make_regenerator(module, label))
 
 # -- Options for mathjax -----------------------------------------------
 
