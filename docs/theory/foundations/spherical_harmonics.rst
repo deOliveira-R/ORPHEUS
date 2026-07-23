@@ -112,6 +112,15 @@ in the form
    q(\hat\Omega) \;=\; \sum_{\ell} (2\ell+1)
      \sum_m Y_\ell^m(\hat\Omega)\,\phi^{\ell m},
 
+.. (vv-status rationale) Literature-transcribed definition: the Pℓ scattering
+   reconstruction with the (2ℓ+1) factor outside the basis (Bell & Glasstone
+   1970 §1.6; Lewis & Miller 1993 §4.7). The reconstruction face R it defines is
+   pinned by the R∘Λ∘M kernel crosscheck
+   (``tests/sn/operators/test_scattering_kernel_crosscheck.py``) and
+   :eq:`sh-addition-theorem-reconstruction`. A convention definition, not a
+   solver claim.
+.. vv-status: sh-pl-scattering-reconstruction documented
+
 with the :math:`(2\ell+1)` factor **outside** the spherical-harmonic
 basis. Adopting the no-prefactor convention puts the
 :math:`(2\ell+1)` factor where the equations want it and removes
@@ -160,6 +169,14 @@ The anisotropic scattering source is the integral operator
          \Sigma_s(\hat\Omega \cdot \hat\Omega')\,\psi(\hat\Omega')\,
          d\hat\Omega',
 
+.. (vv-status rationale) Literature-transcribed transport definition: the
+   anisotropic scattering integral operator (a zonal kernel on S²), the same
+   operator as frame.rst :eq:`scattering-zonal-kernel`. Its implementing kernel
+   R∘Λ∘M is pinned by the 0-ULP crosscheck
+   ``tests/sn/operators/test_scattering_kernel_crosscheck.py``. A definition,
+   not a solver claim.
+.. vv-status: sh-aniso-scattering-operator documented
+
 whose kernel depends on the directions only through the cosine
 :math:`\hat\Omega\cdot\hat\Omega'` — a **zonal** kernel on
 :math:`S^2`. By the **Funk–Hecke theorem**, the spherical harmonics
@@ -173,6 +190,14 @@ depends on :math:`\ell` only:
    \qquad
    \Sigma_{s,\ell} \;=\; 2\pi\!\int_{-1}^{+1}
          \Sigma_s(t)\,P_\ell(t)\,dt,
+
+.. (vv-status rationale) Classical result: the Funk–Hecke eigenvalue of the
+   zonal scattering kernel (Müller 1966), the same identity as frame.rst
+   :eq:`funk-hecke-eigenvalue`. The eigenvalues realised in code are the per-ℓ
+   Legendre moments Σ_{s,ℓ}, the diagonal of
+   :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`.
+   A classical transcription, not a solver claim.
+.. vv-status: sh-funk-hecke-eigenvalue documented
 
 and those eigenvalues are exactly the **Legendre moments of the
 differential scattering cross section** —
@@ -277,7 +302,6 @@ real :math:`Y_\ell^m` satisfy the **discrete** orthogonality
          \delta_{\ell\ell'}\,\delta_{mm'},
    \qquad \ell + \ell' \le 2L.
 
-.. vv-status: real-sh-discrete-orthogonality documented
 
 This identity is the discretised form of the continuous orthogonality
 on :math:`L^2(S^2)`. Combined with the addition theorem
@@ -301,7 +325,6 @@ i.e. the frame is **4π-tight** (frame operator :math:`S = T^*T =
 Lebedev quadratures of order :math:`7,\,13,\,17` by the L1 test
 ``tests/numerics/test_spherical_harmonic_space.py``.
 
-.. vv-status: pi-r-equals-4pi-i documented
 
 The four operators ERR-039 originally conflated
 ================================================
@@ -376,8 +399,6 @@ These four identities are pinned by
 ``tests/numerics/test_spherical_harmonic_space.py`` (the
 ``@pytest.mark.catches("ERR-039")`` test suite).
 
-.. vv-status: sh-space-metric documented
-.. vv-status: sh-addition-theorem-reconstruction documented
 .. vv-status: hilbert-adjoint-equals-metric-times-S0 documented
 .. vv-status: moment-projection-transpose-T documented
 

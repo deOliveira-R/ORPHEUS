@@ -368,6 +368,15 @@ computed analytically:
    = 1 + \frac{A\,R^{2}}{\pi\,(r_2^{2} - r_1^{2})}
      \bigl[\sin(\pi\,r_2^{2}/R^{2}) - \sin(\pi\,r_1^{2}/R^{2})\bigr]
 
+.. (vv-status rationale) reference-derivation context: the analytically-
+.. computed FSR-average equilibrium of the manufactured solution, the datum
+.. of the MMS reconstruction :eq:`moc-scalar-flux-reconstruction`. It enters
+.. the reconstruction AND the reference, so it cancels in the convergence
+.. error metric — the MMS gate is blind to its sign. The MOC operators the
+.. MMS convergence test verifies are ``moc-mms-psi-ref`` / ``moc-mms-qext``
+.. (wired on ``tests/moc/test_mms.py``).
+.. vv-status: moc-mms-reference-equilibrium documented
+
 and the transport correction :math:`\delta\phi_i` from the sweep
 is added:
 
@@ -376,6 +385,15 @@ is added:
 
    \phi_i = \langle\phi_{\text{ref}}\rangle_i
           + \frac{\delta\phi_i}{A_i\,\Sigma_t}
+
+.. (vv-status rationale) reference-derivation context: the MMS harness flux
+.. reconstruction (analytical equilibrium + swept transport correction) that
+.. produces the solver flux compared in
+.. ``tests/moc/test_mms.py::test_moc_mms_converges_second_order``. Because the
+.. error norm is |phi_solver - phi_ref|, a sign flip of the delta-phi term
+.. leaves |error| unchanged — the convergence gate is sign-blind to this
+.. reconstruction, so it is derivation context, not a sign-pinned contract.
+.. vv-status: moc-scalar-flux-reconstruction documented
 
 The :math:`\delta\phi` is the only term carrying flat-source spatial
 discretisation error; it converges at :math:`\mathcal{O}(h^{2})` or

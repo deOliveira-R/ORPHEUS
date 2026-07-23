@@ -38,6 +38,13 @@ for each energy group :math:`g` and direction :math:`\hat\Omega`,
       \nu\Sigma_{f,\,g'}\,\phi_{g'}(\mathbf r)}_{\text{fission}}
    \;+\; q_g(\mathbf r,\hat\Omega),
 
+.. (vv-status rationale) definition: the part-opener statement of the
+.. governing local (integro-differential) transport equation the
+.. deterministic methods discretize — a pedagogical restatement of the
+.. governing PDE, not a solver claim. Each method's discretization of it is
+.. verified on its own page.
+.. vv-status: methods-local-transport-equation documented
+
 closed by the **inflow boundary condition** on the domain surface
 (vacuum: zero inflow; reflective: inflow = reflected outflow — the
 law catalog is :doc:`/theory/foundations/boundary_conditions`).  The
@@ -53,6 +60,11 @@ flight at direction :math:`\hat\Omega`, parametrised by arc length
    :label: methods-lagrangian-streaming
 
    \frac{d\psi}{ds} \;=\; \hat\Omega\cdot\nabla\psi ,
+
+.. (vv-status rationale) definition: the Lagrangian (along-the-flight) form of
+.. the streaming term — a notation/identity introducing the arc-length view,
+.. not a solver claim.
+.. vv-status: methods-lagrangian-streaming documented
 
 so the streaming term is *leakage along the flight*.  Every
 deterministic method is a strategy for this one term: S\ :sub:`N`

@@ -147,6 +147,13 @@ refinements and extrapolating:
    k_{\text{ref}} \approx k_h + \frac{k_h - k_{2h}}{2^p - 1}
    \qquad (p = 2)
 
+.. (vv-status rationale) historical-record definition: the Richardson
+.. extrapolation used for the 2-region diffusion reference during the
+.. migration window, since RETIRED in favour of the transcendental successor
+.. ``derive_2rg_continuous``. Kept as the record of the technique and why it
+.. was replaced; no live test exists by design.
+.. vv-status: richardson-diffusion documented
+
 where :math:`p = 2` reflects the O(h²) central-difference
 discretization, with :math:`dz \in \{2.5, 1.25, 0.625, 0.3125\}` cm.
 The extrapolated value :math:`k_{\text{eff}} \approx 0.870` —

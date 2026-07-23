@@ -962,6 +962,14 @@ zero (the **null spectrum**) for a non-fissile material:
    \qquad
    \text{non-producing:}\quad \chi_g \equiv 0\ \forall g.
 
+.. vv-status: emission-spectrum-simplex documented
+.. (vv-status rationale) Definitional probability identity: the simplex / null
+   law of the fission emission spectrum (Σχ=1, χ≥0 for producing; χ≡0 for
+   non-producing). A probability-distribution invariant carried by the
+   EmissionSpectrum type, gated by the foundation tests
+   ``tests/data/test_emission_spectrum.py`` (``assert_normalized`` positive /
+   negative legs + ``assert_null``). A definitional law, not a solver claim.
+
 ORPHEUS encodes this law in
 :class:`~orpheus.data.emission_spectrum.EmissionSpectrum`, a
 :class:`numpy.ndarray` subclass that carries the law as inspectable
@@ -1129,6 +1137,14 @@ group :math:`g`:
    :label: emission-spectrum-fission-source
 
    q^{\mathrm{fiss}}_g(\mathbf{r}) \;=\; \chi_g \sum_{g'} \nu\Sigma_{f,g'}\,\varphi_{g'}(\mathbf{r}).
+
+.. vv-status: emission-spectrum-fission-source documented
+.. (vv-status rationale) Governing / definitional equation: the fission source
+   term (χ_g times the production rate) — the standard transport definition that
+   makes the emission-spectrum law key on production (νΣf), not fissionability.
+   Realised by FissionOperator and exercised in the multi-group eigenvalue
+   chain; the production keying is gated by the S10a foundation suite. A
+   governing definition, not a separate solver claim.
 
 :math:`\chi` is never used on its own; it is always multiplied by the
 **production** cross section :math:`\nu\Sigma_f`. Therefore the only

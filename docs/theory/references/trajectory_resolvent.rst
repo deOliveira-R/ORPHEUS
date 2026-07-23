@@ -1320,6 +1320,9 @@ the *infinite-medium* multi-group balance
    = \sum_{g'\ne g}\Sigs{g'\to g}\,\phi_{g'} +
      \frac{\chi_g}{k_{\rm eff}}\,\sum_{g'}\nSigf{g'}\,\phi_{g'},
 
+.. (vv-status rationale) derivation: Infinite-medium multi-group balance whose dominant eigenvalue is k_inf — textbook identity; the Variant-α closed-sphere reduction to it is verified against kinf_and_spectrum_homogeneous by the foundation multi-group tests.
+.. vv-status: peierls-greens-mg-kinf-balance documented
+
 whose dominant eigenvalue is :math:`k_\infty` and the corresponding
 right-eigenvector is the homogeneous-medium spectrum. ORPHEUS
 provides
@@ -1338,31 +1341,31 @@ Test coverage:
    * - Test name
      - Tolerance
      - Coverage
-   * - ``test_mg_g1_special_case_matches_1g``
-     - 1e-12 rel
-     - G=1 MG path matches 1G solver bit-equal
-   * - ``test_mg_closed_sphere_2g_downscatter``
+   * - ``test_a3_mg_g1_matches_1g_solver``
+     - 1e-13 rel
+     - G=1 MG path matches 1G solver
+   * - ``test_a3_mg_2g_closed_sphere_equals_k_inf_downscatter``
      - 1e-9 rel
      - 2G closed sphere = ``kinf_and_spectrum_homogeneous``
-   * - ``test_mg_closed_sphere_2g_upscatter``
+   * - ``test_a3_mg_2g_closed_sphere_equals_k_inf_upscatter``
      - 1e-9 rel
      - 2G upscatter (full Σ_s); slower convergence verified
-   * - ``test_mg_closed_sphere_2g_spectrum``
+   * - ``test_a3_mg_2g_downscatter_flux_ratio_closed``
      - 1e-6 rel
      - φ_2/φ_1 = Σ_{1→2}/Σ_R,2 (analytical 2G ratio)
-   * - ``test_mg_vacuum_2g_subcritical``
+   * - ``test_a3_mg_2g_vacuum_below_k_inf``
      - leakage check
-     - 2G vacuum k_eff < 2G k_inf
-   * - ``test_mg_4g_realistic_chi``
+     - 2G vacuum k_eff < 2G k_inf (and < 0.95 k_inf)
+   * - ``test_a3_mg_4g_closed_sphere_equals_k_inf``
      - 1e-9 rel
      - 4G fuel-A with χ = (0.6, 0.35, 0.05, 0.0)
-   * - ``test_mg_4g_vacuum``
+   * - ``test_a3_mg_4g_vacuum_subcritical``
      - leakage check
      - 4G vacuum has non-trivial spectrum
 
 The full test file is
-:file:`tests/derivations/test_trajectory_resolvent_mg.py` (~700
-LoC, all gates pass at default quadrature).
+:file:`tests/derivations/test_peierls_greens_function_mg.py`
+(all gates pass at default quadrature).
 
 
 .. _peierls-greens-multiregion:
@@ -2595,8 +2598,6 @@ period chord factors as
        \frac{1}{\sqrt{1 - \mu_{\rm axial}^{2}}}\,
        \sum_k \Sigma_{t,k}\,\Delta s_{\rm 2D,\,k},
 
-.. (vv-status rationale) definition: Definitional / notation introduction. Piecewise 3D optical depth τ_period = (1/sqrt(1-μ²)) · Σ_k Σ_{t,k} Δs_{2D,k} along a cylinder MR chord. The axial Jacobian factors OUT of the segment sum (Branch-1 V_α1_cyl_mr.b SymPy identity); consumed by the bounce-sum closure and gated by Gates 1, 2, 3, 4, 6.
-.. vv-status: peierls-greens-cylinder-mr-piecewise-tau documented
 
 
 where :math:`\Delta s_{\rm 2D,\,k} = s_b^{(k)} - s_a^{(k)}` is the
@@ -3310,7 +3311,7 @@ Phase 1b ship list
   ``_region_at_radius_cyl``.
 - **Test files**:
   :file:`tests/derivations/test_peierls_greens_function_cylinder_mr.py`
-  (Gates 1, 3, 4, 6, 7 — 10 tests);
+  (Gates 1, 3, 4, 6, 7);
   :file:`tests/derivations/test_peierls_greens_function_cylinder_mr_xverif.py`
   (Gate 2 — WM-72 cross-check);
   :file:`tests/derivations/test_peierls_greens_function_cylinder_symbolic.py`
@@ -3528,6 +3529,9 @@ Riemannian manifold) determined by:
       \psi^+_{\rm out}(\Omega') = \alpha \cdot \psi^-_{\rm in}(\Omega),
       \quad \Omega' = \Omega - 2(\Omega \cdot \hat n) \hat n,
 
+   .. (vv-status rationale) definition: Variant-α generalised specular reflection law with albedo α∈[0,1] — cross-domain billiard framing (no separate verifiable identity).
+   .. vv-status: billiard-reflection-law documented
+
    where :math:`\hat n` is the outward normal and :math:`\alpha \in
    [0, 1]` is the **albedo**:
 
@@ -3570,6 +3574,9 @@ the transferred function is
 
    (Sf)(q, v) \;=\; \alpha \cdot e^{-\tau(q, v)} \cdot f(\Phi(q, v))
 
+.. (vv-status rationale) definition: Birkhoff transfer operator on the Poincaré section — cross-domain framing definition.
+.. vv-status: billiard-transfer-operator documented
+
 where :math:`\tau(q, v) = \Sigma_t \cdot |\Phi(q, v) - q|` is the
 optical depth of the streaming segment from :math:`(q, v)` to
 :math:`\Phi(q, v)`. The :math:`\alpha` factor accounts for the
@@ -3585,6 +3592,9 @@ The **Birkhoff–transfer-operator resolvent** is
    :label: billiard-resolvent-neumann
 
    T \;=\; (I - S)^{-1} \;=\; \sum_{n=0}^{\infty} S^n.
+
+.. (vv-status rationale) definition: Birkhoff transfer-operator resolvent as the Neumann series — abstract cross-domain pattern (cf. peierls-greens-unification-resolvent), not a separate verifiable identity.
+.. vv-status: billiard-resolvent-neumann documented
 
 Convergence of the Neumann series requires :math:`\|S\| < 1`. With
 the operator norm induced by the natural Banach space of bounded
@@ -3608,6 +3618,9 @@ formula
 
    T(\alpha, \tau_{\rm period}) \;=\;
        \frac{1}{1 - \alpha\,e^{-\tau_{\rm period}}}
+
+.. (vv-status rationale) closed-form: Billiard-frame view of the rank-1 resolvent (compute_resolvent_T) — foundation-tested in test_peierls_variant_alpha_core; the greens-function twin is peierls-greens-T-alpha.
+.. vv-status: billiard-variant-alpha-rank1 documented
 
 is exactly equation
 :eq:`billiard-resolvent-neumann` evaluated when the transfer operator
@@ -3656,6 +3669,9 @@ two surfaces. The transfer operator is a :math:`2\times 2` matrix:
        \alpha_R\,e^{-\tau}   & 0
    \end{pmatrix}
 
+.. (vv-status rationale) definition: Two-surface billiard 2×2 anti-diagonal transfer operator S — cross-domain framing definition consumed by the rank-2 resolvent.
+.. vv-status: billiard-rank2-S documented
+
 — off-diagonal because one bounce never returns to the same wall.
 The resolvent
 
@@ -3668,6 +3684,9 @@ The resolvent
                  1                      & \alpha_L\,e^{-\tau} \\
                  \alpha_R\,e^{-\tau}    & 1
              \end{pmatrix}
+
+.. (vv-status rationale) closed-form: Billiard-frame view of the rank-2 resolvent (compute_resolvent_T_rank2) — foundation-tested in test_peierls_variant_alpha_core.
+.. vv-status: billiard-rank2-T documented
 
 is the closed-form 2×2 inverse, summed exactly because the matrix
 is anti-diagonal — the eigenvalues of :math:`S` are
@@ -5825,7 +5844,7 @@ implementation against it:
   — 6 A2 PS-1982 cross-verification gates (4 parametrised
   configurations + thick-sphere regression + flux-shape qualitative).
 
-- :file:`tests/derivations/test_trajectory_resolvent_mg.py`
+- :file:`tests/derivations/test_peierls_greens_function_mg.py`
   — 7 A3 multi-group gates (G=1 reduction, 2G downscatter +
   upscatter, 2G spectrum, 2G vacuum, 4G with realistic χ, 4G
   vacuum).

@@ -148,6 +148,7 @@ def _bulk_source(sn_mesh: SNMesh, n: int, g: int, q: np.ndarray):
 
 
 @pytest.mark.l0
+@pytest.mark.verifies("loss-rep-affine-kernel-maps")
 @pytest.mark.parametrize("geometry", list(_MESH_BUILDERS))
 def test_g1_assembled_matvec_equals_apply(geometry):
     """G1: per (ordinate, group), ``M @ x`` reproduces the production
@@ -181,6 +182,7 @@ def test_g1_assembled_matvec_equals_apply(geometry):
 
 
 @pytest.mark.l0
+@pytest.mark.verifies("loss-rep-walk-order-rows")
 @pytest.mark.parametrize("geometry", list(_MESH_BUILDERS))
 def test_g2_walk_order_triangularity_is_exact(geometry):
     """``triu(PᵀMP, 1) == 0`` EXACTLY — the walk order is a certificate
@@ -204,6 +206,7 @@ def test_g2_walk_order_triangularity_is_exact(geometry):
 
 
 @pytest.mark.l2
+@pytest.mark.verifies("loss-rep-walk-order-rows")
 @pytest.mark.parametrize("geometry", list(_MESH_BUILDERS))
 def test_g2_lapack_forward_substitution_equals_sweep(geometry):
     """The #284 discharge, object-level: on the source subspace the
@@ -393,6 +396,7 @@ def _dof_order(order: np.ndarray, cm: int) -> np.ndarray:
 
 
 @pytest.mark.l0
+@pytest.mark.verifies("loss-rep-sweep-global-conjugation")
 @pytest.mark.parametrize("geometry", ["slab", "cartesian_2d"])
 def test_g1_ld_assembled_matvec_equals_apply(geometry):
     """G1 for the bilinear closure: the block walk emits LD's UBLD

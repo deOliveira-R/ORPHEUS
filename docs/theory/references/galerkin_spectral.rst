@@ -257,6 +257,9 @@ Boltzmann transport equation is
    \mu \frac{\partial\psi}{\partial r} + \Sigma_t \psi(r, \mu)
        = \tfrac{c\Sigma_t}{2}\big[\phi(r) + 3\bar\mu\,J(r)\,\mu\big]
 
+.. (vv-status rationale) governing: One-speed Boltzmann transport equation with linearly-anisotropic scattering and isotropic fission — the governing equation of the Galerkin-spectral (Carlvik / Dahl-Sjöstrand) pillar.
+.. vv-status: galerkin-spectral-bte documented
+
 where :math:`\phi(r) = \int_{-1}^{+1} \psi(r, \mu)\, d\mu` is the
 :term:`scalar flux`, :math:`J(r) = \int_{-1}^{+1} \mu\,\psi(r, \mu)\, d\mu`
 is the current, :math:`c = (\Sigma_s + \nu\Sigma_f) / \Sigma_t` is
@@ -273,6 +276,9 @@ integrable :math:`(r, \mu)` functions with the inner product
 
    \langle f, g\rangle = \int_0^R\!\!\int_{-1}^{+1}
        f(r, \mu)\, g(r, \mu)\, d\mu\, dr.
+
+.. (vv-status rationale) definition: L²([0,R]×[−1,1]) inner product — the Hilbert-space structure the Galerkin projection uses.
+.. vv-status: galerkin-spectral-inner-product documented
 
 Solutions of (:eq:`galerkin-spectral-bte`) live in this Hilbert
 space, and Galerkin spectral methods build approximations as
@@ -334,6 +340,9 @@ of length :math:`N`, the one that solves the **Galerkin equations**
 
    \langle R[\phi_N], P_m\rangle = 0
        \quad\text{for all}\quad m \in \{0, 2, \ldots, 2(N-1)\}
+
+.. (vv-status rationale) definition: Galerkin orthogonality — best-approximation projection; the LHS reduction to 2F_m is verified by V_cg.1 (foundation).
+.. vv-status: galerkin-spectral-orthogonality documented
 
 (where :math:`R[\phi_N] = \mathcal L \phi_N - f` is the residual
 of the truncated trial function under the operator
@@ -453,6 +462,9 @@ integral equation in :math:`x` alone:
        \big[E_1(a|x-y|) - 3\bar\mu(c-1) E_3(a|x-y|)\big]
        \phi(y)\, dy + B_{\rm bdy}[\phi](x).
 
+.. (vv-status rationale) derivation: Carlvik 1968 angular-integrated integral form (E_1 + linearly-anisotropic E_3 kernel + rank-1 boundary chord) — derivation step; the assembled system's critical-c is verified against Dahl-Sjöstrand Table II at L1.
+.. vv-status: galerkin-spectral-carlvik-integral documented
+
 The kernel has two parts:
 
 * **Volume term**: :math:`E_1(a|x-y|)` couples the scalar flux
@@ -486,6 +498,9 @@ correction. Galerkin projection of this Volterra operator onto
 
    2 F_m = c\,d\sum_n \big[A_{m,n}(a) - 3\bar\mu(c-1)B_{m,n}(a)\big] F_n
 
+.. (vv-status rationale) governing: Dahl-Sjöstrand Eq 3 Galerkin matrix system — structure verified by V_cg.2 (foundation); the assembled solver's critical-c is verified against DS Table II at L1.
+.. vv-status: galerkin-spectral-eq3 documented
+
 (Dahl–Sjöstrand Eq. 3, with the Galerkin LHS already reduced via
 V_cg.1) where :math:`d = 2a` is the slab thickness in mean free
 paths and the matrix elements are
@@ -503,6 +518,9 @@ paths and the matrix elements are
          K_q(x; a)\, dx\big)
        \big(\textstyle\int_{-1}^{+1} P_n(y) y^q\, dy\big)
        \bigg].
+
+.. (vv-status rationale) definition: Legendre-moment matrix elements A_{m,n}, B_{m,n} — the A_{0,0} closed form is verified by V_cg.3 and the B_{m,n} rank-1 boundary-chord structure by V_cg.5 (foundation).
+.. vv-status: galerkin-spectral-matrix-elements documented
 
 The matrix elements have the *log-singular-on-the-diagonal*
 structure inherited from :math:`E_1`. Carlvik's recurrences
@@ -541,6 +559,9 @@ In block-matrix form,
    \underbrace{\begin{pmatrix} G & H \\ I & 0 \end{pmatrix}}_{2N \times 2N}
        \begin{pmatrix} F \\ K \end{pmatrix}
        = \frac{1}{c}\,\begin{pmatrix} F \\ K \end{pmatrix}
+
+.. (vv-status rationale) derivation: Dahl-Sjöstrand Eq 4 block-matrix linearisation to a standard 2N×2N non-symmetric eigenproblem — the algebraic equivalence to Eq 3 is verified by V_cg.6 (foundation); the spectrum's critical-c is verified against DS Table II at L1.
+.. vv-status: galerkin-spectral-eq4 documented
 
 with :math:`G = d (A + 3\bar\mu B)`, :math:`H = -3\bar\mu d B`,
 :math:`I = \mathbf 1_N` the identity, and :math:`0 = \mathbf 0_N`

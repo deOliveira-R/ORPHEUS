@@ -287,6 +287,9 @@ the literature:
          \bigl[\,E_1(\Sigt{}\,|r-r'|) - E_1(\Sigt{}\,(r+r'))\,\bigr]
          /2,
 
+  .. (vv-status rationale) derivation: Sanchez 1986 cosh-even-extension form of the sphere Peierls kernel — algebraically equivalent (up to a factor of 2) to the PS-1982 form; the sphere kernel is verified by TestSphereKernelRowSum at L1 and the PS-1982 cross-check.
+  .. vv-status: peierls-sph-sanchez-foundations documented
+
   obtained by extending the sphere problem to a slab on :math:`r \in
   [-R, R]` via the cosh-symmetric trial functions. The two forms are
   algebraically equivalent up to a factor of 2 (PS multiplies by
@@ -581,6 +584,9 @@ Every :math:`K[i, j]` is computed directly as
    K[i, j] \;=\; \tfrac{1}{2} \int_{p_a}^{p_b}
                   E_1\!\bigl(\tau(x_i, x')\bigr)\,L_j(x')\,\mathrm{d}x'
 
+.. (vv-status rationale) derivation: Unified basis-aware adaptive-quadrature slab Nyström element K[i,j]=(1/2)∫E_1 L_j dx' — the discretised assembly, covered by peierls-unified L1 elementwise and row-sum tests (TestSlabKernelRowSum, TestSlabKMatrixElementwiseVsReference).
+.. vv-status: peierls-slab-nystrom documented
+
 via adaptive :func:`mpmath.quad`, with the subdivision hint
 :math:`[p_a, x_i, p_b]` when :math:`x_i` lies inside the source
 panel (same-panel case). This single code path:
@@ -659,6 +665,9 @@ conservation identity for constant unit flux with white BC:
 
    \sum_{j=1}^{N} K_{\rm total}[i, j]\,w_j = \frac{1}{\Sigt{i}}
    \qquad\text{(row-sum identity)}
+
+.. (vv-status rationale) derivation: Slab white-BC conservation row sum = 1/Σt_i — mathematical identity (cf. the documented cylinder/sphere row-sum-identity siblings); the physical φ_white≡1/Σt consequence is verified by TestSlabWhiteBCInfiniteMediumIdentity.
+.. vv-status: peierls-slab-row-sum-identity documented
 
 where :math:`K_{\rm total}` includes both the interior :math:`E_1`
 kernel and the white-BC re-entry kernel.
@@ -862,6 +871,9 @@ branches gives
          \bigl[\mathrm{Ki}_1(\tau^{+}) + \mathrm{Ki}_1(\tau^{-})\bigr]\,
          \frac{q(r')\,r'}{\sqrt{r'^{2}-y^{2}}}\,\mathrm{d}r'
      \;+\; S_{\rm bc}(r).
+
+.. (vv-status rationale) derivation: Chord-coordinate form of the cylinder Peierls equation (Sanchez 1982 / Stamm 1983 / Hébert 2020) — derivation step; the specialised cylinder kernel is verified by TestCylinderKernelRowSum at L1.
+.. vv-status: peierls-cylinder-chord-form documented
 
 .. warning::
 
@@ -2119,6 +2131,9 @@ correction to the volume kernel is of outer-product form
    \qquad
    v_j \;=\; r_j^{d-1}\,w_j\,P_{\rm esc}(r_j),
 
+.. (vv-status rationale) definition: Rank-1 white-BC outer-product factors u_i, v_j with the geometry-aware surface divisor A_d (R cylinder / R² sphere, via rank1_surface_divisor); the G_bc vacuum limit is tested by TestSphereGBCVacuumLimit and end-to-end white-BC k_eff by the white-BC tests.
+.. vv-status: peierls-rank1-white-bc-factors documented
+
 where :math:`A_d` is the cell-surface measure, :math:`d \in
 \{2, 3\}` is the ambient dimension, and :math:`P_{\rm esc}(r_j)`
 is the uncollided escape probability.
@@ -2384,7 +2399,7 @@ Verification evidence
 Three classes of independent checks gate the Peierls sphere
 implementation: geometry primitives (L0), prefactor / kernel
 normalisation / row-sum (L0), and eigenvalue / flux-shape (L1).
-All 35 sphere tests pass; cylinder regression (31 tests) passes
+The sphere suite passes; the cylinder regression suite passes
 unchanged.
 
 .. list-table:: Spherical Peierls verification summary

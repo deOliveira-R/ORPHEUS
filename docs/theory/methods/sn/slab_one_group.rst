@@ -105,6 +105,13 @@ the divergence theorem to the streaming term:
    \mu_n \bigl[\psi_{i+\frac12} - \psi_{i-\frac12}\bigr]
    + \Sigt{} \Delta x_i\, \psi_{n,i} = S_i \Delta x_i
 
+.. (vv-status rationale) Definitional identity: the EXACT cell invariant
+   (streaming + collision = source), stated before any closure — "exact, no
+   approximation yet".  Not a solver claim; it has no standalone implementing
+   function.  Its verifiable content is the DD-closed form it becomes,
+   :eq:`dd-cartesian-1d`, which carries the slab-MMS ``verifies`` markers.
+.. vv-status: balance-cartesian-1d-eq documented
+
 where :math:`S_i = Q_i / W` and face areas are unity in slab geometry.
 This is the **cell invariant** — exact, no approximation yet — and it
 has the one-equation-two-unknowns shape that every discretization must
@@ -253,6 +260,17 @@ product:
     \langle A\,\psi,\,\varphi\rangle \;=\;
     \langle\psi,\,A^*\,\varphi\rangle
 
+.. (vv-status rationale) Mathematical identity: reciprocity is the DEFINING
+   property of the operator-transpose pairing under the discrete L² inner
+   product, not a solver claim.  Its verifiable content is the foundation
+   reciprocity gate ⟨(L+C)ψ,φ⟩=⟨ψ,(L+C)ᵀφ⟩
+   (``tests/sn/sweep/core/test_phase_c_gates.py`` Gate 1.3, ``@pytest.mark.foundation``)
+   plus the linearity gate it rides on
+   (``test_streaming_operator.py::TestLinearity.test_apply_is_linear``);
+   the gates are unwired, so the label stays ``documented`` with the
+   gates named here.
+.. vv-status: sn-streaming-reciprocity documented
+
 for any pair :math:`(\psi, \varphi)` in the discrete unknown space.
 Per Lewis & Miller §10 (adjoint transport), this identity links
 forward and adjoint sources / fluxes; it is the foundation on which
@@ -368,12 +386,27 @@ using **cumulative products**.  Define:
    C_i = \prod_{k=0}^{i} a_k, \qquad
    R_i = \sum_{k=0}^{i} \frac{b_k}{C_k}
 
+.. (vv-status rationale) Derivation step: the cumulative-product / cumulative-
+   sum factors are an intermediate in the analytic closed-form solution of the
+   DD recurrence :eq:`dd-recurrence`.  Not a standalone solver claim; the
+   terminal result — the recurrence itself — is pinned against the symbolic
+   derivation by
+   ``tests/sn/sweep/slab/test_dd_recurrence.py::test_dd_per_cell_recurrence_matches_symbolic_derivation``.
+.. vv-status: sweep-cumprod-factors documented
+
 Then the incoming face flux at cell :math:`i+1` is:
 
 .. math::
    :label: sweep-cumprod-solution
 
    \psi_{\rm in}^{(i+1)} = C_i \bigl(\psi_{\rm in}^{(0)} + R_i\bigr)
+
+.. (vv-status rationale) Derivation step: the closed-form (cumprod) solution of
+   the DD recurrence :eq:`dd-recurrence`, built from the factors above.  Not a
+   standalone solver claim; the terminal recurrence it solves is pinned by
+   ``tests/sn/sweep/slab/test_dd_recurrence.py::test_dd_per_cell_recurrence_matches_symbolic_derivation``,
+   and the sweep it realises is exercised by the slab MMS / regression suites.
+.. vv-status: sweep-cumprod-solution documented
 
 and the cell-average flux is :math:`\psi_{\rm avg}^{(i)} = \frac{1}{2}(\psi_{\rm in}^{(i)} + \psi_{\rm out}^{(i)})`.
 
@@ -397,6 +430,15 @@ Generic affine outflow reconstruction
    :label: sn-affine-outgoing-face-reconstruction-eq
 
    \psi_{\rm out} = \frac{\bar\psi - (1-w)\,\psi_{\rm in}}{w}
+
+.. (vv-status rationale) Algebraic reduction invariant: the single-source
+   downstream-face reconstruction, the exact algebraic inverse of the convex
+   cell-average blend.  Its verifiable content — the exact-inverse round-trip,
+   the DD w=½ byte-identity, the LD w=1/(1+k) algebraic equality — is the
+   ``@pytest.mark.foundation`` unit gate
+   :mod:`tests.transport.spatial.test_affine_closure`; foundation software-
+   invariant tests carry no ``verifies(...)`` by design.
+.. vv-status: sn-affine-outgoing-face-reconstruction-eq documented
 
 The single-source inverse of the convex cell-average blend
 :math:`\bar\psi = (1-w)\psi_{\rm in} + w\,\psi_{\rm out}`
@@ -550,6 +592,14 @@ into four operators acting on the angular flux :math:`\psi`:
 
    (L + C - S - B)\,\psi \;=\; q,
 
+.. (vv-status rationale) Governing equation: the honest four-operator posing of
+   the within-group problem, A = L+C−S−B.  Definitional — it names the operator
+   algebra, with no single implementing function distinct from the solver
+   itself.  Its constituents are individually verified (streaming decomposition
+   gate, the ``ScatteringOperator`` / ``SNBoundaryOperator`` tests) and the SI
+   splitting it factors into is exercised by the slab convergence suite.
+.. vv-status: si-within-group-operator-eq documented
+
 where
 
 * :math:`L = \hat\Omega\cdot\nabla` is **streaming** (the sweep's
@@ -585,6 +635,13 @@ iterate :math:`\psi_n`:
    \psi_{n+1} \;=\; (L+C)^{-1}\bigl(S\,\psi_n
                     \;+\; B\,\psi_n \;+\; q\bigr).
 
+.. (vv-status rationale) Governing iteration: the source-iteration splitting of
+   the within-group operator (lag S and B, invert L+C exactly).  A definitional
+   iteration, not a per-term solver claim.  Its convergence to the correct
+   fixed point and rate ρ_J=c are pinned by the L1 closed-form anchor
+   ``tests/sn/verification/analytical/test_si_convergence_rate.py``.
+.. vv-status: si-jacobi-fixed-point documented
+
 The iteration matrix is therefore :math:`M = (L+C)^{-1}(S+B)`, and
 the asymptotic convergence rate is :math:`\rho(M)`. The convergence
 test is the relative L2 residual on the iterate — the same metric
@@ -598,6 +655,13 @@ single-source-of-truth builder):
 
     {\rm res}_n \;=\; \frac{\|\psi_n - \psi_{n-1}\|_2}
                             {\max(\|\psi_n\|_2,\,10^{-30})}
+
+.. (vv-status rationale) Notation definition: the relative-L² convergence
+   metric of the source iteration (the 10⁻³⁰ floor guards the first-iterate
+   divide).  It defines the stopping test, not a physics claim; its downstream
+   effect (SI drives the residual below tol at the rate ρ_J=c) is pinned by
+   ``tests/sn/verification/analytical/test_si_convergence_rate.py``.
+.. vv-status: si-convergence-residual documented
 
 with the iteration breaking when :math:`{\rm res}_n < {\rm tol}`.
 
@@ -682,6 +746,14 @@ operators **coincide only for isotropic flux**:
    \underbrace{\Sigma_{s,0}\,P_{\rm iso}}_{\text{isotropic projection}}
    \qquad\text{unless }\psi\text{ is isotropic, i.e. }
    \psi_n = \tfrac{\phi}{\sum_n\mathcal{W}_n}\ \forall n.
+
+.. (vv-status rationale) Structural identity: the operator-type inequality
+   (diagonal-in-angle σ_r𝕀 ≠ rank-1 isotropic projection Σ_s0·P_iso) that
+   documents WHY the σ_r-fold is illegal (issue #215).  There is no code to
+   test — the fold is deliberately NOT implemented; this label preserves the
+   falsification so a future session does not re-attempt it.  The correct
+   handling (a consistent DSA operator) is the tracked alternative (issue #2).
+.. vv-status: si-sigma-r-fold-mismatch documented
 
 The consequence is a verification-mode-2 (variable-swap / operator
 mismatch) bug that the *standard* test regime cannot see:

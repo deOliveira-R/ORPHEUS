@@ -37,6 +37,8 @@ from orpheus.numerics.operator import (
     assemblable,
 )
 
+pytestmark = [pytest.mark.foundation]
+
 
 # ── Fixtures: two small, deliberately ASYMMETRIC assembled leaves ──────
 #
@@ -137,6 +139,7 @@ class TestAssemblyAxis:
         assert not IdentityOperator().is_assemblable
         assert not assemblable(IdentityOperator())
 
+    @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_sum_law(self) -> None:
         a, b = _leaf_a(), _leaf_b()
         assembled = OperatorSum(a, b).assemble()
@@ -154,6 +157,7 @@ class TestAssemblyAxis:
             assembled.as_matrix(), a.as_matrix() - b.as_matrix()
         )
 
+    @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_product_law(self) -> None:
         a, b = _leaf_a(), _leaf_b()
         assembled = OperatorProduct(a, b).assemble()
@@ -161,6 +165,7 @@ class TestAssemblyAxis:
             assembled.as_matrix(), a.as_matrix() @ b.as_matrix()
         )
 
+    @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_scaled_law(self) -> None:
         a = _leaf_a()
         assembled = ScaledOperator(-0.5, a).assemble()

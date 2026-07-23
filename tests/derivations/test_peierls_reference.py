@@ -733,7 +733,7 @@ class TestSphereKernelRowSum:
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.l0
-@pytest.mark.verifies("peierls-unified")
+@pytest.mark.verifies("peierls-unified", "peierls-escape-probability")
 class TestSlabPescClosedForm:
     r"""Factor-level verification — slab :math:`P_{\rm esc}`.
 

@@ -208,6 +208,16 @@ where the WDD cell update's denominator picks up the collision term:
    \;+\; \text{(angular closure term)}_n
    \;+\; \Sigt{g}\,V_i .
 
+.. (vv-status rationale) Structural / representational identity: the WDD
+   cell-update denominator, showing Σ_t,g·V_i as the SOLE group-diagonal door.
+   Not a solver claim; the denominator assembly is pinned by the
+   ``@pytest.mark.foundation`` gates
+   ``tests/sn/sweep/core/test_cell_balance_for_streaming.py`` and
+   ``test_cache.py::test_cache_populator_matches_cell_balance_terms``
+   (denom vs ``cell_balance_terms`` at rtol=1e-14) — foundation software-
+   invariant tests carry no ``verifies(...)`` by design.
+.. vv-status: sn-curvilinear-mg-cell-denominator documented
+
 :math:`\Sigt{g} V_i` is the **sole group dependence** of the cell
 update — everything else in the row is Tier-1 structure.  Downstream
 of that door:

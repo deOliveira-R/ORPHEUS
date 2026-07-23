@@ -192,6 +192,7 @@ def test_v_alpha2_slab_path_b_polar_substitution_to_path_a():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("peierls-greens-slab-V-alpha-2")
 def test_v_alpha2_slab_closed_form_equals_canonical():
     r"""V_α2_slab.c — Path A closed form equals canonical 2·E_3(Σ_t·L).
 
@@ -208,6 +209,7 @@ def test_v_alpha2_slab_closed_form_equals_canonical():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("peierls-greens-slab-V-alpha-2")
 def test_v_alpha2_slab_numerical_path_independence():
     r"""V_α2_slab.d — arbitrary-precision mpmath cross-check at multiple
     :math:`\tau_L` values.
@@ -233,6 +235,7 @@ def test_v_alpha2_slab_numerical_path_independence():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("peierls-greens-slab-V-alpha-2")
 def test_v_alpha2_slab_overall_pass():
     """V_α2_slab — composite gate."""
     result = derive_T00_equals_P_ss_slab()

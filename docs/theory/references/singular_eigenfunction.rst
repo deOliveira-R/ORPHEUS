@@ -211,6 +211,9 @@ medium with isotropic scattering,
    \qquad
    \bar{\psi}(x) = \frac{1}{2}\int_{-1}^{1} \psi(x, \mu')\,d\mu',
 
+.. (vv-status rationale) governing: One-speed transport eigenvalue problem in a multiplying medium — the governing equation of the singular-eigenfunction pillar.
+.. vv-status: spectrum-transport-equation documented
+
 seek separated solutions of the form
 :math:`\psi(x, \mu) = \phi_\nu(\mu)\,e^{-\Sigma_t x / \nu}` with
 unknown eigenvalue :math:`\nu`. Substituting and dividing by the
@@ -222,6 +225,9 @@ exponential gives the **Case-eigenfunction equation**:
    (\nu - \mu)\,\phi_\nu(\mu)
    = c\,\nu \int_{-1}^{1} \phi_\nu(\mu')\,d\mu'.
 
+.. (vv-status rationale) derivation: Case-eigenfunction equation from substituting the separated form ψ = φ_ν(μ) e^{-Σt x/ν}; defines the singular eigenfunction φ_ν.
+.. vv-status: spectrum-case-eigenfunction-equation documented
+
 The function :math:`\phi_\nu(\mu)` is the **singular eigenfunction**
 of the transport operator at eigenvalue :math:`\nu`. The right-hand
 side has no :math:`\mu` dependence — only an integral that we
@@ -231,6 +237,9 @@ normalise without loss of generality to unity, leaving
    :label: spectrum-case-eigenfunction-explicit
 
    \phi_\nu(\mu) = \frac{c\,\nu}{2 (\nu - \mu)}.
+
+.. (vv-status rationale) derivation: Explicit φ_ν(μ) = cν/(2(ν−μ)) under unit-integral normalisation — derivation step; singular at μ=ν (the continuum), treated below.
+.. vv-status: spectrum-case-eigenfunction-explicit documented
 
 This formula is *almost* well-defined: it has a pole at
 :math:`\mu = \nu`. For :math:`\nu \notin [-1, 1]` the pole is
@@ -262,6 +271,9 @@ gives the **Case dispersion relation**:
    :label: spectrum-dispersion-relation
 
    \Lambda(\nu) := 1 - c\,\nu\,\mathrm{atanh}(1/\nu) = 0.
+
+.. (vv-status rationale) governing: Case dispersion relation defining the discrete eigenvalue ±ν_0; the medium-property root is verified geometry-independent by V_se-cyl.1 (test_v_se_cyl_1_dispersion_function).
+.. vv-status: spectrum-dispersion-relation documented
 
 This equation has solutions :math:`\nu = \pm\nu_0` (the
 **discrete eigenvalues** — a positive/negative pair by the symmetry
@@ -313,6 +325,9 @@ treatment, due to Case (1960) §3, is
    \phi_\nu(\mu) = \mathrm{P}\,\frac{c\,\nu}{2 (\nu - \mu)}
                   + \lambda(\nu)\,\delta(\nu - \mu),
 
+.. (vv-status rationale) literature: Case 1960 §3 continuum eigenfunction (Cauchy principal value + delta residue) — distributional identity.
+.. vv-status: spectrum-continuum-eigenfunction documented
+
 where :math:`\mathrm{P}` denotes the Cauchy principal value (the
 distribution that integrates against test functions by deleting an
 :math:`\epsilon`-neighbourhood of the singularity and taking
@@ -323,6 +338,9 @@ continuum,
    :label: spectrum-continuum-dispersion-function
 
    \lambda(\nu) = 1 - c\,\nu\,\mathrm{atanh}(\nu),
+
+.. (vv-status rationale) definition: Continuum dispersion function λ(ν) — the residue weight making the eigenfunction equation hold as a distribution.
+.. vv-status: spectrum-continuum-dispersion-function documented
 
 is the residue weight that makes the eigenfunction equation
 :eq:`spectrum-case-eigenfunction-equation` hold *as a
@@ -338,6 +356,9 @@ transport operator is then
    :label: spectrum-full-decomposition
 
    \Sigma_{\rm transport} = \{\pm\nu_0\} \cup [-1, 1].
+
+.. (vv-status rationale) definition: The full transport spectrum {±ν_0}∪[−1,1] — definitional statement of the operator spectrum encapsulated by the Spectrum class.
+.. vv-status: spectrum-full-decomposition documented
 
 This is *the spectrum*. Different geometries select different
 *subsets* of this spectrum at boundaries, but all three
@@ -376,6 +397,9 @@ the **expansion theorem**:
                   + a_- \phi_{-\nu_0}(\mu)\,e^{x/\nu_0}
                   + \int_{-1}^{1} A(\nu)\,\phi_\nu(\mu)\,
                     e^{-x/\nu}\,d\nu
+
+  .. (vv-status rationale) literature: Case 1960 Theorem 1 expansion theorem (Mika 1961 completeness) — literature theorem statement.
+  .. vv-status: spectrum-expansion-theorem documented
 
   with three sets of expansion coefficients:
 
@@ -435,6 +459,9 @@ where :math:`X(\mu)` is the **Wiener-Hopf X-function** of Inönü
        \int_0^1 \frac{\mathrm{atanh}(\mu')\,d\mu'}
                        {(\mu' - \mu)\,(c\mu'\,\mathrm{atanh}(\mu') - 1)}
        \right].
+
+.. (vv-status rationale) definition: Wiener-Hopf X-function of Inönü 1973 — the half-range projection operator; numerical accuracy is the scipy/mpmath backend's responsibility.
+.. vv-status: spectrum-x-function documented
 
 The X-function is the **projection operator** that completes the
 half-range basis: given boundary data on the half-range, the
@@ -964,6 +991,9 @@ The discrete pseudo-eigenfunction is
 
    \eta_0(\mu) = \frac{c\,\nu_0^2}{\nu_0^2 - \mu^2} ,
 
+.. (vv-status rationale) derivation: WM-72 discrete pseudo-eigenfunction satisfying WM-72 Eq 15; verified by V_se-cyl.2 (test_v_se_cyl_2_discrete_pseudo_eigenfunction), which caught the printed Eq 17 typo.
+.. vv-status: wm72-discrete-pseudo-eigenfunction documented
+
 which satisfies WM-72 Eq 15 directly. **SymPy V_se-cyl.2 caught a
 typo in the printed WM-72 Eq 17 on first run.** As printed,
 Eq 17 reads :math:`\eta_{0l}(\mu) = c_l\,\nu_{0l}/(\nu_{0l}^2 -
@@ -1101,6 +1131,9 @@ evaluates to
                                        + \frac{1 - 2\nu_0^2}{2\nu_0^2}\,
                                          \log\!\frac{1 + \nu_0}{\nu_0 - 1}
                                        \right]
+
+.. (vv-status rationale) derivation: WM-72 Eq 21d discrete normalisation N_0=∫μ²η_0²dμ; the ν_0^4 prefactor cross-checks V_se-cyl.2's power of ν_0; verified by V_se-cyl.6 (test_v_se_cyl_6_discrete_normalization).
+.. vv-status: wm72-eq21d-normalization documented
 
 (WM-72 Eq 21d, verbatim) — and the :math:`\nu_0^4` prefactor is
 the cross-check that V_se-cyl.2 carries the right power of
@@ -1372,6 +1405,9 @@ problem on :math:`[-R, R]` via the antisymmetric BC
 
    \psi(x, \mu) = -\psi(-x, -\mu)
 
+.. (vv-status rationale) definition: Atalay Eq 47 antisymmetric BC — the sphere-as-slab odd-mode substitution; the vacuum-BC K_j=L_j equivalence is exercised by test_case_method_slab_sphere_parity_flip.
+.. vv-status: singular-eigenfunction-eq47 documented
+
 (Atalay Eq 47 — the :math:`r\Phi(r) \to \Psi(x, \mu)` substitution
 picks up an :math:`r`-sign factor, exactly as in the Mitsis 1963
 sphere-as-slab derivation that underlies the Siewert-Thomas 1986
@@ -1436,6 +1472,9 @@ isotropic-limit closed form:
                        \exp\!\left[\frac{1}{\pi}\int_0^1
                             \arg \Lambda^{+}(\tau)\,
                             \frac{d\tau}{\tau - \mu}\right] .
+
+.. (vv-status rationale) closed-form: Isotropic-limit closed form of the Atalay X-function used as a SymPy cross-check for Eq 40 (V_case.8); see the open X-function-divergence note below.
+.. vv-status: singular-eigenfunction-x-function-isotropic-limit documented
 
 For multi-line continued-Plemelj derivations connecting Eq 40 to
 Eq 26 (the implicit X-function definition via Plemelj-Sokhotski),
@@ -1640,8 +1679,6 @@ Validity bound (Atalay Eq 5)
 
    c \le 1 + \frac{1}{3 f_1}
 
-.. (vv-status rationale) governing: Atalay validity bound — for f_1 > 0, c must lie in a band; outside it, complex eigenvalue pairs appear (Dahl-Sjöstrand 1979) and Atalay's first-order Fredholm iteration breaks. Verified by V_case.9 (test_v_case_9_validity_bound_eq5).
-.. vv-status: singular-eigenfunction-eq5 documented
 
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_validity_bound_eq5`.

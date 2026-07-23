@@ -12,40 +12,17 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 34 lessons (L-001…L-034), read FIRST each dispatch.
+- [lessons.md](lessons.md) — 35 lessons (L-001…L-035), read FIRST each dispatch.
   The spine: a page is done when every cross-ref resolves against the LIVE tree,
   every claim's V&V level matches the skill verbatim, every retired symbol leaves
   no dangling ref, and the build's WARNING/ERROR/CRITICAL set is unchanged from
   the `-E` baseline. Per-lesson detail is in lessons.md — do NOT re-summarize here.
-  Newest by number (one-line hooks):
-  - **L-034** — #231 Phase-2 code-prose rebalance, CONTRACT-DENSE file classes
-    (P2-B machinery + P2-C driver + P2-D ABC + P2-F curvilinear ψ½ ops + P2-G contract-heavy OPERATOR + MESH):
-    all contract-dense → honest cut far smaller than the TEACHING-operator pilot and
-    that is CORRECT. Discriminator = operator-surface TEACHES the algebra (aggressive cut)
-    vs machinery/driver/mesh STATE local contract using it (KEEP the bodies). Cut SURFACE
-    differs by class: machinery = module-head essays + duplicated perf numbers; DRIVER +
-    MESH = `#`-comment TOMBSTONES + campaign-STATUS/construction-body wave essays (comment
-    cut DWARFS docstring; hunt comments FIRST); ABC = laws INVERT Haiku's MASS-MOVED to
-    CONTRACT. P2-G nuance: a CONTRACT-heavy operator file (`streaming`/`boundary`, apply/
-    solve/adjoint/reflect/split contracts + `⚠`-traps) cuts FAR less (−16 %/−4 % doc) than
-    the teaching-heavy pilot (−36 %). `compute_*` estimators CONTRACT-whole. **automodule
-    (even `:noindex:`) makes the Sphinx `-E -W` gate LIVE** — check status FIRST, keep
-    section underlines verbatim. A rebalance READ is a free staleness-audit (P2-G fixed a
-    "Hilbert"→"Euclidean" transpose per L-010; `-W` is blind to it). P2-F (curvilinear ψ½,
-    ZERO MOVED): a RENDERED file affords a LATENT-TRAP → `.. warning::` box + section-renames
-    stale in-file back-refs (grep+repoint); KEEP the FORMULA at point of use (α-index/τ_raw/
-    seed-`t`) even when the teaching is TWIN.
-  - **L-033** — #231 Phase-2 code-prose rebalance (PILOT P2-A `scattering.py` + P2-E
-    `transport/spatial/` schemes): teaching is ALREADY TWIN → expect ZERO MOVED (grep the
-    landing chapter first; the Haiku pre-inventory MOVED column is ~noise — P2-E 13→0 on a
-    NON-operator class); CONTRACT = "would a modifier who never leaves the file do the wrong
-    thing without this?"; a d-generic/Kronecker method is BOTH layers (LAYOUT theory TWIN,
-    reconstruction GOTCHAS CONTRACT); prove docstring-only by token-invariance; not-`automodule`'d ⟹ no gate.
-  - **L-032** — #304 P10 `:label:` re-namespacing (a label follows its heading's
-    Phase-F ruling; self-description oracle; family-P10 drops the campaign token on
-    section anchors AND eq labels; delimiter-anchored COUNTED replace).
-  - **L-026…L-031** — the #231 corpus split→de-dup→metadata→surface-taxonomy→
-    `:label:`-backfill→bibtex-migration patterns.
+  Newest by number (one-line hooks; full detail in lessons.md):
+  - **L-035** — V7 orphan-slice adjudication (WIRE/SENTINEL/GAP): WIRE iff a test's PRIMARY assertion IS the equation vs a structurally-independent ref (sign-flip reds it); 3 SENTINEL shapes (schema/continuous-def/literature tested-under-a-DIFFERENT-label · native-vs-legacy bit-id · code-not-built); ROOT narrative page = all-SENTINEL (verified downstream under method labels); foundation-file resolve per-test (computed→WIRE, invariant→SENTINEL, module-foundation+class-verifies coexist); doc's named catcher beats a stale line-range (spectral test is Mode-12-blind — pin the OBJECT); fast `_scan_theory_equations` self-check, no pytest collection.
+  - **L-034** — #231 P2 rebalance CONTRACT-DENSE file classes (machinery/driver/ABC/mesh/contract-operator/ψ½): honest cut ≪ the teaching-operator pilot & that's CORRECT; cut SURFACE differs by class (comments dominate driver/mesh); automodule even `:noindex:` makes the `-E -W` gate live; a rebalance READ is a free staleness-audit.
+  - **L-033** — #231 P2 rebalance PILOT: teaching ALREADY TWIN → expect ZERO MOVED (Haiku MOVED-column is ~noise); CONTRACT = "would a file-local modifier err without this?"; docstring-only proven by token-invariance; not-`automodule`'d ⟹ no gate.
+  - **L-032** — #304 P10 `:label:` re-namespacing: label follows its heading's ruling; self-description oracle; delimiter-anchored COUNTED replace.
+  - **L-026…L-031** — #231 corpus split→de-dup→metadata→surface-taxonomy→`:label:`-backfill→bibtex-migration.
 
 ## 2. Active / doc-debt state — git-true
 

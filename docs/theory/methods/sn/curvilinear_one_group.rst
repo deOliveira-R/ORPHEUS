@@ -945,6 +945,15 @@ Morel--Montry outgoing-angular-face thread — *does* need the raw
    \psi^a_{\rm out}
    = \frac{\bar\psi - (1 - \tau)\,\psi^a_{\rm in}}{\tau}
 
+.. (vv-status rationale) Representational identity: the scalar cell-update
+   spelling of the Morel–Montry angular recurrence.  It is algebraically the
+   SAME operator as :eq:`pole-mm-recurrence` (genuinely wired to
+   ``test_compute_psi_half_per_level.py::TestRecurrenceFormula``) and
+   :eq:`dd-mm-scan-split`, applied in the ``DiamondDifference.update`` frame;
+   the bit-identity across the three consumer frames is the L21 twin-path
+   content, pinned by ``tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py``.
+.. vv-status: dd-mm-angular-recurrence documented
+
 and reads it from :attr:`~orpheus.transport.spatial.scheme.CellVisit.tau`
 (stamped by
 :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh._make_cell_visit` from
@@ -966,6 +975,14 @@ and precomputes the split
    \texttt{tau\_inv} = \frac{1}{\tau},
    \qquad
    \texttt{mm\_a\_in\_coeff} = \frac{1 - \tau}{\tau},
+
+.. (vv-status rationale) Representational identity: the precomputed-split
+   (vectorized-scan) spelling of the same Morel–Montry recurrence as
+   :eq:`dd-mm-angular-recurrence` / :eq:`pole-mm-recurrence` — a
+   perform-once-at-construction hoist (L16) of 1/τ and (1−τ)/τ, algebraically
+   identical to the scalar recurrence.  The scalar↔scan bit-identity is pinned
+   by ``tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py``.
+.. vv-status: dd-mm-scan-split documented
 
 consumed at the loss-representation scan recurrence (in
 :mod:`orpheus.sn.loss_representation`) as
@@ -1228,7 +1245,7 @@ f(h_1) - g(N_2) - f(h_2) - g(N_1) + f(h_2) + g(N_2) = 0`.  A non-zero
 the two axes interact — that the second mixed partial of the error
 surface does not vanish.  This is the quantity the ST5 gate measures.
 
-.. (vv-status rationale) Characterisation claim, now tested: both the
+.. (V&V scope note) Characterisation claim, now tested: both the
    law :eq:`sn-space-angle-separability` and its discriminator
    :eq:`sn-space-angle-cross-term` describe the STRUCTURE of the
    discretisation-error surface (the regime discrimination), not a
@@ -1258,8 +1275,6 @@ surface does not vanish.  This is the quantity the ST5 gate measures.
        coverage claim.
    The posture mirrors the pole-cell characterisation gate this gate is
    modelled on (#233).
-.. vv-status: sn-space-angle-separability documented
-.. vv-status: sn-space-angle-cross-term documented
 
 Why the two axes factorize: LMM-1987 (spatial) × BMC-2010 (angular)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2048,6 +2063,15 @@ WDD recurrence walks the face flux along the DAG:
    \psi^{\text{face}}_{\text{in}}(i+1) \;=\;
    \psi^{\text{face}}_{\text{out}}(i),
 
+.. (vv-status rationale) Representational identity: the per-cell WDD diamond
+   recurrence the apply matvec walks in DAG order — the apply-direction spelling
+   of the loss operator L+C.  Its verifiable content is the apply↔sweep
+   structural equivalence and the apply linearity/reciprocity/determinism
+   foundation gates (``tests/sn/sweep/core/test_phase_c_gates.py`` Gates
+   1.2/1.3/1.4, ``@pytest.mark.foundation``, unwired — the label stays
+   ``documented`` with the gates named here).
+.. vv-status: phase-c-wdd-recurrence documented
+
 evaluated cell-by-cell across the direction's DAG order yielded by
 :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` invoked with
 ``direction_sign``. The
@@ -2062,6 +2086,14 @@ balance, ORPHEUS-normalised):
    \bigl[ A_{i+1/2}\,\psi^{\text{face}}_{n,i+1/2,g}
         - A_{i-1/2}\,\psi^{\text{face}}_{n,i-1/2,g} \bigr],
 
+.. (vv-status rationale) Literature-transcribed definition: the conservative
+   radial streaming term (Hébert §3.9.4 balance, ORPHEUS-normalised), a
+   constituent of the apply-matvec cell update :eq:`phase-c-cell-update`.  Not
+   a standalone claim; its correctness is exercised through the per-ordinate
+   flat-flux / streaming-equilibrium gate and the apply↔sweep equivalence
+   foundation gates (``tests/sn/sweep/core/test_phase_c_gates.py``).
+.. vv-status: phase-c-streaming-spherical documented
+
 with the redistribution term provided by the Phase B
 :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
 strategy and the collision term :math:`\Sigma_t \psi^{\text{cell}}_{n,i,g}`
@@ -2072,6 +2104,14 @@ unchanged. The full per-cell update is
 
    (T\psi)_{n,i,g} \;=\; S_{n,i,g} \;+\; R_{n,i,g} \;+\;
    \Sigma_t(i,g)\,\psi^{\text{cell}}_{n,i,g},
+
+.. (vv-status rationale) Representational identity: the full per-cell
+   apply-matvec output (streaming + redistribution + collision) — the
+   definition of the (L+C)ψ action, not a separate solver claim.  Its
+   constituents are foundation-gated by the apply linearity / reciprocity /
+   determinism gates and the apply↔sweep structural equivalence
+   (``tests/sn/sweep/core/test_phase_c_gates.py``).
+.. vv-status: phase-c-cell-update documented
 
 where :math:`R_{n,i,g}` is the strategy's redistribution output
 (Bailey :math:`\Delta A_i / w_n` redistribution factor with the
@@ -2275,6 +2315,15 @@ invariant on **all three** Phase B pole-closure strategies:
 
    \psi^{\text{cell}}_2 = c \;\Longrightarrow\;
    \psi^{\text{face}}_3 = 2c - 0 = 2c, \ldots
+
+.. (vv-status rationale) Derivation / negative result: the oscillating face
+   sequence 0, 2c, 0, 2c the WRONG (symmetry-zero) pole seed produces — a
+   documented failure mode, not a shipped code path.  There is no code to test;
+   the label preserves WHY the naive seed breaks per-ordinate flat flux so a
+   future session does not reintroduce it.  The correct Carlson seed is
+   exercised by the curvilinear streaming-equilibrium and #282 direct-seed
+   gates.
+.. vv-status: phase-c-wdd-oscillation documented
 
 The correct initial condition is the **Carlson starting-direction
 seed** of :cite:`LewisMiller1984` §4.5 (paraphrased in Hébert §3.9.4
@@ -3754,6 +3803,16 @@ read by :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_leve
    \text{level } p \text{ carries a ψ½ block}
    \quad\Longleftrightarrow\quad
    \tau_{{\rm raw},0}^{(p)} \,\in\, (0, 1)\ \text{exclusive.}
+
+.. (vv-status rationale) Structural predicate: the bit-exact rule keying which
+   μ-levels carry an independent starting-direction block (product→0,
+   level-symmetric→1, sphere-GL→(0,1)) — a derivation step whose terminal
+   consequence (route (a) is a genuine single-pass exact inverse: sphere
+   cold-start residual → 2.5×10⁻¹⁶, cylinder seed-sensitivity 0.0 bit) is
+   exercised by ``tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py``
+   and the ``@pytest.mark.foundation`` ``test_radial_characteristic_metric.py``
+   suite.
+.. vv-status: sn-direct-seed-r12a-predicate documented
 
 The trichotomy is **bit-exact** on the production quadratures:
 

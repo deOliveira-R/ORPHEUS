@@ -233,6 +233,12 @@ Canonical definition (Abramowitz & Stegun 5.1.4):
    E_n(x) \;=\; \int_1^{\infty} \frac{e^{-xt}}{t^n}\,dt,
    \qquad x \ge 0,\; n \ge 1.
 
+.. (vv-status rationale) definition: the canonical A&S 5.1.4 defining integral
+.. of the exponential integral. Definitional — the implementing evaluator
+.. ``kernels.e_n`` is pinned by the derived identities (special values,
+.. derivative, full-line integral) in ``tests.derivations.test_kernels``.
+.. vv-status: en-definition documented
+
 .. math::
    :label: en-kernel-special-values
 
@@ -270,6 +276,13 @@ Canonical definition (Bickley & Naylor 1935; A&S 11.2):
 
    \mathrm{Ki}_n(x) \;=\; \int_0^{\pi/2}
        \cos^{n-1}\theta\;\exp\!\left(-\frac{x}{\cos\theta}\right)\,d\theta.
+
+.. (vv-status rationale) definition: the canonical Bickley-Naylor / A&S 11.2
+.. defining integral. Definitional — the implementing evaluator
+.. ``kernels.ki_n`` (via the ``u = tan(theta)`` substitution) is pinned by the
+.. derived special-value and derivative identities in
+.. ``tests.derivations.test_kernels``.
+.. vv-status: kin-definition documented
 
 The integrand has an essential singularity at :math:`\theta = \pi/2`
 when :math:`x > 0`. ORPHEUS's high-precision evaluator

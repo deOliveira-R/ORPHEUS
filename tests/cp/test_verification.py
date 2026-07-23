@@ -114,6 +114,11 @@ pytestmark = pytest.mark.verifies(
     "pin-from-reciprocity",
     "surface-to-region",
     "surface-to-surface",
+    # TestDirectPinfComparison::test_slab_pinf_matches_derivation compares the
+    # assembled slab rcp element-by-element against the structurally-
+    # independent derivation (tol 1e-10) — a sign/factor error in the
+    # r_ij = (delta_d + delta_c)/2 assembly reds it:
+    "rcp-slab-total",
 )
 from orpheus.derivations.common.xs_library import (
     XS, get_xs, get_mixture, get_materials, make_mixture,

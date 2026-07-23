@@ -225,6 +225,13 @@ Key Facts
 
      M \, R \;=\; c_{V}\,I_{W},
 
+  .. (vv-status rationale) Structural invariant: the general Galerkin
+     idempotency-on-coefficients schema M R = c_V I. Its SN concrete instance
+     (c_V = 4π) is :eq:`pi-r-equals-4pi-i`, the L1-verified form — the canonical
+     pin ``tests/numerics/test_spherical_harmonic_space.py`` ``verifies("pi-r-equals-4pi-i")``
+     constructs Π R = 4π I at multiple L / Lebedev orders. Not a separate solver claim.
+  .. vv-status: galerkin-frame-idempotency documented
+
   where :math:`c_V` is a scalar that depends on the inner-product
   convention of :math:`V`. For the SN spherical-harmonic frame on a
   Lebedev quadrature, :math:`c_V = 4\pi` — this is the **L1
@@ -915,6 +922,16 @@ the indicators (trial *and* test) have **disjoint support**, the
    G_{RS} \;=\; \langle \chi_R,\, \mathbf{1}_S \rangle_{V}
    \;=\; \delta_{RS}\,\sum_{i\in R} V_i\,\phi_{i,g}
    \;=\; \delta_{RS}\,\Phi_{R,g}
+
+.. (vv-status rationale) Structural identity: the cross-Gram of the
+   homogenisation Petrov-Galerkin frame is diagonal (disjoint indicator
+   supports), its diagonal being the region flux integral
+   :eq:`sn-homogenization-region-flux`. The diagonality is exercised by the
+   diagonal-Gram fast path in the L0 rate-preservation gate
+   (``test_homogenization_is_flux_weighted_not_volume_weighted`` + the Mode-11
+   ``apply_inverse_metric`` routing sentinel). A derivation-decomposition
+   structural identity, not a separate solver claim.
+.. vv-status: sn-homogenization-cross-gram documented
 
 is **diagonal**, so the normal equations decouple cell-by-cell and each
 coefficient is exactly the flux·volume average
@@ -2635,6 +2652,14 @@ why a single basis :math:`\{e_k\}` produces both :math:`M` and
              c_\ell^m
         \quad\text{(with factor — addition-theorem)}.
 
+   .. (vv-status rationale) Representational identity: distinguishes the strict
+      Hilbert adjoint M* (naked synthesis, no 2ℓ+1) from the reconstruction
+      face R (with 2ℓ+1) — the ERR-039 distinction. Each face is verified under
+      its own label: M* = g_C·S_0 by :eq:`hilbert-adjoint-equals-metric-times-S0`,
+      the (2ℓ+1) synthesis by :eq:`sh-addition-theorem-reconstruction`. A
+      face-distinction framing, not a separate solver claim.
+   .. vv-status: galerkin-strict-adjoint-vs-reconstruction documented
+
    The analysis face's representation transpose
    :meth:`frame.analysis.apply_transpose
    <orpheus.numerics.basis.Basis.analyze_transpose>` is
@@ -2785,6 +2810,15 @@ diagonal of eigenvalues. The discrete ORPHEUS scattering kernel is
    \underbrace{R}_{=\,U}\;\circ\;
    \underbrace{\Lambda}_{=\,\Sigma}\;\circ\;
    \underbrace{M}_{=\,U^*},
+
+.. (vv-status rationale) Representational identity: the anisotropic scattering
+   kernel written as the spectral theorem S = R∘Λ∘M = UΣU*. The implementing
+   kernel R∘Λ∘M is pinned by the 0-ULP windowed-vs-full crosscheck
+   ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` and the
+   addition-theorem identity :eq:`real-sh-addition-theorem` (same kernel as the
+   sibling :eq:`scattering-zonal-kernel`). A spectral-theorem framing, not a
+   separate solver claim.
+.. vv-status: scattering-spectral-theorem documented
 
 with
 
@@ -3388,6 +3422,14 @@ projection reactor physics ultimately wants. The general,
    \Sigma_R \;=\;
    \frac{\int_R \varphi^*\,\Sigma\,\varphi\;\mathrm{d}V}
         {\int_R \varphi^*\,\varphi\;\mathrm{d}V},
+
+.. (vv-status rationale) Documents code that does not exist yet: the
+   eigenvalue-consistent (adjoint-weighted, φ*≠φ) homogenisation projection is
+   NOT built (campaign phase P6, blocked on the #276 adjoint flux φ*). Only the
+   forward (φ*=φ) degenerate ships. The specification the P6 slice implements —
+   the sibling bilinear identity :eq:`sn-homogenization-bilinear` carries the
+   same documented-only status. Not a verified solver claim.
+.. vv-status: sn-homogenization-adjoint-weighted documented
 
 so that the multiplication factor :math:`\keff` stays stationary under
 the homogenisation (by first-order perturbation theory :math:`\keff` is

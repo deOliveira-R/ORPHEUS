@@ -227,6 +227,7 @@ def test_dd_and_ld_2d_converge_to_different_values():
 
 @pytest.mark.foundation
 @pytest.mark.catches("ERR-062")
+@pytest.mark.verifies("ld-ubld-pure-z-collision")
 def test_ld_2d_krylov_equals_si_pure_z_quadrature():
     r"""D5b.6: 2-D LD ``inner_solver='krylov'`` ≡ ``'source_iteration'`` on a
     quadrature WITH pure-z ordinates (μ_x = μ_y = 0) — the EXACT habitat of the
@@ -547,6 +548,7 @@ def _project_scalar_to_tensor_legendre(mesh, fn, *, ng, q_nodes=6, per_ord=None)
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("ld-cartesian-2d-bilinear-coeffs")
 def test_tensor_legendre_projection_matches_hand_polynomial():
     r"""#247 sub-gate: the quadrature projector reproduces the EXACT
     tensor-Legendre coefficients of a KNOWN bilinear polynomial.
@@ -605,6 +607,7 @@ def test_tensor_legendre_projection_matches_hand_polynomial():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("ld-cartesian-2d-projection-coeff")
 def test_projection_slot0_is_cell_average_not_centre():
     r"""#247 sub-gate (2nd leg): the projector's slot-0 IS the cell AVERAGE,
     not the cell-CENTRE value (the §1 normalization caveat).
@@ -974,6 +977,7 @@ def test_ld_2d_scattering_slope_source_sign_mutation_reddens():
 # ───────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.foundation
 def test_moment_resolved_bulk_still_rejects_wrong_trailing_axis():
     r"""#247 Deliverable 5 — the widened bulk-shape check (typed union: flat OR
     moment-resolved bulk) STILL rejects a trailing-moment axis ≠ ``per_axis**ndim

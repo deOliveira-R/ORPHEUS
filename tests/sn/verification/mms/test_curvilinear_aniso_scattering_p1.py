@@ -166,7 +166,7 @@ def _isolated_p1(coord: CoordSystem, quad):
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("pn-scatter", "flux-moments")
+@pytest.mark.verifies("pn-scatter", "flux-moments", "sn-p1-sphere-hand-ref")
 def test_spherical_p1_source_matches_hand_reference():
     r"""[L0] Spherical curvilinear ℓ=1 scattering source == hand-ref.
 
@@ -215,7 +215,7 @@ def test_spherical_p1_source_matches_hand_reference():
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("pn-scatter", "flux-moments")
+@pytest.mark.verifies("pn-scatter", "flux-moments", "sn-p1-cylinder-hand-ref")
 def test_cylindrical_p1_source_matches_hand_reference():
     r"""[L0] Cylindrical curvilinear ℓ=1 scattering source == hand-ref.
 

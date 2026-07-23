@@ -145,6 +145,9 @@ The one-speed neutron transport equation in vacuum,
    + \frac{\nu \Sigma_f}{2 k}
      \int_{-1}^{1} \psi(r, \mu')\, d\mu' ,
 
+.. (vv-status rationale) governing: One-speed BTE in vacuum for the angular flux — the governing equation of the F_N pillar.
+.. vv-status: fn-method-bte documented
+
 is a balance equation for the **angular flux** :math:`\psi(r, \mu)`,
 the density of neutrons at spatial point :math:`r` moving with
 direction cosine :math:`\mu`. Mathematically, :math:`\psi` lives in
@@ -158,6 +161,9 @@ angular sphere, equipped with the inner product
    \langle \psi_1, \psi_2 \rangle =
        \int_0^R \int_{-1}^{1}
        \psi_1(r, \mu)\, \psi_2(r, \mu)\, d\mu\, dr .
+
+.. (vv-status rationale) definition: L²([0,R]×[−1,1]) inner product — the Hilbert-space structure the F_N Galerkin projection exploits.
+.. vv-status: fn-method-inner-product documented
 
 Why :math:`L^2`? The transport operator (streaming + collision
 :math:`-` source) is a bounded linear operator from :math:`L^2` to
@@ -196,6 +202,9 @@ flux at :math:`x = -a` is
 
    \psi(-a, -\mu) = 0 \quad\text{for}\quad \mu \in [0, 1] ,
 
+.. (vv-status rationale) definition: Vacuum BC ψ(−a,−μ)=0 — no incoming neutrons; becomes a constraint on the F_N coefficients.
+.. vv-status: fn-method-moment-space-bc-vacuum documented
+
 which says: no neutrons enter from outside. Symmetry of the bare
 critical slab gives the matching condition at :math:`x = +a`:
 :math:`\psi(a, \mu) = 0` for :math:`\mu \in [-1, 0]`. The remaining
@@ -217,6 +226,9 @@ set
 
    \psi(-a, -\mu) = \sum_{\alpha=0}^{N} a_\alpha\, \mu^\alpha
    \quad\text{for}\quad \mu \in [0, 1]
+
+.. (vv-status rationale) definition: The F_N ansatz — polynomial half-range boundary-flux expansion; the (N+1) coefficients a_α are the F_N unknowns.
+.. vv-status: fn-method-moment-space-fn-ansatz documented
 
 — the boundary angular flux is approximated as a polynomial of
 degree :math:`N` in the half-range cosine. This is the **F_N
@@ -244,6 +256,9 @@ trial against the original equation is **orthogonal to** :math:`V_N`:
    \langle \mathcal{L}\, \psi_N - \mathrm{RHS},\, v \rangle = 0
    \quad\forall v \in V_N ,
 
+.. (vv-status rationale) definition: Galerkin orthogonality condition — the variational best-approximation principle underlying the F_N method.
+.. vv-status: fn-method-galerkin-orthogonality documented
+
 where :math:`\mathcal{L}` is the transport operator and
 :math:`\mathrm{RHS}` carries the source / scattering /
 fission terms. The Galerkin orthogonality condition has a
@@ -268,6 +283,9 @@ basis produces the linear system
    A_\alpha(\xi_\beta)\big] = 0 ,
    \quad \beta = 0, 1, \ldots, N ,
 
+.. (vv-status rationale) governing: The F_N collocation/Galerkin linear system parametrised by geometry-sign s; the slab specialisation (s=+1) is fn-slab-collocation, verified by the slab F_N solver.
+.. vv-status: fn-method-moment-space-galerkin-system documented
+
 where:
 
 * :math:`s = +1` for slab (the boundary attenuation
@@ -289,6 +307,9 @@ where:
      \quad
      A_\alpha(\xi) = \int_0^1 \frac{\mu^\alpha\, e^{-2\tau/\mu}}
                                         {\mu + \xi}\, d\mu .
+
+  .. (vv-status rationale) definition: The F_N moment integrals B_α(ξ), A_α(ξ) — definitions computed by core.moments; their closed-form recursions are verified by V_fn-slab.1–.4.
+  .. vv-status: fn-method-moment-space-AB-defs documented
 
   These integrals satisfy a clean recursion in :math:`\alpha` with
   closed-form base case (the :math:`B_0` integral is the
@@ -395,6 +416,9 @@ and only if the system matrix :math:`M` has zero determinant:
    :label: fn-critical-condition
 
    \det M(\tau) = 0 .
+
+.. (vv-status rationale) governing: The F_N critical condition — non-trivial null space of the homogeneous collocation system; the whole slab/sphere F_N solver is the verification (V_fn-slab.5 + the L1 Sood gates).
+.. vv-status: fn-critical-condition documented
 
 This is the F_N **critical condition**. The configuration parameter
 :math:`\tau` (slab :math:`a` or sphere :math:`R`) is the unknown;
@@ -1124,6 +1148,9 @@ with closed-form moment recursions derived in V_fn-slab.1 — V_fn-slab.4
    B_\alpha(\xi) &= \xi B_{\alpha-1}(\xi) - 1/(\alpha+1), \\
    A_\alpha(\xi) &= -\xi A_{\alpha-1}(\xi) + 1/(\alpha+1),
 
+.. (vv-status rationale) derivation: Slab B_α/A_α moment recursions — verified by V_fn-slab.1 (test_v_fn_slab_1_B_recursion) and V_fn-slab.2 (test_v_fn_slab_2_A_recursion).
+.. vv-status: fn-slab-moment-recursions documented
+
 and seeds
 
 .. math::
@@ -1131,6 +1158,9 @@ and seeds
 
    B_0(\xi) &= 2/c - 1 - \xi\log(1 + 1/\xi), \\
    A_0(\xi) &= 1 - \xi\log(1 + 1/\xi) .
+
+.. (vv-status rationale) derivation: Slab moment-recursion seeds B_0, A_0 — verified by V_fn-slab.3 (test_v_fn_slab_3_B0_seed) and V_fn-slab.4 (test_v_fn_slab_4_A0_seed).
+.. vv-status: fn-slab-recursion-seeds documented
 
 Collocation points: :math:`\xi_0 = \nu_0` (the discrete dispersion
 root), :math:`\xi_1 = 0`, :math:`\xi_2 = 1`, plus the remaining
@@ -1206,6 +1236,9 @@ shifted Chebyshev-of-the-first-kind nodes strictly inside :math:`(0,
 
    \xi_\beta = \frac{1}{2}\left[1 + \cos\!\left(\frac{\beta\pi}{N+1}
    \right)\right], \qquad \beta = 1, \ldots, N,
+
+.. (vv-status rationale) definition: Siewert-Thomas Eq 38a shifted-Chebyshev sphere collocation grid (strictly interior — excludes ξ=0/1 to avoid the geometry-sign rank deficiency); the sphere F_N solver's L1 Sood accuracy is the end-to-end verification.
+.. vv-status: fn-sphere-collocation-grid documented
 
 with :math:`\xi_0 = \nu_0 = i u_0`. This differs from the slab
 Grandjean-Siewert grid (which includes :math:`\xi = 0` and
@@ -1386,6 +1419,9 @@ SymPy verifies the parametrised BC
 
    \Psi(-a, \mu) = s\,\Psi(a, -s\mu),
    \qquad s = +1 \text{ slab},\; s = -1 \text{ sphere}
+
+.. (vv-status rationale) derivation: Unified slab/sphere BC — the geometry-sign parameterisation verified by V_fn-sphere-fn.1 (test_v_fn_sphere_fn_1_bc_sign_flip).
+.. vv-status: fn-unified-bc-sign documented
 
 and the propagation of :math:`s` into the F_N matrix-entry
 attenuation block — the :math:`A_\alpha` term picks up the sign

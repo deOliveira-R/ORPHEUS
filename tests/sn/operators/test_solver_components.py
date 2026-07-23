@@ -146,6 +146,7 @@ def _ref_compute_keff(solver, flux):
 # ── Component tests ──────────────────────────────────────────────────
 
 class TestAddScatteringSource:
+    @pytest.mark.verifies("p0-scatter-source", "mg-inscatter-source")
     def test_matches_reference(self, solver_2g):
         solver, *_ = solver_2g
         np.random.seed(42)
@@ -171,6 +172,7 @@ class TestAddScatteringSource:
 
 
 class TestAddN2NSource:
+    @pytest.mark.verifies("n2n-source")
     def test_matches_reference(self, solver_2g_n2n):
         """#269 (Mode-10 cure): rides ``solver_2g_n2n`` (NON-zero ``Sig2``)
         rather than the library ``solver_2g`` (``Sig2 = 0``), so the
@@ -486,6 +488,7 @@ class TestAnisotropicScattering:
             np.testing.assert_allclose(cross, 0, atol=1e-14,
                                        err_msg=f"Y_0^0 not orthogonal to Y_1^{m_idx-1}")
 
+    @pytest.mark.verifies("real-spherical-harmonics-l1")
     def test_spherical_harmonics_l1_unchanged_after_extension(self):
         """Y[L<=1] must be bit-identical to the legacy hardcoded values."""
         quad = Quadrature.lebedev(order=17)
@@ -520,7 +523,7 @@ class TestAnisotropicScattering:
                     err_msg=f"addition theorem failed at l={l}, ordinates ({i},{j})",
                 )
 
-    @pytest.mark.verifies("real-spherical-harmonics")
+    @pytest.mark.verifies("real-spherical-harmonics", "harmonic-discrete-orthogonality")
     def test_spherical_harmonics_orthogonality_L3(self):
         r"""Discrete orthogonality of Y_l^m on Lebedev for l, l' <= 3."""
         quad = Quadrature.lebedev(order=17)

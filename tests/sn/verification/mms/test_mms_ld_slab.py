@@ -222,7 +222,10 @@ def test_ld_curvilinear_scan_rejected() -> None:
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("ld-ubld-d1-reduction", "ld-ubld-slope-angular-reduction")
+@pytest.mark.verifies(
+    "ld-ubld-d1-reduction", "ld-ubld-slope-angular-reduction",
+    "ld-ubld-octant-moment-frame-signs",
+)
 @pytest.mark.catches("ERR-061")
 def test_ld_thick_diffusive_limit() -> None:
     r"""Thick diffusive slab: LD recovers the diffusion limit (≈ DD interior).
@@ -282,7 +285,10 @@ def test_ld_thick_diffusive_limit() -> None:
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("ld-ubld-d1-reduction", "ld-ubld-slope-angular-reduction")
+@pytest.mark.verifies(
+    "ld-ubld-d1-reduction", "ld-ubld-slope-angular-reduction",
+    "ld-ubld-octant-moment-frame-signs",
+)
 @pytest.mark.catches("ERR-061")
 def test_ld_thick_diffusive_limit_2g() -> None:
     r"""2G-het companion of the thick-diffusion limit (Mode-6 — group coupling).

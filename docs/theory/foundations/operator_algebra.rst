@@ -19,6 +19,13 @@ each with a **distinct intrinsic mathematical type**:
 
 They compose into the **within-group transport operator**
 
+.. (vv-status rationale) The governing within-group composition
+   A = L+C−S−B — the loss operator. Definitional identity; the
+   assembled composite is exercised by build_within_group_system and
+   the fixed-source / eigenvalue suites, matching the sentineled
+   operator-fixed-source / operator-eigenvalue siblings.
+.. vv-status: operator-within-group-composition documented
+
 .. math::
    :label: operator-within-group-composition
 
@@ -576,6 +583,12 @@ and in the curvilinear cell update
 (:func:`~orpheus.transport.spatial.diamond.cell_balance_for_streaming`) the
 WDD cell-average solves
 
+.. (vv-status rationale) The WDD cell-balance identity S·ψ̄ = source +
+   streaming numerator, S = S_stream + σ_t V — the source of the
+   σ-affine split. Definitional; the discrete sweep it feeds is verified
+   downstream (dd-slab-scalar / dd-curvilinear-scalar).
+.. vv-status: streaming-action-cell-balance documented
+
 .. math::
    :label: streaming-action-cell-balance
 
@@ -790,6 +803,10 @@ What each separate inverse would mean physically
 The within-group transport balance is the operator equation
 :math:`(L+C)\,\psi = q`, i.e.
 
+.. (vv-status rationale) The within-group transport balance
+   Ω·∇ψ + Σ_t ψ = q. Governing equation (definitional).
+.. vv-status: apply-solve-within-group-balance documented
+
 .. math::
    :label: apply-solve-within-group-balance
 
@@ -867,6 +884,12 @@ The non-separability is visible inside a **single cell**, before any
 global coupling enters. The :term:`diamond-difference <diamond difference>` cell update solves the
 balance :eq:`streaming-action-cell-balance` for the cell-average flux:
 
+.. (vv-status rationale) The per-cell WDD resolvent
+   ψ̄ = (Q V + inflow)/S — the single-cell shadow of the non-distributing
+   inverse. Definitional restatement; the sweep it expresses is verified
+   downstream via dd-slab-scalar.
+.. vv-status: apply-solve-cell-resolvent documented
+
 .. math::
    :label: apply-solve-cell-resolvent
 
@@ -890,6 +913,12 @@ Now compare the three inverses on this single cell:
   upstream-face coupling at all) — the local denominator.
 - The coupled resolvent divides by :math:`S_{\rm stream} + \sigma_t\,V`,
   and
+
+  .. (vv-status rationale) The single-cell non-separability
+     1/(S_stream + σ_t V) ≠ 1/S_stream + 1/(σ_t V). Mathematical
+     identity, matching the sentineled apply-distributes /
+     solve-does-not-distribute siblings.
+  .. vv-status: apply-solve-denominator-inequality documented
 
   .. math::
      :label: apply-solve-denominator-inequality
@@ -915,6 +944,11 @@ inverses, the only correct expression is an **infinite operator-splitting
 diagonal :math:`C` (which is the cheap-to-invert leaf, ``C.solve(q) =
 q/\sigma``):
 
+.. (vv-status rationale) The operator-splitting (Neumann) series for
+   (L+C)⁻¹ around the collision diagonal C. Mathematical identity
+   (Lewis & Miller §3.2).
+.. vv-status: apply-solve-neumann-series documented
+
 .. math::
    :label: apply-solve-neumann-series
 
@@ -927,6 +961,11 @@ q/\sigma``):
    \sum_{k=0}^{\infty} (-1)^{k}\,(C^{-1}L)^{k}\,C^{-1},
 
 i.e.
+
+.. (vv-status rationale) The term-by-term Neumann expansion
+   C⁻¹ − C⁻¹LC⁻¹ + …. Mathematical identity (the expanded form of
+   apply-solve-neumann-series).
+.. vv-status: apply-solve-neumann-expansion documented
 
 .. math::
    :label: apply-solve-neumann-expansion
@@ -943,6 +982,11 @@ A *finite* truncation — and in particular the one-term sum
 clean closed form involving both inverses is the **parallel** (resistors
 -in-parallel) identity
 
+.. (vv-status rationale) The parallel / harmonic identity
+   (L⁻¹ + C⁻¹)⁻¹ = L(L+C)⁻¹C. Mathematical identity (still not the
+   coupled inverse).
+.. vv-status: apply-solve-parallel-identity documented
+
 .. math::
    :label: apply-solve-parallel-identity
 
@@ -958,6 +1002,12 @@ series is the **source-iteration / collision-number expansion** itself.
 The full within-group-plus-scattering problem
 :math:`(L+C-S)\psi = q` is solved by splitting off the scattering source
 :math:`S` and summing the series
+
+.. (vv-status rationale) The source-iteration / Peierls
+   collision-number series ψ = Σ_k [(L+C)⁻¹S]^k (L+C)⁻¹ q. Mathematical
+   identity; its ρ = c convergence (green-scattering-ratio-bound) and the
+   SI fixed point are exercised downstream by the source-iteration suites.
+.. vv-status: apply-solve-source-iteration-series documented
 
 .. math::
    :label: apply-solve-source-iteration-series
@@ -1276,14 +1326,13 @@ duplicating what ``.inverse().apply`` already does. This executes the
 (taxonomy §11): *solving with an operator IS applying its inverse
 object*, ``A.inverse().apply(b)``.
 
-.. (vv-status rationale) The inverse-as-operator keystone (#226 Phase 2):
+.. (V&V scope note) The inverse-as-operator keystone (#226 Phase 2):
    applying an operator's inverse OBJECT equals invoking its native
    realization verb ``solve``. A foundation software invariant (no
-   eigenvalue / flux claim); the verifiable content is the bit-identity
+   eigenvalue / flux claim); the label is wired to the bit-identity
    gate ``tests/sn/operators/test_inverse_operator_equivalence.py``
    (``(L+C).inverse().apply(b) == (L+C).solve(b)`` for the sweep-invertible
    loss operator, plus the seed-drop and returned-surface-type checks).
-.. vv-status: inverse-as-operator documented
 
 .. math::
    :label: inverse-as-operator
@@ -2661,6 +2710,13 @@ moment) and the role (flux ↔ source). The four leaves and three edges:
 The kernel of the previous subsection is the composite of these three
 edges plus the producer-side normalisation,
 
+.. (vv-status rationale) The carrier-grid composite
+   S_aniso = (1/W)(R∘Λ∘M). Representational (named-field-typing)
+   identity, matching the sentineled scattering-carrier-grid /
+   carrier-grid-* siblings; the bit-identical composed kernel is pinned
+   by test_scattering_kernel_crosscheck.
+.. vv-status: scattering-aniso-composite documented
+
 .. math::
    :label: scattering-aniso-composite
 
@@ -2974,6 +3030,12 @@ So a generic numerics face **cannot** return a typed
 and numerics is below transport. The clean home for the casting is
 therefore the transport layer, in
 :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`:
+
+.. (vv-status rationale) The Liskov typing identity HarmonicFrame IS-A
+   GalerkinFrame (the angular SH projection is the canonical
+   pure-Galerkin frame). Structural / representational identity; the
+   from_galerkin faces are bit-identical to the generic numerics frame's.
+.. vv-status: harmonic-frame-is-galerkin documented
 
 .. math::
    :label: harmonic-frame-is-galerkin
@@ -3950,6 +4012,13 @@ Inverting the loss operator turns the generalized eigenproblem into a
 standard one for the **resolvent operator**
 :math:`K_{\rm pm} \equiv A_{\rm loss}^{-1} M`:
 
+.. (vv-status rationale) The resolvent standard form
+   K_pm ≡ A_loss⁻¹ M with K_pm ψ = (1/λ)ψ. Definitional / posing
+   identity, matching the sentineled eigen-standard-form; the
+   k = λ_max(A⁻¹F) claim is anchored by the homogeneous closed-form
+   algebra-of-record (kinf_and_spectrum_homogeneous).
+.. vv-status: eigen-resolvent documented
+
 .. math::
    :label: eigen-resolvent
 
@@ -4141,6 +4210,12 @@ production is the eigen-operator and *everything else* is loss. The
 resolvent's dominant eigenvalue is :math:`k_{\rm eff}` directly
 (:math:`k = \mu`):
 
+.. (vv-status rationale) The k-row posing (L+C−S−B)ψ = (1/k)Fψ ⟺
+   [(L+C−S−B)⁻¹F]ψ = kψ — eigen-standard-form specialized to the LIVE
+   k-row. Definitional / posing identity; k_eff is anchored by the
+   homogeneous closed-form oracle (kinf_and_spectrum_homogeneous).
+.. vv-status: eigen-k-posing documented
+
 .. math::
    :label: eigen-k-posing
 
@@ -4164,6 +4239,12 @@ e^{\alpha t}\,\psi(\mathbf r, \Omega)`. Substituting into the
 time-dependent transport equation, the time derivative
 :math:`\frac1v \partial_t \psi` becomes :math:`\frac{\alpha}{v}\psi`,
 so the steady balance reads
+
+.. (vv-status rationale) The α-eigenvalue derivation (the e^{αt} ansatz
+   → (L+C−S−F−B)ψ = −α T ψ). Definitional derivation of a documented
+   future seam — the α-row is Not built (only the k-row exists;
+   unify-after-two).
+.. vv-status: eigen-alpha-derivation documented
 
 .. math::
    :label: eigen-alpha-derivation

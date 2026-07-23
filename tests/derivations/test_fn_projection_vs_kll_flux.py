@@ -201,6 +201,7 @@ def test_l1_path_ai_convergence_under_refinement():
 # ═══════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.foundation
 def test_path_ai_eigenmode_symmetric() -> None:
     """phi(z) recovered by Path A.i must be symmetric: phi(-z) = phi(z)."""
     fn_res = solve_fn_slab_bare_critical(c=1.30, n_modes=10)
@@ -215,6 +216,7 @@ def test_path_ai_eigenmode_symmetric() -> None:
     np.testing.assert_allclose(phi_plus, phi_minus, rtol=1e-8)
 
 
+@pytest.mark.foundation
 def test_path_ai_normalization_phi_at_zero_equals_one() -> None:
     """phi(0) = 1 by Path A.i normalization convention."""
     fn_res = solve_fn_slab_bare_critical(c=1.30, n_modes=10)

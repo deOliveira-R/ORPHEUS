@@ -316,6 +316,11 @@ the balance would have to absorb,
    \mathrm{denom} \;=\; \underbrace{\textstyle\sum_a c_a}_{\text{streaming}}
                         \;+\; \sigma,
 
+.. (vv-status rationale) Derivation step in the affine-in-sigma argument.
+   Its terminal removal-form matvec is foundation-gated
+   (test_removal_form_matvec_sweep, verifies loss-rep-resolution-a).
+.. vv-status: loss-rep-affine-cell documented
+
 with :math:`c_a = 2|\mu_a|/\Delta a` the per-axis scheme-scaled streaming
 coupling (:eq:`loss-rep-scanmarch-solve`; the diamond :math:`2` is the
 scheme's). Because :math:`\bar\psi` is known,
@@ -331,6 +336,11 @@ term :math:`\mathrm{denom}\cdot\bar\psi = (\sum_a c_a)\bar\psi +
    \;=\;
    \mathrm{streaming\_action}(\psi) \;+\; \sigma\cdot\psi
    \qquad\text{(forward matvec is AFFINE in }\sigma\text{).}
+
+.. (vv-status rationale) Derivation identity (the forward matvec is affine
+   in sigma). Foundation-gated via loss-rep-resolution-a
+   (test_removal_form_matvec_sweep).
+.. vv-status: loss-rep-affine documented
 
 This is the decisive fact. **The matvec is affine in** :math:`\sigma`: a clean
 additive :math:`+\,\sigma\cdot\psi`, never a :math:`1/\mathrm{denom}`.
@@ -363,6 +373,10 @@ inherited leaf sum value-correct. Each leaf reads its **own** diagonal:
    \mathrm{streaming\_action}(\psi) + \sigma_r\cdot\psi
    \;=\;
    M(\sigma_r)\,\psi.
+
+.. (vv-status rationale) Derivation step (the leaf sum collapses to
+   M(sigma_r)psi). Foundation-gated via loss-rep-resolution-a.
+.. vv-status: loss-rep-leaf-sum documented
 
 So the leaf sum **does** compute :math:`M(\sigma_r)\psi`, the right value for
 the removal form — but it gets there by sourcing :math:`\sigma_t` from
@@ -444,6 +458,10 @@ collision diagonal,
    :label: loss-rep-removal-sigma
 
    \sigma_r \;=\; \sigma_t \;-\; \Sigma_{s,0}^{\,g\to g},
+
+.. (vv-status rationale) Notation/definition (the removal cross-section
+   sigma_r = sigma_t - Sigma_s0). Definitional, no isolated claim.
+.. vv-status: loss-rep-removal-sigma documented
 
 so the composite becomes :math:`\mathrm{InvertibleOperator}(L(\sigma_t),
 C(\sigma_r))` with :math:`\sigma_C = \sigma_r \neq \sigma_t` (Adams & Larsen
@@ -955,6 +973,11 @@ and from it the affine x-scan coefficients
    \mathrm{inverse\_denom} \;=\; \frac1S,
    \quad w = \tfrac12,
 
+.. (vv-status rationale) Derivation step: the DD affine x-scan coefficients
+   (alpha, beta). Its terminal (correct 2-D DD flux, byte-identical to
+   legacy DD) is tested downstream via transport-cartesian-2d.
+.. vv-status: loss-rep-scanmarch-solve-affine documented
+
 where the diagonal :math:`S`, its reciprocal
 :math:`\mathrm{inverse\_denom}`, the diamond transmission :math:`\alpha`,
 the blend weight :math:`w`, and the transverse coupling :math:`c_y` all
@@ -1015,6 +1038,10 @@ that every facewise closure shares,
    \;-\; c_y\,\psi^{\rm in}_{y,i,j}
    \;\equiv\; (L+C)\bar\psi
    \quad(\text{at zero source}),
+
+.. (vv-status rationale) Derivation step: the ÷V matvec residual
+   r = (L+C)psi-bar. Foundation-gated by the matvec == sweep round-trip.
+.. vv-status: loss-rep-scanmarch-apply-residual documented
 
 from which :eq:`loss-rep-resolution-a` subtracts :math:`\Sigma_t\bar\psi`
 to give :math:`L\bar\psi`. ScanMarch additionally inherits the
@@ -1607,6 +1634,10 @@ closure is **tensor-product separable**:
    \text{the }d\text{-D update}\ =\ \text{independent per-axis 1-D scans,
    chained by scalar face traces,}
 
+.. (vv-status rationale) Definitional separability criterion (the
+   transverse_coupling_is_facewise trait). Definitional, not orphan-gated.
+.. vv-status: loss-rep-facewise-separable documented
+
 so that the per-axis updates commute and a scan along :math:`x` marched over
 :math:`y` reconstructs the same solution the joint :math:`d`-D system would.
 ``transverse_coupling_is_facewise`` is the name for exactly this property:
@@ -2146,6 +2177,12 @@ algebra* rather than a numerical coincidence of two implementations:
    \qquad\Longleftrightarrow\qquad
    \texttt{A.H.inverse()} \;\equiv\; \texttt{A.inverse().H}.
 
+.. (vv-status rationale) Structural object identity of the operator algebra
+   (A.H.inverse() == A.inverse().H). Foundation-gated by the G-metric
+   reciprocity pin (test_g_adjoint_reciprocity), verified structurally
+   through the forward matvec, not by asserting the two sides agree.
+.. vv-status: loss-rep-adjoint-inverse-swap documented
+
 It holds by construction because
 :meth:`_AdjointOperator.inverse() <orpheus.numerics.operator._AdjointOperator.inverse>`
 returns ``self.inner.inverse().H`` — the wrapper *is* ``A.H``, so its
@@ -2158,6 +2195,11 @@ falls out **for free**:
    \bigl(A^{-1}\bigr)^{*} b
      \;=\; G^{+}\,\bigl(A^{-1}\bigr)^{\mathsf T}\!\bigl(G\,b\bigr)
      \;=\; G^{+}\;\texttt{solve\_transpose}\!\bigl(G\,b\bigr)
+
+.. (vv-status rationale) Structural identity (the metric adjoint-solve
+   conjugation, which falls out for free). Foundation-gated by the same
+   G-metric reciprocity pin (test_g_adjoint_reciprocity).
+.. vv-status: loss-rep-metric-adjoint-solve documented
 
 (the composite is endomorphic, so its domain and codomain metrics are
 one and the same :math:`G` — the direct-sum bulk ⊕ trace ⊕ seed metric,

@@ -625,6 +625,13 @@ sequence:
 
    k_{\rm ref} \approx k_h + \frac{k_h - k_{2h}}{2^p - 1}
 
+.. (vv-status rationale) historical-record definition: the Richardson
+.. extrapolation formula, a DELIBERATELY RETIRED reference class (tier T3,
+.. methodologically banned — the solver-as-its-own-reference). No live test
+.. exists by design; the label documents the technique and why it was
+.. replaced.
+.. vv-status: richardson-extrapolation-formula documented
+
 with :math:`p = 2` for :term:`diamond-difference <diamond
 difference>` and finite-difference schemes. The formula is sound
 mathematics for what it says: an error-cancellation estimate of the

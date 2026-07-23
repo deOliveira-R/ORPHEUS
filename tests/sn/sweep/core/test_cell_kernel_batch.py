@@ -256,6 +256,7 @@ class TestKernelPairRoundTrip:
 # ─────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.foundation
 @pytest.mark.regression
 class TestKernelSourceOfRecord:
     r"""sha256 source pin on the TWO kernel bodies — the left-fold order

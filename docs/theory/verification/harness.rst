@@ -364,10 +364,13 @@ The ``foundation`` marker exists for exactly this case.
   contract, numerical primitive, factory output, immutability
   guard, input validation, algebraic identity of a pre-physics
   building block.
-- There is **no** ``:label:`` in any ``docs/theory/**/*.rst`` page
-  that corresponds to what the test is checking. Foundation tests
-  **never** carry ``@pytest.mark.verifies(...)`` — if they did,
-  they would belong on the L0..L3 ladder instead.
+- There is usually **no** ``:label:`` in any ``docs/theory/**/*.rst``
+  page that corresponds to what the test is checking, so most
+  foundation tests carry no ``@pytest.mark.verifies(...)``. The
+  level bucket is orthogonal to the equation link, though: a
+  foundation gate that genuinely pins a labelled equation's content
+  carries ``verifies`` **and stays foundation** — it is not promoted
+  to L0..L3 (see the audit-reporting rules below).
 - A failure means the code is broken **as software**, not that
   the physics is wrong.
 
@@ -397,10 +400,22 @@ be the catcher for an ERR entry (ERR-020 is caught by
 **Audit reporting.** ``python -m tests._harness.audit`` reports
 foundation tests in their own row of the level breakdown and
 their own ``FD`` column of the module × level grid, separate
-from L0..L3. They do not affect the orphan-equation gate
-(foundation tests carry no ``verifies(...)``, so they cannot
-close an orphan) but they do satisfy the ``--strict`` mode's
-untagged-tests gate — a foundation marker is a valid tag.
+from L0..L3. A ``verifies(...)`` mark is **orthogonal to the
+level bucket**: the orphan gate counts marks from any collected
+test, so a foundation gate that genuinely pins an equation's
+content closes its orphan exactly as an L0–L3 test does (live
+instances: ``tests/sn/eigenvalue/test_keff_estimator_gate.py``,
+``tests/sn/operators/test_inverse_operator_equivalence.py``, the
+reference-pillar ``V_αN`` gates). Most foundation tests carry no
+``verifies(...)`` simply because they pin software invariants
+that have no equation label; some algebra-of-record suites
+additionally **opt out by declared design** (their docstring says
+so) — those suites' labels carry a ``documented`` sentinel whose
+rationale names the pinning gate. A label never carries both: a
+live ``verifies`` target *is* tested, so a ``documented``
+sentinel on it is a stale claim — drop the sentinel. Foundation
+tests satisfy the ``--strict`` mode's untagged-tests gate — a
+foundation marker is a valid tag.
 
 **Selection at runtime.**
 
@@ -564,7 +579,10 @@ When adding a new test:
   ``docs/theory/**/*.rst`` and go on the L0..L3 ladder. Foundation
   tests verify a software invariant (data structure, numerical
   primitive, factory output) that has no theory label; they get
-  ``@pytest.mark.foundation`` and **no** ``verifies(...)``. See
+  ``@pytest.mark.foundation``, and most carry no ``verifies(...)``
+  because there is nothing to link. A foundation gate that genuinely
+  pins a labelled equation carries ``verifies`` and stays foundation
+  (the audit-reporting rules above). See
   :ref:`vv-foundation-tests` for the taxonomy and the anti-patterns.
 - [ ] If it's a physics test, choose the right V&V rung. L0 is term
   verification against a hand calculation; L1 needs a *measured*

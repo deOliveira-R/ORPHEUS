@@ -379,6 +379,16 @@ in a weight-preserving way:
    \;\text{ and }\;
    w_i = w_{\pi_g(i)}.
 
+.. (vv-status rationale) discrete-measure-g-invariance: Notation definition —
+   G-invariance of a discrete measure (every g permutes the support points in a
+   weight-preserving way). The definition the quadrature-selection containment
+   check :eq:`subgroup-of-o3-containment` builds on; its concrete instances are
+   the foundation gates in :file:`tests/numerics/test_symmetry.py`
+   (``test_lebedev_is_octahedral_invariant`` positive +
+   ``test_lebedev_is_NOT_icosahedral_invariant`` negative, via
+   ``SubgroupOfO3.is_invariant``). A definitional identity, not a solver claim.
+.. vv-status: discrete-measure-g-invariance documented
+
 When this holds, integrating any :math:`G`-invariant integrand
 :math:`f` (i.e. :math:`f \circ g = f` for all :math:`g \in G`) against
 :math:`\mu` is automatically :math:`G`-symmetric in the result —

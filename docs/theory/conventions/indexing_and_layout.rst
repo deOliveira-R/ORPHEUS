@@ -148,6 +148,13 @@ the discrete ordinates equation is
    (L_g + C_g)\,\psi_g \;=\; S_g\,\phi + \frac{1}{k}\,\chi_g\,F\,\phi
    + q_g\,,
 
+.. (vv-status rationale) definition: the governing within-group system stated
+.. here to motivate the ``(N, ng, nx, ny)`` storage layout (the block-diagonal
+.. -in-g structure that makes energy the joint-batch axis). Definitional /
+.. representational — the within-group solve it names is verified by the SN
+.. within-group operator gates, not by this layout-derivation restatement.
+.. vv-status: sn-within-group-system documented
+
 where :math:`L_g` is the streaming operator on group :math:`g`,
 :math:`C_g = \Sigma_{t,g}\,\mathbb{I}` is the diagonal collision
 operator, :math:`S_g` accumulates the in-scatter contribution, and
@@ -308,6 +315,14 @@ pure-transpose round-trip.  The check is
    \;=\;
    \texttt{sig\_t}_{\text{legacy}}[i, j, g]
    \qquad \forall (g, i, j)\,,
+
+.. (vv-status rationale) representational: the pure-transpose bit-identity
+.. invariant between the principled and legacy cell-flattened layouts. Its
+.. verifiable content is a bit-identity contract, pinned by the in-``__init__``
+.. ``np.array_equal`` transpose assert (PR-INDEX-3) and the 11-snapshot
+.. bit-identity-via-transpose regression gate — a foundation/bit-identity
+.. check, not a physics ``verifies`` claim.
+.. vv-status: sn-cell-flatten-roundtrip documented
 
 implemented at :meth:`SNSolver.__init__`:
 

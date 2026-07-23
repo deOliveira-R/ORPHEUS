@@ -169,6 +169,11 @@ incoming angular flux:
    = (R\,\psi_{\rm out})(\Omega)
    = \sum_\alpha \bigl(G_\alpha\,\psi_{\rm out}\bigr)(\Omega) \cdot A_\alpha,
 
+.. (vv-status rationale) Definitional/literature-transcribed framing (a BC
+   as R = sum_alpha G_alpha A_alpha, Lewis & Miller 1984 §3.4). The concrete
+   rank-N primitives (vacuum/reflective/white) carry their own verification.
+.. vv-status: bc-tensor-decomposition documented
+
 where :math:`G_\alpha` is a **geometric operator** (permutation,
 pushforward, angular average, spatial wrap) and :math:`A_\alpha` is a
 **scalar amplitude** (typically an :term:`albedo` :math:`\in [0, 1]`).

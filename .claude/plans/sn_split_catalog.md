@@ -1394,3 +1394,64 @@ heuristic = discovery layer; record in harness.rst + extractor ask on nexus#1.
   / orphans 256 / documented 321 invariant; matrix + docs/_generated
   byte-stable through the new hook; skip-set the 2 known carriers;
   ERR coverage 69/69.
+
+- **V7 ✅ 2026-07-23** — slice backfill EXECUTED WHOLE: the 256 orphans
+  adjudicated in 6 parallel archivist batches (A1–A6: 46/38/31/38/53/50
+  labels) + test-architect on the 39 unmarked (38 foundation, 1 l1;
+  markers only) → **210 documented sentinels** (each with a gate-naming
+  rationale) · **46 verifies wirings** · **0 genuine test gaps** (the
+  lone GAP verdict was a DOC bug — fixed inline, see CP below; the
+  stage's "gap → issue" arm went unused). **DOCTRINE RULED + CODIFIED**
+  (harness.rst "Audit reporting"): a `verifies` mark is ORTHOGONAL to
+  the level bucket — a foundation gate that genuinely pins an equation
+  closes its orphan (the audit's actual behavior; 3 pre-existing
+  precedents incl. test_keff_estimator_gate); families may opt out by
+  declared docstring design (labels then `documented` naming the gate);
+  **wired ⟹ no sentinel**. Enforcer MUST-FIX caught the incomplete
+  migration — 3 stale "foundation NEVER carries verifies" universals
+  (harness.rst ×2 + verification/sn.rst) reconciled + 4 method-page
+  categoricals localized; confirmation grep clean. Consolidation: 12
+  pre-existing sentinel∩verifies double-statuses removed (framing
+  rationales retagged `.. (V&V scope note)`); 4 freed-file wirings
+  applied (matrix-functor-homomorphism → the 3 functor-law tests;
+  ld-ubld-pure-z-collision → its ERR-062 gate; ld-cartesian-2d
+  bilinear-coeffs/projection-coeff → the #247 sub-gates); A4 caught the
+  stage plan's flagged resolvent-object-gate line-range as the
+  Mode-12-BLIND spectral test and wired the intrinsic object gate
+  (`test_K_operator_as_matrix_is_the_resolvent`) instead — the
+  verify-don't-assume instruction fired exactly as designed. **CP
+  DOC-MATH FIX** (Cardinal Rule 1; enforcer independently re-derived,
+  PASS): the slab self-collision derivation carried an abandoned
+  sign-wrong first evaluation (a "Wait — let me redo this carefully"
+  narration artifact), a missing ½ kernel prefactor (F₁ = ½E₁), a
+  silent 2→1 constant slip, and a labeled equation wrong by factor 2
+  (thin limit −1); rewritten to one clean derivation landing
+  character-for-character on the solver line (`rcp[i,i] += τ − (½ −
+  E₃)`) and `P_ii = 1 − (E₃(0)−E₃(τ))/τ`, limits corrected, then
+  sentineled. De-freezes: 8 live suite-totals dropped
+  (cartesian_multid ×2 / operator_adjoint ×2 / boundary_conditions ×2
+  incl. the V6-enforcer-flagged :3980 "1455 tests" /
+  trajectory_resolvent / peierls) — enforcer verified no structural
+  count was dropped. Dead-pointer truth fixes: retired seed-spy → #280
+  2.5c note + live pins (2 sites, the .pyc-shadow class);
+  trajectory_resolvent MG coverage table → the live
+  test_peierls_greens_function_mg gates (7 names remapped 1:1, one
+  stale tolerance 1e-12→1e-13); chi_mix docstring premise. Template-B:
+  infinite_medium's Verification h2 CONVERTED (frozen k∞ benchmark
+  table cut — the values live in the VerificationCase objects and the
+  registry-generated tables; routes to verification/homogeneous +
+  matrix); 5 `<chapter>-verification-pins` anchors minted across the
+  template-B family (#308 label-delimited extraction prep). **#309
+  FILED** (latent-wiring backlog: galerkin_spectral V_cg · sn/adjoint
+  family · power-iteration pair (Mode-12 stance) · ld-cartesian-2d
+  face trio · the ld-ubld + g-adjoint family opt-outs on record ·
+  the operator_inverse_family seed-spy section behavioral rewrite;
+  + the enforcer's rationale-spelling NIT as a comment). Reviews:
+  enforcer CONCERNS→RESOLVED (CP math independently verified; MUST-FIX
+  applied; 4 SHOULD-CONSIDER applied; wired⟹no-sentinel cross-check:
+  211 sentinels × 138 verifies targets = empty intersection).
+  **NEW BASELINES**: orphans 256→**0** · documented 321→**519** ·
+  testable 509→**311** (all covered) · unmarked 39→**0** · phantoms 0
+  · collect **6659** invariant · ERR 69/69 · `-E -W` exit 0 zero
+  warnings ×2 (post-consolidation + final) · matrix regenerated to the
+  triple-zero state.

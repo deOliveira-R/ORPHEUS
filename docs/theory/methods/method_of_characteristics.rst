@@ -211,6 +211,8 @@ the direction :math:`\hat{\Omega}`:
 
    \mathbf{r}(s) = \mathbf{r}_0 + s \, \hat{\Omega}, \quad s \geq 0
 
+.. vv-status: characteristic-ray-parametrization documented
+
 Along this ray, the PDE reduces to a first-order ODE:
 
 .. math::
@@ -420,6 +422,8 @@ The perpendicular coordinate of a ray is:
    :label: ray-perpendicular-coordinate
 
    t = -x \sin\varphi_m + y \cos\varphi_m
+
+.. vv-status: ray-perpendicular-coordinate documented
 
 The range of :math:`t` values that intersect the cell is determined by
 projecting the four cell corners onto the perpendicular axis.  Rays are
@@ -881,6 +885,8 @@ thermal (the :ref:`canonical fast-first convention
 source uses the transpose: ``Q += SigS.T @ phi`` (same as CP, SN, MC).
 
 
+.. _moc-verification-pins:
+
 Verification — what pins this chapter
 =====================================
 
@@ -934,6 +940,8 @@ For homogeneous material with converged boundary fluxes:
 
    \psi_{\text{in}} = \frac{Q}{\Sigt{}} \implies \Delta\psi = 0
    \implies \delta\phi = 0
+
+.. vv-status: moc-homogeneous-weight-degeneracy documented
 
 The scalar flux reduces to :math:`\phi = 4\pi Q / \Sigt{}` regardless
 of the weight factor.  This is the fundamental degeneracy:

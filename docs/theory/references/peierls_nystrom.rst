@@ -1118,8 +1118,6 @@ is
              \varphi_{g_{\rm in}}(r_j)
          \,\Biggr],
 
-.. (vv-status rationale) recap: Recap of an earlier identity already verified under a different label. Multi-group operator-form recap — verified at L1 by the multi-group Peierls suite under peierls-unified.
-.. vv-status: peierls-mg-operator documented
 
 
 recast as the generalised eigenvalue problem
@@ -1512,6 +1510,9 @@ and isotropic source :math:`q(\mathbf r)`:
    \mathbf\Omega\cdot\nabla\psi(\mathbf r,\mathbf\Omega)
      + \Sigma_t(\mathbf r)\,\psi(\mathbf r,\mathbf\Omega)
      \;=\; \frac{q(\mathbf r)}{4\pi}.
+
+.. (vv-status rationale) governing: 3-D one-group isotropic-emission transport equation — the governing equation of the Peierls-Nyström pillar (mirror of the documented boltzmann label).
+.. vv-status: peierls-transport-equation-3d documented
 
 Integrate along the characteristic
 :math:`\mathbf r(s) = \mathbf r - s\,\mathbf\Omega` against the
@@ -1974,7 +1975,6 @@ Then:
        q\bigl(r'(\rho,\Omega,r)\bigr)\,\mathrm d\rho
      \;+\; S_{\rm bc}(r).
 
-.. vv-status: peierls-unified documented
 
 The LHS is written in **identity-form** (coefficient on
 :math:`\varphi` is :math:`\Sigma_t`, not the identity matrix) for
@@ -2483,6 +2483,9 @@ geometries*:
    \sum_{j=1}^{N} K_{ij}\cdot\Sigma_t(r_j) \;=\; \Sigma_t(r_i)
    \qquad (R \to \infty).
 
+.. (vv-status rationale) derivation: Infinite-medium (R→∞) neutron-conservation row sum from ∫κ_d du=1 — mathematical identity; the finite-cell realisation is the tested peierls-vacuum-bc-row-sum-gate.
+.. vv-status: peierls-unified-row-sum-identity documented
+
 This is **not** the naive :math:`K\cdot\mathbf 1 = \Sigma_t`: see
 the :ref:`peierls-cylinder-row-sum` analysis and the associated
 warning at :eq:`peierls-cylinder-row-sum-identity` for the
@@ -2504,6 +2507,9 @@ up a deficit equal to the **uncollided escape probability**:
 
    \Sigma_t(r_i) - \sum_{j=1}^{N} K_{ij}\,\Sigma_t(r_j)
      \;=\; \Sigma_t(r_i)\,P_{\rm esc}(r_i),
+
+.. (vv-status rationale) derivation: Finite-cell row-sum deficit = Σ_t P_esc relating the tested vacuum-BC row sum to the tested escape probability — mathematical identity connecting two verified quantities.
+.. vv-status: peierls-finite-cell-deficit documented
 
 with
 
@@ -2877,6 +2883,9 @@ gives the **rank-1** correction
    K_{\rm bc}[i, j] \;=\; \frac{\Sigma_t(r_i)\,G_{\rm bc}(r_i)}{A_d}
        \,\cdot\, r_j^{d-1}\,w_j\,P_{\rm esc}(r_j)
      \;=\; u_i\,v_j.
+
+.. (vv-status rationale) derivation: Rank-1 white-BC correction K_bc[i,j]=u_i v_j assembled by build_white_bc_correction — the rank-1 case of the rank-n closure (verified by the rank-n suite under peierls-rank-n-bc-closure); end-to-end k_eff behaviour verified by the cylinder white-BC tests.
+.. vv-status: peierls-rank1-white-bc-correction documented
 
 This is the form implemented in
 :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_white_bc_correction`
@@ -5190,6 +5199,9 @@ identity, verified to :math:`10^{-16}` in
         (\cos\alpha)^{k_m+k_n}\,\mathrm{Ki}_{3+k_m+k_n}\!\bigl(\tau_{\rm 2D}(\alpha)\bigr)\,
         \mathrm d\alpha,
 
+.. (vv-status rationale) derivation: Cylinder surface-to-surface transfer integral T_mn^cyl — derivation step; the rank-1 reduction T_00^cyl=P_ss^cyl is verified to 1e-14 by the foundation test test_specular_multibounce_cyl_rank1_equals_hebert (cf. the sphere sibling peierls-specular-T-matrix).
+.. vv-status: peierls-specular-T-matrix-cylinder documented
+
 where :math:`c_n^k` are the monomial coefficients of
 :math:`\tilde P_n(\mu)`, :math:`\alpha` is the in-plane angle from
 the inward normal at the surface emission point, :math:`\tau_{\rm 2D}(\alpha)`
@@ -5230,6 +5242,9 @@ with the homogeneous off-diagonal block
 
    T_{oi}^{(mn)} \;=\; 2\!\int_0^1\!\mu\,\tilde P_m(\mu)\,
                        \tilde P_n(\mu)\,e^{-\tau_{\rm tot}/\mu}\,\mathrm d\mu
+
+.. (vv-status rationale) derivation: Slab off-diagonal transfer block T_oi — derivation step; the rank-1 reduction T_oi^(0,0)=2E_3(τ_tot) is verified to 1e-14 by the foundation test test_specular_multibounce_slab_rank1_equals_2E3_identity.
+.. vv-status: peierls-specular-T-matrix-slab documented
 
 and :math:`\tau_{\rm tot} = \sum_k \Sigma_{t,k} L_k` (slab chord is
 uniformly :math:`L/\mu`, so multi-region :math:`\tau` factors as

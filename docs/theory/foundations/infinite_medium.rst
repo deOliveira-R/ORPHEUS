@@ -357,6 +357,14 @@ group :math:`g` from all groups :math:`g'`:
    \sum_{g'} \Sigs{g' \to g} \phi_{g'}
    = \bigl(\boldsymbol{\Sigma}_{\mathrm{s}}^T \cdot \boldsymbol{\phi}\bigr)_g
 
+.. vv-status: sigs-in-scatter-transpose documented
+.. Representational convention identity: the in-scatter sum equals the transpose
+.. matvec Sig_s^T phi (the from-row / to-column convention). Its terminal use is
+.. the removal matrix (removal-matrix), verified end-to-end by the multi-group
+.. homogeneous chain (tests/homogeneous/test_homogeneous.py verifies
+.. "removal-matrix", >=2 groups per the ERR-002 warning). A convention identity,
+.. not a separate solver claim.
+
 This is why the removal matrix :eq:`removal-matrix` uses the
 **transpose** :math:`\boldsymbol{\Sigma}_{\mathrm{s}}^T`: the transpose
 converts column :math:`g` (destination) to row :math:`g`, making the
@@ -848,6 +856,12 @@ horizontal plateau:
 
    \frac{\phi}{du} = \frac{\phi(E) \cdot E}{\Delta u}
    \propto \frac{1}{E} \cdot E = \text{const}
+
+.. vv-status: flux-per-lethargy-plateau documented
+.. Definitional physics identity: the 1/E slowing-down flux appears flat on a
+.. per-lethargy plot (phi/du ~ (1/E)*E = const), the plotting-convention sibling
+.. of the 1/E law (one-over-E). A spectral-physics teaching identity, not a
+.. solver claim.
 
 This is why flux-per-lethargy is the standard representation: it
 makes the slowing-down region flat, and deviations (resonance dips
@@ -1474,6 +1488,11 @@ geometry:
    f_\mathrm{cool} = \frac{r_\mathrm{cell}^2 - r_\mathrm{clad,out}^2}
                            {r_\mathrm{cell}^2}
 
+.. vv-status: pin-cell-volume-fractions documented
+.. Definitional geometric formula: the Wigner-Seitz pin-cell volume fractions
+.. consumed by data.macro_xs.recipes.pwr_like_mix. A textbook geometry
+.. definition, not a solver claim.
+
 where :math:`r_\mathrm{cell} = p / \sqrt{\pi}` is the Wigner–Seitz
 equivalent radius for a square lattice of pitch :math:`p`.
 
@@ -1543,51 +1562,22 @@ Comparison
      - 1.01357
 
 
-Verification
-=============
+.. _infinite-medium-verification-pins:
 
-The homogeneous solver is verified against **analytical eigenvalues**
-derived symbolically with SymPy (see :mod:`orpheus.derivations.continuous.analytical.homogeneous`).
-The same :class:`~orpheus.derivations.common.verification_case.VerificationCase` objects serve
-both the documentation (LaTeX equations in :doc:`/theory/verification/homogeneous`) and the
-test suite.
+Verification — what pins this chapter
+=====================================
 
-.. list-table::
-   :header-rows: 1
-   :widths: 20 10 10 25 15
-
-   * - Benchmark
-     - Groups
-     - Regions
-     - :math:`\kinf` (analytical)
-     - Error
-   * - ``homo_1eg``
-     - 1
-     - 1
-     - 1.5000000000
-     - :math:`< 10^{-12}`
-   * - ``homo_2eg``
-     - 2
-     - 1
-     - 1.8750000000
-     - :math:`< 10^{-12}`
-   * - ``homo_4eg``
-     - 4
-     - 1
-     - 1.4877619048
-     - :math:`< 10^{-12}`
-
-All three benchmarks achieve **machine-precision** agreement
-(:math:`< 10^{-12}`), confirming that the solver correctly implements
-the matrix eigenvalue algebra.
-
-Additionally, the two 421-group industrial problems (aqueous uranium
-and PWR-like mixture) are verified against the original MATLAB
-implementation to 5 significant digits.
-
-Run the verification suite::
-
-   pytest tests/homogeneous/ -v
+The homogeneous solver's verification evidence — the SymPy-derived analytical
+:math:`\kinf` eigenvalues
+(:mod:`orpheus.derivations.continuous.analytical.homogeneous`), the multi-group
+matrix-eigenvalue chain, and the two 421-group industrial cross-checks against
+the legacy MATLAB implementation — lives in the verification part:
+:doc:`/theory/verification/homogeneous`. The same
+:class:`~orpheus.derivations.common.verification_case.VerificationCase` objects
+serve both that chapter's LaTeX equations and the test suite. The
+auto-generated :doc:`/theory/verification/matrix` reports per-equation test
+coverage; :ref:`theory-verification` carries the part-wide principles and
+harness contracts.
 
 
 Comparison with Spatially-Dependent Solvers

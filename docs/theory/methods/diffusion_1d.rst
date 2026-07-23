@@ -568,19 +568,31 @@ MMS gate are in :ref:`diffusion-2rg-verification` and
        the MATLAB reference :math:`k = 1.022173` (at print precision)
        under ``BC("zero_flux")``.
 
-.. (vv-status rationale) The four #290 operator-family labels are
+.. (vv-status rationale) The #290 operator-family labels are
    representational / definitional, NOT solver claims: the posing
-   identity (diffusion-operator-family), the P1 half-range partial-current
-   dictionary (diffusion-partial-current-dictionary), and the two
-   discretization formulas (diffusion-interior-conductance /
+   identity (diffusion-operator-family), the removal-XS in-group
+   cancellation theorem :math:`\mathbf 1^{\mathsf T}(C-S)=\Sigma_a`
+   (diffusion-removal-xs), the scalar-composite field-typing identity
+   (diffusion-scalar-composite), the P1 half-range partial-current
+   dictionary (diffusion-partial-current-dictionary), the albedo
+   boundary-family law :math:`J^-=\mathcal{A}J^+` (diffusion-albedo-law),
+   and the two discretization formulas (diffusion-interior-conductance /
    diffusion-boundary-closure). Their verifiable content is pinned by the
    object-level stencil gate (which monkeypatches the module-level
    ``_interior_conductance`` / ``_boundary_closure`` kernels), the
-   cross-engine consistency gate, and the per-law trace-semantics gates
-   in the table above; the k-value carries no new claim here (it is
-   verified by those gates plus the L1 / L2 anchors below).
+   cross-engine consistency gate, the field-construction foundation gates,
+   and the per-law trace-semantics gates in the table above (the vacuum
+   :math:`J^-=0` realization is asserted by
+   ``tests/diffusion/test_properties.py::test_vacuum_means_zero_incoming_current``);
+   the k-value carries no new claim here (it is verified by those gates
+   plus the L1 / L2 anchors below). These sentinels are co-located here,
+   with their #290-family siblings, rather than at each label's Key-Facts
+   point of use (same-file, per the audit contract).
 .. vv-status: diffusion-operator-family documented
+.. vv-status: diffusion-removal-xs documented
+.. vv-status: diffusion-scalar-composite documented
 .. vv-status: diffusion-partial-current-dictionary documented
+.. vv-status: diffusion-albedo-law documented
 .. vv-status: diffusion-interior-conductance documented
 .. vv-status: diffusion-boundary-closure documented
 
@@ -966,6 +978,14 @@ propagate it through each region by the matrix exponential
    \begin{pmatrix} \mathbf 0 & -\mathbf D^{-1} \\
                     -\mathbf M(k) & \mathbf 0 \end{pmatrix}.
 
+.. (vv-status rationale) documents a RETIRED dead-end (#1): the first-order
+.. ODE state-vector / ``expm`` composition approach was implemented, found
+.. ill-conditioned (5e-4 residual vs the machine-zero the zero-flux BC
+.. demands), and abandoned. No production code implements this state matrix,
+.. so there is no test and none should exist; the surviving reference is the
+.. transcendental / mode-basis solver ``derive_2rg_continuous``.
+.. vv-status: diffusion-expm-state-matrix documented
+
 Continuity of :math:`\phi` and :math:`J` at the fuel/reflector
 interface is then automatic because the state vector is the
 continuous quantity. Zero-flux BCs
@@ -1164,6 +1184,8 @@ blaming the reference solution. If the measured order is pathological
 for a well-understood discretisation, the solver's own convergence
 machinery is the first suspect, not the reference.
 
+
+.. _diffusion-verification-pins:
 
 Verification — what pins this chapter
 =====================================

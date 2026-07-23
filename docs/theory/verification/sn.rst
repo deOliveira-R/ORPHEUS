@@ -1144,6 +1144,13 @@ The spherical Morel--Montry :term:`weighted-diamond <weighted diamond difference
        \;=\; \frac{\mu_n - \mu_{n-1/2}}{\mu_{n+1/2} - \mu_{n-1/2}}
        \;\in\; [0, 1],
 
+.. (vv-status rationale) definition: the literature-transcribed Morel-Montry
+.. weighted-diamond weight (BaileyMorelChang2010 Eq. 43), the SAME object as
+.. :eq:`mm-weights` (the unclamped raw form discussed in the W1 clamp
+.. vindication). Definitional; the WDD closure it names is verified wherever
+.. :eq:`mm-weights` is exercised.
+.. vv-status: sn-tau-mm-raw documented
+
 the **unique** weight exact for an angular flux linear in :math:`\mu`
 (:cite:`BaileyMorelChang2010` Eq. 43; the same object as
 :eq:`mm-weights`).  The production code had wrapped it in a
@@ -1374,6 +1381,12 @@ But the spherical DD discrete unknown **IS** the cell-volume average
 
    \overline{\phi}_{n,i}
        \;=\; \frac{4\pi}{V_i}\int_{r_{i-1/2}}^{r_{i+1/2}} r^2\,\phi_n(r)\,dr
+
+.. (vv-status rationale) definition: the literature-transcribed DEFINITION of
+.. the spherical DD discrete unknown as the shell-volume average
+.. (Hebert2009 Eq. 3.430), not a point value. Definitional — it is the datum
+.. of the pole-cell error decomposition, not a solver claim.
+.. vv-status: sn-pole-cell-shell-average documented
 
 (:cite:`Hebert2009` Eq. 3.430 — the unknown is *defined* as the shell
 average, not a point value; the diamond relation Eq. 3.431 relates it to
@@ -1971,6 +1984,13 @@ moment is the **bare per-volume Legendre coefficient**:
                        {\langle P_1,\,P_1\rangle}
               \quad\text{(the }P_1\text{ coefficient on axis }a).
 
+.. (V&V scope note) definition: the Leg-A projection NORMALIZATION
+.. convention (bare per-volume Legendre coefficient; the mass matrix supplies
+.. the theta/h weighting downstream). Wired to the foundation gate
+.. ``tests/sn/verification/mms/test_mms_ld_2d.py::test_projection_slot0_is_cell_average_not_centre``
+.. (slot-0 IS the cell average — the normalization convention pinned against
+.. an independent fine-quadrature average).
+
 For a cell-linear source :math:`q = a + b\,x`, the axis coefficient is
 :math:`\hat q = b\,h/2` — **no** :math:`\theta`, **no** :math:`h`, **no**
 :math:`V` in the projected number; the kernel's :math:`M` adds them downstream.
@@ -1990,6 +2010,13 @@ hand-derivable in closed form:
    \hat q_y &= \tfrac{h_y}{2}\,(a_{01} + a_{11}x_c), \\
    \hat q_x &= \tfrac{h_x}{2}\,(a_{10} + a_{11}y_c), \\
    \hat q_{xy} &= \tfrac{h_x}{2}\,\tfrac{h_y}{2}\,a_{11}.
+
+.. (V&V scope note) reference: the four hand-derived tensor-Legendre
+.. coefficients of a bilinear source — the structurally-independent (Branch-1)
+.. reference the quadrature projector is pinned against. Wired to the
+.. foundation gate
+.. ``tests/sn/verification/mms/test_mms_ld_2d.py::test_tensor_legendre_projection_matches_hand_polynomial``
+.. (reproduced to ``atol=1e-13``).
 
 These four numbers are the structurally-independent reference for the projector
 (see the teeth subsection): a bilinear integrand is integrated exactly by a
@@ -2344,6 +2371,15 @@ moment tail to each slot,
             \bigl(\text{per\_axis}^{\,d-1}\bigr)}
          _{\text{the new }2^{d-1}\text{ tail}}\bigr),
 
+.. (vv-status rationale) representational: the boundary-trace per-face slot
+.. SHAPE (the codimension-1 :math:`2^{d-1}` transverse-moment tail appended by
+.. ``SNMesh.boundary_face_layout``). A storage-layout identity; its
+.. verifiable content — the live slot shapes (LD ``(24,2,6,2)`` vs DD
+.. ``(24,2,6)``) and the DD/Step byte-identical negative control — is pinned
+.. by the FOUNDATION LD gates in the (owned) ``test_mms_ld_2d.py`` /
+.. ``test_linear_discontinuous.py`` suites, which carry no ``verifies(...)``.
+.. vv-status: ld-cartesian-2d-face-slot-shape documented
+
 where the per-face moment count is :math:`n_{\rm face} = \text{per\_axis}^{\,d-1}`
 (the FACE tail) — note the exponent :math:`d-1`, NOT the cell-tail exponent
 :math:`d` of Eq. :eq:`spatial-moment-kronecker-order`.  A face is a codimension-1
@@ -2421,6 +2457,14 @@ trace must carry the BARE per-transverse Legendre coefficients**:
                             {\langle P_1, P_1\rangle}
             \quad\text{(slot 1, the bare transverse }P_1\text{ coeff)},
 
+.. (vv-status rationale) definition: the Leg-B face-projection NORMALIZATION
+.. convention (bare per-transverse Legendre coefficient; the cochain's
+.. transverse mass supplies the theta/h_t weighting). The 1-D-transverse
+.. factor of :eq:`ld-cartesian-2d-projection-coeff`; representational, pinned
+.. by the FOUNDATION structural-threading gate in the (owned) LD suites,
+.. which carry no ``verifies(...)``.
+.. vv-status: ld-cartesian-2d-face-projection-coeff documented
+
 with :math:`\xi \in [-1,1]` the transverse coordinate.  For a face-linear inflow
 :math:`\psi_{\rm face}(t) = c_0 + c_1 t` on a transverse cell
 :math:`[t_L, t_R]` (width :math:`h_t = t_R - t_L`, centre :math:`t_c`), the two
@@ -2433,6 +2477,14 @@ coefficients are hand-derivable in closed form,
                     eval — see below)}, \\
    b_{\rm slope} &= \tfrac{h_t}{2}\,c_1 \quad\text{(no }\theta\text{, no }h_t
                     \text{ beyond the }\tfrac{1}{2}\text{; the mass adds them)},
+
+.. (vv-status rationale) reference: the two hand-derived face Legendre
+.. coefficients of a face-linear inflow — the structurally-independent
+.. (Branch-1) reference the ``leggauss`` face projector is reproduced against
+.. to machine precision. The per-axis factor of
+.. :eq:`ld-cartesian-2d-bilinear-coeffs`; pinned by the FOUNDATION LD gates in
+.. the (owned) suites, which carry no ``verifies(...)``.
+.. vv-status: ld-cartesian-2d-face-bilinear-coeffs documented
 
 the structurally-independent reference the face projector is pinned against (a
 linear integrand is integrated exactly by a 2-point Gauss rule, so the
@@ -3133,6 +3185,13 @@ is therefore the **direct sum** of the two:
    :label: sn-fixed-source-direct-sum
 
    q \;=\; q_{\text{bulk}} \,\oplus\, q_\partial,
+
+.. (vv-status rationale) representational: the fixed-source RHS field-typing
+.. identity — the bulk volumetric source direct-summed with the boundary
+.. prescribed inflow, carried by the ``TimedFullField`` bulk-boundary direct
+.. sum. A field-typing identity, not a solver claim; its verifiable content is
+.. pinned by the fixed-source RHS construction / field-role foundation gates.
+.. vv-status: sn-fixed-source-direct-sum documented
 
 an object that "represents the source everywhere". ORPHEUS already has
 exactly this carrier: the
@@ -4092,7 +4151,7 @@ the same fixed point under anisotropic / :math:`B\neq 0` stressing).
 This is a **foundation** test, not an L1 claim: no theory-page
 :math:`:label:` is being verified — it pins that three reduction trees
 of one affine operator agree on one RHS, which is a software invariant
-(``foundation`` NEVER carries ``verifies()``).
+with no equation label to link, so the gate carries no ``verifies()``.
 
 T4
 (:func:`tests.sn.verification.analytical.test_prescribed_inflow_consistency.test_prescribed_inflow_consistency_si_jacobi_gs_krylov`)

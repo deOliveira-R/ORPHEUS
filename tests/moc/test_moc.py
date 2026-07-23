@@ -18,6 +18,10 @@ pytestmark = pytest.mark.verifies(
     "one-group-kinf",
     "matrix-eigenvalue",
     "mg-balance",
+    # The homogeneous multigroup eigenvalue tests drive the power iteration
+    # whose per-iteration fission source is F = (chi/k) sum nuSigf phi; a
+    # nuSigf/chi sign or factor error reds matrix-eigenvalue / one-group-kinf.
+    "moc-fission-source",
 )
 
 

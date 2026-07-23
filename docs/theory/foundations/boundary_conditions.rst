@@ -146,7 +146,7 @@ Key Facts
    - L1 descriptor-tree algebra tests
      (:mod:`tests.geometry.test_law_composition`) pinning the
      :class:`LawSum` / :class:`LawScaled` closed-algebra contract
-     (18 tests: foundation + L1 coverage).
+     (foundation + L1 coverage).
    - L1 universal-invariant tests
      (:mod:`tests.geometry.test_bc_universal_invariants`) that fire
      ERR-043 / ERR-044 / ERR-046 under fault-injection.
@@ -183,6 +183,13 @@ the **affine map**
    :label: affine-bc-form
 
    \gamma_- \psi \;=\; R\,G\,\gamma_+ \psi \;+\; q,
+
+.. (vv-status rationale) Structural/definitional framing: the master affine
+   form of every boundary law (Grand Report §16A.3). Per this page's own note,
+   its equations are definitional / structural-architecture statements; the
+   concrete rank-0 / rank-n realisations (:eq:`bc-rank-n-tensor-decomposition`,
+   PrescribedInflow) are the tested forms. Not a solver claim.
+.. vv-status: affine-bc-form documented
 
 where:
 
@@ -1549,6 +1556,13 @@ n(\mathbf{r})` at every regular point. For an angular flux
    \Gamma_+ \;=\; \{(\mathbf{r}, \Omega) \in \partial\Omega \times S^d
                   : \Omega \cdot \hat n(\mathbf{r}) > 0\}.
 
+.. (vv-status rationale) Notation definition: the continuous inflow / outflow
+   trace half-spaces Γ_± by the sign of Ω·n. Its discrete realisation
+   :eq:`inflow-mask-discrete` is the tested form
+   (``tests/numerics/test_angular_trace_space.py`` selector gates). A
+   definitional predicate, not a solver claim.
+.. vv-status: trace-sign-predicate documented
+
 Points with :math:`\Omega \cdot \hat n = 0` are **tangential** —
 they belong to neither half. For axis-aligned ordinates on
 axis-aligned faces these arise exactly (no round-off) for face
@@ -2894,6 +2908,14 @@ are:
            \psi_{\text{out}}[n] & n \in O_f \cup T_f.
        \end{cases}
 
+.. (vv-status rationale) Structural/explanatory identity: contrasts the legacy
+   zeros-all vacuum with the trace-correct inflow-only mask (they agree on the
+   inflow set, diverge on the outflow set). The trace-correct inflow-only
+   semantics are pinned by the realizer snapshot gates
+   (``tests/geometry/test_bc_equivalence_snapshot.py``, the §16A.5 semantic
+   capture). An explanatory comparison, not a separate solver claim.
+.. vv-status: vacuum-legacy-vs-trace-correct documented
+
 The two functions agree **on** :math:`I_f` (both give 0) and
 **diverge** on :math:`O_f` (legacy gives 0, trace-correct gives
 :math:`\psi_{\text{out}}[n]`). They diverge on :math:`T_f` too
@@ -3916,6 +3938,14 @@ construction:
    = \operatorname{set}(\texttt{boundary\_face\_layout.faces})
    = \{\, \ell.\texttt{face\_name} : \ell \in \texttt{face\_labels} \,\}
 
+.. (vv-status rationale) Structural by-construction identity: the BC-dict keys,
+   the boundary-face-layout faces, and the FaceLabel.face_name renderings are
+   the same set because both producers call one crosswalk. The crosswalk is
+   pinned by the foundation gate ``tests/sn/primitives/test_face_name_crosswalk.py``
+   (the exhaustive (axis,endpoint)→face_name table + fail-loud negatives). A
+   single-source-of-truth structural identity, not a solver claim.
+.. vv-status: bc-face-name-key-identity documented
+
 — a set equality that *cannot drift* because both sides are the same
 comprehension over the same inventory.
 
@@ -3977,7 +4007,7 @@ strategy reflects that:
   operators are the same objects as before, so every solver test
   that exercises them inherits its prior verification. The affine
   ``sha256`` goldens stayed byte-identical; the broad sweep /
-  operators / primitives / solve suite (1455 tests) is green.
+  operators / primitives / solve suite is green.
 * **L0 crosswalk pins**
   (:mod:`tests.sn.primitives.test_face_name_crosswalk`,
   foundation-tagged). An exhaustive **hand-transcribed**
@@ -4181,6 +4211,15 @@ per-axis cell widths come from the axis edges:
    :label: sn-axis-widths
 
    \texttt{axis\_widths}[a] = \operatorname{np.diff}(\texttt{axes}[a].\texttt{edges})
+
+.. (vv-status rationale) Representational bit-identity: per-axis cell widths are
+   np.diff of the axis edges, byte-identical to the retired Mesh1D.widths /
+   Mesh2D.dx / Mesh2D.dy spellings. Pinned by the bit-identity gates
+   ``tests/sn/primitives/test_axis_native_construction.py``
+   (``test_d2_metadata_byte_identical_axis_vs_legacy`` /
+   ``test_1d_slab_metadata_byte_identical_axis_vs_legacy``). A carve
+   representational identity, not a solver claim.
+.. vv-status: sn-axis-widths documented
 
 This is **bitwise identical** to the legacy per-dataclass spellings it
 replaces — :attr:`Mesh1D.widths <orpheus.geometry.mesh.Mesh1D>`,

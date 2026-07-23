@@ -129,6 +129,11 @@ Integrating :eq:`transport-cartesian-2d` over a rectangular cell
    + \Sigt{} \Delta x_i \Delta y_j\, \psi_{n,i,j}
    = S_{i,j}\, \Delta x_i \Delta y_j
 
+.. (vv-status rationale) Derivation step: the integrated rectangular-cell
+   balance. Its terminal DD form (dd-cartesian-2d) drives the tested 2-D
+   solve; definitional, not a solver claim.
+.. vv-status: balance-cartesian-2d-eq documented
+
 Dividing through by :math:`\Delta x_i \Delta y_j` and applying
 :term:`diamond-difference <diamond difference>` closures in **both** directions simultaneously:
 
@@ -157,6 +162,11 @@ where the streaming coefficients are:
 
    s_x = \frac{2|\mu_{x,n}|}{\Delta x_i}, \qquad
    s_y = \frac{2|\mu_{y,n}|}{\Delta y_j}
+
+.. (vv-status rationale) Notation: the per-axis streaming coefficients
+   s_x, s_y. Definitional; the DD update they feed is exercised by the
+   2-D transport gates.
+.. vv-status: dd-cartesian-2d-streaming-coeffs documented
 
 Both outgoing face fluxes are then updated from the DD closure:
 
@@ -840,7 +850,7 @@ discipline):
 
 * **L0 unit tests** — on the primitives:
 
-  - ``tests/sn/test_octants_property.py`` (60 tests across 8
+  - ``tests/sn/test_octants_property.py`` (across 8
     quadrature factories) — disjoint union, weight conservation,
     sign-signature correctness, pure-axis ordinates labelled
     ``sign=0``.
@@ -993,6 +1003,12 @@ the tensor-product basis separates):
    A_{\rm cell} = G + F_{\rm out} + \Sigma_t M, \qquad
    \vec R = M\,\vec S + F_{\rm in}\,\psi_{\rm in}^{\rm traces},
 
+.. (vv-status rationale) Algebra-of-record: the assembled per-cell UBLD
+   Galerkin system. Foundation-gated by the SymPy oracle
+   (tests.transport.spatial.test_ld_ubld_symbolic / test_ld_ubld_primitive),
+   not a solver claim.
+.. vv-status: ld-ubld-cell-system documented
+
 a :math:`2^d \times 2^d` dense non-symmetric solve, with
 :math:`M = M_1 \otimes \cdots \otimes M_d` (mass),
 :math:`G = \sum_a \mu_a\,(M_1 \otimes \cdots \otimes G_{1d} \otimes
@@ -1017,6 +1033,12 @@ the production slab 2×2 :eq:`dd-cartesian-1d`-sibling exactly; the
    \psi(x,y) = a + bx + cy + dxy
    \;\Longrightarrow\;
    \vec\psi_{\rm solved} = \vec\psi_{\rm exact-projections}
+
+.. (vv-status rationale) Correctness identity of the d>=2 closure (exact on
+   any bilinear flux). The ERR-060 catcher test_d2_exact_on_bilinear
+   (foundation, both the symbolic oracle and the numpy primitive) is the
+   verifiable content.
+.. vv-status: ld-ubld-exact-on-bilinear documented
 
 The UBLD is **exact on any bilinear flux** (the multi-D analog of the
 1-D "exact on linear-in-x" oracle), the :math:`xy` cross moment
@@ -1049,6 +1071,11 @@ streaming term by parts (MRM-2016 Eq. 6),
    \;-\; \int_K \psi\,(\Omega\cdot\nabla B_i)\,dV
    \;+\; \Sigma_t\!\int_K B_i\,\psi\,dV
    \;=\; \int_K B_i\,S\,dV,
+
+.. (vv-status rationale) Literature-transcribed Galerkin weak form
+   (MRM-2016 Eqs. 1-12). Its assembled terminal (ld-ubld-cell-system) is
+   foundation-gated; the derivation itself is definitional.
+.. vv-status: ld-ubld-weak-form documented
 
 gives three operators per cell — the **mass** :math:`M_{ij} = \int_K B_i B_j`
 (the collision term), the **gradient/stiffness** :math:`G_{ij} = \int_K B_i\,(\Omega\cdot\nabla B_j)`
@@ -1100,6 +1127,11 @@ operators** in the Legendre moment basis :math:`\{1, P_1\}` on width :math:`h`:
    \qquad
    F_{\rm out}^{1d} = |\mu|\begin{bmatrix} 1 & 1 \\ 1 & 1 \end{bmatrix},
 
+.. (vv-status rationale) Definition of the 1-D LD factor operators
+   M_1d / G_1d / F_out. Foundation-gated by the Kronecker-assembly oracle
+   (test_ld_ubld_symbolic / test_ld_ubld_primitive).
+.. vv-status: ld-ubld-kronecker-factors documented
+
 with the streaming :math:`\Omega\cdot\nabla = \sum_a \mu_a\,\partial_a` a sum
 over axes (the tensor-product basis separates), so
 
@@ -1109,6 +1141,11 @@ over axes (the tensor-product basis separates), so
    M = M_1 \otimes \cdots \otimes M_d,
    \qquad
    G = \sum_a \mu_a\,(M_1 \otimes \cdots \otimes G_{1d}^{(a)} \otimes \cdots \otimes M_d),
+
+.. (vv-status rationale) Structural assembly identity (the Kronecker
+   single-source build). Foundation-gated (test_d3_assembles_8x8_with_theta_cubed,
+   test_d1/d2 assembled-matrices-match-symbolic).
+.. vv-status: ld-ubld-kronecker-assembly documented
 
 i.e. the gradient acts on the active axis and **the mass on every transverse
 axis** (the volume-integral factorization — this is the load-bearing build
@@ -1131,6 +1168,11 @@ moment:
      \theta   & \hat\psi_x,\ \hat\psi_y \quad (\text{one slope axis}) \\
      \theta^2 & \hat\psi_{xy} \quad (\text{two slope axes})
    \end{cases}
+
+.. (vv-status rationale) Definitional diagonal Legendre mass M_ii = theta^|i|.
+   Foundation-gated by the theta^|i| primitive-assembly tests
+   (test_d3_assembles_8x8_with_theta_cubed).
+.. vv-status: ld-ubld-mass-weights documented
 
 so the 2-D weights are :math:`(1, \theta, \theta, \theta^2)` and the 3-D
 :math:`xyz` cross moment carries :math:`\theta^3`.  These weights re-appear in
@@ -1222,6 +1264,10 @@ rides two SCALE-FREE invariants:
    k = \frac{g/\theta}{g/\theta + \Sigma_t}, \qquad
    w = \frac{1}{1 + k}, \qquad g = \frac{|\mu|\,A_{\rm down}}{V},
 
+.. (vv-status rationale) Definition of the scale-free closure invariants
+   (k, w, g). Foundation-gated by the d1_closed_form primitive tests.
+.. vv-status: ld-ubld-scale-free-invariants documented
+
 with ``w`` the cell-average blend weight
 (:math:`\bar\psi = (1-w)\psi_{\rm in} + w\,\psi_{\rm out}`).  Every
 production view's coefficients are an algebraic function of
@@ -1235,6 +1281,12 @@ production view's coefficients are an algebraic function of
    \texttt{\_kernel\_terms}\;(\div V), \quad
    \texttt{affine\_scan\_coefficients}\;(\times V\ \text{scan})
    \;\longleftarrow\; \texttt{d1\_closed\_form}
+
+.. (vv-status rationale) Single-source structural identity (the three
+   production views all derive from d1_closed_form). Foundation-gated by
+   the view-equals-dense primitive tests (test_divV_kernel_view_equals_dense,
+   test_timesV_scan_view_equals_dense, test_xV_schur_view_equals_dense).
+.. vv-status: ld-ubld-rule-of-three-collapse documented
 
 The three production 1-D views in
 :mod:`orpheus.transport.spatial.linear_discontinuous` — the ×V per-cell Schur
@@ -1330,7 +1382,7 @@ symbolically by the Branch-1 oracles above (``derive_d1_kernel_view_equals`` /
    reconstruction is the exact power-of-two doubling that commutes with
    round-to-nearest).
 
-The verification is :mod:`tests.transport.spatial.test_ld_ubld_primitive` (10 tests):
+The verification is :mod:`tests.transport.spatial.test_ld_ubld_primitive`:
 the numpy primitive :math:`==` the SymPy oracle at :math:`d=1` (matrices +
 moments) and exact-on-bilinear at :math:`d=2`; the shared closed form
 :math:`==` the dense :math:`d=1` solve in all three views; and the LIVE
@@ -1361,6 +1413,11 @@ byte-identical:
    \text{per\_axis} =
    \begin{cases} 1 & \text{DD / Step} \\ 2 & \text{LD} \end{cases}
 
+.. (vv-status rationale) Named-field-typing contract-sizing identity keyed
+   on spatial_basis_per_axis. Foundation-gated by the field-space widening
+   tests (test_spatial_moment_field_space).
+.. vv-status: ld-ubld-n-spatial-moments documented
+
 The class-level trait
 :attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.spatial_basis_per_axis`
 (the 1-D moment-basis size) indexes the whole contract via the
@@ -1377,6 +1434,11 @@ rank-:math:`r` scalar face and rank-3 ``psi_avg`` EXACTLY.
    A_{\div V}\,\vec\psi = M_{\div V}\,\vec S + \sum_a F_{\rm in}^{(a)},
    \qquad
    \psi_{\rm out}^{(a)}[t] = \psi[o_a{=}0,\,t] + \psi[o_a{=}1,\,t]
+
+.. (vv-status rationale) The scale-free ÷V kernel form fed to the dense
+   primitive. Foundation-gated (test_divV_kernel_view_equals_dense,
+   test_production_kernel_equals_dense).
+.. vv-status: ld-ubld-divv-scale-free-kernel documented
 
 The :math:`d \ge 2` arm rides the **scale-free ÷V** form of the dense
 system: dividing the Galerkin balance by the cell volume leaves a system
@@ -1510,6 +1572,11 @@ direction.*  Projecting the per-ordinate angular flux
    \;=\;
    \sum_{n=1}^{N} w_n\, Y_\ell^m(\Omega_n)\, \psi_n(\vec r, g),
 
+.. (vv-status rationale) Notation/definition of the angular moment
+   projection phi_l^m (the flux-moments quadrature contraction); the SH
+   frame's analysis face is separately verified.
+.. vv-status: two-moment-angular documented
+
 the typed home of which is
 :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
 on the space
@@ -1546,6 +1613,10 @@ Legendre basis :math:`\{1, P_1\}` per axis,
    + \hat\psi_y\, P_1(\xi_y)
    + \hat\psi_{xy}\, P_1(\xi_x) P_1(\xi_y),
    \qquad \xi_a \in [-1, 1],
+
+.. (vv-status rationale) Notation/definition of the within-cell bilinear
+   (UBLD) spatial-moment expansion. Definitional.
+.. vv-status: two-moment-spatial documented
 
 the four within-cell coefficients of the bilinear (UBLD) basis
 :math:`\{1, x, y, xy\}` of :eq:`ld-ubld-cell-system`.  Unlike the angular
@@ -1608,6 +1679,10 @@ and a spatial-moment index :math:`p`:
    p \in \{\bar{\,}, \hat x, \hat y, \widehat{xy}\}
    \ \text{(spatial moments)}.
 
+.. (vv-status rationale) Notation: the combined angular-tensor-spatial
+   moment index phi_l^{m,p}. Definitional.
+.. vv-status: two-moment-tensor-product documented
+
 The carrier space is the tensor product of the two moment spaces with the
 cell/group space,
 
@@ -1619,6 +1694,10 @@ cell/group space,
    \mathrm{CellGroupSpace}(ng, *\text{spatial})
    \;\otimes\;
    \mathrm{SpatialMomentSpace}(\text{per\_axis}, d),
+
+.. (vv-status rationale) Named-field-typing identity (the carrier-space
+   tensor product). Foundation-gated by test_spatial_moment_field_space.
+.. vv-status: two-moment-carrier-space documented
 
 so the stored ndarray gains a trailing :math:`(\text{per\_axis})^d`
 spatial-moment axis after the :math:`(\ell, m, g, *\text{spatial})` prefix.
@@ -1675,6 +1754,12 @@ flux INDEPENDENTLY,
    (\Sigma_s\,\bar\phi,\ \Sigma_s\,\hat\phi_x,\
     \Sigma_s\,\hat\phi_y,\ \Sigma_s\,\hat\phi_{xy}),
 
+.. (vv-status rationale) Structural Sigma_s (x) I_spatial lift identity;
+   the byte-identity-at-single-moment negative control is foundation-verified
+   (rank-2-exact). The physics completion is verified downstream via the
+   thick-diffusion tripwire (ld-ubld-slope-angular-reduction).
+.. vv-status: ld-ubld-scattering-moment-lift documented
+
 so the spatial-moment axis is a SPECTATOR to the energy-group matmul,
 exactly as the cell axis is.  In code this is the per-material group
 contraction with a trailing ``...`` spectator
@@ -1729,6 +1814,12 @@ kind of change.  S2 and S3 solve DIFFERENT operators:
    \text{S3:}\quad (L + C - S_{\rm full})\,\psi = Q_{\rm ext},
    \qquad
    S_{\rm full} = \Sigma_s \otimes I_{\rm spatial}.
+
+.. (vv-status rationale) Definition of the S2 (S_flat) vs S3 (S_full)
+   operators. The physics completion (which fixed point is correct) is
+   verified by the thick-diffusion tripwire; the operators themselves are
+   definitional.
+.. vv-status: ld-ubld-s2-s3-operators documented
 
 :math:`S_{\rm flat}` (the rank-1 projector :math:`e_0 e_0^{\mathsf T}` onto
 the cell-average moment) scatters ONLY the spatial average — the slope rows
@@ -1906,6 +1997,10 @@ type-visible and dispels the collision.
      2 & \text{LD (linear } \{1, P_1\}\text{)}
    \end{cases}
 
+.. (vv-status rationale) Named-field-typing dimension identity
+   dim = per_axis^d. Foundation-gated by test_spatial_moment_field_space.
+.. vv-status: spatial-moment-space-size documented
+
 The factor composes via the tensor product ``*`` into the bulk-field spaces
 EXACTLY as the angular factor does, and is recovered by type via
 ``space.find_factor(SpatialMomentSpace).per_axis`` (#207).  The
@@ -2011,6 +2106,11 @@ that the all-:math:`P_0` cell average is ALWAYS slot 0:
    d{=}3:&\quad [\,\bar\psi,\ \hat\psi_z,\ \hat\psi_y,\ \hat\psi_{yz},\
                   \hat\psi_x,\ \hat\psi_{xz},\ \hat\psi_{xy},\ \hat\psi_{xyz}\,]
 
+.. (vv-status rationale) Notation/convention (the x-outer / y-inner
+   Kronecker layout, slot-0 = cell average). Foundation-gated by the
+   moment-ordering primitive tests.
+.. vv-status: spatial-moment-kronecker-order documented
+
 The slot-0 (cell-average) convention is single-sourced from
 :data:`orpheus.numerics.moment_layout.AVERAGE_MOMENT` (the constant every moment
 consumer reduces on) — the :class:`SpatialMomentSpace` surfaces it via
@@ -2037,6 +2137,11 @@ cell-moment tail and the per-face cochain tail can never drift apart:
      ()    & n = 1 \quad\text{(DD/Step — NO length-1 axis appended)} \\
      (n,)  & n > 1 \quad\text{(LD — a genuine trailing moment axis)}
    \end{cases}
+
+.. (vv-status rationale) Named-field-typing byte-identity policy
+   (append-iff->1). Foundation-gated by the byte-identity-at-default
+   negative control (test_spatial_moment_field_space).
+.. vv-status: spatial-moment-append-policy documented
 
 The critical detail is that ``n == 1`` returns the EMPTY tuple, NOT
 ``(1,)`` — a length-1 axis is NOT appended.  Appending ``(1,)`` would
@@ -2149,6 +2254,11 @@ genuine global degree of freedom in **every** dimension.
    \qquad
    (L+C-S)\,\vec\psi = \vec q_{\rm ext}\ \Longleftrightarrow\
    (L+C)\,\vec\psi - S\,\vec\psi = \vec q_{\rm ext}
+
+.. (vv-status rationale) Governing operator-algebra residual identity (the
+   M^{-1} matvec/sweep moment-source consistency). Verified by the
+   matvec == sweep round-trip (foundation), not an isolated solver claim.
+.. vv-status: ld-ubld-unified-moment-residual documented
 
 A matvec is a forward APPLY: applying the per-cell
 :math:`2^d \times 2^d` UBLD operator to the moment vector is intrinsically
@@ -2317,6 +2427,10 @@ The pure-z collision-only twin — sweep :math:`\equiv` matvec single source
    \qquad\Longleftrightarrow\qquad
    \text{(matvec)}\quad (L+C)\,\bar\psi = \sigma_t\,\bar\psi
 
+.. (V&V scope note) Structural L21 twin identity (collision-only sweep
+   == matvec for pure-z ordinates). Wired to the ERR-062 gate
+   test_ld_2d_krylov_equals_si_pure_z_quadrature (foundation).
+
 The pure-z degenerate ordinates (:math:`\mu_x = \mu_y = 0`, the :math:`\pm z`
 poles of a Lebedev or product cubature in a 2-D Cartesian sweep) have no
 in-plane streaming, so the cell is **collision-only**: the loss couples to
@@ -2393,6 +2507,11 @@ diffusion-limit-consistent operator the matvec does.
        \;+\; \underbrace{\frac{\theta\,\hat S}{D_2'}
               \;-\; \frac{\theta\,|\mu| A_{\rm down}\,\hat S}{D_2'}\,
                     \frac{\mathrm{inv}}{w}}_{\text{slope source}\ \Sigma_s\hat\phi}
+
+.. (vv-status rationale) Derivation step: the slope-augmented d=1
+   moment-scan affine source. Its terminal (scan == DAG, and the diffusion
+   limit on the SI path) is tested downstream.
+.. vv-status: ld-ubld-moment-scan-source documented
 
 The scan propagates the scalar downstream FACE
 :math:`\psi_{\rm out} = a\,\psi_{\rm in} + b` along the cell chain with the
@@ -2577,6 +2696,12 @@ analysis face ``frame.analysis`` from
    \;=\; \sum_{n=1}^{N} w_n \, Y_\ell^m(\hat\Omega_n)\,
          \psi_n(\vec r),
    \qquad 0 \le \ell \le L,\; |m| \le \ell,
+
+.. (vv-status rationale) Notation/definition (the moment projection M =
+   flux-moments quadrature contraction, the SH frame analysis face). The
+   bit-identity of the windowed and full-angular arms is foundation-verified
+   (0 ULP).
+.. vv-status: angular-windowing-moment-projection documented
 
 the scattering source factors **through the moment boundary**:
 
@@ -3491,6 +3616,12 @@ object is therefore
            \;\oplus\;
            \underbrace{\mathrm{Id}}_{\text{on the trace}},
 
+.. (vv-status rationale) Definitional operator composition (windowed =
+   P o A^{-1}, the coisometry factoring). Pinned representationally by
+   test_2d_windowed_product_equals_post_projection, anchored to the
+   SI == Krylov-full scalar and closed-form k_inf.
+.. vv-status: angular-windowing-operator documented
+
 where :math:`A^{-1}` is the swept loss inverse — this section's
 :math:`A` abbreviates the swept composite
 (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` on
@@ -3715,6 +3846,12 @@ within-group loss:
              \;-\; \underbrace{B_{\rm upper}}_{N},
    \qquad
    \psi_{k+1} \;=\; M^{-1}\bigl(q + S\,\psi_k + B_{\rm upper}\,\psi_k\bigr).
+
+.. (vv-status rationale) Governing regular-splitting identity
+   ((L+C-B) = M - N). Foundation-gated by the reified-splitting invariants
+   (tests/sn/solve/test_gauss_seidel_reification.py — the W2 round-trip,
+   the M-SPLIT mutations, and the FP-invariance gate), no isolated claim.
+.. vv-status: si-gauss-seidel-splitting documented
 
 The reified :math:`M`
 (:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`)

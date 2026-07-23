@@ -51,8 +51,12 @@ the S10b output.
 Mode-8: every assertion uses ``np.testing.*`` / ``pytest.raises`` /
 ``_require`` (the suite runs ``-O``; bare ``assert`` is stripped).
 
-Foundation tests (software invariant — the convex-average law has no
-theory ``:label:``; foundation carries NO ``verifies(...)``).
+Foundation tests (software invariants). The χ-mix convex-average law
+carries a theory label (``emission-spectrum-chi-mix``, backfilled by
+#231 Phase G) and the hand-reference class is wired to it via
+``verifies`` — a foundation gate that genuinely pins an equation's
+content carries the mark (see the harness chapter's audit-reporting
+rules).
 """
 
 from __future__ import annotations
@@ -230,6 +234,7 @@ class TestChiMixIsSimplex:
 # ══════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.verifies("emission-spectrum-chi-mix")
 class TestChiMixHandReference:
     """The production weighting matches an INDEPENDENT hand calc to FP.
 

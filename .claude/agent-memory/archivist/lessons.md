@@ -470,6 +470,102 @@ orphan.
   narrative chain by established page convention — match the page's
   siblings rather than inventing a status.
 
+**Orphan-slice adjudication triage (the V7 backfill task, #231 #10).**
+When handed a slice of EXISTING orphan labels to sort into SENTINEL /
+WIRE / GAP, three discriminators do almost all the work, in order:
+
+1. **SIBLING-CONSISTENCY is the dominant signal.** On the foundation
+   operator-algebra pages every label family already has adjudicated
+   members — `apply-distributes`/`solve-does-not-distribute` govern the
+   whole apply-solve family; `eigen-standard-form` governs the eigen-*
+   posing family; `g-adjoint-definition` the g-adjoint family;
+   `wdd-forward-recurrence`/`…-three-terms` the WDD/tensor-network family;
+   `green-neumann-series`/`matrix-functor-out` the inverse family. An
+   orphan that is a mathematical identity / posing statement / structural
+   decomposition / literature-transcribed bound in the SAME section as a
+   SENTINELED sibling → SENTINEL, with the same rationale shape. This
+   made ~30/31 labels SENTINEL in one batch.
+2. **A doc that says its pins are `@pytest.mark.foundation` "no
+   verifies() by design" GOVERNS its whole label family toward
+   SENTINEL, never WIRE.** foundation tests never carry `verifies()`
+   (vv taxonomy) — so a defining identity (e.g. g-adjoint reciprocity,
+   pinned only by a foundation reciprocity/oracle suite) is a documented
+   sentinel even though a test "exercises" it. The page's own explicit
+   V&V framing ("the claim is a software/algebra invariant, anchored to
+   the structurally-independent oracle") is the ruling, not your instinct
+   to wire the named test. Read the test's `pytestmark`/docstring.
+   **BUT `@foundation` ALONE does NOT imply SENTINEL** (correction from
+   the REFERENCES-part batch, #231 #10 A5): the algebra-of-record
+   reference pages (peierls / peierls_nystrom / trajectory_resolvent /
+   fn_method / galerkin_spectral / singular_eigenfunction) pin their
+   V_αN / V_cg / V_se SymPy-identity labels with tests marked
+   `@foundation` AND `@verifies("<label>")` TOGETHER — and a
+   verifies-mark on a foundation test DOES close the orphan
+   (**audit-proven**: the sphere `peierls-greens-V-alpha-2` identity is
+   "covered", NOT an orphan, though its ONLY gates are `@foundation`+
+   `@verifies` in `test_peierls_greens_function_symbolic.py`; harness.rst's
+   "foundation tests carry no verifies" is a general EXPECTATION the
+   reference pages routinely break). So the real discriminator is the
+   SIBLING's decorator, not the `@foundation` tag: (a) foundation-NO-verifies
+   pins (operator-algebra oracle/reciprocity suites; V_se-cyl.N SymPy
+   gates; the variant-α-core "one foundation test per primitive, no
+   verifies" file) ⟹ SENTINEL; (b) foundation-WITH-verifies pins (the
+   SymPy V_n derivation gates whose file MIXES `@foundation`+`@verifies`
+   on the identity-establishing tests) ⟹ WIRE the orphan into the
+   PARALLEL foundation+verifies test (e.g. the slab `T_00^slab=2E_3`
+   V_α2_slab tests mirror the sphere V_α2 convention → I minted
+   `@verifies("peierls-greens-slab-V-alpha-2")` on the closed-form +
+   numerical + overall-pass tests, leaving the substitution-algebra tests
+   alone since a 2E_3 sign flip doesn't red them).
+3. **WIRE (or DEFERRED-WIRE) only when a NON-foundation test tightly
+   pins THAT exact equation with sign-flip teeth.** The discriminator:
+   `tests/conftest.py` records an untagged test as `level=None` (NOT
+   foundation) — so a `np.testing.assert_array_equal` law-test
+   (`test_sum_law`/`test_product_law`/`test_scaled_law` pinning
+   `[A+B]=[A]+[B]` etc.) is wire-eligible, unlike an `@foundation`
+   reciprocity gate. If that catcher lives in a test file OWNED by a
+   concurrent agent (do-not-edit list), report it as DEFERRED WIRING
+   with exact node ids — do NOT sentinel over it (that papers over a
+   genuine gate; harness normative §vv-status forbids it). The task's
+   own do-not-edit list ANTICIPATES the wire targets it names.
+- **Placement is same-FILE-only (the audit enforces file, not
+  position).** BEFORE-the-math `.. (vv-status rationale) …` +
+  `.. vv-status: <label> documented` (blank line, then `.. math::`) is
+  robust and audit-valid in ANY file: anchor the Edit on the unique
+  `.. math::` + `:label: <label>` two-line string and prepend. Match a
+  bullet-indented math block's indent (2-space comment, 5-space
+  continuation). Self-check = a Python pass asserting every
+  `vv-status: X` has a same-file `:label: X` (a typo'd sentinel is a
+  hard exit-2 abort); then the permitted single end-of-run audit
+  (exit 0 ⇒ no typo/misplacement) — IGNORE foreign orphans/violations
+  from concurrent sibling batches.
+- **De-freeze a live suite-total** ("**12 tests**:") by dropping ONLY
+  the drifting total; KEEP the designed case-list breakdown ("(5) … (5)
+  … (2)") — those are structural, not drifting. A foundation suite is
+  not an equation-matrix row, so a `:doc:`/…/matrix`` pointer does not
+  literally fit; the honest move is drop-total-keep-structure.
+- **The "don't bulk-sentinel row-sum / T-matrix / escape-probability"
+  caution resolves by the GATE'S MARK CLASS, not the topic.** A brief may
+  flag those as WIRE-likely; check each gate individually. On the peierls
+  pages the infinite-medium row-sum `Σ K_ij Σt=Σt` and the
+  finite-cell-deficit are derivation-context identities whose TESTED
+  realisation is a DIFFERENT label (the finite-cell
+  `peierls-vacuum-bc-row-sum-gate`, already wired) ⟹ SENTINEL; the
+  T-matrix rank-1 gates are `@foundation`-no-verifies ⟹ SENTINEL (matching
+  the sphere sibling `peierls-specular-T-matrix`); ONLY escape-probability
+  had a real l0-WITH-`verifies` gate (`TestSlabPescClosedForm`,
+  "Factor-level verification — slab P_esc") ⟹ WIRE. Corollary: a test
+  NAMED for a SIBLING label can pin the ORPHAN's distinguishing content —
+  `test_g_prefactor_is_4_over_pi` (verifies `peierls-cyl-3d-mode-formula`,
+  the P_esc twin) asserts the 4/π G-prefactor that is the ONLY thing
+  distinguishing the orphan `peierls-cyl-3d-gbc-mode-formula` ⟹ add the
+  orphan as a SECOND `verifies` target on that same test. Net for a
+  continuous-reference-derivation slice: ~94 % SENTINEL is the CORRECT
+  ratio (50/53 here), and 0 GAPs is legitimate — every label is either a
+  governing/definitional/literature-identity (SENTINEL case a) or has a
+  real verifies-eligible gate (WIRE); a derivation page rarely hides a
+  load-bearing contract with NO test anywhere.
+
 How to apply: for every eq-label you add, classify it (solver-claim /
 representational / verifies-target) and apply the matching status
 discipline. This is the V&V-vocabulary-curation duty (Directive 5) at
@@ -2913,6 +3009,94 @@ gate LIVE). Verify every batch-special as a check first (edit only on failure),
 fix any stale raw-path you open, and REPORT the small-cut-is-correct finding
 with the file-class rationale so the reviewer doesn't read −2-5 % as timidity.
 Cross-links [[lessons-L33]] (the operator-file twin).
+
+---
+
+## L-035 — Orphan-slice adjudication (V7 backfill): the WIRE-vs-SENTINEL discriminator + the conceptual-root / foundation-coexistence corollaries, and the FAST theory-scan self-check
+
+Adjudicating a batch of orphan eq-labels (RST `:label:`s with zero
+`verifies` + no sentinel) into WIRE / SENTINEL / GAP has ONE sharp
+discriminator, and it is NOT "is it definitional?" (almost everything on
+a foundations page is):
+
+- **WIRE** iff an existing test's PRIMARY assertion IS this exact equation
+  against a STRUCTURALLY-INDEPENDENT reference — "would a sign/factor flip
+  in the equation red this test?" YES. (`inflow_mask == flatnonzero(mu<-eps)`;
+  `condensed SigT == fractional flux-weighted hand-sum`; `assert_balanced`
+  on the collapsed mixture = the balance-PRESERVATION claim; `[K] ==
+  np.linalg.solve(A,F)`.) Spelling MUST copy the `:label:` verbatim
+  (a typo'd verifies = a matrix-flagged phantom).
+- **SENTINEL** iff one of THREE structural shapes, NOT merely "it reads
+  definitional": (a) a GENERAL SCHEMA / CONTINUOUS definition / LITERATURE
+  identity whose CONCRETE / DISCRETE / TERMINAL instance is tested under a
+  *different* label (general `M R = c_V I` → concrete `pi-r-equals-4pi-i`;
+  continuous `Γ_±={Ω·n≷0}` → discrete `inflow-mask-discrete`); (b) a
+  NATIVE-vs-LEGACY **bit-identity** regression (`axis_widths == legacy`,
+  L-004 representational) — distinct from an independent-reference predicate
+  test, which is WIRE; (c) documents code that does not exist yet
+  (adjoint-weighted homogenization, blocked on an open issue).
+- **GAP** only for a load-bearing COMPUTED contract with NO test anywhere.
+  In a mature tree a whole 38-label slice can legitimately be 8 WIRE / 30
+  SENTINEL / **0 GAP** — every "gap" turned out either tested (WIRE) or a
+  definition/schema/literature identity verified downstream (SENTINEL). Do
+  not manufacture a GAP to look thorough.
+
+**Conceptual-root corollary.** A ROOT narrative page (e.g. `path_integral`,
+"one object, five methods") states equations that the METHOD pages realize
+and verify. ALL its orphans are SENTINEL (harness case-a: "a derivation step
+whose terminal result is tested downstream") — EVEN when a formula IS tested,
+because it is tested under the METHOD page's OWN label
+(`path-integral-transport-correction`'s `D=1/(3Σtr)` is verified via the
+diffusion page's `diffusion-coefficient`; `path-integral-generation-series`'s
+`k=ρ(A⁻¹F)` via `matrix-eigenvalue`). Wiring the method-page test to the
+root-page label is redundant double-labeling — SENTINEL with a rationale that
+NAMES the downstream gate so a reader knows it IS tested, just elsewhere.
+
+**Foundation-coexistence corollary.** A `:label:` backfilled in a late
+label-pass (#231 Phase G) often has its test in a module-`@pytest.mark.foundation`
+file whose docstring still says "software invariant — no theory :label:;
+foundation carries NO verifies". That premise is STALE (the label now exists).
+Resolve per-test: WIRE the ONE class that pins a COMPUTED physics formula (the
+production-weighted `χ_mix` teeth-test `TestChiMixHandReference`), SENTINEL the
+pure software-INVARIANT (the `Σχ=1` simplex law — the canonical foundation
+case, vv-principles "foundation NEVER carries verifies"). Module-foundation +
+class/method-`verifies` COEXIST and produce a real edge — the audit's
+`_equation_coverage` reads `m.equations` regardless of the level tag
+(`test_mixture_condense.py` is the in-tree precedent: module-foundation, class
+`verifies("energy-condensation-rate-preservation")`). Add ONLY the decorator;
+don't rewrite the stale docstring (scope-creep).
+
+**FLAGGED-line-range can be stale — the doc's OWN named catcher wins.** A
+stage-plan "wire to test at file:266-300" pointer had drifted: 266-300 was a
+SPECTRAL cross-engine test that is Mode-12-BLIND to the mutation class (k∞
+moves by *exactly* 0 under factor-swap/transpose — similarity + `eig(Mᵀ)=eig(M)`).
+The RST prose itself NAMED the correct catcher (`test_K_operator_as_matrix_is_the_resolvent`,
+the intrinsic `[K]==solve(A,F)` OBJECT gate). Trust the doc's named gate over
+the brief's line number; verify it pins the OBJECT, not the spectrum.
+
+**FAST self-check when N sibling batches edit concurrently.** Do NOT run the
+full `python -m tests._harness.audit` (slow pytest collection, and its
+tree-wide theory scan trips on sibling batches' in-progress sentinels). Call
+`tests._harness.audit._scan_theory_equations(Path('docs/theory'))` DIRECTLY —
+it validates every sentinel (same-file rule, spelling, `documented` set) and
+resolves wired labels WITHOUT collection, in <1 s. Filter `scan.violations`
+to YOUR file set; assert your new sentinels ∈ `scan.documented` and your wired
+labels ∈ `scan.all_labels` \ `scan.documented`. Sentinel placement is
+indent-agnostic to the parser (`line.strip()` first), but MATCH the enclosing
+block's indent for RST rendering (3-space inside a list item / `.. warning::`,
+2-space inside a bullet). The `.. (vv-status rationale)` prefix is parser-safe
+(the regex needs `vv-status:` immediately after `.. `, and `(vv-status` fails
+it). Template-B retitle: COPY the proven underline from the model page
+(`collision_probability.rst`'s "Verification — what pins this chapter" =
+37 `=`), never re-count by hand.
+
+How to apply: classify each orphan by the 3-shape SENTINEL test / the
+independent-reference WIRE test; treat a root narrative page as all-SENTINEL;
+resolve foundation-file labels per-test (computed formula → WIRE, invariant →
+SENTINEL); trust the doc's named gate over a stale line-range; self-check with
+the direct theory-scan, not the full audit. Cross-links [[lessons-L03]]
+(phantom/verifies-target hygiene), [[lessons-L04]] (representational →
+documented), [[lessons-L10]] (Mode-12 spectral-invisibility vocabulary).
 
 ---
 

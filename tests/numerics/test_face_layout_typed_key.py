@@ -42,6 +42,8 @@ from orpheus.numerics.spaces.radial_characteristic_space import (
     RadialCharacteristicInteriorSpace,
 )
 
+pytestmark = [pytest.mark.foundation]
+
 # The canonical layout conventions, hard-coded HERE (independent of the
 # production module) so a production emission-order mutation diverges from the
 # golden rather than silently tracking it.

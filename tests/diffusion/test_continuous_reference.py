@@ -57,6 +57,12 @@ from orpheus.geometry.mesh import Mesh1D
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "diffusion-operator",
     "diffusion-coefficient",
+    # The 1G bare-slab continuous reference (derive_1rg_continuous) solves the
+    # bare-slab ODE and produces its closed-form keff; its derivation siblings
+    # (buckling / eigenfunction / critical-equation) are pinned below, so the
+    # governing ODE and its terminal keff are pinned by the same reference:
+    "bare-slab-diffusion-equation",
+    "bare-slab-keff",
     "bare-slab-buckling",
     "bare-slab-eigenfunction",
     "bare-slab-critical-equation",

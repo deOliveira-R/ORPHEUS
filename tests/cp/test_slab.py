@@ -20,6 +20,9 @@ pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "one-group-kinf",
     "matrix-eigenvalue",
     "mg-balance",
+    # test_slab_cp_eigenvalue catches ERR-009 (P vs P^T): the heterogeneous
+    # eigenvalue diverges if the P^T flux-balance is wrong.
+    "p-transpose-flux-balance",
 )]
 
 

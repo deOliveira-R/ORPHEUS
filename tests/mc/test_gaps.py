@@ -409,6 +409,7 @@ def test_2g_flux_ratio_homogeneous():
 
 @pytest.mark.l0
 @pytest.mark.catches("ERR-022")
+@pytest.mark.verifies("mc-lethargy-width-sign")
 def test_flux_per_lethargy_nonnegative():
     """L0-MC-022: flux_per_lethargy >= 0 regardless of grid ordering.
 
@@ -625,6 +626,7 @@ def test_xs_consistency_in_solver():
 # =====================================================================
 
 @pytest.mark.l1
+@pytest.mark.verifies("splitting-weight-conservation")
 def test_splitting_copy_count():
     """L1-MC-011: Splitting with w=3.7 creates 3 or 4 copies.
 

@@ -21,11 +21,15 @@ from orpheus.moc.quadrature import MOCQuadrature
 # * effective-spacing — exercised by test_volume_conservation which
 #   calls MOCMesh.effective_spacing(a_idx) and asserts that
 #   length * ts * omega_a sums to the geometric region area
+# * region-areas-pin-cell — same test_volume_conservation compares the
+#   ray-traced area against MOCMesh.region_areas (the pin-cell annular /
+#   square-border formula); a sign/factor error in that formula reds it
 # * pitch-recovery — directly tested by test_moc_mesh_pitch_recovery
 #   (asserts pitch = r_cell * sqrt(pi) on factory output)
 pytestmark = [pytest.mark.l0, pytest.mark.verifies(
     "ray-circle",
     "effective-spacing",
+    "region-areas-pin-cell",
     "pitch-recovery",
 )]
 

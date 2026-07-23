@@ -234,6 +234,8 @@ class TestRecurrenceFormula:
         \\phi_{m-1/2,i,g}) / \\tau_m`.
     """
 
+    pytestmark = pytest.mark.verifies("pole-mm-recurrence")
+
     @pytest.mark.l0
     def test_recurrence_at_tau_half_zero_seed(self) -> None:
         """At τ=1/2 (Hébert canonical) the recurrence is pure DD:

@@ -543,7 +543,10 @@ class TestCylindricalDegenerate:
     """
 
     @pytest.mark.foundation
-    @pytest.mark.verifies("dd-curvilinear-scalar", "dd-mm-closure-constants")
+    @pytest.mark.verifies(
+        "dd-curvilinear-scalar", "dd-mm-closure-constants",
+        "dd-cylindrical-degenerate",
+    )
     def test_degenerate_cell_synthetic(self):
         """Synthetic StreamingTerms with abs_mu < 1e-15.
 

@@ -250,6 +250,7 @@ def test_majorant_computation():
 # L0-MC-004: Delta-tracking virtual collision probability
 # ═══════════════════════════════════════════════════════════════════════
 
+@pytest.mark.verifies("virtual-collision-probability")
 def test_delta_tracking_virtual_probability():
     """L0-MC-004: P_virtual = (sig_t_max - sig_t) / sig_t_max.
 

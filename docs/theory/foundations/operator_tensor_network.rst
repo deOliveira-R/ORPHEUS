@@ -357,6 +357,11 @@ independent per-axis broadcasts.
 (width :math:`\Delta x_i`, total cross-section :math:`\Sigma_t(i)`,
 cell-averaged in-group source :math:`\bar Q_i`) is
 
+.. (vv-status rationale) The discrete WDD cell balance for one ordinate.
+   Derivation step feeding the sentineled wdd-forward-recurrence; the
+   discrete sweep it produces is verified downstream (dd-slab-scalar).
+.. vv-status: wdd-cell-balance documented
+
 .. math::
    :label: wdd-cell-balance
 
@@ -369,6 +374,12 @@ This single equation carries **two** unknowns —
 :math:`\bar\psi_i`. The diamond-difference (DD) closure supplies the
 second relation, asserting the cell average is the arithmetic mean of
 the two faces,
+
+.. (vv-status rationale) The diamond-difference closure
+   ψ̄ = ½(ψ_in + ψ_out). Definitional closure relation; with
+   wdd-cell-balance it yields the sentineled wdd-forward-recurrence,
+   verified downstream (dd-slab-scalar).
+.. vv-status: wdd-diamond-closure documented
 
 .. math::
    :label: wdd-diamond-closure
@@ -692,6 +703,13 @@ Eq. :eq:`balance-general`), it
 becomes a *half-grid* difference between angular faces
 :math:`m\pm\tfrac12`,
 
+.. (vv-status rationale) The Morel–Montry angular-redistribution
+   discretization ∫(1−μ²)/r ∂ψ/∂μ dV ≈ α_{m+½}ψ_{m+½} − α_{m−½}ψ_{m−½}.
+   Definitional; the canonical derivation is
+   /theory/methods/sn/curvilinear_one_group, and the term is verified
+   end-to-end by the anisotropic curvilinear MMS (catches ERR-026).
+.. vv-status: mm-angular-redistribution documented
+
 .. math::
    :label: mm-angular-redistribution
 
@@ -756,6 +774,12 @@ decomposes additively into three terms:
      {\rm angular\_denom\_term} \;+\;
      {\rm collision\_denom\_term}
 
+.. (vv-status rationale) The additive numerator decomposition
+   numer_upstream = spatial_upstream + angular_numer_upstream. Structural
+   decomposition, matching the sentineled tensor-network-cell-balance-
+   three-terms (its denominator twin).
+.. vv-status: tensor-network-cell-balance-numerator documented
+
 .. math::
    :label: tensor-network-cell-balance-numerator
 
@@ -764,6 +788,12 @@ decomposes additively into three terms:
      {\rm angular\_numer\_upstream}
 
 The angular-redistribution contribution to the cell balance is
+
+.. (vv-status rationale) The angular-redistribution contribution
+   m_angular_redist extracted from cell_balance_for_streaming. Structural
+   decomposition; the term is verified end-to-end by the anisotropic
+   curvilinear MMS (catches ERR-026).
+.. vv-status: tensor-network-angular-redist-contribution documented
 
 .. math::
    :label: tensor-network-angular-redist-contribution
@@ -928,6 +958,13 @@ What :class:`SumOfTensorProductsOperator` was supposed to do — and didn't
 
 Grand Report v3 §15.2 (lines 2046-2086) names the canonical scattering
 form
+
+.. (vv-status rationale) The canonical SOTP scattering form
+   S = Σ_ℓ Σ_{s,ℓ} ⊗ A_ℓ ⊗ G_ℓ (Grand Report v3 §15.2). A
+   literature-transcribed form documenting a design that was NOT realized
+   (the per-cell material id breaks separability; an OperatorSum of
+   bespoke per-ℓ leaves shipped instead) — it names a non-built structure.
+.. vv-status: sotp-scattering-form documented
 
 .. math::
    :label: sotp-scattering-form

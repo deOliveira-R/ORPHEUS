@@ -801,6 +801,7 @@ class TestF1StraddleRatePreservation:
                 err_msg=f"{channel} fractional rate not preserved in coarse {G}",
             )
 
+    @pytest.mark.verifies("energy-condensation-fractional-collapse")
     def test_condensed_value_equals_fractional_oracle(self) -> None:
         """The condensed SigT equals the fractional flux-weighted hand-sum.
 

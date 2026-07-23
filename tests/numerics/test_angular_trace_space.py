@@ -136,6 +136,7 @@ def test_identity_independent_of_leaf_data():
 
 
 @pytest.mark.l1
+@pytest.mark.verifies("inflow-mask-discrete")
 def test_2d_cartesian_lebedev_inflow_selectors_per_face():
     """L1: per-face inflow indices match the hand-computed mu signs."""
     quad = Quadrature.lebedev(11)
@@ -175,6 +176,7 @@ def test_outflow_selectors_are_sign_flipped_inflow():
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-040")
+@pytest.mark.verifies("ordinate-partition-inflow-outflow")
 def test_axis_aligned_ordinates_excluded_from_both_selectors():
     """L1: pure-axis ordinates (e.g. (0,0,±1)) are tangential to a
     perpendicular face — in NEITHER selector."""
@@ -192,6 +194,7 @@ def test_axis_aligned_ordinates_excluded_from_both_selectors():
 
 
 @pytest.mark.l0
+@pytest.mark.verifies("inflow-mask-discrete")
 def test_1d_slab_inflow_bit_identical_to_mu_signs():
     """L0: 1-D slab xmin / xmax inflow matches the legacy left / right
     masks bit-for-bit (xmin↔old 'left', xmax↔old 'right')."""
@@ -209,6 +212,7 @@ def test_1d_slab_inflow_bit_identical_to_mu_signs():
 
 
 @pytest.mark.l1
+@pytest.mark.verifies("ordinate-partition-inflow-outflow")
 def test_inflow_xor_outflow_complementary_for_gl_1d():
     """L0: GL ordinates are strictly in (-1, 1) → no tangentials; inflow
     and outflow partition every ordinate per face."""

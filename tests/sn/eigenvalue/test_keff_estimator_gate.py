@@ -162,6 +162,7 @@ class TestReportedKeffIsThePosedEigenvalue:
 
     RTOL = 5e-8  # measured post-fix agreement ≤ 6e-10; ~80× headroom
 
+    @pytest.mark.verifies("sn-leakage-functional")
     @pytest.mark.catches("ERR-064")
     def test_vacuum_slab(self):
         """[#291] Vacuum-bounded slab — the leakage term is load-bearing.
@@ -177,6 +178,7 @@ class TestReportedKeffIsThePosedEigenvalue:
         k_star = _map_ratio_kstar(solver, phi)
         np.testing.assert_allclose(keff, k_star, rtol=self.RTOL)
 
+    @pytest.mark.verifies("sn-leakage-functional")
     @pytest.mark.catches("ERR-064")
     def test_vacuum_sphere_curvilinear_face_area(self):
         """[#291] Vacuum sphere — pins the 4πR² face-area convention.
@@ -194,6 +196,7 @@ class TestReportedKeffIsThePosedEigenvalue:
         k_star = _map_ratio_kstar(solver, phi)
         np.testing.assert_allclose(keff, k_star, rtol=self.RTOL)
 
+    @pytest.mark.verifies("sn-leakage-functional")
     def test_vacuum_3d_box_transverse_area_product(self):
         """[#291 d=3 arm] Vacuum box — the transverse-area outer product.
 

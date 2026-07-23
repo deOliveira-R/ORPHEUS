@@ -28,9 +28,11 @@ pytestmark = [
         "mm-weights",
         "alpha-recursion",
         "alpha-cylindrical",
+        "quadrature-product-weights",
         "wdd-closure",
         "wdd-face",
         "reflective-bc",
+        "quadrature-reflection-index",
         "flux-moments",
     ),
 ]
@@ -372,6 +374,7 @@ class TestL0TermVerification:
             expected = 2 * np.pi * (edges[1:] - edges[:-1])
         np.testing.assert_allclose(sn.delta_A, expected, rtol=1e-14)
 
+    @pytest.mark.verifies("sn-contamination-factor")
     def test_contamination_beta_spherical(self):
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for spherical."""
         from orpheus.derivations.discrete.sn.contamination import contamination_beta
@@ -379,6 +382,7 @@ class TestL0TermVerification:
         beta = contamination_beta(quad, "spherical")
         assert abs(beta) < 1e-14, f"Spherical β = {beta:.2e}"
 
+    @pytest.mark.verifies("sn-contamination-factor")
     def test_contamination_beta_cylindrical(self):
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for cylindrical."""
         from orpheus.derivations.discrete.sn.contamination import contamination_beta

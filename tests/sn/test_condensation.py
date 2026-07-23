@@ -201,6 +201,7 @@ def test_condensed_group_count_dropped(solution):
 # ══════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.verifies("energy-condensation-balance-preservation")
 def test_condensed_materials_balance(solution):
     """Balance survives the collapse — every removal channel shares the weight."""
     condensed = _condense(solution)
@@ -208,6 +209,7 @@ def test_condensed_materials_balance(solution):
         mix.assert_balanced(atol=1e-9)
 
 
+@pytest.mark.verifies("energy-condensation-chi-simplex-preservation")
 def test_condensed_chi_is_fast_peaked_simplex(solution):
     """χ_R is a fast-peaked probability simplex (birth-group sum)."""
     condensed = _condense(solution)

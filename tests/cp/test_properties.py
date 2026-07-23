@@ -33,6 +33,12 @@ from orpheus.derivations.common.xs_library import get_xs
 pytestmark = [pytest.mark.l0, pytest.mark.verifies(
     "complementarity",  # test_row_sums: sum_j P_ij + P_out = 1
     "reciprocity",      # test_reciprocity: Sigma_t V P_ij = Sigma_t V P_ji
+    # test_reciprocity also pins the rearranged lower-triangle form the code
+    # uses to fill P_ji (a factor error in _normalize_rcp breaks the identity):
+    "reciprocity-lower-triangle",
+    # test_row_sums builds P_inf via the white-BC geometric series and asserts
+    # row sums = 1; a sign flip in the series makes the row sum != 1:
+    "cp-infinite-lattice-sum",
 )]
 
 

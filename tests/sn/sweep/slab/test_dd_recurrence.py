@@ -20,6 +20,7 @@ pytestmark = pytest.mark.verifies(
     "dd-cartesian-1d",
     "dd-solve",
     "dd-recurrence",
+    "dd-recurrence-coefficients",
     "multigroup",
     "reflective-bc",
     "one-group-kinf",
@@ -33,6 +34,7 @@ pytestmark = pytest.mark.verifies(
 @pytest.mark.sentinel
 @pytest.mark.l0
 @pytest.mark.catches("ERR-025")
+@pytest.mark.verifies("normalization-dd-source-coefficient")
 def test_dd_per_cell_recurrence_matches_symbolic_derivation():
     """Term-level verification that ``DiamondDifference.update``'s
     per-cell recurrence matches the symbolic derivation in

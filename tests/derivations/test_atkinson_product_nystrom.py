@@ -320,6 +320,7 @@ def test_l1_atkinson_convergence_rate_better_than_first_order():
 # ═══════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.l1
 def test_atkinson_eigenvalue_close_to_one():
     """For the bare-critical slab the dominant eigenvalue of the
     Atkinson discrete operator is exactly 1 to within F_N
@@ -333,6 +334,7 @@ def test_atkinson_eigenvalue_close_to_one():
     )
 
 
+@pytest.mark.foundation
 def test_atkinson_eigenmode_symmetric():
     """phi(z) recovered by the Atkinson Path A.i must be symmetric:
     phi(-z) = phi(z)."""
@@ -350,6 +352,7 @@ def test_atkinson_eigenmode_symmetric():
     np.testing.assert_allclose(phi_plus, phi_minus, rtol=1e-10)
 
 
+@pytest.mark.foundation
 def test_atkinson_normalization_phi_at_zero_equals_one():
     """phi(0) = 1 by Atkinson Path A.i normalization convention."""
     c = 1.30

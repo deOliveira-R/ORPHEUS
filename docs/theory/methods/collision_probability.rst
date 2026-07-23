@@ -1056,73 +1056,64 @@ source and collision positions overlap.  The double integral is:
 
 where :math:`F_1` is the point-to-point kernel.
 
-**Evaluation (slab case, :math:`F_1 = E_1`).**  Split at :math:`s = t`
-and use symmetry (:math:`s > t` half = :math:`s < t` half):
+**Evaluation (slab case, :math:`F_1 = \tfrac{1}{2} E_1`).**  The slab
+point-to-point kernel carries the :math:`\tfrac{1}{2}` prefactor from
+the planar reduction of the isotropic point kernel --- the same
+:math:`\tfrac{1}{2}` that appears explicitly in the two-region reduced
+form :eq:`rcp-slab-total`.  Split at :math:`s = t` and use symmetry
+(:math:`s > t` half = :math:`s < t` half):
 
 .. math::
 
-   r_{ii} &= 2 \int_0^{\tau_i} \int_0^s E_1(s - t) \, dt \, ds
+   r_{ii} = 2 \cdot \frac{1}{2} \int_0^{\tau_i} \int_0^s E_1(s - t) \, dt \, ds
+          = \int_0^{\tau_i} \int_0^s E_1(s - t) \, dt \, ds
 
-Evaluate the inner integral using :math:`\int E_1(x) dx = -E_2(x)`:
-
-.. math::
-
-   \int_0^s E_1(s - t) \, dt
-   &= \bigl[-E_2(s - t)\bigr]_{t=0}^{t=s}
-   = -E_2(0) + E_2(s)
-   = E_2(s) - E_2(0)
-
-Since :math:`E_2(0) = 1`, the inner integral is :math:`E_2(s) - 1`.
-The outer integral:
+Evaluate the inner integral by substituting :math:`u = s - t`
+(:math:`du = -dt`), using :math:`\int E_1(x) \, dx = -E_2(x)`:
 
 .. math::
 
-   r_{ii} &= 2 \int_0^{\tau_i} \bigl[E_2(s) - 1\bigr] ds \\
-          &= 2 \bigl[-E_3(s)\bigr]_0^{\tau_i} - 2\tau_i \\
-          &= 2 \bigl[-E_3(\tau_i) + E_3(0)\bigr] - 2\tau_i \\
-          &= 2 E_3(0) - 2 E_3(\tau_i) - 2\tau_i
+   \int_0^s E_1(u) \, du = \bigl[-E_2(u)\bigr]_0^s = E_2(0) - E_2(s)
 
-Wait --- let me redo this carefully.  :math:`\int_0^s E_1(s-t) dt`:
-substituting :math:`u = s - t`, :math:`du = -dt`:
+The outer integral, using :math:`\int_0^{\tau_i} E_2(s) \, ds =
+E_3(0) - E_3(\tau_i)`:
 
 .. math::
 
-   \int_0^s E_1(u) du = \bigl[-E_2(u)\bigr]_0^s = -E_2(s) + E_2(0)
+   r_{ii} &= \int_0^{\tau_i} \bigl[E_2(0) - E_2(s)\bigr] ds \\
+          &= \tau_i E_2(0) - \bigl[E_3(0) - E_3(\tau_i)\bigr]
 
-So the inner integral is :math:`E_2(0) - E_2(s)`.  Continuing:
-
-.. math::
-
-   r_{ii} &= 2 \int_0^{\tau_i} \bigl[E_2(0) - E_2(s)\bigr] ds \\
-          &= 2 \bigl[\tau_i E_2(0) + E_3(\tau_i) - E_3(0)\bigr]
-
-Using :math:`E_2(0) = 1` and :math:`E_3(0) = 1/2`:
+Using :math:`E_2(0) = 1`:
 
 .. math::
 
-   r_{ii} = 2\tau_i + 2 E_3(\tau_i) - 1
+   r_{ii} = \tau_i - \bigl(E_3(0) - E_3(\tau_i)\bigr)
+
+which is exactly the reduced form :eq:`self-slab` and,
+character-for-character, the solver line
+``rcp[i, i] += sti * t[i] - (0.5 - _e3(tau_i))``.
 
 The normalised self-collision probability is
 :math:`P_{ii} = r_{ii} / (\Sigt{i} t_i)`.  Since
 :math:`\tau_i = \Sigt{i} t_i`:
 
 .. math::
-
-   P_{ii} = \frac{2\tau_i + 2 E_3(\tau_i) - 1}{\tau_i}
-          = 2 + \frac{2 E_3(\tau_i) - 1}{\tau_i}
-          = 1 + \frac{2 E_3(\tau_i) - 2 E_3(0)}{\tau_i}
-
-which is equivalently written as:
-
-.. math::
    :label: self-collision-probability-slab
 
-   P_{ii} = 1 - \frac{2(E_3(0) - E_3(\tau_i))}{\tau_i}
+   P_{ii} = 1 - \frac{E_3(0) - E_3(\tau_i)}{\tau_i}
+          = 1 - \frac{1 - 2 E_3(\tau_i)}{2 \tau_i}
+
+.. vv-status: self-collision-probability-slab documented
+.. (vv-status rationale: definitional normalisation P_ii = r_ii/tau_i
+   of the wired reduced form self-slab (a verifies-target of
+   tests/cp/test_slab.py); the optical limits below are pinned by
+   tests/cp/test_verification.py::TestOpticalLimits.)
 
 For **thick regions** (:math:`\tau_i \to \infty`): :math:`E_3(\tau_i) \to 0`,
-so :math:`P_{ii} \to 1 - 1/\tau_i \to 1`.  For **thin regions**
-(:math:`\tau_i \to 0`): :math:`E_3(\tau_i) \to E_3(0) = 1/2`, so
-:math:`P_{ii} \to 0`.  Tested by
+so :math:`P_{ii} \to 1 - 1/(2\tau_i) \to 1`.  For **thin regions**
+(:math:`\tau_i \to 0`): :math:`E_3(0) - E_3(\tau_i) \approx \tau_i E_2(0)
+= \tau_i` (since :math:`dE_3/d\tau = -E_2`), so
+:math:`P_{ii} \to 1 - 1 = 0`.  Tested by
 ``tests/cp/test_verification.py::TestOpticalLimits``.
 
 In the solver code (:meth:`CPMesh._compute_slab_rcp`)::
@@ -1310,6 +1301,14 @@ of region :math:`k`:
 
    x_k(y) = \sum_{m=1}^{k} \tau_m(y), \quad x_0 = 0
 
+.. (vv-status rationale) definition: a cumulative-sum construction of the
+.. boundary-position array from the per-region optical thicknesses. It is
+.. computed identically in the solver and all three derivation scripts, so
+.. it is a shared definitional primitive (not a structurally-independent
+.. pinning target); the downstream radial rcp it feeds is verified by the
+.. per-geometry CP eigenvalue / pinf-vs-derivation gates.
+.. vv-status: cumulative-optical-path-radial documented
+
 In code (:meth:`CPMesh._compute_radial_rcp`, and identically in all three
 derivation scripts)::
 
@@ -1373,6 +1372,13 @@ Let :math:`\tau_k = \Sigt{k} \, t_k` be the optical thickness of region
    :label: cumulative-optical-path-slab
 
    x_0 = 0, \quad x_{k} = \sum_{m=0}^{k-1} \tau_m
+
+.. (vv-status rationale) definition: the slab cumulative-optical-path
+.. construction (cell-centre datum), the direct analogue of
+.. :eq:`cumulative-optical-path-radial`. A definitional cumulative sum; the
+.. slab rcp it feeds (:eq:`rcp-slab-total`) is verified element-by-element
+.. against the derivation reference.
+.. vv-status: cumulative-optical-path-slab documented
 
 The **reduced collision probability** (unnormalised) is built from two
 path types:
@@ -1783,6 +1789,15 @@ The inner iteration solves the fixed-point equation:
 
    \phi_g = T_g\!\bigl[Q_g^{\text{ext}} + \Sigs{g \to g} \phi_g\bigr]
 
+.. (vv-status rationale) governing iteration: the within-group Gauss-Seidel
+.. inner fixed point. Its converged content (the group flux under within-
+.. group self-scatter) is pinned by the multigroup CP eigenvalue reference
+.. grids; the inner-iteration structure is exercised by
+.. ``tests/cp/test_verification.py::TestGSInnerIterations`` (ERR-016). The
+.. equation itself is a governing-iteration statement, not a distinct
+.. sign-pinned output.
+.. vv-status: cp-within-group-fixed-point documented
+
 where :math:`T_g[\cdot]` is the CP transport operator for group :math:`g`
 (the matrix multiply :math:`P^T V \cdot / (\Sigt{} V)`).  The operator is
 exact for a given source, but the source depends on :math:`\phi_g` through
@@ -1890,6 +1905,8 @@ uses the transpose: ``Q += SigS.T @ phi`` (applied per-cell)::
         Q[k, :] += self._scat_mats[mid].T @ flux_distribution[k, :]
         Q[k, :] += 2.0 * (self._n2n_mats[mid].T @ flux_distribution[k, :])
 
+
+.. _cp-verification-pins:
 
 Verification — what pins this chapter
 =====================================
@@ -2045,6 +2062,14 @@ Equal-Volume Mesh Subdivision
 
    R_k = \sqrt{R_0^2 + \frac{k}{N}(R_N^2 - R_0^2)}
 
+.. (vv-status rationale) definition: the closed-form equal-annular-volume
+.. radius for cylindrical zone subdivision. Its verifiable content — that
+.. every cell in the zone carries bit-identical volume — is pinned by the
+.. FOUNDATION invariant
+.. ``tests/geometry/test_structured_geometry.py::test_equal_volume_cylindrical_invariant``
+.. (catches ERR-020), which by design carries no ``verifies(...)``.
+.. vv-status: equal-volume-radius-cylindrical documented
+
 For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
 
 **Spherical.**  Equal shell volumes:
@@ -2054,6 +2079,13 @@ For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
    :label: equal-volume-radius-spherical
 
    R_k = \left(R_0^3 + \frac{k}{N}(R_N^3 - R_0^3)\right)^{1/3}
+
+.. (vv-status rationale) definition: the closed-form equal-shell-volume
+.. radius for spherical zone subdivision, the analogue of
+.. :eq:`equal-volume-radius-cylindrical`. Pinned by the FOUNDATION invariant
+.. ``tests/geometry/test_structured_geometry.py::test_equal_volume_spherical_invariant``
+.. (catches ERR-020), which by design carries no ``verifies(...)``.
+.. vv-status: equal-volume-radius-spherical documented
 
 For :math:`R_0 = 0`: :math:`R_k = R_N(k/N)^{1/3}`.
 

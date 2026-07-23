@@ -147,6 +147,15 @@ The Hilbert adjoint :math:`A^{\dagger}` of a linear operator on a space
 with inner product :math:`\langle\cdot,\cdot\rangle_G` is *defined* by
 the reciprocity (turn-over) identity
 
+.. (vv-status rationale) The DEFINING adjoint reciprocity
+   ⟨Aψ,φ⟩_G = ⟨ψ,A†φ⟩_G. Pinned by the foundation-tagged
+   tests/sn/operators/test_g_adjoint_reciprocity.py, which by design
+   carries no verifies() (an algebraic identity over the operator-algebra
+   ground truth, anchored to the structurally-independent dense-transpose-
+   plus-explicit-diagonal-G oracle), matching the sentineled
+   g-adjoint-definition.
+.. vv-status: g-adjoint-reciprocity documented
+
 .. math::
    :label: g-adjoint-reciprocity
 
@@ -159,6 +168,12 @@ The diagonal metric is represented by a (block-diagonal) Gram matrix
 :math:`G`, so the inner product is :math:`\langle a,b\rangle_G = a^{\mathsf
 T} G\, b`. Substituting into :eq:`g-adjoint-reciprocity` and solving for
 :math:`A^{\dagger}` recovers :eq:`g-adjoint-definition` in three steps:
+
+.. (vv-status rationale) The three-step algebra deriving
+   A† = G⁻¹AᵀG from reciprocity. Derivation step; its terminal result is
+   g-adjoint-definition (sentineled), pinned by the foundation-tagged
+   reciprocity oracle.
+.. vv-status: g-adjoint-derivation documented
 
 .. math::
    :label: g-adjoint-derivation
@@ -200,6 +215,13 @@ V_{\rm trace}`, so its Gram matrix is **block-diagonal** (the bulk and
 trace degrees of freedom are distinct coordinates — there is no
 cross-term, the two integrals are over different domains):
 
+.. (vv-status rationale) The block-diagonal metric
+   G = diag(G_bulk, G_trace), G_bulk = V_cell w_n,
+   G_trace = |Ω·n_f| w_n. Definitional structure; the |Ω·n_f| weighting
+   is proven load-bearing by the L11 wrong-metric control in the
+   foundation-tagged reciprocity suite.
+.. vv-status: g-adjoint-block-metric documented
+
 .. math::
    :label: g-adjoint-block-metric
 
@@ -212,6 +234,12 @@ cross-term, the two integrals are over different domains):
 
 **The bulk block** :math:`G_{\rm bulk} = V_{\rm cell}\,w_n`. The bulk
 inner product is the discretization of the full phase-space integral
+
+.. (vv-status rationale) The bulk inner-product discretization
+   ∫dV∫dΩ ab → Σ_i V_i Σ_n w_n a b. Definitional (notation of the
+   phase-space measure); pinned by the foundation-tagged
+   metric-population cross-check.
+.. vv-status: g-adjoint-bulk-inner-product documented
 
 .. math::
    :label: g-adjoint-bulk-inner-product
@@ -249,6 +277,12 @@ duplication. This is exactly the leading-axis broadcast convention of
 **The trace block** :math:`G_{\rm trace} = |\Omega\cdot\hat n_f|\,w_n`.
 The boundary inner product is the discretization of the **partial-current
 surface** integral
+
+.. (vv-status rationale) The trace partial-current inner-product
+   discretization ∫dA∫dΩ |Ω·n_f| ab → Σ_f Σ_n |Ω·n_f| w_n a b.
+   Definitional; the cosine weighting is the L11 discriminating control
+   in the foundation-tagged reciprocity suite.
+.. vv-status: g-adjoint-trace-inner-product documented
 
 .. math::
    :label: g-adjoint-trace-inner-product
@@ -339,6 +373,12 @@ The mesh exposes it as the cached property
 **pre-existing** :class:`~orpheus.numerics.operator._AdjointOperator`,
 which realizes ``A.H`` as
 
+.. (vv-status rationale) The _AdjointOperator realization
+   (A†φ) = G_V⁺ ⊙ Aᵀ(G_W ⊙ φ). Structural identity of the wrapper code;
+   pinned end-to-end by the foundation-tagged reciprocity oracle
+   (op.H vs the explicit block-diagonal G-fold).
+.. vv-status: g-adjoint-wrapper-action documented
+
 .. math::
    :label: g-adjoint-wrapper-action
 
@@ -392,6 +432,12 @@ that is the sum's composite ``full_field_space`` (the
 first-non-``None`` of its operands — now redundant, since all operands
 agree on the same composite). The adjoint therefore applies the metric
 **once on the composite**:
+
+.. (vv-status rationale) The sum-conjugation distribution
+   (L+C−B)† = G⁻¹(L+C−B)ᵀG = Σ G⁻¹(·)ᵀG. Structural identity (the metric
+   is applied once at the op level, never per leaf); pinned by the
+   foundation-tagged reciprocity suite on the (L+C−B) composite.
+.. vv-status: g-adjoint-sum-conjugation documented
 
 .. math::
    :label: g-adjoint-sum-conjugation
@@ -591,7 +637,7 @@ why the L11 test gates on slab and sphere specifically.)
 
 These results are pinned by two foundation-tagged test files:
 
-* ``tests/sn/operators/test_g_adjoint_reciprocity.py`` — **12 tests**:
+* ``tests/sn/operators/test_g_adjoint_reciprocity.py`` —
   the G-adjoint reciprocity on slab / sphere / cylinder / slab-2g /
   sphere-2g (5), a metric-population cross-check that
   ``op.codomain.inner_product`` matches an independent reference built
@@ -599,7 +645,7 @@ These results are pinned by two foundation-tagged test files:
   wrong-metric control on slab / sphere (2). The reciprocity inner
   products are evaluated with an **independent** Gram fold so a wrong
   *metric* cannot mask a wrong *adjoint*.
-* ``tests/numerics/test_full_field_space.py`` — **6 tests** pinning the
+* ``tests/numerics/test_full_field_space.py`` — pins the
   :class:`FullFieldSpace` identity semantics (flat direct-sum ``shape``,
   ``(name, shape)``-only identity with ``compare=False`` block
   metadata, dict-key usability, the composite's own

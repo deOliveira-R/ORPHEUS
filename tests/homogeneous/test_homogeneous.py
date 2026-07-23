@@ -329,6 +329,7 @@ def test_matrix_inverse_operator_apply_is_on_the_homogeneous_call_path(monkeypat
     np.testing.assert_allclose(result.k_inf, case.k_inf, atol=1e-12, rtol=0)
 
 
+@pytest.mark.verifies("resolvent-object-gate")
 def test_K_operator_as_matrix_is_the_resolvent():
     """The genuinely-new step-5b structural element:
     ``OperatorProduct(MatrixInverseOperator(A), F).as_matrix()`` == the

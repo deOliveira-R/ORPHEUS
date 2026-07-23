@@ -110,6 +110,10 @@ def _require(condition: bool, message: str) -> None:
     "dd-slab",
     "sn-mms-nonvacuum-psi",
     "sn-mms-nonvacuum-qext",
+    # The "2g_asymmetric_S" parametrization drives the multigroup manufactured
+    # source (the transpose-active in-scatter term where the ERR-002 group-swap
+    # hazard lives); a transposed/sign-flipped SigS reds the 2G group ratio.
+    "sn-mms-nonvacuum-qext-mg",
 )
 def test_mms_prescribed_inflow_slab_converges_second_order(case_kind: str):
     r"""Diamond-difference SN on a NON-VACUUM slab shows O(h²) AND

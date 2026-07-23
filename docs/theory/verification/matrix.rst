@@ -19,11 +19,11 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1194, 17.9%
-   L1, 1102, 16.5%
+   L1, 1103, 16.6%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4270, 64.1%
-   unmarked, 39, 0.6%
+   foundation, 4308, 64.7%
+   unmarked, 0, 0.0%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6541
+   explicit, 6580
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 39
+   unmarked, 0
 
 Module × level grid
 -------------------
@@ -65,7 +65,7 @@ Module × level grid
    core/test_affine_carve_baseline, 0, 0, 0, 0, 6, 0
    core/test_cache, 28, 0, 0, 0, 0, 0
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
-   core/test_cell_kernel_batch, 11, 0, 0, 0, 1, 2
+   core/test_cell_kernel_batch, 11, 0, 0, 0, 3, 0
    core/test_cell_visit_c_stamp, 0, 0, 0, 0, 3, 0
    core/test_dag_walk, 0, 0, 0, 0, 8, 0
    core/test_diamond, 0, 0, 0, 0, 53, 0
@@ -126,7 +126,7 @@ Module × level grid
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
    data/test_mixture_transport_xs, 0, 1, 0, 0, 4, 0
    data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
-   derivations/test_atkinson_product_nystrom, 0, 5, 0, 0, 3, 3
+   derivations/test_atkinson_product_nystrom, 0, 6, 0, 0, 5, 0
    derivations/test_capability_matrices, 0, 0, 0, 0, 3, 0
    derivations/test_carlvik_galerkin_slab, 0, 18, 0, 0, 0, 0
    derivations/test_carlvik_galerkin_sood_registry, 0, 5, 0, 0, 2, 0
@@ -145,13 +145,13 @@ Module × level grid
    derivations/test_fn_la13511_slab, 0, 0, 0, 0, 21, 0
    derivations/test_fn_la13511_slab_flux, 0, 10, 0, 0, 0, 0
    derivations/test_fn_la13511_slab_flux_symbolic, 0, 0, 0, 0, 6, 0
-   derivations/test_fn_la13511_slab_reflected, 0, 18, 0, 0, 4, 1
+   derivations/test_fn_la13511_slab_reflected, 0, 18, 0, 0, 5, 0
    derivations/test_fn_la13511_slab_xverif, 0, 2, 0, 0, 0, 0
    derivations/test_fn_la13511_sphere, 0, 0, 0, 0, 11, 0
    derivations/test_fn_la13511_sphere_flux, 0, 10, 0, 0, 0, 0
    derivations/test_fn_la13511_sphere_xverif, 0, 3, 0, 0, 0, 0
    derivations/test_fn_method_moment_space, 0, 0, 0, 0, 14, 0
-   derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 4, 2
+   derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 6, 0
    derivations/test_fn_sood_table10_symmetric_pu_h2o, 0, 1, 0, 0, 2, 0
    derivations/test_galerkin_spectral_basis_space, 0, 0, 0, 0, 18, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
@@ -276,7 +276,7 @@ Module × level grid
    mms/test_mms_aniso, 0, 2, 0, 0, 0, 0
    mms/test_mms_curvilinear, 0, 2, 0, 0, 0, 0
    mms/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
-   mms/test_mms_ld_2d, 0, 11, 0, 0, 12, 1
+   mms/test_mms_ld_2d, 0, 11, 0, 0, 13, 0
    mms/test_mms_ld_slab, 0, 5, 0, 0, 2, 0
    mms/test_space_angle_separability, 0, 6, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
@@ -287,13 +287,13 @@ Module × level grid
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
-   numerics/test_assembled_operator, 0, 0, 0, 0, 0, 21
+   numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 56, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 4, 0
    numerics/test_face_layout, 0, 0, 0, 0, 15, 0
-   numerics/test_face_layout_typed_key, 0, 0, 0, 0, 0, 5
+   numerics/test_face_layout_typed_key, 0, 0, 0, 0, 5, 0
    numerics/test_face_streaming_normal, 0, 0, 0, 0, 5, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
    numerics/test_frame, 0, 0, 0, 0, 18, 0
@@ -303,7 +303,7 @@ Module × level grid
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
-   numerics/test_iteration, 0, 1, 0, 0, 21, 3
+   numerics/test_iteration, 0, 1, 0, 0, 24, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -412,7 +412,7 @@ Module × level grid
    spatial/test_ld_slope_frame, 0, 1, 0, 0, 1, 0
    spatial/test_ld_ubld_primitive, 0, 0, 0, 0, 11, 0
    spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 6, 0
-   spatial/test_linear_discontinuous, 0, 0, 0, 0, 20, 1
+   spatial/test_linear_discontinuous, 0, 0, 0, 0, 21, 0
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 6, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
@@ -471,6 +471,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``self-sph``, 52
    ``chord-length``, 51
    ``flux-moments``, 51
+   ``quadrature-product-weights``, 49
+   ``quadrature-reflection-index``, 49
    ``wigner-seitz``, 49
    ``attenuation``, 48
    ``optical-thickness``, 48
@@ -487,6 +489,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``pcell-from-smat``, 34
    ``pin-from-reciprocity``, 34
    ``rcp-from-double-antideriv``, 34
+   ``rcp-slab-total``, 34
    ``s-integral``, 34
    ``self-double-integral``, 34
    ``surface-to-region``, 34
@@ -520,6 +523,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``pitch-recovery``, 22
    ``pn-scatter``, 22
    ``ray-circle``, 22
+   ``region-areas-pin-cell``, 22
    ``singular-eigenfunction-eq46``, 21
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
@@ -545,11 +549,13 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``two-group-roots``, 14
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
+   ``cp-infinite-lattice-sum``, 12
    ``kinf-1g``, 12
    ``kinf-mg``, 12
    ``ld-cartesian-2d``, 12
    ``periodic-bc``, 12
    ``reciprocity``, 12
+   ``reciprocity-lower-triangle``, 12
    ``ws-pitch``, 12
    ``loss-rep-scanmarch``, 11
    ``loss-rep-scanmarch-apply``, 11
@@ -563,6 +569,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-white-bc``, 10
    ``singular-eigenfunction-eq42``, 10
    ``dd-recurrence``, 9
+   ``p-transpose-flux-balance``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
    ``tau-m``, 9
    ``tau-p``, 9
@@ -571,7 +578,9 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``energy-condensation-scattering-collapse``, 8
    ``bare-slab-buckling``, 7
    ``bare-slab-critical-equation``, 7
+   ``bare-slab-diffusion-equation``, 7
    ``bare-slab-eigenfunction``, 7
+   ``bare-slab-keff``, 7
    ``dd-solve``, 7
    ``diffusion-M-matrix``, 7
    ``diffusion-back-substitution``, 7
@@ -592,6 +601,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``kin-kernel-special-values``, 6
    ``ld-ubld-d1-reduction``, 6
    ``peierls-greens-slab-T``, 6
+   ``pole-mm-recurrence``, 6
    ``singular-eigenfunction-eq54``, 6
    ``sn-space-angle-separability``, 6
    ``cp-outer-integral-antiderivative``, 5
@@ -611,6 +621,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``hebert-3-434``, 4
    ``hebert-3-435``, 4
    ``loss-rep-LpC``, 4
+   ``loss-rep-walk-order-rows``, 4
    ``macro-sum``, 4
    ``peierls-greens-V-alpha-1``, 4
    ``peierls-greens-V-alpha-2``, 4
@@ -626,17 +637,22 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``hetero-tolerance``, 3
    ``isotropic-source``, 3
    ``ld-ubld-slope-angular-reduction``, 3
+   ``matrix-functor-homomorphism``, 3
+   ``moc-fission-source``, 3
    ``moc-keff-update``, 3
    ``moc-mms-psi-ref``, 3
    ``moc-mms-qext``, 3
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
+   ``peierls-escape-probability``, 3
    ``peierls-greens-cylinder-mr-quadrature-convergence``, 3
+   ``peierls-greens-slab-V-alpha-2``, 3
    ``peierls-mg-operator``, 3
    ``peierls-vacuum-bc-cylinder``, 3
    ``peierls-vacuum-bc-sphere``, 3
    ``sigma-zero``, 3
    ``sn-homogenization-rate-preservation``, 3
+   ``sn-leakage-functional``, 3
    ``sn-mms-nonvacuum-psi``, 3
    ``sn-mms-nonvacuum-qext``, 3
    ``sn-space-angle-cross-term``, 3
@@ -645,6 +661,11 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``harmonic-moment-projection``, 2
    ``hebert-3-432-source``, 2
    ``hilbert-adjoint-equals-metric-times-S0``, 2
+   ``inflow-mask-discrete``, 2
+   ``ld-ubld-octant-moment-frame-signs``, 2
+   ``loss-rep-affine-kernel-maps``, 2
+   ``loss-rep-sweep-global-conjugation``, 2
+   ``ordinate-partition-inflow-outflow``, 2
    ``peierls-greens-cylinder-mr-kinf``, 2
    ``peierls-greens-cylinder-mr-piecewise-tau``, 2
    ``peierls-greens-slab-asym-method-of-images``, 2
@@ -658,11 +679,13 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-case-real-basis``, 2
    ``sn-case-slope-matrix``, 2
    ``sn-case-spatial-modes``, 2
+   ``sn-contamination-factor``, 2
    ``sn-mms-2d-2g-psi``, 2
    ``sn-mms-cylindrical-aniso-psi``, 2
    ``sn-mms-cylindrical-aniso-qext``, 2
    ``sn-mms-cylindrical-psi``, 2
    ``sn-mms-cylindrical-qext``, 2
+   ``sn-mms-nonvacuum-qext-mg``, 2
    ``sn-mms-nonvacuum-sph-psi``, 2
    ``sn-mms-nonvacuum-sph-qext``, 2
    ``sn-mms-p1-qext``, 2
@@ -673,12 +696,28 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``addition-theorem``, 1
    ``branching``, 1
    ``collision-estimator``, 1
+   ``dd-cylindrical-degenerate``, 1
+   ``dd-recurrence-coefficients``, 1
    ``e1-decomposition``, 1
+   ``emission-spectrum-chi-mix``, 1
+   ``energy-condensation-balance-preservation``, 1
+   ``energy-condensation-chi-simplex-preservation``, 1
+   ``energy-condensation-fractional-collapse``, 1
+   ``harmonic-discrete-orthogonality``, 1
+   ``ld-cartesian-2d-bilinear-coeffs``, 1
+   ``ld-cartesian-2d-projection-coeff``, 1
+   ``ld-ubld-pure-z-collision``, 1
    ``majorant``, 1
+   ``mc-lethargy-width-sign``, 1
+   ``mg-inscatter-source``, 1
    ``moment-projection-transpose-T``, 1
+   ``n2n-source``, 1
    ``nm1980-eq15-critical-condition``, 1
    ``normalisation``, 1
+   ``normalization-dd-source-coefficient``, 1
+   ``p0-scatter-source``, 1
    ``peierls-class-b-Pss-homogeneous``, 1
+   ``peierls-cyl-3d-gbc-mode-formula``, 1
    ``peierls-greens-T00-integrand``, 1
    ``peierls-greens-V-alpha-3``, 1
    ``peierls-greens-annulus-3d-chord-scaling``, 1
@@ -701,11 +740,14 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-surface-fixed-point``, 1
    ``pi-r-equals-4pi-i``, 1
    ``real-spherical-harmonics``, 1
+   ``real-spherical-harmonics-l1``, 1
+   ``resolvent-object-gate``, 1
    ``sh-addition-theorem-reconstruction``, 1
    ``sh-space-metric``, 1
    ``si-spectral-rate``, 1
    ``sigT-computed``, 1
    ``singular-eigenfunction-eq5``, 1
+   ``sn-homogenization-balance-preservation``, 1
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
    ``sn-mms-2d-qext``, 1
@@ -714,16 +756,34 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-mms-psi``, 1
    ``sn-mms-qext``, 1
    ``sn-mms-spherical-aniso-spatial-convergence``, 1
+   ``sn-p1-cylinder-hand-ref``, 1
+   ``sn-p1-sphere-hand-ref``, 1
    ``splitting``, 1
+   ``splitting-weight-conservation``, 1
+   ``virtual-collision-probability``, 1
 
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented``. **256** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented``. **0** of the testable equations found on theory pages are orphan.
+
+*(none — every testable theory equation has at least one verifying test)*
+
+Documented-only equations
+-------------------------
+
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **519** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
+- ``affine-contraction-ratio``
+- ``affine-torsor-algebra``
+- ``affine-true-error``
+- ``affine-typed-residual-eq``
+- ``angular-windowing-aniso-factoring``
+- ``angular-windowing-moment-iterate``
 - ``angular-windowing-moment-projection``
 - ``angular-windowing-operator``
+- ``apply-distributes``
 - ``apply-solve-cell-resolvent``
 - ``apply-solve-denominator-inequality``
 - ``apply-solve-neumann-expansion``
@@ -731,266 +791,9 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``apply-solve-parallel-identity``
 - ``apply-solve-source-iteration-series``
 - ``apply-solve-within-group-balance``
+- ``bailey-dome-recursion``
 - ``balance-cartesian-1d-eq``
 - ``balance-cartesian-2d-eq``
-- ``bare-slab-diffusion-equation``
-- ``bare-slab-keff``
-- ``bc-face-name-key-identity``
-- ``bc-tensor-decomposition``
-- ``billiard-rank2-S``
-- ``billiard-rank2-T``
-- ``billiard-reflection-law``
-- ``billiard-resolvent-neumann``
-- ``billiard-transfer-operator``
-- ``billiard-variant-alpha-rank1``
-- ``characteristic-ray-parametrization``
-- ``cp-infinite-lattice-sum``
-- ``cp-within-group-fixed-point``
-- ``cumulative-optical-path-radial``
-- ``cumulative-optical-path-slab``
-- ``dd-cartesian-2d-streaming-coeffs``
-- ``dd-cylindrical-degenerate``
-- ``dd-mm-angular-recurrence``
-- ``dd-mm-scan-split``
-- ``dd-recurrence-coefficients``
-- ``delta-tracking-collision-pdf``
-- ``diffusion-albedo-law``
-- ``diffusion-expm-state-matrix``
-- ``diffusion-removal-xs``
-- ``diffusion-scalar-composite``
-- ``discrete-measure-g-invariance``
-- ``eigen-alpha-derivation``
-- ``eigen-k-posing``
-- ``eigen-resolvent``
-- ``emission-spectrum-chi-mix``
-- ``emission-spectrum-fission-source``
-- ``emission-spectrum-simplex``
-- ``en-definition``
-- ``energy-condensation-balance-preservation``
-- ``energy-condensation-chi-simplex-preservation``
-- ``energy-condensation-fractional-collapse``
-- ``equal-volume-radius-cylindrical``
-- ``equal-volume-radius-spherical``
-- ``flux-per-lethargy-plateau``
-- ``fn-critical-condition``
-- ``fn-method-bte``
-- ``fn-method-galerkin-orthogonality``
-- ``fn-method-inner-product``
-- ``fn-method-moment-space-AB-defs``
-- ``fn-method-moment-space-bc-vacuum``
-- ``fn-method-moment-space-fn-ansatz``
-- ``fn-method-moment-space-galerkin-system``
-- ``fn-slab-moment-recursions``
-- ``fn-slab-recursion-seeds``
-- ``fn-sphere-collocation-grid``
-- ``fn-unified-bc-sign``
-- ``g-adjoint-block-metric``
-- ``g-adjoint-bulk-inner-product``
-- ``g-adjoint-derivation``
-- ``g-adjoint-reciprocity``
-- ``g-adjoint-sum-conjugation``
-- ``g-adjoint-trace-inner-product``
-- ``g-adjoint-wrapper-action``
-- ``galerkin-frame-idempotency``
-- ``galerkin-spectral-bte``
-- ``galerkin-spectral-carlvik-integral``
-- ``galerkin-spectral-eq3``
-- ``galerkin-spectral-eq4``
-- ``galerkin-spectral-inner-product``
-- ``galerkin-spectral-matrix-elements``
-- ``galerkin-spectral-orthogonality``
-- ``galerkin-strict-adjoint-vs-reconstruction``
-- ``green-scattering-ratio-bound``
-- ``harmonic-discrete-orthogonality``
-- ``harmonic-frame-is-galerkin``
-- ``hebert-3-433``
-- ``inflow-mask-discrete``
-- ``inverse-driver-si-update``
-- ``kin-definition``
-- ``ld-cartesian-2d-bilinear-coeffs``
-- ``ld-cartesian-2d-face-bilinear-coeffs``
-- ``ld-cartesian-2d-face-projection-coeff``
-- ``ld-cartesian-2d-face-slot-shape``
-- ``ld-cartesian-2d-projection-coeff``
-- ``ld-ubld-cell-system``
-- ``ld-ubld-divv-scale-free-kernel``
-- ``ld-ubld-exact-on-bilinear``
-- ``ld-ubld-kronecker-assembly``
-- ``ld-ubld-kronecker-factors``
-- ``ld-ubld-mass-weights``
-- ``ld-ubld-moment-scan-source``
-- ``ld-ubld-n-spatial-moments``
-- ``ld-ubld-octant-moment-frame-signs``
-- ``ld-ubld-pure-z-collision``
-- ``ld-ubld-rule-of-three-collapse``
-- ``ld-ubld-s2-s3-operators``
-- ``ld-ubld-scale-free-invariants``
-- ``ld-ubld-scattering-moment-lift``
-- ``ld-ubld-unified-moment-residual``
-- ``ld-ubld-weak-form``
-- ``loss-rep-adjoint-inverse-swap``
-- ``loss-rep-affine``
-- ``loss-rep-affine-cell``
-- ``loss-rep-affine-kernel-maps``
-- ``loss-rep-facewise-separable``
-- ``loss-rep-leaf-sum``
-- ``loss-rep-metric-adjoint-solve``
-- ``loss-rep-removal-sigma``
-- ``loss-rep-scanmarch-apply-residual``
-- ``loss-rep-scanmarch-solve-affine``
-- ``loss-rep-sweep-global-conjugation``
-- ``loss-rep-walk-order-rows``
-- ``majorant-no-collision``
-- ``majorant-real-collision``
-- ``matrix-functor-homomorphism``
-- ``mc-analog-multiplication``
-- ``mc-lethargy-width-sign``
-- ``methods-lagrangian-streaming``
-- ``methods-local-transport-equation``
-- ``mg-inscatter-source``
-- ``mg-multiplication-operator``
-- ``mm-angular-redistribution``
-- ``moc-fission-source``
-- ``moc-homogeneous-weight-degeneracy``
-- ``moc-mms-reference-equilibrium``
-- ``moc-scalar-flux-reconstruction``
-- ``n2n-source``
-- ``normalization-dd-source-coefficient``
-- ``operator-within-group-composition``
-- ``ordinate-partition-inflow-outflow``
-- ``p-transpose-flux-balance``
-- ``p0-scatter-source``
-- ``path-integral-generation-series``
-- ``path-integral-generator-splitting-eq``
-- ``path-integral-girsanov``
-- ``path-integral-many-to-one``
-- ``path-integral-n2n-criterion``
-- ``path-integral-pade-table``
-- ``path-integral-subcriticality``
-- ``path-integral-substochasticity-bound``
-- ``path-integral-track-length-moment``
-- ``path-integral-transport-correction``
-- ``path-integral-two-species-ledger``
-- ``peierls-cyl-3d-gbc-mode-formula``
-- ``peierls-cylinder-chord-form``
-- ``peierls-escape-probability``
-- ``peierls-finite-cell-deficit``
-- ``peierls-greens-mg-kinf-balance``
-- ``peierls-greens-slab-V-alpha-2``
-- ``peierls-rank1-white-bc-correction``
-- ``peierls-rank1-white-bc-factors``
-- ``peierls-slab-nystrom``
-- ``peierls-slab-row-sum-identity``
-- ``peierls-specular-T-matrix-cylinder``
-- ``peierls-specular-T-matrix-slab``
-- ``peierls-sph-sanchez-foundations``
-- ``peierls-transport-equation-3d``
-- ``peierls-unified-row-sum-identity``
-- ``phase-c-cell-update``
-- ``phase-c-streaming-spherical``
-- ``phase-c-wdd-oscillation``
-- ``phase-c-wdd-recurrence``
-- ``phase-f-q-1d-decomposition``
-- ``phase-f-source-eq-sigt-phi0``
-- ``pin-cell-volume-fractions``
-- ``pn-scatter-rlm``
-- ``pole-mm-recurrence``
-- ``power-iteration-flux-update``
-- ``power-iteration-keff-update``
-- ``quadrature-product-weights``
-- ``quadrature-reflection-index``
-- ``ray-perpendicular-coordinate``
-- ``rcp-slab-total``
-- ``real-spherical-harmonics-l1``
-- ``reciprocity-lower-triangle``
-- ``region-areas-pin-cell``
-- ``resolvent-object-gate``
-- ``richardson-diffusion``
-- ``richardson-extrapolation-formula``
-- ``scattering-aniso-composite``
-- ``scattering-spectral-theorem``
-- ``seeded-apply-signature``
-- ``self-collision-probability-slab``
-- ``sh-aniso-scattering-operator``
-- ``sh-funk-hecke-eigenvalue``
-- ``sh-pl-scattering-reconstruction``
-- ``si-convergence-residual``
-- ``si-gauss-seidel-splitting``
-- ``si-jacobi-fixed-point``
-- ``si-sigma-r-fold-mismatch``
-- ``si-within-group-operator-eq``
-- ``sigs-in-scatter-transpose``
-- ``singular-eigenfunction-eq47``
-- ``singular-eigenfunction-x-function-isotropic-limit``
-- ``sn-affine-outgoing-face-reconstruction-eq``
-- ``sn-axis-widths``
-- ``sn-cell-flatten-roundtrip``
-- ``sn-contamination-factor``
-- ``sn-curvilinear-mg-cell-denominator``
-- ``sn-direct-seed-r12a-predicate``
-- ``sn-fixed-source-direct-sum``
-- ``sn-homogenization-adjoint-weighted``
-- ``sn-homogenization-balance-preservation``
-- ``sn-homogenization-cross-gram``
-- ``sn-keff-cell-balance``
-- ``sn-keff-old-bias``
-- ``sn-keff-old-n2n``
-- ``sn-leakage-functional``
-- ``sn-mg-eigenvalue-posing-eq``
-- ``sn-mms-nonvacuum-qext-mg``
-- ``sn-p1-cylinder-hand-ref``
-- ``sn-p1-sphere-hand-ref``
-- ``sn-pole-cell-shell-average``
-- ``sn-scattering-adjoint-kernel``
-- ``sn-scattering-adjoint-kernel-transpose``
-- ``sn-scattering-adjoint-source``
-- ``sn-streaming-reciprocity``
-- ``sn-tau-mm-raw``
-- ``sn-within-group-system``
-- ``sotp-scattering-form``
-- ``spatial-moment-append-policy``
-- ``spatial-moment-kronecker-order``
-- ``spatial-moment-space-size``
-- ``spectrum-case-eigenfunction-equation``
-- ``spectrum-case-eigenfunction-explicit``
-- ``spectrum-continuum-dispersion-function``
-- ``spectrum-continuum-eigenfunction``
-- ``spectrum-dispersion-relation``
-- ``spectrum-expansion-theorem``
-- ``spectrum-full-decomposition``
-- ``spectrum-transport-equation``
-- ``spectrum-x-function``
-- ``splitting-weight-conservation``
-- ``streaming-action-cell-balance``
-- ``sweep-cumprod-factors``
-- ``sweep-cumprod-solution``
-- ``tensor-network-angular-redist-contribution``
-- ``tensor-network-cell-balance-numerator``
-- ``trace-sign-predicate``
-- ``two-moment-angular``
-- ``two-moment-carrier-space``
-- ``two-moment-spatial``
-- ``two-moment-tensor-product``
-- ``vacuum-legacy-vs-trace-correct``
-- ``virtual-collision-probability``
-- ``wdd-cell-balance``
-- ``wdd-diamond-closure``
-- ``wm72-discrete-pseudo-eigenfunction``
-- ``wm72-eq21d-normalization``
-
-Documented-only equations
--------------------------
-
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **321** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
-
-- ``affine-contraction-ratio``
-- ``affine-torsor-algebra``
-- ``affine-true-error``
-- ``affine-typed-residual-eq``
-- ``angular-windowing-aniso-factoring``
-- ``angular-windowing-moment-iterate``
-- ``apply-distributes``
-- ``bailey-dome-recursion``
 - ``bc-extraction-block-matrix``
 - ``bc-extraction-direct-sum-state``
 - ``bc-extraction-loss-operator``
@@ -999,9 +802,17 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``bc-extraction-two-residuals``
 - ``bc-extraction-variadic-matvec``
 - ``bc-extraction-within-group-decomposition``
+- ``bc-face-name-key-identity``
 - ``bc-rank-n-tensor-decomposition``
+- ``bc-tensor-decomposition``
 - ``bessel-wronskian``
 - ``bickley-integral``
+- ``billiard-rank2-S``
+- ``billiard-rank2-T``
+- ``billiard-reflection-law``
+- ``billiard-resolvent-neumann``
+- ``billiard-transfer-operator``
+- ``billiard-variant-alpha-rank1``
 - ``boltzmann``
 - ``bundle-measure-disintegration``
 - ``burst-criterion``
@@ -1010,6 +821,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``carrier-grid-interchange-witness``
 - ``carrier-grid-operator-typing``
 - ``case-dispersion-function``
+- ``characteristic-ray-parametrization``
 - ``clad-heat``
 - ``conservative-form``
 - ``coolant-energy``
@@ -1024,14 +836,26 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``coupled-free-identity-residual``
 - ``coupled-loss-grid``
 - ``coupled-mn-splitting``
+- ``cp-within-group-fixed-point``
 - ``creep-rate``
+- ``cumulative-optical-path-radial``
+- ``cumulative-optical-path-slab``
 - ``dd-2d-balance-form``
+- ``dd-cartesian-2d-streaming-coeffs``
+- ``dd-mm-angular-recurrence``
+- ``dd-mm-scan-split``
+- ``delta-tracking-collision-pdf``
 - ``diagonal-operator-action``
+- ``diffusion-albedo-law``
 - ``diffusion-boundary-closure``
+- ``diffusion-expm-state-matrix``
 - ``diffusion-interior-conductance``
 - ``diffusion-operator-family``
 - ``diffusion-partial-current-dictionary``
+- ``diffusion-removal-xs``
+- ``diffusion-scalar-composite``
 - ``discrete-measure-definition``
+- ``discrete-measure-g-invariance``
 - ``discrete-measure-partition``
 - ``discrete-measure-pushforward``
 - ``discretization-1d-transport``
@@ -1062,7 +886,13 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``discretization-step-solve``
 - ``doppler-feedback``
 - ``e1-small-tau-expansion``
+- ``eigen-alpha-derivation``
+- ``eigen-k-posing``
+- ``eigen-resolvent``
 - ``eigen-standard-form``
+- ``emission-spectrum-fission-source``
+- ``emission-spectrum-simplex``
+- ``en-definition``
 - ``energy-condensation-balance``
 - ``energy-condensation-chi-collapse``
 - ``energy-condensation-coarse-flux``
@@ -1075,46 +905,117 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``energy-condensation-partition-of-unity``
 - ``energy-condensation-representative-spectrum``
 - ``energy-condensation-vector-collapse``
+- ``equal-volume-radius-cylindrical``
+- ``equal-volume-radius-spherical``
 - ``fb-bc4-displacement``
 - ``fb-clad-strain``
 - ``fb-fuel-heat``
 - ``fb-fuel-strain``
 - ``fb-swelling``
 - ``fission-as-dyad``
+- ``flux-per-lethargy-plateau``
 - ``fn-Fk-closed-forms``
 - ``fn-Fk-integration-by-parts``
+- ``fn-critical-condition``
+- ``fn-method-bte``
+- ``fn-method-galerkin-orthogonality``
+- ``fn-method-inner-product``
+- ``fn-method-moment-space-AB-defs``
+- ``fn-method-moment-space-bc-vacuum``
+- ``fn-method-moment-space-fn-ansatz``
+- ``fn-method-moment-space-galerkin-system``
 - ``fn-product-simpson-weights``
 - ``fn-slab-B-long-division``
 - ``fn-slab-collocation``
+- ``fn-slab-moment-recursions``
+- ``fn-slab-recursion-seeds``
+- ``fn-sphere-collocation-grid``
+- ``fn-unified-bc-sign``
 - ``fn-unified-matrix-entry``
 - ``fn-x-function``
 - ``fuel-heat``
 - ``fuel-rate``
 - ``funk-hecke-eigenvalue``
+- ``g-adjoint-block-metric``
+- ``g-adjoint-bulk-inner-product``
 - ``g-adjoint-definition``
+- ``g-adjoint-derivation``
+- ``g-adjoint-reciprocity``
+- ``g-adjoint-sum-conjugation``
+- ``g-adjoint-trace-inner-product``
+- ``g-adjoint-wrapper-action``
 - ``galerkin-construction``
+- ``galerkin-frame-idempotency``
 - ``galerkin-pair``
 - ``galerkin-self-adjoint``
+- ``galerkin-spectral-bte``
+- ``galerkin-spectral-carlvik-integral``
+- ``galerkin-spectral-eq3``
+- ``galerkin-spectral-eq4``
+- ``galerkin-spectral-inner-product``
+- ``galerkin-spectral-matrix-elements``
+- ``galerkin-spectral-orthogonality``
+- ``galerkin-strict-adjoint-vs-reconstruction``
 - ``gap-closure-event``
 - ``gap-conductance``
 - ``gas-pressure``
 - ``green-neumann-series``
+- ``green-scattering-ratio-bound``
 - ``green-splitting-iteration``
 - ``green-true-residual``
 - ``group-flux``
 - ``group-xs``
+- ``harmonic-frame-is-galerkin``
+- ``hebert-3-433``
 - ``hilbert-adjoint-equals-metric-times-S0``
 - ``in-scatter-full-contraction``
 - ``integral-kernel-category``
-- ``inverse-as-operator``
+- ``inverse-driver-si-update``
 - ``keff-as-integrated-rates``
+- ``kin-definition``
 - ``kll-1974-slab-phi``
 - ``kll-1974-sphere-phi``
+- ``ld-cartesian-2d-face-bilinear-coeffs``
+- ``ld-cartesian-2d-face-projection-coeff``
+- ``ld-cartesian-2d-face-slot-shape``
+- ``ld-ubld-cell-system``
+- ``ld-ubld-divv-scale-free-kernel``
+- ``ld-ubld-exact-on-bilinear``
+- ``ld-ubld-kronecker-assembly``
+- ``ld-ubld-kronecker-factors``
+- ``ld-ubld-mass-weights``
+- ``ld-ubld-moment-scan-source``
+- ``ld-ubld-n-spatial-moments``
+- ``ld-ubld-rule-of-three-collapse``
+- ``ld-ubld-s2-s3-operators``
+- ``ld-ubld-scale-free-invariants``
+- ``ld-ubld-scattering-moment-lift``
+- ``ld-ubld-unified-moment-residual``
+- ``ld-ubld-weak-form``
+- ``loss-rep-adjoint-inverse-swap``
+- ``loss-rep-affine``
+- ``loss-rep-affine-cell``
+- ``loss-rep-facewise-separable``
+- ``loss-rep-leaf-sum``
+- ``loss-rep-metric-adjoint-solve``
+- ``loss-rep-removal-sigma``
+- ``loss-rep-scanmarch-apply-residual``
+- ``loss-rep-scanmarch-solve-affine``
+- ``majorant-no-collision``
+- ``majorant-real-collision``
 - ``matrix-functor-out``
 - ``matrix-inverse-direct-residual``
 - ``matrix-inverse-materialise``
 - ``maxwellian``
+- ``mc-analog-multiplication``
+- ``methods-lagrangian-streaming``
+- ``methods-local-transport-equation``
+- ``mg-multiplication-operator``
+- ``mm-angular-redistribution``
 - ``mm-half-grid-recurrence``
+- ``moc-homogeneous-weight-degeneracy``
+- ``moc-mms-reference-equilibrium``
+- ``moc-scalar-flux-reconstruction``
 - ``mode-conservation-target``
 - ``moment-projection-transpose-T``
 - ``morel-montry-clamp``
@@ -1129,7 +1030,19 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``operator-eigenvalue``
 - ``operator-fixed-source``
 - ``operator-solve``
+- ``operator-within-group-composition``
 - ``partition-round-trip``
+- ``path-integral-generation-series``
+- ``path-integral-generator-splitting-eq``
+- ``path-integral-girsanov``
+- ``path-integral-many-to-one``
+- ``path-integral-n2n-criterion``
+- ``path-integral-pade-table``
+- ``path-integral-subcriticality``
+- ``path-integral-substochasticity-bound``
+- ``path-integral-track-length-moment``
+- ``path-integral-transport-correction``
+- ``path-integral-two-species-ledger``
 - ``peierls-3d``
 - ``peierls-M-rank-1``
 - ``peierls-M-rank-2``
@@ -1142,6 +1055,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-class-b-hebert-closure``
 - ``peierls-cyl-Pss-derivation``
 - ``peierls-cyl-foundations``
+- ``peierls-cylinder-chord-form``
 - ``peierls-cylinder-equation``
 - ``peierls-cylinder-green-2d``
 - ``peierls-cylinder-nystrom``
@@ -1155,6 +1069,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-e1-derivation``
 - ``peierls-exp-stretched-mu``
 - ``peierls-factored-kernel``
+- ``peierls-finite-cell-deficit``
 - ``peierls-greens-A1-split``
 - ``peierls-greens-A5-specular``
 - ``peierls-greens-L0``
@@ -1164,13 +1079,13 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-greens-bounce-period-integral``
 - ``peierls-greens-bounce-sum-alpha``
 - ``peierls-greens-cylinder-mr-bounce-sum-piecewise``
-- ``peierls-greens-cylinder-mr-piecewise-tau``
 - ``peierls-greens-cylinder-mr-trajectory-segments``
 - ``peierls-greens-defining-bvp``
 - ``peierls-greens-fixed-source-iteration``
 - ``peierls-greens-garcia-convention``
 - ``peierls-greens-hollow-sph-outer-only-resolvent``
 - ``peierls-greens-k-inf``
+- ``peierls-greens-mg-kinf-balance``
 - ``peierls-greens-mg-source``
 - ``peierls-greens-mr-piecewise-tau``
 - ``peierls-greens-mr-trajectory-segments``
@@ -1185,22 +1100,28 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-kernel-decomposition``
 - ``peierls-ki1-derivation``
 - ``peierls-mg-fission-source-local``
-- ``peierls-mg-operator``
 - ``peierls-operator-factorisation``
 - ``peierls-operator-form``
 - ``peierls-point-kernel-3d``
 - ``peierls-polar-jacobian-cancellation``
 - ``peierls-rank-n-P-esc-moment``
 - ``peierls-rank-n-jacobian-derivation``
+- ``peierls-rank1-white-bc-correction``
+- ``peierls-rank1-white-bc-factors``
 - ``peierls-scaled-chebyshev``
 - ``peierls-slab-bare-critical``
 - ``peierls-slab-foundations``
+- ``peierls-slab-nystrom``
 - ``peierls-slab-polar``
+- ``peierls-slab-row-sum-identity``
 - ``peierls-specular-M-tridiagonal``
 - ``peierls-specular-R-formula``
 - ``peierls-specular-T-matrix``
+- ``peierls-specular-T-matrix-cylinder``
+- ``peierls-specular-T-matrix-slab``
 - ``peierls-specular-multibounce-formula``
 - ``peierls-sph-ps1982-foundations``
+- ``peierls-sph-sanchez-foundations``
 - ``peierls-sphere-G-bc``
 - ``peierls-sphere-equation``
 - ``peierls-sphere-green-3d``
@@ -1217,42 +1138,74 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-tau-coordinate-transform``
 - ``peierls-tensor-G-definition``
 - ``peierls-tensor-P-definition``
-- ``peierls-unified``
+- ``peierls-transport-equation-3d``
+- ``peierls-unified-row-sum-identity``
 - ``per-face-inflow-mask``
 - ``petrov-galerkin-construction``
-- ``pi-r-equals-4pi-i``
+- ``phase-c-cell-update``
+- ``phase-c-streaming-spherical``
+- ``phase-c-wdd-oscillation``
+- ``phase-c-wdd-recurrence``
+- ``phase-f-q-1d-decomposition``
+- ``phase-f-source-eq-sigt-phi0``
+- ``pin-cell-volume-fractions``
+- ``pn-scatter-rlm``
 - ``power-equation``
+- ``power-iteration-flux-update``
+- ``power-iteration-keff-update``
 - ``precursor-equation``
 - ``product-solve-reroute``
 - ``production-rate-functional``
 - ``quadrature-selection-criterion``
+- ``ray-perpendicular-coordinate``
 - ``reaction-rate-kinf-oracle``
 - ``real-sh-addition-theorem``
-- ``real-sh-discrete-orthogonality``
 - ``real-sh-l0``
 - ``real-sh-l1``
 - ``real-sh-l2plus``
 - ``resolvent-similarity``
+- ``richardson-diffusion``
+- ``richardson-extrapolation-formula``
+- ``scattering-aniso-composite``
 - ``scattering-as-tensor-product-sum``
 - ``scattering-carrier-grid``
+- ``scattering-spectral-theorem``
 - ``scattering-zonal-kernel``
-- ``sh-addition-theorem-reconstruction``
-- ``sh-space-metric``
+- ``seeded-apply-signature``
+- ``self-collision-probability-slab``
+- ``sh-aniso-scattering-operator``
+- ``sh-funk-hecke-eigenvalue``
+- ``sh-pl-scattering-reconstruction``
+- ``si-convergence-residual``
+- ``si-gauss-seidel-splitting``
+- ``si-jacobi-fixed-point``
+- ``si-sigma-r-fold-mismatch``
 - ``si-within-group-fixed-point``
+- ``si-within-group-operator-eq``
 - ``sigs-convention``
-- ``singular-eigenfunction-eq5``
+- ``sigs-in-scatter-transpose``
+- ``singular-eigenfunction-eq47``
+- ``singular-eigenfunction-x-function-isotropic-limit``
+- ``sn-affine-outgoing-face-reconstruction-eq``
+- ``sn-axis-widths``
+- ``sn-cell-flatten-roundtrip``
 - ``sn-coupled-pole-mu-level-invariant-eq``
+- ``sn-curvilinear-mg-cell-denominator``
 - ``sn-direct-seed-anisotropic-source``
 - ``sn-direct-seed-augmented-composite``
 - ``sn-direct-seed-block-triangular``
 - ``sn-direct-seed-pole-straight-characteristic``
+- ``sn-direct-seed-r12a-predicate``
 - ``sn-err-058-coupled-pole-continuity``
 - ``sn-err-058-edge-extrapolation``
 - ``sn-err-058-proxy-source``
+- ``sn-fixed-source-direct-sum``
+- ``sn-homogenization-adjoint-weighted``
 - ``sn-homogenization-balance``
 - ``sn-homogenization-bilinear``
 - ``sn-homogenization-chi-collapse``
 - ``sn-homogenization-coarse-space``
+- ``sn-homogenization-cross-gram``
 - ``sn-homogenization-fine-rate``
 - ``sn-homogenization-frame-projector``
 - ``sn-homogenization-matrix-collapse``
@@ -1264,11 +1217,19 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-homogenization-scatter-rate``
 - ``sn-homogenization-test-functions``
 - ``sn-homogenization-vector-collapse``
-- ``sn-keff-update``
+- ``sn-keff-cell-balance``
+- ``sn-keff-old-bias``
+- ``sn-keff-old-n2n``
+- ``sn-mg-eigenvalue-posing-eq``
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``
-- ``sn-space-angle-cross-term``
-- ``sn-space-angle-separability``
+- ``sn-pole-cell-shell-average``
+- ``sn-scattering-adjoint-kernel``
+- ``sn-scattering-adjoint-kernel-transpose``
+- ``sn-scattering-adjoint-source``
+- ``sn-streaming-reciprocity``
+- ``sn-tau-mm-raw``
+- ``sn-within-group-system``
 - ``solve-does-not-distribute``
 - ``sood-eq18-1g-balance``
 - ``sood-eq19-kinf-1g``
@@ -1277,12 +1238,30 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sood-eq29-kinf-2g-no-upscatter``
 - ``sood-eq32-phi-ratio``
 - ``sood-eq76-kinf-mg``
+- ``sotp-scattering-form``
+- ``spatial-moment-append-policy``
+- ``spatial-moment-kronecker-order``
+- ``spatial-moment-space-size``
+- ``spectrum-case-eigenfunction-equation``
+- ``spectrum-case-eigenfunction-explicit``
+- ``spectrum-continuum-dispersion-function``
+- ``spectrum-continuum-eigenfunction``
+- ``spectrum-dispersion-relation``
+- ``spectrum-expansion-theorem``
+- ``spectrum-full-decomposition``
+- ``spectrum-transport-equation``
+- ``spectrum-x-function``
+- ``streaming-action-cell-balance``
 - ``streaming-action-pure-l``
 - ``streaming-as-tensor-product-sum``
 - ``streaming-inverse-direct-sum``
 - ``streaming-pn-recurrence``
 - ``subgroup-of-o3-containment``
 - ``sum-of-tensor-products``
+- ``sweep-cumprod-factors``
+- ``sweep-cumprod-solution``
+- ``tensor-network-angular-redist-contribution``
+- ``tensor-network-cell-balance-numerator``
 - ``tensor-network-cell-balance-three-terms``
 - ``tensor-network-ma-q1-master-condition``
 - ``tensor-network-mspat-curvilinear-subtraction``
@@ -1291,13 +1270,23 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``tensor-product-axis-wise-composition``
 - ``tensor-product-inverse``
 - ``trace-half-decomposition``
+- ``trace-sign-predicate``
 - ``transport-equation``
+- ``two-moment-angular``
+- ``two-moment-carrier-space``
+- ``two-moment-spatial``
+- ``two-moment-tensor-product``
 - ``vacuum-bc``
+- ``vacuum-legacy-vs-trace-correct``
 - ``wavefront-cochain-biproduct``
 - ``wavefront-cochain-biproduct-laws``
 - ``wavefront-cochain-primal``
+- ``wdd-cell-balance``
+- ``wdd-diamond-closure``
 - ``wdd-forward-recurrence``
 - ``wm72-coupled-linear-system``
+- ``wm72-discrete-pseudo-eigenfunction``
+- ``wm72-eq21d-normalization``
 - ``wm72-eq30-bare``
 - ``wm72-eq31``
 - ``wm72-eq32``
@@ -1402,25 +1391,5 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
 Unmarked tests
 --------------
 
-**39 tests** have no V&V level marker.
-This is a gap — every test in the tree should carry either
-a physics-ladder marker (``l0``..``l3``) or the orthogonal
-``foundation`` marker (``@pytest.mark.foundation``) for
-tests that verify software invariants rather than physics
-equations. See :ref:`vv-foundation-tests` for the
-taxonomy.
-
-.. csv-table::
-   :header: File, Unmarked tests
-   :widths: 60, 10
-
-   ``tests/numerics/test_assembled_operator.py``, 21
-   ``tests/numerics/test_face_layout_typed_key.py``, 5
-   ``tests/derivations/test_atkinson_product_nystrom.py``, 3
-   ``tests/numerics/test_iteration.py``, 3
-   ``tests/derivations/test_fn_projection_vs_kll_flux.py``, 2
-   ``tests/sn/sweep/core/test_cell_kernel_batch.py``, 2
-   ``tests/derivations/test_fn_la13511_slab_reflected.py``, 1
-   ``tests/sn/verification/mms/test_mms_ld_2d.py``, 1
-   ``tests/transport/spatial/test_linear_discontinuous.py``, 1
+*(none — every test carries an L0/L1/L2/L3 or foundation marker)*
 

@@ -916,6 +916,7 @@ class _RecordingInverse:
         return psi
 
 
+@pytest.mark.foundation
 def test_stop_is_the_free_identity_residual_elementwise(rng):
     """C1 — the recorded history ≡ ‖rhs_{n−1} − rhs_n‖/‖q‖ ≡
     ‖(S+F)·Δψ‖/‖q‖ ≡ ‖Aψ − q‖/‖q‖ (three independently-computed
@@ -996,6 +997,7 @@ def test_stop_is_the_free_identity_residual_elementwise(rng):
         pytest.fail("the exit claim is dishonest on an exact-M toy")
 
 
+@pytest.mark.foundation
 def test_zero_gain_exits_after_one_apply_with_exact_residual(rng):
     """C5 — zero gains ⟹ rhs ≡ q is constant ⟹ the first comparison sees
     r = 0 EXACTLY: one inverse apply, history == [0.0], and the returned
@@ -1017,6 +1019,7 @@ def test_zero_gain_exits_after_one_apply_with_exact_residual(rng):
     np.testing.assert_allclose(psi, np.linalg.solve(A_mat, q), rtol=1e-13)
 
 
+@pytest.mark.foundation
 def test_zero_source_zero_start_exits_clean():
     """r5 — ``q_ext = 0`` with the zero cold start: the zero solution is
     found at the first comparison (res = 0/1e-30 = 0.0 exactly), no

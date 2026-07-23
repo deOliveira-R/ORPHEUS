@@ -97,7 +97,7 @@ def test_p_prefactor_is_1_over_pi():
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("peierls-cyl-3d-mode-formula")
+@pytest.mark.verifies("peierls-cyl-3d-mode-formula", "peierls-cyl-3d-gbc-mode-formula")
 def test_g_prefactor_is_4_over_pi():
     r"""The cylinder G-prefactor from
     :func:`derive_g_prefactor` is :math:`4/\pi` after simplification.

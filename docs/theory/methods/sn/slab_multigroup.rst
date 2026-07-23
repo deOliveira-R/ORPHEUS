@@ -518,6 +518,16 @@ verification of the addition theorem lives at
 
       Q^{\rm aniso}_n(\vec r) \;=\; R\,\Lambda\,M\,\psi
 
+   .. (vv-status rationale) Representational identity: the operator-algebra
+      spelling (analysis M, moment-space transfer Λ, reconstruction R) of the
+      anisotropic source :eq:`pn-scatter`, which is itself wired
+      (``verifies("pn-scatter")`` on ``TestAnisotropicScattering``).  The RΛM
+      composition is gated by the ``slab_2g_p1_aniso_dd_n20`` regression
+      snapshot, the ``tests/sn/verification/mms/test_mms_aniso.py`` Pℓ MMS
+      convergence suite, and the forward-reproduction cross-check
+      ``test_scattering_adjoint.py::TestFullScatterKernel::test_reproduces_forward_scattering_source``.
+   .. vv-status: pn-scatter-rlm documented
+
    where :math:`\Lambda` is :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`
    --- the per-ℓ block-diagonal scattering on moment space (the §15.2
    sum-of-tensor-products form
@@ -610,6 +620,14 @@ production by :math:`1/k` and demand balance:
 
    (L + C - S - B)\,\psi \;=\; \frac{1}{k}\,F\,\psi .
 
+.. (vv-status rationale) Governing equation: the criticality posing (scale
+   production by 1/k and demand balance).  Definitional — it states the
+   eigenproblem, not a per-term solver claim.  Its solved eigenvalue is pinned
+   independently of transport by the analytical infinite-medium anchor
+   k∞=λ_max(A⁻¹F) (``tests/sn/verification/analytical/test_kinf_homogeneous.py``,
+   :ref:`mg-eigenvalue-problem`).
+.. vv-status: sn-mg-eigenvalue-posing-eq documented
+
 This is the slab-multigroup instance of the generalized eigenproblem
 :eq:`eigen-standard-form` — :math:`A_{\rm loss}\,\psi = \lambda M \psi`
 with :math:`A_{\rm loss} = L+C-S-B`, :math:`M = F`, :math:`\lambda =
@@ -624,6 +642,15 @@ standard eigenproblem for the **multiplication operator**
    K \;=\; A^{-1} F ,
    \qquad
    K\,\psi \;=\; k\,\psi :
+
+.. (vv-status rationale) Definitional identity: the multiplication operator
+   that turns the generalized eigenproblem into a standard one; k_eff is its
+   dominant eigenvalue.  It names the resolvent-eigenproblem, not a computation
+   distinct from the eigenvalue solve; the k it produces is pinned by the
+   analytical k∞ anchor (:ref:`mg-eigenvalue-problem`).  The intrinsic
+   object-level teeth for a K=A⁻¹F carve (Mode-12 spectral-invisibility) live
+   with the operator-algebra taxonomy (#226), not here.
+.. vv-status: mg-multiplication-operator documented
 
 :math:`k_{\rm eff}` is the dominant eigenvalue of :math:`K`, and the
 fundamental mode is its (unique, non-negative — Krein–Rutman)
@@ -662,12 +689,29 @@ is classical power iteration on the :math:`k`-update, with
 
     \psi_{n+1} \;=\; \bigl((L{+}C) - S\bigr)^{-1}\,F\,\psi_n / k_n
 
+.. (vv-status rationale) Governing iteration: the power-method flux update
+   (inner resolvent applied to the scaled fission source).  Definitional — it
+   states the outer-loop step, not a per-term claim.  The end-to-end power
+   iteration is exercised by the synthetic KEigenvalue-vs-``numpy.linalg.eig``
+   ground truth and the KEigenvalue-vs-``solve_sn`` L1 gate in
+   ``tests/numerics/test_iteration.py``.
+.. vv-status: power-iteration-flux-update documented
+
 .. math::
     :label: power-iteration-keff-update
 
     k_{n+1} \;=\; \frac{\sum (F\,\psi_{n+1})}
                        {\sum \bigl((L{+}C)\,\psi_{n+1}\bigr)
                         - \sum (S\,\psi_{n+1})}
+
+.. (vv-status rationale) Governing iteration: the hardwired operator-form
+   Rayleigh k-update, fission production over net removal.  Definitional (the
+   numerics-layer spelling of the unified k discipline); by the consistency
+   theorem below every consistent functional returns k* at the fixed point, so
+   "k matches" carries limited object-level mutation coverage (vv Mode 12).
+   The method-layer functional it mirrors, :eq:`sn-keff-update`, is wired with
+   leakage-drop teeth in ``tests/sn/eigenvalue/test_keff_estimator_gate.py``.
+.. vv-status: power-iteration-keff-update documented
 
 The dominance ratio :math:`|k_1/k_0|` governs outer-loop
 convergence (:cite:`TrefethenBau1997` §27).  The inner solve uses

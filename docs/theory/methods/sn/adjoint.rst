@@ -85,6 +85,16 @@ The modernised in-scatter source is ONE frame-conjugated operator
    \mathrm{full\_scatter\_kernel}
    \;=\; R \circ (\Lambda_{\ell\ge 0} + N_{2n}) \circ M ,
 
+.. (vv-status rationale) Representational identity: the frame-conjugation
+   definition of the full P0+ℓ≥1+(n,2n) in-scatter kernel (analysis M,
+   moment-space transfer Λ+N₂ₙ, reconstruction R).  Its verifiable content —
+   the frame form reproduces the independent scalar fast-path forward source —
+   is the ``@pytest.mark.foundation`` gate
+   ``tests/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel::test_reproduces_forward_scattering_source``
+   (rtol 1e-12); the gate is unwired, so the label stays ``documented``
+   with the gate named here (wiring backlog: #309).
+.. vv-status: sn-scattering-adjoint-kernel documented
+
 where :math:`M` / :math:`R` are the angular frame's analysis /
 reconstruction faces, :math:`\Lambda_{\ell\ge 0}` is the per-:math:`\ell`
 moment-space group transfer
@@ -102,6 +112,15 @@ the product transpose
    \mathrm{full\_scatter\_kernel}^{T}
    \;=\; M^{T} \circ (\Lambda + N_{2n})^{T} \circ R^{T},
 
+.. (vv-status rationale) Structural / representational identity: the product
+   transpose assembled from the leaf transposes (no per-geometry derivation).
+   Its verifiable content is the Euclidean reciprocity ⟨kernel ψ, c⟩ =
+   ⟨ψ, kernelᵀ c⟩, pinned by the ``@pytest.mark.foundation`` gate
+   ``tests/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel::test_full_kernel_euclidean_reciprocity``
+   (scalar + LD trailing spectator) — foundation gates carry no
+   ``verifies(...)`` by design.
+.. vv-status: sn-scattering-adjoint-kernel-transpose documented
+
 which :meth:`OperatorProduct.apply_transpose
 <orpheus.numerics.operator.OperatorProduct.apply_transpose>` assembles from
 the leaf transposes — the frame's :math:`M^{T}` / :math:`R^{T}` faces (landed
@@ -114,6 +133,17 @@ avoid).  The :term:`per-ordinate <ordinate>` adjoint scattering source is then
    :label: sn-scattering-adjoint-source
 
    S^{T}\chi \;=\; \tfrac{1}{W}\,\mathrm{full\_scatter\_kernel}^{T}\,\chi ,
+
+.. (vv-status rationale) Definitional identity: the per-ordinate adjoint
+   scattering source (the producer-side 1/W transposing as the scalar it is).
+   Its verifiable content is the LOAD-BEARING per-group Euclidean reciprocity
+   ⟨Sψ,χ⟩=⟨ψ,Sᵀχ⟩ — the frame-form Sᵀ cross-checked against the structurally
+   INDEPENDENT scalar fast-path S — plus the S.apply_transpose == (1/W)·kernelᵀ
+   wiring gate, both ``@pytest.mark.foundation`` in
+   ``tests/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel``;
+   both gates are unwired, so the label stays ``documented`` with the
+   gates named here (wiring backlog: #309).
+.. vv-status: sn-scattering-adjoint-source documented
 
 the producer-side :math:`1/W` transposing as the scalar it is
 (:math:`(A/W)^{T} = A^{T}/W`).

@@ -178,17 +178,14 @@ ratio**.
    k \;=\; \frac{R_{\nu\Sigma_f}(\phi)}
                 {R_{\Sigma_a}(\phi) \;+\; L \;-\; E_{2n}(\phi)}
 
-.. (vv-status rationale) Governing/definitional identity: the reported k
+.. (V&V scope note) Governing/definitional identity: the reported k
    IS the eigenvalue of the posed fixed-source map, not a solver
    eigenvalue-correctness claim against an external analytical reference
    (that rests on the multi-group heterogeneous L1/L2 references
-   elsewhere on this page). The verifiable content is the cross-engine
+   elsewhere on this page). The label is wired to the cross-engine
    consistency gate tests/sn/eigenvalue/test_keff_estimator_gate.py
    (reported k == the converged fixed-point map ratio k* = P(Mφ*)/P(φ*),
    map-ratio ground-truth noise ≤ 2e-11) with in-file mutation teeth.
-   Wiring @pytest.mark.verifies("sn-keff-update") onto that gate is a
-   test-side follow-up (this docs pass could not touch tests/).
-.. vv-status: sn-keff-update documented
 
 The three terms are typed volume-integrated reaction-rate functionals
 and one boundary functional:
@@ -236,6 +233,11 @@ eigenproblem is
    \;=\; \frac{1}{k}\,R_{\nu\Sigma_f,i}
         \;+\; \Sigma_{s,i}\,\phi_i\,V_i
         \;+\; E_{2n,i}
+
+.. (vv-status rationale) Derivation step (the divergence-telescoping cell
+   balance). Its terminal result sn-keff-update is verified by the k* map-ratio
+   gate (tests/sn/eigenvalue/test_keff_estimator_gate.py); definitional.
+.. vv-status: sn-keff-cell-balance documented
 
 (streaming + total collision on the left; the isotropic fission source
 scaled by :math:`1/k`, plus the *unscaled* scatter and :math:`(n,2n)`
@@ -401,6 +403,11 @@ The historical spelling put the :math:`(n,2n)` emission in the
 
    k_{\text{old}} \;=\; \frac{R_{\nu\Sigma_f} + E_{2n}}{R_{\Sigma_a}},
 
+.. (vv-status rationale) Definitional/historical contrast: the superseded
+   (n,2n)-in-numerator spelling. No current code implements it; its bias is
+   characterised in the pre-fix table (#291 commit d1daaac).
+.. vv-status: sn-keff-old-n2n documented
+
 which is a **non-eigenvalue** of the posed map whenever
 :math:`\Sigma_2 \neq 0` *and* :math:`k \neq 1`.  The reason is exactly
 the posing asymmetry: the inner solve scales **only** fission by
@@ -418,6 +425,11 @@ not recover it.  Writing :math:`f = R_{\nu\Sigma_f}`,
    k_{\text{old}}
    \;=\; \frac{k^\star (a - e) + e}{a}
    \;=\; k^\star \;+\; \frac{2 s_2\,(1 - k^\star)}{a}.
+
+.. (vv-status rationale) Mathematical identity (the derived bias of the
+   superseded estimator, k_old - k* = 2 s_2 (1 - k*) / a). Historical
+   characterisation; no current implementing code.
+.. vv-status: sn-keff-old-bias documented
 
 The two agree only when :math:`s_2 = 0` (no :math:`(n,2n)`) or
 :math:`k^\star = 1` (critical).  For a supercritical

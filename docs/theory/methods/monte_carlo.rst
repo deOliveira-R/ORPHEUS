@@ -433,6 +433,14 @@ The probability of a neutron at :math:`\mathbf{r}_0` reaching distance
    P(\text{no collision up to } s)
    = e^{-\Sigma_{\text{maj},g} \, s}
 
+.. (vv-status rationale) derivation step: the majorant free-flight survival
+.. function, the same exponential the free-flight sampler draws from. Its
+.. rate is pinned by ``tests/mc/test_gaps.py::test_free_path_exponential``
+.. (mean/variance of the sampled path length, the wired ``free-flight``
+.. label); the delta-tracking pdf it composes into is
+.. :eq:`delta-tracking-collision-pdf`.
+.. vv-status: majorant-no-collision documented
+
 At each collision site :math:`\mathbf{r}_0 + s\hat{\Omega}`, the collision
 is real with probability:
 
@@ -441,6 +449,13 @@ is real with probability:
 
    P(\text{real} | \text{collision at } s)
    = \frac{\Sigma_{t,g}(\mathbf{r}_0 + s\hat{\Omega})}{\Sigma_{\text{maj},g}}
+
+.. (vv-status rationale) derivation step: the accept (real) probability at a
+.. sampled collision, the complement of the wired
+.. :eq:`virtual-collision-probability` (``P_real = 1 - P_virtual``). Its
+.. complement is explicitly asserted in
+.. ``tests/mc/test_properties.py::test_delta_tracking_virtual_probability``.
+.. vv-status: majorant-real-collision documented
 
 The joint probability of first real collision at distance :math:`s` is:
 
@@ -451,6 +466,15 @@ The joint probability of first real collision at distance :math:`s` is:
    = \Sigma_{\text{maj},g} \, e^{-\Sigma_{\text{maj},g} \, s}
      \cdot \frac{\Sigma_{t,g}(\mathbf{r}(s))}{\Sigma_{\text{maj},g}} \, ds
    = \Sigma_{t,g}(\mathbf{r}(s)) \, e^{-\Sigma_{\text{maj},g} \, s} \, ds
+
+.. (vv-status rationale) derivation terminal: the delta-tracking equivalence
+.. identity, the algebraic product of the two documented component
+.. probabilities (:eq:`majorant-no-collision` and
+.. :eq:`majorant-real-collision`). Its two factors are pinned by the
+.. free-flight and virtual-probability gates, and the direction-preservation
+.. it relies on by ``test_virtual_collision_preserves_direction``; the
+.. equivalence is exercised end-to-end by the heterogeneous MC suite.
+.. vv-status: delta-tracking-collision-pdf documented
 
 For a homogeneous medium (:math:`\Sigma_{t,g}` constant along the path),
 this simplifies to the familiar exponential attenuation
@@ -744,6 +768,15 @@ The expected multiplication per generation is:
    k = (1-c) \cdot \frac{\nu\Sigma_f}{\Sigma_a} \cdot \sum_{n=0}^{\infty} c^n
      = (1-c) \cdot \frac{\nu\Sigma_f}{\Sigma_a} \cdot \frac{1}{1-c}
      = \frac{\nu\Sigma_f}{\Sigma_a}
+
+.. (vv-status rationale) definition: a pedagogical random-walk derivation of
+.. the 1-group infinite-medium multiplication identity ``k = nuSigf/Siga``
+.. (flux-shape-independent, vv-principles anti-pattern #3 — NOT a solver
+.. claim). The numerical value is produced by ``kinf_homogeneous`` and the
+.. fission-weight factor it derives is verified by
+.. ``tests/mc/test_properties.py::test_fission_weight_adjustment`` (the wired
+.. ``fission-weight`` label).
+.. vv-status: mc-analog-multiplication documented
 
 This is exact for 1G and equals the weight factor applied at each
 absorption.  For region A (1G): :math:`\Sigma_a = 0.2 + 0.3 = 0.5`,
@@ -1087,6 +1120,8 @@ Solver Parameters and Results
      - scalar
      - Wall-clock time
 
+
+.. _mc-verification-pins:
 
 Verification — what pins this chapter
 =====================================

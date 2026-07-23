@@ -159,6 +159,7 @@ def test_rate_preservation_scattering_and_n2n(solution, materials):
 
 # ── Companion invariants ──────────────────────────────────────────────
 
+@pytest.mark.verifies("sn-homogenization-balance-preservation")
 def test_homogenized_materials_balance(solution):
     """Balance survives the collapse — every removal channel shares the weight."""
     mm = solution.homogenize(_coarse_two_region())

@@ -249,6 +249,7 @@ def test_thin_reflector_approaches_bare_slab() -> None:
 # ═══════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.foundation
 def test_result_struct_well_formed() -> None:
     """The :class:`SlabReflectedFNResult` struct contains expected fields
     and consistent values."""

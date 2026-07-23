@@ -438,6 +438,7 @@ class TestLDKernel:
         np.testing.assert_allclose(out_y, rout_y, atol=1e-13, err_msg="out_y drift")
 
 
+@pytest.mark.foundation
 def test_ld_returns_cell_result() -> None:
     """update returns a CellResult (slab: outgoing_angular_state is None)."""
     visit, _, _, _ = _slab_visit(cell_idx=1, n_ord=4)

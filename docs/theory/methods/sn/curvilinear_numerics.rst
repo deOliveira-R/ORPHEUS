@@ -307,6 +307,15 @@ Discretising Eq. :eq:`hebert-3-432` on a sub-mesh of cell width
    \;+\; \Delta r_i \cdot \Sigma_i \cdot \bar\phi_i
    \;=\; \Delta r_i \cdot \bar Q_i,
 
+.. (vv-status rationale) Literature-transcribed derivation step: the Hébert
+   Eq. (3.433) DD cell-balance for the μ=−1 starting-direction sweep — a
+   verbatim reference definition en route to the Carlson seed.  Its terminal
+   result (the seed producing the correct flat-flux / cold-start solution) is
+   tested downstream; the hebert-3-43X family's optional explicit wiring is
+   tracked on `Issue #194 <https://github.com/deOliveira-R/ORPHEUS/issues/194>`_
+   (see :ref:`sn-phase-f-test-wiring`).
+.. vv-status: hebert-3-433 documented
+
 with Hébert's typographic conventions
 
 .. math::
@@ -1395,6 +1404,13 @@ within-group source
    \;+\; \frac{1}{k_{\text{eff}}}\,Q^{\text{fiss}}(i, g)
    \;+\; Q^{\text{ext}}(i, g),
 
+.. (vv-status rationale) Notation definition: the decomposition of the
+   within-group SI source (scatter + fission-moment + external).  Not a solver
+   claim; verified transitively by the SI convergence infrastructure (the
+   inner tolerance enforces the fixed-point identity to machine precision), as
+   spelled out in the :ref:`sn-phase-f-test-wiring` note.
+.. vv-status: phase-f-q-1d-decomposition documented
+
 i.e. the **isotropic** within-group source from the previous
 power-iteration's :term:`scalar flux` + fission moment + external
 source.
@@ -1411,6 +1427,14 @@ gives, on the fixed point,
    :label: phase-f-source-eq-sigt-phi0
 
    \Sigma_t(r) \cdot \phi_0(r) \;=\; Q_{\text{1d}}(r),
+
+.. (vv-status rationale) Derivation step: the SI fixed-point identity
+   (Σ_t·φ₀ = Q_1d) that makes the sweep-path Carlson seed canonically
+   equivalent to the apply-path form.  Not a standalone claim; verified
+   transitively by the SI convergence infrastructure — off the fixed point the
+   two forms differ by the SI residual, which vanishes at convergence (see
+   :ref:`sn-phase-f-test-wiring`).
+.. vv-status: phase-f-source-eq-sigt-phi0 documented
 
 so the cell-averaged source at :math:`\mu = -1` (Eq.
 :eq:`hebert-3-432-source` collapsed to :math:`L = 0`,

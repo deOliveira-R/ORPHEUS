@@ -63,6 +63,13 @@ retypes the driver–inverse boundary.** The solver (posing) layer builds
 the inverse *once*, and the iteration primitive
 (:class:`~orpheus.numerics.iteration.SourceIteration`) *applies* it:
 
+.. (vv-status rationale) The SI driver update
+   ψ_{n+1} = A_inv.apply(q_ext + Σ_i g_i ψ_n, initial_guess=ψ_n), with
+   A_inv = A⁻¹ built by the solver (#226 step 3). Governing iteration
+   (structural); the SI fixed point is exercised by the source-iteration
+   solver suites.
+.. vv-status: inverse-driver-si-update documented
+
 .. math::
    :label: inverse-driver-si-update
 
@@ -97,6 +104,12 @@ The seeded-apply family — who threads the start, who ignores it
 
 The inverse family exposes ONE canonical apply signature — the static
 contract :class:`~orpheus.numerics.iteration.SupportsSeededApply`:
+
+.. (vv-status rationale) The canonical SupportsSeededApply signature
+   apply(rhs, *, initial_guess=None) → codomain. A notation / type-contract
+   definition (a static annotation target, deliberately not
+   runtime_checkable).
+.. vv-status: seeded-apply-signature documented
 
 .. math::
    :label: seeded-apply-signature
@@ -151,10 +164,14 @@ The contract is **static only** (an annotation target), deliberately
 :class:`~orpheus.numerics.operator.SupportsInverse`. The runtime truth is
 the :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
 property; the Protocol pins the *shape* pyright checks. Threading the seed
-**unconditionally** (no per-call decision) is what lets the driver be
-shape-agnostic — pinned by the always-on Mode-11 spy
+**unconditionally** (no per-call decision) is what let the driver be
+shape-agnostic — pinned at the time by the always-on Mode-11 spy
 ``test_seed_threading_spy.py`` (call *k*'s ``initial_guess`` must equal
-call *(k−1)*'s return, by value).
+call *(k−1)*'s return, by value; **retired in #280 2.5c** together with
+the vestigial ``initial_guess`` threading it guarded). The live pins on
+the seed contract are the strict no-forwarding spy in
+``tests/sn/operators/test_inverse_operator_equivalence.py`` and the
+curvilinear value catcher in ``tests/sn/eigenvalue/test_keff_curvilinear.py``.
 
 
 Retiring the signature probe — why it existed, why it could go
@@ -325,8 +342,12 @@ The two eigenvalue-outer consumers pose the inverse explicitly:
 Verification — the seed spy and the windowed×G-S corner
 -------------------------------------------------------
 
-The rewire is pinned by three structural gates (all ``-O``-proof —
-``pytest.fail`` / ``np.testing.assert_*``, never a bare ``assert``):
+The rewire was pinned by three structural gates (all ``-O``-proof —
+``pytest.fail`` / ``np.testing.assert_*``, never a bare ``assert``;
+``test_seed_threading_spy.py`` was **retired in #280 2.5c** with the
+vestigial ``initial_guess`` threading it guarded — the live seed-contract
+pins are ``tests/sn/operators/test_inverse_operator_equivalence.py`` and
+``tests/sn/eigenvalue/test_keff_curvilinear.py``):
 
 .. list-table:: Step-3 regression gates
    :header-rows: 1
@@ -437,6 +458,12 @@ which converge iff the iteration matrix is a contraction,
 :math:`\rho(A^{-1}B) < 1`. For the within-group transport loss
 :math:`A_{\rm loss} = (L+C) - S` this is the physical **scattering-ratio**
 bound
+
+.. (vv-status rationale) The scattering-ratio contraction bound
+   ρ((L+C)⁻¹S) ≤ max Σ_s/Σ_t = c < 1 (Adams & Larsen 2002 §II).
+   Literature-transcribed mathematical identity, matching the sentineled
+   green-neumann-series / green-splitting-iteration siblings.
+.. vv-status: green-scattering-ratio-bound documented
 
 .. math::
    :label: green-scattering-ratio-bound

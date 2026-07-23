@@ -124,6 +124,13 @@ response pairs against it,
      \mathrm{d}s
    \right],
 
+.. (vv-status rationale) Definitional identity: the track-length moment is
+   the DEFINITION of the quantity all five transport methods compute
+   (Lux–Koblinger 1991) — ⟨Σ_d,φ⟩ as the expected Σ_d-weighted track length
+   over the history family. A literature-transcribed definition, not a solver
+   claim; the flux it defines is verified per method downstream.
+.. vv-status: path-integral-track-length-moment documented
+
 the detector reading as the expected accumulation of
 :math:`\Sigma_d`-weighted **track length** over the whole family. This
 identity is not a Monte Carlo convention; it is the definition of what all
@@ -147,6 +154,12 @@ multiplicative weight that books the mean branching encountered along it,
      e^{\int_0^t (m(\xi_s) - 1)\,\beta(\xi_s)\,\mathrm{d}s}\,
      f(\xi_t)
    \right],
+
+.. (vv-status rationale) Literature-transcribed theorem: the many-to-one
+   (spine) lemma of branching-process theory (Lyons–Pemantle–Peres 1995,
+   Hardy–Harris 2009). A classical identity that legitimises the first-moment
+   collapse, not a solver claim.
+.. vv-status: path-integral-many-to-one documented
 
 with :math:`\xi` the spine, :math:`\beta` the collision rate and :math:`m`
 the mean number of secondaries per collision. **Linearity is what makes
@@ -213,6 +226,13 @@ effect on the atom field. The honest pair is
    \\
    \partial_t f_A + \vec v_A \cdot \nabla f_A
      &= Q_{AA}[f_A, f_A] \;+\; Q_{An}[f_A, f_n],
+
+.. (vv-status rationale) Literature-transcribed kinetic-theory ledger: the
+   coupled two-species Boltzmann system (Bell–Glasstone 1970, Duderstadt–
+   Hamilton 1976, Case–Zweifel 1967) from which linear neutron transport is
+   recovered by three stated reductions. A governing-equation transcription,
+   not a solver claim.
+.. vv-status: path-integral-two-species-ledger documented
 
 and every collision term is **bilinear** in its two arguments — the full
 system is nonlinear. Neutron transport is this system after **three
@@ -495,6 +515,15 @@ Stamm'ler outflow convention :cite:`Stamm1983`)
    \qquad
    D \;=\; \frac{1}{3\,\Sigma_{\mathrm{tr}}},
 
+.. (vv-status rationale) Literature-transcribed definition: the Stamm'ler
+   outflow transport correction (Stamm'ler–Abbate 1983). Its terminal result
+   is verified downstream under the diffusion method's ``diffusion-coefficient``
+   label — ``tests/data/test_mixture_transport_xs.py`` pins Σ_tr = Σ_t −
+   rowsum(Σ_s1) (foundation ``test_transport_xs_is_total_minus_p1_outscatter_row_sum``)
+   and D = 1/(3Σ_tr) (L1 ``test_diffusion_coefficient_matches_definition``).
+   Restated here to illustrate the method-dependent partition; not a separate claim.
+.. vv-status: path-integral-transport-correction documented
+
 which **relocates the** :math:`\ell = 1` **scattering moment into the
 streaming term**: the anisotropy of scattering, a piece of :math:`S` in
 the S\ :sub:`N` partition, lives inside diffusion's :math:`L` (through
@@ -534,6 +563,12 @@ within-group) transport generator as
    :label: path-integral-generator-splitting-eq
 
    \mathcal{A} \;=\; \mathcal{A}_0 \;+\; P,
+
+.. (vv-status rationale) Structural/conceptual definition: the generator
+   splitting into a resolved part and a perturbation — the branch point that
+   organises the whole method family (killing / jump / majorised-jump). A
+   framing definition, not a solver claim.
+.. vv-status: path-integral-generator-splitting-eq documented
 
 and choose which physics rides in the **resolved part**
 :math:`\mathcal{A}_0` (the part whose evolution is computed in closed
@@ -613,6 +648,12 @@ Let :math:`\mathbb{P}_t` be the law of the analog process (jump rate
    \prod_{j=1}^{J}
      \frac{\Sigma_t(x_j)}{\Sigma_{\mathrm{maj}}},
 
+.. (vv-status rationale) Literature-transcribed identity: the Girsanov /
+   Radon–Nikodym change of measure on path space bridging the analog and
+   majorised (delta-tracking) Monte-Carlo laws (Woodcock 1965, Lux–Koblinger
+   1991). A change-of-measure definition for the MC reading, not a solver claim.
+.. vv-status: path-integral-girsanov documented
+
 with the integral running along the flight path. Read its two factors
 against the algorithm: the **per-jump factor**
 :math:`\Sigma_t/\Sigma_{\mathrm{maj}}` *is* the delta-tracking acceptance
@@ -684,6 +725,12 @@ of the same resolvent. One condition governs both expansions:
    \qquad
    \mathcal{A} = -(L + C - S),
 
+.. (vv-status rationale) Mathematical identity: the subcriticality /
+   series-convergence condition — the iteration spectral radius crossing 1
+   coincides with convergence of the semigroup time-integral. A spectral-
+   convergence statement, not a solver claim.
+.. vv-status: path-integral-subcriticality documented
+
 and when it holds, both sides construct the *same* operator
 :math:`(L+C-S)^{-1}` — the stationary series sums it, the semigroup
 time-integral accumulates it. (The equivalence leans on positivity: for
@@ -718,6 +765,13 @@ of clause 2 below. Two honesty clauses attach:
       \Sigma_c + \Sigma_L + \Sigma_f
       + \Sigma_{s0} + \Sigma_{2n},
 
+   .. (vv-status rationale) Literature-transcribed definition: the data-model
+      per-group balance every Mixture carries (the same identity as
+      :eq:`sigT-computed`); gated by ``Mixture.assert_balanced``. A data-layer
+      definition, restated here to derive the sub-stochasticity check; not a
+      solver claim.
+   .. vv-status: path-integral-substochasticity-bound documented
+
    with :math:`\Sigma_c` capture, :math:`\Sigma_L` the
    :math:`(n,\alpha)`-family absorption, :math:`\Sigma_{s0}` the **full**
    P\ :sub:`0` scattering row sum — in-group scatter included, because
@@ -738,6 +792,12 @@ of clause 2 below. Two honesty clauses attach:
       c^\ast > 1
       \quad\Longleftrightarrow\quad
       \Sigma_{2n} \;>\; \Sigma_c + \Sigma_L + \Sigma_f .
+
+   .. (vv-status rationale) Derivation step: the (n,2n) super-stochasticity
+      criterion c* > 1, obtained by rearranging the balance identity
+      :eq:`path-integral-substochasticity-bound`. A data-checkable criterion,
+      not a solver claim.
+   .. vv-status: path-integral-n2n-criterion documented
 
    A group where :math:`(n,2n)` production outweighs all absorption is
    *locally* super-stochastic without any fission — the collision-order
@@ -893,6 +953,14 @@ as entries of the **Padé table of the exponential**:
    \underbrace{\frac{1-\tau/2}{1+\tau/2}}_{\text{diamond difference} \;=\; [1/1]}
    \qquad
    \underbrace{e^{-\tau}}_{\text{characteristics — exact}}
+
+.. (vv-status rationale) Representational identity: the spatial-closure family
+   read as entries of the Padé table of e^−τ (step = [0/1], diamond-difference
+   = [1/1], characteristics = exact). The [1/1] entry is realised by the
+   sweep-cache amplification coefficient a = (2|μ|−Σ_tV)/(2|μ|+Σ_tV)
+   (``diamond.py`` / ``sn/sweep/cache.py``). A representational framing, not a
+   solver claim.
+.. vv-status: path-integral-pade-table documented
 
 The identification is verbatim in the code, not an analogy: the sweep
 cache's slab-neutral amplification coefficient is
@@ -1112,6 +1180,13 @@ generation series
    \sum_{n=0}^{\infty} \bigl(A^{-1} F\bigr)^{n}\, A^{-1} q,
    \qquad
    \rho\bigl(A^{-1} F\bigr) \;=\; k,
+
+.. (vv-status rationale) Mathematical identity: the fission-generation Neumann
+   series and the statement that its convergence radius IS the multiplication
+   factor. Its terminal result k = ρ(A⁻¹F) is the ``matrix-eigenvalue`` claim
+   verified downstream (:doc:`infinite_medium`). A derivation identity, not a
+   separate solver claim.
+.. vv-status: path-integral-generation-series documented
 
 and its convergence is governed by the spectral radius of the
 mean-offspring operator — which **is** the effective multiplication
