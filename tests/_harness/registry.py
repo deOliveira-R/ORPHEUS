@@ -34,6 +34,10 @@ from typing import Literal
 #
 # See ``docs/theory/verification/harness.rst`` ("Foundation tests —
 # software invariants outside the L0..L3 ladder") for the full rationale.
+#
+# The normative L0..L3 ladder definition — what each rung proves and
+# deliberately does not prove — lives at
+# ``docs/theory/verification/principles.rst`` (anchor ``vv-level-ladder``).
 VVLevel = Literal["L0", "L1", "L2", "L3", "foundation"]
 
 # Resolution tag for how a test got its V&V level. Used by the audit

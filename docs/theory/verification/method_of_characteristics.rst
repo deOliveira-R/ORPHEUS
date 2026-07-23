@@ -291,10 +291,10 @@ default; increasing to TY-2 or TY-1 is acceptable for quick
 exploratory runs.
 
 
+.. _moc-mms-verification:
+
 MMS Verification
 ================
-
-.. _moc-mms-verification:
 
 The Method of Manufactured Solutions (MMS) provides an L1-level
 verification of the flat-source MOC spatial operator.  Unlike the

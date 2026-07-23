@@ -2,8 +2,8 @@
 
 ## 1. Lessons (the behavioral spine)
 
-[lessons.md](lessons.md) — 55 behavioral lessons (`## L-NNN -- title`,
-ascending, contiguous L-001..L-055). "What mistake did I make, what did I
+[lessons.md](lessons.md) — 56 behavioral lessons (`## L-NNN -- title`,
+ascending, contiguous L-001..L-056). "What mistake did I make, what did I
 learn that improved my review behaviour." Consult before every review;
 sharpen in place after every task. The recurring spine:
 
@@ -60,6 +60,13 @@ sharpen in place after every task. The recurring spine:
   grep(symbol/wiring/workaround)+`gh issue view` BEFORE ruling; guards:
   a stale RUNTIME STRING is behavioral→KEEP, a "HALTs Phase X" load-bearing
   banner is a characterization record→KEEP.
+- **Distillation-fidelity review** (L-056) — a skill→Sphinx doctrine page:
+  the DOCTRINE is faithful (read vs preloaded skill), yield is in code-anchored
+  SPECIFICS the build can't gate — `:mod:`/`:class:` roles are NOT `-W`-gated
+  (dead target renders as plain text; grep corpus, the OUTLIER-count spelling
+  is the bug), and the skill SOURCE carries stale specifics that propagate, so
+  verify module-path/`mpmath`-vs-`scipy`/test-count against CODE + the consuming
+  test's docstring, never the skill twin.
 
 ## 2. Active / in-flight state
 

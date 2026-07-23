@@ -1276,3 +1276,59 @@ heuristic = discovery layer; record in harness.rst + extractor ask on nexus#1.
   known carriers; pyright tree-wide 1866 pre==post (0 new; touched
   .py = docstrings only); enforcer losslessness char-diff PASS on
   every moved section (only declared adaptations differ).
+- **V5 ✅ 2026-07-23** — principles.rst AUTHORED (259-ln scaffold →
+  the corpus doctrine owner, ~780 source ln): O–R frame · structural
+  independence (root principle; ERR-032/051) · claim-layer taxonomy ·
+  **the normative ladder** (per-rung proves/does-NOT-prove +
+  necessity chain + foundation + L4 ruling; anchor `vv-level-ladder`
+  TRAVELED harness→principles; reference_solutions:38 followed
+  automatically) · three pillars (P1 table verbatim; MMS why-rules +
+  AI-bias override; 2-step semi-analytical ladder; ancillary
+  non-pillars) · three-meanings (P3 verbatim) · tiers/operator-forms
+  summarized (definitions stay at reference_solutions — native
+  place) · **the 5-system classification map** (claim layer × ladder
+  × pillar × tier × operator form; worked diffusion example, all
+  five coordinates code-verified by qa) · **Richardson = retired
+  reference class** (label + eq kept; T3-ban account; per-method
+  history SN 2.1a / MOC 2.2a / diffusion #290 P6 — discharges the
+  V3-inherited CONCERN) · case contract (P5 3-things + tolerance
+  table, the 2 stale rows reconciled) · principled-equivalence (3
+  criteria + swap/silent/amplify triad) · failure modes 1–12
+  distilled · 12 anti-pattern redirects · ERR-catalog contract (P2
+  integrated; catches = mutation-verified coverage claim). LADDER
+  CONSOLIDATED one-home: harness Motivation thinned to pointers (the
+  stale L2 "cross-method consistency, Richardson" row DISSOLVED with
+  the table); repoints = router (paragraph + truthful chapter-map
+  row) · cross_method (**L1-strength = REGRESSION evidence**
+  reconciliation, cites `verification-l4-ruling`) · sood_registry ·
+  registry.py comment · SKILL.md corpus-home pointer (declared
+  split: new modes land in the skill FIRST, page carries doctrine).
+  BY-PRODUCT FIXES: methods/moc.rst derivation-sources bullet →
+  mms/moc.py (was Richardson-live); cases/moc.py docstring (module
+  is homogeneous-only); **T1.5 tier definition ADDED** (ledger used
+  it; definition list jumped T1→T2); `moc-mms-verification` anchor
+  moved ABOVE its title (P10 label-follows-heading — a below-title
+  bare target breaks bare :ref:, caught by -W). Reviews: **qa
+  PASS-with-fixes, ALL APPLIED** — M1 dead
+  `:mod:.continuous.peierls` → `peierls_nystrom` (-W-BLIND Python-
+  domain role; propagated to SKILL.md + reference.md + derivations/
+  README which carried the same stale path ×2); M2 diffusion worked
+  example "mpmath" → double-precision brentq (code outranks: no
+  mpmath import; the consuming test's docstring says double-
+  precision); S1 ERR-006 "twenty one-group tests" → "twenty passing
+  tests" (3 sources agree the 20 were mixed classes — the deleted
+  harness table was the outlier); modes 7–12 distillation certified
+  INVERSION-FREE. **enforcer PASS-with-fixes** — P1–P6 accounting
+  LOSSLESS/adapted-as-declared by char-diff (P1 22/22 + P3 24/24
+  byte-identical; 7 tolerance rows byte-identical); P6 dissolution
+  adjudicated a single-source WIN (Ki₄-20k = solver magic constant,
+  native place the CP chapters, grep-confirmed homed); ladder
+  one-home certified by STRUCTURAL grep (zero rival rung tables
+  tree-wide); SHOULD-FIX harness:317 foundation thumbnail "is
+  defined"→"is organized"+:ref: APPLIED; CONCERN skill⇄page
+  dual-home is GOVERNED but prose-only → **#307 filed** (parity
+  guard: count+name parity, wording free, expectation lives in the
+  test). Gates: `-E -W` exit 0 (final tree re-certified; the one
+  mid-stage warning pair root-caused to the below-title anchor);
+  collect 6659 / orphans 256 / documented 321 invariant; matrix
+  BYTE-STABLE; skip-set the 2 known carriers; ERR coverage 69/69.

@@ -344,8 +344,8 @@ constraint does not. Override deliberately.
 The reduction from governing equation to single-integral form is
 analytical; the integral evaluation is numerical at arbitrary
 precision. The Peierls reference solver in
-`orpheus.derivations.continuous.peierls` is the canonical ORPHEUS
-instance.
+`orpheus.derivations.continuous.peierls_nystrom` is the canonical
+ORPHEUS instance.
 
 The 2-step correctness ladder:
 

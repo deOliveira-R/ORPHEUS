@@ -73,9 +73,12 @@ verification are computed by:
 - ``orpheus/derivations/common/eigenvalue.py`` ---
   :func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous` for infinite-medium
   eigenvalue (all solvers share this)
-- ``orpheus/derivations/continuous/cases/moc.py`` --- homogeneous cases (analytical) and
-  heterogeneous cases (:ref:`Richardson extrapolation <richardson-extrapolation>`
-  of the MOC solver with ray-spacing refinement)
+- ``orpheus/derivations/continuous/cases/moc.py`` --- homogeneous cases (analytical)
+- ``orpheus/derivations/continuous/mms/moc.py`` --- the heterogeneous
+  reference: a manufactured continuous solution for the pin-cell
+  spatial operator (:ref:`moc-mms-verification`). The
+  Richardson-extrapolated heterogeneous reference is retired ---
+  see :ref:`richardson-extrapolation`.
 
 Every equation in this chapter can be verified against these scripts
 and the cited references.

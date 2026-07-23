@@ -10,6 +10,13 @@ This skill is the **decision instrument**. The pedagogy lives in
 verification-plan design, and bug triage. Open `reference.md` when
 you need the philosophy or the worked case studies.
 
+The corpus (Sphinx) home of this doctrine is
+`docs/theory/verification/principles.rst` — the normative ladder /
+pillar / claim-layer definitions render there. This skill is the
+agent-side operational instrument: new failure modes and
+anti-patterns land HERE first; the corpus page carries the doctrine
+and its rationale.
+
 ---
 
 ## CRITICAL: Anti-patterns to flag immediately
@@ -289,8 +296,8 @@ Semi-analytical correctness rests on a two-step chain:
 
 If both steps hold, the integral evaluation gives the solution to
 arbitrary precision. The Peierls reference solver in
-`orpheus.derivations.continuous.peierls` is the canonical ORPHEUS
-instance.
+`orpheus.derivations.continuous.peierls_nystrom` is the canonical
+ORPHEUS instance.
 
 ### Structural independence — applies across all three pillars
 

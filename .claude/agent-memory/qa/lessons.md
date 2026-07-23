@@ -2167,3 +2167,41 @@ diff ONLY your own touched files to confirm your edits are comment-only (cross-r
 shared-tree note). (#304 surface-2, 2026-07-22: 277 hits in scope, 3 files FIXed -- a
 future-closure-now-shipped, a workaround-now-0-hits, a Phase-2-constructors-now-shipped; the rest
 KEEP.)
+
+---
+
+## L-056 -- reviewing a skill->Sphinx DISTILLATION: verify code-anchored specifics against CODE, never against the skill source (the source carries stale specifics that propagate, and the build gate is blind to them)
+
+When a Sphinx page is authored as a faithful distillation of a `.claude/skills/*` doctrine
+(e.g. `verification/principles.rst` from `vv-principles/{SKILL,reference}.md`), the DOCTRINE
+(ladder/pillars/claim-layers/modes/anti-patterns) is almost always faithful -- reading it against
+the preloaded skill confirms mechanism/instance/defense with no inversion (verified the whole
+modes-7..12 highest-risk block clean this way in one pass). The yield is entirely in the
+**code-anchored SPECIFICS the skill states but the build never checks**: module paths, an
+"evaluated in mpmath" vs `scipy.optimize.brentq`-double impl detail, a test-count, an ERR
+war-story's composition. Two structural reasons the build gate misses these:
+
+1. **Python-domain roles are not `-W`-gated.** A `:mod:`/`:class:`/`:func:` pointing at a
+   NON-EXISTENT target renders as plain text with NO warning unless the build runs `-n` (nitpicky)
+   -- so an "exit 0 -W" gate is ZERO evidence a `:mod:` resolves. Verify every code-pointer by
+   filesystem/`find`, AND grep the WHOLE corpus for the canonical spelling: the OUTLIER count is
+   the bug (caught `orpheus.derivations.continuous.peierls` used 1x on the reviewed page vs
+   `...peierls_nystrom` 240x everywhere else -- the bare form is a dead module).
+2. **The skill source is not the code and is not build-gated, so its stale specifics propagate
+   verbatim into the corpus.** The reviewed page inherited BOTH a dead module path AND a wrong
+   impl detail from `reference.md`/`SKILL.md` -- both said the same wrong thing, so cross-checking
+   the page against the skill would have PASSED them. "Code outranks doc" means CODE, not the
+   trusted skill twin: confirm `mpmath`-vs-`scipy`, `brentq`-vs-`findroot`, `dtype=float`-vs-`mp.mpf`
+   by reading the derivation, and read the CONSUMING test's docstring (it often states the truth
+   the doctrine page fumbled -- here "double-precision transfer-matrix back-substitution").
+
+A "worked example" whose stated purpose is "every coordinate is TRUE for this case" is a MUST-FIX
+magnet: check each coordinate independently (claim-layer / ladder / pillar / tier / operator-form)
+-- the classification can be right (semi-analytical, T2, `operator_form=="diffusion"` all held)
+while ONE parenthetical mechanism token is false. None of these pushbacks is a vv-principles
+anti-pattern (they are doc-accuracy, not evidence-reasoning) -> no skill anti-pattern addition;
+this is the distillation-review application of Cardinal-Rule-3 + the retirement-audit "grep docs,
+Python-roles silent under `-W`" rule. (#10 stage V5 principles.rst review, 2026-07-23: 2 MUST-FIX
+[dead `:mod:` peierls path; "evaluated in mpmath" on a brentq/double reference] + 1 SHOULD-FIX
+[carried "twenty one-group tests" where 3 sources say "20 passing tests", a mix]; the ~40-claim
+doctrine body otherwise faithful.)

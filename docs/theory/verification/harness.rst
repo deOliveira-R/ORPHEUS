@@ -15,47 +15,22 @@ Motivation
 
 ORPHEUS operates a four-level physics-verification ladder (L0..L3)
 plus an orthogonal ``foundation`` bucket for software-invariant
-tests that don't correspond to a physics equation. Each rung of the
-ladder requires the rungs below it; ``foundation`` is not on the
-ladder — see :ref:`vv-foundation-tests` for the taxonomy.
+tests that don't correspond to a physics equation. The ladder
+itself — what each rung proves, what it deliberately does not
+prove, and the necessity chain between rungs — is defined
+normatively at :ref:`vv-level-ladder` in :doc:`principles`;
+``foundation`` is not on the ladder — see
+:ref:`vv-foundation-tests` for the taxonomy. This page owns the
+*harness* side of the contract: how a test declares its rung, how
+the declarations are audited, and how the declared facts reach the
+verification matrix and the Nexus knowledge graph.
 
-.. _vv-level-ladder:
-
-.. list-table:: The L0..L3 physics-verification ladder
-   :header-rows: 1
-   :widths: 8 22 70
-
-   * - Rung
-     - Name
-     - What it proves
-   * - **L0**
-     - Term Verification
-     - Every individual term of the governing equation matches a hand
-       calculation. Done with synthetic cross sections so the answer is
-       closed-form. Catches sign flips, missing factors, wrong indices,
-       and convention drift per term.
-   * - **L1**
-     - Equation Verification
-     - The full operator reproduces an analytical eigenvalue, or the
-       Method of Manufactured Solutions (MMS) residual converges at the
-       asserted order. **Measured** convergence order, not just
-       "passes a tolerance."
-   * - **L2**
-     - Integration
-     - Multi-group heterogeneous problems self-converge or match an
-       independent reference (cross-method consistency, Richardson
-       extrapolation).
-   * - **L3**
-     - Validation
-     - Comparison against experiment (ICSBEP, IRPhE).
-
-1-group tests are **degenerate** for transport verification —
-:math:`k = \nu\Sigma_f / \Sigma_a` regardless of flux shape, so angular
-errors, normalization bugs, and convergence failures are invisible. The
-ORPHEUS cylindrical diamond-difference recurrence bug (ERR-006 in
-``.claude/skills/vv-principles/error_catalog.md``) survived 20 one-group tests before a
-multi-group run caught it. **Always demand ≥2G for any test claiming to
-verify transport.**
+One ladder rule is worth restating wherever tests are authored:
+1-group eigenvalue tests are **degenerate** for transport
+verification — :math:`k = \nu\Sigma_f / \Sigma_a` regardless of
+flux shape — so always demand ≥2 groups for any test claiming to
+verify transport. The canonical statement and the ERR-006 war
+story live at :ref:`verification-1g-degeneracy`.
 
 Design principles
 -----------------
@@ -339,9 +314,10 @@ ever trips the scanner, the example is the thing to restructure.
 Foundation tests — software invariants outside the L0..L3 ladder
 -----------------------------------------------------------------
 
-The L0..L3 ladder is defined around Cardinal Rule 4 — "Are we solving
-the equations right?" Each rung assumes there is a **physics
-equation** in a Sphinx theory page being verified: L0 checks a
+The L0..L3 ladder (:ref:`vv-level-ladder`) is organized around
+Cardinal Rule 4 — "Are we solving the equations right?" Each rung
+assumes there is a **physics equation** in a Sphinx theory page
+being verified: L0 checks a
 hand-calculation of a single term, L1 asserts measured convergence
 order against an analytical or manufactured solution, L2 proves
 multi-group heterogeneous consistency, and L3 compares against

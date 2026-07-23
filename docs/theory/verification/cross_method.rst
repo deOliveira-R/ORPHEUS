@@ -57,8 +57,8 @@ relevant cases in via their ``tolerances`` map.
 V&V level mapping
 -----------------
 
-Per the ``vv-principles`` skill (``.claude/skills/vv-principles/``),
-§"V&V level taxonomy", the
+Per the normative ladder (:ref:`vv-level-ladder`, mirrored
+operationally in the ``vv-principles`` skill), the
 conceptual level of "two solvers agreeing" is **L4** —
 "informational, parallel to the ladder; produces zero correctness
 info on its own". The L0-L3 ladder is reserved for evidence that
@@ -78,8 +78,11 @@ them as **L1** because:
 * when both methods are L1-grade and structurally independent (e.g.
   F_N's Case-eigenfunction representation vs trajectory_resolvent's
   bouncing-characteristic representation), their pairwise agreement
-  is **L1-strength evidence** for either, not just L4
-  "implementations agree".
+  is **L1-strength regression evidence** for either — a drift in
+  either method off its own L1-pinned truth reddens the pair gate —
+  not just L4 "implementations agree". The *primary* L1 evidence
+  remains each method's own truth gate; the agreement is never a
+  stand-in for it (:ref:`verification-l4-ruling`).
 
 The cross-method gates inherit L1 from this convention. The
 ``test_*_matches_truth`` gates carry L1 as the truth match. The

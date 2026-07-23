@@ -2,9 +2,12 @@ r"""MOC (Method of Characteristics) eigenvalue derivations.
 
 Homogeneous: derived analytically from the characteristic ODE.
 
-Heterogeneous: Richardson-extrapolated reference from the MOC solver
-at multiple ray spacing refinements.  The reference is the converged limit
-of the MOC equations themselves.
+Heterogeneous cases are NOT derived here.  The Richardson-extrapolated
+heterogeneous reference this module once carried is retired (tier T3,
+methodologically banned — the solver under test as its own reference;
+see ``docs/theory/verification/principles.rst``).  The heterogeneous
+MOC reference is the manufactured-solution continuous reference in
+``orpheus.derivations.continuous.mms.moc``.
 """
 
 from __future__ import annotations

@@ -631,3 +631,66 @@ grep catches it; (2) the FAIL-LOUD half of the same batch was self-verifying —
 27 wild/dead sentinels were deleted (any survivor would exit-2 the build), so the sentinel
 retirement needed no line-by-line trust. Contrast the two halves: the machinery retirement was
 provable by running it; the DOC retirement was only provable by tree-grep + tense discrimination.
+
+---
+
+## L-016 -- Reviewing the INTEGRATION of parked scaffold (the INVERSE of a gather/split): certify losslessness fact-by-fact, and the killer one-home check is the STRUCTURAL grep, not the anchor grep
+
+Task #10 V5 authored `verification/principles.rst` (259→1070 ln) by integrating six sections
+parked verbatim at stages V2/V3 (they sit in `git show HEAD:<page>`) AND consolidating a moved
+anchor (`vv-level-ladder`, harness→principles). This is L-013's mirror image: not "did content
+travel out losslessly" but "did parked content arrive losslessly + get correctly adapted."
+The recipe:
+1. **Enumerate every parked ATOMIC fact P1..Pn from HEAD, then bucket each: {present | ADAPTED-
+   as-declared | LOSSY}.** A declared ADAPTATION list is a CLAIM — endorse each only after
+   locating the fact in the new page (or its declared new home). The lone genuine DROP here (a
+   Ki₃/Ki₄ "20,000-point" magic number) was ACCEPTABLE — and in fact a Pattern-2/Pattern-7 WIN:
+   a solver-specific number on a cross-cutting DOCTRINE page is a single-source violation; its
+   native place is the CP chapter (grep-confirmed: `methods/collision_probability.rst` carries
+   the exact "20,000-point lookup table", `verification/collision_probability.rst` the full
+   `{5000,20000,40000}` resolution test). Adjudicate a declared drop by OPENING the claimed home
+   (L-013 pt-5, diff-boundary≠review-boundary), never by trusting the brief's "it lives in X".
+2. **Char-diff the declared-VERBATIM blocks against HEAD** (L-013 pt-2, mechanized): a tiny
+   line-based `block(start_sub,end_sub)` extractor over `git show HEAD:` vs live, assert list-
+   equality. Certified P3 (24/24 lines) + the pillar table (22/22) byte-identical, and the
+   tolerance table's 7 unchanged rows byte-identical with only the 2 DECLARED-reconciled rows
+   differing — which is what lets me say "verbatim" instead of "looks the same."
+3. **One-concept-one-home for a MOVED anchor = TWO greps, and the second is the killer.** (a)
+   grep the anchor name tree-wide, confirm exactly ONE `.. _anchor:` DEF + all else `:ref:` uses
+   (repoint audit). (b) THE STRUCTURAL grep the anchor-grep MISSES: a rival definition that does
+   NOT carry the anchor. Here `grep -rn -E '^\s*-\s*\*\*L0\*\*|^\s*-\s*Rung\b'` (the rung
+   list-table header shape) tree-wide returned EMPTY ⟹ the only ladder rung-TABLE is in the
+   normative home. A twin definition rarely reuses the moved label; it re-spells the concept, so
+   grep the concept's STRUCTURE (the table row shape / the "L0 …, L1 …" enumeration), not just
+   its anchor.
+4. **The surviving twin hides OUTSIDE the diff, in the SAME file as a repointed site** (L-015
+   again, integration flavour). The consolidation gutted harness's Motivation to a pointer
+   ("the ladder … is defined normatively at :ref:`vv-level-ladder`"), but 290 lines down the
+   pre-existing Foundation-tests section still opened "The L0..L3 ladder **is defined** around
+   Cardinal Rule 4" + a four-rung thumbnail. TWO "is defined" claims about one ladder in one
+   file, different homes. Coextensive-today (each rung clause agrees with the normative def) ⟹
+   SHOULD-FIX not VIOLATION (add the `:ref:`, soften "defined"→"organized"), but it IS the one
+   spot the "define once, point everywhere" mandate left open — and a diff-scoped read misses it
+   because the offending line was never touched. Always read the WHOLE file that owns a
+   repointed site, hunting a second definitional verb.
+5. **STALE-BUILD false-positive guard (new tooth).** `grep -rn <anchor> docs/` surfaced a
+   SECOND `.. _vv-level-ladder:` in `docs/_build/html/_sources/testing/architecture.rst.txt` —
+   a heart-stopping apparent twin. It is gitignored BUILD CRUFT: `test -f docs/testing/
+   architecture.rst` = ABSENT, `git check-ignore docs/_build` = ignored. Prior restructure
+   stages leave OLD anchor definitions (and even old page PATHS — both `verification/` and
+   `theory/verification/` copies coexisted here) frozen in `_build/_sources`. ALWAYS filter
+   `| grep -v _build` on a tree-wide anchor sweep, or confirm the hit's source file exists,
+   before crying twin.
+6. **The doctrine-page-as-"operational-twin"-of-a-skill call.** V5 declared principles.rst the
+   corpus twin of the `vv-principles` SKILL (page=doctrine+rationale, skill=agent-side
+   operational instrument; "new failure modes land in the skill FIRST"). The failure-mode
+   catalogue (Modes 1-12) + anti-pattern redirects are genuinely dual-homed — a Cardinal-Rule-2
+   trigger. Verdict CONCERN-not-VIOLATION because: reciprocal cross-pointers both directions,
+   an explicit OWNERSHIP rule (skill owns additions), a FUNCTIONAL partition (page defers
+   operational recipes to the skill: "mutation protocols, sentinel patterns live in the skill"),
+   AND Cardinal Rule 3 positively WANTS doctrine in the corpus. The residual habitat: the
+   ownership rule is prose, unenforced — the collapse trigger is "Mode 13 lands in the skill,
+   page not updated." Suggest a lightweight parity check (mode-count doc-test / page enumerates
+   modes by :ref: into the skill); non-blocking. This is my institutional-smell #1 (twin-
+   delivery single-sourced at the concept level w/ reciprocal xrefs + a governance rule) in
+   PROSE form. (task #10 V5, 2026-07-23.)

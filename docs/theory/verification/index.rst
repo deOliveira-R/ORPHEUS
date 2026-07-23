@@ -23,8 +23,9 @@ ladder. Every test declares its rung via ``pytest.mark.l0`` /
 tests, the equation labels it exercises via
 ``pytest.mark.verifies``. Solver-vs-solver agreement is **L4
 (informational)** — recorded by the cross-method protocol, never a
-stand-in for L0–L3 correctness evidence. See :ref:`vv-vocabulary`
-for the binding definitions.
+stand-in for L0–L3 correctness evidence. The normative ladder
+definition is :ref:`vv-level-ladder` in :doc:`principles`; see
+:ref:`vv-vocabulary` for the binding vocabulary.
 
 The **error catalog** (``ERR-NNN`` entries in
 ``.claude/skills/vv-principles/error_catalog.md``) records every
@@ -43,12 +44,14 @@ The chapters
      - What it documents
      - Read it when
    * - :doc:`principles`
-     - The evidence taxonomy: the three reference pillars and their
-       boundaries, error-catalog vs paper-floor evidence classes,
-       and the three-meanings Green's-function taxonomy the suite
-       consumes.
-     - Designing a verification strategy; judging what a reference
-       can and cannot prove.
+     - The evidence doctrine: verification vs validation,
+       structural independence, the claim-layer taxonomy, the
+       normative L0–L3 ladder (+ foundation + the L4 ruling), the
+       three reference pillars, how the classification systems
+       relate, the retired-Richardson record, the failure-mode
+       catalogue, and the error-catalog contract.
+     - Designing a verification strategy; judging what evidence a
+       claim needs and what a reference can prove.
    * - :doc:`harness`
      - The test-harness contract: the ladder definition table,
        marker conventions, the tagging-precedence chain, the audit

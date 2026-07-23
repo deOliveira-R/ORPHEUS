@@ -66,13 +66,13 @@ converge to them under refinement.
 - `continuous/flat_source_cp/{slab,cylinder,sphere,geometry}.py` —
   flat-source CP eigenvalues (the legacy reference for the
   flat-source production CP solver in `orpheus.cp`).
-- `continuous/peierls/` — *the active heterogeneous reference for
+- `continuous/peierls_nystrom/` — *the active heterogeneous reference for
   CP verification*. Peierls integral form solved via high-precision
   Nyström collocation at 30+ digits. Geometry-specific solvers
   (`slab.py`, `cylinder.py`, `sphere.py`) plus shared infrastructure
   (`geometry.py`, `cases.py`, `reference.py`). Symbolic *origins*
   (specular-BC R-matrix, cylindrical 3-D G-BC, Knyazev shifted-
-  Legendre identities) live under `continuous/peierls/origins/`.
+  Legendre identities) live under `continuous/peierls_nystrom/origins/`.
 - `continuous/greens_function/` — empty placeholder; planned in
   Plan-2 for fixed-source analytical Green's-function references.
 - `continuous/mms/{sn,moc}.py` — Method of Manufactured Solutions

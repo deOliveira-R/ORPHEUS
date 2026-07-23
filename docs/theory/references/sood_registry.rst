@@ -691,8 +691,10 @@ The L1 / L2 numerical claims (e.g., "F_N slab solver reproduces
 Each consumer is responsible for verifying its own physics; the
 registry's job is solely to deliver consistent input data.
 
-See :doc:`/theory/verification/harness` for the V&V level taxonomy
-(foundation / L0 / L1 / L2 / L3 / L4) and how each level applies.
+See :ref:`vv-level-ladder` in :doc:`/theory/verification/principles`
+for the V&V level taxonomy (L0..L3 + foundation + L4) and
+:doc:`/theory/verification/harness` for how tests declare and audit
+their level.
 
 Solver-output caching
 =====================

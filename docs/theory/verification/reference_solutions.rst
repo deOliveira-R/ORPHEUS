@@ -495,6 +495,12 @@ Tiers:
 
 T1
    Analytical closed form — fully symbolic, no numerical quadrature.
+T1.5
+   Analytical MMS — the reference solution is imposed symbolically
+   and exact by construction (T1-grade provenance), but the problem
+   is source-driven: it supports convergence-order and flux-shape
+   claims, never eigenvalue claims (see the pillar capability table
+   at :ref:`verification-evidence-classes`).
 T2
    Semi-analytical to root-finder tolerance — the reference is the
    limit of a finite mpmath computation.
