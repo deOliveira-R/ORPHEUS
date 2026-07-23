@@ -195,12 +195,6 @@ class SupportsSeededApply(Protocol[V]):
 
 # Type alias for the GMRES left-preconditioner hook M ≈ A⁻¹.
 Preconditioner = Callable[[np.ndarray], np.ndarray]
-# The KeffEstimator / ProductionEstimator injection aliases retired at
-# #259 P1 / R8 (2026-07-03): KEigenvalue's estimators are hardwired
-# methods now — at a converged eigenpair every CONSISTENT estimator
-# agrees, so an injected alternative could only disagree by being
-# inconsistent with the posed problem (Pattern 4: the illegal
-# estimator/problem pairing is no longer representable).
 
 
 class _SeededExactApply:
@@ -431,14 +425,6 @@ def _flux_displacement_leaf(displacement) -> "_DisplacementLeaf | None":
     if systems:
         return _flux_displacement_leaf(systems[0])
     return None
-
-
-# The module-level ``_default_production_estimator`` /
-# ``_default_keff_estimator`` functions were folded into
-# :meth:`KEigenvalue.compute_production_rate` /
-# :meth:`KEigenvalue.compute_keff` at #259 P1 / R8 — the injection seam
-# they were the defaults OF is retired, so the spellings now live where
-# they are consumed (arithmetic unchanged, bit-identical).
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -746,8 +732,8 @@ class KrylovAcceleration(Generic[V]):
     so the primitive ravels at the boundary and reshapes the solution
     back to ``q_ext.shape`` on return.
 
-    The ``preconditioner`` parameter (R-1 Step B rename)
-    =====================================================
+    The ``preconditioner`` parameter
+    ================================
 
     The GMRES PRECONDITIONER approximates the FULL within-group system
     inverse, :math:`M \approx \bigl(A - \sum_i g_i\bigr)^{-1}` (for SN
@@ -756,14 +742,12 @@ class KrylovAcceleration(Generic[V]):
     "transport-corrected" preconditioner from Adams & Larsen 2002 §III.
     When :math:`c` is small, the sweep is an excellent preconditioner;
     when :math:`c` is near unity, the sweep is diffusion-like and GMRES
-    needs more iterations.
-
-    Previously named ``inverter`` — but that was a category mistake:
-    in :class:`SourceIteration` the ``inverter`` realised the
-    iteration's INVERSE step :math:`A^{-1}`, whereas here ``M`` is the
-    GMRES left preconditioner (an approximation to the FULL inverse
-    :math:`\bigl(A - \sum_i g_i\bigr)^{-1}`).  The rename surfaces the distinction and
-    decouples the two surfaces (R-1 Step B, 2026-05-19).
+    needs more iterations.  This left preconditioner (an approximation to
+    the FULL inverse :math:`\bigl(A - \sum_i g_i\bigr)^{-1}`) is a
+    DIFFERENT object from :class:`SourceIteration`'s exact inverse of the
+    single operand :math:`A` — hence the ``preconditioner`` name, not
+    ``inverter`` (which would conflate the GMRES left preconditioner with
+    the iteration's inverse step).
 
     * ``preconditioner = None`` (default): if ``A`` is invertible
       (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`),

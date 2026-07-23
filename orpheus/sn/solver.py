@@ -163,30 +163,17 @@ def _as_sn_mesh(
     )
 
 
-# Issue #197 PR-TYPED-5: SNFixedSourceResult + SNResult RETIRED.
-# Both solver entry points now return a typed :class:`Solution`
-# (orpheus.sn.solution); the two legacy data bags collapse into one
-# (coding-elegance Pattern 7 — single source of truth) with the
-# discrimination living in Solution.is_eigenvalue() / is_fixed_source().
 from .solution import IterationHistory, Solution
 
 
-# ``_zero_within_group_fission`` retired 2026-07-03 (C4, zero callers):
-# within-group fission enters as ``q_ext``, so no ``F = 0`` slot exists.
-
-
-# The former ``_within_group_triple`` (Wave O #208 O.2a) and its gain seam
-# ``_lagged_gains`` (campaign step 4c) RETIRED at B.2d d1: the within-group
-# decomposition every solve consumes — the loss grid AND its regular
-# splitting ``A = M − N`` — is constructed ONCE by
+# The within-group decomposition every solve consumes — the loss grid AND
+# its regular splitting ``A = M − N`` — is constructed ONCE by
 # :func:`orpheus.sn.coupled_system.build_within_group_system` and shipped as
-# the :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record (which is
-# also what dissolved the builder's tracked construction twin). The triple's
+# the :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record.  Its
 # composition contract (why ``B`` is a separate first-class gain, RULING P1
-# on the G-S split, the producer-side ``/W`` note) lives on the builder's
-# docstring now. The B.2b transient FullField-gain adapters
-# (``_RayEmissionFullFieldGain`` / ``_RayBoundaryFullFieldGain``) retired
-# with them — the coupled driver consumes System B's blocks natively.
+# on the G-S split, the producer-side ``/W`` note) lives on that builder's
+# docstring.  Within-group fission is zero (it enters as ``q_ext``), so
+# there is no ``F = 0`` slot.
 
 
 def _system_a_residual(lhs: "FullField", q_ext: "FullField") -> "FullField":
@@ -265,13 +252,11 @@ def evaluate_residual(
     structurally blind to a wrong seed row, so System B's defect is a typed
     member that cannot be silently dropped.
 
-    This is the **#208 box-7 consumer** of the residual mint — the first
-    production-reachable site that types the equation residual (the mint was
-    previously unconsumed). It is a diagnostic (``balance_map`` /
-    :func:`boundary_vs_interior_split` / ``relative_to``) AND the substrate
-    the consistent-DSA low-order correction (`#2`) will consume (``r`` is the
-    transport residual the diffusion solve corrects). NOT in the convergence
-    path — it is evaluated on a (typically converged) flux, additive.
+    A diagnostic (``balance_map`` / :func:`boundary_vs_interior_split` /
+    ``relative_to``) AND the substrate the consistent-DSA low-order
+    correction (`#2`) will consume (``r`` is the transport residual the
+    diffusion solve corrects). NOT in the convergence path — evaluated on
+    a (typically converged) flux, additive.
 
     Parameters
     ----------
@@ -499,27 +484,6 @@ def _within_group_krylov(
         tol=tol, max_iter=max_iter,
         restart=n_dof,
     )
-
-
-# The former ``_GaussSeidelResolvent`` (Phase 3 sub-step 3c) dissolved in
-# #226 step 2 (§17 W2): it paired ``apply = (L+C)ψ`` with
-# ``solve = (L+C−B_lower)⁻¹`` — inverses of DIFFERENT operators.  The G-S
-# splitting matrix is now REIFIED as
-# :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
-# (``M = (L + C) - B_lower``, an honest forward whose ``solve`` is the
-# scheduled forward substitution), and the lagged complement ``B_upper``
-# rides the SI driver as an ordinary external gain — structurally congruent
-# with the Jacobi path's ``(S, B)``.  See :func:`_select_si_resolvent`.
-
-
-# The former ``_MomentWindowedResolvent`` (a ``.solve``-shaped driver
-# adapter over the windowed product) dissolved at #226 taxonomy step 3:
-# :class:`~orpheus.numerics.iteration.SourceIteration` now consumes the
-# inverse-application operator DIRECTLY, so :func:`_maybe_window` returns
-# the typed composition ``P @ A.inverse()``
-# (:class:`~orpheus.sn.operators.windowing.WindowedSweep`) itself.  The
-# adapter's accepted-and-dropped ``initial_guess`` note lives on
-# :meth:`WindowedSweep.apply`, where the contract actually is.
 
 
 def _maybe_window(
@@ -946,26 +910,18 @@ class SNSolver:
         self.max_inner = max_inner
         self.inner_tol = inner_tol
 
-        # Issue #197 PR-TYPED-0: materials + ng are read from sn_mesh,
-        # not from constructor parameters.  ``sn_mesh.ng`` is the
-        # validated single source of truth (raises
-        # ``InconsistentMaterialsError`` if materials disagree).
+        # ``materials`` + ``ng`` are the single source of truth on the mesh
+        # (``sn_mesh.ng`` raises ``InconsistentMaterialsError`` if materials
+        # disagree — not a constructor parameter).
         materials = sn_mesh.materials
         self.ng = sn_mesh.ng
 
-        # Issue #197 PR-TYPED-1: the canonical XS state collapses to ONE
-        # attribute — ``self.mat_xs`` is the :class:`MaterialXSField`
-        # wrapping both the per-material :class:`Mixture` data AND the
-        # per-cell typed views.  Every operator (L, C, S, F) reads cross
-        # sections through this single source of truth; the seven
-        # separate per-XS attributes (sig_t, sig_a, sig_p, chi, sig_s,
-        # sig2, sig_s0) plus ``_cells_by_mat`` / ``_sig2_sum`` collapse
-        # into ``self.mat_xs.*`` accessors.
-        #
-        # The thin ``sig_t / sig_a / sig_p / chi`` read-through
-        # properties that bridged the one-PR migration window were
-        # retired by PR-TYPED-2 — consumers read
-        # ``solver.mat_xs.total_cross_section`` etc. directly.
+        # The canonical XS state is ONE attribute — ``self.mat_xs``, a
+        # :class:`MaterialXSField` wrapping both the per-material
+        # :class:`Mixture` data and the per-cell typed views.  Every operator
+        # (L, C, S, F) reads cross sections through this single source of
+        # truth via ``self.mat_xs.*`` accessors (``total_cross_section`` /
+        # ``absorption_cross_section`` / …).
         self.mat_xs = sn_mesh.material_xs_field()
 
         # __debug__ cell-flattening invariant pinning (formerly at
@@ -1064,18 +1020,6 @@ class SNSolver:
             # without threading a solver reference through the sweep entry.
             sn_mesh._geom_cache = self.geom_cache  # type: ignore[attr-defined]
             sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
-
-    # Issue #197 PR-TYPED-2: the PR-TYPED-1 transient read-through
-    # shims (``sig_t``, ``sig_a``, ``sig_p``, ``chi``, ``sig_s``,
-    # ``sig2``, ``sig_s0``, ``_cells_by_mat``) have been RETIRED.
-    # Every downstream consumer now reads ``self.mat_xs.*`` directly:
-    # ``mat_xs.total_cross_section``,
-    # ``mat_xs.absorption_cross_section``,
-    # ``mat_xs.fission_production``,
-    # ``mat_xs.emission_spectrum``,
-    # ``mat_xs.sig_s_legendre(mid)``,
-    # ``mat_xs.n2n_matrix(mid)``,
-    # ``mat_xs.cells_by_material``.
 
     def rebind_cross_sections(self, new_sig_t: np.ndarray) -> None:
         """Rebind the total cross-section and rebuild only :class:`CollisionCache`.
@@ -1186,7 +1130,6 @@ class SNSolver:
         # elegance Pattern 3).  ``volume_measure`` consumes a flat
         # ``(N_cells, ng)`` view (Issue 9.6 wiring); reshape via
         # ``transpose(1, 2, 0)`` then flatten the spatial axes.
-        # Issue #197 PR-TYPED-2: consumes mat_xs directly (no shim).
         per_cell_per_group = np.einsum(
             "g...,g...->g...", self.mat_xs.fission_production, flux_distribution,
         )
@@ -1218,7 +1161,6 @@ class SNSolver:
         """
         ng = self.ng
         mu = self.sn_mesh.volume_measure
-        # Issue #197 PR-TYPED-2: consumes mat_xs directly (no shim).
         per_cell_per_group = np.einsum(
             "g...,g...->g...", self.mat_xs.absorption_cross_section, flux_distribution,
         )
@@ -1465,9 +1407,8 @@ class SNSolver:
     ) -> np.ndarray:
         r"""Inner within-group solve via :class:`SourceIteration` on typed AngularFlux.
 
-        R-1 Step E (2026-05-19) — carved onto
-        :class:`~orpheus.numerics.iteration.SourceIteration` consuming
-        the same typed-flux operator triple as the Krylov carve:
+        Carved onto :class:`~orpheus.numerics.iteration.SourceIteration`
+        consuming the same typed-flux operator triple as the Krylov path:
 
         .. math::
 
@@ -1497,41 +1438,27 @@ class SNSolver:
         Scope
         =====
 
-        ALL geometries — slab, sphere, cylinder, AND 2-D Cartesian
-        (Wave O "2-D SI Phase A", 2026-06-04).  The 2-D Cartesian
-        eigenvalue SI inner is geometry-agnostic: it is the structural
-        twin of :meth:`_solve_krylov` (the live 2-D eigenvalue path) —
-        identical composite RHS, identical loss decomposition
-        (``LC = StreamingOperator + MultiplicationOperator`` — the collision
-        multiplier ``C = M[σ_t]`` — plus the
-        scattering ``S`` and boundary ``B`` coupling gains —
+        ALL geometries — slab, sphere, cylinder, AND 2-D Cartesian.  The
+        eigenvalue SI inner is geometry-agnostic: it is the structural twin
+        of :meth:`_solve_krylov` — identical composite RHS, identical loss
+        decomposition (``LC = StreamingOperator + MultiplicationOperator``,
+        the collision multiplier ``C = M[σ_t]``, plus the scattering ``S``
+        and boundary ``B`` coupling gains via
         :func:`~orpheus.sn.coupled_system.build_within_group_system`, zero
         within-group fission), identical
         ``psi_typed.interior.integrate_angular()`` reduction — differing
         ONLY in the driver (:class:`SourceIteration` vs
-        :class:`KrylovAcceleration`), and neither driver carries any
-        geometry dependence.  The reflective coupling rides the BARE
-        sweep via the ``B`` coupling gain on the 4-face
+        :class:`KrylovAcceleration`), neither of which carries geometry
+        dependence.  The reflective coupling rides the bare sweep via the
+        ``B`` coupling gain on the 4-face
         :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-        (:class:`SNBoundaryOperator` is natively 4-face —
-        xmin/xmax/ymin/ymax — and is the SAME operator the working 2-D
-        Krylov path uses).
+        (:class:`SNBoundaryOperator` is natively 4-face, the SAME operator
+        the 2-D Krylov path uses).
 
-        The legacy "B1'' face block" that the 2-D path was once said to
-        lack is RETIRED — it never existed as code on this branch; it
-        was a 1-D boundary-closure name fully superseded by the L2
-        ``AngularBoundaryFlux`` + ``SNBoundaryOperator`` bare-boundary
-        architecture (Wave O O.4a.2 / O.4b).  The historical
-        ``NotImplementedError`` guard predated that architecture by two
-        weeks (the body's ``S + B`` fold landed 2026-06-03) and was
-        never lifted; ``solve_sn`` defaults ``inner_solver="source_-
-        iteration"`` for every geometry, so the stale guard broke the
-        DEFAULT 2-D Cartesian eigenvalue entry point.
-
-        Verified: 2-D SI ≡ Krylov ≡ closed-form ``k_inf`` (1g→1.5,
-        2g→1.875, 4g→1.4878) to machine precision; heterogeneous
-        non-flat 2-D flux SHAPE agrees SI-vs-Krylov to ~1e-9
-        (``tests/sn/eigenvalue/test_keff_2d.py::TestSIKrylov2DEquivalence``).
+        Verified SI ≡ Krylov ≡ closed-form ``k_inf`` in
+        ``tests/sn/eigenvalue/test_keff_2d.py`` (the values + the
+        ERR-026 / ERR-058 curvilinear-closure history are recorded in the
+        SN verification theory page).
         """
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
@@ -1703,9 +1630,8 @@ class SNSolver:
     ) -> np.ndarray:
         r"""Inner solve via GMRES on :math:`(L + C - S)\,\psi = q_{\rm ext}`.
 
-        R-1 Step D (2026-05-19) — carved onto
-        :class:`~orpheus.numerics.iteration.KrylovAcceleration` consuming
-        the operator triple
+        Carved onto :class:`~orpheus.numerics.iteration.KrylovAcceleration`
+        consuming the operator triple
 
         .. math::
 
@@ -1730,13 +1656,10 @@ class SNSolver:
         Scope
         =====
 
-        D-H.2-C4d (2026-05-29) — 2-D Cartesian unblocked.  The L2
+        2-D Cartesian is supported: the 4-face
         :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-        face layout is the natural 4-face descriptor (xmin / xmax /
-        ymin / ymax) that the legacy 1-D B1'' face block lacked; the
-        L2-native representation ``loss_action`` 2-D matvec walk
-        (S6.3 moved it off the operator; ``ScanMarch`` default since
-        S6.9) operates on it directly.
+        face descriptor (xmin / xmax / ymin / ymax) and the L2-native
+        ``loss_action`` 2-D matvec walk operate directly on it.
 
         Returns the updated scalar flux ``(ng, nx, ny)``.
         """
@@ -1864,22 +1787,13 @@ class SNSolver:
         self._phi_of_trace = phi
         return phi
 
-    # D-J (2026-05-29): ``_make_sweep_preconditioner`` retired —
-    # the method built a scipy LinearOperator wrapping the sweep as
-    # the legacy packed-vector GMRES preconditioner.  Zero callers
-    # remained post-D-K.1: the production Krylov path
-    # (``_solve_fixed_source_krylov``) wraps the L+C composite in a
-    # KrylovAcceleration consumer that handles the to_flat/from_flat
-    # ravellable protocol on :class:`TimedFullField` natively.
-
     # ── Source computation helpers ────────────────────────────────────
     #
-    # Wave D Issue 13: the math has been lifted into ScatteringOperator
-    # (orpheus/sn/scattering.py). The methods below are thin delegators
-    # preserved for the EigenvalueSolver Protocol surface and the
-    # underscore-prefixed test probes in tests/sn/test_solver_components.py.
-    # All four delegate to the same precomputed-by-construction operator
-    # held on self.scattering_op, so bit-identity is by construction.
+    # The scattering math lives on :class:`ScatteringOperator`.  The methods
+    # below are thin delegators preserved for the EigenvalueSolver Protocol
+    # surface and the underscore-prefixed test probes; all four delegate to
+    # the same precomputed-by-construction ``self.scattering_op``, so
+    # bit-identity is by construction.
 
     def _add_scattering_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
         """Add P0 scattering source to Q in-place (delegates to ScatteringOperator).
@@ -1930,32 +1844,6 @@ class SNSolver:
 # ═══════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════
-
-# ─────────────────────────────────────────────────────────────────────
-# Retired in P1.7 (moment-space + layering plan):
-#   `_build_rhs_cartesian`, `_build_rhs_spherical`,
-#   `_build_rhs_cylindrical`  (the latter was an alias of spherical)
-#
-# All three were packed-1D RHS builders for the legacy BiCGSTAB
-# FD-operator path.  Production call graph (verified by
-# `tests/sn/test_fixed_source_g1.py::TestNoLegacyMachineryInCallPath::
-# test_no_legacy_eq_map_or_decoder_in_g1_path`): ZERO callers — the
-# G1 Krylov path goes through typed `KrylovAcceleration` +
-# `(L + C).apply` instead of building a packed-1D RHS.
-#
-# The cartesian variant carried an inline `(2*l+1)` literal at its
-# Pℓ-source build, duplicating the canonical addition-theorem factor
-# now sourced from `SphericalHarmonicBasis.addition_theorem_factor`
-# (the frame's reconstruction face reads it live).  Per the moment-space
-# plan §P1.3 "exactly one place" claim, retiring this dead duplicate is
-# required.
-#
-# The spherical/cylindrical variants had no (2*l+1) duplicate (they
-# were P0-isotropic-only), but they share the same dead-code status
-# and retire alongside cartesian for cleanliness — superseded code is
-# noise per `feedback_aggressive_retirement`.
-# ─────────────────────────────────────────────────────────────────────
-
 
 def _is_curvilinear(mesh: Mesh1D | Mesh2D) -> bool:
     """Return ``True`` iff *mesh* is a 1-D spherical or cylindrical Mesh1D."""
@@ -2133,10 +2021,8 @@ def solve_sn(
         :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` +
         :class:`~orpheus.sn.boundary_flux.AngularBoundaryFlux` fields plus an
         :class:`~orpheus.sn.solution.IterationHistory` carrying the
-        eigenvalue trajectory.  Issue #197 PR-TYPED-5 — the legacy
-        :class:`SNResult` data bag was retired in favour of the
-        unified :class:`Solution` type that covers both eigenvalue and
-        fixed-source problems.
+        eigenvalue trajectory.  The unified :class:`Solution` type covers
+        both eigenvalue and fixed-source problems.
     """
     t_start = time.perf_counter()
 
@@ -2621,23 +2507,13 @@ def solve_sn_fixed_source(
         Inner solver iteration limits.
     inner_solver : {"source_iteration", "krylov", None}
         Inner-solve strategy.  When ``None`` (default), all geometries
-        use ``"source_iteration"``.
-
-        History: from Phase D (2026-05-12) through the ERR-058 fix
-        (2026-06-12, Issue #195) the curvilinear ``None`` default
-        resolved to ``"krylov"``, because the SWEEP's fixed point was
-        wrong on non-flat fields (the ERR-026/ERR-058 closure-seed
-        family) while Krylov-on-apply tracked the (then-distinct)
-        matvec system.  Post-unification the sweep and matvec are ONE
-        discrete system, and the ERR-058 closure-seed fix (coupled-
-        pole spatial seed + angular-edge-extrapolation half-angle
-        seed) makes that system O(h²)-consistent — SI and Krylov now
-        converge to bit-identical fixed points on the curvilinear MMS
-        ladders, with SI ~10²× faster (no GMRES restart pathology,
-        ERR-053).  The curvilinear default therefore returned to
-        ``"source_iteration"``; ``"krylov"`` stays available as the
-        opt-in cross-check (the SI ≡ Krylov fixed-point equivalence
-        is itself a standing splitting-invariance gate, vv Mode 9).
+        use ``"source_iteration"``: post-unification the sweep and matvec
+        are ONE O(h²)-consistent discrete system (the ERR-058 closure-seed
+        fix), so SI and Krylov converge to bit-identical fixed points on
+        the curvilinear MMS ladders, with SI ~10²× faster (no GMRES restart
+        pathology, ERR-053).  ``"krylov"`` stays available as the opt-in
+        cross-check — the SI ≡ Krylov fixed-point equivalence is a standing
+        splitting-invariance gate (vv-principles Mode 9).
     inner_schedule : {"gauss_seidel", "jacobi"}
         Source-iteration BOUNDARY splitting (Phase 3, ``inner_solver=
         "source_iteration"`` only).  ``"gauss_seidel"`` (default) folds the
@@ -2672,29 +2548,9 @@ def solve_sn_fixed_source(
         scheme=scheme,
     )
 
-    # Issue #168 status (Phase D ERR-026 closure, 2026-05-12):
-    #
-    # * Phase A (Defects 1 + 2): the ``BoundaryFaceFlux`` Protocol
-    #   retired in Phase C.
-    # * Phase B (Defect 3): :class:`MorelMontryAngularSweep` is now
-    #   the SNMesh-default :class:`PoleAngularClosureBase`.
-    # * Phase C (sweep-frame matvec): the apply matvec is one sweep
-    #   iteration semantically, with WDD spatial closure.
-    # * Phase D (Carlson coupled-pole seed): the M-M angular
-    #   recurrence's half-angle face flux is seeded so per-ordinate
-    #   flat-flux balance holds on sphere Gate 1.1 MMS.  (Since #282
-    #   route (a) / #280 Phase 2.5d the seed is first-class composite
-    #   STATE, marched directly from the true q½ source by
-    #   :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`;
-    #   the original ``CarlsonInwardSweep`` proxy-source strategy is
-    #   retired.)
-    #
-    # **ERR-058 default restoration (2026-06-12, Issue #195)**: every
-    # geometry defaults to ``"source_iteration"``.  The Phase D
-    # curvilinear→Krylov flip existed because the sweep's fixed point
-    # was wrong on non-flat fields; the ERR-058 closure-seed fix made
-    # the (unified) sweep/matvec system O(h²)-consistent, SI ≡ Krylov
-    # bit-identical, and SI ~10²× faster.  See the docstring history.
+    # All geometries default to ``"source_iteration"`` — the unified
+    # sweep/matvec system is O(h²)-consistent (ERR-058 closure-seed fix),
+    # so SI ≡ Krylov at the fixed point and SI is ~10²× faster.
     if inner_solver is None:
         inner_solver = "source_iteration"
 
@@ -2738,10 +2594,9 @@ def _solve_fixed_source_si(
 ) -> Solution:
     r"""Fixed-source path via the :class:`SourceIteration` primitive.
 
-    Phase 1 (R1, 2026-06-04) — carved onto the SAME
-    :class:`~orpheus.numerics.iteration.SourceIteration` primitive the
-    eigenvalue inner :meth:`SNSolver._solve_source_iteration` uses, on the
-    identical operator triple
+    Carved onto the SAME :class:`~orpheus.numerics.iteration.SourceIteration`
+    primitive the eigenvalue inner :meth:`SNSolver._solve_source_iteration`
+    uses, on the identical operator triple
 
     .. math::
 
@@ -2753,21 +2608,18 @@ def _solve_fixed_source_si(
     source in the eigenvalue inner) and the returned contract (a full typed
     :class:`Solution` here vs an angular-integrated scalar flux there).
 
-    The previous hand-rolled ``for n_inner`` loop is RETIRED.  It rebuilt the
-    scattering source each iterate via ``_add_scattering_source`` +
-    ``_add_n2n_source`` + ``_build_aniso_scattering`` and drove ``−B`` through
-    :func:`_reflect_outflow_into_inflow` — both are now subsumed by the
-    primitive's coupling gains ``S.apply(ψ_n) + B.apply(ψ_n)``:
+    Scattering and the reflective boundary enter as the primitive's coupling
+    gains ``S.apply(ψ_n) + B.apply(ψ_n)``:
     :meth:`ScatteringOperator.apply` (the ``TimedFullField`` branch)
-    recomputes the IDENTICAL ``(P0 in-scatter + (n,2n))/W + Pℓ`` bulk source,
-    and the boundary gain ``B``
+    recomputes the ``(P0 in-scatter + (n,2n))/W + Pℓ`` bulk source, and the
+    boundary gain ``B``
     (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`, a first-class
     coupling in the within-group system record) delivers the reflective
     ``B·ψ.outflow`` through ``rhs.boundary`` which the bare ``(L + C).solve``
-    sweep reads as the inflow seed (single source of truth — Cardinal Rule 2).  The whole-trace
-    :func:`_reflect_outflow_into_inflow` route is no longer needed on this
-    path; it survives for the eigenvalue reconstruction sweep + Phase 3's
-    octant-restricted Gauss-Seidel variant.
+    sweep reads as the inflow seed (single source of truth — Cardinal Rule 2).
+    The whole-trace :func:`_reflect_outflow_into_inflow` route is NOT needed
+    on this path; it survives for the eigenvalue reconstruction sweep +
+    Phase 3's octant-restricted Gauss-Seidel variant.
 
     Geometry-agnostic (slab / sphere / cylinder / 2-D Cartesian): the
     within-group solve carries no geometry dependence, exactly as the
@@ -2950,9 +2802,8 @@ def _solve_fixed_source_krylov(
 ) -> Solution:
     r"""Curvilinear-default fixed-source path: typed :class:`KrylovAcceleration`.
 
-    R-1 Step 4 Step G1 (2026-05-22) — carved onto
-    :class:`~orpheus.numerics.iteration.KrylovAcceleration` consuming
-    the operator triple
+    Carved onto :class:`~orpheus.numerics.iteration.KrylovAcceleration`
+    consuming the operator triple
 
     .. math::
 
@@ -2974,44 +2825,21 @@ def _solve_fixed_source_krylov(
     zero — this is the pure fixed-source path; the eigenvalue
     outer/within-group decomposition lives in :func:`solve_sn`.
 
-    The dependency audit + retirement sequence eliminated the
-    packed-1D vector machinery this function previously consumed:
-
-    * ``build_equation_map_*`` — **RETIRED** in D-J (2026-05-30).
-    * ``solution_to_angular_flux_*`` — **RETIRED** in D-J (2026-05-30).
-    * ``pack_with_traces`` — **RETIRED** in D-J (2026-05-30).
-    * ``_build_rhs_{cartesian, spherical, cylindrical}`` —
-      **RETIRED** in P1.7 of the moment-space + layering plan (the
-      Cartesian variant carried an inline ``(2*l+1)`` literal that
-      duplicated
-      :attr:`~orpheus.numerics.spaces.SphericalHarmonicSpace.addition_theorem_factor`;
-      all three were already dead code in production).
-    * ``_make_sweep_preconditioner`` — **RETIRED** pre-D-J.
-    * ``SNStreamingOperator`` — **RETIRED** in D-K (commit
-      ``dadf4e8``).  ``self.L`` now binds to the algebraic
-      composition ``StreamingOperator + MultiplicationOperator`` (the
-      collision multiplier ``C = M[σ_t]``)
-      (= :class:`InvertibleOperator`).
-
     Scope
     =====
 
-    ALL geometries — slab, sphere, cylinder, AND 2-D Cartesian (Phase 1
-    "gap" un-gate, 2026-06-04).  The 2-D Cartesian fixed-source Krylov is
-    the structural twin of the live 2-D eigenvalue Krylov inner
-    :meth:`SNSolver._solve_krylov`: identical within-group system
-    (:func:`~orpheus.sn.coupled_system.build_within_group_system`) and identical
-    :class:`~orpheus.numerics.iteration.KrylovAcceleration` driver
-    (:func:`_within_group_krylov`), differing ONLY in ``q_ext`` (the
-    external source here vs the fission source there) — and it is the twin
-    of the geometry-agnostic 2-D fixed-source SI path.  Verified: the
-    converged per-ordinate flux hits the closed-form streaming equilibrium
-    ``q/Σ_t`` on a homogeneous reflective box, and the SI≡Krylov flux
-    shape agrees on a heterogeneous non-flat case
-    (``tests/sn/solve/test_fixed_source_2d_equivalence.py``).  The legacy
-    ``NotImplementedError`` 2-D guard (and the "B1'' face block" excuse it
-    carried) is RETIRED — the 4-face bare-boundary architecture (Wave O
-    O.4b) makes the path geometry-agnostic by construction.
+    ALL geometries — slab, sphere, cylinder, AND 2-D Cartesian.  The 2-D
+    Cartesian fixed-source Krylov is the structural twin of the eigenvalue
+    Krylov inner :meth:`SNSolver._solve_krylov`: identical within-group
+    system (:func:`~orpheus.sn.coupled_system.build_within_group_system`)
+    and identical :class:`~orpheus.numerics.iteration.KrylovAcceleration`
+    driver (:func:`_within_group_krylov`), differing ONLY in ``q_ext`` (the
+    external source here vs the fission source there) — and the twin of the
+    geometry-agnostic 2-D fixed-source SI path.  Verified: the converged
+    per-ordinate flux hits the closed-form streaming equilibrium ``q/Σ_t``
+    on a homogeneous reflective box, and SI ≡ Krylov flux shape agrees on a
+    heterogeneous non-flat case
+    (``tests/sn/solve/test_fixed_source_2d_equivalence.py``).
     """
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,
