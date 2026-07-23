@@ -943,12 +943,14 @@ fixed / 18 files; estate → #305/#306 + the #276 LD-adjoint comment) +
 P10 labels @ `77a5cb16` (39 renames; the `sn-direct-seed-*` +
 `tensor-network-*` family unifications; SC-4 `pin-cell` renamed,
 SC-3 wontfix; `-E -W` clean; closes at push); **#231 Phase 2 ✅ DONE
-2026-07-22** — 7 batches `97fb2a38..d6276013`, block below): **⏭ task
-#10 (three-layer V&V part) · ch15 authoring half (#276 A4/A5-blocked).**
+2026-07-22** — 7 batches `97fb2a38..d6276013`, block below): **⏳ task
+#10 (three-layer V&V part) ACTIVE — kickoff rulings + stage plan = the
+"The V&V part" block below · then ch15 authoring half (#276
+A4/A5-blocked).**
 (#298/#299 fixes in-branch @ `639cec9e`/`4425516c`, DONE @ `68c39c28`;
 the issues auto-close at push.)
 
-## Phase 2 — code-prose rebalancing (task #11) — ACTIVE 2026-07-22
+## Phase 2 — code-prose rebalancing (task #11) — ✅ DONE 2026-07-22
 
 **Spec** = the #231 settled-design comment §"Code-prose rebalancing"
 (2026-06-13). Rubric per prose block: **CONTRACT stays in the docstring**
@@ -1053,3 +1055,107 @@ filename sweep per chapter — Stages 2/3 and ch8 found most breaks are PRE-exis
 from earlier extractions, so grep every window's directional prose and path strings against
 the CURRENT homes of what they cite); the elegance-enforcer review instance persists
 within a session — resume it; re-brief fresh only after compaction.
+
+## The V&V part — task #10 (three-layer consolidation) — ACTIVE 2026-07-22
+
+**Design basis** = `.claude/plans/vv_part/inventory.md` (explorer, 2026-07-22 —
+the full estate: heading trees, xref map, generator/audit contracts, fragmented
+ladder ownership §7, 12-item hygiene punch-list §8). Architecture = the user's
+2026-07-21 verbatim three-layer ruling (recorded at the ch7 W3b ruling above):
+**ENTRY** (the correctness/science/logic of verification — what `vv-principles`
++ its reference.md encode) · **SUMMARY** (verification RESULTS compiled across
+ALL methods — per-method tables, key metrics) · **per-method SECTIONS** (the
+case descriptions; SN's = the 4,680-ln chapter stamped "temp → V&V part").
+
+**Kickoff rulings (user, 2026-07-22):**
+1. **Placement: `docs/theory/verification/`** — a first-class PART of the
+   corpus (like foundations/references); top-level `docs/verification/` +
+   `docs/testing/` + the `theory/verification.rst` shell ALL dissolve into it
+   (aggressive retirement). Non-demotion is answered by routing (root page +
+   part index), not by toctree position.
+2. **Sentinel schema: single-status + derived view.** `.. vv-status:` keeps
+   exactly ONE status — `documented` (= deliberately test-exempt, the one fact
+   the registry cannot express). tested/verified stay DERIVED from
+   `verifies()` marks (the matrix renders the derivation). The 24 wild
+   sentinels (tested/verified/implemented — all on covered labels) are DELETED
+   as twin annotations; the 3 dead-label sentinels fixed; `audit.py` turns
+   FAIL-LOUD on unknown statuses + dead labels (was: silently ignore/drop).
+3. **Full per-method consolidation.** SN's chapter + CP/MOC/MC/diffusion's
+   in-chapter Verification h2s (~600 ln, adjudicated per-section — case
+   descriptions move, chapter-local gate contracts stay per the Phase-2
+   file-class ruling) + theory/verification.rst's per-solver derivation
+   sections. Method chapters keep thin template-B "Verification (what pins
+   this)" sections pointing in. One concept, one home.
+
+**Target part** (names chosen for greppability; `architecture→harness` rename
+EARNED — retrieval collision with `docs/architecture/`):
+
+```
+docs/theory/verification/
+  index.rst        NEW router (§6 template: synopsis · chapter map · tracks ·
+                   compact ladder ← testing/index one-paragraph · V&V summary)
+  principles.rst   NEW (V5): THE ladder/taxonomy owner — claim taxonomy, L0–L3
+                   + foundation + L4 ruling, 3 pillars, T-tiers, operator-forms
+                   RELATED on one page; failure modes; anti-patterns; ERR contract
+  summary.rst      NEW (V6): cross-method results tables + key metrics +
+                   run-book (de-staled) + matrix intro
+  matrix.rst       ← docs/verification/matrix.rst (generator retargets)
+  harness.rst      ← docs/testing/architecture.rst (the marker/audit contract)
+  cross_method.rst ← docs/testing/cross_method.rst (L4 ruling + protocol)
+  reference_solutions.rst ← docs/verification/reference_solutions.rst
+  sn.rst           ← methods/sn/verification.rst (4,680 ln, whole)
+  collision_probability.rst · method_of_characteristics.rst · monte_carlo.rst
+  · diffusion.rst  NEW thin: method-chapter case-h2s + theory/verification.rst
+                   per-solver h2s (+ their `_generated/*.rst` includes, re-pointed)
+```
+
+**Load-bearing constraints** (inventory §2): the audit's `--theory-dir
+docs/theory` recursive glob IS the orphan-gate boundary — the part landing
+inside it puts reference_solutions' 7 kernel labels + the 2 richardson labels
+UNDER the gate (adjudicate in V7); matrix raw-path strings are hardcoded in
+`generate_matrix.py:221-222,263-264` (fix the tool); the generator runs on
+EVERY build (`builder-inited`), so audit fail-loud + sentinel deletion must
+land in ONE commit; `theory/verification.rst` is a shell over six
+`../_generated/*.rst` includes — relative paths re-point at the move.
+Twin-path finding (inventory §3a): Nexus links tests↔equations via docstring
+`:math:` roles, FULLY PARALLEL to the sentinel/registry pipeline — ruling:
+the registry (declared) is the AUTHORITY for verification claims; the Nexus
+heuristic = discovery layer; record in harness.rst + extractor ask on nexus#1.
+
+**Stages** (each: atomic commit, `-E -W` gate, enforcer review; qa on V5/V6):
+
+- **V1 — machinery + CR-1 hygiene (in-place, pre-move):** conf.py capability
+  `app.warn` latent crash (punch #10) · phantom-verifies RENDERED (punch #7)
+  · generator raw-paths → `:ref:` (punch #3) · audit fail-loud + delete 24
+  wild / fix 3 dead sentinels (rulings 2) · L4-qualifier fix at
+  theory/verification.rst:18-20 (punch #1) · run-book 56/73 lie (punch #2) ·
+  frozen audit sample + layout map (punch #4) · stale CLAUDE.md pointer
+  (punch #8) · same-file-sentinel doc-vs-code rule (punch #9) · `verify`
+  sugar: 3-search audit then retire if truly zero-consumer (punch #12).
+- **V2 — skeleton + moves:** part dir + index router; git mv the 5 surviving
+  pages in; retarget `DEFAULT_OUT`; dissolve `docs/{testing,verification}/`
+  indexes + the docs/index caption group; rewire ALL inbound (inventory §5
+  list); L35/L34 grep for raw-path stragglers. ⏸ COMPACTION.
+- **V3 — dissolve theory/verification.rst + seed per-method pages:** per-solver
+  h2s + includes → the 5 per-method pages; SN chapter mv whole (sn book
+  toctree + symptom-table rows rewire); CP/MOC/MC/diffusion case-h2s
+  adjudicated in; method chapters get template-B thin sections; Overview/
+  Architecture/Methodology content parked verbatim into principles/summary
+  scaffolds (lossless — V5/V6 author them properly).
+- **V4 — (reserved: merged into V3 if it fits one commit cleanly).**
+- **V5 — author principles.rst** (ENTRY; the big write — vv-principles +
+  reference.md distilled into the corpus; the four classification systems
+  related; ladder ownership consolidated, all 7 definition sites repointed).
+  ⏸ COMPACTION.
+- **V6 — author summary.rst** (results compilation; de-freeze the cross_method
+  coverage matrix; run-book).
+- **V7 — slice backfill:** adjudicate the 254(+9 entering) orphans in
+  archivist batches {needs-sentinel | wire-to-existing-test | genuine gap →
+  issue}; the flagged wirings (resolvent-object-gate → Mode-12 test;
+  sn-mms-nonvacuum-qext-mg sibling-inherit); 39 unmarked tests (punch #11);
+  template-B sections across remaining chapters. ⏸ COMPACTION.
+- **V8 — regen + closeout:** full gates (build exit 0, collect 6652, pyright
+  floor 1), matrix regenerated honest, catalog checkpoint, #231 comment,
+  memory router update.
+
+**Status log** (append per stage):
