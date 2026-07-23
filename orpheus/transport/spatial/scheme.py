@@ -1,141 +1,35 @@
-r"""Per-cell update strategy contract for the SN sweep.
+r"""Per-cell update strategy contract for a transport sweep.
 
-Why this abstraction exists
-===========================
-
-The SN sweep walks the spatial mesh once per ordinate, and for each
-cell it must solve the same shape of algebraic problem: combine the
-local volumetric source, the upstream face flux (and, in curvilinear
+The sweep walks the spatial mesh once per ordinate, and for each cell
+it solves the same shape of algebraic problem: combine the local
+volumetric source, the upstream face flux (and, in curvilinear
 geometry, the upstream angular half-flux) with the local total cross
 section and a *spatial closure* — Diamond Difference (DD), Linear
 Discontinuous (LD), Exponential Characteristic (EC), Step — to
 produce the cell-average flux plus the downstream face flux and (for
 sphere/cylinder) the downstream angular half-flux.
 
-Per Cardinal Rule 2 (architecture), the cell-update math is **the
-same algebra** in slab, sphere, and cylindrical 1-D — only the
-populated fields of :class:`~orpheus.geometry.reduced_operator.StreamingTerms`
-change.  A monolithic sweep that inlines the closure is the
-historical pattern (see ``orpheus.sn.sweep``); lifting the closure to
-a :class:`DiscretizationScheme` strategy makes it possible to:
-
-* unit-test the cell-update math in isolation (without spinning up a
-  full SNMesh + iteration loop),
-* swap closures (DD → LD → EC → Step) without rewriting the sweep
-  driver,
-* keep the sweep orchestration thin and the closure-specific algebra
-  local to a strategy module.
-
-This is Round 1 of Wave C of the SN reshape campaign — see Issues
-#157 (this contract) and #158 (the bit-identical
-:class:`DiamondDifference` extraction).  Wave D Issue 12 (#159)
-rewrites the sweep itself around ``scheme.update(...)`` so the
-sweep dispatches to whichever strategy was selected; until then, the
-existing sweep still inlines the math and the strategies live as a
-parallel, testable abstraction.
-
-What each dataclass holds
-=========================
-
-:class:`UpstreamState` — input to a single cell update::
-
-    spatial_upstream:  (ng,) face flux entering the cell
-                       (face area :math:`A_{i-1/2}` for
-                       sphere/cylinder; the upstream face for slab).
-    angular_upstream:  (ng,) :math:`\psi_{n-1/2,\,i}` half-flux at the
-                       upstream half-angle, for spherical /
-                       cylindrical geometry only.  Slab / Cartesian
-                       set this to ``None`` — there is no angular
-                       redistribution.
-
-:class:`CellResult` — output of a single cell update::
-
-    cell_average_flux:        (ng,) :math:`\overline{\psi}_i`,
-                              the per-group average flux on the
-                              cell.
-    outgoing_spatial_flux:    (ng,) :math:`\psi_{i+1/2}`, the
-                              downstream face flux via the closure
-                              relation (e.g. DD's
-                              :math:`\psi_{i+1/2} = 2\overline{\psi}_i
-                              - \psi_{i-1/2}`).  ``None`` for the
-                              cylindrical pure-azimuthal degenerate
-                              case (``streaming_terms.abs_mu <
-                              1e-15``) where no spatial face flow
-                              exists in the cell.
-    outgoing_angular_state:   (ng,) :math:`\psi_{n+1/2,\,i}`, the
-                              downstream half-angle flux via the
-                              Morel--Montry closure
-                              :math:`\psi_{n+1/2} =
-                              (\overline{\psi} - (1-\tau_{mm})\,
-                              \psi_{n-1/2})/\tau_{mm}`.  ``None``
-                              for slab — slab geometry has no
-                              angular redistribution.
-
-Geometry-as-data — single cell-balance algebra (Step 2.5)
-========================================================
-
-Issue #196 Phase G Step 2.5 retired the historical
-``alpha_in is None`` / ``abs_mu < 1e-15`` runtime branches in
-favour of geometry-blind data populated by the
-:class:`StreamingTerms` factories:
-
-* **Slab / Cartesian** — ``StreamingTerms`` carries neutral
-  curvature: ``face_area_inner = face_area_outer = 1.0``,
-  ``delta_A_over_w = 0.0``.  The M-M neutral element
-  (``c_in = c_out = 0.0``, ``tau = 1.0`` — the identity closure
-  for slab) is angular-closure-owned and arrives on the
-  ``CellVisit`` (Issue #236 Step C retired the geometry-side
-  ``StreamingTerms.tau_mm`` / ``alpha_*``).  The ``CellVisit``
-  also carries ``face_area_downstream = 1.0``.
-  ``upstream_state.angular_upstream`` is ``None`` (slab has no
-  half-angles); the strategy returns
-  ``CellResult(outgoing_angular_state=None, ...)``.
-* **Sphere / cylinder** — curvature fields physically populated.
-  ``CellVisit.face_area_downstream`` is the sweep-direction-
-  resolved outgoing face area (outer for outward, inner for inward).
-  ``upstream_state.angular_upstream`` carries
-  :math:`\psi_{n-1/2,\,i}`.  The strategy returns the M-M-closed
-  ``outgoing_angular_state``.
-* **Cylindrical pure-azimuthal degenerate** — the cell has no
-  radial face flow on this ordinate; the iterator emits
-  ``CellVisit.face_area_downstream = 0.0`` (geometric truth).
-  The strategy's spatial closure outputs ``None`` when
-  ``face_area_downstream == 0.0`` (no downstream face exists),
-  while the M-M angular closure remains active.
-
-The "is this output exists" checks remaining inside the strategy
-(``face_area_downstream > 0.0`` for the spatial closure;
-``angular_upstream is not None`` for the angular closure) are NOT
-geometry dispatch — they test the structural presence of a
-direction, not the geometry kind.
-
-Where downstream consumers will call this
-=========================================
-
-In Wave D, the sweep at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) dispatches via
-:meth:`SNMesh.dag_walk` — the per-visit packets pre-resolve
-the sweep direction so the strategy sees no sign-of-:math:`\mu`
-branching::
-
-    for visit in sn_mesh.dag_walk(ordinate_idx=n,
-                                  mu_level_idx=p):
-        upstream = UpstreamState(
-            spatial_upstream=psi_face,
-            angular_upstream=psi_angle[visit.cell_idx]
-                if reduced_op.requires_upstream_angular_state
-                else None,
-        )
-        result = scheme.update(visit, total_xs, source, upstream)
-        psi_avg[visit.cell_idx] = result.cell_average_flux
-        if result.outgoing_spatial_flux is not None:
-            psi_face = result.outgoing_spatial_flux
-        if result.outgoing_angular_state is not None:
-            psi_angle[visit.cell_idx] = result.outgoing_angular_state
-
-Round 1 shipped the contract only; Round 2 shipped
-``DiamondDifference`` bit-identically; the SN-sweep-DAG refactor
-adds :class:`CellVisit` and migrates the strategy contract to
-consume it.
+The cell-update math is **the same algebra** in slab, sphere, and
+cylindrical 1-D — only the populated fields of
+:class:`~orpheus.geometry.reduced_operator.StreamingTerms` change; the
+remaining ``if`` checks in a strategy test the *structural presence* of a
+direction (``face_area_downstream > 0.0``; ``angular_upstream is not
+None``), NOT the geometry kind (the geometry-as-data collapse is
+``docs/theory/foundations/discretization.rst §discretization-space-angle``).
+Lifting the closure out of the sweep body into a
+:class:`DiscretizationScheme` strategy (Cardinal Rule 2) lets the
+cell-update math be unit-tested in isolation, lets closures be swapped
+(DD → LD → EC → Step) without touching the sweep driver, and keeps the
+closure-specific algebra local to a strategy module.  Concrete strategies
+live in sibling modules
+(:mod:`~orpheus.transport.spatial.diamond`,
+:mod:`~orpheus.transport.spatial.linear_discontinuous`); the sweep consumes
+whichever one the mesh selected, via per-visit :class:`CellVisit` packets
+from :meth:`SNMesh.dag_walk` that pre-resolve the sweep direction so the
+strategy sees no sign-of-:math:`\mu` branching.  The strategy-pattern
+rationale and the geometry-blind closure algebra are documented in
+``docs/theory/methods/sn/index.rst`` and
+``docs/theory/foundations/discretization.rst``.
 
 References
 ==========
@@ -206,12 +100,10 @@ class CellVisit:
     the producer today
     (:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` stamps
     it); any other cell-graph transport method may stamp the same
-    packet.  MoC is deliberately **not** such a consumer — its
-    per-ray traversal has a different mathematical structure (fiber
-    bundles + solution sheaves rather than a topological sort over a
-    cell graph), so there is no shared ``SweepGraph`` Protocol; the
-    abstraction stays minimal per Cardinal Rule 2, spanning only the
-    cell-graph-sweep family that actually shares this packet, no wider.
+    packet.  MoC is deliberately **not** such a consumer (its per-ray
+    traversal has a different mathematical structure — fiber bundles /
+    solution sheaves, not a topological sort over a cell graph), so
+    there is no shared ``SweepGraph`` Protocol.
 
     Attributes
     ----------
@@ -248,47 +140,35 @@ class CellVisit:
           via ``A_down = 0`` (geometric truth) rather than via the
           numerical threshold ``abs_mu < 1e-15``.
     c_in : float
-        **Angular-closure-owned** (Issue #236 Phase 2 B2): the
-        Morel--Montry weighted-diamond upstream-numerator constant
+        **Angular-closure-owned**: the Morel--Montry weighted-diamond
+        upstream-numerator constant
         :math:`c_{\rm in} = (1-\tau_m)/\tau_m\,\alpha_{m+1/2}
-        + \alpha_{m-1/2}` for THIS visit's ordinate.  Sourced from the
-        mesh's :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pole_angular_closure`
-        via :attr:`PoleAngularClosureBase.c_in_per_ordinate` (the per-global-
-        ordinate ``(N,)`` accessor), NOT rebuilt inline.  ``0.0`` for
-        slab / Cartesian (the identity closure carries no angular
-        redistribution).  Distinct in provenance from the geometry-owned
-        :attr:`streaming_terms` — the angular closure is the canonical
-        owner of the weighted-diamond constants; the spatial scheme
-        (:class:`DiamondDifference`) consumes them as DATA on the visit,
-        never by coupling to the closure object (keeps the
-        spatial :math:`\otimes` angular separation).
+        + \alpha_{m-1/2}` for THIS visit's ordinate, stamped on the visit
+        by the mesh from its
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pole_angular_closure`.
+        ``0.0`` for slab / Cartesian (the identity closure carries no
+        angular redistribution).  The spatial scheme consumes it as DATA
+        on the visit; it must NOT be rebuilt from ``streaming_terms``
+        (that would re-fuse the spatial and angular closures).
     c_out : float
-        **Angular-closure-owned** (Issue #236 Phase 2 B2): the
-        Morel--Montry weighted-diamond denominator constant
-        :math:`c_{\rm out} = \alpha_{m+1/2}/\tau_m` for THIS visit's
-        ordinate.  Sourced from
-        :attr:`PoleAngularClosureBase.c_out_per_ordinate`.  ``0.0`` for slab
-        / Cartesian.  See :attr:`c_in` for the provenance rationale.
+        **Angular-closure-owned**: the Morel--Montry weighted-diamond
+        denominator constant :math:`c_{\rm out} = \alpha_{m+1/2}/\tau_m`
+        for THIS visit's ordinate, stamped by the mesh (see :attr:`c_in`).
+        ``0.0`` for slab / Cartesian.
     tau : float
-        **Angular-closure-owned** (Issue #236 Phase 2 B3): the
-        Morel--Montry angular weight :math:`\tau_m` for THIS visit's
-        ordinate — the FUNDAMENTAL weight (Bailey--Morel--Chang 2010
-        Eq. 43) from which :attr:`c_in` / :attr:`c_out` are derived.
-        Sourced from the mesh's
-        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pole_angular_closure` via
-        :attr:`PoleAngularClosureBase.tau_per_ordinate`.  The DEFAULT is
-        ``1.0`` (NOT ``0.0``) — :math:`\tau = 1` is the neutral M-M weight
-        the Cartesian identity closure supplies, making the angular
-        recurrence :math:`(\bar\psi - (1-\tau)\psi^{\theta}_{\rm in})/\tau`
-        the identity and keeping :math:`c_{\rm out} = \alpha_{\rm out}/\tau`
-        well-defined (a ``0.0`` default would be a divide-by-zero landmine
-        in :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`'s
-        angular thread).  τ is angular-closure-owned, NOT geometry-produced
-        (Issue #236 Step C retired the former geometry-side
-        ``StreamingTerms.tau_mm``); the spatial scheme
-        (:class:`DiamondDifference`) consumes :attr:`tau` as DATA on the
-        visit, never by coupling to the closure object — keeping
-        the spatial :math:`\otimes` angular separation.
+        **Angular-closure-owned**: the Morel--Montry angular weight
+        :math:`\tau_m` for THIS visit's ordinate — the FUNDAMENTAL weight
+        (Bailey--Morel--Chang 2010 Eq. 43) from which :attr:`c_in` /
+        :attr:`c_out` are derived, stamped by the mesh (see :attr:`c_in`).
+        The DEFAULT is ``1.0`` (NOT ``0.0``): :math:`\tau = 1` is the
+        neutral M-M weight the Cartesian identity closure supplies, making
+        the angular recurrence
+        :math:`(\bar\psi - (1-\tau)\psi^{\theta}_{\rm in})/\tau` the
+        identity and keeping :math:`c_{\rm out} = \alpha_{\rm out}/\tau`
+        well-defined.  ⚠ Do NOT default :attr:`tau` to ``0.0`` (like
+        :attr:`c_in` / :attr:`c_out`) — it is a divide-by-zero landmine in
+        :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`'s
+        angular thread.
 
     Notes
     -----
@@ -409,104 +289,87 @@ class DiscretizationScheme(Protocol):
         & Miller §5.3); Step is.  Read-only class attribute.
     is_affine_scannable : bool
         Whether the closure admits the closed-form affine recurrence
-        :math:`\psi_{\rm out} = a\,\psi_{\rm in} + b` (Blelloch §1.5) so
-        the DAG-free *scan* schedules (``CumprodScan``, ``ScanMarch``)
-        can consume it.  ``True`` requires that the cell-average is an
-        affine function of a **single** upstream face flux — Diamond
-        Difference qualifies; a Linear-Discontinuous closure (two coupled
-        face moments) does **not**.  ``False`` is the safe default: a
-        non-affine-scannable scheme is routed to the DAG wavefront
-        schedule by :meth:`LossRepresentation.default_for` (the scan
-        strategies gate their ``supports`` on this trait).  Read-only
-        class attribute.  This is a statement about a **single** spatial
-        axis (1-D prefix-scannability); it is distinct from
-        ``transverse_coupling_is_facewise``, which is the **cross-axis**
-        statement a multi-D scan-march needs (see below).
+        :math:`\psi_{\rm out} = a\,\psi_{\rm in} + b` (Blelloch §1.5), the
+        cell-average being an affine function of a **single** upstream face
+        flux, so the DAG-free *scan* schedules (``CumprodScan``,
+        ``ScanMarch``) can consume it.  ``True`` for Diamond Difference;
+        ``True`` for Linear-Discontinuous too — its two face moments couple,
+        but the local slope is eliminated by the Schur complement, leaving a
+        single-upstream recurrence.  ``False`` is the safe default (the scan
+        strategies gate their ``supports`` on this trait; a non-scannable
+        scheme is routed to the DAG wavefront).  A **single-axis** (1-D
+        prefix-scannability) statement, distinct from
+        ``transverse_coupling_is_facewise`` (the cross-axis statement).
+        Read-only class attribute.
     transverse_coupling_is_facewise : bool
-        Whether, in :math:`d \ge 2`, the cell closure's coupling from a
-        NON-swept axis enters as a **0th-order face value** (a Dirichlet
-        trace, one number per (group, cell)) rather than a **1st-order
-        slope moment** — equivalently, whether the d-D cell closure is
-        **tensor-product separable** into independent per-axis 1-D scans
-        chained through scalar face traces.  ``True`` for slopeless
+        Whether, in :math:`d \ge 2`, a NON-swept axis couples through a
+        **0th-order face value** (a Dirichlet trace) rather than a
+        **1st-order slope moment** — equivalently, whether the d-D cell
+        closure is **tensor-product separable** into independent per-axis
+        1-D scans chained by scalar face traces.  ``True`` for the slopeless
         cell-average closures (Diamond Difference / Step): the transverse
         term folds into the scan's affine source, so a row-march
-        (``ScanMarch``) along one axis absorbs every other axis into its
-        source.  ``False`` for the bilinear DG-P1 Linear-Discontinuous
-        closure: its transverse coupling is the per-axis slope moment,
-        which CANNOT reduce to a single face value (the cell's transverse
-        face flux varies linearly along the in-cell swept coordinate), so
-        the d-D LD closure is irreducibly axis-coupled and rides the DAG
-        wavefront, not the scan-march.  ``False`` is the conservative
-        default: a scheme must OPT IN to claiming facewise/separable
-        transverse coupling, so a newly-added scheme that forgets to set
-        it is safely excluded from the :math:`d \ge 2` scan-march and
-        falls back to the wavefront.  Read-only class attribute.
+        (``ScanMarch``) admits them.  ``False`` (the default) for the
+        bilinear DG-P1 Linear-Discontinuous closure: its transverse coupling
+        is a per-axis slope moment that CANNOT reduce to a single face value,
+        so the d-D LD closure is irreducibly axis-coupled and rides the DAG
+        wavefront.  Distinct from the single-axis ``is_affine_scannable``;
+        the :math:`d \ge 2` scan-march gates on THIS trait
+        (``docs/theory/methods/sn/loss_representation.rst §loss-rep-scanmarch-facewise``).
+        Read-only class attribute.
     spatial_basis_per_axis : int
         The number of spatial moments the cell closure carries **per spatial
-        axis** (the size of its 1-D moment basis).  ``1`` for the slopeless
+        axis** (its 1-D moment-basis size).  ``1`` for the slopeless
         cell-average closures (Diamond Difference / Step — basis ``{1}``);
-        ``2`` for Linear-Discontinuous (the Legendre basis ``{1, P₁}`` per
-        axis).  The tensor-product (Kronecker) structure of the UBLD cell makes
-        the per-cell and per-face moment counts dimension-dependent derivations
-        of this single per-axis number (with ``d`` the spatial dimension at the
-        call site): the per-cell unknown is :math:`(\text{per\_axis})^d`-long
-        (DD: 1; LD-2D: 4; LD-3D: 8) and each downstream face carries
-        :math:`(\text{per\_axis})^{d-1}` transverse moments (DD: 1; LD-2D: 2).
-        The boolean ``per_axis > 1`` is the GATE on every multi-moment wiring
-        site (the face-cochain trailing moment axis, the moment-reducing emit)
-        — DD/Step at ``per_axis == 1`` keep the rank-:math:`r` scalar face and
-        the rank-3 ``psi_avg`` EXACTLY (no trailing length-1 axis is appended),
-        the backward-compat invariant (#240 D5b).  A pure per-cell
-        ``ClassVar[int]`` would be WRONG for LD (its count is
-        dimension-dependent); the per-axis basis size encodes the tensor-product
-        structure UBLD is built on.  Read-only class attribute.
+        ``2`` for Linear-Discontinuous (Legendre ``{1, P₁}`` per axis).  The
+        tensor-product (Kronecker) UBLD structure makes the per-cell
+        (:math:`(\text{per\_axis})^d`) and per-face
+        (:math:`(\text{per\_axis})^{d-1}`) moment counts dimension-dependent
+        derivations of this single per-axis number (per-AXIS, not per-cell:
+        LD's per-cell count is dimension-dependent).  The boolean
+        ``per_axis > 1`` is the GATE on every multi-moment wiring site;
+        DD/Step at ``per_axis == 1`` keep the scalar face + ``psi_avg``
+        byte-identical (no trailing length-1 axis appended — #240 D5b).
+        Derivation:
+        ``docs/theory/methods/sn/cartesian_multid.rst §spatial-moment-space``.
+        Read-only class attribute.
     diffusion_limit_consistent : bool
         Whether the scheme's THICK-DIFFUSION limit is a *consistent*
         diffusion discretization for the leading-order scalar flux — the
-        SPATIAL half of the (spatial ⊗ angular) diffusion-limit condition
-        (Larsen–Morel–Miller 1987).  ``True`` for Diamond Difference
-        (LMM-1987 Eq. (4.24), leading-order) and full Linear-Discontinuous
-        (Larsen–Morel 1989 Part II Eq. (4.16), which requires the slope
-        SOURCE moment :math:`\hat Q` threaded); ``False`` for Step
-        (LMM-1987 Eq. (5.20) — no intermediate limit for :math:`\sigma_a
-        \neq 0`).  This is the SPATIAL axis ONLY; the ANGULAR first-order
-        condition (the Bailey–Morel–Chang :math:`\beta = 0` weight) lives
-        on the redistribution closure as ``beta_first_order_consistent``,
-        and the validity of a (scheme, closure) PAIR is their conjunction
+        SPATIAL half of the (spatial ⊗ angular) diffusion-limit condition.
+        ``True`` for Diamond Difference (Larsen–Morel–Miller 1987
+        Eq. (4.24)) and full Linear-Discontinuous (Larsen–Morel 1989 Part II
+        Eq. (4.16), which requires the slope SOURCE moment :math:`\hat Q`
+        threaded); ``False`` (the default) for Step (LMM-1987 Eq. (5.20)).
+        This is the SPATIAL axis ONLY; the ANGULAR first-order condition
+        lives on the redistribution closure as
+        ``beta_first_order_consistent``, and a (scheme, closure) PAIR is
+        valid iff both hold
         (:func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`).
-        ⚠ Do NOT conflate the spatial DD verdict (``True``, leading-order)
-        with DD-in-ANGLE's first-order :math:`\beta`-failure (the
-        curvilinear flux dip): that is an angular-axis result, not a
-        spatial-DD one.  ``False`` is the conservative default (a scheme is
-        not assumed consistent until it declares so with a citation).
-        Read-only class attribute.
+        ⚠ Do NOT conflate the spatial DD verdict (``True``) with
+        DD-in-ANGLE's first-order :math:`\beta`-failure (the curvilinear flux
+        dip) — that is an angular-axis result.  Read-only class attribute.
     supports_curvilinear : bool
         Whether the scheme has a CURVILINEAR (sphere/cylinder) cell closure —
-        i.e. whether its :meth:`update` / :meth:`residual` handle the
-        Morel–Montry angular-redistribution thread (a non-``None``
-        ``angular_upstream``).  Diamond Difference does (``True``);
-        Linear-Discontinuous does NOT (``False`` — the curvilinear LD closure
-        is unpublished, Issue #158 curvilinear arm / #6) and is slab/Cartesian
-        only.  The 1-D sweep-strategy selection
-        (:meth:`~orpheus.sn.loss_representation.CumprodScan.supports` /
-        :meth:`~orpheus.sn.loss_representation.ScanMarch.supports`) reads this
-        so a curvilinear mesh paired with a slab-only scheme is rejected at
-        SELECTION with a clear reason, rather than passing ``supports()`` on
-        ``is_affine_scannable`` (a geometry-blind 1-D trait) and raising
-        mid-sweep.  ``False`` is the conservative default.  Read-only class
-        attribute.
+        i.e. whether :meth:`update` / :meth:`residual` handle the Morel–Montry
+        angular-redistribution thread (a non-``None`` ``angular_upstream``).
+        ``True`` for Diamond Difference; ``False`` (the default) for
+        Linear-Discontinuous (the curvilinear LD closure is unpublished —
+        Issue #158 curvilinear arm / #6).  The 1-D sweep-strategy selection
+        reads this so a curvilinear mesh paired with a slab-only scheme is
+        rejected at SELECTION (a clear reason), rather than passing
+        ``supports()`` on the geometry-blind ``is_affine_scannable`` and
+        raising mid-sweep.  Read-only class attribute.
 
     Notes
     -----
     All seven traits are class-level so they can be inspected without
-    instantiating the strategy.  Code that selects a closure based on
-    cell-thickness or stiffness criteria reads ``is_linear``;
-    diagnostics that gate on whether negative fluxes can appear read
-    ``is_positivity_preserving``; the **1-D** sweep-schedule selection
-    reads ``is_affine_scannable``; the **multi-D** scan-march selection
-    (and a future diffusion ADI / line-SOR preconditioner — #240's
-    confirmed next consumer) reads ``transverse_coupling_is_facewise``.
+    instantiating the strategy: ``is_linear`` gates stiffness-based closure
+    selection; ``is_positivity_preserving`` gates negative-flux diagnostics;
+    ``is_affine_scannable`` gates the 1-D sweep-schedule; and
+    ``transverse_coupling_is_facewise`` gates the multi-D scan-march (and a
+    future diffusion ADI / line-SOR preconditioner — #240's confirmed next
+    consumer).
     """
 
     is_linear: bool
@@ -663,16 +526,11 @@ class DiscretizationScheme(Protocol):
 class DiscretizationSchemeBase(RegistryMixin, ABC):
     r"""Concrete abstract base for self-registering cell-update strategies.
 
-    Round 1 of Wave C shipped :class:`DiscretizationScheme` as a
-    ``runtime_checkable`` Protocol so concrete strategies could be
-    matched by structural typing without inheritance. Issue 9.6 adds
-    :class:`DiscretizationSchemeBase` as a parallel **concrete ABC** layered on
-    top of :class:`RegistryMixin`: strategies that inherit it
-    self-register under their ``key=`` class-creation kwarg, gaining
-    name-keyed lookup via :meth:`create`. The Protocol stays — third-
-    party / synthetic strategies (e.g. test mocks) that do not want to
-    inherit can still satisfy the contract by providing the right
-    methods.
+    Layered on :class:`RegistryMixin`: strategies that inherit it self-register
+    under their ``key=`` class-creation kwarg, gaining name-keyed lookup via
+    :meth:`create`.  The :class:`DiscretizationScheme` Protocol stays alongside
+    — third-party / synthetic strategies (e.g. test mocks) that do not want to
+    inherit can still satisfy the contract by providing the right methods.
 
     Subclasses MUST declare:
 
@@ -687,7 +545,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     Notes
     -----
 
-    Adding a new strategy is now a one-line edit::
+    Adding a new strategy is a one-line edit::
 
         class Step(DiscretizationSchemeBase, key="step"):
             is_linear: ClassVar[bool] = True
@@ -699,135 +557,62 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     No registry insert; ``DiscretizationSchemeBase.create("step")`` is
     immediately callable.
 
-    Generic advection–reaction interface (Σ-stateless — #240 Phase 2 Step D4)
-    ========================================================================
+    Σ-stateless advection–reaction contract
+    =======================================
 
-    The coefficient methods (:meth:`affine_scan_coefficients`,
-    :meth:`cell_kernel_batch`, :meth:`residual_kernel_batch`) are parameterized
-    by **(streaming / wave-speed, reaction-rate** :math:`\Sigma_t`\ **, source,
-    geometry)** and hold **NO** cross-section state — a scheme instance carries
-    no :math:`\Sigma`, no materials, no mesh.  The reaction-rate is an EXPLICIT
-    argument (``reaction_xs`` on the coefficient + kernel methods; ``total_xs``
-    on the per-cell :meth:`update`/:meth:`residual`) sourced by the caller
-    from the operator's collision term (Step B); the SN sweep passes
-    :math:`\Sigma_t`, but any consumer may pass an arbitrary reaction-rate (an
-    off-diagonal removal :math:`\Sigma_r = \Sigma_t - \Sigma_{s0}`, a
-    diffusion-removal, a pure-advection :math:`\Sigma \to 0`).  This is the
-    **model-agnostic advection–reaction spatial discretization** the diffusion
-    solver will consume — standalone AND as the consistent-DSA preconditioner
-    (#2).
+    The coefficient / kernel methods (:meth:`affine_scan_coefficients`,
+    :meth:`cell_kernel_batch`, :meth:`residual_kernel_batch`) hold **NO**
+    cross-section state — a scheme instance carries no :math:`\Sigma`, no
+    materials, no mesh.  The reaction-rate is an EXPLICIT argument
+    (``reaction_xs`` on the coefficient + kernel methods; ``total_xs`` on the
+    per-cell :meth:`update` / :meth:`residual`), so any consumer may pass an
+    arbitrary reaction-rate: SN's :math:`\Sigma_t`, an off-diagonal removal
+    :math:`\Sigma_r = \Sigma_t - \Sigma_{s0}`, a diffusion-removal, a
+    pure-advection :math:`\Sigma \to 0`.  This is the **model-agnostic
+    advection–reaction** spatial discretization the diffusion solver will
+    consume (standalone AND as the consistent-DSA preconditioner, #2).
+    ``streaming`` / ``s_axes`` are kept distinct from ``reaction_xs`` — the one
+    genuine SN/CFD frame conflict (diffusion has no advective :math:`\mu`
+    coefficient).  The Step ↔ upwind / DD ↔ central-box / LD ↔ DG-P1-upwind
+    reading and the CFD Péclet blend are
+    ``docs/theory/foundations/discretization.rst §discretization-closures``;
+    the Σ-statelessness teeth are
+    :mod:`tests.transport.spatial.test_scheme_reaction_rate_contract`.
 
-    The coefficient triple is generic in the wave-speed and the reaction-rate:
-    **Step ↔ first-order upwind**, **DD ↔ central / Keller box**, **LD ↔
-    DG-P1-upwind**; the cell-average blend ``w(Σ)`` (½ → 1) is the CFD Péclet /
-    κ-scheme blend (DD's ``w = ½`` is the central scheme, Σ-independent; LD's
-    ``w = 1/(1+k)`` runs ½ at :math:`\Sigma \to 0` to 1 at :math:`\Sigma \to
-    \infty`), NOT an SN artefact.  The diffusion-readiness contract is pinned
-    by :mod:`tests.transport.spatial.test_scheme_reaction_rate_contract` (the
-    closed-form-at-arbitrary-Σ positive + the Σ-statelessness teeth).  The full
-    Step/DD/LD ↔ advection-scheme narrative (box ≡ diamond, the Péclet coupling,
-    the spatial ⊗ angular factorization) is the #240 Step D6 deliverable on
-    :doc:`/theory/methods/sn/index`.
+    Generic affine reconstruction ops
+    =================================
 
-    The model-agnostic parameter rename is DONE (#241): the coefficient +
-    kernel reaction-rate parameter — formerly spelled three ways across these
-    methods — now carries the single role name ``reaction_xs``, and the blend
-    weight's long handle is ``face_blend_weight`` (the math symbol ``w`` is
-    kept).  ``streaming`` / ``s_axes`` are KEPT — the one genuine SN/CFD frame
-    conflict (diffusion has no advective μ-coefficient).  The per-cell
-    :meth:`update`/:meth:`residual` keep ``total_xs`` (the scalar SN
-    cell-balance form is not part of the model-agnostic coefficient layer).
+    A consistent affine scheme is fully characterized, per cell, by the three
+    :math:`\Sigma_t`-epoch coefficients ``(a, inverse_denom, w)`` from
+    :meth:`affine_scan_coefficients` (``a`` the face transmission multiplier,
+    ``inverse_denom`` the reciprocal cell-balance diagonal, ``w`` the
+    cell-average blend weight — DD's ``½``, LD's ``1/(1+k)``).  Both the scan
+    SOLVE and the matvec APPLY consume those coefficients through the three
+    generic base staticmethods (:meth:`source_emission`, :meth:`cell_average`,
+    :meth:`outgoing_face_from_average`) — pure functions of the faces / source
+    and ``w``, no instance state — so the discretization math lives in exactly
+    one place per scheme (its :meth:`affine_scan_coefficients` + these shared
+    staticmethods), never duplicated in a sweep body (Cardinal Rule 2).  The
+    universality of the convex face blend
+    :math:`\bar\psi = (1-w)\psi_{\rm in} + w\,\psi_{\rm out}` (exactness on a
+    constant flux forces the two weights to sum to one, leaving ``w`` the only
+    free per-cell number) and its outflow inverse are
+    ``docs/theory/foundations/discretization.rst §discretization-closures``.
 
-    Reconstruction ops — the generic affine cell algebra (#158 Inc B / #240 D2)
-    ===========================================================================
-
-    A *consistent* affine spatial discretization (Diamond Difference, Linear
-    Discontinuous, Step, ...) is fully characterized, per cell, by **three
-    :math:`\Sigma_t`-epoch coefficients** returned by
-    :meth:`affine_scan_coefficients`:
-
-    * ``a`` — the face transmission multiplier (``ψ_out = a·ψ_in + b``),
-    * ``inverse_denom`` — the reciprocal of the cell-balance diagonal ``1/S``,
-    * ``w`` — the **cell-average blend weight** (``ψ̄ = (1−w)ψ_in + w·ψ_out``).
-
-    The DAG-free **scan SOLVE** (forward substitution) applies these
-    coefficients to *factored* unknowns — it has no concrete inflow until the
-    prefix scan has run — so it consumes the three generic staticmethods below
-    (:meth:`source_emission`, :meth:`cell_average`,
-    :meth:`outgoing_face_from_average`), parameterized by the coefficients and
-    carrying NO scheme-specific constant.  These ops are pure functions of the
-    face fluxes / source and the blend weight ``w`` — no instance state — so
-    they live ON the scheme **base** as ``@staticmethod``\\s: they are the
-    GENERIC advection–reaction reconstruction (Step ↔ first-order upwind, DD ↔
-    central / Keller box, LD ↔ DG-P1-upwind; the coefficient triple is generic
-    in wave-speed + reaction-rate), shared by every affine scheme and inherited
-    by the future diffusion scheme.  The discretization math therefore lives in
-    exactly one place (the scheme's :meth:`affine_scan_coefficients` for the
-    coefficients, these staticmethods for the reconstruction), never duplicated
-    in a sweep body (Cardinal Rule 2 / the coefficient-model litmus: *if an
-    explicit-matrix representation would have to re-derive a calculation the
-    sweep does, that calculation belongs on the scheme*).
-
-    Why these forms are universal
-    -----------------------------
-
-    Exactness on a spatially-constant flux (``ψ_in = ψ_out = ψ̄`` under a
-    matched source) forces the cell-average to be a **convex** face blend — the
-    two weights sum to one — so ``ψ̄ = (1−w)ψ_in + w·ψ_out`` holds for *any*
-    consistent affine scheme, with ``w`` the only free per-cell number.  The
-    source emission then follows algebraically (SymPy-verified, all schemes):
-
-    .. math::
-
-        b   &= QV \cdot \mathrm{inverse\_denom} / w
-           \qquad(\text{DD: } w=\tfrac12 \Rightarrow b = 2\,QV\cdot\mathrm{inverse\_denom})\\
-        \bar\psi &= (1-w)\,\psi_{\rm in} + w\,\psi_{\rm out}
-           \qquad(\text{DD: } w=\tfrac12 \Rightarrow \bar\psi = \tfrac12(\psi_{\rm in}+\psi_{\rm out}))
-
-    These two ops are in the ×V "denom" convention (``inverse_denom = 1/S``
+    The coefficients are in the ×V "denom" convention (``inverse_denom = 1/S``
     with ``S`` the ×V cell-balance diagonal) — the convention the scan cache
-    (:class:`~orpheus.sn.sweep.cache.CollisionCache`) uses.  The
-    group-3 ≡ group-2 gate (``test_group3_equals_group2_scan_flat``) pins the
-    SOLVE direction (``ψ̄``/``ψ_out``) against the trusted Increment-A kernel.
+    (:class:`~orpheus.sn.sweep.cache.CollisionCache`) uses; the matvec APPLY
+    instead rides the scheme's ÷V ``g=|μ|/Δ`` :meth:`residual_kernel_batch`
+    UNIFORMLY (every affine scheme, no per-scheme matvec branch — #158/#240).
 
-    The apply direction (matvec) is NOT a generic op here: with a CONCRETE
-    probe ``ψ̄`` it rides the scheme's group-2 :meth:`residual_kernel_batch`
-    (the ÷V ``g=|μ|/Δ`` form — it returns the density residual AND the outgoing
-    face in one call, the natural apply twin of the scan solve).  EVERY affine
-    scheme routes its Cartesian matvec through this one kernel UNIFORMLY
-    (#158/#240 — no per-scheme matvec branch, no capability flag): Diamond
-    Difference reproduces its diamond march ``ψ_out = 2ψ̄ − ψ_in``,
-    Linear-Discontinuous its Schur residual (its kernel halves the
-    scheme-agnostic ``s = 2|μ|/Δ`` to ``g = |μ|/Δ`` internally).  A future
-    ``ExplicitMatrix`` representation would assemble the **×V** coefficients
-    into matrix entries (diagonal ``S = 1/inverse_denom``, upstream coupling
-    ``(1−w+w·a)/inverse_denom`` — which equals DD's ``2|μ|`` and LD's
-    ``|μ|(1+k)``); that is the ×V matrix convention, NOT the ÷V
-    ``residual_kernel_batch`` density form (they differ by the cell volume
-    ``V``).
-
-    Bit-identity vs principled-equivalence
-    --------------------------------------
-
-    **The scan SOLVE ops** (:meth:`source_emission` / :meth:`cell_average`)
-    are, for ``w=½`` (Diamond Difference), **byte-identical** to the
-    pre-coefficient-model closures: ``0.5*in + 0.5*out`` equals
-    ``0.5*(in+out)`` and ``QV·inv/0.5`` equals ``2·QV·inv`` bit-for-bit,
-    because multiply/divide by ½ is an exact power-of-2 scaling that commutes
-    with IEEE rounding.  So DD's SCAN snapshots stay byte-identical (the
-    ``tests/sn/sweep/core tests/sn/solve -W error::DriftWarning`` gate is
-    green).
-
-    **The matvec APPLY is a deliberate principled-equivalence re-baseline.**
-    DD's Cartesian matvec moved off the ×V ``cell_balance`` density path onto
-    the ÷V ``residual_kernel_batch`` kernel (#240, retiring the
-    bit-identity-only ``matvec_via_kernel`` special case), which re-associates
-    ~1 ULP on non-power-of-2 cell widths.  This is sanctioned by
-    ``vv-principles`` §"Bit-identity vs principled-equivalence": bit-identity
-    is never a design constraint — the architecture (one uniform matvec kernel,
-    no scheme flag) is the compounding asset; a regenerated ~1-ULP golden is
-    the negligible cost.  The same principled-equivalence (~1 ULP) governs LD's
-    ×V scan vs ÷V kernel two-paths agreement.
+    At ``w=½`` (Diamond Difference) the scan SOLVE ops are **byte-identical**
+    to the pre-coefficient-model closures (``÷½`` is an exact power-of-2
+    ``×2``), so DD's scan snapshots stay strict (the
+    ``tests/sn/sweep/core -W error::DriftWarning`` gate).  DD's matvec APPLY is
+    a deliberate principled ~1-ULP re-baseline onto the ÷V kernel (one uniform
+    matvec kernel, no per-scheme flag), sanctioned by ``vv-principles``
+    §"Bit-identity vs principled-equivalence"; the same governs LD's ×V-scan vs
+    ÷V-kernel agreement.
     """
 
     registry: ClassVar[dict[str, type["DiscretizationSchemeBase"]]] = {}
@@ -836,166 +621,87 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     is_positivity_preserving: ClassVar[bool]
     is_affine_scannable: ClassVar[bool] = False
     """Opt-out default (``False``): a scheme is assumed NOT affine-scannable
-    unless it explicitly declares otherwise (mirroring how
-    :meth:`cell_kernel_batch` raises by default until a scheme opts into the
-    batched wavefront walks).  An affine scheme overrides this to ``True``
-    AND supplies the per-cell coefficient triple ``(a, inverse_denom, w)`` via
-    :meth:`affine_scan_coefficients` — that is the scheme's *entire* group-3
-    SOLVE contribution (#158 the coefficient model).  The generic scan-solve
-    *operations* (source emission, cell-average) are NOT per-scheme: they live
-    once on the base as the :meth:`source_emission` / :meth:`cell_average`
-    staticmethods, parameterized by those coefficients.  The matvec APPLY (a
-    concrete probe ψ̄) rides the scheme's
-    group-2 :meth:`residual_kernel_batch` UNIFORMLY for every affine scheme
-    (Cartesian) — DD reproduces its diamond march, LD its Schur residual, with
-    no scheme branch (#158/#240 the coefficient model — there is no per-scheme
-    matvec capability flag; bit-identity is never a design constraint, only a
-    free bonus when the kernel re-association happens to be exact)."""
+    unless it declares otherwise.  An affine scheme overrides to ``True`` AND
+    supplies the per-cell coefficient triple ``(a, inverse_denom, w)`` via
+    :meth:`affine_scan_coefficients` — its *entire* scan SOLVE contribution
+    (#158 the coefficient model); the generic reconstruction staticmethods on
+    this base do the rest (see the class docstring §"Generic affine
+    reconstruction ops" and the Protocol trait contract for what qualifies)."""
 
     transverse_coupling_is_facewise: ClassVar[bool] = False
     r"""Opt-in (``False`` default): does the multi-D cell closure couple a
-    NON-swept axis only through a **face value** (0th-order trace), so the
-    :math:`d`-D update factors into independent per-axis 1-D scans chained by
-    scalar traces?
-
-    The numerical-PDE statement.  On a scan over axis :math:`x`, the coupling
-    from a transverse axis :math:`y` is EITHER a single 0th-order face trace
-    :math:`\psi_{y,\rm in}` — a known upstream Dirichlet value that folds into
-    the x-recurrence's affine source — OR a 1st-order slope moment
-    :math:`\hat\psi_y` that the x-slope row consumes (because the cell's
-    y-face flux varies linearly along the in-cell x-coordinate).  When the
-    coupling is *facewise* (the first case), the d-D cell closure is
-    **tensor-product separable**: the multi-axis update is a sum over axes of
-    independent per-axis face contributions and the scan-march
-    ``scan(x) ∘ march(y, …)`` is exact.  When it is *slope-wise* (the second
-    case), the closure is **non-separable** — an irreducible
-    :math:`(1+d) \times (1+d)` per-cell block whose Schur complement does NOT
-    diagonalize across axes — and the scheme must ride the DAG wavefront.
-
-    Contrast with ``is_affine_scannable``.  ``is_affine_scannable`` is the
-    **1-D** (single-axis) prefix-scannability claim ``ψ_out = a·ψ_in + b``;
-    ``transverse_coupling_is_facewise`` is the **cross-axis** separability
-    claim a :math:`d \ge 2` scan-march needs.  These are DIFFERENT questions:
-    Linear-Discontinuous satisfies the first (its 1-D slope is eliminated by
-    the local Schur complement, leaving a single-upstream affine recurrence)
-    but NOT the second (its multi-D closure carries an independent slope per
-    axis — bilinear — so the transverse coupling is a slope moment, not a face
-    value).  Overloading the single 1-D trait to license a multi-D schedule is
-    the conflation that silently misroutes a 2-D LD mesh into the inline-DD
-    row-march (#240 D5-0); minting this distinct trait makes the illegal
-    LD/scan-march pairing unrepresentable.
-
-    Per scheme.
-
-    * **Diamond Difference** (central / Keller box, slopeless cell-average) —
-      ``True``.  Its transverse term is the 0th-order face value
-      ``s_y · ψ_{y,in}`` folded into the scan source.
-    * **Step** (first-order upwind, slopeless) — will be ``True`` when built
-      (it shares DD's facewise transverse structure; it is only a docstring
-      stub today, ``scheme.py``'s ``class Step``).
-    * **Linear-Discontinuous** (DG-P1-upwind, bilinear in :math:`d \ge 2`) —
-      ``False`` (the default; LD opts OUT).
-
-    Forward reuse.  A diffusion ADI / line-SOR preconditioner (#240's
-    confirmed next consumer) decides whether it can sweep one axis at a time
-    by reading THIS SAME predicate — the trait is named for the scheme
-    property (separable transverse coupling), not for the ``ScanMarch``
-    strategy, precisely so a second separability-exploiting consumer needs no
-    rename.
-
-    Source: Maginot, Ragusa & Morel (2016, *Upstream LD*) and Adams (2001)
-    establish the irreducible multi-dimensional coupling of the LD slope
-    moments; the DD / box facewise separability is the standard
-    tensor-product central-difference structure (Lewis & Miller §§4.5, 8)."""
+    NON-swept axis only through a **0th-order face value** (so the :math:`d`-D
+    update is tensor-product separable into per-axis 1-D scans chained by scalar
+    traces)?  ``True`` for Diamond Difference / Step (facewise); LD opts OUT
+    (its transverse coupling is a 1st-order slope moment — bilinear,
+    non-separable — so it rides the DAG wavefront).  ⚠ This is the CROSS-AXIS
+    claim, distinct from the single-axis ``is_affine_scannable``: overloading
+    the 1-D trait to license the multi-D scan-march silently misroutes a 2-D LD
+    mesh into inline DD (#240 D5-0), which minting this trait makes
+    unrepresentable.  A diffusion ADI / line-SOR preconditioner (#240's next
+    consumer) reads this SAME predicate — the trait is named for the scheme
+    property, not the ``ScanMarch`` strategy.  Derivation:
+    ``docs/theory/methods/sn/loss_representation.rst §loss-rep-scanmarch-facewise``.
+    Read-only class attribute."""
 
     spatial_basis_per_axis: ClassVar[int] = 1
     r"""The cell closure's number of spatial moments **per spatial axis** (its
-    1-D moment-basis size); the default ``1`` is the slopeless cell-average
-    closure (Diamond Difference / Step).
-
-    The tensor-product (Kronecker) UBLD structure makes the per-cell and
-    per-face moment counts dimension-dependent derivations of this single
-    per-axis number, with ``d`` the spatial dimension known at the call site
-    (``len(s_axes)``):
-
-    * **per-cell unknown** = :math:`(\text{per\_axis})^d` moments — DD: ``1``;
-      Linear-Discontinuous at d=2: ``4`` (``{ψ̄, ψ̂_x, ψ̂_y, ψ̂_xy}``); at d=3:
-      ``8``.
-    * **per-face transverse object** = :math:`(\text{per\_axis})^{d-1}` moments
-      — DD: ``1`` (a scalar face); LD at d=2: ``2`` (``{face-bar, face-slope}``).
-
-    The boolean ``per_axis > 1`` is the GATE on every multi-moment wiring site
-    (#240 D5b): the interior face-cochain trailing moment axis
-    (:class:`~orpheus.sn.loss_representation.sweep_graph._MovingFrontier` /
-    :meth:`~orpheus.sn.loss_representation.FullFieldWavefront._octant_face_cochain`)
-    and the moment-reducing scalar/moment emit
-    (:class:`~orpheus.sn.loss_representation.sweep_graph._CellSolve` /
-    :class:`~orpheus.sn.loss_representation.sweep_graph._CellResidual`).  DD/Step at
-    ``per_axis == 1`` keep the rank-:math:`r` scalar face and rank-3 ``psi_avg``
-    EXACTLY — no trailing length-1 axis is appended (a uniform length-1 axis
-    would re-associate DD's emit einsum and break bit-identity), the
-    load-bearing backward-compat invariant.
-
-    Why per-AXIS, not per-cell.  A pure per-cell ``ClassVar[int]`` is WRONG for
-    LD: its per-cell count is :math:`2^d`, dimension-dependent.  The per-axis
-    basis size is the dimension-invariant trait, and it directly encodes the
-    tensor-product structure UBLD is built on (the per-cell system is the
-    Kronecker product of ``d`` copies of the 1-D ``per_axis × per_axis``
-    factor).  An affine cell-average scheme leaves the default ``1``; a
-    higher-order moment scheme overrides (LD → ``2``).  Read-only class
-    attribute.
-
-    Source: Maginot, Ragusa & Morel (2016) §2 Eqs. (8)-(12) — the
-    tensor-product bilinear basis; the d=1 reduction lives in
-    :mod:`orpheus.transport.spatial._ubld` (``d1_closed_form``)."""
+    1-D moment-basis size); default ``1`` for the slopeless cell-average
+    closures (Diamond Difference / Step), ``2`` for Linear-Discontinuous.  The
+    tensor-product (Kronecker) UBLD structure makes the per-cell
+    (:math:`(\text{per\_axis})^d`) and per-face
+    (:math:`(\text{per\_axis})^{d-1}`) moment counts dimension-dependent
+    derivations of this single per-axis number (per-AXIS, not per-cell: LD's
+    per-cell count is dimension-dependent).  The boolean ``per_axis > 1`` is the
+    GATE on every multi-moment wiring site (#240 D5b); DD/Step at
+    ``per_axis == 1`` keep the scalar face + rank-3 ``psi_avg`` byte-identical
+    (no trailing length-1 axis appended — a uniform length-1 axis would
+    re-associate DD's emit einsum and break bit-identity).  Derivation (the
+    Kronecker layout + the append policy):
+    ``docs/theory/methods/sn/cartesian_multid.rst §spatial-moment-space``; the
+    d=1 reduction is :mod:`orpheus.transport.spatial._ubld` (``d1_closed_form``).
+    Read-only class attribute."""
 
     diffusion_limit_consistent: ClassVar[bool] = False
     r"""Whether the scheme's thick-diffusion limit is a consistent diffusion
     discretization for the leading-order scalar flux — the SPATIAL half of the
-    (spatial ⊗ angular) diffusion-limit condition.  Opt-in (``False`` default):
-    a scheme is NOT assumed diffusion-limit-consistent until it declares so with
-    a literature citation (mirroring ``is_affine_scannable`` /
-    ``transverse_coupling_is_facewise``).  ``True`` for Diamond Difference
-    (Larsen–Morel–Miller 1987 Eq. (4.24)) and full Linear-Discontinuous
-    (Larsen–Morel 1989 Part II Eq. (4.16) — requires the slope SOURCE moment);
-    ``False`` for Step (LMM-1987 Eq. (5.20)).  The ANGULAR first-order condition
-    is the redistribution closure's ``beta_first_order_consistent`` (Bailey–
-    Morel–Chang 2010 Eq. (42)); the PAIR's validity is their conjunction
+    (spatial ⊗ angular) diffusion-limit condition.  Opt-in (``False`` default).
+    ``True`` for Diamond Difference (Larsen–Morel–Miller 1987 Eq. (4.24)) and
+    full Linear-Discontinuous (Larsen–Morel 1989 Part II Eq. (4.16) — requires
+    the slope SOURCE moment); ``False`` for Step (LMM-1987 Eq. (5.20)).  The
+    ANGULAR first-order condition is the redistribution closure's
+    ``beta_first_order_consistent`` (Bailey–Morel–Chang 2010 Eq. (42)); the
+    PAIR's validity is their conjunction
     (:func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`).  ⚠ The
-    spatial DD verdict (``True``, leading-order) is NOT the DD-in-angle
-    :math:`\beta`-failure (the curvilinear flux dip is an ANGULAR artefact —
-    BMC 2010, not LMM 1987).  Read-only class attribute."""
+    spatial DD verdict (``True``) is NOT the DD-in-angle :math:`\beta`-failure
+    (the curvilinear flux dip is an ANGULAR artefact — BMC 2010, not LMM 1987).
+    Read-only class attribute."""
 
     supports_curvilinear: ClassVar[bool] = False
     r"""Whether the scheme has a curvilinear (sphere/cylinder) cell closure
     (handles the Morel–Montry angular-redistribution thread).  Opt-in
     (``False`` default — slab/Cartesian only until a curvilinear closure is
-    declared, mirroring ``is_affine_scannable`` /
-    ``transverse_coupling_is_facewise``).  The 1-D sweep-strategy selection
-    reads this so a curvilinear mesh with a slab-only scheme is rejected at
-    SELECTION (a clear ``Compatibility`` reason), not passed on the
-    geometry-blind ``is_affine_scannable`` trait and raised mid-sweep.  ``True``
-    for Diamond Difference; ``False`` for Linear-Discontinuous (the curvilinear
-    LD closure is unpublished — #158/#6).  Read-only class attribute."""
+    declared).  The 1-D sweep-strategy selection reads this so a curvilinear
+    mesh with a slab-only scheme is rejected at SELECTION (a clear
+    ``Compatibility`` reason), not passed on the geometry-blind
+    ``is_affine_scannable`` trait and raised mid-sweep.  ``True`` for Diamond
+    Difference; ``False`` for Linear-Discontinuous (the curvilinear LD closure
+    is unpublished — #158/#6).  Read-only class attribute."""
 
     has_transpose_kernel: ClassVar[bool] = False
     r"""Whether the scheme's cell relation has a TRANSPOSE realization the 1-D
     reverse walk can consume (the adjoint matvec
-    ``LossRepresentation.loss_action_transpose``).  Opt-in (``False`` default —
-    a scheme is NOT assumed transposable until a reverse-mode realization of
-    its cell relation exists, mirroring ``is_affine_scannable`` /
-    ``supports_curvilinear``).  ``True`` for Diamond Difference — the 1-D
-    reverse walk hand-transposes the DD face-flux chain
-    :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}` (Wave O / O.2b);
-    ``False`` for Linear-Discontinuous — the UBLD Schur-residual VJP
-    (cell-moment cotangents + the reverse moment-frame involution) is
-    unimplemented, a typed deferral to the #280 kernel-pair registration.
-    Consumers:
+    ``LossRepresentation.loss_action_transpose``).  Opt-in (``False`` default).
+    ``True`` for Diamond Difference — the 1-D reverse walk hand-transposes the
+    DD face-flux chain :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}`;
+    ``False`` for Linear-Discontinuous — the UBLD Schur-residual VJP is a typed
+    deferral to the #280 kernel-pair registration.  Consumers:
     :attr:`~orpheus.sn.operators.streaming.StreamingOperator.is_adjointable`
-    (the scheme-honest adjoint predicate — an eager ``.H`` on a
-    non-transposable scheme raises ``MissingAdjoint`` at construction, Pattern
-    4) and the reverse walk's entry guard (a typed ``NotImplementedError``,
-    never a silent scalar-buffer broadcast against moment-tailed cotangents).
+    (an eager ``.H`` on a non-transposable scheme raises ``MissingAdjoint`` at
+    construction, Pattern 4) and the reverse walk's entry guard (a typed
+    ``NotImplementedError``, never a silent scalar-buffer broadcast against
+    moment-tailed cotangents).  The discrete Euclidean reverse-DAG transpose is
+    ``docs/theory/methods/sn/loss_representation.rst §loss-rep-orientation-two-frames``.
     Read-only class attribute."""
 
     @property
@@ -1003,18 +709,15 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         r"""``True`` iff this closure carries within-cell spatial moments.
 
         The named, scheme-level form of the ``per_axis > 1`` gate the
-        multi-moment wiring keys on (#240 D5b / #246): a closure is
-        multi-moment iff it tracks a within-cell slope (``ψ̂``) in addition
-        to the cell-average (``ψ̄``) — LD (DG-P1-upwind) → ``True``;
-        DD / Step (slopeless cell-average) → ``False``.  This is the
-        UNCONDITIONAL scheme truth (it reads the closure's basis size, not
-        any field provenance), so the inner-walk sites that must decide
-        "is the array I am threading a moment buffer?" route through it
-        rather than re-spelling ``spatial_basis_per_axis > 1`` (single
-        source of truth).  It is exactly equivalent to ``frame_signs is not
-        None`` at a streaming octant (the
+        multi-moment wiring keys on (#240 D5b): a closure is multi-moment iff
+        it tracks a within-cell slope (``ψ̂``) beyond the cell-average — LD →
+        ``True``; DD / Step → ``False``.  This is the UNCONDITIONAL scheme
+        truth (it reads the closure's basis size, not any field provenance), so
+        the inner-walk moment-buffer checks route through it rather than
+        re-spelling ``spatial_basis_per_axis > 1`` (single source of truth).
+        Equivalent to
         :func:`~orpheus.transport.spatial._ubld.octant_moment_frame_signs`
-        involution is ``None`` iff ``per_axis == 1``), and to the 1-D scan's
+        ``is not None`` at a streaming octant and to the 1-D scan's
         ``moment_tail != ()`` width-presence test."""
         return self.spatial_basis_per_axis > 1
 
@@ -1210,14 +913,13 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
           :meth:`source_emission`).  For Diamond Difference each is
           :math:`2 g_\perp` (its diamond :math:`2 = 1/w_{\rm DD}`).
 
-        The caller (``ScanMarch._sweep_interior``) then composes the recurrence
-        generically — ``b = source_emission(QV + Σ c_⊥ ψ_⊥, inverse_denom, w)``,
-        ``ψ̄ = cell_average(in, out, w)``, ``ψ_out_⊥ =
-        outgoing_face_from_average(ψ̄, ψ_⊥, w)`` — so the diamond ``2`` and the
-        blend ``w`` live HERE, never inline in the row body (#239 the 2-D
-        coefficient-model lift; the scan-march becomes scheme-generic over
-        every ``transverse_coupling_is_facewise`` closure — Diamond Difference
-        today, Step when it lands).
+        The caller (``ScanMarch._sweep_interior``) composes the recurrence
+        generically via the base staticmethods — folding
+        :math:`\sum c_\perp\,\psi_\perp^{\rm in}` into ``QV`` for
+        :meth:`source_emission`, then :meth:`cell_average` /
+        :meth:`outgoing_face_from_average` — so the diamond ``2`` and the blend
+        ``w`` live HERE, never inline in the row body (#239 the 2-D
+        coefficient-model lift).
 
         Only a ``transverse_coupling_is_facewise`` scheme overrides this — the
         separable facewise transverse coupling is exactly the precondition the
@@ -1291,8 +993,8 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     # no instance state, no scheme-specific constant.  The GENERIC
     # advection–reaction reconstruction shared by every affine scheme (and
     # inherited by the future diffusion scheme).  See the class docstring
-    # §"Reconstruction ops" for the universality argument and the
-    # bit-identity-vs-principled-equivalence note.
+    # §"Generic affine reconstruction ops" for the universality argument and
+    # the bit-identity-vs-principled-equivalence note.
 
     @staticmethod
     def source_emission(
@@ -1328,20 +1030,11 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
 
         The inverse of :meth:`cell_average` (the convex face blend
         ``ψ̄ = (1−w)·ψ_in + w·ψ_out``).  The universal affine-scheme outflow
-        reconstruction: DD's diamond mean ``2ψ̄ − ψ_in`` is the ``w=½`` case;
-        LD's ``(1+k)ψ̄ − k·ψ_in`` is the ``w=1/(1+k)`` case.
-
-        .. note::
-
-           For ``w=½`` (Diamond Difference) this is **byte-identical** to the
-           inlined ``2·ψ̄ − ψ_in``: ``÷0.5`` is the exact power-of-2 ``×2`` and
-           round-to-nearest commutes with exact doubling, so
-           ``fl(2·(ψ̄ − 0.5·ψ_in)) == fl(2ψ̄ − ψ_in)`` bit-for-bit.  For LD's
-           ``w=1/(1+k)`` it is algebraically equal to ``ψ̄ + (g/θ)(ψ̄ − ψ_in)/D₂``
-           but takes a DIFFERENT reduction tree (compute ``w`` then ``÷w`` vs the
-           direct ``ψ̄ + k·(…)``), so LD reconstruction is a principled
-           ~1-ULP re-baseline (``vv-principles`` §"Bit-identity vs
-           principled-equivalence"), not a byte-identical move.
+        reconstruction: DD's diamond mean ``2ψ̄ − ψ_in`` is the ``w=½`` case
+        (byte-identical: ``÷½`` is an exact power-of-2 ``×2``); LD's
+        ``(1+k)ψ̄ − k·ψ_in`` is the ``w=1/(1+k)`` case (a principled ~1-ULP
+        re-baseline off a different reduction tree — see the class docstring
+        §"Generic affine reconstruction ops").
         """
         return (psi_bar - (1.0 - w) * face_in) / w
 

@@ -1,53 +1,30 @@
 r"""Diamond-Difference (DD) cell-update strategy — geometry-polymorphic by data.
 
-Issue #196 Phase G Step 2.5 collapses the historical 3-branch
-:class:`DiamondDifference` (slab, curvilinear, cylindrical-degenerate)
-into ONE polymorphic body.  Geometry is data carried by
+A **single** polymorphic body handles slab, sphere, cylinder, and the
+cylindrical pure-azimuthal degenerate case.  Geometry is data carried by
 :class:`~orpheus.geometry.reduced_operator.StreamingTerms` and
 :class:`~orpheus.transport.spatial.scheme.CellVisit`; the strategy does
-NOT branch on geometry kind.
+NOT branch on geometry kind.  Three structural observations enable the
+collapse (derivation:
+``docs/theory/foundations/discretization.rst §discretization-space-angle``):
 
-Architectural shift (Step 2.5)
-==============================
-
-Pre-Step-2.5 the slab branch was kept distinct for bit-identity with
-the legacy ``_sweep_1d_cumprod`` (the dissolved ``sweep.py``) operation order
-(``a*ψ_in + 2q/denom``, then ``½(ψ_in + ψ_out)``).  Step 2.5 retires
-the cumprod path entirely; slab now uses the same fold as sphere /
-cylinder, and the per-cell algebra is the unified
-``ψ_avg = (q + numer_upstream) / denom`` followed by the WDD spatial
-closure ``ψ_out = 2·ψ_avg − ψ_in``.  These two operation orders are
-algebraically identical (exact arithmetic) but differ at IEEE-754 ULP
-— slab hand-calc tests re-baseline to ``np.allclose(rtol=1e-13)``
-per the migration-endpoint clause documented in the pre-Step-2.5
-docstring (see git history) and the project plan
-``.claude/plans/issue_196_phase_g_replan.md`` §"Step 2.5".
-
-The unified body
-================
-
-Three structural observations enable the collapse:
-
-1. **Cell-balance algebra is one formula across geometries**
-   when :class:`StreamingTerms` carries neutral curvature for slab
-   (``α=0, ΔA/w=0, τ=1, A_in=A_out=1``).  The helper
-   :func:`cell_balance_terms` (the Step-2.5 unified version)
+1. **Cell-balance algebra is one formula across geometries** when
+   :class:`StreamingTerms` carries neutral curvature for slab
+   (``α=0, ΔA/w=0, τ=1, A_in=A_out=1``); :func:`cell_balance_terms`
    produces ``(denom, numer_upstream)`` for any geometry.
-2. **The spatial closure** ``ψ^s_out = 2·ψ_avg − ψ^s_in`` is the
-   same formula for slab and non-degenerate curvilinear.
-   Cylindrical-degenerate has no downstream spatial face, signalled
-   by ``visit.face_area_downstream == 0.0`` (geometric truth, not a
-   numerical threshold).
-3. **The angular closure** ``ψ^a_out = (ψ_avg − (1−τ)·ψ^a_in)/τ`` is
-   the same formula for sphere and cylinder.  Slab has no angular
-   redistribution, signalled by ``upstream_state.angular_upstream is
-   None`` (the input direction does not exist in slab geometry).
+2. **The spatial closure** ``ψ^s_out = 2·ψ_avg − ψ^s_in`` is the same
+   formula for slab and non-degenerate curvilinear; cylindrical-degenerate
+   has no downstream spatial face, signalled by
+   ``visit.face_area_downstream == 0.0`` (geometric truth, not a numerical
+   threshold).
+3. **The angular closure** ``ψ^a_out = (ψ_avg − (1−τ)·ψ^a_in)/τ`` is the
+   same formula for sphere and cylinder; slab has no angular redistribution,
+   signalled by ``upstream_state.angular_upstream is None``.
 
 The two ``if`` checks remaining inside :meth:`update`
-(``face_area_downstream > 0.0`` for the spatial closure;
-``angular_upstream is not None`` for the angular closure) are NOT
-geometry dispatch — they test the **structural presence** of a
-direction, not the geometry kind.
+(``face_area_downstream > 0.0``; ``angular_upstream is not None``) are NOT
+geometry dispatch — they test the **structural presence** of a direction,
+not the geometry kind.
 
 References
 ==========
@@ -135,47 +112,30 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
 
     is_affine_scannable: ClassVar[bool] = True
     r"""DD admits the closed-form affine recurrence
-    :math:`\psi_{\rm out} = a\,\psi_{\rm in} + b` (Blelloch §1.5): the
-    cell-average is an affine function of the SINGLE upstream face flux,
-    so the DAG-free scan schedules (``CumprodScan``, ``ScanMarch``) consume DD
-    via its per-cell coefficient triple :meth:`affine_scan_coefficients`
-    ``(a, inverse_denom, w)`` and the generic base reconstruction staticmethods
-    (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission` /
-    :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average` /
-    :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`;
-    #158 the coefficient model);
-    DD's blend weight is ``w = ½`` (the symmetric diamond mean).
-    (Linear-Discontinuous couples two face moments, but its slope is eliminated
-    by the Schur complement — so LD is ALSO affine-scannable, with
-    ``w = 1/(1+k)``; #158 Increment B.)"""
+    :math:`\psi_{\rm out} = a\,\psi_{\rm in} + b` with blend weight ``w = ½``
+    (the symmetric diamond mean): the cell-average is affine in the SINGLE
+    upstream face flux, so the DAG-free scan schedules (``CumprodScan``,
+    ``ScanMarch``) consume DD via its coefficient triple
+    :meth:`affine_scan_coefficients` and the generic base reconstruction
+    staticmethods (#158 the coefficient model)."""
 
     transverse_coupling_is_facewise: ClassVar[bool] = True
-    r"""DD's multi-D transverse coupling is **facewise** (separable): the
-    coupling from a non-swept axis :math:`y` enters the x-recurrence as the
-    single 0th-order face value ``s_y · ψ_{y,in}`` folded into the scan's
-    affine source (the explicit per-axis left-fold in :meth:`update`), so the
-    d-D DD closure factors into independent per-axis 1-D scans chained by
-    scalar face traces.  DD is therefore admitted to the :math:`d \ge 2`
-    scan-march (``ScanMarch``); see
-    :attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.transverse_coupling_is_facewise`
-    for the trait contract and the contrast with the (single-axis)
-    ``is_affine_scannable``.  Linear-Discontinuous, whose multi-D coupling is a
-    1st-order slope moment (bilinear), leaves this trait at its ``False``
-    default and rides the DAG wavefront instead (#240 D5b / #38)."""
+    r"""DD's multi-D transverse coupling is **facewise** (separable): a non-swept
+    axis :math:`y` enters the x-recurrence as the single 0th-order face value
+    ``s_y · ψ_{y,in}`` folded into the scan's affine source (the explicit
+    per-axis left-fold in :meth:`update`), so the d-D DD closure factors into
+    independent per-axis 1-D scans and DD is admitted to the :math:`d \ge 2`
+    scan-march (``ScanMarch``).  Contrast Linear-Discontinuous (bilinear
+    slope-moment coupling → ``False``, rides the DAG wavefront); see the base
+    trait for the facewise-vs-slopewise contract (#240 D5b / #38)."""
 
     diffusion_limit_consistent: ClassVar[bool] = True
     r"""DD's thick-diffusion limit IS a consistent diffusion discretization for
-    the leading-order scalar flux (Larsen–Morel–Miller 1987 Eq. (4.24): the
-    cell-average flux limits to :math:`\tfrac12(\Phi_{j+1/2}+\Phi_{j-1/2})` where
-    :math:`\Phi` satisfies the edge-differenced diffusion Eq. (4.22); the
-    intermediate limit Eqs. (4.33)/(4.34) hold too — LMM-1987 Table I "Diamond"
-    row).  The only DD "maybe" is the thick-regime cell-EDGE flux under an
-    anisotropic incident boundary (the cell-to-cell edge oscillation, Eq. 4.23),
-    which is an edge-flux artefact, NOT a failure of the leading-order
-    scalar-flux limit.  ⚠ This is the SPATIAL axis: DD-in-ANGLE's first-order
-    :math:`\beta`-failure (the curvilinear flux dip, Bailey–Morel–Chang 2010) is
-    a DISTINCT, angular result — do NOT read it as a spatial-DD deficiency.  The
-    angular condition lives on the pole-angular closure; the PAIR validity is
+    the leading-order scalar flux (Larsen–Morel–Miller 1987 Eq. (4.24)).  ⚠ This
+    is the SPATIAL axis: DD-in-ANGLE's first-order :math:`\beta`-failure (the
+    curvilinear flux dip, Bailey–Morel–Chang 2010) is a DISTINCT, angular result
+    — do NOT read it as a spatial-DD deficiency.  The angular condition lives on
+    the pole-angular closure; the PAIR validity is
     :func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`."""
 
     supports_curvilinear: ClassVar[bool] = True
@@ -187,10 +147,10 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     has_transpose_kernel: ClassVar[bool] = True
     r"""The 1-D reverse walk carries DD's transpose: the adjoint matvec
     hand-transposes the diamond face-flux chain (reversed cell traversal,
-    ``psi_bar += 2·f_bar; f_bar = −f_bar`` — Wave O / O.2b), reusing the SAME
-    ψ-independent ``cell_balance_for_streaming`` coefficients as the forward
-    (Pattern 2 — no twin algebra).  Pinned by ``test_g_adjoint_reciprocity``
-    (slab / sphere / cylinder)."""
+    ``psi_bar += 2·f_bar; f_bar = −f_bar``), reusing the SAME ψ-independent
+    ``cell_balance_for_streaming`` coefficients as the forward (Pattern 2 — no
+    twin algebra).  Pinned by ``test_g_adjoint_reciprocity`` (slab / sphere /
+    cylinder)."""
 
     def update(
         self,
@@ -201,15 +161,14 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     ) -> CellResult:
         r"""Compute the cell-average flux + downstream states.
 
-        One body — no geometry dispatch.  See module docstring §
-        "The unified body" for the three structural observations.
+        One body — no geometry dispatch.  See the module docstring for the
+        three structural observations enabling the collapse.
         """
         # ── Cell-balance solve: ONE formula, all geometries ─────────
-        # Issue #236 Phase 2 B3: the Morel--Montry constants c_in / c_out
-        # are angular-closure-owned and arrive as DATA on the visit (stamped
-        # by SNMesh._make_cell_visit from the closure's c_{in,out}_per_ordinate
-        # accessors); cell_balance_terms consumes them instead of rebuilding
-        # them from st.alpha_* / st.tau_mm.
+        # The Morel--Montry constants c_in / c_out are angular-closure-owned
+        # and arrive as DATA on the visit; cell_balance_terms consumes them —
+        # it must NOT rebuild them from st.alpha_* / st.tau_mm (that would
+        # re-fuse the spatial and angular closures).
         terms = cell_balance_terms(
             visit.streaming_terms,
             visit.face_area_downstream,
@@ -239,15 +198,8 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         # Outputs ``None`` when this geometry has no angular state to
         # propagate (slab: upstream_state.angular_upstream is None).
         # Sphere / cylinder share the closure formula
-        # ``ψ^a_out = (ψ_avg − (1−τ)·ψ^a_in)/τ`` exactly.
-        #
-        # Issue #236 Phase 2 B3: τ is the angular-closure-owned weight,
-        # sourced off the visit (CellVisit.tau, stamped by
-        # SNMesh._make_cell_visit from the closure's tau_per_ordinate) —
-        # matching the c_in / c_out provenance above.  DD no longer reads
-        # the formerly geometry-owned ``streaming_terms.tau_mm`` (retired
-        # in Step C); the closure's τ equalled it at 0 ULP (Leg-1
-        # producer-equivalence gate), so this recurrence is bit-identical.
+        # ``ψ^a_out = (ψ_avg − (1−τ)·ψ^a_in)/τ`` exactly, with τ the
+        # angular-closure-owned weight sourced off the visit (CellVisit.tau).
         psi_angle_out: np.ndarray | None = None
         if upstream_state.angular_upstream is not None:
             tau = visit.tau
@@ -282,20 +234,15 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         Round-trip with :meth:`update`
         ------------------------------
 
-        Issue #197 PR-TYPED-6: this method delegates to
-        :func:`cell_balance_for_streaming` (the vectorized helper the
-        SN matvec also consumes) at ``n_mask=1`` — Pattern 2, ONE
-        algebra source, two consumers.  :meth:`update` still routes
-        through :func:`cell_balance_terms` (the scalar form for the
-        solve direction).  Both helpers compute the same algebraic
-        intermediates; ``cell_balance_for_streaming`` exposes the
-        vectorized broadcast-friendly shape, and at ``n_mask=1`` the
-        per-ordinate result matches the scalar form bit-for-bit.
-
-        At the converged ``cell_avg = update(...).cell_average_flux``,
-        the residual is ``denom · cell_avg − (source +
-        numer_upstream)`` = zero by the cell-balance equation that
-        ``update`` solved.
+        This method delegates to :func:`cell_balance_for_streaming` (the
+        vectorized helper the SN matvec also consumes) at ``n_mask=1``;
+        :meth:`update` routes through :func:`cell_balance_terms` (the scalar
+        solve-direction form).  Both compute the same intermediates, so at
+        ``n_mask=1`` the per-ordinate result matches the scalar form
+        bit-for-bit (Pattern 2, ONE algebra source).  At the converged
+        ``cell_avg = update(...).cell_average_flux``, the residual is
+        ``denom · cell_avg − (source + numer_upstream)`` = zero by the
+        cell-balance equation ``update`` solved.
         """
         st = visit.streaming_terms
         # Convert per-cell scalar StreamingTerms primitives to the
@@ -309,24 +256,13 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
 
         psi_face_in_mask = upstream_state.spatial_upstream[:, None]  # (ng, 1)
 
-        # PR-TYPED-6.5 Phase 2.11: the M-M-specific arguments
-        # (``dA_w``, ``c_in``, ``c_out``, ``psi_angular_upstream``)
-        # are gone from ``cell_balance_for_streaming``'s interface.
-        # The closure now owns the M-M algebra and produces the
-        # ``(angular_denom_term, angular_numer_upstream)`` contributions.
-        #
-        # Issue #236 Phase 2 B2: the weighted-diamond constants
-        # ``c_in`` / ``c_out`` are angular-closure-owned and arrive as
-        # DATA on the :class:`CellVisit` (sourced by
-        # :meth:`SNMesh._make_cell_visit` from the closure's
-        # ``c_{in,out}_per_ordinate`` accessors).  DD no longer rebuilds
-        # them from ``st.alpha_*`` / ``st.tau_mm`` — that inline formula
-        # (the former P2 duplication site) is retired.  DD stays
-        # geometry-blind AND closure-blind: it consumes the angular
-        # constants without seeing the closure object, preserving the
-        # spatial ⊗ angular separation.  The (ΔA/w)-scaling that follows
-        # is the geometry-owned redistribution factor; only the SOURCE
-        # of ``c`` moved, the assembly is byte-unchanged.
+        # The M-M algebra is closure-owned: ``cell_balance_for_streaming``
+        # takes only the ``(angular_denom_term, angular_numer_upstream)``
+        # contributions, not raw ``c_in`` / ``c_out``.  The weighted-diamond
+        # constants ``c_in`` / ``c_out`` arrive as DATA on the CellVisit; DD
+        # must NOT rebuild them from ``st.alpha_*`` / ``st.tau_mm`` (it stays
+        # geometry- AND closure-blind).  The (ΔA/w)-scaling below is the
+        # geometry-owned redistribution factor.
         dA_w_scalar = st.delta_A_over_w
         c_out_scalar = visit.c_out
         c_in_scalar = visit.c_in
@@ -361,11 +297,9 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     #
     # The streaming-diagonal fold ``S = Σ_t + Σ 2 g_a`` and the ``w=½``
     # reflection coefficients are the ONE place the diamond ``2 = 1/w_DD``
-    # enters the Cartesian producers.  Before #240 D5a the ``2 g_a`` fold was
-    # hand-transcribed in THREE producers (``cell_kernel_batch`` /
-    # ``residual_kernel_batch`` / ``cartesian_scan_coefficients``) and the
-    # ``w=½`` recurrence in a fourth; these two helpers collapse them so the
-    # diamond constant has exactly one home (Cardinal Rule 2 / Pattern 2).
+    # enters the Cartesian producers (cell_kernel_batch / residual_kernel_batch
+    # / cartesian_scan_coefficients).  Keep the diamond constant with exactly
+    # one home here — never re-inline the ``2 g`` fold (Cardinal Rule 2).
 
     @staticmethod
     def _cartesian_streaming_diagonal(
@@ -443,16 +377,14 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         coefficients ``s_axes`` (one entry per spatial axis, ``d = 1, 2, 3``) +
         source on one anti-hyperplane level, returns ``(psi_avg, psi_out)``
         where ``psi_out`` is the d-tuple of outgoing face fluxes (one per
-        axis). This is the **single source of the DD cell math** (Cardinal
-        Rule 2 / Pattern 2): the SOLVE arm of the ``_CellSolve`` level
-        operation, consumed by BOTH storage walks — the full-cochain
-        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full` (the
-        VERIFICATION ORACLE policy) AND the rolling moving-frontier
+        axis).  The **single source of the DD cell math** (Cardinal Rule 2):
+        the SOLVE arm of the ``_CellSolve`` level operation, consumed
+        identically by both storage walks
+        (:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`
+        the verification oracle,
         :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
-        (the storage-B PRODUCTION policy).  The two differ ONLY in how the
-        incoming faces are gathered and the outgoing faces scattered — the
-        cell algebra is identical, so the window walk and the oracle cannot
-        drift.
+        the production window) — they differ ONLY in gather/scatter, so they
+        cannot drift.
 
         Axis convention
         ---------------
@@ -464,28 +396,16 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         ``shape``. The tuples are positional-by-axis; the caller MUST build
         and unpack them in axis order (``[0]`` = x, ``[1]`` = y, ``[2]`` = z).
 
-        Operation-order discipline (and d=2 bit-identity)
-        -------------------------------------------------
-
         The math is :math:`\psi_{\rm avg} = (Q + \sum_a 2 g_a\,\psi^{\rm in}_a) /
         (\Sigma_t + \sum_a 2 g_a)`, closure :math:`\psi^{\rm out}_a = 2\psi_{\rm
         avg} - \psi^{\rm in}_a`, where ``s_a = g_a`` is the RAW down-face
         streaming and the **scheme** applies its diamond factor ``2 = 1/w_DD``
-        (#240): both the denominator term AND the upstream-numerator term gain
-        the ``2`` (a denom-only ``2`` would be a non-uniform 2× bug → wrong
-        ``ψ̄``). The closure ``2ψ̄ − ψ_in`` is the diamond MEAN (also a ``2``,
-        but the cell-average reconstruction, not the streaming factor).
-        The streaming diagonal + the per-axis couplings ``2 g_a`` come from
+        to BOTH the denom AND the upstream-numerator term (#240; a denom-only
+        ``2`` would be a non-uniform 2× bug → wrong ``ψ̄``).  The streaming
+        diagonal + the ``2 g_a`` couplings come from
         :meth:`_cartesian_streaming_diagonal` (the single source of DD's ``2 g``
-        fold); the upstream-numerator term reuses those couplings.  The axis
-        reduction is an **explicit left fold** (NOT ``sum()``) so the
-        accumulation order is ``((sigt + 2g_0) + 2g_1) + …`` /
-        ``((Q + 2g_0·in_0) + 2g_1·in_1) + …`` — bit-identical to the legacy
-        ``sigt + sx + sy`` (with ``sx = 2|μ_x|/Δx``) order, because ``2·g_a``
-        equals the former pre-scaled ``2|μ_a|/Δa`` exactly (multiply by 2 is an
-        IEEE-754-exact power-of-2 scaling that commutes with rounding). Per
-        ``vv-principles`` Bit-identity vs principled-equivalence, do NOT switch
-        to ``sum()`` or rearrange for "clarity".
+        fold, carrying the explicit-left-fold bit-identity discipline — do NOT
+        regroup).
         """
         denom, couplings = self._cartesian_streaming_diagonal(reaction_xs, s_axes)
         numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
@@ -526,9 +446,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`).
         Same explicit-left-fold operation-order discipline as
         :meth:`cell_kernel_batch`, via the shared
-        :meth:`_cartesian_streaming_diagonal` (``2·g_a`` equals the former
-        pre-scaled ``2|μ_a|/Δa`` bit-for-bit; d=2 bit-identical to the legacy
-        fold order).
+        :meth:`_cartesian_streaming_diagonal`.
         """
         denom, couplings = self._cartesian_streaming_diagonal(reaction_xs, s_axes)
         numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
@@ -567,13 +485,10 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         consume it; DD carries no cell-average / outgoing-face / source-
         emission method of its own.
 
-        The single source of the DD affine-recurrence coefficients
-        (Cardinal Rule 2 / Pattern 2): :class:`CollisionCache.from_geometry`
-        consumes this to populate the L15 σ_t-stratum cache, and through it
-        the ``CumprodScan`` / ``ScanMarch`` sweep bodies.  Before Issue #236
-        §2 the same three numpy ops lived inlined in ``from_geometry``; they
-        now live HERE so the cell-update scheme owns its own closure math
-        and the scan schedules consume whichever scheme ``SNMesh`` selected.
+        The single source of the DD affine-recurrence coefficients (Cardinal
+        Rule 2): :class:`CollisionCache.from_geometry` consumes this to populate
+        the σ_t-stratum cache, and through it the ``CumprodScan`` / ``ScanMarch``
+        sweep bodies.
 
         The math (Lewis & Miller §5.3; Hébert §3.9.4 for the curvilinear
         curvature/M-M terms):
@@ -630,32 +545,22 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         Why a SEPARATE diagonal from the Cartesian helper (#242)
         -----------------------------------------------------------------------
 
-        Both compute "the cell-balance diagonal ``S``" — a shared CONCEPT — but
-        the REALIZATIONS are different mathematical objects, so they are NOT
-        folded into one helper (Cardinal Rule 2 reconsidered; the Rule-of-Three
-        tripwire is explicitly retired for this pair):
-
-        * Cartesian (:meth:`_cartesian_streaming_diagonal`):
-          ``S = Σ_t + Σ_a 2 g_a`` with ``g_a = |μ_a|/Δ_a`` — ÷Δ raw down-face
-          streaming, NO volume weighting, NO angular coupling.
-        * Curvilinear (here): ``S = Σ_t·V + 2|μ|·A_down + (ΔA/w)·c_out`` — the ×V
-          collision, FACE-AREA streaming, AND the Morel–Montry curvature
-          redistribution ``(ΔA/w)·c_out`` (``c_out = α_out/τ``).  That
-          redistribution term couples the SPATIAL diagonal to the ANGULAR
-          closure and has NO Cartesian analogue; the op-order reproduces
-          ``CollisionCache.from_geometry``'s factoring — a DIFFERENT bit-identity
-          pin (``rtol=1e-12`` slab snapshots) than the Cartesian explicit-left-fold.
-
-        The genuine unification is ``S = Σ_t·V + streaming_diag`` with
-        ``streaming_diag`` a geometry-parameterised contribution (Cartesian
-        ``Σ 2g`` / curvilinear ``2|μ|A_down + (ΔA/w)c_out`` / a diffusion
-        ``∇·D∇`` term) — the generic ADVECTION–REACTION diagonal the diffusion
-        scheme (#240's next model / the consistent-DSA ``A_diff``) will build and
-        consume.  That is where the merge belongs: it needs the diffusion
-        consumer to validate the abstraction (``coding-elegance`` Pattern 6 —
-        build the primitive once two real occupants exist), and forcing the
-        curvilinear producer through the Cartesian helper NOW would re-baseline
-        its snapshots for no immediate gain.  Deferred to that work (#242).
+        Both compute "the cell-balance diagonal ``S``", but the REALIZATIONS are
+        different mathematical objects, so they are NOT folded into one helper
+        (Cardinal Rule 2 reconsidered): the Cartesian
+        :meth:`_cartesian_streaming_diagonal` is ``S = Σ_t + Σ_a 2 g_a`` (÷Δ raw
+        streaming, no volume, no angular coupling), while the curvilinear form
+        here is ``S = Σ_t·V + 2|μ|·A_down + (ΔA/w)·c_out`` (×V collision,
+        face-area streaming, AND the Morel–Montry curvature redistribution that
+        couples the spatial diagonal to the angular closure — no Cartesian
+        analogue, a different bit-identity pin).  The genuine unification is
+        ``S = Σ_t·V + streaming_diag`` with a geometry-parameterised
+        ``streaming_diag`` — the generic advection–reaction diagonal the
+        diffusion scheme (#240's next model / the consistent-DSA ``A_diff``)
+        will build; the merge belongs there, once two real occupants exist
+        (``coding-elegance`` Pattern 6).  Deferred to #242 — forcing the
+        curvilinear producer through the Cartesian helper now would re-baseline
+        its snapshots for no gain.
         """
         # streaming + curvature (no group axis) — units: dimensionless
         streaming_face_term = 2.0 * abs_mu[:, None] * A_down              # (N, nx)
@@ -718,12 +623,10 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         ×V "denom" convention the generic reconstruction staticmethods consume
         (the ``×inverse_denom`` form, NOT the legacy ``÷S`` division).  The
         ``2 g_a`` left fold over (scan, transverse...) comes from the shared
-        :meth:`_cartesian_streaming_diagonal` (passing ``s_axes =
-        (s_scan, *s_transverse)`` so the scan-first order coincides with
-        :meth:`cell_kernel_batch`'s axis order); per ``vv-principles``
-        §"Bit-identity vs principled-equivalence" the scan SOLVE rides the
-        byte-identical ``×inverse_denom`` reconstruction (the DD scan snapshots
-        stay strict).
+        :meth:`_cartesian_streaming_diagonal` (passing
+        ``s_axes = (s_scan, *s_transverse)`` so the scan-first order coincides
+        with :meth:`cell_kernel_batch`'s axis order), carrying its bit-identity
+        discipline — the DD scan snapshots stay strict.
         """
         # S = Σ_t + 2g_scan + Σ 2g_⊥, with couplings[0]=2g_scan, couplings[1:]=2g_⊥.
         denom, couplings = self._cartesian_streaming_diagonal(
@@ -752,14 +655,11 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         """
         return self._reflection_coeffs(psi_bar, _DD_W)
 
-    # ── S6.4(e): the storage adapters RETIRED ───────────────────────────
+    # ── DiamondDifference is pure cell algebra in THREE capability groups ──
     #
-    # ``update_batch`` / ``residual_batch`` (the full-field gather → kernel →
-    # scatter wrappers) and their ``_cell_face_selector`` /
-    # ``_gather_cell_inputs`` / ``_scatter_outgoing_faces`` halves moved to
-    # the WALK layer (``SweepDependencyGraph.walk_full`` — storage is the
-    # walk's concern, not the discretization's).  This class is now pure
-    # cell algebra in THREE capability groups, one per sweep-schedule family:
+    # Storage (gather → kernel → scatter) is the WALK's concern, not the
+    # discretization's; this class supplies only cell math, in three groups —
+    # one per sweep-schedule family:
     #   1. the per-cell reference pair (``update`` / ``residual``) — the
     #      canonical contract every scheme MUST provide;
     #   2. the batched kernel pair (``cell_kernel_batch`` /
@@ -768,16 +668,12 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     #   3. the scan-family coefficients ``affine_scan_coefficients`` →
     #      ``(a, inverse_denom, w)`` — the DAG-free scan SOLVE family
     #      (CumprodScan / ScanMarch), consumed by the generic base
-    #      reconstruction staticmethods (``source_emission`` / ``cell_average``
-    #      / ``outgoing_face_from_average`` on
-    #      :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`; #158 the
-    #      coefficient model; the per-scheme ``cell_average_from_faces`` /
-    #      ``outgoing_face_from_average`` closure methods are RETIRED — the
-    #      operations are now generic in ``w``).
+    #      reconstruction staticmethods on
+    #      :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`
+    #      (#158 the coefficient model).
     # This is the ONLY direction-aware math in the SN stack, and the override
     # point for future closure strategies (Step / LD / EC supply group 2 and,
-    # if affine-scannable, the group-3 coefficients; storage is handled once,
-    # above them).
+    # if affine-scannable, the group-3 coefficients).
 
 
 

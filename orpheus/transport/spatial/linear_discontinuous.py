@@ -13,16 +13,15 @@ reason a non-DD spatial scheme can lift the curvilinear pole-cell ``O(h)`` floor
 
    **Diffusion-limit status (current implementation).**  The scattering slope
    source :math:`\Sigma_s\hat\phi` IS now threaded through the global
-   spatial-moment iterate (Increment C / #240 D5b-S3; the ERR-061 frame fix
-   stores the per-ordinate slope :math:`\hat\psi_n` in the global-x frame so the
-   angular reduction :math:`\hat\phi = \sum_n w_n\hat\psi_n` does not cancel
-   forward against backward ordinates).  Full LD therefore **recovers the
-   thick-diffusion limit** — :class:`LinearDiscontinuous` declares
-   ``diffusion_limit_consistent = True`` and the limit is PINNED (no longer
-   xfail) by
+   spatial-moment iterate (Increment C / #240 D5b-S3; the per-ordinate-slope
+   global-frame storage is
+   ``docs/theory/methods/sn/cartesian_multid.rst §ld-ubld-sweep-global-frame``).
+   Full LD therefore **recovers the thick-diffusion limit** —
+   :class:`LinearDiscontinuous` declares ``diffusion_limit_consistent = True``
+   and the limit is PINNED (no longer xfail) by
    ``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit``
-   (1G) + ``::test_ld_thick_diffusive_limit_2g`` (2G, group-coupled).  Remaining
-   gap (Issue #247): the EXTERNAL slope source :math:`\hat Q^{\rm ext}` is still
+   (1G) + ``::test_ld_thick_diffusive_limit_2g`` (2G).  ⚠ Remaining gap
+   (Issue #247): the EXTERNAL slope source :math:`\hat Q^{\rm ext}` is still
    zeroed — the scattering channel EXERCISES the slope-source code path but does
    not CONSTRAIN its sign (vv-principles Mode 10, "activated-but-unconstrained"),
    so a manufactured solution with a non-vanishing external slope source is not
@@ -35,73 +34,39 @@ Why LD carries two moments
 DD has a single per-cell unknown — the cell-average flux :math:`\bar\psi`.  LD
 represents the in-cell angular flux as a **linear function** (Larsen & Morel
 1989, JCP 83(1):212-236, Eqs. 4.1a-c), so each (group, ordinate) cell carries
-**two** spatial moments:
+**two** spatial moments (average :math:`\bar\psi` + slope :math:`\hat\psi`) with
+an **upwind/discontinuous** face closure :math:`\psi_{\rm out} = \bar\psi +
+\hat\psi` (LM-1989 Eq. 4.3c; after ORPHEUS pre-resolves the sweep direction the
+strategy sees only the "downstream" face — no continuity enforced, the
+"discontinuous" in LD).  The moment definitions and the 2×2 cell system
+(:math:`\theta = 1/3`) are
+``docs/theory/foundations/discretization.rst §discretization-ld``.
 
-.. math::
-
-    \bar\psi_{j} = \tfrac1{h_j}\!\int \psi(x)\,dx,
-    \qquad
-    \hat\psi_{j} = \tfrac{6}{h_j^2}\!\int (x-x_j)\,\psi(x)\,dx,
-    \qquad
-    \psi(x) \approx \bar\psi_j + \tfrac{2}{h_j}(x-x_j)\,\hat\psi_j .
-
-The closure is **upwind/discontinuous** at faces (LM-1989 Eq. 4.3c): the
-downstream face value :math:`\psi_{\rm out} = \bar\psi + \hat\psi` (after
-ORPHEUS pre-resolves the sweep direction, so the strategy sees only the
-"downstream" face) feeds the next cell; the cell's own *inflow*-face
-reconstruction is discarded in favour of the upwind neighbour's outflow (no
-continuity enforced — that is the "discontinuous" in LD).
-
-The 2×2 cell system (slab, :math:`A=1`, :math:`V=h`, :math:`|\mu|`
-sweep-pre-resolved, ``source`` = the full per-ordinate RHS moments) is, with
-the upwind closure :math:`\psi_{\rm out}=\bar\psi+\hat\psi` substituted into
-the balance + slope moment equations (LM-1989 Eqs. 4.3a-b, :math:`\theta=1/3`):
-
-.. math::
-
-    \begin{bmatrix} \Sigma_t h + |\mu| & |\mu| \\[2pt]
-                    -\,|\mu|/\theta    & \Sigma_t h + |\mu|/\theta \end{bmatrix}
-    \begin{bmatrix} \bar\psi \\ \hat\psi \end{bmatrix}
-    =
-    \begin{bmatrix} \bar{Q} h + |\mu|\,\psi_{\rm in} \\[2pt]
-                    \hat{Q} h - (|\mu|/\theta)\,\psi_{\rm in} \end{bmatrix}.
-
-The off-diagonal/RHS signs of the slope row are the documented correctness
-trap (LM-1989 memo §1.4/§6 — the published boxed form is internally
-inconsistent); the system above was regenerated symbolically with SymPy and
-validated against the strongest oracle: **LD is exact on a linear-in-x flux**
-(``ψ̄, ψ̂, ψ_out`` recovered to machine precision for any
-:math:`\psi=a+bx`).  See the derivation in the theory page and the foundation
-tests in ``tests/transport/spatial/test_linear_discontinuous.py``.
+⚠ The off-diagonal / RHS signs of the **slope row** are the documented
+correctness trap (LM-1989 memo §1.4/§6 — the published boxed form is internally
+inconsistent).  The system ORPHEUS uses was regenerated symbolically with SymPy
+and validated against the strongest oracle — **LD is exact on a linear-in-x
+flux** (``ψ̄, ψ̂, ψ_out`` recovered to machine precision for any
+:math:`\psi = a + bx`) — the foundation tests in
+``tests/transport/spatial/test_linear_discontinuous.py``.
 
 The Schur-complement scalar contract
 ====================================
 
-The per-cell linear system has two unknowns, but the slope :math:`\hat\psi` is
-a **local** quantity that can be eliminated by the Schur complement of the 2×2
-with respect to the slope row.  This collapses the cell update to a *scalar*
-relation in :math:`\bar\psi`,
-
-.. math::
-
-    S\,\bar\psi = \mathrm{eff\_source} + \mathrm{eff\_numer\_upstream},
-    \qquad
-    D_2' = \Sigma_t\theta h + |\mu|,
-    \quad
-    S = \frac{|\mu|^2 + (\Sigma_t h + |\mu|)\,D_2'}{D_2'},
-
-with :math:`\mathrm{eff\_source} = \bar{S} - |\mu|\theta\,\hat{S}/D_2'` and
-:math:`\mathrm{eff\_numer\_upstream} = |\mu|\,\psi_{\rm in}(D_2'+|\mu|)/D_2'`
-(here :math:`\bar S, \hat S` are the prepared average/slope source moments).
-This is exactly the shape of DD's ``denom·ψ̄ = source + numer_upstream``, so LD
-fits the **existing scalar** :meth:`residual` contract with no contract change
-— :math:`\hat\psi` is reconstructed locally inside :meth:`update`.  The slope
-*source* :math:`\hat{Q}` is still required (carried on ``source[1]``); in a
-**fixed-source** problem it is supplied directly (manufactured), which is why
-LD is staged on the fixed-source MMS first.  Threading the slope through a
-*source-iteration* global flux iterate (so the within-group scattering source
-slope :math:`\propto\Sigma_s\hat\phi` is assembled) is the deferred global
-moment-contract — see Issue #158 / the plan.
+The slope :math:`\hat\psi` is a **local** quantity eliminated by the Schur
+complement of the 2×2, collapsing the cell update to a *scalar* relation
+:math:`S\,\bar\psi = \mathrm{eff\_source} + \mathrm{eff\_numer\_upstream}`
+(:math:`D_2' = \Sigma_t\theta h + |\mu|`; the closed forms are
+``docs/theory/foundations/discretization.rst §discretization-ld``, label
+``discretization-ld-schur``).  This is exactly the shape of DD's
+``denom·ψ̄ = source + numer_upstream``, so LD fits the **existing scalar**
+:meth:`residual` contract with no contract change — :math:`\hat\psi` is
+reconstructed locally inside :meth:`update`.  The slope *source* :math:`\hat Q`
+is carried on ``source[1]``; in a **fixed-source** problem it is supplied
+directly (manufactured), which is why LD is staged on the fixed-source MMS
+first.  Threading the slope through a *source-iteration* global flux iterate
+(assembling the within-group :math:`\propto\Sigma_s\hat\phi` slope source) is
+the deferred global moment-contract (Issue #158).
 
 Scope (slab / Cartesian only — for now)
 =======================================
@@ -110,38 +75,10 @@ This occupant implements the **slab/Cartesian** LD only.  The curvilinear
 (sphere / cylinder) LD cell update — where the Morel-Montry angular weight
 :math:`\tau` enters the average-moment denominator and the radial moment
 :math:`(r-r_j)` weighting produces a slope-curvature coupling — is **not
-published** and must be derived (a SymPy task with the slab-LD and
-curvilinear-DD limits as the two reduction oracles).  Until then, :meth:`update`
-/ :meth:`residual` raise :exc:`NotImplementedError` on a curvilinear visit
-(signalled by ``upstream_state.angular_upstream is not None``, exactly as DD
-signals the presence of angular redistribution).
-
-Traits
-======
-
-* ``is_linear = True`` — the LD closure (without a positivity fixup) is linear
-  in ``source`` and ``upstream_state``.  A positivity fixup (set-to-zero /
-  Larsen) would make it non-linear; the first cut ships **without** a fixup
-  (``is_positivity_preserving = False``), so the clean 2×2 linear solve stands.
-* ``is_positivity_preserving = False`` — LD can produce negative cell-average
-  AND negative edge fluxes in thin / steep-source cells (Lewis & Miller §5.3).
-* ``is_affine_scannable = True`` (Issue #158 Increment B) — although LD carries
-  TWO cell moments, the slope :math:`\hat\psi` is a LOCAL quantity eliminated by
-  the Schur complement, leaving a *single-upstream* affine recurrence
-  :math:`\psi_{\rm out}=a\,\psi_{\rm in}+b` with ``a`` source-independent (proven
-  numerically to machine ε).  So LD ALSO rides the DAG-free scan schedules
-  (``CumprodScan`` / ``ScanMarch``) via the coefficient model — it supplies its
-  three per-cell coefficients ``(a, inverse_denom, w)`` through
-  :meth:`~LinearDiscontinuous.affine_scan_coefficients` and the generic base
-  reconstruction staticmethods
-  (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission` /
-  :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average` /
-  :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`)
-  do the rest.  (The polymorphic
-  ``FullFieldWavefront`` DAG oracle — Increment A — still backs the group-2
-  kernel; the two-paths gate pins ``CumprodScan``-LD ≡ ``FullFieldWavefront``-LD.)
-  **Slab/Cartesian only** — the curvilinear scan coefficients are unpublished
-  (the guard in ``affine_scan_coefficients`` raises on non-neutral curvature).
+published** and must be derived.  Until then, :meth:`update` / :meth:`residual`
+raise :exc:`NotImplementedError` on a curvilinear visit (signalled by
+``upstream_state.angular_upstream is not None``, exactly as DD signals the
+presence of angular redistribution).
 
 References
 ==========
@@ -293,47 +230,41 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     is_linear: ClassVar[bool] = True
     is_positivity_preserving: ClassVar[bool] = False
     is_affine_scannable: ClassVar[bool] = True
-    r"""LD admits the single-upstream affine recurrence (#158 Increment B): the
-    slope :math:`\hat\psi` is eliminated by the Schur complement, leaving
-    :math:`\psi_{\rm out}=a\psi_{\rm in}+b` with ``a`` source-independent.  LD
-    therefore supplies the scan coefficient triple via
+    r"""LD admits the single-upstream affine recurrence
+    :math:`\psi_{\rm out}=a\psi_{\rm in}+b` (#158 Increment B): the slope
+    :math:`\hat\psi` is Schur-eliminated locally, leaving ``a``
+    source-independent, so LD supplies the scan coefficient triple via
     :meth:`affine_scan_coefficients` and rides ``CumprodScan`` (and the **1-D**
-    ``ScanMarch``).  Slab/Cartesian only — the method raises on curvilinear
-    geometry.  NOTE this is the **single-axis** trait; LD leaves
-    ``transverse_coupling_is_facewise`` at its ``False`` default because its
-    multi-D closure is BILINEAR (an independent slope moment per axis), so the
-    d-D coupling is slope-wise (1st-order), NOT a 0th-order face value — the
-    d-D closure does not separate into per-axis scans, and LD rides the DAG
-    wavefront in :math:`d \ge 2`, not the scan-march (#38 / #240 D5b)."""
+    ``ScanMarch``).  Slab/Cartesian only (raises on curvilinear).  This is the
+    single-axis trait; LD leaves ``transverse_coupling_is_facewise`` at
+    ``False`` because its multi-D closure is BILINEAR (an independent slope per
+    axis → slope-wise coupling, not separable), so LD rides the DAG wavefront in
+    :math:`d \ge 2`, not the scan-march (#38 / #240 D5b)."""
 
     spatial_basis_per_axis: ClassVar[int] = 2
     r"""LD carries TWO spatial moments per axis — the Legendre basis
-    :math:`\{1, P_1\}` (cell-average + slope).  The per-cell unknown is
-    therefore :math:`2^d` (d=1: the slab ``{ψ̄, ψ̂}``; d=2: the bilinear
-    ``{ψ̄, ψ̂_y, ψ̂_x, ψ̂_xy}`` in tensor-Legendre Kronecker order — slot 1 = the
-    y-slope, slot 2 = the x-slope (axis 0 = x outer, axis 1 = y inner); the cross
-    moment ``ψ̂_xy`` is the
-    diffusion-limit-load-bearing term simplex-P1 lacks), and each downstream
-    face carries :math:`2^{d-1}` transverse moments (d=1: a scalar; d=2:
-    ``{face-bar, face-slope}``).  The ``per_axis > 1`` gate routes LD onto the
-    multi-moment face-cochain + the moment-reducing emit (#240 D5b);
-    DiamondDifference at ``per_axis == 1`` keeps the scalar path byte-identical.
-    See :mod:`orpheus.transport.spatial._ubld` for the d-generic Kronecker primitive."""
+    :math:`\{1, P_1\}` (cell-average + slope) — so the per-cell unknown is
+    :math:`2^d` (d=1: ``{ψ̄, ψ̂}``; d=2: the bilinear ``{ψ̄, ψ̂_y, ψ̂_x, ψ̂_xy}``)
+    and each downstream face carries :math:`2^{d-1}` transverse moments.  The
+    ``per_axis > 1`` gate routes LD onto the multi-moment face-cochain + the
+    moment-reducing emit (#240 D5b); DiamondDifference at ``per_axis == 1`` keeps
+    the scalar path byte-identical.  The tensor-Legendre Kronecker layout (slot
+    order, the diffusion-limit-load-bearing cross moment ``ψ̂_xy``) is
+    ``docs/theory/methods/sn/cartesian_multid.rst §spatial-moment-space``; the
+    d-generic primitive is :mod:`orpheus.transport.spatial._ubld`."""
 
     diffusion_limit_consistent: ClassVar[bool] = True
     r"""Full LD's thick-diffusion limit IS a consistent diffusion discretization
-    (Larsen–Morel 1989 Part II §IV Eqs. (4.16)-(4.19): the limit Eq. (4.16a) is a
-    "stable and consistently differenced version of the diffusion equation" with
-    accurate diffusion boundary conditions; LMM-1987 §VII "all four diffusion
-    limits").  This is the load-bearing reason a non-DD spatial scheme can lift
+    (Larsen–Morel 1989 Part II §IV Eqs. (4.16)-(4.19); LMM-1987 §VII "all four
+    diffusion limits") — the load-bearing reason a non-DD spatial scheme can lift
     the curvilinear pole-cell :math:`O(h)` floor (#233).  ⚠ The property is a
     statement about FULL LD — it REQUIRES the slope SOURCE moment
-    :math:`\Sigma_s\hat\phi` threaded through the iterate (Increment C / #240
-    D5b-S3), which is now landed; the limit is PINNED (no longer xfail) by
-    ``test_ld_thick_diffusive_limit`` (see the module note).  A flat-source LD
-    (:math:`\hat Q = 0`) would be ``O(h²)`` but NOT diffusion-limit-consistent.
-    The angular first-order condition is separate (the pole-angular closure's
-    ``beta_first_order_consistent``); the PAIR validity is
+    :math:`\Sigma_s\hat\phi` threaded through the iterate (now landed; the limit
+    is PINNED, no longer xfail, by ``test_ld_thick_diffusive_limit`` — see the
+    module note).  A flat-source LD (:math:`\hat Q = 0`) would be ``O(h²)`` but
+    NOT diffusion-limit-consistent.  The angular first-order condition is
+    separate (the pole-angular closure's ``beta_first_order_consistent``); the
+    PAIR validity is
     :func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`."""
 
     supports_curvilinear: ClassVar[bool] = False
@@ -348,18 +279,15 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     mid-sweep."""
 
     has_transpose_kernel: ClassVar[bool] = False
-    r"""The LD adjoint faces are a TYPED DEFERRAL (#280): the reverse-mode VJP
-    of the UBLD Schur residual (cell-moment cotangents + the reverse
-    moment-frame involution) is unimplemented — the 1-D reverse walk
-    hand-transposes the DD face-flux chain only, and its buffers carry no
-    spatial-moment tail.  The ``False`` (= the base default, declared
-    explicitly for the citation) makes
+    r"""The LD adjoint faces are a TYPED DEFERRAL (#280): the reverse-mode VJP of
+    the UBLD Schur residual is unimplemented (the 1-D reverse walk
+    hand-transposes the DD face-flux chain only, its buffers carry no
+    spatial-moment tail).  The ``False`` makes
     :attr:`~orpheus.sn.operators.streaming.StreamingOperator.is_adjointable`
     honest on an LD mesh (an eager ``.H`` raises ``MissingAdjoint`` at
     construction) and arms the reverse walk's entry guard — never a silent
-    scalar-buffer broadcast against moment-tailed cotangents.  Unblocks with
-    the #280 kernel-pair registration (DD registers forward + transpose
-    kernels; LD forward-only)."""
+    scalar-buffer broadcast against moment-tailed cotangents.  Unblocks with the
+    #280 kernel-pair registration (DD forward + transpose; LD forward-only)."""
 
     theta: ClassVar[float] = 1.0 / 3.0
     r"""The slope-moment weight :math:`\theta` (LM-1989 Eq. 4.3b).  The value
@@ -396,12 +324,11 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         psi_in = upstream_state.spatial_upstream
 
         # Single-source the LD 2×2 Schur through the shared d=1 closed form
-        # (#240 D5b-S1 Branch 2): slab A_down = 1, V = h, so the ÷V
-        # streaming-over-volume is g = |μ|/h.  ``schur_xV`` returns the ×V
-        # per-cell intermediates (S, eff_source, eff_numer, θ·ŝ, |μ|A_down, D₂')
-        # in the SAME shape the production closed forms used to compute inline —
-        # the LD 2×2 algebra now lives ONCE (in ``_ubld.d1_closed_form``), proven
-        # == the d-generic dense primitive's d=1 reduction.
+        # (slab A_down = 1, V = h, so the ÷V streaming-over-volume is g = |μ|/h).
+        # ``schur_xV`` returns the ×V per-cell intermediates (S, eff_source,
+        # eff_numer, θ·ŝ, |μ|A_down, D₂'); the LD 2×2 algebra lives ONCE in
+        # ``_ubld.d1_closed_form``, proven == the d-generic dense primitive's
+        # d=1 reduction.
         cf = d1_closed_form(mu / h, total_xs, theta)
         eff_denom, eff_source, eff_numer_upstream, slope_source, mu_Adown, d2p = (
             cf.schur_xV(h, s_bar, s_hat, psi_in)
@@ -466,34 +393,26 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     #
     # The cell kernel the DAG wavefront walks call (the SAME contract
     # DiamondDifference fills): :class:`FullFieldWavefront` — the dimension-
-    # generic oracle, including 1-D slab — runs LD through these, exactly as it
-    # runs DD.  The discretization is polymorphic; the walk owns the storage,
-    # the scheme owns only its cell algebra (#158, the basic qualification).
+    # generic oracle, including 1-D slab — runs LD through these exactly as it
+    # runs DD.  The walk owns the storage, the scheme owns only its cell algebra.
     #
     # Convention: the kernel uses the d-generic Cartesian streaming coefficient
     # ``s = 2|μ|/Δ`` per axis (``A = 1``, ``V = Δ``) — the SAME ``s_axes`` DD's
     # kernel consumes — so ``g = s/2 = |μ|/Δ`` is LD's streaming-over-volume.
-    # This is the ÷V form of the per-cell :meth:`update`/:meth:`residual` 2×2
-    # (which carry the ×V, ``∂r/∂source = −1`` contract scaling); the two are
-    # the SAME LD, pinned consistent by the group1≡group2 gate.
+    # This is the ÷V form of the per-cell ×V ``update``/``residual`` 2×2; the two
+    # are the SAME LD, pinned consistent by the group1≡group2 gate.
     #
-    # UNIFIED MOMENT KERNEL (#240 D5b-S3): a matvec is a forward APPLY — applying
-    # the per-cell ``2^d × 2^d`` operator to the moment vector is intrinsically
-    # MOMENT-valued in EVERY d.  The kernel pair therefore rides ONE d-generic
-    # dense UBLD path (``_ubld_system`` → ``per_cell_solve``) for all d; the
-    # former d=1 Schur-reduced SCALAR matvec arm (``_kernel_terms`` →
-    # ``kernel_rhs``) was a flat-source artifact (Q̂=0 left the slope ψ̂ with no
-    # global coupling) — RETIRED.  The L16 closed-form fast path lives in the
-    # d=1 PRODUCTION sweep (CumprodScan → ``affine_scan_coefficients`` →
-    # ``d1_closed_form``), selected by strategy on geometry, NOT by an ``if d==1``
-    # in the kernel.  The ÷V dense system is SCALE-FREE: dividing the Galerkin
-    # balance by the cell volume ``V = ∏_a Δ_a`` leaves a system depending ONLY
-    # on the per-axis ÷V streaming ``g_a = |μ_a|/Δ_a`` (the ``s_axes`` the kernel
-    # receives) and ``Σ_t``, so the dense assembler is fed unit widths
-    # ``hs = [1, …]`` and ``mus = [g_0, …]``.  At d=1 this is EXACTLY
-    # ``d1_closed_form``'s 2×2 (the closed form is its analytic Schur, proven ==
-    # by ``tests/transport/spatial/test_ld_ubld_primitive.py``), so the moment matvec
-    # and the closed-form scan agree at the solved state.
+    # A matvec is a forward APPLY, and applying the per-cell ``2^d × 2^d``
+    # operator to the moment vector is intrinsically MOMENT-valued in every d, so
+    # the kernel pair rides ONE d-generic dense UBLD path (``_ubld_system`` →
+    # ``per_cell_solve``) for all d — theory:
+    # ``docs/theory/methods/sn/cartesian_multid.rst §ld-ubld-unified-moment-matvec``.
+    # The L16 closed-form fast path lives in the d=1 PRODUCTION sweep (CumprodScan
+    # → ``affine_scan_coefficients`` → ``d1_closed_form``), selected by strategy
+    # on geometry, NOT by an ``if d==1`` in the kernel.  The ÷V dense system is
+    # SCALE-FREE (fed unit widths ``hs = [1, …]`` and ``mus = [g_0, …]``); at d=1
+    # it is EXACTLY ``d1_closed_form``'s 2×2 (proven == by
+    # ``tests/transport/spatial/test_ld_ubld_primitive.py``).
 
     def _ubld_system(
         self,
@@ -640,9 +559,9 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         ``2^d``-moment ``psi_avg`` ``(N_oct, ng, n_diag, 2^d)`` — the cell-average
         in slot 0, the slope moments after — and the d-tuple of
         ``2^{d-1}``-moment downstream faces (one per axis).  ONE moment path for
-        every d (#240 D5b-S3): at d=1 the system is the LD ``2×2`` whose Schur
-        complement is :func:`~orpheus.transport.spatial._ubld.d1_closed_form` (the L16
-        production scan's fast path), proven equal by
+        every d: at d=1 the system is the LD ``2×2`` whose Schur complement is
+        :func:`~orpheus.transport.spatial._ubld.d1_closed_form` (the L16 production
+        scan's fast path), proven equal by
         ``tests/transport/spatial/test_ld_ubld_primitive.py``.
 
         STORAGE-FREE by contract: the WALK gathers ``psi_in`` (per-axis
@@ -672,27 +591,24 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         :math:`r = A\,\vec\psi - R` at the PROBE ``2^d``-moment vector
         ``psi_bar`` ``(N_oct, ng, n_diag, 2^d)`` and reconstructs the d
         ``2^{d-1}``-moment downstream faces from the probe (so the matvec edge
-        fluxes propagate along the wavefront exactly as the sweep's — L21 matvec
-        ≡ sweep).  ONE moment path for every d (#240 D5b-S3): the residual is
-        intrinsically moment-valued (average ROW + slope ROWS), so the former
-        d=1 Schur-reduced SCALAR matvec arm — a flat-source (Q̂=0) artifact — is
-        retired.
+        fluxes propagate along the wavefront exactly as the sweep's — matvec ≡
+        sweep).  ONE moment path for every d — the residual is intrinsically
+        moment-valued (average ROW + slope ROWS).  At the ``psi_bar``
+        :meth:`cell_kernel_batch` solves for (same inputs) the residual vanishes
+        to FP noise (the batched round-trip).  The APPLY arm of the
+        ``_CellResidual`` level operation (the matvec walk).
 
-        At the ``psi_bar`` :meth:`cell_kernel_batch` solves for (same inputs)
-        the residual vanishes to FP noise (the batched round-trip, D5b.1).  The
-        APPLY arm of the ``_CellResidual`` level operation (the matvec walk).
-
-        Mass-diagonal normalization (#240 D5b-S3 — the matvec/sweep moment-source
-        consistency).  The UBLD RHS folds the cell source mass-weighted
-        (``R_source = M·S⃗``, the test-function projection); but the operator-algebra
-        ``A = (L+C) − S`` subtracts the scattering moment source ``S.apply(ψ)`` RAW
-        (per-ordinate, un-projected) at the ``OperatorSum`` level.  Dividing the
-        residual by the (diagonal) mass ``M`` puts ``(L+C)ψ`` in RAW per-moment
-        units so the row-for-row ``− S.apply(ψ)`` is consistent — the slope rows
-        would otherwise disagree by the Legendre mass factor ``M_ii = θ^{|i|}``
-        (``|i|`` = number of active slope axes).  The division preserves the
-        round-trip (``A·ψ⃗ − R = 0 ⇒ (A·ψ⃗ − R)/M_ii = 0``) and matches the d=1
-        DD ÷V convention (where ``M_00 = 1`` so the average row is already raw).
+        Mass-diagonal normalization (the matvec/sweep moment-source consistency).
+        The UBLD RHS folds the cell source mass-weighted (``R_source = M·S⃗``, the
+        test-function projection); but the operator-algebra ``A = (L+C) − S``
+        subtracts the scattering moment source ``S.apply(ψ)`` RAW (per-ordinate,
+        un-projected) at the ``OperatorSum`` level.  Dividing the residual by the
+        (diagonal) mass ``M`` puts ``(L+C)ψ`` in RAW per-moment units so the
+        row-for-row ``− S.apply(ψ)`` is consistent — the slope rows would
+        otherwise disagree by the Legendre mass factor ``M_ii = θ^{|i|}`` (``|i|``
+        = number of active slope axes).  The division preserves the round-trip
+        (``A·ψ⃗ − R = 0 ⇒ (A·ψ⃗ − R)/M_ii = 0``) and matches the d=1 DD ÷V
+        convention (``M_00 = 1`` so the average row is already raw).
         """
         d = len(s_axes)
         assembled, R_source = self._ubld_system(s_axes, reaction_xs, Q_cells)
@@ -761,13 +677,12 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
                 "scan closure is unpublished (#158).  A non-neutral curvature "
                 "was detected (dA_w / c_out are not all zero)."
             )
-        # Single-source the LD 2×2 Schur through the shared d=1 closed form
-        # (#240 D5b-S1 Branch 2): the ×V scan reads ``(a, inverse_denom, w)``
-        # off the same helper the ÷V kernel and ×V per-cell views use.  The
-        # ÷V streaming-over-volume is g = |μ|·A_down/V; ``scan_xV`` re-applies
-        # the ×V cell-volume scaling (S = V·eff_denom) to recover the
-        # transmission ``a = m(1+k)²/S − k`` (source-independent) and the
-        # blend weight ``w = 1/(1+k)``.  The LD algebra lives ONCE.
+        # Single-source the LD 2×2 Schur through the shared d=1 closed form: the
+        # ×V scan reads ``(a, inverse_denom, w)`` off the same helper the ÷V
+        # kernel and ×V per-cell views use.  The ÷V streaming-over-volume is
+        # g = |μ|·A_down/V; ``scan_xV`` re-applies the ×V cell-volume scaling
+        # (S = V·eff_denom) to recover the transmission ``a = m(1+k)²/S − k``
+        # (source-independent) and the blend weight ``w = 1/(1+k)``.  Algebra ONCE.
         V_full = V[:, None, :]                            # (N, 1, nx)
         m = abs_mu[:, None, None] * A_down[:, None, :]    # |μ|·A_down  (N, 1, nx)
         g = m / V_full                                    # ÷V streaming (N, 1, nx)
@@ -783,7 +698,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         reaction_xs: np.ndarray,
     ) -> D1ClosedForm:
         r"""The per-cell :class:`~orpheus.transport.spatial._ubld.D1ClosedForm` for the
-        1-D moment SCAN (#240 D5b-S3 OWED-2).
+        1-D moment SCAN (the production LD source-iteration sweep).
 
         The slope-source-aware companion of :meth:`affine_scan_coefficients`: the
         flat-source scan reads only ``(a, inverse_denom, w)`` (source-independent,
@@ -794,8 +709,9 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         (:meth:`~orpheus.transport.spatial._ubld.D1ClosedForm.scan_reconstruct`).  Both
         ride the SAME ``D1ClosedForm`` the flat scan's ``(a, inverse_denom, w)``
         come from (Pattern 2 — ONE LD algebra site; the slope fold is shared with
-        the per-cell Schur :meth:`~orpheus.transport.spatial._ubld.D1ClosedForm.schur_xV`
-        via ``_slope_fold``).
+        the per-cell Schur via ``_slope_fold``).  The slope-augmented affine
+        source is
+        ``docs/theory/methods/sn/cartesian_multid.rst §ld-ubld-moment-scan``.
 
         Inputs are broadcastable per-ordinate-per-cell-per-group arrays
         (``abs_mu``/``A_down``/``V`` carry NO group axis; ``reaction_xs`` is ``(ng, …)``);
