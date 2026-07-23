@@ -1,82 +1,40 @@
 r"""Angular-redistribution closure strategies for the curvilinear FD operator.
 
-Why this abstraction exists
-===========================
+The curvilinear S\ :sub:`N` cell-balance (Hébert 2009 §3.9.4 Eq. 3.428)
+carries an angular-redistribution term in **half-angle face fluxes**
+:math:`\phi_{n\pm 1/2,i}` — the flux between consecutive ordinate
+sub-domains.  They are NOT cell-centre values and cannot be computed
+from cell-centres without a **closure**; this module supplies that
+closure as a strategy family.
 
-The curvilinear S\ :sub:`N` cell-balance equation (Hébert 2009 §3.9.4
-Eq. 3.428) carries an angular redistribution term
+The production closure is the per-cell Morel--Montry weighted-DD angular
+recurrence of Hébert Eqs. 3.437 / 3.439,
+:math:`\phi_{n+1/2,i} = (\phi_{n,i} - (1-\tau_n)\phi_{n-1/2,i})/\tau_n`,
+seeded at the Carlson starting direction :math:`\mu = -1` (where the
+redistribution weight vanishes, :math:`\alpha_{1/2} = 0`).  It runs the
+SAME algebra
+:class:`~orpheus.transport.spatial.diamond.DiamondDifference` runs inside
+the sweep, lifted to operator level so the apply matvec and the sweep
+solve the **same** discrete fixed point.  Since Issue #282 route (a) the
+seed :math:`\phi_{1/2,i}` is first-class STATE marched directly from the
+source (carrying levels — the sphere), or the inlined 2-point
+angular-edge extrapolation on non-carrying cylinder levels; the retired
+pre-route-(a) :math:`\phi_{1/2,i} = 0` back edge survives only as the
+:math:`\psi`-independent coefficient state (a ``None`` seed).
 
-.. math::
-   :label: pole-redistribution-balance
+The full theory lives in the book (nothing derived here):
 
-   \frac{\Delta S_i}{2\,\mathcal{W}_n}
-   \bigl[\alpha_{n+1/2}\,\phi_{n+1/2,i}
-       - \alpha_{n-1/2}\,\phi_{n-1/2,i}\bigr]
-
-evaluating :math:`\int \partial_\mu[(1-\mu^2)\psi]\,d\mu` per ordinate
-sub-domain (Hébert Eq. 3.420).  The :math:`\phi_{n\pm 1/2,i}` are
-**half-angle face fluxes** between consecutive ordinate sub-domains;
-they are NOT cell-centre values and they are NOT computable from
-cell-centres without a closure.
-
-The pre-Phase-B ``transport_operator_matvec_spherical`` matvec (that
-whole per-geometry family since deleted — #197 / #280 campaigns)
-evaluated the half-angle face fluxes via Morel--Montry
-:math:`\tau`-weighted **symmetric interpolation**
-
-.. math::
-   :label: legacy-mm-symmetric-interpolation
-
-   \phi_{n+1/2,i} \;\approx\; \tau_n \, \phi_{n+1,i}
-                              + (1 - \tau_n) \, \phi_{n,i}
-
-— exact when :math:`\psi` is constant in :math:`\mu` (the **flat-flux
-collapse** the Bailey :math:`\Delta A/w` factor enforces by
-construction), but only :math:`\mathcal{O}(1)` accurate on smooth
-angularly-varying :math:`\psi`.  The factor-of-two truncation gap
-identified in Issue #168 Defect 3 (memo §3, lines 198-244) is exactly
-the gap between this collapsed evaluation and the canonical Hébert
-form: at the sphere pole on an MMS that is **not** angle-flat, the
-collapsed redistribution overcorrects by a factor of two.
-
-Phase B (this module) ships the canonical fix: the **per-cell M-M
-weighted DD angular recurrence** of Hébert Eqs. 3.437 / 3.439 with
-the Morel--Montry :math:`\tau` clamp,
-
-.. math::
-   :label: dd-angular-recursion
-
-   \phi_{n+1/2,i} \;=\;
-   \frac{\phi_{n,i} \;-\; (1 - \tau_n)\,\phi_{n-1/2,i}}{\tau_n},
-   \qquad \phi_{1/2,i} = \psi_{1/2,i},
-
-seeded at the Carlson starting direction :math:`\mu = -1`, where the
-angular redistribution weight vanishes (:math:`\alpha_{1/2} = 0`).
-Since Issue #282 route (a) (#280 Phase 2.5d) the seed
-:math:`\psi_{1/2,i}` is computed **directly from the source** by the
-Hébert Eqs. 3.432-3.435 starting-direction march
-(:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`)
-and carried as first-class STATE on the composite's
-``radial_characteristic`` block (the carrying levels — the sphere), or
-inlined as the operator-consistent 2-point angular-edge extrapolation
-on the non-carrying cylinder levels
-(:meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`).
-The pre-route-(a) treatment — adopting :math:`\phi_{1/2,i} = 0` for the
-**forward apply** matvec and letting the SOLVE reach it under
-fixed-point iteration — was a walk-order back edge and is **retired**;
-:math:`\phi_{1/2,i} = 0` now survives only as the
-:math:`\psi`-independent coefficient state (a ``None`` seed).  At
-:math:`\tau_n = 1/2` the recurrence
-reduces to the pure DD form :math:`\phi_{n+1/2,i} = 2\,\phi_{n,i}
-- \phi_{n-1/2,i}` (Hébert Eqs. 3.437 / 3.439).  For
-:math:`\tau_n \in (1/2, 1]` the M-M clamp gives weighted-DD with
-guaranteed positive M-M weighting (Bailey-Morel-Chang 2010).
-
-The recursion runs once per (cell, group) across the GL-sorted
-ordinates :math:`n = 1, \ldots, N` — the same algebra the
-:class:`~orpheus.transport.spatial.diamond.DiamondDifference` cell-update
-runs inside the sweep, lifted up to operator level so the apply
-matvec and the sweep solve the **same** discrete fixed point.
+* ``docs/theory/methods/sn/curvilinear_one_group.rst §balance-curvilinear``
+  — the redistribution term, the :math:`\alpha`-recursion, the
+  :math:`\Delta A/w` flat-flux consistency proof, and the M-M weights
+  (``mm-weights`` / ``wdd-face`` / ``pole-mm-recurrence``);
+* ``docs/theory/methods/sn/curvilinear_one_group.rst §sn-apply-sweep-equivalence``
+  — why the apply matvec and the sweep solve the same discrete operator;
+* ``docs/theory/methods/sn/curvilinear_one_group.rst §sn-direct-seed-solve``
+  and ``§sn-direct-seed-r12a`` — the route-(a) direct seed
+  (:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`,
+  :meth:`MorelMontryAngularSweep.edge_extrapolated_seed`) and which
+  levels carry a ψ½ block.
 
 The single strategy contract — :class:`PoleAngularClosureBase`
 ==============================================================
@@ -92,60 +50,25 @@ inherits it (passing ``key="..."``), carries a class-level
 plus the closure-constant accessors
 (:attr:`~PoleAngularClosureBase.c_in_per_ordinate` /
 :attr:`~PoleAngularClosureBase.c_out_per_ordinate` /
-:attr:`~PoleAngularClosureBase.tau_per_ordinate`).
+:attr:`~PoleAngularClosureBase.tau_per_ordinate`).  The pole singularity
+is **intrinsic geometry** (a coordinate-system singularity), not an
+external boundary, so the closure stays a separate concern from the
+boundary trace.  One strategy covers both curvilinear geometries via an
+optional per-:math:`\mu`-level loop: sphere is the single-level case;
+cylinder loops one azimuthal sub-problem per level (each with its own
+:math:`\alpha` dome and :math:`\Delta A/w` factor), the per-cell DD
+recurrence structurally identical, only the ordinate index list changing.
 
-The shape was originally modelled after the Phase A
-``BoundaryFaceFlux`` Protocol (**retired** by Issue #168 Phase C, commit
-``3fd1302``).  The pole-angular closure stays a separate strategy concern
-because the sphere centre is **intrinsic geometry** (a coordinate-system
-singularity), not an external boundary.
-
-Retirement history:
-
-* PR-TYPED-6c Step 7 (2026-05-18) retired
-  ``LegacyTauSymmetricInterpolation`` (pre-Phase-B inlined form) and
-  ``BaileyFlatFluxRedist`` (Phase B ablation strategy) — neither had a
-  production consumer after PR-TYPED-6.5's default switch to
-  ``MorelMontryAngularSweep`` for curvilinear +
-  ``IdentityAngularClosure`` for Cartesian.
-* Issue #236 Phase 2 B2 retyped every production consumer (matvec /
-  sweep / geometry / scheme / cell-balance) from the ``@runtime_checkable
-  PoleAngularClosure`` Protocol onto this ABC, and made the three
-  strategy methods abstract on the ABC.
-* Issue #248 (2026-06-18) retired the now-orphaned, divergent
-  ``PoleAngularClosure`` Protocol and the dead legacy bundle ``__call__``
-  (with its ``tau_mm`` argument) — the production matvec/sweep consume
-  :meth:`~PoleAngularClosureBase.precompute_psi_state` +
-  :meth:`~PoleAngularClosureBase.cell_contribution`, never ``__call__``.
-
-The unification choice for cylindrical was: **one strategy, optional
-per-level loop**.  The mesh-bound strategy treats sphere as a single
-ordinate level and cylinder as one azimuthal sub-problem per
-:math:`\mu`-level (each with its own :math:`\alpha_{n\pm 1/2}` dome and
-:math:`\Delta A/w` geometry factor) — the per-cell DD angular recurrence
-is structurally identical in both cases, only the ordinate index list
-changes.
-
-Hébert citation correction (Issue #168 Phase B)
-================================================
-
-The pre-Phase-B :mod:`orpheus.geometry.reduced_operator` docstrings
-cited "Bailey, T. S., Adams, M. L., Yang, B., & Zika, M. R. (2009).
-*A piecewise linear finite element discretization of the diffusion
-equation for arbitrary polyhedral grids*. JCP 227, 3738-3757."  This
-is the **wrong Bailey paper** — it is a piecewise-linear FE diffusion
-paper unrelated to curvilinear S\ :sub:`N` α-recursion.  The intended
-reference is **Bailey, Morel & Chang (2010)**, NSE 165(2):149-169,
-"Asymptotic Diffusion-Limit Accuracy of Sn Angular Differencing
-Schemes" (LLNL preprint LLNL-JRNL-420356; OA at
-https://www.osti.gov/servlets/purl/1020346).
-
-Phase B corrects the citations across the operator and geometry
-modules.  The math itself was always Hébert §3.9.4 — Bailey-Morel-Chang
-2010 re-derives the M-M weighted-diamond clamp with formal-:math:`\varepsilon`
-asymptotic-diffusion-limit analysis but does not discuss the
-angular-redistribution closure.  Hébert is the canonical primary
-source.
+The contract's evolution — the retired Phase-A ``BoundaryFaceFlux``
+Protocol it mirrored, the Protocol→ABC retype (#236 Phase 2 B2), and the
+Issue #248 retirement of the divergent ``PoleAngularClosure`` Protocol +
+the legacy ``__call__`` bundle + the ``LegacyTauSymmetricInterpolation``
+/ ``BaileyFlatFluxRedist`` ablation strategies — is the record at
+``docs/theory/methods/sn/curvilinear_one_group.rst §sn-pole-angular-closure-protocol``
+(which also carries the Hébert citation correction: the primary source is
+Hébert §3.9.4; Bailey--Morel--Chang 2010 is the auxiliary M-M-clamp
+justification, not the wrong 2009 Bailey FE-diffusion paper the
+pre-Phase-B geometry docstrings cited).
 
 References
 ==========
@@ -157,26 +80,9 @@ References
 * Bailey, T. S., Morel, J. E., & Chang, J. H. (2010). *Asymptotic
   Diffusion-Limit Accuracy of Sn Angular Differencing Schemes*. NSE
   165(2):149-169.  Auxiliary justification for the M-M clamp.
-* :doc:`/theory/methods/sn/curvilinear_one_group` — "The pole angular
-  closure (Issue #168 Phase B)".
-* Issue #168 design memo — ``.claude/plans/issue_168_design.md``.
-* Phase A closeout —
-  ``.claude/agent-memory/method-implementer/issue_168_phase_a_closeout.md``.
-
-See also
-========
-
-* ``orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`` —
-  **RETIRED Phase C** (Issue #168, commit ``3fd1302``).  The Phase A
-  boundary-flux Protocol whose architecture this module mirrors; the
-  sweep-frame matvec rewrite subsumed it.  Retained as a
-  cross-reference for the architectural-mirror pattern only.
-* :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` —
-  per-cell-update strategy contract; the curvilinear sweep also runs
-  the DD angular recurrence inside its
-  :class:`~orpheus.transport.spatial.diamond.DiamondDifference` strategy
-  (with :math:`\tau = 1/2`).  Phase B aligns the apply matvec with
-  the sweep's math at the operator level.
+* ``docs/theory/methods/sn/curvilinear_one_group.rst`` — the pole
+  angular closure (Issue #168 Phase B) and the α-recursion crosswalk
+  (``docs/theory/conventions/normalization.rst §normalization-alpha-crosswalk``).
 """
 
 from __future__ import annotations
@@ -200,18 +106,11 @@ if TYPE_CHECKING:  # pragma: no cover
 # PoleAngularClosureBase — concrete ABC with self-registration
 # ═══════════════════════════════════════════════════════════════════════
 #
-# Issue #248 (2026-06-18) retired the orphaned ``@runtime_checkable
-# PoleAngularClosure`` Protocol that formerly sat here.  Issue #236 Phase 2
-# B2 retyped every production consumer (the matvec / sweep / geometry /
-# scheme / cell-balance) from that Protocol onto this ABC and made the
-# strategy methods (``precompute_psi_state`` / ``cell_contribution`` /
-# ``angular_adjoint``) abstract on it — so the Protocol was left orphaned
-# (only a single test's ``isinstance`` read it) AND divergent (it carried
-# ``is_linear`` / the ``c_*``/``tau`` accessors / ``__call__`` but NOT the
-# three strategy methods).  Cardinal Rule 2: one contract per concept.  The
-# ABC below is now the SOLE angular-closure contract; the dead legacy bundle
-# ``__call__`` (with its ``tau_mm`` argument) was retired alongside the
-# Protocol.
+# This ABC is the SOLE angular-closure contract (Cardinal Rule 2 — one
+# contract per concept). The retired ``@runtime_checkable
+# PoleAngularClosure`` Protocol and the legacy ``__call__`` bundle (with its
+# ``tau_mm`` argument) are the record's story:
+# curvilinear_one_group.rst §sn-pole-angular-closure-protocol.
 
 
 class PoleAngularClosureBase(RegistryMixin, ABC):
@@ -338,23 +237,18 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         valid. Abstract: declares the signature only; concrete
         ``__init__`` bodies do not chain here.
         """
-    # The Morel–Montry weighted-diamond closure derives two algebraic
-    # constants per μ-level from its α-dome and τ weight:
+    # The M-M weighted-diamond closure derives two algebraic constants per
+    # μ-level from its α-dome and τ weight (the index convention consumers
+    # depend on — keep at point of use):
     #
     #   c_out[m] = α_{m+1/2} / τ_m
     #   c_in[m]  = (1−τ_m)/τ_m · α_{m+1/2} + α_{m−1/2}
     #
-    # The closure is their CANONICAL owner — it computes them once at
-    # construction (per μ-level, ``(M_p,)`` arrays) from the very α and τ it
-    # already binds.  Consumers that key on the GLOBAL ordinate axis (the
-    # :class:`~orpheus.sn.sweep.cache.GeometryCoefficients` populator,
-    # the matvec) read the gathered ``(N,)`` views below instead of rebuilding
-    # the same scalar formula at their own site (Cardinal Rule 2 single source
-    # of truth; coding-elegance Pattern 7 — normalise at the definition site).
-    #
-    # The Cartesian :class:`IdentityAngularClosure` returns the NEUTRAL zero
-    # contribution (α ≡ 0, τ ≡ 1 ⇒ c_in = c_out = 0) — the same zeros a slab
-    # consumer would otherwise inline — so the consumer stays geometry-blind.
+    # The closure is their CANONICAL owner (single source of truth): it
+    # computes them once at construction and consumers read the gathered
+    # ``(N,)`` views below; Cartesian IdentityAngularClosure returns neutral
+    # zeros (α ≡ 0, τ ≡ 1 ⇒ c = 0) so slab consumers stay geometry-blind.
+    # Ownership rationale: curvilinear_one_group.rst §sn-closure-c-constants-owned.
 
     def _gather_per_ordinate(
         self, per_level: "tuple[np.ndarray, ...]"
@@ -377,22 +271,14 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         return out
 
     def _build_per_ordinate_cache(self) -> None:
-        """Gather the three per-level constants to ``(N,)`` ONCE at construction.
+        """Gather the three per-level constants (c_in / c_out / τ) to ``(N,)``
+        ONCE at construction.
 
-        Issue #236 Phase 2 B2 Fix 1 (L16) — every concrete mesh-bound
-        ``__init__`` calls this AFTER binding ``_c_in_per_level`` /
-        ``_c_out_per_level`` / ``_tau_per_level`` (and ``level_indices``).
-        The gather is a pure permutation of immutable per-level data, so
-        caching it makes the public accessors O(1).  The cached arrays are
-        marked READ-ONLY (``setflags(write=False)``) so a consumer that holds
-        a reference to the shared ``(N,)`` view (e.g. the
-        ``GeometryCoefficients`` populator) cannot corrupt the cache.
-
-        Issue #236 Phase 2 B3 adds the τ gather alongside the two c gathers:
-        the FUNDAMENTAL angular weight ``τ`` is the closure's owned primitive,
-        and the live sweep + scan paths consume it (instead of the former
-        geometry-factory ``StreamingTerms.tau_mm``, retired in Step C) via
-        :attr:`tau_per_ordinate`.
+        The per-level→global gather is a pure permutation of immutable data,
+        so caching it makes the public accessors O(1).  The cached arrays are
+        marked READ-ONLY (``setflags(write=False)``) so a consumer holding a
+        reference to the shared ``(N,)`` view (e.g. the ``GeometryCoefficients``
+        populator) cannot corrupt the cache.
 
         Precondition: called as the LAST ``__init__`` step, after the
         per-level constants (``_c_*_per_level`` / ``_tau_per_level``) and
@@ -433,40 +319,33 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         r"""Morel--Montry angular weight :math:`\tau` per global ordinate.
 
         ``(N,)`` array; the FUNDAMENTAL angular weight (Bailey--Morel--Chang
-        2010 Eq. 43) the closure owns.  The derived constants are
+        2010 Eq. 43) the closure owns, from which
         :math:`c_{\rm out} = \alpha_{m+1/2}/\tau_m` and
         :math:`c_{\rm in} = (1-\tau_m)/\tau_m\,\alpha_{m+1/2} + \alpha_{m-1/2}`
-        (:attr:`c_out_per_ordinate` / :attr:`c_in_per_ordinate`).  ``1.0`` for
-        every ordinate of the Cartesian identity closure (the neutral M-M
-        weight: the recurrence :math:`(\bar\psi - (1-\tau)\psi_{\rm in})/\tau`
-        is then the identity).  Returns the read-only cache built once at
-        construction (Issue #236 Phase 2 B3).  Consumers (the live
-        :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` angular
-        recurrence via :attr:`~orpheus.transport.spatial.scheme.CellVisit.tau`, and
-        the ``GeometryCoefficients`` populator's ``tau_inv`` / ``mm_a_in_coeff``
-        scan split) read THIS τ instead of the FORMER geometry-factory
-        ``StreamingTerms.tau_mm`` (retired in Step C; the closure's τ equalled
-        it at 0 ULP through the carve, and the Leg-1 gate now pins this
-        producer against the independent ``contamination.morel_montry_weights``).
+        derive (:attr:`c_out_per_ordinate` / :attr:`c_in_per_ordinate`).
+        ``1.0`` for every ordinate of the Cartesian identity closure (the
+        neutral weight: the recurrence is then the identity).  Returns the
+        read-only cache built once at construction.  The live sweep, matvec,
+        and scan read THIS τ (via
+        :attr:`~orpheus.transport.spatial.scheme.CellVisit.tau`), not the
+        retired geometry-factory ``StreamingTerms.tau_mm`` — the τ ownership
+        and Step-C retirement (with the Leg-1 structural-independence gate) are
+        the record at
+        ``docs/theory/methods/sn/curvilinear_one_group.rst §sn-tau-step-c-closeout``.
         """
         return self._tau_per_ordinate_cache
 
-    # ── Matvec strategy contract (Issue #236 Phase 2 B2 — ABC completion) ──
+    # ── Matvec strategy contract (the ABC's three abstract methods) ──
     #
     # The unified SN matvec (``loss_representation.py``) reads
     # ``sn_mesh.pole_angular_closure`` typed against THIS ABC and drives the
-    # angular path through these three methods.  Declaring them abstract here
-    # makes the ABC the COMPLETE strategy contract — exactly as
-    # :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase` declares
-    # ``update`` / ``residual`` abstract so ``mesh.scheme`` consumers (typed
-    # against that ABC) see the full contract.  Without these declarations the
-    # matvec tripped pyright on "unknown attribute for PoleAngularClosureBase"
-    # despite every concrete closure implementing them.  Return types are
-    # deliberately loose (``object`` for the per-level half-grid state) so the
-    # two concrete realizations vary: M-M returns a per-level ``_MMHalfGrid``
-    # tuple from :meth:`precompute_psi_state` (Identity returns ``None`` — no
-    # curvature grid), while both honour the ``(denom, upstream_numer)`` /
-    # adjoint array-pair shapes.
+    # angular path through these three methods; declaring them abstract makes
+    # the ABC the COMPLETE strategy contract.  Return types are deliberately
+    # loose (``object`` for the per-level half-grid state) so the two
+    # realizations vary: M-M returns a per-level ``_MMHalfGrid`` tuple from
+    # :meth:`precompute_psi_state` (Identity returns ``None`` — no curvature
+    # grid), while both honour the ``(denom, upstream_numer)`` / adjoint
+    # array-pair shapes.
 
     @abstractmethod
     def precompute_psi_state(
@@ -534,66 +413,53 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
 # _MMHalfGrid — module-private typed accessor for the M-M half-angle grid
 # ═══════════════════════════════════════════════════════════════════════
 #
-# PR-TYPED-6.5 Phase 2: the underscore prefix declares "module-private".
-# Consumers (matvec, sweep, tests) see only the public API of
-# :class:`MorelMontryAngularSweep` and treat the half-grid as opaque
-# strategy state. The redistribution body inside the M-M class accesses
-# the raw :attr:`faces` array directly; external code consumes via
-# :meth:`upstream` / :attr:`upstream_per_ordinate` accessors.
+# The underscore prefix declares "module-private": consumers (matvec, sweep,
+# tests) see only the public API of :class:`MorelMontryAngularSweep` and treat
+# the half-grid as opaque strategy state. The redistribution body inside the
+# M-M class accesses the raw :attr:`faces` array directly; external code
+# consumes via :meth:`upstream` / :attr:`upstream_per_ordinate` accessors.
 
 
 @dataclass(frozen=True, slots=True)
 class _MMHalfGrid:
     r"""Typed accessor for the Morel-Montry half-angle face grid.
 
-    Issue #197 PR-TYPED-6c Step 1.5 — Pattern 4 (illegal states
-    unrepresentable) for the off-by-one trap the half-angle grid
-    historically exposed.
-
-    The M-M recurrence produces :math:`M+1` face fluxes per level for
-    :math:`M` ordinates: ``faces[g, 0, i] = ψ_{1/2, i, g}`` (Carlson
-    seed, upstream of ordinate 0), ``faces[g, m, i] = ψ_{m-1/2, i, g}``
-    (upstream of ordinate m, equivalently downstream of ordinate m-1),
-    ``faces[g, M, i] = ψ_{M+1/2, i, g}`` (downstream of last ordinate).
+    Pattern 4 (illegal states unrepresentable) for the off-by-one trap the
+    half-angle grid exposes.  The M-M recurrence produces :math:`M+1` face
+    fluxes per level for :math:`M` ordinates:
+    ``faces[g, 0, i] = ψ_{1/2, i, g}`` (Carlson seed, upstream of ordinate 0),
+    ``faces[g, m, i] = ψ_{m-1/2, i, g}`` (upstream of ordinate m ≡ downstream
+    of ordinate m-1), ``faces[g, M, i] = ψ_{M+1/2, i, g}`` (downstream of the
+    last ordinate).
 
     Two distinct consumers need DIFFERENT slices of this grid:
 
     * The **redistribution fold** — :math:`R_m = (\Delta A/w)/V \cdot
       (\alpha_{m+1/2} \phi_{m+1/2} - \alpha_{m-1/2} \phi_{m-1/2})` — uses the
-      paired ``(m, m+1)`` access. Use :attr:`faces` for direct paired
-      access. (Issue #248 retired the legacy ``__call__``-bundle helper that
-      used to perform this fold in production; the live matvec consumes the
-      grid through :meth:`MorelMontryAngularSweep.cell_contribution`, and the
-      paired-access fold survives in the hand-calc verification tests.)
+      paired ``(m, m+1)`` access. Use :attr:`faces` directly.
+    * The **unified matvec** consumes the upstream-per-ordinate slice — one
+      ``(ng, nx)`` block per ordinate for ``cell_balance_for_streaming``'s
+      ``psi_angular_upstream`` argument. Use :meth:`upstream` (single
+      ordinate) or :attr:`upstream_per_ordinate` (all ordinates).
 
-    * The **unified matvec** (Issue #197 PR-TYPED-6c Step 2+) consumes the
-      upstream-per-ordinate slice — one ``(ng, nx)`` block per ordinate
-      to populate ``cell_balance_for_streaming``'s ``psi_angular_upstream``
-      argument. Use :meth:`upstream` (single ordinate) or
-      :attr:`upstream_per_ordinate` (all ordinates).
+    The off-by-one trap (``faces[g, m, i]`` vs ``faces[g, m+1, i]``) is
+    impossible by API design when consumers use :meth:`upstream` — the
+    method's name AND signature enforce upstream-per-ordinate semantics. The
+    raw :attr:`faces` array stays exposed so the redist body keeps its
+    bit-identical paired access.
 
-    The off-by-one trap (``faces[g, m, i]`` vs ``faces[g, m+1, i]``)
-    is impossible by API design when consumers use :meth:`upstream` —
-    the method's name AND signature enforce upstream-per-ordinate
-    semantics. The raw :attr:`faces` array stays exposed so the redist
-    body keeps its bit-identical paired access pattern.
-
-    Storage convention (Step 1.5): ``faces`` shape ``(ng, M+1, nx)`` —
-    group-leading, matching the existing M-M recurrence kernel. Step
-    1.7 (packed-vector canonical alignment) will flip the storage to
-    ``(M+1, ng, nx)`` ordinate-leading; this change is deferred so
-    Step 1.5 stays purely additive.
+    Storage convention: ``faces`` shape ``(ng, M+1, nx)`` — group-leading,
+    matching the M-M recurrence kernel.
 
     Attributes
     ----------
     faces :
-        Shape ``(ng, M+1, nx)``. The raw half-angle grid as produced by
-        :func:`_psi_half_grid_single_level`. ``faces[g, 0, i]`` is
-        the Carlson seed at ordinate 0 (= upstream of m=0); for
-        ``m = 1, …, M``, ``faces[g, m, i]`` is the half-angle face flux
-        :math:`\phi_{m-1/2, i, g}` (upstream of ordinate m, downstream
-        of ordinate m-1). ``faces[g, M, i]`` is the downstream face of
-        the last ordinate.
+        Shape ``(ng, M+1, nx)``. The raw half-angle grid produced by
+        :func:`_psi_half_grid_single_level`. ``faces[g, 0, i]`` is the Carlson
+        seed at ordinate 0 (= upstream of m=0); for ``m = 1, …, M``,
+        ``faces[g, m, i]`` is :math:`\phi_{m-1/2, i, g}` (upstream of ordinate
+        m, downstream of ordinate m-1); ``faces[g, M, i]`` is the downstream
+        face of the last ordinate.
     """
 
     faces: np.ndarray
@@ -660,24 +526,18 @@ class _MMHalfGrid:
 # Morel–Montry τ producer — the ANGULAR-scheme weight, owned by the closure
 # ═══════════════════════════════════════════════════════════════════════
 #
-# Issue #236 Phase 2 (Step A): τ — the Morel–Montry / weighted-diamond
-# angular weight, BMC 2010 Eq. 43 — is a function of the quadrature
-# ``(μ, w, levels)`` ALONE.  It is an ANGULAR-scheme property, so the
-# angular closure PRODUCES it here from the ``quad`` it already binds,
-# rather than reading it back from the streaming-GEOMETRY factory
-# (``reduced_operator.py``).  This is now the SOLE τ producer: Issue #236
-# Step C retired the geometry-side twin (the former ``spherical_streaming``
-# / ``cylindrical_streaming`` τ blocks).  The arithmetic below was
-# originally derived to be 0-ULP identical to that twin (accumulation
-# order, the cylinder clamp, the ½ degeneracy fallback) — pinned through
-# the carve by the Leg-1 producer-equivalence gate, which now compares this
-# producer against the independent ``contamination.morel_montry_weights``.
+# τ — the Morel–Montry / weighted-diamond angular weight (BMC 2010 Eq. 43) —
+# is a function of the quadrature ``(μ, w, levels)`` ALONE, an ANGULAR-scheme
+# property the closure produces HERE (not read back from the streaming-geometry
+# factory; Step C retired that twin).  Ownership + Step-C retirement:
+# curvilinear_one_group.rst §sn-tau-step-c-closeout.
 #
-# STRUCTURAL INDEPENDENCE (vv-principles L11): this is the closure's OWN
-# code, NOT a call into ``contamination.morel_montry_weights`` — that
-# function is the VERIFICATION reference for the Leg-1 cross-check, and
-# using it in production would collapse the cross-check into a tautology
-# (reference contamination).  The closure replicates the factory directly.
+# STRUCTURAL INDEPENDENCE (vv-principles L11) — a constraint, not history: this
+# is the closure's OWN replica of the factory arithmetic, NOT a call into
+# ``contamination.morel_montry_weights``.  That function is the VERIFICATION
+# reference for the Leg-1 cross-check; calling it in production would collapse
+# the cross-check into a tautology (reference contamination).  Do NOT "tidy"
+# the arithmetic below into a call to the reference.
 
 
 def morel_montry_tau_raw_per_level(
@@ -688,33 +548,24 @@ def morel_montry_tau_raw_per_level(
 
     :math:`\tau_{\rm raw,m} = (\mu_m - \mu_{m-1/2})/(\mu_{m+1/2} -
     \mu_{m-1/2})` — the raw Bailey–Morel–Chang Eq. 43 value BEFORE the
-    cylinder's structural :math:`[\tfrac12, 1]` clamp. Split out of
-    :func:`morel_montry_tau_per_level` (2.5d) because the raw value
-    carries structure the clamped one destroys — it is the single
-    source for BOTH:
-
-    * the production τ (:func:`morel_montry_tau_per_level` = this,
-      then the cylinder clamp), and
-    * the **R12a seed-presence predicate**
-      (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`):
-      a level carries independent starting-direction state iff its
-      first-ordinate ``τ_raw ∈ (0, 1)`` exclusive. The trichotomy is
-      bit-exact on the production rules: ``τ_raw,0 = 0`` on cylinder
-      *product* rules (node ON the starting edge, #229 — the seed is a
-      rank-duplicate of ψ₀); ``τ_raw,0 = 1`` on cylinder
-      *level-symmetric* rules (duplicate-η nodes collapse the midpoint
-      edge onto η₀, so the seed's thread weight :math:`(1-\tau_0)`
-      vanishes — dead value); ``τ_raw,0 ∈ (0,1)`` on the sphere-GL
-      dome (≈ 0.39–0.42 — genuine independent state, the #282 block).
-      The clamp maps 0 → ½, erasing exactly the 0-vs-(0,1) distinction
-      the predicate needs — hence the raw producer is first-class.
+    cylinder's structural :math:`[\tfrac12, 1]` clamp.  Split out of
+    :func:`morel_montry_tau_per_level` because the raw value carries
+    structure the clamp destroys (it maps ``0 → ½``): it is the single
+    source for BOTH the production τ (this, then the clamp) AND the **R12a
+    seed-presence predicate**
+    (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`):
+    a level carries independent starting-direction state iff its
+    first-ordinate ``τ_raw ∈ (0, 1)`` exclusive.  Bit-exact trichotomy:
+    ``0`` on cylinder *product* rules, ``1`` on cylinder *level-symmetric*
+    rules, ``∈ (0,1)`` on the sphere-GL dome — the full table and its
+    rationale at
+    ``docs/theory/methods/sn/curvilinear_one_group.rst §sn-direct-seed-r12a``.
 
     Parameters and per-geometry edge conventions are those of
     :func:`morel_montry_tau_per_level` (weight-sum edges from −1.0 for
     the sphere; η-midpoint edges with ±sinθ endpoints per level for the
     cylinder; the ½ degenerate fallback where an angular cell has zero
-    width belongs to the RAW value — it is a 0/0 regularization, not
-    the clamp).
+    width belongs to the RAW value — a 0/0 regularization, not the clamp).
     """
     if coord is CoordSystem.SPHERICAL:
         # Sphere τ (the former spherical_streaming producer, retired in
@@ -828,16 +679,12 @@ def morel_montry_tau_per_level(
 # The M-M recurrence kernel — pure algebra, module level
 # ═══════════════════════════════════════════════════════════════════════
 #
-# The Hébert Eqs. 3.437 / 3.439 half-angle recurrence is pure algebra —
-# it takes all data (``ψ_level``, ``τ_level``, an optional seed) via
-# arguments and touches no mesh state.  It began life as a free
-# module-level function; PR-TYPED-6.5 Phase 2.2 hosted it on the class as
-# a ``@staticmethod`` to serve the (since-retired) unbound legacy mode,
-# and the C5 retirement of that mode (2026-07-03) returned it here.  The
-# mesh-bound strategy composes it (``_psi_half_grid_for_level`` reads τ
-# from ``self`` and delegates); algebraic-identity tests call
-# :func:`compute_psi_half_per_level` with hand-built coefficient arrays —
-# no closure instance (and hence no mesh) required.
+# The Hébert Eqs. 3.437 / 3.439 half-angle recurrence is pure algebra — all
+# data (``ψ_level``, ``τ_level``, an optional seed) via arguments, no mesh
+# state.  The mesh-bound strategy composes it (``_psi_half_grid_for_level``
+# reads τ from ``self`` and delegates); algebraic-identity tests call
+# :func:`compute_psi_half_per_level` with hand-built coefficient arrays — no
+# closure instance (and hence no mesh) required.
 
 
 def _psi_half_grid_single_level(
@@ -908,10 +755,8 @@ def compute_psi_half_per_level(
     psi_half_seed :
         The half-angle face flux seed VALUES :math:`\phi_{1/2,i,g}`,
         shape ``(ng, nx)``.  ``None`` seeds the recurrence at zero.
-        (#282 route (a) retired the strategy indirection: production
-        seeds are either the composite's ψ½ STATE — carrying levels —
-        or the inlined angular-edge extrapolation — non-carrying
-        levels; hand-built tests pass the array they mean.)
+        Hand-built tests pass the array they mean; production seeds come
+        from :meth:`MorelMontryAngularSweep.precompute_psi_state` (route (a)).
 
     Returns
     -------
@@ -934,90 +779,56 @@ def compute_psi_half_per_level(
 # :meth:`precompute_psi_state` + :meth:`cell_contribution` (the live
 # matvec/sweep path); hand-built-coefficient verification goes through
 # the module-level :func:`compute_psi_half_per_level` (same kernel).
-# Issue #248 retired the legacy ``__call__`` bundle interface and its
-# ``_weighted_angular_recurrence_single_level`` helper.
 
 
 class MorelMontryAngularSweep(
     PoleAngularClosureBase, key="morel_montry_angular_sweep",
 ):  # noqa: E501  (#282 route (a) notes:)
-    # #282 route (a) (#280 Phase 2.5d, 2026-07-04): the M-M recurrence's
-    # half-angle seed ``ψ_{1/2,i,g}`` is no longer produced by a
-    # swappable strategy (the ``PsiHalfAngleSeed`` zoo is retired).  On
-    # a CARRYING level (R12a: first-ordinate raw τ ∈ (0,1) exclusive —
-    # the sphere) the seed is the composite's ψ½ STATE, read from the
-    # given ``radial_characteristic`` block; on the non-carrying cylinder
-    # levels the 2-point angular-edge extrapolation of the input field
-    # is inlined (:meth:`edge_extrapolated_seed` — bit-identical to the
-    # retired ``AngularEdgeExtrapolation`` default: product rules hit
-    # its t = 0 degenerate exactly, level-symmetric rules have a DEAD
-    # seed weight (1−τ₀) = 0).  See the module docstring of
-    # :mod:`orpheus.sn.sweep.psi_half_angle_seed` for the history.
+    # #282 route (a): the M-M recurrence's half-angle seed ``ψ_{1/2,i,g}`` is
+    # no longer a swappable strategy.  Seed dispatch (R12a): on a CARRYING
+    # level (sphere) the seed is the composite's ψ½ STATE, read from the
+    # ``radial_characteristic`` block; on the non-carrying cylinder levels the
+    # 2-point angular-edge extrapolation of the input field is inlined
+    # (:meth:`edge_extrapolated_seed`).  The trichotomy and the retired
+    # ``PsiHalfAngleSeed`` zoo: curvilinear_one_group.rst §sn-direct-seed-r12a.
     r"""Canonical Hébert §3.9.4 per-cell M-M weighted DD angular recurrence.
 
-    PR-TYPED-6.5 Phase 2.3: the strategy is now **bound to an SNMesh at
-    construction**.  All M-M coefficients (α-dome, ΔA/w, τ clamp,
-    c_in, c_out, level partition) are precomputed from the mesh's
-    :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
-    eagerly.  The mesh-bound instance methods
-    (:meth:`precompute_psi_state`, :meth:`cell_contribution`,
-    :meth:`angular_adjoint`) read this state from ``self``
-    — callers never ship M-M data through arguments
-    (Pattern 4 — illegal states unrepresentable on "M-M strategy with
-    inconsistent coefficients").
+    The Phase-B default for the curvilinear FD operator's angular
+    redistribution.  Bound to an SNMesh at construction: all M-M coefficients
+    (α-dome, ΔA/w, τ clamp, c_in, c_out, level partition) are precomputed
+    eagerly from the mesh's
+    :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`, and
+    the mesh-bound methods (:meth:`precompute_psi_state`,
+    :meth:`cell_contribution`, :meth:`angular_adjoint`) read that state from
+    ``self`` — callers never ship M-M data through arguments (Pattern 4).
 
-    Phase B default for the curvilinear FD operator's angular
-    redistribution.  Implements Hébert Eqs. 3.437 / 3.439 with the
-    Morel--Montry :math:`\tau` clamp: seed the recurrence at the
-    Carlson starting direction :math:`\phi_{1/2,i,g} = \psi_{1/2,i,g}`
-    — the #282 route-(a) direct seed (see the class-level note above;
-    :math:`\phi_{1/2,i,g} = 0` only for a ``None`` coefficient-state
-    seed) — then for :math:`n = 1, \ldots, N`:
-
-    .. math::
-
-       \phi_{n+1/2,i,g} \;=\;
-       \frac{\phi_{n,i,g} \;-\; (1 - \tau_n)\,\phi_{n-1/2,i,g}}{\tau_n}
-
-    and evaluate
-
-    .. math::
-
-       R_{n,i,g} \;=\; \frac{(\Delta A/w)_{i,n}}{V_i}
-                       \bigl[\alpha_{n+1/2}\,\phi_{n+1/2,i,g}
-                           - \alpha_{n-1/2}\,\phi_{n-1/2,i,g}\bigr].
-
-    At :math:`\tau_n = 1/2` the recurrence reduces to pure DD angular
-    (Hébert Eqs. 3.437 / 3.439); the M-M clamp :math:`\tau \in [1/2,
-    1]` keeps the M-M weighting positive (Bailey-Morel-Chang 2010).
-    The same recurrence runs inside
-    :class:`~orpheus.transport.spatial.diamond.DiamondDifference` (the sweep's
-    cell update); applying this strategy in the matvec and running
-    the sweep solve the **same** discrete fixed point — pinned by
-    :file:`tests/sn/l1_analytical/test_pole_closure_sweep_equivalence.py`.
-
-    For cylindrical geometry, the strategy loops over
-    :math:`\mu`-levels (each level has its own :math:`\alpha`-dome,
-    :math:`\Delta A/w` geometry factor, and :math:`\tau` clamp) and
-    runs the recurrence independently per level.  Sphere is the
-    single-level (``M_p = N``) case of the same algebra.
+    The half-angle recurrence
+    :math:`\phi_{n+1/2,i,g} = (\phi_{n,i,g} - (1-\tau_n)\phi_{n-1/2,i,g})/\tau_n`
+    (seeded at the Carlson direction — the #282 route-(a) direct seed, see the
+    class-level note) and its redistribution fold
+    :math:`R_{n,i,g} = (\Delta A/w)_{i,n}/V_i\,[\alpha_{n+1/2}\phi_{n+1/2,i,g}
+    - \alpha_{n-1/2}\phi_{n-1/2,i,g}]` reduce to pure DD at :math:`\tau = 1/2`
+    (the M-M clamp keeps :math:`\tau \in [1/2, 1]`).  The SAME recurrence runs
+    inside :class:`~orpheus.transport.spatial.diamond.DiamondDifference`, so
+    the apply matvec and the sweep solve the same discrete fixed point (pinned
+    by :file:`tests/sn/l1_analytical/test_pole_closure_sweep_equivalence.py`;
+    derivation + apply↔sweep equivalence:
+    ``docs/theory/methods/sn/curvilinear_one_group.rst §pole-mm-recurrence``
+    and ``§sn-apply-sweep-equivalence``).  Cylinder loops the recurrence per
+    :math:`\mu`-level (each with its own α-dome, ΔA/w, τ clamp); sphere is the
+    single-level (``M_p = N``) case.
 
     Parameters
     ----------
     sn_mesh : SNMesh
-        The mesh + quadrature + materials bundle this strategy binds
-        to (REQUIRED — the family's ``cls(sn_mesh)`` construction
-        contract).  M-M precomputes α-dome, ΔA/w, τ clamp, c_in,
-        c_out, level partition, μ_x, weights, Δr at construction.
-        The :meth:`precompute_psi_state` and :meth:`cell_contribution`
-        strategy methods (PR-TYPED-6.5+) read these from ``self``
-        — no M-M data is shipped through arguments.  Tests that need
-        the recurrence under hand-built coefficient arrays use the
-        module-level :func:`compute_psi_half_per_level` (the same
-        kernel, all data via arguments) — the former unbound
-        ``sn_mesh=None`` legacy mode was retired (C5, 2026-07-03;
-        Issue #248 had already retired its legacy ``__call__``
-        bundle).
+        The mesh + quadrature + materials bundle this strategy binds to
+        (REQUIRED — the family's ``cls(sn_mesh)`` construction contract).
+        M-M precomputes α-dome, ΔA/w, τ clamp, c_in, c_out, level partition,
+        μ_x, weights, Δr at construction; the strategy methods read these
+        from ``self`` (no M-M data through arguments).  Tests that need the
+        recurrence under hand-built coefficient arrays use the module-level
+        :func:`compute_psi_half_per_level` (same kernel, all data via
+        arguments).
     """
 
     is_linear: ClassVar[bool] = True
@@ -1050,21 +861,16 @@ class MorelMontryAngularSweep(
         self,
         sn_mesh: "SNMesh",
     ) -> None:
-        # The mesh binding is REQUIRED (the family's ``cls(sn_mesh)``
-        # construction contract): all M-M coefficients are precomputed
-        # here and the strategy methods read them from ``self`` — no M-M
-        # data ships through arguments.  The pure-algebra recurrence
-        # kernel lives at module level
-        # (:func:`compute_psi_half_per_level`) for hand-built-coefficient
-        # verification — there are no unbound instances.
+        # The mesh binding is REQUIRED (the ``cls(sn_mesh)`` construction
+        # contract): all M-M coefficients are precomputed here and the
+        # strategy methods read them from ``self``.
         #
-        # R12a (#282 route (a)): the carrying-level set — the levels
-        # whose recurrence consumes independent starting-direction STATE
-        # (first-ordinate raw M-M weight τ_raw ∈ (0,1) exclusive).
-        # Single-sourced from the mesh predicate (which reads the raw
-        # producer ``morel_montry_tau_raw_per_level``); safe at this
-        # construction point because the predicate needs only
-        # ``(quad, coord)``, both bound before the closure is built.
+        # R12a (#282 route (a)): the carrying-level set — the levels whose
+        # recurrence consumes independent starting-direction STATE.
+        # Single-sourced from the mesh predicate (which reads the raw producer
+        # ``morel_montry_tau_raw_per_level``); safe here because the predicate
+        # needs only ``(quad, coord)``, both bound before the closure is built.
+        # (The τ_raw ∈ (0,1) predicate: curvilinear_one_group.rst §sn-direct-seed-r12a.)
         self._carrying_levels = frozenset(sn_mesh.radial_characteristic_levels)
 
         coord = sn_mesh.coord
@@ -1075,14 +881,8 @@ class MorelMontryAngularSweep(
         # ── Per-level partition (M-M's concept, NOT the quadrature's)
         # Sphere: every ordinate is one level (M_p = N, n_levels = 1).
         # Cylinder: μ-levels from ProductQuadrature / LevelSymmetricSN.
-        # Issue #236 Phase 2 (Step A): the angular closure OWNS τ.  It is
-        # produced HERE from the quadrature ``(μ, w, levels)`` the closure
-        # already binds — an angular-scheme property — instead of read back
-        # from the streaming-geometry factory (whose ``reduced.tau_mm`` /
-        # ``reduced.tau_mm_per_level`` producers Step C RETIRED).
-        # ``morel_montry_tau_per_level`` replicated the factory arithmetic
-        # 0-ULP through the carve; the Leg-1 gate now pins this producer
-        # against the independent ``contamination.morel_montry_weights``.
+        # The closure OWNS τ, produced HERE from the quadrature (see the
+        # τ-producer note above for the structural-independence constraint).
         tau_per_level = morel_montry_tau_per_level(quad, coord)
         if coord is CoordSystem.SPHERICAL:
             # Factory contract: spherical_streaming populates the sphere
@@ -1186,12 +986,11 @@ class MorelMontryAngularSweep(
     ) -> np.ndarray:
         r"""The 2-point angular-edge extrapolation of a NON-carrying level.
 
-        The recurrence seed :math:`\psi_{1/2,i}` is definitionally the
-        field's value at the level's starting-direction edge
-        :math:`\mu_{\rm start}`; on a level that carries NO independent
-        ψ½ state (R12a: raw τ₀ ∈ {0, 1} — every production cylinder
-        level) the operator-consistent seed is the input field
-        extrapolated linearly in :math:`\mu` through the level's two
+        The recurrence seed :math:`\psi_{1/2,i}` is the field's value at the
+        level's starting-direction edge :math:`\mu_{\rm start}`; on a level
+        that carries NO independent ψ½ state (R12a: raw τ₀ ∈ {0, 1} — every
+        production cylinder level) the operator-consistent seed is the input
+        field extrapolated linearly in :math:`\mu` through the level's two
         most-inward distinct-μ ordinates:
 
         .. math::
@@ -1200,18 +999,12 @@ class MorelMontryAngularSweep(
            \qquad
            t = \frac{\mu_{\rm start} - \mu_{m_0}}{\mu_{m_1} - \mu_{m_0}} .
 
-        Inlined VERBATIM from the retired ``AngularEdgeExtrapolation``
-        strategy (#282 route (a) — the zoo died, the arithmetic
-        survives): exact on angle-flat and linear-in-μ fields,
-        O(Δμ²)-consistent, linear in the input.  The R12a trichotomy
-        makes this bit-identical to the retired default on every
-        production cylinder: PRODUCT rules have
-        :math:`\mu_{\rm start} \equiv \mu_{m_0}` bit-exactly (t = 0 —
-        the seed is the first-ordinate row, consumed at clamped
-        weight (1−τ₀) = ½), and LEVEL-SYMMETRIC rules have a DEAD seed
-        ((1−τ₀) = 0 exactly, any finite value annihilates).  Degenerate
-        single-direction levels fall back to constant extrapolation
-        (t = 0).
+        Exact on angle-flat and linear-in-μ fields, O(Δμ²)-consistent, linear
+        in the input.  Bit-identical to the retired ``AngularEdgeExtrapolation``
+        default on every production cylinder (product rules hit its t = 0
+        degenerate; level-symmetric rules have a dead seed weight); degenerate
+        single-direction levels fall back to constant extrapolation (t = 0).
+        The R12a trichotomy: curvilinear_one_group.rst §sn-direct-seed-r12a.
         """
         m0, m1, t = self._edge_seed_stencil(level_idx_p)
         return (1.0 - t) * psi_level[:, m0, :] + t * psi_level[:, m1, :]
@@ -1431,49 +1224,27 @@ class MorelMontryAngularSweep(
 # IdentityAngularClosure — slab default (no angular redistribution)
 # ═══════════════════════════════════════════════════════════════════════
 #
-# PR-TYPED-6.5 Phase 2.8.  Cartesian slab carries no angular
-# redistribution term (no curvature → no Hébert §3.9.4 closure).
-# Earlier code modelled this as ``sn_mesh.pole_angular_closure is None``
-# inside the matvec body — a Pattern 4 violation (the matvec's
-# ``if closure is None`` branch was an illegal-state check rather than
-# a typed dispatch).  The Identity strategy makes the slab algebra a
-# typed default: the strategy exists, has the same Protocol surface,
-# and contributes zero to both the cell-balance denominator and the
-# upstream numerator.
+# Cartesian slab carries no angular redistribution term (no curvature → no
+# Hébert §3.9.4 closure).  The Identity strategy makes the slab algebra a
+# typed default (replacing a former ``pole_angular_closure is None`` matvec
+# branch — a Pattern 4 leak): the strategy exists, has the same surface, and
+# contributes zero to both the cell-balance denominator and upstream numerator.
 
 
 class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closure"):
     r"""No-op pole-angular closure for Cartesian (slab + 2-D rectilinear).
 
-    PR-TYPED-6.5 Phase 2.8.  The Cartesian SN balance equation has no
-    angular-redistribution term — Hébert §3.9.4's :math:`(\Delta A/w)`
-    factor vanishes on flat geometry (cell faces are parallel, no
-    curvature-driven coupling between consecutive ordinate sub-domains).
+    The Cartesian SN balance equation has no angular-redistribution term —
+    Hébert §3.9.4's :math:`(\Delta A/w)` factor vanishes on flat geometry
+    (cell faces are parallel, no curvature-driven coupling between consecutive
+    ordinate sub-domains; see
+    ``docs/theory/methods/sn/curvilinear_one_group.rst §balance-curvilinear``).
     This strategy returns ``(0, 0)`` from :meth:`cell_contribution`,
-    contributing nothing to the matvec's per-cell denominator and
-    upstream numerator.  The matvec body therefore consumes the SAME
-    ``cell_balance_for_streaming`` algebra for Cartesian as for sphere
-    + cylinder — geometry-blind by data (Cardinal Rule 2).
-
-    Why it earns its keep
-    ---------------------
-    Before Phase 2.8 the matvec body's seed branch read
-
-    .. code-block:: python
-
-       if curvature == "cartesian":
-           pole_face_seed = bc_inner.apply(...)
-       else:
-           pole_face_seed = psi_view[..., 0, 0].copy()
-
-    The ``if curvature == "cartesian"`` was a Pattern-4 leak — geometry
-    dispatch baked into the matvec body.  With Identity in place, the
-    branch keyed on the mesh's face inventory instead (PR-TYPED-6.5
-    Phase 3a — historically ``if sn_mesh.bc_left is None``; post-C4 /
-    #220 the curvilinear pole is structurally not a face, i.e. no
-    ``"xmin"`` entry in ``sn_mesh.bc``) and
-    ``sn_mesh.pole_angular_closure`` is ALWAYS a valid object
-    (no ``is None`` test).
+    contributing nothing to the matvec's per-cell denominator and upstream
+    numerator, so the matvec body consumes the SAME
+    ``cell_balance_for_streaming`` algebra for Cartesian as for sphere +
+    cylinder — geometry-blind by data (Cardinal Rule 2), replacing a former
+    ``pole_angular_closure is None`` matvec branch (a Pattern 4 leak).
 
     Parameters
     ----------

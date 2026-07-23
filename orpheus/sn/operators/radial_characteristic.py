@@ -1,116 +1,87 @@
 r"""The ψ½ block operators — all four blocks of the 2×2 coupled system.
 
 This module hosts the FOUR curvilinear-SN ψ½ block operators of the augmented
-within-group system, re-partitioned as two systems (campaign
-:mod:`coupled block operator <orpheus.sn>`)::
+within-group system, re-partitioned as two systems::
 
     [ A_AA   A_AB ] [ transport ]
     [ A_BA   A_BB ] [ ray       ]
 
 * ``A_BB`` = :class:`RadialCharacteristicOperator` — the System-B self-block,
-  the radial straight-characteristic march (documented in depth below);
+  the radial straight-characteristic march (documented below);
 * ``A_AB`` = :class:`RadialCharacteristicSeeding` — the ray→bulk seed injection
-  (cell-local angular; see its class docstring for the operator-algebra posing);
+  (cell-local angular; see its class docstring);
 * ``A_BA`` = :class:`RadialCharacteristicEmission` — the bulk→ray coupling, the
-  emission :math:`\mathrm{Fold} \circ K_{\rm iso} \circ \mathrm{integrate}` that
-  a within-group gain lags (campaign step 4c, THE LIFT — see its class docstring);
+  emission :math:`\mathrm{Fold} \circ K_{\rm iso} \circ \mathrm{integrate}` a
+  within-group gain lags (see its class docstring);
 * the shared factor ``Fold`` = :class:`RadialCharacteristicReconstruction` —
-  reconstructs a bulk moment source at the closed :math:`\mu = \pm 1` rays
-  (``A_BA``'s fold factor; migrated here from ``transport/`` at step 4c, once the
-  model-generic S/F stopped consuming it and the runtime ``transport → sn`` ban
-  lifted).
+  reconstructs a bulk moment source at the closed :math:`\mu = \pm 1` rays.
 
 ``A_AA`` (the transport bulk⊕trace self-block) has no explicit object — it is
-the driver-level composite ``L + C − S − B``. The remainder of THIS module
-docstring documents ``A_BB``.
+the driver-level composite ``L + C − S − B``.  The 2×2 posing, the augmented
+composite, and the direct-seed route (a) are the record at
+``docs/theory/methods/sn/curvilinear_one_group.rst §sn-direct-seed-solve``; the
+remainder of THIS docstring documents ``A_BB``'s contract.
 
-**What it is (operator algebra).** :class:`RadialCharacteristicOperator`
-is the banded radial transport operator :math:`\mu\,\partial_r + \sigma_t`
-acting on the starting-direction flux :math:`\psi_{1/2}` at the closed
-:math:`\mu = \pm 1` rays of a curvilinear μ-level (Hébert §3.9.4). At those
-rays the angular redistribution coefficient :math:`1-\mu^2` vanishes
-(:math:`\alpha_{1/2}=0`, Hébert 3.423), so the streaming–collision balance
-DECOUPLES from the α-cascade and reduces to a plain diamond-difference (DD)
-recurrence in radius — a *straight characteristic*. Its domain and codomain
-are System B's member space ``sn_mesh.radial_characteristic_field_space``
-— the carrier of
-:class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
-(the B.2c grid re-type; the ENGINE marches the unified ψ½ layout internally
-split-natively on System B's composite members (4e — the unified
-bridge is retired),
-until the Phase-C/4e unified-leaf retirement). It exists ONLY on a
-seed-carrying mesh (the sphere, R12a — see the unified space's module
-docstring).
+**What it is.** :class:`RadialCharacteristicOperator` is the banded radial
+transport operator :math:`\mu\,\partial_r + \sigma_t` acting on the
+starting-direction flux :math:`\psi_{1/2}` at the closed :math:`\mu = \pm 1`
+rays of a curvilinear μ-level (Hébert §3.9.4).  At those rays the angular
+redistribution vanishes (:math:`\alpha_{1/2}=0`), so the balance decouples
+from the α-cascade to a plain DD recurrence in radius — a *straight
+characteristic* (the physics:
+``docs/theory/methods/sn/curvilinear_one_group.rst §sn-direct-seed-pole-straight-characteristic``).
+Domain = codomain = System B's member space
+``sn_mesh.radial_characteristic_field_space`` (the carrier of
+:class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`);
+it exists ONLY on a seed-carrying mesh (the sphere, R12a).
 
-**How it is posed — a two-point radial BVP.** System B carries TWO boundary
-conditions, so the ray solve is a well-posed two-point boundary-value
-problem closed by its own boundary block ``B_b``
-(:class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`):
-
-* **r = R Dirichlet** — the outer-face inflow corner (:math:`\mu=-1`) is
-  GIVEN data (0 for vacuum; the reflected outflow corner for reflective —
-  ``B_b``'s specular swap feeds it into the source);
-* **r = 0 pole continuation** — :math:`\psi_{1/2}^{+}(0)=\psi_{1/2}^{-}(0)`;
-  the inward leg's exit face IS the outward leg's entry face (internal to
-  the march, not a free datum).
-
-**How it is solved — the direct march IS the resolvent.** Because the
-recurrence is triangular in radius (:math:`\rho=0` — the #284
-forward-substitution certificate), the two-leg Carlson march
+**How it is posed and solved.** System B carries TWO boundary conditions —
+r = R Dirichlet (the outer-face :math:`\mu=-1` inflow corner is GIVEN data:
+0 for vacuum, the reflected outflow corner for reflective, fed by the
+boundary block ``B_b``
+:class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`)
+and r = 0 pole continuation (:math:`\psi_{1/2}^{+}(0)=\psi_{1/2}^{-}(0)`,
+internal to the march) — a well-posed two-point radial BVP.  Because the
+recurrence is triangular in radius (the #284 forward-substitution
+certificate), the two-leg Carlson march
 (:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`,
 Hébert 3.434–3.435) is the EXACT direct inverse :math:`A_{BB}^{-1}` — no
-iteration, no previous-iterate seed. :meth:`solve` is that march; it is a
-thin WRAP of the standalone engine (single source — Cardinal Rule 2 — the
-SAME engine the in-sweep direct-seed block
-:mod:`orpheus.sn.loss_representation` runs), and :meth:`solve_transpose` is
-its Euclidean reverse-mode adjoint
+iteration.  :meth:`solve` is that march (a thin WRAP of the standalone
+engine — single source, Cardinal Rule 2 — the SAME engine the in-sweep block
+:mod:`orpheus.sn.loss_representation` runs), and :meth:`solve_transpose` its
+Euclidean reverse-mode adjoint
 (:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_transpose`).
+The BVP posing and the block-triangular certificate are the record at
+``§sn-direct-seed-solve`` / ``§sn-direct-seed-block-triangular`` in
+``docs/theory/methods/sn/curvilinear_one_group.rst``.
 
-Scope of this realization (campaign step 4b) — the full operator
-================================================================
+Realized surface — the full operator
+====================================
 
 This operator realizes BOTH directions of the complete ``A_BB`` machinery:
+the **forward** :math:`A_{BB}\,\psi_{1/2}` as :meth:`apply` and its Euclidean
+transpose :math:`A_{BB}^{\mathsf T}` as :meth:`apply_transpose`; the
+**resolvent** :math:`A_{BB}^{-1}` as :meth:`solve` (the direct Carlson march)
+and its adjoint as :meth:`solve_transpose`; and the operator-returning
+:meth:`inverse` (a generic
+:class:`~orpheus.numerics.operator.InverseOperator` whose ``apply`` IS
+:meth:`solve`), so ``is_invertible`` and ``is_adjointable`` both read
+``True``.
 
-* the **forward** action :math:`A_{BB}\,\psi_{1/2} = (\mu\,\partial_r +
-  \sigma_t)\,\psi_{1/2}` as :meth:`apply`, and its Euclidean transpose
-  :math:`A_{BB}^{\mathsf T}` as :meth:`apply_transpose`;
-* the **resolvent** action :math:`A_{BB}^{-1}` as :meth:`solve` (the direct
-  Carlson march) and its adjoint :math:`(A_{BB}^{-1})^{\mathsf T}` as
-  :meth:`solve_transpose`;
-* the operator-returning :meth:`inverse` (a generic
-  :class:`~orpheus.numerics.operator.InverseOperator` whose ``apply`` IS
-  :meth:`solve`), so ``is_invertible`` and ``is_adjointable`` both read
-  ``True`` — the involution web ``inverse().solve == apply`` closes.
-
-**Single-sourced forward (campaign step 4b — extract, not twin).** The
-forward matvec is the exact algebraic inverse of the march; it lives in ONE
-place —
-:func:`~orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_forward_residual`
-— which :meth:`apply` here calls. There is NO forward twin: step 4b reduced
-the fused walk's ψ½ rows to a thin wrapper over the shared kernel (the user
-ruled "extract the shared kernel now" over a tracked twin, closing the
-"could drift by a rounding" risk by construction — Cardinal Rule 2), and
-step 6 retired that wrapper with the walk's joint channel — this operator
-is now the kernel's ONE consumer pair. The transpose is single-sourced the
-same way
-(:func:`~orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_forward_residual_transpose`,
-the PURE ``A_BB`` transpose; the ``A_AB`` seed→bulk coupling's transpose is
-the explicit grid block ``RadialCharacteristicSeeding.apply_transpose``,
-not part of ``A_BB`` in isolation).
-
-**The ONE solve orchestration (Cardinal Rule 2 — the 4e-e2 un-weave).** The
-:math:`\sigma_t`-driven DD *engine*
-(:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`)
-is single-sourced, and since step 4e-e2 the two-leg ORCHESTRATION (read the
-source views → inward leg → pole-continue → reversed outward leg → write
-the flux views) lives ONLY here: the production ``(L+C)`` walk routes its
-ray solve THROUGH :meth:`solve` / :meth:`solve_transpose` — it constructs
-this operator over its own :math:`\sigma_t` and calls it once, up front
-(forward) / once, after the reversed ordinate loops, on the thread-augmented
-cotangent (transpose). The former in-sweep inline block and its reverse-scan
-mirror are RETIRED. The Mode-11 engine-execution sentinels (the S1 driver
-gates) pin the routing; the two-leg reference gate pins the orchestration
-itself.
+**Single source (Cardinal Rule 2 — no twin).** The forward and its transpose
+wrap ONE shared kernel each
+(:func:`~orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_forward_residual`
+/ ``…_transpose``, the PURE ``A_BB`` transpose — the ``A_AB`` seed→bulk
+coupling's transpose is the explicit
+:meth:`RadialCharacteristicSeeding.apply_transpose`, not part of ``A_BB``);
+and the two-leg solve ORCHESTRATION (source views → inward leg →
+pole-continue → reversed outward leg → flux views) lives ONLY here — the
+production ``(L+C)`` walk routes its ray solve THROUGH :meth:`solve` /
+:meth:`solve_transpose`, the former in-sweep inline block retired.  Do NOT
+re-implement the march at a call site; construct this operator over the local
+:math:`\sigma_t` and call it.  The routing is pinned by the Mode-11
+engine-execution sentinels (the S1 driver gates); the un-weave record is at
+``docs/theory/methods/sn/curvilinear_one_group.rst §sn-direct-seed-solve``.
 
 Sourcing
 ========
@@ -208,20 +179,17 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
     :math:`\mu = \pm 1` rays (Hébert §3.9.4). Endomorphic on System B's
     member carrier
     :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
-    (domain = codomain = ``sn_mesh.radial_characteristic_field_space`` —
-    the B.2c grid re-type; the ``CoupledOperator`` grid places it at the
-    ``(B, B)`` slot). All four action surfaces parse the composite at the
-    block boundary and march the split member views directly, end to end
-    (4e — the unified ψ½ layout and its bridge are retired; the split
-    composite is the ONLY representation).
+    (domain = codomain = ``sn_mesh.radial_characteristic_field_space``; the
+    ``CoupledOperator`` grid places it at the ``(B, B)`` slot).  All four
+    action surfaces parse the composite at the block boundary and march the
+    split member views directly.
 
-    See the module docstring's "Scope of this realization" section for the
-    operator-algebra posing (two-point radial BVP) and the full realized
+    See the module docstring's "Realized surface" section for the
+    operator-algebra posing (the two-point radial BVP) and the full realized
     surface — the forward :meth:`apply` / :meth:`apply_transpose`, the
     resolvent :meth:`solve` / :meth:`solve_transpose` (the direct Carlson
     march IS :math:`A_{BB}^{-1}`), and the operator-returning :meth:`inverse`
-    (so ``is_invertible`` and ``is_adjointable`` both read ``True``; step 4b
-    completed the forward, single-sourced with the ``(L+C)`` walk).
+    (so ``is_invertible`` and ``is_adjointable`` both read ``True``).
 
     Parameters
     ----------
@@ -338,16 +306,13 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
 
         A thin WRAP of the single-sourced
         :func:`~orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_forward_residual`
-        — since step 6 (the walk's fused ψ½ rows retired with the joint
-        channel) this operator IS the kernel's production forward
-        (Cardinal Rule 2: one forward, no twin). Reads the flux state ψ½
-        (cells + corners) off the
-        bridged member composite; returns the residual source
-        :math:`q_{1/2} = A_{BB}\,\psi_{1/2}` as a source-member composite. The
-        ``apply ∘ solve`` outflow-corner defect closes to ``0.0`` exactly; the
-        cell round-trip is principled-equiv at ~FP ULP — the forward's
-        :math:`2/\Delta r` and the march's :math:`\Delta r\,\sigma + 2`
-        reassociate.
+        (Cardinal Rule 2: one forward, no twin).  Reads the flux state ψ½
+        (cells + corners) off the member composite; returns the residual
+        source :math:`q_{1/2} = A_{BB}\,\psi_{1/2}` as a source-member
+        composite.  The ``apply ∘ solve`` outflow-corner defect closes to
+        ``0.0`` exactly; the cell round-trip is principled-equiv at ~FP ULP
+        (the forward's :math:`2/\Delta r` and the march's :math:`\Delta r\,
+        \sigma + 2` reassociate).
 
         Parameters
         ----------
@@ -468,10 +433,10 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         (orientation is carried by the DATA, never a flag) from the
         pole-continued face out to the r = R outflow corner. A thin WRAP of
         :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
-        (Hébert 3.434–3.435) — the single-sourced DD engine. Since 4e-e2
-        this IS the production orchestration: the ``(L+C)`` walk routes its
-        ray solve through this method (the former in-sweep inline twin is
-        retired — see the module docstring "The ONE solve orchestration").
+        (Hébert 3.434–3.435) — the single-sourced DD engine.  The production
+        ``(L+C)`` walk routes its ray solve through this method (the former
+        in-sweep inline twin is retired — see the module docstring "Single
+        source").
 
         The per-level slot key is the carrier's own ``space.levels`` member
         (the level POSITION, ``p_idx`` in the in-sweep) — the coordinate
@@ -642,99 +607,60 @@ class RadialCharacteristicSeeding(
     The off-diagonal ``(transport, ray)`` block of the 2×2 coupled block
     operator: the ψ½ starting-direction ray seeds the bulk angular recurrence.
     Domain = System B's member space
-    ``sn_mesh.radial_characteristic_field_space`` (the B.2c grid re-type —
-    the operator bridges the composite to the unified layout and reads the
+    ``sn_mesh.radial_characteristic_field_space`` (the operator reads the
     inward :math:`\mu=-1` ``cells(p, -1)`` leg); codomain = System A's
     ``sn_mesh.full_field_space`` — :meth:`apply` emits the seed's bulk
     contribution as the interior member of a
-    :class:`~orpheus.transport.full_field.FullField` over a zero trace
-    (System A IS this block's honest 2-block codomain, post-B.2d). It
+    :class:`~orpheus.transport.full_field.FullField` over a zero trace.  It
     exists ONLY on a seed-carrying mesh (the sphere, R12a).
 
-    **What it is (operator algebra) — a CELL-LOCAL ANGULAR coupling.** At each
-    radial cell :math:`i`, the ray value :math:`\psi_{1/2}(i)` is the seed of
-    the Morel–Montry angular recurrence (Hébert §3.9.4)
+    **A CELL-LOCAL ANGULAR coupling.** At each radial cell :math:`i` the ray
+    value :math:`\psi_{1/2}(i)` is the seed of the Morel–Montry angular
+    recurrence (Hébert §3.9.4), run over ORDINATES at a FIXED cell; the
+    upstream half-flux :math:`\psi_{m-1/2,\,i}` then enters that cell's balance
+    as the angular numerator :math:`(\Delta A/w)\,c_{\rm in}\,\psi_{m-1/2,\,i}`.
+    So the seed at cell :math:`i` couples ONLY to the bulk ordinates at the
+    SAME cell — there is **no spatial cell-cell coupling** (the radial march of
+    :math:`\psi_{1/2}` is ``A_BB``'s job).  This is what separates ``A_AB``
+    (cell-local angular, both directions realized HERE) from ``A_BB``
+    (spatially woven into ``(L+C).apply``).  The seeding formula and the
+    augmented posing:
+    ``docs/theory/methods/sn/curvilinear_one_group.rst §sn-direct-seed-solve``.
 
-    .. math::
-
-        \psi_{m+1/2,\,i}
-          = \frac{\psi_{m,\,i} - (1-\tau_m)\,\psi_{m-1/2,\,i}}{\tau_m},
-        \qquad \psi_{-1/2,\,i} \equiv \psi_{1/2}(i),
-
-    run over ORDINATES :math:`m` at a FIXED cell :math:`i`. The upstream
-    half-flux :math:`\psi_{m-1/2,\,i}` then enters that cell's balance as the
-    angular numerator :math:`(\Delta A/w)\,c_{\rm in}\,\psi_{m-1/2,\,i}`. So the
-    seed at cell :math:`i` couples ONLY to the bulk ordinates at the SAME cell
-    :math:`i` — there is **no spatial cell-cell coupling** (the radial march of
-    :math:`\psi_{1/2}` is ``A_BB``'s job; the bulk's spatial DD face march is
-    seed-independent). This is exactly what separates ``A_AB`` from ``A_BB``:
-    ``A_BB``'s forward matvec is spatially woven into ``(L+C).apply`` and
-    DEFERS to step 4, whereas ``A_AB`` is cell-local angular and realizes BOTH
-    directions HERE as thin WRAPs of the single-sourced closure methods.
-
-    **How it is realized — WRAPs of the shared M-M closure.** The seed→bulk map
-    is the SAME
+    **Realized as WRAPs of the shared M-M closure** — the SAME
     :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
-    machinery the ``(L+C)`` matvec runs (single source — Cardinal Rule 2);
-    ``A_AB`` isolates its own block by ZEROING the bulk (forward) and
-    DISCARDING the bulk cotangent (transpose):
+    machinery the ``(L+C)`` matvec runs (single source — Cardinal Rule 2).
+    ``A_AB`` isolates its own block by ZEROING the bulk (forward: the
+    recurrence is linear in :math:`(\psi_{\rm bulk}, \psi_{1/2})` jointly, so a
+    zero bulk leaves only the ``A_AB`` part) and DISCARDING the bulk cotangent
+    (transpose).  The forward places the angular numerator as :math:`-(\Delta
+    A/w)\,c_{\rm in}\,\psi_{m-1/2}/V`; the transpose reverses it with the local
+    gather :math:`\bar n_{p,\,m,\,i} = -\bar o_{m,\,i}/V_i` then
+    ``angular_adjoint`` to the seed cotangent on the ``cells(p, -1)`` leg — the
+    Euclidean transpose :math:`A_{AB}^{\mathsf T}`.  Both directions realized ⇒
+    ``is_adjointable = True``; ``is_invertible`` inherits ``False``
+    (rectangular ray → bulk).
 
-    * :meth:`apply` (ray → bulk) — ``precompute_psi_state`` with an all-zero
-      ``psi_view`` builds the seed-only half-angle grid. Because the recurrence
-      is linear in :math:`(\psi_{\rm bulk}, \psi_{1/2})` jointly, the zero bulk
-      isolates the ``A_AB`` part exactly (``A_AA``'s angular redistribution
-      contributes nothing). Then per (carrying level, cell) ``cell_contribution``
-      gives the angular numerator, placed as :math:`-(\Delta A/w)\,c_{\rm
-      in}\,\psi_{m-1/2}/V` — the seed's contribution to the bulk residual
-      :math:`m = (\mathrm{denom}\cdot\psi - \mathrm{numer})/V` with
-      :math:`\psi_{\rm cell}=0` (the σ-diagonal and streaming terms drop out).
-    * :meth:`apply_transpose` (bulk cotangent → ray seed cotangent) — the local
-      gather :math:`\bar n_{p,\,m,\,i} = -\bar o_{m,\,i}/V_i` (the exact
-      transpose of the forward :math:`-\cdot/V` placement), then
-      ``angular_adjoint`` reverses the M-M recurrence to the seed cotangent
-      ``seed_cells_bar[p]``, written on the ray ``cells(p, -1)`` leg. This is
-      the :math:`\bar{c}_{-}\mathrel{+}=\mathrm{seed\_cells\_bar}[p]` term the
-      in-sweep reverse (:mod:`orpheus.sn.loss_representation`) adds — the
-      Euclidean transpose :math:`A_{AB}^{\mathsf T}`.
-
-    Because both directions are realized, ``is_adjointable = True``.
-    ``is_invertible`` inherits ``False`` — a rectangular coupling (ray → bulk)
-    has no inverse.
-
-    **The shared kernel (a step-4 note).** ``precompute_psi_state`` /
-    ``cell_contribution`` / ``angular_adjoint`` each serve BOTH ``A_AA`` (the
-    bulk angular redistribution, ``psi_view ≠ 0``) and ``A_AB`` (the seed).
-    ``A_AB`` projects out its block by zeroing / discarding; the step-4
-    ``CoupledOperator`` calls the ONE angular kernel and routes it into the
-    ``A_AA`` and ``A_AB`` blocks — never a twin kernel.
-
-    **Tracked transient twin (Cardinal Rule 2 — retired at step 4/5).** The M-M
-    *kernel* is single-sourced, but the thin :math:`\mp\,\mathrm{numer}/V`
-    orchestration that :meth:`apply` / :meth:`apply_transpose` run around it
-    mirrors the in-sweep placement fused into the ``(L+C)`` matvec
-    (:mod:`orpheus.sn.loss_representation` — the seed's ``angular_numer`` term in
-    ``m = (denom·ψ − numer)/V`` on the forward, and the ``numer_bar →
-    angular_adjoint → seed_cells_bar`` term on the reverse). This is the SAME
-    kind of transient twin ``A_BB.solve`` carries, at a DIFFERENT production
-    entry point (the ``apply`` walk, not the ``solve`` march). Steps 4/5 route
-    the production ``(L+C)`` bulk rows through ``A_AA + A_AB`` (the
-    ``CoupledOperator`` block matvec), retiring the inline placement so the
-    orchestration lives in ONE place (campaign retirement-list entries 3–4).
-    Until then both sides are behaviour-pinned — the in-sweep by the regression
-    floor + sweep suite, this by the bit-identity gates ``TestA_AB_SeedInjection``.
+    The shared kernel serves BOTH ``A_AA`` (bulk redistribution, ``psi_view ≠
+    0``) and ``A_AB`` (the seed, ``psi_view = 0``) — never a twin.  A tracked
+    transient twin remains at a DIFFERENT production entry (the in-sweep
+    placement fused into the ``(L+C)`` matvec,
+    :mod:`orpheus.sn.loss_representation`), retired when steps 4/5 route the
+    ``(L+C)`` bulk rows through the ``CoupledOperator`` block matvec; until then
+    both sides are behaviour-pinned (the in-sweep by the regression floor +
+    sweep suite, this by the bit-identity gates ``TestA_AB_SeedInjection``).
 
     Parameters
     ----------
     sn_mesh : SNMesh
         The augmented geometry — seed-carrying (1-D curvilinear, R12a). Supplies
-        the ray carrier (the split ψ½ spaces — the domain), the M-M
-        closure ``pole_angular_closure`` (the single-sourced kernel), the cell
-        volumes ``volumes``, and the quadrature ``quad``. A seedless mesh
-        (Cartesian / cylinder) has NO ray→bulk coupling: constructing over one
-        is rejected. Unlike ``A_BB``, ``A_AB`` needs NO :math:`\sigma_t` — with
-        the bulk zeroed the collision/streaming terms drop out and only the
-        σ-independent angular numerator survives (so the coupling is a pure
-        function of the mesh geometry + quadrature).
+        the ray carrier (the domain), the M-M closure ``pole_angular_closure``
+        (the single-sourced kernel), the cell volumes ``volumes``, and the
+        quadrature ``quad``. A seedless mesh (Cartesian / cylinder) has NO
+        ray→bulk coupling: constructing over one is rejected. Unlike ``A_BB``,
+        ``A_AB`` needs NO :math:`\sigma_t` — with the bulk zeroed the
+        collision/streaming terms drop out and only the σ-independent angular
+        numerator survives.
     """
 
     # A_AB maps System B (the ray seed) → System A (the bulk residual): an
@@ -788,19 +714,15 @@ class RadialCharacteristicSeeding(
     def apply(self, seed: "RadialCharacteristicField", /) -> "FullField":
         r"""Inject the ψ½ ray seed into the bulk angular recurrence.
 
-        The seed's contribution to the ``(L+C)`` bulk residual: bridge the
-        member composite to the unified layout, build the seed-only
-        Morel–Montry half-angle grid (``precompute_psi_state`` with an
-        all-zero ``psi_view`` — the zero bulk isolates ``A_AB`` from
-        ``A_AA``'s redistribution by linearity), then per carrying level and
-        cell take the angular numerator :math:`(\Delta A/w)\,c_{\rm in}\,
-        \psi_{m-1/2}` (``cell_contribution``) and place :math:`-\,\cdot\,/V` —
-        the seed's term in :math:`m = (\mathrm{denom}\cdot\psi -
-        \mathrm{numer})/V` with :math:`\psi_{\rm cell}=0`. Non-carrying-level
-        ordinates stay zero (they have no ray seed). Bit-identical to the
-        in-sweep injection (same single-sourced closure methods). The bulk
-        contribution lands as the FullField INTERIOR member over a zero
-        trace (System A's honest 2-block row space, post-B.2d).
+        Build the seed-only Morel–Montry half-angle grid
+        (``precompute_psi_state`` with an all-zero ``psi_view`` — the zero
+        bulk isolates ``A_AB`` from ``A_AA`` by linearity), then per carrying
+        level and cell place the angular numerator :math:`-(\Delta A/w)\,
+        c_{\rm in}\,\psi_{m-1/2}/V` (the seed's term in :math:`m =
+        (\mathrm{denom}\cdot\psi - \mathrm{numer})/V` with :math:`\psi_{\rm
+        cell}=0`).  Non-carrying-level ordinates stay zero.  Bit-identical to
+        the in-sweep injection; the bulk contribution lands as the FullField
+        INTERIOR member over a zero trace.
 
         Parameters
         ----------
@@ -960,63 +882,41 @@ class RadialCharacteristicReconstruction(LinearOperator):
     coupling is :class:`RadialCharacteristicEmission`): given a bulk within-group
     angular source in its Legendre-moment representation, it evaluates that
     source at the two closed radial-characteristic rays :math:`\mu = \pm 1` and
-    writes the result as the q½ ray source on every carried μ-level.
-
-    **Home — beside its self-block sibling in sn (migrated at step 4c).** This
-    operator lives here, next to :class:`RadialCharacteristicOperator` (``A_BB``)
-    and its full-coupling consumer :class:`RadialCharacteristicEmission`
-    (``A_BA``), because both are blocks of the one ψ½ coupled operator. It sat in
-    ``transport/`` through steps 2–3 ONLY because the model-generic
-    :class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
-    :class:`~orpheus.transport.operators.fission.FissionOperator` still consumed
-    it in their ``(ray, bulk)`` seed arms (a runtime ``transport → sn`` import is
-    forbidden). Campaign **step 4c (THE LIFT)** reversed that dependency: S/F
-    became pure bulk, the coupled driver composes the emission via ``A_BA``, and
-    this fold moved to its native home. The ψ½ *data* types legitimately stay at
-    the transport/numerics data layer (this operator's
-    a q½ :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
-    codomain, the carrier space, and the fold *math* kernel
-    :func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`);
-    only the *operator* migrated.
-
-    **What it is (operator algebra).** The 1-D angular reconstruction
-    :math:`\mathcal R` (Hébert Eq. 3.432) SAMPLED at the closed rays
-    :math:`\mu = \pm 1`:
-
-    .. math::
-
-        \bar q_{1/2}(\mu = \pm 1)
-          \;=\; \sum_\ell \frac{2\ell + 1}{2}\,q_\ell\,(\pm 1)^\ell ,
-
-    the same :math:`(2\ell+1)/2\,(\pm 1)^\ell` weights the angular frame
-    reconstructs with (:math:`P_\ell(\pm 1) = (\pm 1)^\ell`), evaluated at the
-    rays rather than at the quadrature nodes. Its Euclidean transpose is the
-    injection of a ray cotangent back into moment space
-    (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic_transpose`)
-    — so it advertises ``is_adjointable = True`` (the shape of the shared
-    :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
-    kernel). ``is_invertible`` inherits ``False`` (a reconstruction from
-    ``n_moments`` to the two rays is not square).
-
-    **The single source of the fold.** Both the forward reconstruction and its
-    Euclidean transpose route through the ONE math kernel
+    writes the result as the q½ ray source on every carried μ-level.  It lives
+    here, beside its ``A_BB`` / ``A_BA`` siblings, because all are blocks of the
+    one ψ½ coupled operator (the fold *math* kernel
     :func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`
-    (Cardinal Rule 2 — the :math:`P_1(-1)` sign is spelled once). The forward
-    reads a Legendre-moment source ``(n_moments, ng, nx)``; the production
-    emitter (:class:`RadialCharacteristicEmission`) feeds the isotropic
-    :math:`\ell = 0` emission (``n_moments = 1``), and the fold accepts any order
-    so the anisotropic reach is testable before it is needed. (The distinct
+    stays at the numerics data layer).
+
+    **What it is.** The 1-D angular reconstruction :math:`\mathcal R`
+    (Hébert Eq. 3.432) SAMPLED at the closed rays,
+    :math:`\bar q_{1/2}(\pm 1) = \sum_\ell (2\ell+1)/2\,q_\ell\,(\pm 1)^\ell`
+    (:math:`P_\ell(\pm 1) = (\pm 1)^\ell`).  Its Euclidean transpose injects a
+    ray cotangent back into moment space
+    (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic_transpose`)
+    — so ``is_adjointable = True``; ``is_invertible`` inherits ``False`` (a
+    reconstruction from ``n_moments`` to the two rays is not square).  Why the
+    fold keeps ALL Legendre moments (streaming manufactures angular structure
+    the flux lacks): ``docs/theory/methods/sn/curvilinear_one_group.rst
+    §sn-direct-seed-source-fold``.
+
+    **Single source of the fold.** Both the forward reconstruction and its
+    transpose route through the ONE math kernel
+    :func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`
+    (Cardinal Rule 2 — the :math:`P_1(-1)` sign is spelled once).  The
+    production emitter (:class:`RadialCharacteristicEmission`) feeds the
+    isotropic :math:`\ell = 0` emission (``n_moments = 1``), and the fold
+    accepts any order so the anisotropic reach is testable before it is needed.
+    (The distinct
     :meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.source_from_angular`
     data-factory folds a *per-ordinate* source through the SAME kernel after a
-    Legendre projection — a different typed input, not a twin; see its docstring.)
+    Legendre projection — a different typed input, not a twin.)
 
     **Broadcast across levels.** The same moment source is folded onto every
-    carried level (an angularly-uniform-across-levels source — exact for the
-    isotropic emission). Carrying meshes have EXACTLY one level (R12a), so
-    "broadcast across levels" is "on the one ray"; the transpose therefore sums
-    the per-level, per-sign cotangents. Corners stay zero: the fold writes only
-    the cells legs (the inflow-corner datum is the boundary block ``B_b``'s job;
-    scattering/fission are volumetric).
+    carried level (exact for the isotropic emission); carrying meshes have
+    EXACTLY one level (R12a), so the transpose sums the per-level, per-sign
+    cotangents.  Corners stay zero: the fold writes only the cells legs (the
+    inflow-corner datum is the boundary block ``B_b``'s job).
 
     Parameters
     ----------
@@ -1204,64 +1104,55 @@ class RadialCharacteristicEmission(LinearOperator):
     :math:`\mu = \pm 1` rays (:class:`RadialCharacteristicReconstruction`). It
     exists ONLY on a seed-carrying mesh (the sphere, R12a).
 
-    **Generic over the emission kernel (build the machinery).** What
-    distinguishes a bulk→ray emission coupling is only its emission kernel
-    :math:`K` — an ``ndarray → ndarray`` operator (``(ng, nx) → (ng, nx)``)
-    exposing ``apply``/``apply_transpose``. The SCATTERING coupling passes
+    **Generic over the emission kernel.** What distinguishes a bulk→ray
+    emission coupling is only its emission kernel :math:`K` — an ``ndarray →
+    ndarray`` operator (``(ng, nx) → (ng, nx)``) with ``apply`` /
+    ``apply_transpose``.  The SCATTERING coupling passes
     :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_kernel`
-    (``K_iso``) — the production consumer, a within-group lagged gain. The
+    (``K_iso`` — the production consumer, a within-group lagged gain); the
     fission dyad
     :attr:`~orpheus.transport.operators.fission.FissionOperator.kernel`
     (``χ ⊗ νΣf``) is a smoke-verified SECOND kernel that exercises the same
-    machinery — but fission's PRODUCTION coupling does NOT flow through this
-    operator: fission is the eigenvalue OUTER source, so its ``K ∘ integrate`` is
-    pre-computed as the fission source and the ray seed is a DIRECT
-    :class:`RadialCharacteristicReconstruction` fold at the ``q_ext`` seam
-    (HAZARD 5 — S is a within-group gain, F the outer source; different seams).
-    Routing ``F.kernel`` through this operator's full ``Fold ∘ K ∘ integrate``
-    would DOUBLE-apply ``K ∘ integrate`` (the outer source already carries it).
-    So this operator's production shape is the SCATTER coupling; the genericity
-    keeps the emission a clean dependency injection (no scatter-hardcoded fork),
-    NOT a claim that fission wires through it.
+    machinery.
 
-    **The driver applies it as its OWN lagged gain (campaign step 4c, THE LIFT).**
-    Before the lift, the model-generic ``S``/``F`` composites hand-rolled the ψ½
-    seed inside their ``apply`` — a curvilinear-SN augmentation welded into a
-    model-generic gain. The lift made ``S``/``F`` pure bulk and posed this
-    coupling as a first-class operator the SI driver lags as a separate gain
-    (the Wave-O #208 pattern that separated ``B`` from ``S``): the within-group
-    scattering gain rides ``(S, A_BA, B)``, and the fission ``A_BA`` rides the
-    OUTER ``q_ext`` (within-group fission is zero). Its ``S_bulk + A_BA`` is
-    bit-identical to the old monolithic ``S.apply`` composite (the regression
-    floor + ``TestA_BA_SchurFold`` pin it).
+    .. warning::
 
-    **A true System A → System B block (B.2b re-type).** ``apply`` is typed
-    ``FullField → RadialCharacteristicField``: it reads the System-A
-    composite and returns System B's OWN carrier with SOURCE members — no
-    present-zero bulk/boundary padding (the old "A_BA writes into the bulk"
-    double-count is now UNSPELLABLE: the codomain has no bulk slot,
-    Pattern 4). ``domain``/``codomain`` declare the two member spaces
-    (``full_field_space`` / ``radial_characteristic_field_space``), so
-    the B.2c ``CoupledOperator`` grid can type-check its placement. The
-    internal fold engine stays UNIFIED behind the role-preserving
-    split composite natively (4e — the unified leaf
-    retires at Phase C/4e). Since B.2d the production SI/Krylov driver
-    consumes this block natively at the (B,A) slot of the within-group
-    gain grid (:func:`orpheus.sn.coupled_system.build_within_group_system`);
-    the B.2b FullField-gain adapter is retired.
+       **HAZARD — do NOT route fission's PRODUCTION seed through this operator.**
+       Fission is the eigenvalue OUTER source: its ``K ∘ integrate`` is
+       pre-computed as the fission source, so the ray seed is a DIRECT
+       :class:`RadialCharacteristicReconstruction` fold at the ``q_ext`` seam.
+       Routing ``F.kernel`` through this operator's full
+       ``Fold ∘ K ∘ integrate`` would DOUBLE-apply ``K ∘ integrate``.  S is a
+       within-group gain, F the outer source — different seams.  The
+       kernel-genericity is a clean dependency injection, NOT a claim that
+       fission wires through here.
+
+    **A within-group lagged gain, a true System A → System B block.** The SI
+    driver lags this coupling as its own gain (the Wave-O #208 pattern that
+    separated ``B`` from ``S``): the within-group scattering gain rides ``(S,
+    A_BA, B)``, while fission's ``A_BA`` rides the OUTER ``q_ext`` (within-group
+    fission is zero).  ``apply`` is typed ``FullField → RadialCharacteristic
+    Field`` — it reads System A and returns System B's OWN carrier with SOURCE
+    members, no present-zero bulk padding, so the old "A_BA writes into the
+    bulk" double-count is UNSPELLABLE (Pattern 4).  Since B.2d the production
+    SI/Krylov driver consumes this block natively at the ``(B, A)`` slot of the
+    within-group gain grid
+    (:func:`orpheus.sn.coupled_system.build_within_group_system`).  The lift
+    that moved the ψ½ seed off the model-generic ``S``/``F`` and onto this
+    first-class coupling: ``docs/theory/methods/sn/curvilinear_one_group.rst
+    §sn-direct-seed-solve``.
 
     **The transpose IS the S-adjoint bulk pullback (single source).**
-    :meth:`apply_transpose` reads a ray cotangent and pulls it back into the bulk
-    as :math:`\int\!d\mu^{\mathsf T}\,K^{\mathsf T}\,\mathrm{Fold}^{\mathsf T}`
-    — exactly the ``w · K_isoᵀ(Reconstructionᵀ χ_seed)`` term the S-adjoint used
-    to carry inline. The lift moved that pullback HERE, so ``S.apply_transpose``
-    is pure-bulk and the composite ``(L+C − S − A_BA − B).H`` reconstructs the
-    monolithic adjoint. There is NO adjoint SI driver in production, so the
-    pullback is reached only by the ``.H`` reciprocity gates — which is why
-    :meth:`apply_transpose` is realized NOW and pinned by a NONZERO-seed-cotangent
-    gate (a present-zero seed would hide a lost pullback). ``is_adjointable =
-    True``; ``is_invertible`` inherits ``False`` (a rectangular bulk→ray coupling
-    is not square).
+    :meth:`apply_transpose` reads a ray cotangent and pulls it back into the
+    bulk as :math:`\int\!d\mu^{\mathsf T}\,K^{\mathsf T}\,\mathrm{Fold}^{\mathsf
+    T}` — exactly the ``w · K_isoᵀ(Reconstructionᵀ χ_seed)`` term the S-adjoint
+    carries.  ``S.apply_transpose`` is pure-bulk and the composite ``(L+C − S −
+    A_BA − B).H`` reconstructs the monolithic adjoint.  There is NO adjoint SI
+    driver in production, so the pullback is reached ONLY by the ``.H``
+    reciprocity gates — which is why :meth:`apply_transpose` is realized NOW and
+    pinned by a NONZERO-seed-cotangent gate (a present-zero seed would hide a
+    lost pullback).  ``is_adjointable = True``; ``is_invertible`` inherits
+    ``False`` (rectangular bulk→ray).
 
     Parameters
     ----------
@@ -1336,15 +1227,12 @@ class RadialCharacteristicEmission(LinearOperator):
 
         Integrate the bulk flux to :math:`\phi_0`, apply the emission kernel
         :math:`K` (the isotropic ℓ=0 source), and fold that moment at the
-        closed :math:`\mu = \pm 1` rays. Returns **System B's own carrier**
-        (B.2b re-type): a
+        closed :math:`\mu = \pm 1` rays. Returns **System B's own carrier**: a
         :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
         with SOURCE members — the folded emission in the interior cells, a
         zero boundary corner (the fold writes cells only). No present-zero
         bulk/boundary padding: the codomain has no such slots, so the old
-        disjointness with ``S``'s bulk is structural (Pattern 4). The fold
-        emits System B's composite natively (4e — the unified bridge is
-        retired).
+        disjointness with ``S``'s bulk is structural (Pattern 4).
 
         Parameters
         ----------
@@ -1392,9 +1280,8 @@ class RadialCharacteristicEmission(LinearOperator):
         ``integrate`` transpose broadcasts it per ordinate with the quadrature
         weight :math:`w_n` (:math:`(\int d\mu)^{\mathsf T}\,x = w_n\,x`). This is
         exactly the ``w · K_isoᵀ(Reconstructionᵀ χ_seed)`` bulk pullback the
-        S-adjoint carried inline before the lift (single source now). The fold
-        transpose reads the composite's interior member directly (4e —
-        the unified bridge is retired).
+        S-adjoint carries (single source).  The fold transpose reads the
+        composite's interior member directly.
 
         Parameters
         ----------
@@ -1449,8 +1336,5 @@ class RadialCharacteristicEmission(LinearOperator):
         )
 
 
-# The B.2b transient ``_RayEmissionFullFieldGain`` adapter RETIRED at B.2d:
-# the driver iterate is the CoupledField pair and ``A_BA`` sits block-native
-# in the (B, A) slot of the within-group gain grid
-# (:func:`orpheus.sn.coupled_system.build_within_group_system`) — nothing
-# sums FullField-embedded ray gains anymore.
+# ``A_BA`` sits block-native in the (B, A) slot of the within-group gain grid
+# (:func:`orpheus.sn.coupled_system.build_within_group_system`).
