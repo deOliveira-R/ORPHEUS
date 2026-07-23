@@ -32,57 +32,19 @@ retired — the behavioral lesson is lifted to `lessons.md`.
 
 ## 2. Active / in-flight state
 
-**None of my own.** Every campaign I reviewed — #257 (field-typed operator algebra),
-#247/#251/#245/#246/#249 (foundation cleanup), #240/#158 (LD-on-the-DAG), #208/#20
-(role-typing), #206 (matvec carve) — is **MERGED to origin/main** (git-verified
-2026-06-21: their HEAD commits are ancestors of origin/main). Those reviews are done;
-their verdicts went to the main agent at the time; their lessons are in `lessons.md`.
+**None of my own — every reviewed campaign is MERGED to origin/main** (git-verified
+2026-07-22). #257/#247/#251/#245/#246/#249/#240/#158/#208/#20/#206 AND the whole
+**#226 inverse-as-operator carve** (steps 1–6, incl. the step-6 frozenset/CAP_*
+retirement `f4919b1` — the 3-layer predicate/operator-method/realization-verb surface
+with PEP-647 `invertible()`/`adjointable()` bridges, confirmed live in operator.py).
+Verdicts went to the main agent; durable rulings in the two #226 topic files below;
+behavioral lessons in `lessons.md`. (Step-6 delivered 2 POLISH + 1 doc-gate FILE-AS-ISSUE;
+on a merged carve those are the archivist's / a GitHub issue's, not my active state.)
 
-Two genuinely OPEN branches (reconcile against git before trusting):
-- **#236** (`feature/sn-spatial-angular-product`, tip `6409328`). My Phase 1b/2/3
-  reviews are COMPLETE and delivered — no pending #236 work. New slice ⟹ lead with
-  the SN-carve institutional smells in AGENT.md.
-- **#226** (`refactor/inverse-as-operator`, step-1 `e7115a2`, step-2 `cc293ef`, step-3
-  COMMITTED `1ab7429`, step-4 UNCOMMITTED working tree). Reviewed step-1 (2026-07-01) +
-  step-2 (2026-07-01, BLOCK-on-doc-retirement) + step-3 (2026-07-02, SHIP-WITH-FIXES) +
-  **step-4 "GreenOperator + OperatorSum.inverse() + InverseWrapMixin extraction"
-  (2026-07-02) — verdict SHIP-WITH-FIXES: code+tests SHIP-QUALITY, zero code defects; the
-  mixin fired EXACTLY as my step-1 ruling predicted (back-half extracted at the 3rd
-  sibling; leaves keep guard/apply/repr). All 4 attack points PASS: refinement-loop is
-  bit-identical-to-hand-SI (0-ULP) so it wraps not re-implements + the §18.A near-critical
-  mutation gate (budget BETWEEN increment-stop ~460 & refinement-close ~920) proves it's
-  driven-not-checked; `is_invertible`=leading-term honest (constructibility, not
-  convergence-guarantee → loud ConvergenceFailure); NO prod consumer of `OperatorSum.solve`
-  so fresh-Green-per-call is off-hot-path; `_SolveBackedLeaf→_InvertibleForward` rename +
-  0 residue. 77 green/0.31s, pyright 0-new (ratchet 148 holds).** The prior doc-retirement
-  gate is now CLOSED (no broken xrefs, historical framing). Remaining = 3 doc-sync fixes
-  (NOT code): sweep_operator.py:12 stale-"Green deferred/Krylov" (inline before commit);
-  operator_algebra.rst:8285 frames #285 as open when carve resolved it structural
-  (archivist); Green theory-page section additive (Rule 3). Step-4 rulings + step-1/2/3 in
-  [issue_226_inverse_as_operator_rulings.md]. Step 5 (`MatrixInverseOperator`) reviewed
-  2026-07-02 (SHIP-WITH-FIXES, 1 docstring drift). **Step 6 (carve P4 — the frozenset
-  retirement) reviewed 2026-07-02 @ `f4919b1` (W1+W2 landed; MY review IS the W3 gate):
-  verdict PASS — ZERO MUST-FIX code defects, ZERO VIOLATIONS.** The `capabilities:
-  frozenset[str]` + CAP_*/MissingCapability RETIRED tree-wide; each axis now 3-layer
-  (predicate / operator-method / realization-verb) with PEP-647 TypeGuard checked bridges
-  (`invertible()`/`adjointable()`). Verified against LIVE tree: retirement complete (exactly
-  6 docstring-history mentions, 0 functional caps reads); 0 `# type: ignore` ADDED (9
-  removed); ratchet 148→145 honored; all 12 bridge sites §44.E-clean (LinearOperator-typed,
-  narrow to a downstream `.inverse()`/`.apply_transpose()`); message family axis-uniform;
-  keystone v2 single-sourced + `-O`-safe raises + bridge-consistency-leg gives the TypeGuards
-  teeth (95 gates green live); RankOne-bug-class did NOT recur (every caps-removal got a real
-  `is_adjointable` override / role-base inherit). Findings = 2 POLISH + 1 FILE-AS-ISSUE only.
-  POLISH-1 (brief-requested judgment): `OperatorSum.is_invertible` (operator.py:1151)
-  `getattr(self.a,"is_invertible",False)` is a SMELL not honest duck-typing — its OWN sibling
-  `is_adjointable`:1124 + EVERY other composite predicate read operands DIRECTLY, so the
-  `False` fallback is provably DEAD (coextensive today → NIT); fix `return self.a.is_invertible`.
-  POLISH-2 (softer): the 2 ctor-guard getattr (KEigenvalue iteration.py:1090, GreenOperator
-  green_operator.py:256) are a 3rd spelling of "is X invertible?" alongside the canonical
-  `invertible()` bridge (used at `_seeded_inverse`:263 same file) — defensible as boundary-parse
-  but prefer direct read. FILE-AS-ISSUE (the recurring doc gate, route to W3 archivist Sphinx
-  pass): 13 BROKEN `:class:MissingCapability` xrefs (operator_algebra.rst 9 / galerkin 2 /
-  discrete_ordinates 2) + stale CAP_/OperatorSum.solve prose across 6 theory pages;
-  operator_algebra.rst CAP_SOLVE-gate section needs a REWRITE not find-replace.
+One genuinely OPEN branch (reconcile against git before trusting):
+- **#236** (`feature/sn-spatial-angular-product`, tip `6409328` — NOT in origin/main).
+  My Phase 1b/2/3 reviews COMPLETE and delivered; no pending #236 work. New slice ⟹
+  lead with the SN-carve institutional smells in AGENT.md.
 
 > Merge-status in memory goes STALE — a note frozen mid-flight merges in a later
 > session. ALWAYS reconcile a "resume/pending X" against
@@ -90,6 +52,14 @@ Two genuinely OPEN branches (reconcile against git before trusting):
 > frozen "NOT pushed". (This whole index was rebuilt on that rule.)
 
 ## 3. Durable reference (reusable design-review pointers)
+
+- [doc_prose_rebalance_certification.md](doc_prose_rebalance_certification.md) — method for
+  certifying a "docstring/comment-only" doc-prose-rebalance batch (#231 Phase 2 P2-*; certified
+  P2-D/E/F/G 2026-07-22, all CERTIFIED). The 4 checks: dual token+AST invariance (strip ALL bare
+  string-exprs, not just leading docstrings — attribute docstrings are bare Expr too); the
+  dropped-contract net (grep `-` diff lines for shape/raise/mutation tokens, confirm each
+  survives elsewhere); in-pass fixes vs LIVE code (Hilbert→Euclidean, stale-trait, repointed
+  `:ref:`, `:label:`-cut orphan-safety); pointer honesty (resolve ALL + content-check ≥3/batch).
 
 - [pyright_carrier_generic_carve.md](pyright_carrier_generic_carve.md) — #226 pyright
   carrier-generic carve rulings, C2→C4 (reviewed through 2026-07-03). C2: generic-public-surface

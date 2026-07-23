@@ -2596,6 +2596,326 @@ design-first; report silent-class `orpheus/`/`tests/` hits.
 
 ---
 
+## L-033 — Code-prose rebalance (#231 Phase 2): an operator file's teaching is ALREADY TWIN — expect ZERO MOVED, verify by token-invariance, and keep the CONTRACT tier by the "wrong-simplification guard" test
+
+The pilot (P2-A, `transport/operators/scattering.py`, 73%→63% prose,
+docstring 1127→721, comment 196→121) established the calibration for
+rebalancing a "documentation-with-code-attached" operator file. The
+classify-each-block-into-one-verdict rubric
+(CONTRACT/TWIN/MOVED/HISTORY/COMMENT-cut) has a dominant outcome on
+operator files that the instinct fights:
+
+- **The operator-algebra book is EXHAUSTIVELY COMPLETE → expect ZERO
+  MOVED.** On a heavily-prose operator file the reflex is "some design
+  rationale must be book-worthy-but-unwritten". It almost never is. Three
+  concepts that FELT unique to the code — the forward-fast-path-vs-adjoint-
+  frame asymmetry, N2N-as-a-distinct-moment-operator, the foldable/σ_r
+  split + the #215 trap — were EACH fully TWIN after grepping the landing
+  chapters (`adjoint.rst` §sn-scattering-adjoint-source; `operator_algebra.rst`
+  §integral-kernel-category / §scattering-as-tensor-product-sum;
+  `slab_one_group.rst` §si-sigma-r-fold-mismatch + `loss_representation.rst`
+  §loss-rep-removal-sigma). **Discriminator: grep the landing chapter for
+  the concept BEFORE assuming novelty.** Budget the operator-file batches
+  (fission, streaming, boundary, multiplication, isotropic_scattering) as
+  TWIN-CUTTING, not MOVED-writing. If you think you found a MOVED, grep
+  harder first — Cardinal Rule 3 means the theory shipped with the code.
+
+- **CONTRACT-vs-{HISTORY,TWIN} has three sharp discriminators the pilot
+  named** (these are the reusable judgment rules, not the file specifics):
+  (a) **A keep-vs-retire decision on a currently-orphan symbol is CONTRACT,
+  not HISTORY** — even phrased historically ("Deliberately retained W-F,
+  user steered keep"). It is a live constraint: the arm is an *intentional*
+  orphan kept for a named future consumer (an OPEN issue), and a naive
+  retirement audit would delete it as dead. Keep the keep-decision + the
+  open-issue rationale; cut only the date/steering provenance. (b) **A
+  `⚠ LATENT … TRAP` / "do NOT" imperative is COMMENT-keep even when its
+  EXPLANATION is TWIN** — the derivation goes to a `§`-pointer, but the
+  imperative + the falsifying number (46–56 %) + the tracking-issue
+  pointers (#2/#215) stay inline, because a future within-group-solver
+  editor reads THIS file, not the theory page. (c) **A type-annotation-
+  choice rationale that guards a plausible wrong "simplification" is
+  CONTRACT** — "returns the concrete `OperatorSum`, not the bare
+  `LinearOperator` erasure, so `apply_transpose` stays visible to the
+  checker" prevents a modifier from silently breaking a consumer by
+  "tidying" the return type. General test for the CONTRACT tier: **"would a
+  competent modifier who never leaves the file do the wrong thing without
+  this line?"** — if yes, it is CONTRACT regardless of how history-flavored
+  the prose is.
+
+- **HISTORY-cut only after confirming the fact is in the record.** The
+  module-head Wave-D-extraction narration ("Per Cardinal Rule 2 this
+  lifts… bit-identical extraction… SNSolver retains thin delegators") is
+  HISTORY *because* slab_multigroup.rst 439–444/578–582 already carries it
+  AND the delegators verifiably still live (solver.py:1884/1892/1921).
+  Verify BOTH — the record home and the live truth — before cutting; a
+  HISTORY claim that is novel-and-recorded-nowhere becomes a
+  Development-history dropdown MOVE, not a cut.
+
+- **Verification discipline unique to this task class:** (1) the edits are
+  docstring/comment-ONLY, so PROVE zero code change by a **non-string/non-
+  comment token comparison vs HEAD** (`tokenize`, drop COMMENT/STRING/
+  NL/INDENT…) — 2397==2397 is stronger evidence than `pytest --collect-only`
+  (which also passed, 6652 unchanged). The `code lines` count (484→484 via
+  `ast`) corroborates. (2) **The sphinx gate is CONDITIONAL on automodule
+  status — check it FIRST (`grep -rn "automodule:: <module>" docs/`).** A
+  not-`automodule`'d file (P2-A scattering.py) has build-invisible docstrings →
+  SKIP the multi-minute build (say why). But an `automodule`'d file (P2-G
+  streaming/augmented_mesh/boundary, all in `api/discrete_ordinates.rst`)
+  RENDERS its docstrings → the `-E -W` build gate is MANDATORY (capture the
+  baseline BEFORE editing; acceptance = W/E/C set unchanged). `:noindex:` does
+  NOT exempt it — `:noindex:` only makes the module xref-invisible (L-002); the
+  docstrings still render and malformed markup still warns. Two automodule-safe
+  moves when trimming: (a) NO `.. math:: :label:` in any of the three docstrings
+  → cutting math blocks orphans no `:eq:` (grep-confirm the file's `:label:`
+  count is 0 first); (b) KEEP section-title underlines VERBATIM (over-long is
+  allowed) — trim only the prose body under a heading, never resize the
+  underline, or you risk "Title underline too short". (3)
+  **Pointer form = literal greppable `docs/theory/<part>/<file>.rst §<label>`**;
+  `§` may point at an EQ-label (`:label:`) when no co-named section anchor
+  exists (`mg-inscatter-source`, `sn-scattering-adjoint-source`) — it is a
+  human marker, not a rendered role (the file isn't automodule'd), so it
+  resolves via grep. Gate every label with `grep -E "^\.\. _X:|:label: X$"`
+  and every file with `[ -f ]`; never invent.
+
+- **P2-E CONFIRMATION — ZERO MOVED generalizes PAST operator files to the
+  spatial-scheme file class, and the Haiku pre-inventory's MOVED column is
+  ~100 % noise.** P2-E was `transport/spatial/{scheme,diamond,linear_discontinuous}.py`
+  — NOT operators, different landing chapters (`foundations/discretization.rst`,
+  `methods/sn/cartesian_multid.rst`, `methods/sn/loss_representation.rst`). The
+  pre-inventory graded **13 MOVED**; re-adjudication overturned ALL 13 to
+  TWIN/CONTRACT. Two "needs a new theory page" candidates (an advection–reaction
+  interface, a reverse-mode transpose section) each already had a complete home
+  — `§discretization-closures` even cross-references the exact code symbols
+  (`outgoing_face_from_average`, `reaction_xs`). The ZERO-MOVED result is not
+  operator-specific; it is a **Cardinal-Rule-3 consequence** (the theory shipped
+  with the code), so budget ANY Phase-2 batch as TWIN-cut + CONTRACT-trim and
+  grep the landing chapter before crediting a single MOVED. TWO sharp new
+  discriminators the pre-inventory got wrong: (a) **a method that teaches
+  d-generic / Kronecker / tensor-product structure is usually BOTH layers** —
+  the LAYOUT theory is TWIN (→ `cartesian_multid.rst §spatial-moment-space`),
+  but the reconstruction GOTCHAS (a d=1 trailing-axis-append; "keys on
+  `face_moment_tail`, NOT a shape probe"; trace-order == inflow-order
+  consistency) are CONTRACT. Same object, two layers — KEEP the contract, POINT
+  the theory; never let "this is tensor-product teaching" auto-MOVE a method
+  whose gotchas fail the wrong-simplification-guard test (overturned 3 LD
+  methods: `_ubld_inflow`, `_ubld_outgoing_faces`, `moment_scan_closure`). (b)
+  **the bit-identity operation-order discipline is a single-source across
+  DOCSTRINGS** (Cardinal Rule 2, not a TWIN-cut): the canonical "explicit left
+  fold, do NOT regroup" statement lives at the one helper
+  (`_cartesian_streaming_diagonal`); sibling kernels that REPEAT it get trimmed
+  to a pointer AT the helper, and the ⚠ do-NOT-regroup imperative stays only at
+  the single source. Finally: **a contraction routinely surfaces a
+  Cardinal-Rule-1 stale claim** (here a Protocol `is_affine_scannable`
+  description said LD "does not qualify", false since #158 Increment B) — L-001
+  applies MID-TRIM: verify the claim against LIVE code, FIX + report the
+  scope-expansion, never transcribe the stale text into the trimmed form.
+
+How to apply: for a Phase-2 operator-file batch, grep the landing chapters
+for every teaching concept FIRST (expect all-TWIN); classify each block by
+the "wrong-simplification guard" test for CONTRACT; keep latent-trap
+imperatives + open-issue keep-decisions inline; cut TWIN/HISTORY to
+greppable literal-path `§`-pointers (eq-label OK); prove zero code change
+by token-invariance; skip the sphinx gate iff the file isn't automodule'd.
+The lossless map is per-block `file:line | verdict | destination | id`,
+written INCREMENTALLY, ending with verdict counts + before/after prose
+lines + the 3–5 hardest calls that calibrate the siblings.
+
+---
+
+## L-034 — Code-prose rebalance, CONTRACT-DENSE file classes (#231 Phase 2, batches B + C + D + F + G): a machinery PACKAGE, a DRIVER file, an ABC/algebra-DEFINITION file, a CONTRACT-heavy OPERATOR file, a MESH/phase-space file, and a CURVILINEAR ψ½-operator pair are all contract-dense, so the honest cut is far smaller than the teaching-operator pilot (and that is CORRECT) — but the cut SURFACE differs by class
+
+L-033 calibrated the rebalance on an OPERATOR file (`scattering.py`,
+docstring −36 %). Batch B (`sn/loss_representation/{__init__,sweep_graph}.py`,
+the SN sweep machinery, docstring −2.6 %) and batch C (`sn/solver.py` +
+`numerics/iteration.py`, the SN driver + iteration primitives, docstring
+−5 % / comment −16 %) both established that a **contract-dense file is a
+DIFFERENT file-class from a teaching file** and the same rubric yields a
+much smaller, honest cut. The file-class discriminator is the load-bearing
+lesson — and each contract-dense class has its OWN dominant cut-surface:
+
+- **Operator-SURFACE file** (in `transport/operators/`, `sn/operators/`): its
+  prose TEACHES the operator algebra, which is 100 % TWIN in the
+  operator-algebra book → aggressive TWIN-cutting (−30-40 %). **NUANCE (P2-G,
+  batch G): the −30-40 % is for a TEACHING-heavy operator file (`scattering.py`
+  was 73 % prose teaching the kernel). A CONTRACT-heavy operator file cuts FAR
+  less** — `streaming.py` (docstring −16 %) and `boundary.py` (−4 %) carry the
+  apply / solve / adjoint / reflect / split CAPABILITY contracts + the
+  `_require_typed_composite` guard + the `_reflect_trace` adjoint-spelling
+  ⚠-trap (a het-VACUUM-sphere-only catch) + the `reflect_rows_inplace`
+  additive-not-overwrite ⚠-trap. The discriminator WITHIN the operator class is
+  teaching-density vs contract-density; on the contract-heavy end the cut is
+  campaign-TAGS-on-live-contracts (trim the tag, keep the contract), not
+  standalone teaching. Latent-trap imperatives get an explicit `⚠` marker + the
+  falsifying detail inline (L-033b), derivation → `§`-pointer. **CURVILINEAR
+  sharpening (P2-F, `pole_angular_closure.py` docstring −23 % +
+  `radial_characteristic.py` −15 %):** in the ERR-026/ERR-053 subsystem, KEEP
+  the MATH FORMULA at point of use even when the teaching AROUND it is TWIN —
+  the α-recursion index convention (`c_out=α/τ`, `c_in=(1−τ)/τ·α+α`), the
+  `faces[g,m,i]` off-by-one, the τ_raw split formula, the seed-extrapolation
+  `t` are each a file-local dependency a modifier depends on (a sign/index slip
+  IS the historical hazard); cut the derivation, keep the formula + `§`-pointer.
+  Two LATENT-TRAP imperatives were the load-bearing keeps — "do NOT tidy the τ
+  arithmetic into a call to `contamination.morel_montry_weights`" (collapses the
+  Leg-1 cross-check into a reference-contamination tautology, vv L11) and "do
+  NOT re-implement the march at a call site" (single-source orchestration) —
+  both fail the "would a file-local modifier do the wrong thing without this
+  line?" test, so they stay inline even though their EXPLANATION is TWIN.
+- **Sweep-MACHINERY / package file** (the `(L+C)` traversal realization, the
+  DAG, the cell kernels): its prose STATES the local contract that *references*
+  a book concept — "returns the FULL loss `(L+C)ψ`, Resolution A" is NOT
+  teaching Resolution A (that lives at `§loss-rep-resolution-a`), it is THIS
+  method's return contract. The "would a modifier who never leaves the file do
+  the wrong thing without this line?" test keeps the vast majority. ZERO MOVED
+  still holds (grep-confirm the book carries every concept), but the TWIN-cut
+  surface is only the **module-head essays + campaign-relocation provenance +
+  duplicated measured numbers**, not the method bodies.
+- **DRIVER file** (the solver orchestration `sn/solver.py`, the iteration
+  primitives `numerics/iteration.py`): its docstrings are the estimator /
+  convergence / threat-model CONTRACT a modifier needs (kept near-whole —
+  the `compute_keff` R7 role split, #291 leakage, balance identity,
+  scale-bridge, the #282 lag-death certificate, the ERR-053 restart trap are
+  ALL wrong-simplification guards). The dominant cut surface is therefore
+  **COMMENTS, not docstrings**: standalone `#`-comment RETIREMENT TOMBSTONES
+  (`_GaussSeidelResolvent`/`_MomentWindowedResolvent`/`_make_sweep_preconditioner`/
+  the P1.7 `_build_rhs_*` block — git owns them; the live design is on the
+  surviving function) + campaign-STATUS blocks (a 23-line "Issue #168 status"
+  Phase-A/B/C/D narration annotating a 1-line default) + the HISTORY TAILS of
+  SPLIT method docstrings (a "Scope"/"Verified"/"History:" section narrating a
+  landed campaign under a CONTRACT algorithm). Batch C: comment −16 % (−101 ln)
+  DWARFED docstring −5 % (−61 ln). Hunt the `#`-comment tombstones FIRST on a
+  driver file, not the docstrings.
+- **ABC / algebra-DEFINITION file** (the base-class file the book is ABOUT —
+  `numerics/operator.py`, the LinearOperator ABC + composers/adjoint/inverse):
+  the LEANEST cut of all (P2-D: docstring −2.4 %, comment −2.8 %, −51 ln). Its
+  docstrings STATE the binding laws (closure/composition/adjoint-swap/
+  homomorphism), the raise-conditions, and the typing-rationale. The trap: a
+  Haiku classifier proposes MASS **MOVED** for "closure law"/"composition law"/
+  "role classification"/"three-layer surface" (it did — 28). On an ABC file
+  those verdicts **INVERT to CONTRACT**: the law IS the in-file contract at
+  point-of-use (`OperatorSum.is_invertible`'s "ONLY the LEADING term need be
+  invertible" — cut it, the next modifier "fixes" it to require both). The book
+  teaches the concept's *derivation* (TWIN); the docstring states the *law the
+  class obeys* (CONTRACT — never MOVED, the book already carries the concept →
+  ZERO MOVED still holds). Dominant cut surface: inline **campaign-step
+  provenance** (citation-vs-narration rule below) + multi-clause HISTORY
+  narration stories, NOT the laws. The BATCH-SPECIAL row-8 dual-A bridge was
+  ALREADY-SATISFIED here too (verify + report, per L-034's special sub-rule);
+  the rebalance-read surfaced + fixed a stale `:ref:`operator-algebra-adjoint``
+  → `operator-adjoint` (per the staleness-audit sub-rule).
+- **MESH / phase-space file** (P2-G: `sn/mesh/augmented_mesh.py`, the `SNMesh`
+  construction + property surface): like the DRIVER class, the dominant cut
+  surface is COMMENTS, not docstrings (comment −26 % / −79 ln DWARFED docstring
+  −0.6 % / −4 ln). The property + classmethod docstrings ARE the mesh's public
+  API contract (the `bc` face-inventory-IS-BC-inventory invariant, `is_1d`'s
+  ny==1-phantom gotcha, `full_field_space`'s G-adjoint metric, `dag_walk`'s
+  XOR-signature) — kept near-whole. The narration lives in the `_init_core`
+  CONSTRUCTION-BODY comment cluster (a 56-line Phase-C/D angular-closure-flip
+  story annotating a 2-line default; the Wave-D/E 6-site migration essays; the
+  deprecated-accessor tombstones) → hunt those `#`-comment clusters FIRST,
+  exactly as on a driver file. The CONSTRAINT still stays even inside a
+  construction comment (the CLASS-not-instance closure-bind reason, the "mesh
+  provides shape only" B.5.A rule, the how-to-add-a-BC-kind recipe) — cut only
+  the wave-flip STORY around it. Also surfaced a CORRECTNESS fix here's sibling:
+  `streaming.apply_transpose`'s summary said "Hilbert transpose" while its body
+  + the sibling `boundary.py` correctly say **Euclidean** transpose (`.H` is the
+  metric Hilbert adjoint) — fixed per L-010 (a rebalance-read surfaces stale
+  V&V vocabulary, per the ABC bullet's staleness-audit sub-rule).
+
+Sharp sub-rules (machinery + driver classes):
+
+- **Provenance trimming = citation-vs-narration, applied UNIFORMLY (internal
+  consistency).** On a CONTRACT-dense file the inline provenance tags ARE the
+  cut. Draw the "constraint stays / narration cuts" line at
+  *citation-vs-narration*: TRIM landed campaign-STEP codes (`Wave O`/`carve
+  PN`/`taxonomy §NN step N`/`spec §NN`/`Phase 2.5x`/`né _as_dense`/`O.2b`/`W-A
+  collapse` — git + the theory page own them) but KEEP bare `#NNN` issue
+  anchors (rubric: live-issue one-liners, the more durable traceability) and
+  NAMED PATTERNS with theory anchors (`Design C`, `coding-elegance Pattern 2`).
+  A bare `#280` is a citation (keep); "carried as documented twins until the
+  3rd sibling fired the extraction trigger" is narration (cut). Apply to EVERY
+  tag of a class or NONE — a half-stripped file violates internal consistency.
+  A retired-SYSTEM lineage note ("the RUNTIME successor to the `CAP_SOLVE` tag")
+  is HISTORY even when terse — `CAP_*` is fully retired, no live code references
+  it, so it is pure archaeology (aggressive-retirement); the predicate law
+  stands alone.
+
+- **A hand-transposed-adjoint / reverse-scan / boundary-block comment body is
+  the ALGEBRA-OF-RECORD — KEEP even though it reads like narration.** The
+  cotangent routing, the seed-fold transpose, the degenerate-diagonal adjoint,
+  the O.4b active-trace block, the moment-frame involution (an ERR-061-class
+  diffusion-limit root cause): a modifier editing the adjoint/kernel MUST have
+  these. Cutting them is the Cardinal-Rule-1 hazard the brief flags as "3
+  constraint-bearing blocks misgraded HISTORY", at scale. A Haiku-style
+  pre-classifier marks most of these COMMENT-cut [low-conf]; re-adjudicate EACH
+  — nearly all are CONTRACT. Trimming a shape-annotation to save 1-2 lines
+  strips a real invariant (the "DD/Step byte-identical" note is a *testable
+  negative control*, not chatter).
+- **Duplicated measured performance numbers → single-source to the canonical
+  theory anchor, but keep ONE inline at the point-of-decision.** A perf basis
+  repeated across N class docstrings (e.g. a Fork-B2 0.57-0.84× sweep basis) is
+  TWIN with its theory home; point the *descriptive* docstrings there, but LEAVE
+  the headline number in the *factory/selector* docstring where the choice is
+  made. DRY (Cardinal Rule 2) without stripping numerical evidence from the code.
+- **automodule + `:noindex:` makes the Sphinx gate LIVE (divergence from the
+  L-033 pilot).** The pilot's `scattering.py` was NOT automodule'd → no build
+  gate. A package rendered by `automodule:: … :members: :undoc-members:
+  :noindex:` (here `discrete_ordinates.rst`) still RENDERS the docstrings (only
+  the xref *targets* are suppressed — L-002), so a malformed docstring breaks
+  `-E -W`. RUN the build gate both sides for an automodule'd file; grep-confirm
+  0 `.. math:: :label:` / 0 `vv-status` first (cutting then orphans no
+  `:eq:`/`verifies` target). Pointer nuance: the ratified literal
+  `docs/theory/…rst §<label>` form is brief-correct, but in an automodule'd file
+  a `:ref:`<label>`` role would render as a working link — flag it, don't
+  unilaterally switch. **P2-F confirmed this on `radial_characteristic.py`
+  (automodule'd, 0 warnings both sides) vs `pole_angular_closure.py` (NOT
+  automodule'd → invisible, its 3 module-docstring `:label:` blocks cut-safe
+  after the grep). TWO positive moves a RENDERED file affords that a
+  non-rendered one cannot:** (1) **promote a LATENT-TRAP to a rendered
+  `.. warning::` admonition** (the fission-double-apply HAZARD → a visible
+  warning box, L-010 prophylactic-warning — better than an inline comment); mind
+  the 3-space content indent under the directive. (2) **a section-RENAME during
+  the cut stales an in-file back-ref** — renaming module-docstring headings
+  ("Scope of this realization"→"Realized surface", "The ONE solve
+  orchestration"→"Single source") staled two class-docstring back-references;
+  grep the file for the OLD heading text after ANY rename and repoint (the
+  rebalance-read staleness sub-rule, applied to in-file section refs).
+- **A "fix if MISSING/drifted" BATCH-SPECIAL that turns out ALREADY-SATISFIED
+  → verify against the oracle + REPORT satisfied; do NOT touch the correct
+  CONTRACT block.** Batch C's SPECIAL 1 (the `notation.rst` row-8 dual-A
+  bridge must survive in `iteration.py`'s module head) read as an instruction
+  to edit — but the module head ALREADY stated it verbatim (posing +
+  A=invertible-resolvent-operand + SN binding `A=L+C` gains `(S,B)`→`L+C−S−B`
+  + fission-never-a-gain). The disciplined move: READ the oracle (`notation.rst`
+  row 8), READ both ends, confirm the match, REPORT "SATISFIED, no fix" — a
+  correct CONTRACT block a special protects is a KEEP, not an edit target.
+  Same for a posing-drift special (SPECIAL 2, dated `(A−S−F)` posings): grep
+  BOTH files, find zero, report CONFORMANT. A special is a *verification*
+  obligation first, an edit obligation only on failure.
+- **A rebalance READ surfaces a Cardinal-Rule-1 staleness bug — FIX it in-pass,
+  flag it.** Trimming a comment means READING it, which is the only gate that
+  catches a stale RAW PATH in prose (`-W` is blind to path strings — L-002; a
+  `:class:`/`:func:` renders plain-text, a raw `orpheus/sn/scattering.py`
+  string warns nowhere). Batch C: the source-helper comment cited
+  `orpheus/sn/scattering.py`; the class lives at
+  `transport/operators/scattering.py` (grep the live import). Fixed to the
+  class ref (Cardinal Rule 1 supreme), folded into the tag-trim, REPORTED as a
+  discrepancy. The rebalance is a free staleness-audit of every comment you open.
+
+How to apply: FIRST classify the file — operator-surface vs machinery/package
+vs driver (the folder + "does the prose teach the algebra, state a local
+contract that uses it, or orchestrate/interface?"). Contract-dense (machinery
+OR driver) ⟹ budget a small, surgical cut and KEEP the method bodies +
+constraint comments; the cut surface = machinery's module-head essays +
+provenance + duplicated numbers, driver's standalone `#`-comment tombstones +
+status blocks + SPLIT-docstring HISTORY tails (hunt comments FIRST on a driver).
+Run the Sphinx gate iff automodule'd (a `:noindex:` automodule STILL renders →
+gate LIVE). Verify every batch-special as a check first (edit only on failure),
+fix any stale raw-path you open, and REPORT the small-cut-is-correct finding
+with the file-class rationale so the reviewer doesn't read −2-5 % as timidity.
+Cross-links [[lessons-L33]] (the operator-file twin).
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

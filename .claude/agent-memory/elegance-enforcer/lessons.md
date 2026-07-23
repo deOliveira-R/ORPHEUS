@@ -515,3 +515,85 @@ cleanest of the three cartesian_multid stages.
 - **(a) A user-ruled "deliberately KEPT these sites" list is a CLAIM to verify three ways, not a pass.** Grep EVERY dated posing across both files (`A - S - F`, `(A, S, F)`, `(A - S)`, `A_loss`), confirm every survivor sits at a named keep site (here all `(A−S)`/`(A,S,F)` residue was KEigenvalue-layer: lines 50/57/1012/1022/1037/1052/1172/1300), AND confirm the docstring's `A` matches the actual constructor parameter (`self.A = A` at 843/1133 — the respelled docstrings use `A` for the resolvent operand = the literal param name, so they don't contradict the signature). A respell that renamed the doc symbol away from the code param would be an anti-#20 drift; verify it didn't.
 - **(b) The cross-layer dual-`A` is a NON-finding when the mapping is spelled IN-CODE both directions.** The doc page binds `A = M − N` (A = the honest within-group operator L+C−S−B, resolvent = `M` = L+C, classical Varga splitting); the numerics module binds `A` = the invertible resolvent operand (= the doc's `M`), honest operator = `A − Σgᵢ` (= the doc's `A`). Same letter, swapped referents — the dual-`A` smell. But it is DISCHARGED, not flagged, because the numerics keep-comment (iteration.py:1180) literally spells `A_loss = L+C − S − B` (= the doc's `A`) and line 19 spells `A = L+C` (= the doc's `M`): a reader can reconcile the two files from the code itself. This is the code-side analogue of Sharpening-9's "local-`A`-bound-explicitly is the strongest honest form" — the fix for a cross-layer notation seam is the in-code bridge, NOT forcing one letter. Legs: not-coextensive-divergence (a notation seam, no value bug), pre-existing (the "project-wide … A family" sentence predates the carve — only "composites"→"operands" was refined), layer-forced (a generic primitive's `A` must be "the operand I invert, method-dependent"; for a matrix method `A` = the full assembled matrix, so it CAN'T be pinned to L+C−S−B). ⟹ PASS observation, not even a CONCERN.
 - **(c) The companion respell's honest-algebra Option-Y is layer-relative.** solver.rst obeys the page-wide law (sweep always `(L+C)⁻¹`, never `A⁻¹`; A = L+C−S−B). But numerics `A^{-1}` = the sweep is CORRECT there because numerics `A` ≡ the resolvent (L+C), explicitly bound — do NOT flag `A^{-1}` in iteration.py as an Option-Y violation once the local `A`=resolvent binding is confirmed. The two pages carry two `A` bindings, each locally honest; the honest-algebra grep must be run WITH the file's own binding in hand. The fresh Key-Facts frame echoed the TRAVELED `A = M−N` faithfully (did NOT mint a colliding binding — contrast slab_multigroup:864's fresh fission-in-within-group MUST-FIX). Current-truth of the doc's fresh claims all backed by live code: both inners call `build_within_group_system` (solver.py:1593/1785), the Krylov matvec `loss_minus_gains` = honest `(A−S−B)`,A=L+C (iteration.py:910), homogenize→MaterialMesh / condense→dict[int,Mixture] (solution.py:368/504). Sole NIT: a T18 ref-insertion left index.rst:984 at 94 cols vs the ~70-col house wrap (cosmetic, RST reflows prose regardless, build green).
+
+## L-014 -- Certifying a code-prose REBALANCE (docstring trim → theory-book pointers): token-invariance + pointer-content + contract-self-sufficiency
+
+The P2-A pilot (#231 Phase 2, scattering.py 1807→1326, docstrings −406 / comments −75,
+CERTIFIED 0 MUST-FIX). A docstring/comment-only rebalance on a CODE file is a DIFFERENT
+shape from the L-013 RST monolith→chapter split: teaching prose leaves the docstring for
+the theory book, replaced by greppable `docs/theory/<part>/<file>.rst §<label>` pointers;
+CONTRACT (shapes/units/mutation-semantics/None-cases/caps/conventions/⚠-guards) stays.
+Six operator-file batches follow (fission/streaming/boundary/multiplication/N2N/isotropic)
+— the recipe:
+- **Behavior-invariance = tokenize VIEW-A (drop COMMENT+STRING+structural tokens), assert
+  HEAD==WORK byte-for-byte.** This is the spine. In Py3.14 f-string error-message literals
+  tokenize as FSTRING_* (NOT STRING), so they RIDE IN VIEW A — a changed `raise`-message
+  reddens VIEW A. Run a second VIEW B (keep STRING) to enumerate every docstring diff and
+  confirm each is a triple-quoted block, none a dict key / `__all__` entry / logic string.
+  (2397==2397 code tokens; 29 docstring diffs, all `"""`.) `pytest --collect-only` count is
+  a cheap corroborating gate (docstring-only ⟹ unchanged).
+- **Pointer honesty = resolve THEN content-check (leg-3).** grep each `§<label>` as
+  `.. _label:` OR `:label: label`; the plan's "all N resolve" is a CLAIM. Then READ ≥5
+  landing sites and confirm the concept is actually THERE, not a name-match. (13 resolved;
+  8 content-matched — the adjoint `S^T`, the #215 σ_r-fold trap, the integral-kernel
+  category were load-bearing.) zsh gotcha: `--include=*.rst` unquoted glob-expands to
+  "no matches found" — quote it `--include='*.rst'` (the recurring grep-null self-catch).
+- **Contract self-sufficiency = the phase guardrail (the MUST-FIX class).** For every
+  PUBLIC symbol, the trimmed docstring must let a caller/modifier work WITHOUT leaving the
+  file. Critical keeps here: add_iso/n2n_source's raw-in-mutates-returns-None vs
+  typed-in-returns-new overload; the producer-side `/W` per-ordinate magnitude on each
+  apply arm; the `rtol=1e-14` foldable+residual additive contract; ValueError-on-order-0.
+- **Posing harmonization rides along** (same honest-algebra axis as L-013 pt-4, now on a
+  code module head): dated fused-L `(L−S−F)ψ=q` → `A=L+C−S−B`, `K=A⁻¹F`; check against
+  `notation.rst §notation-symbol-table` row 6 EXACTLY (L streaming-only, C collision, S
+  gain, B boundary, F never a LHS gain).
+- **Constraint comments STAY inline even when their EXPLANATION is TWIN** (the book owns
+  the derivation): the ⚠ #215 latent-trap imperative + its 46–56% figure, `block_role=BULK`,
+  the TYPE_CHECKING `@overload` rationale, the #205 intentional-orphan keep-decision. A
+  `⚠ do-NOT` guard is point-of-use, not book content (L-013 Sharpening-nothing — this is
+  the code-file analogue).
+- **Watch (don't manufacture a finding):** a KEPT 2-D shape `(N,ng,nx,ny)` in a docstring
+  while the operator went rank-generic (#225 `spatial_shape`/`*spatial`) is a PRE-EXISTING
+  code-doc tension, NOT a rebalance defect — the code is token-identical and the rubric told
+  the author to keep the contract text. Note it as forward-looking, never as a batch MUST-FIX.
+  A `# pending retirement — tracked in issue #NNN` shim marker is the anti-#11 REMEDY (removal
+  trigger tracked), not a smell — verify the issue is OPEN + names the shim (gh) and the
+  "consumers are gone" claim holds (grep the named symbols → only retirement-history comments).
+
+**Sharpening (P2-B loss_representation + P2-C solver.py/iteration.py, both CERTIFIED 0 MUST-FIX,
+2026-07-22).** L-014 above was calibrated on the −36% OPERATOR/teaching pilot; DRIVER and
+MACHINERY files behave differently — expect and accept a ~14× SMALLER cut, and shift where you
+look:
+- **Machinery/driver ≠ teaching file → a tiny cut is CORRECT, not under-delivery.** A sweep-
+  MACHINERY package (loss_representation, −2.6% docstring) or a DRIVER (solver.py: comments −101
+  DWARF docstrings −61) has prose that STATES the local contract *referencing* a book concept, not
+  the concept's teaching. ZERO-MOVED still holds (grep-confirm the book carries every concept), but
+  the cut surface is module-head ESSAYS + campaign PROVENANCE + retirement TOMBSTONES (`#`-comment
+  blocks for deleted symbols), NOT method contracts. For a driver file, hunt the `#`-tombstones first.
+- **The MUST-FIX class on a driver file = a TOMBSTONE cut that deletes a LIVE constraint.** Per
+  retirement tombstone, ask "did any cut line state a constraint a modifier still needs?" The GOOD
+  cut to recognize (a Pattern-7 native-place WIN, not a loss): a MISPLACED constraint comment
+  single-sourced to its successor's home — here the estimator-consistency law ("at a converged
+  eigenpair every CONSISTENT estimator agrees; injection could only add an inconsistent functional")
+  was cut off the unrelated `Preconditioner` type-alias and VERIFIED present in `KEigenvalue.Notes`.
+  Certifier move: for each tombstone cut, grep the claimed destination and confirm the constraint
+  landed. Exemplar LIVE constraints that MUST survive a driver trim: "within-group fission is zero
+  (enters as q_ext), no F=0 slot"; "`_reflect_outflow_into_inflow` survives for the eigenvalue
+  reconstruction sweep + Phase-3 G-S variant" (a helper-survival note guarding a delete); the
+  KrylovAcceleration "preconditioner≠inverter category mistake" distinction.
+- **A cross-file oracle claim gets VERIFIED, not fixed.** The row-8 dual-A bridge (`(A−Σᵢgᵢ)ψ=q_ext`,
+  A the invertible resolvent operand, SN binding A=L+C gains (S,B)→honest L+C−S−B, fission never a
+  LHS gain) is asserted at BOTH iteration.py's module head AND notation.rst crosswalk row 8. When the
+  block is already correct, the disciplined move is read-both / confirm-agree / report-satisfied —
+  do NOT touch a correct CONTRACT block to "improve" it.
+- **Behavior gate, sharper than L-014's single VIEW-A:** run token-invariance (drop COMMENT+STRING+
+  layout) AND a docstring-STRIPPED `ast.dump()` compare (drop only the leading docstring stmt per
+  scope). The AST leg is strictly stronger — it still SEES non-docstring string literals, so a
+  behavioral change hidden in an error-message/dispatch string cannot slip past the STRING filter.
+  All 4 files: token count+sequence identical AND stripped-AST identical.
+- **Forward-looking NOTE (not a MUST/SHOULD-FIX):** a literal `docs/theory/…§label` pointer inside an
+  AUTOMODULE'd docstring (loss_representation, solver.py both render) is PLAIN TEXT that NO build
+  checks — the raw-path retirement blast-radius habitat. Labels resolve TODAY (grep-verified), and the
+  literal greppable form is RATIFIED for this phase, so it is not a defect; but a `:ref:`<label>``
+  role would render as a hyperlink AND be caught by an `-n` nitpicky build if it rot. Endorse the batch
+  agent's own flag to convert automodule'd-file pointers to `:ref:` roles later; never elevate it now.

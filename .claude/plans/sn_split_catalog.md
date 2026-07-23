@@ -942,11 +942,110 @@ code sweep @ `94a31a38` (3 parallel qa over ~1,300 hits, ~30 lies
 fixed / 18 files; estate → #305/#306 + the #276 LD-adjoint comment) +
 P10 labels @ `77a5cb16` (39 renames; the `sn-direct-seed-*` +
 `tensor-network-*` family unifications; SC-4 `pin-cell` renamed,
-SC-3 wontfix; `-E -W` clean; closes at push)): **⏭ ch15 authoring
-half (#276 A4/A5-blocked) · #231 Phase 2 (code-prose rebalancing,
-task #11) · task #10 (three-layer V&V part).**
+SC-3 wontfix; `-E -W` clean; closes at push); **#231 Phase 2 ✅ DONE
+2026-07-22** — 7 batches `97fb2a38..d6276013`, block below): **⏭ task
+#10 (three-layer V&V part) · ch15 authoring half (#276 A4/A5-blocked).**
 (#298/#299 fixes in-branch @ `639cec9e`/`4425516c`, DONE @ `68c39c28`;
 the issues auto-close at push.)
+
+## Phase 2 — code-prose rebalancing (task #11) — ACTIVE 2026-07-22
+
+**Spec** = the #231 settled-design comment §"Code-prose rebalancing"
+(2026-06-13). Rubric per prose block: **CONTRACT stays in the docstring**
+(args/returns/shapes/units/conventions/invariants/`:eq:` labels/one-line
+ERR gotchas — test = *needed at point of use*, not *short*); **teaching/
+derivations/design-rationale essays → theory pages**; **phase-history
+narration → the record** (issues / chapter Development-history dropdowns);
+**comments constraint-stating only**. Guardrail: the contract tier stays
+SELF-SUFFICIENT (no anemic docstrings forcing a query round-trip).
+File-splitting = NOT this phase (domain grounds only, after relocation).
+
+**Re-measured baseline 2026-07-22** (spec's 2026-06-12 figures predate
+the reorg): ORPHEUS 55% prose (46% doc + 9% com) over 129k lines;
+`orpheus/sn` 60% over 20,236. Script: prose_ratio/prose_volume
+(tokenize-based, job tmp; re-derive at close for the delta).
+
+**Phase-2 execution recipe (per file):**
+0. **Classification catalog FIRST (user steer 2026-07-22 — Haiku
+   fanout)**: per-batch Haiku classifiers pre-adjudicate every block
+   into `.claude/plans/phase2_code_prose/classify_P2-<X>.md` (proposed
+   verdict + destination + confidence) BEFORE the executing batch runs;
+   the executing agent then VERIFIES verdicts instead of classifying
+   from scratch. The P2-A classifier runs on the HEAD (pre-pilot)
+   version and is graded against the pilot archivist's finished map —
+   the automation-quality measurement the #231 spec's Haiku-archaeology
+   line asked for. **MEASURED (2026-07-22, grade header in
+   classify_P2-A.md): ~35% verdict agreement — inventory/posing-flags
+   essentially perfect, ALL conf-H TWINs correct, but MOVED inflated
+   24-vs-0 and 3 constraint-bearing blocks graded HISTORY (would have
+   cut live guards). Ruling: catalogs = inventory + posing flags +
+   conf-H TWIN hints; verdicts are HINTS the executor re-adjudicates.**
+1. Inventory every docstring ≥ ~10 ln + comment block ≥ ~5 ln.
+2. Classify per rubric; for teaching content the FIRST question is
+   "does the book already carry this?" (grep the landing chapter) —
+   TWIN ⟹ cut→pointer; NOT-CARRIED ⟹ relocate into the chapter (full
+   articulation standard), then cut→pointer.
+3. **Pointer spelling (ratified this phase)**:
+   `docs/theory/<part>/<file>.rst §<label>` — greppable by the L34
+   filename sweep AND by label-rename sweeps (#304 precedent:
+   geometry.py's §-pointer rode the P10 rename).
+4. **Dated-posing harmonization is IN-SCOPE**: docstring algebra posings
+   harmonize to the honest page-wide record `A = L + C − S − B`
+   (K = A⁻¹F; numerics heads on the variadic `(A−Σᵢgᵢ)`), oracle =
+   `conventions/notation.rst` (+ the dual-A bridge row). The catalog's
+   deferred list (iteration.py ln 1/7/32/861 posings; operator.py:9)
+   discharges here. Fused-L relics (`(L−S−F)ψ=q` with L = streaming
+   +collision, e.g. scattering.py module head) harmonize.
+5. **Lossless map (per-batch deliverable)**: every touched block ≥5 ln
+   gets a row `src file:lines → verdict (CONTRACT-kept / TWIN@label /
+   MOVED@label / HISTORY@where / COMMENT-cut)` in
+   `.claude/plans/phase2_code_prose/<batch>.md`, written INCREMENTALLY.
+6. Gates: `.venv/bin/python -c "import <module>"` · pytest
+   `--collect-only -q` count unchanged (baseline 6652) · Sphinx `-E -W`
+   iff theory pages touched · boundary files keep non-empty operator
+   docstrings (`test_boundary_conditions.py:52` reads `__doc__`) ·
+   enforcer certify per batch · commit per batch.
+
+**Blast-radius facts** (CORRECTED 2026-07-22 — the first survey was
+`head`-truncated; P2-B caught it): `docs/api/discrete_ordinates.rst`
+automodules SIX batch files — `sn.solver`, `sn.mesh.augmented_mesh`,
+`sn.loss_representation`, `sn.operators.{streaming,boundary,
+radial_characteristic}` — so the Sphinx `-E -W` gate is LIVE for
+P2-B/C/F/G (docstring RST errors break the build). NOT automodule'd:
+`transport.operators.scattering` (P2-A), `numerics.operator` (P2-D),
+`transport.spatial.*` (P2-E), `numerics.iteration`,
+`sn.sweep.pole_angular_closure`. pytest collects no doctests; the ONE
+`__doc__` consumer is the boundary-registry description test.
+`derivations/` is OUT of scope (autodoc'd algebra-of-record — its
+prose is the product). *Lesson: never `head`-truncate a blast-radius
+grep.*
+
+**Batches (disjoint files AND landing chapters; status here):**
+
+| # | Files (prose ln) | Landing | Status |
+|---|---|---|---|
+| P2-A pilot | `transport/operators/scattering.py` (1,323) | foundations/spherical_harmonics + methods/sn/slab_multigroup | ✅ `97fb2a38` — **ZERO MOVED**; −481 ln, 73%→63%, token-identical; posing harmonized; enforcer 0 MUST-FIX; the 5 judgment-call precedents calibrated B–G |
+| P2-B | `sn/loss_representation/__init__.py` + `sweep_graph.py` (2,945) | methods/sn/loss_representation | ✅ `89e0bc12` — machinery class: honest cut SMALL (−2.6% doc) and CORRECT; algebra-of-record comments kept; live Sphinx gate 0/0 |
+| P2-C | `sn/solver.py` + `numerics/iteration.py` (2,683) | methods/sn/solver | ✅ `9bfd8336` — driver class: comments −16% dwarf docstrings −5% (tombstones/status blocks); row-8 bridge verified already-conformant; stale `sn/scattering.py` path fixed |
+| P2-D | `numerics/operator.py` (1,919) | foundations/operator_algebra family | ✅ `481e8418` — ABC class ~90% CONTRACT; classifier's 28 MOVED ALL inverted; dangling `operator-algebra-adjoint` ref repointed |
+| P2-E | `transport/spatial/scheme.py` + `diamond.py` + `linear_discontinuous.py` (2,274) | foundations/discretization | ✅ `afc295aa` — docstrings −21%; all 13 MOVED overturned; **`is_affine_scannable` doc-vs-code contradiction fixed** (stale since #158) |
+| P2-F | `sn/sweep/pole_angular_closure.py` + `sn/operators/radial_characteristic.py` (2,021) | methods/sn/curvilinear_* | ✅ `95d27b70` — α-recursion conventions kept verbatim; fission double-apply hazard → rendered `.. warning::`; 3 orphan-safe docstring labels cut |
+| P2-G | `sn/operators/streaming.py` + `sn/mesh/augmented_mesh.py` + `sn/operators/boundary.py` (2,290) | methods/sn/loss_representation + slab chapters + boundary_conditions | ✅ `d6276013` — **"Hilbert"→Euclidean transpose summary fixed** (L-010); `__doc__` registry gate green; all three automodule'd, build 0/0 |
+
+**Close-out (EXECUTED 2026-07-22)**: all 7 batches committed
+`97fb2a38..d6276013`; **ZERO MOVED phase-wide** (the book is complete —
+the phase's central discovery: only teaching-class operator files carry
+relocatable prose; machinery/driver/ABC classes legitimately keep
+contract-dense prose, so the honest metric is per-line
+needed-at-point-of-use, not a % target); net **−1,858 ln** over 14 .py
+files (ORPHEUS 55%→54%, sn 60%→58%); 4 Cardinal-Rule-1 by-product fixes
+(is_affine_scannable doc-lie · Hilbert→Euclidean · dangling ref · stale
+path); ratified pointer form `docs/theory/<part>/<file>.rst §<label>`
+now ~50 sites across 14 files (the Nexus edit-time-brief join keys —
+extractor target + dangling-pointer check recorded on #231). Follow-ups
+recorded on #231: automodule'd-file pointers → `:ref:` roles (enforcer
+note, later pass) · Grand-Report-v3 cites in operator.py ·
+`§sn-closure-c-constants-owned` todo-section polish.
 
 *Standing facts:* branch `docs/sn-doc-architecture` UNPUSHED; citations + eq-labels are
 project-global; recipe = "The per-chapter recipe" section above (L35 three-way grep + L34

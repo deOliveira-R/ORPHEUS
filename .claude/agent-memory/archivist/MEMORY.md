@@ -12,28 +12,40 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 32 lessons (L-001…L-032), read FIRST each dispatch.
+- [lessons.md](lessons.md) — 34 lessons (L-001…L-034), read FIRST each dispatch.
   The spine: a page is done when every cross-ref resolves against the LIVE tree,
   every claim's V&V level matches the skill verbatim, every retired symbol leaves
   no dangling ref, and the build's WARNING/ERROR/CRITICAL set is unchanged from
-  the `-E` baseline. Per-lesson detail is in lessons.md — do NOT re-summarize here
-  (this index stays slim). Newest L-032: the #304 P10 `:label:` re-namespacing
-  playbook — a campaign-named label follows its heading's Phase-F ruling
-  (design-named heading ⟹ RENAME the anchor to the heading's vocabulary, keep the
-  page prefix; charter/record heading ⟹ KEEP); the section's SELF-DESCRIPTION
-  ("this is the resolution chapter … those are the record") is the strongest
-  oracle; a family-forming P10 is FULL — SECTION anchors AND EQUATION labels drop
-  the campaign token together onto ONE design prefix (excluding eq labels ships a
-  two-spellings state the naming-consistency rule forbids); the silent-class grep
-  is the GATE, not a reason to defer (empty ⟹ eq-label rename is mechanical; a
-  `verifies`/`catches` HIT ⟹ flag the orphaned test edge, don't edit tests/);
-  use a delimiter-anchored COUNTED replace (`.. _X:`·`:label: X`·`` `X` ``·`<X>`·
-  `vv-status: X `, longest-old-first) so a prefix-overlapping sibling survives
-  (`…-r12a` ⊂ `…-r12a-predicate`); grep is the gate — a cross-doc dangling
-  `:ref:` is `-W`-silent (confirm via a rendered-HTML `href=` audit); event-name
-  prose harmonizes design-first (match the µ code-point).
-  (L-026…L-031 = the #231 corpus split→de-dup→metadata→surface-taxonomy→
-  `:label:`-backfill→bibtex-migration patterns.)
+  the `-E` baseline. Per-lesson detail is in lessons.md — do NOT re-summarize here.
+  Newest by number (one-line hooks):
+  - **L-034** — #231 Phase-2 code-prose rebalance, CONTRACT-DENSE file classes
+    (P2-B machinery + P2-C driver + P2-D ABC + P2-F curvilinear ψ½ ops + P2-G contract-heavy OPERATOR + MESH):
+    all contract-dense → honest cut far smaller than the TEACHING-operator pilot and
+    that is CORRECT. Discriminator = operator-surface TEACHES the algebra (aggressive cut)
+    vs machinery/driver/mesh STATE local contract using it (KEEP the bodies). Cut SURFACE
+    differs by class: machinery = module-head essays + duplicated perf numbers; DRIVER +
+    MESH = `#`-comment TOMBSTONES + campaign-STATUS/construction-body wave essays (comment
+    cut DWARFS docstring; hunt comments FIRST); ABC = laws INVERT Haiku's MASS-MOVED to
+    CONTRACT. P2-G nuance: a CONTRACT-heavy operator file (`streaming`/`boundary`, apply/
+    solve/adjoint/reflect/split contracts + `⚠`-traps) cuts FAR less (−16 %/−4 % doc) than
+    the teaching-heavy pilot (−36 %). `compute_*` estimators CONTRACT-whole. **automodule
+    (even `:noindex:`) makes the Sphinx `-E -W` gate LIVE** — check status FIRST, keep
+    section underlines verbatim. A rebalance READ is a free staleness-audit (P2-G fixed a
+    "Hilbert"→"Euclidean" transpose per L-010; `-W` is blind to it). P2-F (curvilinear ψ½,
+    ZERO MOVED): a RENDERED file affords a LATENT-TRAP → `.. warning::` box + section-renames
+    stale in-file back-refs (grep+repoint); KEEP the FORMULA at point of use (α-index/τ_raw/
+    seed-`t`) even when the teaching is TWIN.
+  - **L-033** — #231 Phase-2 code-prose rebalance (PILOT P2-A `scattering.py` + P2-E
+    `transport/spatial/` schemes): teaching is ALREADY TWIN → expect ZERO MOVED (grep the
+    landing chapter first; the Haiku pre-inventory MOVED column is ~noise — P2-E 13→0 on a
+    NON-operator class); CONTRACT = "would a modifier who never leaves the file do the wrong
+    thing without this?"; a d-generic/Kronecker method is BOTH layers (LAYOUT theory TWIN,
+    reconstruction GOTCHAS CONTRACT); prove docstring-only by token-invariance; not-`automodule`'d ⟹ no gate.
+  - **L-032** — #304 P10 `:label:` re-namespacing (a label follows its heading's
+    Phase-F ruling; self-description oracle; family-P10 drops the campaign token on
+    section anchors AND eq labels; delimiter-anchored COUNTED replace).
+  - **L-026…L-031** — the #231 corpus split→de-dup→metadata→surface-taxonomy→
+    `:label:`-backfill→bibtex-migration patterns.
 
 ## 2. Active / doc-debt state — git-true
 
@@ -47,9 +59,8 @@ agent commits, I stage + gate. Only OPEN SN branch: **#236**
 (`feature/sn-spatial-angular-product`, not a main ancestor); no pending #236
 doc work.
 
-> Merge-status in memory goes STALE. ALWAYS reconcile any "resume / in-flight
-> / NOT pushed" claim against `git merge-base --is-ancestor <hash> HEAD`
-> before acting; never trust a frozen "NOT merged".
+> Merge-status in memory goes STALE. Reconcile any "resume / in-flight / NOT
+> pushed" claim against `git merge-base --is-ancestor <hash> HEAD` before acting.
 
 ## 3. Durable reference (reusable doc-architecture)
 
@@ -122,15 +133,13 @@ Each entry is a ONE-LINE pointer; the full recipe lives in the linked `feedback_
   Galerkin DEGENERATE of the φ*≠φ bilinear ⟨φ*,Σφ⟩ case); 9-piece order. Instance:
   `Solution.homogenize` (#268).
 - [Galerkin-natural-metric reframe](feedback_galerkin_natural_metric_reframe.md) —
-  **SUPERSEDED** by the PG-homogenization entry above; kept only for why-it-was-tried
-  (the metric-fold IS a real identity for φ*=φ). Do NOT follow its "Galerkin" framing.
+  **SUPERSEDED** by the PG-homogenization entry above (kept only for why-it-was-tried).
 - [domain-op + L2-promotion + asymmetry-law](feedback_domain_op_l2_promotion_asymmetry_law.md)
   — 6-part section shape for a domain OPERATION (transform on a `Solution`, not a solver step)
   born from an L2 promotion + data/behavior split; lead with THE preservation identity as the
   verifies-target. Instance: `Solution.homogenize`+`MaterialMesh` (#267).
 - [orbit-space terminology sweep](feedback_orbit_space_terminology.md) —
-  add-aside-then-bridge-then-sweep for introducing a precise math term replacing a loose
-  code-name.
+  add-aside-then-bridge-then-sweep for a precise math term replacing a loose code-name.
 - [auto-generated tables](feedback_autogen_tables.md) — registry-as-SSOT: `capability_rows()`
   metadata fn + generator tool + `builder-inited` hook. (Also `lessons.md` L8.)
 - [audit-then-edit partitions](feedback_audit_partition.md) — the KEEP/RELOCATE/TRIM/REMOVE
@@ -139,12 +148,14 @@ Each entry is a ONE-LINE pointer; the full recipe lives in the linked `feedback_
   — ONE correctness LAW spanning N solver families: canonical derivation on the prototype page
   + SHORT sibling spellings cross-ref'd; retired seam as "dead-by-DESIGN" backed by a
   consistency theorem. Instance: k-estimator #259/#291.
-- **Doc-architecture redesign (#231, OPEN):** theory-page template, machine header, prose
-  rebalancing, V&V slices, bibtex. Spec lives in the issue; coupled to Nexus semantic search.
-  The standing target for any "modernize a theory page" task. **Phase 1a DONE** (frame.rst
-  rename + PG-first reorg + SN homog/cond theory eviction — L-022). **Phase 1b+1c DONE**
-  (SN page additive skeleton: nexus-meta machine-header dropdown + Key-Facts/Overview→Synopsis
-  fold + §8 Gotchas consolidation + §5/§6 automation-pending stubs + evicted the two
-  Investigation-History essays; clean `-W` build; 19788→19408 lines — L-023). NEXT = Phase 1d
-  (decompose the ~10k-line Sweep mega-section — CHECKPOINT WITH USER before large deletions),
-  then Phase 2 code-prose rebalancing. Not committed by me — main agent commits.
+- **Doc-architecture redesign (#231, OPEN):** the standing target for any "modernize a
+  theory page" task — template, machine header, prose rebalancing, V&V slices, bibtex
+  (spec in the issue; coupled to Nexus semantic search). Phase 1a–1c DONE (L-022/L-023);
+  **Phase 2 code-prose rebalancing ACTIVE** — done: P2-A `scattering.py` PILOT
+  (teaching-operator, L-033), P2-B `sn/loss_representation/` (machinery, L-034), P2-C
+  `sn/solver.py`+`numerics/iteration.py` (driver, L-034), P2-D `numerics/operator.py`
+  (ABC, L-034), P2-G `sn/operators/{streaming,boundary}`+`sn/mesh/augmented_mesh`
+  (contract-heavy operator + MESH, L-034). Maps in `.claude/plans/phase2_code_prose/`.
+  Five file-classes calibrated (teaching-operator=aggressive TWIN-cut; machinery/driver/
+  mesh=small, COMMENTS dominate; ABC=leanest; contract-heavy-operator=small). Main agent
+  commits; I stage + gate.
