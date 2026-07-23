@@ -14,14 +14,15 @@ the registry. No test code is executed.
 Exit codes:
     0  clean run
     1  --strict was passed and the report has gaps or untagged tests
-    2  collection failed
+    2  collection failed, or a vv-status sentinel violation (unknown
+       status / dead label / cross-file sentinel / malformed line —
+       checked BEFORE collection, so bad V&V metadata fails fast)
 """
 
 from __future__ import annotations
 
 import argparse
 import contextlib
-import io
 import json
 import os
 import sys
@@ -162,7 +163,6 @@ def _render_text(
     lines.append("By tagging source:")
     for src in (
         "explicit",
-        "verify",
         "class-name",
         "func-name",
         "case",
@@ -289,23 +289,27 @@ def _render_json(
 # ---------------------------------------------------------------------------
 
 
-def _scan_theory_equations(theory_dir: Path) -> tuple[set[str], set[str]]:
+def _scan_theory_equations(
+    theory_dir: Path,
+) -> tuple[set[str], set[str], list[str]]:
     """Scan theory RST pages for equation labels and documented-only markers.
 
     Returns
     -------
-    (all_labels, documented_labels)
-        ``all_labels`` is every ``.. math:: :label: foo`` found in
-        ``docs/theory/*.rst``. ``documented_labels`` is the subset of
-        those labels that carry the V&V-harness-specific sentinel
+    (all_labels, documented_labels, violations)
+        ``all_labels`` is every ``.. math:: :label: foo`` found under
+        ``theory_dir`` (recursive). ``documented_labels`` is the subset
+        of those labels that carry the V&V-harness-specific sentinel
 
             .. vv-status: <label> documented
 
-        anywhere in the same file. This is a plain RST comment — the
-        ``.. `` prefix followed by text that is not a known directive
-        is silently stripped by Sphinx, so the sentinel has no effect
-        on the rendered theory page. The audit tool uses it to exclude
-        three kinds of label from the orphan-equation gate:
+        in the **same file** as the ``:label:`` (a sentinel is
+        point-of-use metadata; the same-file rule is enforced). This is
+        a plain RST comment — the ``.. `` prefix followed by text that
+        is not a known directive is silently stripped by Sphinx, so the
+        sentinel has no effect on the rendered theory page. The audit
+        tool uses it to exclude three kinds of label from the
+        orphan-equation gate:
 
         1. **Pure definitional labels** — e.g. ``boltzmann``,
            ``transport-equation``, ``balance-general``. These name the
@@ -313,7 +317,7 @@ def _scan_theory_equations(theory_dir: Path) -> tuple[set[str], set[str]]:
            single "implementing function" to test against. They
            belong in the theory page for the narrative but cannot be
            paired with a verifying test.
-        2. **Not-yet-implemented modules** — e.g. the 19 TH / FB / RK
+        2. **Not-yet-implemented modules** — e.g. the TH / FB / RK
            equations whose Python ports do not exist yet. A real
            orphan (implemented but untested) is a V&V gap; a
            documented-but-not-implemented equation is a work-in-
@@ -326,36 +330,92 @@ def _scan_theory_equations(theory_dir: Path) -> tuple[set[str], set[str]]:
 
         The orphan gate (and ``--strict``) only fires for labels that
         are *not* in ``documented_labels``.
+
+        ``documented`` is the ONLY status. ``tested`` / ``verified``
+        are **derived** facts (from ``@pytest.mark.verifies``) — a
+        hand-written coverage claim would be a second source of truth
+        that can silently lie, so the sentinel vocabulary deliberately
+        excludes them.
+
+        ``violations`` is a list of ``path:lineno: message`` strings,
+        one per malformed sentinel: an unknown status word, a sentinel
+        whose label has no ``:label:`` in the same file (dead or
+        misplaced), or a line that does not parse as
+        ``.. vv-status: <label> <status>``. Violations are a hard
+        audit error (exit 2) — invalid V&V metadata is the same
+        failure class as a collection error, never a silent drop.
     """
     import re
 
     if not theory_dir.is_dir():
-        return set(), set()
+        return set(), set(), []
 
-    labels: set[str] = set()
-    documented: set[str] = set()
-    status_re = re.compile(r"^\.\.\s+vv-status:\s+(\S+)\s+documented\s*$")
+    sentinel_re = re.compile(r"^\.\.\s+vv-status:(.*)$")
 
+    # Pass 1 — collect per-file labels and sentinel lines, so the
+    # same-file rule can be checked and a misplaced sentinel can be
+    # distinguished from a dead one in the violation message.
+    per_file_labels: dict[Path, set[str]] = {}
+    per_file_sentinels: dict[Path, list[tuple[int, str]]] = {}
     for rst in theory_dir.rglob("*.rst"):
         try:
             text = rst.read_text(encoding="utf-8")
         except OSError:
             continue
-        for line in text.splitlines():
+        labels_here: set[str] = set()
+        sentinels_here: list[tuple[int, str]] = []
+        for lineno, line in enumerate(text.splitlines(), start=1):
             stripped = line.strip()
             if stripped.startswith(":label:"):
-                labels.add(stripped.split(":", 2)[2].strip())
+                labels_here.add(stripped.split(":", 2)[2].strip())
                 continue
-            m = status_re.match(stripped)
+            m = sentinel_re.match(stripped)
             if m:
-                documented.add(m.group(1))
+                sentinels_here.append((lineno, m.group(1).strip()))
+        per_file_labels[rst] = labels_here
+        per_file_sentinels[rst] = sentinels_here
 
-    # A label may only be "documented" if it also exists as a real
-    # `:label:`. If someone writes `.. vv-status: foo documented` but
-    # `foo` is not actually a theory label, silently drop it — the
-    # sentinel has no effect and the typo is caught on the next audit.
-    documented &= labels
-    return labels, documented
+    all_labels = set().union(*per_file_labels.values()) if per_file_labels else set()
+
+    # Pass 2 — validate each sentinel against the single-status schema
+    # and the same-file rule; collect the documented set from the valid
+    # ones only.
+    documented: set[str] = set()
+    violations: list[str] = []
+    for rst, sentinels in per_file_sentinels.items():
+        labels_here = per_file_labels[rst]
+        for lineno, rest in sentinels:
+            parts = rest.split()
+            if len(parts) != 2:
+                violations.append(
+                    f"{rst}:{lineno}: malformed vv-status line "
+                    f"(expected '.. vv-status: <label> documented')"
+                )
+                continue
+            label, status = parts
+            if status != "documented":
+                violations.append(
+                    f"{rst}:{lineno}: unknown vv-status {status!r} for "
+                    f"{label!r} — 'documented' is the only status; "
+                    f"tested/verified are derived from "
+                    f"@pytest.mark.verifies"
+                )
+                continue
+            if label not in labels_here:
+                where = (
+                    "it exists in another file — move the sentinel there"
+                    if label in all_labels
+                    else "no such equation :label: anywhere under the "
+                    "theory tree — dead sentinel"
+                )
+                violations.append(
+                    f"{rst}:{lineno}: vv-status names {label!r} but no "
+                    f"such :label: exists in this file ({where})"
+                )
+                continue
+            documented.add(label)
+
+    return all_labels, documented, sorted(violations)
 
 
 def _scan_all_doc_labels(docs_dir: Path) -> set[str]:
@@ -434,13 +494,28 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    # Sentinel violations are a hard error BEFORE collection: invalid
+    # V&V metadata is the same failure class as a collection error.
+    # The Sphinx matrix hook surfaces the message as a build warning
+    # (fatal under ``-W``), so a bad sentinel breaks the docs build.
+    theory_labels, documented_labels, violations = _scan_theory_equations(
+        args.theory_dir
+    )
+    if violations:
+        print(
+            f"vv-status sentinel violations ({len(violations)}):",
+            file=sys.stderr,
+        )
+        for v in violations:
+            print(f"  {v}", file=sys.stderr)
+        return 2
+
     rc = _run_collection()
     if rc != 0 and rc != 5:  # 5 == pytest "no tests"
         print(f"pytest collection failed (exit {rc})", file=sys.stderr)
         return 2
 
     items = sorted(registry.TEST_REGISTRY.values(), key=lambda m: m.nodeid)
-    theory_labels, documented_labels = _scan_theory_equations(args.theory_dir)
     testable_labels = theory_labels - documented_labels
     all_doc_labels = _scan_all_doc_labels(args.theory_dir.parent)
     err_tags = _scan_err_catalog(args.err_catalog)

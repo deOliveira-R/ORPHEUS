@@ -1159,3 +1159,20 @@ heuristic = discovery layer; record in harness.rst + extractor ask on nexus#1.
   memory router update.
 
 **Status log** (append per stage):
+
+- **V1 ✅ 2026-07-22** — machinery + CR-1 hygiene: audit fail-loud
+  (violations gate BEFORE collection, exit 2; same-file rule enforced;
+  misplaced-vs-dead discrimination); 27 sentinels deleted (24 wild + 3
+  naming section anchors — never parseable); `verify` sugar retired
+  (zero consumers; source lists/Literal/docs swept, enforcer caught 3
+  present-tense stragglers OUTSIDE the diff — `-W` is blind to dead
+  Python-domain roles, tree-grep is the gate); generator: phantom
+  section rendered, stderr propagation, raw-paths → :ref:, dead
+  `_rst_table` retired; conf.py capability-hook `app.warn` latent crash
+  fixed; L4-qualifier + run-book + frozen-sample + CLAUDE.md-pointer
+  doc-truth fixes; `vv-level-ladder` anchor minted. Mutation probe:
+  wild sentinel reddened audit AND generator exit 2 with file:line.
+  Enforcer: 1 MUST-FIX + 3 SHOULD-FIX, ALL APPLIED (incl. the
+  main()-level exit-2 propagation test). Collect baseline 6652 → 6655
+  (+3 new harness tests); build exit 0; matrix invariant (orphans 254,
+  documented 321).

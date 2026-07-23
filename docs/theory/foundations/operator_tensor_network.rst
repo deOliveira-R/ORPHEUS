@@ -150,8 +150,6 @@ Key Facts
   oracle instead of pinning source text on what is now a SHARED
   octant walk.)*
 
-.. vv-status: tensor-network-shape-table documented
-
 
 .. _tensor-network-shape-table:
 

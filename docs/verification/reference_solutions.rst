@@ -34,10 +34,10 @@ repository the following words mean:
 
 **Validation**
    Comparison of a code's output against experiment (ICSBEP,
-   IRPhE, …). Out of scope for this page; see the V&V-level
-   taxonomy in the project ``CLAUDE.md`` — verification is
+   IRPhE, …). Out of scope for this page; see the
+   :ref:`V&V-level ladder <vv-level-ladder>` — verification is
    levels L0/L1/L2, validation is level L3, benchmarking is
-   level L4.
+   level L4 (informational, never in place of L0–L3).
 
 **Reference solution**
    An analytical or semi-analytical function of the independent

@@ -3,7 +3,7 @@
 Every pytest collection pass populates :data:`tests._harness.registry.TEST_REGISTRY`
 with one :class:`~tests._harness.registry.TestMetadata` entry per item.
 Each entry carries the resolved V&V level, the source of that resolution
-(``"explicit"`` / ``"verify"`` / ``"class-name"`` / ``"func-name"`` /
+(``"explicit"`` / ``"class-name"`` / ``"func-name"`` /
 ``"case"`` / ``"unmarked"``), the Sphinx equation labels the test
 verifies, the failure-mode / error-catalog tags it catches, and the
 ``VerificationCase`` names it parametrizes over.
@@ -99,7 +99,7 @@ def _existing_level(item: pytest.Item) -> tuple[str | None, bool]:
     """Return (level_str, was_already_marked).
 
     Inspects already-applied markers, including file-level ``pytestmark``
-    and class-level markers inherited from `@verify.lN(...)`. Recognises
+    and class-level markers. Recognises
     both the L0..L3 physics ladder and the orthogonal ``foundation``
     marker. If two different markers are present, the numerically highest
     wins (matching pytest's precedence for stacked markers); a
@@ -147,8 +147,8 @@ def _resolve_case(item: pytest.Item) -> object | None:
     Two supported shapes:
 
     1. ``@pytest.mark.parametrize("case", [VerificationCase(...), ...])`` —
-       the parameter value is the case object itself. Used by
-       :func:`tests._harness.verify.vv_cases`.
+       the parameter value is the case object itself (any object with a
+       ``vv_level`` attribute qualifies).
     2. ``@pytest.mark.parametrize("case_name", ["homo_1eg", ...])`` —
        the parameter value is a string that keys into the reference
        registry via :func:`orpheus.derivations.reference_values.get`.

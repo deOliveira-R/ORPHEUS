@@ -1259,9 +1259,7 @@ surface does not vanish.  This is the quantity the ST5 gate measures.
    The posture mirrors the pole-cell characterisation gate this gate is
    modelled on (#233).
 .. vv-status: sn-space-angle-separability documented
-.. vv-status: sn-space-angle-separability tested
 .. vv-status: sn-space-angle-cross-term documented
-.. vv-status: sn-space-angle-cross-term tested
 
 Why the two axes factorize: LMM-1987 (spatial) × BMC-2010 (angular)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

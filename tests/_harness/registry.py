@@ -14,7 +14,7 @@ distribution for module Y."
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 # V&V level values.
@@ -41,13 +41,12 @@ VVLevel = Literal["L0", "L1", "L2", "L3", "foundation"]
 # tagging from inherited/heuristic tagging.
 #
 # - "explicit"     : @pytest.mark.lN / @pytest.mark.foundation on the test
-# - "verify"       : @verify.lN(...) decorator on class or function
 # - "class-name"   : TestL<N>Foo class naming convention
 # - "func-name"    : test_l<N>_* function naming convention
 # - "case"         : inherited from VerificationCase.vv_level via ref()
 # - "unmarked"     : no level could be determined
 LevelSource = Literal[
-    "explicit", "verify", "class-name", "func-name", "case", "unmarked"
+    "explicit", "class-name", "func-name", "case", "unmarked"
 ]
 
 

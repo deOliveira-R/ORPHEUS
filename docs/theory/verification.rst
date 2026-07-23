@@ -16,8 +16,12 @@ ORPHEUS verifies every transport solver against analytical reference solutions
 derived from each method's own mathematical equations using SymPy.  Each
 derivation is **self-contained**: it starts from the solver's formulation and
 derives the expected eigenvalue independently.  No cross-verification (comparing
-one solver against another) is used — each solver's verification stands on its
-own, as if every other solver were deleted.
+one solver against another) **stands in for** this evidence — solver-vs-solver
+agreement is level **L4 (informational)**, strictly distinct from the L0–L3
+correctness ladder.  Each solver's L0–L3 verification stands on its own, as if
+every other solver were deleted; the separate cross-method regression protocol
+(``docs/testing/cross_method.rst``) then adds L4 agreement gates on top, never
+in place, of that ladder.
 
 The same code that produces the LaTeX equations in this chapter also produces
 the reference values consumed by the ``pytest`` test suite.  This is the
@@ -642,20 +646,23 @@ errors decrease at the expected rate:
 Running the Tests
 =================
 
+The canonical invocation is ``python -O -m pytest`` (the production
+path strips ``assert``; see the harness architecture page for the
+``-O`` policy and the marker taxonomy).  Counts are deliberately not
+quoted here — the suite grows with every merge; the auto-generated
+verification matrix reports the current totals.
+
 .. code-block:: bash
 
    # Install test dependencies
    pip install -e ".[test]"
 
-   # Run non-slow tests (~90s, 56 tests)
-   pytest
+   # The pre-merge gate: the full tree, non-slow
+   python -O -m pytest -m "not slow"
 
-   # Run slow tests (~7min, 17 tests including Richardson + MC high-stats)
-   pytest -m slow
+   # The slow tiers (Richardson, MC high-stats, curvilinear L1)
+   python -O -m pytest -m slow
 
-   # Run all 73 tests
-   pytest -v
-
-   # Run a specific solver's tests
-   pytest tests/homogeneous/ -v
-   pytest tests/cp/test_properties.py -v
+   # A specific solver's tests
+   python -O -m pytest tests/homogeneous/ -v
+   python -O -m pytest tests/cp/test_properties.py -v

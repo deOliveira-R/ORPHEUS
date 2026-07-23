@@ -1719,7 +1719,6 @@ group :math:`G` into coarse group :math:`G'` that must be preserved is
    into G'), the SOURCE axis g flux-averaged. Hébert Eq. 3.104,
    Stamm'ler VI(6c). The verifiable claim is the L1 scattering-collapse
    gate (which catches a g_from↔g_to swap, vv Mode 2).
-.. vv-status: energy-condensation-scattering-collapse implemented
 
 driven by the population of the **source** group :math:`G` (the group
 whose flux scatters *out* — the number of :math:`G\to G'` events scales

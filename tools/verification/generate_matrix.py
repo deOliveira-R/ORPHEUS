@@ -8,8 +8,10 @@ Sphinx RST page with:
 - Per-module level × count grid
 - Equation coverage table (label → number of declared tests)
 - Orphan equations (`.. math:: :label:` blocks with zero declared tests,
-  excluding ``:vv-status: documented`` labels)
+  excluding ``.. vv-status: <label> documented`` labels)
 - Documented-only labels (excluded from the orphan gate)
+- Phantom verifies-targets (tests naming a ``:label:`` that no longer
+  exists anywhere under ``docs/`` — the inverse orphan gate, issue #224)
 - ERR-NNN catalog cross-check (from ``.claude/skills/vv-principles/error_catalog.md``)
 - Unmarked tests listing
 
@@ -18,7 +20,8 @@ The ``foundation`` bucket is orthogonal to the L0..L3 physics ladder
 contracts, numerical primitives, factory outputs) rather than physics
 equations. They appear in their own column in the module grid and
 never contribute to the equation-coverage or orphan-equation tables.
-See ``docs/testing/architecture.rst``:ref:`vv-foundation-tests`.
+See the ``vv-foundation-tests`` section of the harness architecture
+page.
 
 The page is built every time Sphinx rebuilds (the generator is
 invoked as a ``pre-build`` step, see ``docs/conf.py`` and the
@@ -37,7 +40,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -45,36 +48,25 @@ DEFAULT_OUT = REPO_ROOT / "docs" / "verification" / "matrix.rst"
 
 
 def _run_audit() -> dict:
-    """Run the harness audit and return its JSON payload."""
+    """Run the harness audit and return its JSON payload.
+
+    On audit failure (e.g. vv-status sentinel violations, collection
+    error) the audit's stderr is re-emitted on THIS process's stderr
+    before exiting non-zero, so the Sphinx ``builder-inited`` hook's
+    ``CalledProcessError.stderr`` carries the actual diagnostic (the
+    hook logs it as a build warning — fatal under ``-W``).
+    """
     result = subprocess.run(
         [sys.executable, "-m", "tests._harness.audit", "--json"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
-        check=True,
+        check=False,
     )
+    if result.returncode != 0:
+        sys.stderr.write(result.stderr)
+        raise SystemExit(result.returncode)
     return json.loads(result.stdout)
-
-
-def _rst_table(headers: list[str], rows: list[list[str]]) -> str:
-    """Render a simple list-table for Sphinx."""
-    if not rows:
-        return "   (empty)\n"
-    widths = [max(len(str(c)) for c in col) for col in zip(headers, *rows)]
-    sep = "   " + "  ".join("=" * w for w in widths) + "\n"
-    out = [sep]
-    out.append(
-        "   " + "  ".join(str(h).ljust(w) for h, w in zip(headers, widths)) + "\n"
-    )
-    out.append(sep)
-    for row in rows:
-        out.append(
-            "   "
-            + "  ".join(str(c).ljust(w) for c, w in zip(row, widths))
-            + "\n"
-        )
-    out.append(sep)
-    return "".join(out)
 
 
 def _render(payload: dict) -> str:
@@ -131,7 +123,6 @@ def _render(payload: dict) -> str:
     src_rows = []
     for src in (
         "explicit",
-        "verify",
         "class-name",
         "func-name",
         "case",
@@ -174,9 +165,10 @@ def _render(payload: dict) -> str:
     lines.append("Equation coverage\n")
     lines.append("-----------------\n\n")
     lines.append(
-        "Every Sphinx ``.. math:: :label:`` block declared in "
-        "``docs/theory/*.rst`` and the number of tests carrying "
-        "``@pytest.mark.verifies(\"label\")`` that reference it.\n\n"
+        "Every Sphinx ``.. math:: :label:`` block declared under "
+        "``docs/theory/**/*.rst`` (recursive) and the number of tests "
+        "carrying ``@pytest.mark.verifies(\"label\")`` that reference "
+        "it.\n\n"
     )
     if coverage:
         lines.append(".. csv-table::\n")
@@ -194,7 +186,7 @@ def _render(payload: dict) -> str:
     lines.append(
         f"Equations with zero tests carrying "
         f"``@pytest.mark.verifies(\"label\")``, excluding labels "
-        f"explicitly marked ``:vv-status: documented``. "
+        f"explicitly marked ``.. vv-status: <label> documented``. "
         f"**{len(orphans)}** of the testable equations found on "
         f"theory pages are orphan.\n\n"
     )
@@ -218,14 +210,39 @@ def _render(payload: dict) -> str:
         f"thermal-hydraulics / fuel-behaviour / reactor-kinetics "
         f"equations), or have a deliberately deferred test paired with "
         f"a tracking issue. **{len(documented)}** labels carry the "
-        f"directive. See ``docs/testing/architecture.rst``"
-        f":ref:`vv-status-documented` for the full taxonomy.\n\n"
+        f"sentinel. See :ref:`vv-status-documented` for the full "
+        f"taxonomy.\n\n"
     )
     if documented:
         for eq in sorted(documented):
             lines.append(f"- ``{eq}``\n")
     else:
         lines.append("*(none)*\n")
+    lines.append("\n")
+
+    # Phantom verifies-targets (the inverse orphan gate, issue #224)
+    phantoms = payload.get("phantom_verifies", {})
+    lines.append("Phantom verifies targets\n")
+    lines.append("------------------------\n\n")
+    lines.append(
+        f"Labels declared by ``@pytest.mark.verifies(\"label\")`` with "
+        f"NO matching ``:label:`` anywhere under ``docs/`` — the "
+        f"inverse of the orphan gate (issue #224): a theory-page label "
+        f"rename or removal that is not migrated into its tests "
+        f"silently drops those tests from the coverage table above. "
+        f"**{len(phantoms)}** phantom label(s).\n\n"
+    )
+    if phantoms:
+        lines.append(".. csv-table::\n")
+        lines.append("   :header: Phantom label, Tests\n")
+        lines.append("   :widths: 50, 10\n\n")
+        for eq in sorted(phantoms):
+            lines.append(f"   ``{eq}``, {len(phantoms[eq])}\n")
+    else:
+        lines.append(
+            "*(none — every verifies-target resolves to a live "
+            "``:label:``)*\n"
+        )
     lines.append("\n")
 
     # ERR catalog cross-check
@@ -260,8 +277,8 @@ def _render(payload: dict) -> str:
             "a physics-ladder marker (``l0``..``l3``) or the orthogonal\n"
             "``foundation`` marker (``@pytest.mark.foundation``) for\n"
             "tests that verify software invariants rather than physics\n"
-            "equations. See ``docs/testing/architecture.rst``\n"
-            ":ref:`vv-foundation-tests` for the taxonomy.\n\n"
+            "equations. See :ref:`vv-foundation-tests` for the\n"
+            "taxonomy.\n\n"
         )
         by_file: Counter[str] = Counter()
         for nodeid in untagged:

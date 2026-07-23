@@ -3657,7 +3657,6 @@ where :math:`\phi = A` was used on the right. Multiplying through by
 .. symbolic substitution into the continuous slab operator; verified
 .. by SymPy ``simplify(W·LHS − Σ_s φ − Q) == 0`` and cross-checked
 .. against the Branch-2 numpy evaluation to ≤1e-13.
-.. vv-status: sn-mms-nonvacuum-qext verified
 
 Note that there is **no** :math:`(1-\mu^2)B/r` term — the slab operator
 simply does not generate it. The :math:`\mu^2 B'` term *is* present
@@ -3745,7 +3744,6 @@ gives the **same closed form** as the Phase 3.6 vacuum case
 .. verified by SymPy ``simplify == 0`` (reusing the 3.6 spherical
 .. residual machinery) and cross-checked against the Branch-2 numpy
 .. evaluation to ≤1e-13.
-.. vv-status: sn-mms-nonvacuum-sph-qext verified
 
 The structural point is that :eq:`sn-mms-nonvacuum-sph-qext` and the
 Phase 3.6 :eq:`sn-mms-spherical-aniso-qext` are *byte-identical* closed

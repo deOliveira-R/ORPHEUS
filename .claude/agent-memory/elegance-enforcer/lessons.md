@@ -597,3 +597,35 @@ look:
   literal greppable form is RATIFIED for this phase, so it is not a defect; but a `:ref:`<label>``
   role would render as a hyperlink AND be caught by an `-n` nitpicky build if it rot. Endorse the batch
   agent's own flag to convert automodule'd-file pointers to `:ref:` roles later; never elevate it now.
+
+---
+
+## L-015 -- A retirement batch's own past-tense NOTE gives FALSE confidence the retirement is complete; the deleted symbol's OTHER present-tense references survive in the SAME file, contradicting the note
+
+Reviewing V1 of task #10 (delete the `verify`/`vv_cases` sugar layer, `tests/_harness/verify.py`).
+The code-layer retirement was flawless (module rm'd, registry/audit/generator `verify`
+source-list entries gone, conftest de-referenced, `__init__` `__all__` trimmed) AND the batch
+ADDED a correct past-tense note ("a `verify.lN(...)`/`vv_cases(...)` sugar layer existed until
+2026-07 but was retired with zero consumers"). That note is a CONFIDENCE TRAP: it reads like a
+completed retirement, but three OTHER spots in the same `architecture.rst` still described the
+deleted layer in the **present tense** — a `:func:` xref principle ("provides an ergonomic
+shortcut"), an intro paragraph ("the machinery is supported end-to-end … reach for them without
+risk"), and a checklist instruction ("Apply the level marker — `@verify.lN(...)`"). All three were
+PRE-EXISTING lines OUTSIDE the diff, so a diff-scoped read misses them; the batch's own note sat
+~50 lines from a paragraph it directly contradicts.
+
+How to apply (sharpens [[L-004]] = stale-doc blast-radius-outside-the-diff, and AGENT.md's
+deletion-carve tree-grep directive): when a batch DELETES a symbol AND adds a retirement note, do
+NOT let the note satisfy the audit — `git grep` the deleted symbol across the WHOLE file/tree and
+**discriminate by tense**. Past-tense ("existed / was retired") = fine. Present-tense claim or
+imperative instruction = MUST-FIX (a contributor following the checklist hits `ImportError`; a
+maintainer "re-adds verify.py to match the doc," reopening the retired twin). Two verification
+teeth that made this airtight: (1) the `-E -W` build was **EXIT 0 despite** the dead
+`:func:`tests._harness.verify`` xref — confirm `nitpicky` is OFF (default) and the module has no
+autodoc target, then Python-domain roles (`:func:`/`:mod:`/`:class:`) render as plain text with NO
+`-W` warning, so the Sphinx gate is BLIND to a code-retirement's doc blast radius and only the
+grep catches it; (2) the FAIL-LOUD half of the same batch was self-verifying — running the new
+`_scan_theory_equations` against the LIVE `docs/theory` returned `violations=0`, which PROVES all
+27 wild/dead sentinels were deleted (any survivor would exit-2 the build), so the sentinel
+retirement needed no line-by-line trust. Contrast the two halves: the machinery retirement was
+provable by running it; the DOC retirement was only provable by tree-grep + tense discrimination.

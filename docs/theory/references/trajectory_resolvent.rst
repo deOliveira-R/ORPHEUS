@@ -2775,7 +2775,6 @@ accumulator collapses to the single-region integral:
    \end{cases}
 
 .. (vv-status rationale) statement: Reducibility invariant — K-region uniform material reproduces solve_greens_function_cylinder_mg at FP-non-associativity floor. SymPy ancestor V_α1_cyl_mr proves the algebraic reduction; Gate 1 (K=3/K=5 1G + K=3 2G) achieves rtol ~3e-15 / 5e-15 / 3e-12 against the MG solver. Inherits the homogeneous solver's Sood Ua-1-0-CY verification chain (≤ 8.5e-6) into the MR code path.
-.. vv-status: peierls-greens-cylinder-mr-homogeneous-reduction verified
 
 
 **Why this gate is load-bearing.** Single-region homogeneous
@@ -2901,7 +2900,6 @@ correctness).
    |k_{\rm eff} - 1| \le 10^{-5}.
 
 .. (vv-status rationale) statement: L1 cross-check — single-region MR at α=0 (vacuum BC), c=1.30, isotropic 1G with σ_t=0.32640 (Sood Ua-1-0-CY). Critical radius r_c obtained from WM-72 singular-eigenfunction Fredholm solver. Variant α k_eff at WM-72 r_c = 1.0 to 4.8e-6 abs. Pillar: closed-form (Mitsis-WM Fredholm) — structurally independent of bouncing-chord trajectory algebra; defends ERR-032 (shared upstream identity).
-.. vv-status: peierls-greens-cylinder-mr-wm72-vacuum verified
 
 
 **Configuration.** Sood ``Ua-1-0-CY``: 1G isotropic at c=1.30 with
@@ -2947,7 +2945,6 @@ independent of the geometry, where
    {\bf F} = \chi\otimes\nu\Sigma_f,
 
 .. (vv-status rationale) statement: L1 closed-form — K=1, α=1 single-region MR with 2G asymmetric Σ_s recovers k_eff = k_∞ = max eig(A⁻¹F) where A = diag(Σ_t) - Σ_s^T and F = χ ⊗ νΣ_f. Achieves 3.5e-12 rel error; 1G sanity reduction at 3e-15. Probes ERR-002 Mode-#6 convention drift through asymmetric scattering; pillar: closed-form analytical k_∞.
-.. vv-status: peierls-greens-cylinder-mr-kinf verified
 
 
 and :math:`\Sigma_s` follows the convention
@@ -3042,7 +3039,6 @@ with :math:`\Sigma_t`), the angular-integrated scalar flux
        \psi(r, \mu_{\rm axial}, \varphi_{\rm az})
 
 .. (vv-status rationale) statement: Continuity invariant — φ(r) continuous across material interfaces in 3-region asymmetric σ_t configuration (10× contrast). Foundation pillar: angular reduction invariant of the transport operator. Achieved rel_jump ~3e-3 vs target 1e-2; floor is single-domain GL spline-across-jump interpolation, not solver bug. Per-region composite GL is the documented improvement path.
-.. vv-status: peierls-greens-cylinder-mr-interface-continuity verified
 
 
 is **continuous** at every interior radius :math:`r_k`. This is a
@@ -3135,7 +3131,6 @@ converged.
    \text{under independent doubling.}
 
 .. (vv-status rationale) statement: Refinement invariant — each of three quadrature axes (n_traj_quad chord, n_phi_az azimuthal, n_mu_axial axial) exhibits monotone-decreasing |Δk_eff| under doubling with ratio < 0.5 (geometric Gauss-Legendre convergence on smooth integrand away from grazing rays). Necessary precondition for Gates 2 + 3 L1 claims; the absolute precision is set by Gates 2 and 3 themselves, not by Gate 6. Pillar: refinement / consistency.
-.. vv-status: peierls-greens-cylinder-mr-quadrature-convergence verified
 
 
 **Configuration.** A 3-region 2G stress configuration **different**

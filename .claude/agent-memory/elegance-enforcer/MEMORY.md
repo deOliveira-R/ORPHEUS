@@ -28,7 +28,12 @@ retired — the behavioral lesson is lifted to `lessons.md`.
   a doc gather/split (monolith → chapter) is a RETIREMENT review — verify twin-content by
   label-uniqueness+prose-grep, math-fidelity by git-HEAD extract+char-diff, account every
   deleted hunk, and flag stale `A=L+C`/`A^{-1}`-for-sweep spelling in NEW text only (the
-  honest algebra is `A=L+C−S−B`, sweep=`(L+C)^{-1}`) (L13).
+  honest algebra is `A=L+C−S−B`, sweep=`(L+C)^{-1}`) (L13); certify a code-prose REBALANCE by
+  token-invariance + pointer-content + contract-self-sufficiency (L14); a delete-batch's own
+  past-tense retirement NOTE is a CONFIDENCE TRAP — the deleted symbol's present-tense refs
+  survive OUTSIDE the diff in the same file, `-W` is BLIND to the dead `:func:`/`:mod:` xref
+  (nitpicky off), so tree-grep + discriminate-by-tense; the FAIL-LOUD half self-verifies by
+  running the new scanner on the live tree (violations=0 proves the deletions) (L15).
 
 ## 2. Active / in-flight state
 

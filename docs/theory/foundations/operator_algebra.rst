@@ -1938,7 +1938,6 @@ degenerate of the homogenisation Petrov–Galerkin campaign's
 adjoint-weighted bilinear :math:`\langle\phi^\dagger, M[\Sigma_x]\,\phi\rangle`
 (a future adjoint flux replaces the implicit :math:`\phi^\dagger = 1`).
 
-.. vv-status: functional-category documented
 .. vv-status: production-rate-functional documented
 
 The §5.6 suffix law as a type-system fact
@@ -2563,7 +2562,6 @@ decomposition (full scattering).
    kernels in tensor-decomposition vocabulary; not a type and not a solver
    claim. The verifiable content is the fission dyad's closed-form k∞ gate
    and the scattering kernel's anisotropic MMS gate, both cited above.
-.. vv-status: emission-kernels-btd documented
 
 .. _scattering-carrier-grid:
 

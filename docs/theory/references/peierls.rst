@@ -1699,8 +1699,6 @@ canonical spherical Peierls equation solved by this module is
 .. vv-status: peierls-sphere-equation documented
 
 
-.. vv-status: peierls-sphere-equation tested
-
 The sphere test files carry
 ``@pytest.mark.verifies("peierls-unified")``, which is the coarse
 label shared across the whole unified polar-form implementation
@@ -1870,8 +1868,6 @@ identity-LHS form
 .. vv-status: peierls-sphere-nystrom documented
 
 
-.. vv-status: peierls-sphere-nystrom tested
-
 with
 
 .. math::
@@ -1906,8 +1902,6 @@ The optical depth along the ray from :math:`r_i` in direction
 .. (vv-status rationale) definition: Definitional / notation introduction. Definition of τ(r,ρ,θ) along a ray walker; used as a primitive by the assembled solver (no isolated identity to verify).
 .. vv-status: peierls-sphere-ray-optical-depth documented
 
-
-.. vv-status: peierls-sphere-ray-optical-depth tested
 
 shares **the same walker** as the cylinder's
 :eq:`peierls-cylinder-ray-optical-depth`: the boundary crossings
@@ -2056,8 +2050,6 @@ Dividing by :math:`J^{-}`:
 .. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Surface-to-volume Green's function definition for the sphere; the assembled G-bc is verified by peierls-unified at L1 in TestSphereKernelRowSum and the per-face tests.
 .. vv-status: peierls-sphere-G-bc documented
 
-
-.. vv-status: peierls-sphere-G-bc tested
 
 .. note::
 

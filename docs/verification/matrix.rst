@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6652**
+Total tests collected: **6655**
 
 V&V level distribution
 ----------------------
@@ -16,7 +16,7 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1187, 17.8%
+   L0, 1190, 17.9%
    L1, 1102, 16.6%
    L2, 54, 0.8%
    L3, 0, 0.0%
@@ -32,8 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6534
-   verify, 0
+   explicit, 6537
    class-name, 46
    func-name, 0
    case, 33
@@ -420,7 +419,7 @@ Module × level grid
    test_layer_imports, 0, 0, 0, 0, 326, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
-   test_vv_harness_audit, 9, 0, 0, 0, 0, 0
+   test_vv_harness_audit, 12, 0, 0, 0, 0, 0
    transport/test_composite, 0, 0, 0, 0, 14, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
    transport/test_full_field, 0, 0, 0, 0, 17, 0
@@ -437,7 +436,7 @@ Module × level grid
 Equation coverage
 -----------------
 
-Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and the number of tests carrying ``@pytest.mark.verifies("label")`` that reference it.
+Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst`` (recursive) and the number of tests carrying ``@pytest.mark.verifies("label")`` that reference it.
 
 .. csv-table::
    :header: Equation label, Tests
@@ -718,7 +717,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **254** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented``. **254** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -978,7 +977,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **321** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **321** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -1302,6 +1301,13 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``wm72-rho-bare-cylinder``
 - ``wm72-singular-subtraction``
 
+Phantom verifies targets
+------------------------
+
+Labels declared by ``@pytest.mark.verifies("label")`` with NO matching ``:label:`` anywhere under ``docs/`` — the inverse of the orphan gate (issue #224): a theory-page label rename or removal that is not migrated into its tests silently drops those tests from the coverage table above. **0** phantom label(s).
+
+*(none — every verifies-target resolves to a live ``:label:``)*
+
 L0 error-catalog coverage
 -------------------------
 
@@ -1389,8 +1395,8 @@ This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
 tests that verify software invariants rather than physics
-equations. See ``docs/testing/architecture.rst``
-:ref:`vv-foundation-tests` for the taxonomy.
+equations. See :ref:`vv-foundation-tests` for the
+taxonomy.
 
 .. csv-table::
    :header: File, Unmarked tests

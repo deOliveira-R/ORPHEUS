@@ -7,11 +7,14 @@ for the full behaviour contract; this file fixes the invariants:
 * every ``:label:`` in a theory RST becomes a labelled equation,
 * a ``.. vv-status: <label> documented`` comment excludes its
   label from the orphan set even when no test verifies it,
-* the ``documented`` set is clipped to labels that actually exist
-  (stale sentinels are silently dropped so typos don't leak),
-* non-documented status values are ignored (future-proof).
+* the sentinel schema is FAIL-LOUD (2026-07 single-status ruling,
+  task #10): ``documented`` is the only status — an unknown status
+  word, a sentinel whose label is absent from the SAME file (dead or
+  misplaced), or a malformed line each produce a violation entry that
+  hard-fails the audit, never a silent drop. ``tested``/``verified``
+  are derived from ``@pytest.mark.verifies``, not hand-asserted.
 
-The test writes fixture RST files into a tmp_path so it is
+The tests write fixture RST files into a tmp_path so they are
 hermetic and independent of the real ``docs/theory`` tree.
 """
 
@@ -42,13 +45,18 @@ def test_scanner_collects_labels(tmp_path: Path) -> None:
 
    a + b = c
 """)
-    labels, documented = _scan_theory_equations(tmp_path)
+    labels, documented, violations = _scan_theory_equations(tmp_path)
     assert labels == {"foo", "bar"}
     assert documented == set()
+    assert violations == []
 
 
 def test_scanner_marks_documented(tmp_path: Path) -> None:
-    """A ``.. vv-status: <label> documented`` comment excludes the label."""
+    """A same-file ``.. vv-status: <label> documented`` excludes the label.
+
+    Positive leg of the sentinel contract: a correct sentinel MUST
+    parse cleanly (zero violations) and populate the documented set.
+    """
     _write_rst(tmp_path, "sample", """
 .. math::
    :label: boltzmann
@@ -62,17 +70,19 @@ def test_scanner_marks_documented(tmp_path: Path) -> None:
 
    x = 1
 """)
-    labels, documented = _scan_theory_equations(tmp_path)
+    labels, documented, violations = _scan_theory_equations(tmp_path)
     assert labels == {"boltzmann", "testable"}
     assert documented == {"boltzmann"}
+    assert violations == []
 
 
-def test_scanner_drops_sentinels_without_label(tmp_path: Path) -> None:
-    """A sentinel referring to a non-existent label is silently dropped.
+def test_scanner_flags_dead_sentinel(tmp_path: Path) -> None:
+    """A sentinel naming a label that exists NOWHERE is a violation.
 
-    This keeps the orphan gate stable under typos: misspelling a
-    label in the sentinel fails closed (the real orphan is still
-    reported) rather than silently widening the documented set.
+    The pre-2026-07 behaviour silently dropped it (fail-closed for the
+    orphan gate but invisible to the author — three dead sentinels
+    accumulated in the tree that way). The single-status ruling makes
+    it a hard audit error instead.
     """
     _write_rst(tmp_path, "typo", """
 .. math::
@@ -82,16 +92,44 @@ def test_scanner_drops_sentinels_without_label(tmp_path: Path) -> None:
 
 .. vv-status: rael_label documented
 """)
-    labels, documented = _scan_theory_equations(tmp_path)
+    labels, documented, violations = _scan_theory_equations(tmp_path)
     assert labels == {"real_label"}
     assert documented == set()
+    assert len(violations) == 1
+    assert "rael_label" in violations[0]
+    assert "dead sentinel" in violations[0]
 
 
-def test_scanner_ignores_non_documented_status(tmp_path: Path) -> None:
-    """Only ``documented`` is a recognised status; others are ignored.
+def test_scanner_flags_cross_file_sentinel(tmp_path: Path) -> None:
+    """A sentinel in a different file from its ``:label:`` is a violation.
 
-    Leaves room for future statuses (e.g. ``tested``, ``validated``)
-    without changing the semantics of the current gate.
+    The same-file rule (a sentinel is point-of-use metadata) was
+    documented but unenforced; the violation message distinguishes the
+    misplaced case from the dead case so the fix is obvious.
+    """
+    _write_rst(tmp_path, "owner", """
+.. math::
+   :label: homed_label
+
+   x = 1
+""")
+    _write_rst(tmp_path, "stray", """
+.. vv-status: homed_label documented
+""")
+    labels, documented, violations = _scan_theory_equations(tmp_path)
+    assert labels == {"homed_label"}
+    assert documented == set()
+    assert len(violations) == 1
+    assert "another file" in violations[0]
+
+
+def test_scanner_flags_unknown_status(tmp_path: Path) -> None:
+    """Any status other than ``documented`` is a violation, not a no-op.
+
+    ``tested`` / ``verified`` are DERIVED from ``@pytest.mark.verifies``
+    — a hand-written coverage claim would be a second source of truth
+    that can lie. 24 such inert sentinels existed before the ruling;
+    the parser now rejects the whole class.
     """
     _write_rst(tmp_path, "misc", """
 .. math::
@@ -101,15 +139,71 @@ def test_scanner_ignores_non_documented_status(tmp_path: Path) -> None:
 
 .. vv-status: alpha verified
 """)
-    labels, documented = _scan_theory_equations(tmp_path)
+    labels, documented, violations = _scan_theory_equations(tmp_path)
     assert labels == {"alpha"}
     assert documented == set()
+    assert len(violations) == 1
+    assert "'verified'" in violations[0]
+    assert "verifies" in violations[0]
+
+
+def test_scanner_flags_malformed_sentinel(tmp_path: Path) -> None:
+    """A vv-status line that is not ``<label> <status>`` is a violation."""
+    _write_rst(tmp_path, "broken", """
+.. math::
+   :label: beta
+
+   x = 1
+
+.. vv-status: beta documented (see issue #42)
+""")
+    labels, documented, violations = _scan_theory_equations(tmp_path)
+    assert labels == {"beta"}
+    assert documented == set()
+    assert len(violations) == 1
+    assert "malformed" in violations[0]
+
+
+def test_audit_main_exits_2_on_sentinel_violation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``main()`` returns 2 on a violation, BEFORE collection runs.
+
+    The whole fail-loud chain (audit exit 2 → generator SystemExit →
+    conf.py hook warning → ``-W`` fatal) rests on this exit code; a
+    refactor that moved the check after collection or softened the
+    return would pass every scanner test and silently defeat the
+    Sphinx gate, so the propagation itself is pinned here.
+    """
+    _write_rst(tmp_path, "bad", """
+.. math::
+   :label: gamma
+
+   x = 1
+
+.. vv-status: gamma tested
+""")
+    from tests._harness import audit as audit_mod
+
+    collection_calls: list[bool] = []
+    monkeypatch.setattr(
+        audit_mod, "_run_collection", lambda: collection_calls.append(True) or 0
+    )
+    rc = audit_mod.main(["--theory-dir", str(tmp_path), "--json"])
+    assert rc == 2
+    assert collection_calls == [], (
+        "sentinel violations must short-circuit BEFORE pytest collection"
+    )
+    err = capsys.readouterr().err
+    assert "sentinel violations" in err
+    assert "gamma" in err
 
 
 def test_scanner_returns_empty_for_missing_dir(tmp_path: Path) -> None:
-    labels, documented = _scan_theory_equations(tmp_path / "nope")
+    labels, documented, violations = _scan_theory_equations(tmp_path / "nope")
     assert labels == set()
     assert documented == set()
+    assert violations == []
 
 
 def test_scanner_handles_subdirectories(tmp_path: Path) -> None:
@@ -130,9 +224,10 @@ def test_scanner_handles_subdirectories(tmp_path: Path) -> None:
 
 .. vv-status: deep_label documented
 """)
-    labels, documented = _scan_theory_equations(tmp_path)
+    labels, documented, violations = _scan_theory_equations(tmp_path)
     assert labels == {"top_label", "deep_label"}
     assert documented == {"deep_label"}
+    assert violations == []
 
 
 # ── Foundation marker — software-invariant classification ───────────

@@ -150,6 +150,7 @@ def _regenerate_verification_matrix(app):
 
 def _regenerate_capability_matrices(app):
     import subprocess
+    from sphinx.util.logging import getLogger
     try:
         subprocess.run(
             [sys.executable, "-m", "tools.verification.generate_capability_matrices"],
@@ -159,7 +160,10 @@ def _regenerate_capability_matrices(app):
             text=True,
         )
     except subprocess.CalledProcessError as e:
-        app.warn(
+        # Sphinx 9.1 removed ``app.warn`` — same fix as the matrix
+        # hook above; the old call would itself AttributeError on the
+        # failure path, masking the real error.
+        getLogger(__name__).warning(
             f"capability matrices regeneration failed: {e.stderr}"
         )
 

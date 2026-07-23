@@ -14,7 +14,9 @@ tests that don't correspond to a physics equation. Each rung of the
 ladder requires the rungs below it; ``foundation`` is not on the
 ladder — see :ref:`vv-foundation-tests` for the taxonomy.
 
-.. list-table::
+.. _vv-level-ladder:
+
+.. list-table:: The L0..L3 physics-verification ladder
    :header-rows: 1
    :widths: 8 22 70
 
@@ -59,9 +61,8 @@ Design principles
    audit tool, the Sphinx verification-matrix page, and the Nexus
    knowledge graph all consume the same declaration.
 
-2. **No new DSL.** The convention is vanilla ``pytest.mark.*``.
-   :func:`tests._harness.verify` provides an ergonomic shortcut but
-   teams that prefer raw markers keep full parity.
+2. **No new DSL.** The convention is vanilla ``pytest.mark.*`` —
+   one spelling of every declaration, tree-wide.
 
 3. **Inherit from the reference case when possible.** Tests that pull
    analytical values via :func:`ref` inherit the V&V level from the
@@ -107,15 +108,9 @@ Design principles
 Authoring a test
 ----------------
 
-Raw ``pytest.mark.*`` is the dominant convention in the ORPHEUS
-codebase (every test file uses it). The ``verify`` sugar layer and
-``vv_cases`` parametrize helper described below exist in
-``tests/_harness/verify.py`` but are **not currently used by any
-test in the tree**. They are documented here because the machinery
-is supported end-to-end — decorators, conftest hook, registry
-entry, audit reporting — and contributors who prefer a higher-level
-API can reach for them without risk. If you are writing a new test,
-the shortest path is raw markers.
+Raw ``pytest.mark.*`` is the ONE convention in the ORPHEUS codebase
+(every test file uses it). If you are writing a new test, raw
+markers are the path — there is no alternative spelling.
 
 Raw ``pytest.mark.*`` decorators
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -166,55 +161,13 @@ Foundation tests use ``@pytest.mark.foundation`` instead of an
 
    pytestmark = pytest.mark.foundation  # file-level, test_geometry.py
 
-Optional: the ``verify`` sugar layer
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-``tests/_harness/verify.py`` provides a class/function decorator
-that bundles level, ``verifies``, and ``catches`` markers into one
-call. It is **not currently used by any test in the tree** — raw
-markers are the dominant convention — but the machinery is supported
-end-to-end (conftest hook, registry, audit reporting) for
-contributors who prefer a higher-level API.
-
-.. code-block:: python
-
-   from tests._harness import verify
-
-
-   @verify.l0(
-       equations=["transport-cartesian"],
-       catches=["FM-07", "ERR-003"],
-   )
-   class TestSingleTrackAttenuation:
-       ...
-
-This is equivalent to the raw-marker form shown above. ``verify``
-is ~30 lines of sugar; nothing is hidden.
-
-Parametrize over matching cases
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Tests that exercise every matching :class:`VerificationCase` use
-:func:`~tests._harness.verify.vv_cases`:
-
-.. code-block:: python
-
-   from tests._harness import vv_cases
-
-
-   @vv_cases(level="L1", method="cp", geometry="slab")
-   def test_cp_slab_eigenvalue(case):
-       result = solve_cp_slab(case.materials, **case.geom_params)
-       assert abs(result.k_inf - case.k_inf) < 1e-10
-
-- Cases are pulled from
-  :mod:`orpheus.derivations.reference_values` at collection time.
-- The ``case`` parameter receives the full
-  :class:`VerificationCase` instance.
-- If every matched case shares the same ``vv_level``, the level marker
-  is applied to the test automatically. Otherwise the test stays
-  unmarked at the file level and individual parametrize IDs inherit
-  their level from ``VerificationCase.vv_level`` via the conftest hook.
+(A ``verify.lN(...)``/``vv_cases(...)`` sugar layer existed until
+2026-07 but was retired with zero consumers — a second spelling of
+the same declaration is a twin path, not an ergonomic win.) Tests
+that parametrize directly over case objects
+(``@pytest.mark.parametrize("case", [...])`` where each object has a
+``vv_level``) inherit their level through the conftest hook exactly
+like the ``ref()`` shape below.
 
 Inheriting through ``ref()``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -239,9 +192,8 @@ Precedence order (most specific wins)
 
 The conftest hook applies V&V level markers in this order:
 
-1. Explicit marker on the test itself (``@pytest.mark.lN``,
-   file-level ``pytestmark``, or ``@verify.lN(...)`` which stamps an
-   explicit marker).
+1. Explicit marker on the test itself (``@pytest.mark.lN`` or
+   file-level ``pytestmark``).
 2. Class name matching ``TestL<N>Foo`` (legacy convention, still
    honored).
 3. Function name matching ``test_l<N>_*``.
@@ -269,50 +221,42 @@ The audit CLI
    ========================================================================
    ORPHEUS V&V Test Audit
    ========================================================================
-   Total tests collected: 519
+   Total tests collected: NNNN
 
    By V&V level:
-     L0           267   (51.4%)
-     L1           146   (28.1%)
-     L2            45   ( 8.7%)
-     L3             0   ( 0.0%)
-     foundation    61   (11.8%)
-     unmarked       0   ( 0.0%)
+     L0           ...
+     L1           ...
+     L2           ...
+     L3           ...
+     foundation   ...
+     unmarked     ...
 
    By tagging source:
-     explicit       431
-     verify           0
-     class-name      46
-     func-name        0
-     case            42
-     unmarked         0
+     explicit / class-name / func-name / case / unmarked
 
    Module × level grid:
      module                                 L0   L1   L2   L3   FD   ??
      ------------------------------------------------------------------
-     test_cp_verification                    1   25    5    0    0    0
-     test_geometry                           0    0    0    0   61    0
-     test_homogeneous                        0    4    0    0    0    0
-     ...
+     cp/test_properties                     ...
+     sn/test_properties                     ...
 
    Equation coverage:
-     alpha-cylindrical                         74 test(s)
+     <label>                                   N test(s)
+
+   Orphan equations (N of M testable theory labels have zero test
+   coverage; K labels are .. vv-status: documented and excluded from
+   the orphan gate):
      ...
 
-   Orphan equations (3 of 107 testable theory labels have zero test
-   coverage; 29 labels are :vv-status: documented and excluded from
-   the orphan gate):
-     number-density
-     sigma-zero
-     xs-interp
+   error_catalog.md ERR coverage (N/N entries have a catching test):
 
-   error_catalog.md ERR coverage (22/22 entries have a catching test):
-
-The ``FD`` column counts :ref:`foundation tests <vv-foundation-tests>`.
-The three remaining orphans are tracked in issue #88 (dedicated test
-harness for ``orpheus.data.macro_xs``). The 29 documented-only labels
-are marked via the ``:vv-status: documented`` RST directive described
-in :ref:`vv-status-documented`.
+The output shape above is illustrative — every count drifts with each
+commit, so run the CLI for current numbers (the auto-generated
+verification matrix page carries the same data, refreshed on every
+Sphinx build). The ``FD`` column counts
+:ref:`foundation tests <vv-foundation-tests>`. Documented-only labels
+are marked via the ``.. vv-status: <label> documented`` sentinel
+described in :ref:`vv-status-documented`.
 
 The tool runs ``pytest --collect-only`` under the hood so the
 :data:`tests._harness.registry.TEST_REGISTRY` is populated, then
@@ -322,35 +266,45 @@ Flags:
 
 ``--json``
     Machine-readable output (full registry dump plus orphan /
-    documented / ERR-coverage sets).
+    documented / phantom / ERR-coverage sets).
 ``--untagged``
     List only tests with ``level=None``. Should return an empty list
     under normal operation; non-empty output means new tests were
     added without a V&V tag (``l0``..``l3`` or ``foundation``).
 ``--gaps``
-    List orphan equations (labels in ``docs/theory/*.rst`` with zero
-    verifying tests, excluding ``:vv-status: documented`` labels) and
-    ``ERR-NNN`` entries in ``.claude/skills/vv-principles/error_catalog.md`` with no
+    List orphan equations (labels under ``docs/theory/**/*.rst`` with
+    zero verifying tests, excluding documented-sentinel labels),
+    phantom verifies-targets (tests naming a ``:label:`` that exists
+    nowhere under ``docs/``), and ``ERR-NNN`` entries in
+    ``.claude/skills/vv-principles/error_catalog.md`` with no
     catching test.
 ``--strict``
     Exit 1 if **any** of three gates trip:
 
     1. untagged tests exist (no ``l0``..``l3`` / ``foundation`` marker),
     2. orphan equations exist (theory labels with no ``verifies(...)``
-       decorator pointing at them, ignoring ``:vv-status: documented``),
-    3. (planned) missing ERR catchers exist.
+       decorator pointing at them, ignoring documented-sentinel labels),
+    3. phantom verifies-targets exist (a label rename/removal not
+       migrated into its tests).
 
-    The gate currently reports ``0 untagged / 3 orphan / 0 missing
-    ERR`` — only the three ``orpheus.data.macro_xs`` orphans tracked
-    in issue #88 are left. Once #88 lands, ``--strict`` exits 0 and
-    becomes the canonical CI merge gate. There is no CI yet, so the
-    harness is run by hand before every merge.
+    Missing ERR catchers are reported but not strict-gated. The
+    orphan backlog is being classified per-label under the V&V-part
+    consolidation (task #10); until it lands, ``--strict`` is
+    informational and the harness is run by hand before every merge
+    (there is no CI).
 
     The ``--strict`` gate ignores any theory label that is marked
     :ref:`vv-status-documented` — those are deliberately excluded
     from the orphan set because they cannot or should not be paired
     with a test. A real gap (implemented-but-untested equation)
     still fires the gate.
+
+    Independent of ``--strict``, **sentinel violations are a hard
+    error on every invocation** (exit 2, before collection): an
+    unknown vv-status word, a sentinel whose label is missing from
+    its own file, or a malformed sentinel line each abort the audit —
+    and therefore fail the Sphinx build that regenerates the matrix
+    (fatal under ``-W``).
 
 .. _vv-foundation-tests:
 
@@ -406,7 +360,7 @@ The ``foundation`` marker exists for exactly this case.
   contract, numerical primitive, factory output, immutability
   guard, input validation, algebraic identity of a pre-physics
   building block.
-- There is **no** ``:label:`` in any ``docs/theory/*.rst`` page
+- There is **no** ``:label:`` in any ``docs/theory/**/*.rst`` page
   that corresponds to what the test is checking. Foundation tests
   **never** carry ``@pytest.mark.verifies(...)`` — if they did,
   they would belong on the L0..L3 ladder instead.
@@ -458,7 +412,7 @@ untagged-tests gate — a foundation marker is a valid tag.
 Documented-only equations (``:vv-status:``)
 -------------------------------------------
 
-Not every equation in ``docs/theory/*.rst`` can or should carry a
+Not every equation in ``docs/theory/**/*.rst`` can or should carry a
 verifying test. Three cases come up in practice:
 
 1. **Pure definitional labels.** ``boltzmann``, ``transport-equation``,
@@ -499,19 +453,25 @@ rendered output — the sentinel lives only in the source file. The
 audit CLI parses these comments and excludes the named labels from
 the ``Orphan equations`` count and the ``--strict`` gate.
 
-Rules:
+Rules (fail-loud since the 2026-07 single-status ruling, task #10):
 
-- The ``vv-status:`` comment must appear in the same RST file as
-  the ``:label:`` it refers to. Cross-file sentinels are not
-  supported.
-- The recognised status is **documented** only. Other words
-  (``verified``, ``pending``, ...) are reserved for future use and
-  are silently ignored today — they do not exclude the label from
-  the orphan gate.
-- If the label named in the sentinel does not actually exist in
-  the RST (a typo), the sentinel is silently dropped and the real
-  orphan continues to fire. Failing closed keeps typos visible.
-- Do not use ``:vv-status: documented`` to paper over a genuine
+- The ``vv-status:`` comment must appear in the **same RST file** as
+  the ``:label:`` it refers to — a sentinel is point-of-use metadata.
+  The audit **enforces** this: a sentinel whose label lives in a
+  different file is a violation (the message says which file to move
+  it to).
+- ``documented`` is the **only** status, by design. ``tested`` /
+  ``verified`` are *derived* facts — the matrix computes them from
+  ``@pytest.mark.verifies`` declarations — so a hand-written coverage
+  claim would be a second source of truth that can silently lie. Any
+  other status word is a hard audit error, not a no-op.
+- A sentinel naming a label that exists nowhere (a typo, or a label
+  renamed without migrating the sentinel) is a hard audit error.
+- Every violation aborts the audit with exit 2 **before** collection,
+  which fails the matrix regeneration and therefore the Sphinx build
+  (fatal under ``-W``) — invalid V&V metadata can never sit silently
+  in the tree.
+- Do not use the documented sentinel to paper over a genuine
   gap. "The test is hard to write" is not a justification;
   "the code does not exist yet" or "this is a definitional label"
   are. If in doubt, open an issue referencing the label.
@@ -543,12 +503,14 @@ expression language doesn't parse marker arguments).
 .. code-block:: text
 
    tests/_harness/
-       __init__.py      # re-exports verify, vv_cases, TEST_REGISTRY
-       verify.py        # @verify.lN(...) decorators, vv_cases helper
-       registry.py      # TestMetadata dataclass + TEST_REGISTRY dict
-       audit.py         # python -m tests._harness.audit
-       xs.py            # (stub) shared cross-section builders
-       meshes.py        # (stub) shared mesh/geometry builders
+       __init__.py            # re-exports TEST_REGISTRY, TestMetadata
+       registry.py            # TestMetadata dataclass + TEST_REGISTRY dict
+       audit.py               # python -m tests._harness.audit
+       predicates.py          # two-axis inverse/adjoint operator contract
+       pyright_ratchet.py     # #226 pyright error-count monotonicity gate
+       pyright_baseline.json  # the ratchet's committed baseline
+       xs.py                  # shared cross-section builders (re-exports)
+       meshes.py              # (stub) shared mesh/geometry builders
 
 ``xs.py`` re-exports the canonical cross-section helpers from
 ``orpheus.derivations.common.xs_library`` (``make_mixture``, ``get_mixture``,
@@ -575,7 +537,7 @@ these edges to build the test↔equation matrix.
 
 1. The referenced label must exist as a Sphinx equation label (i.e.
    there is a ``.. math:: :label: collision-rate`` block in a
-   ``docs/theory/*.rst`` page).
+   ``docs/theory/**/*.rst`` page).
 2. The test's containing file must be on Nexus's source path
    (``tests/`` is picked up automatically via
    ``nexus_test_patterns``).
@@ -595,7 +557,7 @@ When adding a new test:
 
 - [ ] Decide whether it is a **physics test** or a **foundation
   test**. Physics tests verify a ``:label:``\ -ed equation in
-  ``docs/theory/*.rst`` and go on the L0..L3 ladder. Foundation
+  ``docs/theory/**/*.rst`` and go on the L0..L3 ladder. Foundation
   tests verify a software invariant (data structure, numerical
   primitive, factory output) that has no theory label; they get
   ``@pytest.mark.foundation`` and **no** ``verifies(...)``. See
@@ -605,8 +567,8 @@ When adding a new test:
   convergence order; L2 is multi-group heterogeneous integration;
   L3 is experimental validation. 1-group tests are **degenerate**
   for transport — always demand ≥2G.
-- [ ] Apply the level marker — ``@verify.lN(...)`` or raw pytest
-  markers (``@pytest.mark.l0`` / ... / ``@pytest.mark.foundation``).
+- [ ] Apply the level marker — ``@pytest.mark.l0`` / ... /
+  ``@pytest.mark.foundation`` (or file-level ``pytestmark``).
   Don't rely on inheritance if the test isn't a thin wrapper around
   a single case.
 - [ ] Physics tests: declare equation labels with

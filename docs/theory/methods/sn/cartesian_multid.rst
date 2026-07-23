@@ -3097,7 +3097,6 @@ later; 5c **projects it on the spot** and discards it. For each level
    solve_moments cross-reach retired into the typed product, #226 step 2),
    anchored to the structurally-independent SI≡Krylov-full scalar
    cross-check.
-.. vv-status: harmonic-moment-projection implemented
 
 .. math::
    :label: harmonic-moment-projection
@@ -3991,7 +3990,6 @@ slab (:math:`\rho\approx0.22`), but a *naive* finite-difference DSA
 **diverges** on a reflective boundary — the concrete confirmation
 that DSA needs the consistent diffusion operator the σ\ :sub:`r`-fold
 trap (:doc:`slab_one_group`) already implied.
-
 
 
 What broadens next
