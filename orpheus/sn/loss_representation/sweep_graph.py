@@ -28,19 +28,14 @@ mathematical structure.
 Tensorial framing (Wave 2 plan, §15A.2)
 =======================================
 
-Per octant, the streaming inverse :math:`L^{-1}_{\text{oct}}` acts on
-the ``(octant_ordinates × cells × groups)`` tensor::
-
-    L⁻¹_oct : (N_oct, nx, ny, ng) -> (N_oct, nx, ny, ng)
-
-The anti-diagonal schedule vectorises ALL THREE axes inside one
-cell-kernel call (since S6.4(e): the level operation dispatching
-``cell_kernel_batch`` / ``residual_kernel_batch``) — no Python loop
-over ordinates, no Python loop over cells along a diagonal, no Python
-loop over groups. The outer sweep iterates octants (4 in 2-D —
-structural) and topological levels per octant (structural — sweep-DAG
-data dependency). The ordinate axis is internal to every kernel /
-``einsum`` invocation.
+Per octant the streaming inverse :math:`L^{-1}_{\text{oct}}` acts on the
+``(N_oct, *spatial, ng)`` tensor; the anti-diagonal schedule vectorises ALL
+THREE axes inside one cell-kernel call (the level operation dispatching
+``cell_kernel_batch`` / ``residual_kernel_batch``) — NO Python loop over
+ordinates, cells-along-a-diagonal, or groups.  The outer sweep iterates only
+octants and topological levels (both structural); the ordinate axis is internal
+to every kernel / ``einsum`` invocation.  (The anti-hyperplane vectorisation is
+documented at ``docs/theory/methods/sn/loss_representation.rst §loss-rep-four``.)
 
 References
 ==========

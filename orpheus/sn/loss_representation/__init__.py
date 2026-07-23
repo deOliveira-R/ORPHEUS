@@ -13,13 +13,9 @@ distinct *algorithms*, each natural for a different mesh:
   :math:`(d{-}1)`-frontier window (the fast production path).
 
 Historically the choice between them was a *scattered, procedural* branch
-spelled three different ways: the (since-retired) operator-free
-``transport_sweep`` entry branched on ``sn_mesh.reduced is not None``; the
-matvec branched in five operator gates on ``not sn_mesh.is_1d``; and the
-full-field oracle was reachable only through hand-built test adapters.
-Adding a method, a dimensionality, or a frontend meant touching all three
-— an enum-style branch repeated at every call site (cyclomatic complexity,
-not abstraction).
+spelled three different ways (an operator-free ``transport_sweep`` entry, five
+matvec operator gates, hand-built oracle adapters), so adding a method or a
+dimensionality meant touching every call site.
 
 This module replaces that with a first-class :class:`LossRepresentation`: each
 algorithm is an object that carries **both** the forward ``sweep`` and (from
@@ -54,25 +50,18 @@ total order, the Blelloch closed form needs no graph.
 The governing principle
 ========================
 
-    *Construct each strategy as general as its algorithm naturally allows.
-    Select narrow.  Specialize the implementation only on a measured
-    internal performance cost.*
+    *Construct each strategy as general as its algorithm naturally allows;
+    select narrow; specialize the implementation only on a measured internal
+    performance cost.*
 
-Three separable layers, never conflated:
-
-* **Construct general (capability).**  ``CumprodScan`` is intrinsically 1-D
-  (a prefix scan needs a total order → a chain → 1-D; there is no "2-D chain
-  scan") — legitimately d-specific *by the algorithm's nature*.
-  ``FullFieldWavefront`` and ``MovingFrontierWindow`` are naturally
-  d-general (the moving frontier is the :math:`(d{-}1)`-dim rolling slab: a
-  point at d=1, a line at d=2, a surface at d=3).
-* **Select narrow (policy).**  Whether we *offer / recommend / default* a
-  strategy at a given ``(geometry, ndim)`` lives in
-  :meth:`~LossRepresentation.supports` / :func:`default_for`, independent of the
-  code's capability.  "Don't pick the window at d=1, pick the scan" is a
-  recommendation, *not* a reason to leave the window unable to express d=1.
-* **Specialize on measured cost only.**  The sole justification to restrict
-  an implementation's d-range is a *measured* hot-path regression.
+So an algorithm's **capability** (what it CAN express — e.g. the moving frontier
+is naturally d-general, ``CumprodScan`` intrinsically 1-D) is kept separate from
+**policy** (what :meth:`~LossRepresentation.supports` / :func:`default_for`
+*recommend* at a given ``(geometry, ndim)``): "don't pick the window at d=1" is a
+selection recommendation, never a reason to make the window unable to express d=1.
+Only a *measured* hot-path regression justifies restricting an implementation's
+d-range.  The full three-layer rationale is on the theory page —
+``docs/theory/methods/sn/loss_representation.rst §loss-rep-selection``.
 
 Selection is a single source of truth
 ======================================
@@ -94,25 +83,14 @@ The compatibility signal is the genuine criterion — the coordinate system
 (:attr:`SNMesh.is_cartesian`) and the dimensionality (:attr:`SNMesh.ndim`)
 — NOT the ``sweep_graphs is None`` substrate proxy.
 
-Carve history (the sweep-strategy carve, COMPLETE 2026-06-11)
-==============================================================
+Carve history
+=============
 
-The S0–S6.9 arc that produced this module — full narrative + rationale on
-the theory page :doc:`/theory/methods/sn/loss_representation` (§History):
-
-* **S1–S4**: the protocol + thin-wrapper strategies (bit-identical rewire),
-  the ``loss_action`` matvec twin (the five operator gates collapsed), the
-  d-generic ``FullFieldWavefront`` oracle, the ``frontier_dim = d-1`` window.
-* **S6.2–S6.5**: ``SweepStrategy → LossRepresentation`` (the abstraction IS
-  the :math:`(L+C)` operator's *representation* — a matrix-free traversal);
-  the walk moved INTO ``loss_action`` (returns :math:`(L+C)\psi`; the
-  operator's ``−C`` is the only glue); ONE ``_OctantWalk`` frame for sweep
-  AND matvec; the family-owned per-shape DAG cache; ONE representation
-  instance per operator (L21 as a type fact).
-* **S6.9 Fork B2 (2026-06-11)**: the multi-D Cartesian default flipped
-  window → ``ScanMarch`` on measured numbers (sweep 0.57–0.84× at identical
-  peak memory); the window KEPT as a selectable peer (user decision —
-  multiple genuinely-different schedules are the point of selectability).
+The S0–S6.9 arc that produced this module (the protocol + thin-wrapper
+strategies, the ``loss_action`` matvec twin, the d-generic ``FullFieldWavefront``
+oracle, the ``frontier_dim = d-1`` window, the one-walk unification, and the
+S6.9 Fork-B2 default flip window → ``ScanMarch``) is recorded on the theory page
+— ``docs/theory/methods/sn/loss_representation.rst §loss-rep-history``.
 
 See also
 ========
@@ -364,17 +342,17 @@ class LossRepresentation(Protocol):
     def streaming_action(self, psi: "FullField") -> "FullField":
         r"""The pure σ-free streaming action :math:`L\,\psi = \Omega\cdot\nabla\psi`.
 
-        The genuine pure-:math:`L` leaf — the spatial streaming + curvilinear
-        angular redistribution discretization with NO collision diagonal.  The
-        within-group WDD matvec is AFFINE in :math:`\sigma` in the forward
-        direction (:math:`(L+C)\psi = \text{streaming\_action}(\psi) +
-        \sigma\cdot\psi`; the curvilinear Carlson coupled-pole seed's
-        :math:`\sigma`-dependence is exactly the collision diagonal it injects,
-        so it cancels into :math:`\sigma\cdot\psi`).  This method names that
-        σ-free primitive (``coding-elegance`` Pattern 3) and single-sources the
-        ONE streaming discretization through :meth:`loss_action` at
-        :math:`\sigma = 0` (Pattern 2 — the streaming walk lives ONCE in
-        ``loss_action``; there is no twin σ-free discretization).
+        The genuine pure-:math:`L` leaf — spatial streaming + curvilinear
+        angular redistribution, NO collision diagonal.  Single-sourced through
+        :meth:`loss_action` at :math:`\sigma = 0`, because the within-group WDD
+        matvec is AFFINE in :math:`\sigma`
+        (:math:`(L+C)\psi = \text{streaming\_action}(\psi) + \sigma\cdot\psi`; the
+        σ-affine decomposition — including why the curvilinear Carlson coupled-pole
+        seed's :math:`\sigma`-dependence cancels into :math:`\sigma\cdot\psi` — is
+        derived at
+        ``docs/theory/methods/sn/loss_representation.rst §loss-rep-removal-form-matvec``).
+        Pattern 2 — the streaming walk lives ONCE in ``loss_action``; there is no
+        twin σ-free discretization.
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` calls this directly
         (#257 S8b) so :math:`L` reads no :math:`\sigma`: the collision diagonal
         :math:`C = M[\sigma_t]` is the separate shared multiplier leaf, and the
@@ -1271,9 +1249,9 @@ class _DAGWavefront(_LossRepresentation):
     curvilinear ``mesh.sweep_graphs = None`` slot (an illegal state) is
     unrepresentable.
 
-    The DAG walk is naturally d-general; in S1 both wrappers cover exactly
-    the existing 2-D Cartesian sweep (``supports`` below).  S3 widens the
-    oracle to any-d Cartesian; S4 widens the window to ``d ≥ 2``.
+    The DAG walk is naturally d-general (the oracle admits any-d Cartesian,
+    the window ``d ≥ 2``); each strategy's ``supports`` states its current
+    selection scope.
     """
 
     @classmethod
@@ -1326,13 +1304,14 @@ class MovingFrontierWindow(_DAGWavefront):
     conservatively d=2 (select narrow) until a d≥3 compute path + mesh
     exist; widen it WITH a measured d=3 profile, not before.
 
-    A SELECTABLE PEER since the S6.9 Fork-B2 flip (2026-06-11, #222): the
-    multi-D Cartesian production default is now :class:`ScanMarch` (measured
-    1.2–1.8× faster at identical peak memory), and this representation is
-    kept as a genuinely different schedule over the same lower-triangular
-    operator (user decision: multiple proper methods ARE the point of
-    selectability).  Its end-to-end coverage rides the forced-window gates in
-    ``tests/sn/solve/test_scan_march_end_to_end.py`` + the explicit
+    A SELECTABLE PEER since the S6.9 Fork-B2 flip (#222): the multi-D Cartesian
+    production default is now :class:`ScanMarch` (measured faster at identical
+    peak memory — evidence at
+    ``docs/theory/methods/sn/loss_representation.rst §loss-rep-fork-b2``), and
+    this representation is kept as a genuinely different schedule over the same
+    lower-triangular operator (user decision: multiple proper methods ARE the
+    point of selectability).  Its end-to-end coverage rides the forced-window
+    gates in ``tests/sn/solve/test_scan_march_end_to_end.py`` + the explicit
     window≡full oracles.
     """
 
@@ -1842,11 +1821,10 @@ class ScanMarch(_LossRepresentation):
     generalization is #227).  Widen this predicate WITH the kernel generalization,
     never before it.
 
-    **The 2-D Cartesian PRODUCTION DEFAULT since the S6.9 Fork-B2 flip
-    (2026-06-11, #222)** — the measured basis: sweep 0.57–0.84× / matvec
-    0.55–0.78× the window's time at IDENTICAL peak memory (the rolling
-    frontier has no memory edge over the row-march at d=2; both are ~0.7×
-    the full-field oracle's peak), end-to-end fixed-source 0.82×.
+    **The 2-D Cartesian PRODUCTION DEFAULT since the S6.9 Fork-B2 flip (#222)**
+    — measured faster than the window at identical peak memory (the full
+    sweep/matvec/end-to-end basis is at
+    ``docs/theory/methods/sn/loss_representation.rst §loss-rep-fork-b2``).
     1-D still selects ``CumprodScan`` (registered first; same scan primitive,
     no march shell).  Mode-9 FP-invariance vs the window is pinned end-to-end
     by ``tests/sn/solve/test_scan_march_end_to_end.py``.
@@ -2317,13 +2295,10 @@ class _OneDimScanWalk:
     r"""The shared 1-D-scan frame — the 1-D analogue of :class:`_OctantWalk`.
 
     Owns the geometry-blind 1-D SN sweep (the SOLVE direction), shared by
-    :meth:`CumprodScan.sweep` and the :class:`ScanMarch` 1-D branch (#206
-    Phase B — pure relocation of the former free helpers
-    ``_sweep_1d_unified`` / ``_ensure_geom_cache`` / ``_ensure_coll_cache``
-    / ``_run_1d_sweep`` into this frame, bit-identical). Like ``_OctantWalk``
-    it is a frozen ``mesh`` holder; the per-ordinate cache stash, the slab
-    joint-batch + curvilinear per-ordinate bodies, and the two-stratum cache
-    ensure/stash live here.
+    :meth:`CumprodScan.sweep` and the :class:`ScanMarch` 1-D branch.  Like
+    ``_OctantWalk`` it is a frozen ``mesh`` holder; the per-ordinate cache stash,
+    the slab joint-batch + curvilinear per-ordinate bodies, and the two-stratum
+    cache ensure/stash live here.
 
     Two frames, each shared across ORIENTATION (#280, Phase 2.5):
 
@@ -2512,16 +2487,11 @@ class _OneDimScanWalk:
 
         The cache-driven path produces algebraically the SAME values as the
         per-cell ``scheme.update`` reference iteration (the Pattern 2
-        dual-view contract).  The cache's ``a_attenuation`` field IS the
-        per-ordinate sequence of transmission coefficients that
-        Step 2.5b's ``affine_coefficients`` builder produced — but
-        precomputed once at solver construction rather than rebuilt every
-        sweep.
-        The Pattern 2 dual-view test
-        (``tests/sn/sweep/core/test_cache.py``) pins this at
-        ``rtol=1e-13`` across the parametrised geometry × ng × source
-        grid.  Slab regression snapshots stay bit-identical at
-        ``rtol=1e-12``.
+        dual-view contract) — the cache precomputes once at solver
+        construction what the reference rebuilds every sweep.  The dual-view
+        test (``tests/sn/sweep/core/test_cache.py``) pins this at
+        ``rtol=1e-13`` across the parametrised geometry × ng × source grid;
+        slab regression snapshots stay bit-identical at ``rtol=1e-12``.
         """
         geom = self._ensure_geom_cache()
         coll = self._ensure_coll_cache(sig_t, geom)
@@ -2583,8 +2553,6 @@ class _OneDimScanWalk:
     ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""The 1-D apply-direction walk — the fused ``(L+C)ψ`` single emission.
 
-        #206 Phase C: relocated verbatim off
-        ``_MSpatialOperatorSum._compute_LpC`` (single-emission matvec).
         The apply direction is the structural twin of :meth:`sweep` (L21 "matvec
         ≡ sweep"). The sweep SOLVES ``(L+C)⁻¹q``; this APPLIES ``(L+C)ψ`` to a
         KNOWN probe ψ̄.  Since the apply has a concrete ψ̄ it rides a
@@ -2936,12 +2904,10 @@ class _OneDimScanWalk:
     ) -> "FullField":
         r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the matvec transpose.
 
-        #206 Phase C: the reverse-mode adjoint of :meth:`loss_action`,
-        relocated verbatim off ``_MSpatialOperatorSum._compute_LpC_transpose``
-        (Wave O / O.2b, #208). The forward matvec is a forward-substitution
-        sweep (lower-triangular in cell-visit order, with the Morel–Montry
-        angular recurrence + Carlson pole seed forming a SECOND triangular
-        factor in the ordinate index); its Euclidean transpose is the
+        The reverse-mode adjoint of :meth:`loss_action`.  The forward matvec is a
+        forward-substitution sweep (lower-triangular in cell-visit order, with
+        the Morel–Montry angular recurrence + Carlson pole seed forming a SECOND
+        triangular factor in the ordinate index); its Euclidean transpose is the
         reverse-substitution sweep:
 
         * reversed cell traversal (the DD face-flux chain
@@ -3246,18 +3212,13 @@ class _OneDimScanWalk:
     ) -> tuple[np.ndarray, np.ndarray]:
         """Inner body of the unified 1-D sweep.
 
-        Issue #196 PR-INDEX-1 through PR-INDEX-5: internal arrays carry
-        the principled
-        ``(N, ng, nx, ny=1)`` layout (energy ``g`` is the *second* axis,
-        NOT trailing; see :ref:`theory-sn-index-convention`).  No
-        entry/exit transposes are required at the public boundary —
-        caller-side principled-layout inputs flow directly through the
-        sweep body.
-
-        Issue #196 PR-INDEX-2: :class:`CollisionCache` fields carry the
-        principled ``(N, ng, nx)`` layout natively; the bridge transposes at
-        the cache-access sites are gone.  :class:`GeometryCoefficients` stays
-        on ``(N, nx)`` / ``(N,)`` shapes — no group axis, no flip needed.
+        Internal arrays carry the principled ``(N, ng, nx, ny=1)`` layout
+        (energy ``g`` is the *second* axis, NOT trailing; see
+        :ref:`theory-sn-index-convention`), so no entry/exit transposes are
+        needed — caller-side principled-layout inputs flow directly through the
+        body.  :class:`CollisionCache` fields are ``(N, ng, nx)`` natively;
+        :class:`GeometryCoefficients` stays on ``(N, nx)`` / ``(N,)`` (no group
+        axis).
 
         Splits cleanly into setup (BC inflow, source pre-scale, Carlson
         seed when curvilinear) and a per-direction or per-ordinate scan:
@@ -3305,14 +3266,14 @@ class _OneDimScanWalk:
         is_slab = coord is CoordSystem.CARTESIAN
         is_sphere = coord is CoordSystem.SPHERICAL
 
-        # ── Spatial-moment width (the unified moment matvec, #240 D5b-S3 OWED-2)
+        # ── Spatial-moment width (the unified moment matvec, #240 D5b-S3;
+        # convention: docs/theory/methods/sn/cartesian_multid.rst
+        # §ld-ubld-unified-moment-matvec) ──
         # A multi-moment closure (LD, ``per_axis > 1``) carries a trailing 2^d
         # spatial-moment axis on the iterate / source / output so the within-cell
-        # slope iterate ``φ̂`` travels between sweeps (the SCAN analogue of the
-        # DAG's ``_CellSolve`` φ̂ accumulation).  DD/Step (``per_axis == 1``) →
-        # ``()`` tail, every buffer + every recurrence byte-identical (the
-        # negative control).  Single source via ``face_moment_tail`` (the same
-        # "append iff > 1" policy the rest of the carve keys on).
+        # slope iterate ``φ̂`` travels between sweeps.  DD/Step (``per_axis == 1``)
+        # → ``()`` tail, every buffer + every recurrence byte-identical (the
+        # negative control).  Single source via ``face_moment_tail``.
         per_axis = scheme.spatial_basis_per_axis
         moment_tail = face_moment_tail(cell_moment_count(per_axis, self.mesh.ndim))
         is_moment = moment_tail != ()
@@ -4215,17 +4176,14 @@ def _sweep_scheduled(
     within-group SCATTERING ``c``-mode is NOT folded here (it cannot be folded
     into a directional sweep); that is consistent DSA / Krylov territory.
 
-    Phase 5b storage-B: the interior face cochain is a rolling 2-diagonal
-    moving-frontier window (O(N·ng·nx)), carried inside
-    :meth:`SweepDependencyGraph.walk_windowed` per octant — NOT the full
-    O(N·ng·nx·ny) per-axis field. The full-field walk
-    (:meth:`SweepDependencyGraph.walk_full` with the solve level operation,
-    on the full per-axis face cochain —
-    the ``FullFieldWavefront`` kernel since S6.4(d)) is retained as the
-    bit-identity verification oracle (see the ``window ≡ full-field``
-    test); the converged solution is unchanged.
+    Storage: the windowed walk (:meth:`SweepDependencyGraph.walk_windowed`)
+    carries only the rolling ``(d-1)``-frontier cochain; the full-field walk
+    (:meth:`SweepDependencyGraph.walk_full`) is retained as the bit-identity
+    verification oracle (the ``window ≡ full-field`` test).  Both give the same
+    converged solution — the two buffer policies are documented at
+    ``docs/theory/methods/sn/loss_representation.rst §loss-rep-four``.
 
-    Phase 5c moment output: when ``moment_frame`` is given (the 2-D
+    Moment output: when ``moment_frame`` is given (the 2-D
     Cartesian windowed-SI path), the walk accumulates the harmonic moment tensor
     ``(L+1, 2L+1, ng, nx, ny)`` per anti-diagonal directly — the full
     per-ordinate angular OUTPUT ``(N, ng, nx, ny)`` is never materialized (the
@@ -4316,10 +4274,9 @@ def _sweep_jacobi(
     interior: "Callable",
 ) -> "tuple[np.ndarray, np.ndarray | None]":
     r"""The bare multi-D sweep = the **Jacobi** octant schedule × one
-    interior kernel (renamed from ``_sweep_2d_wavefront`` at C3.6 — the
-    body has been d-generic since S6.4(d), and it is the JACOBI spelling,
-    not a wavefront-specific one: all three multi-D representations'
-    ``sweep`` doors route through here, each supplying its own interior).
+    interior kernel.  The JACOBI spelling (not a wavefront-specific one): all
+    three multi-D representations' ``sweep`` doors route through here, each
+    supplying its own interior.
 
     ONE group (all octants), NO inter-group reflect — delegates to the
     polymorphic :func:`_sweep_scheduled` with ``reflect=None``.  All octants
