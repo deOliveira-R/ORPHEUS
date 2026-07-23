@@ -31,7 +31,7 @@ of each operator differs by orders of magnitude in cost and structure.
 
 This module installs the **algebra** as runtime-checkable Protocols.
 Any object providing ``apply(x) -> Lx`` participates. Each further
-ability is a per-axis THREE-LAYER surface (#226 carve P4, Design C):
+ability is a per-axis THREE-LAYER surface (#226, Design C):
 
 * a **predicate** (:attr:`~LinearOperator.is_invertible` /
   :attr:`~LinearOperator.is_adjointable`) — the runtime,
@@ -101,7 +101,7 @@ if TYPE_CHECKING:
 # spelled in full (NOT ``Din``/``Cout``) because ``Domain`` already reads
 # as "in" and ``Codomain`` as "out" — the abbreviation said nothing.
 #
-# ONE invariant pair (W-A collapse, #65): :class:`LinearOperator` is now a
+# ONE invariant pair (#65): :class:`LinearOperator` is now a
 # SINGLE base — a ``@runtime_checkable`` Protocol that ALSO carries the
 # algebra dunders as default-method bodies — so there is no longer a
 # separate variant read-Protocol and an invariant impl-Mixin to reconcile.
@@ -186,7 +186,7 @@ __all__ = [
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Block-role classification (Issue #208 / Wave O)
+# Block-role classification (Issue #208)
 # ───────────────────────────────────────────────────────────────────────
 #
 # On the direct-sum transport state space ``V = V_bulk ⊕ V_boundary`` a
@@ -196,8 +196,8 @@ __all__ = [
 #         [ A_sb  A_ss ]      A_sb : bulk → boundary    A_ss : boundary → boundary
 #
 # :class:`BlockRole` classifies a leaf by WHICH blocks its action touches —
-# the single fact :meth:`OperatorSum.apply` dispatches on (Wave O step O.2)
-# and the adjoint composition routes by. The classification is a partition
+# the single fact :meth:`OperatorSum.apply` dispatches on, and the adjoint
+# composition routes by. The classification is a partition
 # (each leaf is exactly one role), and it lives on the INSTANCE (via the
 # :attr:`LinearOperator.block_role` attribute), NOT the class, because
 # the same generic operator class can play different roles in different
@@ -219,17 +219,11 @@ class BlockRole(Enum):
       boundary law ``B`` (vacuum / reflective / albedo / white / periodic):
       it maps the outflow trace to the inflow trace, with no bulk action.
       The :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` stamps
-      this role on its realized outputs (Wave O step O.4a.1-γ). ``B``
-      becomes a first-class algebra leaf — a sibling of ``L`` in
-      ``(L_full + C − S − F − B)`` — when the boundary conditions are
-      extracted from the streaming sweep (Wave O step O.4a.2); until that
-      wiring lands ``B`` carries the role but is still consumed inside the
-      sweep. (The :class:`BulkOperator` / :class:`FullOperator` markers
-      shipped in O.1; the :class:`BoundaryOperator` marker ships in
-      O.4a.1-γ. The ``geometry.boundary.BoundaryOperator`` alias — a
-      misnamed re-export of
-      :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` — was retired
-      in O.4a.1-β, freeing the name for this marker.)
+      this role on its realized outputs. ``B`` becomes a first-class
+      algebra leaf — a sibling of ``L`` in ``(L_full + C − S − F − B)`` —
+      when the boundary conditions are extracted from the streaming sweep;
+      until that wiring lands ``B`` carries the role but is still consumed
+      inside the sweep.
     """
 
     BULK = "bulk"
@@ -241,7 +235,8 @@ class SystemRole(Enum):
     r"""Which of the two coupled systems an operator's action maps between.
 
     The curvilinear-S\ :sub:`N` within-group system is a 2×2 coupled block
-    operator over two systems (campaign ``coupled_block_operator_campaign``):
+    operator over two systems (see
+    ``docs/theory/foundations/coupled_block_operator.rst §coupled-block-operator``):
 
     .. math::
 
@@ -300,11 +295,11 @@ def _join_block_roles(
     SN bulk/boundary partition) the sum is unclassified too: ``None``
     propagates (a conservative "don't know" rather than a guessed role).
 
-    This is the derivation that lets ``(L + C - S - F - B)`` carry its role by
-    construction (Wave O / O.2b 4.5) — retiring the hand-stamped
-    ``InvertibleOperator`` FULL tag. ``L`` is ``FULL``, ``C``/``S``/``F`` are
-    ``BULK``, ``B`` is ``BOUNDARY`` → every within-group loss sum joins to
-    ``FULL``, exactly the irreducibly bulk↔boundary-coupling streaming role.
+    This is what lets ``(L + C - S - F - B)`` carry its role BY
+    CONSTRUCTION (no hand-stamped tag): ``L`` is ``FULL``, ``C``/``S``/``F``
+    are ``BULK``, ``B`` is ``BOUNDARY`` → every within-group loss sum joins
+    to ``FULL``, exactly the irreducibly bulk↔boundary-coupling streaming
+    role.
 
     Twin of :func:`_join_system_roles` (the two-system analogue — ``COUPLED``
     there plays the top-of-lattice role ``FULL`` plays here): both are the SAME
@@ -384,7 +379,7 @@ class BoundaryOperator(metaclass=_BlockRoleMeta):
     :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`
     (vacuum / reflective / white / albedo / periodic) and
     :meth:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer.realize`
-    (the albedo family incl. zero-flux, #290 P3) — carry
+    (the albedo family incl. zero-flux, #290) — carry
     :attr:`BlockRole.BOUNDARY` via
     :func:`~orpheus.geometry.boundary.stamp_boundary_role`; the rank-0
     affine ``PrescribedInflow`` source does NOT — it is the boundary
@@ -397,7 +392,7 @@ class BoundaryOperator(metaclass=_BlockRoleMeta):
 class NotInvertible(TypeError):
     r"""Asked for the inverse of an operator that cannot produce one.
 
-    The INVERSE-axis refusal (taxonomy §12 step 6): raised **eagerly** by
+    The INVERSE-axis refusal: raised **eagerly** by
     :meth:`inverse` overrides (and the inverse-family constructors) when
     the operator's :attr:`~LinearOperator.is_invertible` is ``False`` —
     the VALUE-dependent arm of the two-kinds split. A zero-coefficient
@@ -416,7 +411,7 @@ class NotInvertible(TypeError):
 class MissingAdjoint(TypeError):
     r"""Asked for the Hilbert adjoint of an operator that has none.
 
-    The ADJOINT-axis refusal (taxonomy §12 step 6): raised **eagerly**
+    The ADJOINT-axis refusal: raised **eagerly**
     by :meth:`LinearOperator.adjoint` / :attr:`LinearOperator.H` when
     :attr:`~LinearOperator.is_adjointable` is ``False`` — at wrapper
     CONSTRUCTION, never lazily at the first ``.apply`` (the pre-carve
@@ -459,7 +454,7 @@ class IncompatibleOperatorComposition(ValueError):
 class MatrixTooLarge(RuntimeError):
     r"""A :meth:`LinearOperator.as_matrix` materialization exceeds its size gate.
 
-    A **resource effect on a TOTAL functor** (taxonomy §17 A2): every
+    A **resource effect on a TOTAL functor**: every
     linear operator on a finite-dimensional space *has* a matrix — the
     functor ``Op → Mat`` is total — but materializing it commits
     :math:`O(n^2)` memory and :math:`n` applications, which this
@@ -539,14 +534,14 @@ class LinearOperator(Protocol[Domain, Codomain]):
     known-size probe vector once at setup.
     """
 
-    #: Block-role classification (Issue #208 / Wave O) — see
+    #: Block-role classification (Issue #208) — see
     #: :class:`BlockRole`. A single enum value: the role is a
     #: *partition* (an operator is exactly one of bulk/full/boundary),
     #: so one enum makes the illegal "BULK and FULL at once" state
     #: unrepresentable; a set would not.
     #:
     #: ``None`` = unclassified — the default for the generic algebra
-    #: (composition operators derive their role from operands at O.2).
+    #: (composition operators derive their role from operands).
     #: ``None`` satisfies none of the :class:`BulkOperator` /
     #: :class:`FullOperator` markers. Concrete leaves override with a
     #: **plain (unannotated) class attribute** ``block_role = BlockRole.X``
@@ -611,8 +606,8 @@ class LinearOperator(Protocol[Domain, Codomain]):
     def is_invertible(self) -> bool:
         r"""Whether this operator can produce its inverse OPERATOR (:meth:`inverse`).
 
-        The RUNTIME, instance-accurate successor to the ``CAP_SOLVE``
-        capability tag. Unlike ``isinstance(op, SupportsInverse)`` — which
+        The RUNTIME, instance-accurate predicate. Unlike
+        ``isinstance(op, SupportsInverse)`` — which
         sees only class-level method presence — this property reads the
         operator's actual structure and values, so it correctly reports a
         sum with a non-invertible LEADING term as non-invertible and a
@@ -628,7 +623,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
     def is_adjointable(self) -> bool:
         r"""Whether this operator exposes a Hilbert adjoint (:attr:`H` / transpose).
 
-        The RUNTIME successor to the ``CAP_APPLY_TRANSPOSE`` tag. The
+        The RUNTIME predicate for the adjoint axis. The
         transpose-of-a-sum law :math:`(A+B)^{\mathsf T} = A^{\mathsf T} +
         B^{\mathsf T}` is realised in the composer method bodies; this
         predicate is the matching *advertisement* —
@@ -678,7 +673,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
         ...
 
     # ------------------------------------------------------------------
-    # Algebra dunders — default-method bodies (W-A collapse, #65)
+    # Algebra dunders — default-method bodies (#65)
     #
     # These carry real bodies ON this Protocol, so an explicit subclass
     # ``class Foo(LinearOperator[A, B])`` inherits BOTH the ``apply``
@@ -721,23 +716,17 @@ class LinearOperator(Protocol[Domain, Codomain]):
         Pythonic completion of the ``__sub__`` family — when ``A - B``
         works (which ``__sub__`` already provides via the ``A +
         ScaledOperator(-1.0, B)`` rewrite) Python's arithmetic
-        convention is that ``-A`` should also work. Useful for
-        adjoint-flux sensitivity rewrites (the streaming term flips
-        sign under the adjoint), source-iteration residual
-        corrections (``correction = -L @ delta``), and Jacobi-style
-        splitting (``A = D - (L + U)``, where ``-(L + U)`` is the
-        off-diagonal coupling).
+        convention is that ``-A`` should also work (adjoint-flux sign
+        flips, residual corrections ``-L @ delta``, Jacobi splitting).
         """
         return ScaledOperator(-1.0, self)
 
     def __truediv__(self, scalar: float) -> "ScaledOperator[Domain, Codomain]":
         r"""Scalar division: ``A / α`` is ``(1/α) * A``.
 
-        Used for normalisation in eigenvalue / Krylov iterations
-        (``fission_normalised = F / k_eff``), homogenisation
-        averages (``avg_streaming = sum_streaming / N``), and any
-        consumer that reads more naturally with ``/`` than with the
-        reciprocal-multiply form ``(1.0 / α) * A``.
+        Reads more naturally than the reciprocal-multiply form
+        ``(1.0 / α) * A`` — eigenvalue/Krylov normalisation
+        (``F / k_eff``), homogenisation averages.
 
         Raises :class:`TypeError` if ``scalar`` is not numeric.
         Division by zero raises :class:`ZeroDivisionError` per the
@@ -759,10 +748,11 @@ class LinearOperator(Protocol[Domain, Codomain]):
     def __and__(self, other: "LinearOperator[Domain]") -> "TensorProductOperator":
         r"""Return :math:`A \otimes B` — the per-axis tensor-product operator.
 
-        Per Grand Report v3 §6.3 line 721 and §15.1 line 2044. For two
-        operators acting on independent tensor axes, ``A & B`` produces
-        the operator whose action is "apply A on its axis, apply B on
-        its axis" (sequentially; commutative because axes are disjoint).
+        For two operators acting on independent tensor axes, ``A & B``
+        produces the operator whose action is "apply A on its axis, apply
+        B on its axis" (sequentially; commutative because axes are
+        disjoint). See
+        ``docs/theory/foundations/operator_tensor_network.rst §tensor-network-decomposition``.
 
         If either operand is already a :class:`TensorProductOperator`,
         the result is flattened so ``(A & B) & C`` and ``A & (B & C)``
@@ -777,12 +767,8 @@ class LinearOperator(Protocol[Domain, Codomain]):
         """Alias for :meth:`apply`. Lets user code write ``A(x)``.
 
         Accepts ``*args, **kwargs`` so any multi-argument ``apply``
-        composes ergonomically (``op(x, y)`` reads as math). The
-        forwarding originally served the pre-refactor 2-arg BC apply
-        ``apply(psi_out, quadrature)``; that signature was retired
-        with the BC descriptor cleanup (every realized BC is now a
-        1-arg :class:`LinearOperator`), but the generic forwarding is
-        retained for future multi-argument operators.
+        composes ergonomically (``op(x, y)`` reads as math); the generic
+        forwarding is retained for future multi-argument operators.
         """
         return self.apply(*args, **kwargs)
 
@@ -851,7 +837,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
         Raises
         ------
         MissingAdjoint
-            **Eagerly, here at construction** (carve P4, spec §38) when
+            **Eagerly, here at construction** when
             this operator is not :attr:`is_adjointable` — a wrapper that
             could only fail at its first ``.apply`` is the broken-stub
             anti-pattern this module refuses. The :func:`adjointable`
@@ -869,9 +855,9 @@ class LinearOperator(Protocol[Domain, Codomain]):
 
     @property
     def H(self) -> "LinearOperator[Codomain, Domain]":
-        """Alias for :meth:`adjoint`. Matches the Grand Report v3 §6.3
-        Hilbert-adjoint vocabulary (``A.H`` reads as "A dagger"). Swaps
-        the carriers ``[Domain, Codomain] → [Codomain, Domain]`` (see
+        """Alias for :meth:`adjoint` — the Hilbert-adjoint vocabulary
+        (``A.H`` reads as "A dagger"). Swaps the carriers
+        ``[Domain, Codomain] → [Codomain, Domain]`` (see
         :meth:`adjoint`)."""
         return self.adjoint()
 
@@ -889,7 +875,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
 
         Where :meth:`inverse` / :attr:`H` / composition are
         *endofunctors* (``Op → Op``), ``as_matrix`` is the **functor OUT
-        of the operator category** (``Op → Mat``, taxonomy §2) — the
+        of the operator category** (``Op → Mat``) — the
         serialization boundary. Column :math:`j` is the operator applied
         to the :math:`j`-th basis element:
 
@@ -907,17 +893,15 @@ class LinearOperator(Protocol[Domain, Codomain]):
         the operator is not endomorphic; the output dimension emerges
         from :meth:`apply` itself, never from declared metadata.
 
-        This default is the promoted apply-to-basis pattern (né
-        ``_as_dense``, ``homogeneous/solver.py``). Structured operators
+        This default is the apply-to-basis pattern. Structured operators
         MAY override with a direct assembly (the future per-octant
         sparse-triangular streaming assembly noted at
         ``sweep_graph.py:66`` — DEFERRED with its 3-D consumer;
         :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
         overrides with one batched LU backsolve). Until a sparse
         consumer exists, the return is a DENSE :class:`numpy.ndarray` —
-        the dense-vs-sparse return keying was decided at taxonomy §12
-        step 5: keyed by the operator's structural override, with dense
-        the only realization built (defer-until-consumer).
+        keyed by the operator's structural override, with dense the only
+        realization built (defer-until-consumer).
 
         Parameters
         ----------
@@ -934,7 +918,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
             spectra, CP ``[P]``) and prohibitive for none of them;
             a meshed SN full-field operator is refused by design.
             Per-call configurable — a RESOURCE knob, not structure
-            (§17 A2; see :class:`MatrixTooLarge`).
+            (see :class:`MatrixTooLarge`).
 
         Raises
         ------
@@ -952,7 +936,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
         are not constructible from ndarray basis columns — and sit far
         above any sane gate; they stay matrix-free.
 
-        **Assembly delegation (stencil-assembly 2b, ruling R2)**: when
+        **Assembly delegation**: when
         this operator is :func:`assemblable`, the densification routes
         through the structural sparse emission
         (``assemble().as_matrix(...)`` — same gate contract, same
@@ -975,8 +959,8 @@ class LinearOperator(Protocol[Domain, Codomain]):
                 f"intended, or keep the operator matrix-free."
             )
         if assemblable(self):
-            # The R2 delegation: densified structural assembly, with the
-            # assembled column dimension checked against the resolved
+            # The assembly delegation: densified structural assembly, with
+            # the assembled column dimension checked against the resolved
             # basis shape (SparseAssembledOperator.as_matrix enforces it).
             return self.assemble().as_matrix(
                 basis_shape=shape, max_dimension=max_dimension,
@@ -1015,7 +999,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
         c = getattr(self, "codomain", None)
         d_name = repr(d.name) if d is not None else "'?'"
         c_name = repr(c.name) if c is not None else "'?'"
-        # The two-axis surface, tokens present iff True (carve P4 §44.F).
+        # The two-axis surface, tokens present iff True.
         axes = "".join(
             f" {token}"
             for token, on in (
@@ -1028,11 +1012,11 @@ class LinearOperator(Protocol[Domain, Codomain]):
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Narrowing targets + checked bridges (#226 carve P4 — Design C)
+# Narrowing targets + checked bridges (#226 — Design C)
 # ───────────────────────────────────────────────────────────────────────
 #
 # Each capability axis has THREE layers, and each layer carries the truth
-# it alone can express (taxonomy §12 step 6):
+# it alone can express:
 #
 #   1. the PREDICATE (``is_invertible`` / ``is_adjointable``) — runtime,
 #      instance-accurate, value- and structure-aware; the polymorphic
@@ -1110,7 +1094,7 @@ def invertible(
     The runtime check and the static permission are ONE construct: a
     branch guarded by this function may call ``op.inverse()`` with no
     ``cast`` — and deleting the guard un-narrows the call, so CLI
-    pyright REDs (the guard is type-load-bearing, spec §39.1).
+    pyright REDs (the guard is type-load-bearing).
 
     Deliberately ``TypeGuard``, NOT ``TypeIs``: the predicate is
     VALUE-dependent (a zero-coefficient multiplier structurally *has*
@@ -1121,7 +1105,7 @@ def invertible(
     *explicit* argument, never ``self`` — no property spelling exists.
     Guard at ``LinearOperator``-typed sites only: ``TypeGuard`` REPLACES
     (does not intersect) the declared type, so guarding an
-    already-concrete operand would widen it (spec §44.E).
+    already-concrete operand would widen it.
     """
     return op.is_invertible
 
@@ -1185,8 +1169,8 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
     ``A.H``). Domain/codomain are swapped relative to the inner operator;
     :meth:`apply` performs the weight-aware adjoint action.
 
-    Construction is gated EAGERLY by :meth:`LinearOperator.adjoint`
-    (carve P4, spec §38): only an :func:`adjointable`-narrowed operator
+    Construction is gated EAGERLY by :meth:`LinearOperator.adjoint`:
+    only an :func:`adjointable`-narrowed operator
     reaches this constructor, so ``inner`` is statically a
     :class:`SupportsAdjoint` and :meth:`apply`'s delegation to
     ``inner.apply_transpose`` is typed — there is no lazy capability
@@ -1201,8 +1185,8 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
         self.inner = inner
         # The G-adjoint transposes the 2×2 block matrix (A_bs ↔ A_sb^T),
         # which preserves WHICH blocks are touched — so the role is the
-        # inner operator's role (Wave O / O.2b 4.5): ``L.H`` is FULL,
-        # ``B.H`` is BOUNDARY, ``C.H`` is BULK.
+        # inner operator's role: ``L.H`` is FULL, ``B.H`` is BOUNDARY,
+        # ``C.H`` is BULK.
         self.block_role = getattr(inner, "block_role", None)
         # The G-adjoint also preserves which SYSTEMS are touched: A_AB.H
         # (bulk→ray) is still COUPLED, A_BB.H still System B.
@@ -1220,18 +1204,16 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
     def apply(self, y: Codomain) -> Domain:
         # No capability gate here: the eager MissingAdjoint raise in
         # LinearOperator.adjoint() is the ONLY entrance (no direct
-        # constructions exist — verified, spec §38), so ``inner`` always
+        # constructions exist — verified), so ``inner`` always
         # carries a working apply_transpose by the time apply runs.
         # Hilbert-adjoint action:
         #   (A^* y)_V = G_V⁺ ⊙ apply_transpose(G_W ⊙ y)
         # On the adjoint wrapper, ``codomain`` is the inner operator's
         # domain (V) and ``domain`` its codomain (W). The metric application
         # is delegated to the function space's :meth:`~FunctionSpace.apply_metric`
-        # / :meth:`~FunctionSpace.apply_inverse_metric` (Wave O / O.2b) so that
+        # / :meth:`~FunctionSpace.apply_inverse_metric` so that
         # the SAME wrapper serves BOTH a flat-ndarray metric (e.g. the
-        # spherical-harmonic ``(L+1, 2L+1)`` leading-axis metric — bit-identical
-        # to the former in-line leading-axis-broadcast multiply, now
-        # :meth:`FunctionSpace._broadcast_metric`) AND a
+        # spherical-harmonic ``(L+1, 2L+1)`` leading-axis metric) AND a
         # composite bulk ⊕ trace metric on a structured ``FullField`` (the
         # direct-sum space applies a per-block metric, with a pseudo-inverse on
         # the singular partial-current trace). The space owns the metric; the
@@ -1256,7 +1238,7 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
         r"""Whether the adjoint's inverse operator exists — the swap law (#280).
 
         The inverse of the adjoint IS the adjoint of the inverse:
-        :math:`(A^{*})^{-1} = (A^{-1})^{*}` (Phase 2.5c, ruling R11). Honest
+        :math:`(A^{*})^{-1} = (A^{-1})^{*}`. Honest
         iff the inner :math:`A` is invertible AND its inverse operator is
         adjointable (so ``.H`` on that inverse is well-posed) — spelled
         generally over the inner, no leaf specifics. :func:`invertible`
@@ -1267,7 +1249,7 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
         return invertible(self.inner) and adjointable(self.inner.inverse())
 
     def inverse(self) -> "LinearOperator[Domain, Codomain]":
-        r"""The inverse of the adjoint = the adjoint of the inverse (#280 2.5c).
+        r"""The inverse of the adjoint = the adjoint of the inverse (#280).
 
         :math:`(A^{*})^{-1} = (A^{-1})^{*}` — the operator-algebra swap law,
         an OBJECT IDENTITY here (not a computed numerical equivalence): this
@@ -1308,7 +1290,7 @@ class OperatorSum(
 ):
     r"""Sum of two linear operators: :math:`(A + B)\,x = A\,x + B\,x`.
 
-    Generic over its SUMMAND types (C4 F1): a named composition subclass
+    Generic over its SUMMAND types: a named composition subclass
     pins them — ``InvertibleOperator = OperatorSum["FullField",
     "FullField", StreamingOperator, MultiplicationOperator]`` — so its
     leg accessors are typed by construction, no casts. The PEP-696
@@ -1331,12 +1313,11 @@ class OperatorSum(
       (left-spine head) term is invertible, is a
       preconditioned-SPLITTING inverse: :meth:`inverse` returns a
       :class:`~orpheus.numerics.green_operator.GreenOperator` iterating
-      :math:`x_{n+1} = A^{-1}(q - B\,x_n)` (taxonomy §12 step 4).  A
-      generic sum carries no ``solve`` verb — solving with it IS
-      applying that inverse OBJECT (the transitional gated spelling
-      retired at carve P4; the sweep-invertible ``(L+C)`` subclass
-      overrides with its own direct-sweep ``solve``).  See
-      :attr:`is_invertible` for the canonical-ordering contract.
+      :math:`x_{n+1} = A^{-1}(q - B\,x_n)`.  A generic sum carries no
+      ``solve`` verb — solving with it IS applying that inverse OBJECT
+      (the sweep-invertible ``(L+C)`` subclass overrides with its own
+      direct-sweep ``solve``).  See :attr:`is_invertible` for the
+      canonical-ordering contract.
     * ``apply_transpose`` requires **both** operands to transpose
       (:math:`(A + B)^T = A^T + B^T`) — guarded in the verb body with
       :class:`MissingAdjoint`; :attr:`is_adjointable` is the recursion.
@@ -1382,10 +1363,9 @@ class OperatorSum(
             )
         self._a: Final = a
         self._b: Final = b
-        # Block role DERIVED from the operands (Wave O / O.2b 4.5): the sum
-        # touches the union of the blocks its summands touch. Replaces the
-        # former hand-stamped ``InvertibleOperator`` FULL tag — ``(L+C)`` and
-        # the whole ``(L+C-S-F-B)`` loss now carry FULL by construction.
+        # Block role DERIVED from the operands: the sum touches the union
+        # of the blocks its summands touch, so ``(L+C)`` and the whole
+        # ``(L+C-S-F-B)`` loss carry FULL by construction (no hand-stamp).
         self.block_role = _join_block_roles(
             getattr(a, "block_role", None), getattr(b, "block_role", None),
         )
@@ -1446,7 +1426,7 @@ class OperatorSum(
         whose leading term :math:`A` is invertible CAN produce its
         inverse OPERATOR: the preconditioned-splitting
         :class:`~orpheus.numerics.green_operator.GreenOperator`
-        (:math:`x_{n+1} = A^{-1}(q - B\,x_n)`, taxonomy §12 step 4).
+        (:math:`x_{n+1} = A^{-1}(q - B\,x_n)`).
         The recursion ``self.a.is_invertible`` designates the left-spine
         head as the splitting's preconditioner — the CANONICAL-ORDERING
         contract: spell the invertible operator FIRST (``A - S``,
@@ -1460,8 +1440,7 @@ class OperatorSum(
         sweep-invertible
         :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
         subclass shadows this by MRO with its own ``True`` +
-        direct-sweep :meth:`inverse` — the type-as-structure dispatch,
-        taxonomy §11.1.)
+        direct-sweep :meth:`inverse` — the type-as-structure dispatch.)
         """
         return self.a.is_invertible
 
@@ -1472,25 +1451,23 @@ class OperatorSum(
         The annotation is the factory's honest STATIC face — "an inverse
         operator on the swapped spaces" — because subclass overrides
         return their own structure's inverse (the sweep-invertible
-        composite returns a ``SweepOperator``; type-as-structure,
-        taxonomy §11.1) and the family members are siblings, not a
-        hierarchy.
+        composite returns a ``SweepOperator``; type-as-structure) and the
+        family members are siblings, not a hierarchy.
 
         Late import: ``green_operator`` is a LEAF module wrapping the
         iteration drivers, which import THIS module — the same one-way
         late-import pattern as
         :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.inverse`
-        → ``SweepOperator`` (taxonomy §17 W3).
+        → ``SweepOperator``.
         """
         from orpheus.numerics.green_operator import GreenOperator
 
         return GreenOperator(self)
 
-    # NO ``solve`` on a generic sum (carve P4, the executed docstring
-    # promise): its inverse action is DRIVER-realized (the GreenOperator),
-    # not a substrate verb — solving is ``.inverse().apply(b)``. The
-    # sweep-invertible ``(L+C)`` subclass overrides with its own direct
-    # sweep ``solve`` (streaming.py), untouched by this deletion.
+    # NO ``solve`` on a generic sum: its inverse action is DRIVER-realized
+    # (the GreenOperator), not a substrate verb — solving is
+    # ``.inverse().apply(b)``. The sweep-invertible ``(L+C)`` subclass
+    # overrides with its own direct sweep ``solve`` (streaming.py).
 
     @property
     def is_assemblable(self) -> bool:
@@ -1530,7 +1507,7 @@ class OperatorProduct(
 ):
     r"""Composition of two linear operators: :math:`(A\,B)\,x = A(B\,x)`.
 
-    Generic over its FACTOR types (C4 F1, as :class:`OperatorSum` over
+    Generic over its FACTOR types (as :class:`OperatorSum` over
     its summands): a named composition pins them — ``WindowedSweep =
     OperatorProduct["FullField", "TimedFullField", BulkAnalysisOperator,
     SweepOperator]`` — so its factor accessors are typed by
@@ -1547,7 +1524,7 @@ class OperatorProduct(
       with the order reversed: :math:`(A\,B)^{-1} = B^{-1}\,A^{-1}`.
       The product IS a wrap-delegate conformer — :meth:`solve` is its
       native realization verb, re-routed through the factors' CANONICAL
-      surface (``.inverse().apply``, carve P4) so factor kinds whose own
+      surface (``.inverse().apply``) so factor kinds whose own
       ``solve`` retired (algebra-closed permutations/scalings, Green-
       invertible sums) compose without one.
     * ``apply_transpose`` requires **both**, order reversed
@@ -1616,7 +1593,7 @@ class OperatorProduct(
 
         The product's native realization verb (the wrap-delegate family
         wraps it: :meth:`inverse` returns ``InverseOperator(self)`` whose
-        ``apply`` delegates here). Since carve P4 the recursion goes
+        ``apply`` delegates here). The recursion goes
         through each factor's CANONICAL surface — ``.inverse().apply`` —
         not a factor ``solve``: bit-identical for every factor kind (the
         inverse objects delegate to the same realizations) and total
@@ -1656,24 +1633,19 @@ class OperatorProduct(
     def inverse(self) -> "InverseOperator":
         r"""Return :math:`(AB)^{-1}` — the generic family member wrapping this product.
 
-        The functoriality law :math:`(AB)^{-1} = B^{-1}A^{-1}` (taxonomy
-        §13 I2) holds BEHAVIORALLY through the wrapper:
-        ``inverse().apply(q)`` delegates to this product's own
-        :meth:`solve` ``= b.solve(a.solve(q))`` — bit-identical to the
-        reversed-product spelling this method returned before taxonomy
-        §12 step 5, which composed exactly the same two solves. What the
-        family wrapper adds is the CONTRACT (#285 closure): a raw
-        ``OperatorProduct`` of inverses carries no
-        ``initial_guess`` keyword, so a driver seeding it raised
-        ``TypeError`` at iteration time; :class:`InverseOperator`
-        carries the family's canonical seeded ``apply``
-        (accept-and-ignore — the solve path never threaded seeds either,
-        so behavior is unchanged) and every ``.inverse()`` in the system
-        now returns a seeded-apply conformer. The involution also
-        STRENGTHENS to object identity — ``(A@B).inverse().inverse() is
-        (A@B)`` via the mixin, where the reversed-product spelling
-        rebuilt fresh objects. The factors stay reachable as
-        ``.inner.a`` / ``.inner.b``.
+        The functoriality law :math:`(AB)^{-1} = B^{-1}A^{-1}` holds
+        BEHAVIORALLY through the wrapper: ``inverse().apply(q)`` delegates
+        to this product's own :meth:`solve` ``= b.solve(a.solve(q))``.
+        What the family wrapper adds is the CONTRACT (#285): a raw
+        ``OperatorProduct`` of inverses carries no ``initial_guess``
+        keyword, so a driver seeding it raised ``TypeError`` at iteration
+        time; :class:`InverseOperator` carries the family's canonical
+        seeded ``apply`` (accept-and-ignore — the solve path never
+        threaded seeds either, so behavior is unchanged) and every
+        ``.inverse()`` in the system now returns a seeded-apply
+        conformer. The involution is object identity —
+        ``(A@B).inverse().inverse() is (A@B)`` via the mixin. The factors
+        stay reachable as ``.inner.a`` / ``.inner.b``.
 
         (Contrast the ALGEBRA-CLOSED inverses — a
         :class:`PermutationOperator`'s inverse IS a permutation, an
@@ -1731,7 +1703,7 @@ class ScaledOperator(
 ):
     r"""Scalar multiple of a linear operator: :math:`(\alpha L)\,x = \alpha\,(L\,x)`.
 
-    Generic over its OPERAND type (C4 F1, as the other composition
+    Generic over its OPERAND type (as the other composition
     wrappers over their legs): ``ScaledOperator["FullField",
     "FullField", SNMaskedBoundaryOperator]`` reads ``.op`` as the masked
     boundary leaf — the ``-1·B_lower`` leg of the G-S splitting needs no
@@ -1745,7 +1717,7 @@ class ScaledOperator(
     :class:`ScaledOperator` (:math:`(\alpha L)^{-1} = (1/\alpha)L^{-1}`)
     and the transpose scales (:math:`(\alpha L)^T = \alpha L^T`). No
     ``solve`` verb: an algebra-closed inverse is a first-class forward,
-    so solving is ``.inverse().apply(b)`` (carve P4).
+    so solving is ``.inverse().apply(b)``.
     """
 
     def __init__(self, scalar: float, op: ScaledOperand) -> None:
@@ -1765,7 +1737,7 @@ class ScaledOperator(
             )
         self.scalar = float(scalar)
         self._op: Final = op
-        # Scaling preserves which blocks the action touches (Wave O / O.2b 4.5).
+        # Scaling preserves which blocks the action touches.
         self.block_role = getattr(op, "block_role", None)
         # Scaling preserves which systems the action touches, too.
         self.system_role = getattr(op, "system_role", None)
@@ -1786,7 +1758,7 @@ class ScaledOperator(
     def apply(self, x: Domain, /, *extra, **kwextra) -> Codomain:
         return self.scalar * self.op.apply(x, *extra, **kwextra)
 
-    # NO ``solve`` (carve P4): the inverse is ALGEBRA-CLOSED —
+    # NO ``solve``: the inverse is ALGEBRA-CLOSED —
     # :meth:`inverse` returns the first-class forward
     # ``ScaledOperator(1/α, op.inverse())`` — so there is no wrapped
     # realization verb to keep; solving is ``.inverse().apply(b)``.
@@ -1808,13 +1780,13 @@ class ScaledOperator(
         return self.op.is_invertible
 
     def inverse(self) -> "ScaledOperator[Codomain, Domain]":
-        r"""Return :math:`(\alpha L)^{-1} = (1/\alpha)\,L^{-1}` (taxonomy §13 I2).
+        r"""Return :math:`(\alpha L)^{-1} = (1/\alpha)\,L^{-1}`.
 
         The natural structural inverse: a scaled operator's inverse IS a
         scaled operator — on the SWAPPED carriers (an inverse maps the
         forward's codomain back to its domain), so the return type is
-        ``ScaledOperator[Codomain, Domain]`` (carve P5 — composition
-        return types). ``1/α`` is exact whenever ``α`` is a power of two
+        ``ScaledOperator[Codomain, Domain]``. ``1/α`` is exact whenever
+        ``α`` is a power of two
         (the dominant −1.0 case); the action is bit-identical to
         :meth:`solve` given the operand's own ``inverse().apply ≡ solve``
         identity (both spell ``(1/α) * op_solve(b)``).
@@ -1865,7 +1837,7 @@ class IdentityOperator(LinearOperator[Domain]):
     Both axes hold trivially — :math:`I^{-1} = I` and :math:`I^T = I` —
     and both are ALGEBRA-CLOSED: :meth:`inverse` returns this very
     instance, so there is no ``solve`` verb to keep (solving with the
-    identity IS applying its inverse, itself; carve P4).
+    identity IS applying its inverse, itself).
     """
 
     def apply(self, x: Domain, /) -> Domain:
@@ -1922,16 +1894,15 @@ class ZeroOperator(LinearOperator[Domain, Codomain]):
       ``apply`` returns ``codomain_zero(x)``.
 
     The typed SN within-group inner solve wires the zero fission slot as
-    ``ZeroOperator(codomain_zero=…)`` returning an
-    :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`-bulk
-    zero composite, so the typed RHS ``S.apply(ψ) + F.apply(ψ) + q_ext``
-    and the Krylov matvec ``L.apply − S.apply − F.apply`` stay CLOSED
-    ``AngularSourceSink`` sums (the field-role-typing B.5.2 fix — a
-    flux-echoing zero would hit the cross-class gate).  Formal operator
-    codomain typing is issue #208; ``codomain_zero`` is the pre-#208 hook
-    that keeps the zero operator honest about what space it maps into.
-    ``apply_transpose`` stays an input-echo: its codomain is the domain,
-    and the transpose of the zero slot is not exercised pre-#208.
+    ``ZeroOperator(codomain_zero=…)`` returning a source-typed
+    (:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`)
+    zero, so the typed RHS ``S.apply(ψ) + F.apply(ψ) + q_ext`` and the
+    Krylov matvec ``L.apply − S.apply − F.apply`` stay CLOSED source-typed
+    sums (a flux-echoing zero would hit the cross-class gate). Formal
+    operator codomain typing is issue #208; ``codomain_zero`` is the
+    pre-#208 hook that keeps the zero operator honest about what space it
+    maps into. ``apply_transpose`` stays an input-echo: its codomain is
+    the domain, and the transpose of the zero slot is not exercised.
     """
 
     def __init__(
@@ -1968,14 +1939,12 @@ class _WrappedForward(Protocol):
     Exactly what :class:`InverseWrapMixin` itself reads of its wrapped
     forward :math:`A`: the function-space pair the inverse SWAPS
     (``domain``/``codomain``) and the forward matvec its ``solve``
-    un-inverts through (``apply``). Nothing more. The family bound was
-    incidentally tighter (:class:`_InvertibleForward`) while the first
-    three siblings all happened to wrap solve-backed forwards; the 4th
-    sibling
-    (:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`,
-    which inverts the MATERIALIZATION and never touches ``inner.solve``
-    or ``inner.is_invertible`` — the matrix realization reads values,
-    not structure) exposed the true minimum (taxonomy §12 step 5).
+    un-inverts through (``apply``). Nothing more — the
+    :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+    sibling inverts the MATERIALIZATION and never touches ``inner.solve``
+    or ``inner.is_invertible`` (it reads values, not structure), so the
+    minimal contract is these three members only (the tighter
+    :class:`_InvertibleForward` bound fits the solve-backed siblings).
 
     Each sibling NARROWS ``_ForwardT`` to what its own ctor guard and
     algorithm need: :class:`InverseOperator` to
@@ -2002,14 +1971,12 @@ class _InvertibleForward(_WrappedForward, Protocol):
     Extends the family-minimal :class:`_WrappedForward` with the two
     members the GENERIC sibling consumes: ``is_invertible`` (its ctor
     guard is the leaf's own value check) and :meth:`solve` — the
-    forward's NATIVE inverse-action realization, which carve P4
-    established as this contract's permanent face (the step-6 design
-    finding: the caps-GATED public spelling retired, but the family
-    wrapper delegates through ``solve``, so the verb lives exactly on
-    the conformers the family wraps — value leaves, the product, the
-    sweep composites). Delegating through one contract keeps the
-    inverse OBJECT and the realization on ONE body (``coding-elegance``
-    Pattern 2 — no reciprocal twin path that could drift by a rounding).
+    forward's NATIVE inverse-action realization, the permanent face the
+    family wrapper delegates through, so the verb lives exactly on the
+    conformers the family wraps (value leaves, the product, the sweep
+    composites). Delegating through one contract keeps the inverse OBJECT
+    and the realization on ONE body (``coding-elegance`` Pattern 2 — no
+    reciprocal twin path that could drift by a rounding).
     """
 
     @property
@@ -2027,13 +1994,11 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
     An inverse operator in this codebase is a thin typed wrapper around
     its own FORWARD operator :math:`A` (:attr:`inner`): the wrapper's
     :meth:`apply` realizes :math:`A^{-1}` by the sibling's algorithm, and
-    everything else is delegation — the byte-identical back-half that
-    :class:`InverseOperator` and
-    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` carried
-    as documented twins until the THIRD sibling
-    (:class:`~orpheus.numerics.green_operator.GreenOperator`, taxonomy
-    §12 step 4) fired the extraction trigger both twins recorded
-    (defer-until-≥2, extract at 3 — never hand-re-derive):
+    everything else is delegation — the byte-identical back-half shared
+    by every inverse-family sibling (:class:`InverseOperator`,
+    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`,
+    :class:`~orpheus.numerics.green_operator.GreenOperator`), extracted
+    once the third sibling appeared (defer-until-≥2):
 
     * :attr:`domain` / :attr:`codomain` — the SWAP of the forward's: an
       inverse maps the forward's codomain back to its domain.
@@ -2041,7 +2006,7 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
       :math:`A`: the forward matvec ``inner.apply``, delegated.
     * ``is_invertible`` is ``True`` and :meth:`inverse` returns the
       wrapped forward ITSELF — the involution :math:`(A^{-1})^{-1} = A`
-      (taxonomy §13 I2) holds by OBJECT IDENTITY, typed per sibling
+      holds by OBJECT IDENTITY, typed per sibling
       through ``_ForwardT``.
 
     **The canonical seeded-apply signature is part of the back-half**
@@ -2091,7 +2056,7 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
         r"""Return :math:`A^{-1}\,x` by this sibling's inversion algorithm.
 
         ``initial_guess`` is the inverse family's canonical driver
-        signature (taxonomy §12 step 3): iterative drivers thread the
+        signature: iterative drivers thread the
         previous iterate uniformly, with no per-type signature probes.
         """
         ...
@@ -2102,7 +2067,7 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
         The un-invert face: an inverse object IS invertible, and its
         realization verb is the forward matvec — keeping the involution
         web closed (``is_invertible ⟺ a working solve`` on every family
-        member, taxonomy §13 I2 / step 1).
+        member).
         """
         return self.inner.apply(b)
 
@@ -2113,7 +2078,7 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
     def inverse(self) -> _ForwardT:
         r"""Return :math:`(A^{-1})^{-1} = A` — the wrapped forward, by identity.
 
-        The involution law (taxonomy §13 I2) holds as an OBJECT-IDENTITY
+        The involution law holds as an OBJECT-IDENTITY
         fact: ``A.inverse().inverse() is A``.
         """
         return self.inner
@@ -2123,7 +2088,7 @@ class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
     r"""The inverse operator :math:`A^{-1}` of a solve-backed leaf, in operator form.
 
     The GENERIC member of the #226 inverse family — the name is earned by
-    exactly the universal contract and nothing more (taxonomy §13: "round-trip
+    exactly the universal contract and nothing more ("round-trip
     alone earns only *InverseOperator*"): :meth:`apply` inverts, the
     round-trip :math:`A^{-1}(A\,x) = x` holds to the forward's own ``solve``
     precision, and no fancier invariant (S-direct seed-independence,
@@ -2139,10 +2104,10 @@ class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
     value-bearing LEAVES (:class:`DiagonalOperator`,
     :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
     whose inverse action is an exact pointwise division, AND the
-    invertible COMPOSITES — since taxonomy §12 step 5,
-    :meth:`OperatorProduct.inverse` returns ``InverseOperator(self)``
-    (the #285 closure), so the wrapped inverse action there is the
-    product's own ``solve``, :math:`B^{-1}(A^{-1}\,q)`, not a division.
+    invertible COMPOSITES: :meth:`OperatorProduct.inverse` returns
+    ``InverseOperator(self)`` (#285), so the wrapped inverse action there
+    is the product's own ``solve``, :math:`B^{-1}(A^{-1}\,q)`, not a
+    division.
 
     **One realization, not a reciprocal twin.** :meth:`apply` DELEGATES to
     the forward's own :meth:`solve`, bit-identical to today's gated call —
@@ -2156,10 +2121,7 @@ class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
 
     The wrap-delegate back-half (domain↔codomain swap /
     ``solve→inner.apply`` / ``is_invertible`` / ``inverse()→inner``) is
-    inherited from :class:`InverseWrapMixin` — the extraction this class
-    and :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
-    recorded as their collapse trigger, fired by the 3rd sibling
-    (``GreenOperator``, taxonomy §12 step 4). This class keeps only its
+    inherited from :class:`InverseWrapMixin`. This class keeps only its
     ctor guard (the leaf's own ``is_invertible`` value check),
     :meth:`apply`, and ``__repr__``.
     """
@@ -2175,8 +2137,8 @@ class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
     def apply(self, x: Any, /, *, initial_guess: Any | None = None) -> Any:
         r"""Return :math:`A^{-1}\,x` — the leaf's own ``solve`` (bit-identical).
 
-        ``initial_guess`` is the inverse family's CANONICAL driver signature
-        (`taxonomy §12 step 3`): iterative drivers thread the previous
+        ``initial_guess`` is the inverse family's CANONICAL driver
+        signature: iterative drivers thread the previous
         iterate uniformly, with no per-type signature probes.  An EXACT
         pointwise inverse has no use for a starting point — the argument is
         accepted and unused (contrast
@@ -2276,7 +2238,7 @@ class PermutationOperator(LinearOperator):
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         return np.take(x, self.inverse_perm, axis=self.axis)
 
-    # NO ``solve`` (carve P4): the inverse is ALGEBRA-CLOSED —
+    # NO ``solve``: the inverse is ALGEBRA-CLOSED —
     # :meth:`inverse` returns the inverse permutation as a first-class
     # forward whose ``apply`` is the SAME ``np.take(·, inverse_perm)``
     # gather (P^{-1} = P^T, bit-identical) — so solving is
@@ -2424,21 +2386,11 @@ class PeriodicWrapOperator(LinearOperator):
     aliasing-safety contract (``psi_out.copy()``) and the project-
     wide convention that ``op.apply(psi)`` may be mutated freely by
     the caller without affecting ``psi``.
-
-    Wave 7 update: pre-Wave-7 this operator returned ``x`` by
-    reference; the Wave 7 delegation of
-    :class:`~orpheus.geometry.boundary.PeriodicBoundary` to this
-    operator exposed the aliasing-safety mismatch via
-    ``tests/geometry/test_boundary.py::test_periodic_bc_returns_input_unchanged``.
-    The copy is now performed here so every consumer inherits the
-    safe-aliasing contract uniformly.
     """
 
     def apply(self, x: np.ndarray) -> np.ndarray:
-        # Wave 7: return a fresh copy. The legacy
-        # ``PeriodicBoundary.apply`` body was ``psi_out.copy()``;
-        # delegating through this operator must preserve the
-        # caller-mutates-output safe-aliasing contract.
+        # Return a fresh copy — the caller-mutates-output
+        # safe-aliasing contract.
         return np.asarray(x).copy()
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
@@ -2467,7 +2419,7 @@ class TensorProductOperator(LinearOperator):
     axes are factor-wise INTERSECTIONS — invertible iff every factor
     is, adjointable iff every factor is — computed recursively by the
     predicates, and the inverse is ALGEBRA-CLOSED (a tensor product of
-    the factor inverses), so there is no ``solve`` verb (carve P4).
+    the factor inverses), so there is no ``solve`` verb.
 
     Algebraic laws (verified by tests):
 
@@ -2553,7 +2505,7 @@ class TensorProductOperator(LinearOperator):
             out = op.apply_transpose(out)
         return out
 
-    # NO ``solve`` (carve P4): the inverse is ALGEBRA-CLOSED —
+    # NO ``solve``: the inverse is ALGEBRA-CLOSED —
     # :meth:`inverse` returns the tensor product of the factor inverses,
     # a first-class forward — so solving is ``.inverse().apply(b)``.
 
@@ -2567,7 +2519,7 @@ class TensorProductOperator(LinearOperator):
         r"""Return :math:`(A \otimes B \otimes \cdots)^{-1} = A^{-1} \otimes B^{-1} \otimes \cdots`.
 
         The factor-wise structural inverse (the docstring's "inverse on
-        every axis" law, taxonomy §13 I2). Factor ORDER is preserved —
+        every axis" law). Factor ORDER is preserved —
         the factors act on disjoint axes and commute, exactly as
         :meth:`solve` applies them in stored order — so the action is
         bit-identical to :meth:`solve` given each factor's own
@@ -2911,7 +2863,7 @@ class DiagonalOperator(LinearOperator):
         object's ``apply`` IS :meth:`solve` (the division ``b / c``),
         bit-identical — whereas ``DiagonalOperator(1/c)`` would multiply
         by a rounded reciprocal and drift by an ulp. The generic name is
-        the honest one (taxonomy §13: round-trip alone earns exactly
+        the honest one (round-trip alone earns exactly
         "InverseOperator"; a diagonal division carries no distinguishing
         invariant beyond it).
         """
@@ -2995,9 +2947,9 @@ class RankOneOperator(LinearOperator):
     Hilbert adjoint :math:`A^\dagger = G^{-1}A^{T}G` is the
     :attr:`~LinearOperator.H` wrapper's job. The fission adjoint
     :math:`F^\dagger\psi^* = \nu\Sigma_f\,(\chi\cdot\psi^*)` is exactly this
-    dyad-swap (campaign #276). A nonlinear / opaque functional has no dual
+    dyad-swap (#276). A nonlinear / opaque functional has no dual
     column, so such a dyad advertises ``apply`` only. See
-    :ref:`operator-algebra-adjoint`.
+    :ref:`operator-adjoint`.
 
     Parameters
     ----------
@@ -3046,10 +2998,7 @@ class RankOneOperator(LinearOperator):
         # weight IS the dual column — an InnerProductFunctional (the
         # ReactionRateFunctional specialisation included). A nonlinear /
         # opaque functional has no dual column. Mirrors — and gates —
-        # the apply_transpose realization below. (W2 as-built fix: the
-        # retired per-instance caps computation was the dyad's ONLY
-        # adjointability advertisement; both migration agents caught
-        # the missing predicate independently — F† rides on it.)
+        # the apply_transpose realization below.
         from orpheus.numerics.functional import InnerProductFunctional
 
         return isinstance(self.functional, InnerProductFunctional)
