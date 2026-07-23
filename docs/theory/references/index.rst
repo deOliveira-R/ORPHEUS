@@ -354,9 +354,7 @@ Cross-references
 - :ref:`theory-transport-methods` — production (discrete) solvers
   whose verification consumes the references catalogued here.
 - :ref:`theory-verification` — the verification part: principles,
-  harness, auto-generated V&V matrix, equation coverage, and the L0
-  error catalog.
+  harness, per-method evidence chapters and case grids, the
+  auto-generated V&V matrix, and the L0 error catalog.
 - :doc:`/theory/verification/reference_solutions` — vocabulary
   discipline, operator-form taxonomy, kernel primitives.
-- :ref:`theory-verification-suite` — verification suite overview and
-  case grid.

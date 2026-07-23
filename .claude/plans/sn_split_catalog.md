@@ -1218,3 +1218,61 @@ heuristic = discovery layer; record in harness.rst + extractor ask on nexus#1.
   phantoms 0; scan-exempt exactly {verification/harness.rst,
   verification/matrix.rst}; straggler greps clean (raw paths, :doc:
   roles in rst AND py, sn_verification_matrix, verification-index).
+- **V3 ✅ 2026-07-23 (V4 ABSORBED — single commit)** — rump +
+  per-method consolidation: `theory/verification.rst` DISSOLVED
+  (label `theory-verification-suite` RETIRED, zero live refs); SN
+  chapter mv WHOLE → `verification/sn.rst` (4,680 ln; h1 retitle
+  keeps UNDER-ONLY style — over+under would silently re-level the
+  `====`-under-only "Numerical Sensitivities" h2, docutils tracks
+  overline-presence as part of the style; rump SN section merged in
+  as h3 "Analytical eigenvalue derivation" before the results
+  tables; 2 relative `:doc:` roles made absolute). SIX pages seeded:
+  **homogeneous ADJUDICATED as a 6th per-method page** (it IS a
+  solver family — one of the six minimal-production folders);
+  cp/moc/mc/diffusion absorb the rump per-solver sections + their
+  method chapters' Verification h2s VERBATIM (MOC also its MMS h2 —
+  4 `moc-mms-*` eq labels traveled; anchors `moc-mms-verification`,
+  `diffusion-2rg-verification`, `nine-case-cp-grid`,
+  `diffusion-2region-richardson`, `kinf-1g`/`kinf-mg` traveled);
+  summary.rst SCAFFOLD parks Reference-Cases/Unit-Tests/Convergence/
+  run-book/seealso (V6 authors). Architecture+Registry+XS-library →
+  **reference_solutions.rst (NATIVE PLACE over the stage text's
+  rough principles/summary target — enforcer ENDORSED**: the
+  derivations-package/registry/XS-library IS the reference-contract
+  infrastructure); Overview/Methodology/Case-Types → principles.rst
+  (labels `richardson-extrapolation`+formula traveled).
+  curvilinear_multigroup's Verification h2 STAYS (adjudicated: a
+  chapter-local GATE CONTRACT pinning its composition claim, not
+  case description); infinite_medium's own Verification h2 → V7
+  (template-B sweep; its `:doc:` repointed to the homogeneous page).
+  Template-B thin "Verification — what pins this chapter" sections
+  in the 4 donor chapters; router synopsis + 7 chapter-map rows +
+  toctree (…reference_solutions · homogeneous · sn · cp · moc · mc ·
+  diffusion · summary · matrix). ~36 inbound rewires (incl. 4
+  RELATIVE `:doc:` forms only -W caught — `verification` from
+  sn-book siblings, `../theory/verification` from api/data — role
+  greps MUST also cover relative spellings; `|times|` was
+  CP-chapter-LOCAL — donor substitutions don't travel, swap to
+  literal). Enforcer (fresh): **1 MUST-FIX APPLIED in-commit** — 6
+  `tests/sn/verification/` docstring refs to the dead chapter path;
+  my straggler grep's `grep -v tests/sn/verification` exclusion ate
+  them (**lesson: a path-shaped `grep -v` filters OUTPUT LINES, so
+  files LIVING under the excluded-looking dir vanish WITH their
+  hits — narrow the match pattern instead of excluding paths; also
+  `head`-truncating a straggler grep hides hits**; -W is blind to
+  non-autodoc'd test docstrings) + 1 NIT applied (homogeneous.rst
+  provenance comment made precise). ⚠ **V5/V6 INHERIT (enforcer
+  CONCERN)**: the PARKED principles content (Methodology tolerance
+  table rows + the Richardson-Extrapolated class section) and
+  summary's seealso still present Richardson as the LIVE
+  heterogeneous reference for SN/MOC/diffusion — contradicts the
+  accurate retirement account now co-located in
+  reference_solutions.rst + diffusion.rst (SN arm superseded by MMS
+  at Phase 2.1a; MOC never regrew one; diffusion → transcendental at
+  #290 P6). Reconcile when authoring — do NOT re-emit the stale
+  framing. Gates: build `-E -W` exit 0 (final tree re-certified);
+  collect 6659 invariant; orphans 256 / documented 321 invariant;
+  matrix BYTE-STABLE through the build hook; skip-set exactly the 2
+  known carriers; pyright tree-wide 1866 pre==post (0 new; touched
+  .py = docstrings only); enforcer losslessness char-diff PASS on
+  every moved section (only declared adaptations differ).

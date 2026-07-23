@@ -757,7 +757,7 @@ Verification hooks
 ==================
 
 The slab one-group machine is pinned by the slab slice of
-:doc:`verification`:
+:doc:`/theory/verification/sn`:
 
 * **Balance / closure**: the DD balance :eq:`dd-cartesian-1d` and
   recurrence :eq:`dd-recurrence` carry ``verifies`` markers from the
@@ -774,7 +774,7 @@ The slab one-group machine is pinned by the slab slice of
   :doc:`/theory/foundations/discretization`; the MMS tables *recover*
   that order numerically to verify the implementation. The two claims
   are kept distinct (order-proof there, order-recovery in
-  :doc:`verification`).
+  :doc:`/theory/verification/sn`).
 
 What broadens next
 ==================

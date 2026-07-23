@@ -8,8 +8,9 @@ How ORPHEUS establishes that its solvers are *correct*. This part
 collects the machinery and the evidence in one place: the
 verification principles and evidence taxonomy, the test-harness
 tagging contract, the cross-method regression protocol, the binding
-reference-solution contract, and the auto-generated per-equation
-V&V matrix.
+reference-solution contract, the per-method evidence chapters (one
+per solver family), the cross-suite evidence summary, and the
+auto-generated per-equation V&V matrix.
 
 ORPHEUS enforces a four-level verification & validation ladder —
 **L0** term verification (hand calculation vs code), **L1** equation
@@ -67,6 +68,36 @@ The chapters
        ``ContinuousReferenceSolution`` API, kernel primitives, and
        the reference-tier audit.
      - Writing or hardening a reference solution.
+   * - :doc:`homogeneous`
+     - The infinite-medium matrix eigenvalue — the shared analytical
+       L1 anchor every solver family verifies against.
+     - Tracing any solver's homogeneous case to its reference.
+   * - :doc:`sn`
+     - The discrete-ordinates evidence: the MMS ladder (1D/2D,
+       heterogeneous, anisotropic, curvilinear), the eigenvalue
+       cases, and the numerical-sensitivity record.
+     - Working on any SN solver component.
+   * - :doc:`collision_probability`
+     - The CP evidence: E₃/Ki₄ semi-analytical eigenvalue grids, the
+       9-case grid design, property gates, and the extended QA suite.
+     - Working on the CP solver or its kernels.
+   * - :doc:`method_of_characteristics`
+     - The MOC evidence: the four-level suite, eigenvalue and
+       convergence cases, and the per-segment MMS gate.
+     - Working on the MOC solver.
+   * - :doc:`monte_carlo`
+     - The MC evidence: analytical and CP-referenced cases, the
+       four-level suite, and the failure-mode coverage map.
+     - Working on the MC solver.
+   * - :doc:`diffusion`
+     - The diffusion evidence: buckling anchor, continuous-reference
+       cases with measured orders, and the retired-Richardson record.
+     - Working on the diffusion solver.
+   * - :doc:`summary`
+     - The cross-suite evidence compilation: reference-case tables,
+       structural unit-test inventory, convergence studies, and the
+       run-book.
+     - Surveying the whole suite's results; running the tests.
    * - :doc:`matrix`
      - **Auto-generated** on every Sphinx build from the test
        registry: level × module grid, per-equation coverage, orphan
@@ -85,4 +116,11 @@ semi-analytical truth values are catalogued in the
    harness
    cross_method
    reference_solutions
+   homogeneous
+   sn
+   collision_probability
+   method_of_characteristics
+   monte_carlo
+   diffusion
+   summary
    matrix

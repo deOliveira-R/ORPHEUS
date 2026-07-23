@@ -1891,101 +1891,17 @@ uses the transpose: ``Q += SigS.T @ phi`` (applied per-cell)::
         Q[k, :] += 2.0 * (self._n2n_mats[mid].T @ flux_distribution[k, :])
 
 
-Verification
-============
+Verification — what pins this chapter
+=====================================
 
-**106 tests** across 6 test files verify the CP implementation against
-analytical eigenvalues computed independently by the derivation modules.
-
-Consolidated Eigenvalue Solvers (CP-20260405-007)
----------------------------------------------------
-
-:func:`~orpheus.derivations.common.eigenvalue.kinf_from_cp` and
-:func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous` replaced 10 duplicated
-eigenvalue computations across ``homogeneous.py``, ``sn.py``, ``moc.py``,
-``mc.py``, ``cp_slab.py``, ``cp_cylinder.py``, and ``cp_sphere.py``.
-Both accept optional ``sig_2`` / ``sig_2_mats`` for (n,2n) reactions.
-When omitted, (n,2n) is zero and all previous eigenvalues are preserved.
-
-
-Eigenvalue Verification Cases
--------------------------------
-
-27 core cases: {1, 2, 4} groups |times| {1, 2, 4} regions |times|
-{slab, cylinder, sphere}.
-
-.. list-table::
-   :header-rows: 1
-   :widths: 25 15 20 20
-
-   * - Geometry
-     - Tolerance
-     - Test file
-     - Derivation
-   * - Slab (:math:`E_3`)
-     - :math:`< 10^{-6}`
-     - ``tests/cp/test_slab.py``
-     - ``orpheus/derivations/continuous/flat_source_cp/slab.py``
-   * - Cylinder (:math:`\text{Ki}_4`)
-     - :math:`< 10^{-5}`
-     - ``tests/cp/test_cylinder.py``
-     - ``orpheus/derivations/continuous/flat_source_cp/cylinder.py``
-   * - Sphere (:math:`e^{-\tau}`)
-     - :math:`< 10^{-5}`
-     - ``tests/cp/test_sphere.py``
-     - ``orpheus/derivations/continuous/flat_source_cp/sphere.py``
-
-Historically, the cylinder/sphere tolerances were 10× looser
-because the legacy 20 000-point :math:`\text{Ki}_4` table
-interpolation introduced :math:`O(\Delta x^2) \approx
-6\times 10^{-6}` error. Phase B.4 (commit ``6badbe5``, Issue #94)
-replaced the table with the Chebyshev interpolant
-:func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` of canonical
-:math:`\mathrm{Ki}_3`, which reaches ~:math:`5\times 10^{-6}`
-absolute accuracy; the declared ``< 1e-5`` tolerance is now
-~100× larger than the actual solver/reference error
-(~:math:`10^{-7}`, same kernel on both sides).  See
-:ref:`ki-table-construction` for the full postmortem.  The old
-convergence-with-table-size regression
-``tests/cp/test_verification.py::TestKi4Resolution`` was replaced by
-``test_ki3_kernel_is_insensitive_to_n_ki_table``: ``n_ki_table``
-is now a no-op and ``keff`` is bit-identical across
-``{5000, 20000, 40000}``.
-
-Additionally, **algebraic property tests** (``tests/cp/test_properties.py``)
-are run for all three coordinate systems:
-
-- **Row sums** :math:`= 1` (neutron conservation)
-- **Reciprocity**: :math:`\Sigt{i} V_i P_{ij} = \Sigt{j} V_j P_{ji}`
-- **Non-negativity**: :math:`P_{ij} \ge 0`
-- **Homogeneous limit**: 1-region :math:`P = 1`
-
-
-Extended Verification (CP-20260405-005)
-----------------------------------------
-
-31 additional tests in ``tests/cp/test_verification.py`` closing 9 QA gaps:
-
-- **L0 P_inf comparison** (G-1): element-by-element solver vs derivation
-  (tolerance :math:`< 10^{-10}`)
-- **Multi-group properties** (G-6, W-2): row sums and reciprocity at 2G/4G
-- **Upscatter** (G-2, W-1): eigenvalue with nonzero thermal-to-fast transfer
-- **(n,2n)** (C-2, G-3, W-3): solver :math:`\keff` matches analytical with
-  ``Sig2[0,0] = 0.01``
-- **Optical limits** (G-4, G-7): thick (:math:`\tau \gg 1`,
-  :math:`P_{ii} > 0.99`) and thin (:math:`\tau \ll 1`, high escape)
-- **Convergence rate** (G-5): monotonic error decrease, dominance ratio
-  estimation
-- **8-region mesh** (G-8): mesh refinement convergence
-- **GS inner iterations** (C-1, G-9): thermal > fast inner counts;
-  no-self-scatter in 1; GS/Jacobi eigenvalue agreement
-- **Ki4 table resolution** (W-6): diminishing returns from 5k to 40k points
-
-Plus 36 diagnostic tests in ``tests/cp/test_diagnostics.py``.
-
-::
-
-   pytest tests/cp/ -v
+The verification evidence for the CP solver — the E₃/Ki₄
+semi-analytical eigenvalue grids, the algebraic property gates (row
+sums, reciprocity, non-negativity), and the extended QA suite —
+lives in the verification part:
+:doc:`/theory/verification/collision_probability`.  The
+auto-generated :doc:`/theory/verification/matrix` reports
+per-equation test coverage; :ref:`theory-verification` carries the
+part-wide principles and harness contracts.
 
 
 Implementation Details

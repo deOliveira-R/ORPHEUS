@@ -94,15 +94,13 @@ the canonical entry point that prevents the confusion.
 Cross-cutting
 =============
 
-The shared vocabulary, and the per-solver derivation walkthroughs of the
-verification suite.
+The shared vocabulary.
 
 .. toctree::
    :maxdepth: 2
    :caption: Cross-cutting
 
    glossary
-   verification
 
 
 Multiphysics

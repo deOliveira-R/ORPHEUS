@@ -394,7 +394,7 @@ The distinction matters in practice because it is precisely where
 "cross-method agreement" claims die when they are careless: two methods
 disagreeing at *different* data are exhibiting a data difference, not a
 method difference. The V&V discipline of this corpus
-(:doc:`/theory/verification`) pins every cross-method comparison to the
+(:doc:`/theory/verification/cross_method`) pins every cross-method comparison to the
 fixed-data regime for exactly this reason.
 
 What remains once the invariant part is factored out is the subject of

@@ -1366,7 +1366,7 @@ solver output.
 
    - :ref:`theory-homogeneous` — first consumer of the XS pipeline;
      demonstrates the full path from ``load_isotope()`` to :math:`k_\infty`.
-   - :ref:`theory-verification-suite` — verification uses :ref:`synthetic cross
+   - :ref:`theory-verification` — verification uses :ref:`synthetic cross
      sections <synthetic-xs-library>` (regions A/B/C/D), not this pipeline.
    - :ref:`theory-collision-probability`, :ref:`theory-discrete-ordinates`,
      :ref:`theory-method-of-characteristics`, :ref:`theory-monte-carlo` — all

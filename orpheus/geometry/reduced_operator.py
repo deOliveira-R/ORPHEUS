@@ -71,7 +71,7 @@ geometry split are on the theory page — see
 :eq:`morel-montry-clamp` (the equation-of-record) in
 :doc:`/theory/foundations/structured_geometry` and the comprehensive vindication
 at :ref:`sn-curvilinear-aniso-norm-reconciliation` in
-:doc:`/theory/methods/sn/verification`.
+:doc:`/theory/verification/sn`.
 
 **Geometry split (W1, 2026-06-13; see** :func:`spherical_streaming` /
 :func:`cylindrical_streaming` **for the implementations).**

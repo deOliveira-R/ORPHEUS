@@ -8,7 +8,7 @@ bug in the sweep, the boundary-condition plumbing, or the DD closure.
 Related:
 - :mod:`orpheus.derivations.sn_mms` — ansatz + manufactured source
 - :func:`orpheus.sn.solver.solve_sn_fixed_source` — fixed-source driver
-- Theory page: ``docs/theory/methods/sn/verification.rst`` (the MMS case catalog)
+- Theory page: ``docs/theory/verification/sn.rst`` (the MMS case catalog)
 """
 
 from __future__ import annotations

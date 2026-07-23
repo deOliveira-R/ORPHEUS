@@ -541,3 +541,161 @@ References
   analytical reference solutions in the sense of this page.
 - Ganapol, B. D., *Analytical Radiation Transport Benchmarks for
   the Next Century*, LA-UR-05-4848, 2005. (Same note on vocabulary.)
+
+
+.. The Architecture section below (with the registry and cross-section
+   library subsections) was moved verbatim at task #10 stage V3 from
+   the dissolved ``docs/theory/verification.rst``; headings re-leveled
+   to this page's hierarchy. V5+ integrates it with the contract
+   sections above.
+
+Architecture
+------------
+
+Three interlinked systems flow from one source:
+
+.. code-block:: text
+
+   orpheus/derivations/      SymPy derivations (single source of truth — library)
+        │
+        ├──→ tests/           pytest imports reference values, runs solvers
+        │
+        └──→ docs/_generated/ RST fragments with LaTeX + results tables
+
+The ``orpheus/derivations/`` package is the **library** of analytical
+and semi-analytical reference solutions: SymPy ``derive_*`` functions
+paired with ``test_*`` pytest gates, importable by production code
+(see e.g. :mod:`orpheus.derivations.discrete.sn.balance` cited from
+``_sweep_1d_cumprod`` (the dissolved ``sweep.py``), or
+:mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular` cited from
+:func:`orpheus.derivations.continuous.peierls_nystrom.geometry.reflection_specular`).
+
+Separately, ``scratch/derivations/`` (project root, **not** a Python
+package) is the **workbench** — in-flight SymPy drafts, diagnostic
+scripts (``scratch/derivations/diagnostics/``), and retired code with
+"why archived" notes (``scratch/derivations/archive/``). Workbench
+content has no production consumer and is not on the import path; it
+graduates to the library by being lifted into ``orpheus/derivations/``
+with a paired test (see GitHub Issue #95 for the ongoing migration).
+
+
+.. _reference-values-lazy-registry:
+
+Reference-Values Registry (Eager vs Lazy)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``orpheus/derivations/reference_values.py`` is the central registry
+that every test and every Sphinx page reads from. It holds two
+registries — the legacy ``VerificationCase`` table (retrieved by
+``get("name")``) and the Phase-0 ``ContinuousReferenceSolution`` table
+(``continuous_get("name")``) — both populated by walking the
+``orpheus.derivations.*`` modules. **Every case is now analytical or
+semi-analytical** (NumPy / SciPy / SymPy only, no solver imports), so
+the walk is cheap. The one refinement is that a reference whose
+*construction* is expensive is deferred until it is actually
+requested:
+
+**Eager tier — cheap analytical / semi-analytical cases**
+   Built when the registry is first touched, by walking the
+   ``continuous.analytical.homogeneous`` case, the
+   ``continuous.cases.{sn, moc, mc, diffusion}`` cases, and the
+   ``continuous.flat_source_cp.{slab, cylinder, sphere}`` modules
+   (the legacy table) plus every module exposing a
+   ``continuous_cases()`` producer (the Phase-0 table). These use only
+   NumPy, SciPy, and SymPy, so building them all is fast. The 9-case
+   CP grids (:ref:`nine-case-cp-grid`), the homogeneous matrix
+   eigenvalues, the diffusion buckling and transcendental cases, and
+   the MMS gates all land here.
+
+**Lazy tier — expensive continuous references**
+   A reference whose *construction* costs
+   :math:`\mathcal{O}(\text{minutes})` — an adaptive-mpmath eigenvalue
+   solve such as the Peierls Nyström references — opts into the
+   ``continuous_case_builders()`` contract, registering a
+   ``name -> thunk`` in ``_CONTINUOUS_BUILDERS`` instead of an
+   eagerly-built solution. The thunk runs (and memoises) only when
+   that exact name is first requested, so fetching *any* other
+   reference does not pay the expensive build (Issue #212 — the full
+   Peierls build previously fired on every lookup and looked like a
+   solver hang).
+
+``continuous_get("name")`` checks the eager ``_CONTINUOUS`` table
+first; if the name is absent it calls the thunk from
+``_CONTINUOUS_BUILDERS`` once, memoises the result, and returns it.
+The practical effect is that **every test pays only for the reference
+values it actually uses**.
+
+.. note::
+
+   **Historical — the retired Richardson side-channel.** Before #290
+   the lazy tier had a different tenant: Richardson-extrapolated
+   references computed *by the production solvers themselves* — the SN
+   heterogeneous slab, the MOC pin cell, and the diffusion fuel +
+   reflector case — keyed in a ``_LAZY_LOADERS`` dict and persisted in
+   a JSON-backed on-disk cache. Those loaders imported the solver
+   packages lazily precisely to dodge the circular dependency they
+   created (a solver imports ``orpheus.derivations`` to read its own
+   reference values). The side-channel was retired in stages: the SN
+   arm at Phase 2.1a (superseded by MMS), MOC never regrew one, and
+   the last member — the diffusion 2-region case — at #290 P6,
+   together with the MATLAB-port island that computed it.
+   ``_LAZY_LOADERS`` no longer exists; **no reference is now derived
+   from a production solver under test.** The diffusion 2-region
+   reference's successor is the transcendental
+   :func:`~orpheus.derivations.continuous.cases.diffusion.derive_2rg_continuous`
+   (see the retired-Richardson record at
+   :ref:`diffusion-2region-richardson`).
+
+.. _synthetic-xs-library:
+
+Cross-Section Library
+~~~~~~~~~~~~~~~~~~~~~
+
+All verification cases use **abstract synthetic cross sections** from
+``orpheus/derivations/common/xs_library.py``.  Four regions are defined, each with
+{1G, 2G, 4G} variants:
+
+- **Region A** (fissile): fuel-like, with fission and moderate scattering
+- **Region B** (scatterer): moderator-like, strong scattering, no fission
+- **Region C** (absorber): cladding-like, moderate absorption
+- **Region D** (gap): thin, very low opacity
+
+All cross sections satisfy the consistency relation
+:math:`\Sigma_t = \Sigma_c + \Sigma_f + \sum_{g'} \Sigma_{s,g \to g'}`.
+
+P1 scattering anisotropy
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Every region carries a P1 scattering matrix in addition to the P0
+isotropic form. The P1 matrix is built as
+:math:`\Sigma_{s,1}(g \to g') = \bar\mu \cdot \Sigma_{s,0}(g \to g')`,
+where :math:`\bar\mu` is the mean lab-frame scattering cosine set
+per region to reflect the target nuclide's mass:
+
+.. csv-table::
+   :header: Region, Role, Nuclide analogue, :math:`\bar\mu`, Rationale
+   :widths: 10, 22, 22, 10, 36
+
+   A, fissile, "heavy uranium/plutonium", 0.05, "A ~ 235 gives :math:`\bar\mu_{cm \to lab} \approx 2/(3A) \approx 0.003`; bumped to 0.05 to expose the anisotropic-correction code path without making it dominant."
+   B, moderator, "light H / H\ :sub:`2`\ O", 0.60, "A = 1 is the textbook forward-peaked limit, :math:`\bar\mu_{lab} = 2/3` for s-wave elastic on H. Rounded to 0.60."
+   C, cladding, "intermediate Zr-90", 0.10, "A = 90 places it between fuel and moderator; 0.10 gives a mild forward peak consistent with Zr's :math:`2/(3A) \approx 0.007` lab-frame, again slightly amplified for test coverage."
+   D, gap, "light He / void", 0.30, "Low-density gas with light nuclei. 0.30 picks a middle value that is neither fully isotropic nor dominated by the streaming peak."
+
+These values are physically motivated but NOT tuned to any specific
+isotope. The point is to give every transport solver a non-trivial
+:math:`\Sigma_{s,1}` matrix so that the P1 correction term is
+exercised by the verification suite; the absolute values are not
+intended to match real nuclear data. Production runs always use the
+real library from ``orpheus/data/micro_xs/``.
+
+The definitive values and per-group arrays live in
+``orpheus/derivations/common/xs_library.py`` (see the ``_MU_BAR`` dict at
+the top of the file). Changing them there automatically propagates
+to every verification case because all derivation modules import
+``make_mixture`` from the same module.
+
+Region layouts:
+
+- **1 region**: A only (homogeneous fissile medium)
+- **2 regions**: A + B (fuel + moderator)
+- **4 regions**: A + D + C + B (fuel + gap + cladding + moderator)

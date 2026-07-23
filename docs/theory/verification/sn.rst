@@ -1,5 +1,7 @@
-Verification
-============
+.. _theory-verification-sn:
+
+Discrete Ordinates
+==================
 
 .. note:: **Verification slice — automation pending.**  The per-page V&V
    table (equation label × test × level × ERR coverage, auto-filtered
@@ -1063,7 +1065,7 @@ The curvilinear anisotropic-MMS "floor", reconciled (W1–W5)
 This section closes the curvilinear-anisotropic-SN investigation
 program (W1–W5, branch ``fix/curvilinear-aniso-pole-and-clamp``,
 2026-06-13).  It is the sequel to the ERR-058 / #195 / #196 curvilinear
-*isotropic* closure-seed family (:doc:`curvilinear_numerics`); that
+*isotropic* closure-seed family (:doc:`/theory/methods/sn/curvilinear_numerics`); that
 family fixed the
 wrong-fixed-point class (now formally retired), and what remained was
 the *anisotropic* floor — which this program resolved into three
@@ -1072,7 +1074,7 @@ distinct, separately-actionable errors.
 The headline — one floor was three errors, settled by a norm difference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The ERR-058 close-out (:doc:`curvilinear_numerics`) deferred a
+The ERR-058 close-out (:doc:`/theory/methods/sn/curvilinear_numerics`) deferred a
 residual "anisotropic angular
 floor" to Issue #229, citing a single
 :ref:`floor table <sn-err-058-aniso-floor>`.  The W1–W5 root-cause
@@ -4476,6 +4478,36 @@ correct for their respective regimes. The degradation from
 Salari--Knupp result for DD on discontinuous coefficients, and
 is the **reason** Phase 2.1a deliberately chose smooth
 :math:`\Sigma` to isolate the spatial operator.
+
+
+Analytical eigenvalue derivation
+---------------------------------
+
+The S\ :sub:`N` method discretises the angular variable into a finite set of
+directions.  For a homogeneous medium with :term:`reflective boundary conditions <reflective boundary condition>`,
+the derivation starts from the 1D S\ :sub:`N` transport equation:
+
+.. math::
+
+   \mu_m \frac{\partial\psi_m}{\partial x} + \Sigma_t \psi_m = \frac{Q}{2}
+
+For a homogeneous medium, :math:`\partial\psi_m/\partial x = 0` (spatially
+flat flux), so :math:`\psi_m = Q/(2\Sigma_t)` for every direction.  Integrating
+with Gauss-Legendre weights (:math:`\sum w_m = 2`):
+
+.. math::
+
+   \phi = \sum_m w_m \psi_m = \frac{Q}{\Sigma_t}
+
+Substituting the source :math:`Q = \Sigma_s \phi + (1/k)\nu\Sigma_f \phi`
+and cancelling :math:`\phi` yields the same eigenvalue as the homogeneous
+problem.  This is an exact result — the GL quadrature integrates a constant
+exactly, and diamond-difference is exact for flat flux.
+
+For heterogeneous problems, the reference comes from Richardson extrapolation
+of the O(h²) diamond-difference scheme.
+
+.. include:: ../../_generated/sn_derivation.rst
 
 
 Homogeneous Infinite Medium

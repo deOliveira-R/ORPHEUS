@@ -12,7 +12,7 @@ the P1 scattering moment through the current
 :math:`J(x) = \alpha\,B(x)/3`, exercising the
 :math:`\Sigma_s^{(1)}` slot that isotropic (P0) MMS tests skip.
 
-See :doc:`/theory/methods/sn/verification` (P1 scattering MMS section)
+See :doc:`/theory/verification/sn` (P1 scattering MMS section)
 for the derivation.
 """
 

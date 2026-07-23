@@ -128,9 +128,10 @@ verification ladders.
 
 ## See also
 
-- `docs/theory/verification.rst` — full architectural treatment of
-  the two-path V&V architecture and why the `discrete/` ↔
-  `continuous/` split exists.
+- `docs/theory/verification/index.rst` — the verification part:
+  principles, harness contract, per-method evidence chapters, and
+  the architecture of the two-path (`discrete/` ↔ `continuous/`)
+  V&V split.
 - `docs/theory/verification/reference_solutions.rst` — the contract
   that `ContinuousReferenceSolution` commits to (operator form,
   problem spec, provenance).

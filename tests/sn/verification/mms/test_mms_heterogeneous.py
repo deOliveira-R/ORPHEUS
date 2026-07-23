@@ -17,7 +17,7 @@ spatial-convergence measurement with interface-treatment artefacts
 (Salari & Knupp SAND2000-1444 §6). With smooth Σ(x) the diamond
 difference hits its design :math:`\mathcal O(h^{2})` order exactly.
 
-See :doc:`/theory/methods/sn/verification` (heterogeneous MMS section)
+See :doc:`/theory/verification/sn` (heterogeneous MMS section)
 for the full derivation and :mod:`orpheus.derivations.sn_mms` for
 the reference solution.
 """

@@ -88,4 +88,4 @@ The named :class:`~orpheus.data.energy_grid.EnergyGrid` instances (the
 .. note::
 
    Verification benchmarks have moved to the :doc:`derivations <derivations>`
-   package. See :doc:`../theory/verification` for the full reference case table.
+   package. See :doc:`/theory/verification/summary` for the full reference case table.

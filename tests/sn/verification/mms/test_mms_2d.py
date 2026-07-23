@@ -10,7 +10,7 @@ The 1-group test is the simpler baseline; the 2-group test adds
 smooth :math:`\Sigma(x, y)` cross sections with downscatter coupling
 to exercise the multigroup scatter assembly in 2D.
 
-See :doc:`/theory/methods/sn/verification` (2D Cartesian MMS sections)
+See :doc:`/theory/verification/sn` (2D Cartesian MMS sections)
 for the full derivation and :mod:`orpheus.derivations.sn_mms` for
 the reference solution.
 """

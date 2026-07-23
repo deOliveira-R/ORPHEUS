@@ -928,7 +928,7 @@ Numerical evidence at the default 50 + 30 cm geometry
 
 The finite-difference diffusion solver is then verified
 against this reference by running a mesh refinement study;
-see the :ref:`diffusion-2rg-verification` section below.
+see :ref:`diffusion-2rg-verification` in the verification part.
 
 
 .. _diffusion-2rg-investigation-history:
@@ -1165,88 +1165,18 @@ for a well-understood discretisation, the solver's own convergence
 machinery is the first suspect, not the reference.
 
 
-.. _diffusion-2rg-verification:
+Verification — what pins this chapter
+=====================================
 
-Verification
-============
-
-Both continuous references are solved under ``BC("zero_flux")`` (the
-ruling-3 re-attribution of the analytic :math:`\phi = 0` references —
-the mathematics is unchanged; only the law's name is corrected). The
-tests were rewired to the modern
-:func:`~orpheus.diffusion.solver.solve_diffusion_1d` at #290 P6 at
-**unchanged** tolerances.
-
-- **Bare slab L1 eigenvalue** — the Phase-0 continuous reference
-  ``dif_slab_2eg_1rg`` pulls :math:`k` from the analytical matrix
-  eigenvalue and :math:`\phi_g(x)` from :eq:`bare-slab-eigenfunction`;
-  the diffusion solver must reproduce both to better than
-  :math:`10^{-10}` for the eigenvalue and :math:`\mathcal O(h^{2})`
-  for the flux shape.
-- **Fuel + reflector L1** — the continuous reference
-  ``dif_slab_2eg_2rg`` produces :math:`k` from
-  :eq:`diffusion-transcendental` (validated by
-  :eq:`diffusion-spurious-root-validation`) and
-  :math:`\phi_g(x)` from :eq:`diffusion-back-substitution` in
-  the real-basis mode decomposition of
-  :eq:`diffusion-mode-decomposition`,
-  :eq:`diffusion-exponential-branch`, and
-  :eq:`diffusion-trigonometric-branch`. Comparison against the
-  solver at successive mesh refinements gives the measured order
-  of the finite-difference discretisation. This replaces the
-  Richardson-extrapolated reference that previously served this
-  role (see the verification-campaign audit in
-  :doc:`/theory/verification/reference_solutions`).
-
-  With the modern exact-LU solver there is no inner-iteration floor to
-  tune: the outer iteration converges on the default ``keff_tol`` /
-  ``flux_tol`` and the :math:`\mathcal{O}(h^2)` order is recovered
-  directly. (The island required an ``outer_tol`` knob to push its
-  outer power-iteration residual below the discretisation error — see
-  dead end #4 in :ref:`diffusion-2rg-investigation-history` for why its
-  hardcoded floor masked the quadratic convergence; that knob is moot
-  now.)
-
-Both cases live under ``operator_form="diffusion"`` in the
-Phase-0 registry and are tested in
-:mod:`tests.diffusion.test_continuous_reference`. The
-measured numerical evidence at convergence is:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 20 25 25 30
-
-   * - Mesh :math:`\Delta z` (cm)
-     - Bare slab shape error
-     - 2-region shape error
-     - Bare slab :math:`\Delta k`
-   * - 5.0
-     - :math:`1.2 \times 10^{-4}`
-     - pre-asymptotic
-     - :math:`1.4 \times 10^{-3}`
-   * - 2.5
-     - :math:`3.2 \times 10^{-5}`
-     - :math:`1.3 \times 10^{-1}`
-     - :math:`3.4 \times 10^{-4}`
-   * - 1.25
-     - :math:`1.0 \times 10^{-5}`
-     - :math:`5.6 \times 10^{-2}`
-     - :math:`8.5 \times 10^{-5}`
-   * - 0.625
-     - :math:`2.6 \times 10^{-6}`
-     - :math:`1.7 \times 10^{-2}`
-     - :math:`2.1 \times 10^{-5}`
-   * - 0.3125
-     - :math:`6.4 \times 10^{-7}`
-     - :math:`4.5 \times 10^{-3}`
-     - :math:`4.6 \times 10^{-6}`
-
-Observed convergence orders (successive ratios):
-bare slab :math:`\approx 1.92, 1.99, 2.00, 2.01`;
-2-region :math:`\approx 1.23, 1.73, 1.92` (the first ratio is
-pre-asymptotic on the 80 cm slab, so the test uses refinement
-range ``[2.5, 1.25, 0.625, 0.3125]`` and asserts the final
-two ratios exceed :math:`1.8`).
+The verification evidence for the diffusion solver — the bare-slab
+buckling anchor, the 2-region continuous-reference cases with their
+measured convergence orders, and the retired-Richardson record —
+lives in the verification part: :doc:`/theory/verification/diffusion`
+(anchor :ref:`diffusion-2rg-verification`).  The MMS operator gate
+below stays with this chapter's derivation.  The auto-generated
+:doc:`/theory/verification/matrix` reports per-equation test
+coverage; :ref:`theory-verification` carries the part-wide
+principles and harness contracts.
 
 
 .. _diffusion-mms-section:

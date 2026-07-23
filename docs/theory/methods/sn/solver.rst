@@ -511,7 +511,7 @@ of its own posed map", and is blind by construction to *which*
 eigenvalue that is.  The SN solver's eigenvalue **correctness** — that
 the posed map's eigenvalue is the *physically right* :math:`k` — rests
 on the multi-group heterogeneous L1/L2 references in
-:doc:`verification`, not on this gate.
+:doc:`/theory/verification/sn`, not on this gate.
 
 Two Inner Solvers
 -----------------

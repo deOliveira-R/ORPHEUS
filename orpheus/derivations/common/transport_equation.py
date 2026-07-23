@@ -77,7 +77,7 @@ See also
 
 - ``orpheus.derivations.discrete`` — production solver discretisations.
 - ``orpheus.derivations.continuous`` — continuous reference derivations.
-- ``docs/theory/verification.rst`` for the architectural treatment
+- ``docs/theory/verification/reference_solutions.rst`` for the architectural treatment
   of the two paths and why this module is the contract between them.
 """
 

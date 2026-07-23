@@ -120,3 +120,140 @@ the project produces — agreement across three structurally-distinct
 integrands. Production of (β) for sphere is the headline
 infrastructure gap (literature memo:
 ``.claude/scratch/sanchez_chandrasekhar_gap.md``).
+
+
+.. The three sections below were moved verbatim at task #10 stage V3
+   from the Overview / Verification Methodology / Reference Case
+   Types chapters of the dissolved ``docs/theory/verification.rst``.
+   V5 integrates them into the authored principles treatment.
+
+
+Overview
+========
+
+ORPHEUS verifies every transport solver against analytical reference solutions
+derived from each method's own mathematical equations using SymPy.  Each
+derivation is **self-contained**: it starts from the solver's formulation and
+derives the expected eigenvalue independently.  No cross-verification (comparing
+one solver against another) **stands in for** this evidence — solver-vs-solver
+agreement is level **L4 (informational)**, strictly distinct from the L0–L3
+correctness ladder.  Each solver's L0–L3 verification stands on its own, as if
+every other solver were deleted; the separate cross-method regression protocol
+(:doc:`/theory/verification/cross_method`) then adds L4 agreement gates on top,
+never in place, of that ladder.
+
+The same code that produces the LaTeX equations in this part also produces
+the reference values consumed by the ``pytest`` test suite.  This is the
+**single source of truth**: equations in the documentation cannot drift from
+the values in the tests because both come from the same ``orpheus/derivations/``
+package.
+
+
+Verification Methodology
+========================
+
+Each verification case defines three things:
+
+1. **Cross sections** — synthetic macroscopic data for abstract regions
+   (not specific materials).  This isolates the numerical method from
+   the cross-section processing pipeline.
+
+2. **Analytical eigenvalue** — derived from the solver's own equations
+   using SymPy (symbolic where possible, numerical for special-function
+   kernels like E₃ and Ki₄).
+
+3. **Tolerance** — principled, not arbitrary.  The tolerance is bounded
+   by the dominant error source:
+
+.. list-table:: Tolerance Rationale
+   :header-rows: 1
+   :widths: 20 15 20 45
+
+   * - Method
+     - Tolerance
+     - Error source
+     - Rationale
+   * - Homogeneous
+     - < 10⁻¹²
+     - FP arithmetic
+     - Direct ``numpy.eigvals`` of small dense matrix
+   * - CP slab
+     - < 10⁻⁶
+     - Power iteration
+     - Solver keff_tol=10⁻⁷ bounds the error
+   * - CP cylinder
+     - < 10⁻⁵
+     - Power iteration + Ki₄ interpolation
+     - Solver keff_tol=10⁻⁶ plus Ki₄ table resolution
+   * - SN (homogeneous)
+     - < 10⁻⁸
+     - Power iteration
+     - Flat flux is exact in DD; only iteration error
+   * - SN (heterogeneous)
+     - O(h²)
+     - Spatial discretisation
+     - Richardson extrapolation from own mesh convergence
+   * - MOC (homogeneous)
+     - < 10⁻⁴
+     - Ray spacing + iteration
+     - Flat-source exact; convergence limited by ray density
+   * - MC
+     - z < 5σ
+     - Statistical
+     - Central Limit Theorem; σ ~ 1/√N_active
+   * - Diffusion
+     - O(h²)
+     - FD spatial discretisation
+     - Analytical buckling eigenvalue (bare) or Richardson (reflected)
+
+
+Reference Case Types
+====================
+
+Analytical
+----------
+
+The eigenvalue is computed in closed form or as the eigenvalue of a
+finite-dimensional matrix derived symbolically by SymPy.  No numerical
+solver is involved.
+
+**Examples**: homogeneous infinite medium (matrix eigenvalue), diffusion
+bare slab (buckling eigenvalue), SN/MOC/MC homogeneous (each derived from
+the solver's own equations showing that the infinite-medium eigenvalue
+is the exact solution).
+
+Semi-Analytical
+---------------
+
+The reference involves a special function (E₃, Ki₃/Ki₄) evaluated to
+integrator precision, followed by a finite matrix eigenvalue.  The only
+approximation is the numerical :term:`quadrature` for the special function, which
+is controlled to machine precision via ``scipy.special.expn`` (E₃) or
+high-resolution lookup tables (Ki₃/Ki₄ with 20,000 points).
+
+**Examples**: all CP slab and CP cylinder cases.  The CP matrix is
+exact for the collision probability formulation; the eigenvalue is
+a finite matrix problem.
+
+.. _richardson-extrapolation:
+
+Richardson-Extrapolated
+-----------------------
+
+For discretised solvers on heterogeneous problems, the reference is the
+converged limit of the solver itself, estimated by running at 4 mesh
+refinement levels and extrapolating assuming O(h²) convergence:
+
+.. math::
+   :label: richardson-extrapolation-formula
+
+   k_{\rm ref} \approx k_h + \frac{k_h - k_{2h}}{2^p - 1}
+
+where :math:`p = 2` for :term:`diamond-difference <diamond difference>` and finite-difference schemes.
+
+This is legitimate formal verification of the **convergence rate** — it
+tests that the implementation converges at the theoretically expected order,
+even though the reference value is self-generated.
+
+**Examples**: SN heterogeneous slab, MOC heterogeneous pin cell, diffusion
+fuel+reflector.

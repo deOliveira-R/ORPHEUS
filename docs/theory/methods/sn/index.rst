@@ -733,7 +733,7 @@ The 1-D slab sweep — the cumprod recurrence and the generic affine
 outflow reconstruction — is derived in :doc:`slab_one_group`; the 2-D
 Cartesian wavefront, its octant dependency graph, and the
 multi-dimensional LD (UBLD) system in :doc:`cartesian_multid`; the 2-D
-LD stress MMS in :doc:`verification`; the curvilinear machinery — the
+LD stress MMS in :doc:`/theory/verification/sn`; the curvilinear machinery — the
 sequential ordinate sweep, the pole angular closure (#168 Phase B),
 the sweep-frame apply matvec (Phase C), and the direct :math:`\psi_{1/2}`
 starting-direction solve (#282 route (a)) — in
@@ -946,7 +946,7 @@ Where to look first — symptom → chapter
      - :ref:`sn-direct-seed-gotchas`
    * - MMS recovers a lower order than theory
      - the ansatz nulls the term (Mode 7) or the regime is degenerate
-     - :doc:`verification`
+     - :doc:`/theory/verification/sn`
    * - the adjoint reciprocity gate reds
      - the three-transposes landmine (Euclidean / Hilbert / walk)
      - :ref:`sn-adjoint`
@@ -1093,7 +1093,7 @@ sequence):
   conventions) → :doc:`angular_quadrature` (weight normalization) →
   the scattering-matrix convention
   (:ref:`scattering-matrix-convention`) and :ref:`pn-scattering` →
-  :doc:`verification` for the gate the new equation ships with.
+  :doc:`/theory/verification/sn` for the gate the new equation ships with.
 * **Debugging a wrong answer** — start at the symptom table
   (:ref:`sn-symptom-table`), then the gotcha catalog below it.
 
@@ -1114,5 +1114,4 @@ The chapters:
    boundary_conditions
    solver
    adjoint
-   verification
    history
