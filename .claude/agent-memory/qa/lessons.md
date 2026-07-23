@@ -2120,3 +2120,50 @@ directive (mutation-verify the EXACT bug reds THIS test) -- no new anti-pattern;
 audit-triage application. Marker-only edits: confirm green under canonical `-O` AND that the
 `git status` dirt in do-not-touch files is PRE-EXISTING (grep your own ERR numbers out of their
 diffs) -- a shared working tree makes every dirty file look like yours.
+
+---
+
+## L-055 -- adjudicating campaign-narration staleness (#304 class): FIX bar = "provably lies about CURRENT code", verified against grep+`gh` BEFORE ruling; two over-fix guards
+
+A doc-hygiene pass over campaign narration (`Phase X` / `Wave Y` / `(#N step` tags in test
+comments/docstrings) is a Cardinal-Rule-3 correctness task, NOT a numerical review -- so it does
+NOT touch the vv-principles anti-patterns (those are about verification EVIDENCE). The
+three-way rule: KEEP-current (open issue's genuinely pending work), KEEP-provenance (truthful
+backward attribution / retirement records / plan-pointers -- keep even if the plan file is
+gone), FIX-stale (narration that LIES about the present). Conservative default = KEEP.
+
+**The FIX bar is "provably lies about CURRENT code" -- and "provably" means VERIFIED, not
+inferred from the tag.** Before ruling a forward-looking deferral ("future X", "blocked on
+Phase C", "Phase 2 will land", "once #N lands") stale, verify the *future* against reality:
+(1) `grep` the named symbol/closure/wiring/workaround tree-wide -- the strongest FIX signal is a
+"future" thing the code now SHIPS + WIRES (a callsite proves it, e.g. `_build_white_hebert_op`
+calls `compute_P_ss_cylinder` at a specific line) OR a "pending" workaround that is now 0-hits
+(`cast(LinearOperator` gone tree-wide); (2) `gh issue view N --json state` -- an OPEN issue whose
+*named sub-phase derivation* landed while a DIFFERENT residue stays open (#112: "Phase A/C
+derivation landed, 3-D-normalization/rank-N residue open") means the tag's specific claim can be
+stale even though the issue is open. Landed => rewrite to present-tense truth (name the shipped
+fn + the still-open residue). Ambiguous / partial-landing (a phase that shipped INFRASTRUCTURE
+but the usable capability still raises `NotImplementedError` pending an open follow-on; a bare
+campaign phase with no issue number and no confirmable landing) => KEEP + report as orphan-TODO,
+do NOT guess.
+
+**Two guards against over-fixing** (both bit me as tempting-but-wrong FIX targets):
+1. **A stale line inside a RUNTIME STRING is behavioral -> KEEP even when its text is stale.** A
+   `description="... Wave 8 will switch ..."` dataclass field, an f-string diagnostic, an assert
+   message -- these are data the code may write to a snapshot / test-ID / error, so editing them
+   is a behavioral change. The "never touch runtime strings" constraint PROTECTS you here: the
+   one genuinely-stale line in tests/geometry (`_generate_bc_equivalence_snapshots.py:159`) was a
+   `description=` field -> untouchable despite the module docstring itself confirming Wave 8
+   landed.
+2. **A load-bearing-gate "failure here HALTs Phase X" banner is a characterization RECORD, not a
+   pending-work lie -> KEEP after Phase X lands.** It states the test's structural importance
+   ("this is THE exactness gate; its failure invalidates the whole closure"), which is durable;
+   the `Phase X` is provenance, usually paired with a plan-pointer. Rewriting it churns truthful
+   history into design vocabulary (the task explicitly forbids that).
+
+Mechanics: comment/docstring-only, ZERO behavioral change; verify `pytest --collect-only` clean
+after; a shared working tree means `git diff --stat` shows OTHER agents' production-file edits --
+diff ONLY your own touched files to confirm your edits are comment-only (cross-ref L-054's
+shared-tree note). (#304 surface-2, 2026-07-22: 277 hits in scope, 3 files FIXed -- a
+future-closure-now-shipped, a workaround-now-0-hits, a Phase-2-constructors-now-shipped; the rest
+KEEP.)

@@ -2507,6 +2507,95 @@ toctree subsection. Full inline-output identity comes free from keylabel.
 
 ---
 
+## L-032 — P10 `:label:` re-namespacing (a label follows its heading's ruling): the SELF-DESCRIPTION oracle, the section-vs-eq-label scope split, and the delimiter-anchored replace that survives a prefix-overlapping sibling
+
+Deferred from a Phase-F HEADING retitle campaign: labels carry tree-wide
+`:ref:` blast radius, so the anchor rename is its own pass. The rule: a
+label follows its heading's design/record ruling (design-named heading →
+RENAME the label to the heading's vocabulary, keep the page prefix;
+record/charter heading → KEEP). The disciplines that pass taught:
+
+- **The section's OWN self-description is the strongest oracle** — stronger
+  than the label name, and it resolves the brief's genuine hedge. A `sn-282-*`
+  family "may be a #282 record" per the label, but the section literally said
+  "this section is the **resolution chapter** … those [other] sections are
+  preserved as **the record**" — a page drawing the design/record line WITH
+  ITSELF ON THE DESIGN SIDE. Combined with (a) the Phase-F map retitling its
+  top heading to a design name + "P7's own worked example", (b) all subsection
+  headings design-named, (c) it living on the DESIGN page while the record
+  lives in the charter chapter — the verdict was RENAME, unambiguously. A
+  charter page states its own status too: `curvilinear_numerics.rst` opens
+  "This chapter is Part B's **campaign record**" → KEEP-all (incl. its
+  issue-styled `sn-issue-196-*` anchors — an issue number inside a charter
+  chapter keeps).
+- **When the labels form a design FAMILY, P10 is FULL — section anchors AND
+  equation labels drop the campaign token together; excluding eq labels is the
+  WRONG default.** My pass-1 instinct (rename anchors, EXCLUDE eq labels because
+  they carry V&V-matrix + `.. vv-status:` + `:eq:` weight, "flag the mixed
+  namespace") was OVERRULED: a `sn-r12a` section anchor beside a
+  `sn-282-r12a-predicate` eq label is a *two-spellings* state, and the standing
+  naming-consistency rule (a family follows ONE pattern; fix off-pattern members
+  in the SAME change) forbids shipping it. The correct pass unifies the whole
+  family (`sn-282-*` sections + eq labels → `sn-direct-seed-*`; `wave-t-*` →
+  `tensor-network-*`). The eq-label V&V weight is NOT a reason to defer — it is
+  a **gate**: a documented-only eq label (silent-class grep of `orpheus/`+`tests/`
+  = ZERO, so no `@pytest.mark.verifies("label")`/`catches` edge) renames
+  mechanically (the `matrix.rst` auto-regens, L-008; `.. vv-status:` directives
+  move with the label). ONLY a verifies-target eq label (a silent-class HIT)
+  would orphan a test edge (L-003 phantom-verifies) — THAT is the one to
+  flag/defer, and you don't edit `tests/` regardless (report the hit). So: run
+  the silent-class grep FIRST; empty ⟹ full unification is safe and MANDATORY;
+  hits ⟹ rename docs, report the test edge. (The lone brief-named eq residue
+  `region-areas-pincell`→`-pin-cell` was always in scope.)
+- **A section anchor can be a PREFIX of a sibling equation label**
+  (`sn-282-r12a` ⊂ `sn-282-r12a-predicate`). A bare string replace corrupts
+  the sibling. Replace ONLY fully-delimited forms — `.. _X:` · `` `X` `` ·
+  `<X>` (the `:ref:`txt <X>`` angle form) · `.. vv-status: X ` (trailing
+  space) — where the char after `X` (`:` `` ` `` `>` space) can't match a
+  longer label. Do the rename with a script that reports a per-file, per-form
+  count and ASSERT it against the pre-computed inbound tally; then a
+  corruption grep (the sibling still present, `sn-r12a-predicate` = ZERO)
+  proves the delimiters held.
+- **Collision + genericness force per-label disambiguation off the clean
+  token drop.** Dropping the campaign token gives `sn-282-gotchas`→`sn-gotchas`
+  — but `sn-gotchas` already anchored the index page, and bare
+  `sn-numerical-evidence` is one of three sibling `*-numerical-evidence`
+  families. Disambiguate with a design family prefix tied to CODE vocabulary
+  (`sn-direct-seed-*`, from the test file `test_282_direct_seed_*`), grep-check
+  every proposed new name for 0 collisions BEFORE the script runs. And once a
+  disambiguator prefix exists for TWO members, the naming-consistency rule
+  pulls the WHOLE family onto it (a 7-bare/2-prefixed split is off-pattern) —
+  the clean endpoint is `sn-direct-seed-*` for all 9 sections + all 5 eq labels,
+  not a per-label heading-mirror (see the FULL-P10 bullet above).
+- **The deterministic gate is the grep, not the build** (L-002): a cross-doc
+  `:ref:` to a renamed-away anchor renders plain-text with NO `-W` warning.
+  Proof-by-construction = {no OLD delimited form survives anywhere} ∧ {every
+  NEW anchor exists exactly once}; confirm with a rendered-HTML `href=` audit
+  on one cross-doc ref (`api/*.html` → `foo.html#new-anchor`). The clean `-W`
+  build only catches intra-doc dangling. A code-string ref in `orpheus/`
+  (`f"…§peierls-phase5-retreat"`) is silent-class — REPORT file:line + new
+  label for the main agent (you don't edit `orpheus/`/`tests/`).
+- **Prose two-spelling harmonization rides the same pass** (Surface 3): after
+  renaming an anchor, event-name prose ("the Phase 5 retreat" → design name
+  "the continuous-µ retreat") harmonizes design-first, KEEPING the historical
+  tag where it carries record value ("… (Phase 5's terminal decision)") and
+  leaving pure-provenance/file-path mentions ("Phase-5 Round-3 provenance",
+  `diag_phase5_*.py`) untouched — fix ONLY where two-naming reads as two
+  events. Match the canonical code-point (event-name "continuous-µ" = literal
+  µ U+00B5 per the heading; the math object is `:math:`\mu``) — source it from
+  the file, don't retype. A consistent issue-TAG beside an established design
+  name (loss_representation's "the sweep-inverse-contract discharge (#284)")
+  is NOT two-naming → WON'T-FIX with a one-line justification.
+
+How to apply: read each candidate's heading TODAY + the Phase-F batch map +
+the section's self-description; charter pages KEEP-all; design headings →
+rename anchors (not eq labels — flag the mixed namespace) via a
+delimiter-anchored counted script; grep-prove no OLD form survives + new
+anchors exist; HTML-audit one cross-doc ref; harmonize event-name prose
+design-first; report silent-class `orpheus/`/`tests/` hits.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

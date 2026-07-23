@@ -2,8 +2,8 @@
 
 ## 1. Lessons (the behavioral spine)
 
-[lessons.md](lessons.md) — 54 behavioral lessons (`## L-NNN -- title`,
-ascending, contiguous L-001..L-054). "What mistake did I make, what did I
+[lessons.md](lessons.md) — 55 behavioral lessons (`## L-NNN -- title`,
+ascending, contiguous L-001..L-055). "What mistake did I make, what did I
 learn that improved my review behaviour." Consult before every review;
 sharpen in place after every task. The recurring spine:
 
@@ -55,6 +55,11 @@ sharpen in place after every task. The recurring spine:
 - **Behavior-neutral retype** (L-041, L-045, L-048, L-050) — re-prove
   inertness for EVERY consumer with a direct value comparison; a "neutral"
   claim holds only for the ONE contract it was proven against (ERR-063).
+- **Doc-staleness adjudication** (L-055) — campaign-narration (`Phase X`/
+  `Wave Y`) FIX bar = "provably lies about CURRENT code", verified via
+  grep(symbol/wiring/workaround)+`gh issue view` BEFORE ruling; guards:
+  a stale RUNTIME STRING is behavioral→KEEP, a "HALTs Phase X" load-bearing
+  banner is a characterization record→KEEP.
 
 ## 2. Active / in-flight state
 

@@ -12,22 +12,28 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 31 lessons (L-001…L-031), read FIRST each dispatch.
+- [lessons.md](lessons.md) — 32 lessons (L-001…L-032), read FIRST each dispatch.
   The spine: a page is done when every cross-ref resolves against the LIVE tree,
   every claim's V&V level matches the skill verbatim, every retired symbol leaves
   no dangling ref, and the build's WARNING/ERROR/CRITICAL set is unchanged from
   the `-E` baseline. Per-lesson detail is in lessons.md — do NOT re-summarize here
-  (this index stays slim). Newest L-031: the #231 G2 docutils→bibtex citation
-  migration playbook — WHITELIST-scope the `[Key]_`→``:cite:`Key``` swap (built
-  from refs.bib keys + consolidation aliases) so non-keys auto-skip (`[A]_{:,j}`,
-  ``[Foo1234]_``, `[#footnote]_`) with no line-logic; the def-block remover must
-  be INDENTATION-keyed (a citation body holds an internal-blank nested `.. note::`)
-  AND whitelist-keyed (footnotes `.. [#name]` survive); 3-signal-gate every empty-
-  "References" heading removal (autosectionlabel off + no inbound `:ref:` + no
-  directional prose ⟹ remove); keylabel style ⟹ char-identical output; verify
-  `.py` diffs are docstring-only via git-diff grep; bibliography page gets its OWN
-  toctree subsection (not a solver toctree). (L-026/027/028/029/030 = the #231
-  corpus split→de-dup→metadata→surface-taxonomy→`:label:`-backfill patterns.)
+  (this index stays slim). Newest L-032: the #304 P10 `:label:` re-namespacing
+  playbook — a campaign-named label follows its heading's Phase-F ruling
+  (design-named heading ⟹ RENAME the anchor to the heading's vocabulary, keep the
+  page prefix; charter/record heading ⟹ KEEP); the section's SELF-DESCRIPTION
+  ("this is the resolution chapter … those are the record") is the strongest
+  oracle; a family-forming P10 is FULL — SECTION anchors AND EQUATION labels drop
+  the campaign token together onto ONE design prefix (excluding eq labels ships a
+  two-spellings state the naming-consistency rule forbids); the silent-class grep
+  is the GATE, not a reason to defer (empty ⟹ eq-label rename is mechanical; a
+  `verifies`/`catches` HIT ⟹ flag the orphaned test edge, don't edit tests/);
+  use a delimiter-anchored COUNTED replace (`.. _X:`·`:label: X`·`` `X` ``·`<X>`·
+  `vv-status: X `, longest-old-first) so a prefix-overlapping sibling survives
+  (`…-r12a` ⊂ `…-r12a-predicate`); grep is the gate — a cross-doc dangling
+  `:ref:` is `-W`-silent (confirm via a rendered-HTML `href=` audit); event-name
+  prose harmonizes design-first (match the µ code-point).
+  (L-026…L-031 = the #231 corpus split→de-dup→metadata→surface-taxonomy→
+  `:label:`-backfill→bibtex-migration patterns.)
 
 ## 2. Active / doc-debt state — git-true
 

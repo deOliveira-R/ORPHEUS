@@ -937,10 +937,14 @@ above; with it EVERY catalog row is terminal except ch15's
 #276-blocked authoring half; the OCR-tool INTERLUDE ✅ DONE 2026-07-22
 — `tools/ocr_literature.py`, 58/58 sidecars in `scratch/literature_ocr/`,
 Sanchez validation held, task #18 closed; plan =
-`.claude/plans/literature_ocr_tool.md`): **⏭ #304**
-(the Phase-F residue: P10 labels · code comments · prose
-two-spellings) · ch15 authoring half (#276 A4/A5-blocked) · #231
-Phase 2 (code-prose rebalancing) · task #10 (three-layer V&V part).
+`.claude/plans/literature_ocr_tool.md`; **#304 ✅ DONE 2026-07-22** —
+code sweep @ `94a31a38` (3 parallel qa over ~1,300 hits, ~30 lies
+fixed / 18 files; estate → #305/#306 + the #276 LD-adjoint comment) +
+P10 labels @ `77a5cb16` (39 renames; the `sn-direct-seed-*` +
+`tensor-network-*` family unifications; SC-4 `pin-cell` renamed,
+SC-3 wontfix; `-E -W` clean; closes at push)): **⏭ ch15 authoring
+half (#276 A4/A5-blocked) · #231 Phase 2 (code-prose rebalancing,
+task #11) · task #10 (three-layer V&V part).**
 (#298/#299 fixes in-branch @ `639cec9e`/`4425516c`, DONE @ `68c39c28`;
 the issues auto-close at push.)
 
