@@ -563,10 +563,10 @@ def _typeguard_bridge_narrowing_static_pins(
 # only surfaces the algebra PROMISES today — the bare-generic leaves
 # (Diagonal/Permutation/TensorProduct) and the wrap-family's
 # ``apply`` stay unparametrized until the leaf-parametrization
-# campaign, and ``A.H.inverse()`` has NO pin because
-# ``_AdjointOperator`` deliberately has no ``inverse()`` yet (the
-# swap law ``(A.H)⁻¹ = (A⁻¹).H`` is #280's deliverable — extend this
-# bank with its pin when #280 lands).
+# campaign, and ``A.H.inverse()`` has NO pin in this bank yet —
+# ``_AdjointOperator.inverse()`` now implements the swap law
+# ``(A.H)⁻¹ = (A⁻¹).H`` (#280 2.5c, landed); adding its return-type
+# pin is tracked in issue #306.
 # ───────────────────────────────────────────────────────────────────────
 
 

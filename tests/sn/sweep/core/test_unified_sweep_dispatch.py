@@ -692,8 +692,8 @@ class TestDefaultDiscretizationScheme:
 
     The default is what guarantees bit-identity with the pre-Wave-D
     sweep — DD's per-cell math is a bit-identical extraction of the
-    inlined sweep's algebra.  Wave C-extension will let users pass
-    LD / EC / Step strategies via the constructor argument.
+    inlined sweep's algebra.  The ``scheme=`` constructor argument
+    lets users pass non-DD strategies (LD today; EC / Step are #158).
     """
 
     @pytest.mark.foundation

@@ -28,7 +28,7 @@ incoming or outgoing at a face is a *predicate* — :math:`\mathrm{sign}
 property of the space's identity. So :class:`AngularTraceSpace` stores the
 *signed* projection :math:`\Omega \cdot \hat n_f` once, per face, and
 exposes :meth:`inflow_indices_for_face` / :meth:`outflow_indices_for_face`
-as selectors over it. (#208 will promote these to projection
+as selectors over it. (These remain index *selectors*, not projection
 *operators*; the :math:`|\Omega\cdot\hat n|`-weighted boundary inner
 product they live in is now installed — see below.)
 

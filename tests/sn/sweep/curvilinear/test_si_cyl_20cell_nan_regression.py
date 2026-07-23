@@ -35,13 +35,14 @@ WHY THIS WAS INVISIBLE TO EXISTING TESTS.
 
 CATCHES: future ERR-NNN ``si-cyl-pole-cell-resonance``.
 
-FIX SITE: ``orpheus/sn/sweep/scan.py:138``.  The Blelloch closed
-form must be replaced by a numerically-stable alternative.  Choices:
+FIX SITE: ``orpheus/sn/sweep/scan.py``.  The Blelloch closed form
+was replaced by a numerically-stable alternative — option (a) landed:
 (a) the pair-monoid prefix scan ``(α, β) ⊕ (α', β') = (α·α', α'·β + β')``
-which has no division; (b) per-segment fall-back to the explicit
-recurrence at cells where ``|a| < ε``; (c) a Brent blocked scan
-with bounded condition number per block.  All three preserve the
-joint vectorisation across (K, ng); none divide by cumprod_a.
+which has no division (dispatched when the closed form is non-finite);
+(rejected: (b) per-segment fall-back to the explicit recurrence at
+cells where ``|a| < ε``; (c) a Brent blocked scan with bounded
+condition number per block).  All three preserve the joint
+vectorisation across (K, ng); none divide by cumprod_a.
 
 The architectural fix point is the C5 retirement of the
 ``angular_flux.py`` legacy buffer; consider landing the scan fix
@@ -159,10 +160,10 @@ def test_ordinate_scan_at_a_zero_returns_finite_via_loop():
     mathematically-equivalent explicit recurrence does; the current
     Blelloch closed form does NOT.
 
-    This is the "structural" test of the fix.  When the fix lands
-    (any numerically-stable Blelloch variant), this assertion
-    passes; the SI-cylinder-20cell test above then also passes by
-    structural consequence.
+    This is the "structural" test of the fix.  The fix (the
+    division-free pair-monoid backend, dispatched when the closed
+    form is non-finite) makes this assertion pass; the
+    SI-cylinder-20cell test above passes by structural consequence.
     """
     from orpheus.sn.sweep.scan import ordinate_scan
     # Chain with an exact zero at the tail (mirrors the failing

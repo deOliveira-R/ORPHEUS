@@ -160,8 +160,8 @@ def test_faces_compose_through_operator_product_with_real_spaces(sh_frame):
 
     Both faces carry real ``domain``/``codomain``, so the composition's space-
     compatibility check is live (not skipped on ``None``) and passes — which is what
-    lets Phase C drop the ``cast(LinearOperator, …)`` workarounds in the scattering
-    kernel.
+    let Phase C drop the ``cast(LinearOperator, …)`` workarounds in the scattering
+    kernel (now retired).
     """
     frame, _ = sh_frame
     rng = np.random.default_rng(15)

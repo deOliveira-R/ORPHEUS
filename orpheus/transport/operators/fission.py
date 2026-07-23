@@ -420,8 +420,9 @@ class FissionOperator(LinearOperator):
           bulk + boundary variant.  The bulk is the iso fission source
           projected to per-ordinate magnitude; the boundary is the
           implicit-zero :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
-          (Option β3 — fission has no boundary action; Wave O #208 will
-          encode the bulk-only nature in the type).  #257 S8a made the
+          (Option β3 — fission has no boundary action; the bulk-only
+          nature is encoded in the type as ``block_role =
+          BlockRole.BULK``, Wave O #208).  #257 S8a made the
           codomain the timeless :class:`FullField` (the matvec leaf is a
           base arrow; the iteration driver reattaches the timed type).
         * :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
@@ -468,16 +469,16 @@ class FissionOperator(LinearOperator):
         :math:`\chi(\vec r)` lives only on cell-centred volumes).
 
         Per Option β3 (`#208
-        <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_) the
-        implicit-zero boundary is a transitional shim: Wave O will
-        introduce :class:`BulkOperator` /
-        :class:`FullOperator` Protocols so that fission's bulk-only
-        nature is encoded in the *type*, not in a zero-valued boundary
-        member.  Until then the composite return enables
-        :math:`L.\mathrm{apply}(\psi) - S.\mathrm{apply}(\psi) -
-        F.\mathrm{apply}(\psi)` to compose under
-        :meth:`TimedFullField.__sub__` once all four operators expose
-        the composite branch (D-H.1c).
+        <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_)
+        fission's bulk-only nature is encoded in the *type*: the
+        operator carries ``block_role = BlockRole.BULK`` and satisfies
+        the :class:`~orpheus.numerics.operator.BulkOperator` marker
+        (shipped in Wave O step O.1).  The composite return still
+        carries an implicit-zero boundary member — consistent with that
+        bulk-only role — so that :math:`L.\mathrm{apply}(\psi) -
+        S.\mathrm{apply}(\psi) - F.\mathrm{apply}(\psi)` composes under
+        :meth:`TimedFullField.__sub__` (all four operators expose the
+        composite branch — D-H.1c).
         """
         # Parse the arm's real contract per family (#289 discipline). The
         # ANGULAR arm consumes the PER-ORDINATE bulk (it needs

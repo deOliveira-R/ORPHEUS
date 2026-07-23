@@ -484,7 +484,7 @@ def test_R_transpose_carries_d_ell_and_RH_carries_d_ell_squared(lebedev_L_pair):
 
 
 # ─────────────────────────────────────────────────────────────────────
-# B.3 — forward-compatibility test that paves the way for Phase 2
+# B.3 — equality-by-(name, shape) that keeps SH space composition robust
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -495,11 +495,10 @@ def test_spherical_harmonic_space_equality_by_name_shape():
     Two ``SphericalHarmonicSpace.from_L(L)`` instances with the same
     :math:`L` produce equal :class:`SphericalHarmonicSpace` objects
     even when their ``inner_product_weights`` arrays are distinct
-    ``ndarray`` allocations. This convention paves the way for Phase 2's
-    :class:`DualSpace` /
-    :class:`TensorProductSpace` /
-    :class:`DirectSumSpace` constructors to compose
-    :class:`SphericalHarmonicSpace` instances without spurious
+    ``ndarray`` allocations. This convention lets the shipped
+    :class:`DualSpace` / :class:`TensorProductSpace` constructors
+    compose :class:`SphericalHarmonicSpace` instances (e.g.
+    ``SphericalHarmonicSpace.from_L(L) * CellGroup``) without spurious
     inequalities from FP-level metric differences.
     """
     a = SphericalHarmonicSpace.from_L(3)
@@ -513,8 +512,7 @@ def test_spherical_harmonic_space_equality_by_name_shape():
 
     # Cross-class equality with a bare FunctionSpace carrying the same
     # (name, shape) — supports the "equal-shape spaces compare equal"
-    # invariant under DualSpace / TensorProductSpace introduction in
-    # Phase 2.
+    # invariant under DualSpace / TensorProductSpace composition.
     from orpheus.numerics.space import FunctionSpace
     bare = FunctionSpace(name="spherical_harmonic_space", shape=(4, 7))
     assert a == bare

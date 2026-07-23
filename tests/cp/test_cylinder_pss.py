@@ -3,7 +3,7 @@ probability for cylinder white BC.
 
 Promoted from ``scratch/derivations/diagnostics/diag_cylinder_hebert_pss.py``
 on 2026-04-25 (Issue #132 cylinder follow-up). The primitive itself
-is shipped in ``orpheus/scratch/derivations/peierls_geometry.py``; this file
+is shipped in ``orpheus/derivations/continuous/peierls_nystrom/geometry.py``; this file
 pins its derivation against:
 
 - closed-form Bickley-Naylor identities at limiting τ values
@@ -11,12 +11,13 @@ pins its derivation against:
 - multi-region routing invariance (homog-MR equals 1R)
 - multi-region order-dependence (chord geometry is asymmetric)
 
-The primitive is the building block for a future cylinder
-``boundary="white_hebert"`` closure, which is currently blocked on
-Issue #112 Phase C (Knyazev :math:`\\mathrm{Ki}_{2+k}` 3-D angular
-normalisation correction in ``compute_G_bc`` for cylinder). Once
-#112 Phase C lands, this test suite confirms the P_ss^cyl building
-block is ready for production wiring.
+The primitive is the building block for the cylinder
+``boundary="white_hebert"`` closure, now wired through
+``_build_white_hebert_op`` (which consumes ``compute_P_ss_cylinder``
+alongside the Knyazev :math:`\\mathrm{Ki}_{2+k}` 3-D angular
+normalisation correction ``compute_G_bc_cylinder_3d``, landed under
+Issue #112 Phase C). #112 itself stays open for the rank-N
+(mode ``n >= 1``) magnitude audit.
 
 Foundation marker: tests assert mathematical invariants of the P_ss
 derivation, not equation labels — :ref:`peierls-cyl-Pss-homogeneous`

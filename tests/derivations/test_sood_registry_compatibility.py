@@ -4,16 +4,17 @@ These tests are the **bridge gate** between the method-agnostic
 :mod:`orpheus.derivations.continuous.sood_registry` package and:
 
 * Semi-analytical reference solvers (F_N, transfer-matrix k_inf) —
-  consume Mixture → numpy arrays via
-  :func:`extractors.mixture_to_fn_arrays`.
+  consume Mixture → numpy arrays via the inline ``_xs_from_mixture``
+  helper below (Phase D retired the shared
+  ``extractors.mixture_to_fn_arrays``).
 * Production discrete solvers (CP, SN, MOC) — consume
   ``materials: dict[int, Mixture]`` + ``mesh: Mesh1D`` directly.
 
 The gates are intentionally minimal — they verify that the case
 objects are *consumable* by both flavors of solver, NOT that the
 answers are correct (the existing ``test_fn_la13511_*`` files cover
-correctness; production-solver cross-checks at full Sood precision
-land in Phase B).
+correctness; the production-solver cross-checks at full Sood
+precision remain unbuilt — tracked in issue #305).
 
 Test classification:
 
@@ -265,7 +266,7 @@ def test_kinf_homogeneous_consumes_registry_case_directly(
 # NOT check answer correctness — production solvers were not
 # originally tuned for the bare-critical Sood configurations and may
 # need refinement / feature additions before they reach Sood
-# precision. Phase B will land the full cross-checks.
+# precision. The full cross-checks are tracked in issue #305.
 
 
 @pytest.mark.l1
@@ -276,7 +277,7 @@ def test_solve_cp_accepts_registry_sphere_case() -> None:
 
     Asserts only that the call returns a result object with a finite
     ``keff`` field — this is a structural-bridge gate, NOT a
-    correctness gate. Phase B will add the full cross-check.
+    correctness gate. The full cross-check is tracked in issue #305.
     """
     import math
 

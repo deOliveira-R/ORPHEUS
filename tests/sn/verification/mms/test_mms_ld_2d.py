@@ -484,7 +484,7 @@ def test_ld_2d_stress_two_paths_ffw_equals_mfw():
 # ═══════════════════════════════════════════════════════════════════════
 # #247 — slope-SOURCE half of the LM-1989 trap (the Mode-10 closeout).
 #
-# STUBS: marked xfail-strict / skip until the production widening lands
+# LIVE gates — were xfail-strict / skip until the production widening LANDED
 # (solve_sn_fixed_source accepts a moment-resolved bulk; the lift passes
 # the slope rows; a moment-resolved boundary trace).  See
 # `.claude/agent-memory/test-architect/issue_247_moment_source_gate_spec.md`
@@ -627,9 +627,9 @@ def test_projection_slot0_is_cell_average_not_centre():
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Shared #247 plumbing — the manufactured moment source + a faithful SI loop
-# driving rep.sweep with a MOMENT-resolved source (bypasses the not-yet-
-# widened solver entry).  Replaced by the public solve once production lands.
+# Shared #247 plumbing — the manufactured moment source + the driver that runs
+# it through the WIDENED public solve (``_solve_moment_resolved``; the #247
+# production path has landed).
 # ───────────────────────────────────────────────────────────────────────
 
 
@@ -1319,7 +1319,7 @@ def _edge_cell_mask(mesh):
 # ───────────────────────────────────────────────────────────────────────
 # DELIVERABLE 1 (PRIMARY) — the STRUCTURAL teeth: the widened boundary trace
 # threads the projected transverse slope into slot-1 at machine precision.
-# xfail-strict until the moment-resolved boundary trace lands (#251).
+# (was xfail-strict until the moment-resolved boundary trace landed, #251).
 # ───────────────────────────────────────────────────────────────────────
 
 
@@ -1449,7 +1449,7 @@ def test_ld_2d_boundary_scalar_inflow_no_op_negative_control():
 # DELIVERABLE 2 — the consumption-proof mutation control (anti-pattern #11).
 # Flipping the CONSUMED transverse-face-slope sign moves the converged
 # near-boundary flux ≫ _CONSUMPTION_TOL; the scalar-inflow gate stays blind.
-# xfail-strict until the moment-resolved boundary trace lands (#251).
+# (was xfail-strict until the moment-resolved boundary trace landed, #251).
 # ───────────────────────────────────────────────────────────────────────
 
 
@@ -1514,7 +1514,7 @@ def test_ld_2d_boundary_slope_sign_mutation_reddens():
 # The boundary moment width is 2^{d-1} (= 2 for d=2 LD); the widened trace
 # must reject a moment-resolved inflow with a different trailing width, and
 # DD/Step must reject any moment-resolved inflow.
-# xfail-strict until the moment-resolved boundary trace lands (#251).
+# (was xfail-strict until the moment-resolved boundary trace landed, #251).
 # ───────────────────────────────────────────────────────────────────────
 
 

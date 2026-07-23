@@ -310,8 +310,9 @@ class TestCompositeInvariants:
         out = solver_2g.fission_op.apply(state)
 
         # Implicit-zero boundary: every flat-buffer entry is exactly 0.
-        # Option β3 / Wave O Issue #208 — the bulk-only nature will be
-        # encoded in the type system once :class:`BulkOperator` ships.
+        # Option β3 / Wave O Issue #208 — the bulk-only nature is encoded in the
+        # type: ``block_role = BlockRole.BULK`` (the :class:`BulkOperator` marker,
+        # shipped in Wave O O.1).
         np.testing.assert_array_equal(out.boundary.values, 0.0)
 
     def test_zero_bulk_zero_output(self, solver_2g):

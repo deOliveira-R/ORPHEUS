@@ -11,7 +11,8 @@ INFLOW ordinate slots: identity ``psi.inflow``).  The reflective coupling is
 the sibling ``−B`` (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`),
 folded into the 2-D Krylov composed matvec.  The 2-D eigenvalue path is Krylov
 (``solve_sn(..., inner_solver="krylov")``); 2-D source-iteration AND 2-D
-fixed-source Krylov are both ``NotImplementedError`` (deferred to a later phase).
+fixed-source Krylov are both LIVE (the legacy ``NotImplementedError`` 2-D guard
+was retired 2026-06-04; see ``tests/sn/solve/test_fixed_source_2d_equivalence.py``).
 
 This file is the E3 verification pass — the gates that PIN the now-complete
 extraction.  It implements Gates **V-2D, Q-2D, R-2D, R-2D-NEG** from the
@@ -23,15 +24,14 @@ Gates M-2D / D-2D / S-2D are not E3-blocking and live elsewhere.
 The pillar / claim-layer / failure-mode for each gate is stated in its
 docstring (vv-principles discipline).
 
-TYPE-AGNOSTIC by mandate
-========================
+BOUNDARY ROLE TYPING (B.5.2 — landed)
+=====================================
 
-The matvec currently emits its boundary residual typed as ``AngularBoundaryFlux``
-(the honest retype to ``AngularBoundaryResidual`` is a SEPARATE holistic carve,
-B.5.2, deferred).  These gates read the residual ONLY via
+The matvec emits its boundary block typed as ``AngularBoundarySourceSink``
+(the source/sink role — ``Aψ``, NOT a residual; a residual arises only from
+``from_balance(Aψ, b)``).  These gates read the block via
 ``.boundary.face_view(face)`` / ``.boundary.values`` and
-``trace.inflow_indices_for_face`` / ``outflow_indices_for_face`` — they do NOT
-``isinstance``-assert the boundary type, so they survive the future retype.
+``trace.inflow_indices_for_face`` / ``outflow_indices_for_face``.
 
 Baseline mechanism (Gate V-2D)
 ==============================

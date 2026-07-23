@@ -18,16 +18,15 @@ Layer rules (enforced by ``tests/test_layer_imports.py``):
 
 Today's contents:
 
-* :mod:`orpheus.transport.fields` — typed flux / source / residual
-  fields, each inheriting from :class:`~orpheus.numerics.field.Field`.
-  Currently houses :class:`ScalarFlux` (Depth B step D-D). Later
-  steps add HarmonicMomentFlux (D-E), Sources (D-F), AngularBoundaryFlux
+* :mod:`orpheus.transport.fields` — typed flux fields, each inheriting
+  from :class:`~orpheus.numerics.field.Field`: :class:`ScalarFlux`
+  (Depth B step D-D), HarmonicMomentFlux (D-E), AngularBoundaryFlux
   (D-G), AngularFlux (D-H).
+* :mod:`orpheus.transport.source_sinks` — ScalarSourceSink /
+  AngularSourceSink and the boundary / moment role leaves (D-F).
 
-Future contents (deferred to later Depth B / parent-plan steps):
+Future contents (deferred to later parent-plan steps):
 
-* :mod:`orpheus.transport.source_sinks` — ScalarSourceSink / AngularSourceSink
-  (D-F).
 * :mod:`orpheus.transport.problems` — Problem ABCs (P3.4): Criticality,
   FixedSource, AlphaEigen, InitialValue.
 

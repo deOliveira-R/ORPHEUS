@@ -1,10 +1,10 @@
 r"""P2 operator-algebra carve — new-convention catchers for ``frame.conjugate`` /
 ``frame.reconstruct_after`` and the ``LegendreMomentScattering`` real-space leaf.
 
-These SPECS are written BEFORE the production carve (main-agent-direct, branch
-``refactor/operator-inverse-algebra``, plan ``frame_projection_machinery.md`` P2).
-They are the NEW-convention half of the verification plan; the LEGACY-pinning
-half is the EXISTING suite (named in the plan, must stay byte-for-byte green).
+Born as SPECS written BEFORE the production carve (main-agent-direct, branch
+``refactor/operator-inverse-algebra``, plan ``frame_projection_machinery.md`` P2);
+the carve has since LANDED, so these are the live NEW-convention catchers. The
+LEGACY-pinning half is the EXISTING suite (named in the plan, stays byte-for-byte green).
 
 What P2 does (the SUT this file gates)
 --------------------------------------
@@ -64,18 +64,18 @@ from tests.transport._integral_kernel_helpers import require
 pytestmark = pytest.mark.foundation
 
 
-# ── -O-safe SUT probes (skip PRE-IMPL; become real assertions on land) ────────
+# ── -O-safe SUT probes (self-healing PRE-IMPL guards — live now the carve landed) ─
 
 
 def _require_conjugate(frame):
-    """``frame.conjugate`` — skip until the P2 carve lands."""
+    """``frame.conjugate`` — self-healing PRE-IMPL guard (the P2 carve has landed)."""
     if not hasattr(frame, "conjugate"):
         pytest.skip("P2 PRE-IMPL: FrameBase.conjugate not yet written.")
     return frame.conjugate
 
 
 def _require_reconstruct_after(frame):
-    """``frame.reconstruct_after`` — skip until the P2 carve lands."""
+    """``frame.reconstruct_after`` — self-healing PRE-IMPL guard (the P2 carve has landed)."""
     if not hasattr(frame, "reconstruct_after"):
         pytest.skip("P2 PRE-IMPL: FrameBase.reconstruct_after not yet written.")
     return frame.reconstruct_after

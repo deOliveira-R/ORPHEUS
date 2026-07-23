@@ -1,9 +1,9 @@
 r"""#246 — ``_reframe`` keys the moment-frame involution on INTENT, not on a
 coincidental trailing-axis length (the S4-hazard negative control).
 
-SKELETON (test-architect, PRE-IMPL for #246). The production fix is NOT written.
-These tests pin the CONTRACT the fix must satisfy and will FAIL/ERROR until the
-``is_moment_valued`` thread lands on ``_reframe`` (see the spec
+Born as a test-architect SKELETON (PRE-IMPL for #246); the production fix has
+since LANDED — ``_reframe`` now carries the ``is_moment_valued`` thread, so these
+tests pin (and pass on) the CONTRACT the fix satisfies (design spec:
 ``.claude/agent-memory/test-architect/issue_246_moment_axis_predicate_spec.md``).
 
 The hazard

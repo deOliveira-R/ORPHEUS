@@ -140,8 +140,8 @@ class AngularBoundaryResidual(AngularBoundaryField):
         guards (same-class operands, ``sr``-exact units, same space + mesh);
         the result lands on the shared ``mesh.angular_trace`` space.
 
-        The factory is minted in B.5.1 so the leaf is ready; the matvec
-        wiring that *feeds* it (the operator-output face-defect retype) is
-        deferred to B.5.2 / #208 — see the module docstring.
+        The factory is minted in B.5.1 so the leaf is ready; its honest
+        end-to-end consumer — the solver-level ``from_balance`` call — is
+        not yet wired (see the module docstring).
         """
         return cls._from_balance(lhs, rhs)

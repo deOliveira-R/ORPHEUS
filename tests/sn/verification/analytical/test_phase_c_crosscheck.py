@@ -156,9 +156,9 @@ def test_sn_spherical_homogeneous_kinf_recovery_2g():
 # All 5 snapshots have BC=reflective at r=R, which corresponds to
 # α=1.0 (closed sphere / cylinder) in the Variant α formulation.
 #
-# Comparison metric: k_eff. The flux-shape comparison (stretch goal
-# in the plan §"Comparison metric") is deferred — see Phase E follow-up
-# in Issue #196 (TBC).
+# Comparison metric: k_eff. The flux-shape comparison (once a stretch
+# goal in the plan §"Comparison metric") SHIPPED as Phase E — see
+# ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck`` below.
 #
 # Tolerances:
 #   - Homogeneous closed (snapshots 1, 4, 5): rtol ≤ 1e-9. The V_α1
