@@ -73,12 +73,10 @@ if TYPE_CHECKING:
         RadialCharacteristicBoundarySpace,
         RadialCharacteristicInteriorSpace,
     )
-    # NOTE (B.5.A): the transport-field TYPE_CHECKING imports retired with the
-    # SNMesh.zeros_* factory family. Zero-allocation now lives on the field
-    # types (``Field.zeros`` / ``<Leaf>.zeros_on`` /
-    # ``TimedFullField.zeros(interior=..., boundary=..., mesh=...)``); the mesh
-    # provides shape data only and no longer imports transport types.
-    # Remaining ``AngularBoundaryFlux`` / ``AngularFlux`` mentions below are docstring
+    # NOTE (B.5.A): the mesh provides shape data only and does NOT import
+    # transport-field types — zero-allocation lives on the field types
+    # (``Field.zeros`` / ``<Leaf>.zeros_on`` / ``TimedFullField.zeros(...)``).
+    # The ``AngularBoundaryFlux`` / ``AngularFlux`` mentions below are docstring
     # cross-references (Sphinx resolves them by full path, no import needed).
 
 
@@ -167,35 +165,26 @@ class SNMesh(MaterialMesh):
         cylinder has only ONE entry** (``"xmax"``, the outer radius —
         the pole r=0 is the angular closure's regularity condition,
         not a BC face, so it has NO entry rather than a ``None``);
-        2-D Cartesian all four faces. Issue #188 / C188.3 removed
-        the curvilinear bypass; the realizer is applied uniformly
-        for every face that exists. The pre-C4 named attributes
-        (``bc_xmin`` … ``bc_ymax``, ``bc_left`` / ``bc_right``, the
-        degenerate 1-D y-placeholders) are retired.
+        2-D Cartesian all four faces.
     """
 
     BOUNDARY_OPERATOR_REGISTRY: ClassVar[dict[str, type[BoundaryTraceLaw]]] = {
         "vacuum": VacuumInflow,
         "reflective": ReflectiveBoundary,
     }
-    # Wave 8 (C8.3): values are the LAW CLASSES themselves (not factory
-    # functions), looked up by the shared TransportMethod resolve body
-    # (#290 P7b — ``resolve_boundary_conditions`` owns the face loop
-    # and the tag → law parse; ``realize_boundary_law`` below dispatches
-    # :class:`SNBoundaryRealizer`). The pre-Wave-8 factory functions
-    # (``_sn_vacuum_boundary_operator`` /
-    # ``_sn_reflective_boundary_operator``) are gone. Issue #188
-    # / C188.3 removed the curvilinear bypass: the realizer is now
-    # applied uniformly for 1-D Cartesian, 1-D spherical, 1-D
-    # cylindrical, and 2-D Cartesian meshes.
+    # Values are the LAW CLASSES themselves (not factory functions), looked up
+    # by the shared TransportMethod resolve body (#290 P7b —
+    # ``resolve_boundary_conditions`` owns the face loop and the tag → law
+    # parse; ``realize_boundary_law`` below dispatches
+    # :class:`SNBoundaryRealizer`), applied uniformly for 1-D Cartesian, 1-D
+    # spherical, 1-D cylindrical, and 2-D Cartesian meshes.
     #
-    # The 5 other kinds the realizer handles today (``white``,
-    # ``periodic``, ``albedo``, ``prescribed_inflow``, ``mixed``) are
-    # NOT registered here — adding them requires SN-sweep-side wiring
-    # (sweep cycles for periodic, etc.) that is out of scope for
-    # Wave 8. Future expansion is mechanical: add the law class as a
-    # value here, ensure the realizer dispatch handles it (it does),
-    # and add an SN-side test that the sweep behaves correctly.
+    # The 5 other kinds the realizer handles today (``white``, ``periodic``,
+    # ``albedo``, ``prescribed_inflow``, ``mixed``) are NOT registered here —
+    # adding them requires SN-sweep-side wiring (sweep cycles for periodic,
+    # etc.).  Future expansion is mechanical: add the law class as a value
+    # here, ensure the realizer dispatch handles it (it does), and add an
+    # SN-side test that the sweep behaves correctly.
 
     def __init__(
         self,
@@ -205,16 +194,14 @@ class SNMesh(MaterialMesh):
         scheme: DiscretizationSchemeBase | None = None,
         pole_angular_closure: "type[PoleAngularClosureBase] | None" = None,
     ) -> None:
-        # The legacy inbound surface (C5.1 axis-primary inversion,
-        # #225): convert the Mesh1D / Mesh2D declaration to the
-        # canonical axis tuple ONCE at the boundary, extract the one
-        # payload the axes cannot carry (the material assignment —
-        # named ``mat_ids`` on Mesh1D, ``mat_map`` on Mesh2D), and run
-        # the same construction body as :meth:`from_axes`. Everything
-        # downstream derives from ``self.axes``; ``self.mesh`` survives
-        # as inbound provenance for the consumers still reading through
-        # it (1-D reduced streaming construction, trace build, realizer
-        # metadata, MMS helpers) — each on the C5 retirement path.
+        # The legacy inbound surface: convert the Mesh1D / Mesh2D declaration
+        # to the canonical axis tuple ONCE at the boundary, extract the one
+        # payload the axes cannot carry (the material assignment — named
+        # ``mat_ids`` on Mesh1D, ``mat_map`` on Mesh2D), and run the same
+        # construction body as :meth:`from_axes`. Everything downstream derives
+        # from ``self.axes``; ``self.mesh`` survives as inbound provenance for
+        # the consumers still reading through it (1-D reduced streaming
+        # construction, trace build, realizer metadata, MMS helpers).
         self._init_core(
             axes=axes_from_legacy_mesh(mesh),
             mesh=mesh,
@@ -239,17 +226,13 @@ class SNMesh(MaterialMesh):
         # The ONE construction body both surfaces funnel into (C5.1).
         #
         # ── Method-agnostic DATA block → MaterialMesh base ──
-        # The axes / materials / mat_map / volumes / coord /
-        # ng-consistency block formerly inlined here now lives in
-        # :meth:`MaterialMesh._init_data` (the data/behavior split). The
-        # call is bit-identical to the lines it replaced — it sets
-        # ``self.mesh`` / ``self.materials`` / ``self.axes`` /
-        # ``self.axis_widths`` / ``self.mat_map`` / ``self._volumes`` /
-        # ``self._areas`` / ``self.nx`` / ``self.coord`` and runs the
-        # materials-consistency validation. ``materials`` is REQUIRED:
-        # SNMesh IS the SN phase space (mesh × quadrature × material
-        # group structure); without materials ``.ng`` is undefined
-        # (coding-elegance Pattern 4 — illegal states unrepresentable).
+        # :meth:`MaterialMesh._init_data` sets ``self.mesh`` / ``self.materials``
+        # / ``self.axes`` / ``self.axis_widths`` / ``self.mat_map`` /
+        # ``self._volumes`` / ``self._areas`` / ``self.nx`` / ``self.coord`` and
+        # runs the materials-consistency validation.  ``materials`` is REQUIRED:
+        # SNMesh IS the SN phase space (mesh × quadrature × material group
+        # structure); without materials ``.ng`` is undefined (Pattern 4 —
+        # illegal states unrepresentable).
         MaterialMesh._init_data(
             self,
             axes=axes,
@@ -260,74 +243,30 @@ class SNMesh(MaterialMesh):
 
         # ── SN method layer (BEHAVIOR atop the MaterialMesh data) ──
         self.quad = quadrature
-        # Cell-update strategy (Wave D Round 2 Issue #161). Defaults to
-        # :class:`DiamondDifference`, which reproduces the existing
-        # inlined sweep math bit-identically — every regression snapshot
-        # at ``tests/sn/regression/snapshots/`` was generated with DD
-        # and continues to match bit-for-bit when the unified sweep
-        # dispatches via ``self.scheme.update(...)``.  Wave C-extension
-        # will ship LD / EC / Step strategies; users will then pass
-        # ``scheme=LinearDiscontinuous()`` etc. at construction time.
+        # Cell-update strategy. Defaults to :class:`DiamondDifference`, which
+        # reproduces the inlined sweep math bit-identically (every regression
+        # snapshot at ``tests/sn/regression/snapshots/`` was generated with DD
+        # and matches bit-for-bit through ``self.scheme.update(...)``).  Pass
+        # ``scheme=LinearDiscontinuous()`` etc. to select another.
         self.scheme: DiscretizationSchemeBase = (
             scheme if scheme is not None else DiamondDifference()
         )
-        # Issue #168 Phase C retired the Phase A ``BoundaryFaceFlux``
-        # Protocol entirely. The sweep-frame apply matvec now uses WDD
-        # propagation cell-by-cell with the BC trace law applied at
-        # the boundary edge; the Phase A ``DDExtrapolation`` strategy
-        # is subsumed by this rewrite. The
-        # ``boundary_face_flux`` field is gone from the constructor.
-        # Angular-redistribution closure (Issue #168 Phase B + D).
+        # Angular-redistribution closure.  The default is
+        # :class:`MorelMontryAngularSweep` for curvilinear (the canonical
+        # Hébert §3.9.4 per-cell M-M weighted-DD angular recurrence with the
+        # Carlson coupled-pole seed) and :class:`IdentityAngularClosure` for
+        # Cartesian (flat geometry has no §3.9.4 term).  Derivation + the
+        # ERR-026 closure: curvilinear_numerics.rst
+        # §sn-phase-d-carlson-coupled-pole-sweep.
         #
-        # Phase D (Issue #168 ERR-026 closure, 2026-05-12) DEFAULT FLIP:
-        # the default angular closure is now
-        # :class:`MorelMontryAngularSweep` — the canonical Hébert §3.9.4
-        # per-cell M-M weighted DD angular recurrence with the Carlson
-        # coupled-pole seed (Eqs. 3.432-3.435).  Since #282 route (a)
-        # (#280 Phase 2.5d) the seed is first-class composite STATE,
-        # marched directly from the true q½ source by
-        # :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
-        # (the retired ``CarlsonInwardSweep`` proxy-source strategy).
-        # The seed closes the M-M recurrence's pole-face
-        # initialisation gap, making the per-ordinate flat-flux
-        # residual identically zero on sphere Gate 1.1 MMS (per
-        # ``tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual``).
-        # The default flip pairs the canonical pole-angular closure
-        # with its canonical spatial-closure partner.
-        #
-        # PR-TYPED-6.5 + Step 7 ship two angular-closure strategies:
-        #
-        # * :class:`MorelMontryAngularSweep` (default for curvilinear)
-        #   — canonical Hébert §3.9.4 form with Carlson coupled-pole
-        #   seed.  Closes ERR-026 on sphere; preserves cylindrical
-        #   Gate 1.1 regression-stability.
-        # * :class:`IdentityAngularClosure` (default for Cartesian) —
-        #   no angular redistribution (flat geometry has no Hébert
-        #   §3.9.4 term); ships neutral zeros for the per-cell
-        #   contribution interface.
-        #
-        # Used by :meth:`StreamingOperator.apply` (the Resolution A
-        # leaf) through the loss-representation walk; composed as
-        # ``L + C`` via :class:`InvertibleOperator` for the within-group
-        # sweep + Krylov path.  (The former ``transport_operator_matvec_*``
-        # matvec family — including the unified successor — was deleted
-        # at the walk unification; #197 / #280 campaigns.)
-        #
-        # PR-TYPED-6.5 Phase 2.9: instantiation is deferred until AFTER
-        # the coord dispatch block populates ``self.reduced`` /
-        # ``self._volumes`` / ``self.axis_widths`` (the data the
-        # strategies bind to).  Cartesian gets
-        # :class:`IdentityAngularClosure`; sphere
-        # and cylinder get :class:`MorelMontryAngularSweep`.  See the
-        # ``self.pole_angular_closure = …`` line after the BC
-        # resolution below.
-        #
-        # The override is a CLASS, not an instance (C5, 2026-07-03): a
-        # closure binds to its mesh at construction (``cls(self)``), and
-        # this mesh does not exist yet when the caller assembles the
-        # constructor arguments — an instance parameter could only ever
-        # inject an unbound or foreign-bound closure (Pattern 4:
-        # that illegal state is now unspellable).
+        # Instantiation is DEFERRED until after the coord dispatch below
+        # populates ``self.reduced`` / ``self._volumes`` / ``self.axis_widths``
+        # (the data the strategies bind to) — see the ``self.pole_angular_closure
+        # = …`` line after the BC resolution.  The override is a CLASS, not an
+        # instance: a closure binds to its mesh at construction (``cls(self)``),
+        # and this mesh does not exist yet when the caller assembles the
+        # constructor arguments (Pattern 4 — an unbound / foreign-bound closure
+        # is now unspellable).
         self._user_supplied_closure = pole_angular_closure
 
         # (``self.axes`` / ``self.axis_widths`` / ``self.mat_map`` /
@@ -348,11 +287,8 @@ class SNMesh(MaterialMesh):
         # ``self.reduced`` is the canonical accessor every downstream
         # consumer should bind to: ``sn_mesh.reduced.streaming_terms(
         # cell_idx, dir_idx, mu_level_idx)`` returns the per-(cell,
-        # direction) packet a sweep cell update needs.  Wave D Round 2
-        # (Issue 12) and Wave E migrate the 6 production read sites
-        # (sweep.py + solver.py) to read through it.  Until then, the
-        # backward-compat ``@property`` accessors below preserve the
-        # legacy attribute names with a ``DeprecationWarning``.
+        # direction) packet a sweep cell update needs (the deprecated
+        # ``@property`` accessors below still preserve the legacy names).
         # ``self.coord`` was derived from the axes by
         # ``MaterialMesh._init_data`` (the whole-mesh coordinate system;
         # multi-axis tuples are all-Cartesian by construction). The 1-D
@@ -393,12 +329,10 @@ class SNMesh(MaterialMesh):
         # is the angular closure's regularity condition, not a BC
         # face), multi-D Cartesian all ``2·ndim`` faces. Inflow /
         # outflow are selectors over the signed Ω·n it carries.
-        # C5.3 (#225): UNCONDITIONAL — every constructible SNMesh
-        # builds its trace (geometry-blind: quadrature + face names).
-        # #290 P7b: built HERE, in the construction body, as phase-
-        # space substrate — not inside BC resolution (the historical
-        # wart the shared resolve body exposed; the diffusion twin
-        # always ordered it this way).
+        # UNCONDITIONAL — every constructible SNMesh builds its trace
+        # (geometry-blind: quadrature + face names); built HERE, in the
+        # construction body, as phase-space substrate — not inside BC
+        # resolution.
         from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
         self._trace = AngularTraceSpace.from_quadrature_and_layout(
             self.quad, self.boundary_face_layout,
@@ -410,13 +344,10 @@ class SNMesh(MaterialMesh):
         # eigenvalue default, and the tag → law parse are method-
         # generic; :meth:`realize_boundary_law` below is the SN arm.
         # The face inventory IS the BC inventory by construction (C4,
-        # #220): a face that exists has exactly one entry; the
-        # curvilinear pole has none (Pattern 4 — a pole-BC is
-        # unrepresentable). The pre-C4 hybrid 1-D/2-D isinstance split
-        # with hand-assigned named attributes (``bc_xmin`` …
-        # ``bc_ymax``, ``bc_left`` / ``bc_right`` aliases) is retired —
-        # consumers key into :attr:`bc` by the same face names the
-        # trace layout carries.
+        # #220): a face that exists has exactly one entry; the curvilinear
+        # pole has none (Pattern 4 — a pole-BC is unrepresentable).
+        # Consumers key into :attr:`bc` by the same face names the trace
+        # layout carries.
         self.bc: dict[str, _BoundBoundaryOperator] = (
             resolve_boundary_conditions(self)
         )
@@ -1562,16 +1493,8 @@ class SNMesh(MaterialMesh):
     # ── Backward-compat property accessors ────────────────────────────
     #
     # These properties route to ``self.reduced`` (the
-    # :class:`ReducedStreamingOperator` instance built at construction).
-    # The 6 production read sites in ``sweep.py`` and ``solver.py``
-    # continue reading via these names; Wave D Round 2 (Issue 12) and
-    # Wave E migrate them to ``self.reduced.streaming_terms(...)`` and
-    # the deprecated properties are removed.
-    #
-    # Each property emits a ``DeprecationWarning`` on access so consumers
-    # surface the migration path during normal test runs.  No
-    # ``filterwarnings`` config in :file:`pyproject.toml` treats
-    # ``DeprecationWarning`` as an error, so existing tests are unaffected.
+    # :class:`ReducedStreamingOperator` built at construction) and emit a
+    # ``DeprecationWarning`` — use ``self.reduced.<name>`` directly.
 
     @property
     def face_areas(self) -> np.ndarray:
@@ -1596,10 +1519,3 @@ class SNMesh(MaterialMesh):
         )
         assert self.reduced.delta_A is not None
         return self.reduced.delta_A
-
-    # The six curvature-specific accessors (``alpha_half``,
-    # ``redist_dAw``, ``tau_mm``, and the cylindrical per-level
-    # analogues) added in Wave D Round 1.1 as DeprecationWarning
-    # shims were retired in Wave E Round 2 (Issue #164) along with
-    # the BiCGSTAB FD-operator API surface that was their only
-    # consumer.  Use ``self.reduced.<name>`` directly.

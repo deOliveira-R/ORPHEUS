@@ -44,8 +44,8 @@ wrapping a realized law that carries :attr:`BlockRole.BOUNDARY`). The whole-trac
 each face present in the trace it applies that face's law to that face's slot.
 ``B`` is therefore block-diagonal over faces — it never mixes faces.
 
-See :ref:`operator-algebra` and the Wave O plan
-``.claude/plans/wave_o_operator_typing.md`` (step O.4a.2).
+See :ref:`operator-algebra` and :ref:`bc-extraction` for the block-matrix
+derivation and design rationale.
 """
 
 from __future__ import annotations
@@ -151,9 +151,7 @@ class SNBoundaryOperator(LinearOperator):
     block, where the cosine-weighted ``|Ω·n|·w`` partial-current metric lives).
     That block metric is what makes the Hilbert adjoint ``B.H`` the physically
     correct partial-current adjoint — the one channel by which the white-BC
-    adjoint becomes available. (Before O.2b R5 ``B`` advertised the bare
-    ``sn_mesh.angular_trace`` here, inconsistent with :meth:`apply` already consuming /
-    emitting a full :class:`~orpheus.transport.full_field.FullField`.)
+    adjoint becomes available.
 
     Capabilities
     ------------
@@ -232,30 +230,25 @@ class SNBoundaryOperator(LinearOperator):
 
         ``B`` is the ``A_ss`` block ``V_outflow → V_inflow``: it maps the
         **outflow** trace to the **inflow** trace, so the forward action must be
-        non-zero **only on the inflow ordinate slots** of each face. The realized
-        per-face law (a :class:`~orpheus.numerics.operator.PermutationOperator`
-        for reflective, :class:`AngularAverageOperator` for white, …) is a
-        *full-face* operator: e.g. the specular permutation also maps the input
-        inflow slots onto the output **outflow** slots (``R·ψ.inflow``). The
-        legacy sweep only ever read the inflow slots of ``bc.apply(face)`` so
-        that spurious outflow output was harmless — but ``−B`` as a sibling of
-        ``L`` in ``(L_full + C − S − F − B)`` reads the WHOLE boundary block, and
-        a non-zero outflow emission would corrupt the outflow-definition residual
-        ``ψ.outflow − streamed`` (it is supposed to carry no ``B`` term — see the
-        block matrix in :mod:`orpheus.sn.operators.boundary`). So the forward
-        action is projected onto ``inflow_indices_for_face`` (the consistency
-        row): ``B_face = P_inflow ∘ law``.  The Euclidean transpose is therefore
-        ``B_faceᵀ = lawᵀ ∘ P_inflow`` — the INPUT is restricted to the forward's
-        codomain rows and the full ``lawᵀ`` image is written (B.2d d3).
-        Output-projecting ``lawᵀ`` onto the outflow rows instead extracts a
-        law's DIAGONAL block: for the vacuum mask (zero-on-inflow ⊕
-        identity-on-outflow) that spelled a spurious ``+1`` outflow diagonal
-        where the forward is the ZERO map — caught by the A2a grid-reciprocity
-        arm on the het-VACUUM sphere.  Off-diagonal permutation laws
-        (reflective / albedo) are bit-identical under either spelling, which is
-        why every reflective-fixture gate stayed green over the wrong one.
-        (The metric-correct Hilbert adjoint ``B.H`` under ``|Ω·n|·w`` is Wave O
-        step O.2; this Euclidean ``apply_transpose`` is the un-weighted shadow.)
+        non-zero **only on the inflow ordinate slots** of each face.  The
+        realized per-face law (a
+        :class:`~orpheus.numerics.operator.PermutationOperator` for reflective,
+        :class:`AngularAverageOperator` for white, …) is a *full-face* operator,
+        so a non-zero outflow emission would corrupt the outflow-definition
+        residual ``ψ.outflow − streamed`` (which carries no ``B`` term — see the
+        block matrix in the module docstring).  So the forward action is
+        projected onto the inflow rows: ``B_face = P_inflow ∘ law``, and the
+        Euclidean transpose is ``B_faceᵀ = lawᵀ ∘ P_inflow`` — mask the INPUT to
+        the forward's codomain rows, write the full ``lawᵀ`` image.
+
+        ⚠ Output-projecting ``lawᵀ`` onto the OUTFLOW rows instead extracts a
+        law's DIAGONAL block: for the vacuum mask that spells a spurious ``+1``
+        outflow diagonal where the forward is the ZERO map — caught only by the
+        A2a grid-reciprocity arm on the het-VACUUM sphere (off-diagonal
+        permutation laws are bit-identical under either spelling, so every
+        reflective-fixture gate stayed green over the wrong one).  The
+        metric-correct Hilbert adjoint ``B.H`` under ``|Ω·n|·w`` is separate;
+        this Euclidean ``apply_transpose`` is the un-weighted shadow.
 
         This is the **single source of truth** for the boundary reflection: both
         the full-field :meth:`apply` (lifted onto a zero-bulk carrier) and the
@@ -493,13 +486,12 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     ``RadialCharacteristicField → RadialCharacteristicField`` (reads
     the boundary member's FLUX corners, emits boundary-member SOURCE corners;
     the interior member is a zero source — "B_b touches the trace/bulk" is now
-    UNSPELLABLE, Pattern 4). The system's boundary is still the direct sum of
-    per-system boundary blocks (RULING P1) — realized since B.2d as the two
-    grid entries ``B_a`` at (A,A) and ``B_b`` at (B,B) of the within-group
-    gain grid (:func:`orpheus.sn.coupled_system.build_within_group_system`);
-    the B.2b FullField-summed adapter composition is retired. Unconstructable
-    on a seedless mesh (System B does not exist there — the ctor guard
-    mirrors ``A_BA``'s).
+    UNSPELLABLE, Pattern 4). The system's boundary is the direct sum of
+    per-system boundary blocks (RULING P1) — the two grid entries ``B_a`` at
+    (A,A) and ``B_b`` at (B,B) of the within-group gain grid
+    (:func:`orpheus.sn.coupled_system.build_within_group_system`).
+    Unconstructable on a seedless mesh (System B does not exist there — the
+    ctor guard mirrors ``A_BA``'s).
 
     The action is the ``(R, μ = ∓1)`` corner reflection that closes the ray's
     r = R boundary. The outer face law realizes on the trace carrier as an
@@ -720,13 +712,6 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
             )
 
 
-# The B.2b transient ``_RayBoundaryFullFieldGain`` adapter RETIRED at B.2d:
-# the driver iterate is the CoupledField pair and ``B_b`` sits block-native
-# in the (B, B) slot of the within-group gain grid
-# (:func:`orpheus.sn.coupled_system.build_within_group_system`) — the
-# FullField-summed ``B = B_a + B_b`` composition it bridged is gone.
-
-
 class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
     r"""One half of the schedule split ``B = B_lower + B_upper`` — the
     whole-trace :class:`SNBoundaryOperator` restricted to a per-face set of
@@ -791,24 +776,17 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
         The inter-group row update of the reified forward substitution
         (#226 §17 W2): solving :math:`M z = y` on a strictly-lower inflow
         row reads :math:`z_{\rm in} = y_{\rm row} + (B z)_{\rm row}` — the
-        buffer already holds the seed :math:`y_{\rm row}` (nothing else
-        writes a lower row before its face's reflect), so ACCUMULATING the
-        fresh reflection completes the inhomogeneous row exactly.  This is
-        what makes ``M.inverse()`` exact for arbitrary data on the INFLOW
-        rows — i.e. on the source subspace ``{y : y.outflow-rows = 0}``
-        (every production rhs; the sweep substrate re-derives the
-        outflow-definition rows, a family-wide property shared with
-        ``(L+C).solve`` — see the W2 gate module
-        ``tests/sn/solve/test_gauss_seidel_reification.py`` and spec §13)
-        — not merely on production's zero-lower-inflow-row subspace; and
-        restricting to :attr:`rows` leaves the upper (lagged) rows carrying
-        the seed the splitting
-        :math:`\psi_{k+1} = M^{-1}(q + B_{\rm upper}\psi_k)` says they
-        carry — the returned trace IS the splitting's honest iterate.
-        (The dissolved resolvent's whole-face OVERWRITE dropped
-        :math:`y_{\rm row}` — benign in production where it is zero on a
-        reflective face, but O(1)-wrong as an inverse; and it stamped
-        fresh values onto rows the iterate defines as lagged.)
+        buffer already holds the seed :math:`y_{\rm row}`, so ACCUMULATING the
+        fresh reflection completes the inhomogeneous row exactly.  This is what
+        makes ``M.inverse()`` exact for arbitrary data on the INFLOW rows (the
+        source subspace ``{y : y.outflow-rows = 0}``), not merely on
+        production's zero-lower-inflow-row subspace; restricting to
+        :attr:`rows` leaves the upper (lagged) rows carrying the seed the
+        splitting :math:`\psi_{k+1} = M^{-1}(q + B_{\rm upper}\psi_k)` says
+        they carry.  ⚠ Additive, NOT whole-face overwrite: the dissolved
+        resolvent's OVERWRITE dropped :math:`y_{\rm row}` — benign in
+        production (zero on a reflective face) but O(1)-wrong as an inverse,
+        and it stamped fresh values onto rows the iterate defines as lagged.
 
         Contrast :meth:`SNBoundaryOperator.reflect_inflow_inplace` — the
         whole-face ASSIGNMENT ``ψ.inflow ← B·ψ.outflow`` between sweeps,

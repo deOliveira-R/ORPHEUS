@@ -20,18 +20,14 @@ typed composite carrier (bulk = :class:`~orpheus.transport.fields.angular_flux.A
 boundary = :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`).
 Producer-side normalisation (Pattern 7): the typed contract is
 enforced at every operator entry; no bare-ndarray packed-vector
-adapter.  The geometry-agnostic 1-D matvec kernel is
-:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`
-(1-D slab / sphere / cylinder; the fused ``(L+C)ψ`` single-emission
-body, the apply-direction twin of the sweep; #206 Phase C moved it off
-this operator INTO the representation).  The curvilinear Morel–Montry
-angular redistribution is computed IN-SWEEP there (it is not a separable
-typed leaf — the #238-retired ``M_spatial`` / ``M_angular_redist`` split
-had no production consumer).  The multi-D Cartesian matvec is the
-representation's ``loss_action`` walk that S6.3 moved OFF this operator
-(``orpheus.sn.loss_representation``; production default ``ScanMarch``
-since the S6.9 Fork-B2 flip, with ``MovingFrontierWindow`` a selectable
-peer).
+adapter.  The matvec kernel is NOT on this operator — it lives in the
+loss representation (``orpheus.sn.loss_representation``): the fused
+``(L+C)ψ`` single-emission body (the apply-direction twin of the sweep)
+rides ``_OneDimScanWalk._apply_walk`` for 1-D, and the multi-D Cartesian
+``loss_action`` walk uses the ``ScanMarch`` default
+(``MovingFrontierWindow`` a selectable peer).  The curvilinear
+Morel–Montry angular redistribution is computed IN-SWEEP there — not a
+separable typed leaf.
 
 Three geometries are supported:
 
@@ -39,84 +35,39 @@ Three geometries are supported:
 * **Spherical 1D** — ``L = μ (A ∂/∂r)/V + (α ∂/∂μ)/V + Σ_t``
 * **Cylindrical 1D** — per-level azimuthal redistribution
 
-History
--------
-
-* Wave E retired the standalone ``build_rhs*`` and
-  ``build_transport_linear_operator*`` helpers along with the
-  ``angular_flux_to_scalar`` aggregator.
-* D-H (2026-05) — typed :class:`TimedFullField` composite carrier
-  replaced the legacy packed-vector convention; operators bridged
-  the bare-ndarray↔typed boundary internally.
-* D-I (2026-05-29) — the bare-ndarray adapter retired from every
-  operator leaf (L / C / S / F).  Operators consume only
-  :class:`TimedFullField`.
-* D-J (2026-05-30) — the supporting packed-vector codec family
-  retired: ``EquationMap``, ``build_equation_map_*``,
-  ``solution_to_angular_flux*``, ``pack_with_traces``.  The
-  legacy 2-D Cartesian FD matvec ``transport_operator_matvec``
-  (and its cartesian / spherical / cylindrical predecessors) had
-  retired in D-H.2-C4e.6 (commit ``a614610``).
-
 .. note:: Symmetric-closure invariant
 
-   The operator :math:`L` uses the **symmetric** closure that makes
-   the Krylov path agree with analytical references:
+   ``L.apply`` (the matvec) uses a **symmetric** closure — Cartesian
+   upwind cell-center finite differences, curvilinear arithmetic
+   spatial-face averages with τ-weighted angular interpolation —
+   DISTINCT from the WDD asymmetric closure the sweeps (``.solve``)
+   use.  The two converge in the fine-mesh limit; on curvilinear the
+   sweep's WDD closure carries the ERR-026 closure-bias self-consistent
+   fixed point that the Krylov-on-:meth:`apply` path bypasses.  Full
+   comparison + the closure table:
+   ``docs/theory/methods/sn/loss_representation.rst §loss-rep-history``,
+   ``curvilinear_numerics.rst §sn-phase-d-err-026-closure-narrative``.
 
-   * **Cartesian**: upwind cell-center finite differences for the
-     streaming gradient — first-order accurate and consistent with DD
-     on uniform meshes, first-order inconsistent on non-uniform meshes.
-   * **Curvilinear**: arithmetic averages for spatial face fluxes and
-     τ-weighted interpolation for angular face fluxes — distinct from
-     the WDD asymmetric closure :math:`\\psi_{\\rm out} =
-     (\\overline{\\psi} - (1 - \\tau)\\,\\psi_{\\rm in})/\\tau` used
-     by the sweeps.
-
-   On uniform meshes the symmetric-closure operator and the WDD
-   sweep converge to the same physics in the fine-mesh limit; on
-   curvilinear, the sweep's WDD closure has the ERR-026 closure-bias-
-   driven self-consistent fixed point that the Krylov-on-:meth:`apply`
-   path bypasses.
-
-.. note:: Boundary-condition handling (Wave O step O.4a.2, Issue #208)
+.. note:: Boundary-condition handling (Issue #208)
 
    The realized boundary law ``B`` is a **first-class sibling
    operator** of ``L``, NOT re-applied inside this matvec.  The
    canonical SN loss is ``(L_full + C - S - F - B)`` on the direct-sum
-   state ``V = V_bulk ⊕ V_inflow ⊕ V_outflow``.  For the **1-D** path
-   (slab / sphere / cylinder), the representation's ``loss_action``
-   (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk.loss_action`,
-   which #206 Phase C moved off this operator)
-   reads ``psi.boundary.inflow`` as a GIVEN, keeps the outflow
-   self-consistency defect ``psi.outflow - streamed`` on the outflow
-   trace row, and adds the inflow identity ``I·psi.inflow`` on the
-   inflow row — with NO ``bc.apply``.  The reflective coupling
+   state ``V = V_bulk ⊕ V_inflow ⊕ V_outflow``.  The representation's
+   bare ``loss_action`` reads ``psi.boundary.inflow`` as a GIVEN, keeps
+   the outflow self-consistency defect ``psi.outflow - streamed`` on the
+   outflow trace row, and adds the inflow identity ``I·psi.inflow`` —
+   with NO ``bc.apply``.  The reflective coupling
    ``psi.inflow = B·psi.outflow`` is delivered by the sibling ``-B``
-   (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`), and the
+   (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`); the
    outer Krylov / SI loop drives the boundary consistency residual
-   ``psi.inflow - B·psi.outflow - q.inflow → 0``.  See
-   :ref:`bc-extraction` for the full block-matrix derivation, the three
-   design corrections, the two ``-B`` delivery routes, and the O.2
-   forcing function.
-
-   The **multi-D Cartesian** path (the representation's ``loss_action``,
-   which S6.3 moved off this operator — ``ScanMarch`` default since S6.9,
-   ``MovingFrontierWindow`` peer) is ALSO bare (O.4b
-   Phase E landed): it seeds the octant-incoming face slots from the
-   GIVEN ``psi.boundary.inflow`` via the typed ``wavefront.seed`` (ι_*)
-   with NO ``bc.apply``, walks the same per-octant
-   :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph` (the apply-direction
-   level operation → the diamond-difference ``DiscretizationScheme`` closure) the multi-D *sweep*
-   ``_sweep_jacobi`` uses — so matvec ≡ sweep in 2-D by
-   construction (L21, one discretization) — and emits the boundary
-   consistency residual (outflow defect ``streamed − given`` + inflow
-   identity) as a :class:`AngularBoundarySourceSink`.  The reflective coupling
-   is the sibling ``-B`` exactly as in 1-D.  The pre-extraction Phase C
-   insight that the BC must consume the WDD-propagated outflow face
-   vector (not cell centres) is preserved and strengthened: post-O.4a.2
-   the outflow trace is the explicit solved unknown ``psi.outflow`` that
-   ``-B`` reads, closing ERR-026 by construction for the 1-D curvilinear
-   path.
+   ``psi.inflow - B·psi.outflow - q.inflow → 0``.  Both the 1-D and the
+   multi-D Cartesian paths are bare (matvec ≡ sweep by construction,
+   L21) — post-extraction the outflow trace is the explicit solved
+   unknown ``psi.outflow`` that ``-B`` reads, closing ERR-026 by
+   construction for the 1-D curvilinear path.  Full block-matrix
+   derivation, the three design corrections, the two ``-B`` delivery
+   routes, and the O.2 forcing: :ref:`bc-extraction`.
 """
 
 from __future__ import annotations
@@ -163,18 +114,6 @@ if TYPE_CHECKING:
 __all__ = [
     "StreamingOperator",
 ]
-# #206 Phase C / #238: the 1-D matvec walk lives in `_OneDimScanWalk`
-# (orpheus.sn.loss_representation) — the fused `(L+C)ψ` (`loss_action`)
-# rides its `_apply_walk` core (Cardinal Rule 2, one source). The
-# production hot path is `StreamingOperator.apply` → `loss_action`
-# (single emission). External consumers call `(L + C).apply(state)` via
-# the public operator-algebra path. The former separately-applicable
-# `(M_spatial, M_angular_redist)` operator-leaf split (`_SpatialSweepDirection`
-# / `_MSpatialOperatorSum` / `AngularRedistributionOperator`) was retired in
-# #238 — it had no production consumer; the curvilinear Morel–Montry angular
-# redistribution is computed IN-SWEEP inside `_apply_walk`, not as a separable
-# typed leaf, and is verified by the anisotropic curvilinear MMS
-# (`tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`).
 
 
 def _require_typed_composite(
@@ -182,21 +121,20 @@ def _require_typed_composite(
 ) -> None:
     r"""The shared matvec input contract — timeless composite + mesh identity.
 
-    The two guards :meth:`StreamingOperator.apply` introduced (D-I.3d typed
-    contract + the mesh-identity invariant) are now consumed by EVERY SN
-    matvec entry that takes a :class:`FullField`:
-    :meth:`StreamingOperator.apply` / :meth:`apply_transpose` AND the #240
-    Phase 2 Step B :meth:`InvertibleOperator.apply` / :meth:`apply_transpose`
-    overrides.  Single source of the contract (``coding-elegance`` Pattern 2 /
-    Pattern 4 — illegal inputs unrepresentable at one place, not re-validated
-    per leaf).
+    Two guards, consumed by EVERY SN matvec entry that takes a
+    :class:`FullField` (:meth:`StreamingOperator.apply` /
+    :meth:`apply_transpose` AND the :class:`InvertibleOperator` overrides):
+    (1) the input is a :class:`~orpheus.transport.full_field.FullField`;
+    (2) ``field.interior.mesh`` is the operator's SAME ``sn_mesh`` instance.
+    Single source of the contract (``coding-elegance`` Pattern 2 / Pattern 4 —
+    illegal inputs unrepresentable at one place, not re-validated per leaf).
 
-    #257 S8a — the input contract is the TIMELESS
+    The input contract is the TIMELESS
     :class:`~orpheus.transport.full_field.FullField` (the matvec leaves are
     base arrows ``FullField -> FullField``; only the iteration driver carries
     the history-bearing :class:`TimedFullField` comonad).  A
     :class:`TimedFullField` IS a :class:`FullField`, so the SI / Krylov drivers
-    that pass a timed iterate still satisfy the guard; a bare ndarray does not.
+    that pass a timed iterate satisfy the guard; a bare ndarray does not.
 
     Parameters
     ----------
@@ -271,17 +209,15 @@ class StreamingOperator(LinearOperator["FullField"]):
     Why :math:`L` carries NO σ (Pattern 4 — #257 S8b)
     -------------------------------------------------
 
-    The DISCRETE curvilinear matvec threads :math:`\sigma_t` through the
-    Carlson coupled-pole seed (Hébert §3.9.4 Eqs. 3.432-3.435), but that
+    The discrete curvilinear matvec threads :math:`\sigma_t` through the
+    Carlson coupled-pole seed (Hébert §3.9.4), but that
     :math:`\sigma`-dependence is *exactly the collision diagonal* the seed
-    injects — it cancels into the :math:`\sigma\cdot\psi` term and belongs
-    to :math:`C`, not :math:`L`.  Probe-confirmed σ-freedom: ``streaming\_action``
-    is byte-stable (to ≤ a few ULP) across wildly different :math:`\sigma`
-    fields (#257 S8b).  The CONTINUOUS :math:`L`
-    (:math:`\Omega\cdot\nabla\psi + (1-\mu^2)/r\,\partial\psi/\partial\mu`)
-    is σ-independent, and so now is the discrete leaf.  Pattern 4 (illegal
-    states unrepresentable): ``StreamingOperator(sn_mesh)`` takes ONLY the
-    mesh — a σ on :math:`L` would be a parameter the leaf never reads.
+    injects — it cancels into :math:`\sigma\cdot\psi` and belongs to
+    :math:`C`, not :math:`L` (the continuous :math:`L` is σ-independent, so
+    is the discrete leaf; σ-freedom is probe-verified byte-stable).
+    Pattern 4 (illegal states unrepresentable):
+    ``StreamingOperator(sn_mesh)`` takes ONLY the mesh — a σ on :math:`L`
+    would be a parameter the leaf never reads.
 
     Capability set
     --------------
@@ -308,50 +244,28 @@ class StreamingOperator(LinearOperator["FullField"]):
         face-name-keyed ``sn_mesh.bc`` dict), pole closure, and (for
         curvilinear) the precomputed connection coefficients — no
         ``boundary`` constructor parameter.  The SOLE parameter: pure
-        :math:`L` reads no :math:`\sigma` (#257 S8b).
-
-    Notes
-    -----
-    Depth B D-I.3d (2026-05-29) — :meth:`apply` accepts ONLY
-    :class:`~orpheus.transport.timed_full_field.TimedFullField`.
-    Depth B D-J (2026-05-30) — the underlying packed-vector codec
-    family (``EquationMap`` / ``build_equation_map_*`` /
-    ``solution_to_angular_flux_*`` / ``pack_with_traces``) retired
-    too.  Producer-side normalisation (Pattern 7) at the operator:
-    the entire matvec consumes / emits the typed direct-sum carrier,
-    never any legacy packed flat layout.
+        :math:`L` reads no :math:`\sigma`.
     """
 
     sn_mesh: "SNMesh"
 
     # Streaming is the sole FULL operator — it couples bulk ↔ boundary
     # (reads the inflow trace to seed the sweep, writes the outflow
-    # trace). Issue #208 / Wave O. Class-level constant (unannotated so
-    # the dataclass does not treat it as a field).
-    # apply_transpose (Wave O / O.2b): the analytic reverse-direction
-    # adjoint matvec landed — see :meth:`apply_transpose`.
+    # trace). Issue #208. Class-level constant (unannotated so the
+    # dataclass does not treat it as a field).
     block_role = BlockRole.FULL
-
-    # D-J (2026-05-30): ``_eq_map`` / ``_ensure_eq_map`` / ``n_unknowns``
-    # retired alongside the :class:`EquationMap` codec family — the
-    # typed :class:`~orpheus.transport.timed_full_field.TimedFullField`
-    # contract has no need for the legacy packed-vector slot map.
 
     @property
     def is_adjointable(self) -> bool:
-        # Two-factor honest (Phase 2.5 S0 + 2.5a, #280) — the predicate
-        # factorizes along the #280 axes: the KERNEL factor
-        # (scheme.has_transpose_kernel — the cell relation has a transpose
-        # realization: DD yes, LD no, the kernel-pair deferral) AND the
-        # ORIENTATION factor (representation.has_transpose_walk — the walk
-        # itself reverses: the 1-D loop walk yes, the multi-D octant/
-        # wavefront walks are the #280 deferral). An eager ``.H`` on an LD
-        # mesh OR a multi-D Cartesian mesh therefore raises MissingAdjoint
-        # at construction instead of reaching a raising (or DD-only)
-        # reverse walk at apply time; the representations' loud raises stay
-        # as the direct-call backstop.
-        # is_invertible inherits base False — pure streaming L is not
-        # sweep-invertible; only the (L+C) InvertibleOperator is.
+        # Two-factor honest: the KERNEL factor (scheme.has_transpose_kernel
+        # — the cell relation has a transpose realization: DD yes, LD no)
+        # AND the ORIENTATION factor (representation.has_transpose_walk —
+        # the walk reverses: 1-D loop walk yes, multi-D octant/wavefront no).
+        # An eager ``.H`` on an LD mesh OR a multi-D Cartesian mesh raises
+        # MissingAdjoint at construction rather than reaching a raising
+        # reverse walk at apply time. is_invertible inherits base False —
+        # pure streaming L is not sweep-invertible; only (L+C) is. (Two-factor
+        # derivation: loss_representation.rst §loss-rep-orientation-two-frames.)
         return (
             type(self.sn_mesh.scheme).has_transpose_kernel
             and self.loss_representation.has_transpose_walk
@@ -370,32 +284,19 @@ class StreamingOperator(LinearOperator["FullField"]):
         without it the adjoint silently reduces to the metric-blind Euclidean
         transpose (Issue #208 risk R5).
 
-        Since P4.5 W-D, ``C`` / ``S`` / ``F`` advertise the SAME composite
-        domain (the cross-method composition-guard close — see
-        :attr:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.domain`),
-        so the within-group
-        ``(L + C) - S - B`` :class:`~orpheus.numerics.operator.OperatorSum`
-        guard VALIDATES the build rather than silently skipping the formerly
-        ``None``-spaced summands. ``L``'s composite domain therefore agrees
-        with every summand, and the **transpose-closed** sub-sums G-conjugate
-        every bulk leaf for free via the op-level
-        :math:`G^{-1}(\sum \text{leaf}^{\mathsf T})G`. Since campaign #276
-        (S† via ``full_scatter_kernel``:sup:`T` — A2b / #118; F† via the
-        rank-1 dyad) every within-group leaf transposes, so ``.H``
-        reachability extends beyond ``(L + C)`` / ``(L + C - B)`` to the full
-        within-group loss ``(L + C - S - B)`` — pinned by
-        ``test_g_adjoint_reciprocity``. Reachability stays predicate-gated
-        per leaf (fails loud via
-        :class:`~orpheus.numerics.operator.MissingAdjoint`, never silently
-        Euclidean): ``L.is_adjointable`` is TWO-FACTOR honest along the #280
-        axes — the KERNEL factor
-        (:attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.has_transpose_kernel`:
-        DD yes; LD no, the kernel-pair deferral) AND the ORIENTATION factor
-        (:meth:`~orpheus.sn.loss_representation.LossRepresentation.has_transpose_walk`:
-        the 1-D loop walk reverses; the multi-D octant/wavefront walks are
-        the #280 deferral). The daggered eigenvalue posing that CONSUMES
-        the full-loss adjoint is the #276 A4 chain, fed by the #280 reverse
-        solve.
+        ``C`` / ``S`` / ``F`` advertise the SAME composite domain, so the
+        within-group ``(L + C) - S - B``
+        :class:`~orpheus.numerics.operator.OperatorSum` guard VALIDATES the
+        build (no ``None``-spaced summand is silently skipped), and the
+        transpose-closed sub-sums G-conjugate every bulk leaf via the
+        op-level :math:`G^{-1}(\sum \text{leaf}^{\mathsf T})G`.  Every
+        within-group leaf transposes, so ``.H`` reachability extends to the
+        full loss ``(L + C - S - B)`` (pinned by
+        ``test_g_adjoint_reciprocity``); it stays predicate-gated per leaf
+        (loud :class:`~orpheus.numerics.operator.MissingAdjoint`, never
+        silently Euclidean) via the two-factor :attr:`is_adjointable`.
+        Two-factor derivation:
+        ``docs/theory/methods/sn/loss_representation.rst §loss-rep-orientation-two-frames``.
         """
         return self.sn_mesh.full_field_space
 
@@ -407,18 +308,10 @@ class StreamingOperator(LinearOperator["FullField"]):
     def apply(self, psi: "FullField") -> "FullField":
         r"""Pure σ-free forward streaming :math:`L\,\psi = \Omega\cdot\nabla\psi`.
 
-        Computes pure streaming DIRECTLY via the :attr:`loss_representation`'s
-        named σ-free
+        Computes pure streaming via the :attr:`loss_representation`'s σ-free
         :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`
-        leaf (#257 S8b — the ``(L+C)−C`` fold is retired).  The streaming
-        discretization is single-sourced through ``loss_action`` at
-        :math:`\sigma = 0` (the WDD matvec is affine in :math:`\sigma`);
-        :math:`L` reads NO :math:`\sigma`.  The collision diagonal
-        :math:`C = M[\sigma_t]` is the separate shared collision multiplier
-        (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`);
-        the composition
-        :math:`(L + C).{\rm apply}(\psi) = \text{streaming\_action}(\psi)
-        + \sigma_t\odot\psi = M(\psi;\sigma_t)` recovers the full loss.
+        leaf; :math:`L` reads NO :math:`\sigma` (the ``L + C`` composition
+        recovers the full loss — see the class docstring).
 
         ``L`` is the ONLY operator that emits a non-zero face
         residual on its output ``.boundary`` — the collision multiplier
@@ -452,20 +345,16 @@ class StreamingOperator(LinearOperator["FullField"]):
         return self.loss_representation.streaming_action(psi)
 
     def apply_transpose(self, phi: "FullField") -> "FullField":
-        r"""Hilbert transpose :math:`L^{\mathsf T}\,\phi` (Wave O / O.2b, #208).
+        r"""Euclidean transpose :math:`L^{\mathsf T}\,\phi` (#208).
 
-        The σ-free adjoint streaming leaf (#257 S8b): :math:`L^{\mathsf T}\phi`
-        via the :attr:`loss_representation`'s named
+        The σ-free adjoint streaming leaf: :math:`L^{\mathsf T}\phi` via the
+        :attr:`loss_representation`'s
         :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action_transpose`
         (single-sourced through ``loss_action_transpose`` at :math:`\sigma = 0`;
-        the curvilinear reverse walk carries the angular second triangular
-        factor, the multi-D Cartesian adjoint stays a deferral raise — never a
-        silent wrong answer).  Since :math:`C = \sigma_t\odot` is a self-adjoint
+        the multi-D Cartesian adjoint stays a deferral raise — never a silent
+        wrong answer).  Since :math:`C = \sigma_t\odot` is a self-adjoint
         diagonal, the full adjoint loss factors as
-        :math:`(L + C)^{\mathsf T} = L^{\mathsf T} + C` — the collision
-        multiplier :math:`C = M[\sigma_t]`
-        (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
-        is self-adjoint, so its transpose is the same multiplier.
+        :math:`(L + C)^{\mathsf T} = L^{\mathsf T} + C`.
 
         This returns the **plain Euclidean transpose** :math:`L^{\mathsf T}`.
         The metric conjugation :math:`G^{-1}\!\cdot^{\mathsf T}\!\cdot G` of the
@@ -553,35 +442,28 @@ class InvertibleOperator(
 ):
     r"""Sweep-invertible composite :math:`L + C` carrying ``.solve`` = WDD sweep.
 
-    R-1 Step C (2026-05-19) — the SN-specific algebraic identity
+    The SN-specific algebraic identity
 
     .. math::
 
         (L_{\rm streaming} + C_{\rm diagonal})^{-1} \;\approx\;
         \text{WDD sweep}
 
-    has no generic ``(A+B)^{-1}`` formula — a plain
-    :class:`OperatorSum` can only invert ITERATIVELY (the
-    preconditioned-splitting
+    has no generic ``(A+B)^{-1}`` formula — a plain :class:`OperatorSum`
+    can only invert ITERATIVELY (the preconditioned-splitting
     :class:`~orpheus.numerics.green_operator.GreenOperator` its generic
-    ``.inverse()`` returns, taxonomy §12 step 4).  The WDD sweep IS the
-    DIRECT inverse algorithm for this specific composite — that's the
-    algebraic foundation of the entire SN method (Lewis & Miller §3.2;
-    Adams & Larsen 2002 §III) — and this subclass's ``.inverse()``
-    override (→ :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`)
-    shadows the generic Green by MRO: the type IS the structure
-    (taxonomy §11.1).  :class:`InvertibleOperator` is the specialisation
-    that carries the identity at the type level: it OWNS its full action
-    algebra.  :meth:`apply` / :meth:`apply_transpose` OVERRIDE the
-    :class:`OperatorSum` leaf-sum to return the within-group loss
-    :math:`(L+C)\psi = M(\sigma)\psi` (and its transpose) DIRECTLY via
-    :attr:`loss_representation`, single-sourcing :math:`\sigma` from the
-    diagonal — the SAME :math:`\sigma` ``solve`` threads into the WDD
-    sweep (#240 Phase 2 Step B).  ``solve`` is the forward substitution
-    on that SAME
-    :class:`~orpheus.sn.loss_representation.LossRepresentation` instance
-    (S6.5, #222), so matvec, adjoint, and sweep are three actions of ONE
-    operator (L21).
+    ``.inverse()`` returns).  The WDD sweep IS the DIRECT inverse algorithm
+    for this specific composite — the algebraic foundation of the entire SN
+    method (Lewis & Miller §3.2; Adams & Larsen 2002 §III) — and this
+    subclass's ``.inverse()`` override
+    (→ :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`) shadows
+    the generic Green by MRO (the type IS the structure).  :meth:`apply` /
+    :meth:`apply_transpose` OVERRIDE the :class:`OperatorSum` leaf-sum to
+    return the within-group loss :math:`(L+C)\psi = M(\sigma)\psi` (and its
+    transpose) DIRECTLY via :attr:`loss_representation`, single-sourcing
+    :math:`\sigma` from the diagonal — the SAME :math:`\sigma` ``solve``
+    threads into the WDD sweep, so matvec, adjoint, and sweep are three
+    actions of ONE operator (L21).
 
     Construction
     ============
@@ -768,27 +650,15 @@ class InvertibleOperator(
     def apply(self, psi: "FullField") -> "FullField":
         r"""Matvec :math:`(L+C)\,\psi = M(\sigma)\,\psi` — the composite OWNS it.
 
-        #240 Phase 2 Step B.  Both the matvec and the sweep are actions of the
-        ONE :math:`(L+C)` operator (L21 "matvec ≡ sweep"), realised with THIS
-        composite's diagonal :math:`\sigma` (``self.sigma`` = the collision
-        leaf's :math:`\sigma` — the SAME array :meth:`solve` threads into the
-        WDD sweep).  The representation's :meth:`loss_action` returns the FULL
-        within-group loss :math:`(L+C)\psi = M(\sigma)\psi` directly.
-
-        This OVERRIDES the inherited :meth:`OperatorSum.apply` (``L.apply +
-        C.apply``).  The leaf sum is value-equal *only by coincidence*: in the
-        forward direction the WDD matvec is AFFINE in :math:`\sigma`
-        (:math:`M(\sigma)\psi = \text{streaming\_action}(\psi) + \sigma\cdot\psi`),
-        so ``L.apply(σ_t) + C.apply(σ_r)`` collapses to
-        :math:`\text{streaming\_action}(\psi) + \sigma_r\cdot\psi = M(\sigma_r)\psi`
-        — the right value, but sourcing :math:`\sigma` from ``L.sigma_t`` (the
-        streaming leaf) while :meth:`solve` sources it from ``C``.  Two sources
-        that agree only because production builds :math:`L` and :math:`C` from
-        the same :math:`\sigma_t`.  The override single-sources :math:`\sigma`
-        from the diagonal (``coding-elegance`` Pattern 2: one ``loss_action``,
-        one source of :math:`\sigma`), removing the latent affine-in-:math:`\sigma`
-        coupling — the composite never asks the leaf for a :math:`\sigma`-bearing
-        action it must then undo.
+        Both the matvec and the sweep are actions of the ONE :math:`(L+C)`
+        operator (L21 "matvec ≡ sweep"), realised with THIS composite's
+        diagonal :math:`\sigma` (``self.sigma`` — the SAME array :meth:`solve`
+        threads into the WDD sweep); the representation's :meth:`loss_action`
+        returns the full within-group loss :math:`M(\sigma)\psi` directly.
+        This OVERRIDES the inherited leaf-sum :meth:`OperatorSum.apply`, which
+        is value-equal only by the forward-direction affine-in-:math:`\sigma`
+        coincidence — the override single-sources :math:`\sigma` from the
+        diagonal (Pattern 2), removing that latent coupling.
 
         On a carrying mesh this IS the ray-decoupled ``(A,A)`` block action
         (step 6 — presence is structural): the joint ``M`` matvec is the
@@ -870,8 +740,7 @@ class InvertibleOperator(
         :meth:`solve`. This is the operator normal form
         ``K = A_loss.inverse() @ F`` (Grand Report v3 §1): the forward view
         :meth:`apply` and the inverse view ``inverse().apply`` are the two views
-        of ONE operator, the way ``A`` and ``A.H`` are. Coexists with
-        :meth:`solve` through Phase 2–3; ``solve`` retires at Phase 4.
+        of ONE operator, the way ``A`` and ``A.H`` are.
 
         **Forward-side back-half twin (collapse trigger).**  The
         ``is_invertible``/``inverse``/``solve`` back-half here is deliberately
@@ -951,13 +820,12 @@ class InvertibleOperator(
         del initial_guess  # accept-and-drop: exact direct inverse, nothing to seed (#280 2.5c)
         return self._solve_timed_full_field(rhs)
 
-    # ``solve_moments`` (Phase 5c) retired in #226 step 2 (§17 W1): a public
-    # method whose output-mode argument silently changed the operator's
-    # codomain was a composition wearing a config.  The moment-emitting entry
-    # is now the typed windowed product ``P @ A.inverse()``
+    # The moment-emitting entry is the typed windowed product ``P @ A.inverse()``
     # (:class:`~orpheus.sn.operators.windowing.WindowedSweep`), whose fused
-    # ``apply`` calls :meth:`_solve_timed_full_field` with ``moment_frame`` —
-    # the ONE application-context body, private.
+    # ``apply`` calls :meth:`_solve_timed_full_field` with ``moment_frame`` — the
+    # ONE private application-context body.  (A former public ``solve_moments``
+    # whose output-mode argument silently changed the codomain was a composition
+    # wearing a config — retired.)
 
     def _solve_timed_full_field(
         self,
@@ -967,23 +835,16 @@ class InvertibleOperator(
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "TimedFullField":
-        r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
+        r"""Composite :class:`TimedFullField` body of :meth:`solve`.
 
-        Runs the WDD forward substitution on
-        :attr:`loss_representation` — the operator's ONE
-        :class:`~orpheus.sn.loss_representation.LossRepresentation`
-        instance (S6.5, #222) — and handles the L2 field plumbing at
-        the public-entry boundary.
-
-        The boundary plumbing seeds the sweep's mutable write-through
-        buffer from the source trace: ``boundary_buf =
-        AngularBoundaryFlux.zeros_on(sn_mesh)`` is filled per-face from
-        ``rhs.boundary`` via the L2 ``face_view`` copy
-        (``boundary_buf.face_view(face_name)[:] =
-        seed_boundary.face_view(face_name)`` for each shared face —
-        works for slab, curvilinear, and 2-D Cartesian).  The sweep
-        mutates ``boundary_buf`` in place; the result is re-wrapped as
-        an L2 composite at the end.
+        Runs the WDD forward substitution on :attr:`loss_representation`
+        — the operator's ONE
+        :class:`~orpheus.sn.loss_representation.LossRepresentation` instance
+        — and handles the field plumbing at the public-entry boundary: the
+        sweep's mutable write-through ``boundary_buf`` is seeded per-face
+        from ``rhs.boundary`` (works for slab, curvilinear, and 2-D
+        Cartesian), the sweep mutates it in place, and the result is
+        re-wrapped as a composite at the end.
 
         Parameters
         ----------
@@ -1034,22 +895,20 @@ class InvertibleOperator(
                 "(mesh-identity invariant)."
             )
 
-        # ── L2 boundary buffer for the sweep (D-H.2-C2) ───────────────
+        # ── Boundary buffer for the sweep ─────────────────────────────
         #
-        # The sweep mutates ``boundary_buf`` (the L2 mutable
-        # write-through; ``frozen=True`` freezes field rebinding but
-        # the underlying flat ndarray remains writable through
-        # :meth:`face_view`).
+        # The sweep mutates ``boundary_buf`` (mutable write-through:
+        # ``frozen=True`` freezes field rebinding but the underlying flat
+        # ndarray stays writable through :meth:`face_view`).
         #
-        # Wave O (#208) O.4a.2 — BARE SWEEP: the inflow seed is the
-        # boundary SOURCE ``rhs.boundary`` (the inflow slots carry
-        # ``q.boundary + B·ψ.outflow`` — the SI driver folds ``S + B`` so
-        # the ``Bψ`` reflective inflow rides in ``rhs.boundary``).  The bare
-        # sweep no longer re-applies ``bc`` to any iterate's outflow; the
-        # curvilinear ψ½ starting direction is the sweep's OWN direct
-        # computation from the source (#282 route (a), 2.5d), not a threaded
+        # BARE SWEEP (#208): the inflow seed is the boundary SOURCE
+        # ``rhs.boundary`` (the inflow slots carry ``q.boundary + B·ψ.outflow``
+        # — the SI driver folds ``S + B`` so the ``Bψ`` reflective inflow rides
+        # in ``rhs.boundary``).  The bare sweep no longer re-applies ``bc`` to
+        # any iterate's outflow; the curvilinear ψ½ starting direction is the
+        # sweep's OWN direct computation from the source (#282), not a threaded
         # previous-iterate seed — the WDD sweep is an exact direct inverse.
-        boundary_buf = AngularBoundaryFlux.zeros_on(sn_mesh)  # L2 after C2
+        boundary_buf = AngularBoundaryFlux.zeros_on(sn_mesh)
         seed_boundary = rhs.boundary
         # Per-face copy via L2 face_view — works for slab (xmin, xmax),
         # curvilinear (xmax only), and 2-D Cartesian (all 4).
@@ -1059,19 +918,17 @@ class InvertibleOperator(
                     seed_boundary.face_view(face_name)
                 )
 
-        # ── Sweep on the operator's ONE representation (S6.5, #222) —
-        # the SAME :class:`LossRepresentation` instance the matvec
+        # ── Sweep on the operator's ONE representation — the SAME
+        # :class:`LossRepresentation` instance the matvec
         # (:meth:`StreamingOperator.apply`) consumes, so L21 ("matvec ≡
         # sweep") is a type fact, not two ``default_for`` calls agreeing.
         # ``rhs.interior.values`` IS the per-ordinate source by producer
-        # contract (R-1 Step 4 A1) — typed at the ``rhs`` guard above, so
-        # no wrap-unwrap round trip through :class:`AngularSourceSink`.
+        # contract (typed at the ``rhs`` guard above, so no wrap-unwrap round
+        # trip through :class:`AngularSourceSink`).
         #
-        # Phase 5c: ONE sweep for BOTH output modes — the moment
-        # frame rides as an optional kwarg (the 1-D representation
-        # raises on it, since moment output is 2-D Cartesian only).
-        # Only the OUTPUT WRAP differs: full angular field vs harmonic
-        # moments.
+        # ONE sweep for BOTH output modes — the moment frame rides as an
+        # optional kwarg (the 1-D representation raises on it; moment output
+        # is 2-D Cartesian only).  Only the OUTPUT WRAP differs.
         bulk_values, _scalar = self.loss_representation.sweep(
             rhs.interior.values,
             self.sigma,
@@ -1124,11 +981,10 @@ class InvertibleOperator(
         (source-space) — the SAME composite geometry ``apply_transpose``
         emits.
 
-        This is the reverse-scan primitive the #280 comment names; Phase 2.5c
-        wires it to ``SweepOperator.apply_transpose`` / the ``.H.inverse()``
-        swap law (``A.H.inverse() ≡ A.inverse().H``) and flips the adjoint
-        predicates.  DD/scalar-1-D only — the LD / multi-D reverse-scans are
-        the #280 kernel-pair deferrals (the representation raises).
+        This is the reverse-scan primitive behind the ``.H.inverse()`` swap
+        law (``A.H.inverse() ≡ A.inverse().H``).  DD/scalar-1-D only — the
+        LD / multi-D reverse-scans are the #280 kernel-pair deferrals (the
+        representation raises).
 
         On a carrying mesh this is the ray-DECOUPLED ``(L+C)⁻ᵀ``
         diagonal-block transpose-solve (the M grid's transposed-
