@@ -122,7 +122,7 @@ source through System B's named resolvent
 :meth:`RadialCharacteristicOperator.solve <orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve>`
 (a single-pass exact inverse on the *full* Legendre fold), only on levels
 whose first-ordinate raw :math:`\tau \in (0,1)` (**R12a**); see
-:ref:`sn-282-direct-starting-direction-solve`.  The "#229 floor" resolution
+:ref:`sn-direct-seed-solve`.  The "#229 floor" resolution
 — three distinct curvilinear errors separated by a
 volume-weighted-:math:`L_2`-vs-:math:`L_\infty` norm difference — is
 :ref:`sn-curvilinear-aniso-norm-reconciliation`.  The storage / index /
@@ -943,7 +943,7 @@ Where to look first — symptom → chapter
      - :ref:`loss-rep-one-walk-one-instance`
    * - Krylov stalls or diverges after a composite-sizing refactor
      - ``restart`` / ``n_dof`` sizing (the ERR-053 family)
-     - :ref:`sn-282-gotchas`
+     - :ref:`sn-direct-seed-gotchas`
    * - MMS recovers a lower order than theory
      - the ansatz nulls the term (Mode 7) or the regime is degenerate
      - :doc:`verification`
@@ -1057,7 +1057,7 @@ Solver-coordination traps
    **Sweep-machinery gotchas** — the Krylov ``restart`` sizing bug
    (ERR-053 family), the product-cylinder edge-extrapolation data-flow
    invariant, and the Mode-12 / ERR-067 :math:`G`-reciprocity metric catch
-   — are documented alongside the sweep at :ref:`sn-282-gotchas`.
+   — are documented alongside the sweep at :ref:`sn-direct-seed-gotchas`.
 
 
 .. _sn-chapters:
@@ -1087,7 +1087,7 @@ sequence):
   this page (:ref:`cell-update-strategies`) → the multi-D schedule
   (:ref:`sweep-octant-dependency-graph`) → the curvilinear sequential
   sweep (:doc:`curvilinear_one_group`) → the sweep-machinery gotchas
-  (:ref:`sn-282-gotchas`).
+  (:ref:`sn-direct-seed-gotchas`).
 * **Porting an equation from the literature** — the machine header at
   the top of this page (sign / normalization / layout / ordering
   conventions) → :doc:`angular_quadrature` (weight normalization) →

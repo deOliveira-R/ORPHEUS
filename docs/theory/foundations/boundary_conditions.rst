@@ -257,7 +257,7 @@ Three remarks make this form load-bearing:
    that patched it — both retire in Phase C. See
    :ref:`bc-trace-contract-respected-by-matvec` for the
    verification gate that pins this contract, and
-   :ref:`bc-phase-d-two-bc-applies-per-matvec` for the Phase D
+   :ref:`bc-two-bc-applies-per-matvec` for the Phase D
    strengthening that audits **two** BC apply calls per matvec
    (Phase D Carlson context + Phase C trace law).
 
@@ -401,7 +401,7 @@ single source of truth — see :ref:`trace-spaces-doc`).
 .. vv-status: bc-extraction-direct-sum-state documented
 
 This is the realisation, for the boundary block, of the Wave T
-prediction (:ref:`wave-t-tensor-network`): "Wave O typing must accept
+prediction (:ref:`tensor-network-decomposition`): "Wave O typing must accept
 non-SOTP summands." :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
 is the :math:`A_{ss}` leaf — a bespoke
 :class:`~orpheus.numerics.operator.LinearOperator` carrying
@@ -736,7 +736,7 @@ boundary reflection gain
 ψ½ System B as the second row of a coupled :math:`M - N` block grid — the
 full 2×2 coupled block operator documented in
 :ref:`coupled-block-operator` (its starting-direction physics in
-:ref:`sn-282-direct-starting-direction-solve` in
+:ref:`sn-direct-seed-solve` in
 :doc:`/theory/methods/sn/curvilinear_one_group`);
 the former ``_within_group_triple`` / ``_lagged_gains`` construction pair
 retired into this one builder at B.2d. The :math:`B\,\psi.\text{outflow}`
@@ -3257,7 +3257,7 @@ deleted internal mixed-BC path was already composing via
 ``OperatorSum``-of-``ScaledOperator``.
 
 
-.. _bc-phase-d-two-bc-applies-per-matvec:
+.. _bc-two-bc-applies-per-matvec:
 
 Two BC apply calls per curvilinear matvec
 =========================================
@@ -3296,7 +3296,7 @@ post-Phase-D code path:
        ``CarlsonSweepContext.bc_outer_value`` (this Phase-D context
        object was later retired by Issue #282 route (a) — the
        starting-direction inflow corner is now a typed carrier slot; see
-       :ref:`sn-282-direct-starting-direction-solve`)
+       :ref:`sn-direct-seed-solve`)
    * - **#2**
      - Phase C BC trace law application (at the boundary edge after
        the WDD sweep completes)
@@ -3385,12 +3385,12 @@ is the outer cell-centre value which is **not** zero on a non-trivial
 matching, not just shape matching.
 
 
-.. _bc-phase-f-three-bc-applies-per-sweep-iteration:
+.. _bc-three-bc-applies-per-sweep-iteration:
 
 BC applies in the SI sweep path
 ===============================
 
-Phase D (Issue #168 Phase D, :ref:`bc-phase-d-two-bc-applies-per-matvec`
+Phase D (Issue #168 Phase D, :ref:`bc-two-bc-applies-per-matvec`
 above) instituted the *two BC apply calls per curvilinear matvec*
 contract on the apply-matvec path (the within-group operator,
 :class:`~orpheus.sn.operators.streaming.InvertibleOperator` post-Depth-B; the
@@ -3447,7 +3447,7 @@ load-bearing addition is the **Phase F seed call**:
        sweep's incoming flux
 
 **Comparison with the apply-matvec twin** (per
-:ref:`bc-phase-d-two-bc-applies-per-matvec`):
+:ref:`bc-two-bc-applies-per-matvec`):
 
 * The apply matvec consolidates its inflow logic into the **single
   Phase C trace law call** at the boundary edge — the BC operator
@@ -3467,7 +3467,7 @@ load-bearing addition is the **Phase F seed call**:
 
 The Phase F seed call's role is exactly analogous to the
 apply-matvec's Phase D Call #1 (per the
-:ref:`bc-phase-d-two-bc-applies-per-matvec` table): a
+:ref:`bc-two-bc-applies-per-matvec` table): a
 linear-in-:math:`\psi` extraction of the inward-zero-weight
 ordinate's outer-face flux.  Vacuum BC zeros it; reflective BC
 yields the most-inward ordinate's mirrored outflow.  In both

@@ -142,7 +142,7 @@ branch and have no landed hash yet.
        call). Landed **bit-identical**: the frozen walk baselines hold at
        ``nulp = 1`` (zero drift) and :math:`k` matches to 15 digits across
        sphere/slab × SI/Krylov (full tree 6340/0). See
-       :ref:`sn-282-direct-starting-direction-solve`.
+       :ref:`sn-direct-seed-solve`.
      - #280
      - ``refactor/sn-walk-unification`` *(in development, 98fe2e36)*
    * - 2026-07-11
@@ -169,7 +169,7 @@ branch and have no landed hash yet.
        converged ray is returned as
        :attr:`Solution.radial_characteristic <orpheus.sn.solution.Solution.radial_characteristic>`,
        System B's own member with a presence biconditional. See
-       :ref:`sn-282-direct-starting-direction-solve`.
+       :ref:`sn-direct-seed-solve`.
      - #280
      - ``refactor/sn-walk-unification`` *(in development, e5d1acf)*
    * - 2026-07-11
@@ -289,15 +289,15 @@ branch and have no landed hash yet.
        :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
        + the **full** Legendre fold
        :func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`,
-       :eq:`sn-282-anisotropic-source`). The augmented :math:`(L+C)` is
+       :eq:`sn-direct-seed-anisotropic-source`). The augmented :math:`(L+C)` is
        block-lower-triangular in the seed-first walk order
-       (:eq:`sn-282-block-triangular`), so the back edge is dead by
+       (:eq:`sn-direct-seed-block-triangular`), so the back edge is dead by
        construction (cold residual :math:`\to 2.5\times10^{-16}`; seed
        insensitivity :math:`4.57\times10^{-2}\to 0` bitwise). The whole
        ``PsiHalfAngleSeed`` strategy zoo retired (851 → 161 lines). The
        eigenvalue re-pose is principled by an angular-order N-sweep (a
        seed is a closure — h→0 is the wrong test). See
-       :ref:`sn-282-direct-starting-direction-solve`.
+       :ref:`sn-direct-seed-solve`.
      - #282 #280
      - ``refactor/sn-walk-unification`` *(in development, a29ab2d)*
    * - 2026-07-04

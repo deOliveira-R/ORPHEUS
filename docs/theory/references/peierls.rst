@@ -50,8 +50,8 @@ physical content:
   (specular multi-bounce; multi-region with strong scatterer outside
   fuel) — the cases that strain the Nyström rank-:math:`N` closures.
 
-The Phase 5 retreat (Issue #133, CLOSED 2026-04-28; documented at
-:ref:`peierls-phase5-retreat`) established that the
+The continuous-µ retreat (Issue #133, CLOSED 2026-04-28 — Phase 5's terminal decision; documented at
+:ref:`peierls-continuous-mu-retreat`) established that the
 **angle-integrated** kernel :math:`g_\alpha` for specular BC is
 *hypersingular* (Hadamard finite-part) — Nyström sampling diverges
 at the diagonal and no :term:`quadrature` trick rescues it. The
@@ -2623,8 +2623,8 @@ to follow:
        (no rank-:math:`N` closure pathology), sphere fixed-source
        cross-checked against Garcia 2021 stable-:math:`P_N`
    * - Where it fails
-     - Specular / hypersingular kernel at the diagonal — Phase 5
-       retreat (:ref:`peierls-phase5-retreat`) closed Nyström
+     - Specular / hypersingular kernel at the diagonal — the
+       continuous-µ retreat (:ref:`peierls-continuous-mu-retreat`) closed Nyström
        sampling of :math:`g_\alpha`. Multi-region sphere has the
        Issue #132 mode-0 / mode-:math:`n\ge 1` normalisation
        mismatch.

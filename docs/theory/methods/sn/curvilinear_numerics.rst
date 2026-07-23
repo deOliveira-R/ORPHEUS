@@ -14,7 +14,7 @@ sweep-frame matvec) live with the production machinery in
 :doc:`curvilinear_one_group`, and the terminal resolution — route (a)
 (#282), which retired the whole ``PsiHalfAngleSeed`` strategy family
 by making :math:`\psi_{1/2}` first-class marched state — is
-:ref:`sn-282-direct-starting-direction-solve`.
+:ref:`sn-direct-seed-solve`.
 
 Read this chapter for the *why*: why anyone tried a Carlson inward
 :term:`sweep`, an apply-vs-sweep twin audit, a Krylov default flip — and how
@@ -182,7 +182,7 @@ The retired symbols are:
 * The 21 foundation tests at
   :file:`tests/sn/sweep/test_boundary_face_flux.py`
 
-See :ref:`phase-c-sweep-frame-matvec` for the replacement
+See :ref:`sn-sweep-frame-apply-matvec` for the replacement
 architecture. The Phase A subsection is preserved as historical
 context for the empirical-defects-investigation reasoning chain.
 
@@ -204,7 +204,7 @@ Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
    field" claim in the three sections below is **historical** — read them
    for the *why* (what was tried and the diagnoses that narrowed the
    defect), but for the CURRENT design see
-   :ref:`sn-282-direct-starting-direction-solve`.  In particular the
+   :ref:`sn-direct-seed-solve`.  In particular the
    ``AngularEdgeExtrapolation`` "iterate extrapolation" seed those
    sections land on was itself the #282 walk-order back edge that route
    (a) removes.
@@ -294,7 +294,7 @@ NOT collapsed — Issue #282 route (a) folds **all** Legendre moments of
 the true within-group source, because streaming manufactures angular
 structure an isotropic flux does not have (an :math:`\ell = 0`-only
 fold floored the anisotropic curvilinear MMS).  See
-:ref:`sn-282-source-fold` for the full fold and the load-bearing
+:ref:`sn-direct-seed-source-fold` for the full fold and the load-bearing
 :math:`\ell = 1` term.
 
 Discretising Eq. :eq:`hebert-3-432` on a sub-mesh of cell width
@@ -971,7 +971,7 @@ The strengthening matters because the Phase D matvec now calls
 #. **Phase D Carlson context call** — applied to cell-centred
    outer-cell :math:`\psi` to build ``bc_outer_value`` for the
    ``CarlsonSweepContext``.  See the BC companion section
-   :ref:`bc-phase-d-two-bc-applies-per-matvec`.
+   :ref:`bc-two-bc-applies-per-matvec`.
 #. **Phase C BC trace law call** — applied to the WDD-propagated
    outflow face value at the boundary edge, per the
    :ref:`affine-bc-form` contract.
@@ -1977,7 +1977,7 @@ Pointers
   *"What Wave H Phase F added"*) — manifestation table update
   #6 CLOSED, #7 (new) OPEN.
 * **Sister section on the BC apply call sequence**:
-  :ref:`bc-phase-f-three-bc-applies-per-sweep-iteration` in
+  :ref:`bc-three-bc-applies-per-sweep-iteration` in
   :doc:`/theory/foundations/boundary_conditions` — extends the Phase D
   two-BC-applies-per-matvec narrative to cover the SI sweep's
   Phase F invocation.
@@ -2040,7 +2040,7 @@ ERR-058 — the curvilinear closure-seed fix (Issue #195 CLOSED)
       inlined
       :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
       for non-carrying cylinder levels.  See
-      :ref:`sn-282-seed-strategy-zoo`.
+      :ref:`sn-direct-seed-strategy-zoo`.
 
    The **anisotropic** curvilinear MMS gates improved :math:`\sim 50\times`
    and are now limited by a *fixed-quadrature angular floor* of the
@@ -2663,7 +2663,7 @@ oracle), ERR-058 deletes no correct machinery:
    (now the SOLVE driver, on the **true** q½ source) and the inlined
    :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
    (non-carrying cylinder levels).  The coupled-pole spatial seed row is
-   unaffected.  See :ref:`sn-282-seed-strategy-zoo`.
+   unaffected.  See :ref:`sn-direct-seed-strategy-zoo`.
 
 Open research paths
 ---------------------
@@ -2687,7 +2687,7 @@ isotropic O(h²) result:
    prediction: the seed also had to become **first-class typed state**
    (not just a better strategy) to kill the walk-order back edge that
    made the *solve* non-direct.  See
-   :ref:`sn-282-direct-starting-direction-solve`.
+   :ref:`sn-direct-seed-solve`.
 #. **Unclamped-:math:`\tau` threading on a linear-in-:math:`\mu` shell.**
    The exact linear-:math:`\mu` threading (above) holds only for
    unclamped :math:`\tau`; quantify the clamp's contribution to the

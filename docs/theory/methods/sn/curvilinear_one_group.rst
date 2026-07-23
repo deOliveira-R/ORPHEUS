@@ -910,7 +910,7 @@ derived from it) after B3.  The first two are the **solve** and
 **apply** directions of the same per-cell linear system; the third is
 the vectorized scan form of the same recurrence — the apply / sweep
 duality this page calls the **L21 twin-path** (two applications of the
-*same* operator; cf. :ref:`phase-c-sweep-frame-matvec` for the
+*same* operator; cf. :ref:`sn-sweep-frame-apply-matvec` for the
 apply-direction matvec that is the twin of the curvilinear sweep).
 
 **(1) The scalar solve helper.**
@@ -1907,7 +1907,7 @@ Half-angle grid exposure
    Closeout memo:
    ``.claude/agent-memory/method-implementer/issue_197_pr_typed_6b_closeout.md``.
 
-.. _phase-c-sweep-frame-matvec:
+.. _sn-sweep-frame-apply-matvec:
 
 Sweep-frame apply matvec
 ========================
@@ -2329,7 +2329,7 @@ way the spherical case does not — see the Gate 1.1 finding below
 NOT :math:`\alpha`-dome telescoping, and false for a product
 quadrature).
 
-.. _phase-c-apply-sweep-equivalence:
+.. _sn-apply-sweep-equivalence:
 
 apply ↔ sweep structural equivalence
 -------------------------------------
@@ -3105,14 +3105,14 @@ CLOSED while keeping the **magnitude** scope open per
    and asserts the captured BC apply input matches to
    ``rtol=1e-14``. See
    :ref:`sn-phase-d-gate-1-5-capture-and-compare` and the BC
-   companion section :ref:`bc-phase-d-two-bc-applies-per-matvec`.
+   companion section :ref:`bc-two-bc-applies-per-matvec`.
 6. **Marker partial removal — deferred.** The 4 ``xfail-strict``
    ERR-026 tripwires stay through Phase D Step 3 — they will
    ``xpass`` under the new default but require the Step 5
    marker-removal commit. ERR-026 stays at PARTIAL CLOSURE
    pending Issue #195 (pre-asymptotic-magnitude convergence).
 
-.. _sn-282-direct-starting-direction-solve:
+.. _sn-direct-seed-solve:
 
 The direct starting-direction ψ½ solve
 ======================================
@@ -3158,7 +3158,7 @@ The direct starting-direction ψ½ solve
    :ref:`sn-err-058-closure-seed-closeout`).  Those sections are
    preserved as the record of *what was tried and why it fell short*;
    the ``PsiHalfAngleSeed`` strategy family they built is **retired**
-   here (see :ref:`sn-282-seed-strategy-zoo`).
+   here (see :ref:`sn-direct-seed-strategy-zoo`).
 
 The lagged pole seed was a walk-order back edge
 -----------------------------------------------
@@ -3249,7 +3249,7 @@ angular cell.  The redistribution term switches off — equivalently the
 spatial ODE in radius alone**:
 
 .. math::
-   :label: sn-282-pole-straight-characteristic
+   :label: sn-direct-seed-pole-straight-characteristic
 
    \mu\,\frac{d\psi_{1/2}}{dr} \;+\; \sigma_t(r)\,\psi_{1/2}(r)
    \;=\; \bar q_{1/2}(r),
@@ -3266,17 +3266,17 @@ cascade it goes on to seed.
 .. claim — the verifiable content is the C(i) direct-solve residual
 .. collapse and the block-triangular A_sb=0 certificate (§16.C), tabled
 .. under the route-(a) evidence below.
-.. vv-status: sn-282-pole-straight-characteristic documented
+.. vv-status: sn-direct-seed-pole-straight-characteristic documented
 
 This is the physics that makes route (a) possible and the augmented
-operator triangular.  The seed rows of :eq:`sn-282-block-triangular` are
+operator triangular.  The seed rows of :eq:`sn-direct-seed-block-triangular` are
 self-contained (:math:`A_{\rm sb} = 0`) **because** the pole ODE reads no
 bulk and no trace unknown — a straight characteristic couples to nothing
 downstream.  The representation choice — promote :math:`\psi_{1/2}` to
 first-class state — is *downstream* of the physics: any storage would
 inherit the same decoupling.  What the lagged seed got wrong was never
 the physics; it was reading the *iterate* for a quantity the pole ODE can
-solve **directly** from the source (:ref:`sn-282-source-fold`).  The
+solve **directly** from the source (:ref:`sn-direct-seed-source-fold`).  The
 deeper structural reason :math:`\mu = \pm 1` is the *only* admissible
 starting direction in any curvilinear geometry is set out under
 :ref:`sn-phase-d-pomraning-structural-singularity`.
@@ -3290,7 +3290,7 @@ within-group phase space carries a starting-direction subspace beyond the
 bulk and trace:
 
 .. math::
-   :label: sn-282-augmented-composite
+   :label: sn-direct-seed-augmented-composite
 
    V \;=\; V_{\rm bulk} \,\oplus\, V_{\rm trace} \,\oplus\, V_{\rm sd},
    \qquad
@@ -3376,7 +3376,7 @@ guard, not a runtime branch), so the B.2c dead-slot double-count hazard
 (the welded seed feed **and** an explicit :math:`A_{AB}` block both firing
 on one carrier) dissolved **structurally**.  The coupled flat dimension is
 the **honest two-system sum** — no dead padding — which is why the ERR-053
-``restart`` sizing (:ref:`sn-282-gotchas`) reads the true count off the
+``restart`` sizing (:ref:`sn-direct-seed-gotchas`) reads the true count off the
 coupled ravel.  The converged ψ½ state is returned as
 :attr:`Solution.radial_characteristic <orpheus.sn.solution.Solution.radial_characteristic>`
 — System B's **own typed member**, ``None`` exactly when the mesh carries
@@ -3417,7 +3417,7 @@ Three pole-vanishing quantities were historically conflated into one
        endpoints :math:`\alpha_{1/2} = \alpha_{N+1/2} = 0`)
      - an **operator coefficient inside** :math:`A` — the
        angular-redistribution strength that makes the pole a straight
-       characteristic (:eq:`sn-282-pole-straight-characteristic`).
+       characteristic (:eq:`sn-direct-seed-pole-straight-characteristic`).
        Correctly zero.
    * - **M3**
      - **state metric** :math:`G_{\rm sd} = V_{\rm cell} \neq 0`
@@ -3450,7 +3450,7 @@ are bitwise **gauge-invariant** (the block-upper-triangular
 block by :math:`V_{\rm cell}`, its inverse **divides** (empty null
 space), and the block contributes :math:`\sum V_{\rm cell}\,x\,y` to the
 composite inner product.  This closes a sharp V&V gap — see
-:ref:`sn-282-gotchas` (Mode 12, ERR-067).  The gauge derivation of record
+:ref:`sn-direct-seed-gotchas` (Mode 12, ERR-067).  The gauge derivation of record
 is
 ``.claude/agent-memory/numerics-investigator/radial_characteristic_metric_gauge_derivation.md``.
 
@@ -3459,9 +3459,9 @@ is
 .. space.  Not a solver claim — the verifiable content is the
 .. RadialCharacteristicSpace layout / role-quadruple class-identity
 .. arithmetic (Field Layer-1 gate) + the §16.A carrier gates.
-.. vv-status: sn-282-augmented-composite documented
+.. vv-status: sn-direct-seed-augmented-composite documented
 
-.. _sn-282-pole-state-metric:
+.. _sn-direct-seed-pole-state-metric:
 
 The through-flux coefficient is not the state metric
 ----------------------------------------------------------------
@@ -3501,7 +3501,7 @@ metric while for the other it does not:
 For the pole, :math:`(1-\mu^2)\,w \equiv 0` correctly captures the M2
 through-flux: the :math:`\mu = \pm 1` angular face is *entirely grazing*,
 so no flux streams *across* it.  That is the straight-characteristic
-physics of :eq:`sn-282-pole-straight-characteristic`, and it is exactly
+physics of :eq:`sn-direct-seed-pole-straight-characteristic`, and it is exactly
 why the augmented operator is triangular.  **What is wrong is reading that
 through-flux coefficient as the block's Hilbert STATE metric.**
 
@@ -3531,10 +3531,10 @@ V&V-consequential above).
    * **M1 — the scalar-flux moment** :math:`\int\psi\,d\mu`: "how much
      does this ray contribute to :math:`\phi`?"  *Rule-dependent* — under
      the sphere's *open* Gauss–Legendre rule
-     (:ref:`sn-282-circle-vs-interval`) the pole has **no interior node**,
+     (:ref:`sn-direct-seed-circle-vs-interval`) the pole has **no interior node**,
      so its moment weight is zero and the seed is a pure auxiliary DOF;
      under a pole-*including* rule (Gauss–Lobatto,
-     :ref:`sn-282-lobatto-study`) it would carry a genuine nonzero moment
+     :ref:`sn-direct-seed-lobatto-study`) it would carry a genuine nonzero moment
      weight.
    * **M2 — the angular through-flux** :math:`(1-\mu^2)`: "how much
      streams *across* this angular face?"  Zero at the pole **always**
@@ -3559,7 +3559,7 @@ unification).  Ordering the unknowns **seed⁻ ≺ seed⁺ ≺ ordinate legs**
 makes the augmented operator block-lower-triangular:
 
 .. math::
-   :label: sn-282-block-triangular
+   :label: sn-direct-seed-block-triangular
 
    A \;=\;
    \begin{bmatrix} A_{\rm ss} & 0 \\[2pt] A_{\rm bs} & A_{\rm bb} \end{bmatrix},
@@ -3633,7 +3633,7 @@ substitution on the source subspace.
    The walk's ``carlson_inward_sweep_*`` references went **8 → 0**; a
    source-scan tripwire (``test_4e_unweave_walk_source_has_no_carlson_reference``)
    pins that the walk holds zero references to the engines, and the
-   :ref:`Mode-11 wrap-sentinels <sn-282-numerical-evidence>` re-aim onto
+   :ref:`Mode-11 wrap-sentinels <sn-direct-seed-numerical-evidence>` re-aim onto
    the operator's ``solve`` / ``solve_transpose``.  The **forward matvec**
    and its transpose were single-sourced earlier (step 4b) onto
    :func:`~orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_forward_residual`,
@@ -3652,9 +3652,9 @@ substitution on the source subspace.
 .. walk order.  The verifiable content is the triu==0 triangularity
 .. certificate + the apply∘solve corner-defect=0-bit gate (§16.C), not a
 .. flux/eigenvalue claim.
-.. vv-status: sn-282-block-triangular documented
+.. vv-status: sn-direct-seed-block-triangular documented
 
-.. _sn-282-source-fold:
+.. _sn-direct-seed-source-fold:
 
 The starting-direction source fold — why ALL Legendre moments (R14)
 -------------------------------------------------------------------
@@ -3694,7 +3694,7 @@ and :math:`\partial_\mu\psi = 0`) gives a source that is **linear in**
 :math:`\mu`:
 
 .. math::
-   :label: sn-282-anisotropic-source
+   :label: sn-direct-seed-anisotropic-source
 
    q(r,\mu) \;=\; \mu\,A'(r) \;+\; \sigma_t(r)\,A(r),
    \qquad
@@ -3706,7 +3706,7 @@ and :math:`\partial_\mu\psi = 0`) gives a source that is **linear in**
 .. full-fold requirement, whose verifiable content is the fold's ℓ=0
 .. collapse to ½q₀ bit-identity (isotropic paths unchanged) + the
 .. anisotropic-MMS O(h²) convergence gate.
-.. vv-status: sn-282-anisotropic-source documented
+.. vv-status: sn-direct-seed-anisotropic-source documented
 
 The value at :math:`\mu = -1` carries the :math:`-A'` term — and that
 term lives **entirely in the** :math:`\ell = 1` **moment**.  Working the
@@ -3738,7 +3738,7 @@ isotropic sources — :math:`\ell \ge 1` is manufactured-before-needed and
 identically zero (the isotropic-snapshot-blindness discipline: the
 machinery is correct for the case the snapshots cannot exercise).
 
-.. _sn-282-r12a:
+.. _sn-direct-seed-r12a:
 
 Which levels carry a ψ½ block — the R12a predicate
 --------------------------------------------------
@@ -3751,7 +3751,7 @@ Morel–Montry weight
 read by :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`):
 
 .. math::
-   :label: sn-282-r12a-predicate
+   :label: sn-direct-seed-r12a-predicate
 
    \text{level } p \text{ carries a ψ½ block}
    \quad\Longleftrightarrow\quad
@@ -3795,7 +3795,7 @@ level-symmetric cylinder rules (μ_start ∉ nodes there, yet
 :math:`0 \mapsto \tfrac12` erases exactly the 0-vs-(0,1) distinction the
 predicate needs, which is why the **raw** producer is first-class.
 
-.. _sn-282-circle-vs-interval:
+.. _sn-direct-seed-circle-vs-interval:
 
 Why the sphere pays for the pole and the cylinder does not — circle vs interval
 -------------------------------------------------------------------------------
@@ -3813,7 +3813,7 @@ Two orthogonal questions must be kept apart:
    **curvilinear vs Cartesian** (sphere **and** cylinder: yes;
    Cartesian: no).
 #. *Does the angular sweep need a separate, off-node starting DOF?* — this
-   is the τ_raw predicate (:ref:`sn-282-r12a`), which is
+   is the τ_raw predicate (:ref:`sn-direct-seed-r12a`), which is
    **quadrature-structural, not geometric**.
 
 ψ½ answers question 2, and the deciding fact is what the redistribution
@@ -3886,7 +3886,7 @@ edge-ordinate" *works* — it works there precisely because the axis is a
 circle.  The sphere pays because its axis has physical endpoints and the
 best interior rule refuses to stand on them.
 
-.. _sn-282-lobatto-study:
+.. _sn-direct-seed-lobatto-study:
 
 Could the sphere put a node at the pole? — the Gauss–Lobatto study
 ------------------------------------------------------------------
@@ -3956,7 +3956,7 @@ architecture this decides is set out on the loss-operator page
    them otherwise.  The durable synthesis is
    ``.claude/plans/facefield_codim1_design.md`` §3.5.
 
-.. _sn-282-seed-strategy-zoo:
+.. _sn-direct-seed-strategy-zoo:
 
 What was tried and failed — the seed-strategy zoo (retired)
 -----------------------------------------------------------
@@ -3997,7 +3997,7 @@ places, both correct on their own:
 
 * :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
   — the Hébert :eq:`hebert-3-434`–:eq:`hebert-3-435` recurrence, now
-  driven by the **true** q½ source (:ref:`sn-282-source-fold`) instead of
+  driven by the **true** q½ source (:ref:`sn-direct-seed-source-fold`) instead of
   the falsified proxy, and used as the SOLVE engine (not a strategy);
 * :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
   — the 2-point angular-edge extrapolation, inlined **verbatim** for the
@@ -4005,7 +4005,7 @@ places, both correct on their own:
   bit-identical to the retired default: :math:`t = 0` exact on product
   rules, dead seed weight on level-symmetric rules).
 
-.. _sn-282-numerical-evidence:
+.. _sn-direct-seed-numerical-evidence:
 
 Numerical evidence — the lag death
 ----------------------------------
@@ -4104,14 +4104,14 @@ do, so the re-pose is principled.
 
    And the **MMS is blind to the seed**.  Every curvilinear manufactured
    solution in this codebase is :math:`\le` linear-in-:math:`\mu`, which
-   is exactly the seed's *exact* regime (:eq:`sn-282-anisotropic-source`
+   is exactly the seed's *exact* regime (:eq:`sn-direct-seed-anisotropic-source`
    is the boundary of what the seed can get wrong; vv-principles Mode 7).
    So the MMS-:math:`\mathcal{O}(h^2)` convergence does **not** certify
    the seed — only the :math:`N`-sweep gate does.  (Eigenvalue claims
    need a closed-form or semi-analytical reference regardless; MMS is a
    flux-shape / convergence-order pillar, never an eigenvalue one.)
 
-.. _sn-282-gotchas:
+.. _sn-direct-seed-gotchas:
 
 Gotchas
 -------

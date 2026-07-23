@@ -232,7 +232,7 @@ architecture (rank-:math:`N` closures, Phase 4
 ``specular_multibounce``, slab + cyl + sph) see
 :ref:`theory-peierls-nystrom`. For the predecessor that motivates
 this page — the continuous-µ retreat — see
-:ref:`peierls-phase5-retreat`.
+:ref:`peierls-continuous-mu-retreat`.
 
 **Sphere prototype scope as of 2026-05-02** (Plan 2 Part B +
 A1/A2/A3/Plan-(b) follow-ons all closed; sister-geometry coverage
@@ -3760,7 +3760,7 @@ advantages:
 1. **Closed-form bounce summation.** The infinite geometric series
    :math:`\sum_n S^n` is summed *algebraically*, never iteratively.
    This is the structural reason the Hadamard finite-part diagonal
-   singularity that killed Phase 5 (see :ref:`peierls-phase5-retreat`)
+   singularity that killed Phase 5 (see :ref:`peierls-continuous-mu-retreat`)
    is bypassed in Variant α: we never assemble the angle-integrated
    kernel that has the singularity. The bounce summation lives in
    the transfer-operator algebra, not in any quadrature.

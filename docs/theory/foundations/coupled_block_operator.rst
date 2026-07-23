@@ -62,7 +62,7 @@ the N-general machinery, the one production spelling, the block solve,
 the convergence certificate, and the swap law. The starting-direction
 physics (the pole as a straight characteristic, the M1/M2/M3 metric
 distinction, R12a presence) lives in
-:ref:`sn-282-direct-starting-direction-solve` in
+:ref:`sn-direct-seed-solve` in
 :doc:`/theory/methods/sn/curvilinear_one_group`;
 here we document the **algebra** the physics is posed in.
 
@@ -706,5 +706,5 @@ consumes the transport residual :func:`~orpheus.sn.solver.evaluate_residual`
 already types — DSA computes that residual, the diffusion solve corrects
 it, and the correction :math:`\to 0` at convergence (so the accelerator is
 correctness-safe by construction). The Wave-T DSA row
-(:ref:`wave-t-tensor-network`) tracks the same seam from the
+(:ref:`tensor-network-decomposition`) tracks the same seam from the
 loss-leaf side.

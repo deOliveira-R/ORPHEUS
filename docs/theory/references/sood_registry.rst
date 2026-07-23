@@ -470,7 +470,7 @@ Per-case provenance + cross-method status:
 Wide enumeration coverage
 =========================
 
-.. _sood-registry-phase-b3-wide:
+.. _sood-registry-wide-enumeration:
 
 Phase B3 expanded the registry from the 5-case Phase A first slice
 to **42 LA-13511 cases** spanning every class the existing
@@ -808,7 +808,7 @@ reference solver on Sood ``PUa-1-0-IN``.
 Forward-looking — the meta-registry
 ===================================
 
-.. _sood-registry-wave-3-foreshadowing:
+.. _sood-registry-meta-registry:
 
 The current registry has two registries side-by-side:
 :class:`LA13511_CASES` (Sood/Forster/Parsons 1999) and the Atalay

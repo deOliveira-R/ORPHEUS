@@ -1155,7 +1155,7 @@ target. In curvilinear :math:`S_N`, **radial characteristics** — the exact
 single-pass inverse that marches the half-angle starting direction
 :math:`\psi_{1/2}` along the radial characteristic
 (:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`,
-:ref:`sn-282-direct-starting-direction-solve`) — is written today for the
+:ref:`sn-direct-seed-solve`) — is written today for the
 **Diamond-Difference** angular closure. That looks like a scheme-specific
 construct. Naming its invariant shows it is not.
 

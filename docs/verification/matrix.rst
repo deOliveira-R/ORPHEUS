@@ -900,7 +900,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``rcp-slab-total``
 - ``real-spherical-harmonics-l1``
 - ``reciprocity-lower-triangle``
-- ``region-areas-pincell``
+- ``region-areas-pin-cell``
 - ``resolvent-object-gate``
 - ``richardson-diffusion``
 - ``richardson-extrapolation-formula``
@@ -919,12 +919,12 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``sigs-in-scatter-transpose``
 - ``singular-eigenfunction-eq47``
 - ``singular-eigenfunction-x-function-isotropic-limit``
-- ``sn-282-r12a-predicate``
 - ``sn-affine-outgoing-face-reconstruction-eq``
 - ``sn-axis-widths``
 - ``sn-cell-flatten-roundtrip``
 - ``sn-contamination-factor``
 - ``sn-curvilinear-mg-cell-denominator``
+- ``sn-direct-seed-r12a-predicate``
 - ``sn-fixed-source-direct-sum``
 - ``sn-homogenization-adjoint-weighted``
 - ``sn-homogenization-balance-preservation``
@@ -961,6 +961,8 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``streaming-action-cell-balance``
 - ``sweep-cumprod-factors``
 - ``sweep-cumprod-solution``
+- ``tensor-network-angular-redist-contribution``
+- ``tensor-network-cell-balance-numerator``
 - ``trace-sign-predicate``
 - ``two-moment-angular``
 - ``two-moment-carrier-space``
@@ -968,8 +970,6 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``two-moment-tensor-product``
 - ``vacuum-legacy-vs-trace-correct``
 - ``virtual-collision-probability``
-- ``wave-t-angular-redist-contribution``
-- ``wave-t-cell-balance-numerator``
 - ``wdd-cell-balance``
 - ``wdd-diamond-closure``
 - ``wm72-discrete-pseudo-eigenfunction``
@@ -1238,11 +1238,11 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``si-within-group-fixed-point``
 - ``sigs-convention``
 - ``singular-eigenfunction-eq5``
-- ``sn-282-anisotropic-source``
-- ``sn-282-augmented-composite``
-- ``sn-282-block-triangular``
-- ``sn-282-pole-straight-characteristic``
 - ``sn-coupled-pole-mu-level-invariant-eq``
+- ``sn-direct-seed-anisotropic-source``
+- ``sn-direct-seed-augmented-composite``
+- ``sn-direct-seed-block-triangular``
+- ``sn-direct-seed-pole-straight-characteristic``
 - ``sn-err-058-coupled-pole-continuity``
 - ``sn-err-058-edge-extrapolation``
 - ``sn-err-058-proxy-source``
@@ -1280,6 +1280,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``streaming-pn-recurrence``
 - ``subgroup-of-o3-containment``
 - ``sum-of-tensor-products``
+- ``tensor-network-cell-balance-three-terms``
+- ``tensor-network-ma-q1-master-condition``
+- ``tensor-network-mspat-curvilinear-subtraction``
 - ``tensor-product-action``
 - ``tensor-product-adjoint-distributivity``
 - ``tensor-product-axis-wise-composition``
@@ -1287,9 +1290,6 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``trace-half-decomposition``
 - ``transport-equation``
 - ``vacuum-bc``
-- ``wave-t-cell-balance-three-terms``
-- ``wave-t-ma-q1-master-condition``
-- ``wave-t-mspat-curvilinear-subtraction``
 - ``wavefront-cochain-biproduct``
 - ``wavefront-cochain-biproduct-laws``
 - ``wavefront-cochain-primal``

@@ -39,17 +39,17 @@ chosen per operator by what the underlying physics actually couples — and
 the streaming operator, whose in-sweep recurrence couples the axes
 sequentially, resists a clean tensor product altogether.
 
-- :ref:`wave-t-shape-table` — the per-operator shape catalogue and the
+- :ref:`tensor-network-shape-table` — the per-operator shape catalogue and the
   MA-Q1 master condition that decides when a tensor product is admissible.
-- :ref:`wave-t-streaming-deep-dive` — streaming's in-sweep WDD recurrence
+- :ref:`tensor-network-streaming-deep-dive` — streaming's in-sweep WDD recurrence
   and why it is not tensor-separable.
-- :ref:`wave-t-orchestrated-apply` — the single bidirectional pass, its
+- :ref:`tensor-network-orchestrated-apply` — the single bidirectional pass, its
   design rationale, and the retired per-direction split (#238).
-- :ref:`wave-t-curvilinear-deep-dive` — the curvilinear angular
+- :ref:`tensor-network-curvilinear-deep-dive` — the curvilinear angular
   redistribution (Morel–Montry) thread.
 
 
-.. _wave-t-tensor-network:
+.. _tensor-network-decomposition:
 
 Tensor-Network Decomposition of SN Operators
 ============================================
@@ -95,7 +95,7 @@ Key Facts
 
 - **Five algebraic shapes** are now in production simultaneously,
   selected by the per-operator physics coupling — see
-  :ref:`wave-t-shape-table` below for the catalogue.
+  :ref:`tensor-network-shape-table` below for the catalogue.
 
 - **The MA-Q1 master condition** (load-bearing for every future
   consumer):
@@ -150,10 +150,10 @@ Key Facts
   oracle instead of pinning source text on what is now a SHARED
   octant walk.)*
 
-.. vv-status: wave-t-shape-table documented
+.. vv-status: tensor-network-shape-table documented
 
 
-.. _wave-t-shape-table:
+.. _tensor-network-shape-table:
 
 Per-operator shape catalogue
 ----------------------------
@@ -273,10 +273,10 @@ of these operators.
    decisions. Verified by the absence of SOTP-shaped consumers in
    production after T.3 + T.4 land — exhaustively documented in
    ``.claude/plans/wave_t_tensor_network.md`` §6 T.3 + T.4 deviations.
-.. vv-status: wave-t-ma-q1-master-condition documented
+.. vv-status: tensor-network-ma-q1-master-condition documented
 
 .. math::
-   :label: wave-t-ma-q1-master-condition
+   :label: tensor-network-ma-q1-master-condition
 
    \text{SOTP applies} \;\Longleftrightarrow\;
    \text{each summand factors as} \;
@@ -320,7 +320,7 @@ over bespoke :class:`LinearOperator` summands — and the
 without information loss.
 
 
-.. _wave-t-streaming-deep-dive:
+.. _tensor-network-streaming-deep-dive:
 
 Streaming deep dive — in-sweep WDD recurrence (the retired per-direction split)
 -------------------------------------------------------------------------------
@@ -421,7 +421,7 @@ off-diagonal products :math:`\prod_{j<i}(\cdots)` carry information
 *between* cells and *depend on the ordinate* :math:`\mu` through the
 denominators. The spatial factor and the angular index are entangled
 inside the recurrence — the disjoint-axes contract of
-:class:`TensorProductOperator` (:eq:`wave-t-ma-q1-master-condition`)
+:class:`TensorProductOperator` (:eq:`tensor-network-ma-q1-master-condition`)
 fails. The cell-balance algebra at
 :func:`orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
 hides this recurrence inside the named denom-numer primitives, but
@@ -447,7 +447,7 @@ walks both directions in ONE bidirectional pass, regardless of whether
 the directions are exposed as separate operator leaves. (Exposing them
 as leaves does not remove the coupling — it only forces the leaves to
 share state, which is precisely the smell that motivated the
-now-retired orchestrator; see :ref:`wave-t-orchestrated-apply`.)
+now-retired orchestrator; see :ref:`tensor-network-orchestrated-apply`.)
 
 .. note::
 
@@ -462,7 +462,7 @@ now-retired orchestrator; see :ref:`wave-t-orchestrated-apply`.)
    See :ref:`bc-extraction`.
 
 
-.. _wave-t-orchestrated-apply:
+.. _tensor-network-orchestrated-apply:
 
 One bidirectional pass — design rationale and the retired per-direction split
 -----------------------------------------------------------------------------
@@ -506,7 +506,7 @@ implementation
      \texttt{self.a.apply}(x) \;+\; \texttt{self.b.apply}(x)
 
 would have cost **1.5× the unified matvec walltime**. The reason is the
-forward-backward coupling of :ref:`wave-t-streaming-deep-dive`: each
+forward-backward coupling of :ref:`tensor-network-streaming-deep-dive`: each
 standalone ``_SpatialSweepDirection.apply`` internally ran the *entire*
 bidirectional sweep (it had to, to obtain the seed coupling) and then
 masked the opposite-direction ordinates to zero. Summing the two
@@ -596,7 +596,7 @@ what actually happened, is:
        (:ref:`sn-mms-curvilinear-aniso-verification`), a
        *structurally-independent* L1 ground. A bit-identity invariant
        between the fused pass and the sum of its own per-direction
-       summands (see :ref:`wave-t-curvilinear-deep-dive`) only verified
+       summands (see :ref:`tensor-network-curvilinear-deep-dive`) only verified
        that the split *reconstructed itself*, not that either branch was
        correct.
 
@@ -610,7 +610,7 @@ consumers**. Every production matvec went through the fused walk; the
 leaves existed only to be applied by their own structural tests — the
 algebra-decomposition invariant
 :math:`(L+C)\,\psi \equiv M_{\rm spatial}\,\psi + M_{\rm angular\_redist}\,\psi`
-(see :ref:`wave-t-curvilinear-deep-dive`). This is the classic *orphan
+(see :ref:`tensor-network-curvilinear-deep-dive`). This is the classic *orphan
 smell*: machinery kept alive solely to feed the tests that exist solely
 to verify that machinery. Cardinal Rule 2 (architecture is critical)
 treats a self-referential test loop as a code smell — the tests prove
@@ -622,7 +622,7 @@ cheaper *or* the more modular path, for a structural reason rather than
 an incidental one:
 
 - **It could not be cheaper.** The forward-backward coupling
-  (:ref:`wave-t-streaming-deep-dive`) means a standalone per-direction
+  (:ref:`tensor-network-streaming-deep-dive`) means a standalone per-direction
   apply must run the whole bidirectional sweep anyway. The orchestrator
   existed precisely to undo the 1.5× penalty of the naïve sum — i.e. to
   claw back to the cost of the single fused pass it was wrapping. The
@@ -641,7 +641,7 @@ override avoided is now moot — there is only one pass to run — and the
 single-source-of-truth property is satisfied *more directly*: one walk,
 one source, no orchestrator coordinating two summands that were never
 independent. The angular-redistribution term that the curvilinear leaf
-isolated is computed in-sweep (see :ref:`wave-t-curvilinear-deep-dive`)
+isolated is computed in-sweep (see :ref:`tensor-network-curvilinear-deep-dive`)
 and verified end-to-end by the anisotropic curvilinear MMS
 (:ref:`sn-mms-curvilinear-aniso-verification`, ``catches("ERR-026")``)
 — the surviving structural-independence ground.
@@ -667,7 +667,7 @@ and verified end-to-end by the anisotropic curvilinear MMS
    pair is the principled surface; build the new consumer against it.
 
 
-.. _wave-t-curvilinear-deep-dive:
+.. _tensor-network-curvilinear-deep-dive:
 
 Curvilinear angular redistribution — in-sweep Morel–Montry thread
 -----------------------------------------------------------------
@@ -731,7 +731,7 @@ respects the disjoint-axes contract. A 3-factor TP wrap would
 (``coding-elegance`` Pattern 4 — do not represent illegal states).
 
 This is the *angular* analogue of the spatial WDD obstruction of
-:ref:`wave-t-streaming-deep-dive`: where the WDD recurrence couples
+:ref:`tensor-network-streaming-deep-dive`: where the WDD recurrence couples
 spatial cell :math:`i+1` to cell :math:`i`, the M-M recurrence couples
 angular half-face :math:`m+\tfrac12` to :math:`m-\tfrac12`. Both are
 lower-triangular sweeps over a single axis with ordinate- and
@@ -751,7 +751,7 @@ at :func:`orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
 decomposes additively into three terms:
 
 .. math::
-   :label: wave-t-cell-balance-three-terms
+   :label: tensor-network-cell-balance-three-terms
 
    {\rm denom} \;=\;
      {\rm streaming\_denom\_term} \;+\;
@@ -759,7 +759,7 @@ decomposes additively into three terms:
      {\rm collision\_denom\_term}
 
 .. math::
-   :label: wave-t-cell-balance-numerator
+   :label: tensor-network-cell-balance-numerator
 
    {\rm numer\_upstream} \;=\;
      {\rm spatial\_upstream\_term} \;+\;
@@ -768,7 +768,7 @@ decomposes additively into three terms:
 The angular-redistribution contribution to the cell balance is
 
 .. math::
-   :label: wave-t-angular-redist-contribution
+   :label: tensor-network-angular-redist-contribution
 
    m_{\rm angular\_redist} \;=\;
      \frac{1}{V_i}\bigl[
@@ -784,7 +784,7 @@ for the closure data). It is an interior-cell operation that does not
 traverse the spatial boundary; only the spatial sweep writes face
 residuals.
 
-.. vv-status: wave-t-cell-balance-three-terms documented
+.. vv-status: tensor-network-cell-balance-three-terms documented
 
 
 Curvilinear bookkeeping (formerly the M_spatial-via-subtraction smell)
@@ -795,13 +795,13 @@ defined by *subtracting* the angular-redistribution share from the
 unified :math:`(L+C)\,\psi`:
 
 .. math::
-   :label: wave-t-mspat-curvilinear-subtraction
+   :label: tensor-network-mspat-curvilinear-subtraction
 
    M_{\rm spatial}\,\psi \;=\; (L+C)\,\psi \;-\;
                                M_{\rm angular\_redist}\,\psi
    \qquad (\text{curvilinear})
 
-.. vv-status: wave-t-mspat-curvilinear-subtraction documented
+.. vv-status: tensor-network-mspat-curvilinear-subtraction documented
 
 #238 retired both leaves, so this subtractive definition no longer ships:
 the fused matvec emits :math:`(L+C)\,\psi` directly with the
@@ -973,7 +973,7 @@ work MUST accommodate non-SOTP :class:`OperatorSum` summands. Any
 contract of the form "every BulkOperator summand IS a
 :class:`TensorProductOperator`" forecloses scattering, streaming
 spatial, and curvilinear angular redistribution. The five-shape
-catalogue in :ref:`wave-t-shape-table` is the constraint the Wave O
+catalogue in :ref:`tensor-network-shape-table` is the constraint the Wave O
 typing must respect.
 
 

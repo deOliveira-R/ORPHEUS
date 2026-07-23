@@ -6217,7 +6217,7 @@ def _build_full_K_per_group(
             f"for production multi-bounce specular at any geometry. "
             f"See `.claude/agent-memory/numerics-investigator/"
             f"phase5_round3_adaptive_quadrature.md` for the full "
-            f"forensic record + Sphinx §peierls-phase5-retreat."
+            f"forensic record + Sphinx §peierls-continuous-mu-retreat."
         )
     # Refactor #2-registry (Issue #137): every other closure routes
     # through a registered ClosureRecipe that returns a

@@ -225,7 +225,7 @@ of that door:
   :math:`\mu = -1` characteristic *sequentially in cells, vectorised
   across groups* — one march, :math:`n_g` lanes.  The System B slot
   of the route-(a) composite
-  (:ref:`sn-282-direct-starting-direction-solve`) carries
+  (:ref:`sn-direct-seed-solve`) carries
   ``(ng, nx)`` views per leg for the same reason.
 
 Each group's sweep is therefore an *independent triangular solve*:

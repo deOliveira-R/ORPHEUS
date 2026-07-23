@@ -153,14 +153,14 @@ consumers landed May 2026):
 * :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
   — :math:`\sum_k A_k \otimes B_k \otimes \cdots`; the §15.2
   *aspirational* canonical scattering / streaming form. **Zero
-  production consumers** today; see :ref:`wave-t-tensor-network`
+  production consumers** today; see :ref:`tensor-network-decomposition`
   for why (the MA-Q1 master condition: coupled physics falls back to
   :class:`OperatorSum` over bespoke leaves, not SOTP).
 * :class:`~orpheus.numerics.operator.OperatorSum` — the additive
   composer :math:`A + B`. Wave T promoted this to load-bearing
   status (T.3 scattering kernel; the T.4 per-direction streaming split
   was retired in #238 — the fused matvec walks both directions in one
-  pass); see :ref:`wave-t-shape-table`.
+  pass); see :ref:`tensor-network-shape-table`.
 * :class:`~orpheus.numerics.operator.RankOneOperator` — the rank-1 dyad
   :math:`|v\rangle\langle w|`: a reconstruction **column** ``v`` and a
   :class:`~orpheus.numerics.functional.Functional` **row** ``⟨w|``, with
@@ -191,7 +191,7 @@ The table below lists the production consumers as of Wave T close-out
 master condition that decides between :class:`TensorProductOperator`,
 :class:`SumOfTensorProductsOperator`, and
 :class:`OperatorSum`-of-bespoke-leaves — is at
-:ref:`wave-t-tensor-network`.
+:ref:`tensor-network-decomposition`.
 
 .. list-table:: Production consumers of the tensor-product primitives
    :header-rows: 1
@@ -217,7 +217,7 @@ master condition that decides between :class:`TensorProductOperator`,
      - The §15.2 SOTP form is aspirational; Wave T T.3 (scattering)
        and T.4 (streaming) both fell back to :class:`OperatorSum`
        over bespoke leaves per the MA-Q1 master condition. See
-       :ref:`wave-t-tensor-network` for the per-substep rationale.
+       :ref:`tensor-network-decomposition` for the per-substep rationale.
    * - :class:`~orpheus.numerics.operator.OperatorSum`
      - 1 (load-bearing, post Wave T)
      - Wave T T.3 scattering kernel
@@ -229,7 +229,7 @@ master condition that decides between :class:`TensorProductOperator`,
        in #238 — it had no production consumer; the fused matvec
        (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`)
        walks both directions in ONE bidirectional pass.
-       See :ref:`wave-t-orchestrated-apply`.
+       See :ref:`tensor-network-orchestrated-apply`.
    * - :class:`~orpheus.numerics.operator.RankOneOperator`
      - 1
      - Wave T T.2 fission kernel

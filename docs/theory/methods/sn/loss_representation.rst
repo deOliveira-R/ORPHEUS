@@ -780,7 +780,7 @@ asserted the back edge was present (``np.any(triu ≠ 0)``), never an
 ``xfail`` (L16 discipline — a silent xfail cannot alert on repair). The
 cylinder control shows exact triangularity because its first-ordinate
 seed is a rank-duplicate of :math:`\psi_0` (:math:`\tau_{{\rm raw},0} =
-0`; see :ref:`sn-282-circle-vs-interval`), so there is no independent
+0`; see :ref:`sn-direct-seed-circle-vs-interval`), so there is no independent
 seed row to order. The closed :term:`starting-direction <starting direction>` solve of Hébert
 §3.432–3.435 has since **landed** (#282 route (a), #280 Phase 2.5d): the
 :math:`\psi_{1/2}` pole seed is now a first-class STATE block whose rows
@@ -2269,14 +2269,14 @@ The within-group phase space spans three subspaces —
 
 (the same direct sum whose metric :math:`G` is
 :eq:`loss-rep-metric-adjoint-solve`; the canonical statement is the
-augmented composite :eq:`sn-282-augmented-composite` on the discrete-
+augmented composite :eq:`sn-direct-seed-augmented-composite` on the discrete-
 ordinates page).  The first two summands are familiar — the cell-centred
 bulk and the spatial boundary trace, together the 2-block
 :class:`~orpheus.transport.full_field.FullField` (System A) every
 representation on this page acts on.  This section is about the third,
 :math:`V_{\rm sd}`, the starting-direction ψ½ block (#282 route (a); the
 physics and the direct solve are on
-:ref:`sn-282-direct-starting-direction-solve`).  Since the Phase B.2d
+:ref:`sn-direct-seed-solve`).  Since the Phase B.2d
 eviction :math:`V_{\rm sd}` is **not** a block on ``FullField`` — it is
 **System B**, its own 2-block composite coupled to System A as a
 :class:`~orpheus.numerics.coupled_system.CoupledField`, and the walk
@@ -2313,9 +2313,9 @@ from the bulk:
   strength — the straight-characteristic physics), **not** the state
   metric; conflating the two was the retired "ghost metric" bug
   (ERR-067).  The full M1/M2/M3 distinction is on
-  :ref:`the discrete-ordinates page <sn-282-pole-state-metric>`.
+  :ref:`the discrete-ordinates page <sn-direct-seed-pole-state-metric>`.
 * **It is present per level by the R12a predicate**
-  (:ref:`sn-282-r12a`; :math:`\tau_{\rm raw} \in (0,1)`), **not** per
+  (:ref:`sn-direct-seed-r12a`; :math:`\tau_{\rm raw} \in (0,1)`), **not** per
   geometry — sphere-GL carries one block; every cylinder and every
   Cartesian mesh carries none.
 
@@ -2324,7 +2324,7 @@ The clean-bulk consequence is the load-bearing architecture.  The bulk
 extraction consume, and they must see an **untouched** cell-centred
 field.  Folding ψ½ into the bulk — for instance via a pole-node
 Gauss–Lobatto quadrature, which is *numerically affordable*
-(:ref:`sn-282-lobatto-study`) — would make the bulk a *mixed* field
+(:ref:`sn-direct-seed-lobatto-study`) — would make the bulk a *mixed* field
 carrying an inert, redistribution-special pole passenger that every bulk
 consumer would have to demux back out.  Keeping ψ½ a **separate** face
 object is the Cardinal-Rule-2 choice that keeps the bulk clean; the
@@ -2395,7 +2395,7 @@ rather than a forced one.
    block's Hilbert metric (the "``G_sd == 0`` at 0 ULP" win).  That is
    **refuted**: :math:`(1-\mu^2)|_{\rm pole}` is an *operator coefficient*,
    not a state metric, and the correct ψ½ metric is the SPD
-   :math:`G_{\rm sd} = V_{\rm cell}` (:ref:`sn-282-pole-state-metric`).
+   :math:`G_{\rm sd} = V_{\rm cell}` (:ref:`sn-direct-seed-pole-state-metric`).
    The through-flux equals the state metric only when the face's operator
    self-block is trivial — true for the spatial trace (a restriction map),
    false for ψ½ (a banded radial transport operator :math:`A_{\rm ss}`).

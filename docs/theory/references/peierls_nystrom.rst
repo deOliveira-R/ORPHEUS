@@ -5397,7 +5397,7 @@ Best-use envelope
   path to Hébert :math:`(1-P_{ss})^{-1}` accuracy at rank-1
   (algebraically equivalent to MB rank-1 on sphere/cyl).
 
-.. _peierls-phase5-retreat:
+.. _peierls-continuous-mu-retreat:
 
 The continuous-µ retreat (closed wontfix)
 -----------------------------------------
@@ -5437,7 +5437,7 @@ machine-precision off-diagonal Q-convergence (1e-9 at Q=128) for any
 singularity.
 
 **Successor: Variant α angle-resolved Green's function reference**
-(Plan 2, 2026-05-01). The Phase 5 retreat established that the
+(Plan 2, 2026-05-01). The continuous-µ retreat established that the
 **angle-integrated** kernel :math:`g_\alpha(\rho'\to\rho)` is
 hypersingular and cannot be Nyström-discretised. Plan 2 Variant α
 shipped a parallel research-grade reference that uses the
@@ -7764,7 +7764,7 @@ primitive whose annular partition the substitution is built to
 complement.
 
 The historical Phase-5 Round-3-SECONDARY provenance — including the
-falsified linear-shift variant and the Phase 5 retreat that surfaced
+falsified linear-shift variant and the continuous-µ retreat that surfaced
 the substitution as the durable primitive — is recorded in the
 `Issue #133 close-out comment
 <https://github.com/deOliveira-R/ORPHEUS/issues/133#issuecomment-4348746336>`_.

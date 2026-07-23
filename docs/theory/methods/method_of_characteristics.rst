@@ -162,7 +162,7 @@ The outermost region is bounded by the last circle and the cell walls.
 **Region areas** are exact:
 
 .. math::
-   :label: region-areas-pincell
+   :label: region-areas-pin-cell
 
    A_k = \begin{cases}
      \pi(r_{k+1}^2 - r_k^2) & k < N-1 \text{ (annular)} \\

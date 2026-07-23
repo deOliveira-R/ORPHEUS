@@ -633,7 +633,7 @@ route (a) later retired that strategy *class*, but the
 :math:`\sigma_t`-affinity invariant survives — the direct
 starting-direction march and the inlined ``edge_extrapolated_seed`` are
 both affine in :math:`\sigma_t` exactly like the bulk walk; see
-:ref:`sn-282-direct-starting-direction-solve`.) The lesson
+:ref:`sn-direct-seed-solve`.) The lesson
 catalogued in :mod:`orpheus.sn.loss_representation` is to probe the live
 behaviour rather than trust the prose: the affinity is an *empirical*
 fact that must be re-verified, not a transcribed claim.
