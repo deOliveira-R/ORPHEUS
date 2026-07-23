@@ -1,4 +1,4 @@
-.. _theory-verification:
+.. _theory-verification-suite:
 
 ==================
 Verification Suite
@@ -20,8 +20,8 @@ one solver against another) **stands in for** this evidence — solver-vs-solver
 agreement is level **L4 (informational)**, strictly distinct from the L0–L3
 correctness ladder.  Each solver's L0–L3 verification stands on its own, as if
 every other solver were deleted; the separate cross-method regression protocol
-(``docs/testing/cross_method.rst``) then adds L4 agreement gates on top, never
-in place, of that ladder.
+(:doc:`/theory/verification/cross_method`) then adds L4 agreement gates on top,
+never in place, of that ladder.
 
 The same code that produces the LaTeX equations in this chapter also produces
 the reference values consumed by the ``pytest`` test suite.  This is the
@@ -438,7 +438,7 @@ second-difference formulas at build time — see
 ``orpheus/derivations/continuous/flat_source_cp/cylinder.py``. Each record carries:
 analytical :math:`k`, materials, geometry, matrix-eigenvalue
 context, and (since PR-2) the V&V level and equation-label list
-used by the test harness (see ``docs/testing/architecture.rst``).
+used by the test harness (see :doc:`/theory/verification/harness`).
 
 
 Method of Characteristics (MOC)

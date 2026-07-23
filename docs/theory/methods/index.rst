@@ -115,7 +115,7 @@ Several orders through this part serve different jobs
 * **Debugging a wrong answer** — each part carries its diagnostics
   where the machinery lives: the S\ :sub:`N` gotcha index
   (:ref:`sn-gotchas`) and the verification part
-  (:doc:`/verification/index`) with its per-equation V&V matrix.
+  (:doc:`/theory/verification/index`) with its per-equation V&V matrix.
 
 .. toctree::
    :maxdepth: 2

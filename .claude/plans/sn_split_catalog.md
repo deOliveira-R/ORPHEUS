@@ -1149,8 +1149,9 @@ heuristic = discovery layer; record in harness.rst + extractor ask on nexus#1.
   ⏸ COMPACTION.
 - **V6 — author summary.rst** (results compilation; de-freeze the cross_method
   coverage matrix; run-book).
-- **V7 — slice backfill:** adjudicate the 254(+9 entering) orphans in
-  archivist batches {needs-sentinel | wire-to-existing-test | genuine gap →
+- **V7 — slice backfill:** adjudicate the 256 orphans (254 + the 2
+  kernel definitionals `en-definition`/`kin-definition` that entered at
+  V2; measured, not the +9 estimate) in archivist batches {needs-sentinel | wire-to-existing-test | genuine gap →
   issue}; the flagged wirings (resolvent-object-gate → Mode-12 test;
   sn-mms-nonvacuum-qext-mg sibling-inherit); 39 unmarked tests (punch #11);
   template-B sections across remaining chapters. ⏸ COMPACTION.
@@ -1176,3 +1177,44 @@ heuristic = discovery layer; record in harness.rst + extractor ask on nexus#1.
   main()-level exit-2 propagation test). Collect baseline 6652 → 6655
   (+3 new harness tests); build exit 0; matrix invariant (orphans 254,
   documented 321).
+- **V2 ✅ 2026-07-22** — skeleton + moves: `docs/theory/verification/`
+  created; router index.rst AUTHORED (takes the family label
+  `theory-verification`; ladder paragraph absorbed from testing/index;
+  chapter map; error-catalog contract) + principles.rst SCAFFOLD (3
+  sections parked VERBATIM from verification/index — enforcer
+  char-diff-certified; V5 authors properly); git mv ×4
+  (architecture→**harness.rst** rename earned, matrix,
+  reference_solutions, cross_method); both old dirs + indexes
+  DISSOLVED; docs/index caption group removed; theory/index part row +
+  toctree entry; rump relabeled `theory-verification-suite` (dies V3),
+  its 2 raw paths → real :doc:; `DEFAULT_OUT` retargeted in-commit.
+  Inbound rewired: ~15 RST sites + **10 Python-docstring :doc: roles**
+  (2 caught by -W via autodoc — the .py-docstring role class is a NEW
+  straggler surface: role-grep must include `*.py`) + code comments +
+  vv-testing.md + 4 dead `sn_verification_matrix` refs retired.
+  NEW MACHINERY (the move made harness's verbatim teaching examples +
+  the generated matrix scanner-visible — line-based scan can't
+  discriminate examples from declarations): `.. vv-audit: skip-file`
+  col-0 marker; single-sourced `VV_AUDIT_SKIP_MARKER`+`_VV_AUDIT_SKIP_RE`
+  in audit.py (generator imports the marker — emit/parse can't drift);
+  honored by BOTH scans (orphan + phantom census); reported in text,
+  JSON `skipped_theory_files`, and a matrix "Scan-exempt files"
+  section — never silent; scanner returns `TheoryScan` NamedTuple
+  (violations/skipped same-typed — swap unspellable at consumers).
+  Enforcer (fresh instance): 0 violations, 4 SHOULD-FIX ALL APPLIED
+  (live-tree skip-set EQUALITY pin test — the expectation lives in the
+  test, tool stays path-agnostic; NamedTuple; marker constant;
+  whitespace-tolerant regex + 2-space leg). ⚠ V5 INHERITS (enforcer
+  CONCERN): harness.rst:45-46 ladder table lists "cross-method
+  consistency" as an **L2** mechanism vs router/cross_method **L4**
+  ruling — pre-existing divergence now co-located; reconcile onto
+  principles.rst as ladder owner, incl. cross_method.rst:81
+  L1-strength nuance vs the router's absolute "never a stand-in".
+  Gates: build `-E -W` exit 0 (final tree re-certified); collect
+  6655 → **6659** (+3 skip-leg/control/JSON-pin tests +1 live-tree
+  pin); orphans 254 → **256** (`en-definition`/`kin-definition` —
+  reference_solutions' 2 test-uncovered definitional kernel labels
+  entering the gate; V7 adjudicates); documented 321 invariant;
+  phantoms 0; scan-exempt exactly {verification/harness.rst,
+  verification/matrix.rst}; straggler greps clean (raw paths, :doc:
+  roles in rst AND py, sn_verification_matrix, verification-index).

@@ -6,7 +6,7 @@ Verification
    from the ``tests/_harness`` registry to this page's equation labels) is
    blocked on Nexus equation-label ↔ test linking; until it ships, the
    verification below is **hand-authored**.  The project-wide matrix lives
-   at :doc:`/verification/matrix`.
+   at :doc:`/theory/verification/matrix`.
 
 .. _sn-mms-verification:
 

@@ -25,7 +25,7 @@ Why this test matters beyond the legacy ``test_homogeneous.py``:
   Phase-1.1 API surface is covered before the harder Phase-1.2
   spatial retrofits land.
 
-See :doc:`/verification/reference_solutions` for the contract and
+See :doc:`/theory/verification/reference_solutions` for the contract and
 the full verification-campaign phasing.
 """
 

@@ -5642,7 +5642,7 @@ standard tests.
      — cylinder :math:`\mathrm{Ki}_1` kernel, polar form,
      Lagrange interpolation, and the chord-form pivot.
 
-   :doc:`/verification/reference_solutions` — :math:`E_n` and
+   :doc:`/theory/verification/reference_solutions` — :math:`E_n` and
    :math:`\mathrm{Ki}_n` kernel primitives
    (:eq:`en-definition`, :eq:`kin-definition`,
    :eq:`en-kernel-integral`, :eq:`kin-kernel-derivative`).

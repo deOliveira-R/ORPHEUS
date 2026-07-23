@@ -46,7 +46,7 @@ from orpheus.geometry import (
 # claim. The catches("ERR-020") decorators on those specific tests
 # stay — ERR catalogue coverage is orthogonal to the marker type.
 #
-# See docs/testing/architecture.rst ("Foundation tests — software
+# See docs/theory/verification/harness.rst ("Foundation tests — software
 # invariants outside the L0..L3 ladder") for the taxonomy.
 pytestmark = pytest.mark.foundation
 

@@ -71,7 +71,7 @@ cancellation breaks: :math:`k_{\mathrm{eff}}` shifted by
 structural: **weight-sum errors hide behind eigenvalue invariances**.
 The catchers are the per-ordinate flat-flux residual and
 heterogeneous multi-group cases — never homogeneous :math:`k` alone
-(:ref:`vv-principles anti-patterns 3–4 <verification-index>`).
+(:ref:`vv-principles anti-patterns 3–4 <theory-verification>`).
 
 .. _normalization-prefactor:
 

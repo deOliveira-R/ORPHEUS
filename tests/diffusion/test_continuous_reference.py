@@ -38,7 +38,7 @@ the ~1e-7 level, inside the Richardson ~1e-5 floor — was completed
 before retirement.
 
 See :doc:`/theory/methods/diffusion_1d` for the operator form the tests
-commit to, and :doc:`/verification/reference_solutions` for the
+commit to, and :doc:`/theory/verification/reference_solutions` for the
 campaign philosophy.
 """
 

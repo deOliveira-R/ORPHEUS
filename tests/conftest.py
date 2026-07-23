@@ -11,8 +11,8 @@ verifies, the failure-mode / error-catalog tags it catches, and the
 The audit CLI (``python -m tests._harness.audit``) and a future
 Sphinx verification-matrix generator read the registry directly.
 
-See ``docs/testing/architecture.rst`` for the design rationale and
-the full contributor guide.
+See ``docs/theory/verification/harness.rst`` for the design rationale
+and the full contributor guide.
 """
 
 from __future__ import annotations
@@ -75,7 +75,7 @@ _LEVEL_FUNC_RE = re.compile(r"(?:^|_)l([0-3])(?:_|$)")
 # Markers the harness recognises as V&V-level tags. ``l0``..``l3`` are
 # the physics ladder (Cardinal Rule 4); ``foundation`` is the orthogonal
 # software-invariant bucket described in
-# ``docs/testing/architecture.rst``. All share the same resolution
+# ``docs/theory/verification/harness.rst``. All share the same resolution
 # precedence and the same audit reporting path.
 _LEVEL_MARKERS = ("l0", "l1", "l2", "l3", "foundation")
 

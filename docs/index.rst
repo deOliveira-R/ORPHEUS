@@ -9,9 +9,9 @@ what verifies each equation.
 part table routes by task (importing an equation, touching a solver,
 writing a reference). The S\ :sub:`N` sub-book is the most developed
 method treatment (:doc:`theory/methods/sn/index`, with reading tracks
-and a symptom → chapter diagnostic table); the V&V infrastructure and
-the auto-generated verification matrix live at
-:doc:`verification/index`.
+and a symptom → chapter diagnostic table); the verification part —
+principles, harness, and the auto-generated V&V matrix — lives at
+:doc:`theory/verification/index`.
 
 .. toctree::
    :maxdepth: 2
@@ -24,13 +24,6 @@ the auto-generated verification matrix live at
    :caption: Architecture
 
    architecture/index
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Testing & Verification
-
-   testing/index
-   verification/index
 
 .. toctree::
    :maxdepth: 2

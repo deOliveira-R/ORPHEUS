@@ -32,7 +32,7 @@ retrofit pattern (``derive_*`` returns a legacy case alongside
 a continuous reference; ``continuous_cases()`` enumerates the
 new-form list) without any new numerical machinery.
 
-See :doc:`/verification/reference_solutions` for the contract and
+See :doc:`/theory/verification/reference_solutions` for the contract and
 the verification-campaign migration plan.
 """
 

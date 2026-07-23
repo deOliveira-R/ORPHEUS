@@ -70,7 +70,7 @@ The curvilinear sweep's one-directional WDD closure
 :class:`DiamondDifference` (Wave C extracted it from the
 inlined sweep verbatim).  ERR-026 (catalogued in
 :doc:`/development` and the V&V matrix at
-:doc:`/verification/matrix`) lives in this closure: the
+:doc:`/theory/verification/matrix`) lives in this closure: the
 solver's source-iteration path converges to a non-flat
 fixed point even though the matrix-free ``apply`` path with
 the symmetric closure is exact for **constant** sources.

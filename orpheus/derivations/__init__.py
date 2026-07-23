@@ -29,7 +29,7 @@ Two retrieval registries live at the top of this package:
   :class:`ContinuousReferenceSolution` lookup, the Phase-0
   contract that the verification campaign is migrating to.
 
-See :doc:`/verification/reference_solutions` for the contract these
+See :doc:`/theory/verification/reference_solutions` for the contract these
 references commit to and the verification-campaign migration plan,
 and ``orpheus/derivations/README.md`` for the architectural
 treatment of the two paths.

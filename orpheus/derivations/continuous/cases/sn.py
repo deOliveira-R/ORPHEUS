@@ -61,7 +61,7 @@ multigroup is a Phase 2.1b+ follow-up.
 
 See :doc:`/theory/methods/sn/verification` "Case singular-eigenfunction
 method" section for the full mathematical treatment with equation
-labels, and :doc:`/verification/reference_solutions` for the campaign
+labels, and :doc:`/theory/verification/reference_solutions` for the campaign
 philosophy.
 """
 

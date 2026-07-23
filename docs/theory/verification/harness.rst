@@ -1,3 +1,8 @@
+.. vv-audit: skip-file
+   (this page teaches the ``:label:`` / ``.. vv-status:`` syntax with
+   verbatim examples; the marker keeps the audit's theory scan from
+   reading those examples as data — see "The audit CLI" below)
+
 Test-Harness Architecture
 =========================
 
@@ -305,6 +310,29 @@ Flags:
     its own file, or a malformed sentinel line each abort the audit —
     and therefore fail the Sphinx build that regenerates the matrix
     (fatal under ``-W``).
+
+Scan-exempt files — the ``vv-audit: skip-file`` marker
+------------------------------------------------------
+
+A file under the theory tree can opt out of the label/sentinel scan
+with a column-0 comment anywhere in its source::
+
+   .. vv-audit: skip-file
+
+The scanner is line-based — it cannot tell a literal-block *teaching
+example* of the ``:label:`` / ``.. vv-status:`` syntax from the real
+thing — so exactly two pages carry the marker: **this page** (its
+sentinel and label blocks are verbatim syntax examples, not
+declarations) and the **generated matrix page** (the generator emits
+the marker; the page's label mentions are prose about the census,
+not members of it). The audit reports every skipped file in all of
+its output modes and the matrix lists them in its "Scan-exempt
+files" section — the exclusion is always visible, never silent.
+
+Never mark a real theory page: hiding genuine equations from the
+orphan gate is exactly the silent-drop failure the fail-loud
+sentinel schema exists to prevent. If a real page's example code
+ever trips the scanner, the example is the thing to restructure.
 
 .. _vv-foundation-tests:
 

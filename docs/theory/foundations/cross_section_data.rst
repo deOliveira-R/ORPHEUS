@@ -644,7 +644,7 @@ Three application regimes **do** need :math:`(n,xn)`:
   where :math:`(n,4n)` on heavy targets is non-negligible.
 
 None of these are current ORPHEUS use cases. The V&V suite
-(:doc:`/verification/index`) exclusively verifies thermal-spectrum
+(:doc:`/theory/verification/index`) exclusively verifies thermal-spectrum
 analytical benchmarks; synthetic cross sections in
 ``orpheus/derivations/common/xs_library.py`` do not include an
 :math:`(n,xn)` term.
@@ -1366,7 +1366,7 @@ solver output.
 
    - :ref:`theory-homogeneous` — first consumer of the XS pipeline;
      demonstrates the full path from ``load_isotope()`` to :math:`k_\infty`.
-   - :ref:`theory-verification` — verification uses :ref:`synthetic cross
+   - :ref:`theory-verification-suite` — verification uses :ref:`synthetic cross
      sections <synthetic-xs-library>` (regions A/B/C/D), not this pipeline.
    - :ref:`theory-collision-probability`, :ref:`theory-discrete-ordinates`,
      :ref:`theory-method-of-characteristics`, :ref:`theory-monte-carlo` — all

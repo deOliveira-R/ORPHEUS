@@ -9,7 +9,8 @@ discretisation involved. Cross-checks an SN solver run against this
 reference exercise the discretisation chain end-to-end against a
 mathematically-orthogonal ground.
 
-Quadrature choices (claim-driven per `docs/testing/sn_verification_matrix.rst`):
+Quadrature choices (claim-driven — each choice is exact for the claim
+it verifies):
 
 * **Slab / Sphere**: GL-1D N=8. Exact for polynomials of degree ≤ 15
   in :math:`\\mu`. Homogeneous flux is degree 0 in :math:`\\mu`, so

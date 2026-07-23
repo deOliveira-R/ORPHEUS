@@ -32,7 +32,7 @@ the test tree.
 References
 ----------
 
-* :doc:`/testing/cross_method` — architecture page.
+* :doc:`/theory/verification/cross_method` — architecture page.
 * ``.claude/scratch/cross_method_test_protocol_assessment.md`` — the
   Phase-1 architectural assessment that produced this protocol.
 * :doc:`/skills/vv-principles` — claim-layer + pillar discipline.

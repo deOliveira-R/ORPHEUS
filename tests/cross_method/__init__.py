@@ -20,5 +20,5 @@ The package contains:
 * ``test_eigenvalue.py`` — parametrised cross-method gates.
 * ``test_fixed_source.py`` — fixed-source one-sided coverage cases.
 
-See :doc:`/testing/cross_method` for the architecture rationale.
+See :doc:`/theory/verification/cross_method` for the architecture rationale.
 """

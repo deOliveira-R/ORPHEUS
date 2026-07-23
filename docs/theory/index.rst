@@ -57,6 +57,13 @@ you where its theory lives.
        reserved slots for methods queued for implementation.
      - Writing a new reference, debugging a verification gap, or extending a
        truth set.
+   * - :ref:`theory-verification`
+     - The **V&V machinery and evidence**: the L0..L3 ladder and evidence
+       taxonomy, the test-harness tagging contract, the cross-method (L4)
+       protocol, the reference-solution contract, and the auto-generated
+       per-equation verification matrix.
+     - Designing or tagging a test, auditing coverage, or asking "what
+       pins this equation?"
 
 The production/reference split is **load-bearing**, not cosmetic. The two
 serve different masters:
@@ -81,12 +88,14 @@ the canonical entry point that prevents the confusion.
    foundations/index
    methods/index
    references/index
+   verification/index
 
 
 Cross-cutting
 =============
 
-The shared vocabulary, and the map of what verifies what.
+The shared vocabulary, and the per-solver derivation walkthroughs of the
+verification suite.
 
 .. toctree::
    :maxdepth: 2

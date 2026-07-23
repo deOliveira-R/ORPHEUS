@@ -1,7 +1,6 @@
 """Generate the frozen-reference SN regression snapshots.
 
-This script is the **Issue 16 redesign** (per
-``docs/testing/sn_verification_matrix.rst``): instead of snapshotting
+This script is the **Issue 16 redesign**: instead of snapshotting
 every existing SN test, it captures a **minimum frozen-reference set**
 proving operator-algebra equivalence under DD across all geometry,
 group-count, BC, and quadrature combinations the SN solver supports.

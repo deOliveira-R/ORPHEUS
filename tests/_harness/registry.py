@@ -32,8 +32,8 @@ from typing import Literal
 # and the audit tool reports them in their own bucket alongside
 # L0..L3 rather than mixing them into the ladder counts.
 #
-# See ``docs/testing/architecture.rst`` ("Foundation tests — software
-# invariants outside the L0..L3 ladder") for the full rationale.
+# See ``docs/theory/verification/harness.rst`` ("Foundation tests —
+# software invariants outside the L0..L3 ladder") for the full rationale.
 VVLevel = Literal["L0", "L1", "L2", "L3", "foundation"]
 
 # Resolution tag for how a test got its V&V level. Used by the audit

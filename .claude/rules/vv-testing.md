@@ -40,7 +40,7 @@ one that IS exact.
 
 ## Tagging & linking (the `tests/_harness/` registry)
 
-`tests/_harness/` carries verification metadata; architecture: `docs/testing/architecture.rst`.
+`tests/_harness/` carries verification metadata; architecture: `docs/theory/verification/harness.rst`.
 
 - **Tag a level** (pick one — all feed the registry): `@pytest.mark.l0`/`l1`/`l2`/`l3`/
   `foundation`; or `class TestL0Foo:`; or file-level `pytestmark = [...]`; or inherited via
@@ -54,5 +54,5 @@ one that IS exact.
 - `pytest -m l0` — term-verification; `pytest -m "l1 and not slow"`;
   `pytest -m "verifies('matrix-eigenvalue')"`.
 - `python -m tests._harness.audit` — prints the V&V matrix (level × module × equation),
-  orphan equations, ERR-NNN coverage. Sphinx regenerates `docs/verification/matrix.rst` from
-  the same registry on every build.
+  orphan equations, ERR-NNN coverage. Sphinx regenerates
+  `docs/theory/verification/matrix.rst` from the same registry on every build.

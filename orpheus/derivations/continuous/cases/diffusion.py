@@ -47,7 +47,7 @@ the migration window before the legacy tier retired).
 
 See :doc:`/theory/methods/diffusion_1d` for the full mathematical
 treatment with equation labels, and
-:doc:`/verification/reference_solutions` for the campaign
+:doc:`/theory/verification/reference_solutions` for the campaign
 philosophy.
 """
 

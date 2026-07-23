@@ -1,4 +1,4 @@
-"""Generate ``docs/verification/matrix.rst`` from the pytest test registry.
+"""Generate ``docs/theory/verification/matrix.rst`` from the pytest test registry.
 
 Runs ``python -m tests._harness.audit --json`` under the hood to
 populate :data:`tests._harness.registry.TEST_REGISTRY`, then emits a
@@ -32,7 +32,7 @@ Usage::
 
     python -m tools.verification.generate_matrix [OUT_RST]
 
-``OUT_RST`` defaults to ``docs/verification/matrix.rst``.
+``OUT_RST`` defaults to ``docs/theory/verification/matrix.rst``.
 """
 
 from __future__ import annotations
@@ -43,8 +43,10 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from tests._harness.audit import VV_AUDIT_SKIP_MARKER
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = REPO_ROOT / "docs" / "verification" / "matrix.rst"
+DEFAULT_OUT = REPO_ROOT / "docs" / "theory" / "verification" / "matrix.rst"
 
 
 def _run_audit() -> dict:
@@ -85,7 +87,12 @@ def _render(payload: dict) -> str:
 
     lines: list[str] = []
 
-    # Header
+    # Header. The page lives INSIDE the audit's theory tree, so it
+    # must opt out of the label/sentinel scan: its label mentions are
+    # prose about the census, not declarations. The marker string is
+    # imported from the audit (the parser side) so emit and parse
+    # cannot drift; the audit reports the exclusion.
+    lines.append(f"{VV_AUDIT_SKIP_MARKER}\n\n")
     lines.append("Verification Matrix\n")
     lines.append("===================\n\n")
     lines.append(
@@ -216,6 +223,24 @@ def _render(payload: dict) -> str:
     if documented:
         for eq in sorted(documented):
             lines.append(f"- ``{eq}``\n")
+    else:
+        lines.append("*(none)*\n")
+    lines.append("\n")
+
+    # Scan-exempt files (the ``.. vv-audit: skip-file`` marker)
+    skipped = payload.get("skipped_theory_files", [])
+    lines.append("Scan-exempt files\n")
+    lines.append("-----------------\n\n")
+    lines.append(
+        f"Files under the theory tree excluded from the label/sentinel "
+        f"scan by an explicit ``.. vv-audit: skip-file`` marker — "
+        f"syntax-teaching and generated pages whose label mentions are "
+        f"not declarations (see the harness architecture page). "
+        f"**{len(skipped)}** file(s).\n\n"
+    )
+    if skipped:
+        for f in sorted(skipped):
+            lines.append(f"- ``{f}``\n")
     else:
         lines.append("*(none)*\n")
     lines.append("\n")

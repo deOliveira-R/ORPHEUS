@@ -38,7 +38,7 @@ vacuum fixed-source against global ``source = absorption + leakage``.
 Tests are skipped if the snapshot file is not yet present — this lets the
 regression infrastructure land before the snapshots themselves.
 
-Marker scheme (per ``docs/testing/sn_verification_matrix.rst``):
+Marker scheme (per ``docs/theory/verification/harness.rst``):
 
 * ``@pytest.mark.regression`` — regression-tier opt-in (CI gate).
 * ``@pytest.mark.foundation`` — software-invariant V&V level so the audit

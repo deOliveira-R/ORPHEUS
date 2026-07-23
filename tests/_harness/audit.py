@@ -25,15 +25,27 @@ import argparse
 import contextlib
 import json
 import os
+import re
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import pytest
 
 from tests._harness import registry
 from tests._harness.registry import TestMetadata
+
+# The canonical scan-exemption marker: a column-0 RST comment that
+# excludes a file from BOTH the theory label/sentinel scan and the
+# all-docs phantom census. The generator emits this exact string into
+# the matrix header; the regex below is its (whitespace-tolerant)
+# parse — the ONE spelling both scan functions share, so the two gates
+# can never drift apart on what counts as exempt.
+VV_AUDIT_SKIP_MARKER = ".. vv-audit: skip-file"
+_VV_AUDIT_SKIP_RE = re.compile(
+    r"^\.\.\s+vv-audit:\s*skip-file\s*$", re.MULTILINE
+)
 
 
 def _run_collection() -> int:
@@ -117,10 +129,9 @@ def _phantom_verifies(
     V&V matrix — the Nexus graph build skips the edge with only a log
     line. This gate makes that drift loud at audit time.
 
-    ``doc_labels`` is scanned from ALL of ``docs/`` (not just
-    ``docs/theory/``) because verifies-targets may legitimately point
-    at labels on verification pages (e.g. ``kin-definition`` on
-    ``verification/reference_solutions``).
+    ``doc_labels`` is scanned from ALL of ``docs/`` (not just the
+    theory tree) — the gate checks that a verifies-target *resolves*,
+    wherever the label lives.
     """
     return {
         eq: tests for eq, tests in coverage.items() if eq not in doc_labels
@@ -139,6 +150,7 @@ def _render_text(
     documented_labels: set[str],
     all_doc_labels: set[str],
     err_tags: set[str],
+    skipped_files: list[str],
 ) -> str:
     lines: list[str] = []
     total = len(items)
@@ -234,6 +246,18 @@ def _render_text(
             lines.append(f"  {eq}")
         lines.append("")
 
+    # Scan-exempt files — always visible, so the skip-file marker can
+    # never become a silent exclusion channel.
+    if skipped_files:
+        lines.append(
+            f"Theory files excluded from the label/sentinel scan by an "
+            f"explicit '.. vv-audit: skip-file' marker "
+            f"({len(skipped_files)}):"
+        )
+        for f in skipped_files:
+            lines.append(f"  {f}")
+        lines.append("")
+
     # ERR catalog cross-check
     caught = _caught_tags(items)
     if err_tags:
@@ -257,6 +281,7 @@ def _render_json(
     documented_labels: set[str],
     all_doc_labels: set[str],
     err_tags: set[str],
+    skipped_files: list[str],
 ) -> str:
     coverage = _equation_coverage(items)
     caught = _caught_tags(items)
@@ -280,6 +305,7 @@ def _render_json(
         "documented_equations": sorted(documented_labels),
         "err_coverage": {err: caught.get(err, []) for err in sorted(err_tags)},
         "untagged": [m.nodeid for m in items if m.level is None],
+        "skipped_theory_files": list(skipped_files),
     }
     return json.dumps(payload, indent=2, sort_keys=True)
 
@@ -289,16 +315,30 @@ def _render_json(
 # ---------------------------------------------------------------------------
 
 
-def _scan_theory_equations(
-    theory_dir: Path,
-) -> tuple[set[str], set[str], list[str]]:
+class TheoryScan(NamedTuple):
+    """Result of :func:`_scan_theory_equations`.
+
+    A named carrier rather than a bare tuple because two fields
+    (``violations`` and ``skipped``) share the type ``list[str]`` with
+    opposite severities — a positional swap would silently convert a
+    build-breaking sentinel violation into a report-only skip line.
+    Named access makes the swap unspellable at the consumer.
+    """
+
+    all_labels: set[str]
+    documented: set[str]
+    violations: list[str]
+    skipped: list[str]
+
+
+def _scan_theory_equations(theory_dir: Path) -> TheoryScan:
     """Scan theory RST pages for equation labels and documented-only markers.
 
     Returns
     -------
-    (all_labels, documented_labels, violations)
+    TheoryScan
         ``all_labels`` is every ``.. math:: :label: foo`` found under
-        ``theory_dir`` (recursive). ``documented_labels`` is the subset
+        ``theory_dir`` (recursive). ``documented`` is the subset
         of those labels that carry the V&V-harness-specific sentinel
 
             .. vv-status: <label> documented
@@ -344,11 +384,23 @@ def _scan_theory_equations(
         ``.. vv-status: <label> <status>``. Violations are a hard
         audit error (exit 2) — invalid V&V metadata is the same
         failure class as a collection error, never a silent drop.
-    """
-    import re
+        (Sentinel-syntax is defined by ``sentinel_re`` below; the
+        exemption marker by the module-level ``_VV_AUDIT_SKIP_RE``.)
 
+        ``skipped`` (paths relative to ``theory_dir``) are files
+        excluded from the scan by an explicit column-0
+        ``.. vv-audit: skip-file`` comment. The scanner is line-based
+        and cannot tell a literal-block *teaching example* of the
+        ``:label:`` / ``.. vv-status:`` syntax from the real thing, so
+        the two pages whose label mentions are not declarations — the
+        harness architecture page (verbatim syntax examples) and the
+        generated matrix page (prose about the census) — opt out with
+        the marker. The exclusion is reported in every output mode,
+        never silent; a real theory page must never carry it (that
+        would hide genuine equations from the orphan gate).
+    """
     if not theory_dir.is_dir():
-        return set(), set(), []
+        return TheoryScan(set(), set(), [], [])
 
     sentinel_re = re.compile(r"^\.\.\s+vv-status:(.*)$")
 
@@ -357,10 +409,14 @@ def _scan_theory_equations(
     # distinguished from a dead one in the violation message.
     per_file_labels: dict[Path, set[str]] = {}
     per_file_sentinels: dict[Path, list[tuple[int, str]]] = {}
+    skipped: list[str] = []
     for rst in theory_dir.rglob("*.rst"):
         try:
             text = rst.read_text(encoding="utf-8")
         except OSError:
+            continue
+        if _VV_AUDIT_SKIP_RE.search(text):
+            skipped.append(str(rst.relative_to(theory_dir)))
             continue
         labels_here: set[str] = set()
         sentinels_here: list[tuple[int, str]] = []
@@ -415,16 +471,18 @@ def _scan_theory_equations(
                 continue
             documented.add(label)
 
-    return all_labels, documented, sorted(violations)
+    return TheoryScan(all_labels, documented, sorted(violations), sorted(skipped))
 
 
 def _scan_all_doc_labels(docs_dir: Path) -> set[str]:
     """Every ``:label:`` under ``docs/`` (excluding ``_build``).
 
     The phantom-verifies gate compares against the FULL doc label set,
-    not just ``docs/theory/`` — verifies-targets may legitimately point
-    at verification pages. ``_build`` is excluded so stale build
-    artifacts cannot mask a genuinely-removed label.
+    not just the theory tree — a verifies-target must *resolve*,
+    wherever the label lives. ``_build`` is excluded so stale build
+    artifacts cannot mask a genuinely-removed label, and files carrying
+    the ``.. vv-audit: skip-file`` marker are excluded so a syntax
+    *example* on a teaching page can never mask a genuine phantom.
     """
     if not docs_dir.is_dir():
         return set()
@@ -437,6 +495,8 @@ def _scan_all_doc_labels(docs_dir: Path) -> set[str]:
             text = rst.read_text(encoding="utf-8")
         except OSError:
             continue
+        if _VV_AUDIT_SKIP_RE.search(text):
+            continue
         for line in text.splitlines():
             stripped = line.strip()
             if stripped.startswith(":label:"):
@@ -448,8 +508,6 @@ def _scan_err_catalog(catalog: Path) -> set[str]:
     """Extract ``ERR-NNN`` IDs from the L0 error catalog markdown."""
     if not catalog.is_file():
         return set()
-    import re
-
     text = catalog.read_text(encoding="utf-8")
     return set(re.findall(r"\bERR-\d{3}\b", text))
 
@@ -498,15 +556,13 @@ def main(argv: list[str] | None = None) -> int:
     # V&V metadata is the same failure class as a collection error.
     # The Sphinx matrix hook surfaces the message as a build warning
     # (fatal under ``-W``), so a bad sentinel breaks the docs build.
-    theory_labels, documented_labels, violations = _scan_theory_equations(
-        args.theory_dir
-    )
-    if violations:
+    scan = _scan_theory_equations(args.theory_dir)
+    if scan.violations:
         print(
-            f"vv-status sentinel violations ({len(violations)}):",
+            f"vv-status sentinel violations ({len(scan.violations)}):",
             file=sys.stderr,
         )
-        for v in violations:
+        for v in scan.violations:
             print(f"  {v}", file=sys.stderr)
         return 2
 
@@ -516,7 +572,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     items = sorted(registry.TEST_REGISTRY.values(), key=lambda m: m.nodeid)
-    testable_labels = theory_labels - documented_labels
+    testable_labels = scan.all_labels - scan.documented
     all_doc_labels = _scan_all_doc_labels(args.theory_dir.parent)
     err_tags = _scan_err_catalog(args.err_catalog)
 
@@ -550,20 +606,22 @@ def main(argv: list[str] | None = None) -> int:
         print(
             _render_json(
                 items,
-                theory_labels=theory_labels,
-                documented_labels=documented_labels,
+                theory_labels=scan.all_labels,
+                documented_labels=scan.documented,
                 all_doc_labels=all_doc_labels,
                 err_tags=err_tags,
+                skipped_files=scan.skipped,
             )
         )
     else:
         print(
             _render_text(
                 items,
-                theory_labels=theory_labels,
-                documented_labels=documented_labels,
+                theory_labels=scan.all_labels,
+                documented_labels=scan.documented,
                 all_doc_labels=all_doc_labels,
                 err_tags=err_tags,
+                skipped_files=scan.skipped,
             )
         )
 

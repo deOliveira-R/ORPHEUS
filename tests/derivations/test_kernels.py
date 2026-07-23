@@ -16,7 +16,7 @@ These tests nail down:
 3. **Full-line integrals** :math:`\int_0^\infty E_n(x)\,dx = 1/n`
    and the analogue for :math:`\mathrm{Ki}_n`.
 
-See :doc:`/verification/reference_solutions` for the contract these
+See :doc:`/theory/verification/reference_solutions` for the contract these
 primitives underpin.
 """
 

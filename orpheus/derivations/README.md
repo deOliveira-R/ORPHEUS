@@ -131,8 +131,8 @@ verification ladders.
 - `docs/theory/verification.rst` — full architectural treatment of
   the two-path V&V architecture and why the `discrete/` ↔
   `continuous/` split exists.
-- `docs/verification/reference_solutions.rst` — the contract that
-  `ContinuousReferenceSolution` commits to (operator form,
+- `docs/theory/verification/reference_solutions.rst` — the contract
+  that `ContinuousReferenceSolution` commits to (operator form,
   problem spec, provenance).
 - `docs/api/derivations.rst` — Sphinx-generated reference for the
   packages and modules listed above.

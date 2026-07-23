@@ -199,7 +199,7 @@ agreement at all three points: (α) ≈ (β) ≈ (γ). The three paths
 exercise structurally distinct integrands (ray-traced vs spectral-μ
 vs ν-spectrum), so triple agreement is L1-grade evidence per the
 structural-independence rule in the project's ``vv-principles``
-skill. The verification matrix in :doc:`/verification/matrix`
+skill. The verification matrix in :doc:`/theory/verification/matrix`
 indicates which problems currently realise the triple match.
 
 .. note::
@@ -353,9 +353,10 @@ Cross-references
 
 - :ref:`theory-transport-methods` — production (discrete) solvers
   whose verification consumes the references catalogued here.
-- :doc:`/verification/index` — auto-generated V&V matrix, equation
-  coverage, and L0 error catalog.
-- :doc:`/verification/reference_solutions` — vocabulary discipline,
-  operator-form taxonomy, kernel primitives.
-- :ref:`theory-verification` — verification suite overview and
+- :ref:`theory-verification` — the verification part: principles,
+  harness, auto-generated V&V matrix, equation coverage, and the L0
+  error catalog.
+- :doc:`/theory/verification/reference_solutions` — vocabulary
+  discipline, operator-form taxonomy, kernel primitives.
+- :ref:`theory-verification-suite` — verification suite overview and
   case grid.

@@ -114,8 +114,8 @@ napoleon_use_ivar = True
 # -- Auto-generate verification matrix page ---------------------------
 #
 # Runs `python -m tools.verification.generate_matrix` before Sphinx
-# collects sources so `docs/verification/matrix.rst` is always in sync
-# with the pytest test registry. Closes ORPHEUS issue #79.
+# collects sources so `docs/theory/verification/matrix.rst` is always
+# in sync with the pytest test registry. Closes ORPHEUS issue #79.
 
 def _regenerate_verification_matrix(app):
     import subprocess

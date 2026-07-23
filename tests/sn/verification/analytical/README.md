@@ -5,8 +5,9 @@ analytical references** from `orpheus/derivations/continuous/` and
 assert the SN solver reproduces them.
 
 This directory replaces the bulk of full-solver eigenvalue tests in
-the legacy SN test files. The migration is sequenced per the SN
-test-architecture matrix (`docs/testing/sn_verification_matrix.rst`)
+the legacy SN test files. The migration was sequenced per the SN
+test-architecture matrix (a since-retired design doc; the tagging
+conventions now live in `docs/theory/verification/harness.rst`)
 and `.claude/plans/sn_reshape.md` Phase 2.
 
 ## Why analytical-reference

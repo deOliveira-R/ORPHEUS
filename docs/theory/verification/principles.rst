@@ -1,45 +1,16 @@
-.. _verification-index:
+.. _theory-verification-principles:
 
-==========================================
-Verification — V&V infrastructure & matrix
-==========================================
+=======================
+Verification Principles
+=======================
 
-.. contents:: Contents
-   :local:
-   :depth: 2
-
-
-Key Facts
-=========
-
-**Read this page first when investigating a verification gap, designing
-a new test, or auditing the V&V status of a solver.**
-
-- ORPHEUS verifies every solver against analytical or semi-analytical
-  references derived from the solver's *own* governing equation. No
-  cross-solver "benchmarking" stands in for verification — that is
-  level L4 (informational), strictly distinct from L0–L3 (correctness).
-  See :ref:`vv-vocabulary` for the binding definitions.
-- The verification suite carries three artefacts on every Sphinx build:
-
-  * :doc:`reference_solutions` — vocabulary discipline,
-    operator-form taxonomy, kernel primitives, and the
-    :class:`~orpheus.derivations.ContinuousReferenceSolution`
-    contract.
-  * :doc:`matrix` — auto-generated V&V matrix from the test registry
-    (level × module × equation grid), equation coverage table,
-    L0 error-catalog coverage, and the orphan-equation list.
-  * :doc:`/theory/references/index` — the Pillar-2 reference-solver
-    catalogue with the three-meanings Green's-function taxonomy and
-    per-solver pillar classification.
-
-- The **error catalog** (``ERR-NNN`` entries in
-  ``.claude/skills/vv-principles/error_catalog.md``) records every
-  L0-caught bug. Each entry names the failure mode (1–6 from the AI
-  failure-modes table), the evidence-class that previously hid it,
-  and the test that catches it via ``@pytest.mark.catches("ERR-NNN")``.
-  The matrix's "L0 error-catalog coverage" section flags any catalog
-  entry without a catcher as a **publication-blocker**.
+.. This page is the designated single owner of the verification
+   principles — the L0..L3 ladder, the evidence pillars, the
+   reference tiers, the operator-form taxonomy, and how the four
+   classification axes relate. The full treatment is authored in
+   task #10 stage V5. The sections below were moved verbatim from
+   the dissolved ``docs/verification/index.rst`` front page so the
+   part restructure (stage V2) loses nothing.
 
 
 .. _verification-evidence-classes:
@@ -149,13 +120,3 @@ the project produces — agreement across three structurally-distinct
 integrands. Production of (β) for sphere is the headline
 infrastructure gap (literature memo:
 ``.claude/scratch/sanchez_chandrasekhar_gap.md``).
-
-
-Pages
-=====
-
-.. toctree::
-   :maxdepth: 2
-
-   reference_solutions
-   matrix

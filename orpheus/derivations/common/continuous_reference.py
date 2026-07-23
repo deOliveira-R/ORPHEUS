@@ -27,7 +27,7 @@ solution* strictly:
   their *contents* are analytical reference solutions and we cite
   them as such.
 
-See :doc:`/verification/reference_solutions` for the full treatment.
+See :doc:`/theory/verification/reference_solutions` for the full treatment.
 
 Operator-form taxonomy
 ----------------------

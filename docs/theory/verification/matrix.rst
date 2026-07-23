@@ -1,3 +1,5 @@
+.. vv-audit: skip-file
+
 Verification Matrix
 ===================
 
@@ -7,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6655**
+Total tests collected: **6659**
 
 V&V level distribution
 ----------------------
@@ -16,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1190, 17.9%
-   L1, 1102, 16.6%
+   L0, 1194, 17.9%
+   L1, 1102, 16.5%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4270, 64.2%
+   foundation, 4270, 64.1%
    unmarked, 39, 0.6%
 
 Tagging source
@@ -32,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6537
+   explicit, 6541
    class-name, 46
    func-name, 0
    case, 33
@@ -419,7 +421,7 @@ Module × level grid
    test_layer_imports, 0, 0, 0, 0, 326, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
-   test_vv_harness_audit, 12, 0, 0, 0, 0, 0
+   test_vv_harness_audit, 16, 0, 0, 0, 0, 0
    transport/test_composite, 0, 0, 0, 0, 14, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
    transport/test_full_field, 0, 0, 0, 0, 17, 0
@@ -717,7 +719,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented``. **254** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented``. **256** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -763,6 +765,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``emission-spectrum-chi-mix``
 - ``emission-spectrum-fission-source``
 - ``emission-spectrum-simplex``
+- ``en-definition``
 - ``energy-condensation-balance-preservation``
 - ``energy-condensation-chi-simplex-preservation``
 - ``energy-condensation-fractional-collapse``
@@ -803,6 +806,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``hebert-3-433``
 - ``inflow-mask-discrete``
 - ``inverse-driver-si-update``
+- ``kin-definition``
 - ``ld-cartesian-2d-bilinear-coeffs``
 - ``ld-cartesian-2d-face-bilinear-coeffs``
 - ``ld-cartesian-2d-face-projection-coeff``
@@ -1300,6 +1304,14 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``wm72-q-formula``
 - ``wm72-rho-bare-cylinder``
 - ``wm72-singular-subtraction``
+
+Scan-exempt files
+-----------------
+
+Files under the theory tree excluded from the label/sentinel scan by an explicit ``.. vv-audit: skip-file`` marker — syntax-teaching and generated pages whose label mentions are not declarations (see the harness architecture page). **2** file(s).
+
+- ``verification/harness.rst``
+- ``verification/matrix.rst``
 
 Phantom verifies targets
 ------------------------

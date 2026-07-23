@@ -106,7 +106,7 @@ A few notes the table is too compact to capture:
   :mod:`orpheus.numerics` (a SymPy expression is structurally simpler
   than a numpy iteration). Production code that needs a structurally
   independent reference imports L0 — the L3-uses-L0 pattern is
-  documented in :doc:`/verification/index`.
+  documented in :doc:`/theory/verification/index`.
 
 * **L4** is permissible to import everything. It is the only layer
   where wiring a run can pull in transport types, method-specific
@@ -229,7 +229,7 @@ The linter ships with two tolerances:
   the reference imports a production solver to *cross-check* a
   reference value, NOT to share algebra. These are categorically
   different from algebra-sharing imports (which would be structurally
-  contaminating per :doc:`/verification/index`). The retirement
+  contaminating per :doc:`/theory/verification/index`). The retirement
   trigger for each is the module's migration to a method-side test
   or to an external benchmark harness.
 

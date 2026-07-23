@@ -13,6 +13,11 @@ for the full behaviour contract; this file fixes the invariants:
   misplaced), or a malformed line each produce a violation entry that
   hard-fails the audit, never a silent drop. ``tested``/``verified``
   are derived from ``@pytest.mark.verifies``, not hand-asserted.
+* a file carrying a column-0 ``.. vv-audit: skip-file`` comment is
+  excluded from the scan wholesale AND reported in the returned
+  ``skipped`` list / the ``--json`` ``skipped_theory_files`` field —
+  the opt-out for pages whose label/sentinel lines are teaching
+  examples or generated prose, never a silent exclusion channel.
 
 The tests write fixture RST files into a tmp_path so they are
 hermetic and independent of the real ``docs/theory`` tree.
@@ -20,6 +25,7 @@ hermetic and independent of the real ``docs/theory`` tree.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -45,10 +51,10 @@ def test_scanner_collects_labels(tmp_path: Path) -> None:
 
    a + b = c
 """)
-    labels, documented, violations = _scan_theory_equations(tmp_path)
-    assert labels == {"foo", "bar"}
-    assert documented == set()
-    assert violations == []
+    scan = _scan_theory_equations(tmp_path)
+    assert scan.all_labels == {"foo", "bar"}
+    assert scan.documented == set()
+    assert scan.violations == []
 
 
 def test_scanner_marks_documented(tmp_path: Path) -> None:
@@ -70,10 +76,10 @@ def test_scanner_marks_documented(tmp_path: Path) -> None:
 
    x = 1
 """)
-    labels, documented, violations = _scan_theory_equations(tmp_path)
-    assert labels == {"boltzmann", "testable"}
-    assert documented == {"boltzmann"}
-    assert violations == []
+    scan = _scan_theory_equations(tmp_path)
+    assert scan.all_labels == {"boltzmann", "testable"}
+    assert scan.documented == {"boltzmann"}
+    assert scan.violations == []
 
 
 def test_scanner_flags_dead_sentinel(tmp_path: Path) -> None:
@@ -92,12 +98,12 @@ def test_scanner_flags_dead_sentinel(tmp_path: Path) -> None:
 
 .. vv-status: rael_label documented
 """)
-    labels, documented, violations = _scan_theory_equations(tmp_path)
-    assert labels == {"real_label"}
-    assert documented == set()
-    assert len(violations) == 1
-    assert "rael_label" in violations[0]
-    assert "dead sentinel" in violations[0]
+    scan = _scan_theory_equations(tmp_path)
+    assert scan.all_labels == {"real_label"}
+    assert scan.documented == set()
+    assert len(scan.violations) == 1
+    assert "rael_label" in scan.violations[0]
+    assert "dead sentinel" in scan.violations[0]
 
 
 def test_scanner_flags_cross_file_sentinel(tmp_path: Path) -> None:
@@ -116,11 +122,11 @@ def test_scanner_flags_cross_file_sentinel(tmp_path: Path) -> None:
     _write_rst(tmp_path, "stray", """
 .. vv-status: homed_label documented
 """)
-    labels, documented, violations = _scan_theory_equations(tmp_path)
-    assert labels == {"homed_label"}
-    assert documented == set()
-    assert len(violations) == 1
-    assert "another file" in violations[0]
+    scan = _scan_theory_equations(tmp_path)
+    assert scan.all_labels == {"homed_label"}
+    assert scan.documented == set()
+    assert len(scan.violations) == 1
+    assert "another file" in scan.violations[0]
 
 
 def test_scanner_flags_unknown_status(tmp_path: Path) -> None:
@@ -139,12 +145,12 @@ def test_scanner_flags_unknown_status(tmp_path: Path) -> None:
 
 .. vv-status: alpha verified
 """)
-    labels, documented, violations = _scan_theory_equations(tmp_path)
-    assert labels == {"alpha"}
-    assert documented == set()
-    assert len(violations) == 1
-    assert "'verified'" in violations[0]
-    assert "verifies" in violations[0]
+    scan = _scan_theory_equations(tmp_path)
+    assert scan.all_labels == {"alpha"}
+    assert scan.documented == set()
+    assert len(scan.violations) == 1
+    assert "'verified'" in scan.violations[0]
+    assert "verifies" in scan.violations[0]
 
 
 def test_scanner_flags_malformed_sentinel(tmp_path: Path) -> None:
@@ -157,11 +163,11 @@ def test_scanner_flags_malformed_sentinel(tmp_path: Path) -> None:
 
 .. vv-status: beta documented (see issue #42)
 """)
-    labels, documented, violations = _scan_theory_equations(tmp_path)
-    assert labels == {"beta"}
-    assert documented == set()
-    assert len(violations) == 1
-    assert "malformed" in violations[0]
+    scan = _scan_theory_equations(tmp_path)
+    assert scan.all_labels == {"beta"}
+    assert scan.documented == set()
+    assert len(scan.violations) == 1
+    assert "malformed" in scan.violations[0]
 
 
 def test_audit_main_exits_2_on_sentinel_violation(
@@ -200,10 +206,130 @@ def test_audit_main_exits_2_on_sentinel_violation(
 
 
 def test_scanner_returns_empty_for_missing_dir(tmp_path: Path) -> None:
-    labels, documented, violations = _scan_theory_equations(tmp_path / "nope")
-    assert labels == set()
-    assert documented == set()
-    assert violations == []
+    scan = _scan_theory_equations(tmp_path / "nope")
+    assert scan.all_labels == set()
+    assert scan.documented == set()
+    assert scan.violations == []
+    assert scan.skipped == []
+
+
+def test_scanner_skips_marked_file(tmp_path: Path) -> None:
+    """A file carrying ``.. vv-audit: skip-file`` is excluded wholesale.
+
+    The scanner is line-based and cannot tell a literal-block teaching
+    example of the label/sentinel syntax from the real thing (the
+    harness architecture page and the generated matrix page both carry
+    such examples), so those pages opt out with the marker. The
+    exclusion suppresses the file's labels AND its would-be violations,
+    and is reported in the ``skipped`` list — never silent.
+    """
+    _write_rst(tmp_path, "real", """
+.. math::
+   :label: genuine
+
+   x = 1
+""")
+    _write_rst(tmp_path, "teaching", """
+.. vv-audit: skip-file
+
+.. math::
+   :label: example_label
+
+   x = 1
+
+.. vv-status: example_label verified
+""")
+    # The marker regex is whitespace-tolerant like its ``vv-status``
+    # sibling — a hand-typed double space must not silently fail to
+    # exempt the file (which would then trip the exit-2 gate on its
+    # teaching examples).
+    _write_rst(tmp_path, "teaching_two_spaces", """
+..  vv-audit: skip-file
+
+.. vv-status: another_example verified
+""")
+    scan = _scan_theory_equations(tmp_path)
+    assert scan.all_labels == {"genuine"}
+    assert scan.documented == set()
+    assert scan.violations == []
+    assert scan.skipped == ["teaching.rst", "teaching_two_spaces.rst"]
+
+
+def test_scanner_without_marker_flags_the_same_content(tmp_path: Path) -> None:
+    """The discriminating control leg for the skip-file marker.
+
+    Identical content WITHOUT the marker is scanned: the example label
+    is collected and the bad sentinel is a violation. Together with
+    ``test_scanner_skips_marked_file`` this proves the marker — not the
+    content shape — is what suppresses the scan.
+    """
+    _write_rst(tmp_path, "teaching", """
+.. math::
+   :label: example_label
+
+   x = 1
+
+.. vv-status: example_label verified
+""")
+    scan = _scan_theory_equations(tmp_path)
+    assert scan.all_labels == {"example_label"}
+    assert scan.documented == set()
+    assert len(scan.violations) == 1
+    assert scan.skipped == []
+
+
+def test_audit_json_reports_skipped_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The ``--json`` payload carries ``skipped_theory_files``.
+
+    The matrix generator reads the field with ``.get`` (older-payload
+    robustness), so a key rename here would silently render the
+    matrix's exclusion list empty instead of erroring — the surface is
+    pinned by name. The marked file's bogus sentinel also proves a
+    skip-marked file cannot trip the exit-2 violation gate.
+    """
+    _write_rst(tmp_path, "teaching", """
+.. vv-audit: skip-file
+
+.. vv-status: whatever bogus
+""")
+    from tests._harness import audit as audit_mod
+
+    monkeypatch.setattr(audit_mod, "_run_collection", lambda: 0)
+    rc = audit_mod.main(["--theory-dir", str(tmp_path), "--json"])
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["skipped_theory_files"] == ["teaching.rst"]
+
+
+def test_live_tree_skip_set_is_exactly_the_two_known_pages() -> None:
+    """Pin the REAL ``docs/theory`` skip-set to its two legitimate carriers.
+
+    A skip-marked file is excluded from every audit gate — labels,
+    sentinels, violations, AND the phantom census — with no build-side
+    error, so the marker is the one operation that could silently
+    defeat the orphan gate. The scanner stays path-agnostic by design
+    (no allowlist inside the tool); the expectation lives HERE instead.
+    Equality pins both directions: this test reddens the moment
+    (a) anyone skip-marks an additional theory page (e.g. to silence
+    the orphan gate instead of covering an equation), or (b) the
+    harness page or the matrix generator loses its marker, which would
+    feed teaching examples / generated prose into the census.
+    """
+    theory_dir = Path(__file__).resolve().parents[1] / "docs" / "theory"
+    scan = _scan_theory_equations(theory_dir)
+    assert scan.skipped == [
+        "verification/harness.rst",
+        "verification/matrix.rst",
+    ], (
+        "The docs/theory skip-file set changed. If a new page "
+        "legitimately needs the marker (syntax-teaching or generated "
+        "content ONLY), update this pin in the same change. If a real "
+        "theory page acquired the marker, that is a silent V&V-gate "
+        "bypass — remove the marker and cover the page's equations "
+        "instead."
+    )
 
 
 def test_scanner_handles_subdirectories(tmp_path: Path) -> None:
@@ -224,10 +350,10 @@ def test_scanner_handles_subdirectories(tmp_path: Path) -> None:
 
 .. vv-status: deep_label documented
 """)
-    labels, documented, violations = _scan_theory_equations(tmp_path)
-    assert labels == {"top_label", "deep_label"}
-    assert documented == {"deep_label"}
-    assert violations == []
+    scan = _scan_theory_equations(tmp_path)
+    assert scan.all_labels == {"top_label", "deep_label"}
+    assert scan.documented == {"deep_label"}
+    assert scan.violations == []
 
 
 # ── Foundation marker — software-invariant classification ───────────

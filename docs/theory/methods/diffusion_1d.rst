@@ -1196,7 +1196,7 @@ tests were rewired to the modern
   of the finite-difference discretisation. This replaces the
   Richardson-extrapolated reference that previously served this
   role (see the verification-campaign audit in
-  :doc:`/verification/reference_solutions`).
+  :doc:`/theory/verification/reference_solutions`).
 
   With the modern exact-LU solver there is no inner-iteration floor to
   tune: the outer iteration converges on the default ``keff_tol`` /

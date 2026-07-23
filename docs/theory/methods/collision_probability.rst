@@ -717,7 +717,7 @@ in :eq:`ki3-def`) and :math:`\text{Ki}_3(x) \to 0` exponentially.
    ``tests/derivations/test_cp_geometry.py``,
    ``tests/cp/test_verification.py``, and
    ``tests/derivations/test_peierls_cylinder_prefactor.py``. See
-   :doc:`/verification/reference_solutions` §"Legacy naming
+   :doc:`/theory/verification/reference_solutions` §"Legacy naming
    discrepancy in ``BickleyTables``" for the full postmortem.
 
 Neither :math:`\text{Ki}_3` nor :math:`\text{Ki}_4` has a
@@ -2109,7 +2109,7 @@ kept only as an unused no-op argument so that callers constructing
 
 Why the retirement was deferrable until Phase B.4 is covered in
 :doc:`/theory/references/peierls_nystrom` §16 (postmortem) and
-:doc:`/verification/reference_solutions` §"Legacy naming
+:doc:`/theory/verification/reference_solutions` §"Legacy naming
 discrepancy in ``BickleyTables``" (safety argument for the swap).
 
 
