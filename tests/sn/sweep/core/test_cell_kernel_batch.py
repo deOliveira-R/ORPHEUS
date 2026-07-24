@@ -310,11 +310,22 @@ class TestKernelSourceOfRecord:
     # PRESERVED; every numerical byte-identity anchor (window≡full oracle,
     # affine-carve golden, T4b cart2d/slab snapshot) stays green (the Phase-2
     # behavioral subset confirmed it before re-hashing).
+    # Re-hashed after the #231 P2-E prose rebalance (docs merge `ec74be50`):
+    # both kernel DOCSTRINGS were trimmed by the code-prose rebalancing batch
+    # (P2-E, docstring/comment-only with per-file code-token-stream invariance
+    # proven at landing) — no operand, operation, or fold order touched.
+    # Surfaced by the first full-tree run after that merge (the #310 C1 gate,
+    # 2026-07-24): pre-docs-merge main `126c4e40` MATCHES the old hashes, and
+    # the C1 commit's bodies hash IDENTICAL to pre-C1 `ec74be50` — the drift
+    # is P2-E's docstring trim alone.  Every numerical byte-identity anchor
+    # (window≡full oracle, affine-carve golden, DD strict regression, the
+    # frozen walk_matvec adjoint baselines) was green in the SAME 6405-passed
+    # run that exposed the stale pin.
     EXPECTED: ClassVar[dict[str, str]] = {
         "cell_kernel_batch":
-            "25ab0123f1597ffae3d3dbf9198423154d888f3169b6af2049e9fe9532307320",
+            "b5d712fccb54c61f261c55661a59890566eeece24c14c8fd8eb67c4921f7e144",
         "residual_kernel_batch":
-            "b77f615a8c67523184eee16b83957d3a032ad3b862b18920940bf39229c4445c",
+            "b9ffbecb9dfa5411a12855229baedfa01efaf1fae64aff82c4a093abd08387b7",
     }
 
     @pytest.mark.parametrize("kernel", ["cell_kernel_batch", "residual_kernel_batch"])
