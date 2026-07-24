@@ -1137,3 +1137,27 @@ phantom `duplicate label quadrature-types`; `grep -c` proved it 0-in-source / 1-
 
 Cross-reference: `[[lessons-L35]]` (the prose corollary), `[[lessons-L34]]` (which reference
 class the build gates); `.claude/plans/sn_split_catalog.md` (the Phase-C build-gate section).
+
+## L37 — Editing Python source under a RUNNING full-tree gate false-reds every `inspect.getsource`/AST self-inspection test (2026-07-24)
+
+The pre-merge full-tree gate runs ~51 min serial. Editing a Python source file on disk
+mid-run — even a pure-DOCSTRING edit — false-reds any test that source-inspects the
+edited module: `inspect.getsource(obj)` resolves the object's line RANGE from the code
+object loaded at collection time but reads the BYTES from the file *now on disk*, so an
+insertion above the object shifts the window and `ast.parse` dies with the tell-tale
+`File "<unknown>", line 1` SyntaxError. (#310 C3: the C3-b docstring fixes landed at
+~minute 40 of the C3-a full tree → `test_one_dim_walk_is_orientation_object_not_boolean`
++ `test_frame_is_kernel_parameterized_not_boolean` red with exactly that signature;
+both green on the frozen tree, 33/33.)
+
+> **Rule: while a full-tree (or any long) pytest gate is running, Python sources are
+> FROZEN — stage doc/plan/markdown work instead, and land code edits either before
+> launch or after the verdict.** If a long run reds an AST/source-inspection test with
+> `File "<unknown>", line 1`, FIRST check whether the file was edited during the run
+> (`git log --since` vs the run's start time) and re-run the failing files on the
+> quiescent tree before treating it as a regression. A gate run concurrent with edits
+> gates NEITHER the old nor the new tree.
+
+Cross-reference: the nohup/E-core pacing note (`reference_test_execution_env`) — long
+runs invite parallel work; this lesson bounds WHICH work is safe (non-imported files
+only).
