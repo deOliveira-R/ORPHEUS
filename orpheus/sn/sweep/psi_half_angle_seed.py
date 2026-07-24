@@ -85,11 +85,23 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from orpheus.transport.spatial.diamond import _DD_W
+from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
+
 if TYPE_CHECKING:
     from orpheus.numerics.spaces.radial_characteristic_space import (
         RadialCharacteristicBoundarySpace,
         RadialCharacteristicInteriorSpace,
     )
+
+#: The Hébert (3.435) face chain ``f ← 2·c − f`` IS the diamond (``w = ½``)
+#: affine chain, so every reverse march below pulls its chain cotangent pair
+#: through the ONE w-generic VJP primitive at ``w = _DD_W`` (#311) — the
+#: same single-sourcing the scheme layer uses; the pair ``(2f̄, −f̄)`` is the
+#: byte-identical ``w=½`` evaluation.
+outgoing_face_from_average_transpose = (
+    DiscretizationSchemeBase.outgoing_face_from_average_transpose
+)
 
 
 def carlson_inward_sweep_from_source(
@@ -207,8 +219,8 @@ def carlson_inward_sweep_transpose(
         denom = dr[k] * sigma_t[:, k] + 2.0     # (ng,)
         # forward: phi_cell[k] = (dr[k]·Q[k] + 2·f_in)/denom; f_out = 2·phi_cell − f_in.
         # f_bar here is the cotangent on f_out (= the face AFTER cell k).
-        c_bar = cells_bar[:, k] + 2.0 * f_bar
-        f_in_bar = -f_bar
+        avg_cot, f_in_bar = outgoing_face_from_average_transpose(f_bar, _DD_W)
+        c_bar = cells_bar[:, k] + avg_cot
         Q_bar[:, k] = (dr[k] / denom) * c_bar
         f_in_bar = f_in_bar + (2.0 / denom) * c_bar
         f_bar = f_in_bar                        # cotangent on f_in = f[k+1], next step
@@ -345,15 +357,15 @@ def radial_characteristic_forward_residual_transpose(
         corner_minus_bar = kb_minus.copy()
         # reverse the + (outward) leg: cells descending.
         for i in range(dr.size - 1, -1, -1):
-            cb_plus[:, i] += 2.0 * f_bar
-            f_bar = -f_bar
+            avg_cot, f_bar = outgoing_face_from_average_transpose(f_bar, _DD_W)
+            cb_plus[:, i] += avg_cot
             cb_plus[:, i] += (sigma[:, i] + two_over_dr[i]) * mb_plus[:, i]
             f_bar += -two_over_dr[i] * mb_plus[:, i]
         # pole continuation: f̄ flows into the − leg's final face.
         # reverse the − (inward) leg: cells ascending.
         for i in range(dr.size):
-            cb_minus[:, i] += 2.0 * f_bar
-            f_bar = -f_bar
+            avg_cot, f_bar = outgoing_face_from_average_transpose(f_bar, _DD_W)
+            cb_minus[:, i] += avg_cot
             cb_minus[:, i] += (sigma[:, i] + two_over_dr[i]) * mb_minus[:, i]
             f_bar += -two_over_dr[i] * mb_minus[:, i]
         # the − chain's entry face was the inflow corner.

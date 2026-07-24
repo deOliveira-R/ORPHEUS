@@ -479,16 +479,21 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
            \psi_{\rm in}^\dagger = -\psi_{\rm out}^\dagger
              - |\mu|A_{\rm tot}\cdot m^\dagger/V .
 
-        Relocated VERBATIM from the 2.5a reverse-walk visit closure (#310 C1)
-        — operation order preserved, so the frozen ``walk_matvec_*`` adjoint
-        baselines pin the move at 0 ULP.  ``denom`` arrives from the SAME
-        ψ-independent ``cell_balance_for_streaming`` the forward uses
-        (Pattern 2 — no twin algebra); the angular-numerator cotangent is the
-        WALK's (spatial-only contract, #310 ruling 1).  This override IS the
-        registration that derives ``has_transpose_kernel = True``.
+        Relocated from the 2.5a reverse-walk visit closure (#310 C1); the
+        diamond-chain pair ``(2ψ_out†, −ψ_out†)`` rides the w-generic
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average_transpose`
+        at ``w = _DD_W`` (#311) — byte-identical to the hand-transposed
+        spelling (``÷½`` is an exact ``×2``; ``(1−½)/½ = 1`` exactly) — and
+        the residual-row pullback is verbatim, so the frozen ``walk_matvec_*``
+        adjoint baselines pin the whole kernel at 0 ULP.  ``denom`` arrives
+        from the SAME ψ-independent ``cell_balance_for_streaming`` the forward
+        uses (Pattern 2 — no twin algebra); the angular-numerator cotangent is
+        the WALK's (spatial-only contract, #310 ruling 1).  This override IS
+        the registration that derives ``has_transpose_kernel = True``.
         """
-        psi_bar_cot = 2.0 * psi_out_bar
-        psi_in_bar = -psi_out_bar
+        psi_bar_cot, psi_in_bar = self.outgoing_face_from_average_transpose(
+            psi_out_bar, _DD_W,
+        )
         psi_bar_cot += denom * res_bar / volume
         psi_in_bar += -(abs_mu_A_total)[None, :] * res_bar / volume
         return psi_bar_cot, psi_in_bar

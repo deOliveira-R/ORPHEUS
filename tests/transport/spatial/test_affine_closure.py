@@ -12,7 +12,7 @@ these ops as ``@staticmethod``\\s onto the
 :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase` (the generic
 advection–reaction reconstruction belongs on the DiscretizationScheme base).
 
-The gate pins three facts:
+The gate pins five facts:
 
 1. **Exact inverse of** :func:`cell_average` — round-trip to FP tol for any
    ``w ∈ (0, 1]``.
@@ -21,6 +21,13 @@ The gate pins three facts:
    exact doubling).
 3. **LD ``w=1/(1+k)`` algebraic equality** — equal (to FP tol, a DIFFERENT
    reduction tree) to the inlined ``ψ̄ + (g/θ)(ψ̄ − ψ_in)/D₂``.
+4. **The transpose IS the VJP** (#311) — ``outgoing_face_from_average_transpose``
+   satisfies the defining adjoint identity
+   ``⟨f̄, F(ψ̄, ψ_in)⟩ = ⟨ψ̄†, ψ̄⟩ + ⟨ψ_in†, ψ_in⟩`` of the (linear-in-state)
+   forward, for scalar AND per-cell-array ``w``.
+5. **DD ``w=½`` VJP byte-identity** — the pair is bit-for-bit ``(2f̄, −f̄)``,
+   the contract that lets DD's kernel and the seed-march reversals reroute
+   through the primitive with frozen baselines unmoved.
 """
 
 from __future__ import annotations
@@ -32,6 +39,9 @@ from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
 cell_average = DiscretizationSchemeBase.cell_average
 outgoing_face_from_average = DiscretizationSchemeBase.outgoing_face_from_average
+outgoing_face_from_average_transpose = (
+    DiscretizationSchemeBase.outgoing_face_from_average_transpose
+)
 
 
 @pytest.mark.foundation
@@ -88,3 +98,51 @@ def test_outgoing_face_ld_blend_matches_inlined_schur() -> None:
     w = 1.0 / (1.0 + g_over_theta / d2)
     generic = outgoing_face_from_average(psi_bar, face_in, w)
     np.testing.assert_allclose(generic, inlined, rtol=1e-12, atol=1e-13)
+
+
+@pytest.mark.foundation
+def test_outgoing_face_transpose_is_the_vjp() -> None:
+    r"""The defining adjoint identity: ``⟨f̄, F(ψ̄, ψ_in)⟩ = ⟨ψ̄†, ψ̄⟩ + ⟨ψ_in†, ψ_in⟩``.
+
+    ``F(ψ̄, ψ_in) = (ψ̄ − (1−w)·ψ_in)/w`` is LINEAR in the state pair, so its
+    reverse-mode pair must satisfy the exact bilinear pairing identity — the
+    intrinsic law that makes ``outgoing_face_from_average_transpose`` *the*
+    VJP rather than a plausible lookalike (a dropped ``w``, a sign flip, or a
+    swapped slot each break it O(1)).  Checked at DD's scalar ``w=½``, a
+    generic scalar, and a per-cell-array ``w`` (the LD ``w = 1/(1+k)`` shape).
+    """
+    rng = np.random.default_rng(311)
+    psi_bar = rng.standard_normal((4, 3, 7))
+    face_in = rng.standard_normal((4, 3, 7))
+    f_bar = rng.standard_normal((4, 3, 7))
+    for w in (0.5, 0.3, 1.0, rng.uniform(0.05, 1.0, (4, 3, 7))):
+        lhs = np.sum(f_bar * outgoing_face_from_average(psi_bar, face_in, w))
+        avg_cot, in_cot = outgoing_face_from_average_transpose(f_bar, w)
+        rhs = np.sum(avg_cot * psi_bar) + np.sum(in_cot * face_in)
+        np.testing.assert_allclose(rhs, lhs, rtol=1e-12)
+
+
+@pytest.mark.foundation
+def test_outgoing_face_transpose_dd_half_is_byte_identical() -> None:
+    r"""DD ``w=½``: the VJP pair is BIT-IDENTICAL to the hand-transposed ``(2f̄, −f̄)``.
+
+    ``f̄/0.5`` is the exact power-of-2 ``×2`` and ``−((1−½)/½) = −1.0`` exactly
+    (``×(−1)`` is the exact sign flip), so rerouting the three historically
+    open-coded transpose sites (DD's ``streaming_cell_transpose`` + the two
+    seed-march reversals, #311) through the primitive moves no byte — the
+    frozen ``walk_matvec_*`` adjoint baselines and the seed-transpose gates
+    stay strict.
+    """
+    rng = np.random.default_rng(312)
+    f_bar = rng.standard_normal((5, 4, 9))
+    avg_cot, in_cot = outgoing_face_from_average_transpose(f_bar, 0.5)
+    if not np.array_equal(avg_cot, 2.0 * f_bar):  # Mode-8: fires under -O
+        pytest.fail(
+            "w=½ VJP average cotangent is NOT byte-identical to 2·f̄; "
+            f"max |Δ| = {np.max(np.abs(avg_cot - 2.0 * f_bar)):.3e}"
+        )
+    if not np.array_equal(in_cot, -f_bar):
+        pytest.fail(
+            "w=½ VJP inflow cotangent is NOT byte-identical to −f̄; "
+            f"max |Δ| = {np.max(np.abs(in_cot + f_bar)):.3e}"
+        )

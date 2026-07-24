@@ -587,10 +587,12 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     :meth:`affine_scan_coefficients` (``a`` the face transmission multiplier,
     ``inverse_denom`` the reciprocal cell-balance diagonal, ``w`` the
     cell-average blend weight — DD's ``½``, LD's ``1/(1+k)``).  Both the scan
-    SOLVE and the matvec APPLY consume those coefficients through the three
-    generic base staticmethods (:meth:`source_emission`, :meth:`cell_average`,
-    :meth:`outgoing_face_from_average`) — pure functions of the faces / source
-    and ``w``, no instance state — so the discretization math lives in exactly
+    SOLVE and the matvec APPLY consume those coefficients through the generic
+    base staticmethods (:meth:`source_emission`, :meth:`cell_average`,
+    :meth:`outgoing_face_from_average`; the reverse walks ride the matching
+    VJP :meth:`outgoing_face_from_average_transpose`, #311) — pure functions
+    of the faces / source and ``w``, no instance state — so the
+    discretization math lives in exactly
     one place per scheme (its :meth:`affine_scan_coefficients` + these shared
     staticmethods), never duplicated in a sweep body (Cardinal Rule 2).  The
     universality of the convex face blend
@@ -1090,6 +1092,26 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         §"Generic affine reconstruction ops").
         """
         return (psi_bar - (1.0 - w) * face_in) / w
+
+    @staticmethod
+    def outgoing_face_from_average_transpose(
+        face_out_bar: np.ndarray, w: "float | np.ndarray",
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""VJP of :meth:`outgoing_face_from_average`: ``(ψ̄†, ψ_in†) = (f̄/w, −((1−w)/w)·f̄)``.
+
+        The w-generic reverse-mode pair of the affine outflow reconstruction —
+        each returned cotangent is the partial derivative times the
+        outgoing-face cotangent ``f̄``: ``∂ψ_out/∂ψ̄ = 1/w`` and
+        ``∂ψ_out/∂ψ_in = −(1−w)/w``.  The single source of the reverse walks'
+        face-chain pair (#311): DD's hand-transposed diamond chain
+        ``(2f̄, −f̄)`` is the ``w=½`` case (byte-identical — ``÷½`` is an
+        exact power-of-2 ``×2`` and ``(1−½)/½ = 1`` exactly, so ``×(−1)`` is
+        the exact sign flip); LD's ``((1+k)·f̄, −k·f̄)`` is the ``w=1/(1+k)``
+        case (#310 C2).
+        """
+        avg_cot = face_out_bar / w
+        in_cot = (-(1.0 - w) / w) * face_out_bar
+        return avg_cot, in_cot
 
 
 __all__ = [

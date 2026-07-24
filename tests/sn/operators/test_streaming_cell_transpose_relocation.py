@@ -39,6 +39,8 @@ import numpy as np
 import pytest
 
 import orpheus.sn.loss_representation as loss_representation_pkg
+import orpheus.sn.sweep.psi_half_angle_seed as psi_half_angle_seed_mod
+import orpheus.transport.spatial.diamond as diamond_mod
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 from orpheus.sn.sweep.pole_angular_closure import MorelMontryAngularSweep
@@ -230,4 +232,41 @@ def test_trait_derives_from_registration():
     assert _DeclaredLiar.has_transpose_kernel is False, (
         "a bare declaration overrode the derivation — the predicate lie is "
         "representable again"
+    )
+
+
+def test_affine_chain_transpose_single_source():
+    r"""#311: the affine face-chain VJP pair has ONE spelling — the primitive.
+
+    The three historically open-coded ``(2·f̄, −f̄)`` transpose sites (DD's
+    ``streaming_cell_transpose`` + the two ``psi_half_angle_seed`` march
+    reversals) all route through
+    ``DiscretizationSchemeBase.outgoing_face_from_average_transpose``, and the
+    hand-coded pair spellings are GONE.  A re-introduced open-coded pair is
+    the single-source debt #311 retired: the LD kernel's ``w = 1/(1+k) ≠ ½``
+    means any convention change fixed only in the primitive would silently
+    miss a hardcoded ``w=½`` twin.
+    """
+    dd_src = Path(diamond_mod.__file__).read_text()
+    seed_src = Path(psi_half_angle_seed_mod.__file__).read_text()
+    assert "2.0 * psi_out_bar" not in dd_src, (
+        "the hand-transposed diamond-chain pair (2.0 * psi_out_bar) is back "
+        "in diamond.py — an open-coded twin of "
+        "outgoing_face_from_average_transpose"
+    )
+    assert "2.0 * f_bar" not in seed_src, (
+        "a hand-transposed chain spelling (2.0 * f_bar) is back in "
+        "psi_half_angle_seed.py — an open-coded twin of "
+        "outgoing_face_from_average_transpose"
+    )
+    n_dd = dd_src.count("outgoing_face_from_average_transpose(")
+    assert n_dd == 1, (
+        f"expected exactly one primitive call in diamond.py (the kernel's "
+        f"chain pair), found {n_dd}"
+    )
+    n_seed = seed_src.count("outgoing_face_from_average_transpose(")
+    assert n_seed == 3, (
+        f"expected exactly three primitive calls in psi_half_angle_seed.py "
+        f"(the Carlson reversal + the two residual-transpose legs), found "
+        f"{n_seed}"
     )
