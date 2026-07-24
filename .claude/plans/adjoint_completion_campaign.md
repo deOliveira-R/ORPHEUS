@@ -65,9 +65,14 @@ minted to kill.
   + dense numeric cross-check; the three NEW-algebra gates (mass-inverse order,
   slope fold, involution); LD 1-D reverse walk (moment-tailed cotangents); the
   TWO LD guards lifted together onto the trait; **flip
-  `LinearDiscontinuous.has_transpose_kernel`** atomic with the deferral-file
+  `LinearDiscontinuous.has_transpose_kernel`** (= register the kernel — the C1
+  derivation makes the flip structural) atomic with the deferral-file
   rewrite + LD reciprocity rows (θ-mass metric, ruling 3) + `loss_transpose_solve`
-  G1/G2 + assembled-`Mᵀ` LD-slab. ⏸ COMPACTION (R1 complete).
+  G1/G2 + assembled-`Mᵀ` LD-slab. **FOLDS IN #311** (enforcer condition): extract
+  the w-generic `outgoing_face_from_average_transpose` primitive FIRST — DD
+  reroutes byte-identically (`w=½` exact), LD composes it on first landing
+  (`w=1/(1+k)`), the two `psi_half_angle_seed` transposes follow; + the
+  deferral-file `s/declare/derive/` NIT. ⏸ COMPACTION (R1 complete).
 - **C3 — multi-D reverse `walk_full` ORACLE** (spec §5): reversed levels +
   `_CellResidualTranspose` + transposed addressing + boundary in↔out swap; the
   NEW 2-D forward-apply column-probe (the 1-D `_probe_augmented_matrix_one_group`
@@ -135,5 +140,15 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   pyright production floor 1 (CLI; the streamed scheme.py complaint was LSP
   noise); `-E -W` exit 0 zero warnings; matrix regen honest (+9 foundation,
   collect 6659→6668). Out-of-scope survivors noted: `psi_half_angle_seed.py`'s
-  own DD-chain transposes (System-B seed machinery, spec-scoped out). Full-tree
-  serial pre-merge gate IN FLIGHT; ff-merge to main gated on it + checkpoint.
+  own DD-chain transposes (System-B seed machinery, spec-scoped out).
+  **Enforcer verdict: COMMIT-READY, 0 MUST-FIX / 0 SHOULD-FIX** — the
+  reassociation-safety proof independently re-derived (zero-init +
+  one-visit-per-slot ⟹ `fl(a+b)` both ways); the derivation mechanics verified
+  against `RegistryMixin` (key= forwarding, dataclass re-run idempotent,
+  MRO-correct); pyright scheme.py CLI 0/0; doc-honesty grep clean tree-wide.
+  ONE architectural opportunity → **#311 FILED** (the w-generic affine-outflow
+  TRANSPOSE primitive; the forward is single-sourced, the adjoint carries 3
+  hardcoded `w=½` spellings; C2's `w=1/(1+k)` is the L-002 collapse trigger —
+  folded into C2) + 1 NIT (deferral-file "declare"→"derive" messages, rides
+  C2's rewrite). Full-tree serial pre-merge gate IN FLIGHT; ff-merge to main
+  gated on it + checkpoint.
