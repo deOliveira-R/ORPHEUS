@@ -40,8 +40,10 @@ from orpheus.derivations.discrete.sn.ld_ubld import (
     derive_d1_kernel_view_equals,
     derive_d1_reduction_to_production,
     derive_d1_scan_view_equals,
+    derive_d1_transpose_equals_At_Minv,
     derive_d2_exact_on_bilinear,
     derive_d3_assembles,
+    derive_octant_frame_sign_is_involution,
     fin_trace_weight,
     per_cell_solve,
 )
@@ -210,3 +212,39 @@ class TestD3StructuralReadiness:
         _require(result["size"] == (8, 8), f"d=3 system is not 8×8: {result['size']}")
         # The xyz triple-cross moment carries the θ³ collision diagonal weight.
         _require_zero(result["xyz_collision_weight"] - THETA**3, "xyz θ³ collision weight")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The transpose oracles (#310 C2 — spec §3.1, the R1b keystones)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestTransposeOracles:
+    r"""The LD cell VJP algebra-of-record (#310 C2 R1b, spec §3.1)."""
+
+    @pytest.mark.foundation
+    def test_d1_transpose_equals_At_Minv(self) -> None:
+        """V_d1_T: VJP == Aᵀ·M⁻¹ (mass-inverse FIRST) + inflow/face pullbacks.
+
+        The order discriminant must be NONZERO — had ``Aᵀ M⁻¹`` and
+        ``M⁻¹ Aᵀ`` commuted, the M-R1b-MASSORDER mutation class would be
+        undetectable through this oracle (a toothless gate).
+        """
+        result = derive_d1_transpose_equals_At_Minv()
+        _require(result["pass"], f"V_d1_T failed: {result}")
+        _require_zero_matrix(result["diff_mass_order"], "diff_mass_order")
+        _require(
+            result["order_discriminant_nonzero"],
+            "Aᵀ·M⁻¹ == M⁻¹·Aᵀ at generic symbols — the mass-order gate has "
+            "no teeth",
+        )
+        _require_zero_matrix(result["diff_inflow_pullback"], "diff_inflow_pullback")
+        _require_zero_matrix(result["diff_face_pullback"], "diff_face_pullback")
+
+    @pytest.mark.foundation
+    def test_octant_frame_sign_is_involution(self) -> None:
+        """V_frame_T: D_s² = I and (D_s·A·D_s)ᵀ = D_s·Aᵀ·D_s (d=1, d=2 rows)."""
+        result = derive_octant_frame_sign_is_involution()
+        _require(result["pass"], f"V_frame_T failed: {result}")
+        for label, ok in result["checks"].items():
+            _require(ok, f"frame-sign law failed at {label}")

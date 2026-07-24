@@ -313,6 +313,62 @@ def assemble_inflow_axis(
     return mu_axis[..., None] * out
 
 
+def assemble_inflow_axis_transpose(
+    hs: list[np.ndarray],
+    mus: list[np.ndarray],
+    axis: int,
+    cotangent_moments: np.ndarray,
+    theta: float,
+) -> np.ndarray:
+    r"""Adjoint of :func:`assemble_inflow_axis` — the upstream-face pullback.
+
+    The forward weights a ``2^{d-1}``-moment upstream face into the
+    ``2^d``-moment RHS as ``μ_axis · P_axis(B(-1) ⊗ (T·face))`` (``T`` the
+    transverse mass, ``P_axis`` the Kronecker arrangement).  Its transpose
+    pulls a ``2^d`` cotangent back onto the face: contract the active-axis
+    slot with ``B(-1) = [1, -1]``, weight by the SAME (diagonal, hence
+    self-transposed) transverse mass, scale by ``μ_axis`` — the literal
+    reverse of the forward composition, built from the SAME factors
+    (Pattern 2).  Returns ``(..., 2^{d-1})``.  Same ``axis ∈ {0, d-1}``
+    domain as the forward (the interior-axis interleave defers with it).
+    Symbolic ground: the inflow-pullback row of
+    :func:`orpheus.derivations.discrete.sn.ld_ubld.derive_d1_transpose_equals_At_Minv`.
+    """
+    d = len(hs)
+    cot = np.asarray(cotangent_moments, dtype=np.float64)
+    batch_shape = cot.shape[:-1]
+    n_trans = cot.shape[-1] // 2
+    if axis == 0:
+        c = cot.reshape(*batch_shape, 2, n_trans)
+        contracted = c[..., 0, :] - c[..., 1, :]         # B(-1)ᵀ = [1, -1]
+    elif axis == d - 1:
+        c = cot.reshape(*batch_shape, n_trans, 2)
+        contracted = c[..., :, 0] - c[..., :, 1]
+    else:
+        raise NotImplementedError(
+            "assemble_inflow_axis_transpose supports axis in {0, d-1}; the "
+            f"general interior-axis interleave (d={d}, axis={axis}) is "
+            "deferred (S2), mirroring the forward."
+        )
+    masses = [mass_1d(np.asarray(h, dtype=np.float64), theta) for h in hs]
+    transverse_mass = None
+    for k in range(d):
+        if k == axis:
+            continue
+        transverse_mass = (
+            masses[k]
+            if transverse_mass is None
+            else _batched_kron(transverse_mass, masses[k])
+        )
+    weighted = (
+        contracted
+        if transverse_mass is None
+        else np.einsum("...ij,...j->...i", transverse_mass, contracted)
+    )
+    mu_axis = np.asarray(mus[axis], dtype=np.float64)
+    return mu_axis[..., None] * weighted
+
+
 def per_cell_solve(assembled: dict, rhs: np.ndarray) -> np.ndarray:
     r"""Solve the batched ``A ψ⃗ = R`` for the ``2^d``-moment cell unknowns.
 
@@ -379,6 +435,19 @@ class D1ClosedForm:
         """
         return self.g * V, V * self.eff_denom
 
+    def _geom_fold(
+        self, V: np.ndarray | float,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""The source-independent ×V slope-row geometry ``(|μ|A_down, D₂')``.
+
+        The ``s_hat``-independent half of :meth:`_slope_fold`, single-sourced
+        so the forward fold AND its reverse-mode pair
+        (:meth:`scan_reconstruct_transpose`) read the SAME ``mu_Adown = g·V``
+        and ``D₂' = θ·V·d₂`` (Pattern 2 — the transpose may not re-spell the
+        geometry).
+        """
+        return self.g * V, self.theta * V * self.d2
+
     def _slope_fold(
         self, V: np.ndarray | float, s_hat: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -389,7 +458,8 @@ class D1ClosedForm:
         the moment-aware SCAN (:meth:`scan_slope_face_source` / :meth:`scan_reconstruct`,
         the 1-D production sweep, #240 D5b-S3 OWED-2).  With ``|μ|A_down = g·V``
         and the ×V slope denominator :math:`D_2' = \theta V d_2 = \Sigma_t\theta V
-        + |\mu|A_{\rm down}` (the extra ``θ`` vs the ÷V ``d2``):
+        + |\mu|A_{\rm down}` (the extra ``θ`` vs the ÷V ``d2``; both from
+        :meth:`_geom_fold`):
 
         * ``mu_Adown = |μ|A_down`` — the ×V streaming (slope reconstruction),
         * ``d2p = D₂'`` — the ×V slope denominator,
@@ -398,8 +468,7 @@ class D1ClosedForm:
           (``eff_source = s_bar − eff_source_shift``),
         * ``slope_source = θ·s_hat`` — the slope-row RHS source (drives ``ψ̂``).
         """
-        mu_Adown = self.g * V
-        d2p = self.theta * V * self.d2
+        mu_Adown, d2p = self._geom_fold(V)
         eff_source_shift = s_hat * mu_Adown * self.theta / d2p
         slope_source = self.theta * s_hat
         return mu_Adown, d2p, eff_source_shift, slope_source
@@ -529,6 +598,51 @@ class D1ClosedForm:
         psi_hat = (mu_Adown * psi_bar + slope_source - mu_Adown * psi_in) / d2p
         return psi_bar, psi_hat
 
+    def scan_reconstruct_transpose(
+        self,
+        V: np.ndarray | float,
+        psi_bar_bar: np.ndarray,
+        psi_hat_bar: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        r"""VJP of :meth:`scan_reconstruct` — the LD reverse-scan's moment pullback.
+
+        :meth:`scan_reconstruct` is LINEAR in ``(s_bar, s_hat, psi_in)`` for
+        fixed closure coefficients; given the cotangents of its outputs
+        ``(ψ̄, ψ̂)`` this returns the cotangents of its inputs, riding the
+        SAME :meth:`_geom_fold` geometry (Pattern 2 — the transpose may not
+        re-spell ``|μ|A_down`` / ``D₂'``).  Reverse program order: the ψ̂
+        row first (its ``ψ̄`` dependence folds into the running ψ̄
+        cotangent), then the ψ̄ Schur row
+
+        .. math::
+
+           \bar b = \bar{\psi}^\dagger + \tfrac{|\mu|A_{\rm down}}{D_2'}\,
+                    \hat\psi^\dagger, \qquad
+           s_{\rm bar}^\dagger = \bar b / S, \qquad
+           s_{\rm hat}^\dagger = \tfrac{\theta}{D_2'}\hat\psi^\dagger
+             - \tfrac{\theta\,|\mu|A_{\rm down}}{D_2'}\,\bar b / S, \qquad
+           \psi_{\rm in}^\dagger
+             = -\tfrac{|\mu|A_{\rm down}}{D_2'}\hat\psi^\dagger
+               + \tfrac{|\mu|A_{\rm down}(D_2'+|\mu|A_{\rm down})}{D_2'}\,
+                 \bar b / S .
+
+        Consumed by the #310 C2 LD reverse-scan (``_run_transpose``'s
+        moment arm); the symbolic ground is
+        :func:`orpheus.derivations.discrete.sn.ld_ubld.derive_d1_transpose_equals_At_Minv`.
+        """
+        S = V * self.eff_denom
+        mu_Adown, d2p = self._geom_fold(V)
+        bb = psi_bar_bar + (mu_Adown / d2p) * psi_hat_bar
+        bb_over_S = bb / S
+        s_bar_bar = bb_over_S
+        s_hat_bar = (self.theta / d2p) * psi_hat_bar - (
+            self.theta * mu_Adown / d2p
+        ) * bb_over_S
+        psi_in_bar = -(mu_Adown / d2p) * psi_hat_bar + (
+            mu_Adown * (d2p + mu_Adown) / d2p
+        ) * bb_over_S
+        return s_bar_bar, s_hat_bar, psi_in_bar
+
 
 def d1_closed_form(
     g: np.ndarray | float, sig_t: np.ndarray | float, theta: float
@@ -558,6 +672,7 @@ def d1_closed_form(
 __all__ = [
     "D1ClosedForm",
     "assemble_inflow_axis",
+    "assemble_inflow_axis_transpose",
     "assemble_ubld",
     "d1_closed_form",
     "mass_1d",

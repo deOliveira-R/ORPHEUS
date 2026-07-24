@@ -48,6 +48,7 @@ from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
 from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 from orpheus.transport.spatial._ubld import (
     assemble_inflow_axis,
+    assemble_inflow_axis_transpose,
     assemble_ubld,
     d1_closed_form,
     per_cell_solve,
@@ -449,3 +450,79 @@ class TestProductionViewsAnchoredToPrimitive:
         psi_bar = cell_average(psi_in_b, psi_out, w)
         np.testing.assert_allclose(psi_bar.ravel(), pbar_d, rtol=1e-12, atol=1e-13)
         np.testing.assert_allclose(psi_out.ravel(), pout_d, rtol=1e-12, atol=1e-13)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The transpose helpers are exact VJPs (#310 C2 — the R1b numpy layer)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestTransposeHelpersAreVJPs:
+    r"""Each transpose helper satisfies the defining bilinear pairing identity.
+
+    Every forward here is LINEAR in its state inputs (fixed closure /
+    geometry coefficients), so the pairing
+    ``⟨cotangents, forward(inputs)⟩ = ⟨pullbacks, inputs⟩`` must hold to FP
+    noise — the intrinsic law that makes each helper *the* VJP rather than
+    a plausible lookalike (a dropped mass, a sign flip, or a swapped slot
+    each break it O(1)).  Symbolic ground:
+    ``derive_d1_transpose_equals_At_Minv`` (test_ld_ubld_symbolic).
+    """
+
+    @pytest.mark.foundation
+    def test_scan_reconstruct_transpose_is_the_vjp(self) -> None:
+        """⟨(ψ̄†, ψ̂†), scan_reconstruct(s̄, ŝ, ψ_in)⟩ == ⟨pullbacks, inputs⟩."""
+        rng = np.random.default_rng(3101)
+        shape = (3, 2, 5)                       # (N, ng, nx) batch
+        g = rng.uniform(0.05, 4.0, shape)
+        sig = rng.uniform(0.05, 4.0, shape)
+        V = rng.uniform(0.2, 2.0, shape)
+        cf = d1_closed_form(g, sig, THETA)
+        s_bar, s_hat, psi_in, bb, hb = (
+            rng.standard_normal(shape) for _ in range(5)
+        )
+        psi_bar, psi_hat = cf.scan_reconstruct(V, s_bar, s_hat, psi_in)
+        lhs = np.sum(bb * psi_bar) + np.sum(hb * psi_hat)
+        s_bar_bar, s_hat_bar, psi_in_bar = cf.scan_reconstruct_transpose(
+            V, bb, hb,
+        )
+        rhs = (
+            np.sum(s_bar_bar * s_bar)
+            + np.sum(s_hat_bar * s_hat)
+            + np.sum(psi_in_bar * psi_in)
+        )
+        np.testing.assert_allclose(rhs, lhs, rtol=1e-12)
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize(
+        ("d", "axis"), [(1, 0), (2, 0), (2, 1)],
+    )
+    def test_assemble_inflow_axis_transpose_is_the_vjp(self, d, axis) -> None:
+        """⟨r̄, assemble_inflow_axis(face)⟩ == ⟨face†, face⟩ (both boundary axes)."""
+        rng = np.random.default_rng(3102 + 10 * d + axis)
+        batch = (4, 3)
+        hs = [rng.uniform(0.2, 2.0, batch) for _ in range(d)]
+        mus = [rng.uniform(0.05, 1.0, batch) for _ in range(d)]
+        face = rng.standard_normal(batch + (2 ** (d - 1),))
+        cot = rng.standard_normal(batch + (2**d,))
+        rhs_vec = assemble_inflow_axis(hs, mus, axis, face, THETA)
+        lhs = np.sum(cot * rhs_vec)
+        face_cot = assemble_inflow_axis_transpose(hs, mus, axis, cot, THETA)
+        rhs = np.sum(face_cot * face)
+        np.testing.assert_allclose(rhs, lhs, rtol=1e-12)
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("d", [1, 2])
+    def test_outgoing_faces_transpose_is_the_vjp(self, d) -> None:
+        """⟨f̄_a, trace_a(ψ⃗)⟩ summed over axes == ⟨ψ⃗†, ψ⃗⟩ (the B(+1) adjoint)."""
+        rng = np.random.default_rng(3103 + d)
+        batch = (4, 3)
+        psi_moments = rng.standard_normal(batch + (2**d,))
+        faces = LinearDiscontinuous._ubld_outgoing_faces(psi_moments, d)
+        faces_bar = tuple(rng.standard_normal(f.shape) for f in faces)
+        lhs = sum(np.sum(fb * f) for fb, f in zip(faces_bar, faces))
+        psi_cot = LinearDiscontinuous._ubld_outgoing_faces_transpose(
+            faces_bar, d,
+        )
+        rhs = np.sum(psi_cot * psi_moments)
+        np.testing.assert_allclose(rhs, lhs, rtol=1e-12)

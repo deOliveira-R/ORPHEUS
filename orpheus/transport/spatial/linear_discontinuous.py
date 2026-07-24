@@ -540,6 +540,38 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
             faces.append(face.reshape(*batch, *tail))
         return tuple(faces)
 
+    @staticmethod
+    def _ubld_outgoing_faces_transpose(
+        faces_bar: tuple[np.ndarray, ...], d: int,
+    ) -> np.ndarray:
+        r"""Adjoint of :meth:`_ubld_outgoing_faces` — the face-trace pullback.
+
+        The forward trace on axis ``a`` SUMS the ``o_a = 0`` and ``o_a = 1``
+        blocks (the ``B(+1)`` weights), so its adjoint BROADCASTS each face
+        cotangent equally into both blocks (``np.stack`` duplicating along
+        the axis-``a`` slot — the exact transpose of ``take(0) + take(1)``),
+        transverse Kronecker order preserved, summed over axes.  The face
+        tail follows the walk's cochain convention exactly as the forward
+        (scalar at d=1 — a trailing length-1 axis is re-appended here,
+        mirroring :meth:`_ubld_inflow`'s d=1 axis-append).  Returns the
+        ``(..., 2^d)`` ψ⃗-cotangent contribution.  Symbolic ground: the
+        face-pullback row of
+        :func:`orpheus.derivations.discrete.sn.ld_ubld.derive_d1_transpose_equals_At_Minv`.
+        """
+        tail = face_moment_tail(face_moment_count(2, d))
+        first = np.asarray(faces_bar[0], dtype=np.float64)
+        batch = first.shape[: first.ndim - len(tail)]
+        out = np.zeros(batch + (cell_moment_count(2, d),))
+        tensor = out.reshape(*batch, *([2] * d))
+        for a in range(d):
+            fb = np.asarray(faces_bar[a], dtype=np.float64)
+            if tail == ():
+                fb = fb[..., None]                 # d=1: re-append the moment axis
+            fb_t = fb.reshape(*batch, *([2] * (d - 1)))
+            cell_axis = len(batch) + a
+            tensor += np.stack([fb_t, fb_t], axis=cell_axis)
+        return out
+
     def cell_kernel_batch(
         self,
         *,

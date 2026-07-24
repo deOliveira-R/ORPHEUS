@@ -83,6 +83,13 @@ Verification functions
   recovers ANY bilinear flux ``ψ = a + bx + cy + dxy`` exactly (the
   multi-D analog of the 1-D "exact on linear-in-x" oracle); the ``xy``
   coupling is exercised (``d ≠ 0``).
+* :func:`derive_d1_transpose_equals_At_Minv` — the #310 C2 R1b keystone:
+  the LD cell VJP is ``Aᵀ M⁻¹`` (mass-inverse FIRST — the order
+  discriminant is nonzero), with the inflow-fold and face-trace pullback
+  rows derived from the exact symbolic Jacobians.
+* :func:`derive_octant_frame_sign_is_involution` — the moment-frame sign
+  map ``D_s`` is an involution and frame conjugation commutes with
+  transpose (the reverse walk's reframe-in/reframe-out law).
 * :func:`derive_d3_assembles` — structural readiness: the ``d=3``
   trilinear assembler produces an 8×8 system with the ``θ³`` triple-cross
   diagonal weight.
@@ -577,6 +584,126 @@ def derive_d3_assembles() -> dict:
     }
 
 
+def derive_d1_transpose_equals_At_Minv() -> dict:
+    r"""V_d1_T — the LD cell VJP IS ``Aᵀ M⁻¹`` (mass-inverse FIRST) + the pullbacks.
+
+    The production ÷V residual relation
+    (:meth:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.residual_kernel_batch`)
+    is ``res = M⁻¹(A ψ⃗ − R)`` with ``R = M·S⃗ + μ·B(−1)·ψ_in`` and the
+    outgoing face the downstream trace ``ψ_out = B(+1)·ψ⃗``.  This oracle
+    builds the d=1 forward map SYMBOLICALLY, takes its exact Jacobians, and
+    proves the reverse-mode pullbacks are what the #310 C2 kernel spells
+    (`.claude/plans/residue_verification_spec.md` §3.1 — the R1b keystone):
+
+    * ``∂res/∂ψ⃗ = M⁻¹A``  ⟹  the ψ⃗-cotangent matrix is
+      ``(M⁻¹A)ᵀ = Aᵀ M⁻¹`` (``M`` diagonal ⟹ ``M⁻ᵀ = M⁻¹``) — the mass
+      inverse applies BEFORE ``Aᵀ`` (NEW-algebra (a); the
+      M-R1b-MASSORDER mutation target);
+    * the ORDER DISCRIMINANT: ``Aᵀ M⁻¹ ≠ M⁻¹ Aᵀ`` at generic symbols —
+      had the two commuted, the mass-order gate would be toothless;
+    * ``∂res/∂ψ_in = −μ·M⁻¹·B(−1)``  ⟹  the upstream-face pullback is
+      ``−μ·B(−1)ᵀ·M⁻¹·r̄`` (the inflow-fold transpose);
+    * ``∂ψ_out/∂ψ⃗ = B(+1) = [1, 1]``  ⟹  the face cotangent BROADCASTS
+      equally into both moment slots (the trace transpose).
+    """
+    mu, h, sig_t = sp.symbols("mu h Sigma_t", positive=True)
+    theta = THETA
+    asm = assemble_ubld([h], [mu], sig_t, theta)
+    A, M = asm["A"], asm["M"]
+    Minv = M.inv()
+
+    psi_syms = sp.Matrix(sp.symbols("psibar psihat", real=True))
+    psi_in = sp.Symbol("psi_in", real=True)
+    Sbar, Shat = sp.symbols("Sbar Shat", real=True)
+
+    # The forward map, built honestly from the assembled record.
+    R = M * sp.Matrix([Sbar, Shat]) + fin_trace_weight() * psi_in * mu
+    res = Minv * (A * psi_syms - R)
+
+    # (i) ψ⃗-pullback: jacobian(res, ψ⃗)ᵀ == Aᵀ·M⁻¹ (the kernel's order).
+    jac_psi = res.jacobian(psi_syms)
+    vjp_matrix = A.T * Minv
+    diff_mass_order = sp.simplify(jac_psi.T - vjp_matrix)
+
+    # (ii) the order discriminant — the wrong composition differs.
+    discriminant = sp.simplify(vjp_matrix - Minv * A.T)
+
+    # (iii) ψ_in-pullback: ∂res/∂ψ_in transposed == −μ·B(−1)ᵀ·M⁻¹.
+    jac_in = res.diff(psi_in)                                # (2, 1)
+    vjp_in_row = -(fin_trace_weight().T * Minv) * mu         # (1, 2)
+    diff_inflow = sp.simplify(jac_in.T - vjp_in_row)
+
+    # (iv) face-trace pullback: the ψ_out Jacobian row is B(+1) = [1, 1],
+    # so the face cotangent broadcasts into BOTH moment slots.
+    face = downstream_face_trace(psi_syms, d=1)
+    face_jac = sp.Matrix([[sp.diff(face, s) for s in psi_syms]])
+    diff_face = sp.simplify(face_jac.T - sp.Matrix([1, 1]))
+
+    passed = (
+        diff_mass_order.is_zero_matrix
+        and not discriminant.is_zero_matrix
+        and diff_inflow.is_zero_matrix
+        and diff_face.is_zero_matrix
+    )
+    return {
+        "name": "V_d1_T: LD cell VJP == Aᵀ·M⁻¹ (mass-inverse first) + pullback rows",
+        "diff_mass_order": diff_mass_order,
+        "order_discriminant_nonzero": not discriminant.is_zero_matrix,
+        "diff_inflow_pullback": diff_inflow,
+        "diff_face_pullback": diff_face,
+        "pass": passed,
+    }
+
+
+def derive_octant_frame_sign_is_involution() -> dict:
+    r"""V_frame_T — the octant moment-frame sign map: involution, transpose-preserved.
+
+    The sweep⇄global frame map is the diagonal ``D_s`` with
+    ``D_s[o⃗, o⃗] = ∏_a signs[a]^{o_a}`` (the symbolic mirror of
+    :func:`orpheus.transport.spatial._ubld.octant_moment_frame_signs`).
+    Proves, at d=1 (backward sweep) and d=2 (backward-x; backward-both):
+
+    * ``D_s·D_s = I`` — the map is an INVOLUTION, so ONE vector converts
+      global→sweep on the input AND sweep→global on the output;
+    * ``(D_s·A·D_s)ᵀ = D_s·Aᵀ·D_s`` — frame conjugation COMMUTES with
+      transpose, so the reverse walk reframes the residual cotangent IN
+      and the ψ⃗-cotangent OUT with the SAME vector the forward uses (the
+      adjoint of ``x ↦ D·K(D·x)`` is ``y ↦ D·Kᵀ(D·y)``) — NEW-algebra
+      (c); a one-sided or forgotten ``D_s`` breaks the identity
+      (M-R1b-FRAMESIGN).
+    """
+    checks: dict[str, bool] = {}
+    all_pass = True
+    for d, octant_signs in ((1, (-1,)), (2, (-1, 1)), (2, (-1, -1))):
+        hs = [sp.Symbol(f"h_{a}", positive=True) for a in range(d)]
+        mus = [sp.Symbol(f"mu_{a}", positive=True) for a in range(d)]
+        sig_t = sp.Symbol("Sigma_t", positive=True)
+        asm = assemble_ubld(hs, mus, sig_t, THETA)
+        size = asm["size"]
+        # The ∏ signs[a]^{o_a} diagonal in the Kronecker moment order —
+        # the same index arithmetic as the numpy octant_moment_frame_signs.
+        signs = []
+        for flat in range(size):
+            factor = 1
+            for a in range(d):
+                o_a = (flat >> (d - 1 - a)) & 1
+                if o_a and octant_signs[a] < 0:
+                    factor = -factor
+            signs.append(factor)
+        D = sp.diag(*signs)
+        involution = sp.simplify(D * D - sp.eye(size))
+        conjugation = sp.simplify((D * asm["A"] * D).T - D * asm["A"].T * D)
+        label = f"d={d},signs={octant_signs}"
+        ok = involution.is_zero_matrix and conjugation.is_zero_matrix
+        checks[label] = ok
+        all_pass = all_pass and ok
+    return {
+        "name": "V_frame_T: D_s involution + frame conjugation commutes with transpose",
+        "checks": checks,
+        "pass": all_pass,
+    }
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # CLI — print all derivations
 # ═══════════════════════════════════════════════════════════════════════
@@ -588,6 +715,8 @@ if __name__ == "__main__":
         derive_d1_scan_view_equals,
         derive_d2_exact_on_bilinear,
         derive_d3_assembles,
+        derive_d1_transpose_equals_At_Minv,
+        derive_octant_frame_sign_is_involution,
     ):
         result = fn()
         status = "PASS" if result["pass"] else "FAIL"
