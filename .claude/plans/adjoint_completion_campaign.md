@@ -134,11 +134,31 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   C2-proven scan reverse / hand-built labels) · regimes activate
   (rectangular, non-uniform, het, full composite) · zero flag flips ·
   out-of-scope loud (LD-2D→C5, G-S solve-reverse→R7, tail backstop).
-  ⏸ boundary checkpoint next: ff-merge to main + C4 (the windowed
-  PRODUCTION reverse: `walk_windowed` over the mirror graphs — the
-  mirror `window_plan` IS the reversed frontier — + the reverse
-  window≡full pin + the `has_transpose_walk` flips + un-exclusions +
-  `.H`-gated reciprocity rows, per spec §5.1/§5.6 flip-safety).
+  **C3 MERGED to main (ff, 4 commits `295053b2..d6e125f8`) + phase
+  branch deleted; user-ratified at the boundary checkpoint ("Merge;
+  compact before C4").  ⏸ COMPACTION taken here (user-directed) — C4
+  opens next session, on a fresh `feature/sn-adjoint-residue-c4` branch
+  from main: the windowed PRODUCTION reverse.  Read spec §5.1/§5.6 +
+  the C3-a status entry FIRST.  The heavy lifting is banked: the mirror
+  octant's `window_plan` IS the reversed frontier (built for every graph
+  at construction), and `walk_windowed` already accepts the
+  `_CellResidualTranspose` level op (annotation widened at C3) — C4 (a)
+  adds the windowed transpose interior on `MovingFrontierWindow`
+  (mirror of `_loss_action_transpose_interior`, riding
+  `_inflow_to_moments`-style plumbing), (b) pins reverse
+  `window ≡ full` bit-identical (`test_reverse_window_equals_full`,
+  het + asymmetric + rectangular; M-R2-WINDOWDRIFT tooth), (c) the
+  ScanMarch-2D reverse (`ordinate_scan_transpose` + transverse
+  cotangent chaining) if in scope per spec §5, then (d) THE FLIPS,
+  atomic per §10: `has_transpose_walk` True for
+  ScanMarch(2-D)/MovingFrontierWindow(/FullFieldWavefront — decide the
+  oracle rep's trait at the C4 design step), the deferral-file
+  negatives→positives rewrite (incl. `test_cart2d_ffw_oracle_state`),
+  cart2d un-exclusion in `test_removal_form_matvec_sweep`, the
+  cart2d-DD `.H`-gated G-reciprocity `_BUILDERS` rows + phase-C row,
+  and the cart2d baseline already frozen at C3 pins the window
+  day-one.  L37 discipline: Python sources FREEZE during the full-tree
+  gate.**
   **C3-a ✅ — the multi-D reverse `walk_full` ORACLE, via the MIRROR-OCTANT
   realization.**  DESIGN RULING (the C3 carve's load-bearing find): the
   reverse walk of octant ``o`` IS the forward walk over the mirror graph
