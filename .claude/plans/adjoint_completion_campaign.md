@@ -184,8 +184,31 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   pairing `⟨A eᵢ, φ⟩ = (Aᵀφ)ᵢ` ≈1e-12 on the non-uniform het LD slab;
   pyright CLI 0/0; `-E -W` Sphinx exit 0; audit exit 0 (orphans 0/311,
   ERR 69/69); matrix collect 6668→6688 (+20 foundation).  #311 closes
-  with C2-c's commit trailer.  Enforcer review + full-tree gate running;
-  merge at the boundary checkpoint.
+  with C2-c's commit trailer.
+  **C2 CLOSED ✅ (2026-07-24)** — **Enforcer verdict: every code axis
+  PASS ("the engineering is exemplary"** — hand-verified VJPs; the
+  two-arm reverse RETIRES a genuine pre-C2 twin, the slab reverse's
+  cell-balance spelling vs the forward's batch kernel; covering law
+  sound; Mode-12 gates with proven teeth); 3 MUST-FIX + 1 SHOULD-FIX =
+  docstrings the flip made FALSE (the pre-flip LD-deferral contract), all
+  four rewritten @ `26b28e85`.  Enforcer NITs recorded: (a)
+  `moment_mass_diagonal`'s kron loop is an accepted 2nd spelling —
+  collapse into `_ubld.py` on a THIRD consumer; (b) `SLOPE_MOMENT = 1`
+  constant would complete the `AVERAGE_MOMENT` pair (forward + reverse
+  together, pre-existing).  **Full-tree gate: 6427 passed / 18 skipped /
+  54 xfailed, EXIT 0, 1:12:21** (nohup E-core pacing).  **C2 MERGED to
+  main (ff, 8 commits `2d226d1c..26b28e85`) + phase branch deleted;
+  user-ratified at the boundary checkpoint.  ⏸ COMPACTION taken here
+  (user-directed) — C3 opens next session: read spec §5 (R2a) +
+  `sweep_graph.py` (`walk_full` — the full-cochain oracle walk;
+  `_CellSolve`/`_CellResidual` level ops) FIRST, on a fresh
+  `feature/sn-adjoint-residue-c3` branch from main.  C3's kernel is
+  ALREADY BUILT: the d-generic `residual_kernel_batch_transpose` (DD +
+  LD) landed at C2 — C3 mints `_CellResidualTranspose` bottoming in it +
+  reversed levels + transposed addressing (gather at face_out,
+  scatter-accumulate at face_in, boundary in↔out swap) + the NEW 2-D
+  forward-apply column-probe oracle + the reverse-walk spy/AST tripwire.
+  NO production flag flips (the oracle arm).**
 
 - **C1 ✅ 2026-07-24** — the DD kernel-pair relocation: `streaming_cell_transpose`
   minted on `DiscretizationSchemeBase` (STORAGE-FREE spatial VJP
