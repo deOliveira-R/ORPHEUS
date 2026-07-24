@@ -61,7 +61,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 
@@ -689,20 +689,32 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     is unpublished — #158/#6).  Read-only class attribute."""
 
     has_transpose_kernel: ClassVar[bool] = False
-    r"""Whether the scheme's cell relation has a TRANSPOSE realization the 1-D
-    reverse walk can consume (the adjoint matvec
-    ``LossRepresentation.loss_action_transpose``).  Opt-in (``False`` default).
-    ``True`` for Diamond Difference — the 1-D reverse walk hand-transposes the
-    DD face-flux chain :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}`;
-    ``False`` for Linear-Discontinuous — the UBLD Schur-residual VJP is a typed
-    deferral to the #280 kernel-pair registration.  Consumers:
+    r"""Whether this scheme REGISTERS a transpose kernel — DERIVED, never declared.
+
+    ``True`` iff the subclass overrides :meth:`streaming_cell_transpose`; set
+    by ``__init_subclass__`` from the override itself, so a declared capability
+    with no kernel behind it (the pre-2.5a "predicate lie") is unrepresentable
+    — the registration IS the flag (#310 ruling 2).  ``True`` for Diamond
+    Difference (the relocated diamond-chain VJP); ``False`` for
+    Linear-Discontinuous until the UBLD Schur-residual VJP registers (#310 C2).
+    Consumers:
     :attr:`~orpheus.sn.operators.streaming.StreamingOperator.is_adjointable`
     (an eager ``.H`` on a non-transposable scheme raises ``MissingAdjoint`` at
     construction, Pattern 4) and the reverse walk's entry guard (a typed
     ``NotImplementedError``, never a silent scalar-buffer broadcast against
     moment-tailed cotangents).  The discrete Euclidean reverse-DAG transpose is
-    ``docs/theory/methods/sn/loss_representation.rst §loss-rep-orientation-two-frames``.
-    Read-only class attribute."""
+    ``docs/theory/methods/sn/loss_representation.rst §loss-rep-orientation-two-frames``."""
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        # Registration-coupled trait (#310 ruling 2): the flag DERIVES from
+        # the streaming_cell_transpose override, so flag and kernel cannot
+        # drift apart — declaring the capability without registering the
+        # kernel (or vice versa) is unrepresentable.
+        cls.has_transpose_kernel = (
+            cls.streaming_cell_transpose
+            is not DiscretizationSchemeBase.streaming_cell_transpose
+        )
 
     @property
     def is_multi_moment(self) -> bool:
@@ -817,6 +829,47 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
             f"{type(self).__name__} does not implement residual_kernel_batch. "
             "Override the kernel pair (cell_kernel_batch / "
             "residual_kernel_batch) to enable the batched wavefront walks."
+        )
+
+    def streaming_cell_transpose(
+        self,
+        *,
+        res_bar: np.ndarray,
+        psi_out_bar: np.ndarray,
+        denom: np.ndarray,
+        abs_mu_A_total: np.ndarray,
+        volume: float,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Per-cell VJP of the streamed cell relation — the reverse walk's kernel.
+
+        The transpose extension point of the 1-D loop-walk cell relation
+        {residual :math:`m = (\text{denom}\,\bar\psi - |\mu|A_{\rm tot}\,
+        \psi_{\rm in} - \text{numer})/V`, face chain
+        :math:`\psi_{\rm out} = f(\bar\psi, \psi_{\rm in})`}: given the
+        residual cotangent ``res_bar`` ``(ng, n)`` and the downstream face
+        cotangent ``psi_out_bar`` ``(ng, n)``, return
+        ``(psi_bar_cot, psi_in_bar)`` — the cell-average cotangent (the walk
+        scatter-adds it; each cell slot is visited by exactly one leg, so the
+        single scatter is bit-identical to in-place accumulation) and the
+        upstream face cotangent (the reversed march's carry).
+
+        SPATIAL relation ONLY (#310 ruling 1): the Morel–Montry
+        angular-numerator cotangent stays with the walk and
+        ``PoleAngularClosure.angular_adjoint`` — a kernel folding the angular
+        thread would re-fuse the spatial/angular closure separation the
+        codebase deliberately keeps.
+
+        STORAGE-FREE by contract, like the batch pair: the walk owns
+        gather/scatter and the ψ-independent coefficient recomputation
+        (``cell_balance_for_streaming`` — Pattern 2, the SAME coefficients as
+        the forward).  Overriding this method IS the registration that sets
+        :attr:`has_transpose_kernel` (derived in ``__init_subclass__``).
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} registers no transpose kernel "
+            "(streaming_cell_transpose) — the adjoint matvec/solve on this "
+            "scheme is a typed deferral (#310; the LD/UBLD Schur-residual "
+            "VJP lands at its C2)."
         )
 
     # ── Scan-family capability (Issue #236 §2 — the DAG-free schedules) ──

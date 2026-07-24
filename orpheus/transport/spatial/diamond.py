@@ -144,13 +144,10 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     sphere/cylinder, and DD rides ``CumprodScan`` on every 1-D geometry.  So a
     curvilinear mesh may select a DD scheme (the default for sphere/cylinder)."""
 
-    has_transpose_kernel: ClassVar[bool] = True
-    r"""The 1-D reverse walk carries DD's transpose: the adjoint matvec
-    hand-transposes the diamond face-flux chain (reversed cell traversal,
-    ``psi_bar += 2·f_bar; f_bar = −f_bar``), reusing the SAME ψ-independent
-    ``cell_balance_for_streaming`` coefficients as the forward (Pattern 2 — no
-    twin algebra).  Pinned by ``test_g_adjoint_reciprocity`` (slab / sphere /
-    cylinder)."""
+    # ``has_transpose_kernel`` is DERIVED True — DD registers
+    # ``streaming_cell_transpose`` (the relocated diamond-chain VJP, below
+    # with the batch kernel pair); the trait follows the registration
+    # (#310 ruling 2), never a declaration.
 
     def update(
         self,
@@ -459,6 +456,42 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
             self.outgoing_face_from_average(psi_bar, in_a, _DD_W) for in_a in psi_in
         )
         return residual, psi_out
+
+    def streaming_cell_transpose(
+        self,
+        *,
+        res_bar: np.ndarray,
+        psi_out_bar: np.ndarray,
+        denom: np.ndarray,
+        abs_mu_A_total: np.ndarray,
+        volume: float,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""DD's per-cell VJP — the diamond-chain transpose (relocated, bit-exact).
+
+        The reverse-mode adjoint of the streamed DD cell relation
+        {:math:`m = (\text{denom}\,\bar\psi - |\mu|A_{\rm tot}\,\psi_{\rm in}
+        - \text{numer})/V`, :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}`}:
+
+        .. math::
+
+           \bar\psi^\dagger = 2\,\psi_{\rm out}^\dagger
+             + \text{denom}\cdot m^\dagger/V, \qquad
+           \psi_{\rm in}^\dagger = -\psi_{\rm out}^\dagger
+             - |\mu|A_{\rm tot}\cdot m^\dagger/V .
+
+        Relocated VERBATIM from the 2.5a reverse-walk visit closure (#310 C1)
+        — operation order preserved, so the frozen ``walk_matvec_*`` adjoint
+        baselines pin the move at 0 ULP.  ``denom`` arrives from the SAME
+        ψ-independent ``cell_balance_for_streaming`` the forward uses
+        (Pattern 2 — no twin algebra); the angular-numerator cotangent is the
+        WALK's (spatial-only contract, #310 ruling 1).  This override IS the
+        registration that derives ``has_transpose_kernel = True``.
+        """
+        psi_bar_cot = 2.0 * psi_out_bar
+        psi_in_bar = -psi_out_bar
+        psi_bar_cot += denom * res_bar / volume
+        psi_in_bar += -(abs_mu_A_total)[None, :] * res_bar / volume
+        return psi_bar_cot, psi_in_bar
 
     # ── Scan-family capability (Issue #236 §2 — the DAG-free schedules) ──
 

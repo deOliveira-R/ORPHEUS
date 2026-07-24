@@ -111,3 +111,29 @@ review · qa on math-bearing phases · every new gate class mutation-verified
 (Mode-10) · k never sole evidence (Mode-12).
 
 ## Status log (append per stage)
+
+- **C1 ✅ 2026-07-24** — the DD kernel-pair relocation: `streaming_cell_transpose`
+  minted on `DiscretizationSchemeBase` (STORAGE-FREE spatial VJP
+  `(res_bar, psi_out_bar, denom, abs_mu_A_total, volume) → (psi_bar_cot,
+  psi_in_bar)`; default typed raise); DD's override = the relocated hand-code
+  VERBATIM (op order preserved; the single scatter-add proven bit-safe by the
+  one-visit-per-slot property); **`has_transpose_kernel` now DERIVED in
+  `__init_subclass__` from the override** (ruling 2 — declared-True-with-no-kernel
+  unrepresentable, pinned by the `_DeclaredLiar` law test; DD/LD declarations
+  DELETED, values reproduced by derivation); the walk's reverse visit calls the
+  registered kernel, the `numer_bar` accumulation stays with the walk (ruling 1);
+  the R5 guard message → derived-trait + #310 C2. **Degenerate-ordinate branch KEPT
+  slot-local** (face-free volumetric relation; its |μ|≈6e-17 rows would make a
+  kernel routing compute-then-discard a fake face cotangent) — the retirement pin
+  allows exactly that one `denom * ob` survivor. NEW gates
+  (`tests/sn/operators/test_streaming_cell_transpose_relocation.py`, 9 foundation):
+  Mode-11 sentinel (count>0 adjoint / ==0 forward control) · angular-thread
+  asymmetry (MorelMontry fires sphere/cyl, silent slab) · M-R1a-VALUE tooth (1.9
+  perturbation → O(1) red + bit-identical recompute control) · retirement grep ·
+  the derivation law. Gates: targeted battery 109 passed + 1 xfail (frozen
+  `walk_matvec_*` baselines bit-exact through the relocation); new file 9/9;
+  pyright production floor 1 (CLI; the streamed scheme.py complaint was LSP
+  noise); `-E -W` exit 0 zero warnings; matrix regen honest (+9 foundation,
+  collect 6659→6668). Out-of-scope survivors noted: `psi_half_angle_seed.py`'s
+  own DD-chain transposes (System-B seed machinery, spec-scoped out). Full-tree
+  serial pre-merge gate IN FLIGHT; ff-merge to main gated on it + checkpoint.

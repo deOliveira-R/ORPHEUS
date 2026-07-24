@@ -2927,9 +2927,10 @@ class _OneDimScanWalk:
         marches :func:`_reverse_traversal` of :meth:`_dag_legs` through the
         SAME :meth:`_loop_walk` frame the forward matvec uses — the leg
         decomposition and traversal topology cannot drift from the
-        forward's; only the per-cell kernel (the hand-transposed DD march)
-        and the endpoint bindings (outflow cotangent in, seed cotangent
-        out) differ.
+        forward's; only the per-cell kernel (the scheme's registered
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.streaming_cell_transpose`
+        spatial VJP, #310 C1) and the endpoint bindings (outflow cotangent
+        in, seed cotangent out) differ.
         Returns ``(L+C)ᵀφ``;
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
         subtracts ``σ_t·φ`` ONCE (Resolution A, ``C`` a self-adjoint diagonal).
@@ -2955,24 +2956,23 @@ class _OneDimScanWalk:
                 "the multi-D reverse sweep is a later Wave-O sub-step)."
             )
         if not type(sn_mesh.scheme).has_transpose_kernel:
-            # Phase 2.5 S0 (#280): the reverse walk below hand-transposes the
-            # Diamond-Difference face-flux chain and allocates SCALAR buffers
-            # (no spatial-moment tail) — a moment-tailed LD cotangent must
-            # refuse loudly here, never broadcast silently. The honest front
-            # door is StreamingOperator.is_adjointable (eager ``.H`` raises
+            # The trait DERIVES from the ``streaming_cell_transpose``
+            # registration (#310 ruling 2).  The honest front door is
+            # StreamingOperator.is_adjointable (eager ``.H`` raises
             # MissingAdjoint); this guard is the backstop for direct Euclidean
-            # apply_transpose calls that bypass ``.H``.
+            # apply_transpose calls that bypass ``.H`` — and it protects the
+            # SCALAR buffers below (no spatial-moment tail): a moment-tailed
+            # LD cotangent must refuse loudly here, never broadcast silently.
             raise NotImplementedError(
                 "_OneDimScanWalk.loss_action_transpose: scheme "
-                f"{type(sn_mesh.scheme).__name__} carries no transpose kernel "
-                "— the 1-D reverse walk hand-transposes the Diamond-"
-                "Difference face-flux chain only; the LD/UBLD Schur-residual "
-                "adjoint (cell-moment cotangents + the reverse moment-frame "
-                "involution) is a typed deferral to the #280 kernel-pair "
-                "registration."
+                f"{type(sn_mesh.scheme).__name__} registers no transpose "
+                "kernel (streaming_cell_transpose) — the LD/UBLD "
+                "Schur-residual adjoint (cell-moment cotangents + the "
+                "reverse moment-frame involution) lands at #310 C2."
             )
 
         closure = sn_mesh.pole_angular_closure
+        scheme = sn_mesh.scheme
         # Mirror-ordinate permutation for the coupled-pole seed adjoint
         # (curvilinear only; cheap to build unconditionally).
         mirror = quad.reflection_index("x")
@@ -3065,12 +3065,21 @@ class _OneDimScanWalk:
                 angular_numer_upstream=np.zeros((ng, leg.within.size)),
             )                                       # (ng, n_mask)
             ob = out_bar[:, leg.ordinates, i]
-            # reverse psi_face_in = 2·psi_cell − psi_face_in_old
-            psi_bar[:, leg.ordinates, i] += 2.0 * f_bar
-            f_bar = -f_bar
-            # reverse m = (denom·ψ − |μ|A_total·psi_face_in − angular_numer)/V
-            psi_bar[:, leg.ordinates, i] += denom * ob / V[i]
-            f_bar += -(leg.abs_mu * A_total)[None, :] * ob / V[i]
+            # The scheme's registered spatial VJP (#310 C1): transposes the
+            # cell relation {residual, face chain}; each (ordinate, cell)
+            # slot is visited by exactly one leg, so the single scatter-add
+            # below is bit-identical to in-place accumulation.
+            psi_bar_cot, f_bar = scheme.streaming_cell_transpose(
+                res_bar=ob,
+                psi_out_bar=f_bar,
+                denom=denom,
+                abs_mu_A_total=leg.abs_mu * A_total,
+                volume=V[i],
+            )
+            psi_bar[:, leg.ordinates, i] += psi_bar_cot
+            # The Morel–Montry angular-numerator cotangent is the WALK's
+            # (spatial-only kernel contract, #310 ruling 1); the downstream
+            # angular thread reverses in ``angular_adjoint`` below.
             numer_bar[leg.mu_level_idx][:, leg.within, i] += -ob / V[i]
             return f_bar
 
