@@ -2100,7 +2100,9 @@ bands stay distinct by *algorithmic necessity*, not debt:
      - per-cell **loop** over ``dag_walk_cell_indices``
    * - **solve/apply, multi-D**
      - ``_OctantWalk._interior_walk``
-     - *deferred* (raises)
+     - full-cochain ORACLE ``loss_action_transpose`` (#310 C3 — the
+       mirror-octant ``walk_full``); the windowed / scan-march
+       PRODUCTION reverse *deferred* (raises, #310 C4)
      - anti-diagonal **wavefront-graph**
 
 The empty-looking symmetry of the 2×2 is thus *honest*: the coherence
@@ -2134,20 +2136,34 @@ symmetric 2×2. Every entry below is a typed, loud
 ``NotImplementedError`` that the unification **preserves** — an honest
 deferral, not a coverage gap:
 
-* **multi-D Cartesian adjoint faces** —
-  ``ScanMarch.loss_action_transpose`` (2-D) and the ``_DAGWavefront``
-  transpose raise; the adjoint of the anti-diagonal wavefront walk has
-  no consumer yet.
-* **LD-slab adjoint** — the Linear-Discontinuous cell kernel registers
-  **forward-only**; the 1-D adjoint carries no trailing spatial-moment
-  axis, so ``loss_action_transpose`` is DD/scalar in 1-D.
+* **multi-D Cartesian PRODUCTION adjoint** —
+  ``ScanMarch.loss_action_transpose`` (2-D) and the windowed
+  ``_DAGWavefront`` transpose raise (#310 C4).  The full-cochain ORACLE
+  reverse landed at #310 C3
+  (:meth:`FullFieldWavefront.loss_action_transpose
+  <orpheus.sn.loss_representation.FullFieldWavefront.loss_action_transpose>`
+  — the UNCHANGED ``walk_full`` over each octant's MIRROR graph
+  ``−signs_eff`` × the ``_CellResidualTranspose`` level op: discrete
+  :math:`\mu\to-\mu` is exact for the DAG *addressing*, the cell algebra
+  is the kernel VJP), so the family predicate ``has_transpose_walk``
+  stays honestly ``False`` until the production (windowed) reverse is
+  pinned ``window ≡ full`` at C4.
 * :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
   **transpose** — the schedule-folded ``M = (L+C-B_lower)`` reverse-scan
   is the #280 sibling deferral (no consumer), so a
   :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` over it
   stays non-adjointable.
-* **2-D LD** — pre-existing (``ScanMarch`` refuses LD's non-separable
-  transverse coupling; the wavefront LD cell kernel is 1-D-only).
+* **LD-2D reverse** — the d-generic batch VJP *would* run (LD registers
+  it, #310 C2), but the LD-2D reverse walk is UNGATED until its
+  moment-frame-involution row + LD-2D dense-``Mᵀ`` land (#310 C5); the
+  apply-transpose frame refuses with a typed raise rather than emitting
+  an unverified answer.  (``ScanMarch`` additionally refuses LD's
+  non-separable transverse coupling in EITHER orientation.)
+
+Retired from this ledger: the **LD-slab adjoint** entry closed at
+#310 C2 (the registered LD batch VJP + the moment-tailed 1-D reverse —
+the ``loss_action_transpose`` moment arm now carries the trailing
+:math:`2^d` spatial-moment axis the old entry denied).
 
 .. _loss-rep-inverse-adjoint-swap:
 

@@ -178,6 +178,33 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   mirrored from the forward twin).  Targeted battery 108 passed;
   pyright CLI 0/0 on both touched production files; audit exit 0
   (orphans 0/311, ERR 69/69).
+  **C3-b ✅ — enforcer verdict + doc honesty.**  Enforcer: **no
+  VIOLATION, no MUST-FIX — "an exemplary carve"** (per-axis: twin-paths
+  PASS with the boundary algebra hand-verified as a genuine transpose
+  incl. the `+=` shed being NECESSARY — `given[in]` is consumed twice in
+  the forward; illegal-states PASS incl. the grazing re-negation verified;
+  reads-like-domain PASS; test-quality PASS with the d=1 `array_equal`
+  judged principled-not-over-tight; streaming.py production-deferral
+  claims verified still TRUE).  3 SHOULD-FIXes, all fixed same-session:
+  (1) `_ApplyOperands` docstring generalized to both orientations (the
+  driving-field contract); (2) `FullFieldWavefront` docstring now
+  enumerates all THREE directions/kernels/level-ops; (3) the
+  grazing/pure-z mirror-map corner got its pure-function tooth on
+  hand-built labels (no quadrature reaches the branch — the tooth's
+  first run caught a wrong EXPECTED value in the test itself; production
+  logic confirmed right: mirror of (0,−1) = (−1,+1), physical recovery
+  (+1,−1)).  Accepted NIT recorded: the ~15–25-line apply-frame
+  scaffolding glue is per-direction BY DESIGN (leaves single-sourced;
+  premature unification would parametrize over the boundary-algebra
+  difference); collapse trigger = a genuinely-new third apply-direction
+  frame (C5's LD-2D is NOT it — it rides the existing interior).
+  Theory-page honesty patch (the C5 doc blast's down-payment): the
+  deferral ledger's LD-slab entry RETIRED (dead since C2 — it denied the
+  moment tail the reverse now carries), the multi-D entry rewritten to
+  the oracle-landed truth, the stale "wavefront LD cell kernel is
+  1-D-only" reason replaced by the honest LD-2D-reverse C5 deferral, and
+  the 2×2 orientation-matrix multi-D cell updated.  Sphinx `-E -W` exit
+  0 on the patch; file now 13/13 green.
   **#311 ✅ landed @ `2d226d1c`**: `outgoing_face_from_average_transpose(f̄, w)
   → (f̄/w, −((1−w)/w)·f̄)` minted as the fourth generic reconstruction
   staticmethod; DD's kernel + the two seed-march reversals rerouted

@@ -297,6 +297,53 @@ def test_reverse_walk_is_orientation_object_not_boolean():
         )
 
 
+def test_reverse_traversal_grazing_and_pure_z_labels():
+    """[L0 structural] the corner rows of the mirror map, on HAND-BUILT
+    labels — no quadrature in the tree produces grazing (single-axis-zero)
+    or pure-z ordinates in 2-D, so these branches are otherwise unreachable
+    (enforcer C3 SHOULD-FIX #3: new subtle reversal logic wants a tooth
+    before a grazing-producing quadrature ever lands):
+
+    * GRAZING: a ``0`` axis rides ``+1`` forward, so its reversal is
+      ``−1`` — and the ``0`` must NOT survive into the mirror label (the
+      walk's own effective map would re-flip it to ``+1``, un-walking the
+      WRONG chain; the tempting ``-s`` spelling yields exactly that bug).
+      The physical recovery ``−signs_addr`` then gives ``+1`` — the
+      forward's effective sign.
+    * PURE-Z: the all-zero in-plane label is its own mirror (the collision
+      diagonal is self-transposed) and passes through untouched, so the
+      frame's ``pure_z`` branch still keys on it.
+    """
+    from orpheus.sn.loss_representation.sweep_graph import OctantLabel
+    from orpheus.sn.loss_representation.sweep_schedule import OctantSweep
+
+    grazing = OctantSweep(label=OctantLabel((0, -1)), indices=(3, 5))
+    pure_z = OctantSweep(label=OctantLabel((0, 0)), indices=(7,))
+    mirrored = _reverse_octant_traversal((grazing, pure_z))
+
+    g_label = mirrored[0].label.signs
+    if g_label != (-1, +1):
+        pytest.fail(
+            f"grazing (0, −1) mirrored to {g_label}; expected (−1, +1) — "
+            "the grazing axis must mirror AFTER the effective map "
+            "(0 → +1 → −1), never survive as 0"
+        )
+    physical = tuple(-s for s in g_label)
+    if physical != (+1, -1):
+        pytest.fail(
+            f"physical recovery −signs_addr gave {physical}; expected "
+            "(+1, −1) — the forward's EFFECTIVE signs of (0, −1): the "
+            "grazing axis rides +1, the genuine −1 axis stays −1"
+        )
+    if mirrored[0].indices != (3, 5):
+        pytest.fail("mirroring must not touch the physical ordinate indices")
+    if mirrored[1] is not pure_z:
+        pytest.fail(
+            "the pure-z (all-zero) sweep must pass through UNTOUCHED — it "
+            "is its own mirror and the frame's pure_z branch keys on it"
+        )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # §5.3 — the structurally-independent object oracles
 # ═══════════════════════════════════════════════════════════════════════

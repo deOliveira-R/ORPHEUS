@@ -768,20 +768,26 @@ def _reverse_octant_traversal(
 
 @dataclass(frozen=True)
 class _ApplyOperands:
-    r"""Problem data of the APPLY direction :math:`(L+C)\,\psi`.
+    r"""Problem data of the APPLY-frame matvecs :math:`(L+C)\,\psi` /
+    :math:`(L+C)^{\mathsf T}\varphi`.
 
-    What every apply-direction interior kernel consumes, bundled once per
-    :meth:`_OctantWalk.loss_action` call.  ``probe`` is the apply target
-    :math:`\bar\psi` (the matvec input).  ``Q_zero`` is the zero volumetric
-    source — the matvec evaluates the loss *action*, not a balance; kernels
-    whose walk signature requires a source slot (the windowed graph walk)
-    pass it through.  ``str_axes`` is the per-axis streaming tuple
-    :math:`2|\mu_a|/\Delta a` over ``range(ndim)`` — positional-by-axis like
-    every kernel tuple, so axis ``a``'s coefficients pair with axis ``a``'s
-    faces by construction.
+    What every apply-frame interior kernel consumes, bundled once per
+    :meth:`_OctantWalk.loss_action` / :meth:`_OctantWalk.loss_action_transpose`
+    call — ONE bundle for BOTH orientations (#310 C3).  ``probe`` is the
+    matvec's DRIVING bulk field: the forward's apply target
+    :math:`\bar\psi`, the reverse's residual cotangent :math:`\bar r`
+    (same structural role, same σ-epoch data; the semantic role is
+    resolved at the typed ``FullField`` boundary).  ``Q_zero`` is the zero
+    volumetric source — the matvec evaluates the loss *action*, not a
+    balance; kernels whose walk signature requires a source slot (the
+    graph walks) pass it through (the transpose op ignores it — the VJP
+    is source-free by contract).  ``str_axes`` is the per-axis streaming
+    tuple :math:`2|\mu_a|/\Delta a` over ``range(ndim)`` —
+    positional-by-axis like every kernel tuple, so axis ``a``'s
+    coefficients pair with axis ``a``'s faces by construction.
     """
 
-    probe: "np.ndarray"                  # (N, ng, *spatial) — ψ̄, the apply target
+    probe: "np.ndarray"                  # (N, ng, *spatial[, 2^d]) — the driving field (fwd ψ̄ / rev r̄)
     sig_t: "np.ndarray"                  # (ng, *spatial)
     str_axes: tuple["np.ndarray", ...]   # d arrays, each (N, n_a)
     Q_zero: "np.ndarray"                 # (1, ng, *spatial)
@@ -1715,13 +1721,15 @@ class FullFieldWavefront(_DAGWavefront):
     (``window ≡ full`` bit-identity).  Never the production default (the
     window wins at d=2, the scan at d=1); selected explicitly by oracle tests.
 
-    Since S6.4(d) BOTH directions route through the shared
+    Since S6.4(d) every direction routes through the shared
     :class:`_OctantWalk` frame (sweep via the kernel-parameterized schedule
-    loop, matvec via the apply frame) — this class supplies only the
+    loop, matvec via the apply frame, adjoint matvec via the
+    apply-transpose frame — #310 C3) — this class supplies only the
     full-cochain interior kernels (:meth:`_sweep_interior` /
-    :meth:`_loss_action_interior`, walking the d-generic
+    :meth:`_loss_action_interior` /
+    :meth:`_loss_action_transpose_interior`, walking the d-generic
     :meth:`SweepDependencyGraph.walk_full` × the ``_CellSolve`` /
-    ``_CellResidual`` level operations).
+    ``_CellResidual`` / ``_CellResidualTranspose`` level operations).
     ``supports`` is any-d Cartesian (S3) — the spine is genuinely
     dimension-generic, unlike the d=2-only window.
     """
