@@ -662,10 +662,12 @@ class _LossRepresentation:
         """Reverse-walk capability — opt-in ``False`` (the orientation factor).
 
         See :meth:`LossRepresentation.has_transpose_walk`.  Concrete leaves
-        whose transpose walk EXISTS override to ``True`` (the 1-D scan
-        family); every walk whose reversal is a #280 deferral inherits this
-        honest ``False`` so the eager ``.H`` refuses at construction rather
-        than reaching a raising ``loss_action_transpose`` at apply time.
+        whose transpose walk EXISTS override — since #310 C4 that is EVERY
+        registered leaf (the scan family unconditionally; the wavefront
+        family scheme-aware, LD-2D → C5) — so this base default is the
+        honest floor a FUTURE representation inherits until its reverse
+        lands: the eager ``.H`` refuses at construction rather than
+        reaching a raising ``loss_action_transpose`` at apply time.
         """
         return False
 
@@ -725,6 +727,25 @@ def _outflow_faces(signs_eff: tuple[int, ...]) -> tuple[str, ...]:
         f"{AXIS_NAMES[a]}max" if s >= 0 else f"{AXIS_NAMES[a]}min"
         for a, s in enumerate(signs_eff)
     )
+
+
+def _multi_d_multi_moment_reverse_deferred(mesh: "SNMesh") -> bool:
+    r"""True iff the mesh's DAG reverse walk is the LD-2D typed deferral (#310 C5).
+
+    The ONE spelling of the wavefront family's remaining reverse gap: the
+    kernel VJP is d-generic and LD registers it, so the mirror walk WOULD
+    run on a multi-D multi-moment mesh — but it is ungated until the C5
+    rows land (the moment-frame-involution reciprocity + the LD-2D
+    dense-``Mᵀ``, the likeliest sign-error site — ERR-066 family).  Read
+    by BOTH faces of flip-safety so they cannot drift (the R5/R6 lesson —
+    two spellings of one deferral must be one predicate):
+
+    * :meth:`_DAGWavefront.has_transpose_walk` — the CONSTRUCTION-time
+      factor (the eager ``.H`` refuses via ``is_adjointable``);
+    * :meth:`_OctantWalk.loss_action_transpose` — the APPLY-time backstop
+      for direct Euclidean calls that bypass ``.H``.
+    """
+    return mesh.ndim >= 2 and mesh.scheme.is_multi_moment
 
 
 def _reverse_octant_traversal(
@@ -1216,12 +1237,11 @@ class _OctantWalk:
                 "pair (residual_kernel_batch_transpose) — the adjoint "
                 "matvec on this scheme is a typed deferral (#310)."
             )
-        if ndim >= 2 and scheme.is_multi_moment:
-            # The kernel VJP is d-generic and LD registers it, so the walk
-            # WOULD run — but the LD-2D reverse is ungated until #310 C5
-            # (the moment-frame-involution row + the LD-2D dense-Mᵀ, the
-            # likeliest sign-error site — ERR-066 family).  Never a silent
-            # unverified answer.
+        if _multi_d_multi_moment_reverse_deferred(sn_mesh):
+            # The APPLY-time backstop of the ONE LD-2D deferral predicate
+            # (the trait `_DAGWavefront.has_transpose_walk` is its
+            # construction-time face — same spelling, cannot drift).
+            # Never a silent unverified answer.
             raise NotImplementedError(
                 "_OctantWalk.loss_action_transpose: the multi-D "
                 "multi-moment (LD-2D) reverse walk is a typed deferral "
@@ -1480,6 +1500,24 @@ class _DAGWavefront(_LossRepresentation):
         graphs); treat the mapping as immutable.
         """
         return SweepDependencyGraph.for_shape(self.mesh.spatial_shape)
+
+    @property
+    def has_transpose_walk(self) -> bool:
+        r"""Scheme-aware family trait — True except the LD-2D deferral (#310 C4).
+
+        Since C3/C4 BOTH storage policies own the mirror-octant reverse
+        (:meth:`FullFieldWavefront.loss_action_transpose` the full-cochain
+        oracle, :meth:`MovingFrontierWindow.loss_action_transpose` the
+        windowed production), so the family's orientation factor is True
+        wherever the shared frame runs — the ONE remaining gap is the
+        multi-D multi-moment (LD-2D) reverse, ungated until #310 C5.  The
+        trait reads the SAME predicate as the frame's apply-time guard
+        (:func:`_multi_d_multi_moment_reverse_deferred` — flip-safety's two
+        faces cannot drift), so the eager ``.H`` refuses at construction
+        exactly where a direct call would raise at apply.
+        """
+        return not _multi_d_multi_moment_reverse_deferred(self.mesh)
+
 
 class MovingFrontierWindow(_DAGWavefront):
     r"""Wavefront sweep — rolling :math:`(d{-}1)`-frontier buffer.
@@ -2065,11 +2103,13 @@ class FullFieldWavefront(_DAGWavefront):
         #310 C2) — so the adjoint MATH cannot drift from the forward's, only
         the orientation data.
 
-        Verification-oracle arm: the production predicate
-        (``has_transpose_walk``) stays ``False`` for the whole wavefront
-        family until the windowed reverse lands (#310 C4 — flip-safety), so
-        the eager ``.H`` still refuses; this walk is reachable by direct
-        call, pinned by the 2-D dense-``Mᵀ`` forward-probe + the
+        Verification-oracle arm of the flipped family (#310 C4): the
+        family predicate (:meth:`_DAGWavefront.has_transpose_walk`) is
+        True wherever the shared frame runs (LD-2D excepted → C5), and
+        the PRODUCTION reverses (the window / the row-march) are pinned
+        against THIS walk — bit-identical (window) and
+        principled-equivalent (scan-march) — while this walk itself is
+        pinned by the 2-D dense-``Mᵀ`` forward-probe + the
         assembled-``Mᵀ`` cross-check + the d=1 cross-realization against
         the 1-D scan reverse (``tests/sn/sweep/core/test_multi_d_reverse_walk.py``).
         Returns ``(L+C)ᵀφ``;
@@ -2584,14 +2624,16 @@ class ScanMarch(_LossRepresentation):
 
     @property
     def has_transpose_walk(self) -> bool:
-        """1-D ``True`` (the shared reverse loop walk); multi-D the #280 deferral.
+        """True — both arms reverse (#310 C4).
 
-        The one representation spanning both dimensionalities, so the
-        orientation factor is mesh-dependent: the eager ``.H`` on a 2-D
-        scan-march mesh refuses at construction (the raise above stays as
-        the direct-call backstop).
+        1-D: the shared reverse loop walk (#280 2.5a / #310 C2); 2-D
+        Cartesian: the row-march reverse (#310 C4-b).  ``supports`` already
+        narrows selection to exactly those arms (1-D affine-scannable /
+        2-D facewise), and the KERNEL factor of ``is_adjointable``
+        (``scheme.has_transpose_kernel``) carries the scheme narrowing —
+        so the orientation factor is unconditionally honest here.
         """
-        return self.mesh.is_1d
+        return True
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -286,7 +286,7 @@ def test_invertible_apply_is_M_of_C_sigma_bit_identical(case):
     )
 
 
-@pytest.mark.parametrize("case", ["slab_2g", "sphere_2g", "cyl_2g"])  # NOT cart2d
+@pytest.mark.parametrize("case", ["slab_2g", "sphere_2g", "cyl_2g", "cart2d_2g"])
 def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case):
     r"""[L0 structural] ``(L+C).apply_transpose(φ) == M(σ_C)ᵀφ`` bit-identical (adjoint teeth).
 
@@ -296,10 +296,10 @@ def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case
     ``loss_action_transpose``. ``array_equal`` so the ≤2-ULP leaf-sum
     realisation fails (the strict-xfail teeth).
 
-    2-D Cartesian EXCLUDED: ``ScanMarch.loss_action_transpose`` is a deferral
-    raise (multi-D Cartesian adjoint not implemented — the override must not
-    silently route around it). The adjoint teeth are slab/sphere/cyl only; the
-    2-D adjoint is gated by the deferral-raise contract elsewhere.
+    cart2d UN-EXCLUDED at #310 C4 (the row-march reverse landed — the row
+    rides the same default representation both sides).  Self-referential
+    (override-not-leak — necessary, not sufficient); the genuine transpose
+    proof is the ``test_multi_d_reverse_walk`` object-oracle battery.
     """
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 1)

@@ -66,6 +66,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import (
+    cart2d_2g_nonsquare,
     placeholder_materials,
     radial_characteristic_edge_seed,
 )
@@ -402,6 +403,7 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     [
         pytest.param("sphere", id="sphere_GL4_reflective"),
         pytest.param("cylinder", id="cyl_LS4_reflective"),
+        pytest.param("cart2d", id="cart2d_LS2_reflective_nonsquare"),
     ],
 )
 def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
@@ -432,8 +434,18 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     rng = np.random.default_rng(seed=137)
     if geom == "sphere":
         sn_mesh, sig_t = _make_spherical_sn_mesh()
-    else:
+    elif geom == "cylinder":
         sn_mesh, sig_t = _make_cylindrical_sn_mesh()
+    else:
+        # #310 C4: the multi-D Cartesian row — the row-march reverse on the
+        # default representation, reflective nonsquare (seedless mesh, so
+        # the joint wrapper degenerates to the bare composite operator).
+        sn_mesh = cart2d_2g_nonsquare()
+        sig_t = np.stack(
+            [np.full(sn_mesh.spatial_shape, 0.5 * (1.0 + 0.5 * g))
+             for g in range(2)],
+            axis=0,
+        )
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair

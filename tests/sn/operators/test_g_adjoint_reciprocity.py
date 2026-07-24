@@ -71,7 +71,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.sn._test_helpers import placeholder_materials
+from tests.sn._test_helpers import cart2d_2g_nonsquare, placeholder_materials
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -183,6 +183,22 @@ def _make_ld_slab(ng: int = 2, sigma: float = 0.5):
     return sn, sig_t
 
 
+def _make_cart2d(ng: int = 2, sigma: float = 0.5):
+    r"""2-D Cartesian DD, reflective nonsquare (#310 C4 — the multi-D row).
+
+    The G-metric reciprocity on cart2d is NOT slab-degenerate (the L19
+    correction): the trace weight ``|Ω·n|·w_n`` varies per ordinate AND per
+    face normal, so a Euclidean-trace ``.H`` reds here at O(1) exactly as
+    on the curvilinear rows.  σ_t per-group-varying (anti-#3).
+    """
+    sn = cart2d_2g_nonsquare()
+    sig_t = np.stack(
+        [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)],
+        axis=0,
+    )
+    return sn, sig_t
+
+
 _BUILDERS = {
     "slab": lambda: _make_slab(ng=1),
     "sphere": lambda: _make_sphere(ng=1),
@@ -191,6 +207,7 @@ _BUILDERS = {
     "sphere_2g": lambda: _make_sphere(ng=2),
     "cyl_product_2g": lambda: _make_cyl_product(ng=2),
     "ld_slab_2g": lambda: _make_ld_slab(ng=2),
+    "cart2d_2g": lambda: _make_cart2d(ng=2),
 }
 
 
@@ -646,11 +663,49 @@ def _full_loss_case(coord: CoordSystem, ng: int):
     return sn, A, S
 
 
+def _full_loss_case_cart2d():
+    r"""cart2d-DD full loss ``A = (L+C) − S − B`` (#310 C4 — the multi-D row).
+
+    The 2-D sibling of :func:`_full_loss_case`: the SAME het 2-material
+    P0/P1 mixtures on a reflective NON-SQUARE box (nx=4 ≠ ny=5), so S
+    carries live asymmetric group transfer and the trace metric is the
+    4-face ``|Ω·n|·w_n``.  ``scattering_order=0`` — the S† content here is
+    the group-transfer transpose composing through ``OperatorSum.H`` on
+    the multi-D walk; the anisotropic-order composition rows stay with the
+    1-D full-loss cases.
+    """
+    from orpheus.geometry import Mesh2D
+
+    mesh = Mesh2D(
+        edges_x=np.linspace(0.0, 2.0, 5),
+        edges_y=np.linspace(0.0, 3.0, 6),
+        mat_map=np.array([[0, 1, 1, 0, 0], [1, 0, 0, 1, 0],
+                          [0, 0, 1, 0, 1], [1, 0, 0, 0, 1]]),
+        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
+        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+    )
+    mixtures = {
+        0: _mix_2g(_P0_2G_A, _P1_2G_A, np.array([[0.0, 0.03], [0.01, 0.0]])),
+        1: _mix_2g(_P0_2G_B, _P1_2G_B, np.array([[0.0, 0.02], [0.02, 0.0]])),
+    }
+    sn = SNMesh(mesh, Quadrature.level_symmetric(4), mixtures)
+    S = SNSolver(sn, scattering_order=0).scattering_op
+    sig_t = np.asarray(
+        sn.material_xs_field().total_cross_section_field.values, dtype=float
+    )
+    A = (
+        StreamingOperator(sn)
+        + MultiplicationOperator.from_mesh(sig_t, sn)
+    ) - S - SNBoundaryOperator(sn)
+    return sn, A, S
+
+
 _FULL_LOSS_BUILDERS = {
     "slab_2g": lambda: _full_loss_case(CoordSystem.CARTESIAN, 2),
     "sphere_2g": lambda: _full_loss_case(CoordSystem.SPHERICAL, 2),
     "slab_4g": lambda: _full_loss_case(CoordSystem.CARTESIAN, 4),
     "sphere_4g": lambda: _full_loss_case(CoordSystem.SPHERICAL, 4),
+    "cart2d_2g": _full_loss_case_cart2d,
 }
 
 

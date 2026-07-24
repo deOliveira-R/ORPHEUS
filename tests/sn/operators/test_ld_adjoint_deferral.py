@@ -34,7 +34,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.operator import MissingAdjoint
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation import (
@@ -87,6 +87,21 @@ def _slab(scheme=None, ng: int = 2):
 
 def _lc(sn, sig_t):
     return StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+
+
+def _cart2d_ld() -> SNMesh:
+    """Small vacuum LD 2-D mesh — the #310 C5 deferral boundary's config."""
+    geom = Mesh2D(
+        edges_x=np.array([0.0, 0.5, 1.3, 2.0]),
+        edges_y=np.array([0.0, 0.9, 2.0]),
+        mat_map=np.zeros((3, 2), dtype=int),
+        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
+        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+    )
+    return SNMesh(
+        geom, Quadrature.level_symmetric(2), placeholder_materials(ng=2),
+        scheme=LinearDiscontinuous(),
+    )
 
 
 def _ld_composite(sn) -> FullField:
@@ -260,11 +275,13 @@ class TestWalkEntryGuard:
 class TestMultiDOrientationHonesty:
     r"""``is_adjointable`` factorizes along the #280 axes: KERNEL
     (``scheme.has_transpose_kernel``) ∧ ORIENTATION
-    (``representation.has_transpose_walk``).  A DD multi-D Cartesian mesh
-    passes the kernel factor but its walks carry no reverse traversal —
-    pre-2.5a the predicate LIED (``True`` while ``apply_transpose``
-    raised); now the eager ``.H`` refuses at construction and the
-    representations' raises are the direct-call backstop."""
+    (``representation.has_transpose_walk``).  Since #310 C4 the multi-D
+    Cartesian DD reverse walks EXIST on every registered representation
+    (the mirror-octant oracle + window, the row-march), so the former
+    all-negative rows are POSITIVE controls — the SAME rows that pinned
+    the refusal now pin the flipped surface (the flip-safe rewrite this
+    class was minted to force).  The remaining honest negative is the
+    LD-2D wavefront reverse (→ #310 C5), pinned below."""
 
     def test_rep_trait_declarations(self) -> None:
         sn1, _ = _slab(scheme=DiamondDifference())
@@ -280,33 +297,67 @@ class TestMultiDOrientationHonesty:
         )
         sn2 = cart2d_2g_nonsquare()
         require(
-            ScanMarch(sn2).has_transpose_walk is False,
-            "ScanMarch on a 2-D mesh must declare has_transpose_walk=False "
-            "— the multi-D reverse walk is the #280 deferral.",
+            ScanMarch(sn2).has_transpose_walk is True,
+            "ScanMarch on a 2-D mesh must declare has_transpose_walk=True "
+            "— the row-march reverse landed (#310 C4-b).",
         )
         require(
-            MovingFrontierWindow(sn2).has_transpose_walk is False,
-            "The DAG-wavefront family must inherit has_transpose_walk="
-            "False (base opt-in default) — its adjoint is deferred.",
+            MovingFrontierWindow(sn2).has_transpose_walk is True,
+            "MovingFrontierWindow must declare has_transpose_walk=True on "
+            "a DD 2-D mesh — the windowed reverse landed (#310 C4-a).",
+        )
+        require(
+            FullFieldWavefront(sn2).has_transpose_walk is True,
+            "FullFieldWavefront must declare has_transpose_walk=True on a "
+            "DD 2-D mesh — the family trait is scheme-aware (#310 C4-c), "
+            "and the oracle reverse landed at C3.",
         )
 
-    def test_cart2d_dd_streaming_is_not_adjointable(self) -> None:
-        sn = cart2d_2g_nonsquare()
+    def test_ld_2d_wavefront_trait_stays_false(self) -> None:
+        r"""The family trait's OTHER face: on an LD 2-D mesh the wavefront
+        reverse is the #310 C5 deferral, so the trait must stay ``False``
+        — the same predicate the frame's apply-time guard reads
+        (flip-safety's two faces cannot drift)."""
+        sn = _cart2d_ld()
+        require(
+            FullFieldWavefront(sn).has_transpose_walk is False,
+            "FullFieldWavefront on an LD 2-D mesh must declare "
+            "has_transpose_walk=False — the LD-2D reverse is ungated "
+            "until #310 C5.",
+        )
         require(
             not StreamingOperator(sn).is_adjointable,
-            "L on a 2-D Cartesian DD mesh must NOT advertise the adjoint "
-            "axis — the kernel factor passes but the orientation factor "
-            "fails (no multi-D reverse walk); a True here is the predicate "
-            "lie the S0 STATUS deferred to 2.5a.",
+            "L on an LD 2-D mesh must NOT advertise the adjoint axis — "
+            "the orientation factor fails until #310 C5.",
         )
-
-    def test_cart2d_H_raises_missing_adjoint_at_construction(self) -> None:
-        sn = cart2d_2g_nonsquare()
-        sig_t, _psi = het_operands(sn)[:2]
         with pytest.raises(MissingAdjoint):
             _ = StreamingOperator(sn).H
-        with pytest.raises(MissingAdjoint):
-            _ = _lc(sn, sig_t).H
+
+    def test_cart2d_dd_streaming_is_adjointable(self) -> None:
+        r"""The former negative row, FLIPPED at #310 C4-c: both predicate
+        factors pass on a DD 2-D Cartesian mesh (kernel: the registered
+        batch VJP; orientation: the C4 reverse walks)."""
+        sn = cart2d_2g_nonsquare()
+        require(
+            StreamingOperator(sn).is_adjointable,
+            "L on a 2-D Cartesian DD mesh must advertise the adjoint axis "
+            "— both factors pass since #310 C4 (a False here is the "
+            "select-narrow lie in the other direction).",
+        )
+
+    def test_cart2d_H_constructs(self) -> None:
+        r"""The former ``MissingAdjoint`` refusal rows, FLIPPED: the eager
+        ``.H`` constructs on the DD cart2d surface (L and L+C)."""
+        sn = cart2d_2g_nonsquare()
+        sig_t, _psi = het_operands(sn)[:2]
+        require(
+            StreamingOperator(sn).H is not None,
+            "cart2d DD L.H must construct since #310 C4.",
+        )
+        require(
+            _lc(sn, sig_t).H is not None,
+            "cart2d DD (L+C).H must construct since #310 C4.",
+        )
 
     def test_cart2d_direct_transpose_runs(self) -> None:
         r"""The former multi-D typed-deferral row, FLIPPED at #310 C4-b: a
@@ -331,22 +382,19 @@ class TestMultiDOrientationHonesty:
         )
 
     def test_cart2d_ffw_oracle_state(self) -> None:
-        r"""The #310 C3 state, pinned deliberately: the full-cochain ORACLE
-        reverse EXISTS (``FullFieldWavefront.loss_action_transpose``
-        computes) while the family predicate stays ``False`` — the
-        select-narrow posture of flip-safety.  ``.H`` still refuses on
-        every cart2d representation; the oracle is reachable by direct
-        call only, gated by ``test_multi_d_reverse_walk``.  The predicate
-        flips at #310 C4 WITH the windowed PRODUCTION reverse (this row is
-        rewritten there) — capability-without-predicate is conservative
-        and never a wrong answer; predicate-without-capability is the lie
-        this file exists to kill."""
+        r"""The #310 C4 flipped state: the oracle rep's trait rides the
+        scheme-aware family predicate (True on DD — the C3 select-narrow
+        divergence is CLOSED), and the direct-call oracle capability
+        stands.  The former C3 row pinned trait-False-while-capable; the
+        flip commit rewrote it to pin trait ⟺ capability agreement —
+        predicate-without-capability AND capability-without-predicate are
+        both gone on this surface (the LD-2D pair lives in
+        ``test_ld_2d_wavefront_trait_stays_false``)."""
         sn = cart2d_2g_nonsquare()
         require(
-            FullFieldWavefront(sn).has_transpose_walk is False,
-            "FullFieldWavefront must keep has_transpose_walk=False until "
-            "the WINDOWED production reverse lands (#310 C4 flip-safety) — "
-            "a True here without the C4 gate rows is a premature flip.",
+            FullFieldWavefront(sn).has_transpose_walk is True,
+            "FullFieldWavefront on DD cart2d must declare "
+            "has_transpose_walk=True — the family flipped at #310 C4-c.",
         )
         sig_t, phi = het_operands(sn)[:2]
         out = FullFieldWavefront(sn).loss_action_transpose(sig_t, phi)

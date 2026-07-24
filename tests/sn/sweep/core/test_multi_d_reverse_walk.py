@@ -704,6 +704,68 @@ def test_scanmarch_scan_seed_mutation_reds(monkeypatch):
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# d=3 — the family flip's d≥3 face, VERIFIED not assumed (#310 C4-c)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_d3_dense_mt_and_pairing_on_the_spine():
+    """[L0 object, d=3] the scheme-aware family trait flips the d-generic
+    FullFieldWavefront spine True at d≥3 too — so the d=3 reverse gets its
+    own object evidence (a trait claiming capability the gates never ran
+    would be capability-claimed-unverified): the mirror-octant reverse on
+    a rectangular nx≠ny≠nz NON-UNIFORM d=3 mesh satisfies the Euclidean
+    pairing at machine precision AND the dense-``Mᵀ`` full-composite
+    matrix equality (the same two objects that pin d=2)."""
+    from orpheus.transport.mesh.axis import AxisMesh
+
+    rng = np.random.default_rng(20260808)
+    sn = SNMesh.from_axes(
+        (
+            AxisMesh(edges=np.array([0.0, 0.6, 1.0])),             # nx=2
+            AxisMesh(edges=np.array([0.0, 0.4, 1.1, 2.0])),        # ny=3
+            AxisMesh(edges=np.array([0.0, 0.3, 0.7, 1.2, 2.0])),   # nz=4
+        ),
+        Quadrature.level_symmetric(2),
+        {0: get_mixture("A", "2g")},
+    )
+    rep = FullFieldWavefront(sn)
+    if rep.has_transpose_walk is not True:
+        pytest.fail(
+            "the d=3 DD spine must carry the flipped family trait "
+            "(#310 C4-c) — has_transpose_walk read False"
+        )
+    sig = 0.4 + rng.random((2, *sn.spatial_shape))
+
+    rel = _pairing_defect(sn, rep, sig, rng)
+    if rel > 1e-12:
+        pytest.fail(
+            f"d=3 Euclidean pairing identity broke: rel defect {rel:.3e}"
+        )
+
+    faces = tuple(sn.angular_trace.face_names)
+    n = _basis_size(sn, faces)
+    M_fwd = np.empty((n, n))
+    M_rev = np.empty((n, n))
+    for k, e in enumerate(_basis_composites(sn, faces)):
+        M_fwd[:, k] = _flatten(rep.loss_action(sig, e), faces)
+    for k, e in enumerate(_basis_composites(sn, faces)):
+        M_rev[:, k] = _flatten(rep.loss_action_transpose(sig, e), faces)
+    scale = float(np.max(np.abs(M_fwd)))
+    np.testing.assert_allclose(
+        M_rev, M_fwd.T, rtol=1e-12, atol=1e-13 * scale,
+        err_msg=(
+            "the d=3 reverse walk is NOT the transpose of the d=3 forward "
+            "walk (dense column-probe object mismatch)"
+        ),
+    )
+    if np.allclose(M_fwd, M_fwd.T, rtol=1e-6, atol=1e-9 * scale):
+        pytest.fail(
+            "d=3 probe config produced a symmetric M — the gate is vacuous "
+            "(L16: pick het/non-uniform/rectangular)"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # §11 — the committed mutation teeth (M-R2-ADDRESSING + the axis swap)
 # ═══════════════════════════════════════════════════════════════════════
 

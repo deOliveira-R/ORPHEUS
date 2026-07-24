@@ -441,11 +441,12 @@ both directions. The composite never asks a leaf for a :math:`\sigma`-bearing
 action it must then undo. The input contract (typed composite + the
 mesh-identity invariant) is itself single-sourced through the module-level
 ``_require_typed_composite`` helper that :meth:`StreamingOperator.apply` now
-shares. The multi-D Cartesian *adjoint* still raises the representation's
-deferral (``ScanMarch.loss_action_transpose`` is a ``NotImplementedError`` —
-the reverse-mode multi-D sweep is the O.2b follow-on) rather than silently
-routing around it, so :meth:`apply_transpose` is correct-by-construction or a
-loud refusal, never a silent wrong answer.
+shares. The multi-D Cartesian *adjoint* rides the same discipline since
+#310 C4 (``ScanMarch.loss_action_transpose`` is the row-march reverse — one
+``loss_action_transpose``, one :math:`\sigma` source, both directions), so
+:meth:`apply_transpose` is correct-by-construction on every registered
+representation, with the ONE remaining refusal (LD-2D, #310 C5) typed and
+loud, never a silent wrong answer.
 
 The removal form makes the distinction observable
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -518,9 +519,9 @@ convention is the same :eq:`loss-rep-resolution-a` glue, now single-sourcing
     value-equal but a *different* reduction tree → :math:`\le 2` ULP off
     ``array_equal`` → it fails. **These are the only gates that discriminate
     the carve.** They were ``xfail(strict=True)`` until the override landed;
-    the marker is removed and they now pass plainly. The 2-D adjoint is
-    *excluded* because ``ScanMarch.loss_action_transpose`` is the deferral
-    raise.
+    the marker is removed and they now pass plainly. The 2-D adjoint row is
+    *included* since #310 C4 (the row-march reverse landed — the former
+    exclusion's deferral raise is gone).
 
 (b) **The value ground** — the matvec≡sweep round-trip
     (``test_removal_form_matvec_sweep_roundtrip``: slab/cyl/2-D, sphere
@@ -2100,10 +2101,12 @@ bands stay distinct by *algorithmic necessity*, not debt:
      - per-cell **loop** over ``dag_walk_cell_indices``
    * - **solve/apply, multi-D**
      - ``_OctantWalk._interior_walk``
-     - full-cochain ORACLE ``loss_action_transpose`` (#310 C3 — the
-       mirror-octant ``walk_full``); the windowed / scan-march
-       PRODUCTION reverse *deferred* (raises, #310 C4)
-     - anti-diagonal **wavefront-graph**
+     - the mirror-octant reverses (#310 C3/C4): full-cochain ORACLE +
+       windowed PRODUCTION ``loss_action_transpose`` (the UNCHANGED
+       ``walk_full`` / ``walk_windowed`` over ``graph(−signs_eff)``),
+       and the row-march reverse (``ScanMarch``, reversed rows +
+       ``_x_scan_faces_transpose``)
+     - anti-diagonal **wavefront-graph** / row-march
 
 The empty-looking symmetry of the 2×2 is thus *honest*: the coherence
 axis (orientation) is shared everywhere it is implemented, and the
@@ -2136,18 +2139,6 @@ symmetric 2×2. Every entry below is a typed, loud
 ``NotImplementedError`` that the unification **preserves** — an honest
 deferral, not a coverage gap:
 
-* **multi-D Cartesian PRODUCTION adjoint** —
-  ``ScanMarch.loss_action_transpose`` (2-D) and the windowed
-  ``_DAGWavefront`` transpose raise (#310 C4).  The full-cochain ORACLE
-  reverse landed at #310 C3
-  (:meth:`FullFieldWavefront.loss_action_transpose
-  <orpheus.sn.loss_representation.FullFieldWavefront.loss_action_transpose>`
-  — the UNCHANGED ``walk_full`` over each octant's MIRROR graph
-  ``−signs_eff`` × the ``_CellResidualTranspose`` level op: discrete
-  :math:`\mu\to-\mu` is exact for the DAG *addressing*, the cell algebra
-  is the kernel VJP), so the family predicate ``has_transpose_walk``
-  stays honestly ``False`` until the production (windowed) reverse is
-  pinned ``window ≡ full`` at C4.
 * :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
   **transpose** — the schedule-folded ``M = (L+C-B_lower)`` reverse-scan
   is the #280 sibling deferral (no consumer), so a
@@ -2163,7 +2154,17 @@ deferral, not a coverage gap:
 Retired from this ledger: the **LD-slab adjoint** entry closed at
 #310 C2 (the registered LD batch VJP + the moment-tailed 1-D reverse —
 the ``loss_action_transpose`` moment arm now carries the trailing
-:math:`2^d` spatial-moment axis the old entry denied).
+:math:`2^d` spatial-moment axis the old entry denied); the **multi-D
+Cartesian PRODUCTION adjoint** entry closed at #310 C4 — the windowed
+reverse rides the mirror graph's own ``window_plan`` (pinned
+``window ≡ full`` bit-identical against the C3 oracle), the
+``ScanMarch`` row-march reverse rides ``_x_scan_faces_transpose`` +
+the backwards transverse chain (pinned principled-equivalent + its own
+dense-``Mᵀ``/pairing rows, plus a d=3 spine row), and the family
+predicates ``has_transpose_walk`` flipped WITH the capability (the
+wavefront family scheme-aware — the ONE spelling
+``_multi_d_multi_moment_reverse_deferred`` shared with the frame's
+apply-time guard keeps the LD-2D deferral's two faces from drifting).
 
 .. _loss-rep-inverse-adjoint-swap:
 
