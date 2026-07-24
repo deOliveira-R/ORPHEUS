@@ -117,7 +117,28 @@ review · qa on math-bearing phases · every new gate class mutation-verified
 
 ## Status log (append per stage)
 
-- **C3 IN PROGRESS (2026-07-24)** — branch `feature/sn-adjoint-residue-c3`.
+- **C3 CLOSED ✅ (2026-07-24)** — branch `feature/sn-adjoint-residue-c3`.
+  **Full-tree gate: 6442 passed / 0 failed / 18 skipped / 54 xfailed,
+  EXIT 0, 50:49** (count exactly accounted: 6427 @ C2-close + 14 C3-a +
+  1 C3-b grazing tooth).  NOTE the first tree run (concurrent with the
+  C3-b docstring edits) false-redded the two `inspect.getsource` AST
+  tripwires with `File "<unknown>", line 1` — attributed (mechanism:
+  shifted line windows under a live run), both files 33/33 on the frozen
+  tree, rerun EXIT 0 → **lesson L37** (Python sources FREEZE while a
+  long gate runs) @ `ce527996`.  Spec §12.2 acceptance walked: object
+  gates only (no keff anywhere in the new file) · every committed gate
+  class red-verified (pairing + dense under M-R2-ADDRESSING; the partial
+  axis-swap; the AST tripwire's red is its identifier-scan construction)
+  · Mode-12 both-legs (equivariance no-op + partial-swap red) · all
+  references structurally independent (forward probe / CSR / the
+  C2-proven scan reverse / hand-built labels) · regimes activate
+  (rectangular, non-uniform, het, full composite) · zero flag flips ·
+  out-of-scope loud (LD-2D→C5, G-S solve-reverse→R7, tail backstop).
+  ⏸ boundary checkpoint next: ff-merge to main + C4 (the windowed
+  PRODUCTION reverse: `walk_windowed` over the mirror graphs — the
+  mirror `window_plan` IS the reversed frontier — + the reverse
+  window≡full pin + the `has_transpose_walk` flips + un-exclusions +
+  `.H`-gated reciprocity rows, per spec §5.1/§5.6 flip-safety).
   **C3-a ✅ — the multi-D reverse `walk_full` ORACLE, via the MIRROR-OCTANT
   realization.**  DESIGN RULING (the C3 carve's load-bearing find): the
   reverse walk of octant ``o`` IS the forward walk over the mirror graph
