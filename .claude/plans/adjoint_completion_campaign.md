@@ -117,6 +117,50 @@ review · qa on math-bearing phases · every new gate class mutation-verified
 
 ## Status log (append per stage)
 
+- **C2 IN PROGRESS (2026-07-24)** — branch `feature/sn-adjoint-residue-c2`.
+  **#311 ✅ landed @ `2d226d1c`**: `outgoing_face_from_average_transpose(f̄, w)
+  → (f̄/w, −((1−w)/w)·f̄)` minted as the fourth generic reconstruction
+  staticmethod; DD's kernel + the two seed-march reversals rerouted
+  byte-identically (frozen baselines 0-drift under strict DriftWarning; the
+  seed module imports `_DD_W` — the constant's own docstring invites it);
+  gates = the VJP pairing identity (Mode-10: dropW/sign/swap all red O(1))
+  + the w=½ byte-identity law + the single-source retirement pin.
+  **C2-a ✅ @ `d78150cc` — the batch VJP pair + two-arm reverse visit.**
+  DESIGN RULING (recorded for the boundary review; forced by the standing
+  lenses, mirror-the-forward + no-scheme-branches + build-the-machinery):
+  the C1 cell-balance kernel CANNOT serve LD (its `denom` is a DD
+  composite; LD needs raw `(g, Σ_t, θ)`), so the reverse visit now mirrors
+  the forward `_apply_walk`'s TWO ARMS — Cartesian scheme-uniform through
+  the NEW d-generic `residual_kernel_batch_transpose` (the exact VJP
+  mirror of `residual_kernel_batch`; C3's `_CellResidualTranspose` bottoms
+  in the same kernel), curvilinear keeping the C1 kernel (DD-only, M-M
+  thread).  `has_transpose_kernel` re-derived as the COVERING law: batch
+  VJP always ∧ (curvilinear kernel iff `supports_curvilinear`).  Evidence:
+  frozen fwd+adj baselines bit-exact under strict DriftWarning through the
+  arm change (power-of-2-width snapshot data); slab pairing identity
+  `⟨A eᵢ, φ⟩ = (Aᵀφ)ᵢ` at 2.5e-16 (the new arm is the EXACT transpose of
+  the forward kernel — tighter than the old cell-balance pairing); the
+  two-arm sentinel matrix + covering-law tests + batch value tooth.
+  **C2-b ✅ @ `b2ed7d9e` — the LD transpose algebra-of-record.**  SymPy:
+  `derive_d1_transpose_equals_At_Minv` (VJP ≡ AᵀM⁻¹ from exact Jacobians;
+  order discriminant PROVEN nonzero; inflow + face pullback rows) +
+  `derive_octant_frame_sign_is_involution` (D²=I, conjugation commutes
+  with transpose, d=1 + both d=2 patterns).  Numpy:
+  `assemble_inflow_axis_transpose`, `D1ClosedForm.scan_reconstruct_transpose`
+  (riding the new `_geom_fold` single source), `_ubld_outgoing_faces_transpose`;
+  three bilinear pairing gates (Mode-10 one-offs red O(1)).  NOTE: the
+  #311 "LD composes the primitive on first landing" prediction resolved
+  differently — the LD batch VJP is TRACE-based (B(+1)ᵀ broadcast), not
+  w-blend, so no new w-blend transpose site appeared; the primitive's
+  value is the DD sites + pair completeness.  **NEXT = C2-c (the atomic
+  flip)**: LD `residual_kernel_batch_transpose` override (= the flip, via
+  the covering derivation) + the `_run_transpose` LD moment arm (R6 lift +
+  `scan_reconstruct_transpose` + the slope-source diagonal self-transpose)
+  + the R5/R6 two-guard lift onto the trait + `test_ld_adjoint_deferral`
+  rewrite (negatives→positives + the declare→derive NIT) + the θ-mass
+  metric rows (ruling 3) + G1/G2/dense-Mᵀ/assembled-Mᵀ LD rows +
+  reciprocity LD builders + the S/F trailing-axis check.
+
 - **C1 ✅ 2026-07-24** — the DD kernel-pair relocation: `streaming_cell_transpose`
   minted on `DiscretizationSchemeBase` (STORAGE-FREE spatial VJP
   `(res_bar, psi_out_bar, denom, abs_mu_A_total, volume) → (psi_bar_cot,
