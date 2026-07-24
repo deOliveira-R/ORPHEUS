@@ -351,9 +351,10 @@ class StreamingOperator(LinearOperator["FullField"]):
         :attr:`loss_representation`'s
         :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action_transpose`
         (single-sourced through ``loss_action_transpose`` at :math:`\sigma = 0`;
-        the multi-D Cartesian adjoint stays a deferral raise — never a silent
-        wrong answer).  Since :math:`C = \sigma_t\odot` is a self-adjoint
-        diagonal, the full adjoint loss factors as
+        the multi-D Cartesian DD adjoint landed at #310 C4 — only the
+        LD-2D multi-moment reverse still raises, typed, #310 C5; never a
+        silent wrong answer).  Since :math:`C = \sigma_t\odot` is a
+        self-adjoint diagonal, the full adjoint loss factors as
         :math:`(L + C)^{\mathsf T} = L^{\mathsf T} + C`.
 
         This returns the **plain Euclidean transpose** :math:`L^{\mathsf T}`.

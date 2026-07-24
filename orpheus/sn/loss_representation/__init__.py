@@ -370,11 +370,15 @@ class LossRepresentation(Protocol):
 
         Return the FULL adjoint loss :math:`(L+C)^{\mathsf T}\phi` (the operator
         subtracts the self-adjoint diagonal :math:`C` in
-        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`).  Raises
-        :class:`NotImplementedError` for representations whose adjoint is deferred
-        (the multi-D Cartesian reverse sweep — O.2b lands the 1-D reverse sweep
-        first).  Never a silent wrong answer.  ``sigma`` is the ``(ng, ...)``
-        diagonal coefficient, passed EXPLICITLY (#240 Phase 2 Step B).
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`).
+        Implemented by EVERY registered representation since #310 C4 (the
+        1-D reverse walks, the mirror-octant wavefront reverses, the
+        row-march reverse); the ONE remaining deferral raises a typed
+        :class:`NotImplementedError` — the multi-D multi-moment (LD-2D)
+        reverse (#310 C5), single-sourced through
+        :func:`_multi_d_multi_moment_reverse_deferred`.  Never a silent
+        wrong answer.  ``sigma`` is the ``(ng, ...)`` diagonal
+        coefficient, passed EXPLICITLY (#240 Phase 2 Step B).
 
         On a carrying mesh this is the ray-decoupled ``(A,A)ᵀ`` block action
         (step 6 — presence is structural): the JOINT transposed action
@@ -393,8 +397,8 @@ class LossRepresentation(Protocol):
         :math:`L^{\mathsf T}` leaf, single-sourced through
         :meth:`loss_action_transpose` at :math:`\sigma = 0`.  Used by
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`.  Inherits
-        the deferral contract (multi-D Cartesian raises, never a silent wrong
-        answer).
+        the deferral contract (the LD-2D reverse raises typed, #310 C5 —
+        never a silent wrong answer).
         """
         ...
 
@@ -496,9 +500,11 @@ class _LossRepresentation:
         The transpose-solve :math:`(L+C)^{-\mathsf T}` is realised only by the
         1-D scan family (:class:`CumprodScan` overrides this).  Every other
         representation (multi-D Cartesian wavefront / windowed) inherits this
-        loud deferral — the reverse-scan of a wavefront is a later Wave-O
-        sub-step; never a silent wrong answer (mirrors the multi-D
-        :meth:`loss_action_transpose` raise).
+        loud deferral — the reverse-scan of a wavefront is the G-S
+        schedule-reverse arm (#310 R7, no consumer); never a silent wrong
+        answer.  (Distinct from the matvec transpose
+        :meth:`loss_action_transpose`, which every representation
+        implements since #310 C4.)
         """
         raise NotImplementedError(
             f"{type(self).__name__}.sweep_transpose: the transpose-solve "
