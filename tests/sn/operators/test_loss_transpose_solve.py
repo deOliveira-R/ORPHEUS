@@ -108,9 +108,27 @@ def _cyl_ls() -> SNMesh:
     )
 
 
+def _ld_slab() -> SNMesh:
+    # The #310 C2 row: LD slab on NON-UNIFORM heterogeneous 2G (the mass
+    # diag(h, θh) varies cell-to-cell, so the AᵀM⁻¹ order is live).
+    from orpheus.transport.spatial.linear_discontinuous import (
+        LinearDiscontinuous,
+    )
+
+    return SNMesh(
+        Mesh1D(edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),
+               mat_ids=np.array([0, 1, 1, 0]),
+               bc_left=BC("vacuum"), bc_right=BC("vacuum")),
+        Quadrature.gauss_legendre(n_ordinates=4),
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        scheme=LinearDiscontinuous(),
+    )
+
+
 _MESHES = {
     "slab": _slab, "sphere": _sphere,
     "cyl_product": _cyl_product, "cyl_ls": _cyl_ls,
+    "ld_slab": _ld_slab,
 }
 
 
@@ -123,8 +141,13 @@ def _loss(sn_mesh: SNMesh):
 
 
 def _fresh(sn_mesh: SNMesh) -> FullField:
-    return FullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+    # Scheme-aware bulk (LD carries the trailing 2^d moment axis; DD's
+    # spatial_moments=1 is the byte-identical default).
+    return FullField(
+        interior=AngularFlux.zeros_on(
+            sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
+        ),
+        boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
     )
 
 
@@ -156,10 +179,15 @@ def _fresh_source(sn_mesh: SNMesh) -> FullField:
         AngularSourceSink,
     )
 
+    per_axis = sn_mesh.scheme.spatial_basis_per_axis
+    tail = () if per_axis == 1 else (per_axis ** sn_mesh.ndim,)
     return FullField(
         interior=AngularSourceSink.from_mesh(
-            np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)),
+            np.zeros(
+                (sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape, *tail)
+            ),
             sn_mesh,
+            spatial_moments=per_axis,
         ),
         boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
     )
@@ -188,8 +216,9 @@ def _source_carried_mask(sn_mesh) -> np.ndarray:
     slot EXCEPT each seed leg's trailing outflow corner."""
     N = sn_mesh.quad.n_ordinates
     nx = int(np.prod(sn_mesh.spatial_shape))
+    tail = sn_mesh.scheme.spatial_basis_per_axis ** sn_mesh.ndim
     if sn_mesh.radial_characteristic_field_space is None:
-        return np.ones(N * nx, dtype=bool)
+        return np.ones(N * nx * tail, dtype=bool)
     per = 2 * nx + 2  # seed leg: corner_in, cells⁻, cells⁺, corner_out
     mask = []
     for _ in sn_mesh.radial_characteristic_levels:
@@ -277,7 +306,7 @@ def test_g2_dense_transpose_oracle(geom):
     for g in range(sn.ng):
         M = _probe_augmented_matrix_one_group(sn, g)
         b = _fresh_source(sn) if carrying else _fresh(sn)
-        b.interior.values[:, g] = rng.random((sn.quad.n_ordinates, *sn.spatial_shape))
+        b.interior.values[:, g] = rng.random(b.interior.values[:, g].shape)
         cot_in = _seed_cot(
             sn,
             rng.random(sn.radial_characteristic_field_space.shape[0])
@@ -438,4 +467,41 @@ def test_assembled_transpose_lapack_slab():
         np.testing.assert_allclose(
             got, ref, rtol=_RTOL, atol=1e-12,
             err_msg=f"slab g{g}: solve_transpose ≠ LAPACK back-substitution",
+        )
+
+
+@pytest.mark.foundation
+def test_assembled_transpose_block_structure_ld_slab():
+    r"""LD slab: the walk-order-permuted ``Mᵀ`` is block-UPPER-triangular
+    with dense ``2×2`` moment micro-blocks on the diagonal (#310 C2, spec
+    §4.3's triangularity leg — the L17 "LD caveat" resolved: the LD moment
+    tail DOES land in the assembled probe).
+
+    The strict-scalar ``triu(Mᵀ, k=1) == 0`` the DD row enjoys is
+    structurally impossible for LD (the per-cell UBLD ``2×2`` is dense),
+    so the honest certificate is BLOCK-triangularity: every entry of the
+    permuted ``Mᵀ`` BELOW the 2×2 block diagonal is zero.  The VALUES of
+    ``solve_transpose`` against this same permuted matrix are pinned by
+    the G2 dense-``Mᵀ`` row (full LAPACK ``np.linalg.solve(Mᵀ, b)``); a
+    block back-substitution realization is a possible third leg (#310).
+    """
+    sn = _ld_slab()
+    order = _augmented_sweep_order(sn)
+    tail = sn.scheme.spatial_basis_per_axis ** sn.ndim
+    for g in range(sn.ng):
+        M = _probe_augmented_matrix_one_group(sn, g)
+        Mt_perm = M[np.ix_(order, order)].T
+        n = Mt_perm.shape[0]
+        below_block = np.abs(np.tril(Mt_perm, k=-1)).copy()
+        # zero out the WITHIN-block lower entries (the dense 2×2 diagonal
+        # micro-blocks are allowed) before asserting emptiness below.
+        for b0 in range(0, n, tail):
+            below_block[b0:b0 + tail, b0:b0 + tail] = 0.0
+        np.testing.assert_allclose(
+            below_block, 0.0, atol=1e-13,
+            err_msg=(
+                f"ld_slab g{g}: permuted Mᵀ has entries below the 2×2 "
+                "moment block diagonal — the LD reverse walk order is not "
+                "block-upper-triangular"
+            ),
         )

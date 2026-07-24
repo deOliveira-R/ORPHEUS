@@ -1,39 +1,32 @@
-r"""LD adjoint faces are a TYPED deferral — the scheme-honest transpose surface.
+r"""The scheme-honest transpose surface — LD POSITIVE since #310 C2.
 
-Phase 2.5 S0 (#280, FLAG-2 of the 2.5-P0 recon): the 1-D reverse walk
-(`_OneDimScanWalk.loss_action_transpose`) hand-transposes the
-Diamond-Difference face-flux chain ONLY — its buffers carry no
-spatial-moment tail — yet nothing guarded a Linear-Discontinuous slab out
-of it: ``CumprodScan.supports`` admits LD slab (``is_affine_scannable``),
-``StreamingOperator.is_adjointable`` was unconditionally ``True``, and an
-LD ``.H``/``apply_transpose`` either broadcast-crashed or silently
-mis-computed on shape coincidence — violating the Protocol's "never a
-silent wrong answer" deferral contract.
+Phase 2.5 S0 (#280) minted this file as the LD DEFERRAL pin: the 1-D
+reverse walk hand-transposed the DD face chain only, so LD refused loudly
+at every surface.  **#310 C2 lifted the deferral** — LD registers its UBLD
+``AᵀM⁻¹`` batch VJP (``residual_kernel_batch_transpose``), the reverse
+walk's Cartesian arm and the reverse-scan's moment arm carry the
+``(…, 2^d)`` cotangent tail, and the same rows that pinned the refusal now
+pin the POSITIVE surface (the flip-safe rewrite this file was minted to
+force — a flag flipped without its walk reds here).
 
-This file pins the honest surface landed in S0:
+This file pins:
 
-* the scheme trait ``has_transpose_kernel`` (DD ``True``, LD ``False``,
-  base default ``False`` — a scheme is not assumed transposable until a
-  reverse-mode realization of its cell relation exists);
+* the scheme trait ``has_transpose_kernel`` — DERIVED, never declared
+  (#310 ruling 2): DD ``True`` (both kernels), LD ``True`` (the batch VJP
+  covers its slab-only span), base default ``False``;
 * the scheme-honest predicate ``StreamingOperator.is_adjointable`` and its
-  a∧b propagation through ``(L+C)`` / ``(L+C−B)``;
-* the eager ``.H`` refusal (``MissingAdjoint`` at CONSTRUCTION — Pattern 4,
-  illegal state unrepresentable);
-* the reverse walk's entry guard: a DIRECT Euclidean ``apply_transpose``
-  call (bypassing ``.H``) raises the typed deferral, never a silent
-  broadcast;
-* the DD positive control (vv anti-pattern #11: paired positive+negative —
-  the honest surface must not over-refuse);
-* the ORIENTATION factor (2.5a — the S0-deferred multi-D question):
+  a∧b propagation through ``(L+C)`` / ``(L+C−B)`` — now POSITIVE for both
+  1-D schemes;
+* the eager ``.H`` construction for LD (the former ``MissingAdjoint``
+  refusal row, flipped);
+* the walk entry's Pattern-4 backstop: a cotangent whose spatial-moment
+  tail does not match the scheme's raises a typed ``ValueError`` (the
+  silent-broadcast hazard the old guard protected against, now guarded
+  SHAPE-wise rather than scheme-wise);
+* the ORIENTATION factor (2.5a): a multi-D Cartesian mesh still refuses —
   ``is_adjointable = scheme.has_transpose_kernel ∧
-  representation.has_transpose_walk``, so a multi-D Cartesian mesh (whose
-  walks carry no reverse traversal — the #280 deferral) refuses the eager
-  ``.H`` at construction exactly like LD, with the representations' loud
-  raises as the direct-call backstop.
-
-The deferral lifts with the #280 kernel-pair registration (DD registers
-forward + transpose kernels; LD forward-only → the deferral becomes
-structural instead of guarded). vv Mode-8: function-call asserts only.
+  representation.has_transpose_walk`` and the multi-D reverse walk is the
+  #310 C3/C4 arm.  vv Mode-8: function-call asserts only.
 """
 
 from __future__ import annotations
@@ -117,18 +110,20 @@ class TestSchemeTraitDeclarations:
             "of its cell relation exists (opt-in, like is_affine_scannable).",
         )
 
-    def test_dd_declares_true(self) -> None:
+    def test_dd_derives_true(self) -> None:
         require(
             DiamondDifference.has_transpose_kernel is True,
-            "DD must declare has_transpose_kernel=True — the 1-D reverse "
-            "walk hand-transposes the diamond face-flux chain (O.2b).",
+            "DD must derive has_transpose_kernel=True — it registers BOTH "
+            "the Cartesian batch VJP and the curvilinear cell-balance "
+            "kernel (#310 C1/C2).",
         )
 
-    def test_ld_declares_false(self) -> None:
+    def test_ld_derives_true(self) -> None:
         require(
-            LinearDiscontinuous.has_transpose_kernel is False,
-            "LD must declare has_transpose_kernel=False — the UBLD "
-            "Schur-residual VJP is the #280 kernel-pair deferral.",
+            LinearDiscontinuous.has_transpose_kernel is True,
+            "LD must derive has_transpose_kernel=True — it registers the "
+            "UBLD AᵀM⁻¹ batch VJP, which alone covers its slab-only "
+            "forward span (#310 C2; the covering derivation).",
         )
 
 
@@ -138,12 +133,12 @@ class TestSchemeTraitDeclarations:
 
 
 class TestPredicateHonesty:
-    def test_ld_streaming_is_not_adjointable(self) -> None:
+    def test_ld_streaming_is_adjointable(self) -> None:
         sn, _ = _slab(scheme=LinearDiscontinuous())
         require(
-            not StreamingOperator(sn).is_adjointable,
-            "L on an LD mesh must NOT advertise the adjoint axis — the "
-            "reverse walk carries no LD transpose (names need invariants).",
+            StreamingOperator(sn).is_adjointable,
+            "L on a 1-D LD mesh must advertise the adjoint axis — the "
+            "batch VJP is registered and CumprodScan reverses (#310 C2).",
         )
 
     def test_dd_streaming_stays_adjointable(self) -> None:
@@ -154,16 +149,16 @@ class TestPredicateHonesty:
             "honest predicate must not over-refuse (anti-pattern #11).",
         )
 
-    def test_ld_composites_propagate_the_refusal(self) -> None:
+    def test_ld_composites_propagate_the_capability(self) -> None:
         sn, sig_t = _slab(scheme=LinearDiscontinuous())
         lc = _lc(sn, sig_t)
         require(
-            not lc.is_adjointable,
-            "(L+C) on LD must not be adjointable (OperatorSum a∧b law).",
+            lc.is_adjointable,
+            "(L+C) on 1-D LD must be adjointable (OperatorSum a∧b law).",
         )
         require(
-            not (lc - SNBoundaryOperator(sn)).is_adjointable,
-            "(L+C−B) on LD must not be adjointable (a∧b through the sum).",
+            (lc - SNBoundaryOperator(sn)).is_adjointable,
+            "(L+C−B) on 1-D LD must be adjointable (a∧b through the sum).",
         )
 
     def test_dd_composites_stay_adjointable(self) -> None:
@@ -182,12 +177,17 @@ class TestPredicateHonesty:
 
 
 class TestEagerRefusal:
-    def test_ld_H_raises_missing_adjoint_at_construction(self) -> None:
+    def test_ld_H_constructs(self) -> None:
+        r"""The former ``MissingAdjoint`` refusal row, FLIPPED (#310 C2)."""
         sn, sig_t = _slab(scheme=LinearDiscontinuous())
-        with pytest.raises(MissingAdjoint):
-            _ = StreamingOperator(sn).H
-        with pytest.raises(MissingAdjoint):
-            _ = _lc(sn, sig_t).H
+        require(
+            StreamingOperator(sn).H is not None,
+            "L.H on 1-D LD must construct — the deferral is lifted.",
+        )
+        require(
+            _lc(sn, sig_t).H is not None,
+            "(L+C).H on 1-D LD must construct — the deferral is lifted.",
+        )
 
     def test_dd_H_constructs(self) -> None:
         sn, sig_t = _slab(scheme=DiamondDifference())
@@ -198,24 +198,50 @@ class TestEagerRefusal:
 
 
 class TestWalkEntryGuard:
-    def test_ld_direct_transpose_raises_typed_deferral(self) -> None:
-        r"""A DIRECT Euclidean ``apply_transpose`` (no ``.H``) must refuse
-        LOUDLY at the walk entry — the backstop behind the predicate."""
+    def test_ld_direct_transpose_runs(self) -> None:
+        r"""The former typed-deferral row, FLIPPED: a DIRECT Euclidean
+        ``apply_transpose`` on a well-formed moment-tailed cotangent runs
+        end-to-end and returns the moment-tailed pullback (#310 C2)."""
         sn, sig_t = _slab(scheme=LinearDiscontinuous())
-        lc = _lc(sn, sig_t)
-        with pytest.raises(NotImplementedError, match="no transpose kernel"):
-            lc.apply_transpose(_ld_composite(sn))
+        rng = np.random.default_rng(310)
+        phi = _ld_composite(sn)
+        phi.interior.values[:] = rng.standard_normal(phi.interior.values.shape)
+        out = _lc(sn, sig_t).apply_transpose(phi)
+        require(
+            out.interior.values.shape == phi.interior.values.shape,
+            "LD (L+C)ᵀφ must return the moment-tailed bulk shape.",
+        )
+        require(
+            bool(np.all(np.isfinite(out.interior.values))),
+            "LD (L+C)ᵀφ produced non-finite bulk values.",
+        )
 
-    def test_ld_bare_streaming_transpose_raises_too(self) -> None:
+    def test_ld_tailless_cotangent_refuses_loudly(self) -> None:
+        r"""The Pattern-4 backstop that REPLACES the scheme guard: a
+        cotangent missing the scheme's spatial-moment tail must raise the
+        typed shape refusal, never broadcast silently through the batch
+        VJP (the hazard the S0 deferral guard originally protected)."""
+        sn, sig_t = _slab(scheme=LinearDiscontinuous())
+        tailless = FullField(
+            interior=AngularFlux.zeros_on(sn),          # NO moment tail
+            boundary=AngularBoundaryFlux.zeros_on(sn),
+        )
+        with pytest.raises(ValueError, match="spatial-moment tail"):
+            _lc(sn, sig_t).apply_transpose(tailless)
+
+    def test_ld_bare_streaming_transpose_runs_too(self) -> None:
         r"""The σ-free ``streaming_action_transpose`` funnels through the
-        same walk entry — one guard point covers both routes."""
+        same walk — the positive sibling of the former refusal row."""
         sn, _ = _slab(scheme=LinearDiscontinuous())
-        with pytest.raises(NotImplementedError, match="no transpose kernel"):
-            StreamingOperator(sn).apply_transpose(_ld_composite(sn))
+        out = StreamingOperator(sn).apply_transpose(_ld_composite(sn))
+        require(
+            bool(np.all(np.isfinite(out.interior.values))),
+            "LD Lᵀφ produced non-finite bulk values.",
+        )
 
     def test_dd_transpose_positive_control(self) -> None:
         r"""DD's transpose still runs end-to-end and returns finite values
-        (anti-pattern #11 — the guard must not over-refuse)."""
+        (anti-pattern #11 — the surface must not over-refuse)."""
         sn, sig_t = _slab(scheme=DiamondDifference())
         rng = np.random.default_rng(2026)
         out = _lc(sn, sig_t).apply_transpose(_random_composite(sn, rng))

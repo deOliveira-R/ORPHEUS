@@ -66,6 +66,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 import numpy as np
 
 from orpheus.geometry.reduced_operator import StreamingTerms
+from orpheus.numerics.moment_layout import cell_moment_count
 from orpheus.numerics.registry import RegistryMixin
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -1095,6 +1096,23 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
             f"{type(self).__name__} does not implement moment_scan_closure "
             "(is_multi_moment is False)."
         )
+
+    def moment_mass_diagonal(self, ndim: int) -> np.ndarray:
+        r"""Unit-volume Legendre mass diagonal over the ``2^d`` cell moments.
+
+        The per-moment mass weight ``M_ii/V = ∏_a θ^{o_a}`` of the scheme's
+        tensor-Legendre cell basis — ``(1,)`` for the slopeless closures
+        (the trivial average-only mass), ``[1, θ]`` for LD at d=1,
+        ``[1, θ, θ, θ²]`` at d=2.  The Hilbert-metric consumer:
+        the bulk measure of a moment-tailed field is
+        ``G_bulk = V·w_n ⊗ moment_mass_diagonal`` (#310 C2 ruling 3 — an
+        average-only ``V·w_n`` mis-weights the slope DOF, making ``.H`` a
+        WRONG adjoint on the slope rows AND reciprocity Mode-12-blind to a
+        slope-row transpose).  Single-sourced from the scheme because the
+        mass IS the scheme's (the same diagonal
+        :meth:`residual_kernel_batch` normalises by, ÷V).
+        """
+        return np.ones(cell_moment_count(self.spatial_basis_per_axis, ndim))
 
     # ── Generic affine reconstruction ops (#158 Inc B / #240 D2) ─────────────
     #

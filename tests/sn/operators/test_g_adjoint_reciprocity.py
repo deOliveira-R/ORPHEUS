@@ -152,6 +152,37 @@ def _make_cyl_product(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0
     return sn, sig_t
 
 
+def _make_ld_slab(ng: int = 2, sigma: float = 0.5):
+    r"""LD slab, NON-UNIFORM h + group- AND space-varying σ_t (#310 C2).
+
+    The spec §4.4 reciprocity config: heterogeneous ≥2G on non-uniform
+    widths, so ``M = diag(h, θh)`` varies cell-to-cell (the mass-order
+    discriminant is live) and the random composite's slope moments are
+    genuinely exercised against a non-flat coefficient field.
+    """
+    from orpheus.transport.spatial.linear_discontinuous import (
+        LinearDiscontinuous,
+    )
+
+    quad = Quadrature.gauss_legendre(4)
+    edges = np.array([0.0, 0.17, 0.45, 0.62, 1.0])       # non-uniform h
+    mesh = Mesh1D(
+        edges=edges,
+        mat_ids=np.zeros(4, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("reflective"),
+        bc_right=BC("reflective"),
+    )
+    sn = SNMesh(mesh, quad, placeholder_materials(ng=ng),
+                scheme=LinearDiscontinuous())
+    nx = sn.spatial_shape[0]
+    space_factor = 1.0 + 0.3 * np.arange(nx) / nx        # spatially het
+    sig_t = np.stack(
+        [sigma * (1.0 + 0.5 * g) * space_factor for g in range(ng)], axis=0,
+    )
+    return sn, sig_t
+
+
 _BUILDERS = {
     "slab": lambda: _make_slab(ng=1),
     "sphere": lambda: _make_sphere(ng=1),
@@ -159,6 +190,7 @@ _BUILDERS = {
     "slab_2g": lambda: _make_slab(ng=2),
     "sphere_2g": lambda: _make_sphere(ng=2),
     "cyl_product_2g": lambda: _make_cyl_product(ng=2),
+    "ld_slab_2g": lambda: _make_ld_slab(ng=2),
 }
 
 
@@ -169,12 +201,33 @@ _BUILDERS = {
 
 
 def _bulk_measure(sn: SNMesh) -> np.ndarray:
-    r"""G_bulk = V_cell · w_n on (N, 1, *spatial) — built from raw mesh data."""
+    r"""G_bulk = V_cell · w_n [⊗ moment mass] — built from raw mesh data.
+
+    On a multi-moment closure (LD) the bulk field carries the trailing
+    ``2^d`` spatial-moment axis, and its Hilbert measure carries the moment
+    mass ``∏_a θ^{o_a}`` (#310 C2 ruling 3): ``G_bulk = V·w_n ⊗ diag(1, θ,
+    …)``.  Rebuilt HERE from the raw ``sn.scheme.theta`` scalar with a
+    plain kron loop — structurally independent of the production
+    ``moment_mass_diagonal`` helper (anti-R1), so the metric cross-check
+    below pins the production θ-weighting against an independent spelling.
+    """
     w_n = np.asarray(sn.quad.weights, dtype=float)
     V = np.asarray(sn.volumes, dtype=float)  # (*spatial,)
     # (N, 1) ordinate+group axes ⊗ (*spatial,) volume axes — rank-generic.
     w_b = w_n.reshape((w_n.shape[0], 1) + (1,) * V.ndim)
-    return w_b * V[None, None]
+    base = w_b * V[None, None]
+    if sn.scheme.spatial_basis_per_axis > 1:
+        from orpheus.transport.spatial.linear_discontinuous import (
+            LinearDiscontinuous,
+        )
+
+        assert isinstance(sn.scheme, LinearDiscontinuous)  # narrow: θ carrier
+        theta = float(sn.scheme.theta)
+        mm = np.array([1.0])
+        for _ in range(sn.ndim):
+            mm = np.kron(mm, np.array([1.0, theta]))
+        return base[..., None] * mm
+    return base
 
 
 def _trace_cosine_weight(sn: SNMesh, face_idx: int, *, with_cosine: bool) -> np.ndarray:
@@ -223,7 +276,21 @@ def _random_composite(
     (``test_psi_half_coupling::TestCoupledBuilder``).
     """
     N, ng = sn.quad.N, sn.ng
-    bulk = AngularFlux.from_mesh(rng.standard_normal((N, ng, *sn.spatial_shape)), sn)
+    per_axis = sn.scheme.spatial_basis_per_axis
+    if per_axis > 1:
+        # A multi-moment closure (LD): the bulk carries the trailing 2^d
+        # spatial-moment axis with RANDOM (non-zero) slope moments — the
+        # §4.4 anisotropy audit's requirement (an all-flat suite is blind
+        # to a dropped/mis-signed slope row).
+        tail_size = per_axis ** sn.ndim
+        bulk = AngularFlux.from_mesh(
+            rng.standard_normal((N, ng, *sn.spatial_shape, tail_size)), sn,
+            spatial_moments=per_axis,
+        )
+    else:
+        bulk = AngularFlux.from_mesh(
+            rng.standard_normal((N, ng, *sn.spatial_shape)), sn,
+        )
     boundary = AngularBoundaryFlux(
         values=rng.standard_normal(int(sn.angular_trace.layout.total_size)),
         space=sn.angular_trace,
@@ -306,6 +373,87 @@ def test_full_field_space_metric_matches_independent_reference(case):
         pytest.fail(
             f"[{case}] FullFieldSpace.inner_product {prod:.6e} != independent "
             f"reference {ref:.6e} (rel={rel:.2e}) — wrong metric population"
+        )
+
+
+@pytest.mark.foundation
+def test_ld_moment_mass_metric_is_load_bearing(monkeypatch):
+    r"""#310 C2 ruling 3, the stabiliser proof: a slope-row transpose error
+    is VISIBLE to the θ-carrying metric and EXACTLY INVISIBLE to a
+    slope-ghost metric.
+
+    Plant a slope-row sign flip in LD's registered batch VJP (the ψ̂
+    cotangent negated — the M-R1c slope-row error class) and measure the
+    reciprocity defect ``|⟨Aψ,φ⟩_m − ⟨ψ, A.H φ⟩_m|`` under two bulk
+    measures:
+
+    * the θ-metric (``V·w_n ⊗ diag(1, θ)``): the mutation moves the defect
+      O(1) — the committed reciprocity row has teeth on the slope rows;
+    * a slope-GHOST metric (``V·w_n ⊗ diag(1, 0)`` — the L18 ghost-G
+      family): the mutated defect equals the unmutated defect EXACTLY —
+      the error class sits in the ghost metric's stabiliser (Mode 12), so
+      a metric that drops the moment mass is structurally BLIND here.
+
+    The asymmetry IS the proof the moment mass is load-bearing in the
+    reciprocity gate (spec §4.2); the metric-FREE value catchers are the
+    Euclidean oracles (the SymPy/dense ``AᵀM⁻¹`` gates + G2).
+    """
+    from orpheus.transport.spatial.linear_discontinuous import (
+        LinearDiscontinuous,
+    )
+
+    sn, sig_t = _make_ld_slab(ng=2)
+    A = _loss_operator(sn, sig_t)
+    rng = np.random.default_rng(3104)
+    psi = _random_composite(sn, rng)
+    phi = _random_composite(sn, rng)
+
+    def _ghost_inner(a, b) -> float:
+        # bulk V·w_n ⊗ diag(1, 0) + the TRUE trace metric.
+        w_n = np.asarray(sn.quad.weights, dtype=float)
+        V = np.asarray(sn.volumes, dtype=float)
+        base = (w_n.reshape((w_n.shape[0], 1, 1)) * V[None, None])[..., None]
+        ghost = base * np.array([1.0, 0.0])
+        bulk = float(np.sum(ghost * a.interior.values * b.interior.values))
+        trace = 0.0
+        for f_idx, face in enumerate(sn.angular_trace.layout.faces):
+            w_face = _trace_cosine_weight(sn, f_idx, with_cosine=True)
+            af, bf = a.boundary.face_view(face), b.boundary.face_view(face)
+            trace += float(np.sum(af * bf * w_face[:, None]))
+        return bulk + trace
+
+    def _defect(inner) -> float:
+        return abs(inner(A.apply(psi), phi) - inner(psi, A.H.apply(phi)))
+
+    theta_clean = _defect(lambda x, y: _g_inner(x, y, sn))
+    ghost_clean = _defect(_ghost_inner)
+
+    orig = LinearDiscontinuous.residual_kernel_batch_transpose
+
+    def slope_flipped(self, **kw):
+        psi_bar_cot, psi_in_cots = orig(self, **kw)
+        psi_bar_cot = psi_bar_cot.copy()
+        psi_bar_cot[..., 1] = -psi_bar_cot[..., 1]   # the planted slope flip
+        return psi_bar_cot, psi_in_cots
+
+    monkeypatch.setattr(
+        LinearDiscontinuous, "residual_kernel_batch_transpose", slope_flipped,
+    )
+    theta_mut = _defect(lambda x, y: _g_inner(x, y, sn))
+    ghost_mut = _defect(_ghost_inner)
+
+    scale = abs(float(_g_inner(psi, psi, sn)))
+    if not theta_mut > 1e-6 * scale:
+        pytest.fail(
+            f"θ-metric reciprocity did not red on the slope flip "
+            f"(defect {theta_mut:.3e}, clean {theta_clean:.3e}) — the "
+            "moment-mass metric row has no slope teeth"
+        )
+    if not np.isclose(ghost_mut, ghost_clean, rtol=0.0, atol=1e-12 * scale):
+        pytest.fail(
+            f"slope-ghost metric SAW the slope flip (mutated {ghost_mut:.3e} "
+            f"vs clean {ghost_clean:.3e}) — the stabiliser asymmetry proof "
+            "is broken"
         )
 
 

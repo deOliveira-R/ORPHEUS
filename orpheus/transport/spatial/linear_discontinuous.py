@@ -122,8 +122,10 @@ from orpheus.numerics.moment_layout import (
 from ._ubld import (
     D1ClosedForm,
     assemble_inflow_axis,
+    assemble_inflow_axis_transpose,
     assemble_ubld,
     d1_closed_form,
+    mass_1d,
     per_cell_solve,
 )
 from .scheme import (
@@ -606,6 +608,21 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         psi_moments = per_cell_solve(assembled, R)
         return psi_moments, self._ubld_outgoing_faces(psi_moments, d)
 
+    def moment_mass_diagonal(self, ndim: int) -> np.ndarray:
+        r"""LD's unit-volume Kronecker mass diagonal ``∏_a θ^{o_a}`` — ``(2^d,)``.
+
+        Built from the SAME 1-D factor :func:`~orpheus.transport.spatial._ubld.mass_1d`
+        at unit width the UBLD assembler Kroneckers (Pattern 2): ``[1, θ]``
+        at d=1, ``[1, θ, θ, θ²]`` at d=2.  This IS ``diag(M)/V`` — the
+        diagonal :meth:`residual_kernel_batch` normalises by and the moment
+        mass the ``.H`` bulk metric must carry (#310 C2 ruling 3).
+        """
+        base = np.diagonal(mass_1d(np.ones(()), self.theta))      # [1, θ]
+        diag = np.array([1.0])
+        for _ in range(ndim):
+            diag = np.kron(diag, base)
+        return diag
+
     def residual_kernel_batch(
         self,
         *,
@@ -649,6 +666,66 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         mass_diag = np.diagonal(assembled["M"], axis1=-2, axis2=-1)
         residual = residual / mass_diag
         return residual, self._ubld_outgoing_faces(psi_bar, d)
+
+    def residual_kernel_batch_transpose(
+        self,
+        *,
+        res_bar: np.ndarray,
+        psi_out_bar: tuple[np.ndarray, ...],
+        s_axes: tuple[np.ndarray, ...],
+        reaction_xs: np.ndarray,
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        r"""Batched VJP of :meth:`residual_kernel_batch` — the UBLD ``AᵀM⁻¹`` pullback.
+
+        The exact reverse-mode pair of the LD apply kernel, generated from
+        the SAME materialized record the forward assembles
+        (:meth:`_ubld_system` — Pattern 2, zero hand-derived entries):
+
+        * the ψ⃗ pullback is ``Aᵀ·(M⁻¹·r̄)`` — the mass inverse applies
+          **BEFORE** ``Aᵀ`` (the forward normalises ``(Aψ⃗−R)/M_ii``, so
+          the Jacobian is ``M⁻¹A`` and its transpose ``AᵀM⁻¹``; ``M``
+          diagonal ⟹ ``M⁻ᵀ = M⁻¹``) — plus the face-trace broadcast
+          :meth:`_ubld_outgoing_faces_transpose`;
+        * the per-axis upstream-face pullback is
+          ``−assemble_inflow_axis_transposeᵀ`` of the mass-normalised
+          cotangent, mirroring :meth:`_ubld_inflow`'s factor construction
+          (including its d=1 moment-axis append, stripped again on the way
+          out so the returned face cotangents match the walk's scalar d=1
+          cochain).
+
+        Symbolic ground:
+        :func:`orpheus.derivations.discrete.sn.ld_ubld.derive_d1_transpose_equals_At_Minv`
+        (the mass-order law, with the order discriminant proven nonzero) —
+        NEW-algebra (a)/(b) of the #310 C2 spec §3.3.  Source-free by the
+        base contract (the source cotangent belongs to the solve path).
+        **Registering this override IS the LD capability flip** — the
+        covering ``has_transpose_kernel`` derivation turns ``True`` here
+        (LD is slab-only, so the batch kernel alone covers its span), which
+        is why this landing is atomic with the reverse-scan moment arm, the
+        two-guard lift, and the rewritten deferral pins (#310 flip-safety).
+        """
+        d = len(s_axes)
+        assembled, _ = self._ubld_system(s_axes, reaction_xs, np.zeros(()))
+        mass_diag = np.diagonal(assembled["M"], axis1=-2, axis2=-1)
+        r_bar = res_bar / mass_diag                       # mass-inverse FIRST
+        psi_bar_cot = np.einsum("...ji,...j->...i", assembled["A"], r_bar)
+        psi_bar_cot = psi_bar_cot + self._ubld_outgoing_faces_transpose(
+            psi_out_bar, d,
+        )
+        # Mirror _ubld_inflow's factor construction (unit widths; ÷V
+        # streaming as the per-axis μ) and its d=1 moment-axis convention.
+        needs_moment_axis = face_moment_tail(face_moment_count(2, d)) == ()
+        ones = [np.ones_like(np.asarray(g)) for g in s_axes]
+        gs = [np.asarray(g) for g in s_axes]
+        psi_in_cots = []
+        for a in range(d):
+            face_cot = assemble_inflow_axis_transpose(
+                ones, gs, a, r_bar, self.theta,
+            )
+            if needs_moment_axis:
+                face_cot = face_cot[..., 0]
+            psi_in_cots.append(-face_cot)
+        return psi_bar_cot, tuple(psi_in_cots)
 
     # ── Scan-family coefficients (group 3 — the DAG-free schedules) ──────────
     #

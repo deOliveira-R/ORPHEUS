@@ -920,9 +920,23 @@ class SNMesh(MaterialMesh):
             w_n.reshape((N, 1) + (1,) * V.ndim)
             * V.reshape((1, 1) + V.shape)
         )
+        bulk_shape: tuple[int, ...] = (N, self.ng, *self.spatial_shape)
+        # A multi-moment closure (LD) carries the trailing 2^d spatial-moment
+        # axis on the bulk field, and its Hilbert metric MUST carry the
+        # scheme's moment mass ``M_ii/V = ∏_a θ^{o_a}`` on that axis (#310 C2
+        # ruling 3): ``G_bulk = V·w_n ⊗ diag(1, θ, …)``.  An average-only
+        # ``V·w_n`` broadcast over the moment axis mis-weights the slope DOF
+        # — ``.H`` becomes a WRONG adjoint on the slope rows AND reciprocity
+        # goes Mode-12-blind to a slope-row transpose.  DD/Step
+        # (``per_axis == 1``) take neither branch — shape and weights
+        # byte-identical.
+        if self.scheme.spatial_basis_per_axis > 1:
+            moment_mass = self.scheme.moment_mass_diagonal(self.ndim)
+            bulk_shape = bulk_shape + (moment_mass.size,)
+            g_bulk = g_bulk[..., None] * moment_mass
         interior_space = FunctionSpace(
             name="sn_bulk",
-            shape=(N, self.ng, *self.spatial_shape),
+            shape=bulk_shape,
             inner_product_weights=g_bulk,
         )
         return FullFieldSpace.from_blocks(

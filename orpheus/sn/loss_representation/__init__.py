@@ -3003,6 +3003,17 @@ class _OneDimScanWalk:
         frame_signs_by_dir = {
             ds: frame_signs_for(sn_mesh.scheme, (ds,)) for ds in (+1, -1)
         }
+        if phi.interior.values.shape[3:] != tuple(moment_tail):
+            # Pattern-4 backstop: a cotangent whose spatial-moment tail does
+            # not match the scheme's would BROADCAST silently through the
+            # batch VJP (a tail-less field against LD's (…, 2^d) mass) —
+            # refuse loudly instead.
+            raise ValueError(
+                "_OneDimScanWalk.loss_action_transpose: cotangent interior "
+                f"shape {phi.interior.values.shape} does not carry the "
+                f"scheme's spatial-moment tail {tuple(moment_tail)} "
+                f"({type(sn_mesh.scheme).__name__})."
+            )
 
         psi_bar = np.zeros((ng, N, nx, *moment_tail))
         fo_bar = np.zeros((N, ng))
@@ -3898,21 +3909,38 @@ class _OneDimScanWalk:
         # substitution.
         seed_levels = frozenset(self.mesh.radial_characteristic_levels)
 
-        # ── DD/scalar scope (LD moment-tail = the #280 kernel-pair deferral) ──
-        per_axis = scheme.spatial_basis_per_axis
-        if cell_moment_count(per_axis, self.mesh.ndim) > 1:
+        # ── The trait guard (#310 C2 — the R5/R6 two-guard lift, unified):
+        # the reverse-scan is available exactly when the scheme registers
+        # its transpose kernels — the SAME derived trait the reverse walk
+        # checks.  The old moment-count probe is GONE: a spatial-moment
+        # tail no longer means "deferred", it means the LD moment arm
+        # below (the reverse of ``_run``'s slope-source scan).
+        if not type(scheme).has_transpose_kernel:
             raise NotImplementedError(
-                "_OneDimScanWalk._run_transpose: the reverse-scan is "
-                f"DD/scalar-only; scheme {type(scheme).__name__} carries a "
-                "spatial-moment tail — the LD reverse-scan is the #280 "
-                "kernel-pair deferral (mirrors loss_action_transpose's guard)."
+                "_OneDimScanWalk._run_transpose: scheme "
+                f"{type(scheme).__name__} registers no transpose kernel "
+                "pair (residual_kernel_batch_transpose; plus "
+                "streaming_cell_transpose for a curvilinear scheme) — the "
+                "reverse-scan is a typed deferral (#310)."
+            )
+        per_axis = scheme.spatial_basis_per_axis
+        moment_tail = face_moment_tail(cell_moment_count(per_axis, self.mesh.ndim))
+        is_moment = moment_tail != ()
+        if bulk_cot.shape[3:] != tuple(moment_tail):
+            # Pattern-4 backstop (mirror of loss_action_transpose's): a
+            # tail-mismatched cotangent would broadcast silently.
+            raise ValueError(
+                "_OneDimScanWalk._run_transpose: bulk cotangent shape "
+                f"{bulk_cot.shape} does not carry the scheme's "
+                f"spatial-moment tail {tuple(moment_tail)} "
+                f"({type(scheme).__name__})."
             )
 
         V = self.mesh.volumes
         coord = self.mesh.reduced.coord
         is_slab = coord is CoordSystem.CARTESIAN
 
-        Q_bar = np.zeros((N, ng, nx))
+        Q_bar = np.zeros((N, ng, nx, *moment_tail))
         m_boundary = AngularBoundarySourceSink.zeros_on(self.mesh)
 
         # ── SLAB reverse-scan (no angular thread, no seed) ────────────────
@@ -3933,40 +3961,112 @@ class _OneDimScanWalk:
                 w_chain = coll.face_blend_weight[ords]           # (K, ng, nx)
                 a_atten_chain = coll.a_attenuation[ords]         # (K, ng, nx)
 
-                # ψ̄ cotangent, cell → chain order (transpose of the [:,:,inv]
-                # scatter — ``_run`` line ``psi_avg_cell_order = …[:,:,inv]``).
-                psi_avg_per_ord_bar = bulk_cot[ords][:, :, chain]      # (K,ng,nx)
-                psi_avg_scan_bar = np.transpose(
-                    psi_avg_per_ord_bar, (2, 0, 1),
-                )                                                # (nx, K, ng)
-                w_scan = np.transpose(w_chain, (2, 0, 1))        # (nx, K, ng)
                 a_scan = np.transpose(a_atten_chain, (2, 0, 1))  # (nx, K, ng)
-
-                # cell_averageᵀ: ψ̄ = (1−w)·face_in + w·face_out.
-                psi_face_in_bar = (1.0 - w_scan) * psi_avg_scan_bar
-                psi_face_bar = w_scan * psi_avg_scan_bar
-                # shiftᵀ: face_in[0]=ψ_in; face_in[i]=face_out[i−1].
-                psi_in_bar = psi_face_in_bar[0].copy()           # (K, ng)
-                psi_face_bar[:-1] += psi_face_in_bar[1:]
-                # outflow persistence: face_out[−1] is the boundary outflow
-                # slot — its cotangent enters the last face.
                 out_cot = xmax_cot if direction_sign > 0 else xmin_cot
-                psi_face_bar[-1] += out_cot[ords]                # (K, ng)
 
-                # reverse the affine scan (the 2.5b keystone op).
-                b_scan_bar, psi_in_bar_scan = ordinate_scan_transpose(
-                    a_scan, psi_face_bar,
-                )
-                psi_in_bar += psi_in_bar_scan                    # (K, ng)
+                if not is_moment:
+                    # ── Slopeless (DD/Step) reverse-scan — byte-identical ──
+                    # ψ̄ cotangent, cell → chain order (transpose of the
+                    # [:,:,inv] scatter — ``_run``'s ``psi_avg_cell_order``).
+                    psi_avg_per_ord_bar = bulk_cot[ords][:, :, chain]  # (K,ng,nx)
+                    psi_avg_scan_bar = np.transpose(
+                        psi_avg_per_ord_bar, (2, 0, 1),
+                    )                                            # (nx, K, ng)
+                    w_scan = np.transpose(w_chain, (2, 0, 1))    # (nx, K, ng)
 
-                # b = source_emission(QV, inv_denom, w) is diagonal → self-Tᵀ;
-                # QV = Q·V → Q_bar = QV_bar·V.
-                b_bar = np.transpose(b_scan_bar, (1, 2, 0))      # (K, ng, nx)
-                QV_bar = scheme.source_emission(
-                    b_bar, inv_denom_chain, w_chain,
-                )
-                Q_bar_chain = QV_bar * V[chain][None, None, :]   # (K, ng, nx)
-                Q_bar[ords] = Q_bar_chain[:, :, inv]             # scatter → cells
+                    # cell_averageᵀ: ψ̄ = (1−w)·face_in + w·face_out.
+                    psi_face_in_bar = (1.0 - w_scan) * psi_avg_scan_bar
+                    psi_face_bar = w_scan * psi_avg_scan_bar
+                    # shiftᵀ: face_in[0]=ψ_in; face_in[i]=face_out[i−1].
+                    psi_in_bar = psi_face_in_bar[0].copy()       # (K, ng)
+                    psi_face_bar[:-1] += psi_face_in_bar[1:]
+                    # outflow persistence: face_out[−1] is the boundary
+                    # outflow slot — its cotangent enters the last face.
+                    psi_face_bar[-1] += out_cot[ords]            # (K, ng)
+
+                    # reverse the affine scan (the 2.5b keystone op).
+                    b_scan_bar, psi_in_bar_scan = ordinate_scan_transpose(
+                        a_scan, psi_face_bar,
+                    )
+                    psi_in_bar += psi_in_bar_scan                # (K, ng)
+
+                    # b = source_emission(QV, inv, w) is diagonal → self-Tᵀ;
+                    # QV = Q·V → Q_bar = QV_bar·V.
+                    b_bar = np.transpose(b_scan_bar, (1, 2, 0))  # (K, ng, nx)
+                    QV_bar = scheme.source_emission(
+                        b_bar, inv_denom_chain, w_chain,
+                    )
+                    Q_bar_chain = QV_bar * V[chain][None, None, :]
+                    Q_bar[ords] = Q_bar_chain[:, :, inv]         # scatter → cells
+                else:
+                    # ── Multi-moment (LD) reverse slope-source scan (#310
+                    # C2) — the exact reverse of ``_run``'s LD branch, in
+                    # reverse program order.  The moment cotangent reframes
+                    # sweep-ward with the SAME involution the forward uses
+                    # (conjugation commutes with transpose —
+                    # derive_octant_frame_sign_is_involution).
+                    frame_signs = frame_signs_for(scheme, (direction_sign,))
+                    mom_bar_chain = bulk_cot[ords][:, :, chain, :]  # (K,ng,nx,2)
+                    mom_bar_sweep = _reframe(
+                        mom_bar_chain, frame_signs, is_moment_valued=True,
+                    )
+                    psi_bar_bar = mom_bar_sweep[..., AVERAGE_MOMENT]
+                    psi_hat_bar = mom_bar_sweep[..., 1]          # (K, ng, nx)
+
+                    # The SAME d=1 closed form ``_run`` builds (ONE LD
+                    # algebra handle; its transpose rides _geom_fold).
+                    abs_mu_c = geom.abs_mu[ords][:, None, None]  # (K, 1, 1)
+                    A_down_c = geom.A_down[ords][:, None, :]     # (K, 1, nx)
+                    V_c = geom.V[ords][:, None, :]               # (K, 1, nx)
+                    sig_t_chain = sigma[:, chain][None, :, :]    # (1, ng, nx)
+                    cf = scheme.moment_scan_closure(
+                        abs_mu=abs_mu_c, A_down=A_down_c, V=V_c,
+                        reaction_xs=sig_t_chain,
+                    )
+
+                    # scan_reconstructᵀ: (ψ̄†, ψ̂†) → (s̄†, ŝ†, ψ_in-cell†).
+                    s_bar_bar, s_hat_bar, psi_in_cell_bar = (
+                        cf.scan_reconstruct_transpose(
+                            V_c, psi_bar_bar, psi_hat_bar,
+                        )
+                    )                                            # (K, ng, nx)
+
+                    # shiftᵀ: psi_in_cell[0] = ψ_in; psi_in_cell[i] =
+                    # face[i−1] — plus the boundary outflow persistence on
+                    # the last face (mirror of the scalar arm).
+                    pic_scan = np.transpose(psi_in_cell_bar, (2, 0, 1))
+                    psi_in_bar = pic_scan[0].copy()              # (K, ng)
+                    psi_face_bar = np.zeros_like(pic_scan)
+                    psi_face_bar[:-1] += pic_scan[1:]
+                    psi_face_bar[-1] += out_cot[ords]            # (K, ng)
+
+                    # reverse the affine scan (the SAME keystone op — the
+                    # LD face chain is scalar, w-generic).
+                    b_scan_bar, psi_in_bar_scan = ordinate_scan_transpose(
+                        a_scan, psi_face_bar,
+                    )
+                    psi_in_bar += psi_in_bar_scan                # (K, ng)
+
+                    # bᵀ: b = source_emission(s̄, inv, w) +
+                    # scan_slope_face_source(V, ŝ, inv, w) — BOTH diagonal
+                    # in their source moment, so each transposes as itself
+                    # applied to the face-source cotangent ``b̄``.
+                    b_bar = np.transpose(b_scan_bar, (1, 2, 0))  # (K, ng, nx)
+                    s_bar_bar = s_bar_bar + scheme.source_emission(
+                        b_bar, inv_denom_chain, w_chain,
+                    )
+                    s_hat_bar = s_hat_bar + cf.scan_slope_face_source(
+                        V_c, b_bar, inv_denom_chain, w_chain,
+                    )
+
+                    # reframe the moment-source cotangent back (involution)
+                    # + ×V (QV = Q·V ⟹ Q̄ = QV̄·V) + scatter to cell order.
+                    QV_bar_sweep = np.stack([s_bar_bar, s_hat_bar], axis=-1)
+                    QV_bar_chain = _reframe(
+                        QV_bar_sweep, frame_signs, is_moment_valued=True,
+                    )
+                    Q_bar_chain = QV_bar_chain * V[chain][None, None, :, None]
+                    Q_bar[ords] = Q_bar_chain[:, :, inv, :]      # scatter → cells
 
                 # boundary inflow-slot cotangent: the identity passthrough of
                 # the given inflow trace PLUS the scan-seed cotangent (the

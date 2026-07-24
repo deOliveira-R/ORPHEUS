@@ -563,8 +563,14 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
         return np.concatenate([seed, bulk])
 
     def _fresh():
-        return FullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        # Scheme-aware bulk (LD carries the trailing 2^d moment axis; DD's
+        # spatial_moments=1 is the byte-identical default).
+        return FullField(
+            interior=AngularFlux.zeros_on(
+                sn_mesh,
+                spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
+            ),
+            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
         )
 
     def _apply(st, seed_leaf):
@@ -603,12 +609,15 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
             else:
                 seed_leaf.boundary.corner(p, +1)[g] = 1.0
             columns.append(_apply(st, seed_leaf))
-    # ── ordinate-bulk columns ──
-    for n in range(N):
-        for i in range(nx):
-            st = _fresh()
-            st.interior.values[n, g, i] = 1.0
-            columns.append(_apply(st, _zero_seed()))
+    # ── ordinate-bulk columns (generic over the spatial-moment tail:
+    # probe every raveled per-group bulk DOF in the same C-order _read
+    # ravels — N·nx for DD, N·nx·2^d for LD) ──
+    probe_shape = _fresh().interior.values[:, g].shape
+    for flat in range(int(np.prod(probe_shape))):
+        st = _fresh()
+        idx = np.unravel_index(flat, probe_shape)
+        st.interior.values[(idx[0], g, *idx[1:])] = 1.0
+        columns.append(_apply(st, _zero_seed()))
     return np.array(columns).T
 
 
@@ -618,6 +627,11 @@ def _augmented_sweep_order(sn_mesh: SNMesh) -> np.ndarray:
     (cells marching WITH each ordinate's direction — inward for μ<0)."""
     mu = np.asarray(sn_mesh.quad.mu_x)
     nx = int(np.prod(sn_mesh.spatial_shape))
+    # The spatial-moment tail rides innermost in the probe's C-order ravel
+    # (2^d for LD, 1 for DD — the DD order is byte-identical to the
+    # pre-moment spelling); within a cell the moments stay contiguous, so
+    # the walk order is block-wise with 2^d-wide cell blocks.
+    tail = sn_mesh.scheme.spatial_basis_per_axis ** sn_mesh.ndim
     composite_space = sn_mesh.radial_characteristic_field_space
     n_seed = (
         0 if composite_space is None
@@ -626,7 +640,10 @@ def _augmented_sweep_order(sn_mesh: SNMesh) -> np.ndarray:
     order: list[int] = list(range(n_seed))   # seed DOFs already march-ordered
     for n in np.argsort(mu, kind="stable"):
         cells = range(nx - 1, -1, -1) if mu[n] < 0.0 else range(nx)
-        order.extend(n_seed + int(n) * nx + i for i in cells)
+        order.extend(
+            n_seed + int(n) * nx * tail + i * tail + m
+            for i in cells for m in range(tail)
+        )
     return np.asarray(order, dtype=np.intp)
 
 

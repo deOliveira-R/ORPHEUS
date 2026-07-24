@@ -512,6 +512,55 @@ class TestTransposeHelpersAreVJPs:
         np.testing.assert_allclose(rhs, lhs, rtol=1e-12)
 
     @pytest.mark.foundation
+    def test_ld_batch_transpose_equals_dense_At_Minv(self) -> None:
+        r"""The PRODUCTION LD batch VJP == the dense ``AᵀM⁻¹`` record (§3.2).
+
+        ``LinearDiscontinuous.residual_kernel_batch_transpose`` against a
+        reference built directly from :func:`assemble_ubld`'s materialized
+        ``A``/``M`` — ``Aᵀ(M⁻¹r̄)`` + the ``B(+1)ᵀ`` face broadcast, and
+        ``−g·B(−1)ᵀ·M⁻¹r̄`` on the upstream face — over a heterogeneous
+        batched stack.  Plus **M-R1b-MASSORDER**: the wrong composition
+        ``M⁻¹(Aᵀr̄)`` differs O(1) on the same batch (the ÷V kernel's
+        per-cell mass is ``diag(1, θ)`` — θ ≠ 1 keeps the order discriminant
+        live even at the kernel's unit widths; the h-varying ×V order is
+        exercised by the non-uniform-h G1/G2 rows).
+        """
+        rng = np.random.default_rng(310)
+        K, ng, nx = 3, 2, 5
+        g = rng.uniform(0.1, 3.0, (K, 1, nx))        # (N_oct, 1, n_diag)
+        sig = rng.uniform(0.1, 3.0, (ng, nx))        # (ng, n_diag)
+        res_bar = rng.standard_normal((K, ng, nx, 2))
+        f_bar = rng.standard_normal((K, ng, nx))
+        psi_bar_cot, (in_cot,) = (
+            LinearDiscontinuous().residual_kernel_batch_transpose(
+                res_bar=res_bar, psi_out_bar=(f_bar,),
+                s_axes=(g,), reaction_xs=sig,
+            )
+        )
+        gb = g + np.zeros((K, ng, nx))
+        asm = assemble_ubld(
+            [np.ones_like(gb)], [gb], sig + np.zeros_like(gb), THETA,
+        )
+        mdiag = np.diagonal(asm["M"], axis1=-2, axis2=-1)
+        r = res_bar / mdiag                          # mass-inverse FIRST
+        ref_psi = np.einsum("...ji,...j->...i", asm["A"], r)
+        ref_psi = ref_psi + np.stack([f_bar, f_bar], axis=-1)  # B(+1)ᵀ
+        ref_in = -(gb * (r[..., 0] - r[..., 1]))     # −g·B(−1)ᵀ·M⁻¹r̄
+        np.testing.assert_allclose(psi_bar_cot, ref_psi, rtol=1e-13, atol=1e-14)
+        np.testing.assert_allclose(in_cot, ref_in, rtol=1e-13, atol=1e-14)
+        # M-R1b-MASSORDER — the mutated order visibly differs (the tooth).
+        wrong_order = np.einsum("...ji,...j->...i", asm["A"], res_bar) / mdiag
+        rel = float(
+            np.max(np.abs(wrong_order - np.einsum("...ji,...j->...i", asm["A"], r)))
+            / np.max(np.abs(ref_psi))
+        )
+        if not rel > 1e-2:
+            pytest.fail(
+                f"M⁻¹Aᵀ vs AᵀM⁻¹ differ by only {rel:.2e} on this batch — "
+                "the mass-order gate has no teeth here"
+            )
+
+    @pytest.mark.foundation
     @pytest.mark.parametrize("d", [1, 2])
     def test_outgoing_faces_transpose_is_the_vjp(self, d) -> None:
         """⟨f̄_a, trace_a(ψ⃗)⟩ summed over axes == ⟨ψ⃗†, ψ⃗⟩ (the B(+1) adjoint)."""
