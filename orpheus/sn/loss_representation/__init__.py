@@ -136,6 +136,7 @@ from .sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,
     _CellResidual,
+    _CellResidualTranspose,
     _CellSolve,
     _CellSolveAngular,
     _CellSolveMoment,
@@ -725,6 +726,46 @@ def _outflow_faces(signs_eff: tuple[int, ...]) -> tuple[str, ...]:
     )
 
 
+def _reverse_octant_traversal(
+    sweeps: "tuple[OctantSweep, ...]",
+) -> "tuple[OctantSweep, ...]":
+    r"""The reverse-mode octant traversal — the multi-D sibling of
+    :func:`_reverse_traversal` (#310 C3).
+
+    Reverse-mode retraces each octant's walk backwards.  For the wavefront
+    family the whole reversal is DATA: mirroring a streaming octant's
+    EFFECTIVE signs selects the MIRROR graph, whose levels are the forward
+    levels reversed and whose ``face_in``/``face_out`` roles are the
+    forward's swapped (``face_in(−o) == face_out(o)``) — reversed program
+    order + transposed addressing + the domain-boundary in↔out swap, with
+    :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`
+    itself UNCHANGED.  The mirror is applied AFTER the grazing map (a
+    grazing ``0`` axis rides ``+1`` forward, so its reversal is ``−1`` —
+    the reverse must un-walk the chain the forward actually addressed, and
+    ``0`` must NOT survive into the label for the walk's own effective map
+    to re-flip).  Pure-z degenerate labels (all-zero in-plane) are their
+    own mirror — the collision-diagonal branch is self-transposed.
+
+    The ordinate ``indices`` stay PHYSICAL: the label is the march's
+    ADDRESSING octant (the discrete μ→−μ — exact for the DAG topology and
+    face roles), and the physical octant is recovered per octant as
+    ``−signs`` where the cell algebra needs it (the level op's frame
+    signs).  Octant ORDER is untouched: the Cartesian matvec has no
+    inter-octant edge (the reflective coupling is the sibling ``−B``
+    operator), unlike the 1-D pole handoff that forces
+    :func:`_reverse_traversal` to reverse the leg order.
+    """
+    return tuple(
+        sweep if not any(sweep.label.signs) else replace(
+            sweep,
+            label=OctantLabel(tuple(
+                -(+1 if s == 0 else s) for s in sweep.label.signs
+            )),
+        )
+        for sweep in sweeps
+    )
+
+
 @dataclass(frozen=True)
 class _ApplyOperands:
     r"""Problem data of the APPLY direction :math:`(L+C)\,\psi`.
@@ -1108,6 +1149,167 @@ class _OctantWalk:
             boundary=out_boundary,
         )
 
+    def loss_action_transpose(
+        self,
+        sigma: "np.ndarray",
+        phi: "FullField",
+        interior: "Callable[[_ApplyOperands, np.ndarray, tuple[int, ...], tuple[np.ndarray, ...]], tuple[np.ndarray, tuple[np.ndarray, ...]]]",
+    ) -> "FullField":
+        r"""The APPLY-TRANSPOSE frame :math:`(L+C)^{\mathsf T}\varphi` (#310 C3).
+
+        The reverse-mode adjoint of :meth:`loss_action`, on the SAME
+        :meth:`_interior_walk` octant frame — orientation is carried by DATA
+        (the :func:`_reverse_octant_traversal` mirror labels) + the injected
+        interior kernel (bottoming in :class:`_CellResidualTranspose`),
+        never a flag.  Per octant the mirror label drives the ADDRESSING
+        (mirror graph = reversed levels + swapped face roles) while the
+        ordinate rows stay physical — the multi-D sibling of the 1-D
+        reverse's ``_reverse_traversal(_dag_legs())`` through the one
+        ``_loop_walk``.
+
+        Boundary semantics — the transpose of the O.4b active-trace
+        residual (the 1-D reverse's algebra, per face):
+
+        * the forward's OUTFLOW defect rows ``b_out = streamed − ψ_out``
+          pull back as ``streamed̄ = b̄_out`` — seeding the reverse
+          cochain's out-edge slots (rows NOT classified outflow stay ZERO:
+          the forward assembly discarded them, so every discarded path's
+          pullback vanishes structurally) — and ``ψ_out† = −b̄_out``;
+        * the forward's INFLOW identity rows ``b_in = ψ_in`` pull back as
+          ``ψ_in† = b̄_in`` PLUS the walked chain's in-edge capture (the
+          forward consumed ψ_in twice: the identity row and the cochain
+          seed).
+
+        The pure-z transpose is the diagonal itself (``σ_t·r̄`` —
+        collision-only, self-transposed, same moment broadcast as the
+        forward twin, L21).  Returns the FULL ``(L+C)ᵀφ``;
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
+        subtracts ``σ_t·φ`` exactly once (Resolution A, mirror of
+        ``apply``).
+        """
+        from orpheus.transport.full_field import FullField
+        from orpheus.transport.source_sinks import (
+            AngularSourceSink, AngularBoundarySourceSink,
+        )
+
+        sn_mesh = self.mesh
+        ndim = sn_mesh.ndim
+        ng = sigma.shape[0]
+        spatial = sigma.shape[1:]
+        scheme = sn_mesh.scheme
+        if not type(scheme).has_transpose_kernel:
+            # The trait DERIVES from the transpose-kernel registrations
+            # (#310 ruling 2).  The honest front door is
+            # StreamingOperator.is_adjointable (eager ``.H`` raises
+            # MissingAdjoint); this guard is the backstop for direct
+            # Euclidean apply_transpose calls that bypass ``.H``.
+            raise NotImplementedError(
+                "_OctantWalk.loss_action_transpose: scheme "
+                f"{type(scheme).__name__} registers no transpose kernel "
+                "pair (residual_kernel_batch_transpose) — the adjoint "
+                "matvec on this scheme is a typed deferral (#310)."
+            )
+        if ndim >= 2 and scheme.is_multi_moment:
+            # The kernel VJP is d-generic and LD registers it, so the walk
+            # WOULD run — but the LD-2D reverse is ungated until #310 C5
+            # (the moment-frame-involution row + the LD-2D dense-Mᵀ, the
+            # likeliest sign-error site — ERR-066 family).  Never a silent
+            # unverified answer.
+            raise NotImplementedError(
+                "_OctantWalk.loss_action_transpose: the multi-D "
+                "multi-moment (LD-2D) reverse walk is a typed deferral "
+                "until its gates land (#310 C5)."
+            )
+        per_axis = scheme.spatial_basis_per_axis
+        moment_tail = face_moment_tail(cell_moment_count(per_axis, ndim))
+        res_bar = phi.interior.values             # (N, ng, *spatial[, 2^d])
+        if res_bar.shape[2 + ndim:] != tuple(moment_tail):
+            # Pattern-4 backstop (mirror of the 1-D reverse): a cotangent
+            # whose spatial-moment tail does not match the scheme's would
+            # BROADCAST silently through the batch VJP — refuse loudly.
+            raise ValueError(
+                "_OctantWalk.loss_action_transpose: cotangent interior "
+                f"shape {res_bar.shape} does not carry the scheme's "
+                f"spatial-moment tail {tuple(moment_tail)} "
+                f"({type(scheme).__name__})."
+            )
+
+        # The apply frame's operand bundle serves BOTH orientations:
+        # ``probe`` is the matvec's driving bulk field — the forward's ψ̄,
+        # the reverse's residual cotangent r̄ (same role, same σ-epoch data).
+        operands = _ApplyOperands(
+            probe=res_bar,
+            sig_t=sigma,
+            str_axes=tuple(sn_mesh.streaming(a) for a in range(ndim)),
+            Q_zero=np.zeros((1, ng, *spatial, *moment_tail)),
+        )
+
+        psi_cot = np.zeros((sn_mesh.quad.N, ng, *spatial, *moment_tail))
+        trace = sn_mesh.angular_trace
+        b_bar = phi.boundary
+
+        # ── reverse the boundary writeback (see the docstring's algebra) ──
+        streamed_bar: dict[str, "np.ndarray"] = {}
+        trace_cot: dict[str, "np.ndarray"] = {}
+        for face in trace.face_names:
+            given_bar = b_bar.face_view(face)
+            seeded = np.zeros_like(given_bar)
+            cot = np.zeros_like(given_bar)
+            out_idx = trace.outflow_indices_for_face(face)
+            in_idx = trace.inflow_indices_for_face(face)
+            if out_idx.size:
+                seeded[out_idx] = given_bar[out_idx]
+                cot[out_idx] = -given_bar[out_idx]
+            if in_idx.size:
+                cot[in_idx] = given_bar[in_idx]
+            streamed_bar[face] = seeded
+            trace_cot[face] = cot
+
+        def pure_z(oct_idx: "np.ndarray") -> None:
+            # (L+C)ᵀ = σ_t for the in-plane-degenerate ordinates — the
+            # collision-only diagonal is self-transposed (same shared
+            # broadcast helper as the forward twin, L21).
+            rb_oct = res_bar[oct_idx]
+            psi_cot[oct_idx] = _moment_broadcast_sigma(sigma, rb_oct) * rb_oct
+
+        def run_interior(
+            oct_idx: "np.ndarray",
+            signs_addr: tuple[int, ...],
+            out_bars: tuple["np.ndarray", ...],
+        ) -> tuple["np.ndarray", ...]:
+            psi_cot_oct, capture = interior(
+                operands, oct_idx, signs_addr, out_bars,
+            )
+            psi_cot[oct_idx] = psi_cot_oct
+            return capture
+
+        def shed(face: str, oct_idx: "np.ndarray", capture_a: "np.ndarray") -> None:
+            # ACCUMULATE onto the identity rows (mirror of the 1-D
+            # ``fi_bar[leg.ordinates] += f_bar.T``); distinct octants own
+            # disjoint ordinate slices of a face, so each row receives
+            # exactly one walked deposit.
+            trace_cot[face][oct_idx] += capture_a
+
+        (jacobi_group,) = SweepSchedule.jacobi(sn_mesh).groups
+        self._interior_walk(
+            _reverse_octant_traversal(jacobi_group.sweeps),
+            inflow_of=lambda face: streamed_bar[face],
+            shed=shed,
+            pure_z=pure_z,
+            interior=run_interior,
+        )
+
+        out_boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
+        for face in trace.face_names:
+            out_boundary.face_view(face)[...] = trace_cot[face]
+
+        return FullField(
+            interior=AngularSourceSink.from_mesh(
+                psi_cot, sn_mesh, spatial_moments=per_axis,
+            ),
+            boundary=out_boundary,
+        )
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # CumprodScan — the 1-D chain prefix scan (any geometry)
@@ -1275,21 +1477,27 @@ class _DAGWavefront(_LossRepresentation):
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
     ) -> "FullField":
-        r"""The multi-D Cartesian adjoint is DEFERRED (shared by both policies).
+        r"""The WINDOWED multi-D Cartesian adjoint is DEFERRED (#310 C4).
 
-        The forward matvec works for both buffer policies, but the
-        reverse-direction adjoint sweep is not yet wired (O.2b landed the 1-D
-        reverse sweep first).  Raises :class:`NotImplementedError` — the mesh
-        is compatible, only the adjoint *feature* is deferred (so this is NOT
-        an :class:`IncompatibleRepresentation`).  Never a silent wrong answer.
-        Since 2.5a the honest front door is the predicate: the family
-        inherits ``has_transpose_walk = False``, so the eager ``.H`` refuses
-        at construction — this raise is the backstop for direct Euclidean
-        ``apply_transpose`` calls that bypass ``.H`` (the S0.1 layering).
+        Since #310 C3 the full-cochain reverse walk EXISTS —
+        :meth:`FullFieldWavefront.loss_action_transpose` (the oracle arm)
+        overrides this raise.  The rolling-frontier PRODUCTION reverse
+        (:class:`MovingFrontierWindow`) is #310 C4: the reversed frontier
+        rides the mirror graph's ``window_plan`` exactly as the full-cochain
+        reverse rides its levels, pinned by a reverse ``window ≡ full``
+        oracle BEFORE any ``has_transpose_walk`` flip (flip-safety).  Until
+        then the family predicate stays ``False``, so the eager ``.H``
+        refuses at construction — this raise is the backstop for direct
+        Euclidean ``apply_transpose`` calls that bypass ``.H`` (the S0.1
+        layering).  Raises :class:`NotImplementedError` — the mesh is
+        compatible, only the adjoint *feature* is deferred (so this is NOT
+        an :class:`IncompatibleRepresentation`).  Never a silent wrong
+        answer.
         """
         raise NotImplementedError(
-            "StreamingOperator.apply_transpose: the multi-D Cartesian adjoint "
-            "is deferred (O.2b lands the 1-D reverse sweep first)."
+            "StreamingOperator.apply_transpose: the WINDOWED multi-D "
+            "Cartesian adjoint is deferred (#310 C4 — the full-cochain "
+            "oracle landed at C3: FullFieldWavefront.loss_action_transpose)."
         )
 
 
@@ -1779,6 +1987,89 @@ class FullFieldWavefront(_DAGWavefront):
         # (#251) STORES it whole (oracle twin of the windowed _loss_action_interior).
         # DD/Step → no moment axis, byte-identical.
         return LpC_oct, capture
+
+    def loss_action_transpose(
+        self, sigma: "np.ndarray", phi: "FullField",
+    ) -> "FullField":
+        r"""Adjoint loss action ORACLE ``(L+C)ᵀφ`` — the reversed full-field DAG walk (d-generic).
+
+        The reverse-mode adjoint of :meth:`loss_action` (#310 C3), routed
+        through the shared :class:`_OctantWalk` apply-transpose frame with
+        the full-cochain interior kernel
+        :meth:`_loss_action_transpose_interior` — the UNCHANGED
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`
+        over each octant's MIRROR graph × the
+        :class:`_CellResidualTranspose` level operation, bottoming in the
+        SAME scheme kernel VJP as the 1-D reverse arms
+        (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch_transpose`,
+        #310 C2) — so the adjoint MATH cannot drift from the forward's, only
+        the orientation data.
+
+        Verification-oracle arm: the production predicate
+        (``has_transpose_walk``) stays ``False`` for the whole wavefront
+        family until the windowed reverse lands (#310 C4 — flip-safety), so
+        the eager ``.H`` still refuses; this walk is reachable by direct
+        call, pinned by the 2-D dense-``Mᵀ`` forward-probe + the
+        assembled-``Mᵀ`` cross-check + the d=1 cross-realization against
+        the 1-D scan reverse (``tests/sn/sweep/core/test_multi_d_reverse_walk.py``).
+        Returns ``(L+C)ᵀφ``;
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
+        subtracts ``σ_t·φ`` exactly once.
+        """
+        return _OctantWalk(self.mesh).loss_action_transpose(
+            sigma, phi, self._loss_action_transpose_interior,
+        )
+
+    def _loss_action_transpose_interior(
+        self,
+        operands: _ApplyOperands,
+        oct_idx: "np.ndarray",
+        signs_addr: tuple[int, ...],
+        out_bars: tuple["np.ndarray", ...],
+    ) -> tuple["np.ndarray", tuple["np.ndarray", ...]]:
+        r"""Full-cochain interior kernel, APPLY-TRANSPOSE direction, one octant.
+
+        ``signs_addr`` is the octant's ADDRESSING label — the MIRROR of the
+        physical effective signs (:func:`_reverse_octant_traversal`) — so
+        the forward helpers realize the transposed roles VERBATIM:
+        :meth:`_octant_face_cochain` seeds its "in-edge" = the physical
+        OUT-edge with the outflow cotangents ``out_bars``;
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`
+        over the mirror graph gathers at the physical out-faces and
+        scatters at the physical in-faces in reversed level order;
+        :meth:`_edge_outflow` extracts its "out-edge" = the physical
+        IN-edge — the domain-inflow cotangent capture.  Only the level op
+        knows the physical orientation (``operands.probe`` = the residual
+        cotangent ``r̄``; the frame signs are the PHYSICAL octant's,
+        recovered as ``−signs_addr`` — the mirror is an involution).
+        Returns ``(psi_cot_octant, capture)``.
+        """
+        sig_t = operands.sig_t
+        ng = sig_t.shape[0]
+        spatial = sig_t.shape[1:]
+        graph = self.sweep_graphs[OctantLabel(signs_addr)]
+        n_face_moments = self._n_face_moments
+        faces_bar = self._octant_face_cochain(
+            spatial, signs_addr, out_bars, n_face_moments,
+        )
+        psi_cot_oct = np.zeros(
+            (oct_idx.size, ng, *spatial, *self._spatial_moment_tail)
+        )
+        physical_signs = tuple(-s for s in signs_addr)
+        graph.walk_full(
+            level_op=_CellResidualTranspose(
+                scheme=self.mesh.scheme,
+                res_bar_octant=operands.probe[oct_idx],
+                psi_bar_cot_octant=psi_cot_oct,
+                moment_frame_signs=self._moment_frame_signs(physical_signs),
+            ),
+            psi_faces_octant=faces_bar,
+            Q_octant=operands.Q_zero,
+            sig_t=sig_t,
+            str_axes_octant=tuple(s[oct_idx] for s in operands.str_axes),
+        )
+        capture = self._edge_outflow(faces_bar, spatial, signs_addr)
+        return psi_cot_oct, capture
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2960,8 +3251,9 @@ class _OneDimScanWalk:
         if curvature == "cartesian" and not sn_mesh.is_1d:
             raise NotImplementedError(
                 "_OneDimScanWalk.loss_action_transpose: the multi-D Cartesian "
-                "adjoint is deferred (O.2b lands the 1-D reverse sweep first; "
-                "the multi-D reverse sweep is a later Wave-O sub-step)."
+                "adjoint of the SCAN family is deferred (#310 C4 — the "
+                "ScanMarch-2D reverse; the full-cochain oracle landed at C3 "
+                "on FullFieldWavefront)."
             )
         if not type(sn_mesh.scheme).has_transpose_kernel:
             # The trait DERIVES from the transpose-kernel registrations

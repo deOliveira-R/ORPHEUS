@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6688**
+Total tests collected: **6702**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1194, 17.9%
+   L0, 1194, 17.8%
    L1, 1103, 16.5%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4337, 64.8%
+   foundation, 4351, 64.9%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6609
+   explicit, 6623
    class-name, 46
    func-name, 0
    case, 33
@@ -70,6 +70,7 @@ Module × level grid
    core/test_dag_walk, 0, 0, 0, 0, 8, 0
    core/test_diamond, 0, 0, 0, 0, 53, 0
    core/test_discretization_scheme_protocol, 0, 0, 0, 0, 17, 0
+   core/test_multi_d_reverse_walk, 0, 0, 0, 0, 12, 0
    core/test_one_dim_loop_walk, 0, 0, 0, 0, 5, 0
    core/test_ordinate_scan, 52, 0, 0, 0, 0, 0
    core/test_ordinate_scan_joint_batch, 5, 0, 0, 0, 0, 0
@@ -347,7 +348,7 @@ Module × level grid
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
    operators/test_invertible_operator, 1, 10, 0, 0, 20, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
-   operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 18, 0
+   operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 19, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
    operators/test_loss_transpose_solve, 0, 0, 0, 0, 18, 0
@@ -388,7 +389,7 @@ Module × level grid
    primitives/test_solution, 0, 0, 0, 0, 31, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 37, 0
    regression/test_dd_regression, 0, 0, 0, 0, 13, 0
-   regression/test_walk_matvec_baselines, 0, 0, 0, 0, 3, 0
+   regression/test_walk_matvec_baselines, 0, 0, 0, 0, 4, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0

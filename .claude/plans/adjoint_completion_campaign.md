@@ -117,7 +117,67 @@ review · qa on math-bearing phases · every new gate class mutation-verified
 
 ## Status log (append per stage)
 
-- **C2 IN PROGRESS (2026-07-24)** — branch `feature/sn-adjoint-residue-c2`.
+- **C3 IN PROGRESS (2026-07-24)** — branch `feature/sn-adjoint-residue-c3`.
+  **C3-a ✅ — the multi-D reverse `walk_full` ORACLE, via the MIRROR-OCTANT
+  realization.**  DESIGN RULING (the C3 carve's load-bearing find): the
+  reverse walk of octant ``o`` IS the forward walk over the mirror graph
+  ``graph(−signs_eff)`` — ``face_in(−o) == face_out(o)`` and the mirror's
+  levels ARE the forward's reversed, so the spec's four reverse ingredients
+  (reversed levels + transposed addressing + boundary in↔out swap +
+  reversed frontier-for-C4) all fall out of graph SELECTION;
+  ``walk_full``/``walk_windowed``/``_interior_walk`` are UNTOUCHED (zero
+  forward-path edits — the strongest possible "forward stays bit-identical").
+  Orientation is carried by DATA (`_reverse_octant_traversal`, the multi-D
+  sibling of `_reverse_traversal`: mirror AFTER the grazing map, pure-z
+  self-mirror, octant order untouched — no inter-octant edge) + the THIRD
+  level op `_CellResidualTranspose` (bottoming in the C2 d-generic batch
+  VJP; frame conjugation with the PHYSICAL octant's signs — the mirror
+  label drives addressing only).  Physics face: discrete μ→−μ is EXACT for
+  the DAG addressing; the cell algebra (where μ-reversal is wrong) is the
+  kernel VJP.  New surface: `_OctantWalk.loss_action_transpose` (the shared
+  apply-transpose frame — trait guard, LD-2D typed deferral →C5, Pattern-4
+  tail backstop, the boundary-cotangent algebra mirroring the 1-D reverse:
+  out-rows seed ``streamed̄`` masked to out_idx so every forward-discarded
+  path's pullback vanishes structurally, ``ψ_out† = −b̄_out``, in-rows =
+  identity + walked capture) + `FullFieldWavefront.loss_action_transpose`
+  / `_loss_action_transpose_interior` (the forward helpers
+  `_octant_face_cochain`/`_edge_outflow` realize the transposed roles
+  VERBATIM under the mirror signs).  NO flag flips (predicate False until
+  C4; `_DAGWavefront` deferral rewritten to the window-only truth;
+  ScanMarch's 1-D-walk guard message re-pointed at C4).
+  **Gates (`tests/sn/sweep/core/test_multi_d_reverse_walk.py`, 12, all
+  `-O`)**: runtime spy (3 sentinels; forward-control leg — transpose op 0×
+  on forward) · AST tripwire (4 frames) · **the NEW 2-D dense-`Mᵀ`
+  column-probe** (M probed off the FORWARD apply over the FULL composite
+  basis incl. trace; `M_rev == M_fwdᵀ` as a MATRIX, rtol 1e-12, on
+  rectangular non-uniform het + anti-vacuous asymmetry check) · Euclidean
+  pairing identity ⟨Fx,w⟩=⟨x,Fᵀw⟩ at ~7e-16 (vacuum + reflective configs)
+  · **d=1 cross-realization BIT-IDENTICAL** (FFW mirror-DAG reverse ≡
+  CumprodScan leg reverse, DD AND LD slab — same kernel, elementwise ops,
+  batching-order-free) · assembled-`Mᵀ` per-ordinate CSR blocks (LS4 4×3
+  non-uniform, off-block leak 0) · M-R2-ADDRESSING tooth (traversal→
+  identity: pairing red O(1); dense gate red-verified at rel 1.0 in a
+  design-time one-off) · **axis-equivariance invariance gate** + partial
+  axis-swap tooth · LD-2D/solve-transpose/tail-backstop deferral pins.
+  **Recorded design findings**: (a) M-R2-LEVELORDER is UNREPRESENTABLE
+  (levels + face roles are one graph object); (b) the TOTAL axis
+  conjugation measured as an exact no-op on het σ (2e-16) — the reverse
+  interior is genuinely d-generic, so the committed axis tooth is the
+  PARTIAL swap (Mode-2 face-tuple cross), which cannot even shape-check on
+  the rectangular primary configs (the L16 mandate = a shape-guard).
+  **Baseline**: `walk_matvec_cart2d_2g.npz` captured POST-verification at
+  the REP layer via `_OracleLC` (new-value re-baseline per §5.4; the same
+  object C4's window pins bit-identical against); all 4 baseline rows
+  green under strict DriftWarning.  Deferral file gains
+  `test_cart2d_ffw_oracle_state` (trait False until C4 + direct oracle
+  works — the deliberate select-narrow divergence).  Honest scope notes:
+  the cart2d G-reciprocity `_BUILDERS` rows ride C4 with `.H`
+  availability (C3's trace coverage = the full-composite Euclidean
+  pairing + dense-`Mᵀ` trace rows); pure-z 2-D rows exist in no available
+  quadrature (the branch is the trivially-self-transposed σ-diagonal,
+  mirrored from the forward twin).  Targeted battery 108 passed;
+  pyright CLI 0/0 on both touched production files; audit exit 0
+  (orphans 0/311, ERR 69/69).
   **#311 ✅ landed @ `2d226d1c`**: `outgoing_face_from_average_transpose(f̄, w)
   → (f̄/w, −((1−w)/w)·f̄)` minted as the fourth generic reconstruction
   staticmethod; DD's kernel + the two seed-march reversals rerouted

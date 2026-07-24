@@ -708,16 +708,20 @@ class SweepDependencyGraph:
     # S6.4(e): the four direction×storage product methods (``apply`` /
     # ``residual`` full-field + ``apply_windowed`` / ``residual_windowed``)
     # COLLAPSED into two storage walks parameterized by a LEVEL OPERATION
-    # object (``_CellSolve`` | ``_CellResidual`` — the solve/apply direction
-    # fork, bottoming out in the diamond kernel pair).  The walk owns the
-    # level loop + storage (frontier or full cochain) + the per-level
-    # operand extraction; the level op owns the cell algebra dispatch + the
-    # per-level emit.  Direction is an OBJECT, never a boolean flag.
+    # object (``_CellSolve`` | ``_CellResidual`` | ``_CellResidualTranspose``
+    # — the solve/apply/apply-transpose direction fork, bottoming out in the
+    # scheme's kernel pair + its VJP).  The walk owns the level loop +
+    # storage (frontier or full cochain) + the per-level operand extraction;
+    # the level op owns the cell algebra dispatch + the per-level emit.
+    # Direction is an OBJECT, never a boolean flag — the TRANSPOSE
+    # direction additionally arrives as DATA (the caller hands the walk the
+    # MIRROR octant's graph, #310 C3), so the walk bodies carry no
+    # orientation state at all.
 
     def walk_full(
         self,
         *,
-        level_op: "_CellSolve | _CellResidual",
+        level_op: "_CellSolve | _CellResidual | _CellResidualTranspose",
         psi_faces_octant: tuple[np.ndarray, ...],  # d face buffers — mutated in place
         Q_octant: np.ndarray,                      # (N_oct or 1, ng, *spatial)
         sig_t: np.ndarray,                         # (ng, *spatial)
@@ -762,7 +766,7 @@ class SweepDependencyGraph:
     def walk_windowed(
         self,
         *,
-        level_op: "_CellSolve | _CellResidual",
+        level_op: "_CellSolve | _CellResidual | _CellResidualTranspose",
         inflow: tuple[np.ndarray, ...],            # d-tuple — per-axis domain inflow
         Q_octant: np.ndarray,                      # (N_oct or 1, ng, *spatial)
         sig_t: np.ndarray,                         # (ng, *spatial)
@@ -1037,6 +1041,87 @@ class _CellResidual:
         )
         return psi_out
 
+
+@dataclass(frozen=True)
+class _CellResidualTranspose:
+    r"""APPLY-TRANSPOSE level operation: the exact VJP of :class:`_CellResidual`.
+
+    The THIRD direction object (#310 C3): where :class:`_CellSolve` solves
+    and :class:`_CellResidual` applies, this op applies the TRANSPOSE — per
+    level it reads the residual cotangent :math:`\bar r` at the level's
+    cells, pulls it (with the gathered downstream-face cotangents) back
+    through the scheme's batched VJP
+    :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch_transpose`
+    (the reverse-mode pair of ``residual_kernel_batch`` — DD + LD, #310 C2),
+    writes the probe cotangent :math:`\bar\psi^\dagger`, and emits the
+    upstream-face cotangents.
+
+    Addressing — the mirror-graph realization (#310 C3): the reverse walk
+    runs the UNCHANGED :meth:`SweepDependencyGraph.walk_full` over the
+    MIRROR octant's graph (``−signs_eff``).  Because
+    ``face_in(−o) == face_out(o)`` and the mirror graph's levels ARE the
+    forward's levels reversed, the walk's own gather/advance/scatter
+    realizes exactly the transposed data flow:
+
+    * the walk's gathered ``psi_in`` (the mirror graph's in-faces) ARE the
+      forward OUT-faces' cotangents — passed to the kernel as
+      ``psi_out_bar``;
+    * the returned tuple (scattered at the mirror graph's out-faces) IS the
+      forward IN-faces' cotangent deposit — the reversed march's carry.
+
+    This is the discrete face of "the adjoint streams along −Ω": μ-reversal
+    is EXACT for the DAG addressing (topology + face roles), while the
+    per-cell algebra — where naive μ-reversal would be wrong — is the
+    kernel VJP.
+
+    ``Q_cells`` is accepted (the walk's direction-uniform ``cell``
+    interface) and NOT consumed: the matvec transpose is source-free by the
+    kernel-pair contract (the forward matvec's zero source has a zero
+    cotangent; a genuine solve-source cotangent belongs to the solve path).
+
+    The frame conjugation mirrors :class:`_CellResidual` with the PHYSICAL
+    octant's ``moment_frame_signs`` (the ordinates' own sweep frame — the
+    mirror label drives ADDRESSING only): the involution is diagonal, so the
+    adjoint of ``x ↦ D·K(D·x)`` is ``y ↦ D·Kᵀ(D·y)`` (the #310 C2
+    involution oracle) — the residual cotangent reframes IN, the probe
+    cotangent reframes OUT, and the face cotangents stay in the sweep frame
+    (they propagate along the reversed wavefront, mirroring the forward's
+    sweep-frame faces).
+    """
+
+    scheme: DiscretizationSchemeBase
+    res_bar_octant: np.ndarray                    # (N_oct, ng, *spatial[, 2^d]) — read
+    psi_bar_cot_octant: np.ndarray                # (N_oct, ng, *spatial[, 2^d]) — written
+    moment_frame_signs: "np.ndarray | None" = None  # (2^d,) PHYSICAL sweep⇄global frame
+
+    def cell(
+        self,
+        cell_idx: tuple[np.ndarray, ...],
+        *,
+        psi_in: tuple[np.ndarray, ...],
+        s_axes: tuple[np.ndarray, ...],
+        reaction_xs: np.ndarray,
+        Q_cells: np.ndarray,
+    ) -> tuple[np.ndarray, ...]:
+        cell_g = (slice(None), slice(None), *cell_idx)
+        signs = self.moment_frame_signs
+        moment_valued = self.scheme.is_multi_moment
+        psi_bar_cot, psi_in_cots = self.scheme.residual_kernel_batch_transpose(
+            res_bar=_reframe(
+                self.res_bar_octant[cell_g], signs,
+                is_moment_valued=moment_valued,
+            ),
+            # Gathered by the walk at the MIRROR graph's in-faces — the
+            # forward's OUT-faces — so these are the downstream-face
+            # cotangents (see the class docstring's correspondence).
+            psi_out_bar=psi_in,
+            s_axes=s_axes,
+            reaction_xs=reaction_xs,
+        )
+        self.psi_bar_cot_octant[cell_g] = _reframe(
+            psi_bar_cot, signs, is_moment_valued=moment_valued,
+        )
+        return psi_in_cots
 
 
 @lru_cache(maxsize=8)

@@ -38,9 +38,13 @@ from typing import Callable
 
 import numpy as np
 
+from orpheus.sn.loss_representation import FullFieldWavefront
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-from tests.sn._test_helpers import random_radial_characteristic_field
+from tests.sn._test_helpers import (
+    cart2d_2g_nonsquare,
+    random_radial_characteristic_field,
+)
 from tests.sn.operators.test_g_adjoint_reciprocity import (
     _make_cyl,
     _make_slab,
@@ -97,10 +101,46 @@ def _build(mesh_builder, seed: int):
     return sn, lc, (psi, psi_seed), (phi, phi_seed)
 
 
+class _OracleLC:
+    r"""Rep-layer ``(L+C)`` pair for the cart2d row (#310 C3, spec §5.4).
+
+    The multi-D adjoint DOES NOT EXIST pre-carve, so this row is a NEW-value
+    re-baseline (L17/2.5b), captured POST-carve after the
+    ``test_multi_d_reverse_walk`` object oracles verified it.  The
+    production ``lc.apply_transpose`` stays the #310 C4 deferral (predicate
+    ``False``), so both orientations are captured at the REP layer — the
+    full-cochain ORACLE arm (``FullFieldWavefront.loss_action`` /
+    ``loss_action_transpose``), the same object C4's windowed PRODUCTION
+    reverse is pinned bit-identical against, making this baseline the
+    day-one value canary for the C4 flip too.
+    """
+
+    def __init__(self, sn, sig_t: np.ndarray) -> None:
+        self._rep = FullFieldWavefront(sn)
+        self._sig = sig_t
+
+    def apply(self, psi):
+        return self._rep.loss_action(self._sig, psi)
+
+    def apply_transpose(self, phi):
+        return self._rep.loss_action_transpose(self._sig, phi)
+
+
+def _build_cart2d(seed: int):
+    sn = cart2d_2g_nonsquare()               # rectangular nx≠ny (spec §5.5)
+    sig_t = _per_group_sigma(sn)
+    lc = _OracleLC(sn, sig_t)
+    rng = np.random.default_rng(seed)
+    psi, psi_seed = _draw_with_seed(sn, rng)   # seed is None (non-carrying)
+    phi, phi_seed = _draw_with_seed(sn, rng)
+    return sn, lc, (psi, psi_seed), (phi, phi_seed)
+
+
 CASES: tuple[WalkMatvecCase, ...] = (
     WalkMatvecCase("slab_2g", lambda: _build(_make_slab, 20260705)),
     WalkMatvecCase("sphere_2g", lambda: _build(_make_sphere, 20260706)),
     WalkMatvecCase("cyl_2g", lambda: _build(_make_cyl, 20260707)),
+    WalkMatvecCase("cart2d_2g", lambda: _build_cart2d(20260724)),
 )
 
 

@@ -39,6 +39,7 @@ from orpheus.numerics.operator import MissingAdjoint
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation import (
     CumprodScan,
+    FullFieldWavefront,
     MovingFrontierWindow,
     ScanMarch,
 )
@@ -315,6 +316,32 @@ class TestMultiDOrientationHonesty:
         sig_t, psi = het_operands(sn)[:2]
         with pytest.raises(NotImplementedError, match="multi-D Cartesian adjoint"):
             _lc(sn, sig_t).apply_transpose(psi)
+
+    def test_cart2d_ffw_oracle_state(self) -> None:
+        r"""The #310 C3 state, pinned deliberately: the full-cochain ORACLE
+        reverse EXISTS (``FullFieldWavefront.loss_action_transpose``
+        computes) while the family predicate stays ``False`` — the
+        select-narrow posture of flip-safety.  ``.H`` still refuses on
+        every cart2d representation; the oracle is reachable by direct
+        call only, gated by ``test_multi_d_reverse_walk``.  The predicate
+        flips at #310 C4 WITH the windowed PRODUCTION reverse (this row is
+        rewritten there) — capability-without-predicate is conservative
+        and never a wrong answer; predicate-without-capability is the lie
+        this file exists to kill."""
+        sn = cart2d_2g_nonsquare()
+        require(
+            FullFieldWavefront(sn).has_transpose_walk is False,
+            "FullFieldWavefront must keep has_transpose_walk=False until "
+            "the WINDOWED production reverse lands (#310 C4 flip-safety) — "
+            "a True here without the C4 gate rows is a premature flip.",
+        )
+        sig_t, phi = het_operands(sn)[:2]
+        out = FullFieldWavefront(sn).loss_action_transpose(sig_t, phi)
+        require(
+            bool(np.any(np.asarray(out.interior.values))),
+            "the C3 oracle reverse returned an all-zero bulk cotangent on "
+            "a random composite — the direct-call capability regressed.",
+        )
 
     def test_1d_dd_positive_control_unmoved(self) -> None:
         r"""The orientation factor must not over-refuse (anti-pattern #11):
