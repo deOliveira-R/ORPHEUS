@@ -280,14 +280,16 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     passing on ``is_affine_scannable`` (a geometry-blind 1-D trait) and raising
     mid-sweep."""
 
-    # ``has_transpose_kernel`` is DERIVED False — LD registers no
-    # ``streaming_cell_transpose`` override.  The UBLD Schur-residual VJP +
-    # the moment-tailed reverse walk land TOGETHER at #310 C2 (the trait
-    # flips by REGISTERING the kernel, never by declaration — ruling 2).
-    # Until then an eager ``.H`` on an LD mesh raises ``MissingAdjoint`` at
-    # construction (StreamingOperator.is_adjointable) and the reverse walk's
-    # entry guard refuses loudly — never a silent scalar-buffer broadcast
-    # against moment-tailed cotangents.
+    # ``has_transpose_kernel`` is DERIVED True (#310 C2): LD registers the
+    # UBLD ``AᵀM⁻¹`` batch VJP (``residual_kernel_batch_transpose``, below),
+    # which ALONE covers its slab-only forward span under the covering
+    # derivation — no ``streaming_cell_transpose`` override is needed (that
+    # is the CURVILINEAR arm's kernel, and LD claims no curvilinear
+    # support).  The trait flips by REGISTERING the kernel, never by
+    # declaration (ruling 2).  An eager ``.H`` on a 1-D LD mesh CONSTRUCTS;
+    # the remaining loud backstop is the reverse entries' spatial-moment
+    # tail check (a tail-mismatched cotangent raises a typed ValueError,
+    # never a silent broadcast).
 
     theta: ClassVar[float] = 1.0 / 3.0
     r"""The slope-moment weight :math:`\theta` (LM-1989 Eq. 4.3b).  The value

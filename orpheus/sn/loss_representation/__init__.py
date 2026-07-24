@@ -307,9 +307,10 @@ class LossRepresentation(Protocol):
         carrying mesh this is the ray-decoupled block's reverse-scan (step
         6); the joint ``M⁻ᵀ`` is the grid's transposed substitution.  Raises
         :class:`NotImplementedError` for representations / geometries whose
-        reverse-scan is deferred (multi-D Cartesian; LD moment-tail; the
-        lagged-seed cylinder until its forward fundamental fix).  Never a silent
-        wrong answer.
+        reverse-scan is deferred (multi-D Cartesian, including the LD-2D
+        moment tail — #310 C3–C5; the lagged-seed cylinder until its
+        forward fundamental fix).  The 1-D LD moment-tailed reverse-scan is
+        LIVE since #310 C2.  Never a silent wrong answer.
         """
         ...
 
@@ -2927,10 +2928,17 @@ class _OneDimScanWalk:
         marches :func:`_reverse_traversal` of :meth:`_dag_legs` through the
         SAME :meth:`_loop_walk` frame the forward matvec uses — the leg
         decomposition and traversal topology cannot drift from the
-        forward's; only the per-cell kernel (the scheme's registered
+        forward's; only the per-cell kernels and the endpoint bindings
+        (outflow cotangent in, seed cotangent out) differ.  The visit
+        mirrors ``_apply_walk``'s TWO ARMS (#310 C2): the CARTESIAN arm
+        rides the scheme-uniform batch VJP
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch_transpose`
+        (DD + LD, no scheme branch, moment-tail + frame conjugation
+        mirrored); the CURVILINEAR arm rides the registered cell-balance
+        VJP
         :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.streaming_cell_transpose`
-        spatial VJP, #310 C1) and the endpoint bindings (outflow cotangent
-        in, seed cotangent out) differ.
+        (#310 C1, DD-only single-occupant geometry, Morel–Montry thread
+        with the walk).
         Returns ``(L+C)ᵀφ``;
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
         subtracts ``σ_t·φ`` ONCE (Resolution A, ``C`` a self-adjoint diagonal).
@@ -3888,9 +3896,12 @@ class _OneDimScanWalk:
         ``(L+C)⁻ᵀ`` block (step 6): the M-M thread cotangent is DISCARDED
         (the zero thread is a FIXED input of the decoupled map, so its
         cotangent propagates nowhere); the joint ``M⁻ᵀ`` is the M grid's
-        transposed substitution.  DD/scalar-1-D only — the LD moment-tailed
-        transpose-solve is the #280 kernel-pair deferral (same guard the
-        adjoint matvec raises).
+        transposed substitution.  Two slab arms since #310 C2 (mirroring
+        ``_run``): DD/Step take the slopeless reverse-scan; LD takes the
+        moment arm — the reverse of ``_run``'s slope-source scan
+        (``scan_reconstruct_transpose`` + the diagonal self-transposes of
+        the face-source folds), gated by the SAME derived
+        ``has_transpose_kernel`` trait the reverse walk checks.
         """
         from orpheus.transport.source_sinks import AngularBoundarySourceSink
 
