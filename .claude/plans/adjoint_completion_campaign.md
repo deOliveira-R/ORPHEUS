@@ -152,14 +152,40 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   #311 "LD composes the primitive on first landing" prediction resolved
   differently — the LD batch VJP is TRACE-based (B(+1)ᵀ broadcast), not
   w-blend, so no new w-blend transpose site appeared; the primitive's
-  value is the DD sites + pair completeness.  **NEXT = C2-c (the atomic
-  flip)**: LD `residual_kernel_batch_transpose` override (= the flip, via
-  the covering derivation) + the `_run_transpose` LD moment arm (R6 lift +
-  `scan_reconstruct_transpose` + the slope-source diagonal self-transpose)
-  + the R5/R6 two-guard lift onto the trait + `test_ld_adjoint_deferral`
-  rewrite (negatives→positives + the declare→derive NIT) + the θ-mass
-  metric rows (ruling 3) + G1/G2/dense-Mᵀ/assembled-Mᵀ LD rows +
-  reciprocity LD builders + the S/F trailing-axis check.
+  value is the DD sites + pair completeness.  **C2-c ✅ @ `5a283f81` — the LD-slab adjoint; the atomic flip.**
+  LD registers the UBLD `AᵀM⁻¹` batch VJP (generated from the SAME
+  `_ubld_system` record; mass-inverse FIRST; `B(+1)ᵀ` broadcast;
+  `−μB(−1)ᵀM⁻¹` inflow pullback with the d=1 axis-append mirrored) — the
+  registration IS the flip via the covering derivation, atomic with: the
+  `_run_transpose` LD moment arm (reframe involution →
+  `scan_reconstruct_transpose` → the shared w-generic scan chain → the
+  DIAGONAL self-transposes of `source_emission` + `scan_slope_face_source`
+  → reframe + ×V), the R5/R6 two-guard lift unified onto the trait,
+  Pattern-4 tail backstops in BOTH reverse entries (a tail-mismatched
+  cotangent raises typed ValueError — the silent-broadcast hazard caught
+  LIVE by the first functional probe: a tail-less composite broadcast
+  through the batch VJP), **ruling 3 in production**
+  (`SNMesh.full_field_space` = `V·w_n ⊗ moment_mass_diagonal` — the new
+  scheme surface, = `diag(M)/V`, the same diagonal the kernel normalises
+  by), the deferral-file rewrite (negatives→positives; declare→derive),
+  and the gate rows: ld_slab_2g G-reciprocity + metric cross-check
+  (production θ == independent raw-θ spelling) + the **ghost-metric
+  stabiliser proof** (slope-flip O(1)-visible to the θ-metric, EXACTLY
+  invisible to the slope-ghost metric — the Mode-12 asymmetry; note: the
+  spec's "average-only blind" leg sharpened to the honest ghost/L18 form —
+  a θ→1 mis-weighting is caught by the metric CROSS-CHECK, the stabiliser
+  blindness needs the 0-weight ghost) + G1/G2 for `ld_slab` (moment-aware
+  probe/order/mask, DD byte-identical) + the LD block-upper-triangularity
+  certificate (2×2 micro-blocks; §4.3's back-substitution VALUE leg
+  covered by G2's full `np.linalg.solve(Mᵀ)` — the block-backsub third
+  realization left as an honest possible follow-up) + the dense `AᵀM⁻¹`
+  kernel gate with the M-R1b-MASSORDER tooth.  Batteries: 97 + 207 green
+  (frozen baselines strict-DriftWarning; MMS-LD forward; C1 sentinels);
+  pairing `⟨A eᵢ, φ⟩ = (Aᵀφ)ᵢ` ≈1e-12 on the non-uniform het LD slab;
+  pyright CLI 0/0; `-E -W` Sphinx exit 0; audit exit 0 (orphans 0/311,
+  ERR 69/69); matrix collect 6668→6688 (+20 foundation).  #311 closes
+  with C2-c's commit trailer.  Enforcer review + full-tree gate running;
+  merge at the boundary checkpoint.
 
 - **C1 ✅ 2026-07-24** — the DD kernel-pair relocation: `streaming_cell_transpose`
   minted on `DiscretizationSchemeBase` (STORAGE-FREE spatial VJP

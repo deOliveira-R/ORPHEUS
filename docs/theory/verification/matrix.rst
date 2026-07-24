@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6668**
+Total tests collected: **6688**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1103, 16.5%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4317, 64.7%
+   foundation, 4337, 64.8%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6589
+   explicit, 6609
    class-name, 46
    func-name, 0
    case, 33
@@ -341,16 +341,16 @@ Module × level grid
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
-   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 23, 0
+   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 26, 0
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
    operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
    operators/test_invertible_operator, 1, 10, 0, 0, 20, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
-   operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 17, 0
+   operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 18, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
-   operators/test_loss_transpose_solve, 0, 0, 0, 0, 15, 0
+   operators/test_loss_transpose_solve, 0, 0, 0, 0, 18, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
@@ -368,7 +368,7 @@ Module × level grid
    operators/test_sn_boundary_realizer, 0, 25, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
-   operators/test_streaming_cell_transpose_relocation, 0, 0, 0, 0, 9, 0
+   operators/test_streaming_cell_transpose_relocation, 0, 0, 0, 0, 11, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
    operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
    operators/test_typed_residual_evaluation, 1, 0, 0, 0, 12, 0
@@ -409,10 +409,10 @@ Module × level grid
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
-   spatial/test_affine_closure, 0, 0, 0, 0, 3, 0
+   spatial/test_affine_closure, 0, 0, 0, 0, 5, 0
    spatial/test_ld_slope_frame, 0, 1, 0, 0, 1, 0
-   spatial/test_ld_ubld_primitive, 0, 0, 0, 0, 11, 0
-   spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 6, 0
+   spatial/test_ld_ubld_primitive, 0, 0, 0, 0, 18, 0
+   spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 8, 0
    spatial/test_linear_discontinuous, 0, 0, 0, 0, 21, 0
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 6, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
@@ -1384,7 +1384,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-063``, 3
    ``ERR-064``, 2
    ``ERR-065``, 1
-   ``ERR-066``, 6
+   ``ERR-066``, 7
    ``ERR-067``, 2
    ``ERR-068``, 1
    ``ERR-069``, 2
