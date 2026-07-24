@@ -2956,19 +2956,19 @@ class _OneDimScanWalk:
                 "the multi-D reverse sweep is a later Wave-O sub-step)."
             )
         if not type(sn_mesh.scheme).has_transpose_kernel:
-            # The trait DERIVES from the ``streaming_cell_transpose``
-            # registration (#310 ruling 2).  The honest front door is
-            # StreamingOperator.is_adjointable (eager ``.H`` raises
-            # MissingAdjoint); this guard is the backstop for direct Euclidean
-            # apply_transpose calls that bypass ``.H`` — and it protects the
-            # SCALAR buffers below (no spatial-moment tail): a moment-tailed
-            # LD cotangent must refuse loudly here, never broadcast silently.
+            # The trait DERIVES from the transpose-kernel registrations
+            # (#310 ruling 2: the Cartesian batch VJP, plus the curvilinear
+            # cell-balance VJP iff the scheme claims curvilinear).  The
+            # honest front door is StreamingOperator.is_adjointable (eager
+            # ``.H`` raises MissingAdjoint); this guard is the backstop for
+            # direct Euclidean apply_transpose calls that bypass ``.H``.
             raise NotImplementedError(
                 "_OneDimScanWalk.loss_action_transpose: scheme "
                 f"{type(sn_mesh.scheme).__name__} registers no transpose "
-                "kernel (streaming_cell_transpose) — the LD/UBLD "
-                "Schur-residual adjoint (cell-moment cotangents + the "
-                "reverse moment-frame involution) lands at #310 C2."
+                "kernel pair (residual_kernel_batch_transpose; plus "
+                "streaming_cell_transpose for a curvilinear scheme) — the "
+                "LD/UBLD Schur-residual adjoint (cell-moment cotangents + "
+                "the reverse moment-frame involution) lands at #310 C2."
             )
 
         closure = sn_mesh.pole_angular_closure
@@ -2989,10 +2989,22 @@ class _OneDimScanWalk:
         # (``RadialCharacteristicSeeding.apply_transpose``); the joint Mᵀ is
         # the within-group grid's ``CoupledOperator.apply_transpose``.
 
-        out_bar = phi.interior.values.swapaxes(0, 1)   # (ng, N, nx)
+        out_bar = phi.interior.values.swapaxes(0, 1)   # (ng, N, nx[, 2^d])
         fo = phi.boundary.face_view("xmax")                       # (N, ng)
 
-        psi_bar = np.zeros((ng, N, nx))
+        # The unified moment adjoint (#310 C2 — mirror of _apply_walk): a
+        # multi-moment closure (LD) carries the trailing 2^d spatial-moment
+        # axis on the incoming cotangent and the ψ̄-cotangent buffer; the d=1
+        # FACE cochain is scalar (2^{d-1} = 1) for every closure.  DD/Step
+        # (per_axis == 1) → ``()`` tail, every buffer byte-identical.
+        per_axis = sn_mesh.scheme.spatial_basis_per_axis
+        moment_tail = face_moment_tail(cell_moment_count(per_axis, sn_mesh.ndim))
+        is_moment_valued = sn_mesh.scheme.is_multi_moment
+        frame_signs_by_dir = {
+            ds: frame_signs_for(sn_mesh.scheme, (ds,)) for ds in (+1, -1)
+        }
+
+        psi_bar = np.zeros((ng, N, nx, *moment_tail))
         fo_bar = np.zeros((N, ng))
         # xmin-face cotangent: written by the slab arms below; on curvilinear
         # the pole is structurally NOT a face (#220), so it stays zero and is
@@ -3049,6 +3061,43 @@ class _OneDimScanWalk:
             ).copy()
 
         def visit(leg: _WalkLeg, i: int, f_bar: np.ndarray) -> np.ndarray:
+            if curvature == "cartesian":
+                # ── Cartesian arm: the scheme-uniform ÷V batch VJP (#310 C2
+                # — the exact mirror of _apply_walk's kernel arm).  DD and LD
+                # route through ``residual_kernel_batch_transpose`` with NO
+                # scheme branch; the frame conjugation transposes as itself
+                # (the involution is diagonal), so the residual cotangent
+                # reframes IN and the ψ̄ cotangent reframes OUT — the adjoint
+                # of ``x ↦ D·K(D·x)`` is ``y ↦ D·Kᵀ(D·y)``.  Cartesian has
+                # no Morel–Montry thread (mirror of the forward arm), so no
+                # ``numer_bar`` accumulation here.
+                frame_signs = frame_signs_by_dir[leg.direction_sign]
+                ob = out_bar[:, leg.ordinates, i]          # (ng, K[, 2^d])
+                res_bar_cell = _reframe(
+                    np.swapaxes(ob, 0, 1)[:, :, None], frame_signs,
+                    is_moment_valued=is_moment_valued,
+                )                                          # (K, ng, 1[, 2^d])
+                psi_bar_cot, (f_in_cot,) = (
+                    scheme.residual_kernel_batch_transpose(
+                        res_bar=res_bar_cell,
+                        psi_out_bar=(f_bar.T[:, :, None],),
+                        s_axes=((leg.abs_mu / V[i])[:, None, None],),
+                        reaction_xs=sgx[:, i][None, :, None],
+                    )
+                )
+                psi_bar_cot = _reframe(
+                    psi_bar_cot, frame_signs, is_moment_valued=is_moment_valued,
+                )
+                # Each (ordinate, cell) slot is visited by exactly one leg,
+                # so the single scatter-add is bit-identical to in-place
+                # accumulation.
+                psi_bar[:, leg.ordinates, i] += np.swapaxes(
+                    psi_bar_cot[:, :, 0], 0, 1,
+                )
+                return f_in_cot[:, :, 0].T                 # (ng, K)
+            # ── Curvilinear arm (DD-only, single-occupant geometry — the
+            # mirror of _apply_walk's cell_balance arm): the registered
+            # cell-balance VJP carrying the Morel–Montry thread (#310 C1).
             A_downstream = A[i + 1] if leg.direction_sign > 0 else A[i]
             A_total = A[i] + A[i + 1]
             angular_denom_term, _ = closure.cell_contribution(
@@ -3161,10 +3210,16 @@ class _OneDimScanWalk:
         # (``RadialCharacteristicSeeding.apply_transpose``), never this
         # walk's; non-carrying levels were scattered onto ``psi_ang_bar``
         # inside the closure.
-        psi_ang_bar, _seed_cells_bar_discarded = closure.angular_adjoint(
-            tuple(numer_bar),
-        )
-        psi_bar += psi_ang_bar
+        # Cartesian carries no angular thread (the Cartesian arm accumulates
+        # no ``numer_bar``, and IdentityAngularClosure.angular_adjoint is the
+        # structural zero-map) — the delegated reversal is curvilinear-only,
+        # which also keeps the scalar ``psi_ang_bar`` off the moment-tailed
+        # LD buffer (curvilinear ⟹ DD ⟹ no tail).
+        if curvature != "cartesian":
+            psi_ang_bar, _seed_cells_bar_discarded = closure.angular_adjoint(
+                tuple(numer_bar),
+            )
+            psi_bar += psi_ang_bar
 
         # ── assemble the typed composite ──
         m_boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
@@ -3174,6 +3229,7 @@ class _OneDimScanWalk:
         return FullField(
             interior=AngularSourceSink.from_mesh(
                 psi_bar.swapaxes(0, 1), sn_mesh,
+                spatial_moments=per_axis,
             ),
             boundary=m_boundary,
         )

@@ -457,6 +457,50 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         )
         return residual, psi_out
 
+    def residual_kernel_batch_transpose(
+        self,
+        *,
+        res_bar: np.ndarray,                  # (N_oct, ng, n_diag) — residual cotangent
+        psi_out_bar: tuple[np.ndarray, ...],  # d arrays, each (N_oct, ng, n_diag)
+        s_axes: tuple[np.ndarray, ...],       # d arrays, each (N_oct, 1, n_diag) — RAW g per axis
+        reaction_xs: np.ndarray,              # (ng, n_diag)
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        r"""Batched VJP of :meth:`residual_kernel_batch` — dimension-generic.
+
+        The exact reverse-mode pair of the DD apply kernel: with ``denom =
+        \Sigma_t + \sum_a 2 g_a`` and the couplings ``2 g_a`` from the SAME
+        :meth:`_cartesian_streaming_diagonal` fold the forward uses
+        (Pattern 2 — no twin coefficients),
+
+        .. math::
+
+           \bar\psi^\dagger = \text{denom}\cdot r^\dagger
+             + \sum_a \tfrac{1}{w}\,\psi_a^{\mathrm{out}\,\dagger}, \qquad
+           \psi_{a,\mathrm{in}}^\dagger
+             = -\tfrac{1-w}{w}\,\psi_a^{\mathrm{out}\,\dagger}
+               - 2 g_a\, r^\dagger ,
+
+        the face-chain pair riding the w-generic
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average_transpose`
+        at ``w = _DD_W`` (#311 — at ``½`` the pair is the exact
+        ``(2ψ_out†, −ψ_out†)``).  Consumed by the 1-D reverse loop walk's
+        Cartesian arm (#310 C2) and the multi-D reverse wavefront's
+        ``_CellResidualTranspose`` (#310 C3); the curvilinear reverse rides
+        :meth:`streaming_cell_transpose` instead (the cell-balance arm).
+        Registering this kernel is the Cartesian conjunct of the derived
+        ``has_transpose_kernel``.
+        """
+        denom, couplings = self._cartesian_streaming_diagonal(reaction_xs, s_axes)
+        psi_bar_cot = denom * res_bar
+        psi_in_cots = []
+        for c_a, out_bar_a in zip(couplings, psi_out_bar):
+            avg_cot, in_cot = self.outgoing_face_from_average_transpose(
+                out_bar_a, _DD_W,
+            )
+            psi_bar_cot = psi_bar_cot + avg_cot
+            psi_in_cots.append(in_cot - c_a * res_bar)
+        return psi_bar_cot, tuple(psi_in_cots)
+
     def streaming_cell_transpose(
         self,
         *,

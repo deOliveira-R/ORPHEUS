@@ -691,14 +691,20 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     is unpublished — #158/#6).  Read-only class attribute."""
 
     has_transpose_kernel: ClassVar[bool] = False
-    r"""Whether this scheme REGISTERS a transpose kernel — DERIVED, never declared.
+    r"""Whether this scheme REGISTERS its transpose kernels — DERIVED, never declared.
 
-    ``True`` iff the subclass overrides :meth:`streaming_cell_transpose`; set
-    by ``__init_subclass__`` from the override itself, so a declared capability
-    with no kernel behind it (the pre-2.5a "predicate lie") is unrepresentable
-    — the registration IS the flag (#310 ruling 2).  ``True`` for Diamond
-    Difference (the relocated diamond-chain VJP); ``False`` for
-    Linear-Discontinuous until the UBLD Schur-residual VJP registers (#310 C2).
+    ``True`` iff the subclass overrides
+    :meth:`residual_kernel_batch_transpose` (the Cartesian batch VJP — the
+    reverse walks' scheme-uniform kernel) AND, if it claims
+    :attr:`supports_curvilinear`, also :meth:`streaming_cell_transpose` (the
+    1-D curvilinear cell-balance VJP).  Set by ``__init_subclass__`` from the
+    overrides themselves, so a declared capability with no kernel behind it
+    (the pre-2.5a "predicate lie") is unrepresentable — the registration IS
+    the flag (#310 ruling 2), and the registration must COVER the scheme's
+    own forward span (#310 C2).  ``True`` for Diamond Difference (both
+    kernels); ``False`` for Linear-Discontinuous until its UBLD
+    Schur-residual batch VJP registers (#310 C2 — LD is slab-only, so the
+    batch kernel alone covers its span).
     Consumers:
     :attr:`~orpheus.sn.operators.streaming.StreamingOperator.is_adjointable`
     (an eager ``.H`` on a non-transposable scheme raises ``MissingAdjoint`` at
@@ -710,11 +716,18 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         # Registration-coupled trait (#310 ruling 2): the flag DERIVES from
-        # the streaming_cell_transpose override, so flag and kernel cannot
-        # drift apart — declaring the capability without registering the
-        # kernel (or vice versa) is unrepresentable.
+        # the transpose-kernel overrides, so flag and kernels cannot drift
+        # apart — declaring the capability without registering the kernels
+        # (or vice versa) is unrepresentable.  The registration must cover
+        # the scheme's own forward span (#310 C2): the Cartesian batch VJP
+        # always, plus the curvilinear cell-balance VJP iff the scheme
+        # claims curvilinear support.
         cls.has_transpose_kernel = (
-            cls.streaming_cell_transpose
+            cls.residual_kernel_batch_transpose
+            is not DiscretizationSchemeBase.residual_kernel_batch_transpose
+        ) and (
+            not cls.supports_curvilinear
+            or cls.streaming_cell_transpose
             is not DiscretizationSchemeBase.streaming_cell_transpose
         )
 
@@ -833,6 +846,43 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
             "residual_kernel_batch) to enable the batched wavefront walks."
         )
 
+    def residual_kernel_batch_transpose(
+        self,
+        *,
+        res_bar: np.ndarray,
+        psi_out_bar: tuple[np.ndarray, ...],
+        s_axes: tuple[np.ndarray, ...],
+        reaction_xs: np.ndarray,
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        r"""Pure batched VJP of :meth:`residual_kernel_batch` — the reverse-mode pair.
+
+        Given the residual cotangent ``res_bar`` and the d-tuple of
+        downstream-face cotangents ``psi_out_bar`` (the cotangents of the
+        forward's ``(residual, psi_out)`` outputs — same batch layout, same
+        positional-by-axis convention), return ``(psi_bar_cot, psi_in_cots)``
+        — the cotangents of the forward's ``(psi_bar, psi_in)`` inputs —
+        computed from the SAME :math:`\Sigma_t`-epoch data ``(s_axes,
+        reaction_xs)`` the forward consumed (Pattern 2 — no twin
+        coefficients).  The matvec transpose is source-free: the forward's
+        ``Q_cells`` enters ``−R`` and its cotangent belongs to the solve
+        path, so no source cotangent is returned.
+
+        The scheme-uniform CARTESIAN reverse kernel: the 1-D reverse loop
+        walk's Cartesian arm (#310 C2) and the multi-D reverse wavefront's
+        ``_CellResidualTranspose`` level op (#310 C3) both bottom here — the
+        exact mirror of the forward arms bottoming in
+        :meth:`residual_kernel_batch`.  Overriding it is one conjunct of the
+        derived :attr:`has_transpose_kernel` registration; a scheme claiming
+        :attr:`supports_curvilinear` must ALSO register
+        :meth:`streaming_cell_transpose` (the curvilinear cell-balance arm's
+        kernel).  Default raises.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} registers no batch transpose kernel "
+            "(residual_kernel_batch_transpose) — the adjoint matvec on this "
+            "scheme is a typed deferral (#310)."
+        )
+
     def streaming_cell_transpose(
         self,
         *,
@@ -842,7 +892,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         abs_mu_A_total: np.ndarray,
         volume: float,
     ) -> tuple[np.ndarray, np.ndarray]:
-        r"""Per-cell VJP of the streamed cell relation — the reverse walk's kernel.
+        r"""Per-cell VJP of the streamed cell relation — the CURVILINEAR reverse arm's kernel.
 
         The transpose extension point of the 1-D loop-walk cell relation
         {residual :math:`m = (\text{denom}\,\bar\psi - |\mu|A_{\rm tot}\,
@@ -864,14 +914,18 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         STORAGE-FREE by contract, like the batch pair: the walk owns
         gather/scatter and the ψ-independent coefficient recomputation
         (``cell_balance_for_streaming`` — Pattern 2, the SAME coefficients as
-        the forward).  Overriding this method IS the registration that sets
-        :attr:`has_transpose_kernel` (derived in ``__init_subclass__``).
+        the forward).  Since #310 C2 this kernel serves the 1-D CURVILINEAR
+        reverse arm only (single-occupant DD geometry — the mirror of the
+        forward's ``cell_balance`` arm); the Cartesian reverse rides the
+        scheme-uniform :meth:`residual_kernel_batch_transpose`.  Overriding
+        it is the curvilinear conjunct of the derived
+        :attr:`has_transpose_kernel` (required iff
+        :attr:`supports_curvilinear`).
         """
         raise NotImplementedError(
             f"{type(self).__name__} registers no transpose kernel "
-            "(streaming_cell_transpose) — the adjoint matvec/solve on this "
-            "scheme is a typed deferral (#310; the LD/UBLD Schur-residual "
-            "VJP lands at its C2)."
+            "(streaming_cell_transpose) — the curvilinear adjoint "
+            "matvec/solve on this scheme is a typed deferral (#310)."
         )
 
     # ── Scan-family capability (Issue #236 §2 — the DAG-free schedules) ──
