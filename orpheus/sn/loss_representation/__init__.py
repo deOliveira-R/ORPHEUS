@@ -127,6 +127,7 @@ from orpheus.transport.spatial.scheme import UpstreamState
 from ..sweep.scan import (
     _scanmarch_row,
     _x_scan_faces,
+    _x_scan_faces_transpose,
     ordinate_scan,
     ordinate_scan_transpose,
 )
@@ -2476,15 +2477,110 @@ class ScanMarch(_LossRepresentation):
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
     ) -> "FullField":
-        """Adjoint loss action — 1-D wired ``(L+C)ᵀφ``; multi-D Cartesian deferred."""
+        r"""Adjoint loss action ``(L+C)ᵀφ`` — the reversed row-march (#310 C4).
+
+        The reverse-mode adjoint of :meth:`loss_action`, direction by
+        direction: 1-D → the geometry-blind
+        :meth:`_OneDimScanWalk.loss_action_transpose` (the reversed leg
+        walk, #310 C2); 2-D Cartesian → the shared :class:`_OctantWalk`
+        apply-transpose frame with the row-march reverse interior
+        :meth:`_loss_action_transpose_interior` — reversed rows +
+        the x-face-chain transpose
+        (:func:`~orpheus.sn.sweep.scan._x_scan_faces_transpose`, ONE
+        :func:`~orpheus.sn.sweep.scan.ordinate_scan_transpose` per row) +
+        the transverse cotangent chained BACKWARDS, bottoming in the same
+        scheme kernel VJP
+        (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch_transpose`)
+        as every other reverse arm.  Principled-equivalent (NOT
+        bit-identical) to
+        :meth:`FullFieldWavefront.loss_action_transpose` — the reverse
+        sibling of the forward's row-march-vs-oracle pin.  Returns
+        ``(L+C)ᵀφ``;
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
+        subtracts ``σ_t·φ`` exactly once.
+        """
         if self.mesh.is_1d:
             # #206 Phase C: the 1-D transpose walk lives in _OneDimScanWalk.
             return _OneDimScanWalk(self.mesh).loss_action_transpose(sigma, phi)
-        raise NotImplementedError(
-            "ScanMarch.loss_action_transpose: the multi-D Cartesian adjoint is "
-            "deferred (O.2b lands the 1-D reverse sweep first; the multi-D "
-            "adjoint follows the forward scan-march matvec, S5.1b+)."
+        return _OctantWalk(self.mesh).loss_action_transpose(
+            sigma, phi, self._loss_action_transpose_interior,
         )
+
+    def _loss_action_transpose_interior(
+        self,
+        operands: _ApplyOperands,
+        oct_idx: "np.ndarray",
+        signs_addr: tuple[int, ...],
+        out_bars: tuple["np.ndarray", ...],
+    ) -> tuple["np.ndarray", tuple["np.ndarray", ...]]:
+        r"""Row-march interior kernel, APPLY-TRANSPOSE direction, one octant.
+
+        The honest reverse-mode of :meth:`_loss_action_interior`'s own
+        program, with the MIRROR label driving the schedule exactly as in
+        the wavefront reverse (``signs_addr`` = the mirror of the physical
+        effective signs, so the forward's sign-reading spellings —
+        ``x_reverse``, the ``y_rows`` order — produce the REVERSED physical
+        march for free, and ``out_bars`` arrives at the mirror in-faces =
+        the physical OUT-faces).  Per row, in mirror-y order, threading the
+        transverse cotangent backwards:
+
+        1. the batched kernel VJP with a ZERO x-out cotangent — the forward
+           DISCARDED its kernel ``out_x`` (the scan owns the x-chain), so
+           that pullback vanishes structurally; ``in_y_bar`` becomes the
+           previous physical row's ``out_y`` cotangent (the reversed
+           transverse chaining);
+        2. the x-face-chain transpose
+           (:func:`~orpheus.sn.sweep.scan._x_scan_faces_transpose` — the
+           VJP of the forward's reflection scan, same multiplier ``α``,
+           opposite direction), whose seed cotangent is the row's domain
+           x-INFLOW cotangent (→ the capture);
+        3. the β-pullback ``ψ̄† += β̄·β_pullback`` — the scan's faces were
+           reconstructed FROM the probe, so the face-chain cotangent flows
+           back onto it (the scheme's ψ̄-independent
+           :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.reflect_scan_coefficients_transpose`).
+
+        Returns ``(psi_cot_octant, capture)`` with the per-axis physical
+        IN-face cotangents ``(cap_x_cot, in_y_bar_final)``.
+        """
+        sig_t = operands.sig_t                      # (ng, nx, ny)
+        ng, nx, ny = sig_t.shape
+        sxm_addr, sym_addr = signs_addr             # MIRROR label (±1, never 0)
+        out_x_bar, out_y_bar = out_bars             # (N_oct, ng, ny) / (N_oct, ng, nx)
+        s_x, s_y = (s[oct_idx] for s in operands.str_axes)
+        res_bar_oct = operands.probe[oct_idx]       # (N_oct, ng, nx, ny) — r̄
+        N_oct = oct_idx.size
+
+        # The scan-transpose primitive takes the PHYSICAL forward orientation
+        # (physical sx = −sxm_addr); the mirror label orders the ROW march.
+        x_reverse_physical = sxm_addr > 0
+        scheme = self.mesh.scheme
+        psi_cot_oct = np.empty((N_oct, ng, nx, ny))
+        cap_x_cot = np.empty((N_oct, ng, ny))       # physical x-IN cotangent, per row
+        s_x_row = s_x[:, None, :]                   # (N_oct, 1, nx) — row-invariant
+        zero_out_x_bar = np.zeros((N_oct, ng, nx))
+
+        out_y_bar_run = out_y_bar                   # final physical row's out_y cotangent
+        y_rows = range(ny) if sym_addr >= 0 else range(ny - 1, -1, -1)
+        for j in y_rows:
+            res_bar_row = res_bar_oct[:, :, :, j]   # (N_oct, ng, nx)
+            psi_cot_kernel, (in_x_bar, in_y_bar) = (
+                scheme.residual_kernel_batch_transpose(
+                    res_bar=res_bar_row,
+                    psi_out_bar=(zero_out_x_bar, out_y_bar_run),
+                    s_axes=(s_x_row, s_y[:, j][:, None, None]),
+                    reaction_xs=sig_t[:, :, j],
+                )
+            )
+            alpha, beta_pullback = scheme.reflect_scan_coefficients_transpose(
+                res_bar_row,
+            )
+            beta_bar, x_seed_bar = _x_scan_faces_transpose(
+                alpha, in_x_bar, out_x_bar[:, :, j], x_reverse_physical,
+            )
+            psi_cot_oct[:, :, :, j] = psi_cot_kernel + beta_bar * beta_pullback
+            out_y_bar_run = in_y_bar                # reversed transverse chaining
+            cap_x_cot[:, :, j] = x_seed_bar
+        return psi_cot_oct, (cap_x_cot, out_y_bar_run)
 
     @property
     def has_transpose_walk(self) -> bool:
@@ -3308,11 +3404,15 @@ class _OneDimScanWalk:
         curvature_raw = getattr(sn_mesh, "curvature", None)
         curvature = curvature_raw if curvature_raw is not None else "cartesian"
         if curvature == "cartesian" and not sn_mesh.is_1d:
+            # Structural 1-D-only guard (NOT a deferral since #310 C4): the
+            # multi-D scan-family reverse is the row-march
+            # (ScanMarch._loss_action_transpose_interior via the shared
+            # _OctantWalk frame); this walk's leg decomposition is 1-D by
+            # construction, so a multi-D mesh reaching it is a routing bug.
             raise NotImplementedError(
-                "_OneDimScanWalk.loss_action_transpose: the multi-D Cartesian "
-                "adjoint of the SCAN family is deferred (#310 C4 — the "
-                "ScanMarch-2D reverse; the full-cochain oracle landed at C3 "
-                "on FullFieldWavefront)."
+                "_OneDimScanWalk.loss_action_transpose is 1-D-only — the "
+                "multi-D Cartesian adjoint of the scan family is the "
+                "row-march reverse (ScanMarch.loss_action_transpose)."
             )
         if not type(sn_mesh.scheme).has_transpose_kernel:
             # The trait DERIVES from the transpose-kernel registrations

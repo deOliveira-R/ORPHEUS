@@ -1072,6 +1072,37 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
             "(transverse_coupling_is_facewise is False)."
         )
 
+    def reflect_scan_coefficients_transpose(
+        self, res_bar: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Apply-TRANSPOSE reflection scan coefficients ``(α, β_pullback)``.
+
+        The reverse-direction sibling of :meth:`reflect_scan_coefficients`
+        (#310 C4 — the row-march reverse): the forward apply reconstructs the
+        scanned-axis faces from the KNOWN probe via ``ψ_out = α·ψ_in + β(ψ̄)``;
+        its reverse-mode needs the ψ̄-INDEPENDENT coefficient pair —
+
+        * ``α = −(1−w)/w`` — the transpose of a first-order linear chain is a
+          first-order linear chain with the SAME multiplier, run in the
+          opposite direction (the ``ordinate_scan_transpose`` chain);
+        * ``β_pullback = ∂β/∂ψ̄ = 1/w`` — the diagonal pullback of the
+          β-leg onto the probe cotangent (``ψ̄† += β̄·β_pullback``).
+
+        Both are the unit application of the #311 generic VJP
+        :meth:`outgoing_face_from_average_transpose` at the scheme's blend
+        weight (``(β_pullback, α) = VJP(1, w)``) — the reflect scan IS
+        :meth:`outgoing_face_from_average` in recurrence form, so its
+        transpose coefficients are that op's, single-sourced.  ``res_bar``
+        is a SHAPE template only (the coefficients broadcast against the
+        row batch).  Only a ``transverse_coupling_is_facewise`` scheme
+        overrides it; the default raises.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement "
+            "reflect_scan_coefficients_transpose "
+            "(transverse_coupling_is_facewise is False)."
+        )
+
     def moment_scan_closure(
         self,
         *,

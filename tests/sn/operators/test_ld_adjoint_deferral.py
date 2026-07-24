@@ -308,14 +308,27 @@ class TestMultiDOrientationHonesty:
         with pytest.raises(MissingAdjoint):
             _ = _lc(sn, sig_t).H
 
-    def test_cart2d_direct_transpose_still_raises_typed_deferral(self) -> None:
-        r"""The backstop behind the predicate: a DIRECT Euclidean
-        ``apply_transpose`` (bypassing ``.H``) still hits the
-        representation's loud multi-D deferral raise."""
+    def test_cart2d_direct_transpose_runs(self) -> None:
+        r"""The former multi-D typed-deferral row, FLIPPED at #310 C4-b: a
+        DIRECT Euclidean ``apply_transpose`` on the default cart2d
+        representation (the ScanMarch row-march reverse) runs end-to-end
+        and returns finite values — while the family predicate stays
+        ``False`` until THE FLIPS (C4-c): capability-without-predicate is
+        the conservative select-narrow posture, never a wrong answer.  The
+        ``is_adjointable``/``.H`` rows above stay negative until the flip
+        commit (spec §10 flip-safety)."""
         sn = cart2d_2g_nonsquare()
         sig_t, psi = het_operands(sn)[:2]
-        with pytest.raises(NotImplementedError, match="multi-D Cartesian adjoint"):
-            _lc(sn, sig_t).apply_transpose(psi)
+        out = _lc(sn, sig_t).apply_transpose(psi)
+        require(
+            bool(np.all(np.isfinite(out.interior.values))),
+            "cart2d (L+C)ᵀφ produced non-finite bulk values.",
+        )
+        require(
+            bool(np.any(np.asarray(out.interior.values))),
+            "cart2d (L+C)ᵀφ returned an all-zero bulk cotangent on a "
+            "random composite — the C4-b capability regressed.",
+        )
 
     def test_cart2d_ffw_oracle_state(self) -> None:
         r"""The #310 C3 state, pinned deliberately: the full-cochain ORACLE

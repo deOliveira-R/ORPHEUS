@@ -363,6 +363,74 @@ def _x_scan_faces(
     return in_x_sweep, out_x_sweep, x_outflow
 
 
+def _x_scan_faces_transpose(
+    alpha: np.ndarray,
+    in_x_bar: np.ndarray,
+    x_outflow_bar: np.ndarray,
+    x_reverse: bool,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Euclidean VJP of :func:`_x_scan_faces` w.r.t. ``(beta, psi_x_in)``.
+
+    The reverse-direction row primitive of the scan-march (#310 C4): the
+    forward reconstructs the in-row faces from the probe via the reflection
+    scan; its reverse-mode pulls the consumed-face cotangents back onto the
+    scan's additive input ``β`` (→ the probe cotangent, via the scheme's
+    ``β_pullback``) and the chain seed (→ the domain x-inflow cotangent).
+
+    The forward consumed its outputs as: ``in_x[i]`` (the kernel's upstream
+    face — ``in_x[0] = psi_x_in`` direct, ``in_x[i] = out_x[i−1]``
+    shifted) and ``x_outflow = out_x[last]``; the interior ``out_x`` values
+    are consumed ONLY through that shift.  So the ``out_x`` cotangent is
+    ``v[i] = in_x_bar[i+1]`` (``v[last] = x_outflow_bar``), and the chain
+    collapses to ONE :func:`ordinate_scan_transpose` on the SAME multiplier
+    sequence ``α`` the forward scan consumed (the transpose of a
+    first-order linear chain has the same multiplier, opposite direction —
+    it inherits the Blelloch closed form + the pair-monoid fallback free).
+
+    Parameters
+    ----------
+    alpha : np.ndarray
+        ``(N_oct, ng, nx)`` the SAME scan multipliers the forward consumed,
+        in **mesh** x-order (ψ̄-independent — the scheme's
+        ``reflect_scan_coefficients_transpose``).
+    in_x_bar : np.ndarray
+        ``(N_oct, ng, nx)`` upstream-face cotangents in mesh order (the
+        kernel VJP's per-cell ``psi_in`` pullback on the scanned axis).
+    x_outflow_bar : np.ndarray
+        ``(N_oct, ng)`` domain x-outflow cotangent.
+    x_reverse : bool
+        The PHYSICAL forward orientation — ``True`` iff the forward scan ran
+        high-x → low-x (the same flag the forward :func:`_x_scan_faces`
+        call took; all reversals are internal, mirroring the forward).
+
+    Returns
+    -------
+    beta_bar : np.ndarray
+        ``(N_oct, ng, nx)`` additive-input cotangent, mesh order.
+    x_seed_bar : np.ndarray
+        ``(N_oct, ng)`` chain-seed cotangent = the domain x-INFLOW
+        cotangent (the direct ``in_x[0]`` consumption + the chain term).
+    """
+    if x_reverse:
+        alpha = alpha[..., ::-1]
+        in_x_bar = in_x_bar[..., ::-1]
+    # v[i] = cotangent of out_x_sweep[i]: the shift in_x[i+1] = out_x[i]
+    # for i < last, the domain outflow for i = last.
+    v = np.concatenate(
+        [in_x_bar[..., 1:], x_outflow_bar[..., None]], axis=-1,
+    )
+    b_bar_scan, psi0_bar = ordinate_scan_transpose(
+        np.moveaxis(alpha, -1, 0), np.moveaxis(v, -1, 0),
+    )
+    b_bar_sweep = np.moveaxis(b_bar_scan, 0, -1)       # (N_oct, ng, nx) sweep order
+    # seed cotangent = the chain term (ordinate_scan_transpose's ψ̄0 = a[0]·b̄[0])
+    # + the DIRECT in_x[0] = seed consumption.
+    x_seed_bar = in_x_bar[..., 0] + psi0_bar
+    if x_reverse:                                      # back to mesh order
+        return b_bar_sweep[..., ::-1], x_seed_bar
+    return b_bar_sweep, x_seed_bar
+
+
 def _scanmarch_row(
     alpha: np.ndarray,
     beta: np.ndarray,

@@ -34,6 +34,12 @@ This file is the multi-D sibling of ``test_one_dim_loop_walk.py`` (spec
   PRODUCTION reverse (``MovingFrontierWindow``) is BIT-identical to the
   full-cochain oracle (same mirror graph, same level order, same kernel —
   different storage), plus the M-R2-WINDOWDRIFT seed-drop tooth;
+* **the ScanMarch-2D row-march reverse** (#310 C4, spec §5 R2b) — the
+  reversed row march (mirror label → reversed rows + reversed x-scan;
+  ``_x_scan_faces_transpose`` + the β-pullback + backwards transverse
+  chaining), pinned principled-equivalent against the oracle reverse and
+  through the parametrized dense-``Mᵀ``/pairing gates, with the
+  transverse-chain and scan-seed teeth;
 * **axis equivariance + mutation teeth** (M-R2-ADDRESSING + the
   M-R2-AXISSWAP partial-swap tooth) — the committed value teeth of spec
   §11, plus a MEASURED design finding each way: (a) M-R2-LEVELORDER is
@@ -69,6 +75,7 @@ from orpheus.sn.loss_representation import (
     CumprodScan,
     FullFieldWavefront,
     MovingFrontierWindow,
+    ScanMarch,
     _OctantWalk,
     _reverse_octant_traversal,
 )
@@ -354,10 +361,17 @@ def test_reverse_traversal_grazing_and_pure_z_labels():
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def test_dense_mt_2d_column_probe_pins_the_object():
+@pytest.mark.parametrize(
+    "rep_cls", [FullFieldWavefront, MovingFrontierWindow, ScanMarch],
+    ids=["ffw-oracle", "window", "scanmarch"],
+)
+def test_dense_mt_2d_column_probe_pins_the_object(rep_cls):
     """[L0 object] the NEW 2-D dense-``Mᵀ`` oracle: ``M`` column-probed off
     the FORWARD apply over the FULL composite basis (bulk ⊕ trace), the
-    reverse probed identically — ``M_rev == M_fwdᵀ`` as a MATRIX equality.
+    reverse probed identically — ``M_rev == M_fwdᵀ`` as a MATRIX equality,
+    for EVERY 2-D representation's own reverse (the C3 oracle arm + the C4
+    windowed and row-march production arms — each rep's transpose is the
+    transpose of ITS OWN forward).
 
     Mode-12: this pins the OBJECT, outside every spectral invariance group
     (``eig(Mᵀ) = eig(M)`` makes any spectral functional designed-green on
@@ -369,7 +383,7 @@ def test_dense_mt_2d_column_probe_pins_the_object():
     rng = np.random.default_rng(20260726)
     sn = _cart2d_probe_mesh()
     sig = _het_sigma(sn, rng)
-    rep = FullFieldWavefront(sn)
+    rep = rep_cls(sn)
     faces = tuple(sn.angular_trace.face_names)
     n = _basis_size(sn, faces)
 
@@ -397,11 +411,16 @@ def test_dense_mt_2d_column_probe_pins_the_object():
         )
 
 
-def test_pairing_identity_full_composite():
+@pytest.mark.parametrize(
+    "rep_cls", [FullFieldWavefront, MovingFrontierWindow, ScanMarch],
+    ids=["ffw-oracle", "window", "scanmarch"],
+)
+def test_pairing_identity_full_composite(rep_cls):
     """[L0 object] ``⟨Fx, w⟩ = ⟨x, Fᵀw⟩`` at machine precision on random
     full composites — the whole-surface Euclidean pairing (bulk residual +
-    chain + boundary defect/identity algebra in one identity), on both the
-    vacuum probe mesh and the reflective nonsquare helper mesh."""
+    chain + boundary defect/identity algebra in one identity), for every
+    2-D representation's own (forward, reverse) pair, on both the vacuum
+    probe mesh and the reflective nonsquare helper mesh."""
     from tests.sn._test_helpers import cart2d_2g_nonsquare
 
     rng = np.random.default_rng(20260727)
@@ -410,11 +429,12 @@ def test_pairing_identity_full_composite():
         ("reflective 5x7", cart2d_2g_nonsquare()),
     ):
         sig = _het_sigma(sn, rng)
-        rel = _pairing_defect(sn, FullFieldWavefront(sn), sig, rng)
+        rel = _pairing_defect(sn, rep_cls(sn), sig, rng)
         if rel > 1e-12:
             pytest.fail(
-                f"[{name}] Euclidean pairing identity broke: rel defect "
-                f"{rel:.3e} (exact-transpose claim is machine-precision)"
+                f"[{name}] {rep_cls.__name__} Euclidean pairing identity "
+                f"broke: rel defect {rel:.3e} (exact-transpose claim is "
+                "machine-precision)"
             )
 
 
@@ -586,6 +606,100 @@ def test_window_seed_drop_mutation_reds(monkeypatch):
             f"dropping the frontier boundary-cotangent seed moved the "
             f"windowed reverse only {rel:.3e} off the oracle — the "
             "window ≡ full gate has no bite on the seed wiring"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# §5.3b — the ScanMarch-2D row-march reverse (#310 C4, R2b scan slice)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_scanmarch_reverse_matches_oracle():
+    """[L0 cross] the row-march reverse ≈ the full-cochain oracle reverse —
+    principled-equivalent (same kernel VJP, different association order:
+    the scan-form x-chain + β-pullback vs the DAG-form face chain), the
+    reverse sibling of the forward's row-march-vs-oracle pin.  Tight
+    tolerance: any addressing/chaining bug is O(1), association noise is
+    ~1e-15."""
+    from tests.sn._test_helpers import cart2d_2g_nonsquare
+
+    rng = np.random.default_rng(20260805)
+    for name, sn in (
+        ("vacuum 3x2 het", _cart2d_probe_mesh()),
+        ("reflective 5x7", cart2d_2g_nonsquare()),
+    ):
+        sig = _het_sigma(sn, rng)
+        phi = _random_composite(sn, rng)
+        oracle = FullFieldWavefront(sn).loss_action_transpose(sig, phi)
+        march = ScanMarch(sn).loss_action_transpose(sig, phi)
+        scale = float(np.max(np.abs(np.asarray(oracle.interior.values))))
+        np.testing.assert_allclose(
+            np.asarray(march.interior.values),
+            np.asarray(oracle.interior.values),
+            rtol=1e-12, atol=1e-13 * scale,
+            err_msg=f"[{name}] row-march reverse bulk ≠ oracle reverse bulk",
+        )
+        for f in sn.angular_trace.face_names:
+            np.testing.assert_allclose(
+                np.asarray(march.boundary.face_view(f)),
+                np.asarray(oracle.boundary.face_view(f)),
+                rtol=1e-12, atol=1e-13 * scale,
+                err_msg=f"[{name}] row-march reverse ≠ oracle on face {f}",
+            )
+
+
+def test_scanmarch_transverse_chain_mutation_reds(monkeypatch):
+    """[Mode-10 tooth] the reversed transverse chaining: zeroing the kernel
+    VJP's ``in_y_bar`` (the cotangent the row march must thread to the
+    previous physical row) reds the ScanMarch pairing O(1) — the
+    recursion-direction bug class (Mode 4) for the row-march reverse."""
+    from orpheus.transport.spatial.diamond import DiamondDifference
+
+    rng = np.random.default_rng(20260806)
+    sn = _cart2d_probe_mesh()
+    sig = _het_sigma(sn, rng)
+
+    real_vjp = DiamondDifference.residual_kernel_batch_transpose
+
+    def chainless_vjp(self, **kwargs):
+        psi_bar_cot, (in_x_bar, in_y_bar) = real_vjp(self, **kwargs)
+        return psi_bar_cot, (in_x_bar, np.zeros_like(in_y_bar))
+
+    monkeypatch.setattr(
+        DiamondDifference, "residual_kernel_batch_transpose", chainless_vjp,
+    )
+    rel = _pairing_defect(sn, ScanMarch(sn), sig, rng)
+    if rel < 1e-3:
+        pytest.fail(
+            f"zeroed transverse cotangent chain moved the pairing defect "
+            f"only {rel:.3e} — the row-march chaining tooth has no bite"
+        )
+
+
+def test_scanmarch_scan_seed_mutation_reds(monkeypatch):
+    """[Mode-10 tooth] the x-chain seed cotangent: dropping the
+    ``ordinate_scan_transpose`` ψ̄0 chain term from ``_x_scan_faces_transpose``
+    (keeping only the direct ``in_x[0]`` consumption) reds the ScanMarch
+    pairing O(1) through the trace rows — the chain-endpoint bug class
+    (Mode 5) for the scan-form reverse."""
+    import orpheus.sn.loss_representation as lr
+    from orpheus.sn.sweep.scan import _x_scan_faces_transpose as real_t
+
+    rng = np.random.default_rng(20260807)
+    sn = _cart2d_probe_mesh()
+    sig = _het_sigma(sn, rng)
+
+    def seedless_t(alpha, in_x_bar, x_outflow_bar, x_reverse):
+        beta_bar, _x_seed_bar = real_t(alpha, in_x_bar, x_outflow_bar, x_reverse)
+        direct_only = (in_x_bar[..., ::-1] if x_reverse else in_x_bar)[..., 0]
+        return beta_bar, direct_only
+
+    monkeypatch.setattr(lr, "_x_scan_faces_transpose", seedless_t)
+    rel = _pairing_defect(sn, ScanMarch(sn), sig, rng)
+    if rel < 1e-3:
+        pytest.fail(
+            f"dropped scan-chain seed term moved the pairing defect only "
+            f"{rel:.3e} — the x-chain seed tooth has no bite"
         )
 
 

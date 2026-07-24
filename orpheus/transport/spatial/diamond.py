@@ -737,6 +737,25 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         """
         return self._reflection_coeffs(psi_bar, _DD_W)
 
+    def reflect_scan_coefficients_transpose(
+        self, res_bar: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""DD apply-transpose reflection scan coefficients ``(α = −1, β_pullback = 2)``.
+
+        The reverse-direction pair of :meth:`reflect_scan_coefficients`
+        (#310 C4 — the row-march reverse), single-sourced as the unit
+        application of the w-generic #311 VJP
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average_transpose`
+        at ``w = _DD_W``: ``(β_pullback, α) = VJP(1, ½) = (2, −1)`` exactly
+        (``÷½`` is an exact ``×2``; ``(1−½)/½ = 1`` exactly, so ``×(−1)``
+        is the exact reflection).  ``res_bar`` is a shape template.
+        """
+        ones = np.ones_like(res_bar)
+        beta_pullback, alpha = self.outgoing_face_from_average_transpose(
+            ones, _DD_W,
+        )
+        return alpha, beta_pullback
+
     # ── DiamondDifference is pure cell algebra in THREE capability groups ──
     #
     # Storage (gather → kernel → scatter) is the WALK's concern, not the
