@@ -150,5 +150,16 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   TRANSPOSE primitive; the forward is single-sourced, the adjoint carries 3
   hardcoded `w=½` spellings; C2's `w=1/(1+k)` is the L-002 collapse trigger —
   folded into C2) + 1 NIT (deferral-file "declare"→"derive" messages, rides
-  C2's rewrite). Full-tree serial pre-merge gate IN FLIGHT; ff-merge to main
-  gated on it + checkpoint.
+  C2's rewrite). **Full-tree gate: 6405 passed / 18 skipped / 54 xfailed; the
+  only 2 reds were the STALE `TestKernelSourceOfRecord` sha-pins** — broken by
+  the #231 P2-E docstring trim (execution-only pin, first full run since that
+  merge), attribution PROVEN by 3-revision hash comparison (pre-docs-merge
+  `126c4e40` matches old pins; C1 hashes identical to pre-C1 `ec74be50`);
+  re-hashed per the pin's own procedure @ `8b5d34d8` (anchors were green in
+  the same run). Run note: a nohup-detached run lands in macOS background QoS
+  (E-cores) — ~1.6 h instead of ~52 min; fine for a gate, don't mistake it
+  for a hang. **C1 MERGED to main (ff) + phase branch deleted; user-ratified
+  at the boundary checkpoint. ⏸ COMPACTION taken here (user-directed) — C2
+  opens next session: read the spec §3+§4 + #311 FIRST (the w-generic
+  transpose primitive lands before the LD kernel), on a fresh
+  `feature/sn-adjoint-residue-c2` branch from main.**
