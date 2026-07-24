@@ -1480,33 +1480,6 @@ class _DAGWavefront(_LossRepresentation):
         """
         return SweepDependencyGraph.for_shape(self.mesh.spatial_shape)
 
-    def loss_action_transpose(
-        self, sigma: "np.ndarray", phi: "FullField",
-    ) -> "FullField":
-        r"""The WINDOWED multi-D Cartesian adjoint is DEFERRED (#310 C4).
-
-        Since #310 C3 the full-cochain reverse walk EXISTS —
-        :meth:`FullFieldWavefront.loss_action_transpose` (the oracle arm)
-        overrides this raise.  The rolling-frontier PRODUCTION reverse
-        (:class:`MovingFrontierWindow`) is #310 C4: the reversed frontier
-        rides the mirror graph's ``window_plan`` exactly as the full-cochain
-        reverse rides its levels, pinned by a reverse ``window ≡ full``
-        oracle BEFORE any ``has_transpose_walk`` flip (flip-safety).  Until
-        then the family predicate stays ``False``, so the eager ``.H``
-        refuses at construction — this raise is the backstop for direct
-        Euclidean ``apply_transpose`` calls that bypass ``.H`` (the S0.1
-        layering).  Raises :class:`NotImplementedError` — the mesh is
-        compatible, only the adjoint *feature* is deferred (so this is NOT
-        an :class:`IncompatibleRepresentation`).  Never a silent wrong
-        answer.
-        """
-        raise NotImplementedError(
-            "StreamingOperator.apply_transpose: the WINDOWED multi-D "
-            "Cartesian adjoint is deferred (#310 C4 — the full-cochain "
-            "oracle landed at C3: FullFieldWavefront.loss_action_transpose)."
-        )
-
-
 class MovingFrontierWindow(_DAGWavefront):
     r"""Wavefront sweep — rolling :math:`(d{-}1)`-frontier buffer.
 
@@ -1707,6 +1680,84 @@ class MovingFrontierWindow(_DAGWavefront):
         # inherits the widened face_view shape) — the B-residual emit below then
         # carries the outflow moments.  DD/Step → no moment axis, byte-identical.
         return LpC_oct, capture
+
+    def loss_action_transpose(
+        self, sigma: "np.ndarray", phi: "FullField",
+    ) -> "FullField":
+        r"""Adjoint loss action ``(L+C)ᵀφ`` — the reversed rolling-frontier walk (PRODUCTION).
+
+        The reverse-mode adjoint of :meth:`loss_action` (#310 C4), routed
+        through the shared :class:`_OctantWalk` apply-transpose frame with
+        the rolling-frontier interior kernel
+        :meth:`_loss_action_transpose_interior` — the UNCHANGED
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
+        over each octant's MIRROR graph × the
+        :class:`_CellResidualTranspose` level operation.  The mirror graph's
+        own ``window_plan`` IS the reversed frontier (built for every graph
+        at construction), so the reverse pays the same
+        :math:`(d{-}1)`-frontier peak memory as the forward — and the
+        storage-policy claim is pinned bit-identical to the full-cochain
+        oracle (:meth:`FullFieldWavefront.loss_action_transpose`) by the
+        reverse ``window ≡ full`` gate
+        (``test_multi_d_reverse_walk.test_reverse_window_equals_full``).
+        Returns ``(L+C)ᵀφ``;
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
+        subtracts ``σ_t·φ`` exactly once.
+        """
+        return _OctantWalk(self.mesh).loss_action_transpose(
+            sigma, phi, self._loss_action_transpose_interior,
+        )
+
+    def _loss_action_transpose_interior(
+        self,
+        operands: _ApplyOperands,
+        oct_idx: "np.ndarray",
+        signs_addr: tuple[int, ...],
+        out_bars: tuple["np.ndarray", ...],
+    ) -> tuple["np.ndarray", tuple["np.ndarray", ...]]:
+        r"""Rolling-frontier interior kernel, APPLY-TRANSPOSE direction, one octant.
+
+        The windowed sibling of
+        :meth:`FullFieldWavefront._loss_action_transpose_interior` (the same
+        mirror-octant realization, frontier storage instead of the full
+        cochain): ``signs_addr`` is the MIRROR label
+        (:func:`_reverse_octant_traversal`), so
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
+        over the mirror graph seeds its frontier "inflow" = the physical
+        OUT-faces with the outflow cotangents ``out_bars``, gathers at the
+        physical out-faces and scatters at the physical in-faces in
+        reversed level order, and sheds its "capture" = the physical
+        IN-face cotangents.  Only the level op knows the physical
+        orientation (``operands.probe`` = the residual cotangent ``r̄``;
+        the frame signs are the PHYSICAL octant's, recovered as
+        ``−signs_addr`` — the mirror is an involution).  Returns
+        ``(psi_cot_octant, capture)``.
+        """
+        graph = self.sweep_graphs[OctantLabel(signs_addr)]
+        ng = operands.sig_t.shape[0]
+        spatial = operands.sig_t.shape[1:]
+        n_face_moments = self._n_face_moments
+        psi_cot_oct = np.zeros(
+            (oct_idx.size, ng, *spatial, *self._spatial_moment_tail)
+        )
+        inflow = self._inflow_to_moments(out_bars)
+        capture = tuple(np.empty_like(face) for face in inflow)
+        physical_signs = tuple(-s for s in signs_addr)
+        graph.walk_windowed(
+            level_op=_CellResidualTranspose(
+                scheme=self.mesh.scheme,
+                res_bar_octant=operands.probe[oct_idx],
+                psi_bar_cot_octant=psi_cot_oct,
+                moment_frame_signs=self._moment_frame_signs(physical_signs),
+            ),
+            inflow=inflow,
+            Q_octant=operands.Q_zero,
+            sig_t=operands.sig_t,
+            str_axes_octant=tuple(s[oct_idx] for s in operands.str_axes),
+            capture=capture,
+            n_face_moments=n_face_moments,
+        )
+        return psi_cot_oct, capture
 
 
 class FullFieldWavefront(_DAGWavefront):

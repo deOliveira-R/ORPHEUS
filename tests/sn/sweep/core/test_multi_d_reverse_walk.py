@@ -1,4 +1,4 @@
-r"""#310 C3 — the multi-D reverse ``walk_full`` gates (spec §5, R2a slice).
+r"""#310 C3/C4 — the multi-D reverse walk gates (spec §5, R2a + R2b slices).
 
 The multi-D Cartesian adjoint matvec ``(L+C)ᵀφ`` exists as the ORACLE arm:
 :meth:`FullFieldWavefront.loss_action_transpose` routes through the shared
@@ -30,6 +30,10 @@ This file is the multi-D sibling of ``test_one_dim_loop_walk.py`` (spec
 * **assembled-``Mᵀ``** — the CSR ``M.T @ x`` of the forward-probed
   per-ordinate bulk blocks (LAPACK-side artifact, structurally independent
   of the walk);
+* **reverse ``window ≡ full``** (#310 C4, spec §5.1) — the rolling-frontier
+  PRODUCTION reverse (``MovingFrontierWindow``) is BIT-identical to the
+  full-cochain oracle (same mirror graph, same level order, same kernel —
+  different storage), plus the M-R2-WINDOWDRIFT seed-drop tooth;
 * **axis equivariance + mutation teeth** (M-R2-ADDRESSING + the
   M-R2-AXISSWAP partial-swap tooth) — the committed value teeth of spec
   §11, plus a MEASURED design finding each way: (a) M-R2-LEVELORDER is
@@ -64,6 +68,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation import (
     CumprodScan,
     FullFieldWavefront,
+    MovingFrontierWindow,
     _OctantWalk,
     _reverse_octant_traversal,
 )
@@ -495,6 +500,93 @@ def test_assembled_mt_2d_per_ordinate_block():
                     "the transpose must stay per-ordinate block-diagonal"
                 ),
             )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# §5.1 — the reverse ``window ≡ full`` storage-policy pin (#310 C4, R2b)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_reverse_window_equals_full():
+    """[L0 storage] the rolling-frontier PRODUCTION reverse
+    (``MovingFrontierWindow.loss_action_transpose``) is BIT-identical to the
+    full-cochain oracle — same mirror graph, same reversed level order, same
+    ``_CellResidualTranspose`` kernel calls, different storage — so
+    ``np.array_equal`` is the RIGHT contract (the L16 ``window ≡ full``
+    sibling; anything looser would license a genuinely different reverse).
+    Both the het/non-uniform/rectangular vacuum config and the reflective
+    nonsquare helper mesh (boundary-cotangent algebra live on both)."""
+    from tests.sn._test_helpers import cart2d_2g_nonsquare
+
+    rng = np.random.default_rng(20260803)
+    for name, sn in (
+        ("vacuum 3x2 het", _cart2d_probe_mesh()),
+        ("reflective 5x7", cart2d_2g_nonsquare()),
+    ):
+        sig = _het_sigma(sn, rng)
+        phi = _random_composite(sn, rng)
+        full = FullFieldWavefront(sn).loss_action_transpose(sig, phi)
+        window = MovingFrontierWindow(sn).loss_action_transpose(sig, phi)
+        np.testing.assert_array_equal(
+            np.asarray(window.interior.values),
+            np.asarray(full.interior.values),
+            err_msg=(
+                f"[{name}] reverse window ≠ full on the bulk cotangent — "
+                "the storage-policy claim broke (same math, different "
+                "storage must be BIT-identical)"
+            ),
+        )
+        for f in sn.angular_trace.face_names:
+            np.testing.assert_array_equal(
+                np.asarray(window.boundary.face_view(f)),
+                np.asarray(full.boundary.face_view(f)),
+                err_msg=f"[{name}] reverse window ≠ full on face {f}",
+            )
+
+
+def test_window_seed_drop_mutation_reds(monkeypatch):
+    """[Mode-10 tooth] M-R2-WINDOWDRIFT, realized as the representable bug:
+    dropping the frontier's boundary-cotangent seed (the mirror "inflow" =
+    the physical out-face cotangents) moves the windowed reverse O(1) off
+    the full-cochain oracle, so the ``window ≡ full`` gate REDS.  The
+    frontier-ORDER class itself is unrepresentable at this layer — the
+    mirror graph's ``window_plan`` and its levels are ONE object (the same
+    finding shape as M-R2-LEVELORDER on the full arm)."""
+    import orpheus.sn.loss_representation as lr
+
+    rng = np.random.default_rng(20260804)
+    sn = _cart2d_probe_mesh()
+    sig = _het_sigma(sn, rng)
+    phi = _random_composite(sn, rng)
+    reference = np.asarray(
+        FullFieldWavefront(sn).loss_action_transpose(sig, phi).interior.values
+    )
+
+    orig = lr.MovingFrontierWindow._loss_action_transpose_interior
+
+    def seedless_interior(self, operands, oct_idx, signs_addr, out_bars):
+        return orig(
+            self, operands, oct_idx, signs_addr,
+            tuple(np.zeros_like(b) for b in out_bars),
+        )
+
+    monkeypatch.setattr(
+        lr.MovingFrontierWindow, "_loss_action_transpose_interior",
+        seedless_interior,
+    )
+    mutated = np.asarray(
+        MovingFrontierWindow(sn).loss_action_transpose(sig, phi).interior.values
+    )
+    rel = float(
+        np.max(np.abs(mutated - reference))
+        / max(float(np.max(np.abs(reference))), 1e-300)
+    )
+    if rel < 1e-3:
+        pytest.fail(
+            f"dropping the frontier boundary-cotangent seed moved the "
+            f"windowed reverse only {rel:.3e} off the oracle — the "
+            "window ≡ full gate has no bite on the seed wiring"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
