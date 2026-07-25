@@ -694,3 +694,31 @@ The recipe:
    modes by :ref: into the skill); non-blocking. This is my institutional-smell #1 (twin-
    delivery single-sourced at the concept level w/ reciprocal xrefs + a governance rule) in
    PROSE form. (task #10 V5, 2026-07-23.)
+
+## L-016 -- A LANDED capability inverts the L-004 blast radius onto the DEFERRAL CONTRACT; the tell of a half-cleanup is "author patched the human-facing rst ledger, missed the machine-facing Protocol/​public-operator docstring"
+
+L-004 is the DELETION blast radius (a dead symbol's present-tense refs survive outside the
+diff). Its MIRROR, on a carve that LANDS a previously-deferred capability (#310 C4: the
+multi-D Cartesian reverse-mode adjoint went deferred→implemented), is the **stale DEFERRAL
+CONTRACT**: every docstring that named the now-landed case as "raises / deferred" is
+present-tense-false. The recurring tell that it is a genuine half-cleanup (not out-of-scope):
+the author DID rewrite the deferral story in the human-facing **rst ledger** (loss_representation.rst
+"Retired from this ledger … closed at C4") but did NOT propagate to the machine-facing
+contracts — the `@runtime_checkable` **Protocol** stub docstring (the authoritative contract
+every concrete override documents against) and the **public operator** (`StreamingOperator.
+apply_transpose`, streaming.py — a file the diff never TOUCHED). Both name "multi-D Cartesian
+adjoint raises/deferred" while `test_cart2d_direct_transpose_runs` + `..._is_adjointable` prove
+it computes. VIOLATION legs: (1) named future edit — a maintainer writes `pytest.raises(
+NotImplementedError)` for the 2-D adjoint, or re-adds a deferral guard "to honor the contract";
+(3) live-tree-false, verified by the flip tests. MUST-FIX (Protocol contract + public operator);
+the stale CROSS-REF analogy on a still-genuinely-deferred sibling arm ("mirrors the multi-D
+loss_action_transpose raise" on `sweep_transpose`, whose SOLVE arm IS still deferred) is only a
+SHOULD-FIX — the primary claim is true, only the analogy staled.
+
+How to apply: on any carve that FLIPS a deferral→capability, grep the deferred case's name
+tree-wide (`grep -rnE "multi-D Cartesian.{0,40}(defer|raise)"` over `orpheus/` INCLUDING files
+the diff never edited) and discriminate by ARM — a matvec-transpose landing does NOT un-defer
+the transpose-SOLVE (`sweep_transpose`/G-S reverse), so a "reverse-scan … deferred" claim about
+the SOLVE stays true. The rst-patched-but-Protocol-stale asymmetry is the half-cleanup signature;
+the flip tests are the leg-3 oracle. (#310 C4 multi-D production-reverse review, 2026-07-24 —
+the CODE was an exemplary single-sourced VJP; the only blocker was this inverted blast radius.)

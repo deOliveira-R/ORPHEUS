@@ -33,7 +33,11 @@ retired — the behavioral lesson is lifted to `lessons.md`.
   past-tense retirement NOTE is a CONFIDENCE TRAP — the deleted symbol's present-tense refs
   survive OUTSIDE the diff in the same file, `-W` is BLIND to the dead `:func:`/`:mod:` xref
   (nitpicky off), so tree-grep + discriminate-by-tense; the FAIL-LOUD half self-verifies by
-  running the new scanner on the live tree (violations=0 proves the deletions) (L15).
+  running the new scanner on the live tree (violations=0 proves the deletions) (L15); a carve that
+  LANDS a deferred capability inverts L-004 onto the stale DEFERRAL CONTRACT — the tell of a
+  half-cleanup is "author patched the human-facing rst ledger, missed the machine-facing Protocol/
+  public-operator docstring" (grep the deferred case's name tree-wide incl. untouched files,
+  discriminate matvec-transpose-landed vs solve-transpose-still-deferred by ARM) (L16).
 
 ## 2. Active / in-flight state
 
