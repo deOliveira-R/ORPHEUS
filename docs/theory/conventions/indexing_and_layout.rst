@@ -942,7 +942,8 @@ replaced the legacy bare-dataclass ``SNResult`` /
      - Outer iteration trajectory
      - ``tuple[float, ...]``
      - :class:`~orpheus.sn.solution.IterationHistory`.\ ``keff_history``
-       (exposed as ``list[float]`` via :meth:`Solution.keff_history_list`)
+       (exposed as ``list[float]`` via
+       :meth:`SolutionBase.keff_history_list`)
    * - ``Eigenpair``
      - ``(value, right, left, residual_norm)`` tuple
      - varies
@@ -955,17 +956,28 @@ replaced the legacy bare-dataclass ``SNResult`` /
    * - ``DominanceRatio``
      - :math:`|k_n - k_{n-1}| / |k_{n-1}|` convergence quotient
      - scalar
-     - :meth:`~orpheus.sn.solution.Solution.dominance_ratio`
+     - :meth:`~orpheus.sn.solution.SolutionBase.dominance_ratio`
 
 Solution-class container
 ------------------------
 
-Issue #197 PR-TYPED-5 lands the :class:`~orpheus.sn.solution.Solution`
-container.  It RETIRED the legacy bare-array ``SNResult`` /
-``SNFixedSourceResult`` data bags into one typed return type covering
-both problem kinds.
+Issue #197 PR-TYPED-5 lands the typed solution container.  It RETIRED
+the legacy bare-array ``SNResult`` / ``SNFixedSourceResult`` data bags
+into one typed carrier covering both problem kinds.  Campaign #276 A5
+(2026-07-25) then split the carrier along the **role axis**:
+:class:`~orpheus.sn.solution.SolutionBase` (the role-agnostic,
+non-instantiable carrier) → :class:`~orpheus.sn.solution.Solution`
+(forward; :func:`~orpheus.sn.solver.solve_sn` /
+``solve_sn_fixed_source``) and
+:class:`~orpheus.sn.solution.AdjointSolution` (adjoint;
+``solve_sn_adjoint`` / ``solve_sn_adjoint_fixed_source``, whose
+``scalar_flux`` is the importance :math:`\varphi^*` — alias
+``importance``).  The two discrimination axes use DIFFERENT
+mechanisms: the problem KIND (fixed-source vs eigenvalue) is a
+property (optional ``keff``), the solution ROLE (forward vs adjoint)
+is the type.
 
-Solution holds:
+The :class:`~orpheus.sn.solution.SolutionBase` carrier holds:
 
 - :class:`~orpheus.transport.fields.angular_flux.AngularFlux` +
   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` +
@@ -977,20 +989,31 @@ Solution holds:
   — validated at construction (``coding-elegance`` Pattern 4 —
   illegal states unrepresentable);
 - ``keff: float | None`` — ``None`` for fixed-source problems;
-  :meth:`Solution.is_eigenvalue` and :meth:`Solution.is_fixed_source`
-  are the canonical discriminators;
-- :meth:`Solution.dominance_ratio` / :meth:`Solution.converged` —
-  iteration diagnostics that read as math
-  (``coding-elegance`` Pattern 1);
-- :meth:`Solution.reaction_rate_density` — :math:`\sigma\cdot\phi`
-  per-cell rate density via one named einsum (Pattern 3);
-- :meth:`Solution.compare` — field-by-field difference summary that
-  returns :class:`~orpheus.sn.solution.SolutionDiff`.
+  :meth:`SolutionBase.is_eigenvalue` and
+  :meth:`SolutionBase.is_fixed_source` are the canonical
+  discriminators;
+- :meth:`SolutionBase.dominance_ratio` /
+  :meth:`SolutionBase.converged` — iteration diagnostics that read as
+  math (``coding-elegance`` Pattern 1);
+- :meth:`SolutionBase.compare` — field-by-field difference summary
+  that returns :class:`~orpheus.sn.solution.SolutionDiff`.
+  **Role-closed** (``Self``-typed + runtime guard): comparing a
+  forward flux against an importance map is a type error, not a
+  number.
+
+The FORWARD leaf alone carries the reaction-rate-preserving physics —
+:meth:`Solution.homogenize`, :meth:`Solution.condense`, and
+:meth:`Solution.reaction_rate_density` (:math:`\sigma\cdot\phi`
+per-cell rate density as a named elementwise product, Pattern 3).
+These are structurally ABSENT on ``AdjointSolution``: an importance
+map has no reaction rate to preserve; the adjoint enters
+homogenization/condensation only as the optional Petrov–Galerkin test
+weight of the forward collapse (the #281 P6-B2 parameter).
 
 The Solution evolution is the SN-specific specialisation of the
 ``Eigenpair`` concept from Grand Report v3 §21.5 (lines 4252–4269).
-For a fixed-source problem :attr:`Solution.keff` is ``None`` and the
-iteration history records only the relative flux-residual trajectory.
+For a fixed-source problem ``keff`` is ``None`` and the iteration
+history records only the relative flux-residual trajectory.
 
 Operator vocabulary --- the five leaves of the algebra
 -------------------------------------------------------

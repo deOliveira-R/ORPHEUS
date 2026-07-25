@@ -13,13 +13,14 @@ kinds (fixed-source vs eigenvalue) duplicated the shape contract in two
 places — a twin path waiting for drift (``coding-elegance`` anti-pattern
 1: "two implementations of the same mathematical quantity").
 
-Under PR-TYPED-5, **one** typed :class:`Solution` covers both problem
-kinds.  The discrimination lives in two methods —
-:meth:`Solution.is_eigenvalue` and :meth:`Solution.is_fixed_source` —
-that read the optional :attr:`keff`.  The convergence-trajectory
-diagnostics live on a separate :class:`IterationHistory`, exposed
-through method-style accessors :meth:`Solution.dominance_ratio` and
-:meth:`Solution.converged`.
+Under PR-TYPED-5, **one carrier** (:class:`SolutionBase`, through both
+role leaves) covers both problem kinds.  The kind discrimination lives
+in two methods — :meth:`SolutionBase.is_eigenvalue` and
+:meth:`SolutionBase.is_fixed_source` — that read the optional
+:attr:`keff`.  The convergence-trajectory diagnostics live on a
+separate :class:`IterationHistory`, exposed through method-style
+accessors :meth:`SolutionBase.dominance_ratio` and
+:meth:`SolutionBase.converged`.
 
 Reads as the math (``coding-elegance`` Pattern 1 — match the algebra of
 the domain)::
@@ -286,15 +287,17 @@ class SolutionBase:
         # TimedFullField construction).
         if self.angular_flux.interior.mesh is not self.mesh:
             raise ValueError(
-                "Solution: angular_flux.interior.mesh is not Solution.mesh "
-                "(typed-field mesh-identity contract broken — every "
-                "field must reference the same SNMesh instance)."
+                f"{type(self).__name__}: angular_flux.interior.mesh is not "
+                f"{type(self).__name__}.mesh (typed-field mesh-identity "
+                "contract broken — every field must reference the same "
+                "SNMesh instance)."
             )
         if self.scalar_flux.mesh is not self.mesh:
             raise ValueError(
-                "Solution: scalar_flux.mesh is not Solution.mesh "
-                "(typed-field mesh-identity contract broken — every "
-                "field must reference the same SNMesh instance)."
+                f"{type(self).__name__}: scalar_flux.mesh is not "
+                f"{type(self).__name__}.mesh (typed-field mesh-identity "
+                "contract broken — every field must reference the same "
+                "SNMesh instance)."
             )
         # B.2d DP-Solution: System B's presence is STRUCTURAL — the member
         # exists exactly when the mesh carries seed levels (R12a). A
@@ -305,19 +308,21 @@ class SolutionBase:
         )
         if carries != (self.radial_characteristic is not None):
             raise ValueError(
-                "Solution: radial_characteristic presence must match the "
-                f"mesh's R12a predicate (mesh carries: {carries}, member "
-                f"present: {self.radial_characteristic is not None}) — "
-                "System B's converged state is its own typed member on a "
-                "carrying mesh, absent otherwise (B.2d)."
+                f"{type(self).__name__}: radial_characteristic presence "
+                f"must match the mesh's R12a predicate (mesh carries: "
+                f"{carries}, member present: "
+                f"{self.radial_characteristic is not None}) — System B's "
+                "converged state is its own typed member on a carrying "
+                "mesh, absent otherwise (B.2d)."
             )
         if (
             self.radial_characteristic is not None
             and self.radial_characteristic.mesh is not self.mesh
         ):
             raise ValueError(
-                "Solution: radial_characteristic.mesh is not Solution.mesh "
-                "(typed-field mesh-identity contract broken)."
+                f"{type(self).__name__}: radial_characteristic.mesh is not "
+                f"{type(self).__name__}.mesh (typed-field mesh-identity "
+                "contract broken)."
             )
 
     # ── boundary_flux as a delegate property ─────────────────────────
@@ -425,8 +430,9 @@ class SolutionBase:
             )
         if self.mesh is not other.mesh:
             raise ValueError(
-                "Solution.compare: meshes differ — cross-mesh comparison "
-                "is not defined under the typed-field contract."
+                f"{type(self).__name__}.compare: meshes differ — "
+                "cross-mesh comparison is not defined under the "
+                "typed-field contract."
             )
 
         if self.keff is not None and other.keff is not None:

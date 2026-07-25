@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6763**
+Total tests collected: **6775**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1194, 17.7%
-   L1, 1120, 16.6%
+   L0, 1194, 17.6%
+   L1, 1124, 16.6%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4395, 65.0%
+   foundation, 4403, 65.0%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6684
+   explicit, 6696
    class-name, 46
    func-name, 0
    case, 33
@@ -387,7 +387,7 @@ Module × level grid
    primitives/test_quadrature, 49, 0, 0, 0, 0, 0
    primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
-   primitives/test_solution, 0, 0, 0, 0, 31, 0
+   primitives/test_solution, 0, 0, 0, 0, 39, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 37, 0
    regression/test_dd_regression, 0, 0, 0, 0, 13, 0
    regression/test_walk_matvec_baselines, 0, 0, 0, 0, 4, 0
@@ -411,8 +411,8 @@ Module × level grid
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
-   solve/test_sn_adjoint_certification, 0, 10, 0, 0, 2, 0
-   solve/test_sn_adjoint_entries, 0, 5, 0, 0, 0, 0
+   solve/test_sn_adjoint_certification, 0, 13, 0, 0, 2, 0
+   solve/test_sn_adjoint_entries, 0, 6, 0, 0, 0, 0
    spatial/test_affine_closure, 0, 0, 0, 0, 5, 0
    spatial/test_ld_slope_frame, 0, 1, 0, 0, 1, 0
    spatial/test_ld_ubld_primitive, 0, 0, 0, 0, 18, 0

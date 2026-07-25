@@ -142,6 +142,40 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   fresh: re-anchor from THIS driver (the A5 charter block above: the
   φ* carrier type-vs-property adjudication, USER rules the shape;
   + the sweep's A5 CARVE-IN: the sphere φ*-shape row) + `git log`.
+- **A5 OPEN — branch `feature/sn-adjoint-a5` from main @ `a179307d`
+  (2026-07-25).**  test-architect chartered input delivered
+  (`a5_carrier_verification_memo.md`: the sphere row = a defining-law
+  residual against dense forward-probed (A_loss, F) + raw-data G;
+  testability axis favored the landed shape).  **USER RULING at the A5
+  checkpoint: OPTION 3 — mint the `AdjointSolution` TYPE** ("despite
+  the protests, forward looking" — ruled on the TRAJECTORY: the
+  adjoint machinery family ⟨φ*,δAφ⟩ / GPT / response estimation / #281
+  weighting earns the signature-level carrier), with the
+  homogenize/condense asymmetry resolved as: machinery FORWARD-only,
+  adjoint enters as an optional test-weight parameter
+  (`adjoint: AdjointSolution | None = None` — the ratified #281 P6-B2
+  API, landing WITH its implementation + C1/C2/C3 gates in P6; no dead
+  arm now).  LANDED (3 gated commits): `8ae2401c` the role-axis split
+  (`SolutionBase` → {`Solution`, `AdjointSolution`}; sibling-under-base
+  — capability-removing subclassing would violate Liskov; base
+  non-instantiable; forward trio homogenize/condense/
+  reaction_rate_density structurally ABSENT on the adjoint;
+  `importance` alias; `compare` Self-typed + runtime role guard; +8
+  primitives gates) · `c36112fd` the entries return the role type
+  (`_package_solution` gains `cls: type[SolutionT]` — scalar- AND
+  role-agnostic shared tail; entry-family leaf types pinned exactly) ·
+  `82b15a37` **the sphere φ*-shape row** (TestP14SphereAdjointVector:
+  coupled defining-law residual `A_lossᵀ(Gψ*)=Fᵀ(Gψ*)/k` @ n=140,
+  rel floor 1.2e-10 vs atol 1e-7; anti-vacuity |Δk|=3.3e-11; the G_sd
+  V_cell→1 tooth measured |k_mut−k_fwd|=2.6e-11 EXACTLY k-blind with
+  rel_mut=2.35 O(1) red — the ERR-067-family catcher; + k-visible F†→F
+  corroboration; `g_coupled_diagonal` raw-data oracle in
+  _test_helpers; certification 15/15, partition 13 l1 + 2 foundation).
+  #281 comment records the ratified API.  REMAINING for the A5
+  boundary: the phase-end sweep — Sphinx `-E -W` + audit + matrix,
+  enforcer review, qa review (math-bearing: the sphere row), FULL
+  serial tree (L37 freeze), then the boundary AskUserQuestion
+  (merge / A6).
 - **A4 SWEEP ✅ (2026-07-25) — the phase-end gates + both reviews, findings fixed in-session.**
   Gates: Sphinx `-E -W` exit 0 (3 docstring RST warnings caught + fixed —
   the wrapped grouped-name parameter list napoleon cannot parse + the bare

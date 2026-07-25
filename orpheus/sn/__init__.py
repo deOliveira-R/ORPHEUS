@@ -13,6 +13,8 @@ from .solution import (
 from .solver import (
     SNSolver,
     solve_sn,
+    solve_sn_adjoint,
+    solve_sn_adjoint_fixed_source,
     solve_sn_fixed_source,
 )
 from orpheus.numerics.quadrature import Quadrature
