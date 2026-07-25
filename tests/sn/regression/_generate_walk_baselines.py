@@ -104,15 +104,16 @@ def _build(mesh_builder, seed: int):
 class _OracleLC:
     r"""Rep-layer ``(L+C)`` pair for the cart2d row (#310 C3, spec §5.4).
 
-    The multi-D adjoint DOES NOT EXIST pre-carve, so this row is a NEW-value
+    The multi-D adjoint DID NOT EXIST pre-carve, so this row is a NEW-value
     re-baseline (L17/2.5b), captured POST-carve after the
-    ``test_multi_d_reverse_walk`` object oracles verified it.  The
-    production ``lc.apply_transpose`` stays the #310 C4 deferral (predicate
-    ``False``), so both orientations are captured at the REP layer — the
-    full-cochain ORACLE arm (``FullFieldWavefront.loss_action`` /
-    ``loss_action_transpose``), the same object C4's windowed PRODUCTION
-    reverse is pinned bit-identical against, making this baseline the
-    day-one value canary for the C4 flip too.
+    ``test_multi_d_reverse_walk`` object oracles verified it.  Both
+    orientations are captured at the REP layer — the full-cochain ORACLE
+    arm (``FullFieldWavefront.loss_action`` / ``loss_action_transpose``)
+    — because that oracle, not any deferral, is the stable structural
+    reference: the production ``lc.apply_transpose`` went live at the
+    #310 C4 flip (and the windowed PRODUCTION reverse is pinned
+    bit-identical against this same oracle object), so the baseline is
+    the value canary for the production path through the rep layer.
     """
 
     def __init__(self, sn, sig_t: np.ndarray) -> None:

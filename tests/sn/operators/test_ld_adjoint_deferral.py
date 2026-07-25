@@ -91,7 +91,7 @@ def _lc(sn, sig_t):
     return StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
 
 
-def _cart2d_ld() -> SNMesh:
+def _ld2d_mesh() -> SNMesh:
     """Small vacuum LD 2-D mesh — the last-flipped (#310 C5) surface's config."""
     geom = Mesh2D(
         edges_x=np.array([0.0, 0.5, 1.3, 2.0]),
@@ -324,7 +324,7 @@ class TestMultiDOrientationHonesty:
         representation grid is COMPLETE (kernel: the C2 UBLD ``AᵀM⁻¹``
         batch VJP; orientation: the C3/C4 mirror-octant reverses,
         moment-tailed through the C5 gates)."""
-        sn = _cart2d_ld()
+        sn = _ld2d_mesh()
         require(
             FullFieldWavefront(sn).has_transpose_walk is True,
             "FullFieldWavefront on an LD 2-D mesh must declare "

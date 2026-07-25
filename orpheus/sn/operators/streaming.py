@@ -506,8 +506,10 @@ class InvertibleOperator(
     ``apply_transpose`` propagates by the :class:`OperatorSum` closure
     law (both :math:`L` and :math:`C` advertise it) and is OVERRIDDEN to
     the composite's own :math:`M(\sigma)^{\mathsf T}` action (Wave O #208 /
-    #240 Step B).  The multi-D Cartesian adjoint raises (the
-    representation's deferral contract — never a silent wrong answer).
+    #240 Step B).  The adjoint matvec is complete on the registered
+    scheme × representation grid since #310 C4 (multi-D Cartesian DD) /
+    C5 (LD-2D); an unregistered-kernel scheme still raises typed —
+    never a silent wrong answer.
 
     The ``.solve`` API
     ==================
@@ -682,8 +684,10 @@ class InvertibleOperator(
         representation's :meth:`loss_action_transpose` realises
         :math:`(L+C)^{\mathsf T}\phi = M(\sigma)^{\mathsf T}\phi` directly with
         THIS composite's diagonal :math:`\sigma`, overriding the inherited
-        :meth:`OperatorSum.apply_transpose` leaf sum.  Multi-D Cartesian raises
-        (the representation's deferral contract — never a silent wrong answer).
+        :meth:`OperatorSum.apply_transpose` leaf sum.  Complete on the
+        registered grid since #310 C4/C5 (the multi-D Cartesian reverses,
+        DD and LD); an unregistered-kernel scheme still raises typed —
+        never a silent wrong answer.
         The plain Euclidean transpose; the metric conjugation of the physical
         G-adjoint ``.H`` is applied AROUND this by
         :class:`~orpheus.numerics.operator._AdjointOperator` (pinned by

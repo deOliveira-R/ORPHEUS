@@ -309,10 +309,13 @@ class LossRepresentation(Protocol):
         carrying mesh this is the ray-decoupled block's reverse-scan (step
         6); the joint ``M⁻ᵀ`` is the grid's transposed substitution.  Raises
         :class:`NotImplementedError` for representations / geometries whose
-        reverse-scan is deferred (multi-D Cartesian, including the LD-2D
-        moment tail — #310 C3–C5; the lagged-seed cylinder until its
-        forward fundamental fix).  The 1-D LD moment-tailed reverse-scan is
-        LIVE since #310 C2.  Never a silent wrong answer.
+        reverse-scan is deferred (the multi-D wavefront G-S
+        schedule-reverse — R7, the #280 sibling deferral, no consumer;
+        the lagged-seed cylinder until its forward fundamental fix).
+        Distinct from the matvec transpose
+        :meth:`loss_action_transpose`, complete on the registered grid
+        since #310 C4/C5; the 1-D LD moment-tailed reverse-scan is LIVE
+        since #310 C2.  Never a silent wrong answer.
         """
         ...
 
@@ -672,12 +675,12 @@ class _LossRepresentation:
         """Reverse-walk capability — opt-in ``False`` (the orientation factor).
 
         See :meth:`LossRepresentation.has_transpose_walk`.  Concrete leaves
-        whose transpose walk EXISTS override — since #310 C4 that is EVERY
-        registered leaf (the scan family unconditionally; the wavefront
-        family scheme-aware, LD-2D → C5) — so this base default is the
-        honest floor a FUTURE representation inherits until its reverse
-        lands: the eager ``.H`` refuses at construction rather than
-        reaching a raising ``loss_action_transpose`` at apply time.
+        whose transpose walk EXISTS override — since #310 C4/C5 that is
+        EVERY registered leaf (the scan and wavefront families both
+        unconditionally) — so this base default is the honest floor a
+        FUTURE representation inherits until its reverse lands: the eager
+        ``.H`` refuses at construction rather than reaching a raising
+        ``loss_action_transpose`` at apply time.
         """
         return False
 
@@ -2086,11 +2089,11 @@ class FullFieldWavefront(_DAGWavefront):
         #310 C2) — so the adjoint MATH cannot drift from the forward's, only
         the orientation data.
 
-        Verification-oracle arm of the flipped family (#310 C4): the
+        Verification-oracle arm of the flipped family (#310 C4/C5): the
         family predicate (:meth:`_DAGWavefront.has_transpose_walk`) is
-        True wherever the shared frame runs (LD-2D excepted → C5), and
-        the PRODUCTION reverses (the window / the row-march) are pinned
-        against THIS walk — bit-identical (window) and
+        True wherever the shared frame runs (DD and LD, any ``d``, since
+        C5), and the PRODUCTION reverses (the window / the row-march)
+        are pinned against THIS walk — bit-identical (window) and
         principled-equivalent (scan-march) — while this walk itself is
         pinned by the 2-D dense-``Mᵀ`` forward-probe + the
         assembled-``Mᵀ`` cross-check + the d=1 cross-realization against
