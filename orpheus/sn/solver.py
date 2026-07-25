@@ -36,7 +36,7 @@ import time
 from collections.abc import Iterable
 from dataclasses import replace
 from functools import reduce
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 from scipy.sparse.linalg import gmres
@@ -165,7 +165,7 @@ def _as_sn_mesh(
     )
 
 
-from .solution import IterationHistory, Solution
+from .solution import AdjointSolution, IterationHistory, Solution, SolutionBase
 
 
 # The within-group decomposition every solve consumes — the loss grid AND
@@ -2181,6 +2181,7 @@ def solve_sn(
         scalar=ScalarFlux.from_mesh(scalar_flux, sn_mesh),
         keff=float(keff_history[-1]),
         history=history,
+        cls=Solution,
     )
 
 
@@ -2208,6 +2209,9 @@ def _cell_average_angular(
     return AngularFlux.from_mesh(bulk, sn_mesh)
 
 
+SolutionT = TypeVar("SolutionT", bound=SolutionBase)
+
+
 def _package_solution(
     angular: "AngularFlux",
     boundary,
@@ -2217,8 +2221,9 @@ def _package_solution(
     scalar: "ScalarFlux",
     keff: "float | None",
     history: IterationHistory,
-) -> Solution:
-    r"""The ONE :class:`Solution` construction convention.
+    cls: "type[SolutionT]",
+) -> SolutionT:
+    r"""The ONE :class:`SolutionBase` construction convention.
 
     The single boundary where converged iterates become the typed
     return (#197 PR-TYPED-5): the cell-average angular view + the
@@ -2228,13 +2233,15 @@ def _package_solution(
     scalar member, eigenvalue, iteration history, and System B's ray
     member (``None`` on non-carrying meshes, B.2d).
 
-    SCALAR-AGNOSTIC by design: the caller supplies the scalar member
-    (forward — the power iteration's converged scalar; adjoint — the
-    w-reduction of the packaged angular), so the φ* carrier decision
-    (campaign A5) stays at the adjoint entries and never branches
+    SCALAR- and ROLE-AGNOSTIC by design: the caller supplies the scalar
+    member (forward — the power iteration's converged scalar; adjoint —
+    the w-reduction of the packaged angular) AND names the role leaf
+    (``cls`` — :class:`Solution` forward, :class:`AdjointSolution`
+    adjoint; the A5 ruling made the role a TYPE), so the carrier
+    convention stays single-sourced while the role never branches
     inside this shared tail.
     """
-    return Solution(
+    return cls(
         angular_flux=TimedFullField(
             interior=angular,
             boundary=boundary,
@@ -2349,7 +2356,7 @@ def solve_sn_adjoint(
     max_inner: int = 200,
     inner_tol: float = 1e-8,
     mat_map: "np.ndarray | None" = None,
-) -> Solution:
+) -> AdjointSolution:
     r"""Solve the multi-group ADJOINT SN eigenvalue problem.
 
     The adjoint criticality problem
@@ -2387,14 +2394,14 @@ def solve_sn_adjoint(
 
     Returns
     -------
-    Solution
-        The unified typed return: ``keff`` = the adjoint eigenvalue
-        (== the forward eigenvalue to convergence tolerance),
-        ``angular_flux`` = the adjoint angular flux :math:`\psi^*`
-        (cell-average view), ``scalar_flux`` = the adjoint scalar flux
-        :math:`\varphi^* = \sum_n w_n \psi^*_n` (the importance map).
-        The φ* carrier shape is adjudicated at campaign phase A5; until
-        then the role is carried at the API level by THIS entry's name.
+    AdjointSolution
+        The role-typed return (the A5 carrier ruling): ``keff`` = the
+        adjoint eigenvalue (== the forward eigenvalue to convergence
+        tolerance), ``angular_flux`` = the adjoint angular flux
+        :math:`\psi^*` (cell-average view), ``scalar_flux`` = the
+        adjoint scalar flux :math:`\varphi^* = \sum_n w_n \psi^*_n`
+        (the importance map — also readable as
+        :attr:`~orpheus.sn.solution.AdjointSolution.importance`).
     """
     sn_mesh = _as_sn_mesh(mesh, quadrature, materials, mat_map=mat_map)
     resolvent, gain, F_posed, template = _adjoint_posing_parts(
@@ -2445,7 +2452,7 @@ def solve_sn_adjoint_fixed_source(
     inner_tol: float = 1e-12,
     mat_map: "np.ndarray | None" = None,
     scheme: "DiscretizationSchemeBase | None" = None,
-) -> Solution:
+) -> AdjointSolution:
     r"""Solve the multi-group ADJOINT SN fixed-source (importance) problem.
 
     .. math::
@@ -2486,6 +2493,14 @@ def solve_sn_adjoint_fixed_source(
         * :class:`~orpheus.transport.full_field.FullField` — the full
           composite adjoint source (bulk per-ordinate + boundary member)
           for angularly-selective detectors / prescribed adjoint inflow.
+
+    Returns
+    -------
+    AdjointSolution
+        The role-typed return (the A5 carrier ruling): ``keff`` is
+        ``None`` (fixed-source), ``scalar_flux`` = the importance map
+        :math:`\varphi^*` (also readable as
+        :attr:`~orpheus.sn.solution.AdjointSolution.importance`).
 
     Notes
     -----
@@ -2577,17 +2592,16 @@ def _package_adjoint_solution(
     *,
     keff: "float | None",
     history: IterationHistory,
-) -> Solution:
-    r"""Wrap a converged daggered iterate into the unified :class:`Solution`.
+) -> AdjointSolution:
+    r"""Wrap a converged daggered iterate into an :class:`AdjointSolution`.
 
     The adjoint face of the shared packaging tail — routes through the
     forward's own :func:`_cell_average_angular` + :func:`_package_solution`
-    (ONE carrier convention, zero adjoint fork).  The scalar member is
+    (ONE carrier convention, zero adjoint fork; the role is the ``cls``
+    leaf, per the A5 ruling).  The scalar member is
     :math:`\varphi^* = \sum_n w_n \psi^*_n` — the importance map, the
     same w-reduction as the forward scalar flux (the adjoint of the ISO
-    source injection, NOT a new functional).  The φ* carrier shape is
-    the campaign-A5 adjudication; until then the role is carried at the
-    API level by the entry names.
+    source injection, NOT a new functional).
     """
     angular = _cell_average_angular(system_a, sn_mesh)
     return _package_solution(
@@ -2598,6 +2612,7 @@ def _package_adjoint_solution(
         scalar=angular.integrate_angular(),
         keff=keff,
         history=history,
+        cls=AdjointSolution,
     )
 
 

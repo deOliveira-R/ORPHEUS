@@ -50,6 +50,7 @@ from orpheus.derivations.common.eigenvalue import (
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.sn.solution import AdjointSolution, Solution
 from orpheus.sn.solver import (
     solve_sn,
     solve_sn_adjoint,
@@ -157,15 +158,26 @@ class TestSolveSnAdjoint:
         )
 
     def test_solution_packaging_contract(self):
-        r"""The unified-``Solution`` return: typed fields, mesh identity,
-        history population — the role carried at the API level (the A5
-        carrier adjudication is explicitly still open)."""
+        r"""The role-typed return: AdjointSolution carrier, typed fields,
+        mesh identity, history population — the A5 ruling landed (the
+        role is the TYPE, no longer only the entry name)."""
         from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.fields.scalar_flux import ScalarFlux
         from orpheus.transport.timed_full_field import TimedFullField
 
         materials, mesh, _ = _homogeneous_2g()
         adj = solve_sn_adjoint(materials, mesh, _quad())
+        require(
+            type(adj) is AdjointSolution,
+            "solve_sn_adjoint must return the role-typed AdjointSolution "
+            "leaf EXACTLY (the A5 carrier ruling — not the forward "
+            "Solution, not the bare base).",
+        )
+        require(
+            adj.importance is adj.scalar_flux,
+            "AdjointSolution.importance must alias scalar_flux — one "
+            "storage, two vocabularies (φ* IS the importance map).",
+        )
         require(
             isinstance(adj.angular_flux, TimedFullField)
             and isinstance(adj.angular_flux.interior, AngularFlux),
@@ -214,6 +226,46 @@ def _het_vacuum_slab():
 
 
 class TestSolveSnAdjointFixedSource:
+    def test_entry_family_role_types(self):
+        r"""The A5 ruling across the ENTRY FAMILY: forward entries return
+        exactly ``Solution``, adjoint entries exactly ``AdjointSolution``
+        — the role is the TYPE, stamped by the entry, never a field the
+        caller inspects.  (The eigenvalue-adjoint leaf is pinned in
+        :meth:`TestSolveSnAdjoint.test_solution_packaging_contract`;
+        this row covers the remaining three on the cheap fixture.)"""
+        materials, mesh, _ = _homogeneous_2g()
+        quad = _quad()
+        N, ng, nx = quad.N, 2, 10
+
+        fwd_fs = solve_sn_fixed_source(
+            materials, mesh, quad, np.ones((N, ng, nx)),
+        )
+        require(
+            type(fwd_fs) is Solution,
+            "solve_sn_fixed_source must return exactly the forward "
+            "Solution leaf (A5 role axis).",
+        )
+        adj_fs = solve_sn_adjoint_fixed_source(
+            materials, mesh, quad, np.ones((ng, nx)),
+        )
+        require(
+            type(adj_fs) is AdjointSolution,
+            "solve_sn_adjoint_fixed_source must return exactly the "
+            "role-typed AdjointSolution leaf (A5 carrier ruling).",
+        )
+        require(
+            adj_fs.keff is None and adj_fs.is_fixed_source(),
+            "the adjoint fixed-source kind rides the SAME problem-kind "
+            "property as the forward (keff None) — the two "
+            "discrimination axes are independent.",
+        )
+        fwd_k = solve_sn(materials, mesh, quad)
+        require(
+            type(fwd_k) is Solution,
+            "solve_sn must return exactly the forward Solution leaf "
+            "(A5 role axis).",
+        )
+
     def test_duality_cross_group_source_detector(self):
         r"""``⟨ψ*, q⟩_G == ⟨q*, ψ⟩_G`` — the discrete duality identity,
         cross-group AND cross-region (the P1.2 killer config).
