@@ -8,14 +8,20 @@ Pins the structural contract of :class:`Solution` +
 * eigenvalue vs fixed-source discrimination via
   :meth:`Solution.is_eigenvalue` / :meth:`Solution.is_fixed_source`;
 * :meth:`IterationHistory.dominance_ratio` for a recorded trajectory;
-* :meth:`Solution.compare` field-by-field summary;
-* :meth:`Solution.reaction_rate_density` :math:`\\sigma \\cdot \\phi` math.
+* :meth:`SolutionBase.compare` field-by-field summary;
+* :meth:`Solution.reaction_rate_density` :math:`\\sigma \\cdot \\phi` math;
+* the ROLE axis (#276 A5): ``SolutionBase`` → {``Solution``,
+  ``AdjointSolution``} — base non-instantiable, forward-physics trio
+  structurally absent on the adjoint, ``importance`` alias, role-closed
+  ``compare``.
 
 These are foundation tests — software invariants of the typed return
 contract, not physics claims about a solver, so they carry
 ``@pytest.mark.foundation`` per the V&V harness convention.
 """
 from __future__ import annotations
+
+from typing import cast
 
 import numpy as np
 import pytest
@@ -25,7 +31,13 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.timed_full_field import TimedFullField
-from orpheus.sn.solution import IterationHistory, Solution, SolutionDiff
+from orpheus.sn.solution import (
+    AdjointSolution,
+    IterationHistory,
+    Solution,
+    SolutionBase,
+    SolutionDiff,
+)
 
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -421,3 +433,118 @@ class TestSolutionCompare:
         sol_b = Solution(angular_flux=psi_b, scalar_flux=phi_b, mesh=m2)
         with pytest.raises(ValueError, match="meshes differ"):
             sol_a.compare(sol_b)
+
+
+# ════════════════════════════════════════════════════════════════════
+# The ROLE axis (#276 A5) — SolutionBase → {Solution, AdjointSolution}
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestSolutionRoleAxis:
+    """The A5 carrier ruling's structural contract.
+
+    The role (forward vs adjoint) is a TYPE, the problem kind
+    (fixed-source vs eigenvalue) a property — and the forward-physics
+    asymmetry is STRUCTURAL: the reaction-rate-preserving operations
+    (``homogenize`` / ``condense`` / ``reaction_rate_density``) exist
+    only on :class:`Solution`; :class:`AdjointSolution` carries the
+    importance vocabulary instead.  These rows pin exactly that shape
+    so a future "convenience" re-attachment of forward physics to the
+    adjoint (or a role-less base instantiation) is a red test, not a
+    silent drift.
+    """
+
+    def test_base_not_instantiable(self) -> None:
+        """A role-less carrier is not a value that exists."""
+        m = _slab_mesh()
+        psi, phi, _ = _make_fluxes(m)
+        with pytest.raises(TypeError, match="not instantiable"):
+            SolutionBase(angular_flux=psi, scalar_flux=phi, mesh=m)
+
+    def test_adjoint_construction_shares_the_carrier(self) -> None:
+        """AdjointSolution constructs on the SAME carrier contract
+        (fields, mesh-identity validation, boundary delegate,
+        problem-kind discrimination) — the role changes semantics,
+        never the carrier."""
+        m = _slab_mesh()
+        psi, phi, bf = _make_fluxes(m)
+        adj = AdjointSolution(angular_flux=psi, scalar_flux=phi, mesh=m)
+        assert adj.angular_flux is psi
+        assert adj.scalar_flux is phi
+        assert adj.boundary_flux is bf
+        assert adj.mesh is m
+        assert adj.is_fixed_source() and not adj.is_eigenvalue()
+
+    def test_adjoint_mesh_identity_enforced(self) -> None:
+        """The base's mesh-identity contract fires on the adjoint leaf too."""
+        m1 = _slab_mesh()
+        m2 = _slab_mesh()
+        phi_foreign = ScalarFlux.from_mesh(
+            np.zeros((m2.ng, *m2.spatial_shape)), m2,
+        )
+        psi, _, _ = _make_fluxes(m1)
+        with pytest.raises(ValueError, match="scalar_flux.mesh"):
+            AdjointSolution(angular_flux=psi, scalar_flux=phi_foreign, mesh=m1)
+
+    def test_roles_are_siblings_not_subtypes(self) -> None:
+        """AdjointSolution is NOT a Solution (and vice versa) — a
+        subclass that removed capability would violate Liskov; the
+        sibling-under-base shape is what makes the asymmetry legal."""
+        assert issubclass(Solution, SolutionBase)
+        assert issubclass(AdjointSolution, SolutionBase)
+        assert not issubclass(AdjointSolution, Solution)
+        assert not issubclass(Solution, AdjointSolution)
+
+    def test_forward_physics_structurally_absent_on_adjoint(self) -> None:
+        """The asymmetry is an ABSENT ATTRIBUTE, not a runtime refusal:
+        Σ·φ* is not a reaction-rate density and an importance map has
+        no reaction rate to preserve — the wrong physics is unspellable."""
+        forward_trio = ("homogenize", "condense", "reaction_rate_density")
+        for name in forward_trio:
+            assert hasattr(Solution, name), f"Solution must carry {name}"
+            assert not hasattr(AdjointSolution, name), (
+                f"AdjointSolution must NOT carry {name} — the forward-"
+                "physics asymmetry is structural (#276 A5)"
+            )
+        # ...and the vocabulary asymmetry points the other way:
+        assert hasattr(AdjointSolution, "importance")
+        assert not hasattr(Solution, "importance")
+
+    def test_importance_aliases_scalar_flux(self) -> None:
+        """One storage, two vocabularies — φ* IS the importance map."""
+        m = _slab_mesh()
+        psi, phi, _ = _make_fluxes(m)
+        adj = AdjointSolution(angular_flux=psi, scalar_flux=phi, mesh=m)
+        assert adj.importance is adj.scalar_flux
+
+    def test_compare_role_mismatch_rejected(self) -> None:
+        """Cross-role compare raises even on the SAME mesh — the check
+        the mesh-identity guard cannot make (a forward flux and an
+        importance map are different physical quantities).
+
+        Leaf-typed calls are already a STATIC type error (``Self``), so
+        the runtime guard is exercised the only way it can be reached:
+        through base-typed values (``cast`` — pyright re-narrows a mere
+        annotation back to the leaf) — exactly the untyped-caller
+        surface it exists to defend.
+        """
+        m = _slab_mesh()
+        psi, phi, _ = _make_fluxes(m)
+        fwd = cast(SolutionBase, Solution(angular_flux=psi, scalar_flux=phi, mesh=m))
+        adj = cast(
+            SolutionBase, AdjointSolution(angular_flux=psi, scalar_flux=phi, mesh=m),
+        )
+        with pytest.raises(TypeError, match="role mismatch"):
+            fwd.compare(adj)
+        with pytest.raises(TypeError, match="role mismatch"):
+            adj.compare(fwd)
+
+    def test_compare_same_role_adjoint_works(self) -> None:
+        """Adjoint-vs-adjoint compare flows through the shared base body."""
+        m = _slab_mesh()
+        psi, phi, _ = _make_fluxes(m)
+        adj_a = AdjointSolution(angular_flux=psi, scalar_flux=phi, mesh=m)
+        adj_b = AdjointSolution(angular_flux=psi, scalar_flux=phi, mesh=m)
+        diff = adj_a.compare(adj_b)
+        assert isinstance(diff, SolutionDiff)
+        assert diff.within_tolerance

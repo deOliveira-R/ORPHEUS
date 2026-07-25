@@ -30,21 +30,55 @@ the domain)::
     sol.reaction_rate_density(sig_a)       # σ · φ
     sol.compare(other, rtol=1e-12)         # SolutionDiff
 
+Two discrimination axes
+=======================
+
+The solution family discriminates along TWO independent axes, and the
+axes deliberately use DIFFERENT mechanisms:
+
+* **Problem kind** (fixed-source vs eigenvalue) is a **property** — one
+  carrier covers both kinds via the optional :attr:`SolutionBase.keff`,
+  read through :meth:`SolutionBase.is_eigenvalue` /
+  :meth:`SolutionBase.is_fixed_source`.  The two kinds share every
+  realization AND every operation (homogenizing a fixed-source flux is
+  as meaningful as homogenizing an eigenmode), so a type here would be
+  ceremony (the type-minting criterion fails on both prongs).
+
+* **Solution role** (forward vs adjoint) is a **type** —
+  :class:`SolutionBase` → {:class:`Solution`, :class:`AdjointSolution`}
+  (campaign #276 A5 ruling, 2026-07-25).  The roles share the carrier
+  (same fields, same packaging convention) but NOT the operation set:
+  the forward-physics methods (:meth:`Solution.homogenize`,
+  :meth:`Solution.condense`, :meth:`Solution.reaction_rate_density`)
+  interpret :attr:`~SolutionBase.scalar_flux` as the flux :math:`\phi`
+  and are physically meaningless on the importance :math:`\varphi^*` —
+  homogenization/condensation collapse cross sections *preserving
+  reaction rates*, an operation ON the forward flux; the adjoint enters
+  only as the Petrov-Galerkin test weight that refines the collapse
+  (the ratified #281 P6-B2 parameter ``adjoint: AdjointSolution | None``),
+  never as its subject.  The type split makes the wrong physics
+  UNSPELLABLE — an :class:`AdjointSolution` has no ``homogenize``
+  attribute at all (structural absence, not a runtime refusal) — and
+  gives the forthcoming adjoint machinery family (perturbation theory
+  :math:`\langle\varphi^*, \delta A\, \varphi\rangle`, generalized
+  perturbation / response estimation, #281 adjoint-weighted
+  homogenization) its signature-level carrier.
+
 Mesh-binding consistency
 ========================
 
-:class:`Solution.__post_init__` validates that every typed field
+:class:`SolutionBase.__post_init__` validates that every typed field
 (:attr:`angular_flux`, :attr:`scalar_flux`, :attr:`boundary_flux`)
 carries the SAME :class:`SNMesh` instance as the
-:attr:`Solution.mesh`.  Mesh identity is checked via ``is`` — sharing a
-mesh by value rather than by reference is forbidden by construction
+:attr:`SolutionBase.mesh`.  Mesh identity is checked via ``is`` — sharing
+a mesh by value rather than by reference is forbidden by construction
 (``coding-elegance`` Pattern 4 — illegal states unrepresentable).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 import numpy as np
 
@@ -62,7 +96,13 @@ if TYPE_CHECKING:
     from orpheus.transport.timed_full_field import TimedFullField
 
 
-__all__ = ["IterationHistory", "Solution", "SolutionDiff"]
+__all__ = [
+    "AdjointSolution",
+    "IterationHistory",
+    "Solution",
+    "SolutionBase",
+    "SolutionDiff",
+]
 
 
 @dataclass(frozen=True)
@@ -144,15 +184,30 @@ class IterationHistory:
 
 
 @dataclass(frozen=True)
-class Solution:
-    r"""Canonical return type for :func:`solve_sn` / :func:`solve_sn_fixed_source`.
+class SolutionBase:
+    r"""Shared carrier for SN transport solutions — the role-agnostic base.
 
     Bundles the typed flux fields + boundary state + eigenvalue (when
     eigenvalue problem) + iteration trajectory into one frozen
-    dataclass.  Replaces :class:`SNFixedSourceResult` + :class:`SNResult`
-    (which were data bags without methods).  One type covers both
-    fixed-source and eigenvalue problems via optional :attr:`keff` and
-    :attr:`history`.
+    dataclass.  Both solution ROLES share this carrier; the role is the
+    concrete type (see the module docstring's "Two discrimination
+    axes"):
+
+    * :class:`Solution` — the FORWARD solve (:func:`solve_sn` /
+      :func:`solve_sn_fixed_source`); :attr:`scalar_flux` is the scalar
+      flux :math:`\phi`.  Carries the forward-physics operations
+      (:meth:`~Solution.homogenize`, :meth:`~Solution.condense`,
+      :meth:`~Solution.reaction_rate_density`).
+    * :class:`AdjointSolution` — the DAGGERED solve
+      (:func:`solve_sn_adjoint` / :func:`solve_sn_adjoint_fixed_source`);
+      :attr:`scalar_flux` is the importance :math:`\varphi^*`.
+
+    ``SolutionBase`` itself is NOT instantiable: the role set is closed
+    ({forward, adjoint}) and a role-less solution is not a value that
+    exists (:meth:`__post_init__` raises ``TypeError`` on the base).
+    Role-agnostic consumers (convergence diagnostics, plotting, the
+    :meth:`compare` regression check) type against the base; consumers
+    that read the physics type against the leaf they mean.
 
     Parameters
     ----------
@@ -168,7 +223,7 @@ class Solution:
         composite. The bulk (``angular_flux.interior``) is the
         per-ordinate angular flux :math:`\psi(\vec r, \hat\Omega_n, g)`
         on shape ``(N, ng, nx, ny)``; the boundary trace is exposed
-        via the :attr:`Solution.boundary_flux` delegate property.
+        via the :attr:`SolutionBase.boundary_flux` delegate property.
     scalar_flux : ScalarFlux
         Scalar flux field
         :math:`\phi(\vec r, g) = \sum_n w_n \psi_n`,
@@ -198,21 +253,9 @@ class Solution:
     ALSO owned the boundary face state and iteration history). Under
     D-H.1b that conflation dissolves: the composite-state container
     :class:`TimedFullField` holds the bulk + boundary + history trio
-    as a structured composite. The :attr:`Solution.boundary_flux`
+    as a structured composite. The :attr:`SolutionBase.boundary_flux`
     delegate (line below) becomes a thin read-through to
     ``self.angular_flux.boundary`` (now a typed L2 AngularBoundaryFlux).
-
-    Examples
-    --------
-    Reads as the math:
-
-    >>> sol = solve_sn(materials, mesh, quadrature)             # doctest: +SKIP
-    >>> sol.is_eigenvalue()                                     # doctest: +SKIP
-    True
-    >>> sol.dominance_ratio()                                   # doctest: +SKIP
-    1.2e-08
-    >>> sol.reaction_rate_density(materials[0].sig_a)           # doctest: +SKIP
-    array(...)
     """
 
     angular_flux: "TimedFullField"
@@ -223,6 +266,16 @@ class Solution:
     radial_characteristic: "RadialCharacteristicField | None" = None
 
     def __post_init__(self) -> None:
+        # Role closure: the role set is closed ({forward, adjoint} —
+        # Solution / AdjointSolution) and a role-less carrier is not a
+        # value that exists (Pattern 4).  The leaves inherit this
+        # __post_init__; the guard fires only on the base itself.
+        if type(self) is SolutionBase:
+            raise TypeError(
+                "SolutionBase is the role-agnostic carrier base and is "
+                "not instantiable — construct Solution (forward) or "
+                "AdjointSolution (adjoint)."
+            )
         # Mesh-binding consistency: every typed field MUST share the
         # exact SNMesh instance (Pattern 4 — illegal states
         # unrepresentable; the typed field's invariants are leveraged
@@ -337,6 +390,111 @@ class Solution:
         :class:`SNResult.keff_history: list[float]`.
         """
         return self.keff_history_list()
+
+    # ── Comparison (role-closed: Self vs Self) ──────────────────────
+
+    def compare(self, other: Self, *, rtol: float = 1e-12) -> "SolutionDiff":
+        r"""Return a field-by-field difference summary against ``other``.
+
+        Compares :attr:`keff` (when both have it) and the
+        :math:`L^\infty`-norms of the flux deltas.  Useful for
+        regression / refactor consistency checks.
+
+        Parameters
+        ----------
+        other : Self
+            The reference solution to compare against — of the SAME
+            role (``Self``-typed: a forward flux and an importance map
+            are different physical quantities, so cross-role comparison
+            is a type error statically and a ``TypeError`` at runtime).
+        rtol : float
+            Relative tolerance for the ``within_tolerance`` flag.
+
+        Returns
+        -------
+        SolutionDiff
+            Field-by-field summary.
+        """
+        if type(other) is not type(self):
+            raise TypeError(
+                f"{type(self).__name__}.compare: role mismatch — comparing "
+                f"against {type(other).__name__}.  A forward flux and an "
+                "importance map are different physical quantities; "
+                "same-role comparison only (the Self-typed contract, "
+                "enforced at runtime for untyped callers)."
+            )
+        if self.mesh is not other.mesh:
+            raise ValueError(
+                "Solution.compare: meshes differ — cross-mesh comparison "
+                "is not defined under the typed-field contract."
+            )
+
+        if self.keff is not None and other.keff is not None:
+            keff_abs = abs(self.keff - other.keff)
+        else:
+            keff_abs = None
+
+        ang_diff = self.angular_flux.interior.values - other.angular_flux.interior.values
+        sca_diff = self.scalar_flux.values - other.scalar_flux.values
+        ang_linf = float(np.abs(ang_diff).max()) if ang_diff.size else 0.0
+        sca_linf = float(np.abs(sca_diff).max()) if sca_diff.size else 0.0
+
+        sca_norm = float(np.abs(other.scalar_flux.values).max())
+        flux_ok = (sca_norm == 0.0) or (sca_linf <= rtol * sca_norm)
+        keff_ok = (keff_abs is None) or (
+            abs(other.keff or 1.0) > 0.0
+            and keff_abs <= rtol * abs(other.keff or 1.0)
+        )
+
+        return SolutionDiff(
+            keff_abs=keff_abs,
+            angular_flux_linf=ang_linf,
+            scalar_flux_linf=sca_linf,
+            within_tolerance=bool(flux_ok and keff_ok),
+        )
+
+
+@dataclass(frozen=True)
+class Solution(SolutionBase):
+    r"""Canonical return type for the FORWARD solvers.
+
+    The forward role of the :class:`SolutionBase` carrier — what
+    :func:`solve_sn` / :func:`solve_sn_fixed_source` return:
+    :attr:`~SolutionBase.scalar_flux` is the scalar flux
+    :math:`\phi(\vec r, g) = \sum_n w_n \psi_n`, and the forward-physics
+    operations live HERE and only here:
+
+    * :meth:`reaction_rate_density` — :math:`\sigma \cdot \phi`;
+    * :meth:`homogenize` — reaction-rate-preserving spatial collapse;
+    * :meth:`condense` — reaction-rate-preserving energy collapse.
+
+    All three interpret ``scalar_flux`` as the flux; none exists on
+    :class:`AdjointSolution` (structural asymmetry — see the module
+    docstring).  One type covers both PROBLEM KINDS (fixed-source and
+    eigenvalue) via the optional :attr:`~SolutionBase.keff` /
+    :attr:`~SolutionBase.history` (#197 PR-TYPED-5; replaces the legacy
+    ``SNFixedSourceResult`` / ``SNResult`` pair).
+
+    The adjoint-weighted refinement of :meth:`homogenize` /
+    :meth:`condense` is the ratified #281 (P6-B2) API: an optional
+    keyword ``adjoint: AdjointSolution | None = None`` — ``None`` keeps
+    today's flux-weighted (Galerkin, :math:`\varphi^* = \phi`
+    degenerate) collapse.  The parameter lands WITH its Petrov-Galerkin
+    implementation and gates in P6, so no advertised-but-unwired arm
+    exists in between.
+
+    Examples
+    --------
+    Reads as the math:
+
+    >>> sol = solve_sn(materials, mesh, quadrature)             # doctest: +SKIP
+    >>> sol.is_eigenvalue()                                     # doctest: +SKIP
+    True
+    >>> sol.dominance_ratio()                                   # doctest: +SKIP
+    1.2e-08
+    >>> sol.reaction_rate_density(materials[0].sig_a)           # doctest: +SKIP
+    array(...)
+    """
 
     # ── Reaction-rate accessor (Pattern 1 — read as math) ─────────────
 
@@ -574,61 +732,58 @@ class Solution:
             condensed[mat_id] = material.condense(coarse, spectrum)
         return condensed
 
-    # ── Comparison ──────────────────────────────────────────────────
 
-    def compare(self, other: "Solution", *, rtol: float = 1e-12) -> "SolutionDiff":
-        r"""Return a field-by-field difference summary against ``other``.
+@dataclass(frozen=True)
+class AdjointSolution(SolutionBase):
+    r"""Canonical return type for the ADJOINT solvers.
 
-        Compares :attr:`keff` (when both have it) and the
-        :math:`L^\infty`-norms of the flux deltas.  Useful for
-        regression / refactor consistency checks.
+    The adjoint role of the :class:`SolutionBase` carrier — what
+    :func:`solve_sn_adjoint` / :func:`solve_sn_adjoint_fixed_source`
+    return (#276 A4, the daggered posing):
 
-        Parameters
-        ----------
-        other : Solution
-            The reference solution to compare against.
-        rtol : float
-            Relative tolerance for the ``within_tolerance`` flag.
+    * :attr:`~SolutionBase.angular_flux` carries :math:`\psi^*` — the
+      converged state of the daggered system: the exact DISCRETE
+      transpose in the solution G-metric (``A.H`` — #280's swap-law
+      adjoint), NOT a :math:`\mu`-reversed forward flux.
+    * :attr:`~SolutionBase.scalar_flux` carries the **importance**
+      :math:`\varphi^*(\vec r, g) = \sum_n w_n \psi^*_n` — the same
+      :math:`w`-reduction as the forward scalar flux (the adjoint of
+      the ISO source injection, not a new functional).
+      :attr:`importance` is the domain-named alias.
+    * :attr:`~SolutionBase.keff` is the eigenvalue of the daggered
+      pencil :math:`(A^\dagger, F^\dagger)` — EXACTLY the forward
+      :math:`k` in exact arithmetic (:math:`\operatorname{eig}(M^T) =
+      \operatorname{eig}(M)`); the two power iterations agree to
+      iteration tolerance (the P1.3 certification rows).
 
-        Returns
-        -------
-        SolutionDiff
-            Field-by-field summary.
+    Deliberately ABSENT: :meth:`Solution.homogenize`,
+    :meth:`Solution.condense`, :meth:`Solution.reaction_rate_density`.
+    Those interpret ``scalar_flux`` as the flux :math:`\phi` and
+    preserve reaction rates — an importance map has no reaction rate to
+    preserve.  The adjoint enters homogenization/condensation as the
+    OPTIONAL TEST WEIGHT of the FORWARD collapse
+    (``Solution.homogenize(..., adjoint=...)`` — the ratified #281
+    P6-B2 parameter), never as its subject.  The absence is structural
+    (no attribute exists), so the wrong physics cannot be spelled
+    (``coding-elegance`` Pattern 4).
+    """
+
+    @property
+    def importance(self) -> "ScalarFlux":
+        r"""The importance map — the domain name for the adjoint scalar flux.
+
+        :math:`\varphi^*(\vec r, g)`: the expected detector response
+        per unit source particle introduced at :math:`(\vec r, g)` (the
+        classical importance interpretation of the adjoint flux).  An
+        alias of :attr:`~SolutionBase.scalar_flux` — one storage, two
+        vocabularies.
         """
-        if self.mesh is not other.mesh:
-            raise ValueError(
-                "Solution.compare: meshes differ — cross-mesh comparison "
-                "is not defined under the typed-field contract."
-            )
-
-        if self.keff is not None and other.keff is not None:
-            keff_abs = abs(self.keff - other.keff)
-        else:
-            keff_abs = None
-
-        ang_diff = self.angular_flux.interior.values - other.angular_flux.interior.values
-        sca_diff = self.scalar_flux.values - other.scalar_flux.values
-        ang_linf = float(np.abs(ang_diff).max()) if ang_diff.size else 0.0
-        sca_linf = float(np.abs(sca_diff).max()) if sca_diff.size else 0.0
-
-        sca_norm = float(np.abs(other.scalar_flux.values).max())
-        flux_ok = (sca_norm == 0.0) or (sca_linf <= rtol * sca_norm)
-        keff_ok = (keff_abs is None) or (
-            abs(other.keff or 1.0) > 0.0
-            and keff_abs <= rtol * abs(other.keff or 1.0)
-        )
-
-        return SolutionDiff(
-            keff_abs=keff_abs,
-            angular_flux_linf=ang_linf,
-            scalar_flux_linf=sca_linf,
-            within_tolerance=bool(flux_ok and keff_ok),
-        )
+        return self.scalar_flux
 
 
 @dataclass(frozen=True)
 class SolutionDiff:
-    r"""Result of :meth:`Solution.compare`.
+    r"""Result of :meth:`SolutionBase.compare` (both roles).
 
     Parameters
     ----------

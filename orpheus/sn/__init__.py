@@ -3,7 +3,13 @@ from .coupled_system import (
     build_coupled_system,
     build_within_group_system,
 )
-from .solution import IterationHistory, Solution, SolutionDiff
+from .solution import (
+    AdjointSolution,
+    IterationHistory,
+    Solution,
+    SolutionBase,
+    SolutionDiff,
+)
 from .solver import (
     SNSolver,
     solve_sn,
