@@ -133,6 +133,35 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   np.linalg.norm converged), the `FissionOperator.apply_transpose`
   composite variant (its docstring names this moment), and the P1.3
   sphere leg's coupled-grid dagger (F lift to the CoupledField).
+- **A4-3b ✅ — THE φ* CERTIFICATION BATTERY**
+  (`tests/sn/solve/test_sn_adjoint_certification.py`, 12/12, ~112 s).
+  P1.3: the k triple-equality (∞ 2G+4G vs `kinf_homogeneous` — the chain
+  terminates in `np.linalg.eig`) + the HET reflective slab + the SPHERE
+  (the coupled daggered chain).  P1.3 mutations, each in-process
+  (monkeypatch via instance-dispatch lambdas — the singledispatch
+  class-descriptor cannot be setattr'd raw): F†→F shifts k @ 4G χ∦νΣf
+  (precondition asserted), S†→S shifts k @ asymmetric SigS, L†→L (the
+  daggered inverse riding the FORWARD sweep — "no reversal") shifts k on
+  the HET leg (the ∞ legs are flat-flux-blind to it, per spec §0.6).
+  P1.4: the 4G spectrum vs the corrected `(Aᵀ)⁻¹Fᵀ` reference (ψ*_cf ≠
+  φ_cf materiality asserted) + THE MODE-12 PAIR EXPLICIT: F†=F leaves k
+  exactly equal on ∞ (the daggered pencil (A†,F) is similar to the
+  forward — designed-green) while the spectrum row reds O(1).  P1.5:
+  the closed-form cross-Gram is DEGENERATE-diagonal (rank-1 F: one
+  nonzero entry; both orthogonality mechanisms — Fφ_j=0 zero-right,
+  χ·ψ*_i=0 zero-left — asserted; HONEST-SCOPE deviation from the
+  spec's "ng distinct modes" wording recorded in the file header) +
+  the right-right Gram mutation (NOT one-entry — φ*≡φ fails P1.5) +
+  the SN defining-law residual row (Aᵀψ*_SN = Fᵀψ*_SN/k at the
+  closed-form (A,F), atol 1e-7).  Pyright 0/0.
+  **REMAINING for the A4 boundary (next session if context ends):
+  the phase-end sweep — Sphinx `-E -W` + audit + matrix regen,
+  elegance-enforcer review, qa review (math-bearing phase), the FULL
+  serial tree (L37: sources freeze), then the boundary AskUserQuestion
+  (merge / A5).  Also weigh at enforcer time: the `_g_inner`
+  cross-test import in the entries file; the two `_energy_spectrum`
+  spellings (entries + certification); the A5 fork is genuinely open
+  (the entries return unmarked `Solution`).**
 - **A4-3a ✅ — THE COUPLED (SPHERE) DAGGERED POSING.**  USER RULING:
   space-typed ZeroOperator.  Findings + carves: (1) the fission ray fold
   is ALREADY an operator — `RadialCharacteristicEmission(sn, F.kernel)`
