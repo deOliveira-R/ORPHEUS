@@ -415,9 +415,11 @@ def _certify_within_group_exit(
       ``from_balance``) does not yet admit the trailing ``2^d``
       spatial-moment axis — an un-built widening of the residual
       family, NOT a threat gap today: the carrying production family
-      (where the #282 class lives) is DD, and the LD reverse-scan /
-      adjoint arms are themselves #280 deferrals. The widening lands
-      with the LD residual carve (step-5 close-out note).
+      (where the #282 class lives) is DD.  (The LD reverse-scan and
+      adjoint arms this note once leaned on landed at #310 C2/C5 — the
+      remaining gap is the residual mint alone.)  The widening lands
+      with the LD residual carve (step-5 close-out note; on #310's
+      deferred-out list).
     """
     if sn_mesh.scheme.spatial_basis_per_axis > 1:
         return  # moment-tailed scheme — the residual mint's un-built widening

@@ -117,6 +117,79 @@ review · qa on math-bearing phases · every new gate class mutation-verified
 
 ## Status log (append per stage)
 
+- **C5-a ✅ @ `15492673` — THE LAST FLIP + the LD-2D gate battery (spec §6).**
+  Pre-carve de-risking probe (in-process predicate narrow, no production
+  edit) validated every banked claim before a line was written: forward
+  LD-2D runs vacuum+reflective; pairing machine-precision (0.0 reflective);
+  window ≡ full BIT-identical; dense-`Mᵀ` n=704 @ 8.9e-16 (asymmetry 5.77);
+  assembled-`Mᵀ` 7.1e-15; `.H` constructs + production-metric G-reciprocity
+  1.8e-16.  THE FLIP: `_multi_d_multi_moment_reverse_deferred` DELETED
+  (predicate + frame-guard arm; `_DAGWavefront.has_transpose_walk` → True
+  unconditional — the scheme factor stays on the registration-coupled
+  `has_transpose_kernel` covering law), machine-facing contracts
+  truth-patched in the SAME commit (the C4-d lesson applied UP FRONT:
+  Protocol ×2 + `apply_transpose` + the `is_adjointable` two-factor
+  narration — both factors' examples were pre-C2/C4 fossils).  Gates: the
+  ONE dense pin extracted to `_assert_dense_mt_pins_object` (three
+  duplicated probe bodies collapsed — d=2 DD, d=3, LD-2D share it);
+  LD-2D dense-`Mᵀ` (FFW+window; ScanMarch construction-refusal row pins
+  the parametrization's honesty); pairing vacuum+reflective; reverse
+  window ≡ full at n_face_moments=2; the §6.1 assembled-`Mᵀ` KEYSTONE
+  (the moment-generic `assemble_ordinate_blocks` — kernel probing + the
+  `octant_moment_frame_signs` conjugation — needed ZERO changes);
+  **M-R2c-MOMENTDROP with the EXACT Mode-7 pair** (anisotropic red
+  4.4e-1; slope-free EXACTLY unchanged at ~1e-16 — the §6.3 blindness is
+  exact, not approximate); **M-R2c-FRAMESIGN-2D as the parity split**
+  (s[3]→+1 one-sided: one-backward octant rows deviate 8.66, even-parity
+  rows 8.9e-16 IN ONE RUN — the involution's ∏-group theory made
+  visible; fwd reference probed clean pre-patch since a both-sides frame
+  error conjugates away).  Reciprocity `_BUILDERS["ld_2d_2g"]`
+  (reflective nonsquare non-uniform het; the `_bulk_measure` kron loop
+  was ALREADY d-generic — `[1,θ,θ,θ²]` fell out; the metric
+  cross-check row pins production ⊗-mass ≡ the independent kron at d=2).
+  TRACE-metric ruling recorded at the builder: the moment-resolved
+  face's metric is the purely-ANGULAR Wave-O `|Ω·n|·w_n` broadcast
+  uniform over the moment axis — the θ-mass is a bulk phase-space-measure
+  concept (the trace metric carries no spatial factor at all); production
+  (`_build_trace_metric_weights`) and `_g_inner` spell the same
+  broadcast.  Deferral-file LD-2D rows → the positive surface.
+  Batteries: reverse file 31/31, deferral 20/20, reciprocity 32/32,
+  sweep-core+operators 1281/0; pyright CLI +0 (the reciprocity 10
+  verified pre-existing via copy-first).
+- **C5-b ✅ — the doc blast + the changelog truth-repair.**  The rst
+  deferral ledger: LD-2D entry RETIRED into the retired-entries note
+  (the ledger now holds ONLY R7); the "WHOLE ledger" statement records
+  grid-completeness + the still-armed predicate machinery; orientation
+  table cell → C3/C4/C5 scheme-complete; the :425-449 contract prose
+  truth-patched.  The #280-citation audit (54 production sites): the
+  vast majority are TRUE history (kept); genuinely stale = 3 sites, all
+  fixed — the Protocol `has_transpose_walk` docstring (multi-D walks
+  "are the #280 deferral"), `solver.py` certificate-skip rationale ("LD
+  reverse-scan/adjoint arms are themselves #280 deferrals" — the arms
+  landed C2/C5; the skip's TRUE reason, the residual-mint moment
+  widening, stands alone now), `streaming.py solve_transpose` ("LD /
+  multi-D reverse-scans deferred" — LD-1D landed at C2, empirically
+  verified this session; multi-D = R7).  Still-true #280 deferral
+  citations (sweep_operator R7 rows, generic-inverse `.H` base
+  defaults, green_operator's unbuilt multi-D transpose SWEEP) kept
+  unchanged — fix falsehoods, don't churn truths.  **history.rst
+  truth-repair (trust-git rule)**: 22 stale *(in development)* markers
+  for long-merged campaigns repaired to `merged @ <hash>` (10×
+  walk-unification → per-commit + `3f0b8c74`; assembly → `b058083e`;
+  k-estimator → `a4952c3e`; #226 family → `1729647`; #236 → `607b548`;
+  #118 → `15185e5` — every hash git-verified an ancestor), the legend's
+  marker class retired, the stale "#236 pending merge" tail note fixed,
+  and the #310 campaign entry added at the table head.  NITs weighed:
+  kron 2nd spelling PARKED (still exactly 1 production consumer — C5
+  added none; the test-side kron is deliberately independent, anti-R1);
+  `SLOPE_MOMENT = 1` PARKED-SHARPENED (at d=2 the slope is slots 1,2,3
+  = ŷ,x̂,x̂ŷ — a scalar constant is 1-D-only, so the pair-completion NIT
+  is even less apt post-C5); the C3 apply-frame glue trigger did NOT
+  fire (LD-2D rode the existing interiors, zero new per-direction
+  glue).  Sphinx `-E -W` exit 0; audit exit 0 (orphans 0/311, ERR
+  69/69, collect 6730); matrix.rst regenerated.  #310 CLOSES via this
+  commit's trailer (lands at push).
+
 - **C3 CLOSED ✅ (2026-07-24)** — branch `feature/sn-adjoint-residue-c3`.
   **Full-tree gate: 6442 passed / 0 failed / 18 skipped / 54 xfailed,
   EXIT 0, 50:49** (count exactly accounted: 6427 @ C2-close + 14 C3-a +

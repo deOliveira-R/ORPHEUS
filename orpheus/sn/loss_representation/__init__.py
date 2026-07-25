@@ -411,12 +411,15 @@ class LossRepresentation(Protocol):
         Phase 2.5a): ``is_adjointable = scheme.has_transpose_kernel ∧
         representation.has_transpose_walk`` — the scheme trait says the
         per-cell relation has a transpose realization (the KERNEL axis);
-        this trait says the walk itself reverses (the ORIENTATION axis —
-        the 1-D loop walk does, the multi-D octant/wavefront walks are the
-        #280 deferral).  ``False`` here makes the eager ``.H`` refuse at
-        construction (:class:`~orpheus.numerics.operator.MissingAdjoint`);
-        the representations' :meth:`loss_action_transpose` raises stay as
-        the loud backstop for direct Euclidean calls.
+        this trait says the walk itself reverses (the ORIENTATION axis).
+        Every REGISTERED representation answers ``True`` since #310 C4/C5
+        (the 1-D reverse walks, the mirror-octant wavefront reverses, the
+        row-march reverse); the trait remains the honest gate for a FUTURE
+        representation without a reverse walk: ``False`` makes the eager
+        ``.H`` refuse at construction
+        (:class:`~orpheus.numerics.operator.MissingAdjoint`), with the
+        representation's own typed raise as the loud backstop for direct
+        Euclidean calls.
         """
         ...
 
@@ -505,7 +508,7 @@ class _LossRepresentation:
         schedule-reverse arm (#310 R7, no consumer); never a silent wrong
         answer.  (Distinct from the matvec transpose
         :meth:`loss_action_transpose`, which every representation
-        implements since #310 C4.)
+        implements on every registered scheme since #310 C4/C5.)
         """
         raise NotImplementedError(
             f"{type(self).__name__}.sweep_transpose: the transpose-solve "

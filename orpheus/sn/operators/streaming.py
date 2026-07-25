@@ -989,8 +989,10 @@ class InvertibleOperator(
         emits.
 
         This is the reverse-scan primitive behind the ``.H.inverse()`` swap
-        law (``A.H.inverse() ≡ A.inverse().H``).  DD/scalar-1-D only — the
-        LD / multi-D reverse-scans are the #280 kernel-pair deferrals (the
+        law (``A.H.inverse() ≡ A.inverse().H``).  1-D-scan-family only —
+        DD since #280 2.5b, LD since #310 C2 (the ``_run_transpose``
+        moment arm); the multi-D reverse-scan is the wavefront G-S
+        schedule-reverse arm (R7, #310 deferred-out — no consumer; the
         representation raises).
 
         On a carrying mesh this is the ray-DECOUPLED ``(L+C)⁻ᵀ``

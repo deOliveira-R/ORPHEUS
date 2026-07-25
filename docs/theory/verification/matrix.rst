@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6720**
+Total tests collected: **6730**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1194, 17.8%
+   L0, 1194, 17.7%
    L1, 1103, 16.4%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4369, 65.0%
+   foundation, 4379, 65.1%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6641
+   explicit, 6651
    class-name, 46
    func-name, 0
    case, 33
@@ -70,7 +70,7 @@ Module × level grid
    core/test_dag_walk, 0, 0, 0, 0, 8, 0
    core/test_diamond, 0, 0, 0, 0, 53, 0
    core/test_discretization_scheme_protocol, 0, 0, 0, 0, 17, 0
-   core/test_multi_d_reverse_walk, 0, 0, 0, 0, 23, 0
+   core/test_multi_d_reverse_walk, 0, 0, 0, 0, 31, 0
    core/test_one_dim_loop_walk, 0, 0, 0, 0, 5, 0
    core/test_ordinate_scan, 52, 0, 0, 0, 0, 0
    core/test_ordinate_scan_joint_batch, 5, 0, 0, 0, 0, 0
@@ -342,7 +342,7 @@ Module × level grid
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
-   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 30, 0
+   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 32, 0
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
    operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
@@ -1385,7 +1385,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-063``, 3
    ``ERR-064``, 2
    ``ERR-065``, 1
-   ``ERR-066``, 8
+   ``ERR-066``, 9
    ``ERR-067``, 2
    ``ERR-068``, 1
    ``ERR-069``, 2

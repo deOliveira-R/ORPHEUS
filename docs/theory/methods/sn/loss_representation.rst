@@ -445,8 +445,10 @@ shares. The multi-D Cartesian *adjoint* rides the same discipline since
 #310 C4 (``ScanMarch.loss_action_transpose`` is the row-march reverse — one
 ``loss_action_transpose``, one :math:`\sigma` source, both directions), so
 :meth:`apply_transpose` is correct-by-construction on every registered
-representation, with the ONE remaining refusal (LD-2D, #310 C5) typed and
-loud, never a silent wrong answer.
+representation — and since #310 C5 on every registered *scheme* too (the
+moment-tailed LD-2D reverse rides the same wavefront frame); a scheme
+that registers no transpose kernel pair still refuses typed and loud,
+never a silent wrong answer.
 
 The removal form makes the distinction observable
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2101,11 +2103,12 @@ bands stay distinct by *algorithmic necessity*, not debt:
      - per-cell **loop** over ``dag_walk_cell_indices``
    * - **solve/apply, multi-D**
      - ``_OctantWalk._interior_walk``
-     - the mirror-octant reverses (#310 C3/C4): full-cochain ORACLE +
+     - the mirror-octant reverses (#310 C3/C4/C5): full-cochain ORACLE +
        windowed PRODUCTION ``loss_action_transpose`` (the UNCHANGED
-       ``walk_full`` / ``walk_windowed`` over ``graph(−signs_eff)``),
-       and the row-march reverse (``ScanMarch``, reversed rows +
-       ``_x_scan_faces_transpose``)
+       ``walk_full`` / ``walk_windowed`` over ``graph(−signs_eff)`` —
+       scheme-complete: DD scalar faces AND the LD moment-tailed
+       cochain, any ``d``), and the row-march reverse (``ScanMarch``,
+       reversed rows + ``_x_scan_faces_transpose``)
      - anti-diagonal **wavefront-graph** / row-march
 
 The empty-looking symmetry of the 2×2 is thus *honest*: the coherence
@@ -2144,12 +2147,16 @@ deferral, not a coverage gap:
   is the #280 sibling deferral (no consumer), so a
   :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` over it
   stays non-adjointable.
-* **LD-2D reverse** — the d-generic batch VJP *would* run (LD registers
-  it, #310 C2), but the LD-2D reverse walk is UNGATED until its
-  moment-frame-involution row + LD-2D dense-``Mᵀ`` land (#310 C5); the
-  apply-transpose frame refuses with a typed raise rather than emitting
-  an unverified answer.  (``ScanMarch`` additionally refuses LD's
-  non-separable transverse coupling in EITHER orientation.)
+
+That is the WHOLE ledger for the adjoint *matvec*: since #310 C5 the
+``loss_action_transpose`` grid is complete over every registered
+``scheme × representation`` pairing that can be constructed (the only
+structural absence — ``ScanMarch`` × LD-2D — is a *forward*
+construction refusal, the facewise supports-gate, so there is no
+forward to transpose; pinned by its own gate row).  The two-factor
+predicate machinery (``has_transpose_kernel ∧ has_transpose_walk``)
+stays armed so a FUTURE unregistered-kernel scheme or reverse-less
+representation refuses eagerly at ``.H`` and loudly at apply.
 
 Retired from this ledger: the **LD-slab adjoint** entry closed at
 #310 C2 (the registered LD batch VJP + the moment-tailed 1-D reverse —
@@ -2160,11 +2167,19 @@ reverse rides the mirror graph's own ``window_plan`` (pinned
 ``window ≡ full`` bit-identical against the C3 oracle), the
 ``ScanMarch`` row-march reverse rides ``_x_scan_faces_transpose`` +
 the backwards transverse chain (pinned principled-equivalent + its own
-dense-``Mᵀ``/pairing rows, plus a d=3 spine row), and the family
-predicates ``has_transpose_walk`` flipped WITH the capability (the
-wavefront family scheme-aware — the ONE spelling
-``_multi_d_multi_moment_reverse_deferred`` shared with the frame's
-apply-time guard keeps the LD-2D deferral's two faces from drifting).
+dense-``Mᵀ``/pairing rows, plus a d=3 spine row); and the **LD-2D
+reverse** entry closed at #310 C5 — the moment-tailed face cochain
+reverses through the SAME mirror-octant frame (the C2 kernel VJP was
+d-generic all along; C5 landed the gate battery: LD-2D dense-``Mᵀ`` +
+the assembled-``Mᵀ`` keystone + reverse ``window ≡ full`` at
+``n_face_moments = 2`` + the moment-drop tooth with its EXACT
+slope-free blindness control + the cross-moment ``x̂ŷ`` frame-sign
+tooth whose deviation splits exactly by octant backward-count parity),
+whereupon the one deferral predicate
+``_multi_d_multi_moment_reverse_deferred`` — minted at C4 precisely so
+the trait and the apply-guard could not drift while the gap lived —
+was RETIRED with both flip-safety faces moving together by
+construction.
 
 .. _loss-rep-inverse-adjoint-swap:
 

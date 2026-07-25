@@ -15,8 +15,12 @@ This is a reverse-chronological (latest first) changelog of the major
 intermediate replans are deliberately omitted — see the GitHub issues
 and the per-phase plan files for that granularity. Each entry names the
 architectural change, its issue, and the commit/merge where the work
-lives. Entries marked *(in development)* live on an unmerged feature
-branch and have no landed hash yet.
+lives.  Every entry below is **merged to main** — merge-status is a git
+question, never a frozen note (the 2026-07-24 repair: 22 entries still
+said *"in development"* for campaigns that had merged weeks earlier;
+``.claude/rules/process-discipline.md`` "trust git for merge-status" is
+the standing rule this page now follows — a new entry lands with its
+merge hash or not at all).
 
 .. list-table::
    :header-rows: 1
@@ -26,6 +30,36 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-07-24
+     - **The adjoint matvec completed the scheme × representation grid —
+       the #280 residue retired** (adjoint completion campaign, C1–C5).
+       The transpose kernel became a scheme-REGISTERED pair
+       (``residual_kernel_batch_transpose``, the exact VJP mirror of the
+       forward batch kernel; ``has_transpose_kernel`` derived from
+       registration — declared-True-with-no-kernel unrepresentable), DD's
+       hand-coded reverse relocated into it bit-identically (C1) and LD
+       generated from the UBLD algebra-of-record as :math:`A^{\mathsf T}
+       M^{-1}` with the SymPy transpose-oracle + the ``θ``-mass bulk
+       metric ruling (C2, the LD-slab adjoint).  The multi-D reverse
+       landed as the **mirror-octant realization** — the reverse of
+       octant :math:`o` is the UNCHANGED ``walk_full``/``walk_windowed``
+       over the mirror graph :math:`\mathrm{graph}(-\text{signs})`, whose
+       levels/face-roles/frontier ARE the forward's reversed (zero
+       forward edits; C3 oracle, C4 windowed production bit-identical to
+       it) plus the ScanMarch row-march reverse (the forward's
+       sign-reading spellings fed the mirror label; the kernel's x-out
+       cotangent structurally zero; ``_x_scan_faces_transpose`` +
+       ``reflect_scan_coefficients_transpose``), verified d-generic
+       (d=3 spine row) and scheme-complete (C5: the LD-2D moment-tailed
+       cochain through the same frame — dense-``Mᵀ``, the
+       assembled-``Mᵀ`` keystone, reverse ``window ≡ full`` at
+       ``n_face_moments = 2``, the exact moment-drop and cross-moment
+       frame-sign parity teeth).  ``.H`` now constructs on the whole
+       registered grid; the deferral ledger holds only the G-S
+       schedule-reverse (R7, no consumer).  See
+       :ref:`loss-rep-orientation-two-frames`.
+     - #310 (+#311)
+     - C1–C4 merged @ ``59830618``; C5 = this entry's own merge
    * - 2026-07-12
      - **The walk's fused ψ½ joint channel was retired — every sweep
        surface IS the ray-decoupled** :math:`(A,A)` **block, presence
@@ -54,7 +88,7 @@ branch and have no landed hash yet.
        ~1e-15); slab/cylinder byte-identical through a full re-save. See
        :ref:`coupled-block-operator` in :doc:`/theory/foundations/coupled_block_operator`.
      - #280
-     - ``refactor/sn-walk-unification`` *(in development, 015dcc73)*
+     - ``015dcc73`` (merged @ ``3f0b8c74``)
    * - 2026-07-12
      - **The four BC-layer invariants (ERR-041/042/045/047) went
        production-live at the realize seam** (coupled-block campaign).
@@ -74,7 +108,7 @@ branch and have no landed hash yet.
        inflow→outflow check); all four catchers mutation-verified;
        ``tests._harness.audit`` ERR coverage 64/68 → **68/68**.
      - —
-     - ``refactor/sn-walk-unification`` *(in development, 51c22396)*
+     - ``51c22396`` (merged @ ``3f0b8c74``)
    * - 2026-07-12
      - **The within-group coupled solve landed — block-triangular
        substitution + a materialised-LU EXTRACT, with a ρ-honest stop and
@@ -106,7 +140,7 @@ branch and have no landed hash yet.
        oracle), not bit-identical. See :ref:`coupled-block-operator` in
        :doc:`/theory/foundations/coupled_block_operator`.
      - #280 #282
-     - ``refactor/sn-walk-unification`` *(in development, 0e03c304)*
+     - ``0e03c304`` (merged @ ``3f0b8c74``)
    * - 2026-07-11
      - **The ψ½ ray solve was un-woven from the walk — System B is marched
        split-native and its ray solve routes through the named ``A_BB``
@@ -144,7 +178,7 @@ branch and have no landed hash yet.
        sphere/slab × SI/Krylov (full tree 6340/0). See
        :ref:`sn-direct-seed-solve`.
      - #280
-     - ``refactor/sn-walk-unification`` *(in development, 98fe2e36)*
+     - ``98fe2e36`` (merged @ ``3f0b8c74``)
    * - 2026-07-11
      - **The ψ½ ray was evicted from the SN composite carrier —
        ``FullField`` is pure 2-block and System B is its own composite**
@@ -171,7 +205,7 @@ branch and have no landed hash yet.
        System B's own member with a presence biconditional. See
        :ref:`sn-direct-seed-solve`.
      - #280
-     - ``refactor/sn-walk-unification`` *(in development, e5d1acf)*
+     - ``e5d1acf`` (merged @ ``3f0b8c74``)
    * - 2026-07-11
      - **The within-group solve became block-native — one
        ``WithinGroupSystem`` record carrying the named** :math:`A = M - N`
@@ -198,7 +232,7 @@ branch and have no landed hash yet.
        within-group solve sites consume the one record. See
        :ref:`bc-extraction-variadic-driver` in :doc:`/theory/foundations/boundary_conditions`.
      - #280
-     - ``refactor/sn-walk-unification`` *(in development, c0f23f6)*
+     - ``c0f23f6`` (merged @ ``3f0b8c74``)
    * - 2026-07-05
      - **The adjoint-inverse swap law wired the reverse-scan into the
        operator algebra** (#280 Phase 2.5c). With the reverse-scan in
@@ -226,7 +260,7 @@ branch and have no landed hash yet.
        :ref:`loss-rep-inverse-adjoint-swap` and
        :ref:`loss-rep-initial-guess-warm-start`.
      - #280 #226
-     - ``refactor/sn-walk-unification`` *(in development, 8cf5215)*
+     - ``8cf5215`` (merged @ ``3f0b8c74``)
    * - 2026-07-05
      - **The adjoint inner solve** :math:`(L+C)^{-\mathsf T}` **landed —
        the empty cell of the 2×2 filled** (#280 Phase 2.5b). The four
@@ -251,7 +285,7 @@ branch and have no landed hash yet.
        (#276): A4's daggered eigenvalue is the first consumer of
        ``sweep_transpose``. See :ref:`loss-rep-two-frames`.
      - #280 #276
-     - ``refactor/sn-walk-unification`` *(in development, f1ddeb6)*
+     - ``f1ddeb6`` (merged @ ``3f0b8c74``)
    * - 2026-07-05
      - **The product-cylinder cold solve became a single-pass direct
        inverse — the direct-seed fold** (#280 Phase 2.5b). For a **product**
@@ -272,7 +306,7 @@ branch and have no landed hash yet.
        sphere route-(a) fix (#282/2.5d) directly below; see
        :ref:`sn-phase-d-gate-1-1-empirical`.
      - #280
-     - ``refactor/sn-walk-unification`` *(in development, ba202a1)*
+     - ``ba202a1`` (merged @ ``3f0b8c74``)
    * - 2026-07-04
      - **The curvilinear starting-direction ψ½ seed became first-class
        typed state — the spherical solve is now a single-pass direct
@@ -299,7 +333,7 @@ branch and have no landed hash yet.
        seed is a closure — h→0 is the wrong test). See
        :ref:`sn-direct-seed-solve`.
      - #282 #280
-     - ``refactor/sn-walk-unification`` *(in development, a29ab2d)*
+     - ``a29ab2d`` (merged @ ``3f0b8c74``)
    * - 2026-07-04
      - **The assembly mode landed — the sweep's per-cell closure algebra
        emitted a third way, as a sparse matrix** (stencil-assembly
@@ -326,7 +360,7 @@ branch and have no landed hash yet.
        resolvent runs assembled (bit-identical). See
        :ref:`loss-rep-three-modes`.
      - #272 #284
-     - ``refactor/spatial-promotion-assembly`` *(in development)*
+     - merged @ ``b058083e``
    * - 2026-07-03
      - **The unified k-estimator law: the reported :math:`k` IS the
        eigenvalue of the fixed-source map every method scales only
@@ -349,7 +383,7 @@ branch and have no landed hash yet.
        because every estimator consistent with the posed problem agrees
        at a converged eigenpair.
      - #259 #291
-     - ``refactor/k-estimator-unification`` *(in development)*
+     - merged @ ``a4952c3e``
    * - 2026-07-03
      - **The ``TransportMethod`` Protocol minted over the method-meshes;
        BC resolution unified into ONE shared body; the rank-N walker
@@ -445,7 +479,7 @@ branch and have no landed hash yet.
        ABC (the L2 single-source contract; see
        :ref:`sn-pole-angular-closure-protocol`).
      - #236 / #248 / #249
-     - *(in development)*
+     - merged @ ``607b548``
        ``feature/sn-spatial-angular-restage``
        (``82cd210``, ``cdb3cd1``, ``9b93db7``, ``4f9e9b3``,
        ``81422f4``)
@@ -489,7 +523,7 @@ branch and have no landed hash yet.
        ``SweepOperator.apply_transpose`` (the reverse-scan
        solve-transpose) as its concrete deliverable.
      - #226 / #280
-     - *(in development)*
+     - merged @ ``1729647``
        ``refactor/inverse-as-operator``
    * - in dev
        (2026-07-02)
@@ -522,7 +556,7 @@ branch and have no landed hash yet.
        object-level ``K.as_matrix() ≡ solve(A, F)`` intrinsic gate. See
        :ref:`spectral-invisibility` (:doc:`/theory/foundations/infinite_medium`).
      - #226
-     - *(in development)*
+     - merged @ ``1729647``
        ``refactor/inverse-as-operator``
    * - in dev
        (2026-07-02)
@@ -582,7 +616,7 @@ branch and have no landed hash yet.
        Full tier ``-O`` serial **3853 / 0**; pyright ratchet re-baselined DOWN
        **148 → 145**. See :ref:`capability-set-semantics` (:doc:`/theory/foundations/operator_algebra`).
      - #226
-     - *(in development)*
+     - merged @ ``1729647``
        ``f4919b1``
        ``refactor/inverse-as-operator``
    * - in dev
@@ -633,7 +667,7 @@ branch and have no landed hash yet.
        **14 mutations verified**, pyright ratchet exactly 148. See
        :ref:`matrix-inverse-operator` (:doc:`/theory/foundations/operator_inverse_family`).
      - #226 / #285
-     - *(in development)*
+     - merged @ ``1729647``
        ``refactor/inverse-as-operator``
    * - in dev
        (2026-07-02)
@@ -685,7 +719,7 @@ branch and have no landed hash yet.
        subspace); **14 mutations verified**. See :ref:`green-operator`
        (:doc:`/theory/foundations/operator_inverse_family`).
      - #226 / #285
-     - *(in development)*
+     - merged @ ``1729647``
        ``refactor/inverse-as-operator``
    * - in dev
        (2026-07-01)
@@ -725,7 +759,7 @@ branch and have no landed hash yet.
        (the windowed×G-S corner). See :ref:`inverse-application-driver`
        (:doc:`/theory/foundations/operator_inverse_family`).
      - #226
-     - *(in development)*
+     - merged @ ``1729647``
        ``refactor/inverse-as-operator``
    * - in dev
        (2026-07-01)
@@ -763,7 +797,7 @@ branch and have no landed hash yet.
        See :ref:`si-gauss-seidel-reification` and
        :ref:`windowing-retyped`.
      - #226
-     - *(in development)*
+     - merged @ ``1729647``
        ``refactor/inverse-as-operator``
    * - in dev
        (2026-06-28)
@@ -788,7 +822,7 @@ branch and have no landed hash yet.
        :math:`K_\mathrm{iso}` operators (0-ULP bit-identical).  See
        :ref:`sn-scattering-adjoint`.
      - #118
-     - *(in development)*
+     - merged @ ``15185e5``
        ``feature/sn-adjoint-transport``
    * - 2026-06-27
      - **Energy condensation landed (the energy-axis transpose of
@@ -879,7 +913,7 @@ branch and have no landed hash yet.
        MMS gate pins Cartesian-separates / curvilinear-couples. The
        space-angle tensor structure made explicit.
      - #236
-     - *(in development)*
+     - merged @ ``607b548``
        ``feature/sn-spatial-angular-product``
    * - 2026-06
      - **Field-typed operator algebra + data XS layer** — cross sections
@@ -1013,7 +1047,8 @@ branch and have no landed hash yet.
    The four ``Phase N`` milestones (#18, #19, #20, #205) carry internal
    phase labels in their commit subjects rather than GitHub-issue
    trailers; the issue mapping above is from the SN development-sequence
-   campaign record. Issue #236 is the only entry not yet on ``main`` — it
-   lives on ``feature/sn-spatial-angular-product`` pending merge.
+   campaign record.  (#236 merged @ ``607b548``, 2026-07-02 — the former
+   "pending merge" note here was a frozen-status claim git had already
+   outdated.)
 
 
