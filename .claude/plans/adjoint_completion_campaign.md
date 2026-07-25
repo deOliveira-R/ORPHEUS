@@ -134,6 +134,40 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   C2-proven scan reverse / hand-built labels) · regimes activate
   (rectangular, non-uniform, het, full composite) · zero flag flips ·
   out-of-scope loud (LD-2D→C5, G-S solve-reverse→R7, tail backstop).
+  **C4 MERGED to main (ff, 7 commits `1efb1a61..59830618`) + phase
+  branch deleted; user-ratified at the boundary checkpoint ("Merge;
+  compact before C5" — the 6458-green + targeted-pin-fix evidence
+  accepted as the pre-merge gate; the full-rerun option was offered
+  and declined).  ⏸ COMPACTION taken here (user-directed) — **C5
+  opens next session, on a fresh `feature/sn-adjoint-residue-c5`
+  branch from main: the LD-2D reverse + the #310 doc blast + CLOSE
+  #310.**  Read spec §6 (+§3.3(c)) and the C4-a..e status entries
+  FIRST.  The heavy lifting is banked: the kernel VJP is d-generic and
+  LD REGISTERS it (the walk would already run — C5 is GATES + the
+  flip), and the LD-2D deferral has ONE spelling
+  (`_multi_d_multi_moment_reverse_deferred`) read by both flip-safety
+  faces, so the C5 flip = narrow/delete that predicate and both faces
+  move together by construction.  C5 = (a) the spec §6 gates: the
+  LD-2D dense-`Mᵀ` + the moment-frame-involution reciprocity row (the
+  d=2 cross-moment frame sign — §3.3(c) generalization, the ERR-066
+  family's likeliest sign-error site) + the §6.3 Mode-7
+  mandatory-anisotropic config (random slope moments — an all-flat
+  suite is blind to a mis-signed slope row) + LD-2D `_BUILDERS`
+  reciprocity rows (bulk metric = the d=2 moment mass ``[1,θ,θ,θ²]``);
+  note the LD-2D reverse rides the WAVEFRONT family ONLY (ScanMarch's
+  facewise supports-gate rejects LD-2D in either orientation); (b) THE
+  FLIP: retire the predicate + the frame guard arm + rewrite
+  `test_ld_2d_wavefront_trait_stays_false` and
+  `test_ld_2d_reverse_is_a_typed_deferral` to positives, same commit;
+  (c) the doc blast: the `loss_representation.rst` coverage-matrix
+  rewrite + re-point the ~40 `#280`-citing deferral comments at #310;
+  (d) #310 CLOSES (via trailer; lands at push).  Weigh the banked NITs
+  at (c): kron-loop 2nd spelling (3rd consumer?), `SLOPE_MOMENT = 1`
+  pair, the C3 apply-frame glue trigger (C5's LD-2D rides the EXISTING
+  interiors — NOT the trigger).  After C5: A4 (P1.2–P1.5 via the
+  dormant `KEigenvalue` daggered triple) → A5 (φ* carrier — USER rules
+  the shape) → A6 + ch15.  L37: Python sources FREEZE during the
+  full-tree gate.**
   **C4-d ✅ @ `81aa8105` — enforcer verdict + contract truth-patch.**
   Enforcer: **code + tests ship-quality** — per-axis: twin-paths PASS
   (`_x_scan_faces_transpose` hand-verified as the genuine VJP incl. the
