@@ -134,6 +134,100 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   C2-proven scan reverse / hand-built labels) · regimes activate
   (rectangular, non-uniform, het, full composite) · zero flag flips ·
   out-of-scope loud (LD-2D→C5, G-S solve-reverse→R7, tail backstop).
+  **C4-d ✅ @ `81aa8105` — enforcer verdict + contract truth-patch.**
+  Enforcer: **code + tests ship-quality** — per-axis: twin-paths PASS
+  (`_x_scan_faces_transpose` hand-verified as the genuine VJP incl. the
+  shift/seed/reversal algebra AND the double seed consumption; the
+  ZERO-kernel-x-out claim verified against the forward's underscore
+  discards; zero duplicated reverse algebra); orientation-as-object
+  PASS; scheme-door PASS (single-sourced, truthful); predicate PASS
+  (grep-confirmed exactly 2 consumers); test-quality PASS (teeth
+  genuine, d=3 non-vacuous, LD-2D negative kept); rst PASS.  The sole
+  blocking cluster = the INVERTED L-004 blast radius: 3 machine-facing
+  deferral contracts outside the diff still named the multi-D Cartesian
+  reverse as deferred (the `LossRepresentation` Protocol ×2 + the
+  public `StreamingOperator.apply_transpose`) — 2 MUST-FIX + 1
+  SHOULD-FIX (`sweep_transpose`'s stale mirrors-the-raise analogy), all
+  docstring-layer, all fixed + committed with the regenerated V&V
+  matrix.  Lesson re-learned: the retirement 3-search must grep the
+  DEFERRAL STORY's contract sites (Protocol docstrings, public operator
+  docs), not only the rst ledger.
+  **C4-e ✅ @ `a6be11c9` — full tree + the one stale pin.**  Full-tree
+  serial `-m "not slow"` @ `81aa8105`: **6458 passed / 1 failed**
+  (66:37, frozen sources per L37).  The 1 red =
+  `test_affine_chain_transpose_single_source` — the #311 pin counting
+  `outgoing_face_from_average_transpose` call sites in diamond.py at
+  exactly 2; C4-b's `reflect_scan_coefficients_transpose` is a
+  legitimate THIRD consumer (the ride-the-primitive discipline the pin
+  itself enforces).  Count updated 2→3 (test-only edit; the
+  open-coded-twin greps untouched); file 11/11.  Evidence posture: the
+  6458 greens stand (no production edit after the run); the fixed file
+  green targeted — a full rerun re-proves unchanged results and is
+  offered at the boundary.
+  **C4-a ✅ @ `1efb1a61` — the WINDOWED production reverse.**
+  `MovingFrontierWindow.loss_action_transpose` = the exact windowed
+  sibling of the C3 oracle: the UNCHANGED `walk_windowed` over the
+  mirror graph × `_CellResidualTranspose` through the shared
+  `_OctantWalk` apply-transpose frame — the mirror graph's own
+  `window_plan` IS the reversed frontier, so ZERO new frontier code and
+  zero forward edits; the `_DAGWavefront` base C4-deferral raise
+  retired.  Gates: `test_reverse_window_equals_full` (window ≡ full at
+  `array_equal`, bulk + every trace face, vacuum-het-rectangular AND
+  reflective nonsquare) + the M-R2-WINDOWDRIFT tooth realized as the
+  representable seed-drop (frontier-ORDER unrepresentable — window_plan
+  + levels are one graph object, the M-R2-LEVELORDER finding shape).
+  Green on contact (34/34); pyright 0/0.  NO flips.
+  **C4-b ✅ @ `d634c1e9` — the ScanMarch-2D row-march reverse.**  The
+  honest reverse-mode of the row-march's own program; the mirror label
+  drives the schedule FREE (the forward's sign-reading spellings yield
+  reversed rows + reversed x under mirror signs).  Per row in mirror-y
+  order: (1) batched `residual_kernel_batch_transpose` with ZERO
+  kernel-x-out cotangent — the forward DISCARDED its kernel `out_x`
+  (the scan owns the x-chain), so that pullback vanishes STRUCTURALLY;
+  `in_y_bar` = the previous physical row's `out_y` cotangent (backwards
+  transverse chaining); (2) NEW `_x_scan_faces_transpose` (scan.py,
+  beside its forward): v[i]=in_x_bar[i+1], v[last]=x̄_cap, ONE
+  `ordinate_scan_transpose` on the SAME α sequence (transpose of a
+  first-order chain = same multiplier, opposite direction); seed cot =
+  direct in_x[0] + the returned ψ0 (consumed, not re-derived); (3) the
+  β-pullback via NEW scheme door `reflect_scan_coefficients_transpose`
+  (ABC raise-default; DD = unit application of the #311 w-generic VJP
+  at w=½ — (2,−1) exact, single-sourced, no probing, no inline twin).
+  `_OneDimScanWalk`'s 2-D guard reworded structural-1-D-only.  Gates:
+  dense-`Mᵀ` + pairing PARAMETRIZED over all three 2-D reps;
+  row-march ≈ oracle at rtol 1e-12 (bulk+trace, both configs);
+  transverse-chain tooth (zeroed `in_y_bar` → red, Mode 4) + scan-seed
+  tooth (dropped ψ0 → red, Mode 5); the deferral file's direct-call row
+  FLIPPED positive (capability-without-predicate until C4-c).  41/41 +
+  455 sweep-core + 63 operator rows; pyright 0/0 on all six files.
+  **C4-c ✅ @ `28f859e8` — THE FLIPS, atomic per §10.**  USER RULING at
+  the design checkpoint: scheme-aware family trait INCLUDING
+  FullFieldWavefront + a d=3 gate row.  `ScanMarch.has_transpose_walk`
+  → True unconditional (supports + the scheme factor narrow);
+  `_DAGWavefront.has_transpose_walk` → `not
+  _multi_d_multi_moment_reverse_deferred(mesh)` — the NEW module-level
+  predicate is the ONE spelling of the LD-2D→C5 deferral, read by BOTH
+  flip-safety faces (trait at construction, `_OctantWalk` frame guard
+  at apply — R5/R6 discipline).  NEW d=3 row: pairing at machine
+  precision + dense-`Mᵀ` matrix equality on a rectangular non-uniform
+  2×3×4 `from_axes` spine mesh — **the mirror-octant reverse is
+  verified d-generic** (the d≥3 interleave deferral on #310 is
+  LD/UBLD-only; DD has no gap).  Deferral file: trait rows True
+  (ScanMarch-2D/window/FFW) + NEW LD-2D negative (trait False +
+  `is_adjointable` False + `.H` raises — the C5 boundary);
+  `is_adjointable`/`.H` rows positive; `test_cart2d_ffw_oracle_state`
+  rewritten (trait ⟺ capability — the C3 select-narrow divergence
+  CLOSED).  Un-exclusions §5.6: removal-form cart2d bit-identity row;
+  phase-C cart2d operator-reciprocity row; G-reciprocity `_BUILDERS`
+  cart2d-DD (the 4-face `|Ω·n|·w_n` trace metric live) AND
+  `_FULL_LOSS_BUILDERS` cart2d (`A = L+C−S−B` with `.H` composing
+  through `OperatorSum` on the multi-D walk; het 2-material asymmetric
+  transfer).  rst ledger: multi-D-production-adjoint entry RETIRED
+  (recorded in the retired-entries note); 2 stale prose deferral
+  mentions truth-patched; orientation-matrix cell updated.  Battery
+  107+5xf; pyright CLI 0/0 on production + main gate files (the 41 in
+  phase_c/reciprocity PRE-EXISTING — verified identical pre-edit);
+  Sphinx `-E -W` exit 0; audit exit 0 (orphans 0, ERR 69/69).
   **C3 MERGED to main (ff, 4 commits `295053b2..d6e125f8`) + phase
   branch deleted; user-ratified at the boundary checkpoint ("Merge;
   compact before C4").  ⏸ COMPACTION taken here (user-directed) — C4
