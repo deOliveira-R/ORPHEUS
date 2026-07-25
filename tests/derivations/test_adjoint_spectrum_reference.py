@@ -49,12 +49,18 @@ def _mixture_arrays(ng_key: str):
 
 
 class TestAdjointSpectrumReference:
-    def test_left_eigen_law_4g(self):
-        r"""DEFINING law: :math:`\varphi^{*T}\mathbf{M} = k\,\varphi^{*T}`.
+    def test_daggered_eigenproblem_law_4g(self):
+        r"""DEFINING law: :math:`\mathbf{A}^T\varphi^* = \tfrac{1}{k}\,
+        \mathbf{F}^T\varphi^*` — the adjoint eigenproblem ITSELF.
 
-        The resolvent is assembled INLINE (explicit ``diag``/``outer``/
-        ``solve``) — the test never calls the module's assembly helper, so a
-        wrong operator pair inside the reference disagrees with this spelling.
+        :math:`(\mathbf{A}, \mathbf{F})` are assembled INLINE (explicit
+        ``diag``/``outer``) — the test never calls the module's assembly
+        helper, so a wrong operator pair OR a wrong eigen-extraction inside
+        the reference disagrees with this spelling.  Asserting the daggered
+        eigenproblem directly (rather than any resolvent-product spelling)
+        makes the gate immune to the factor-order trap the reference's
+        warning documents: :math:`\text{eig}((\mathbf{A}^{-1}\mathbf{F})^T)`'s
+        dominant vector satisfies THIS law only for the true adjoint flux.
         Also pins the output convention: unit :math:`\ell^2` norm,
         non-negative sum (comparability with the forward spectrum).
         """
@@ -63,11 +69,12 @@ class TestAdjointSpectrumReference:
             sig_t, sig_s, nu_sig_f, chi,
         )
 
-        M = np.linalg.solve(np.diag(sig_t) - sig_s.T, np.outer(chi, nu_sig_f))
+        A = np.diag(sig_t) - sig_s.T
+        F = np.outer(chi, nu_sig_f)
         np.testing.assert_allclose(
-            phi_star @ M, k * phi_star, rtol=1e-12, atol=1e-14,
-            err_msg="φ*ᵀM ≠ kφ*ᵀ — the returned vector is not the left "
-            "eigenvector of the independently assembled resolvent.",
+            A.T @ phi_star, (F.T @ phi_star) / k, rtol=1e-12, atol=1e-14,
+            err_msg="Aᵀφ* ≠ Fᵀφ*/k — the returned vector does not solve the "
+            "daggered eigenproblem (the defining law of the adjoint flux).",
         )
         np.testing.assert_allclose(
             float(np.linalg.norm(phi_star)), 1.0, rtol=1e-12,
@@ -77,6 +84,31 @@ class TestAdjointSpectrumReference:
         require(
             float(phi_star.sum()) >= 0.0,
             "adjoint spectrum violates the non-negative-sum sign convention.",
+        )
+
+    @pytest.mark.parametrize("ng_key", ["2g", "4g"])
+    def test_not_the_nu_sigma_f_degenerate(self, ng_key):
+        r"""TRAP-CATCHER: :math:`\varphi^* \not\propto \widehat{\nu\Sigma_f}`.
+
+        The wrong resolvent ordering :math:`\text{eig}(\mathbf{M}^T)` with
+        :math:`\mathbf{M}^T = \mathbf{F}^T\mathbf{A}^{-T}` degenerates, for
+        the rank-1 :math:`\mathbf{F}`, to EXACTLY the normalised
+        :math:`\nu\Sigma_f` vector (:math:`\mathbf{F}^T x \propto
+        \nu\Sigma_f` for every :math:`x`) — same k (similarity), zero
+        :math:`\mathbf{A}`-physics in the vector.  The first spelling of the
+        reference shipped exactly that (caught by the SN daggered solve,
+        #276 A4); this row reds if it ever regresses.
+        """
+        sig_t, sig_s, nu_sig_f, chi = _mixture_arrays(ng_key)
+        _, phi_star = kinf_and_adjoint_spectrum_homogeneous(
+            sig_t, sig_s, nu_sig_f, chi,
+        )
+        nsf_hat = nu_sig_f / np.linalg.norm(nu_sig_f)
+        require(
+            not np.allclose(phi_star, nsf_hat, rtol=1e-6),
+            "the adjoint-spectrum reference returned the normalised νΣf "
+            "vector — the eig(Mᵀ) factor-order degeneracy regressed (the "
+            "reference carries no A-physics; see the module warning).",
         )
 
     @pytest.mark.parametrize("ng_key", ["2g", "4g"])

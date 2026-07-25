@@ -284,14 +284,34 @@ internals.
 
 ### P1.4 — Analytic ∞-medium adjoint spectrum (L1, flux-shape of φ\*).
 
-The adjoint flux of the 0-D k-problem has a CLOSED FORM: the **left
-eigenvector** of `M = A⁻¹F`, i.e. the right eigenvector of `Mᵀ = Fᵀ A⁻ᵀ`.
+> **CORRECTION (2026-07-24, #276 A4 execution — caught by the SN daggered
+> solve on first contact):** this section's original formula was WRONG.
+> φ\* solves the daggered eigenproblem `Aᵀφ* = Fᵀφ*/k`, i.e. it is the
+> dominant right eigenvector of **`(Aᵀ)⁻¹Fᵀ`** — the left eigenvector of
+> the REVERSED product `FA⁻¹`, **NOT** of `M = A⁻¹F`. `Mᵀ = FᵀA⁻ᵀ` is
+> merely SIMILAR to `(Aᵀ)⁻¹Fᵀ` (conjugation by `Aᵀ` — the same algebra as
+> the #226 step-5b `A·(A⁻¹F)·A⁻¹ = FA⁻¹` Mode-12 finding), so every
+> k-level check passes on both; but for the rank-1 `F` the wrong product's
+> dominant eigenvector degenerates to EXACTLY `ν̂Σf` (`Fᵀx ∝ νΣf` for all
+> x) — a reference carrying ZERO A-physics. Measured (Mixture A): the
+> spec-formula vector ≡ ν̂Σf to all digits at 2G AND 4G; the corrected
+> vector = [0.684, 0.730] (2G) / [0.470, 0.486, 0.518, 0.524] (4G), which
+> the SN daggered solve reproduces digit-for-digit. The reference
+> implementation + its pin (`kinf_and_adjoint_spectrum_homogeneous`,
+> `tests/derivations/test_adjoint_spectrum_reference.py`) carry the
+> corrected law, the defining-law pin `Aᵀφ* = Fᵀφ*/k`, and a
+> ν̂Σf-degeneracy trap-catcher row. The original text below is kept for
+> the record; read it with this correction.
+
+The adjoint flux of the 0-D k-problem has a CLOSED FORM: ~~the **left
+eigenvector** of `M = A⁻¹F`, i.e. the right eigenvector of `Mᵀ = Fᵀ A⁻ᵀ`~~
+(corrected above: the dominant right eigenvector of `(Aᵀ)⁻¹Fᵀ`).
 - Reference: extend `kinf_and_spectrum_homogeneous`
   (`derivations/common/eigenvalue.py:48`) — it already builds
-  `M = solve(A,F)` and `eig(M)`. Add the LEFT eigenvector (eig of `Mᵀ`,
-  i.e. `eig(M.T)` dominant, sign-normalised). This is a tiny, structurally-
-  independent (`np.linalg.eig`) addition — a Branch-1 closed-form
-  reference per algebra-of-record.
+  `M = solve(A,F)` and `eig(M)`. Add the adjoint eigenvector
+  (`dominant_eigenpair(solve(A.T, F.T))`, sign-normalised). This is a
+  tiny, structurally-independent (`np.linalg.eig`) addition — a Branch-1
+  closed-form reference per algebra-of-record.
 - Gate: the SN adjoint solve on a homogeneous reflective ∞-medium (flat
   in space) → its per-group spectrum == the closed-form left eigenvector
   (rtol≈1e-8).

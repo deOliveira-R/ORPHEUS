@@ -144,26 +144,45 @@ def kinf_and_adjoint_spectrum_homogeneous(
 ) -> tuple[float, np.ndarray]:
     r"""Infinite-medium :math:`k_\infty` **and** the dominant ADJOINT spectrum.
 
-    The adjoint flux of the 0-D k-problem is the **left** eigenvector of
-    the resolvent :math:`\mathbf{M} = \mathbf{A}^{-1}\mathbf{F}` —
-    equivalently the dominant right eigenvector of :math:`\mathbf{M}^T`:
+    The adjoint flux solves the DAGGERED eigenproblem — the defining law —
 
     .. math::
 
-        \varphi^{*T}\,\mathbf{M} = k\,\varphi^{*T}
+        \mathbf{A}^T\,\varphi^{*} \;=\; \tfrac{1}{k}\,\mathbf{F}^T\,\varphi^{*}
         \quad\Longleftrightarrow\quad
-        \mathbf{M}^T\,\varphi^{*} = k\,\varphi^{*} .
+        (\mathbf{A}^T)^{-1}\mathbf{F}^T\,\varphi^{*} = k\,\varphi^{*} ,
 
-    :math:`k` is IDENTICAL to the forward problem's
-    (:math:`\text{eig}(\mathbf{M}^T) = \text{eig}(\mathbf{M})`); only the
-    vector differs.  This is the closed-form flux-shape reference for the
-    SN adjoint solve (campaign #276 A4, gate P1.4): at ≥4 groups with
-    :math:`\chi` non-proportional to :math:`\nu\Sigma_f` the left
-    eigenvector is genuinely different from the right one, so an
-    :math:`F^\dagger` role-swap error (the missing χ↔νΣf swap) moves the
-    returned spectrum O(1) while every k-level functional stays exactly
-    equal — the Mode-12 spectral invisibility this vector-level reference
-    exists to break.
+    i.e. :math:`\varphi^*` is the dominant right eigenvector of
+    :math:`(\mathbf{A}^T)^{-1}\mathbf{F}^T` — equivalently the **left**
+    eigenvector of the REVERSED product :math:`\mathbf{F}\mathbf{A}^{-1}`,
+    and **NOT** of :math:`\mathbf{M} = \mathbf{A}^{-1}\mathbf{F}`.
+
+    .. warning::
+
+        **The factor-order trap (Mode 12's transpose-side sibling,
+        caught live at #276 A4).**  :math:`\mathbf{M}^T =
+        \mathbf{F}^T\mathbf{A}^{-T}` is SIMILAR to
+        :math:`(\mathbf{A}^T)^{-1}\mathbf{F}^T` (conjugation by
+        :math:`\mathbf{A}^T` — the same algebra as the #226 step-5b
+        ``A·(A⁻¹F)·A⁻¹ = FA⁻¹`` finding), so every k-level functional is
+        blind to the swap — but the eigenVECTORS differ, and for the
+        rank-1 :math:`\mathbf{F} = \chi\otimes\nu\Sigma_f` the wrong
+        product's dominant eigenvector degenerates to EXACTLY
+        :math:`\widehat{\nu\Sigma_f}` (since :math:`\mathbf{F}^T x
+        \propto \nu\Sigma_f` for every :math:`x`) — a reference carrying
+        ZERO :math:`\mathbf{A}`-physics.  The first spelling of this
+        function used :math:`\text{eig}(\mathbf{M}^T)` (following the P6
+        spec's P1.4 text) and its pin test encoded the same wrong law
+        self-consistently; the structurally-independent SN daggered solve
+        disagreed on first contact and exposed both.
+
+    :math:`k` is IDENTICAL to the forward problem's; only the vector
+    differs.  This is the closed-form flux-shape reference for the SN
+    adjoint solve (campaign #276 A4, gate P1.4): an :math:`F^\dagger`
+    role-swap error (the missing χ↔νΣf swap) moves the computed adjoint
+    spectrum O(1) while every k-level functional stays exactly equal —
+    the Mode-12 spectral invisibility this vector-level reference exists
+    to break.
 
     :math:`(\mathbf{A}, \mathbf{F})` come from the SAME assembly as the
     forward spectrum (:func:`_infinite_medium_matrices`), so the two
@@ -188,8 +207,8 @@ def kinf_and_adjoint_spectrum_homogeneous(
     from orpheus.numerics.eigenvalue import dominant_eigenpair
 
     A, F = _infinite_medium_matrices(sig_t, sig_s, nu_sig_f, chi, sig_2)
-    M = np.linalg.solve(A, F)
-    k, phi_star = dominant_eigenpair(M.T)
+    # The DAGGERED resolvent (Aᵀ)⁻¹Fᵀ — NOT (A⁻¹F)ᵀ; see the warning above.
+    k, phi_star = dominant_eigenpair(np.linalg.solve(A.T, F.T))
     # dominant_eigenpair contracts sign (sum >= 0) but leaves scale
     # arbitrary — normalise explicitly, exactly as the forward sibling
     # does, so the two spectra are comparable by construction.
