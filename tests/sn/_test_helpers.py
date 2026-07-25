@@ -786,6 +786,76 @@ def g_inner(a: "TimedFullField", b: "TimedFullField", sn: "SNMesh", *,
     return bulk + trace
 
 
+def g_coupled_diagonal(sn: "SNMesh") -> np.ndarray:
+    r"""The COUPLED G-metric diagonal from raw mesh data, in flat order.
+
+    The full solution metric of a carrying (System-B) mesh, as ONE flat
+    diagonal aligned with ``CoupledField.to_flat()`` order
+    (``system-A interior ⊕ system-A trace ⊕ ray interior ⊕ ray trace``):
+
+    * bulk — ``V_cell · w_n`` (⊗ moment mass on LD) via
+      :func:`g_bulk_measure`;
+    * trace — per-face ``|Ω·n| · w_n`` via :func:`g_trace_cosine_weight`,
+      written through the boundary field's ``face_view`` (a view into the
+      flat backing buffer, so the face layout is never hand-derived);
+    * ray — the ψ½ STATE metric ``G_sd = V_cell`` (interior slots) and
+      ``V[-1]`` (the boundary gauge slot), the hand gauge of
+      ``test_radial_characteristic_carrier``.
+
+    Built ENTIRELY from raw data (``sn.volumes`` / ``quad.weights`` /
+    ``omega_dot_n`` / ``slot_view`` layout) — never from a space's stored
+    ``inner_product_weights`` — so a production metric bug is CAUGHT by a
+    gate using this diagonal rather than inherited into its reference
+    (anti-R1; the coupled sibling of :func:`g_inner`).
+    """
+    from orpheus.transport.fields.angular_boundary_flux import (
+        AngularBoundaryFlux,
+    )
+    from orpheus.transport.fields.angular_flux import AngularFlux
+
+    per_axis = sn.scheme.spatial_basis_per_axis
+    interior = AngularFlux.zeros_on(sn, spatial_moments=per_axis)
+    bulk = np.broadcast_to(
+        g_bulk_measure(sn), interior.values.shape,
+    ).ravel().astype(float)
+
+    bfield = AngularBoundaryFlux.zeros_on(sn)
+    for f_idx, face in enumerate(sn.angular_trace.layout.faces):
+        w_face = g_trace_cosine_weight(sn, f_idx, with_cosine=True)
+        view = bfield.face_view(face)
+        view[:] = np.broadcast_to(
+            w_face.reshape((w_face.shape[0],) + (1,) * (view.ndim - 1)),
+            view.shape,
+        )
+    trace = np.asarray(bfield.values, dtype=float).copy()
+
+    ii = sn.radial_characteristic_interior_space
+    bb = sn.radial_characteristic_boundary_space
+    # Explicit raises, not bare asserts: this module is not
+    # assertion-rewritten, so ``python -O`` would strip asserts (Mode 8).
+    if ii is None or bb is None:
+        raise TypeError(
+            "g_coupled_diagonal: carrying (System-B) mesh required — the "
+            "coupled metric has a ray block by definition."
+        )
+    V = np.asarray(sn.volumes, dtype=float).ravel()
+    iw = np.zeros(int(ii.shape[0]))
+    bw = np.zeros(int(bb.shape[0]))
+    for p in ii.levels:
+        for sign in (-1, +1):
+            ii.slot_view(iw, p, sign)[:] = V[None, :]
+            bb.slot_view(bw, p, sign)[:] = V[-1]
+
+    g = np.concatenate([bulk, trace, iw, bw])
+    if not np.all(g > 0.0):
+        raise ValueError(
+            "g_coupled_diagonal: the assembled metric must be SPD "
+            "(strictly positive) — a zero slot means a face/slot the "
+            "fill loops did not cover (layout drift) or a ghost metric."
+        )
+    return g
+
+
 def energy_spectrum(sol) -> np.ndarray:
     r"""L2-normalised per-group spatial-MEAN spectrum of a Solution's scalar flux.
 
