@@ -366,6 +366,12 @@ def test_affine_chain_transpose_single_source():
     the single-source debt #311 retired: the LD kernel's ``w = 1/(1+k) ≠ ½``
     means any convention change fixed only in the primitive would silently
     miss a hardcoded ``w=½`` twin.
+
+    #310 C4 added a THIRD diamond.py consumer — the row-march reverse's
+    ``reflect_scan_coefficients_transpose`` extracts its ψ̄-independent
+    ``(α, β_pullback)`` as the primitive's unit application — which is
+    exactly the discipline this pin enforces (ride the primitive, never
+    inline the pair), so the DD count moved 2 → 3.
     """
     dd_src = Path(diamond_mod.__file__).read_text()
     seed_src = Path(psi_half_angle_seed_mod.__file__).read_text()
@@ -380,10 +386,11 @@ def test_affine_chain_transpose_single_source():
         "outgoing_face_from_average_transpose"
     )
     n_dd = dd_src.count("outgoing_face_from_average_transpose(")
-    assert n_dd == 2, (
-        f"expected exactly two primitive calls in diamond.py (the "
+    assert n_dd == 3, (
+        f"expected exactly three primitive calls in diamond.py (the "
         f"cell-balance kernel's chain pair + the batch VJP's per-axis face "
-        f"pair), found {n_dd}"
+        f"pair + the reflect-transpose coefficient extraction, #310 C4), "
+        f"found {n_dd}"
     )
     n_seed = seed_src.count("outgoing_face_from_average_transpose(")
     assert n_seed == 3, (
