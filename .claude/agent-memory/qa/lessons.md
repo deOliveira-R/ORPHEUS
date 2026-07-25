@@ -2254,3 +2254,57 @@ VERDICT PASS; the ~50-claim page was faithful end-to-end. Three reusable techniq
    the 10 matrix.rst headings, Peierls `precision_digits=30`, the `sentinel` marker "run
    WITHOUT -O", `generate_rst` runnable as `-m` + `reference_values` pkgutil auto-discovery —
    verified faithful. (#231 #10 V6, 2026-07-23.)
+
+---
+
+## L-058 -- a "k is designed-green / functional-blind to the mutation class" (Mode-12) claim is VERIFIABLE by running the mutation — a leaf-transpose-DROP is NOT similar to forward, so its k SHIFTS
+
+#276 A4 phase-gate: the adjoint φ* certification. The test docstrings + the standalone
+NOTE claimed "F†=F leaves k EXACTLY equal / k is designed-green on the entire adjoint
+mutation class (eig(A†)=eig(A))" and used that to motivate the P1.3-k-vs-P1.4-spectrum
+split. **The claim is FALSE and self-contradicted by a passing sibling test.** Verified two
+ways:
+
+1. **Direct closed-form check (10-line numpy):** under F†→F on ∞-medium 4G, the daggered
+   operator becomes `(Aᵀ)⁻¹F` (F NOT transposed), whose dominant eig = `χ·A⁻¹νΣf = 0.153`
+   vs forward `νΣf·A⁻¹χ = 1.488` — k SHIFTS 1.488→0.153 (|Δk|=1.33). The char poly is
+   `det(A−Fᵀ/k) ≠ det(A−F/k)` for asymmetric A / χ∦νΣf. Only the CORRECT adjoint
+   `(Aᵀ,Fᵀ)` is similar to forward `(A,F)`; a leaf-DROP mutation `(Aᵀ,F)` is a NON-transpose
+   operator and its k is unconstrained.
+2. **The self-contradiction tell:** `TestP13Mutations.test_fission_role_swap_shifts_k`
+   applies the SAME F†=F on `_infinite_medium("4g")` and asserts `|Δk|>1e-6` — and PASSES.
+   So the note's "the ∞ row stays GREEN under F†=F, which is why the k-tooth had to ride a
+   shifted-k regime" is refuted by the very ∞-medium k-tooth it describes.
+
+**The CORRECT Mode-12 framing** (the fix): `k_adj==k_fwd` is automatic FOR THE CORRECTLY-
+BUILT adjoint (eig(A†)=eig(A)), so it confirms the eigenVALUE but NOT the adjoint FLUX SHAPE
+(a right-k/wrong-ψ* solver — forward φ, or the νΣf degeneracy — passes the k-legs). THAT is
+why the vector gates (spectrum, biorthogonality) are needed. The leaf-transpose-DROP
+mutations DO shift k, so the k-legs carry real teeth too; the blind spot is the eigenVECTOR
+identity, not "the machinery." **Behavioral rule: NEVER accept a "this functional is blind
+to this mutation class" narrative by inspection — RUN the mutation (or the closed-form eig).
+A k-blindness claim is right ONLY for mutations that keep the operator a valid transpose;
+leaf-drops break the transpose and shift k.** This is the mirror of the #226 step-5b
+OVERCLAIM (Mode-12): step-5b claimed a gate CATCHES when it's blind; this UNDERCLAIMS
+(claims blind when it has teeth) — same defense (run it, don't narrate it). No coverage gap
+(the genuine flux-shape blind spot IS closed by P1.4/P1.5); the finding is a wrong WHY =
+should-fix (CR3), not a blocker.
+
+**Skill refinement flagged (read-only task, so surfaced not applied):** the `vv-principles`
+Mode-12 "Live application" text carries the same overstatement verbatim — "#276 A4 … 'k*
+matches k' carries ZERO mutation coverage on the adjoint machinery." Sharpen "ZERO mutation
+coverage on the adjoint machinery" → "cannot confirm the adjoint eigenVECTOR/flux-shape; the
+leaf-transpose-drop mutations still shift k." When a review pushes back on the skill's OWN
+example, flag the skill edit as a finding under a read-only constraint (main agent applies) —
+honors both the read-only task instruction and the self-improvement trigger.
+
+**Other durable micro-findings this review:** (a) an angle-flat-blindness justification is
+checkable — `Σχ/W==Σwχ/W when angle-flat` holds IFF W==N; false for lebedev (N=110, W=4π:
+8.75 vs 1.0) — but a conservative angle-varying `require` + an in-test wrong-spelling
+discriminator make it harmless (doc-precision note, not a teeth failure). (b) `foundation`
+stacked on a method under a module `pytestmark=l1` → `PytestUnknownMarkWarning: conflicting
+V&V level markers … using 'l1'`; the intended foundation level is silently dropped — a
+level-marker hygiene nit distinct from the L-007 foundation+verifies conflation. (c) a
+k-only geometry leg with no closed-form (the coupled sphere daggered posing) is honest-scope:
+it rides upstream-verified transpose machinery (#280/#310) + k-equality; flag the missing
+vector-shape check as a scope boundary, don't credit k as flux-shape evidence.

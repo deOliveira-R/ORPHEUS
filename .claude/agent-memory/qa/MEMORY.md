@@ -2,8 +2,8 @@
 
 ## 1. Lessons (the behavioral spine)
 
-[lessons.md](lessons.md) — 57 behavioral lessons (`## L-NNN -- title`,
-ascending, contiguous L-001..L-057). "What mistake did I make, what did I
+[lessons.md](lessons.md) — 58 behavioral lessons (`## L-NNN -- title`,
+ascending, contiguous L-001..L-058). "What mistake did I make, what did I
 learn that improved my review behaviour." Consult before every review;
 sharpen in place after every task. The recurring spine:
 
@@ -50,6 +50,12 @@ sharpen in place after every task. The recurring spine:
 - **Mode-10 honest-scope** (L-026, L-037, L-038) — an exercised term whose
   sign error is sub-floor is UNVERIFIED, not verified; structural teeth +
   no-op control when no dominant regime exists.
+- **Mode-12 verify-by-running** (L-058) — a "k/functional is designed-green /
+  blind to this mutation class" claim is checkable: RUN the mutation. A
+  leaf-transpose-DROP is a NON-transpose operator whose k SHIFTS (only the
+  correct adjoint is similar to forward); k's real blind spot is the flux-SHAPE
+  (eigenvector), not the machinery. Mirror of the #226 step-5b overclaim; when
+  the pushback hits the skill's OWN Mode-12 example, flag the skill edit.
 - **Protocol/category gates** (L-039, L-047) — runtime_checkable only checks
   member PRESENCE; the direct `not hasattr` negatives are the defense.
 - **Behavior-neutral retype** (L-041, L-045, L-048, L-050) — re-prove

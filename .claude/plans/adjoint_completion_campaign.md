@@ -133,6 +133,45 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   np.linalg.norm converged), the `FissionOperator.apply_transpose`
   composite variant (its docstring names this moment), and the P1.3
   sphere leg's coupled-grid dagger (F lift to the CoupledField).
+- **A4 SWEEP ✅ (2026-07-25) — the phase-end gates + both reviews, findings fixed in-session.**
+  Gates: Sphinx `-E -W` exit 0 (3 docstring RST warnings caught + fixed —
+  the wrapped grouped-name parameter list napoleon cannot parse + the bare
+  ``*spatial`` emphasis opener; `4dbbc805`); audit exit 0 (orphans 0/311,
+  ERR 69/69); pyright production floor 1 (#288); matrix regen is
+  BUILD-INTEGRATED (conf.py runs the generator — 6763 collected).
+  ENFORCER (no blocker): the packaging-tail twin — extracted the shared
+  SCALAR-AGNOSTIC ``_package_solution`` + ``_cell_average_angular``;
+  the forward ``solve_sn`` tail and ``_package_adjoint_solution`` both
+  route through them, so the A5 φ* fork stays caller-side BY CONSTRUCTION
+  (`4be53b2b`); ``_g_inner``/``_energy_spectrum`` promoted to
+  ``tests/sn/_test_helpers.py`` as the shared oracle cluster
+  (``g_inner``/``g_bulk_measure``/``g_trace_cosine_weight``/
+  ``energy_spectrum``; `5654c027`); Carrier docstring precision
+  (KEigenvalue stays on bounded V — CLI-verified).
+  QA (PASS; independent re-derivation CONFIRMS the P1.4 corrected math):
+  **the campaign's second wrong-WHY catch — the "F†=F leaves k EXACTLY
+  equal (pencil similarity)" gloss was FALSE.** A one-factor transpose is
+  NOT a similarity of the pencil: k moves 1.488→0.153 under F†=F on the
+  4G ∞ fixture, and the P1.3 tooth asserts exactly that shift — the
+  gates were right, their story wasn't. The true Mode-12 stabiliser =
+  the factor-ORDER/similarity family (``eig(Mᵀ)=eig(M)``) + all vector
+  content; leaf-transpose DROPS exit it (visibility preconditions
+  asserted). Corrected across 4 docstring sites + the test rename
+  (``test_f_role_swap_reds_spectrum`` — the old name carried the claim)
+  + the vv-principles Mode-12 live-application text (now the measured
+  spelling). Marker repair: module-wide l1 no longer overrides the two
+  foundation P1.5 rows (10 l1 + 2 foundation; conflict warning gone).
+  The sphere P1.3 leg carries an HONEST-SCOPE note (k-only); **A5
+  CARVE-IN: a sphere φ*-shape row** (the coupled daggered vector has no
+  independent reference yet). Fission composite-pairing precondition
+  justification corrected (angle-flat reduces differ by the global N/W
+  factor — NOT equal). Batteries: 219 across the six touched files, all
+  green under ``-O``; pyright ≡-or-better everywhere (iteration 15→13;
+  _test_helpers 8→10 = two LATENT legacy ``_LC_matvec`` annotation lies
+  surfaced by the newly-resolving TYPE_CHECKING import — recorded,
+  follow-up territory). REMAINING: final Sphinx ``-E -W`` + matrix
+  commit → FULL serial tree (L37 freeze) → the boundary AskUserQuestion
+  (merge / A5).
 - **A4-3b ✅ — THE φ* CERTIFICATION BATTERY**
   (`tests/sn/solve/test_sn_adjoint_certification.py`, 12/12, ~112 s).
   P1.3: the k triple-equality (∞ 2G+4G vs `kinf_homogeneous` — the chain

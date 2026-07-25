@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6730**
+Total tests collected: **6763**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1194, 17.7%
-   L1, 1103, 16.4%
+   L1, 1120, 16.6%
    L2, 54, 0.8%
    L3, 0, 0.0%
-   foundation, 4379, 65.1%
+   foundation, 4395, 65.0%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6651
+   explicit, 6684
    class-name, 46
    func-name, 0
    case, 33
@@ -127,6 +127,7 @@ Module × level grid
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
    data/test_mixture_transport_xs, 0, 1, 0, 0, 4, 0
    data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
+   derivations/test_adjoint_spectrum_reference, 0, 0, 0, 0, 6, 0
    derivations/test_atkinson_product_nystrom, 0, 6, 0, 0, 5, 0
    derivations/test_capability_matrices, 0, 0, 0, 0, 3, 0
    derivations/test_carlvik_galerkin_slab, 0, 18, 0, 0, 0, 0
@@ -304,7 +305,7 @@ Module × level grid
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
-   numerics/test_iteration, 0, 1, 0, 0, 24, 0
+   numerics/test_iteration, 0, 3, 0, 0, 24, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -338,7 +339,7 @@ Module × level grid
    operators/test_boundary_conditions, 0, 0, 0, 0, 11, 0
    operators/test_capability_survival, 0, 0, 0, 0, 10, 0
    operators/test_collision_operator, 0, 0, 0, 0, 54, 0
-   operators/test_fission_adjoint, 0, 0, 0, 0, 8, 0
+   operators/test_fission_adjoint, 0, 0, 0, 0, 13, 0
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
@@ -362,7 +363,7 @@ Module × level grid
    operators/test_radial_characteristic_metric, 0, 0, 0, 0, 19, 0
    operators/test_ray_operator, 0, 6, 0, 0, 0, 0
    operators/test_removal_form_matvec_sweep, 0, 0, 0, 0, 21, 0
-   operators/test_scattering_adjoint, 0, 0, 0, 0, 15, 0
+   operators/test_scattering_adjoint, 0, 0, 0, 0, 18, 0
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 69, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 20, 0
@@ -410,6 +411,8 @@ Module × level grid
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
+   solve/test_sn_adjoint_certification, 0, 10, 0, 0, 2, 0
+   solve/test_sn_adjoint_entries, 0, 5, 0, 0, 0, 0
    spatial/test_affine_closure, 0, 0, 0, 0, 5, 0
    spatial/test_ld_slope_frame, 0, 1, 0, 0, 1, 0
    spatial/test_ld_ubld_primitive, 0, 0, 0, 0, 18, 0
@@ -456,7 +459,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``wdd-closure``, 103
    ``wdd-face``, 103
    ``collision-rate``, 94
-   ``multigroup``, 82
+   ``multigroup``, 83
    ``alpha-cylindrical``, 75
    ``mm-weights``, 75
    ``ki3-def``, 64
@@ -546,6 +549,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``fission-source``, 14
    ``fixed-source-solve``, 14
    ``keff-update``, 14
+   ``kinf-mg``, 14
    ``peierls-greens-annulus-architecture``, 14
    ``two-group-charpoly``, 14
    ``two-group-roots``, 14
@@ -553,7 +557,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``complementarity``, 12
    ``cp-infinite-lattice-sum``, 12
    ``kinf-1g``, 12
-   ``kinf-mg``, 12
    ``ld-cartesian-2d``, 12
    ``periodic-bc``, 12
    ``reciprocity``, 12

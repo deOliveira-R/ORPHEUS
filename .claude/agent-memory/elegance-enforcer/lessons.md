@@ -751,3 +751,34 @@ each. Distinct still-true residues to NOT flag: the reverse-SCAN `sweep_transpos
 One SHOULD-FIX citation-drift: the Protocol `sweep_transpose` stub still cites "#310 C3–C5" for the
 reverse-scan deferral while the base impl + public operator now say "R7 / deferred-out" — a
 twin-spelling of one deferral, primary claim true (L-016 SHOULD-FIX class). (#310 C5 flip review.)
+
+## L-017 -- A "generic-TypeVar-rejects-ndarray" static-honesty hypothesis MUST be CLI-pyright-verified before flagging — a bounded-`V` class-generic can still admit ndarray because `V` infers PER-CALL at the consumer, not from the class
+
+On the #276 A4 daggered-adjoint review I built a near-certain SHOULD-FIX: `power_iteration`
+was genericized with an UNBOUNDED `Carrier` (numpy stubs can't prove `ndarray ⊨ Vector`), but
+its primary consumer `KEigenvalue` was made `Generic[V]` with `V bound=Vector` — and its OWN L0
+tests drive it with `np.ones(n)`, and the `vector.Carrier` docstring even NAMES `KEigenvalue` as a
+boundary that "must bind a bare np.ndarray carrier concretely." Every signal said "A4 regressed the
+ndarray path from concrete `np.ndarray` (pre-A4, fine) to `V bound=Vector` (rejects ndarray)." Then
+I ran the sanctioned CLI `npx pyright` on the KEigenvalue-driving test: the `ke = KEigenvalue(...)` /
+`ke.solve(np.ones(n))` lines produced **ZERO** errors. Reason: `V` is a CLASS-level TypeVar bound at
+CONSTRUCTION from the operators; when the operators don't pin it, `V` stays unsolved and the ndarray
+`solve()` call type-checks fine. The bounded-`V` does NOT propagate a rejection to the ndarray
+consumer. My hypothesis was REFUTED by the live tree; I downgraded it from SHOULD-FIX to a
+doc-precision NIT (the `Carrier` docstring lumps KEigenvalue with `EigenvalueSolver` when only the
+latter uses `Carrier`).
+
+How to apply: a static-honesty finding on a generics carve ("this bound rejects that carrier") is a
+CLAIM about the CONSUMER site, not the definition — the definition file is almost always clean
+(pyright was 0 on iteration.py itself). VERIFY at the consumer with `npx pyright --outputjson <test>`
+and ATTRIBUTE each diagnostic to a line (the A4 test's 15 errors were ALL test-mock negative controls
+`BrokenA`/`_RecordingInverse`, `assert_allclose` atol stub-noise, and a `keff: float|None`
+subtraction — NONE at the KEigenvalue instantiation). Never infer "bound=X rejects Y" from reading
+the TypeVar bound alone; a class-generic's TypeVar solves per-call and an unpinned `V` swallows the
+mismatch. This is Leg-3 (verify the live tree) applied to a generics hypothesis — the exact reason
+the brief said "trust only a CLI pyright run." The positive residue that SURVIVED verification: the
+carve introduced ZERO `# type: ignore` and the touched production files are pyright-0, so the
+unbounded-`Carrier` + four principled `cast()`s are a genuine stub-limitation workaround (honest
+anti-#19), not a contract-widening — THAT is the defensible verdict on a typing carve, earned by the
+production-file pyright-0 + suppression-grep, not by reading the docstring's self-description.
+(#276 A4 daggered-adjoint review, 2026-07-25.)
