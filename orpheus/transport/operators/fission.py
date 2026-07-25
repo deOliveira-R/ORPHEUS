@@ -358,7 +358,11 @@ class FissionOperator(LinearOperator):
         """
         return ReactionRateFunctional(self.mat_xs.fission_production_field)
 
-    def apply_transpose(self, phi_star: np.ndarray) -> np.ndarray:
+    @overload
+    def apply_transpose(self, phi_star: "FullField", /) -> "FullField": ...
+    @overload
+    def apply_transpose(self, phi_star: np.ndarray, /) -> np.ndarray: ...
+    def apply_transpose(self, phi_star: "Any") -> "Any":
         r"""Adjoint fission :math:`F^\dagger\psi^* = \nu\Sigma_f\,(\chi\cdot\psi^*)`.
 
         The transpose of the rank-1 dyad
@@ -389,12 +393,74 @@ class FissionOperator(LinearOperator):
         the :class:`~orpheus.numerics.operator.IdentityOperator` spatial factor
         self-transposing.
 
-        Bare-``np.ndarray`` surface — the K-eigenvalue / adjoint outer-iteration
-        boundary, symmetric with the bare-ndarray :meth:`apply` arm. Accepts a
-        :class:`~orpheus.numerics.field.Field`-like carrier (its ``.values`` is
-        read); typed adjoint-flux carriers are threaded when the adjoint
-        transport machinery lands (campaign #276).
+        The COMPOSITE (``FullField``) arm (#276 A4 — the seam this docstring
+        used to defer) mirrors the forward composite's two-arm parse:
+
+        * **Angular bulk** — the forward angular arm is the composition
+          ``(1/W)·broadcast ∘ K ∘ (w-weighted Σ_n)`` (``from_isotropic ∘
+          kernel ∘ integrate_angular``), so its transpose SWAPS the
+          reduce/broadcast weights:
+
+          .. math::
+
+              (F^{T}\psi^*)_{n} \;=\; w_n\,K^{T}\!\Bigl(
+                  \tfrac{1}{W}\sum_{m} \psi^*_{m}\Bigr)
+
+          — the unweighted ordinate sum :math:`/W` (``from_isotropic``'s
+          pullback) into the dual dyad, broadcast back with the quadrature
+          weight :math:`w_n` (``integrate_angular``'s pullback).
+        * **Scalar bulk** — the forward's reduce/broadcast is the identity,
+          so the transpose is the bare dual dyad on the scalar bulk.
+
+        Like :math:`S^{T}`'s composite arm, fission is PURE BULK, so the
+        transpose emits the implicit-zero trace and the full loss
+        ``(L+C-S-B).H`` / the daggered eigen-pencil compose through
+        ``OperatorSum.apply_transpose``.
+
+        Bare-``np.ndarray`` surface — the K-eigenvalue / adjoint
+        outer-iteration boundary, symmetric with the bare-ndarray
+        :meth:`apply` arm. Accepts a
+        :class:`~orpheus.numerics.field.Field`-like carrier (its ``.values``
+        is read).
         """
+        if isinstance(phi_star, FullField):
+            bulk = phi_star.interior
+            if isinstance(bulk, AngularFlux):
+                from orpheus.transport.source_sinks import (
+                    AngularSourceSink,
+                    AngularBoundarySourceSink,
+                )
+
+                mesh = bulk.mesh
+                w = np.asarray(mesh.quad.weights, dtype=float)
+                # from_isotropicᵀ: unweighted ordinate sum / W.
+                iso_star = np.asarray(bulk.values).sum(axis=0) / float(w.sum())
+                # integrate_angularᵀ: w_n-weighted broadcast of the dual dyad.
+                per_ord = np.multiply.outer(
+                    w, self.kernel.apply_transpose(iso_star),
+                )
+                return FullField(
+                    interior=AngularSourceSink.from_mesh(per_ord, mesh),
+                    boundary=AngularBoundarySourceSink.zeros_on(mesh),
+                )
+            if isinstance(bulk, ScalarFlux):
+                from orpheus.transport.source_sinks import (
+                    ScalarBoundarySourceSink,
+                )
+
+                scalar_star = self.kernel.apply_transpose(
+                    np.asarray(bulk.values),
+                )
+                return FullField(
+                    interior=ScalarSourceSink.from_mesh(scalar_star, bulk.mesh),
+                    boundary=ScalarBoundarySourceSink.zeros_on(bulk.mesh),
+                )
+            raise TypeError(
+                f"FissionOperator's composite transpose arm requires an "
+                f"AngularFlux bulk (the w-broadcast ∘ dual-dyad ∘ Σ/W "
+                f"pullback) or a ScalarFlux bulk (the scalar composite); "
+                f"got {type(bulk).__name__}."
+            )
         arr = np.asarray(getattr(phi_star, "values", phi_star))
         return self.kernel.apply_transpose(arr)
 

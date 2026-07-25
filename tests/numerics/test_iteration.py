@@ -746,6 +746,159 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     )
 
 
+def _sn_composite_triple():
+    r"""The HONEST typed-composite SN operator triple + solve_sn reference.
+
+    #276 A4 activation fixture: ``build_within_group_system`` supplies the
+    production splitting — ``LC`` (the invertible resolvent whose ``solve``
+    is the sweep), the gains ``(S, B_a)`` summed into KEigenvalue's single
+    coupling slot, and the production ``FissionOperator`` — all acting on
+    typed :class:`FullField` composites (no scalar adapter shims; contrast
+    the legacy-shim gate above, kept as the pre-A4 record).
+    """
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.sn.coupled_system import build_within_group_system
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.solver import SNSolver, solve_sn
+    from orpheus.transport.fields.angular_flux import AngularFlux
+    from orpheus.transport.full_field import FullField
+
+    mix = get_mixture("A", "2g")
+    materials = {0: mix}
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 5.0, 11), mat_ids=np.zeros(10, dtype=int),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
+    ref = solve_sn(
+        materials, mesh, quad,
+        inner_solver="source_iteration", scattering_order=0,
+        max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
+        max_inner=500, inner_tol=1e-10,
+    )
+    if ref.keff is None:  # explicit narrow — fires under -O (Mode 8)
+        pytest.fail("solve_sn returned no eigenvalue — the reference leg "
+                    "of the A4 activation fixture is broken.")
+    sn = SNMesh(mesh, quad, materials)
+    solver = SNSolver(sn, scattering_order=0)
+    system = build_within_group_system(
+        sn, solver.mat_xs, scattering_op=solver.scattering_op,
+    )
+    S_total = system.gains[0] + system.gains[1]
+    guess = FullField(
+        interior=AngularFlux.from_mesh(
+            np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), sn,
+        ),
+        boundary=AngularBoundaryFlux.zeros_on(sn),
+    )
+    return float(ref.keff), system.resolvent, S_total, solver.fission_op, guess, mix
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("multigroup")
+def test_keigenvalue_honest_composite_triple_matches_solve_sn():
+    r"""#276 A4 activation CONTROL: the honest typed-composite triple.
+
+    ``KEigenvalue(LC, S+B_a, F)`` on :class:`FullField` composites — the
+    production operators, NO adapter shims — converges to ``solve_sn``'s
+    eigenvalue, asserted on KEigenvalue's OWN hardwired Rayleigh estimator
+    (on-contract for the first time: ``A.apply`` is the TRUE composite
+    ``L+C`` action, which the legacy scalar shim above could not provide).
+    This is the FORWARD control leg the daggered smoke below rests on: any
+    carrier-honesty regression in the posing layer (the ``_ravel`` sums,
+    the ``_l2_norm`` convergence test, the frozen-alias guess stash) reds
+    here before any adjoint claim is evaluated.
+    """
+    ref_keff, LC, S_total, F, guess, _mix = _sn_composite_triple()
+    ke = KEigenvalue(
+        LC, S_total, F,
+        max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
+        max_inner=500, inner_tol=1e-10,
+    )
+    keff, history, psi = ke.solve(initial_guess=guess)
+    np.testing.assert_allclose(
+        keff, ref_keff, rtol=0, atol=1e-9,
+        err_msg=f"honest-composite KEigenvalue k={keff!r} differs from "
+        f"solve_sn k={ref_keff!r}; history[-3:]={history[-3:]}",
+    )
+    from orpheus.transport.full_field import FullField as _FF
+
+    if not isinstance(psi, _FF):
+        pytest.fail(
+            f"the honest-composite drive must return a typed composite "
+            f"iterate; got {type(psi).__name__}."
+        )
+
+
+@pytest.mark.l1
+def test_keigenvalue_daggered_triple_adjoint_smoke():
+    r"""#276 A4 activation: ``KEigenvalue(LC.H, (S+B_a).H, F.H)`` — the
+    daggered posing through the UNCHANGED ``power_iteration``.
+
+    The adjoint eigenproblem ``A_loss† ψ* = F† ψ*/k`` posed purely by
+    dagger-ing the forward triple's members (the operator algebra IS the
+    implementation — zero adjoint-specific loop code).  Gates, per Mode-12
+    (k is NEVER sole evidence — ``eig(Aᵀ) = eig(A)`` makes every k-level
+    functional blind to the whole adjoint mutation class):
+
+    * ``k_adj == k_fwd == solve_sn`` (the exact algebraic equality);
+    * the ∞-medium adjoint SPECTRUM equals the corrected closed form
+      (``kinf_and_adjoint_spectrum_homogeneous`` — the dominant eigenvector
+      of ``(Aᵀ)⁻¹Fᵀ``; on the flat reflective mesh the discrete daggered
+      solve reproduces the 0-D energy shape).  This vector-level leg is
+      what caught the reference's original ``eig(Mᵀ)`` factor-order
+      degeneracy (≡ ν̂Σf, zero A-physics) on this machinery's first run —
+      and it is asserted NOT to be that degenerate vector here.
+
+    The full P1.3/P1.4 batteries (4G, heterogeneous slab, sphere, F†/S†
+    mutations) land with the solver entries; this row is the posing-layer
+    activation smoke.
+    """
+    from orpheus.derivations.common.eigenvalue import (
+        kinf_and_adjoint_spectrum_homogeneous,
+    )
+
+    ref_keff, LC, S_total, F, guess, mix = _sn_composite_triple()
+    ke_adj = KEigenvalue(
+        LC.H, S_total.H, F.H,
+        max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
+        max_inner=500, inner_tol=1e-10,
+    )
+    k_adj, history, psi_star = ke_adj.solve(initial_guess=guess)
+    np.testing.assert_allclose(
+        k_adj, ref_keff, rtol=0, atol=1e-9,
+        err_msg=f"daggered-triple k_adj={k_adj!r} differs from the forward "
+        f"solve_sn k={ref_keff!r} — eig(A†)=eig(A) is violated by the "
+        f"posing; history[-3:]={history[-3:]}",
+    )
+
+    k_cf, phi_star_cf = kinf_and_adjoint_spectrum_homogeneous(
+        np.asarray(mix.SigT),
+        np.asarray(mix.SigS[0].todense()),
+        np.asarray(mix.SigP),
+        np.asarray(mix.chi),
+    )
+    np.testing.assert_allclose(
+        k_adj, k_cf, rtol=0, atol=1e-9,
+        err_msg="daggered k does not match the closed-form k∞ anchor.",
+    )
+    bulk = np.asarray(psi_star.interior.values)  # (N, ng, *spatial)
+    spec = bulk.mean(axis=(0, *range(2, bulk.ndim)))
+    spec = spec / np.linalg.norm(spec)
+    np.testing.assert_allclose(
+        spec, phi_star_cf, rtol=1e-8,
+        err_msg="the SN daggered solve's ∞-medium energy spectrum does not "
+        "match the closed-form adjoint eigenvector of (Aᵀ)⁻¹Fᵀ — the "
+        "flux-shape leg (the k-blind Mode-12 catcher).",
+    )
+    nsf_hat = np.asarray(mix.SigP) / np.linalg.norm(np.asarray(mix.SigP))
+    if np.allclose(spec, nsf_hat, rtol=1e-6):
+        pytest.fail(
+            "the daggered spectrum equals ν̂Σf — the eig(Mᵀ) factor-order "
+            "degenerate; either the solve or the reference regressed to "
+            "the wrong resolvent ordering."
+        )
+
+
 # ───────────────────────────────────────────────────────────────────────
 # Foundation: the GMRES exact-breakdown carve-out (the ERR-053 warn
 # boundary) — B.2d d3 NIT-2 anchor

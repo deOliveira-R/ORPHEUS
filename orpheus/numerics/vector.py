@@ -165,3 +165,18 @@ class Vector(Protocol):
 #: (``apply(x: Din) -> Cout`` with ``Cout ≠ Din``). #208 made that role
 #: change a typed fact; P4.5 (#65) made it the operator's *type*.
 V = TypeVar("V", bound=Vector)
+
+#: The DRIVER-BOUNDARY carrier placeholder — deliberately UNBOUNDED.
+#: Where ``V`` constrains the operator algebra's internal composition
+#: slots to :class:`Vector`, the iteration-driver boundaries
+#: (:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver`,
+#: :class:`~orpheus.numerics.iteration.KEigenvalue`) must ALSO bind a
+#: bare ``np.ndarray`` carrier concretely — five solver families drive
+#: them with plain arrays.  ``np.ndarray`` satisfies :class:`Vector` at
+#: runtime, but numpy's stubs cannot prove the structural match (the
+#: ``__add__`` bool-dtype self-binding overloads reject it), so a
+#: ``bound=Vector`` boundary would statically reject every ndarray
+#: implementer the moment the TypeVar is solved.  The missing bound is
+#: that stub limitation, NOT a wider contract — the runtime contract is
+#: identical to ``V``'s (#276 A4).
+Carrier = TypeVar("Carrier")

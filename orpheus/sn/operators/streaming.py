@@ -987,10 +987,23 @@ class InvertibleOperator(
         :meth:`apply`.  Delegates to the representation's
         :meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep_transpose`
         (the reverse-mode adjoint of the forward sweep-scan) and packs the
-        transposed composite; the input ``b`` is a cotangent on the solve's
-        codomain (flux-space) and the output a cotangent on its domain
-        (source-space) — the SAME composite geometry ``apply_transpose``
-        emits.
+        transposed composite.
+
+        **Duality typing (#276 A4):** the input ``b`` is the dual of the
+        solve's codomain — dual-of-flux, i.e. an adjoint SOURCE
+        (source-classed, the same composite geometry ``apply_transpose``
+        emits); the output is the dual of its domain — dual-of-source under
+        the G-pairing, i.e. the adjoint FLUX
+        (:class:`~orpheus.transport.fields.angular_flux.AngularFlux` bulk +
+        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
+        trace).  This is what lets the daggered fixed-point iteration close
+        over the SAME class pattern as the forward (flux iterate → source
+        gains → transpose-solve → flux iterate): the adjoint flux ψ* is a
+        first-class importance field, not a bookkeeping cotangent.  (Until
+        A4 the output was wrapped in the source-sink family — a matvec-gate
+        era spelling that no class-sensitive consumer had ever exercised;
+        the typed SI loop is the first, and the cross-class ``_check_partner``
+        guard caught the mis-classing on first contact.)
 
         This is the reverse-scan primitive behind the ``.H.inverse()`` swap
         law (``A.H.inverse() ≡ A.inverse().H``).  1-D-scan-family only —
@@ -1006,8 +1019,11 @@ class InvertibleOperator(
         :meth:`~orpheus.numerics.coupled_system.CoupledOperator.solve_transpose`,
         never a kwarg channel on this surface.
         """
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
+        )
+        from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import AngularSourceSink
 
         sn_mesh = self.sn_mesh
         if b.interior.mesh is not sn_mesh:
@@ -1021,10 +1037,18 @@ class InvertibleOperator(
             self.sigma,
             b.boundary,
         )
+        # Duality typing (#276 A4, docstring above): dual-of-source = the
+        # adjoint FLUX — wrap flux-classed so the daggered iteration closes.
+        # The rep layer's ``m_boundary`` carries the values; the class ROLE
+        # is this operator boundary's decision.
         return FullField(
-            interior=AngularSourceSink.from_mesh(
+            interior=AngularFlux.from_mesh(
                 q_bar, sn_mesh,
                 spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
             ),
-            boundary=m_boundary,
+            boundary=AngularBoundaryFlux(
+                values=np.asarray(m_boundary.values),
+                space=sn_mesh.angular_trace,
+                mesh=sn_mesh,
+            ),
         )

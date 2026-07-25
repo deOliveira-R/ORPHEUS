@@ -133,6 +133,44 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   np.linalg.norm converged), the `FissionOperator.apply_transpose`
   composite variant (its docstring names this moment), and the P1.3
   sphere leg's coupled-grid dagger (F lift to the CoupledField).
+- **A4-1 ✅ — THE DAGGERED POSING ACTIVATION.**  `KEigenvalue(LC.H,
+  (S+B_a).H, F.H)` runs through the UNCHANGED `power_iteration` on typed
+  composites — k_adj == k_fwd == solve_sn @ ~5e-12 AND the ∞-medium
+  adjoint SPECTRUM matches the corrected closed form digit-for-digit.
+  Pieces: (a) **Carrier genericization** — `EigenvalueSolver` Protocol +
+  `power_iteration` generic over the NEW UNBOUNDED `vector.Carrier`
+  (numpy's stubs reject ndarray ⊨ Vector via the `__add__` bool-dtype
+  self-binding overloads, so a Vector-bound TypeVar statically rejects
+  every ndarray solver family the moment it is SOLVED — the bound was
+  survivable before only because nothing forced solving; the missing
+  bound is a stub limitation, documented at the TypeVar, NOT a wider
+  contract); `KEigenvalue(Generic[V])` on the family's bounded V (body
+  operator support; conforms to the unbounded Protocol); power_iteration
+  stashes the previous iterate frozen-alias/ndarray-copy (the
+  SourceIteration idiom).  (b) **KEigenvalue carrier-honesty** — the four
+  ndarray-bound spots (`asarray`-guess, `np.sum` ×2, `np.linalg.norm`)
+  rewired through the existing `_ravel`/`_l2_norm` Ravellable protocol
+  (bit-identical on bare arrays).  (c) **F† composite arm**
+  (`FissionOperator.apply_transpose`, the docstring's own named seam):
+  the forward `(1/W)·broadcast ∘ K ∘ (w·Σ)` pulls back to
+  `(w·) ∘ Kᵀ ∘ (Σ/W)` — the reduce/broadcast WEIGHTS swap sides; angular
+  + scalar bulk arms, pure-bulk zero trace; 5 gates incl. the
+  independent `w ⊗ hand-loop(Σχ/W)` spelling + the weight-role-swap
+  discriminator (an angle-FLAT cotangent hides the swap — precondition
+  pinned).  (d) **solve_transpose duality typing** — the daggered SI's
+  first contact hit the `_check_partner` cross-class guard: the reverse
+  sweep wrapped output in the source-sink family, but dual-of-source
+  under the G-pairing IS the adjoint FLUX; `InvertibleOperator.
+  solve_transpose` now wraps `AngularFlux`/`AngularBoundaryFlux` (the
+  class ROLE decided at the operator boundary; rep-layer values
+  untouched; 214 consumer tests green — every prior consumer was
+  value-reads).  Committed gates: the honest-composite FORWARD control
+  (KE's own Rayleigh on-contract for the first time — the legacy scalar
+  shim kept as pre-A4 record) + the daggered smoke (k triple-equality +
+  the spectrum leg + the ν̂Σf-degeneracy fail branch), both L1 in
+  `test_iteration.py`.  Battery sweep 128/128; pyright: production
+  floor 1 (#288 unchanged), touched files +0 (test_iteration.py 15 ≡
+  HEAD 15).
 - **A4-0 ✅ — the P1.4 closed-form reference + the diagnostic promotion.**
   `kinf_and_adjoint_spectrum_homogeneous` added to
   `derivations/common/eigenvalue.py` — left eigenvector via

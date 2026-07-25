@@ -992,7 +992,7 @@ class KrylovAcceleration(Generic[V]):
 # ───────────────────────────────────────────────────────────────────────
 
 
-class KEigenvalue:
+class KEigenvalue(Generic[V]):
     r"""The k-eigenvalue problem :math:`(A - S)\,\psi = F\psi/k`, posed from an
     operator triple and solved by the canonical ``power_iteration`` loop.
 
@@ -1147,7 +1147,7 @@ class KEigenvalue:
             )
         # The initial flux guess is supplied to .solve() and stashed for the
         # EigenvalueSolver.initial_flux_distribution boundary method.
-        self._initial_guess: np.ndarray | None = None
+        self._initial_guess: V | None = None
 
     # ── EigenvalueSolver boundary (consumed by power_iteration) ──────────
     #
@@ -1165,7 +1165,7 @@ class KEigenvalue:
     # (Cardinal Rule 2): KEigenvalue and SNSolver are both implementers of this
     # boundary, not parallel engines.
 
-    def initial_flux_distribution(self) -> np.ndarray:
+    def initial_flux_distribution(self) -> V:
         """Return the caller-supplied initial flux guess (set by :meth:`solve`).
 
         The :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary
@@ -1183,14 +1183,14 @@ class KEigenvalue:
         return self._initial_guess
 
     def compute_fission_source(
-        self, flux_distribution: np.ndarray, keff: float,
-    ) -> np.ndarray:
+        self, flux_distribution: V, keff: float,
+    ) -> V:
         """Outer eigen-source ``F·ψ / k`` (the k-posing's eigen-operator M = F)."""
         return self.F.apply(flux_distribution) / keff
 
     def solve_fixed_source(
-        self, fission_source: np.ndarray, flux_distribution: np.ndarray,
-    ) -> np.ndarray:
+        self, fission_source: V, flux_distribution: V,
+    ) -> V:
         r"""Resolvent ``A_loss⁻¹ q`` via the inner :class:`SourceIteration`.
 
         Warm-started from the previous outer iterate (``flux_distribution``) to
@@ -1204,7 +1204,7 @@ class KEigenvalue:
         )
         return psi
 
-    def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
+    def compute_production_rate(self, flux_distribution: V) -> float:
         r"""Production-rate normalisation: :math:`P(\psi) = \sum (F\,\psi)`.
 
         Power iteration renormalises ψ to unit production each outer step so the
@@ -1222,10 +1222,14 @@ class KEigenvalue:
         absorbs the measure (as ORPHEUS's typed operators do).  Hardwired
         since #259 P1 / R8 — this operator-level adapter's estimator is
         not injectable (arithmetic identical to the retired default).
-        """
-        return float(np.sum(self.F.apply(flux_distribution)))
 
-    def compute_keff(self, flux_distribution: np.ndarray) -> float:
+        Carrier-honest (#276 A4): a typed composite iterate ravels through
+        the same protocol the inner drivers use (:func:`_ravel`); a bare
+        ndarray reduces identically to the pre-A4 ``np.sum``.
+        """
+        return float(_ravel(self.F.apply(flux_distribution)).sum())
+
+    def compute_keff(self, flux_distribution: V) -> float:
         r"""Operator-form Rayleigh :math:`k` estimator (hardwired; #259 P1 / R8).
 
         .. math::
@@ -1248,35 +1252,50 @@ class KEigenvalue:
         functional; post-R8 the posed triple IS the estimator's source,
         and at a converged eigenpair every consistent estimator agrees
         with this one.
+
+        Carrier-honest (#276 A4): typed composites ravel through
+        :func:`_ravel` (bare ndarrays reduce identically).  On a DAGGERED
+        triple ``(A.H, S.H, F.H)`` this same spelling is the adjoint
+        Rayleigh estimator — at the converged adjoint eigenpair
+        :math:`(A^\dagger - S^\dagger)\psi^* = F^\dagger\psi^*/k` holds
+        exactly, so any linear functional (here the coordinate sum)
+        recovers the SAME ``k`` as the forward problem
+        (:math:`\text{eig}(A^\dagger) = \text{eig}(A)`).
         """
-        num = np.sum(self.F.apply(flux_distribution))
+        num = _ravel(self.F.apply(flux_distribution)).sum()
         den = (
-            np.sum(self.A.apply(flux_distribution))
-            - np.sum(self.S.apply(flux_distribution))
+            _ravel(self.A.apply(flux_distribution)).sum()
+            - _ravel(self.S.apply(flux_distribution)).sum()
         )
         return float(num / den)
 
     def converged(
         self, keff: float, keff_old: float,
-        flux_distribution: np.ndarray, flux_old: np.ndarray,
+        flux_distribution: V, flux_old: V,
         iteration: int,
     ) -> bool:
-        """≥3 outer iterations, then ``dk < keff_tol`` AND ``dφ < flux_tol``."""
+        """≥3 outer iterations, then ``dk < keff_tol`` AND ``dφ < flux_tol``.
+
+        Carrier-honest (#276 A4): norms go through :func:`_l2_norm` (the
+        ravellable protocol; bit-identical ``np.linalg.norm`` on a bare
+        ndarray), and the iterate difference is the carrier's own
+        :class:`~orpheus.numerics.vector.Vector` ``__sub__``.
+        """
         if iteration <= 2:
             return False
         dk = abs(keff - keff_old)
-        norm = float(np.linalg.norm(flux_distribution))
+        norm = _l2_norm(flux_distribution)
         dphi = (
-            float(np.linalg.norm(flux_distribution - flux_old) / max(norm, 1e-30))
+            _l2_norm(flux_distribution - flux_old) / max(norm, 1e-30)
             if norm > 0.0
-            else float(np.linalg.norm(flux_distribution - flux_old))
+            else _l2_norm(flux_distribution - flux_old)
         )
         return dk < self.keff_tol and dphi < self.flux_tol
 
     def solve(
         self,
-        initial_guess: np.ndarray | None = None,
-    ) -> tuple[float, list[float], np.ndarray]:
+        initial_guess: V | None = None,
+    ) -> tuple[float, list[float], V]:
         r"""Run the eigenvalue solve via the canonical ``power_iteration`` loop.
 
         KEigenvalue realizes the
@@ -1308,10 +1327,19 @@ class KEigenvalue:
                 "KEigenvalue.solve requires initial_guess for shape "
                 "inference; the operator triple is not constrained to "
                 "expose its action shape.  Pass np.ones(...) of the "
-                "appropriate shape, or use the SNSolver wrapper that "
-                "already builds the initial guess."
+                "appropriate shape (or a typed composite carrier), or use "
+                "the SNSolver wrapper that already builds the initial guess."
             )
-        self._initial_guess = np.asarray(initial_guess).copy()
+        # Carrier-honest guess stash (#276 A4), the SourceIteration idiom:
+        # a typed composite is frozen — the alias IS a faithful stash; a
+        # bare-ndarray/sequence guess coerces + copies exactly as before
+        # (the cast states the module-intro blessing of ndarrays through
+        # the Carrier slots).
+        self._initial_guess = (
+            initial_guess  # typed: trust frozen-arithmetic contract
+            if _is_ravellable(initial_guess)
+            else cast(V, np.asarray(initial_guess).copy())
+        )
         # Delegate the loop to the canonical algorithm.  No import cycle:
         # eigenvalue.py does not import iteration.py.
         from .eigenvalue import power_iteration

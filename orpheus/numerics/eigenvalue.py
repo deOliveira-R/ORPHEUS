@@ -65,12 +65,14 @@ dispatched via :attr:`~orpheus.numerics.iteration.KEigenvalue.eigenvalue_method`
 from __future__ import annotations
 
 import warnings
-from typing import Protocol, runtime_checkable
+from typing import Protocol, cast, runtime_checkable
 
 import numpy as np
 
+from .vector import Carrier, Vector
 
-class EigenvalueSolver(Protocol):
+
+class EigenvalueSolver(Protocol[Carrier]):
     """The method-agnostic boundary that :func:`power_iteration` consumes.
 
     Any deterministic eigenvalue solver — SN sweep, CP collision matrix,
@@ -92,23 +94,23 @@ class EigenvalueSolver(Protocol):
        production / loss balance.
     """
 
-    def initial_flux_distribution(self) -> np.ndarray:
+    def initial_flux_distribution(self) -> Carrier:
         """Return an initial guess for the flux distribution."""
         ...
 
     def compute_fission_source(
         self,
-        flux_distribution: np.ndarray,
+        flux_distribution: Carrier,
         keff: float,
-    ) -> np.ndarray:
+    ) -> Carrier:
         """Fission source: Q_f = χ · (νΣ_f · φ) / k_eff."""
         ...
 
     def solve_fixed_source(
         self,
-        fission_source: np.ndarray,
-        flux_distribution: np.ndarray,
-    ) -> np.ndarray:
+        fission_source: Carrier,
+        flux_distribution: Carrier,
+    ) -> Carrier:
         r"""Apply the transport operator and return an updated flux distribution.
 
         This method encapsulates the model-specific physics:
@@ -129,7 +131,7 @@ class EigenvalueSolver(Protocol):
         """
         ...
 
-    def compute_keff(self, flux_distribution: np.ndarray) -> float:
+    def compute_keff(self, flux_distribution: Carrier) -> float:
         """Compute the eigenvalue from the neutron balance.
 
         k_eff = fission production / (absorption + leakage − (n,2n) emission)
@@ -149,8 +151,8 @@ class EigenvalueSolver(Protocol):
         self,
         keff: float,
         keff_old: float,
-        flux_distribution: np.ndarray,
-        flux_old: np.ndarray,
+        flux_distribution: Carrier,
+        flux_old: Carrier,
         iteration: int,
     ) -> bool:
         """Return True when the outer iteration has converged."""
@@ -158,7 +160,7 @@ class EigenvalueSolver(Protocol):
 
 
 @runtime_checkable
-class ProductionRateSolver(EigenvalueSolver, Protocol):
+class ProductionRateSolver(EigenvalueSolver[Carrier], Protocol[Carrier]):
     """An :class:`EigenvalueSolver` that has adopted the production-rate
     normalisation contract (ERR-052).
 
@@ -174,7 +176,7 @@ class ProductionRateSolver(EigenvalueSolver, Protocol):
     a stripped ``assert``).
     """
 
-    def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
+    def compute_production_rate(self, flux_distribution: Carrier) -> float:
         """Total volume-integrated neutron production rate (scalar).
 
         Power iteration renormalises :math:`\\phi` to unit production
@@ -192,9 +194,9 @@ class ProductionRateSolver(EigenvalueSolver, Protocol):
 
 
 def power_iteration(
-    solver: EigenvalueSolver,
+    solver: EigenvalueSolver[Carrier],
     max_iter: int = 500,
-) -> tuple[float, list[float], np.ndarray]:
+) -> tuple[float, list[float], Carrier]:
     """Converge to the dominant eigenvalue and fundamental mode.
 
     Power iteration converges to the largest eigenvalue k_0 (= k_eff)
@@ -215,7 +217,15 @@ def power_iteration(
     keff_history: list[float] = []
 
     for n in range(1, max_iter + 1):
-        flux_old = flux_distribution.copy()
+        # Stash the previous iterate for the convergence test.  Typed
+        # carriers are frozen (immutable — an alias is a faithful stash);
+        # a bare ndarray is mutable and a solver may write into it, so it
+        # keeps the defensive copy (the SourceIteration guess idiom).
+        flux_old = (
+            cast(Carrier, flux_distribution.copy())
+            if isinstance(flux_distribution, np.ndarray)
+            else flux_distribution
+        )
         keff_old = keff
 
         fission_source = solver.compute_fission_source(flux_distribution, keff)
@@ -238,7 +248,14 @@ def power_iteration(
         if isinstance(solver, ProductionRateSolver):
             p = float(solver.compute_production_rate(flux_distribution))
             if p > 0.0:
-                flux_distribution = flux_distribution / p
+                # ``Carrier`` is deliberately unbounded (see
+                # :data:`~orpheus.numerics.vector.Carrier` — numpy's stubs
+                # cannot prove ndarray ⊨ Vector), so the scalar division —
+                # part of the runtime Vector contract every carrier
+                # honours — is stated through the cast pair.
+                flux_distribution = cast(
+                    Carrier, cast(Vector, flux_distribution) / p,
+                )
         keff = solver.compute_keff(flux_distribution)
         keff_history.append(keff)
 

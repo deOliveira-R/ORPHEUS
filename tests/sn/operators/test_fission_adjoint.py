@@ -48,6 +48,9 @@ from orpheus.numerics.operator import TensorProductOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.full_field import FullField
 
 from tests.transport._integral_kernel_helpers import (
     hand_derived_fission_emission,
@@ -231,4 +234,140 @@ class TestAdjointFissionCapabilityAndRouting:
             "TensorProductOperator.apply_transpose — it computed an inline "
             "transpose instead of reusing the rank-1 dual-dyad primitive "
             "(Mode-11: a path that bypasses the rewired reader).",
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# COMPOSITE ARM (#276 A4) — F† on the FullField carrier: the forward's
+# ``(1/W)·broadcast ∘ K ∘ (w-Σ)`` pulls back to ``(w·) ∘ Kᵀ ∘ (Σ/W)``.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _composite(solver, seed):
+    """Random angular FullField (bulk AND trace random, ANGLE-VARYING bulk)."""
+    sn = solver.sn_mesh
+    rng = np.random.default_rng(seed)
+    bulk = AngularFlux.from_mesh(
+        rng.uniform(0.05, 1.0, size=(sn.quad.N, sn.ng, *sn.spatial_shape)), sn,
+    )
+    trace = AngularBoundaryFlux(
+        values=rng.uniform(0.05, 1.0, size=int(sn.angular_trace.layout.total_size)),
+        space=sn.angular_trace,
+        mesh=sn,
+    )
+    return FullField(interior=bulk, boundary=trace)
+
+
+class TestCompositeTransposeArm:
+    @pytest.mark.parametrize("groups", ["2g", "4g"])
+    def test_composite_pairing_identity(self, groups):
+        r"""``⟨Fψ, χ⟩ == ⟨ψ, F†χ⟩`` on FullField composites (flat coordinates).
+
+        The transpose-defining identity for the COMPOSITE arm — F's forward
+        composite has the angular reduce/broadcast structure the bare arm
+        lacks, so this row genuinely gates the weight-role swap
+        (:meth:`test_weight_swap_discriminator`), which the bare-arm
+        reciprocity above cannot see.  Precondition: the cotangent bulk must
+        VARY in angle — an isotropic χ makes the weight-swapped wrong
+        transpose coincide with the right one (``Σχ/W == Σwχ/W`` exactly
+        when χ is angle-flat), the Mode-7-style blindness this require pins.
+        """
+        op = _solver(groups).fission_op
+        solver = _solver(groups)
+        psi = _composite(solver, 31)
+        chi = _composite(solver, 32)
+        bulk = np.asarray(chi.interior.values)
+        require(
+            not np.allclose(bulk, np.broadcast_to(bulk[:1], bulk.shape)),
+            "composite cotangent must vary in angle or the weight-swap "
+            "error class is invisible to this pairing row.",
+        )
+
+        lhs = float(op.apply(psi).to_flat() @ chi.to_flat())
+        rhs = float(psi.to_flat() @ op.apply_transpose(chi).to_flat())
+        np.testing.assert_allclose(
+            lhs, rhs, rtol=1e-12,
+            err_msg="composite F pairing ⟨Fψ,χ⟩ = ⟨ψ,F†χ⟩ violated — the "
+            "composite transpose arm is not the transpose of the composite "
+            "forward arm.",
+        )
+
+    @pytest.mark.parametrize("groups", ["2g", "4g"])
+    def test_composite_matches_independent_spelling(self, groups):
+        r"""Composite ``F†χ`` bulk == ``w ⊗ hand-loop(νΣf, χ_spec, Σ_n χ_n/W)``;
+        trace exactly zero.
+
+        The reference is STRUCTURALLY INDEPENDENT of the production arm: the
+        ordinate sum, the ``/W``, the hand-derived dual-dyad loop, and the
+        explicit ``np.multiply.outer`` weight broadcast — no kernel call, no
+        factory.  Pins the whole ``(w·) ∘ Kᵀ ∘ (Σ/W)`` composition including
+        WHICH side carries the quadrature weights.  The zero trace is the
+        pure-bulk pullback (the transpose of emitting nothing into the trace).
+        """
+        solver = _solver(groups)
+        op = solver.fission_op
+        chi = _composite(solver, 33)
+        w = np.asarray(solver.sn_mesh.quad.weights, dtype=float)
+
+        out = op.apply_transpose(chi)
+        iso_star = np.asarray(chi.interior.values).sum(axis=0) / float(w.sum())
+        expected_bulk = np.multiply.outer(
+            w,
+            hand_derived_fission_emission(
+                op.mat_xs.fission_production,
+                op.mat_xs.emission_spectrum,
+                iso_star,
+            ),
+        )
+        np.testing.assert_allclose(
+            np.asarray(out.interior.values), expected_bulk, rtol=1e-12, atol=0.0,
+            err_msg="composite F† bulk disagrees with the independent "
+            "w ⊗ dual-dyad(Σχ/W) spelling — a reduce/broadcast weight-role "
+            "or χ↔νΣf error in the composite arm.",
+        )
+        np.testing.assert_array_equal(
+            np.asarray(out.boundary.values),
+            np.zeros_like(np.asarray(out.boundary.values)),
+            err_msg="composite F† emitted a non-zero trace — fission is pure "
+            "bulk; its transpose must be too.",
+        )
+
+    def test_weight_swap_discriminator(self):
+        r"""The WEIGHT-role swap (forward's weights kept on the forward sides:
+        ``(1/W)·broadcast ∘ Kᵀ ∘ (w-Σ)``) differs O(1) from the true
+        transpose AND breaks the pairing — the mutation this gate class
+        exists to catch, verified as an explicit wrong-spelling discriminator
+        (the arm is inline, so the wrong spelling is computed in-test rather
+        than monkeypatched).
+        """
+        solver = _solver("4g")
+        op = solver.fission_op
+        psi = _composite(solver, 34)
+        chi = _composite(solver, 35)
+        w = np.asarray(solver.sn_mesh.quad.weights, dtype=float)
+        W = float(w.sum())
+
+        true_bulk = np.asarray(op.apply_transpose(chi).interior.values)
+        # The WRONG transpose: weights NOT swapped across Kᵀ.
+        wrong_iso = np.einsum(
+            "n,n...->...", w, np.asarray(chi.interior.values),
+        ) / W
+        wrong_bulk = (
+            np.asarray(op.kernel.apply_transpose(wrong_iso))[None] / W
+        ) * np.ones((w.size,) + wrong_iso.shape)
+        require(
+            not np.allclose(true_bulk, wrong_bulk, rtol=1e-6),
+            "weight-role-swapped F† coincided with the true transpose on an "
+            "angle-varying cotangent — the discriminator lost its teeth.",
+        )
+
+        lhs = float(op.apply(psi).to_flat() @ chi.to_flat())
+        wrong_rhs = float(
+            (np.asarray(psi.interior.values) * wrong_bulk).sum()
+        )
+        require(
+            abs(lhs - wrong_rhs) > 1e-8 * abs(lhs),
+            "the pairing identity FAILED to distinguish the weight-role-"
+            "swapped F† — the composite pairing row has no teeth on this "
+            "mutation class.",
         )
