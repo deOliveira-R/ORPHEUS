@@ -268,9 +268,13 @@ class TestCompositeTransposeArm:
         lacks, so this row genuinely gates the weight-role swap
         (:meth:`test_weight_swap_discriminator`), which the bare-arm
         reciprocity above cannot see.  Precondition: the cotangent bulk must
-        VARY in angle — an isotropic χ makes the weight-swapped wrong
-        transpose coincide with the right one (``Σχ/W == Σwχ/W`` exactly
-        when χ is angle-flat), the Mode-7-style blindness this require pins.
+        VARY in angle — under an angle-flat χ the weighted and unweighted
+        angular reduces collapse to multiples of the SAME iso vector
+        (differing only by the global ``N/W`` scale — they are NOT equal;
+        for GL-8 the ratio is 4), so the swap loses its angular-SHAPE
+        signature and the row's discrimination degenerates to a scale it
+        cannot attribute.  The require conservatively keeps the shape
+        discriminant live (the Mode-7-style blindness this pins).
         """
         op = _solver(groups).fission_op
         solver = _solver(groups)

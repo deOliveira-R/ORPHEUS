@@ -7,8 +7,12 @@ live in ``tests/numerics/test_iteration.py``):
 * **Eigenvalue entry** — the k triple-equality (entry == forward
   ``solve_sn`` == closed-form :math:`k_\infty`), the adjoint SPECTRUM vs
   the corrected closed form (the dominant eigenvector of
-  :math:`(\mathbf{A}^T)^{-1}\mathbf{F}^T` — Mode 12: k alone is blind to
-  the entire adjoint mutation class), the ∞-medium ISOTROPY of ψ*
+  :math:`(\mathbf{A}^T)^{-1}\mathbf{F}^T` — Mode 12: k is EXACTLY blind
+  to the factor-ORDER/similarity family, ``eig(Mᵀ) = eig(M)``, and
+  carries no vector information; leaf-transpose DROPS do shift k — the
+  certification battery's P1.3 teeth — so the spectrum row is the
+  committed catcher for order/shape, k rows for drops), the
+  ∞-medium ISOTROPY of ψ*
   (angle-flatness — a cheap G-consistency signal: a metric mismatch
   between the daggered leaves distorts the angular shape first), and the
   unified-``Solution`` packaging contract.
@@ -53,7 +57,7 @@ from orpheus.sn.solver import (
     solve_sn_fixed_source,
 )
 
-from tests.sn.operators.test_g_adjoint_reciprocity import _g_inner
+from tests.sn._test_helpers import energy_spectrum, g_inner
 
 pytestmark = pytest.mark.l1
 
@@ -84,10 +88,14 @@ class TestSolveSnAdjoint:
     def test_infinite_medium_k_and_spectrum(self):
         r"""k triple-equality + the adjoint spectrum + ∞-medium isotropy.
 
-        Mode-12 discipline: the k rows alone are DESIGNED-GREEN on every
-        adjoint mutation (``eig(A†) = eig(A)``); the spectrum row is the
-        committed vector-level catcher, and the isotropy row pins the
-        angular shape the 0-D reference cannot see.
+        Mode-12 discipline: ``eig(A†) = eig(A)`` holds for the FULL
+        dagger, so the k rows gate the posing identity but say nothing
+        about the vector — and they are EXACTLY blind to the
+        factor-ORDER/similarity family (the eig(Mᵀ) reference trap).
+        Leaf-transpose drops DO shift k (certification P1.3 teeth); the
+        spectrum row is the committed vector-level catcher, and the
+        isotropy row pins the angular shape the 0-D reference cannot
+        see.
         """
         materials, mesh, mix = _homogeneous_2g()
         fwd = solve_sn(
@@ -119,10 +127,9 @@ class TestSolveSnAdjoint:
             err_msg="k_adjoint does not match the closed-form k∞ anchor.",
         )
 
-        # The energy spectrum of ψ* vs the corrected closed form.
-        sf = np.asarray(adj.scalar_flux.values)
-        spec = sf.mean(axis=tuple(range(1, sf.ndim)))
-        spec = spec / np.linalg.norm(spec)
+        # The energy spectrum of ψ* vs the corrected closed form
+        # (the ONE shared reduction — tests/sn/_test_helpers.py).
+        spec = energy_spectrum(adj)
         np.testing.assert_allclose(
             spec, phi_star_cf, rtol=1e-8,
             err_msg="the entry's adjoint energy spectrum does not match the "
@@ -218,7 +225,7 @@ class TestSolveSnAdjointFixedSource:
         symmetric SigS or same-group source/detector it could pass
         falsely (the config-blindness the spec §2 audit names).
 
-        Both pairings are evaluated with the INDEPENDENT ``_g_inner``
+        Both pairings are evaluated with the INDEPENDENT ``g_inner``
         (the reciprocity file's hand-built G — anti-R1).  The detector
         side is ALSO cross-checked against the hand volume sum
         ``Σ V·Σ_d·φ`` — pinning the entry's angle-flat dual lift.
@@ -272,9 +279,9 @@ class TestSolveSnAdjointFixedSource:
         # ψ composites: the Solutions' angular members carry bulk + trace.
         # NOTE the forward ran on ITS OWN SNMesh instance — rebuild the
         # pairing on the adjoint's mesh via raw values (the meshes are
-        # declaration-identical; _g_inner reads values only).
-        lhs = _g_inner(adj.angular_flux, q_composite, sn)      # ⟨ψ*, q⟩_G
-        rhs = _g_inner(qstar_composite, fwd.angular_flux, sn)  # ⟨q*, ψ⟩_G
+        # declaration-identical; g_inner reads values only).
+        lhs = g_inner(adj.angular_flux, q_composite, sn)      # ⟨ψ*, q⟩_G
+        rhs = g_inner(qstar_composite, fwd.angular_flux, sn)  # ⟨q*, ψ⟩_G
         np.testing.assert_allclose(
             lhs, rhs, rtol=1e-7,
             err_msg=f"duality ⟨ψ*,q⟩_G={lhs:.10e} != ⟨q*,ψ⟩_G={rhs:.10e} — "

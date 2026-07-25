@@ -71,7 +71,13 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.sn._test_helpers import cart2d_2g_nonsquare, placeholder_materials
+from tests.sn._test_helpers import (
+    cart2d_2g_nonsquare,
+    g_bulk_measure,
+    g_inner,
+    g_trace_cosine_weight,
+    placeholder_materials,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -207,7 +213,7 @@ def _make_ld_2d(ng: int = 2, sigma: float = 0.5):
 
     * the BULK metric carries the d=2 moment-mass Kronecker
       ``V·w_n ⊗ [1, θ, θ, θ²]`` (ruling 3's d-generic kron, first
-      instantiated at d=2 here — :func:`_bulk_measure`'s independent
+      instantiated at d=2 here — :func:`g_bulk_measure`'s independent
       spelling vs the production ``moment_mass_diagonal``, pinned equal by
       the metric cross-check row);
     * the TRACE is the moment-resolved ``[avg, transverse-slope]`` face
@@ -215,7 +221,7 @@ def _make_ld_2d(ng: int = 2, sigma: float = 0.5):
       UNIFORMLY over the moment axis — the purely-ANGULAR Wave-O
       convention: the trace metric carries no spatial measure at all (no
       face area, hence no spatial moment mass; the θ-mass is a bulk
-      phase-space-measure concept).  ``_g_inner``'s trace term and the
+      phase-space-measure concept).  ``g_inner``'s trace term and the
       production :func:`_build_trace_metric_weights` spell the same
       broadcast, so the cross-check row pins the convention too.
 
@@ -264,71 +270,11 @@ _BUILDERS = {
 
 # ═══════════════════════════════════════════════════════════════════════
 # Independent G inner product + random composite (structurally independent
-# of the production FullFieldSpace metric — anti-R1)
+# of the production FullFieldSpace metric — anti-R1).  The oracle trio
+# g_bulk_measure / g_trace_cosine_weight / g_inner is SHARED with the
+# tests/sn/solve adjoint batteries — single-sourced in
+# tests/sn/_test_helpers.py (#276 A4 sweep).
 # ═══════════════════════════════════════════════════════════════════════
-
-
-def _bulk_measure(sn: SNMesh) -> np.ndarray:
-    r"""G_bulk = V_cell · w_n [⊗ moment mass] — built from raw mesh data.
-
-    On a multi-moment closure (LD) the bulk field carries the trailing
-    ``2^d`` spatial-moment axis, and its Hilbert measure carries the moment
-    mass ``∏_a θ^{o_a}`` (#310 C2 ruling 3): ``G_bulk = V·w_n ⊗ diag(1, θ,
-    …)``.  Rebuilt HERE from the raw ``sn.scheme.theta`` scalar with a
-    plain kron loop — structurally independent of the production
-    ``moment_mass_diagonal`` helper (anti-R1), so the metric cross-check
-    below pins the production θ-weighting against an independent spelling.
-    """
-    w_n = np.asarray(sn.quad.weights, dtype=float)
-    V = np.asarray(sn.volumes, dtype=float)  # (*spatial,)
-    # (N, 1) ordinate+group axes ⊗ (*spatial,) volume axes — rank-generic.
-    w_b = w_n.reshape((w_n.shape[0], 1) + (1,) * V.ndim)
-    base = w_b * V[None, None]
-    if sn.scheme.spatial_basis_per_axis > 1:
-        from orpheus.transport.spatial.linear_discontinuous import (
-            LinearDiscontinuous,
-        )
-
-        assert isinstance(sn.scheme, LinearDiscontinuous)  # narrow: θ carrier
-        theta = float(sn.scheme.theta)
-        mm = np.array([1.0])
-        for _ in range(sn.ndim):
-            mm = np.kron(mm, np.array([1.0, theta]))
-        return base[..., None] * mm
-    return base
-
-
-def _trace_cosine_weight(sn: SNMesh, face_idx: int, *, with_cosine: bool) -> np.ndarray:
-    r"""Per-ordinate trace weight for a face: ``|Ω·n|·w_n`` (true) or ``w_n`` (wrong)."""
-    w_n = np.asarray(sn.quad.weights, dtype=float)
-    if with_cosine:
-        return np.abs(sn.angular_trace.omega_dot_n[face_idx]) * w_n
-    return w_n  # the L11 wrong metric: drops |Ω·n|
-
-
-def _g_inner(a: TimedFullField, b: TimedFullField, sn: SNMesh, *,
-             with_cosine: bool = True) -> float:
-    r"""``⟨a,b⟩_G = Σ_bulk a·b·(V·w_n) + Σ_trace a·b·(|Ω·n|·w_n)``.
-
-    Built directly from ``omega_dot_n`` / ``quad.weights`` / ``volumes`` —
-    the structurally-independent reference inner product on System A's
-    2-block composite. ``with_cosine=False`` drops the ``|Ω·n|`` factor
-    (the L11 wrong-metric control).
-
-    B.2d: the ψ½ seed is System B's own composite — its ``G_sd = V_cell``
-    reciprocity lives on the COUPLED space (the grid ``.H`` gate,
-    ``test_psi_half_coupling::TestCoupledBuilder``), never as a third term
-    here.
-    """
-    bulk = float(np.sum(_bulk_measure(sn) * a.interior.values * b.interior.values))
-    trace = 0.0
-    for f_idx, face in enumerate(sn.angular_trace.layout.faces):
-        af = a.boundary.face_view(face)
-        bf = b.boundary.face_view(face)
-        w_face = _trace_cosine_weight(sn, f_idx, with_cosine=with_cosine)
-        w_b = w_face.reshape((w_face.shape[0],) + (1,) * (af.ndim - 1))
-        trace += float(np.sum(af * bf * w_b))
-    return bulk + trace
 
 
 def _random_composite(
@@ -390,7 +336,7 @@ def test_g_adjoint_reciprocity_full_block(case):
     r"""``⟨Aψ,φ⟩_G = ⟨ψ, A.H φ⟩_G`` for ``A = L + C - B`` (G = bulk V·w_n ⊕ trace |Ω·n|·w_n).
 
     The defining property of the G-adjoint, evaluated with the INDEPENDENT
-    ``_g_inner`` (anti-R1). Random non-flat ψ, φ on both blocks so the
+    ``g_inner`` (anti-R1). Random non-flat ψ, φ on both blocks so the
     partial-current trace metric (which varies across ordinates as
     :math:`|\mu_n|`) is not degenerate.
 
@@ -408,8 +354,8 @@ def test_g_adjoint_reciprocity_full_block(case):
     psi = _random_composite(sn, rng)
     phi = _random_composite(sn, rng)
 
-    lhs = _g_inner(A.apply(psi), phi, sn)
-    rhs = _g_inner(psi, A.H.apply(phi), sn)
+    lhs = g_inner(A.apply(psi), phi, sn)
+    rhs = g_inner(psi, A.H.apply(phi), sn)
     rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
     if not rel < 1e-12:
         pytest.fail(
@@ -421,7 +367,7 @@ def test_g_adjoint_reciprocity_full_block(case):
 @pytest.mark.foundation
 @pytest.mark.parametrize("case", list(_BUILDERS))
 def test_full_field_space_metric_matches_independent_reference(case):
-    r"""The production composite metric == the independent ``_g_inner``.
+    r"""The production composite metric == the independent ``g_inner``.
 
     Cross-check that ``op.codomain.inner_product`` (the
     :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` metric
@@ -434,7 +380,7 @@ def test_full_field_space_metric_matches_independent_reference(case):
     rng = np.random.default_rng(7)
     a = _random_composite(sn, rng)
     b = _random_composite(sn, rng)
-    ref = _g_inner(a, b, sn)
+    ref = g_inner(a, b, sn)
     prod = space.inner_product(a, b)
     rel = abs(ref - prod) / (abs(ref) + abs(prod) + 1e-300)
     if not rel < 1e-13:
@@ -485,7 +431,7 @@ def test_ld_moment_mass_metric_is_load_bearing(monkeypatch):
         bulk = float(np.sum(ghost * a.interior.values * b.interior.values))
         trace = 0.0
         for f_idx, face in enumerate(sn.angular_trace.layout.faces):
-            w_face = _trace_cosine_weight(sn, f_idx, with_cosine=True)
+            w_face = g_trace_cosine_weight(sn, f_idx, with_cosine=True)
             af, bf = a.boundary.face_view(face), b.boundary.face_view(face)
             trace += float(np.sum(af * bf * w_face[:, None]))
         return bulk + trace
@@ -493,7 +439,7 @@ def test_ld_moment_mass_metric_is_load_bearing(monkeypatch):
     def _defect(inner) -> float:
         return abs(inner(A.apply(psi), phi) - inner(psi, A.H.apply(phi)))
 
-    theta_clean = _defect(lambda x, y: _g_inner(x, y, sn))
+    theta_clean = _defect(lambda x, y: g_inner(x, y, sn))
     ghost_clean = _defect(_ghost_inner)
 
     orig = LinearDiscontinuous.residual_kernel_batch_transpose
@@ -507,10 +453,10 @@ def test_ld_moment_mass_metric_is_load_bearing(monkeypatch):
     monkeypatch.setattr(
         LinearDiscontinuous, "residual_kernel_batch_transpose", slope_flipped,
     )
-    theta_mut = _defect(lambda x, y: _g_inner(x, y, sn))
+    theta_mut = _defect(lambda x, y: g_inner(x, y, sn))
     ghost_mut = _defect(_ghost_inner)
 
-    scale = abs(float(_g_inner(psi, psi, sn)))
+    scale = abs(float(g_inner(psi, psi, sn)))
     if not theta_mut > 1e-6 * scale:
         pytest.fail(
             f"θ-metric reciprocity did not red on the slope flip "
@@ -568,8 +514,8 @@ def test_wrong_trace_metric_breaks_reciprocity(case):
     phi = _random_composite(sn, rng)
 
     AH_phi = A.H.apply(phi)  # built for the TRUE metric G
-    lhs_wrong = _g_inner(A.apply(psi), phi, sn, with_cosine=False)
-    rhs_wrong = _g_inner(psi, AH_phi, sn, with_cosine=False)
+    lhs_wrong = g_inner(A.apply(psi), phi, sn, with_cosine=False)
+    rhs_wrong = g_inner(psi, AH_phi, sn, with_cosine=False)
     rel_wrong = abs(lhs_wrong - rhs_wrong) / (
         abs(lhs_wrong) + abs(rhs_wrong) + 1e-300
     )
@@ -803,8 +749,8 @@ def test_full_loss_g_adjoint_reciprocity(case):
     rng = np.random.default_rng(20260704)
     psi = _random_composite(sn, rng)
     phi = _random_composite(sn, rng)
-    lhs = _g_inner(A.apply(psi), phi, sn)
-    rhs = _g_inner(psi, A.H.apply(phi), sn)
+    lhs = g_inner(A.apply(psi), phi, sn)
+    rhs = g_inner(psi, A.H.apply(phi), sn)
     rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
     if not rel < 1e-12:
         pytest.fail(
@@ -827,8 +773,8 @@ def test_full_loss_reciprocity_per_group_one_hot(case):
     psi = _random_composite(sn, rng)
     for g in range(sn.ng):
         phi_g = _one_hot_group_composite(sn, rng, g)
-        lhs = _g_inner(A.apply(psi), phi_g, sn)
-        rhs = _g_inner(psi, A.H.apply(phi_g), sn)
+        lhs = g_inner(A.apply(psi), phi_g, sn)
+        rhs = g_inner(psi, A.H.apply(phi_g), sn)
         rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
         if not rel < 1e-12:
             pytest.fail(
@@ -850,8 +796,8 @@ def test_tooth_s_transpose_drop_reds(monkeypatch):
     rng = np.random.default_rng(11)
     psi = _random_composite(sn, rng)
     phi = _random_composite(sn, rng)
-    lhs = _g_inner(A.apply(psi), phi, sn)
-    rhs = _g_inner(psi, A.H.apply(phi), sn)
+    lhs = g_inner(A.apply(psi), phi, sn)
+    rhs = g_inner(psi, A.H.apply(phi), sn)
     rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
     if not rel > 1e-6:
         pytest.fail(

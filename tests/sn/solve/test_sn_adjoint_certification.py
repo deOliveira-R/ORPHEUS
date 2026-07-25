@@ -22,8 +22,12 @@ checkout``), each reddening its named gate.
 * **P1.4** — the ∞-medium 4G adjoint SPECTRUM == the closed form (the
   dominant eigenvector of ``(Aᵀ)⁻¹Fᵀ`` — the corrected reference; 4G
   mandatory, with the ψ*_cf ≠ φ_cf materiality precondition asserted),
-  plus the F†-swap mutation reddening the spectrum row while k stays
-  EXACTLY equal — the Mode-12 pair made explicit.
+  plus the F†-swap mutation reddening the spectrum row — the vector
+  gate's own teeth, independent of the k shift the P1.3 tooth pins on
+  the same fixture.  (The Mode-12 designed-green class for k is the
+  factor-ORDER/similarity family — ``eig(Mᵀ) = eig(M)``, the trap the
+  P1.4 reference itself fell into — NOT leaf-transpose drops, which do
+  exit the stabiliser and shift k.)
 * **P1.5** — bi-orthogonality ``⟨ψ*_i, F φ_j⟩ = 0 (i≠j)``, the
   defining law of the forward/adjoint eigenbasis pair, closed-form
   (all modes from ``np.linalg.eig`` both sides).  HONEST-SCOPE note vs
@@ -55,8 +59,8 @@ from orpheus.geometry import Mesh1D
 from orpheus.geometry.mesh import BC, CoordSystem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_adjoint
+from tests.sn._test_helpers import energy_spectrum
 
-pytestmark = pytest.mark.l1
 
 
 def require(condition: bool, message: str) -> None:
@@ -124,18 +128,14 @@ def _k(sol) -> float:
     return float(sol.keff)
 
 
-def _energy_spectrum(sol) -> np.ndarray:
-    sf = np.asarray(sol.scalar_flux.values)
-    spec = sf.mean(axis=tuple(range(1, sf.ndim)))
-    return spec / np.linalg.norm(spec)
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # P1.3 — the k triple-equality legs.
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestP13KEquality:
+    pytestmark = pytest.mark.l1
+
     @pytest.mark.parametrize("ng_key", ["2g", "4g"])
     @pytest.mark.verifies("kinf-mg")
     def test_infinite_medium_triple_equality(self, ng_key):
@@ -169,7 +169,14 @@ class TestP13KEquality:
 
     def test_sphere_k_equality(self):
         r"""The COUPLED daggered posing (System B live): μ-reversal at the
-        pole + the fission ray fold + the transposed block substitution."""
+        pole + the fission ray fold + the transposed block substitution.
+
+        HONEST SCOPE: k-equality only — the coupled daggered flux SHAPE
+        has no independent closed-form reference on this leg; the
+        vector-level evidence rides the ∞/slab rows plus the #280/#310
+        transpose-machinery gates.  A sphere φ*-shape row is carved
+        into campaign phase A5 (recorded in the driver).
+        """
         mats, mesh = _sphere()
         k_fwd = _k(_solve_fwd(mats, mesh))
         k_adj = _k(_solve_adj(mats, mesh))
@@ -183,6 +190,8 @@ class TestP13KEquality:
 
 class TestP13Mutations:
     r"""Each named adjoint mutation shifts k_adj off k_fwd — in-process."""
+
+    pytestmark = pytest.mark.l1
 
     def test_fission_role_swap_shifts_k(self, monkeypatch):
         r"""F† → F (the χ↔νΣf swap dropped).  4G, χ ∦ νΣf asserted —
@@ -263,6 +272,8 @@ class TestP13Mutations:
 
 
 class TestP14AdjointSpectrum:
+    pytestmark = pytest.mark.l1
+
     def test_4g_spectrum_matches_closed_form(self):
         r"""The SN adjoint energy spectrum == the dominant eigenvector of
         ``(Aᵀ)⁻¹Fᵀ`` (4G MANDATORY: the 2G row lives in the entries file;
@@ -283,20 +294,26 @@ class TestP14AdjointSpectrum:
             err_msg="4G k_adj != closed form.",
         )
         np.testing.assert_allclose(
-            _energy_spectrum(adj), psi_star_cf, rtol=1e-7,
+            energy_spectrum(adj), psi_star_cf, rtol=1e-7,
             err_msg="the 4G SN adjoint spectrum does not match the "
             "closed-form (Aᵀ)⁻¹Fᵀ eigenvector — the energy-adjoint "
             "content (F†/S† composition) is wrong even though k agrees.",
         )
 
-    def test_f_role_swap_reds_spectrum_while_k_stays(self, monkeypatch):
-        r"""THE Mode-12 pair, explicit: F† → F leaves ``k`` EXACTLY equal
-        (the k-functional is designed-green on the whole adjoint mutation
-        class) while the SPECTRUM diverges O(1) — the vector-level row is
-        the committed catcher, k alone never is.
+    def test_f_role_swap_reds_spectrum(self, monkeypatch):
+        r"""The VECTOR row's own F† teeth: F† → F moves the adjoint
+        spectrum O(1) off the closed form — evidence INDEPENDENT of the
+        k shift (``test_fission_role_swap_shifts_k`` pins that half on
+        the same fixture: a one-factor transpose drop is NOT a pencil
+        similarity, so k moves too — 1.488 → 0.153 here).
 
-        (F†=F makes the daggered pencil ``(A†, F)`` — similar to the
-        forward pencil, so k is INVARIANT; the eigenVECTOR is not.)
+        The DESIGNED-GREEN k-blindness (Mode 12) lives elsewhere: on
+        the factor-ORDER family — every product similar to
+        ``(Aᵀ)⁻¹Fᵀ`` (``FᵀA⁻ᵀ = Mᵀ``, …) shares the k spectrum EXACTLY
+        while its dominant eigenvector degenerates (rank-1 F: to ν̂Σf,
+        zero A-physics).  No k row can ever catch THAT class; the
+        spectrum match (``test_4g_spectrum_matches_closed_form``) + the
+        reference trap-catcher are the committed catchers.
         """
         from orpheus.transport.operators.fission import FissionOperator
 
@@ -309,19 +326,24 @@ class TestP14AdjointSpectrum:
             lambda self, chi: self.apply(chi),
         )
         mut = _solve_adj(mats, mesh)
-        spec_mut = _energy_spectrum(mut)
+        spec_mut = energy_spectrum(mut)
         require(
             not np.allclose(spec_mut, psi_star_cf, rtol=1e-3),
             "F†=F did NOT move the adjoint spectrum — the P1.4 flux-shape "
             "row has no teeth on the canonical adjoint-fission trap.",
         )
 
-    # NOTE the k-INVARIANCE half of the Mode-12 pair: on the ∞ medium the
-    # F†=F daggered pencil (A†, F) is similar to the forward pencil, so
-    # the P1.3 ∞ row would stay GREEN under this mutation — that is the
-    # designed-green blindness P1.4 exists to break, and exactly why the
-    # F† k-tooth (TestP13Mutations) had to ride a shifted-k regime while
-    # the spectrum row above is the committed ∞-medium catcher.
+    # Mode-12 accounting for the k rows (measured, 2026-07-25 sweep —
+    # correcting the earlier "pencil similarity" gloss): leaf-transpose
+    # DROPS (F†→F, S†→S, L†→L) are NOT k-invariant — transposing one
+    # factor is not a similarity of the pencil (F†=F moves k
+    # 1.488 → 0.153 on this very fixture; TestP13Mutations asserts the
+    # shifts, with the regime preconditions that keep them visible).
+    # The class k IS exactly blind to is the factor-ORDER/similarity
+    # family (eig(Mᵀ) = eig(M)) — the trap the P1.4 reference itself
+    # fell into — plus everything about the VECTOR: those are covered
+    # only by the spectrum rows here and the defining-law residual
+    # (TestP15).  k rows are teeth for drops, never for order/shape.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -388,6 +410,7 @@ class TestP15BiOrthogonality:
             "fixture (self-adjoint dud).",
         )
 
+    @pytest.mark.l1
     def test_sn_adjoint_dominant_mode_is_the_true_left_vector(self):
         r"""The SN tie-in: the SN ψ* spectrum, paired against F with the
         closed-form ZERO right modes, annihilates — ``⟨ψ*_SN, Fφ_j⟩ = 0``
@@ -403,7 +426,7 @@ class TestP15BiOrthogonality:
         A = np.diag(sig_t) - sig_s.T
         F = np.outer(chi, nu_sf)
         adj = _solve_adj(mats, mesh)
-        spec = _energy_spectrum(adj)
+        spec = energy_spectrum(adj)
         k = _k(adj)
         residual = A.T @ spec - (F.T @ spec) / k
         np.testing.assert_allclose(

@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.scalar_flux import ScalarFlux
+    from orpheus.transport.timed_full_field import TimedFullField
 
 
 # Anchor for shared, sn-root-relative test data (regression snapshots,
@@ -700,3 +701,103 @@ def joint_m_grid(sn_mesh: "SNMesh", LC):
         domain=space, codomain=space,
     )
     return grid, space
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The independent G-metric oracle + spectrum reduction (#276 A4 sweep)
+# ═══════════════════════════════════════════════════════════════════════
+# Shared across tests/sn/operators/ (the reciprocity gates) and
+# tests/sn/solve/ (the adjoint entry/certification batteries).  These
+# are VERIFICATION ORACLES: built directly from raw mesh/quadrature
+# data, structurally independent of the production metric machinery
+# (anti-R1) — never re-spell them locally, import from here.
+
+
+def g_bulk_measure(sn: "SNMesh") -> np.ndarray:
+    r"""G_bulk = V_cell · w_n [⊗ moment mass] — built from raw mesh data.
+
+    On a multi-moment closure (LD) the bulk field carries the trailing
+    ``2^d`` spatial-moment axis, and its Hilbert measure carries the moment
+    mass ``∏_a θ^{o_a}`` (#310 C2 ruling 3): ``G_bulk = V·w_n ⊗ diag(1, θ,
+    …)``.  Rebuilt HERE from the raw ``sn.scheme.theta`` scalar with a
+    plain kron loop — structurally independent of the production
+    ``moment_mass_diagonal`` helper (anti-R1), so the metric cross-checks
+    pin the production θ-weighting against an independent spelling.
+    """
+    w_n = np.asarray(sn.quad.weights, dtype=float)
+    V = np.asarray(sn.volumes, dtype=float)  # (*spatial,)
+    # (N, 1) ordinate+group axes ⊗ (*spatial,) volume axes — rank-generic.
+    w_b = w_n.reshape((w_n.shape[0], 1) + (1,) * V.ndim)
+    base = w_b * V[None, None]
+    if sn.scheme.spatial_basis_per_axis > 1:
+        from orpheus.transport.spatial.linear_discontinuous import (
+            LinearDiscontinuous,
+        )
+
+        # Explicit raise, not a bare assert: this module is not
+        # assertion-rewritten, so ``python -O`` (the canonical
+        # invocation) would strip an assert to a no-op (vv Mode 8).
+        if not isinstance(sn.scheme, LinearDiscontinuous):
+            raise TypeError(
+                "multi-moment bulk measure: scheme must be "
+                "LinearDiscontinuous (the θ carrier); got "
+                f"{type(sn.scheme).__name__}."
+            )
+        theta = float(sn.scheme.theta)
+        mm = np.array([1.0])
+        for _ in range(sn.ndim):
+            mm = np.kron(mm, np.array([1.0, theta]))
+        return base[..., None] * mm
+    return base
+
+
+def g_trace_cosine_weight(
+    sn: "SNMesh", face_idx: int, *, with_cosine: bool,
+) -> np.ndarray:
+    r"""Per-ordinate trace weight for a face: ``|Ω·n|·w_n`` (true) or ``w_n`` (wrong)."""
+    w_n = np.asarray(sn.quad.weights, dtype=float)
+    if with_cosine:
+        return np.abs(sn.angular_trace.omega_dot_n[face_idx]) * w_n
+    return w_n  # the L11 wrong metric: drops |Ω·n|
+
+
+def g_inner(a: "TimedFullField", b: "TimedFullField", sn: "SNMesh", *,
+            with_cosine: bool = True) -> float:
+    r"""``⟨a,b⟩_G = Σ_bulk a·b·(V·w_n) + Σ_trace a·b·(|Ω·n|·w_n)``.
+
+    Built directly from ``omega_dot_n`` / ``quad.weights`` / ``volumes`` —
+    the structurally-independent reference inner product on System A's
+    2-block composite. ``with_cosine=False`` drops the ``|Ω·n|`` factor
+    (the L11 wrong-metric control).
+
+    B.2d: the ψ½ seed is System B's own composite — its ``G_sd = V_cell``
+    reciprocity lives on the COUPLED space (the grid ``.H`` gate,
+    ``test_psi_half_coupling::TestCoupledBuilder``), never as a third term
+    here.
+    """
+    bulk = float(np.sum(g_bulk_measure(sn) * a.interior.values * b.interior.values))
+    trace = 0.0
+    for f_idx, face in enumerate(sn.angular_trace.layout.faces):
+        af = a.boundary.face_view(face)
+        bf = b.boundary.face_view(face)
+        w_face = g_trace_cosine_weight(sn, f_idx, with_cosine=with_cosine)
+        w_b = w_face.reshape((w_face.shape[0],) + (1,) * (af.ndim - 1))
+        trace += float(np.sum(af * bf * w_b))
+    return bulk + trace
+
+
+def energy_spectrum(sol) -> np.ndarray:
+    r"""L2-normalised per-group spatial-MEAN spectrum of a Solution's scalar flux.
+
+    The one spelling of the spectrum-extraction convention the adjoint
+    batteries compare against closed-form eigenvectors: group axis first,
+    unweighted spatial mean over every remaining axis, ℓ² normalisation
+    (matching :func:`orpheus.derivations.common.eigenvalue.dominant_eigenpair`'s
+    convention).  On a spatially-flat iterate the mean is exact; on a
+    structured one it is the flat-weight projection — the batteries only
+    apply it where flatness holds (∞-medium legs) or where the reference
+    shares the same reduction.
+    """
+    sf = np.asarray(sol.scalar_flux.values)
+    spec = sf.mean(axis=tuple(range(1, sf.ndim)))
+    return spec / np.linalg.norm(spec)

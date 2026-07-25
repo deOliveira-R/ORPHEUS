@@ -627,6 +627,8 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         inner_tol=1e-10,
     )
     expected_keff = ref.keff
+    if expected_keff is None:
+        pytest.fail("solve_sn reference returned no eigenvalue.")
 
     # Build the SN operator triple from the same precomputed solver
     # data used for the reference run.  ``A_inv_adapter`` (defined
