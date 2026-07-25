@@ -722,3 +722,32 @@ the transpose-SOLVE (`sweep_transpose`/G-S reverse), so a "reverse-scan … defe
 the SOLVE stays true. The rst-patched-but-Protocol-stale asymmetry is the half-cleanup signature;
 the flip tests are the leg-3 oracle. (#310 C4 multi-D production-reverse review, 2026-07-24 —
 the CODE was an exemplary single-sourced VJP; the only blocker was this inverted blast radius.)
+
+**Sharpening (#310 C5 — the flip's FINAL phase, 2026-07-24): the blast radius is ONE RING WIDER
+than L-016's three named sites, and it recurs EVEN WHEN the author explicitly applies L-016 up
+front.** C5-b's whole job was the doc-blast (truth-patch the LD-2D flip). The author correctly
+patched the three L-016 sites — the rst ledger (closed to R7-only, exemplary), the Protocol
+`has_transpose_walk` stub, and `StreamingOperator.apply_transpose`/`solve_transpose`. But the
+tree-wide sweep must hit *every machine-facing docstring that DESCRIBES the flipped predicate*,
+not just the Protocol stub + the one public-operator method L-016 named. FOUR parallel survivors
+remained, all present-tense-false after `has_transpose_walk`→unconditional-True + the
+`_multi_d_multi_moment_reverse_deferred` deletion, all in the two files the diff heavily edited:
+(1) the `InvertibleOperator` **class** docstring (streaming.py) "The multi-D Cartesian adjoint
+raises"; (2) `InvertibleOperator.apply_transpose` **method** docstring, same file — the C5 sweep
+patched `StreamingOperator.apply_transpose` but missed the SIBLING operator class's two docstrings;
+(3) the **base** `_LossRepresentation.has_transpose_walk` default docstring "the wavefront family
+scheme-aware, LD-2D → C5" (the flip patched the DERIVED `_DAGWavefront` override + the Protocol
+stub, missed the base default the next implementer inherits); (4) `FullFieldWavefront.
+loss_action_transpose` oracle-arm docstring "True … (LD-2D excepted → C5)". The ledger's OWN prose
+("the predicate was RETIRED with both flip-safety faces moving together") names only the two CODE
+faces — these four are DOC faces the "both faces" claim never accounted for. The grep that finds
+them: `grep -rnE "multi-D Cartesian.*(raise|defer)"` AND `grep -rniE "LD.?2.?D|excepted" |
+grep -E "→ ?C5|excepted|scheme-aware"` over orpheus/ — then discriminate the CLASS docstring and
+the BASE-default docstring as first-class contract sites (a new-representation author reads the
+base default; a maintainer reads the class narrative). Verdict: MUST-FIX cluster (all three legs;
+leg-3 = runtime `has_transpose_walk`==True on LD-2D), CODE exemplary and shipping, one-line prose
+each. Distinct still-true residues to NOT flag: the reverse-SCAN `sweep_transpose` R7 (base impl +
+`coupled_system` block "defers its reverse scan"), ScanMarch×LD-2D forward construction refusal.
+One SHOULD-FIX citation-drift: the Protocol `sweep_transpose` stub still cites "#310 C3–C5" for the
+reverse-scan deferral while the base impl + public operator now say "R7 / deferred-out" — a
+twin-spelling of one deferral, primary claim true (L-016 SHOULD-FIX class). (#310 C5 flip review.)
