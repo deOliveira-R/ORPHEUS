@@ -371,14 +371,14 @@ class LossRepresentation(Protocol):
         Return the FULL adjoint loss :math:`(L+C)^{\mathsf T}\phi` (the operator
         subtracts the self-adjoint diagonal :math:`C` in
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`).
-        Implemented by EVERY registered representation since #310 C4 (the
-        1-D reverse walks, the mirror-octant wavefront reverses, the
-        row-march reverse); the ONE remaining deferral raises a typed
-        :class:`NotImplementedError` — the multi-D multi-moment (LD-2D)
-        reverse (#310 C5), single-sourced through
-        :func:`_multi_d_multi_moment_reverse_deferred`.  Never a silent
-        wrong answer.  ``sigma`` is the ``(ng, ...)`` diagonal
-        coefficient, passed EXPLICITLY (#240 Phase 2 Step B).
+        Implemented by EVERY registered representation on EVERY registered
+        scheme since #310 C5 (the 1-D reverse walks, the mirror-octant
+        wavefront reverses — DD and LD, any ``d`` — and the row-march
+        reverse); a scheme that registers no transpose kernel pair still
+        refuses with a typed :class:`NotImplementedError` (the
+        ``has_transpose_kernel`` covering law) — never a silent wrong
+        answer.  ``sigma`` is the ``(ng, ...)`` diagonal coefficient,
+        passed EXPLICITLY (#240 Phase 2 Step B).
 
         On a carrying mesh this is the ray-decoupled ``(A,A)ᵀ`` block action
         (step 6 — presence is structural): the JOINT transposed action
@@ -397,8 +397,9 @@ class LossRepresentation(Protocol):
         :math:`L^{\mathsf T}` leaf, single-sourced through
         :meth:`loss_action_transpose` at :math:`\sigma = 0`.  Used by
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`.  Inherits
-        the deferral contract (the LD-2D reverse raises typed, #310 C5 —
-        never a silent wrong answer).
+        that method's contract (implemented on the full scheme ×
+        representation grid since #310 C5; an unregistered-kernel scheme
+        raises typed — never a silent wrong answer).
         """
         ...
 
@@ -733,25 +734,6 @@ def _outflow_faces(signs_eff: tuple[int, ...]) -> tuple[str, ...]:
         f"{AXIS_NAMES[a]}max" if s >= 0 else f"{AXIS_NAMES[a]}min"
         for a, s in enumerate(signs_eff)
     )
-
-
-def _multi_d_multi_moment_reverse_deferred(mesh: "SNMesh") -> bool:
-    r"""True iff the mesh's DAG reverse walk is the LD-2D typed deferral (#310 C5).
-
-    The ONE spelling of the wavefront family's remaining reverse gap: the
-    kernel VJP is d-generic and LD registers it, so the mirror walk WOULD
-    run on a multi-D multi-moment mesh — but it is ungated until the C5
-    rows land (the moment-frame-involution reciprocity + the LD-2D
-    dense-``Mᵀ``, the likeliest sign-error site — ERR-066 family).  Read
-    by BOTH faces of flip-safety so they cannot drift (the R5/R6 lesson —
-    two spellings of one deferral must be one predicate):
-
-    * :meth:`_DAGWavefront.has_transpose_walk` — the CONSTRUCTION-time
-      factor (the eager ``.H`` refuses via ``is_adjointable``);
-    * :meth:`_OctantWalk.loss_action_transpose` — the APPLY-time backstop
-      for direct Euclidean calls that bypass ``.H``.
-    """
-    return mesh.ndim >= 2 and mesh.scheme.is_multi_moment
 
 
 def _reverse_octant_traversal(
@@ -1243,16 +1225,6 @@ class _OctantWalk:
                 "pair (residual_kernel_batch_transpose) — the adjoint "
                 "matvec on this scheme is a typed deferral (#310)."
             )
-        if _multi_d_multi_moment_reverse_deferred(sn_mesh):
-            # The APPLY-time backstop of the ONE LD-2D deferral predicate
-            # (the trait `_DAGWavefront.has_transpose_walk` is its
-            # construction-time face — same spelling, cannot drift).
-            # Never a silent unverified answer.
-            raise NotImplementedError(
-                "_OctantWalk.loss_action_transpose: the multi-D "
-                "multi-moment (LD-2D) reverse walk is a typed deferral "
-                "until its gates land (#310 C5)."
-            )
         per_axis = scheme.spatial_basis_per_axis
         moment_tail = face_moment_tail(cell_moment_count(per_axis, ndim))
         res_bar = phi.interior.values             # (N, ng, *spatial[, 2^d])
@@ -1509,20 +1481,22 @@ class _DAGWavefront(_LossRepresentation):
 
     @property
     def has_transpose_walk(self) -> bool:
-        r"""Scheme-aware family trait — True except the LD-2D deferral (#310 C4).
+        r"""Family trait — the wavefront reverse is scheme- and d-complete (#310 C5).
 
         Since C3/C4 BOTH storage policies own the mirror-octant reverse
         (:meth:`FullFieldWavefront.loss_action_transpose` the full-cochain
         oracle, :meth:`MovingFrontierWindow.loss_action_transpose` the
-        windowed production), so the family's orientation factor is True
-        wherever the shared frame runs — the ONE remaining gap is the
-        multi-D multi-moment (LD-2D) reverse, ungated until #310 C5.  The
-        trait reads the SAME predicate as the frame's apply-time guard
-        (:func:`_multi_d_multi_moment_reverse_deferred` — flip-safety's two
-        faces cannot drift), so the eager ``.H`` refuses at construction
-        exactly where a direct call would raise at apply.
+        windowed production), and since C5 the multi-moment (LD) face
+        cochain reverses through the same frame — so the family's
+        orientation factor is unconditionally True wherever the shared
+        frame runs.  The SCHEME factor lives where it belongs, in
+        ``type(scheme).has_transpose_kernel`` (the registration-coupled
+        covering law), read by
+        :attr:`~orpheus.sn.operators.streaming.StreamingOperator.is_adjointable`
+        as the other conjunct — an unregistered-kernel scheme still
+        refuses loudly at both faces.
         """
-        return not _multi_d_multi_moment_reverse_deferred(self.mesh)
+        return True
 
 
 class MovingFrontierWindow(_DAGWavefront):

@@ -1,4 +1,4 @@
-r"""#310 C3/C4 — the multi-D reverse walk gates (spec §5, R2a + R2b slices).
+r"""#310 C3/C4/C5 — the multi-D reverse walk gates (spec §5 + §6, R2a/R2b/R2c).
 
 The multi-D Cartesian adjoint matvec ``(L+C)ᵀφ`` exists as the ORACLE arm:
 :meth:`FullFieldWavefront.loss_action_transpose` routes through the shared
@@ -52,9 +52,22 @@ This file is the multi-D sibling of ``test_one_dim_loop_walk.py`` (spec
   swap), which reds the pairing O(1) where it types (square) and cannot
   even shape-check on the rectangular primary configs (L16 — the
   shape-guard is the reason nx≠ny is mandated);
-* **loud deferrals** — LD-2D reverse (typed → #310 C5), the wavefront
-  ``sweep_transpose`` (G-S reverse-solve, out of scope R7), and the
-  Pattern-4 moment-tail backstop.
+* **the LD-2D reverse** (#310 C5, spec §6 R2c) — the moment-tailed face
+  cochain reverses through the SAME mirror-octant frame (the C2 LD batch
+  VJP is d-generic; C5 is the gate battery + the flip): dense-``Mᵀ`` and
+  pairing on the wavefront pair (ScanMarch construction-refuses LD-2D —
+  its own pinned row), the assembled-``Mᵀ`` keystone (the LAPACK/CSR
+  artifact emitted from the shared UBLD source), reverse
+  ``window ≡ full`` bit-identity, plus the two §6 teeth: the
+  moment-drop mutation with its EXACT slope-free blindness control
+  (Mode 7 — every committed LD-2D gate is anisotropic by construction)
+  and the cross-moment ``x̂ŷ`` frame-sign mutation whose deviation
+  splits EXACTLY by octant backward-count parity (the involution's
+  group theory made visible — §3.3(c) at d=2, the ERR-066 family's
+  likeliest sign-error site);
+* **loud deferrals** — the wavefront ``sweep_transpose`` (G-S
+  reverse-solve, out of scope R7) and the Pattern-4 moment-tail
+  backstop.
 
 ``-O``-safe (vv Mode 8): ``pytest.fail`` / ``np.testing`` only.
 ``foundation`` — software/algebra invariants (no theory ``:label:``).
@@ -74,6 +87,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation import (
     CumprodScan,
     FullFieldWavefront,
+    IncompatibleRepresentation,
     MovingFrontierWindow,
     ScanMarch,
     _OctantWalk,
@@ -85,10 +99,12 @@ from orpheus.sn.loss_representation.sweep_graph import (
     _CellResidualTranspose,
 )
 from orpheus.sn.loss_representation import _ApplyOperands
+from orpheus.sn.loss_representation.sweep_schedule import _octant_sweep
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
+from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from tests.sn.operators.test_g_adjoint_reciprocity import (
     _make_ld_slab,
     _make_slab,
@@ -150,8 +166,14 @@ def _het_sigma(sn: SNMesh, rng: np.random.Generator) -> np.ndarray:
 
 
 def _zero_composite(sn: SNMesh) -> FullField:
-    return FullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+    # Scheme-aware: a multi-moment closure (LD) carries the (…, 2^d) bulk
+    # tail, selected by the mesh's own per-axis basis size; the boundary
+    # auto-sizes from the moment-resolved trace layout.  per_axis == 1
+    # (DD) reproduces the moment-free composite byte-identically.
+    per_axis = sn.scheme.spatial_basis_per_axis
+    return FullField(
+        interior=AngularFlux.zeros_on(sn, spatial_moments=per_axis),
+        boundary=AngularBoundaryFlux.zeros_on(sn),
     )
 
 
@@ -202,6 +224,43 @@ def _pairing_defect(sn: SNMesh, rep, sig: np.ndarray, rng) -> float:
     lhs = _pairing(rep.loss_action(sig, x), w, faces)
     rhs = _pairing(x, rep.loss_action_transpose(sig, w), faces)
     return abs(lhs - rhs) / max(abs(lhs), abs(rhs), 1e-300)
+
+
+def _probe_dense(sn: SNMesh, sig: np.ndarray, action) -> np.ndarray:
+    """Column-probe ONE direction's dense matrix over the FULL composite
+    basis (bulk ⊕ trace) — the shared dense-object artifact.  ``action`` is
+    a rep's ``loss_action`` or ``loss_action_transpose`` bound method."""
+    faces = tuple(sn.angular_trace.face_names)
+    n = _basis_size(sn, faces)
+    M = np.empty((n, n))
+    for k, e in enumerate(_basis_composites(sn, faces)):
+        M[:, k] = _flatten(action(sig, e), faces)
+    return M
+
+
+def _assert_dense_mt_pins_object(sn: SNMesh, rep, sig: np.ndarray, label: str):
+    """The ONE dense-``Mᵀ`` object pin — ``M_rev == M_fwdᵀ`` as a MATRIX,
+    plus the anti-vacuous asymmetry check.  Shared by the d=2 DD gate, the
+    d=3 gate, and the LD-2D gate (one spelling of the pin; Mode-12: a
+    matrix equality sits outside every spectral invariance group)."""
+    M_fwd = _probe_dense(sn, sig, rep.loss_action)
+    M_rev = _probe_dense(sn, sig, rep.loss_action_transpose)
+    scale = float(np.max(np.abs(M_fwd)))
+    np.testing.assert_allclose(
+        M_rev, M_fwd.T, rtol=1e-12, atol=1e-13 * scale,
+        err_msg=(
+            f"[{label}] the reverse walk is NOT the transpose of the "
+            "forward walk (dense column-probe object mismatch)"
+        ),
+    )
+    # The config genuinely discriminates: the operator must not be
+    # accidentally symmetric (a symmetric M would null the whole gate).
+    if np.allclose(M_fwd, M_fwd.T, rtol=1e-6, atol=1e-9 * scale):
+        pytest.fail(
+            f"[{label}] probe config produced a symmetric M — the dense-Mᵀ "
+            "gate is vacuous on this config (L16: pick het/non-uniform/"
+            "rectangular)"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -382,33 +441,7 @@ def test_dense_mt_2d_column_probe_pins_the_object(rep_cls):
     """
     rng = np.random.default_rng(20260726)
     sn = _cart2d_probe_mesh()
-    sig = _het_sigma(sn, rng)
-    rep = rep_cls(sn)
-    faces = tuple(sn.angular_trace.face_names)
-    n = _basis_size(sn, faces)
-
-    M_fwd = np.empty((n, n))
-    M_rev = np.empty((n, n))
-    for k, e in enumerate(_basis_composites(sn, faces)):
-        M_fwd[:, k] = _flatten(rep.loss_action(sig, e), faces)
-    for k, e in enumerate(_basis_composites(sn, faces)):
-        M_rev[:, k] = _flatten(rep.loss_action_transpose(sig, e), faces)
-
-    scale = float(np.max(np.abs(M_fwd)))
-    np.testing.assert_allclose(
-        M_rev, M_fwd.T, rtol=1e-12, atol=1e-13 * scale,
-        err_msg=(
-            "the reverse walk is NOT the transpose of the forward walk "
-            "(dense column-probe object mismatch)"
-        ),
-    )
-    # The config genuinely discriminates: the operator must not be
-    # accidentally symmetric (a symmetric M would null the whole gate).
-    if np.allclose(M_fwd, M_fwd.T, rtol=1e-6, atol=1e-9 * scale):
-        pytest.fail(
-            "probe config produced a symmetric M — the dense-Mᵀ gate is "
-            "vacuous on this config (L16: pick het/non-uniform/rectangular)"
-        )
+    _assert_dense_mt_pins_object(sn, rep_cls(sn), _het_sigma(sn, rng), "DD d=2")
 
 
 @pytest.mark.parametrize(
@@ -742,27 +775,299 @@ def test_d3_dense_mt_and_pairing_on_the_spine():
             f"d=3 Euclidean pairing identity broke: rel defect {rel:.3e}"
         )
 
-    faces = tuple(sn.angular_trace.face_names)
-    n = _basis_size(sn, faces)
-    M_fwd = np.empty((n, n))
-    M_rev = np.empty((n, n))
-    for k, e in enumerate(_basis_composites(sn, faces)):
-        M_fwd[:, k] = _flatten(rep.loss_action(sig, e), faces)
-    for k, e in enumerate(_basis_composites(sn, faces)):
-        M_rev[:, k] = _flatten(rep.loss_action_transpose(sig, e), faces)
-    scale = float(np.max(np.abs(M_fwd)))
-    np.testing.assert_allclose(
-        M_rev, M_fwd.T, rtol=1e-12, atol=1e-13 * scale,
-        err_msg=(
-            "the d=3 reverse walk is NOT the transpose of the d=3 forward "
-            "walk (dense column-probe object mismatch)"
-        ),
+    _assert_dense_mt_pins_object(sn, rep, sig, "DD d=3")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# §6 — the LD-2D reverse (#310 C5, R2c): the moment-tailed face cochain
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _ld2d_probe_mesh() -> SNMesh:
+    """LD sibling of the DD probe config: rectangular (nx=3 ≠ ny=2)
+    NON-UNIFORM 2-material vacuum mesh, LinearDiscontinuous — the bulk
+    carries the ``(…, 4)`` ``[avg, ŷ, x̂, x̂ŷ]`` Kronecker tail (axis-0
+    outer) and every face a trailing 2-moment ``[avg, transverse-slope]``
+    axis (#251)."""
+    geom = Mesh2D(
+        edges_x=np.array([0.0, 0.4, 1.1, 2.0]),
+        edges_y=np.array([0.0, 0.7, 1.5]),
+        mat_map=np.array([[0, 1], [1, 0], [0, 0]]),
+        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
+        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
-    if np.allclose(M_fwd, M_fwd.T, rtol=1e-6, atol=1e-9 * scale):
-        pytest.fail(
-            "d=3 probe config produced a symmetric M — the gate is vacuous "
-            "(L16: pick het/non-uniform/rectangular)"
+    return SNMesh(
+        geom, Quadrature.level_symmetric(2),
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        scheme=LinearDiscontinuous(),
+    )
+
+
+def _ld2d_reflective_mesh() -> SNMesh:
+    """Reflective nonsquare non-uniform LD sibling — the boundary-cotangent
+    algebra live on the MOMENT-RESOLVED trace (reflection threads the
+    transverse face-slope; its transpose must too)."""
+    geom = Mesh2D(
+        edges_x=np.array([0.0, 0.5, 1.3, 2.0]),
+        edges_y=np.array([0.0, 0.9, 2.0]),
+        mat_map=np.array([[0, 1], [1, 0], [0, 0]]),
+        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
+        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+    )
+    return SNMesh(
+        geom, Quadrature.level_symmetric(2),
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        scheme=LinearDiscontinuous(),
+    )
+
+
+_LD2D_WAVEFRONT_REPS = [FullFieldWavefront, MovingFrontierWindow]
+_LD2D_IDS = ["ffw-oracle", "window"]
+
+
+def test_ld_2d_scanmarch_is_construction_refused():
+    """[L0 structural] WHY the LD-2D gates parametrize over the wavefront
+    pair only: ScanMarch's facewise supports-gate refuses an LD 2-D mesh
+    at CONSTRUCTION (either orientation — there is no ScanMarch LD-2D
+    forward to transpose), so the family's LD-2D reverse claim lives
+    entirely on the wavefront frame.  Pins the parametrization's honesty:
+    if ScanMarch ever admits LD-2D, this reds and the gates here gain a
+    row."""
+    with pytest.raises(IncompatibleRepresentation):
+        ScanMarch(_ld2d_probe_mesh())
+
+
+@pytest.mark.parametrize("rep_cls", _LD2D_WAVEFRONT_REPS, ids=_LD2D_IDS)
+def test_ld_2d_dense_mt_column_probe_pins_the_object(rep_cls):
+    """[L0 object] the LD-2D reverse IS the transpose of the LD-2D forward
+    — the SAME dense pin as d=2 DD / d=3, now with the ``(…, 4)`` bulk
+    moment tail and 2-moment faces in the probe basis.  Anisotropy is
+    STRUCTURAL here (spec §6.3): the basis spans every slope DOF, so a
+    dropped/mis-signed slope row cannot hide behind an all-flat input."""
+    rng = np.random.default_rng(20260812)
+    sn = _ld2d_probe_mesh()
+    _assert_dense_mt_pins_object(sn, rep_cls(sn), _het_sigma(sn, rng), "LD-2D")
+
+
+@pytest.mark.parametrize("rep_cls", _LD2D_WAVEFRONT_REPS, ids=_LD2D_IDS)
+def test_ld_2d_pairing_identity_full_composite(rep_cls):
+    """[L0 object] ``⟨Fx, w⟩ = ⟨x, Fᵀw⟩`` at machine precision on random
+    moment-tailed composites (random slope moments ⟹ anisotropic, §6.3),
+    vacuum het AND reflective nonsquare (the moment-resolved trace's
+    reflection transpose live)."""
+    rng = np.random.default_rng(20260813)
+    for name, sn in (
+        ("vacuum 3x2 het", _ld2d_probe_mesh()),
+        ("reflective 3x2", _ld2d_reflective_mesh()),
+    ):
+        sig = _het_sigma(sn, rng)
+        rel = _pairing_defect(sn, rep_cls(sn), sig, rng)
+        if rel > 1e-12:
+            pytest.fail(
+                f"[LD-2D {name}] {rep_cls.__name__} Euclidean pairing "
+                f"identity broke: rel defect {rel:.3e}"
+            )
+
+
+def test_ld_2d_reverse_window_equals_full():
+    """[L0 storage] reverse ``window ≡ full`` BIT-identical on LD-2D — the
+    ``n_face_moments = 2`` frontier slabs carry the transverse moment axis
+    through the mirror walk with zero storage-policy drift (the §5.1
+    contract at the moment-tailed face width; anisotropic inputs by
+    construction)."""
+    rng = np.random.default_rng(20260814)
+    for name, sn in (
+        ("vacuum 3x2 het", _ld2d_probe_mesh()),
+        ("reflective 3x2", _ld2d_reflective_mesh()),
+    ):
+        sig = _het_sigma(sn, rng)
+        phi = _random_composite(sn, rng)
+        full = FullFieldWavefront(sn).loss_action_transpose(sig, phi)
+        window = MovingFrontierWindow(sn).loss_action_transpose(sig, phi)
+        np.testing.assert_array_equal(
+            np.asarray(window.interior.values),
+            np.asarray(full.interior.values),
+            err_msg=(
+                f"[LD-2D {name}] reverse window ≠ full on the bulk "
+                "cotangent — the storage-policy claim broke at "
+                "n_face_moments = 2"
+            ),
         )
+        for f in sn.angular_trace.face_names:
+            np.testing.assert_array_equal(
+                np.asarray(window.boundary.face_view(f)),
+                np.asarray(full.boundary.face_view(f)),
+                err_msg=f"[LD-2D {name}] reverse window ≠ full on face {f}",
+            )
+
+
+def test_ld_2d_assembled_mt_per_ordinate_block():
+    """[L0 object] the §6.1 KEYSTONE: the CSR ``M.T @ x`` of each
+    forward-probed per-ordinate LD block (the ``cell·4 + moment`` DOF
+    layout, emitted from the shared UBLD source through
+    ``assemble_ordinate_blocks``'s kernel probing + the
+    ``octant_moment_frame_signs`` conjugation) equals the reverse walk's
+    bulk output on a bulk-impulse cotangent — and the transpose stays
+    exactly per-(ordinate, group) block-diagonal (no off-block leak).
+    Structurally independent of the walk under test (forward unit probes
+    + scipy CSR transpose); σ is the mesh's own material field — the SAME
+    source the assembly reads."""
+    sn = _ld2d_probe_mesh()
+    sigma = np.asarray(
+        sn.material_xs_field().total_cross_section_field.values, float,
+    )
+    rep = FullFieldWavefront(sn)
+    rng = np.random.default_rng(20260815)
+    n_cells = int(np.prod(sn.spatial_shape))
+    cm = sn.scheme.spatial_basis_per_axis ** sn.ndim
+    for n in range(sn.quad.n_ordinates):
+        blocks = assemble_ordinate_blocks(sn, n)
+        for g in range(2):
+            r = rng.standard_normal(n_cells * cm)
+            w = _zero_composite(sn)
+            w.interior.values[n, g] = r.reshape(*sn.spatial_shape, cm)
+            z = rep.loss_action_transpose(sigma, w)
+            bulk = np.asarray(z.interior.values)
+            np.testing.assert_allclose(
+                bulk[n, g].ravel(), blocks[g].apply_transpose(r),
+                rtol=1e-12, atol=1e-13,
+                err_msg=f"LD-2D assembled-Mᵀ broke at ordinate {n}, group {g}",
+            )
+            rest = bulk.copy()
+            rest[n, g] = 0.0
+            np.testing.assert_array_equal(
+                rest, 0.0,
+                err_msg=(
+                    f"LD-2D reverse walk leaked off-block at (n={n}, g={g}) "
+                    "— the transpose must stay per-ordinate block-diagonal"
+                ),
+            )
+
+
+def test_ld_2d_moment_drop_mutation_asymmetry(monkeypatch):
+    """[Mode-10 tooth + Mode-7 control] M-R2c-MOMENTDROP: zeroing the
+    transverse-slope face-cotangent chain (the ``n_face_moments → 1``
+    collapse of the reverse's face algebra) reds the pairing O(1) on
+    ANISOTROPIC composites — and is EXACTLY invisible on slope-free
+    (isotropic) composites: the mutated and clean defects agree to
+    machine precision there.  The asymmetry pair IS the §6.3 mandate's
+    proof: every committed LD-2D gate must (and does) drive anisotropic
+    inputs, because an all-flat suite cannot see this bug class."""
+    rng = np.random.default_rng(20260816)
+    sn = _ld2d_probe_mesh()
+    sig = _het_sigma(sn, rng)
+    rep = FullFieldWavefront(sn)
+    faces = tuple(sn.angular_trace.face_names)
+
+    def defect(x, w):
+        lhs = _pairing(rep.loss_action(sig, x), w, faces)
+        rhs = _pairing(x, rep.loss_action_transpose(sig, w), faces)
+        return abs(lhs - rhs) / max(abs(lhs), abs(rhs), 1e-300)
+
+    def slope_free_composite(rng_):
+        c = _zero_composite(sn)
+        vals = rng_.standard_normal(np.asarray(c.interior.values).shape)
+        vals[..., 1:] = 0.0
+        c.interior.values[...] = vals
+        for f in faces:
+            v = c.boundary.face_view(f)
+            rv = rng_.standard_normal(v.shape)
+            rv[..., 1:] = 0.0
+            v[...] = rv
+        return c
+
+    x_a, w_a = _random_composite(sn, rng), _random_composite(sn, rng)
+    x_i, w_i = slope_free_composite(rng), slope_free_composite(rng)
+    clean_iso = defect(x_i, w_i)
+
+    real_vjp = LinearDiscontinuous.residual_kernel_batch_transpose
+
+    def facechain_slope_dropped(self, **kw):
+        psi_bar_cot, psi_in_cots = real_vjp(self, **kw)
+        dropped = tuple(c.copy() for c in psi_in_cots)
+        for c in dropped:
+            c[..., 1:] = 0.0
+        return psi_bar_cot, dropped
+
+    monkeypatch.setattr(
+        LinearDiscontinuous, "residual_kernel_batch_transpose",
+        facechain_slope_dropped,
+    )
+    mut_aniso = defect(x_a, w_a)
+    mut_iso = defect(x_i, w_i)
+    if mut_aniso < 1e-3:
+        pytest.fail(
+            f"dropped transverse-slope face chain moved the anisotropic "
+            f"pairing defect only {mut_aniso:.3e} — the moment-drop tooth "
+            "has no bite"
+        )
+    if not np.isclose(mut_iso, clean_iso, rtol=0.0, atol=1e-13):
+        pytest.fail(
+            f"slope-free composites SAW the moment drop (mutated "
+            f"{mut_iso:.3e} vs clean {clean_iso:.3e}) — the §6.3 "
+            "config-blindness control broke; re-derive before trusting "
+            "any isotropic LD-2D snapshot as slope coverage"
+        )
+
+
+def test_ld_2d_cross_moment_frame_sign_octant_asymmetry(monkeypatch):
+    """[Mode-10 tooth + Mode-12 asymmetry] M-R2c-FRAMESIGN-2D: dropping
+    the cross-moment ``x̂ŷ`` sign from the REVERSE's octant frame
+    conjugation (``s[3] → +1`` unconditionally — the "use ∏ wrong"
+    spelling) moves the reverse O(1) off ``M_fwdᵀ`` EXACTLY on the
+    ordinates of one-backward-axis octants (where the true cross sign is
+    ``s_x·s_y = −1``) and NOT AT ALL on both-forward / both-backward
+    octants (``+1`` already correct — the mutation sits in those octants'
+    stabiliser).  The per-octant parity split in ONE run is the
+    involution's ∏-group theory made visible — the §3.3(c) FRAMESIGN
+    discipline at d=2 (the ERR-066 family's likeliest sign-error site).
+    The forward reference is probed CLEAN before the patch, so the
+    corruption is one-sided (a both-sides frame error conjugates away —
+    the involution is self-transpose)."""
+    import orpheus.sn.loss_representation as lr
+
+    rng = np.random.default_rng(20260817)
+    sn = _ld2d_probe_mesh()
+    sig = _het_sigma(sn, rng)
+    rep = FullFieldWavefront(sn)
+    M_fwd = _probe_dense(sn, sig, rep.loss_action)      # clean reference
+
+    orig_mfs = lr._LossRepresentation._moment_frame_signs
+
+    def cross_sign_dropped(self, signs_eff):
+        s = orig_mfs(self, signs_eff)
+        if s is not None:
+            s = s.copy()
+            s[3] = 1.0          # the x̂ŷ Kronecker slot (axis-0-outer layout)
+        return s
+
+    monkeypatch.setattr(
+        lr._LossRepresentation, "_moment_frame_signs", cross_sign_dropped,
+    )
+    M_rev_mut = _probe_dense(sn, sig, rep.loss_action_transpose)
+
+    dev = np.abs(M_rev_mut - M_fwd.T)
+    scale = float(np.max(np.abs(M_fwd)))
+    bulk_per_ord = sn.ng * int(np.prod(sn.spatial_shape)) * 4
+    for entry in sn.quad.octants:
+        sweep = _octant_sweep(entry, sn.ndim)
+        odd = sum(1 for s in sweep.label.signs if s < 0) % 2 == 1
+        for o in sweep.indices:
+            d_bulk = float(np.max(
+                dev[o * bulk_per_ord:(o + 1) * bulk_per_ord, :]
+            ))
+            if odd and d_bulk < 1e-1 * scale:
+                pytest.fail(
+                    f"one-backward-axis octant {sweep.label.signs} ordinate "
+                    f"{o}: cross-sign drop moved its rows only "
+                    f"{d_bulk:.3e} — the frame-sign tooth has no bite"
+                )
+            if not odd and d_bulk > 1e-12 * scale:
+                pytest.fail(
+                    f"even-backward octant {sweep.label.signs} ordinate "
+                    f"{o}: rows moved {d_bulk:.3e} under a mutation inside "
+                    "its stabiliser — the parity asymmetry proof is broken"
+                )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -870,32 +1175,6 @@ def test_axis_swap_partial_mutation_reds(monkeypatch):
 # ═══════════════════════════════════════════════════════════════════════
 # Loud deferrals (spec §12.2 — out-of-scope stays typed and RED-loud)
 # ═══════════════════════════════════════════════════════════════════════
-
-
-def test_ld_2d_reverse_is_a_typed_deferral():
-    """[deferral pin] the LD-2D reverse would RUN (the kernel VJP is
-    d-generic and LD registers it) but is UNGATED until #310 C5 — the frame
-    refuses loudly rather than emitting an unverified answer."""
-    from orpheus.transport.spatial.linear_discontinuous import (
-        LinearDiscontinuous,
-    )
-
-    geom = Mesh2D(
-        edges_x=np.array([0.0, 0.5, 1.3, 2.0]),
-        edges_y=np.array([0.0, 0.9, 2.0]),
-        mat_map=np.zeros((3, 2), dtype=int),
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
-    )
-    sn = SNMesh(
-        geom, Quadrature.level_symmetric(2),
-        {0: get_mixture("A", "2g")},
-        scheme=LinearDiscontinuous(),
-    )
-    rng = np.random.default_rng(20260801)
-    phi = _random_composite(sn, rng)
-    with pytest.raises(NotImplementedError, match="#310 C5"):
-        FullFieldWavefront(sn).loss_action_transpose(_het_sigma(sn, rng), phi)
 
 
 def test_wavefront_solve_transpose_still_raises():

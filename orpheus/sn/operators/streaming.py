@@ -258,14 +258,18 @@ class StreamingOperator(LinearOperator["FullField"]):
     @property
     def is_adjointable(self) -> bool:
         # Two-factor honest: the KERNEL factor (scheme.has_transpose_kernel
-        # — the cell relation has a transpose realization: DD yes, LD no)
-        # AND the ORIENTATION factor (representation.has_transpose_walk —
-        # the walk reverses: 1-D loop walk yes, multi-D octant/wavefront no).
-        # An eager ``.H`` on an LD mesh OR a multi-D Cartesian mesh raises
-        # MissingAdjoint at construction rather than reaching a raising
-        # reverse walk at apply time. is_invertible inherits base False —
-        # pure streaming L is not sweep-invertible; only (L+C) is. (Two-factor
-        # derivation: loss_representation.rst §loss-rep-orientation-two-frames.)
+        # — the cell relation has a REGISTERED transpose realization; DD and
+        # LD both derive True since #310 C2) AND the ORIENTATION factor
+        # (representation.has_transpose_walk — the walk reverses; every
+        # registered representation since #310 C4/C5). Both factors pass on
+        # the whole registered scheme × representation grid today; the
+        # predicate stays so a FUTURE scheme without a registered kernel
+        # pair (or a representation without a reverse walk) raises
+        # MissingAdjoint eagerly at ``.H`` construction rather than
+        # reaching a raising reverse walk at apply time. is_invertible
+        # inherits base False — pure streaming L is not sweep-invertible;
+        # only (L+C) is. (Two-factor derivation: loss_representation.rst
+        # §loss-rep-orientation-two-frames.)
         return (
             type(self.sn_mesh.scheme).has_transpose_kernel
             and self.loss_representation.has_transpose_walk
@@ -351,10 +355,12 @@ class StreamingOperator(LinearOperator["FullField"]):
         :attr:`loss_representation`'s
         :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action_transpose`
         (single-sourced through ``loss_action_transpose`` at :math:`\sigma = 0`;
-        the multi-D Cartesian DD adjoint landed at #310 C4 — only the
-        LD-2D multi-moment reverse still raises, typed, #310 C5; never a
-        silent wrong answer).  Since :math:`C = \sigma_t\odot` is a
-        self-adjoint diagonal, the full adjoint loss factors as
+        implemented on the full registered scheme × representation grid
+        since #310 C5 — the 1-D reverse walks, the mirror-octant wavefront
+        reverses on DD and LD at any ``d``, the row-march reverse; an
+        unregistered-kernel scheme still raises typed, never a silent
+        wrong answer).  Since :math:`C = \sigma_t\odot` is a self-adjoint
+        diagonal, the full adjoint loss factors as
         :math:`(L + C)^{\mathsf T} = L^{\mathsf T} + C`.
 
         This returns the **plain Euclidean transpose** :math:`L^{\mathsf T}`.

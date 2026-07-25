@@ -199,6 +199,56 @@ def _make_cart2d(ng: int = 2, sigma: float = 0.5):
     return sn, sig_t
 
 
+def _make_ld_2d(ng: int = 2, sigma: float = 0.5):
+    r"""LD 2-D Cartesian, reflective NONSQUARE + NON-UNIFORM h, het σ (#310 C5).
+
+    The spec §6.1 reciprocity config — both #310 moment-metric faces live
+    at once, each on its own committed convention:
+
+    * the BULK metric carries the d=2 moment-mass Kronecker
+      ``V·w_n ⊗ [1, θ, θ, θ²]`` (ruling 3's d-generic kron, first
+      instantiated at d=2 here — :func:`_bulk_measure`'s independent
+      spelling vs the production ``moment_mass_diagonal``, pinned equal by
+      the metric cross-check row);
+    * the TRACE is the moment-resolved ``[avg, transverse-slope]`` face
+      (#251), whose partial-current metric ``|Ω·n|·w_n`` broadcasts
+      UNIFORMLY over the moment axis — the purely-ANGULAR Wave-O
+      convention: the trace metric carries no spatial measure at all (no
+      face area, hence no spatial moment mass; the θ-mass is a bulk
+      phase-space-measure concept).  ``_g_inner``'s trace term and the
+      production :func:`_build_trace_metric_weights` spell the same
+      broadcast, so the cross-check row pins the convention too.
+
+    Non-uniform on BOTH axes (``M = diag`` varies cell-to-cell), reflective
+    (``B`` live on the moment-resolved trace), σ_t group- AND space-varying.
+    """
+    from orpheus.geometry import Mesh2D
+    from orpheus.transport.spatial.linear_discontinuous import (
+        LinearDiscontinuous,
+    )
+
+    geom = Mesh2D(
+        edges_x=np.array([0.0, 0.17, 0.45, 0.62, 1.0]),
+        edges_y=np.array([0.0, 0.33, 0.8, 1.4]),
+        mat_map=np.zeros((4, 3), dtype=int),
+        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
+        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+    )
+    sn = SNMesh(
+        geom, Quadrature.level_symmetric(2), placeholder_materials(ng=ng),
+        scheme=LinearDiscontinuous(),
+    )
+    nx, ny = sn.spatial_shape
+    space_factor = (
+        1.0 + 0.3 * (np.arange(nx)[:, None] + 2.0 * np.arange(ny)[None, :])
+        / (nx + ny)
+    )
+    sig_t = np.stack(
+        [sigma * (1.0 + 0.5 * g) * space_factor for g in range(ng)], axis=0,
+    )
+    return sn, sig_t
+
+
 _BUILDERS = {
     "slab": lambda: _make_slab(ng=1),
     "sphere": lambda: _make_sphere(ng=1),
@@ -208,6 +258,7 @@ _BUILDERS = {
     "cyl_product_2g": lambda: _make_cyl_product(ng=2),
     "ld_slab_2g": lambda: _make_ld_slab(ng=2),
     "cart2d_2g": lambda: _make_cart2d(ng=2),
+    "ld_2d_2g": lambda: _make_ld_2d(ng=2),
 }
 
 

@@ -23,10 +23,13 @@ This file pins:
   tail does not match the scheme's raises a typed ``ValueError`` (the
   silent-broadcast hazard the old guard protected against, now guarded
   SHAPE-wise rather than scheme-wise);
-* the ORIENTATION factor (2.5a): a multi-D Cartesian mesh still refuses —
+* the ORIENTATION factor (2.5a → #310 C4/C5): the multi-D reverse walks
+  landed for every registered representation, so
   ``is_adjointable = scheme.has_transpose_kernel ∧
-  representation.has_transpose_walk`` and the multi-D reverse walk is the
-  #310 C3/C4 arm.  vv Mode-8: function-call asserts only.
+  representation.has_transpose_walk`` passes on the WHOLE registered
+  scheme × representation grid — the rows pin the positive surface and
+  the predicate machinery stays armed for a future scheme/representation
+  without a reverse realization.  vv Mode-8: function-call asserts only.
 """
 
 from __future__ import annotations
@@ -35,7 +38,6 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
-from orpheus.numerics.operator import MissingAdjoint
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation import (
     CumprodScan,
@@ -90,7 +92,7 @@ def _lc(sn, sig_t):
 
 
 def _cart2d_ld() -> SNMesh:
-    """Small vacuum LD 2-D mesh — the #310 C5 deferral boundary's config."""
+    """Small vacuum LD 2-D mesh — the last-flipped (#310 C5) surface's config."""
     geom = Mesh2D(
         edges_x=np.array([0.0, 0.5, 1.3, 2.0]),
         edges_y=np.array([0.0, 0.9, 2.0]),
@@ -277,11 +279,12 @@ class TestMultiDOrientationHonesty:
     (``scheme.has_transpose_kernel``) ∧ ORIENTATION
     (``representation.has_transpose_walk``).  Since #310 C4 the multi-D
     Cartesian DD reverse walks EXIST on every registered representation
-    (the mirror-octant oracle + window, the row-march), so the former
-    all-negative rows are POSITIVE controls — the SAME rows that pinned
-    the refusal now pin the flipped surface (the flip-safe rewrite this
-    class was minted to force).  The remaining honest negative is the
-    LD-2D wavefront reverse (→ #310 C5), pinned below."""
+    (the mirror-octant oracle + window, the row-march), and since #310 C5
+    the moment-tailed (LD-2D) face cochain reverses through the same
+    wavefront frame — so EVERY former negative row is a POSITIVE control:
+    the SAME rows that pinned each refusal now pin the flipped surface
+    (the flip-safe rewrite this class was minted to force), and the grid
+    carries no remaining deferral."""
 
     def test_rep_trait_declarations(self) -> None:
         sn1, _ = _slab(scheme=DiamondDifference())
@@ -313,25 +316,47 @@ class TestMultiDOrientationHonesty:
             "and the oracle reverse landed at C3.",
         )
 
-    def test_ld_2d_wavefront_trait_stays_false(self) -> None:
-        r"""The family trait's OTHER face: on an LD 2-D mesh the wavefront
-        reverse is the #310 C5 deferral, so the trait must stay ``False``
-        — the same predicate the frame's apply-time guard reads
-        (flip-safety's two faces cannot drift)."""
+    def test_ld_2d_wavefront_surface_is_positive(self) -> None:
+        r"""The former LD-2D negative rows, FLIPPED at #310 C5 (the last
+        flip): family trait True, both predicate factors pass, the eager
+        ``.H`` constructs, and a DIRECT Euclidean ``apply_transpose`` on a
+        moment-tailed composite runs end-to-end — the scheme ×
+        representation grid is COMPLETE (kernel: the C2 UBLD ``AᵀM⁻¹``
+        batch VJP; orientation: the C3/C4 mirror-octant reverses,
+        moment-tailed through the C5 gates)."""
         sn = _cart2d_ld()
         require(
-            FullFieldWavefront(sn).has_transpose_walk is False,
+            FullFieldWavefront(sn).has_transpose_walk is True,
             "FullFieldWavefront on an LD 2-D mesh must declare "
-            "has_transpose_walk=False — the LD-2D reverse is ungated "
-            "until #310 C5.",
+            "has_transpose_walk=True — the family trait is unconditional "
+            "since #310 C5.",
         )
         require(
-            not StreamingOperator(sn).is_adjointable,
-            "L on an LD 2-D mesh must NOT advertise the adjoint axis — "
-            "the orientation factor fails until #310 C5.",
+            StreamingOperator(sn).is_adjointable,
+            "L on an LD 2-D mesh must advertise the adjoint axis — both "
+            "predicate factors pass since #310 C5.",
         )
-        with pytest.raises(MissingAdjoint):
-            _ = StreamingOperator(sn).H
+        require(
+            StreamingOperator(sn).H is not None,
+            "LD-2D L.H must construct — the last deferral is lifted.",
+        )
+        rng = np.random.default_rng(20260818)
+        phi = _ld_composite(sn)
+        phi.interior.values[:] = rng.standard_normal(phi.interior.values.shape)
+        sig_t = np.stack(
+            [np.full(sn.spatial_shape, 0.5 * (1.0 + 0.5 * g)) for g in range(2)],
+            axis=0,
+        )
+        out = _lc(sn, sig_t).apply_transpose(phi)
+        require(
+            bool(np.all(np.isfinite(out.interior.values))),
+            "LD-2D (L+C)ᵀφ produced non-finite bulk values.",
+        )
+        require(
+            bool(np.any(np.asarray(out.interior.values))),
+            "LD-2D (L+C)ᵀφ returned an all-zero bulk cotangent on a "
+            "random composite — the C5 capability regressed.",
+        )
 
     def test_cart2d_dd_streaming_is_adjointable(self) -> None:
         r"""The former negative row, FLIPPED at #310 C4-c: both predicate
