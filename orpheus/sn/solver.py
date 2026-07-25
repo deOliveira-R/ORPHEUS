@@ -80,6 +80,8 @@ if TYPE_CHECKING:
     # boundary/iteration modules are one-way late imports here).
     from orpheus.numerics.iteration import KrylovAcceleration, SourceIteration
     from orpheus.numerics.operator import LinearOperator
+    from orpheus.transport.fields.angular_flux import AngularFlux
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.source_sinks.angular_boundary_source_sink import (
         AngularBoundarySourceSink,
     )
@@ -2155,29 +2157,15 @@ def solve_sn(
     else:
         final_psi_a = final_resolvent.solve(final_rhs_a)
         final_ray = None
-    # Solution carries the cell-average angular view (the pre-step-6
-    # contract — a multi-moment closure's φ̂ tail stays iterate-internal;
-    # AVERAGE_MOMENT is the layout's named slot).
-    angular_flux = np.asarray(final_psi_a.interior.values)
-    if final_psi_a.interior.spatial_moments_per_axis > 1:
-        angular_flux = angular_flux[..., AVERAGE_MOMENT]
-
     elapsed = time.perf_counter() - t_start
 
-    # Issue #197 PR-TYPED-5: build typed Solution.  The bare ndarrays
-    # produced by power_iteration + the final sweep get wrapped in
-    # typed fields at this single boundary; downstream consumers read
-    # typed fields.
-    # D-H.1c stage 2 (2026-05-28): Solution.angular_flux is a
-    # TimedFullField composite (bulk + boundary + history) constructed
-    # DIRECTLY from L2 types.  The legacy-AngularFlux adapter wrap is
-    # GONE — ``angular_flux`` is the cell-average ndarray extracted from
-    # the final resolvent solve; we wrap it once into the composite
-    # carrier (``TimedFullField`` rides the module-level import — a local
-    # re-import here would shadow the finalize's earlier use).
-    from orpheus.transport.fields.angular_flux import (
-        AngularFlux,
-    )
+    # The shared packaging tail (:func:`_package_solution`) owns the
+    # composite-carrier convention; the scalar member is the power
+    # iteration's converged scalar (SCALAR-AGNOSTIC contract).  The
+    # boundary trace is the converged one from the final resolvent solve
+    # (Wave O #208 O.4a.2: inflow = B·ψ.outflow seeded through the rhs,
+    # outflow = streamed); System B's converged state is its OWN member
+    # (B.2d — the marched ψ½ composite; None on non-carrying meshes).
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     history = IterationHistory(
         keff_history=tuple(keff_history),
@@ -2185,24 +2173,79 @@ def solve_sn(
         total_inner_iterations=solver._total_inner_iterations,
         converged=True,
     )
+    return _package_solution(
+        _cell_average_angular(final_psi_a, sn_mesh),
+        final_psi_a.boundary,
+        final_ray,
+        sn_mesh,
+        scalar=ScalarFlux.from_mesh(scalar_flux, sn_mesh),
+        keff=float(keff_history[-1]),
+        history=history,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The Solution packaging tail — ONE convention, forward + adjoint
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _cell_average_angular(
+    field: "FullField", sn_mesh: SNMesh,
+) -> "AngularFlux":
+    r"""The :class:`Solution` angular carrier: the CELL-AVERAGE view.
+
+    A multi-moment closure's φ̂ tail is iterate-internal within-cell DG
+    structure (#240 D5b-S3) — the user-facing angular flux is the
+    ``AVERAGE_MOMENT`` slot, extracted through the one moment-slot
+    single source (:func:`_average_moment_scalar`, layout-generic over
+    the trailing moment axis) and wrapped once into the typed field.
+    """
+    from orpheus.transport.fields.angular_flux import AngularFlux
+
+    bulk = _average_moment_scalar(
+        np.asarray(field.interior.values), sn_mesh,
+    )
+    return AngularFlux.from_mesh(bulk, sn_mesh)
+
+
+def _package_solution(
+    angular: "AngularFlux",
+    boundary,
+    ray,
+    sn_mesh: SNMesh,
+    *,
+    scalar: "ScalarFlux",
+    keff: "float | None",
+    history: IterationHistory,
+) -> Solution:
+    r"""The ONE :class:`Solution` construction convention.
+
+    The single boundary where converged iterates become the typed
+    return (#197 PR-TYPED-5): the cell-average angular view + the
+    converged boundary trace wrap once into the ``TimedFullField``
+    composite carrier (D-H.1c stage 2 — ``_history=()``,
+    ``history_depth=2`` — spelled HERE and nowhere else), alongside the
+    scalar member, eigenvalue, iteration history, and System B's ray
+    member (``None`` on non-carrying meshes, B.2d).
+
+    SCALAR-AGNOSTIC by design: the caller supplies the scalar member
+    (forward — the power iteration's converged scalar; adjoint — the
+    w-reduction of the packaged angular), so the φ* carrier decision
+    (campaign A5) stays at the adjoint entries and never branches
+    inside this shared tail.
+    """
     return Solution(
         angular_flux=TimedFullField(
-            interior=AngularFlux.from_mesh(angular_flux, sn_mesh),
-            # Wave O #208 O.4a.2 → step 6: the converged boundary trace
-            # from the final resolvent solve (inflow = B·ψ.outflow as
-            # seeded through the rhs, outflow = streamed).
-            boundary=final_psi_a.boundary,
+            interior=angular,
+            boundary=boundary,
             _history=(),
             history_depth=2,
         ),
-        scalar_flux=ScalarFlux.from_mesh(scalar_flux, sn_mesh),
+        scalar_flux=scalar,
         mesh=sn_mesh,
-        keff=float(keff_history[-1]),
+        keff=keff,
         history=history,
-        # B.2d DP-Solution → step 6: System B's converged state is its OWN
-        # member — the final resolvent solve's marched ψ½ composite (the M
-        # grid's substitution ψ_B; None on non-carrying meshes).
-        radial_characteristic=final_ray,
+        radial_characteristic=ray,
     )
 
 
@@ -2537,38 +2580,24 @@ def _package_adjoint_solution(
 ) -> Solution:
     r"""Wrap a converged daggered iterate into the unified :class:`Solution`.
 
-    Mirrors the forward packaging (:func:`solve_sn`'s tail): the
-    cell-average angular view (a multi-moment closure's φ̂ tail stays
-    iterate-internal), the boundary trace from the converged composite,
-    and :math:`\varphi^* = \sum_n w_n \psi^*_n` as the scalar member —
-    the importance map, the same reduction as the forward scalar flux
-    (the adjoint of the ISO source injection, NOT a new functional).
+    The adjoint face of the shared packaging tail — routes through the
+    forward's own :func:`_cell_average_angular` + :func:`_package_solution`
+    (ONE carrier convention, zero adjoint fork).  The scalar member is
+    :math:`\varphi^* = \sum_n w_n \psi^*_n` — the importance map, the
+    same w-reduction as the forward scalar flux (the adjoint of the ISO
+    source injection, NOT a new functional).  The φ* carrier shape is
+    the campaign-A5 adjudication; until then the role is carried at the
+    API level by the entry names.
     """
-    from orpheus.transport.fields.angular_flux import AngularFlux as _AF
-    from orpheus.transport.fields.scalar_flux import ScalarFlux as _SF
-
-    bulk = np.asarray(system_a.interior.values)
-    if system_a.interior.spatial_moments_per_axis > 1:
-        bulk = bulk[..., AVERAGE_MOMENT]
-    angular = _AF.from_mesh(bulk, sn_mesh)
-    phi_star = angular.integrate_angular()
-    scalar = (
-        phi_star
-        if isinstance(phi_star, _SF)
-        else _SF.from_mesh(np.asarray(phi_star), sn_mesh)
-    )
-    return Solution(
-        angular_flux=TimedFullField(
-            interior=angular,
-            boundary=system_a.boundary,
-            _history=(),
-            history_depth=2,
-        ),
-        scalar_flux=scalar,
-        mesh=sn_mesh,
+    angular = _cell_average_angular(system_a, sn_mesh)
+    return _package_solution(
+        angular,
+        system_a.boundary,
+        adjoint_ray,
+        sn_mesh,
+        scalar=angular.integrate_angular(),
         keff=keff,
         history=history,
-        radial_characteristic=adjoint_ray,
     )
 
 

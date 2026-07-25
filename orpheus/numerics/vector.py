@@ -168,15 +168,21 @@ V = TypeVar("V", bound=Vector)
 
 #: The DRIVER-BOUNDARY carrier placeholder — deliberately UNBOUNDED.
 #: Where ``V`` constrains the operator algebra's internal composition
-#: slots to :class:`Vector`, the iteration-driver boundaries
-#: (:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver`,
-#: :class:`~orpheus.numerics.iteration.KEigenvalue`) must ALSO bind a
-#: bare ``np.ndarray`` carrier concretely — five solver families drive
-#: them with plain arrays.  ``np.ndarray`` satisfies :class:`Vector` at
-#: runtime, but numpy's stubs cannot prove the structural match (the
-#: ``__add__`` bool-dtype self-binding overloads reject it), so a
-#: ``bound=Vector`` boundary would statically reject every ndarray
-#: implementer the moment the TypeVar is solved.  The missing bound is
-#: that stub limitation, NOT a wider contract — the runtime contract is
-#: identical to ``V``'s (#276 A4).
+#: slots to :class:`Vector`, the Protocol-conformance boundary
+#: (:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` and its
+#: consumer :func:`~orpheus.numerics.eigenvalue.power_iteration`) must
+#: bind a bare ``np.ndarray`` carrier concretely — five solver families
+#: drive it with plain arrays.  (:class:`~orpheus.numerics.iteration
+#: .KEigenvalue` itself stays on the bounded ``V``: a class-scoped
+#: TypeVar infers per-call and is never forced against the ndarray
+#: stubs — only the Protocol solve is.)  ``np.ndarray`` satisfies
+#: :class:`Vector` at runtime, but numpy's stubs cannot prove the
+#: structural match (the ``__add__`` bool-dtype self-binding overloads
+#: reject it), so a ``bound=Vector`` Protocol would statically reject
+#: every ndarray implementer the moment the TypeVar is solved.  The
+#: missing bound is that stub limitation, NOT a wider contract — the
+#: runtime contract is identical to ``V``'s (#276 A4).  Distinct from
+#: :mod:`~orpheus.numerics.space`'s ``Carrier`` (a ``default=Any``
+#: payload slot on :class:`~orpheus.numerics.space.FunctionSpace`) —
+#: same name, different axis: this one is the driver's ITERATE type.
 Carrier = TypeVar("Carrier")
