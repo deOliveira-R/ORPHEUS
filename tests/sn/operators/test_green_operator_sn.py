@@ -56,7 +56,7 @@ from scipy.sparse import csr_matrix
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.green_operator import ConvergenceFailure, GreenOperator
-from orpheus.numerics.iteration import SourceIteration, _seeded_inverse
+from orpheus.numerics.iteration import SourceIteration, seeded_inverse
 from orpheus.numerics.operator import (
     NotInvertible,
     OperatorSum,
@@ -197,7 +197,7 @@ def test_green_driver_bit_identical_to_hand_source_iteration():
     _, q = _manufactured(sn, lc, a_loss)
     green = GreenOperator(a_loss, max_iter=1000, tol=_TOL)
     hand = SourceIteration(
-        _seeded_inverse(lc), S, max_iter=1000, tol=_TOL,
+        seeded_inverse(lc), S, max_iter=1000, tol=_TOL,
     )
     got, _ = green._driver.solve(q, initial_guess=_flux_zeros(sn))
     ref, _ = hand.solve(q, initial_guess=_flux_zeros(sn))

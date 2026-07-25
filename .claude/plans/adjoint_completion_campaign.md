@@ -133,6 +133,36 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   np.linalg.norm converged), the `FissionOperator.apply_transpose`
   composite variant (its docstring names this moment), and the P1.3
   sphere leg's coupled-grid dagger (F lift to the CoupledField).
+- **A4-2 ✅ — THE ENTRIES.**  `solve_sn_adjoint` + `solve_sn_adjoint_fixed_source`
+  land per the user rulings (both now; unified `Solution` return).  Shapes:
+  the eigen entry mirrors `solve_sn`'s surface (no scheme param — the
+  forward eigen has none; no inner_solver/schedule — ONE daggered inner
+  realization), builds `_adjoint_posing_parts` (mat_xs →
+  `build_within_group_system` → summed gain → `FissionOperator.
+  from_solver_data` with `full_field_space` wired → the coupled F-lift
+  `[[F,∅],[∅,Zero]]` on carrying meshes) and runs `KEigenvalue(resolvent.H,
+  gain.H, F.H)`; the fixed-source entry takes `detector_response`
+  ((ng,*spatial) Σ_d OR a FullField) with the **angle-flat dual lift** —
+  NO w_n, NO 1/W: under G = V·w_n the plain broadcast is exactly the dual
+  of the scalar-flux extraction ⟨1_Ω Σd, ψ⟩_G = ⟨Σd, φ⟩_V (the forward's
+  /W iso lift is the dual of a DIFFERENT map — source injection; the
+  asymmetry IS P1.2's content) — and drives the daggered `SourceIteration`
+  via the PROMOTED `seeded_inverse` (public: 3rd consumer; green_operator
+  had already been importing the underscore name cross-module).
+  Carrying-mesh fixed-source = typed LOUD refusal (no gate/consumer yet —
+  ships as refusal, not unexercised; eigen covers carrying via P1.3
+  sphere).  Packaging `_package_adjoint_solution` mirrors the forward
+  tail (cell-average view, AVERAGE_MOMENT slice, boundary from the
+  converged composite, φ* = Σw_nψ*_n, honest converged flag).  Gates
+  (`tests/sn/solve/test_sn_adjoint_entries.py`, 5): the entry k
+  triple-equality + spectrum + ν̂Σf-degeneracy branch + ∞-ISOTROPY of ψ*
+  (angle-flatness — the cheap G-consistency signal) + Solution packaging
+  contract + **the cross-group cross-region DUALITY row** (fast source
+  left / thermal detector right, vacuum het slab: ⟨ψ*,q⟩_G = ⟨q*,ψ⟩_G at
+  1e-7 via the independent `_g_inner`, AND ⟨q*,ψ⟩_G = hand Σ V·Σd·φ at
+  1e-10 pinning the lift) + both refusal rows.  Entries 5/5; pyright 0/0
+  (solver.py + the test).  A4-3 hardens this file's duality row into the
+  full P1.2 (mutations) and adds P1.3/P1.4/P1.5.
 - **A4-1 ✅ — THE DAGGERED POSING ACTIVATION.**  `KEigenvalue(LC.H,
   (S+B_a).H, F.H)` runs through the UNCHANGED `power_iteration` on typed
   composites — k_adj == k_fwd == solve_sn @ ~5e-12 AND the ∞-medium

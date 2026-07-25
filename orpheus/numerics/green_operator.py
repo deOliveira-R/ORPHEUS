@@ -109,7 +109,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from orpheus.numerics.iteration import SourceIteration, _l2_norm, _seeded_inverse
+from orpheus.numerics.iteration import SourceIteration, _l2_norm, seeded_inverse
 from orpheus.numerics.operator import (
     InverseWrapMixin,
     LinearOperator,
@@ -275,7 +275,7 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
         # — handed to the SAME Richardson driver the solvers consume
         # (§11.2: wrap, never re-implement).
         self._driver: SourceIteration[Any] = SourceIteration(
-            _seeded_inverse(leading),
+            seeded_inverse(leading),
             *(_negated(t) for t in terms[1:]),
             max_iter=max_iter,
             tol=tol,

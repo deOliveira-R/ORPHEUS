@@ -159,6 +159,7 @@ __all__ = [
     "SupportsSeededApply",
     "KrylovAcceleration",
     "KEigenvalue",
+    "seeded_inverse",
 ]
 
 
@@ -235,9 +236,13 @@ def _wrap_delegate_member(inv: "LinearOperator") -> "TypeGuard[SupportsSeededApp
     return isinstance(inv, InverseWrapMixin)
 
 
-def _seeded_inverse(A: "LinearOperator") -> "SupportsSeededApply[Any]":
+def seeded_inverse(A: "LinearOperator") -> "SupportsSeededApply[Any]":
     r"""Build ``A.inverse()`` conforming to the driver's seeded contract —
-    the ONE home of the inverse→driver adaptation.
+    the ONE home of the inverse→driver adaptation.  PUBLIC since #276 A4:
+    the third consumer (``solve_sn_adjoint_fixed_source``'s daggered
+    ``SourceIteration``) joined :class:`KEigenvalue` and the
+    :class:`~orpheus.numerics.green_operator.GreenOperator` builder, which
+    had already been importing the underscore name cross-module.
 
     Two kinds of inverse arrive here (taxonomy §12 step 5), keyed by the
     STRUCTURAL family membership, never a signature probe:
@@ -258,7 +263,7 @@ def _seeded_inverse(A: "LinearOperator") -> "SupportsSeededApply[Any]":
     """
     if not invertible(A):
         raise NotInvertible(
-            f"_seeded_inverse requires an invertible operator; "
+            f"seeded_inverse requires an invertible operator; "
             f"{type(A).__name__}.is_invertible is False."
         )
     inv = A.inverse()
@@ -834,12 +839,12 @@ class KrylovAcceleration(Generic[V]):
         # supplied one, use it.  Otherwise, fall back to applying A's
         # inverse OPERATOR when A is invertible (the runtime,
         # instance-accurate query; the narrowing rationale lives on
-        # :func:`_seeded_inverse`); if not, run GMRES without
+        # :func:`seeded_inverse`); if not, run GMRES without
         # preconditioner.
         if preconditioner is not None:
             self._preconditioner: Preconditioner | None = preconditioner
         elif A.is_invertible:
-            self._preconditioner = _seeded_inverse(A).apply
+            self._preconditioner = seeded_inverse(A).apply
         else:
             self._preconditioner = None
 
@@ -1133,10 +1138,10 @@ class KEigenvalue(Generic[V]):
         # here validates S's apply at construction time, NEVER
         # mid-iteration.  The seeded-apply narrow (and its SCOPE — the
         # reachable inverses, not the whole family) is single-sourced on
-        # :func:`_seeded_inverse`; the ``is_invertible`` guard above is
+        # :func:`seeded_inverse`; the ``is_invertible`` guard above is
         # its runtime precondition.
         self._inner = SourceIteration(
-            _seeded_inverse(self.A), self.S,
+            seeded_inverse(self.A), self.S,
             max_iter=self.max_inner, tol=self.inner_tol,
         )
         # F (the outer eigen-operator F·ψ) needs apply.

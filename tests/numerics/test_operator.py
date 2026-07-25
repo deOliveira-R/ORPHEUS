@@ -801,7 +801,7 @@ def test_product_solve_reroute_inherits_the_precarve_baseline():
     # The Green-factor row: an Identity-headed sum — the factor whose own
     # solve retired; its inverse is the GreenOperator (this row also
     # end-to-end pins the algebra-closed-head seeding fix in
-    # _seeded_inverse, which this exact fixture exposed).
+    # seeded_inverse, which this exact fixture exposed).
     green_prod = OperatorProduct(IdentityOperator() + DS, D1)
     np.testing.assert_allclose(
         green_prod.solve(q), baseline["sum_green"], rtol=1e-8, atol=0.0,

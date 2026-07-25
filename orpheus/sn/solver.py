@@ -2206,6 +2206,338 @@ def solve_sn(
     )
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# The ADJOINT entry family (#276 A4) — the daggered posing
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
+    r"""Shared build for the adjoint entries: the daggerable parts.
+
+    Returns ``(resolvent, gain, F_posed, template)`` — the invertible
+    within-group resolvent, the summed coupling gain, the fission operator
+    posed on the system's carrier, and a ZERO composite of that carrier
+    (the shape/mesh template for guesses via ``from_flat``).  Everything
+    comes off :func:`~orpheus.sn.coupled_system.build_within_group_system`
+    (the ONE construction site) and is daggered by the CALLER with ``.H``
+    — the entries never spell adjoint physics; the operator algebra is
+    the implementation (#276 A4).
+
+    On a carrying mesh (System B present) the carrier is the coupled
+    pair: ``F`` is lifted to the coupled grid with a structurally-zero
+    System-B row/column (fission is pure bulk; the ray-coupled fission
+    emission ``A_BA`` rides the forward outer's ``q_ext`` assembly, NOT
+    this posing — HAZARD 5), and the gain is the builder's own coupled
+    gain grid ``N``.
+    """
+    from orpheus.transport.fields.angular_boundary_flux import (
+        AngularBoundaryFlux,
+    )
+    from orpheus.transport.fields.angular_flux import AngularFlux as _AF
+    from orpheus.transport.operators.fission import FissionOperator
+
+    mat_xs = sn_mesh.material_xs_field()
+    system = build_within_group_system(
+        sn_mesh, mat_xs, scattering_order=scattering_order,
+    )
+    gain = system.gains[0]
+    for extra in system.gains[1:]:
+        gain = gain + extra
+    F = FissionOperator.from_solver_data(
+        mat_xs=mat_xs, full_field_space=sn_mesh.full_field_space,
+    )
+    per_axis = sn_mesh.scheme.spatial_basis_per_axis
+    full_field_zero = FullField(
+        interior=_AF.zeros_on(sn_mesh, spatial_moments=per_axis),
+        boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+    )
+    if sn_mesh.radial_characteristic_field_space is None:
+        return system.resolvent, gain, F, full_field_zero
+    # Carrying mesh: pose F on the coupled grid (bulk-only — the System-B
+    # row and column are structural zeros), carrier = the coupled pair.
+    from orpheus.numerics.operator import ZeroOperator
+
+    space = system.space
+    F_posed = CoupledOperator(
+        [[F, None], [None, ZeroOperator()]], domain=space, codomain=space,
+    )
+    return system.resolvent, gain, F_posed, space.zeros()
+
+
+def solve_sn_adjoint(
+    materials: dict[int, Mixture],
+    mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
+    quadrature: Quadrature,
+    scattering_order: int = 0,
+    max_outer: int = 500,
+    keff_tol: float = 1e-7,
+    flux_tol: float = 1e-6,
+    max_inner: int = 200,
+    inner_tol: float = 1e-8,
+    mat_map: "np.ndarray | None" = None,
+) -> Solution:
+    r"""Solve the multi-group ADJOINT SN eigenvalue problem.
+
+    The adjoint criticality problem
+
+    .. math::
+
+        A_{\rm loss}^\dagger\,\psi^* \;=\; \frac{1}{k}\,F^\dagger\,\psi^*
+        \qquad (A_{\rm loss} = L+C-S-B)
+
+    posed purely by DAGGER-ing the forward operator triple — the
+    :class:`~orpheus.numerics.iteration.KEigenvalue` triple becomes
+    ``(A.H, (S+B).H, F.H)`` and runs through the UNCHANGED canonical
+    :func:`~orpheus.numerics.eigenvalue.power_iteration` (the adjoint row
+    of the eigenvalue-posing table, live since #276 A4).  There is no
+    adjoint-specific loop or sweep code anywhere: ``.H`` is the exact
+    discrete Hilbert (G-metric) adjoint of every leaf — the reverse-scan
+    transpose sweeps of #280/#310 behind ``A.H.inverse()``, the
+    group-transpose scattering :math:`S^T` (#118), the χ↔νΣf fission
+    role swap :math:`F^T` — so ``k_{\rm adj} = k_{\rm fwd}`` is an exact
+    algebraic identity and :math:`\psi^*` is the true discrete adjoint
+    (importance) flux, verified against the closed-form
+    :math:`(\mathbf{A}^T)^{-1}\mathbf{F}^T` spectrum (NOT
+    :math:`\text{eig}(M^T)` — the factor-order trap documented at
+    :func:`~orpheus.derivations.common.eigenvalue.kinf_and_adjoint_spectrum_homogeneous`).
+
+    Signature mirrors :func:`solve_sn` (the forward sibling); the
+    daggered path has ONE inner realization (the transpose-sweep
+    :class:`~orpheus.numerics.iteration.SourceIteration`), so the
+    forward's ``inner_solver`` / ``inner_schedule`` strategy selectors do
+    not appear.  Boundary conditions ride the mesh declaration exactly as
+    in :func:`solve_sn` (unset faces resolve to the reflective eigenvalue
+    default); reflective and vacuum are handled by the transpose
+    machinery structurally — an adjoint vacuum is the transpose of the
+    forward vacuum, never a user-facing BC flip.
+
+    Returns
+    -------
+    Solution
+        The unified typed return: ``keff`` = the adjoint eigenvalue
+        (== the forward eigenvalue to convergence tolerance),
+        ``angular_flux`` = the adjoint angular flux :math:`\psi^*`
+        (cell-average view), ``scalar_flux`` = the adjoint scalar flux
+        :math:`\varphi^* = \sum_n w_n \psi^*_n` (the importance map).
+        The φ* carrier shape is adjudicated at campaign phase A5; until
+        then the role is carried at the API level by THIS entry's name.
+    """
+    sn_mesh = _as_sn_mesh(mesh, quadrature, materials, mat_map=mat_map)
+    resolvent, gain, F_posed, template = _adjoint_posing_parts(
+        sn_mesh, scattering_order,
+    )
+
+    from orpheus.numerics.iteration import KEigenvalue
+
+    ke = KEigenvalue(
+        resolvent.H, gain.H, F_posed.H,
+        max_outer=max_outer, keff_tol=keff_tol, flux_tol=flux_tol,
+        max_inner=max_inner, inner_tol=inner_tol,
+    )
+    ones = np.ones(template.to_flat().size)
+    guess = (
+        CoupledField.from_flat(ones, template)
+        if isinstance(template, CoupledField)
+        else FullField.from_flat(ones, template)
+    )
+    k_adj, keff_history, psi_star = ke.solve(initial_guess=guess)
+
+    # The coupled unpack rides the canonical member readers (B.2d).
+    system_a = _system_a_member(psi_star)
+    adjoint_ray = (
+        _system_b_member(psi_star)
+        if isinstance(psi_star, CoupledField)
+        else None
+    )
+    return _package_adjoint_solution(
+        system_a, adjoint_ray, sn_mesh,
+        keff=float(k_adj),
+        history=IterationHistory(
+            keff_history=tuple(keff_history),
+            n_outer=len(keff_history),
+            converged=len(keff_history) < max_outer,
+        ),
+    )
+
+
+def solve_sn_adjoint_fixed_source(
+    materials: dict[int, Mixture],
+    mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
+    quadrature: Quadrature,
+    detector_response: "np.ndarray | FullField",
+    boundary_condition: str = "vacuum",
+    scattering_order: int = 0,
+    max_inner: int = 1000,
+    inner_tol: float = 1e-12,
+    mat_map: "np.ndarray | None" = None,
+    scheme: "DiscretizationSchemeBase | None" = None,
+) -> Solution:
+    r"""Solve the multi-group ADJOINT SN fixed-source (importance) problem.
+
+    .. math::
+
+        A_{\rm loss}^\dagger\,\psi^* \;=\; q^* ,
+
+    the detector-importance problem: :math:`\psi^*(\vec r, \Omega, g)` is
+    the expected detector response per unit neutron introduced at phase-
+    space point :math:`(\vec r, \Omega, g)`.  Solved by the daggered
+    within-group :class:`~orpheus.numerics.iteration.SourceIteration`
+    (``seeded_inverse(A.H)`` + the daggered gain) — the exact transpose
+    of the forward fixed-source system; no adjoint-specific solver code.
+
+    Parameters
+    ----------
+    materials, mesh, quadrature, boundary_condition, scattering_order,
+    max_inner, inner_tol, mat_map, scheme :
+        As :func:`solve_sn_fixed_source` (the forward sibling).
+    detector_response : (ng, *spatial) ndarray OR FullField
+        The adjoint source, in either of two forms:
+
+        * ``np.ndarray`` of shape ``(ng, *spatial)`` — the DETECTOR
+          RESPONSE function :math:`\Sigma_d(\vec r, g)` (the canonical
+          adjoint source).  Lifted to the composite as the **angle-flat
+          broadcast** — no quadrature weights, no ``1/W``: under the
+          G-pairing (bulk metric :math:`V\,w_n`) the plain broadcast is
+          exactly the dual of the scalar-flux extraction,
+          :math:`\langle \mathbf{1}_\Omega\Sigma_d,\,\psi\rangle_G =
+          \sum_{\rm cells} V\,\Sigma_d\,\varphi = \langle\Sigma_d,
+          \varphi\rangle_V` — the detector-response functional.  (The
+          FORWARD iso-source lift divides by :math:`W`; the adjoint lift
+          must NOT — the two lifts are duals of different maps, the
+          source injection vs the flux extraction.  This asymmetry is
+          the P1.2 reciprocity gate's exact content.)
+        * :class:`~orpheus.transport.full_field.FullField` — the full
+          composite adjoint source (bulk per-ordinate + boundary member)
+          for angularly-selective detectors / prescribed adjoint inflow.
+
+    Notes
+    -----
+    Carrying (System-B) meshes are REFUSED loud for this entry at #276
+    A4 — the daggered coupled fixed-source arm has no consumer or gate
+    yet (the eigenvalue entry :func:`solve_sn_adjoint` covers carrying
+    meshes, gated by the P1.3 sphere leg); it lands with its first
+    consumer rather than shipping unexercised.
+    """
+    sn_mesh = _as_sn_mesh(
+        mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
+        scheme=scheme,
+    )
+    if sn_mesh.radial_characteristic_field_space is not None:
+        raise NotImplementedError(
+            "solve_sn_adjoint_fixed_source: the daggered COUPLED "
+            "fixed-source arm (carrying meshes — System B present) has no "
+            "consumer or gate yet and lands with its first consumer "
+            "(#276 A4 scope note); the eigenvalue entry solve_sn_adjoint "
+            "covers carrying meshes."
+        )
+    resolvent, gain, _F, template = _adjoint_posing_parts(
+        sn_mesh, scattering_order,
+    )
+
+    from orpheus.numerics.iteration import SourceIteration, seeded_inverse
+    from orpheus.transport.source_sinks import (
+        AngularBoundarySourceSink,
+        AngularSourceSink,
+    )
+
+    if isinstance(detector_response, FullField):
+        q_star = detector_response
+        if q_star.interior.mesh is not sn_mesh:
+            raise ValueError(
+                "solve_sn_adjoint_fixed_source: a composite "
+                "detector_response must be built on the SAME SNMesh this "
+                "entry constructs — build the mesh first via SNMesh and "
+                "pass it as the mesh argument, or pass the scalar "
+                "(ng, *spatial) detector form."
+            )
+    else:
+        sigma_d = np.asarray(detector_response, dtype=float)
+        expected = (sn_mesh.ng, *sn_mesh.spatial_shape)
+        if sigma_d.shape != expected:
+            raise ValueError(
+                f"solve_sn_adjoint_fixed_source: detector_response shape "
+                f"{sigma_d.shape} != (ng, *spatial) = {expected}."
+            )
+        # The angle-flat dual lift (docstring above), moment-lifted
+        # through the ONE external-source policy (Q̂ = 0).
+        per_ord = np.broadcast_to(
+            sigma_d[None], (sn_mesh.quad.N, *sigma_d.shape),
+        )
+        bulk, per_axis = _lift_external_source_to_moments(
+            np.ascontiguousarray(per_ord), sn_mesh,
+        )
+        q_star = FullField(
+            interior=AngularSourceSink.from_mesh(
+                bulk, sn_mesh, spatial_moments=per_axis,
+            ),
+            boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+        )
+
+    si = SourceIteration(
+        seeded_inverse(resolvent.H), gain.H,
+        max_iter=max_inner, tol=inner_tol,
+    )
+    # Flux-classed zero start (the template) — the daggered iterate is an
+    # adjoint FLUX; a zeros-like-the-source start would be source-classed
+    # and trip the typed cross-class guard on the first displacement.
+    psi_star, residuals = si.solve(q_star, initial_guess=template)
+    return _package_adjoint_solution(
+        psi_star, None, sn_mesh,
+        keff=None,
+        history=IterationHistory(
+            flux_residuals=tuple(residuals),
+            n_inner=len(residuals),
+            total_inner_iterations=len(residuals),
+            converged=bool(residuals) and residuals[-1] <= inner_tol,
+        ),
+    )
+
+
+def _package_adjoint_solution(
+    system_a: "FullField",
+    adjoint_ray,
+    sn_mesh: SNMesh,
+    *,
+    keff: "float | None",
+    history: IterationHistory,
+) -> Solution:
+    r"""Wrap a converged daggered iterate into the unified :class:`Solution`.
+
+    Mirrors the forward packaging (:func:`solve_sn`'s tail): the
+    cell-average angular view (a multi-moment closure's φ̂ tail stays
+    iterate-internal), the boundary trace from the converged composite,
+    and :math:`\varphi^* = \sum_n w_n \psi^*_n` as the scalar member —
+    the importance map, the same reduction as the forward scalar flux
+    (the adjoint of the ISO source injection, NOT a new functional).
+    """
+    from orpheus.transport.fields.angular_flux import AngularFlux as _AF
+    from orpheus.transport.fields.scalar_flux import ScalarFlux as _SF
+
+    bulk = np.asarray(system_a.interior.values)
+    if system_a.interior.spatial_moments_per_axis > 1:
+        bulk = bulk[..., AVERAGE_MOMENT]
+    angular = _AF.from_mesh(bulk, sn_mesh)
+    phi_star = angular.integrate_angular()
+    scalar = (
+        phi_star
+        if isinstance(phi_star, _SF)
+        else _SF.from_mesh(np.asarray(phi_star), sn_mesh)
+    )
+    return Solution(
+        angular_flux=TimedFullField(
+            interior=angular,
+            boundary=system_a.boundary,
+            _history=(),
+            history_depth=2,
+        ),
+        scalar_flux=scalar,
+        mesh=sn_mesh,
+        keff=keff,
+        history=history,
+        radial_characteristic=adjoint_ray,
+    )
+
+
 def _build_fixed_source_rhs(
     external_source: "np.ndarray | TimedFullField | CoupledField",
     sn_mesh: SNMesh,
