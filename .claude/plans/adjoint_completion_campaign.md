@@ -133,6 +133,15 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   np.linalg.norm converged), the `FissionOperator.apply_transpose`
   composite variant (its docstring names this moment), and the P1.3
   sphere leg's coupled-grid dagger (F lift to the CoupledField).
+- **A4 ✅ MERGED TO MAIN @ `065a0e5d` (2026-07-25, ff-only; branch
+  `feature/sn-adjoint-a4` deleted).**  12 commits: the 7 functional
+  (A4-0 → A4-3b) + 5 sweep (`4dbbc805` RST · `4be53b2b` packaging tail
+  · `5654c027` oracles/glosses/markers · `e1371ba9` matrix/Mode-12 ·
+  `065a0e5d` sparse-SigS).  USER RULING at the boundary: merge → A5
+  **with a context compaction first**.  ⏸ COMPACTION POINT — A5 opens
+  fresh: re-anchor from THIS driver (the A5 charter block above: the
+  φ* carrier type-vs-property adjudication, USER rules the shape;
+  + the sweep's A5 CARVE-IN: the sphere φ*-shape row) + `git log`.
 - **A4 SWEEP ✅ (2026-07-25) — the phase-end gates + both reviews, findings fixed in-session.**
   Gates: Sphinx `-E -W` exit 0 (3 docstring RST warnings caught + fixed —
   the wrapped grouped-name parameter list napoleon cannot parse + the bare
