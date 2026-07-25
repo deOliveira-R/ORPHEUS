@@ -2416,12 +2416,15 @@ def solve_sn_adjoint_fixed_source(
     (``seeded_inverse(A.H)`` + the daggered gain) — the exact transpose
     of the forward fixed-source system; no adjoint-specific solver code.
 
+    Signature mirrors :func:`solve_sn_fixed_source` (the forward
+    sibling) for every shared parameter (``materials``, ``mesh``,
+    ``quadrature``, ``boundary_condition``, ``scattering_order``,
+    ``max_inner``, ``inner_tol``, ``mat_map``, ``scheme``); only the
+    adjoint source is new.
+
     Parameters
     ----------
-    materials, mesh, quadrature, boundary_condition, scattering_order,
-    max_inner, inner_tol, mat_map, scheme :
-        As :func:`solve_sn_fixed_source` (the forward sibling).
-    detector_response : (ng, *spatial) ndarray OR FullField
+    detector_response : (ng, \*spatial) ndarray OR FullField
         The adjoint source, in either of two forms:
 
         * ``np.ndarray`` of shape ``(ng, *spatial)`` — the DETECTOR
