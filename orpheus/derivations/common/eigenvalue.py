@@ -17,6 +17,25 @@ from __future__ import annotations
 import numpy as np
 
 
+def _dense_transfer_matrix(m) -> np.ndarray:
+    r"""Densify a group-transfer matrix: ndarray-like OR scipy-sparse.
+
+    ``Mixture.SigS`` stores per-order transfer matrices SPARSE, and the
+    pre-A4 reference accepted them (accidentally, through the
+    ``ndarray − sparse.T → np.matrix`` overload chain).  A bare
+    ``np.asarray(sparse, dtype=float)`` does NOT densify — it raises
+    ``ValueError: setting an array element with a sequence`` — so the
+    input tolerance is restored EXPLICITLY here (duck-typed on
+    ``.toarray``), producing a plain ndarray rather than the old
+    accidental ``np.matrix``.  (Caught by the A4 phase-end full tree:
+    every A4 battery densified via ``.todense()`` first and was blind
+    to the narrowed input domain.)
+    """
+    if hasattr(m, "toarray"):
+        return np.asarray(m.toarray(), dtype=float)
+    return np.asarray(m, dtype=float)
+
+
 def _infinite_medium_matrices(
     sig_t: np.ndarray,
     sig_s: np.ndarray,
@@ -37,9 +56,9 @@ def _infinite_medium_matrices(
     (:func:`kinf_and_adjoint_spectrum_homogeneous`) — the two references
     MUST agree on the operator pair or their k's would not be comparable.
     """
-    sig_s_eff = np.asarray(sig_s, dtype=float)
+    sig_s_eff = _dense_transfer_matrix(sig_s)
     if sig_2 is not None:
-        sig_s_eff = sig_s_eff + 2.0 * np.asarray(sig_2, dtype=float)
+        sig_s_eff = sig_s_eff + 2.0 * _dense_transfer_matrix(sig_2)
     A = np.diag(np.asarray(sig_t, dtype=float)) - sig_s_eff.T
     F = np.outer(chi, nu_sig_f)
     return A, F
