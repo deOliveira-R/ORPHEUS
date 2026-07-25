@@ -117,6 +117,51 @@ review · qa on math-bearing phases · every new gate class mutation-verified
 
 ## Status log (append per stage)
 
+- **C5 CLOSED ✅ — MERGED to main (ff, `ef71e3b5..8abd3c6c`, 5 commits:
+  `15492673` C5-a flip+battery, `1f1ff09a` C5-b doc blast w/ `Closes #310`,
+  `76ef830e` C5-c enforcer truth-patches, `8abd3c6c` enforcer memory) +
+  phase branch deleted; user-ratified at the boundary ("Merge; compact
+  before A4").  Full-tree gate: 6469 passed / 0 failed / 18 skipped /
+  54 xfailed, EXIT 0, 1:45:47 (background-QoS pacing) — count EXACTLY
+  accounted (6459 green-equivalent @ C4-close + 8 reverse-file items +
+  2 reciprocity rows).  Enforcer verdict: code flip EXEMPLARY, every
+  axis PASS (both teeth's algebra independently re-derived); its one
+  blocking cluster = the L-016 recurrence ONE RING WIDER — four
+  deferral-story spellings citing neither "LD-2D" nor "#310" (the
+  InvertibleOperator class + method, the base trait default, the
+  oracle-arm docstring) — lesson sharpened: grep the deferral story's
+  PROSE spellings ("adjoint raises", "scheme-aware", "excepted"), not
+  only its issue tags.  **#310 is COMPLETE — the residue is retired:
+  the adjoint matvec `loss_action_transpose` covers the full registered
+  scheme × representation × d grid; the deferral ledger holds ONLY R7
+  (the G-S schedule-reverse, no consumer); `Closes #310` fires at
+  push.**  ⏸ COMPACTION taken here (user-directed) — **A4 opens next
+  session, on a fresh `feature/sn-adjoint-a4` branch from main: the
+  daggered posing + φ*.**  Read FIRST: the A4 stage block above +
+  `.claude/plans/p6_adjoint_verification_spec.md:230-333` (the P1.2–P1.5
+  gate specs; landmine table :461-467).  The heavy lifting is banked:
+  `.H` constructs on the WHOLE grid (any registered scheme ×
+  representation × d — #310 C1–C5), `KEigenvalue` sits dormant at
+  `orpheus/numerics/iteration.py:995` (the operator-triple posing layer,
+  test-only today), and `power_iteration`'s adjoint row is the
+  documented seam (`orpheus/numerics/eigenvalue.py:26-29`).  A4 = (a)
+  activate `KEigenvalue(A_loss.H, S†-wrap, F.H)` → the UNCHANGED
+  `power_iteration`; (b) a `solve_sn_adjoint`-shaped solver entry —
+  the exact shape steered in-session with the user (surgical model);
+  (c) gates P1.2 duality ⟨ψ*,q⟩=⟨ψ,Σ_d⟩ (asymmetric 2G, source/detector
+  in DIFFERENT groups) · P1.3 k_adj == k_fwd == closed-form rtol≈1e-10
+  on ∞ + slab + sphere (∞-only = REJECT) · P1.4 ∞-medium adjoint
+  spectrum vs `eig(Mᵀ)`, 4G MANDATORY (2G Mixture A is coincidentally
+  flat) — extend `derivations/common/eigenvalue.py:48` via
+  `dominant_eigenpair(M.T)` · P1.5 bi-orthogonality full cross-Gram
+  rtol≈1e-10; (d) promote the trailing-axis diagnostic
+  (`derivations/diagnostics/diag_276_full_scatter_kernel_ld_trailing_axis.py`
+  → `tests/sn/operators/test_scattering_adjoint.py`).  Mode-12: k is
+  NEVER the sole evidence anywhere (eig(Kᵀ)=eig(K) — pair every k row
+  with a field/pairing/object gate).  After A4: A5 (the φ* carrier —
+  USER rules the shape at the checkpoint) → A6 + ch15 (closes #276).
+  L37: Python sources FREEZE during long gates.**
+
 - **C5-a ✅ @ `15492673` — THE LAST FLIP + the LD-2D gate battery (spec §6).**
   Pre-carve de-risking probe (in-process predicate narrow, no production
   edit) validated every banked claim before a line was written: forward
