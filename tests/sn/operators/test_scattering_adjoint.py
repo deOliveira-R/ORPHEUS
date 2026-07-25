@@ -17,6 +17,11 @@ This file gates the A2 leaf:
   capability flip.
 * **kernel = R∘Λ∘M** — the Euclidean reciprocity ``⟨kernel ψ, c⟩ = ⟨ψ, kernelᵀ c⟩``
   (the aniso transpose now live via the operator algebra) + capability propagation.
+* **LD trailing-axis threading** — the frame form reproduces the fast-path
+  forward on a TRUE LD :class:`AngularFlux` (trailing :math:`2^d` φ̂ axis), and
+  the ``(Ellipsis,*idx)`` → ``(slice,slice,*idx)`` cells-index fix (#276 A2,
+  ``0b3275d``) has mutation teeth (promoted from
+  ``diag_276_full_scatter_kernel_ld_trailing_axis``, campaign #276 A4).
 
 The metric-correct Hilbert adjoint ``S† = G⁻¹SᵀG`` is the ``.H`` wrapper's job
 (A3/A4); these gates pin the BARE Euclidean transpose (per L27: per-group / full
@@ -80,6 +85,30 @@ def solver_p1_het():
     sn_mesh = SNMesh(_uniform_2d(nx, ny, 0.4, mat), Quadrature.lebedev(order=17),
                      {0: _mix(_P0_A, _P1_A), 1: _mix(_P0_B, _P1_B)})
     return SNSolver(sn_mesh, scattering_order=1)
+
+
+def _ld_solver_het(order: int, nx: int = 4, ny: int = 3) -> SNSolver:
+    """Heterogeneous 2-D LD solver — RECTANGULAR (nx != ny) so a wrong-axis
+    index over-runs (the cleanest Mode-2 mutation tell)."""
+    from orpheus.transport.spatial import LinearDiscontinuous
+
+    mat = np.zeros((nx, ny), dtype=int); mat[nx // 2:, :] = 1
+    sn_mesh = SNMesh(
+        _uniform_2d(nx, ny, 0.1, mat), Quadrature.product(n_mu=4, n_phi=4),
+        {0: _mix(_P0_A, _P1_A), 1: _mix(_P0_B, _P1_B)},
+        scheme=LinearDiscontinuous(),
+    )
+    return SNSolver(sn_mesh, scattering_order=order)
+
+
+def _ld_flux(solver: SNSolver, seed: int = 123) -> AngularFlux:
+    """Random LD :class:`AngularFlux` — trailing ``2^d = 4`` φ̂-moment axis."""
+    N = solver.quad.N
+    nx, ny = solver.sn_mesh.spatial_shape
+    vals = np.random.default_rng(seed).uniform(
+        0.05, 1.0, size=(N, solver.ng, nx, ny, 4),
+    )
+    return AngularFlux.from_mesh(vals, solver.sn_mesh, spatial_moments=2)
 
 
 def _moment_field(op, nx, ny, seed):
@@ -344,4 +373,132 @@ class TestFullScatterKernel:
             lhs, rhs, rtol=1e-12,
             err_msg="S Euclidean reciprocity ⟨Sψ,χ⟩=⟨ψ,Sᵀχ⟩ violated (production "
             "forward fast-path vs adjoint frame form).",
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# LD trailing-axis threading — the frame form on a TRUE LD AngularFlux
+# (promoted from diag_276_full_scatter_kernel_ld_trailing_axis, #276 A4;
+# diagnostic authored by numerics-investigator 2026-06-28).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestFullScatterKernelLDTrailingAxis:
+    r"""The #276/``0b3275d`` cells-index fix: LD's trailing φ̂ axis is threaded.
+
+    ``TestFullScatterKernel`` above exercises non-LD fluxes plus a raw
+    trailing-SPECTATOR reciprocity; these gates close the remaining gap —
+    the frame form ``(1/W)·R∘(Λ+N2N)∘M`` reproducing the fast-path forward
+    on a TRUE LD :class:`AngularFlux` (trailing :math:`2^d = 4`
+    spatial-moment axis), heterogeneous, on a RECTANGULAR grid.
+
+    Failure-mode class: Mode 2 (variable swap / wrong-axis), LD-gated: the
+    pre-fix ``cells = (Ellipsis, *idx)`` indexing let ``Ellipsis`` greedily
+    absorb the leading ``(m, g)`` axes so the spatial cell indices landed on
+    (one spatial + the φ̂ axis) — invisible on every non-LD config
+    (``Ellipsis ≡ (slice, slice)`` with no trailing axis), which is exactly
+    why the regression gate must run an LD flux.
+    """
+
+    @pytest.mark.parametrize("order", [0, 1])
+    def test_reproduces_forward_on_ld_flux(self, order):
+        r"""``(1/W)·full_scatter_kernel.apply(ψ) == S.apply(ψ)`` on LD.
+
+        The LD sibling of
+        :meth:`TestFullScatterKernel.test_reproduces_forward_scattering_source`
+        (principled-equiv: same math, reduction order differs ⟹ ~1e-15)."""
+        solver = _ld_solver_het(order)
+        op = solver.scattering_op
+        psi = _ld_flux(solver)
+        W = float(op.weights.sum())
+
+        fast = op.apply(psi).values
+        frame = np.asarray(op.full_scatter_kernel.apply(psi.values)) / W
+
+        require(
+            frame.shape == fast.shape,
+            f"full_scatter_kernel output shape {frame.shape} != fast-path "
+            f"{fast.shape} on LD flux (trailing φ̂ axis dropped/misplaced).",
+        )
+        np.testing.assert_allclose(
+            frame, fast, rtol=1e-12, atol=1e-14,
+            err_msg=(
+                f"P{order}: (1/W)·full_scatter_kernel.apply(ψ) does NOT "
+                f"reproduce the fast-path S.apply(ψ) on an LD (spatial-moment) "
+                f"flux — the moment-scatter cell indexers mis-target the "
+                f"trailing φ̂ axis (the #276/0b3275d (Ellipsis,*idx) → "
+                f"(slice,slice,*idx) fix regressed)."
+            ),
+        )
+
+    def test_ld_cells_index_fix_has_mutation_teeth(self, monkeypatch):
+        r"""ISOLATION: the OLD ``(Ellipsis, *idx)`` indexing reddens on LD.
+
+        Monkeypatch the moment-scatter verbs back to the pre-fix bodies and
+        confirm the frame form fails on an LD flux (IndexError on the
+        rectangular grid, or a wrong value) — the consumption proof that the
+        cells-index fix is what the green above actually rests on.  Mutation
+        in-process (monkeypatch); NEVER ``git checkout`` (uncommitted-state
+        hazard, process-discipline rule).
+        """
+        from orpheus.transport.mesh.material_xs_field import MaterialXSField
+
+        def _old_leg(self, moments, L, skip_l0):
+            out = np.zeros_like(moments)
+            l_start = 1 if skip_l0 else 0
+            for mid, idx in self.cells_by_material.items():
+                sig = self.sig_s_legendre(mid)
+                cells = (Ellipsis, *idx)  # PRE-FIX (buggy under LD)
+                for l in range(l_start, L + 1):
+                    n_m = 2 * l + 1
+                    mv = moments[l, :n_m][cells]
+                    out[l, :n_m][cells] = (
+                        np.einsum("mfc...,fg->mgc...", mv, sig[l])
+                        + out[l, :n_m][cells]
+                    )
+            return out
+
+        def _old_n2n(self, moments):
+            out = np.zeros_like(moments)
+            for mid, idx in self.cells_by_material.items():
+                sig2 = self.n2n_matrix(mid)
+                cells = (Ellipsis, *idx)  # PRE-FIX (buggy under LD)
+                mv = moments[0, :1][cells]
+                out[0, :1][cells] = (
+                    2.0 * np.einsum("mfc...,fg->mgc...", mv, sig2)
+                    + out[0, :1][cells]
+                )
+            return out
+
+        solver = _ld_solver_het(order=0)  # rectangular nx=4, ny=3
+        op = solver.scattering_op
+        psi = _ld_flux(solver)
+        W = float(op.weights.sum())
+
+        # Sanity: the FIXED code is clean before the mutation.
+        np.testing.assert_allclose(
+            np.asarray(op.full_scatter_kernel.apply(psi.values)) / W,
+            op.apply(psi).values, rtol=1e-12, atol=1e-14,
+            err_msg="precondition: fixed code must reproduce the fast-path on LD.",
+        )
+
+        monkeypatch.setattr(
+            MaterialXSField, "apply_legendre_scattering_moments", _old_leg,
+        )
+        monkeypatch.setattr(MaterialXSField, "apply_n2n_moments", _old_n2n)
+
+        reddened = False
+        try:
+            mutated = np.asarray(op.full_scatter_kernel.apply(psi.values)) / W
+            if not np.allclose(
+                mutated, op.apply(psi).values, rtol=1e-9, atol=1e-12,
+            ):
+                reddened = True
+        except (IndexError, ValueError):
+            reddened = True  # wrong-axis over-run on the rectangular grid
+        require(
+            reddened,
+            "The OLD (Ellipsis,*idx) indexing did NOT redden on an LD flux — "
+            "the cells-index fix (0b3275d) has no teeth; the LD trailing-axis "
+            "correctness is not actually being verified.",
         )

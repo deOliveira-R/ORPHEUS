@@ -1,17 +1,48 @@
 """Shared eigenvalue solvers for analytical verification cases.
 
-Two functions cover all derivation eigenvalue computations:
+Three function families cover all derivation eigenvalue computations:
 
-* :func:`kinf_homogeneous` — infinite medium, any group count.
+* :func:`kinf_homogeneous` / :func:`kinf_and_spectrum_homogeneous` —
+  infinite medium, any group count (k∞ and the forward flux spectrum).
+* :func:`kinf_and_adjoint_spectrum_homogeneous` — the same 0-D problem's
+  **adjoint** (left-eigenvector) spectrum (campaign #276 A4 / P1.4).
 * :func:`kinf_from_cp` — multi-region CP transport with P_inf matrices.
 
-Both support an optional ``sig_2`` / ``sig_2_mats`` parameter for
+All support an optional ``sig_2`` / ``sig_2_mats`` parameter for
 (n,2n) reactions.  When omitted, (n,2n) is treated as zero.
 """
 
 from __future__ import annotations
 
 import numpy as np
+
+
+def _infinite_medium_matrices(
+    sig_t: np.ndarray,
+    sig_s: np.ndarray,
+    nu_sig_f: np.ndarray,
+    chi: np.ndarray,
+    sig_2: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""The 0-D loss/production pair :math:`(\mathbf{A}, \mathbf{F})`.
+
+    .. math::
+
+        \mathbf{A} = \text{diag}(\Sigma_t) - (\Sigma_s + 2\Sigma_2)^T,
+        \qquad
+        \mathbf{F} = \chi \otimes (\nu\Sigma_f)
+
+    The single assembly site shared by the forward spectrum
+    (:func:`kinf_and_spectrum_homogeneous`) and the adjoint spectrum
+    (:func:`kinf_and_adjoint_spectrum_homogeneous`) — the two references
+    MUST agree on the operator pair or their k's would not be comparable.
+    """
+    sig_s_eff = np.asarray(sig_s, dtype=float)
+    if sig_2 is not None:
+        sig_s_eff = sig_s_eff + 2.0 * np.asarray(sig_2, dtype=float)
+    A = np.diag(np.asarray(sig_t, dtype=float)) - sig_s_eff.T
+    F = np.outer(chi, nu_sig_f)
+    return A, F
 
 
 def kinf_homogeneous(
@@ -77,12 +108,7 @@ def kinf_and_spectrum_homogeneous(
     phi_spectrum : (ng,) ndarray
         Right eigenvector, :math:`\ell^{2}`-normalised, non-negative.
     """
-    sig_s_eff = sig_s.copy()
-    if sig_2 is not None:
-        sig_s_eff = sig_s_eff + 2.0 * sig_2
-
-    A = np.diag(sig_t) - sig_s_eff.T
-    F = np.outer(chi, nu_sig_f)
+    A, F = _infinite_medium_matrices(sig_t, sig_s, nu_sig_f, chi, sig_2)
     M = np.linalg.solve(A, F)
 
     eigvals, eigvecs = np.linalg.eig(M)
@@ -107,6 +133,67 @@ def kinf_and_spectrum_homogeneous(
             "cross-section inputs are likely degenerate."
         )
     return k, phi / norm
+
+
+def kinf_and_adjoint_spectrum_homogeneous(
+    sig_t: np.ndarray,
+    sig_s: np.ndarray,
+    nu_sig_f: np.ndarray,
+    chi: np.ndarray,
+    sig_2: np.ndarray | None = None,
+) -> tuple[float, np.ndarray]:
+    r"""Infinite-medium :math:`k_\infty` **and** the dominant ADJOINT spectrum.
+
+    The adjoint flux of the 0-D k-problem is the **left** eigenvector of
+    the resolvent :math:`\mathbf{M} = \mathbf{A}^{-1}\mathbf{F}` —
+    equivalently the dominant right eigenvector of :math:`\mathbf{M}^T`:
+
+    .. math::
+
+        \varphi^{*T}\,\mathbf{M} = k\,\varphi^{*T}
+        \quad\Longleftrightarrow\quad
+        \mathbf{M}^T\,\varphi^{*} = k\,\varphi^{*} .
+
+    :math:`k` is IDENTICAL to the forward problem's
+    (:math:`\text{eig}(\mathbf{M}^T) = \text{eig}(\mathbf{M})`); only the
+    vector differs.  This is the closed-form flux-shape reference for the
+    SN adjoint solve (campaign #276 A4, gate P1.4): at ≥4 groups with
+    :math:`\chi` non-proportional to :math:`\nu\Sigma_f` the left
+    eigenvector is genuinely different from the right one, so an
+    :math:`F^\dagger` role-swap error (the missing χ↔νΣf swap) moves the
+    returned spectrum O(1) while every k-level functional stays exactly
+    equal — the Mode-12 spectral invisibility this vector-level reference
+    exists to break.
+
+    :math:`(\mathbf{A}, \mathbf{F})` come from the SAME assembly as the
+    forward spectrum (:func:`_infinite_medium_matrices`), so the two
+    references pin the same operator pair.  Eigen-extraction rides
+    :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair` — the shared
+    Perron–Frobenius primitive (structural independence from the SN
+    solver lives in the INPUT assembly: dense XS matrices here vs the
+    operator-algebra composition there, per the #276
+    ``direct_eigenvalue`` ruling).  The returned vector carries the same
+    convention as the forward spectrum (:math:`\ell^2`-normalised,
+    non-negative sum), so the two are directly comparable.
+
+    Returns
+    -------
+    k : float
+        Dominant eigenvalue — identical to :func:`kinf_homogeneous`.
+    phi_star_spectrum : (ng,) ndarray
+        Left eigenvector (adjoint spectrum), :math:`\ell^{2}`-normalised.
+    """
+    # Local import keeps this Branch-1 reference module numpy-only at
+    # import time; the shared extraction primitive is pulled on use.
+    from orpheus.numerics.eigenvalue import dominant_eigenpair
+
+    A, F = _infinite_medium_matrices(sig_t, sig_s, nu_sig_f, chi, sig_2)
+    M = np.linalg.solve(A, F)
+    k, phi_star = dominant_eigenpair(M.T)
+    # dominant_eigenpair contracts sign (sum >= 0) but leaves scale
+    # arbitrary — normalise explicitly, exactly as the forward sibling
+    # does, so the two spectra are comparable by construction.
+    return k, phi_star / float(np.linalg.norm(phi_star))
 
 
 def kinf_from_cp(

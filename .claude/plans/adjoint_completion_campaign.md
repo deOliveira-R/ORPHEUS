@@ -117,6 +117,43 @@ review · qa on math-bearing phases · every new gate class mutation-verified
 
 ## Status log (append per stage)
 
+- **A4 OPEN — branch `feature/sn-adjoint-a4` from main @ `02da1714`.**
+  USER RULINGS at the A4 opening checkpoint (2026-07-24): (1) **BOTH
+  entries land now** — `solve_sn_adjoint` (eigenvalue) AND
+  `solve_sn_adjoint_fixed_source`, module-level siblings mirroring the
+  forward family pattern; (2) **both return the unified `Solution`**
+  (provisional carrier — A5 adjudicates the φ* shape; migration surface
+  = the entries + gates).  Survey findings banked: `SourceIteration`
+  is already composite-ready (Ravellable bridge); `FullField` carries
+  Vector + `copy()`; the swap law makes `LC.H` invertible with
+  `_seeded_inverse` unchanged; the daggered triple =
+  `KEigenvalue(LC.H, (S+B_a).H, F.H)` off `build_within_group_system`'s
+  splitting; the activation's exact new work = KEigenvalue's four
+  ndarray-bound spots (asarray-guess, np.sum ×2 estimators,
+  np.linalg.norm converged), the `FissionOperator.apply_transpose`
+  composite variant (its docstring names this moment), and the P1.3
+  sphere leg's coupled-grid dagger (F lift to the CoupledField).
+- **A4-0 ✅ — the P1.4 closed-form reference + the diagnostic promotion.**
+  `kinf_and_adjoint_spectrum_homogeneous` added to
+  `derivations/common/eigenvalue.py` — left eigenvector via
+  `dominant_eigenpair(M.T)` (the shared Perron–Frobenius primitive per
+  the #276 `direct_eigenvalue` ruling; independence lives in the input
+  assembly), riding the NEW `_infinite_medium_matrices` shared (A, F)
+  assembly (single source with the forward sibling; forward rewired
+  through it, arithmetic identical); explicit ℓ²-normalisation (the
+  primitive contracts sign only — scale made comparable by
+  construction).  Pin file `tests/derivations/test_adjoint_spectrum_reference.py`
+  (4 foundation): the left eigen-law φ*ᵀM=kφ*ᵀ vs an INLINE-assembled
+  resolvent + the output convention; k_adj==k_fwd rtol 1e-12 @ 2G+4G;
+  the 4G non-degeneracy dud-guard (φ*≠φ, non-flat, χ∦νΣf precondition
+  asserted).  Diagnostic `diag_276_full_scatter_kernel_ld_trailing_axis`
+  PROMOTED → `test_scattering_adjoint.py::TestFullScatterKernelLDTrailingAxis`
+  (LD forward-reproduction ×2 orders + the 0b3275d cells-index mutation
+  teeth, monkeypatch-in-process) and the diagnostic RETIRED (git rm +
+  pycache; consumers grepped: only plan/memory references).  Batteries:
+  new pin 4/4; scattering-adjoint 18/18; consumer canaries 62/62;
+  pyright +0 (the file's 4 = pre-existing at HEAD, proven copy-first).
+
 - **C5 CLOSED ✅ — MERGED to main (ff, `ef71e3b5..8abd3c6c`, 5 commits:
   `15492673` C5-a flip+battery, `1f1ff09a` C5-b doc blast w/ `Closes #310`,
   `76ef830e` C5-c enforcer truth-patches, `8abd3c6c` enforcer memory) +
