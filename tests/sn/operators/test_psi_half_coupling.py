@@ -1321,13 +1321,19 @@ class TestA_BB_Forward:
 
     def test_b2c_member_composite_block_boundary(self):
         r"""B.2c re-type (G-c1.1): the four action surfaces speak System B's
-        member composite. Containers (source composite out of apply /
-        apply_transpose / solve_transpose; flux composite out of solve);
-        declared domain/codomain asserted by object IDENTITY, not ``==`` — the
-        unified space collides with the composite space on ``(name, shape)``
-        (memo F2), so ``==`` is Mode-12-blind to a block left typed on the
-        unified carrier; and the block-boundary refusals (foreign carrier /
-        foreign mesh / the solve source-role parse)."""
+        member composite, with the #276 A4 DUALITY-TYPED role assignments.
+        Containers: ``apply`` / ``apply_transpose`` emit SOURCE members (an
+        operator action / a dual-of-flux is source-role); ``solve`` emits
+        FLUX members; ``solve_transpose`` emits FLUX members TOO —
+        dual-of-source under the G-pairing is the adjoint ray flux (the A4
+        re-classing that lets the daggered coupled iteration close; the
+        pre-A4 source-family wrap is the retired convention this row used
+        to pin).  Declared domain/codomain asserted by object IDENTITY,
+        not ``==`` — the unified space collides with the composite space
+        on ``(name, shape)`` (memo F2), so ``==`` is Mode-12-blind to a
+        block left typed on the unified carrier; and the block-boundary
+        refusals (foreign carrier / foreign mesh / the solve source-role
+        parse)."""
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
         rng = np.random.default_rng(7)
@@ -1338,17 +1344,20 @@ class TestA_BB_Forward:
                         "(F2: == cannot see a unified-typed block).")
         if op.codomain is not sn.radial_characteristic_field_space:
             pytest.fail("A_BB.codomain is not THE composite member-space object.")
-        for name, out in (
-            ("apply", op.apply(cot)),
-            ("apply_transpose", op.apply_transpose(cot)),
-            ("solve_transpose", op.solve_transpose(cot)),
+        for name, out, want_interior in (
+            ("apply", op.apply(cot), RadialCharacteristicInteriorSourceSink),
+            ("apply_transpose", op.apply_transpose(cot),
+             RadialCharacteristicInteriorSourceSink),
+            # #276 A4 duality typing: dual-of-source = the adjoint ray FLUX.
+            ("solve_transpose", op.solve_transpose(cot),
+             RadialCharacteristicInteriorFlux),
         ):
             if type(out) is not RadialCharacteristicField:
                 pytest.fail(f"{name} did not emit the member composite; got "
                             f"{type(out).__name__}.")
-            if type(out.interior) is not RadialCharacteristicInteriorSourceSink:
-                pytest.fail(f"{name} did not emit SOURCE members; got "
-                            f"{type(out.interior).__name__}.")
+            if type(out.interior) is not want_interior:
+                pytest.fail(f"{name} did not emit {want_interior.__name__} "
+                            f"members; got {type(out.interior).__name__}.")
         out_solve = op.solve(src)
         if type(out_solve) is not RadialCharacteristicField:
             pytest.fail("solve did not emit the member composite.")

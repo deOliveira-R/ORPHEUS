@@ -520,6 +520,19 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         term is the ``A_AB`` coupling's transpose (campaign steps 2–3), NOT
         part of ``A_BB`` in isolation.
 
+        **Duality typing (#276 A4):** the input is the dual of the solve's
+        codomain — dual-of-flux, i.e. an adjoint ray SOURCE (a cotangent
+        legitimately rides any role's carrier — member roles erased on
+        input); the output is the dual of its domain — dual-of-source
+        under the G-pairing, i.e. the adjoint ray FLUX (flux members).
+        This is the ray-leg sibling of
+        :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`'s
+        A4 re-classing: the daggered coupled fixed-point iteration closes
+        over the SAME class pattern as the forward (flux iterate → source
+        gains → transposed substitution → flux iterate), and the typed
+        cross-class guard caught the pre-A4 source-family wrap on the
+        daggered sphere's first contact.
+
         Parameters
         ----------
         cotangent : RadialCharacteristicField
@@ -530,9 +543,10 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         Returns
         -------
         RadialCharacteristicField
-            The cotangent on the q½ source (source members). The
-            :math:`\mu=+1` source corner is unused by the march (the q½ fold
-            writes only cells + the :math:`\mu=-1` corner), so it stays zero.
+            The domain cotangent = the adjoint ray FLUX (flux members).
+            The :math:`\mu=+1` corner is unused by the march (the q½ fold
+            writes only cells + the :math:`\mu=-1` corner), so it stays
+            zero.
         """
         from orpheus.transport.radial_characteristic_field import (
             RadialCharacteristicField,
@@ -543,7 +557,9 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         sigma = self.total_cross_section.values
         dr = mesh.axis_widths[0]
 
-        src_bar = RadialCharacteristicField.source_zeros_on(mesh)
+        # Duality typing (#276 A4, docstring above): dual-of-source = the
+        # adjoint ray FLUX — the flux-role zeros buffer.
+        src_bar = RadialCharacteristicField.from_mesh(mesh)
         for level in comp.interior.space.levels:
             cells_minus_bar = comp.interior.cells(level, -1)
             cells_plus_bar = comp.interior.cells(level, +1)

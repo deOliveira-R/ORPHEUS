@@ -1901,14 +1901,21 @@ class ZeroOperator(LinearOperator[Domain, Codomain]):
     sums (a flux-echoing zero would hit the cross-class gate). Formal
     operator codomain typing is issue #208; ``codomain_zero`` is the
     pre-#208 hook that keeps the zero operator honest about what space it
-    maps into. ``apply_transpose`` stays an input-echo: its codomain is
-    the domain, and the transpose of the zero slot is not exercised.
+    maps into. Since #276 A4 the hook is SYMMETRIC: ``transpose_zero``
+    supplies the typed zero the TRANSPOSE emits (the domain's dual-role
+    zero under duality typing) — first exercised by the coupled fission
+    grid's (B, B) slot, whose whole grid the daggered eigen posing
+    transposes. Without either hook both directions stay the endomorphic
+    ``0.0 * x`` echo, bit-identical to the pre-A4 behaviour.
     """
 
     def __init__(
-        self, codomain_zero: "Callable[[Domain], Codomain] | None" = None,
+        self,
+        codomain_zero: "Callable[[Domain], Codomain] | None" = None,
+        transpose_zero: "Callable[[Codomain], Domain] | None" = None,
     ) -> None:
         self._codomain_zero = codomain_zero
+        self._transpose_zero = transpose_zero
 
     def apply(self, x: Domain, /) -> Codomain:
         if self._codomain_zero is not None:
@@ -1920,11 +1927,20 @@ class ZeroOperator(LinearOperator[Domain, Codomain]):
         # the operator is endomorphic and ``W == V``.
         return cast("Codomain", 0.0 * x)
 
-    def apply_transpose(self, x: Domain, /) -> Domain:
-        # The transpose's codomain is the domain (V); a zero map's
-        # transpose is the zero echo. Not exercised for the non-endo
-        # (codomain_zero) case pre-#208.
-        return 0.0 * x
+    def apply_transpose(self, x: "Codomain", /) -> Domain:
+        # The transpose of a role-MAPPING zero slot emits a typed zero
+        # too: under duality typing (#276 A4) the transpose consumes the
+        # codomain-cotangent and emits the domain-cotangent, whose class
+        # is the domain's DUAL role — supplied by ``transpose_zero``
+        # exactly as ``codomain_zero`` supplies the forward's.  First
+        # exercised by the coupled fission grid's (B, B) slot (#276 A4 —
+        # the daggered eigen posing transposes the whole grid), which
+        # ended the pre-#208 "transpose of the zero slot is not
+        # exercised" era.
+        if self._transpose_zero is not None:
+            return self._transpose_zero(x)
+        # Endomorphic default — the zero echo (see ``apply``).
+        return cast("Domain", 0.0 * x)
 
     @property
     def is_adjointable(self) -> bool:

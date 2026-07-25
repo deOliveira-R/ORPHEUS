@@ -2253,13 +2253,44 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
     )
     if sn_mesh.radial_characteristic_field_space is None:
         return system.resolvent, gain, F, full_field_zero
-    # Carrying mesh: pose F on the coupled grid (bulk-only — the System-B
-    # row and column are structural zeros), carrier = the coupled pair.
+    # Carrying mesh: pose F on the coupled grid.  The (B, A) row is the
+    # FISSION ray fold ``A_BA_fission = Fold ∘ F.kernel ∘ integrate`` —
+    # the kernel-generic :class:`RadialCharacteristicEmission` with the
+    # fission kernel (the operator spelling of
+    # :func:`_radial_characteristic_fission_seed`'s q-assembly math; on
+    # the eigen-M operator this row BELONGS in the posing — HAZARD 5
+    # keeps it out of the WITHIN-GROUP gain, not out of M).  The (B, B)
+    # slot is the genuine ZERO MAP ray-flux → ray-source (the w = 0
+    # closed rays carry no quadrature weight, so they never source
+    # fission) — spelled with the space-typed :class:`ZeroOperator`
+    # hooks so both the forward grid and its dagger emit the
+    # SOURCE-classed ray zero (#276 A4 user ruling).
     from orpheus.numerics.operator import ZeroOperator
+    from orpheus.sn.operators.radial_characteristic import (
+        RadialCharacteristicEmission,
+    )
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField as _RCF,
+    )
 
     space = system.space
+
+    def _ray_source_zero(_x: object) -> "_RCF":
+        return _RCF.source_zeros_on(sn_mesh)
+
     F_posed = CoupledOperator(
-        [[F, None], [None, ZeroOperator()]], domain=space, codomain=space,
+        [
+            [F, None],
+            [
+                RadialCharacteristicEmission(sn_mesh, F.kernel),
+                ZeroOperator(
+                    codomain_zero=_ray_source_zero,
+                    transpose_zero=_ray_source_zero,
+                ),
+            ],
+        ],
+        domain=space,
+        codomain=space,
     )
     return system.resolvent, gain, F_posed, space.zeros()
 

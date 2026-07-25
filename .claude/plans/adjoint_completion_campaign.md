@@ -133,6 +133,35 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   np.linalg.norm converged), the `FissionOperator.apply_transpose`
   composite variant (its docstring names this moment), and the P1.3
   sphere leg's coupled-grid dagger (F lift to the CoupledField).
+- **A4-3a ✅ — THE COUPLED (SPHERE) DAGGERED POSING.**  USER RULING:
+  space-typed ZeroOperator.  Findings + carves: (1) the fission ray fold
+  is ALREADY an operator — `RadialCharacteristicEmission(sn, F.kernel)`
+  is kernel-generic (`A_BA_fission = Fold∘F.kernel∘integrate`, transpose
+  included — the extract-shared-primitive discipline paying off); my
+  first structural-zero B-row was WRONG-forward (the forward coupled
+  fission source carries the q½ fold — `_radial_characteristic_fission_seed`)
+  and the typed guard caught it before the k-mismatch would have; on the
+  eigen-M operator the fold row BELONGS in the posing (HAZARD 5 keeps it
+  out of the WITHIN-GROUP gain, not out of M).  (2) `ZeroOperator`
+  already carried `codomain_zero` (the pre-#208 role-typed hook — the
+  ruling was half-realized in the algebra); A4 adds the SYMMETRIC
+  `transpose_zero` (the domain's dual-role zero) — first exercise of the
+  zero slot's transpose, docstring era-note updated.  (3) the (B,B)
+  fission slot = `ZeroOperator(codomain_zero=transpose_zero=ray
+  source_zeros_on)` (w=0 closed rays never source fission).  (4) the
+  ray-leg DUALITY-TYPING fix: `RadialCharacteristicOperator.
+  solve_transpose` output re-classed source→FLUX members (dual-of-source
+  = the adjoint ray flux — the exact sibling of A4-1's
+  `InvertibleOperator.solve_transpose` fix; caught by the same
+  `_check_partner` guard on the daggered sphere's first contact); the
+  B.2c container pin rewritten to the duality-typed truth same-commit.
+  Evidence: FORWARD coupled control `KEigenvalue(resolvent, gain,
+  F_posed)` matches solve_sn sphere k @ 3.9e-10 (14 outers — validates
+  the fission-fold posing pre-dagger); DAGGERED coupled k_adj vs fwd @
+  5.6e-11; the ENTRY sphere dk 4.5e-10 with the ray member packaged.
+  Batteries: 203/203 (psi-half + coupled + curvilinear-282 + transpose-
+  solve + entries + iteration); pyright 0/0 production, legacy test file
+  100 ≡ 100 HEAD.
 - **A4-2 ✅ — THE ENTRIES.**  `solve_sn_adjoint` + `solve_sn_adjoint_fixed_source`
   land per the user rulings (both now; unified `Solution` return).  Shapes:
   the eigen entry mirrors `solve_sn`'s surface (no scheme param — the
