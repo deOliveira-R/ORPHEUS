@@ -8,10 +8,15 @@ spot-verified against the rendered PDF pages (the scan is the SSOT).
 
 ---
 
-## 0. Source inventory
+## 0. Source inventory *(rev. 2, Adams-Martin/WWM — 2026-07-26)*
 
-All five primary sources are LOCAL in `scratch/literature/`, each with a Mistral-OCR
-sidecar in `scratch/literature_ocr/<stem>.md` (`## p. N` = 1-based PDF page).
+Seven primary sources are LOCAL in `scratch/literature/`. #1–#5 carry a Mistral-OCR
+sidecar in `scratch/literature_ocr/<stem>.md` (`## p. N` = 1-based PDF page); #6–#7
+arrived while the Mistral key was returning 401s (key worked at 00:50, dead by ~17:00
+the same day) and carry a locally-generated pypdf **`.textlayer.md`** file instead
+(same `## p. N` convention; equations verified on rendered pages). Regenerate their
+true sidecars when the key is fixed: `tools/ocr_literature.py --glob 'Adams-Martin*'`
+/ `--glob 'Warsa*'` (cache-idempotent).
 
 | # | Paper | Journal | DOI | Local status | Page map (printed → PDF) |
 |---|---|---|---|---|---|
@@ -20,21 +25,26 @@ sidecar in `scratch/literature_ocr/<stem>.md` (`## p. N` = 1-based PDF page).
 | 3 | McCoy & Larsen (1982), "… Part II: Numerical Results" | NSE **82**(1), 64–70 | 10.13182/NSE82-2 | PDF + sidecar ✓ | printed ≈ PDF + 62 (printed 64 = PDF 2) |
 | 4 | Adams & Larsen (2002), "Fast Iterative Methods for Discrete-Ordinates Particle Transport Calculations" | PNE **40**(1), 3–159 | 10.1016/S0149-1970(01)00023-3 | PDF + sidecar ✓ + **FULL prior extraction** `.claude/plans/phase_i_survey_adams_larsen_2002.md` | journal p. N = PDF N − 2 |
 | 5 | Morel (1982), "A Synthetic Acceleration Method for Discrete Ordinates Calculations with Highly Anisotropic Scattering" | NSE **82**(1), 34–46 | 10.13182/NSE82-A19026 | PDF + sidecar ✓ | printed ≈ PDF + 32 (printed 34 = PDF 2) |
+| 6 | Adams & Martin (1992), "Diffusion Synthetic Acceleration of Discontinuous Finite Element Transport Iterations" — **the M4S paper** | NSE **111**(2), 145–167 | 10.13182/NSE92-A23930 | PDF ✓ + `.textlayer.md` (no Mistral sidecar yet) — **extracted, §7** | printed ≈ PDF + 143 (printed 145 = PDF 2) |
+| 7 | Warsa, Wareing, Morel, McGhee & Lehoucq (2004), "Krylov Subspace Iterations for Deterministic k-Eigenvalue Calculations" — **the k-eigenvalue IRAM paper, NOT the degraded-DSA paper** | NSE **147**(1), 26–42 | 10.13182/NSE04-1 | PDF ✓ + `.textlayer.md` (no Mistral sidecar yet) — **extracted, §8** | printed ≈ PDF + 24 (printed 26 = PDF 2) |
 
 Note that #2, #3, and #5 all sit in the same NSE issue (82(1), 1982) — the DSA issue.
 
-**ABSENT from the local folder** (roadmap named them; NOT acquired online per the
-delegation rule — user to add if wanted):
+**ABSENT from the local folder** (NOT acquired online per the delegation rule — user
+to add if wanted):
 
-- **Adams & Martin (1992)**, "Diffusion Synthetic Acceleration of Discontinuous Finite
-  Element Transport Iterations," NSE **111**, 145 — the M4S paper. Coverage here is
-  secondhand only, via A&L 2002 [169] (§IV.D: M4S is rapidly convergent on orthogonal
-  grids, DIVERGES on skewed tetrahedral cells per Warsa et al. [300]).
-- **Warsa, Wareing & Morel (2004)** (Krylov-DSA robustness; the "fully consistent DSA
-  can degrade in multi-D heterogeneous problems, Krylov fixes it" paper). A&L 2002
-  predates it; the review carries only the precursor thread (consistent-DSA
-  heterogeneity degradation to σ ≈ 0.88 with "no known remedy", pp. 69/139, and the
-  2001 M&C proceedings version [300]).
+- **Warsa, Wareing & Morel (2004)**, "Krylov Iterative Methods and the Degraded
+  Effectiveness of Diffusion Synthetic Acceleration for Multidimensional S_N
+  Calculations in Problems with Material Discontinuities," NSE **147**(2), 218–248 —
+  the degraded-DSA robustness paper ("fully consistent DSA can degrade in multi-D
+  heterogeneous problems, Krylov fixes it"). ⚠ Same volume/year/lead-authors as
+  local #7 — do not conflate (see §8's identity block). Local #7's Ref. [25] cites it
+  in submitted form under the early title "Diffusion Synthetic Acceleration—Part I:
+  Deficiencies in Multi-Dimensional Heterogeneous Problems". A&L 2002 carries only
+  the precursor thread (consistent-DSA heterogeneity degradation to σ ≈ 0.88 with
+  "no known remedy", pp. 69/139, and the 2001 M&C proceedings version [300]).
+- **Yavuz & Larsen (1988)**, Trans. ANS **56**, 305 — the reflective-BC DSA analysis
+  (A&L [135], bibliography-only there; see §4.3/§6.6.1).
 
 Bonus local holding (not part of this brief, relevant to the wider acceleration
 program): `Hammer-Morel-Wang(2019)` nonlinear diffusion acceleration of least-squares
@@ -1228,11 +1238,22 @@ Primary: Larsen Part I §II–III [(10)→(16)→(18)→(19)–(27)→(28) + (30
    operator's removal ∝ (1−c) ⟹ conditioning grows; none of the sources treat it
    (their reflected problems keep a vacuum side or c < 1). Decide: guard, regularize,
    or exclude (fixed-source c = 1 no-leakage is ill-posed anyway).
-3. **Eigenvalue coupling**: Part I/II are fixed-source; Alcouffe's k-eigenvalue
-   variants are nonlinear (D̂/removal correction, DANTSYS lineage) with fixup
-   interactions; the linear alternative (Gelbard et al. [81], A&L §VIII.E) costs an
-   adjoint low-order eigenproblem. ORPHEUS #2 scope = within-group/fixed-source
-   acceleration first; the k-loop design is a separate decision.
+3. **Eigenvalue coupling** *(rev. 2, Adams-Martin/WWM)*: Part I/II are fixed-source;
+   Alcouffe's k-eigenvalue variants are nonlinear (D̂/removal correction, DANTSYS
+   lineage) with fixup interactions; the linear alternative (Gelbard et al. [81],
+   A&L §VIII.E) costs an adjoint low-order eigenproblem — and Adams-Martin's Ref. 19
+   (Adams & Larsen 1989 Santa Fe proc., "Linear Diffusion-Synthetic Acceleration of
+   k-Eigenvalue Problems") is now a NAMED primary for that linear-DSA-k route (§7.6).
+   **The third route is now extracted firsthand (§8)**: keep the k-loop
+   linear-algebraic — Arnoldi/IRAM on A = DH⁻¹F (moment-vector eigenproblem,
+   parameter-free, outer counts flat in the dominance ratio: 14–26 outers across
+   δ = 0.970–0.999 vs 468–8824 for power iteration, Warsa et al. Table IV) — and
+   leave DSA entirely at the within-group level, in either posture (SI+DSA inners
+   for a power-iteration loop; DSA-preconditioned FGMRES/BiCGStab inners + the BFG
+   relaxed-tolerance cascade for an Arnoldi loop, which forfeits warm starts).
+   ORPHEUS #2 scope = within-group/fixed-source acceleration first; the k-loop
+   design is a separate decision — but it is now a DESIGNED-FOR decision with a
+   production-scale precedent (28M DOF; upscatter nesting is the recorded weak spot).
 4. **Multigroup/outers**: within-group ℓ = 0 DSA is the Phase-3 core; outer/upscatter
    acceleration (Alcouffe Eq. 5 implicit-multigroup diffusion; Adams-Morel Two-Grid)
    is future work — consistency discretization carries over verbatim (A&L p. 117).
@@ -1245,12 +1266,22 @@ Primary: Larsen Part I §II–III [(10)→(16)→(18)→(19)–(27)→(28) + (30
    (Alcouffe §II.C corner moments); non-DD needs the modified-DSA family or
    Morel-Dendy-Wareing multigrid; production codes accept slight inconsistency
    (TWODANT 5-point) + optional Krylov wrap (A&L p. 140).
-7. **Absent primaries**: Adams & Martin 1992 (M4S; needed for a DG/LD multi-D arm);
-   Warsa-Wareing-Morel 2004 (Krylov robustness for degraded consistent DSA);
-   Yavuz-Larsen 1988 (reflective BCs). User to acquire if/when those arms open.
-8. **LD-arm reference** (gated): Larsen Part I §V — LD α_m = ε_m/(3+|ε_m|),
-   tridiagonal (78) with (81) coefficients, K_N ≤ 0.300; plus the A&L p. 73
-   presentation-dependence warning.
+7. **Absent primaries** *(rev. 2, Adams-Martin/WWM)*: ~~Adams & Martin 1992~~ now
+   LOCAL + extracted (§7); the k-eigenvalue Warsa et al. NSE 147(1) also LOCAL +
+   extracted (§8). Still absent: **Warsa-Wareing-Morel NSE 147(2), 218 (degraded
+   consistent DSA + Krylov fix — the §0 disambiguation applies)** and **Yavuz-Larsen
+   1988 (reflective-BC DSA)**. User to acquire if/when those arms open.
+8. **LD-arm reference** (gated) *(rev. 2, Adams-Martin/WWM)*: TWO published routes —
+   (a) fully consistent: Larsen Part I §V — LD α_m = ε_m/(3+|ε_m|), tridiagonal (78)
+   with (81) coefficients, K_N ≤ 0.300 (coarse-mesh LD limit 0.25 per A&M printed
+   156); plus the A&L p. 73 presentation-dependence warning; (b) M4S (§7): lag the
+   first-moment interface-jump term C in step 2 ⟹ exact discrete Fick collapse
+   (32), always-eliminable weak form (34)/(35), tridiagonal via App. C — simpler,
+   dimension- and curvilinear-robust (spherical App. A), ρ → 0 in thick cells, at
+   the cost of a 0.50–0.67c intermediate-thickness peak and the A&L-recorded
+   skewed-tet divergence [300]. A&M verified the θ = 1 LD variant of Larsen-Morel
+   1989 JCP 83 (the ORPHEUS slab-LD reference) behaves identically (§7.4). Choose
+   when the arm opens; the §7.4 table is the decision surface.
 
 ### 6.7 Reading order for the implementing session
 
@@ -1259,3 +1290,542 @@ Larsen Part I §§II–III (the recipe + BCs — the 3a reference) → McCoy-Lar
 tables) → Alcouffe (DD specifics, 2-D corner scheme, eigenvalue variants; mind §1.5
 sign errata) → Morel (P1 extension + curvilinear + albedo rows) — matching the survey
 Task-5 recommendation.
+
+---
+
+## 7. Adams & Martin 1992 — the M4S paper (deliberately inconsistent DFE diffusion)
+
+M.L. Adams & W.R. Martin, "Diffusion Synthetic Acceleration of Discontinuous Finite
+Element Transport Iterations," NSE **111**(2), 145–167 (1992), DOI
+10.13182/NSE92-A23930. LOCAL. Page map: printed ≈ PDF + 143 (printed 145 = PDF 2).
+
+> **Provenance note (rev. 2)**: the Mistral OCR key returned persistent 401s on
+> 2026-07-26 (worked at 00:50 the same day — key expired/rotated mid-day), so this
+> paper's search surface is a locally-generated pypdf text-layer file
+> `scratch/literature_ocr/<stem>.textlayer.md` (same `## p. N` = PDF-page convention),
+> NOT a Mistral sidecar. All load-bearing equations below were verified against the
+> rendered PDF pages 8–13 and 15–17 (`Read pages=`). Regenerate the real sidecar once
+> the key is fixed (`tools/ocr_literature.py --glob 'Adams-Martin*'` — cache-idempotent).
+
+### 7.1 What the paper is (abstract + §I, printed 145–146, PDF 2–3)
+
+A discontinuous-finite-element (DFE) discretization of the diffusion equation for
+accelerating DFE transport (linear discontinuous LD and bilinear discontinuous are the
+worked instances), obtainable "in any coordinate system on any grid." The paper's own
+headline claims (abstract, verified PDF 2): the diffusion discretization is **"not
+strictly consistent with the transport discretization in the usual sense"**, yet the
+scheme is **unconditionally stable and rapidly convergent**, and **ρ → 0 as cells
+become optically thick** (instant convergence — unique among DSA schemes of the time;
+shared only by boundary-projection acceleration, their Refs. 12/16/17, printed 160).
+Analysis: 1-D + 2-D Cartesian. Numerics: 1-D Cartesian AND spherical. Motivation
+(§II, printed 148, PDF 5): standard linear DSA (= Larsen's fully-consistent four-step,
+their Ref. 2 = memo §2) is "algebraically complicated and potentially difficult to
+solve … it may not be possible to eliminate the current vectors … in general
+multidimensional problems. This complexity has precluded any widespread use."
+
+### 7.2 The modified four-step — step 2 is the modified step (§IV.B + Table I, printed 152–153, PDF 9–10)
+
+Table I (printed 152, PDF 9, verified verbatim) compares "Standard Linear DSA
+Procedure" vs "Our Modified Four-Step Procedure":
+
+| Step | Standard linear DSA | M4S |
+|---|---|---|
+| 1a | zeroth angular moment of the discretized transport eq. | Same |
+| 1b | first angular moment | Same |
+| 2 | promote indices to l+1 **except on second-and-higher moment terms** | "Same, except do not change indices on certain zeroth- and first-moment terms." |
+| 3 | subtract acceleration eqs from unaccelerated eqs | Same |
+| 4 | eliminate first moments → discretized diffusion eq. "May not be possible given high-order discretization schemes in two or three dimensions." | "Same; always possible" |
+
+**The one modification**: after steps 1a/1b produce the discrete moment equations
+(20) [zeroth] and (27) [first] — *identical to standard linear DSA up to this point*
+(stated twice, printed 153) — step 2 ALSO leaves at l+½ the **surface term C(r_k)**
+of the first-moment equation (27). Verbatim (printed 153, PDF 10): "Our procedure is
+the same except that we leave the index at (l+½) on the term C(r_k) that appears in
+Eq. (27). Because this term contains contributions from scalar fluxes and currents,
+our scheme is not consistent."
+
+The lagged object (unnumbered display after Eq. (27), printed 153, PDF 10, verified
+on the render):
+
+C^{(l+½)}(r_k) = (n_k/6)[φ₀(r_k⁺) − φ₀(r_k⁻)] + (3/16)[**φ₁**(r_k⁺) − **φ₁**(r_k⁻)]
++ (3n_k/16) n_k·[**φ₁**(r_k⁺) − **φ₁**(r_k⁻)] + h.o.t.^{(l+½)}
+
+— i.e. the DFE **interface-jump** (discontinuity) contributions of scalar flux and
+current in the first-moment equation. The first-moment volume operator itself is
+promoted normally: (30) carries ⅔∇·φ₂^{(l+½)} (lagged, as standard) + ⅓∇φ₀^{(l+1)} +
+σ_t φ₁^{(l+1)} — the ⅓ P1 coefficient renders correctly here (the §1.2 OCR trap does
+not bite in this paper's print).
+
+**Why this modification buys solvability**: with C lagged, EVERY surface term of the
+first-moment equation subtracts out in step 3, and the volume terms collapse to an
+exact discrete Fick law — Eq. (32), printed 154: **f₁(r) = −D∇f₀, D = 1/(3σ_t)**
+[stated caveat: "we have assumed that gradients of our DFE basis functions reside in
+the function space spanned by the basis functions. This is true of most DFE
+methods."]. Hence step 4 (current elimination) is ALWAYS possible, in any dimension,
+on any grid — the exact point where Larsen's fully-consistent reduction can jam
+(Table I step-4 row; A&L p. 73 presentation-dependence is the same pain point).
+
+**What "consistent" means here** (printed 152, verified): "The basic idea is to
+derive a diffusion discretization that is equivalent to the transport discretization
+when the transport angular flux is linearly anisotropic. This is what is meant by a
+'consistent' diffusion discretization. Standard linear DSA achieves this rigorously,
+while our procedure only approximates it."
+
+**Vocabulary caution**: the paper NEVER says "partially consistent" — its own words
+are "not strictly consistent" and "inconsistent, but rapidly convergent" (printed
+153/160). The "partially consistent" bucket name the memo's §4.2 table uses is
+A&L 2002's later taxonomy (their §IV.D, citing this paper as [169]). Credit the
+taxonomy to A&L, the existence proof to this paper.
+
+### 7.3 The resulting low-order operator (§IV.A ≡ §IV.B; Eqs. (15)–(19) and (34)–(36), printed 151/154–155, PDF 8/11–12)
+
+**Two-path equivalence** (the paper's structural centerpiece, Fig. 1): discretizing
+the CONTINUOUS diffusion equation by the same DFE machinery as the transport scheme
+(same weights v_ki, same basis b_kj, upstream-evaluated partial currents) — Eq. (18)
+— produces IDENTICALLY the operator that the modified four-step extracts from the
+DFE transport discretization — Eq. (34). Verified statement under (34), printed 154:
+"which is identical to the DFE diffusion equation that was derived by a completely
+different procedure in Sec. IV.A."
+
+The general weak form (Eqs. (18) ≡ (34), any grid, Cartesian; verified PDF 8/11):
+
+∮_{∂Z_k} v_ki [(αf₀ − ½ n·D∇f₀)_{r_k⁻} − (αf₀ + ½ n·D∇f₀)_{r_k⁺}]
++ ∫_{Z_k} [D∇f₀·∇v_ki + σ_a v_ki f₀]
+= ∫_{Z_k} v_ki σ_s [φ₀^{(l+½)} − φ₀^{(l)}],  1 ≤ i ≤ J_k, 1 ≤ k ≤ K
+
+with the net→partial-current replacement (16): outgoing partial current evaluated
+just INSIDE the zone (r_k⁻), incoming just OUTSIDE (r_k⁺) — "upstream" for partial
+currents where it is undefined for the net current. Quadrature constants (verified
+PDF 9): **(25a) Σ_{n·Ω_m>0} w_m|n·Ω_m|² = 1/6 and (25b) α ≡ Σ_{n·Ω_m>0} w_m|n·Ω_m|
+≈ ¼** ⟹ **Σw = 1 normalization** (the Alcouffe/Larsen/McCoy/Morel camp of §6.5, NOT
+A&L's Σw = 2). α is the discrete half-range current weight — the same object as
+Larsen's discrete γ_N (memo §2.4), quadrature-exact rather than the continuous ¼.
+
+**Boundary conditions** (19)/(26), verified PDF 8/10: incoming partial current on the
+problem boundary = β·(incident-flux term) + (1−β)·(outgoing partial current); β = 0
+reflective, β = 1 vacuum/specified-incident. In the correction form the incident term
+cancels: (33b) ΔJ_in = γ(r_k)·ΔJ_out with γ = 1 − β (follows from differencing (26)).
+⚠ Direction flag: A&M's β is an ABSORPTION weight (β = 0 ⟹ reflective), the reverse
+sense of Morel's albedo α (memo §5.4, factor (1−α)/(1+α), α = 1 ⟹ reflective).
+
+**Slab LD instance** (§IV.C, Eqs. (35a/b/c) + update (36), printed 154–155, PDF
+11–12, verified): two unknowns per cell — cell-average f₀k and slope moment f₀k^x:
+
+- (35a) balance row: −[D df₀/dx]_{k+½} + [D df₀/dx]_{k−½} + σ_ak h_k f₀k
+  = σ_sk h_k [φ₀k^{(l+½)} − φ₀k^{(l)}]
+- (35b) slope row: −3[D df₀/dx]_{k+½} − 3[D df₀/dx]_{k−½} + 12 D_k f₀k^x/h_k
+  + σ_ak h_k f₀k^x = σ_sk h_k [φ₀k^{x(l+½)} − φ₀k^{x(l)}]
+- (35c) edge net current from upstream partial currents, interior edge k+½:
+  [α(f₀k + f₀k^x) − D_k f₀k^x/h_k] − [α(f₀,k+1 − f₀,k+1^x) + D_{k+1} f₀,k+1^x/h_{k+1}]
+  (left boundary k = 0: first bracket → 0, incident BC; right k = K: whole
+  expression → 0, reflective). The interior D_k f₀k^x/h_k terms are ½·D·(df₀/dx)
+  with df₀/dx = 2f₀k^x/h_k for the LD basis — self-consistent with (16).
+- (36): the update adds the correction to **BOTH** spatial moments:
+  φ₀k^{(l+1)} = φ₀k^{(l+½)} + f₀k^{(l+1)} AND φ₀k^{x(l+1)} = φ₀k^{x(l+½)} + f₀k^{x(l+1)}.
+
+**Solvability**: Appendix C manipulates (35) into three-point (tridiagonal) form in
+EITHER cell-average unknowns ((C.3)–(C.5)) or cell-edge unknowns ((C.6)–(C.12)) — so
+the 1-D M4S low-order solve costs the same as the memo §2's Larsen tridiagonal. In
+2-D this reduction does NOT exist ("we cannot produce a difference equation involving
+only one unknown per cell or vertex," printed 160) — the efficient 2-D solve was an
+OPEN question, pointed at Morel's multigrid (Ref. 18, private comm. 1991 — the thread
+that became Morel-Dendy-Wareing 1993 [190], already in memo §4.7/§6.6.6).
+
+**Khalil distinction** (printed 151, verified): Khalil (NSE 98:226, 1988) also
+discretizes the continuous diffusion equation mimicking the transport scheme, but
+mimics its *balance + auxiliary cell relations*; A&M mimic its *weight + basis
+functions*. Different diffusion operator, different DSA (compared in §V).
+
+### 7.4 Reconciliation with the memo's LD reference (§2.6 Larsen Part I §IV–V)
+
+**Verdict: a DIFFERENT operator, not a rederivation and not a simplification of the
+same algebra.** Three low-order operators now sit on record for slab LD transport:
+
+| Operator | Derivation | ρ fine-mesh | ρ intermediate | ρ thick limit |
+|---|---|---|---|---|
+| Larsen Part I (78)+(81) ("standard linear DSA", fully consistent) | four-step, unmodified | 0.2247c | ≤ max | max 0.25 (coarse limit; A&M printed 156 citing Ref. 2) |
+| Khalil WDD-mimic | balance/cell-relation mimic | 0.2247c | monotone ↓ | 0.131 (A&M printed 156 citing Ref. 3) |
+| **M4S (35)** | four-step with C lagged ≡ direct DFE of diffusion | 0.2247c (S16); 0.0 (S2) | **peak 0.67c (S2) → 0.50c (S16) at ~1–2 mfp** | **→ 0** |
+
+Notes: (a) the 0.25 A&M quote and the memo §2.6 K_N ≤ 0.300 are BOTH Larsen-paper
+numbers but different suprema (K_N table = sup over the α model family at each N;
+0.25 = the coarse-mesh LD limit) — don't conflate. (b) A&M also analyzed the
+**θ = 1 LD variant "in the notation of Ref. 15"** — Ref. 15 = **Larsen & Morel 1989
+JCP 83:212, the ORPHEUS slab-LD reference** (issue #158 record) — and found
+"performance essentially identical to that of the standard method" (printed 159,
+verified). So the M4S numbers transfer to the LM-1989 LD family ORPHEUS implements.
+(c) For the R5-gated ORPHEUS LD arm the trade is now explicit: fully-consistent
+Larsen (78)/(81) buys the tighter uniform bound (≤ ~0.25–0.30c) at slab-only,
+algebraically heavy cost; M4S buys always-eliminable simplicity, multi-D reach, and
+the thick-cell ρ → 0, at the price of a ~2–3× higher intermediate-thickness peak and
+the A&L-recorded divergence on skewed tetrahedral cells (memo §4.2 [300]) — M4S's
+stability record is orthogonal-grid.
+
+### 7.5 Stability results (§V–VI, printed 155–159, PDF 12–16)
+
+**Fourier machinery** (verified PDF 12–13): subtract converged equations → error
+equations (37) [LD transport: balance (37a), slope (37b), moments (37c), upstream
+closure (37d)] + (38) [low-order] + (39) [two-moment update]; ansatz (41);
+⟹ 2×2 eigenproblem **(42) ωv = [I − L]⁻¹[H − L]v**. Search over c ∈ (0,1),
+λh ∈ (0,π); worst case always c → 1 (the memo-wide pattern).
+
+**Slab LD numbers** (Fig. 2, printed 156, verified on the render):
+
+- fine mesh: ρ → analytic DSA values — **0.0 for S2** (slab S2 ≡ P1: the K_2 = 0
+  exactness analog survives the inconsistency), ≈ **0.2247 for S16**;
+- intermediate (~1–2 mfp): peak **0.67c (S2), ~0.55c (S4/S8), 0.50c (S16)**;
+- thick: **ρ → 0 monotonically** for all quadratures.
+
+**2-D bilinear DFE** (§V.B + App. B; Tables II–IV, printed 157, PDF 14, verified via
+text layer + render spot-check): 4×4 eigenproblem (four unknowns/zone), parameters
+(quadrature, λ_x h_x, λ_y h_y, c, σ_t h_x, σ_t h_y); global-extremum search flagged
+"fairly difficult … sometimes very sharp" peaks. S4 level-symmetric table (Table III,
+ρ at c → 1; rows/cols = σ_t h_x / σ_t h_y ∈ {10⁻³, 10⁻², 0.1, 1, 2, 5, 10, 10², 10³},
+lower triangle):
+
+| σth_y \ σth_x | 0.001 | 0.01 | 0.1 | 1.0 | 2.0 | 5.0 | 10 | 100 | 1000 |
+|---|---|---|---|---|---|---|---|---|---|
+| 0.001 | 0.25 | | | | | | | | |
+| 0.01 | 0.25 | 0.25 | | | | | | | |
+| 0.1 | 0.23 | 0.25 | 0.23 | | | | | | |
+| 1.0 | 0.49 | 0.49 | 0.49 | 0.49 | | | | | |
+| 2.0 | 0.55 | 0.55 | 0.55 | 0.55 | 0.55 | | | | |
+| 5.0 | 0.44 | 0.44 | 0.44 | 0.49 | 0.55 | 0.44 | | | |
+| 10 | 0.28 | 0.28 | 0.28 | 0.49 | 0.55 | 0.44 | 0.28 | | |
+| 100 | 0.18 | 0.18 | 0.16 | 0.49 | 0.55 | 0.44 | 0.28 | 0.03 | |
+| 1000 | 0.18 | 0.18 | 0.16 | 0.49 | 0.55 | 0.44 | 0.28 | 0.03 | 0.003 |
+
+S2 (Table II) peaks 0.67 at (2,2) mfp; S8 (Table IV) peaks 0.50 at (2,2); both → ~0
+in the both-thick corner; fine-limit analytic values 0.500 (S2) / 0.228 (S8) from
+their Ref. 14 (M.L. Adams, "…The Fine-Mesh Limit," in preparation at the time).
+Everything < 1 everywhere searched ⟹ the paper's unconditional-stability claim (2-D
+orthogonal grids). ⚠ The high-aspect-ratio off-diagonal entries (e.g. 0.49–0.55
+persisting at σ_t h_x = 1–2 for ANY σ_t h_y) foreshadow exactly the aspect-ratio
+degradation A&L §IV.D tabulates for partially-consistent families.
+
+**Numerical evidence** (§VI, printed 158–159, verified): estimator (44)/(45)
+(successive-difference ρ, Δx-weighted L2 — same family as memo §6.3's A&L
+(1.15)–(1.20) row).
+
+- Test 1 (Fig. 3): homogeneous slab/sphere, σ_t = 1, σ_s = 0.99 (c = 0.99), S = 1
+  left half / 0.01 right half, reflecting-left + vacuum-right, S8. Table V (verified
+  on render): mesh 0.01 mfp → 7 iters to 10⁻⁶, ρ̂ ≈ 0.203/0.205 (slab/sphere);
+  2.0 mfp → 13 iters, ρ̂ ≈ 0.471 (the intermediate peak); 10 mfp → 10 iters,
+  ρ̂ ≈ 0.250; 100 mfp → 4 iters, ρ̂ ≈ 0.017. **Slab and sphere columns identical to
+  ~±0.005 at every point.**
+- Test 2 (Fig. 5): the "iron-water" problem — 4 regions (water/water/iron/water),
+  σ_t = 3.3333/3.3333/1.3333/3.3333, σ_s = 3.3136/3.3136/1.1077/3.3136, source
+  S = 1 in region 1 only, boundaries at 12/15/21/30 cm, reflecting-left +
+  vacuum-right — the SAME problem family as the memo §3.1 McCoy-Larsen shielding
+  spec (A&M cite it as "iron-water test problem²,³"). Table VI (S8 Gauss-Legendre,
+  verified): ρ̂ from 0.19 (1 cell/region) peaking 0.46 (4 cells/region) back to 0.19
+  (200 cells/region); every entry BELOW the model-problem prediction for the
+  worst-case cell thickness; sphere ≡ slab again.
+
+**The empirical upper-bound claim** (§VI intro + conclusions, printed 158/159): the
+infinite-medium Cartesian Fourier predictions "appear to be upper bounds for slab and
+spherical geometries, heterogeneous media, and variable mesh spacings."
+
+**Sphere caveat** (printed 158): "we cannot Fourier-analyze the spherical-geometry
+method" — the curvilinear arm is empirically gated only, exactly the memo §6.6.5
+posture; A&M is the empirical precedent (sphere ρ̂ ≡ slab ρ̂ on every test).
+
+### 7.6 Multidimensional + curvilinear statements
+
+- **Any grid / any coordinate system** via the first derivation (§IV.A weak form
+  (18)): the recipe is coordinate-free (surface integral of upstream partial currents
+  + volume Galerkin terms).
+- **Spherical** (Appendix A, printed 160–162, PDF 17–19): LD DFE spherical transport
+  (A.1)–(A.4) — includes the angular-redistribution (γψ)_{m±½} terms with the ⅙/⅓
+  slope-weighted redistribution moments and volume moments V_k, W_k, X_k — and the
+  matching DFE diffusion (A.6) + (A.9) (update (A.8)), tridiagonal-formable
+  ((A.11)–(A.14)). This is the corpus's ONLY worked curvilinear DFE-DSA low-order
+  operator (Morel §5.5 gives the curvilinear D correction for cell-centered schemes,
+  not DFE).
+- **2-D Cartesian bilinear** (Appendix B, (B.1)–(B.10)): rectangular cells, four
+  unknowns/zone — the operator behind Tables II–IV.
+- **Eigenvalue + multigroup reach** (printed 160, verified): "our DFE diffusion
+  discretization can be used to accelerate DFE transport eigenvalue iterations¹⁹ and
+  group-to-group scattering iterations as well as within-group iterations, in the
+  same way that any linear DSA scheme can." Ref. 19 = Adams & Larsen, "Linear
+  Diffusion-Synthetic Acceleration of k-Eigenvalue Problems," Proc. Santa Fe 1989 —
+  a named LINEAR k-DSA primary for §6.6.3 (previously the memo carried only the
+  Gelbard-et-al. [81] thread from A&L §VIII.E).
+
+### 7.7 Notation map (A&M → ORPHEUS/memo)
+
+- **Σw = 1** (proof: (25a) half-range Σw(n·Ω)² = 1/6, (25b) α ≈ ¼) — the §6.5
+  Alcouffe/Larsen/McCoy/Morel camp. Map before comparing with A&L (Σw = 2) rows.
+- Their **α** = discrete half-range current weight (≈ ¼) = Larsen's discrete γ_N
+  (§2.4). ⚠ COLLISION: NOT Larsen's WD spatial α (§2.2), NOT Morel's albedo α (§5.4),
+  NOT the BMC curvilinear α. Four α's now live in this memo — qualify every use.
+- Their **β**: 0 = reflective, 1 = vacuum/incident (γ ≡ 1 − β in the f-form) —
+  reverse direction of Morel's albedo.
+- Their **C(r_k)** = the first-moment interface-jump surface term — the M4S-specific
+  object; no analog in §§1–5 (fully-consistent reductions keep it live).
+- Iterates l+½ / l+1 = the memo convention exactly; their f₀ = the memo's f
+  (correction form); LD pair (f₀k, f₀k^x) = cell-average + slope moment = the
+  ORPHEUS LD moment pair (Larsen-Morel 1989 family, θ = 1 variant covered).
+- Their "standard linear DSA" = the memo §2 four-step (their Ref. 2 = Larsen Part I).
+
+### 7.8 What M4S changes in the memo's picture
+
+1. **"Consistency is sufficient but NOT necessary" now has its existence proof
+   locally** (their conclusions, printed 159–160: "strict consistency … is not
+   necessary. However, we still do not know how much inconsistency a scheme can
+   tolerate"). Read together with McCoy-Larsen §3.3 (Table II divergence of the
+   WD-transport/DD-low-order mix): *partial consistency is not one bucket* — WHICH
+   terms are lagged/mismatched decides stability. Lagging the first-moment interface
+   jumps C (M4S) is benign on orthogonal grids; grafting a foreign low-order operator
+   + BCs (Table II) is fatal. The memo §6.1's "derived-by-moment-reduction is the
+   operative property" survives intact — M4S IS a moment reduction, just with one
+   extra lagged block.
+2. **The §4.2 taxonomy row for M4S is now firsthand-verified** (was secondhand via
+   A&L [169]): rapid convergence + unconditional stability demonstrated on orthogonal
+   grids (1-D/2-D Fourier + slab/sphere numerics); the skewed-tet divergence remains
+   A&L/Warsa-sourced (not in this paper — its record is orthogonal-grid only).
+3. **Thick-cell ρ → 0** is a property NO fully-consistent scheme in the memo has
+   (Larsen DD/LD saturate at ~0.25c–0.3c): relevant if ORPHEUS ever needs
+   radiative-transfer-style thick cells on the LD arm.
+4. **§6.6.8 (LD-arm reference) gains a second published route** — see the §7.4 table
+   and trade-off note.
+
+---
+
+## 8. Warsa-Wareing-Morel-McGhee-Lehoucq 2004 — Krylov (IRAM) k-eigenvalue iterations
+
+J.S. Warsa, T.A. Wareing, J.E. Morel, J.M. McGhee & R.B. Lehoucq, "Krylov Subspace
+Iterations for Deterministic k-Eigenvalue Calculations," NSE **147**(1), 26–42 (May
+2004), DOI 10.13182/NSE04-1. LOCAL. Page map: printed ≈ PDF + 24 (printed 26 = PDF 2).
+
+> ⚠ **Identity disambiguation (load-bearing)**: this is NOT the "degraded-DSA" paper
+> the roadmap wanted. TWO Warsa-et-al. papers live in NSE 147 (2004): **147(1), 26–42**
+> = THIS one (k-eigenvalue IRAM; five authors, + McGhee & Lehoucq) and **147(2),
+> 218–248** = "Krylov Iterative Methods and the Degraded Effectiveness of Diffusion
+> Synthetic Acceleration for Multidimensional S_N Calculations in Problems with
+> Material Discontinuities" (three authors; STILL ABSENT locally). The sibling
+> relationship is visible inside this paper: its Ref. [25] cites the absentee in
+> submitted-manuscript form under the early title "Diffusion Synthetic
+> Acceleration—Part I: Deficiencies in Multi-Dimensional Heterogeneous Problems"
+> (verified, reference list printed 41). Do not let a citation to "Warsa et al. 2004"
+> resolve to the wrong member.
+
+> **Provenance note (rev. 2)**: same Mistral-key 401 as §7 — search surface is the
+> pypdf text-layer file `scratch/literature_ocr/<stem>.textlayer.md`; equations and
+> ALL iteration-count/tolerance tables verified on rendered PDF pp. 4, 8–9, 11–12, 14
+> (`Read pages=`). Regenerate the true sidecar when the key is fixed.
+
+### 8.1 The operator the Arnoldi iteration runs over (§II.A–II.B, II.D; printed 27–29, PDF 3–5)
+
+**Transport discretization** (Eqs. (3a)/(3b), printed 27–28, verified PDF 4):
+multigroup 3-D SN, DFEM with linear basis on tetrahedra (4 unknowns/cell), upstream
+interface fluxes (3b), **fully lumped including the surface integral** — the lumping
+"preserves the diffusion limit in thick, diffusive regimes" (their Ref. 9 = Adams
+2001 NSE 137:298 — the same thick-limit doctrine as memo §4.6). Vacuum (Γ = 0) and
+specular-reflective BCs (reflective faces axis-aligned; quadrature contains the
+reflected pairs Ω̂_m′ = Ω̂_m − 2n̂(Ω̂_m·n̂)).
+
+**Operator form** (verified PDF 4): Eq. (4) **Lψ = MSDψ + (1/k)FDψ** — L transport,
+S scattering, F fission, D angular→moments (φ = Dψ, "all the scalar flux moments
+needed to construct the scattering source"), M moments→angular source. Rearranged to
+the power iteration (5):
+
+φ^{(ℓ+1)} = (1/k^{(ℓ)}) A φ^{(ℓ)},  **A = D H⁻¹ F,  H = L − MSD**
+
+with k updated by the norm ratio (6) (fission-rate norm (7) ‖φ‖_F = Σ_g Σ_s νσ_f
+φ⁰₀); the Rayleigh-quotient alternative (8)/(9) "can usually improve the efficiency"
+of PI. The k-eigenproblem handed to the eigensolver is the STANDARD problem (10)
+**Aφ = kφ on the moment vector** — the transport inverse H⁻¹ lives INSIDE the
+operator whose action each Arnoldi step computes. BCs "ignored without loss of
+generality to facilitate discussion" (so H carries no explicit −B term in print).
+The 1/k^{(ℓ)} scaling in (5) is deliberate: prevents over/underflow AND lets PI
+warm-start inners from the previous iterate (§II.E, printed 31).
+
+**The eigensolver** (§II.D, printed 29–30): IRAM as implemented in ARPACK (their
+Refs. [2] Sorensen 1992 SIAM J. Matrix Anal. Appl. 13:357; [7] Lehoucq-Sorensen-Yang
+ARPACK Users' Guide 1998). Mechanics recorded: Krylov subspace K_m(A, φ₀); Ritz
+pairs by the Galerkin condition; m×m upper-Hessenberg projection + QR; Ritz
+(backward-error) estimates for free; implicit restart = implicitly-shifted QR with
+ARPACK's exact shifts (the m − r smallest Hessenberg eigenvalues), "mathematically
+equivalent to computing a new Krylov space with a starting vector that is a linear
+combination of the r dominant Ritz vectors"; convergence rate (11) = the
+polynomial-filtered ratio (power iteration recovered at r = 1, P(x) = x; subspace
+iteration at all-zero shifts); ≡ accelerated subspace iteration [23]. Implementation
+via reverse communication, "wrapped around the existing power iteration" — the
+abstract's "only modest changes to existing power iteration coding" claim.
+
+**Stopping** (§III preamble, printed 32, verified PDF 8): ARPACK backward error (14)
+‖Ax − θx‖₂ ≤ |θ|ε via Ritz estimates; the PI-side identity (15) ‖r^{(ℓ)}‖₂ =
+|k^{(ℓ)}|·‖φ^{(ℓ+1)} − φ^{(ℓ)}‖₂ justifies the matched PI test ‖φ^{(ℓ+1)} −
+φ^{(ℓ)}‖₂ ≤ ε. ε = 10⁻⁴ (outer) for both methods; convergence is judged on the
+EIGENVECTOR. The "k only" rows of Tables IV/VI/VII (eigenvalue to 10⁻⁵ absolute)
+show the PI eigenvalue converging ~2× sooner than its eigenvector (symmetric-case
+theory: quadratic vs linear in δ [36]) — "a property the IRAM does not share"
+(printed 35).
+
+**Spectrum caveats** (printed 28–29): k real proven only for MONOenergetic SN
+(their [12] Modak-Sahni-Paranjape ANE 22:359); multigroup unproven but empirically
+the 10–20 largest eigenvalues are real across their problems; the DFEM-on-tets
+discretization DESTROYS the symmetrizability of Refs. [13–15] (Ramone-Adams-Nowak;
+Sanchez-Santandrea). Power iteration is compared UNACCELERATED because no robust
+Chebyshev parameter set could be found and simple SOR diverged (§II.C printed 29 +
+§III.B.1 printed 36) — nonsymmetry makes classical spectrum-guess acceleration
+fragile, which is itself part of the paper's robustness argument.
+
+### 8.2 The inner-solve architecture and BOTH DSA postures (§II.E + §III preamble; Tables I/II, printed 31–33, verified PDF 8–9)
+
+**Energy nesting** (§II.E, Eqs. (12)/(13), printed 30–31): split S = S_L
+(downscatter + within-group, block lower triangular) + S_U (upscatter). No upscatter
+⟹ the action of H⁻¹ = block forward substitution down the group ladder, one
+within-group transport solve per group. With upscatter ⟹ an INTERMEDIATE iteration
+level (block Gauss-Seidel — Eq. (13) is "just an outer Gauss-Seidel iteration" — or
+FGMRES(20) over the coupled thermal block; Fig. 7's 2×2 partition: forward-substitute
+the downscatter-only block, iterate the 4-group thermal block). Nesting under IRAM:
+**IRAM outermost → intermediate H⁻¹ (upscatter) → within-group inners**. Under PI the
+H⁻¹ Gauss-Seidel is what tradition calls "the outers."
+
+**The two DSA postures, side by side** (printed 32, verified verbatim + Tables I/II):
+
+- **Power-iteration arm = SI+DSA inners**: "The power iteration results are computed
+  using DSA-accelerated source iteration, and solutions from the most recent outer
+  iteration are used as initial guesses" — Table I labels the level "DSA (inner
+  acceleration)".
+- **IRAM arm = DSA-preconditioned-Krylov inners**: "The ARPACK results are computed
+  using a preconditioned Krylov method for the inner iterations, using the source
+  vector (the uncollided flux) as the initial guess [32]" — Table II labels the level
+  "DSA (inner preconditioner)". Krylov flavor: FGMRES(10) (cylinder problem) /
+  BiCGStab (MOX problem); flexible GMRES because the DSA-CG preconditioner is itself
+  an inner iteration (variable preconditioner).
+
+**Which DSA**: in BOTH postures it is "the **partially consistent, simplified DSA
+method of Wareing, Larsen, and Adams [33]**" (1991 Pittsburgh proceedings): solve a
+linear CONTINUOUS-finite-element diffusion equation by conjugate gradients, then map
+back to update the discontinuous fluxes [27, 33]. It is NOT the fully consistent
+DFEM DSA the same authors built in [27] (= Warsa-Wareing-Morel, "Fully Consistent
+Diffusion Synthetic Acceleration of Linear Discontinuous S_N Transport
+Discretizations on Unstructured Tetrahedral Meshes," NSE **141**, 236 (2002),
+verified in the reference list) — the production choice here is the cheap
+partially-consistent operator, with the degraded-effectiveness analysis delegated to
+the absent sibling [25]. Note the vocabulary: by 2004 "partially consistent" is the
+standard label (it is NOT in Adams-Martin 1992 itself — see §7.2).
+
+**Tolerance cascade** (Tables I/II, verified on the render — the text layer garbles
+the nesting):
+
+- PI (Table I): outer 10⁻⁴; inner min(10⁻², 10‖r_outer‖), floor 10⁻⁵ when
+  ‖r_outer‖ = 0; DSA 10⁻¹‖r_inner‖, floor 10⁻⁶.
+- IRAM (Table II): outer 10⁻⁴; each lower level's tolerance is
+  max(10⁻¹‖r‖, 10⁻¹ min(10⁻¹, 10⁻¹‖r‖/min(1, ‖r‖))) in the residual ‖r‖ of the level
+  above (r = r_outer for upscatter, r_o for inners, r_inner for DSA; r_o ≡ r_upscat
+  when upscatter is present else r_outer); floors when ‖r‖ = 0: upscatter 10⁻⁵,
+  inner 10⁻⁵/10⁻⁶ (without/with upscatter), DSA 10⁻⁶/10⁻⁷.
+
+This is the **BFG (Bouras-Frayssé-Giraud) inexact-matvec relaxation** [28–30], with
+Simoncini-Szyld theory [31] fixing the inverse-proportionality constant (they use
+0.1): tolerances START STRICT while the first Krylov subspace of dimension ncv is
+built, then RELAX as the outer residual falls. Architecturally this REPLACES
+warm-starting: Arnoldi basis vectors are not flux-like, so "good initial guesses are
+not available for subsequent inner iterations in the IRAM iterations" (printed 31) —
+the mirror image of PI's warm-start economics (Figs. 5 vs 6: PI inners decay to 1–2
+per outer late in the iteration; IRAM inners start expensive during subspace
+construction, then decay as tolerances relax).
+
+**Initialization**: random start; optionally init = 5 power iterations, each with a
+SINGLE inner per group — cheap, and "certainly worth the cost" (printed 33–34).
+
+### 8.3 Robustness evidence vs dominance ratio (§III; Tables IV–VII, verified PDF 8–9/11–12/14)
+
+**Cylinder family** (§III.A, printed 32–33): r = 3.5 cm × 9 cm cylinder; 5-cm B-10
+absorber sandwiched between 1-cm water and 1-cm HEU layers; vacuum everywhere;
+13,500 tets; five 0.1-cm disks beside the absorber flipped water→boron one at a time
+to break the mirror symmetry: δ = |k₂|/|k₁| ∈ {0.970, 0.977, 0.984, 0.990, 0.996,
+0.999(symmetric)}; k barely moves, the eigenvector/δ move. 5-group Hansen-Roach
+collapse (16→5, map printed 33); HEU ρ=19.0 (95/5 U-235/U-238), water, B-10 ρ=10.0;
+S4 triangular Chebyshev-Legendre; FGMRES(10) inners. Fig. 2: the two largest-δ PI
+runs fail to reach 10⁻⁴ within the 2500-iteration plot window.
+
+Table IV — outer iterations (verified; (nev, ncv, init) rows):
+
+| method | δ=0.970 | 0.977 | 0.984 | 0.990 | 0.996 | 0.999 |
+|---|---|---|---|---|---|---|
+| IRAM (1,10,0) | 20 | 20 | 20 | 20 | 20 | 20 |
+| IRAM (1,10,5) | 15 | 15 | 15 | 15 | 15 | 15 |
+| IRAM (1,5,0) | 20 | 20 | 20 | 20 | 23 | 23 |
+| IRAM (1,5,5) | 14 | 14 | 14 | 14 | 14 | 17 |
+| IRAM (2,10,0) | 18 | 18 | 18 | 25 | 26 | 26 |
+| IRAM (2,10,5) | 18 | 18 | 18 | 18 | 18 | 18 |
+| IRAM (2,5,0) | 20 | 20 | 20 | 20 | 23 | 25 |
+| IRAM (2,5,5) | 14 | 14 | 14 | 14 | 14 | 17 |
+| Power iteration | 468 | 602 | 833 | 1329 | 3170 | 8824 |
+| PI, k-only (10⁻⁵) | 229 | 287 | 388 | 586 | 1206 | 1739 |
+
+Table V — total inners (verified; sample rows): IRAM (1,5,5): 327/327/327/332/322/372;
+IRAM (1,10,0): 460/460/458/457/447/447; worst IRAM row peaks 550; **PI:
+2503/3124/4218/6691/15892/44156**. Inners are 95–99% of FLOP cost for both methods,
+so inner counts ≈ total cost; Fig. 3: IRAM is 1–2 orders of magnitude cheaper than
+unaccelerated PI, insensitive to nev/ncv. **The headline robustness fact: IRAM outer
+counts are FLAT in δ (14–26 across δ = 0.970→0.999) while PI grows ~19× — and the
+second eigenpair (nev = 2) costs almost nothing extra.**
+
+**MOX C5G7 benchmark** (§III.B, printed 35–38): the OECD/NEA C5G7 MOX 3-D spec
+(their [37], Lewis NEA/NSC/DOC(2001)17 App. C); 954,527 tets / 169,745 vertices /
+~28M DOF (serial!); 7-group transport-corrected isotropic; S4 triangular C-L;
+BiCGStab inners; reflective on the three coordinate planes, vacuum elsewhere.
+
+- Without upscatter (III.B.1, upscatter entries zeroed; δ ≈ 0.985), Table VI
+  (verified): IRAM 25–44 outers / 1050–1578 inners (best (1,10,5): 25/1050;
+  (1,5,5): 32/1132) vs PI 860/6144 (k-only 296/2196) ⟹ **IRAM ≈ 5× cheaper**; wall
+  clock ~23–34 h vs ~150 h.
+- With upscatter (III.B.2, δ ≈ 0.987), Table VII (verified): IRAM (1,5) 32 outers /
+  6011 inners / 504 Gauss-Seidel upscatter iters (FGMRES(20) upscatter variant:
+  32/6991/309; (2,10): 33/6030/483) vs PI 1144/8144 ⟹ IRAM ≈ **75% of PI cost**
+  only; wall ~143–157 h vs ~203 h. The nested upscatter level eats the advantage —
+  the conclusions' declared "significant drawback … the inability to efficiently
+  treat problems with energy upscatter" (printed 39, PDF 16).
+
+Future-work list (conclusions, printed 38–39): in-line IRAM (reuse transport data
+structures), combining Chebyshev/coarse-mesh-rebalance, shifted-inverse iteration,
+parallel P_ARPACK [38].
+
+### 8.4 What this adds to the memo (consumer: §6.6.3 k-eigenvalue coupling)
+
+1. **A linear, parameter-free k-loop that leaves DSA untouched**: the dominance-ratio
+   robustness problem is solved at the OUTER level (Arnoldi subspace, exact shifts,
+   no user-estimated spectrum parameters), fully decoupled from HOW each transport
+   application is solved. DSA remains a within-group device in EITHER posture
+   (§8.2). This is the missing third option for §6.6.3 next to (a) Alcouffe's
+   nonlinear D̂-correction lineage and (b) Gelbard-style linear DSA-eigenvalue
+   variants: (c) keep the k-loop linear-algebraic (power → Arnoldi on A = DH⁻¹F)
+   and let DSA precondition the inners.
+2. **The inner-tolerance design fact**: an Arnoldi outer forfeits warm starts;
+   the BFG relaxed-tolerance cascade (constant 0.1, strict-during-subspace-build)
+   is the published replacement, with Simoncini-Szyld backing. Any ORPHEUS
+   IRAM-style k-loop inherits this trade.
+3. **Posture pairing precedent**: PI ↔ SI+DSA(acceleration)+warm-start; Arnoldi ↔
+   DSA-preconditioned-Krylov(FGMRES/BiCGStab)+relaxed tolerances — the same pairing
+   logic as memo §4.4's "GMRES-outside-DSA" quote, now demonstrated at production
+   scale (28M DOF).
+4. **What it does NOT contain**: no Fourier/spectral analysis of DSA, no consistency
+   derivations, no degraded-DSA evidence (that is the ABSENT sibling NSE 147(2):218,
+   here cited as [25] in submitted form). Its DSA content is purely architectural
+   (which posture, which tolerances, WLA partially-consistent operator [33]).
+
+### 8.5 Notation map (Warsa et al. → ORPHEUS/memo)
+
+- Their **L** = streaming + collision + interface coupling (the sweepable block) ⟹
+  ORPHEUS L + C (BCs suppressed in their operator discussion); their **H = L − MSD**
+  = the within-group-coupled transport operator ⟹ the ORPHEUS honest A = L + C − S
+  (mod B). Their **A = DH⁻¹F** = the moment-space projection of the ORPHEUS
+  eigenvalue map K = A⁻¹F (memo §6.5 / #226 vocabulary): eigenproblem posed on
+  MOMENT vectors, not angular flux — Arnoldi storage is per-moment, not per-ordinate.
+- Their **D** (ψ → all scattering moments) and **M** (moments → angular source) are
+  the moment-projection / harmonic-lift pair of the SN scattering machinery.
+- Their fission term ((3a), verified): (1/k)χ_{g,s} Σ_{g′} νσ_{f,g′,s} φ⁰₀ — χ
+  strictly LOCAL to the emission cell, the same indexing law as the memo's sources.
+- **δ** = |k₂|/|k₁| (the text layer renders δ as "d" — OCR artifact); their ℓ = the
+  memo's outer index l.
+- "Outer" is REBOUND under IRAM: one outer = one application of A (one full H⁻¹
+  sweep-solve down the group ladder), while under PI "outer" is the classic
+  power/Gauss-Seidel step. Table headers use the IRAM sense.
+- Quadrature: triangular Chebyshev-Legendre S4; cgs units; norm (7) = fission-rate
+  norm; eigenvector-based stopping at 10⁻⁴ both methods (§8.1).
