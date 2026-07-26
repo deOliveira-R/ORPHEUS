@@ -37,7 +37,13 @@ retired — the behavioral lesson is lifted to `lessons.md`.
   LANDS a deferred capability inverts L-004 onto the stale DEFERRAL CONTRACT — the tell of a
   half-cleanup is "author patched the human-facing rst ledger, missed the machine-facing Protocol/
   public-operator docstring" (grep the deferred case's name tree-wide incl. untouched files,
-  discriminate matvec-transpose-landed vs solve-transpose-still-deferred by ARM) (L16).
+  discriminate matvec-transpose-landed vs solve-transpose-still-deferred by ARM) (L16); a
+  "generic-bound-rejects-ndarray" static hypothesis is a CONSUMER-site claim — CLI-pyright the
+  driving test before flagging, a class-generic's unpinned `V` swallows the mismatch (L17); a class
+  SPLIT (one class → base + leaves) strands an IN-DIFF docstring contradiction — the refactor ADDS a
+  corrected section but leaves the OLD intro spelling the moved methods on the old class; turn the
+  blast-radius lens INWARD, and cite the CERTAIN prose drift, not an unverified silent leaf→base xref
+  break (L18).
 
 ## 2. Active / in-flight state
 

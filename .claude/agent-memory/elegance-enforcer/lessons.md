@@ -782,3 +782,31 @@ unbounded-`Carrier` + four principled `cast()`s are a genuine stub-limitation wo
 anti-#19), not a contract-widening — THAT is the defensible verdict on a typing carve, earned by the
 production-file pyright-0 + suppression-grep, not by reading the docstring's self-description.
 (#276 A4 daggered-adjoint review, 2026-07-25.)
+
+---
+
+## L-018 -- A class SPLIT (one class → base + sibling leaves) strands an IN-DIFF docstring contradiction: the refactor ADDS a corrected section but leaves the OLD intro attributing the moved methods to the old class — turn the blast-radius lens INWARD, not only outward
+
+The A5 review (#276) split `Solution` → `SolutionBase` + {`Solution`, `AdjointSolution`}, moving the
+shared methods (`is_eigenvalue`, `dominance_ratio`, `compare`, …) DOWN to the base. My L-004/L-015
+instinct sent me hunting the blast radius in UNTOUCHED files (and I found it — a stale theory page).
+But the sharpest finding was INSIDE the edited file: A5 INSERTED a new, correct "Two discrimination
+axes" section spelling the methods `SolutionBase.is_eigenvalue`, while leaving the pre-existing intro
+paragraph 20 lines above still spelling the identical facts `Solution.is_eigenvalue` and asserting
+"one typed Solution covers both kinds." One module docstring, two spellings of one fact — the
+one-concept-one-spelling directive violated in-diff. The recurring LLM-refactor shape: an agent
+ADDS the corrected prose next to the change and never reconciles the OLDER prose that the change
+just falsified.
+
+How to apply: on any class split / method-move-to-base, after the outward `git grep`, re-read the
+EDITED file's OWN module + class docstrings top-to-bottom for a stale intro that predates the new
+section — the tell is the SAME symbol spelled two ways in one docstring (old-class vs new-base). This
+is an in-diff SHOULD-FIX (the author owns it now), not a deferral, and it is stronger than the
+untouched-file version because it is unambiguously in scope. Leg-3 sub-point that kept me honest: a
+method moved leaf→base makes `:meth:`Leaf.moved_method`` xrefs in untouched theory pages fail
+SILENTLY (Python-domain role, no `-W` without `-n`) — but I could NOT confirm resolution (not
+autodoc'd via `automodule`; solver `automodule` carries `:noindex:`; classifier down so no build).
+So I cited the PROSE drift (CERTAIN from reading) as the finding and flagged xref-resolution as
+"verify on next build," NOT as an asserted silent-break. Never upgrade an unverified xref-break to
+the finding itself; the prose inconsistency is the verified core, the xref mechanics are a
+"check-on-build" rider. (#276 A5 role-axis review, 2026-07-25.)
