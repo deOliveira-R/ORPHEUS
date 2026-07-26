@@ -194,9 +194,17 @@ coarse_xs = PetrovGalerkinFrame(EnergyGrid(coarse_groups).indicator_basis(),
   consumer (mesh-DECOUPLED — the asymmetry law). Gate: spectrum-weighted condensation rate-preservation
   + a within-group-varying-spectrum discriminator (the energy analog of P3's).
 - **P6 — eigenvalue-consistent (adjoint-weighted) homogenization — the headline PG consumer.**
-  DEPENDS on a wired **adjoint flux φ\*** (operator `.H` makes it constructible — `A_loss.H.solve(R)` —
-  but it is NOT yet a `Solution`-level capability; wire `Solution.adjoint()` / an `AdjointFlux` carrier
-  first). Then `test = φ*·1_R` (or the bilinear `φ*φ`), giving the eigenvalue-preserving Σ_R. The genuine
+  **UNBLOCKED (2026-07-26): the φ\* dependency LANDED** — the #276 adjoint completion campaign
+  merged+pushed the daggered entries (`solve_sn_adjoint` / `solve_sn_adjoint_fixed_source`) returning
+  the role-typed **`AdjointSolution`** carrier (`orpheus/sn/solution.py`; `importance` alias; the
+  forward trio structurally absent). **The ratified P6-B2 API (ruled at #276 A5, recorded on #281):
+  parameter, not sibling method** — `Solution.homogenize(coarse, *, adjoint: AdjointSolution | None
+  = None)` (same for `condense`); `None` ⇒ the Galerkin degenerate unchanged; the parameter lands
+  WITH the PG implementation + C1/C2/C3 gates in THIS phase.  Re-anchor set for the P6 session:
+  #281 (the B1–B4 breakdown + the ratified-API comment) · `p6_adjoint_verification_spec.md` §4
+  (C1/C2/C3; C2 is a convergence-ORDER claim) · ch15 `docs/theory/methods/sn/adjoint.rst`
+  (§carrier + §consumers) · the `sn-homogenization-bilinear` drafted section.  Then
+  `test = φ*·1_R` (the bilinear `φ*φ`), giving the eigenvalue-preserving Σ_R. The genuine
   `Π* ≠ R` PG instance; ships the GalerkinFrame-vs-PetrovGalerkinFrame discriminating test (a case where
   the adjoint-weighted answer ≠ the forward-weighted answer ⟹ the discipline type is load-bearing).
   Gate: k-eff preservation under coarse re-solve (≥2G heterogeneous) vs the fine reference.
