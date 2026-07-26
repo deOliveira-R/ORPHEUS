@@ -425,14 +425,44 @@ class TestSolutionCompare:
         assert diff.keff_abs is None
 
     def test_compare_cross_mesh_rejected(self) -> None:
+        """Two ``_slab_mesh()`` calls build DIFFERENT constituent objects
+        (fresh Mesh1D + Quadrature + materials each), so the phase-space
+        pairing guard (``SNMesh.is_same_phase_space``, P6 B2) rejects."""
         m1 = _slab_mesh()
         m2 = _slab_mesh()
         psi_a, phi_a, bf_a = _make_fluxes(m1)
         psi_b, phi_b, bf_b = _make_fluxes(m2)
         sol_a = Solution(angular_flux=psi_a, scalar_flux=phi_a, mesh=m1)
         sol_b = Solution(angular_flux=psi_b, scalar_flux=phi_b, mesh=m2)
-        with pytest.raises(ValueError, match="meshes differ"):
+        with pytest.raises(ValueError, match="different discrete phase space"):
             sol_a.compare(sol_b)
+
+    def test_compare_accepts_sibling_snmesh_over_same_constituents(self) -> None:
+        """The two-entry pattern (P6 B2): two ``SNMesh`` WRAPPERS built from
+        the SAME constituent objects (geometry mesh, quadrature, materials)
+        realize the same discrete phase space — ``compare`` must accept,
+        even though ``mesh_a is not mesh_b``."""
+        geometry = Mesh1D(
+            edges=np.linspace(0.0, 1.0, 5),
+            mat_ids=np.zeros(4, dtype=int),
+            coord=CoordSystem.CARTESIAN,
+            bc_left=BC("vacuum"),
+            bc_right=BC("vacuum"),
+        )
+        quad = Quadrature.gauss_legendre(n_ordinates=4)
+        materials = placeholder_materials(ng=2)
+        m1 = SNMesh(geometry, quad, materials)
+        m2 = SNMesh(geometry, quad, materials)
+        assert m1 is not m2, "the wrappers must be distinct objects"
+        assert m1.is_same_phase_space(m2), (
+            "sibling SNMesh over the same constituents must share the phase space"
+        )
+        psi_a, phi_a, _ = _make_fluxes(m1)
+        psi_b, phi_b, _ = _make_fluxes(m2)
+        sol_a = Solution(angular_flux=psi_a, scalar_flux=phi_a, mesh=m1)
+        sol_b = Solution(angular_flux=psi_b, scalar_flux=phi_b, mesh=m2)
+        diff = sol_a.compare(sol_b)           # must NOT raise
+        assert diff is not None, "compare must return a diff object"
 
 
 # ════════════════════════════════════════════════════════════════════

@@ -94,7 +94,9 @@ from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
+    from orpheus.numerics.basis.indicator_basis import IndicatorBasis
     from orpheus.numerics.frame import FrameBase
+    from orpheus.numerics.measure import DiscreteMeasure
     # ``mesh`` is typed against ``MaterialMesh`` (the method-agnostic
     # mesh+materials carrier): MaterialXSField reads ONLY MaterialMesh data
     # (``materials`` / ``mat_map`` / ``ng`` / ``spatial_shape``) — never the
@@ -382,47 +384,205 @@ class MaterialXSField:
             zero effective cross section there (the frame's Moore–Penrose Gram
             pseudo-inverse — no reaction rate to preserve).
         """
-        from orpheus.data.macro_xs.mixture import Mixture
-
-        materials = self.materials
-        ng = self.ng
-        mat_of_fine = np.asarray(self.mesh.mat_map, dtype=int).ravel()
-
-        def _gather_vector(attr: str) -> np.ndarray:
-            """Per-fine-cell view of a ``(ng,)`` Mixture channel — ``(n_fine, ng)``."""
-            return np.array([getattr(materials[m], attr) for m in mat_of_fine])
-
-        n_legendre = max(len(materials[m].SigS) for m in materials)
-
-        def _gather_legendre(order: int) -> np.ndarray:
-            """Per-fine-cell dense ``Σ_{s,ℓ}`` — ``(n_fine, ng, ng)``; zero-pad short lists."""
-            return np.array([
-                np.asarray(materials[m].SigS[order].todense())
-                if order < len(materials[m].SigS) else np.zeros((ng, ng))
-                for m in mat_of_fine
-            ])
-
         # Rate-bearing channels → the flux-weighted frame. ``project`` IS the
         # rate-preserving collapse G⁻¹M (the per-channel inline gather/collapse the
         # method body used to carry now lives here, projected as ONE field).
-        sig_t = sigma_frame.project(_gather_vector("SigT"))
-        sig_c = sigma_frame.project(_gather_vector("SigC"))
-        sig_l = sigma_frame.project(_gather_vector("SigL"))
-        sig_f = sigma_frame.project(_gather_vector("SigF"))
-        sig_p = sigma_frame.project(_gather_vector("SigP"))
-        sig_s = [sigma_frame.project(_gather_legendre(l)) for l in range(n_legendre)]
-        sig2 = sigma_frame.project(
-            np.array([np.asarray(materials[m].Sig2.todense()) for m in mat_of_fine])
-        )
+        n_legendre = self._n_legendre()
+        sig_t = sigma_frame.project(self._gather_vector("SigT"))
+        sig_c = sigma_frame.project(self._gather_vector("SigC"))
+        sig_l = sigma_frame.project(self._gather_vector("SigL"))
+        sig_f = sigma_frame.project(self._gather_vector("SigF"))
+        sig_p = sigma_frame.project(self._gather_vector("SigP"))
+        sig_s = [sigma_frame.project(self._gather_legendre(l)) for l in range(n_legendre)]
+        sig2 = sigma_frame.project(self._gather_sig2())
 
         # χ → the production-weighted frame (a different conserved rate).
-        chi = emission_frame.project(_gather_vector("chi"))
+        chi = emission_frame.project(self._gather_vector("chi"))
 
-        eg = next(iter(materials.values())).eg
+        return self._assemble_mixtures(
+            sig_t=sig_t, sig_c=sig_c, sig_l=sig_l, sig_f=sig_f, sig_p=sig_p,
+            sig_s=sig_s, sig2=sig2, chi=chi,
+        )
+
+    def project_through_bilinear(
+        self,
+        trial: "IndicatorBasis",
+        measure: "DiscreteMeasure",
+        *,
+        phi: np.ndarray,
+        phi_star: np.ndarray,
+        rho: np.ndarray,
+    ) -> dict[int, "Mixture"]:
+        r"""The eigenvalue-consistent (adjoint-weighted, P6 #281) homogenisation.
+
+        The bilinear sibling of :meth:`project_through`: collapse every channel
+        with the rule that zeroes its first-order XS-collapse worth, so the
+        coarse :math:`k` is first-order stationary in the flux shapes.  The
+        rules are the theorems of the algebra of record
+        (:mod:`orpheus.derivations.common.homogenization`); the field owns the
+        **channel → morphism taxonomy** (five morphisms here vs the forward
+        method's two):
+
+        * :math:`\Sigma_c,\Sigma_L,\Sigma_f` (response vectors) — the **pair
+          frame** (T1): test weight :math:`\varphi^*\!\odot\varphi`;
+        * :math:`\Sigma_t` (the collision channel of the pencil) — the
+          **collision frame** (T1b): test weight :math:`\rho_{i,g} = \sum_n
+          w_n\psi^*_{i,g,n}\psi_{i,g,n}` (the exact ANGULAR pairing, of which
+          :math:`\varphi^*\varphi` is the isotropic/P0 truncation);
+        * :math:`\Sigma_{s,\ell},\Sigma_{2n}` (matrices) — the **per-pair
+          collapse** (T2): weight :math:`\varphi^*_{g}\,\varphi_{g'}` (sink
+          adjoint × source flux) per :math:`(g',g)` entry;
+        * :math:`\nu\Sigma_f` — the **mixed-fold rule** (T3): numerator folded
+          by the fine emission importance :math:`\iota_i =
+          \sum_g\varphi^*_{i,g}\chi_{i,g}`, denominator by the collapsed
+          :math:`\tilde\iota_i = \sum_g\varphi^*_{i,g}\chi_{R,g}` — exact
+          TOTAL fission worth for any simplex :math:`\chi_R`;
+        * :math:`\chi` — the **canonical convex average** (T3): weights
+          :math:`\iota_i\,p_i` (adjoint-weighted emission; the geometric
+          :math:`V_i` rides the measure), a simplex by construction.
+
+        Every rule degenerates to the forward (:meth:`project_through`)
+        weighting at flat :math:`\varphi^*` / isotropic shapes — proved in the
+        derivation module, pinned by its suite.
+
+        .. warning:: **The worth-exact collapse breaks the total-XS balance
+           identity** (T4 — worth-exactness and
+           :math:`\Sigma_t = \Sigma_c+\Sigma_L+\Sigma_f+\text{rowsums}` are
+           mutually exclusive for :math:`\varphi^*\neq` const; the classical
+           reactivity-vs-rates property of bilinear-weighted constants).  Do
+           NOT ``assert_balanced`` on the returned Mixtures; the imbalance is
+           the documented price of first-order :math:`k`-stationarity, ruled
+           at the P6 open.
+
+        Parameters
+        ----------
+        trial : IndicatorBasis
+            The coarse cell-indicator trial basis (the coarse mesh yields it).
+        measure : DiscreteMeasure
+            The fine geometric volume measure ``dV`` (nodes = fine cells).
+        phi, phi_star : np.ndarray
+            The forward flux and the importance, ``(n_fine, ng)`` in the
+            measure's "ij" flat-cell order (the caller — the Solution, which
+            owns the fluxes — reshapes).
+        rho : np.ndarray
+            The angular pair weight :math:`\sum_n w_n\psi^*\psi`,
+            ``(n_fine, ng)`` in the same order.
+
+        Returns
+        -------
+        dict[int, Mixture]
+            One effective :class:`Mixture` per coarse cell.  Empty / zero-
+            weight regions collapse to zero entries (the same Moore–Penrose
+            convention as the frames' pseudo-inverse Gram).
+        """
+        from orpheus.numerics.basis import WeightedIndicatorBasis
+        from orpheus.numerics.frame import PetrovGalerkinFrame
+
+        # Frame-shaped morphisms — still genuine Petrov-Galerkin frames (the
+        # discipline type is load-bearing; the Mode-11 sentinel captures these
+        # constructions and the weights they carry).
+        pair_frame = PetrovGalerkinFrame(
+            trial, measure, WeightedIndicatorBasis(trial, phi_star * phi),
+        )
+        collision_frame = PetrovGalerkinFrame(
+            trial, measure, WeightedIndicatorBasis(trial, rho),
+        )
+
+        sig_t = collision_frame.project(self._gather_vector("SigT"))
+        sig_c = pair_frame.project(self._gather_vector("SigC"))
+        sig_l = pair_frame.project(self._gather_vector("SigL"))
+        sig_f = pair_frame.project(self._gather_vector("SigF"))
+
+        # The fission dyad (T3). ι and p are per-cell physics folds the field
+        # owns (they read the field's own channels); the caller owns only the
+        # fluxes.
+        nsf = self._gather_vector("SigP")                    # (n_fine, ng)
+        chi_fine = self._gather_vector("chi")                # (n_fine, ng)
+        iota = (phi_star * chi_fine).sum(axis=1)             # (n_fine,)
+        p = (nsf * phi).sum(axis=1)                          # (n_fine,)
+        emission_frame = PetrovGalerkinFrame(
+            trial, measure, WeightedIndicatorBasis(trial, iota * p),
+        )
+        chi = emission_frame.project(chi_fine)               # (n_coarse, ng)
+
+        # The explicit (non-frame-shaped) morphisms share the frames' own
+        # tabulation surfaces — one membership table, one volume weight.
+        membership = np.asarray(
+            trial.evaluate(measure.nodes), dtype=float,
+        ).T                                                  # (n_coarse, n_fine)
+        volumes = np.asarray(measure.weights, dtype=float)   # (n_fine,)
+        region_of_fine = np.argmax(membership, axis=0)
+
+        # νΣf mixed-fold (T3): ι-folded numerator / ι̃-folded denominator.
+        iota_tilde = (phi_star * chi[region_of_fine]).sum(axis=1)
+        num_p = np.einsum("Rn,n,ng->Rg", membership, volumes * iota, nsf * phi)
+        den_p = np.einsum("Rn,n,ng->Rg", membership, volumes * iota_tilde, phi)
+        sig_p = np.divide(num_p, den_p, out=np.zeros_like(num_p), where=den_p != 0.0)
+
+        # Matrix channels (T2): the per-pair sink×source collapse. The source
+        # flux folds into the FIELD (the scattering emission it drives); the
+        # sink adjoint is the test side; the pair denominator is the
+        # generalized Gram, Moore–Penrose-zeroed like the frames'.
+        def _per_pair(channel: np.ndarray) -> np.ndarray:
+            num = np.einsum(
+                "Rn,n,nf,nt,nft->Rft", membership, volumes, phi, phi_star, channel,
+            )
+            den = np.einsum("Rn,n,nf,nt->Rft", membership, volumes, phi, phi_star)
+            return np.divide(num, den, out=np.zeros_like(num), where=den != 0.0)
+
+        n_legendre = self._n_legendre()
+        sig_s = [_per_pair(self._gather_legendre(l)) for l in range(n_legendre)]
+        sig2 = _per_pair(self._gather_sig2())
+
+        return self._assemble_mixtures(
+            sig_t=sig_t, sig_c=sig_c, sig_l=sig_l, sig_f=sig_f, sig_p=sig_p,
+            sig_s=sig_s, sig2=sig2, chi=chi,
+        )
+
+    # ── The shared gather / assembly surface (both coarsening verbs) ──
+
+    def _mat_of_fine(self) -> np.ndarray:
+        """Material id per fine cell, ``(n_fine,)`` in "ij" flat order."""
+        return np.asarray(self.mesh.mat_map, dtype=int).ravel()
+
+    def _gather_vector(self, attr: str) -> np.ndarray:
+        """Per-fine-cell view of a ``(ng,)`` Mixture channel — ``(n_fine, ng)``."""
+        materials = self.materials
+        return np.array([getattr(materials[m], attr) for m in self._mat_of_fine()])
+
+    def _n_legendre(self) -> int:
+        return max(len(self.materials[m].SigS) for m in self.materials)
+
+    def _gather_legendre(self, order: int) -> np.ndarray:
+        """Per-fine-cell dense ``Σ_{s,ℓ}`` — ``(n_fine, ng, ng)``; zero-pad short lists."""
+        materials, ng = self.materials, self.ng
+        return np.array([
+            np.asarray(materials[m].SigS[order].todense())
+            if order < len(materials[m].SigS) else np.zeros((ng, ng))
+            for m in self._mat_of_fine()
+        ])
+
+    def _gather_sig2(self) -> np.ndarray:
+        """Per-fine-cell dense ``Σ_{2n}`` — ``(n_fine, ng, ng)``."""
+        materials = self.materials
+        return np.array([
+            np.asarray(materials[m].Sig2.todense()) for m in self._mat_of_fine()
+        ])
+
+    def _assemble_mixtures(
+        self, *, sig_t, sig_c, sig_l, sig_f, sig_p, sig_s, sig2, chi,
+    ) -> dict[int, "Mixture"]:
+        """Assemble the collapsed channels — one :class:`Mixture` per coarse cell.
+
+        Routes through the shared :meth:`Mixture.from_dense_channels` assembler
+        (the csr wrapping + eg threading lives once, in data — Cardinal Rule 2;
+        the energy verb ``Mixture.condense`` calls the SAME assembler).
+        """
+        from orpheus.data.macro_xs.mixture import Mixture
+
+        eg = next(iter(self.materials.values())).eg
+        n_legendre = len(sig_s)
         n_coarse = sig_t.shape[0]
-        # Assemble through the shared Mixture assembler (the csr wrapping + eg threading
-        # lives once, in data — Cardinal Rule 2; the energy verb Mixture.condense calls
-        # the SAME assembler).
         return {
             region: Mixture.from_dense_channels(
                 SigC=sig_c[region], SigL=sig_l[region], SigF=sig_f[region],

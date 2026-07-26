@@ -316,6 +316,8 @@ class Mixture:
         spectrum: np.ndarray,
         /,
         within_group: "WithinGroupSpectrum | None" = None,
+        *,
+        adjoint_spectrum: np.ndarray | None = None,
     ) -> "Mixture":
         r"""Collapse onto a coarse group structure, spectrum-weighted (rank-0).
 
@@ -354,13 +356,50 @@ class Mixture:
         within_group : WithinGroupSpectrum, optional
             The sub-fine-group flux model for straddle apportionment (default 1/E,
             :class:`~orpheus.data.energy_grid.InverseEnergySpectrum`).
+        adjoint_spectrum : (ng,) array, optional
+            The per-fine-group representative importance :math:`\varphi^*_g` (P6,
+            #281).  ``None`` (default) keeps the flux-weighted collapse above,
+            bit-identical.  Given, the collapse becomes the **eigenvalue-
+            consistent bilinear condensation in the Bell & Glasstone Ch. 6
+            convention** (the algebra of record, theorem T6 of
+            :mod:`orpheus.derivations.common.homogenization`; memo
+            ``p6_literature_memo.md`` Source E): plain condensed-flux carrier,
+            flux-weighted-average adjoint carrier :math:`\Psi^{\dagger}_G =
+            \langle\varphi^*\varphi\rangle_G/\Phi_G`, and
+
+            * vectors — the diagonal bilinear (B&G (6.135)):
+              :math:`\Sigma_{C,G} = \langle\varphi^*\Sigma\varphi\rangle_G/
+              \langle\varphi^*\varphi\rangle_G` (the ``average`` morphism with
+              the PAIR weight :math:`\varphi^*\!\odot\varphi`);
+            * matrices — per-block sink×source (B&G (6.136)): the sink axis
+              folds :math:`\varphi^*` and divides by :math:`\Psi^{\dagger}_G`,
+              then the source axis flux-averages — the previously weight-free
+              ``marginalize`` morphism becomes the adjoint-carried sink
+              average;
+            * fission — FACTORED (B&G (4.38)+(6.136)): :math:`\nu\Sigma_f`
+              flux-weighted, :math:`\chi^{\dagger}_G =
+              \langle\chi\varphi^*\rangle_G/\Psi^{\dagger}_G`, with the rank-1
+              rescale :math:`s=\sum_G\chi^{\dagger}_G` moved into
+              :math:`\nu\Sigma_f` so :math:`\chi_C` stays a simplex
+              (:math:`k`-invariant).
+
+            Condensed with the TRUE spectra the bilinear collapse reproduces
+            the fine :math:`k` exactly (T6a) and its spectrum-error is second
+            order (T6b, B&G (6.90)).
 
         Returns
         -------
         Mixture
-            The condensed (coarse-group) mixture. Passes :meth:`assert_balanced` when
-            this one does (every removal channel collapses with the same per-coarse-group
-            flux weight :math:`\Phi_G`).
+            The condensed (coarse-group) mixture. With ``adjoint_spectrum=None``
+            it passes :meth:`assert_balanced` when this one does (every removal
+            channel collapses with the same per-coarse-group flux weight
+            :math:`\Phi_G`).
+
+            .. warning:: The **bilinear** (``adjoint_spectrum=``) collapse
+               does NOT preserve the total-XS balance identity — the classical
+               reactivity-vs-rates property of bilinear-weighted constants
+               (theorem T4; the sink folds differ per channel).  Do not
+               ``assert_balanced`` on a bilinear-condensed mixture.
 
         Raises
         ------
@@ -389,23 +428,83 @@ class Mixture:
             """Rate-preserving flux-average G⁻¹M over the source-group axis."""
             return frame.project(np.asarray(sig, dtype=float))
 
-        def collapse_matrix(mat: csr_matrix) -> np.ndarray:
-            # sink g_to MARGINALIZED (@ T, mass), source g_from AVERAGED (project, rate).
-            sink_summed = np.asarray(mat.todense(), dtype=float) @ table
-            return average(sink_summed)
+        if adjoint_spectrum is None:
+            def collapse_matrix(mat: csr_matrix) -> np.ndarray:
+                # sink g_to MARGINALIZED (@ T, mass), source g_from AVERAGED (project, rate).
+                sink_summed = np.asarray(mat.todense(), dtype=float) @ table
+                return average(sink_summed)
+
+            return Mixture.from_dense_channels(
+                # vectors → AVERAGE (frame.project = G⁻¹M): rate-preserving flux-average.
+                SigC=average(self.SigC),
+                SigL=average(self.SigL),
+                SigF=average(self.SigF),
+                SigP=average(self.SigP),
+                SigT=average(self.SigT),
+                SigS=[collapse_matrix(s) for s in self.SigS],
+                Sig2=collapse_matrix(self.Sig2),
+                # χ → MARGINALIZE (bare @ table): a probability over birth groups, mass-
+                # preserving (Σχ=1 via the partition-of-unity rows), NOT a flux-average.
+                chi=np.asarray(self.chi) @ table,
+                eg=target.edges,
+            )
+
+        # ── The bilinear (eigenvalue-consistent) collapse — B&G Ch. 6 ──
+        phi_star = np.asarray(adjoint_spectrum, dtype=float)
+        if phi_star.shape != (self.ng,):
+            raise ValueError(
+                f"adjoint_spectrum must have shape ({self.ng},), got {phi_star.shape}."
+            )
+
+        # The pair frame realizes the diagonal bilinear (B&G 6.135): the
+        # ``average`` morphism with the PAIR test weight φ*⊙φ.
+        pair_frame = PetrovGalerkinFrame(
+            trial, source.as_measure(), WeightedIndicatorBasis(trial, phi_star * phi),
+        )
+
+        def bilinear(sig: np.ndarray) -> np.ndarray:
+            return pair_frame.project(np.asarray(sig, dtype=float))
+
+        # The adjoint carrier Ψ†_G = ⟨φ*φ⟩_G/Φ_G (B&G 6.126-6.128), with the
+        # frames' own Moore-Penrose convention on empty coarse groups.
+        pair_G = (phi_star * phi) @ table                  # ⟨φ*φ⟩_G
+        flux_G = phi @ table                               # Φ_G
+        psi_dag = np.divide(
+            pair_G, flux_G, out=np.zeros_like(pair_G), where=flux_G != 0.0,
+        )
+
+        def collapse_matrix_bilinear(mat: csr_matrix) -> np.ndarray:
+            # sink g_to: the φ*-carried average (fold φ*, divide by Ψ†_G) —
+            # the previously weight-free marginalize morphism gains the
+            # adjoint carrier (B&G 6.136); source g_from: flux-AVERAGED as
+            # always.
+            sink_folded = (np.asarray(mat.todense(), dtype=float) * phi_star) @ table
+            sink_avg = np.divide(
+                sink_folded, psi_dag,
+                out=np.zeros_like(sink_folded), where=psi_dag != 0.0,
+            )
+            return average(sink_avg)
+
+        # The factored fission pair (B&G 4.38 + 6.136): νΣf flux-weighted,
+        # χ† adjoint-contracted over Ψ†; the rank-1 rescale s keeps χ a
+        # simplex (k-invariant — the dyad's factorization freedom).
+        chi_dag = np.divide(
+            (np.asarray(self.chi) * phi_star) @ table, psi_dag,
+            out=np.zeros_like(psi_dag), where=psi_dag != 0.0,
+        )
+        s = float(chi_dag.sum())
+        chi_c = chi_dag / s if s > 0.0 else chi_dag
+        sig_p = average(self.SigP) * (s if s > 0.0 else 1.0)
 
         return Mixture.from_dense_channels(
-            # vectors → AVERAGE (frame.project = G⁻¹M): rate-preserving flux-average.
-            SigC=average(self.SigC),
-            SigL=average(self.SigL),
-            SigF=average(self.SigF),
-            SigP=average(self.SigP),
-            SigT=average(self.SigT),
-            SigS=[collapse_matrix(s) for s in self.SigS],
-            Sig2=collapse_matrix(self.Sig2),
-            # χ → MARGINALIZE (bare @ table): a probability over birth groups, mass-
-            # preserving (Σχ=1 via the partition-of-unity rows), NOT a flux-average.
-            chi=np.asarray(self.chi) @ table,
+            SigC=bilinear(self.SigC),
+            SigL=bilinear(self.SigL),
+            SigF=bilinear(self.SigF),
+            SigP=sig_p,
+            SigT=bilinear(self.SigT),
+            SigS=[collapse_matrix_bilinear(m) for m in self.SigS],
+            Sig2=collapse_matrix_bilinear(self.Sig2),
+            chi=chi_c,
             eg=target.edges,
         )
 

@@ -468,6 +468,36 @@ class SNMesh(MaterialMesh):
         """
         return self.curvature is None
 
+    def is_same_phase_space(self, other: "SNMesh") -> bool:
+        r"""True iff ``other`` realizes the SAME discrete SN phase space.
+
+        Two :class:`SNMesh` instances pose identical discrete problems when
+        they were built from the same CONSTITUENT OBJECTS — the geometry
+        mesh, the angular quadrature, the materials dict (all ``is``
+        identity — the tier that guarantees bit-identical re-derivation of
+        the data block, per :meth:`from_material_mesh`'s contract) — with
+        the same discretization-scheme TYPE.  This is the pairing guard for
+        consumers that combine fields from TWO solutions (the P6 #281
+        adjoint-weighted collapse, :meth:`SolutionBase.compare
+        <orpheus.sn.solution.SolutionBase.compare>`): a forward and an
+        adjoint solve share the constituents when the caller passes the
+        same ``(materials, mesh, quadrature)`` to both entries, even though
+        each entry constructs its own ``SNMesh`` wrapper.
+
+        Deliberately CONSTITUENT-identity, not value-equality: two
+        equal-shaped meshes built from different edge arrays are different
+        problems as far as this predicate can prove — the L29 discipline
+        (never relax an invariant to a weaker downstream check) keeps the
+        strong tier; callers wanting cross-problem comparisons must
+        construct shared constituents.
+        """
+        return self is other or (
+            self.mesh is other.mesh
+            and self.quad is other.quad
+            and self.materials is other.materials
+            and type(self.scheme) is type(other.scheme)
+        )
+
     def streaming(self, axis: int) -> np.ndarray:
         r"""Per-axis RAW down-face streaming ``g = |μ_axis|·A_down/V = |μ_axis|/Δ_axis``, ``(N, n_axis)``.
 

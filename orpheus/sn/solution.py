@@ -56,14 +56,16 @@ axes deliberately use DIFFERENT mechanisms:
   homogenization/condensation collapse cross sections *preserving
   reaction rates*, an operation ON the forward flux; the adjoint enters
   only as the Petrov-Galerkin test weight that refines the collapse
-  (the ratified #281 P6-B2 parameter ``adjoint: AdjointSolution | None``),
-  never as its subject.  The type split makes the wrong physics
-  UNSPELLABLE — an :class:`AdjointSolution` has no ``homogenize``
-  attribute at all (structural absence, not a runtime refusal) — and
-  gives the forthcoming adjoint machinery family (perturbation theory
-  :math:`\langle\varphi^*, \delta A\, \varphi\rangle`, generalized
-  perturbation / response estimation, #281 adjoint-weighted
-  homogenization) its signature-level carrier.
+  (the #281 P6-B2 parameter ``adjoint: AdjointSolution | None`` —
+  LANDED, with the worth-zeroing taxonomy of
+  :mod:`orpheus.derivations.common.homogenization`), never as its
+  subject.  The type split makes the wrong physics UNSPELLABLE — an
+  :class:`AdjointSolution` has no ``homogenize`` attribute at all
+  (structural absence, not a runtime refusal) — and gives the adjoint
+  machinery family (the landed adjoint-weighted collapse; perturbation
+  theory :math:`\langle\varphi^*, \delta A\, \varphi\rangle` and
+  generalized perturbation / response estimation to come) its
+  signature-level carrier.
 
 Mesh-binding consistency
 ========================
@@ -85,7 +87,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from .mesh.augmented_mesh import SNMesh
-    from orpheus.data.energy_grid import EnergyGrid
+    from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.geometry import Mesh1D, Mesh2D
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -428,11 +430,12 @@ class SolutionBase:
                 "same-role comparison only (the Self-typed contract, "
                 "enforced at runtime for untyped callers)."
             )
-        if self.mesh is not other.mesh:
+        if not self.mesh.is_same_phase_space(other.mesh):
             raise ValueError(
-                f"{type(self).__name__}.compare: meshes differ — "
-                "cross-mesh comparison is not defined under the "
-                "typed-field contract."
+                f"{type(self).__name__}.compare: the solutions realize "
+                "different discrete phase spaces — comparison is defined "
+                "only across solves sharing the same constituents (see "
+                "SNMesh.is_same_phase_space)."
             )
 
         if self.keff is not None and other.keff is not None:
@@ -482,12 +485,13 @@ class Solution(SolutionBase):
     ``SNFixedSourceResult`` / ``SNResult`` pair).
 
     The adjoint-weighted refinement of :meth:`homogenize` /
-    :meth:`condense` is the ratified #281 (P6-B2) API: an optional
-    keyword ``adjoint: AdjointSolution | None = None`` — ``None`` keeps
-    today's flux-weighted (Galerkin, :math:`\varphi^* = \phi`
-    degenerate) collapse.  The parameter lands WITH its Petrov-Galerkin
-    implementation and gates in P6, so no advertised-but-unwired arm
-    exists in between.
+    :meth:`condense` is the ratified #281 (P6-B2) API, **landed**: an
+    optional keyword ``adjoint: AdjointSolution | None = None`` — ``None``
+    keeps today's flux-weighted (Galerkin, :math:`\varphi^* = \phi`
+    degenerate) collapse bit-identically; a real importance makes the
+    collapse eigenvalue-consistent per the worth-zeroing taxonomy of
+    :mod:`orpheus.derivations.common.homogenization` (spatial T1/T1b/T2/T3;
+    energy = the B&G-convention bilinear, T6).
 
     Examples
     --------
@@ -529,7 +533,12 @@ class Solution(SolutionBase):
 
     # ── Spatial homogenization (a domain operation on the solution) ──
 
-    def homogenize(self, coarse: "Mesh1D | Mesh2D") -> "MaterialMesh":
+    def homogenize(
+        self,
+        coarse: "Mesh1D | Mesh2D",
+        *,
+        adjoint: "AdjointSolution | None" = None,
+    ) -> "MaterialMesh":
         r"""Flux·volume-weighted spatial homogenization onto a coarse mesh.
 
         Collapse this (fine) solution's per-cell cross sections onto the
@@ -566,6 +575,31 @@ class Solution(SolutionBase):
         + \Sigma_f + \mathrm{rowsum}(\Sigma_{s0}) + \mathrm{rowsum}(\Sigma_{2n})`
         is preserved cell-by-cell when the fine materials balance.
 
+        With ``adjoint=`` (P6, #281) the collapse becomes **eigenvalue-
+        consistent**: every channel takes the worth-zeroing rule of the
+        algebra of record (:mod:`orpheus.derivations.common.homogenization`),
+        so the coarse :math:`k` is first-order stationary in the flux shapes —
+        the vector channels take the bilinear
+
+        .. math::
+
+            \Sigma_{R,g} \;=\;
+            \frac{\sum_{i \in R} V_i\,\varphi^*_{i,g}\,\Sigma_{i,g}\,\varphi_{i,g}}
+                 {\sum_{i \in R} V_i\,\varphi^*_{i,g}\,\varphi_{i,g}}
+
+        (:eq:`sn-homogenization-adjoint-weighted` — the test weight is the
+        PRODUCT :math:`\varphi^*\!\odot\varphi`, the Petrov-Galerkin lift the
+        forward call is the :math:`\varphi^*{=}\,\text{flat}` degenerate of);
+        :math:`\Sigma_t` takes the exact ANGULAR pairing, the matrices the
+        per-pair sink×source rule, and the fission dyad the mixed-fold
+        factored rule — the full taxonomy and its theorems live on
+        :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.project_through_bilinear`.
+
+        .. warning:: An adjoint-weighted (worth-exact) collapse **breaks the
+           total-XS balance identity** (the classical reactivity-vs-rates
+           property; theorem T4).  Do NOT ``assert_balanced`` on the returned
+           materials when ``adjoint`` was given.
+
         Parameters
         ----------
         coarse : Mesh1D or Mesh2D
@@ -575,6 +609,12 @@ class Solution(SolutionBase):
             cell is a contiguous union of fine cells).  Its own ``mat_ids`` /
             ``mat_map`` are ignored — homogenization assigns one fresh
             effective material per coarse cell.
+        adjoint : AdjointSolution, optional
+            The importance solution :math:`\psi^*` from
+            :func:`~orpheus.sn.solver.solve_sn_adjoint` on the SAME mesh
+            object (identity-checked).  ``None`` (default) keeps the forward
+            flux-weighted (Galerkin-degenerate) collapse, bit-identical to
+            the pre-P6 behaviour.
 
         Returns
         -------
@@ -622,41 +662,80 @@ class Solution(SolutionBase):
                     f"[{coarse_edges[0]}, {coarse_edges[-1]}]."
                 )
 
-        # The two Petrov-Galerkin homogenisation frames. Trial = the coarse cell
-        # indicators (the mesh YIELDS them); measure = the fine geometric volume
-        # measure dV. The solution-weighting rides the TEST side (the frame TYPE),
-        # NEVER folded into the measure: the measure carries the axis + the fixed L²
-        # metric, the flux is a test-weighting the solution emits. The two collapses
-        # preserve two different conserved rates — Σ preserves the reaction rate
-        # (flux-weighted test φ·1_R), χ preserves the emission rate (production-
-        # weighted test p·1_R) — so each is its own frame. Both are the Galerkin
-        # degenerate (φ*=φ) of the eigenvalue-consistent adjoint-weighted (φ*≠φ)
-        # homogenisation; ``project`` is G⁻¹M with a diagonal (disjoint-indicator)
-        # Gram, whose Moore–Penrose pseudo-inverse zeroes empty / zero-flux regions.
         measure = fine.volume_measure
         ng = fine.ng
         # (ng, *spatial) → (n_fine, ng) in the "ij"/C flat-cell order the measure
         # nodes and ``mat_map.ravel()`` share (1-D: a plain transpose; n-D: the
         # spatial axes collapse to one fine-cell axis).
         phi = np.asarray(self.scalar_flux.values, dtype=float).reshape(ng, -1).T
-        sigma_frame = PetrovGalerkinFrame(
-            trial, measure, WeightedIndicatorBasis(trial, phi),
-        )
 
-        mat_of_fine = np.asarray(fine.mat_map, dtype=int).ravel()      # (n_fine,)
-        nu_sigma_f = np.array(
-            [fine.materials[m].SigP for m in mat_of_fine]              # (n_fine, ng)
-        )
-        production = (nu_sigma_f * phi).sum(axis=1)                    # p_i, (n_fine,)
-        emission_frame = PetrovGalerkinFrame(
-            trial, measure, WeightedIndicatorBasis(trial, production),
-        )
+        if adjoint is None:
+            # The two forward Petrov-Galerkin homogenisation frames. Trial = the
+            # coarse cell indicators (the mesh YIELDS them); measure = the fine
+            # geometric volume measure dV. The solution-weighting rides the TEST
+            # side (the frame TYPE), NEVER folded into the measure: the measure
+            # carries the axis + the fixed L² metric, the flux is a test-weighting
+            # the solution emits. The two collapses preserve two different
+            # conserved rates — Σ preserves the reaction rate (flux-weighted test
+            # φ·1_R), χ preserves the emission rate (production-weighted test
+            # p·1_R) — so each is its own frame. Both are the flat-φ* degenerate
+            # of the eigenvalue-consistent adjoint-weighted (φ*≠φ) collapse below;
+            # ``project`` is G⁻¹M with a diagonal (disjoint-indicator) Gram, whose
+            # Moore–Penrose pseudo-inverse zeroes empty / zero-flux regions.
+            sigma_frame = PetrovGalerkinFrame(
+                trial, measure, WeightedIndicatorBasis(trial, phi),
+            )
 
-        # Project the WHOLE cross-section field as one object: the field owns the
-        # channel → weighting taxonomy and routes Σ → sigma_frame, χ → emission_frame.
-        homogenized = MaterialXSField.from_mesh(fine).project_through(
-            sigma_frame, emission_frame,
-        )
+            mat_of_fine = np.asarray(fine.mat_map, dtype=int).ravel()  # (n_fine,)
+            nu_sigma_f = np.array(
+                [fine.materials[m].SigP for m in mat_of_fine]          # (n_fine, ng)
+            )
+            production = (nu_sigma_f * phi).sum(axis=1)                # p_i, (n_fine,)
+            emission_frame = PetrovGalerkinFrame(
+                trial, measure, WeightedIndicatorBasis(trial, production),
+            )
+
+            # Project the WHOLE cross-section field as one object: the field owns
+            # the channel → weighting taxonomy and routes Σ → sigma_frame,
+            # χ → emission_frame.
+            homogenized = MaterialXSField.from_mesh(fine).project_through(
+                sigma_frame, emission_frame,
+            )
+        else:
+            # The eigenvalue-consistent arm (P6 #281). The role is a TYPE: only
+            # an AdjointSolution can weight the test side (a forward Solution
+            # here would silently compute the wrong physics), and the mesh must
+            # be the SAME OBJECT (the σ↔geometry pairing tier — identity
+            # guarantees shape AND the shared "ij" flat order).
+            if not isinstance(adjoint, AdjointSolution):
+                raise TypeError(
+                    f"Solution.homogenize: adjoint must be an AdjointSolution "
+                    f"(the importance is the test weight, never a forward flux); "
+                    f"got {type(adjoint).__name__}."
+                )
+            if not fine.is_same_phase_space(adjoint.mesh):
+                raise ValueError(
+                    "Solution.homogenize: adjoint solves a different discrete "
+                    "phase space — the importance must come from an adjoint "
+                    "solve sharing this solution's constituents (same geometry "
+                    "mesh, quadrature, and materials OBJECTS, same scheme; see "
+                    "SNMesh.is_same_phase_space)."
+                )
+            phi_star = np.asarray(
+                adjoint.scalar_flux.values, dtype=float,
+            ).reshape(ng, -1).T
+            # The exact collision pairing ρ_{i,g} = Σ_n w_n ψ*ψ (T1b — the
+            # user-ruled angular rule; both solutions carry ψ).
+            w = np.asarray(fine.quad.weights, dtype=float)             # (N,)
+            psi = np.asarray(self.angular_flux.interior.values, dtype=float)
+            psi_star = np.asarray(adjoint.angular_flux.interior.values, dtype=float)
+            rho = np.einsum("n,n...->...", w, psi_star * psi)          # (ng, *spatial)
+            rho = rho.reshape(ng, -1).T                                # (n_fine, ng)
+
+            # The field owns the five-morphism bilinear taxonomy (T1/T1b/T2/T3).
+            homogenized = MaterialXSField.from_mesh(fine).project_through_bilinear(
+                trial, measure, phi=phi, phi_star=phi_star, rho=rho,
+            )
 
         # The coarse geometry with each cell relabelled to its own material id
         # (dimension-agnostic — no Mesh1D/Mesh2D reconstruction branch), carrying the
@@ -665,7 +744,13 @@ class Solution(SolutionBase):
 
     # ── Energy condensation (the energy-axis transpose of homogenize) ──
 
-    def condense(self, coarse: "EnergyGrid") -> dict[int, "Mixture"]:
+    def condense(
+        self,
+        coarse: "EnergyGrid",
+        *,
+        adjoint: "AdjointSolution | None" = None,
+        within_group: "WithinGroupSpectrum | None" = None,
+    ) -> dict[int, "Mixture"]:
         r"""Spectrum-weighted energy condensation onto a coarse group structure.
 
         Collapse this solution's per-material cross sections from the fine
@@ -694,6 +779,25 @@ class Solution(SolutionBase):
             groups than the fine structure — condensation only downsamples, see
             the upscaling guard in
             :meth:`~orpheus.data.energy_grid.EnergyGrid.overlap_to`).
+        adjoint : AdjointSolution, optional
+            The importance solution from
+            :func:`~orpheus.sn.solver.solve_sn_adjoint` on the same discrete
+            phase space (guarded via
+            :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.is_same_phase_space`).
+            ``None`` (default) keeps the flux-weighted collapse, bit-identical.
+            Given, each material condenses with its representative SPECTRUM
+            PAIR :math:`(\varphi^{(m)}, \varphi^{*(m)})` (the same flux·volume
+            reduction applied to both solutions) through the **bilinear
+            (eigenvalue-consistent) B&G-convention collapse** — see
+            :meth:`Mixture.condense <orpheus.data.macro_xs.mixture.Mixture.condense>`
+            (``adjoint_spectrum=``) and theorem T6 of
+            :mod:`orpheus.derivations.common.homogenization`.  The bilinear
+            constants do NOT satisfy the total-XS balance identity (the
+            classical reactivity-vs-rates trade-off, T4) — do not
+            ``assert_balanced`` on them.
+        within_group : WithinGroupSpectrum, optional
+            The sub-fine-group flux model for straddle apportionment, threaded
+            through to :meth:`Mixture.condense` (default 1/E).
 
         Returns
         -------
@@ -725,6 +829,27 @@ class Solution(SolutionBase):
         volume = np.asarray(fine.volume_measure.weights, dtype=float)   # (n_cells,)
         mat_of_cell = np.asarray(fine.mat_map, dtype=int).ravel()       # (n_cells,)
 
+        phi_star = None
+        if adjoint is not None:
+            # The role is a TYPE and the problems must match (same guards as
+            # the homogenize adjoint arm).
+            if not isinstance(adjoint, AdjointSolution):
+                raise TypeError(
+                    f"Solution.condense: adjoint must be an AdjointSolution "
+                    f"(the importance is the test weight, never a forward "
+                    f"flux); got {type(adjoint).__name__}."
+                )
+            if not fine.is_same_phase_space(adjoint.mesh):
+                raise ValueError(
+                    "Solution.condense: adjoint solves a different discrete "
+                    "phase space — the importance must come from an adjoint "
+                    "solve sharing this solution's constituents (see "
+                    "SNMesh.is_same_phase_space)."
+                )
+            phi_star = np.asarray(
+                adjoint.scalar_flux.values, dtype=float,
+            ).reshape(ng, -1).T
+
         condensed: dict[int, "Mixture"] = {}
         for mat_id, material in fine.materials.items():
             if material.eg is None:
@@ -735,7 +860,15 @@ class Solution(SolutionBase):
             cells = mat_of_cell == mat_id
             # representative spectrum: flux·volume-weighted over the material's cells
             spectrum = (volume[cells, None] * phi[cells]).sum(axis=0)   # (ng,)
-            condensed[mat_id] = material.condense(coarse, spectrum)
+            if phi_star is None:
+                condensed[mat_id] = material.condense(coarse, spectrum, within_group)
+            else:
+                # The representative PAIR: the same reduction on the importance.
+                adjoint_spectrum = (volume[cells, None] * phi_star[cells]).sum(axis=0)
+                condensed[mat_id] = material.condense(
+                    coarse, spectrum, within_group,
+                    adjoint_spectrum=adjoint_spectrum,
+                )
         return condensed
 
 
@@ -768,8 +901,8 @@ class AdjointSolution(SolutionBase):
     preserve reaction rates — an importance map has no reaction rate to
     preserve.  The adjoint enters homogenization/condensation as the
     OPTIONAL TEST WEIGHT of the FORWARD collapse
-    (``Solution.homogenize(..., adjoint=...)`` — the ratified #281
-    P6-B2 parameter), never as its subject.  The absence is structural
+    (``Solution.homogenize(..., adjoint=...)`` — the #281 P6-B2
+    parameter, landed), never as its subject.  The absence is structural
     (no attribute exists), so the wrong physics cannot be spelled
     (``coding-elegance`` Pattern 4).
     """

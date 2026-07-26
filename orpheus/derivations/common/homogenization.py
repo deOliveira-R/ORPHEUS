@@ -110,23 +110,21 @@ The energy axis (T6): condensation is pure projection
 =====================================================
 
 Energy condensation has NO streaming carve (streaming does not couple
-groups): the coarse pencil can be an EXACT left-diagonal rescaling of the
+groups): the coarse pencil is an EXACT left-diagonal rescaling of the
 Petrov-Galerkin projection of the fine pencil (test
 :math:`\varphi^*\cdot\mathbf 1_G`, trial :math:`\varphi\cdot\mathbf 1_{G'}`)
-— so with the *consistent-denominator* convention the condensed pencil
-reproduces the fine :math:`k` EXACTLY when condensed with the true spectra
-(T6a), and the error under a perturbed spectrum is second-order for the
-bilinear rules vs first-order for the forward rules (T6b — the C2 basis on
-the energy axis).  The exactness selects the denominators: every channel of
-row :math:`G` divides by the same pairing so that ONE coarse flux vector
-satisfies all rows.  On the energy axis the block pair weight is separable
-(:math:`\sum_{g\in G,g'\in G'}\varphi^*_g\varphi_{g'} =
-\Phi^*_G\,\Phi_{G'}`), which is what makes the exact convention available —
-and it makes the condensed fission dyad exactly rank-1 (the factored form
-survives condensation, unlike the spatial axis).  The two vector-rule
-conventions (diagonal-pair bilinear vs separable-denominator) and the
-coarse-flux normalization they imply are adjudicated by T6 and reconciled
-against the classical literature (`.claude/plans/p6_literature_memo.md`).
+under a carrier-CONSISTENT convention — and the convention is **Bell &
+Glasstone Ch. 6** (reconciled 2026-07-26, memo Source E): plain condensed
+flux carrier (B&G (6.125)), flux-weighted-average adjoint carrier
+:math:`\Psi^{\dagger}_G = \langle\varphi^*\varphi\rangle_G/\Phi_G`
+((6.126)–(6.128)), diagonal-bilinear vector constants ((6.135)), per-block
+sink×source matrix constants ((6.136)), factored fission with the simplex
+rescale.  T6a proves the condensed :math:`k` exact at the true spectra;
+T6r proves the row-scaling freedom (why :math:`k` alone cannot pin the
+constants — the classical normalization does); T6c proves carrier
+consistency is load-bearing (mixing folds loses exactness); T6b proves
+the second-order-vs-first-order spectrum-error gap (B&G (6.90)) — the C2
+basis, exact on the energy axis.
 
 Verification discipline
 =======================
@@ -978,62 +976,63 @@ def derive_forward_rule_first_order_error() -> None:
 # ═══════════════════════════════════════════════════════════════════════
 
 def derive_energy_condensation_exactness() -> None:
-    r"""T6: consistent-denominator bilinear condensation reproduces k EXACTLY.
+    r"""T6: bilinear condensation in the B&G convention reproduces k EXACTLY.
 
     0-D ∞-medium pencil, 4 fine groups → 2 coarse (blocks {0,1}, {2,3}),
     generic rational data (asymmetric :math:`\Sigma_s` with upscatter,
-    :math:`\chi\not\parallel\nu\Sigma_f`).  With the fine solution pair
-    :math:`\varphi = A^{-1}\chi` (up to scale), :math:`\varphi^* =
-    A^{-\mathsf T}\nu\Sigma_f`, and :math:`k = \nu\Sigma_f^{\mathsf T}
-    A^{-1}\chi` (rank-1 fission), condense with the CONSISTENT-DENOMINATOR
-    convention — every channel of coarse row :math:`G` divides by the same
-    :math:`\Phi^*_G` fold so the coarse system is a left-diagonal rescaling
-    of the Petrov-Galerkin projection of the fine pencil (test
-    :math:`\varphi^*\mathbf 1_G`, trial :math:`\varphi\mathbf 1_{G'}`).
-    With the PLAIN condensed flux :math:`\Phi_G = \sum_{g\in G}\varphi_g`
-    as the coarse carrier, the row-consistent constants are bilinear
-    numerators over the row-uniform denominator
-    :math:`\Phi^*_G \times (\text{trial fold})`:
+    :math:`\chi\not\parallel\nu\Sigma_f`).  Fine pair :math:`\varphi =
+    A^{-1}\chi`, :math:`\varphi^* = A^{-\mathsf T}\nu\Sigma_f`, :math:`k =
+    \nu\Sigma_f^{\mathsf T} A^{-1}\chi` (rank-1 fission).
+
+    **The convention is Bell & Glasstone Ch. 6** (reconciled 2026-07-26;
+    `.claude/plans/p6_literature_memo.md` Source E): coarse FLUX carrier =
+    the plain condensed flux :math:`\Phi_G = \sum_{g\in G}\varphi_g`
+    (B&G (6.125)); coarse ADJOINT carrier = the flux-weighted average
+    :math:`\Psi^{\dagger}_G = \langle\varphi^*\varphi\rangle_G/\Phi_G`
+    (B&G (6.126)–(6.128)); constants = the bilinear group constants
+    (B&G (6.135)/(6.136)), spelled discrete and unnormalized as
 
     .. math::
 
-        \Sigma_{t,C,G}
-          = \frac{\sum_{g\in G}\varphi^*_g\Sigma_{t,g}\varphi_g}
-                 {\Phi^*_G\,\Phi_G},
+        \Sigma_{C,G}
+          = \frac{\langle\varphi^*\Sigma\varphi\rangle_G}
+                 {\langle\varphi^*\varphi\rangle_G},
         \qquad
         \Sigma_{s,C}[G'\!\to\!G]
           = \frac{\sum_{g'\in G'}\sum_{g\in G}
                   \varphi^*_g\,\Sigma_s[g'\!\to\!g]\,\varphi_{g'}}
-                 {\Phi^*_G\,\Phi_{G'}} .
+                 {\Phi_{G'}\;\Psi^{\dagger}_G},
 
-    (The classical DIAGONAL-pair vector bilinear
-    :math:`\langle\varphi^*\Sigma\varphi\rangle_G/\langle\varphi^*\varphi\rangle_G`
-    is row-consistent with a DIFFERENT coarse carrier — the
-    bilinear-weighted flux :math:`\tilde\Phi_G =
-    \langle\varphi^*\varphi\rangle_G/\Phi^*_G`; each convention pair is
-    exact with ITS OWN carrier, and mixing them is not (T6c).  Which pair
-    is the classical prescription — and which carrier the re-solved coarse
-    flux should MEAN — is the literature-reconciliation + user-checkpoint
-    item.)  Then:
+    fission FACTORED (B&G (4.38)+(6.136), separable kernel):
+    :math:`\nu\Sigma_{f,C,G'} = \langle\nu\Sigma_f\varphi\rangle_{G'}/
+    \Phi_{G'}` (flux-weighted) and :math:`\chi^{\dagger}_G =
+    \langle\chi\varphi^*\rangle_G/\Psi^{\dagger}_G`, with the rank-1
+    rescale :math:`s = \sum_G\chi^{\dagger}_G` moved into
+    :math:`\nu\Sigma_{f,C}` so :math:`\chi_C` is a simplex (the Mixture
+    law; :math:`k`-invariant).  Every channel of coarse row :math:`G` then
+    divides by the same fold :math:`\Psi^{\dagger}_G`, so the coarse system
+    is a left-diagonal rescaling of the Petrov-Galerkin projection of the
+    fine pencil (test :math:`\varphi^*\mathbf 1_G`, trial
+    :math:`\varphi\mathbf 1_{G'}`) evaluated at the plain carrier:
 
-    * **T6a** — the condensed pencil's dominant eigenvalue equals the fine
-      :math:`k` EXACTLY (rational arithmetic, zero error), and the
-      condensed fission dyad is exactly rank-1 (the factored
-      :math:`(\chi_C, \nu\Sigma_{f,C})` survives condensation — unlike the
-      spatial axis, T3).
-    * **T6b** — condensing with a PERTURBED spectrum pair
-      (:math:`\varphi(1+\varepsilon h)`) leaves
+    * **T6a** — the condensed pencil's :math:`k` equals the fine :math:`k`
+      EXACTLY (rational identity; the factored fission survives
+      condensation — unlike the spatial axis, T3).
+    * **T6r** — row-scaling freedom: rescaling every channel of a coarse
+      row by a common factor preserves the pencil's spectrum, so
+      :math:`k`-exactness alone CANNOT pin the constants' values — an
+      entire family of row-consistent conventions is exact.  What pins
+      them is the classical carrier normalization (B&G (6.125)/(6.126));
+      the Mode-12 lens, one level up.
+    * **T6c** — MIXING carriers (the diagonal bilinear vector rule paired
+      with a plain-sum adjoint fold in the matrix denominators) is NOT
+      row-consistent and loses exactness — carrier consistency is
+      load-bearing, not cosmetic.
+    * **T6b** — condensing with a PERTURBED spectrum pair leaves
       :math:`k_C(\varepsilon) - k = \mathcal O(\varepsilon^2)` for the
-      bilinear convention vs :math:`\mathcal O(\varepsilon)` for the
-      forward (flux-only) rules — the C2 comparative basis, exact on the
-      energy axis.
-
-    The DIAGONAL-pair vector bilinear (T1's spatial form) does NOT sit in a
-    consistent row convention on the energy axis (T6c shows its k residual
-    is nonzero at the true spectra): the energy-axis vector rule is the
-    row-consistent one.  This is the convention the literature memo must
-    reconcile (the classical "bilinear-weighted constants come with a
-    bilinear-weighted coarse flux" subtlety).
+      bilinear convention (B&G (6.90): the flux-only error term is *first*
+      order) vs :math:`\mathcal O(\varepsilon)` for the forward rules —
+      the C2 comparative basis, exact on the energy axis.
     """
     print("=" * 68)
     print("T6. Energy condensation — exact projection (consistent denominators)")
@@ -1059,13 +1058,13 @@ def derive_energy_condensation_exactness() -> None:
     print(f"  fine k = {k_fine}")
 
     def condense(phi_v: sp.Matrix, phis_v: sp.Matrix) -> tuple[sp.Matrix, sp.Matrix, sp.Matrix, sp.Matrix]:
-        """Row-consistent bilinear condensation → (Σt_C, Σs_C, νΣf_C, χ_C)."""
+        """B&G-convention bilinear condensation → (Σt_C, Σs_C, νΣf_C, χ_C)."""
         Phi = [sum(phi_v[g] for g in blk) for blk in blocks]
-        Phis = [sum(phis_v[g] for g in blk) for blk in blocks]
+        pair = [sum(phis_v[g] * phi_v[g] for g in blk) for blk in blocks]
+        psi_dag = [pair[G] / Phi[G] for G in range(2)]        # Ψ†_G (B&G 6.126-6.128)
         sig_t_C = sp.Matrix([
-            sum(phis_v[g] * sig_t[g] * phi_v[g] for g in blocks[G])
-            / (Phis[G] * Phi[G])
-            for G in range(2)
+            sum(phis_v[g] * sig_t[g] * phi_v[g] for g in blocks[G]) / pair[G]
+            for G in range(2)                                  # B&G (6.135)
         ])
         sig_s_C = sp.zeros(2, 2)
         for Gf in range(2):
@@ -1074,17 +1073,17 @@ def derive_energy_condensation_exactness() -> None:
                     phis_v[g] * sig_s[gp, g] * phi_v[gp]
                     for gp in blocks[Gf] for g in blocks[Gt]
                 )
-                sig_s_C[Gf, Gt] = num / (Phis[Gt] * Phi[Gf])
+                sig_s_C[Gf, Gt] = num / (Phi[Gf] * psi_dag[Gt])  # B&G (6.136)
         nsf_C = sp.Matrix([
             sum(nsf[gp] * phi_v[gp] for gp in blocks[Gf]) / Phi[Gf]
-            for Gf in range(2)
+            for Gf in range(2)                                 # flux-weighted (B&G 4.38+6.136)
         ])
-        chi_raw = [
-            sum(phis_v[g] * chi[g] for g in blocks[Gt]) / Phis[Gt]
-            for Gt in range(2)
+        chi_dag = [
+            sum(phis_v[g] * chi[g] for g in blocks[Gt]) / psi_dag[Gt]
+            for Gt in range(2)                                 # adjoint-contracted emission
         ]
-        s = chi_raw[0] + chi_raw[1]
-        chi_C = sp.Matrix([chi_raw[0] / s, chi_raw[1] / s])   # simplex WLOG
+        s = chi_dag[0] + chi_dag[1]
+        chi_C = sp.Matrix([chi_dag[0] / s, chi_dag[1] / s])   # simplex (Mixture law)
         nsf_C = nsf_C * s                                     # rank-1 rescale freedom
         return sig_t_C, sig_s_C, nsf_C, chi_C
 
@@ -1094,23 +1093,41 @@ def derive_energy_condensation_exactness() -> None:
         return (nsf_C.T * A_C.solve(chi_C))[0, 0]
 
     # T6a — exactness at the true spectra (+ rank-1 fission survives).
-    k_C = coarse_k(condense(phi_f, phis_f))
-    _is_zero(k_C - k_fine, "T6a: bilinear condensation is not exact at the true spectra")
-    print("  ✓ T6a: k_C == k_fine EXACTLY (rational identity; rank-1 fission survives)")
-
-    # T6c — the DIAGONAL-pair vector rule breaks row consistency on this axis.
-    def condense_diag_sig_t(phi_v: sp.Matrix, phis_v: sp.Matrix) -> sp.Matrix:
-        return sp.Matrix([
-            sum(phis_v[g] * sig_t[g] * phi_v[g] for g in blocks[G])
-            / sum(phis_v[g] * phi_v[g] for g in blocks[G])
-            for G in range(2)
-        ])
-
     parts = condense(phi_f, phis_f)
-    diag_parts = (condense_diag_sig_t(phi_f, phis_f), parts[1], parts[2], parts[3])
-    k_diag = coarse_k(diag_parts)
-    _is_nonzero(k_diag - k_fine, "T6c: diagonal-pair Σt accidentally exact")
-    print(f"  ✓ T6c: diagonal-pair Σt convention: k residual = {sp.nsimplify(k_diag - k_fine)} ≠ 0")
+    k_C = coarse_k(parts)
+    _is_zero(k_C - k_fine, "T6a: B&G bilinear condensation is not exact at the true spectra")
+    print("  ✓ T6a: k_C == k_fine EXACTLY (B&G convention; rank-1 fission survives)")
+
+    # T6r — row-scaling freedom: a common per-row rescale of every channel
+    # preserves the pencil spectrum, so k cannot pin the constants' values;
+    # the classical carrier normalization does.
+    c_row = sp.Rational(7, 3)
+    sig_t_r = sp.Matrix([parts[0][0] * c_row, parts[0][1]])
+    sig_s_r = parts[1].copy()
+    for Gf in range(2):
+        sig_s_r[Gf, 0] = sig_s_r[Gf, 0] * c_row               # sink-row 0 rescale
+    chi_r = sp.Matrix([parts[3][0] * c_row, parts[3][1]])     # (simplex waived here)
+    k_r = coarse_k((sig_t_r, sig_s_r, parts[2], chi_r))
+    _is_zero(k_r - k_fine, "T6r: row rescale moved k (it must not)")
+    print("  ✓ T6r: a common per-row rescale leaves k EXACT — k cannot pin the constants")
+
+    # T6c — MIXED carriers lose exactness: B&G diagonal-bilinear Σt paired
+    # with matrix denominators folded by the PLAIN adjoint sum (Φ*_G) rather
+    # than the flux-weighted-average carrier Ψ†_G.
+    Phi_blocks = [sum(phi_f[g] for g in blk) for blk in blocks]
+    Phis_plain = [sum(phis_f[g] for g in blk) for blk in blocks]
+    sig_s_mixed = sp.zeros(2, 2)
+    for Gf in range(2):
+        for Gt in range(2):
+            num = sum(
+                phis_f[g] * sig_s[gp, g] * phi_f[gp]
+                for gp in blocks[Gf] for g in blocks[Gt]
+            )
+            sig_s_mixed[Gf, Gt] = num / (Phi_blocks[Gf] * Phis_plain[Gt])
+    k_mixed = coarse_k((parts[0], sig_s_mixed, parts[2], parts[3]))
+    _is_nonzero(k_mixed - k_fine, "T6c: mixed-carrier convention accidentally exact")
+    print(f"  ✓ T6c: mixed carriers (plain-sum adjoint fold): k residual = "
+          f"{sp.nsimplify(k_mixed - k_fine)} ≠ 0")
 
     # T6b — perturbed spectra: bilinear O(ε²) vs forward O(ε).
     eps = sp.Symbol("varepsilon")
