@@ -125,6 +125,120 @@ class TestClosedFormKinfRatio:
         )
 
 
+class TestAdjointWeightedBilinear:
+    r"""The P6 (#281) bilinear arm: ``evaluate(phi, adjoint=φ*)`` = ∫⟨φ*⊙Σx, φ⟩dV.
+
+    The vector-channel worth numerator of the eigenvalue-consistent collapse
+    (theorem T1, :mod:`orpheus.derivations.common.homogenization`). Legs:
+    the hand triple-loop reference on the non-uniform mesh (the ``∫·dV``
+    weighting genuinely constrained), the EXACT flat-adjoint degenerate law,
+    linearity in the adjoint slot (exact under a power-of-two scale), the
+    ⟨φ*,Σφ⟩ = ⟨φ,Σφ*⟩ symmetry (diagonal Σ), and the mesh-identity guard.
+    """
+
+    @staticmethod
+    def _hand_bilinear_integral(
+        sigx: np.ndarray, phis: np.ndarray, phi: np.ndarray, volumes: np.ndarray,
+    ) -> float:
+        """``Σ_cells V_cell Σ_g φ*_g Σx_g φ_g`` by explicit Python loops."""
+        ng, ncells = sigx.shape[0], sigx.shape[1]
+        vols = np.asarray(volumes).ravel()
+        total = 0.0
+        for c in range(ncells):
+            cell = 0.0
+            for g in range(ng):
+                cell += float(phis[g, c]) * float(sigx[g, c]) * float(phi[g, c])
+            total += cell * float(vols[c])
+        return total
+
+    def test_bilinear_matches_hand_loop_nonuniform(self):
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+        sn = _non_uniform_slab(ng=3)
+        nx = sn.spatial_shape[0]
+        rng = np.random.default_rng(2027)
+        sigx = rng.uniform(0.1, 1.0, size=(3, nx))
+        phi = rng.uniform(0.05, 1.0, size=(3, nx))
+        phis = rng.uniform(0.2, 2.0, size=(3, nx))
+        got = IntegratedReactionRate(cross_section_field(sigx, sn)).evaluate(
+            phi, adjoint=ScalarFlux.from_mesh(phis, sn),
+        )
+        ref = self._hand_bilinear_integral(sigx, phis, phi, sn.volumes)
+        np.testing.assert_allclose(got, ref, rtol=1e-13)
+
+    def test_flat_adjoint_degenerates_to_unweighted_exactly(self):
+        """φ* = 1 reproduces the unweighted call BIT-FOR-BIT (1.0·x == x in
+        IEEE floats; the contraction body is shared) — the φ†=1 degenerate
+        law the class docstring claims."""
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+        sn = _non_uniform_slab(ng=2)
+        nx = sn.spatial_shape[0]
+        rng = np.random.default_rng(7)
+        sigx = rng.uniform(0.1, 1.0, size=(2, nx))
+        phi = rng.uniform(0.05, 1.0, size=(2, nx))
+        irr = IntegratedReactionRate(cross_section_field(sigx, sn))
+        ones = ScalarFlux.from_mesh(np.ones((2, nx)), sn)
+        require(
+            irr.evaluate(phi, adjoint=ones) == irr.evaluate(phi),
+            "adjoint=1 must reproduce the unweighted integral EXACTLY "
+            "(the φ†=1 degenerate law).",
+        )
+
+    def test_adjoint_slot_scales_linearly_exact(self):
+        """Doubling φ* doubles the bilinear EXACTLY (scaling by 2.0 is
+        round-off-free per IEEE, so linearity in the adjoint slot admits an
+        exact assertion, not a tolerance)."""
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+        sn = _non_uniform_slab(ng=2)
+        nx = sn.spatial_shape[0]
+        rng = np.random.default_rng(11)
+        sigx = rng.uniform(0.1, 1.0, size=(2, nx))
+        phi = rng.uniform(0.05, 1.0, size=(2, nx))
+        phis = rng.uniform(0.2, 2.0, size=(2, nx))
+        irr = IntegratedReactionRate(cross_section_field(sigx, sn))
+        base = irr.evaluate(phi, adjoint=ScalarFlux.from_mesh(phis, sn))
+        doubled = irr.evaluate(phi, adjoint=ScalarFlux.from_mesh(2.0 * phis, sn))
+        require(
+            doubled == 2.0 * base,
+            f"bilinear must be exactly linear in the adjoint slot under a "
+            f"power-of-two scale: {doubled!r} != 2·{base!r}.",
+        )
+
+    def test_bilinear_symmetry_under_slot_swap(self):
+        """⟨φ*, Σφ⟩ == ⟨φ, Σφ*⟩ — the diagonal-Σ symmetry of the bilinear
+        (the two slots pair through the same multiplicative kernel)."""
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+        sn = _non_uniform_slab(ng=3)
+        nx = sn.spatial_shape[0]
+        rng = np.random.default_rng(13)
+        sigx = rng.uniform(0.1, 1.0, size=(3, nx))
+        a = rng.uniform(0.05, 1.0, size=(3, nx))
+        b = rng.uniform(0.2, 2.0, size=(3, nx))
+        irr = IntegratedReactionRate(cross_section_field(sigx, sn))
+        ab = irr.evaluate(a, adjoint=ScalarFlux.from_mesh(b, sn))
+        ba = irr.evaluate(b, adjoint=ScalarFlux.from_mesh(a, sn))
+        np.testing.assert_allclose(ab, ba, rtol=1e-13)
+
+    def test_foreign_mesh_adjoint_raises(self):
+        """The σ↔geometry pairing tier: the adjoint must live on the SAME
+        mesh OBJECT — an equal-shaped foreign mesh raises."""
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+        sn = _non_uniform_slab(ng=2)
+        other = _non_uniform_slab(ng=2)          # equal-shaped, different object
+        nx = sn.spatial_shape[0]
+        rng = np.random.default_rng(17)
+        irr = IntegratedReactionRate(
+            cross_section_field(rng.uniform(0.1, 1.0, size=(2, nx)), sn)
+        )
+        foreign = ScalarFlux.from_mesh(rng.uniform(0.2, 2.0, size=(2, nx)), other)
+        with pytest.raises(ValueError, match="different mesh"):
+            irr.evaluate(rng.uniform(0.05, 1.0, size=(2, nx)), adjoint=foreign)
+
+
 class TestN2NActivationInProductionRate:
     """SN ``compute_production_rate`` = IRR(νΣf) + (n,2n) — the (n,2n) genuinely adds."""
 

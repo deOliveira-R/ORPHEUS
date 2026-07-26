@@ -59,11 +59,15 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from orpheus.numerics.functional import InnerProductFunctional
 from orpheus.transport.fields.cross_section_field import CrossSectionField
+
+if TYPE_CHECKING:
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 __all__ = ["ReactionRateFunctional", "IntegratedReactionRate"]
 
@@ -133,11 +137,15 @@ class IntegratedReactionRate:
     This is the canonical typed object for the **k-eigenvalue numerator and
     denominator** — ``k = R_{νΣf}(φ) / R_{Σa}(φ)`` (plus per-method terms such as
     the SN ``(n,2n)`` production or the diffusion leakage, which are explicit
-    additive corrections, NOT reaction rates). It is the **φ†=1 degenerate** of
-    the homogenization Petrov–Galerkin campaign's adjoint-weighted bilinear
+    additive corrections, NOT reaction rates). The unweighted call is the
+    **φ†=1 degenerate** of the adjoint-weighted bilinear
     :math:`\langle \phi^\dagger, M[\Sigma_x]\,\phi\rangle = \int_V \sum_g
-    \phi^\dagger_g \Sigma_{x,g} \phi_g\,dV`; minting it here lays that
-    infrastructure (a future adjoint flux replaces the implicit ``φ† = 1``).
+    \phi^\dagger_g \Sigma_{x,g} \phi_g\,dV` — which is **LIVE** (P6, #281):
+    pass ``adjoint=`` (the importance :math:`\varphi^*`, a
+    :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`) to
+    :meth:`evaluate` for the bilinear itself, the vector-channel worth
+    numerator of the eigenvalue-consistent collapse (theorem T1 of the
+    algebra of record, :mod:`orpheus.derivations.common.homogenization`).
 
     Parameters
     ----------
@@ -158,15 +166,61 @@ class IntegratedReactionRate:
     def cross_section(self) -> CrossSectionField:
         return self.density.cross_section
 
-    def evaluate(self, phi) -> float:
-        r"""Return the scalar :math:`\int_V \langle \Sigma_x, \phi\rangle\,dV`.
+    def evaluate(self, phi, *, adjoint: "ScalarFlux | None" = None) -> float:
+        r"""Return :math:`\int_V \langle \Sigma_x, \phi\rangle\,dV` — or the bilinear.
 
-        The per-cell density ``⟨Σx, φ⟩`` (group axis contracted, ``(1, *spatial)``)
-        is integrated over space with the mesh's canonical ``volume_measure``
-        (which contracts the cell axis): ``Σ_cells V_cell · density(cell)``.
+        With ``adjoint=None`` (the default): the volume-integrated reaction
+        rate, exactly as always.  With ``adjoint=`` an importance field
+        :math:`\varphi^*`, the **adjoint-weighted bilinear**
+
+        .. math::
+
+            \int_V \big\langle \varphi^*\!\odot\Sigma_x,\; \phi\big\rangle\,dV
+            \;=\; \int_V \sum_g \varphi^*_g\,\Sigma_{x,g}\,\phi_g\,dV ,
+
+        the vector-channel worth numerator of the eigenvalue-consistent
+        collapse (T1, :mod:`orpheus.derivations.common.homogenization`).
+        The degenerate law is exact: a flat :math:`\varphi^* = 1` reproduces
+        the unweighted call bit-for-bit (``1.0 * x == x`` in IEEE floats and
+        the contraction body is shared).
+
+        The importance is folded into the WEIGHT (:math:`\varphi^*` pairs
+        with the test side, never the carrier), and the folded contraction
+        routes through the same generic
+        :class:`~orpheus.numerics.functional.InnerProductFunctional` body
+        the density functional inherits — one contraction source, no
+        parallel reduction.
+
+        Parameters
+        ----------
+        phi : Field or NDArray
+            The carrier flux, shape ``(ng, *spatial)``.
+        adjoint : ScalarFlux, optional
+            The importance :math:`\varphi^*` (e.g.
+            ``adjoint_solution.importance``).  Must live on the SAME mesh
+            object as the cross section (identity, not shape-equality —
+            the σ↔geometry pairing tier).
+
+        Raises
+        ------
+        ValueError
+            If ``adjoint`` lives on a different mesh object than the
+            cross section.
         """
-        per_cell = np.asarray(self.density.evaluate(phi))  # (1, *spatial)
         mesh = self.cross_section.mesh
+        if adjoint is None:
+            per_cell = np.asarray(self.density.evaluate(phi))  # (1, *spatial)
+        else:
+            if adjoint.mesh is not mesh:
+                raise ValueError(
+                    "IntegratedReactionRate.evaluate: the adjoint weight lives "
+                    "on a different mesh than the cross section — mesh identity "
+                    "(the same object) is required for the σ↔geometry pairing."
+                )
+            folded = InnerProductFunctional(
+                np.asarray(adjoint.values) * self.cross_section.values, axis=0,
+            )
+            per_cell = np.asarray(folded.evaluate(phi))       # (1, *spatial)
         # ``volume_measure`` consumes a flat ``(N_cells, k)`` view and contracts
         # the cell axis → ``(k,)``; here k = 1 (the density's collapsed group
         # axis), so the sum is the scalar volume integral.
