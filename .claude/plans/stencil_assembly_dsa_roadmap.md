@@ -1365,6 +1365,35 @@ transcribed constant.
 
 ⏸ COMPACTION points at 3a→3b and 3b→3c (commit + checkpoint this file first).
 
+**3a PROGRESS (2026-07-26, branch `feature/sn-dsa`):**
+- ✅ **3a.1 @ `dbdbb2b9`** — `orpheus/derivations/discrete/sn/dsa.py`: Larsen's
+  four-step executed SYMBOLICALLY over a general symmetric quadrature; THE MAIN
+  THEOREM proven (shared-edge f₁ continuity ≡ (27) with (23a–f), minor-based
+  proportionality on the W0=1/W2=⅓ variety, weights solved linearly — no
+  radicals); annihilation identities ((14b)'s "3" = 1/W₂); the TWO distinct
+  ⅓-mechanisms (Legendre recursion vs W₂) kept separate; (16a–d) derived with
+  the identity-verified explicit/OPAQUE-lagged split (the slot assignment IS
+  the method — moment-expanding L₀[γψ] silently promotes a lagged term; caught
+  by the machinery, documented); updates (28), Marshak (38a) with DERIVED
+  (γ_N, W2⁺/W2), one-sided vacuum closure, reflective, DD instance. 8 pins
+  green under `-O` (~89 s, shared solve cache).
+- ✅ **3a.2 @ `614eee19`** — the one-sided (25)/(26) closures verified; the
+  numeric builder `build_consistent_dd_system` (transcribes NOTHING; the ONE
+  Σw=2→ω=w/2 convention boundary, guarded); **THE PARENT TIE**: the
+  edge-eliminated DD parent ≡ `assemble_ordinate_blocks` entry-for-entry at
+  1e-11 per (ordinate, group) on the het non-uniform slab — production
+  convention confirmed as the DENSITY form (μ/h)Δψ + σ_Tψ̄ (diamond.py kernel).
+  5 tie/structure tests green; CLI pyright 0.
+- **NEXT = D2**: the structured characterization of the derived edge-centered
+  system vs the landed cell-centered diffusion assembly (uniform-case stencil
+  table; the expected structural diffs: edge-vs-cell homes, consistent-(1,2,1)/4
+  vs lumped removal mass, DISCRETE γ_S4 ≈ 0.2606 vs continuum ¼ Marshak) → then
+  the ⏸ **R4 CHECKPOINT** (AskUserQuestion with the diff evidence; the
+  literature strongly suggests the derived edge-centered operator is the
+  correction operator — A&L (3.43)/(3.44): the cell-centered variant is the
+  DIVERGENT class at large Σ_t h, which is the spike's observed reflective
+  failure).
+
 ### 3-P0 — dispatches (MUST, before the plan-of-record for this phase) — ✅ DONE 2026-07-26
 - **literature-researcher** — check `/Users/rodrigo/git/nuclear/ORPHEUS/scratch/
   literature/` FIRST (user maintains it; all NSE volumes local): Alcouffe 1977
