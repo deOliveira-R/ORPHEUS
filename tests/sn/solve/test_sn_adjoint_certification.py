@@ -154,6 +154,7 @@ class TestP13KEquality:
 
     @pytest.mark.parametrize("ng_key", ["2g", "4g"])
     @pytest.mark.verifies("kinf-mg")
+    @pytest.mark.verifies("sn-adjoint-eigenproblem")
     def test_infinite_medium_triple_equality(self, ng_key):
         r"""``k_adj == k_fwd == kinf_homogeneous`` — the chain terminates in
         ``np.linalg.eig``, not in another ORPHEUS solver (L11)."""
@@ -170,6 +171,7 @@ class TestP13KEquality:
             err_msg=f"{ng_key}: k_adj != closed-form k∞.",
         )
 
+    @pytest.mark.verifies("sn-adjoint-eigenproblem")
     def test_heterogeneous_slab_k_equality(self):
         r"""Spatial structure LIVE: the ∞ legs are flat-flux-blind to a
         spatial-adjoint bug (a wrong Lᵀ direction) — this leg is not."""
@@ -183,6 +185,7 @@ class TestP13KEquality:
             "cannot see.",
         )
 
+    @pytest.mark.verifies("sn-adjoint-eigenproblem")
     def test_sphere_k_equality(self):
         r"""The COUPLED daggered posing (System B live): μ-reversal at the
         pole + the fission ray fold + the transposed block substitution.
@@ -289,6 +292,7 @@ class TestP13Mutations:
 class TestP14AdjointSpectrum:
     pytestmark = pytest.mark.l1
 
+    @pytest.mark.verifies("sn-adjoint-eigenproblem")
     def test_4g_spectrum_matches_closed_form(self):
         r"""The SN adjoint energy spectrum == the dominant eigenvector of
         ``(Aᵀ)⁻¹Fᵀ`` (4G MANDATORY: the 2G row lives in the entries file;
@@ -478,9 +482,8 @@ class TestP14SphereAdjointVector:
     """
 
     pytestmark = pytest.mark.l1
-    # ``verifies``: un-linked until A6/ch15 mints the daggered-eigenproblem
-    # equation label in methods/sn/adjoint.rst (memo §2.7).
 
+    @pytest.mark.verifies("sn-adjoint-eigenproblem")
     def test_coupled_defining_law_residual(self):
         r"""``A_lossᵀ(G·ψ*) = Fᵀ(G·ψ*)/k`` on the heterogeneous sphere —
         the FULL coupled vector (System-A bulk + trace + System-B ray),
@@ -694,6 +697,7 @@ class TestP15BiOrthogonality:
         )
 
     @pytest.mark.l1
+    @pytest.mark.verifies("sn-adjoint-eigenproblem")
     def test_sn_adjoint_dominant_mode_is_the_true_left_vector(self):
         r"""The SN tie-in: the SN ψ* spectrum, paired against F with the
         closed-form ZERO right modes, annihilates — ``⟨ψ*_SN, Fφ_j⟩ = 0``

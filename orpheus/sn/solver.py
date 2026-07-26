@@ -2368,7 +2368,10 @@ def solve_sn_adjoint(
 
     posed purely by DAGGER-ing the forward operator triple — the
     :class:`~orpheus.numerics.iteration.KEigenvalue` triple becomes
-    ``(A.H, (S+B).H, F.H)`` and runs through the UNCHANGED canonical
+    ``((L+C).H, (S+B).H, F.H)`` — the daggered RESOLVENT, gain, and
+    fission (the loss dagger :math:`A_{\rm loss}^\dagger =
+    (L{+}C).\mathtt{H} - (S{+}B).\mathtt{H}` is formed inside the
+    posing) — and runs through the UNCHANGED canonical
     :func:`~orpheus.numerics.eigenvalue.power_iteration` (the adjoint row
     of the eigenvalue-posing table, live since #276 A4).  There is no
     adjoint-specific loop or sweep code anywhere: ``.H`` is the exact

@@ -22,11 +22,18 @@ The eigenvalue machinery is layered so the algorithm is **method-agnostic**
 * **Operator leaves** (method-specific): :math:`L, C, S, F, B`.
 * **Problem posing** arranges the leaves into :math:`(A_{\rm loss}, M)` and a
   :math:`\mu \to` physical-eigenvalue map.  The **k-eigenvalue** row is
-  :math:`A_{\rm loss} = L+C-S-B`, :math:`M = F`, :math:`k = \mu`.  (The
-  :math:`\alpha`-eigenvalue row — :math:`A_{\rm loss} = L+C-S-F-B`,
-  :math:`M = 1/v`, :math:`\alpha = -1/\mu` — and the adjoint row
-  :math:`A_{\rm loss}^\dagger \psi^\dagger = \lambda M^\dagger \psi^\dagger`
-  are documented future seams.)
+  :math:`A_{\rm loss} = L+C-S-B`, :math:`M = F`, :math:`k = \mu`.  The
+  **adjoint row is LIVE** (#276 A4/A5): the daggered posing
+  :math:`A_{\rm loss}^\dagger \psi^* = \frac{1}{k} F^\dagger \psi^*` is
+  realized purely by DAGGER-ing the triple —
+  ``KEigenvalue((L+C).H, (S+B).H, F.H)`` (the daggered RESOLVENT, gain,
+  and fission; the loss dagger is formed inside) — and runs through THIS SAME loop
+  unchanged (:func:`~orpheus.sn.solver.solve_sn_adjoint` is the SN
+  entry; :math:`k^\dagger = k` is an exact algebraic identity, and the
+  daggered vector is certified by the defining-law residual rows —
+  see the SN adjoint theory chapter).  (The :math:`\alpha`-eigenvalue
+  row — :math:`A_{\rm loss} = L+C-S-F-B`, :math:`M = 1/v`,
+  :math:`\alpha = -1/\mu` — remains a documented future seam.)
 * **Resolvent** :math:`A_{\rm loss}^{-1}` (method-specific): the fixed-source
   inner solve — SN sweep / Krylov; CP's ``P_inf`` collision-probability kernel;
   diffusion's and homogeneous's eager LU

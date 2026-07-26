@@ -581,6 +581,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``cp-inner-integral-antiderivative``, 8
    ``diffusion-coefficient``, 8
    ``energy-condensation-scattering-collapse``, 8
+   ``sn-adjoint-eigenproblem``, 8
    ``bare-slab-buckling``, 7
    ``bare-slab-critical-equation``, 7
    ``bare-slab-diffusion-equation``, 7
@@ -752,6 +753,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``si-spectral-rate``, 1
    ``sigT-computed``, 1
    ``singular-eigenfunction-eq5``, 1
+   ``sn-adjoint-duality``, 1
    ``sn-homogenization-balance-preservation``, 1
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
@@ -777,7 +779,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **519** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **520** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-contraction-ratio``
@@ -1191,6 +1193,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sigs-in-scatter-transpose``
 - ``singular-eigenfunction-eq47``
 - ``singular-eigenfunction-x-function-isotropic-limit``
+- ``sn-adjoint-continuous``
 - ``sn-affine-outgoing-face-reconstruction-eq``
 - ``sn-axis-widths``
 - ``sn-cell-flatten-roundtrip``

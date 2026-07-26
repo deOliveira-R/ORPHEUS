@@ -86,6 +86,7 @@ def _homogeneous_2g():
 
 
 class TestSolveSnAdjoint:
+    @pytest.mark.verifies("sn-adjoint-eigenproblem")
     def test_infinite_medium_k_and_spectrum(self):
         r"""k triple-equality + the adjoint spectrum + ∞-medium isotropy.
 
@@ -266,6 +267,7 @@ class TestSolveSnAdjointFixedSource:
             "(A5 role axis).",
         )
 
+    @pytest.mark.verifies("sn-adjoint-duality")
     def test_duality_cross_group_source_detector(self):
         r"""``⟨ψ*, q⟩_G == ⟨q*, ψ⟩_G`` — the discrete duality identity,
         cross-group AND cross-region (the P1.2 killer config).
