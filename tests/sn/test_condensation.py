@@ -536,6 +536,29 @@ class TestC4BilinearCondensation:
         np.testing.assert_allclose(chi.sum(), 1.0, atol=1e-12)
         np.testing.assert_array_less(-1e-15, chi)
 
+    def test_bilinear_condensed_mixture_breaks_balance_as_derived(
+        self, solution, adjoint_solution,
+    ):
+        """T4 on the energy axis (qa NIT-2): the bilinear-condensed Mixture
+        does NOT satisfy the total-XS balance identity (the classical
+        reactivity-vs-rates property; measured imbalance ~1.5e-3) while the
+        forward-condensed one does — mirrors the homogenize-side live pin."""
+        fwd = solution.condense(EnergyGrid(_EG_COARSE))[0]
+        fwd.assert_balanced(atol=1e-9)                       # forward: balanced
+        out = solution.condense(EnergyGrid(_EG_COARSE), adjoint=adjoint_solution)[0]
+        resid = np.abs(
+            np.asarray(out.SigT, float) - (
+                np.asarray(out.SigC, float) + np.asarray(out.SigL, float)
+                + np.asarray(out.SigF, float)
+                + np.asarray(out.SigS[0].sum(axis=1)).ravel()
+                + np.asarray(out.Sig2.sum(axis=1)).ravel()
+            )
+        ).max()
+        assert resid > 1e-9, (
+            f"bilinear-condensed Mixture unexpectedly balanced (resid={resid}) "
+            f"— check the B&G-convention wiring"
+        )
+
     def test_no_arg_equals_explicit_none_bitwise(self, solution):
         """§4.0 tooth 1 on the condense verb."""
         a = solution.condense(EnergyGrid(_EG_COARSE))

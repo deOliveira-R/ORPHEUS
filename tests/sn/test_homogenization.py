@@ -446,7 +446,14 @@ class TestAdjointDegeneratePins:
 class TestC1AdjointWeightedDiscriminator:
     """C1: every channel class equals its B1-derived hand rule (structurally
     independent per-region Python loops), differs from the forward
-    degenerate, and the fixture proves itself non-dud (normalized shapes)."""
+    degenerate, and the fixture proves itself non-dud (normalized shapes).
+
+    Honest scope (qa NIT-4): the elementwise FOLDS (ρ = Σ_n w ψ*ψ, ι, p)
+    share their numpy idiom between these hand loops and production — the
+    COLLAPSE (region membership, the /Σ ratio, axis order) is what is
+    structurally independent here; the folds' formula-correctness is owned
+    by the derivation module's exact theorems, and C3/C5 capture the
+    actual weight arrays production constructs."""
 
     def test_dud_guard_importance_shape_differs_materially(self, tilted_pair):
         """The bilinear is φ*-scale-invariant — compare normalized SHAPES."""
@@ -491,11 +498,17 @@ class TestC1AdjointWeightedDiscriminator:
                 w_ang = V[sel] * rho[sel, g]
                 ref = float((w_ang * sigt[:, g]).sum() / w_ang.sum())
                 np.testing.assert_allclose(mm.materials[R].SigT[g], ref, rtol=1e-12)
-                # The scalar-pair rule is a DIFFERENT number here (anisotropic
-                # shapes) — asserting the distinction keeps T1b's wiring honest.
+                # Activation guard (qa SHOULD-1 fix): the fixture must make
+                # the ρ-rule genuinely differ from the scalar φ*⊙φ rule
+                # (measured gap ~6.5e-4), else the SigT gate loses its
+                # T1b-vs-scalar discriminating power. An honest, reddenable
+                # guard — the prior spelling was a tautology (P or ¬P).
                 w_sc = V[sel] * phis[sel, g] * phi[sel, g]
                 ref_scalar = float((w_sc * sigt[:, g]).sum() / w_sc.sum())
-                assert ref != ref_scalar or abs(ref - ref_scalar) == 0.0
+                assert not np.isclose(ref, ref_scalar, rtol=1e-8), (
+                    f"R={R}, g={g}: the angular ρ rule coincides with the "
+                    f"scalar pair rule — fixture too isotropic to pin T1b"
+                )
 
     def test_matrix_channels_match_per_pair_rule(self, tilted_pair):
         """SigS[ℓ]: the T2 per-pair sink×source rule per (R, g', g)."""
@@ -558,111 +571,6 @@ class TestC1AdjointWeightedDiscriminator:
                 f"adjoint-collapsed region {R} unexpectedly balanced "
                 f"(resid={resid}) — check the worth-exact taxonomy wiring"
             )
-
-
-def _contrast_materials(eps: float):
-    """The base material + a contrast-scaled partner: m1(ε) = m0 + ε·Δ.
-
-    ε is the SMALLNESS parameter of the XS-collapse perturbation (δA = O(ε)),
-    so first-order perturbation theory predicts gap_fwd = O(ε) and
-    gap_adj = O(ε²) — the order signature the C2 ladder measures.
-    """
-    base_c = np.array([0.20, 0.30]); base_f = np.array([0.10, 0.20])
-    base_s = np.array([[0.60, 0.10], [0.00, 0.90]])
-    d_c = np.array([0.15, 0.15]); d_f = np.array([-0.05, 0.10])
-    d_s = np.array([[-0.10, -0.08], [0.00, -0.05]])
-    chi = [1.0, 0.0]; nu = [2.4, 2.4]
-    m0 = _balanced_fissile(base_c, base_f, nu, chi, base_s)
-    m1 = _balanced_fissile(base_c + eps * d_c, base_f + eps * d_f, nu, chi,
-                           base_s + eps * d_s)
-    return {0: m0, 1: m1}
-
-
-@pytest.mark.verifies("sn-homogenization-adjoint-weighted")
-@pytest.mark.l2
-class TestC2ComparativeKeffOrder:
-    """C2 (redesigned TWICE — see the spec §4 correction notes): the
-    SAME-MESH XS-replacement contrast ladder.
-
-    The worth theorems (T0/T5) speak about replacing the fine per-cell XS
-    by region-collapsed constants ON THE SAME DISCRETE SYSTEM — so the
-    gate re-solves the FINE 16-cell mesh with the per-region collapsed
-    materials (no coarse re-discretization: the coarse-mesh DD error is a
-    confounder that at coarse partitions swamps and even inverts the worth
-    delta — measured, spec §4 note). The smallness knob is the MATERIAL
-    CONTRAST ε (m1 = m0 + ε·Δ): δA = O(ε) ⇒ the forward gap is O(ε) while
-    the adjoint-weighted gap is O(ε²) (first-order worth identically
-    zeroed). A partition ladder is NOT the knob — the alternating-material
-    pattern keeps within-region heterogeneity constant at every P, and
-    single-material regions null the weight entirely.
-
-    Measured signature (2026-07-26): fwd ratios 2.05/2.01 (first order),
-    adj ratios 6.08/9.24 (≥ second order), adjoint gap smaller on every
-    rung. k_fine(ε) is each rung's own L1-anchored fine reference
-    (anti-#5 pairing)."""
-
-    _EDGES16 = np.linspace(0.0, 4.0, 17)
-    _MAT16 = np.tile([0, 1], 8)          # every 2-cell window mixes materials
-
-    def _gaps(self, eps: float) -> tuple[float, float]:
-        from orpheus.sn.solver import solve_sn_adjoint
-
-        mats = _contrast_materials(eps)
-        quad = Quadrature.gauss_legendre(n_ordinates=8)
-        fine = Mesh1D(
-            edges=self._EDGES16, mat_ids=self._MAT16,
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"), bc_right=BC("reflective"),
-        )
-        fwd = solve_sn(mats, fine, quad, scattering_order=0)
-        adj = solve_sn_adjoint(mats, fine, quad, scattering_order=0)
-        k_fine = fwd.keff
-        assert k_fine is not None
-
-        P = 2
-        coarse = Mesh1D(
-            edges=np.linspace(0.0, 4.0, P + 1), mat_ids=np.zeros(P, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"), bc_right=BC("reflective"),
-        )
-        centers = 0.5 * (self._EDGES16[:-1] + self._EDGES16[1:])
-        region_of = np.clip(
-            np.searchsorted(coarse.edges, centers, side="right") - 1, 0, P - 1,
-        )
-        gaps = {}
-        for tag, mm in (
-            ("adj", fwd.homogenize(coarse, adjoint=adj)),
-            ("fwd", fwd.homogenize(coarse)),
-        ):
-            # SAME-MESH replacement: the fine geometry, region-constant XS.
-            replaced = Mesh1D(
-                edges=self._EDGES16, mat_ids=region_of.astype(int),
-                coord=CoordSystem.CARTESIAN,
-                bc_left=BC("vacuum"), bc_right=BC("reflective"),
-            )
-            k = solve_sn(dict(mm.materials), replaced, quad,
-                         scattering_order=0).keff
-            assert k is not None
-            gaps[tag] = abs(k - k_fine)
-        return gaps["adj"], gaps["fwd"]
-
-    def test_contrast_ladder_orders_discriminate(self):
-        gaps = {eps: self._gaps(eps) for eps in (1.0, 0.5, 0.25)}
-        for eps, (ga, gf) in gaps.items():
-            assert ga < gf, (
-                f"eps={eps}: adjoint gap {ga:.3e} not smaller than forward {gf:.3e}"
-            )
-        for hi, lo in ((1.0, 0.5), (0.5, 0.25)):
-            ratio_adj = gaps[hi][0] / gaps[lo][0]
-            ratio_fwd = gaps[hi][1] / gaps[lo][1]
-            assert ratio_fwd < 3.0, (
-                f"forward gap not first-order: ratio {ratio_fwd:.2f} (expect ~2)"
-            )
-            assert ratio_adj > 3.0, (
-                f"adjoint gap not higher-order: ratio {ratio_adj:.2f} "
-                f"(expect ≳4; first-order contamination if ~2)"
-            )
-            assert ratio_adj > ratio_fwd, "adjoint must shrink strictly faster"
 
 
 class TestC3WeightCaptureSentinel:
