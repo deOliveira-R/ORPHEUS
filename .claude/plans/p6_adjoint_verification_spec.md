@@ -75,9 +75,13 @@ dependency of P6, not a substitute for it.**
 | A2 reciprocity ⟨ψ\*,q⟩=⟨ψ,Σ_d⟩ | **model** (flux-shape, fixed-source) | closed-form (the reciprocity identity) | the identity itself; both halves are independent solves | bilinear duality, solver-internal-independent |
 | A3 analytic ∞-medium adjoint spectrum | **eigenvalue + flux-shape** | closed-form | LEFT eigenvector of `M=A⁻¹F` via `np.linalg.eig(Mᵀ)` | the adjoint flux of the 0-D k-problem IS the left eigenvector |
 | A4 bi-orthogonality ⟨ψ\*_i,Fψ_j⟩=0 (i≠j) | **flux-shape** (intrinsic law) | closed-form | the spectral decomposition (eig of M and Mᵀ) | the defining law of a forward/adjoint eigenbasis pair |
-| C1 PG-vs-Galerkin discriminator (φ\*≠φ) | **model** | closed-form (hand arithmetic) | per-region Python loop with explicit φ\* weight | the bilinear `⟨φ\*,Σφ⟩/⟨φ\*,φ⟩` |
-| C2 keff-preservation under coarse-resolve | **eigenvalue** (first-order stationary) | closed-form (the fine keff) | the fine-mesh keff (L1-anchored) | perturbation theory: error O(δφ²) |
-| C3 Mode-11 routing sentinel | **structural** (not a value claim) | — (call-graph) | monkeypatch counter | proves φ\* reaches the test basis |
+| §4.0 `adjoint=None` degenerate pin | **foundation** (behaviour-neutral) | closed-form (bit-identity by inheritance) | 0-ULP `array_equal` vs the shipped forward output | the `None` arm IS the shipped code path |
+| C1 homogenize PG discriminator (w=φ\*⊙φ ≠ φ) | **model** | closed-form (hand arithmetic) | per-region Python loop with the **bilinear** weight φ\*⊙φ | the bilinear `⟨φ\*,Σφ⟩/⟨φ\*,φ⟩` ⟹ XS field weighted by φ\*⊙φ |
+| C2 homogenize keff-gap COMPARATIVE order | **eigenvalue** (first-order stationary) | closed-form (the fine keff) | the fine-mesh keff (L1-anchored) + the forward-weighted gap on the SAME ladder | perturbation theory: adjoint gap O(δφ²) < forward gap O(δφ) |
+| C3 homogenize Mode-11 CAPTURE sentinel | **structural** (not a value claim) | — (call-graph) | in-process weight CAPTURE, `array_equal(·, φ\*⊙φ)` | proves the sigma-frame weight IS φ\*⊙φ (not bare φ\*, not φ) |
+| C4 condense discriminator (average moves / marginalize frozen) | **model** + **structural** | closed-form (hand loop) + bit-identity | hand loop (Gate A) + `array_equal` of the marginalize channels (Gate B) | adjoint enters ONLY the `average` morphism |
+| C5 condense Mode-11 CAPTURE sentinel | **structural** | — (call-graph) | in-process spectrum-weight CAPTURE | proves the average-frame spectrum weight IS φ\*_s⊙φ_s |
+| Cχ χ-simplex positive control | **foundation** (intrinsic law) | closed-form (simplex constraint) | `EmissionSpectrum` validation (raises under -O) | a convex average of simplices is a simplex |
 
 **Pillar discipline checks (all pass):**
 - A1/A2/A3/A4/C2 are eigenvalue/flux claims paired with **closed-form**,
@@ -86,8 +90,20 @@ dependency of P6, not a substitute for it.**
   reference, so MMS is unnecessary AND would be the wrong pillar.)
 - Structural independence: every chain terminates in `np.linalg.eig`
   (A1/A3/A4), the reciprocity identity (A2), or explicit hand
-  arithmetic (C1) — NOT another ORPHEUS solver, NOT a procedurally-
-  different fold of the same identity (vv L11).
+  arithmetic (C1/C4 per-region/per-group loops with the bilinear weight)
+  — NOT another ORPHEUS solver, NOT a procedurally-different fold of the
+  same identity (vv L11). The homogenize/condense CAPTURE sentinels
+  (C3/C5) and the §4.0 pins are structural (array identity / call-graph),
+  not value claims, so they need no pillar.
+- **C2 is COMPARATIVE, not a value claim.** Its reference (k_fine) IS an
+  ORPHEUS solver — but C2 asserts the RATE relation `gap_adj(P) <
+  gap_fwd(P)` and its faster shrinkage, NOT `k_coarse == k_fine` to a
+  tolerance. k_fine is the L1-anchored LIMIT (P1.3-certified) the gaps
+  shrink toward (vv anti-#5). The forward-weighted gap on the SAME ladder
+  is the structurally-matched control that isolates the XS-collapse worth
+  (§4 honest-scope). So C2's trust does not terminate in the SN solver's
+  absolute value — it terminates in the perturbation-theory ORDER
+  relation, anchored by an L1 limit.
 - A1's reference is the FORWARD keff, which looks like "another ORPHEUS
   solver" — but the claim is **exact algebraic EQUALITY** (k is a root
   of the same characteristic polynomial), not "agrees to tolerance".
@@ -125,13 +141,49 @@ The adjoint-specific blindnesses (compounding the standing ones):
   structure live, where a spatial-adjoint bug — e.g. a wrong μ-reversal
   in Lᵀ at a curvilinear pole — could break it). A3/A4 are intrinsically
   0-D (they verify the ENERGY adjoint), so flat is correct there.
-- **Self-adjoint problem nulls C1.** The PG-vs-Galerkin discriminator
-  needs φ\*≠φ MATERIALLY. A symmetric/near-symmetric problem has φ\*≈φ
-  and the discriminator is a dud (the same trap as
-  `test_homogenization.py:243`'s "fixture too flat" guard). **C1's config
-  MUST be strongly non-self-adjoint** (asymmetric SigS + strong absorber
-  gradient) and MUST assert the discrimination actually fired
-  (`assert not np.allclose(pg, galerkin)`).
+- **Self-adjoint problem nulls the whole Phase-2 consumer.** The
+  adjoint-weighted collapse only DIFFERS from the shipped forward when
+  φ\*≠φ MATERIALLY. Reactor-physics keystone re-verified this session:
+  the shipped forward `Solution.homogenize` (`orpheus/sn/solution.py:641-644`)
+  is the **φ\*=1 degenerate** (sigma-frame test weight = φ, single power,
+  `Σ_R = Σ_i V_i φ_i Σ_i / Σ_i V_i φ_i`); the bilinear
+  `sn-homogenization-bilinear` (`docs/theory/foundations/frame.rst:999`,
+  `Σ_R = ∫_R φ*Σφ dV / ∫_R φ*φ dV`) weights the XS field by the
+  **elementwise product w = φ\*⊙φ** (the FIXED rule for the VECTOR
+  channels). Two consequences the gates MUST encode:
+  - **The bilinear is φ\*-SCALE-INVARIANT** (`∫φ*Σφ/∫φ*φ` unchanged by
+    φ\*→c·φ\*), and φ\*, φ carry independent eigenvector normalizations,
+    so any "φ\*≠φ" dud-guard MUST compare NORMALIZED SHAPES
+    (`φ*/‖φ*‖` vs `φ/‖φ‖`), never raw arrays.
+  - **The doc's "φ→φ\*" shorthand (`frame.rst:3458`) is a TRAP.** The
+    correct sigma-frame weight is φ\*⊙φ, NOT bare φ\*. An implementer who
+    reads "a no-op change of the test_basis (φ→φ\*)" literally writes
+    `WeightedIndicatorBasis(trial, φ*)` — WRONG. C3/C5 pin the weight IS
+    φ\*⊙φ by CAPTURE-and-compare (a candidate new failure mode, §6).
+  Configs MUST be strongly non-self-adjoint (asymmetric SigS + absorber
+  gradient) AND assert the discrimination fired (the
+  `tests/sn/test_homogenization.py:284` "fixture too flat" pattern,
+  generalised to the normalized-shape guard).
+- **The USER RULING at P6-open (2026-07-25) — derivation-first channel
+  taxonomy.** B1 ships a `derivations` module settling the collapse rule
+  PER CHANNEL CLASS: **vector** w=φ\*⊙φ (fixed above); **matrix** channels
+  (SigS, Sig2) per-pair `φ*_g·φ_{g'}` vs source-product — the B1
+  derivation adjudicates; the factored **fission-dyad** χ rule. Gates
+  below reference "**the B1-derived rule**" where the weight is not yet
+  fixed (matrix source axis, χ), but make gate STRUCTURE (configs,
+  references, mutations, tolerances) fully concrete NOW.
+- **The condense MARGINALIZE morphism is adjoint-INVARIANT — a free
+  structural discriminator.** `Mixture.condense`
+  (`orpheus/data/macro_xs/mixture.py:388-408`) has TWO morphisms:
+  `average` (`frame.project`, spectrum test weight — vectors + matrix
+  SOURCE `g_from` axis) and `marginalize` (bare `@ table`, NO weight —
+  matrix SINK `g_to` axis + χ). The adjoint enters ONLY the `average`
+  morphism (no test weight on `marginalize` to adjoint-weight), so the
+  condense discriminator (C4) gets a bit-identity backstop: adjoint- vs
+  forward-condensed MUST differ on the average-collapsed channels AND be
+  BYTE-IDENTICAL on the marginalize-collapsed channels. Needs a
+  WITHIN-GROUP-VARYING spectrum (else the fine→coarse overlap weighting is
+  flat and the average morphism does not discriminate).
 
 **Minimum activating configs:**
 - A1/A2/A3/A4 reference mixture: **Mixture A 2G AND 4G**, asymmetric
@@ -143,9 +195,24 @@ The adjoint-specific blindnesses (compounding the standing ones):
 - A1 heterogeneous leg: a 2-region slab (fuel/absorber) + a **sphere**
   (the μ-reversal in Lᵀ is non-trivial at the pole — reuses the
   `_make_sphere` builder from `test_g_adjoint_reciprocity.py:94`).
-- C1/C2 config: heterogeneous slab, vacuum→reflective tilt (reuse the
-  `test_homogenization.py:243` flux-tilt fixture), asymmetric SigS so
-  φ\*≠φ.
+- C1/C3 config (homogenize, L0): strongly non-self-adjoint heterogeneous
+  slab, vacuum→reflective tilt (the `tests/sn/test_homogenization.py:254`
+  flux-tilt pattern), asymmetric SigS + absorber gradient so φ\*≠φ in
+  SHAPE. The module fixture (`test_homogenization.py:58`: 2G, χ=[1,0],
+  νΣf=[0.24,0.48] non-proportional, SigS=[[0.60,0.10],[0.0,0.90]]
+  asymmetric) already carries the SigS/χ asymmetry; C1 adds the absorber
+  gradient for a materially non-flat φ\*.
+- C2 config (homogenize, L2 — GREENFIELD, no existing test re-solves a
+  homogenized mesh): a **16-cell** ≥2G heterogeneous asymmetric-SigS slab
+  with vacuum→reflective tilt; coarse-partition LADDER P ∈ {2, 4, 8}
+  coarse cells (each a contiguous union of fine cells — 16 divisible by
+  all three; identity partition P=16 is exact). Re-solve
+  `solve_sn(mm.materials, mm.mesh, quad, …)` (`MaterialMesh` carries
+  `.materials` dict + `.mesh` coarse geometry).
+- C4/C5 config (condense, L0): 4-fine-group → 2-coarse-group (reuse
+  `tests/sn/test_condensation.py:_EG_FINE`/`_EG_COARSE`), asymmetric SigS,
+  WITHIN-GROUP-VARYING representative spectrum, strongly non-self-adjoint
+  so φ\*_spectrum differs in shape from φ_spectrum.
 
 ---
 
@@ -354,86 +421,285 @@ then may Phase 2 (the consumer) be built.
 
 ---
 
-## 4. PHASE 2 — adjoint-weighted homogenization consumer (the small half).
+## 4. PHASE 2 — adjoint-weighted homogenization + condensation consumer (the small half).
 
-Built ONLY after Phase 1 closes. The forward homogenization is the
-**Galerkin degenerate** (φ\*=φ) already shipped
-(`test_homogenization.py`, `discrete_ordinates.rst:15909`); P6 makes it
-genuinely Petrov-Galerkin with φ\*≠φ.
+> **Delta-refresh (2026-07-25, P6 open).** Re-verified against the landed
+> carrier (`orpheus/sn/solution.py`) and the shipped forward frames.
+> Phase 1 (§3) is GREEN and merged — φ\* is CERTIFIED (P1.0–P1.5 + the
+> sphere φ\*-shape row); Phase 2 is now LIVE. Six substantive corrections
+> vs the pre-carve draft:
+> **(a)** C2 ladder direction REVERSED — the stationarity limit is the
+> COARSE partition → the FIXED fine reference (δφ→0), NOT fine-mesh
+> refinement under a fixed partition (that leaves a finite homogenization
+> defect and no measurable rate); the claim is now COMPARATIVE
+> (adjoint gap < forward gap, per #281 acceptance), C2 is greenfield.
+> **(b)** C3 upgraded from COUNT to CAPTURE — the shipped Mode-11 sentinel
+> (`tests/sn/test_homogenization.py:311-369`) only counts `.analyze`;
+> C3 must CAPTURE the weight and `array_equal` it to φ\*⊙φ.
+> **(c)** C1 dud-guard made NORMALIZATION-AWARE — the bilinear is
+> φ\*-scale-invariant, so compare normalized shapes.
+> **(d)** Condense-axis gates ADDED (C4/C5) — the ratified API covers
+> `condense`; the adjoint enters ONLY the `average` morphism.
+> **(e)** Degenerate pins made EXPLICIT (§4.0) — `adjoint=None` is the
+> shipped path, bit-identical.
+> **(f)** χ-simplex positive control ADDED (Cχ).
+> Stale paths fixed: `tests/sn/test_homogenization.py`,
+> `tests/numerics/test_frame.py:358`,
+> `docs/theory/foundations/frame.rst:999`/`:3423`,
+> `docs/theory/verification/matrix.rst`.
 
-### C1 — PG-vs-Galerkin discriminator where φ\*≠φ MATERIALLY (L0, foundation).
+Built ONLY after Phase 1 closes (φ\* certified). The **RATIFIED #281 P6-B2
+API** (`solution.py:484-490` — `Solution.homogenize(coarse, *, adjoint:
+AdjointSolution | None = None)`, SAME for `condense`) lands the
+Petrov-Galerkin implementation WITH these gates — there is no
+advertised-but-unwired arm in between. `adjoint=None` ⇒ today's
+flux-weighted (Galerkin, φ\*=φ *reading* of the φ\*=1 degenerate)
+collapse, BIT-IDENTICAL. Obtain φ\* via
+`solve_sn_adjoint(materials, fine_mesh, quad, …)` (`solver.py:2348` →
+`AdjointSolution`); pass it as `adjoint=` to the FORWARD solution's
+`homogenize`/`condense`.
 
-The φ\*-vs-φ analogue of `test_frame.py:339`
+**The weight, made precise (drives every gate).** The XS field is weighted
+by the bilinear product **w = φ\*⊙φ** for the VECTOR channels (fixed);
+the MATRIX-channel and χ (fission-dyad) weights are settled by the **B1
+derivations module** (USER RULING, §2). Gates are concrete on the vector
+rule NOW and reference "the B1-derived rule" for matrix/χ — with fully
+concrete configs, references, mutations, and tolerances regardless.
+
+### 4.0 — Degenerate pins: `adjoint=None` is the SHIPPED path, bit-identical (foundation).
+
+The `None` arm MUST keep the EXACT current code path (no reshuffled
+reduction), so the pin has TWO teeth:
+- **Tooth 1 — the no-arg default equals the explicit `None`.**
+  `sol.homogenize(coarse)` ≡ `sol.homogenize(coarse, adjoint=None)` —
+  `np.array_equal` on every channel of every coarse `Mixture` (0-ULP; ANY
+  rtol here is a RED FLAG). SAME for `condense` over the `dict[int,
+  Mixture]`. Uses the `tests/numerics/test_frame.py:343-354` 0-ULP
+  template. Catches a `None` arm that diverges from the default.
+- **Tooth 2 — no shared drift from the pre-P6 baseline.** Tooth 1 is
+  blind to a refactor that routes BOTH arms through one new
+  `_weighted(weight)` helper whose reduction tree differs from the
+  shipped `frame.project` (both drift together, stay equal to each
+  other). The GUARD is the EXISTING forward suite staying green — its
+  rate gates carry structurally-independent HAND references
+  (`test_homogenization.py:244-287` φV loop; the identity test :194), so
+  a shared reduction-tree drift reds THEM even when Tooth 1 passes.
+- **Claim:** foundation (behaviour-neutral relabel — vv Mode-12: the
+  neutrality is proven by DIRECT value comparison, not a proxy). **Pillar:**
+  closed-form (bit-identity by inheritance).
+- **Mutations (each REDs under -O):**
+  1. Make the `None` arm apply φ² (the φ\*=φ misreading, weight φ⊙φ)
+     while the default stays φ → Tooth 1 `array_equal` REDs (a real value
+     difference, NOT a multiply-by-1.0 no-op, which IEEE-754 leaves
+     bit-exact).
+  2. Reshape/reorder the shared reduction so the pre-P6 forward values
+     drift → Tooth 2 (the φV hand-reference rate gate) REDs.
+
+### C1 — homogenize PG discriminator: the vector-channel weight is φ\*⊙φ ≠ φ (L0, foundation).
+
+The φ\*-vs-φ analogue of `tests/numerics/test_frame.py:358`
 (`test_petrov_galerkin_project_differs_from_galerkin_when_test_neq_trial`)
-and `test_homogenization.py:243` (φV-vs-dV). Template = those two; the
-NEW axis is **test = φ\*·1_R ≠ trial = φ·1_R**.
-- Config: strongly non-self-adjoint heterogeneous slab (asymmetric SigS +
-  absorber gradient) so φ\* and φ differ materially across the region.
-- Gate: `Σ_R = ⟨φ*, Σφ⟩_R / ⟨φ*, φ⟩_R` (the bilinear,
-  `discrete_ordinates.rst:15887` `sn-homogenization-bilinear`) ==
-  explicit per-region Python loop with φ\* as the test weight
-  (structurally independent — NOT a re-call of the production matmul,
-  `test_homogenization.py:18`). AND assert it DIFFERS from both the
-  forward φ-weighted (Galerkin degenerate) AND the dV (volume) average:
-  `assert not np.allclose(Σ_adjoint_weighted, Σ_forward_weighted)`.
-- **Dud-guard (mandatory):** assert the discrimination fired
-  (`test_homogenization.py:283` "fixture too flat" pattern, generalised:
-  here "φ\* not different enough from φ"). If φ\*≈φ the PG type is
-  ceremony and C1 proves nothing — the gate MUST verify φ\*≠φ first.
-- Tolerance: rtol≈1e-12 (hand arithmetic). Claim: model. Pillar:
-  closed-form.
+and `tests/sn/test_homogenization.py:244-287` (the φV-vs-dV dud-guard).
+Template = those two; the NEW axis is the bilinear weight **w = φ\*⊙φ** on
+the test side (`sn-homogenization-bilinear`,
+`docs/theory/foundations/frame.rst:999`) — NOT the forward w=φ, NOT dV's
+w=1.
+- **Config:** strongly non-self-adjoint heterogeneous slab (asymmetric
+  SigS + absorber gradient, vacuum→reflective tilt) so φ\* and φ differ in
+  SHAPE across the region. `fwd = solve_sn(...)`,
+  `adj = solve_sn_adjoint(...)`.
+- **Gate (VECTOR channels — concrete NOW):** for SigT (and each of SigC,
+  SigL, SigF, SigP),
+  `fwd.homogenize(coarse, adjoint=adj).materials[R].SigT[g]` equals the
+  explicit per-region Python loop with weight w = φ\*⊙φ:
+  `Σ_R = Σ_{i∈R} V_i φ*_{i,g} φ_{i,g} Σ_{i,g} / Σ_{i∈R} V_i φ*_{i,g} φ_{i,g}`
+  (structurally independent — NOT a re-call of the production
+  `project_through`, per `test_homogenization.py:18` / vv L11). AND assert
+  it DIFFERS from BOTH the forward φ-weighted degenerate (`adjoint=None`)
+  AND the dV volume average:
+  `assert not np.allclose(Σ_adjoint, Σ_forward)` and `… != Σ_dV`.
+- **Gate (MATRIX + χ channels — structure NOW, weight B1-derived):** the
+  same production-vs-hand-loop equality, but the hand loop uses **the
+  B1-derived rule** (matrix: per-pair `φ*_g·φ_{g'}` vs source-product; χ:
+  the factored fission-dyad rule). Do NOT hard-code φ\*⊙φ for the matrix
+  SOURCE axis before B1 confirms it — the source-axis rule may legitimately
+  differ from the vector rule. Ship config/mutation/tolerance now.
+- **Dud-guard (mandatory, NORMALIZATION-AWARE — correction c):** the
+  bilinear `∫φ*Σφ/∫φ*φ` is INVARIANT under φ\*→c·φ\*, and φ\*, φ carry
+  independent eigenvector normalizations, so compare SHAPES:
+  `assert not np.allclose(φ*/‖φ*‖, φ/‖φ‖, rtol=…)` per group — φ\* must be
+  a materially different importance SHAPE (else the "adjoint weighting" is
+  a rescaling of the forward and C1 proves nothing). PLUS assert the
+  OUTPUT discrimination fired (`Σ_adjoint ≠ Σ_forward`) — the
+  `test_homogenization.py:284` "fixture too flat" pattern generalised.
+- **Tolerance:** rtol 1e-12 (hand arithmetic). **Claim:** model. **Pillar:**
+  closed-form (per-region hand loop).
+- **Mutations (each REDs C1 under -O):**
+  1. Production ignores `adjoint` (uses w=φ, the forward degenerate) →
+     production ≠ φ\*⊙φ hand reference → RED.
+  2. Production uses BARE φ\* (`WeightedIndicatorBasis(trial, φ*)` — the
+     `frame.rst:3458` "φ→φ\*" trap) → w=φ\* ≠ φ\*⊙φ → RED.
+  3. Production uses φ² (adjoint weight taken as φ, i.e. the φ\*=φ
+     misreading) → ≠ φ\*⊙φ hand reference at a genuinely non-self-adjoint
+     config → RED.
+- **Config-blindness:** self-adjoint (φ\*≈φ in shape) → the
+  normalized-shape dud-guard fires FIRST (REJECT the config), so C1 can
+  never false-green on a dud.
 
-### C2 — keff-preservation under coarse-resolve (L2, first-order stationary).
+### C2 — homogenize keff-gap COMPARATIVE order under coarse-partition refinement (L2). REDESIGNED.
 
-The bilinear-preservation invariant, currently
-`sn-homogenization-bilinear` documented-but-untested
-(`docs/verification/matrix.rst:1004`).
-- Setup: solve fine (k_fine) → adjoint-weighted homogenize onto coarse →
-  re-solve coarse (k_coarse).
-- Gate: `|k_coarse − k_fine|` is **first-order stationary** — the error is
-  **O(δφ²)** (perturbation theory: adjoint weighting makes k stationary
-  w.r.t. flux perturbations). Concretely: refine the fine mesh in 2-3
-  steps; the `|k_coarse − k_fine|` gap must SHRINK QUADRATICALLY (or at
-  least faster than the forward-weighted/Galerkin homogenization's gap on
-  the SAME ladder — the adjoint-weighted gap must be strictly smaller,
-  which IS the whole point of eigenvalue-consistent homogenization).
-- **Tolerance / claim discipline:** this is a CONVERGENCE-ORDER claim
-  (the gap → 0 faster than first order), NOT a value claim — do NOT assert
-  `k_coarse == k_fine` to a fixed tolerance (that would be O(h²) to a
-  possibly-wrong limit, vv anti-#5). Assert the ORDER (gap_ratio shrinks)
-  AND anchor the limit: k_fine is L1 (P1.3-anchored). The pairing of
-  "order shrinks" + "limit is independently correct" is what makes C2 a
-  real gate (vv: convergence rate necessary, NOT sufficient).
-- **Discriminator vs the forward case:** run the SAME ladder with forward
-  (φ=φ\*) homogenization; the adjoint-weighted keff gap must be
-  SMALLER/higher-order. If they are equal, either the problem is
-  accidentally self-adjoint (REJECT the config) or φ\* is not actually on
-  the test side (C3 catches that).
-- **Mutation:** use φ (forward) instead of φ\* as the test weight → the
-  keff gap degrades to first-order (loses stationarity) → the order check
-  REDS. Claim: eigenvalue (first-order stationary). Pillar: closed-form
-  (k_fine reference).
+The eigenvalue-consistency payoff: adjoint weighting keeps k stationary
+w.r.t. the within-region flux perturbation δφ (first-order perturbation
+theory), so the coarse-resolve keff gap is HIGHER-ORDER than the
+forward-weighted gap. Verifies `sn-homogenization-bilinear`
+(documented-untested, `docs/theory/verification/matrix.rst`).
+- **Ladder direction (correction a — the pre-carve draft was WRONG).**
+  δφ shrinks as the COARSE partition approaches the FIXED fine reference,
+  NOT as the fine mesh refines under a fixed partition (that limit leaves
+  a finite homogenization defect and NO measurable rate). So the ladder is
+  a SEQUENCE OF COARSE PARTITIONS on ONE fixed fine problem: a **16-cell**
+  ≥2G heterogeneous asymmetric-SigS slab, vacuum→reflective tilt; coarse
+  partitions **P ∈ {2, 4, 8}** coarse cells (each a contiguous union of
+  fine cells). The IDENTITY partition (P=16) is exact for BOTH weightings
+  — `tests/sn/test_homogenization.py:194`
+  (`test_identity_homogenization_recovers_per_cell_materials`) proves the
+  XS are unchanged when coarse=fine — so the RATE of gap-shrinkage as
+  P→16 is what discriminates.
+- **Setup / re-solve route (GREENFIELD — no existing test re-solves a
+  homogenized mesh; nail every fixture parameter):**
+  `fwd = solve_sn(materials, fine16, quad)`;
+  `adj = solve_sn_adjoint(materials, fine16, quad)`;
+  per P: `mm_adj = fwd.homogenize(coarse_P, adjoint=adj)`,
+  `mm_fwd = fwd.homogenize(coarse_P)`;
+  `k_adj(P) = solve_sn(mm_adj.materials, mm_adj.mesh, quad).keff`,
+  `k_fwd(P) = solve_sn(mm_fwd.materials, mm_fwd.mesh, quad).keff`;
+  `k_fine = fwd.keff`.
+- **Gate (COMPARATIVE — PRIMARY, per #281 acceptance):**
+  1. `gap_adj(P) = |k_adj(P) − k_fine|` is STRICTLY SMALLER than
+     `gap_fwd(P) = |k_fwd(P) − k_fine|` on EVERY rung P ∈ {2,4,8}.
+  2. `gap_adj` shrinks FASTER: `gap_adj(8)/gap_adj(4) <
+     gap_fwd(8)/gap_fwd(4)` (adjoint is higher-order in δφ).
+- **Gate (absolute order — SECONDARY/optional):** a log-log fit of
+  `gap_adj` vs coarse cell width `h_coarse` with slope ≳ 2 while `gap_fwd`
+  ≈ 1, on the 3 rungs. Optional because the coarse-DISCRETIZATION error
+  (below) contaminates the absolute slope.
+- **HONEST SCOPE (correction a — what C2 does NOT prove).** The coarse
+  re-solve carries TWO error sources: (i) the XS-COLLAPSE worth error
+  (what adjoint weighting reduces) and (ii) the coarse-mesh spatial
+  DISCRETIZATION error (diamond-difference on 2/4/8 cells vs 16) — SHARED
+  by both weightings and NOT reduced by adjoint weighting. Since both arms
+  solve on the SAME coarse mesh, (ii) is IDENTICAL for both, so the
+  COMPARATIVE delta `gap_fwd − gap_adj` cleanly isolates (i). C2 proves
+  *adjoint weighting reduces the XS-collapse contribution to the keff
+  gap*, NOT *the coarse solve is exact*. This is precisely why comparative
+  is primary and absolute-order is secondary.
+- **Anti-#5 pairing:** k_fine is the L1-anchored limit (P1.3-certified),
+  so C2 anchors the value the gaps shrink toward — "order shrinks" +
+  "limit independently correct" (vv: convergence rate necessary, NOT
+  sufficient — never O(h²) to a possibly-wrong limit).
+- **Mutation (REDs C2 under -O):** feed φ (forward) as the test weight
+  instead of φ\* → `gap_adj` degrades to `gap_fwd` → the strict-inequality
+  assertion `gap_adj(P) < gap_fwd(P)` collapses to equality → RED.
+- **Config-blindness:** an accidentally self-adjoint config gives
+  `gap_adj ≈ gap_fwd` (no separation) → REJECT (the C1 normalized-shape
+  dud-guard, run on the same fixture, catches it). **Claim:** eigenvalue
+  (first-order stationary). **Pillar:** closed-form (k_fine reference).
 
-### C3 — Mode-11 routing sentinel: φ\* (not φ) reaches the test basis (structural).
+### C3 — homogenize Mode-11 CAPTURE-and-compare: the sigma-frame weight IS φ\*⊙φ (structural).
 
-Template = `test_homogenization.py:310`
-(`test_homogenize_routes_through_the_petrov_galerkin_frame`). The forward
-sentinel counts `WeightedIndicatorBasis.analyze` to prove φ moved onto the
-test side. P6's analogue proves **φ\*** (the ADJOINT) is the weight.
-- Sentinel: monkeypatch-count the construction of the test basis and
-  assert the weight array it receives IS φ\* (not φ). Strictly: an
-  in-process autouse wrap (vv Mode-11 sharpening) on the adjoint-flux
-  reader, asserting counter>0 AND that the captured weight `np.array_equal`
-  the adjoint flux, NOT the forward flux.
-- **Why it is NOT vacuous:** a bit-identity-preserving regression that
-  silently used φ (forward) as the weight would produce a DIFFERENT number
-  than C1 expects (C1 catches the value), but on a NEAR-self-adjoint
-  fixture C1's value gap could be small — C3 is the structural backstop
-  that fires regardless of how close φ\*≈φ. Pair C1 (value) + C3
-  (structural), the exact split Mode-11 exists for.
-- **Mutation:** wire φ as the test weight → C3's `array_equal(weight, φ*)`
-  RED (even when the value barely moves). Claim: structural. Not a pillar
-  (call-graph).
+The shipped sentinel `tests/sn/test_homogenization.py:311-369`
+(`test_homogenize_routes_through_the_petrov_galerkin_frame`) only COUNTS
+`WeightedIndicatorBasis.analyze` / `FrameBase.project` calls — it NEVER
+captures the weight ARRAY (correction b). C3 is the CAPTURE-and-compare
+UPGRADE (vv Mode-11 sharpening — the in-process wrap):
+- **Sentinel:** monkeypatch `WeightedIndicatorBasis.__init__` (or the
+  sigma-frame construction site, `solution.py:642-644`) to CAPTURE the
+  weight array handed to the test basis, then assert `counter > 0` AND
+  `np.array_equal(captured_sigma_weight, φ*⊙φ)` — the elementwise product
+  in the "ij"/C flat-cell order (`solution.py:641`), NOT bare φ\* and NOT
+  bare φ. Fires REGARDLESS of how close φ\*≈φ (a value gate cannot — C1's
+  gap → 0 as φ\*→φ, but C3's array identity is exact).
+- **Why NOT vacuous (Mode-11):** a bit-identity-preserving regression that
+  silently kept the forward weight φ (adjoint dropped) produces a
+  DIFFERENT number than C1's φ\*⊙φ reference expects — but on a
+  near-self-adjoint fixture C1's value gap is small, so C3 is the
+  STRUCTURAL backstop that reds regardless. Pair C1 (value) + C3
+  (structural) — the exact split Mode-11 exists for.
+- **Mutations (each REDs C3 under -O):**
+  1. Wire BARE φ\* as the weight → `array_equal(weight, φ*⊙φ)` RED (the
+     `frame.rst:3458` "φ→φ\*" trap — C3 is its committed catcher).
+  2. Wire forward φ (adjoint dropped) → RED even when the value barely
+     moves.
+- **Claim:** structural. **Not a pillar** (call-graph).
+
+### C4 — condense energy-axis discriminator: AVERAGE moves, MARGINALIZE frozen (L0).
+
+The energy-axis analogue of C1, on `Solution.condense` /
+`Mixture.condense` (`orpheus/data/macro_xs/mixture.py:313-410`). The
+ratified API covers condense (`solution.py:485`). `Mixture.condense` has
+TWO morphisms (`mixture.py:388-408`): **average** (`frame.project`,
+spectrum test weight — vectors + matrix SOURCE `g_from` axis) and
+**marginalize** (bare `@ table`, NO weight — matrix SINK `g_to` axis +
+χ). The adjoint enters **ONLY the average morphism**, giving C4 a free
+STRUCTURAL discriminator (correction d):
+- **Config:** 4-fine-group → 2-coarse-group (reuse
+  `tests/sn/test_condensation.py:_EG_FINE`/`_EG_COARSE`), asymmetric SigS,
+  WITHIN-GROUP-VARYING representative spectrum (else the average morphism
+  does not discriminate), strongly non-self-adjoint so φ\*_spectrum
+  differs in shape from φ_spectrum.
+- **Gate A (average morphism MOVES):** adjoint-condensed vectors (SigT, …)
+  and matrix SOURCE axis ≠ forward-condensed, and == the hand reference
+  with the **B1-derived** average weight (vector spectrum bilinear =
+  φ\*_spectrum⊙φ_spectrum; matrix source axis per the B1 rule).
+- **Gate B (marginalize morphism FROZEN — the sharp discriminator):** the
+  MARGINALIZE-collapsed channels (χ, matrix SINK axis) are BIT-IDENTICAL
+  between `adjoint=None` and `adjoint=φ*`:
+  `np.array_equal(condense(adjoint=adj).chi, condense().chi)` and the sink
+  axis. A regression that leaks φ\* into the χ/sink collapse REDs Gate B.
+- **Dud-guard:** normalized-shape guard on the spectra
+  (`φ*_spectrum/‖·‖ vs φ_spectrum/‖·‖`), as C1.
+- **Tolerance:** rtol 1e-12 (Gate A hand loop); `array_equal` (Gate B).
+- **Mutations (each REDs C4 under -O):**
+  1. Adjoint leaks into χ / the sink axis (marginalize) → Gate B
+     `array_equal` RED.
+  2. Adjoint dropped from average (uses spectrum φ) → Gate A ≠ hand
+     reference → RED.
+- **Claim:** model (Gate A) + structural (Gate B). **Pillar:** closed-form
+  (hand loop).
+
+### C5 — condense Mode-11 CAPTURE sentinel: the average-frame spectrum weight IS φ\*_spectrum⊙φ_spectrum (structural).
+
+The condense sibling of C3 (correction b — "add the condense sibling
+sentinel"). Capture the spectrum weight handed to the average-frame's
+`WeightedIndicatorBasis` (`mixture.py:385`) and assert
+`np.array_equal(captured_spectrum_weight, φ*_spectrum⊙φ_spectrum)` — NOT
+bare φ\*_spectrum, NOT bare φ_spectrum. Assert counter>0.
+- **Mutation (REDs under -O):** wire bare φ\*_spectrum (the `frame.rst:3458`
+  trap on the energy axis) or forward φ_spectrum → RED.
+- **Claim:** structural. (The condense `adjoint=None` degenerate pin lives
+  in §4.0.)
+
+### Cχ — χ-simplex positive control under the B1-derived emission rule (foundation).
+
+Constructing the adjoint-weighted `Mixture` VALIDATES χ via
+`EmissionSpectrum` (`orpheus/data/emission_spectrum.py:96,101` — `raise
+ValueError` on a non-simplex, so it FIRES under -O; NOT a bare `assert`,
+Mode-8-safe). The gate is a POSITIVE control (correction f; vv anti-#11 —
+a validation invariant needs a MUST-NOT-RAISE positive test, not only a
+negative one): the χ_R produced under the B1-derived fission-dyad rule
+MUST still construct a valid Mixture (no raise) AND pass
+`assert_normalized`. A convex combination of simplices is a simplex, so IF
+the B1 rule keeps χ_R a convex average of the fine χ_i it holds by
+construction — this gate pins that the B1 rule did NOT break convexity.
+- **Config:** the C1 non-self-adjoint fixture (χ=[1,0]-type fast-peaked
+  fine spectra), for BOTH the homogenize χ collapse and the condense χ
+  (marginalize) collapse.
+- **Mutation (REDs under -O):** a B1 χ-rule that admits a NEGATIVE φ\*
+  weight (importance can be signed for a non-fundamental mode) → χ_R leaves
+  the simplex → `EmissionSpectrum` RAISES → the positive control REDs
+  (confirms the rule guards sign).
+- **Claim:** foundation (intrinsic simplex law). **Pillar:** closed-form
+  (the simplex constraint).
 
 ---
 
@@ -457,12 +723,27 @@ P1.0b (S† leaf)  ─┤→ P1.1 (full-loss reciprocity, composite)
         ════════ φ* CERTIFIED ════════
                                  │
                                  ↓
-                    C1 (PG≠Galerkin, φ*≠φ) ─→ C2 (keff stationary) ─→ C3 (Mode-11 sentinel)
+                    §4.0 degenerate pins (adjoint=None ≡ shipped, bit-identical)
+                                 │
+                 ┌───────────────┴────────────────┐
+        homogenize axis                     condense axis
+                 │                                │
+     C1 (w=φ*⊙φ ≠ φ, L0) ──┐           C4 (average moves / marginalize frozen, L0)
+                 │          │                     │
+     C2 (keff-gap comparative order, L2)   C5 (Mode-11 CAPTURE: spectrum weight = φ*_s⊙φ_s)
+                 │          │                     │
+     C3 (Mode-11 CAPTURE: sigma weight = φ*⊙φ) ───┤
+                 └───────────────┬────────────────┘
+                                 ↓
+                    Cχ (χ-simplex positive control, BOTH axes)
 ```
 
 - **Before φ\* can be called correct:** P1.0 → P1.5 GREEN + every mutation
   reddens its gate under `-O`.
 - **Before the consumer is built:** φ\* certified (the whole P1 chain).
+- **§4.0 gates the axes:** the `adjoint=None` bit-identity pins run FIRST
+  (they need no φ\*); C1–C3 (homogenize) and C4–C5 (condense) are
+  independent axes; Cχ spans both (the emission-rule simplex control).
 - **L1 vs L4:** ALL Phase-1 value gates are **L1** (closed-form /
   algebraic-identity references terminating in `np.linalg.eig` or the
   reciprocity identity). There is **no L4 gate** in this plan — and there
@@ -483,9 +764,17 @@ trigger 1):
 | **Adjoint-fission role swap NOT applied** (F†=F, χ↔νΣf missing) | P1.0a leaf gate + P1.4 spectrum-shape gate; config MUST have χ NON-proportional to νΣf (else invisible) |
 | **Scattering kernel transpose NOT applied** (S†=S) | P1.0b leaf + P1.1 per-group reciprocity + P1.2 cross-group source/detector; config MUST have ASYMMETRIC SigS |
 | **Streaming μ-reversal missing in Lᵀ** (adjoint uses +μ) | P1.3 heterogeneous + sphere legs (∞-medium flat-flux leg is BLIND to it) |
-| **Adjoint-weighted homogenization uses φ not φ\*** | C1 value + C3 Mode-11 sentinel (pair: value catches it on non-self-adjoint, sentinel catches it structurally regardless) |
+| **Adjoint-weighted homogenization drops φ\*** (uses forward φ) | C1 value (φ\*⊙φ hand ref) + C3 Mode-11 CAPTURE (pair: value catches it on non-self-adjoint, capture catches it structurally regardless of φ\*≈φ) |
+| **Adjoint weight is BARE φ\* not the bilinear product φ\*⊙φ** (the `frame.rst:3458` "φ→φ\*" doc trap) | C3/C5 CAPTURE-and-compare: `array_equal(weight, φ*⊙φ)` REDs on bare φ\*; C1 value REDs vs the φ\*⊙φ hand loop. **The most likely P6 implementation bug** — the doc language invites it |
+| **Adjoint leaks into the condense MARGINALIZE morphism** (χ / matrix sink axis) | C4 Gate B: `array_equal(condense(adjoint=adj).chi, condense().chi)` — the marginalize channels MUST stay byte-frozen (adjoint touches only `average`) |
+| **`adjoint=None` arm is a re-derived look-alike, not the shipped path** | §4.0 degenerate pin: 0-ULP `array_equal(homogenize(), homogenize(adjoint=None))` REDs on any FP drift (a ones-weight PG route drifts at ULP) |
+| **B1 χ-rule breaks the simplex** (negative φ\* weight on a non-fundamental mode) | Cχ positive control: adjoint-weighted `Mixture` construction RAISES `ValueError` via `EmissionSpectrum` (fires under -O) |
 | **Composite S.H wrong even with correct leaf transposes** (frame-consistency, ERR-061 family) | P1.0b dense `Gᵀ S Gᵀ` oracle (catches a wrong composition that per-leaf gates pass) |
 
 → propose as `numerical-bug-signatures` Signature 11 (adjoint role-swap
-invisibility under symmetric kernels) once a real bug is caught in
-implementation; until then, skill-table rows above.
+invisibility under symmetric kernels) once a real bug is caught in P6
+implementation; the BARE-φ\* vs φ\*⊙φ weight confusion (the doc-trap row
+above) is a strong Signature-11-sibling candidate — a plausible-wrong
+adjoint-weight that passes a COUNT sentinel and a near-self-adjoint value
+gate but fails the CAPTURE gate. Until a real bug lands, skill-table rows
+above.
