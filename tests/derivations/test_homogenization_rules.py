@@ -39,6 +39,12 @@ class TestAdjointWeightedCollapseTheorems:
         r"""φ*⊙φ zeroes the vector-channel worth, uniquely; forward rule does not."""
         hom.derive_vector_channel_rule()
 
+    def test_t1b_collision_channel_angular_pairing(self):
+        r"""The exact Σt rule weights by ρ = Σ_n w ψ*ψ (unique); the scalar pair
+        is its isotropic limit and fails on anisotropic shapes (user-ruled
+        implemented — option 2 at the P6 open)."""
+        hom.derive_angular_sigma_t_rule()
+
     def test_t2_matrix_channels_per_pair_weight(self):
         r"""Per-pair φ*_g·φ_g' zeroes every (g',g) worth; the source-product
         broadcast (what the per-(cell, group) plumbing would produce) does not."""

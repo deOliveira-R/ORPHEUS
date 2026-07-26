@@ -85,13 +85,26 @@ pair weight* on fine cell :math:`i`, group :math:`g` (volume :math:`V_i`):
   theoretical basis of the C2 comparative gate (forward gap first-order,
   adjoint-weighted gap second-order).
 
-Angular honest-scope note (P0 pairing).  The collision worth pairs the
-ANGULAR fluxes, :math:`\sum_n w_n \psi^*_n\psi_n`; the scalar product
-:math:`\varphi^*\varphi` is its P0 truncation.  It is EXACT for the
-isotropic operators (scattering source, fission) and truncated for the
-:math:`\Sigma_t` collision term — the classical practice for
-bilinear-weighted constants.  The angular-product weight is a documented
-seam, not implemented in P6.
+Angular pairing (T1b — USER-RULED implemented).  The collision worth
+pairs the ANGULAR fluxes: the exact :math:`\Sigma_t` rule weights by
+:math:`\rho_{i,g} = \sum_n w_n \psi^*_{i,g,n}\psi_{i,g,n}` (T1b — unique,
+proved), of which the scalar :math:`\varphi^*\varphi` is the P0/isotropic
+truncation (they coincide identically on isotropic shapes — also proved).
+The user ruled (P6 open, option 2) that production implements the exact
+angular rule for :math:`\Sigma_t` — both solutions carry :math:`\psi` —
+rather than the classical scalar practice.  The scalar pair remains EXACT
+for the isotropic operators (the P0 scattering source and fission), and
+the moment-resolved refinement for anisotropic scattering orders
+(:math:`\Sigma_{s,\ell}` pairing the :math:`\ell`-moments; :math:`\ell=0`
+= T2's scalar pair; Parseval makes :math:`\rho` the all-moment sum) stays
+a documented seam until an anisotropic-collapse consumer exists.
+
+Programmatic documentation (USER-RULED).  Every production rule has a
+grid-parameterized BUILDER (what the theorems verify) and a Sum-form
+DISPLAY equation (:func:`collapse_rules` — what the B4 doc generator
+renders into the theory pages); each theorem proves the two spellings
+equal at the concrete grids, so the documented math and the verified math
+cannot drift.
 
 The energy axis (T6): condensation is pure projection
 =====================================================
@@ -137,8 +150,15 @@ import sympy as sp
 
 __all__ = [
     "DerivationError",
+    "vector_bilinear_rule",
+    "angular_sigma_t_rule",
+    "matrix_per_pair_rule",
+    "fission_nsf_mixed_fold_rule",
+    "fission_chi_canonical_rule",
+    "collapse_rules",
     "derive_first_order_k_shift",
     "derive_vector_channel_rule",
+    "derive_angular_sigma_t_rule",
     "derive_matrix_channel_rule",
     "derive_fission_factored_rule",
     "derive_balance_tradeoff",
@@ -209,6 +229,151 @@ def _generic_rationals() -> dict[sp.Symbol, sp.Rational]:
             subs[phi[i][g]] = sp.Rational(next(primes), 6)
             subs[phis[i][g]] = sp.Rational(next(primes), 5)
     return subs
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The rule builders — the single source of the collapse-rule STRUCTURE.
+#
+# Each production rule exists in exactly two spellings, both here:
+#
+# * a grid-parameterized BUILDER (finite sums over explicit index sets) —
+#   what the theorems verify and what any production cross-check calls;
+# * a Sum-form DISPLAY equation over IndexedBase (``collapse_rules()``) —
+#   what the doc generator renders into the theory pages (the user-ruled
+#   programmatic algebra-of-record pipeline).
+#
+# The two spellings are welded by PROOF, not by convention: every theorem
+# verifies ``display.subs(N, 2).doit() ≡ builder(concrete grids)`` before
+# using the builder, so a drift between what the docs show and what the
+# code implements cannot survive the pin suite.
+# ═══════════════════════════════════════════════════════════════════════
+
+def vector_bilinear_rule(cells, V_, phis_, phi_, sigma_, g: int) -> sp.Expr:
+    r"""T1: :math:`\Sigma_{R,g} = \sum_i V_i\varphi^*_{i,g}\Sigma_{i,g}\varphi_{i,g}
+    \big/ \sum_i V_i\varphi^*_{i,g}\varphi_{i,g}` — the pair weight φ*⊙φ."""
+    num = sum(V_[i] * phis_[i][g] * sigma_[i][g] * phi_[i][g] for i in cells)
+    den = sum(V_[i] * phis_[i][g] * phi_[i][g] for i in cells)
+    return num / den
+
+
+def angular_sigma_t_rule(cells, ordinates, V_, w_, psis_, psi_, sigma_, g: int) -> sp.Expr:
+    r"""T1b: the EXACT collision rule — weight :math:`\rho_{i,g} = \sum_n
+    w_n\psi^*_{i,g,n}\psi_{i,g,n}` (the angular pairing the collision worth
+    actually carries; the scalar φ*⊙φ is its P0 truncation)."""
+    rho = {
+        i: sum(w_[n] * psis_[i][g][n] * psi_[i][g][n] for n in ordinates)
+        for i in cells
+    }
+    num = sum(V_[i] * rho[i] * sigma_[i][g] for i in cells)
+    den = sum(V_[i] * rho[i] for i in cells)
+    return num / den
+
+
+def matrix_per_pair_rule(cells, V_, phis_, phi_, sig_s_, gf: int, gt: int) -> sp.Expr:
+    r"""T2: :math:`\Sigma_{s,R}[g'\!\to\!g] = \sum_i V_i\varphi^*_{i,g}
+    \Sigma_{s,i}[g'\!\to\!g]\varphi_{i,g'} \big/ \sum_i V_i\varphi^*_{i,g}
+    \varphi_{i,g'}` — sink adjoint × source flux, per pair."""
+    num = sum(V_[i] * phis_[i][gt] * sig_s_[i][gf][gt] * phi_[i][gf] for i in cells)
+    den = sum(V_[i] * phis_[i][gt] * phi_[i][gf] for i in cells)
+    return num / den
+
+
+def fission_nsf_mixed_fold_rule(
+    cells, groups, V_, phis_, phi_, nsf_, chi_, chi_R_, gp: int,
+) -> sp.Expr:
+    r"""T3: the mixed-fold :math:`\nu\Sigma_{f,R,g'}` — numerator folded by the
+    FINE emission importance :math:`\iota_i = \sum_g\varphi^*_{i,g}\chi_{i,g}`,
+    denominator by the COLLAPSED :math:`\tilde\iota_i =
+    \sum_g\varphi^*_{i,g}\chi_{R,g}` (exact total-worth for any simplex χ_R)."""
+    iota = {i: sum(phis_[i][g] * chi_[i][g] for g in groups) for i in cells}
+    iota_R = {i: sum(phis_[i][g] * chi_R_[g] for g in groups) for i in cells}
+    num = sum(V_[i] * iota[i] * nsf_[i][gp] * phi_[i][gp] for i in cells)
+    den = sum(V_[i] * iota_R[i] * phi_[i][gp] for i in cells)
+    return num / den
+
+
+def fission_chi_canonical_rule(cells, groups, V_, phis_, phi_, nsf_, chi_, g: int) -> sp.Expr:
+    r"""T3: the canonical :math:`\chi_{R,g}` — the adjoint-weighted-emission
+    convex average, weights :math:`q_i = V_i\,\iota_i\,p_i` (a simplex by
+    construction; production-weighted at flat φ*)."""
+    iota = {i: sum(phis_[i][gg] * chi_[i][gg] for gg in groups) for i in cells}
+    p = {i: sum(nsf_[i][gp] * phi_[i][gp] for gp in groups) for i in cells}
+    q = {i: V_[i] * iota[i] * p[i] for i in cells}
+    return sum(q[i] * chi_[i][g] for i in cells) / sum(q[i] for i in cells)
+
+
+# — the Sum-form display equations (the doc generator's input) —
+
+_i = sp.Symbol("i", integer=True)
+_n_idx = sp.Symbol("n", integer=True)
+_g_sym = sp.Symbol("g", integer=True)
+_gp_sym = sp.Symbol("g'", integer=True)
+_NR = sp.Symbol("N_R", integer=True, positive=True)
+_NW = sp.Symbol("N_Omega", integer=True, positive=True)
+
+_Vb = sp.IndexedBase("V")
+_wb = sp.IndexedBase("w")
+_phib = sp.IndexedBase(r"\varphi")
+_phisb = sp.IndexedBase(r"\varphi^{*}")
+_psib = sp.IndexedBase(r"\psi")
+_psisb = sp.IndexedBase(r"\psi^{*}")
+_Sigb = sp.IndexedBase(r"\Sigma")
+_Sigsb = sp.IndexedBase(r"\Sigma_{s}")
+_nsfb = sp.IndexedBase(r"\nu\Sigma_{f}")
+_chib = sp.IndexedBase(r"\chi")
+_iotab = sp.IndexedBase(r"\iota")
+_iotaRb = sp.IndexedBase(r"\tilde{\iota}")
+_qb = sp.IndexedBase("q")
+
+
+def collapse_rules() -> dict[str, sp.Eq]:
+    r"""The display (Sum-form) collapse rules, keyed by channel class.
+
+    These are what the theory pages RENDER (via the B4 generator).  Every
+    entry is proof-welded to its builder inside the corresponding theorem
+    (``display ≡ builder`` at the concrete grids), so the documented math
+    and the verified math cannot drift apart.
+    """
+    S = sp.Sum
+    vector = sp.Eq(
+        sp.Symbol(r"\Sigma_{R,g}"),
+        S(_Vb[_i] * _phisb[_i, _g_sym] * _Sigb[_i, _g_sym] * _phib[_i, _g_sym], (_i, 1, _NR))
+        / S(_Vb[_i] * _phisb[_i, _g_sym] * _phib[_i, _g_sym], (_i, 1, _NR)),
+    )
+    rho = S(_wb[_n_idx] * _psisb[_i, _g_sym, _n_idx] * _psib[_i, _g_sym, _n_idx], (_n_idx, 1, _NW))
+    angular = sp.Eq(
+        sp.Symbol(r"\Sigma_{t,R,g}"),
+        S(_Vb[_i] * rho * _Sigb[_i, _g_sym], (_i, 1, _NR))
+        / S(_Vb[_i] * rho, (_i, 1, _NR)),
+    )
+    matrix = sp.Eq(
+        sp.Symbol(r"\Sigma_{s,R}[g'\to g]"),
+        S(_Vb[_i] * _phisb[_i, _g_sym] * _Sigsb[_i, _gp_sym, _g_sym] * _phib[_i, _gp_sym], (_i, 1, _NR))
+        / S(_Vb[_i] * _phisb[_i, _g_sym] * _phib[_i, _gp_sym], (_i, 1, _NR)),
+    )
+    nsf_eq = sp.Eq(
+        sp.Symbol(r"\nu\Sigma_{f,R,g'}"),
+        S(_Vb[_i] * _iotab[_i] * _nsfb[_i, _gp_sym] * _phib[_i, _gp_sym], (_i, 1, _NR))
+        / S(_Vb[_i] * _iotaRb[_i] * _phib[_i, _gp_sym], (_i, 1, _NR)),
+    )
+    chi_eq = sp.Eq(
+        sp.Symbol(r"\chi_{R,g}"),
+        S(_qb[_i] * _chib[_i, _g_sym], (_i, 1, _NR)) / S(_qb[_i], (_i, 1, _NR)),
+    )
+    return {
+        "vector": vector,
+        "angular_sigma_t": angular,
+        "matrix_per_pair": matrix,
+        "fission_nsf_mixed_fold": nsf_eq,
+        "fission_chi_canonical": chi_eq,
+    }
+
+
+def _display_matches_builder(key: str, builder_expr: sp.Expr, subs_map: dict) -> None:
+    """Prove ``collapse_rules()[key]`` expands (N_R→2, indices→grids) to the builder."""
+    display = collapse_rules()[key].rhs
+    expanded = display.subs({_NR: _N, _NW: _N}).doit().subs(subs_map)
+    _is_zero(expanded - builder_expr, f"display '{key}' drifted from its builder")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -302,9 +467,19 @@ def derive_vector_channel_rule() -> None:
     sigma = [[sp.Symbol(f"sigma_{i}{g}", positive=True) for g in _GROUPS] for i in _CELLS]
 
     def bilinear(g: int) -> sp.Expr:
-        num = sum(V[i] * _pair_weight(i, g) * sigma[i][g] for i in _CELLS)
-        den = sum(V[i] * _pair_weight(i, g) for i in _CELLS)
-        return num / den
+        return vector_bilinear_rule(_CELLS, V, phis, phi, sigma, g)
+
+    # Weld the display (Sum-form) spelling to the builder before using it.
+    _display_matches_builder(
+        "vector", bilinear(0),
+        {
+            **{_Vb[i + 1]: V[i] for i in _CELLS},
+            **{_phisb[i + 1, _g_sym]: phis[i][0] for i in _CELLS},
+            **{_phib[i + 1, _g_sym]: phi[i][0] for i in _CELLS},
+            **{_Sigb[i + 1, _g_sym]: sigma[i][0] for i in _CELLS},
+        },
+    )
+    print("  ✓ display Sum-form ≡ builder (the doc-generator weld)")
 
     for g, worth in enumerate(_vector_worth(sigma, bilinear)):
         _is_zero(worth, f"T1: bilinear rule leaves worth in group {g}")
@@ -332,6 +507,122 @@ def derive_vector_channel_rule() -> None:
     residual = _vector_worth(sigma, forward)[0].subs(subs)
     _is_nonzero(residual, "T1: forward rule accidentally zeroed the worth")
     print(f"  ✓ forward (flux-weighted) rule leaves W_0 = {sp.nsimplify(residual)} ≠ 0\n")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# T1b — the collision channel: the EXACT angular pairing (user-ruled)
+# ═══════════════════════════════════════════════════════════════════════
+
+def derive_angular_sigma_t_rule() -> None:
+    r"""T1b: the collision worth pairs ANGULARLY — the exact Σt rule weights by
+    :math:`\rho_{i,g} = \sum_n w_n\psi^*_{i,g,n}\psi_{i,g,n}`.
+
+    The collision term of the pencil acts on the full angular flux, so its
+    worth is :math:`\sum_{i,g,n} V_i w_n \psi^*_{i,g,n}(\Sigma_{R,g} -
+    \Sigma_{i,g})\psi_{i,g,n}` — zeroed uniquely by the angular-product
+    weight :math:`\rho` (proved), NOT by the scalar pair :math:`\varphi^*
+    \varphi` (its P0 truncation; generic anisotropic counterexample).  On
+    isotropic angular shapes (:math:`\psi = \varphi/W`, :math:`\psi^* =
+    \varphi^*/W`) the two rules coincide identically — the classical
+    scalar prescription is exactly the isotropic limit.
+
+    USER RULING (P6 open, option 2): production implements THIS rule for
+    :math:`\Sigma_t` — both solutions carry :math:`\psi` — rather than the
+    P0 truncation.  The moment-resolved refinement for the anisotropic
+    scattering orders (:math:`\Sigma_{s,\ell}` pairing the
+    :math:`\ell`-moments :math:`\varphi^*_{\ell m}\varphi_{\ell m}`;
+    :math:`\ell = 0` is exactly T2's scalar pair, and Parseval makes the
+    :math:`\rho`-weight the all-moment sum) stays a documented seam until
+    an anisotropic-collapse consumer exists.
+    """
+    print("=" * 68)
+    print("T1b. Collision channel — the exact angular pairing ρ = Σ_n w ψ*ψ")
+    print("=" * 68)
+
+    sigma = [[sp.Symbol(f"sigma_{i}{g}", positive=True) for g in _GROUPS] for i in _CELLS]
+    w = [sp.Symbol(f"w_{n}", positive=True) for n in range(_N)]
+    psi = [
+        [[sp.Symbol(f"psi_{i}{g}{n}", positive=True) for n in range(_N)] for g in _GROUPS]
+        for i in _CELLS
+    ]
+    psis = [
+        [[sp.Symbol(f"psis_{i}{g}{n}", positive=True) for n in range(_N)] for g in _GROUPS]
+        for i in _CELLS
+    ]
+    ordinates = range(_N)
+
+    def angular(g: int) -> sp.Expr:
+        return angular_sigma_t_rule(_CELLS, ordinates, V, w, psis, psi, sigma, g)
+
+    _display_matches_builder(
+        "angular_sigma_t", angular(0),
+        {
+            **{_Vb[i + 1]: V[i] for i in _CELLS},
+            **{_wb[n + 1]: w[n] for n in ordinates},
+            **{_psisb[i + 1, _g_sym, n + 1]: psis[i][0][n] for i in _CELLS for n in ordinates},
+            **{_psib[i + 1, _g_sym, n + 1]: psi[i][0][n] for i in _CELLS for n in ordinates},
+            **{_Sigb[i + 1, _g_sym]: sigma[i][0] for i in _CELLS},
+        },
+    )
+    print("  ✓ display Sum-form ≡ builder (the doc-generator weld)")
+
+    def worth(rule: Callable[[int], sp.Expr], g: int) -> sp.Expr:
+        return sum(
+            V[i] * w[n] * psis[i][g][n] * (rule(g) - sigma[i][g]) * psi[i][g][n]
+            for i in _CELLS for n in ordinates
+        )
+
+    for g in _GROUPS:
+        _is_zero(worth(angular, g), f"T1b: angular rule leaves collision worth in group {g}")
+    print("  ✓ ρ-weighted rule zeroes the ANGULAR collision worth identically (all g)")
+
+    # Uniqueness.
+    sig_R = sp.Symbol("sigma_R", positive=True)
+    w0 = sum(
+        V[i] * w[n] * psis[i][0][n] * (sig_R - sigma[i][0]) * psi[i][0][n]
+        for i in _CELLS for n in ordinates
+    )
+    solved = sp.solve(sp.Eq(w0, 0), sig_R)
+    _require(len(solved) == 1, "T1b: worth-zeroing rule is not unique")
+    _is_zero(solved[0] - angular(0), "T1b: solved rule differs from the ρ-weighted builder")
+    print("  ✓ the angular worth-zeroing rule is UNIQUE (= the ρ-weighted builder)")
+
+    # Isotropic degeneracy: ψ = φ/W, ψ* = φ*/W ⇒ angular rule ≡ scalar bilinear.
+    W_tot = sum(w[n] for n in ordinates)
+    iso = {}
+    for i in _CELLS:
+        for g in _GROUPS:
+            for n in ordinates:
+                iso[psi[i][g][n]] = phi[i][g] / W_tot
+                iso[psis[i][g][n]] = phis[i][g] / W_tot
+    scalar = vector_bilinear_rule(_CELLS, V, phis, phi, sigma, 0)
+    _is_zero(
+        sp.simplify(angular(0).subs(iso) - scalar),
+        "T1b: isotropic degenerate is not the scalar bilinear rule",
+    )
+    print("  ✓ isotropic ψ, ψ* ⇒ angular rule ≡ scalar φ*⊙φ rule (the P0 limit)")
+
+    # The scalar rule does NOT zero the angular worth on anisotropic shapes.
+    subs = _generic_rationals()
+    primes = iter([47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131])
+    for i in _CELLS:
+        for g in _GROUPS:
+            subs[sigma[i][g]] = sp.Rational(7 * i + 3 * g + 2, 9)
+            for n in ordinates:
+                subs[psi[i][g][n]] = sp.Rational(next(primes), 8)
+                subs[psis[i][g][n]] = sp.Rational(next(primes), 11)
+    subs[w[0]], subs[w[1]] = sp.Rational(1, 2), sp.Rational(1, 2)
+    # The scalar rule evaluated with the CONSISTENT scalar moments of ψ, ψ*.
+    phi_of_psi = {
+        phi[i][g]: sum(w[n] * psi[i][g][n] for n in ordinates) for i in _CELLS for g in _GROUPS
+    }
+    phis_of_psi = {
+        phis[i][g]: sum(w[n] * psis[i][g][n] for n in ordinates) for i in _CELLS for g in _GROUPS
+    }
+    scalar_rule_val = scalar.subs(phi_of_psi).subs(phis_of_psi)
+    residual = worth(lambda g: scalar_rule_val, 0).subs(subs)
+    _is_nonzero(residual, "T1b: scalar rule accidentally zeroed the angular worth")
+    print(f"  ✓ scalar φ*⊙φ rule leaves angular worth = {sp.nsimplify(residual)} ≠ 0 (anisotropic)\n")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -367,9 +658,18 @@ def derive_matrix_channel_rule() -> None:
     ]
 
     def per_pair(gf: int, gt: int) -> sp.Expr:
-        num = sum(V[i] * phis[i][gt] * sig_s[i][gf][gt] * phi[i][gf] for i in _CELLS)
-        den = sum(V[i] * phis[i][gt] * phi[i][gf] for i in _CELLS)
-        return num / den
+        return matrix_per_pair_rule(_CELLS, V, phis, phi, sig_s, gf, gt)
+
+    _display_matches_builder(
+        "matrix_per_pair", per_pair(0, 1),
+        {
+            **{_Vb[i + 1]: V[i] for i in _CELLS},
+            **{_phisb[i + 1, _g_sym]: phis[i][1] for i in _CELLS},
+            **{_phib[i + 1, _gp_sym]: phi[i][0] for i in _CELLS},
+            **{_Sigsb[i + 1, _gp_sym, _g_sym]: sig_s[i][0][1] for i in _CELLS},
+        },
+    )
+    print("  ✓ display Sum-form ≡ builder (the doc-generator weld)")
 
     def source_product(gf: int, gt: int) -> sp.Expr:
         num = sum(V[i] * _pair_weight(i, gf) * sig_s[i][gf][gt] for i in _CELLS)
@@ -460,9 +760,21 @@ def derive_fission_factored_rule() -> None:
     p = [sum(nsf[i][gp] * phi[i][gp] for gp in _GROUPS) for i in _CELLS]
 
     def nsf_R(gp: int) -> sp.Expr:
-        num = sum(V[i] * iota[i] * nsf[i][gp] * phi[i][gp] for i in _CELLS)
-        den = sum(V[i] * iota_R[i] * phi[i][gp] for i in _CELLS)
-        return num / den
+        return fission_nsf_mixed_fold_rule(
+            _CELLS, _GROUPS, V, phis, phi, nsf, chi, chi_R, gp,
+        )
+
+    _display_matches_builder(
+        "fission_nsf_mixed_fold", nsf_R(0),
+        {
+            **{_Vb[i + 1]: V[i] for i in _CELLS},
+            **{_iotab[i + 1]: iota[i] for i in _CELLS},
+            **{_iotaRb[i + 1]: iota_R[i] for i in _CELLS},
+            **{_nsfb[i + 1, _gp_sym]: nsf[i][0] for i in _CELLS},
+            **{_phib[i + 1, _gp_sym]: phi[i][0] for i in _CELLS},
+        },
+    )
+    print("  ✓ display Sum-form ≡ builder (νΣf mixed-fold; the doc-generator weld)")
 
     total_worth = sum(
         V[i] * phis[i][g] * (chi_R[g] * nsf_R(gp) - chi[i][g] * nsf[i][gp]) * phi[i][gp]
@@ -474,9 +786,17 @@ def derive_fission_factored_rule() -> None:
     # Canonical χ_R: adjoint-weighted-emission convex average (q_i = V_i ι_i p_i).
     q = [V[i] * iota[i] * p[i] for i in _CELLS]
     chi_canonical = [
-        sum(q[i] * chi[i][g] for i in _CELLS) / sum(q[i] for i in _CELLS)
+        fission_chi_canonical_rule(_CELLS, _GROUPS, V, phis, phi, nsf, chi, g)
         for g in _GROUPS
     ]
+    _display_matches_builder(
+        "fission_chi_canonical", chi_canonical[0],
+        {
+            **{_qb[i + 1]: q[i] for i in _CELLS},
+            **{_chib[i + 1, _g_sym]: chi[i][0] for i in _CELLS},
+        },
+    )
+    print("  ✓ display Sum-form ≡ builder (canonical χ; the doc-generator weld)")
     # Simplex: needs Σ_g χ_{i,g} = 1 per cell — impose and check.
     simplex = {chi[i][1]: 1 - chi[i][0] for i in _CELLS}
     _is_zero(
@@ -839,6 +1159,7 @@ def run_all() -> None:
     """Run every derivation (raises :class:`DerivationError` on any failure)."""
     derive_first_order_k_shift()
     derive_vector_channel_rule()
+    derive_angular_sigma_t_rule()
     derive_matrix_channel_rule()
     derive_fission_factored_rule()
     derive_balance_tradeoff()
