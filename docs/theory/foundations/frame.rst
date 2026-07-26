@@ -101,8 +101,10 @@ separate projection / reconstruction operator class per method.
    ruling (:ref:`frame-eigenbasis-ownership`) into one narrative, and
    reconciles its consumer table with the shipped frames. The one
    remaining frame discipline that is **theory-documented but not built**
-   is the **eigenvalue-consistent** (adjoint-weighted) projection
-   (:ref:`frame-adjoint-weighted-seam`, phase P6).
+   is the **least-squares** frame over a dense cross-Gram
+   (:ref:`frame-least-squares-discipline`); the eigenvalue-consistent
+   (adjoint-weighted) projection now **ships** (P6, #281;
+   :ref:`frame-adjoint-weighted-seam`).
 
 Key Facts
 =========
@@ -186,10 +188,13 @@ Key Facts
   :ref:`sn-homogenization-petrov-galerkin-frame` and
   :ref:`sn-energy-condensation`, below). The
   **eigenvalue-consistent** (adjoint-weighted,
-  :math:`\varphi^* \ne \varphi`) case is the **documented-future seam**:
-  the theory is written (:eq:`sn-homogenization-bilinear`), the
-  implementation (P6) is blocked on the adjoint flux
-  :math:`\varphi^*` (:ref:`frame-adjoint-weighted-seam`).
+  :math:`\varphi^* \ne \varphi`) case **also ships** (P6, #281): the
+  ``adjoint=`` parameter on both verbs weights the test basis by the
+  bilinear pair :math:`\varphi^*\!\odot\varphi` (with the exact angular
+  and per-pair refinements) so the coarse :math:`\keff` is first-order
+  stationary (:eq:`sn-homogenization-bilinear`), carrying its own
+  full-taxonomy L0/L1/L2 gate battery
+  (:ref:`frame-adjoint-weighted-seam`).
 
 - **The frame is also the production COMPOSER, not only the two faces.**
   Beyond ``analysis`` / ``reconstruction``, a
@@ -382,9 +387,9 @@ The canonical Petrov-Galerkin pairs in reactor physics:
      - Smith 1986; Hébert 2009 §13
    * - Spatial homogenisation (eigenvalue-consistent)
      - Indicator on region :math:`R`
-     - Region **adjoint**
-       :math:`\varphi^* \cdot \mathbf{1}_{i \in R}`
-     - Hébert 2009 §13; Stamm'ler & Abbate 1983
+     - Region **bilinear pair**
+       :math:`(\varphi^*\!\odot\varphi)\cdot\mathbf{1}_{i \in R}`
+     - B&G 1970 §6.4h; Hébert 2009 §13
    * - Stochastic Galerkin
      - Polynomial-chaos basis (Hermite, Legendre)
      - Same basis under PCE inner product
@@ -441,12 +446,14 @@ first concrete instances landing exactly as a ``test_basis`` choice on
 the existing mechanism, not a new mechanism. The forward-flux derivation
 is worked in full in :ref:`sn-homogenization-petrov-galerkin-frame`
 (:ref:`§2c <sn-spatial-homogenization>`). The non-degenerate
-(:math:`\varphi^* \ne \varphi`) eigenvalue-consistent case is the
-**documented-future seam**: the bilinear derivation
+(:math:`\varphi^* \ne \varphi`) eigenvalue-consistent case **now ships
+too** (P6, #281): the bilinear derivation
 (:eq:`sn-homogenization-bilinear`,
-:ref:`sn-homogenization-why-petrov-galerkin`) is written, its
-implementation (P6) blocked on the adjoint flux :math:`\varphi^*`
-(:ref:`frame-adjoint-weighted-seam`). This subsection fixes the
+:ref:`sn-homogenization-why-petrov-galerkin`) is realized under the
+``adjoint=`` parameter, landing — as promised — as a ``test_basis``
+weight (the bilinear pair :math:`\varphi^*\!\odot\varphi`) on the same
+mechanism, its full taxonomy at
+:ref:`frame-adjoint-weighted-seam`. This subsection fixes the
 *architecture* of where the weighting lives.
 
 .. _sn-spatial-homogenization:
@@ -1004,16 +1011,16 @@ therefore the **bilinear** form
    \frac{\int_R \varphi^*\,\Sigma\,\varphi\;\mathrm{d}V}
         {\int_R \varphi^*\,\varphi\;\mathrm{d}V},
 
-.. (vv-status rationale) Literature-transcribed definition: the
-   eigenvalue-consistent (adjoint-weighted) effective cross section, the
-   bilinear ⟨φ*, Σφ⟩ that keeps k_eff stationary by first-order
-   perturbation theory (Hébert §6; the generalized-equivalence /
-   adjoint-weighting principle). The non-degenerate (φ*≠φ)
-   Petrov-Galerkin case; implementation deferred to P6, blocked on the
-   adjoint flux φ* (the #276 adjoint-transport campaign). Not yet an SN
-   solver claim on this branch — documents the structure the forward
-   case degenerates from.
-.. vv-status: sn-homogenization-bilinear documented
+.. (Wired P6, #281 — no vv-status sentinel.) This bilinear identity —
+   the eigenvalue-consistent (adjoint-weighted) effective cross section
+   that keeps k_eff first-order stationary — is now a VERIFIED solver
+   claim, not documented-only. Solution.homogenize / Solution.condense
+   build the collapse under the ``adjoint=`` parameter, and the
+   full-taxonomy discriminator gates C1 (tests.sn.test_homogenization)
+   and C4 (tests.sn.test_condensation) stack
+   verifies("sn-homogenization-bilinear") against structurally-
+   independent per-region hand rules. The label is covered by tests, so
+   it carries no ``documented`` sentinel.
 
 with **test** functions :math:`\varphi^*\cdot\mathbf{1}_R` and
 **trial** functions :math:`\varphi\cdot\mathbf{1}_R` that are now
@@ -1030,30 +1037,38 @@ builds it as a :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` with
 an explicit flux-weighted test basis, *not* a
 :class:`~orpheus.numerics.frame.GalerkinFrame` with a flux-weighted
 measure. The adjoint-weighted (:math:`\varphi^* \ne \varphi`) case
-:eq:`sn-homogenization-bilinear` is **documented theory only** — its
-implementation (phase P6 of the unified Frame-projection campaign) is
-pending: the adjoint flux :math:`\varphi^*` it weights with is now
-AVAILABLE (#276 A4/A5 — :func:`~orpheus.sn.solver.solve_sn_adjoint`
-returns the role-typed ``AdjointSolution``; see :ref:`sn-adjoint`),
-so P6 is unblocked and lands the ratified
-``homogenize(..., adjoint=...)`` parameter WITH its gates (see the
-capstone seam :ref:`frame-adjoint-weighted-seam`). This section sets
-it up as the non-degenerate sibling the forward case descends from.
+:eq:`sn-homogenization-bilinear` **now ships** (P6, #281): the ratified
+``homogenize(..., adjoint=...)`` / ``condense(..., adjoint=...)``
+parameter reads the role-typed ``AdjointSolution`` that
+:func:`~orpheus.sn.solver.solve_sn_adjoint` returns (#276 A4/A5; see
+:ref:`sn-adjoint`) and builds the eigenvalue-consistent collapse, with
+its full-taxonomy gate battery. This section sets it up as the
+non-degenerate sibling the forward case descends from; the landed
+taxonomy — the per-channel collapse rules, the balance trade-off, the
+exact angular pairing, and the Bell & Glasstone energy-axis convention —
+is the capstone seam :ref:`frame-adjoint-weighted-seam`.
 
 .. note::
 
-   The distinction is invisible numerically on *this* branch — forward
-   homogenization with :math:`\varphi^* = \varphi` produces the same
-   numbers either way (the metric-fold :eq:`sn-homogenization-metric-fold`
-   is an exact identity for :math:`\varphi^* = \varphi`). It is an
-   **architecture** distinction: writing the discipline on the *type*
-   (an explicit test basis) rather than on the *measure* (a flux-folded
-   metric) is what lets the adjoint-weighted case land as a no-op change
-   of the test basis (:math:`\varphi \to \varphi^*`) rather than a
-   re-derivation. The Mode-11 routing sentinel below pins that the flux
-   genuinely lives on the test side, so a regression that silently
-   re-folded it into the metric would be caught even though it would
-   not move a single number.
+   The **forward** degenerate (:math:`\varphi^* = \varphi`) is
+   metric-fold invisible: forward homogenization produces the same
+   numbers whether read as Petrov-Galerkin or as Galerkin in the
+   :math:`L^2(\phi V)` metric (:eq:`sn-homogenization-metric-fold` is an
+   exact identity when :math:`\varphi^* = \varphi`). The
+   **adjoint-weighted** case (:math:`\varphi^* \ne \varphi`), now live,
+   is *not* invisible — it produces genuinely different effective cross
+   sections (the C1 / C4 discriminator gates assert the bilinear collapse
+   differs from the forward one on **every** channel of a
+   tilted-importance fixture). What remains purely an **architecture**
+   distinction is the *implementation*: writing the discipline on the
+   frame *type* (an explicit test basis) rather than on the *measure*
+   (a flux-folded metric) is what let the adjoint arm land as a change of
+   the test *weight* — the bilinear pair :math:`\varphi^*\!\odot\varphi`
+   (and its exact angular / per-pair refinements) — rather than a
+   re-derivation. The Mode-11 routing sentinels (C3 / C5) pin that the
+   derived weight genuinely reaches the test side, so a regression that
+   silently re-folded it into the metric, or swapped it for a bare
+   :math:`\varphi^*`, would be caught even where it barely moves a number.
 
 The measure carries the axis, never the discipline
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2235,9 +2250,12 @@ discipline*). Three structural grounds, identical to the spatial case:
    two-sided weighting. Forward-flux reaction-rate-only condensation is
    the degenerate :math:`\varphi^*=\varphi` case where the fold happens
    to work; the *type* (an explicit test basis) encodes the general
-   case, so the adjoint-weighted lift (a later phase of the unified
-   Frame-projection campaign, P6) lands as a no-op change of the test
-   weight (:math:`\varphi \to \varphi^*`), not a re-derivation.
+   case, so the adjoint-weighted lift (**landed** in P6, #281) enters
+   as the bilinear **pair** test weight :math:`\varphi^*\!\odot\varphi`
+   — the product of adjoint and forward spectra, *not* a bare
+   :math:`\varphi \to \varphi^*` swap (a different rule that does not
+   zero the worth; :ref:`frame-adjoint-weighted-seam`) — not a
+   re-derivation.
 #. **The discipline is a property the** *type* **carries, never the
    measure.** Keeping :math:`\varphi` on the
    :class:`~orpheus.numerics.basis.WeightedIndicatorBasis` test side
@@ -3362,11 +3380,12 @@ the appropriate discipline type.
      - :ref:`sn-energy-condensation`; Hébert 2009 §6.2
    * - Homogenisation / condensation (eigenvalue-consistent)
      - PetrovGalerkinFrame
-     - **Adjoint**-flux test basis (:math:`\varphi^*`), indicator /
+     - **Bilinear pair** test weight
+       :math:`\varphi^*\!\odot\varphi`, indicator /
        overlap trial basis
-     - Pending (P6) — blocked on :math:`\varphi^*`
+     - **Live** (P6, #281)
        (:ref:`frame-adjoint-weighted-seam`)
-     - §18; Hébert 2009 §13
+     - §18; B&G 1970 §6.4h
    * - Stochastic Galerkin
      - GalerkinFrame
      - Polynomial-chaos basis on the random-input axis
@@ -3401,15 +3420,35 @@ The two architectural payoffs:
   rate-preservation **L0** gates (:mod:`tests.sn.test_homogenization` —
   the per-channel rate identity, the φV-vs-dV discriminator, and the
   Mode-11 routing sentinel; :ref:`sn-homogenization-verification`). The adjoint-weighted
-  (:math:`\varphi^* \ne \varphi`) cross-Gram gates land with P6.
+  (:math:`\varphi^* \ne \varphi`) collapse now carries its own
+  full-taxonomy discriminator battery (C1–C5, Cχ; landed P6;
+  :ref:`frame-adjoint-weighted-seam`).
 
 
 .. _frame-adjoint-weighted-seam:
 
-The adjoint-weighted seam — documented, not built
-=================================================
+Adjoint-weighted collapse — the eigenvalue-consistent taxonomy
+==============================================================
 
-The forward Petrov-Galerkin frames that ship today
+.. important:: **Status — landed (P6, #281).** The adjoint-weighted
+   (eigenvalue-consistent) collapse **ships**. Both
+   :meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`
+   (space) and
+   :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>`
+   (energy) take an optional ``adjoint=`` keyword: pass the role-typed
+   ``AdjointSolution`` that
+   :func:`~orpheus.sn.solver.solve_sn_adjoint` returns (#276 A4/A5;
+   :ref:`sn-adjoint`, whose importance carrier is
+   :ref:`sn-adjoint-carrier`) and the collapse becomes worth-exact; omit
+   it and the forward (:math:`\varphi^* = \varphi`) degenerate runs
+   unchanged — **bit-identical** to the no-arg call (the §4.0 degenerate
+   pins). The full algebra-of-record is
+   :mod:`orpheus.derivations.common.homogenization` (theorems T0–T6,
+   each an exact SymPy identity proof-welded to the production builder);
+   the gate battery is the adjoint verification slice
+   :ref:`sn-adjoint-verification-slice`.
+
+The forward Petrov-Galerkin frames
 (:meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`,
 :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>`)
 weight the test functions by the **forward** flux
@@ -3417,7 +3456,8 @@ weight the test functions by the **forward** flux
 **Galerkin-degenerate** (:math:`\varphi^* = \varphi`) case of the
 projection reactor physics ultimately wants. The general,
 **eigenvalue-consistent** projection weights the test functions by the
-**adjoint** flux :math:`\varphi^*`, preserving the bilinear functional
+**bilinear pair** :math:`\varphi^*\!\odot\varphi`, preserving the
+functional
 
 .. math::
    :label: sn-homogenization-adjoint-weighted
@@ -3426,60 +3466,236 @@ projection reactor physics ultimately wants. The general,
    \frac{\int_R \varphi^*\,\Sigma\,\varphi\;\mathrm{d}V}
         {\int_R \varphi^*\,\varphi\;\mathrm{d}V},
 
-.. (vv-status rationale) Documents code that does not exist yet: the
-   eigenvalue-consistent (adjoint-weighted, φ*≠φ) homogenisation projection is
-   NOT built (campaign phase P6, blocked on the #276 adjoint flux φ*). Only the
-   forward (φ*=φ) degenerate ships. The specification the P6 slice implements —
-   the sibling bilinear identity :eq:`sn-homogenization-bilinear` carries the
-   same documented-only status. Not a verified solver claim.
-.. vv-status: sn-homogenization-adjoint-weighted documented
+.. (Wired P6, #281 — no vv-status sentinel.) The eigenvalue-consistent
+   (adjoint-weighted, φ*≠φ) collapse is BUILT: Solution.homogenize /
+   Solution.condense implement it under ``adjoint=``. C1
+   (tests.sn.test_homogenization) and C4 (tests.sn.test_condensation)
+   stack verifies("sn-homogenization-adjoint-weighted") against
+   structurally-independent per-region hand rules, and C2 pins the
+   first-order-stationary keff signature. Covered by tests — no
+   ``documented`` sentinel.
 
 so that the multiplication factor :math:`\keff` stays stationary under
-the homogenisation (by first-order perturbation theory :math:`\keff` is
-stationary with respect to the adjoint-weighted residual). The full
-derivation — why this is *irreducibly* Petrov-Galerkin
-(:math:`M^* \ne R`: there is **no** metric in which test
-:math:`= \varphi^*\mathbf{1}_R` equals trial
-:math:`= \varphi\,\mathbf{1}_R` when :math:`\varphi^* \ne \varphi`) — is
-:eq:`sn-homogenization-bilinear` in
-:ref:`sn-homogenization-why-petrov-galerkin`,
-and it applies *verbatim* on the energy axis for condensation
-(:ref:`sn-energy-condensation`).
+the collapse. The mechanism is the first-order eigenvalue-shift identity
+(theorem T0, the keystone): for the generalized eigenproblem
+:math:`A\varphi = \tfrac{1}{k}F\varphi` with left eigenvector
+:math:`\varphi^*`, a perturbation :math:`(\delta A, \delta F)` shifts the
+eigenvalue by
 
-**It generalises a degenerate that already ships.** The forward
-reaction-rate functional ORPHEUS already computes —
+.. math::
+
+   \delta\mu \;=\;
+   \frac{\langle\varphi^*,(\delta A - \mu\,\delta F)\,\varphi\rangle}
+        {\langle\varphi^*, F\varphi\rangle}
+   \;+\; \mathcal O(\delta^2),
+   \qquad \mu = \frac{1}{\keff}.
+
+Replacing the fine per-cell cross sections by region-collapsed constants
+**on the same fine mesh** is exactly such a perturbation — the
+*XS-collapse worth*. A collapse rule that zeroes each region's worth term
+therefore kills the first-order eigenvalue error of the collapse itself.
+The remaining coarse re-solve error (the coarse *discretization* of
+streaming) is shared by every weighting and is untouched by these rules —
+the honest scope of the C2 gate (:ref:`sn-adjoint-verification-slice`).
+
+Why this is *irreducibly* Petrov-Galerkin — :math:`M^* \ne R`, there is
+**no** metric in which test :math:`= \varphi^*\mathbf{1}_R` equals trial
+:math:`= \varphi\,\mathbf{1}_R` when :math:`\varphi^* \ne \varphi` — is
+:eq:`sn-homogenization-bilinear` in
+:ref:`sn-homogenization-why-petrov-galerkin`, and it applies *verbatim*
+on the energy axis for condensation (:ref:`sn-energy-condensation`).
+
+The per-channel collapse rules
+------------------------------
+
+Each cross-section channel has its own worth-zeroing rule — a distinct
+theorem in :mod:`orpheus.derivations.common.homogenization`, each proved
+as an exact SymPy identity and welded to the production builder it
+mirrors (the display equations below are *generated from* that module on
+every build, so the documented math and the verified math cannot drift).
+With the **bilinear pair weight** :math:`w^{\pm}_{i,g} =
+\varphi^*_{i,g}\varphi_{i,g}` on fine cell :math:`i`, group :math:`g`:
+
+.. include:: ../../_generated/homogenization_collapse_rules.inc.rst
+
+Three structural facts distinguish these from a naive "swap
+:math:`\varphi` for :math:`\varphi^*`":
+
+* **Vector channels (T1)** use the *product* :math:`\varphi^*\!\odot
+  \varphi`, never a bare :math:`\varphi^*`. Solving the P0 reaction worth
+  :math:`W_g = \sum_i V_i\varphi^*_{i,g}(\Sigma_{R,g} -
+  \Sigma_{i,g})\varphi_{i,g} = 0` for :math:`\Sigma_{R,g}` returns the
+  pair-weighted ratio as its **unique** solution; the
+  bare-:math:`\varphi^*` rule leaves :math:`W_g \ne 0` (first-order in
+  the adjoint tilt). This is the trap the C3 / C5 capture sentinels
+  catch.
+* **Matrix channels (T2)** need the **per-pair** weight
+  :math:`\varphi^*_{i,g}\varphi_{i,g'}` — sink adjoint × source flux, one
+  weight per :math:`(g'\!\to\!g)` entry. The source-product weight
+  :math:`(\varphi^*\varphi)_{g'}` that the forward per-(cell, group)
+  plumbing would broadcast does **not** zero the off-diagonal worth
+  (this is why the ``adjoint=`` arm needed real per-pair plumbing, not a
+  weight-array swap; B&G 1970 (6.136) :cite:`BellGlasstone1970`).
+* **The fission dyad (T3)** :math:`\chi\otimes\nu\Sigma_f` collapses per
+  pair into something that is not rank-1, but a
+  :class:`~orpheus.data.macro_xs.mixture.Mixture` stores the *factors*.
+  The **mixed-fold** rule — numerator folded by the fine emission
+  importance :math:`\iota_i = \sum_g\varphi^*_{i,g}\chi_{i,g}`,
+  denominator by the collapsed :math:`\tilde\iota_i` — zeroes the
+  **total** fission worth for *any* simplex :math:`\chi_R` (all the
+  eigenvalue needs; T0 contracts the dyad against one scalar). The
+  canonical :math:`\chi_R` is the adjoint-weighted-emission convex
+  average, a simplex by construction that degenerates to the
+  production-weighted forward rule at :math:`\varphi^* = \varphi`.
+
+The exact angular collision rule (T1b)
+--------------------------------------
+
+The collision term of the transport pencil acts on the **full angular
+flux**, so its worth pairs the *angular* fluxes, not their scalar
+moments. The exact :math:`\Sigma_t` rule (theorem T1b, user-ruled into
+production) weights by
+
+.. math::
+
+   \rho_{i,g} \;=\; \sum_n w_n\,\psi^*_{i,g,n}\,\psi_{i,g,n},
+   \qquad
+   \Sigma_{t,R,g} \;=\;
+   \frac{\sum_i V_i\,\rho_{i,g}\,\Sigma_{t,i,g}}
+        {\sum_i V_i\,\rho_{i,g}},
+
+the unique weight that zeroes the angular collision worth. The scalar
+pair :math:`\varphi^*\!\odot\varphi` is its **P0 (isotropic)
+truncation** — the two coincide *identically* on isotropic angular
+shapes (:math:`\psi = \varphi/W`, :math:`\psi^* = \varphi^*/W`), so the
+classical scalar prescription is exactly the isotropic limit. Because
+both the forward and adjoint solutions carry the angular flux
+:math:`\psi`, ORPHEUS implements the exact angular rule for
+:math:`\Sigma_t` (the user ruling, P6 option 2) rather than the P0
+truncation; C1's ``test_sigma_t_matches_angular_pairing_rule`` pins it
+against the scalar-pair alternative on an anisotropic fixture.
+
+The moment-resolved refinement for the **anisotropic** scattering orders
+(:math:`\Sigma_{s,\ell}` pairing the :math:`\ell`-moments
+:math:`\varphi^*_{\ell m}\varphi_{\ell m}`; :math:`\ell = 0` is exactly
+T2's scalar pair, and Parseval makes :math:`\rho` the all-moment sum)
+stays a **documented seam** until an anisotropic-collapse consumer
+exists.
+
+The balance trade-off — worth-exact constants do not balance (T4)
+-----------------------------------------------------------------
+
+Worth-exactness comes at a price that is **essential, not a bug**: a
+worth-exact collapse **breaks** the definitional total-cross-section
+balance
+
+.. math::
+
+   \Sigma_t \;=\; \Sigma_c + \Sigma_L + \Sigma_f
+     + \mathrm{rowsum}(\Sigma_{s0}) + \mathrm{rowsum}(\Sigma_{2n}),
+
+because the per-pair matrix rowsums (T2) re-weight each sink term by a
+different denominator than the vector-channel collapse (T1) uses for
+:math:`\Sigma_t`. Theorem T4 proves the two properties are **mutually
+exclusive** away from :math:`\varphi^* = \text{const}`: restoring balance
+by *defining* :math:`\Sigma_t :=` sum-of-parts re-introduces exactly that
+mismatch as a first-order collision worth. This is the classical
+**reactivity-preserving, not rate-preserving** property of
+bilinear-weighted constants — B&G 1970 p. 308 :cite:`BellGlasstone1970`
+notes the same trade-off — so the bilinear system preserves the
+:math:`\keff` functional to second order, not the channel-wise reaction
+rates. At :math:`\varphi^* = \varphi` both properties hold: the forward
+collapse is the degenerate that enjoys both.
+
+.. warning:: **Never call**
+   :meth:`~orpheus.data.macro_xs.mixture.Mixture.assert_balanced` **on an
+   adjoint-collapsed** :class:`~orpheus.data.macro_xs.mixture.Mixture`.
+   The imbalance is the *derived* worth-exact property, not an accident;
+   asserting balance would falsely red a correct collapse. The C1 gate
+   ``test_worth_exact_collapse_breaks_balance_as_derived`` pins the
+   imbalance as expected (and confirms the *forward* collapse still
+   balances) — it is the committed catcher for a wiring that silently
+   reverted to a balance-restoring (worth-nonzeroing) rule.
+
+The energy axis — the Bell & Glasstone convention (T6)
+------------------------------------------------------
+
+Energy condensation has **no streaming carve** (streaming does not couple
+groups), so on the energy axis the adjoint-weighted collapse is *pure
+projection*: the coarse pencil is an exact left-diagonal rescaling of the
+Petrov-Galerkin projection of the fine pencil (test
+:math:`\varphi^*\mathbf{1}_G`, trial :math:`\varphi\mathbf{1}_{G'}`). The
+convention is **Bell & Glasstone Ch. 6** (§6.4h
+:cite:`BellGlasstone1970`), reconciled against the ORPHEUS carriers:
+
+* the coarse **flux carrier** is the plain condensed flux
+  :math:`\Phi_G = \sum_{g\in G}\varphi_g` (B&G (6.125) — a group
+  *integral*, exactly the forward convention);
+* the coarse **adjoint carrier** is the flux-weighted group average
+  :math:`\Psi^{\dagger}_G = \langle\varphi^*\varphi\rangle_G/\Phi_G`
+  (B&G (6.126)–(6.128)) — the choice that makes the classical *diagonal*
+  bilinear vector row (B&G (6.135)) row-consistent with the plain flux
+  carrier and preserves the duality pairing
+  :math:`\langle\varphi^*\varphi\rangle_G = \Psi^{\dagger}_G\,\Phi_G`
+  exactly;
+* the matrix channels take per-block sink×source constants (B&G (6.136)),
+  and fission stays **factored** — a flux-weighted
+  :math:`\nu\Sigma_{f,G'}` and an adjoint-contracted emission
+  :math:`\chi^{\dagger}_G`, with the rank-1 simplex rescale (the
+  :class:`~orpheus.data.macro_xs.mixture.Mixture` law).
+
+Four facts pin the convention (theorem T6):
+
+* **T6a** — the condensed pencil's :math:`k` equals the fine :math:`k`
+  *exactly* at the true spectra (a rational identity; unlike the spatial
+  fission dyad T3, the factored fission survives condensation). The
+  data-level pin is ``test_t6a_true_spectra_reproduce_fine_k_exactly``
+  (0-D ∞-medium, :math:`\varphi = A^{-1}\chi`, :math:`\varphi^* =
+  A^{-\mathsf T}\nu\Sigma_f`, to :math:`10^{-12}`).
+* **T6r** — *row-scaling freedom*: rescaling every channel of a coarse
+  row by a common factor preserves the pencil's spectrum, so
+  :math:`k`-exactness **alone cannot pin the constants' values**. What
+  pins them is the classical carrier normalization (B&G (6.125)/(6.126))
+  — a Mode-12 argument one level up (see the eigenvalue-stabiliser
+  accounting in :ref:`sn-adjoint-verification-slice`).
+* **T6c** — *mixing* carriers (a diagonal-bilinear vector rule paired
+  with a plain-sum adjoint fold in the matrix denominators) is not
+  row-consistent and loses exactness: carrier consistency is
+  load-bearing, not cosmetic.
+* **T6b** — condensing with a *perturbed* spectrum pair leaves
+  :math:`k_C(\varepsilon) - k = \mathcal O(\varepsilon^2)` for the
+  bilinear convention (B&G (6.90): the flux-only error term is *first*
+  order) versus :math:`\mathcal O(\varepsilon)` for the forward rule —
+  the energy-axis instance of the C2 comparative order signature.
+
+Hébert's plain lethargy-average adjoint carrier (§3.5) is the
+flat-within-group approximation of B&G's flux-weighted-average carrier;
+the two agree only in the many-group / flat-adjoint limit
+(:cite:`Hebert2009`).
+
+It generalises a degenerate that already ships
+----------------------------------------------
+
+The forward reaction-rate functional ORPHEUS already computes —
 :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`,
 :math:`\int_R \langle\Sigma_x, \varphi\rangle\;\mathrm{d}V` — is the
 :math:`\varphi^* = 1` degenerate of the bilinear
 :math:`\langle\varphi^*, \Sigma\varphi\rangle`. The eigenvalue-consistent
-lift is the **same** Petrov-Galerkin frame with the implicit
-:math:`\varphi^*` (which the forward frame takes to be the forward flux
-:math:`\varphi`) replaced by a *real* adjoint flux on the test basis — a
-no-op change of the ``test_basis`` (:math:`\varphi \to \varphi^*`),
-**not** a re-derivation. Writing the discipline on the frame **type** (an
-explicit test basis) rather than on the measure (a flux-folded metric) is
-precisely what buys this: the adjoint case is a one-line test-basis swap.
+collapse is the **same** Petrov-Galerkin frame with the forward test
+weight :math:`\varphi` replaced by the bilinear pair
+:math:`\varphi^*\!\odot\varphi` on the test basis — a change of the
+``test_basis`` *weight*, **not** a re-derivation. Writing the discipline
+on the frame **type** (an explicit test basis) rather than on the measure
+(a flux-folded metric) is precisely what bought this: the adjoint arm
+landed as a weight construction the frame already supports, and the
+C3 / C5 capture sentinels pin that the weight the frame receives is the
+pair product — not a bare :math:`\varphi^*`, not the forward
+:math:`\varphi`.
 
-.. important:: **Status — theory documented, implementation NOT built
-   (P6).** The adjoint-weighted projection is **documented theory only**.
-   No adjoint flux :math:`\varphi^*` is wired into
-   :meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`
-   or :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>`
-   today; both run the forward (:math:`\varphi^* = \varphi`) degenerate.
-   The implementation (campaign phase **P6**) is **blocked** on a
-   converged adjoint flux — the scalar moment :math:`\varphi^*` of the
-   adjoint angular flux :math:`\psi^*` solving
-   :math:`(L + C - S)^{\mathsf T}\psi^* = q^*` (the SN adjoint-transport
-   campaign, `#276`; the discrete scattering adjoint
-   :math:`S^{\mathsf T}` it builds on is :ref:`sn-scattering-adjoint`).
-   That campaign is in flight but has not yet delivered a
-   :math:`\varphi^*` field a homogenisation consumer can read. Until it
-   does, this section is the **specification** the P6 slice implements:
-   the bilinear identity :eq:`sn-homogenization-bilinear` carries
-   ``.. vv-status: documented`` — the structure the forward case
-   degenerates from, **not** a verified solver claim. Do **not** read the
-   forward homogenisation's green rate gates as evidence for the
-   adjoint-weighted case.
+With :math:`\varphi^*` landed, the adjoint-weighted collapse is the
+**first production consumer** of the importance field; the others —
+perturbation theory and generalised perturbation theory — are catalogued
+in :ref:`sn-adjoint-consumers`.
 
 
 Discipline as a type, not a property or an operator marker
@@ -3577,8 +3793,9 @@ production-weight :math:`\chi` gates, and the Mode-11 routing sentinel —
 in :mod:`tests.sn.test_homogenization`
 (:ref:`sn-homogenization-verification`),
 together with the condensation gates of :ref:`sn-energy-condensation`.
-The adjoint-weighted (:math:`\varphi^* \ne \varphi`) cross-Gram evidence
-lands with P6 (:ref:`frame-adjoint-weighted-seam`).
+The adjoint-weighted (:math:`\varphi^* \ne \varphi`) collapse now ships
+its own full-taxonomy discriminator battery (C1–C5, Cχ; landed P6, #281;
+:ref:`frame-adjoint-weighted-seam`).
 
 
 Implementation map

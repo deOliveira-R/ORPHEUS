@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6775**
+Total tests collected: **6809**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1194, 17.6%
-   L1, 1124, 16.6%
-   L2, 54, 0.8%
+   L0, 1203, 17.7%
+   L1, 1130, 16.6%
+   L2, 55, 0.8%
    L3, 0, 0.0%
-   foundation, 4403, 65.0%
+   foundation, 4421, 64.9%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6696
+   explicit, 6730
    class-name, 46
    func-name, 0
    case, 33
@@ -123,7 +123,7 @@ Module × level grid
    data/test_gendf_canonical_order, 0, 0, 0, 0, 6, 0
    data/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
-   data/test_mixture_condense, 0, 0, 0, 0, 38, 0
+   data/test_mixture_condense, 0, 0, 0, 0, 41, 0
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
    data/test_mixture_transport_xs, 0, 1, 0, 0, 4, 0
    data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
@@ -156,6 +156,7 @@ Module × level grid
    derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 6, 0
    derivations/test_fn_sood_table10_symmetric_pu_h2o, 0, 1, 0, 0, 2, 0
    derivations/test_galerkin_spectral_basis_space, 0, 0, 0, 0, 18, 0
+   derivations/test_homogenization_rules, 0, 0, 0, 0, 8, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
    derivations/test_la13511_to_geometry, 0, 0, 0, 0, 131, 0
    derivations/test_mu_weighted_basis, 0, 0, 0, 0, 1, 0
@@ -387,15 +388,16 @@ Module × level grid
    primitives/test_quadrature, 49, 0, 0, 0, 0, 0
    primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
-   primitives/test_solution, 0, 0, 0, 0, 39, 0
+   primitives/test_solution, 0, 0, 0, 0, 40, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 37, 0
    regression/test_dd_regression, 0, 0, 0, 0, 13, 0
    regression/test_walk_matvec_baselines, 0, 0, 0, 0, 4, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
-   sn/test_condensation, 0, 10, 0, 0, 0, 0
-   sn/test_homogenization, 12, 0, 0, 0, 0, 0
+   sn/test_condensation, 0, 16, 0, 0, 0, 0
+   sn/test_homogenization, 21, 0, 0, 0, 0, 0
+   sn/test_homogenization_order, 0, 0, 1, 0, 0, 0
    sn/test_material_xs_field_typed, 0, 0, 0, 0, 10, 0
    solve/test_2d_anisotropic_windowing, 0, 6, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
@@ -423,7 +425,7 @@ Module × level grid
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 326, 0
+   test_layer_imports, 0, 0, 0, 0, 327, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -432,7 +434,7 @@ Module × level grid
    transport/test_full_field, 0, 0, 0, 0, 17, 0
    transport/test_functional_category, 0, 0, 0, 0, 11, 0
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
-   transport/test_integrated_reaction_rate, 0, 0, 0, 0, 6, 0
+   transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 22, 0
@@ -561,10 +563,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``periodic-bc``, 12
    ``reciprocity``, 12
    ``reciprocity-lower-triangle``, 12
+   ``sn-homogenization-adjoint-weighted``, 12
    ``ws-pitch``, 12
    ``loss-rep-scanmarch``, 11
    ``loss-rep-scanmarch-apply``, 11
    ``loss-rep-scanmarch-solve``, 11
+   ``sn-homogenization-bilinear``, 11
    ``kll-1974-slab-flux``, 10
    ``kll-1974-sphere-flux``, 10
    ``peierls-greens-cylinder-architecture``, 10
@@ -779,7 +783,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **520** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **518** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-contraction-ratio``
@@ -1208,9 +1212,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-err-058-edge-extrapolation``
 - ``sn-err-058-proxy-source``
 - ``sn-fixed-source-direct-sum``
-- ``sn-homogenization-adjoint-weighted``
 - ``sn-homogenization-balance``
-- ``sn-homogenization-bilinear``
 - ``sn-homogenization-chi-collapse``
 - ``sn-homogenization-coarse-space``
 - ``sn-homogenization-cross-gram``

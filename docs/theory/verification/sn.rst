@@ -4921,4 +4921,140 @@ reciprocity duality is :eq:`sn-adjoint-duality` (both in
 :ref:`sn-adjoint`); the k-rows verify the former, the P1.2 row the
 latter.
 
+Adjoint-weighted collapse — the P6 taxonomy gates
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The adjoint flux is a *means*; its first production consumer is the
+**adjoint-weighted (eigenvalue-consistent) collapse** — the ``adjoint=``
+arm of :meth:`Solution.homogenize
+<orpheus.sn.solution.Solution.homogenize>` and :meth:`Solution.condense
+<orpheus.sn.solution.Solution.condense>` (#281 P6; the taxonomy
+narrative and the Bell & Glasstone energy-axis convention are
+:ref:`frame-adjoint-weighted-seam`).  This battery verifies the
+*consumer* — that each channel collapses by its worth-zeroing rule — as
+distinct from the daggered-posing gates above, which verify the
+*producer* (:math:`\varphi^*` itself).  Every collapse rule is first an
+exact SymPy identity in
+:mod:`orpheus.derivations.common.homogenization` (theorems T0–T6,
+proof-welded to the production builder); the gates below check the
+production floats against **structurally-independent per-region hand
+rules**.  The battery lives in ``tests/sn/test_homogenization.py``
+(§4.0 / C1 / C2 / C3 / Cχ, plus the T4 balance pin),
+``tests/sn/test_condensation.py`` (C4 / C5), and
+``tests/data/test_mixture_condense.py`` (T6a at the data level).
+
+.. list-table:: Adjoint-weighted collapse (P6, #281; measured)
+   :header-rows: 1
+   :widths: 18 8 30 44
+
+   * - Gate (test)
+     - Level
+     - Reference / pillar
+     - What it pins (measured)
+   * - **§4.0** forward-arm invariance
+       (``TestAdjointDegeneratePins``;
+       ``…test_no_arg_equals_explicit_none_bitwise`` on both verbs)
+     - L0
+     - bit-identity regression
+     - the new ``adjoint=`` keyword does not touch the forward path — no
+       arg :math:`\equiv` ``adjoint=None`` at **0-ULP** on every channel
+       (:math:`\Sigma_t,\Sigma_c,\Sigma_L,\Sigma_f,\nu\Sigma_f,\chi,
+       \Sigma_s`).  Tooth 2 (no shared drift) is the forward hand-loop
+       rate suite, which stays green
+   * - **C1** full-taxonomy discriminator
+       (``TestC1AdjointWeightedDiscriminator``)
+     - L0
+     - B1-derived per-region hand rules (independent loops)
+     - every channel equals its worth-zeroing rule on a
+       tilted-importance fixture — T1 vector pair
+       :math:`\varphi^*\!\odot\varphi`, T1b angular :math:`\rho`
+       (:math:`\ne` the scalar pair on anisotropic shapes), T2 per-pair
+       sink×source, T3 mixed-fold :math:`\nu\Sigma_f` + canonical
+       :math:`\chi` — AND differs from the forward degenerate (dud-guard:
+       :math:`\varphi^*/\lVert\varphi^*\rVert \ne
+       \varphi/\lVert\varphi\rVert`)
+   * - **C1 / T4** balance-imbalance pin
+       (``…test_worth_exact_collapse_breaks_balance_as_derived``)
+     - L0
+     - the derived worth-exact property (theorem T4)
+     - the adjoint-collapsed
+       :class:`~orpheus.data.macro_xs.mixture.Mixture` does **not**
+       satisfy the total-XS balance (residual :math:`>10^{-9}`) while the
+       **forward** collapse does — the reactivity-vs-rates trade-off
+       pinned as *expected*, never ``assert_balanced``\ ed away
+   * - **C2** comparative :math:`k` order
+       (``TestC2ComparativeKeffOrder``)
+     - L2
+     - closed-form — the L1-anchored fine :math:`k` (P1.3-certified) +
+       the forward gap on the same ladder
+     - on a material-contrast ladder :math:`m_1 = m_0 +
+       \varepsilon\Delta` (:math:`\varepsilon\in\{1,\tfrac12,\tfrac14\}`)
+       the adjoint gap shrinks **higher-order** (ratios 6.08 / 9.24) vs
+       the forward gap's first order (2.05 / 2.01), and is smaller on
+       every rung.  Same-mesh XS-replacement (16 fine cells,
+       region-constant XS) — the T0/T5 worth exactly, **zero** coarse-DD
+       confounder
+   * - **C3 / C5** Mode-11 weight capture
+       (``TestC3WeightCaptureSentinel`` /
+       ``TestC5CondenseWeightCaptureSentinel``)
+     - L0 / L1
+     - in-process weight capture (``monkeypatch``)
+     - the frames actually receive the **derived** weights — the pair
+       :math:`\varphi^*\!\odot\varphi`, the angular :math:`\rho`, the
+       emission fold :math:`\iota\cdot p` — and a **bare**
+       :math:`\varphi^*` is *never* a frame weight (the committed catcher
+       for the :math:`\varphi\to\varphi^*` bare-swap trap); the forward
+       :math:`\varphi` is not silently taken
+   * - **C4** bilinear condensation
+       (``TestC4BilinearCondensation``)
+     - L1
+     - the B&G Ch. 6 hand rule (nested blocks; independent loop)
+     - every channel of the bilinear-condensed Mixture equals the B&G
+       convention — plain flux carrier, flux-weighted-average adjoint
+       carrier :math:`\Psi^{\dagger}_G` (B&G (6.126)–(6.128)), per-block
+       sink×source ((6.136)), :math:`\chi^{\dagger}` with the rank-1
+       simplex rescale.  The **post-B&G sink-carrier correction** (the
+       sink axis is *not* frozen; it gains :math:`\Psi^{\dagger}_G`)
+       replaced the pre-B&G "marginalize frozen" expectation;
+       discriminates from forward
+   * - **Cχ** simplex positive control
+       (``TestCxChiSimplexPositiveControl``)
+     - L0
+     - positive control (simplex validity)
+     - the canonical :math:`\chi` stays a valid probability simplex — the
+       adjoint-collapsed Mixture constructs **without raising** and
+       :math:`\sum_g\chi_{R,g} = 1` (:math:`\ge 0`) on producing regions
+   * - **T6a** exact-:math:`k` at true spectra
+       (``TestBilinearCondensation``;
+       ``…test_t6a_true_spectra_reproduce_fine_k_exactly``)
+     - foundation
+     - closed-form — 0-D ∞-medium :math:`k`
+     - the bilinear-condensed 2G pencil's rank-1 :math:`k` equals the
+       fine 4G :math:`k` to :math:`10^{-12}` (:math:`\varphi =
+       A^{-1}\chi`, :math:`\varphi^* = A^{-\mathsf T}\nu\Sigma_f`) —
+       condensation is *pure projection* on the energy axis, no streaming
+       carve (theorem T6a)
+
+**The honest scope of C2.**  C2 is a *comparative* claim, not a value
+claim.  Its reference (the fine :math:`k`) is an ORPHEUS solver, so C2
+does **not** terminate in a structurally-independent absolute reference —
+it asserts the *rate* relation :math:`\mathrm{gap}_{\rm adj}(\varepsilon)
+< \mathrm{gap}_{\rm fwd}(\varepsilon)` and the order signature (adjoint
+:math:`\mathcal O(\varepsilon^2)`, forward :math:`\mathcal
+O(\varepsilon)`), anchored on the P1.3-certified fine :math:`k` (the
+anti-#5 pairing: a convergence rate is necessary, not sufficient — never
+a rate to a possibly-wrong limit).  It proves *adjoint weighting reduces
+the XS-collapse contribution to the* :math:`k` *gap*; it does **not**
+prove a coarse re-solve is accurate.  The coarse-mesh diamond-difference
+discretization error is a separate, weighting-independent confounder that
+the same-mesh XS-replacement design deliberately excludes — both arms
+carry the identical spatial error, so the comparative delta isolates the
+worth.  The mutation that reds C2: feed the forward :math:`\varphi` as
+the test weight, and the strict inequality collapses to equality.
+
+The collapse taxonomy, the balance trade-off, and the B&G energy-axis
+convention are :ref:`frame-adjoint-weighted-seam`; the ``adjoint=``
+parameter and its ``AdjointSolution`` carrier are
+:ref:`sn-adjoint-carrier`.
+
 

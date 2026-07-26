@@ -3201,6 +3201,89 @@ confirm the ONE indexable module's refs actually link (typo-catch).
 
 ---
 
+## L-037 — FLIPPING a "documented-future seam" to LANDED across an existing rich page: the stale-status blast radius is the WHOLE page (grep it), the wrong-rule can hide in a literature-table cell, and the wired⟹no-sentinel flip is verified against the LIVE test
+
+The sibling of L-036 (which GROWS a thin stub chapter). Here an
+EXISTING, rich foundations page carries a `documented-future seam` for
+campaign X that just landed; the task is (a) flip every stale-status
+claim to landed, (b) grow the seam section into the full landed
+taxonomy, (c) un-sentinel the now-wired labels. Three distinctive
+disciplines, none of which the brief's named file/line list fully
+scoped:
+
+- **The stale-status blast radius is the WHOLE page, not the brief's
+  named 2–3 sites.** A "campaign X landed" brief names the capstone
+  status block + one table row + one passage — but the SAME
+  "blocked / not built / pending / documented-future seam / lands with
+  P6 / in flight" claim is SCATTERED across Key Facts, the chapter
+  overview bullet, section-body prose, a second table, AND a
+  "V&V evidence lands with P6" closing line. Grep the page for EVERY
+  future-tense/blocked token about X
+  (`blocked|not built|not yet|pending|in flight|future seam|documented
+  theory only|lands with P6`) and flip each on correctness grounds
+  (Cardinal Rule 1) — the brief's list is the FLOOR. Worked (#281 P6):
+  the brief named 3 sites; the grep surfaced SEVEN. Watch the
+  "one remaining not-built discipline is X" overview bullet especially
+  — when X lands, that sentence must RE-POINT to the *actually*-still-
+  unbuilt sibling (here the least-squares dense-cross-Gram frame), not
+  just drop X; a naive delete leaves the "one remaining" count wrong.
+- **A "fix the loose (φ→φ*) phrasing" sub-task has a blast radius too —
+  and the wrong rule hides in a LITERATURE-TAXONOMY TABLE CELL.** The
+  brief named 2 prose sites; grep for the concept surfaced a THIRD in a
+  "canonical pairs" table row. The tell for the bare-φ* trap is not the
+  test-basis cell alone — it is the test/trial PAIRING: a row that lists
+  `test = φ*·1_R` against an INDICATOR `trial = 1_R` silently encodes
+  the bare-adjoint rule `∫φ*Σ/∫φ*` (worth-nonzeroing), NOT the bilinear
+  `∫φ*Σφ/∫φ*φ`. The correct cell, matching the landed code (a capture
+  gate asserts the frame weight IS the pair), is the PRODUCT weight
+  `(φ*⊙φ)·1_R` against the indicator trial. Discriminator: with an
+  indicator trial, the weight must be the PRODUCT; only a φ-weighted
+  trial makes a bare-φ* test correct. Fix it, flag the scope-expansion.
+- **The wired⟹no-sentinel flip is verified against the LIVE test, not
+  the brief's assertion.** The brief said "both labels NOW carry
+  verifies() (C1 stacks both; C4 stacks both) — REMOVE the sentinels."
+  Per L-036's deferred-wire case a brief can say "wired" when the test
+  is actually a WAITING verifies-target, so READ the live test files
+  FIRST (`grep -n 'verifies\|class Test' <file>`) to confirm the
+  `@pytest.mark.verifies("<label>")` decorators are really present and
+  stacked — here they were (C1 stacks both labels, C2/C4 stack them).
+  Then remove BOTH the `.. vv-status: <label> documented` directive AND
+  rewrite (do not delete) its `.. (vv-status rationale)` comment to a
+  plain `.. (Wired P6, #281 — no vv-status sentinel.) …` note naming the
+  gates — the note prevents a future auditor from "helpfully" re-adding
+  a sentinel to a long-documented-only label whose neighbours still
+  carry them. Self-check with the FAST theory-scan (L-035): the flipped
+  labels must show `label_exists=True, documented=False` with 0
+  file-local violations (the label left the documented set cleanly and
+  is now a covered verifies-target).
+- **Grow the taxonomy by INCLUDING the generated fragment, adding
+  UNLABELED supporting math, and keeping the ONE preserved verifies-
+  target label byte-identical.** The five per-channel collapse rules
+  come from `.. include:: ../../_generated/<name>.inc.rst` (same
+  `../../_generated/` depth from `docs/theory/foundations/` as from
+  `docs/theory/verification/`), NEVER hand-transcribed (L-008). The T0
+  keystone / T1b angular / T4 balance / T6 carrier equations I add as
+  the narrative are SUPPORTING identities — leave them UNLABELED (no new
+  orphan/sentinel obligation; `git diff | grep ':label:'` must show ZERO
+  net label change). The single labelled equation the section owns
+  (`sn-homogenization-adjoint-weighted`, a verifies-target) is re-emitted
+  BYTE-IDENTICAL inside the rewrite so git matches it as unchanged
+  context — never rename a verifies-target while rewriting its prose
+  (L-003).
+
+How to apply: for a "campaign landed, modernize the page" task, (1)
+grep the WHOLE page for stale-status tokens and flip each; (2) grep the
+wrong-rule concept (not just the brief's 2 sites) — it hides in tables;
+(3) verify verifies() markers in the LIVE test before un-sentineling,
+then fast-theory-scan; (4) include the generated fragment, add
+supporting math UNLABELED, keep the verifies-target label byte-identical.
+Cross-links [[lessons-L36]] (the stub-growth sibling), [[lessons-L35]]
+(the fast theory-scan self-check + WIRE/SENTINEL discriminator),
+[[lessons-L03]] (never rename a verifies-target), [[lessons-L08]]
+(generated artefacts are included, never hand-edited).
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:
