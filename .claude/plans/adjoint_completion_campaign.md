@@ -171,11 +171,39 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   rel_mut=2.35 O(1) red — the ERR-067-family catcher; + k-visible F†→F
   corroboration; `g_coupled_diagonal` raw-data oracle in
   _test_helpers; certification 15/15, partition 13 l1 + 2 foundation).
-  #281 comment records the ratified API.  REMAINING for the A5
-  boundary: the phase-end sweep — Sphinx `-E -W` + audit + matrix,
-  enforcer review, qa review (math-bearing: the sphere row), FULL
-  serial tree (L37 freeze), then the boundary AskUserQuestion
-  (merge / A6).
+  #281 comment records the ratified API.
+- **A5 ✅ MERGED TO MAIN @ `a24380ca` (2026-07-26, ff-only; branch
+  `feature/sn-adjoint-a5` deleted; 5 commits).**  The sweep: Sphinx
+  `-E -W` exit 0 · audit orphans 0/311 + ERR 69/69 · pyright
+  production floor 1 (#288) · matrix 6763→6775 (L1 1120→1124,
+  foundation 4395→4403) · **FULL serial tree 6514 passed / 0 red**
+  (2:34 h under review contention).  ENFORCER (no MUST-FIX): both
+  SHOULD-FIX = doc internal-consistency stranded by the split (the
+  solution.py intro vs the new two-axes section; the
+  indexing_and_layout "Solution-class container" section) — BOTH
+  reconciled in-session; NITs fixed (type(self).__name__ message
+  prefixes; the package now exports the adjoint entries alongside
+  their type).  QA (SUPPORTED, no MUST/SHOULD-FIX): the sphere row's
+  math independently RE-DERIVED — the endomorphism argument (both .H
+  legs conjugate the SAME block G) closes the factor-order question;
+  the G_sd similarity G'⁻¹[(Aᵀ)⁻¹Fᵀ]G' confirms exact k-blindness;
+  the eig(Mᵀ)=eig(M) gloss confirmed CORRECT (all-factors transpose =
+  genuine similarity, NOT the A4 wrong-WHY); +2 independent
+  non-committed probes (S†→S rel=2.448 red — the gate is not tuned to
+  its teeth; +1-ULP metric control — not hypersensitive).  qa's
+  remaining NIT (confirm new py-domain xrefs render; wire the
+  verifies() link) rides A6.  USER RULING at the boundary:
+  **merge + open A6 NOW** (no compaction — archivist-delegated docs
+  phase, healthy context).
+- **A6 OPEN — branch `feature/sn-adjoint-a6` from main @ `a24380ca`.**
+  Charter (the phase list above): archivist authors
+  `docs/theory/methods/sn/adjoint.rst` whole; V&V slice rows →
+  `verification/sn.rst`; wire/adjudicate #309's sn/adjoint arm;
+  vv-status per wired⟹no-sentinel; update the `eigenvalue.py:26-29`
+  seam note; mint the daggered-eigenproblem equation label +
+  `verifies()` links for the certification rows (incl.
+  TestP14SphereAdjointVector — memo §2.7); qa + enforcer review the
+  chapter; **closes #276**.
 - **A4 SWEEP ✅ (2026-07-25) — the phase-end gates + both reviews, findings fixed in-session.**
   Gates: Sphinx `-E -W` exit 0 (3 docstring RST warnings caught + fixed —
   the wrapped grouped-name parameter list napoleon cannot parse + the bare
