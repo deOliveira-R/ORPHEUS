@@ -204,6 +204,46 @@ review · qa on math-bearing phases · every new gate class mutation-verified
   `verifies()` links for the certification rows (incl.
   TestP14SphereAdjointVector — memo §2.7); qa + enforcer review the
   chapter; **closes #276**.
+- **A6 ✅ MERGED TO MAIN @ `23f76214` (2026-07-26, ff-only; branch
+  deleted; 4 commits: `65422dcc` the chapter grown from the honest
+  stub [P3 Sᵀ section preserved verbatim; labels
+  sn-adjoint-{continuous,duality,eigenproblem}; the V&V adjoint
+  slice; #309 arm adjudicated on-issue — Sᵀ sentinels correctly NOT
+  lifted] · `a45953ea` the 8 verifies() markers per the archivist's
+  wiring table + the LIVE eigenvalue.py seam note + the
+  resolvent-spelling fix `KEigenvalue((L+C).H,...)` · `23f76214` both
+  reviews' findings]).  ENFORCER (2 MUST-FIX, both fixed): the ONE
+  in-chapter `(A.H,...)` spelling straggler (math-wrong — double-
+  counts (S+B)); operator_algebra.rst's doctrine posing-table retagged
+  "(future seam)" → "(LIVE — #276 A4/A5)"; + frame.rst's P6 blocker
+  un-staled and the DEFERRED-WIRING comment retired.  QA
+  (SUPPORTED-WITH-CONCERNS; **the campaign's THIRD wrong-number
+  catch, auditing its OWN A4 figure**): "1.488→0.153" was the 0-D
+  closed-form PROXY — the SN daggered solve measures k_mut = 0.171
+  (G=V·wₙ conjugation of a MUTATED non-transpose operator is not
+  spectrum-preserving); corrected at all 5 sites incl. the
+  vv-principles Mode-12 live-application text.  Also: G_ray→G_sd (one
+  spelling); the Mode-12 topic sentences now name eig(M†)=eig(M) on
+  the ITERATION operator (eig(A†)=eig(A) alone is insufficient — the
+  F-dagger is load-bearing).  qa re-derived and CONFIRMED the k†=k
+  chain, both continuous-adjoint forms, the dual-lift identity, the
+  taxonomy, and 9/10 measured numbers (the 10th = the corrected M1).
+  Gates: Sphinx `-E -W` 0 · audit orphans 0/313 + documented 520 +
+  ERR 69/69 · pyright 0/0 touched, floor 1 · **FULL serial tree
+  6514/0 (1:10 h)**.  USER RULING at the boundary: merge — campaign
+  complete.
+- **⏹ CAMPAIGN COMPLETE (2026-07-26).**  #310 ✅ `8abd3c6c` → A4 ✅
+  `065a0e5d` → A5 ✅ `a24380ca` → A6 ✅ `23f76214`, all ff-merged to
+  LOCAL main (push pending the user's ask; `Closes #310` + `Closes
+  #276` fire at push).  The adjoint chain is landed end-to-end: the
+  transpose machinery grid (#280/#310), the daggered posing + both
+  entries (A4), the role-typed `AdjointSolution` carrier + the sphere
+  φ*-shape row (A5), and ch15 + the V&V slice + the wired labels
+  (A6).  Downstream now unblocked: #281 P6 (adjoint-weighted
+  homogenization — the ratified `adjoint:` parameter API), #278/#279,
+  perturbation/GPT.  This driver is now ARCHAEOLOGY — terminal state
+  recorded; the living record is the chapter
+  (`docs/theory/methods/sn/adjoint.rst`) + the SN Development history.
 - **A4 SWEEP ✅ (2026-07-25) — the phase-end gates + both reviews, findings fixed in-session.**
   Gates: Sphinx `-E -W` exit 0 (3 docstring RST warnings caught + fixed —
   the wrapped grouped-name parameter list napoleon cannot parse + the bare
