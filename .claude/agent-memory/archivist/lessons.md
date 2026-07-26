@@ -3100,6 +3100,107 @@ documented), [[lessons-L10]] (Mode-12 spectral-invisibility vocabulary).
 
 ---
 
+## L-036 — GROWING a thin "honest-stub" chapter to full at campaign close: flip the stale status, PRESERVE the landed-earlier section, RECONCILE sibling taxonomies, and deferred-wire the verifies-targets
+
+The A6/ch15 shape (a campaign's closing docs phase): the chapter already
+EXISTS as a deliberately-thin honest stub (`methods/sn/adjoint.rst` was
+"deliberately thin today ... two layers landed, the third in flight") and
+is ALREADY in the part toctree. The task is GROWTH, not authoring-from-
+scratch, and it has a fixed anatomy:
+
+- **The primary staleness is the stub's own "in flight / not yet landed"
+  status** — flip it (L-007 tense-flip) the moment the campaign's phases
+  (here A4/A5) merged. Verify the merge against git/the campaign plan's
+  STATUS log, never the stub's frozen prose. The "three layers, two
+  landed" framing becomes "three layers, all landed".
+- **PRESERVE the already-landed section verbatim.** The thin chapter's one
+  substantive section (here the #276 P3 `sn-scattering-adjoint` record)
+  stays byte-for-byte — its `:label:`s are live #309 wiring-backlog items
+  with exact vv-status rationales; touching them re-opens an adjudicated
+  question. GROW AROUND it: new sections slot before (physics + route +
+  taxonomy) and after (mechanics + carrier + verification + consumers +
+  Development history), the preserved section sitting where it belongs in
+  the new flow (S^T is a concrete instance of the "Euclidean transpose"
+  category, so it lands right after the three-transposes taxonomy).
+- **TAXONOMY RECONCILIATION is the sharpest new move.** When the charter
+  asks for a NEW canonical "named landmine" section (the three transposes:
+  Euclidean / Hilbert / continuous) that SUBSUMES ≥2 pre-existing sibling
+  framings (loss_representation's warning contrasts {walk-Euclidean,
+  μ-reversal, continuous}; the thin Key Facts named {Euclidean, Hilbert,
+  walk-orientation}), do NOT contradict them — write the chapter as the
+  authoritative RECONCILIATION with explicit subset relations:
+  walk-orientation ⊂ Euclidean (the streaming realisation of Aᵀ),
+  μ-reversal = the continuous adjoint's discrete SIGNATURE, Hilbert rides
+  ON TOP of Euclidean via G. A reader who meets any sibling framing
+  elsewhere lands on the same taxonomy. State the reconciliation in prose
+  ("all three framings are the same taxonomy") so no future reader reads a
+  contradiction.
+- **Deferred-wire the verifies-target eq-labels you mint** (L-004 #3, the
+  concurrent-owner case, made concrete): the certification/entries tests
+  carry a comment "verifies un-linked until A6/ch15 mints the
+  daggered-eigenproblem label" — they are WAITING for your `:label:`. Mint
+  it UN-sentineled (a solver claim with a real L1 gate is a genuine gate —
+  NEVER sentinel to paper over the transient orphan), and report DEFERRED
+  WIRING with exact `test node → label` node-ids for the main agent (who
+  owns the test files this phase). The `-E -W` build passes regardless
+  (the audit is a SEPARATE gate the main agent runs AFTER wiring); flag
+  the audit dependency loudly ("these N labels are orphans until wired").
+  Definitional/literature siblings you mint alongside (the continuous
+  adjoint equation) DO get `.. vv-status: <label> documented` — audit-clean
+  at your build. Net: for a chapter minting a mix, some labels are
+  documented-sentinels (clean now) and 1–2 are un-sentineled deferred-wires
+  (clean after the main agent's marker commit).
+
+**Two teaching-doc CORRECTNESS catches this class surfaces** (Cardinal
+Rule 1 over faithful transcription):
+
+- **Don't fuse an eigenvalue term and a fixed-source term in one
+  equation.** The continuous adjoint written with BOTH a `1/k`-scaled
+  fission gain AND an external source `q*` is inconsistent (the `1/k`
+  belongs to the eigenvalue problem where `q*=0`). Present the eigenvalue
+  form (labeled), then the fixed-source form (`q*=Σ_d`, no fission) in
+  prose. A code/brief that hands you "the adjoint equation" generically
+  can hide this fusion.
+- **A code docstring's operator NAME can be sloppy where the theory must
+  be exact.** The `KEigenvalue(A.H, (S+B).H, F.H)` spelling in the
+  eigenvalue.py seam + the `solve_sn_adjoint` docstring uses "A" for the
+  FIRST arg — which is the RESOLVENT `(L+C)`, NOT the loss
+  `A_loss = L+C−S−B` (reading it as A_loss double-subtracts). The code is
+  `KEigenvalue(resolvent.H, gain.H, F.H)`; spell `(L+C).H` in the teaching
+  doc, unambiguous, and show `A_loss† = (L+C).H − (S+B).H` formed inside.
+
+**Mode-12 live-application EXACTNESS is the vv-curator load** (Directive
+5; this campaign twice caught a wrong-WHY here, so the prose is the
+corpus's quoted spelling). For the daggered adjoint: `k` is EXACTLY blind
+to (i) the factor-ORDER / similarity family (`eig(Mᵀ)=eig(M)` — ALL
+factors transposed is a similarity), (ii) ALL vector content, and (iii)
+**the G-metric itself** (`G'⁻¹AᵀG'` is metric-similar to `Aᵀ` for ANY
+invertible `G'`, so the metric is a free parameter no eigenvalue gate can
+EVER see — the sphere vector row is its SOLE catcher, ERR-067 family). But
+leaf-transpose **DROPS** (F†→F etc.) are **NOT** k-blind — transposing ONE
+factor is not a pencil similarity, k MEASURABLY moves (F†=F: 1.488→0.153
+on the 4G ∞ fixture). Get the "blind-to vs not-blind-to" boundary exactly;
+the corpus page and the `vv-principles` Mode-12 text must carry the same
+measured spelling. Pair every `k`-row prose claim with the vector/pairing
+catcher (spectrum, bi-orthogonality, duality, sphere-residual).
+
+**Xref reality for a solver-return-type chapter.** Only the module
+`automodule`'d WITHOUT `:noindex:` links (here `numerics.eigenvalue` →
+`power_iteration` links); a return type in a NOT-automodule'd module
+(`sn.solution` → `AdjointSolution`/`Solution`/`SolutionBase`) and a
+`:noindex:`-automodule'd module (`sn.solver` → `solve_sn_adjoint`) BOTH
+render plain-text BY CONVENTION (L-002) — consistent with the pre-A6
+chapter's own `ScatteringOperator` refs. NOT a defect and NOT to be
+"fixed" by adding an automodule: `sn.solution` carries `.. math:: :label:`
+docstrings (homogenize/condense derivations), so automodule'ing it trips
+duplicate-label collisions. Spot-check by (a) `-E -W` build EXIT 0
+(catches intra-doc `:ref:`, all `:eq:`, `:cite:`), (b) grep the built HTML
+for RAW `:class:`...`` role markup leaking (means a broken role) — none
+should leak; every role renders as `<a>` link OR plain `<code>`, and (c)
+confirm the ONE indexable module's refs actually link (typo-catch).
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

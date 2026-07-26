@@ -4768,3 +4768,155 @@ pseudo-2D artifacts, well-conditioned angular quadrature, fully
 converged inner solve.
 
 
+.. _sn-adjoint-verification-slice:
+
+Adjoint transport — the daggered posing
+---------------------------------------
+
+The adjoint flux :math:`\psi^*` and the daggered eigenvalue
+:math:`k^{\dagger}` (campaign #276 A4/A5) are verified by **closed-form**
+and **defining-law-residual** references, never by MMS.  The physics,
+the route decision, and the three-transposes taxonomy are the theory
+chapter :ref:`sn-adjoint`; this slice is the verification evidence.
+
+Why closed-form, not MMS
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+MMS is a *source-driven* pillar: it verifies flux-shape and
+convergence-order but **cannot verify an eigenvalue** (``vv-principles``,
+the pillars — the manufactured source is derived from a chosen flux, so
+there is no eigenvalue information to check against).  The daggered
+:math:`k^{\dagger}` and the importance spectrum :math:`\varphi^*` are
+eigenvalue / flux-shape claims, which need **closed-form** references.
+Two facts make those references *exact-equality* checks rather than
+tolerance agreements, both consequences of the route decision (ORPHEUS
+transposes the *discrete* operator, :ref:`sn-adjoint-route`):
+
+* :math:`k^{\dagger} = k` is an **exact algebraic identity**
+  (:math:`\operatorname{eig}(M^{\dagger}) = \operatorname{eig}(M)`), so
+  the k-rows assert equality to the iteration floor, not a physical
+  tolerance;
+* reciprocity :math:`\langle\Sigma_d,\psi\rangle =
+  \langle\psi^*,q\rangle` holds **exactly at finite** :math:`N, h`,
+  because :math:`A_{\rm loss}^{\dagger}` *is* the discrete transpose —
+  so its residual is a solver-``inner_tol`` check, not an
+  :math:`\mathcal O(h^p)` one.
+
+The certification gates
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The battery lives in
+``tests/sn/solve/test_sn_adjoint_certification.py`` (P1.3/P1.4/P1.5 +
+the sphere vector row) and ``tests/sn/solve/test_sn_adjoint_entries.py``
+(P1.2 duality + the entry packaging).  Every value gate is **L1**;
+bi-orthogonality is **foundation** (an intrinsic algebraic law, no
+theory ``:label:``).  Every reference is structurally independent —
+each chain terminates in ``np.linalg.eig``, the reciprocity identity,
+or a dense FORWARD-probe (never the ``.H`` reverse-scan under test).
+
+.. list-table:: Adjoint certification (Mixture A; measured)
+   :header-rows: 1
+   :widths: 16 10 30 44
+
+   * - Gate (test)
+     - Level
+     - Reference / pillar
+     - What it pins (measured)
+   * - **P1.2** duality
+       (``test_duality_cross_group_source_detector``)
+     - L1
+     - the reciprocity identity; two independent solves
+     - :math:`\langle\Sigma_d,\psi\rangle=\langle\psi^*,q\rangle` on a
+       2G asymmetric-SigS vacuum slab, source (fast, left) and detector
+       (thermal, right) in DIFFERENT groups AND regions; the detector
+       side additionally hand-checked against
+       :math:`\sum V\Sigma_d\varphi` at :math:`10^{-10}` (pins the
+       angle-flat dual lift — no :math:`w_n`, no :math:`1/W`)
+   * - **P1.3** :math:`k^{\dagger}=k`
+       (``TestP13KEquality``)
+     - L1
+     - ``kinf_homogeneous`` — triple equality, closed-form
+     - :math:`k^{\dagger}=k_{\rm fwd}=k_\infty` (atol :math:`10^{-8}`) on
+       ∞ 2G+4G, a 2-region reflective slab (spatial term LIVE), and the
+       coupled sphere (μ-reversal at the pole).  ∞-only would be a
+       config-blind REJECT
+   * - **P1.4** spectrum
+       (``test_4g_spectrum_matches_closed_form``)
+     - L1
+     - dominant right eigenvector of
+       :math:`(A^{\mathsf T})^{-1}F^{\mathsf T}`
+       (``kinf_and_adjoint_spectrum_homogeneous``)
+     - the 4G adjoint energy spectrum
+       :math:`[0.470, 0.486, 0.518, 0.524]` (2G: :math:`[0.684,
+       0.730]`), :math:`\ne\varphi` asserted; the corrected
+       factor-order reference (see below)
+   * - **P1.5** bi-orthogonality
+       (``TestP15BiOrthogonality``)
+     - foundation
+     - spectral decomposition of :math:`M`, :math:`M^{\dagger}`
+       (``np.linalg.eig`` both sides)
+     - :math:`\langle\psi^*_i, F\varphi_j\rangle` diagonal; for rank-1
+       :math:`F=\chi\otimes\nu\Sigma_f` the degenerate one-nonzero-entry
+       form (both :math:`F\varphi_j=0` and :math:`\chi\cdot\psi^*_i=0`
+       mechanisms asserted)
+   * - **sphere** :math:`\varphi^*`-shape
+       (``TestP14SphereAdjointVector``)
+     - L1
+     - dense FORWARD-probed :math:`(A_{\rm loss}, F)` + raw-data coupled
+       :math:`G` — both independent of ``.H``
+     - the coupled defining-law residual
+       :math:`\|A_{\rm loss}^{\mathsf T}(G\psi^*) -
+       F^{\mathsf T}(G\psi^*)/k\|` at rel floor
+       :math:`1.2\times10^{-10}` vs gate :math:`10^{-7}`
+       (:math:`n=140`); anti-vacuity :math:`|\Delta k| =
+       3.3\times10^{-11}`
+
+The Mode-12 accounting and the mutation teeth
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Because :math:`\operatorname{eig}(A^{\dagger}) =
+\operatorname{eig}(A)`, a :math:`k^{\dagger}=k` gate is designed-green
+(``vv-principles`` Mode 12) on whole error classes.  The boundary is
+load-bearing — this campaign twice caught a wrong "why" here — so it is
+stated exactly:
+
+* :math:`k` is **EXACTLY blind** to (i) the factor-order / similarity
+  family (:math:`\operatorname{eig}(M^{\mathsf T}) =
+  \operatorname{eig}(M)`), (ii) all vector content, and (iii) the
+  G-metric itself (:math:`G'^{-1}A^{\mathsf T}G'` is metric-similar to
+  :math:`A^{\mathsf T}` for any invertible :math:`G'`).  Catchers live
+  **outside** the eigenvalue stabiliser: the spectrum row, the
+  bi-orthogonality row, the duality pairing, and the sphere vector row.
+* :math:`k` is **NOT blind** to a single **leaf-transpose drop**:
+  transposing one factor is not a pencil similarity.  The P1.3 teeth
+  (``TestP13Mutations``) each shift :math:`k` — :math:`F^{\dagger}\!\to\!
+  F` moves :math:`k` from :math:`1.488` to :math:`0.153` on the 4G ∞
+  fixture (:math:`\chi\not\parallel\nu\Sigma_f` precondition asserted),
+  :math:`S^{\dagger}\!\to\!S` shifts it on asymmetric SigS, and
+  :math:`L^{\dagger}\!\to\!L` shifts it on the heterogeneous /
+  sphere legs (the flat ∞ legs are BLIND to it).
+
+**The factor-order trap.**  The P1.4 reference must be the dominant
+right eigenvector of :math:`(A^{\mathsf T})^{-1}F^{\mathsf T}`, **not**
+:math:`\operatorname{eig}(M^{\mathsf T})`: the two are similar (so every
+:math:`k` check passes on both), but for rank-1 :math:`F` the
+:math:`M^{\mathsf T}` eigenvector degenerates to exactly
+:math:`\widehat{\nu\Sigma_f}` — zero A-physics.  Caught by the SN
+daggered solve on first contact; the corrected law lives in
+:func:`~orpheus.derivations.common.eigenvalue.kinf_and_adjoint_spectrum_homogeneous`.
+
+**The metric tooth (ERR-067 family).**  The sphere vector row is the
+sole catcher for a G-metric bug: dropping :math:`G_{\rm ray} =
+V_{\rm cell} \to 1` leaves :math:`|k^{\dagger}_{\rm mut}-k_{\rm fwd}| =
+2.6\times10^{-11}` (EXACTLY k-blind, the metric-similarity above) while
+the defining-law residual reds to :math:`2.35`, O(1) over the
+:math:`10^{-7}` gate.  A corroborating k-VISIBLE tooth
+(:math:`F^{\dagger}\!\to\!F`) also reds the residual, showing the row
+catches leaf-transpose drops too.
+
+The daggered eigenproblem is :eq:`sn-adjoint-eigenproblem` and the
+reciprocity duality is :eq:`sn-adjoint-duality` (both in
+:ref:`sn-adjoint`); the k-rows verify the former, the P1.2 row the
+latter.
+
+

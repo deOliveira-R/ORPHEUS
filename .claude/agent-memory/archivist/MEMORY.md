@@ -12,12 +12,13 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 35 lessons (L-001…L-035), read FIRST each dispatch.
+- [lessons.md](lessons.md) — 36 lessons (L-001…L-036), read FIRST each dispatch.
   The spine: a page is done when every cross-ref resolves against the LIVE tree,
   every claim's V&V level matches the skill verbatim, every retired symbol leaves
   no dangling ref, and the build's WARNING/ERROR/CRITICAL set is unchanged from
   the `-E` baseline. Per-lesson detail is in lessons.md — do NOT re-summarize here.
   Newest by number (one-line hooks; full detail in lessons.md):
+  - **L-036** — GROWING a thin honest-stub chapter to full at campaign close (A6/ch15 adjoint): flip the stub's stale "in flight" status (verify merge, not prose); PRESERVE the landed-earlier section verbatim (its `:label:`s are live wiring-backlog), grow AROUND it; RECONCILE a NEW canonical taxonomy that subsumes ≥2 sibling framings (walk-orientation⊂Euclidean, μ-reversal=continuous's signature) — reconcile, don't contradict; deferred-wire verifies-target labels UN-sentineled (tests wait for the label; audit is the main agent's separate gate) while definitional siblings get `vv-status documented`; correctness catches (no 1/k-fission+q* fusion; KEigenvalue's 1st arg is the RESOLVENT (L+C), not A_loss); Mode-12 EXACTNESS (k blind to factor-order/vector/**G-metric**; DROPS not blind — F†=F 1.488→0.153); xref: only non-`:noindex:` automodule links, solution.py has `:label:` docstrings so plain-text-by-convention is CORRECT.
   - **L-035** — V7 orphan-slice adjudication (WIRE/SENTINEL/GAP): WIRE iff a test's PRIMARY assertion IS the equation vs a structurally-independent ref (sign-flip reds it); 3 SENTINEL shapes (schema/continuous-def/literature tested-under-a-DIFFERENT-label · native-vs-legacy bit-id · code-not-built); ROOT narrative page = all-SENTINEL (verified downstream under method labels); foundation-file resolve per-test (computed→WIRE, invariant→SENTINEL, module-foundation+class-verifies coexist); doc's named catcher beats a stale line-range (spectral test is Mode-12-blind — pin the OBJECT); fast `_scan_theory_equations` self-check, no pytest collection.
   - **L-034** — #231 P2 rebalance CONTRACT-DENSE file classes (machinery/driver/ABC/mesh/contract-operator/ψ½): honest cut ≪ the teaching-operator pilot & that's CORRECT; cut SURFACE differs by class (comments dominate driver/mesh); automodule even `:noindex:` makes the `-E -W` gate live; a rebalance READ is a free staleness-audit.
   - **L-033** — #231 P2 rebalance PILOT: teaching ALREADY TWIN → expect ZERO MOVED (Haiku MOVED-column is ~noise); CONTRACT = "would a file-local modifier err without this?"; docstring-only proven by token-invariance; not-`automodule`'d ⟹ no gate.
