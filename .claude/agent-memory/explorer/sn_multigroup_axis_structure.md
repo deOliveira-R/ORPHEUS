@@ -58,3 +58,13 @@ campaign the ONE construction site is `build_within_group_system`
 (loss A, space, resolvent M, gains N; `A = M − N` splitting; 2×2 coupled grid
 on seed-carrying meshes, 1×1 seedless). `_within_group_si` / `_within_group_krylov`
 (solver.py) consume the record. Update AGENT.md's shape section when next revised.
+
+**Second AGENT.md drift (verified 2026-07-26, DSA recon):** the composite field
+ctor keyword is `FullField(interior=…, boundary=…)` — NOT `bulk=` as the
+durable-shape section spells it (the ATTRIBUTE reads as `.interior`; prose
+"bulk ⊕ boundary" is fine, the kwarg is not). Same recon confirmed the P7b
+`full_field_space`-not-on-TransportMethod deferral note is still live
+(`transport/method.py`, "declare when the DSA driver #2 arrives") and that
+`KrylovAcceleration` HAS a `preconditioner=` seam while the SN production path
+passes an explicit identity lambda (#200). Full transient map (line numbers):
+`.claude/plans/dsa_landing_zone_recon.md` — re-derive after Phase 3 merges.

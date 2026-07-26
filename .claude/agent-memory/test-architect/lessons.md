@@ -1587,3 +1587,66 @@ extracted surface behind `# BIND:`; those rows are `xfail(strict=False,reason=)`
 → flip to xpass on landing (L4). `vv §Mode-11/8 / L1 config-blindness (ℓ=0
 iso-null) / L2 structural-independence / anti-#3 ≥2G / anti-#4 fissile`. Full
 recipe → §3 [aba-schur-fold-unweld-verification].
+
+## L23 — Verifying a SYNTHETIC ACCELERATOR (DSA #2, pre-carve spec): the `correction→0` property PARTITIONS the failure surface, and FP-invariance is STRUCTURALLY BLIND to the majority of it — the object+rate gates are the load-bearing catchers, not supplements
+
+The deepest test-design fact for any accelerator whose correction vanishes
+at the fixed point (DSA, and the TSA/#5 sibling): the correction→0 property
+makes the accelerator correctness-safe BY CONSTRUCTION for EVERY error in
+{R (restriction), P (prolongation), the low-order operator `A_diff`,
+correction sign/scale} — those leave the converged FP **identically**
+unchanged (not sub-floor; identically, because the correction source is zero
+at the FP regardless of how wrong the machinery is). This PARTITIONS the
+plausible-error surface into two disjoint classes with disjoint catchers:
+
+- **Value-changing class = corruption of the WITHIN-GROUP transport operator
+  itself** (`A=L+C−S−B`): the #215 σ_r-fold (`A_wg.solve(S_residual)` with
+  the σ_r-sweep = `Σ_s0·P_iso` only for isotropic flux → 46–56% wrong on
+  anisotropic), a sweep sign flip. Caught by **FP-invariance** (converged
+  flux ≡ plain-SI FP) — but ONLY on an ANISOTROPIC config (vv Mode 9; the
+  isotropic-reflective box is the designed-green degeneracy where the fold
+  is exact). This is the class FP-invariance exists for — and it is exactly
+  ONE of the eight canonical errors.
+- **Rate-only class = the accelerator machinery** {R, P, `A_diff`,
+  correction sign, low-order D/removal, boundary rows}: FP-invariance is
+  **structurally BLIND** to all of it (correction→0). Caught ONLY by
+  **object gates** (R conservation `⟨1,Rr⟩=⟨1,r⟩` with NON-uniform weights +
+  the anti-#8 per-cell delta-source distribution pairing; P≡Rᵀ adjoint as
+  the full MATRIX not a sampled bilinear form; the low-order matrix ≡
+  hand-posed stencil, element-wise, Mode-12-safe object-level) + **rate
+  gates** (ρ vs 0.2247c Fourier; the c→1 × optical-thickness iteration-count
+  table; reflective-BC divergence — the inconsistent-low-order operator
+  diverges on reflective, is forgiving on vacuum).
+
+The battery-completeness corollary: a plan that gates a correction→0
+accelerator's correctness ONLY on FP-invariance — even a *correctly*
+anisotropic FP-invariance — ships SEVEN of eight canonical errors silently.
+FP-invariance and the rate gates have DISJOINT blind spots (ρ can't see the
+value, the flux can't see the rate) — which is WHY both exist. Three
+gate-design closures recur: (1) the **correction→0 gate's** own blind spot
+is a DEAD R (δφ≡0 passes "→0" trivially) → pair with a first-iterate
+NON-triviality lower bound. (2) the **no-masking** converse: mutate the
+transport OPERATOR (not the machinery) → DSA must converge to the SAME wrong
+answer as SI (proves it changes the RATE not the VALUE in both directions).
+(3) the **#215 routing guard** is a Mode-11 wrap-counter / AST tripwire (the
+within-group solve must NOT route through the σ_r-fold), catching at
+design-time what FP-invariance catches numerically. Assemble-consistency
+(3a) is object-level matrix diff (interior/boundary/scaling decomposition —
+"≡ up to a boundary row" = interior block element-wise-equal AND the
+nonzero-diff support ⊆ {0,N−1}); its independence rides a hand-posed anchor,
+never the two ORPHEUS assemblies agreeing (L16 one-source proof). ρ estimator
+= the RESIDUAL ratio (Signature 9: the increment under-reports as c→1);
+1G is LEGITIMATE for the ρ claim (rate is flux-shape-independent — declare
+the claim layer, AGENT.md §5). Anisotropic FP configs MUST build the
+`Mixture` constructor DIRECTLY (`make_mixture` nulls SigL AND every A/B/C/D
+mixture has Sig2=0 — lessons L1; a `make_mixture` ℓ≥1 config silently nulls
+the moment DSA must leave untouched).
+
+How to apply: for any correction→0 accelerator, FIRST draw the value/rate
+partition table (§0 of the spec) — for each of the 8 canonical errors name
+the gate that reds and confirm FP-invariance is blind. The object+rate gates
+are LOAD-BEARING (the only catchers for 7/8), not supplements; a
+FP-invariance-only plan is Mode-9-complete for the σ_r-fold and Mode-9-EMPTY
+for the machinery. Sharpens vv Mode 9 (the config degeneracy) with the
+gate-completeness corollary. Full spec → `.claude/plans/dsa_verification_spec.md`.
+`vv §Mode-9/12 / anti-#8 / Signature-9 / bit-identity`.

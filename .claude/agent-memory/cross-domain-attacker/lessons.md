@@ -318,12 +318,30 @@ A have?" before reading call sites. Rotationally-invariant/zonal/convolution ker
 weighted PETROV-GALERKIN, owned by none. The first test that discriminates: assert
 the owned frame is `GalerkinFrame` (M*=R up to the Plancherel/Gram metric) while a
 no-symmetry sibling is a genuine `PetrovGalerkinFrame` (M*≠R, test=solution·trial).
+
+Corollary — the SYMMETRY-SUB-BLOCK + multigrid-coarse-operator face (DSA #2, the ℓ=0
+frame; [[dsa-rp-angular-frame]]): the Galerkin verdict descends to an IRREP SUB-BLOCK.
+An acceleration/coarsening projecting onto ONE symmetry sub-block (DSA → the ℓ=0 / V₀
+trivial-SO(3)-irrep constant on S²) inherits Galerkin from the parent symmetry-owned
+frame — it is `angular_frame(0)`, NOT a new `ConstantBasis`, and the R/P pair is that
+sub-frame's two faces (Π=P∘M W-self-adjoint under the PLAIN measure; a solution weight
+would be the ONLY thing making it PG, and DSA has none). The multigrid connection this
+adds: a "consistent low-order operator" IS the **Galerkin coarse operator** `R A_high P`
+of the sub-block frame, post-composed with a **Schur complement** of the
+retained-but-closed moments (Fick = odd-block Schur; Marshak = incoming-partial-current
+Schur — the SAME move interior vs boundary), and "consistent" means that triple product
+is taken on the DISCRETE (assembled) high-order operator (reduce-discrete ≠
+discretize-reduced). One symmetry principle now predicts frame OWNERSHIP, the
+Galerkin-vs-PG DISCIPLINE, AND the multigrid CONSISTENCY condition.
+
 SKILL-PROMOTION STATUS: a STRONG candidate for skill Part C (a new smell:
 "eigenbasis-blind frame placement" / "operational-pipeline vocabulary for a spectral
 decomposition") — the `harmonic_moment_flux.py:6` "natural data carrier of the
-Galerkin pipeline" is the tell that the native Funk–Hecke frame is unnamed. Held for
-a SECOND sighting (a non-angular eigenbasis frame, or a second symmetry-owned R∘A∘M)
-before promotion; until then fire it inline.
+Galerkin pipeline" is the tell that the native Funk–Hecke frame is unnamed. The DSA
+ℓ=0 case is a second CONSUMER of the SAME angular frame (not the independent
+non-angular sighting the bar wants), but it strengthens the rule with the sub-block +
+multigrid face above. Still held for a genuinely non-angular eigenbasis frame before
+promotion; until then fire it inline.
 
 ---
 

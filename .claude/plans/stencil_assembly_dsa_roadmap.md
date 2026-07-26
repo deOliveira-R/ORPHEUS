@@ -1,13 +1,13 @@
 # Stencil-assembly + DSA roadmap — k-estimator → spatial reification → DSA (#2)
 
-**Status: Phases 1 AND 2 COMPLETE, both merged to main (P1 @ `a4952c3`; P2 =
-the `f6079be…` chain ff-merged 2026-07-04 — trust `git log`, this note is a
-snapshot). Full-tree merge gate 5990/0 not-slow serial. Rulings R1–R9
-collected. Phase 2.5 (the #280 orientation×kernel walk unification) is OPEN
-on branch `refactor/sn-walk-unification` (2026-07-04; P0 findings + the
-plan-of-record in its section below). Then Phase 3 (DSA #2, opening with
-the 3-P0 dispatches — the literature brief checks `scratch/literature/`
-FIRST).**
+**Status (2026-07-26 — trust `git log`, this note is a snapshot): Phases 1, 2,
+AND 2.5 COMPLETE, merged to main (P1 @ `a4952c3`; P2 = the `f6079be…` chain
+ff-merged 2026-07-04; Phase 2.5 = #280 CLOSED 2026-07-13 @ `3f0b8c74` — R9's
+"keep `sn/spatial` the name" was superseded by execution: the residual package
+is now `orpheus/sn/sweep/`, task #54 @ `588f2429`). **Phase 3 (DSA #2) is IN
+FLIGHT on branch `feature/sn-dsa`**: the 3-P0 dispatches are DONE (four memos,
+see the Phase-3 plan-of-record subsection below) and the phase plan was
+USER-APPROVED 2026-07-26 after the diffusion-readiness checkpoint.**
 
 Campaign chain: **Phase 1** k-estimator unification (#259 + #291) → **Phase 2** spatial
 substrate promotion + the ASSEMBLY third mode (#272 + #158 + #253, user ruling below) →
@@ -1301,7 +1301,71 @@ cross-domain-attacker R/P Petrov–Galerkin frame). Branch
 ## Phase 3 — DSA for SN (#2; folds #200's Krylov posture; runs AFTER the #280 walk
 unification per R1 — the accelerator wires into the unified orientation×kernel walk)
 
-### 3-P0 — dispatches (MUST, before the plan-of-record for this phase)
+### ⏵ Phase-3 plan-of-record (USER-APPROVED 2026-07-26; branch `feature/sn-dsa`)
+
+**3-P0 is DONE** — the four memos are the working spec set (all in `.claude/plans/`):
+`dsa_literature_memo.md` (Alcouffe 1977 / Larsen 1982 I+II / Adams-Larsen 2002 /
+Morel 1982, all local + scan-verified; §6 = the build synthesis; §7–§8 Adams-Martin
+1992 + WWM-McGhee-Lehoucq 2004 extraction in flight — the user added both
+2026-07-26), `dsa_verification_spec.md` (13 gates D1–D13 + mutation matrix),
+`dsa_rp_frame_analysis.md` (frame verdicts), `dsa_landing_zone_recon.md`
+(current-tree facts @ `e4c1a81c`).
+
+**The four structural verdicts:**
+1. **(R,P) = the ℓ=0 faces of the EXISTING `Quadrature.angular_frame(0)`**
+   (`GalerkinFrame`; `numerics/quadrature/directional.py:417`) — mint NOTHING;
+   0-ULP pins vs `integrate_angular`.
+2. **Consistency's named algebra: `A_low = Schur_{ℓ=1}(R₁·A_assembled·P₁)`** — the
+   two-moment Galerkin triple product over the ASSEMBLED DD operator, then
+   Schur-eliminate the current. "Consistent" = derived-by-moment-reduction (Reed's
+   scheme had fixed-point compatibility and still diverges — keep lexically separate).
+3. **The correction→0 partition** (spec §0): FP-invariance gates are blind to 7/8
+   accelerator errors — object + rate gates carry the verification weight.
+4. **Marshak = the boundary Fick** (half-range Schur under the shared `|Ω·n|w`
+   metric); vacuum→Marshak(𝒜=0) is exactly the error-problem BC.
+
+**Diffusion readiness (the approval checkpoint's finding):** the "2-group, not
+operator-algebra" picture is the PRE-#290 island — today's `orpheus.diffusion` is
+ng-generic operator algebra (`loss = leakage + collision − scattering − boundary`,
+`diffusion/solver.py:240`; `test_three_group_is_structurally_beyond_the_island`),
+TransportMethod-conformant, assembling, O(h²) MMS-gated. Open gaps #292/#293/#294
+do not bite arm 1 (#292 is legacy-table data — DSA reads the SN problem's own
+mixtures; #294 is off-face interfaces — DSA shares the SN mesh; diffusion is 1-D
+today — matches arm-1 slab scope). Whether the landed harmonic-mean stencil IS the
+DD-consistent operator is 3a's computed question (R4 rules on the D2 matrix diff);
+if ≢, the derived stencil wires through the same assembly machinery (double-duty:
+standalone keeps physics-chosen RT0, DSA uses consistency-derived — two defining
+laws, not a twin path).
+
+**Scope (arm 1):** slab Cartesian DD, within-group fixed-source, P0-DSA, f-form;
+BOTH postures (SI+DSA = new driver construct — `SourceIteration` has no hook,
+injection after the resolvent apply `iteration.py:682`; Krylov = replace the
+explicit identity preconditioner at `sn/solver.py:487` with sweep + P·A_low⁻¹·R).
+OUT with seams/follow-ups: curvilinear (#282-blocked; no stability theory), LD arm
+(R5 decide-from-table; Larsen I §IV–V + Adams-Martin are the shelved references),
+2-D Cartesian (Alcouffe corner moments + windowed-sweep interaction — file at
+close), k-outer, upscatter accel, P1-DSA (gated on Σs1/Σt per A&L (7.14)).
+`full_field_space` lands on `TransportMethod` (the P7b trigger fires). The
+foldable/σ_r accessors get their intended consumer through the LOW-ORDER BUILD
+only — never the sweep (the #215 trap stays fenced; ERR-070 files when D3 first
+reds on it).
+
+**Key gate anchors (3c):** S2 K₂=0 one-iteration exactness (the sharpest BC unit
+test); ρ vs A&L (3.65) (Σ_th-independent, the primary quantitative gate);
+reflective stability = D12 (the historical spike failure); the partial-consistency
+negative control (WD a=0.5 + DD low-order must diverge Table-II-shaped); ρ
+estimator = residual RATIO. Docs close-out = a NEW page in
+`docs/theory/methods/sn/` (the old `discrete_ordinates.rst` target is dissolved);
+fix the content-drifted `diffusion_1d.rst:517` xref; flip the
+`field_algebra.rst:528` promise. Derivation-side watch items: Larsen is the
+transcription reference (Alcouffe (17)/(23) carry PRINT SIGN ERRATA — memo §1.5);
+the sources' Σw=1 vs A&L's Σw=2 vs ORPHEUS's Σw=2 slab convention maps ONCE with
+numeric asserts; the ⅓ enters as the quadrature-moment property W₂/W₀, never a
+transcribed constant.
+
+⏸ COMPACTION points at 3a→3b and 3b→3c (commit + checkpoint this file first).
+
+### 3-P0 — dispatches (MUST, before the plan-of-record for this phase) — ✅ DONE 2026-07-26
 - **literature-researcher** — check `/Users/rodrigo/git/nuclear/ORPHEUS/scratch/
   literature/` FIRST (user maintains it; all NSE volumes local): Alcouffe 1977
   (consistent DSA for DD), Adams & Larsen 2002 review (fast iterative methods —
