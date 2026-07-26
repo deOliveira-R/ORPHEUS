@@ -52,16 +52,42 @@ TTSP 26:433 1997 (10.1080/00411459708017925), TTSP 26:765 1997
 WAPD-124 1955; Henry 1958 NSE 3:52 (10.13182/NSE58-1). All
 CrossRef-resolved this session.
 
-## The gap (why acquisition is needed)
+## B&G Ch. 6 — THE per-channel source (acquired + extracted 2026-07-26)
 
-NO local source writes the per-channel fine→coarse bilinear collapse
-(vector ⟨φ*Σφ⟩/⟨φ*φ⟩; scattering per-pair sink-φ*×source-φ; explicit
-χ_G) — the local corpus gives the PAIRING STRUCTURE (Hébert 3.61/3.121,
-Dorning 8.30/8.37/8.39) but not the collapse rule. Classics that carry
-it: B&G 1970 Ch. 6 (top), Stacey Ch. 13, Williams CRC-Handbook chapter
-(Ronen ed. 1986, handbook verified OSTI 5707826), Duderstadt-Hamilton,
-Henry 1975. NOT in `scratch/literature/`; extraction stopped per the
-no-unilateral-pivot rule.
+`Bell-Glasstone(1970)Nuclear_reactor_theory.pdf` [LOCAL]; printed ≈
+PDF−18; all equations verified on rendered pp. 290/297/323-326.
+**§6.4h** (printed 305-308) = the bilinear multigroup derivation
+(variational, P1, plane, within-group separability ansatz):
+- Vector: **(6.135)** σ_{i,g}=∫_g σψ†_{i,g}ψ_{i,g}dE, i=0,1 (per
+  Legendre MOMENT; ≡ ⟨φ*Σφ⟩/⟨φ*φ⟩ via unit-overlap norm (6.126)).
+- Scattering: **(6.136)** σ_{i,g′→g}=∫_g dE∫_{g′}dE′ σ_i(E′→E)
+  ψ_{i,g′}(E′)ψ†_{i,g}(E) — **per-pair SINK-adjoint × SOURCE-flux
+  CONFIRMED**, both moments.
+- Carriers: (6.125) ∫ψ_0=1 ⟹ forward carrier = PLAIN group-integral
+  flux; (6.126) ∫ψ_0ψ†_0=1 ⟹ coarse adjoint = FLUX-WEIGHTED group
+  average ⟹ ⟨φ*φ⟩_G = Φ*_G·Φ_G exactly (plain-carrier rows carrying
+  bilinear-valued constants; the (a)/(b) ORPHEUS conventions COINCIDE
+  under separability). Hébert (3.118) plain-average = flat-flux approx
+  of B&G's carrier. External source collapses ADJOINT-weighted
+  (6.133)/(6.134).
+- Fission: (4.38) fission-in-transfer ⟹ collapses per-pair by (6.136);
+  separable kernel ⟹ νσ_{f,g′→g}=χ†_g·(νσ_f)_{g′}, χ†_g=∫_gχψ†_0dE
+  (Σχ†_g≠1) — dyad factored (synthesis, flagged).
+- Grounding: δk = **(6.71)** p. 279 (⟨φ*,δAφ⟩/⟨φ*,Fφ⟩ exactly);
+  second-order THEOREM **(6.90)** J=J₀+(δΦ†,LδΦ) p. 293 (flux-only
+  weighting errs at first order (Q†,δΦ)); eigenvalue functional (6.92).
+- Consistency: §6.2c p. 272 — flux-weighted multigroup adjoint ≠
+  energy-integrated continuous adjoint (the Hébert-gap closer); §6.4h
+  adjoint system (6.137)/(6.138) shares (6.135)/(6.136) constants,
+  "clearly adjoint"; §6.4g: variational route guarantees dual
+  consistency. B&G Ch. 9 point kinetics consumes §6.4h constants.
+- Practical p. 308: bilinear "superior … few groups"; many groups ⟹
+  correction fades. Refs [35] Pitterle-Maynard TANS 8:205 (1965),
+  Little-Hardie NSE 29:402, Buslik NSE 32:233, counterpoint
+  Yasinsky-Kaplan NSE 31:354; [34] Henry NSE 27:493 (time-dep).
+
+Remaining acquisitions (corroboration only): Stacey Ch. 13, Williams
+CRC (Ronen 1986, OSTI 5707826), Henry 1975, D&H.
 
 ## Process note
 

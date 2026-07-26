@@ -449,6 +449,8 @@ def _adjoint_region_spectrum(adj, mat_id: int = 0) -> np.ndarray:
     return (phis[:, sel] * V[sel]).sum(axis=1)
 
 
+@pytest.mark.verifies("sn-homogenization-adjoint-weighted")
+@pytest.mark.verifies("sn-homogenization-bilinear")
 class TestC4BilinearCondensation:
     """C4: every channel of the bilinear-condensed Mixture equals the B&G
     Ch. 6 hand rule (nested blocks — no straddles, 0/1 overlap table), the

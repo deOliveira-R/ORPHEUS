@@ -831,8 +831,10 @@ class Solution(SolutionBase):
 
         phi_star = None
         if adjoint is not None:
-            # The role is a TYPE and the problems must match (same guards as
-            # the homogenize adjoint arm).
+            # The role is a TYPE and the problems must match — the same guard
+            # pair as the homogenize adjoint arm. (Collapse into a shared
+            # helper when a THIRD adjoint-consuming verb lands — perturbation
+            # worth / GPT are the anticipated instances.)
             if not isinstance(adjoint, AdjointSolution):
                 raise TypeError(
                     f"Solution.condense: adjoint must be an AdjointSolution "
@@ -858,16 +860,20 @@ class Solution(SolutionBase):
                     f"(eg is None); condensation needs the fine library grid."
                 )
             cells = mat_of_cell == mat_id
-            # representative spectrum: flux·volume-weighted over the material's cells
-            spectrum = (volume[cells, None] * phi[cells]).sum(axis=0)   # (ng,)
+
+            def _representative(field: np.ndarray) -> np.ndarray:
+                # ONE reduction for the pair — the T6 carrier consistency
+                # (B&G convention) requires φ and φ* be reduced by the SAME
+                # operator; naming it once makes that structural.
+                return (volume[cells, None] * field[cells]).sum(axis=0)
+
+            spectrum = _representative(phi)                             # (ng,)
             if phi_star is None:
                 condensed[mat_id] = material.condense(coarse, spectrum, within_group)
             else:
-                # The representative PAIR: the same reduction on the importance.
-                adjoint_spectrum = (volume[cells, None] * phi_star[cells]).sum(axis=0)
                 condensed[mat_id] = material.condense(
                     coarse, spectrum, within_group,
-                    adjoint_spectrum=adjoint_spectrum,
+                    adjoint_spectrum=_representative(phi_star),
                 )
         return condensed
 

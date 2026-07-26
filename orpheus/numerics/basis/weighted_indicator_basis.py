@@ -47,9 +47,12 @@ space, shared with the trial).  The synthesis-side operations (:meth:`synthesize
 consumer** — building the weighted synthesis / weighted Hilbert adjoint is
 speculation until one arrives — so they **raise** rather than silently delegate to
 the *unweighted* indicator (which would be a half-consistent basis: a landmine
-where ``analysis`` carries :math:`w` but its transpose does not).  When an adjoint
-consumer arrives (e.g. a least-squares frame) the weighted transposes get built
-then, consistently.
+where ``analysis`` carries :math:`w` but its transpose does not).  When a consumer
+of the weighted SYNTHESIS side arrives (e.g. a least-squares frame) the weighted
+transposes get built then, consistently.  (The P6 #281 adjoint-weighted collapse is
+NOT that consumer: its bilinear frames — pair weight :math:`\varphi^*\!\odot\varphi`,
+the angular :math:`\rho`, the emission fold — consume only :meth:`analyze` through
+``FrameBase.project``, exactly like the forward frames.)
 
 References
 ----------

@@ -842,3 +842,33 @@ So I cited the PROSE drift (CERTAIN from reading) as the finding and flagged xre
 "verify on next build," NOT as an asserted silent-break. Never upgrade an unverified xref-break to
 the finding itself; the prose inconsistency is the verified core, the xref mechanics are a
 "check-on-build" rider. (#276 A5 role-axis review, 2026-07-25.)
+
+## L-019 -- An algebra-of-record (derivations/) module that welds a BUILDER↔DISPLAY pair by proof can STILL harbor an unwelded THIRD spelling: a downstream theorem re-spells its own canonical rule inline for convenience
+
+The P6 #281 B1 derivation module (`derivations/common/homogenization.py`) is built on an
+explicit single-source discipline: every collapse rule exists as a grid-parameterized BUILDER
+(`vector_bilinear_rule`, `matrix_per_pair_rule`, …) + a Sum-form DISPLAY `sp.Eq`, and each
+theorem calls `_display_matches_builder(...)` to PROVE display≡builder at concrete grids "so the
+rendered math and the verified math cannot drift." Impressive — and it made me almost skip the
+weld axis. The catch was a theorem that does NOT go through its own builders: `derive_balance_tradeoff`
+(T4) defines local `t1(channel,g)`/`t2(gf,gt)` that are BYTE-IDENTICAL (modulo `*`-commutation) to
+`vector_bilinear_rule`/`matrix_per_pair_rule` — a THIRD spelling that `_display_matches_builder`
+does NOT cover (it welds display↔builder, not builder↔a-theorem's-inline-copy). Coextensive today
+⟹ NIT-by-the-strict-standard, but a do-now SHOULD: the module ITSELF documents a coming refinement
+(the moment-resolved anisotropic Σ_s,ℓ seam) and T1b already shows the vector rule has variants, so
+the collapse trigger is named+real — the day `vector_bilinear_rule` is refined, T4 silently proves
+the balance-tradeoff for a STALE rule and still passes, decoupling the theorem from the production
+rule it exists to constrain.
+
+How to apply: when reviewing a derivations/ (algebra-of-record) module that advertises a
+builder/display/theorem weld, do NOT credit the weld from the docstring — grep EACH theorem body for
+whether it CALLS the builder or RE-SPELLS the rule inline (`def t1(...)`, a local `num/den` that
+matches a builder). The weld helper only covers the pair it names; a counterexample rule spelled
+inline is FINE (it's a distinct, wrong-on-purpose expression), but the CANONICAL rule re-spelled
+inline is an unwelded twin (anti-#1) inside the very module whose job is single-source-of-the-math.
+Discriminator: is the inline rule the one a builder already provides (twin, SHOULD) or a deliberate
+counterexample/forward-rule (legit)? Fix = call the builder. Same session also reconfirmed: the
+production numpy einsum vs the SymPy builder is NOT a twin — that is the intended derivation/impl
+structural-independence (each pinned separately: builder by worth-zeroing theorem, production by a
+hand-reference smoke), the algebra-of-record split, not a Pattern-2 violation. (P6 #281 B1/B2
+adjoint-weighted homogenization review, 2026-07-26.)

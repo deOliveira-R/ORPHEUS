@@ -868,15 +868,15 @@ def derive_balance_tradeoff() -> None:
         for i in _CELLS
     ]
 
-    def t1(channel: list[list[sp.Expr]], g: int) -> sp.Expr:
-        num = sum(V[i] * _pair_weight(i, g) * channel[i][g] for i in _CELLS)
-        den = sum(V[i] * _pair_weight(i, g) for i in _CELLS)
-        return num / den
+    # The CANONICAL builders — never a private re-spelling (the enforcer's
+    # weld discipline: a theorem constraining a rule must consume the same
+    # single source the production code mirrors, else it silently pins a
+    # stale copy the day the rule is refined).
+    def t1(channel, g: int) -> sp.Expr:
+        return vector_bilinear_rule(_CELLS, V, phis, phi, channel, g)
 
     def t2(gf: int, gt: int) -> sp.Expr:
-        num = sum(V[i] * phis[i][gt] * sig_s[i][gf][gt] * phi[i][gf] for i in _CELLS)
-        den = sum(V[i] * phis[i][gt] * phi[i][gf] for i in _CELLS)
-        return num / den
+        return matrix_per_pair_rule(_CELLS, V, phis, phi, sig_s, gf, gt)
 
     balance_residual = [
         t1(sig_t, gf) - t1(sig_a, gf) - sum(t2(gf, gt) for gt in _GROUPS)

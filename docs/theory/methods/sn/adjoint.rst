@@ -832,17 +832,23 @@ adjoint enters as an **optional test weight**,
 
 .. code-block:: python
 
-   # forthcoming — lands WITH the P6 (#281) Petrov-Galerkin implementation
+   # LANDED (P6 #281) — with its Petrov-Galerkin implementation and gates
    Solution.homogenize(coarse, *, adjoint: AdjointSolution | None = None)
 
-— ``None`` keeps today's flux-weighted (Galerkin, :math:`\varphi^* =
-\phi` degenerate) collapse; a real :math:`\varphi^*` makes it genuinely
-Petrov-Galerkin (test weight :math:`\varphi^*\cdot\mathbf 1_R \ne`
-trial :math:`\phi\cdot\mathbf 1_R`).  The parameter lands **with** its
-Petrov-Galerkin implementation and gates in P6, so no advertised-but-
-unwired arm exists in between.  The adjoint is the *test weight* of the
-forward collapse, never its subject — which is exactly why the forward
-trio is structurally absent on the adjoint leaf.
+— ``None`` keeps today's flux-weighted (Galerkin-degenerate) collapse
+bit-identically; a real :math:`\varphi^*` makes the collapse
+eigenvalue-consistent per the worth-zeroing taxonomy of the algebra of
+record (:mod:`orpheus.derivations.common.homogenization` — the test
+weight is the bilinear PRODUCT :math:`\varphi^*\!\odot\varphi` for the
+vector channels, the exact angular pairing for :math:`\Sigma_t`, the
+per-pair sink×source rule for the matrices, and the mixed-fold factored
+fission rule; the same parameter on :meth:`~orpheus.sn.solution.Solution.condense`
+runs the B&G-convention bilinear condensation).  The adjoint is the
+*test weight* of the forward collapse, never its subject — which is
+exactly why the forward trio is structurally absent on the adjoint
+leaf.  The full taxonomy narrative and gates live in the frame chapter
+(:ref:`sn-homogenization-why-petrov-galerkin`) and the SN verification
+slice.
 
 .. _sn-adjoint-verification:
 

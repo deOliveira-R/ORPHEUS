@@ -490,6 +490,15 @@ class SNMesh(MaterialMesh):
         (never relax an invariant to a weaker downstream check) keeps the
         strong tier; callers wanting cross-problem comparisons must
         construct shared constituents.
+
+        The pole angular closure is deliberately EXCLUDED: it is a
+        solve-time sweep strategy (how ψ is computed near the pole), not a
+        phase-space constituent — it changes neither the field layout nor
+        the quadrature the pairings contract, so fields from two closures
+        remain contractible (do not "strengthen" the guard by adding it).
+        The scheme is compared by TYPE (not ``is``) because schemes are
+        parameter-free strategy singletons constructed per solve; a future
+        LAYOUT-parametrized scheme would need a stronger comparison here.
         """
         return self is other or (
             self.mesh is other.mesh

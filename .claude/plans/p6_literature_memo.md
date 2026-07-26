@@ -12,9 +12,12 @@ tools are NOT exposed this session (no `mcp__zotero__*` in the tool surface)
 provenance verification of citations found locally, never as a substitute
 extraction source.
 
-**Status**: COMPLETE (2026-07-25). Three local sources extracted +
-verified; per-channel classical formulas traced to five missing classics
-(acquisition list at end); no local-source conflicts.
+**Status**: COMPLETE (2026-07-25; EXTENDED 2026-07-26 with Bell &
+Glasstone, acquired by the user into the local library — Source E).
+Four local sources extracted + verified. The per-channel bilinear
+prescriptions are now fully grounded in B&G Ch. 6 (§6.4h); remaining
+acquisition candidates (Stacey Ch. 13, Williams CRC, Henry 1975) are
+CORROBORATION-tier only, no longer blocking.
 
 ---
 
@@ -30,13 +33,13 @@ Grep sweep of all sidecars for `adjoint`, `bilinear`, `perturbation`,
 | `Hebert(2009)Chapter3.pdf` | Adjoint transport equation, Rayleigh ratio + first-order stationarity statement, multigroup adjoint flux, flux-weighted condensation §3.5 (the baseline the bilinear collapse corrects) |
 | `Nuclear Computational Science - A Century in Review.pdf` | Ch. 4 "Reactor Core Methods" §4.3.2 homogenization: importance-weighted reaction-rate conservation ⟨Φ†,Q⟩, flux-volume average, correction factors, GET/discontinuity factors; a later chapter (§8.5.4) explicitly states the asymptotic-homogenization result that homogenized constants are weighted by BOTH forward and adjoint flux |
 
-**NOT IN LOCAL FOLDER (the classical per-channel bilinear collapse
-prescriptions live in these — extraction STOPPED on each per the brief;
+**NOT IN LOCAL FOLDER (extraction STOPPED on each per the brief;
 acquisition list at the end):**
 
-- Bell & Glasstone, *Nuclear Reactor Theory* (1970) — Ch. 6 (adjoint,
-  perturbation theory, variational methods; the classic multigroup
-  adjoint-weighted group-constants discussion §6.4).
+- ~~Bell & Glasstone, *Nuclear Reactor Theory* (1970)~~ — **ACQUIRED
+  2026-07-26** (`Bell-Glasstone(1970)Nuclear_reactor_theory.pdf`, 637-pp
+  sidecar); extracted as Source E. The §6.4h bilinear machinery closed
+  taxonomy rows 1, 2, 3, 4, 7.
 - Stacey, *Nuclear Reactor Physics* — Ch. 13 "Perturbation and Variational
   Methods" (only Ch. 9 is local; its sole adjoint mention is a
   variance-reduction pointer to Ch. 13).
@@ -378,46 +381,277 @@ currently in the folder.
 
 ---
 
+### Source E — Bell & Glasstone (1970), *Nuclear Reactor Theory*, Ch. 6 [LOCAL since 2026-07-26: `Bell-Glasstone(1970)Nuclear_reactor_theory.pdf`] — the per-channel bilinear prescriptions
+
+Citation: G.I. Bell & S. Glasstone, *Nuclear Reactor Theory*, Van
+Nostrand Reinhold, New York (1970), TID-25606. Sidecar printed-page
+mapping: printed ≈ PDF − 18. ALL load-bearing equations below
+spot-verified against rendered PDF pp. 290, 297, 323–326 (printed
+pp. 272, 279, 305–308). This section CLOSES the acquisition-blocked
+items of the 2026-07-25 memo (taxonomy rows 1, 2, 3, 7).
+
+**E.0 — Where it lives.** The bilinear collapse is §6.4h "Variational
+Derivation of Multigroup Equations" (printed pp. 305–308) + §6.4i
+"Self-Consistent Determination of Group Constants" (pp. 308–310),
+grounded by §6.4b (the second-order functional theorem, pp. 292–295),
+§6.4c (stationary eigenvalue functionals, p. 295), §6.2c (the
+consistency failure of flux-weighted constants, pp. 272–273), and §6.3c
+(the δk formula, pp. 277–279). Setting: P₁, plane geometry, fixed-source
+functional J of Eq. (6.120); within-group separability is the ANSATZ.
+
+**E.1 — The trial-function ansatz and the carrier normalizations
+(§6.4h, printed p. 305, PDF p. 323).**
+
+Trial functions (verified):
+- (6.123): Φ(x,μ,E) ≃ φ_{0,g}(x)ψ_{0,g}(E) + 3μ φ_{1,g}(x)ψ_{1,g}(E)
+- (6.124): Φ†(x,μ,E) ≃ φ†_{0,g}(x)ψ†_{0,g}(E) + 3μ φ†_{1,g}(x)ψ†_{1,g}(E)
+
+with E_g ≤ E ≤ E_{g−1}; ψ, ψ† = KNOWN within-group spectra (e.g. from
+infinite-medium or B₁ calculations, §4.5c). Normalizations (verified):
+
+- (6.125): ∫_g ψ_{0,g}(E) dE = 1        ← the FORWARD shape integrates to 1
+- (6.126): ∫_g ψ_{0,g}(E) ψ†_{0,g}(E) dE = 1   ← unit BILINEAR overlap
+- (6.127): ∫_g ψ_{0,g}(E) ψ†_{1,g}(E) dE = 1
+- (6.128): ∫_g ψ†_{0,g}(E) ψ_{1,g}(E) dE = 1
+
+Verbatim (printed p. 306, PDF p. 324, ≤2 lines): "From equation
+(6.125), it is seen that by this normalization φ_{0,g}(x) is simply
+1/4π times the total flux of neutrons in group g." Flat-spectrum limit
+(same page): ψ_{0,g} ≃ ψ_{1,g} ≃ 1/ΔE_g and ψ†_{0,g} ≃ ψ†_{1,g} ≃ 1.
+
+**THE CARRIER VERDICT (brief question 2).** B&G's coarse flux carrier
+is the PLAIN condensed flux: φ_{0,g} = (1/4π)·∫_g φ dE — a group
+INTEGRAL, exactly Hébert's forward convention. The coarse adjoint
+carrier φ†_{0,g} is scaled by the unit-bilinear-overlap condition
+(6.126). Synthesis (arithmetic from their stated normalizations, not
+their prose): since ⟨ψ†_{0,g}⟩_{ψ₀-weighted} = ∫ψ†₀ψ₀/∫ψ₀ = 1/1 = 1,
+the coarse adjoint carrier is the **FLUX-WEIGHTED group-average of the
+pointwise adjoint**, Φ*_G = ⟨φ*φ⟩_G/Φ_G. Consequences:
+
+- The duality pairing is exactly preserved by construction:
+  ⟨φ*φ⟩_G = Φ*_G · Φ_G (per group, per moment, via (6.126)–(6.128)).
+- Under the within-group separability ansatz, ORPHEUS conventions (a)
+  [plain-Φ carrier, Σ_C = ⟨φ*Σφ⟩_G/(Φ*_G·Φ_G)] and (b) [diagonal
+  bilinear ⟨φ*Σφ⟩_G/⟨φ*φ⟩_G with bilinear carrier] COINCIDE
+  numerically — B&G's normalization makes the (a)-denominator equal
+  the (b)-denominator. B&G's ROW EQUATIONS are written in the (a)
+  shape: plain carriers φ_{0,g}, φ_{1,g} multiplied by bilinear-valued
+  constants (see (6.131)/(6.132) below). The (a)/(b) distinction only
+  reopens when within-group shape is NOT separable in (x,E) — which is
+  exactly what §6.4i's region-wise self-consistent spectra address.
+- Contrast with Hébert (3.118) (Source A.3): Hébert's multigroup
+  adjoint is the PLAIN lethargy-average; B&G's is the flux-weighted
+  average. They agree in the flat-within-group-flux limit. B&G's is
+  the dual-consistent one (preserves ⟨φ*,φ⟩ exactly).
+
+**E.2 — The vector-channel bilinear rule (brief question 1). Eq.
+(6.135), printed p. 307, PDF p. 325 (verified):**
+
+  σ_{i,g}(x) ≡ ∫_g σ(x,E) ψ†_{i,g}(E) ψ_{i,g}(E) dE   (i = 0, 1)
+
+- YES, this is the diagonal-pair bilinear: with normalization (6.126)
+  the denominator ⟨ψ†ψ⟩_g = 1 is ABSORBED, so numerically
+  σ_{0,g} = ⟨ψ†σψ⟩_g/⟨ψ†ψ⟩_g — the ⟨φ*Σφ⟩_G/⟨φ*φ⟩_G form.
+- MOMENT-RESOLVED: i = 0 (flux channel, weight ψ†₀ψ₀) and i = 1
+  (current channel, weight ψ†₁ψ₁) give DIFFERENT collapsed totals —
+  the classical moment-dependent σ_g pair (the P₁ transport-correction
+  axis), one per Legendre row.
+
+**E.3 — The scattering-matrix two-flux rule (brief question 3). Eq.
+(6.136), printed p. 307, PDF p. 325 (verified):**
+
+  σ_{i,g′→g}(x) ≡ ∫_g dE ∫_{g′} dE′ σ_i(x; E′→E) ψ_{i,g′}(E′) ψ†_{i,g}(E)   (i = 0, 1)
+
+YES — per-(g′,g)-pair: SOURCE-group forward spectrum ψ_{i,g′}(E′) ×
+SINK-group adjoint spectrum ψ†_{i,g}(E). No denominator (absorbed by
+(6.126)–(6.128)). This adjudicates the P6 load-bearing question:
+the classical prescription IS sink-adjoint × source-flux per pair,
+for every Legendre moment. (Baseline contrast: Ch. 4's (4.27) is
+source-flux-only, ψ† ≡ 1.)
+
+The resulting multigroup system (verified, printed p. 307):
+- (6.131): d/dx[φ_{1,g}] + σ_{0,g}φ_{0,g} = Σ_{g′} σ_{0,g′→g}φ_{0,g′} + Q_{0,g}
+- (6.132): d/dx[φ_{0,g}] + 3σ_{1,g}φ_{1,g} = 3Σ_{g′} σ_{1,g′→g}φ_{1,g′} + 3Q_{1,g}
+- Sources are ADJOINT-spectrum-weighted: (6.133)/(6.134)
+  Q_{i,g} = ½∫_g ψ†_{i,g}(E) dE ∫ P_i(μ) Q dμ — the external source
+  collapses with the IMPORTANCE weight, not the flux weight.
+- Verbatim (p. 307, ≤2 lines): "equations (6.131) and (6.132) are
+  identical in form with the multigroup P₁ equations, but the group
+  constants are now defined with both flux and adjoint (importance)
+  weighting."
+- The adjoint system (6.137)/(6.138) (printed pp. 307–308) uses THE
+  SAME constants with g↔g′ transposed, and "equations (6.137) and
+  (6.138) are clearly adjoint to equations (6.131) and (6.132)"
+  (p. 308) — with bilinear constants, discretize-then-adjoint =
+  adjoint-then-discretize. Structural reading (my language): §6.4h is
+  a Petrov-Galerkin discretization in energy — trial basis = ψ
+  (within-group flux spectra), test basis = ψ† (within-group adjoint
+  spectra); (6.131)/(6.137) are the test-/trial-side projections of
+  one bilinear form.
+
+**E.4 — The fission/χ treatment (brief question 4).**
+
+B&G carry fission INSIDE the transfer kernel: Ch. 4, Eq. (4.38)
+(printed p. 186, sidecar-verified): σ_{0,g′→g} = σ_{s0,g′→g} +
+νσ_{f,g′→g}, "the energy spectrum of these neutrons can be described
+as part of the term σ_{0,g′→g}" (p. 186); the k-eigenvalue system
+(4.39)/(4.41) divides only νσ_{f,g′→g} by k. Therefore under §6.4h the
+fission channel collapses per-pair EXACTLY like scattering, by (6.136)
+with σ_0 → νσ_f(E′→E):
+
+  νσ_{f,g′→g} = ∫_g dE ∫_{g′} dE′ νσ_f(x; E′→E) ψ_{0,g′}(E′) ψ†_{0,g}(E)
+
+Synthesis (grounded in (6.136)+(4.38), not spelled out by B&G): for the
+separable kernel νσ_f(E′→E) = χ(E)·νσ_f(E′) this FACTORIZES per pair,
+
+  νσ_{f,g′→g} = [∫_g χ(E)ψ†_{0,g}(E) dE] · [∫_{g′} νσ_f(E′)ψ_{0,g′}(E′) dE′]
+              = χ†_g · (νσ_f)_{g′},
+
+i.e. the collapsed spectrum is the ADJOINT-CONTRACTED (importance-
+weighted) emission fraction χ†_g and the collapsed production is the
+FORWARD-flux-weighted (νσ_f)_{g′} — the rank-1 dyad STAYS FACTORED,
+sink-adjoint ⊗ source-flux. Consistently, the δk normalization (6.71)
+(E.5) is the bilinear fission worth ⟨Φ†, (1/4π)νσ_f(E′→E) Φ⟩. Note
+Σ_g χ†_g ≠ 1 in general — the adjoint-contracted spectrum is NOT a
+unit-normalized distribution; its magnitude carries fission importance
+(cf. Hébert (3.112) plain-sum χ, which keeps Σχ = 1 but is first-order
+k-inconsistent).
+
+**E.5 — Perturbation grounding and consistency statements (brief
+questions 4-of-original + 5).**
+
+- δk formula, §6.3c Eq. (6.71) (printed p. 279, PDF p. 297, verified):
+
+  (Δk/k*) ∬∬ (1/4π)νσ_f(r,E′→E) Φ†(r,Ω,E) Φ(r,Ω′,E′) dV dΩ′dE′ dΩ dE
+    ≈ −∭ Δσ(r,E) Φ†ΦdV dΩ dE + ∬∬ Δ[σf(r;Ω′,E′→Ω,E)] Φ†(Ω,E)Φ(Ω′,E′) …
+
+  = the exact ⟨φ*, δA φ⟩/⟨φ*, Fφ⟩ structure (first order: Φ* → Φ;
+  k* ≈ 1). Note the transfer-perturbation term carries the SAME
+  sink-adjoint × source-flux pairing as (6.136).
+- The second-order theorem, §6.4b Eq. (6.90) (printed p. 293, PDF
+  p. 311, sidecar-verified): J = J₀ + (δΦ†, L δΦ). Verbatim (≤3
+  lines): "the correction would be second order in small quantities …
+  a better estimate than could be obtained, for example, from the
+  inner product (Q†, Φ), since this would have an error (Q†, δΦ),
+  which is first order in small quantities." THIS is the formal
+  statement that bilinear-weighted (stationary-functional) collapse
+  zeroes the first-order spectrum-error, while flux-only weighting
+  retains it.
+- Eigenvalue version, §6.4c Eq. (6.92): α ≃ (Φ†, LΦ)/[(1/v)Φ†, Φ] —
+  the stationary Rayleigh-quotient estimate (k analog with the fission
+  operator; used with trial spectra it makes the collapsed eigenvalue
+  second-order accurate in δψ, δψ†).
+- Dual consistency: §6.4g closing sentence (printed p. 305, verified):
+  the variational route guarantees "the equation containing the
+  approximate Φ† will indeed be adjoint to that for the approximate
+  Φ, a result which is frequently not true for the equations derived
+  in a more straightforward way." And §6.2c (printed p. 272, PDF
+  p. 290, verified, the statement that closes Source A.4's gap):
+  "the adjoint equations (6.56) and (6.57) could not have been derived
+  by integrating an energy-dependent adjoint equation over an energy
+  interval … the required cross sections, which are flux-weighted
+  averages, would not be obtained. This problem is examined in §6.4h."
+  (Same page, historical: "adjoint difference equations" of certain
+  S_N codes are "not quite adjoint" to the flux difference equations
+  in curved geometry — the discrete-adjoint hazard is old.)
+- Practical status + trade-off (printed p. 308, PDF p. 326, verified,
+  the balance caveat): "Relatively little use has yet been made of
+  bilinearly (flux and adjoint) averaged group constants, primarily
+  because the group adjoints must be estimated in addition to the
+  group fluxes. When the bilinear averaging has been used, however,
+  it seems to be superior to simple flux averaging, at least for
+  problems involving only a few groups.³⁵ When a large number of
+  groups can be employed, the adjoint weighting is less important,
+  because the adjoint function will not vary significantly across a
+  group."
+- Rate-preservation trade-off (structural synthesis, flagged as such):
+  (6.131) is the ψ†-weighted projection of the balance equation, so
+  with bilinear σ_{0,g} the product σ_{0,g}φ_{0,g} is an
+  importance-weighted removal, NOT the true collision rate (the true
+  rate needs the Ch.-4 flux-weighted σ). B&G keep the carrier
+  rate-meaningful ((6.125): φ_{0,g} IS the true group flux) and put
+  ALL the bilinear content in the constants; the ψ† → 1 limit
+  recovers Ch. 4's flux-weighted constants and the true balance. The
+  k-functional is what the bilinear system preserves to second order —
+  not channel-wise reaction rates.
+- B&G's OWN kinetics chapter consumes §6.4h: Ch. 9 derives point
+  kinetics with "bilinear weighted cross sections (§6.4h)" (sidecar
+  line 14648) — the Henry lineage is internally consistent.
+- Caveats B&G state about the variational estimate (printed
+  pp. 293–294): the sign of (δΦ†, LδΦ) is unknown for
+  energy-dependent problems (no minimum principle, unlike one-speed
+  isotropic); L is unbounded so small δΦ does not imply small LδΦ;
+  J depends on trial normalization (fix: the Schwinger form J_s,
+  Eq. (6.91)).
+
+**E.6 — Ch. 4 flux-weighted baseline (for the taxonomy contrast;
+sidecar-verified):** (4.26) σ_{n,g} = ∫_g σφ_n dE / φ_{n,g};
+(4.27) σ_{n,g′→g} = ∫_g dE ∫_{g′} dE′ σ_n(E′→E)φ_n(E′) / φ_{n,g′} —
+source-moment-weighted only; (4.38) fission-in-transfer split. B&G
+already weight per Legendre MOMENT n even in the flux-weighted
+baseline (φ_0 = flux, φ_1 = current — Stammler's VI(6d) current-
+weighted P1 channel matches this).
+
+**E.7 — Reference identities (Ch. 6 list, sidecar lines 10055–10065):**
+- [34] A.F. Henry, Nucl. Sci. Eng. 27:493 (1967) — time-dependent
+  (delayed-neutron) generalization of the bilinear multigroup.
+- [35] T.A. Pitterle & C.W. Maynard, Trans. ANS 8(1):205 (1965);
+  W.W. Little Jr. & R.W. Hardie, NSE 29:402 (1967); A.J. Buslik, NSE
+  32:233 (1968); "see, however" J.B. Yasinsky & S. Kaplan, NSE 31:354
+  (1968) — the empirical basis (+ the flagged counterpoint) for the
+  few-group-superiority claim.
+- [36] Pomraning & Clark (their Ref. 30) — boundary trial-function
+  restriction (6.139a).
+- [37] T. Toivanen, J. Nucl. Energy 22:283 (1968); Lancefield (Ref.
+  31); A.J. Buslik, Trans. ANS 12:152 (1969); R.B. Nicholson, Trans.
+  ANS 12:731 (1969); R.J. Neuhold & K.O. Ott, NSE 39:14 (1970) —
+  self-consistent within-group-spectra applications (§6.4i).
+
+---
+
 ## Consolidated taxonomy table
 
 Channel class → classical prescription → where it is grounded LOCALLY →
-status. "Bilinear pairing" below = the duality contraction the collapse
-must preserve; the per-channel fine→coarse COLLAPSE FORMULAS themselves
-are in the missing classics (last column).
+status. *(Updated 2026-07-26: B&G acquired and extracted — Source E.
+Rows 1, 2, 3, 4, 7 last-column cells are now fully LOCAL.)*
 
 | # | Channel class | Classical (bilinear / eigenvalue-consistent) prescription | Local grounding (verified) | Per-channel formula w/ eq. number |
 |---|---|---|---|---|
-| 1 | Vector channels (Σ_t, Σ_a, Σ_f, νΣ_f) | Preserve the adjoint-weighted reaction worth: Σ_G from ⟨φ*Σφ⟩_G/⟨φ*φ⟩_G-type ratios so that δk of the collapse vanishes at first order | Stationarity of K_eff w.r.t. δΣ at fixed φ,φ*: Hébert (3.63)+p. 77 statement. "Weighted by both the transport theory flux and the … adjoint flux" for homogenized constants: Dorning §8.5.4 p. 436 (from Fredholm solvability, refs [77]–[81]) | NOT LOCAL — B&G Ch. 6 / Stacey Ch. 13 / Williams CRC / Henry. Flux-weighted baseline (3.103) is local |
-| 2 | Scattering matrix Σ_s(g′→g) | Two-flux rule: each (g′,g) pair weighted by SOURCE forward flux φ_{g′} AND SINK adjoint φ*_g (the pairing in ⟨φ*,Sφ⟩ = Σ_g Σ_{g′} φ*_g Σ_{s,g←g′} φ_{g′}) | The bilinear pairing structure is explicit in Hébert (3.61) continuous / (3.121) multigroup (transposed kernel: sink-adjoint contraction) and Dorning (8.30)+(8.37). No local source writes the fine→coarse two-flux collapse | NOT LOCAL — same classics. Flux-weighted baseline (3.104): source-flux-averaged, sink-summed, φ* absent |
-| 3 | Fission source: χ and νΣ_f | Factored rank-1 treatment: adjoint contracts the EMISSION spectrum (⟨χφ*⟩), forward contracts PRODUCTION (⟨νΣ_f φ⟩); preserved invariant = total fission worth ⟨φ*,Fφ⟩ | Rank-1 factorization is explicit in Hébert (3.61), (3.63) numerator = Σ_j ⟨χ_j φ*⟩·⟨νΣ_{f,j}φ⟩, and Dorning F_t (8.39)–(8.41); worked collapsed-spectrum-channel example = β̄ᵢ (8.45) = (N₀†,M_tⁱΨ)/F_t | NOT LOCAL for the explicit χ_G formula. Flux-weighted baseline: χ_{j,g} plain sum (3.112); kinetics χ^pr/χ^del collapse (3.132)–(3.133) weighted by νΣ_fφ only |
-| 4 | Perturbation-theory grounding (δk formula) | δρ = ⟨φ*, δH φ⟩/⟨φ*, Fφ⟩; bilinear-weighted constants zero the first-order collapse error because K_eff is stationary in (φ,φ*) | Dorning (8.44) ρ = (N₀†,(H_t−H₀)Ψ)/F_t with F_t = (N₀†,M_tΨ) — the formula EXACTLY, reactivity flavor; Hébert (3.63) + the p. 77 stationarity statement ("δK_eff … without using δφ or δφ*") | LOCAL (both). The formal "collapse error is second order" THEOREM statement: not local (B&G/Williams) |
-| 5 | Condensation (energy) vs homogenization (space) | Energy condensation: classical texts give flux-weighted collapse + bilinear correction from perturbation theory. Spatial homogenization: EITHER flux-weight + equivalence factors (μ/SPH, discontinuity factors) OR asymptotic multiscale which FORCES forward×adjoint weighting | Roy §4.3.2 (4.41)–(4.47): industrial spatial chain = flux-volume average (4.44) + μ factors + GET f^± (4.47); adjoint only for response functionals ⟨Φ†,Q⟩. Dorning §8.5.4: asymptotic route yields bilinear weights + discontinuity factors at every scale (2- and 3-scale) | Hébert §3.5 = the flux-weighted energy-condensation baseline (LOCAL). The explicit "what flux weighting gets wrong at first order" discussion: NOT LOCAL |
+| 1 | Vector channels (Σ_t, Σ_a, Σ_f, νΣ_f) | Preserve the adjoint-weighted reaction worth: Σ_G from ⟨φ*Σφ⟩_G/⟨φ*φ⟩_G-type ratios so that δk of the collapse vanishes at first order | Stationarity of K_eff w.r.t. δΣ at fixed φ,φ*: Hébert (3.63)+p. 77 statement. "Weighted by both the transport theory flux and the … adjoint flux" for homogenized constants: Dorning §8.5.4 p. 436 (from Fredholm solvability, refs [77]–[81]) | **LOCAL — B&G (6.135)**, p. 307: σ_{i,g} = ∫_g σ ψ†_{i,g} ψ_{i,g} dE (i=0,1; per Legendre moment) ≡ ⟨φ*Σφ⟩_G/⟨φ*φ⟩_G via the unit-overlap normalization (6.126). Flux-weighted baseline (3.103)/B&G (4.26) |
+| 2 | Scattering matrix Σ_s(g′→g) | Two-flux rule: each (g′,g) pair weighted by SOURCE forward flux φ_{g′} AND SINK adjoint φ*_g (the pairing in ⟨φ*,Sφ⟩ = Σ_g Σ_{g′} φ*_g Σ_{s,g←g′} φ_{g′}) | The bilinear pairing structure is explicit in Hébert (3.61) continuous / (3.121) multigroup (transposed kernel: sink-adjoint contraction) and Dorning (8.30)+(8.37). No local source writes the fine→coarse two-flux collapse | **LOCAL — B&G (6.136)**, p. 307: σ_{i,g′→g} = ∫_g dE ∫_{g′} dE′ σ_i(E′→E) ψ_{i,g′}(E′) ψ†_{i,g}(E) — CONFIRMED per-pair SINK-adjoint × SOURCE-flux, both moments. Baseline (3.104)/B&G (4.27): source-flux only |
+| 3 | Fission source: χ and νΣ_f | Factored rank-1 treatment: adjoint contracts the EMISSION spectrum (⟨χφ*⟩), forward contracts PRODUCTION (⟨νΣ_f φ⟩); preserved invariant = total fission worth ⟨φ*,Fφ⟩ | Rank-1 factorization is explicit in Hébert (3.61), (3.63) numerator = Σ_j ⟨χ_j φ*⟩·⟨νΣ_{f,j}φ⟩, and Dorning F_t (8.39)–(8.41); worked collapsed-spectrum-channel example = β̄ᵢ (8.45) = (N₀†,M_tⁱΨ)/F_t | **LOCAL — B&G (4.38)+(6.136)**: fission is a TRANSFER, collapses per-pair; separable kernel ⟹ νσ_{f,g′→g} = χ†_g·(νσ_f)_{g′}, χ†_g = ∫_g χ ψ†_{0,g} dE (adjoint-contracted; Σ_g χ†_g ≠ 1), (νσ_f)_{g′} flux-weighted — dyad stays factored (E.4). Flux-weighted baseline: χ_{j,g} plain sum (3.112) |
+| 4 | Perturbation-theory grounding (δk formula) | δρ = ⟨φ*, δH φ⟩/⟨φ*, Fφ⟩; bilinear-weighted constants zero the first-order collapse error because K_eff is stationary in (φ,φ*) | Dorning (8.44) ρ = (N₀†,(H_t−H₀)Ψ)/F_t with F_t = (N₀†,M_tΨ) — the formula EXACTLY, reactivity flavor; Hébert (3.63) + the p. 77 stationarity statement ("δK_eff … without using δφ or δφ*") | **LOCAL (all three)**. δk formula: B&G (6.71) p. 279. The second-order THEOREM: B&G (6.90) p. 293, J = J₀ + (δΦ†, LδΦ) — flux-only weighting errs at FIRST order, (Q†, δΦ). Stationary eigenvalue functional: (6.92) |
+| 5 | Condensation (energy) vs homogenization (space) | Energy condensation: classical texts give flux-weighted collapse + bilinear correction from perturbation theory. Spatial homogenization: EITHER flux-weight + equivalence factors (μ/SPH, discontinuity factors) OR asymptotic multiscale which FORCES forward×adjoint weighting | Roy §4.3.2 (4.41)–(4.47): industrial spatial chain = flux-volume average (4.44) + μ factors + GET f^± (4.47); adjoint only for response functionals ⟨Φ†,Q⟩. Dorning §8.5.4: asymptotic route yields bilinear weights + discontinuity factors at every scale (2- and 3-scale) | Hébert §3.5 = the flux-weighted energy-condensation baseline (LOCAL). What flux weighting gets wrong: **B&G p. 308** — bilinear "superior … only a few groups"; many groups ⟹ φ* ≈ flat within a group and the correction fades [refs 35, incl. Yasinsky-Kaplan counterpoint]; first-order error mechanism = (6.90) |
 | 6 | (bonus) Kinetics parameters β_eff, Λ | β̄ᵢ = ⟨φ*,M^iφ⟩/⟨φ*,Fφ⟩, Λ̄ = ⟨φ*,(1/v)φ⟩/⟨φ*,Fφ⟩ — the oldest adjoint-weighted collapse (to a 0-D model) | Dorning (8.45)/(8.46) [LOCAL, verified]; lineage Ussachoff 1955 / Henry 1955, 1958 | LOCAL in operator form. Hébert's lattice-code (3.126)–(3.135) are the flux-weighted counterparts — a live example of the two conventions coexisting |
-| 7 | (bonus) Multigroup-adjoint consistency | "Transpose the multigroup operator" ≠ "discretize the continuous adjoint" unless constants are consistently weighted; adjoint carrier is a group-AVERAGE (function), forward a group-INTEGRAL (distribution) | Hébert (3.118)–(3.121) + the distribution/function statements pp. 77, 85 [LOCAL, verified]. Hébert does NOT state the consistency condition | The consistency-condition discussion: NOT LOCAL (B&G Ch. 6 is its classic home) |
+| 7 | (bonus) Multigroup-adjoint consistency | "Transpose the multigroup operator" ≠ "discretize the continuous adjoint" unless constants are consistently weighted; adjoint carrier is a group-AVERAGE (function), forward a group-INTEGRAL (distribution) | Hébert (3.118)–(3.121) + the distribution/function statements pp. 77, 85 [LOCAL, verified]. Hébert does NOT state the consistency condition | **LOCAL — B&G §6.2c p. 272** (verbatim in E.5): flux-weighted multigroup adjoint "could not have been derived by integrating an energy-dependent adjoint equation"; §6.4h fixes it — (6.137)/(6.138) share the (6.135)/(6.136) constants and are "clearly adjoint" (p. 308); §6.4g: the variational route guarantees dual consistency |
 
 **Agreement/disagreement between the local sources**: no conflicts —
-the three local sources partition cleanly: Hébert = adjoint objects +
+the four local sources partition cleanly: Hébert = adjoint objects +
 flux-weighted collapse baseline; Roy = industrial spatial homogenization
 (flux weight + equivalence corrections, adjoint for responses only);
-Dorning = the bilinear prescriptions (kinetics collapse exactly; spatial
-homogenization as a solvability RESULT). The known literature
-DISAGREEMENT the brief asks about (per-pair sink×source vs source-only
-scattering weighting) cannot be adjudicated from the local corpus: the
-local sources contain the bilinear PAIRING structure but no source
-states the fine→coarse scattering collapse rule.
+Dorning = bilinear kinetics collapse + spatial homogenization as a
+solvability RESULT; **B&G = the per-channel bilinear collapse
+prescriptions themselves** ((6.135)/(6.136) + carriers (6.125)–(6.128)
++ theorem (6.90)). The load-bearing scattering question IS now
+adjudicated: **B&G (6.136) prescribes per-pair sink-adjoint ×
+source-flux weighting**, for every Legendre moment. Carrier
+adjudication: B&G write the row equations in PLAIN carriers (forward =
+group integral, (6.125)) with the coarse adjoint = FLUX-WEIGHTED
+group-average (from (6.126)), which makes ⟨φ*φ⟩_G = Φ*_G·Φ_G exactly —
+i.e. ORPHEUS conventions (a) and (b) coincide under B&G's within-group
+separability ansatz, and B&G's spelling is (a)'s shape carrying (b)'s
+values (Source E.1). Hébert's plain-average adjoint carrier (3.118) is
+the flat-flux approximation of B&G's flux-weighted-average carrier.
 
 ---
 
 ## Missing sources — acquisition list (extraction STOPPED per brief)
 
-Not in `scratch/literature/`; needed to pin the per-channel classical
-collapse formulas with equation numbers. In priority order:
+Not in `scratch/literature/`. Since the 2026-07-26 B&G acquisition
+these are CORROBORATION-tier (independent second sources for the E.4
+χ-factorization synthesis and modern restatements), no longer blocking:
 
-1. **Bell & Glasstone, *Nuclear Reactor Theory*, Van Nostrand Reinhold
-   (1970), Ch. 6** ("The Adjoint Equation, Perturbation Theory, and
-   Variational Methods") — the classic multigroup adjoint + consistent
-   group-constants discussion (the taxonomy rows 1, 2, 4, 7). The single
-   highest-value acquisition.
+1. ~~Bell & Glasstone Ch. 6~~ — **ACQUIRED + EXTRACTED (Source E)**.
 2. **Stacey, *Nuclear Reactor Physics* (2nd ed., Wiley 2007), Ch. 13**
    "Perturbation and Variational Methods" (the local Ch. 9's own adjoint
    pointer targets it) + the multigroup-constants chapter for the
@@ -455,5 +689,7 @@ notation-oracle discipline).
 
 *Memo complete. All local equations spot-verified against rendered
 pages (Hébert PDF pp. 11, 19–21; Century PDF pp. 200–201, 398–399,
-443–444). Verbatim quotes kept ≤3 lines and page-cited; everything else
-paraphrased.*
+443–444; B&G PDF pp. 290, 297, 323–326). Verbatim quotes kept ≤3 lines
+and page-cited; everything else paraphrased. Synthesis steps (E.1
+carrier arithmetic, E.4 χ-factorization, E.5 rate-trade-off) are
+explicitly flagged as derived-from-their-equations, not their prose.*

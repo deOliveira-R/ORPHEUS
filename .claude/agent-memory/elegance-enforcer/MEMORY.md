@@ -9,7 +9,7 @@ retired — the behavioral lesson is lifted to `lessons.md`.
 
 ## 1. Lessons (read FIRST each review)
 
-- [lessons.md](lessons.md) — 12 review-process lessons. The spine: a VIOLATION is
+- [lessons.md](lessons.md) — 19 review-process lessons. The spine: a VIOLATION is
   earned by a bug-habitat argument + proof the two things are coextensive TODAY (so
   it's a NIT) + verification against the LIVE tree, not the diff's docstring.
   Highlights: docstring-names-a-primitive-the-code-doesn't-call is my #1 recurring
@@ -43,7 +43,10 @@ retired — the behavioral lesson is lifted to `lessons.md`.
   SPLIT (one class → base + leaves) strands an IN-DIFF docstring contradiction — the refactor ADDS a
   corrected section but leaves the OLD intro spelling the moved methods on the old class; turn the
   blast-radius lens INWARD, and cite the CERTAIN prose drift, not an unverified silent leaf→base xref
-  break (L18).
+  break (L18); an algebra-of-record (derivations/) module that PROVES builder≡display can still harbor
+  an unwelded THIRD spelling — a downstream theorem (T4) re-spelling its own canonical rule inline;
+  grep each theorem for CALLS-builder vs RE-SPELLS-inline, and remember the SymPy-builder↔numpy-einsum
+  pair is the intended derivation/impl split, NOT a twin (L19).
 
 ## 2. Active / in-flight state
 
@@ -115,6 +118,15 @@ One genuinely OPEN branch (reconcile against git before trusting):
   HomogenizationFrame/CondensationFrame FALSE symmetry, `project()` is the
   diagonal/PoU special case (type the Gram-structure seam, don't build the dense
   solve), `Mixture.eg` bare-numpy, defer `OverlapBasis`-for-space.
+
+- [p6_adjoint_weighted_homogenization_rulings.md](p6_adjoint_weighted_homogenization_rulings.md)
+  — the P6 #281 B1+B2 adjoint-weighted collapse review (COMMIT-READY 2026-07-26; 0 MUST-FIX).
+  Reusable for the B3 C1/C2/C3 gates + the anisotropic Σ_s,ℓ seam: the five-morphism taxonomy
+  (pair-frame T1 / collision-frame ρ T1b / per-pair T2 / mixed-fold+canonical-χ T3), the B&G Ch.6
+  energy convention (Ψ†_G, 6.135/6.136, factored fission simplex-rescale), `is_same_phase_space`
+  strength (constituent-`is` + scheme-TYPE; pole-closure CORRECTLY excluded), the transport-takes-
+  ScalarFlux / data-takes-bare-array layering, the MP-zero `where=den!=0` ≡ `apply_inverse_metric`
+  check, and the derivation/impl-is-not-a-twin ruling. Verified the T1b ρ axis against angular_flux.py.
 
 - [doc_label_naming_certification.md](doc_label_naming_certification.md) — method +
   rulings for certifying descriptive equation `:label:` NAMING on the #231 theory

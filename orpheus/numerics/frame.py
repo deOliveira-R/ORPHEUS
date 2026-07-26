@@ -342,9 +342,11 @@ class PetrovGalerkinFrame(FrameBase):
 
     Flux-weighted spatial homogenisation and spectrum-weighted energy condensation are
     the headline consumers: the test basis is the trial cell/group indicator weighted
-    by the solution (:math:`\varphi\cdot\mathbf 1_R`, or the adjoint-weighted
-    :math:`\varphi^*\cdot\mathbf 1_R` for eigenvalue-consistent homogenisation) — a
-    genuinely different basis, NOT a metric on the measure.
+    by the solution (:math:`\varphi\cdot\mathbf 1_R` forward, or the bilinear PAIR
+    weight :math:`\varphi^*\!\odot\varphi\cdot\mathbf 1_R` for the eigenvalue-consistent
+    adjoint-weighted collapse — the product, NOT a bare :math:`\varphi^*` swap; theorem
+    T1 of :mod:`orpheus.derivations.common.homogenization`) — a genuinely different
+    basis, NOT a metric on the measure.
 
     The test basis is **required** — a Petrov-Galerkin frame is *defined* by carrying an
     explicit test space, so there is no implicit "``None`` means trial" default. Passing

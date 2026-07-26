@@ -442,6 +442,7 @@ class TestAdjointDegeneratePins:
 
 
 @pytest.mark.verifies("sn-homogenization-adjoint-weighted")
+@pytest.mark.verifies("sn-homogenization-bilinear")
 class TestC1AdjointWeightedDiscriminator:
     """C1: every channel class equals its B1-derived hand rule (structurally
     independent per-region Python loops), differs from the forward
