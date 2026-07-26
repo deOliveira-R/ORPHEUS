@@ -448,6 +448,48 @@ then may Phase 2 (the consumer) be built.
 > `docs/theory/foundations/frame.rst:999`/`:3423`,
 > `docs/theory/verification/matrix.rst`.
 
+> **B3 implementation addendum (2026-07-26, gates landed).** Three
+> corrections measured AGAINST this refresh while wiring the gates, plus
+> the teeth record (probe script `b3_mutation_probes.py`, session tmp):
+>
+> **(g) C2 re-redesigned: SAME-MESH replacement + CONTRAST ladder.** The
+> coarse-RESOLVE comparative of (a) FAILED measurably (adjoint gap 9.50e-3
+> vs forward 9.41e-3 at P=2; equal at P=8): (i) the coarse-mesh DD
+> discretization deviation between the two arms is NOT negligible at
+> coarse P and inverts the ~1e-4 worth delta; (ii) single-material coarse
+> regions (the [0,0,1,1] tiling at P=8) null the weight entirely; (iii) a
+> partition ladder holds within-region heterogeneity CONSTANT under an
+> alternating pattern — P is not the smallness knob. The landed C2
+> (`TestC2ComparativeKeffOrder`): re-solve the FINE 16-cell mesh with the
+> region-collapsed materials (the same-mesh XS-replacement worth — exactly
+> what T0/T5 prove; zero discretization confounder) on a MATERIAL-CONTRAST
+> ladder m1 = m0 + ε·Δ, ε ∈ {1, ½, ¼}. Measured: forward ratios 2.05/2.01
+> (first order), adjoint ratios 6.08/9.24 (≥ second order), adjoint gap
+> smaller on every rung. Gate: per-rung adjoint < forward; ratio_fwd < 3;
+> ratio_adj > 3.
+> **(h) C4 Gate B superseded by the B&G convention.** Correction (d)'s
+> "the adjoint enters ONLY the average morphism; marginalize FROZEN"
+> encoded the pre-literature expectation. B&G Ch. 6 (memo Source E) +
+> derivation T6: the sink axis GAINS the flux-weighted-average adjoint
+> carrier Ψ†_G (B&G 6.136) and χ takes the χ†/s factored rule — the sink
+> morphism is NOT frozen under the adjoint. Landed C4: every channel ==
+> the B&G hand rule (nested blocks), discrimination vs forward, dud-guard;
+> the frozen-χ/sink expectation is replaced by the hand-rule equalities.
+> C5 amended likewise: the plain-φ frame legitimately appears (the B&G
+> source-axis / νΣf flux-average); the sentinel forbids BARE φ\* only.
+> **(i) Teeth record (all probes RED as designed).** C2 reds on
+> adjoint-DROPPED (the forward arm's own ratios ~2 < 3 violate
+> ratio_adj > 3). The φ\*≡φ (φ²-weight) substitution is NOT C2's catcher —
+> measured ratio 4.98 (super-first-order: the within-region fluctuation of
+> ANY solution-derived weight is O(ε) on the contrast fixture); its
+> committed catchers are C1's hand-rule equality + C3's capture, exactly
+> the C1 mutation-row assignment. C3 reds on bare-φ\* AND forward-φ weight
+> mutations (both probed via in-process `project_through_bilinear` wraps).
+> C4 reds on adjoint-dropped at the `Mixture.condense` level. Cχ raises on
+> the χ-FREE-group sign flip (χ₃=0: Ψ†₁ flips, the χ†₁ numerator cannot);
+> blockwise-uniform and χ-supported flips SELF-CANCEL through the χ†/s
+> rescale — a recorded structural sign-robustness of the factored rule.
+
 Built ONLY after Phase 1 closes (φ\* certified). The **RATIFIED #281 P6-B2
 API** (`solution.py:484-490` — `Solution.homogenize(coarse, *, adjoint:
 AdjointSolution | None = None)`, SAME for `condense`) lands the

@@ -921,3 +921,64 @@ class TestF4ModelDiscriminatorSUT:
                 "within-group model is NOT load-bearing: 1/E and flat-energy "
                 "condense to the same SigT — the straddle split is not model-driven"
             )
+
+
+# ════════════════════════════════════════════════════════════════════
+# P6 (#281) — the bilinear (B&G-convention) condensation, data level.
+# T6 of orpheus/derivations/common/homogenization.py, live in floats.
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestBilinearCondensation:
+    """The eigenvalue-consistent arm of :meth:`Mixture.condense` at the
+    data level: T6a live (the bilinear-condensed pencil reproduces the fine
+    0-D k at machine precision when condensed with the TRUE spectrum pair),
+    plus the shape guard on the new parameter."""
+
+    def test_t6a_true_spectra_reproduce_fine_k_exactly(
+        self, fine_mix: Mixture,
+    ) -> None:
+        """T6a in floats: 0-D ∞-medium, φ = A⁻¹χ, φ* = A⁻ᵀνΣf; the
+        bilinear-condensed 2G pencil's rank-1 k equals the fine 4G k to
+        machine precision — condensation is pure projection on the energy
+        axis (B&G convention; no streaming carve)."""
+        sig_t = np.asarray(fine_mix.SigT, float)
+        sig_s = np.asarray(fine_mix.SigS[0].todense(), float)
+        nsf = np.asarray(fine_mix.SigP, float)
+        chi = np.asarray(fine_mix.chi, float)
+        A = np.diag(sig_t) - sig_s.T
+        phi = np.linalg.solve(A, chi)
+        phis = np.linalg.solve(A.T, nsf)
+        k_fine = float(nsf @ phi)
+
+        out = fine_mix.condense(
+            EnergyGrid(_EG_COARSE), phi, adjoint_spectrum=phis,
+        )
+        A_c = (
+            np.diag(np.asarray(out.SigT, float))
+            - np.asarray(out.SigS[0].todense(), float).T
+        )
+        k_c = float(
+            np.asarray(out.SigP, float)
+            @ np.linalg.solve(A_c, np.asarray(out.chi, float))
+        )
+        np.testing.assert_allclose(k_c, k_fine, rtol=1e-12)
+
+    def test_forward_arm_untouched_by_the_parameter(
+        self, fine_mix: Mixture,
+    ) -> None:
+        """§4.0 at the data level: omitting vs passing ``adjoint_spectrum=None``
+        is bit-identical."""
+        a = fine_mix.condense(EnergyGrid(_EG_COARSE), _PHI)
+        b = fine_mix.condense(EnergyGrid(_EG_COARSE), _PHI, adjoint_spectrum=None)
+        np.testing.assert_array_equal(np.asarray(a.SigT), np.asarray(b.SigT))
+        np.testing.assert_array_equal(np.asarray(a.chi), np.asarray(b.chi))
+        np.testing.assert_array_equal(
+            np.asarray(a.SigS[0].todense()), np.asarray(b.SigS[0].todense()),
+        )
+
+    def test_adjoint_spectrum_shape_guard(self, fine_mix: Mixture) -> None:
+        with pytest.raises(ValueError, match="adjoint_spectrum"):
+            fine_mix.condense(
+                EnergyGrid(_EG_COARSE), _PHI, adjoint_spectrum=np.ones(3),
+            )

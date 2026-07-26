@@ -68,16 +68,25 @@ def materials():
 
 
 @pytest.fixture(scope="module")
-def solution(materials):
-    """A real fine-group SN solve. A vacuum→reflective tilt keeps the spectrum
-    spatially non-flat, and the within-fine-group spectral spread is the
-    condensation's load-bearing weight."""
+def problem(materials):
+    """The SHARED (mesh, quad) constituents — the two-entry pairing pattern:
+    forward and adjoint solves must be built from the SAME objects for
+    ``SNMesh.is_same_phase_space`` to accept the pair (P6 B2)."""
     fine = Mesh1D(
         edges=np.linspace(0.0, 4.0, 9), mat_ids=np.zeros(8, dtype=int),
         coord=CoordSystem.CARTESIAN,
         bc_left=BC("vacuum"), bc_right=BC("reflective"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=8)
+    return fine, quad
+
+
+@pytest.fixture(scope="module")
+def solution(materials, problem):
+    """A real fine-group SN solve. A vacuum→reflective tilt keeps the spectrum
+    spatially non-flat, and the within-fine-group spectral spread is the
+    condensation's load-bearing weight."""
+    fine, quad = problem
     return solve_sn(materials, fine, quad, scattering_order=0)
 
 
@@ -409,3 +418,176 @@ def test_real_pwr_421_to_wims69_condensation_succeeds():
         err_msg="421→WIMS-69 is NON-NESTED → fractional_columns must be "
         "non-empty (the resonance/thermal coarse groups that leaned on w(E))",
     )
+
+
+# ════════════════════════════════════════════════════════════════════
+# P6 (#281) — the bilinear (eigenvalue-consistent) condensation.
+# Spec: .claude/plans/p6_adjoint_verification_spec.md §4 C4/C5 (with the
+# post-B&G convention correction — the sink axis GAINS the adjoint
+# carrier per B&G (6.136); it is NOT frozen);
+# rules: orpheus/derivations/common/homogenization.py T6 (B&G Ch. 6).
+# ════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture(scope="module")
+def adjoint_solution(materials, problem):
+    """The adjoint solve over the SAME constituents as ``solution`` — the
+    two-entry pattern ``is_same_phase_space`` exists to accept."""
+    from orpheus.sn.solver import solve_sn_adjoint
+
+    fine, quad = problem
+    return solve_sn_adjoint(materials, fine, quad, scattering_order=0)
+
+
+def _adjoint_region_spectrum(adj, mat_id: int = 0) -> np.ndarray:
+    """The importance spectrum φ*_g — the SAME V-weighted reduction as the
+    forward representative (the pair-of-representatives convention)."""
+    phis = np.asarray(adj.scalar_flux.values, dtype=float)
+    V = np.asarray(adj.mesh.volumes, dtype=float)
+    mat = np.asarray(adj.mesh.mat_map, dtype=int).ravel()
+    sel = mat == mat_id
+    return (phis[:, sel] * V[sel]).sum(axis=1)
+
+
+class TestC4BilinearCondensation:
+    """C4: every channel of the bilinear-condensed Mixture equals the B&G
+    Ch. 6 hand rule (nested blocks — no straddles, 0/1 overlap table), the
+    result discriminates from the forward collapse, and the fixture proves
+    itself non-dud.
+
+    NOTE the spec correction (post-B&G, 2026-07-26): the sink axis is NOT
+    frozen under the adjoint — it gains the flux-weighted-average adjoint
+    carrier Ψ†_G (B&G (6.136)); χ takes the χ† rule with the rank-1
+    simplex rescale. The pre-B&G Gate B ("marginalize frozen") pinned the
+    superseded expectation and is replaced by the hand-rule equalities.
+    """
+
+    _BLOCKS = [(0, 1), (2, 3)]
+
+    def _hand(self, mix, phi_s, phis_s):
+        """The B&G-convention hand collapse of ``mix`` with the spectrum pair."""
+        blocks = self._BLOCKS
+        Phi = np.array([phi_s[list(b)].sum() for b in blocks])
+        pair = np.array([(phis_s * phi_s)[list(b)].sum() for b in blocks])
+        psi_dag = pair / Phi
+        out = {}
+        for name in ("SigT", "SigC", "SigL", "SigF"):
+            ch = np.asarray(getattr(mix, name), float)
+            out[name] = np.array(
+                [(phis_s * ch * phi_s)[list(b)].sum() for b in blocks]
+            ) / pair
+        s_mat = np.asarray(mix.SigS[0].todense(), float)
+        sig_s = np.zeros((2, 2))
+        for Gf, bf in enumerate(blocks):
+            for Gt, bt in enumerate(blocks):
+                num = sum(
+                    phis_s[g] * s_mat[gp, g] * phi_s[gp] for gp in bf for g in bt
+                )
+                sig_s[Gf, Gt] = num / (Phi[Gf] * psi_dag[Gt])
+        chi_f = np.asarray(mix.chi, float)
+        chi_dag = np.array(
+            [(chi_f * phis_s)[list(b)].sum() for b in blocks]
+        ) / psi_dag
+        s = chi_dag.sum()
+        nsf = np.asarray(mix.SigP, float)
+        out["chi"] = chi_dag / s
+        out["SigP"] = (
+            np.array([(nsf * phi_s)[list(b)].sum() for b in blocks]) / Phi
+        ) * s
+        out["SigS0"] = sig_s
+        return out
+
+    def test_dud_guard_spectrum_shapes_differ(self, solution, adjoint_solution):
+        phi_s = _region_spectrum(solution)
+        phis_s = _adjoint_region_spectrum(adjoint_solution)
+        a = phis_s / np.linalg.norm(phis_s)
+        b = phi_s / np.linalg.norm(phi_s)
+        assert not np.allclose(a, b, rtol=1e-2, atol=1e-3), (
+            "fixture too self-adjoint on the energy axis: φ*_spec ≈ φ_spec"
+        )
+
+    def test_every_channel_matches_the_bg_hand_rule(
+        self, materials, solution, adjoint_solution,
+    ):
+        out = solution.condense(EnergyGrid(_EG_COARSE), adjoint=adjoint_solution)[0]
+        fwd = solution.condense(EnergyGrid(_EG_COARSE))[0]
+        ref = self._hand(
+            materials[0],
+            _region_spectrum(solution),
+            _adjoint_region_spectrum(adjoint_solution),
+        )
+        discriminated = False
+        for name in ("SigT", "SigC", "SigL", "SigF", "SigP", "chi"):
+            got = np.asarray(getattr(out, name), float)
+            np.testing.assert_allclose(got, ref[name], rtol=1e-12, err_msg=name)
+            if not np.allclose(got, np.asarray(getattr(fwd, name), float),
+                               rtol=1e-6):
+                discriminated = True
+        np.testing.assert_allclose(
+            np.asarray(out.SigS[0].todense(), float), ref["SigS0"], rtol=1e-12,
+        )
+        assert discriminated, "bilinear ≡ forward on every channel: dud fixture"
+
+    def test_bilinear_chi_is_simplex(self, solution, adjoint_solution):
+        out = solution.condense(EnergyGrid(_EG_COARSE), adjoint=adjoint_solution)[0]
+        chi = np.asarray(out.chi, float)
+        np.testing.assert_allclose(chi.sum(), 1.0, atol=1e-12)
+        np.testing.assert_array_less(-1e-15, chi)
+
+    def test_no_arg_equals_explicit_none_bitwise(self, solution):
+        """§4.0 tooth 1 on the condense verb."""
+        a = solution.condense(EnergyGrid(_EG_COARSE))
+        b = solution.condense(EnergyGrid(_EG_COARSE), adjoint=None)
+        for mat_id in a:
+            ma, mb = a[mat_id], b[mat_id]
+            for ch in ("SigT", "SigC", "SigL", "SigF", "SigP", "chi"):
+                np.testing.assert_array_equal(
+                    np.asarray(getattr(ma, ch)), np.asarray(getattr(mb, ch)),
+                )
+            for la, lb in zip(ma.SigS, mb.SigS):
+                np.testing.assert_array_equal(
+                    np.asarray(la.todense()), np.asarray(lb.todense()),
+                )
+
+
+class TestC5CondenseWeightCaptureSentinel:
+    """C5 (Mode-11 capture): the bilinear condense hands the PAIR spectrum
+    weight φ*_spec⊙φ_spec to a test-basis construction; bare φ*_spec never
+    appears as a frame weight (it enters only the sink/χ† folds). The plain
+    φ_spec frame IS legitimately constructed too — the B&G source-axis /
+    νΣf flux-average (correction to the pre-B&G C5 wording)."""
+
+    def test_pair_weight_captured_and_bare_adjoint_absent(
+        self, solution, adjoint_solution, monkeypatch,
+    ):
+        from orpheus.numerics.basis.weighted_indicator_basis import (
+            WeightedIndicatorBasis,
+        )
+
+        phi_s = _region_spectrum(solution)
+        phis_s = _adjoint_region_spectrum(adjoint_solution)
+        captured: list[np.ndarray] = []
+        orig = WeightedIndicatorBasis.__init__
+
+        def spy(self, basis, weight, *a, **k):
+            captured.append(np.asarray(weight, dtype=float))
+            return orig(self, basis, weight, *a, **k)
+
+        monkeypatch.setattr(WeightedIndicatorBasis, "__init__", spy)
+        solution.condense(EnergyGrid(_EG_COARSE), adjoint=adjoint_solution)
+
+        def _seen(expected):
+            return any(
+                c.shape == np.shape(expected) and np.array_equal(c, expected)
+                for c in captured
+            )
+
+        assert _seen(phis_s * phi_s), (
+            "no frame received the PAIR spectrum weight φ*⊙φ"
+        )
+        assert _seen(phi_s), (
+            "the source-axis flux-average frame (B&G 6.136/4.38) was not built"
+        )
+        assert not _seen(phis_s), (
+            "a frame received BARE φ*_spec (the φ→φ* trap on the energy axis)"
+        )

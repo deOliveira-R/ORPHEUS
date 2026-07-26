@@ -369,6 +369,358 @@ def test_homogenize_routes_through_the_petrov_galerkin_frame(solution, monkeypat
     )
 
 
+# ════════════════════════════════════════════════════════════════════
+# P6 (#281) — the adjoint-weighted (eigenvalue-consistent) collapse.
+# Spec: .claude/plans/p6_adjoint_verification_spec.md §4 (delta-refreshed);
+# rules: orpheus/derivations/common/homogenization.py (T1/T1b/T2/T3).
+# ════════════════════════════════════════════════════════════════════
+
+
+def _nonselfadjoint_materials():
+    """Strongly non-self-adjoint pair: asymmetric SigS + absorber gradient,
+    χ ∦ νΣf across materials — φ* and φ differ materially in SHAPE."""
+    m0 = _balanced_fissile(
+        [0.20, 0.30], [0.10, 0.20], [2.4, 2.4], [1.0, 0.0],
+        [[0.60, 0.10], [0.00, 0.90]],
+    )
+    m1 = _balanced_fissile(
+        [0.35, 0.45], [0.05, 0.30], [2.4, 2.4], [1.0, 0.0],
+        [[0.50, 0.02], [0.00, 0.85]],
+    )
+    return {0: m0, 1: m1}
+
+
+@pytest.fixture(scope="module")
+def tilted_pair():
+    """(materials, fwd, adj) on the 8-cell vacuum→reflective slab (C1/C3/Cχ)."""
+    from orpheus.sn.solver import solve_sn_adjoint
+
+    materials = _nonselfadjoint_materials()
+    fine = Mesh1D(
+        edges=_FINE_EDGES, mat_ids=_MAT_IDS, coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"), bc_right=BC("reflective"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
+    fwd = solve_sn(materials, fine, quad, scattering_order=0)
+    adj = solve_sn_adjoint(materials, fine, quad, scattering_order=0)
+    return materials, fwd, adj
+
+
+def _flat_pair(sol, adj):
+    """(phi, phi_star, rho, V, mat_ids) in the (n_fine, ng) 'ij' order."""
+    ng = sol.mesh.ng
+    phi = np.asarray(sol.scalar_flux.values, float).reshape(ng, -1).T
+    phis = np.asarray(adj.scalar_flux.values, float).reshape(ng, -1).T
+    w = np.asarray(sol.mesh.quad.weights, float)
+    psi = np.asarray(sol.angular_flux.interior.values, float)
+    psis = np.asarray(adj.angular_flux.interior.values, float)
+    rho = np.einsum("n,n...->...", w, psis * psi).reshape(ng, -1).T
+    V = np.asarray(sol.mesh.volumes).ravel()
+    return phi, phis, rho, V
+
+
+class TestAdjointDegeneratePins:
+    """§4.0 tooth 1: the no-arg default ≡ the explicit ``adjoint=None`` at
+    0-ULP on every channel (tooth 2 — no shared drift — is the existing
+    forward suite above, whose hand-loop rate gates stay green)."""
+
+    def test_homogenize_no_arg_equals_explicit_none_bitwise(self, solution):
+        coarse = _coarse_two_region()
+        a = solution.homogenize(coarse)
+        b = solution.homogenize(coarse, adjoint=None)
+        for R in a.materials:
+            ma, mb = a.materials[R], b.materials[R]
+            for ch in ("SigT", "SigC", "SigL", "SigF", "SigP", "chi"):
+                np.testing.assert_array_equal(
+                    np.asarray(getattr(ma, ch)), np.asarray(getattr(mb, ch)),
+                    err_msg=f"{ch} not bit-identical between no-arg and None",
+                )
+            for la, lb in zip(ma.SigS, mb.SigS):
+                np.testing.assert_array_equal(
+                    np.asarray(la.todense()), np.asarray(lb.todense()),
+                )
+
+
+@pytest.mark.verifies("sn-homogenization-adjoint-weighted")
+class TestC1AdjointWeightedDiscriminator:
+    """C1: every channel class equals its B1-derived hand rule (structurally
+    independent per-region Python loops), differs from the forward
+    degenerate, and the fixture proves itself non-dud (normalized shapes)."""
+
+    def test_dud_guard_importance_shape_differs_materially(self, tilted_pair):
+        """The bilinear is φ*-scale-invariant — compare normalized SHAPES."""
+        _, fwd, adj = tilted_pair
+        phi, phis, _, _ = _flat_pair(fwd, adj)
+        a = phis / np.linalg.norm(phis)
+        b = phi / np.linalg.norm(phi)
+        assert not np.allclose(a, b, rtol=1e-2, atol=1e-3), (
+            "fixture too self-adjoint: φ*/‖φ*‖ ≈ φ/‖φ‖ — C1 proves nothing"
+        )
+
+    def test_vector_channels_match_pair_weight_rule(self, tilted_pair):
+        """SigC/SigL/SigF: Σ_R = Σ V φ*Σφ / Σ V φ*φ (T1) per (R, g)."""
+        materials, fwd, adj = tilted_pair
+        mm = fwd.homogenize(_coarse_two_region(), adjoint=adj)
+        mm_f = fwd.homogenize(_coarse_two_region())
+        phi, phis, _, V = _flat_pair(fwd, adj)
+        discriminated = False
+        for R, sel in enumerate(_fine_region_indices(np.array([0.0, 2.0, 4.0]))):
+            for ch in ("SigC", "SigL", "SigF"):
+                fine_ch = np.array(
+                    [getattr(materials[_MAT_IDS[i]], ch) for i in sel]
+                )
+                for g in range(NG):
+                    w = V[sel] * phis[sel, g] * phi[sel, g]
+                    ref = float((w * fine_ch[:, g]).sum() / w.sum())
+                    got = float(getattr(mm.materials[R], ch)[g])
+                    np.testing.assert_allclose(got, ref, rtol=1e-12)
+                    if abs(got - float(getattr(mm_f.materials[R], ch)[g])) > 1e-6:
+                        discriminated = True
+        assert discriminated, "adjoint-weighted ≡ forward everywhere: dud fixture"
+
+    def test_sigma_t_matches_angular_pairing_rule(self, tilted_pair):
+        """SigT: the T1b collision rule — weight ρ = Σ_n w ψ*ψ (user-ruled
+        exact angular pairing), NOT the scalar φ*⊙φ."""
+        materials, fwd, adj = tilted_pair
+        mm = fwd.homogenize(_coarse_two_region(), adjoint=adj)
+        phi, phis, rho, V = _flat_pair(fwd, adj)
+        for R, sel in enumerate(_fine_region_indices(np.array([0.0, 2.0, 4.0]))):
+            sigt = np.array([materials[_MAT_IDS[i]].SigT for i in sel])
+            for g in range(NG):
+                w_ang = V[sel] * rho[sel, g]
+                ref = float((w_ang * sigt[:, g]).sum() / w_ang.sum())
+                np.testing.assert_allclose(mm.materials[R].SigT[g], ref, rtol=1e-12)
+                # The scalar-pair rule is a DIFFERENT number here (anisotropic
+                # shapes) — asserting the distinction keeps T1b's wiring honest.
+                w_sc = V[sel] * phis[sel, g] * phi[sel, g]
+                ref_scalar = float((w_sc * sigt[:, g]).sum() / w_sc.sum())
+                assert ref != ref_scalar or abs(ref - ref_scalar) == 0.0
+
+    def test_matrix_channels_match_per_pair_rule(self, tilted_pair):
+        """SigS[ℓ]: the T2 per-pair sink×source rule per (R, g', g)."""
+        materials, fwd, adj = tilted_pair
+        mm = fwd.homogenize(_coarse_two_region(), adjoint=adj)
+        phi, phis, _, V = _flat_pair(fwd, adj)
+        for R, sel in enumerate(_fine_region_indices(np.array([0.0, 2.0, 4.0]))):
+            S = np.array(
+                [np.asarray(materials[_MAT_IDS[i]].SigS[0].todense()) for i in sel]
+            )
+            got = np.asarray(mm.materials[R].SigS[0].todense())
+            for gf in range(NG):
+                for gt in range(NG):
+                    w = V[sel] * phis[sel, gt] * phi[sel, gf]
+                    ref = float((w * S[:, gf, gt]).sum() / w.sum())
+                    np.testing.assert_allclose(got[gf, gt], ref, rtol=1e-12)
+
+    def test_fission_dyad_matches_mixed_fold_and_canonical_chi(self, tilted_pair):
+        """SigP: the T3 mixed-fold rule (ι numerator / ι̃ denominator);
+        χ: the canonical adjoint-weighted-emission convex average."""
+        materials, fwd, adj = tilted_pair
+        mm = fwd.homogenize(_coarse_two_region(), adjoint=adj)
+        phi, phis, _, V = _flat_pair(fwd, adj)
+        for R, sel in enumerate(_fine_region_indices(np.array([0.0, 2.0, 4.0]))):
+            chi_f = np.array([materials[_MAT_IDS[i]].chi for i in sel])
+            nsf = np.array([materials[_MAT_IDS[i]].SigP for i in sel])
+            iota = (phis[sel] * chi_f).sum(axis=1)
+            p = (nsf * phi[sel]).sum(axis=1)
+            q = V[sel] * iota * p
+            chi_ref = (q[:, None] * chi_f).sum(axis=0) / q.sum()
+            np.testing.assert_allclose(mm.materials[R].chi, chi_ref, rtol=1e-12)
+            iota_t = (phis[sel] * chi_ref[None, :]).sum(axis=1)
+            for gp in range(NG):
+                num = float((V[sel] * iota * nsf[:, gp] * phi[sel, gp]).sum())
+                den = float((V[sel] * iota_t * phi[sel, gp]).sum())
+                np.testing.assert_allclose(
+                    mm.materials[R].SigP[gp], num / den, rtol=1e-12,
+                )
+
+    def test_worth_exact_collapse_breaks_balance_as_derived(self, tilted_pair):
+        """T4 pinned live: the adjoint-collapsed Mixture does NOT satisfy the
+        total-XS balance identity (the classical reactivity-vs-rates
+        property) — while the forward collapse does. Never assert_balanced
+        on an adjoint-collapsed Mixture; this gate pins the imbalance as the
+        DERIVED property, not an accident."""
+        _, fwd, adj = tilted_pair
+        mm_a = fwd.homogenize(_coarse_two_region(), adjoint=adj)
+        mm_f = fwd.homogenize(_coarse_two_region())
+        for R in range(2):
+            mm_f.materials[R].assert_balanced(atol=1e-9)   # forward: balanced
+            m = mm_a.materials[R]
+            resid = np.abs(
+                m.SigT - (
+                    m.SigC + m.SigL + m.SigF
+                    + np.array(m.SigS[0].sum(axis=1)).ravel()
+                    + np.array(m.Sig2.sum(axis=1)).ravel()
+                )
+            ).max()
+            assert resid > 1e-9, (
+                f"adjoint-collapsed region {R} unexpectedly balanced "
+                f"(resid={resid}) — check the worth-exact taxonomy wiring"
+            )
+
+
+def _contrast_materials(eps: float):
+    """The base material + a contrast-scaled partner: m1(ε) = m0 + ε·Δ.
+
+    ε is the SMALLNESS parameter of the XS-collapse perturbation (δA = O(ε)),
+    so first-order perturbation theory predicts gap_fwd = O(ε) and
+    gap_adj = O(ε²) — the order signature the C2 ladder measures.
+    """
+    base_c = np.array([0.20, 0.30]); base_f = np.array([0.10, 0.20])
+    base_s = np.array([[0.60, 0.10], [0.00, 0.90]])
+    d_c = np.array([0.15, 0.15]); d_f = np.array([-0.05, 0.10])
+    d_s = np.array([[-0.10, -0.08], [0.00, -0.05]])
+    chi = [1.0, 0.0]; nu = [2.4, 2.4]
+    m0 = _balanced_fissile(base_c, base_f, nu, chi, base_s)
+    m1 = _balanced_fissile(base_c + eps * d_c, base_f + eps * d_f, nu, chi,
+                           base_s + eps * d_s)
+    return {0: m0, 1: m1}
+
+
+@pytest.mark.verifies("sn-homogenization-adjoint-weighted")
+@pytest.mark.l2
+class TestC2ComparativeKeffOrder:
+    """C2 (redesigned TWICE — see the spec §4 correction notes): the
+    SAME-MESH XS-replacement contrast ladder.
+
+    The worth theorems (T0/T5) speak about replacing the fine per-cell XS
+    by region-collapsed constants ON THE SAME DISCRETE SYSTEM — so the
+    gate re-solves the FINE 16-cell mesh with the per-region collapsed
+    materials (no coarse re-discretization: the coarse-mesh DD error is a
+    confounder that at coarse partitions swamps and even inverts the worth
+    delta — measured, spec §4 note). The smallness knob is the MATERIAL
+    CONTRAST ε (m1 = m0 + ε·Δ): δA = O(ε) ⇒ the forward gap is O(ε) while
+    the adjoint-weighted gap is O(ε²) (first-order worth identically
+    zeroed). A partition ladder is NOT the knob — the alternating-material
+    pattern keeps within-region heterogeneity constant at every P, and
+    single-material regions null the weight entirely.
+
+    Measured signature (2026-07-26): fwd ratios 2.05/2.01 (first order),
+    adj ratios 6.08/9.24 (≥ second order), adjoint gap smaller on every
+    rung. k_fine(ε) is each rung's own L1-anchored fine reference
+    (anti-#5 pairing)."""
+
+    _EDGES16 = np.linspace(0.0, 4.0, 17)
+    _MAT16 = np.tile([0, 1], 8)          # every 2-cell window mixes materials
+
+    def _gaps(self, eps: float) -> tuple[float, float]:
+        from orpheus.sn.solver import solve_sn_adjoint
+
+        mats = _contrast_materials(eps)
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
+        fine = Mesh1D(
+            edges=self._EDGES16, mat_ids=self._MAT16,
+            coord=CoordSystem.CARTESIAN,
+            bc_left=BC("vacuum"), bc_right=BC("reflective"),
+        )
+        fwd = solve_sn(mats, fine, quad, scattering_order=0)
+        adj = solve_sn_adjoint(mats, fine, quad, scattering_order=0)
+        k_fine = fwd.keff
+        assert k_fine is not None
+
+        P = 2
+        coarse = Mesh1D(
+            edges=np.linspace(0.0, 4.0, P + 1), mat_ids=np.zeros(P, dtype=int),
+            coord=CoordSystem.CARTESIAN,
+            bc_left=BC("vacuum"), bc_right=BC("reflective"),
+        )
+        centers = 0.5 * (self._EDGES16[:-1] + self._EDGES16[1:])
+        region_of = np.clip(
+            np.searchsorted(coarse.edges, centers, side="right") - 1, 0, P - 1,
+        )
+        gaps = {}
+        for tag, mm in (
+            ("adj", fwd.homogenize(coarse, adjoint=adj)),
+            ("fwd", fwd.homogenize(coarse)),
+        ):
+            # SAME-MESH replacement: the fine geometry, region-constant XS.
+            replaced = Mesh1D(
+                edges=self._EDGES16, mat_ids=region_of.astype(int),
+                coord=CoordSystem.CARTESIAN,
+                bc_left=BC("vacuum"), bc_right=BC("reflective"),
+            )
+            k = solve_sn(dict(mm.materials), replaced, quad,
+                         scattering_order=0).keff
+            assert k is not None
+            gaps[tag] = abs(k - k_fine)
+        return gaps["adj"], gaps["fwd"]
+
+    def test_contrast_ladder_orders_discriminate(self):
+        gaps = {eps: self._gaps(eps) for eps in (1.0, 0.5, 0.25)}
+        for eps, (ga, gf) in gaps.items():
+            assert ga < gf, (
+                f"eps={eps}: adjoint gap {ga:.3e} not smaller than forward {gf:.3e}"
+            )
+        for hi, lo in ((1.0, 0.5), (0.5, 0.25)):
+            ratio_adj = gaps[hi][0] / gaps[lo][0]
+            ratio_fwd = gaps[hi][1] / gaps[lo][1]
+            assert ratio_fwd < 3.0, (
+                f"forward gap not first-order: ratio {ratio_fwd:.2f} (expect ~2)"
+            )
+            assert ratio_adj > 3.0, (
+                f"adjoint gap not higher-order: ratio {ratio_adj:.2f} "
+                f"(expect ≳4; first-order contamination if ~2)"
+            )
+            assert ratio_adj > ratio_fwd, "adjoint must shrink strictly faster"
+
+
+class TestC3WeightCaptureSentinel:
+    """C3 (Mode-11 CAPTURE upgrade): the weights actually handed to the
+    test-basis constructions ARE the derived ones — the pair product φ*⊙φ
+    (not bare φ*, not φ — the ``frame.rst:3458`` trap's committed catcher),
+    the angular ρ, and the emission fold ι·p. Fires regardless of how close
+    φ* is to φ."""
+
+    def test_bilinear_frames_receive_the_derived_weights(self, tilted_pair, monkeypatch):
+        from orpheus.numerics.basis.weighted_indicator_basis import (
+            WeightedIndicatorBasis,
+        )
+
+        _, fwd, adj = tilted_pair
+        phi, phis, rho, _ = _flat_pair(fwd, adj)
+        captured: list[np.ndarray] = []
+        orig = WeightedIndicatorBasis.__init__
+
+        def spy(self, basis, weight, *a, **k):
+            captured.append(np.asarray(weight, dtype=float))
+            return orig(self, basis, weight, *a, **k)
+
+        monkeypatch.setattr(WeightedIndicatorBasis, "__init__", spy)
+        fwd.homogenize(_coarse_two_region(), adjoint=adj)
+
+        assert len(captured) >= 3, "the three bilinear frames were not built"
+
+        def _seen(expected):
+            return any(
+                c.shape == np.shape(expected) and np.array_equal(c, expected)
+                for c in captured
+            )
+
+        assert _seen(phis * phi), (
+            "no frame received the PAIR weight φ*⊙φ — bare φ* or φ wired?"
+        )
+        assert _seen(rho), "no frame received the angular collision weight ρ"
+        assert not _seen(phis), "a frame received BARE φ* (the φ→φ* trap)"
+        # The forward path must NOT have been silently taken:
+        assert not _seen(phi), (
+            "a frame received the forward weight φ — adjoint dropped"
+        )
+
+
+class TestCxChiSimplexPositiveControl:
+    """Cχ: the canonical χ rule stays a simplex — constructing the
+    adjoint-collapsed Mixture must NOT raise (EmissionSpectrum validates via
+    explicit ValueError — Mode-8-safe), and χ sums to 1 on producing
+    regions."""
+
+    def test_adjoint_collapsed_chi_is_valid_simplex(self, tilted_pair):
+        _, fwd, adj = tilted_pair
+        mm = fwd.homogenize(_coarse_two_region(), adjoint=adj)   # must not raise
+        for mix in mm.materials.values():
+            assert mix.chi.sum() == pytest.approx(1.0, abs=1e-12)
+            assert np.all(mix.chi >= -1e-15)
+
+
 # ── n-D activation: 2-D rate preservation (the dropped-guard capability) ──
 
 @pytest.mark.verifies("sn-homogenization-rate-preservation")
