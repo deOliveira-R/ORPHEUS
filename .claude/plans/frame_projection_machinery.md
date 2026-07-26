@@ -1,22 +1,20 @@
 # THE projection / reconstruction machinery — the unified Frame campaign
 
-> **APPROVED 2026-06-24** (user). Branch `refactor/operator-inverse-algebra`. Surgical, main-agent-direct,
-> user-steered; NO `method-implementer`. Tasks **#46–#52** (P1–P7); P1 (#46) unblocks all. Memory:
-> `[[project-frame-projection-machinery]]` (the load-bearing rulings — read it FIRST; it OVERRIDES the
-> discipline-as-property conclusion in `[[project-homogenization-condensation]]` / `[[project-frame-basis-carve]]`).
+> **⏹ CAMPAIGN COMPLETE (2026-07-26) — P1 through P7 ALL LANDED; this file is the archaeology.**
+> P1 `00f9b76` (Closes #268) · P2 `cc6d022` · P3 `79e2ac8` · P4 `74378d5`+`ed1e14d`+`83aaa8a` ·
+> P4.5 (the two-param split, commits W-C…W-G) · P5 (condensation, #274 `68ceb9a`) ·
+> **P6 `2cbe9da7..e301b675` (2026-07-26; #281 CLOSED)** · **P7 = the docs capstone, delivered
+> INCREMENTALLY by the P3/P5/P6 archivist doc-passes** — the 2026-07-26 gap audit found the full
+> charter present at the articulation standard (`docs/theory/foundations/frame.rst` self-identifies
+> as the P7 capstone; every item Feynman-grade; `-E -W` clean; all cross-refs resolve). **Ruling
+> kept from the audit: condensation stays a SECTION of frame.rst (one PG page, space + energy as
+> sibling sections sharing the machinery), never a standalone duplicate page.**
 >
-> **STATUS (2026-06-24): P1 LANDED `00f9b76` (Closes #268); P2 LANDED `cc6d022` (Refs #226);
-> P3 LANDED `79e2ac8` (Refs #226); P4 LANDED `74378d5`+`ed1e14d`+`83aaa8a` (Refs #226).
-> NEXT = P4.5 — the two-param `Operator[Domain,Codomain]` split (detailed spec:
-> `.claude/plans/p4_5_two_param_operator_split.md`), then P5 (#50).**
-> P4.5 is INSERTED before P5/P6 by user directive (2026-06-24): polish the operator algebra so the later
-> phases don't build on a type that must further change. It is the keystone the post-P4 review surfaced —
-> the uniform `Operator[Flux,SourceSink]` contract — and the genuine fix for the #226 generic-Protocol
-> `@overload`/`None`-space confessions (pyright net DOWN becomes the deliverable, not a deferral).
-> The pyright ratchet is a GUIDE, not a gate, DURING the campaign — the faces/Λ `ndarray`-vs-`Vector`
-> generic-Protocol gap (the cast retirement exposed it; pre-existing) is #226, deferred to ONE
-> post-campaign pyright pass (user, 2026-06-24).
-> Reconcile against git before resuming.
+> ⚠ The "Tasks #46–#52" numbering below is the ORIGINATING SESSION'S internal task list, NOT
+> GitHub issues (GitHub #46–#52 are Thermal-Hydraulics/Kinetics). The real trackers were the
+> phase issues #268 / #226 / #274 / #281 / #275 — all closed or standing on their own.
+> Durable rulings live in `[[project-frame-projection-machinery]]` (memory) + the frame.rst /
+> operator_algebra.rst theory pages; the per-phase records below are the historical log.
 
 ## Context — why this campaign exists
 
@@ -219,9 +217,18 @@ coarse_xs = PetrovGalerkinFrame(EnergyGrid(coarse_groups).indicator_basis(),
   Docs: frame.rst landed-state narrative + verification/sn.rst P6 rows (archivist);
   ch15 API block flipped. Gates at close: Sphinx `-E -W` 0 · audit 0 (orphans 0/315,
   ERR 69/69) · pyright floor 1 (#288).
-- **P7 — docs + theory.** The PG-base projection theory page (the discipline hierarchy, `Π*=R` vs `≠R`,
-  the measure-is-metric-not-discipline ruling, the conjugation primitive), the adjoint-weighted
-  homogenization derivation, the condensation page. Sphinx `-W` clean throughout.
+- **P7 — docs + theory — ✅ DONE (audited 2026-07-26; delivered incrementally by the P3/P5/P6
+  doc-passes, no dedicated pass needed).** The full charter is present at the articulation
+  standard in `docs/theory/foundations/frame.rst` (the self-identified P7 capstone): the
+  discipline hierarchy with BOTH rejected alternatives + the Liskov argument + the LS seam;
+  `Π*=R` vs `≠R`; measure-is-metric-not-discipline (+ the energy twin); the composed-operator
+  verbs (`conjugate`/`reconstruct_after`/`project`) with the Funk-Hecke `S=R∘Λ∘M` story and the
+  eigenbasis-ownership ruling; the P6 adjoint-weighted taxonomy slice (T0 keystone → the five
+  GENERATED collapse rules → T4 → the B&G energy convention); the coherent energy-condensation
+  treatment + the asymmetry law. Cross-cutting rulings homed in `operator_algebra.rst` (double
+  category, affine collision split, carrier census). Audit: `-E -W` clean, all cross-refs
+  resolve, no load-bearing ruling is plan/issue/docstring-only. Condensation deliberately a
+  frame.rst SECTION, not a standalone page (Cardinal Rule 2).
 
 ## Critical files
 - **Hierarchy/API:** `orpheus/numerics/frame.py` (the type split + `conjugate`/`project`),
