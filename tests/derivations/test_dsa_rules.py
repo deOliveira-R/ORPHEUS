@@ -69,3 +69,9 @@ class TestFourStepDerivation:
         r"""The diamond member (α = 0): σ̂_R = σ_T − σ_S0,
         D = 1/[3(σ_T − σ_S1)] — the operator Phase 3b wires."""
         dsa.derive_dd_instance()
+
+    def test_one_sided_f1_forms(self):
+        r"""The compact (25)/(26) closures the numeric builder realizes
+        equal the solved edge f1 values — the builder transcribes
+        nothing."""
+        dsa.derive_one_sided_f1_forms()

@@ -901,11 +901,207 @@ def derive_dd_instance() -> dict[str, sp.Expr]:
     return co
 
 
+def derive_one_sided_f1_forms() -> None:
+    r"""The closed one-sided edge-:math:`f_1` forms (the (25)/(26) content).
+
+    Verifies, under the printed convention, that the cell's solved edge
+    :math:`f_1` values equal the compact forms the numeric builder
+    implements:
+
+    .. math::
+
+        f_{1L} &= -\frac{D}{h}(f_{0R}-f_{0L})
+                 + \tfrac14\hat\sigma_R h\,(f_{0R}+f_{0L}) + g_1 - \tfrac12 g_0,\\
+        f_{1R} &= -\frac{D}{h}(f_{0R}-f_{0L})
+                 - \tfrac14\hat\sigma_R h\,(f_{0R}+f_{0L}) + g_1 + \tfrac12 g_0,
+
+    with the (23a–f) coefficients (general WD). These are what close the
+    Marshak/reflecting boundary rows one-sidedly and what
+    :func:`build_consistent_dd_system` realizes numerically — verified
+    here so the numeric builder transcribes NOTHING.
+    """
+    cor = COR_I
+    cell = (H_I, SIG_T_I, SIG_S0_I, SIG_S1_I, A_WD_I)
+    f1 = solve_cell_for_edge_f1(cell, cor)
+    co = larsen_23_coefficients(*cell)
+    g0 = co["sigma_S_hat"] * H_I * cor.d0
+    g1 = co["a"] * cor.d1
+    diff = cor.right[0] - cor.left[0]
+    total = cor.right[0] + cor.left[0]
+    targets = {
+        cor.left[1]: (
+            -co["D"] / H_I * diff
+            + sp.Rational(1, 4) * co["sigma_R_hat"] * H_I * total
+            + g1 - g0 / 2
+        ),
+        cor.right[1]: (
+            -co["D"] / H_I * diff
+            - sp.Rational(1, 4) * co["sigma_R_hat"] * H_I * total
+            + g1 + g0 / 2
+        ),
+    }
+    for sym, target in targets.items():
+        _require(
+            _rational_zero(
+                _to_printed_convention(f1[sym]) - _to_printed_convention(target)
+            ),
+            f"one-sided form for {sym} must match the compact (25)/(26) "
+            f"spelling",
+        )
+
+
+def build_consistent_dd_system(
+    h, sigma_t, sigma_s0, sigma_s1, mu, w, *, bc=("vacuum", "vacuum")
+):
+    r"""Numerically realize the PROVEN consistent DD low-order system.
+
+    The 3a reference realization (dense, derivation-side — Phase 3b
+    decides the production spelling after R4): the edge-unknown
+    tridiagonal operator :math:`A_{\rm low}` (Larsen (27) rows interior,
+    the one-sided-closed Marshak/reflecting rows at the boundaries) and
+    the residual-source matrix :math:`G` mapping the per-cell sweep
+    displacements :math:`(d_0, d_1)` to the row sources, for the
+    DIAMOND member (:math:`\alpha = 0`). Every formula here is
+    theorem-backed: (23a–f)/(27) via :func:`derive_interior_row`, the
+    one-sided closures via :func:`derive_one_sided_f1_forms`, the
+    Marshak coefficients via :func:`derive_boundary_rows`.
+
+    THE NUMERIC CONVENTION BOUNDARY (module docstring): inputs use the
+    ORPHEUS raw slab quadrature (:math:`\sum w = 2`); the Larsen
+    normalization :math:`\omega = w/2` is applied HERE, once, with the
+    weight sums asserted.
+
+    Parameters
+    ----------
+    h, sigma_t, sigma_s0, sigma_s1 :
+        Per-cell arrays, shape ``(K,)``. ``sigma_s0``/``sigma_s1`` are
+        the within-group P0/P1 self-scatter rows.
+    mu, w :
+        The slab quadrature nodes/weights, shape ``(N,)``, raw
+        (:math:`\sum w = 2`).
+    bc :
+        ``(left, right)``, each ``"vacuum"`` (Marshak) or
+        ``"reflective"`` (:math:`f_1 = 0`).
+
+    Returns
+    -------
+    (A, G) :
+        ``A`` — ``(K+1, K+1)`` dense edge-tridiagonal;
+        ``G`` — ``(K+1, 2K)`` mapping ``[d0_0..d0_{K-1}, d1_0..d1_{K-1}]``
+        to the rhs. The correction solve is ``f0 = solve(A, G @ d)``;
+        the accelerated updates follow Larsen (28) (not built here).
+    """
+    import numpy as np
+
+    h = np.asarray(h, float)
+    sigma_t = np.asarray(sigma_t, float)
+    sigma_s0 = np.asarray(sigma_s0, float)
+    sigma_s1 = np.asarray(sigma_s1, float)
+    mu = np.asarray(mu, float)
+    w = np.asarray(w, float)
+    n_cells = h.shape[0]
+
+    # ── the ONE normalization map (raw GL Σw = 2 → Larsen Σω = 1) ────
+    if not np.isclose(w.sum(), 2.0, rtol=0, atol=1e-12):
+        raise DerivationError(
+            f"build_consistent_dd_system: expected the raw ORPHEUS slab "
+            f"quadrature with Σw = 2, got Σw = {w.sum()!r}"
+        )
+    omega = w / 2.0
+    w2 = float(omega @ mu**2)
+    if not np.isclose(w2, 1.0 / 3.0, rtol=0, atol=1e-12):
+        raise DerivationError(
+            f"build_consistent_dd_system: the printed convention requires "
+            f"W2 = 1/3 exactly (any rule integrating μ² exactly); got "
+            f"W2 = {w2!r}"
+        )
+    up = mu > 0
+    gamma_n = float(omega[up] @ mu[up])          # γ_N
+    c1 = float(omega[up] @ mu[up] ** 2) / w2     # W2⁺/W2 (= 1/2 for GL)
+
+    # ── the proven DD coefficients (23a–f at α = 0) ──────────────────
+    sig_r = sigma_t - sigma_s0                   # σ̂_R
+    sig_s = sigma_s0                             # σ̂_S
+    big_d = 1.0 / (3.0 * (sigma_t - sigma_s1))   # D
+    a_coef = sigma_s1 / (sigma_t - sigma_s1)     # a  (g1 = a·d1)
+
+    A = np.zeros((n_cells + 1, n_cells + 1))
+    G = np.zeros((n_cells + 1, 2 * n_cells))
+
+    def g0_col(i: int) -> int:
+        return i
+
+    def g1_col(i: int) -> int:
+        return n_cells + i
+
+    # ── interior rows (27): edge j between cells j-1 (i) and j (i+1) ──
+    for j in range(1, n_cells):
+        lo, hi = j - 1, j
+        A[j, j - 1] += -big_d[lo] / h[lo] + 0.25 * sig_r[lo] * h[lo]
+        A[j, j] += (
+            big_d[lo] / h[lo] + big_d[hi] / h[hi]
+            + 0.25 * (sig_r[lo] * h[lo] + sig_r[hi] * h[hi])
+        )
+        A[j, j + 1] += -big_d[hi] / h[hi] + 0.25 * sig_r[hi] * h[hi]
+        G[j, g0_col(hi)] += 0.5 * sig_s[hi] * h[hi]
+        G[j, g0_col(lo)] += 0.5 * sig_s[lo] * h[lo]
+        G[j, g1_col(hi)] += -a_coef[hi]
+        G[j, g1_col(lo)] += +a_coef[lo]
+
+    # ── boundary rows: the verified one-sided f1 forms ───────────────
+    # left cell 0: f1 at its LEFT edge; right cell K-1: f1 at its RIGHT.
+    def one_sided(cell_i: int, side: str):
+        """Row pieces of f1 at the cell's `side` edge (f0-cols, g-cols)."""
+        dh = big_d[cell_i] / h[cell_i]
+        quarter = 0.25 * sig_r[cell_i] * h[cell_i]
+        sgn = +1.0 if side == "left" else -1.0
+        # f1 = −(D/h)(f0R − f0L) ± ¼σ̂_R h (f0R + f0L) + g1 ∓ ½g0
+        left_edge = cell_i
+        right_edge = cell_i + 1
+        f0_cols = {
+            left_edge: +dh + sgn * quarter,
+            right_edge: -dh + sgn * quarter,
+        }
+        g_cols = {
+            g1_col(cell_i): +a_coef[cell_i],
+            g0_col(cell_i): -sgn * 0.5 * sig_s[cell_i] * h[cell_i],
+        }
+        return f0_cols, g_cols
+
+    for row, cell_i, side, kind in (
+        (0, 0, "left", bc[0]),
+        (n_cells, n_cells - 1, "right", bc[1]),
+    ):
+        f0_cols, g_cols = one_sided(cell_i, side)
+        if kind == "vacuum":
+            # Marshak (38): γ_N f0_edge ± c1 f1_edge = 0 (sign: incident
+            # half-range current; +c1 at the left face, −(−c1) at the
+            # right after clearing the overall sign — both spell as
+            # γ_N f0 + c1·(±f1) with the outward-consistent orientation).
+            orient = +1.0 if side == "left" else -1.0
+            A[row, row] += gamma_n
+            for col, val in f0_cols.items():
+                A[row, col] += orient * c1 * val
+            for col, val in g_cols.items():
+                G[row, col] -= orient * c1 * val
+        elif kind == "reflective":
+            # (39): f1_edge = 0 — the one-sided form set to zero.
+            for col, val in f0_cols.items():
+                A[row, col] += val
+            for col, val in g_cols.items():
+                G[row, col] -= val
+        else:  # pragma: no cover — caller error
+            raise DerivationError(f"unknown boundary kind {kind!r}")
+
+    return A, G
+
+
 def _self_check_steps34() -> None:
     derive_interior_row()
     derive_update_relations()
     derive_boundary_rows()
     derive_dd_instance()
+    derive_one_sided_f1_forms()
 
 
 def run_all() -> None:
