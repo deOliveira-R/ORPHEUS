@@ -3284,6 +3284,65 @@ Cross-links [[lessons-L36]] (the stub-growth sibling), [[lessons-L35]]
 
 ---
 
+## L-038 — Auditing a "is the terminal docs phase done?" charter: a multi-phase campaign's LAST docs phase is often already-executed incrementally by the earlier phases' doc passes — verify by the page's OWN self-identification + build + cross-ref gate, don't infer a gap from an open plan line
+
+A read-only "how much of Phase-N docs is already satisfied?" audit (here
+the frame-projection campaign's P7 charter) has a recurring answer:
+**effectively-done**, because each earlier phase (P3/P5/P6) ran an
+archivist doc-pass that landed its own slice INTO the eventual capstone
+page, so the "final docs phase" was executed piecewise before it was
+formally reached. The audit discipline:
+
+- **The plan's phase-line is a STALE tracking artifact, not the ground
+  truth** (process-discipline: trust git/the shipped page, not a frozen
+  plan claim). The driver plan still read "NEXT = P4.5 … P7 pending" while
+  P4.5–P6 had all landed and the P7 page was written. NEVER infer "P7 is
+  a gap" from an open plan bullet — read the shipped page.
+- **A campaign's capstone page usually SELF-IDENTIFIES.** The decisive
+  evidence was the page's own front-matter note titled "What shipped since
+  (P3 / P5 / P7)" stating *"This page (P7) is the capstone…"*. Grep the
+  candidate page's intro/Key-Facts/notes for the phase tag (`P7`, the
+  issue #) — the campaign often already declared the page done in prose.
+- **The plan's task-number ≠ the GitHub issue number.** The plan said
+  "Tasks #46–#52 (P1–P7)"; #46–#52 are actually unrelated
+  Thermal-Hydraulics/Kinetics issues — the plan used INTERNAL task
+  numbering that COLLIDES with real issue numbers. The real trackers were
+  the phase issues (#268/#226/#281/#275). Resolve "which issue tracks
+  this?" by reading each candidate's title, never by trusting a plan's
+  bare `#N`. A terminal-docs phase frequently has NO dedicated issue —
+  its deliverables ride the phase issues' doc-passes.
+- **Per-item verdict method for a content charter:** for each named
+  deliverable, (1) locate the anchor/label (`grep -rn "<label>"
+  docs/`), (2) READ the section (not the heading) and judge it against
+  the articulation standard (does it carry the rejected alternatives, the
+  structural WHY, the honest-scope seam?), (3) confirm the `-E -W` build
+  is clean (charter's "-W clean" clause), (4) grep-gate the cross-doc
+  `:ref:`/`:eq:` targets the section uses (the -W-BLIND plain-text class,
+  L-002) — a Feynman-grade section with a dangling cross-doc ref is not
+  actually done.
+- **Distinguish a documented SEAM from a GAP.** A charter is DONE even
+  when the page carries "stays a documented seam until consumer X exists"
+  notes (here: the anisotropic-order Σ_{s,ℓ} moment-resolved pairing; the
+  LeastSquaresFrame/GEC-rank>0 #275). A correctly-declared future-consumer
+  seam (L-002 forward-ref discipline: literal not premature `:class:`) is
+  the OPPOSITE of a gap — it is the honest-scope boundary the charter
+  never asked to cross. Do NOT list a documented seam as owed work.
+- **A charter's literal "the condensation PAGE" can be correctly
+  delivered as a SECTION of a shared page** (DRY, Cardinal Rule 2): one
+  frame page with space + energy as sibling PG sections beats two pages
+  that duplicate the PG machinery. Flag the wording-vs-form deviation as
+  INTENTIONAL, not a missing page — recommending a standalone page would
+  MINT a twin-path violation.
+
+Net verdict shape for such an audit: "effectively-done; residuals are
+bookkeeping (mark the plan line ✅, no dedicated issue needed for
+already-shipped work) — NOT a gap-fill pass." Cross-links [[lessons-L37]]
+(the flip-a-seam-to-landed sibling), [[lessons-L02]] (the -W-blind
+cross-ref grep-gate), and AGENT.md process-discipline (trust git, not the
+frozen plan claim).
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:
