@@ -193,21 +193,32 @@ coarse_xs = PetrovGalerkinFrame(EnergyGrid(coarse_groups).indicator_basis(),
   `EnergyGroupSpace`; `Solution.condense(grid) -> dict[int, Mixture]` as a `PetrovGalerkinFrame`
   consumer (mesh-DECOUPLED — the asymmetry law). Gate: spectrum-weighted condensation rate-preservation
   + a within-group-varying-spectrum discriminator (the energy analog of P3's).
-- **P6 — eigenvalue-consistent (adjoint-weighted) homogenization — the headline PG consumer.**
-  **UNBLOCKED (2026-07-26): the φ\* dependency LANDED** — the #276 adjoint completion campaign
-  merged+pushed the daggered entries (`solve_sn_adjoint` / `solve_sn_adjoint_fixed_source`) returning
-  the role-typed **`AdjointSolution`** carrier (`orpheus/sn/solution.py`; `importance` alias; the
-  forward trio structurally absent). **The ratified P6-B2 API (ruled at #276 A5, recorded on #281):
-  parameter, not sibling method** — `Solution.homogenize(coarse, *, adjoint: AdjointSolution | None
-  = None)` (same for `condense`); `None` ⇒ the Galerkin degenerate unchanged; the parameter lands
-  WITH the PG implementation + C1/C2/C3 gates in THIS phase.  Re-anchor set for the P6 session:
-  #281 (the B1–B4 breakdown + the ratified-API comment) · `p6_adjoint_verification_spec.md` §4
-  (C1/C2/C3; C2 is a convergence-ORDER claim) · ch15 `docs/theory/methods/sn/adjoint.rst`
-  (§carrier + §consumers) · the `sn-homogenization-bilinear` drafted section.  Then
-  `test = φ*·1_R` (the bilinear `φ*φ`), giving the eigenvalue-preserving Σ_R. The genuine
-  `Π* ≠ R` PG instance; ships the GalerkinFrame-vs-PetrovGalerkinFrame discriminating test (a case where
-  the adjoint-weighted answer ≠ the forward-weighted answer ⟹ the discipline type is load-bearing).
-  Gate: k-eff preservation under coarse re-solve (≥2G heterogeneous) vs the fine reference.
+- **P6 — eigenvalue-consistent (adjoint-weighted) homogenization — ✅ DONE (2026-07-26, B0–B4
+  on `feature/sn-adjoint-weighted-homogenization`; merge gated on the user checkpoint).**
+  The ratified `adjoint:` parameter LANDED on `Solution.homogenize` AND `Solution.condense`
+  (`None` ⇒ forward, bit-identical). **Derivation-first (user-ruled)**: the algebra of record
+  `orpheus/derivations/common/homogenization.py` (T0 keystone · T1 vector pair weight φ\*⊙φ —
+  the '(φ→φ\*)' shorthand was a TRAP, three doc instances corrected · **T1b the exact ANGULAR
+  Σt pairing ρ=Σ w ψ\*ψ, user-ruled option 2** · T2 matrix per-pair sink×source · T3 fission
+  mixed-fold + canonical convex χ · **T4 worth-exact ⟺ balance BROKEN** (never assert_balanced
+  on adjoint-collapsed Mixtures) · T5 forward=O(ε) · **T6 the B&G Ch. 6 energy convention**
+  (plain-flux carrier + flux-weighted-average adjoint carrier Ψ†; T6a exact-k at true spectra;
+  T6r row-scaling freedom; T6b O(ε²)-vs-O(ε)) — all EXACT, pinned, and PROOF-WELDED to Sum-form
+  display equations the doc generator renders (`generate_homogenization_collapse_rules`, the
+  DERIVATION-FRAGMENT-GENERATOR's first instance, user-ruled). Five-morphism
+  `MaterialXSField.project_through_bilinear`; `Mixture.condense(adjoint_spectrum=)`;
+  `SNMesh.is_same_phase_space` (the two-entry pairing tier). Gates: §4.0 0-ULP pins · C1
+  full-taxonomy hand rules + T4 live pins (both axes) · **C2 = the SAME-MESH XS-replacement
+  CONTRAST ladder (the coarse-resolve comparative FAILED measurably — spec §4 addendum g);
+  measured fwd 2.05/2.01 vs adj 6.08/9.24** · C3/C5 Mode-11 weight capture · C4 B&G hand rules
+  (addendum h: the sink axis GAINS the adjoint carrier — 'marginalize frozen' was pre-B&G) ·
+  Cχ + T6a-live. All mutation teeth probed RED (addendum i; the φ\*≡φ substitution is C1+C3's
+  catch, not C2's — recorded). Reviews: enforcer 0 MUST-FIX (findings applied); qa SOUND
+  (the tautological-guard catch → vv-principles Mode-8 extension). B&G acquired+OCR'd
+  mid-campaign (637 pp sidecar); literature memo Source E carries the carrier verdict.
+  Docs: frame.rst landed-state narrative + verification/sn.rst P6 rows (archivist);
+  ch15 API block flipped. Gates at close: Sphinx `-E -W` 0 · audit 0 (orphans 0/315,
+  ERR 69/69) · pyright floor 1 (#288).
 - **P7 — docs + theory.** The PG-base projection theory page (the discipline hierarchy, `Π*=R` vs `≠R`,
   the measure-is-metric-not-discipline ruling, the conjugation primitive), the adjoint-weighted
   homogenization derivation, the condensation page. Sphinx `-W` clean throughout.
