@@ -1032,10 +1032,13 @@ an explicit flux-weighted test basis, *not* a
 measure. The adjoint-weighted (:math:`\varphi^* \ne \varphi`) case
 :eq:`sn-homogenization-bilinear` is **documented theory only** — its
 implementation (phase P6 of the unified Frame-projection campaign) is
-deferred, **blocked** on a converged adjoint flux :math:`\varphi^*` (the
-#276 adjoint-transport campaign; see the capstone seam
-:ref:`frame-adjoint-weighted-seam`). This section sets it up as the
-non-degenerate sibling the forward case descends from.
+pending: the adjoint flux :math:`\varphi^*` it weights with is now
+AVAILABLE (#276 A4/A5 — :func:`~orpheus.sn.solver.solve_sn_adjoint`
+returns the role-typed ``AdjointSolution``; see :ref:`sn-adjoint`),
+so P6 is unblocked and lands the ratified
+``homogenize(..., adjoint=...)`` parameter WITH its gates (see the
+capstone seam :ref:`frame-adjoint-weighted-seam`). This section sets
+it up as the non-degenerate sibling the forward case descends from.
 
 .. note::
 

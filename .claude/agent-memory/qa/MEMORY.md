@@ -56,6 +56,11 @@ sharpen in place after every task. The recurring spine:
   correct adjoint is similar to forward); k's real blind spot is the flux-SHAPE
   (eigenvector), not the machinery. Mirror of the #226 step-5b overclaim; when
   the pushback hits the skill's OWN Mode-12 example, flag the skill edit.
+  **A6 sharpening:** a cited mutation-MAGNITUDE for a metric-adjoint SOLVE is the
+  full-solve value (RUN it), NOT the angular-collapsed 0-D char-poly proxy — the
+  metric `G=V·w_n` conjugation on a MUTATED (non-transpose) op is not
+  spectrum-preserving, so the SN F†=F k-tooth is 0.171, not the 0-D 0.153 the
+  chapter/slice/tests/SKILL.md all cite (MUST-FIX; never asserted).
 - **Protocol/category gates** (L-039, L-047) — runtime_checkable only checks
   member PRESENCE; the direct `not hasattr` negatives are the defense.
 - **Behavior-neutral retype** (L-041, L-045, L-048, L-050) — re-prove

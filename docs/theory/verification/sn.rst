@@ -4874,8 +4874,10 @@ or a dense FORWARD-probe (never the ``.H`` reverse-scan under test).
 The Mode-12 accounting and the mutation teeth
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Because :math:`\operatorname{eig}(A^{\dagger}) =
-\operatorname{eig}(A)`, a :math:`k^{\dagger}=k` gate is designed-green
+Because :math:`\operatorname{eig}(M^{\dagger}) =
+\operatorname{eig}(M)` (the identity lives on the iteration operator
+:math:`M = A_{\rm loss}^{-1}F`, every factor daggered), a
+:math:`k^{\dagger}=k` gate is designed-green
 (``vv-principles`` Mode 12) on whole error classes.  The boundary is
 load-bearing — this campaign twice caught a wrong "why" here — so it is
 stated exactly:
@@ -4890,7 +4892,7 @@ stated exactly:
 * :math:`k` is **NOT blind** to a single **leaf-transpose drop**:
   transposing one factor is not a pencil similarity.  The P1.3 teeth
   (``TestP13Mutations``) each shift :math:`k` — :math:`F^{\dagger}\!\to\!
-  F` moves :math:`k` from :math:`1.488` to :math:`0.153` on the 4G ∞
+  F` moves :math:`k` from :math:`1.488` to :math:`0.171` on the 4G ∞
   fixture (:math:`\chi\not\parallel\nu\Sigma_f` precondition asserted),
   :math:`S^{\dagger}\!\to\!S` shifts it on asymmetric SigS, and
   :math:`L^{\dagger}\!\to\!L` shifts it on the heterogeneous /
@@ -4906,7 +4908,7 @@ daggered solve on first contact; the corrected law lives in
 :func:`~orpheus.derivations.common.eigenvalue.kinf_and_adjoint_spectrum_homogeneous`.
 
 **The metric tooth (ERR-067 family).**  The sphere vector row is the
-sole catcher for a G-metric bug: dropping :math:`G_{\rm ray} =
+sole catcher for a G-metric bug: dropping :math:`G_{\rm sd} =
 V_{\rm cell} \to 1` leaves :math:`|k^{\dagger}_{\rm mut}-k_{\rm fwd}| =
 2.6\times10^{-11}` (EXACTLY k-blind, the metric-similarity above) while
 the defining-law residual reds to :math:`2.35`, O(1) over the

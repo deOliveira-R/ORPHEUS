@@ -7,8 +7,9 @@ This file carries the remaining certification rows AND the named
 mutations — every mutation in-process (monkeypatch; NEVER ``git
 checkout``), each reddening its named gate.
 
-* **P1.3** — ``k_adj == k_fwd`` (exact algebraic identity,
-  ``eig(A†) = eig(A)``): ∞-medium 2G AND 4G (both == the closed-form
+* **P1.3** — ``k_adj == k_fwd`` (exact algebraic identity —
+  ``eig(M†) = eig(M)`` on the iteration operator ``M = A_loss⁻¹F``,
+  every factor daggered): ∞-medium 2G AND 4G (both == the closed-form
   ``kinf_homogeneous`` anchor — the triple equality terminating in
   ``np.linalg.eig``), a 2-region HETEROGENEOUS reflective slab, and the
   SPHERE (the coupled daggered posing — the μ-reversal-at-the-pole
@@ -324,7 +325,7 @@ class TestP14AdjointSpectrum:
         spectrum O(1) off the closed form — evidence INDEPENDENT of the
         k shift (``test_fission_role_swap_shifts_k`` pins that half on
         the same fixture: a one-factor transpose drop is NOT a pencil
-        similarity, so k moves too — 1.488 → 0.153 here).
+        similarity, so k moves too — 1.488 → 0.171 here, the SN-solve measurement; the 0-D closed-form proxy gives 0.153).
 
         The DESIGNED-GREEN k-blindness (Mode 12) lives elsewhere: on
         the factor-ORDER family — every product similar to
@@ -356,7 +357,9 @@ class TestP14AdjointSpectrum:
     # correcting the earlier "pencil similarity" gloss): leaf-transpose
     # DROPS (F†→F, S†→S, L†→L) are NOT k-invariant — transposing one
     # factor is not a similarity of the pencil (F†=F moves k
-    # 1.488 → 0.153 on this very fixture; TestP13Mutations asserts the
+    # 1.488 → 0.171 on this very fixture (SN-solve measured; the 0-D
+    # closed-form proxy of the same mutation gives 0.153 — cite the
+    # solve, not the proxy); TestP13Mutations asserts the
     # shifts, with the regime preconditions that keep them visible).
     # The class k IS exactly blind to is the factor-ORDER/similarity
     # family (eig(Mᵀ) = eig(M)) — the trap the P1.4 reference itself

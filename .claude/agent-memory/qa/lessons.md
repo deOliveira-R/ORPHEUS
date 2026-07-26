@@ -2308,3 +2308,24 @@ level-marker hygiene nit distinct from the L-007 foundation+verifies conflation.
 k-only geometry leg with no closed-form (the coupled sphere daggered posing) is honest-scope:
 it rides upstream-verified transpose machinery (#280/#310) + k-equality; flag the missing
 vector-shape check as a scope boundary, don't credit k as flux-shape evidence.
+
+**A6/ch15 RE-REVIEW SHARPENING (2026-07-25): 0.153 is the 0-D PROXY, not the SN-solve
+k-tooth's value (0.171) — the metric carries the angular weight.** The `1.488→0.153
+(|Δk|=1.33)` in point 1 above is the 0-D char-poly `eig((Aᵀ)⁻¹F)` (angular-COLLAPSED). The
+ACTUAL `TestP13Mutations.test_fission_role_swap_shifts_k` SN daggered SOLVE gives
+**k_mut = 0.171 (|Δk|=1.317)**, NOT 0.153 — reproduced 4× via the test module's own helpers,
+stable + converged. WHY they differ: `.H`'s metric `G = V·w_n` carries the ANGULAR weight, so
+the mutated (non-transpose) fission `F.H_mut = G⁻¹FG` is angularly non-trivial (the mutated
+adjoint mode is 21% non-flat across ordinates); the 0-D reduction that yields 0.153 collapses
+that angular structure. The QUALITATIVE claim (leaf-drop → k moves O(1)) is right; only the
+MAGNITUDE 0.153 is the wrong (0-D) number for the SN k-tooth. **A6/ch15 propagated the 0-D
+proxy everywhere it describes the SN-solve k-tooth:** `docs/theory/methods/sn/adjoint.rst:941`,
+`docs/theory/verification/sn.rst:4893`, cert-test docstrings `:327`/`:359`, AND vv-principles
+`SKILL.md:135` all cite `1.488→0.153` for the SN-solve mutation → should be `0.171` (MUST-FIX;
+the number is NEVER asserted — the test only checks `|Δk|>1e-6` — so no gate fails, but the
+cited magnitude is a plausible-substitution error: a real eig of a related operator).
+**Rule (sharpens the L-058 verify-by-running rule): a cited mutation-MAGNITUDE for a
+METRIC-adjoint SOLVE must be the full-solve value (RUN it), never the angular-collapsed 0-D
+char-poly proxy — the metric conjugation on a MUTATED (non-transpose) operator is NOT
+spectrum-preserving (only the CORRECT full-dagger is similar to forward), so `0-D ≠ SN-solve`
+whenever the metric carries a reduced axis (`w_n`).**

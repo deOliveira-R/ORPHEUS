@@ -204,14 +204,17 @@ by a detector response :math:`\Sigma_d`,
    \;=\;
    \langle \psi^*,\, q\rangle ,
 
-.. The label sn-adjoint-duality is an intended verifies-target (a solver
-.. claim: the discrete reciprocity the daggered posing satisfies EXACTLY).
+.. The label sn-adjoint-duality is a verifies-target (a solver claim:
+.. the discrete reciprocity the daggered posing satisfies EXACTLY).
 .. It carries NO vv-status sentinel by the wired⟹no-sentinel convention —
 .. the pinning L1 gate (test_sn_adjoint_entries.TestSolveSnAdjointFixedSource.
-.. test_duality_cross_group_source_detector) gets the @verifies marker in the
-.. same A6 wiring the main agent lands (DEFERRED WIRING; #309-adjacent).
+.. test_duality_cross_group_source_detector) carries the @verifies marker
+.. (wired at the A6 marker commit).
 
-the detector reading computed from the forward flux equals the source
+where the discrete pairing is the solution G-inner-product
+:math:`\langle\cdot,\cdot\rangle_G` (the discrete realisation of the
+phase-space integral): the detector reading computed from the forward
+flux equals the source
 weighted by the importance.  The proof is one line —
 :math:`\langle\psi^*, q\rangle = \langle\psi^*, A_{\rm loss}\psi\rangle
 = \langle A_{\rm loss}^{\dagger}\psi^*, \psi\rangle = \langle\Sigma_d,
@@ -319,7 +322,9 @@ Why ORPHEUS transposes the discrete operator
 ORPHEUS takes route (2): it poses the adjoint eigenproblem by
 **DAGGER-ing the forward operator triple**, feeding
 :func:`~orpheus.numerics.iteration.KEigenvalue` the daggered triple
-``(A.H, (S+B).H, F.H)`` and running the **unchanged**
+``((L+C).H, (S+B).H, F.H)`` — the daggered RESOLVENT, gain, and
+fission; the loss dagger is formed inside the posing — and running
+the **unchanged**
 :func:`~orpheus.numerics.eigenvalue.power_iteration`
 (:func:`~orpheus.sn.solver.solve_sn_adjoint`).  The consequences are
 exactly the properties route (1) cannot deliver at finite resolution:
@@ -343,7 +348,7 @@ exactly the properties route (1) cannot deliver at finite resolution:
   (:eq:`loss-rep-adjoint-inverse-swap`) makes :math:`(L+C).\mathtt{H}`
   invertible by routing to :math:`(L+C).\mathtt{inverse()}.\mathtt{H}`,
   so the daggered inner solve rides the reverse-scan transpose sweep
-  (:ref:`loss-rep-orientation-two-frames`) behind ``A.H.inverse()``
+  (:ref:`loss-rep-orientation-two-frames`) behind ``(L+C).H.inverse()``
   with no new machinery.
 
 This is Cardinal Rule 2 (architecture) paying a physics dividend: the
@@ -413,18 +418,20 @@ measure (:eq:`g-adjoint-block-metric`):
 .. math::
 
    G \;=\; \operatorname{diag}\bigl(G_{\rm bulk},\,G_{\rm trace},\,
-   G_{\rm ray}\bigr),
+   G_{\rm sd}\bigr),
    \qquad
    G_{\rm bulk} = V_{\rm cell}\,w_n,
    \quad
    G_{\rm trace} = |\Omega\cdot\hat n_f|\,w_n,
    \quad
-   G_{\rm ray} = V_{\rm cell} ,
+   G_{\rm sd} = V_{\rm cell}
+   \qquad(\text{sd = the starting-direction ray — the spelling the}
+   \text{tests and the error catalog use}),
 
 the bulk volume·weight block :math:`V_{\rm cell}\,w_n`, the
 partial-current trace block :math:`|\Omega\cdot\hat n_f|\,w_n` (with a
 pseudo-inverse on the singular grazing-ordinate trace), and — on a
-carrying (sphere) mesh — the System-B ray block :math:`G_{\rm ray} =
+carrying (sphere) mesh — the System-B ray block :math:`G_{\rm sd} =
 V_{\rm cell}`.  The sweep itself carries **no metric code**: the metric
 enters only at the space boundary, so the same ``.H`` wrapper serves a
 flat spherical-harmonic metric and a composite ``FullField`` metric
@@ -444,9 +451,10 @@ precisely the statement that the walk transpose (category 1) must not
 be confused with category (3).
 
 The taxonomy reconciles the two framings a reader will meet elsewhere:
-the loss-representation carve warns against confusing the walk's
-Euclidean transpose with :math:`\mu`-reversal and the continuous
-adjoint (its "three transposes"), and the thin pre-A6 Key Facts named
+the loss-representation carve's "three transposes" are {the walk's
+Euclidean transpose, :math:`\mu`-reversal (which it identifies with
+the continuous adjoint — one object in its framing), and the Hilbert
+G-adjoint riding on top}, and the thin pre-A6 Key Facts named
 the trio *Euclidean / Hilbert / walk-orientation* — the walk-orientation
 transpose being simply the streaming realisation of category (1).  All
 three framings are the same taxonomy: **Euclidean** (bare
@@ -466,12 +474,12 @@ spectrum — and therefore :math:`k^{\dagger}` — is EXACTLY invariant
 even under a **wrong** metric.  A metric bug is **k-blind but
 vector-visible**.
 
-This is not a hypothetical.  The ghost :math:`G_{\rm ray} \equiv 0`
+This is not a hypothetical.  The ghost :math:`G_{\rm sd} \equiv 0`
 defect (ERR-067) put the System-B seed rows in :math:`\ker G` and made
 ``A.H`` a *wrong* adjoint for any non-zero seed, while every eigenvalue
 gate stayed green.  The sole catcher is the coupled-sphere
 defining-law residual row (:ref:`sn-adjoint-verification`): dropping
-:math:`G_{\rm ray} = V_{\rm cell} \to 1` leaves
+:math:`G_{\rm sd} = V_{\rm cell} \to 1` leaves
 :math:`|k^{\dagger}_{\rm mut} - k_{\rm fwd}| = 2.6\times10^{-11}`
 (EXACTLY k-blind) while the vector residual reds O(1) at
 :math:`2.35`.  **NEVER** certify a metric by an eigenvalue — pin the
@@ -824,6 +832,7 @@ adjoint enters as an **optional test weight**,
 
 .. code-block:: python
 
+   # forthcoming — lands WITH the P6 (#281) Petrov-Galerkin implementation
    Solution.homogenize(coarse, *, adjoint: AdjointSolution | None = None)
 
 — ``None`` keeps today's flux-weighted (Galerkin, :math:`\varphi^* =
@@ -915,8 +924,10 @@ gate code is
 The Mode-12 accounting — what :math:`k` can and cannot see
 ----------------------------------------------------------
 
-Because :math:`\operatorname{eig}(A^{\dagger}) =
-\operatorname{eig}(A)` by construction, a :math:`k^{\dagger}=k` gate is
+Because :math:`\operatorname{eig}(M^{\dagger}) =
+\operatorname{eig}(M)` by construction — the identity lives on the
+ITERATION operator :math:`M = A_{\rm loss}^{-1}F` (every factor
+daggered; the derivation above) — a :math:`k^{\dagger}=k` gate is
 **designed-green** (``vv-principles`` Mode 12) on entire classes of
 error.  Getting the boundary exactly right is load-bearing — this
 campaign twice caught a wrong "why" here:
@@ -936,7 +947,7 @@ campaign twice caught a wrong "why" here:
   :math:`L^{\dagger}\!\to\!L`): transposing *one* factor is **not** a
   similarity of the pencil, and :math:`k` measurably moves —
   :math:`F^{\dagger}=F` shifts :math:`k` from :math:`1.488` to
-  :math:`0.153` on the 4G ∞ fixture.  So the k-equality rows *are*
+  :math:`0.171` on the 4G ∞ fixture (the FULL SN-solve measurement; the angular-collapsed 0-D closed-form proxy of the same mutation gives 0.153 — cite the solve, not the proxy).  So the k-equality rows *are*
   legitimate teeth for drops (with the visibility preconditions:
   asymmetric SigS, :math:`\chi\not\parallel\nu\Sigma_f`, spatial
   structure), while the factor-order and metric classes stay the vector
@@ -954,7 +965,7 @@ The wrong reference was caught by the SN daggered solve on first contact
 (the corrected law is recorded in
 :func:`~orpheus.derivations.common.eigenvalue.kinf_and_adjoint_spectrum_homogeneous`).
 And **the metric is caught by nothing but the sphere vector row**: the
-:math:`G_{\rm ray} = V_{\rm cell} \to 1` drop leaves
+:math:`G_{\rm sd} = V_{\rm cell} \to 1` drop leaves
 :math:`|k^{\dagger}_{\rm mut}-k_{\rm fwd}| = 2.6\times10^{-11}`
 (EXACTLY k-blind) while the residual reds to :math:`2.35` (the ERR-067
 family — a metric bug in production that no eigenvalue gate could see).

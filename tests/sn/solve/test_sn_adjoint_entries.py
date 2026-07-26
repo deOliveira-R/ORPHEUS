@@ -90,7 +90,7 @@ class TestSolveSnAdjoint:
     def test_infinite_medium_k_and_spectrum(self):
         r"""k triple-equality + the adjoint spectrum + ∞-medium isotropy.
 
-        Mode-12 discipline: ``eig(A†) = eig(A)`` holds for the FULL
+        Mode-12 discipline: ``eig(M†) = eig(M)`` (M = A_loss⁻¹F) holds for the FULL
         dagger, so the k rows gate the posing identity but say nothing
         about the vector — and they are EXACTLY blind to the
         factor-ORDER/similarity family (the eig(Mᵀ) reference trap).
@@ -122,7 +122,7 @@ class TestSolveSnAdjoint:
         np.testing.assert_allclose(
             k_adj, k_fwd, rtol=0, atol=1e-8,
             err_msg="k_adjoint != k_forward — the exact algebraic identity "
-            "eig(A†)=eig(A) is violated by the entry's posing.",
+            "eig(M†)=eig(M) is violated by the entry's posing.",
         )
         np.testing.assert_allclose(
             k_adj, k_cf, rtol=0, atol=1e-8,

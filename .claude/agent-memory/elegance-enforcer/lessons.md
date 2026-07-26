@@ -752,6 +752,38 @@ One SHOULD-FIX citation-drift: the Protocol `sweep_transpose` stub still cites "
 reverse-scan deferral while the base impl + public operator now say "R7 / deferred-out" — a
 twin-spelling of one deferral, primary claim true (L-016 SHOULD-FIX class). (#310 C5 flip review.)
 
+**Sharpening (#276 A6 — the campaign-CLOSING docs phase is where the multi-home flip must COMPLETE,
+2026-07-25).** A6 authored the adjoint chapter + flipped the eigenvalue.py module-docstring's
+posing-table from "the adjoint row … documented future seam" → "the adjoint row is LIVE." But the
+SAME posing table has a DOCTRINE twin — `operator_algebra.rst`'s "**The adjoint row (future seam).**"
+(the foundations home of the eigenvalue-posing-row architecture) — which the diff did NOT touch. At
+fe3c6695 both homes said "future seam" (stale-but-CONSISTENT, since A4/A5 had already gone live);
+the A6 diff flipped the CODE home + wrote "all three are now landed" in the chapter, and thereby
+CREATED the divergence with the doc home it left stale. This is L-016's signature — patched the
+machine-facing docstring, missed the sibling doctrine page — but with a closing-phase twist: the
+verdict is MUST-FIX because A6's Development-history says "closing #276," and a campaign-completion
+state that still tags the now-live row a "future seam" is internally inconsistent with its own
+completion claim. Grep the deferred concept's PROSE forms tree-wide (`grep -rniE "adjoint
+row.*(future seam|deferred)"` + `"future seam.*adjoint"`) and discriminate the SET: the α-eigenvalue
+and transient rows are GENUINELY still future seams (keep), only the adjoint row flips — a surgical
+one-member set-edit. Two milder same-landing survivors: (a) `frame.rst` "P6 … **blocked** on a
+converged adjoint flux φ*" — the blocker CLEARED (φ* landed) so the REASON staled, but "P6 deferred"
+stays true ⟹ SHOULD-FIX (L-016 reason-staled class); (b) an IN-DIFF RST comment that DESCRIBES a
+deferred-wiring plan (`.. the … gate gets the @verifies marker in the same A6 wiring … (DEFERRED
+WIRING)`) goes stale the instant the SAME diff's later commit executes the plan — a45953ea wired it,
+so the note now describes completed work as pending (L-015 confidence-trap, in-diff, author-owned)
+⟹ SHOULD-FIX. And the in-chapter SPELLING straggler: the harmonization pass fixed the daggered
+triple `(A.H,…)`→`((L+C).H,…)` in eigenvalue.py + solver.py + the Key-Facts bullet + the
+daggered-posing display, but MISSED one code-literal constructor tuple in the route section
+(adjoint.rst:322) — the L-013-Sharpening-9 prose/formula-twin the formula-scan misses, here
+MUST-FIX because it is math-WRONG (feeding `A.H` = `(L+C−S−B).H` to the KEigenvalue resolvent slot
+double-counts `(S+B)`, the exact loss_representation "return (L+C)ψ not Lψ, else subtract C twice"
+Mode-3 failure at the POSING level) and it contradicts four consistent correct spellings incl. the
+code. Recipe for a deferral→live flip in a closing phase: enumerate EVERY home of the flipped status
+claim (code docstring, doctrine/foundations page, method chapter, in-diff plan-comments) + every
+spelling of the landed API (grep the code-literal across the chapter, not just the formulas), and
+verify the flip is complete across ALL of them, discriminating still-deferred siblings by arm/set.
+
 ## L-017 -- A "generic-TypeVar-rejects-ndarray" static-honesty hypothesis MUST be CLI-pyright-verified before flagging — a bounded-`V` class-generic can still admit ndarray because `V` infers PER-CALL at the consumer, not from the class
 
 On the #276 A4 daggered-adjoint review I built a near-certain SHOULD-FIX: `power_iteration`

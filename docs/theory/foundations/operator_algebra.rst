@@ -4265,10 +4265,14 @@ and algorithm layers are unchanged; this is the cleanest possible fit
 and is why the layering was designed this way. **Not built** (only K
 exists; *unify-after-two*).
 
-**The adjoint row (future seam).** The adjoint eigenproblem
+**The adjoint row (LIVE — #276 A4/A5).** The adjoint eigenproblem
 :math:`A_{\rm loss}^{\dagger}\,\psi^{\dagger} = \lambda\,M^{\dagger}\,
 \psi^{\dagger}` is **just another posing row** whose role-operators are
-the daggers of the forward leaves. The dagger is *free* from the
+the daggers of the forward leaves — and it now RUNS in production:
+``KEigenvalue((L+C).H, (S+B).H, F.H)`` through the unchanged
+:func:`~orpheus.numerics.eigenvalue.power_iteration`
+(:func:`~orpheus.sn.solver.solve_sn_adjoint`; the full chapter is
+:ref:`sn-adjoint`). The dagger is *free* from the
 dagger-biproduct category already documented on this page (the ``.H``
 adjoint propagates through ``+`` / ``&`` / ``@`` — see
 :eq:`tensor-product-adjoint-distributivity`) and, crucially, from the
