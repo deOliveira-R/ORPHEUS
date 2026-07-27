@@ -165,11 +165,14 @@ class TransportMethod(Protocol[OpT_co]):
     the current pyright does not accept against a Protocol property
     member (``cached_property[T]`` is compared as the descriptor, not
     its instance-access type) — and it has no method-generic consumer
-    yet (the shared resolve body never touches it). Declare it when
-    the first generic consumer arrives (the DSA driver, #2) — by
-    then either the checker accepts the descriptor or the member
-    justifies restructuring; do NOT convert the witnesses' caching to
-    appease the checker today.
+    yet (the shared resolve body never touches it). The anticipated
+    first consumer ("the DSA driver, #2") did NOT materialize: the R4
+    ruling (2026-07-26) wired consistent DSA through an SN-side
+    edge-centered low-order system consuming ``SNMesh`` directly —
+    no ``DiffusionMesh`` enters the accelerated loop, so no generic
+    ``full_field_space`` read exists. The trigger stands for the NEXT
+    genuinely method-generic consumer; do NOT convert the witnesses'
+    caching to appease the checker today.
     """
 
     #: Canonical spatial representation (the :class:`MaterialMesh`

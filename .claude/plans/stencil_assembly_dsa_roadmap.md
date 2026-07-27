@@ -1568,7 +1568,64 @@ FIX — the honest full-space inverse. Campaign extension accepted.**
 directed: update this plan, COMPACT, then execute. This block is the
 post-compaction execution spec.
 
-### R6 root-fix worklist (execute from HERE after compaction)
+### R6 root-fix worklist — ✅ DONE 2026-07-27 (all 5 items + 2 discoveries)
+
+**Executed as specified; measured outcomes:**
+
+1. ✅ `solve_transpose` symmetric completion (`E_out` diagonal ⟹
+   symmetric ⟹ `(Aᵀ)⁻¹ = S_oldᵀ − E_out`, the same one-site restore
+   on the reverse-scan's output boundary) — transpose file 18/18,
+   the 3 G3 reciprocity gates green.
+2. ✅ The component idiom + the 2-D production path shared ONE root:
+   the trace→source ROLE CONFLATION at
+   `AngularBoundarySourceSink.from_mesh(<flux trace>.values.copy())`.
+   The named projection ALREADY EXISTED —
+   `AngularBoundarySourceSink.prescribed_inflow` (inflow slots only;
+   outflow rows unrepresentable, Pattern 4) — the fix routes both
+   sites through it: the `solve_sn` eigenvalue-finalize
+   (solver.py:2174ff; the SOLE production conflation — audit: the
+   driver folds build `zeros_on` + inflow-only B gains, measured 0.0;
+   the :2747 composite arm is caller-owned source-typed data) and the
+   `sweep_once` test helper. Q/Σt + 2-D reflective balance green.
+3. ✅ Identity gate extended: parametrized {slab_vacuum,
+   slab_reflective, cyl_product} × {random-composite, pure-outflow}
+   + the sentinel tooth — 7/7.
+4. ✅ **Discovery (cylinder honest scope)**: on a product quadrature
+   the degenerate pure-azimuthal rows (μ_r = 0, excluded from BOTH
+   selectors) are FREE DOFs — forward = structural zero row, inverse
+   = identity passthrough (#284); the gate asserts both halves
+   explicitly. NOT a partial-inverse regression.
+5. ✅ **Discovery (the scheduled sibling)**: the full `tests/sn` net
+   caught `test_w2_round_trip_machine_precision` — the W2 fixture was
+   a hidden consumer of the old clobber (`LC.solve(random-full-trace)`
+   only "trace-consistent" because the drop erased outflow rows).
+   The SCHEDULED walk (G-S `M = (L+C)−B_lower`) is exact ONLY on the
+   source subspace {y_out = 0}: the mid-march reflect consumes
+   un-restored streamed values. Resolution: fixture fixed
+   (inflow-only rhs), honest domain documented in
+   `ScheduledInvertibleOperator._solve_timed_full_field`, and an
+   off-domain characterization PIN added (measures the B(y_out) gap;
+   REDS the day a per-group restore completion lands — the flip-me
+   tripwire). NO value-guard (exact-zero rejects FP-dust round-trips;
+   thresholds are arbitrary); the production catcher for a future
+   off-domain consumer is the end-of-solve certificate itself.
+   Catalog ERR-071 updated with parts (1)–(5).
+
+**Re-run evidence (2026-07-27)**: operators+derivations+acceleration
+fast 2461 passed/0 failed (66 min); tests/sn `-m "not slow"` 2318+1
+(the +1 = W2, fixed after, its file now 8/8; production delta since
+that run is docstring-only); slow acceleration 33/33; identity 7/7;
+transpose 18/18; CLI pyright 0 errors on all touched files
+(streaming.py, solver.py, scheduled_invertible.py, _test_helpers.py,
+both gate files; `_test_helpers.py`'s 10 CLI errors pre-date the edit
+— stash-verified identical count).
+
+**NEW close-out addendum**: the issues step gains one more filing —
+the scheduled-walk full-space completion (per-group restore ordering;
+unblocks a future G-S-preconditioned Krylov posture; the W2 pin is
+the tripwire) — module:sn, type:improvement.
+
+#### The original worklist spec (as executed)
 
 **The contract being completed**: `InvertibleOperator.solve` /
 `SweepOperator.apply` treat `rhs.boundary` as the ALGEBRAIC trace rhs
