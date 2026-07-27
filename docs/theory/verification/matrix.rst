@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6809**
+Total tests collected: **6843**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1203, 17.7%
-   L1, 1130, 16.6%
-   L2, 55, 0.8%
+   L0, 1203, 17.6%
+   L1, 1130, 16.5%
+   L2, 62, 0.9%
    L3, 0, 0.0%
-   foundation, 4421, 64.9%
+   foundation, 4448, 65.0%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6730
+   explicit, 6764
    class-name, 46
    func-name, 0
    case, 33
@@ -47,6 +47,8 @@ Module × level grid
    :header: Module, L0, L1, L2, L3, FD, ??
    :widths: 40, 6, 6, 6, 6, 6, 6
 
+   acceleration/test_dsa_acceleration, 0, 0, 7, 0, 0, 0
+   acceleration/test_dsa_low_order, 0, 0, 0, 0, 11, 0
    analytical/test_cp_standoff_curvilinear, 0, 2, 1, 0, 0, 0
    analytical/test_kinf_homogeneous, 0, 31, 0, 0, 0, 0
    analytical/test_kinf_homogeneous_tolerance, 0, 8, 0, 0, 0, 0
@@ -143,6 +145,8 @@ Module × level grid
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 5, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
+   derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
+   derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
    derivations/test_fn_la13511_slab, 0, 0, 0, 0, 21, 0
    derivations/test_fn_la13511_slab_flux, 0, 10, 0, 0, 0, 0
@@ -425,7 +429,7 @@ Module × level grid
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 327, 0
+   test_layer_imports, 0, 0, 0, 0, 330, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
