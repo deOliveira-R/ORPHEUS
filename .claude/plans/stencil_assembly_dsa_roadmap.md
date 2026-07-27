@@ -1414,12 +1414,61 @@ transcribed constant.
   untouched. 3b wiring notes: for DD, ρ=0 ⟹ (28a) update = ½(f₀L+f₀R); d₀ =
   raw moment displacement (G carries σ̂_S·h internally); d₁ sources = 0 for
   the P0 arm; the low-order D at (23c)'s own σ_s1 = within-group self-scatter.
-- **3a COMPLETE.** NEXT = **3b** (task #27): R/P off `angular_frame(0)` +
-  0-ULP pins; `as_dsa_source` on the typed residual; the SN-side low-order
-  build (R4b home) + correction solve; SI+DSA driver construct (injection
-  after `iteration.py:682`); Krylov posture (replace the identity at
-  `sn/solver.py:487`); `full_field_space` → `TransportMethod` (P7b trigger);
-  elegance-enforcer review. ⏸ COMPACTION at the 3a→3b boundary = HERE.
+- **3a COMPLETE.** ⏸ COMPACTION at the 3a→3b boundary — taken.
+
+**3b PROGRESS (2026-07-26, branch `feature/sn-dsa`):**
+- ✅ **The accelerator core built + both postures verified end-to-end**:
+  - `orpheus/sn/acceleration/dsa.py` — `DSALowOrderSystem` (the SN-side
+    production build, R4b home: per-group (23a–f)/(27)/boundary rows
+    vectorized off SNMesh + the foldable accessors' FIRST production
+    consumer, admission guards for geometry/scheme/walls/Σw/D-positivity)
+    + `DSACorrection` (ONE operator both postures consume; R =
+    `integrate_angular`, P = normalized iso injection — NOTHING minted,
+    per the anti-mint verdict).
+  - `SourceIteration(corrector=…)` — the no-op extension through the
+    single generic body (`iteration.py`; the stop-identity corrected-arm
+    exemption documented; byte-inert when None).
+  - Krylov posture: `_within_group_krylov(corrector=…)` — the #200
+    identity replaced by the A&L transport-corrected M = sweep +
+    correction-of-sweep (first re-enabled preconditioner).
+  - Facade: `solve_sn_fixed_source(acceleration="dsa")` (additive
+    opt-in; both inner solvers).
+  - **Measured**: SI 204→12 (1g vac), 221→16 (1g refl), 599→33 (2g het
+    aniso, both walls); Krylov 119→10 / 158→11 / 285→17 / 300→19; FP
+    identity ≤ 1e-9 everywhere.
+- **TWO consistency discoveries (the derivation caught real physics):**
+  1. **The trace arm is load-bearing under lagged reflection** — bulk-only
+     correction DIVERGES on every reflective regime (measured res ~1e+35;
+     the production splitting lags B_a reading the iterate's outflow,
+     while Larsen's reflecting row models a current-inflow error
+     equation). Fix: the wall-EDGE solutions f0[0]/f0[K] inject
+     isotropically into the boundary-trace displacement — the low-order's
+     own edge unknowns ARE the trace correction. Regression-pinned
+     (mutation teeth: bulk-only must diverge).
+  2. **σ_s1 enters the low-order ONLY when the sweep retains ℓ≥1**
+     (`scattering_order` threads into the build) — consistency is with
+     the ITERATED (truncated) operator, not the mixture data.
+- ✅ The typed algebra extended minimally: the correction IS a
+  displacement (torsor `ψ ⊕ Δψ`); `AngularDisplacement.integrate_angular
+  → ScalarDisplacement` as the tangent map over the ONE hoisted
+  reduction body (`AngularField._integrate_angular_values`) — no twin.
+- ✅ Gates: `tests/sn/acceleration/` 18/18 green under `-O` — the
+  production tie (≡ the derivation reference builder, atol 1e-15, both
+  BC variants + the solve), admission teeth, D7 (hand-posed R
+  conservation), D8 (frame-row/tangent-map/round-trip pins), D3/D4
+  (FP-invariance, aniso ℓ≥1 het 2G, vacuum AND reflective, both
+  postures), D6 (correction→0 exact), sign-flip + trace-zero mutation
+  teeth (residual-VALUE witnesses — an iteration-count bar is
+  off-by-one-prone: diverging runs report max_inner−1). CLI pyright 0.
+- **Plan deviations (R4-driven, for the enforcer + 3c docs):**
+  `as_dsa_source` NOT minted (a third moment-0 spelling — Smell 16; the
+  correction consumes displacements; `field_algebra.rst:528` rewrites to
+  the landed truth in 3c). The P7b `full_field_space` trigger does NOT
+  fire (no DiffusionMesh in the loop after R4a; the deferral note's
+  "#2" expectation goes stale — 3c documents).
+- **NEXT**: elegance-enforcer review of the 3b surface → fixes → commit
+  → 3c (task #28: rate tier D11–D13 + S2/ρ/thickness/c→1/negative
+  control + docs + close-out).
 
 ### 3-P0 — dispatches (MUST, before the plan-of-record for this phase) — ✅ DONE 2026-07-26
 - **literature-researcher** — check `/Users/rodrigo/git/nuclear/ORPHEUS/scratch/
