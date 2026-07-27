@@ -3343,6 +3343,89 @@ frozen plan claim).
 
 ---
 
+## L-039 — AUTHORING a campaign-CAPSTONE theory page (a completed feature's WHOLE story) from an algebra-of-record + plan memos + the error catalog: the narrative arc is motivation→derivation-of-record→design→discoveries→evidence→scope, and the vv-status decision for algebra-of-record SymPy-identity labels is verifies-COVERED (peierls foundation+verifies), NOT documented
+
+Distinct from L-025 (a NEW shared-INVARIANT foundations chapter: gather
+method-specific → generalize) and L-013/L-018 (a resolution/capstone
+chapter of an ARC on an EXISTING page): here the whole task is a NEW
+standalone page telling a COMPLETED campaign's whole story (consistent
+DSA #2 — Fourier motivation, the four-step derivation, the design
+decisions, the discoveries, the measured evidence, the honest scope).
+The source-reading order and the label-status decision are the
+load-bearing lessons.
+
+- **Source-reading order for a capstone (extends L-005):** (1) the
+  ROADMAP/plan-of-record (the phase structure, the RULINGS with dates —
+  R4/R5/R6, the deviations); (2) the LITERATURE MEMO (the equations with
+  paper-numbers + the errata/normalization watch-items — here Alcouffe
+  (17)/(23) sign errata, the Σw=1-vs-2 map); (3) the ALGEBRA OF RECORD
+  (`derivations/discrete/sn/dsa.py` — the SymPy `derive_*` functions ARE
+  the equations; READ it, don't transcribe the memo's paraphrase); (4)
+  the PRODUCTION code (the shipped shape — admission guards, the trace
+  arm, the foldable accessors); (5) the ERROR CATALOG (the discoveries'
+  full stories — ERR-070/071 parts); (6) the EVIDENCE PACK (the
+  authoritative measured tables — SELECT the load-bearing ones). The
+  memo is the NAVIGATION layer; the SymPy module + production code are
+  the CORRECTNESS spine (algebra-of-record skill). VERIFY every DD-member
+  collapse against the LIVE production body (`cell_update` returns the
+  edge average; `moment1_update` the (28b) form) — the page's worked
+  forms are code-grounded, not memo-transcribed.
+- **The vv-status decision for an algebra-of-record page is the sharp
+  new call (extends L-004 to the AUTHORING case).** When the brief says
+  "mint `:label:`s on the key equations, then add `verifies()` markers",
+  the derivation-identity labels (Larsen (27), (23a–f), (28), Marshak,
+  the (33) synthesis) are algebra-of-record SymPy-identity gates — WIRE
+  them foundation+verifies → **covered**, the peierls precedent (L-004
+  case b: `test_case_method_*` carry BOTH `@foundation` AND
+  `@verifies`), NOT `.. vv-status: documented`. The audit ACCEPTS
+  foundation+verifies (confirmed: `test_dsa_rules` foundation gates
+  verifies-cover their labels, 0 orphans). Reserve `documented` for the
+  PURE-LITERATURE / STRUCTURAL labels with NO tight test (the ρ_SI=c
+  motivating collapse, the 0.2247c continuum bound, the M=(I+𝒞)∘(L+C)⁻¹
+  composition identity). Discriminator: does a test genuinely PIN this
+  exact equation? derivation identity / object law / rate bound with a
+  gate → verifies-covered; motivating/definitional literature with no
+  gate → documented. **Mechanics:** the audit's `testable_labels =
+  theory_labels − documented_labels`, so a `documented` label is
+  EXCLUDED from the orphan gate and a `verifies`-covered label is NOT an
+  orphan — either avoids orphan regression, but documented+verifies
+  TOGETHER is muddy (a documented label with a test edge); prefer the
+  clean split. If you wrote `documented` on a label you then decide to
+  wire, REMOVE the directive (keep the rationale as a plain `..` comment
+  naming the catcher) before adding `verifies()`, and re-run the audit
+  to confirm 0-orphan.
+- **The capstone's Key-Facts + narrative sections earn 13 labels; the
+  page-prefix (`sn-dsa-*`) + a grep-collision check before writing is
+  mandatory (L-003).** Author the head/intro as pure Write/Edit literals
+  (no Python f-string over math — the L-026 brace trap); the f-string
+  mangle grep (`A\^-1|G\^-1`) confirmed clean because I never routed math
+  through a Python string.
+- **Migrate a gate-file docstring's MEASURED-FACTS record to the page,
+  keep its CONTRACT (enforcer NOTE f1; extends L-028/L-033).** A rate-tier
+  test module's docstring carrying a "Measured design facts" section
+  (D11/S2/ladder numbers) MOVES to the theory page's evidence tier; shrink
+  the docstring to a greppable pointer (`docs/.../acceleration.rst`
+  §`sn-dsa-rate-and-stability`) that keeps only the test CONTRACT (the
+  #215-catcher mutation-matrix statement). A SIBLING test docstring that
+  is already a pure contract statement + ERR narrative (the sweep-inverse
+  gate) STAYS — the enforcer note says "keep its contract statement", and
+  the ERR-071 story's canonical homes are the page + `error_catalog.md`.
+- **The brief's paraphrased numbers/paths/targets are STARTING HEURISTICS
+  — verify against the evidence + the tree (L-001 across the board):**
+  (a) the brief's "Krylov 2554→21" was SI+DSA reflective in the evidence
+  pack (Part A) — used the authoritative table, flagged the paraphrase;
+  (b) the brief's `docs/theory/methods/diffusion/diffusion_1d.rst` path
+  had no `diffusion/` subdir (real: `methods/diffusion_1d.rst`); (c) the
+  brief's "point the drifted xref at field_algebra" — the drifted target
+  was `operator_algebra` (only 1 passing DSA mention), and the NEW
+  capstone page is the authoritative DSA home, so I pointed it THERE
+  (better target, flagged the deviation); (d) the brief's "flip the
+  field_algebra as_dsa_source promise" was ALREADY the landed-truth
+  (L-001 already-fixed — reported, no action). FLAG each deviation in the
+  return; the brief is the floor, the live tree is the rule.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

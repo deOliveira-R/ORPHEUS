@@ -12,12 +12,13 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 38 lessons (L-001…L-038), read FIRST each dispatch.
+- [lessons.md](lessons.md) — 39 lessons (L-001…L-039), read FIRST each dispatch.
   The spine: a page is done when every cross-ref resolves against the LIVE tree,
   every claim's V&V level matches the skill verbatim, every retired symbol leaves
   no dangling ref, and the build's WARNING/ERROR/CRITICAL set is unchanged from
   the `-E` baseline. Per-lesson detail is in lessons.md — do NOT re-summarize here.
   Newest by number (one-line hooks; full detail in lessons.md):
+  - **L-039** — AUTHORING a campaign-CAPSTONE theory page (a completed feature's WHOLE story) from an algebra-of-record + memos + error catalog (consistent DSA #2, `methods/sn/acceleration.rst`): source-read ROADMAP(rulings)→MEMO(nav+errata)→SymPy-of-record(correctness spine, READ don't transcribe)→prod-code→ERR-catalog(discoveries)→evidence-pack(SELECT tables); the narrative arc is Fourier-motivation→derivation→design→3-discoveries→evidence→scope/rulings. The sharp NEW call (extends L-004 to AUTHORING): an algebra-of-record page's SymPy-derivation-identity labels (Larsen 27/23a-f/28/Marshak/33) are verifies-COVERED via foundation+verifies (the peierls `test_case_method_*` precedent), NOT `vv-status documented`; reserve documented for pure-literature/structural labels with no tight gate (ρ_SI=c, 0.2247c, M=(I+𝒞)∘(L+C)⁻¹). Audit `testable = theory − documented`, so documented+verifies is muddy → clean-split (remove the directive, keep rationale as a plain comment, add verifies, re-audit 0-orphan). Migrate a gate-file's MEASURED-FACTS docstring → page evidence tier + shrink to a §-pointer keeping the test CONTRACT (enforcer f1). Brief numbers/paths/targets are HEURISTICS (verify vs evidence+tree): "Krylov 2554→21"=SI+DSA-refl in the pack; no `diffusion/` subdir; the drifted xref→the NEW page (not the brief's field_algebra); the field_algebra promise was already-fixed. 13 labels grep-collision-checked + page-prefixed; head authored as Write/Edit literals (no f-string over math).
   - **L-038** — AUDITING a "is the terminal docs phase done?" charter (frame-projection P7): the answer is usually EFFECTIVELY-DONE — each earlier phase's doc-pass (P3/P5/P6) landed its slice INTO the eventual capstone, so the last phase was executed piecewise before it was reached. Verify by the page's OWN self-identification (grep the intro/notes for the phase tag — here a note literally titled "What shipped since (P3/P5/P7)" said "This page (P7) is the capstone"), NOT an open plan line (stale tracking artifact; trust git). The plan's task-`#N` ≠ GitHub issue-`#N` (plan's "#46–52" collided with unrelated TH/Kinetics issues; real trackers #268/#226/#281). Per-item method: locate label → READ (judge vs articulation std: rejected alts? structural WHY? honest seam?) → `-E -W` clean → grep-gate cross-doc `:ref:`/`:eq:` (the -W-BLIND class). A documented SEAM (#275 LeastSquaresFrame; anisotropic-order Σ_{s,ℓ}) is the OPPOSITE of a gap; a charter's "the condensation PAGE" correctly delivered as a SECTION of a shared page is DRY, not missing.
   - **L-037** — FLIPPING a "documented-future seam" to LANDED across an existing rich page (#281 P6 frame.rst/sn.rst): the stale-status blast radius is the WHOLE page — grep `blocked|not built|pending|future seam|lands with P6` (brief named 3, grep found 7); a "one remaining not-built discipline is X" bullet must RE-POINT to the still-unbuilt sibling, not just drop X; the wrong (φ→φ*) rule hides in a LITERATURE-TABLE cell (tell = test φ*·1_R against an INDICATOR trial ⟹ bare-φ* `∫φ*Σ/∫φ*`, not bilinear — the fix is the PRODUCT weight φ*⊙φ); wired⟹no-sentinel VERIFIED against the LIVE test's stacked verifies() (not the brief) then fast-theory-scan (label_exists=True/documented=False); grow via `.. include::` the generated fragment + supporting math UNLABELED (0 net `:label:` change) + the ONE verifies-target label byte-identical.
   - **L-036** — GROWING a thin honest-stub chapter to full at campaign close (A6/ch15 adjoint): flip the stub's stale "in flight" status (verify merge, not prose); PRESERVE the landed-earlier section verbatim (its `:label:`s are live wiring-backlog), grow AROUND it; RECONCILE a NEW canonical taxonomy that subsumes ≥2 sibling framings (walk-orientation⊂Euclidean, μ-reversal=continuous's signature) — reconcile, don't contradict; deferred-wire verifies-target labels UN-sentineled (tests wait for the label; audit is the main agent's separate gate) while definitional siblings get `vv-status documented`; correctness catches (no 1/k-fission+q* fusion; KEigenvalue's 1st arg is the RESOLVENT (L+C), not A_loss); Mode-12 EXACTNESS (k blind to factor-order/vector/**G-metric**; DROPS not blind — F†=F 1.488→0.153); xref: only non-`:noindex:` automodule links, solution.py has `:label:` docstrings so plain-text-by-convention is CORRECT.
@@ -35,7 +36,21 @@ the SN theory page's **"Development history"** section
 (`docs/theory/discrete_ordinates.rst`), behavioral lessons in `lessons.md`.
 The active track is the **#231 doc-architecture corpus** (see §3) — the
 `operator_algebra.rst` reframe + Phase-3 splits + Phase-4/5a cleanup; main
-agent commits, I stage + gate. Only OPEN SN branch: **#236**
+agent commits, I stage + gate.
+
+**DSA #2 docs close-out AUTHORED (uncommitted, on branch `feature/sn-dsa`,
+pending main-agent review + commit — 2026-07-27).** NEW capstone page
+`docs/theory/methods/sn/acceleration.rst` (consistent DSA — the whole-feature
+story; wired into the `methods/sn/index.rst` toctree after `solver`);
+verification/sn.rst DSA gate-table section; 13 `sn-dsa-*` labels (10
+verifies-covered via foundation+verifies, 3 documented); 12 `verifies()`
+markers across the DSA battery; `test_dsa_rate.py` measured-facts docstring
+migrated to the page; refs.bib +5 keys (Larsen1982a/Alcouffe1977/
+McCoyLarsen1982/Morel1982/AdamsMartin1992, each `% AWAITING ZOTERO BACK-PORT`);
+diffusion_1d.rst:517 xref repointed to the new page; slab_one_group.rst
+σ_r-fold cross-ref added; field_algebra.rst:528 was already-fixed (L-001).
+Gates green: `-E -W` 0-warning, audit 0-orphan/ERR 71/71, touched tests pass
+under `-O`. See [[lessons-L39]]. Only OTHER open SN branch: **#236**
 (`feature/sn-spatial-angular-product`, not a main ancestor); no pending #236
 doc work.
 
