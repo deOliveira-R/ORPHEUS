@@ -532,12 +532,43 @@ class SourceIteration(Generic[V]):
     tol : float, optional
         Convergence tolerance on the relative residual norm.  Default
         ``1e-8``.
+    corrector : LinearOperator or None, optional
+        A synthetic-acceleration correction operator (consistent DSA,
+        issue #2 — e.g.
+        :class:`~orpheus.sn.acceleration.dsa.DSACorrection`). When
+        present, each iteration becomes the accelerated two-step
+
+        .. math::
+
+            \psi_{n+1/2} = A^{-1}\Bigl(\sum_i g_i\,\psi_n + q\Bigr),
+            \qquad
+            \psi_{n+1} = \psi_{n+1/2}
+                + \mathcal{C}\,(\psi_{n+1/2} - \psi_n),
+
+        the correction consuming the sweep DISPLACEMENT.  ``None``
+        (default) is byte-identical to the un-accelerated loop.
+
+        The corrector is **correctness-safe by construction** only when
+        its correction vanishes with the displacement (a synthetic
+        accelerator's defining property — at the fixed point
+        :math:`\psi_{n+1/2} = \psi_n` so :math:`\mathcal{C}` receives
+        zero): then the corrected iteration shares the un-accelerated
+        fixed point exactly (vv-principles Mode 9; gated for DSA by the
+        FP-invariance battery D3).  Stop-identity note: with a corrector
+        the free identity ``rhs_{n−1} − rhs_n = Σ g_i(ψ_{n−1} − ψ_n)``
+        still holds verbatim, but it equals the EQUATION residual of
+        ``ψ_n`` only up to :math:`A\,c_n` (the correction's image under
+        the loss) — near convergence the correction itself → 0, so the
+        stop remains ρ-honest in the accelerated metric, and the
+        end-of-solve CERTIFICATE (one honest ``evaluate_residual``)
+        closes the gap exactly as it does for the exact-``M`` arm.
 
     Raises
     ------
     TypeError
-        At construction time if ``A_inv`` or any gain has no callable
-        ``apply`` (the eager composition-time guard, carve P4).
+        At construction time if ``A_inv``, any gain, or the corrector
+        has no callable ``apply`` (the eager composition-time guard,
+        carve P4).
 
     Notes
     -----
@@ -561,6 +592,7 @@ class SourceIteration(Generic[V]):
         *gains: LinearOperator[V],
         max_iter: int = 1000,
         tol: float = 1e-8,
+        corrector: "LinearOperator | None" = None,
     ) -> None:
         # Apply-guards at construction so a downstream caller never sees
         # a stub failure mid-iteration (Wave A philosophy, kept through
@@ -579,9 +611,17 @@ class SourceIteration(Generic[V]):
                     f"SourceIteration requires 'apply' on every coupling "
                     f"operator; gain {i} ({type(g).__name__}) has none."
                 )
+        if corrector is not None and not callable(
+            getattr(corrector, "apply", None)
+        ):
+            raise TypeError(
+                f"SourceIteration requires 'apply' on the corrector; "
+                f"{type(corrector).__name__} has none."
+            )
 
         self.A_inv = A_inv
         self.gains = gains
+        self.corrector = corrector
         self.max_iter = int(max_iter)
         self.tol = float(tol)
         # Convergence diagnostics — populated by :meth:`solve` (#208). Declared
@@ -680,6 +720,15 @@ class SourceIteration(Generic[V]):
             # (pinned by the seed-threading spy).  Members with no seed
             # consumer ignore the kwarg downstream.
             psi = self.A_inv.apply(rhs, initial_guess=psi_prev)
+
+            # The synthetic-acceleration correction (issue #2): the
+            # corrector consumes the SWEEP displacement ψ_{n+1/2} − ψ_n
+            # and returns the additive correction (→ 0 at the fixed
+            # point, so the un-accelerated FP is preserved — see the
+            # class docstring's corrector entry). Absent corrector ⇒
+            # this block is byte-inert.
+            if self.corrector is not None:
+                psi = psi + self.corrector.apply(psi - psi_prev)
 
             # The iterate increment Δψ — a typed FluxDisplacement (ψ ⊖ ψ_prev)
             # for SN, a bare ndarray for the synthetic case. DIAGNOSTICS

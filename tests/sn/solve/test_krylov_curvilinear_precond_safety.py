@@ -484,9 +484,9 @@ def test_g_d3_3_site_gate_has_teeth(monkeypatch) -> None:
 
     orig_wgk = solver_mod._within_group_krylov
 
-    def _bulk_only_wgk(LC, *gains, n_dof, max_iter, tol):
+    def _bulk_only_wgk(LC, *gains, n_dof, max_iter, tol, corrector=None):
         return orig_wgk(LC, *gains, n_dof=bulk_only, max_iter=max_iter,
-                        tol=tol)
+                        tol=tol, corrector=corrector)
 
     monkeypatch.setattr(solver_mod, "_within_group_krylov", _bulk_only_wgk)
     captured = _install_restart_spy(monkeypatch)

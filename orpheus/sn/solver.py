@@ -458,6 +458,7 @@ def _bare_loss_arm(system: "WithinGroupSystem") -> "LinearOperator":
 def _within_group_krylov(
     LC: "LinearOperator", *gains: "LinearOperator",
     n_dof: int, max_iter: int, tol: float,
+    corrector: "LinearOperator | None" = None,
 ) -> "KrylovAcceleration[Any]":
     r"""GMRES driver on the within-group system ``(M − N)·ψ = q``.
 
@@ -474,17 +475,44 @@ def _within_group_krylov(
     the ONE coupled gain grid carrying); the matvec is
     ``M.apply − Σ Nᵢ.apply``.
 
-    GMRES is UNPRECONDITIONED (explicit identity) per `issue #200
-    <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_ (the block-inverse
-    face preconditioner re-enablement).  ``restart`` is sized to the FULL
-    problem ``n_dof = N·ng·nx·ny`` — the legacy ``min(50, …)`` clamp left GMRES
-    structurally truncated on any mesh with ``n_dof > 50`` (ERR-053).
+    Without a ``corrector``, GMRES is UNPRECONDITIONED (explicit identity)
+    per `issue #200 <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_
+    (the block-inverse face preconditioner re-enablement).  With one (the
+    consistent-DSA posture, issue #2), the left preconditioner is the
+    **transport-corrected** :math:`M^{-1} \approx (A - \Sigma g)^{-1}` of
+    Adams & Larsen §VI:
+
+    .. math::
+
+        M^{-1} v \;=\; t + \mathcal{C}\,t, \qquad t = (L+C)^{-1} v,
+
+    one sweep followed by the DSA correction of the swept vector — the
+    swept vector IS the displacement from zero, so the SAME correction
+    operator serves both the SI and Krylov postures (single source of
+    truth on :math:`R, A_{\rm low}^{-1} G, P`).  The preconditioner
+    changes the Krylov TRAJECTORY only, never the converged fixed point
+    (gated by D4; its effectiveness is the paired rate gate D13).
+
+    ``restart`` is sized to the FULL problem ``n_dof = N·ng·nx·ny`` — the
+    legacy ``min(50, …)`` clamp left GMRES structurally truncated on any
+    mesh with ``n_dof > 50`` (ERR-053).
     """
-    from orpheus.numerics.iteration import KrylovAcceleration
+    from orpheus.numerics.iteration import KrylovAcceleration, seeded_inverse
+
+    if corrector is None:
+        # explicit identity — issue #200 tracks the face-preconditioner
+        # re-enablement; the DSA posture below is the first re-enabled M.
+        preconditioner = lambda q: q  # noqa: E731
+    else:
+        sweep = seeded_inverse(LC)
+
+        def preconditioner(q):
+            swept = sweep.apply(q)
+            return swept + corrector.apply(swept)
 
     return KrylovAcceleration(
         LC, *gains,
-        preconditioner=lambda q: q,  # explicit identity — issue #200 tracks re-enable
+        preconditioner=preconditioner,
         tol=tol, max_iter=max_iter,
         restart=n_dof,
     )
@@ -750,6 +778,7 @@ def _select_si_resolvent(
 def _within_group_si(
     system: "WithinGroupSystem",
     sn_mesh: "SNMesh", *, inner_schedule: str, max_iter: int, tol: float,
+    corrector: "LinearOperator | None" = None,
 ) -> "tuple[SourceIteration[Any], CoupledOperator | InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator, ...], bool]":
     r"""SourceIteration driver on the within-group system ``A = M − N``.
 
@@ -809,6 +838,15 @@ def _within_group_si(
     if isinstance(system.resolvent, CoupledOperator):
         # The ψ½ coupled block-native arm (B.2d): the record's splitting IS
         # the driver's — M⁻¹ = the joint sweep, N = the coupled gain grid.
+        # A corrector never reaches here: consistent DSA's admission is
+        # 1-D CARTESIAN (curvilinear = carrying is #282-blocked), enforced
+        # at DSALowOrderSystem.from_sn_mesh before this builder runs.
+        if corrector is not None:
+            raise NotImplementedError(
+                "_within_group_si: a synthetic-acceleration corrector on "
+                "the coupled (curvilinear) arm has no stability theory "
+                "(#282); the DSA admission should have refused upstream."
+            )
         si = SourceIteration(
             system.resolvent.inverse(), *system.gains,
             max_iter=max_iter, tol=tol,
@@ -826,7 +864,15 @@ def _within_group_si(
         system.resolvent, S, B, sn_mesh, inner_schedule,
     )
     step, windowed = _maybe_window(base_resolvent.inverse(), S, sn_mesh)
-    si = SourceIteration(step, *gains, max_iter=max_iter, tol=tol)
+    if corrector is not None and windowed:
+        raise NotImplementedError(
+            "_within_group_si: the DSA corrector consumes the full-"
+            "angular displacement; the 2-D moment-windowed iterate is "
+            "outside the arm-1 admission (the corner-moment follow-up)."
+        )
+    si = SourceIteration(
+        step, *gains, max_iter=max_iter, tol=tol, corrector=corrector,
+    )
     return si, base_resolvent, gains, windowed
 
 
@@ -2867,6 +2913,7 @@ def solve_sn_fixed_source(
     inner_schedule: str = "gauss_seidel",
     mat_map: "np.ndarray | None" = None,
     scheme: "DiscretizationSchemeBase | None" = None,
+    acceleration: str | None = None,
 ) -> Solution:
     r"""Solve the multi-group SN fixed-source transport problem.
 
@@ -2941,8 +2988,24 @@ def solve_sn_fixed_source(
         for both — this selects only the SI spectral rate.  1-D meshes always
         fall back to Jacobi (boundary G-S is a no-op on the scattering-
         dominated 1-D regime, and the scan is not a wavefront).  The dominant
-        within-group SCATTERING rate is unchanged either way — that is Krylov /
-        consistent-DSA territory (issue #2).
+        within-group SCATTERING rate is unchanged either way — that is what
+        ``acceleration="dsa"`` deflates (issue #2).
+    acceleration : {"dsa", None}
+        Within-group synthetic acceleration (issue #2).  ``"dsa"`` wires
+        the consistent-DSA correction operator
+        (:class:`~orpheus.sn.acceleration.dsa.DSACorrection` — the
+        derived edge-centered low-order system, R4 ruling) into whichever
+        inner posture runs: the ``SourceIteration`` corrector step under
+        ``"source_iteration"``, the transport-corrected GMRES left
+        preconditioner under ``"krylov"``.  Admission (1-D Cartesian DD
+        slab, vacuum/reflective walls) is enforced at the operator build
+        with loud seams for everything else.  ``None`` (default) leaves
+        both paths byte-untouched — the accelerator is additive, never a
+        default change.  The converged fixed point is IDENTICAL with and
+        without (correction→0 at convergence; the D3/D4 FP-invariance
+        battery) — DSA buys the RATE: :math:`\rho \le 0.2247c` in place
+        of SI's :math:`\rho \approx c` (Adams & Larsen (3.65); the
+        measured scan in ``.claude/plans/dsa_d2_characterization.md``).
 
     Notes
     -----
@@ -2969,6 +3032,22 @@ def solve_sn_fixed_source(
     if inner_solver is None:
         inner_solver = "source_iteration"
 
+    # Synthetic acceleration (issue #2) — additive opt-in: ``None`` leaves
+    # both inner paths byte-untouched; ``"dsa"`` builds the ONE correction
+    # operator both postures consume (admission enforced at the build).
+    if acceleration not in (None, "dsa"):
+        raise ValueError(
+            f"solve_sn_fixed_source: unknown acceleration "
+            f"{acceleration!r}; supported: None, 'dsa'."
+        )
+    corrector = None
+    if acceleration == "dsa":
+        from orpheus.sn.acceleration import DSACorrection
+
+        corrector = DSACorrection.from_sn_mesh(
+            sn_mesh, scattering_order=scattering_order,
+        )
+
     solver = SNSolver(
         sn_mesh,
         inner_solver=inner_solver,
@@ -2986,6 +3065,7 @@ def solve_sn_fixed_source(
         return _solve_fixed_source_si(
             solver, sn_mesh, q_ext_composite,
             t_start, max_inner, inner_tol, inner_schedule=inner_schedule,
+            corrector=corrector,
         )
 
     # Krylov path.  We solve T·ψ = b directly via GMRES, where b carries
@@ -2995,6 +3075,7 @@ def solve_sn_fixed_source(
     return _solve_fixed_source_krylov(
         solver, sn_mesh, q_ext_composite,
         t_start, max_inner, inner_tol,
+        corrector=corrector,
     )
 
 
@@ -3006,6 +3087,7 @@ def _solve_fixed_source_si(
     max_inner: int,
     inner_tol: float,
     inner_schedule: str = "gauss_seidel",
+    corrector: "LinearOperator | None" = None,
 ) -> Solution:
     r"""Fixed-source path via the :class:`SourceIteration` primitive.
 
@@ -3080,6 +3162,7 @@ def _solve_fixed_source_si(
     si, base_resolvent, gains, windowed = _within_group_si(
         system, sn_mesh,
         inner_schedule=inner_schedule, max_iter=max_inner, tol=inner_tol,
+        corrector=corrector,
     )
     coupled = isinstance(system.resolvent, CoupledOperator)
 
@@ -3214,6 +3297,7 @@ def _solve_fixed_source_krylov(
     t_start: float,
     max_inner: int,
     inner_tol: float,
+    corrector: "LinearOperator | None" = None,
 ) -> Solution:
     r"""Curvilinear-default fixed-source path: typed :class:`KrylovAcceleration`.
 
@@ -3315,6 +3399,7 @@ def _solve_fixed_source_krylov(
         system.resolvent, *system.gains,
         n_dof=int(krylov_cold_start.to_flat().size),
         max_iter=max_inner, tol=inner_tol,
+        corrector=corrector,
     )
 
     psi_typed, residuals = krylov.solve(
