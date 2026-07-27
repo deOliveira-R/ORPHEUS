@@ -1,154 +1,86 @@
 # Elegance Enforcer — Memory Index
 
-Slim index. The pattern/anti-pattern CATALOG is the preloaded `coding-elegance`
-skill; the cross-cutting institutional SMELLS (twin-delivery plumbing, role-grid,
-fuller-view-oracle exception, tells-to-grep) are in AGENT.md §"Institutional
-knowledge". This index holds only (1) my review-PROCESS lessons, (2) git-true
-active state, (3) durable design-review reference. Campaign play-by-play is
-retired — the behavioral lesson is lifted to `lessons.md`.
+Slim index (one line per entry; detail lives in the topic files). The pattern/
+anti-pattern CATALOG is the preloaded `coding-elegance` skill; the cross-cutting
+institutional SMELLS (twin-delivery plumbing, role-grid, fuller-view-oracle
+exception, tells-to-grep) are in AGENT.md §"Institutional knowledge". This index
+holds only (1) review-PROCESS lessons, (2) git-true active state, (3) durable
+design-review reference. Campaign play-by-play is retired to `lessons.md`.
 
 ## 1. Lessons (read FIRST each review)
 
-- [lessons.md](lessons.md) — 19 review-process lessons. The spine: a VIOLATION is
-  earned by a bug-habitat argument + proof the two things are coextensive TODAY (so
-  it's a NIT) + verification against the LIVE tree, not the diff's docstring.
-  Highlights: docstring-names-a-primitive-the-code-doesn't-call is my #1 recurring
-  catch (L1); single-source debt collapses on the THIRD divergent consumer not the
-  second (L2); two parallel predicates with different return types are NOT a unify
-  trigger (L3); stale-doc blast radius lands OUTSIDE the diff (L4); prove the teeth
-  bite before crediting a re-baseline (L5); Mode-10 sub-floor terms need structural
-  teeth NOT a value band (L6); Pattern-6 TRIM a predicate whose own docstring says
-  prod won't use it (L7); emergent invariant-gate over hand-written dunder (L8);
-  stash-baseline pyright delta for typing-honesty verdicts (L9); sibling-repo latent
-  crash = the guard a sibling method already has (L10); the briefing's DIFF SCOPE is
-  a claim to verify against live `git status` — a stale snapshot manufactured a false
-  "ungated / promise-not-backed-by-test" finding (L11); PROVE a dead `# type: ignore`
-  via a throwaway `reportUnnecessaryTypeIgnoreComment` config — the error-count ratchet
-  is blind to it, so a carve can leave dead ignores while claiming it retired them (L12);
-  a doc gather/split (monolith → chapter) is a RETIREMENT review — verify twin-content by
-  label-uniqueness+prose-grep, math-fidelity by git-HEAD extract+char-diff, account every
-  deleted hunk, and flag stale `A=L+C`/`A^{-1}`-for-sweep spelling in NEW text only (the
-  honest algebra is `A=L+C−S−B`, sweep=`(L+C)^{-1}`) (L13); certify a code-prose REBALANCE by
-  token-invariance + pointer-content + contract-self-sufficiency (L14); a delete-batch's own
-  past-tense retirement NOTE is a CONFIDENCE TRAP — the deleted symbol's present-tense refs
-  survive OUTSIDE the diff in the same file, `-W` is BLIND to the dead `:func:`/`:mod:` xref
-  (nitpicky off), so tree-grep + discriminate-by-tense; the FAIL-LOUD half self-verifies by
-  running the new scanner on the live tree (violations=0 proves the deletions) (L15); a carve that
-  LANDS a deferred capability inverts L-004 onto the stale DEFERRAL CONTRACT — the tell of a
-  half-cleanup is "author patched the human-facing rst ledger, missed the machine-facing Protocol/
-  public-operator docstring" (grep the deferred case's name tree-wide incl. untouched files,
-  discriminate matvec-transpose-landed vs solve-transpose-still-deferred by ARM) (L16); a
-  "generic-bound-rejects-ndarray" static hypothesis is a CONSUMER-site claim — CLI-pyright the
-  driving test before flagging, a class-generic's unpinned `V` swallows the mismatch (L17); a class
-  SPLIT (one class → base + leaves) strands an IN-DIFF docstring contradiction — the refactor ADDS a
-  corrected section but leaves the OLD intro spelling the moved methods on the old class; turn the
-  blast-radius lens INWARD, and cite the CERTAIN prose drift, not an unverified silent leaf→base xref
-  break (L18); an algebra-of-record (derivations/) module that PROVES builder≡display can still harbor
-  an unwelded THIRD spelling — a downstream theorem (T4) re-spelling its own canonical rule inline;
-  grep each theorem for CALLS-builder vs RE-SPELLS-inline, and remember the SymPy-builder↔numpy-einsum
-  pair is the intended derivation/impl split, NOT a twin (L19).
+- [lessons.md](lessons.md) — L1–L19, the review-process authority. Spine (now also
+  a standing AGENT.md directive): a VIOLATION = a named bug-habitat edit + NOT
+  coextensive-today (else NIT) + verified against the LIVE tree not the diff's
+  docstring. Recurring catches: docstring-names-a-primitive-the-code-doesn't-call
+  (L1); collapse single-source debt on the 3rd DIVERGENT consumer not the 2nd (L2);
+  parallel predicates with different return types are NOT a unify trigger (L3);
+  stale-doc/deferred-contract blast radius lands OUTSIDE the diff (L4/L16); prove the
+  teeth bite before crediting a re-baseline (L5); Mode-10 sub-floor = structural teeth
+  not a value band (L6); TRIM a predicate whose docstring concedes prod won't use it
+  (L7); emergent invariant-gate over hand dunder (L8); stash-baseline pyright delta
+  for typing-honesty (L9); sibling-repo latent crash = the guard a sibling already has
+  (L10); verify DIFF SCOPE against live `git status` (L11); PROVE a dead `# type:
+  ignore` via a throwaway `reportUnnecessaryTypeIgnoreComment` config (L12); doc
+  gather/split = RETIREMENT review, honest algebra `A=L+C−S−B` sweep=`(L+C)^{-1}`
+  (L13); code-prose REBALANCE cert by token-invariance+pointer-content (L14);
+  delete-batch's own retirement NOTE is a confidence trap, tree-grep+tense (L15);
+  generic-bound-rejects-ndarray is a CONSUMER-site claim, CLI-pyright first (L17);
+  class SPLIT strands an IN-DIFF intro docstring contradiction (L18); an
+  algebra-of-record module can still harbor an unwelded THIRD inline spelling (L19).
 
 ## 2. Active / in-flight state
 
-**None of my own — every reviewed campaign is MERGED to origin/main** (git-verified
-2026-07-22). #257/#247/#251/#245/#246/#249/#240/#158/#208/#20/#206 AND the whole
-**#226 inverse-as-operator carve** (steps 1–6, incl. the step-6 frozenset/CAP_*
-retirement `f4919b1` — the 3-layer predicate/operator-method/realization-verb surface
-with PEP-647 `invertible()`/`adjointable()` bridges, confirmed live in operator.py).
-Verdicts went to the main agent; durable rulings in the two #226 topic files below;
-behavioral lessons in `lessons.md`. (Step-6 delivered 2 POLISH + 1 doc-gate FILE-AS-ISSUE;
-on a merged carve those are the archivist's / a GitHub issue's, not my active state.)
+**None of my own MERGED-campaign work is active** (git-verified 2026-07-22): #257/
+#247/#251/#245/#246/#249/#240/#158/#208/#20/#206 + the whole #226 inverse-as-operator
+carve (steps 1–6, incl. step-6 `f4919b1`) are all in origin/main. Rulings in the
+#226 topic files below; lessons in `lessons.md`.
 
-One genuinely OPEN branch (reconcile against git before trusting):
-- **#236** (`feature/sn-spatial-angular-product`, tip `6409328` — NOT in origin/main).
-  My Phase 1b/2/3 reviews COMPLETE and delivered; no pending #236 work. New slice ⟹
-  lead with the SN-carve institutional smells in AGENT.md.
+Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
+- **#236** `feature/sn-spatial-angular-product` (tip `6409328`, NOT in main). My
+  Phase 1b/2/3 reviews COMPLETE + delivered; no pending work.
+- **#2 consistent-DSA** `feature/sn-dsa` (UNCOMMITTED working tree, reviewed
+  2026-07-26). Verdict → parent agent; rulings in `dsa_accelerator_rulings.md`.
 
-> Merge-status in memory goes STALE — a note frozen mid-flight merges in a later
-> session. ALWAYS reconcile a "resume/pending X" against
+> Merge-status in memory goes STALE. ALWAYS reconcile "resume/pending X" against
 > `git merge-base --is-ancestor <hash> origin/main` before acting; never trust a
-> frozen "NOT pushed". (This whole index was rebuilt on that rule.)
+> frozen "NOT pushed" (this index was rebuilt on that rule).
 
 ## 3. Durable reference (reusable design-review pointers)
 
-- [doc_prose_rebalance_certification.md](doc_prose_rebalance_certification.md) — method for
-  certifying a "docstring/comment-only" doc-prose-rebalance batch (#231 Phase 2 P2-*; certified
-  P2-D/E/F/G 2026-07-22, all CERTIFIED). The 4 checks: dual token+AST invariance (strip ALL bare
-  string-exprs, not just leading docstrings — attribute docstrings are bare Expr too); the
-  dropped-contract net (grep `-` diff lines for shape/raise/mutation tokens, confirm each
-  survives elsewhere); in-pass fixes vs LIVE code (Hilbert→Euclidean, stale-trait, repointed
-  `:ref:`, `:label:`-cut orphan-safety); pointer honesty (resolve ALL + content-check ≥3/batch).
-
-- [pyright_carrier_generic_carve.md](pyright_carrier_generic_carve.md) — #226 pyright
-  carrier-generic carve rulings, C2→C4 (reviewed through 2026-07-03). C2: generic-public-surface
-  + `Any`-typed-PRIVATE-realization split; `default=Any` REQUIRED under INVARIANCE. C3: F2
-  read-mesh-off-the-narrow-boundary-leaf; stale-`# type: ignore`-after-Optional→required smell.
-  **C4 (composition-leg generics): the COVARIANT-leg keystone is PRINCIPLED — the forced chain
-  retire-casts→pin-legs→pinned-subclass-upcasts-to-defaulted-base→covariance→read-only-`Final`;
-  `default=covariant-leg-type` CORRECT (contrast C2's invariant `Any`); it GENERALIZES (#289
-  cites it). Operator-leg `__init__` guard vs static pinning = NOT a twin (parse-once/propagate,
-  runtime-guard survives erasure). Typed-field ROLE parses = honest #289-tracked family at a
-  type-erasure seam. `_CellSolve` Optionals+XOR-guard→ABC+2 kw_only subclasses = Pattern 4,
-  tagged-union worse. `other:T→other:"FullField"` = anti-#20 honest direction.** And THE recurring
-  approval condition (verified C2+C4) — the ratchet baseline (`pyright_ratchet --update`) must land
-  WITH the carve or `test_pyright_ratchet.py` reds `main` on IMPROVEMENT (grep `git status` on it).
-
-- [issue_226_inverse_as_operator_rulings.md](issue_226_inverse_as_operator_rulings.md)
-  — the inverse-family design rulings: delegation-not-reciprocal for value-bearing
-  leaves (involution-by-identity, no ULP twin, no `1/Σ` units lie); the keystone
-  FORCES `solve=inner.apply` on inverse objects; the SweepOperator↔InverseOperator
-  wrap-delegate back-half TWIN (collapses at the 3rd sibling Green/Matrix); base
-  `LinearOperator` has no `solve`/`inverse` so `_SolveBackedLeaf` is needed + rightly
-  private; the shim forwards `CAP_SOLVE` with no `solve` method (keystone-armed,
-  latent). Reusable when reviewing the Green/Matrix inverse siblings.
-
+- [dsa_accelerator_rulings.md](dsa_accelerator_rulings.md) — consistent-DSA (#2) 3b:
+  the bar (derivation-pin = L-005 gold standard; 3-P0-frame ANTI-MINT; `integrate_angular`
+  single-source hoist + tangent-map; #208 torsor correction-is-a-DISPLACEMENT; teeth with
+  residual-VALUE witnesses). Design rulings: correction consumes the DISPLACEMENT not the
+  residual; edge-centered SN-side NOT the in-algebra `A_diff` (R4: diverges ρ 54.7); σ_s1
+  iff sweep retains ℓ≥1; trace arm load-bearing. Live finding = a clean L16 (3 stale doc
+  spots). For 3c + accelerator/inverse siblings.
+- [issue_226_inverse_as_operator_rulings.md](issue_226_inverse_as_operator_rulings.md) —
+  inverse family: delegation-not-reciprocal for value leaves; keystone FORCES
+  `solve=inner.apply`; the wrap-delegate twin collapses at the 3rd sibling (Green/Matrix).
+- [pyright_carrier_generic_carve.md](pyright_carrier_generic_carve.md) — #226 carrier-generic
+  C2→C4: covariant-leg keystone principled; `default=` per variance (invariant `Any` vs
+  covariant-leg-type); the ratchet baseline must land WITH the carve (approval condition).
 - [coupled_block_boundary_unweld_rulings.md](coupled_block_boundary_unweld_rulings.md) —
-  reusable rulings for reviewing a per-system boundary block `B = Σ_x ι_x∘B_x∘π_x`
-  (the SN 1b un-weld, PRECEDENT for DSA/multiphysics). What HELD: present-zero-not-None
-  is FORCED (presence law) + IS the ι∘B∘π embedding; the `isinstance` narrowing before
-  `.split()` is honest (grading lives on B_a not the composite); role grid + twin-delivery
-  single-sourced at the `_reflect_*` cores. Recurring FINDINGS to check next time:
-  role-parse-guard symmetry (L-010), `_RULED_CORNER_KINDS` single-source, dead moved
-  `type: ignore` (L-012), in-diff stale delivery-helper docstring, B_a naming asymmetry.
-
+  per-system boundary block `B=Σ ι∘B∘π` (SN 1b un-weld): present-zero-forced IS the embedding;
+  role grid + twin-delivery single-sourced at the `_reflect_*` cores; recurring re-check list.
 - [frame_projection_coarsening_shape.md](frame_projection_coarsening_shape.md) —
-  homogenize/condense coarsening machinery shape review (P3 merged / P5 draft).
-  Six rulings reusable for ANY new coarsening axis: axis-yields-its-views law
-  (the keystone), collapse-verb-on-the-XS-container-not-the-frame, the
-  HomogenizationFrame/CondensationFrame FALSE symmetry, `project()` is the
-  diagonal/PoU special case (type the Gram-structure seam, don't build the dense
-  solve), `Mixture.eg` bare-numpy, defer `OverlapBasis`-for-space.
-
+  homogenize/condense shape: axis-yields-views keystone; collapse-verb-on-the-XS-container;
+  Homog/Condens FALSE symmetry; `project()` = the diagonal/PoU special case.
 - [p6_adjoint_weighted_homogenization_rulings.md](p6_adjoint_weighted_homogenization_rulings.md)
-  — the P6 #281 B1+B2 adjoint-weighted collapse review (COMMIT-READY 2026-07-26; 0 MUST-FIX).
-  Reusable for the B3 C1/C2/C3 gates + the anisotropic Σ_s,ℓ seam: the five-morphism taxonomy
-  (pair-frame T1 / collision-frame ρ T1b / per-pair T2 / mixed-fold+canonical-χ T3), the B&G Ch.6
-  energy convention (Ψ†_G, 6.135/6.136, factored fission simplex-rescale), `is_same_phase_space`
-  strength (constituent-`is` + scheme-TYPE; pole-closure CORRECTLY excluded), the transport-takes-
-  ScalarFlux / data-takes-bare-array layering, the MP-zero `where=den!=0` ≡ `apply_inverse_metric`
-  check, and the derivation/impl-is-not-a-twin ruling. Verified the T1b ρ axis against angular_flux.py.
+  — P6 #281 adjoint-weighted collapse: five-morphism taxonomy; B&G Ch.6 energy convention;
+  `is_same_phase_space`; transport-ScalarFlux / data-bare-array layering. For the B3 gates.
+- [doc_prose_rebalance_certification.md](doc_prose_rebalance_certification.md) — certifying a
+  docstring/comment-only rebalance (#231 P2): token+AST invariance, dropped-contract net,
+  in-pass-fixes-vs-live, pointer honesty (resolve ALL + content-check).
+- [doc_label_naming_certification.md](doc_label_naming_certification.md) — descriptive eq
+  `:label:` naming (#231): one-domain-term-two-concepts = SHOULD-CONSIDER not MUST-FIX;
+  collision-scan-by-concept-token; the section-anchor `-eq` rule.
 
-- [doc_label_naming_certification.md](doc_label_naming_certification.md) — method +
-  rulings for certifying descriptive equation `:label:` NAMING on the #231 theory
-  corpus (greppability / one-concept-one-spelling). Durable ruling: "one domain term,
-  two legitimate concepts" (`mg-multiplication-operator` K=A⁻¹F vs
-  `multiplication-operator-*` M[f]) = SHOULD-CONSIDER not MUST-FIX — the fix trades
-  token-overload for label-vs-prose divergence on entrenched vocab. Includes the
-  collision-scan-by-concept-token method, the section-anchor `-eq` rule, and
-  non-collisions that look like collisions (P_ii vs r_ii; areas vs fractions).
-
-Sibling-repo (`sphinxcontrib-nexus`, the project's Nexus engine) reviews — kept
-because the invariants are reusable and the repo shares the elegance discipline:
-
-- [nexus_runtime_overlay.md](nexus_runtime_overlay.md) — #26 execution-flow overlay
-  review. The "MCP tools never raise out" invariant; the missing-stale-node-guard
-  latent crash; the orthogonal-capabilities-as-flat-fields (not tagged-union) call.
-- [nexus_workspace_resolution.md](nexus_workspace_resolution.md) — workspace/worktree
-  wiring; `_switch_workspace` single-source; the `q.knowledge_graph` SSOT accessor
-  that retired a private-attr poke; "one server = one workspace" process-local state.
-- [nexus_elegance_diagnostics.md](nexus_elegance_diagnostics.md) — a CLI/MCP
-  diagnostic family (native_place / twin_paths / discriminations / dead_functions /
-  protocol_conformers) that mechanizes my structural-smell first pass, mapped to my
-  review axes. NB (2026-06-21): NOT confirmed merged/installed — `nexus` CLI absent
-  and these tools are not in the current MCP surface. Verify `nexus <cmd> --help`
-  before relying on them; treat as candidate tooling, not available today.
+Sibling-repo (`sphinxcontrib-nexus`) — kept because the invariants are reusable:
+- [nexus_runtime_overlay.md](nexus_runtime_overlay.md) — #26 overlay: "MCP tools never raise
+  out"; missing-stale-node-guard crash; orthogonal-capabilities-as-flat-fields not tagged-union.
+- [nexus_workspace_resolution.md](nexus_workspace_resolution.md) — workspace/worktree wiring;
+  `_switch_workspace` single-source; the `q.knowledge_graph` SSOT accessor.
+- [nexus_elegance_diagnostics.md](nexus_elegance_diagnostics.md) — CLI/MCP structural-smell
+  diagnostics mapped to my axes. NOT confirmed installed (2026-06-21) — verify before relying.
