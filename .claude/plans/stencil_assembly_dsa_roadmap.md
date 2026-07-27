@@ -1470,6 +1470,235 @@ transcribed constant.
   → 3c (task #28: rate tier D11–D13 + S2/ρ/thickness/c→1/negative
   control + docs + close-out).
 
+**3c PROGRESS (2026-07-26, branch `feature/sn-dsa`):**
+- ✅ **The rate/stability tier built + measured**
+  (`tests/sn/acceleration/test_dsa_rate.py`, 69 gates; the evidence
+  pack `.claude/plans/dsa_rate_characterization.md`, parts A–H):
+  - **D11** — production S8 ρ_est 0.176–0.180 at c = 0.9 (bound
+    0.2022); the spec's pre-measurement ±0.03 band replaced by the
+    honest split: one-sided Fourier bound + measured floor + the
+    plain-SI estimator-honesty control (ρ_est(SI) = 0.894/0.903 ≈ c).
+    qa ratified the deviation (a two-sided band would be reference
+    contamination — the discrete ρ sits BELOW the continuum sup).
+  - **D12** — thick fully-reflective c → 1 converges FLAT (n = 21
+    over σ_t·h ∈ {1,5,20} at c = 0.99); ρ band ≤ 0.35. The
+    production reflective rate is LAG-limited (~0.28–0.31 — the
+    Jacobi wall gain), NOT Fourier-limited; the fully-coupled
+    refl/refl matrix certificates (qa IMPROVE-1) pin the operator
+    healthy at the gated BC: ρ(DSA) = 0.191/0.024/0.050.
+  - **D13** — CI count gates (speedup floor 225→15/249→20;
+    c-independence 2110→16/2554→21; Krylov 195→11/218→12) + the
+    slow grid on the SCALE-FREE 10-decade metric. Two corner
+    findings: the c→1 FP FLOOR (absolute tol meets the double-
+    precision floor at flux scale 1/(1−c) — callers must scale
+    inner_tol) and the DOUBLE-LAG reflective mode at σ_t·h = 100
+    (ρ_prod ≈ 0.745, c-independent, operator certified healthy —
+    improvement issue files at close).
+  - **S2 exactness** — n == 2 (vacuum, machine-zero landing 3.2e-15)
+    + exactly +1 per lagged reflective wall; qa mutation-verified
+    the anchor across four corruption classes (Marshak/sign/G/
+    update all break it by 13+ decades) — the de-facto
+    M-D12-BOUNDARY-ROW catcher.
+  - **The negative control** — WD(a≠½) + the PRODUCTION low-order
+    reproduces Table II (a = 0.75, c = 0.99: ρ = 1.44/1.78 at
+    σ_t·h = 10/30; consistent flat ≤ 0.181); in-file independence =
+    the a = ½ composite S2 machine-zero anchor.
+  - **ERR-070 FILED** (the σ_r-fold, #215's class): measured 43.2%
+    FP shift (11.4%/43.2% per group) on the vacuum+het anisotropic-
+    flux config; identically zero on the reflective-isotropic box
+    (the designed-green degeneracy, qa-verified at 1.2e-11).
+    Catchers: `TestSigmaRFoldCaught` (the folded-Mixture realization)
+    + the **D10 routing sentinel** (AST fence: the foldable
+    accessors' production consumers ≡ {definition site, split layer,
+    the DSA build}; planted-consumer tooth).
+  - **D9 no-masking** landed (seeded ×1.05 scatter bug: DSA
+    reproduces the same wrong FP to 1.4e-11; activation 1.05e-2).
+- ⏸ **R5 RULED (user, 2026-07-26)**: **(a) LD arm DEFERS** — the
+  measured evidence: the LD iterate cannot type-admit the arm-1
+  restriction (moment-0 is (ng,K,2) — the pairing is UNSPELLABLE
+  without the M4S reduction, which IS the arm-2 build), and the WD
+  family shows what partial pairings do when spellable (Table-II
+  divergence). Follow-up issue files at close. **(b) P1-DSA WIRES
+  NOW** — the d₁ moment-pair arm:
+- ✅ **The P1-DSA (d₁) arm landed** (`dsa.py`): `moment1_update` =
+  the proven (28b) at ρ = 0 (`f₁ = −(D/h)Δf₀ + a·d₁`); the
+  restriction pair (the frame's ℓ=1 row w·μ — SH slab component ≡ μ
+  bit-exact); the injection = Larsen (33) `Ψ = f₀ + (μ/W₂)f₁`;
+  gated on `scattering_order ≥ 1` (the SAME consistency-with-the-
+  iterated-operator rule as the data row; so = 0 byte-identical).
+  The trace arm stays ℓ=0 BY THEOREM ((39) wall-edge f₁ = 0).
+  **Measured: the ladder FLATTENS 24/39/86 → 14/15/15 (ρ 0.175
+  flat, the A&L band) and the ℓ=1 S2 system lands at machine zero
+  (5.4e-15)** — S2's angular space IS span{1, μ}, so the exactness
+  anchor verifies the whole d₁ convention chain in one number.
+  Gates: `TestP1DSAArm` (S2-so=1 exactness, the P0-forced tooth,
+  the ladder pin, the moment-pair object pins).
+- ✅ **ERR-071 FOUND + FIXED** (the third consistency discovery,
+  Krylov-flavored): the composite sweep inverse DROPPED the rhs's
+  outflow-trace rows (buffer seeded, march clobbered) — exact on
+  every physical rhs (outflow rows ≡ 0 there), SINGULAR on the full
+  composite space. The P1-DSA GMRES posture excited the kernel
+  (‖Mq‖/‖q‖ = 1e-15 on a pure outflow-row residual; GMRES stalled
+  at O(1) true residual; **the end-of-solve certificate made the
+  catch**). Fix: one post-march restore in
+  `streaming.py::_solve_timed_full_field` (`−=` — the forward's row
+  is `streamed − ψ_out`, sign pinned by the new round-trip gate);
+  bit-inert on all physical paths. NEW gate:
+  `tests/sn/operators/test_sweep_inverse_identity.py` (the
+  `A∘A⁻¹ ≡ I` full-space round-trip + the pure-outflow leg +
+  selector-emptying tooth; `catches("ERR-071")`). Measured after:
+  2G het ℓ≥1 Krylov+DSA **287→12 / 305→16**.
+- ✅ Reviews: enforcer PASS (2 IMPROVEs applied: the lru_cache/
+  monkeypatch autouse guard; the lumped-mutation cross-ref) + qa
+  SUPPORTED (no blockers; IMPROVE-1 = the coupled refl/refl
+  certificates, applied; NITs applied). Enforcer DELTA review
+  (d₁ arm + ERR-071 fix): PASS — must-fix (sign-convention doc
+  harmonization to `streamed − ψ_out`, the authoritative forward
+  at loss_representation/__init__.py:1164) + 2 NITs (the ℓ=1 row
+  sourced from `angular_frame(1).table[:,1,1]`; the cache-guard
+  docstring scoped) — ALL APPLIED 2026-07-27, re-verified green +
+  pyright 0. The enforcer confirmed the restore's PLACEMENT
+  (`_solve_timed_full_field` is the inverse's one assembly site)
+  and the restore's sign against the forward. qa delta review of
+  (d₁ + ERR-071) PENDING — runs after the root fix below.
+
+⏸ **R6 RULED (user, 2026-07-27): the ERR-071 resolution is the ROOT
+FIX — the honest full-space inverse. Campaign extension accepted.**
+(The bounded preconditioner-local alternative was REJECTED.) The user
+directed: update this plan, COMPACT, then execute. This block is the
+post-compaction execution spec.
+
+### R6 root-fix worklist (execute from HERE after compaction)
+
+**The contract being completed**: `InvertibleOperator.solve` /
+`SweepOperator.apply` treat `rhs.boundary` as the ALGEBRAIC trace rhs
+of the composite system — inflow rows = given data (unchanged);
+OUTFLOW rows = the defect rhs, honored as `ψ_out = streamed − rhs_out`
+(the forward's row is `streamed − ψ_out`; signs harmonized everywhere
+2026-07-27). The `.solve` half is LANDED (streaming.py
+`_solve_timed_full_field`, the post-march `−=` restore over
+`angular_trace.outflow_indices_for_face` — enforcer-verified; KEEP).
+Every caller that used `rhs.boundary` as an ITERATION-STATE seed
+(stale outflow rows, pre-fix harmlessly clobbered) must now pass an
+inflow-only SOURCE trace — that conflation of roles is exactly what
+ERR-071 documents.
+
+**The 5 red tests ARE the worklist** (deterministic reproductions):
+
+1. `tests/sn/operators/test_loss_transpose_solve.py::
+   test_g3_full_field_solve_reciprocity[slab|cyl_product|cyl_ls]` (3)
+   — **`solve_transpose` needs the SYMMETRIC completion**: writing
+   A⁻¹ = S_old − E_out with E_out the diagonal partial identity
+   (rhs outflow rows → outflow slots), E_out is symmetric ⟹
+   (Aᵀ)⁻¹ = old_solve_transpose − E_out: the SAME one-site restore in
+   `solve_transpose`'s output-boundary assembly (streaming.py:1010ff;
+   the per-face membership loop handles curvilinear xmax-only faces).
+   The reciprocity gates ⟨A⁻¹q,p⟩ = ⟨q,(Aᵀ)⁻¹p⟩ on random FULL
+   composites are the committed catchers.
+2. `tests/sn/operators/test_solver_components.py::
+   TestQuadratureWeightConservation::
+   test_homogeneous_scalar_flux_equals_Q_over_sigt` — the component
+   iteration idiom: a persistent full-trace `boundary_flux` passed to
+   `sweep_once` each iteration (stale outflow rows now subtracted ⟹
+   diverges 1e+46). Fix the idiom: after
+   `_reflect_outflow_into_inflow`, zero the outflow rows (or build a
+   fresh inflow-only trace per iteration — what the 1-D production
+   fold does; measured outflow-rhs ≡ 0.0 there). Check whether
+   `sweep_once`/`_reflect_outflow_into_inflow` are test helpers or
+   production surface — its comment says "mirroring production:
+   _solve_fixed_source_si / solve_sn".
+3. `tests/sn/operators/test_bc_extraction_2d.py::
+   TestBoundaryResidual2DDrivesToZero::
+   test_reflective_boundary_balance_at_convergence` — **the 2-D
+   PRODUCTION path** (`solve_sn`, 2-D reflective Krylov eigenvalue):
+   keff still exactly k_inf 1.875, but the converged trace balance
+   defect = 8.8e-2 ⟹ somewhere the 2-D drive feeds `solve` an rhs
+   whose boundary carries stale outflow rows. AUDIT METHOD (proven
+   this session): monkeypatch-instrument `_solve_timed_full_field`
+   recording max |outflow-row rhs| per call during THIS test → find
+   the caller → make that builder emit an inflow-only source trace.
+   Candidates: the 2-D SI/Krylov rhs fold, production
+   `_reflect_outflow_into_inflow` usage, the windowed
+   `WindowedSweep = P @ A.inverse()` path.
+
+**Order**: (1) transpose completion → reciprocity green; (2) the
+component idiom fix; (3) the 2-D audit + fix → balance green; (4)
+extend `tests/sn/operators/test_sweep_inverse_identity.py` with a
+reflective-wall leg and (if cheap) a curvilinear leg; (5) re-run:
+the 5 tests, tests/sn/operators, tests/sn, the acceleration battery
+(58 fast + 33 slow), derivations; CLI pyright on every touched file.
+
+**Verification discipline**: keff-level greens are NOT sufficient
+(the 2-D failure kept keff exact while the trace drifted — a Mode-12
+lesson: the balance gate caught what the eigenvalue could not); the
+trace-balance and reciprocity gates are the load-bearing catchers.
+
+### Post-root-fix close-out sequence (unchanged, runs after R6)
+
+1. **qa delta review** (math-bearing, NOT yet reviewed: the d₁ arm +
+   the FULL ERR-071 root fix) — findings fixed in-session.
+2. **The gated commits** (each green at its commit): (i) fix(sn):
+   the honest full-space sweep inverse [streaming.py solve +
+   solve_transpose + call-site fixes + the identity/reciprocity
+   gates + ERR-070/071 catalog]; (ii) feat(sn): the P1-DSA d₁ arm
+   [dsa.py]; (iii) feat(test)/docs: the 3c rate tier + the evidence
+   packs + method.py note + this roadmap; (iv) chore(agents): the
+   agent-memory memos.
+3. **Docs close-out** (archivist dispatch): the NEW theory page
+   `docs/theory/methods/sn/` (acceleration/DSA — Fourier story, the
+   derived-consistency algebra, R4/R5/R6 rulings, the D2 + rate
+   evidence-pack tables as teaching artifacts, the THREE consistency
+   discoveries incl. ERR-071's certificate catch, honest scope);
+   verification/sn.rst DSA section; refs.bib keys (Alcouffe1977,
+   Larsen1982a, AdamsMartin1992 — AdamsLarsen2002 exists; standing
+   Zotero back-port note); the content-drifted diffusion_1d.rst:517
+   xref → field_algebra; slab_one_group.rst σ_r cross-ref; then
+   verifies() markers across the DSA battery (labels minted on the
+   page) + matrix regen. MIGRATE the gate-file docstring facts to
+   the page (enforcer NOTE f1: migrate, don't duplicate).
+4. **Issues**: `Closes #2`; #200 disposition (the DSA preconditioner
+   IS the first re-enabled M); #215 disposition (fence + fenced
+   consumer + ERR-070 filed); #22 comment (N-D interaction); FILE:
+   the LD arm (draft: job-tmp `issue_ld_arm.md`), the reflective
+   lag-mode improvement (`issue_lag_mode.md`), 2-D Cartesian DSA
+   (`issue_2d_dsa.md`), and the frame-backed `angular_moment(ℓ)`
+   field reduction (enforcer's architectural NOTE — module:sn,
+   type:improvement; makes d₀/d₁ symmetric frame-backed reductions).
+5. **Pre-merge**: full serial tree `-m "not slow"` (~52 min,
+   UNCONTENDED) + Sphinx `-E -W` + `python -m tests._harness.audit`
+   + pyright floor (#288 = the accepted 1). Then ff-merge to main +
+   branch delete + close #2 — ON THE USER'S GO (never push without
+   the explicit ask).
+6. **Campaign close-out**: roadmap Phase-3 terminal block; memory
+   (the stencil/DSA project memory → terminal; MEMORY.md index);
+   lessons if any (the ERR-071 diagnosis chain — component-by-
+   component elimination converging on the composition seam — is
+   catalog-recorded).
+
+### Tree inventory at this checkpoint (2026-07-27, all UNCOMMITTED)
+
+- Modified: `orpheus/sn/acceleration/dsa.py` (d₁ arm; enforcer
+  PASSED + NIT applied), `orpheus/sn/operators/streaming.py` (the
+  solve-half restore + sign-harmonized docs; enforcer PASSED),
+  `orpheus/transport/method.py` (P7b stale-note fix; PASSED),
+  `.claude/skills/vv-principles/error_catalog.md` (ERR-070 +
+  ERR-071), this roadmap, `.claude/agent-memory/*` (enforcer + qa
+  memos).
+- New: `tests/sn/acceleration/test_dsa_rate.py` (69 gates),
+  `tests/sn/operators/test_sweep_inverse_identity.py` (3 gates),
+  `.claude/plans/dsa_rate_characterization.md` (the evidence pack).
+- GREEN: acceleration 58 fast + 33 slow; identity gate 3/3;
+  derivations 13; CLI pyright 0/0/0 on all touched files.
+- RED (the R6 worklist): the 5 tests listed above.
+- Ephemeral instruments (job tmp, `/Users/rodrigo/.claude/jobs/
+  cdba0ba9/tmp/`): `rate_design_scan.py`, `rate_characterization.py`
+  (the evidence-pack generator), `d2_characterization.py`,
+  `issue_{ld_arm,lag_mode,2d_dsa}.md` (the filing drafts).
+- Standing constraints: never push without the user's ask; scratch/
+  stays untracked (never `git add -A`); commit trailers per the
+  session convention; Host env `.venv/bin/python`; canonical pytest
+  `python -O -m pytest`.
+
 ### 3-P0 — dispatches (MUST, before the plan-of-record for this phase) — ✅ DONE 2026-07-26
 - **literature-researcher** — check `/Users/rodrigo/git/nuclear/ORPHEUS/scratch/
   literature/` FIRST (user maintains it; all NSE volumes local): Alcouffe 1977
@@ -1559,6 +1788,18 @@ assembly on the same mesh:
   derived-vs-landed matrix diff (structure characterized) to the user at 3a.
 - **R5 (LD arm criterion)**: **decide from measured table** — deliberately deferred;
   present the measured-ρ c→1 × optical-thickness sweep at Phase 3, rule then.
+  **RULED 2026-07-26 (3c)**: (a) the LD arm DEFERS — the measurement came back
+  STRUCTURAL (the LD iterate cannot type-admit the arm-1 restriction; the pairing
+  is unspellable without the M4S reduction, which IS the arm-2 build; the WD family
+  shows Table-II divergence when partial pairings ARE spellable) — follow-up issue
+  files at close; (b) **P1-DSA wires NOW** (the d₁ moment-pair arm — landed;
+  the ladder flattens 24/39/86 → 14/15/15).
+- **R6 (ERR-071 resolution, ruled 2026-07-27)**: **the ROOT FIX — the honest
+  full-space sweep inverse** (`rhs.boundary` IS the algebraic trace rhs; every
+  iterate-state-seed caller converts to inflow-only source traces; `solve_transpose`
+  gains the symmetric completion). Campaign extension accepted; the bounded
+  preconditioner-local alternative REJECTED. Execution spec = the "R6 root-fix
+  worklist" block in the Phase-3 3c PROGRESS section.
 - **R6 (2a delegation)**: **full surgical** — the mechanical relocation is main-agent
   work too; no delegation exception.
 - **R7 (n2n convention — from the P0 finding, ruled 2026-07-03)**: **operator-
