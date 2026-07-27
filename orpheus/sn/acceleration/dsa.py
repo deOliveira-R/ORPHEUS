@@ -58,9 +58,15 @@ with :math:`\hat\sigma_R = \sigma_t - \sigma_{s0}^{g\to g}`,
 \phi_n^{l}` (the :math:`\sigma`-weighting lives in :math:`G`, once).
 Boundary rows close one-sidedly: Marshak
 :math:`\gamma_N f_0 + (W_2^+/W_2) f_1 = 0` under vacuum, :math:`f_1 = 0`
-under reflection. The accelerated cell update is Larsen (28a), which for
-DD collapses to the edge average
-:math:`f_{0i} = \tfrac12(f_{0,i-1/2} + f_{0,i+1/2})`.
+under reflection. The accelerated cell updates are Larsen (28): (28a)
+collapses for DD to the edge average
+:math:`f_{0i} = \tfrac12(f_{0,i-1/2} + f_{0,i+1/2})`, and — when the
+sweep retains :math:`\ell \ge 1` (the P1-DSA arm, R5 ruling) — (28b)
+gives the moment-1 update :math:`f_{1i} = -(D_i/h_i)\,\Delta f_0 +
+a_i d_{1,i}`, injected through Larsen's (33) synthesis
+:math:`\Psi_m = f_0 + (\mu_m/W_2) f_1` (measured payoff: the
+anisotropy ladder's 86-iteration worst rung returns to 15, the flat
+Adams-Larsen band).
 
 Note the structural consequences of the edge home: the conductances
 :math:`D_i/h_i` are **per cell** — an edge unknown straddles cells,
@@ -150,6 +156,12 @@ class DSALowOrderSystem:
     g_map: np.ndarray
     #: Per-group LU factorizations of ``a_low`` (scipy ``lu_factor``).
     _lu: tuple = field(repr=False)
+    #: ``(ng, K)`` per-cell :math:`D_i/h_i` — retained for the (28b)
+    #: moment-1 update (:meth:`moment1_update`).
+    _dh: np.ndarray = field(repr=False)
+    #: ``(ng, K)`` per-cell :math:`a = \sigma_{s1}/(\sigma_t-\sigma_{s1})`
+    #: — the (23f) weight, shared by the :math:`g_1` sources and (28b).
+    _a_coef: np.ndarray = field(repr=False)
 
     # ── Construction ─────────────────────────────────────────────────
 
@@ -343,7 +355,9 @@ class DSALowOrderSystem:
                     g_map[:, row, col] -= val
 
         lu = tuple(lu_factor(a_low[g]) for g in range(ng))
-        return cls(a_low=a_low, g_map=g_map, _lu=lu)
+        return cls(
+            a_low=a_low, g_map=g_map, _lu=lu, _dh=dh, _a_coef=a_coef,
+        )
 
     # ── The correction solve ─────────────────────────────────────────
 
@@ -366,10 +380,14 @@ class DSALowOrderSystem:
             The raw scalar-moment sweep displacements
             :math:`d_0 = \phi_0^{l+1/2} - \phi_0^{l}` per (group, cell).
         d1 : (ng, K), optional
-            The current-moment displacements. Default zero — the P0-DSA
-            arm; the columns exist (the P1-DSA seam is data, not a new
-            code path) and carry weight :math:`a = \sigma_{s1}/(\sigma_t
-            -\sigma_{s1})`, which is itself zero for isotropic data.
+            The raw moment-1 (current-like) displacements
+            :math:`d_1 = \phi_1^{l+1/2} - \phi_1^{l}`. Default zero —
+            the P0-DSA arm. The columns carry the (23f) weight
+            :math:`a = \sigma_{s1}/(\sigma_t-\sigma_{s1})` (zero for
+            isotropic data); :class:`DSACorrection` feeds them whenever
+            the sweep retains :math:`\ell \ge 1` (the P1-DSA arm — the
+            same consistency-with-the-iterated-operator rule that
+            gates the :math:`\sigma_{s1}` data row).
 
         Returns
         -------
@@ -406,6 +424,31 @@ class DSALowOrderSystem:
         """
         return 0.5 * (f0_edges[:, :-1] + f0_edges[:, 1:])
 
+    def moment1_update(
+        self, f0_edges: np.ndarray, d1: np.ndarray
+    ) -> np.ndarray:
+        r"""The accelerated moment-1 cell update — Larsen (28b) at
+        :math:`\rho = 0`:
+
+        .. math::
+
+            \Delta\phi_{1,i} = -\frac{D_i}{h_i}
+                \bigl(f_{0,i+1/2} - f_{0,i-1/2}\bigr) + a_i\, d_{1,i},
+
+        with the same raw-moment homogeneity as the rest of the system
+        (the map is degree-1 homogeneous, so the raw :math:`\Sigma w`
+        normalization flows through untouched). The :math:`\rho/2` term
+        of the proven general form (``derive_update_relations``)
+        vanishes for diamond. The P1-DSA arm's second half: the edge
+        solve already carries the :math:`g_1 = a\,d_1` sources; this
+        realizes the correction the low-order predicts for the
+        current-like moment the :math:`\ell \ge 1` sweep iterates.
+        """
+        return (
+            -self._dh * (f0_edges[:, 1:] - f0_edges[:, :-1])
+            + self._a_coef * np.asarray(d1, dtype=float)
+        )
+
 
 class DSACorrection(LinearOperator["FullField", "FullField"]):
     r"""The DSA correction operator on the within-group iterate composite.
@@ -416,20 +459,38 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
 
     .. math::
 
-        \Delta\psi \;\mapsto\; P\,\bigl[\tfrac12(\cdot)_{L}+\tfrac12
-        (\cdot)_{R}\bigr]\,A_{\rm low}^{-1}\,G\,R\,\Delta\psi,
+        \Delta\psi \;\mapsto\; P\,\bigl[(28)\bigr]\,
+        A_{\rm low}^{-1}\,G\,R\,\Delta\psi,
 
-    where :math:`R` is the canonical moment-0 reduction
-    (:meth:`AngularFlux.integrate_angular
-    <orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular>`
-    — the frame's ℓ=0 analysis face; pinned 0-ULP in the D8 gate) and
-    :math:`P` the normalized isotropic injection :math:`\Delta\phi /
-    \sum_n w_n` (the frame's ℓ=0 reconstruction over the same measure;
-    moment-0 of :math:`P\,x` is :math:`x` exactly). No new angular
-    reduction is minted — the anti-mint verdict of the 3-P0 frame
-    analysis: ``angular_frame(0)``'s faces already exist as
-    ``integrate_angular`` and the :math:`1/\sum w` injection; a third
-    spelling would be the Smell-16 twin.
+    where :math:`R` is the moment restriction, :math:`(28)` the proven
+    cell updates, and :math:`P` the moment synthesis — with the arm
+    count decided by the SAME consistency rule as the data row
+    (``scattering_order``, consistency with the ITERATED operator):
+
+    * **P0 arm** (:math:`\ell = 0` sweep): :math:`R` is the canonical
+      moment-0 reduction (:meth:`AngularFlux.integrate_angular
+      <orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular>`
+      — the frame's ℓ=0 analysis face; pinned 0-ULP in the D8 gate),
+      the update is (28a), and :math:`P` the normalized isotropic
+      injection :math:`\Delta\phi_0/\sum_n w_n` (the frame's ℓ=0
+      reconstruction; moment-0 of :math:`P\,x` is :math:`x` exactly).
+    * **P1 arm** (:math:`\ell \ge 1` sweep): the restriction is the
+      moment PAIR — the ℓ=1 row is :math:`\sum_n w_n\mu_n(\cdot)` (the
+      frame's ℓ=1 analysis row: the SH table's slab component is
+      :math:`\mu` bit-exactly) — the solve feeds :math:`[d_0; d_1]`,
+      the updates are (28a) AND (28b) (:meth:`DSALowOrderSystem
+      .moment1_update`), and :math:`P` is Larsen's (33) ℓ≤1 synthesis
+      :math:`\Psi_m = f_0 + (\mu_m/W_2) f_1` under the one raw
+      normalization map — :math:`R \circ P = I` on the moment pair by
+      the :math:`W_2` quadrature exactness. Without this arm a
+      P0-only correction leaves the :math:`\ell = 1` gain iterating
+      plainly (measured: the anisotropy ladder climbs 14 → 86
+      iterations as :math:`\sigma_{s1}/\sigma_{s0} \to 0.9`).
+
+    No new angular reduction is minted — the anti-mint verdict of the
+    3-P0 frame analysis: the frame's ℓ≤1 faces already exist as
+    ``integrate_angular``, the :math:`w\mu` row, and the (33)
+    synthesis weights; a third spelling would be the Smell-16 twin.
 
     Both acceleration postures consume this ONE operator:
 
@@ -463,10 +524,32 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
     here degrades the RATE, never the answer.
     """
 
-    def __init__(self, low_order: DSALowOrderSystem, sn_mesh: "SNMesh"):
+    def __init__(
+        self,
+        low_order: DSALowOrderSystem,
+        sn_mesh: "SNMesh",
+        *,
+        scattering_order: int = 0,
+    ):
         self._low_order = low_order
         self._mesh = sn_mesh
-        self._sum_w = float(np.asarray(sn_mesh.quad.weights).sum())
+        self._scattering_order = int(scattering_order)
+        w = np.asarray(sn_mesh.quad.weights, dtype=float)
+        # The ℓ=1 analysis/synthesis coefficients come off the FRAME's
+        # own ℓ=1 table row (its slab component IS μ bit-exactly — the
+        # D8-family pin), so "the frame's ℓ=1 row" is a CALLED single
+        # source, not a claim: one spelling shared with the scattering
+        # kernel's moment machinery, never a re-derived w·μ twin.
+        mu_row = np.asarray(
+            sn_mesh.quad.angular_frame(1).table, dtype=float
+        )[:, 1, 1]
+        self._sum_w = float(w.sum())
+        self._w_mu = w * mu_row
+        self._mu = mu_row
+        #: 1/W₂ of Larsen's (33) synthesis Ψ = f₀ + (μ/W₂)f₁ — computed
+        #: from the quadrature (= 3 exactly under the _build W₂ guard),
+        #: never a transcribed constant.
+        self._inv_w2 = float(1.0 / ((w / 2.0) @ mu_row**2))
 
     @classmethod
     def from_sn_mesh(
@@ -475,12 +558,16 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         r"""Build the correction operator for an admitted SN phase space
         (admission — geometry, scheme, walls — and the
         ``scattering_order`` consistency rule live on
-        :meth:`DSALowOrderSystem.from_sn_mesh`)."""
+        :meth:`DSALowOrderSystem.from_sn_mesh`; the same order decides
+        whether the ℓ=1 arm of the correction is live — consistency is
+        with the iterated operator, in the restriction exactly as in
+        the data row)."""
         return cls(
             DSALowOrderSystem.from_sn_mesh(
                 sn_mesh, scattering_order=scattering_order,
             ),
             sn_mesh,
+            scattering_order=scattering_order,
         )
 
     @property
@@ -534,19 +621,42 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         )
 
         d0 = interior.integrate_angular().values  # R — the ONE reduction
-        f0_edges = self._low_order.solve_correction(d0)
-        delta_phi = self._low_order.cell_update(f0_edges)
-        iso = np.broadcast_to(
-            delta_phi[None] / self._sum_w, interior.values.shape
-        ).copy()  # P — normalized isotropic injection
+        if self._scattering_order >= 1:
+            # The P1-DSA arm (live iff the sweep retains ℓ ≥ 1 — the
+            # SAME consistency rule as the low-order data row): the
+            # moment-1 restriction is the frame's ℓ=1 analysis row
+            # (w·μ — the SH table's slab component is μ bit-exactly),
+            # and the injection is Larsen's (33) ℓ≤1 synthesis
+            # Ψ = f₀ + (μ/W₂)f₁ under the one raw-normalization map
+            # (moment-0 of the μ-arm vanishes and moment-1 recovers
+            # d₁ exactly by the W₂ quadrature guard — R∘P = I on the
+            # moment pair).
+            d1 = np.einsum("n,ng...->g...", self._w_mu, interior.values)
+            f0_edges = self._low_order.solve_correction(d0, d1)
+            delta_phi0 = self._low_order.cell_update(f0_edges)
+            delta_phi1 = self._low_order.moment1_update(f0_edges, d1)
+            angular_values = (
+                delta_phi0[None]
+                + self._inv_w2 * self._mu[:, None, None] * delta_phi1[None]
+            ) / self._sum_w
+        else:
+            f0_edges = self._low_order.solve_correction(d0)
+            delta_phi0 = self._low_order.cell_update(f0_edges)
+            angular_values = np.broadcast_to(
+                delta_phi0[None] / self._sum_w, interior.values.shape
+            ).copy()  # P — normalized isotropic injection
         # The trace arm: the wall-edge solutions injected isotropically
         # per face (see the class docstring — load-bearing under the
-        # lagged reflective gain; inert on vacuum faces). Minted as the
-        # displacement role regardless of the input's role, so the
+        # lagged reflective gain; inert on vacuum faces). The arm stays
+        # ℓ=0 by THEOREM even when the ℓ=1 interior arm is live: the
+        # reflecting row (39) forces the wall-edge f₁ to zero, and a
+        # vacuum wall's trace is read by nothing — so an ℓ=1 trace
+        # component is identically zero where it would matter. Minted as
+        # the displacement role regardless of the input's role, so the
         # torsor add ``ψ ⊕ Δψ`` is well-formed on both postures (a
         # flux-typed boundary would trip the affine flux+flux gate).
         n_ord = interior.values.shape[0]
-        ng = delta_phi.shape[0]
+        ng = f0_edges.shape[0]
         trace = AngularBoundaryDisplacement.from_face_arrays(
             self._mesh,
             {
@@ -559,6 +669,6 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
             },
         )
         return displacement._recombine(
-            interior=AngularDisplacement.from_mesh(iso, self._mesh),
+            interior=AngularDisplacement.from_mesh(angular_values, self._mesh),
             boundary=trace,
         )
