@@ -2,8 +2,8 @@
 
 ## 1. Lessons (the behavioral spine)
 
-[lessons.md](lessons.md) — 58 behavioral lessons (`## L-NNN -- title`,
-ascending, contiguous L-001..L-058). "What mistake did I make, what did I
+[lessons.md](lessons.md) — 60 behavioral lessons (`## L-NNN -- title`,
+ascending, contiguous L-001..L-060). "What mistake did I make, what did I
 learn that improved my review behaviour." Consult before every review;
 sharpen in place after every task. The recurring spine:
 
@@ -61,6 +61,14 @@ sharpen in place after every task. The recurring spine:
   metric `G=V·w_n` conjugation on a MUTATED (non-transpose) op is not
   spectrum-preserving, so the SN F†=F k-tooth is 0.171, not the 0-D 0.153 the
   chapter/slice/tests/SKILL.md all cite (MUST-FIX; never asserted).
+  **L-060 sharpening (reciprocity gates):** a transpose/adjoint RECIPROCITY gate
+  `⟨A.solve q,p⟩=⟨q,A.solve_transpose p⟩` pins the transpose RELATIONSHIP, not
+  correctness — it is GREEN for any `(S,Sᵀ)` pair, so it is Mode-12 blind to a
+  SYMMETRIC completion-drop (both solve+solve_transpose). Mutation BOTH ways:
+  MUT-T (asymmetric → reds) AND MUT-BOTH (symmetric → stays green); the one-sided
+  `A∘A⁻¹=I` identity gate is the non-redundant partner. A symmetric-completion
+  (E_out-diagonal) inverse fix is provable by dense `(A⁻¹)ᵀ=(Aᵀ)⁻¹` (≈1e-16, incl.
+  the cyl free-DOF subspace where `A·A⁻¹=1.0` is the honest rank-deficient pair).
 - **Protocol/category gates** (L-039, L-047) — runtime_checkable only checks
   member PRESENCE; the direct `not hasattr` negatives are the defense.
 - **Behavior-neutral retype** (L-041, L-045, L-048, L-050) — re-prove

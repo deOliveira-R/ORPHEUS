@@ -2329,3 +2329,90 @@ METRIC-adjoint SOLVE must be the full-solve value (RUN it), never the angular-co
 char-poly proxy — the metric conjugation on a MUTATED (non-transpose) operator is NOT
 spectrum-preserving (only the CORRECT full-dagger is similar to forward), so `0-D ≠ SN-solve`
 whenever the metric carries a reduced axis (`w_n`).**
+
+---
+
+## L-059 -- an accelerator's PRODUCTION rate can sit ABOVE the operator's spectral radius (a splitting/wall lag); certify the operator by building the FULLY-COUPLED matrix, don't credit "matrix says healthy" from a sibling-BC certificate
+
+#2 DSA 3c rate tier. The reflective-BC gate (D12) split the rate claim: D11's Fourier
+bound (ρ ≤ 0.2247c) runs VACUUM (production ρ_est ≈ 0.18 ≈ matrix ρ), while the fully-
+reflective regime uses a LOOSER one-sided band (ρ ≤ 0.35) because production measures
+0.28-0.31 — attributed to a "Jacobi wall lag" (the production splitting reads the iterate's
+outgoing trace one iteration late), NOT a rate bug. The question: honest split or paper-over?
+
+**The decisive check is to BUILD the fully-coupled matrix (error-iteration) operator and
+read its ρ directly** — the operator ρ is the floor the splitting can approach; if the
+matrix ρ ≪ production ρ_est, the gap IS a splitting artifact (fixable: wall ordering / trace
+relaxation), not an operator/consistency bug. Confirmed here:
+- production refl/VAC ρ_est = 0.279 vs its matrix certificate 0.154 (D2 report) — the lag is
+  real and visible on a config that HAS a committed certificate.
+- I built the refl/REFL matrix (both walls resolved IN-sweep by iterating the boundary
+  partner fluxes to convergence, then composed with the production low-order via the test's
+  own `_t_dsa`): ρ = 0.19-0.22 — HEALTHY. Production refl/refl 0.28-0.31 is the lag,
+  confirmed. Split is HONEST.
+
+**The evidence-completeness flag (IMPROVE, not blocker):** the committed instruments
+(`_wd_sweep_matrix`, D2 Part C, rate-report Part D) only certify refl/**VAC** and vac/vac —
+the `_wd_sweep_matrix` hardcodes a vacuum right wall (its `bc[0]=="reflective"` branch is
+DEAD in every test; L-016). So the docstring's "the matrix certificates say the operator is
+healthy" for the refl/**REFL** regime that D12 actually gates rested on INFERENCE (mechanism
++ the refl/vac certificate) until the reviewer supplied the refl/refl matrix. When a rate-
+split's honesty argument cites "the matrix certifies the operator", verify the certificate
+covers the EXACT BC/config the runtime gate exercises — a sibling-BC certificate + "same
+mechanism" is inference, and the fully-coupled matrix for the gated config is cheap to build.
+
+**Behavioral rule:** to adjudicate "elevated production rate = splitting artifact vs rate
+bug", build the fully-coupled operator matrix for the GATED config and compare ρ_matrix to
+ρ_production. ρ_production > ρ_matrix ⟹ splitting lag (honest, characterize + file the
+improvement); ρ_matrix ≈ 1 ⟹ genuine consistency failure. Never accept "the matrix says
+healthy" when the committed matrix is a different BC than the gate runs. Companion to the
+numerical-bug-signatures Sig-8 (unconverged-inner-solve masquerade) and Sig-9 (ρ-blind stop)
+— a THIRD "the rate looks off" mechanism: a within-iteration boundary lag elevating the
+splitting's ρ above the operator's.
+
+---
+
+## L-060 -- a transpose/adjoint RECIPROCITY gate is Mode-12 blind to a SYMMETRIC completion-drop; a symmetric-completion (E_out diagonal) inverse-fix is VERIFIABLE by dense (Aᵀ)⁻¹=(A⁻¹)ᵀ, and mutation-tested BOTH ways
+
+#2 ERR-071 root fix (the honest full-space composite sweep inverse). The forward outflow-row
+is the defect `streamed − ψ_out`, so `(L+C)⁻¹` emits `ψ_out = streamed − rhs_out` via a
+post-march restore `buf[out_rows] −= seed[out_rows]`. The transpose half claims: `E_out` (the
+restore) is a diagonal partial identity ⟹ symmetric ⟹ `(Aᵀ)⁻¹ = S_oldᵀ − E_out` = the SAME
+one-site restore on the SAME forward-sense outflow selector in `solve_transpose`.
+
+**The symmetry argument is directly VERIFIABLE (don't trust the prose).** Build the composite
+flatten/unflatten, then dense `A` (apply on unit cols), `A⁻¹` (solve on cols), `(Aᵀ)⁻¹`
+(solve_transpose on cols); check `A·A⁻¹=I`, `Aᵀ·(Aᵀ)⁻¹=I`, and — the crux — `(A⁻¹)ᵀ=(Aᵀ)⁻¹`.
+Measured 1e-16 on slab/ld_slab/cyl_product INCLUDING the cyl free-DOF subspace (where
+`A·A⁻¹` shows `1.0` on the 8 μ_r≈0 rows — A genuinely rank-deficient there, the honest
+free-DOF pair, NOT a bug). This proof is independent of the bilinear reciprocity gate.
+
+**⭐ THE Mode-12 FINDING — a reciprocity gate pins the transpose RELATIONSHIP, not
+correctness.** `⟨A.solve q,p⟩=⟨q,A.solve_transpose p⟩` (the g3 gate, the named transpose
+catcher) is satisfied by ANY genuine transpose pair `(S,Sᵀ)` — so mutation-test it BOTH ways:
+- **MUT-T** (fix forward, undo ONLY the transpose completion: additively add `E_out` back →
+  `S_oldᵀ`): g3 REDS at O(1) (measured 3.9–7.4%) — the asymmetric catch. ✓
+- **MUT-BOTH** (empty the outflow selector → the true pre-fix HEAD state, BOTH halves dropped):
+  g3 stays GREEN (5.7e-17) — `(S_old, S_oldᵀ)` IS a transpose pair, so reciprocity is blind.
+The forward/symmetric half is caught ONLY by the one-sided identity gate
+`test_sweep_inverse_identity.py` (`(L+C)∘(L+C)⁻¹≡I`, reds at 1.8 under the symmetric drop).
+So the two gates are NON-REDUNDANT partners; neither alone covers ERR-071. The catalog +
+streaming.py note attribute each half to its gate correctly (transpose→g3, forward→identity)
+— NO overclaim, but flag for maintainers: never delete the identity gate on "g3 covers it".
+**Behavioral rule:** when a fix touches BOTH `solve` and `solve_transpose` symmetrically,
+a reciprocity gate is Mode-12 blind to the symmetric regression; require a one-sided
+`A∘A⁻¹=I` companion and mutation-test MUT-T AND MUT-BOTH separately.
+
+**Package A (P1-DSA d₁ arm) — clean, SUPPORTED.** (28b) `f₁=−(D/h)Δf₀+a·d₁@ρ=0`:
+`moment1_update` bit-exact vs an independent (23f) recompute (max|Δ|=0); `_dh`=D/h,
+`_a_coef`=a are the SAME arrays that build a_low/g_map (single-source, so transitively pinned
+by the entry-for-entry reference-builder gate `test_dsa_low_order.py`). The (28b) COMBINATION
+is not pinned entry-for-entry (no reference builder for the updates) but is end-to-end
+CONSTRAINED by the S2-exactness anchor (angular space = span{1,μ}, so one correction must
+annihilate the ℓ=1 gain): sign-flip / drop-a·d1 / 3× all blow n from 2 to 49 (Mode-10
+mutation-verified — the term is constrained, not merely exercised). Anti-mint confirmed:
+`angular_frame(1).table[:,1,1]==mu_x` bit-exact (a CALLED frame row, not a `w·μ` twin).
+P0-forced tooth: healthy n=2, forced n=33 (large margin). so=0 is a pure rename of the P0
+path (verified vs HEAD). Trace arm ℓ=0 by theorem (derivation reflecting row f₁=0; vacuum
+inert). Cross-refs [[lessons-L058]] (Mode-12 verify-by-running), [[lessons-L024]] (prove teeth
+by disabling), [[lessons-L016]] (product-quad needed to exercise the μ_r≈0 free-DOF branch).
