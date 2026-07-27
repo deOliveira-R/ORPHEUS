@@ -408,6 +408,30 @@ class AngularField(BulkField):
             mesh=mesh,
         )
 
+    def _integrate_angular_values(self) -> "NDArray":
+        r"""The ONE moment-0 reduction body :math:`\sum_n w_n\,(\cdot)_n`.
+
+        Contracts the leading ``N`` axis with the quadrature weights
+        ``w_n`` — ``(N, ng, nx, ny[, 2^d]) → (ng, nx, ny[, 2^d])``. The
+        ``ng...`` einsum is spatial-moment-axis-agnostic, so a
+        φ̂-carrying field reduces to a φ̂-carrying scalar (#240 D5b-S3);
+        the moment width propagates as a TYPED factor read off this
+        field's space, not an opaque axis.
+
+        Role leaves wrap this body in their own scalar type
+        (:meth:`AngularFlux.integrate_angular
+        <orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular>`
+        → ``ScalarFlux``; :meth:`AngularDisplacement.integrate_angular
+        <orpheus.transport.displacements.angular_displacement.AngularDisplacement.integrate_angular>`
+        → ``ScalarDisplacement`` — a linear reduction is its own tangent
+        map). Values-level, role-blind, single source of truth for the
+        canonical angular reduction (the DSA restriction ``R`` rides it,
+        #2).
+        """
+        return np.einsum(
+            "n,ng...->g...", self.mesh.quad.weights, self.values,
+        )
+
     @classmethod
     def zeros_on(cls, mesh: "SNMesh", *, spatial_moments: int = 1):
         r"""Construct a zero field of this leaf sized to ``mesh`` (B.5.A).

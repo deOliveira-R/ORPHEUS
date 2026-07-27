@@ -45,8 +45,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
-import numpy as np
-
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
 from orpheus.transport.fields._flux_role import FluxRole
@@ -117,17 +115,17 @@ class AngularFlux(FluxRole, AngularField):
         :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` is
         the cell-volume-weighted norm; the angular reduction here is
         a contraction over the leading ``N`` axis with the quadrature
-        weights ``w_n``.
+        weights ``w_n``. The ONE reduction body is
+        :meth:`AngularField._integrate_angular_values
+        <orpheus.transport.fields._bases.AngularField._integrate_angular_values>`
+        — shared with the displacement role's tangent-map sibling
+        :meth:`AngularDisplacement.integrate_angular
+        <orpheus.transport.displacements.angular_displacement.AngularDisplacement.integrate_angular>`
+        (a linear reduction is its own tangent map); each role wraps it
+        in its own scalar type.
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
-        weights = self.mesh.quad.weights
-        # values shape (N, ng, nx, ny[, 2^d]); contract over leading N axis
-        # with weights (N,) → (ng, nx, ny[, 2^d]).  The ``ng...`` einsum is
-        # spatial-moment-axis-agnostic, so a φ̂-carrying angular flux reduces to
-        # a φ̂-carrying scalar flux (#240 D5b-S3); the moment width is propagated
-        # as a TYPED factor read off this field's space, not an opaque axis.
-        scalar_values = np.einsum("n,ng...->g...", weights, self.values)
         return ScalarFlux.from_mesh(
-            scalar_values, self.mesh,
+            self._integrate_angular_values(), self.mesh,
             spatial_moments=self.spatial_moments_per_axis,
         )

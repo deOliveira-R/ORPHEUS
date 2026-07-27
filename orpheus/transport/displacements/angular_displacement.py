@@ -18,11 +18,16 @@ function space) — the CLASS is the role gate, not the space name.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.displacements._displacement import Displacement
 from orpheus.transport.fields._bases import AngularField
+
+if TYPE_CHECKING:
+    from orpheus.transport.displacements.scalar_displacement import (
+        ScalarDisplacement,
+    )
 
 
 __all__ = ["AngularDisplacement"]
@@ -40,3 +45,25 @@ class AngularDisplacement(Displacement, AngularField):
     #: Same units as the flux it differences (a flux − flux is a flux-difference,
     #: :math:`1/(\mathrm{cm^2 \cdot s \cdot sr})`).
     UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS
+
+    def integrate_angular(self) -> "ScalarDisplacement":
+        r"""Reduce to the scalar-flux displacement :math:`\Delta\phi =
+        \sum_n w_n\,\Delta\psi_n`.
+
+        The TANGENT MAP of :meth:`AngularFlux.integrate_angular
+        <orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular>`
+        — a linear reduction is its own tangent map, so the two share
+        the ONE body (:meth:`AngularField._integrate_angular_values
+        <orpheus.transport.fields._bases.AngularField._integrate_angular_values>`)
+        and differ only in the role of the result: the moment of a
+        displacement is a displacement. The consistent-DSA restriction
+        consumes exactly this (:math:`d_0 = \phi_0^{l+1/2} -
+        \phi_0^{l}`, issue #2).
+        """
+        from orpheus.transport.displacements.scalar_displacement import (
+            ScalarDisplacement,
+        )
+        return ScalarDisplacement.from_mesh(
+            self._integrate_angular_values(), self.mesh,
+            spatial_moments=self.spatial_moments_per_axis,
+        )
