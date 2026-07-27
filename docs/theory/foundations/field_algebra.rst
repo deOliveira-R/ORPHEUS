@@ -98,8 +98,10 @@ consumer.
    - **The typed residual** is minted by the named composition
      :meth:`~orpheus.transport.residuals.angular_residual.AngularResidual.from_balance`
      and consumed by :func:`~orpheus.sn.solver.evaluate_residual` (the
-     #208 box-7 consumer) — an additive diagnostic + the consistent-DSA
-     (Issue #2) substrate, NOT in the convergence path.
+     #208 box-7 consumer) — an additive diagnostic + the end-of-solve
+     exit certificate, NOT in the convergence path. (Consistent DSA
+     (#2) landed on the DISPLACEMENT algebra, not this residual — see
+     the affine-algebra section below.)
    - **Zero numerical change.** The whole carve is type-only on the
      converged answer: the SI stopping norm stays the flat
      :math:`\lVert\Delta\psi\rVert`, the residual evaluation is
@@ -519,14 +521,22 @@ be):
 The residual is **additive / diagnostic** — never in the convergence
 path. The SI stopping test stays :math:`\lVert\Delta\psi\rVert`; the
 GMRES defect stays the *flat* :math:`b - A\psi` on the raveled vector
-(never typed as a field). The typed residual is also the literal
-substrate the **consistent DSA** low-order correction (Issue #2) will
-consume — DSA computes the transport residual, then a diffusion
-correction through the in-algebra diffusion operator
-:math:`A_{\rm diff} = L + C - S - B` (now built, #290 P4;
-:doc:`/theory/methods/diffusion_1d`); :eq:`affine-typed-residual-eq` is that
-transport residual, typed. (``as_dsa_source`` lands WITH DSA #2, per
-the build-the-genuine-primitive-defer-the-speculative-tail discipline.)
+(never typed as a field). The **consistent DSA** correction (Issue #2)
+landed on the DISPLACEMENT algebra instead of this residual: the
+correction operator consumes the iterate displacement
+:math:`\Delta\psi = \psi^{l+1/2} \ominus \psi^{l}` (whose moment-0 is
+Larsen's :math:`d_0` source — for the exact inner sweep the residual is
+:math:`S\,\Delta\psi`, so the two carry the same information up to the
+:math:`\hat\sigma_S h` weighting the proven :math:`G` map owns), and
+its low-order operator is the **derived edge-centered SN-side
+consistent system** — NOT the standalone diffusion loss
+:math:`A_{\rm diff}`, which the R4 characterization measured
+**divergent** as an accelerator for :math:`\sigma_t h \gtrsim 2`
+(:mod:`orpheus.sn.acceleration.dsa`; the promised ``as_dsa_source``
+was therefore never minted — a third moment-0 spelling — and the one
+restriction is the canonical
+:meth:`~orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular`
+with its displacement tangent-map sibling).
 
 
 Numerical evidence

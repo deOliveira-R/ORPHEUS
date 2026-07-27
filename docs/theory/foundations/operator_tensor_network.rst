@@ -565,20 +565,19 @@ what actually happened, is:
    * - **#2 consistent DSA**
      - A diffusion-synthetic accelerator was expected to consume an
        isolated spatial-streaming leaf as the operator to precondition.
-     - DSA consumes the **fused residual** of :math:`(L+C-S)` plus a
-       *separate* diffusion operator :math:`A_{\rm diff}` built
-       in-algebra; it never needs the streaming term split from
-       collision, let alone the forward direction split from the
-       backward. That diffusion operator now **exists** —
-       :math:`A_{\rm diff} = L + C - S - B` on the scalar composite
-       (:mod:`orpheus.diffusion.operators`, #290 P4;
-       :doc:`/theory/methods/diffusion_1d`), inverted by an explicit
-       :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
-       and correctness-safe by construction (its low-order correction
-       :math:`\to 0` at convergence). The accelerator (Issue #2) itself
-       is still unbuilt, but the architecture it decided on is this
-       in-algebra diffusion operator, not a per-direction streaming
-       leaf.
+     - DSA never needs the streaming term split from collision, let
+       alone the forward direction split from the backward: the landed
+       accelerator (:mod:`orpheus.sn.acceleration.dsa`) consumes the
+       iterate **displacement** through the fused sweep, and its
+       low-order operator is the **derived edge-centered SN-side
+       consistent system** (the R4 ruling — the standalone in-algebra
+       :math:`A_{\rm diff} = L + C - S - B` of
+       :doc:`/theory/methods/diffusion_1d` remains the right
+       *standalone* discretization but was MEASURED divergent as a
+       correction operator at :math:`\sigma_t h \gtrsim 2`; two
+       defining laws, two operators). Correctness-safe by construction
+       either way: the correction :math:`\to 0` at convergence. No
+       per-direction streaming leaf anywhere in the loop.
    * - **#200 block-inverse preconditioner**
      - A per-direction leaf was expected to feed a block-inverse Krylov
        preconditioner that addressed each direction block.
