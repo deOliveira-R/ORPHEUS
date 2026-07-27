@@ -2,13 +2,11 @@ r"""The composite sweep-inverse identity — ``(L+C) ∘ (L+C)⁻¹ ≡ I``
 on the FULL composite space, outflow-trace rows included (ERR-071).
 
 The forward's boundary block is a sibling of the bulk: the outflow-trace
-row is the self-consistency DEFECT ``streamed − ψ_out`` (the sign is
-the authoritative forward's, loss_representation, pinned by this gate's
-round-trip) and the inflow
+row is the self-consistency DEFECT ``streamed − ψ_out`` (the
+authoritative forward's row, loss_representation) and the inflow
 row the identity on the given inflow. The exact inverse must therefore
-emit ``ψ_out = streamed − rhs_out`` (the forward's row is ``streamed −
-ψ_out``; the sign is pinned by this gate's round-trip) — and until
-2026-07-26 the sweep
+emit ``ψ_out = streamed − rhs_out`` (the sign is pinned by this gate's
+round-trip) — and until 2026-07-26 the sweep
 DROPPED the rhs's outflow-row content (seeded it into the mutable
 boundary buffer, then let the march clobber it). Every PHYSICAL rhs
 carries zero there (builders populate inflow slots only; outflow rows
@@ -135,6 +133,7 @@ def _random_composite(sn_mesh: SNMesh, seed: int) -> FullField:
 
 
 class TestSweepInverseIdentity:
+    @pytest.mark.verifies("sn-dsa-sweep-inverse-identity")
     @pytest.mark.parametrize("geom", _GEOMS)
     def test_forward_of_inverse_is_identity_on_a_random_composite(
         self, geom,

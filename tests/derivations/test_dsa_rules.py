@@ -47,16 +47,19 @@ class TestFourStepDerivation:
         equals the raw angular reductions for the symbolic quadrature."""
         dsa.derive_moment_equations()
 
+    @pytest.mark.verifies("sn-dsa-consistent-low-order")
     def test_main_theorem_interior_row_is_larsen_27(self):
         r"""THE MAIN THEOREM: shared-edge f1 continuity ≡ Larsen (27) with
         (23a–f) under the printed convention (W0=1, W2=1/3), proven by
         exact coefficient proportionality on the constraint variety."""
         dsa.derive_interior_row()
 
+    @pytest.mark.verifies("sn-dsa-cell-update")
     def test_update_relations_are_larsen_28(self):
         r"""The cell-average updates reproduce (28a/28b)."""
         dsa.derive_update_relations()
 
+    @pytest.mark.verifies("sn-dsa-marshak")
     def test_boundary_rows(self):
         r"""Marshak (38a) coefficients DERIVED as (γ_N, W2⁺/W2) — printed
         (γ_N, 1/2) — and the vacuum row closes one-sidedly onto f0;
@@ -65,6 +68,7 @@ class TestFourStepDerivation:
         if set(rows) != {"marshak_open", "vacuum_closed", "reflecting"}:
             raise dsa.DerivationError("boundary-row set changed unexpectedly")
 
+    @pytest.mark.verifies("sn-dsa-coefficients")
     def test_dd_instance_coefficients(self):
         r"""The diamond member (α = 0): σ̂_R = σ_T − σ_S0,
         D = 1/[3(σ_T − σ_S1)] — the operator Phase 3b wires."""

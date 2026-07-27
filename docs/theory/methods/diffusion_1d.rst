@@ -514,8 +514,11 @@ SN\ :math:`\to`\ diffusion boundary restriction is the :math:`\ell = 0`
 half-range moment of the angular trace under the shared
 :math:`\lvert\Omega\cdot\hat n\rvert\,w` metric — the reason ruling 2
 posed the trace in partial-current variables. See
-:doc:`/theory/foundations/operator_algebra` for the DSA-consumer discussion and the
-seam contract.
+:doc:`/theory/methods/sn/acceleration` for the DSA-consumer discussion
+and the seam contract — and, in particular, why the consistent
+accelerator is **not** :math:`A_{\rm diff}` but the derived
+edge-centered SN-side system (ruling R4: :math:`A_{\rm diff}` is the
+right standalone discretisation and a measured-divergent *accelerator*).
 
 .. _diffusion-operator-family-verification:
 

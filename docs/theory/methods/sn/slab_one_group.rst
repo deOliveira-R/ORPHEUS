@@ -800,6 +800,19 @@ the isotropic box cannot see this error (``vv-principles``
 anti-pattern #4: homogeneous/isotropic verification is blind to the
 angular structure).
 
+That "future within-group accelerator" has since landed: the consistent
+DSA low-order build is the **first production consumer** of the foldable
+accessors, and it is legitimate there precisely because a low-order
+operator is correction\ :math:`\to 0`-safe by construction (a wrong
+low-order degrades the rate, never the fixed point) — so folding
+:math:`\sigma_r` onto the *low-order* removal diagonal is safe, while
+the identical fold onto the *sweep* is the ERR-070 fixed-point bug this
+table exhibits.  The full story — the 43 % measured shift, the D10
+routing sentinel that fences the accessors to their three legitimate
+consumers, and the correction\ :math:`\to 0` partition that makes the
+distinction rigorous — is in
+:ref:`sn-dsa-three-discoveries` of :doc:`acceleration`.
+
 The Krylov alternative: same walk, different strategy
 -----------------------------------------------------
 

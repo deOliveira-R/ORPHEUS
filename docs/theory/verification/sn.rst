@@ -5058,3 +5058,96 @@ parameter and its ``AdjointSolution`` carrier are
 :ref:`sn-adjoint-carrier`.
 
 
+.. _sn-dsa-verification:
+
+Diffusion Synthetic Acceleration (rate / invariance, not MMS)
+-------------------------------------------------------------
+
+DSA verification is a **different kind** from the MMS/convergence tiers
+above.  DSA is an accelerator: it makes **no eigenvalue and no
+flux-shape claim** (the eigenvalue is the SN solver's, verified
+elsewhere), so **MMS is absent by design**.  Its defining property —
+the low-order correction :math:`\to 0` at convergence — organises the
+whole battery: bugs in the *transport* operator change the fixed point
+(caught by FP-invariance), while bugs in the *accelerator* machinery
+leave the fixed point **identically** unchanged and are caught only by
+**object gates** and **rate gates**.  Of the eight canonical
+implementation errors, exactly one reds the FP gates; the other seven
+ride the object/rate tier (full derivation:
+:ref:`sn-dsa-the-f-form` of :doc:`../methods/sn/acceleration`).
+
+.. list-table:: The DSA verification battery (issue #2, arm 1: 1-D slab DD)
+   :header-rows: 1
+   :widths: 14 30 12 22 22
+
+   * - Gate
+     - What it pins
+     - Level
+     - Equation label
+     - Test
+   * - D1 / D2
+     - the derived low-order row :math:`\equiv` Larsen (27)/(23a–f), and
+       the production build :math:`\equiv` the reference builder
+       entry-for-entry
+     - foundation
+     - :eq:`sn-dsa-consistent-low-order`, :eq:`sn-dsa-coefficients`
+     - ``test_dsa_rules``, ``test_dsa_low_order``
+   * - D3–D5
+     - accelerated flux :math:`\equiv` plain-SI fixed point on an
+       **anisotropic** config (Mode-9-proof; the only catcher for the
+       :math:`\sigma_r`-fold)
+     - L2
+     - — (invariance)
+     - ``test_dsa_acceleration``
+   * - D6
+     - correction :math:`\to 0` — a zero displacement maps to an exact
+       zero (the safety property)
+     - L2
+     - :eq:`sn-dsa-correction-vanishes`
+     - ``test_dsa_acceleration``
+   * - D7 / D8
+     - :math:`R` conserves particles (:math:`\langle 1, Rr\rangle =
+       \langle 1, r\rangle`) and :math:`\equiv` the frame's
+       :math:`\ell = 0` analysis row (0-ULP)
+     - foundation
+     - :eq:`sn-dsa-restriction`
+     - ``test_dsa_low_order``
+   * - D10
+     - the σ\ :sub:`r`-fold routing sentinel (foldable accessors fenced
+       to their three legitimate consumers) — **catches ERR-070**
+     - foundation
+     - — (AST)
+     - ``test_dsa_rate``
+   * - D11
+     - measured :math:`\rho \le 0.2247c` (one-sided Fourier bound +
+       plain-SI honesty control) — a **rate** claim (1G-legit)
+     - L1
+     - :eq:`sn-dsa-consistent-fourier`
+     - ``test_dsa_rate``
+   * - D12 / D13
+     - reflective stability (thickness-independent, bounded) + the
+       c-independence / speedup count gates + the WD
+       partial-consistency divergence control
+     - L1 / L2
+     - — (rate)
+     - ``test_dsa_rate``
+   * - S2
+     - :math:`K_2 = 0` one-iteration exactness (self-verifies the whole
+       boundary/update/synthesis chain in one number)
+     - L1
+     - :eq:`sn-dsa-s2-exactness`, :eq:`sn-dsa-synthesis`
+     - ``test_dsa_rate``
+   * - inverse
+     - :math:`(L+C)\circ(L+C)^{-1} \equiv I` on the FULL composite space
+       — **catches ERR-071**
+     - foundation
+     - :eq:`sn-dsa-sweep-inverse-identity`
+     - ``test_sweep_inverse_identity``
+
+The measured rate/stability tables (the c :math:`\to` 1 corner, the
+anisotropy ladder, the reflective Jacobi-wall lag, the WD negative
+control) are teaching artifacts at :ref:`sn-dsa-rate-and-stability`;
+the auto-generated equation-label :math:`\times` test matrix is at
+:doc:`/theory/verification/matrix`.
+
+

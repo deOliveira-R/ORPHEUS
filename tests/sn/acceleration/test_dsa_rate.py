@@ -10,59 +10,21 @@ bar below is pinned to a measured value (the 3c design scan,
 durable copies live in ``.claude/plans/dsa_d2_characterization.md`` and
 the Phase-3 roadmap).
 
-Measured design facts the bars encode
-=====================================
+Measured design facts (migrated to the theory page)
+===================================================
 
-* **D11 (ρ vs A&L (3.65)).** Production S8, 1G homogeneous vacuum slab,
-  K = 40: ρ_est = 0.176–0.180 at c = 0.9 (bound 0.2247c = 0.2022),
-  0.074 at c = 0.5 (bound 0.1124). The spec's pre-measurement two-sided
-  band ``|ρ − 0.2247c| < 0.03`` is replaced by the honest split: the
-  ONE-SIDED theory bound (discrete S_N ρ must respect the continuum
-  Fourier sup — the load-bearing claim) + a measured attainment FLOOR
-  (a collapsed estimator or a dead accelerator cannot fake it) + the
-  plain-SI honesty control (ρ_est(SI) ≈ c: measured 0.894/0.903 — the
-  estimator measures the operator, not an artifact).
-* **The reflective rate is LAG-limited, not Fourier-limited.** Fully
-  reflective production runs measure ρ_est ≈ 0.28 (c = 0.9) / 0.31
-  (c = 0.99) — above the vacuum 0.18 because production lags each
-  wall reflection one iteration (the Jacobi ``B`` gain; the 3b trace
-  arm corrects the outflow so the lag contracts). The Fourier-bound
-  gate therefore runs VACUUM; the reflective band is D12's own
-  (< 0.35, measured ≤ 0.31, thickness-INDEPENDENT: n = 21 flat over
-  σ_t·h ∈ {1, 5, 20} at c = 0.99 — the historical spike regime).
-* **S2 exactness (K₂ = 0).** The two-moment reduction closes S2-GL
-  exactly, so consistent DSA converges in ONE correction: measured
-  n_inner = 2 on vacuum (post-correction residual 3.2e-15), and each
-  LAGGED reflective wall costs exactly +1 iteration before the same
-  machine-zero landing (refl/vac: n = 3, refl/refl: n = 3 — the
-  second iterate reads the corrected outflow and closes exactly).
-  One number self-verifies T, G, A_edge, the Marshak rows, the trace
-  arm, and the (28a) update.
-* **The partial-consistency negative control.** A weighted-diamond
-  sweep (a ≠ ½) paired with the DD-consistent low-order measurably
-  reproduces the Adams-Larsen Table-II shape: at a = 0.75, c = 0.99
-  the pairing DIVERGES (ρ = 1.44 / 1.78 at σ_t·h = 10 / 30) while the
-  consistent pairing stays flat (≤ 0.181) on the same problems — the
-  battery detects inconsistency, not just breakage. The in-file
-  independence proof for the test-local machinery is the a = ½
-  composite S2 anchor (the diamond member + the PRODUCTION low-order
-  must close the K₂ = 0 system at machine zero — one number tying the
-  instrument's sweep, the shipped build, and the update composition;
-  the direct a = ½ ≡ DD sweep-matrix identity was verified at 1e-17 in
-  the design scan).
-* **Lumping the ¼(1,2,1) removal mass DEGRADES but does not diverge**
-  in the scanned regimes (matrix ρ up to 0.82 at σ_t·h = 30 vs
-  consistent 0.10–0.16) — so the runtime inconsistent-low-order tooth
-  pins a COUNT BLOW-UP (> 3×), and the divergent-class evidence stays
-  with the WD control rows and the landed-cell D2 scan (ρ up to 54.7,
-  committed in the D2 report).
-* **The P1-DSA (d₁) arm** (R5 ruling 2026-07-26 — wire now): the
-  P0-only correction on an ℓ≥1 sweep degrades along the anisotropy
-  ladder (24/39/86 iterations, ρ up to 0.751 at σ_s1/σ_s0 = 0.9);
-  the moment-pair arm restores the FLAT A&L rate (14/15/15 at
-  ρ_est = 0.175) and lands the ℓ=1 S2 system at machine zero
-  (5.4e-15) — S2's angular space IS span{1, μ}, so the exactness
-  anchor verifies the entire d₁ convention chain in one number.
+The measured design facts these bars encode — the D11 one-sided
+Fourier bound and the plain-SI honesty control, the reflective
+Jacobi-wall lag (production rate > matrix rho, not a consistency
+failure), the S2 K2=0 one-iteration exactness, the c -> 1 FP floor
+and scale-free metric, the weighted-diamond partial-consistency
+negative control, and the P1-DSA (d1) anisotropy-ladder payoff — are
+documented as teaching tables in
+``docs/theory/methods/sn/acceleration.rst`` (the
+``sn-dsa-rate-and-stability`` section). This docstring records only
+the test CONTRACT; the durable numeric copies live in
+``.claude/plans/dsa_rate_characterization.md`` and the Phase-3
+roadmap.
 
 The #215 catchers (mutation matrix row 7)
 =========================================
@@ -249,6 +211,7 @@ class TestD11SpectralRadius:
 
     pytestmark = pytest.mark.l1
 
+    @pytest.mark.verifies("sn-dsa-consistent-fourier")
     @pytest.mark.parametrize("sth", [0.5, 1.0])
     def test_rho_below_bound_c09(self, sth):
         c = 0.9  # the scattering ratio — the bound is ρ ≤ 0.2247·c
@@ -582,6 +545,7 @@ class TestS2Exactness:
             (("reflective", "reflective"), 3),
         ],
     )
+    @pytest.mark.verifies("sn-dsa-s2-exactness")
     def test_one_correction_exactness(self, bc, n_expected):
         sol = _uniform_solve(0.9, 1.0, bc, n_ord=2, acceleration="dsa",
                              max_inner=50)
@@ -701,6 +665,7 @@ class TestP1DSAArm:
         "bc,n_expected",
         [(("vacuum", "vacuum"), 2), (("reflective", "vacuum"), 3)],
     )
+    @pytest.mark.verifies("sn-dsa-synthesis")
     def test_s2_exactness_with_l1_scattering(self, bc, n_expected):
         sol = _p1_solve(0.5, n_ord=2, bc=bc, acceleration="dsa",
                         max_inner=50)

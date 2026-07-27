@@ -1113,5 +1113,6 @@ The chapters:
    loss_representation
    boundary_conditions
    solver
+   acceleration
    adjoint
    history

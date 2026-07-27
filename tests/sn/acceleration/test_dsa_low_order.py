@@ -86,6 +86,7 @@ class TestProductionTie:
     @pytest.mark.parametrize(
         "bc", [("vacuum", "vacuum"), ("reflective", "vacuum")]
     )
+    @pytest.mark.verifies("sn-dsa-consistent-low-order")
     def test_low_order_matches_reference_builder(self, bc):
         """At ``scattering_order=1`` so the mixtures' real P1 rows
         exercise the (23c) transport-corrected D, not the bare-P0
@@ -202,6 +203,7 @@ class TestRestrictionProlongation:
         values = rng.standard_normal((4, 2, 4))
         return AngularFlux.from_mesh(values, sn_mesh)
 
+    @pytest.mark.verifies("sn-dsa-restriction")
     def test_d7_restriction_conserves_particles(self, psi):
         r"""⟨1, R r⟩ = ⟨1, r⟩ — hand-posed with explicit w_n and V_i
         (structurally independent of the einsum body)."""
@@ -218,6 +220,7 @@ class TestRestrictionProlongation:
                     rhs += volumes[i] * w[n] * psi.values[n, g, i]
         np.testing.assert_allclose(lhs, rhs, rtol=1e-14, atol=0)
 
+    @pytest.mark.verifies("sn-dsa-restriction")
     def test_d8_restriction_is_the_frame_moment_row(self, psi):
         r"""``integrate_angular`` ≡ the ℓ=0 analysis row of
         ``Quadrature.angular_frame(0)`` (Y⁰₀ = 1 under the no-prefactor

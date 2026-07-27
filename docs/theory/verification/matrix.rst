@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6843**
+Total tests collected: **6921**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1203, 17.6%
-   L1, 1130, 16.5%
-   L2, 62, 0.9%
+   L0, 1203, 17.4%
+   L1, 1192, 17.2%
+   L2, 64, 0.9%
    L3, 0, 0.0%
-   foundation, 4448, 65.0%
+   foundation, 4462, 64.5%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6764
+   explicit, 6842
    class-name, 46
    func-name, 0
    case, 33
@@ -49,6 +49,7 @@ Module × level grid
 
    acceleration/test_dsa_acceleration, 0, 0, 7, 0, 0, 0
    acceleration/test_dsa_low_order, 0, 0, 0, 0, 11, 0
+   acceleration/test_dsa_rate, 0, 62, 2, 0, 6, 0
    analytical/test_cp_standoff_curvilinear, 0, 2, 1, 0, 0, 0
    analytical/test_kinf_homogeneous, 0, 31, 0, 0, 0, 0
    analytical/test_kinf_homogeneous_tolerance, 0, 8, 0, 0, 0, 0
@@ -378,6 +379,7 @@ Module × level grid
    operators/test_streaming_cell_transpose_relocation, 0, 0, 0, 0, 11, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
    operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
+   operators/test_sweep_inverse_identity, 0, 0, 0, 0, 7, 0
    operators/test_typed_residual_evaluation, 1, 0, 0, 0, 12, 0
    primitives/test_axis_native_construction, 0, 0, 0, 0, 15, 0
    primitives/test_axis_primitive, 0, 0, 0, 0, 23, 0
@@ -411,7 +413,7 @@ Module × level grid
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
    solve/test_flux_displacement_diagnostics, 0, 4, 0, 0, 0, 0
-   solve/test_gauss_seidel_reification, 0, 0, 0, 0, 7, 0
+   solve/test_gauss_seidel_reification, 0, 0, 0, 0, 8, 0
    solve/test_krylov_curvilinear_precond_safety, 0, 10, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
@@ -665,6 +667,9 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-vacuum-bc-cylinder``, 3
    ``peierls-vacuum-bc-sphere``, 3
    ``sigma-zero``, 3
+   ``sn-dsa-consistent-low-order``, 3
+   ``sn-dsa-s2-exactness``, 3
+   ``sn-dsa-sweep-inverse-identity``, 3
    ``sn-homogenization-rate-preservation``, 3
    ``sn-leakage-functional``, 3
    ``sn-mms-nonvacuum-psi``, 3
@@ -694,6 +699,9 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-case-slope-matrix``, 2
    ``sn-case-spatial-modes``, 2
    ``sn-contamination-factor``, 2
+   ``sn-dsa-consistent-fourier``, 2
+   ``sn-dsa-restriction``, 2
+   ``sn-dsa-synthesis``, 2
    ``sn-mms-2d-2g-psi``, 2
    ``sn-mms-cylindrical-aniso-psi``, 2
    ``sn-mms-cylindrical-aniso-qext``, 2
@@ -762,6 +770,10 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sigT-computed``, 1
    ``singular-eigenfunction-eq5``, 1
    ``sn-adjoint-duality``, 1
+   ``sn-dsa-cell-update``, 1
+   ``sn-dsa-coefficients``, 1
+   ``sn-dsa-correction-vanishes``, 1
+   ``sn-dsa-marshak``, 1
    ``sn-homogenization-balance-preservation``, 1
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
@@ -787,7 +799,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **518** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **521** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-contraction-ratio``
@@ -1212,6 +1224,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-direct-seed-block-triangular``
 - ``sn-direct-seed-pole-straight-characteristic``
 - ``sn-direct-seed-r12a-predicate``
+- ``sn-dsa-continuum-bound``
+- ``sn-dsa-krylov-preconditioner``
+- ``sn-dsa-si-fourier``
 - ``sn-err-058-coupled-pole-continuity``
 - ``sn-err-058-edge-extrapolation``
 - ``sn-err-058-proxy-source``
@@ -1401,6 +1416,8 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-067``, 2
    ``ERR-068``, 1
    ``ERR-069``, 2
+   ``ERR-070``, 3
+   ``ERR-071``, 8
 
 Unmarked tests
 --------------

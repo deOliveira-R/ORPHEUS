@@ -136,6 +136,7 @@ class TestD6CorrectionVanishes:
     a zero displacement maps to an exactly-zero correction (G·0 = 0,
     A⁻¹·0 = 0, P·0 = 0 — exact arithmetic, no tolerance)."""
 
+    @pytest.mark.verifies("sn-dsa-correction-vanishes")
     def test_zero_displacement_maps_to_exact_zero(self):
         from orpheus.sn.mesh.augmented_mesh import SNMesh
         from orpheus.transport.fields.angular_flux import AngularFlux
