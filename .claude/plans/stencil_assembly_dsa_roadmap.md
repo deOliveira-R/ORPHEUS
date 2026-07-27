@@ -1,13 +1,31 @@
 # Stencil-assembly + DSA roadmap — k-estimator → spatial reification → DSA (#2)
 
-**Status (2026-07-26 — trust `git log`, this note is a snapshot): Phases 1, 2,
+**⏹ CAMPAIGN COMPLETE — TERMINAL (2026-07-27).** All four phases merged to
+main: P1 @ `a4952c3` · P2 = the `f6079be…` chain (2026-07-04) · P2.5 = #280
+@ `3f0b8c74` (2026-07-13) · **P3 (consistent DSA, #2) ff-merged
+`e4c1a81c..37ffc310` (2026-07-27), branch deleted, #2 + #215 CLOSED.** This
+file is now ARCHAEOLOGY — the full phase record, the rulings R1–R14 + R5/R6,
+and the R6 execution log. The living record of the DSA build is the theory
+page `docs/theory/methods/sn/acceleration.rst` (Key Facts + the three
+consistency discoveries + Development history) + `error_catalog.md`
+ERR-070/ERR-071; the evidence packs are the committed
+`.claude/plans/dsa_*.md`; the open follow-ups are GitHub issues
+**#312 (LD arm) · #313 (reflective lag mode) · #314 (2-D DSA) · #315
+(scheduled full-space inverse) · #316 (frame-backed angular_moment(ℓ))**,
+with dispositions on #200 (DSA = the first re-enabled Krylov M; issue stays
+open for the block-inverse candidate) and #227 (windowed-sweep ↔ DSA
+cross-link). Final gates at merge: full serial tree 6627/0 · Sphinx `-E -W`
+0 · audit 0 orphans of 325, ERR 71/71 · pyright ratchet = the accepted #288
+floor (`transport: 1`).
+
+**Status (2026-07-26 — superseded by the terminal block above): Phases 1, 2,
 AND 2.5 COMPLETE, merged to main (P1 @ `a4952c3`; P2 = the `f6079be…` chain
 ff-merged 2026-07-04; Phase 2.5 = #280 CLOSED 2026-07-13 @ `3f0b8c74` — R9's
 "keep `sn/spatial` the name" was superseded by execution: the residual package
-is now `orpheus/sn/sweep/`, task #54 @ `588f2429`). **Phase 3 (DSA #2) is IN
-FLIGHT on branch `feature/sn-dsa`**: the 3-P0 dispatches are DONE (four memos,
-see the Phase-3 plan-of-record subsection below) and the phase plan was
-USER-APPROVED 2026-07-26 after the diffusion-readiness checkpoint.**
+is now `orpheus/sn/sweep/`, task #54 @ `588f2429`). Phase 3 (DSA #2) ran on
+branch `feature/sn-dsa`: the 3-P0 dispatches DONE (four memos, see the
+Phase-3 plan-of-record subsection below), the phase plan USER-APPROVED
+2026-07-26 after the diffusion-readiness checkpoint.**
 
 Campaign chain: **Phase 1** k-estimator unification (#259 + #291) → **Phase 2** spatial
 substrate promotion + the ASSEMBLY third mode (#272 + #158 + #253, user ruling below) →
