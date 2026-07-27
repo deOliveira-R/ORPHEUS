@@ -1384,15 +1384,42 @@ transcribed constant.
   1e-11 per (ordinate, group) on the het non-uniform slab — production
   convention confirmed as the DENSITY form (μ/h)Δψ + σ_Tψ̄ (diamond.py kernel).
   5 tie/structure tests green; CLI pyright 0.
-- **NEXT = D2**: the structured characterization of the derived edge-centered
-  system vs the landed cell-centered diffusion assembly (uniform-case stencil
-  table; the expected structural diffs: edge-vs-cell homes, consistent-(1,2,1)/4
-  vs lumped removal mass, DISCRETE γ_S4 ≈ 0.2606 vs continuum ¼ Marshak) → then
-  the ⏸ **R4 CHECKPOINT** (AskUserQuestion with the diff evidence; the
-  literature strongly suggests the derived edge-centered operator is the
-  correction operator — A&L (3.43)/(3.44): the cell-centered variant is the
-  DIVERGENT class at large Σ_t h, which is the spike's observed reflective
-  failure).
+- ✅ **D2 DONE 2026-07-26** — report `.claude/plans/dsa_d2_characterization.md`
+  (regenerate: `d2_characterization.py`, job tmp). The structural diffs
+  CONFIRMED + one found in flight: (1) homes — f₀ on K+1 EDGES vs φ on K cells
+  (+trace); (2) removal — consistent ¼(1,2,1)·σ̂_R h mass vs lumped diag (the
+  derived off-diagonal flips sign at thick cells — the consistency
+  fingerprint); (3) boundary — DISCRETE γ_S4 = 0.260634 vs continuum ¼; (4)
+  **the D definition** — landed = outflow Σ_tr (TOTAL P1 out-scatter), the
+  derivation (23c) = WITHIN-GROUP P1 self-scatter (coincide only iso). The
+  derived operator needs NO harmonic mean anywhere (edge unknowns straddle
+  material-homogeneous cells); the landed one does (cell unknowns straddle
+  faces; matches `_interior_conductance` exactly). **The measured ρ scan (the
+  decisive evidence)**: derived edge — ρ ≤ 0.181 over σ_t h ∈ [0.1, 30] ×
+  c ∈ {0.9, 0.99} × {vac/vac, refl/vac} (inside A&L's 0.2247c); **S2 anchor
+  ρ ≈ 3e-15 incl. reflective** (K₂=0 one-iteration exactness at machine zero —
+  self-verifies T, G, A_edge, the discrete Marshak rows, AND the (28a) update
+  in one shot); landed cell — ok ≤ 0.5, degraded at 1, **DIVERGES σ_t h ≥ 2
+  (ρ up to 54.7 at c=0.99, σ_t h=30)** — the A&L (3.43)/(3.44) divergent
+  class measured on OUR operator, the historical spike's regime.
+- ⏸ **R4 RULED (user, 2026-07-26)**: **(a) the DSA correction operator = the
+  DERIVED edge-centered consistent system** — 3b builds it in production,
+  pinned entry-for-entry vs `dsa.build_consistent_dd_system`; the standalone
+  diffusion solver KEEPS its cell-centered RT0/harmonic stencil (two defining
+  laws — consistency theorem vs standalone accuracy — NOT a twin path). **(b)
+  the production build home = SN-SIDE** (new `orpheus/sn` acceleration home
+  consuming SNMesh + quadrature + the foldable σ accessors): the operator's
+  coefficients are quadrature-dependent (γ_N, W₂) and scheme-dependent (ρ from
+  the WD α) — a property of the SN discretization; `orpheus/diffusion` stays
+  untouched. 3b wiring notes: for DD, ρ=0 ⟹ (28a) update = ½(f₀L+f₀R); d₀ =
+  raw moment displacement (G carries σ̂_S·h internally); d₁ sources = 0 for
+  the P0 arm; the low-order D at (23c)'s own σ_s1 = within-group self-scatter.
+- **3a COMPLETE.** NEXT = **3b** (task #27): R/P off `angular_frame(0)` +
+  0-ULP pins; `as_dsa_source` on the typed residual; the SN-side low-order
+  build (R4b home) + correction solve; SI+DSA driver construct (injection
+  after `iteration.py:682`); Krylov posture (replace the identity at
+  `sn/solver.py:487`); `full_field_space` → `TransportMethod` (P7b trigger);
+  elegance-enforcer review. ⏸ COMPACTION at the 3a→3b boundary = HERE.
 
 ### 3-P0 — dispatches (MUST, before the plan-of-record for this phase) — ✅ DONE 2026-07-26
 - **literature-researcher** — check `/Users/rodrigo/git/nuclear/ORPHEUS/scratch/
