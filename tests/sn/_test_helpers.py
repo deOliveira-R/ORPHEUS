@@ -635,6 +635,13 @@ def sweep_once(source, sig_t, sn_mesh, boundary_flux):
     scalar_values)`` — the scalar recomputed by the quadrature
     contraction (tolerance-equivalent to the walk's per-leg
     accumulation, not bit-pinned).
+
+    ERR-071 role conversion: the buffer's stale OUTFLOW rows are iterate
+    state, not rhs data — the exact inverse honours rhs outflow rows as
+    the defect rhs (``ψ_out = streamed − rhs_out``), so the rhs boundary
+    is built through :meth:`AngularBoundarySourceSink.prescribed_inflow`
+    (inflow slots only; outflow rows unrepresentable), preserving the
+    in-out buffer contract exactly.
     """
     from orpheus.numerics.coupled_system import CoupledField
     from orpheus.sn.operators.streaming import StreamingOperator
@@ -652,8 +659,12 @@ def sweep_once(source, sig_t, sn_mesh, boundary_flux):
     )
     rhs = TimedFullField(
         interior=source,
-        boundary=AngularBoundarySourceSink.from_mesh(
-            np.asarray(boundary_flux.values).copy(), sn_mesh,
+        boundary=AngularBoundarySourceSink.prescribed_inflow(
+            sn_mesh,
+            {
+                face: boundary_flux.face_view(face)
+                for face in boundary_flux.layout.faces
+            },
         ),
         _history=(),
         history_depth=2,

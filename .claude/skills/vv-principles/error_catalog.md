@@ -4720,3 +4720,183 @@ only catcher is slow-marked is invisible to every routine wall — when
 a slow gate is the designed catcher for a regression class, give the
 class a not-slow WIRING pin (the value gate stays slow; the wiring pin
 runs everywhere), and run the patient slow tier at every merge gate.
+
+## ERR-070 — the σ_r-fold: realizing the within-group scattering gain as a diagonal σ_r-sweep (`A_wg.solve` with removal σ_t − σ_s0^{g→g} and the isotropic self-scatter gain dropped) treats `Σ_s0·P_iso` as `Σ_s0·I` — exact for isotropic flux, a measured 43% fixed-point error on anisotropic flux, while every isotropic-regime test stays green
+
+**Date:** class identified 2026-06 (#215 investigation — the fold was
+never wired into production; the guard docstrings at
+`scattering.py:968-971` date from it); formally re-caught and filed
+2026-07-26 by the #2 DSA battery's seeded mutation (Phase 3c).
+**Module:** `sn` / `transport` (the within-group solve's operator
+spelling — the trap any "fold σ_s into the removal" optimization
+springs).
+**Class:** Mode 9 (exact on the degenerate isotropic-flux regime,
+value-wrong outside it) — vv-principles' canonical splitting instance
+(test-design mode 9(a)).
+
+**What it is.** The isotropic within-group gain is the rank-structured
+`Σ_s0^{g→g}·P_iso` (scatter INTO isotropy from the angular MEAN). The
+fold rewrites the within-group solve as a pure-attenuation sweep with
+removal `σ_r = σ_t − σ_s0^{g→g}` — algebraically `Σ_s0·I` (scatter
+into isotropy from EACH ORDINATE separately). The two coincide iff the
+angular flux is isotropic (`P_iso ψ = ψ`); the difference operator
+`σ_s0(I − P_iso)` annihilates exactly the isotropic subspace.
+
+**Measured (the seeded reproduction, 3c).** Heterogeneous 2-zone
+(A|B) 2g slab, K = 40, S4, vacuum walls, isotropic scattering — flux
+anisotropy from the vacuum boundary layers alone: max relative
+scalar-flux shift **43.2%** (group 0: 11.4%, group 1: 43.2%) —
+4.3e+06× above the D3 FP-identity band (1e-7). #215's own configs
+measured 46–56%. On the fully-reflective isotropic box the shift is
+IDENTICALLY zero — the designed-green degeneracy that made the fold
+look safe.
+
+**Why it never shipped.** The #215 investigation fenced the accessors
+(`MaterialXSField.foldable_sigma` / `residual_sig_s`) behind guard
+docstrings before any consumer wired them into a sweep; the DSA
+low-order build (#2) is their FIRST production consumer — legitimate
+there and only there, because the correction→0 property makes the
+low-order operator value-safe by construction (a wrong low-order
+degrades the rate, never the answer).
+
+**Which tests catch it.**
+- `tests/sn/acceleration/test_dsa_rate.py::TestSigmaRFoldCaught`
+  (`catches("ERR-070")`) — the seeded fold (realized as folded
+  Mixtures: `σ_t − diag Σ_s0`, diagonal zeroed, balance preserved)
+  moves the FP 43% ⟹ D3's `ψ_DSA ≡ ψ_SI` band reds on any wiring of
+  the fold into the accelerated path; the companion leg proves DSA
+  faithfully accelerates even the folded operator (no laundering —
+  only the comparison against the TRUE plain FP exposes it).
+- `tests/sn/acceleration/test_dsa_rate.py::TestD10RoutingSentinel`
+  (`catches("ERR-070")`) — the structural fence: an AST sweep of
+  `orpheus/` confirms the foldable accessors' consumers are exactly
+  {the definition site, the split layer, the DSA low-order build};
+  a new consumer reds at design time, before numerics can be wrong.
+  Tooth: a planted `mat_xs.foldable_sigma()` module is flagged.
+
+**Lesson.** A splitting that is exact on a degenerate subspace needs
+its FP-invariance gate run on a config that EXITS the subspace
+(vacuum/heterogeneous ⟹ anisotropic flux — scattering anisotropy not
+required), and the data path that makes the wrong spelling convenient
+deserves a structural tripwire alongside the numerical gate: the
+fold's 43% is invisible to every isotropic fixture, every balance
+check, and every convergence-order study.
+
+## ERR-071 — the composite sweep inverse dropped the rhs's OUTFLOW-trace rows: `(L+C)⁻¹` seeded its boundary buffer from `rhs.boundary`, then let the march clobber the outflow slots — an inverse exact on every physical rhs (outflow rows ≡ 0 there) and SINGULAR on the full composite space, discovered when the P1-DSA GMRES preconditioner stalled at an O(1) true residual with a machine-zero preconditioned residual
+
+**Date:** latent since the composite-carrier sweep (the #208/W-C era);
+caught and fixed 2026-07-26 (#2 Phase 3c — the P1-DSA d₁ Krylov
+posture excited the kernel deterministically; the end-of-solve
+ConvergenceCertificateError made the catch).
+**Module:** `sn` (`operators/streaming.py::InvertibleOperator.
+_solve_timed_full_field`).
+**Class:** Mode 9 in its purest structural form — the operator was
+EXACT on the degenerate subspace every physical path lives in (rhs
+outflow-trace rows are 0 = 0 defect identities at every builder), and
+WRONG on its complement, which only a Krylov iteration's residual
+vectors ever visit. No physical fixture could have caught it.
+
+**What happened.** The composite forward `(L+C)` carries the boundary
+as a sibling block: inflow rows are identities on the given inflow;
+outflow rows are the self-consistency defect `streamed − ψ_out`. The
+exact inverse must therefore emit `ψ_out = streamed − rhs_out`. The
+sweep seeded its mutable boundary buffer per-face from `rhs.boundary`
+(consuming the INFLOW rows correctly — the ERR-069 fix), but the march
+then overwrote the outflow slots with the marched outflow, silently
+dropping `rhs_out`: `(L+C)⁻¹` mapped every pure-outflow-row rhs to
+(essentially) zero.
+
+**How it surfaced.** The DSA-preconditioned GMRES posture (#2) builds
+`M = (I + 𝒞)∘(L+C)⁻¹`. With the ℓ≥1 gain active (the P1-DSA arm), the
+Krylov residual acquired a pure outflow-row component; measured
+`‖M q‖/‖q‖ = 1.07e-15` on that vector — M singular — so full-restart
+GMRES stalled at an O(1) TRUE residual while its preconditioned
+residual sat at 1e-31, scipy reported not-converged, and the
+**end-of-solve certificate** (`_certify_within_group_exit`) refused
+the claimed convergence: "the honest equation residual is 1.49" — the
+#290-era certificate machinery catching a genuinely new class. The
+same singular M existed under the 3b P0 posture and the #200 identity
+preconditioner era; nothing excited the kernel until so ≥ 1.
+
+**The diagnosis chain (recorded because the instrument order
+mattered).** (1) The corrector was probed directly — linear, healthy;
+(2) `(I + 𝒞)` was materialized — smallest |eig| = 1.0, NO kernel;
+(3) a per-call spy on the production preconditioner found
+`min ‖M q‖/‖q‖ = 1e-15`; (4) capturing THAT q showed a pure
+outflow-trace vector with `sweep(q) ≈ 0` — the sweep, not the
+corrector. A healthy-component-by-component proof chain that
+converged on the one composition seam nobody had gated.
+
+**The fix (the root fix, user-ruled R6 2026-07-27 — four parts).**
+(1) *Solve half*: one restore in `_solve_timed_full_field` — after the
+march, `boundary_buf[outflow rows] −= seed_boundary[outflow rows]`
+(the sign pinned by the round-trip gate — the forward's row is
+`streamed − ψ_out`). Bit-inert on every physical path (`−= 0`);
+nonsingular M for Krylov. Measured: 2G heterogeneous ℓ≥1 Krylov+DSA
+converges 287→12 (vacuum) / 305→16 (reflective). (2) *Transpose
+half*: the restore's matrix `E_out` is a diagonal partial identity ⟹
+symmetric, so `(Aᵀ)⁻¹ = (S_old)ᵀ − E_out` — the SAME one-site restore
+in `solve_transpose`'s output-boundary assembly (the G3 full-composite
+reciprocity gates red its absence). (3) *Call-site role conversions*:
+every caller that passed an ITERATE trace (stale outflow rows) as
+`rhs.boundary` — the `solve_sn` eigenvalue-finalize reconstruction and
+the `sweep_once` test helper — now routes through the EXISTING
+`AngularBoundarySourceSink.prescribed_inflow` factory (inflow slots
+only; outflow rows unrepresentable by construction — the Pattern-4
+projection already in the tree, bypassed by raw `from_mesh` casts).
+The finalize conflation was invisible to every keff gate (interior
+marches off inflow slots only) and caught ONLY by the 2-D reflective
+trace-balance gate (defect 8.8e-2 at exact keff — a Mode-12 lesson:
+the balance functional sees what the eigenvalue cannot). (4) *Honest
+scope*: on a cylinder product quadrature the degenerate pure-azimuthal
+rows (`μ_r = 0`, excluded from both selectors) are FREE DOFs of the
+composite — the forward is a structural zero row there and the
+inverse completes with the identity (seed passthrough); the gate
+asserts both halves of that pair explicitly (#284's free-DOF slots,
+not a partial-inverse regression). (5) *The SCHEDULED sibling stays
+source-subspace-scoped*: `ScheduledInvertibleOperator` (the G-S
+`M = (L+C) − B_lower`) interleaves mid-march reflects that consume
+the buffer's streamed outflow values BEFORE the end-of-march restore
+fires, so its inverse is exact only on `{y : y_out = 0}` (every
+production rhs; FP-dust round-trips fine). The full-space completion
+needs the restore interleaved per-group with the schedule — deferred
+until a full-space consumer exists (a G-S-preconditioned Krylov). No
+value-guard (a threshold is arbitrary; exact-zero rejects legitimate
+FP-dust `M.apply` images): the honest-scope witness is the W2
+off-domain characterization pin (`test_gauss_seidel_reification.py`,
+the tripwire that REDS when the completion lands), and the production
+catcher for a future off-domain consumer is the same end-of-solve
+certificate that caught ERR-071. The W2 fixture itself was a hidden
+consumer of the old clobber (`LC.solve(random-full-trace)` was only
+"trace-consistent" because the drop erased the rhs's outflow rows) —
+fixed to build from an inflow-only rhs.
+
+**Which test catches it.**
+`tests/sn/operators/test_sweep_inverse_identity.py`
+(`catches("ERR-071")`) — the composite round-trip identity
+`(L+C)∘(L+C)⁻¹ ≡ I` on a RANDOM composite with every block populated,
+parametrized over {vacuum slab, reflective slab, product-quadrature
+cylinder}, plus the pure-outflow-row leg (the exact singular subspace:
+the old sweep mapped it to zero), plus the in-process mutation tooth
+(an emptied outflow selector reproduces the pre-fix annihilation).
+The transpose half:
+`tests/sn/operators/test_loss_transpose_solve.py::test_g3_full_field_solve_reciprocity`.
+The call-site conflations: the 2-D reflective trace-balance gate
+(`test_bc_extraction_2d.py::TestBoundaryResidual2DDrivesToZero`) and
+the Q/Σt component-iteration gate (`test_solver_components.py`).
+
+**Lesson.** An inverse operator's contract is the identity on the
+WHOLE space, not on the subspace physical data happens to span — and
+the round-trip gate `A∘A⁻¹ ≡ I` on a random full-space vector is
+cheap, total, and catches every partial-inverse class at once. Wire
+it the day the inverse is born, not the day a Krylov method wanders
+into the kernel. (And: an exit certificate that re-checks the honest
+equation residual converts a silent wrong-answer stall into a loud
+refusal — it is the reason this entry exists.) The root-fix corollary:
+the drop survived because callers CONFLATED roles — an iterate trace
+(state) cast raw into a source slot (given data) — and the correct
+projection (`prescribed_inflow`, outflow rows unrepresentable) already
+existed; a hand-rolled `from_mesh(trace.values.copy())` beside a
+Pattern-4 factory is the same smell as a hand-rolled loop beside an
+operator: the cast site is where role errors live, so spell role
+conversions through the typed factory, never through raw values.

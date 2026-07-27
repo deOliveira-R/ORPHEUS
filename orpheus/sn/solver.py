@@ -2171,12 +2171,24 @@ def solve_sn(
     final_bulk, final_per_axis = _lift_external_source_to_moments(
         np.asarray(q_final_per_ord.values), sn_mesh,
     )
+    # ERR-071 role conversion: ``final_boundary`` is a converged FLUX
+    # trace — its outflow rows are iterate state, NOT rhs data.  The
+    # exact inverse honours ``rhs.boundary`` outflow rows as the defect
+    # rhs (``ψ_out = streamed − rhs_out``), so casting the raw trace
+    # would subtract the converged outflow from the reconstruction's
+    # own march.  ``prescribed_inflow`` is the named projection: inflow
+    # slots (holding ``B·ψ.outflow`` from the reflect above) become the
+    # given data; outflow rows are unrepresentable by construction.
     final_rhs_a = TimedFullField(
         interior=AngularSourceSink.from_mesh(
             final_bulk, sn_mesh, spatial_moments=final_per_axis,
         ),
-        boundary=AngularBoundarySourceSink.from_mesh(
-            final_boundary.values.copy(), sn_mesh,
+        boundary=AngularBoundarySourceSink.prescribed_inflow(
+            sn_mesh,
+            {
+                face: final_boundary.face_view(face)
+                for face in final_boundary.layout.faces
+            },
         ),
         _history=(),
         history_depth=2,

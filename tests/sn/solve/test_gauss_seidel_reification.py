@@ -91,8 +91,20 @@ def _reified(bc: str = "reflective", *, seed: int = 7):
 
 def _consistent_state(sn, LC, *, seed: int):
     """A trace-CONSISTENT random state (``x.out = streamed(x.interior)``): a
-    solve output — the walk's honest domain (module docstring)."""
+    solve output on an INFLOW-ONLY rhs — the walk's honest domain (module
+    docstring).
+
+    ERR-071: the honest inverse emits ``ψ_out = streamed − rhs_out``, so a
+    solve output is trace-consistent IFF the rhs carries ZERO outflow rows
+    (exactly the production idiom).  Pre-fix the clobber made ANY solve
+    output consistent — passing the raw random trace through relied on the
+    dropped-row bug, so the outflow rows are zeroed here.
+    """
     raw = _random_state(sn, seed=seed)
+    trace = sn.angular_trace
+    for face in raw.boundary.layout.faces:
+        out_rows = trace.outflow_indices_for_face(face)
+        raw.boundary.face_view(face)[out_rows] = 0.0
     return LC.solve(raw)
 
 
@@ -141,6 +153,54 @@ def test_w2_round_trip_machine_precision():
     # The involution is an OBJECT-IDENTITY fact (taxonomy §13 I2).
     if inv.inverse() is not M:
         pytest.fail("M.inverse().inverse() is not M")
+
+
+@pytest.mark.catches("ERR-071")
+def test_off_domain_outflow_rhs_is_not_completed_yet():
+    r"""Honest-scope witness: the SCHEDULED walk realizes ``M⁻¹`` on the
+    source subspace ``{y : y.outflow-rows = 0}`` ONLY.
+
+    A structurally nonzero outflow row leaves the lower-coupled inflow
+    rows off by ``B(y_out)``: the mid-march reflect consumes UN-restored
+    streamed values (the ERR-071 outflow-defect restore fires only after
+    the whole march — correct for the bare unscheduled sweep, which IS
+    exact on the whole space, but too late for a mid-march reader).  The
+    full-space completion needs the restore interleaved per-group with
+    the schedule — a walk-internal carve deferred until a full-space
+    consumer exists (e.g. a G-S-preconditioned Krylov posture).
+
+    This pin measures the documented gap so the scope claim is a fact,
+    not prose.  THE TRIPWIRE: if the per-group completion lands, this
+    test REDS — flip it to the exactness assert (round-trip ≡ y at
+    machine precision) and lift the docstring restriction in
+    :meth:`ScheduledInvertibleOperator._solve_timed_full_field`.
+    """
+    sn, LC, _B, _sched, _parts, M = _reified()
+    x = _consistent_state(sn, LC, seed=13)
+    y = M.apply(x)
+    # Structurally populate the outflow rows (an off-domain rhs — the
+    # role-conflated iterate-trace cast ERR-071 documents).
+    trace = sn.angular_trace
+    for face in y.boundary.layout.faces:
+        out_rows = trace.outflow_indices_for_face(face)
+        y.boundary.face_view(face)[out_rows] = 1.0
+    z = M.inverse().apply(_as_timed(y, x))
+    defect = M.apply(z)
+    worst = 0.0
+    for face in y.boundary.layout.faces:
+        in_rows = trace.inflow_indices_for_face(face)
+        worst = max(worst, float(np.abs(
+            np.asarray(defect.boundary.face_view(face))[in_rows]
+            - np.asarray(y.boundary.face_view(face))[in_rows]
+        ).max()))
+    if not worst > 0.1:
+        pytest.fail(
+            f"the scheduled walk's off-domain round-trip defect on the "
+            f"lower-coupled inflow rows measured {worst:.2e} — the "
+            f"per-group restore completion appears to have LANDED. "
+            f"Flip this pin to the full-space exactness assert and lift "
+            f"the documented source-subspace restriction."
+        )
 
 
 def test_factory_returns_reified_pair():

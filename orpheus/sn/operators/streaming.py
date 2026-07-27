@@ -55,7 +55,7 @@ Three geometries are supported:
    canonical SN loss is ``(L_full + C - S - F - B)`` on the direct-sum
    state ``V = V_bulk ⊕ V_inflow ⊕ V_outflow``.  The representation's
    bare ``loss_action`` reads ``psi.boundary.inflow`` as a GIVEN, keeps
-   the outflow self-consistency defect ``psi.outflow - streamed`` on the
+   the outflow self-consistency defect ``streamed - psi.outflow`` on the
    outflow trace row, and adds the inflow identity ``I·psi.inflow`` —
    with NO ``bc.apply``.  The reflective coupling
    ``psi.inflow = B·psi.outflow`` is delivered by the sibling ``-B``
@@ -948,6 +948,35 @@ class InvertibleOperator(
             schedule=schedule,
             reflect=reflect,
         )
+
+        # ── The outflow defect rows of the rhs (ERR-071) ──────────────
+        # The forward's outflow-trace row is the DEFECT ``streamed −
+        # ψ_out`` (sign pinned by the round-trip identity gate,
+        # ``tests/sn/operators/test_sweep_inverse_identity.py``), so
+        # the EXACT inverse emits ``ψ_out = streamed − rhs_out``.  The
+        # march writes ``streamed`` into the buffer's outflow slots —
+        # clobbering the seeded rhs copy — so the rhs's outflow-row
+        # content is restored here.  Every physical rhs carries ZERO
+        # there (the builders populate inflow slots only; outflow rows
+        # are 0 = 0 identities at the fixed point), so this is bit-inert
+        # on all SI/eigenvalue paths.  It is load-bearing for the
+        # DSA-preconditioned GMRES posture (#2): Krylov residual
+        # vectors exercise the FULL composite space, and the dropped
+        # term made the preconditioner ``M = (I + 𝒞)∘(L+C)⁻¹`` SINGULAR
+        # on the outflow-trace subspace (measured ‖M q‖/‖q‖ = 1e-15 on
+        # a pure outflow-row vector — GMRES stalled at an O(1) true
+        # residual and the exit certificate refused the claim).
+        # Tangential rows (excluded from both selectors) keep their
+        # seeded copy untouched — the identity-row inverse.
+        trace_space = sn_mesh.angular_trace
+        for face_name in boundary_buf.layout.faces:
+            if face_name not in seed_boundary.layout.faces:
+                continue
+            out_rows = trace_space.outflow_indices_for_face(face_name)
+            if out_rows.size:
+                boundary_buf.face_view(face_name)[out_rows] -= (
+                    seed_boundary.face_view(face_name)[out_rows]
+                )
         # The sweep output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
         # selects the SpatialMomentSpace factor so the iterate is a legal typed
@@ -987,7 +1016,10 @@ class InvertibleOperator(
         :meth:`apply`.  Delegates to the representation's
         :meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep_transpose`
         (the reverse-mode adjoint of the forward sweep-scan) and packs the
-        transposed composite.
+        transposed composite, completing the outflow defect rows of ``b``
+        exactly as :meth:`solve` does (ERR-071: ``E_out`` is symmetric, so
+        the transpose-inverse carries the SAME one-site restore — see the
+        inline note below).
 
         **Duality typing (#276 A4):** the input ``b`` is the dual of the
         solve's codomain — dual-of-flux, i.e. an adjoint SOURCE
@@ -1041,14 +1073,37 @@ class InvertibleOperator(
         # adjoint FLUX — wrap flux-classed so the daggered iteration closes.
         # The rep layer's ``m_boundary`` carries the values; the class ROLE
         # is this operator boundary's decision.
+        boundary_out = AngularBoundaryFlux(
+            values=np.asarray(m_boundary.values),
+            space=sn_mesh.angular_trace,
+            mesh=sn_mesh,
+        )
+        # ── The outflow defect rows of ``b`` (ERR-071, transpose half) ──
+        # The solve half establishes the EXACT inverse as ``A⁻¹ = S_old −
+        # E_out`` with ``E_out`` the diagonal partial identity on the
+        # FORWARD-sense outflow-trace rows (the post-march restore in
+        # :meth:`_solve_timed_full_field`).  ``E_out`` is diagonal ⟹
+        # symmetric, so the exact transpose-inverse is ``(Aᵀ)⁻¹ =
+        # (A⁻¹)ᵀ = S_oldᵀ − E_out`` — the SAME one-site restore, on the
+        # SAME forward-outflow selector, applied to the reverse-scan's
+        # output boundary.  (The reverse-scan IS ``S_oldᵀ`` exactly: the
+        # G3 full-composite reciprocity gates pinned that identity on
+        # random boundaries pre-fix, and red the completion's absence.)
+        # Physical adjoint paths are bit-inert here for the same reason
+        # the forward is: their sources carry zero on these rows.
+        trace_space = sn_mesh.angular_trace
+        for face_name in boundary_out.layout.faces:
+            if face_name not in b.boundary.layout.faces:
+                continue
+            out_rows = trace_space.outflow_indices_for_face(face_name)
+            if out_rows.size:
+                boundary_out.face_view(face_name)[out_rows] -= (
+                    b.boundary.face_view(face_name)[out_rows]
+                )
         return FullField(
             interior=AngularFlux.from_mesh(
                 q_bar, sn_mesh,
                 spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
             ),
-            boundary=AngularBoundaryFlux(
-                values=np.asarray(m_boundary.values),
-                space=sn_mesh.angular_trace,
-                mesh=sn_mesh,
-            ),
+            boundary=boundary_out,
         )

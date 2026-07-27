@@ -222,6 +222,29 @@ class ScheduledInvertibleOperator(
         ``sweep`` door injects its OWN interior kernel (S6.5), so the
         scheduled walk is a re-scheduling of THE operator, not a parallel
         construction.
+
+        **Honest domain (ERR-071).** The scheduled walk realizes
+        :math:`M^{-1}` exactly on the SOURCE SUBSPACE
+        ``{y : y.outflow-rows = 0}`` — which contains every production rhs
+        (``q + S·ψ + B_upper·ψ`` write bulk/inflow slots only) and, to FP
+        dust, every ``M.apply`` image of a trace-consistent state (the
+        round-trip domain).  Off that subspace the mid-march reflect
+        consumes UN-restored streamed values (the outflow-defect restore
+        in the delegated body fires only after the whole march), so a
+        STRUCTURALLY nonzero outflow row leaves the lower-coupled inflow
+        rows off by :math:`B(\text{rhs}_{\rm out})` — the full-space
+        completion needs the restore interleaved per-group with the
+        schedule (subtract each group's seed rows before any reflect
+        reads them), a walk-internal carve deferred until a full-space
+        consumer exists (e.g. a G-S-preconditioned Krylov posture).  No
+        value-guard is placed here (a threshold would be arbitrary and an
+        exact-zero test rejects legitimate FP-dust round-trips); the
+        honest-scope witness is the W2 off-domain characterization pin
+        (``tests/sn/solve/test_gauss_seidel_reification.py``), and the
+        production catcher for a future off-domain consumer is the
+        end-of-solve certificate that caught ERR-071 itself.  The bare
+        :class:`~orpheus.sn.operators.streaming.InvertibleOperator` sweep
+        (no schedule, no mid-march reader) IS exact on the whole space.
         """
         return self.invertible._solve_timed_full_field(
             rhs,
@@ -230,9 +253,10 @@ class ScheduledInvertibleOperator(
             # The row-masked ADDITIVE update ``bf[lower] += (B·bf)[lower]`` —
             # completes the inhomogeneous lower row ``z_in = y_row + (Bz)_row``
             # on top of the seed, which is what makes this an EXACT inverse
-            # of ``apply`` on arbitrary rhs (the W2-round-trip keystone) and
-            # leaves the upper rows carrying the splitting's honest lagged
-            # seed.  See :meth:`SNMaskedBoundaryOperator.reflect_rows_inplace`.
+            # of ``apply`` on arbitrary SOURCE-SUBSPACE rhs (the
+            # W2-round-trip keystone) and leaves the upper rows carrying
+            # the splitting's honest lagged seed.  See
+            # :meth:`SNMaskedBoundaryOperator.reflect_rows_inplace`.
             reflect=self.lower.reflect_rows_inplace,
         )
 
