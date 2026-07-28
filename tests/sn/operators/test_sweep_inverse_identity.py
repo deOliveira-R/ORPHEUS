@@ -108,7 +108,7 @@ def _lc_pair(geom: str):
     system = build_within_group_system(
         sn_mesh, sn_mesh.material_xs_field(),
     )
-    lc = system.resolvent
+    lc = system.implicit_operator
     if isinstance(lc, CoupledOperator):
         pytest.fail(
             f"{geom}: a non-carrying mesh must carry the bare (L+C) arm"

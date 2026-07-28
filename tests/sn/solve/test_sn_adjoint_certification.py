@@ -404,14 +404,14 @@ def _sphere_daggered_run(sn_mesh):
     from orpheus.numerics.iteration import KEigenvalue
 
     parts: tuple[Any, Any, Any, Any] = _adjoint_posing_parts(sn_mesh, 0)
-    resolvent, gain, F_posed, template = parts
+    implicit_operator, gain, F_posed, template = parts
     if not isinstance(template, CoupledField):
         pytest.fail(
             "carrying sphere expected — this row's domain is the "
             "coupled System-A ⊕ System-B space."
         )
     ke = KEigenvalue(
-        resolvent.H, gain.H, F_posed.H,
+        implicit_operator.H, gain.H, F_posed.H,
         max_outer=800, keff_tol=1e-10, flux_tol=1e-9,
         max_inner=800, inner_tol=1e-11,
     )
@@ -429,7 +429,7 @@ def _sphere_dense_reference():
     Three structurally-independent grounds, none touching the
     ``.H``/reverse-scan machinery under test (L11 / anti-R1):
     unit-vector columns through the FORWARD ``apply`` of the posing
-    parts (``A_loss = resolvent − gain``), numpy ``.T`` for the
+    parts (``A_loss = implicit_operator − gain``), numpy ``.T`` for the
     transpose, and :func:`g_coupled_diagonal`'s raw-data metric.
     Cached once — the mutation teeth judge their MUTATED iterates
     against this same unmutated reference.
@@ -439,7 +439,7 @@ def _sphere_dense_reference():
     mats, mesh = _het_sphere()
     sn = _as_sn_mesh(mesh, _quad(), mats)
     parts: tuple[Any, Any, Any, Any] = _adjoint_posing_parts(sn, 0)
-    resolvent, gain, F_posed, template = parts
+    implicit_operator, gain, F_posed, template = parts
     if not isinstance(template, CoupledField):
         pytest.fail(
             "carrying sphere expected — the dense probe spans the "
@@ -453,7 +453,7 @@ def _sphere_dense_reference():
         e = np.zeros(n)
         e[i] = 1.0
         x = CoupledField.from_flat(e, template)
-        R[:, i] = np.asarray(resolvent.apply(x).to_flat(), dtype=float)
+        R[:, i] = np.asarray(implicit_operator.apply(x).to_flat(), dtype=float)
         N_gain[:, i] = np.asarray(gain.apply(x).to_flat(), dtype=float)
         F_dense[:, i] = np.asarray(F_posed.apply(x).to_flat(), dtype=float)
     return R - N_gain, F_dense, g_coupled_diagonal(sn)

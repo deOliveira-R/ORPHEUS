@@ -280,7 +280,7 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    LC, (S, B) = system.resolvent, system.gains  # seedless slab record shape
+    LC, (S, B) = system.implicit_operator, system.explicit_gains  # seedless slab record shape
 
     # A timed external source (the driver's comonad-carrying rhs).
     q_ext = TimedFullField(

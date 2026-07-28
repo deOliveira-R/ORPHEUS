@@ -308,6 +308,29 @@ from each other, or from itself.
        :mod:`orpheus.numerics.operator`, and the solver page).
        Fission is **never** a gain in the eigenvalue posing — it
        stays on the right-hand side under :math:`1/k`.
+
+       **The bridge, both ends (2026-07-28).** The solver-layer record
+       :class:`~orpheus.sn.coupled_system.WithinGroupSystem` names the
+       splitting by its *role*:
+       :attr:`~orpheus.sn.coupled_system.WithinGroupSystem.implicit_operator`
+       is :math:`M` (solved implicitly — inverted — each step) and
+       :attr:`~orpheus.sn.coupled_system.WithinGroupSystem.explicit_gains`
+       is :math:`N` (evaluated explicitly from the lagged iterate). The
+       numerics layer keeps its own vocabulary — ``A`` / ``*gains`` on
+       :class:`~orpheus.numerics.iteration.SourceIteration` and
+       :class:`~orpheus.numerics.iteration.KrylovAcceleration` —
+       deliberately, because that layer's ``A`` is the *resolvent
+       operand* of the row above. So the crosswalk is
+       ``implicit_operator`` :math:`\leftrightarrow` ``A`` and
+       ``explicit_gains`` :math:`\leftrightarrow` ``*gains``.
+
+       The record's field was called ``resolvent`` until 2026-07-28.
+       That was a **misnomer**: it holds :math:`M`, the *un-inverted
+       forward* operator, whereas a resolvent is inverse-like. The word
+       is now reserved for its two honest uses — the corpus
+       :math:`K_{\rm pm} = A_{\rm loss}^{-1}M` of
+       :ref:`eigenvalue-posing`, and the future
+       ``A.resolvent(z) = (A - zI).inverse()`` factory.
    * - 9 — the term *multiplication operator*
      - Two senses, kept apart by context and by label namespace:
        :math:`K = A^{-1}F` is the reactor-physics **multiplication

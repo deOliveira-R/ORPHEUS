@@ -730,10 +730,10 @@ assembled once by the single-source-of-truth builder
 the frozen :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record —
 the loss grid together with its **named regular splitting**
 :math:`A = M - N` (Hackbusch 2016 §11). On a seedless (slab / cylinder /
-Cartesian) mesh the record degrades to exactly this triple: its ``resolvent``
+Cartesian) mesh the record degrades to exactly this triple: its ``implicit_operator``
 is :math:`M = (L+C)` — the invertible resolvent
 (:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`, ``.solve`` = the WDD
-sweep) — and its ``gains`` are :math:`N = (S,\ B_a)`, the two lagged
+sweep) — and its ``explicit_gains`` are :math:`N = (S,\ B_a)`, the two lagged
 couplings the driver applies: the bulk scattering gain
 (:class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
 :attr:`block_role <orpheus.numerics.operator.BlockRole>` ``BULK``) and the

@@ -58,7 +58,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.solver import (
     SNSolver,
-    _select_si_resolvent,
+    _select_si_splitting,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -261,7 +261,7 @@ def _windowed_product_and_oracle_operands(
     ``(quad, base, product, rhs, oracle_fn)`` on the production config.
 
     ``inner_schedule`` selects the base forward through the production
-    dispatch (:func:`_select_si_resolvent`): ``"jacobi"`` → the plain
+    dispatch (:func:`_select_si_splitting`): ``"jacobi"`` → the plain
     ``(L+C)``; ``"gauss_seidel"`` → the reified splitting
     ``M = (L+C) − B_lower`` (#226 §17 W2) — the windowed×G-S corner the
     step-3 pin exercises.
@@ -280,9 +280,9 @@ def _windowed_product_and_oracle_operands(
     system = build_within_group_system(
         solver.sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    LC, (S, B) = system.resolvent, system.gains  # seedless 2-D record shape
+    LC, (S, B) = system.implicit_operator, system.explicit_gains  # seedless 2-D record shape
     sn_mesh = solver.sn_mesh
-    base, _gains = _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule)
+    base, _gains = _select_si_splitting(LC, S, B, sn_mesh, inner_schedule)
 
     # THE production windowed object (#226 steps 2–3, §17 W1): the typed
     # composition ``P @ A.inverse()`` — the scattering frame's analysis face

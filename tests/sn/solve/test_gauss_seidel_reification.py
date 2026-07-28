@@ -52,7 +52,7 @@ from orpheus.sn.operators.scheduled_invertible import (
 )
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
-from orpheus.sn.solver import _select_si_resolvent, solve_sn_fixed_source
+from orpheus.sn.solver import _select_si_splitting, solve_sn_fixed_source
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
@@ -204,11 +204,11 @@ def test_off_domain_outflow_rhs_is_not_completed_yet():
 
 
 def test_factory_returns_reified_pair():
-    r"""``_select_si_resolvent(gauss_seidel)`` returns the splitting pair
+    r"""``_select_si_splitting(gauss_seidel)`` returns the splitting pair
     ``(M, (S, B_upper))`` — congruent with the Jacobi arm ``(LC, (S, B))``."""
     sn, LC, B, _sched, _parts, _M = _reified()
     sentinel_S = object()
-    resolvent, gains = _select_si_resolvent(
+    resolvent, gains = _select_si_splitting(
         LC, sentinel_S, B, sn, "gauss_seidel",
     )
     if not isinstance(resolvent, ScheduledInvertibleOperator):
@@ -221,7 +221,7 @@ def test_factory_returns_reified_pair():
     if not isinstance(gains[1], SNMaskedBoundaryOperator):
         pytest.fail(f"gains[1] must be B_upper; got {type(gains[1]).__name__}")
     # Jacobi arm unchanged: (LC, (S, B)).
-    resolvent_j, gains_j = _select_si_resolvent(
+    resolvent_j, gains_j = _select_si_splitting(
         LC, sentinel_S, B, sn, "jacobi",
     )
     if resolvent_j is not LC or gains_j != (sentinel_S, B):

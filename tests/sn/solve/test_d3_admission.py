@@ -48,7 +48,7 @@ from orpheus.transport.mesh.axis import AxisMesh
 from orpheus.sn.solver import (
     _apply_default_bcs,
     _maybe_window,
-    _select_si_resolvent,
+    _select_si_splitting,
     solve_sn,
     solve_sn_fixed_source,
 )
@@ -292,7 +292,7 @@ def test_d3_real_mesh_window_passthrough_and_gs_admissible() -> None:
     sig_t = np.full((sn.ng, *sn.spatial_shape), 1.3)
     LC = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
     sentinel_S = object()
-    resolvent, gains = _select_si_resolvent(
+    resolvent, gains = _select_si_splitting(
         LC, sentinel_S, SNBoundaryOperator(sn), sn, "gauss_seidel",
     )
     np.testing.assert_equal(

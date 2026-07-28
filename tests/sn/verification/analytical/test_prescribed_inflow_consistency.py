@@ -41,7 +41,7 @@ mesh would override).
 
 See:
 - ``.claude/skills/vv-principles/SKILL.md`` (Mode 9 — splitting invariance).
-- :func:`orpheus.sn.coupled_system.build_within_group_system` / ``_select_si_resolvent``
+- :func:`orpheus.sn.coupled_system.build_within_group_system` / ``_select_si_splitting``
   / ``_within_group_krylov`` — the operator triple + splittings under test.
 """
 from __future__ import annotations
@@ -58,7 +58,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.solver import (
     SNSolver,
-    _select_si_resolvent,
+    _select_si_splitting,
     _within_group_krylov,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -194,7 +194,7 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     system = build_within_group_system(
         sn, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    LC, (S, B) = system.resolvent, system.gains  # seedless record shape
+    LC, (S, B) = system.implicit_operator, system.explicit_gains  # seedless record shape
     n_dof = quad.N * sn.ng * int(np.prod(sn.spatial_shape)) + int(sn.angular_trace.layout.total_size)
 
     face = "xmin"
@@ -211,7 +211,7 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
 
     # SI-Jacobi: forward (L+C), gains (S, B); the driver applies the
     # INVERSE operator (#226 step 3).
-    rJ, gJ = _select_si_resolvent(LC, S, B, sn, "jacobi")
+    rJ, gJ = _select_si_splitting(LC, S, B, sn, "jacobi")
     psi_j, _ = SourceIteration(rJ.inverse(), *gJ, max_iter=500, tol=1e-13).solve(
         q_ext, initial_guess=_flux_zero(sn),
     )
@@ -235,9 +235,9 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     )
 
     if run_gs:
-        rG, gG = _select_si_resolvent(LC, S, B, sn, "gauss_seidel")
+        rG, gG = _select_si_splitting(LC, S, B, sn, "gauss_seidel")
         # PRECONDITION 3 — the G-S path is the reified B-folding M, not a
-        # silent Jacobi fall-back (guards the _select_si_resolvent dispatch).
+        # silent Jacobi fall-back (guards the _select_si_splitting dispatch).
         _require(
             type(rG).__name__ == "ScheduledInvertibleOperator",
             f"gauss_seidel did not select the reified B-folding M: got "

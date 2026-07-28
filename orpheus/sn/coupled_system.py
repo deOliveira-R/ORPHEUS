@@ -211,7 +211,7 @@ def build_coupled_system(
         2×2 is ``is_invertible`` via the materialize/LU route (the space's
         zero exemplar is wired), the EXTRACT the R5/R11 swap-law gates
         ride — production solves stay the splitting iteration on the
-        record's ``resolvent``/``gains``.
+        record's ``implicit_operator``/``explicit_gains``.
     """
     system = build_within_group_system(
         sn_mesh, mat_xs, scattering_order=scattering_order,
@@ -287,7 +287,7 @@ class WithinGroupSystem:
     The record every within-group solve consumes (eigenvalue SI/Krylov,
     fixed-source SI/Krylov — they differ ONLY in the driver and the
     ``q_ext``, never in this decomposition): ``loss`` is the typed block
-    grid (the equation), ``resolvent``/``gains`` its regular splitting
+    grid (the equation), ``implicit_operator``/``explicit_gains`` its splitting
     (Hackbusch 2016 §11 — the drivers iterate ``ψ ← M⁻¹(q + N·ψ)`` / GMRES
     on ``(M − N)·ψ = q``). All four members share the SAME piece objects
     (one ``L+C``, one ``S``, one ``B_a``, one ``B_b``, …) — the single
@@ -306,16 +306,18 @@ class WithinGroupSystem:
         The coupled carrier space ``loss`` is typed against (P1
         co-production), carrying the zero-exemplar factory (step 5 —
         the typed-carrier materialization seam).
-    resolvent : CoupledOperator | StreamingCollisionOperator
-        ``M`` — the sweepable part: on a carrying mesh the HONEST
-        upper-triangular grid ``[[LC, Seeding], [None, march]]`` whose
+    implicit_operator : CoupledOperator | StreamingCollisionOperator
+        ``M`` — **the sweepable part**, solved IMPLICITLY (inverted) each
+        step: on a carrying mesh the HONEST upper-triangular grid
+        ``[[LC, Seeding], [None, march]]`` whose
         ``solve`` is the numerics block back-substitution and whose
         ``inverse()`` the
         :class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`
         (step 5 — the fused ``CoupledInvertibleOperator`` bridge
         dissolved at 5b, deleted at 5d); the plain ``(L+C)`` seedless.
-    gains : tuple[LinearOperator, ...]
-        ``N`` — the lagged couplings the driver applies each step: ONE
+    explicit_gains : tuple[LinearOperator, ...]
+        ``N`` — the lagged couplings, evaluated EXPLICITLY from the previous
+        iterate, that the driver applies each step: ONE
         :class:`~orpheus.numerics.coupled_system.CoupledOperator` gain grid
         ``[[S+B_a, ∅], [Emission, B_b]]`` on a carrying mesh; the
         ``(S, B_a)`` tuple seedless (``B_a`` LAST — the boundary-gain
@@ -324,8 +326,8 @@ class WithinGroupSystem:
 
     loss: "CoupledOperator"
     space: "CoupledSpace"
-    resolvent: "CoupledOperator | StreamingCollisionOperator"
-    gains: "tuple[LinearOperator, ...]"
+    implicit_operator: "CoupledOperator | StreamingCollisionOperator"
+    explicit_gains: "tuple[LinearOperator, ...]"
 
 
 def _zero_full_field(sn_mesh: "SNMesh") -> "FullField":
@@ -398,7 +400,7 @@ def build_within_group_system(
       composite ``full_field_space`` lets the ``L + C`` OperatorSum guard
       validate the build. ``L + C`` fuses to the
       :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` — the
-      resolvent whose ``solve`` is the WDD sweep.
+      invertible composite whose ``solve`` is the WDD sweep.
     * ``S`` — the bulk scattering gain (producer-side ``/W`` normalisation
       inside ``S.apply``; no consumer-side rescale). The solver's cached
       instance injects through ``scattering_op`` (a cache seam, NOT a
@@ -483,12 +485,12 @@ def build_within_group_system(
         return WithinGroupSystem(
             loss=CoupledOperator([[A_AA]], domain=space, codomain=space),
             space=space,
-            resolvent=LC,
-            gains=(S, B_a),
+            implicit_operator=LC,
+            explicit_gains=(S, B_a),
         )
 
     # System B's pieces, constructed ONCE and shared between the loss
-    # grid, the gain grid, AND the resolvent grid (single-sourced objects,
+    # grid, the gain grid, AND the implicit-operator grid (single-sourced objects,
     # three compositions — the step-5 construction-seam collapse: the
     # walk's in-solve engine constructions retired with the fused
     # delegation, so THIS is the one march-construction site).
@@ -528,12 +530,12 @@ def build_within_group_system(
     # ``apply`` the block matvec — the fused joint delegation
     # (``CoupledInvertibleOperator``, deleted at 5d) dissolved
     # (R-5.1/R-5.4).
-    resolvent = CoupledOperator(
+    implicit_operator = CoupledOperator(
         [[LC, A_AB], [None, march]], domain=space, codomain=space,
     )
     return WithinGroupSystem(
         loss=loss,
         space=space,
-        resolvent=resolvent,
-        gains=(N,),
+        implicit_operator=implicit_operator,
+        explicit_gains=(N,),
     )

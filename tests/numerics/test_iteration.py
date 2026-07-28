@@ -785,14 +785,14 @@ def _sn_composite_triple():
     system = build_within_group_system(
         sn, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    S_total = system.gains[0] + system.gains[1]
+    S_total = system.explicit_gains[0] + system.explicit_gains[1]
     guess = FullField(
         interior=AngularFlux.from_mesh(
             np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), sn,
         ),
         boundary=AngularBoundaryFlux.zeros_on(sn),
     )
-    return float(ref.keff), system.resolvent, S_total, solver.fission_op, guess, mix
+    return float(ref.keff), system.implicit_operator, S_total, solver.fission_op, guess, mix
 
 
 @pytest.mark.l1

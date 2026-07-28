@@ -703,12 +703,12 @@ def _coupled_source_state(
     return CoupledField(systems=(q_a, q_half))
 
 
-def _select_si_resolvent(
+def _select_si_splitting(
     LC: "StreamingCollisionOperator", S: "ScatteringOperator",
     B: "LinearOperator[FullField, FullField]",
     sn_mesh: "SNMesh", inner_schedule: str,
 ) -> "tuple[StreamingCollisionOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...]]":
-    r"""Pick the ``(resolvent, gains)`` for the SEEDLESS within-group SI
+    r"""Pick the ``(implicit_operator, explicit_gains)`` for the SEEDLESS within-group SI
     driver per ``inner_schedule`` — the single source of truth for the
     Jacobi/G-S choice.
 
@@ -794,7 +794,7 @@ def _within_group_si(
     Two structurally-dispatched arms (B.2d DP-seedless — the coupled
     carrier appears exactly where System B exists):
 
-    * **coupled** (the record's ``resolvent`` is the triangular
+    * **coupled** (the record's ``implicit_operator`` is the triangular
       :class:`~orpheus.numerics.coupled_system.CoupledOperator` grid — a
       seed-carrying 1-D curvilinear mesh): the block-native driver
       ``ψ ← M⁻¹(q + N·ψ)`` on the ``CoupledField [ψ_A, ψ_B]`` iterate,
@@ -807,17 +807,17 @@ def _within_group_si(
       are bypassed structurally, and ``inner_schedule`` is inert here (the
       1-D Jacobi fallback the seedless arm spells explicitly).
     * **seedless**: exactly the pre-B.2d composition — the schedule
-      splitting (:func:`_select_si_resolvent`, Jacobi vs boundary-G-S),
-      the INVERSE build (``base_resolvent.inverse()`` — the
+      splitting (:func:`_select_si_splitting`, Jacobi vs boundary-G-S),
+      the INVERSE build (``base_implicit.inverse()`` — the
       :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`), and
       the Phase-5a angular-windowing composition (:func:`_maybe_window` —
       2-D Cartesian holds the iterate as harmonic moments via
       ``P @ A.inverse()``).
 
-    Returns ``(si, base_resolvent, gains, windowed)``:
+    Returns ``(si, base_implicit, gains, windowed)``:
 
     * ``si`` — the :class:`SourceIteration` primitive;
-    * ``base_resolvent`` — the un-inverted FORWARD ``M`` (the fixed-source
+    * ``base_implicit`` — the un-inverted FORWARD ``M`` (the fixed-source
       path needs it for the one-shot full-angular reconstruction of
       ``Solution.angular_flux``);
     * ``gains`` — the lagged couplings ``N`` actually driven (the record's,
@@ -834,7 +834,7 @@ def _within_group_si(
     """
     from orpheus.numerics.iteration import SourceIteration
 
-    if isinstance(system.resolvent, CoupledOperator):
+    if isinstance(system.implicit_operator, CoupledOperator):
         # The ψ½ coupled block-native arm (B.2d): the record's splitting IS
         # the driver's — M⁻¹ = the joint sweep, N = the coupled gain grid.
         # A corrector never reaches here: consistent DSA's admission is
@@ -847,22 +847,22 @@ def _within_group_si(
                 "(#282); the DSA admission should have refused upstream."
             )
         si = SourceIteration(
-            system.resolvent.inverse(), *system.gains,
+            system.implicit_operator.inverse(), *system.explicit_gains,
             max_iter=max_iter, tol=tol,
         )
-        return si, system.resolvent, system.gains, False
-    # Seedless: the record's gains are the (S, B_a) pair — loud on drift.
-    S, B = system.gains
+        return si, system.implicit_operator, system.explicit_gains, False
+    # Seedless: the record's explicit_gains are the (S, B_a) pair — loud on drift.
+    S, B = system.explicit_gains
     if not isinstance(S, ScatteringOperator):
         raise TypeError(
             f"_within_group_si: the seedless record's first gain must be "
             f"the ScatteringOperator (the builder's (S, B_a) convention); "
             f"got {type(S).__name__}."
         )
-    base_resolvent, gains = _select_si_resolvent(
-        system.resolvent, S, B, sn_mesh, inner_schedule,
+    base_implicit, gains = _select_si_splitting(
+        system.implicit_operator, S, B, sn_mesh, inner_schedule,
     )
-    step, windowed = _maybe_window(base_resolvent.inverse(), S, sn_mesh)
+    step, windowed = _maybe_window(base_implicit.inverse(), S, sn_mesh)
     if corrector is not None and windowed:
         raise NotImplementedError(
             "_within_group_si: the DSA corrector consumes the full-"
@@ -872,7 +872,7 @@ def _within_group_si(
     si = SourceIteration(
         step, *gains, max_iter=max_iter, tol=tol, corrector=corrector,
     )
-    return si, base_resolvent, gains, windowed
+    return si, base_implicit, gains, windowed
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -950,7 +950,7 @@ class SNSolver:
         # there), and a schedule change shifts the converged k_eff by ~inner_tol
         # (1e-10-scale — same fixed point, vv Mode 9; only the inner SI stopping
         # differs), which the keff_tol-tight regression snapshots cannot absorb.
-        # ``"gauss_seidel"`` is opt-in (2-D Cartesian; ``_select_si_resolvent``
+        # ``"gauss_seidel"`` is opt-in (2-D Cartesian; ``_select_si_splitting``
         # auto-falls-back to Jacobi on 1-D / curvilinear).
         self.inner_schedule = inner_schedule
         self.scattering_order = scattering_order
@@ -1549,7 +1549,7 @@ class SNSolver:
         # (``boundary = self._boundary_flux``) is RETIRED: the reflective
         # inflow is no longer pre-staged into the source.  It is driven by
         # the sibling ``−B`` delivered as a SEPARATE coupling gain (O.2a;
-        # since B.2d the system record's ``gains``): each SI iterate
+        # since B.2d the system record's ``explicit_gains``): each SI iterate
         # adds ``B·ψ.outflow`` to ``rhs.boundary``, which ``(L+C).solve``'s
         # bare sweep reads as the inflow seed (operator.py
         # ``_solve_timed_full_field`` seeds from ``rhs.boundary``).  The
@@ -1584,7 +1584,7 @@ class SNSolver:
         )
         # B.2d DP-seedless: the coupled pair appears exactly where System B
         # exists; the seedless paths (windowed 2-D, G-S) stay fused.
-        coupled = isinstance(system.resolvent, CoupledOperator)
+        coupled = isinstance(system.implicit_operator, CoupledOperator)
 
         # ── Warm start (composite / coupled pair) ───────────────────
         # SourceIteration threads the previous iterate to the inverse
@@ -1765,7 +1765,7 @@ class SNSolver:
         system = build_within_group_system(
             self.sn_mesh, self.mat_xs, scattering_op=self.scattering_op,
         )
-        coupled = isinstance(system.resolvent, CoupledOperator)
+        coupled = isinstance(system.implicit_operator, CoupledOperator)
 
         # ── Warm start (composite / coupled pair) — built BEFORE the
         # driver so the GMRES restart is sized from the FULL ravel. ───
@@ -1795,7 +1795,7 @@ class SNSolver:
         # restart re-truncates GMRES on the trace+seed DOFs (the sphere
         # Krylov stall).  Size it from the state the driver ravels.
         krylov = _within_group_krylov(
-            system.resolvent, *system.gains,
+            system.implicit_operator, *system.explicit_gains,
             n_dof=int(initial_guess.to_flat().size),
             max_iter=self.max_inner, tol=self.inner_tol,
         )
@@ -2140,15 +2140,15 @@ def solve_sn(
             f"AngularBoundaryFlux; got {type(final_boundary).__name__}."
         )
     # Step 6 (R-6.1): the reconstruction rides the SAME within-group
-    # resolvent M every driver consumes (build_within_group_system — the
+    # implicit operator M every driver consumes (build_within_group_system — the
     # single construction site); the fused ``transport_sweep`` joint
     # channel retired with the walk's ray legs.  M excludes B by
     # construction (B_a / B_b are gains), exactly as the bare sweep did
     # — the −B coupling arrives as GIVEN data through the reflect below.
     q_final_per_ord = AngularSourceSink.from_isotropic(Q_final, sn_mesh)
-    final_resolvent = build_within_group_system(
+    final_implicit = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
-    ).resolvent
+    ).implicit_operator
     converged_ray = (
         _system_b_member(converged) if converged is not None else None
     )
@@ -2156,7 +2156,7 @@ def solve_sn(
     # converged ψ½ state so the corner reflect below can seed the inflow
     # corner (vacuum ⇒ 0; zeros on a cold finalize).
     corner_state = None
-    if isinstance(final_resolvent, CoupledOperator):
+    if isinstance(final_implicit, CoupledOperator):
         corner_state = RadialCharacteristicField.from_mesh(sn_mesh)
         if converged_ray is not None:
             corner_state.interior.values[...] = converged_ray.interior.values
@@ -2202,7 +2202,7 @@ def solve_sn(
         _history=(),
         history_depth=2,
     )
-    if isinstance(final_resolvent, CoupledOperator):
+    if isinstance(final_implicit, CoupledOperator):
         # q½ = the ℓ = 0 fold of the final total source; the corner datum
         # is GIVEN data for the march: thread it into the q½ source's
         # corner slot (A_BB.solve reads the SOURCE corner as the inward
@@ -2215,14 +2215,14 @@ def solve_sn(
                 final_seed_src.boundary.corner(_p, -1)[...] = (
                     corner_state.boundary.corner(_p, -1)
                 )
-        final_state = final_resolvent.solve(_coupled_source_state(
+        final_state = final_implicit.solve(_coupled_source_state(
             final_rhs_a, final_seed_src, sn_mesh,
             context="solve_sn finalize",
         ))
         final_psi_a = _system_a_member(final_state)
         final_ray = _system_b_member(final_state)
     else:
-        final_psi_a = final_resolvent.solve(final_rhs_a)
+        final_psi_a = final_implicit.solve(final_rhs_a)
         final_ray = None
     elapsed = time.perf_counter() - t_start
 
@@ -2331,8 +2331,8 @@ def _package_solution(
 def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
     r"""Shared build for the adjoint entries: the daggerable parts.
 
-    Returns ``(resolvent, gain, F_posed, template)`` — the invertible
-    within-group resolvent, the summed coupling gain, the fission operator
+    Returns ``(implicit_operator, gain, F_posed, template)`` — the invertible
+    within-group implicit operator ``M``, the summed coupling gain, the fission operator
     posed on the system's carrier, and a ZERO composite of that carrier
     (the shape/mesh template for guesses via ``from_flat``).  Everything
     comes off :func:`~orpheus.sn.coupled_system.build_within_group_system`
@@ -2357,8 +2357,8 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
     system = build_within_group_system(
         sn_mesh, mat_xs, scattering_order=scattering_order,
     )
-    gain = system.gains[0]
-    for extra in system.gains[1:]:
+    gain = system.explicit_gains[0]
+    for extra in system.explicit_gains[1:]:
         gain = gain + extra
     F = FissionOperator.from_solver_data(
         mat_xs=mat_xs, full_field_space=sn_mesh.full_field_space,
@@ -2369,7 +2369,7 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
         boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
     )
     if sn_mesh.radial_characteristic_field_space is None:
-        return system.resolvent, gain, F, full_field_zero
+        return system.implicit_operator, gain, F, full_field_zero
     # Carrying mesh: pose F on the coupled grid.  The (B, A) row is the
     # FISSION ray fold ``A_BA_fission = Fold ∘ F.kernel ∘ integrate`` —
     # the kernel-generic :class:`RadialCharacteristicEmission` with the
@@ -2409,7 +2409,7 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
         domain=space,
         codomain=space,
     )
-    return system.resolvent, gain, F_posed, space.zeros()
+    return system.implicit_operator, gain, F_posed, space.zeros()
 
 
 def solve_sn_adjoint(
@@ -2474,14 +2474,14 @@ def solve_sn_adjoint(
         :attr:`~orpheus.sn.solution.AdjointSolution.importance`).
     """
     sn_mesh = _as_sn_mesh(mesh, quadrature, materials, mat_map=mat_map)
-    resolvent, gain, F_posed, template = _adjoint_posing_parts(
+    implicit_operator, gain, F_posed, template = _adjoint_posing_parts(
         sn_mesh, scattering_order,
     )
 
     from orpheus.numerics.iteration import KEigenvalue
 
     ke = KEigenvalue(
-        resolvent.H, gain.H, F_posed.H,
+        implicit_operator.H, gain.H, F_posed.H,
         max_outer=max_outer, keff_tol=keff_tol, flux_tol=flux_tol,
         max_inner=max_inner, inner_tol=inner_tol,
     )
@@ -2592,7 +2592,7 @@ def solve_sn_adjoint_fixed_source(
             "(#276 A4 scope note); the eigenvalue entry solve_sn_adjoint "
             "covers carrying meshes."
         )
-    resolvent, gain, _F, template = _adjoint_posing_parts(
+    implicit_operator, gain, _F, template = _adjoint_posing_parts(
         sn_mesh, scattering_order,
     )
 
@@ -2636,7 +2636,7 @@ def solve_sn_adjoint_fixed_source(
         )
 
     si = SourceIteration(
-        seeded_inverse(resolvent.H), gain.H,
+        seeded_inverse(implicit_operator.H), gain.H,
         max_iter=max_inner, tol=inner_tol,
     )
     # Flux-classed zero start (the template) — the daggered iterate is an
@@ -3174,18 +3174,18 @@ def _solve_fixed_source_si(
     # source of truth — :func:`~orpheus.sn.coupled_system.build_within_group_system`
     # / :func:`_within_group_si`; identical construction to the eigenvalue
     # inner).  ``inner_schedule`` selects Jacobi vs boundary-G-S; the SI
-    # builder folds in the Phase-5a angular-windowing.  ``base_resolvent``
+    # builder folds in the Phase-5a angular-windowing.  ``base_implicit``
     # (un-wrapped) + ``gains`` are kept for the final full-angular
     # reconstruction below. ────────────────────────────────────────────
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    si, base_resolvent, gains, windowed = _within_group_si(
+    si, base_implicit, gains, windowed = _within_group_si(
         system, sn_mesh,
         inner_schedule=inner_schedule, max_iter=max_inner, tol=inner_tol,
         corrector=corrector,
     )
-    coupled = isinstance(system.resolvent, CoupledOperator)
+    coupled = isinstance(system.implicit_operator, CoupledOperator)
 
     # Cold-start iterate (x0 = zeros).  Fixed-source is a single solve — no
     # eigenvalue outer to warm-start from (cf. the eigenvalue inner's
@@ -3267,7 +3267,7 @@ def _solve_fixed_source_si(
         # fused composite (``psi_full IS psi_typed`` here) and the resolvent
         # is never the coupled bridge — the parse states the structural
         # fact loudly instead of assuming it.
-        if isinstance(base_resolvent, CoupledOperator):
+        if isinstance(base_implicit, CoupledOperator):
             raise TypeError(
                 "windowed reconstruction reached a coupled resolvent — "
                 "structurally unreachable (windowing is 2-D Cartesian, "
@@ -3276,7 +3276,7 @@ def _solve_fixed_source_si(
         rhs_final = q_a_ext
         for gain in gains:
             rhs_final = rhs_final + gain.apply(psi_full)
-        angular_out = base_resolvent.inverse().apply(
+        angular_out = base_implicit.inverse().apply(
             rhs_final, initial_guess=psi_full,
         )
     else:
@@ -3411,13 +3411,13 @@ def _solve_fixed_source_krylov(
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    coupled = isinstance(system.resolvent, CoupledOperator)
+    coupled = isinstance(system.implicit_operator, CoupledOperator)
     if coupled:
         # The coupled pair is born native (B.2d): the flux template pairs
         # with a zero ψ_B; ``q_ext_composite`` is already the coupled rhs.
         krylov_cold_start = _coupled_flux_state(krylov_cold_start, sn_mesh)
     krylov = _within_group_krylov(
-        system.resolvent, *system.gains,
+        system.implicit_operator, *system.explicit_gains,
         n_dof=int(krylov_cold_start.to_flat().size),
         max_iter=max_inner, tol=inner_tol,
         corrector=corrector,

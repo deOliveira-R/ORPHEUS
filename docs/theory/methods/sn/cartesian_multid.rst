@@ -3480,7 +3480,7 @@ Honest scope — what 5c does and does NOT do
      windowed one-shot reconstruction each re-run a *separate*
      full-angular sweep — the within-group resolvent ``solve``
      (:func:`~orpheus.sn.coupled_system.build_within_group_system`,
-     applying its ``.resolvent``) — to return the user-facing
+     applying its ``.implicit_operator``) — to return the user-facing
      :math:`(N, n_g, n_x, n_y)` field. They are **untouched** — the
      user-facing angular flux is bit-identical (the
      :math:`\Sigma w\psi = \phi` self-consistency gate and the step-3

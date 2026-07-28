@@ -248,7 +248,7 @@ def test_boundary_gs_is_noop_on_1d_slab():
     the count is IDENTICAL to Jacobi.
 
     Documents the scope decision (issue #2): the 1-D scan is not a wavefront,
-    so :func:`_select_si_resolvent` falls back to the Jacobi resolvent for any
+    so :func:`_select_si_splitting` falls back to the Jacobi resolvent for any
     1-D mesh, AND the 1-D reflective regime is scattering-dominated (boundary
     G-S would be a no-op even if wired).  The real 1-D / scattering SI rate win
     is consistent DSA (#2) or Krylov — NOT boundary G-S.  Tripwire: if a future

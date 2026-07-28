@@ -518,7 +518,7 @@ splitting-iteration — the matrix reduction tree differs — and a naive
 extraction returns O(1) garbage (the sweep treats inflow/seed rows as
 *given data*, so the row-contract must be preserved). It is the oracle the
 swap-law gates ride; production solves stay the splitting iteration on the
-record's ``resolvent``/``gains``. The **iterative** splitting solve
+record's ``implicit_operator``/``explicit_gains``. The **iterative** splitting solve
 (block-Jacobi / block-Gauss-Seidel over :math:`A = M - N`) deliberately
 stays with the drivers — convergence is spectral
 (:math:`\rho(M^{-1}N) < 1`), never a structural capability.
@@ -635,7 +635,7 @@ retired dead-slot arithmetic — the closure reads zeros), and the transpose
 **discards** the thread cotangent (a fixed zero input's cotangent
 propagates nowhere; the :math:`\text{Seeding}^{\mathsf T}` pullback is the
 explicit grid block). The eigenvalue finalize re-routes through the SAME
-:func:`~orpheus.sn.coupled_system.build_within_group_system` ``.resolvent``
+:func:`~orpheus.sn.coupled_system.build_within_group_system` ``.implicit_operator``
 every driver consumes. The mesh remains the single authority on presence;
 what changed is that nothing *checks* against it anymore — the type system
 carries the biconditional. The narrative of the walk's own view of this

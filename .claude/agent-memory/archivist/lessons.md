@@ -1200,8 +1200,10 @@ so the doc job is a NARROW carrier reframe, not a chapter rewrite.
   old name gone, the new imported) — 13 dead `:func:` refs render
   plain-text with no `-W` warning (L-002), so the grep gate is the only
   catch. On the general/Cartesian sites, the record DEGRADES to the old
-  triple (`.resolvent=(L+C)`, `.gains=(S,B_a)`) — say so; the coupled M−N
-  grid is the CARRYING-mesh case only.
+  triple (`.implicit_operator=(L+C)`, `.explicit_gains=(S,B_a)`) — say so;
+  the coupled M−N grid is the CARRYING-mesh case only. (Those two fields
+  were spelled `.resolvent`/`.gains` until 2026-07-28; `resolvent` was a
+  misnomer — the field holds the un-inverted forward `M`, not `M⁻¹`.)
 - **An IN-FLIGHT concurrent deliverable (the main agent editing prod while
   you write docs) gets post-state prose + a FLAGGED forward-dependency.**
   The LC-triplication collapse was being done in solver.py concurrently

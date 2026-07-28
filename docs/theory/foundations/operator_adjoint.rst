@@ -501,7 +501,7 @@ the *forward* composition guard).
    :math:`(L + C - S - F - B)` operator —
    :func:`~orpheus.sn.coupled_system.build_within_group_system` returns the
    :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record whose
-   ``resolvent`` ``(L+C)`` and lagged ``gains`` ``(S, B_a)`` keep ``S`` /
+   ``implicit_operator`` ``(L+C)`` and ``explicit_gains`` ``(S, B_a)`` keep ``S`` /
    ``B`` as **lagged gains** and
    ``F`` handled at the eigenvalue / DSA **outer** layer (where the
    adjoint posing row daggers :math:`M = F` as :math:`M^{\dagger}`; see

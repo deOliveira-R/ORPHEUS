@@ -9,7 +9,7 @@ iterate failure with no loud signal on the G-S path. These pins hold
 the gate functions to the genuine conditions:
 
 * ``_maybe_window`` → wrap ONLY at ``is_cartesian and ndim == 2``;
-* ``_select_si_resolvent`` G-S → ``is_cartesian and not is_1d``
+* ``_select_si_splitting`` G-S → ``is_cartesian and not is_1d``
   (multi-D; the schedule + scheduled sweep are d-generic since C3 —
   d=3 G-S FP-invariance is value-gated by the C5.5 Mode-9 box).
 
