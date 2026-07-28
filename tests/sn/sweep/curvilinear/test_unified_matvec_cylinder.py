@@ -392,9 +392,9 @@ def _build_mr_cylinder_mesh(nx: int = 40) -> tuple[Mesh1D, dict]:
     return mesh, materials
 
 
-# Post-D-K (commit ``dadf4e8``), ``SNSolver.L`` is the algebraic
-# composition ``StreamingOperator + CollisionOperator``
-# (= :class:`InvertibleOperator`), which calls
+# Post-D-K (commit ``dadf4e8``), the within-group loss composite
+# ``L + C`` (:func:`build_streaming_collision` → ``StreamingOperator +
+# MultiplicationOperator``, i.e. :class:`InvertibleOperator`) calls
 # :func:`_transport_operator_matvec_unified` natively for 1-D
 # cylindrical.  No monkey-patch is required.
 

@@ -69,8 +69,10 @@ def _operator_residual_with_seed(case, nc, seed_mode):
     # 3-block probe reads the production surfaces directly. B = B_a alone is
     # bit-identical here: on vacuum cases the ray-corner B_b term is exactly
     # zero, and B_a pads the ray slot present-zero like the retired composite.
+    from orpheus.sn.coupled_system import build_streaming_collision
     from orpheus.sn.operators.boundary import SNBoundaryOperator
-    LC, S = solver.L, solver.scattering_op
+    LC = build_streaming_collision(solver.sn_mesh, solver.mat_xs)
+    S = solver.scattering_op
     B = SNBoundaryOperator(solver.sn_mesh)
 
     A_obj = case.phi_exact(mesh.centers)

@@ -225,12 +225,13 @@ def test_within_group_operands_share_the_composite_space():
     # D5: the cross-method composite-space name is method-agnostic.
     if ffs.name != "full_field":
         raise AssertionError(f"composite space not de-SN-ified: {ffs.name!r}")
-    # Every within-group operand reports the ONE composite space. ``solver.L``
-    # IS the production ``InvertibleOperator(L, C)`` — its very existence proves
-    # the ``L + C`` guard PASSED at construction with ``C``'s real space (a
-    # mismatch would have raised there).
+    # Every within-group operand reports the ONE composite space.  ``LC`` is
+    # the production composite taken straight off the ``WithinGroupSystem``
+    # record (the operand the sweep actually inverts) — its very existence
+    # proves the ``L + C`` guard PASSED at construction with ``C``'s real
+    # space (a mismatch would have raised there).
     for op, nm in [
-        (solver.L, "L+C"), (S, "S"), (B, "B"), (solver.fission_op, "F"),
+        (LC, "L+C"), (S, "S"), (B, "B"), (solver.fission_op, "F"),
     ]:
         if op.domain != ffs or op.codomain != ffs:
             raise AssertionError(

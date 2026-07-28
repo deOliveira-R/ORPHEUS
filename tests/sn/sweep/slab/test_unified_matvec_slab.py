@@ -126,9 +126,9 @@ def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
     )
 
 
-# Post-D-K (commit ``dadf4e8``), ``SNSolver.L`` is the algebraic
-# composition ``StreamingOperator + CollisionOperator``
-# (= :class:`InvertibleOperator`), which routes through
+# Post-D-K (commit ``dadf4e8``), the within-group loss composite
+# ``L + C`` (:func:`build_streaming_collision` → ``StreamingOperator +
+# MultiplicationOperator``, i.e. :class:`InvertibleOperator`) routes through
 # :func:`_transport_operator_matvec_unified` natively for 1-D and
 # the representation's ``loss_action`` (which since S6.3 lives on
 # the loss representation, off the operator; ``ScanMarch`` default

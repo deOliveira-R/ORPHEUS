@@ -51,7 +51,6 @@ from .coupled_system import (
     WithinGroupSystem,
     _system_a_member,
     _system_b_member,
-    build_streaming_collision,
     build_within_group_system,
 )
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
@@ -1014,14 +1013,25 @@ class SNSolver:
         # Volume array for keff computation
         self.volume = sn_mesh.volumes
 
-        # ── Operator triple — Wave E Round 2 -----------------------------
-        # The (L, S, F) algebra-of-record framing.  Constructed once at
-        # __init__ so downstream consumers (the iteration primitives, the
-        # _solve_krylov path, future sensitivity/adjoint hooks) see a
-        # consistent operator triple over the lifetime of this solver.
-        # Issue #197 PR-TYPED-1: both S and F now consume the single
-        # ``self.mat_xs`` — the per-material dispatch lives inside
-        # :class:`MaterialXSField`'s typed verbs, not on the operators.
+        # ── The two cached reaction operators ────────────────────────────
+        # S and F are the only operators worth caching on the solver: they
+        # are σ-read-through (both consume the single ``self.mat_xs``; the
+        # per-material dispatch lives inside :class:`MaterialXSField`'s typed
+        # verbs, not on the operators — #197 PR-TYPED-1), so they survive a
+        # cross-section rebind untouched and are shared BY IDENTITY into
+        # every within-group build (``scattering_op=`` on
+        # :func:`build_within_group_system`).
+        #
+        # The loss composite ``L + C`` is deliberately NOT cached here.  The
+        # ONE LC spelling is :func:`build_streaming_collision`, and every
+        # production solve reaches it through
+        # :func:`build_within_group_system`, which builds the composite it
+        # actually inverts.  A second, solver-held copy would be a twin that
+        # can silently drift from the one the sweep uses (it did: the former
+        # ``self.L``/``self.S``/``self.F`` triple was production-dead and
+        # misnamed — ``self.L`` held ``L + C`` while the codebase's ``L`` is
+        # the σ-free streaming leaf).  Consumers needing the composite call
+        # ``build_streaming_collision(sn_mesh, mat_xs)`` directly.
         self.scattering_op = ScatteringOperator.from_solver_data(
             mat_xs=self.mat_xs,
             quadrature=sn_mesh.quad,
@@ -1032,14 +1042,6 @@ class SNSolver:
             mat_xs=self.mat_xs,
             full_field_space=sn_mesh.full_field_space,
         )
-        # The full transport operator :math:`L = \Omega\cdot\nabla + \Sigma_t`
-        # = :class:`InvertibleOperator` (``apply`` returns ``(L_stream + C)·ψ``
-        # on the typed carrier; ``solve`` consumes ``initial_guess`` for the
-        # Carlson seed — R-1 Phase 1.2 unification).  ONE LC spelling
-        # (B.2d d3 estate): :func:`build_streaming_collision`.
-        self.L = build_streaming_collision(sn_mesh, self.mat_xs)
-        self.S = self.scattering_op
-        self.F = self.fission_op
 
         # ── Sweep cache (Issue #196 Phase G Step 2.5c) ───────────────
         # Two-stratum cache: GeometryCoefficients built once at __init__
@@ -1096,10 +1098,17 @@ class SNSolver:
         # (sig_a, sig_p, chi) match the rebind contract.
         _ = self.mat_xs.absorption_cross_section
         self.mat_xs._sig_t_cell = new_sig_t
-        # Rebuild the composite so the rebound σ_t flows into the collision
-        # diagonal C (the streaming leaf L is σ-free since #257 S8b — only C
-        # carries σ).  ONE LC spelling: :func:`build_streaming_collision`.
-        self.L = build_streaming_collision(self.sn_mesh, self.mat_xs)
+        # No operator rebuild is needed for the rebound σ_t to take effect.
+        # ``L`` is σ-free (#257 S8b), and the collision diagonal ``C =
+        # M[σ_t]`` is constructed FRESH on every solve by
+        # :func:`build_within_group_system` from the read-through
+        # ``mat_xs.total_cross_section_field`` property — so the composite
+        # that is actually inverted is built after this rebind and carries
+        # the new σ_t.  (A ``MultiplicationOperator`` holds its coefficient
+        # as a snapshot, which is exactly why caching one here would go
+        # stale — hence no solver-held copy; see ``__init__``.)  Only the
+        # materialised σ_t stratum of the sweep cache, which likewise
+        # snapshots values, has to be rebuilt.
         if self.geom_cache is not None:
             sig_t_1d = self.mat_xs.total_cross_section
             self.coll_cache = CollisionCache.from_geometry(

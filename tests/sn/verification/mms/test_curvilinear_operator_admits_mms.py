@@ -80,8 +80,10 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     # 3-block probe reads the production surfaces directly. B = B_a alone is
     # bit-identical here: on vacuum cases the ray-corner B_b term is exactly
     # zero, and B_a pads the ray slot present-zero like the retired composite.
+    from orpheus.sn.coupled_system import build_streaming_collision
     from orpheus.sn.operators.boundary import SNBoundaryOperator
-    LC, S = solver.L, solver.scattering_op
+    LC = build_streaming_collision(solver.sn_mesh, solver.mat_xs)
+    S = solver.scattering_op
     B = SNBoundaryOperator(solver.sn_mesh)
 
     # ψ_ref,n = A(r)/W — isotropic per ordinate, zero boundary (vacuum).

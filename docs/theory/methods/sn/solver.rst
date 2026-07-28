@@ -10,18 +10,39 @@ coordinated into the production eigenvalue solve, and, from the
 converged flux, the frame projections (homogenisation, condensation)
 that hand a coarse problem back to the same solver.
 
-:class:`~orpheus.sn.solver.SNSolver` consumes the operator triple
-:math:`(L+C,\ S,\ F)` directly.  At construction time, the solver builds:
+At construction time :class:`~orpheus.sn.solver.SNSolver` caches exactly
+**two** operators — the two that are cross-section read-through, and
+therefore survive a rebind untouched:
 
-* :attr:`SNSolver.L` — :class:`InvertibleOperator` carrying the
-  symmetric-closure streaming-collision operator.
-* :attr:`SNSolver.S` — :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
+* :attr:`SNSolver.scattering_op` —
+  :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
   carrying the P0 + (n,2n) + Pℓ Galerkin reconstruction (Wave D
   Issue 13).
-* :attr:`SNSolver.F` — :class:`~orpheus.transport.operators.fission.FissionOperator`
+* :attr:`SNSolver.fission_op` —
+  :class:`~orpheus.transport.operators.fission.FissionOperator`
   carrying the rank-1-in-energy fission emission (Wave D Issue 13).
 
-Each of these is a :class:`~orpheus.numerics.operator.LinearOperator`
+The loss composite :math:`L+C` is deliberately **not** cached on the
+solver.  Its one spelling is
+:func:`~orpheus.sn.coupled_system.build_streaming_collision`, reached
+through :func:`~orpheus.sn.coupled_system.build_within_group_system`,
+which builds the composite it actually inverts — so a solver-held second
+copy would be a twin free to drift from the operand the sweep uses.
+
+.. note::
+
+   Before 2026-07-28 the solver also exposed an ``(L, S, F)`` "operator
+   triple" (``SNSolver.L`` / ``.S`` / ``.F``).  It was **retired**: the
+   attributes had no production reader, and ``SNSolver.L`` was a
+   misnomer — it held the *composite* :math:`L+C`, whereas :math:`L`
+   throughout this book is the :math:`\sigma`-free streaming leaf
+   (:ref:`the affine collision split <operator-algebra>`).  Consumers
+   needing the composite call
+   :func:`~orpheus.sn.coupled_system.build_streaming_collision`
+   directly.
+
+Each of the cached operators is a
+:class:`~orpheus.numerics.operator.LinearOperator`
 in the Wave A operator-algebra sense: predicate-typed, composable
 under :class:`~orpheus.numerics.operator.OperatorSum` and
 :class:`~orpheus.numerics.operator.OperatorProduct`, and protocol-

@@ -51,9 +51,10 @@ from orpheus.sn import solve_sn
 from orpheus.numerics.quadrature import Quadrature
 
 
-# Post-D-K (commit ``dadf4e8``), ``SNSolver.L`` is the algebraic
-# composition :class:`InvertibleOperator` (= ``StreamingOperator +
-# CollisionOperator``), routing through
+# Post-D-K (commit ``dadf4e8``), the within-group loss composite
+# ``L + C`` (:func:`build_streaming_collision` →
+# :class:`InvertibleOperator` = ``StreamingOperator +
+# MultiplicationOperator``) routes through
 # :func:`transport_operator_matvec_unified` natively for 1-D slab /
 # sphere / cylinder and through
 # the representation's ``loss_action`` (which since S6.3 lives on
