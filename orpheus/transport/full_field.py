@@ -28,7 +28,7 @@ L2 (transport, method-agnostic). This module holds TWO things:
 Why the interior + boundary split is the right L2 abstraction
 =============================================================
 
-The pre-D-H :class:`~orpheus.sn.angular_flux.AngularFlux` conflated volumetric
+The pre-D-H ``orpheus.sn.angular_flux.AngularFlux`` conflated volumetric
 flux values with boundary trace values. Per Cardinal Rule 2 (shared concepts →
 shared abstraction), the interior + boundary split is NOT SN-specific — every
 transport method has the same pair:

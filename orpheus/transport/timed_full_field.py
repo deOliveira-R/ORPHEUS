@@ -37,7 +37,7 @@ rationale.
 Why the bulk + boundary + history split is the right L2 abstraction
 ====================================================================
 
-The pre-D-H :class:`~orpheus.sn.angular_flux.AngularFlux` conflated
+The pre-D-H ``orpheus.sn.angular_flux.AngularFlux`` conflated
 THREE concepts on a single class:
 
 1. **Volumetric (bulk) flux values** — :math:`\psi(\vec r, \hat\Omega, g)`

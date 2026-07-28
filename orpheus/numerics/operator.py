@@ -519,7 +519,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
     :class:`ScaledOperator`) are wired through ``__add__``, ``__sub__``,
     ``__mul__`` (scalar), and ``__matmul__`` (operator product) so the
     typical algebra of the Boltzmann transport equation,
-    :math:`(L - S - F)`, can be built with the natural Python syntax.
+    :math:`(L + C - S - B)`, can be built with the natural Python syntax.
     The composites derive their predicates recursively per the closure
     laws documented in :ref:`operator-algebra`.
 

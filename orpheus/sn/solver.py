@@ -1475,7 +1475,7 @@ class SNSolver:
             S \;=\; \tfrac{1}{W}\,\text{full multi-group scatter}\,, \quad
             F \;=\; 0_{\rm wg}
 
-        on :class:`~orpheus.sn.angular_flux.AngularFlux`.  The
+        on :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.  The
         iteration step is
 
         .. math::
@@ -1698,7 +1698,7 @@ class SNSolver:
             S \;=\; \text{full multi-group scatter}\,, \quad
             F \;=\; 0_{\rm wg}
 
-        on typed :class:`~orpheus.sn.angular_flux.AngularFlux`.  The
+        on typed :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.  The
         composite ``L + C`` returns an
         :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` (R-1 Step C);
         its ``.solve`` IS the WDD sweep but R-1 ships GMRES
@@ -2076,7 +2076,7 @@ def solve_sn(
     -------
     Solution
         Typed return carrying eigenvalue, typed
-        :class:`~orpheus.sn.angular_flux.AngularFlux` +
+        :class:`~orpheus.transport.fields.angular_flux.AngularFlux` +
         :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` +
         :class:`~orpheus.sn.boundary_flux.AngularBoundaryFlux` fields plus an
         :class:`~orpheus.sn.solution.IterationHistory` carrying the
@@ -3331,7 +3331,7 @@ def _solve_fixed_source_krylov(
         S \;=\; \text{full multi-group scatter}\,, \quad
         F \;=\; 0_{\rm wg}
 
-    on typed :class:`~orpheus.sn.angular_flux.AngularFlux`.  The
+    on typed :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.  The
     composite ``L + C`` returns an
     :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`; its ``.solve``
     IS the WDD sweep, but R-1 ships GMRES UNPRECONDITIONED

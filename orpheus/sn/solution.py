@@ -252,7 +252,7 @@ class SolutionBase:
     Notes
     -----
     Pre-D-H, :attr:`angular_flux` was the legacy
-    :class:`orpheus.sn.angular_flux.AngularFlux` (a bulk Field that
+    :class:`orpheus.transport.fields.angular_flux.AngularFlux` (a bulk Field that
     ALSO owned the boundary face state and iteration history). Under
     D-H.1b that conflation dissolves: the composite-state container
     :class:`TimedFullField` holds the bulk + boundary + history trio

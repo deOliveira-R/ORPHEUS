@@ -576,7 +576,7 @@ class SourceIteration(Generic[V]):
     operators consume.  The convergence test uses
     :func:`numpy.linalg.norm` on the flattened arrays.  Both the L0
     synthetic case (flat ``(N,)`` vector) and the L1 SN case
-    (structured :class:`~orpheus.sn.angular_flux.AngularFlux`) are
+    (structured :class:`~orpheus.transport.fields.angular_flux.AngularFlux`) are
     handled by the same :func:`_l2_norm` call routed through the
     ravellable protocol.
 

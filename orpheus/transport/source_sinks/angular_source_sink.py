@@ -1,7 +1,7 @@
 r"""Per-ordinate source field :math:`Q^{\rm aniso}(\vec r, \hat\Omega_n, g)`.
 
 The L2 typed wrapper for an anisotropic / per-ordinate source. Same
-storage shape as :class:`~orpheus.sn.angular_flux.AngularFlux` (``(N,
+storage shape as :class:`~orpheus.transport.fields.angular_flux.AngularFlux` (``(N,
 ng, nx, ny)``), but a structurally distinct physical quantity (source
 density, not flux density). Carries the :math:`P_\ell \ge 1` Galerkin
 reconstruction contribution AND any MMS-style per-ordinate external

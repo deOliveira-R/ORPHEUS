@@ -5,17 +5,19 @@ operator-algebra view of the Boltzmann transport equation,
 
 .. math::
 
-    (L - S - F)\,\psi = q
+    (L + C - S - B)\,\psi = q
     \qquad\text{(fixed source)}
 
 .. math::
 
-    (L - S)\,\psi = \tfrac{1}{k}\,F\,\psi
+    (L + C - S - B)\,\psi = \tfrac{1}{k}\,F\,\psi
     \qquad\text{(eigenvalue)}
 
-where :math:`L` is the streaming + collision operator, :math:`S` is
-the scattering operator (see :mod:`orpheus.transport.operators.scattering`), and
-:math:`F` is the **fission emission operator**
+where :math:`L` is the :math:`\sigma`-free **streaming** leaf, :math:`C =
+M[\sigma_t]` the **collision** diagonal (a separate shared leaf since #257
+S8b — do NOT fold it into :math:`L`), :math:`S` the scattering operator
+(see :mod:`orpheus.transport.operators.scattering`), :math:`B` the boundary
+gain, and :math:`F` is the **fission emission operator**
 
 .. math::
 
