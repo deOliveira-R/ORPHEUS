@@ -30,6 +30,37 @@ merge hash or not at all).
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-07-28
+     - **Naming honesty in the operator algebra — three symbols stopped
+       lying about what they hold** (Tier 1 of the operator-realization
+       plan review). (a) ``SNSolver``'s ``(L, S, F)`` "operator triple"
+       was **retired**, not renamed: it had no production reader, and
+       ``self.L`` held the *composite* :math:`L+C` while :math:`L`
+       everywhere else is the :math:`\sigma`-free streaming leaf — three
+       meanings of ``L`` inside one ``__init__``. Every solve builds its
+       own composite through
+       :func:`~orpheus.sn.coupled_system.build_within_group_system`, so a
+       solver-held copy was a twin free to drift from the operand the
+       sweep inverts. (b) ``InvertibleOperator`` →
+       :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`:
+       the class wraps exactly a ``StreamingOperator`` plus a
+       ``MultiplicationOperator`` — it IS :math:`L+C` — and its old name
+       stated its *capability* (invertibility is advertised via
+       ``is_invertible``/``inverse()``), leaving the sole factory
+       ``build_streaming_collision`` out of step with the type it returns.
+       (c) :class:`~orpheus.sn.coupled_system.WithinGroupSystem`'s
+       ``resolvent``/``gains`` → ``implicit_operator``/``explicit_gains``:
+       the field held :math:`M`, the un-inverted forward operator, where a
+       resolvent is inverse-like. The new names state the role in the
+       splitting (:math:`M` solved implicitly, :math:`N` evaluated
+       explicitly) and free ``resolvent`` for its two honest uses — the
+       corpus :math:`K_{\rm pm}=A_{\rm loss}^{-1}M` and the future
+       ``A.resolvent(z)`` factory. The numerics drivers keep ``A`` /
+       ``*gains`` deliberately: that is the documented solver ↔ numerics
+       bridge of :doc:`/theory/conventions/notation` row 8, which now
+       states both ends instead of naming a dead field.
+     - —
+     - ``fc5c41bc`` · ``8367346f`` · ``e2c8b32e``
    * - 2026-07-24
      - **The adjoint matvec completed the scheme × representation grid —
        the #280 residue retired** (adjoint completion campaign, C1–C5).
