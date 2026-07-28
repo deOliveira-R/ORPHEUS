@@ -241,6 +241,23 @@ the resolvent backbone — it predicts both the layering split and the diffusion
 exception from ONE principle, and it tells you which layer is the shared engine
 before you read a line of the specific drivers.
 
+Corollary — the backbone tells you WHERE a foreign frame fires. A cross-domain
+frame keyed to an operator's ALGEBRAIC SHAPE fires only on the members whose
+shape matches. Worked (DSA ↔ mixed-FEM/CFD saddle-point,
+[[dsa-saddle-point-mixed-fem-frames]]): the **saddle-point / inf-sup / mixed-FEM**
+frame fires on the **diffusion / low-order member ONLY** — because the mixed
+`[[A,Bᵀ],[B,C]]` structure IS the elliptic exception (diffusion is
+self-adjoint ⇒ mixed-when-first-ordered), while SN/MoC/CP are
+characteristic-triangular SWEEPS with no saddle to stabilize (the primary
+transport operator is either `L⁻¹` triangular or the Peierls `I−PL⁻¹Σs`
+compact-perturbation-of-identity — neither a saddle point). So "consistent DSA"
+= "the low-order is the **Schur complement of a compatible pairing**," and the
+whole mixed-FEM/CFD apparatus (inf-sup, Darcy-vs-Stokes, Rhie–Chow, block
+preconditioners) attaches to the acceleration subproblem, never to the sweep.
+Before pointing a foreign frame at "transport," ask the backbone WHICH member
+has the matching shape — pointing inf-sup theory at the sweep is a category
+error the backbone catches for free.
+
 ---
 
 ## L-008 -- A "fully probes" claim is about operator LINEARITY, not input polynomial degree
