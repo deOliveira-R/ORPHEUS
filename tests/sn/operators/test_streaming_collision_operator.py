@@ -1,4 +1,4 @@
-r"""L0 foundation: :class:`InvertibleOperator` — sweep-invertible (L + C).
+r"""L0 foundation: :class:`StreamingCollisionOperator` — sweep-invertible (L + C).
 
 R-1 Step C (2026-05-19) — the SN-specific algebraic identity
 
@@ -7,30 +7,34 @@ R-1 Step C (2026-05-19) — the SN-specific algebraic identity
     (L_{\rm streaming} + C_{\rm diagonal})^{-1} \;\approx\;
     \text{WDD sweep}
 
-is encoded at the type level by :class:`InvertibleOperator`, a
+is encoded at the type level by :class:`StreamingCollisionOperator`, a
 specialisation of :class:`~orpheus.numerics.operator.OperatorSum` that
 carries ``.solve`` as the forward substitution on the operator's ONE
 ``loss_representation`` instance (S6.5, #222).
 
 The dispatch is symmetric: ``L + C`` and ``C + L`` both produce an
-``InvertibleOperator`` (with the streaming operand stored first via the
+``StreamingCollisionOperator`` (with the streaming operand stored first via the
 canonical ``OperatorSum`` ordering).
 
 Tests pin:
 
-* Dispatch — ``L + C`` and ``C + L`` both return InvertibleOperator;
+* Dispatch — ``L + C`` and ``C + L`` both return StreamingCollisionOperator;
   ``L + L``, ``C + C``, and ``L + S`` (where S is a scattering operator)
   fall through to generic OperatorSum.
 * Predicates — ``is_invertible`` True (the sweep identity); the parent
   generic OperatorSum built on the same operands is NOT invertible
   (its leading term L is not).
 * Invariants — mesh-identity required; negative sigma rejected.
-* Apply equivalence — InvertibleOperator.apply matches the inherited
+* Apply equivalence — StreamingCollisionOperator.apply matches the inherited
   OperatorSum action (L.apply + C.apply, bit-exact).
 * Solve consistency — apply ∘ solve = identity (on volumetric rhs).
-* Carlson seed plumbing — InvertibleOperator.solve reads ``rhs(1)`` and
-  forwards it to the representation sweep as ``initial_guess`` for the
-  curvilinear pole closure.
+* Seed independence — StreamingCollisionOperator.solve is an EXACT direct
+  inverse: it accepts ``initial_guess`` for ``SupportsSeededApply``
+  conformance and DROPS it (``streaming.py``), so the answer is
+  seed-independent.  (Historically this method read ``rhs(1)`` history and
+  later threaded an explicit ``initial_guess`` into the M-M Carlson pole
+  closure; both are retired — since #282 route (a) the curvilinear seed is
+  the composite's first-class ψ½ STATE, not an extrapolated iterate.)
 """
 from __future__ import annotations
 
@@ -44,7 +48,7 @@ from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.operator import OperatorSum
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import (
-    InvertibleOperator,
+    StreamingCollisionOperator,
     StreamingOperator,
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -122,14 +126,14 @@ def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
 
 class TestDispatch:
     def test_streaming_plus_collision_returns_invertible(self) -> None:
-        """``L + C`` returns :class:`InvertibleOperator` via dispatch."""
+        """``L + C`` returns :class:`StreamingCollisionOperator` via dispatch."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         L = StreamingOperator(sn)
         C = MultiplicationOperator.from_mesh(sigma_t, sn)
 
         composite = L + C
-        assert isinstance(composite, InvertibleOperator)
+        assert isinstance(composite, StreamingCollisionOperator)
         assert composite.streaming is L
         assert composite.diagonal is C
 
@@ -143,7 +147,7 @@ class TestDispatch:
 
         L = StreamingOperator(sn)
         C_r = MultiplicationOperator.from_mesh(sigma_r, sn)
-        invertible = InvertibleOperator(L, C_r)
+        invertible = StreamingCollisionOperator(L, C_r)
         assert invertible.streaming is L
         assert invertible.diagonal is C_r
         np.testing.assert_array_equal(invertible.sigma, sigma_r)
@@ -158,7 +162,7 @@ class TestDispatch:
 
         composite = L + Z
         assert isinstance(composite, OperatorSum)
-        assert not isinstance(composite, InvertibleOperator)
+        assert not isinstance(composite, StreamingCollisionOperator)
 
 
 # ── Capabilities and invariants ─────────────────────────────────────────
@@ -168,7 +172,7 @@ class TestCapabilitiesAndInvariants:
     def test_predicates_invertible_and_adjointable(self) -> None:
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = InvertibleOperator(
+        invertible = StreamingCollisionOperator(
             StreamingOperator(sn),
             MultiplicationOperator.from_mesh(sigma_t, sn),
         )
@@ -183,7 +187,7 @@ class TestCapabilitiesAndInvariants:
         ``is_invertible`` on a generic sum reads the LEADING term (the
         Green/Neumann factorization ``(A+B)⁻¹`` needs ``A⁻¹``); here the
         leading ``L`` is rank-deficient, so the plain sum reports False.
-        Only :class:`InvertibleOperator` carries the SN-specific sweep
+        Only :class:`StreamingCollisionOperator` carries the SN-specific sweep
         identity at the type level.
         """
         sn = _slab_mesh()
@@ -205,7 +209,7 @@ class TestCapabilitiesAndInvariants:
         L = StreamingOperator(sn1)
         C = MultiplicationOperator.from_mesh(sigma_t2, sn2)
         with pytest.raises(ValueError, match="mesh-identity"):
-            InvertibleOperator(L, C)
+            StreamingCollisionOperator(L, C)
 
     def test_non_positive_sigma_rejected(self) -> None:
         """``σ <= 0`` anywhere → ValueError at construction."""
@@ -216,7 +220,7 @@ class TestCapabilitiesAndInvariants:
         L = StreamingOperator(sn)
         C_bad = MultiplicationOperator.from_mesh(sigma_bad, sn)
         with pytest.raises(ValueError, match="strictly positive"):
-            InvertibleOperator(L, C_bad)
+            StreamingCollisionOperator(L, C_bad)
 
     def test_zero_sigma_rejected(self) -> None:
         """``σ == 0`` (void cell) is also rejected — strict positivity."""
@@ -227,7 +231,7 @@ class TestCapabilitiesAndInvariants:
         L = StreamingOperator(sn)
         C_bad = MultiplicationOperator.from_mesh(sigma_bad, sn)
         with pytest.raises(ValueError, match="strictly positive"):
-            InvertibleOperator(L, C_bad)
+            StreamingCollisionOperator(L, C_bad)
 
     def test_wrong_operand_types_rejected(self) -> None:
         sn = _slab_mesh()
@@ -235,9 +239,9 @@ class TestCapabilitiesAndInvariants:
         L = StreamingOperator(sn)
         C = MultiplicationOperator.from_mesh(sigma_t, sn)
         with pytest.raises(TypeError, match="StreamingOperator"):
-            InvertibleOperator(C, C)  # type: ignore[arg-type]
+            StreamingCollisionOperator(C, C)  # type: ignore[arg-type]
         with pytest.raises(TypeError, match="MultiplicationOperator"):
-            InvertibleOperator(L, L)  # type: ignore[arg-type]
+            StreamingCollisionOperator(L, L)  # type: ignore[arg-type]
 
 
 # ── Apply matches inherited OperatorSum ─────────────────────────────────
@@ -247,7 +251,7 @@ class TestApply:
     def test_apply_equals_l_plus_c_on_typed_flux(self) -> None:
         r"""``(L+C).apply(ψ) == L.apply(ψ) + C.apply(ψ)`` for TimedFullField (slab).
 
-        Since #240 Phase 2 Step B ``InvertibleOperator.apply`` OWNS its matvec
+        Since #240 Phase 2 Step B ``StreamingCollisionOperator.apply`` OWNS its matvec
         via ``loss_representation.loss_action(self.sigma)`` (it no longer routes
         through the inherited ``OperatorSum.apply`` leaf sum).  #257 S8b: ``L``
         is now pure σ-free ``streaming_action(ψ) = loss_action(0, ψ)``, so the
@@ -287,7 +291,7 @@ class TestApply:
 
 class TestSolve:
     def test_solve_returns_composite_on_slab(self) -> None:
-        """``InvertibleOperator.solve`` returns a :class:`TimedFullField` on slab."""
+        """``StreamingCollisionOperator.solve`` returns a :class:`TimedFullField` on slab."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         invertible = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
@@ -364,7 +368,7 @@ class TestSolve:
         :meth:`StreamingOperator.apply` uses the **symmetric-closure
         FD** matvec (the Krylov-on-apply path that
         :func:`transport_operator_matvec_unified` realises), whereas
-        :meth:`InvertibleOperator.solve` uses the **WDD asymmetric
+        :meth:`StreamingCollisionOperator.solve` uses the **WDD asymmetric
         sweep**.  The two are different discretisations of the same
         continuous operator — they agree in the fine-mesh limit but
         are NOT bit-exact inverses on the discrete grid (ERR-026
@@ -455,14 +459,14 @@ class TestSolve:
     @pytest.mark.l0
     @pytest.mark.verifies("transport-cartesian")
     def test_solve_consumes_per_ordinate_rhs(self) -> None:
-        r"""``InvertibleOperator.solve`` passes ``rhs.interior.values`` unmodified to the sweep.
+        r"""``StreamingCollisionOperator.solve`` passes ``rhs.interior.values`` unmodified to the sweep.
 
         R-1 Step 4 A1 invariant pin (N5 per verification plan).  The
         producer-side normalisation contract says the bulk values are
         already per-ordinate density (the producer of ``rhs`` — typically
         ``ScatteringOperator.apply`` or ``AngularSourceSink.from_isotropic``
         — applied ``/sum_w`` at the producer boundary).  The
-        ``InvertibleOperator.solve`` adapter MUST forward the bulk
+        ``StreamingCollisionOperator.solve`` adapter MUST forward the bulk
         values to the strategy sweep *bit-equal* — no internal
         ``* sum_w`` bridge, no ``/sum_w`` rescaling.
 
@@ -518,7 +522,7 @@ class TestSolve:
         np.testing.assert_array_equal(
             forwarded, rhs.interior.values,
             err_msg=(
-                "InvertibleOperator.solve modified rhs.interior.values before "
+                "StreamingCollisionOperator.solve modified rhs.interior.values before "
                 "forwarding to the representation sweep — A1 producer-side "
                 "convention drifted (the ``* sum_w`` bridge MUST stay "
                 "dissolved)."
@@ -530,7 +534,7 @@ class TestSolve:
 
 
 class TestSolveTimedFullField:
-    """Composite-specific invariants on :meth:`InvertibleOperator.solve`.
+    """Composite-specific invariants on :meth:`StreamingCollisionOperator.solve`.
 
     The parity-vs-legacy-AngularFlux tests retired with D-H.2-C1
     (legacy class itself retires in C5).  These tests pin the
@@ -548,7 +552,7 @@ class TestSolveTimedFullField:
         Wave O (#208) O.4a.2 — BC extraction: the boundary INFLOW seed is
         now the boundary SOURCE ``rhs.boundary`` (carrying ``q.boundary +
         B·ψ.outflow``), NOT ``initial_guess.boundary``.  The bare sweep no
-        longer re-applies ``bc`` at entry; ``InvertibleOperator.solve``
+        longer re-applies ``bc`` at entry; ``StreamingCollisionOperator.solve``
         seeds the sweep's mutable ``boundary_buf`` from ``rhs.boundary``
         before the representation sweep runs (the S6.5 solve seam).
         (Pre-extraction this seed came from ``initial_guess.boundary`` —
@@ -633,7 +637,7 @@ class TestSolveTimedFullField:
 # ── Convention-bridge regression catchers (R-1 Step 4 A5 promotion) ────
 
 
-class TestInvertibleSolveBridgeRegression:
+class TestStreamingCollisionSolveBridgeRegression:
     r"""End-to-end regression catchers for the convention-bridge bug class.
 
     Origin
@@ -654,7 +658,7 @@ class TestInvertibleSolveBridgeRegression:
     (:meth:`ScatteringOperator.apply`, :meth:`FissionOperator.apply`,
     :meth:`AngularSourceSink.from_isotropic`); consumers see per-ord
     density throughout.  The legacy ``rhs.values * sum_w`` bridge in
-    ``InvertibleOperator.solve`` is GONE.  The sweep applies NO
+    ``StreamingCollisionOperator.solve`` is GONE.  The sweep applies NO
     ``/W`` anywhere internally.
 
     What this class pins
@@ -674,10 +678,14 @@ class TestInvertibleSolveBridgeRegression:
        ``k_inf`` to ``rtol < 1e-9``.  Pre-fix every ng≥2 case failed
        with ~21% drift.
 
-    Post-Phase-1.2 the M-M Carlson seed travels through the explicit
-    ``initial_guess`` kwarg on :meth:`InvertibleOperator.solve` (not
-    through ``rhs(1)`` history); the iterative tests below thread the
-    previous iterate that way.
+    Phase 1.2 moved the M-M Carlson seed off ``rhs(1)`` history and onto an
+    explicit ``initial_guess`` kwarg; #282 route (a) then retired that channel
+    too — the curvilinear seed is now the composite's first-class ψ½ state.
+    :meth:`StreamingCollisionOperator.solve` accepts ``initial_guess`` only to
+    satisfy the ``SupportsSeededApply`` protocol and DROPS it.  The iterative
+    tests below still pass the previous iterate, but it reaches the fixed
+    point through the RHS (``rhs = q + Σ gains·ψ_prev``), never through the
+    sweep's interior recurrence.
 
     References
     ==========
@@ -780,7 +788,7 @@ class TestInvertibleSolveBridgeRegression:
     # ── D-H.1c Stage 3 composite-branch L1 anchors ────────────────────
     #
     # Mirror the two streaming-equilibrium L1 anchors above but
-    # exercise the InvertibleOperator.solve TimedFullField composite
+    # exercise the StreamingCollisionOperator.solve TimedFullField composite
     # branch DIRECTLY (no solver wrapper).  Structurally independent
     # of the SI carve L1 test (which routes through solver._solve_
     # source_iteration): a regression breaking the composite branch
@@ -798,7 +806,7 @@ class TestInvertibleSolveBridgeRegression:
         ``LC.solve(LC.apply(ψ=1)) == ψ=1`` on slab under TimedFullField
         dispatch.  Exercises the StreamingOperator + CollisionOperator
         composite-input branches (D-H.1b.6 / D-H.1b.5) ∘
-        InvertibleOperator.solve composite branch (D-H.1c stage 1).
+        StreamingCollisionOperator.solve composite branch (D-H.1c stage 1).
         Pre-D-H.1c-stage-1 the composite branch did not exist; pre-A1
         the legacy branch failed by factor W (now structurally
         impossible per L18).
@@ -824,7 +832,7 @@ class TestInvertibleSolveBridgeRegression:
             interior=replace(psi_known.interior, values=np.ones((N, ng, *sn_mesh.spatial_shape))),
         )
         # #257 S8a — the matvec leaf is a base arrow: ``LC.apply`` returns a
-        # timeless FullField source.  ``InvertibleOperator.solve`` consumes the
+        # timeless FullField source.  ``StreamingCollisionOperator.solve`` consumes the
         # driver's timed rhs, so wrap the source back into a TimedFullField
         # (exactly what the production SI / Krylov driver does — it carries the
         # comonad; the operator does not).  Byte-identical source values.
@@ -875,7 +883,7 @@ class TestInvertibleSolveBridgeRegression:
         Reflective homogeneous medium, uniform per-ordinate source
         ``q_n = const`` → converged composite ψ_n must equal
         ``q_n / Σ_t`` on every cell.  Exercises the composite branch
-        of InvertibleOperator.solve under three geometries (slab +
+        of StreamingCollisionOperator.solve under three geometries (slab +
         spherical + cylindrical), pinning the streaming-equilibrium
         property end-to-end on the composite path.
         """
@@ -940,8 +948,9 @@ class TestInvertibleSolveBridgeRegression:
         # reflective coupling EXPLICITLY via the sibling ``−B``: each
         # iterate sets ``rhs.boundary = q.boundary + B·ψ.outflow``
         # (``q.boundary = 0`` here) — exactly the ``S + B`` source the
-        # production SI driver folds.  ``initial_guess`` still threads the
-        # M-M Carlson bulk warm start.
+        # production SI driver folds.  ``initial_guess`` is passed for
+        # protocol conformance only — ``solve`` drops it (exact direct
+        # inverse), so the warm start acts purely through ``rhs``.
         # The augmented boundary coupling: PER SYSTEM (RULING P1 / B.2d) —
         # ``B_a`` reflects System A's trace into ``rhs.boundary``; on the
         # carrying sphere ``B_b`` (System B's own block) reflects the ψ½

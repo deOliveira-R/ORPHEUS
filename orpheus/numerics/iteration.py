@@ -65,7 +65,7 @@ the operator triple acts linearly on it and that
 :func:`numpy.linalg.norm` returns a scalar that orders by relative
 size.  The L0 synthetic tests use 4×4 dense matrices acting on
 ``(4,)`` flat vectors; the L1 SN gate uses
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` (the
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` (the
 composite ``A = L + C``),
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator`, and
 :class:`~orpheus.transport.operators.fission.FissionOperator` acting on

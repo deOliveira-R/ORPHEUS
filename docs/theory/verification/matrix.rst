@@ -353,7 +353,6 @@ Module × level grid
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
    operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
-   operators/test_invertible_operator, 1, 10, 0, 0, 20, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
    operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 20, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
@@ -377,6 +376,7 @@ Module × level grid
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_streaming_cell_transpose_relocation, 0, 0, 0, 0, 11, 0
+   operators/test_streaming_collision_operator, 1, 10, 0, 0, 20, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
    operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
    operators/test_sweep_inverse_identity, 0, 0, 0, 0, 7, 0

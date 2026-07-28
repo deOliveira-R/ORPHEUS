@@ -359,7 +359,7 @@ pins are ``tests/sn/operators/test_inverse_operator_equivalence.py`` and
        (foundation / sentinel; vv Mode 11)
      - Every inner solve's ``initial_guess`` equals the previous iterate's
        return, by value. **Route-invariant across the rewire**: it wraps
-       :meth:`InvertibleOperator.solve <orpheus.sn.operators.streaming.InvertibleOperator.solve>`
+       :meth:`StreamingCollisionOperator.solve <orpheus.sn.operators.streaming.StreamingCollisionOperator.solve>`
        — the surface *both* driver generations route through (pre-step-3
        ``resolvent.solve(...)``, post-step-3
        ``SweepOperator.apply`` → ``inner.solve``) — so it was green before
@@ -379,7 +379,7 @@ pins are ``tests/sn/operators/test_inverse_operator_equivalence.py`` and
        the SAME step operator: a
        :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` whose
        ``.inner`` is the
-       :class:`~orpheus.sn.operators.streaming.InvertibleOperator` forward
+       :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` forward
        — the forward identity moved *one level in*, onto ``.inner`` (the
        solver builds the inverse; the driver applies it).
 
@@ -556,7 +556,7 @@ construction it derives the splitting **once, from the sum's structure**:
 It then hands these to ``SourceIteration`` and re-implements no iteration
 math of its own. The left spine is flattened by walking **exact**
 ``OperatorSum`` nodes only: the fused
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` is a structural
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` is a structural
 *leaf* (its sum-ness is an MRO fact, its identity a fused operator with a
 direct inverse), so ``((L+C) - S)`` flattens to preconditioner ``(L+C)`` +
 gain ``[S]`` — never dissolving the ``(L+C)`` into its own summands. A
@@ -583,7 +583,7 @@ rule, extended to the sum inverse. The four edges:
      - The fusion dispatch on
        :meth:`StreamingOperator.__add__ <orpheus.sn.operators.streaming.StreamingOperator.__add__>`
        (streaming.py:510, "the canonical and only ordering") returns the
-       :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
+       :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
        specialisation, whose ``.inverse()`` override (→ the direct sweep)
        **shadows the generic Green by MRO** (type-as-structure, §11.1).
    * - ``A_loss = (L+C) - S``

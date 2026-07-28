@@ -1076,7 +1076,7 @@ Two derived combinations carry their own names:
   is the within-group system; its ``solve`` routes through the
   fused sweep (the
   ``L + C`` composition rule mints the sweep-invertible
-  :class:`~orpheus.sn.operators.streaming.InvertibleOperator`, whose
+  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`, whose
   own ``solve`` override runs the sweep on its selected representation
   rather than the unfused Krylov outer-iteration — the generic
   ``OperatorSum`` carries no ``solve`` at all since carve P4).
@@ -1451,7 +1451,7 @@ Typed sweep input
 
 The production within-group sweep is a **typed operator surface**: the
 loss operator's ``solve``
-(:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`) consumes
+(:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve`) consumes
 a typed source field and returns a typed angular-flux field; the isotropic
 and per-ordinate source contributions ride the one typed source object,
 not a separate ``Q_aniso=`` keyword.  The bare

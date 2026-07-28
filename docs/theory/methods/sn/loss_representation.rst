@@ -252,15 +252,15 @@ The composite owns its matvec — the removal form :math:`C(\sigma_r)`
 So far the matvec :math:`(L+C)\psi` has been described as the matvec twin of
 the sweep, applied by :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`
 (:eq:`loss-rep-resolution-a`). But the *composite* operator
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` — the :math:`A = (L+C)`
-object whose :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` *is* the
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` — the :math:`A = (L+C)`
+object whose :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve` *is* the
 sweep — has its own matvec too, and getting that matvec to single-source its
 diagonal :math:`\sigma` from the *same* place :meth:`solve` does is the
 substance of issue #240 Phase 2 Step B. This subsection records that carve: a
 **principled-equivalence** refactor (not a bug fix — no wrong value ever
 shipped) that turns a value-correct-by-coincidence leaf sum into a
 correct-by-construction action, and in doing so foreclosed a latent trap that
-the **removal form** :math:`\mathrm{InvertibleOperator}(L(\sigma_t),
+the **removal form** :math:`\mathrm{StreamingCollisionOperator}(L(\sigma_t),
 C(\sigma_r))` would have made observable.
 
 The :math:`\sigma` parameter is now explicit
@@ -278,10 +278,10 @@ the **caller single-sources** :math:`\sigma`:
 
 * :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` passes its own
   ``sigma_t`` (and subtracts it back via Resolution A, :eq:`loss-rep-resolution-a`);
-* the **new** :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` /
-  :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose` overrides pass
+* the **new** :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply` /
+  :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply_transpose` overrides pass
   the composite's *own* diagonal ``self.sigma`` — the SAME array
-  :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` threads into the WDD
+  :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve` threads into the WDD
   sweep — and realise :math:`M(\sigma)\psi` *directly*, via
   ``self.loss_representation.loss_action(self.sigma, psi)``, instead of inheriting
   the :meth:`~orpheus.numerics.operator.OperatorSum.apply` leaf sum.
@@ -399,7 +399,7 @@ diagonal :math:`\sigma` from two *different* operands:
    * - Door
      - Sources :math:`\sigma` from
      - Realises
-   * - :meth:`InvertibleOperator.solve`
+   * - :meth:`StreamingCollisionOperator.solve`
      - the collision leaf ``C`` (``self.sigma``)
      - :math:`(L+C(\sigma_C))^{-1}q` (the sweep)
    * - inherited ``OperatorSum.apply``
@@ -418,17 +418,17 @@ action, re-deriving the streaming part through :math:`\sigma_t` only to cancel
 it.
 
 The override (#240 Step B) collapses the twin-source. Both
-:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` and
-:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose` now read the
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply` and
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply_transpose` now read the
 composite's **own** ``self.sigma`` — the SAME array
-:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` threads into the sweep —
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve` threads into the sweep —
 and call ``loss_action(self.sigma, psi)`` directly:
 
 .. code-block:: python
 
-   class InvertibleOperator(OperatorSum):
+   class StreamingCollisionOperator(OperatorSum):
        def apply(self, psi):                         # (L+C)ψ = M(σ)ψ
-           _require_typed_composite("InvertibleOperator.apply", self.sn_mesh, psi)
+           _require_typed_composite("StreamingCollisionOperator.apply", self.sn_mesh, psi)
            return self.loss_representation.loss_action(self.sigma, psi)
 
        def apply_transpose(self, phi):               # (L+C)ᵀφ = M(σ)ᵀφ
@@ -466,7 +466,7 @@ collision diagonal,
    sigma_r = sigma_t - Sigma_s0). Definitional, no isolated claim.
 .. vv-status: loss-rep-removal-sigma documented
 
-so the composite becomes :math:`\mathrm{InvertibleOperator}(L(\sigma_t),
+so the composite becomes :math:`\mathrm{StreamingCollisionOperator}(L(\sigma_t),
 C(\sigma_r))` with :math:`\sigma_C = \sigma_r \neq \sigma_t` (Adams & Larsen
 2002 §III — the within-group iteration framing in which the sweep
 :math:`(L+C)^{-1}` *is* the transport operator; #200). On this form the
@@ -562,7 +562,7 @@ convention is the same :eq:`loss-rep-resolution-a` glue, now single-sourcing
 
 (d) **The negative control** —
     ``test_removal_form_nonpositive_sigma_r_rejected`` confirms
-    :math:`\mathrm{InvertibleOperator}(L, C(\sigma_r\le 0))` raises at
+    :math:`\mathrm{StreamingCollisionOperator}(L, C(\sigma_r\le 0))` raises at
     construction (vv L11: a contract-validation path needs BOTH a positive
     must-not-raise case — the removal cases — AND a negative must-raise case).
 
@@ -1913,10 +1913,10 @@ The operator holds **one** representation instance —
 
 * :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` (the matvec
   :math:`(L+C)\psi`);
-* :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` (the forward
+* :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve` (the forward
   substitution :math:`(L+C)^{-1}q`), via the delegating
-  :attr:`InvertibleOperator.loss_representation
-  <orpheus.sn.operators.streaming.InvertibleOperator.loss_representation>`
+  :attr:`StreamingCollisionOperator.loss_representation
+  <orpheus.sn.operators.streaming.StreamingCollisionOperator.loss_representation>`
   property; and
 * the boundary Gauss–Seidel resolvent.
 
@@ -2191,12 +2191,12 @@ without adding a single line of new solve machinery, by reading the
 #226 inverse-as-operator taxonomy literally.
 :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` **is**
 :math:`(L+C)^{-1} = A^{-1}` (the object
-:meth:`(L+C).inverse() <orpheus.sn.operators.streaming.InvertibleOperator.inverse>`
+:meth:`(L+C).inverse() <orpheus.sn.operators.streaming.StreamingCollisionOperator.inverse>`
 returns). Since the composite is endomorphic, its Euclidean transpose
 is :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}` — so
 :meth:`SweepOperator.apply_transpose <orpheus.sn.operators.sweep_operator.SweepOperator.apply_transpose>`
 is *exactly* the inner's
-:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`
 (the 2.5b reverse-scan). Nothing else is needed.
 
 The consequence is the **swap law**, an *object identity of the
@@ -2245,7 +2245,7 @@ metric transpose-solve) *dissolved*. The honest two-factor predicates
 guard it (ruling R11):
 
 * :attr:`SweepOperator.is_adjointable <orpheus.sn.operators.sweep_operator.SweepOperator.is_adjointable>`
-  ``= isinstance(inner, InvertibleOperator) and inner.is_adjointable``
+  ``= isinstance(inner, StreamingCollisionOperator) and inner.is_adjointable``
   (the schedule-folded arm has no ``solve_transpose`` → stays
   non-adjointable; LD / multi-D Cartesian defer via
   ``inner.is_adjointable``);
@@ -2289,7 +2289,7 @@ and 2.5c retired it. The principle is a clean layering:
 
 * **A direct, exact inverse has nothing to seed.**
   :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` and
-  :meth:`InvertibleOperator.solve <orpheus.sn.operators.streaming.InvertibleOperator.solve>`
+  :meth:`StreamingCollisionOperator.solve <orpheus.sn.operators.streaming.StreamingCollisionOperator.solve>`
   **accept-and-drop** the canonical seeded ``apply(x, /, *,
   initial_guess=None)`` keyword (#285). The keyword stays uniform across
   the inverse family (``SupportsSeededApply``) so a driver threads the
@@ -2550,7 +2550,7 @@ consumed by ``A_BB``); the walk's in-solve System-B engine (the up-front
 operator-free module-level ``transport_sweep`` wrapper, whose
 carrying-mesh self-derivation existed precisely to feed the fused joint
 channel — its callers route the typed surfaces
-(:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` for
+(:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve` for
 the block, the grid's ``solve`` for the joint march; the eigenvalue
 finalize re-routed onto ``build_within_group_system`` at 6a).
 
@@ -2813,7 +2813,7 @@ Apply and solve use **different** closures by design (historical)
    bias") was falsified: the two paths are ONE discrete system.
 
 This was the load-bearing architectural fact about
-:class:`InvertibleOperator`, and the reason the operator's
+:class:`StreamingCollisionOperator`, and the reason the operator's
 :meth:`apply` was **not** bit-identical to its :meth:`solve`.
 
 The Wave-D-era SN dispatch in ORPHEUS shipped **two distinct
@@ -2831,7 +2831,7 @@ for different consumers:
   warning were retired with the code).
 
 * The **sweep operator**
-  (:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`,
+  (:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve`,
   dispatching its selected representation through the
   :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`
   Protocol with :class:`~orpheus.transport.spatial.diamond.DiamondDifference`
@@ -2870,7 +2870,7 @@ Wave E and beyond — landed and forward
   consumers in :mod:`orpheus.numerics.iteration`, decoupling them
   from :class:`SNSolver`.
 * **Wave E Issue 15 wired** :class:`SNSolver` to
-  :class:`InvertibleOperator`: the inner solve becomes Krylov on
+  :class:`StreamingCollisionOperator`: the inner solve becomes Krylov on
   :meth:`apply` with sweep as preconditioner, which removes the WDD
   asymmetric closure from the converged-solution path for the
   reflective-BC eigenvalue case.  Wave E Round 3 will extend the
@@ -2878,8 +2878,8 @@ Wave E and beyond — landed and forward
   for fixed-source curvilinear MMS.
 * **Forward → landed (Wave O / O.2b, #208)**: the analytic
   reverse-direction adjoint matvec replaced the dense-transpose
-  fallback (:meth:`InvertibleOperator.apply_transpose
-  <orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose>`,
+  fallback (:meth:`StreamingCollisionOperator.apply_transpose
+  <orpheus.sn.operators.streaming.StreamingCollisionOperator.apply_transpose>`,
   single-sourced through the representation's
   ``loss_action_transpose``); the reciprocity gates live in
   :file:`tests/sn/operators/test_streaming_operator.py` and

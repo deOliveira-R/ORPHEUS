@@ -122,10 +122,10 @@ D2 = TypeVar("D2", bound=Vector)  # __matmul__ other-operand domain
 # Composition-leg type parameters (C4 F1 — the composition wrappers are
 # generic over their LEG types, so a named composition subclass carries its
 # legs' identities at the type level and its accessors need no casts:
-# ``InvertibleOperator = OperatorSum[FF, FF, StreamingOperator,
+# ``StreamingCollisionOperator = OperatorSum[FF, FF, StreamingOperator,
 # MultiplicationOperator]`` reads ``self.a`` as a ``StreamingOperator``).
 # COVARIANT because a pinned composition must upcast to the defaulted
-# spelling (``StreamingOperator.__add__`` returns ``InvertibleOperator``
+# spelling (``StreamingOperator.__add__`` returns ``StreamingCollisionOperator``
 # where the base dunder contract says ``OperatorSum[Domain, Codomain]``) —
 # which is also why the legs are read-only properties over ``Final``
 # storage: covariance is sound only without a setter. PEP-696 defaults
@@ -1291,7 +1291,7 @@ class OperatorSum(
     r"""Sum of two linear operators: :math:`(A + B)\,x = A\,x + B\,x`.
 
     Generic over its SUMMAND types: a named composition subclass
-    pins them — ``InvertibleOperator = OperatorSum["FullField",
+    pins them — ``StreamingCollisionOperator = OperatorSum["FullField",
     "FullField", StreamingOperator, MultiplicationOperator]`` — so its
     leg accessors are typed by construction, no casts. The PEP-696
     defaults (``LinearOperator[Domain, Codomain]``) keep every
@@ -1438,7 +1438,7 @@ class OperatorSum(
         :class:`~orpheus.numerics.green_operator.ConvergenceFailure`
         loudly at apply time, never a silent wrong answer.  (The
         sweep-invertible
-        :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
+        :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
         subclass shadows this by MRO with its own ``True`` +
         direct-sweep :meth:`inverse` — the type-as-structure dispatch.)
         """
@@ -1457,7 +1457,7 @@ class OperatorSum(
         Late import: ``green_operator`` is a LEAF module wrapping the
         iteration drivers, which import THIS module — the same one-way
         late-import pattern as
-        :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.inverse`
+        :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.inverse`
         → ``SweepOperator``.
         """
         from orpheus.numerics.green_operator import GreenOperator

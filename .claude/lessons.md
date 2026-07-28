@@ -372,11 +372,11 @@ with every new consumer; producer-side normalisation costs once.
 
 R-1 Step 4 session-1 textbook instance: `ScatteringOperator.apply`
 typed branch returned the iso source un-rescaled by `1/sum_w`. The
-three consumers — `InvertibleOperator.solve`, `_solve_krylov`,
+three consumers — `StreamingCollisionOperator.solve`, `_solve_krylov`,
 `_solve_source_iteration` — each had to apply `* sum_w` or `/
 sum_w` to bridge to their expected convention. Three habitats for
 the bug to drift; debugged twice (Step D → fix in Krylov; Step E →
-fix in SI; the third bridge survived in `InvertibleOperator.solve`
+fix in SI; the third bridge survived in `StreamingCollisionOperator.solve`
 until the explicit Step 1.1 producer-side fix).
 
 The producer-side fix is **structurally cheaper**: it is one line
@@ -438,7 +438,7 @@ control flow) MUST either:
    must pass the strategy. Forces every call site to think.
 
 The R-1 Step 1.2 fix (A2b) takes path 1: add `CAP_STATELESS_INVERSE`;
-`InvertibleOperator` does NOT advertise it; default-no-precond
+`StreamingCollisionOperator` does NOT advertise it; default-no-precond
 otherwise. The silent fallback hole closes.
 
 **The diagnostic question** for any behavioural default: "what does
@@ -513,7 +513,7 @@ go" — retirement is mandatory; superseded code = noise) + this lesson
 **Failure mode**: Phase 1.2 origin (2026-05-22). The R-1 Step 4 plan
 recommended A2b: add a `CAP_STATELESS_INVERSE` capability flag so
 `KrylovAcceleration(preconditioner=None)` would refuse to route through
-`InvertibleOperator.solve` (which read `rhs(1)` history for the Carlson
+`StreamingCollisionOperator.solve` (which read `rhs(1)` history for the Carlson
 coupled-pole seed).  The capability advertisement was a symptom fix.
 
 The deeper cause, surfaced by the user: the 1-D sweep `_run_1d_sweep`
@@ -545,7 +545,7 @@ For M-M's Carlson seed specifically:
 
 Same strategy.  One call site per concern.  The free-function duplicate
 retires.  The sweep's `initial_guess` becomes an explicit kwarg on
-`InvertibleOperator.solve(rhs, *, initial_guess=None)` — Cardinal
+`StreamingCollisionOperator.solve(rhs, *, initial_guess=None)` — Cardinal
 Rule 2 (architecture).
 
 The bug class A2 was patching ("`None` default routes through a
@@ -559,6 +559,29 @@ alternatives**.  When sweep and matvec for the same operator look like
 they need "different" handling, ask first whether they need the same
 strategy applied to different inputs.  Almost always: yes.  The
 "different strategy" instinct is the leak.
+
+> **⚠ MECHANISM SUPERSEDED (2026-07-28) — the PRINCIPLE stands, the plumbing
+> above is archaeology.** The `initial_guess` kwarg described here no longer
+> carries the sweep's Carlson seed. **#282 route (a)** retired the
+> extrapolated-iterate channel entirely: the curvilinear seed is now the
+> composite's **first-class ψ½ STATE** (`radial_characteristic.cells(p, -1)`,
+> read in `MorelMontryAngularSweep.precompute_psi_state`), i.e. upstream state
+> in the augmented walk order rather than a previous iterate threaded inward.
+> `StreamingCollisionOperator.solve` (renamed from `InvertibleOperator`,
+> 2026-07-28) now **accepts and DROPS** `initial_guess` — it is an exact direct
+> inverse with nothing to seed. The kwarg survives ONLY as
+> `SupportsSeededApply` protocol conformance (`numerics/iteration.py`), which
+> `SourceIteration` type-checks its `A_inv` against and threads unconditionally;
+> six other exact inverses accept-and-drop identically. A warm start today is
+> purely an **iteration-layer** concept — it enters through the RHS
+> (`rhs = q + Σ gains·ψ_prev`), never through the sweep's interior recurrence.
+> The one operator that genuinely consumes a seed is the *iterative*
+> `GreenOperator`.
+>
+> **What still holds** (and is why this lesson stays): sweep and matvec are two
+> applications of ONE operator, and a seed strategy is a property of the
+> operator, not of the path. #282 route (a) is that principle applied *harder* —
+> it removed the strategy parameter instead of duplicating it.
 
 **How to apply:**
 
@@ -847,7 +870,7 @@ forbidden-to-commit set (`.claude/skills/*`).
 ## L29 — Re-anchoring an invariant during a refactor: the new check must be AS STRONG; a downstream guard's WEAKER property does NOT subsume it (2026-06-26)
 
 #261 collapsed `CollisionOperator` into `MultiplicationOperator`, removing the held `sn_mesh` and forcing
-a re-expression of the `InvertibleOperator` mesh-identity invariant `streaming.sn_mesh is diagonal.sn_mesh`.
+a re-expression of the `StreamingCollisionOperator` mesh-identity invariant `streaming.sn_mesh is diagonal.sn_mesh`.
 The tempting move — "the W-D `OperatorSum` composition guard already checks `domain`/`codomain` equality, so
 the explicit invariant is redundant; downgrade it to that" — was WRONG, and an independent cross-domain-attacker
 challenge caught it BEFORE it shipped a latent wrong-physics bug.

@@ -73,7 +73,7 @@ pytestmark = pytest.mark.foundation
 #   The 1-D slab hashes are UNTOUCHED (CumprodScan stays the 1-D default —
 #   the flip's blast radius pin).
 # * 2026-06-15 (#240 Phase 2 Step B) — the TWO ``krylov_2d_p1_aniso_het`` hashes
-#   regenerated. The Step-B carve made ``InvertibleOperator.apply`` OWN its
+#   regenerated. The Step-B carve made ``StreamingCollisionOperator.apply`` OWN its
 #   matvec (``loss_action(self.sigma)`` direct) instead of the inherited leaf
 #   sum ``(loss_action(σ_t) − σ_t·ψ) + σ_t·ψ`` — the override DROPS that
 #   ``−σ_t·ψ + σ_t·ψ`` round-trip, so the 2-D Cartesian matvec re-associates

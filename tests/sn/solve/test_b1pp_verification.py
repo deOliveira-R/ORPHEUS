@@ -12,7 +12,7 @@ Why this lives alongside ``test_l1_standoff_slab_cylinder.py``
 The existing L1 standoff test (``test_l1_standoff_slab_cylinder.py``)
 exercises the cylinder + slab matvec-vs-sweep twin path through
 ``solve_sn`` (now routing the Krylov leg through
-:class:`InvertibleOperator` post-D-K).  Pre-D-K, that test's Krylov
+:class:`StreamingCollisionOperator` post-D-K).  Pre-D-K, that test's Krylov
 leg used a cell-centre proxy at the Carlson seed (the bug B1'' fixes)
 and stayed ``xfail strict`` on the twin-path and refinement gates.
 

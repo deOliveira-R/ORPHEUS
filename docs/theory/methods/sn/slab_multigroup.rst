@@ -387,7 +387,7 @@ The normalization chain in the code ensures consistent scaling:
    :math:`Q_s = \text{SigS}^T \cdot \phi` --- also un-normalised.
 
 3. **Sweep** (the within-group resolvent ``solve``,
-   :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`): applies
+   :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve`): applies
    :math:`Q_{\rm scaled} = Q \cdot w_{\rm norm}` where
    :math:`w_{\rm norm} = 1/\sum w_n`.  This is the :math:`1/W` division
    in the S\ :sub:`N` equation.
@@ -873,7 +873,7 @@ architecture and why the Protocol layer is canonical.
   :math:`A_{\rm loss}^{-1}` action.
 * **MoC** (method of characteristics) — drives ``power_iteration``
   with a track-based inner sweep as its resolvent, via the same
-  late-bound boundary :class:`InvertibleOperator.solve` exposes.
+  late-bound boundary :class:`StreamingCollisionOperator.solve` exposes.
 * **Homogeneous** — drives ``power_iteration`` over a direct linear
   solve; the analytical
   :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
@@ -914,7 +914,7 @@ that picks among them — is documented once, in
 records only the SN-specific consumption:
 
 * the sweep-invertible :math:`(L+C)`
-  (:class:`~orpheus.sn.operators.streaming.InvertibleOperator`)
+  (:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`)
   **shadows the factory by MRO**: ``(L+C).inverse()`` returns the
   direct triangular
   :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` — the

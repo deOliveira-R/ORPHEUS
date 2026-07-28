@@ -268,13 +268,13 @@ class TestP13Mutations:
         ordinate reversal").  HETEROGENEOUS leg — on the flat ∞ medium the
         streaming term is nulled and this mutation is INVISIBLE (asserted
         by the config choice, vv §0.6)."""
-        from orpheus.sn.operators.streaming import InvertibleOperator
+        from orpheus.sn.operators.streaming import StreamingCollisionOperator
 
         mats, mesh = _het_slab()
         k_fwd = _k(_solve_fwd(mats, mesh))
 
         monkeypatch.setattr(
-            InvertibleOperator, "solve_transpose", InvertibleOperator.solve,
+            StreamingCollisionOperator, "solve_transpose", StreamingCollisionOperator.solve,
         )
         k_mut = _k(_solve_adj(mats, mesh))
         require(

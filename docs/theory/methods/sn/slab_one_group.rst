@@ -199,28 +199,28 @@ composite — they are what the iteration lags (see
 The full operator surface — apply, solve, apply_transpose
 ---------------------------------------------------------
 
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` realizes
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` realizes
 the loss composite :math:`L + C` with all three verbs — ``apply``,
 ``solve``, ``apply_transpose`` — and reports both ``is_invertible`` and
 ``is_adjointable`` ``True`` (:ref:`capability-set-semantics`):
 
-* :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` —
+* :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply` —
   matrix-free forward action :math:`(L+C)\,\psi` via the operator's own
-  :attr:`~orpheus.sn.operators.streaming.InvertibleOperator.loss_representation`
+  :attr:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.loss_representation`
   through the shared apply-direction walk
   (:meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action`,
   the ``(L+C)ψ`` single emission — the apply-direction twin of
   :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep`,
   L21 "matvec ≡ sweep"; #206 Phase C).
 
-* :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` —
+* :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve` —
   inverse action :math:`(L+C)^{-1}\,q` via the operator's own
-  :attr:`~orpheus.sn.operators.streaming.InvertibleOperator.loss_representation`
+  :attr:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.loss_representation`
   sweep (the :term:`weighted-diamond-difference <weighted diamond difference>` — WDD — forward
   substitution; the 1-D scan or multi-D wavefront selected by
   :func:`~orpheus.sn.loss_representation.default_for`).
 
-* :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose` —
+* :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply_transpose` —
   adjoint action :math:`(L+C)^{\mathsf T}\,\varphi` via the
   loss-representation's named
   :meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action_transpose`
@@ -818,7 +818,7 @@ The Krylov alternative: same walk, different strategy
 
 Instead of lagging the gains, the within-group problem can be handed
 to a Krylov method: GMRES on
-:meth:`InvertibleOperator.apply <orpheus.sn.operators.streaming.InvertibleOperator.apply>`
+:meth:`StreamingCollisionOperator.apply <orpheus.sn.operators.streaming.StreamingCollisionOperator.apply>`
 with the sweep wrapped as a left preconditioner — the SAILOR /
 Larsen–Adams preconditioned-Krylov framework (:cite:`AdamsLarsen2002`
 §III). The preconditioned iteration converges at the rate of the

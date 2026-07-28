@@ -44,7 +44,7 @@ from orpheus.numerics.coupled_system import (
     CoupledSubstitutionOperator,
 )
 from orpheus.sn.solver import SNSolver
-from orpheus.sn.operators.streaming import InvertibleOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicEmission
@@ -162,20 +162,20 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     # over the honest upper-triangular CoupledOperator grid
     # ``[[LC, Seeding], [None, march]]``; the bulk (L+C) is the grid's
     # (A,A) block); seedless, the plain SweepOperator over the
-    # InvertibleOperator. Same concrete types both paths (#226 taxonomy
+    # StreamingCollisionOperator. Same concrete types both paths (#226 taxonomy
     # step 3: the solver builds the inverse, SourceIteration applies it).
     if carrying:
         assert isinstance(L_eig, CoupledSubstitutionOperator)
         assert isinstance(L_fs, CoupledSubstitutionOperator)
         assert isinstance(L_eig.inner, CoupledOperator)
         assert L_eig.inner._triangular_orientation() == "upper"
-        assert isinstance(L_eig.inner.blocks[0][0], InvertibleOperator)
-        assert isinstance(L_fs.inner.blocks[0][0], InvertibleOperator)
+        assert isinstance(L_eig.inner.blocks[0][0], StreamingCollisionOperator)
+        assert isinstance(L_fs.inner.blocks[0][0], StreamingCollisionOperator)
     else:
         assert isinstance(L_eig, SweepOperator)
         assert isinstance(L_fs, SweepOperator)
-        assert isinstance(L_eig.inner, InvertibleOperator)
-        assert isinstance(L_fs.inner, InvertibleOperator)
+        assert isinstance(L_eig.inner, StreamingCollisionOperator)
+        assert isinstance(L_fs.inner, StreamingCollisionOperator)
     assert type(L_eig.inner) is type(L_fs.inner)
 
     # (2) The coupling gains — SAME structural shape both paths. Since B.2d

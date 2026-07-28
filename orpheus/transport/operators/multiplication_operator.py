@@ -50,7 +50,7 @@ The §5.7 named instance is the collision multiplier
 the total cross-section field as its coefficient. (#261 retired the former
 ``CollisionOperator`` thin subclass: it added nothing the base lacked once
 the base gained the optional :attr:`space` for the W-D composition guard;
-the ``L + C → InvertibleOperator`` sweep dispatch lives on the SN-specific
+the ``L + C → StreamingCollisionOperator`` sweep dispatch lives on the SN-specific
 :class:`~orpheus.sn.operators.streaming.StreamingOperator`, keyed on this base type —
 a transport multiplier cannot dispatch back onto an ``sn`` operator.)
 The collision rate :math:`\sigma_t\,\psi` turns a flux into a *source*

@@ -19,7 +19,7 @@ Operator algebra
 ----------------
 
 Gates consume the composite algebra :class:`StreamingOperator` +
-:class:`CollisionOperator` = :class:`InvertibleOperator` via
+:class:`CollisionOperator` = :class:`StreamingCollisionOperator` via
 :class:`~orpheus.transport.timed_full_field.TimedFullField`:
 
 * Resolution A subtractive identity:

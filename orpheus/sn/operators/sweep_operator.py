@@ -1,5 +1,5 @@
 r"""The sweep inverse operator :math:`(L+C)^{-1}` — the inverse of an
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator`, in operator form.
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`, in operator form.
 
 The inverse-as-operator carve (#226) replaces ``A.solve(b)`` (a gated method
 call) with ``A.inverse().apply(b)`` / ``A.inverse() @ b`` (apply the inverse
@@ -20,13 +20,13 @@ rides the object, never the name); the interface (the canonical seeded
 "the inverse of :math:`(L+C)`"; the WDD sweep's per-cell coefficient cache is its
 APPLICATION context, not its identity — the SAME ``SweepOperator`` inverts any
 ``rhs``. So this is a thin typed wrapper that DELEGATES to
-:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`, NOT a re-home
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve`, NOT a re-home
 of the sweep machinery (which stays on the forward operator where the σ lives).
 
 **The invertibility axis (taxonomy §13 I2, step 1).** The involution
 ``A.inverse().inverse() == A`` now has a consumer — the universal
 functoriality gate — so :meth:`~SweepOperator.inverse` returns the wrapped
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` ITSELF (the law
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` ITSELF (the law
 holds by OBJECT IDENTITY), ``is_invertible`` is ``True``, and ``solve`` on the
 inverse is the forward matvec ``inner.apply`` (solving
 :math:`(L+C)^{-1} y = b` IS applying :math:`(L+C)`), keeping the faithfulness
@@ -34,9 +34,9 @@ contract (``is_invertible=True``, a working ``solve``) honest here too.
 
 **The adjoint-inverse (#280 Phase 2.5c).** :meth:`~SweepOperator.apply_transpose`
 is the reverse-scan transpose-solve ``(A⁻¹)ᵀ = (Aᵀ)⁻¹`` (delegating to the
-inner ``(L+C)``'s :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`,
+inner ``(L+C)``'s :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`,
 the 2.5b reverse-scan), and ``is_adjointable`` flips ``True`` on the
-``InvertibleOperator`` arm. This is what makes the swap law
+``StreamingCollisionOperator`` arm. This is what makes the swap law
 ``A.H.inverse() ≡ A.inverse().H`` (via
 :meth:`~orpheus.numerics.operator._AdjointOperator.inverse`) an identity of
 the algebra. The schedule-folded
@@ -70,21 +70,21 @@ if TYPE_CHECKING:
     from orpheus.sn.operators.scheduled_invertible import (
         ScheduledInvertibleOperator,
     )
-    from orpheus.sn.operators.streaming import InvertibleOperator
+    from orpheus.sn.operators.streaming import StreamingCollisionOperator
     from orpheus.transport.full_field import FullField
     from orpheus.transport.timed_full_field import TimedFullField
 
     #: The sweep-invertible forwards this class inverts: the plain WDD
     #: composite ``(L+C)`` and the schedule-folded ``M = (L+C−B_lower)``
     #: (#226 step 2) — one wrapper for the whole schedule-triangular family.
-    SweepInvertible = Union[InvertibleOperator, ScheduledInvertibleOperator]
+    SweepInvertible = Union[StreamingCollisionOperator, ScheduledInvertibleOperator]
 
 
 class SweepOperator(
     InverseWrapMixin["SweepInvertible"], LinearOperator["FullField"],
 ):
     r"""The inverse operator :math:`A^{-1}` of a schedule-triangular forward
-    ``A`` — :class:`InvertibleOperator` ``(L+C)`` or
+    ``A`` — :class:`StreamingCollisionOperator` ``(L+C)`` or
     :class:`ScheduledInvertibleOperator` ``M = (L+C−B_lower)`` (#226 step 2).
 
     :meth:`apply` runs the forward-substitution sweep by delegating to
@@ -107,7 +107,7 @@ class SweepOperator(
         r"""Return :math:`(L+C)^{-1}\,\text{rhs}` via the WDD sweep.
 
         Delegates to
-        :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`
+        :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve`
         (bit-identical). ``initial_guess`` is the inverse family's canonical
         :class:`~orpheus.numerics.iteration.SupportsSeededApply` keyword — the
         driver threads the previous iterate UNIFORMLY every step (#285) — but
@@ -131,8 +131,8 @@ class SweepOperator(
         r"""Whether the reverse-scan transpose-solve ``(A⁻¹)ᵀ = (Aᵀ)⁻¹`` exists.
 
         ``True`` iff the inner forward is the ``(L+C)``
-        :class:`~orpheus.sn.operators.streaming.InvertibleOperator` — which
-        carries :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`
+        :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` — which
+        carries :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`
         (the 2.5b reverse-scan) — AND that forward is itself adjointable, so
         the two-factor geometry gate rides ``inner.is_adjointable`` (DD-1D
         yes; LD / multi-D Cartesian defer).  The B.2d carrying-mesh third
@@ -148,10 +148,10 @@ class SweepOperator(
         deferral — no consumer), so a ``SweepOperator`` over it stays
         non-adjointable.
         """
-        from orpheus.sn.operators.streaming import InvertibleOperator
+        from orpheus.sn.operators.streaming import StreamingCollisionOperator
 
         return (
-            isinstance(self.inner, InvertibleOperator)
+            isinstance(self.inner, StreamingCollisionOperator)
             and self.inner.is_adjointable
         )
 
@@ -161,7 +161,7 @@ class SweepOperator(
         ``SweepOperator`` is the inverse operator ``A⁻¹ = (L+C)⁻¹`` (endomorphic
         on the composite), so its Euclidean transpose is
         ``(A⁻¹)ᵀ = (Aᵀ)⁻¹`` — exactly the inner's
-        :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`
+        :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`
         (the 2.5b reverse-scan of the forward WDD sweep-scan). Wiring this is
         what makes the swap law ``A.H.inverse() ≡ A.inverse().H`` (via
         :meth:`~orpheus.numerics.operator._AdjointOperator.inverse`) an
@@ -180,13 +180,13 @@ class SweepOperator(
         raises :class:`~orpheus.numerics.operator.MissingAdjoint` rather than
         an ``AttributeError`` on the missing ``solve_transpose``.
         """
-        from orpheus.sn.operators.streaming import InvertibleOperator
+        from orpheus.sn.operators.streaming import StreamingCollisionOperator
 
-        if not isinstance(self.inner, InvertibleOperator):
+        if not isinstance(self.inner, StreamingCollisionOperator):
             raise MissingAdjoint(
                 f"SweepOperator over {type(self.inner).__name__} has no "
                 f"reverse-scan transpose-solve — #280 sibling scope wires only "
-                f"the (L+C) InvertibleOperator arm; the schedule-folded "
+                f"the (L+C) StreamingCollisionOperator arm; the schedule-folded "
                 f"M = (L+C−B_lower) reverse-scan is deferred (no consumer)."
             )
         return self.inner.solve_transpose(b)

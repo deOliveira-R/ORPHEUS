@@ -43,7 +43,7 @@ Green constructs, its collision-preconditioned Richardson DIVERGES →
 → refused at construction naming the canonical ordering.
 
 **Teeth (spec §25, mutation-verified 2026-07-02):** M-GRN-FLATTEN (flatten
-through the ``InvertibleOperator`` subclass → the leading term becomes the
+through the ``StreamingCollisionOperator`` subclass → the leading term becomes the
 bare non-invertible ``L`` → the ``A_loss`` gates RED at construction);
 M-GRN-SIGN/SWAP RED the anchor + Neumann; M-GRN-TOL REDs the ``C+L`` raise.
 """
@@ -64,7 +64,7 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.operators.streaming import InvertibleOperator, StreamingOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -214,7 +214,7 @@ def test_ordering_dispatch_sweep_vs_green():
     the iterative Green."""
     _, lc, _s_unused, a_loss = _operators()
     del _s_unused
-    assert isinstance(lc, InvertibleOperator)
+    assert isinstance(lc, StreamingCollisionOperator)
     assert type(lc.inverse()) is SweepOperator      # the MRO shadow holds
     assert type(a_loss) is OperatorSum              # −S broke the fusion
     assert type(a_loss.inverse()) is GreenOperator  # generic arm → Green

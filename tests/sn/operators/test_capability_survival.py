@@ -38,7 +38,7 @@ from orpheus.sn.boundary.angular import IncomingSourceOperator
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
-from orpheus.sn.operators.streaming import InvertibleOperator, StreamingOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.fission import FissionOperator
@@ -131,7 +131,7 @@ class TestIncomingSourceOperatorCapabilities:
 class TestLossMinusBoundaryCompositeCapabilities:
     r"""The within-group loss with its boundary sibling, ``L + C − B``.
 
-    ``L + C`` dispatches to :class:`InvertibleOperator` and advertises
+    ``L + C`` dispatches to :class:`StreamingCollisionOperator` and advertises
     ``solve`` (the DIRECT sweep); subtracting the boundary operator ``B``
     breaks that dispatch, so the result is a generic
     :class:`OperatorSum` — which, since #226 taxonomy step 4, is
@@ -161,10 +161,10 @@ class TestLossMinusBoundaryCompositeCapabilities:
         assert callable(getattr(B, "apply", None))
 
     def test_l_plus_c_is_invertible(self) -> None:
-        # The contrast case: (L + C) is sweep-invertible (InvertibleOperator).
+        # The contrast case: (L + C) is sweep-invertible (StreamingCollisionOperator).
         L, C, _, _ = self._loss_minus_boundary()
         lc = L + C
-        assert isinstance(lc, InvertibleOperator)
+        assert isinstance(lc, StreamingCollisionOperator)
         assert lc.is_invertible is True
 
     def test_composite_is_green_invertible_without_solve(self) -> None:
@@ -354,7 +354,7 @@ class TestPredicateFaithfulness:
         splitting (#226 step 4's ordering ruling — the operand spelling
         selects the algorithm, and the fused type wins where it exists).
 
-        MIGRATED from ``test_invertible_operator_is_the_sole_invertible_
+        MIGRATED from ``test_streaming_collision_operator_is_the_sole_invertible_
         sum`` (pre-step-4: ``composite.is_invertible is False`` — "no
         general (A+B)⁻¹").  The sum now HAS a general inverse; what
         ``(L+C)`` remains sole owner of is the DIRECT sweep.
@@ -363,7 +363,7 @@ class TestPredicateFaithfulness:
         L = StreamingOperator(sn)
         C = MultiplicationOperator.from_mesh(np.ones((sn.ng, *sn.spatial_shape)), sn)
         lc = L + C
-        assert isinstance(lc, InvertibleOperator)
+        assert isinstance(lc, StreamingCollisionOperator)
         assert lc.is_invertible is True and lc.is_adjointable is True
         assert isinstance(lc.inverse(), SweepOperator)  # the MRO shadow
         composite = lc - SNBoundaryOperator(sn)

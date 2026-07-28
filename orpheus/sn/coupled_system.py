@@ -149,7 +149,7 @@ from orpheus.transport.radial_characteristic_field import (
 
 if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
-    from orpheus.sn.operators.streaming import InvertibleOperator
+    from orpheus.sn.operators.streaming import StreamingCollisionOperator
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 __all__ = [
@@ -306,7 +306,7 @@ class WithinGroupSystem:
         The coupled carrier space ``loss`` is typed against (P1
         co-production), carrying the zero-exemplar factory (step 5 —
         the typed-carrier materialization seam).
-    resolvent : CoupledOperator | InvertibleOperator
+    resolvent : CoupledOperator | StreamingCollisionOperator
         ``M`` — the sweepable part: on a carrying mesh the HONEST
         upper-triangular grid ``[[LC, Seeding], [None, march]]`` whose
         ``solve`` is the numerics block back-substitution and whose
@@ -324,7 +324,7 @@ class WithinGroupSystem:
 
     loss: "CoupledOperator"
     space: "CoupledSpace"
-    resolvent: "CoupledOperator | InvertibleOperator"
+    resolvent: "CoupledOperator | StreamingCollisionOperator"
     gains: "tuple[LinearOperator, ...]"
 
 
@@ -355,13 +355,13 @@ def _zero_full_field(sn_mesh: "SNMesh") -> "FullField":
 
 def build_streaming_collision(
     sn_mesh: "SNMesh", mat_xs: "MaterialXSField",
-) -> "InvertibleOperator":
+) -> "StreamingCollisionOperator":
     r"""The fused within-group loss factor ``L + C`` — THE one LC spelling.
 
     ``L`` is the σ-free :class:`~orpheus.sn.operators.streaming.StreamingOperator`
     (#257 S8b) and ``C = M[σ_t]`` the collision diagonal from the typed
     ``total_cross_section_field`` accessor; the ``+`` fuses them to the
-    :class:`~orpheus.sn.operators.streaming.InvertibleOperator` whose
+    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` whose
     ``solve`` is the WDD sweep.
 
     Single source of truth (Cardinal Rule 2): :func:`build_within_group_system`
@@ -397,7 +397,7 @@ def build_within_group_system(
       ``total_cross_section_field`` accessor (#257 S3b / #261); the
       composite ``full_field_space`` lets the ``L + C`` OperatorSum guard
       validate the build. ``L + C`` fuses to the
-      :class:`~orpheus.sn.operators.streaming.InvertibleOperator` — the
+      :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` — the
       resolvent whose ``solve`` is the WDD sweep.
     * ``S`` — the bulk scattering gain (producer-side ``/W`` normalisation
       inside ``S.apply``; no consumer-side rescale). The solver's cached

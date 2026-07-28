@@ -563,7 +563,7 @@ Two Inner Solvers
 **Krylov (direct operator):**
 
 - Operator: the honest :math:`(L+C-S-B)` applied matrix-free (its
-  :math:`(L+C)` piece via :meth:`InvertibleOperator.apply` — the same
+  :math:`(L+C)` piece via :meth:`StreamingCollisionOperator.apply` — the same
   one-walk discretization the sweep realises; L21 matvec ≡ sweep)
 - Iterate: the same typed composite; GMRES additionally stores its
   Krylov basis (``restart`` × the composite's ``n_dof`` — the ERR-053

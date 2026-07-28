@@ -610,7 +610,7 @@ discipline per block), and its :meth:`apply_transpose` delegates to
 substitution). The step-6 collapse sharpened the single-system predicate
 to match: :attr:`SweepOperator.is_adjointable
 <orpheus.sn.operators.sweep_operator.SweepOperator.is_adjointable>` is now
-the two-factor ``isinstance(inner, InvertibleOperator) and
+the two-factor ``isinstance(inner, StreamingCollisionOperator) and
 inner.is_adjointable`` — the B.2d carrying-mesh *third* factor retired,
 because with no ψ½ legs anywhere a bare :math:`(L+C)` on a carrying mesh IS
 unambiguously the ray-decoupled :math:`(A,A)` block (the type says what you

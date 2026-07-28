@@ -1,8 +1,8 @@
-r"""#240 Phase 2 Step B — the removal-form ``InvertibleOperator(L(σ_t), C(σ_r))``
+r"""#240 Phase 2 Step B — the removal-form ``StreamingCollisionOperator(L(σ_t), C(σ_r))``
 matvec ≡ sweep capability gate (σ_r ≠ σ_t).
 
 SPEC STUB (test-architect, 2026-06-15); IMPLEMENTED (#240 Phase 2 Step B,
-2026-06-15). The ``InvertibleOperator.apply`` / ``apply_transpose`` overrides
+2026-06-15). The ``StreamingCollisionOperator.apply`` / ``apply_transpose`` overrides
 now realise the FULL within-group loss ``M(σ_C)ψ`` directly via
 ``loss_representation.loss_action(self.sigma, psi)``. The structural teeth gates
 ``test_invertible_apply_is_M_of_C_sigma_bit_identical`` and
@@ -107,7 +107,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.operators.streaming import (
-    InvertibleOperator,
+    StreamingCollisionOperator,
     StreamingOperator,
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -125,7 +125,7 @@ pytestmark = [
     pytest.mark.verifies("loss-rep-resolution-a"),
 ]
 
-# #240 Phase 2 Step B (2026-06-15) landed the InvertibleOperator.apply /
+# #240 Phase 2 Step B (2026-06-15) landed the StreamingCollisionOperator.apply /
 # apply_transpose overrides (loss_action(self.sigma)); the strict-xfail-
 # until-override marker the teeth gates carried is REMOVED — they pass plainly.
 
@@ -194,7 +194,7 @@ def _removal_sigmas(sn: SNMesh, *, seed: int) -> tuple[np.ndarray, np.ndarray]:
 
     σ_r is built as a numpy array directly (independent of the mesh's
     ``materials``, which carry no scattering) — the operator algebra
-    ``InvertibleOperator(StreamingOperator(σ_t), CollisionOperator(σ_r))``
+    ``StreamingCollisionOperator(StreamingOperator(σ_t), CollisionOperator(σ_r))``
     consumes the arrays, so the removal form is representable on EVERY
     geometry (slab, sphere, cylinder, 2-D) without a scattering mixture.
     ``__init__`` requires ``σ_r > 0`` (operator.py:1244) — guaranteed by the
@@ -230,7 +230,7 @@ def _random_state(sn: SNMesh, *, seed: int) -> TimedFullField:
 #     loss_action(σ_C), NOT the leaf sum L.apply + C.apply.
 #     These are the gates that DISTINGUISH the override from the leak. They were
 #     xfail(strict=True) until the override landed; #240 Phase 2 Step B
-#     (2026-06-15) wired InvertibleOperator.apply = loss_action(self.sigma), so
+#     (2026-06-15) wired StreamingCollisionOperator.apply = loss_action(self.sigma), so
 #     the marker is REMOVED and these now register as plain pass.
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -264,7 +264,7 @@ def test_invertible_apply_is_M_of_C_sigma_bit_identical(case):
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)))
     L = StreamingOperator(sn)
     C_r = MultiplicationOperator.from_mesh(sig_r, sn)
-    op = InvertibleOperator(L, C_r)
+    op = StreamingCollisionOperator(L, C_r)
     psi = _random_state(sn, seed=sum(map(ord, case)))
 
     composite_matvec = op.apply(psi).interior.values
@@ -291,7 +291,7 @@ def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case
     r"""[L0 structural] ``(L+C).apply_transpose(φ) == M(σ_C)ᵀφ`` bit-identical (adjoint teeth).
 
     The adjoint sibling of the teeth gate. The override
-    ``InvertibleOperator.apply_transpose`` MUST realise ``M(σ_C)ᵀφ`` directly,
+    ``StreamingCollisionOperator.apply_transpose`` MUST realise ``M(σ_C)ᵀφ`` directly,
     bit-identical to a SEPARATE ``StreamingOperator(σ_r)``'s
     ``loss_action_transpose``. ``array_equal`` so the ≤2-ULP leaf-sum
     realisation fails (the strict-xfail teeth).
@@ -304,9 +304,9 @@ def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 1)
     L = StreamingOperator(sn)
-    op = InvertibleOperator(L, MultiplicationOperator.from_mesh(sig_r, sn))
+    op = StreamingCollisionOperator(L, MultiplicationOperator.from_mesh(sig_r, sn))
     if not op.is_adjointable:  # carve P4 rewire — the S† twin's precondition
-        pytest.fail(f"[{case}] InvertibleOperator.is_adjointable is False.")
+        pytest.fail(f"[{case}] StreamingCollisionOperator.is_adjointable is False.")
     phi = _random_state(sn, seed=sum(map(ord, case)) + 1)
 
     composite_t = op.apply_transpose(phi).interior.values
@@ -341,7 +341,7 @@ def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case
 # Cylinder round-trips cleanly (its degenerate pure-azimuthal ordinate does not
 # break the one-shot inverse — probe 3.1e-15). The sphere matvec≡sweep CLAIM is
 # carried by the structural teeth gate (a) ``apply == M(σ_r)`` (which does NOT
-# round-trip) + the existing fixed-point bridge ``TestInvertibleSolveBridgeRegression``
+# round-trip) + the existing fixed-point bridge ``TestStreamingCollisionSolveBridgeRegression``
 # (production σ). DO NOT add sphere here without the warm-started fixed-point loop.
 _ROUNDTRIP_CASES = ["slab_2g", "cyl_2g", "cart2d_2g"]
 
@@ -370,7 +370,7 @@ def test_removal_form_matvec_sweep_roundtrip(case):
     """
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 2)
-    op = InvertibleOperator(
+    op = StreamingCollisionOperator(
         StreamingOperator(sn), MultiplicationOperator.from_mesh(sig_r, sn),
     )
 
@@ -430,7 +430,7 @@ def test_removal_form_apply_value_equals_M_of_sigma_r(case):
     """
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 4)
-    op = InvertibleOperator(
+    op = StreamingCollisionOperator(
         StreamingOperator(sn), MultiplicationOperator.from_mesh(sig_r, sn),
     )
     psi = _random_state(sn, seed=sum(map(ord, case)) + 4)
@@ -536,7 +536,7 @@ def test_production_sigma_apply_value_preserved(case):
     sig_t = rng.uniform(0.5, 3.0, size=(sn.ng, *sn.spatial_shape))
     L = StreamingOperator(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)        # σ_C == σ_t (production)
-    op = InvertibleOperator(L, C)
+    op = StreamingCollisionOperator(L, C)
     state = _random_state(sn, seed=sum(map(ord, case)))
 
     composite = op.apply(state).interior.values
@@ -566,7 +566,7 @@ def test_production_sigma_apply_value_preserved(case):
 
 
 def test_removal_form_nonpositive_sigma_r_rejected():
-    r"""[L0 negative] ``InvertibleOperator(L, C(σ_r ≤ 0))`` raises at construction.
+    r"""[L0 negative] ``StreamingCollisionOperator(L, C(σ_r ≤ 0))`` raises at construction.
 
     The positive control of the gate's own fixture: if a future cross-section
     set drives σ_r = σ_t − Σ_s0 non-positive, the WDD sweep emits NaN at those
@@ -583,4 +583,4 @@ def test_removal_form_nonpositive_sigma_r_rejected():
     L = StreamingOperator(sn)
     C_bad = MultiplicationOperator.from_mesh(sig_r, sn)
     with pytest.raises(ValueError, match="strictly positive"):
-        InvertibleOperator(L, C_bad)
+        StreamingCollisionOperator(L, C_bad)

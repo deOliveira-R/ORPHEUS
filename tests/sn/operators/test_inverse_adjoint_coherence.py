@@ -9,11 +9,11 @@ Hilbert adjoint IS the adjoint of the inverse,
 an OBJECT IDENTITY (not a computed numerical equivalence).  The landed wiring
 (Part A, ``orpheus/numerics/operator.py`` + ``orpheus/sn/operators/sweep_operator.py``):
 
-* ``A = _loss(sn)`` is the ``(L+C)`` :class:`~orpheus.sn.operators.streaming.InvertibleOperator`.
+* ``A = _loss(sn)`` is the ``(L+C)`` :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`.
 * ``A.inverse()`` → :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`;
   NEW ``SweepOperator.apply_transpose(b) = inner.solve_transpose(b)`` (the 2.5b
   reverse-scan ``(A⁻¹)ᵀ = (Aᵀ)⁻¹``, the plain EUCLIDEAN transpose-solve) and
-  ``SweepOperator.is_adjointable`` flips ``True`` over the ``InvertibleOperator`` arm.
+  ``SweepOperator.is_adjointable`` flips ``True`` over the ``StreamingCollisionOperator`` arm.
 * ``A.H`` → :class:`~orpheus.numerics.operator._AdjointOperator`; NEW
   ``_AdjointOperator.inverse() = inner.inverse().H`` (the swap law) and
   ``_AdjointOperator.is_invertible = invertible(inner) and adjointable(inner.inverse())``.
@@ -35,7 +35,7 @@ The gates (spec ``a3_solve_transpose_verification.md`` §13 / Deliverable 3 §5)
   SAME ``A.inverse().H`` object graph on the same input).
 * **G3 — adjoint-inverse round-trip.** ``A.H.apply(A.H.inverse().apply(b)) ≈ b``
   = ``A*(A*)⁻¹ b = b`` on the source-carried subspace.
-* **G4 — Mode-11 wrap sentinel.** The reverse scan EXECUTES (``InvertibleOperator.
+* **G4 — Mode-11 wrap sentinel.** The reverse scan EXECUTES (``StreamingCollisionOperator.
   solve_transpose`` is entered ``> 0`` times) and the FORWARD ``solve`` is NOT
   touched (counter ``== 0``) when ``A.H.inverse().apply(b)`` runs — the gold
   standard in-process wrap counter (a green gate that routed around the new line
@@ -44,7 +44,7 @@ The gates (spec ``a3_solve_transpose_verification.md`` §13 / Deliverable 3 §5)
   G1 + G2; M-ADJ-metric (skip the ``G⁺``/``G`` wrap in ``_AdjointOperator.apply``)
   reds G1.
 * **predicate flips** — ``SweepOperator.is_adjointable`` True (over
-  ``InvertibleOperator``); the sibling wrap-delegates ``InverseOperator`` /
+  ``StreamingCollisionOperator``); the sibling wrap-delegates ``InverseOperator`` /
   ``GreenOperator`` STAY False (the flip is SURGICAL).
 * **static pin** — ``assert_type(A.H.inverse(), LinearOperator[FullField, FullField])``.
 
@@ -93,7 +93,7 @@ from orpheus.numerics.operator import (
     invertible,
 )
 from orpheus.sn.operators.boundary import SNBoundaryOperator
-from orpheus.sn.operators.streaming import InvertibleOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.full_field import FullField
 
@@ -271,7 +271,7 @@ def test_gate3_adjoint_inverse_round_trip(geom):
 
 @pytest.mark.parametrize("geom", list(_MESHES))
 def test_gate4_reverse_scan_executes_forward_solve_untouched(geom, monkeypatch):
-    r"""``A.H.inverse().apply(b)`` ENTERS ``InvertibleOperator.solve_transpose``
+    r"""``A.H.inverse().apply(b)`` ENTERS ``StreamingCollisionOperator.solve_transpose``
     (``> 0``) and NEVER the forward ``solve`` (``== 0``).
 
     The Mode-11 gold standard: an in-process wrap counter on the internal
@@ -284,8 +284,8 @@ def test_gate4_reverse_scan_executes_forward_solve_untouched(geom, monkeypatch):
     A = _loss(sn)
     b = _rand_bulk(sn, 5)
     counts = {"solve": 0, "solve_transpose": 0}
-    real_solve = InvertibleOperator.solve
-    real_solve_transpose = InvertibleOperator.solve_transpose
+    real_solve = StreamingCollisionOperator.solve
+    real_solve_transpose = StreamingCollisionOperator.solve_transpose
 
     def _wrap_solve(self, rhs, *args, **kwargs):
         counts["solve"] += 1
@@ -295,15 +295,15 @@ def test_gate4_reverse_scan_executes_forward_solve_untouched(geom, monkeypatch):
         counts["solve_transpose"] += 1
         return real_solve_transpose(self, rhs, *args, **kwargs)
 
-    monkeypatch.setattr(InvertibleOperator, "solve", _wrap_solve)
-    monkeypatch.setattr(InvertibleOperator, "solve_transpose", _wrap_solve_transpose)
+    monkeypatch.setattr(StreamingCollisionOperator, "solve", _wrap_solve)
+    monkeypatch.setattr(StreamingCollisionOperator, "solve_transpose", _wrap_solve_transpose)
 
     _adjoint_inverse(A).apply(b)
 
     if not counts["solve_transpose"] > 0:
         pytest.fail(
             f"[{geom}] Mode-11: A.H.inverse().apply(b) did NOT enter "
-            f"InvertibleOperator.solve_transpose (count=0) — the reverse scan "
+            f"StreamingCollisionOperator.solve_transpose (count=0) — the reverse scan "
             f"was routed around; the gate is vacuous for the new line."
         )
     if not counts["solve"] == 0:
@@ -389,11 +389,11 @@ def test_mutation_adj_metric_reds_gate1(geom, monkeypatch):
 
 
 def test_predicate_flip_is_surgical():
-    r"""``SweepOperator.is_adjointable`` flips True (over ``InvertibleOperator``);
+    r"""``SweepOperator.is_adjointable`` flips True (over ``StreamingCollisionOperator``);
     the sibling wrap-delegates ``InverseOperator`` / ``GreenOperator`` STAY False.
 
     Forward-safety: 2.5c adds ``SweepOperator.apply_transpose`` and flips ITS
-    ``is_adjointable``, keyed on ``isinstance(inner, InvertibleOperator) and
+    ``is_adjointable``, keyed on ``isinstance(inner, StreamingCollisionOperator) and
     inner.is_adjointable`` — the two OTHER ``InverseWrapMixin`` siblings must NOT
     inherit the flip (they have no reverse-scan).
     """
@@ -403,7 +403,7 @@ def test_predicate_flip_is_surgical():
     sweep = A.inverse()
     if not (isinstance(sweep, SweepOperator) and sweep.is_adjointable is True):
         pytest.fail(
-            f"SweepOperator over InvertibleOperator must be adjointable: "
+            f"SweepOperator over StreamingCollisionOperator must be adjointable: "
             f"type={type(sweep).__name__}, is_adjointable={sweep.is_adjointable}"
         )
 

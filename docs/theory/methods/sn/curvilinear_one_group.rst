@@ -2256,7 +2256,7 @@ Three additional simplifications shipped with the rewrite:
 * :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` no longer accepts the
   ``boundary_face_flux=`` keyword (a regression test pins the
   field retirement).
-* :class:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` dispatch
+* :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply` dispatch
   drops the ``boundary_face_flux_closure`` plumbing.
 
 What stays
@@ -2269,9 +2269,9 @@ What stays
   singularity, not an external BC), so the three-strategy angular
   closure is the right shape; only the **default** is under question,
   and that is the Phase D decision point.
-* The :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose`
+* The :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply_transpose`
   machinery via dense-probe construction stays. Linearity of the
-  rewritten :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply`
+  rewritten :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`
   (Gate 1.4, pinned to ``rtol=1e-13``) guarantees the transpose is
   correctly tracked.
 * The
@@ -2575,7 +2575,7 @@ path:
   :math:`q.\text{boundary} + B\,\psi.\text{outflow}`), delivered by
   :math:`B` as a separate coupling gain to the variadic driver (Wave O
   step O.2a; see :ref:`bc-extraction-variadic-driver`). The bare sweep's
-  :meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`
+  :meth:`StreamingCollisionOperator._solve_timed_full_field <orpheus.sn.operators.streaming.StreamingCollisionOperator._solve_timed_full_field>`
   seeds its boundary buffer from :math:`\text{rhs.boundary}`, **not**
   from the iterate ``initial_guess.boundary`` (the retired
   partner-flux carrier).
@@ -3144,7 +3144,7 @@ CLOSED while keeping the **magnitude** scope open per
    path is the snapshot generator, and the SI path uses the
    sweep (not the apply matvec), so the Phase D default flip
    does NOT disturb them. Regeneration under a Phase D
-   :meth:`InvertibleOperator.apply`-driven Krylov path is
+   :meth:`StreamingCollisionOperator.apply`-driven Krylov path is
    carried at Issue #195.
 5. **Gate 1.5 strengthened (capture-and-compare).** The §16A.3
    BC trace contract now has a stricter parametrised test that

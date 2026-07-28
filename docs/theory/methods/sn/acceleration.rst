@@ -1140,7 +1140,7 @@ composition seam nobody had gated.
 **The root fix** (ruling **R6**, four parts):
 
 #. *Solve half* — one post-march restore in
-   :meth:`~orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field`:
+   :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator._solve_timed_full_field`:
    the outflow rows get ``-=`` the seed's outflow rows (the sign pinned
    by the round-trip gate; the forward's row is :math:`\text{streamed} -
    \psi_{\rm out}`).  Bit-inert on every physical path (:math:`-= 0`),

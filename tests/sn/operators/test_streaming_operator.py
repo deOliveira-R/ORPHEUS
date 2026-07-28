@@ -3,7 +3,7 @@ r"""Foundation tests for :class:`orpheus.sn.operators.streaming.StreamingOperato
 The "L" of the four-operator algebra
 ``A_wg = L + C - S.foldable_part()`` (Issue #196, Resolution A).
 :class:`StreamingOperator` is the typed leaf; the within-group
-sweep-invertible composite is :class:`InvertibleOperator` (= ``L + C``).
+sweep-invertible composite is :class:`StreamingCollisionOperator` (= ``L + C``).
 
 Resolution A — subtractive definition
 -------------------------------------
@@ -302,19 +302,19 @@ class TestLinearity:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 6. The composite (L + C) dispatches to InvertibleOperator (R-1 Step C).
+# 6. The composite (L + C) dispatches to StreamingCollisionOperator (R-1 Step C).
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestSumCapabilities:
-    """R-1 Step C contract: ``L + C`` dispatches to :class:`InvertibleOperator`.
+    """R-1 Step C contract: ``L + C`` dispatches to :class:`StreamingCollisionOperator`.
 
     The within-group composite IS sweep-invertible — that's the
     algebraic identity SN methods are built on (Lewis & Miller §3.2).
     R-1 Step C encodes that identity at the type level by overriding
     :meth:`StreamingOperator.__add__` and
     :meth:`CollisionOperator.__add__` to return
-    :class:`~orpheus.sn.operators.streaming.InvertibleOperator`, a specialisation
+    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`, a specialisation
     of :class:`OperatorSum` that adds ``solve`` via its
     ``loss_representation`` strategy sweep (the operator-free
     ``transport_sweep`` wrapper retired at the coupled-block step 6).
@@ -333,14 +333,14 @@ class TestSumCapabilities:
     def test_sum_advertises_solve_via_invertible_dispatch(
         self, name, builder,
     ):
-        r"""``L + C`` dispatches to InvertibleOperator and is invertible."""
-        from orpheus.sn.operators.streaming import InvertibleOperator
+        r"""``L + C`` dispatches to StreamingCollisionOperator and is invertible."""
+        from orpheus.sn.operators.streaming import StreamingCollisionOperator
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
         C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         A = L + C
-        assert isinstance(A, InvertibleOperator)
+        assert isinstance(A, StreamingCollisionOperator)
         assert A.is_invertible
 
 
@@ -519,7 +519,7 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
     def test_LC_apply_composite(self, name, builder):
         """``(L + C).apply(state)`` returns a TIMELESS FullField.
 
-        ``L + C`` dispatches to :class:`InvertibleOperator`; its
+        ``L + C`` dispatches to :class:`StreamingCollisionOperator`; its
         :meth:`apply` evaluates the representation ``loss_action``.  #257 S8a —
         the matvec leaf is a base arrow ``FullField -> FullField`` (the comonad
         lives on the driver), so the output is the TIMELESS FullField

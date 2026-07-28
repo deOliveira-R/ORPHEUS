@@ -175,7 +175,7 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
     r"""``(L + C).apply(state).interior ≈ L.apply(state).interior + C.apply(state).interior`` (allclose).
 
     Pillar: allclose-consistency check.  Since #240 Phase 2 Step B this is NO
-    LONGER the load-bearing ERR-026 anchor: ``InvertibleOperator.apply`` now
+    LONGER the load-bearing ERR-026 anchor: ``StreamingCollisionOperator.apply`` now
     OWNS its matvec via ``loss_representation.loss_action(self.sigma)`` and does
     NOT route through the inherited ``OperatorSum.apply`` leaf sum, so the
     distribution identity ``(L+C).apply == L.apply + C.apply`` is FALSE

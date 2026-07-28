@@ -3,7 +3,7 @@ r"""S6.5 — the "one representation instance" discriminating tests (#222 capsto
 The structural payoff of the operator/representation re-layering: the
 :class:`~orpheus.sn.loss_representation.LossRepresentation` instance that
 :meth:`StreamingOperator.apply` consumes for the matvec :math:`(L+C)\psi` MUST
-BE (object identity) the instance that :meth:`InvertibleOperator.solve`
+BE (object identity) the instance that :meth:`StreamingCollisionOperator.solve`
 consumes for the forward substitution :math:`(L+C)^{-1}q`.  This makes the L21
 invariant ("matvec ≡ sweep — two actions of ONE operator") a TYPE FACT
 enforced by construction, closing coding-elegance Smell #16 (two doors to one
@@ -95,7 +95,7 @@ def test_apply_and_solve_share_one_representation_instance(monkeypatch):
     if rep_apply is not rep_solve:
         pytest.fail(
             "S6.5 NOT satisfied: StreamingOperator.apply and "
-            f"InvertibleOperator.solve ran on DIFFERENT LossRepresentation "
+            f"StreamingCollisionOperator.solve ran on DIFFERENT LossRepresentation "
             f"instances (apply id={id(rep_apply)}, solve id={id(rep_solve)}). "
             "L21 (matvec ≡ sweep) is a coincidence, not a type fact — the "
             "two-doors smell (#222 S6.0) is open again."
@@ -108,7 +108,7 @@ def test_apply_and_solve_share_one_representation_instance(monkeypatch):
         )
     if A.loss_representation is not L.loss_representation:
         pytest.fail(
-            "InvertibleOperator.loss_representation does not delegate to its "
+            "StreamingCollisionOperator.loss_representation does not delegate to its "
             "streaming leaf's instance — the composite's handle is a separate "
             "construction."
         )

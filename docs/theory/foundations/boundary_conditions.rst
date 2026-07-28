@@ -514,7 +514,7 @@ off the block structure directly:
      - Block content
    * - :math:`L_{\rm full}`
        (:class:`~orpheus.sn.operators.streaming.StreamingOperator`,
-       via :class:`~orpheus.sn.operators.streaming.InvertibleOperator` ``L+C``)
+       via :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` ``L+C``)
      - ``FULL``
      - Reads :math:`\psi.\text{bulk}` **and** the *given*
        :math:`\psi.\text{inflow}` trace; writes :math:`\psi.\text{bulk}`
@@ -662,7 +662,7 @@ Under the extraction the WDD sweep ``(L+C).solve`` is **bare** (see
 :ref:`bare-sweep-extraction` in
 :doc:`/theory/methods/sn/curvilinear_one_group`): it reads
 the seeded inflow trace directly instead of re-applying ``bc``.
-:meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`
+:meth:`StreamingCollisionOperator._solve_timed_full_field <orpheus.sn.operators.streaming.StreamingCollisionOperator._solve_timed_full_field>`
 must therefore seed the sweep's boundary buffer from
 :math:`\text{rhs.boundary}` — the *boundary source*
 :math:`q.\text{boundary} + B\,\psi.\text{outflow}` — **not** from the
@@ -732,7 +732,7 @@ the loss grid together with its **named regular splitting**
 :math:`A = M - N` (Hackbusch 2016 §11). On a seedless (slab / cylinder /
 Cartesian) mesh the record degrades to exactly this triple: its ``resolvent``
 is :math:`M = (L+C)` — the invertible resolvent
-(:class:`~orpheus.sn.operators.streaming.InvertibleOperator`, ``.solve`` = the WDD
+(:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`, ``.solve`` = the WDD
 sweep) — and its ``gains`` are :math:`N = (S,\ B_a)`, the two lagged
 couplings the driver applies: the bulk scattering gain
 (:class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
@@ -788,7 +788,7 @@ Two structural reasons forbid the old fold:
    direct-sweep ``solve`` — its inverse action is the *iterative*
    :class:`~orpheus.numerics.green_operator.GreenOperator` splitting
    (:ref:`green-operator`), not the ``(L+C)``
-   :class:`~orpheus.sn.operators.streaming.InvertibleOperator` subclass's
+   :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` subclass's
    :math:`O(N\cdot N_{\rm cells})` forward-substitution sweep. So folding
    :math:`B` into an :math:`L + C - B` sum would **demote** the cheap
    direct sweep the SI step and the Krylov preconditioner depend on to an
@@ -1388,7 +1388,7 @@ sites are therefore correctly **kept** :class:`AngularBoundaryFlux`:
 :meth:`MultiplicationOperator.solve <orpheus.transport.operators.multiplication_operator.MultiplicationOperator.solve>`
 (the collision multiplier :math:`C = M[\sigma_t]`),
 the boundary buffer of
-:meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`,
+:meth:`StreamingCollisionOperator._solve_timed_full_field <orpheus.sn.operators.streaming.StreamingCollisionOperator._solve_timed_full_field>`,
 the cold-start ``initial_guess`` iterates
 (``TimedFullField.zeros(..., boundary=AngularBoundaryFlux, ...)``), the
 converged traces, and the sweep's persistent boundary buffer.
@@ -3415,7 +3415,7 @@ BC applies in the SI sweep path
 Phase D (Issue #168 Phase D, :ref:`bc-two-bc-applies-per-matvec`
 above) instituted the *two BC apply calls per curvilinear matvec*
 contract on the apply-matvec path (the within-group operator,
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` post-Depth-B; the
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` post-Depth-B; the
 matvec then lived at ``_transport_operator_matvec_unified`` — since
 deleted at the walk unification (#280 campaigns); the live forward action
 is now :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`

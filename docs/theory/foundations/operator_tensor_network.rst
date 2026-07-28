@@ -940,9 +940,9 @@ Wave T's verification chain combines three independent grounds:
 
    - :math:`(L+C).{\rm solve}(q)` bit-identical pre/post-Wave-T,
      verifying the WDD sweep procedural inverse was NOT touched
-     (the :class:`InvertibleOperator.solve` body runs the procedural
+     (the :class:`StreamingCollisionOperator.solve` body runs the procedural
      algorithm on the operator's own
-     :attr:`~orpheus.sn.operators.streaming.InvertibleOperator.loss_representation`
+     :attr:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.loss_representation`
      since S6.5 — at Wave T it was the free function ``transport_sweep``).
 
 5. **Performance regression gate**. The 1-D slab Krylov benchmark

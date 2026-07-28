@@ -242,7 +242,7 @@ merge hash or not at all).
        (:math:`(L+C)^{-1}`) gained
        :meth:`apply_transpose <orpheus.sn.operators.sweep_operator.SweepOperator.apply_transpose>`
        delegating to the inner's
-       :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`
+       :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`
        (the 2.5b reverse-scan), and
        :meth:`_AdjointOperator.inverse() <orpheus.numerics.operator._AdjointOperator.inverse>`
        returns ``inner.inverse().H`` — making the **swap law**
@@ -773,8 +773,8 @@ merge hash or not at all).
        :math:`(L+C-B)=M-B_{\rm upper}`.  :math:`M=(L+C)-B_{\rm lower}` is
        reified as
        :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
-       (via :meth:`InvertibleOperator.__sub__
-       <orpheus.sn.operators.streaming.InvertibleOperator.__sub__>`), with
+       (via :meth:`StreamingCollisionOperator.__sub__
+       <orpheus.sn.operators.streaming.StreamingCollisionOperator.__sub__>`), with
        :math:`B_{\rm lower}` the schedule-split half
        (:meth:`SNBoundaryOperator.split
        <orpheus.sn.operators.boundary.SNBoundaryOperator.split>` /
@@ -929,7 +929,7 @@ merge hash or not at all).
      - **Linear-Discontinuous on the DAG + principled polymorphism** —
        LD lands as a polymorphic discretization protocol (the
        coefficient model), the ``matvec_via_kernel`` favoritism is
-       reverted, σ is single-sourced from the ``InvertibleOperator``'s
+       reverted, σ is single-sourced from the ``StreamingCollisionOperator``'s
        ``C``, and the unified all-d LD moment matvec + diffusion-limit
        closure ships.
      - #240 / #158
@@ -977,7 +977,7 @@ merge hash or not at all).
        analytic reverse-sweep ``StreamingOperator.apply_transpose``; the
        Hilbert-adjoint metric is owned by the ``FunctionSpace``
        (``apply_metric``); composite block-roles are *derived* from the
-       operands, retiring the ``InvertibleOperator`` FULL stamp.
+       operands, retiring the ``StreamingCollisionOperator`` FULL stamp.
      - #20
      - ``0efd233`` → ``7ccc14a``
    * - 2026-06

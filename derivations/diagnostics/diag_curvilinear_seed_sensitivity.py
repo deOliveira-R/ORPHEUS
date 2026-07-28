@@ -31,7 +31,7 @@ from orpheus.geometry import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.operators.streaming import InvertibleOperator, StreamingOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -99,7 +99,7 @@ def _zero_boundary(field):
 
 def _build(sn, *, seed):
     sig_t, sig_r = _removal_sigmas(sn, seed=seed)
-    op = InvertibleOperator(
+    op = StreamingCollisionOperator(
         StreamingOperator(sn), MultiplicationOperator.from_mesh(sig_r, sn),
     )
     return op

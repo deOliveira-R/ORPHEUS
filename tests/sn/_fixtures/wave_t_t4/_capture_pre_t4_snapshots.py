@@ -68,7 +68,7 @@ from orpheus.geometry.mesh import BC
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import (
-    InvertibleOperator,
+    StreamingCollisionOperator,
     StreamingOperator,
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -263,7 +263,7 @@ def _capture_LpC_apply(name: str, sn_mesh: SNMesh, *, seed: int,
     boundary per Resolution A).
     """
     L, C = _build_L_C(sn_mesh)
-    LpC = L + C  # InvertibleOperator
+    LpC = L + C  # StreamingCollisionOperator
     state = _make_state(sn_mesh, seed=seed)
     out = LpC.apply(state)
     snapshots[f"{name}_LpC_apply_bulk"] = out.interior.values.copy()
@@ -278,7 +278,7 @@ def _capture_LpC_solve(name: str, sn_mesh: SNMesh, *, seed: int,
     pins L4-6 to detect accidental sweep-path perturbation.
     """
     L, C = _build_L_C(sn_mesh)
-    LpC = L + C  # InvertibleOperator
+    LpC = L + C  # StreamingCollisionOperator
     q_state = _make_state(sn_mesh, seed=seed)
     out = LpC.solve(q_state)
     snapshots[f"{name}_LpC_solve_bulk"] = out.interior.values.copy()

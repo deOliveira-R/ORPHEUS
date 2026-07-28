@@ -285,7 +285,7 @@ def test_mis_spaced_scattering_reds_the_residual_composition():
 def test_mis_spaced_collision_reds_the_production_loss_build():
     r"""[P4.5 W-D, production teeth] ``C`` is the production gate-activator: the
     SOLE production :class:`~orpheus.numerics.operator.OperatorSum` is
-    ``InvertibleOperator(L, C)`` (the ``L + C`` build, run on EVERY within-group
+    ``StreamingCollisionOperator(L, C)`` (the ``L + C`` build, run on EVERY within-group
     solve — SI / Krylov / eigenvalue). Giving ``C`` a real space flips that
     guard from silently-skipped to live; mis-naming ``C``'s space reds the
     ``L + C`` build itself — the teeth on the converging path, which the

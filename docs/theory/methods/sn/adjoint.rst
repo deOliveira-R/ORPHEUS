@@ -713,7 +713,7 @@ its dual ``transpose_zero`` hook) so both the forward grid and its
 dagger emit the source-classed ray zero.  The ray-leg's
 ``solve_transpose`` output is duality-typed to the adjoint FLUX (the
 dual of a source under the G-pairing is the adjoint flux), the exact
-sibling of the within-group ``InvertibleOperator.solve_transpose``
+sibling of the within-group ``StreamingCollisionOperator.solve_transpose``
 fix.
 
 The dual lift asymmetry

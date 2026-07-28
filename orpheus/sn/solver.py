@@ -18,7 +18,7 @@ Inner solver dispatch
   the 11 frozen regression snapshots stay green.
 * ``inner_solver="krylov"``.  GMRES on the symmetric closure carried
   by the algebraic composition
-  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` (= ``L + C``).
+  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` (= ``L + C``).
   This is the Wave E reconciliation that makes the curvilinear
   ``solve_sn_fixed_source`` path discretization-correct (closes
   ERR-026).  On Cartesian meshes it is bit-identical math to the
@@ -86,7 +86,7 @@ if TYPE_CHECKING:
     )
     from .operators.boundary import SNBoundaryOperator
     from .operators.scheduled_invertible import ScheduledInvertibleOperator
-    from .operators.streaming import InvertibleOperator
+    from .operators.streaming import StreamingCollisionOperator
     from .operators.sweep_operator import SweepOperator
     from .operators.windowing import WindowedSweep
 
@@ -704,10 +704,10 @@ def _coupled_source_state(
 
 
 def _select_si_resolvent(
-    LC: "InvertibleOperator", S: "ScatteringOperator",
+    LC: "StreamingCollisionOperator", S: "ScatteringOperator",
     B: "LinearOperator[FullField, FullField]",
     sn_mesh: "SNMesh", inner_schedule: str,
-) -> "tuple[InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...]]":
+) -> "tuple[StreamingCollisionOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...]]":
     r"""Pick the ``(resolvent, gains)`` for the SEEDLESS within-group SI
     driver per ``inner_schedule`` — the single source of truth for the
     Jacobi/G-S choice.
@@ -778,7 +778,7 @@ def _within_group_si(
     system: "WithinGroupSystem",
     sn_mesh: "SNMesh", *, inner_schedule: str, max_iter: int, tol: float,
     corrector: "LinearOperator | None" = None,
-) -> "tuple[SourceIteration[Any], CoupledOperator | InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator, ...], bool]":
+) -> "tuple[SourceIteration[Any], CoupledOperator | StreamingCollisionOperator | ScheduledInvertibleOperator, tuple[LinearOperator, ...], bool]":
     r"""SourceIteration driver on the within-group system ``A = M − N``.
 
     Single source of truth (Cardinal Rule 2 / Phase 1 R1) for the
@@ -890,7 +890,7 @@ class SNSolver:
       iteration (WDD asymmetric closure; ERR-026-affected for
       curvilinear).  Bit-identical to the Wave A-D path.
     * ``"krylov"`` — GMRES on
-      :class:`~orpheus.sn.operators.streaming.InvertibleOperator` (the algebraic
+      :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` (the algebraic
       composition ``L + C``; symmetric closure) with the sweep as
       preconditioner.  Closes ERR-026 on curvilinear; bit-identical
       math to the legacy BiCGSTAB FD path on Cartesian.
@@ -930,7 +930,7 @@ class SNSolver:
                 f"Valid choices are 'source_iteration' or 'krylov'. "
                 f"(The legacy 'bicgstab' alias was retired in Wave E "
                 f"Round 2; use 'krylov' which routes through "
-                f"InvertibleOperator (L + C) with the sweep as "
+                f"StreamingCollisionOperator (L + C) with the sweep as "
                 f"preconditioner.)"
             )
         if inner_schedule not in ("jacobi", "gauss_seidel"):
@@ -1700,7 +1700,7 @@ class SNSolver:
 
         on typed :class:`~orpheus.sn.angular_flux.AngularFlux`.  The
         composite ``L + C`` returns an
-        :class:`~orpheus.sn.operators.streaming.InvertibleOperator` (R-1 Step C);
+        :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` (R-1 Step C);
         its ``.solve`` IS the WDD sweep but R-1 ships GMRES
         UNPRECONDITIONED (``preconditioner=None``) per user direction
         ("consolidating the foundational architecture; the block-inverse
@@ -3333,7 +3333,7 @@ def _solve_fixed_source_krylov(
 
     on typed :class:`~orpheus.sn.angular_flux.AngularFlux`.  The
     composite ``L + C`` returns an
-    :class:`~orpheus.sn.operators.streaming.InvertibleOperator`; its ``.solve``
+    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`; its ``.solve``
     IS the WDD sweep, but R-1 ships GMRES UNPRECONDITIONED
     (explicit identity) — issue #200 tracks the block-inverse face
     preconditioner re-enablement.

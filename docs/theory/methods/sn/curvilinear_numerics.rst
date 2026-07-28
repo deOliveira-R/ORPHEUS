@@ -82,7 +82,7 @@ took two passes at the closure:
 
 * **Wave E Round 2** wired
   :func:`~orpheus.sn.solver.solve_sn_fixed_source` to route
-  through Krylov-on-:meth:`InvertibleOperator.apply` (the
+  through Krylov-on-:meth:`StreamingCollisionOperator.apply` (the
   symmetric closure) with the sweep-as-``solve`` as preconditioner.
   This closes ERR-026 on **constant-source reflective-BC
   problems** — the canonical
@@ -752,7 +752,7 @@ Both seed strategies — ``ZeroSeed`` and
 by foundation tests).  Linearity is the load-bearing property:
 the apply matvec must be a linear operator, otherwise the
 operator-algebra operations of
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator`
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
 (apply, apply_transpose, dense matrix probing) break.  The
 ``CarlsonInwardSweep`` is linear because:
 
@@ -788,7 +788,7 @@ evaluates only the :math:`\ell = 0` (isotropic) Legendre moment
 when building the moment-folded source in
 :eq:`hebert-3-432-source`.  This is **consistent with the apply
 matvec's structure**: the
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` apply matvec
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` apply matvec
 carries only an isotropic collision term :math:`\Sigma_t \psi`;
 anisotropic scattering (P\ :sub:`1`\ +) is composed externally via
 a separate scattering operator, not included in :math:`L`.
@@ -845,7 +845,7 @@ canonical curvilinear closure path:
    stays at ``"source_iteration"``.  The rationale: the Phase D
    fix lives in the apply matvec, and the Krylov path is the one
    that uses
-   :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply`.  The
+   :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`.  The
    sweep path (``"source_iteration"``) uses the spatial WDD
    recurrence and is unaffected by the Phase D fix — leaving its
    ERR-026-affected curvilinear behaviour in place would be wrong
@@ -1225,7 +1225,7 @@ The twin-path bug Phase D left open
 
 Phase D's fix lived entirely in the **apply-matvec path**.  The
 Phase D Carlson seed is invoked by
-:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` via the
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply` via the
 ``MorelMontryAngularSweep.psi_half_seed`` composition; that
 covers every Krylov-driven call.  But ORPHEUS's curvilinear
 production default is **source iteration**, which (pre-Phase-F) dispatched
@@ -1372,7 +1372,7 @@ Same materials, same quadrature, same mesh, same
 Carlson seed installed on its ``psi_half_seed`` field — the
 **only** difference is which inner-solver dispatch is used.
 The Krylov path went through
-:meth:`InvertibleOperator.apply` (which consumes the Phase D
+:meth:`StreamingCollisionOperator.apply` (which consumes the Phase D
 Carlson seed correctly); the SI path went through the then-production
 ``transport_sweep`` entry (which carried the **legacy zero
 seed** untouched by Phase D).

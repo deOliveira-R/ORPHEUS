@@ -7,7 +7,7 @@ classification on the 2×2 bulk/boundary block structure:
   (``A_bb`` only; read/write the bulk flux, no boundary action).
 * Streaming ``L`` → :attr:`BlockRole.FULL` (couples bulk ↔ boundary —
   reads the inflow trace to seed the sweep, writes the outflow trace).
-* ``(L + C)`` :class:`InvertibleOperator` → :attr:`BlockRole.FULL`
+* ``(L + C)`` :class:`StreamingCollisionOperator` → :attr:`BlockRole.FULL`
   (inherits the streaming operand's coupling).
 
 The classification MECHANISM (enum, markers, partition, None-default) is
@@ -61,7 +61,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.operators.streaming import (
-    InvertibleOperator,
+    StreamingCollisionOperator,
     StreamingOperator,
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -113,7 +113,7 @@ class TestFullLeaves:
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         composite = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sigma_t, sn)
-        assert isinstance(composite, InvertibleOperator)
+        assert isinstance(composite, StreamingCollisionOperator)
         assert composite.block_role is BlockRole.FULL
         assert isinstance(composite, FullOperator)
         assert not isinstance(composite, BulkOperator)
@@ -226,7 +226,7 @@ class TestComposerRoleDerivation:
         L, C, B = self._ops(sn)
         # BULK ⊔ BULK = BULK (C + C)
         assert (C + C).block_role is BlockRole.BULK
-        # FULL ⊔ BULK = FULL (L + C — the InvertibleOperator, derived not stamped)
+        # FULL ⊔ BULK = FULL (L + C — the StreamingCollisionOperator, derived not stamped)
         assert (L + C).block_role is BlockRole.FULL
         # BULK ⊔ BOUNDARY = FULL (the discriminating mixed join)
         assert (C - B).block_role is BlockRole.FULL

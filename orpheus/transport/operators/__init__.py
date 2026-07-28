@@ -8,7 +8,7 @@ fission, scattering — plus the
 Protocol they satisfy. Every transport method (SN, CP, MoC, …) collides,
 fissions and scatters, so these live at L2 ``transport`` — NOT in a method
 package. #261 relocated them out of ``orpheus.sn`` (they are reaction operators,
-not SN-specific; only the WDD sweep — ``StreamingOperator`` / ``InvertibleOperator``
+not SN-specific; only the WDD sweep — ``StreamingOperator`` / ``StreamingCollisionOperator``
 / ``LossRepresentation`` — stays SN-specific). The §5.6 *Functionals*
 :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
 and :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`

@@ -270,7 +270,7 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
     :class:`~orpheus.numerics.operator.OperatorSum` tree's inherited
     ``apply`` (``a.apply(x) + b.apply(x)``) type-checks at every node.
 
-    ``L + C`` dispatches to :class:`InvertibleOperator` (subclass of
+    ``L + C`` dispatches to :class:`StreamingCollisionOperator` (subclass of
     OperatorSum); subsequent ``-S - F`` chain through the generic
     LinearOperator's ``__sub__`` → ``OperatorSum(self,
     ScaledOperator(other, -1))``.  The ``-1`` scaling propagates via

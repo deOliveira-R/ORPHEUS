@@ -10,8 +10,8 @@ Per ``.claude/lessons.md`` L14, solver correctness is four-legged:
 Two algorithms agreeing is necessary but NOT sufficient — both can be
 equally wrong.  Post-D-K (commit ``dadf4e8``), ``solve_sn`` routes
 through ``StreamingOperator + CollisionOperator`` =
-:class:`InvertibleOperator`; the Krylov path uses GMRES on
-``InvertibleOperator.apply`` with the sweep as preconditioner.
+:class:`StreamingCollisionOperator`; the Krylov path uses GMRES on
+``StreamingCollisionOperator.apply`` with the sweep as preconditioner.
 
 References (semi-analytical pillar per ``vv-principles``):
 
@@ -53,7 +53,7 @@ from orpheus.numerics.quadrature import Quadrature
 
 # Post-D-K (commit ``dadf4e8``), the within-group loss composite
 # ``L + C`` (:func:`build_streaming_collision` →
-# :class:`InvertibleOperator` = ``StreamingOperator +
+# :class:`StreamingCollisionOperator` = ``StreamingOperator +
 # MultiplicationOperator``) routes through
 # :func:`transport_operator_matvec_unified` natively for 1-D slab /
 # sphere / cylinder and through

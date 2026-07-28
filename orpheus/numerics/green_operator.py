@@ -65,7 +65,7 @@ selects the ALGORITHM:
 * ``L + C`` never reaches this module — the fusion dispatch on
   :meth:`~orpheus.sn.operators.streaming.StreamingOperator.__add__` (#261:
   "the canonical and only ordering") returns the
-  :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
+  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
   specialisation, whose ``.inverse()`` override (→ direct sweep) shadows
   the generic :meth:`~orpheus.numerics.operator.OperatorSum.inverse` by
   MRO (type-as-structure, §11.1).
@@ -159,7 +159,7 @@ def _left_spine_terms(op: OperatorSum) -> list[LinearOperator]:
     ``[A, -S, -F]`` so the splitting derivation sees the terms as
     spelled.  The walk descends EXACT ``OperatorSum`` nodes only:
     subclasses — the fused
-    :class:`~orpheus.sn.operators.streaming.InvertibleOperator` family —
+    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` family —
     are structural LEAVES (their sum-ness is an MRO fact, their identity
     a fused operator with its own direct inverse), and a RIGHT-nested
     sum ``A + (B + C)`` stays one composite gain term (a gain only needs

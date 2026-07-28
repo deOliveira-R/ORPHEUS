@@ -136,7 +136,7 @@ def test_pure_L_plus_C_recovers_loss_action_het(case):
     composition:
 
     * ``(L + C).apply == loss_action(σ_t)`` BYTE-EXACT — the composite
-      ``InvertibleOperator.apply`` IS ``loss_action(σ_t)`` (the full loss).
+      ``StreamingCollisionOperator.apply`` IS ``loss_action(σ_t)`` (the full loss).
     * ``L.apply ≈ loss_action(σ_t) − C·ψ`` to FP ULP — the affine relation
       ``streaming_action(ψ) = M(σ_t)ψ − σ_t⊙ψ``, with ``C`` a SEPARATELY
       built :class:`CollisionOperator` so the subtrahend is the verified
@@ -160,7 +160,7 @@ def test_pure_L_plus_C_recovers_loss_action_het(case):
     lpc = rep.loss_action(sig_t, psi)
     lpsi = L.apply(psi)
     cpsi = C.apply(psi)
-    composite = (L + C).apply(psi)          # InvertibleOperator.apply
+    composite = (L + C).apply(psi)          # StreamingCollisionOperator.apply
 
     # non-vacuous guard: C·ψ must be non-trivial (else the pin is degenerate).
     if float(np.max(np.abs(cpsi.interior.values))) < 1e-6:

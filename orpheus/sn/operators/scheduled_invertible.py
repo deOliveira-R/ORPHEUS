@@ -34,7 +34,7 @@ lagged half rides the DRIVER as the ordinary external gain
 so :class:`~orpheus.numerics.iteration.SourceIteration` needs no case split.
 The Jacobi schedule is the degenerate member (``B_lower = 0``,
 ``M = L+C``) — production never constructs it (the factory returns the plain
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` there).
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` there).
 
 **Construction** — the canonical spelling is the operator algebra
 
@@ -45,12 +45,12 @@ The Jacobi schedule is the degenerate member (``B_lower = 0``,
     gains = (S, upper)             # the lagged complement, driver-side
 
 (the dispatch lives on
-:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.__sub__`, mirroring
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.__sub__`, mirroring
 the ``L + C`` fusion precedent).  The mask carries the schedule it was
 derived from, so a foreign schedule cannot be paired with a mismatched mask.
 
 **Substrate, not a twin.**  ``solve`` delegates to the ONE
-``InvertibleOperator._solve_timed_full_field`` body with the schedule and the
+``StreamingCollisionOperator._solve_timed_full_field`` body with the schedule and the
 whole-trace reflect threaded through the representation's own ``sweep`` door
 (S6.5 — the scheduled walk runs the operator's ONE
 :class:`~orpheus.sn.loss_representation.LossRepresentation` instance and its
@@ -68,7 +68,7 @@ from orpheus.numerics.operator import (
 )
 
 from .boundary import SNMaskedBoundaryOperator
-from .streaming import InvertibleOperator
+from .streaming import StreamingCollisionOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.frame import FrameBase
@@ -87,7 +87,7 @@ __all__ = ["ScheduledInvertibleOperator"]
 class ScheduledInvertibleOperator(
     OperatorSum[
         "FullField", "FullField",
-        InvertibleOperator,
+        StreamingCollisionOperator,
         ScaledOperator["FullField", "FullField", SNMaskedBoundaryOperator],
     ],
 ):
@@ -98,19 +98,19 @@ class ScheduledInvertibleOperator(
     leaf sum — that carries the schedule-triangular solve identity the
     generic sum cannot: the octant-group forward substitution IS the inverse
     algorithm for this specific composite, exactly the way the WDD sweep is
-    for :class:`~orpheus.sn.operators.streaming.InvertibleOperator` (whose
+    for :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` (whose
     shape this deliberately mirrors).
     """
 
     def __init__(
         self,
-        invertible: "InvertibleOperator",
+        invertible: "StreamingCollisionOperator",
         lower: "SNMaskedBoundaryOperator",
     ) -> None:
-        if not isinstance(invertible, InvertibleOperator):
+        if not isinstance(invertible, StreamingCollisionOperator):
             raise TypeError(
                 f"ScheduledInvertibleOperator: 'invertible' must be an "
-                f"InvertibleOperator; got {type(invertible).__name__}."
+                f"StreamingCollisionOperator; got {type(invertible).__name__}."
             )
         if not isinstance(lower, SNMaskedBoundaryOperator):
             raise TypeError(
@@ -118,7 +118,7 @@ class ScheduledInvertibleOperator(
                 f"SNMaskedBoundaryOperator (from SNBoundaryOperator.split); "
                 f"got {type(lower).__name__}."
             )
-        # Mesh-identity invariant (as for InvertibleOperator): the scheduled
+        # Mesh-identity invariant (as for StreamingCollisionOperator): the scheduled
         # walk pairs the mask's row split with the streaming geometry.
         if invertible.sn_mesh is not lower.sn_mesh:
             raise ValueError(
@@ -132,7 +132,7 @@ class ScheduledInvertibleOperator(
     # ── Convenience accessors ─────────────────────────────────────────
 
     @property
-    def invertible(self) -> "InvertibleOperator":
+    def invertible(self) -> "StreamingCollisionOperator":
         """The sweep-invertible operand :math:`(L+C)` (alias for ``self.a``)."""
         return self.a
 
@@ -168,7 +168,7 @@ class ScheduledInvertibleOperator(
     def is_invertible(self) -> bool:
         # M is schedule-triangular: the octant-group forward substitution IS
         # its inverse operator — the
-        # faithfulness keystone rides with InvertibleOperator's.
+        # faithfulness keystone rides with StreamingCollisionOperator's.
         return True
 
     def inverse(self) -> "SweepOperator":
@@ -214,7 +214,7 @@ class ScheduledInvertibleOperator(
         moment_frame: "FrameBase | None" = None,
     ) -> "TimedFullField":
         r"""The uniform private solve surface (duck-shared with
-        :meth:`InvertibleOperator._solve_timed_full_field`) — the windowed
+        :meth:`StreamingCollisionOperator._solve_timed_full_field`) — the windowed
         product's fused evaluation calls THIS with its ``moment_frame``.
 
         Delegates to the invertible operand's one body with the schedule and
@@ -243,7 +243,7 @@ class ScheduledInvertibleOperator(
         (``tests/sn/solve/test_gauss_seidel_reification.py``), and the
         production catcher for a future off-domain consumer is the
         end-of-solve certificate that caught ERR-071 itself.  The bare
-        :class:`~orpheus.sn.operators.streaming.InvertibleOperator` sweep
+        :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` sweep
         (no schedule, no mid-march reader) IS exact on the whole space.
         """
         return self.invertible._solve_timed_full_field(

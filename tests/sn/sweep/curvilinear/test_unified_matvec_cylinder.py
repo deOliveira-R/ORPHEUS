@@ -16,7 +16,7 @@ correctness is a 4-way standoff):
   match at rtol=1e-12.
 
 * **L1** — heterogeneous 3-region 2G closed cylinder eigenvalue.  The
-  GMRES inner solve routes through :class:`InvertibleOperator`
+  GMRES inner solve routes through :class:`StreamingCollisionOperator`
   (= ``L + C``) consuming the unified matvec; the resulting ``k_eff``
   is cross-checked against the trajectory_resolvent reference
   (Variant α at α=1) at the same tolerance as the production Gate 4.2
@@ -394,7 +394,7 @@ def _build_mr_cylinder_mesh(nx: int = 40) -> tuple[Mesh1D, dict]:
 
 # Post-D-K (commit ``dadf4e8``), the within-group loss composite
 # ``L + C`` (:func:`build_streaming_collision` → ``StreamingOperator +
-# MultiplicationOperator``, i.e. :class:`InvertibleOperator`) calls
+# MultiplicationOperator``, i.e. :class:`StreamingCollisionOperator`) calls
 # :func:`_transport_operator_matvec_unified` natively for 1-D
 # cylindrical.  No monkey-patch is required.
 
@@ -406,7 +406,7 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
     r"""L1 — heterogeneous 3-region 2G closed cylinder via unified matvec.
 
     Drives :func:`solve_sn` with ``inner_solver="krylov"`` — the
-    matvec routes through :class:`InvertibleOperator` (= ``L + C``)
+    matvec routes through :class:`StreamingCollisionOperator` (= ``L + C``)
     via :func:`_transport_operator_matvec_unified`. The converged
     ``k_eff`` is compared against the structurally-independent
     :func:`solve_greens_function_cylinder_mr` reference (Variant α at

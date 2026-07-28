@@ -10,7 +10,7 @@ test for the silent stateful-inverse bug class (issue #203,
 lesson :ref:`L19 <lessons-l19>`):
 :class:`~orpheus.numerics.iteration.KrylovAcceleration` with
 ``preconditioner=None`` silently routed through
-:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`, which (pre-
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve`, which (pre-
 Phase-1.2) read the lag-1 frame ``rhs(1)`` to seed the curvilinear
 Carlson coupled-pole closure.  GMRES feeds residual VECTORS into the
 preconditioner — those residuals have no history — so the sweep
@@ -18,7 +18,7 @@ silently used the in-iteration default (zero) seed.  On sphere/cylinder
 this destabilised the M-M closure as a preconditioner.
 
 Phase 1.2 (commit ``c93355c``) made the bug class **structurally
-unreachable**: ``InvertibleOperator.solve`` is now a pure function of
+unreachable**: ``StreamingCollisionOperator.solve`` is now a pure function of
 ``(rhs, initial_guess, boundary)``.  ``KrylovAcceleration``'s
 ``preconditioner=None`` default invokes ``L.solve(q)`` with
 ``initial_guess=None``, which the M-M closure interprets as an

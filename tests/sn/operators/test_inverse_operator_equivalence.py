@@ -2,7 +2,7 @@ r"""Phase 2 keystone — ``(L+C).inverse().apply(b) == (L+C).solve(b)`` (#226).
 
 THE proof that ``.inverse()`` is the SAME operator as today's ``.solve``, in
 operator form. :meth:`SweepOperator.apply` wraps
-:meth:`InvertibleOperator.solve`, so the equality is bit-exact BY CONSTRUCTION —
+:meth:`StreamingCollisionOperator.solve`, so the equality is bit-exact BY CONSTRUCTION —
 this gate proves the wrapping introduced ZERO change. It is necessary-not-
 sufficient on its own (it proves "unchanged", not "was right"); it rides the
 existing closed-form anchors (``test_removal_form_kinf_independent_reference_2g``
@@ -19,7 +19,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.sn.operators.streaming import InvertibleOperator, StreamingOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.sn.operators.test_removal_form_matvec_sweep import (
@@ -41,11 +41,11 @@ _SEEDED_CASES = {"sphere_2g": _sphere, "cyl_2g": _cyl}
 
 
 def _build(case_builder):
-    """Return ``(sn, A=L+C InvertibleOperator, b=rhs source)`` for a removal case."""
+    """Return ``(sn, A=L+C StreamingCollisionOperator, b=rhs source)`` for a removal case."""
     sn = case_builder(ng=2, bc="vacuum")
     _, sig_r = _removal_sigmas(sn, seed=2026)
     A = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_r, sn)
-    assert isinstance(A, InvertibleOperator)  # L + C dispatches to the resolvent
+    assert isinstance(A, StreamingCollisionOperator)  # L + C dispatches to the resolvent
     b = _random_state(sn, seed=11)
     return sn, A, b
 

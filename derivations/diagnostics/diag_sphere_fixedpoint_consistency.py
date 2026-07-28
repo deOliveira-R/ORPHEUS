@@ -34,7 +34,7 @@ from orpheus.geometry import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.operators.streaming import InvertibleOperator, StreamingOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -79,7 +79,7 @@ def probe_fixed_point_consistency(sig_mode):
         sig_r = sig_t - rng.uniform(0.2, 0.8, size=sig_t.shape)
     else:  # production
         sig_r = sig_t
-    op = InvertibleOperator(
+    op = StreamingCollisionOperator(
         StreamingOperator(sn), MultiplicationOperator.from_mesh(sig_r, sn),
     )
 
@@ -120,7 +120,7 @@ def probe_real_si(with_scatter):
     sig_t = np.full((ng, nx), 1.0)
     sig_s0 = np.full((ng, nx), 0.6 if with_scatter else 0.0)
     sig_r = sig_t - sig_s0            # removal diagonal for (L+C)
-    op = InvertibleOperator(
+    op = StreamingCollisionOperator(
         StreamingOperator(sn), MultiplicationOperator.from_mesh(sig_r, sn),
     )
 

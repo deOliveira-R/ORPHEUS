@@ -10,7 +10,7 @@ equation :math:`A_{\\rm wg} = L + C - S_{\\rm foldable}`:
   :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
   — diagonal in position, group, and direction; #261 retired the former
   ``CollisionOperator`` thin subclass).
-* :class:`InvertibleOperator` — the sweep-invertible specialisation
+* :class:`StreamingCollisionOperator` — the sweep-invertible specialisation
   :math:`(L + C)` returned by ``L + C``; ``is_invertible=True``
   via the WDD sweep.
 
@@ -123,7 +123,7 @@ def _require_typed_composite(
 
     Two guards, consumed by EVERY SN matvec entry that takes a
     :class:`FullField` (:meth:`StreamingOperator.apply` /
-    :meth:`apply_transpose` AND the :class:`InvertibleOperator` overrides):
+    :meth:`apply_transpose` AND the :class:`StreamingCollisionOperator` overrides):
     (1) the input is a :class:`~orpheus.transport.full_field.FullField`;
     (2) ``field.interior.mesh`` is the operator's SAME ``sn_mesh`` instance.
     Single source of the contract (``coding-elegance`` Pattern 2 / Pattern 4 —
@@ -389,9 +389,9 @@ class StreamingOperator(LinearOperator["FullField"]):
         (``orpheus.sn.loss_representation``) carrying BOTH actions of
         :math:`(L+C)`: :meth:`apply` routes through
         ``representation.loss_action`` / ``loss_action_transpose`` (the
-        matvec), and :meth:`InvertibleOperator.solve` runs the forward
+        matvec), and :meth:`StreamingCollisionOperator.solve` runs the forward
         substitution on the SAME object via
-        :attr:`InvertibleOperator.loss_representation` — L21 ("matvec ≡
+        :attr:`StreamingCollisionOperator.loss_representation` — L21 ("matvec ≡
         sweep") as a type fact.  Selection is by geometry
         (``default_for``): 1-D → ``CumprodScan``; multi-D Cartesian →
         ``ScanMarch`` (the S6.9 Fork-B2 default).  ``cached_property`` because
@@ -406,7 +406,7 @@ class StreamingOperator(LinearOperator["FullField"]):
     # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
 
     @overload
-    def __add__(self, other: "MultiplicationOperator") -> "InvertibleOperator": ...
+    def __add__(self, other: "MultiplicationOperator") -> "StreamingCollisionOperator": ...
     @overload
     def __add__(
         self, other: "LinearOperator[FullField]",
@@ -419,10 +419,10 @@ class StreamingOperator(LinearOperator["FullField"]):
         When ``X`` is a
         :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
         (the collision diagonal :math:`C = M[\sigma_t]`), returns the
-        sweep-invertible specialisation :class:`InvertibleOperator`
+        sweep-invertible specialisation :class:`StreamingCollisionOperator`
         carrying the algebraic identity :math:`(L + C)^{-1} \approx
         \text{WDD sweep}` — the typed ``@overload`` spells the fusion
-        rule, so ``L + C`` reads as an ``InvertibleOperator`` statically
+        rule, so ``L + C`` reads as a ``StreamingCollisionOperator`` statically
         (C4: the covariant summand legs make the specialisation
         assignable to the generic contract).  Otherwise falls through to
         the generic :class:`OperatorSum` via the mixin.
@@ -433,16 +433,16 @@ class StreamingOperator(LinearOperator["FullField"]):
         (that would be a ``transport → sn`` upward import).
         """
         if isinstance(other, MultiplicationOperator):
-            return InvertibleOperator(self, other)
+            return StreamingCollisionOperator(self, other)
         return super().__add__(other)
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# InvertibleOperator — sweep-invertible composite (L + C)
+# StreamingCollisionOperator — sweep-invertible composite (L + C)
 # ─────────────────────────────────────────────────────────────────────────
 
 
-class InvertibleOperator(
+class StreamingCollisionOperator(
     OperatorSum[
         "FullField", "FullField", "StreamingOperator", "MultiplicationOperator",
     ],
@@ -486,9 +486,9 @@ class InvertibleOperator(
       :meth:`StreamingOperator.__add__`, because a transport-level
       multiplier cannot dispatch back onto an ``sn`` operator (#261).  The
       composite reads as math.
-    * **Explicit construction** — ``InvertibleOperator(L, C)``.  Useful
+    * **Explicit construction** — ``StreamingCollisionOperator(L, C)``.  Useful
       when composing variants such as
-      ``InvertibleOperator(L_leaf, MultiplicationOperator.from_mesh(σ_r, mesh))``
+      ``StreamingCollisionOperator(L_leaf, MultiplicationOperator.from_mesh(σ_r, mesh))``
       where
       ``σ_r = σ_t - Σ_{s,0}^{g→g}`` is the removal cross-section that
       lets one fold the within-group self-scatter into the diagonal
@@ -568,12 +568,12 @@ class InvertibleOperator(
     ) -> None:
         if not isinstance(streaming, StreamingOperator):
             raise TypeError(
-                f"InvertibleOperator: 'streaming' must be a "
+                f"StreamingCollisionOperator: 'streaming' must be a "
                 f"StreamingOperator; got {type(streaming).__name__}."
             )
         if not isinstance(diagonal, MultiplicationOperator):
             raise TypeError(
-                f"InvertibleOperator: 'diagonal' must be a "
+                f"StreamingCollisionOperator: 'diagonal' must be a "
                 f"MultiplicationOperator; got {type(diagonal).__name__}."
             )
         # Mesh-identity invariant (#261 re-anchor): the WDD sweep threads the
@@ -584,7 +584,7 @@ class InvertibleOperator(
         # its CrossSectionField coefficient.
         if streaming.sn_mesh is not diagonal.coefficient.mesh:
             raise ValueError(
-                "InvertibleOperator: the streaming operator and the diagonal "
+                "StreamingCollisionOperator: the streaming operator and the diagonal "
                 "multiplier must act on the same mesh instance — the "
                 "mesh-identity invariant (streaming.sn_mesh is "
                 "diagonal.coefficient.mesh): the WDD sweep pairs the "
@@ -593,7 +593,7 @@ class InvertibleOperator(
         if not np.all(diagonal.coefficient.values > 0):
             min_sigma = float(np.min(diagonal.coefficient.values))
             raise ValueError(
-                f"InvertibleOperator: diagonal coefficient must be "
+                f"StreamingCollisionOperator: diagonal coefficient must be "
                 f"strictly positive everywhere for the WDD sweep to be "
                 f"well-defined; got min(sigma) = {min_sigma:.3e}.  If "
                 f"sigma_r = sigma_t - Sigma_(s,0)^(g->g) is dipping "
@@ -674,7 +674,7 @@ class InvertibleOperator(
         within-group grid's :meth:`~orpheus.numerics.coupled_system.CoupledOperator.apply`,
         never a kwarg channel on this surface.
         """
-        _require_typed_composite("InvertibleOperator.apply", self.sn_mesh, psi)
+        _require_typed_composite("StreamingCollisionOperator.apply", self.sn_mesh, psi)
         return self.loss_representation.loss_action(self.sigma, psi)
 
     def apply_transpose(self, phi: "FullField") -> "FullField":
@@ -698,7 +698,7 @@ class InvertibleOperator(
         :meth:`~orpheus.numerics.coupled_system.CoupledOperator.apply_transpose`.
         """
         _require_typed_composite(
-            "InvertibleOperator.apply_transpose", self.sn_mesh, phi,
+            "StreamingCollisionOperator.apply_transpose", self.sn_mesh, phi,
         )
         return self.loss_representation.loss_action_transpose(self.sigma, phi)
 
@@ -894,14 +894,14 @@ class InvertibleOperator(
         # for both :meth:`solve` and :meth:`solve_moments`.
         if not isinstance(rhs, FullField):
             raise TypeError(
-                f"InvertibleOperator: 'rhs' must be FullField; "
+                f"StreamingCollisionOperator: 'rhs' must be FullField; "
                 f"got {type(rhs).__name__}.  Legacy AngularFlux retired "
                 f"in D-H.2-C3."
             )
         sn_mesh = self.sn_mesh
         if rhs.interior.mesh is not sn_mesh:
             raise ValueError(
-                "InvertibleOperator.solve(FullField): rhs and "
+                "StreamingCollisionOperator.solve(FullField): rhs and "
                 "operator must share the same SNMesh instance "
                 "(mesh-identity invariant)."
             )
@@ -1060,7 +1060,7 @@ class InvertibleOperator(
         sn_mesh = self.sn_mesh
         if b.interior.mesh is not sn_mesh:
             raise ValueError(
-                "InvertibleOperator.solve_transpose(FullField): b and "
+                "StreamingCollisionOperator.solve_transpose(FullField): b and "
                 "operator must share the same SNMesh instance "
                 "(mesh-identity invariant)."
             )

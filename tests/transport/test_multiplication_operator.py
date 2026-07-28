@@ -29,12 +29,12 @@ test families:
    (``σ·σ'`` has units ``cm⁻²``, so the homomorphism is a numerics-engine
    property — built directly, NOT as a ``CrossSectionField``).
 
-The resolvent-assembly leg (``L + M[σ] → InvertibleOperator``, the
+The resolvent-assembly leg (``L + M[σ] → StreamingCollisionOperator``, the
 sweep/matvec matching the legacy resolvent and the analytical
 ``k_∞ = νΣf/Σa`` / streaming-equilibrium references) is verified by the
 EXISTING structurally-independent gates that stay green:
 ``tests/sn/verification/analytical/test_kinf_homogeneous.py`` and
-``tests/sn/operators/test_invertible_operator.py`` (the
+``tests/sn/operators/test_streaming_collision_operator.py`` (the
 ``test_si_carve_recovers_analytical_kinf`` + the
 ``..._recovers_q_over_sigma_composite`` streaming-equilibrium leg). This
 file adds an L0 bare-engine streaming-equilibrium values check so the
@@ -406,12 +406,12 @@ class TestMultiplierAlgebraLaws:
 # ═══════════════════════════════════════════════════════════════════════
 # 3. L0 streaming-equilibrium — the bare-engine values check.
 #
-# The full resolvent-assembly leg (L + M[σ] → InvertibleOperator, sweep
+# The full resolvent-assembly leg (L + M[σ] → StreamingCollisionOperator, sweep
 # matching kinf / streaming-equilibrium) is the EXISTING gate set that
 # stays green:
 #   tests/sn/verification/analytical/test_kinf_homogeneous.py
-#   tests/sn/operators/test_invertible_operator.py::
-#     TestInvertibleSolveBridgeRegression::{test_si_carve_recovers_analytical_kinf,
+#   tests/sn/operators/test_streaming_collision_operator.py::
+#     TestStreamingCollisionSolveBridgeRegression::{test_si_carve_recovers_analytical_kinf,
 #       test_fixed_source_homogeneous_reflective_recovers_q_over_sigma_composite}
 # This pins the BARE multiplier algebra without a solve.
 # ═══════════════════════════════════════════════════════════════════════
@@ -424,7 +424,7 @@ class TestStreamingEquilibriumValuesLeg:
     no streaming term the within-group balance is purely ``M[σ_t]ψ = Q``,
     whose solution is ``ψ = M[σ_t]^{-1}Q = Q/σ_t``. This is the L0 leg
     that the bare engine is correct; the full ``φ = Q/(Σ_t(1−c))``
-    streaming-equilibrium with scattering is the InvertibleOperator gate.
+    streaming-equilibrium with scattering is the StreamingCollisionOperator gate.
     """
 
     def test_collision_only_balance_recovers_q_over_sigma(self):

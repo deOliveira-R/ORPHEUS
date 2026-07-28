@@ -24,7 +24,7 @@ Phase S2) the ``loss_action`` matvec twin, plus a **declared, queryable**
 via :func:`default_for` and then calls it branchlessly.  (The module-level
 ``transport_sweep`` wrapper retired at step 6 with the walk's ψ½ joint
 channel: the typed surfaces are
-:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` for the
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve` for the
 ``(L+C)`` block and the within-group M grid's
 :meth:`~orpheus.numerics.coupled_system.CoupledOperator.solve` for the
 joint march.)
@@ -3067,7 +3067,7 @@ class _OneDimScanWalk:
         :meth:`loss_action` / :meth:`loss_action_transpose` ALSO take ``sigma``
         directly (symmetric with :meth:`sweep`'s ``sig_t``), so the diagonal is
         single-sourced by the CALLER (``StreamingOperator.apply`` passes its
-        ``sigma_t``; ``InvertibleOperator.apply`` passes the composite's
+        ``sigma_t``; ``StreamingCollisionOperator.apply`` passes the composite's
         diagonal ``self.sigma``) — the frame never reads it off an operator
         handle.
         """

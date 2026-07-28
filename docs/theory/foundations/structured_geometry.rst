@@ -449,7 +449,7 @@ SN reshape campaign (``.claude/plans/sn_reshape.md``):
   The connection-coefficient math no longer lives in :class:`SNMesh`.
 * **SN operator algebra (Depth B, 2026-05)** —
   :class:`~orpheus.sn.operators.streaming.StreamingOperator` /
-  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` consume the
+  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` consume the
   primitive (as ``SNMesh.reduced``) through the loss-representation walk:
   :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` reads the
   connection coefficients off ``self.mesh.reduced.coord`` inside the walk.

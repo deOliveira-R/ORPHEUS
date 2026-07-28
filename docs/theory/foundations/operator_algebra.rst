@@ -711,7 +711,7 @@ well inside the dimensionally-explainable single-step bound (per
 The carve is therefore **principled-equivalent, not bit-identical**, on
 the *streaming-leaf* matvec — and **byte-identical** on the
 :math:`(L+C)` composite matvec and the WDD sweep, which were not touched
-(:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` still computes
+(:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply` still computes
 :math:`M(\sigma_t)\psi` through the same ``loss_action`` call). The
 software invariant "pure :math:`L` reads no :math:`\sigma`" is pinned by
 the foundation catcher
@@ -740,7 +740,7 @@ of :ref:`Definitions <operator-algebra>`: forward application
 (:eq:`operator-apply`) is *linear in the operator*, but inversion
 (:eq:`operator-solve`) is *not*. This is why ``apply`` and ``solve`` are
 **two faithful views of the same operator only for the bundled**
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` (:math:`= L+C`), and
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` (:math:`= L+C`), and
 **never** for the individual streaming / collision leaves. It is the
 mathematical content behind the :ref:`three-layer operator surface
 <capability-set-semantics>`: ``apply`` lives on the leaves; ``solve``
@@ -1039,7 +1039,7 @@ Why this is the right architecture, not a limitation
 
 Invertibility is a property of the **sum**, not of the parts. That is
 exactly why :math:`L + C` is packaged as one
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator`: the
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`: the
 :class:`~orpheus.numerics.operator.OperatorSum` that *carries* the
 WDD sweep as its ``.solve``. The asymmetry maps cleanly onto the two
 sides of the algebra:
@@ -1055,7 +1055,7 @@ sides of the algebra:
   :math:`\sigma` (the previous subsection), so the leaf decomposition is
   *faithful*: :math:`(L+C)\psi = L\psi + C\psi` holds exactly.
 - **solve belongs to the bundled unit.** Only
-  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` reports
+  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` reports
   :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
   ``= True`` and carries a direct-sweep ``solve``; the leaves do not
   (streaming has no ``solve`` at all; collision's ``solve`` is the
@@ -1063,14 +1063,14 @@ sides of the algebra:
   :math:`C^{-1}` of a *different* problem, never the coupled inverse).
   The :class:`~orpheus.numerics.operator.OperatorSum` deliberately
   **does not propagate** ``solve`` (:ref:`composition-algebra`); the
-  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` *adds it back* via the
+  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` *adds it back* via the
   SN-specific algebraic identity "WDD sweep :math:`\approx (L+C)^{-1}`"
   (:cite:`LewisMiller1984` §3.2). The composite owns ``apply``, ``solve``, and
   ``apply_transpose`` as three actions of **one** operator on a single
   shared
   :class:`~orpheus.sn.loss_representation.LossRepresentation` (L21 —
-  "matvec ≡ sweep"); :meth:`InvertibleOperator.apply` and
-  :meth:`InvertibleOperator.solve` single-source :math:`\sigma` from the
+  "matvec ≡ sweep"); :meth:`StreamingCollisionOperator.apply` and
+  :meth:`StreamingCollisionOperator.solve` single-source :math:`\sigma` from the
   collision diagonal, so they cannot disagree on which loss they invert.
 
 The :ref:`three-layer operator surface <capability-set-semantics>` is
@@ -1079,7 +1079,7 @@ downstream Krylov consumer that asks for the inverse of a bare
 :class:`~orpheus.sn.operators.streaming.StreamingOperator` cannot even
 spell ``L.inverse()`` (the streaming leaf declares no such method — a
 *static* error), and a generic sum that has not been promoted to
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` returns the
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` returns the
 iterative splitting :class:`~orpheus.numerics.green_operator.GreenOperator`
 rather than the direct sweep — never silently handed
 :math:`L^{-1} + C^{-1}` (a meaningless answer to a problem nobody
@@ -1351,7 +1351,7 @@ machinery.
   :class:`~orpheus.numerics.green_operator.GreenOperator` (the
   preconditioned splitting), not a substrate verb. (The
   sweep-invertible ``(L+C)``
-  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` subclass
+  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` subclass
   keeps its own direct-sweep ``solve`` — that IS a native realization.)
 - :class:`~orpheus.numerics.operator.IdentityOperator`,
   :class:`~orpheus.numerics.operator.PermutationOperator`,
@@ -1811,7 +1811,7 @@ the optional :attr:`~orpheus.transport.operators.multiplication_operator.Multipl
 :meth:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.from_mesh`
 constructor, the subclass added nothing the base lacked. The ``L + C``
 dispatch that assembles the bundled
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` lives **one-directionally**
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` lives **one-directionally**
 on :meth:`~orpheus.sn.operators.streaming.StreamingOperator.__add__` (keyed on the
 ``MultiplicationOperator`` base type): ``L + C`` is the canonical (and
 only) ordering, because the ``numerics ↛ transport ↛ sn`` layer order
@@ -1913,7 +1913,7 @@ unaffected.
    :math:`\sigma_t > 0` (total cross sections are bounded away from zero),
    and the removal cross section :math:`\sigma_r` ``solve`` appears only in
    a docstring, with no live caller. The bundled
-   :class:`~orpheus.sn.operators.streaming.InvertibleOperator` has its own
+   :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` has its own
    stricter construction-time ``min σ > 0`` guard, consistent with the new
    gate.
 

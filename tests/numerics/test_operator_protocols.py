@@ -9,7 +9,7 @@ enum, the value-based ``isinstance``-marker metaclass
 ``None``-default semantics.
 
 These pin the MECHANISM on toy / generic operators (no SN fixtures). The
-SN leaf tagging (C/S/F → BULK, L / InvertibleOperator → FULL, the
+SN leaf tagging (C/S/F → BULK, L / StreamingCollisionOperator → FULL, the
 realized boundary laws → BOUNDARY) lives in
 ``tests/sn/operators/test_operator_block_role.py``.
 

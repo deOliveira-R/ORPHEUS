@@ -24,7 +24,7 @@ retired): it reads NO σ and calls the loss representation's named
 shared multiplier.  The within-group WDD matvec is AFFINE in σ in the
 forward direction — ``streaming_action(ψ) = loss_action(0, ψ)`` and
 ``M(ψ; σ_t) = streaming_action(ψ) + σ_t⊙ψ`` — so the composition still
-recovers ``M`` bit-exactly (the composite ``InvertibleOperator.apply``
+recovers ``M`` bit-exactly (the composite ``StreamingCollisionOperator.apply``
 calls ``loss_action(σ_t)`` directly, unchanged from pre-S8b).
 
 The affinity is genuine since ERR-058 (#195) made the curvilinear

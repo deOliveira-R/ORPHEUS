@@ -222,7 +222,7 @@ master condition that decides between :class:`TensorProductOperator`,
      - many (the load-bearing composer)
      - The within-group loss ``A_AA = (L+C) - S - B_a``
        (:func:`~orpheus.sn.coupled_system.build_within_group_system`);
-       :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
+       :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
        (a subclass, pinning the ``L + C`` legs);
        the diffusion loss ``leakage + collision - scattering - boundary``
        (:mod:`orpheus.diffusion.solver`); the shared isotropic energy

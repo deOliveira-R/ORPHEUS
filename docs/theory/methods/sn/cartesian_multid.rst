@@ -3546,8 +3546,8 @@ dependency-injection idiom of :func:`_sweep_scheduled <orpheus.sn.loss_represent
   per-octant angular allocation and the scheduled 2-D body returns
   ``(moment_buf, None)``.
 * the private
-  :meth:`InvertibleOperator._solve_timed_full_field
-  <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`
+  :meth:`StreamingCollisionOperator._solve_timed_full_field
+  <orpheus.sn.operators.streaming.StreamingCollisionOperator._solve_timed_full_field>`
   body (duck-shared by
   :meth:`ScheduledInvertibleOperator._solve_timed_full_field <orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator._solve_timed_full_field>`)
   is the **single** application-context entry: given a ``moment_frame`` it
@@ -3558,7 +3558,7 @@ dependency-injection idiom of :func:`_sweep_scheduled <orpheus.sn.loss_represent
   (:class:`~orpheus.transport.fields.angular_flux.AngularFlux` vs
   :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`).
   The former public ``solve_moments`` cross-reach — on
-  ``InvertibleOperator`` **and** the dissolved ``_GaussSeidelResolvent``,
+  ``StreamingCollisionOperator`` **and** the dissolved ``_GaussSeidelResolvent``,
   plus the solver-side ``_solve_scheduled`` plumbing twin — retired into
   this one private body (#226 step 2, :ref:`windowing-retyped`).
 * the fused entry is

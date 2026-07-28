@@ -94,7 +94,7 @@ collision coefficient :math:`C_{\rm ray}` the march reads (``.values`` are
 ``(ng, nx)``). It is a TYPED, mesh-bound field (not a bare array) so the
 mesh-identity invariant — σ_t and the operator march the SAME radial widths —
 is enforced at construction (Pattern 4; the sibling
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` guards its
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` guards its
 diagonal coefficient the same way). Step 4 sources it from the solver's
 macroscopic XS as ``mat_xs.total_cross_section_field``.
 
@@ -225,7 +225,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         # (axis_widths[0]) against σ_t, so a σ_t from a foreign mesh — even one
         # with an identical (ng, nx) — would march the wrong Δr. The typed
         # CrossSectionField carries its mesh, so we can refuse the mismatch at
-        # construction (the sibling InvertibleOperator guards σ↔mesh the same
+        # construction (the sibling StreamingCollisionOperator guards σ↔mesh the same
         # way, streaming.py). The field's own space invariant then GUARANTEES
         # values.shape == (ng, nx) for this mesh — so no separate shape check is
         # needed (an explicit one would be redundant ceremony).
@@ -526,7 +526,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         input); the output is the dual of its domain — dual-of-source
         under the G-pairing, i.e. the adjoint ray FLUX (flux members).
         This is the ray-leg sibling of
-        :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_transpose`'s
+        :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`'s
         A4 re-classing: the daggered coupled fixed-point iteration closes
         over the SAME class pattern as the forward (flux iterate → source
         gains → transposed substitution → flux iterate), and the typed

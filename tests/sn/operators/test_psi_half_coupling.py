@@ -98,7 +98,7 @@ from orpheus.sn.solver import (
 )
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.numerics.iteration import SourceIteration
-from orpheus.sn.operators.streaming import InvertibleOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from tests.sn._test_helpers import (
     curvilinear_two_region_mesh,
 )
@@ -3262,7 +3262,7 @@ class TestWithinGroupSystem:
             slab, slab_solver.mat_xs, scattering_op=slab_solver.scattering_op)
         if isinstance(s_system.resolvent, CoupledOperator):
             pytest.fail("seedless resolvent is coupled — DP-seedless violated")
-        if not isinstance(s_system.resolvent, InvertibleOperator):
+        if not isinstance(s_system.resolvent, StreamingCollisionOperator):
             pytest.fail(f"seedless resolvent is {type(s_system.resolvent).__name__}")
         if len(s_system.gains) != 2:
             pytest.fail(f"seedless gains are {s_system.gains!r} — expected (S, B_a)")
@@ -3319,8 +3319,8 @@ class TestWithinGroupSystem:
         # .apply (the (A,A) block matvec — its GMRES preconditioner is the
         # explicit identity, #200, so .solve never fires there). Either
         # entry IS the walk leg.
-        real_walk_solve = InvertibleOperator.solve
-        real_walk_apply = InvertibleOperator.apply
+        real_walk_solve = StreamingCollisionOperator.solve
+        real_walk_apply = StreamingCollisionOperator.apply
 
         def spy_walk_solve(op, rhs, *a, **kw):
             counters["walk"] += 1
@@ -3333,8 +3333,8 @@ class TestWithinGroupSystem:
         monkeypatch.setattr(CoupledOperator, "apply", spy_grid_apply)
         monkeypatch.setattr(CoupledOperator, "solve", spy_grid_solve)
         monkeypatch.setattr(CoupledSubstitutionOperator, "apply", spy_sub_apply)
-        monkeypatch.setattr(InvertibleOperator, "solve", spy_walk_solve)
-        monkeypatch.setattr(InvertibleOperator, "apply", spy_walk_apply)
+        monkeypatch.setattr(StreamingCollisionOperator, "solve", spy_walk_solve)
+        monkeypatch.setattr(StreamingCollisionOperator, "apply", spy_walk_apply)
         solver = SNSolver(sn, inner_solver=inner)
         solver.solve_fixed_source(
             np.ones((sn.ng, sn.nx)), np.ones((sn.ng, sn.nx)))

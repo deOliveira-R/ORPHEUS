@@ -14,7 +14,7 @@ Tests in this file:
   :class:`TypeError` when their argument operators lack the
   required Protocol surface.
 * **L1 (SN integration gate):** build an actual SN operator triple
-  (:class:`~orpheus.sn.operators.streaming.InvertibleOperator`
+  (:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
   (= ``A = L + C``) /
   :class:`ScatteringOperator` / :class:`FissionOperator`) for a
   2-group homogeneous slab and assert that :class:`KEigenvalue`
@@ -567,7 +567,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
 
     * :func:`solve_sn` (the legacy power_iteration-based path), and
     * :class:`KEigenvalue` directly on
-      ``(InvertibleOperator (= L + C), ScatteringOperator, FissionOperator)``
+      ``(StreamingCollisionOperator (= L + C), ScatteringOperator, FissionOperator)``
       with adapter shims that present scalar-flux shapes consistent
       across operators.
 
@@ -633,7 +633,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # Build the SN operator triple from the same precomputed solver
     # data used for the reference run.  ``A_inv_adapter`` (defined
     # below) wraps ``sweep_once`` directly; the
-    # :class:`InvertibleOperator` (= ``L + C``) on the SNSolver is
+    # :class:`StreamingCollisionOperator` (= ``L + C``) on the SNSolver is
     # unused here.  Solver instance retained to provide
     # ``solver.scattering_op`` / ``solver.fission_op`` / ``solver.mat_xs``.
     sn_mesh = SNMesh(mesh, quad, materials)

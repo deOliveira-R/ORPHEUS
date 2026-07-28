@@ -128,7 +128,7 @@ def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
 
 # Post-D-K (commit ``dadf4e8``), the within-group loss composite
 # ``L + C`` (:func:`build_streaming_collision` → ``StreamingOperator +
-# MultiplicationOperator``, i.e. :class:`InvertibleOperator`) routes through
+# MultiplicationOperator``, i.e. :class:`StreamingCollisionOperator`) routes through
 # :func:`_transport_operator_matvec_unified` natively for 1-D and
 # the representation's ``loss_action`` (which since S6.3 lives on
 # the loss representation, off the operator; ``ScanMarch`` default
@@ -141,7 +141,7 @@ def test_unified_slab_l1_homogeneous_kinf_2g(nx: int) -> None:
     r"""L1 — 2G homogeneous reflective slab via the unified matvec.
 
     Drives :func:`solve_sn` with ``inner_solver="krylov"`` — the
-    matvec routes through :class:`InvertibleOperator` (= ``L + C``)
+    matvec routes through :class:`StreamingCollisionOperator` (= ``L + C``)
     via :func:`_transport_operator_matvec_unified` for Cartesian
     meshes.  The converged ``k_eff`` is compared to the
     analytical ``k_∞ = (νΣ_f^T φ) / (Σ_a^T φ)`` reference at rtol < 5e-4

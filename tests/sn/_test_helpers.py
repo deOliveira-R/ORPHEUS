@@ -393,7 +393,7 @@ def legacy_proxy_matvec(
     The "legacy" prefix refers to the BOUNDARY-FILL CONVENTION (the
     pre-B1'' cell-centre proxy), not to retired code.  Production
     code uses the B1'' face-aware path via
-    :class:`InvertibleOperator` (= ``L + C``); this helper exists only
+    :class:`StreamingCollisionOperator` (= ``L + C``); this helper exists only
     for L0 tests that pin the legacy convention's behaviour against
     closed-form hand references.
     """
