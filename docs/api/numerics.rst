@@ -219,14 +219,21 @@ master condition that decides between :class:`TensorProductOperator`,
        over bespoke leaves per the MA-Q1 master condition. See
        :ref:`tensor-network-decomposition` for the per-substep rationale.
    * - :class:`~orpheus.numerics.operator.OperatorSum`
-     - 1 (load-bearing, post Wave T)
-     - Wave T T.3 scattering kernel
-       (:attr:`ScatteringOperator.kernel` =
-       ``reduce(add, kernel_summands)`` over per-ℓ
-       :class:`_PerLegendreOrderScattering`)
-     - The T.4 streaming per-direction split (``M_spatial`` as an
-       :class:`OperatorSum` of two per-direction summands) was retired
-       in #238 — it had no production consumer; the fused matvec
+     - many (the load-bearing composer)
+     - The within-group loss ``A_AA = (L+C) - S - B_a``
+       (:func:`~orpheus.sn.coupled_system.build_within_group_system`);
+       :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
+       (a subclass, pinning the ``L + C`` legs);
+       the diffusion loss ``leakage + collision - scattering - boundary``
+       (:mod:`orpheus.diffusion.solver`); the shared isotropic energy
+       kernel ``IsotropicScattering + IsotropicN2N``
+     - Every ``+``/``-`` in the operator algebra lands here (the
+       :class:`LinearOperator` dunder defaults), so the honest
+       :math:`A = L + C - S - B` composition IS a left-nested
+       ``OperatorSum``.  The T.4 streaming per-direction split
+       (``M_spatial`` as an :class:`OperatorSum` of two per-direction
+       summands) was retired in #238 — it had no production consumer;
+       the fused matvec
        (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`)
        walks both directions in ONE bidirectional pass.
        See :ref:`tensor-network-orchestrated-apply`.
@@ -243,15 +250,18 @@ master condition that decides between :class:`TensorProductOperator`,
        :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
        row-factor.
 
-**New SN-side bespoke leaves shipped in Wave T** (private to
-:mod:`orpheus.sn`, accessed via public properties; documented for
-forward-reference by Wave O typing work):
+.. note::
 
-* :class:`orpheus.transport.operators.scattering._PerLegendreOrderScattering` — per-ℓ
-  summand of :attr:`ScatteringOperator.kernel`. Public access via
-  :attr:`ScatteringOperator.kernel_summands`. Implements
-  :math:`R_\ell \circ \Lambda_\ell \circ M_\ell` for one Legendre
-  order.
+   Wave T T.3 originally shipped a private per-ℓ leaf
+   (``_PerLegendreOrderScattering``) summed into
+   :attr:`ScatteringOperator.kernel` via an :class:`OperatorSum`, exposed
+   as ``ScatteringOperator.kernel_summands``.  **Both were retired** in
+   ``93807aa7``, which factored the anisotropic path onto the shared
+   :math:`R\circ\Lambda` moment→source primitive.  Today the kernel is a
+   single :class:`~orpheus.numerics.operator.OperatorProduct` —
+   ``frame.conjugate(LegendreMomentScattering(..., skip_l0=True))``, i.e.
+   :math:`R \circ \Lambda_{\ell\ge1} \circ M` with **one** shared
+   :math:`\Lambda` rather than a per-ℓ summand family.
 
 .. note::
 
@@ -269,8 +279,10 @@ forward-reference by Wave O typing work):
    (:ref:`sn-mms-curvilinear-aniso-verification`).
 
 The leading-underscore primitives are intentionally private (the
-public surface is via the :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel`
-/ :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel_summands`
+public surface is via the
+:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel`
+and
+:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`
 properties on the operator classes). Wave O (`Issue #208
 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_) will introduce
 ``BulkOperator`` / ``FullOperator`` / ``BoundaryOperator`` Protocols
