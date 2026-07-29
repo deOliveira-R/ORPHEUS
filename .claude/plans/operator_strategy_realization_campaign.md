@@ -339,7 +339,53 @@ shims live one merge cycle only (`coding-standards.md`).
 
 > ⏸ **COMPACTION POINT.** Commit, then re-anchor from this file + `git log`.
 
-### ⬢ P3 — The gain side becomes a grid
+### ⬢ P3 — Shape symmetry: loss, M and N take the SAME partition
+
+> **User ruling (2026-07-29) — the SHAPE-SYMMETRY principle.** The gain operator composes
+> like the loss operator; implicit and explicit are the same *kind* of thing
+> operator-wise, so one partition machinery builds both and lowering serves both. The
+> machinery that builds System A must build System B and the coupled A⊕B.
+>
+> **This is required, not aesthetic.** Implicit-vs-explicit is a property of the
+> **assignment**, not of the operator — G-S *moves a piece of `B` across the boundary*.
+> A block cannot move from `M` to `N` if `M` and `N` have different shapes. Same-shape is
+> the precondition that makes the piece-split expressible; its absence is exactly why the
+> current G-S must un-name and re-derive, which **is R7**.
+>
+> **MEASURED (2026-07-29) — the carrying arm already complies; the seedless arm is the
+> anomaly, breaking it three ways:**
+>
+> | | `loss` | `implicit_operator` | `explicit_gains` |
+> |---|---|---|---|
+> | carrying (sphere) | `CoupledOperator(2×2)` | `CoupledOperator(2×2)` | `tuple[CoupledOperator(2×2)]` |
+> | seedless (slab) | `CoupledOperator(1×1)` | `StreamingCollisionOperator` | `tuple[Scattering, SNBoundary]` |
+>
+> **This RETIRES the "gain-grid partition" open question** posed in an earlier draft
+> ("does the seedless gain grid partition by system or by bulk⊕trace?"). The question was
+> mis-framed: it treated the gain grid as independently choosable. It is not — the SYSTEM
+> carries a partition and `loss` / `M` / `N` all inherit it. Choose once; three follow.
+>
+> **The symmetry extends to `F`.** `A`, `M`, `N` and `F` are all maps from the state space
+> to the source/residual space — which is precisely what makes the pencil contract
+> `domain(A) == domain(M_eig)` expressible (§P4). The pencil is this same symmetry one
+> level up, and it is unspellable today for the same reason: `Optional` domains and a
+> tuple for `N`.
+>
+> **Where the symmetry stops** (both real, neither a shape asymmetry):
+> *capability* — `M` must be invertible, `N` need not be (that is #213's morphism class,
+> `Iso ⊂ PartialIso ⊂ General`); and *lowering* — `M`'s inverse realization is
+> schedule-dependent while `N` only ever needs `apply`. Stage 4 is allowed to treat them
+> differently; that is what a lowering stage is for.
+>
+> **Composability is already the direction of record.** #296: *"`CoupledField` = N systems,
+> each a complete `(interior ⊕ boundary)` composite — today's `FullField` generalizes to a
+> carrier-generic `System[Interior, Boundary]`."* Unrealized only because bulk⊕trace and
+> systems are two unrelated types today (`Composite`/`FullField` vs `CoupledField`).
+>
+> **P3 therefore becomes**: make the seedless arm shape-consistent using the partition the
+> carrying arm already uses (concrete, small, independently valuable). Making the partition
+> a first-class *choosable* object stays P5. The acceptance target is the table above with
+> all three columns identical on both rows.
 
 1. `explicit_gains: tuple[...]` → a `CoupledOperator` gain grid on **both** arms. The
    carrying arm already holds exactly this (`gains=(N,)` with
@@ -355,10 +401,10 @@ shims live one merge cycle only (`coding-standards.md`).
    **lowering** detail; a named slot in the driver signature is a **role assignment**.
    The grid also preserves the property O.2a was protecting — extensibility by *data
    addition* (a future B-trace or α-time term is a new row/column, not a new named
-   parameter). Open design question for P3, to be settled with measurement: does the
-   seedless gain grid partition by **system** (1×1, folding `S+B_a` into its slot, as the
-   carrying arm does) or by **bulk⊕trace** (2×2, keeping them in the slots `BlockRole`
-   already tags)?
+   parameter). ~~Open design question: does the seedless gain grid partition by system or
+   by bulk⊕trace?~~ **RETIRED as mis-framed** — see the shape-symmetry ruling above: the
+   gain grid is not independently choosable; the SYSTEM carries the partition and
+   `loss`/`M`/`N` inherit it.
 3. `M⁻¹N` becomes formable ⇒ **ρ is probeable as an operator expression.**
 
 **Exit:** the RHS is an operator, not a positionally-parsed tuple.
