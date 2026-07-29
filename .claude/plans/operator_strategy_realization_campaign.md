@@ -391,6 +391,16 @@ shims live one merge cycle only (`coding-standards.md`).
 
 **Exit:** a strategy is a value; `_select_si_splitting` and the `str` flags retire.
 
+> **User ruling (2026-07-28): `ScheduledInvertibleOperator` is expected to DISAPPEAR with
+> this phase — do not rename it beforehand.** It exists only as what
+> `_select_si_splitting` returns when the G-S schedule folds `B_lower` into the implicit
+> operator. Once "fold a piece of `B` into the implicit set" is a *partition + assignment*
+> rather than a bespoke type, the class has no reason to exist. Its name states a
+> capability rather than the object (the defect fixed for `InvertibleOperator` →
+> `StreamingCollisionOperator` at `8367346f`), but renaming a symbol slated for retirement
+> is churn. **Retire, don't rename.** If P5 slips or the class survives the carve, the
+> rename returns to the table.
+
 ### ⬢ P6 — `solve auto` + the σ_r fold's honest home
 
 1. A policy object reading `Displacement.contraction_ratio` and branching:
