@@ -1741,6 +1741,198 @@ constraint, not a tolerance; (4) order the phases so no gate is unwritable
 at its phase's merge (write the red gate BEFORE the fix that flips it);
 (5) the rate DOF gets a closed form + a degenerate-seed control; (6) the
 composition DOF gets a call-count perf gate baselined pre-carve. Plan of
-record → `scratch/campaign_verification_plan.md`. Sharpens vv Mode 8
+record → `.claude/plans/campaign_verification_plan.md`. Sharpens vv Mode 8
 (signature-tautological) + Mode 9 (rate-blind degeneracy); mirrors L10
 (refute the premise) and L16 (one-source proof / object-not-scalar gates).
+
+---
+
+## L26 — A metric-adjoint (`.H`) reciprocity gate is blind exactly when `[G, A] = 0`: the decidable criterion is the COMMUTATOR, not "uniform h" — and a leaf whose action commutes with the metric ALGEBRAICALLY needs a second, metric-agnostic mutation or its row is a dead gate
+
+The received G1.4-style recipe — *"make the metric non-degenerate and
+non-uniform (non-uniform `h`, curvilinear so `V_cell` spans an order of
+magnitude); ship the uniform-`h` leg as the config-blindness control"* —
+is **two-thirds wrong, and both errors are measurable in minutes.** The
+mutation is the ERR-067/Mode-12 one: drop the metric inside
+`_AdjointOperator.apply` so `.H` degrades to the bare Euclidean
+transpose. Its residual is the **commutator** `[G, A]`: with diagonal
+`G`, `⟨Ax,y⟩_G = yᵀGAx` and `⟨x,Aᵀy⟩_G = yᵀAGx`, so the mutation is
+**identically silent iff `GA = AG`**. Three consequences, all MEASURED
+on the SN leaf set (P0, `main` @ `b0a003b4`):
+
+- **"Uniform `h`" is NOT the blind config.** A uniform-`h` slab under
+  `gauss_legendre(4)` still REDs at 1.3e-1 (`L`) / 4.0e-1 (`S`) / 2.7e-1
+  (`F`) — because `G = V_cell·w_n` and the *quadrature weights* vary even
+  when `V_cell` does not. Shipping it as the "blind control" would assert
+  a falsehood and the control would RED. The honest blind config is a
+  **globally CONSTANT** metric: `G = c·𝟙 ⟹ G⁻¹AᵀG = Aᵀ` exactly. Build it
+  deliberately — Cartesian slab (constant `V`) × `gauss_legendre(2)` (the
+  only SN rule with equal weights, both exactly 1) × `h = 1/√3` so the
+  bulk constant `V·w` EQUALS the trace constant `|Ω·n|·w = 1/√3` across
+  the bulk⊕trace composite. MEASURED: one unique metric entry, every leaf
+  blind at ≤ 4.3e-16 (vs 1.40/1.01/1.46 on the sphere). ALWAYS pin the
+  constancy as a precondition (`np.unique(...).size == 1`) or the leg
+  silently stops being the blindness proof — verified reddenable by
+  swapping the fixture for the sphere.
+- **The CURVILINEAR lever only constrains the leaves the metric fails to
+  commute with, and the quadrature FAMILY decides which.** A
+  `level_symmetric` rule has **constant weights** (MEASURED: one unique
+  value), so on a non-uniform sphere `G = V(space) ⊗ c` — which commutes
+  with every SPACE-DIAGONAL, angle-mixing operator. Result: `S` and `F`
+  measure **exactly 0.0** under the mutation; only `L` (bulk↔trace
+  coupled) reds. Swap to `gauss_legendre(4)` and `L`/`S`/`F` all red at
+  O(1). So "curvilinear + non-uniform `h`" is NOT sufficient — the metric
+  must vary along **both** the spatial and the angular axis. Check the
+  weight vector's unique count before trusting the config.
+- **Some leaves are metric-blind by ALGEBRA, in every reachable config —
+  say so, and close them with a DIFFERENT mutation.** A
+  `MultiplicationOperator` (`C`) is diagonal, so `Cᵀ = C` and `G⁻¹CG = C`
+  for ANY diagonal `G`: no configuration exists. A specular boundary
+  (`B`) is a signed PERMUTATION mapping `μ→−μ`, preserving both `|Ω·n|`
+  and `w_n`, so it commutes with the trace metric; the only
+  non-permutation face laws (white/albedo) are **refused by `SNMesh`**
+  (MEASURED: `ValueError`, only `reflective`/`vacuum` accepted), so there
+  is no reachable config either. Those rows are Mode-10
+  *exercised-but-unconstrained*. Do NOT assert their silence (it
+  calcifies a fact a legitimate change could move) and do NOT claim teeth
+  they lack. Close them with a **second, metric-agnostic mutation** —
+  scale the adjoint by 2, which reds EVERY leaf at exactly 0.5 relative —
+  so each row still provably pins `apply_transpose`'s structure, and
+  point at the gate that DOES pin their metric (for `B`: the existing
+  L11 drop-`|Ω·n|`-from-the-REFERENCE control in
+  `tests/sn/operators/test_g_adjoint_reciprocity.py`).
+
+**Two companion traps caught in the same file, both worth the habit:**
+
+- **The xfail-strict FALSE POSITIVE bit on first write (L4, live).** The
+  G1.5 row "an anonymous leaf must refuse construction" is written as
+  *construct → if it succeeded, demonstrate the degradation → `pytest.fail`*.
+  The demonstration (`.H` vs `apply_transpose` on a meshless `(ng,1)`
+  probe) blew up inside `np.einsum` for `ScatteringOperator` — so that
+  row "xfailed" while asserting **nothing** about the claim. Fix: the
+  demonstration is BEST-EFFORT, wrapped, and its outcome (including its
+  own failure) is reported as **evidence text inside the `pytest.fail`
+  message, never as the verdict**. Rule: in a strict-xfail body, there
+  must be exactly ONE statement that can fail, and it must be the
+  documented one — run `--runxfail` and READ every message before
+  crediting the gate.
+- **Prove the XPASS flip, don't assume it.** Simulate the landing phase
+  with a throwaway pytest **plugin** (`-p mysim` on `PYTHONPATH`) that
+  monkeypatches the production surface the phase will change
+  (`from_solver_data` raises without a space; `_apply_faces` raises a
+  typed `TypeError`) — the strict xfails then turn into
+  `[XPASS(strict)] …` hard failures, which is the proof the marker
+  forces acknowledgment. Cheap, in-process, and NEVER a `git checkout`
+  (this tree carries uncommitted-by-policy skill files with no history).
+
+Also durable from the same pass: **a "reuse the existing fixture" brief is
+a hypothesis, not an instruction.** The neighbouring SN operator fixtures
+carry `placeholder_materials` (SigS/χ/νΣf all zero) — MEASURED: `F` is
+then the ZERO operator and its reciprocity row is the tautology `0 == 0`
+(the non-vacuity guard reds with `|⟨Ax,y⟩_G| = 0.0` on all four
+geometries). Build the fissile `Mixture` DIRECTLY (L1: `make_mixture`
+nulls `SigL` AND `Sig2` and has no P1 channel), and state in the file
+WHY each neighbour was rejected — with the measurement.
+
+How to apply: for any `.H`/adjoint/metric gate, (1) write `G` explicitly
+and ask *which leaves commute with it* BEFORE choosing the fixture —
+that, not "non-uniform mesh", is the config criterion; (2) partition the
+leaves into metric-CONSTRAINED and metric-INVARIANT by running the drop
+mutation, and give the invariant ones a metric-agnostic non-vacuity
+mutation; (3) build the globally-constant-metric leg deliberately and
+guard its constancy; (4) `--runxfail` every strict xfail and read the
+message; (5) prove the flip with a plugin-based landing simulation.
+Sharpens vv Mode 12 (the ERR-067 metric-repair closure) with the
+commutator criterion, and vv Mode 10 (the third state:
+exercised-but-unconstrained *by algebra*, where no isolating regime can
+exist). Gate file → `tests/sn/architecture/test_monomorphic_leaves.py`.
+
+---
+
+## L25 — Building the call-count PERF gate (P0 of the three-DOF campaign, EXECUTED): "the count must not scale with `n_cells`" is TOO COARSE — the invariant is PER-AXIS, the regression it catches is EXACTLY value-identical, and a perf baseline is a (number, FIXTURE) pair
+
+L24 §6 specified the composition-cost gate as "a leaf-kernel call-COUNT
+that must not scale with `n_cells` (refine nx 20→160, assert the count is
+unchanged)". Building it against the tree corrected that in four ways.
+Every number below is MEASURED (branch `refactor/operator-strategy-layers`,
+`orpheus/` @ `360a8087` ≡ `361471ec`, host `.venv` Py 3.14.3, `python -O`).
+
+**1. The spec's leaf name was STALE — prove the wrap fires BEFORE asserting.**
+`DiamondDifference.update_batch` does not exist (renamed at S6.4(e) to
+`cell_kernel_batch` / `residual_kernel_batch`). The genuine apply-direction
+leaf on `A.apply(x)` is **`residual_kernel_batch`**. The non-vacuity proof
+is two-part and the SECOND part is what makes it a proof: (a) the counted
+method fires (>0) on a real apply on every geometry; (b) the plausible
+SIBLINGS (`cell_kernel_batch`, per-cell `residual`, per-cell `update`)
+stay at **exactly 0** through the SAME harness — which simultaneously
+demonstrates the harness reports 0 for an off-path name, i.e. that the
+vacuity branch is real (vv Mode 11). Never assert a count before both.
+
+**2. The invariant is PER-AXIS. Measure which axes are hoisted FIRST.**
+MEASURED arity of ONE `A.apply(x)`:
+
+| path | count | scales with |
+| --- | --- | --- |
+| 2-D Cartesian `ScanMarch` (production default) | `8 · ny` = 80/80/80/80 at nx=8/16/32/64 | **ny only** — invariant in nx, in `sn_order` (S2/S4/S6 → 80/80/80 at N=8/24/48) and in ng (1/2/4 → 80/80/80) |
+| 1-D slab `CumprodScan` **apply** | `2 · nx` = 40/80/160/320 at nx=20/40/80/160 | **n_cells — already a per-cell Python fold** |
+| 1-D slab `CumprodScan` **solve** (`ordinate_scan`) | `2` at every nx | nothing — fully hoisted |
+
+So a blanket "count must not scale with `n_cells`" would have been FALSE
+on `main` for 1-D and would have shipped either a permanently-red gate or
+(worse) a quietly-weakened one. The honest gate is four legs:
+(a) strict `==` on the **scanned** axis (the catcher); (b) calls/cell must
+DECAY under isotropic refinement (1.00→0.50→0.25 MEASURED — admits the
+honest per-row linearity of the marched axis while still forbidding the
+per-cell regime); (c) an **exact-arity regression FLOOR** on the
+already-folded path (pin `2`, red on BOTH sides — an improvement must
+re-baseline consciously, L7); (d) the hoisted sibling as a **CONTROL leg**
+proving the instrument can see invariance, so leg (c)'s linearity is a
+property of the code and not of the harness.
+
+**3. The regression class is EXACTLY value-identical — that IS the argument.**
+Re-dispatching the batched kernel once per column of its level slice
+(the faithful L16 fold) gives `np.array_equal` **True**, `max|diff|`
+**0.0e+00** — the DD residual kernel is cell-local, so the split changes
+the arity and nothing else. **No value gate, at any tolerance, against any
+reference, can ever see this.** State that measurement in the module; it is
+what demotes wall-clock to corroboration and promotes the count to catcher.
+Corollary for the mutation battery: **check the batch SHAPE the leaf
+receives before choosing the fold axis.** A cell-axis fold is INERT in 1-D
+(`psi_bar` is already `(4, 2, 1)`; 2-D gets `(3, 2, nx)`) — mutate the
+ordinate axis there instead (`{20:40,…}` → `{20:200,…}` → RED). A mutation
+that fails to red because it is inapplicable is NOT "the gate has no teeth".
+
+**4. A perf baseline is a (number, FIXTURE) PAIR — own the fixture, gate it.**
+Do NOT source a perf fixture from the package's shared `_config`: the
+correctness gates are free to retune it (a Mode-9 fix bumping S4→S6, a
+third region) and every committed constant silently starts describing a
+different problem. Import the shared *conventions* (the direct `Mixture`
+builder, the one posing site, the carrier-generic probe state), own the
+*sizes*, and ship a **fixture-fingerprint gate** (`n_cells`, `n_ordinates`,
+`n_groups`, `n_regions`, `n_dof`) whose failure message says RE-CAPTURE.
+Read `n_regions` off `material_xs_field().cells_by_material` (typed,
+dimension-agnostic, and it counts materials as the OPERATORS resolve them)
+— never off `mesh.mat_map`, which is 2-D-only and `Optional`.
+
+**Tolerance discipline, split by contention-immunity.** MEASURED: P-2
+(wall clock, ratio to an in-process dense contraction of the same nominal
+FLOP count) = 22.45–24.41 across runs → the constant is PROVISIONAL on a
+contended host; set it at ~3× and say so. P-3 (`tracemalloc` peak /
+`n_dof·8`) = 3.0299–3.0328, spread **0.03 %** → contention-IMMUNE, so
+TIGHTEN it rather than padding it: MEASURED `+1/+2/+3` held full-field
+temporaries → `4.035 / 5.033 / 6.033`, so `4.0` catches the FIRST extra
+field where the plan's suggested `6.0` needs three. Note a PEAK metric is
+blind to transients below the existing peak (a 0.6 MB per-call scratch
+moved the reading by 0.0006); the mutation that proves its teeth must
+HOLD the temporary, which is also the mechanism the gate exists to catch.
+
+How to apply: for any composition-over-fusion carve, (1) find the real
+batched leaf by wrapping candidates and reading the counts — never trust a
+spec's illustrative method name; (2) tabulate the arity against EVERY axis
+(cell, ordinate, group, and each spatial axis separately) before writing a
+single assertion; (3) prove the fold mutation is value-identical and put
+that number in the docstring; (4) split the legs by contention-immunity —
+pad the wall clock, tighten the allocation; (5) fingerprint the fixture.
+Delivered: `tests/sn/architecture/test_composition_cost.py` (9 gates,
+0.9 s, pyright-clean). Refines L24 §6; sharpens L16 (the perf-regression
+precedent) and L4 (prove every gate's teeth).
