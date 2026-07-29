@@ -105,6 +105,61 @@ question the machinery answers.
 > one) to implicit or explicit · the **schedule** follows from the implicit set's
 > dependency structure
 
+### 1.0 The PAIRED-CONSTRUCTION ruling (user, 2026-07-29)
+
+> **The loss and gain operators are built as a PAIR, so nothing can get lost.** A split of
+> one operator into two must happen **at a single place**, with both halves **absorbed
+> into their targets immediately and unmissably** — never "construct `B_lower` here, fold
+> it into the loss; then N lines below construct (or forget) `B_upper` and hand-roll it
+> into the gain, hoping it was done right."
+
+**Formalization — make the ASSIGNMENT the primitive and DERIVE `M`, `N`:**
+
+* `A` decomposes into **pieces** (blocks, or sub-blocks after refinement);
+* every piece carries exactly **one label** — implicit or explicit;
+* `M = Σ(implicit pieces)`, `N = Σ(explicit pieces)`.
+
+Then `A = M − N` holds **by construction of the labelling, not by assertion** — a piece
+cannot be lost, because every piece has a label and the labels partition the piece set.
+A *split* is a **refinement**: replace `P` by `(P₁, P₂)` with `P₁ + P₂ = P`, gated once at
+the refinement, then label each independently. The only mutation the pair admits is a
+**transfer**, invariant-preserving by arithmetic:
+
+```
+move P from explicit to implicit:   M ← M − P ,   N ← N − P
+                                    M′ − N′ = M − P − N + P = A     ✓
+```
+
+**Why this is the strongest available control: it makes the σ_r bug UNSPELLABLE.** The bug
+wanted `M = LC − Σ_s0·𝕀`, but `Σ_s0·𝕀` **is not a piece of `A`** (the pieces are `LC`,
+`S = Σ_s0·P_iso + Σ_{s,ℓ} + …`, `B`). Refining `S` and labelling `Σ_s0·P_iso` implicit
+gives the honest `M = LC − Σ_s0·P_iso`, which the capability check then refuses because it
+is not sweep-invertible. The bug required **substituting a different operator during the
+move**; `transfer` gives that substitution nowhere to happen.
+
+**Current state — the precedent is half-right.** `SNBoundaryOperator.split`
+(`sn/operators/boundary.py:431`) IS atomic and returns a *named* pair, and its docstring
+already states the defence: *"Returns a named pair so the two construction sites cannot be
+swapped silently."* What is missing is the other half: the absorption is two loose
+expressions (`return LC - parts.lower, (S, parts.upper)`, `solver.py:774`) — write `(S,)`
+and the complement vanishes with nothing to catch it — and it happens in
+`_select_si_splitting`, a **different place** from where the record's `(M, N)` was built.
+That second fact **is R7**.
+
+**The productive caveat — this discipline is NARROWER than general splittings, and the
+narrowing is a feature.** Classical Jacobi (`M = D`, `N = D − A`) invents an `M` that is
+not a sum of `A`'s pieces. So there are two categories, and the discipline separates them:
+
+| | how `M` is formed | `A = M − N` | spectral gate |
+|---|---|---|---|
+| **partition splitting** | assignment over `A`'s own pieces | **by construction** | rate only |
+| **approximation / preconditioner** | invent `M`, define `N = M − A` | by definition | **REQUIRED** — nothing structural bounds ρ |
+
+Sweep, angular Jacobi, boundary G-S, block-triangular — all category 1, safe by
+construction. **The σ_r fold is category 2**, which is exactly why it needs the §3 spectral
+gate and why its home is #200 rather than the splitting machinery. The discipline
+classifies it automatically instead of relying on memory.
+
 Two consequences worth stating because they are easy to lose:
 
 * **Posing precedes partitioning.** The posing decides which leaves are even *in*
