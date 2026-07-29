@@ -68,3 +68,14 @@ durable-shape section spells it (the ATTRIBUTE reads as `.interior`; prose
 `KrylovAcceleration` HAS a `preconditioner=` seam while the SN production path
 passes an explicit identity lambda (#200). Full transient map (line numbers):
 `.claude/plans/dsa_landing_zone_recon.md` — re-derive after Phase 3 merges.
+
+**Third AGENT.md drift (verified 2026-07-28, post-DSA-merge @ `8654d348`):** the
+durable-shape section calls the `_reflect_outflow_into_inflow` **driver shim**
+RETIRED. Correct for the DRIVER route (`B` is a first-class gain), but the helper
+itself is STILL LIVE with exactly ONE production caller — the `solve_sn`
+eigenvalue FINALIZE sweep (which has no driver to route through). Its own
+docstring is stale on both other consumers it claims (`_solve_fixed_source_si`
+explicitly says the route is "NOT needed"; the octant G-S resolvent uses
+`SNMaskedBoundaryOperator.reflect_rows_inplace` instead), so its `faces=`
+parameter has zero callers anywhere. Say "retired from the drivers; survives for
+the finalize sweep," not "retired."

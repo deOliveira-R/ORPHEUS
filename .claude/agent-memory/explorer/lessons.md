@@ -171,6 +171,41 @@ round-trip. Quote separators (`printf 'NAME\n'` or `echo "---"`), never bare
 
 ---
 
+## L-009 -- A dataclass-FIELD rename audit is a grep problem, not a graph problem — and the field name may be a substring of an English word
+
+Two independent findings from the `WithinGroupSystem.resolvent`/`.gains` rename
+audit, both of which change how the NEXT field-rename audit is run:
+
+**(a) Nexus does not model dataclass fields as nodes.** `context` on
+`py:class:…WithinGroupSystem` returns class-level edges (doc pages, implemented
+equations, referencing functions) but the only `py:attribute:` node was
+`…WithinGroupSystem.loss` (degree 2) — `.resolvent` and `.gains` had NO nodes at
+all, despite ~75 consumer lines. The graph surface contributed **0 of the 75**
+sites. This is L-001's "graph alone under-scopes" at its extreme: for a FIELD
+(as opposed to a function/class/method) rename, **text-grep is the primary
+evidence and the graph is at best a way to find the owning class's doc pages.**
+Don't spend a round-trip on `impact`/`callers` for a field; spend it on
+`grep -rn "\.<field>\b|<field>=|<field>:"` plus a `replace(obj, <field>=` /
+`getattr` / `asdict` sweep for dynamic access.
+
+**(b) Check whether the OLD token is a substring of a common word before
+proposing any replace strategy.** `gains` is a substring of **`against`**
+(a-**gains**-t) — 679 occurrences in `orpheus/`+`tests/` `.py` alone. A bare
+`sed s/gains/…/g` or an unanchored `replace_all` corrupts every one. The same
+class of trap: `loss` ⊂ `lossless`, `space` ⊂ `namespace`, `role` ⊂ `payroll`,
+`gain` ⊂ `bargain`. It also poisons the CENSUS, not just the edit — my first
+grep of the owning file reported 21 `gains` hits where 2 were `against` in
+prose.
+
+How to apply: for any rename audit, (1) skip the graph for fields and go
+straight to anchored greps; (2) run one `grep -c "<newword-containing-old>"`
+sanity probe — or simply grep the old token with `-w`/`\b` anchors AND without,
+and report the delta as a hazard line in the deliverable. Report the anchoring
+requirement as an explicit instruction to the implementer, since a rename is
+usually executed by a different agent than the one that audited it.
+
+---
+
 ## L-006 -- A "shape probe" is not always a missing predicate — split boolean-presence from integer-width before proposing a typed swap
 
 Asked to collapse N value-based `arr.shape[-1] > 1`-style probes into one typed

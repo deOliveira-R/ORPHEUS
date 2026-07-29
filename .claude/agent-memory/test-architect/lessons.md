@@ -1650,3 +1650,97 @@ FP-invariance-only plan is Mode-9-complete for the σ_r-fold and Mode-9-EMPTY
 for the machinery. Sharpens vv Mode 9 (the config degeneracy) with the
 gate-completeness corollary. Full spec → `.claude/plans/dsa_verification_spec.md`.
 `vv §Mode-9/12 / anti-#8 / Signature-9 / bit-identity`.
+
+---
+
+## L24 — Verifying a THREE-DOF SEPARATION campaign (operator ∥ splitting ∥ realization): MEASURE the proposed acceptance criterion BEFORE the plan is anchored on it — a signature-invariance AC is permanently GREEN, and the real red is the WELD (one record carrying two stages, its stale half silently re-derived downstream)
+
+A campaign that separates degrees of freedom the code conflates arrives
+with an acceptance criterion of the shape *"changing X must not touch Y"*.
+That shape is a trap: it is usually **already true by SIGNATURE**, so the
+gate is unfalsifiable from the first commit. The highest-value output of a
+proactive dispatch is REFUTING it with a measurement (L10), then supplying
+the criterion that IS red.
+
+- **Run the AC as a probe before writing any gate.** Measured on `main`
+  @ `b0a003b4`: `build_within_group_system(sn_mesh, mat_xs, *,
+  scattering_op, scattering_order)` takes **no** strategy parameter ⟹ the
+  posed `A` is strategy-invariant by construction; and `A x == (M−ΣN) x`
+  reads **EXACTLY 0.0** (2-D Cartesian seedless, both schedules) /
+  **3.5e-17** (sphere carrying — the coupled grid re-associates, so
+  `array_equal` is the WRONG contract there from day one). Falsifiers
+  (drop `B` → 5.15e-2; sign-flip `N` → 8.57e-3) prove the probe
+  non-vacuous — it is simply GREEN. → the new **vv Mode-8 SIGNATURE-
+  tautological** sub-case: a falsifier check PASSES on such a gate, so
+  "does it red?" gives FALSE confidence; the honest gate is on the
+  SIGNATURE (adding the knob must red it), and the value row demotes to a
+  regression floor.
+- **The red is the WELD, and it is findable by object IDENTITY, not
+  value.** `WithinGroupSystem` carries stage-2 (`loss`) AND stage-3
+  (`implicit_operator`/`explicit_gains`) in one record, so there is no
+  boundary at which "strategy may enter" is assertable — and because there
+  is none, a SECOND splitting grew beside the first: measured
+  `_within_group_si(..., inner_schedule='gauss_seidel')` returns
+  `base is record.implicit_operator` → **False** (driver runs
+  `ScheduledInvertibleOperator`+`SNMaskedBoundaryOperator`; the record
+  still advertises `StreamingCollisionOperator`+`SNBoundaryOperator`),
+  while `jacobi` → **True**. The `is`-identity gate across the strategy
+  ladder catches this; no value gate can (both splittings reconstruct the
+  same `A` — that is what makes them both *valid* and the twin *silent*).
+  Ship the green arm as the CONTROL leg so the asymmetry is pinned.
+- **`A − M` may not even be SPELLABLE.** Measured:
+  `IncompatibleOperatorComposition — OperatorSum requires equal domains;
+  got CoupledSpace('coupled(full_field)', shape=(128,)) and
+  FullFieldSpace('full_field', shape=(128,))`. Same shape, different NAME
+  ⟹ `FunctionSpace.__eq__` refuses. So the splitting identity can only be
+  checked by APPLYING to a state with a manual carrier unwrap — a
+  structural red worth naming in the plan, because it is invisible to
+  every value probe.
+- **Monomorphism reds are cheap to measure and belong in the plan, not
+  the implementation.** `F.domain is None` on the production
+  `from_solver_data` build (every other leaf reports a concrete space);
+  `F.H` then BUILDS and silently returns a bare Euclidean transpose
+  (`_AdjointOperator.apply` applies the metric only when both inner spaces
+  are non-`None`). Also: the carrier guard is NON-UNIFORM — one leaf
+  raises a typed `TypeError` with a remediation message, another a raw
+  `AttributeError`. Gate the CONTRACT (one carrier accepted, all others
+  refused with a typed message), never the dispatch SPELLING when a
+  corpus ruling parks it (#261) — the plan must respect the parked
+  ordering or it will be rejected on process, not on math.
+- **The rate DOF needs its own closed form, and the degenerate regime
+  kills the RATE gate too.** ρ(M⁻¹N) is the one constraint structure
+  cannot supply. Its anchor is hand algebra on the spatially-flat /
+  angularly-anisotropic mode (`L=0` ⟹ `ρ = c` standard SI, `ρ = c/(1−c)`
+  for the σ_r fold, diverging at `c ≥ ½`); an ISOTROPIC power-iteration
+  seed makes `N ≡ 0` and ρ reads **identically 0** — ship that as a
+  permanent CONTROL leg, not a one-off mutation. 1G is LEGITIMATE for a ρ
+  claim (declare the claim layer). The measurand already exists and is
+  read by nothing: `SourceIteration.contraction_ratios`
+  (`numerics/iteration.py:742`) — cross-check the operator-side power
+  iteration against it (`rtol=5e-2`); disagreement means the driver is not
+  running the advertised splitting (the weld regression, above).
+- **A composition-over-fusion carve owes a PERF gate whose catcher is
+  STRUCTURAL, not wall-clock.** `A_ij = Rᵢ A Jⱼ` is the exact shape that
+  cost 10–20× on slab / ~6× on the suite with every correctness gate green.
+  Wall-clock is machine-dependent and CI-flaky (normalise against an
+  in-process same-FLOP calibration if used at all); the deterministic
+  catcher is a **leaf-kernel call-COUNT that must not scale with `n_cells`**
+  (refine nx 20→160, assert the count is unchanged) plus a `tracemalloc`
+  peak-per-DOF ceiling. Capture the baseline on the commit BEFORE the
+  composition phase — a perf gate baselined after the regression is worthless
+  — and hard-block that phase's merge on it.
+
+How to apply: for any N-DOF separation campaign, (1) EXECUTE the proposed
+AC as a probe and report GREEN loudly if it is — a plan anchored on a false
+red ships unverifiable phases; (2) hunt the WELD (one record spanning two
+stages) and gate it by object `is`-identity across the strategy ladder,
+with the already-green arm as the control; (3) enumerate the *unspellable*
+states (cross-carrier composition, absent pencil type) separately from the
+red ones — unspellable is worse than red and needs a phase-ordering
+constraint, not a tolerance; (4) order the phases so no gate is unwritable
+at its phase's merge (write the red gate BEFORE the fix that flips it);
+(5) the rate DOF gets a closed form + a degenerate-seed control; (6) the
+composition DOF gets a call-count perf gate baselined pre-carve. Plan of
+record → `scratch/campaign_verification_plan.md`. Sharpens vv Mode 8
+(signature-tautological) + Mode 9 (rate-blind degeneracy); mirrors L10
+(refute the premise) and L16 (one-source proof / object-not-scalar gates).
