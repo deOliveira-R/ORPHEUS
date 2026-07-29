@@ -42,16 +42,16 @@
 > 3. `git status --porcelain -- orpheus` — expect **empty** (P0 changed no production
 >    code). If it is non-empty, P1 has already started.
 >
-> **Full-tree gate status:** launched at the end of P0 and still running at the
-> compaction point — **15 % after 15 min ⟹ ≈100 min projected**, not the ≈52 min the
-> memory note records. That is *pace, not an anomaly*: the tree has grown 6391 → **6947**
-> collected tests since that baseline was taken, and the first minutes overlapped the P-2
-> recapture. Log: `$CLAUDE_JOB_DIR/tmp/fulltree.log`.
-> **Its verdict was NOT yet read.** Treat P0 as gate-pending until someone reads it, or
-> just re-run:
-> `.venv/bin/python -O -m pytest tests/ -q -m "not slow"`. Expected: 0 failures — P0 added
-> only new test files and touched no production code, so a red would be pre-existing or
-> environmental. (The architecture package alone is green, run many times.)
+> **Full-tree gate: ✅ GREEN.** `.venv/bin/python -O -m pytest tests/ -q -m "not slow"`
+> → **6743 passed, 18 skipped, 222 deselected, 75 xfailed, 0 FAILED, in 52:43.**
+> P0 is gate-cleared, not merely gate-pending.
+>
+> *(Correction for anyone reading an earlier revision of this block: it briefly recorded
+> "15 % after 15 min ⟹ ≈100 min projected". That extrapolation was invalid — pytest's
+> percentage counter advances by test COUNT, not wall clock, and the duration
+> distribution is far from uniform. The run finished in 52:43, matching the ~52 min in
+> `reference_test_execution_env` exactly. Do not linearly extrapolate a pytest
+> percentage.)*
 
 > ### Four corrections already absorbed — do NOT re-derive them
 > 1. **The obvious acceptance criterion is signature-tautological.** "The posed equation
