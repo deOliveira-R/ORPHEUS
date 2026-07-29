@@ -41,6 +41,7 @@ The Transport Path Integral: One Object, Five Methods
       eigenvalue_posing: "k and α are properties of the OPERATOR, posed before any discretization; every method inherits the posing"
       gates_resolved: "#298 + #299 fixed in-branch; Phase-I literature survey ingested (Larsen–Morel 2010, Adams–Larsen 2002)"
       delivered: [kinetic_ledger, name_chain, generator_splitting_table, girsanov_bridge, three_axis_method_table, pade_positivity_table, method_placement_map, eigenvalue_spectral_yield]
+      algebra_of_record: orpheus.derivations.discrete.sn.sweep_acyclicity   # the A1 sweep-DAG claim: SCC decomposition of the (face, ordinate) trace digraph
       depends_on: [operator_algebra, discretization]
       parent_of: [methods/index]
 
@@ -1103,10 +1104,22 @@ and ORPHEUS treats it as one:
   e.g. both faces of a slab reflecting. The honest extraction criterion
   is therefore not a boolean on the boundary type but an **SCC
   decomposition** of the (face, ordinate) dependency digraph: extract
-  exactly the strongly connected components, sweep everything else. (The
-  S\ :sub:`N` grand report *proposes* names for these components —
+  exactly the strongly connected components, sweep everything else.
+
+  That criterion is now **executable**:
+  :mod:`orpheus.derivations.discrete.sn.sweep_acyclicity` builds the
+  trace digraph and computes its SCCs, and
+  ``tests/sn/sweep/test_sweep_acyclicity.py`` gates the verdicts —
+  ``reflective|vacuum`` and ``vacuum|reflective`` acyclic,
+  ``reflective|reflective`` two mirror-pair SCCs with the closing edges
+  named, ``periodic`` cyclic from a single law. The same module records
+  a distinction easy to lose: acyclicity says *some* one-pass order
+  exists, while triangularity is a property of an (operator, **order**)
+  pair — a left-reflecting slab is one-pass in the :math:`\mu<0`-first
+  order, a right-reflecting one needs :math:`\mu>0` first. (The
+  S\ :sub:`N` grand report *proposes* names for the components —
   ``SweepStrongComponent``, ``ReflectiveSweepCycle`` — as a design
-  direction; ORPHEUS does not yet ship them.)
+  direction; ORPHEUS does not yet ship them as production types.)
 
 The object is one; the operators are many
 -----------------------------------------

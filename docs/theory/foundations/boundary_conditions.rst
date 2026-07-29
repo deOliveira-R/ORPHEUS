@@ -1829,21 +1829,66 @@ and exit as outflow values that the BC consumes but doesn't feed
 back. For two BC families this is no longer true:
 
 * **Reflective.** The outflow flux at a face is mapped to an inflow
-  flux at the **same** face (under the reflection permutation). The
-  cell visits that produce the outflow are predecessors of the cell
-  visits that consume the reflected inflow — but those are *the
-  same cells*. The sweep DAG acquires a cycle and a self-consistent
-  fixed-point iteration must converge the reflective inflow against
-  the outflow.
-* **Periodic.** Same situation, but the cycle spans two different
-  faces (outflow at face A maps to inflow at face B, and vice
-  versa).
+  flux at the **same** face (under the reflection permutation), so
+  the law adds a *trace back-edge*: an outflow slot feeds an inflow
+  slot. Whether that edge closes a **cycle** depends on the rest of
+  the configuration — see the warning below.
+* **Periodic.** The edge spans two different faces (outflow at face
+  A maps to inflow at face B, **and vice versa**). Because the pair
+  of edges is mutually feeding, periodic closes a cycle from a
+  *single* law — which is why an :class:`SNMesh` refuses it outright
+  (:attr:`SNMesh.BOUNDARY_OPERATOR_REGISTRY` admits only ``vacuum``
+  and ``reflective``).
+
+.. warning::
+
+   **A reflecting face does not, by itself, create a sweep cycle.**
+   The proposition "reflective ⟹ the sweep DAG acquires a cycle" is
+   *false as stated*, and it is worth stating precisely because the
+   opposite reading would forbid something ORPHEUS actually does: the
+   curvilinear :math:`r = 0` pole mirror is a specular reflection kept
+   **inside** the walk, certified lower-triangular, because the sweep
+   visits :math:`\mu < 0` before :math:`\mu > 0` and the mirror feeds
+   strictly downstream.
+
+   A cycle requires a closed **loop** — e.g. *both* faces of a slab
+   reflecting, so the left mirror feeds the :math:`\mu>0` sweep and
+   the right mirror feeds it back. The honest criterion is therefore a
+   **strongly-connected-component decomposition** of the
+   :math:`(\text{face}, \text{ordinate})` trace digraph, not a boolean
+   on the boundary *kind*.
+
+   This is executable, not editorial:
+   :mod:`orpheus.derivations.discrete.sn.sweep_acyclicity` is the
+   algebra of record, and
+   ``tests/sn/sweep/test_sweep_acyclicity.py`` gates it. Measured on
+   an S\ :sub:`4` slab:
+
+   .. csv-table::
+      :header: left, right, acyclic?, why
+      :widths: 16, 16, 12, 56
+
+      vacuum, vacuum, **yes**, no boundary edge at all
+      reflective, vacuum, **yes**, one mirror — a forward edge
+      vacuum, reflective, **yes**, the mirror image of the above
+      reflective, reflective, **no**, "2 SCCs, one per mirror pair"
+
+   A second distinction the same module makes, easy to conflate with
+   the first: acyclicity says *some* one-pass order exists, not that a
+   **given** one does. A left-reflecting slab is one-pass in the
+   :math:`\mu<0`-first order; a right-reflecting slab is equally
+   acyclic but needs :math:`\mu>0` first. Triangularity is a property
+   of an (operator, **order**) pair.
 
 The :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.creates_sweep_cycle`
-``ClassVar`` is the structural signal that lets the §15A.2
-sweep-cycle detector identify these BCs without inspecting the
-realization. It is ``True`` on :class:`ReflectiveBoundary` and
-:class:`PeriodicBoundary`, ``False`` on every other law.
+``ClassVar`` is ``True`` on :class:`ReflectiveBoundary` and
+:class:`PeriodicBoundary`, ``False`` on every other law. Read it as a
+**conservative per-law hint** — "this law *can* participate in a
+cycle" — never as a per-configuration verdict, which only the SCC
+decomposition supplies. It is currently declarative: no production
+code reads it, and the §15A.2 sweep-cycle detector it was designed to
+feed is not built (the invariant named for that job,
+``assert_cycles_are_declared``, is likewise unimplemented).
 
 Vacuum, white, albedo, and prescribed-inflow are all cycle-free:
 they consume :math:`\gamma_+ \psi` and produce a function of it
