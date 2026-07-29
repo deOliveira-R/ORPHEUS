@@ -6,14 +6,18 @@
 > `git log`, never from a conversation summary.**
 >
 > ### Where the tree is
-> Tier 1 (the naming-honesty carve) **merged to `main` @ `b0a003b4`** — 8 commits;
-> this checkpoint is the commit that added this block, directly on top.
-> **Nothing of this campaign is implemented. Phase P0 has not started.**
+> Tier 1 (the naming-honesty carve) **merged to `main` @ `b0a003b4`**; the three
+> ruling commits (`9cc69420`, `6946fe30`, `360a8087`) sit on top.
 >
-> As of writing, `main` was **ahead of `origin/main` and unpushed** — but that is a
-> point-in-time snapshot and it lies forward. **Verify with `git status -sb` /
-> `git merge-base --is-ancestor`; never trust this line**
-> (`.claude/rules/process-discipline.md`: trust git for merge-status, not a frozen note).
+> **P0 is IN PROGRESS on branch `refactor/operator-strategy-layers`.**
+> **O-1 is DISCHARGED @ `9a546640`** — `tests/sn/architecture/` exists and carries
+> AC-b (R7 pinned, `xfail(strict=True)`), AC-b′, and M-5/M-6/M-7 with every number
+> MEASURED on that commit. No production change has been made. `WithinGroupSystem`
+> and `_select_si_splitting` are now SAFE TO TOUCH — they were not, before that commit.
+>
+> Any "merged / not merged / in-flight" line in this file is a point-in-time snapshot
+> that lies forward. **Verify with `git status -sb` / `git merge-base --is-ancestor`;
+> never trust the prose** (`.claude/rules/process-discipline.md`).
 >
 > ### Read order
 > 1. this block · 2. §2 (the acceptance criterion — it was CORRECTED, do not use the
@@ -38,9 +42,10 @@
 >    a lowering detail, not a role assignment. See §1.1 and §6/P3.
 >
 > ### The immediate next action
-> **P0, item 1 (constraint O-1): write AC-b RED — before touching `WithinGroupSystem` or
-> `_select_si_splitting`.** Fix R7 first and the fix is unprovable, and a future re-split
-> cannot be caught. See §11.
+> ~~P0 item 1 (O-1): write AC-b RED.~~ **DONE @ `9a546640`.** Next: P0 items 3 and 4
+> — the leaf gates G1.1/G1.3/G1.4/G1.5 (O-2/O-3, before P1 makes the degradations
+> unrepresentable) and the P-4 performance baseline (O-6, a hard blocker for stage 3).
+> See §11 for live status.
 >
 > ### At risk if the working tree is disturbed
 > `.claude/skills/vv-principles/{SKILL.md,error_catalog.md}` carry **two new failure-mode
@@ -633,25 +638,42 @@ Standing requirements regardless:
 
 ---
 
-## 11. First session
+## 11. P0 — live status
 
-**P0 only, and O-1 first within it.**
+**Branch `refactor/operator-strategy-layers`. No production change in P0**: everything
+here is a gate that reds against `main`, or a number recorded from it.
 
-Order inside P0, from the verification plan's constraints:
+1. ✅ **AC-b + AC-b′ — DONE @ `9a546640`** (O-1 discharged).
+   `tests/sn/architecture/` minted: `_config.py` (the verification plan's §8
+   mandatory-configuration table, ONE home — O-11's rule applied to the fixtures) and
+   `test_stage_separation.py`. **14 passed, 1 xfailed; pyright CLI 0 errors.**
+   * **AC-b** pins R7 as `xfail(strict=True)`, and `--runxfail` confirms it reds for the
+     *right* reason ("driver ran `ScheduledInvertibleOperator`, record advertises
+     `StreamingCollisionOperator`"), not incidentally — an xfail otherwise hides any
+     failure (Mode-11 discipline).
+   * Control legs shipped alongside: `jacobi`; both sphere rows (schedule is inert on
+     the carrying arm); the **Krylov** path green on both arms (R7 is SI-specific — if
+     that row reds, the defect spread); and **the slab trap as a named row**, so the
+     wrong answer this campaign already got once cannot be got again.
+   * **AC-b′** per-arm and MEASURED: seedless exactly 0 ULP, carrying 4.48e-17 (passes
+     at `nulp=8`, fails at 4). A uniform bit-identity contract is refused.
+   * **M-5** 1.00e-01 / 1.83e-02 · **M-7** 3.32e-02 / 3.66e-02 · **M-6** the exact σ_r
+     fold: honest `N` 2.93e-17 green, `N=0` **5.43e-03 RED** on an anisotropic state and
+     **3.57e-18 INVISIBLE** on an angularly-flat one. Leg 3 is Mode 9 in closed form and
+     ships as a permanent control; the *mechanism* (`Σ_s0·P_iso ≡ Σ_s0·𝕀` on a flat flux,
+     measured 2.045 both) is asserted directly so the control stays falsifiable.
+   * ⇒ **`WithinGroupSystem` and `_select_si_splitting` are now safe to touch.**
+2. ⏳ **G1.1 / G1.3 / G1.4 / G1.5** — the leaf gates, red against today's
+   `FissionOperator` (`domain is None`), `SNBoundaryOperator` (raw `AttributeError`) and
+   `F.H` (silent Euclidean). O-2/O-3: they must exist **before** P1 makes any of those
+   unrepresentable, else the degradation loses its catcher. Same `xfail(strict=True)`
+   convention as AC-b.
+3. ⏳ **P-4** — capture the performance baselines (O-6; a baseline measured after a
+   regression is worthless). P-1 (call-count scaling) is the real catcher and is
+   contention-immune; the P-2 wall-clock constant must be captured on a **quiescent**
+   tree or it is not trustworthy.
 
-1. **AC-b, written RED** (`test_driver_consumes_the_records_own_splitting`), with the
-   `jacobi` control leg. **This must land before anything touches `WithinGroupSystem` or
-   `_select_si_splitting`** — fix R7 first and the fix is unprovable, and a future
-   re-split cannot be caught (O-1).
-2. **AC-b′**, the `A == M − N` regression floor. Note the correction: this is **already
-   green** (measured 0.0 seedless / 3.5e-17 coupled), so it is a *floor*, not a red gate —
-   but it carries M-5 and **M-6**, and M-6 is the exact σ_r bug with its Mode-9 control
-   leg. That pair retro-catches a defect that shipped 46–56 % silent errors.
-3. **G1.1 / G1.3 / G1.5** written red against today's `FissionOperator` (`domain is None`,
-   the raw `AttributeError` refusal, the `.H` Euclidean degradation) — O-2/O-3, before P1
-   makes any of them unrepresentable.
-4. **P-4**: capture the performance baselines on the current commit (O-6 needs them by the
-   end of P2, and a baseline measured after a regression is worthless).
-
-No production change in P0. Everything above is a gate that reds against `main`, or a
-number recorded from it.
+**The convention this phase establishes:** every currently-red campaign gate ships as
+`xfail(strict=True)` naming its red-set ID, the phase that flips it, and the instruction
+to delete the marker on XPASS. **The strict-xfail set IS the campaign's todo list**, and
+strictness means no phase can silently fix something without acknowledging it.
