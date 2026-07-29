@@ -222,6 +222,24 @@ geometry ladder (slab / sphere / cylinder / 2-D Cartesian), ≥2G always.
 | **G1.5 `.H` on an anonymous instance is UNREPRESENTABLE** | constructing a leaf without a space RAISES at construction; `op.H` can never see a `None` space | `pytest.raises` | **RED** — `F.H` builds today and returns a Euclidean transpose (R2) |
 | **G1.6 realizer purity** | `realize(law, mesh) ` twice → identical fingerprint (§1 AC-c helper); and `_STRATEGY_TOKENS.isdisjoint(signature)` | sha256 exact | not-yet-existing |
 
+> ⚠ **CORRECTED 2026-07-29 — the criterion below is a PROXY, and it is wrong
+> in both directions.** With `A† = G⁻¹AᵀG`, the "drop the metric" mutation is
+> invisible **iff `[G, Aᵀ] = 0`** — the commutator, not mesh uniformity.
+> **MEASURED:** (a) a *uniform-h* slab under `gauss_legendre(4)` still REDs
+> (1.3e-1 / 4.0e-1 / 2.7e-1) because `G = V_cell·w_n` and the **quadrature
+> weights** vary — so "non-uniform h" is not what buys the teeth; the truly
+> blind fixture needs `G` **globally constant** (`gauss_legendre(2)`, both
+> weights exactly 1, `h = 1/√3` so the bulk constant equals the trace
+> constant). (b) Conversely a wildly non-uniform metric is still blind for any
+> operator that COMMUTES with it: `C` is diagonal (`G⁻¹CG = C` for every
+> diagonal `G`) and `B` is a specular permutation preserving `|Ω·n|·w_n`, so
+> for those two leaves **no reachable config exists** — their rows are Mode-10
+> *exercised-but-unconstrained* and are closed with a second, metric-agnostic
+> mutation (double the adjoint → 0.5 exactly). Note also that a
+> `level_symmetric` rule has **constant weights**, which alone leaves `S`/`F`
+> blind. Landed: `tests/sn/architecture/test_monomorphic_leaves.py` @ `cd7b17cd`;
+> generalised into `vv-principles` Mode 12.
+
 **G1.4 config is load-bearing** (lessons L18, ERR-067). The metric MUST be
 non-degenerate and non-uniform, or the reciprocity identity is blind by
 construction:

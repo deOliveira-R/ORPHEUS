@@ -75,17 +75,47 @@ if TYPE_CHECKING:
 def anisotropic_mixture(
     sig_t: "list[float]",
     sig_s0: "list[list[float]]",
-    sig_s1: "list[list[float]]| None" = None,
+    sig_s1: "list[list[float]] | None" = None,
+    *,
+    sig_f: "list[float] | None" = None,
+    chi: "list[float] | None" = None,
+    nu: float = 2.6,
+    sig_l: "list[float] | None" = None,
+    sig_2: "list[list[float]] | None" = None,
 ) -> Mixture:
     r"""A ``Mixture`` built DIRECTLY — never through ``make_mixture``.
 
-    ``make_mixture`` hardcodes ``SigL = 0`` and defaults ``Sig2 = 0``, and
-    (decisively for this campaign) offers no :math:`P_1` channel: an
-    all-isotropic fixture nulls :math:`(\mathbb{1} - P_{\text{iso}})`, which
-    is the single term the σ_r gates exist to measure (lessons L1, §8).
+    **The campaign's one mixture builder.** ``make_mixture``
+    (``xs_library.py:56``) hardcodes ``SigL = 0``, defaults ``Sig2`` to an
+    all-zero sparse matrix, and offers no :math:`P_1` channel — so every
+    channel it nulls goes *vacuously green* (lessons L1). Each optional
+    argument here exists to un-null one of them, and each is off by default
+    so a gate activates only what it actually constrains.
 
-    Non-fissile by construction (``SigP = 0``) — the within-group system
-    carries no fission piece; fission enters as ``q_ext`` at the outer.
+    What each argument activates
+    ----------------------------
+    ``sig_s0`` / ``sig_s1``
+        Keep them **asymmetric** in the group index
+        (``s0[0,1] != s0[1,0]``) so a group-axis transpose inside
+        :math:`S` / :math:`S^\dagger` is observable rather than annihilated
+        (Mode 12), and pass ``sig_s1`` so the :math:`P_1` moment blocks are
+        built at all — an all-isotropic fixture nulls
+        :math:`(\mathbb{1} - P_{\text{iso}})`, the single term the σ_r
+        gates exist to measure.
+    ``sig_f`` / ``chi`` / ``nu``
+        Make the mixture **producing** (``SigP = ν·Σ_f > 0``), so
+        ``F.apply(ψ) != 0`` and an ``F`` reciprocity row is not the
+        tautology ``0 == 0``. ``chi`` must be a probability simplex for a
+        producing mixture (``Mixture.__post_init__`` enforces it).
+        **Omit both** for a within-group fixture: the within-group system
+        carries no fission piece (fission enters as ``q_ext`` at the outer),
+        so the default is non-fissile.
+    ``sig_2``
+        Non-zero and **asymmetric** exercises :math:`S`'s (n,2n) channel —
+        a separate :math:`\ell = 0` term with a factor 2, outside the
+        Legendre fold.
+    ``sig_l``
+        The (n,α) channel, non-zero on purpose where a gate needs it.
     """
     ng = len(sig_t)
     zero = np.zeros(ng)
@@ -93,11 +123,26 @@ def anisotropic_mixture(
     legendre = [csr_matrix(s0)]
     if sig_s1 is not None:
         legendre.append(csr_matrix(np.asarray(sig_s1, dtype=float)))
+    fission = zero.copy() if sig_f is None else np.asarray(sig_f, dtype=float)
+    n_alpha = zero.copy() if sig_l is None else np.asarray(sig_l, dtype=float)
+    n2n = (
+        csr_matrix((ng, ng)) if sig_2 is None
+        else csr_matrix(np.asarray(sig_2, dtype=float))
+    )
+    if (sig_f is None) != (chi is None):
+        pytest.fail(
+            "sig_f and chi go together: a producing mixture needs an "
+            "emission spectrum, and a non-producing one must have a null "
+            "chi (Mixture.__post_init__ enforces the simplex/null law)."
+        )
     return Mixture(
-        SigC=np.asarray(sig_t, dtype=float) - s0.sum(axis=1),
-        SigL=zero.copy(), SigF=zero.copy(), SigP=zero.copy(),
+        SigC=np.asarray(sig_t, dtype=float) - s0.sum(axis=1) - fission - n_alpha,
+        SigL=n_alpha,
+        SigF=fission,
+        SigP=nu * fission,
         SigT=np.asarray(sig_t, dtype=float),
-        SigS=legendre, Sig2=csr_matrix((ng, ng)), chi=zero.copy(),
+        SigS=legendre, Sig2=n2n,
+        chi=zero.copy() if chi is None else np.asarray(chi, dtype=float),
     )
 
 

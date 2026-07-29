@@ -223,6 +223,7 @@ from orpheus.transport.operators.multiplication_operator import (
 )
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.timed_full_field import TimedFullField
+from tests.sn.architecture._config import anisotropic_mixture
 from tests.sn._test_helpers import g_inner
 
 if TYPE_CHECKING:
@@ -300,47 +301,29 @@ def _fissile_anisotropic_2g(
     chi: "list[float]",
     nu: float = 2.6,
 ) -> Mixture:
-    r"""A 2G mixture with EVERY channel this file's gates need activated.
+    r"""This file's fissile row of the campaign's ONE mixture builder.
 
-    Built through the ``Mixture`` constructor DIRECTLY, never through
-    ``make_mixture``, because ``make_mixture`` (``xs_library.py:56``)
-    hardcodes ``SigL = np.zeros(ng)``, defaults ``Sig2`` to an all-zero
-    sparse matrix, and — for a fissile row — would still leave the P1
-    ordering to a positional argument. Silently nulling ``SigL``/``Sig2``
-    is the lessons-L1 trap: the channel goes vacuously green.
+    Delegates to :func:`~tests.sn.architecture._config.anisotropic_mixture`
+    (Pattern 2 — one home for the mandatory config; a second ``Mixture``
+    builder inside the package whose whole purpose is "one home" would be
+    the twin it exists to prevent).  What this row adds over a within-group
+    fixture is the channels G1.4 needs ACTIVATED and ``make_mixture`` nulls:
 
-    What each argument activates:
+    * ``sig_f``/``chi``/``nu`` — producing, so ``F.apply(psi) != 0`` and the
+      ``F`` reciprocity rows are not the tautology ``0 == 0``;
+    * ``SigL != 0`` — the (n,alpha) channel;
+    * an **asymmetric** ``Sig2 != 0`` — ``S``'s (n,2n) term, a separate
+      ell=0 block outside the Legendre fold.
 
-    ``sig_s0``/``sig_s1``
-        **Asymmetric** in the group index (``s0[0,1] != s0[1,0]``), so a
-        group-axis transpose inside ``S``/``S.H`` is observable rather than
-        annihilated (Mode 12), and P1 present so the anisotropic moment
-        blocks are built at all.
-    ``sig_f``/``chi``/``nu``
-        Make the mixture **producing** (``SigP = ν·Σ_f > 0``), so
-        ``F.apply(ψ) != 0`` and the ``F`` rows of G1.4 are not the tautology
-        ``0 == 0``. ``chi`` must be a probability simplex for a producing
-        mixture (``Mixture.__post_init__`` enforces it).
-    ``Sig2``
-        Non-zero and **asymmetric**, so ``S``'s (n,2n) channel — a separate
-        ℓ=0 term with a factor 2, outside the Legendre fold — is exercised
-        by the reciprocity rows rather than nulled.
+    The non-fissile default in ``_config`` is correct for the *within-group*
+    gates (fission enters as ``q_ext`` at the outer), which is exactly why
+    this row must state its extra channels rather than inherit them.
     """
-    s0 = np.asarray(sig_s0, dtype=float)
-    s1 = np.asarray(sig_s1, dtype=float)
-    sig_f_a = np.asarray(sig_f, dtype=float)
-    sig_l = np.array([0.004, 0.011])           # (n,alpha) — non-zero on purpose
-    sig_2 = np.array([[0.0, 0.03], [0.01, 0.0]])   # asymmetric (n,2n)
-    sig_t_a = np.asarray(sig_t, dtype=float)
-    return Mixture(
-        SigC=sig_t_a - s0.sum(axis=1) - sig_f_a - sig_l,
-        SigL=sig_l,
-        SigF=sig_f_a,
-        SigP=nu * sig_f_a,
-        SigT=sig_t_a,
-        SigS=[csr_matrix(s0), csr_matrix(s1)],
-        Sig2=csr_matrix(sig_2),
-        chi=np.asarray(chi, dtype=float),
+    return anisotropic_mixture(
+        sig_t, sig_s0, sig_s1,
+        sig_f=sig_f, chi=chi, nu=nu,
+        sig_l=[0.004, 0.011],                      # (n,alpha) — non-zero
+        sig_2=[[0.0, 0.03], [0.01, 0.0]],          # asymmetric (n,2n)
     )
 
 
