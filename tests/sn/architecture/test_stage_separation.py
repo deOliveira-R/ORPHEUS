@@ -308,8 +308,26 @@ def test_mutation_sign_flipped_gain_reddens_the_splitting_law(build_mesh):
 # ═════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.catches("ERR-070")
 def test_the_sigma_r_fold_is_a_splitting_only_with_its_anisotropic_remainder():
-    r"""**M-6** — the #215 defect, and the degeneracy that hid it.
+    r"""**M-6** — the #215 / ERR-070 defect, and the degeneracy that hid it.
+
+    ``catches("ERR-070")`` is earned, not asserted: the catalog entry names
+    the bug as *"treats* :math:`\Sigma_{s0}P_{\text{iso}}` *as*
+    :math:`\Sigma_{s0}\mathbb{1}`\ *"* with the difference operator
+    :math:`\sigma_{s0}(\mathbb{1}-P_{\text{iso}})` annihilating exactly the
+    isotropic subspace — and this test constructs precisely that splitting
+    and measures it RED (5.43e-03) on an anisotropic state, invisible
+    (3.57e-18) on a flat one.
+
+    It is a **third, earlier** catcher, not a duplicate of the two on record.
+    The existing pair are a *value* gate (the DSA fixed point shifts 43 %,
+    ``test_dsa_rate.py::TestSigmaRFoldCaught``) and a *structural fence* (an
+    AST sweep of the foldable accessors' consumers,
+    ``TestD10RoutingSentinel``).  This one is *algebraic*: it reds the moment
+    the splitting is **constructed**, before any solve runs — the cheapest of
+    the three, and the layer at which the campaign intends to make the bug
+    unspellable rather than merely detectable.
 
     The σ_r fold takes :math:`M = (L+C) - \Sigma_{s0}\,\mathbb{1}` — a
     removal that is **diagonal in angle**.  But the operator it removes from
@@ -397,6 +415,12 @@ def test_the_two_sigma_s0_operators_are_indistinguishable_on_a_flat_flux():
     Gating the mechanism, not only the symptom, is what makes the M-6 control
     leg falsifiable: it pins *why* the isotropic state is blind, so a future
     reader cannot mistake leg 3's machine-zero for "the fold is fine".
+
+    **Deliberately carries NO** ``catches("ERR-070")``.  This test asserts a
+    property that is true both before and *after* the bug — it characterises
+    the degeneracy, it does not detect the defect.  A marker here would be a
+    phantom coverage edge: it would inflate ERR-070's catcher count with a
+    test that stays green under the exact mutation it appears to cover.
     """
     sn_mesh = isotropic_slab(c=0.9)
     record = record_for(sn_mesh, scattering_order=0)

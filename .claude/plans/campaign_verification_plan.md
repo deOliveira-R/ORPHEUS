@@ -456,11 +456,29 @@ admissible as the bit-identity probe.
 
 ### 4.4 A `catches(ERR-NNN)` audit is owed
 
-The σ_r fold (#215) has **no ERR entry** — the catalog ends at ERR-069.
-When S5/S6 first catch a σ_r-class regression, file **ERR-070** (failure
-mode 6, convention drift: *a well-formed splitting whose spectral radius
-structure cannot predict*) and attach `@pytest.mark.catches("ERR-070")` to
-S5 **only after** mutation-verifying that S5 specifically reddens.
+> ⚠ **CORRECTED 2026-07-29 — do NOT file a new ERR for the σ_r fold.** This
+> section originally read "the σ_r fold (#215) has **no ERR entry** — the
+> catalog ends at ERR-069 … file **ERR-070**". That was already false when
+> written: **ERR-070 *is* the σ_r fold**, filed 2026-07-26 by the #2 DSA
+> battery's seeded mutation (Phase 3c, measured 43.2 % fixed-point shift),
+> and ERR-071 is taken too. Executing the original instruction would have
+> minted a duplicate ID for a bug that already had one — the plan asserted a
+> catalog state it had not read (lessons L33: a doc is a claim, not evidence).
+
+ERR-070's catchers on record are a **value** gate
+(`test_dsa_rate.py::TestSigmaRFoldCaught`) and a **structural fence**
+(`TestD10RoutingSentinel`, an AST sweep of the foldable accessors'
+consumers). This campaign adds a third, **algebraic** one —
+`test_stage_separation.py::test_the_sigma_r_fold_is_a_splitting_only_with_its_anisotropic_remainder`
+(landed @ `9a546640`), which reds the moment the splitting is *constructed*,
+before any solve runs.
+
+So the standing obligation is **narrower than "file an ERR"**: when S5/S6
+first catch a σ_r-class regression, attach `@pytest.mark.catches("ERR-070")`
+to S5 **only after** mutation-verifying that S5 *specifically* reddens — a
+marker is a coverage claim, and an unverified one is a phantom. Do not
+attach it to any gate that merely characterises the degeneracy without
+detecting the defect.
 
 ---
 
