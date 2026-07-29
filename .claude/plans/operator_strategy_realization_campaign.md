@@ -9,11 +9,15 @@
 > Tier 1 (the naming-honesty carve) **merged to `main` @ `b0a003b4`**; the three
 > ruling commits (`9cc69420`, `6946fe30`, `360a8087`) sit on top.
 >
-> **P0 is IN PROGRESS on branch `refactor/operator-strategy-layers`.**
-> **O-1 is DISCHARGED @ `9a546640`** — `tests/sn/architecture/` exists and carries
-> AC-b (R7 pinned, `xfail(strict=True)`), AC-b′, and M-5/M-6/M-7 with every number
-> MEASURED on that commit. No production change has been made. `WithinGroupSystem`
-> and `_select_si_splitting` are now SAFE TO TOUCH — they were not, before that commit.
+> **P0 is COMPLETE on branch `refactor/operator-strategy-layers`** (8 commits,
+> `9a546640..9ff86469`). **O-1, O-2, O-3 and O-6 are all DISCHARGED.**
+> `tests/sn/architecture/` carries AC-b (R7 pinned), AC-b′, M-5/M-6/M-7, the leaf
+> gates G1.1/G1.3/G1.4/G1.5, and the P-1/P-2/P-3 performance harness with its
+> baseline — **105 passed, 21 xfailed, pyright 0 errors**, every number MEASURED.
+> **No production change was made in P0** (`git status --porcelain -- orpheus` empty
+> throughout). `WithinGroupSystem`, `_select_si_splitting` and the leaf
+> `domain`/`codomain`/`.H` surfaces are now SAFE TO TOUCH — they were not, before.
+> See §11 for the per-item record and what remains ordered (**O-4** before P4).
 >
 > Any "merged / not merged / in-flight" line in this file is a point-in-time snapshot
 > that lies forward. **Verify with `git status -sb` / `git merge-base --is-ancestor`;
@@ -42,10 +46,11 @@
 >    a lowering detail, not a role assignment. See §1.1 and §6/P3.
 >
 > ### The immediate next action
-> ~~P0 item 1 (O-1): write AC-b RED.~~ **DONE @ `9a546640`.** Next: P0 items 3 and 4
-> — the leaf gates G1.1/G1.3/G1.4/G1.5 (O-2/O-3, before P1 makes the degradations
-> unrepresentable) and the P-4 performance baseline (O-6, a hard blocker for stage 3).
-> See §11 for live status.
+> ~~All of P0.~~ **DONE.** Next is **P1 — monomorphic domains** (§6): `domain`/`codomain`
+> become non-`Optional` on the reaction operators, the meshless/homogeneous path gets a
+> real space, and the `.H`-without-metric trap becomes *unrepresentable* rather than
+> guarded. Its gates are already standing and red (G1.1/G1.3/G1.5), so P1 is measured by
+> how many `xfail(strict=True)` markers it deletes.
 >
 > ### At risk if the working tree is disturbed
 > `.claude/skills/vv-principles/{SKILL.md,error_catalog.md}` carry **two new failure-mode
@@ -663,17 +668,53 @@ here is a gate that reds against `main`, or a number recorded from it.
      ships as a permanent control; the *mechanism* (`Σ_s0·P_iso ≡ Σ_s0·𝕀` on a flat flux,
      measured 2.045 both) is asserted directly so the control stays falsifiable.
    * ⇒ **`WithinGroupSystem` and `_select_si_splitting` are now safe to touch.**
-2. ⏳ **G1.1 / G1.3 / G1.4 / G1.5** — the leaf gates, red against today's
-   `FissionOperator` (`domain is None`), `SNBoundaryOperator` (raw `AttributeError`) and
-   `F.H` (silent Euclidean). O-2/O-3: they must exist **before** P1 makes any of those
-   unrepresentable, else the degradation loses its catcher. Same `xfail(strict=True)`
-   convention as AC-b.
-3. ⏳ **P-4** — capture the performance baselines (O-6; a baseline measured after a
-   regression is worthless). P-1 (call-count scaling) is the real catcher and is
-   contention-immune; the P-2 wall-clock constant must be captured on a **quiescent**
-   tree or it is not trustworthy.
+2. ✅ **G1.1 / G1.3 / G1.4 / G1.5 — DONE @ `cd7b17cd`** (O-2/O-3 discharged).
+   `test_monomorphic_leaves.py`: 82 passed, 20 xfailed, `--runxfail` confirms each reds
+   for ITS reason (R1 `domain is None` + the `Optional` annotation; R6 raw
+   `AttributeError`; R2 `.H` bit-identical to the bare Euclidean transpose).
+   **The XPASS flip is PROVEN**, not assumed — a throwaway plugin simulating P1 turns all
+   8 G1.3-`B` rows and the G1.5-`F` row into `XPASS(strict)` hard failures.
+   Three spec corrections came out of it (see §9's amended G1.4 note): the
+   **commutator** `[G, Aᵀ] = 0` is the metric-blindness criterion, not "non-uniform mesh";
+   `C` and `B` are metric-invariant *by algebra* so their rows need a second,
+   metric-agnostic mutation or they are dead gates; and G1.3's message assertion is
+   narrowed to the *carrier* (naming the space belongs with P1).
+   `T = 1/v` is **absent from the tree** — it joins the leaf set at P4.
+3. ✅ **P-4 — DONE @ `ca468ea5`, baseline finalized @ `9ff86469`** (O-6 discharged).
+   `test_composition_cost.py`: 9 gates, every one mutation-verified RED.
+   **The headline: the per-cell-fold regression is EXACTLY value-identical**
+   (`np.array_equal` True, `max|diff| = 0.0e+00` — the DD residual kernel is cell-local),
+   so **no** value gate at any tolerance against any reference can see this class. That is
+   the structural argument for P-1 (deterministic call counts) as the catcher and P-2
+   (wall clock) as mere corroboration. **No provisional values remain.**
+   The spec's `DiamondDifference.update_batch` was stale; the real leaf is
+   `residual_kernel_batch`. **Finding, filed as #323 and NOT fixed here**: the 1-D *apply*
+   is already a per-cell Python fold (`2·nx`) while the 1-D *solve* on the same mesh is
+   fully hoisted (mesh-invariant 2) — the L16 shape, pre-existing.
+4. ✅ **Consolidation @ `97b14e45`** — the leaf gates' local fissile-mixture builder folded
+   into `_config.anisotropic_mixture` (optional fission / (n,α) / (n,2n) channels, each
+   off by default). Bit-identical across every channel of both materials, *proven* against
+   the retired builder rather than inferred from an unchanged pass count.
+
+**Package total: 105 passed, 21 xfailed, pyright CLI 0 errors.**
 
 **The convention this phase establishes:** every currently-red campaign gate ships as
 `xfail(strict=True)` naming its red-set ID, the phase that flips it, and the instruction
 to delete the marker on XPASS. **The strict-xfail set IS the campaign's todo list**, and
-strictness means no phase can silently fix something without acknowledging it.
+strictness means no phase can silently fix something without acknowledging it. Verify each
+new one with `--runxfail` — an xfail hides *any* failure, including an incidental one that
+asserts nothing about the documented red (the leaf-gate agent caught exactly that in its
+own first draft).
+
+### What P0 bought, stated plainly
+
+`WithinGroupSystem`, `_select_si_splitting`, and the leaf `domain`/`codomain`/`.H`
+surfaces are now **safe to touch** — they were not, before. Every degradation P1–P5 will
+remove has a committed catcher that reds today and will XPASS-fail the moment it is fixed.
+
+### Next: P1 (monomorphic domains)
+
+O-2 and O-3 are discharged, so the leaf-arrow collapse and the non-`Optional` domains are
+both unblocked. Note the ordering that remains: **O-4** (build the independent α reference
+— `scipy.linalg.eig` on the hand-posed `G×G` pencil, ~15 lines) must land **before** `F`
+migrates in P4, or the first α number the code produces becomes its own baseline.
