@@ -29,6 +29,27 @@
 > measured red set, and the 12 ordering constraints) · 4. §4 (issue reconciliation —
 > this campaign owns no new roadmap) · 5. §5 (six rulings not to regress).
 >
+> ### ⏸ COMPACTION POINT — 2026-07-29, end of P0, before P1
+> The session compacted here. **Re-anchor from THIS FILE + `git log`, never from a
+> conversation summary.** `git log --oneline 360a8087..HEAD` is the P0 record; every
+> commit body carries its own measured numbers.
+>
+> **Verify the tree first, in this order:**
+> 1. `git log --oneline -12` — expect 9 P0 commits ending `3e55fcf1`/later.
+> 2. `.venv/bin/python -O -m pytest tests/sn/architecture/ -q` — expect
+>    **105 passed, 21 xfailed**. If a count differs, read §11 before assuming a
+>    regression: a *dropped* xfail may mean a later phase landed.
+> 3. `git status --porcelain -- orpheus` — expect **empty** (P0 changed no production
+>    code). If it is non-empty, P1 has already started.
+>
+> **Full-tree gate status:** launched at the end of P0 and still running at the
+> compaction point (~14 % at last check, ≈52 min serial expected;
+> log `$CLAUDE_JOB_DIR/tmp/fulltree.log`). **Its verdict was NOT yet read.** Treat P0 as
+> gate-pending until someone reads it, or just re-run:
+> `.venv/bin/python -O -m pytest tests/ -q -m "not slow"`. Expected: 0 failures — P0 added
+> only new test files and touched no production code, so a red would be pre-existing or
+> environmental. (The architecture package alone is green, run many times.)
+
 > ### Four corrections already absorbed — do NOT re-derive them
 > 1. **The obvious acceptance criterion is signature-tautological.** "The posed equation
 >    is invariant across `inner_schedule`" measures exactly 0.0 and *cannot* be made red:
@@ -53,12 +74,22 @@
 > how many `xfail(strict=True)` markers it deletes.
 >
 > ### At risk if the working tree is disturbed
-> `.claude/skills/vv-principles/{SKILL.md,error_catalog.md}` carry **two new failure-mode
-> sharpenings** (Mode-8 *signature-tautological gate*; Mode-9 *the degeneracy kills the
-> RATE gate too*, `ρ ≡ 0` on the invariant subspace). Those files are **forbidden to
-> commit** by standing policy, so they exist ONLY in the working tree with no git history
-> to recover from. A `git checkout` / `restore` / `stash` on those paths destroys them
-> irreversibly (lesson L28 — this has already cost the project two catalog entries once).
+> `.claude/skills/vv-principles/{SKILL.md,error_catalog.md}` are **forbidden to commit**
+> by standing policy, so they exist ONLY in the working tree with **no git history to
+> recover from**. A `git checkout` / `restore` / `stash` / `clean` on those paths destroys
+> them irreversibly (lesson L28 — this has already cost the project two catalog entries
+> once). As of this compaction point they carry **four** uncommitted additions:
+>
+> | file | addition |
+> |---|---|
+> | `SKILL.md` Mode 8 | the **signature-tautological gate** sub-case (a knob the producer's signature cannot admit ⟹ green in every possible run, while a hand-injected falsifier still moves it) |
+> | `SKILL.md` Mode 9 | **the degeneracy kills the RATE gate too** — `ρ ≡ 0` on the invariant subspace, so the splitting looks *optimal*, not merely correct |
+> | `SKILL.md` Mode 12 | **the commutator criterion** — a metric-adjoint reciprocity gate is blind iff `[G, Aᵀ] = 0`; "non-uniform mesh" is a proxy and is wrong in both directions (measured 2026-07-29) |
+> | `error_catalog.md` ERR-070 | the third (algebraic) catcher registered — `test_stage_separation.py`'s M-6 gate, which reds at *construction* before any solve runs |
+>
+> If they are ever lost, the Mode-12 commutator text is recoverable from the verification
+> plan's amended G1.4 note and from commit `97b14e45`'s body; the ERR-070 catcher text
+> from `361471ec`'s body.
 
 **Status:** PLAN OF RECORD, awaiting sign-off. Authored 2026-07-28 from a design
 dialogue (see §10 for what it supersedes).
@@ -387,6 +418,63 @@ shims live one merge cycle only (`coding-standards.md`).
 3. The `.H`-without-metric trap becomes **unrepresentable**, not guarded.
 
 **Exit:** no production operator can be constructed without stating its arrow.
+
+#### P1 is measured by which `xfail(strict=True)` markers it deletes
+
+The gates are already standing (`cd7b17cd`). **12 of the 21 markers are P1's**; the
+other 9 belong to later phases. Strict mode means each one XPASS-*fails* the moment P1
+fixes it — the marker deletion is the acknowledgement, and it cannot be skipped.
+
+| red | node ids (`tests/sn/architecture/test_monomorphic_leaves.py`) | count | owner |
+|---|---|---|---|
+| **R1** value | `test_model_generic_leaf_declares_a_space[C-2g, C-4g, F-2g, F-4g]` | 4 | **P1** |
+| **R1** annotation | `test_leaf_space_annotation_is_not_optional[L, C, S, F, B]` | 5 | **P1** |
+| **R1/R2** anonymous | `test_leaf_without_a_space_refuses_construction[C, S, F]` | 3 | **P1** |
+| **R6** carrier guard | `test_wrong_carrier_refusal_is_typed_and_names_the_operator[B-{slab,sphere,cylinder,cart2d}-{alien,coupled_field}]` | 8 | **P2c** (O-2 ties G1.3 to the leaf-arrow collapse) |
+| **R7** twin splitting | `test_stage_separation.py::test_driver_consumes_the_records_own_splitting[cart2d-gauss_seidel]` | 1 | **P3/P5** |
+
+#### The edit sites, and one scoping surprise
+
+The annotation gate reports the **owning class in the MRO**, not the leaf, so its failure
+message already names what to edit. Resolved (MEASURED):
+
+```
+L  StreamingOperator        Optional['FunctionSpace']     streaming.py:279,308
+C  MultiplicationOperator   'FunctionSpace | None'        multiplication_operator.py:341,357
+S  ScatteringOperator       'FunctionSpace | None'        scattering.py:416,432
+F  FissionOperator          'FunctionSpace | None'        fission.py:219,236
+B  SNBoundaryOperator       Optional['FunctionSpace']     boundary.py:208,218
+```
+
+> ⚠ **Do NOT grep `def domain` and edit the first hit in the file.** `scattering.py`
+> has **three** `domain` properties: `LegendreMomentScattering` (`:279`) and
+> `N2NMomentOperator` (`:343`) are **already non-Optional** — the reduced operators are
+> monomorphic today — and only the composite `ScatteringOperator` (`:416`) is Optional.
+> A naive grep lands on `:279` and concludes there is nothing to do. (Cost me a
+> false-xfail suspicion until I checked the MRO.)
+
+#### Why the annotation leg and the value leg are BOTH needed
+
+A value that happens to be set is a runtime accident. The `| None` is what makes the
+composability guard **skippable** (`OperatorSum` skips the domain check when either side
+is `None` — `operator.py:582`) and the `.H` metric application **conditional**
+(`operator.py:1221-1226`). Removing the Optional turns "the space is set" from a fact
+about one call site into a fact about the type — which is the whole of P1.
+
+#### Delegation posture
+
+This is the **surgical-carve family** (`.claude/rules/delegation.md`): the main agent
+writes the code directly with the user steering, and `method-implementer` is NOT
+dispatched. `test-architect`, `explorer`, `qa` and `archivist` stay available and
+encouraged — P0 used two of them productively in parallel.
+
+#### Ordering that survives P0
+
+**O-4 is the one that bites later and is cheap now**: build the independent α reference
+(`scipy.linalg.eig` on the hand-posed `G×G` pencil, ~15 lines) **before** `F` migrates in
+P4. MMS cannot prove an eigenvalue (pillar rule), so without it the first α number the
+code produces becomes its own baseline. It has **zero** dependency on P1–P3 — it can be
+built at any time, and earlier is strictly better.
 
 ### ⬢ P2 — The realizer seam *(the root, second half)*
 
