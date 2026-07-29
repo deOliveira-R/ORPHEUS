@@ -201,13 +201,14 @@ pytestmark = pytest.mark.foundation
 #   ratio.  Both are exact integers / exactly reproducible byte counts —
 #   they do not move with machine load.
 #
-#   PROVISIONAL — recapture on a quiescent tree: _COMPOSITION_OVERHEAD_MAX
-#   only.  The host was CONTENDED during capture (concurrent edits +
-#   builds), so the wall-clock ratio it derives from is not trustworthy
-#   as a tight bound.  The measured in-process band was 23.35 - 24.41
-#   (6 trials, min-of-7 apply / min-of-25 calibration); the constant is
-#   set at 3x the top of that band so a contended run cannot false-red.
-#   TIGHTEN IT once a quiescent measurement exists.
+#   _COMPOSITION_OVERHEAD_MAX was PROVISIONAL at capture (the host was
+#   contended by concurrent agents; band 22.45 - 24.52, and 72.0 = ~3x its
+#   top so a contended run could not false-red).  RECAPTURED QUIESCENT
+#   2026-07-29 @ 97b14e45, 6 serial trials, nothing else running:
+#   22.20 / 22.49 / 22.37 / 22.65 / 22.69 / 23.01  — band 22.20 - 23.01,
+#   spread 3.6%.  Contention had inflated the top by ~6%.  The constant is
+#   now 50.0 (see its docstring for the claim).  NO PROVISIONAL VALUES
+#   REMAIN in this module.
 # ---------------------------------------------------------------------
 
 #: 1-D walk-DAG legs (one inward, one outward) — the slab apply calls the
@@ -233,8 +234,17 @@ _SLAB_SOLVE_SCAN_CALLS = 2
 #: dividing by an in-process calibration normalises out the host's raw
 #: numpy throughput, which an absolute-ms gate (the
 #: ``tests/sn/sweep/core/test_cache.py:553`` precedent) cannot do.
-#: MEASURED PRE-CARVE: 23.4 - 24.4.  PROVISIONAL — see the banner.
-_COMPOSITION_OVERHEAD_MAX = 72.0
+#: MEASURED PRE-CARVE, QUIESCENT: 22.20 - 23.01 (6 serial trials, spread
+#: 3.6%).  Set at 50.0 — a hair over 2x the worst CONTENDED reading (24.52),
+#: so the gate catches a >=2.1x composition-overhead regression while a
+#: loaded host cannot false-red it.  Deliberately NOT tighter: this project
+#: has already been bitten by contention false-reds on wall-clock gates, and
+#: a timing gate people learn to ignore is worse than none.  P-1 is the real
+#: catcher (deterministic call counts, contention-immune); P-2 is the
+#: BACKSTOP for the class P-1 cannot see — the same call count where each
+#: call got slower — so its precision need not be sharp, only honest.
+#: For scale: the L16-class per-cell-fold mutation reads 362.
+_COMPOSITION_OVERHEAD_MAX = 50.0
 
 #: Nominal FLOPs per degree of freedom for a DD cell balance (a handful of
 #: fused multiply-adds per DOF).  Sets the calibration size so the dense
@@ -798,11 +808,15 @@ def test_p2_composition_overhead_vs_in_process_calibration() -> None:
     on, and either false-reds on a slow host or goes permanently green on
     a fast one.
 
-    PROVISIONAL: the pre-carve band (23.4 - 24.4) was captured on a
-    CONTENDED host; ``_COMPOSITION_OVERHEAD_MAX`` is set at ~3x that so a
-    contended run cannot false-red.  Re-measure on a quiescent tree and
-    tighten.  If this is the ONLY red leg, re-run it alone before
-    believing it — P-1 and P-3 are the contention-immune legs.
+    Baseline: the pre-carve band is **22.20 - 23.01**, recaptured on a
+    QUIESCENT tree (6 serial trials, spread 3.6 %); the original capture ran
+    contended and read 6 % higher at the top (24.52).
+    ``_COMPOSITION_OVERHEAD_MAX`` sits just over 2x the worst *contended*
+    reading, so a loaded host cannot false-red this leg.
+
+    If this is the ONLY red leg, **re-run it alone before believing it** —
+    P-1 and P-3 are the contention-immune legs, and a red here with those
+    two green is far more likely to be machine load than a regression.
     """
     A, x = _posed_apply(_cart2d(_COST_NX, _COST_NY))
     n_dof = _n_dof(x)
@@ -828,7 +842,8 @@ def test_p2_composition_overhead_vs_in_process_calibration() -> None:
     if not ratio < _COMPOSITION_OVERHEAD_MAX:
         pytest.fail(
             f"composition overhead {ratio:.2f}x exceeds the "
-            f"{_COMPOSITION_OVERHEAD_MAX}x claim (pre-carve band 23.4-24.4). "
+            f"{_COMPOSITION_OVERHEAD_MAX}x claim (quiescent pre-carve band "
+            f"22.20-23.01). "
             f"apply={t_apply * 1e3:.3f} ms against a {side}x{side} dense "
             f"contraction at {t_calibration * 1e6:.1f} us.  Check P-1 first: "
             f"if a call count also scaled, this is the L16 fold and the "
