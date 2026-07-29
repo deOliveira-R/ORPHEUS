@@ -659,6 +659,12 @@ def test_p1_calls_per_cell_decays_under_isotropic_refinement() -> None:
 def test_p1_slab_apply_is_a_per_cell_fold_regression_floor() -> None:
     r"""[foundation] **FINDING, pinned as a floor — NOT an invariance claim.**
 
+    Tracked as `#323 <https://github.com/deOliveira-R/ORPHEUS/issues/323>`_
+    (measurement-gated, like #227 — 1-D meshes are small, so the carve may
+    not be worth its cost until a profile says so).  **Whoever closes #323
+    will get a RED from this gate.  That is intended** — see the two-sided
+    reddening below.
+
     The 1-D *apply* direction is ALREADY a per-cell Python fold on this
     tree: ``_OneDimScanWalk``'s apply-loop frame visits every cell of
     every walk-DAG leg and calls the batched leaf once per visit, so
