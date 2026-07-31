@@ -483,6 +483,16 @@ from ._base import BoundaryTraceLaw
 # ---------------------------------------------------------------------------
 
 from ._composition import LawNode, LawScaled, LawSum
+from ._factors import (
+    BoundaryGeometryMap,
+    BoundaryResponseKernel,
+    HemisphericalAverage,
+    IdentityMap,
+    NullMap,
+    ScalarResponse,
+    SpatialWrap,
+    SpecularMirror,
+)
 
 # ---------------------------------------------------------------------------
 # Wave 3 -- typed error catalog (ERR-040..ERR-047).
@@ -537,6 +547,17 @@ from .zero_flux import ZeroFluxBoundary
 __all__ = [
     # Abstract base
     "BoundaryTraceLaw",
+    # The affine form's two operator factors, as typed SPECIFICATIONS
+    # (Grand Report v3 §16A.2; campaign phase B1). ``G : Γ₊ → Γ₊`` is the
+    # geometry, ``R : Γ₊ → Γ₋`` the crossing; the realized composite is ``B``.
+    "BoundaryGeometryMap",
+    "BoundaryResponseKernel",
+    "HemisphericalAverage",
+    "IdentityMap",
+    "NullMap",
+    "ScalarResponse",
+    "SpatialWrap",
+    "SpecularMirror",
     # Descriptor-tree composition (Issue #186)
     "LawNode",
     "LawScaled",

@@ -166,7 +166,7 @@ incoming angular flux:
    :label: bc-tensor-decomposition
 
    \psi_{\rm in}(\Omega)
-   = (R\,\psi_{\rm out})(\Omega)
+   = (B\,\psi_{\rm out})(\Omega)
    = \sum_\alpha \bigl(G_\alpha\,\psi_{\rm out}\bigr)(\Omega) \cdot A_\alpha,
 
 .. (vv-status rationale) Definitional/literature-transcribed framing (a BC

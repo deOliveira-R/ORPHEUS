@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **7051**
+Total tests collected: **7054**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1184, 16.8%
    L2, 64, 0.9%
    L3, 0, 0.0%
-   foundation, 4600, 65.2%
+   foundation, 4603, 65.3%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6972
+   explicit, 6975
    class-name, 46
    func-name, 0
    case, 33
@@ -345,7 +345,7 @@ Module × level grid
    operators/test_apply_full_field_codomain, 0, 0, 0, 0, 15, 0
    operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
    operators/test_bc_extraction_matvec, 3, 0, 0, 0, 30, 0
-   operators/test_boundary_conditions, 0, 0, 0, 0, 11, 0
+   operators/test_boundary_conditions, 0, 0, 0, 0, 13, 0
    operators/test_capability_survival, 0, 0, 0, 0, 10, 0
    operators/test_collision_operator, 0, 0, 0, 0, 54, 0
    operators/test_fission_adjoint, 0, 0, 0, 0, 13, 0
@@ -435,7 +435,7 @@ Module × level grid
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 331, 0
+   test_layer_imports, 0, 0, 0, 0, 332, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -1402,7 +1402,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-049``, 15
    ``ERR-050``, 10
    ``ERR-051``, 1
-   ``ERR-052``, 1
+   ``ERR-052``, 2
    ``ERR-053``, 13
    ``ERR-054``, 2
    ``ERR-055``, 2

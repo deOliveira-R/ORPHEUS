@@ -11,7 +11,12 @@ The §15.2 sum-of-tensor-products form
 
 .. math::
 
-    R \;=\; \sum_\alpha c_\alpha \, G_\alpha
+    B \;=\; \sum_\alpha c_\alpha \, G_\alpha
+
+(:math:`B` is the realized **composite**; the affine form's :math:`R` is the
+**response factor alone** — see
+:attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.response_kernel`. This was
+spelled :math:`R` until B1, which collided with that type.)
 
 is realized by walking the descriptor tree via
 :func:`~orpheus.geometry.boundary.realize_recursively` (the

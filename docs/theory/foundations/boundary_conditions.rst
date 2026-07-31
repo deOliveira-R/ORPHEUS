@@ -2736,7 +2736,7 @@ The §15.2 sum-of-tensor-products form
 .. math::
    :label: bc-rank-n-tensor-decomposition
 
-   R \;=\; \sum_{\alpha} c_{\alpha}\, G_{\alpha},
+   B \;=\; \sum_{\alpha} c_{\alpha}\, G_{\alpha},
    \qquad c_{\alpha} \in \mathbb{R},
    \quad G_{\alpha} \in
    \{\text{permutation, average, mask, wrap, identity, source}\},
@@ -4945,7 +4945,7 @@ References
 * The tensor decomposition equation :eq:`bc-tensor-decomposition`
   at :ref:`bc-tensor-decompositions` (in
   :doc:`/theory/methods/sn/boundary_conditions`) shows the algebra
-  :math:`R = \sum_\alpha G_\alpha \otimes A_\alpha` that this page
+  :math:`B = \sum_\alpha G_\alpha \otimes A_\alpha` that this page
   refines into the affine form :eq:`affine-bc-form`.
 * :ref:`operator-algebra` for the Wave-0 primitives the realized
   BCs decompose into.

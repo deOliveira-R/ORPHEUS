@@ -38,8 +38,21 @@ class AngularAverageOperator(LinearOperator):
 
     Realizes the geometric projection :math:`G_{\text{diff}}` in the
     §15.2 sum-of-tensor-products form of the white boundary law
-    :math:`R_{\text{white}} = G_{\text{diff}} \otimes \alpha`. The
-    action on an angular flux array :math:`\psi(\Omega, \ldots)` is
+    :math:`B_{\text{white}} = G_{\text{diff}} \otimes \alpha`.
+
+    .. note::
+
+       :math:`B` is the **realized composite**, matching the sibling
+       reflective arm's ``B = G_patch ⊗ K_omega ⊗ K_g``
+       (:mod:`orpheus.sn.boundary.realizer`). This spelling was
+       :math:`R_{\text{white}}` until B1, which collided with the affine
+       form's :math:`R` — the **response factor alone**, the crossing
+       :math:`\Gamma_+ \to \Gamma_-` that
+       :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.response_kernel`
+       now carries as a type. Here that factor is the scalar
+       :math:`\alpha`; :math:`G_{\text{diff}}` is the geometry.
+
+    The action on an angular flux array :math:`\psi(\Omega, \ldots)` is
 
     .. math::
 
