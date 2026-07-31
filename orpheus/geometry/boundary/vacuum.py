@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ._base import BoundaryTraceLaw
+from ._factors import NullMap, ScalarResponse
 
 
 __all__ = ["VacuumInflow"]
@@ -57,6 +58,25 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
     registry entry; deriving it removes that state. The string-comparison
     contract (``sn_mesh.bc["xmax"] == "vacuum"``) is unchanged.
     """
+
+    # ── The affine form's two factors (B1) ──────────────────────────────
+    @property
+    def geometry_map(self) -> "NullMap":
+        r""":math:`G = 0` — no outgoing flux returns.
+
+        Vacuum is the rank-0 corner of :math:`\gamma_-\psi = R\,G\,\gamma_+\psi
+        + q`: geometry, response AND source all vanish, so
+        :math:`\gamma_-\psi = 0`. That the realized SN operator is a *projector*
+        rather than the zero map is a representation choice at the operator
+        layer (it preserves the outflow rows), not a different law — and phase
+        **B3** narrows the domain so the two agree.
+        """
+        return NullMap()
+
+    @property
+    def response_kernel(self) -> "ScalarResponse":
+        r""":math:`R = 0` — the defining property of a vacuum face."""
+        return ScalarResponse(0.0)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, str):

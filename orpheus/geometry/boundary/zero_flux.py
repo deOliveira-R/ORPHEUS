@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ._base import BoundaryTraceLaw
+from ._factors import IdentityMap, ScalarResponse
 
 
 __all__ = ["ZeroFluxBoundary"]
@@ -70,6 +71,17 @@ class ZeroFluxBoundary(BoundaryTraceLaw, key="zero_flux"):
       :class:`~orpheus.geometry.boundary.vacuum.VacuumInflow` for the
       physical zero-incoming law.
 
+    Factors, and the tier caveat
+    ----------------------------
+    The two factors below describe the **realization**, which genuinely is
+    affine: :math:`G = I`, :math:`R = -1` on the partial-current trace, exactly
+    what the diffusion realizer builds. The **posing** is a tier above —
+    :math:`\phi_\Gamma = 0` is the relation :math:`A_-\gamma_- + A_+\gamma_+ =
+    0`, not a map from outflow to inflow, which is why SN cannot realize it and
+    must refuse by hand rather than by type. Grand Report v3 names that tier
+    ``BoundaryRelation``; issue **#177** builds it. Until then these factors are
+    honest about the realization without claiming the law is affine.
+
     Naming ruling (#290, 2026-07-03)
     --------------------------------
     The legacy ``orpheus.diffusion`` island's ``BC_REGISTRY`` mapped
@@ -92,3 +104,22 @@ class ZeroFluxBoundary(BoundaryTraceLaw, key="zero_flux"):
     # No parameters: the law is stateless (like VacuumInflow). The
     # frozen dataclass gives value equality (all instances equal) and
     # registry construction via ``BoundaryTraceLaw.create("zero_flux")``.
+
+    # ── The affine form's two factors (B1) ──────────────────────────────
+    # These describe the REALIZATION (see "Factors, and the tier caveat"
+    # above), not a claim that the law is posed affinely.
+    @property
+    def geometry_map(self) -> "IdentityMap":
+        r""":math:`G = I` — no relabeling; the sign lives entirely in `R`."""
+        return IdentityMap()
+
+    @property
+    def response_kernel(self) -> "ScalarResponse":
+        r""":math:`R = -1` — deliberately outside the sub-Markov :math:`[0,1]`.
+
+        :math:`J^- = -J^+` is what makes :math:`\phi_\Gamma = 0`, and it is why
+        SN refuses this law: a negative angular inflow is unrepresentable in a
+        non-negative :math:`\psi`. The value is the diffusion realizer's
+        ``ScaledOperator(-1.0, IdentityOperator)`` scalar, named.
+        """
+        return ScalarResponse(-1.0)

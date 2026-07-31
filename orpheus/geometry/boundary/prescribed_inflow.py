@@ -36,6 +36,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ._base import BoundaryTraceLaw
+from ._factors import NullMap, ScalarResponse
 from ._source import InflowSourceSpec, NoSource
 
 
@@ -95,6 +96,24 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
     """
 
     _source: InflowSourceSpec = field(default_factory=NoSource)
+
+    # ── The affine form's two factors (B1) ──────────────────────────────
+    @property
+    def geometry_map(self) -> "NullMap":
+        r""":math:`G = 0` — the inflow comes entirely from :math:`q`.
+
+        Prescribed inflow is the rank-0 AFFINE case: unlike vacuum it has a
+        non-zero source, but like vacuum no outgoing flux is routed back. The
+        realized ``IncomingSourceOperator`` says exactly this — *"the rank-0
+        case where R = G = 0"* — so this property names a fact the operator
+        layer already documents.
+        """
+        return NullMap()
+
+    @property
+    def response_kernel(self) -> "ScalarResponse":
+        r""":math:`R = 0` — nothing crosses; :attr:`source` carries the law."""
+        return ScalarResponse(0.0)
 
     def __init__(self, source: InflowSourceSpec | None = None) -> None:
         # Accept ``source=`` as the public constructor kwarg; route it

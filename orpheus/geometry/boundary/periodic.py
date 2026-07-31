@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ._base import BoundaryTraceLaw
+from ._factors import ScalarResponse, SpatialWrap
 
 
 __all__ = ["PeriodicBoundary"]
@@ -49,4 +50,33 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
     was retired in Wave O step O.4a.1 — ``PeriodicBoundary`` is the
     sole importable name.
     """
+
+    #: The wrap axis (issue #183). Until B1 this law carried **no fields at
+    #: all** — so the geometric map it names, a spatial pushforward to the
+    #: opposite face, was not expressible on the descriptor. The partner face
+    #: is NOT a field: which face is opposite depends on where the law is
+    #: installed (configuration), while "wrap along x" is intrinsic. The
+    #: realizer derives the partner from the installation face plus this axis.
+    axis: str = "x"
+
+    # ── The affine form's two factors (B1) ──────────────────────────────
+    @property
+    def geometry_map(self) -> "SpatialWrap":
+        r""":math:`G` = the spatial pushforward along :attr:`axis`.
+
+        Outflow at one face becomes inflow at the opposite face **at the same
+        angle** — which is why a periodic pair closes a sweep cycle from a
+        single law, where a lone reflecting face only adds a forward trace
+        edge.
+
+        The realized ``PeriodicWrapOperator`` is currently an angular identity
+        with the spatial pushforward unbuilt (**#183**); this spec states what
+        the law means regardless of that gap.
+        """
+        return SpatialWrap(axis=self.axis)
+
+    @property
+    def response_kernel(self) -> "ScalarResponse":
+        r""":math:`R = 1` — a periodic face is loss-free by construction."""
+        return ScalarResponse(1.0)
 

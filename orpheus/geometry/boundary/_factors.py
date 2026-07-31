@@ -142,10 +142,16 @@ class BoundaryResponseKernel(Protocol):
 
     The physical amplitude with which outgoing flux returns as incoming. A
     scalar in :math:`[0, 1]` for every sub-Markov BC in this family (albedo,
-    white, partial current); the zero-flux Dirichlet idealization sits outside
-    that range at :math:`\mathcal{A} = -1` in the partial-current basis, and
-    outside this abstraction entirely — see the module docstring of
-    :mod:`orpheus.geometry.boundary.zero_flux`.
+    white, partial current).
+
+    :class:`~orpheus.geometry.boundary.ZeroFluxBoundary` is expressible here but
+    sits outside that range, at :math:`\mathcal{A} = -1` in the partial-current
+    basis — which is exactly what the diffusion realizer builds
+    (``ScaledOperator(-1.0, IdentityOperator)``). Note the distinction: its
+    *realization* is affine, while its *posing* — :math:`\phi_\Gamma = 0`, i.e.
+    :math:`A_-\gamma_- + A_+\gamma_+ = 0` — is a **relation**, a tier above the
+    affine trace law (Grand Report v3; issue **#177**). Populating the factor is
+    honest about the former without claiming the latter.
     """
 
     @property
@@ -261,18 +267,32 @@ class HemisphericalAverage:
 
 @dataclass(frozen=True, slots=True)
 class SpatialWrap:
-    r""":math:`G` = wrap-around to the partner face (periodic).
+    r""":math:`G` = wrap-around along ``axis`` (periodic).
 
-    Pushes the outflow of one face onto the inflow of another, at the SAME
-    angle — which is why periodic closes a sweep cycle from a *single* law
+    Pushes the outflow of one face onto the inflow of the opposite face at the
+    SAME angle — which is why periodic closes a sweep cycle from a *single* law
     while a lone reflecting face does not.
 
-    ``partner_face`` is the parameter :class:`~orpheus.geometry.boundary.PeriodicBoundary`
-    **has never carried** (issue #183): that law ships with no fields at all, so
-    the map it names was not expressible before this type existed.
+    **``axis``, not a partner face.** The first draft of this type carried
+    ``partner_face``, which is wrong by the rule this campaign's B0 phase
+    established: *a law carries only what is intrinsic to it, never what depends
+    on the configuration or the discretization.* Which face is the partner
+    depends on **where the law is installed** — configuration — whereas "wrap
+    along x" is intrinsic, and it is the same shape as
+    :class:`SpecularMirror`'s parameter. The realizer derives the partner from
+    the installation face plus this axis.
+
+    :class:`~orpheus.geometry.boundary.PeriodicBoundary` has never carried
+    ANY field (issue #183), so the map it names was not expressible; ``axis`` is
+    the parameter it was missing.
+
+    Non-opposite gluing — a hex partner, a rotational quotient — is genuinely a
+    different object and needs an explicit partner map. That is issue **#178**
+    (``SymmetryBoundary``, "octant/quotient gluing distinct from physical
+    mirror"), deliberately NOT this type.
     """
 
-    partner_face: str
+    axis: str = "x"
 
     @property
     def permutes_ordinates(self) -> bool:

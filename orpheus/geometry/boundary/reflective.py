@@ -16,6 +16,7 @@ import numpy as np
 from orpheus.numerics.spaces.angular_trace_space import TANGENTIAL_EPS
 
 from ._base import BoundaryTraceLaw
+from ._factors import ScalarResponse, SpecularMirror
 
 if TYPE_CHECKING:
     from orpheus.numerics.quadrature import Quadrature
@@ -96,6 +97,21 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
 
     axis: str = "x"
     albedo: float = 1.0
+
+    # ── The affine form's two factors (B1) ──────────────────────────────
+    @property
+    def geometry_map(self) -> "SpecularMirror":
+        r""":math:`G = G_{\text{refl}}`, the mirror about :attr:`axis`."""
+        return SpecularMirror(axis=self.axis)
+
+    @property
+    def response_kernel(self) -> "ScalarResponse":
+        r""":math:`R = \alpha`, the specular albedo.
+
+        The SAME number the SN realizer already multiplies by —
+        ``float(law.albedo) * base`` — now named rather than reached for.
+        """
+        return ScalarResponse(self.albedo)
 
     @property
     def kind(self) -> str:

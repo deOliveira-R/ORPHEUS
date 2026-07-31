@@ -1,0 +1,246 @@
+r"""B1 regression floor — the affine form's two factors are POPULATED.
+
+Campaign phase B1 (``.claude/plans/boundary_machinery_review.md``) minted
+:class:`~orpheus.geometry.boundary.BoundaryGeometryMap` /
+:class:`~orpheus.geometry.boundary.BoundaryResponseKernel` and populated them on
+all seven production laws. Before it, both were ``-> Any`` properties defaulting
+to ``None`` that **nothing populated and nothing read**, while five production
+sites answered the questions they exist to answer by comparing ``law.kind``
+strings.
+
+This file is the floor that keeps them populated. The ABC default is still
+``None`` (a stub law inherits it — pinned in
+:mod:`tests.geometry.test_boundary_trace_law`), so nothing structurally stops a
+future law from shipping unpopulated; these tests are what would catch it.
+
+The bit-identity legs are the phase's stated acceptance criterion: the minted
+``response_kernel`` must be the **same number** each realizer already reaches
+for, not a re-derivation of it. A new number here would mean B1 changed physics
+while claiming to be a pure addition.
+
+Tagged ``@pytest.mark.foundation``: these assert a structural contract, not a
+discretization claim, so they carry no ``verifies(...)`` equation label (the
+verifies⊥level doctrine).
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
+from orpheus.geometry.boundary import (
+    AlbedoBoundary,
+    BoundaryError,
+    BoundaryGeometryMap,
+    BoundaryResponseKernel,
+    BoundaryTraceLaw,
+    HemisphericalAverage,
+    IdentityMap,
+    NullMap,
+    PeriodicBoundary,
+    PrescribedInflow,
+    ReflectiveBoundary,
+    ScalarResponse,
+    SpatialWrap,
+    SpecularMirror,
+    VacuumInflow,
+    WhiteBoundary,
+    ZeroFluxBoundary,
+)
+
+
+#: ``(law, expected geometry type, expected response scalar, test id)`` — one
+#: entry per production law. The parametrization below AND the
+#: registry-coverage check both derive from this single list, so they cannot
+#: drift apart.
+#:
+#: ``_stub_for_test`` is deliberately absent: it is a test fixture, and the
+#: registry-hygiene fixture in ``test_boundary_trace_law.py`` evicts it outside
+#: that module anyway.
+_LAW_SPECS: list[tuple[BoundaryTraceLaw, type, float, str]] = [
+    (VacuumInflow(), NullMap, 0.0, "vacuum"),
+    (ReflectiveBoundary(), SpecularMirror, 1.0, "reflective-a1"),
+    (ReflectiveBoundary(axis="y", albedo=0.7), SpecularMirror, 0.7,
+     "reflective-partial"),
+    (WhiteBoundary(axis="x", albedo=0.4), HemisphericalAverage, 0.4, "white"),
+    (AlbedoBoundary(albedo=0.25), IdentityMap, 0.25, "albedo"),
+    (PeriodicBoundary(), SpatialWrap, 1.0, "periodic"),
+    (PrescribedInflow(), NullMap, 0.0, "prescribed_inflow"),
+    (ZeroFluxBoundary(), IdentityMap, -1.0, "zero_flux"),
+]
+
+PRODUCTION_LAWS = [
+    pytest.param(law, geom, alpha, id=tid)
+    for law, geom, alpha, tid in _LAW_SPECS
+]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
+def test_every_production_law_states_both_factors(law, geom_cls, alpha) -> None:
+    """No production law may report ``None`` for either factor.
+
+    This is the whole of B1 as a single assertion. It reds if a new law ships
+    without its spec, or if someone reverts a population.
+    """
+    if law.geometry_map is None or law.response_kernel is None:
+        pytest.fail(
+            f"{type(law).__name__} reports geometry_map="
+            f"{law.geometry_map!r}, response_kernel={law.response_kernel!r} — "
+            f"an unpopulated factor is the pre-B1 state that forced production "
+            f"to dispatch on `law.kind` strings instead."
+        )
+    assert isinstance(law.geometry_map, geom_cls)
+    assert isinstance(law.response_kernel, ScalarResponse)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
+def test_factors_satisfy_their_protocols(law, geom_cls, alpha) -> None:
+    """Structural conformance to the two Protocols, at runtime."""
+    assert isinstance(law.geometry_map, BoundaryGeometryMap)
+    assert isinstance(law.response_kernel, BoundaryResponseKernel)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
+def test_response_scalar_is_the_declared_amplitude(law, geom_cls, alpha) -> None:
+    """``response_kernel.scalar`` is exactly the law's amplitude."""
+    scalar = law.response_kernel.scalar
+    if scalar != alpha:
+        pytest.fail(
+            f"{type(law).__name__}.response_kernel.scalar = {scalar!r}, "
+            f"expected exactly {alpha!r}. B1 is a pure addition — the minted "
+            f"factor must NAME the existing number, never re-derive it."
+        )
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
+def test_response_is_bit_identical_to_the_sn_realizer_float(
+    law, geom_cls, alpha,
+) -> None:
+    r"""The SN arm multiplies by ``float(law.albedo)``; we must equal it.
+
+    ``sn/boundary/realizer.py`` builds ``float(law.albedo) * base`` for every
+    :math:`\alpha \ne 1` law. If the minted scalar diverged from that, B1 would
+    have changed the realized operator while claiming to touch nothing.
+    """
+    if not hasattr(law, "albedo"):
+        pytest.skip(
+            f"{type(law).__name__} carries no `albedo` field — its response is "
+            f"structural (0 for the rank-0 laws, 1 for periodic), so there is "
+            f"no realizer float to compare against."
+        )
+    assert law.response_kernel.scalar == float(law.albedo)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
+def test_response_is_bit_identical_to_the_diffusion_partial_current_albedo(
+    law, geom_cls, alpha,
+) -> None:
+    r"""The diffusion arm's stage 1 IS the response kernel, measured.
+
+    ``DiffusionBoundaryRealizer`` is two named stages — ``law -> 𝒜 (float)``
+    then ``𝒜 -> operator`` — and that first stage computes precisely what
+    :attr:`response_kernel` now names. Equality here is the strongest evidence
+    that the factor is a *rename-and-lift* of an already-consumed number.
+
+    The two laws diffusion refuses are exactly the two needing a non-``R``
+    factor: periodic (a non-identity ``G``) and prescribed inflow (a nonzero
+    ``q``).
+    """
+    try:
+        realizer_alpha = DiffusionBoundaryRealizer._partial_current_albedo(law)
+    except BoundaryError:
+        pytest.skip(
+            f"{type(law).__name__} is not diffusion-admissible — it needs a "
+            f"factor outside the {{G = I, q = 0}} corner diffusion realizes."
+        )
+    assert law.response_kernel.scalar == realizer_alpha
+
+
+@pytest.mark.foundation
+def test_every_registered_law_is_covered_by_this_file() -> None:
+    """The parametrization must not silently fall behind the registry.
+
+    Without this, adding an eighth law would leave it untested here while every
+    test above still passed — the coverage would look complete and be stale.
+    """
+    registered = {
+        k for k in BoundaryTraceLaw.registry if not k.startswith("_")
+    }
+    # ``kind`` is the registry key for every law EXCEPT a partially-reflecting
+    # ReflectiveBoundary, which reports "partial" (see the B2 warning below);
+    # compare on the registered class instead so this check is about coverage,
+    # not about that wrinkle.
+    covered = {type(law).key for law, _, _, _ in _LAW_SPECS}
+    missing = registered - covered
+    if missing:
+        pytest.fail(
+            f"law(s) {sorted(missing)} are registered but absent from "
+            f"PRODUCTION_LAWS — add them, with their factors."
+        )
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
+def test_factors_are_frozen(law, geom_cls, alpha) -> None:
+    """A spec is a value; mutating one in place must be impossible."""
+    import dataclasses
+
+    for factor in (law.geometry_map, law.response_kernel):
+        fields = dataclasses.fields(factor)
+        if not fields:
+            # IdentityMap / NullMap are parameterless — there is nothing to
+            # mutate, so frozen-ness is vacuous for them rather than untested.
+            continue
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            setattr(factor, fields[0].name, None)
+
+
+@pytest.mark.foundation
+def test_specular_mirror_is_the_only_ordinate_permuting_geometry() -> None:
+    r"""``permutes_ordinates`` is the structural form of ``== "reflective"``.
+
+    ``sweep_schedule.py`` currently selects reflective faces by string compare;
+    phase B2 repoints it here. This pins the answer set so that repointing is a
+    behaviour-preserving change rather than a redefinition.
+
+    White answers ``False`` deliberately: it couples every outgoing ordinate to
+    every incoming one (rank-1 in angle), which is an all-to-all coupling, not
+    a relabeling — and is why the production Gauss-Seidel schedule excludes
+    white from its octant split.
+
+    .. warning::
+
+       **B2 FINDING, measured here.** Repointing ``sweep_schedule.py`` at this
+       predicate is **NOT** behaviour-preserving, and this test is what
+       revealed it. ``ReflectiveBoundary(albedo=0.7).kind`` is ``"partial"``,
+       not ``"reflective"``, so today's ``bc[face] == "reflective"`` compare
+       **misses partially-reflecting faces** — while ``permutes_ordinates``
+       correctly includes them, because a partial reflector does route outflow
+       back through the same mirror permutation.
+
+       Physically the structural answer is the right one: a face with
+       :math:`\alpha = 0.7` feeds the sweep exactly as one with
+       :math:`\alpha = 1` does, only weaker. So B2 must land that change
+       **deliberately, with its own gate**, not fold it in as a silent
+       side-effect of deleting a string compare.
+    """
+    permuting_geoms = {
+        type(law.geometry_map)
+        for law, _, _, _ in _LAW_SPECS
+        if law.geometry_map.permutes_ordinates
+    }
+    assert permuting_geoms == {SpecularMirror}, (
+        f"expected exactly SpecularMirror to permute ordinates; got "
+        f"{sorted(c.__name__ for c in permuting_geoms)}. A change here "
+        f"silently alters which faces the sweep schedule treats as reflective."
+    )
+
+    # The divergence itself, pinned so B2 cannot land it unnoticed.
+    partial = ReflectiveBoundary(axis="y", albedo=0.7)
+    assert partial.geometry_map.permutes_ordinates is True
+    assert partial.kind == "partial"      # ... yet the string compare misses it

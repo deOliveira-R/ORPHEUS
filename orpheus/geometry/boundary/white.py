@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 from ._base import BoundaryTraceLaw
+from ._factors import HemisphericalAverage, ScalarResponse
 
 if TYPE_CHECKING:
     import numpy as np
@@ -83,6 +84,23 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
     axis: str = "x"
     outward_sign: int = +1
     albedo: float = 1.0
+
+    # ── The affine form's two factors (B1) ──────────────────────────────
+    @property
+    def geometry_map(self) -> "HemisphericalAverage":
+        r""":math:`G = G_{\text{diff}}`, the cosine-weighted Lambertian average.
+
+        Rank-one in angle: contract the outgoing hemisphere against
+        :math:`|\Omega\cdot\hat n|\,w`, rebroadcast isotropically.
+        """
+        return HemisphericalAverage(
+            axis=self.axis, outward_sign=self.outward_sign,
+        )
+
+    @property
+    def response_kernel(self) -> "ScalarResponse":
+        r""":math:`R = \alpha`, the white-current scaling."""
+        return ScalarResponse(self.albedo)
 
     # ------------------------------------------------------------------
     # §16A.12 universal invariants — Wave 7 / C7.6 overrides.

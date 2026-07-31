@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 from ._base import BoundaryTraceLaw
+from ._factors import IdentityMap, ScalarResponse
 
 if TYPE_CHECKING:
     import numpy as np
@@ -60,6 +61,26 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
     """
 
     albedo: float = 0.0
+
+    # ── The affine form's two factors (B1) ──────────────────────────────
+    @property
+    def geometry_map(self) -> "IdentityMap":
+        r""":math:`G = I` — no relabeling; the response carries the whole law.
+
+        This is the family's degenerate geometry, and it is why the diffusion
+        arm needs no geometric factor at all: on a scalar trace, ``G`` is forced
+        to the identity by dimension.
+        """
+        return IdentityMap()
+
+    @property
+    def response_kernel(self) -> "ScalarResponse":
+        r""":math:`R = \alpha`, the partial-current albedo.
+
+        The SAME number the diffusion realizer's first stage returns
+        (``_partial_current_albedo(law) -> float``).
+        """
+        return ScalarResponse(self.albedo)
 
     # ------------------------------------------------------------------
     # §16A.12 universal invariants — Wave 7 / C7.6 overrides.
