@@ -1,9 +1,48 @@
 # Boundary-condition machinery — complete review
 
+> ## ⏸ COMPACTION POINT — cold-pickup anchor (2026-07-31)
+>
+> **Mapping complete; B0 and B1 landed; B2 measured but NOT started.**
+>
+> **Verify against the tree in this order — never trust this file over git:**
+> 1. `git log --oneline main..HEAD` — **21** commits on
+>    `refactor/operator-strategy-layers`. The first 12 are the operator-strategy
+>    **P0** phase (a different campaign sharing this branch — see
+>    `.claude/plans/operator_strategy_realization_campaign.md`); the last 9 are
+>    this boundary campaign, listed below. HEAD at this checkpoint is the plan
+>    commit itself.
+> 2. `git status --porcelain` — clean EXCEPT
+>    `.claude/skills/vv-principles/{SKILL.md,error_catalog.md}`, which are
+>    **forbidden to commit** by standing policy and exist ONLY in the working
+>    tree. A `git checkout`/`restore`/`stash`/`clean` on those paths destroys
+>    them irreversibly.
+> 3. Gates, all green at HEAD: `python -O -m pytest tests/geometry
+>    tests/sn/operators tests/diffusion` → **1273 passed, 7 skipped, 2 xfailed**;
+>    `npx pyright orpheus/` → **1 error** (the ratchet floor, the accepted #288
+>    residual — NOT a regression); `sphinx -E -W` → exit 0, **0 warnings**.
+>
+> **Landed this campaign:**
+> `ddc1ee10` retire `creates_sweep_cycle` · `1fd15f64` `BoundaryRealizer`
+> generic in its method space · `73627b71` reaction-naming verdict ·
+> `c512ab8e` this review + plan · `67a9b0a2` **B0** clean-before-extending ·
+> `37a3a47e` **B1** mint the factor Protocols · `a0fd17b4` **B1** populate all
+> seven laws · `668989fd` correct the B1 test's B2 warning.
+>
+> **NEXT = B2, and its shape changed after the plan was written.** Read §B2.0
+> FIRST: `sn.bc[face]` is a realized-operator wrapper plus a *string* — the law
+> is discarded at `augmented_mesh.py:435`. Nothing can be repointed at
+> `law.geometry_map` until the wrapper carries the descriptor. The trap I
+> predicted (partial reflectors) is **resolved, not pending** — see §B2.1.
+>
+> **Rulings not to re-litigate:** rank-N is WIRED, not retired (user,
+> 2026-07-30) · `R` is the response factor, `B` the composite · `kind`'s
+> `"partial"` return is deliberate and B2 dissolves the question · no
+> `as_operator` on the factors until B4 brings its consumer.
+
 **Status:** ✅ **MAPPING COMPLETE** — all four review quadrants closed and
 reconciled (diffusion arm · SN composite · law layer · test teeth). Every claim
-carries an evidence tag; every **[U]** has been raised or deleted; five **[X]**
-corrections are recorded in §9. **Ready to become an action plan.**
+carries an evidence tag; every **[U]** has been raised or deleted; **[X]**
+corrections are recorded in §9. **B0 + B1 LANDED; B2 measured, not started.**
 **Objective (user, 2026-07-30):** perfect this subsystem — make it do what it
 should do *and* what it promises to do. This report is the factual substrate; it
 becomes an action plan only once the mapping is complete and contradiction-free.
@@ -844,14 +883,74 @@ addition, zero behaviour change. **Closes:** #177, #265, #183.
 
 ## B2 — Delete the stringly-typed dispatch
 
-The six production sites (§3.1 + diffusion's own) stop asking `kind` strings and
-ask the structure: `law.geometry_map.permutes_ordinates`,
-`law.geometry_map.is_adjointable`, `law.response_kernel.is_zero`.
+> ⚠ **B2 IS NOT MECHANICAL REPOINTING. Measured 2026-07-31, before any code was
+> written — read this before starting.**
 
-**Gate (mutation, mandatory):** change a law's spec object → each dependent site's
-behaviour must change. A site that does not move is not really consuming the spec.
-**Retire** `_RULED_CORNER_KINDS` and the `== "reflective"` tag-equality asserts
-(**[M]** 11.1 % of bare asserts) in the same change — they are the same defect.
+### B2.0 ⭐ THE BLOCKER — the law is DISCARDED at realization
+
+**[R]** `orpheus/sn/mesh/augmented_mesh.py:435`:
+
+```python
+return _BoundBoundaryOperator(realized, kind=law.key)
+```
+
+**[M]** So `sn.bc[face]` is **not a law**. It is a wrapper holding the *realized
+operator* (`inner`) plus a **string**. Probed on a live mesh:
+
+```
+kind             -> 'reflective'
+albedo           -> <<ABSENT>>
+geometry_map     -> <<ABSENT>>
+response_kernel  -> <<ABSENT>>
+axis             -> <<ABSENT>>
+inner            -> <TensorProductOperator …>          # the REALIZED op
+```
+
+**The five dispatch sites are not being lazy — a string is the only thing that
+survives realization.** They cannot be repointed at `law.geometry_map` because
+at those sites *there is no law*.
+
+**So B2 gains a first step the plan did not have:** `_BoundBoundaryOperator` must
+**carry the descriptor it was realized from**, with `kind` becoming a
+read-through instead of a stored copy. Small in code, but it is a production
+change to a shim on the SN path (**[G]** `vacuum.py` alone has 46 external
+callers), not a docstring pass. Fold in the related defect the review already
+logged: **[R]** this wrapper forwards eight members to `inner` but **not**
+`domain`/`codomain`, unlike every other wrapper in the codebase.
+
+### B2.1 — The trap is RESOLVED; repointing IS behaviour-preserving
+
+The B1 test file initially warned the opposite. **[X]** That inference was wrong
+and is corrected at `668989fd`. Two measurements:
+
+- **[M]** The wrapper stores `law.key`, **not** `law.kind`. `ReflectiveBoundary.key`
+  is `"reflective"` for **every** albedo — 0.7 included — so
+  `bc[face] == "reflective"` **already matches partial reflectors**, and
+  `permutes_ordinates` is `True` for both. **They agree.**
+- **[R]** Independently, `_law_from_tag` (`transport/method.py:299-301`)
+  hard-codes `albedo=1.0` for reflective, so a partial reflector is **not
+  declarable through a `BC` tag on any method** at all.
+
+The real wrinkle the same measurement exposed, and the only one that matters:
+`law.kind` and the wrapper's `key` **diverge** for a partial reflector, and only
+the latter reaches production — precisely because the wrapper drops the law.
+B2.0 dissolves that too.
+
+### B2.2 — Then repoint, then retire
+
+Six sites (§3.1 + diffusion's own) ask the structure instead:
+`geometry_map.permutes_ordinates`, `geometry_map.is_adjointable`,
+`response_kernel.is_zero`.
+
+**Gate (mutation, mandatory):** change a law's spec object → each dependent
+site's behaviour must change. A site that does not move is not consuming the
+spec. Plus a **bit-identity** leg: with the law reachable, every realized
+operator must be unchanged.
+
+**Retire in the same change** — `_RULED_CORNER_KINDS` (**[M]** identical to SN's
+admitted set, so its raise is unreachable) and the `== "reflective"`
+tag-equality asserts (**[M]** 11.1 % of bare asserts, the test-side shadow of
+the same defect).
 
 > ⏸ **COMPACTION POINT.**
 
