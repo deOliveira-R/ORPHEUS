@@ -213,21 +213,28 @@ def test_specular_mirror_is_the_only_ordinate_permuting_geometry() -> None:
     a relabeling — and is why the production Gauss-Seidel schedule excludes
     white from its octant split.
 
-    .. warning::
+    .. note::
 
-       **B2 FINDING, measured here.** Repointing ``sweep_schedule.py`` at this
-       predicate is **NOT** behaviour-preserving, and this test is what
-       revealed it. ``ReflectiveBoundary(albedo=0.7).kind`` is ``"partial"``,
-       not ``"reflective"``, so today's ``bc[face] == "reflective"`` compare
-       **misses partially-reflecting faces** — while ``permutes_ordinates``
-       correctly includes them, because a partial reflector does route outflow
-       back through the same mirror permutation.
+       **A correction to this file's own first draft.** It warned that
+       repointing ``sweep_schedule.py`` here would NOT be behaviour-preserving,
+       reasoning that ``ReflectiveBoundary(albedo=0.7).kind`` is ``"partial"``
+       so the string compare must miss partial reflectors. **Measured, that is
+       wrong** — production never reads ``law.kind``:
 
-       Physically the structural answer is the right one: a face with
-       :math:`\alpha = 0.7` feeds the sweep exactly as one with
-       :math:`\alpha = 1` does, only weaker. So B2 must land that change
-       **deliberately, with its own gate**, not fold it in as a silent
-       side-effect of deleting a string compare.
+       * ``SNMesh.realize_boundary_law`` returns
+         ``_BoundBoundaryOperator(realized, kind=law.key)``
+         (``sn/mesh/augmented_mesh.py:435``) — it stores the **registry key**,
+       * and ``ReflectiveBoundary.key`` is ``"reflective"`` for **every**
+         albedo, including 0.7.
+
+       So ``bc[face] == "reflective"`` already matches partial reflectors, and
+       :attr:`permutes_ordinates` is ``True`` for both — **they agree**, and
+       repointing is behaviour-preserving. The legs below pin that agreement so
+       B2 can rely on it.
+
+       The wrinkle that IS real: ``law.kind`` and the wrapper's stored ``key``
+       diverge for a partial reflector, and only the latter reaches production
+       — because the wrapper discards the law entirely.
     """
     permuting_geoms = {
         type(law.geometry_map)
@@ -240,7 +247,12 @@ def test_specular_mirror_is_the_only_ordinate_permuting_geometry() -> None:
         f"silently alters which faces the sweep schedule treats as reflective."
     )
 
-    # The divergence itself, pinned so B2 cannot land it unnoticed.
+    # The agreement B2 relies on, pinned. A partial reflector permutes AND
+    # carries the "reflective" registry key that production actually compares
+    # against, so the structural predicate and the string compare give the same
+    # answer for every reachable face.
     partial = ReflectiveBoundary(axis="y", albedo=0.7)
     assert partial.geometry_map.permutes_ordinates is True
-    assert partial.kind == "partial"      # ... yet the string compare misses it
+    assert type(partial).key == "reflective"   # what the wrapper stores
+    assert partial.kind == "partial"           # what the LAW says — divergent,
+    #                                            but production never sees it
