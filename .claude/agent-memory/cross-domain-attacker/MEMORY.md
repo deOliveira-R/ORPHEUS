@@ -8,7 +8,7 @@ resolvent backbone → the AGENT.md kernel (fire from there, do NOT re-derive). 
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 11 process lessons. Spine: a frame-attack's value is a
+- [lessons.md](lessons.md) — 12 process lessons. Spine: a frame-attack's value is a
   concrete reformulation with a FAIL-ABLE first test OR a crisp refutation carrying its
   structural reason — never a named-but-payoff-free frame. L1 refuted-frames-are-first-class ·
   L2 tests must DISCRIMINATE · L3 Smell#16 four shapes · L4 property-vs-type by counting
@@ -16,7 +16,10 @@ resolvent backbone → the AGENT.md kernel (fire from there, do NOT re-derive). 
   resolvent-backbone predicts cross-method layering · L8 "fully probes"=linearity-not-degree ·
   L9 frame OWNER + Galerkin/PG discipline set by the operator's SYMMETRY (Funk–Hecke) · L10
   conserved-collapse splits rate⟹average(G⁻¹M) vs mass⟹marginalize(M) · L11 coupled-block =
-  free re-association of a biproduct (Mat∘Mat≅Mat), defer-until-2 counts KINDS.
+  free re-association of a biproduct (Mat∘Mat≅Mat), defer-until-2 counts KINDS · L12 naming IS
+  frame-detection: a theorem can FORBID a family word (⇒ species+genus-ABC), a name's test is
+  the invariant it promises run against the violator, delete-it-and-ask-what-breaks for a
+  reused word (+ smell cand "name states a contract the content violates").
 
 ## 2. Active / in-flight state
 
@@ -30,6 +33,7 @@ Frame-attacks whose reformulation became, or should become, architecture. Detect
 in `lessons.md`; structural CONTENT is in each topic file.
 
 ### Operator algebra (the SN/transport spine)
+- [reaction_term_naming_species_split.md](reaction_term_naming_species_split.md) — the 3-layer reaction NAMING verdict: genus = decomposable-operator field (von Neumann/Dixmier; excludes streaming), species = **1 multiplier + 3 kernels, a theorem not a taste** (no uniform family word: `Σ_t δ` is a distribution + Boltzmann false friend), seam = Kalman **realization**, layer-3 carrier arms = **compressions** `PAP*`. `Law` reserved for CLOSURES (delete-it-check + ENDF File 7 `S(α,β)`); `MaterialXSField`/`CrossSectionField` KEEP their names — the bug is the 9 `apply_*` verbs on the datum. Deliverable `scratch/reaction_naming_frames.md`.
 - [assembly_mode_functor_dag_frames.md](assembly_mode_functor_dag_frames.md) — Phase-2b: `assembled≡probed` IS functoriality of the additive-monoidal `F:Op→Mat`; per-octant `(L+C)` = the sweep-DAG incidence matrix (triangular⟺acyclic, #282 pole=back-edge); emission earns NO type (scipy carrier). REFUTED: DEC-homology/circulant/MPO.
 - [operator_inverse_taxonomy_frames.md](operator_inverse_taxonomy_frames.md) — #226 inverse taxonomy: TWO LAYERS — substrate `LossRepresentation` (many action-views of ONE object) vs OPERATOR (one morphism/one promise; A/A.H/A⁻¹ distinct); 4 inverse strategies, structure-keyed factory. Smell cand "vestigial-forward" (`_GaussSeidelResolvent` round-trip REDs).
 - [operator_inverse_w1_w2_resolutions.md](operator_inverse_w1_w2_resolutions.md) — #226 W1/W2: moment-emit = `OperatorProduct(P,A⁻¹)`, P a block COISOMETRY (no round-trip); G-S resolvent = `M.inverse()`, M=(L+C−B_lower) a REAL forward (matrix-splitting), REIFY M.apply not "preconditioner"; `ResolventOperator(z)`=`(A−zI).inverse()`, drop the class.

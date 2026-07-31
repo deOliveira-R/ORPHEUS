@@ -457,3 +457,64 @@ re-association, name the off-diagonals + lift the block-index freeze, do NOT add
 kind, linear?) — build only where ≥2 rows MATCH, defer the rest with the row that will
 define them. Pairs with L-004 (property-vs-type by applied morphisms) and L-007 (the
 resolvent backbone predicts which layer is shared).
+
+---
+
+## L-012 -- A NAMING task is a frame-detection task: a family word can be FORBIDDEN by a theorem (⇒ species + genus-ABC), and a name's first test is the invariant the name PROMISES run against the object that VIOLATES it
+
+Naming requests ("find the faithful name for these N sibling objects") are
+trigger-table work, not taste work. Three durable moves, from the reaction-term
+attack ([[reaction-term-naming-species-split]]):
+
+- **Check the refinement invariant BEFORE looking for a family word.** A uniform
+  word is *forbidden* when a theorem splits the siblings. Reactions: locality
+  *within the fiber* splits 1 multiplier (collision: continuum object is
+  `Σ_t δ`, a DISTRIBUTION) from 3 kernels (Fredholm functions) — so "kernel" as
+  the family word is false, not merely imprecise. The honest output is
+  **species words on the leaves + a genus word on the ABC**, and the genus stays
+  greppable by ONE token precisely because the leaves are not uniform. Bonus
+  elegance check: make the layer-1 species BIJECT with the already-landed
+  layer-3 species (multiplier↔`MultiplicationOperator`, kernel↔
+  `IntegralKernelOperator`) — then the seam is *species-preserving*, a real
+  property that is strictly weaker than the functor the seam does NOT have.
+- **The discriminating test for a NAME is the invariant the name promises, run
+  against the object that violates it.** A name is a claim; test the claim.
+  Worked: `ReactionTerm`'s genus invariant is decomposability ⟹ assert
+  `A(m⊙x) == m⊙A(x)` for a **cell-varying** mask (a constant mask cannot fail),
+  where all four reactions PASS and **streaming FAILS**. Species: the multiplier
+  additionally commutes with a **group-wise** mask, the kernels must FAIL that —
+  and the `Σ_s` used must be genuinely off-diagonal, because a diagonal-only
+  `Σ_s` passes the multiplier gate and a design that picks the species from the
+  data's *accidental* diagonality is exactly the bug. Corollary: a name that
+  cannot carry its own invariant (an invented weakest-true word) OWES a test
+  that does.
+- **A word already spent elsewhere in the codebase gets a delete-it-and-ask-
+  what-breaks check, not an analogy argument.** `Law` (from `BoundaryTraceLaw`)
+  for reactions: delete the BC law ⟹ **ill-posed** (it is a CLOSURE, enforced);
+  delete scattering ⟹ a *different, still well-posed* problem (it is a
+  GENERATOR TERM, applied). Two independent confirmations followed for free —
+  the law is *affine* (carries `q`) while reaction terms are purely linear, and
+  the domain has a live false friend (ENDF File 7 "thermal scattering law"
+  `S(α,β)`). When reusing a precedent, split it: the **realizer** half
+  transferred (Kalman realization is layer-agnostic), the **descriptor word**
+  did not.
+
+**New smell (candidate, 1st sighting): "the name states a contract the content
+violates."** `MaterialXSField` is named as an apply-free datum (Dixmier field)
+and carries NINE `apply_*` verbs consumed by two operator modules — the
+fiber-operator ACTION living inside the datum. Distinct from Smell #16 shape 1
+(two paths to one operator): here there is ONE path, hosted on the wrong LAYER.
+TELL: a class whose docstring says "data/descriptor/field" while its method list
+says `apply`/`add_`. FIX is relocation (it is a shared primitive, not a twin) —
+and the *name* is usually the correct one, so resist the rename reflex.
+
+How to apply: at any "what should this be called" dispatch, (1) hunt the
+refinement theorem first — a forbidden family word is the highest-value finding
+and it must be said PLAINLY; (2) report the math-faithful name AND the domain
+(NE) name, with the routing rule *types get the faithful name, accessors/docs/
+equations get the domain name* — a type name is read once per design decision, an
+accessor on every line; (3) emit a per-name buys/costs line, and for any name
+that would promise an unsupported operation, say which operation and cite the
+measurement that refutes it (`Functor` ⟹ `reduce-discrete ≠ discretize-reduce`,
+measured). Do NOT invent a name where none exists — say "no faithful name
+exists", give the least-bad invented one, and flag it as invented.
