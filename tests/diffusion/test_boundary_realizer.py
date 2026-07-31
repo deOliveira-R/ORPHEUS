@@ -315,13 +315,43 @@ class TestRefusals:
         self, realizer, minimal_ms,
     ):
         """A law outside the dispatch table names itself and the
-        realizable cases (mirror of the SN fallthrough contract)."""
+        realizable cases (mirror of the SN fallthrough contract).
+
+        This leg is what caught the B2.2 regression: collapsing the
+        ``isinstance`` ladder onto ``law.response_kernel.scalar``
+        deleted the ladder's final fallthrough ``raise``, so this
+        object stopped getting a named :class:`BoundaryError` and
+        started dying on a bare ``AttributeError`` deep in a factor
+        read. **A collapsed dispatch ladder loses its last arm
+        silently** — the guard is restored as a ``response_kernel is
+        None`` check, placed first because everything after it
+        dereferences a factor.
+        """
 
         class _NotALaw:
             pass
 
         with pytest.raises(BoundaryError, match="_NotALaw"):
             realizer.realize(_NotALaw(), minimal_ms)  # type: ignore[arg-type]
+
+    def test_law_with_unpopulated_factors_refused(self, realizer, minimal_ms):
+        """The shape the restored guard newly covers, and the LIKELIER one.
+
+        Passing a non-law is a programming slip; a real
+        :class:`BoundaryTraceLaw` subclass shipping without its factors is a
+        plausible future mistake — the ABC still permits it (both factors
+        default to ``None``, pinned in
+        ``tests/geometry/test_boundary_trace_law.py``). Since B2 diffusion
+        realizes a law THROUGH its response factor, such a law has no 𝒜 at
+        all, and must be told so by name rather than crash on ``None.scalar``.
+        """
+        from orpheus.geometry.boundary import BoundaryTraceLaw
+
+        class _LawWithoutFactors(BoundaryTraceLaw):
+            pass
+
+        with pytest.raises(BoundaryError, match="_LawWithoutFactors"):
+            realizer.realize(_LawWithoutFactors(), minimal_ms)
 
 
 # ═══════════════════════════════════════════════════════════════════════

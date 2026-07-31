@@ -158,9 +158,13 @@ class SNMesh(MaterialMesh):
         through the single-sourced
         :attr:`~orpheus.transport.mesh.axis.FaceLabel.face_name` crosswalk (C4,
         #220). Each value is a :class:`_BoundBoundaryOperator` shim
-        wrapping the realized 1-arg :class:`LinearOperator` and
-        carrying a ``kind`` tag so ``sn_mesh.bc["xmin"] == "vacuum"``
-        style comparisons work. The face inventory IS the BC
+        pairing the realized 1-arg :class:`LinearOperator` with the
+        **law** it was realized from — so a consumer can ask what the
+        face's law DOES (``bc[face].law.geometry_map``,
+        ``bc[face].law.response_kernel``) and not only what it was
+        declared as. Its ``kind`` tag reads that law's registry key,
+        keeping ``sn_mesh.bc["xmin"] == "vacuum"`` style comparisons
+        working. The face inventory IS the BC
         inventory: slab ``{"xmin", "xmax"}``; **a solid sphere /
         cylinder has only ONE entry** (``"xmax"``, the outer radius —
         the pole r=0 is the angular closure's regularity condition,

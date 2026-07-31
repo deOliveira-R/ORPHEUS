@@ -118,19 +118,23 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.linalg import lu_factor, lu_solve
 
+from orpheus.geometry.boundary import PrescribedInflow
 from orpheus.numerics.operator import LinearOperator
 
 if TYPE_CHECKING:
+    from orpheus.geometry.boundary import BoundaryTraceLaw
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.full_field import FullField
 
 __all__ = ["DSALowOrderSystem", "DSACorrection"]
 
-
-#: Boundary kinds the arm-1 low-order system realizes. Albedo/white walls
-#: need the Marshak-albedo generalization of the (38) row — a documented
-#: seam, not a silent approximation.
-_SUPPORTED_BC = frozenset({"vacuum", "reflective"})
+# The arm-1 admission set is no longer a tag frozenset (``_SUPPORTED_BC =
+# {"vacuum", "reflective"}``, retired in campaign phase B2): it is read off
+# the law's affine factors in :meth:`DSALowOrderSystem.from_sn_mesh`, which
+# names WHICH property each proven row rests on — a zero response for the
+# Marshak (38) row, an ordinate-permuting geometry for the (39) row. Albedo /
+# white walls still need the Marshak-albedo generalization of (38); that is a
+# documented seam, not a silent approximation.
 
 
 @dataclass(frozen=True)
@@ -210,13 +214,28 @@ class DSALowOrderSystem:
                 f"orpheus/derivations/discrete/sn/dsa.py carries the "
                 f"general-α theorems)."
             )
-        bc_kinds = (
-            str(sn_mesh.bc["xmin"].kind), str(sn_mesh.bc["xmax"].kind),
-        )
-        unsupported = set(bc_kinds) - _SUPPORTED_BC
+        # The two laws whose low-order row is PROVEN, asked structurally: a
+        # zero response gives Marshak (38) — zero incoming partial current —
+        # and an ordinate-permuting geometry gives (39) — zero net current at
+        # the mirror. Until campaign phase B2 this was a set-difference against
+        # the tag frozenset ``{"vacuum", "reflective"}``; the answers coincide
+        # on every registered law, but the structural form says WHICH property
+        # each proof rests on, which is what the ``_build`` rows below select.
+        # ``PrescribedInflow`` is excluded by FAMILY, not by its current q: its
+        # inflow is a free parameter the low-order edge system has no row for,
+        # so admitting it on a zero default q would build a Marshak row and
+        # silently drop the source the day one is set. (The response-factor
+        # test alone would admit it — measured while writing B2.)
+        laws = (sn_mesh.bc["xmin"].law, sn_mesh.bc["xmax"].law)
+        unsupported = sorted({
+            type(law).__name__ for law in laws
+            if isinstance(law, PrescribedInflow)
+            or not (law.response_kernel.is_zero
+                    or law.geometry_map.permutes_ordinates)
+        })
         if unsupported:
             raise NotImplementedError(
-                f"DSALowOrderSystem: boundary kind(s) {sorted(unsupported)!r} "
+                f"DSALowOrderSystem: boundary law(s) {unsupported!r} "
                 f"have no proven low-order row (arm 1 realizes vacuum "
                 f"(Marshak) and reflective; albedo walls need the "
                 f"Marshak-albedo generalization of Larsen (38))."
@@ -251,7 +270,7 @@ class DSALowOrderSystem:
 
         mu = np.asarray(sn_mesh.quad.mu_x, dtype=float)
         w = np.asarray(sn_mesh.quad.weights, dtype=float)
-        return cls._build(h, sigma_t, sigma_s0, sigma_s1, mu, w, bc_kinds)
+        return cls._build(h, sigma_t, sigma_s0, sigma_s1, mu, w, laws)
 
     @classmethod
     def _build(
@@ -262,7 +281,7 @@ class DSALowOrderSystem:
         sigma_s1: np.ndarray,
         mu: np.ndarray,
         w: np.ndarray,
-        bc: tuple[str, str],
+        laws: tuple["BoundaryTraceLaw", "BoundaryTraceLaw"],
     ) -> "DSALowOrderSystem":
         r"""Assemble the proven rows, vectorized over groups.
 
@@ -325,9 +344,9 @@ class DSALowOrderSystem:
 
         # Boundary rows — the verified one-sided f1 forms:
         # f1 = −(D/h)(f0R − f0L) ± ¼σ̂_R h (f0R + f0L) + g1 ∓ ½g0.
-        for row, cell_i, side, kind in (
-            (0, 0, "left", bc[0]),
-            (n_cells, n_cells - 1, "right", bc[1]),
+        for row, cell_i, side, law in (
+            (0, 0, "left", laws[0]),
+            (n_cells, n_cells - 1, "right", laws[1]),
         ):
             sgn = +1.0 if side == "left" else -1.0
             f0_cols = {
@@ -338,17 +357,19 @@ class DSALowOrderSystem:
                 n_cells + cell_i: +a_coef[:, cell_i],
                 cell_i: -sgn * half_gs[:, cell_i],
             }
-            if kind == "vacuum":
-                # Marshak (38): γ_N f0 + (W2⁺/W2)·(±f1) = 0, outward-
-                # consistent orientation.
+            if law.response_kernel.is_zero:
+                # R = 0 ⇒ Marshak (38): γ_N f0 + (W2⁺/W2)·(±f1) = 0,
+                # outward-consistent orientation. (The zero response IS the
+                # zero-incoming-partial-current the Marshak row states.)
                 orient = +1.0 if side == "left" else -1.0
                 a_low[:, row, row] += gamma_n
                 for col, val in f0_cols.items():
                     a_low[:, row, col] += orient * c1 * val
                 for col, val in g_cols.items():
                     g_map[:, row, col] -= orient * c1 * val
-            else:  # "reflective" — admission guarantees the pair
-                # (39): f1 at the wall edge = 0.
+            else:  # G permutes ordinates — admission guarantees the pair
+                # A specular mirror returns every ordinate ⇒ zero NET current
+                # at the wall edge, which is (39): f1 = 0.
                 for col, val in f0_cols.items():
                     a_low[:, row, col] += val
                 for col, val in g_cols.items():

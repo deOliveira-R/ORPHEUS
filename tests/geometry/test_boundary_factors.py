@@ -13,10 +13,12 @@ This file is the floor that keeps them populated. The ABC default is still
 :mod:`tests.geometry.test_boundary_trace_law`), so nothing structurally stops a
 future law from shipping unpopulated; these tests are what would catch it.
 
-The bit-identity legs are the phase's stated acceptance criterion: the minted
-``response_kernel`` must be the **same number** each realizer already reaches
+The bit-identity leg is the phase's stated acceptance criterion: the minted
+``response_kernel`` must be the **same number** the realizer already reaches
 for, not a re-derivation of it. A new number here would mean B1 changed physics
-while claiming to be a pure addition.
+while claiming to be a pure addition. (There were TWO such legs; B2.2 retired
+the diffusion one when the collapse made it tautological — see the retirement
+note in the body, which is the worked example of that decay.)
 
 Tagged ``@pytest.mark.foundation``: these assert a structural contract, not a
 discretization claim, so they carry no ``verifies(...)`` equation label (the
@@ -27,10 +29,8 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
-    BoundaryError,
     BoundaryGeometryMap,
     BoundaryResponseKernel,
     BoundaryTraceLaw,
@@ -135,30 +135,34 @@ def test_response_is_bit_identical_to_the_sn_realizer_float(
     assert law.response_kernel.scalar == float(law.albedo)
 
 
-@pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
-def test_response_is_bit_identical_to_the_diffusion_partial_current_albedo(
-    law, geom_cls, alpha,
-) -> None:
-    r"""The diffusion arm's stage 1 IS the response kernel, measured.
-
-    ``DiffusionBoundaryRealizer`` is two named stages — ``law -> 𝒜 (float)``
-    then ``𝒜 -> operator`` — and that first stage computes precisely what
-    :attr:`response_kernel` now names. Equality here is the strongest evidence
-    that the factor is a *rename-and-lift* of an already-consumed number.
-
-    The two laws diffusion refuses are exactly the two needing a non-``R``
-    factor: periodic (a non-identity ``G``) and prescribed inflow (a nonzero
-    ``q``).
-    """
-    try:
-        realizer_alpha = DiffusionBoundaryRealizer._partial_current_albedo(law)
-    except BoundaryError:
-        pytest.skip(
-            f"{type(law).__name__} is not diffusion-admissible — it needs a "
-            f"factor outside the {{G = I, q = 0}} corner diffusion realizes."
-        )
-    assert law.response_kernel.scalar == realizer_alpha
+# ── RETIRED at B2.2, and why ──────────────────────────────────────────
+#
+# ``test_response_is_bit_identical_to_the_diffusion_partial_current_albedo``
+# lived here. It asserted
+#
+#     law.response_kernel.scalar == DiffusionBoundaryRealizer\
+#                                       ._partial_current_albedo(law)
+#
+# which was real evidence in B1: the realizer was a five-arm ``isinstance``
+# ladder returning ``0.0`` / ``-1.0`` / ``float(law.albedo)``, and the equality
+# proved the minted factor was a rename-and-lift of the number that ladder
+# already reached for, not a re-derivation.
+#
+# B2.2 collapsed the ladder onto ``law.response_kernel.scalar``. The assertion
+# is now ``x == x`` — it executes, it is green, and it can never red: the same
+# fires-but-cannot-fail family as a tautological companion guard
+# (``vv-principles`` Mode 8), arrived at not by bad authorship but by DECAY,
+# because production moved underneath a correctly-written test.
+#
+# Its coverage is MIGRATED, not dropped (coding-standards: retirement means
+# test migration). ``tests/geometry/test_boundary_factor_consumers.py``
+# reproduces the retired ladder verbatim and compares it against the live
+# realizer law by law — the same claim, with the teeth restored, plus a
+# mutation leg proving 𝒜 tracks the factor.
+#
+# The SN sibling ABOVE is NOT retired: the SN realizer still spells its own
+# ``float(law.albedo) * base``, so that comparison still has two sides. It
+# becomes tautological at phase B4, and should be retired the same way then.
 
 
 @pytest.mark.foundation

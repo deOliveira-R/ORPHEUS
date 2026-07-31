@@ -29,6 +29,12 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.discrete.sn import dsa as dsa_reference
 from orpheus.geometry import BC
+from orpheus.geometry.boundary import (
+    AlbedoBoundary,
+    PrescribedInflow,
+    VacuumInflow,
+    WhiteBoundary,
+)
 from orpheus.geometry.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration import DSACorrection, DSALowOrderSystem
@@ -133,11 +139,25 @@ class TestProductionTie:
 class TestAdmissionTeeth:
     """The loud seams refuse — each guard actually bites."""
 
-    def test_unsupported_boundary_refused(self):
+    @pytest.mark.parametrize(
+        "unadmitted",
+        [WhiteBoundary(), AlbedoBoundary(albedo=0.3), PrescribedInflow()],
+        ids=["white", "albedo", "prescribed"],
+    )
+    def test_unsupported_boundary_refused(self, unadmitted):
         """The albedo/white seam guard. SNMesh's own registry pre-refuses
-        such kinds today, so the guard is defense-in-depth for a future
+        these laws today, so the guard is defense-in-depth for a future
         registry entry — exercised through a structural stub carrying
-        the admission surface (geometry, scheme, bc kinds)."""
+        the admission surface (geometry, scheme, per-face laws).
+
+        The stub's faces carry REAL laws. Until campaign phase B2 they were
+        ``SimpleNamespace(kind="white")`` tag surrogates, which could only
+        exercise a string comparison; the guard now reads the laws' affine
+        factors, so a surrogate would be testing a fiction. ``PrescribedInflow``
+        is in the set deliberately: its response IS zero, so the factor test
+        alone would ADMIT it and silently build a Marshak row that drops ``q``
+        — it is refused by family, and this leg is what holds that.
+        """
         from types import SimpleNamespace
 
         real = _slab()
@@ -147,8 +167,8 @@ class TestAdmissionTeeth:
             mesh=real.mesh,
             scheme=SimpleNamespace(key="diamond_difference"),
             bc={
-                "xmin": SimpleNamespace(kind="white"),
-                "xmax": SimpleNamespace(kind="vacuum"),
+                "xmin": SimpleNamespace(law=unadmitted),
+                "xmax": SimpleNamespace(law=VacuumInflow()),
             },
         )
         with pytest.raises(NotImplementedError, match="Marshak-albedo"):
@@ -180,7 +200,7 @@ class TestAdmissionTeeth:
         with pytest.raises(ValueError, match="Σw = 2"):
             DSALowOrderSystem._build(
                 h, sigma_t, sigma_s0, sigma_s1, mu, w / 2.0,
-                ("vacuum", "vacuum"),
+                (VacuumInflow(), VacuumInflow()),
             )
 
     def test_d_positivity_guard_fires(self):
@@ -189,7 +209,8 @@ class TestAdmissionTeeth:
         bad_s1 = np.full_like(sigma_t, 2.0) * sigma_t  # σ_s1 > σ_t
         with pytest.raises(ValueError, match="positive"):
             DSALowOrderSystem._build(
-                h, sigma_t, sigma_s0, bad_s1, mu, w, ("vacuum", "vacuum"),
+                h, sigma_t, sigma_s0, bad_s1, mu, w,
+                (VacuumInflow(), VacuumInflow()),
             )
 
 

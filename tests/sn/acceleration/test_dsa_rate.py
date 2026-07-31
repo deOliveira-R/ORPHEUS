@@ -59,6 +59,7 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import BC
+from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
 from orpheus.geometry.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration.dsa import DSACorrection, DSALowOrderSystem
@@ -799,11 +800,19 @@ def _t_dsa(a_edge, g_map, t_si):
     return t_si + c2e @ np.linalg.solve(a_edge, g_map @ d_stack)
 
 
+#: Tag -> law. Campaign phase B2 made ``_build`` take the boundary LAWS rather
+#: than their tag strings (its row selection reads the laws' affine factors),
+#: so the tag vocabulary these rate tests are written in is translated HERE, at
+#: the test's own surface, rather than pushed back into production.
+_LAW_FOR_TAG = {"vacuum": VacuumInflow, "reflective": ReflectiveBoundary}
+
+
 def _consistent_low_order(h, st, ss, mu, w, bc):
     """The PRODUCTION low-order build (1-group arrays), so the control
     exercises the shipped operator, not a re-transcription."""
     system = DSALowOrderSystem._build(
-        h, st[None], ss[None], np.zeros_like(ss)[None], mu, w, bc,
+        h, st[None], ss[None], np.zeros_like(ss)[None], mu, w,
+        tuple(_LAW_FOR_TAG[t]() for t in bc),
     )
     return system.a_low[0], system.g_map[0]
 

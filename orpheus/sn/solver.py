@@ -1359,11 +1359,32 @@ class SNSolver:
             honestly, and answering without it would silently reproduce
             the #291 omission (fail loud; never return a non-eigenvalue).
         """
-        vacuum_faces = [
+        # A face LEAKS iff its law returns nothing: R = 0 means every particle
+        # crossing outward is lost to the k denominator. That is
+        # ``response_kernel.is_zero``, asked of the law directly; until
+        # campaign phase B2 it read ``op.kind == "vacuum"``, the same question
+        # spelled as a string because the pre-B2.0 shim discarded the law.
+        # Agreement is exact on SN's admitted set (vacuum R = 0, reflective
+        # R = 1) and on every law but ONE: a prescribed-inflow face also leaks
+        # its whole outflow, so it now joins this list where the tag test
+        # missed it. That is the correct answer and it is unreachable today
+        # (SN's admission table is {reflective, vacuum}), but it IS a
+        # divergence — recorded rather than left silent.
+        #
+        # Known incompleteness, PRE-EXISTING and unchanged here: a partially
+        # reflecting face (R = α < 1) leaks (1 − α) of its outflow and is in
+        # neither the old set nor this one. It is unreachable because
+        # ``_law_from_tag`` hard-codes albedo = 1.0 for reflective, and the
+        # filter is an optimization rather than a semantic gate — the term it
+        # skips is ``trace.net_current(face)``, which is identically zero for
+        # the perfect reflector this list is really excluding. The honest
+        # predicate is "R != 1", and it becomes reachable the moment #189
+        # admits partial reflectors.
+        leaking_faces = [
             name for name, op in self.sn_mesh.bc.items()
-            if op.kind == "vacuum"
+            if op.law.response_kernel.is_zero
         ]
-        if not vacuum_faces:
+        if not leaking_faces:
             return 0.0
         psi = getattr(self, "_psi_typed", None)
         phi_of_trace = getattr(self, "_phi_of_trace", None)
@@ -1384,7 +1405,7 @@ class SNSolver:
                 f"compute_keff: the converged iterate's trace must be an "
                 f"AngularBoundaryFlux; got {type(trace).__name__}."
             )
-        for face in vacuum_faces:
+        for face in leaking_faces:
             net_current = trace.net_current(face)  # (ng, *face_spatial[, moments])
             face_area = self._face_area_of(face)
             if net_current.ndim - 1 != np.ndim(face_area):

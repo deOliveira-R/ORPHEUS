@@ -36,6 +36,22 @@ leaf of the composite state, consumed by the P4
 The realization table (law → 𝒜 → operator)
 ===========================================
 
+.. note::
+
+   **The table is derived, not transcribed** (campaign phase B2.2).
+   The first map is one line — ``𝒜 = law.response_kernel.scalar`` —
+   not the five-arm ``isinstance`` ladder it used to be. Every row
+   below then falls out of the response factor each law already
+   declares, and the reason the four value rows looked alike is now
+   stated rather than coincidental: **at P1 the angular geometry map
+   is integrated out of the half-range moments**, so a specular
+   mirror, a Lambertian average, an identity and a null map all leave
+   the same scalar on the partial-current trace. The two refusals are
+   exactly the laws whose remaining factor is *not* a per-face scalar
+   — a spatial relabeling and an affine source. Read the table as the
+   physics; read ``response_kernel`` as the single source it is
+   computed from.
+
 ===============================  =======  =========================================
 Law                              𝒜        Realized operator
 ===============================  =======  =========================================
@@ -116,15 +132,10 @@ References
 from __future__ import annotations
 
 from orpheus.geometry.boundary import (
-    AlbedoBoundary,
     BoundaryError,
     BoundaryTraceLaw,
-    PeriodicBoundary,
     PrescribedInflow,
-    ReflectiveBoundary,
-    VacuumInflow,
-    WhiteBoundary,
-    ZeroFluxBoundary,
+    SpatialWrap,
     stamp_boundary_role,
 )
 from orpheus.numerics.operator import (
@@ -205,45 +216,77 @@ class DiffusionBoundaryRealizer:
         :math:`\mathcal{A} = \alpha` — because the angular structure
         distinguishing the two return patterns is integrated out of
         the half-range moments.
-        """
-        if isinstance(law, VacuumInflow):
-            return 0.0  # Marshak: zero incoming current (ruling 3).
-        if isinstance(law, ZeroFluxBoundary):
-            return -1.0  # Dirichlet φ_Γ = 0 ⟺ J⁻ = −J⁺ under P1.
-        if isinstance(law, (ReflectiveBoundary, WhiteBoundary)):
-            return float(law.albedo)  # P1-coincident (see module docstring).
-        if isinstance(law, AlbedoBoundary):
-            return float(law.albedo)
 
-        if isinstance(law, PeriodicBoundary):
+        **𝒜 IS the law's response factor** — one read, not a table.
+        Until campaign phase B2 this method was a five-arm
+        ``isinstance`` ladder returning ``0.0`` / ``-1.0`` /
+        ``float(law.albedo)``; every arm returned exactly
+        ``law.response_kernel.scalar``, which is why the B1 gate could
+        pin the two bit-identical law by law
+        (``tests/geometry/test_boundary_factors.py``). Collapsing it
+        states the reason the arms looked alike: **at P1 the angular
+        geometry map is integrated out of the half-range moments**, so
+        a specular mirror, a Lambertian average, an identity and a null
+        map all leave the same scalar on the partial-current trace, and
+        only the response survives.
+
+        Which is also exactly why the two refusals below are the
+        refusals: they are the laws whose remaining factor is NOT a
+        per-face scalar — a *spatial* relabeling (which couples two
+        faces and so cannot be integrated away) and an affine source
+        (which is not a linear response at all).
+        """
+        # The fallthrough guard the ``isinstance`` ladder used to provide as
+        # its last arm. Collapsing the ladder onto ``response_kernel`` moved
+        # the failure mode: an object that is not a law — or a
+        # ``BoundaryTraceLaw`` subclass that never populated its factors, which
+        # the ABC still permits (the default is ``None``) — used to fall
+        # through to a named ``BoundaryError`` and would otherwise now die on a
+        # bare ``AttributeError`` deep in the read. Restored here, first,
+        # because everything below dereferences a factor.
+        response = getattr(law, "response_kernel", None)
+        if response is None:
             raise BoundaryError(
-                "DiffusionBoundaryRealizer cannot realize "
-                "PeriodicBoundary: the periodic law couples a face to "
-                "its OPPOSITE face (a trace-block permutation), not a "
-                "per-face albedo J⁻ = 𝒜·J⁺. The wrap lands with the "
-                "boundary-operator assembly when a diffusion consumer "
-                "exists (#290 P4 seam).",
-                law="periodic",
+                f"DiffusionBoundaryRealizer cannot realize "
+                f"{type(law).__name__} — it declares no `response_kernel`, so "
+                f"there is no 𝒜 to realize. Diffusion realizes a law THROUGH "
+                f"that factor: VacuumInflow (𝒜=0, Marshak), ReflectiveBoundary "
+                f"(𝒜=α), WhiteBoundary (𝒜=α, P1-coincident with reflective), "
+                f"AlbedoBoundary (𝒜=α), ZeroFluxBoundary (𝒜=−1). For rank-N "
+                f"compositions use "
+                f"orpheus.geometry.boundary.realize_recursively with "
+                f"realizer=DiffusionBoundaryRealizer().",
+                law=getattr(type(law), "key", None) or type(law).__name__,
             )
+
+        # The one surviving TYPE test, and it is essential rather than a tag
+        # smell: what disqualifies the prescribed family is that its inflow is
+        # a free parameter q, NOT a function of the outflow — which is true of
+        # the FAMILY whatever q currently holds. Testing the source VALUE
+        # instead (``isinstance(law.source, NoSource)``) would silently realize
+        # ``PrescribedInflow()`` at its default zero source as 𝒜 = 0, i.e.
+        # turn a refusal into a value on a path (#290 P5) that does not exist
+        # yet. Measured while writing B2 — it is the trap in this collapse.
         if isinstance(law, PrescribedInflow):
             raise BoundaryError(
-                "DiffusionBoundaryRealizer cannot realize "
-                "PrescribedInflow: J⁻ = q is the rank-0 AFFINE law — "
-                "its realization is the boundary source q.boundary, "
-                "not a linear boundary operator B (the same "
-                "operator/source split SN keeps). The diffusion "
-                "fixed-source arm lands with the solver wiring "
-                "(#290 P5).",
-                law="prescribed_inflow",
+                f"DiffusionBoundaryRealizer cannot realize "
+                f"{type(law).__name__}: J⁻ = q is the rank-0 AFFINE law — "
+                f"its realization is the boundary source q.boundary, "
+                f"not a linear boundary operator B (the same "
+                f"operator/source split SN keeps). The diffusion "
+                f"fixed-source arm lands with the solver wiring "
+                f"(#290 P5).",
+                law=type(law).key or type(law).__name__,
             )
-        raise BoundaryError(
-            f"DiffusionBoundaryRealizer cannot realize "
-            f"{type(law).__name__} — no albedo-family case. Realizable "
-            f"laws: VacuumInflow (𝒜=0, Marshak), ReflectiveBoundary "
-            f"(𝒜=α), WhiteBoundary (𝒜=α, P1-coincident with "
-            f"reflective), AlbedoBoundary (𝒜=α), ZeroFluxBoundary "
-            f"(𝒜=−1). For rank-N compositions use "
-            f"orpheus.geometry.boundary.realize_recursively with "
-            f"realizer=DiffusionBoundaryRealizer().",
-            law=type(law).__name__,
-        )
+        if isinstance(law.geometry_map, SpatialWrap):
+            raise BoundaryError(
+                f"DiffusionBoundaryRealizer cannot realize "
+                f"{type(law).__name__}: its geometry map is a SPATIAL "
+                f"wrap, which couples a face to its OPPOSITE face (a "
+                f"trace-block permutation) — the one geometry P1 cannot "
+                f"integrate away into a per-face albedo J⁻ = 𝒜·J⁺. The "
+                f"wrap lands with the boundary-operator assembly when a "
+                f"diffusion consumer exists (#290 P4 seam).",
+                law=type(law).key or type(law).__name__,
+            )
+        return response.scalar

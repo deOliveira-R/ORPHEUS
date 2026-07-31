@@ -9,6 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
 from orpheus.geometry import BC, Mesh1D, Mesh2D, CoordSystem
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
@@ -64,8 +65,8 @@ class TestSNBCResolution:
     def test_default_is_reflective(self, slab_mesh, quad):
         """None on mesh resolves to 'reflective' (eigenvalue default)."""
         sn = SNMesh(slab_mesh, quad, placeholder_materials())
-        assert sn.bc["xmin"] == "reflective"
-        assert sn.bc["xmax"] == "reflective"
+        assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
+        assert isinstance(sn.bc["xmax"].law, ReflectiveBoundary)
 
     def test_explicit_vacuum(self, slab_mesh, quad):
         mesh = Mesh1D(
@@ -73,8 +74,8 @@ class TestSNBCResolution:
             bc_left=BC.vacuum, bc_right=BC.vacuum,
         )
         sn = SNMesh(mesh, quad, placeholder_materials())
-        assert sn.bc["xmin"] == "vacuum"
-        assert sn.bc["xmax"] == "vacuum"
+        assert isinstance(sn.bc["xmin"].law, VacuumInflow)
+        assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
     def test_mixed_bcs(self, slab_mesh, quad):
         mesh = Mesh1D(
@@ -82,8 +83,8 @@ class TestSNBCResolution:
             bc_left=BC.reflective, bc_right=BC.vacuum,
         )
         sn = SNMesh(mesh, quad, placeholder_materials())
-        assert sn.bc["xmin"] == "reflective"
-        assert sn.bc["xmax"] == "vacuum"
+        assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
+        assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
     def test_unknown_bc_raises(self, slab_mesh, quad):
         mesh = Mesh1D(
@@ -116,10 +117,10 @@ class TestSNBCResolution:
             bc_ymin=BC.reflective, bc_ymax=BC.vacuum,
         )
         sn = SNMesh(mesh, quad, placeholder_materials())
-        assert sn.bc["xmin"] == "reflective"
-        assert sn.bc["xmax"] == "vacuum"
-        assert sn.bc["ymin"] == "reflective"
-        assert sn.bc["ymax"] == "vacuum"
+        assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
+        assert isinstance(sn.bc["xmax"].law, VacuumInflow)
+        assert isinstance(sn.bc["ymin"].law, ReflectiveBoundary)
+        assert isinstance(sn.bc["ymax"].law, VacuumInflow)
 
     def test_curvilinear_vacuum_resolves(self, quad):
         """Spherical/cylindrical accept vacuum; sweep enforces zero-incoming
@@ -132,7 +133,7 @@ class TestSNBCResolution:
             bc_right=BC.vacuum,
         )
         sn = SNMesh(mesh, quad, placeholder_materials())
-        assert sn.bc["xmax"] == "vacuum"
+        assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
 
 # ═══════════════════════════════════════════════════════════════════════

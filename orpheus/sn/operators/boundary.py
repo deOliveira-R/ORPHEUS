@@ -54,6 +54,7 @@ from typing import TYPE_CHECKING, NamedTuple, Optional
 
 import numpy as np
 
+from orpheus.geometry.boundary import PrescribedInflow
 from orpheus.numerics.operator import (
     BlockRole,
     LinearOperator,
@@ -65,6 +66,7 @@ from orpheus.numerics.operator import (
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
+    from orpheus.geometry.boundary import BoundaryTraceLaw
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
     from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -89,15 +91,51 @@ __all__ = [
     "SNMaskedBoundaryOperator",
 ]
 
-#: The outer-face law kinds with a RULED ψ½ corner action (RULING P1's ray
-#: carrier). Single source for BOTH
-#: :attr:`RadialCharacteristicBoundaryOperator.is_adjointable` (a ruled kind's
-#: corner map is Euclidean-adjointable) AND
-#: :meth:`RadialCharacteristicBoundaryOperator._reflect_corner` (an unruled kind
-#: is loud-deferred). white / albedo / periodic are absent — their off-quadrature
-#: μ = ±1 re-emission is a design decision not yet ruled (2.5d plan-of-record);
-#: add a kind here AND its branch in ``_reflect_corner`` when it is ruled.
-_RULED_CORNER_KINDS = frozenset({"vacuum", "reflective"})
+# Single source for BOTH
+# :attr:`RadialCharacteristicBoundaryOperator.is_adjointable` (a ruled law's
+# corner map is Euclidean-adjointable) AND
+# :meth:`RadialCharacteristicBoundaryOperator._reflect_corner` (an unruled law
+# is loud-deferred) — RULING P1's ray carrier.
+def _has_ruled_corner_action(law: "BoundaryTraceLaw") -> bool:
+    r"""Can this law's inflow at the off-quadrature :math:`\mu = \pm 1` ray be
+    written down?
+
+    The corner block is a **linear** operator acting on the ray alone, so a law
+    qualifies on two counts and is loud-deferred otherwise (2.5d
+    plan-of-record):
+
+    * the law must not be the **prescribed-inflow family** — its inflow is a
+      free parameter :math:`q`, not a function of the outflow ray, so a linear
+      corner block structurally cannot carry it. This is a TYPE test on
+      purpose: the disqualifying property belongs to the family whatever
+      :math:`q` currently holds, and testing the source VALUE instead would
+      quietly admit ``PrescribedInflow()`` at its default zero source;
+    * then either :math:`R = 0` (nothing returns — the corner stays zero) or
+      :math:`G` **permutes ordinates** (a specular mirror pairs
+      :math:`\mu = +1` with :math:`\mu = -1` exactly, off-quadrature included,
+      which is why the swap is expressible without the quadrature).
+
+    Everything else is genuinely unruled: a hemispheric average needs the
+    :math:`|\Omega\cdot n|`-weighted outflow average at :math:`\mu = -1`; a
+    spatial wrap needs the partner face's ray; an identity map pairs ordinate
+    :math:`n` with itself, which is not a corner action at all.
+
+    Until campaign phase B2 this was ``kind in _RULED_CORNER_KINDS`` against
+    the frozenset ``{"vacuum", "reflective"}`` — the same admission, hard-coded
+    as tags because the pre-B2.0 shim discarded the law. Evaluated across all
+    seven registered laws the two agree exactly.
+
+    .. note::
+
+       This is a third realizer arm in disguise — *realize this law at the ray
+       corner* — which is why it reads the same two factors
+       :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` will read at
+       phase B4. It is kept local to SN because the off-quadrature ray is a
+       curvilinear-SN concept, not a geometry-package one.
+    """
+    if isinstance(law, PrescribedInflow):
+        return False
+    return law.geometry_map.permutes_ordinates or law.response_kernel.is_zero
 
 
 def _zero_bulk_source(mesh: "SNMesh"):
@@ -590,8 +628,10 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         # set (:meth:`_reflect_corner` raises — no ruled off-quadrature corner
         # action → no transpose). is_invertible inherits base False. (The old
         # seedless defensive arm is dead under the ctor guard — retired.)
-        kind = getattr(self.sn_mesh.bc["xmax"], "kind", None)
-        return kind in _RULED_CORNER_KINDS
+        #
+        # ONE source of truth with ``_reflect_corner``'s guard: the transpose
+        # exists exactly when the forward corner action does.
+        return _has_ruled_corner_action(self.sn_mesh.bc["xmax"].law)
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -626,18 +666,37 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         discipline); since the B.2b re-type the input IS the boundary member
         (the cells never enter — structural, not zeroed).
 
-        Law dispatch — on the declared law KIND (the #186 shim's ``kind`` tag,
-        the same registry key ``sn_mesh.bc[face] == "reflective"`` comparisons
-        read), NOT on the realized operator's composition tree (which is an
-        (ordinate ⊗ group) operator over the QUADRATURE rows and structurally
-        cannot act on the off-quadrature μ = ±1 ray):
+        Law dispatch — on the law's own **affine factors** (:math:`R`,
+        :math:`G`, :math:`q`), NOT on the realized operator's composition tree
+        (which is an (ordinate ⊗ group) operator over the QUADRATURE rows and
+        structurally cannot act on the off-quadrature μ = ±1 ray):
 
-        * ``"vacuum"`` — no corner emission (the block stays all-zero).
-        * ``"reflective"`` — the specular corner swap above.
-        * anything else (white / albedo / periodic / prescribed) —
+        * :math:`G` permutes ordinates (a specular mirror) — the corner swap
+          above; the mirror of μ = +1 is exactly μ = −1, so the pairing is
+          exact off-quadrature.
+        * otherwise :math:`R = 0` (vacuum) — no corner emission, the block
+          stays all-zero.
+        * anything else (white / albedo / periodic / a prescribed source) —
           **loud-deferred** (:class:`NotImplementedError`) per the 2.5d
-          plan-of-record (e.g. white re-emission at the off-quadrature ray needs
-          the ``|Ω·n|``-weighted outflow average for μ = −1, not yet ruled).
+          plan-of-record; see :func:`_has_ruled_corner_action` for which factor
+          disqualifies each. (E.g. white re-emission at the off-quadrature ray
+          needs the ``|Ω·n|``-weighted outflow average for μ = −1, not yet
+          ruled.)
+
+        Until campaign phase B2 this dispatched on the ``kind`` STRING the
+        pre-B2.0 shim carried.
+
+        .. warning::
+
+           The swap is **unscaled** — it does not multiply by :math:`R`. That
+           is exact for the α = 1 reflector every BC tag can declare
+           (``_law_from_tag`` hard-codes ``albedo=1.0`` for reflective), and
+           WRONG for a directly-constructed partially-reflecting law, which
+           would re-emit its full outflow at the corner. The defect predates
+           this phase — the tag set admitted every albedo too, since
+           ``ReflectiveBoundary.key`` is ``"reflective"`` regardless — and B2
+           preserved it deliberately rather than fold a physics fix into a
+           repoint. It closes when B4 composes :math:`R \circ G` here.
         """
         from orpheus.transport.source_sinks import (
             RadialCharacteristicBoundarySourceSink,
@@ -645,19 +704,20 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
 
         # A seed-carrying mesh is 1-D curvilinear: exactly ONE boundary face
         # (the outer radius renders as ``xmax``) carries the law.
-        law = self.sn_mesh.bc["xmax"]
-        kind = getattr(law, "kind", None)
-        if kind not in _RULED_CORNER_KINDS:  # single source with is_adjointable
+        law = self.sn_mesh.bc["xmax"].law
+        if not _has_ruled_corner_action(law):  # single source with is_adjointable
             raise NotImplementedError(
-                f"RadialCharacteristicBoundaryOperator: the outer-face law kind "
-                f"{kind!r} has no ruled corner action yet (white / albedo / "
-                f"periodic at the off-quadrature μ = ±1 ray — loud-deferred, "
-                f"2.5d plan-of-record)."
+                f"RadialCharacteristicBoundaryOperator: the outer-face law "
+                f"{type(law).__name__} (G={type(law.geometry_map).__name__}, "
+                f"R={law.response_kernel.scalar}) has no ruled corner action "
+                f"yet (white / albedo / periodic / a prescribed source at the "
+                f"off-quadrature μ = ±1 ray — loud-deferred, 2.5d "
+                f"plan-of-record)."
             )
         out = RadialCharacteristicBoundarySourceSink.zeros_on(seed.mesh)
-        # vacuum ⇒ zero corner emission (the all-zero ``out`` falls through);
-        # reflective ⇒ the specular swap (the mirror of μ = +1 is exactly μ = −1).
-        if kind == "reflective":
+        # R = 0 ⇒ zero corner emission (the all-zero ``out`` falls through);
+        # G permutes ⇒ the specular swap (the mirror of μ = +1 is exactly μ = −1).
+        if law.geometry_map.permutes_ordinates:
             for level in seed.levels:
                 if method == "apply":
                     out.corner(level, -1)[...] = seed.corner(level, +1)

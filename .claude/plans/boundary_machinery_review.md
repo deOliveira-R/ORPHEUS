@@ -2,7 +2,11 @@
 
 > ## ⏸ COMPACTION POINT — cold-pickup anchor (2026-07-31)
 >
-> **Mapping complete; B0 and B1 landed; B2 measured but NOT started.**
+> **Mapping complete; B0, B1 and B2 landed. NEXT = B3.**
+>
+> B2's result block lives under §B2.2 — read it before B3/B4: it records the
+> two findings B4 must close (the unscaled corner swap; the `R ≠ 1` leakage
+> predicate) and the family-vs-value trap that bit twice.
 >
 > **Verify against the tree in this order — never trust this file over git:**
 > 1. `git log --oneline main..HEAD` — **21** commits on
@@ -951,6 +955,109 @@ operator must be unchanged.
 admitted set, so its raise is unreachable) and the `== "reflective"`
 tag-equality asserts (**[M]** 11.1 % of bare asserts, the test-side shadow of
 the same defect).
+
+### B2 — RESULT ✅ (2026-07-31)
+
+**B2.0** `d812f7c8` · **B2.2** — the six sites now ask the factors:
+
+| site | was | is |
+|---|---|---|
+| `sweep_schedule._reflective_faces` | `bc[face] == "reflective"` | `law.geometry_map.permutes_ordinates` |
+| `B_b.is_adjointable` | `kind in _RULED_CORNER_KINDS` | `_has_ruled_corner_action(law)` |
+| `B_b._reflect_corner` | `kind == "reflective"` | `law.geometry_map.permutes_ordinates` |
+| `solver.compute_keff` | `op.kind == "vacuum"` | `op.law.response_kernel.is_zero` |
+| `DSALowOrderSystem` (admission **+ row selection**) | `_SUPPORTED_BC`, `kind == "vacuum"` | the two factors |
+| `DiffusionBoundaryRealizer._partial_current_albedo` | a 5-arm `isinstance` ladder | `law.response_kernel.scalar` |
+
+**Retired:** `_RULED_CORNER_KINDS`, `_SUPPORTED_BC`, 18 test-side tag-equality
+asserts (**rewired** to `isinstance(bc[f].law, …)` per coding-standards, not
+deleted; two kept alongside as the deliberate legacy-surface pin on a real
+mesh).
+
+**[M] Equivalence, 7 laws × 5 sites, old expression vs new:** the retired tag
+expressions are reproduced verbatim in
+`tests/geometry/test_boundary_factor_consumers.py` and compared law by law.
+**Every site agrees except one, deliberately:** the solver's leakage list now
+includes `PrescribedInflow` (R = 0 ⟹ it leaks its whole outflow) where
+`== "vacuum"` missed it. Correct, unreachable (**[M]** SN's admission table is
+`{reflective, vacuum}` — five of seven laws cannot reach an SN face at all),
+and given its own stating test rather than hidden.
+
+**[M] Full gate, COMPLETE:** `4383 passed / 57 xfailed / 8 skipped / **0
+failed**`, and the chunk arithmetic closes **exactly** against the 4448 tests
+`tests/{geometry,sn,diffusion,numerics,transport}` collects — every one
+executed, including all **60** `slow`-marked verification tests and all **3**
+slow curvilinear L1 tests. (The tier is why the tree gate is slow:
+`test_l1_standoff_slab_cylinder.py` alone is 10 tests in **56 min**.) pyright
+`orpheus/` = 1 (the #288 floor, unmoved); sphinx `-E -W` exit 0, 0 warnings.
+
+**[M] Mutation gate: all five sites RED.** Plus three in-process falsifications
+of the gate itself (a plugin on `PYTHONPATH`, never a `git checkout`) —
+wrong-factor sweep, dropped prescribed-exclusion, geometry-for-response
+diffusion: 1/1/3 reds.
+
+**The 3-search retirement audit bit on leg 3, exactly as the rule predicts.**
+Graph callers and a code+tests+docs grep both looked clean; **direct callers of
+the changed signature** did not. `DSALowOrderSystem._build` — a private
+classmethod — has **three test call sites** passing BC *tag tuples*, and the
+DSA admission test built its mesh from a `SimpleNamespace(kind="white")` **tag
+surrogate** with no `law` at all. Both now speak laws: the tag→law translation
+sits at the *test's* surface (`_LAW_FOR_TAG`), not pushed back into production,
+and the surrogate carries real `WhiteBoundary` / `AlbedoBoundary` /
+`PrescribedInflow` instances — which makes that gate strictly stronger, since a
+tag surrogate could only ever exercise a string comparison the guard no longer
+performs. The prescribed leg is the one that would have caught the trap below.
+
+#### ⭐ A FOURTH SEARCH the audit needs — **duck-typed test surrogates**
+
+Three sites in this phase, found one full-suite run at a time rather than by
+audit, all the same shape: a test that stands up a **duck-typed stand-in** for
+the changed handle and therefore appears in **no graph query and no symbol
+grep**, because it never names the symbol.
+
+| surrogate | where | what broke |
+|---|---|---|
+| `SimpleNamespace(kind="white")` | DSA admission test | `.law` absent |
+| `bc={face: "vacuum"}` (bare strings) | 3-D sweep-schedule stub | `'str' has no attribute 'law'` |
+| `class _NotALaw: pass` | diffusion refusal test | `.geometry_map` absent |
+
+The graph cannot see them (no edge), a symbol grep cannot see them (no symbol),
+and the type checker cannot see them (they are `SimpleNamespace` / `Any`). The
+**only** thing that finds them is running the suite — so a signature change to a
+widely-consumed handle owes a **full-suite run before the commit**, not after,
+and the audit's greppable form is *"what do tests build in place of this
+object?"*: `grep -rn 'SimpleNamespace(' tests/` near the consumer, plus the
+handle's attribute names.
+
+The third one is not a test defect at all — it is a **production regression the
+surrogate caught**. Collapsing diffusion's `isinstance` ladder deleted its final
+fallthrough `raise`, so a non-law that used to get a named `BoundaryError`
+listing the realizable cases would have died on a bare `AttributeError` deep in
+a factor read. Restored as a `response_kernel is None` guard, first in the
+method, since everything after it dereferences a factor. **A collapsed dispatch
+ladder loses its last arm silently — check for the fallthrough explicitly.**
+
+**Two traps caught while writing it, both the same shape** — a *value* test
+where the honest test is a *family* test. `isinstance(law.source, NoSource)`
+admits `PrescribedInflow()` at its default zero source, which would have turned
+a refusal into a value at BOTH the DSA admission (silently building a Marshak
+row that drops `q` the day one is set) and the diffusion realizer (realizing
+𝒜 = 0 on the #290 P5 path that does not exist). The disqualifying property
+belongs to the FAMILY whatever `q` currently holds, so both sites keep one
+`isinstance(law, PrescribedInflow)` — an *essential* type test, not the tag
+smell B2 removes.
+
+**Findings handed forward (not fixed here — both pre-existing):**
+- **[M]** `_reflect_corner`'s specular swap is **unscaled** — it ignores `R`, so
+  a partial reflector would re-emit its full outflow at the μ = ±1 corner. The
+  tag set admitted every albedo too (`ReflectiveBoundary.key` is `"reflective"`
+  regardless), so B2 changed nothing; a `.. warning::` now states it, and **B4
+  closes it** by composing `R ∘ G` there.
+- **[M]** `compute_keff`'s leakage list excludes partially-reflecting faces,
+  which leak `(1 − α)`. Unreachable (`_law_from_tag` hard-codes `albedo=1.0`)
+  and harmless (the term it skips is `net_current`, identically zero for the
+  perfect reflector it means to exclude), but the honest predicate is `R ≠ 1`
+  and it becomes reachable the moment **#189** admits partial reflectors.
 
 > ⏸ **COMPACTION POINT.**
 

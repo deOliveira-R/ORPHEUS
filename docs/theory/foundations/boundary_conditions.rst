@@ -2449,13 +2449,17 @@ what it passes through *both* faces of the realization:
   nothing else. So ``sn_mesh.bc[face]`` could answer *"what were you
   declared as?"* but not *"what does your law DO?"*, and the five
   production sites needing the latter — ``sweep_schedule``'s reflective
-  set, the two ``_RULED_CORNER_KINDS`` gates on the radial-characteristic
-  boundary, ``solver``'s vacuum-leakage face list, and the DSA low-order
-  admission check — had no choice but to re-derive it by comparing that
-  string against literals. Handing ``law`` through makes the structural
-  questions answerable at the object —
+  set, the two ruled-corner gates on the radial-characteristic boundary,
+  ``solver``'s leakage face list, and the DSA low-order admission check
+  — had no choice but to re-derive it by comparing that string against
+  literals. Handing ``law`` through makes the structural questions
+  answerable at the object, which is what phase **B2.2** then did:
   ``bc[face].law.geometry_map.permutes_ordinates``,
-  ``bc[face].law.response_kernel.is_zero``;
+  ``bc[face].law.response_kernel.is_zero``, and — collapsing diffusion's
+  five-arm ``isinstance`` ladder —
+  ``bc[face].law.response_kernel.scalar``. The tag frozensets those
+  sites keyed on (``_RULED_CORNER_KINDS``, ``_SUPPORTED_BC``, both
+  ``{"vacuum", "reflective"}``) are retired;
 * a ``kind`` string tag, now a **read-through** of the law's registry
   key rather than a stored copy — load-bearing for the
   ``sn_mesh.bc["xmin"] == "vacuum"`` string-equality surface that

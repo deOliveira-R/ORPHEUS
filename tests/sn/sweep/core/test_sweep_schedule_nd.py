@@ -31,6 +31,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
 from orpheus.sn.loss_representation.sweep_graph import OctantLabel
 from orpheus.sn.loss_representation.sweep_schedule import (
     SweepSchedule,
@@ -100,12 +101,27 @@ def test_outgoing_faces_match_first_principles_table_all_octants():
 _D3_FACES = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
 
 
+#: Tag -> law, for the duck-typed mesh below. Campaign phase B2 repointed
+#: ``sweep_schedule._reflective_faces`` from ``bc[face] == "reflective"`` onto
+#: ``bc[face].law.geometry_map.permutes_ordinates``, so a bare tag STRING is no
+#: longer the consumer contract. The tag vocabulary these tests are written in
+#: is translated here, at the test's own surface.
+_LAW_FOR_TAG = {"vacuum": VacuumInflow, "reflective": ReflectiveBoundary}
+
+
 def _fake_mesh_3d(**bcs: str) -> SimpleNamespace:
     """Duck-typed 3-axis mesh: exactly the four reads the schedule makes.
 
     ``bcs`` is keyed by plain face name (``xmin="reflective"``); unnamed
     faces default to vacuum.  Post-C4 (#220) the consumer contract is the
-    face-name-keyed ``bc`` dict, mirrored here.  The 8 sign-octants stand in for an S²
+    face-name-keyed ``bc`` dict, mirrored here — and since B2.0 each entry is
+    an operator carrying the LAW it was realized from, so the stub mirrors THAT
+    surface (``SimpleNamespace(law=…)``) rather than the retired tag string.
+    Standing a real law up here is also what keeps the stub honest: the
+    schedule reads the law's affine factors, which a tag surrogate cannot
+    supply.
+
+    The 8 sign-octants stand in for an S²
     cubature's octant partition (one ordinate each, lexicographic order —
     the assignment assertions are order-relative, matching how
     ``gauss_seidel`` consumes the entry order).
@@ -118,7 +134,10 @@ def _fake_mesh_3d(**bcs: str) -> SimpleNamespace:
         ndim=3,
         quad=SimpleNamespace(octants=octants),
         angular_trace=SimpleNamespace(layout=SimpleNamespace(faces=_D3_FACES)),
-        bc={face: bcs.get(face, "vacuum") for face in _D3_FACES},
+        bc={
+            face: SimpleNamespace(law=_LAW_FOR_TAG[bcs.get(face, "vacuum")]())
+            for face in _D3_FACES
+        },
     )
 
 

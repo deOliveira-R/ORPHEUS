@@ -106,10 +106,11 @@ class BoundaryGeometryMap(Protocol):
     flux meets which incoming slot. The physics lives entirely in
     :class:`BoundaryResponseKernel`.
 
-    The two predicates below are the structural questions production currently
-    asks with string comparisons — ``bc[face] == "reflective"`` for the first,
-    ``kind in _RULED_CORNER_KINDS`` for the second. Phase **B2** repoints those
-    sites here.
+    The two predicates below are the structural questions production used to
+    ask with string comparisons — ``bc[face] == "reflective"`` for the first,
+    ``kind in _RULED_CORNER_KINDS`` for the second. Phase **B2** repointed
+    those sites here and retired both tag sets; the law-by-law equivalence is
+    pinned in ``tests/geometry/test_boundary_factor_consumers.py``.
     """
 
     @property

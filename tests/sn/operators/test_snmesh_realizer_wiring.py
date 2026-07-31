@@ -39,6 +39,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.numerics.operator import (
@@ -114,7 +115,7 @@ def test_2d_cartesian_vacuum_xmin_masks_only_inflow(quad_2d):
     )
     sn = SNMesh(mesh, quad_2d, placeholder_materials())
     assert isinstance(sn.bc["xmin"], _BoundBoundaryOperator)
-    assert sn.bc["xmin"] == "vacuum"
+    assert isinstance(sn.bc["xmin"].law, VacuumInflow)
 
     rng = np.random.default_rng(42)
     psi = rng.uniform(0.5, 2.0, size=(quad_2d.N, 3, 2))
@@ -138,7 +139,7 @@ def test_2d_cartesian_reflective_ymax_returns_permutation(quad_2d):
     )
     sn = SNMesh(mesh, quad_2d, placeholder_materials())
     assert isinstance(sn.bc["ymax"], _BoundBoundaryOperator)
-    assert sn.bc["ymax"] == "reflective"
+    assert isinstance(sn.bc["ymax"].law, ReflectiveBoundary)
 
     rng = np.random.default_rng(1)
     psi = rng.standard_normal(size=(quad_2d.N, 4, 2))
@@ -213,7 +214,7 @@ def test_1d_cartesian_vacuum_right_masks_only_inflow(quad_1d):
     )
     sn = SNMesh(mesh, quad_1d, placeholder_materials())
     assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
-    assert sn.bc["xmax"] == "vacuum"
+    assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
     psi = np.arange(quad_1d.N * 2, dtype=float).reshape(quad_1d.N, 2)
     out = sn.bc["xmax"].apply(psi)
@@ -322,7 +323,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     )
     # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
     assert not hasattr(sn.bc["xmax"], "_quadrature")
-    assert sn.bc["xmax"] == "vacuum"
+    assert isinstance(sn.bc["xmax"].law, VacuumInflow)
     # ONE boundary: no inner-face entry at the pole (C4 — structurally
     # absent, not None).
     assert set(sn.bc) == {"xmax"}
@@ -375,7 +376,7 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     outer_perm = _angular_factor(sn.bc["xmax"].inner)
     assert isinstance(outer_perm, PermutationOperator)
     assert not hasattr(sn.bc["xmax"], "_quadrature")
-    assert sn.bc["xmax"] == "reflective"
+    assert isinstance(sn.bc["xmax"].law, ReflectiveBoundary)
     np.testing.assert_array_equal(
         outer_perm.perm, quad.reflection_index("x"),
     )

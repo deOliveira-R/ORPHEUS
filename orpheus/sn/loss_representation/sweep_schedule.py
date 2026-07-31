@@ -257,12 +257,25 @@ def _outgoing_faces(label: OctantLabel) -> tuple[str, ...]:
 def _reflective_faces(sn_mesh: "SNMesh") -> frozenset[str]:
     """The mesh's SPECULAR-reflective boundary faces.
 
-    Vacuum (no coupling) and white (couples ALL ordinates on the face ⟹ the
-    octant-order G-S degenerates to Jacobi) are EXCLUDED — only specular
-    reflection admits the order-respecting forward-substitution acceleration.
+    The question is *does this face's law RELABEL ordinates?* — a specular
+    mirror sends outgoing ordinate :math:`n` to exactly one incoming ordinate,
+    so the octant order survives and forward substitution is legal. Vacuum (no
+    coupling at all) and white (couples ALL ordinates on the face ⟹ the
+    octant-order Gauss-Seidel degenerates to Jacobi) are EXCLUDED.
+
+    That is :attr:`BoundaryGeometryMap.permutes_ordinates`, and it is what the
+    law is asked directly. Until campaign phase B2 this read
+    ``sn_mesh.bc[face] == "reflective"`` — the same question spelled as a
+    string comparison, which was all the pre-B2.0 shim could answer because it
+    discarded the law at realization. The two agree on every registered law
+    (``tests/geometry/test_boundary_factor_consumers.py`` compares the old
+    tag expression against this one, law by law), so the repoint is
+    behaviour-preserving; what it buys is that a NEW ordinate-
+    permuting law joins this set by construction instead of by remembering to
+    add its tag here.
     """
     return frozenset(
         face
         for face in sn_mesh.angular_trace.layout.faces
-        if sn_mesh.bc[face] == "reflective"
+        if sn_mesh.bc[face].law.geometry_map.permutes_ordinates
     )

@@ -336,7 +336,11 @@ class Test188WiringContracts:
         assert isinstance(sn.bc["xmax"].inner, TensorProductOperator)
         ordinate_factor = sn.bc["xmax"].inner.ops[0]
         assert isinstance(ordinate_factor, IncomingOrdinateMaskTensor)
-        # Kind tag survives for the legacy string-comparison surface.
+        # What the resolution MEANS — the law that landed on the face.
+        assert isinstance(sn.bc["xmax"].law, VacuumInflow)
+        # …and the legacy string-comparison surface still answers for it,
+        # on a REAL resolved mesh (the hand-built-shim leg above cannot
+        # show that the production path still feeds it).
         assert sn.bc["xmax"] == "vacuum"
 
     def test_1d_reflective_faces_realized_as_permutation_tp(self):
@@ -383,5 +387,6 @@ class Test188WiringContracts:
             np.testing.assert_array_equal(
                 angular.perm, quad.reflection_index("x"),
             )
-            # Kind preserved for the legacy string-compare surface.
+            # The law that landed, and the legacy tag surface it feeds.
+            assert isinstance(sn.bc[face].law, ReflectiveBoundary)
             assert sn.bc[face] == "reflective"

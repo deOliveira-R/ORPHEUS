@@ -71,6 +71,17 @@ def _all_indices(schedule: SweepSchedule) -> list[int]:
 
 
 def _reflective_faces(sn: SNMesh) -> set[str]:
+    """The reflective set, computed the way production STOPPED computing it.
+
+    Campaign phase B2 repointed
+    ``sweep_schedule._reflective_faces`` from this ``== "reflective"`` tag
+    comparison onto ``bc[f].law.geometry_map.permutes_ordinates``. This helper
+    deliberately keeps the OLD spelling: every schedule assertion below is then
+    an implicit old-vs-new cross-check on real meshes, mirror-not-import in the
+    same spirit as the hand-transcribed face table underneath it. (The law-by-law
+    equivalence lives in ``tests/geometry/test_boundary_factor_consumers.py``;
+    this is the on-a-real-mesh companion.)
+    """
     return {
         f for f in sn.angular_trace.layout.faces if sn.bc[f] == "reflective"
     }

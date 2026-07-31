@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **7107**
+Total tests collected: **7114**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1206, 17.0%
-   L1, 1184, 16.7%
+   L1, 1184, 16.6%
    L2, 64, 0.9%
    L3, 0, 0.0%
-   foundation, 4653, 65.5%
+   foundation, 4660, 65.5%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 7028
+   explicit, 7035
    class-name, 46
    func-name, 0
    case, 33
@@ -48,7 +48,7 @@ Module × level grid
    :widths: 40, 6, 6, 6, 6, 6, 6
 
    acceleration/test_dsa_acceleration, 0, 0, 7, 0, 0, 0
-   acceleration/test_dsa_low_order, 0, 0, 0, 0, 11, 0
+   acceleration/test_dsa_low_order, 0, 0, 0, 0, 13, 0
    acceleration/test_dsa_rate, 0, 62, 2, 0, 6, 0
    analytical/test_cp_standoff_curvilinear, 0, 2, 1, 0, 0, 0
    analytical/test_kinf_homogeneous, 0, 31, 0, 0, 0, 0
@@ -259,7 +259,8 @@ Module × level grid
    geometry/test_bc_universal_invariants, 0, 42, 0, 0, 5, 0
    geometry/test_bound_compat, 13, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 25, 0
-   geometry/test_boundary_factors, 0, 0, 0, 0, 50, 0
+   geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
+   geometry/test_boundary_factors, 0, 0, 0, 0, 42, 0
    geometry/test_boundary_trace_law, 0, 0, 0, 0, 14, 0
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
