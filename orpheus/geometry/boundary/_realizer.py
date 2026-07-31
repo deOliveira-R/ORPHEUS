@@ -71,7 +71,7 @@ References
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, TypeVar, runtime_checkable
 
 from orpheus.numerics.operator import BlockRole, OperatorSum, ScaledOperator
 
@@ -89,6 +89,21 @@ __all__ = [
     "realize_recursively",
     "stamp_boundary_role",
 ]
+
+#: The method space a realizer consumes. CONTRAVARIANT because it appears
+#: only in parameter position (``realize(law, method_space)``): a realizer
+#: accepting a WIDER space stands in wherever a narrower one is required.
+#: Unbound on purpose — geometry does not know the method spaces (they live
+#: in ``orpheus.sn`` / ``orpheus.diffusion``), and a bound here would invert
+#: the dependency the P7b move established.
+MethodSpaceT_contra = TypeVar("MethodSpaceT_contra", contravariant=True)
+
+#: The same space at function scope, where variance does not apply. Its job
+#: is to TIE ``method_space`` to ``realizer`` in :func:`realize_recursively`
+#: so a mismatched pair (an ``SNMethodSpace`` handed to a
+#: ``DiffusionBoundaryRealizer``) is a static error rather than a runtime
+#: ``AttributeError`` deep inside a realizer arm.
+MethodSpaceT = TypeVar("MethodSpaceT")
 
 
 def stamp_boundary_role(op: "LinearOperator") -> "LinearOperator":
@@ -115,7 +130,7 @@ def stamp_boundary_role(op: "LinearOperator") -> "LinearOperator":
 
 
 @runtime_checkable
-class BoundaryRealizer(Protocol):
+class BoundaryRealizer(Protocol[MethodSpaceT_contra]):
     r"""Method-specific realisation of a boundary law.
 
     Implementors live in per-method packages
@@ -139,6 +154,28 @@ class BoundaryRealizer(Protocol):
     operator shape), not algorithmic — every realizer's :meth:`realize`
     body is method-specific.
 
+    Generic in the method space
+    ---------------------------
+    The Protocol is parameterised by the method space it consumes, so
+    :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` satisfies
+    ``BoundaryRealizer[SNMethodSpace]`` and
+    :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+    satisfies ``BoundaryRealizer[DiffusionMethodSpace]``. A *common-member*
+    Protocol would have been the wrong shape: the two spaces share only
+    ``face: str | None`` by type (``mesh`` and ``trace`` are method-specific
+    types, and ``quadrature`` / ``inflow_indices`` are SN-only), so a
+    structural intersection would describe neither realizer honestly.
+
+    The parameter is what lets :func:`realize_recursively` REQUIRE that the
+    space and the realizer agree. Before it, both were ``Any`` — looser than
+    either implementation, which already annotate their own concrete types —
+    so handing an ``SNMethodSpace`` to a ``DiffusionBoundaryRealizer``
+    type-checked and failed only at runtime.
+
+    ``isinstance`` still works against the UNSUBSCRIPTED name
+    (``isinstance(r, BoundaryRealizer)``, as the realizer conformance tests
+    do); subscripted runtime checks are rejected by Python itself.
+
     Attributes
     ----------
     method_name : str
@@ -150,8 +187,8 @@ class BoundaryRealizer(Protocol):
 
     def realize(
         self,
-        law: Any,
-        method_space: Any,
+        law: "BoundaryTraceLaw",
+        method_space: MethodSpaceT_contra,
     ) -> "LinearOperator":
         """Return a 1-arg :class:`LinearOperator` realising ``law`` for this method."""
         ...
@@ -174,8 +211,8 @@ class BoundaryRealizer(Protocol):
 
 def realize_recursively(
     node: "LawNode",
-    method_space: Any,
-    realizer: BoundaryRealizer,
+    method_space: MethodSpaceT,
+    realizer: "BoundaryRealizer[MethodSpaceT]",
 ) -> "LinearOperator":
     r"""Walk a descriptor tree and realise it as a Wave-0 operator tree.
 
