@@ -221,34 +221,184 @@ def test_white_bc_albedo_scales_linearly() -> None:
     np.testing.assert_allclose(psi2, 0.4 * psi1, rtol=1e-14, atol=0.0)
 
 
+# ─────────────────────────────────────────────────────────────────────
+# Textbook Gauss-Legendre tables (Abramowitz & Stegun, Table 25.4) —
+# the STRUCTURALLY INDEPENDENT reference constants for the two
+# hand-computed white-BC gates below. Typed in from the published
+# table, NOT read off ``quad.weights`` / ``quad.mu_*``: the threat
+# model for those gates is the operator's own ``w·|Ω·n̂|`` weight
+# formula, so a reference re-derived from the code's arrays would be a
+# re-transcription (vv-principles L11 — procedural, not structural,
+# independence). Each gate asserts the quadrature MATCHES this table
+# first, so a change in ``Quadrature`` reds loudly instead of silently
+# moving the reference.
+# ─────────────────────────────────────────────────────────────────────
+
+# 4-point GL on [-1, 1]: (|node|, weight), inner pair then outer pair.
+_GL4_TABLE = (
+    (0.3399810435848563, 0.6521451548625461),
+    (0.8611363115940526, 0.3478548451374538),
+)
+# 8-point GL on [-1, 1]: positive half only (the rule is symmetric).
+_GL8_POSITIVE_TABLE = (
+    (0.1834346424956498, 0.3626837833783620),
+    (0.5255324099163290, 0.3137066458778873),
+    (0.7966664774136267, 0.2223810344533745),
+    (0.9602898564975363, 0.1012285362903763),
+)
+
+
 @pytest.mark.foundation
 def test_white_bc_4_point_quadrature_hand_computed() -> None:
-    """White BC on 4-point GL: explicit hand calculation."""
+    r"""White BC on 4-point GL: an explicit hand calculation, against a
+    ψ_out that is NOT constant over the outgoing hemisphere.
+
+    B0.3 REPAIR — this gate was **blind** (measured). It previously fed
+    a hemisphere-CONSTANT ψ_out (1.0 outgoing / 7.0 incoming) and
+    asserted the output was that same constant. A normalised weighted
+    average of a constant IS that constant **for any weights**, so the
+    measured functional's invariance group contained the entire
+    ``w·|Ω·n̂|`` weight formula (``vv-principles`` Mode 12): the test
+    PASSED with the ``|Ω·n̂|`` factor dropped, with the wrong
+    normaliser, and with the outgoing-hemisphere mask removed. It also
+    contained no hand-computed number at all — the expected ``1.0``
+    fell out of normalisation alone, so the docstring over-claimed.
+
+    The repair breaks the invariance by giving the two outgoing
+    ordinates DIFFERENT values, which makes the answer a genuine
+    cosine-weighted mean:
+
+    .. math::
+
+        \psi_- \;=\;
+        \frac{w_1\mu_1\,\psi_1 \;+\; w_2\mu_2\,\psi_2}
+             {w_1\mu_1 \;+\; w_2\mu_2}
+
+    with :math:`(\mu_1, w_1) = (0.33998104…,\,0.65214515…)`,
+    :math:`(\mu_2, w_2) = (0.86113631…,\,0.34785485…)` from the
+    published GL-4 table, :math:`\psi_1 = 1`, :math:`\psi_2 = 4`
+    :math:`\Rightarrow \psi_- = 2.723973656470134`.
+
+    The incoming ordinates carry 7.0 so the outgoing-hemisphere mask is
+    also constrained (they must NOT enter the average).
+    """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    # 4-point GL: μ = ±0.339981..., ±0.861136..., w = 0.652145..., 0.347855...
-    mu_pos = quad.mu_x[quad.mu_x > 0]
-    w_pos = quad.weights[quad.mu_x > 0]
-    # Set ψ_out: 1.0 on ordinates with μ > 0 (outgoing for outward_sign=+1),
-    # 7.0 on incoming (irrelevant for the average).
-    psi_out = np.where(quad.mu_x[:, None] > 0, 1.0, 7.0)
+    (mu_1, w_1), (mu_2, w_2) = _GL4_TABLE
+
+    # Precondition: the quadrature IS the published GL-4 rule. If this
+    # ever moves, the gate fails loudly rather than silently rebasing
+    # its reference on the new arrays.
+    np.testing.assert_allclose(
+        np.sort(np.abs(quad.mu_x)), [mu_1, mu_1, mu_2, mu_2],
+        rtol=1e-15, atol=0.0,
+        err_msg="GL-4 nodes no longer match the published table",
+    )
+    np.testing.assert_allclose(
+        np.sort(quad.weights), [w_2, w_2, w_1, w_1],
+        rtol=1e-15, atol=0.0,
+        err_msg="GL-4 weights no longer match the published table",
+    )
+
+    psi_1, psi_2, psi_incoming = 1.0, 4.0, 7.0
+    psi_out = np.full((quad.N, 1), psi_incoming)
+    psi_out[np.isclose(quad.mu_x, +mu_1)] = psi_1
+    psi_out[np.isclose(quad.mu_x, +mu_2)] = psi_2
 
     bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     psi_in = _realize_for_sn(bc, quad).apply(psi_out)
 
-    # Average should be (Σ_outgoing w·μ·1) / (Σ_outgoing w·μ) = 1.
-    np.testing.assert_allclose(psi_in, 1.0, rtol=1e-14, atol=1e-15)
+    expected = (w_1 * mu_1 * psi_1 + w_2 * mu_2 * psi_2) / (
+        w_1 * mu_1 + w_2 * mu_2
+    )
+    assert abs(expected - 2.723973656470134) < 1e-14  # the docstring's number
+    np.testing.assert_allclose(
+        psi_in, expected, rtol=1e-14, atol=0.0,
+        err_msg=(
+            "white BC is not the |Ω·n̂|-weighted outgoing-hemisphere "
+            "mean on GL-4"
+        ),
+    )
 
 
 @pytest.mark.foundation
 def test_white_bc_axis_z_on_product_quadrature() -> None:
-    """White BC on z-axis routes through ``mu_z``."""
+    r"""White BC on the z-axis routes through ``mu_z`` — and returns the
+    genuine cosine-weighted mean over the outgoing hemisphere.
+
+    B0.3 REPAIR — the same Mode-12 blindness as the GL-4 gate above:
+    the old ψ_out was hemisphere-constant (2.0 outgoing / 9.0 incoming)
+    and the assertion was ``psi_in == 2.0``, which holds for any weight
+    formula. Measured: it PASSED with the ``|Ω·n̂|`` factor dropped.
+
+    The repair sets :math:`\psi_+ = \mu_z` on the outgoing hemisphere,
+    so the answer is a true weighted mean of a NON-constant field.
+    Because the product rule is (GL-8 in :math:`\mu`) ⊗ (uniform in
+    :math:`\varphi`) and :math:`\psi` is :math:`\varphi`-independent,
+    the azimuthal weights cancel and the reference reduces to the
+    published GL-8 half-table:
+
+    .. math::
+
+        \psi_- \;=\;
+        \frac{\sum_{\mu_k>0} w_k\,\mu_k^2}{\sum_{\mu_k>0} w_k\,\mu_k}
+        \;=\; \frac{1/3}{0.50576403\ldots} \;=\; 0.659068878836894 .
+
+    Two references, deliberately of different pillars:
+
+    * the DISCRETE hand calculation above (tight, ``rtol=1e-13``);
+    * the CONTINUUM closed form, which is the analytic identity the
+      audit found the suite lacked —
+      :math:`\bigl(\int_{2\pi}|\Omega\cdot\hat n|\mu\,d\Omega\bigr) /
+      \bigl(\int_{2\pi}|\Omega\cdot\hat n|\,d\Omega\bigr)
+      = (2\pi/3)/\pi = 2/3`.
+      The numerator is EXACT under GL-8 (:math:`\mu^2` is degree 2),
+      the denominator is not (:math:`|\mu|` has a kink at 0), so the
+      discrete answer sits 1.14 % below 2/3 — a genuine, explained
+      quadrature gap, gated at ``rtol=2e-2``. That is loose by design
+      and still catches every white mutation (the dropped-cosine
+      variant reads 0.5058, i.e. 24 % low).
+    """
     quad = Quadrature.product(n_mu=8, n_phi=4)
-    psi_out = np.where(quad.mu_z[:, None] > 0, 2.0, 9.0)
+    mu_k = np.array([m for m, _ in _GL8_POSITIVE_TABLE])
+    w_k = np.array([w for _, w in _GL8_POSITIVE_TABLE])
+
+    # Precondition: the product rule's polar nodes ARE the published
+    # GL-8 nodes, and each carries the 2π-scaled GL-8 weight.
+    np.testing.assert_allclose(
+        np.unique(np.round(quad.mu_z, 12)),
+        np.concatenate([-mu_k[::-1], mu_k]),
+        rtol=1e-11, atol=0.0,
+        err_msg="product(8, 4) polar nodes are no longer GL-8",
+    )
+
+    psi_incoming = 9.0
+    psi_out = np.where(
+        quad.mu_z[:, None] > 0, quad.mu_z[:, None], psi_incoming,
+    )
     bc = WhiteBoundary(axis="z", outward_sign=+1, albedo=1.0)
 
     psi_in = _realize_for_sn(bc, quad).apply(psi_out)
 
-    np.testing.assert_allclose(psi_in, 2.0, rtol=1e-13, atol=1e-15)
+    # (1) discrete hand calculation off the published GL-8 half-table.
+    expected = float((w_k * mu_k**2).sum() / (w_k * mu_k).sum())
+    assert abs(expected - 0.659068878836894) < 1e-14  # docstring's number
+    np.testing.assert_allclose(
+        psi_in, expected, rtol=1e-13, atol=0.0,
+        err_msg=(
+            "white BC is not the |Ω·n̂|-weighted outgoing-hemisphere "
+            "mean on product(8, 4)"
+        ),
+    )
+
+    # (2) closed-form continuum anchor: ∫|Ω·n̂|μ dΩ / ∫|Ω·n̂| dΩ = 2/3.
+    np.testing.assert_allclose(
+        psi_in, 2.0 / 3.0, rtol=2e-2, atol=0.0,
+        err_msg=(
+            "white BC departs from the closed-form hemispheric "
+            "cosine-weighted mean 2/3 by more than the GL-8 half-range "
+            "quadrature gap (1.14 %)"
+        ),
+    )
 
 
 @pytest.mark.foundation

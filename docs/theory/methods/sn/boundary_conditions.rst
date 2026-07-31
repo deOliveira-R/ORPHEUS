@@ -237,8 +237,9 @@ laws:
 .. code-block:: python
 
    tree = 0.3 * spec + 0.7 * white            # LawSum of LawScaled
-   op = realize_recursively(tree, method_space)  # OperatorSum of ScaledOperator
-   psi_in = op.apply(psi_out)
+   # The walker is method-blind: pass the method's own realizer.
+   op = realize_recursively(tree, method_space, SNBoundaryRealizer())
+   psi_in = op.apply(psi_out)                 # OperatorSum of ScaledOperator
 
 See :ref:`bc-rank-n-algebra` for the closed algebra and the
 :ref:`bc-realize-recursively` walker that lowers a descriptor

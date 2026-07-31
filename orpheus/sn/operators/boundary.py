@@ -101,7 +101,7 @@ _RULED_CORNER_KINDS = frozenset({"vacuum", "reflective"})
 
 
 def _zero_bulk_source(mesh: "SNMesh"):
-    r"""The zero-bulk ``A_ss`` carrier every boundary block emits.
+    r"""The zero-bulk ``A_ss`` carrier ``B_a`` emits on the System-A composite.
 
     Sized from the MESH (not ``zeros_like`` the input) so the carrier is correct
     for any bulk representation (full-angular
@@ -109,9 +109,15 @@ def _zero_bulk_source(mesh: "SNMesh"):
     windowed :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`);
     it carries the scheme's spatial-moment width (#240 D5b-S3) so it composes
     element-wise with the moment-carrying ``(L+C)ψ`` in the ``(L+C − S − B)ψ``
-    matvec.  Single source (Cardinal Rule 2) for the zero bulk both ``B_a``
-    (:class:`SNBoundaryOperator`) and ``B_b``
-    (:class:`RadialCharacteristicBoundaryOperator`) emit.
+    matvec.
+
+    Scope: **``B_a`` only** — one call site,
+    :meth:`SNBoundaryOperator._apply_faces`. The sibling ``B_b``
+    (:class:`RadialCharacteristicBoundaryOperator`) does NOT route through
+    here: since the B.2b re-type it lives on System B's own carrier, whose
+    interior member is a ``RadialCharacteristicInteriorSourceSink`` — a
+    different type on a different space, so there is no shared zero-bulk
+    concept for the two blocks to have a single source OF.
     """
     from orpheus.transport.source_sinks import AngularSourceSink
 
@@ -127,9 +133,14 @@ class SNBoundaryOperator(LinearOperator):
     block operator — bulk⊕trace): block-diagonal over the mesh's true boundary
     faces, ``B_a.apply(ψ)`` returns a
     :class:`~orpheus.transport.full_field.FullField` with **zero bulk**
-    and, on each face, ``bc[<face>].apply(ψ.boundary.face_view(<face>))`` — the
-    per-face realized boundary law applied to that face's trace slot. It composes
-    as ``−B`` in ``(L_full + C − S − F − B)`` (acting on the same
+    and, on each face, ``bc[<face>].apply(ψ.boundary.face_view(<face>))``
+    **projected onto that face's INFLOW ordinate rows** — ``B_face = P_inflow ∘
+    law``. The projection is not incidental: ``B`` is the ``A_ss`` block
+    ``V_outflow → V_inflow``, so the realized law (a full-face operator) must
+    not emit on the outflow rows, which carry no ``B`` term in the block matrix.
+    Every outflow row of the output is zero, for every law. See
+    :meth:`_reflect_trace` for the transpose's mirror-image discipline. It
+    composes as ``−B`` in ``(L_full + C − S − F − B)`` (acting on the same
     :class:`~orpheus.transport.full_field.FullField` carrier as ``L``/``C``/``S``/``F``).
 
     On a **seed-carrying** composite the whole boundary block is the direct sum
@@ -138,8 +149,13 @@ class SNBoundaryOperator(LinearOperator):
     boundary (RULING P1: a block-composed system's boundary is the direct sum of
     per-system boundary blocks over the composite biproduct; the off-diagonal
     structure is keyed to face physics — reflection is a per-system
-    endomorphism ⇒ block-diagonal). ``B_a`` emits a **present-zero** ray block so
-    ``B_a + B_b`` sums bit-identically; the ray corner is entirely ``B_b``'s.
+    endomorphism ⇒ block-diagonal). "Direct sum" is meant literally, NOT as a
+    ``+``: since the B.2d re-type ``B_a`` neither reads nor pads a ray block
+    (its carrier's members are exactly ``interior`` and ``boundary``), and
+    ``B_b`` lives on ``radial_characteristic_field_space``. The two are placed
+    at the (A,A) and (B,B) slots of the coupled grid; spelling ``B_a + B_b``
+    raises :class:`~orpheus.numerics.operator.IncompatibleOperatorComposition`
+    (``OperatorSum`` requires equal domains) and always has, by design.
 
     The role is :attr:`BlockRole.BOUNDARY`; the domain and codomain are the
     mesh's composite carrier
@@ -199,8 +215,11 @@ class SNBoundaryOperator(LinearOperator):
         # is adjointable (reflective / vacuum / periodic / albedo are; white is
         # NOT — self-adjoint only under |Ω·n|·w, routed via B.H). The per-face
         # intersection rule, computed recursively like every composite
-        # predicate. is_invertible inherits base False (a BC reflection map
-        # is not invertible).
+        # predicate. is_invertible inherits base False — NOT because the
+        # reflection map is singular (a permutation is invertible), but
+        # because ``B_face = P_inflow ∘ law`` is rank-deficient: the codomain
+        # projection kills the outflow rows, so B maps a full face slot onto
+        # the inflow subspace and cannot be inverted.
         laws = self._face_laws.values()
         return bool(laws) and all(law.is_adjointable for law in laws)
 
@@ -342,7 +361,13 @@ class SNBoundaryOperator(LinearOperator):
         mesh = self.sn_mesh
         if psi.interior.mesh is not mesh:
             raise ValueError(
-                "SNBoundaryOperator.apply: input field and operator must "
+                # ``_apply_faces`` serves BOTH ``apply`` and
+                # ``apply_transpose``; the prefix names the caller rather than
+                # hard-coding ``apply``, which mis-attributed every failure on
+                # the transpose path. The ``mesh-identity invariant`` substring
+                # is load-bearing — four ``pytest.raises(..., match=...)`` sites
+                # in test_psi_half_coupling.py key on it — and is preserved.
+                f"SNBoundaryOperator.{method}: input field and operator must "
                 "share the same SNMesh instance (mesh-identity invariant); "
                 f"got field mesh {psi.interior.mesh!r} vs operator mesh {mesh!r}."
             )
@@ -402,15 +427,23 @@ class SNBoundaryOperator(LinearOperator):
         outflow — ``ψ.inflow ← (B_a·ψ)|_{\rm inflow}``, face-restrictable.
 
         The MUTATING façade over :meth:`reflect_into_inflow` (single source —
-        both route through :meth:`_reflect_trace`), matching the sweep
+        both route through :meth:`_reflect_trace`), carrying the sweep
         substrate's reflect signature
-        (``Callable[[AngularBoundaryFlux, tuple[str, ...]], None]``): the
-        :func:`~orpheus.sn.loss_representation._sweep_scheduled` inter-group
-        reflect passes THIS bound method (#226 step 2 — the reified
-        ``M = (L+C−B_lower)`` supplies ``boundary.reflect_inflow_inplace``),
-        and the whole-trace form (``faces=None``) serves the direct
-        fixed-source SI loop + the eigenvalue reconstruction sweep via
-        :func:`orpheus.sn.solver._reflect_outflow_into_inflow`.
+        (``Callable[[AngularBoundaryFlux, tuple[str, ...]], None]``). Its
+        production consumer is the whole-trace form (``faces=None``) reached
+        through :func:`orpheus.sn.solver._reflect_outflow_into_inflow`, which
+        seeds ``ψ.inflow = B·ψ.outflow`` before the eigenvalue reconstruction
+        sweep.
+
+        ⚠ NOT the reflect the reified ``M = (L+C−B_lower)`` supplies to
+        :func:`~orpheus.sn.loss_representation._sweep_scheduled`. That one is
+        :meth:`SNMaskedBoundaryOperator.reflect_rows_inplace` — ADDITIVE and
+        restricted to ``B_lower``'s rows, because a forward-substitution row
+        completes ``z_in = y_row + (Bz)_row`` on top of a seed. The two are
+        deliberately not interchangeable: a whole-face ASSIGNMENT there drops
+        ``y_row`` and stamps fresh values onto rows the splitting defines as
+        lagged — the dissolved ``_GaussSeidelResolvent``'s overwrite defect
+        (#226 §17 falsifier-3, round-trip O(1) at 2.667).
 
         Trace-only: the ψ½ ray-corner analogue is
         :meth:`RadialCharacteristicBoundaryOperator.reflect_corner_inplace`
@@ -532,8 +565,10 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     """
 
     block_role = BlockRole.BOUNDARY
-    # B_b is System B's boundary — it acts within the ray system alone
-    # (present-zero bulk and trace); campaign step 4a.
+    # B_b is System B's boundary — it acts within the ray system alone.
+    # Since the B.2b re-type that is STRUCTURAL, not padding: the carrier
+    # has no System-A bulk or trace slots to present-zero (see the class
+    # docstring's Pattern-4 note).  Campaign step 4a.
     system_role = SystemRole.B
 
     def __init__(self, sn_mesh: "SNMesh") -> None:
@@ -562,8 +597,11 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     def domain(self) -> Optional["FunctionSpace"]:
         # System B's own member space (B.2b DP1; non-None by the ctor guard).
         # The B.2c CoupledOperator grid type-checks the (B, B) placement
-        # against it; the FullField-summed production ``B = B_a + B_b`` rides
-        # the transient adapter, which declares ``full_field_space``.
+        # against it: ``build_within_group_system`` composes ``A_BB = march −
+        # B_b`` there.  There is no FullField-summed ``B = B_a + B_b`` and no
+        # adapter to carry one — the transient ``_RayEmissionFullFieldGain``
+        # was RETIRED at B.2d, the driver iterate is a ``CoupledField`` pair,
+        # and nothing sums FullField-embedded ray gains anymore.
         return self.sn_mesh.radial_characteristic_field_space
 
     @property

@@ -1936,3 +1936,80 @@ pad the wall clock, tighten the allocation; (5) fingerprint the fixture.
 Delivered: `tests/sn/architecture/test_composition_cost.py` (9 gates,
 0.9 s, pyright-clean). Refines L24 §6; sharpens L16 (the perf-regression
 precedent) and L4 (prove every gate's teeth).
+
+---
+
+## L28 — REPAIRING blind gates: re-pose onto a regime-INDEPENDENT mechanism, and measure "before" with `git show`, never `git checkout`
+
+Context: boundary-machinery review phase B0.3 (2026-07-30), seven measured
+coverage defects in a suite that was already strong (30/31 mutations caught).
+Repairing blind gates is a different design problem from writing them, and the
+four rules below are what the job actually turned on. Result: **31/31** on the
+auditor's own set, plus the historical miss closed.
+
+**1. A DECAYED `catches` marker is repaired by moving to a REGIME-INDEPENDENT
+mechanism invariant — NOT by driving the fixture back into the regime.** The
+reflex is "the config converges in 6 outers but the bug needs 30–60, so tighten
+the tolerance". MEASURED: that is impossible here — with ERR-052 re-introduced
+the un-normalised iterate stabilises at `|φ|max = 5.6552e-01` at 6, 24 AND 32
+outers, because `F·φ/k` is scale-neutral once `k` converges, so the catalogued
+denormal catastrophe is **unreachable in its own fixture at any depth**. The
+repair is to assert the *output convention the fix establishes* — here
+`P(φ) = ∫νΣ_f φ dV = 1`, which holds at EVERY outer count, so the marker cannot
+decay again. Mutation: 1.0 → 0.0739 (13.5×) on the subcritical leg, 1.0 →
+0.84375 on the supercritical one; `rtol=1e-12`, no margin. **Always check
+whether the catalogued mechanism is reachable before trying to reach it** — and
+record the answer, because the next reader will otherwise chase it.
+**Corollary:** the mechanism reference must NOT be computed by the routine that
+ESTABLISHES it (`compute_production_rate` is what the normaliser divides by) —
+hand-assemble it from the mixture + mesh + solution, or the gate is a tautology.
+
+**2. A Mode-12-blind "hand-computed" test needs BOTH halves: break the
+invariance AND source the reference independently.** Breaking the invariance
+alone (non-constant input) leaves you re-transcribing the production weight
+formula — which is what the *existing* catcher already did (vv L11 procedural,
+not structural). Type the PUBLISHED table (Abramowitz & Stegun GL nodes/weights)
+as literals, assert the quadrature matches it as a precondition, and build the
+expected number from the literals. Bonus available cheaply: the closed-form
+continuum anchor (`∫|Ω·n̂|μ dΩ / ∫|Ω·n̂| dΩ = 2/3`) at an honestly-stated
+discretization tolerance — the audit had flagged its absence.
+
+**3. A tautological-`raises` file is repaired guard-by-guard with the guard
+named at `file:line` in each docstring, and the acceptance measurement is the
+PER-GUARD red table.** 0/14 → 12/14. Every residual miss must be
+*categorically* out of scope and said so (the 2 here are composition-walker
+mutations, not error guards) — an unexplained residual is indistinguishable
+from an incomplete repair. Two production defects fell out of the exercise that
+no amount of reading had surfaced: an error class with **zero** raise sites
+(its trigger is a no-op ABC default nobody overrides) and a one-site `law=` tag
+convention drift. **Pointing tests at production entry points is itself an
+audit of production.** When a drift is found and you may not fix production,
+assert the *property* (case-insensitively) rather than the drifted *value* —
+pins the contract without calcifying the bug.
+
+**4. Measure "before" with `git show HEAD:<file> > <tmp copy beside it>`.** The
+tree carried uncommitted work in `.claude/` and `orpheus/`, so `git checkout` /
+`restore` / `stash` were forbidden. Writing the pre-repair content to a
+throwaway sibling file runs it under the SAME mutation, in the SAME collection,
+against the SAME fixtures — a true A/B, then `rm`. This is how every
+before/after row in the report was obtained (phantom re-confirmed as `11
+passed`; sentinels re-confirmed as `3 SKIPPED`; registry probe RED).
+
+**5. HYGIENE — for the "committed" side of any doc/generated-artifact diff, use
+`git show HEAD:<path>`, never the working-tree file.** A concurrent Sphinx
+build regenerated `docs/theory/verification/matrix.rst` mid-session (its
+`builder-inited` hook), between two of my edits. Diffing a regeneration against
+the already-regenerated working-tree copy manufactured a confident,
+circumstantial, and entirely WRONG "the committed V&V matrix has always
+disagreed with the code" finding, complete with a git-log narrative. Caught
+only by checking `git show HEAD:` and the file mtimes. **On a shared tree,
+`ls -la`/mtime is part of the measurement.** Retract loudly when it happens —
+a wrong finding costs more than no finding.
+
+**6. Never let a repair reduce the catch rate — prove it, don't assume it.**
+Re-run the auditor's own harness rather than a re-implementation
+(`$CLAUDE_JOB_DIR/tmp/mutplugin{,2,3,4}.py` survived the session), so the
+before/after is apples-to-apples. The per-mutation red COUNTS are the real
+signal: `white_nocos` 11→13 and exactly +1 on each of the twelve error guards
+proved the repairs landed where designed, and every other count being unchanged
+proved nothing was disturbed.

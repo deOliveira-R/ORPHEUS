@@ -235,6 +235,26 @@ probe (run once if unsure): a collected `test_x(): assert 1==2` under
 Do NOT raise a Mode-8 flag for bare asserts in `tests/` — reserve Mode-8 for
 bare asserts in `orpheus/` production paths (L-006 recipe).
 
+**When a BRIEF hands you a Mode-8 hypothesis about a `tests/` subtree, settle it
+in 2 min and PIVOT** (2026-07-30, boundary-machinery quadrant; the brief's
+"highest priority" premise was FALSE and the headline came out `0/676 = 0.0 %`
+inert). Two-step proof: (1) synthetic control — 3 failing tests (bare `assert` /
+`np.testing` / `pytest.fail`) run WITH and WITHOUT `-O`, identical verdict;
+(2) realistic — COPY two real files to `$CLAUDE_JOB_DIR/tmp/`, falsify one bare
+assert each (`assert <expr> and False, 'MUT must FAIL'` preserves the original
+expression), run both modes. The REAL Mode-8 surface to grep is then only:
+bare asserts in the subsystem's `orpheus/` files + **non-collected helpers under
+`tests/`** (a `_generate_*.py` snapshot generator matching no `python_files`
+pattern IS `-O`-inert — low severity, but it is the honest hit).
+Then pivot the quadrant to **what the asserts assert**: an AST census
+(bare / `np.testing.*` / `pytest.raises` / `pytest.fail` / `assert_*` calls) plus
+a bare-assert CONTENT classification (`structural` isinstance-hasattr-`is` /
+`tag_equality` / `shape_len` / `predicate` / `membership` / `numeric`). Measured
+on the boundary suite: 61.7 % bare, but only **29.1 % of bare asserts pin a
+VALUE** — the `tag_equality` bucket is the test-side shadow of a production
+stringly-typed-dispatch finding and is the migration surface if the plan types
+that dispatch. Scripts worth re-deriving: `count_asserts.py`, `classify_asserts.py`.
+
 ---
 
 ## L-011 -- Replicate the test's OWN solve helper before judging a "value" claim
@@ -2416,3 +2436,66 @@ P0-forced tooth: healthy n=2, forced n=33 (large margin). so=0 is a pure rename 
 path (verified vs HEAD). Trace arm ℓ=0 by theorem (derivation reflecting row f₁=0; vacuum
 inert). Cross-refs [[lessons-L058]] (Mode-12 verify-by-running), [[lessons-L024]] (prove teeth
 by disabling), [[lessons-L016]] (product-quad needed to exercise the μ_r≈0 free-DOF branch).
+
+---
+
+## L-061 -- YOUR OWN mutation needs a BITE CHECK: "the attribute was set" is a presence check, not a bite; and three NEW permanently-inert-gate classes
+
+Enforcement #11 says make the gate RED. The corollary I violated (2026-07-30,
+boundary quadrant) is that a mutation that DOESN'T CHANGE PRODUCTION BEHAVIOUR
+manufactures a FALSE "no test catches this" finding — the exact Mode-11 trap,
+turned inward. Two mechanical traps, both hit in one session:
+
+1. **`__post_init__` install on a dataclass decorated WITHOUT one is a NO-OP.**
+   `dataclasses` bakes the `self.__post_init__()` call into the generated
+   `__init__` only if the hook exists at DECORATION time. I set
+   `AlbedoBoundary.__post_init__ = <alpha -> 1-alpha>`; the plugin's guard
+   ("`_APPLIED` is non-empty") passed, the run reported `303 passed` and I very
+   nearly shipped "the albedo amplitude is ungated". Re-done at the REALIZER
+   seam (`_orig_realize(self, dataclasses.replace(law, albedo=1-a), ms)`) the
+   SAME mutation reddens 7. Check `hasattr(cls, "__post_init__")` before ever
+   patching one.
+2. **A capability REFUSAL is a TWO-part contract.** `LinearOperator.is_adjointable`
+   is a DECLARED predicate defaulting `False`; `adjointable(op)` is just
+   `return op.is_adjointable`. Adding `apply_transpose` alone does NOT lift the
+   refusal (measured: still `False`) — you must ALSO override the predicate. Same
+   for `is_invertible`/`is_assemblable`. A plan step "expose the transpose" that
+   touches only the method is a no-op; say so.
+
+**Recipe**: every mutation in the plugin registers a `bite()` callable run in
+`pytest_configure` that exercises the production path and RAISES if the
+observable is unchanged. For a driver-level bug (ERR-052 renorm-drop) the bite
+must instrument a COUNTER + a magnitude (`renorm_calls 6->0`, `|phi|max
+7.60->0.61`), because the observable the TEST reads can legitimately be unmoved
+— which is the finding, not a failed bite.
+
+**Three inert-gate classes to grep for, all found in one subsystem:**
+- **Tautological raise**: `with pytest.raises(X): raise err` where `err` was
+  built as an `X` two lines up. No input reds it. (`test_bc_errors.py`: 9 legs;
+  confirmed by measurement — 0 of 14 guard-disabling mutations touched the file.)
+- **`except Exception: pytest.skip(...)`**: converts ANY construction bug into a
+  green skip forever. (`test_bc_extraction_matvec.py:445` — a self-described
+  "SENTINEL", 3 rows, never run: the `try` builds a 1-D mesh then reads
+  `spatial_shape[1]` -> `IndexError` swallowed. Tell: a skip REASON that is an
+  exception message rather than prose. Always run `-rs` on a suite whose skip
+  count is non-zero and READ the reasons.)
+- **STALE `catches("ERR-NNN")`**: a marker that WAS a true catcher and drifted out
+  of the failure regime. ERR-052 (power-iteration renorm) needs 30-60 outers to
+  denormalise; the test's config now converges in **6**, and its assertion is an
+  ORDERING with a 10x margin (`1.875 > 0.179`) — bite-verified bug re-introduced,
+  test still green. Sharpens L-007/L-054: a `catches` marker is not verified ONCE,
+  it decays; re-verify when reviewing the area.
+
+**Adjacent level-conflation tell**: a snapshot file marked `l1` whose own header
+records that the cross-implementation half was deleted and "the snapshots now
+record realiser-path outputs" — a self-generated regression baseline wearing an
+L1 label. It is still the WIDEST net (reddened 9 of 12 leaf mutations); the fix
+is the marker, not the file. Same file: `_load_or_skip` SKIPS on a missing
+snapshot instead of failing — tighten to a hard fail.
+
+**The good news worth remembering**: guard-disabling is cheap and fast (neuter
+each `assert_*` invariant / realizer refusal one at a time via a `-p` plugin,
+~2 s per run over an 18-file set). The boundary subsystem scored 30/31 caught.
+Cross-refs [[lessons-L024]] (prove teeth by DISABLING the override),
+[[lessons-L007]] + [[lessons-L054]] (`catches` = coverage CLAIM),
+[[lessons-L010]] (settle Mode-8 fast, then pivot to what the asserts assert).

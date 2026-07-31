@@ -30,14 +30,34 @@ check; this is unrelated to the legacy/realiser split that was dropped.
 V&V tags
 --------
 
-* ``@pytest.mark.l1`` — cross-implementation L1 (the realizer path is a
-  structurally-independent re-implementation; the snapshot pins the
-  numerical reference).
-* ``@pytest.mark.regression`` — gates production refactors. Failure
-  means a realiser body drifted; see the Wave-6 closeout commit and
-  the ``vv-principles`` bit-identity vs principled-equivalence rubric.
+* ``@pytest.mark.foundation`` + ``@pytest.mark.regression`` — a
+  frozen-reference drift gate on a software invariant (realiser-body
+  stability), NOT a verification reference.
 * No ``@pytest.mark.verifies`` decorator — these tests verify a
   *software invariant* (refactor stability), not an equation.
+
+**B0.3 RELABEL (2026-07-30).** This file was marked ``@pytest.mark.l1``
+and its docstring claimed *"cross-implementation L1 (the realizer path
+is a structurally-independent re-implementation; the snapshot pins the
+numerical reference)"*. That claim died with the legacy half: Issue
+#186 removed the descriptor ``apply`` bodies, and — as the paragraph
+above already recorded — **the snapshots now record realiser-path
+outputs**. A baseline regenerated from the very code it gates is not a
+cross-implementation reference at any level; under ``vv-principles``
+(L4 is parallel to the ladder, and a self-generated baseline is not
+even that) an ``l1`` label on it is level conflation: it advertises
+correctness evidence while producing none.
+
+The level marker is therefore ``foundation`` — the honest home for
+"software invariant, no theory-page ``:label:``" — and ``regression``
+stays, which is what the pytest marker table already calls this shape
+(*"Frozen-reference snapshot tests gating numerical drift across
+refactors (NOT a verification reference)"*).
+
+**Nothing about the file's VALUE changes:** it remains the widest
+mutation net in the boundary subsystem (measured: it reddened under
+**9 of the 12** leaf-action mutations in the boundary review). What
+changes is only the claim it makes about itself.
 
 Generator
 ---------
@@ -71,7 +91,7 @@ from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 
 
-pytestmark = [pytest.mark.l1, pytest.mark.regression]
+pytestmark = [pytest.mark.foundation, pytest.mark.regression]
 
 
 _SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
@@ -81,18 +101,30 @@ _GENERATOR_HINT = (
 )
 
 
-def _load_or_skip(case_id: str) -> np.lib.npyio.NpzFile:
-    """Load the snapshot for ``case_id`` or skip the test.
+def _load_snapshot(case_id: str) -> np.lib.npyio.NpzFile:
+    """Load the snapshot for ``case_id``; a missing file is a FAILURE.
 
-    Tests are skipped (NOT failed) if the snapshot is missing — this
-    lets the test infrastructure land before the snapshots themselves
-    in a decoupled-commit roll-out, and protects against running a
-    stale-snapshot CI gate.
+    B0.3 REPAIR — this helper used to ``pytest.skip`` on a missing
+    snapshot, on the rationale that "the test infrastructure lands
+    before the snapshots themselves in a decoupled-commit roll-out".
+    That roll-out finished long ago (all 8 ``.npz`` are git-tracked),
+    and the skip is now purely a way for the widest net in the
+    subsystem to be **silently disabled** by a deleted or renamed
+    baseline — the same shape as the skip-swallowed sentinel this
+    review found next door (``vv-principles`` Mode-8, the
+    SKIP-SWALLOWED class: a skip is invisible in a summary line).
+
+    A missing baseline is a broken gate, so it reds.
     """
     path = _SNAPSHOT_DIR / f"bc_equivalence_{case_id}.npz"
     if not path.exists():
-        pytest.skip(
-            f"Snapshot {path.name} not generated. {_GENERATOR_HINT}",
+        pytest.fail(
+            f"Snapshot {path.name} is MISSING — this gate is the widest "
+            f"mutation net in the boundary subsystem (9 of 12 leaf "
+            f"mutations) and a missing baseline silently disables it. "
+            f"{_GENERATOR_HINT} Regeneration must carry an inline "
+            f"justification citing one of the three "
+            f"principled-equivalence criteria (vv-principles).",
         )
     return np.load(path)
 
@@ -115,7 +147,7 @@ class TestVacuumLebedev17Snapshot:
 
     @pytest.fixture(scope="class")
     def snapshot(self) -> np.lib.npyio.NpzFile:
-        return _load_or_skip(self.case_id)
+        return _load_snapshot(self.case_id)
 
     def test_realizer_zeroes_only_inflow_per_section_16A5(
         self, snapshot: np.lib.npyio.NpzFile,
@@ -173,7 +205,7 @@ class TestAlbedo05Lebedev17Snapshot:
 
     @pytest.fixture(scope="class")
     def snapshot(self) -> np.lib.npyio.NpzFile:
-        return _load_or_skip(self.case_id)
+        return _load_snapshot(self.case_id)
 
     def test_realizer_apply_matches_snapshot(
         self, snapshot: np.lib.npyio.NpzFile,
@@ -202,7 +234,7 @@ class TestSpecularXLebedev17Snapshot:
 
     @pytest.fixture(scope="class")
     def snapshot(self) -> np.lib.npyio.NpzFile:
-        return _load_or_skip(self.case_id)
+        return _load_snapshot(self.case_id)
 
     def test_realizer_apply_matches_snapshot(
         self, snapshot: np.lib.npyio.NpzFile,
@@ -237,7 +269,7 @@ class TestSpecularYPartial07LS6Snapshot:
 
     @pytest.fixture(scope="class")
     def snapshot(self) -> np.lib.npyio.NpzFile:
-        return _load_or_skip(self.case_id)
+        return _load_snapshot(self.case_id)
 
     def test_realizer_apply_matches_snapshot(
         self, snapshot: np.lib.npyio.NpzFile,
@@ -268,7 +300,7 @@ class TestWhiteXmaxLS4Snapshot:
 
     @pytest.fixture(scope="class")
     def snapshot(self) -> np.lib.npyio.NpzFile:
-        return _load_or_skip(self.case_id)
+        return _load_snapshot(self.case_id)
 
     def test_realizer_apply_matches_snapshot(
         self, snapshot: np.lib.npyio.NpzFile,
@@ -306,7 +338,7 @@ class TestWhiteXminPartial03GLSnapshot:
 
     @pytest.fixture(scope="class")
     def snapshot(self) -> np.lib.npyio.NpzFile:
-        return _load_or_skip(self.case_id)
+        return _load_snapshot(self.case_id)
 
     def test_realizer_apply_matches_snapshot(
         self, snapshot: np.lib.npyio.NpzFile,
@@ -331,7 +363,7 @@ class TestPeriodicLebedev17Snapshot:
 
     @pytest.fixture(scope="class")
     def snapshot(self) -> np.lib.npyio.NpzFile:
-        return _load_or_skip(self.case_id)
+        return _load_snapshot(self.case_id)
 
     def test_realizer_apply_matches_snapshot(
         self, snapshot: np.lib.npyio.NpzFile,
@@ -379,7 +411,7 @@ class TestMixed30Spec70WhiteLS4Snapshot:
 
     @pytest.fixture(scope="class")
     def snapshot(self) -> np.lib.npyio.NpzFile:
-        return _load_or_skip(self.case_id)
+        return _load_snapshot(self.case_id)
 
     def test_realizer_apply_matches_snapshot(
         self, snapshot: np.lib.npyio.NpzFile,

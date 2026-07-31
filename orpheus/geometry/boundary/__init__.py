@@ -39,11 +39,18 @@ The §16A.3 decomposition splits this map into three concrete layers:
    :math:`\Omega_n \cdot \hat n_f` per face; inflow and outflow are
    *selectors* over the sign predicate
    :math:`\mathrm{sign}(\Omega_n \cdot \hat n_f)`.
-2. **Boundary law** — :class:`BoundaryTraceLaw` ABC + six concrete
-   subclasses, each carrying the three first-class properties
+2. **Boundary law** — :class:`BoundaryTraceLaw` ABC + seven concrete
+   subclasses. The ABC declares three properties for the
+   :eq:`bc-affine-form-init` factors
    (:attr:`~BoundaryTraceLaw.geometry_map`,
    :attr:`~BoundaryTraceLaw.response_kernel`,
-   :attr:`~BoundaryTraceLaw.source`). Method-agnostic.
+   :attr:`~BoundaryTraceLaw.source`), but only :attr:`source` is
+   real today: :class:`PrescribedInflow` overrides it and the
+   realizers read it. :attr:`geometry_map` and
+   :attr:`response_kernel` return the ABC's ``None`` on **every**
+   law and are read by nothing — campaign phase **B1** mints the
+   typed ``G`` / ``R`` specification objects and populates them.
+   Method-agnostic.
 3. **Method realisation** —
    :class:`~orpheus.geometry.boundary.BoundaryRealizer` Protocol +
    two functional implementations
@@ -85,11 +92,19 @@ law's parameters; realise it (via
 :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`) to
 obtain a 1-arg callable :class:`LinearOperator`. None of the
 concrete laws has an :meth:`apply` method; the realiser is the
-sole bridge. The canonical SN-realised representation per law:
+sole bridge. The canonical SN-realised representation per law.
 
-* :class:`VacuumInflow` (registry key ``"vacuum"``, deprecated alias
-  ``VacuumBoundaryOperator``) — the rank-0 case :math:`R = G = q
-  = 0`. SN realises to
+.. note::
+
+   :math:`R` below is the **response factor alone** — the crossing
+   :math:`\Gamma_+ \to \Gamma_-`, a scalar for every law in this
+   family — matching :eq:`bc-affine-form-init` and the theory page's
+   typing. :math:`G` is the geometry, an endomorphism of
+   :math:`\Gamma_+`. The *composite* the realizer produces is
+   :math:`R \circ G`, never called :math:`R`.
+
+* :class:`VacuumInflow` (registry key ``"vacuum"``) — the rank-0
+  case :math:`R = G = q = 0`. SN realises to
   :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
   with the per-face inflow indices; this zeroes **only the
   inflow ordinates** and preserves the outflow trace (the §16A.5
@@ -99,39 +114,44 @@ sole bridge. The canonical SN-realised representation per law:
   alternate path; the inflow-only mask is the unique vacuum
   semantics.
 * :class:`ReflectiveBoundary(axis, albedo)` (registry key
-  ``"reflective"``, deprecated alias ``SpecularBoundaryOperator``)
-  — :math:`R = G_{\text{refl}} \cdot \alpha` with the geometric
-  operator the ordinate permutation
-  ``quadrature.reflection_index(axis)``. SN realises to
+  ``"reflective"``) — :math:`G = G_{\text{refl}}`, the ordinate
+  permutation ``quadrature.reflection_index(axis)``; :math:`R =
+  \alpha`. SN realises the composite to
   :class:`~orpheus.numerics.operator.PermutationOperator` (α=1
   fast path) or
   ``ScaledOperator(α, PermutationOperator)`` (α ≠ 1).
 * :class:`WhiteBoundary(axis, outward_sign, albedo)` (registry key
-  ``"white"``, deprecated alias ``WhiteBoundaryOperator``) —
-  :math:`R = G_{\text{diff}} \cdot \alpha` with the geometric
-  operator the cosine-weighted Lambertian average over the outgoing
-  hemisphere. SN realises to
+  ``"white"``) — :math:`G = G_{\text{diff}}`, the cosine-weighted
+  Lambertian average over the outgoing hemisphere; :math:`R =
+  \alpha`. SN realises the composite to
   :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` (α=1
   fast path) or scaled.
-* :class:`PeriodicBoundary` (registry key ``"periodic"``, deprecated
-  alias ``PeriodicBoundaryOperator``) — :math:`R` is a spatial
-  pushforward (wrap-around to the opposite face) with
-  :math:`\alpha = 1`. SN realises to
+* :class:`PeriodicBoundary` (registry key ``"periodic"``) —
+  :math:`G` is a spatial pushforward (wrap-around to the opposite
+  face); :math:`R = \alpha = 1`. SN realises to
   :class:`~orpheus.numerics.operator.PeriodicWrapOperator`
   (currently an angular identity; the spatial-pushforward extension
-  is tracked as a follow-up under ``module:sn``).
-* :class:`AlbedoBoundary(albedo)` (registry key ``"albedo"``,
-  deprecated alias ``AlbedoBoundaryOperator``) — :math:`R = I \cdot
-  \alpha` with the geometric operator the angular identity. SN
-  realises to :class:`~orpheus.numerics.operator.ZeroOperator` (α=0),
+  is tracked as a follow-up under ``module:sn``). The law carries
+  **no fields at all** today — not even the partner face — so the
+  :math:`G` it names is not yet expressible (issue #183).
+* :class:`AlbedoBoundary(albedo)` (registry key ``"albedo"``) —
+  :math:`G = I`, the angular identity; :math:`R = \alpha`. SN
+  realises the composite to
+  :class:`~orpheus.numerics.operator.ZeroOperator` (α=0),
   :class:`~orpheus.numerics.operator.IdentityOperator` (α=1), or
   ``ScaledOperator(α, IdentityOperator)`` (α ∉ {0, 1}).
 * :class:`PrescribedInflow(source)` (registry key
   ``"prescribed_inflow"``, Wave 7 addition) — the rank-0 affine BC
   :math:`R = G = 0`, :math:`q \neq 0`. SN realises to
-  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator(source)`
+  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
   whose :meth:`apply` ignores the outgoing flux and returns
-  ``source.evaluate(psi_out.shape)``. Consumes a
+  ``source.evaluate(psi_out.shape)`` **masked to the face's inflow
+  ordinates** when the method space carries them (#52 / ERR-047 —
+  so the delivered :math:`q` lives on :math:`\Gamma_-` by
+  construction). The unmasked branch is reachable only for
+  :math:`q \equiv 0` sources:
+  :meth:`BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
+  raises first for a nonzero source with no inflow set. Consumes a
   :class:`InflowSourceSpec` (typically :class:`NoSource` for the
   homogeneous case or :class:`ConstantInflowSource(value)` for a
   uniform inflow).
@@ -252,10 +272,26 @@ callable only after :func:`realize_recursively`. See
 Universal invariants + named-error catalog
 ==========================================
 
-Each :class:`BoundaryTraceLaw` subclass overrides the five universal
-``assert_*`` invariants on the ABC (per Grand Report v3 §16A.12 +
-§27.6) where applicable. Eight typed errors in :mod:`._errors`
-replace the pre-refactor generic :class:`ValueError` raises:
+The ABC declares five universal ``assert_*`` invariants (per Grand
+Report v3 §16A.12 + §27.6). What is actually implemented, measured:
+
+* ``assert_source_lives_on_incoming_trace`` — the only one with a
+  base body (the ERR-047 gate). No law overrides it; every law is
+  certified by that one body.
+* ``assert_geometry_map_measure_preserving`` — empty base;
+  overridden by :class:`ReflectiveBoundary` alone.
+* ``assert_response_positive_if_declared`` — empty base; overridden
+  by :class:`WhiteBoundary` and :class:`AlbedoBoundary`.
+* ``assert_inflow_outflow_classification`` and
+  ``assert_outgoing_leakage_unconstrained`` — empty base,
+  **overridden by nobody**. They are permanent no-ops that assert
+  nothing about any law today.
+
+So four of the seven concrete laws (:class:`VacuumInflow`,
+:class:`PeriodicBoundary`, :class:`PrescribedInflow`,
+:class:`ZeroFluxBoundary`) override no universal invariant at all.
+Eight typed errors in :mod:`._errors` replace the pre-refactor
+generic :class:`ValueError` raises:
 
 * :class:`IncomingOutgoingTraceClassificationError` — ERR-040, fires
   on tangential ordinates where strict partition was required.
@@ -351,10 +387,14 @@ The pre-Wave-7 ``mixed.py`` submodule (carrying the now-retired
 no longer contains a ``"mixed"`` key and a test pins that absence
 (:func:`tests.geometry.test_boundary.test_registry_contains_all_primitives`).
 
-The Wave-7 deprecated aliases (``VacuumBoundaryOperator`` =
-:class:`VacuumInflow`, etc.) are re-exported below for backward
-compatibility with consumers that import the old names. They will
-be removed in a future cleanup wave once every consumer migrates.
+The Wave-7 deprecated aliases (``VacuumBoundaryOperator``,
+``SpecularBoundaryOperator``, ``WhiteBoundaryOperator``,
+``PeriodicBoundaryOperator``, ``AlbedoBoundaryOperator``) were
+**retired in Wave O step O.4a.1** once every consumer had migrated.
+None is importable; the canonical names above are the sole exported
+symbols. The pre-refactor → canonical naming index is kept on the
+theory page (:doc:`/theory/foundations/boundary_conditions` §
+"Naming audit") for readers tracing pre-Wave-O commits.
 
 
 Cross-references

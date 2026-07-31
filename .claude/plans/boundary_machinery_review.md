@@ -732,10 +732,23 @@ new structure is a no-op extension through one body rather than a third arm.
    transient-adapter citation; the `reflect_inflow_inplace` misnomer; the
    `B_a` ray-block self-contradiction; the *"Concrete subclasses populate these"*
    line; the mask's *"sensitivity adjoints require"* justification.
-2. **Fix `law.kind` non-uniformity** — **[M]** absent on White/Albedo/Periodic/
-   ZeroFlux; a field on Vacuum (so `VacuumInflow(kind="banana")` constructs); a
-   property elsewhere returning the unregistered `"partial"`. Make it a uniform
-   read-only property. *(Prerequisite for B2 to have something coherent to delete.)*
+2. ✅ **DONE — `law.kind` is now one derivation.** `RegistryMixin` already stored
+   `key` per class, so `kind` became a single base property returning
+   `type(self).key`. Before: a **mutable dataclass field** on Vacuum, a property on
+   two, **absent on four**. After: uniform across all seven; `PrescribedInflow`'s
+   redundant override deleted; `VacuumInflow(kind="banana")` is now a `TypeError`.
+   **[M]** Gate: pyright 0; boundary set 389 unchanged; **full tree 3274 passed,
+   byte-identical to baseline** (3274/5/111/57) — behaviour-neutral at scale, not
+   inferred.
+
+   **Deliberately NOT fixed — `ReflectiveBoundary.kind` → `"partial"` at α≠1.**
+   It looked like a wart, but **[R]** `BC.to_alpha` handles `BC("partial",
+   albedo=…)`, so the law is mirroring the *declaration* vocabulary on purpose.
+   Deriving it from the registry key would have silently added partially-reflecting
+   faces to the sweep schedule's reflective set — a semantic change, not cleanup.
+   **B2 deletes the string dispatch that reads the tag at all**, so the question
+   dissolves rather than needing an answer. The reasoning is written into the
+   docstring so it is not "fixed" later by someone with less context.
 3. **Coverage repairs** (§7C.3): re-pose the phantom `catches("ERR-052")` onto its
    mechanism; narrow the three skip-swallowed sentinels; replace the 9 tautological
    `pytest.raises` legs with production entry points; add the `|Ω·n|` mutation the
@@ -747,12 +760,66 @@ new structure is a no-op extension through one body rather than a third arm.
    the invariant table's 4 defects incl. the documented-but-absent
    `assert_direction_norm_preserved`.
 
-**Gate:** full boundary suite green; the 31-mutation sweep still catches 30;
-**[M]** no realized-operator value moves anywhere. **Closes:** part of #306.
+### B0 — RESULT
+
+- ✅ **B0.2 false-promise retirement.** ~18 claims corrected across 6 modules and
+  2 theory pages, **[M] proven documentation-only by an AST comparison against
+  HEAD with docstrings stripped** — 5 of 6 files executable-identical, the sixth
+  differing only by B0.1's `kind` property (I re-ran that check independently).
+  Found 2 stale walker snippets beyond the brief, and **corrected an error in this
+  campaign's own `ddc1ee10`**: that commit's note said the flag was removed "from
+  all six concrete laws"; measured from `ddc1ee10^`, the `ClassVar` sat on the ABC
+  with explicit declarations on **three**. Sphinx baseline is now **0** warnings
+  (the standing `paramref` ERROR is gone).
+- ✅ **B0.3 coverage repairs**, all seven, each with a measured red. **[M] The
+  auditor's 31-mutation set now catches 31/31** (was 30/31) and no mutation's red
+  count fell. Skips 4 → 1 (the three inert sentinels now actually execute); the
+  survivor is a legitimate 421-group-HDF5 precondition.
+  - The ERR-052 finding sharpened: **the catalogued mechanism is unreachable in
+    its own fixture** — with the bug re-introduced, `|φ|max` is identical at 6, 24
+    and 32 outers because `F·φ/k` is scale-neutral once `k` converges. **No
+    tolerance tightening could ever have rescued the old assertion.** The marker
+    moved to a mechanism gate (`P(φ) = ∫νΣ_f φ dV = 1`, `rtol=1e-12`, no margin).
+- ✅ **Two production defects** the doc/test phases correctly *reported instead of
+  touching* (both executable, outside their briefs) — fixed by me:
+  `_apply_faces`'s error said `apply` on the `apply_transpose` path
+  (`sn/operators/boundary.py`), and `_base.py`'s lone `law=type(self).__name__`
+  spelled the error tag as a class name where all six siblings use the registry
+  key. The second is a **payoff of B0.1**: `law=self.kind` cannot drift now.
+
+**Gate [M]:** boundary set `1229 passed, 1 skipped, 2 xfailed`; `sn/operators/` +
+`geometry/` `1117 passed`; the four `match=` sites keying on the preserved
+`mesh-identity invariant` substring still pass; **`npx pyright orpheus/` = 1 error
+(the ratchet floor, #288)**; Sphinx `-E -W` exit 0, 0 warnings; full tree wide gate
+pending. **Closes:** part of #306.
+
+### B0 — findings handed forward (production, not fixed here)
+
+- **[M]** `IncomingOutgoingTraceClassificationError` (**ERR-040**) has **zero raise
+  sites**; its trigger is a no-op ABC default nobody overrides. **Fifth** instance
+  of the §4 dead-capability pattern, this one inside the error module.
+- **[M]** `orpheus/sn/solver.py:1930-1933` claims `_solve_fixed_source_si` calls
+  `_reflect_outflow_into_inflow`; AST says it does not — there is exactly **one**
+  production call, in the reconstruction sweep. Outside the boundary package;
+  needs its own verification pass.
+- **[M]** The **ERR-052 catalogue entry** needs two edits: its stated mechanism does
+  not occur in that fixture, and its "Test reference" names the retired test.
 
 > ⏸ **COMPACTION POINT** — commit, then re-anchor from this file + `git log`.
 
 ## B1 — Mint the typed specs and populate all seven laws *(pure addition)*
+
+> ⚠ **PREREQUISITE, surfaced by B0.2.** The `R`-notation collision is unified in
+> `geometry/boundary/__init__.py`, but **four sites still use `R` for the
+> composite**: `sn/boundary/angular.py:41` (`R_white = G_diff ⊗ α`),
+> `geometry/boundary/_composition.py:14` (`R = Σ_α c_α G_α`),
+> `docs/.../foundations/boundary_conditions.rst:4876`, and
+> `docs/.../methods/sn/boundary_conditions.rst:170`. These are the **§15.2
+> sum-of-tensor-products framing** — a genuinely different decomposition, not a
+> typo — so they need a deliberate terminology ruling rather than a sweep.
+> **They collide with the `response_kernel` type this phase mints and must be
+> resolved BEFORE it lands**, or the codebase will carry two meanings of `R`
+> with one of them newly type-bearing.
 
 Build what §16A.2 specifies and `orpheus/` never had.
 
@@ -843,10 +910,18 @@ on the rank-1 `B`).
 - **#189**: admit `white` / `albedo` / `periodic` into SN's registry. **[M]** three
   of seven laws are unreachable under *every* method today; `BC.white` is a public
   tab-completable instance nobody admits.
-- **Then decide rank-N** (§7B.4) — it has **zero production consumers** and its
-  flagship `0.3·Reflective + 0.7·White` is unreachable *in principle* until #189
-  lands. With `white` admitted the choice becomes real: **wire it into production
-  or retire the whole path.** It must not stay half-alive.
+- **Rank-N: ✅ USER RULING 2026-07-30 — WIRE IT, do not retire.** (§7B.4 measured
+  it at zero production consumers with an in-principle-unreachable flagship.) The
+  algebra is complete, closed and well-tested; the defect is that nothing reaches
+  it. So B6 **admits `white` first (#189), then routes production single-BC
+  realization through `realize_recursively`** so the rank-1 case is the degenerate
+  path of the rank-N one — one body, not two. `0.3·Reflective + 0.7·White` becomes
+  declarable, and the Marshak partial-current BC becomes a real capability rather
+  than a docstring.
+  **Gate:** the rank-1 path through the walker is **bit-identical** to today's
+  direct realization, per law per method (the walker's leaf call IS
+  `realizer.realize`, so this must hold exactly); plus a value gate on the Marshak
+  mix that is not self-generated.
 - **#244**: the `CPMesh._resolve_bc ≈ MOCMesh._resolve_bc` admission twin.
 
 ## B7 — Close out

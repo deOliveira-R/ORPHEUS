@@ -97,13 +97,27 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     axis: str = "x"
     albedo: float = 1.0
 
-    #: String tag for legacy string-kind comparisons. The default
-    #: ``albedo == 1.0`` ReflectiveBoundary (the standard
-    #: ``BC.reflective`` case) compares equal to the string
-    #: ``"reflective"``; tagged ReflectiveBoundary instances
-    #: with ``albedo != 1`` compare equal to ``"partial"`` instead.
     @property
     def kind(self) -> str:
+        r"""``"reflective"`` at :math:`\alpha = 1`, else ``"partial"``.
+
+        The ONE law that legitimately overrides the base's registry-key
+        derivation, because the *declaration* vocabulary distinguishes the two:
+        :meth:`~orpheus.geometry.mesh.BC.to_alpha` maps ``BC("partial",
+        albedo=…)`` to its specular albedo, so a partially-reflecting face is
+        declared as ``"partial"`` and must report itself the same way.
+
+        .. warning::
+
+           ``"partial"`` is **not** a law-registry key and appears in **no**
+           method's ``BOUNDARY_OPERATOR_REGISTRY`` — so a face reporting it
+           matches no admission entry, and an exact float compare
+           (``albedo == 1.0``) decides which name a caller sees. That is a
+           genuine semantic wrinkle, NOT an oversight, and it is deliberately
+           left alone by the B0 cleanup: campaign phase **B2** removes the
+           string dispatch that reads this tag at all, at which point the
+           question dissolves rather than needing an answer.
+        """
         return "reflective" if self.albedo == 1.0 else "partial"
 
     def __eq__(self, other: object) -> bool:

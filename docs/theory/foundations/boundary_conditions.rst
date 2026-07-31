@@ -1659,21 +1659,35 @@ Boundary law (``BoundaryTraceLaw`` ABC + concretes)
 ===================================================
 
 The base class :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
-is an ``abc.ABC`` that combines
-:class:`~orpheus.numerics.operator.LinearOperator` (for
-operator-algebra dunders like ``+``, ``*``, ``@``) and
+is an ``abc.ABC`` whose MRO is exactly ``[BoundaryTraceLaw,
+RegistryMixin, ABC, object]``: it mixes in
 :class:`~orpheus.numerics.registry.RegistryMixin` (so each concrete
-subclass self-registers under its ``key=`` class-creation kwarg).
+subclass self-registers under its ``key=`` class-creation kwarg) and
+nothing else. It does **not** inherit
+:class:`~orpheus.numerics.operator.LinearOperator` — that inheritance
+was dropped at Issue #186 / B3 + β2 (see
+:ref:`bc-trace-law-descriptor-model`), and there is no ``@`` /
+``__matmul__`` on the class. The dunders it does carry (``+``, ``-``,
+``*``, ``/``, unary ``-``) are the **descriptor-tree** algebra: they
+return :class:`LawSum` / :class:`LawScaled` nodes, never operators.
 The ABC ships:
 
-1. Three first-class properties carrying the
-   :eq:`affine-bc-form` operators: ``geometry_map``,
-   ``response_kernel``, ``source`` (defaulting to ``None``, ``None``,
-   :class:`~orpheus.geometry.boundary.NoSource`).
-2. Five **universal** ``assert_*`` invariants (no-op defaults;
-   concrete laws override the relevant ones) and four **specific**
-   invariants on the BCs that need them — see
-   :ref:`bc-universal-invariants`.
+1. Three properties named for the :eq:`affine-bc-form` factors:
+   ``geometry_map``, ``response_kernel``, ``source`` (defaulting to
+   ``None``, ``None``,
+   :class:`~orpheus.geometry.boundary.NoSource`). Only ``source`` is
+   populated today —
+   :class:`~orpheus.geometry.boundary.PrescribedInflow` overrides it
+   and the realizers read it. ``geometry_map`` and
+   ``response_kernel`` return the ABC's ``None`` on **every** law and
+   are read by nothing; the realizers recover :math:`G` from the
+   law's class and :math:`R` from ``law.albedo`` instead. The typed
+   ``G`` / ``R`` specification objects that fill them are the
+   restoration's next step.
+2. Five **universal** ``assert_*`` invariants and three **specific**
+   invariants on the BCs that need them — but four of the five
+   universals are empty and two of those are overridden by nobody.
+   See :ref:`bc-universal-invariants` for the measured inventory.
 3. A :meth:`realize` hook that raises with guidance (route through a
    method realizer) — see :ref:`bc-realizer-layer-detail`.
 4. **No ``apply`` method at all** (Issue #186 / B3 + β2,
@@ -1693,10 +1707,24 @@ The ABC ships:
    :ref:`bc-trace-law-descriptor-model` for the design rationale
    and the predecessor approaches that were tried and rejected.
 
-The six concrete laws ship under :mod:`orpheus.geometry.boundary`,
+Seven concrete laws ship under :mod:`orpheus.geometry.boundary`,
 one per submodule. The Grand Report v3 vocabulary is used verbatim
-for the class names; pre-refactor names are retained as deprecated
-aliases in the package ``__init__`` (see :ref:`bc-naming-audit`).
+for the class names; the pre-refactor names were deprecated aliases
+only until Wave O step O.4a.1 retired them, and none is importable
+now (see :ref:`bc-naming-audit` for the historical index).
+
+The table below covers the **six affine trace laws** — those that
+decompose into the :eq:`affine-bc-form` factors
+:math:`(G_\alpha, R_\alpha, q)`. The seventh,
+:class:`~orpheus.geometry.boundary.ZeroFluxBoundary`, is deliberately
+absent: :math:`\phi_\Gamma = 0` is a *relation* between the two
+traces, :math:`A_-\gamma_- + A_+\gamma_+ = 0`, not a map from one to
+the other, so it has no :math:`(G, R)` pair to tabulate. It rides the
+same ABC as a pragmatic placement — the diffusion realizer collapses
+it to the albedo-family :math:`\mathcal{A} = -1` (outside the
+sub-Markov range by construction) and the SN realizer refuses it
+outright, with a hand-written ``isinstance`` guard rather than a type
+distinction. Giving the relation tier its own type is issue **#177**.
 
 .. list-table:: Concrete ``BoundaryTraceLaw`` subclasses
    :header-rows: 1
@@ -1909,14 +1937,17 @@ What the trace digraph replaced: the retired per-law flag
 
 .. note::
 
-   **Retired 2026-07-30.** Until then every
-   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` subclass
-   declared a ``creates_sweep_cycle`` ``ClassVar`` — ``True`` on
+   **Retired 2026-07-30.** Until then
+   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` carried a
+   ``creates_sweep_cycle`` ``ClassVar``, defaulting to ``False`` and
+   declared explicitly on three laws: ``True`` on
    :class:`ReflectiveBoundary` and :class:`PeriodicBoundary`,
-   ``False`` on every other law. It has been removed from the ABC,
-   from all six concrete laws, and from the tests that asserted its
-   values. The archaeology is kept here because the *shape* of the
-   mistake recurs, not because the flag might come back.
+   ``False`` (redundantly) on
+   :class:`~orpheus.geometry.boundary.PrescribedInflow`; the other
+   four laws simply inherited the default. It has been removed from
+   the ABC, from those three laws, and from the tests that asserted
+   its values. The archaeology is kept here because the *shape* of
+   the mistake recurs, not because the flag might come back.
 
 Three findings retired it, in increasing order of importance.
 
@@ -2483,12 +2514,35 @@ compatibility-audit table in the Wave 8 close-out memo and the
 Universal ``assert_*`` invariants
 =================================
 
-The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` ABC ships
-**five universal** assertion methods (no-op defaults; concrete laws
-override) plus **four specific** assertions on the BCs that need
-them. Together they form the structural verification surface that
-the :mod:`tests.geometry.test_bc_universal_invariants` suite
-exercises (~30 L1 tests).
+The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` ABC declares
+**five universal** assertion methods plus **three specific**
+assertions on the BCs that need them. Together they form the
+structural verification surface that the
+:mod:`tests.geometry.test_bc_universal_invariants` suite exercises.
+
+.. warning::
+
+   **The declared surface is wider than the implemented one, and the
+   tables below now say so per row.** Measured on the live tree:
+   four of the five universal methods have an **empty** base body,
+   and two of those four (``assert_inflow_outflow_classification``,
+   ``assert_outgoing_leakage_unconstrained``) are overridden by
+   **nobody** — they are permanent no-ops that assert nothing about
+   any law. Four of the seven concrete laws
+   (:class:`~orpheus.geometry.boundary.VacuumInflow`,
+   :class:`~orpheus.geometry.boundary.PeriodicBoundary`,
+   :class:`~orpheus.geometry.boundary.PrescribedInflow`,
+   :class:`~orpheus.geometry.boundary.ZeroFluxBoundary`) override no
+   universal invariant at all. Read the "What it asserts" column as a
+   statement of *intent* wherever it says "Default: no-op"; only
+   ``assert_source_lives_on_incoming_trace`` fires for every law.
+
+   A second gap, orthogonal to the empty bodies: the aggregate
+   :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_realizable`
+   that fires these at realize time has exactly **one** production
+   caller, the SN realizer. The diffusion realizer never calls it, so
+   the claim that "every law arrives at its primitive construction
+   already certified" holds on the SN arm only.
 
 The split between "universal" and "specific" follows the
 Grand Report v3 §16A.12 + §27.6 catalog. Universal invariants are
@@ -2503,37 +2557,51 @@ reflective but not for white).
 
    * - Method
      - Pinned error
-     - What it asserts
+     - What it asserts, and what is actually implemented
    * - ``assert_inflow_outflow_classification``
      - :class:`~orpheus.geometry.boundary.IncomingOutgoingTraceClassificationError`
-       (ERR-040)
-     - Every ordinate at the face is either inflow or outflow (no
-       tangential ordinates allowed by the law's contract). Default:
-       no-op; reflective overrides to require strict partition.
+       (ERR-040) — declared, but **never raised** anywhere in
+       ``orpheus/``
+     - *Intended*: every ordinate at the face is either inflow or
+       outflow (no tangential ordinates allowed by the law's
+       contract). *Implemented*: **nothing** — empty base body,
+       overridden by no law. A permanent no-op.
    * - ``assert_outgoing_leakage_unconstrained``
      - n/a (architectural contract)
-     - The outgoing trace flux is not constrained by the BC.
-       Default: no-op. Future Dirichlet-outflow / prescribed
-       cell-edge interface laws would override.
+     - *Intended*: the outgoing trace flux is not constrained by the
+       BC. *Implemented*: **nothing** — empty base body, overridden
+       by no law. A future Dirichlet-outflow / prescribed cell-edge
+       interface law would be the first to give it content.
    * - ``assert_geometry_map_measure_preserving``
      - :class:`~orpheus.geometry.boundary.BoundaryGeometryMapNotMeasurePreservingError`
        (ERR-042)
      - The geometric map :math:`G` preserves the angular measure
-       :math:`w(\Omega)\,|\Omega \cdot \hat n|`. Default: no-op.
-       Reflective overrides (delegates to the involution check).
+       :math:`w(\Omega)\,|\Omega \cdot \hat n|`. Empty base body;
+       **overridden by** :class:`ReflectiveBoundary` **only**, which
+       compares :math:`m_{\pi(n)}` against :math:`m_n` **directly**.
+       It does *not* delegate to the involution check: an involutive
+       table that pairs ordinates from different weight classes
+       passes involution while breaking the measure, and that is
+       precisely the hole the pre-#52 delegation left open. The
+       partition, the involution and the measure are INDEPENDENT
+       invariants.
    * - ``assert_response_positive_if_declared``
      - :class:`~orpheus.geometry.boundary.BoundaryResponseNotPositiveError`
        (ERR-043)
      - If a response kernel is declared, it produces non-negative
-       output on the inflow trace. Default: no-op. Albedo / white
-       override.
+       output on the inflow trace. Empty base body; **overridden by**
+       :class:`WhiteBoundary` and :class:`AlbedoBoundary`.
    * - ``assert_source_lives_on_incoming_trace``
      - :class:`~orpheus.geometry.boundary.BoundarySourceNotOnIncomingTraceError`
        (ERR-047)
      - The source :math:`q` is nonzero only on :math:`\Gamma_-`.
-       Default: no-op (the :class:`NoSource` default trivially
-       satisfies). Prescribed-inflow + future user-source classes
-       override.
+       **The only universal with a real base body** — it probes the
+       source's support and raises when a nonzero :math:`q` is
+       realized without an inflow-index mask. **No law overrides
+       it**; every law (including
+       :class:`~orpheus.geometry.boundary.PrescribedInflow`) is
+       certified by that one body, which is why the
+       :class:`NoSource` default passes trivially.
 
 .. list-table:: Specific invariants
    :header-rows: 1
@@ -2547,14 +2615,11 @@ reflective but not for white).
        (ERR-044)
      - :class:`ReflectiveBoundary` (reflection-index table must
        satisfy ``perm[perm] == arange``).
-   * - :meth:`ReflectiveBoundary.assert_maps_inflow_to_outflow`
+   * - :meth:`ReflectiveBoundary.assert_reflection_maps_inflow_to_outflow`
      - :class:`~orpheus.geometry.boundary.ReflectionDidNotMapInflowToOutflowError`
        (ERR-045)
      - :class:`ReflectiveBoundary` (every inflow ordinate maps to an
        outflow ordinate under the reflection).
-   * - :meth:`ReflectiveBoundary.assert_direction_norm_preserved`
-     - inherits ERR-042 via measure-preservation
-     - :class:`ReflectiveBoundary` (delegates to involution check).
    * - :meth:`WhiteBoundary.assert_submarkov` /
        :meth:`AlbedoBoundary.assert_submarkov`
      - :class:`~orpheus.geometry.boundary.SubmarkovViolationError`
@@ -2834,19 +2899,21 @@ The dispatch is exhaustive on the descriptor-tree node types:
 
    def realize_recursively(
        node: BoundaryTraceLaw | LawSum | LawScaled,
-       method_space: SNMethodSpace,
+       method_space: MethodSpaceT,
+       realizer: BoundaryRealizer[MethodSpaceT],
    ) -> LinearOperator:
        if isinstance(node, BoundaryTraceLaw):
-           # Leaf: realize via the SN realizer registry.
-           return SNBoundaryRealizer().realize(node, method_space)
+           # Leaf: dispatch through the CALLER's realizer — the walker
+           # is method-blind (#290 P7b; it names no method's realizer).
+           return realizer.realize(node, method_space)
        if isinstance(node, LawScaled):
            # Scalar-times-law: wrap the realized inner in ScaledOperator.
-           inner_op = realize_recursively(node.inner, method_space)
+           inner_op = realize_recursively(node.inner, method_space, realizer)
            return ScaledOperator(node.scalar, inner_op)
        if isinstance(node, LawSum):
            # Sum: realize each side, wrap in OperatorSum.
-           a_op = realize_recursively(node.a, method_space)
-           b_op = realize_recursively(node.b, method_space)
+           a_op = realize_recursively(node.a, method_space, realizer)
+           b_op = realize_recursively(node.b, method_space, realizer)
            return OperatorSum(a_op, b_op)
        raise TypeError(
            f"realize_recursively expected BoundaryTraceLaw | LawSum | "
@@ -3162,13 +3229,17 @@ remaining 2-arg ``apply`` affordance from the Wave-8/9 era into a
   predicates (before the #226 carve P4, the retired
   ``capabilities: ClassVar[frozenset[str]]`` frozenset).
 * Every concrete BC (vacuum / reflective / white / albedo /
-  periodic / prescribed-inflow) is now a **frozen dataclass**
-  carrying only its parameters (axis, albedo, source, ...), its
-  :attr:`kind` tag,
-  its :attr:`geometry_map` / :attr:`response_kernel` /
-  :attr:`source` property overrides, and the relevant
-  :meth:`assert_*` invariants. **No** ``apply`` method on any
-  concrete BC.
+  periodic / prescribed-inflow / zero-flux) is now a **frozen
+  dataclass** carrying only its parameters (axis, albedo, source,
+  ...) and the relevant :meth:`assert_*` invariants. **No**
+  ``apply`` method on any concrete BC. Of the three affine-factor
+  properties, only :attr:`source` is ever overridden (by
+  prescribed-inflow); :attr:`geometry_map` and
+  :attr:`response_kernel` inherit the ABC's ``None`` on every law.
+  :attr:`kind` is derived once on the ABC from the registry key,
+  with :class:`~orpheus.geometry.boundary.ReflectiveBoundary` the
+  single legitimate override (it reports ``"partial"`` at
+  :math:`\alpha \neq 1`, matching the declaration vocabulary).
 * The base class :class:`BoundaryTraceLaw` carries a **minimal
   algebra** that returns :class:`LawSum` / :class:`LawScaled`
   nodes — the descriptor-tree composition algebra documented at
@@ -3289,7 +3360,7 @@ the descriptor-tree contract (foundation + L1 tests):
 * The walker's exhaustive dispatch on the three node types and
   its :class:`TypeError` on unknown nodes.
 * Walker value-correctness against hand-composed expectation
-  (``realize_recursively(law_tree).apply(psi)``
+  (``realize_recursively(law_tree, ms, realizer).apply(psi)``
   ``== 0.3 * realize(spec).apply(psi) + 0.7 * realize(white).apply(psi)``).
 * The absence of ``apply`` on any descriptor-tree node
   (``not hasattr(tree, "apply")``).
@@ -4835,8 +4906,9 @@ re-attempt them:
    method on the class, and neither do :class:`LawSum` /
    :class:`LawScaled`. The correct contract is
    ``SNBoundaryRealizer().realize(law, ms).apply(psi)`` for a
-   single BC, or ``realize_recursively(tree, ms).apply(psi)`` for
-   a descriptor tree. The realizer is the **sole** bridge; the
+   single BC, or
+   ``realize_recursively(tree, ms, SNBoundaryRealizer()).apply(psi)``
+   for a descriptor tree. The realizer is the **sole** bridge; the
    §16A.3 three-layer split is enforced by the type system.
 9. **In-tree Wave-0 operator algebra over unrealized
    :class:`BoundaryTraceLaw` instances (β1 form).** Considered as

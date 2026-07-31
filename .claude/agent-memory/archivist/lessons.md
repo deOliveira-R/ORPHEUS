@@ -3511,6 +3511,81 @@ greps) and by CONCEPT (which does not). Both must die.
 
 ---
 
+## L-041 — The DOC-ONLY "retire the false promises" pass on a subsystem under structural restoration: keep the declaration, make the CLAIM true; and prove doc-only by AST, not by eyeball
+
+A B0 "clean before extending" phase hands you N measured docstring/prose
+claims naming a consumer, capability or behaviour that does not exist. The
+job is NOT deletion — it is making each claim TRUE while preserving what a
+later phase needs. Disciplines that held across 18 items in 8 files
+(boundary machinery, 2026-07-30):
+
+- **Retire the CLAIM, keep the DECLARATION, and name the phase that will
+  fill it.** When a brief says "do NOT delete these properties — phase B1
+  populates them", the honest rewrite is three-part: state the measured
+  present ("**currently unpopulated** — returns ``None`` on every law, read
+  by nothing"), state HOW production reaches the same information today
+  (the realizers recover `G` from the law's CLASS and `R` from
+  ``law.albedo``), and name the landing ("**B1** mints the typed spec and
+  populates this; the declaration is kept for that landing"). A reader then
+  cannot mistake the property for live machinery *or* delete it as dead.
+- **MEASURE the override lattice; never trust a "where applicable" hedge.**
+  A doc saying "each subclass overrides the five universal invariants where
+  applicable" is unfalsifiable prose over a lattice you can compute in ten
+  lines: `ast.parse` each base body and count non-docstring statements;
+  compare `getattr(Law, m).__func__ is not getattr(ABC, m).__func__` per
+  (law × method). Here it produced the load-bearing numbers — 4 of 5 bases
+  EMPTY, 2 of 5 overridden by NOBODY, 4 of 7 laws overriding nothing — and
+  turned one hedged sentence into a per-row "*Intended* … / *Implemented*
+  …" table. Also grep `raise <TypedError>` per row: a "Pinned error" column
+  can name an exception **never raised anywhere in production** (ERR-040
+  here), which is a second, independent hollowness.
+- **A false-promise item's real scope is the CLAIM'S grep, not the brief's
+  file:line.** Two of the strongest finds came from the closing gate, not
+  the list: the same "downstream consumers (sensitivity adjoints) require
+  the outflow trace" justification lived in a SECOND file
+  (`sn/boundary/realizer.py`), and a self-contradiction the brief located
+  in a docstring had a TWIN in a `#` comment 400 lines away (`B_b` …
+  "present-zero bulk and trace" vs the class docstring's "the composite has
+  no such slots"). Build the gate as one grep per item, run it AFTER the
+  edits, and treat every extra hit as in-scope.
+- **When two symbols name the SAME concept, the fix is a note that TYPES
+  them, plus the collision's own tell.** A package writing `R = G_refl · α`
+  (R = composite) beside an ABC writing `γ₋ψ = R G γ₊ψ + q` (R = response
+  factor) will corrupt the phase that mints `R` as a type. Resolve by
+  splitting every bullet into `G = …` / `R = …` and adding ONE `.. note::`
+  stating the convention and naming what the composite is called instead
+  (`R ∘ G`, never `R`). Then grep the concept: sibling modules using a
+  DIFFERENT decomposition (`R_white = G_diff ⊗ α`, `R = Σ_α c_α G_α`) are a
+  separate framing — FLAG them, don't sweep them into a scoped fix.
+- **An error-message string inside `raise` is an EXECUTABLE statement —
+  report it, don't edit it, under a doc-only constraint.** `apply_transpose`
+  routing through a shared `_apply_faces` whose message says "``.apply``" is
+  a real defect, but tests `pytest.raises(match=...)` on those strings.
+  Report with file:line + the exact string + the reason it was withheld.
+- **Prove doc-only with an AST gate.** Strip docstrings from every
+  `Module`/`ClassDef`/`FunctionDef` body and compare `ast.dump(HEAD)` vs
+  `ast.dump(now)` per file — "AST IDENTICAL" is the claim, a diff hunk is
+  the exception. On a file the USER also edited this session, `ast.unparse`
+  the stripped trees and `difflib` them: the printed hunk should be exactly
+  their change (here one `kind` property) and nothing of yours. This is
+  stronger and faster than reading a 450-line diff.
+- **A brief's enumerated item can be a LATER phase's acceptance-gate text —
+  leave it and say so.** The `SNBoundaryOperator` docstring's "``.H`` — the
+  one channel by which the white-BC adjoint becomes available" is FALSE
+  today (measured: `B.H` raises with a white face) but is quoted verbatim
+  as phase B5's gate. Editing it would destroy the gate. Not on the item
+  list ⟹ report as a deliberate non-edit with the owning phase.
+- **Verify every issue number you cite** (`gh issue view N --json state`) —
+  a docs pass that redirects a retired claim to "#183 tracks this" is
+  minting a new claim, and a closed/mis-numbered issue is the same class of
+  defect you are removing.
+- **Baseline drift is real: this repo's `-E -W` baseline is now ZERO**
+  WARNING/ERROR/CRITICAL (AGENT.md still says 1 — the `Mesh1D.from_geometry`
+  `:paramref:` ERROR is gone). Re-measure the baseline every session; never
+  assume the recorded number.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

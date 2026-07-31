@@ -110,6 +110,3 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
     def source(self) -> InflowSourceSpec:
         return self._source
 
-    @property
-    def kind(self) -> str:
-        return "prescribed_inflow"

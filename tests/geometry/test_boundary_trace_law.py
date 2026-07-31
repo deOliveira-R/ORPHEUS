@@ -61,6 +61,48 @@ class _StubLaw(BoundaryTraceLaw, key="_stub_for_test"):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# Registry hygiene — B0.3 REPAIR (2026-07-30)
+# ─────────────────────────────────────────────────────────────────────
+#
+# ``__init_subclass__(key=...)`` fires at CLASS-CREATION time, i.e. when
+# pytest IMPORTS this module during collection — so merely collecting
+# this file used to insert ``_stub_for_test`` into the PRODUCTION
+# ``BoundaryTraceLaw.registry`` for the whole session, with no
+# teardown. Measured:
+#
+#     before import: ['albedo', 'periodic', 'prescribed_inflow',
+#                     'reflective', 'vacuum', 'white', 'zero_flux']
+#     after  import: [..., '_stub_for_test', ...]
+#
+# That is cross-test pollution of a production singleton: any test that
+# enumerates the registry (admission tables, "every registered law
+# realizes", registry-size pins) sees a law that does not exist outside
+# this file, and the effect is COLLECTION-ordering dependent — the
+# nastiest kind to debug.
+#
+# Two tests here legitimately REQUIRE the key to be present
+# (``test_stub_law_self_registers_under_its_key`` and
+# ``test_unified_registry_holds_all_concretes``), so the stub is
+# evicted immediately at import and re-installed by an autouse
+# module-scoped fixture for exactly the span of this module's tests.
+BoundaryTraceLaw.registry.pop("_stub_for_test", None)
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _stub_registered():
+    """Install ``_stub_for_test`` for this module only, then evict it.
+
+    ``finally`` (not a bare post-yield statement) so an error inside a
+    test cannot leave the production registry polluted.
+    """
+    BoundaryTraceLaw.registry["_stub_for_test"] = _StubLaw
+    try:
+        yield
+    finally:
+        BoundaryTraceLaw.registry.pop("_stub_for_test", None)
+
+
+# ─────────────────────────────────────────────────────────────────────
 # Descriptor surface (Issue #186 / B3 + β2)
 # ─────────────────────────────────────────────────────────────────────
 

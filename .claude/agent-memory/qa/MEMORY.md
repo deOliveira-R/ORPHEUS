@@ -2,8 +2,8 @@
 
 ## 1. Lessons (the behavioral spine)
 
-[lessons.md](lessons.md) — 60 behavioral lessons (`## L-NNN -- title`,
-ascending, contiguous L-001..L-060). "What mistake did I make, what did I
+[lessons.md](lessons.md) — 61 behavioral lessons (`## L-NNN -- title`,
+ascending, contiguous L-001..L-061). "What mistake did I make, what did I
 learn that improved my review behaviour." Consult before every review;
 sharpen in place after every task. The recurring spine:
 
@@ -15,8 +15,23 @@ sharpen in place after every task. The recurring spine:
   SCRIPTS (L-052: a bare assert in a `python -O` throwaway prints PASSED while
   unequal — teeth-check through pytest or `np.testing.assert_*`, never a bare
   script assert); prove a gate fired by mutating it, not by inspection.
-- **catches/verifies markers** (L-007) — a marker is a coverage CLAIM;
-  mutation-verify the EXACT documented bug reddens THIS test or drop it.
+  **L-010 sharpening:** a BRIEF's Mode-8 hypothesis about a `tests/` subtree is
+  settled in 2 min (synthetic control + falsified COPY of a real file, both
+  modes) and is usually REFUTED — then PIVOT to an AST census of what the
+  asserts assert (boundary suite: 61.7 % bare but only 29.1 % of bare pin a
+  VALUE; `tag_equality` is the shadow of stringly-typed production dispatch).
+- **catches/verifies markers** (L-007, L-054, L-061) — a marker is a coverage
+  CLAIM; mutation-verify the EXACT documented bug reddens THIS test or drop it.
+  Markers DECAY: ERR-052's catcher was true when written and is now blind (the
+  config converges in 6 outers, the bug needs 30–60) — re-verify on review.
+- **Your OWN mutation needs a bite check** (L-061) — "the attribute was set" is
+  presence, not bite. A `__post_init__` install on a dataclass decorated without
+  one is a NO-OP (manufactured a false "ungated" finding); a capability REFUSAL
+  is two-part (`apply_transpose` AND the declared `is_adjointable` predicate).
+  Three inert-gate classes to grep: tautological `raises(X): raise err`,
+  `except Exception: pytest.skip` (read `-rs` reasons — an exception message as
+  a skip reason = a permanently-dead sentinel), and a self-generated snapshot
+  wearing an `l1` marker.
 - **Re-baseline integrity** (L-022, L-023, L-024, L-028, L-044, L-049) —
   grep the WHOLE tree for the old literal; pin a regen'd `.npy` to a
   STRUCTURALLY-INDEPENDENT reference, never old-vs-new ULP; prove the

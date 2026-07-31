@@ -23,9 +23,14 @@ The realisation map (law concrete → Wave-0 / Wave-1 primitive)
   correction** (Wave 5 risk register entry, plan §16A.5): the legacy
   body zeroed ALL ordinates, but the §16A.10 trace-correct
   implementation zeroes ONLY the inflow ordinates so the outflow
-  trace survives. The new behaviour is the right one; downstream
-  consumers (sensitivity adjoints) need the outflow trace
-  preserved.
+  trace survives the LAW's own action. That survival has **no
+  consumer today** — the sole reader of a realized law's image,
+  :meth:`~orpheus.sn.operators.boundary.SNBoundaryOperator._reflect_trace`,
+  writes the inflow rows only and discards the outflow rows for
+  EVERY law. The correction is still the right shape (it makes the
+  law honest about its own domain and codomain), and campaign phase
+  **B3** narrows the law's domain to :math:`\Gamma_+` so the
+  preserved rows leave the picture entirely.
 * :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary(axis, albedo)` →
   ``albedo * PermutationOperator(quadrature.reflection_index(axis))``
   (with the ``albedo=1.0`` fast path returning the bare

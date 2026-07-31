@@ -57,7 +57,22 @@ from orpheus.numerics.operator import (
 )
 from orpheus.geometry.mesh import Mesh1D
 
-pytestmark = [pytest.mark.foundation]
+# V&V LEVELS — B0.3 REPAIR (2026-07-30). This file used to carry a
+# module-level ``pytestmark = [pytest.mark.foundation]`` blanket while
+# ``TestRulingThreeSemantics`` also carried ``@pytest.mark.l0``. The
+# two stack, so all FOUR tests in that class resolved with conflicting
+# level markers ``['foundation', 'l0']`` and tripped
+# ``PytestUnknownMarkWarning`` out of ``tests/conftest.py:120``
+# ("using 'l0'" — the physics ladder dominates by design).
+#
+# The blanket is therefore gone and each class states its own level:
+# ``foundation`` for the structural / registration / dispatch pins (no
+# theory-page ``:label:``), ``l0`` for the ruling-3 semantics class,
+# whose four tests ARE term-level physics claims against the P1
+# partial-current dictionary (J⁻ = 0 for vacuum, φ_Γ = 2(J⁺+J⁻) = 0
+# for zero-flux, J⁺ − J⁻ = 0 for reflective, J⁻ ≥ 0 for the physical
+# sub-family). Resolution is unchanged for every test — only the
+# conflict is gone.
 
 
 @pytest.fixture
@@ -82,6 +97,7 @@ def outflow_probe() -> np.ndarray:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.foundation
 class TestRegistration:
     def test_method_name_attribute(self):
         assert DiffusionBoundaryRealizer.method_name == "diffusion"
@@ -107,6 +123,7 @@ class TestRegistration:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.foundation
 class TestAlbedoTable:
     @pytest.mark.parametrize(
         ("law", "expected_albedo"),
@@ -278,6 +295,7 @@ class TestRulingThreeSemantics:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.foundation
 class TestRefusals:
     def test_periodic_refused(self, realizer, minimal_ms):
         """Periodic couples a face to its OPPOSITE face — a
@@ -311,6 +329,7 @@ class TestRefusals:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.foundation
 class TestComposition:
     def test_law_sum_realizes_to_operator_sum_action(
         self, realizer, minimal_ms, outflow_probe,
@@ -352,6 +371,7 @@ class TestComposition:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.foundation
 class TestDiffusionMethodSpace:
     @staticmethod
     def _mesh() -> DiffusionMesh:

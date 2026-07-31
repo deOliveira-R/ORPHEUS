@@ -179,12 +179,20 @@ class SNMesh(MaterialMesh):
     # :class:`SNBoundaryRealizer`), applied uniformly for 1-D Cartesian, 1-D
     # spherical, 1-D cylindrical, and 2-D Cartesian meshes.
     #
-    # The 5 other kinds the realizer handles today (``white``, ``periodic``,
-    # ``albedo``, ``prescribed_inflow``, ``mixed``) are NOT registered here —
-    # adding them requires SN-sweep-side wiring (sweep cycles for periodic,
-    # etc.).  Future expansion is mechanical: add the law class as a value
-    # here, ensure the realizer dispatch handles it (it does), and add an
-    # SN-side test that the sweep behaves correctly.
+    # The 4 other kinds ``SNBoundaryRealizer`` dispatches today (``white``,
+    # ``periodic``, ``albedo``, ``prescribed_inflow``) are NOT registered here
+    # — so they are declarable only by constructing the law directly, never
+    # from a ``BC(...)`` tag; admitting them requires SN-sweep-side wiring
+    # (sweep cycles for periodic, etc.) and is issue #189.  ``zero_flux`` is
+    # the seventh law and is NOT dispatchable at all: the SN realizer REFUSES
+    # it (a negative angular inflow is unrepresentable — use ``vacuum``).
+    # Future expansion is mechanical: add the law class as a value here,
+    # ensure the realizer dispatch handles it, and add an SN-side test that
+    # the sweep behaves correctly.
+    #
+    # There is no ``mixed`` kind: ``MixedBoundaryOperator`` was deleted in
+    # Wave 11 and rank-N boundaries are expressed through the descriptor-tree
+    # algebra (``LawSum`` / ``LawScaled`` + ``realize_recursively``) instead.
 
     def __init__(
         self,

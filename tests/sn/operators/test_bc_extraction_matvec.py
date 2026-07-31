@@ -122,7 +122,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
@@ -405,44 +405,70 @@ class TestVacuumMatvecBitIdentity:
 
     @pytest.mark.parametrize("seed", [0, 1, 2])
     def test_vacuum_2d_cartesian_bulk_bit_identical(self, seed, request):
-        """[foundation] Vacuum 2-D Cartesian bulk matvec is byte-identical.
+        """[foundation] Vacuum 2-D Cartesian bulk matvec regression floor.
 
         2-D drives the representation's ``loss_action`` walk (a
         SEPARATE code path from the 1-D ``_compute_LpC``; since S6.3 the
         matvec walk lives on the loss representation, off the operator —
-        ``ScanMarch`` default since S6.9).
-        The O.4a.2
-        carve touches the 1-D path; this row is the SENTINEL that the 1-D
-        carve did not accidentally perturb the 2-D path (e.g. via a shared
-        helper).  The 2-D non-vacuum boundary-residual ADD is O.4b — out
-        of O.4a.2 scope; this row asserts only the vacuum 2-D bulk did not
-        move.
+        ``ScanMarch`` default since S6.9).  The 2-D non-vacuum
+        boundary-residual ADD is O.4b — out of scope here; this row
+        asserts only that the vacuum 2-D bulk does not move.
+
+        B0.3 REPAIR (2026-07-30) — this row had **never executed a
+        single assertion in its life**, on any of its three seeds.  It
+        built a 1-D :class:`Mesh1D` and then read
+        ``sn_mesh.spatial_shape[1]``, which raises :exc:`IndexError` on
+        a 1-tuple; the surrounding ``except Exception as exc:
+        pytest.skip(...)`` swallowed it, so all three parametrisations
+        reported as a green skip (*"2-D mesh construction not available
+        here: tuple index out of range"* — the only three skips in the
+        whole boundary harness).  That is the ``vv-principles`` Mode-8
+        SKIP-SWALLOWED class in its purest form: a broad
+        ``except`` → ``pytest.skip`` converts EVERY future construction
+        bug into a permanent green, and a skip is invisible in a summary
+        line.  The repair (a) builds a genuine :class:`Mesh2D`, (b)
+        deletes the blanket ``except`` so a construction failure is a
+        FAILURE, and (c) keeps the ``ny > 1`` check as a hard assertion
+        rather than a skip.
+
+        HONEST SCOPE — read the claim carefully.  The docstring used to
+        call this "the SENTINEL that the 1-D O.4a.2 carve did not
+        accidentally perturb the 2-D path".  That claim is **not
+        recoverable**: O.4a.2 landed long ago, and a baseline captured
+        today cannot testify about a carve that predates it.  What this
+        row is, honestly, is a **regression floor captured 2026-07-30**
+        on the 2-D vacuum bulk matvec — a drift gate going forward, not
+        evidence about a past carve.  Its correctness anchor is NOT this
+        snapshot (a self-generated baseline is no reference at all) but
+        the structurally-independent 2-D gates that already exist:
+        ``tests/sn/sweep/cartesian_2d/test_2d_l2_matvec_correctness.py``
+        (L2), the 2-D MMS rows, ``test_scan_march_equivalence.py`` and
+        ``test_2d_full_field_oracle.py``.  The snapshot's job is to
+        notice when the value moves; those gates say whether it should.
+
+        The mesh is deliberately NON-SQUARE (nx=3, ny=4) so an x↔y
+        transposition cannot hide behind a square-box symmetry
+        (``vv-principles`` §H2 — the convenient config nulls the term).
         """
         ng = 1
-        n = 3
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 2.0, n + 1),
-            mat_ids=np.zeros(n, dtype=int),
+        nx, ny = 3, 4
+        mesh = Mesh2D(
+            edges_x=np.linspace(0.0, 2.0, nx + 1),
+            edges_y=np.linspace(0.0, 3.0, ny + 1),
+            mat_map=np.zeros((nx, ny), dtype=int),
             coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
+            bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
+            bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
         )
-        # 2-D requires a y-extent; build via the 2-D mesh path if the
-        # project exposes it.  If the 1-D Mesh1D cannot carry ny>1, the
-        # implementer wires the 2-D builder here (the 2-D MMS fixtures in
-        # tests/sn/sweep/cartesian_2d/ are the construction reference).
-        pytest.importorskip("orpheus.sn.mesh.augmented_mesh")
         quad = Quadrature.level_symmetric(sn_order=4)
-        try:
-            sn_mesh = SNMesh(mesh, quad, placeholder_materials())
-            if sn_mesh.spatial_shape[1] <= 1:
-                pytest.skip(
-                    "2-D Cartesian vacuum bit-identity needs an ny>1 mesh; "
-                    "wire the 2-D builder per tests/sn/sweep/cartesian_2d/ "
-                    "fixtures (O.4a.2 implementer task)."
-                )
-        except Exception as exc:  # pragma: no cover - construction guard
-            pytest.skip(f"2-D mesh construction not available here: {exc}")
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        # A hard assertion, NOT a skip: if the mesh ever degenerates to
+        # 1-D the row must go RED, because a silently-skipped 2-D gate
+        # is exactly the defect this repair removes.
+        assert len(sn_mesh.spatial_shape) == 2 and sn_mesh.spatial_shape[1] > 1, (
+            f"the 2-D vacuum regression floor needs an ny>1 mesh; got "
+            f"spatial_shape={sn_mesh.spatial_shape!r}"
+        )
 
         state = _random_state(sn_mesh, seed, zero_boundary=True)
         sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)

@@ -77,21 +77,37 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
     r"""Method-agnostic boundary law in the affine form
     :math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q`.
 
-    Three first-class properties:
+    Three properties are declared for the affine form's factors,
+    but only ONE of them is real today:
 
+    * :attr:`source` -- the prescribed inflow :math:`q`, defaulting
+      to :class:`NoSource` (the homogeneous case). **Populated**
+      (:class:`~orpheus.geometry.boundary.PrescribedInflow`
+      overrides it) and **read** — by
+      :meth:`assert_source_lives_on_incoming_trace` here and by the
+      SN realizer's prescribed-inflow arm.
     * :attr:`geometry_map` -- the geometric operator :math:`G` (a
       permutation, pushforward, angular average, spatial wrap).
+      **Unpopulated**: every concrete law inherits the ``None``
+      below, and no production code reads it.
     * :attr:`response_kernel` -- the scalar amplitude / kernel
-      :math:`R` (albedo, white-current scaling).
-    * :attr:`source` -- the prescribed inflow :math:`q`, defaulting
-      to :class:`NoSource` (the homogeneous case).
+      :math:`R` (albedo, white-current scaling). **Unpopulated**
+      likewise — the realizers reach the same number through
+      ``law.albedo`` instead.
 
-    Concrete subclasses (``VacuumInflow``, ``ReflectiveBoundary``,
-    ``WhiteBoundary``, ``AlbedoBoundary``, ``PeriodicBoundary``,
-    ``PrescribedInflow``) populate these. This ABC ships the
-    universal ``assert_*`` invariants (per §16A.12), the registry
-    plumbing, and a minimal algebra that composes laws into
-    :class:`LawSum` / :class:`LawScaled` nodes.
+    Campaign phase **B1** mints the typed ``G`` / ``R``
+    specification objects (Grand Report v3 §16A.2's
+    ``BoundaryGeometryMap`` / ``BoundaryResponseKernel``) and
+    populates the two empty properties across all seven laws; the
+    declarations are kept for that landing rather than retired.
+
+    The seven concrete subclasses are ``VacuumInflow``,
+    ``ReflectiveBoundary``, ``WhiteBoundary``, ``AlbedoBoundary``,
+    ``PeriodicBoundary``, ``PrescribedInflow`` and
+    ``ZeroFluxBoundary``. This ABC ships the universal ``assert_*``
+    invariants (per §16A.12), the registry plumbing, and a minimal
+    algebra that composes laws into :class:`LawSum` /
+    :class:`LawScaled` nodes.
 
     No ``apply``
     ------------
@@ -146,20 +162,77 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         return BoundaryTraceLaw
 
     @property
+    def kind(self) -> str:
+        r"""The registry key this law self-registered under.
+
+        ONE definition for the whole family, derived from the
+        :attr:`~orpheus.numerics.registry.RegistryMixin.key` ``ClassVar`` that
+        ``__init_subclass__(key=...)`` already populates — so the tag can never
+        drift from the registry that indexes the class, and cannot be set to an
+        arbitrary string at construction.
+
+        Before this, ``kind`` was a mutable dataclass FIELD on
+        :class:`~orpheus.geometry.boundary.VacuumInflow` (so
+        ``VacuumInflow(kind="banana")`` constructed a law whose tag matched no
+        registry entry), a property on two other laws, and **absent entirely on
+        four** — ``White``/``Albedo``/``Periodic``/``ZeroFlux`` raised
+        ``AttributeError``, which is why production reads it defensively as
+        ``getattr(law, "kind", None)``.
+
+        .. note::
+
+           Reading this tag to decide behaviour is the stringly-typed dispatch
+           that campaign phase **B2** removes in favour of structural queries on
+           the law's ``geometry_map`` / ``response_kernel``. This property makes
+           the tag *honest* in the meantime; it is not an endorsement of
+           dispatching on it.
+        """
+        key = type(self).key
+        if key is None:  # pragma: no cover — every concrete law passes key=
+            raise TypeError(
+                f"{type(self).__name__} did not self-register a boundary-law "
+                f"key; concrete laws are declared as "
+                f"`class X(BoundaryTraceLaw, key=\"...\")`."
+            )
+        return key
+
+    @property
     def geometry_map(self) -> Any:
         r"""The geometric operator :math:`G` (permutation,
-        pushforward, ...).
+        pushforward, ...) — **currently unpopulated**.
 
-        Default: ``None``. Concrete BCs populate.
+        Returns ``None`` for every concrete law: no subclass
+        overrides this, and no production code reads it. The
+        realizers recover :math:`G` from the law's CLASS instead
+        (an ``isinstance`` ladder), and the five string-dispatch
+        sites that ask structural questions about :math:`G` —
+        "does it permute ordinates?", "is it adjointable?" — ask
+        them of the ``kind`` tag.
+
+        Campaign phase **B1** mints the typed
+        ``BoundaryGeometryMap`` specification (Grand Report v3
+        §16A.2) and populates this on all seven laws; **B2** then
+        moves those dispatch sites onto it. The declaration is kept
+        for that landing.
         """
         return None
 
     @property
     def response_kernel(self) -> Any:
         r"""The scalar amplitude / kernel :math:`R` (albedo, white
-        scaling).
+        scaling) — **currently unpopulated**.
 
-        Default: ``None``. Concrete BCs populate.
+        Returns ``None`` for every concrete law, as
+        :attr:`geometry_map` does. :math:`R` is nonetheless already
+        in use under another name: every law in the family has a
+        scalar response, and both realizers multiply by it as a bare
+        float read off ``law.albedo``.
+
+        Campaign phase **B1** mints the typed
+        ``BoundaryResponseKernel`` specification (Grand Report v3
+        §16A.2, with the :math:`\alpha \in [0, 1]` invariant of issue
+        #265) and populates this. The declaration is kept for that
+        landing.
         """
         return None
 
@@ -304,7 +377,14 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
                 f"Realize against a method space carrying "
                 f"inflow_indices (SNMethodSpace.for_face with a trace, "
                 f"or explicit inflow_indices=).",
-                law=type(self).__name__,
+                # The registry key, matching all six sibling raise sites
+                # (``law="albedo"`` / ``"reflective"`` / ``"white"``). This was
+                # ``type(self).__name__`` — the only site spelling the tag as a
+                # CLASS NAME ("PrescribedInflow" vs "prescribed_inflow"), so an
+                # error-tag consumer saw one law under a different vocabulary.
+                # ``self.kind`` is now the one derivation (B0.1), so the drift
+                # cannot recur.
+                law=self.kind,
             )
 
     # ------------------------------------------------------------------
@@ -326,15 +406,31 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         *the contract must be CHECKED at construction/realization, not
         only verified by downstream balance* — by then the miscount has
         propagated. This template method is the production seam that
-        honors those lessons: a method realizer (e.g.
-        :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`)
-        calls it ONCE at entry, so every law arrives at its primitive
-        construction already certified against the actual quadrature
-        and trace data it is about to be wired to.
+        honors those lessons: a method realizer calls it ONCE at entry
+        so the law arrives at its primitive construction already
+        certified against the actual quadrature and trace data it is
+        about to be wired to.
 
-        The base body fires the five universal invariants (no-op
-        defaults unless a concrete law overrides). Concrete laws
-        EXTEND via ``super().assert_realizable(...)`` plus their
+        .. warning::
+
+           **The seam has exactly one production caller today** —
+           :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`.
+           The diffusion realizer never calls it, so a law realized
+           through the diffusion arm is NOT certified: e.g.
+           ``WhiteBoundary(albedo=5.0)`` reaches
+           :math:`\mathcal{A} = 5.0` there with no sub-Markov error.
+           Read "every law arrives already certified" as scoped to
+           the SN arm until the diffusion realizer adopts the seam.
+
+        The base body fires the five universal invariants — four of
+        which are empty and two of those overridden by nobody, so in
+        practice the aggregate's teeth are
+        :meth:`assert_source_lives_on_incoming_trace` (all laws),
+        :meth:`assert_geometry_map_measure_preserving`
+        (:class:`ReflectiveBoundary`) and
+        :meth:`assert_response_positive_if_declared`
+        (:class:`WhiteBoundary` / :class:`AlbedoBoundary`). Concrete
+        laws EXTEND via ``super().assert_realizable(...)`` plus their
         law-specific invariants — :class:`ReflectiveBoundary` adds the
         involution and inflow→outflow table checks,
         :class:`WhiteBoundary` / :class:`AlbedoBoundary` add the

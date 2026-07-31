@@ -2299,8 +2299,22 @@ class IncomingOrdinateMaskTensor(LinearOperator):
         \end{cases}
 
     Distinct from :class:`ZeroOperator` (which zeroes ALL entries):
-    the sparse mask preserves the outflow trace, which downstream
-    consumers (sensitivity adjoints, post-BC field readers) require.
+    the sparse mask leaves the outflow trace bit-identical.
+
+    That preservation currently has **no consumer**. The only
+    production reader of a realized boundary law's image is
+    ``SNBoundaryOperator._reflect_trace``, and it writes just the
+    face's INFLOW rows — for EVERY law, not only vacuum — so the
+    preserved outflow rows are discarded on the way out. (The
+    composition is exactly ``P_inflow ∘ M`` with ``M`` projecting
+    onto the outflow subspace, i.e. zero.) The rows are not
+    read by anything else either: the ``outflow_indices_for_face``
+    consumers read the FIELD's trace, never ``B(ψ)``.
+
+    Campaign phase **B3** narrows the SN law's domain to the outflow
+    trace :math:`\Gamma_+` (as the diffusion arm already does), after
+    which the untouched rows are outside the operator's domain and
+    the question dissolves rather than needing a justification.
 
     Self-adjoint (:math:`M = M^T = M^* = M^{1/2}`). Idempotent
     (:math:`M^2 = M`) — projection onto the outflow subspace. The

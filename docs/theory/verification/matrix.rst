@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1203, 17.1%
-   L1, 1192, 16.9%
+   L1, 1184, 16.8%
    L2, 64, 0.9%
    L3, 0, 0.0%
-   foundation, 4592, 65.1%
+   foundation, 4600, 65.2%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -254,7 +254,7 @@ Module × level grid
    fields/test_facefield_hierarchy, 0, 0, 0, 0, 7, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
    frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
-   geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
+   geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 8, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 42, 0, 0, 5, 0
    geometry/test_bound_compat, 10, 0, 0, 0, 0, 0

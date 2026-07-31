@@ -50,15 +50,13 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
     law") is now canonical. The legacy alias was retired in Wave O
     step O.4a.1 — ``VacuumInflow`` is the sole importable name.
 
-    The :attr:`kind` attribute stays ``"vacuum"`` (the registry key
-    under which this class is indexed) for backward compat with
-    string-kind comparisons (``sn_mesh.bc["xmax"] == "vacuum"``).
+    :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.kind` is ``"vacuum"`` —
+    inherited from the base, which derives it from the registry key. It was a
+    mutable dataclass FIELD here until the B0 cleanup, which meant
+    ``VacuumInflow(kind="banana")`` constructed a law whose tag matched no
+    registry entry; deriving it removes that state. The string-comparison
+    contract (``sn_mesh.bc["xmax"] == "vacuum"``) is unchanged.
     """
-
-    #: String tag for legacy string-kind comparisons. Preserved
-    #: across the Issue #186 descriptor cleanup so the SN-side
-    #: ``sn_mesh.bc["xmax"] == "vacuum"`` test contract still holds.
-    kind: str = "vacuum"
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, str):
