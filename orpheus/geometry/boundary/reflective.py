@@ -9,7 +9,7 @@ Grand Report v3 vocabulary) is the sole live name.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
@@ -93,13 +93,6 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     albedo : float
         Specular albedo. Defaults to 1 (perfect reflection).
     """
-
-    #: Wave-7 sweep-cycle signal (§15A.2). A reflective face maps
-    #: outgoing ordinates back into the domain as inflow ordinates,
-    #: creating a dependency cycle in the SN sweep DAG. The cycle
-    #: detector reads this ClassVar to identify which faces need
-    #: Krylov closure (rather than a single sweep).
-    creates_sweep_cycle: ClassVar[bool] = True
 
     axis: str = "x"
     albedo: float = 1.0

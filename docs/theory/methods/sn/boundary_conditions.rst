@@ -272,76 +272,73 @@ SN BC resolution table
 The :meth:`SNMesh._resolve_one` dispatch is summarized below.
 Each row maps the user-facing :class:`~orpheus.geometry.mesh.BC`
 kind string to (a) the resolved :class:`BoundaryTraceLaw`
-subclass, (b) the :class:`SNBoundaryRealizer.realize` output
-operator, and (c) the ``creates_sweep_cycle`` flag used by §15A.2
-sweep-cycle detection (see :ref:`bc-sweep-cycle`). The realizer
-dispatch is **uniform** across every supported mesh — 1-D
-Cartesian / spherical / cylindrical and 2-D Cartesian — post
-Issue #188 + #176.
+subclass and (b) the :class:`SNBoundaryRealizer.realize` output
+operator. The realizer dispatch is **uniform** across every
+supported mesh — 1-D Cartesian / spherical / cylindrical and 2-D
+Cartesian — post Issue #188 + #176.
+
+There is deliberately **no sweep-cycle column**. Whether a
+configuration sweeps in one pass is a property of the whole face
+configuration, not of the law on any single face — a reflecting
+face opposite a vacuum is acyclic, two reflecting faces are not —
+so it cannot be tabulated per row. The per-law
+``creates_sweep_cycle`` ``ClassVar`` that once occupied this column
+was retired 2026-07-30 for exactly that reason; the configuration-
+level criterion, and the record of why the flag could not work, are
+at :ref:`bc-sweep-cycle`.
 
 .. list-table:: BC.kind → law class → realized SN operator
    :header-rows: 1
-   :widths: 16 22 36 12 14
+   :widths: 18 26 42 14
 
    * - ``BC.kind``
      - Law class
      - Realized SN operator
      - α
-     - ``creates_sweep_cycle``
    * - ``"vacuum"``
      - :class:`~orpheus.geometry.boundary.VacuumInflow`
      - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
        (per-face inflow indices)
      - —
-     - ``False``
    * - ``"reflective"``
      - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
      - :class:`~orpheus.numerics.operator.PermutationOperator`
        (``quadrature.reflection_index(axis)``)
      - 1 (fast path)
-     - **``True``**
    * - ``"reflective"``
      -
      - ``α * PermutationOperator``
        (:class:`~orpheus.numerics.operator.ScaledOperator`)
      - α ≠ 1
-     - **``True``**
    * - ``"white"``
      - :class:`~orpheus.geometry.boundary.WhiteBoundary`
      - :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`
      - 1 (fast path)
-     - ``False``
    * - ``"white"``
      -
      - ``α * AngularAverageOperator``
      - α ≠ 1
-     - ``False``
    * - ``"periodic"``
      - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
      - :class:`~orpheus.numerics.operator.PeriodicWrapOperator`
      - 1
-     - **``True``**
    * - ``"albedo"``
      - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
      - :class:`~orpheus.numerics.operator.ZeroOperator`
      - 0
-     - ``False``
    * - ``"albedo"``
      -
      - :class:`~orpheus.numerics.operator.IdentityOperator`
      - 1
-     - ``False``
    * - ``"albedo"``
      -
      - ``α * IdentityOperator``
      - α ∉ {0, 1}
-     - ``False``
    * - ``"prescribed_inflow"``
      - :class:`~orpheus.geometry.boundary.PrescribedInflow`
      - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
        (source.evaluate; ignores outgoing flux)
      - —
-     - ``False``
 
 The :meth:`SNMesh._resolve_one` dispatch constructs the resolved
 operator via :meth:`SNBoundaryRealizer.realize(law, method_space)`

@@ -78,13 +78,22 @@ Key Facts
   carried registration-timing hazards for zero payoff. A future
   MoC / MC / CP modernization mints its method-mesh + realizer pair
   directly — no central registration step.
-- The :attr:`creates_sweep_cycle` ``ClassVar`` flag on each
+- **Whether a configuration sweeps in one pass is a property of the
+  whole face configuration, never of a single law.** No
   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` subclass
-  signals to the SN :term:`sweep` planner (§15A.2) which boundary types
-  introduce cycles in the directed cell-visit graph. ``True`` on
+  carries a sweep-cycle flag. The per-law ``ClassVar`` that once
+  claimed to — ``True`` on
   :class:`~orpheus.geometry.boundary.ReflectiveBoundary` and
-  :class:`~orpheus.geometry.boundary.PeriodicBoundary`; ``False``
-  on all other laws.
+  :class:`~orpheus.geometry.boundary.PeriodicBoundary` — was
+  **retired 2026-07-30**: a boolean on the boundary *kind* cannot
+  express a configuration-dependent property, since
+  ``reflective|vacuum`` is acyclic while ``reflective|reflective``
+  is not. The honest criterion is a strongly-connected-component
+  decomposition of the :math:`(\text{face}, \text{ordinate})` trace
+  digraph, computed by
+  :mod:`orpheus.derivations.discrete.sn.sweep_acyclicity` and gated
+  by ``tests/sn/sweep/test_sweep_acyclicity.py``. See
+  :ref:`bc-sweep-cycle`.
 - The eight typed errors :class:`~orpheus.geometry.boundary.IncomingOutgoingTraceClassificationError`
   through :class:`~orpheus.geometry.boundary.BoundarySourceNotOnIncomingTraceError`
   (ERR-040..ERR-047 in the V&V error catalog at
@@ -1661,15 +1670,13 @@ The ABC ships:
    :eq:`affine-bc-form` operators: ``geometry_map``,
    ``response_kernel``, ``source`` (defaulting to ``None``, ``None``,
    :class:`~orpheus.geometry.boundary.NoSource`).
-2. The :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.creates_sweep_cycle`
-   ``ClassVar`` boolean signal — see :ref:`bc-sweep-cycle`.
-3. Five **universal** ``assert_*`` invariants (no-op defaults;
+2. Five **universal** ``assert_*`` invariants (no-op defaults;
    concrete laws override the relevant ones) and four **specific**
    invariants on the BCs that need them — see
    :ref:`bc-universal-invariants`.
-4. A :meth:`realize` hook that raises with guidance (route through a
+3. A :meth:`realize` hook that raises with guidance (route through a
    method realizer) — see :ref:`bc-realizer-layer-detail`.
-5. **No ``apply`` method at all** (Issue #186 / B3 + β2,
+4. **No ``apply`` method at all** (Issue #186 / B3 + β2,
    2026-05-11). The descriptor model that survived the C176.3
    Option A interim was retired in favour of a pure-descriptor
    contract: :class:`BoundaryTraceLaw` is no longer a
@@ -1693,50 +1700,62 @@ aliases in the package ``__init__`` (see :ref:`bc-naming-audit`).
 
 .. list-table:: Concrete ``BoundaryTraceLaw`` subclasses
    :header-rows: 1
-   :widths: 18 16 13 13 13 27
+   :widths: 17 14 18 11 11 29
 
    * - Class
      - Registry key
      - :math:`G_\alpha`
      - :math:`R_\alpha`
      - :math:`q`
-     - Sweep-cycle flag
+     - Trace-edge family
    * - :class:`~orpheus.geometry.boundary.VacuumInflow`
      - ``"vacuum"``
      - rank-0 (none)
      - 0
      - 0
-     - ``False``
+     - **none** — the inflow is data
    * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
      - ``"reflective"``
      - axis-reflection permutation
      - albedo
      - 0
-     - **``True``** (signals §15A.2)
+     - same-face back-edge, mirror-partner map
    * - :class:`~orpheus.geometry.boundary.WhiteBoundary`
      - ``"white"``
      - cosine-weighted hemispheric average (Lambertian)
      - albedo
      - 0
-     - ``False``
+     - same-face back-edge, all-to-all on the face
    * - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
      - ``"periodic"``
      - spatial pushforward (caller-supplied)
      - 1
      - 0
-     - **``True``** (signals §15A.2)
+     - opposite-face **pair**, mutually feeding
    * - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
      - ``"albedo"``
      - identity in angle
      - albedo
      - 0
-     - ``False``
+     - same-face back-edge for :math:`\alpha \neq 0` (degenerates
+       to none at :math:`\alpha = 0`); not yet modelled in
+       ``sweep_acyclicity``
    * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
      - ``"prescribed_inflow"``
      - 0
      - 0
      - :math:`q \in \Gamma_-`
-     - ``False``
+     - **none** — the inflow is data
+
+The last column is the **structure** each law contributes to the
+:math:`(\text{face}, \text{ordinate})` trace digraph, which *is*
+intrinsic to the law. Whether the resulting digraph carries a
+**cycle** is not: that depends on the other faces, and only the
+strongly-connected-component decomposition described under
+:ref:`bc-sweep-cycle` can answer it. A same-face back-edge is a
+*forward* edge when it is the only one; it closes a loop only when
+a second law feeds back the other way. The opposite-face pair is
+the exception — periodic closes a loop from a single law.
 
 Per-law rank census (each kernel read off the :math:`G_\alpha`
 column above): vacuum and prescribed inflow carry no response
@@ -1818,15 +1837,20 @@ readers tracing pre-Wave-O commits:
 
 .. _bc-sweep-cycle:
 
-The ``creates_sweep_cycle`` signal
-----------------------------------
+Sweep cycles: a configuration property, not a per-law flag
+-----------------------------------------------------------
 
-The SN sweep is a topological sort of the directed cell-visit graph
-where edges are oriented by :math:`\mathrm{sign}(\Omega_n \cdot
-\hat n_f)`. For most BCs the boundary is the *root* of the sort —
-inflow values come from the BC, get propagated through the cells,
-and exit as outflow values that the BC consumes but doesn't feed
-back. For two BC families this is no longer true:
+The SN sweep visits cells in a **topological order** of the directed
+cell-visit graph, whose edges are oriented by
+:math:`\mathrm{sign}(\Omega_n \cdot \hat n_f)`. (The production code
+does not *run* a topological sort to find that order — it is closed-form
+index arithmetic, ``level_of = local.sum(axis=0)`` in
+:mod:`orpheus.sn.loss_representation.sweep_graph` — which is precisely
+why nothing in the solver ever builds a digraph and nothing in the
+solver can detect a cycle.) For most BCs the boundary is the *root*
+of that order — inflow values come from the BC, get propagated
+through the cells, and exit as outflow values that the BC consumes
+but doesn't feed back. For two BC families this is no longer true:
 
 * **Reflective.** The outflow flux at a face is mapped to an inflow
   flux at the **same** face (under the reflection permutation), so
@@ -1880,20 +1904,89 @@ back. For two BC families this is no longer true:
    acyclic but needs :math:`\mu>0` first. Triangularity is a property
    of an (operator, **order**) pair.
 
-The :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.creates_sweep_cycle`
-``ClassVar`` is ``True`` on :class:`ReflectiveBoundary` and
-:class:`PeriodicBoundary`, ``False`` on every other law. Read it as a
-**conservative per-law hint** — "this law *can* participate in a
-cycle" — never as a per-configuration verdict, which only the SCC
-decomposition supplies. It is currently declarative: no production
-code reads it, and the §15A.2 sweep-cycle detector it was designed to
-feed is not built (the invariant named for that job,
-``assert_cycles_are_declared``, is likewise unimplemented).
+What the trace digraph replaced: the retired per-law flag
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Vacuum, white, albedo, and prescribed-inflow are all cycle-free:
-they consume :math:`\gamma_+ \psi` and produce a function of it
-that only depends on :math:`\gamma_+` (or, for prescribed inflow,
-nothing at all). No fixed point is needed.
+.. note::
+
+   **Retired 2026-07-30.** Until then every
+   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` subclass
+   declared a ``creates_sweep_cycle`` ``ClassVar`` — ``True`` on
+   :class:`ReflectiveBoundary` and :class:`PeriodicBoundary`,
+   ``False`` on every other law. It has been removed from the ABC,
+   from all six concrete laws, and from the tests that asserted its
+   values. The archaeology is kept here because the *shape* of the
+   mistake recurs, not because the flag might come back.
+
+Three findings retired it, in increasing order of importance.
+
+1. **It had zero production readers.** The §15A.2 sweep-cycle
+   detector it was designed to feed was never built, and the
+   invariant named for that job, ``assert_cycles_are_declared``, was
+   likewise never implemented. The flag was purely declarative for
+   its whole life: a value asserted by tests and read by nothing.
+
+2. **The claim attached to it was false.** Its docstring asserted
+   "reflective ⟹ the sweep DAG acquires a cycle" — the proposition
+   the warning above refutes. A reflecting face adds a trace
+   *back-edge*; a **cycle** needs a closed *loop*.
+
+3. **It could not have worked even in principle** — and this is the
+   part worth carrying forward. Whether a face's back-edge closes a
+   cycle depends on the **whole face configuration**, not on the
+   kind of any one law. The measured truth table above makes the
+   point in one line: ``reflective|vacuum`` is acyclic,
+   ``reflective|reflective`` is not, and the flag reads ``True`` on
+   *reflective* in both. Meanwhile ``periodic|vacuum`` **is** cyclic
+   from a single law. So the one value ``True`` was carrying two
+   structurally different facts — "this law can take part in a loop
+   that *other* faces may close" (reflective) and "this law closes a
+   loop by itself" (periodic) — which is the tell that the property
+   does not live on the law at all. A ``ClassVar`` on the law
+   *class* is evaluated once, at class-creation time, with no
+   knowledge of the mesh or of the opposite face; there is no value
+   it could have held that would be correct.
+
+The general design rule, which is the reason to keep this record:
+
+.. admonition:: A law may carry only what is intrinsic to it
+   :class: tip
+
+   A boundary law is a **descriptor of one face**. It can honestly
+   declare its own algebraic content — its :math:`G_\alpha`,
+   :math:`R_\alpha`, :math:`q`, and the *family* of trace edge it
+   contributes (see the
+   :ref:`concrete-subclass table <bc-law-layer>`). It cannot declare
+   a property of the *configuration* it will be placed in.
+   Sweepability, triangularity, and cycle-freedom are all
+   configuration properties — the same relinquishment recorded for
+   operator names in
+   :mod:`orpheus.derivations.discrete.sn.sweep_acyclicity`: an
+   operator's name may state what the object **is**, never that it
+   sweeps, because a new mesh or a new opposite face can falsify the
+   latter without touching the object.
+
+The honest replacement is not a flag but a computation, and it
+already exists: build the trace digraph for the *configuration* and
+decompose it. Vacuum and prescribed inflow are the only laws that
+are unconditionally cycle-free, and for a structural reason — they
+supply the inflow as **data**, contributing no trace edge at all, so
+they cannot participate in any loop. Reflective, white, and albedo
+(at :math:`\alpha \neq 0`) each add a same-face back-edge: harmless
+alone, loop-closing when a second such law faces it (``white|white``
+is cyclic for exactly the reason ``reflective|reflective`` is —
+the coupling is all-to-all rather than mirror-partnered, but it
+still feeds an inflow slot from an outflow slot on the same face).
+Periodic pairs opposite faces mutually and so is the one law that is
+cyclic on its own — which is why :class:`SNMesh` refuses it outright.
+
+The gates on that computation are ``@pytest.mark.foundation``: the
+claim is a software/structural invariant of a discrete construction,
+not an equation claim, so the tests carry no ``verifies(...)`` marker
+(the ``verifies`` ⊥ level doctrine). What they pin is the SCC
+decomposition itself, the acyclic ⟹ lower-triangular certificate, and
+— as mutation teeth — that dropping the boundary edge *falsely*
+certifies a cyclic configuration as acyclic.
 
 
 .. _bc-realizer-layer-detail:
@@ -3071,7 +3164,7 @@ remaining 2-arg ``apply`` affordance from the Wave-8/9 era into a
 * Every concrete BC (vacuum / reflective / white / albedo /
   periodic / prescribed-inflow) is now a **frozen dataclass**
   carrying only its parameters (axis, albedo, source, ...), its
-  :attr:`kind` tag, its :attr:`creates_sweep_cycle` ``ClassVar``,
+  :attr:`kind` tag,
   its :attr:`geometry_map` / :attr:`response_kernel` /
   :attr:`source` property overrides, and the relevant
   :meth:`assert_*` invariants. **No** ``apply`` method on any

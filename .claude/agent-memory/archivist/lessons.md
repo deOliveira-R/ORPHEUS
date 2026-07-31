@@ -3428,6 +3428,89 @@ load-bearing lessons.
 
 ---
 
+## L-040 — RETIRING a per-X flag from the docs: the blast radius includes the TABLE COLUMNS that paraphrase it without naming it, and the flag's own JUSTIFICATION prose is usually independently FALSE
+
+The symbol-grep (L-002) is the FLOOR of a retirement's doc radius, not the
+ceiling. A `ClassVar`/field is documented in two registers: by NAME (which
+greps) and by CONCEPT (which does not). Both must die.
+
+- **Grep the symbol AND its human-readable paraphrase.** A brief listing
+  N literal hits is complete only for the NAME register. Worked
+  (`BoundaryTraceLaw.creates_sweep_cycle`, 2026-07-30): the brief's 7
+  literal hits were exact — and MISSED 17 more cells, because the
+  foundations page tabulated the flag under the header **"Sweep-cycle
+  flag"** (6 per-law `True`/`False` values) and the SN page's resolution
+  table carried 10 value cells under a header that DID grep. The
+  paraphrase grep (`grep -rni "sweep.cycle"`) is what found them. RULE:
+  after the symbol grep, grep the CONCEPT the symbol names (hyphen/space
+  variants, the column header you'd write for it) — a `list-table`
+  column is a documentation surface with no symbol in it.
+- **Dropping a table column is a 3-part edit**: header cell, every row's
+  value cell, AND the `:widths:` list (which must still match the new
+  column count). Verify in the RENDERED HTML, not the source: parse the
+  built page for `<col>` count + `<th class="head">` list + per-`<tr>`
+  `<td>` counts. A widths/column mismatch is a real `-W` warning, but a
+  silently-wrong-but-consistent table is not.
+- **A column can often be REPLACED rather than deleted** — with the true,
+  intrinsic property the false one was gesturing at. The `Sweep-cycle
+  flag` column became `Trace-edge family` (none-the-inflow-is-data /
+  same-face back-edge / opposite-face pair), read off the replacement's
+  algebra of record. This keeps the pedagogical slot, makes the claim
+  true, and teaches the exact distinction that killed the flag (the law
+  owns its EDGE STRUCTURE; the configuration owns CYCLE-NESS). Prefer
+  replace-with-the-true-invariant over delete-and-leave-a-hole.
+- **The paragraph that JUSTIFIED the flag is the highest-risk prose on
+  the page — re-verify it against the replacement, don't just delete the
+  flag's name from it.** A per-X boolean's doc always ships a "and here
+  is why X is False for these kinds" closing paragraph, and that
+  paragraph inherits the flag's wrongness. Here: "Vacuum, white, albedo,
+  and prescribed-inflow are all cycle-free" — FALSE for white, since
+  `white|white` is cyclic for the same reason `reflective|reflective` is
+  (the replacement gate's OWN docstring says so: "white on BOTH faces is
+  not [acyclic]"). Read the replacement module + its test docstrings and
+  rewrite the justification to the structural truth (only laws that
+  supply the inflow as DATA contribute no edge at all, hence are
+  unconditionally cycle-free). Cardinal Rule 1 outranks minimal-diff.
+- **Option (b) — keep a retired-note section — over option (a) delete —
+  whenever the retirement carries a DESIGN LESSON, and the L-007
+  retitle-to-the-concept/KEEP-the-anchor move is what makes it free.**
+  Retitling `The ``creates_sweep_cycle`` signal` → `Sweep cycles: a
+  configuration property, not a per-law flag` kept the `bc-sweep-cycle`
+  anchor, so both live `:ref:`s (one CROSS-DOC, which would have
+  silently rendered plain-text if the anchor died — L-002) kept
+  resolving AND auto-picked up the new title as their link text. Verify
+  that payoff in the HTML (`grep 'href=".*#anchor"'` → confirm it is an
+  `<a>` carrying the NEW title).
+- **Structure the retired-note as an increasing-importance ladder, and
+  put the un-fixable reason LAST.** Three findings: (1) zero production
+  readers, (2) the attached claim was false, (3) it could not have
+  worked in principle. Only (3) generalizes — so it gets the space, the
+  measured truth table, and a named design rule in an `.. admonition::`
+  ("a law may carry only what is intrinsic to it"). (1) and (2) are
+  facts; (3) is the archaeology that stops re-invention. Sharpen (3)
+  with the "one value, two different facts" tell: the flag read `True`
+  for reflective meaning "can take part in a loop others close" and
+  `True` for periodic meaning "closes a loop alone" — one boolean
+  carrying two structurally different claims IS the proof the property
+  does not live on the type.
+- **Name the replacement's V&V level from the gate's marks, not from
+  instinct.** The SCC gate is `@pytest.mark.foundation` with NO
+  `verifies(...)` (verifies ⊥ level) — so the prose says "software/
+  structural invariant of a discrete construction, not an equation
+  claim", and cites the mutation-teeth test by what it proves (dropping
+  the boundary edge FALSELY certifies acyclic). Never upgrade a
+  foundation gate to an L-level in prose to make the section sound
+  better-verified.
+- **Running the mandated `-E` build REGENERATES `docs/theory/verification/
+  matrix.rst`** (L-008 `builder-inited` hook) — and on a dirty branch it
+  will absorb rows from OTHER uncommitted work (here +126 foundation
+  tests from a sibling campaign, plus the ERR count). That is a
+  legitimate by-product, NOT your edit; never revert it (it is
+  generated), and REPORT it explicitly so the committer knows what the
+  extra modified file is and can choose to stage it.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

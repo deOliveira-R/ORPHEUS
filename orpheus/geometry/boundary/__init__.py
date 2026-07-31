@@ -43,8 +43,7 @@ The §16A.3 decomposition splits this map into three concrete layers:
    subclasses, each carrying the three first-class properties
    (:attr:`~BoundaryTraceLaw.geometry_map`,
    :attr:`~BoundaryTraceLaw.response_kernel`,
-   :attr:`~BoundaryTraceLaw.source`) and the :attr:`creates_sweep_cycle`
-   ``ClassVar`` signal. Method-agnostic.
+   :attr:`~BoundaryTraceLaw.source`). Method-agnostic.
 3. **Method realisation** —
    :class:`~orpheus.geometry.boundary.BoundaryRealizer` Protocol +
    two functional implementations
@@ -98,7 +97,7 @@ sole bridge. The canonical SN-realised representation per law:
   body that lived on the Option-A standalone ``apply`` path was
   **deleted in Issue #186 / B3 + β2** — there is no longer an
   alternate path; the inflow-only mask is the unique vacuum
-  semantics. :attr:`creates_sweep_cycle` = ``False``.
+  semantics.
 * :class:`ReflectiveBoundary(axis, albedo)` (registry key
   ``"reflective"``, deprecated alias ``SpecularBoundaryOperator``)
   — :math:`R = G_{\text{refl}} \cdot \alpha` with the geometric
@@ -107,8 +106,6 @@ sole bridge. The canonical SN-realised representation per law:
   :class:`~orpheus.numerics.operator.PermutationOperator` (α=1
   fast path) or
   ``ScaledOperator(α, PermutationOperator)`` (α ≠ 1).
-  :attr:`creates_sweep_cycle` = **``True``** — signals §15A.2
-  sweep-cycle detection.
 * :class:`WhiteBoundary(axis, outward_sign, albedo)` (registry key
   ``"white"``, deprecated alias ``WhiteBoundaryOperator``) —
   :math:`R = G_{\text{diff}} \cdot \alpha` with the geometric
@@ -116,7 +113,6 @@ sole bridge. The canonical SN-realised representation per law:
   hemisphere. SN realises to
   :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` (α=1
   fast path) or scaled.
-  :attr:`creates_sweep_cycle` = ``False``.
 * :class:`PeriodicBoundary` (registry key ``"periodic"``, deprecated
   alias ``PeriodicBoundaryOperator``) — :math:`R` is a spatial
   pushforward (wrap-around to the opposite face) with
@@ -124,14 +120,12 @@ sole bridge. The canonical SN-realised representation per law:
   :class:`~orpheus.numerics.operator.PeriodicWrapOperator`
   (currently an angular identity; the spatial-pushforward extension
   is tracked as a follow-up under ``module:sn``).
-  :attr:`creates_sweep_cycle` = **``True``**.
 * :class:`AlbedoBoundary(albedo)` (registry key ``"albedo"``,
   deprecated alias ``AlbedoBoundaryOperator``) — :math:`R = I \cdot
   \alpha` with the geometric operator the angular identity. SN
   realises to :class:`~orpheus.numerics.operator.ZeroOperator` (α=0),
   :class:`~orpheus.numerics.operator.IdentityOperator` (α=1), or
   ``ScaledOperator(α, IdentityOperator)`` (α ∉ {0, 1}).
-  :attr:`creates_sweep_cycle` = ``False``.
 * :class:`PrescribedInflow(source)` (registry key
   ``"prescribed_inflow"``, Wave 7 addition) — the rank-0 affine BC
   :math:`R = G = 0`, :math:`q \neq 0`. SN realises to
@@ -141,7 +135,6 @@ sole bridge. The canonical SN-realised representation per law:
   :class:`InflowSourceSpec` (typically :class:`NoSource` for the
   homogeneous case or :class:`ConstantInflowSource(value)` for a
   uniform inflow).
-  :attr:`creates_sweep_cycle` = ``False``.
 * :class:`ZeroFluxBoundary` (registry key ``"zero_flux"``, #290 P3 /
   user ruling 3) — the homogeneous Dirichlet idealization
   :math:`\phi_\Gamma = 0`: albedo-family member :math:`\mathcal{A} =
@@ -150,7 +143,6 @@ sole bridge. The canonical SN-realised representation per law:
   maps it to ``ScaledOperator(-1, IdentityOperator)``; the SN realizer
   REFUSES it (a negative angular inflow is unrepresentable — use
   :class:`VacuumInflow` for the physical zero-incoming law).
-  :attr:`creates_sweep_cycle` = ``False``.
 
 
 Rank-N boundaries via the descriptor-tree algebra

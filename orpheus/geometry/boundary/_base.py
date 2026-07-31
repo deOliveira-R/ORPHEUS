@@ -9,8 +9,7 @@ boundary law in the form
 
 It carries the law's parameters (``axis``, ``albedo``, ``source``,
 …), the five universal ``assert_*`` invariants (per Grand Report v3
-§16A.12), the :attr:`creates_sweep_cycle` ``ClassVar`` (per
-§15A.2), the registry plumbing (via
+§16A.12), the registry plumbing (via
 :class:`~orpheus.numerics.registry.RegistryMixin`), and a minimal
 algebra (``+``, ``-``, ``*``, ``/``, ``-``) that returns
 :class:`~orpheus.geometry.boundary._composition.LawSum` /
@@ -90,10 +89,9 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
     Concrete subclasses (``VacuumInflow``, ``ReflectiveBoundary``,
     ``WhiteBoundary``, ``AlbedoBoundary``, ``PeriodicBoundary``,
     ``PrescribedInflow``) populate these. This ABC ships the
-    universal ``assert_*`` invariants (per §16A.12), the
-    :attr:`creates_sweep_cycle` ``ClassVar`` signal used by the SN
-    sweep planner, the registry plumbing, and a minimal algebra that
-    composes laws into :class:`LawSum` / :class:`LawScaled` nodes.
+    universal ``assert_*`` invariants (per §16A.12), the registry
+    plumbing, and a minimal algebra that composes laws into
+    :class:`LawSum` / :class:`LawScaled` nodes.
 
     No ``apply``
     ------------
@@ -142,12 +140,6 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
     """
 
     registry: ClassVar[dict[str, type["BoundaryTraceLaw"]]] = {}
-
-    creates_sweep_cycle: ClassVar[bool] = False
-    r"""Whether the realised operator creates a cycle in the SN
-    sweep DAG. ``True`` on ``ReflectiveBoundary`` and
-    ``PeriodicBoundary``; ``False`` on all other laws. Used by
-    §15A.2 cycle detection (Grand Report v3 lines 2155–2160)."""
 
     @classmethod
     def _registry_base(cls) -> type:

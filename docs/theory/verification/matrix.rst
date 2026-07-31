@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6932**
+Total tests collected: **7051**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1203, 17.4%
-   L1, 1192, 17.2%
+   L0, 1203, 17.1%
+   L1, 1192, 16.9%
    L2, 64, 0.9%
    L3, 0, 0.0%
-   foundation, 4473, 64.5%
+   foundation, 4592, 65.1%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6853
+   explicit, 6972
    class-name, 46
    func-name, 0
    case, 33
@@ -58,6 +58,9 @@ Module × level grid
    analytical/test_phase_c_crosscheck, 0, 8, 0, 0, 0, 0
    analytical/test_prescribed_inflow_consistency, 0, 0, 0, 0, 2, 0
    analytical/test_si_convergence_rate, 0, 7, 0, 0, 2, 0
+   architecture/test_composition_cost, 0, 0, 0, 0, 9, 0
+   architecture/test_monomorphic_leaves, 0, 0, 0, 0, 102, 0
+   architecture/test_stage_separation, 0, 0, 0, 0, 15, 0
    cartesian_2d/test_2d_full_field_oracle, 0, 0, 0, 0, 8, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
    cartesian_2d/test_2d_l2_matvec_correctness, 0, 2, 0, 0, 2, 0
@@ -253,10 +256,10 @@ Module × level grid
    frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
-   geometry/test_bc_universal_invariants, 0, 42, 0, 0, 11, 0
+   geometry/test_bc_universal_invariants, 0, 42, 0, 0, 5, 0
    geometry/test_bound_compat, 10, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 25, 0
-   geometry/test_boundary_trace_law, 0, 0, 0, 0, 15, 0
+   geometry/test_boundary_trace_law, 0, 0, 0, 0, 14, 0
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
@@ -1417,7 +1420,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-067``, 2
    ``ERR-068``, 1
    ``ERR-069``, 2
-   ``ERR-070``, 3
+   ``ERR-070``, 4
    ``ERR-071``, 8
 
 Unmarked tests

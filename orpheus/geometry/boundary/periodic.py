@@ -9,7 +9,6 @@ Report v3 vocabulary) is the sole live name.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar
 
 from ._base import BoundaryTraceLaw
 
@@ -51,8 +50,3 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
     sole importable name.
     """
 
-    #: Wave-7 sweep-cycle signal (§15A.2). A periodic face couples
-    #: opposite ends of the spatial domain, creating a dependency
-    #: cycle in the SN sweep DAG that requires Krylov closure rather
-    #: than a single sweep.
-    creates_sweep_cycle: ClassVar[bool] = True

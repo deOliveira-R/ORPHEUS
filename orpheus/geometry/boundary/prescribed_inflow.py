@@ -34,7 +34,6 @@ evaluation.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ClassVar
 
 from ._base import BoundaryTraceLaw
 from ._source import InflowSourceSpec, NoSource
@@ -76,10 +75,12 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
 
     Notes
     -----
-    :pydata:`creates_sweep_cycle` is ``False``: a prescribed inflow
-    does NOT wire outgoing flux back into the domain, so the SN
-    sweep DAG remains acyclic for this BC. The §15A.2 cycle detector
-    treats prescribed-inflow faces as plain Dirichlet faces.
+    A prescribed inflow does NOT wire outgoing flux back into the
+    domain, so it contributes no trace back-edge and cannot take part
+    in a sweep cycle. (Whether a *configuration* is acyclic is decided
+    by the strongly-connected-component decomposition in
+    :mod:`orpheus.derivations.discrete.sn.sweep_acyclicity`, never by a
+    per-law flag.)
 
     Implementation note: field-vs-property collision
     ------------------------------------------------
@@ -92,8 +93,6 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
     ``self._source``. Callers continue to access ``bc.source``
     uniformly across all concrete BCs.
     """
-
-    creates_sweep_cycle: ClassVar[bool] = False
 
     _source: InflowSourceSpec = field(default_factory=NoSource)
 

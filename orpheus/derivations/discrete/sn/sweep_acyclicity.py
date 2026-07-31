@@ -23,9 +23,13 @@ production sweep order is closed-form index arithmetic
 :mod:`orpheus.sn.loss_representation.sweep_graph`), deliberately *not* a
 topological sort, so nothing in the solver ever builds a digraph and nothing
 can detect a cycle.  The invariant the design named for that job —
-``assert_cycles_are_declared`` — was never implemented, and the
-:attr:`BoundaryTraceLaw.creates_sweep_cycle` ClassVar is read by no production
-code.  This module supplies the missing object.
+``assert_cycles_are_declared`` — was never implemented, and the per-law
+``BoundaryTraceLaw.creates_sweep_cycle`` ClassVar meant to feed it was read by
+no production code and has since been **retired**.  That flag could not have
+worked even in principle: whether a face's trace back-edge closes a *cycle*
+depends on the whole face configuration (``reflective|vacuum`` is acyclic,
+``reflective|reflective`` is not), which a boolean on the boundary *kind*
+cannot express.  This module supplies the missing object.
 
 Two digraphs, two theorems — do not conflate them
 =================================================

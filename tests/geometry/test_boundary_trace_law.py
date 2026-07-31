@@ -8,7 +8,6 @@ This file pins the Issue-#186 (B3 + β2) descriptor-model contract:
   convenience, but the canonical realisation path is via
   :class:`SNBoundaryRealizer.realize`.
 * The five ``assert_*`` invariants default to no-ops.
-* The :pydata:`creates_sweep_cycle` ClassVar defaults to ``False``.
 * :meth:`source` returns a :class:`NoSource` sentinel by default.
 * :meth:`realize` raises :class:`NotImplementedError` directing
   callers to a method-specific realizer.
@@ -110,14 +109,6 @@ def test_source_default_is_no_source() -> None:
     out = src.evaluate((8, 1))
     assert out.shape == (8, 1)
     assert np.all(out == 0.0)
-
-
-@pytest.mark.foundation
-def test_creates_sweep_cycle_default_is_false() -> None:
-    """Defaults to ``False``; reflective / periodic concretes in
-    Wave 7 override to ``True``."""
-    assert _StubLaw.creates_sweep_cycle is False
-    assert BoundaryTraceLaw.creates_sweep_cycle is False
 
 
 @pytest.mark.foundation

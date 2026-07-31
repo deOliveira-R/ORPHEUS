@@ -382,30 +382,6 @@ class TestAlbedoSubmarkovInvariant:
 # ─────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.foundation
-class TestCreatesSweepCycleFlag:
-    """The :pydata:`creates_sweep_cycle` ClassVar is the §15A.2
-    signal consumed by the SN sweep planner.
-
-    Reflective + Periodic create cycles; the rest do not.
-    """
-
-    def test_reflective_creates_sweep_cycle(self) -> None:
-        assert ReflectiveBoundary.creates_sweep_cycle is True
-
-    def test_periodic_creates_sweep_cycle(self) -> None:
-        assert PeriodicBoundary.creates_sweep_cycle is True
-
-    def test_vacuum_does_not_create_sweep_cycle(self) -> None:
-        assert VacuumInflow.creates_sweep_cycle is False
-
-    def test_white_does_not_create_sweep_cycle(self) -> None:
-        assert WhiteBoundary.creates_sweep_cycle is False
-
-    def test_albedo_does_not_create_sweep_cycle(self) -> None:
-        assert AlbedoBoundary.creates_sweep_cycle is False
-
-
 # ─────────────────────────────────────────────────────────────────────
 # PrescribedInflow (Wave 7 / C7.5)
 # ─────────────────────────────────────────────────────────────────────
@@ -436,11 +412,6 @@ class TestPrescribedInflowConstruction:
         from orpheus.geometry.boundary import PrescribedInflow
 
         assert PrescribedInflow().kind == "prescribed_inflow"
-
-    def test_does_not_create_sweep_cycle(self) -> None:
-        from orpheus.geometry.boundary import PrescribedInflow
-
-        assert PrescribedInflow.creates_sweep_cycle is False
 
     def test_registered_under_prescribed_inflow_key(self) -> None:
         from orpheus.geometry.boundary import (
