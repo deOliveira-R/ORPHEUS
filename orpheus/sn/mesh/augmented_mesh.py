@@ -402,18 +402,21 @@ class SNMesh(MaterialMesh):
         :func:`~orpheus.transport.method.resolve_boundary_conditions`
         body. Build an :class:`SNMethodSpace` carrying the precomputed
         unified :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`,
-        hand the law to :class:`SNBoundaryRealizer.realize`, wrap the
-        1-arg result in :class:`_BoundBoundaryOperator` so the SN-side
-        call surface sees a uniform 1-arg ``apply(psi)`` contract with
-        the ``kind`` string tag.
+        hand the law to :class:`SNBoundaryRealizer.realize`, pair the
+        1-arg result back with ``law`` in :class:`_BoundBoundaryOperator`
+        so the SN-side call surface sees a uniform 1-arg ``apply(psi)``
+        contract that can still be asked what law it realizes.
 
-        The ``kind`` tag reads the LAW's own registry key
-        (:attr:`~orpheus.numerics.registry.RegistryMixin.key` —
-        ``"vacuum"``, ``"reflective"``): the kind string's single
-        source is the law class itself, and every
-        ``BOUNDARY_OPERATOR_REGISTRY`` entry maps a tag to the law
-        registered under that same key, so the tag equals the declared
-        ``BC.kind`` by construction.
+        **The pairing is the point (campaign phase B2.0).** Until B2.0
+        this line kept only ``kind=law.key`` and dropped the law, so
+        ``sn_mesh.bc[face]`` was a realized operator plus a *string* —
+        which is why five production sites answer structural questions
+        (*does my ``G`` permute ordinates? is my ``R`` zero?*) by
+        comparing that string against literals: a string was the only
+        thing that survived realization. Handing the law through makes
+        those questions answerable at the object. The ``kind`` tag lives
+        on as a read-through of the law's registry key until B2.2 retires
+        the string surface.
 
         Issue #188 / C188.3: every supported mesh (1-D Cartesian,
         1-D spherical, 1-D cylindrical, 2-D Cartesian) routes
@@ -432,7 +435,7 @@ class SNMesh(MaterialMesh):
             trace=self._trace,
         )
         realized = SNBoundaryRealizer().realize(law, method_space)
-        return _BoundBoundaryOperator(realized, kind=law.key)
+        return _BoundBoundaryOperator(realized, law)
 
     # ── Properties ────────────────────────────────────────────────────
     #

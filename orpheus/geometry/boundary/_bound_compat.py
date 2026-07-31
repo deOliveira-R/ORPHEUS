@@ -1,19 +1,29 @@
-r"""Strict 1-arg passthrough wrapping a realized BC operator with a kind tag.
+r"""The realized boundary law — a realized operator PAIRED with its descriptor.
 
 After Issue #188 (curvilinear trace support) every
 :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` BC routes through
 :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` to a 1-arg
 :class:`~orpheus.numerics.operator.LinearOperator`. After Issue #186
 (B3 + β2) the descriptor model removed the last 2-arg call sites
-in tests, so this shim is now strict 1-arg. Its purpose is to add
-two thin surfaces to a realized operator:
+in tests, so this shim is now strict 1-arg. It adds three surfaces to
+a realized operator:
+
+* **The law it was realized from** (:attr:`law`, campaign phase B2.0).
+  The three-layer architecture is descriptor → realizer → operator, and
+  before B2.0 the descriptor was *dropped* on the way out: the shim kept
+  ``kind=law.key``, a **string**, and nothing else. So ``sn_mesh.bc[face]``
+  could answer *"what were you declared as?"* but not *"what do you
+  DO?"* — and every consumer needing the latter had to re-derive it
+  from the tag. Carrying the law makes the structural questions
+  answerable at the object (``law.geometry_map.permutes_ordinates``,
+  ``law.response_kernel.is_zero``) instead of by string comparison.
 
 * **String-equality compatibility** (``bc == "vacuum"``) via the
-  :attr:`kind` attribute. Several SN-side tests rely on this
-  comparison. Since #290 P7b the tag is read off the LAW's own
-  registry key (``law.key`` — the single source of the kind string;
-  equal to the declared ``BC.kind`` because every admission-table
-  entry maps a tag to the law registered under that same key).
+  :attr:`kind` property. Several SN-side tests and five production
+  sites rely on this comparison; phase B2.2 repoints them at the law's
+  factors and retires the surface. Until then :attr:`kind` is a
+  *read-through* of the law's registry key — no longer a stored copy
+  that could drift from the law it claims to describe.
 
 * **Structural-predicate delegation** to the wrapped operator so
   consumers composing the shim with other Wave-0 primitives inherit
@@ -60,6 +70,8 @@ References
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Optional
+
 import numpy as np
 
 from orpheus.numerics.operator import (
@@ -71,11 +83,17 @@ from orpheus.numerics.operator import (
 )
 
 
+if TYPE_CHECKING:
+    from orpheus.numerics.space import FunctionSpace
+
+    from ._base import BoundaryTraceLaw
+
+
 __all__ = ["_BoundBoundaryOperator"]
 
 
 class _BoundBoundaryOperator(LinearOperator):
-    r"""Strict 1-arg passthrough wrapping a realized BC operator with a kind tag.
+    r"""A realized BC operator paired with the law it was realized from.
 
     The wrapped :attr:`inner` is a 1-arg realized
     :class:`~orpheus.numerics.operator.LinearOperator` produced by
@@ -85,32 +103,76 @@ class _BoundBoundaryOperator(LinearOperator):
     positional / keyword args raise :class:`TypeError` rather than
     being silently swallowed.
 
-    The structural predicates, ``apply_transpose``, and the
-    :class:`LinearOperator` dunders delegate to :attr:`inner`.
-    The optional :attr:`kind` tag carries the realized law's registry
-    key (``law.key`` — identical to the declared
-    :class:`~orpheus.geometry.mesh.BC` kind string, see the module
-    docstring) and is the basis for the
-    ``sn_mesh.bc["xmin"] == "reflective"`` style comparisons that
-    several SN tests rely on.
+    The structural predicates, ``apply_transpose``, ``domain`` /
+    ``codomain``, and the :class:`LinearOperator` dunders delegate to
+    :attr:`inner`; :attr:`law` is the descriptor :attr:`inner` was
+    realized from, and :attr:`kind` reads that law's registry key.
 
     Parameters
     ----------
     inner
-        Realized 1-arg :class:`LinearOperator`.
-    kind
-        Optional free-form string tag (``"vacuum"`` / ``"reflective"``
-        / etc.). When non-``None``, the shim compares equal to that
-        string via :meth:`__eq__`.
+        Realized 1-arg :class:`LinearOperator` — what the law *does*
+        on this face's trace space.
+    law
+        The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
+        ``inner`` was realized from — what the law *means*, and the
+        only thing that can answer a structural question about it.
+        **Required**: a realized boundary law that cannot say which law
+        it realizes is exactly the state phase B2 exists to delete, so
+        it is not constructible.
     """
 
     def __init__(
         self,
         inner: "LinearOperator",
-        kind: str | None = None,
+        law: "BoundaryTraceLaw",
     ) -> None:
         self.inner = inner
-        self.kind = kind
+        self.law = law
+
+    @property
+    def kind(self) -> Optional[str]:
+        r"""The realized law's REGISTRY KEY — a read-through, not a copy.
+
+        Reads ``type(self.law).key``, deliberately **not**
+        :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.kind`. The two
+        diverge for exactly one law: a partially-reflecting
+        :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary`
+        (``albedo != 1``) reports ``kind == "partial"`` — mirroring the
+        ``BC("partial", albedo=…)`` *declaration* vocabulary that
+        ``BC.to_alpha`` accepts (B0.1 ruling) — while its ``key`` stays
+        ``"reflective"`` for every albedo.
+
+        The key is what the pre-B2.0 shim stored, so this property is
+        behaviour-identical to it; reading ``law.kind`` here would
+        silently drop partially-reflecting faces out of the sweep
+        schedule's reflective set. **Phase B2.2 retires this surface
+        entirely** — the five production sites that compare it against
+        string literals are asking structural questions that
+        :attr:`law`'s two factors answer directly.
+
+        ``None`` for a law with no registry slot (an ad-hoc subclass
+        declared without ``key=``); the string comparison in
+        :meth:`__eq__` is then False against every string.
+        """
+        return type(self.law).key
+
+    # ── Function-space forwarding ────────────────────────────────────
+    #
+    # A transparent handle must forward the space tags too: an operator
+    # composed with this shim type-checks against ``inner``'s spaces, and
+    # the base ``LinearOperator`` default of ``None`` would silently skip
+    # the composability check (see ``LinearOperator.domain``) rather than
+    # perform it. Every other wrapper in the codebase forwards these;
+    # this one did not until B2.0.
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        return getattr(self.inner, "domain", None)
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        return getattr(self.inner, "codomain", None)
 
     @property
     def is_invertible(self) -> bool:

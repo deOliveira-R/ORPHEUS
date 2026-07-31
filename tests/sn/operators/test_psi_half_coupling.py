@@ -59,6 +59,7 @@ import pytest
 from numpy.typing import NDArray
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry.boundary import WhiteBoundary
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.boundary import (
@@ -754,11 +755,16 @@ class TestB_b_RayBoundary:
     def test_unruled_outer_law_is_loud_deferred(self, monkeypatch):
         r"""``kind ∈ {white, albedo, periodic}`` → ``NotImplementedError`` with the
         specific message (NEGATIVE law, anti-#11: a bare ``raises`` false-greens on
-        a downstream crash). Monkeypatch the xmax law kind (no white-sphere mesh
-        needed) — auto-reverts, never a git checkout."""
+        a downstream crash). Monkeypatch the xmax LAW (no white-sphere mesh
+        needed) — auto-reverts, never a git checkout.
+
+        B2.0 note: this used to patch the shim's ``kind`` STRING. That is no
+        longer settable (``kind`` derives from the law), and patching the law
+        is the stronger fixture anyway — the raise is now provoked by a real
+        :class:`WhiteBoundary`, not by a tag no law would have produced."""
         sn = _sphere(bc="reflective")
         B_b = RadialCharacteristicBoundaryOperator(sn)  # construct BEFORE the patch
-        monkeypatch.setattr(sn.bc["xmax"], "kind", "white")
+        monkeypatch.setattr(sn.bc["xmax"], "law", WhiteBoundary())
         seed_vals = np.random.default_rng(12).standard_normal(
             sn.radial_characteristic_field_space.shape[0])
         with pytest.raises(NotImplementedError, match="no ruled corner action yet"):

@@ -1,18 +1,28 @@
 r"""Tests for the post-Issue-#186 strict-1-arg shim.
 
-The :class:`_BoundBoundaryOperator` shim wraps a realized 1-arg
+The :class:`_BoundBoundaryOperator` shim pairs a realized 1-arg
 :class:`LinearOperator` produced by
-:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` and adds
-two thin surfaces:
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` with the LAW
+it was realized from, and adds three surfaces:
 
 * :meth:`apply(psi)` and :meth:`apply_transpose(psi)` — strict 1-arg
   passthroughs to the inner operator. The pre-#186 ``*_extra, **_kw``
   swallow affordance is gone; any test still calling
   ``bc.apply(psi, quad)`` would fail with ``TypeError``.
-* the structural predicates — delegate to the wrapped operator so
-  the shim composes cleanly with other Wave-0 primitives.
-* :attr:`kind` + ``__eq__`` against strings — preserves the legacy
-  ``sn_mesh.bc["xmin"] == "reflective"`` comparison surface.
+* the structural predicates and the function-space tags — delegate to
+  the wrapped operator so the shim composes cleanly with other Wave-0
+  primitives.
+* :attr:`law`, and :attr:`kind` + ``__eq__`` against strings —
+  :attr:`kind` preserves the legacy
+  ``sn_mesh.bc["xmin"] == "reflective"`` comparison surface, now as a
+  read-through of ``law``'s registry key.
+
+**Fixture discipline (B2.0).** Every ``(inner, law)`` pair below is one
+a realizer genuinely produces — vacuum with a mask / the zero map,
+reflective with a permutation, albedo with a scaled identity. The shim
+cannot check the pairing itself (realization is method-specific), so an
+arbitrary pairing here would silently teach a false correspondence to
+the next reader.
 
 History
 =======
@@ -24,13 +34,21 @@ kwarg that bound an :class:`AngularQuadrature` and forwarded
 Issue #188 (curvilinear trace support) eliminated
 the curvilinear-bypass code path. Issue #186 (B3 + β2) then dropped
 the ``*_extra, **_kw`` swallow on :meth:`apply` since every remaining
-caller is strict 1-arg.
+caller is strict 1-arg. Campaign phase **B2.0** made ``law`` a required
+constructor argument and turned ``kind`` from a stored string into a
+property of that law.
 """
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
+from orpheus.geometry.boundary import (
+    AlbedoBoundary,
+    BoundaryTraceLaw,
+    ReflectiveBoundary,
+    VacuumInflow,
+)
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.numerics.operator import (
     IdentityOperator,
@@ -50,7 +68,7 @@ def test_apply_is_strict_1_arg():
     1-arg :class:`LinearOperator` contract).
     """
     inner = IdentityOperator()
-    shim = _BoundBoundaryOperator(inner)
+    shim = _BoundBoundaryOperator(inner, AlbedoBoundary(albedo=1.0))
     psi = np.arange(12.0).reshape(4, 3)
     # 1-arg works
     np.testing.assert_array_equal(shim.apply(psi), psi)
@@ -70,7 +88,7 @@ def test_apply_transpose_forwards_when_inner_supports_it():
     """
     perm = np.array([2, 0, 1, 3])
     inner = PermutationOperator(perm, axis=0)
-    shim = _BoundBoundaryOperator(inner)
+    shim = _BoundBoundaryOperator(inner, ReflectiveBoundary())
     psi = np.arange(8.0).reshape(4, 2)
     np.testing.assert_array_equal(
         shim.apply_transpose(psi),
@@ -88,11 +106,11 @@ def test_predicates_delegate_to_inner():
     pin: same delegation contract, predicate spelling).
     """
     inner_perm = PermutationOperator(np.array([1, 0]), axis=0)
-    perm_shim = _BoundBoundaryOperator(inner_perm)
+    perm_shim = _BoundBoundaryOperator(inner_perm, ReflectiveBoundary())
     assert perm_shim.is_invertible == inner_perm.is_invertible is True
     assert perm_shim.is_adjointable == inner_perm.is_adjointable is True
 
-    zero_shim = _BoundBoundaryOperator(ZeroOperator())
+    zero_shim = _BoundBoundaryOperator(ZeroOperator(), VacuumInflow())
     assert zero_shim.is_invertible is False
     assert zero_shim.is_adjointable is True
 
@@ -104,7 +122,7 @@ def test_composes_with_operator_algebra():
     :class:`ScaledOperator`.
     """
     inner = IdentityOperator()
-    shim = _BoundBoundaryOperator(inner)
+    shim = _BoundBoundaryOperator(inner, AlbedoBoundary(albedo=1.0))
     psi = np.ones((3, 2))
     # scalar multiplication via __mul__
     scaled = 2.0 * shim
@@ -115,22 +133,91 @@ def test_composes_with_operator_algebra():
 
 
 def test_kind_tag_supports_legacy_string_equality():
-    """The shim accepts an optional ``kind`` tag and implements
-    ``__eq__`` against strings — preserves the legacy SN-side
+    """:attr:`kind` reads the LAW's registry key and ``__eq__`` compares
+    it against strings — preserving the legacy SN-side
     ``sn_mesh.bc["xmin"] == "reflective"`` comparison that
-    test_boundary_conditions.py + the BC-resolution diagnostic rely
-    on. Without a kind tag the comparison returns ``NotImplemented``
-    (so ``shim == "x"`` is False).
+    test_boundary_conditions.py + the BC-resolution diagnostic rely on.
+
+    B2.0 turned ``kind`` from a constructor string into a property of
+    :attr:`law`, so the tag can no longer be set to something the law
+    does not say.
     """
-    inner = IdentityOperator()
-    tagged = _BoundBoundaryOperator(inner, kind="vacuum")
+    tagged = _BoundBoundaryOperator(ZeroOperator(), VacuumInflow())
     assert tagged == "vacuum"
     assert tagged != "reflective"
 
-    # Untagged shim: string compare is NotImplemented → False from ==
-    untagged = _BoundBoundaryOperator(inner)
+    # A law with no registry slot reports ``kind is None``, and the
+    # string compare is then False against every string. Pre-B2.0 this
+    # was reachable by omitting ``kind=``; it is now reachable only
+    # through a law that never claimed a key — which is the honest
+    # spelling of "this operator's law has no tag".
+    class _Unregistered(BoundaryTraceLaw):  # no ``key=`` → not registered
+        pass
+
+    untagged = _BoundBoundaryOperator(IdentityOperator(), _Unregistered())
+    assert untagged.kind is None
     assert (untagged == "vacuum") is False
     assert (untagged == "anything") is False
+
+
+def test_kind_reads_the_registry_key_not_the_law_s_kind():
+    r"""The read-through targets ``law.key``, NOT ``law.kind`` — measured.
+
+    They agree for six of the seven laws and diverge for exactly one: a
+    partially-reflecting :class:`ReflectiveBoundary` reports
+    ``kind == "partial"`` (mirroring the ``BC("partial", albedo=…)``
+    declaration vocabulary — the B0.1 ruling) while its ``key`` stays
+    ``"reflective"`` for every albedo.
+
+    Pre-B2.0 the shim stored ``law.key``, so **the key is the
+    behaviour-preserving choice**; sourcing ``law.kind`` here would drop
+    partially-reflecting faces out of
+    ``sweep_schedule._reflective_faces``' ``== "reflective"`` set — a
+    semantic change wearing a refactor's clothes. This leg is what
+    reddens if someone "tidies" the property to the more obvious name.
+    """
+    partial = ReflectiveBoundary(albedo=0.7)
+    assert partial.kind == "partial"          # the LAW's own answer
+    assert type(partial).key == "reflective"  # the REGISTRY's answer
+
+    shim = _BoundBoundaryOperator(
+        PermutationOperator(np.array([1, 0]), axis=0), partial,
+    )
+    assert shim.kind == "reflective"
+    assert shim == "reflective"
+    assert shim != "partial"
+
+
+def test_shim_carries_the_law_it_was_realized_from():
+    """B2.0's whole content: the descriptor survives realization.
+
+    Before B2.0 ``sn_mesh.bc[face]`` was a realized operator plus a
+    string, so a consumer could ask what the face was *declared* as but
+    not what its law *does*. The five production string-dispatch sites
+    are that gap. The law's two affine factors are reachable here.
+    """
+    law = ReflectiveBoundary(axis="y", albedo=0.7)
+    shim = _BoundBoundaryOperator(
+        PermutationOperator(np.array([1, 0]), axis=0), law,
+    )
+    assert shim.law is law
+    # The structural questions the string sites are really asking.
+    assert shim.law.geometry_map.permutes_ordinates is True
+    assert shim.law.response_kernel.scalar == 0.7
+
+
+def test_space_tags_forward_to_inner():
+    """``domain`` / ``codomain`` delegate like every other wrapper.
+
+    A transparent handle that reported the base ``None`` default would
+    make composition checks *skip* silently rather than run (see
+    ``LinearOperator.domain``). The shim forwarded eight members and not
+    these two until B2.0.
+    """
+    inner = PermutationOperator(np.array([1, 0]), axis=0)
+    shim = _BoundBoundaryOperator(inner, ReflectiveBoundary())
+    assert shim.domain is getattr(inner, "domain", None)
+    assert shim.codomain is getattr(inner, "codomain", None)
 
 
 def test_shim_remains_hashable():
@@ -139,9 +226,9 @@ def test_shim_remains_hashable():
     distinct (different id), preserving the standard Python identity-
     of-instance semantics.
     """
-    inner = IdentityOperator()
-    a = _BoundBoundaryOperator(inner, kind="vacuum")
-    b = _BoundBoundaryOperator(inner, kind="vacuum")
+    inner = ZeroOperator()
+    a = _BoundBoundaryOperator(inner, VacuumInflow())
+    b = _BoundBoundaryOperator(inner, VacuumInflow())
     assert hash(a) != hash(b)  # distinct instances
     d = {a: 1, b: 2}
     assert d[a] == 1
@@ -161,18 +248,27 @@ def test_shim_is_not_re_exported_from_package():
     assert not hasattr(boundary_pkg, "_BoundBoundaryOperator")
 
 
-def test_shim_has_no_quadrature_attribute_after_176():
-    """Issue #176 / C176.1: the Wave-8/9 dual-mode shim's
-    ``quadrature=`` kwarg and ``_quadrature`` attribute are gone.
-    Pin the post-cleanup signature: ``__init__(inner, kind=None)``
-    has no quadrature parameter, and instances carry no
-    ``_quadrature`` attribute.
+def test_constructor_signature_is_inner_plus_law():
+    """The signature pin: ``__init__(inner, law)`` — nothing else.
+
+    Two retirements are pinned at once.
+
+    * Issue #176 / C176.1: the Wave-8/9 dual-mode ``quadrature=`` kwarg
+      and its ``_quadrature`` attribute are gone.
+    * Campaign B2.0: ``kind=`` is gone. A realized boundary law that
+      cannot say which law it realizes is the state B2 exists to
+      delete, so ``law`` is required and the tag is derived — a
+      caller can no longer hand the shim a string that contradicts it.
     """
-    inner = IdentityOperator()
-    shim = _BoundBoundaryOperator(inner, kind="vacuum")
+    inner = ZeroOperator()
+    shim = _BoundBoundaryOperator(inner, VacuumInflow())
     assert not hasattr(shim, "_quadrature")
     with pytest.raises(TypeError):
         _BoundBoundaryOperator(inner, quadrature="not_accepted")  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        _BoundBoundaryOperator(inner, kind="vacuum")  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        _BoundBoundaryOperator(inner)  # type: ignore[call-arg]
 
 
 # ═══════════════════════════════════════════════════════════════════════

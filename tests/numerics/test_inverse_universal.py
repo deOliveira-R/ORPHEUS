@@ -21,6 +21,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.numerics.operator import (
     DiagonalOperator,
@@ -250,7 +251,7 @@ def test_algebra_closed_inverses_unchanged():
 def test_bound_shim_forwards_inverse():
     """The NINTH advertiser: the shim forwards ``.inverse()`` (§12.5)."""
     inner = PermutationOperator(_P7)
-    shim = _BoundBoundaryOperator(inner, kind="reflective")
+    shim = _BoundBoundaryOperator(inner, ReflectiveBoundary())
     np.testing.assert_array_equal(
         shim.inverse().apply(_X7), inner.inverse().apply(_X7)
     )
@@ -258,7 +259,7 @@ def test_bound_shim_forwards_inverse():
     # promised deletion) — solving through the shim IS .inverse().apply.
     assert not hasattr(_BoundBoundaryOperator, "solve")
     masked = _BoundBoundaryOperator(  # non-invertible inner → propagate raise
-        DiagonalOperator(np.array([1.0, 0.0])), kind="vacuum"
+        DiagonalOperator(np.array([1.0, 0.0])), VacuumInflow()
     )
     with pytest.raises(NotInvertible):
         masked.inverse()

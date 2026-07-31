@@ -2428,8 +2428,10 @@ which is a self-adjoint, idempotent Wave-0 primitive that reports
 ``is_adjointable = True`` (:math:`M = M^{\mathsf T}`) and
 ``is_invertible = False`` (a rank-deficient projection — no inverse).
 
-Step 5 — wrap with a kind tag
------------------------------
+.. _bc-step5-pair-with-law:
+
+Step 5 — pair the realized operator back with its law
+-----------------------------------------------------
 
 Every ``SNMesh.bc[<face>]`` entry carries a uniform 1-arg
 ``apply(psi)`` contract (Wave 9 migrated 13 production sites from
@@ -2437,19 +2439,31 @@ Every ``SNMesh.bc[<face>]`` entry carries a uniform 1-arg
 surface to the face-name-keyed :attr:`~SNMesh.bc` dict — see
 :ref:`bc-face-name-carve`). Post Issue #186 / C-B3.4 the
 :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
-shim is a **strict 1-arg passthrough** that adds two pieces of
-metadata to the realized operator:
+shim is a **strict 1-arg passthrough**; campaign phase **B2.0** made
+what it passes through *both* faces of the realization:
 
-* a free-form ``kind`` string tag — since #290 P7b read off the
-  realized LAW's own registry key (``law.key``; identical to the
-  declared :class:`~orpheus.geometry.mesh.BC` kind because every
-  admission-table entry maps a tag to the law registered under that
-  same key) — load-bearing for the
+* the **law** the operator was realized from. The three-layer
+  architecture (:ref:`bc-overview-three-layers`) is descriptor →
+  realizer → operator, and until B2.0 this step *dropped the
+  descriptor*: the shim kept a copy of ``law.key`` — a **string** — and
+  nothing else. So ``sn_mesh.bc[face]`` could answer *"what were you
+  declared as?"* but not *"what does your law DO?"*, and the five
+  production sites needing the latter — ``sweep_schedule``'s reflective
+  set, the two ``_RULED_CORNER_KINDS`` gates on the radial-characteristic
+  boundary, ``solver``'s vacuum-leakage face list, and the DSA low-order
+  admission check — had no choice but to re-derive it by comparing that
+  string against literals. Handing ``law`` through makes the structural
+  questions answerable at the object —
+  ``bc[face].law.geometry_map.permutes_ordinates``,
+  ``bc[face].law.response_kernel.is_zero``;
+* a ``kind`` string tag, now a **read-through** of the law's registry
+  key rather than a stored copy — load-bearing for the
   ``sn_mesh.bc["xmin"] == "vacuum"`` string-equality surface that
-  several SN tests rely on;
+  several SN tests rely on, until phase B2.2 retires it;
 * :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
-  delegation to the wrapped inner operator so consumers composing the
+  delegation, and the ``domain`` / ``codomain`` function-space tags,
+  forwarded to the wrapped inner operator so consumers composing the
   shim with other Wave-0 primitives inherit the right surface.
 
 The shim's ``apply`` / ``apply_transpose`` signatures are strict
@@ -2464,7 +2478,27 @@ strict 1-arg.
 
    from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 
-   return _BoundBoundaryOperator(realized, kind=law.key)
+   return _BoundBoundaryOperator(realized, law)
+
+``law`` is **required**: a realized boundary law that cannot say which
+law it realizes is precisely the state phase B2 exists to delete, so it
+is not constructible.
+
+.. warning::
+
+   ``kind`` reads ``type(law).key``, deliberately **not** ``law.kind``.
+   The two agree for six of the seven laws and diverge for exactly one:
+   a partially-reflecting
+   :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary`
+   reports ``kind == "partial"`` — mirroring the ``BC("partial",
+   albedo=…)`` *declaration* vocabulary that ``BC.to_alpha`` accepts —
+   while its ``key`` stays ``"reflective"`` for every albedo. The key
+   is what the pre-B2.0 shim stored, so it is the behaviour-preserving
+   choice; sourcing the more obvious ``law.kind`` here would silently
+   drop partially-reflecting faces out of
+   ``sweep_schedule._reflective_faces``' ``== "reflective"`` set. That
+   is a semantic change wearing a refactor's clothes, and
+   ``tests/geometry/test_bound_compat.py`` reddens on it.
 
 The shim is **internal** to the package (not in :attr:`__all__`)
 — a test pins its private status.
@@ -4287,11 +4321,15 @@ by the curvilinear-realizer-unification arc
   sequence is therefore Issue #188 → #176 → #186: each step
   unblocked the next.
 
-The :class:`_BoundBoundaryOperator` shim survives because the
-``kind``-string tag is load-bearing for the BC-resolution
-diagnostic and several ``sn_mesh.bc["xmin"] ==
+The :class:`_BoundBoundaryOperator` shim survives because a resolved BC
+must carry **both faces of its realization** — what it does
+(:attr:`inner`) and what it means (:attr:`law`, since phase B2.0). Its
+``kind``-string tag is the older, weaker reason: load-bearing for the
+BC-resolution diagnostic and several ``sn_mesh.bc["xmin"] ==
 "vacuum"``-style test sites (the dict-keyed spelling since C4 / #220;
-this was ``sn_mesh.bc_left == "vacuum"`` pre-C4); the dual-mode
+this was ``sn_mesh.bc_left == "vacuum"`` pre-C4), and now a read-through
+of ``law`` rather than a stored copy — phase B2.2 retires it, and the
+shim survives that retirement on the descriptor alone. The dual-mode
 bound-quadrature
 backing is gone (#176), and the ``*_extra, **_kw`` swallow is
 gone (#186 / C-B3.4). Every supported mesh consumes a strict

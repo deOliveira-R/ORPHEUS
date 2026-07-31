@@ -81,8 +81,12 @@ The resolved BCs at ``sn_mesh.bc["xmin"]`` etc. expose the uniform
 shim — internal to the package, not in
 :attr:`orpheus.geometry.boundary.__all__`. Post Issue #186 the
 shim is a **strict 1-arg passthrough** (extra args raise
-:class:`TypeError`); it carries the originating ``BC.kind`` string
-so the ``sn_mesh.bc["xmin"] == "vacuum"`` diagnostic
+:class:`TypeError`); since campaign phase **B2.0** it carries the
+originating **law** itself, so a resolved BC can be asked what its law
+*does* (``bc[face].law.geometry_map``,
+``bc[face].law.response_kernel``) and not merely what it was declared
+as. Its ``kind`` tag now reads that law's registry key, so the
+``sn_mesh.bc["xmin"] == "vacuum"`` diagnostic
 comparison continues to evaluate True iff the underlying law is
 :class:`VacuumInflow`. (C4 / #220 re-keyed this surface from the
 per-attribute ``sn_mesh.bc_left`` to the face-name-keyed
@@ -353,7 +357,8 @@ own :class:`~orpheus.transport.mesh.axis.FaceLabel` —
 dimension by construction (C4 / #220; see
 :ref:`bc-face-name-latent-d3-bug`). The
 :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
-shim wraps the result with a ``kind`` tag for the
+shim pairs the result back with the law it was realized from; its
+``kind`` tag reads that law's registry key, serving the
 ``sn_mesh.bc["xmin"] == "vacuum"`` string-equality surface.
 
 .. note::
