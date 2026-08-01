@@ -1060,6 +1060,25 @@ smell B2 removes.
   and it becomes reachable the moment **#189** admits partial reflectors.
 
 > ⏸ **COMPACTION POINT.**
+>
+> **RE-ANCHOR HERE (2026-07-31).** B0, B1, B2 **and B3.0/B3.1/B3.2 are landed**, plus a
+> full doc-correctness repair. **NEXT = B3.4, THEN B3.3** (user ruling: the mask
+> retirement is cheap and independent; the un-narrowed laws are what block the algebra).
+>
+> | phase | commit |
+> |---|---|
+> | B3.0 — the G/R correction + the response-kernel tier | `9e2139b4` |
+> | B3.1 — mint `TraceRestrictionOperator` (`γ±`) | `b39502f8` |
+> | B3.2 — narrow the SN law's domain to `Γ₊` | `7f02de15` |
+> | doc repair — every claim B3.0–B3.2 falsified | `b11a2ce3` |
+>
+> **The B3.4 brief is §9.3 of `.claude/plans/b3_domain_narrowing_crosswalk.md`** — read it
+> before touching code; it carries the six-rows/four-kinds scope, the three design rulings,
+> and the measured traps. **Verify merge status against `git log`, never against this
+> file** (`.claude/rules/process-discipline.md`).
+>
+> Baselines to beat: full tree `-m "not slow"` **4335 passed / 6 skipped / 73 xfailed /
+> 0 failed**; `npx pyright orpheus/` **= 1** (the #288 floor); `sphinx -E -W` exit 0.
 
 ## B3 — Narrow the SN law's domain to `Γ₊` *(the root fix — obeys C-1)*
 

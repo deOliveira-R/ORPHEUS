@@ -439,6 +439,90 @@ stayed **green** — the §9.1 complementarity, reproduced.
 
 ---
 
+## 9.3 ⏸ COMPACTION POINT — the B3.4 brief
+
+**State: B3.0 `9e2139b4` · B3.1 `b39502f8` · B3.2 `7f02de15` · doc repair `b11a2ce3`.
+27 commits ahead of main on `refactor/operator-strategy-layers`. NEXT = B3.4, THEN B3.3**
+(user ruling 2026-07-31 — the mask retirement is cheap and independent; the un-narrowed
+laws are what block the algebra). **Verify all of this against `git log`, never against a
+summary.**
+
+### What B3.4 must build — SIX rows across FOUR kinds, not the three first claimed
+
+`[M]` Measured, and the count matters because a shape assertion cannot find them
+(`|Γ₊| == |Γ₋|` everywhere):
+
+| law | today's realization | why it is un-narrowed |
+|---|---|---|
+| `albedo(α=0)` | bare `ZeroOperator()` | endomorphic — no space hooks |
+| `albedo(α=1)` | bare `IdentityOperator()` | endomorphism |
+| `albedo(α∉{0,1})` | `α·(I & I)` | endomorphism |
+| `periodic` | `PeriodicWrapOperator & I` | angular identity-with-copy |
+| `white` | `AngularAverageOperator & I` | full-`N` contract-then-broadcast |
+| `prescribed_inflow` | `IncomingSourceOperator` | **raises** `ordinate axis mismatch` |
+
+All unreachable from a `BC` tag (SN admits `{vacuum, reflective}`), so the tree is green —
+but the **16 strict xfails are the todo list**, `--runxfail`-verified to red for their own
+reasons, and the B3.4 subset was proven to **flip** under a landing simulation.
+
+### The three design rulings B3.4 executes
+
+1. **Albedo's gap is an incomplete `R`, not an empty `G`.** `ScalarResponse(α)` gives the
+   magnitude but not the angular distribution of the returning flux: complete on a scalar
+   trace (one dof), incomplete on an angular one. Give it an explicit **re-emission
+   closure**, after which `albedo(α, isotropic) ≡ white(α)` and
+   `albedo(α, specular) ≡ reflective(α)` are **theorems**, not coincidences — and the
+   specular closure moves its content across into `G`, exactly as the membership criterion
+   predicts. **The closure belongs on the LAW**: it is the tier-1-vs-tier-2 distinction
+   (§7 / `bc-method-realizability`), and a method that cannot see the choice — diffusion,
+   by construction — must not be the one making it.
+2. **Periodic's `G` is the translation reading the PARTNER face's `Γ₊`.** B1 already gave
+   the law its `axis` field so the realizer derives the partner from the installation face.
+   ⚠ **This breaks the per-face block-diagonality** that `_reflect_trace`'s docstring leans
+   on to justify the Gauss-Seidel subset restriction being *exact* ("B is block-diagonal
+   over faces, so the subset action is the EXACT restriction"). That justification must be
+   re-derived or the schedule re-posed — **do not let it pass silently**; it is the phase's
+   real work and wants a user checkpoint before a shape is committed.
+3. **B3.4 owns the domain guard.** `[M]` The narrowed law does **not** validate its own
+   domain — vacuum's `ZeroOperator` and reflective's `TensorProductOperator` both accept a
+   full-face input and return `|Γ₋|` rows of *wrong values, no raise*. Unreachable through
+   `_reflect_trace` (always fed a guarded `γ₊.apply`) but reachable through
+   `sn.bc[face].apply`. Shipped as **RG-3b**, 4 strict xfails. It lands here because B3.4
+   restructures the realizer around `R ∘ G` for all seven laws — one place, not seven
+   copies.
+
+### What B3.4 unblocks / retires
+
+- **6 mixed-BC gates**: a narrowed law cannot compose with an un-narrowed one, so
+  `0.3·specular + 0.7·white` raises on both domains.
+- **`SNMethodSpace.minimal` becomes a partial constructor that can realize nothing** — a
+  retirement candidate, not a fixture. Decide explicitly (coding-standards: never let a
+  superseded path sit half-alive).
+- `OperatorProduct`'s composition guard stops being vacuous once the operators carry real
+  spaces — B4 then composes `R ∘ G` under a guard that actually checks something.
+
+### Traps carried in (all measured, all cost real time)
+
+- **`ScaledOperator(0.0, …)` REFUSES a zero scalar.** A landing simulation built on it made
+  an xfail swallow a `ValueError` and falsely read "didn't flip" — Mode 8 class 4.
+- **`to_local`, two sites, complementary fixtures** — §9.1. Neither covers the other.
+- **The fourth search**: a signature change to a widely-consumed handle owes a **full-suite
+  run BEFORE the commit**. Duck-typed surrogates are invisible to graph, grep and typecheck.
+- **Doc correctness is not deferrable** (user ruling, now in
+  [[feedback-articulation-lossless-disassembly]]): fix falsified prose in the SAME change,
+  present-tense-false is the bug, past-tense history stays.
+
+### Gates B3.4 must clear
+
+`np.array_equal` bit-identity for the laws that already worked; the seven-law domain gate
+with its xfails **deleted** (an XPASS(strict) failure is the point); the mutation harness at
+`scratch/b3_2_mutations.py` (`ORPHEUS_B32=N1…N9|M1|M2`) still catching what it caught;
+full tree `-m "not slow"` at **4335 passed / 6 skipped / 73 xfailed / 0 failed** or better,
+minus the xfails B3.4 legitimately deletes; `npx pyright orpheus/` = **1** (the #288 floor);
+`sphinx -E -W` exit 0.
+
+---
+
 ## 10. Watch item — a sixth dead-capability instance
 
 `[G]` `BoundaryGeometryMap.is_adjointable` and its concrete implementations have
