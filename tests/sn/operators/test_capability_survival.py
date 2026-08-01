@@ -93,13 +93,19 @@ def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
 
 
 class TestIncomingSourceOperatorIsUnclassified:
-    """The rank-0 affine inflow source carries NO block role — it is the
+    r"""The rank-0 affine inflow source carries NO block role — it is the
     boundary *source* ``q.boundary``, not a linear boundary operator ``B``.
     Pins the bare-mixin ``None`` default survives the ``[D, C]`` re-typing
-    (RC 3 ∩ RC 1)."""
+    (RC 3 ∩ RC 1).
+
+    B3.4a: ``n_inflow`` is now a REQUIRED keyword — the operator's codomain
+    is :math:`\Gamma_-`, and the source is asked to fill exactly that many
+    rows. The value is irrelevant to the block-role claim; it is the
+    :math:`|\Gamma_-|` of the module's 4-ordinate slab fixture.
+    """
 
     def test_default_block_role_is_none(self) -> None:
-        op = IncomingSourceOperator(NoSource())
+        op = IncomingSourceOperator(NoSource(), n_inflow=2)
         assert op.block_role is None
         assert not isinstance(op, BulkOperator)
         assert not isinstance(op, FullOperator)
@@ -117,7 +123,7 @@ class TestIncomingSourceOperatorCapabilities:
     becomes "spurious predicate True", still caught)."""
 
     def test_surface_is_exactly_apply_only(self) -> None:
-        op = IncomingSourceOperator(ConstantInflowSource(value=2.5))
+        op = IncomingSourceOperator(ConstantInflowSource(value=2.5), n_inflow=2)
         assert not op.is_invertible and not op.is_adjointable
         assert not hasattr(op, "inverse")
         assert callable(getattr(op, "apply", None))

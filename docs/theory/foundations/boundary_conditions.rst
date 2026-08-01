@@ -750,7 +750,9 @@ own:
        dense inflow-mask multiply
      - :math:`\iota_- \circ \gamma_-` (measured bit-identical to the
        slice-write)
-     - retained — the rank-0 affine source is not a linear law
+     - **dissolved** at B3.4a — the source is now asked to fill
+       :math:`|\Gamma_-|` rows directly, so there is nothing off
+       :math:`\Gamma_-` left to erase
    * - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
      - :math:`I - \iota_- \circ \gamma_-`
      - **off the vacuum path** at B3.2; the class itself retires at
@@ -791,31 +793,266 @@ sets have nothing to hand each other.
       anti-Mode-12 leg, which interrogates the emitted operator's
       declared spaces rather than its output shape, found them.
 
-**Only vacuum and reflective are narrowed today.** Measured at B3.2:
-the un-narrowed remainder is **six realizer rows across four law
-kinds** — ``white``, ``periodic``, and ``albedo`` at *three* separate
-rows (:math:`\alpha = 0` and :math:`\alpha = 1` take fast paths
+**Four of the seven laws are narrowed today; two remain.** B3.2
+narrowed the two laws SN reaches from a mesh — ``vacuum`` and
+``reflective`` — and measured the remainder then as *six* realizer rows
+across four law kinds. **B3.4a** took two of those kinds:
+
+* ``white``, whose Lambertian kernel now contracts over
+  :math:`\Gamma_+` and re-emits on :math:`\Gamma_-`
+  (:ref:`bc-narrowing-b34a`); and
+* ``prescribed_inflow``, whose rank-0 source now fills
+  :math:`|\Gamma_-|` rows directly.
+
+What remains is **four rows across two law kinds** — ``albedo`` at
+*three* rows (:math:`\alpha = 0` and :math:`\alpha = 1` take fast paths
 returning a bare :class:`~orpheus.numerics.operator.ZeroOperator` /
 :class:`~orpheus.numerics.operator.IdentityOperator`, which are
 **endomorphisms**, and :math:`\alpha \notin \{0,1\}` scales an
-identity), plus ``prescribed_inflow``, which now *raises* an ordinate-
-axis mismatch because its dense inflow mask covers all :math:`N` rows
-while :math:`\gamma_+` hands it :math:`|\Gamma_+|`. All six are
-unreachable in production — the SN registry admits only
-``{vacuum, reflective}`` — so the tree is green; they are pinned by
-strict xfails (B3.2 committed **16**, each ``--runxfail``-verified to
-red for *its own* documented reason, with the B3.4 subset proven to
-flip under a landing simulation). Campaign phase **B3.4** restructures
-the realizer around :math:`R \circ G` for all seven laws, which is the
-one place a per-law domain guard belongs: adding it now would be seven
-copies of what B3.4 collapses into one. Two consequences to carry
-meanwhile — a narrowed law **cannot compose with an un-narrowed one**
-(``0.3·specular + 0.7·white`` raises on both domains, so six mixed-BC
-gates are B3.4-blocked), and ``SNMethodSpace.minimal`` is now a
-**partial constructor**: a quadrature alone cannot name a *face's*
-:math:`\Gamma_+`, so it no longer suffices for vacuum or reflective.
-Face orientation is now a structural demand of realization, not an
-implementation detail.
+identity), plus ``periodic``. Both are blocked on a **design ruling**,
+not on plumbing: albedo is under-determined on an angular trace
+(:math:`R = \alpha\,I` is a :math:`\Gamma_+ \to \Gamma_+` endomorphism
+and its :math:`G = \mathrm{IdentityMap}` supplies no crossing), so
+**B3.4b** must give it an explicit re-emission closure carried in
+:math:`R`; periodic's :math:`G` reads the PARTNER face's
+:math:`\Gamma_+`, which **B3.4c** builds (#183, #189). Measured on both:
+they silently accept a :math:`\Gamma_+` input and echo it back — i.e.
+:math:`\Gamma_+ \to \Gamma_+`, the wrong codomain, invisible to a shape
+check (vv Mode 12 again). All four are unreachable in production — the
+SN registry admits only ``{vacuum, reflective}`` — so the tree is
+green; they are pinned by strict xfails, each ``--runxfail``-verified
+to red for *its own* documented reason.
+
+Two consequences to carry meanwhile. First, a narrowed law **cannot
+honestly compose with an un-narrowed one**: the sum of a
+:math:`\Gamma_+ \to \Gamma_-` leaf and a :math:`\Gamma_+ \to \Gamma_+`
+one has no well-typed codomain. Note that this **no longer announces
+itself as a raise** — since B3.4a, ``0.3·specular + 0.7·white`` is a
+sum of two narrowed leaves and is simply correct, while
+``0.3·specular + 0.7·albedo`` *runs* and returns
+:math:`|\Gamma_-|`-shaped output that is silently wrong, because
+:math:`|\Gamma_+| = |\Gamma_-|` swallows the mismatch. The Mode-12
+lesson applies to the *algebra* as well as to the leaves.
+
+Second, ``SNMethodSpace.minimal`` is now a **partial constructor**: a
+quadrature alone cannot name a *face's* :math:`\Gamma_+`, so it no
+longer suffices for any of the four narrowed laws — only ``albedo`` and
+``periodic`` still realize from it, and precisely because they have not
+yet been narrowed. Face orientation is a structural demand of
+realization, not an implementation detail.
+
+
+.. _bc-narrowing-b34a:
+
+B3.4a — narrowing white and prescribed inflow, and what dissolved
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The two laws B3.4a narrowed are the campaign's cleanest illustration of
+its thesis: **a too-wide codomain does not merely cost rows, it buys
+bugs, and narrowing does not fix them — it makes them unspellable.**
+Each law arrived carrying a correction for a defect that the narrowing
+then removed the possibility of, so in both cases the shipped diff
+*deletes* the correction rather than repairing it.
+
+**White — the outflow classifier that had a twin.** Pre-B3.4a
+:class:`~orpheus.sn.boundary.angular.AngularAverageOperator` was a
+full-face endomorphism whose ``cos_w`` carried :math:`N` entries zeroed
+off the outgoing hemisphere by its OWN test,
+``(outward_sign * mu_n) > 0.0``. That is a **second outflow
+classifier**, and it disagreed with the trace space's wherever a
+quadrature carries tangential ordinates, because the trace space
+classifies against ``TANGENTIAL_EPS`` while a strict ``> 0.0`` compare
+does not. Measured at ``xmax``:
+
+.. list-table:: Tangential ordinates, and where the two classifiers diverge
+   :header-rows: 1
+   :widths: 30 14 22 34
+
+   * - Quadrature
+     - :math:`N`
+     - tangential at a face
+     - rows the ``> 0.0`` test claims that :math:`\Gamma_+` does not
+   * - ``gauss_legendre(8)``
+     - 8
+     - 0
+     - 0 — which is why the twin never surfaced in slab tests
+   * - ``product(2, 4)``
+     - 8
+     - **4**
+     - **2** — the two whose :math:`\Omega\cdot\hat n` round-off is
+       *positive*; the composite diverged by ``6.1e-05`` on a cylinder
+   * - ``lebedev(9)``, ``lebedev(17)``
+     - 38, 110
+     - 12 on *every* face
+     - **0 on every face** — the band's round-off falls on the
+       non-positive side, so the two classifiers happen to agree
+   * - ``level_symmetric(4)``, ``level_symmetric(6)``
+     - 24, 48
+     - 0
+     - 0
+
+Read that last column carefully: a quadrature can carry many tangential
+ordinates and still expose no disagreement, because what matters is not
+how many sit in the band but **which side of zero their round-off falls
+on**. Measured over the whole production inventory
+(``gauss_legendre`` 4/8, ``product`` 2×4 / 3×4 / 4×8, ``lebedev`` 9/17,
+``level_symmetric`` 4/6) across all six face names, the disagreement
+occurs **only for the** ``product`` **family, and there only on**
+``xmax`` / ``xmin`` / ``ymax`` — ``ymin`` carries the same tangential
+count with zero mis-admissions, because the sign flip moves the
+round-off across zero. ``lebedev`` has twelve tangential ordinates per
+face and mis-admits none anywhere; ``level_symmetric`` has none at all.
+
+Two consequences worth carrying. A tangential-count audit is **not** a
+sufficient screen for this bug class — only using one classifier is.
+And the exposure is *face-asymmetric within a single quadrature*, so a
+fixture that exercises one face of a ``product`` rule can be green
+while its opposite face is wrong.
+
+:meth:`AngularAverageOperator.from_quadrature
+<orpheus.sn.boundary.angular.AngularAverageOperator.from_quadrature>`
+keeps its ``(quadrature, axis, outward_sign)`` signature but now
+renders ``(axis, outward_sign)`` as the face NAME and hands it to
+:func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n`
+— the codebase's single face-name :math:`\to` signed-projection
+primitive — classifying against ``TANGENTIAL_EPS`` exactly as the trace
+space does. With the domain narrowed the operator classifies **nothing**:
+it is *handed* :math:`\Gamma_+`. The twin is not fixed, it is
+unspellable, and every ``cos_w`` entry is now strictly positive by
+construction rather than mostly zero — which is why the constructor
+guard tightened from ``>= 0`` to ``> 0``.
+
+**Prescribed inflow — the mask that dissolved.** An
+:class:`~orpheus.geometry.boundary.InflowSourceSpec` fills whatever
+block *shape* it is handed; it carries no trace knowledge. So pre-B3.4a
+:class:`~orpheus.sn.boundary.angular.IncomingSourceOperator` emitted a
+full-face block and then zeroed every non-inflow ordinate — outflow AND
+tangential — to make :math:`q \in \Gamma_-` hold. With the codomain
+narrowed it simply asks the spec to fill ``(|Γ₋|,) + psi_out.shape[1:]``:
+the rows the mask used to zero are not in the codomain to be emitted
+on, so **ERR-047 is closed by the TYPE rather than by an erasure**.
+That is precisely the dissolution vacuum's projector underwent at B3.2
+— the mask was never load-bearing physics, only the cost of a codomain
+that was too big. Its companion, an *unmasked* fallback branch legal
+only for :math:`q \equiv 0`, retired with it: post-B3.2 every
+realization needs :math:`\gamma_+` too, so a method space with no face
+data cannot reach the operator at all and the branch was already
+unreachable on the realize path.
+
+**Equivalence — and the reason two DIFFERENT effects both measure at
+1 ULP.** White's operator was measured against a reconstruction of the
+pre-B3.4a body over an :math:`\mathcal{O}(1)` random probe, six seeds:
+
+.. list-table:: Old-vs-new, and which effect produces the difference
+   :header-rows: 1
+   :widths: 26 10 16 22 26
+
+   * - Quadrature
+     - face
+     - rows the ``> 0.0`` test mis-admits
+     - old vs new on an :math:`\mathcal{O}(1)` probe
+     - cause
+   * - ``gauss_legendre(8)``
+     - ``xmax``
+     - 0
+     - **bit-identical**, every seed
+     - — (padding with exact zeros is bit-neutral here)
+   * - ``level_symmetric(6)``
+     - ``xmax``
+     - 0
+     - **bit-identical**, every seed
+     - —
+   * - ``level_symmetric(6)``
+     - ``ymax``
+     - 0
+     - ``1.11e-16`` / ``5.55e-17`` (:math:`\le` 1 ULP)
+     - **reduction order only**
+   * - ``lebedev(17)``
+     - ``xmax``, ``ymax``
+     - 0
+     - ``1.11e-16`` / ``5.55e-17`` (:math:`\le` 1 ULP)
+     - **reduction order only**
+   * - ``product(2, 4)``
+     - ``xmax``, ``ymax``
+     - **2**
+     - :math:`\le` 1 ULP — *and this is the trap*
+     - **the classifier twin**, masquerading as noise
+
+Two mechanically different things are being measured, and on a
+well-scaled probe they are **indistinguishable**.
+
+Where the classifiers agree (every quadrature but ``product``), the
+only change is that the sum now runs over the restricted
+:math:`|\Gamma_+|`-entry array instead of a zero-padded
+full-:math:`N` one, so the floating-point reduction ORDER changed and
+addition is not associative. That is *not* an error and *not* a
+regression — it is the ``vv-principles`` **principled-equivalence**
+case: a named intermediate (the cosine-weighted current over
+:math:`\Gamma_+`) replacing an unnamed zero-padded one, drift bounded
+by reduction depth :math:`\times` ULP.
+
+Where the classifiers **disagree**, the change is a genuine VALUE
+correction that merely *looks* like noise. At ``product(2, 4)``,
+``xmax``, the four tangential ordinates carry
+:math:`\Omega\cdot\hat n` of :math:`+5.0\times10^{-17}` (twice) and
+:math:`-1.5\times10^{-16}` (twice) — round-off, not exact zero — so a
+strict ``> 0.0`` test admits the two positive ones into
+:math:`\Gamma_+` while the trace space calls all four tangential. The
+resulting spurious weights are :math:`7.85\times10^{-17}` against a
+normalization of :math:`2.5651`, so the **denominator is unchanged to
+the last bit** (measured :math:`\Delta\text{norm} = 0.0` exactly) and
+the whole discrepancy lives in the NUMERATOR — where it is
+:math:`\psi`-weighted. It therefore scales with the flux carried on
+the mis-admitted rows and is **not bounded by floating point**:
+measured **6.1e-05** relative when those rows carry :math:`10^{12}`
+times the genuine outflow flux, which is the regime the cylinder
+composite hit.
+
+.. warning::
+
+   **Do not read the 1-ULP row for** ``product(2, 4)`` **as evidence
+   of equivalence.** An :math:`\mathcal{O}(1)`-scaled probe cannot
+   separate a reduction-order artefact from a mis-classified-ordinate
+   bug, because the offending weight is itself :math:`\mathcal{O}(\epsilon)`
+   — the error only becomes visible once the *flux ratio* between the
+   tangential and outflow rows is large. This is why the twin survived
+   in-tree: every equivalence measurement was taken on a well-scaled
+   probe, and ``gauss_legendre`` (the slab default) carries no
+   tangential ordinates at all, so it could not see the disagreement
+   under any probe. The narrowing is justified structurally — one
+   classifier, not two — not by the ULP table.
+
+**And one guard was added, not removed.**
+:class:`~orpheus.geometry.boundary.WhiteBoundary` declares its own
+``axis`` / ``outward_sign`` while the method space independently names
+the face — two encodings of ONE orientation, and until B3.4a nothing
+compared them. A white law declared for ``x`` and installed on
+``ymin`` averaged over the wrong hemisphere and reported nothing.
+``SNBoundaryRealizer``'s ``_checked_angular_average`` now cross-checks
+them, raising a :class:`~orpheus.geometry.boundary.BoundaryError` with
+``law="white"`` on a mismatch. It is the same shape as the vacuum arm's
+ERR-041 guard, and — critically — it compares index **SETS**, not
+sizes: :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature in the tree
+would make a size comparison Mode-12 blind. On the canonical
+:meth:`SNMesh.realize_boundary_law
+<orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law>` path both
+encodings derive from the same face label, so the guard is green by
+construction; it bites on hand-built method spaces and on a
+mis-declared law.
+
+**Two things B3.4a deliberately did NOT do.** It did not type the
+Lambertian kernel as the rank-one :math:`u \otimes v` it now visibly is
+(with :math:`u = \mathbf{1}_{\Gamma_-}` and :math:`v =
+\cos w / \mathrm{norm}` on :math:`\Gamma_+`) — that is phase **B5**,
+which is what makes its adjoint structurally available, and it carries
+the Euclidean-vs-cosine-metric transpose question with it. And it did
+not give the narrowed laws a domain **validator**: white happens to
+refuse a full-face input (because
+:meth:`AngularAverageOperator.apply
+<orpheus.sn.boundary.angular.AngularAverageOperator.apply>` checks
+``psi.shape[0]``), while prescribed inflow ignores its input entirely
+and so has nothing to validate against. Refusal and non-endomorphism
+are separate properties; see the warning at :ref:`bc-worked-example`.
 
 
 .. _bc-realizer-layer:
@@ -2117,7 +2354,14 @@ axis-aligned faces these arise exactly (no round-off) for face
 normals perpendicular to the ordinate's direction cosine; for
 general curvilinear faces or generic ordinates they arise only
 at a measure-zero subset that the discrete representation
-identifies via a small tolerance (``_TANGENTIAL_EPS = 1e-12``).
+identifies via a small tolerance
+(``TANGENTIAL_EPS = 4 * np.finfo(np.float64).eps``, i.e.
+:math:`\approx 8.9\times 10^{-16}`, in
+:mod:`orpheus.numerics.spaces.angular_trace_space`). That constant is
+the codebase's ONE outflow/inflow classifier: campaign phase **B3.4a**
+retired the white operator's private ``> 0.0`` twin precisely because a
+strict compare disagrees with it wherever a quadrature carries
+tangential ordinates (:ref:`bc-narrowing-b34a`).
 
 In the discrete setting, the spatial boundary is a union of finite
 faces :math:`\{f_1, \ldots, f_F\}` and the angular variable is a
@@ -2152,11 +2396,15 @@ the load-bearing primitive that downstream consumers need:
   (:ref:`bc-domain-narrowing`).
 * The universal invariant
   :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
-  uses the inflow mask to validate that a
-  :class:`~orpheus.geometry.boundary.InflowSourceSpec` has no nonzero
-  entries on outflow ordinates (per
-  :class:`~orpheus.geometry.boundary.BoundarySourceNotOnIncomingTraceError`,
-  ERR-047).
+  reads the inflow set as a **presence** check, not an entry-wise one:
+  it probes the source's support on the per-ordinate shape and raises
+  :class:`~orpheus.geometry.boundary.BoundarySourceNotOnIncomingTraceError`
+  (ERR-047) when a nonzero :math:`q` is realized against a space that
+  cannot name :math:`\Gamma_-` at all. When the face CAN name it, the
+  delivery guarantee is structural: since **B3.4a** the realizer sizes
+  the source's block from :math:`|\Gamma_-|`, so :math:`q \in \Gamma_-`
+  holds by typing (pre-B3.4a it held because the realized operator
+  masked a full-face evaluation — see :ref:`bc-narrowing-b34a`).
 * The SN curvilinear sweep (1-D spherical / cylindrical) consumes
   the same realizer-routed mask as the Cartesian path — Issue #188
   (C188.1+C188.2 in :mod:`orpheus.numerics.spaces.angular_trace_space`, C188.3 in
@@ -2396,7 +2644,11 @@ trace-sized, NOT rank-1.
    with the specular closure moving its content across into
    :math:`G_\alpha` — which is exactly what the
    :ref:`membership criterion <bc-factor-roles>` predicts. Campaign
-   phase B3.4; issue **#189**.
+   phase **B3.4b** — which is also what blocks albedo's domain
+   narrowing: without that closure, :math:`R = \alpha\,I` is a
+   :math:`\Gamma_+ \to \Gamma_+` endomorphism and albedo's
+   :math:`G = \mathrm{IdentityMap}` supplies no crossing, so there is
+   nothing to narrow *onto*. Issue **#189**.
 
 Periodic is a **spatial pushforward** pairing opposite faces. Marshak /
 partial-current boundaries are rank-N via the
@@ -2688,11 +2940,19 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        here rather than re-assumed — ``to_local`` raises if the mirror
        sent an inflow ordinate anywhere but :math:`\Gamma_+`.
      - ``ScaledOperator(α, <that TP>)``
-   * - :class:`WhiteBoundary(axis, outward_sign, α)` — **not yet
-       narrowed** (B3.4)
+   * - :class:`WhiteBoundary(axis, outward_sign, α)` — **narrowed**
+       (B3.4a)
      - ``AngularAverageOperator.from_quadrature(quad, axis,
-       outward_sign) & IdentityOperator()`` — a full-:math:`N`
-       **endomorphism**
+       outward_sign) & IdentityOperator()`` — the Lambertian kernel
+       contracts over :math:`\Gamma_+` and broadcasts one scalar over
+       :math:`\Gamma_-`. Both half-traces come from the single
+       face-name :math:`\to` signed-projection primitive classified
+       against ``TANGENTIAL_EPS``, so the operator's old private
+       ``> 0.0`` outflow test — a second classifier that disagreed with
+       the trace space on any quadrature carrying tangential ordinates
+       — is gone. The law's declared ``axis`` / ``outward_sign`` is
+       cross-checked against the installation face's :math:`\Gamma_+`
+       (index SETS, not sizes) before construction.
      - ``ScaledOperator(α, <that TP>)``
    * - :class:`AlbedoBoundary(α)` with α=0 — **not yet narrowed**
      - :class:`~orpheus.numerics.operator.ZeroOperator` (bare, so an
@@ -2710,30 +2970,40 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
      - ``PeriodicWrapOperator() & IdentityOperator()``
        (today an angular identity; the spatial pushforward the
        :class:`~orpheus.geometry.boundary.SpatialWrap` spec names is
-       unbuilt — issue **#183**, campaign phase B3.4)
+       unbuilt — issue **#183**, campaign phase B3.4c, which is also
+       what its domain narrowing waits on: periodic's :math:`G` reads
+       the PARTNER face's :math:`\Gamma_+`)
      - n/a (periodic has no α parameter)
    * - :class:`PrescribedInflow(source)` — rank-0 **affine**, not a
-       linear law
+       linear law; **narrowed** (B3.4a)
      - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
-       — :meth:`apply` ignores the outgoing flux and returns
-       ``source.evaluate(probe_inflow_trace)`` masked to the face's
-       inflow ordinates (ERR-047). Since B3.2 this arm **raises** an
-       ordinate-axis mismatch when reached through the narrowed
-       consumer: its dense mask covers all :math:`N` rows while
-       :math:`\gamma_+` hands it :math:`|\Gamma_+|`. Unreachable in
-       production (the SN registry admits only
-       ``{vacuum, reflective}``); pinned by a strict xfail for B3.4.
+       — :meth:`apply` ignores the outgoing flux and asks the source
+       spec to fill ``(|Γ₋|,) + psi_out.shape[1:]``. The dense inflow
+       **mask** dissolved with the codomain at B3.4a: the outflow and
+       tangential rows it used to zero are no longer in the codomain to
+       be emitted on, so :math:`q \in \Gamma_-` holds by TYPING rather
+       than by an erasure (ERR-047), exactly as vacuum's projector
+       dissolved at B3.2. Its unmasked companion branch (legal only for
+       :math:`q \equiv 0`) retired with it — post-B3.2 a method space
+       with no face data cannot supply :math:`\gamma_+` either, so that
+       branch was already unreachable here. Still unreachable from a
+       ``BC`` tag in production (the SN registry admits only
+       ``{vacuum, reflective}``).
      - n/a
 
 .. note::
 
-   **Only the first two rows are narrowed.** Since campaign phase
-   **B3.2** a realized SN law is typed :math:`\Gamma_+ \to \Gamma_-`
-   (:ref:`bc-domain-narrowing`), but that landed for ``vacuum`` and
-   ``reflective`` only — the rows flagged **not yet narrowed** still
-   emit full-:math:`N` endomorphisms. They are unreachable in
-   production and pinned by strict xfails; **B3.4** restructures the
-   realizer around :math:`R \circ G` for all seven laws. Note that a
+   **Four of the seven laws are narrowed; the rows flagged not yet
+   narrowed are albedo and periodic.** Since campaign phase **B3.2** a
+   realized SN law is typed :math:`\Gamma_+ \to \Gamma_-`
+   (:ref:`bc-domain-narrowing`). B3.2 landed ``vacuum`` and
+   ``reflective``; **B3.4a** landed ``white`` and ``prescribed_inflow``
+   (:ref:`bc-narrowing-b34a`). The remaining rows still emit
+   full-:math:`N` endomorphisms, are unreachable in production, and are
+   pinned by strict xfails; each is blocked on a **design ruling** —
+   **B3.4b** must give albedo an explicit re-emission closure in
+   :math:`R` (its :math:`G` supplies no crossing), and **B3.4c** must
+   build periodic's partner-face :math:`G` (#183, #189). Note that a
    shape assertion cannot tell the two typings apart —
    :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature × face in the
    tree — so read the *declared spaces*, not the output shape.
@@ -2800,8 +3070,11 @@ driven by the shared
 quadrature-only method space for unit tests that don't need mesh +
 face metadata. **Since B3.2** ``minimal`` is a *partial* constructor:
 a quadrature alone cannot name a particular face's :math:`\Gamma_+`,
-so it no longer suffices for the two narrowed laws, and after B3.4 it
-will realize nothing at all — a retirement candidate, not a fixture.
+so it no longer suffices for a narrowed law. B3.4a widened that from
+two laws to four — only ``albedo`` and ``periodic`` still realize from
+a ``minimal`` space, and precisely because they are the two laws still
+awaiting narrowing. After B3.4b / B3.4c it will realize nothing at all
+— a retirement candidate, not a fixture.
 
 
 .. _bc-dual-registry:
@@ -3252,22 +3525,30 @@ it must now hand it a :math:`\Gamma_+`-shaped argument.
 
 .. warning::
 
-   **A narrowed law does not yet validate its own domain.** Measured at
-   B3.2: fed a full-face input, both vacuum's
-   :class:`~orpheus.numerics.operator.ZeroOperator` and reflective's
-   :class:`~orpheus.numerics.operator.TensorProductOperator` return
-   :math:`|\Gamma_-|` rows of **wrong values with no raise**. The
-   construction guard lives on
-   :class:`~orpheus.numerics.operator.TraceRestrictionOperator` and
+   **Being narrowed and validating one's own domain are separate
+   properties.** Measured, and still true: fed a full-face input, both
+   vacuum's :class:`~orpheus.numerics.operator.ZeroOperator` and
+   reflective's :class:`~orpheus.numerics.operator.TensorProductOperator`
+   return :math:`|\Gamma_-|` rows of **wrong values with no raise** —
+   they are correctly typed :math:`\Gamma_+ \to \Gamma_-` and still
+   silent about a wrong-shaped argument. The construction guard lives
+   on :class:`~orpheus.numerics.operator.TraceRestrictionOperator` and
    does not travel to the operator the realizer *emits*. This is
    unreachable through
    :meth:`_reflect_trace <orpheus.sn.operators.boundary.SNBoundaryOperator>`
    — which always feeds a guarded ``γ₊.apply(...)`` — but **reachable
-   through** ``sn_mesh.bc[face].apply``. It is pinned by four strict
-   xfails and closes at **B3.4**, which restructures the realizer
-   around :math:`R \circ G` for all seven laws: that is the one place
-   the guard belongs, since adding it per-law now would be seven copies
-   of what B3.4 collapses into one.
+   through** ``sn_mesh.bc[face].apply``.
+
+   The B3.4a arms split on exactly this axis, which is why the two
+   properties must be named separately. White **refuses** the
+   full-face input (:meth:`AngularAverageOperator.apply
+   <orpheus.sn.boundary.angular.AngularAverageOperator.apply>` checks
+   ``psi.shape[0]`` against :math:`|\Gamma_+|`) — the strictly stronger
+   answer. Prescribed inflow does **not**: it ignores its input
+   entirely, so it has nothing to validate against, and merely returns
+   :math:`|\Gamma_-|` rows. Both are narrowed; only one validates.
+   Never read "narrowed" as "guarded", and never credit the weaker
+   property as the stronger one.
 
 
 .. _bc-universal-invariants:
@@ -3541,12 +3822,13 @@ white reflection (weight :math:`c_2`) — is:
    # The walker is method-blind — pass the method's own realizer.
    ms = SNMethodSpace.for_face(...)
    marshak_op = realize_recursively(marshak_law, ms, SNBoundaryRealizer())
-   # marshak_op is:
+   # marshak_op is (MEASURED — each leaf is the 2-factor tensor
+   # product the realizer emits, not the bare angular primitive):
    #   OperatorSum(
-   #       ScaledOperator(0.3, PermutationOperator(...)),
-   #       ScaledOperator(0.7, AngularAverageOperator(...))
+   #       ScaledOperator(0.3, PermutationOperator(...) & IdentityOperator()),
+   #       ScaledOperator(0.7, AngularAverageOperator(...) & IdentityOperator()),
    #   )
-   psi_in = marshak_op.apply(psi_out)   # 1-arg LinearOperator
+   psi_in = marshak_op.apply(psi_out)   # 1-arg; psi_out is Γ₊-shaped
 
 The output is a Wave-0
 :class:`~orpheus.numerics.operator.OperatorSum` of
@@ -3700,12 +3982,13 @@ Usage on the descriptor tree:
    # Realize once, at face resolution time — the walker is
    # method-blind, so the method's realizer is passed explicitly.
    realized = realize_recursively(law, method_space, SNBoundaryRealizer())
-   # realized is:
+   # realized is (MEASURED — each leaf is the 2-factor tensor product
+   # the realizer emits, not the bare angular primitive):
    #   OperatorSum(
-   #       ScaledOperator(0.3, PermutationOperator(...)),
-   #       ScaledOperator(0.7, AngularAverageOperator(...)),
+   #       ScaledOperator(0.3, PermutationOperator(...) & IdentityOperator()),
+   #       ScaledOperator(0.7, AngularAverageOperator(...) & IdentityOperator()),
    #   )
-   psi_in = realized.apply(psi_out)   # 1-arg LinearOperator
+   psi_in = realized.apply(psi_out)   # 1-arg; psi_out is Γ₊-shaped
 
 Type-system contract
 --------------------
@@ -4237,9 +4520,12 @@ There is **one** way to call a boundary law's ``apply``:
    )
 
    law = ReflectiveBoundary(axis="x", albedo=0.5)
-   ms = SNMethodSpace.minimal(quad)   # or .for_face(...) in production
+   # A NARROWED law needs a FACE: since B3.2 its domain is that face's
+   # Γ₊, which a quadrature alone cannot name. ``SNMethodSpace.minimal``
+   # raises here — it survives only for the two laws still un-narrowed.
+   ms = SNMethodSpace.for_face(quadrature=quad, face="xmax", trace=trace)
    op = SNBoundaryRealizer().realize(law, ms)
-   psi_in = op.apply(psi_out)
+   psi_in = op.apply(gamma_out.apply(psi_face))   # Γ₊-shaped argument
 
 For descriptor-tree composition:
 
@@ -4311,36 +4597,50 @@ cases:
    * - ``mixed_30spec_70white_LS4``
      - ``0.3 * spec + 0.7 * white`` (Wave-0 algebra)
      - LevelSymmetricSN(4)
-     - ``nulp ≤ 64`` — **xfail(strict) pending B3.4**
+     - ``nulp ≤ 64`` — re-posed onto :math:`\Gamma_+` at **B3.4a**
+       (both leaves are now narrowed)
 
 .. note::
 
-   **The three NARROWED rows were re-posed onto** :math:`\Gamma_+`
-   **at B3.2, not weakened.** ``vacuum_lebedev17``,
-   ``specular_x_lebedev17`` and ``specular_y_partial_07_LS6`` now feed
-   the realized law ``snapshot["psi_out"][space.outflow_indices]`` and
-   compare against the **frozen** pre-B3.2 image *restricted* to
-   :math:`\Gamma_-`, ``snapshot["psi_in"][space.inflow_indices]`` — so
-   the reference still comes from the committed artefact, never from
-   re-running the new code, and the bit-identity claim is strictly the
-   same claim on a smaller index set. The four un-narrowed rows
-   (``albedo_05``, both ``white_*``, ``periodic``) still build a
-   ``SNMethodSpace.minimal(quad)`` and pass the whole face slot,
-   because their realizations are still full-\ :math:`N`
-   endomorphisms; they migrate at **B3.4**.
+   **A narrowed row is re-posed onto** :math:`\Gamma_+`\ **, never
+   weakened.** The recipe B3.2 established for ``vacuum_lebedev17``,
+   ``specular_x_lebedev17`` and ``specular_y_partial_07_LS6``: feed the
+   realized law ``snapshot["psi_out"][space.outflow_indices]`` and
+   compare against the **frozen** pre-narrowing image *restricted* to
+   :math:`\Gamma_-`, ``snapshot["psi_in"][space.inflow_indices]``. The
+   reference still comes from the committed artefact, never from
+   re-running the new code, so the bit-identity claim is strictly the
+   same claim on a smaller index set. **B3.4a** applies the same recipe
+   to the two ``white_*`` rows and to the Marshak row; ``albedo_05``
+   and ``periodic`` keep passing the whole face slot from a
+   ``SNMethodSpace.minimal(quad)``, because those two realizations are
+   genuinely still full-\ :math:`N` endomorphisms, and they migrate at
+   **B3.4b** / **B3.4c**.
 
-   The Marshak row is the one exception, and it is an **honest
-   red**: ``0.3 * spec + 0.7 * white`` mixes a *narrowed* leaf
-   (reflective, :math:`\Gamma_+ \to \Gamma_-`) with an *un-narrowed*
-   one (white, a full-\ :math:`N` endomorphism), so the sum's factors
-   have mismatched shapes and its ``apply`` raises — measured on a
-   :math:`\Gamma_+` probe as ``AngularAverageOperator.apply:
-   psi.shape[0] = |Γ₊|, expected N``. The rank-N composition claim is
-   **unchanged and un-weakened**; it is *unstateable* until B3.4
-   narrows white / albedo / periodic (#183, #189). It is pinned by
-   ``xfail(strict=True)``, which flips to an unexpected-pass the day
-   B3.4 lands and forces the marker's deletion — the marker set is the
-   phase's todo list, not a suppression.
+   **The Marshak row stopped being an honest red at B3.4a.** While
+   white was un-narrowed, ``0.3 * spec + 0.7 * white`` mixed a narrowed
+   leaf with a full-\ :math:`N` one, so the sum's factors disagreed and
+   its ``apply`` raised on a :math:`\Gamma_+` probe —
+   ``AngularAverageOperator.apply: psi.shape[0] = |Γ₊|, expected N``.
+   The row was pinned by ``xfail(strict=True)`` precisely so that the
+   narrowing would force the marker's deletion. Both leaves are now
+   narrowed and the composition is measured correct: it returns
+   :math:`|\Gamma_-|` rows equal to
+   ``0.3 * spec.apply(ψ₊) + 0.7 * white.apply(ψ₊)``. So the rank-N
+   composition claim, which was **unchanged and un-weakened** but
+   *unstateable*, is stateable again for this pair.
+
+   .. warning::
+
+      **A mix with an un-narrowed leaf no longer announces itself.**
+      Do NOT generalize the old raise into a safety property. Measured
+      post-B3.4a: ``0.3 * spec + 0.7 * albedo(0.5)`` **runs** and
+      returns :math:`|\Gamma_-|`-shaped output that is silently
+      wrong — the albedo leaf is a :math:`\Gamma_+ \to \Gamma_+` echo
+      and :math:`|\Gamma_+| = |\Gamma_-|` swallows the mismatch. The
+      raise was an accident of white's shape check, not a guarantee of
+      the algebra; until B3.4b / B3.4c land, a mixed tree containing
+      albedo or periodic is unsound and shape-invisible (vv Mode 12).
 
 The 1-ULP tolerance for α=1 specular / white reflects the
 α=1.0 fast path returning the bare primitive (no
@@ -5741,9 +6041,10 @@ re-attempt them:
    Rejected because the law / realizer split is the architectural
    point of the refactor: laws are method-agnostic, realizers are
    method-specific. Keeping them in one class would force every
-   law to know about the SN sweep's inflow-mask plumbing, which is
-   precisely what Wave 0 / Wave 1 / Wave 2 was supposed to abstract
-   away.
+   law to know about the SN sweep's half-trace plumbing (an inflow
+   mask at the time; the :math:`\gamma_\pm` restrictions since B3.2),
+   which is precisely what Wave 0 / Wave 1 / Wave 2 was supposed to
+   abstract away.
 2. **Dedicated ``MixedBoundaryOperator`` class.** Pre-Wave-11
    shape. Rejected (deleted Wave 11) — the Wave-0 algebra dunders
    on every :class:`BoundaryTraceLaw` already produce

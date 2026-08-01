@@ -214,19 +214,28 @@ sole bridge. The canonical SN-realised representation per law.
   fast path) or
   ``ScaledOperator(α, PermutationOperator)`` (α ≠ 1).
 * :class:`WhiteBoundary(axis, outward_sign, albedo)` (registry key
-  ``"white"``) — :math:`G = G_{\text{diff}}`, the cosine-weighted
-  Lambertian average over the outgoing hemisphere; :math:`R =
-  \alpha`. SN realises the composite to
-  :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` (α=1
-  fast path) or scaled.
-* :class:`PeriodicBoundary` (registry key ``"periodic"``) —
-  :math:`G` is a spatial pushforward (wrap-around to the opposite
-  face); :math:`R = \alpha = 1`. SN realises to
-  :class:`~orpheus.numerics.operator.PeriodicWrapOperator`
-  (currently an angular identity; the spatial-pushforward extension
-  is tracked as a follow-up under ``module:sn``). The law carries
-  **no fields at all** today — not even the partner face — so the
-  :math:`G` it names is not yet expressible (issue #183).
+  ``"white"``) — :math:`G = I` (a white face fixes NO geometry) and
+  :math:`R = ` :class:`LambertianReemission(\alpha)`, the cosine-weighted
+  diffuse re-emission. **This entry said** :math:`G = G_{\text{diff}}`
+  **until B3.4a** — the exact misassignment campaign phase B3.0 corrected
+  and this docstring outlived by two phases. An average is not
+  multiplicative and not a bijection, so it cannot be a deck
+  transformation; the physics settled into the empty :math:`G` slot
+  because a rank-one response annihilates :math:`G` entirely, making the
+  error unobservable. SN realises the composite to
+  :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` (α=1 fast
+  path) or scaled — since **B3.4a** typed :math:`\Gamma_+ \to \Gamma_-`.
+* :class:`PeriodicBoundary(axis)` (registry key ``"periodic"``) —
+  :math:`G = ` :class:`SpatialWrap(axis)`, the translation carrying the
+  partner face onto this one; :math:`R = 1` (a periodic face is loss-free
+  by construction, and a pure symmetry statement adds no physics). SN
+  realises to :class:`~orpheus.numerics.operator.PeriodicWrapOperator`,
+  **which is an angular identity that does NOT read the partner face** —
+  the spatial pushforward the law names is unbuilt (issue #183, campaign
+  phase B3.4c). The law gained its ``axis`` field at B1; the partner face
+  is deliberately NOT a field, since which face is opposite depends on
+  where the law is installed (configuration) while "wrap along x" is
+  intrinsic.
 * :class:`AlbedoBoundary(albedo)` (registry key ``"albedo"``) —
   :math:`G = I`, the angular identity; :math:`R = \alpha`. SN
   realises the composite to
@@ -235,19 +244,21 @@ sole bridge. The canonical SN-realised representation per law.
   ``ScaledOperator(α, IdentityOperator)`` (α ∉ {0, 1}).
 * :class:`PrescribedInflow(source)` (registry key
   ``"prescribed_inflow"``, Wave 7 addition) — the rank-0 affine BC
-  :math:`R = G = 0`, :math:`q \neq 0`. SN realises to
-  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
-  whose :meth:`apply` ignores the outgoing flux and returns
-  ``source.evaluate(psi_out.shape)`` **masked to the face's inflow
-  ordinates** when the method space carries them (#52 / ERR-047 —
-  so the delivered :math:`q` lives on :math:`\Gamma_-` by
-  construction). The unmasked branch is reachable only for
-  :math:`q \equiv 0` sources:
-  :meth:`BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
-  raises first for a nonzero source with no inflow set. Consumes a
+  :math:`R = 0`, :math:`q \neq 0`. :math:`G` is the **identity deck
+  element**, not zero: the zero map is not a bijection, so it cannot be a
+  geometry map at all, and the older spelling ":math:`R = G = 0`" wrote
+  one vanishing twice, once in the wrong tier (corrected at B3.0; this
+  entry outlived that correction until B3.4a). SN realises to
+  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`, whose
+  :meth:`apply` ignores the outgoing flux and asks the source to fill
+  ``(|Γ₋|,) + psi_out.shape[1:]``. Since **B3.4a** the delivered
+  :math:`q` lives on :math:`\Gamma_-` **by typing** — there are no other
+  rows in the codomain to write — where it previously lived there because
+  an inflow MASK erased them (#52 / ERR-047). Both the mask and its
+  unmasked companion branch are retired. Consumes an
   :class:`InflowSourceSpec` (typically :class:`NoSource` for the
-  homogeneous case or :class:`ConstantInflowSource(value)` for a
-  uniform inflow).
+  homogeneous case or :class:`ConstantInflowSource(value)` for a uniform
+  inflow).
 * :class:`ZeroFluxBoundary` (registry key ``"zero_flux"``, #290 P3 /
   user ruling 3) — the homogeneous Dirichlet idealization
   :math:`\phi_\Gamma = 0`: albedo-family member :math:`\mathcal{A} =

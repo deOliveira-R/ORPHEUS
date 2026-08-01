@@ -116,6 +116,7 @@ from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryTraceLaw,
     ReflectiveBoundary,
+    WhiteBoundary,
 )
 from orpheus.numerics.operator import LinearOperator
 from orpheus.transport.mesh.axis import AXIS_NAMES, face_labels
@@ -270,7 +271,7 @@ def _law_from_tag(
     r"""Parse one ``BC`` tag into the typed law it declares.
 
     Method-generic given the method's admission table: the tag names
-    the law class; the label supplies the face geometry. Two law
+    the law class; the label supplies the face geometry. Three law
     families need construction context, resolved here in ONE place:
 
     * a **reflective** law reflects across the face's own axis —
@@ -278,6 +279,10 @@ def _law_from_tag(
       correct at any dimension by construction (a hand-listed
       face → axis map would silently build the wrong permutation for
       a z-face);
+    * a **white** law carries an axis AND an outward SIGN, both of which
+      must agree with the installation face (campaign phase **B3.4a**
+      made the disagreement a loud ``BoundaryError`` instead of a silently
+      wrong hemisphere average) — so both are derived from the label here;
     * an **albedo** law carries its response as the tag parameter
       ``params["albedo"]``; a parameter-less ``BC("albedo")`` refuses
       with the face named.
@@ -285,6 +290,15 @@ def _law_from_tag(
     Every other admitted law is parameter-free (``law_cls()``). A law
     class whose tag needs new parameters extends this parse — one
     body, every method.
+
+    .. warning::
+
+       **A law that declares its own orientation MUST be listed here.** The
+       ``law_cls()`` fall-through hands such a law its dataclass DEFAULTS,
+       which are an orientation — and one that is right for exactly one
+       face. White sat in that fall-through until B3.4a, receiving
+       ``axis="x", outward_sign=+1`` on every face; it was latent only
+       because no method's registry admits ``"white"`` yet (#189).
     """
     law_cls = method.BOUNDARY_OPERATOR_REGISTRY.get(tag.kind)
     if law_cls is None:
@@ -299,6 +313,28 @@ def _law_from_tag(
     if law_cls is ReflectiveBoundary:
         return ReflectiveBoundary(
             axis=AXIS_NAMES[label.axis_index], albedo=1.0,
+        )
+    if law_cls is WhiteBoundary:
+        # ⚠ White declares BOTH an axis and an outward SIGN, and both must
+        # match the installation face or the realizer's B3.4a orientation
+        # cross-check raises: the Lambertian averages over the hemisphere its
+        # OWN orientation names, so a mismatch silently averages the wrong
+        # ordinates. Before B3.4a nothing checked it, and white fell into the
+        # parameter-free ``law_cls()`` fall-through below — which handed it the
+        # dataclass defaults ``axis="x", outward_sign=+1`` for EVERY face. That
+        # was latent, not live: SN's registry admits only {vacuum, reflective},
+        # so ``BC("white")`` refuses at parse. It would have fired the day #189
+        # admits white, on every face except ``xmax``.
+        #
+        # The sign is read off ``face_name``, NOT off ``endpoint``: a solid
+        # radial axis's single ``"outer"`` endpoint renders as the ``max``
+        # face (the outer radius IS ``xmax``), so an ``endpoint == "max"``
+        # test would hand a curvilinear outer face the INWARD normal. The
+        # face name is the single-sourced crosswalk every other consumer —
+        # ``FaceLayout``, the trace space, ``build_omega_dot_n`` — keys on.
+        return WhiteBoundary(
+            axis=AXIS_NAMES[label.axis_index],
+            outward_sign=+1 if label.face_name.endswith("max") else -1,
         )
     if law_cls is AlbedoBoundary:
         try:

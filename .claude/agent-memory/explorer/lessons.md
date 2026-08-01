@@ -245,3 +245,38 @@ classify each probe boolean-presence vs integer-width, and check whether the
 probe site even HAS the typed object in scope. Report the verdict as
 "(B) small plumbing," not "(A) clean swap," when the factor isn't reachable at
 the site.
+
+---
+
+## L-011 -- A docstring that DELEGATES ("the sweep handles it", "whoever orchestrates it") is the highest-yield falsity shape — grep the named MECHANISM, never the named symbol
+
+Investigating the periodic-BC claim "*the SN sweep handles the spatial wrap via
+its own face-pair indexing*", the mechanism (`face-pair indexing`) did not exist
+anywhere in `orpheus/sn/` — no face→face map, no `partner_face`, nothing. Three
+more falsities sat in the same file family, all the same shape: prose that hands
+a responsibility to an unnamed other layer. Delegation claims are unfalsifiable
+by the reader (the work is "over there"), so they survive refactors that would
+have deleted an ordinary wrong sentence.
+
+Two techniques that made it cheap:
+
+- **Grep the MECHANISM NOUN, not the symbol.** `grep "PeriodicBoundary"` returns
+  40 live hits and looks healthy; `grep "face-pair"` returns 2 — both of them the
+  claim itself, restated. The noun the claim invents is the fastest disproof.
+- **The SIBLING METHOD that REFUSES the same thing is a free oracle.** The
+  diffusion realizer raises `BoundaryError` on the identical law with the exact
+  structural reason ("*couples a face to its OPPOSITE face … no slot for
+  cross-face coupling*"), while SN silently realizes an identity. When one method
+  in a polymorphic family refuses and another accepts, the accepting one is the
+  suspect — read its acceptance, not its docstring.
+
+Also: the claim may be **half-stale**. The brief attributed it to two files; one
+had been rewritten already and now carried a DIFFERENT unsatisfied claim. Always
+re-locate the quoted prose before judging it (Operating Principle 5 applied to
+prose, not just issues), and report where it actually lives.
+
+How to apply: for any "is this doc claim true?" task, (1) extract the invented
+noun and grep THAT; (2) check whether a sibling implementation refuses the same
+input and why; (3) check the strict-`xfail` set — a `pytest.mark.xfail(strict=True)`
+row naming the gap is the project's own admission that the claim is false, and is
+better evidence than any prose.

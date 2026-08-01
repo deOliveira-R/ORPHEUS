@@ -48,7 +48,14 @@ suffices for the two laws below.
   :class:`PermutationOperator` TP.
 * :class:`~orpheus.geometry.boundary.white.WhiteBoundary(axis, outward_sign, albedo)` →
   ``albedo * AngularAverageOperator.from_quadrature(quadrature, axis, outward_sign)``
-  (with the ``albedo=1.0`` fast path).
+  (with the ``albedo=1.0`` fast path), narrowed at **B3.4a** to contract over
+  :math:`\Gamma_+` and re-emit on :math:`\Gamma_-`. Two things dissolved with
+  the codomain: the operator's private ``> 0.0`` outflow test (it now reads the
+  one face-name → signed-projection primitive against ``TANGENTIAL_EPS``, so it
+  can no longer disagree with the trace space), and the full-face broadcast that
+  wrote outflow rows nobody read. The law's declared ``axis``/``outward_sign``
+  is cross-checked against the installation face's :math:`\Gamma_+` — see
+  :func:`_checked_angular_average`.
 * :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(0.0)` →
   :class:`~orpheus.numerics.operator.ZeroOperator`.
 * :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(1.0)` →
@@ -58,12 +65,14 @@ suffices for the two laws below.
 * :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundary` →
   :class:`~orpheus.numerics.operator.PeriodicWrapOperator`.
 * :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
-  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator` —
-  apply ignores the outgoing flux and returns the source evaluation
-  MASKED to the face's inflow ordinates (#52 / ERR-047: the delivered
-  :math:`q` lives on :math:`\Gamma_-` by construction; a nonzero
-  source on a method space with no inflow indices is refused at
-  certification). The rank-0 affine BC (Wave 7 / C7.5).
+  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator` — apply ignores
+  the outgoing flux and asks the source spec to fill :math:`|\Gamma_-|` rows.
+  The rank-0 affine BC (Wave 7 / C7.5). **B3.4a** retired the inflow MASK
+  (#52 / ERR-047) along with the codomain it corrected: the rows it zeroed are
+  no longer emitted on, so :math:`q \in \Gamma_-` holds by typing rather than by
+  erasure. Its unmasked companion branch retired with it — post-B3.2 a method
+  space without face data cannot supply :math:`\gamma_+` either, so that
+  fallback was already unreachable here.
 * :class:`~orpheus.geometry.boundary.zero_flux.ZeroFluxBoundary` →
   **REFUSED** (:class:`~orpheus.geometry.boundary.BoundaryError`):
   the Dirichlet idealization :math:`\phi_\Gamma = 0` is the
@@ -140,6 +149,7 @@ from .angular import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
 
@@ -200,6 +210,49 @@ def _outflow_restriction(
         np.sort(np.asarray(method_space.outflow_indices, dtype=np.intp)),
         n_total=method_space.quadrature.N,
         axis=0,
+    )
+
+
+def _checked_angular_average(
+    law: "WhiteBoundary",
+    quadrature: "Quadrature",
+    method_space: "SNMethodSpace",
+    gamma_out: "TraceRestrictionOperator",
+) -> "AngularAverageOperator":
+    r"""White's Lambertian kernel, with the law's ORIENTATION cross-checked
+    against the face it is being installed on (the ERR-041 pattern).
+
+    :class:`~orpheus.geometry.boundary.WhiteBoundary` declares its own
+    ``axis`` / ``outward_sign``; the method space independently names the
+    face. Those are two encodings of ONE orientation, and until B3.4a
+    nothing compared them — a white law declared for ``x`` and installed on
+    ``ymin`` averaged over the wrong hemisphere and reported nothing. The
+    check is the same shape as the vacuum arm's (``ERR-041``: swapped
+    inflow/outflow face annotation), against index SETS rather than sizes,
+    because ``|Γ₊| == |Γ₋|`` on every quadrature in the tree makes a size
+    comparison Mode-12 blind.
+
+    On the canonical ``SNMesh.realize_boundary_law`` path both encodings
+    derive from the same face label, so the guard is green by construction;
+    it bites on hand-built method spaces and on a mis-declared law.
+    """
+    law_face = f"{law.axis}{'max' if law.outward_sign == +1 else 'min'}"
+    omega_dot_n = build_omega_dot_n(quadrature, (law_face,))[0]
+    law_outflow = np.flatnonzero(omega_dot_n > +TANGENTIAL_EPS)
+    if not np.array_equal(law_outflow, gamma_out.indices):
+        raise BoundaryError(
+            f"WhiteBoundary declares axis={law.axis!r}, "
+            f"outward_sign={law.outward_sign:+d} — i.e. the face "
+            f"{law_face!r}, whose Γ₊ is {law_outflow.tolist()} — but it is "
+            f"being installed where Γ₊ is "
+            f"{np.asarray(gamma_out.indices).tolist()} "
+            f"(face={method_space.face!r}). The Lambertian averages over "
+            f"the hemisphere its OWN orientation names, so a mismatch "
+            f"averages the wrong ordinates silently.",
+            law="white",
+        )
+    return AngularAverageOperator.from_quadrature(
+        quadrature, law.axis, law.outward_sign,
     )
 
 
@@ -429,16 +482,16 @@ class SNBoundaryRealizer:
             return stamp_boundary_role(float(law.albedo) * base)
 
         if isinstance(law, WhiteBoundary):
-            # Wave T step T.1 — white BC lift to 2-factor
-            # TensorProductOperator, mirroring D-B+1.
-            # ``AngularAverageOperator`` acts on the ordinate axis (axis 0);
-            # IdentityOperator broadcasts on trailing axes (group,
-            # spatial / face).  Bit-identity preserved because
-            # IdentityOperator.apply returns x unchanged.
+            # B3.4a — the Lambertian kernel, narrowed to Γ₊ → Γ₋.
+            #
+            # ``AngularAverageOperator`` now derives BOTH half-traces from
+            # the one face-name → signed-projection primitive, classified
+            # against ``TANGENTIAL_EPS`` — so its old private ``> 0.0``
+            # outflow test is gone, and with it the disagreement with the
+            # trace space on every quadrature carrying tangential ordinates.
+            gamma_out = _outflow_restriction(method_space, "white")
             base = (
-                AngularAverageOperator.from_quadrature(
-                    quad, law.axis, law.outward_sign,
-                )
+                _checked_angular_average(law, quad, method_space, gamma_out)
                 & IdentityOperator()
             )
             if law.albedo == 1.0:
@@ -473,21 +526,33 @@ class SNBoundaryRealizer:
             return stamp_boundary_role(PeriodicWrapOperator() & IdentityOperator())
 
         if isinstance(law, PrescribedInflow):
-            # Rank-0 affine source. The operator's apply ignores the
-            # outgoing flux and returns the source evaluation MASKED
-            # to the face's inflow ordinates (#52 / ERR-047 — the
-            # anticipated Wave-8 inflow-indices plumbing, live now
-            # that SNMethodSpace carries them): the delivered q lives
-            # on Γ_- by construction. The unmasked branch is reached
-            # only for q ≡ 0 sources — assert_realizable above raised
-            # already for a nonzero source with no inflow set.
-            if method_space.inflow_indices is not None:
-                return IncomingSourceOperator(
-                    law.source,
-                    inflow_indices=method_space.inflow_indices,
-                    n_ordinates=int(quad.N),
+            # B3.4a — the rank-0 affine source, narrowed to Γ₊ → Γ₋.
+            #
+            # The operator's apply ignores the outgoing flux and asks the
+            # source to fill |Γ₋| rows. The inflow MASK (#52 / ERR-047)
+            # dissolved with the codomain: the rows it used to zero — every
+            # outflow and tangential ordinate — are no longer in the
+            # codomain to be emitted on, so "q lives on Γ₋" is now a
+            # property of the TYPE rather than of an erasure. Same
+            # dissolution as vacuum's projector at B3.2.
+            #
+            # ``_outflow_restriction`` is called for its GUARD, not its
+            # value: prescribed inflow ignores its input, but a law that
+            # cannot name its own domain is not realized, it is guessed.
+            _outflow_restriction(method_space, "prescribed_inflow")
+            if method_space.inflow_indices is None:
+                raise BoundaryError(
+                    "SNBoundaryRealizer cannot realize PrescribedInflow "
+                    "without inflow_indices: since B3.4a the delivered q "
+                    "is sized from Γ₋ — the source spec fills whatever "
+                    "shape it is handed, so the face must supply that "
+                    "shape. Construct via SNMethodSpace.for_face(...).",
+                    law="prescribed_inflow",
                 )
-            return IncomingSourceOperator(law.source)
+            return IncomingSourceOperator(
+                law.source,
+                n_inflow=int(np.asarray(method_space.inflow_indices).size),
+            )
 
         raise BoundaryError(
             f"SNBoundaryRealizer cannot realize "

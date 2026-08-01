@@ -3679,6 +3679,68 @@ adjudicated across 6 files; disciplines that were NOT already in L-041:
 
 ---
 
+## L-043 — The brief's "MEASURED evidence, do not re-derive" block is a CLAIM, not data: reproduce it, because a wrong attribution there propagates into the corpus as fact
+
+L-001 says verify the brief's *facts*; L-043 is its numeric face, and it
+is sharper because the brief actively tells you **not** to check. A
+doc-repair brief that hands you a measured-evidence block ("bit-identical
+on A and B, 1 ULP on C and D — do not re-derive") is handing you the
+single most quotable content in the whole task: numbers go into a table,
+and a table is what the next session cites. If the attribution is wrong,
+you have laundered an error into the algebra of record with your own
+credibility on it.
+
+- **"Do not re-derive" means "don't burn a session on it", not "don't
+  check".** Cost-scope it: reconstructing a retired operator body from
+  the `git diff` you already read is ~10 lines. Do that. Reserve the
+  deference for things that genuinely need a solver run.
+- **Worked (B3.4a):** brief said white was *bit-identical* on
+  `gauss_legendre(8)` AND `product(2,4)`, 1 ULP on `lebedev(17)` /
+  `level_symmetric(6)`. Reproduction: `product(2,4)` is NOT bit-identical
+  — and it is precisely the quadrature where the retired `> 0.0`
+  classifier disagrees with `TANGENTIAL_EPS`, so it CANNOT be
+  (the two operators are not computing the same functional there).
+  Publishing the brief's line would have told a future reader "the
+  change was FP-neutral everywhere", **exactly wrong on the one
+  quadrature that motivated the phase**.
+- **The deeper find, and the reason to reproduce at all: two mechanically
+  DIFFERENT effects can measure the same.** Reduction-order drift
+  (padding removed → numpy's pairwise tree reassociates) and a genuine
+  mis-classified-row VALUE bug both read ≤ 1 ULP on an `O(1)` probe —
+  because the offending weight is itself `O(ε)` (measured `cos_w` =
+  7.85e-17 against a norm of 2.5651, so Δnorm = **0.0 exactly** and the
+  entire discrepancy is ψ-weighted in the NUMERATOR). So the error scales
+  with the **flux ratio**, is unbounded by floating point, and reaches
+  6.1e-05 at a 1e12 ratio. A ULP table therefore CANNOT justify such a
+  change; the justification is structural ("one classifier, not two").
+  Say that in the doc — and add a `.. warning::` that the 1-ULP row is
+  not evidence of equivalence, or the next reader re-derives the wrong
+  conclusion from your own table.
+- **While the probe harness is open, AUDIT THE WHOLE INVENTORY — the
+  brief's sample is never the population.** Sweeping all production
+  quadratures × all six faces (~15 lines) turned a two-row anecdote into
+  a scoping law: the disagreement occurs ONLY for the `product` family
+  and ONLY on `xmax`/`xmin`/`ymax` (`ymin` has the same tangential count
+  and zero mis-admissions — the sign flip moves the round-off across
+  zero). Two publishable consequences fall out that no one had stated: a
+  **tangential-count audit is not a sufficient screen** (`lebedev` has 12
+  per face and mis-admits none; `level_symmetric` has none at all), and
+  the exposure is **face-asymmetric within one quadrature**, so a fixture
+  exercising one face can be green while its opposite is wrong.
+- **The audit routinely falsifies a claim in a file you may not edit.**
+  Here it killed "that is every production quadrature but
+  `gauss_legendre`" in a `.py` docstring outside the permitted set. FLAG
+  it with the measured replacement sentence verbatim, so the fix is a
+  paste for whoever owns the file — a flag without the corrected text is
+  a ticket, not a hand-off.
+
+How to apply: treat every number the brief marks MEASURED as
+unverified-until-cheap-repro; reproduce, widen to the full inventory,
+and publish only what you measured — attributing anything you could not
+reproduce to its source rather than adopting it.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

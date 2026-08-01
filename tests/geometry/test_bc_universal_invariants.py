@@ -71,6 +71,11 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.geometry.boundary._errors import ReflectionNotInvolutiveError
 from orpheus.numerics.quadrature import Quadrature
+# B3.4a: the prescribed-inflow legs below realize through the SN realizer
+# (they already imported ``SNBoundaryRealizer`` in-body), and a narrowed law
+# needs BOTH half-traces — which ``SNMethodSpace.minimal`` cannot name. This
+# is the ONE place the face-ful method space is stood up (Pattern 2).
+from tests.sn._test_helpers import face_method_space
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -435,7 +440,7 @@ class TestPrescribedInflowConstruction:
 
 @pytest.mark.l1
 class TestPrescribedInflowApply:
-    """:class:`PrescribedInflow` realised-op semantics.
+    r""":class:`PrescribedInflow` realised-op semantics.
 
     Issue #186 (B3 + β2): descriptors are no longer callable.
     Realisation through
@@ -443,53 +448,83 @@ class TestPrescribedInflowApply:
     an :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
     whose :meth:`apply` carries the rank-0 contract: input is ignored,
     output depends only on the source.
+
+    MIGRATED at **B3.4a**, where the operator's CODOMAIN narrowed from the
+    whole face slot to :math:`\Gamma_-`. The delivered-:math:`q` claim — "the
+    source lands on the inflow trace and nowhere else" — is unchanged, but
+    its mechanism moved from an ERASURE (emit ``N`` rows, then zero every
+    non-inflow one through a mask) to an ABSENCE (emit :math:`|\Gamma_-|`
+    rows; the others are not in the codomain to be written). The assertions
+    follow: where they used to index the delivered array at ``off_trace`` and
+    find zeros, they now assert the array HAS no such row.
     """
 
     def test_realized_apply_with_no_source_returns_zeros(self) -> None:
-        """Default ``NoSource``: realized ``apply`` returns zeros."""
+        r"""Default ``NoSource``: realized ``apply`` returns zeros on
+        :math:`\Gamma_-`."""
         from orpheus.geometry.boundary import PrescribedInflow
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         bc = PrescribedInflow()
         quad = Quadrature.lebedev(17)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
-        psi_out = np.random.default_rng(0).standard_normal((quad.N, 3))
+        space = face_method_space(quad, face="xmax")
+        op = SNBoundaryRealizer().realize(bc, space)
+        psi_out = np.random.default_rng(0).standard_normal(
+            (space.outflow_indices.size, 3),
+        )
         psi_in = op.apply(psi_out)
-        assert psi_in.shape == psi_out.shape
-        np.testing.assert_array_equal(psi_in, np.zeros_like(psi_out))
+        assert psi_in.shape == (space.inflow_indices.size, 3)
+        np.testing.assert_array_equal(psi_in, 0.0)
 
-    def test_realized_apply_with_constant_source_is_masked_to_inflow(self) -> None:
-        """``ConstantInflowSource(v)``: the realized ``apply`` delivers
-        ``v`` on the face's inflow slots and ZERO everywhere else — the
-        #52 / ERR-047 delivered-q contract (the pre-#52 unmasked
-        full-array ``v`` was the ERR-047 hazard this file's pin used
-        to bless)."""
+    def test_realized_apply_delivers_v_on_gamma_minus_and_has_no_other_row(
+        self,
+    ) -> None:
+        r"""``ConstantInflowSource(v)``: the realized ``apply`` delivers ``v``
+        on :math:`\Gamma_-` — and there is no row of the output that is not an
+        inflow row.
+
+        RE-POSED at **B3.4a** from ``..._is_masked_to_inflow``. The pre-B3.4a
+        assertion read ``psi_in[off_trace] == 0`` — the mask's erasure. With
+        the codomain narrowed the erasure is unspellable, so the claim it
+        protected (:math:`q \in \Gamma_-`, the #52 / ERR-047 contract) is
+        stated as the absence it now is: exactly :math:`|\Gamma_-|` rows,
+        all carrying ``v``.
+
+        `[M]` ``|Γ₊| == |Γ₋|`` on every quadrature × face pair in the tree,
+        so a row count alone cannot distinguish :math:`\Gamma_-` from
+        :math:`\Gamma_+`; what it CAN distinguish — and what the ERR-047
+        hazard actually was — is a codomain that still contains the outflow
+        and tangential rows, i.e. ``N``. The strict ``< quad.N`` leg is that
+        discriminator, and the second half of the test makes it independent
+        of the input's own leading axis.
+        """
         from orpheus.geometry.boundary import (
             ConstantInflowSource,
             PrescribedInflow,
         )
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=3.7))
         quad = Quadrature.lebedev(17)
-        inflow = np.flatnonzero(quad.mu_x < 0)
-        op = SNBoundaryRealizer().realize(
-            bc,
-            SNMethodSpace(
-                quadrature=quad, face="xmax", inflow_indices=inflow,
-            ),
+        space = face_method_space(quad, face="xmax")
+        inflow = space.inflow_indices
+        op = SNBoundaryRealizer().realize(bc, space)
+        assert op.n_inflow == inflow.size < quad.N, (
+            f"the delivered q spans {op.n_inflow} rows; Γ₋ has "
+            f"{inflow.size} of {quad.N} — a codomain of {quad.N} is the "
+            f"pre-#52 unmasked full-face shape (ERR-047)."
         )
-        psi_out = np.random.default_rng(1).standard_normal((quad.N, 2))
+        psi_out = np.random.default_rng(1).standard_normal(
+            (space.outflow_indices.size, 2),
+        )
         psi_in = op.apply(psi_out)
-        assert psi_in.shape == psi_out.shape
+        assert psi_in.shape == (inflow.size, 2)
+        np.testing.assert_array_equal(psi_in, 3.7)
+        # …and the row count is the OPERATOR's, not the input's: handing it
+        # the whole face slot still yields |Γ₋| rows, so no caller can
+        # persuade it to emit an off-trace row.
         np.testing.assert_array_equal(
-            psi_in[inflow], np.full((inflow.size, 2), 3.7),
-        )
-        off_trace = np.setdiff1d(np.arange(quad.N), inflow)
-        np.testing.assert_array_equal(
-            psi_in[off_trace], np.zeros((off_trace.size, 2)),
+            op.apply(np.ones((quad.N, 2))), np.full((inflow.size, 2), 3.7),
         )
 
     def test_realized_apply_ignores_psi_out(self) -> None:
@@ -499,19 +534,14 @@ class TestPrescribedInflowApply:
             PrescribedInflow,
         )
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=1.0))
         quad = Quadrature.lebedev(17)
-        op = SNBoundaryRealizer().realize(
-            bc,
-            SNMethodSpace(
-                quadrature=quad, face="xmax",
-                inflow_indices=np.flatnonzero(quad.mu_x < 0),
-            ),
-        )
-        psi_out_a = np.random.default_rng(2).standard_normal((quad.N, 2))
-        psi_out_b = 1000.0 * np.ones((quad.N, 2))
+        space = face_method_space(quad, face="xmax")
+        op = SNBoundaryRealizer().realize(bc, space)
+        n_out = space.outflow_indices.size
+        psi_out_a = np.random.default_rng(2).standard_normal((n_out, 2))
+        psi_out_b = 1000.0 * np.ones((n_out, 2))
         # Same source → same output, regardless of psi_out.
         np.testing.assert_array_equal(
             op.apply(psi_out_a),
@@ -521,33 +551,46 @@ class TestPrescribedInflowApply:
 
 @pytest.mark.l1
 class TestIncomingSourceOperator:
-    """:class:`IncomingSourceOperator` standalone (independent of
-    :class:`PrescribedInflow`)."""
+    r""":class:`IncomingSourceOperator` standalone (independent of
+    :class:`PrescribedInflow`).
 
-    def test_apply_returns_source_evaluation(self) -> None:
+    Every leg builds with ``n_inflow`` DIFFERENT from the probe's leading
+    axis. `[M]` on every reachable face ``|Γ₊| == |Γ₋|``, so a fixture where
+    the two agree cannot tell "the source fills the CODOMAIN" from "the
+    source echoes the input's shape" — the error class sits inside the shape
+    functional's invariance group (``vv`` Mode 12). Unequal sizes are the
+    only way to see it, and this operator is hand-constructible, so they cost
+    nothing here.
+    """
+
+    def test_apply_fills_the_codomain_not_the_input_shape(self) -> None:
         from orpheus.geometry.boundary import ConstantInflowSource
         from orpheus.sn.boundary.angular import IncomingSourceOperator
 
-        op = IncomingSourceOperator(ConstantInflowSource(value=2.5))
-        psi_out = np.zeros((8, 3))
+        op = IncomingSourceOperator(ConstantInflowSource(value=2.5), n_inflow=5)
+        psi_out = np.zeros((8, 3))  # 8 ≠ 5: the leading axes must not agree
         result = op.apply(psi_out)
-        assert result.shape == (8, 3)
-        np.testing.assert_array_equal(result, np.full((8, 3), 2.5))
+        assert result.shape == (5, 3), (
+            f"emitted {result.shape} for an 8-row probe with |Γ₋| = 5 — the "
+            f"codomain is echoing the domain, not filling Γ₋."
+        )
+        np.testing.assert_array_equal(result, 2.5)
 
     def test_apply_ignores_input(self) -> None:
         from orpheus.geometry.boundary import ConstantInflowSource
         from orpheus.sn.boundary.angular import IncomingSourceOperator
 
-        op = IncomingSourceOperator(ConstantInflowSource(value=1.0))
+        op = IncomingSourceOperator(ConstantInflowSource(value=1.0), n_inflow=3)
         result_a = op.apply(np.zeros((6, 2)))
         result_b = op.apply(99.0 * np.ones((6, 2)))
         np.testing.assert_array_equal(result_a, result_b)
+        assert result_a.shape == (3, 2)
 
     def test_predicates_are_apply_only(self) -> None:
         from orpheus.geometry.boundary import NoSource
         from orpheus.sn.boundary.angular import IncomingSourceOperator
 
-        op = IncomingSourceOperator(NoSource())
+        op = IncomingSourceOperator(NoSource(), n_inflow=3)
         assert callable(getattr(op, "apply", None))
         # rank-0 / non-invertible — neither structural axis advertised.
         assert not op.is_invertible
@@ -566,32 +609,52 @@ class TestSNRealizerPrescribedInflowDispatch:
         )
         from orpheus.sn.boundary.angular import IncomingSourceOperator
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=1.5))
         quad = Quadrature.lebedev(17)
-        op = SNBoundaryRealizer().realize(
-            bc,
-            SNMethodSpace(
-                quadrature=quad, face="xmax",
-                inflow_indices=np.flatnonzero(quad.mu_x < 0),
-            ),
-        )
+        space = face_method_space(quad, face="xmax")
+        op = SNBoundaryRealizer().realize(bc, space)
         assert isinstance(op, IncomingSourceOperator)
         # The source is the same one we passed in.
         assert op.source is bc.source
+        # …and the realizer sized the codomain from the face's Γ₋.
+        assert op.n_inflow == space.inflow_indices.size
 
     def test_realize_with_default_no_source(self) -> None:
         from orpheus.geometry.boundary import NoSource, PrescribedInflow
         from orpheus.sn.boundary.angular import IncomingSourceOperator
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         bc = PrescribedInflow()
         quad = Quadrature.lebedev(17)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        space = face_method_space(quad, face="xmax")
+        op = SNBoundaryRealizer().realize(bc, space)
         assert isinstance(op, IncomingSourceOperator)
         assert isinstance(op.source, NoSource)
+
+    def test_prescribed_inflow_on_a_faceless_space_is_refused(self) -> None:
+        r"""B3.4a negative: even the rank-0 law needs a face.
+
+        NET-NEW. Pre-B3.4a ``SNMethodSpace.minimal`` realized prescribed
+        inflow happily (an unmasked full-face ``q`` — the ERR-047 shape). The
+        law's codomain is now :math:`\Gamma_-`, which a quadrature alone
+        cannot name, so the realizer refuses; the guard shipped with no
+        negative test.
+
+        The refusal is attributed to the DOMAIN guard (``outflow_indices``),
+        which fires first: prescribed inflow ignores its input, but a law
+        that cannot name its own domain is not realized, it is guessed.
+        """
+        from orpheus.geometry.boundary import BoundaryError, PrescribedInflow
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
+
+        quad = Quadrature.lebedev(17)
+        with pytest.raises(BoundaryError, match="outflow_indices") as excinfo:
+            SNBoundaryRealizer().realize(
+                PrescribedInflow(), SNMethodSpace.minimal(quad),
+            )
+        assert excinfo.value.law == "prescribed_inflow"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -688,55 +751,87 @@ class TestSourceLivesOnIncomingTraceInvariant:
         with pytest.raises(BoundarySourceNotOnIncomingTraceError):
             SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
 
-    def test_delivered_q_vanishes_off_the_incoming_trace(self) -> None:
-        """The end-to-end postcondition the invariant's mask-exists
-        certification rides on: the REALIZED operator's output is the
-        source value on :math:`\\Gamma_-` and exactly zero on outflow
-        AND tangential slots (neither is in :math:`\\Gamma_-`)."""
+    def test_delivered_q_has_no_row_off_the_incoming_trace(self) -> None:
+        r"""The end-to-end postcondition the invariant's mask-exists
+        certification rides on: the REALIZED operator delivers the source
+        value on :math:`\Gamma_-`, and there is NO row of its output that is
+        an outflow or tangential slot.
+
+        RE-POSED at **B3.4a** from ``..._vanishes_off_the_incoming_trace``.
+        The pre-B3.4a assertion indexed the delivered array at ``off_trace``
+        and found zeros — the mask's erasure, which is the postcondition
+        ERR-047 names. With the codomain narrowed to :math:`\Gamma_-` those
+        rows are not emitted at all, so the ERASURE has become an ABSENCE and
+        this leg asserts the absence: the delivered block has exactly
+        :math:`|\Gamma_-|` rows out of ``N``, every one carrying ``v``.
+
+        The ``catches("ERR-047")`` claim stays LIVE, and the FULL-FACE probe
+        is what keeps it live. `[M]` ``|Γ₊| == |Γ₋|`` on every reachable face,
+        so a :math:`\Gamma_+`-sized probe cannot tell "``q`` fills the
+        codomain" from "``q`` echoes whatever it is handed" — the very
+        regression that IS ERR-047 (an unmasked ``q`` spanning the whole face
+        slot, whose outflow entries the sweep then discards, leaving the
+        total inflow SHORT). Feeding the whole slot and requiring
+        :math:`|\Gamma_-|` rows back is the discriminator; without it this
+        leg sits inside the shape functional's invariance group (``vv``
+        Mode 12) and the marker would be a phantom.
+        """
         from orpheus.geometry.boundary import (
             ConstantInflowSource,
             PrescribedInflow,
         )
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=2.0))
         quad = Quadrature.lebedev(17)
-        inflow = np.flatnonzero(quad.mu_x < 0)
-        op = SNBoundaryRealizer().realize(
-            bc,
-            SNMethodSpace(
-                quadrature=quad, face="xmax", inflow_indices=inflow,
-            ),
-        )
-        delivered = op.apply(np.ones((quad.N, 3)))
-        np.testing.assert_array_equal(
-            delivered[inflow], np.full((inflow.size, 3), 2.0),
-        )
+        space = face_method_space(quad, face="xmax")
+        inflow = space.inflow_indices
+        # The face partition is THREE-way — inflow ⊔ outflow ⊔ tangential —
+        # so "no off-trace row" is counted against N, never against |Γ₊|.
         off_trace = np.setdiff1d(np.arange(quad.N), inflow)
-        np.testing.assert_array_equal(
-            delivered[off_trace], np.zeros((off_trace.size, 3)),
+        assert off_trace.size > 0  # activation: there IS an off-trace to miss
+        op = SNBoundaryRealizer().realize(bc, space)
+        delivered = op.apply(np.ones((space.outflow_indices.size, 3)))
+        assert delivered.shape == (inflow.size, 3), (
+            f"delivered q spans {delivered.shape[0]} rows; Γ₋ has "
+            f"{inflow.size} and the face slot has {quad.N}. Any row beyond "
+            f"Γ₋ is an off-trace slot the sweep would discard (ERR-047)."
         )
+        np.testing.assert_array_equal(delivered, 2.0)
+        # The ERR-047 discriminator: the whole face slot in, |Γ₋| rows out.
+        full_face = op.apply(np.ones((quad.N, 3)))
+        assert full_face.shape == (inflow.size, 3), (
+            f"a full-face probe produced {full_face.shape[0]} rows — the "
+            f"delivered q is sized from its INPUT, so it spans the whole "
+            f"face slot again and its off-trace entries are the ERR-047 "
+            f"source the sweep discards."
+        )
+        np.testing.assert_array_equal(full_face, 2.0)
 
-    def test_mask_construction_guards(self) -> None:
-        """The mask plumbing's own contract: indices without a length
-        are refused; out-of-range indices are refused (mirrors
-        :class:`IncomingOrdinateMaskTensor`'s construction guards)."""
+    def test_codomain_size_is_the_construction_contract(self) -> None:
+        r"""The operator's construction contract: :math:`|\Gamma_-|` is the
+        one datum it needs, and it must be a real codomain size.
+
+        RE-POSED at **B3.4a** from ``test_mask_construction_guards``. The
+        mask plumbing whose guards that test pinned (``inflow_indices`` +
+        ``n_ordinates``, with rank and out-of-range checks) is RETIRED — the
+        codomain no longer contains the rows a mask would zero. The claim
+        those guards protected, ":math:`q` lands on :math:`\Gamma_-` and
+        nowhere else", is now carried by the codomain size itself, so that is
+        what this leg guards: a negative row count is refused, and a valid
+        one is exactly the number of rows :meth:`apply` emits — independent
+        of the probe's own leading axis (``vv`` Mode 12: on every reachable
+        face ``|Γ₊| == |Γ₋|``, so an equal-sized probe could not tell the two
+        apart).
+        """
         from orpheus.geometry.boundary import ConstantInflowSource
         from orpheus.sn.boundary.angular import IncomingSourceOperator
 
         src = ConstantInflowSource(value=1.0)
-        with pytest.raises(ValueError):
-            IncomingSourceOperator(
-                src, inflow_indices=np.array([0, 1]),
-            )
-        with pytest.raises(ValueError):
-            IncomingSourceOperator(
-                src, inflow_indices=np.array([0, 9]), n_ordinates=4,
-            )
-        with pytest.raises(ValueError):
-            IncomingSourceOperator(
-                src,
-                inflow_indices=np.array([[0], [1]]),
-                n_ordinates=4,
-            )
+        with pytest.raises(ValueError, match="n_inflow must be non-negative"):
+            IncomingSourceOperator(src, n_inflow=-1)
+        # Positive control: a real codomain size constructs, and the emitted
+        # row count IS that size (7 ≠ 3, so the probe cannot supply it).
+        op = IncomingSourceOperator(src, n_inflow=3)
+        assert op.n_inflow == 3
+        assert op.apply(np.ones((7, 2))).shape == (3, 2)

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **7192**
+Total tests collected: **7202**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1206, 16.8%
-   L1, 1186, 16.5%
+   L0, 1211, 16.8%
+   L1, 1191, 16.5%
    L2, 64, 0.9%
    L3, 0, 0.0%
-   foundation, 4736, 65.9%
+   foundation, 4736, 65.8%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 7113
+   explicit, 7123
    class-name, 46
    func-name, 0
    case, 33
@@ -256,7 +256,7 @@ Module × level grid
    frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 8, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
-   geometry/test_bc_universal_invariants, 0, 42, 0, 0, 5, 0
+   geometry/test_bc_universal_invariants, 0, 43, 0, 0, 5, 0
    geometry/test_bound_compat, 13, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 25, 0
    geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
@@ -344,7 +344,7 @@ Module × level grid
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 18, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
-   operators/test_angular_average_operator, 12, 4, 0, 0, 0, 0
+   operators/test_angular_average_operator, 17, 4, 0, 0, 0, 0
    operators/test_apply_full_field_codomain, 0, 0, 0, 0, 15, 0
    operators/test_b3_domain_narrowing, 0, 0, 0, 0, 27, 0
    operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
@@ -379,7 +379,7 @@ Module × level grid
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 69, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 42, 0
-   operators/test_sn_boundary_realizer, 0, 27, 0, 0, 0, 0
+   operators/test_sn_boundary_realizer, 0, 31, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_streaming_cell_transpose_relocation, 0, 0, 0, 0, 11, 0

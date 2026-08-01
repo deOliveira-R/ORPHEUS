@@ -254,17 +254,19 @@ class TestBitIdentityAgainstTheRetiredExpression:
 
 
 _B34_XFAIL = (
-    "B3.4 — this law still realizes FULL-FACE. B3.2 narrowed only the two "
-    "laws SN actually reaches from a mesh ({vacuum, reflective}); white, "
-    "albedo (at EVERY α — the α=0 ZeroOperator and α=1 IdentityOperator fast "
-    "paths are endomorphisms too, so this is NOT limited to α ∉ {0,1}), "
-    "periodic and prescribed_inflow keep their pre-B3.2 shape. MEASURED: "
-    "white and prescribed_inflow RAISE on a Γ₊ input; albedo and periodic "
-    "silently accept it and echo Γ₊ back — i.e. Γ₊ → Γ₊, the wrong codomain, "
-    "invisible to a shape check because |Γ₊| == |Γ₋| on every fixture. "
-    "Deciding their Γ₊ → Γ₋ action is B3.4's job (#183, #189); it is a "
-    "deliberate CHANGE of meaning for albedo, not a refactor. Delete this "
-    "marker when the law narrows."
+    "B3.4b/c — this law still realizes FULL-FACE. B3.2 narrowed the two laws "
+    "SN reaches from a mesh ({vacuum, reflective}); B3.4a narrowed white and "
+    "prescribed_inflow. What remains is albedo — at EVERY α, since the α=0 "
+    "ZeroOperator and α=1 IdentityOperator fast paths are endomorphisms too, "
+    "so this is NOT limited to α ∉ {0,1} — and periodic. MEASURED: both "
+    "silently accept a Γ₊ input and echo it back, i.e. Γ₊ → Γ₊, the wrong "
+    "codomain, invisible to a shape check because |Γ₊| == |Γ₋| on every "
+    "fixture (vv Mode 12). Each is blocked on a DESIGN ruling, not on "
+    "plumbing: albedo is under-determined on an angular trace (R = α·I is a "
+    "Γ₊ → Γ₊ endomorphism and its G = IdentityMap supplies no crossing), so "
+    "B3.4b gives it an explicit re-emission closure carried in R; periodic's "
+    "G reads the PARTNER face's Γ₊, which B3.4c builds (#183, #189). Delete "
+    "this marker when the law narrows."
 )
 
 #: Every law in the registry, with a representative amplitude per kind.
@@ -275,13 +277,16 @@ _LAWS = {
     "vacuum": (VacuumInflow(), False),
     "reflective_a1": (ReflectiveBoundary(axis="x", albedo=1.0), False),
     "reflective_a07": (ReflectiveBoundary(axis="x", albedo=0.7), False),
-    "white_a1": (WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0), True),
-    "white_a03": (WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3), True),
+    # B3.4a narrowed these two. The law's axis / outward_sign must match the
+    # fixture face ("xmax" ⇔ x, +1) or the realizer's orientation cross-check
+    # fires — which is the point of that guard, not an inconvenience.
+    "white_a1": (WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0), False),
+    "white_a03": (WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3), False),
+    "prescribed": (PrescribedInflow(source=ConstantInflowSource(value=1.0)), False),
     "albedo_0": (AlbedoBoundary(albedo=0.0), True),
     "albedo_1": (AlbedoBoundary(albedo=1.0), True),
     "albedo_05": (AlbedoBoundary(albedo=0.5), True),
     "periodic": (PeriodicBoundary(), True),
-    "prescribed": (PrescribedInflow(source=ConstantInflowSource(value=1.0)), True),
 }
 
 
@@ -305,10 +310,24 @@ class TestEveryLawsDomain:
         (measured: gauss_legendre 4/5/8, product 2×4/3×4/4×8, lebedev 9/17,
         level_symmetric 4/6). The error class sits inside the shape
         functional's invariance group — vv Mode 12 — so the discriminator has
-        to leave that functional. A narrowed law structurally cannot emit
-        ``N`` rows (its output length is ``|Γ₋| < N``); an endomorphism always
-        does. Leg B is exactly what catches ``albedo`` and ``periodic``, which
-        pass Leg A by accident.
+        to leave that functional. Leg B is exactly what catches ``albedo`` and
+        ``periodic``, which pass Leg A by accident.
+
+        **Two outcomes pass Leg B, and they are not equal in strength.** A
+        narrowed law either
+
+        * **REFUSES** the full-face input (it validates its own domain) — the
+          strictly stronger answer, and the one B3.4a's white arm gives, since
+          ``AngularAverageOperator.apply`` checks ``psi.shape[0]``; or
+        * **returns** :math:`|\Gamma_-|` rows, which is enough to prove it is
+          not an endomorphism even though it did not notice the wrong input.
+          B3.4a's prescribed-inflow arm answers this way: it ignores its input
+          entirely, so it has nothing to validate against.
+
+        Both refute "endomorphism", which is Leg B's claim. Whether a law also
+        *validates* is the separate RG-3b gate in
+        ``test_sn_boundary_operator.py`` — kept separate on purpose, so that
+        this row cannot quietly credit the weaker property as the stronger one.
         """
         law, deferred = _LAWS[law_id]
         if deferred:
@@ -326,7 +345,17 @@ class TestEveryLawsDomain:
             f"{law_id}: realized law maps ({n_out}, 3) -> {image.shape}; the "
             f"narrowed contract is Γ₊ -> Γ₋, i.e. ({n_in}, 3)."
         )
-        assert np.asarray(op.apply(np.ones((quad.N, 3)))).shape[0] != quad.N, (
+        # Narrow catches only: a refusal of the WRONG SHAPE is the outcome
+        # under test, so anything else must surface as a real error rather
+        # than be scored as a pass (vv Mode 8, class 6 — a broad ``except``
+        # turns a dead gate green).
+        try:
+            full_rows: "int | None" = int(
+                np.asarray(op.apply(np.ones((quad.N, 3)))).shape[0]
+            )
+        except (ValueError, IndexError):
+            full_rows = None  # refused the input — the stronger outcome
+        assert full_rows != quad.N, (
             f"{law_id}: realized law emits {quad.N} rows for a full-face "
             f"input — it is an ENDOMORPHISM of the whole face slot, not a "
             f"Γ₊ -> Γ₋ map. (|Γ₊| == |Γ₋| here, so the shape leg above cannot "

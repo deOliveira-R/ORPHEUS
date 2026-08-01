@@ -96,17 +96,13 @@ from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from tests.sn._test_helpers import face_method_space
 
-#: Shared reason for the snapshot gate blocked on B3.4 (one spelling of the
-#: debt — see the same constant in ``tests/geometry/test_boundary.py``).
-_MIXED_LAW_XFAIL = (
-    "B3.4 — a NARROWED law cannot be summed with an UN-NARROWED one. Since "
-    "B3.2 reflective is typed Γ₊ → Γ₋ while white is still a full-face "
-    "endomorphism, so `0.3*spec + 0.7*white` has mismatched factor shapes "
-    "and its apply raises. MEASURED on a Γ₊ probe: `AngularAverageOperator."
-    "apply: psi.shape[0] = |Γ₊|, expected N`. The rank-N composition claim "
-    "is unchanged and un-weakened; it is unstateable until B3.4 narrows "
-    "white / albedo / periodic (#183, #189). Delete this marker then."
-)
+#: The mixed-law snapshot below sums reflective with **white**. Both are
+#: narrowed (B3.2, B3.4a), so the rank-N composition claim is stateable again
+#: and the ``xfail(strict=True)`` that stood here was deleted at B3.4a — as
+#: its own reason text instructed. It must NOT be re-posed over albedo or
+#: periodic: those are still full-face (B3.4b / B3.4c) and, because
+#: ``|Γ₊| == |Γ₋|`` everywhere, such a sum does not RAISE — it runs silently
+#: wrong (vv Mode 12), so the gate would be green and worthless.
 from orpheus.numerics.quadrature import Quadrature
 
 
@@ -343,9 +339,25 @@ class TestWhiteXmaxLS4Snapshot:
         """
         quad = Quadrature.level_symmetric(sn_order=4)
         bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
-        actual = op.apply(snapshot["psi_out"])
-        np.testing.assert_array_equal(actual, snapshot["psi_in"])
+        space = face_method_space(
+            quad, face="xmax", faces=("xmin", "xmax", "ymin", "ymax"),
+        )
+        op = SNBoundaryRealizer().realize(bc, space)
+        actual = op.apply(snapshot["psi_out"][space.outflow_indices])
+        # ⭐ B3.4a — the SAME bit-identity shape the specular cases already
+        # use: the frozen ``psi_in`` is the pre-narrowing FULL-FACE image, so
+        # the narrowed law's image must be that array RESTRICTED to Γ₋,
+        # bit-for-bit. The snapshot is NOT regenerated; the reference stays the
+        # frozen artefact, never a re-run of the new code.
+        #
+        # `[M]` It holds EXACTLY here (maxdiff 0.0). It need not in general:
+        # the narrowed sum runs over the restricted array instead of a
+        # zero-padded full-N one, and that reduction-order change is worth ~1
+        # ULP on quadratures where it bites. `level_symmetric(4)` carries ZERO
+        # tangential ordinates, so nothing was mis-admitted and nothing moved.
+        np.testing.assert_array_equal(
+            actual, snapshot["psi_in"][space.inflow_indices],
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -377,9 +389,17 @@ class TestWhiteXminPartial03GLSnapshot:
         """Realized ``ScaledOperator(0.3, AngularAverageOperator)`` is bit-exact."""
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         bc = WhiteBoundary(axis="x", outward_sign=-1, albedo=0.3)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
-        actual = op.apply(snapshot["psi_out"])
-        np.testing.assert_array_equal(actual, snapshot["psi_in"])
+        space = face_method_space(quad, face="xmin")
+        op = SNBoundaryRealizer().realize(bc, space)
+        actual = op.apply(snapshot["psi_out"][space.outflow_indices])
+        # B3.4a — frozen pre-narrowing image restricted to Γ₋; see Case 5 for
+        # why the artefact is not regenerated. `[M]` maxdiff 0.0 here too: a
+        # 1-D GL quadrature carries no tangential ordinates. This row
+        # additionally carries the SCALED path, so an α-fold regression is
+        # caught at the same time.
+        np.testing.assert_array_equal(
+            actual, snapshot["psi_in"][space.inflow_indices],
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -444,7 +464,6 @@ class TestMixed30Spec70WhiteLS4Snapshot:
     def snapshot(self) -> np.lib.npyio.NpzFile:
         return _load_snapshot(self.case_id)
 
-    @pytest.mark.xfail(strict=True, reason=_MIXED_LAW_XFAIL)
     def test_realizer_apply_matches_snapshot(
         self, snapshot: np.lib.npyio.NpzFile,
     ) -> None:
@@ -453,17 +472,21 @@ class TestMixed30Spec70WhiteLS4Snapshot:
 
         RE-POSED at **B3.2** onto Γ₊ (the narrowed leaf's domain) and against
         the frozen image restricted to Γ₋ — the same bit-identity shape as the
-        pure-specular cases above. Blocked on B3.4: white is still full-face,
-        so the sum's factors disagree.
+        pure-specular cases above. **UNBLOCKED at B3.4a**: white narrowed, so
+        both summands are now typed ``Γ₊ → Γ₋`` and the rank-N composition
+        claim is stateable. Both leaves are realized on the SAME face-ful
+        space, which is what makes the sum well-typed — realizing one of them
+        on a faceless space is no longer even possible.
         """
         quad = Quadrature.level_symmetric(sn_order=4)
-        space = face_method_space(quad, face="xmax")
+        space = face_method_space(
+            quad, face="xmax", faces=("xmin", "xmax", "ymin", "ymax"),
+        )
         spec_realized = SNBoundaryRealizer().realize(
             ReflectiveBoundary(axis="x", albedo=1.0), space,
         )
         white_realized = SNBoundaryRealizer().realize(
-            WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0),
-            SNMethodSpace.minimal(quad),
+            WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0), space,
         )
         composed = 0.3 * spec_realized + 0.7 * white_realized
         actual = composed.apply(snapshot["psi_out"][space.outflow_indices])

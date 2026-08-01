@@ -27,17 +27,19 @@ __all__ = ["WhiteBoundary"]
 class WhiteBoundary(BoundaryTraceLaw, key="white"):
     r"""White (Lambertian) boundary with optional albedo.
 
-    Tensor decomposition :math:`(G_{\text{diff}}, \alpha)` where
-    :math:`G_{\text{diff}}` is the cosine-weighted angular average
-    over the outgoing hemisphere, broadcast isotropically over the
-    incoming hemisphere:
+    The law is :math:`R = \alpha\,G_{\text{diff}}` with
+    :math:`G = \mathrm{id}`, where :math:`G_{\text{diff}}` is the
+    cosine-weighted angular average over the **outflow** half-trace
+    :math:`\Gamma_+`, broadcast isotropically over the **inflow**
+    half-trace :math:`\Gamma_-`:
 
     .. math::
 
         \psi_{\text{in}}(\Omega) = \frac{\alpha}{\pi}
-            \sum_{\Omega' :\, \Omega' \cdot \hat{n} > 0}
+            \sum_{\Omega' \in \Gamma_+}
             w(\Omega')\,|\Omega' \cdot \hat{n}|\,
             \psi_{\text{out}}(\Omega'),
+        \qquad \Omega \in \Gamma_-,
 
     where the result is independent of the incoming :math:`\Omega`
     direction (Lambertian / cosine emission). The factor :math:`1/\pi`
@@ -48,19 +50,41 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
     current (times :math:`\alpha`), which is the property the consumer
     actually needs -- see Bell & Glasstone 1970 §1.5.
 
+    The sum runs over :math:`\Gamma_+`, **not** over the strictly-
+    positive set :math:`\{\Omega' \cdot \hat n > 0\}`. On a discrete
+    quadrature those differ: the tangential band
+    :math:`|\Omega' \cdot \hat n| \le \varepsilon_{\text{tan}}` belongs
+    to neither half-trace, so "not inflow" is never "outflow". Writing
+    the strict compare was the producer-side twin campaign phase
+    **B3.4a** retired — see
+    :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`.
+
     This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
-    no ``apply`` method. The SN realisation is
-    :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`
-    (α=1 fast path) or ``ScaledOperator(α, AngularAverageOperator)``
-    (α ≠ 1). Realise via:
+    no ``apply`` method. The SN realisation is narrowed
+    :math:`\Gamma_+ \to \Gamma_-` (**B3.4a**):
+    ``AngularAverageOperator.from_quadrature(...) & IdentityOperator()``
+    (α=1 fast path) or that tensor product wrapped in a
+    ``ScaledOperator(α, ...)`` (α ≠ 1). Realising needs a **face** —
+    the law's domain is that face's :math:`\Gamma_+`, which a
+    quadrature alone cannot name, so ``SNMethodSpace.minimal`` raises:
 
     .. code-block:: python
 
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
         from orpheus.sn.mesh.method_space import SNMethodSpace
         law = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.8)
-        op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
-        psi_in = op.apply(psi_out)
+        space = SNMethodSpace.for_face(
+            quadrature=quad, face="xmax", trace=trace,
+        )
+        op = SNBoundaryRealizer().realize(law, space)
+        psi_in = op.apply(psi_out)   # psi_out is Γ₊-shaped
+
+    The realizer cross-checks this law's declared ``axis`` /
+    ``outward_sign`` against the installation face's :math:`\Gamma_+`
+    and raises :class:`~orpheus.geometry.boundary.BoundaryError` on a
+    mismatch: the two are independent encodings of ONE orientation, and
+    a white law declared for ``x`` but installed on ``ymin`` would
+    otherwise average the wrong hemisphere silently.
 
     Rename history
     --------------

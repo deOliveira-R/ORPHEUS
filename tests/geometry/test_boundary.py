@@ -35,6 +35,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
     ZeroFluxBoundary,
 )
+from orpheus.sn.boundary.angular import AngularAverageOperator
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
@@ -57,10 +58,11 @@ def _realize_for_sn(bc, quad):
     Returns a 1-arg :class:`LinearOperator` whose ``apply(psi)`` matches
     the legacy 2-arg ``bc.apply(psi, quad)`` semantics.
 
-    B3.2 note: this helper is now for the laws that are STILL full-face —
-    white, albedo, periodic. The narrowed ones (vacuum, reflective) are typed
+    B3.4a note: this helper is now for the laws that are STILL full-face —
+    **albedo and periodic only** (B3.4b / B3.4c). Vacuum and reflective
+    narrowed at B3.2, white and prescribed inflow at B3.4a; all four are typed
     :math:`\\Gamma_+ \\to \\Gamma_-` and cannot be realized on a faceless
-    method space at all; they use :func:`_realize_narrowed_for_face_right`.
+    method space at all. They use :func:`_realize_narrowed_for_face_right`.
     """
     realizer = SNBoundaryRealizer()
     method_space = SNMethodSpace.minimal(quad)
@@ -212,37 +214,43 @@ def test_specular_bc_axis_y_on_lebedev() -> None:
 
 @pytest.mark.foundation
 def test_white_bc_returns_cosine_weighted_average() -> None:
-    """White BC: incoming = ``Σ w·μ·ψ_out / Σ w·μ`` over outgoing hemisphere."""
+    r"""White BC: :math:`\gamma_-\psi = \sum_{\Gamma_+} w\mu\psi / \sum_{\Gamma_+} w\mu`.
+
+    **B3.4a** narrowed the law to :math:`\Gamma_+ \to \Gamma_-`, so the probe
+    lives on :math:`\Gamma_+` and the image on :math:`\Gamma_-`. The reference
+    stays hand-computed from ``quad.mu_x`` / ``quad.weights`` — but it is now
+    summed over the RESTRICTED index set rather than over a masked full-``N``
+    array, which is the whole point: the mask was a second outflow classifier.
+    """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
+    inflow, outflow = _half_traces(quad)
     rng = np.random.default_rng(2)
-    psi_out = rng.standard_normal((quad.N, 1))
+    psi_out = rng.standard_normal((outflow.size, 1))
     bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
 
-    psi_in = _realize_for_sn(bc, quad).apply(psi_out)
+    psi_in = _realize_narrowed_for_face_right(bc, quad).apply(psi_out)
 
-    mu = quad.mu_x
-    w = quad.weights
-    # Hand-compute the expected cosine-weighted average over outgoing
-    # hemisphere (μ > 0 for outward_sign = +1).
-    out_mask = mu > 0.0
-    cos_w = np.where(out_mask, w * mu, 0.0)
+    cos_w = quad.weights[outflow] * quad.mu_x[outflow]
     expected_avg = (cos_w[:, None] * psi_out).sum(axis=0) / cos_w.sum()
-    expected = np.broadcast_to(expected_avg, psi_out.shape)
+    expected = np.broadcast_to(expected_avg, (inflow.size, 1))
 
+    assert psi_in.shape == (inflow.size, 1)
     np.testing.assert_allclose(psi_in, expected, rtol=1e-15, atol=1e-15)
 
 
 @pytest.mark.foundation
 def test_white_bc_is_angle_independent() -> None:
-    """White BC produces the same value at every ordinate index."""
+    """White BC produces the same value at every INFLOW ordinate."""
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    psi_out = np.random.default_rng(3).standard_normal((quad.N, 2))
+    inflow, outflow = _half_traces(quad)
+    psi_out = np.random.default_rng(3).standard_normal((outflow.size, 2))
     bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.7)
 
-    psi_in = _realize_for_sn(bc, quad).apply(psi_out)
+    psi_in = _realize_narrowed_for_face_right(bc, quad).apply(psi_out)
 
-    # All rows identical.
-    for n in range(1, quad.N):
+    assert psi_in.shape[0] == inflow.size
+    # All rows identical — Lambertian emission has no angular structure.
+    for n in range(1, inflow.size):
         np.testing.assert_allclose(psi_in[n], psi_in[0], rtol=1e-15, atol=0.0)
 
 
@@ -250,12 +258,13 @@ def test_white_bc_is_angle_independent() -> None:
 def test_white_bc_albedo_scales_linearly() -> None:
     """Two white BCs at α=1 and α=0.4 differ by exactly the ratio."""
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    psi_out = np.random.default_rng(4).standard_normal((quad.N, 2))
+    _inflow, outflow = _half_traces(quad)
+    psi_out = np.random.default_rng(4).standard_normal((outflow.size, 2))
     bc1 = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     bc2 = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.4)
 
-    psi1 = _realize_for_sn(bc1, quad).apply(psi_out)
-    psi2 = _realize_for_sn(bc2, quad).apply(psi_out)
+    psi1 = _realize_narrowed_for_face_right(bc1, quad).apply(psi_out)
+    psi2 = _realize_narrowed_for_face_right(bc2, quad).apply(psi_out)
 
     np.testing.assert_allclose(psi2, 0.4 * psi1, rtol=1e-14, atol=0.0)
 
@@ -318,10 +327,16 @@ def test_white_bc_4_point_quadrature_hand_computed() -> None:
     published GL-4 table, :math:`\psi_1 = 1`, :math:`\psi_2 = 4`
     :math:`\Rightarrow \psi_- = 2.723973656470134`.
 
-    The incoming ordinates carry 7.0 so the outgoing-hemisphere mask is
-    also constrained (they must NOT enter the average).
+    **B3.4a re-pose.** The old body also fed the INCOMING ordinates 7.0, to
+    constrain the outgoing-hemisphere mask (they must not enter the average).
+    That mask is gone: the law's domain is :math:`\Gamma_+`, so an inflow
+    ordinate cannot enter the average because it cannot be handed to the
+    operator at all. The constraint is preserved — strictly strengthened — as
+    the final leg: a full-face input is REFUSED. An erasure became an absence,
+    and an absence is not silently removable the way a mask was.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
+    inflow, outflow = _half_traces(quad)
     (mu_1, w_1), (mu_2, w_2) = _GL4_TABLE
 
     # Precondition: the quadrature IS the published GL-4 rule. If this
@@ -338,18 +353,26 @@ def test_white_bc_4_point_quadrature_hand_computed() -> None:
         err_msg="GL-4 weights no longer match the published table",
     )
 
-    psi_1, psi_2, psi_incoming = 1.0, 4.0, 7.0
-    psi_out = np.full((quad.N, 1), psi_incoming)
-    psi_out[np.isclose(quad.mu_x, +mu_1)] = psi_1
-    psi_out[np.isclose(quad.mu_x, +mu_2)] = psi_2
+    psi_1, psi_2 = 1.0, 4.0
+    mu_out = quad.mu_x[outflow]
+    psi_out = np.empty((outflow.size, 1))
+    psi_out[np.isclose(mu_out, +mu_1)] = psi_1
+    psi_out[np.isclose(mu_out, +mu_2)] = psi_2
+    # Activation guard, OUTSIDE the claim: the two outgoing ordinates must
+    # genuinely carry DIFFERENT values, or the weighted mean is invariant
+    # under the whole w·|Ω·n̂| formula and the gate is the blind one B0.3
+    # repaired (vv Mode 12).
+    assert psi_out.min() != psi_out.max()
 
     bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
-    psi_in = _realize_for_sn(bc, quad).apply(psi_out)
+    op = _realize_narrowed_for_face_right(bc, quad)
+    psi_in = op.apply(psi_out)
 
     expected = (w_1 * mu_1 * psi_1 + w_2 * mu_2 * psi_2) / (
         w_1 * mu_1 + w_2 * mu_2
     )
     assert abs(expected - 2.723973656470134) < 1e-14  # the docstring's number
+    assert psi_in.shape == (inflow.size, 1)
     np.testing.assert_allclose(
         psi_in, expected, rtol=1e-14, atol=0.0,
         err_msg=(
@@ -357,6 +380,11 @@ def test_white_bc_4_point_quadrature_hand_computed() -> None:
             "mean on GL-4"
         ),
     )
+
+    # The re-posed mask constraint: an inflow ordinate cannot enter the
+    # average because the whole face is not in the domain.
+    with pytest.raises(ValueError, match=r"expected \|Γ₊\|"):
+        op.apply(np.full((quad.N, 1), 7.0))
 
 
 @pytest.mark.foundation
@@ -410,13 +438,22 @@ def test_white_bc_axis_z_on_product_quadrature() -> None:
         err_msg="product(8, 4) polar nodes are no longer GL-8",
     )
 
-    psi_incoming = 9.0
-    psi_out = np.where(
-        quad.mu_z[:, None] > 0, quad.mu_z[:, None], psi_incoming,
+    # B3.4a — the probe lives on Γ₊ of the z-max face. The old body wrote 9.0
+    # on the incoming ordinates to constrain the mask; those ordinates are no
+    # longer in the domain, so the constraint is now structural.
+    from orpheus.numerics.spaces.angular_trace_space import (
+        TANGENTIAL_EPS, build_omega_dot_n,
     )
+    odn_z = build_omega_dot_n(quad, ("zmax",))[0]
+    outflow_z = np.flatnonzero(odn_z > +TANGENTIAL_EPS)
+    inflow_z = np.flatnonzero(odn_z < -TANGENTIAL_EPS)
+    psi_out = quad.mu_z[outflow_z][:, None]
     bc = WhiteBoundary(axis="z", outward_sign=+1, albedo=1.0)
 
-    psi_in = _realize_for_sn(bc, quad).apply(psi_out)
+    psi_in = SNBoundaryRealizer().realize(
+        bc, face_method_space(quad, face="zmax", faces=("zmin", "zmax")),
+    ).apply(psi_out)
+    assert psi_in.shape == (inflow_z.size, 1)
 
     # (1) discrete hand calculation off the published GL-8 half-table.
     expected = float((w_k * mu_k**2).sum() / (w_k * mu_k).sum())
@@ -442,26 +479,29 @@ def test_white_bc_axis_z_on_product_quadrature() -> None:
 
 @pytest.mark.foundation
 def test_white_bc_z_axis_unsupported_on_1d_quadrature() -> None:
-    r"""Slab GL has zero z-cosines — z-axis white BC fails the
-    downstream "no outgoing ordinates" guard.
+    r"""Slab GL has zero z-cosines — a z-axis white BC is a RANK MISMATCH
+    between the face and the cubature, and is refused as one.
 
-    R-1 Phase A detour-C: the unified :class:`Quadrature` class
-    always exposes ``mu_z`` as a :func:`@property` view (returning
-    zeros for slab measures); the failure mode that the OLD
-    ``GaussLegendre1D`` adapter triggered via :exc:`AttributeError`
-    on missing ``mu_z`` now surfaces one layer downstream — the
-    :class:`AngularAverageOperator.from_quadrature` realizer sees
-    that NO ordinate has outward :math:`\mu_z > 0` and raises
-    ValueError with a "no outgoing ordinates" message. Same
-    defensive behavior (slab z-axis is structurally degenerate);
-    different layer of catch.
+    R-1 Phase A detour-C: the unified :class:`Quadrature` class always exposes
+    ``mu_z`` as a :func:`@property` view (returning zeros for slab measures),
+    so the OLD ``GaussLegendre1D`` adapter's :exc:`AttributeError` on a missing
+    ``mu_z`` cannot fire; the defect has to be caught by VALUE.
+
+    **B3.4a moved the catch one layer further in, and sharpened it.** The
+    operator no longer runs its own outflow classification, so it no longer
+    reaches a "no outgoing ordinates" state of its own; it asks
+    :func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n` —
+    the single face-name → signed-projection primitive — which refuses a face
+    whose normal-axis cosines are IDENTICALLY zero, naming the mismatch between
+    the face layout and the angular cubature rather than reporting the
+    downstream symptom. Same defect, one fewer place that can classify it, and
+    a message that says what is actually wrong.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    psi_out = np.zeros((quad.N, 1))
     bc = WhiteBoundary(axis="z", outward_sign=+1, albedo=1.0)
 
-    with pytest.raises(ValueError, match="no outgoing ordinates"):
-        _realize_for_sn(bc, quad).apply(psi_out)
+    with pytest.raises(ValueError, match="requires genuine mu_z"):
+        AngularAverageOperator.from_quadrature(quad, bc.axis, bc.outward_sign)
 
 
 @pytest.mark.foundation

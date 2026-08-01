@@ -2130,3 +2130,81 @@ test-design facts, all MEASURED (boundary review §B3, 2026-07-31):
   once the domain is `Γ₊`) — caught by the sha256 positive-control table before
   any colour was read. Keep a per-variant hash table; it is cheap and it is the
   only thing standing between you and a confident false "no gate catches this".
+
+---
+
+## L30 — MIGRATING the inherited test surface of a domain narrowing (B3.4a, the phase AFTER L29's carve): a rectangular operator's self-adjointness gate is not lost, it is RECIPROCITY against a sibling the tree already builds; and the guard the narrowing dissolves is replaced by a guard on the CLASSIFIER, whose discriminating fixture is usually ONE quadrature
+
+L29 is the carve; this is the test-migration phase that follows it — the 28
+inherited reds of the white/prescribed-inflow narrowing (`AngularAverageOperator`
++ `IncomingSourceOperator` typed `Γ₊ → Γ₋`). Every finding below is MEASURED
+(2026-08-01, `scratch/b3_4a_test_migration.md`, harness `scratch/b3_4a_mutations.py`).
+
+- **A "cannot be posed on the narrowed operator" gate is usually a RECIPROCITY
+  gate in disguise — look for the mirror object the tree already builds before
+  reaching for `xfail`.** The brief pre-authorized a strict xfail for
+  `⟨Ax,y⟩_w == ⟨x,Ay⟩_w` on a now-rectangular `A`. It was NOT needed. Read WHY
+  the old endomorphic version held: `A = 1_N ⊗ (cos_w/norm)` with the SAME
+  masked `cos_w` on both the broadcast and the contraction, so `W·A` was
+  symmetric. Narrowed, the weighted adjoint `A* = W₊⁻¹AᵀW₋ = 1_{Γ₊} ⊗
+  (cos_w₋/norm₊)` is *itself a Lambertian average*, i.e. **the SAME production
+  constructor at the OPPOSITE face** (`from_quadrature(q, axis, -sign)`) —
+  because that face's `Γ₊` IS this face's `Γ₋`. So the gate becomes
+  `⟨Aψ,φ⟩_{W₋} == ⟨ψ,A*φ⟩_{W₊}` with BOTH sides production objects and nothing
+  hand-built. It rides on `Σ_{Γ₊} w|Ω·n| == Σ_{Γ₋} w|Ω·n|`, which is
+  BIT-IDENTICAL on every quadrature × face in the tree — assert it INLINE as an
+  activation guard (a future asymmetric rule must red HERE, loudly, not be
+  absorbed into a tolerance). Teeth are REAL and distinct from conservation: a
+  face-sign-dependent `norm` mutation reds both reciprocity rows while the
+  `+1`-face conservation rows stay green.
+- **When a narrowing retires a private CLASSIFIER, the replacement gate is on
+  the classifier, and exactly ONE fixture in the tree discriminates it.** The
+  operator used to carry its own `(outward_sign*mu) > 0.0` outflow test, a twin
+  of the trace space's `> TANGENTIAL_EPS`. MEASURED across 8 quadrature × face
+  pairs, the two sets agree on SEVEN — `product(n_mu=2, n_phi=4)` on **xmax**
+  is the only disagreement (|Γ₊|=2 vs strict-set 4; 4 tangential ordinates),
+  and the SAME quadrature on **ymin** agrees. So the gate must name that exact
+  fixture AND carry an activation guard (`assert not array_equal(gamma_plus,
+  retired_strict)`), or it silently decays into a restatement of its siblings.
+  Mutation W1 (restore `> 0.0`) reds that ONE test and nothing else in 110.
+- **`|Γ₊| == |Γ₋|` on EVERY reachable face makes the codomain claim
+  Mode-12 blind — and part of it is IRREDUCIBLE.** Sizing the codomain from
+  `Γ₊` inside `from_quadrature` reddened **0 of 110** tests and CANNOT be
+  caught: no quadrature × face pair in the tree has unequal half-traces. The
+  *operator-level* twin (an `apply` that broadcasts over the INPUT's leading
+  axis) IS catchable — but only via a HAND-CONSTRUCTED operator with unequal
+  sizes (`n_outflow=3, n_inflow=5`), never from `from_quadrature`. So: for any
+  narrowed operator, ship one hand-built unequal-size row as the anti-Mode-12
+  leg, and report the constructor-level half as an honest residual blind spot
+  (closing it is a TYPING job, not a test job).
+- **A `catches(ERR-NNN)` on a re-posed leg silently decays through the SAME
+  Mode-12 hole — re-run the mutation, don't reason about it.** The ERR-047
+  delivered-`q` leg, re-posed to "the output has exactly |Γ₋| rows", was fed a
+  `Γ₊`-sized probe and stayed GREEN under the exact catalogued bug (`q` sized
+  from its input). Adding a **FULL-FACE probe** leg (N rows in ⟹ |Γ₋| rows out)
+  restored the red. The `catches` marker was a phantom for one edit cycle and
+  only the mutation run showed it.
+- **A guard the narrowing NEWLY reaches ships with no negative test — write
+  it, and write the positive control with it.** Three guards were net-new at
+  this phase (white's `_outflow_restriction`, white's orientation cross-check,
+  prescribed-inflow's `_outflow_restriction`); each got a `pytest.raises` with
+  a SPECIFIC `match=` plus, for the orientation guard, a four-face positive
+  control — without which a realize that raised for ANY reason satisfies the
+  negatives (L4's attributability rule).
+- **The orientation cross-check FINDS the mismatches the old silence hid —
+  expect them in the FIXTURES, and check the production tag-parser too.**
+  MEASURED: a sibling file built `face="xmin"` while its law declared
+  `axis="x", outward_sign=+1` (= `xmax`) — pre-narrowing it averaged the
+  installation face's INFLOW hemisphere and reported nothing. And
+  `_law_from_tag` builds every parameter-free law as `law_cls()`, so
+  `WhiteBoundary` always gets the default `xmax` orientation whatever face is
+  being resolved (reflective correctly threads `AXIS_NAMES[label.axis_index]`)
+  — LATENT only because the method's admission registry does not yet list
+  `white`. When a law carries its own copy of a datum the installation site
+  also names, grep the tag-parser for the parameter-free fallback.
+- **Method: the migration's own regression proof is the DELTA, not the green.**
+  Run the wide suite before and after: `40 failed` → `12 failed` on
+  `tests/{geometry,sn/operators}`, and `12 failed, 4225 passed` on
+  `tests/{sn,geometry,numerics,transport} -m "not slow"` — the same 12
+  out-of-scope rows, so nothing else moved. Pair it with `-rs` (no
+  skip-swallowed sentinel: 110 passed, 0 skipped, 0 xfailed).

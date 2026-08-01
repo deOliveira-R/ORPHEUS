@@ -545,3 +545,313 @@ retirement candidate, not a permanent fixture.
   (`_BWithStubFace(SNBoundaryOperator)` overriding `_face_laws`) that injects a
   fake law into the production `_reflect_trace` path. Invisible to grep and to
   the graph. A full-suite run belongs **before** the commit, not after.
+
+---
+
+## 11. ⭐ B3.4 DESIGN RULINGS — user checkpoint 2026-08-01
+
+Two forks were put to the user with measured options. Both answers **sharpened the
+design rather than picking an option**; both are recorded verbatim below, because
+each corrects something I had wrong.
+
+### 11.1 Albedo — the specular closure belongs in `R`, not `G`
+
+> "For albedo with specular reemission as a closure, the specular enforcement should
+> probably be in R, not G (which probably has the IdentityMap, just like the
+> Lambertian). So I think complete Albedo with specular closure is equivalent to
+> Reflective boundary for all practical purposes maybe, but the difference is that in
+> the Reflective there is geometrical inversion, and for Albedo there is a Response
+> closure imposing it. I think this is part of the discipline of separating precisely
+> what is Geometric and what is Response." — user, 2026-08-01
+
+**What this corrects in B3.0.** The multiplicativity test I minted as *the* decidable
+criterion is **necessary but NOT sufficient**. A specular *kernel* is a permutation,
+hence multiplicative — so multiplicativity alone cannot separate "a polished wall
+returning α specularly" from "a symmetry plane". The sufficient condition is the one
+already written into `_factors.py`'s quotient table and then not used as a test:
+
+> :math:`G` is the deck transformation **of an actual quotient of the physical
+> domain**. A physical surface is not a quotient — the domain does *not* continue on
+> the other side — so its specular pairing is **constitutive**, i.e. :math:`R`.
+
+**The law this yields** (stronger than what B3.0 had), which is B3.0's own sentence
+*"R = I exactly when the BC is a pure symmetry statement adding no physics"* finally
+used as a discriminator:
+
+| law | `G` | `R` | what it asserts |
+|---|---|---|---|
+| `ReflectiveBoundary(axis)` | `SpecularMirror` | `I` | symmetry plane — a **quotient**, zero physics |
+| `PeriodicBoundary(axis)` | `SpatialWrap` | `I` | torus — a quotient |
+| `AlbedoBoundary(α, specular)` | `IdentityMap` | `SpecularReemission(α)` | a **surface** returning α specularly |
+| `AlbedoBoundary(α, isotropic)` | `IdentityMap` | `LambertianReemission(α)` | a surface returning α diffusely |
+| `VacuumInflow` | `IdentityMap` | `0` | a surface returning nothing |
+
+**⇒ EXACTLY ONE of `G`, `R` is non-trivial.** That is an illegal-states-unrepresentable
+invariant, and it wants a gate.
+
+**Consequence, flagged and NOT acted on in B3.4:** `ReflectiveBoundary(axis, albedo<1)`
+is then **incoherent** — a symmetry plane cannot absorb. That object is
+`AlbedoBoundary(α, specular)` wearing the geometry costume. It is unreachable from a
+tag (`_law_from_tag` hard-codes `albedo=1.0`), so nothing production-facing depends on
+it. Retiring the `albedo` parameter from `ReflectiveBoundary` is a **B5** item.
+
+`SpecularReturn(axis)` and `SpecularMirror(axis)` are structurally identical and
+semantically disjoint — which is the POINT, not a smell: two types make "put a
+surface law in the geometry slot" unspellable.
+
+### 11.2 Periodic — build the channel now; the quotient resolves at run time
+
+> "Are we able to implement this now and use it to resolve option 3 at run-time? First
+> of all because periodic for monte-carlo will probably need this anyway, but maybe
+> there is some SCC treatment we can do in SN to use this to resolve it in a different
+> way?" — user, 2026-08-01
+
+**Ruling: build the partner-face channel (option A) now.** The quotient reading
+(option 3) is then *asserted at realization* rather than baked into the mesh topology:
+the identification `Γ₊(partner) ≡ Γ₋(face)` becomes a guard, not a restructure. MC will
+need the same face-partner map.
+
+`[M]` **The identification holds on every quadrature in the tree** — measured
+2026-08-01, `Γ₊(partner)` and `Γ₋(face)` are EQUAL as sorted index arrays for
+`gauss_legendre(8)`, `product(2,4)`, `level_symmetric(6)`, `lebedev(17)`, on both axis
+pairs. So the realized periodic operator is the **identity** between two different
+faces' restrictions, and the set equality is a genuine geometric invariant
+(`n_f = −n_f'`) — not a shape check. (`product(2,4)` carries **4 tangential ordinates
+per face**, which is also why white's strict `> 0.0` mask is wrong there.)
+
+### 11.3 The SCC answer — the criterion already exists, unwired
+
+`orpheus/derivations/discrete/sn/sweep_acyclicity.py` already ships
+`TraceDigraph.strongly_connected_components()`, `is_acyclic`, `cyclic_components()`,
+and models periodic's trace edge correctly (`outflow(f,n) → inflow(partner,n)`). Its
+own docstring states the position:
+
+> "The honest criterion is therefore not a boolean on the boundary *kind* but a
+> strongly-connected-component decomposition of the trace digraph" … "nothing in the
+> solver ever builds a digraph and nothing can detect a cycle."
+
+So the SCC treatment is the **recorded algebra of record with no production consumer**.
+Wiring it would replace the `permutes_ordinates` heuristic in `_reflective_faces` — the
+thing that decides `B_lower`/`B_upper` — with the honest criterion, and would let
+configurations that are *acyclic* (one white face, one periodic face + vacuum) sweep in
+ONE pass instead of being needlessly lagged. **Its own phase; filed as an issue, NOT
+built in B3.4.** B3.4 lags periodic into `B_upper`, which is what today's split already
+does and is correct-but-not-minimal.
+
+### 11.4 B3.4 split into three commits
+
+| step | rows | design risk |
+|---|---|---|
+| **B3.4a** | white, prescribed_inflow | none — mechanical narrowing; dissolves the `> 0.0` twin AND the inflow mask |
+| **B3.4b** | albedo ×3 | the §11.1 ruling |
+| **B3.4c** | periodic | the §11.2 ruling |
+
+Each commit carries its own doc repairs (user standing directive: a falsified doc is a
+bug, fixed in the SAME change).
+
+### 11.5 Doc falsehoods B3.4 owes (all `[M]` measured)
+
+1. `numerics/operator.py:2622-2624` — `PeriodicWrapOperator` claims "the SN sweep
+   handles the spatial wrap via its own face-pair indexing". **No such mechanism
+   exists anywhere** (searched: sweep schedule, sweep graph, trace space, solver).
+2. `geometry/boundary/periodic.py:42-44` — claims "the two-face plumbing is handled by
+   whoever instantiates `PeriodicBoundary` and orchestrates the sweep". Nobody does.
+   Mutually inconsistent with (1).
+3. `numerics/operator.py:2636-2639` — xrefs `PeriodicBoundary.apply`, which **does not
+   exist** (descriptors are not callable). A dangling Python-domain xref, the silent
+   class `-W` never catches. Repeated at `tests/numerics/test_periodic_wrap_operator.py:12,68`.
+4. `sn/operators/boundary.py:220-221` — claims periodic advertises `apply_transpose`;
+   `SpatialWrap.is_adjointable` is `False`. The composite predicate reads the REALIZED
+   operator (identity body ⇒ `True`), the law factor says `False` — two sources of
+   truth disagreeing.
+5. `sn/boundary/angular.py:55-65,71` — a **B1-era leftover** my B3.6 sweep missed: the
+   note still says `response_kernel` carries "the crossing Γ₊ → Γ₋", that "that factor
+   is the scalar α", and that ":math:`G_{\text{diff}}` is the geometry". All three are
+   false post-B3.0 — the average IS the response.
+
+---
+
+## 12. B3.4b design — albedo's re-emission closure
+
+Executing §11.1. **`AlbedoBoundary.geometry_map` is `IdentityMap()` unconditionally**; the
+closure's content lives entirely in `R`.
+
+### 12.1 The shape
+
+```python
+# _factors.py — a THIRD response kernel
+@dataclass(frozen=True, slots=True)
+class SpecularReemission:
+    r"""R = α · (the mirror pairing) — a SURFACE returning specularly."""
+    alpha: float = 1.0
+    axis: str = "x"
+    amplitude -> α ;  is_zero -> α == 0 ;  is_adjointable -> True (a permutation)
+
+# _factors.py — the closure tier: amplitude-FREE shapes the law instantiates
+class ReemissionClosure(Protocol):
+    def kernel(self, alpha: float) -> BoundaryResponseKernel: ...
+
+@dataclass(frozen=True, slots=True)
+class SpecularReturn:
+    axis: str = "x"
+    def kernel(self, alpha): return SpecularReemission(alpha, self.axis)
+
+@dataclass(frozen=True, slots=True)
+class IsotropicReturn:
+    axis: str = "x"; outward_sign: int = +1
+    def kernel(self, alpha): return LambertianReemission(alpha, self.axis, self.outward_sign)
+
+# albedo.py
+albedo: float = 0.0
+reemission: Optional[ReemissionClosure] = None
+geometry_map    -> IdentityMap()                      # ALWAYS
+response_kernel -> ScalarResponse(albedo) if reemission is None
+                   else reemission.kernel(albedo)
+```
+
+**Why the closure is amplitude-free.** `amplitude` is a `BoundaryResponseKernel` Protocol
+member (the diffusion realizer reads `law.response_kernel.amplitude`), so the kernel must
+carry α. If the closure carried it too there would be two sources of one number. The
+closure is therefore a *shape* the law instantiates with its own `albedo` — one α, on the
+law, where the tag parser already puts it.
+
+**Why not "put the kernel on the law directly."** That would force removing the `albedo`
+field (α would live on the kernel), breaking `AlbedoBoundary(albedo=…)` at `_law_from_tag`,
+the diffusion registry, and ~14 test files — for no gain, since the closure tier keeps α
+single-sourced anyway. Blast radius decided this, not taste.
+
+### 12.2 The realization — a net REDUCTION in duplication
+
+The three albedo rows must NOT grow a second copy of the specular construction and a
+second copy of the Lambertian. Extract first, then dispatch:
+
+| realizer helper | consumed by |
+|---|---|
+| `_specular_operator(quad, method_space, axis, alpha, law_key)` | `ReflectiveBoundary` **and** `AlbedoBoundary + SpecularReturn` |
+| `_checked_angular_average(...)` (exists, B3.4a) | `WhiteBoundary` **and** `AlbedoBoundary + IsotropicReturn` |
+
+⇒ ONE realization body per kernel kind, reached by two law NAMES. The `≡` theorems
+(`albedo(α, specular) ≡ reflective(axis, α)`, `albedo(α, isotropic) ≡ white(α)`) then hold
+because the two routes literally execute the same code, not because two transcriptions
+agree — and they get pinned as tests anyway, since a shared body can still be reached with
+different arguments.
+
+**This is also the B4 groundwork.** Once the bodies key on the KERNEL rather than the LAW,
+B4's "realizer reads the factors instead of `isinstance`-dispatching" is a dispatch swap on
+`type(law.response_kernel)`, not a rewrite.
+
+### 12.3 `reemission=None` — the angular-resolution refusal
+
+`ScalarResponse(α)` is **complete on a scalar trace** (one dof: `J⁻ = α J⁺`) and
+**incomplete on an angular one** (`α·I` is a `Γ₊ → Γ₊` endomorphism; `IdentityMap`
+supplies no crossing). So:
+
+* **diffusion** realizes `AlbedoBoundary(α)` exactly as today — reads `amplitude`, done.
+  `BC("albedo", albedo=…)` is UNCHANGED for the one method that can reach it from a tag.
+* **SN** refuses it, naming the two completions. This is the first bite of the
+  method-realizability taxonomy's **angular-resolution** axis (the other two — state-cone
+  and spatial-topological — already bite at zero-flux and diffusion-periodic).
+
+That is *not* the blanket refusal the user overruled: the complete law is fully built and
+realizable, and only the under-determined spelling is refused.
+
+### 12.4 Consequence to flag, NOT act on (→ B5)
+
+`ReflectiveBoundary(axis, albedo<1)` is incoherent under §11.1's law — a symmetry plane
+cannot absorb; that object is `AlbedoBoundary(α, SpecularReturn(axis))`. Unreachable from a
+tag (`_law_from_tag` hard-codes `albedo=1.0`). Retiring reflective's `albedo` parameter is
+**B5**, together with typing the Lambertian as the rank-one `u ⊗ v` it now visibly is.
+
+---
+
+## 13. ⚠ B3.4a — my equivalence measurement was WRONG, and the correction matters
+
+The archivist's doc-repair pass refused to publish my measured-evidence block and
+re-derived it. It was right; I have since reproduced the correction independently. Recording
+both the fact and the mechanism, because the mechanism is the reusable part.
+
+### 13.1 What I claimed, and why the probe could not see the truth
+
+I claimed white was **bit-identical on `gauss_legendre(8)` and `product(2,4)`**, 1 ULP on
+`lebedev(17)` / `level_symmetric(6)`. The `product` half is false, and my probe was
+constructed so that it *could not* be anything else:
+
+```python
+full = np.zeros((quad.N, 3)); full[sp.outflow_indices] = x   # ← the defect
+```
+
+The pre-B3.4a operator consumed the **whole face slot**, whose tangential rows carry real
+flux. My reference scattered the probe onto :math:`\Gamma_+` **only**, leaving every
+mis-admitted row at ZERO — i.e. it nulled exactly the term under test. That is vv **Mode 7**
+(an ansatz that cancels the math it claims to exercise) committed inside a *verification
+probe* rather than an MMS. The general form: **when comparing an old path to a new one, the
+probe must be built in the OLD path's domain, not the new one's** — building it in the new
+domain silently assumes the very restriction being introduced.
+
+### 13.2 The corrected measurement `[M]`
+
+Which ordinates the retired `> 0.0` classifier admits that :math:`\Gamma_+` does not:
+
+| quadrature | tangential / face | MIS-ADMITTED by `> 0.0` |
+|---|---|---|
+| `gauss_legendre(8)` | 0 | 0 |
+| `product(2,4)` | 4 | 2 on `xmin`/`xmax`/`ymax`, **0 on `ymin`** |
+| `product(3,4)` | 6 | 3 on `xmin`/`xmax`/`ymax`, **0 on `ymin`** |
+| `level_symmetric(6)` | **0** | 0 |
+| `lebedev(17)` | **12** | **0** |
+
+So the honest statement is **the `product` family only, and there only on
+`xmin`/`xmax`/`ymax`** — NOT "every production quadrature but `gauss_legendre`", which is
+what `angular.py` said and what I wrote into the B3.4a briefs. `lebedev` carries the most
+tangential ordinates of any production quadrature and mis-admits none of them; the
+`ymin`-vs-`ymax` asymmetry is FP-sign noise about exact zero, so the defect is not even
+stable under a face flip.
+
+### 13.3 The part that changes the ARGUMENT, not just a number
+
+On `product(2,4)` `xmax` the mis-admitted rows carry `cos_w ≈ 7.85e-17` against a norm of
+`2.5650996603237282`. Adding them to that norm is below its ULP, so
+
+> **Δnorm is EXACTLY 0.0** — the whole discrepancy sits ψ-weighted in the NUMERATOR.
+
+which means it scales with the flux ratio between the tangential rows and :math:`\Gamma_+`,
+and is **unbounded by floating point**:
+
+| tangential : Γ₊ flux ratio | \|old − new\| | relative |
+|---|---|---|
+| `1e0`  | 0.0 | 0.0 |
+| `1e3`  | 5.9e-14 | 5.7e-14 |
+| `1e6`  | 6.0e-11 | 5.4e-11 |
+| `1e12` | **6.2e-05** | **7.5e-05** |
+
+The `1e12` figure reproduces the `6.1e-05` already recorded in `LambertianReemission`'s
+docstring from a cylinder under `product(2,4)` — independently, from a different direction.
+
+⇒ **TWO mechanically different effects both measure ≤ 1 ULP on an O(1) probe:**
+
+1. **reduction-order** (`lebedev`, `level_symmetric` — they mis-admit NOTHING): the sum now
+   runs over a restricted array instead of a zero-padded one. Genuinely FP-level and
+   BOUNDED. Principled-equivalence.
+2. **mis-admission** (`product` family): FP-level *only while the flux is O(1) on the
+   tangential rows*, and unbounded otherwise.
+
+**A ULP-magnitude table therefore CANNOT justify this change** — it would report ≈1e-16 for
+both and read as "FP-neutral everywhere", which is exactly wrong on the one quadrature that
+motivated the phase. The justification is **structural**: one classifier, not two. Keep the
+magnitudes as evidence of what the second classifier *was doing*, never as the argument.
+
+### 13.4 Repairs this correction owes
+
+- `orpheus/sn/boundary/angular.py` — the class docstring's "That is every production
+  quadrature but `gauss_legendre`" is FALSE; replace with §13.2's statement. Same line
+  carries a stray `` `[M]` `` editorial marker.
+- `orpheus/geometry/boundary/__init__.py` ~216-250 — **the highest-value find**: white is
+  still described as `G = G_diff`, the cosine-weighted Lambertian average. That is the
+  EXACT misassignment B3.0 corrected, still live in the package docstring two phases later.
+  Prescribed still says `R = G = 0` and describes the retired mask.
+- `orpheus/geometry/boundary/_base.py` ~334-357 —
+  `assert_source_lives_on_incoming_trace` still says the guarantee "rests on the realizer
+  masking the evaluation".
+- `tests/geometry/test_bc_equivalence_snapshot.py` ~101-108 + its twin in `test_boundary.py`
+  — `_MIXED_LAW_XFAIL`'s reason text says white is un-narrowed. The row still xfails, for a
+  DIFFERENT reason than documented: vv Mode 8 class 4, a misattributed strict xfail.

@@ -307,39 +307,53 @@ class TestRealizeReflective:
 
 @pytest.mark.l1
 class TestRealizeWhite:
-    """White realizes to ``albedo * AngularAverageOperator``.
+    r"""White realizes to ``albedo * AngularAverageOperator``, narrowed at
+    **B3.4a** to :math:`\Gamma_+ \to \Gamma_-`.
 
-    The body of :class:`AngularAverageOperator.from_quadrature` is
-    lifted verbatim from :class:`WhiteBoundary.apply`, and
-    Wave 1's ``TestLegacyBitEquivalence`` already pins
-    ``np.testing.assert_array_equal`` at α=1.0 on Lebedev 17. We
-    re-check that property here through the realizer's dispatch chain.
+    MIGRATED at B3.4a. Every leg below used to build its method space with
+    ``SNMethodSpace.minimal(quad)`` — legal while white was a full-face
+    endomorphism that read only the quadrature. Since the law's DOMAIN is the
+    outflow half-trace of a PARTICULAR face, a faceless space can no longer
+    name it and the realizer refuses (see
+    :meth:`test_white_on_a_faceless_space_is_refused`); the fixture is now
+    :func:`~tests.sn._test_helpers.face_method_space`, whose face must MATCH
+    the law's declared orientation (:class:`TestWhiteOrientationGuard`).
+
+    The :class:`AngularAverageOperator` body is verified independently by the
+    current-conservation and reciprocity gates in
+    ``tests/sn/operators/test_angular_average_operator.py``; these legs pin
+    the realizer's dispatch chain against it.
     """
 
     def test_white_unit_albedo_lebedev_matches_angular_average_operator(self):
-        """At α=1 the realized op MUST bit-match a bare
+        r"""At α=1 the realized op MUST bit-match a bare
         :class:`AngularAverageOperator.from_quadrature` output.
 
         Issue #186 (B3 + β2) rewrite: the realiser's fast path returns
         the bare :class:`AngularAverageOperator` at α=1, so this test
-        pins the dispatch chain rather than legacy equivalence. The
-        :class:`AngularAverageOperator` body is itself verified by the
-        Wave-1 cosine-weighted-current and self-adjointness tests in
-        ``tests/sn/test_angular_average_operator.py`` — those are the
-        structurally-independent references.
+        pins the dispatch chain rather than legacy equivalence. **B3.4a**
+        restricts the probe to :math:`\Gamma_+` — the claim (dispatch adds
+        nothing) is unchanged; only the domain it is stated on moved.
         """
         quad = Quadrature.lebedev(17)
         bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        space = face_method_space(quad, face="xmax")
+        op = SNBoundaryRealizer().realize(bc, space)
         ref = AngularAverageOperator.from_quadrature(
             quad, axis="x", outward_sign=+1,
         )
         rng = np.random.default_rng(123)
         psi = rng.uniform(0.0, 2.0, size=(quad.N, 5, 3))
-        np.testing.assert_array_equal(op.apply(psi), ref.apply(psi))
+        psi_out = psi[space.outflow_indices]
+        got = op.apply(psi_out)
+        assert got.shape == (space.inflow_indices.size, 5, 3), (
+            f"white emitted {got.shape}; the narrowed codomain is Γ₋, i.e. "
+            f"{(space.inflow_indices.size, 5, 3)}."
+        )
+        np.testing.assert_array_equal(got, ref.apply(psi_out))
 
     def test_white_unit_albedo_returns_tensor_product(self):
-        """At α=1 the dispatch returns a 2-factor
+        r"""At α=1 the dispatch returns a 2-factor
         :class:`TensorProductOperator` ``(AngularAverageOperator, IdentityOperator)``.
 
         Wave T step T.1 (2026-05-30): white BC lifted from a bare
@@ -348,37 +362,50 @@ class TestRealizeWhite:
         reduces to the bare ``AngularAverageOperator.apply`` (the
         :class:`IdentityOperator` factor returns ``x`` unchanged), so
         bit-identity at the apply level is preserved.
+
+        **B3.4a** adds the size leg, mirroring the specular sibling: the
+        kernel's DOMAIN is :math:`|\Gamma_+|`, not ``quad.N``. Without it a
+        revert to the full-face kernel would keep every structural claim
+        here green.
         """
         quad = Quadrature.lebedev(17)
         bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        space = face_method_space(quad, face="xmax")
+        op = SNBoundaryRealizer().realize(bc, space)
         assert isinstance(op, TensorProductOperator)
         assert len(op.ops) == 2
         assert isinstance(op.ops[0], AngularAverageOperator)
         assert isinstance(op.ops[1], IdentityOperator)
+        assert op.ops[0].n_outflow == space.outflow_indices.size < quad.N, (
+            f"the realized Lambertian reads {op.ops[0].n_outflow} ordinates; "
+            f"the narrowed law acts on Γ₊ ({space.outflow_indices.size} of "
+            f"{quad.N})."
+        )
+        assert op.ops[0].n_inflow == space.inflow_indices.size
 
     def test_white_partial_albedo_returns_scaled_tensor_product(self):
         """At α≠1 the dispatch returns ``ScaledOperator(α, TP)`` where
         TP is the 2-factor :class:`TensorProductOperator`."""
         quad = Quadrature.lebedev(17)
         bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        space = face_method_space(quad, face="xmax")
+        op = SNBoundaryRealizer().realize(bc, space)
         assert isinstance(op, ScaledOperator)
         assert op.scalar == 0.3
         assert isinstance(op.op, TensorProductOperator)
         assert len(op.op.ops) == 2
         assert isinstance(op.op.ops[0], AngularAverageOperator)
         assert isinstance(op.op.ops[1], IdentityOperator)
+        assert op.op.ops[0].n_outflow == space.outflow_indices.size < quad.N
 
     def test_white_partial_albedo_matches_albedo_times_angular_average(self):
-        """At α=0.3 the realized op output equals
-        ``0.3 * AngularAverageOperator(...).apply(psi)`` within
-        ``nulp=4``.
+        r"""At α=0.3 the realized op output equals
+        ``0.3 * AngularAverageOperator(...).apply(γ₊ψ)`` within ``nulp=4``.
 
         Issue #186 (B3 + β2) rewrite: hand-computed RHS via the
         Wave-1 :class:`AngularAverageOperator` primitive (the
         structurally-independent reference; its body is verified in
-        ``tests/sn/test_angular_average_operator.py``).
+        ``tests/sn/operators/test_angular_average_operator.py``).
         ``ScaledOperator(0.3, ...).apply`` multiplies the inner
         output by 0.3 from the outside; the hand-computed
         ``0.3 * ref.apply(psi)`` may differ by one ULP under
@@ -387,30 +414,122 @@ class TestRealizeWhite:
         """
         quad = Quadrature.lebedev(17)
         bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        space = face_method_space(quad, face="xmax")
+        op = SNBoundaryRealizer().realize(bc, space)
         ref = AngularAverageOperator.from_quadrature(
             quad, axis="x", outward_sign=+1,
         )
         rng = np.random.default_rng(11)
         psi = rng.uniform(0.0, 2.0, size=(quad.N, 4))
-        expected = 0.3 * ref.apply(psi)
+        psi_out = psi[space.outflow_indices]
+        expected = 0.3 * ref.apply(psi_out)
         np.testing.assert_array_almost_equal_nulp(
-            op.apply(psi), expected, nulp=4,
+            op.apply(psi_out), expected, nulp=4,
         )
 
     def test_white_z_axis_on_gauss_legendre_raises(self):
-        """z-axis white on a 1-D GL quadrature delegates the raise to
-        :meth:`AngularAverageOperator.from_quadrature`.
+        r"""A ``z``-axis white law on a 1-D GL quadrature is a RANK MISMATCH
+        between the face the law names and the cubature, and says so.
 
-        A 1-D GL quadrature has no outgoing ordinates on the z-axis, so
-        the white-BC average operator cannot be built. The Wave-T
-        angular-average lift replaced the legacy ``mu_z`` wording with a
-        degenerate-face diagnostic; the test asserts that message.
+        RE-POSED at **B3.4a**. Pre-B3.4a the raise came from
+        :meth:`AngularAverageOperator.from_quadrature`'s own "no outgoing
+        ordinates / degenerate for this face" guard, reached because the
+        operator classified its own hemisphere with a strict compare against
+        ``mu_z == zeros(N)``. It now comes from
+        :func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n`
+        — the single face-name → signed-projection primitive, which the
+        orientation cross-check consults first — and names the defect
+        directly. The message is strictly more specific, so the pattern
+        tightens.
+
+        The method space is ``xmax`` (a face this quadrature genuinely has):
+        the defect under test is the LAW's degenerate axis, and a ``zmax``
+        method space could not be stood up on a GL quadrature at all.
         """
         quad = Quadrature.gauss_legendre(8)
         bc = WhiteBoundary(axis="z", outward_sign=+1, albedo=1.0)
-        with pytest.raises(ValueError, match="degenerate for this face"):
+        with pytest.raises(ValueError, match="requires genuine mu_z"):
+            SNBoundaryRealizer().realize(bc, face_method_space(quad, face="xmax"))
+
+    def test_white_on_a_faceless_space_is_refused(self):
+        r"""B3.4a negative: white's DOMAIN is :math:`\Gamma_+`, so a
+        quadrature-only method space cannot realize it.
+
+        The sibling of the vacuum/reflective negatives above, and the reason
+        every leg in this class migrated off ``SNMethodSpace.minimal``.
+        NET-NEW: the guard reached white for the first time at B3.4a and
+        shipped with no negative.
+        """
+        quad = Quadrature.lebedev(17)
+        bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
+        with pytest.raises(BoundaryError, match="outflow_indices") as excinfo:
             SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        assert excinfo.value.law == "white"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 3b. White orientation cross-check (B3.4a, the ERR-041 pattern)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l1
+class TestWhiteOrientationGuard:
+    r"""The law's declared ``axis``/``outward_sign`` is cross-checked against
+    the face it is installed on.
+
+    NET-NEW at **B3.4a**. :class:`WhiteBoundary` carries its OWN orientation
+    while the method space independently names the face — two encodings of
+    one datum, and until B3.4a nothing compared them. A white law declared
+    for ``xmax`` and installed on ``xmin`` averaged over that face's INFLOW
+    hemisphere and reported nothing: the Lambertian's shape is
+    orientation-blind, so every shape- and type-level assertion stayed green.
+    Same threat model as ERR-041 (the vacuum trace-orientation swap), same
+    guard shape; the comparison is on index SETS rather than sizes because
+    `[M]` ``|Γ₊| == |Γ₋|`` on every quadrature × face pair in the tree, which
+    makes a size comparison Mode-12 blind.
+
+    The guard is green by construction on the canonical
+    ``SNMesh.realize_boundary_law`` path (both encodings derive from the same
+    face label); it bites on hand-built method spaces and on a mis-declared
+    law — which is exactly where the tree's white fixtures live.
+    """
+
+    def test_law_declared_for_the_opposite_face_raises(self):
+        quad = Quadrature.gauss_legendre(8)
+        bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)  # xmax
+        with pytest.raises(BoundaryError, match=r"Γ₊") as excinfo:
+            SNBoundaryRealizer().realize(bc, face_method_space(quad, face="xmin"))
+        assert excinfo.value.law == "white"
+
+    def test_law_declared_for_a_different_axis_raises(self):
+        quad = Quadrature.level_symmetric(4)
+        bc = WhiteBoundary(axis="y", outward_sign=+1, albedo=1.0)  # ymax
+        space = face_method_space(
+            quad, face="xmax", faces=("xmin", "xmax", "ymin", "ymax"),
+        )
+        with pytest.raises(BoundaryError, match=r"Γ₊") as excinfo:
+            SNBoundaryRealizer().realize(bc, space)
+        assert excinfo.value.law == "white"
+
+    def test_matching_orientation_realizes_on_every_face(self):
+        r"""Positive control: each of the four 2-D faces realizes silently
+        when the law names it, and the realized kernel's domain is that
+        face's own :math:`\Gamma_+`.
+
+        Without this leg the negatives above are unattributable — a realize
+        that raised for ANY reason would satisfy them.
+        """
+        quad = Quadrature.level_symmetric(4)
+        faces = ("xmin", "xmax", "ymin", "ymax")
+        for face in faces:
+            axis, sign = face[0], (+1 if face.endswith("max") else -1)
+            space = face_method_space(quad, face=face, faces=faces)
+            op = SNBoundaryRealizer().realize(
+                WhiteBoundary(axis=axis, outward_sign=sign, albedo=1.0), space,
+            )
+            assert isinstance(op, TensorProductOperator), face
+            assert op.ops[0].n_outflow == space.outflow_indices.size, face
+            assert op.ops[0].n_inflow == space.inflow_indices.size, face
 
 
 # ─────────────────────────────────────────────────────────────────────

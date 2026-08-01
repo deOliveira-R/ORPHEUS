@@ -12,12 +12,13 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 42 lessons (L-001…L-042), read FIRST each dispatch.
+- [lessons.md](lessons.md) — 43 lessons (L-001…L-043), read FIRST each dispatch.
   The spine: a page is done when every cross-ref resolves against the LIVE tree,
   every claim's V&V level matches the skill verbatim, every retired symbol leaves
   no dangling ref, and the build's WARNING/ERROR/CRITICAL set is unchanged from
   the `-E` baseline. **Per-lesson detail lives ONLY in lessons.md — never
   re-summarize a lesson here.** Topic index of the newest:
+  - L-043 — reproduce the brief's "MEASURED, do not re-derive" block; audit the inventory
   - L-042 — audit the corpus against a just-landed multi-commit REFACTOR
   - L-041 — DOC-ONLY "retire the false promises" B0 pass; prove doc-only by AST
   - L-040 — retiring a per-X flag from the docs (grep the CONCEPT, not the symbol)

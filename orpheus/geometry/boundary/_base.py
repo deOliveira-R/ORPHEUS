@@ -336,25 +336,36 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         :class:`~orpheus.geometry.boundary._source.InflowSourceSpec`
         fills whatever block *shape* it is handed (it carries no trace
         knowledge), so the delivered :math:`q \in \Gamma_-` guarantee
-        rests on the realizer masking the evaluation to the face's
-        inflow ordinates. This check certifies that the mask EXISTS
-        whenever it is needed:
+        rests on the realizer knowing :math:`\Gamma_-` at all. This check
+        certifies that it DOES, whenever that matters:
 
         * :math:`q \equiv 0` (the :class:`NoSource` default of every
           homogeneous law, or a zero-valued constant) — trivially on
-          :math:`\Gamma_-`; certifiable with or without a mask.
+          :math:`\Gamma_-`; certifiable either way.
         * :math:`q \not\equiv 0` **and** ``inflow_indices is None`` —
-          the realizer has no inflow set to mask with, so the delivered
-          source would write into outflow slots the sweep silently
-          discards (the ERR-047 missing-source bug: total inflow SHORT
-          of the user's intent). Raises
+          the realizer cannot name :math:`\Gamma_-`, so the delivered
+          source would write into slots the sweep silently discards (the
+          ERR-047 missing-source bug: total inflow SHORT of the user's
+          intent). Raises
           :class:`~orpheus.geometry.boundary._errors.BoundarySourceNotOnIncomingTraceError`.
-        * :math:`q \not\equiv 0` **and** a mask is supplied — the
-          realizer restricts the evaluation to :math:`\Gamma_-` at
-          construction (see the SN realizer's ``PrescribedInflow``
-          arm), so the delivered :math:`q` vanishes off the incoming
-          trace by construction. The end-to-end delivered-:math:`q`
-          postcondition is pinned by the ERR-047 catcher test.
+        * :math:`q \not\equiv 0` **and** the inflow set is supplied — the
+          realizer sizes the operator's CODOMAIN from it, so the source is
+          asked for exactly :math:`|\Gamma_-|` rows and the delivered
+          :math:`q` vanishes off the incoming trace because there is
+          nowhere else to write. The end-to-end postcondition is pinned by
+          the ERR-047 catcher test.
+
+        .. note::
+
+           **This is a PRESENCE check, not an entry-wise one**, and since
+           campaign phase **B3.4a** it does not certify a mask. Pre-B3.4a
+           the realizer emitted a full-face block and then ZEROED every
+           non-inflow ordinate; the guarantee rested on that erasure, and
+           this docstring said so. The narrowing to
+           :math:`\Gamma_+ \to \Gamma_-` dissolved the mask along with the
+           codomain that needed it — an erasure became an absence — so what
+           is certified here is that the face can NAME its inflow set, not
+           that anything is subsequently masked out.
 
         The support probe evaluates the source on the per-ordinate
         shape ``(N,)`` — the one axis the trace partition lives on;

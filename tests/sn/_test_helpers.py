@@ -227,10 +227,25 @@ def face_method_space(quadrature, face="xmax", faces=("xmin", "xmax")):
     r"""A face-ful :class:`SNMethodSpace` carrying BOTH half-traces.
 
     The B3.2 successor of ``SNMethodSpace.minimal(quadrature)`` for tests that
-    realize a vacuum or reflective law: ``minimal`` is faceless, so it can name
-    neither :math:`\Gamma_+` nor :math:`\Gamma_-` and the realizer refuses it
-    (loudly, by design). ``minimal`` remains correct for the laws that are
-    still full-face (white / albedo / periodic) and for dispatch-failure tests.
+    realize a narrowed law: ``minimal`` is faceless, so it can name neither
+    :math:`\Gamma_+` nor :math:`\Gamma_-` and the realizer refuses it (loudly,
+    by design).
+
+    Which laws need a face, as of **B3.4a**:
+
+    * **vacuum**, **reflective** (narrowed at B3.2), **white** and
+      **prescribed_inflow** (narrowed at B3.4a) all require it. White
+      additionally requires the face to MATCH the law's declared
+      ``axis``/``outward_sign`` — ``"xmax"`` ⇔ ``axis="x", outward_sign=+1``,
+      ``"ymin"`` ⇔ ``axis="y", outward_sign=-1``, and so on — or the
+      realizer's orientation cross-check refuses it (the ERR-041 pattern; a
+      mismatched white law averages the wrong hemisphere).
+    * **albedo** and **periodic** are still full-face endomorphisms, so
+      ``minimal`` remains correct for them — as it does for
+      dispatch-failure tests.
+
+    (Before B3.4a this docstring listed white among the full-face laws. That
+    was true when it was written and became false with the narrowing.)
     """
     from orpheus.sn.mesh.method_space import SNMethodSpace
 

@@ -124,16 +124,25 @@ class TestFullLeaves:
 # ─────────────────────────────────────────────────────────────────────
 
 
+#: The face every law in this module is installed on. Named once because a
+#: law that declares its own orientation (white) must AGREE with it — see
+#: :data:`_LINEAR_LAWS`.
+_FACE = "xmin"          # ⇒ axis "x", outward normal −ê_x ⇒ outward_sign = −1
+_FACE_AXIS = "x"
+_FACE_OUTWARD_SIGN = -1
+
+
 def _boundary_method_space(n_ord: int = 4) -> SNMethodSpace:
-    r"""A method space carrying BOTH half-traces.
+    r"""A method space carrying BOTH half-traces, on :data:`_FACE`.
 
     B3.2 migration: a boundary law is typed :math:`\Gamma_+ \to \Gamma_-`, so
-    the vacuum and reflective branches need the face's **outflow** ordinates
-    (their domain) as well as its inflow ordinates (their codomain). Harmless
-    for the still-full-face laws — they read only ``quadrature``.
+    every branch needs the face's **outflow** ordinates (its domain) as well
+    as its inflow ordinates (its codomain). Since B3.4a that includes white
+    and prescribed inflow; only albedo and periodic still read ``quadrature``
+    alone (B3.4b / B3.4c).
     """
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return face_method_space(quad, face="xmin")
+    return face_method_space(quad, face=_FACE)
 
 
 # Every LINEAR boundary law + a representative amplitude per kind. Each
@@ -144,8 +153,18 @@ _LINEAR_LAWS = {
     "vacuum": VacuumInflow(),
     "reflective_albedo1": ReflectiveBoundary(axis="x", albedo=1.0),
     "reflective_albedo07": ReflectiveBoundary(axis="x", albedo=0.7),
-    "white_albedo1": WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0),
-    "white_albedo05": WhiteBoundary(axis="x", outward_sign=+1, albedo=0.5),
+    # ⚠ The orientation MUST match _FACE. Until B3.4a nothing checked it, and
+    # these two rows had shipped `outward_sign=+1` (i.e. "xmax") while being
+    # installed on "xmin" — so the realized Lambertian averaged the
+    # INSTALLATION face's INFLOW hemisphere and reported nothing. B3.4a's
+    # cross-check turned that into a loud BoundaryError; sourcing the
+    # orientation from the face constant keeps the two from drifting again.
+    "white_albedo1": WhiteBoundary(
+        axis=_FACE_AXIS, outward_sign=_FACE_OUTWARD_SIGN, albedo=1.0,
+    ),
+    "white_albedo05": WhiteBoundary(
+        axis=_FACE_AXIS, outward_sign=_FACE_OUTWARD_SIGN, albedo=0.5,
+    ),
     "albedo_0": AlbedoBoundary(albedo=0.0),
     "albedo_1": AlbedoBoundary(albedo=1.0),
     "albedo_03": AlbedoBoundary(albedo=0.3),

@@ -3910,8 +3910,14 @@ Three consumers read the mask today:
   :ref:`bc-domain-narrowing`).
 * The universal invariant
   :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
-  uses the inflow mask to validate a
-  :class:`~orpheus.geometry.boundary.InflowSourceSpec` (ERR-047).
+  reads the inflow selector as a **presence** check on a
+  :class:`~orpheus.geometry.boundary.InflowSourceSpec` (ERR-047): a
+  nonzero :math:`q` realized against a space that cannot name
+  :math:`\Gamma_-` is refused. Where the face CAN name it, the
+  delivery is structural — since campaign phase B3.4a the realizer
+  sizes the source's block from :math:`|\Gamma_-|`, so
+  :math:`q \in \Gamma_-` holds by typing rather than by masking a
+  full-face evaluation.
 * The SN curvilinear sweep (1-D spherical / cylindrical) consumes
   the same realizer-routed mask as the slab and 2-D Cartesian
   paths (Issue #188 + #176, closed 2026-05-11).

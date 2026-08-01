@@ -55,18 +55,18 @@ from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import face_method_space
 
-#: Shared reason for the walker gates blocked on B3.4 (Pattern 2 — one
-#: spelling of the debt across every marker that names it).
-_MIXED_LAW_XFAIL = (
-    "B3.4 — the walker realizes a NARROWED leaf (reflective, Γ₊ → Γ₋ since "
-    "B3.2) alongside an UN-NARROWED one (white, still a full-face "
-    "endomorphism), so the resulting OperatorSum has mismatched factor shapes "
-    "and its apply raises. MEASURED on a Γ₊ probe: `AngularAverageOperator."
-    "apply: psi.shape[0] = |Γ₊|, expected N`. The walker's distributivity "
-    "claim "
-    "is unchanged and un-weakened — it is unstateable until B3.4 narrows "
-    "white / albedo / periodic (#183, #189). Delete this marker then."
-)
+#: ⚠ The mixed-law gates below compose reflective with **white**, and both are
+#: narrowed (B3.2 and B3.4a respectively), so the sum is well-typed and the
+#: distributivity claim is stateable again — the two ``xfail(strict=True)``
+#: markers that stood here were deleted when B3.4a landed, exactly as their own
+#: reason text instructed.
+#:
+#: They must NOT be re-posed over **albedo** or **periodic**. Those two are
+#: still full-face endomorphisms (B3.4b / B3.4c), and because ``|Γ₊| == |Γ₋|``
+#: on every quadrature × face in the tree, a sum mixing one of them with a
+#: narrowed leaf does not RAISE — it runs and is silently wrong (vv Mode 12).
+#: A gate here over ``0.3 * spec + 0.7 * albedo`` would be green and worthless
+#: until B3.4b lands.
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -269,7 +269,6 @@ def test_realize_recursively_lawsum_returns_operator_sum() -> None:
     assert op.b.scalar == 0.7
 
 
-@pytest.mark.xfail(strict=True, reason=_MIXED_LAW_XFAIL)
 @pytest.mark.l1
 def test_realize_recursively_apply_matches_pointwise_weighted_sum() -> None:
     """``walker(0.3*spec + 0.7*white).apply(psi)`` matches the pointwise
@@ -326,7 +325,6 @@ def test_realize_recursively_walks_nested_depth_first() -> None:
     assert inner_sum.b.scalar == 0.7
 
 
-@pytest.mark.xfail(strict=True, reason=_MIXED_LAW_XFAIL)
 @pytest.mark.l1
 def test_realize_recursively_nested_apply_matches_distributive_form() -> None:
     """``walker(0.5 * (0.3 * spec + 0.7 * white)).apply(psi)`` matches

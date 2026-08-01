@@ -367,21 +367,24 @@ at :ref:`bc-sweep-cycle`.
      - ``α * <that TP>``
        (:class:`~orpheus.numerics.operator.ScaledOperator`)
      - α ≠ 1
-   * - ``"white"`` — not yet narrowed (B3.4)
+   * - ``"white"`` — **narrowed** :math:`\Gamma_+ \to \Gamma_-` (B3.4a)
      - :class:`~orpheus.geometry.boundary.WhiteBoundary`
      - ``AngularAverageOperator.from_quadrature(...) &
-       IdentityOperator()`` — full-\ :math:`N` endomorphism
+       IdentityOperator()`` — the Lambertian kernel contracts over
+       :math:`\Gamma_+` and re-emits on :math:`\Gamma_-`. The law's
+       declared ``axis`` / ``outward_sign`` is cross-checked against the
+       installation face's :math:`\Gamma_+` before construction.
      - 1 (fast path)
    * - ``"white"``
      -
      - ``α * <that TP>``
      - α ≠ 1
-   * - ``"periodic"`` — not yet narrowed (B3.4)
+   * - ``"periodic"`` — not yet narrowed (B3.4c)
      - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
      - ``PeriodicWrapOperator() & IdentityOperator()`` (angular
        identity; the spatial pushforward is unbuilt, issue #183)
      - 1
-   * - ``"albedo"`` — not yet narrowed (B3.4)
+   * - ``"albedo"`` — not yet narrowed (B3.4b)
      - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
      - :class:`~orpheus.numerics.operator.ZeroOperator` (bare — an
        endomorphism, no space hooks)
@@ -394,13 +397,15 @@ at :ref:`bc-sweep-cycle`.
      -
      - ``α * (IdentityOperator() & IdentityOperator())``
      - α ∉ {0, 1}
-   * - ``"prescribed_inflow"`` — rank-0 **affine**
+   * - ``"prescribed_inflow"`` — rank-0 **affine**, **narrowed**
+       :math:`\Gamma_+ \to \Gamma_-` (B3.4a)
      - :class:`~orpheus.geometry.boundary.PrescribedInflow`
      - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
-       (source.evaluate masked to :math:`\Gamma_-`; ignores outgoing
-       flux). **Raises** an ordinate-axis mismatch if reached through
-       the narrowed consumer — its dense mask covers all :math:`N`
-       rows while :math:`\gamma_+` supplies :math:`|\Gamma_+|`.
+       — :meth:`apply` ignores the outgoing flux and asks the source
+       spec to fill ``(|Γ₋|,) + psi_out.shape[1:]``. The inflow **mask**
+       dissolved with the codomain at B3.4a: the outflow and tangential
+       rows it used to zero are no longer emitted on, so :math:`q \in
+       \Gamma_-` holds by TYPING rather than by an erasure (ERR-047).
      - —
 
 .. note::
@@ -408,13 +413,16 @@ at :ref:`bc-sweep-cycle`.
    **Since campaign phase B3.2 a realized SN law is typed**
    :math:`\Gamma_+ \to \Gamma_-` — it consumes the outflow half-trace
    and produces the inflow half-trace, and the consumer composes
-   :math:`\iota_-\circ\text{law}\circ\gamma_+`. That landed for
-   ``vacuum`` and ``reflective`` only; the rows marked *not yet
-   narrowed* still emit full-\ :math:`N` endomorphisms, are
-   **unreachable from this registry** (which admits only
-   ``{vacuum, reflective}``), and are pinned by strict xfails until
-   **B3.4** restructures the realizer around :math:`R \circ G` for all
-   seven laws. A shape assertion cannot tell the two typings apart —
+   :math:`\iota_-\circ\text{law}\circ\gamma_+`. B3.2 landed it for
+   ``vacuum`` and ``reflective``; **B3.4a** added ``white`` and
+   ``prescribed_inflow``. What remains is ``albedo`` — at *every*
+   :math:`\alpha`, since the :math:`\alpha = 0` and :math:`\alpha = 1`
+   fast paths are endomorphisms too — and ``periodic``, whose
+   :math:`G` must read the PARTNER face's :math:`\Gamma_+`. Those rows
+   still emit full-\ :math:`N` endomorphisms, are **unreachable from
+   this registry** (which admits only ``{vacuum, reflective}``), and
+   are pinned by strict xfails until **B3.4b** / **B3.4c** land. A
+   shape assertion cannot tell the two typings apart —
    :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature × face in the
    tree — so read the *declared spaces*, never the output shape. Full
    derivation at :ref:`bc-domain-narrowing`.
