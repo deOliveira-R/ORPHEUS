@@ -38,6 +38,7 @@ from orpheus.geometry.boundary import (
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
+from tests.sn._test_helpers import face_method_space
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -54,38 +55,44 @@ def _realize_for_sn(bc, quad):
 
     Used by tests that previously called ``bc.apply(psi, quad)`` directly.
     Returns a 1-arg :class:`LinearOperator` whose ``apply(psi)`` matches
-    the legacy 2-arg ``bc.apply(psi, quad)`` semantics for all rank-1
-    BCs **except** vacuum (which requires per-face inflow indices —
-    use :func:`_realize_vacuum_for_face_right` for that).
+    the legacy 2-arg ``bc.apply(psi, quad)`` semantics.
 
-    Realizer-path output is bit-equivalent (or ``nulp <= 4`` at worst)
-    to the legacy ``bc.apply(psi, quad)`` for non-vacuum BCs. Verified
-    by Wave 5's ``test_sn_boundary_realizer.py`` equivalence tests.
+    B3.2 note: this helper is now for the laws that are STILL full-face —
+    white, albedo, periodic. The narrowed ones (vacuum, reflective) are typed
+    :math:`\\Gamma_+ \\to \\Gamma_-` and cannot be realized on a faceless
+    method space at all; they use :func:`_realize_narrowed_for_face_right`.
     """
     realizer = SNBoundaryRealizer()
     method_space = SNMethodSpace.minimal(quad)
     return realizer.realize(bc, method_space)
 
 
-def _realize_vacuum_for_face_right(bc, quad):
-    """Realize a vacuum BC for the right face (outward normal +x).
+def _realize_narrowed_for_face_right(bc, quad):
+    r"""Realize a NARROWED BC for the right face (outward normal :math:`+\hat x`).
 
-    Issue #176 / C176.2: the bare :class:`VacuumInflow.apply`
-    returns ``np.zeros_like(psi)`` (legacy zeros-all, per Wave 7
-    Option a). The §16A.5-correct path returns
-    :class:`IncomingOrdinateMaskTensor` that zeros ONLY the inflow
-    rows. This helper supplies the per-face inflow indices a vacuum
-    realizer needs.
+    Inflow ordinates there are those with :math:`\mu_x < -\epsilon`
+    (:math:`\Omega\cdot\hat n_{\rm right} = +\mu_x < 0`); outflow the mirror.
 
-    For a 1-D-style "right" face (outward normal :math:`+\\hat x`),
-    inflow ordinates are those with :math:`\\mu_x < -\\epsilon`
-    (:math:`\\Omega \\cdot \\hat n_{\\text{right}} = +\\mu_x < 0`).
+    RENAMED at campaign phase **B3.2** from ``_realize_vacuum_for_face_right``.
+    Pre-B3.2 only vacuum needed per-face data (for its inflow mask); since a
+    law's DOMAIN is now :math:`\Gamma_+`, **reflective needs a face too** —
+    the specular table must be re-indexed into outflow-local coordinates, and
+    a faceless space has no :math:`\Gamma_+` to index into.
     """
-    inflow_indices = np.flatnonzero(quad.mu_x < -1e-12)
-    method_space = SNMethodSpace(
-        quadrature=quad, face="xmax", inflow_indices=inflow_indices,
+    return SNBoundaryRealizer().realize(bc, face_method_space(quad, face="xmax"))
+
+
+def _half_traces(quad):
+    r"""The right face's ``(inflow, outflow)`` index sets, hand-derived.
+
+    Written out rather than read back off the method space so the tests below
+    keep an independent statement of WHICH ordinates are which — the sign
+    convention is exactly what a boundary test exists to pin.
+    """
+    return (
+        np.flatnonzero(quad.mu_x < -1e-12),
+        np.flatnonzero(quad.mu_x > +1e-12),
     )
-    return SNBoundaryRealizer().realize(bc, method_space)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -94,35 +101,33 @@ def _realize_vacuum_for_face_right(bc, quad):
 
 
 @pytest.mark.foundation
-def test_vacuum_bc_realizer_zeros_only_inflow_per_section_16A5() -> None:
-    """Vacuum BC via the realizer zeros ONLY the inflow rows.
+def test_vacuum_bc_realizes_to_the_zero_map_onto_gamma_minus() -> None:
+    r"""Vacuum BC via the realizer is the zero map :math:`\Gamma_+ \to \Gamma_-`.
 
-    Issue #176 / C176.2: migrated from the legacy zeros-all
-    ``bc.apply(psi, quad)`` contract to the §16A.5-correct
-    inflow-only-mask semantics. The realizer's vacuum branch
-    returns an :class:`IncomingOrdinateMaskTensor` that zeros
-    inflow rows (where :math:`\\Omega \\cdot \\hat n < 0`) and
-    passes outflow rows through unchanged. This is the
-    production contract used by every SN sweep after Issue #188
-    (curvilinear) was wired through the realizer.
+    Issue #176 / C176.2 migrated this from the legacy zeros-all
+    ``bc.apply(psi, quad)`` contract to the §16A.5 inflow-only mask.
+    Campaign phase **B3.2** completes the arc: with the law's DOMAIN narrowed
+    to :math:`\Gamma_+`, there are no outflow rows to preserve, and vacuum's
+    whole content (:math:`R = 0`) is the honest zero map between the two
+    half-traces.
 
-    The bare :class:`VacuumInflow.apply(psi, quad)`
-    direct call still returns the legacy zeros-all output as a
-    backward-compat fallback (documented in the BC docstring).
+    The retired half of the old assertion — "outflow rows pass through
+    unchanged" — is not deleted but SUPERSEDED: those rows are no longer in
+    the operator's domain, so the claim has no referent. What replaces it is
+    the codomain shape, asserted below.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.random.default_rng(0).standard_normal((quad.N, 3))
     bc = VacuumInflow()
+    inflow, outflow = _half_traces(quad)
 
-    psi_in = _realize_vacuum_for_face_right(bc, quad).apply(psi_out)
+    psi_in = _realize_narrowed_for_face_right(bc, quad).apply(psi_out[outflow])
 
-    assert psi_in.shape == psi_out.shape
-    # Inflow rows (mu_x < 0 at the right face) zeroed.
-    inflow = np.flatnonzero(quad.mu_x < -1e-12)
-    np.testing.assert_array_equal(psi_in[inflow], 0.0)
-    # Outflow rows passed through unchanged.
-    outflow = np.flatnonzero(quad.mu_x > 1e-12)
-    np.testing.assert_array_equal(psi_in[outflow], psi_out[outflow])
+    assert psi_in.shape == (inflow.size, 3), (
+        f"vacuum emitted {psi_in.shape}; the narrowed codomain is Γ₋, i.e. "
+        f"{(inflow.size, 3)} — NOT the full face {psi_out.shape}."
+    )
+    np.testing.assert_array_equal(psi_in, 0.0)
 
 
 @pytest.mark.foundation
@@ -133,42 +138,76 @@ def test_vacuum_bc_is_resolved_bc() -> None:
 
 @pytest.mark.foundation
 def test_specular_bc_indexes_through_reflection_partner() -> None:
-    """``ReflectiveBoundary.apply(psi)[n] == psi[reflection_index[n]]``."""
+    r"""``B(γ₊ψ)[j] == ψ[reflection_index[inflow[j]]]``.
+
+    RE-POSED at **B3.2**: the pre-B3.2 claim was the full-face gather
+    ``psi_in == psi_out[reflection_index]``. Narrowed, row ``j`` of the image
+    is the mirror of the ``j``-th INFLOW ordinate — which is the same gather
+    restricted to :math:`\Gamma_-`, and is written here from
+    ``reflection_index`` and the inflow set alone (no ``to_local``), so a
+    remap error cannot cancel against the reference.
+    """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.arange(quad.N * 2, dtype=float).reshape(quad.N, 2)
     bc = ReflectiveBoundary(axis="x", albedo=1.0)
     ref = quad.reflection_index("x")
+    inflow, outflow = _half_traces(quad)
 
-    psi_in = _realize_for_sn(bc, quad).apply(psi_out)
+    psi_in = _realize_narrowed_for_face_right(bc, quad).apply(psi_out[outflow])
 
-    # psi_in[n] should equal psi_out[ref[n]]
-    np.testing.assert_array_equal(psi_in, psi_out[ref])
+    np.testing.assert_array_equal(psi_in, psi_out[ref][inflow])
 
 
 @pytest.mark.foundation
 def test_specular_bc_with_partial_albedo() -> None:
-    """ReflectiveBoundary scales by ``albedo``."""
+    r"""ReflectiveBoundary scales by ``albedo``, on the narrowed domain.
+
+    ``gauss_legendre(4)`` at ``xmax``: ``ref[n] = N-1-n``, inflow = ``[0, 1]``
+    (μ<0), outflow = ``[2, 3]``. So the image is ``0.5 * ψ[[3, 2]]`` — note
+    the REVERSAL, which is what makes the slab the discriminating fixture for
+    the reflective narrowing's ``to_local`` remap (a naive ``arange`` would
+    give ``0.5 * ψ[[2, 3]]``). Hand-written as a literal below so the leg
+    states the expected values rather than re-deriving them.
+    """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     psi_out = np.array([[1.0], [2.0], [3.0], [4.0]])
     bc = ReflectiveBoundary(axis="x", albedo=0.5)
+    inflow, outflow = _half_traces(quad)
+    np.testing.assert_array_equal(inflow, [0, 1])
+    np.testing.assert_array_equal(outflow, [2, 3])
 
-    psi_in = _realize_for_sn(bc, quad).apply(psi_out)
+    psi_in = _realize_narrowed_for_face_right(bc, quad).apply(psi_out[outflow])
 
-    # ref[n] = N - 1 - n: psi_out reversed.
-    expected = 0.5 * psi_out[::-1]
-    np.testing.assert_array_equal(psi_in, expected)
+    np.testing.assert_array_equal(psi_in, np.array([[2.0], [1.5]]))
 
 
 @pytest.mark.foundation
 def test_specular_bc_axis_y_on_lebedev() -> None:
-    """Lebedev y-reflection partner: ``apply(axis='y')`` matches index."""
+    """Lebedev y-reflection partner: ``apply(axis='y')`` matches index.
+
+    B3.2: realized on the ``ymax`` face (outward normal +ŷ), so the domain is
+    that face's :math:`\\Gamma_+` and the reference is the y-reflection gather
+    restricted to its :math:`\\Gamma_-`.
+    """
     quad = Quadrature.lebedev(order=9)
     psi_out = np.random.default_rng(1).standard_normal((quad.N, 2))
     bc = ReflectiveBoundary(axis="y", albedo=1.0)
+    space = face_method_space(
+        quad, face="ymax", faces=("xmin", "xmax", "ymin", "ymax"),
+    )
+    # Ω·n_ymax = +μ_y, so inflow ⟺ μ_y < 0 — stated independently of the
+    # helper, because a face↔axis mix-up is precisely this test's threat.
+    np.testing.assert_array_equal(
+        space.inflow_indices, np.flatnonzero(quad.mu_y < -1e-12),
+    )
 
-    psi_in = _realize_for_sn(bc, quad).apply(psi_out)
+    psi_in = SNBoundaryRealizer().realize(bc, space).apply(
+        psi_out[space.outflow_indices]
+    )
 
-    np.testing.assert_array_equal(psi_in, psi_out[quad.reflection_index("y")])
+    np.testing.assert_array_equal(
+        psi_in, psi_out[quad.reflection_index("y")][space.inflow_indices],
+    )
 
 
 @pytest.mark.foundation
@@ -474,22 +513,40 @@ def test_albedo_zero_and_vacuum_agree_on_inflow_rows() -> None:
     """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     psi_out = np.random.default_rng(7).standard_normal((quad.N, 2))
+    inflow, outflow = _half_traces(quad)
 
+    # B3.2: the two laws now live on DIFFERENT domains — albedo(0) is still
+    # a full-face endomorphism (it is B3.4's work), vacuum is Γ₊ → Γ₋. So each
+    # is applied on its own domain, and the equivalence is asserted where it
+    # was always meant: on the inflow rows the SN sweep actually reads.
     albedo_zero = _realize_for_sn(
         AlbedoBoundary(albedo=0.0), quad,
     ).apply(psi_out)
-    vacuum_realized = _realize_vacuum_for_face_right(
+    vacuum_realized = _realize_narrowed_for_face_right(
         VacuumInflow(), quad,
-    ).apply(psi_out)
+    ).apply(psi_out[outflow])
 
-    inflow = np.flatnonzero(quad.mu_x < -1e-12)
     np.testing.assert_array_equal(albedo_zero[inflow], 0.0)
-    np.testing.assert_array_equal(vacuum_realized[inflow], 0.0)
-    np.testing.assert_array_equal(
-        albedo_zero[inflow], vacuum_realized[inflow],
-    )
+    np.testing.assert_array_equal(vacuum_realized, 0.0)
+    np.testing.assert_array_equal(albedo_zero[inflow], vacuum_realized)
 
 
+#: Shared reason for every gate blocked on B3.4 (Pattern 2 — one spelling of
+#: the debt, so the marker set reads as ONE todo item rather than N).
+_MIXED_LAW_XFAIL = (
+    "B3.4 — a NARROWED law cannot be summed with an UN-NARROWED one. Since "
+    "B3.2 reflective is typed Γ₊ → Γ₋ while white is still a full-face "
+    "endomorphism, so `α·spec + β·white` has mismatched factor shapes: "
+    "MEASURED, it raises on BOTH domains — on Γ₊ `AngularAverageOperator."
+    "apply: psi.shape[0] = 4, expected 8`, on the full face `operands could "
+    "not be broadcast together with shapes (4,2) (8,2)`. The mixed-BC "
+    "LINEARITY claim is unchanged and un-weakened; it is simply unstateable "
+    "until B3.4 narrows white / albedo / periodic (#183, #189). Delete this "
+    "marker then."
+)
+
+
+@pytest.mark.xfail(strict=True, reason=_MIXED_LAW_XFAIL)
 @pytest.mark.foundation
 def test_wave0_sum_of_realized_bcs_acts_as_weighted_sum() -> None:
     r"""Wave-11 replacement for ``MixedBoundaryOperator.apply`` linearity.
@@ -499,14 +556,19 @@ def test_wave0_sum_of_realized_bcs_acts_as_weighted_sum() -> None:
     and composing the realised primitives with the Wave-0 algebra
     dunders. The composed operator's ``apply(psi)`` equals the explicit
     weighted sum of the leaves' realised ``apply(psi)`` outputs.
+
+    RE-POSED at **B3.2** onto the narrowed domain :math:`\Gamma_+`, which is
+    where a mixed BC's summands will BOTH live once B3.4 lands. The claim is
+    verbatim what it was; only the vector it is asserted on moved.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    psi_out = np.random.default_rng(8).standard_normal((quad.N, 2))
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
 
-    spec_realized = _realize_for_sn(spec, quad)
+    spec_realized = _realize_narrowed_for_face_right(spec, quad)
     white_realized = _realize_for_sn(white, quad)
+    _, outflow = _half_traces(quad)
+    psi_out = np.random.default_rng(8).standard_normal((outflow.size, 2))
     composed = 0.3 * spec_realized + 0.7 * white_realized
 
     psi_composed = composed.apply(psi_out)
@@ -606,50 +668,80 @@ def test_specular_realized_op_advertises_apply_transpose() -> None:
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
-    realized = _realize_for_sn(spec, quad)
+    realized = _realize_narrowed_for_face_right(spec, quad)
     assert realized.is_adjointable
 
 
 @pytest.mark.foundation
 def test_specular_apply_transpose_reciprocity_unweighted() -> None:
-    r"""``<B(psi_out), phi_in> == <psi_out, B^T(phi_in)>``.
+    r"""``⟨B γ₊ψ, φ⟩_{Γ₋} == ⟨γ₊ψ, Bᵀφ⟩_{Γ₊}`` — the RECTANGULAR reciprocity.
 
-    Tests the Euclidean inner-product reciprocity identity for clean
-    axis specular reflection. Index permutations under axis
-    reflection are involutions, so the transpose acts as the same
-    permutation.
+    RE-POSED at **B3.2**. The pre-B3.2 leg paired two full-face vectors, which
+    was the right statement for a square endomorphism. A narrowed law is a
+    rectangular :math:`\Gamma_+ \to \Gamma_-` map, so its Euclidean adjoint
+    pairs a :math:`\Gamma_+` vector with a :math:`\Gamma_-` one — the identity
+    is unchanged in content, but each side now lives in its own space, and
+    getting THAT wrong is the new failure mode this leg guards.
+
+    Note the deliberate choice of INDEPENDENT random vectors on the two
+    half-traces (rather than two slices of one full-face draw): a shared draw
+    would let a domain/codomain confusion partially cancel.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     rng = np.random.default_rng(42)
-    psi_out = rng.standard_normal((quad.N, 2))
-    phi_in = rng.standard_normal((quad.N, 2))
+    inflow, outflow = _half_traces(quad)
+    psi_plus = rng.standard_normal((outflow.size, 2))
+    phi_minus = rng.standard_normal((inflow.size, 2))
 
     spec = ReflectiveBoundary(axis="x", albedo=0.7)
-    realized = _realize_for_sn(spec, quad)
-    Bpsi = realized.apply(psi_out)
-    BTphi = realized.apply_transpose(phi_in)
+    realized = _realize_narrowed_for_face_right(spec, quad)
+    Bpsi = realized.apply(psi_plus)
+    BTphi = realized.apply_transpose(phi_minus)
+    assert Bpsi.shape == phi_minus.shape, "B does not land on Γ₋"
+    assert BTphi.shape == psi_plus.shape, "Bᵀ does not land on Γ₊"
 
-    lhs = float(np.sum(Bpsi * phi_in))
-    rhs = float(np.sum(psi_out * BTphi))
+    lhs = float(np.sum(Bpsi * phi_minus))
+    rhs = float(np.sum(psi_plus * BTphi))
     assert np.isclose(lhs, rhs, rtol=1e-13)
+    # Non-vacuity: an all-zero pairing would satisfy the identity trivially.
+    assert abs(lhs) > 1e-6, f"reciprocity pairing is ~0 ({lhs:.3e}) — vacuous"
 
 
 @pytest.mark.foundation
-def test_specular_self_inverse_identity() -> None:
-    r"""``B(B(x)) == albedo^2 * x`` for a clean axis reflection."""
+def test_specular_narrowed_law_composed_with_its_transpose_is_alpha_squared() -> None:
+    r"""``Bᵀ(B(x)) == albedo² · x`` on :math:`\Gamma_+`.
+
+    RE-POSED at **B3.2** from ``B(B(x)) == albedo² · x``. The old spelling is
+    no longer a well-formed statement: a :math:`\Gamma_+ \to \Gamma_-` map
+    cannot be composed with itself, and it silently "worked" pre-B3.2 only
+    because the law was a square endomorphism of the whole face.
+
+    The mathematical content — a specular mirror is an INVOLUTION, so applying
+    it twice returns you where you started up to :math:`\alpha^2` — survives
+    intact in the honest composition ``ιᵀ ∘ ι``: the narrowed ``B`` is
+    ``α · (a bijection Γ₊ → Γ₋)``, so ``Bᵀ B = α² I`` on :math:`\Gamma_+`.
+    That is the same claim, correctly typed, and it is STRONGER than the old
+    one: it additionally pins that the mirror is a bijection rather than
+    merely an involution on a larger space.
+    """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     rng = np.random.default_rng(7)
-    x = rng.standard_normal((quad.N, 2))
+    _, outflow = _half_traces(quad)
+    x = rng.standard_normal((outflow.size, 2))
 
     spec = ReflectiveBoundary(axis="x", albedo=0.7)
-    realized = _realize_for_sn(spec, quad)
-    once = realized.apply(x)
-    twice = realized.apply(once)
+    realized = _realize_narrowed_for_face_right(spec, quad)
+    round_trip = realized.apply_transpose(realized.apply(x))
 
-    expected = (0.7 ** 2) * x
-    np.testing.assert_allclose(twice, expected, rtol=1e-13, atol=1e-14)
+    np.testing.assert_allclose(
+        round_trip, (0.7 ** 2) * x, rtol=1e-13, atol=1e-14,
+    )
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=_MIXED_LAW_XFAIL,
+)
 @pytest.mark.foundation
 def test_operator_sum_of_bcs_acts_as_weighted_sum() -> None:
     r"""``0.7 * Specular + 0.3 * White`` realises the explicit weighted sum.
@@ -664,15 +756,18 @@ def test_operator_sum_of_bcs_acts_as_weighted_sum() -> None:
     pointwise weighted sum (the structurally-independent reference is
     the linearity of ``LinearOperator.apply`` itself, not any other
     composer).
+
+    RE-POSED at **B3.2** onto :math:`\Gamma_+` — see the sibling above.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     rng = np.random.default_rng(99)
-    psi_out = rng.standard_normal((quad.N, 2))
+    _, outflow = _half_traces(quad)
+    psi_out = rng.standard_normal((outflow.size, 2))
 
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
 
-    spec_realized = _realize_for_sn(spec, quad)
+    spec_realized = _realize_narrowed_for_face_right(spec, quad)
     white_realized = _realize_for_sn(white, quad)
     composed = 0.7 * spec_realized + 0.3 * white_realized
     expected = 0.7 * spec_realized.apply(psi_out) + 0.3 * white_realized.apply(psi_out)

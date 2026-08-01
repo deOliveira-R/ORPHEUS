@@ -378,6 +378,67 @@ sufficient — or that 2-D coverage is.
 
 ---
 
+## 9.2 B3.2 RESULT — and three of my own claims corrected
+
+`SNMethodSpace` gained an **`outflow_indices`** field (sibling of
+`inflow_indices` — a law's domain deserves the same hand-buildability its
+codomain has); `_reflect_trace` composes `ι₋ ∘ law ∘ γ₊`, transpose
+`ι₊ ∘ lawᵀ ∘ γ₋`; vacuum realizes to the **zero map**, reflective to a
+permutation on the **reduced** axis.
+
+**[M] No value regressions.** The wide baseline reproduced *exactly* the 49
+construction-test failures and nothing else — zero solver, adjoint-reciprocity,
+DSA, Gauss-Seidel, snapshot or convergence reds. The bit-identity claim holds.
+
+**[M] Bit-identity gate has teeth, falsified independently:** forcing the
+naive `arange` remap reds **6 rows** (slab + sphere, both directions) with a
+positive control proving the mutation bit (26 interceptions). `cyl` and 2-D
+stayed **green** — the §9.1 complementarity, reproduced.
+
+### Three claims of mine that were wrong
+
+1. **"Three un-narrowed laws" — it is SIX rows across FOUR kinds.** `albedo`
+   at **α=0 and α=1 too** (their fast paths return a bare
+   `ZeroOperator`/`IdentityOperator`, which are *endomorphisms*), plus
+   `prescribed_inflow` (now raises `ordinate axis mismatch`). Unreachable in
+   production — the SN registry admits only `{vacuum, reflective}` — so the
+   tree stays green, but the B3.4 todo is twice the size I stated.
+2. **A shape assertion cannot detect `Γ₊→Γ₊`.** `[M]` `|Γ₊| == |Γ₋|` on
+   **every quadrature × face in the tree**, so an un-narrowed endomorphism has
+   exactly the right output shape. Only the anti-Mode-12 leg found the three
+   above. This is the invariance-group lens biting inside B3 itself: the
+   measured functional (shape) has the error class (`Γ₊→Γ₊` vs `Γ₊→Γ₋`) in its
+   stabiliser.
+3. **The narrowed law does NOT validate its own domain.** `[M]` Both vacuum's
+   `ZeroOperator` and reflective's `TensorProductOperator` accept a **full-face
+   input** and return `|Γ₋|` rows of *wrong values, no raise*. The guard I put
+   on `TraceRestrictionOperator` does not travel to the operator the realizer
+   *emits*. Unreachable through `_reflect_trace` (which always feeds
+   `γ₊.apply(...)`, itself guarded), but reachable through `sn.bc[face].apply`.
+   **Deliberately left as 4 strict-xfails for B3.4**, which restructures the
+   realizer around `R ∘ G` for all seven laws and is the one place the guard
+   belongs — a per-law guard added now would be seven copies of what B3.4
+   collapses into one.
+
+### Consequences to carry
+
+- **A narrowed law can no longer compose with an un-narrowed one** —
+  `0.3·specular + 0.7·white` raises on both domains. 6 mixed-BC gates are
+  B3.4-blocked, which argues for **B3.4 before B3.3**.
+- **`SNMethodSpace.minimal` is now a partial constructor** and after B3.4 can
+  realize nothing — a retirement candidate, not a fixture.
+- **16 strict xfails = the todo list**, each `--runxfail`-verified to red for
+  ITS documented reason, and the B3.4 subset proven to **flip** under a landing
+  simulation. (Trap met en route: a simulation built on `ScaledOperator(0.0, …)`
+  **refuses a zero scalar**, so the xfail swallowed a `ValueError` and the row
+  falsely read "didn't flip" — Mode 8 class 4, caught by the flip check itself.)
+- ⚠ **The mutation harness is at `scratch/b3_2_mutations.py`.** `scratch/` is
+  tracked-capable (44 files under it are tracked), so committing it there ends
+  the "lives only in a job tmp dir" failure mode — but scratch is a holding pen
+  by convention. **B3.5 owes it a discoverable home.**
+
+---
+
 ## 10. Watch item — a sixth dead-capability instance
 
 `[G]` `BoundaryGeometryMap.is_adjointable` and its concrete implementations have

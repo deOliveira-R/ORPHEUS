@@ -285,25 +285,39 @@ class SNBoundaryOperator(LinearOperator):
         the codomain row, and return a boundary-only
         :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`.
 
-        ``B`` is the ``A_ss`` block ``V_outflow → V_inflow``: it maps the
-        **outflow** trace to the **inflow** trace, so the forward action must be
-        non-zero **only on the inflow ordinate slots** of each face.  The
-        realized per-face law (a
-        :class:`~orpheus.numerics.operator.PermutationOperator` for reflective,
-        :class:`AngularAverageOperator` for white, …) is a *full-face* operator,
-        so a non-zero outflow emission would corrupt the outflow-definition
-        residual ``ψ.outflow − streamed`` (which carries no ``B`` term — see the
-        block matrix in the module docstring).  So the forward action is
-        projected onto the inflow rows: ``B_face = P_inflow ∘ law``, and the
-        Euclidean transpose is ``B_faceᵀ = lawᵀ ∘ P_inflow`` — mask the INPUT to
-        the forward's codomain rows, write the full ``lawᵀ`` image.
+        ``B`` is the ``A_ss`` block ``V_outflow → V_inflow``, and **since
+        campaign phase B3.2 the realized per-face law is typed that way too**:
+        it consumes :math:`\Gamma_+` and produces :math:`\Gamma_-`. The face
+        action is therefore the composition
 
-        ⚠ Output-projecting ``lawᵀ`` onto the OUTFLOW rows instead extracts a
-        law's DIAGONAL block: for the vacuum mask that spells a spurious ``+1``
-        outflow diagonal where the forward is the ZERO map — caught only by the
-        A2a grid-reciprocity arm on the het-VACUUM sphere (off-diagonal
-        permutation laws are bit-identical under either spelling, so every
-        reflective-fixture gate stayed green over the wrong one).  The
+        .. code-block:: text
+
+            B_face = ι₋ ∘ law ∘ γ₊          (forward)
+            B_faceᵀ = ι₊ ∘ lawᵀ ∘ γ₋        (Euclidean transpose)
+
+        with ``γ±`` the trace restrictions
+        (:class:`~orpheus.numerics.operator.TraceRestrictionOperator`, cached on
+        the trace space) and ``ι± = γ±ᵀ`` their scatters. Nothing is computed
+        and then discarded, and a non-zero outflow emission — which would
+        corrupt the outflow-definition residual ``ψ.outflow − streamed``, a
+        quantity carrying no ``B`` term at all — is **unrepresentable** rather
+        than merely projected away.
+
+        Pre-B3.2 the law was a *full-face* operator and this method projected
+        its image onto the inflow rows (``B_face = P_inflow ∘ law``), masking
+        the input on the transpose leg. That slice-write was the root defect
+        the boundary review identified: the law's declared domain was the whole
+        face slot while its physics was ``outflow → inflow``, and every symptom
+        in the review's §4 followed from the mismatch.
+
+        ⚠ Retained from that era because the trap survives the narrowing: the
+        transpose must scatter over :math:`\Gamma_+`, never over
+        :math:`\Gamma_-`. Output-projecting ``lawᵀ`` onto the law's own
+        codomain instead extracts its DIAGONAL block — for vacuum that spells a
+        spurious ``+1`` where the forward is the ZERO map, and it was caught
+        only by the A2a grid-reciprocity arm on the het-VACUUM sphere, because
+        off-diagonal permutation laws are bit-identical under either spelling
+        and every reflective-fixture gate stayed green over the wrong one. The
         metric-correct Hilbert adjoint ``B.H`` under ``|Ω·n|·w`` is separate;
         this Euclidean ``apply_transpose`` is the un-weighted shadow.
 
@@ -350,16 +364,37 @@ class SNBoundaryOperator(LinearOperator):
             face_laws = {f: law for f, law in face_laws.items() if f in rows}
         for face, law in face_laws.items():
             face_in = boundary.face_view(face)
-            sel = (
-                rows[face] if rows is not None
-                else trace.inflow_indices_for_face(face)
-            )
+            # B3.2 — the law's DOMAIN is Γ₊ and its CODOMAIN is Γ₋, so the
+            # face action is the composition ``ι₋ ∘ law ∘ γ₊`` spelled out.
+            # Nothing is computed and then thrown away: the outflow rows the
+            # pre-B3.2 slice-write discarded are simply not in the domain.
+            gamma_out = trace.outflow_restriction(face)   # γ₊
+            gamma_in = trace.inflow_restriction(face)     # γ₋
             if method == "apply":
-                full = law.apply(face_in)
-                out_boundary.face_view(face)[sel] = full[sel]
+                image = law.apply(gamma_out.apply(face_in))
+                if rows is None:
+                    out_boundary.face_view(face)[...] = (
+                        gamma_in.apply_transpose(image)
+                    )
+                else:
+                    # A row-restricted emission (the schedule's split halves):
+                    # keep only the requested inflow rows of the image. The
+                    # remap MUST go through ``to_local`` — the requested rows
+                    # are a subset of Γ₋, and they are a PREFIX of it only in
+                    # 1-D, so a hand-written ``arange`` is right on a slab and
+                    # wrong in 2-D.
+                    sel = rows[face]
+                    out_boundary.face_view(face)[sel] = image[
+                        gamma_in.to_local(sel)
+                    ]
             else:
-                # ``(P_sel ∘ law)ᵀ = lawᵀ ∘ P_sel``: mask the INPUT to the
-                # forward's codomain rows, write the FULL transpose image.
+                # The forward is ``ι₋ ∘ law ∘ γ₊``, so the Euclidean transpose
+                # distributes as ``ι₊ ∘ lawᵀ ∘ γ₋`` — restrict the INPUT to
+                # the forward's codomain (Γ₋), apply the law's transpose, and
+                # scatter the result back over Γ₊. With ``rows`` the forward
+                # additionally projects onto those inflow rows, which
+                # transposes to masking the input by them FIRST.
+                #
                 # The checked bridge licenses the raw verb (spec §39.1) —
                 # unreachable-in-practice because :attr:`is_adjointable`
                 # gates the composite eagerly, but the per-face raise keeps
@@ -371,9 +406,16 @@ class SNBoundaryOperator(LinearOperator):
                         f"transpose — reachable only when every face law is "
                         f"adjointable (see is_adjointable)."
                     )
-                masked = np.zeros_like(face_in)
-                masked[sel] = face_in[sel]
-                out_boundary.face_view(face)[...] = law.apply_transpose(masked)
+                if rows is None:
+                    restricted = gamma_in.apply(face_in)
+                else:
+                    sel = rows[face]
+                    masked = np.zeros_like(face_in)
+                    masked[sel] = face_in[sel]
+                    restricted = gamma_in.apply(masked)
+                out_boundary.face_view(face)[...] = gamma_out.apply_transpose(
+                    law.apply_transpose(restricted)
+                )
         return out_boundary
 
     def _apply_faces(

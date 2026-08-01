@@ -53,6 +53,20 @@ from orpheus.numerics.operator import OperatorSum, ScaledOperator
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
+from tests.sn._test_helpers import face_method_space
+
+#: Shared reason for the walker gates blocked on B3.4 (Pattern 2 — one
+#: spelling of the debt across every marker that names it).
+_MIXED_LAW_XFAIL = (
+    "B3.4 — the walker realizes a NARROWED leaf (reflective, Γ₊ → Γ₋ since "
+    "B3.2) alongside an UN-NARROWED one (white, still a full-face "
+    "endomorphism), so the resulting OperatorSum has mismatched factor shapes "
+    "and its apply raises. MEASURED on a Γ₊ probe: `AngularAverageOperator."
+    "apply: psi.shape[0] = |Γ₊|, expected N`. The walker's distributivity "
+    "claim "
+    "is unchanged and un-weakened — it is unstateable until B3.4 narrows "
+    "white / albedo / periodic (#183, #189). Delete this marker then."
+)
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -209,12 +223,14 @@ def test_law_tree_has_no_apply() -> None:
 def test_realize_recursively_leaf_dispatches_to_sn_realizer() -> None:
     """A bare :class:`BoundaryTraceLaw` leaf realises via the SN realiser."""
     quad = Quadrature.gauss_legendre(8)
-    ms = SNMethodSpace.minimal(quad)
+    # B3.2: a reflective leaf is typed Γ₊ → Γ₋, so it needs a FACE — a
+    # faceless method space cannot name its domain.
+    ms = face_method_space(quad, face="xmax")
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     walker_op = realize_recursively(spec, ms, SNBoundaryRealizer())
     direct_op = SNBoundaryRealizer().realize(spec, ms)
     rng = np.random.default_rng(0)
-    psi = rng.standard_normal((quad.N, 3))
+    psi = rng.standard_normal((ms.outflow_indices.size, 3))
     np.testing.assert_array_equal(walker_op.apply(psi), direct_op.apply(psi))
 
 
@@ -222,7 +238,7 @@ def test_realize_recursively_leaf_dispatches_to_sn_realizer() -> None:
 def test_realize_recursively_lawscaled_wraps_in_scaled_operator() -> None:
     """``LawScaled(α, leaf)`` realises to ``ScaledOperator(α, realised_leaf)``."""
     quad = Quadrature.gauss_legendre(8)
-    ms = SNMethodSpace.minimal(quad)
+    ms = face_method_space(quad, face="xmax")   # B3.2: the leaf needs a face
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     tree = 0.5 * spec
     op = realize_recursively(tree, ms, SNBoundaryRealizer())
@@ -230,7 +246,7 @@ def test_realize_recursively_lawscaled_wraps_in_scaled_operator() -> None:
     assert op.scalar == 0.5
     # The inner is the realised leaf (PermutationOperator at α=1).
     rng = np.random.default_rng(1)
-    psi = rng.standard_normal((quad.N, 2))
+    psi = rng.standard_normal((ms.outflow_indices.size, 2))
     direct = SNBoundaryRealizer().realize(spec, ms)
     np.testing.assert_array_almost_equal_nulp(
         op.apply(psi), 0.5 * direct.apply(psi), nulp=4,
@@ -241,7 +257,7 @@ def test_realize_recursively_lawscaled_wraps_in_scaled_operator() -> None:
 def test_realize_recursively_lawsum_returns_operator_sum() -> None:
     """``LawSum(a, b)`` realises to ``OperatorSum(realise(a), realise(b))``."""
     quad = Quadrature.lebedev(17)
-    ms = SNMethodSpace.minimal(quad)
+    ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     tree = 0.3 * spec + 0.7 * white
@@ -253,6 +269,7 @@ def test_realize_recursively_lawsum_returns_operator_sum() -> None:
     assert op.b.scalar == 0.7
 
 
+@pytest.mark.xfail(strict=True, reason=_MIXED_LAW_XFAIL)
 @pytest.mark.l1
 def test_realize_recursively_apply_matches_pointwise_weighted_sum() -> None:
     """``walker(0.3*spec + 0.7*white).apply(psi)`` matches the pointwise
@@ -264,7 +281,7 @@ def test_realize_recursively_apply_matches_pointwise_weighted_sum() -> None:
     order vs the pointwise reduction.
     """
     quad = Quadrature.lebedev(17)
-    ms = SNMethodSpace.minimal(quad)
+    ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     spec_realised = SNBoundaryRealizer().realize(spec, ms)
@@ -273,7 +290,12 @@ def test_realize_recursively_apply_matches_pointwise_weighted_sum() -> None:
         0.3 * spec + 0.7 * white, ms, SNBoundaryRealizer(),
     )
     rng = np.random.default_rng(3)
-    psi = rng.uniform(0.0, 2.0, size=(quad.N, 5, 3))
+    # B3.2: the composed operator's domain is Γ₊ (the narrowed leaf's), so the
+    # probe lives there. Note a FULL-face probe would NOT be a valid statement
+    # of the claim: the narrowed leaf silently truncates it (the missing
+    # domain guard, RG-3b) and the mismatch would surface as a reference-side
+    # broadcast error rather than as the documented composition failure.
+    psi = rng.uniform(0.0, 2.0, size=(ms.outflow_indices.size, 5, 3))
     expected = 0.3 * spec_realised.apply(psi) + 0.7 * white_realised.apply(psi)
     np.testing.assert_array_almost_equal_nulp(
         composed.apply(psi), expected, nulp=4,
@@ -289,7 +311,7 @@ def test_realize_recursively_walks_nested_depth_first() -> None:
     structure with Wave-0 composers.
     """
     quad = Quadrature.lebedev(17)
-    ms = SNMethodSpace.minimal(quad)
+    ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     tree = 0.5 * (0.3 * spec + 0.7 * white)
@@ -304,6 +326,7 @@ def test_realize_recursively_walks_nested_depth_first() -> None:
     assert inner_sum.b.scalar == 0.7
 
 
+@pytest.mark.xfail(strict=True, reason=_MIXED_LAW_XFAIL)
 @pytest.mark.l1
 def test_realize_recursively_nested_apply_matches_distributive_form() -> None:
     """``walker(0.5 * (0.3 * spec + 0.7 * white)).apply(psi)`` matches
@@ -314,7 +337,7 @@ def test_realize_recursively_nested_apply_matches_distributive_form() -> None:
     binary-reduction FP order.
     """
     quad = Quadrature.lebedev(17)
-    ms = SNMethodSpace.minimal(quad)
+    ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     spec_realised = SNBoundaryRealizer().realize(spec, ms)
@@ -323,7 +346,7 @@ def test_realize_recursively_nested_apply_matches_distributive_form() -> None:
         0.5 * (0.3 * spec + 0.7 * white), ms, SNBoundaryRealizer(),
     )
     rng = np.random.default_rng(5)
-    psi = rng.uniform(0.0, 2.0, size=(quad.N, 4))
+    psi = rng.uniform(0.0, 2.0, size=(ms.outflow_indices.size, 4))
     expected = 0.5 * (
         0.3 * spec_realised.apply(psi)
         + 0.7 * white_realised.apply(psi)

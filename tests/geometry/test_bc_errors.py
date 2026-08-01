@@ -86,6 +86,7 @@ from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
+from tests.sn._test_helpers import face_method_space
 
 
 class _TableQuad:
@@ -158,8 +159,14 @@ def test_boundary_error_base_class_contract() -> None:
     # Positive control: a law BOTH realizers accept must NOT raise, so
     # the three reds above come from the refusal branches and not from
     # an always-raising realizer.
+    #
+    # B3.2 migration: the SN control needs a FACE-ful method space. A boundary
+    # law is now typed Γ₊ → Γ₋, so realizing reflective requires the face's
+    # outflow ordinates (its domain) — data ``SNMethodSpace.minimal`` cannot
+    # carry. The control's JOB is unchanged (prove the realizer is not
+    # always-raising); only its fixture moved.
     SNBoundaryRealizer().realize(
-        ReflectiveBoundary(axis="x"), SNMethodSpace.minimal(quad),
+        ReflectiveBoundary(axis="x"), face_method_space(quad, face="xmax"),
     )
     DiffusionBoundaryRealizer().realize(
         ReflectiveBoundary(axis="x"), DiffusionMethodSpace.minimal(),

@@ -94,6 +94,21 @@ class SNMethodSpace:
     inflow_indices: Optional[np.ndarray] = None
     mesh: "Optional[Mesh1D | Mesh2D]" = None
     trace: "Optional[AngularTraceSpace]" = None
+    #: The face's outflow ordinates — a narrowed law's **domain**.
+    #:
+    #: Added in campaign phase **B3.2**, when an SN boundary law became typed
+    #: :math:`\Gamma_+ \to \Gamma_-`: realizing one now needs to know which
+    #: ordinates are outflow at this face, exactly as it has always needed
+    #: :attr:`inflow_indices` for the codomain. The two are siblings and are
+    #: populated together by :meth:`for_face`.
+    #:
+    #: It is a FIELD rather than a lookup through :attr:`trace` for the reason
+    #: :attr:`inflow_indices` is: a hand-built method space must be able to
+    #: name its own half-traces without standing up a whole trace space. Note
+    #: the pair does NOT partition the face — tangential ordinates
+    #: (:math:`|\Omega\cdot\hat n| \le \epsilon`) belong to neither, so
+    #: "not inflow" must never be spelled as "outflow".
+    outflow_indices: Optional[np.ndarray] = None
 
     @classmethod
     def minimal(cls, quadrature: "Quadrature") -> "SNMethodSpace":
@@ -147,14 +162,19 @@ class SNMethodSpace:
             for this face.
         """
         inflow_indices: Optional[np.ndarray] = None
+        outflow_indices: Optional[np.ndarray] = None
         if trace is not None:
+            # Both half-traces, together: since B3.2 a law's DOMAIN is Γ₊ and
+            # its CODOMAIN is Γ₋, so a face-specific method space owes both.
             inflow_indices = trace.inflow_indices_for_face(face)
+            outflow_indices = trace.outflow_indices_for_face(face)
         return cls(
             quadrature=quadrature,
             face=face,
             inflow_indices=inflow_indices,
             mesh=mesh,
             trace=trace,
+            outflow_indices=outflow_indices,
         )
 
     def inflow_indices_for_face(self, face: str) -> np.ndarray:

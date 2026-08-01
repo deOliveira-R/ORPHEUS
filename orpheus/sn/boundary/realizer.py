@@ -16,25 +16,36 @@ Wave O step O.4a.1.
 The realisation map (law concrete → Wave-0 / Wave-1 primitive)
 ================================================================
 
-* :class:`~orpheus.geometry.boundary.vacuum.VacuumInflow` →
-  :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
-  with the per-face inflow indices from the method space's
-  :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`. **Semantic
-  correction** (Wave 5 risk register entry, plan §16A.5): the legacy
-  body zeroed ALL ordinates, but the §16A.10 trace-correct
-  implementation zeroes ONLY the inflow ordinates so the outflow
-  trace survives the LAW's own action. That survival has **no
-  consumer today** — the sole reader of a realized law's image,
-  :meth:`~orpheus.sn.operators.boundary.SNBoundaryOperator._reflect_trace`,
-  writes the inflow rows only and discards the outflow rows for
-  EVERY law. The correction is still the right shape (it makes the
-  law honest about its own domain and codomain), and campaign phase
-  **B3** narrows the law's domain to :math:`\Gamma_+` so the
-  preserved rows leave the picture entirely.
+Since campaign phase **B3.2** a realized SN law is typed
+:math:`\Gamma_+ \to \Gamma_-` — it consumes the **outflow** half-trace and
+produces the **inflow** half-trace, exactly as the affine form
+:math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q` says and as the diffusion arm
+already did. The consumer composes ``ι₋ ∘ law ∘ γ₊``; nothing is computed and
+then discarded. Realizing a law therefore needs the face's
+:attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.outflow_indices` (its
+domain) alongside ``inflow_indices`` (its codomain) — face-orientation data
+that a quadrature alone cannot supply, so ``SNMethodSpace.minimal`` no longer
+suffices for the two laws below.
+
+* :class:`~orpheus.geometry.boundary.vacuum.VacuumInflow` → the **zero map**
+  :math:`\Gamma_+ \to \Gamma_-` (a :class:`~orpheus.numerics.operator.ZeroOperator`
+  carrying both space hooks). Vacuum's whole content is :math:`R = 0`; with
+  the domain narrowed there is nothing else to represent.
+
+  Pre-B3.2 this was an :class:`IncomingOrdinateMaskTensor` — a full-face
+  projector onto the OUTFLOW subspace whose preserved rows the consumer then
+  discarded. Two campaign phases documented that survival as having "no
+  consumer today"; the narrowing removes the question rather than answering
+  it, because those rows are no longer in the operator's domain.
 * :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary(axis, albedo)` →
-  ``albedo * PermutationOperator(quadrature.reflection_index(axis))``
-  (with the ``albedo=1.0`` fast path returning the bare
-  :class:`PermutationOperator` to preserve bit-identity vs legacy).
+  ``albedo * PermutationOperator(local_perm)`` on the REDUCED ordinate axis,
+  where ``local_perm = γ₊.to_local(reflection_index(axis)[inflow])`` — row
+  :math:`j` of the image reads the mirror of the :math:`j`-th inflow ordinate,
+  at that ordinate's position inside :math:`\Gamma_+`. (The remap must go
+  through ``to_local``: on a slab the mirror REVERSES order, so a hand-written
+  ``arange`` is wrong there — see the ``TraceRestrictionOperator`` docstring.)
+  The ``albedo=1.0`` fast path returns the bare
+  :class:`PermutationOperator` TP.
 * :class:`~orpheus.geometry.boundary.white.WhiteBoundary(axis, outward_sign, albedo)` →
   ``albedo * AngularAverageOperator.from_quadrature(quadrature, axis, outward_sign)``
   (with the ``albedo=1.0`` fast path).
@@ -115,10 +126,10 @@ from orpheus.numerics.spaces.angular_trace_space import (
 )
 from orpheus.numerics.operator import (
     IdentityOperator,
-    IncomingOrdinateMaskTensor,
     LinearOperator,
     PeriodicWrapOperator,
     PermutationOperator,
+    TraceRestrictionOperator,
     ZeroOperator,
 )
 from .angular import (
@@ -127,10 +138,69 @@ from .angular import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
 
 __all__ = ["SNBoundaryRealizer"]
+
+
+def _zero_rows(n_rows: int) -> "Callable[[object], np.ndarray]":
+    r"""A :class:`ZeroOperator` space hook emitting ``n_rows`` ordinates.
+
+    The zero map between two DIFFERENT spaces must emit the zero of the space
+    it lands in, not an echo of the one it came from — see
+    :class:`~orpheus.numerics.operator.ZeroOperator`'s own note. Trailing axes
+    (group, spatial) are carried through unchanged.
+
+    The parameter is typed ``object`` because a hook CONSUMED by the operator
+    is contravariant in its input: it must accept whatever the operator hands
+    it. This mirrors ``_ray_source_zero`` in :mod:`orpheus.sn.solver`, the
+    codebase's existing space-hook spelling.
+    """
+    def build(x: object) -> "np.ndarray":
+        arr = np.asarray(x)
+        return np.zeros((n_rows,) + arr.shape[1:], dtype=arr.dtype)
+
+    return build
+
+
+def _outflow_restriction(
+    method_space: "SNMethodSpace", law_key: str,
+) -> "TraceRestrictionOperator":
+    r"""The face's :math:`\gamma_+` — a narrowed law's DOMAIN.
+
+    Since B3.2 an SN boundary law is typed :math:`\Gamma_+ \to \Gamma_-`, so
+    realizing one requires knowing which ordinates are outflow AT THIS FACE.
+    That is face-orientation data, not quadrature data: a law realized without
+    a face has no :math:`\Gamma_+` to restrict to, and the demand is
+    structural rather than an implementation detail. (Pre-B3.2 the specular
+    branch needed only ``quadrature.reflection_index``, which is why a
+    quadrature-only ``SNMethodSpace.minimal`` sufficed for it.)
+
+    Built here rather than fetched from the trace's cache because realization
+    runs **once per face at mesh construction**, not per sweep — the cached
+    accessor exists for the per-sweep consumer. Reading the method space's own
+    field also keeps a hand-built space workable, which is the reason
+    ``inflow_indices`` is a field too.
+    """
+    if method_space.outflow_indices is None:
+        raise BoundaryError(
+            f"SNBoundaryRealizer cannot realize {law_key!r} without "
+            f"outflow_indices: since B3.2 a boundary law is typed Γ₊ → Γ₋, "
+            f"and its DOMAIN is the outflow half-trace of a particular face — "
+            f"which a quadrature alone cannot name. Construct via "
+            f"SNMethodSpace.for_face(quadrature=..., face=..., trace=...), "
+            f"which populates both half-traces, or pass outflow_indices "
+            f"explicitly alongside inflow_indices.",
+            law=law_key,
+        )
+    return TraceRestrictionOperator(
+        np.sort(np.asarray(method_space.outflow_indices, dtype=np.intp)),
+        n_total=method_space.quadrature.N,
+        axis=0,
+    )
 
 
 class SNBoundaryRealizer:
@@ -250,25 +320,76 @@ class SNBoundaryRealizer:
                         f"swapped inflow/outflow face annotation).",
                         law="vacuum",
                     )
-            # Wave T step T.1 — vacuum BC lift to 2-factor
-            # TensorProductOperator, mirroring the D-B+1 specular pattern.
-            # IncomingOrdinateMaskTensor acts on the ordinate axis
-            # (axis=0); trailing axes (group, spatial / face) broadcast
-            # through the IdentityOperator factor.  The TP fold reduces
-            # to the bare mask's ``apply`` (IdentityOperator.apply
-            # returns ``x`` unchanged), so bit-identity with the pre-T.1
-            # single-axis form is preserved.
+            # B3.2 — the domain is Γ₊, so vacuum is the honest ZERO MAP.
+            #
+            # Vacuum's whole content is ``R = 0``; its ``G`` is the identity
+            # deck element (it fixes no geometry). With the law typed
+            # ``Γ₊ → Γ₋`` there is nothing left to represent but the zero map
+            # between those two spaces — and the question the old realization
+            # raised, "why does a projector preserve rows nobody reads?",
+            # dissolves rather than needing an answer: those rows are no
+            # longer in the operator's domain at all.
+            #
+            # Pre-B3.2 this returned ``IncomingOrdinateMaskTensor(...) &
+            # IdentityOperator()`` — a full-face projector onto the OUTFLOW
+            # subspace, whose preserved rows ``_reflect_trace`` then discarded.
+            # ``ZeroOperator``'s symmetric space hooks are the designed
+            # mechanism for a genuine map BETWEEN spaces: the forward emits the
+            # zero of Γ₋, the transpose the zero of Γ₊. Relying on the
+            # endomorphic ``0.0 * x`` echo would be wrong in principle and
+            # merely lucky in practice (|Γ₊| = |Γ₋| on every reachable
+            # fixture, so the shapes coincide — an accident, not a contract).
+            gamma_out = _outflow_restriction(method_space, "vacuum")
             return stamp_boundary_role(
-                IncomingOrdinateMaskTensor(
-                    inflow_indices=method_space.inflow_indices,
-                    n_ordinates=quad.N,
-                    axis=0,
+                ZeroOperator(
+                    # ``reportArgumentType``: ``ZeroOperator`` is generic over
+                    # ``Vector``, and MEASURED (2026-07-31, pyright + numpy
+                    # stubs) ``np.ndarray`` does not satisfy that protocol
+                    # statically — ``Self``-typed ``__add__`` will not bind
+                    # against numpy's overloads. The gap is upstream, not at
+                    # this call site: every ndarray-level operator in
+                    # ``numerics.operator`` sidesteps it by being declared
+                    # UNPARAMETERIZED (``PermutationOperator(LinearOperator)``),
+                    # an option a generic's own hooks do not have. Runtime
+                    # conformance is real; only the static bind fails.
+                    codomain_zero=_zero_rows(  # type: ignore[reportArgumentType]
+                        method_space.inflow_indices.size
+                    ),
+                    transpose_zero=_zero_rows(  # type: ignore[reportArgumentType]
+                        gamma_out.n_restricted
+                    ),
                 )
-                & IdentityOperator()
             )
 
         if isinstance(law, ReflectiveBoundary):
+            # B3.2 — the specular mirror, narrowed to Γ₊ → Γ₋.
+            #
+            # The mirror sends the inflow ordinate ``inflow[j]`` to the outflow
+            # ordinate ``perm[inflow[j]]`` (the ERR-045 invariant the law layer
+            # certifies at realization: a reflection maps inflow to OUTFLOW,
+            # never to itself). So the narrowed operator's row ``j`` reads the
+            # position of that outflow ordinate INSIDE Γ₊ — which is exactly
+            # what ``γ₊.to_local`` computes, and what a hand-written
+            # ``arange`` would get wrong: on a slab the mirror REVERSES order,
+            # so ``perm[inflow] = [3, 2]`` maps to local ``[1, 0]``.
+            gamma_out = _outflow_restriction(method_space, "reflective")
+            inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
             perm = quad.reflection_index(law.axis)
+            if inflow.size != gamma_out.n_restricted:
+                raise BoundaryError(
+                    f"SNBoundaryRealizer cannot narrow ReflectiveBoundary at "
+                    f"face {method_space.face!r}: |Γ₋| = {inflow.size} but "
+                    f"|Γ₊| = {gamma_out.n_restricted}. A specular mirror is a "
+                    f"BIJECTION between the two half-traces, so a face where "
+                    f"they differ in size has no specular realization — which "
+                    f"means the quadrature's tangential band has swallowed "
+                    f"ordinates asymmetrically at this face.",
+                    law="reflective",
+                )
+            # ``to_local`` raises if the mirror sent an inflow ordinate
+            # anywhere but Γ₊ — the ERR-045 violation, caught here as a
+            # crossed-index-set error rather than as silent wrong physics.
+            local_perm = gamma_out.to_local(perm[inflow])
             # Depth B step D-B+1 — first production tensor-network instance.
             # The grand-report §16A.10 BC decomposition is
             # ``B = G_patch ⊗ K_omega ⊗ K_g``; for specular reflection the
@@ -281,14 +402,19 @@ class SNBoundaryRealizer:
             # so adjoint distributivity, composition distributivity,
             # and (downstream) ``assert_separable`` light up without
             # changing the matvec output.
+            # Depth B step D-B+1 — the §16A.10 BC decomposition
+            # ``B = G_patch ⊗ K_omega ⊗ K_g``; for specular reflection the only
+            # non-trivial factor is the angular permutation, now expressed on
+            # the REDUCED ordinate axis. The group axis (and any face axis a
+            # higher layer composes) are identity, which keeps adjoint and
+            # composition distributivity type-visible.
             base = (
-                PermutationOperator(perm, axis=0) & IdentityOperator()
+                PermutationOperator(local_perm, axis=0) & IdentityOperator()
             )  # 2-factor TensorProductOperator
             if law.albedo == 1.0:
-                # Fast path: bare permutation TP preserves bit-identity
-                # with legacy when albedo is exactly 1.0. The fold
-                # ``IdentityOperator.apply(np.take(x, perm, axis=0))``
-                # reduces to ``np.take(x, perm, axis=0)`` — same bytes.
+                # Fast path: the bare permutation TP, whose fold
+                # ``IdentityOperator.apply(np.take(x, local_perm, axis=0))``
+                # reduces to the single gather.
                 return stamp_boundary_role(base)
             return stamp_boundary_role(float(law.albedo) * base)
 

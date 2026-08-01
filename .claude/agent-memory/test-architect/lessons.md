@@ -2051,16 +2051,36 @@ test-design facts, all MEASURED (boundary review §B3, 2026-07-31):
   widened `got[complement(inflow)] == 0` catches. Whenever a gate says "the
   other rows are zero", check whether "other" is really the complement.
 - **The narrowing can introduce a NEW index remap whose activating regime the
-  existing gate does not use.** `out[sel] = full[sel]` needs no remap; after
-  narrowing, the image is indexed by position WITHIN the codomain, so a row
-  subset needs `searchsorted(codomain_rows, sel)`. The naive
-  `arange(sel.size)` is EXACTLY correct in 1-D (the schedule gives each face
-  wholly to one half) and WRONG in 2-D (a face's rows straddle both halves) —
-  and the boundary suite's split gate is built on a SPHERE, so it is blind;
-  the only catchers are end-to-end 2-D solves in another directory. **Before
-  the carve, enumerate the arithmetic the narrowing ADDS and ask which fixture
-  activates it** (§0.6, one level in from config-blindness: the blind axis is
-  the *dimension*, not the group count).
+  existing gate does not use — and the SAME remap appears at ≥2 sites whose
+  discriminating fixtures are COMPLEMENTARY.** `out[sel] = full[sel]` needs no
+  remap; after narrowing, the image is indexed by position WITHIN the codomain,
+  so both (a) the row subset of a schedule split and (b) the law's own table
+  need `searchsorted(codomain_rows, ·)`. MEASURED at landing, one mutation per
+  site over the whole boundary suite: the **split** remap's naive
+  `arange(sel.size)` is EXACTLY correct in 1-D and reds exactly ONE gate (the
+  new 2-D one) — the sphere-based split gate stays green; the **law's** remap
+  is wrong on the SLAB (the mirror reverses order: `perm[inflow] = [3,2]` →
+  local `[1,0]`) and reds 16 items, but the CYLINDER and the 2-D
+  level-symmetric fixtures stay green (there `perm[inflow]` is already the
+  codomain set in order). So 1-D covers one site and 2-D the other, and
+  **neither fixture covers both**. Ship both gates, each with an ACTIVATION
+  guard asserting its fixture still discriminates (`local != arange`), or one
+  silently decays into the other's blind spot (Mode-8 class 7). **Before the
+  carve, enumerate the arithmetic the narrowing ADDS, then find a
+  discriminating fixture PER SITE** (§0.6, one level in from config-blindness:
+  the blind axis is the *dimension*, and it points opposite ways at the two
+  sites).
+- **The re-posed WIRING gate is structurally blind to the law's MATH — say so
+  and name the other catcher.** After the re-pose, the composite gate's
+  reference is `law.apply(γ₊ψ)`, i.e. the SUT's own law object; it therefore
+  pins which domain / which rows and takes the law's table as given. MEASURED:
+  collapsing the law's permutation to the identity, or rolling it by one,
+  reddens NOTHING in the re-posed composite file while changing production's
+  output hash. The catcher is the bit-identity gate whose reference is the
+  RETIRED expression materialised in numpy from the law DESCRIPTOR (there:
+  6 and 10 items red). Two gate families, two threat models — record the split
+  in the file's docstring or a future reader reads the wiring gate's green
+  under a math mutation as coverage.
 - **Bit-identity here is `array_equal`, and a SECOND, independently-written
   narrowed implementation is the strongest evidence.** The narrowing removes
   rows from a gather — no reduction tree changes — so any nulp tolerance would
@@ -2071,6 +2091,36 @@ test-design facts, all MEASURED (boundary review §B3, 2026-07-31):
   (SN's albedo/periodic realize as full-face identities → their narrowed action
   is a DECISION, not a refactor) and ship those as `xfail(strict=True)` so the
   decision cannot be forgotten when a later phase admits them.
+- **The "which laws are still un-narrowed?" gate needs an anti-Mode-12 leg, and
+  the answer is usually BIGGER than the plan says.** A shape assertion
+  (`apply(|dom|) → |cod|`) CANNOT distinguish `Γ₊→Γ₋` from `Γ₊→Γ₊` whenever
+  `|Γ₊| == |Γ₋|` — MEASURED true for EVERY quadrature × face pair in the tree,
+  so the error class sits inside the shape functional's invariance group. The
+  discriminator that escapes it: feed the law a FULL-face probe and require it
+  NOT to emit `N` rows (a narrowed law structurally cannot; an endomorphism
+  always does). That single leg is what caught the laws the plan had NOT listed
+  — the brief predicted "3 un-narrowed laws"; measurement found **6 rows across
+  4 kinds**, because the α=0 / α=1 *fast paths* (a bare `ZeroOperator` /
+  `IdentityOperator`) are endomorphisms too, and a rank-0 source law raised on
+  the narrowed domain. Enumerate from the REGISTRY and add a
+  completeness test (`covered == set(registry)`) so a law added later cannot
+  escape the gate.
+- **A narrowed law cannot compose with an un-narrowed sibling — budget for the
+  mixed-composition gates going xfail, and RE-POSE their probe first.** Every
+  `α·narrowed + β·full_face` gate breaks the moment the first law narrows.
+  Marking them `xfail(strict=True)` is right, but a probe left on the OLD
+  domain fails at the *reference* line with a broadcast error, not at the
+  documented composition refusal — a misattributed xfail (Mode-8 class 4) that
+  will XPASS for the wrong reason. Move the probe onto the narrowed domain
+  FIRST, then `--runxfail` and read the message.
+- **Prove the strict-xfail set FLIPS, and watch for a Mode-8 class-4 trap
+  inside that very proof.** A landing-simulation plugin that narrows ONE law
+  must turn exactly that law's rows `XPASS(strict)` and leave the others
+  `XFAIL`. First attempt simulated the α=0 arm as `ScaledOperator(0.0, …)`; the
+  constructor REFUSES a zero scalar ("degenerate; use ZeroOperator
+  explicitly"), the xfail swallowed the `ValueError`, and the row read as "did
+  not flip". The simulation must reproduce the shape production would actually
+  emit — otherwise the class-4 defence is itself class-4.
 - **Method note that paid for itself twice.** (a) The reduced operator does NOT
   validate its domain — `PermutationOperator(reduced_perm).apply(full_slot)`
   silently truncates and returns wrong numbers (MEASURED), so "hand it the full

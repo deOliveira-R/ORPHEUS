@@ -300,10 +300,7 @@ class Test188WiringContracts:
         the structural contract.
         """
         from orpheus.geometry import BC, CoordSystem, Mesh1D
-        from orpheus.numerics.operator import (
-            IncomingOrdinateMaskTensor,
-            TensorProductOperator,
-        )
+        from orpheus.numerics.operator import ZeroOperator
         from orpheus.sn.mesh.augmented_mesh import SNMesh
         from orpheus.numerics.quadrature import Quadrature
 
@@ -324,18 +321,16 @@ class Test188WiringContracts:
         # absent from the face-name-keyed ``bc`` dict, not ``None``).
         assert set(sn.bc) == {"xmax"}
         # Outer face: realizer-path shim wrapping the realized vacuum
-        # primitive.  Post-Wave-T.1 the realizer lifts the vacuum mask
-        # into the streaming tensor-product form
-        # ``IncomingOrdinateMaskTensor(axis=0) ⊗ IdentityOperator`` (the
-        # §16A.10 ``B = G_patch ⊗ K_omega ⊗ K_g`` decomposition, where
-        # the only non-trivial factor is the ordinate-axis mask).  Drill
-        # into the tensor product to pin that the realized angular factor
-        # is STILL the vacuum mask — the structure changed, the semantics
-        # did not.
+        # primitive.  RE-POSED at campaign phase B3.2: with the law's domain
+        # narrowed to Γ₊, vacuum's whole content (R = 0) IS the zero map
+        # Γ₊ → Γ₋, so there is no full-face projector left to decompose into
+        # the §16A.10 ``B = G_patch ⊗ K_omega ⊗ K_g`` tensor-product form.
+        # The pre-B3.2 pin drilled into that TP for an
+        # ``IncomingOrdinateMaskTensor``; the claim this test exists for —
+        # curvilinear meshes route through the SAME realizer — is unchanged,
+        # only the object at the end of the route moved.
         assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
-        assert isinstance(sn.bc["xmax"].inner, TensorProductOperator)
-        ordinate_factor = sn.bc["xmax"].inner.ops[0]
-        assert isinstance(ordinate_factor, IncomingOrdinateMaskTensor)
+        assert isinstance(sn.bc["xmax"].inner, ZeroOperator)
         # What the resolution MEANS — the law that landed on the face.
         assert isinstance(sn.bc["xmax"].law, VacuumInflow)
         # …and the legacy string-comparison surface still answers for it,
@@ -362,11 +357,25 @@ class Test188WiringContracts:
         reflective law in TP form behind the shim — is geometry
         content, so it moved onto the slab's REAL ``xmin`` /
         ``xmax`` faces.
+
+        ⭐ RE-POSED at **B3.2**, and this fixture is one of the TWO
+        discriminating fixtures for the narrowing's new index remap. The
+        realized permutation is now on the reduced ordinate axis, i.e.
+        ``local_positions(reflection_index("x")[inflow], outflow)``, and on a
+        SLAB the mirror REVERSES order: with ``gauss_legendre(4)`` at ``xmax``,
+        ``perm[inflow] = [3, 2]`` maps to local ``[1, 0]`` while the naive
+        ``arange(2)`` would give ``[0, 1]``. So the slab — not a curvilinear or
+        2-D mesh — is where a hand-written ``arange`` in the REFLECTIVE
+        narrowing bites. (Its sibling trap, the SCHEDULE-SPLIT remap, is the
+        opposite: correct in 1-D, wrong in 2-D — gated by RG-5 in
+        ``tests/sn/operators/test_sn_boundary_operator.py``. Neither fixture
+        covers the other; both gates are load-bearing.)
         """
         from orpheus.geometry import BC, CoordSystem, Mesh1D
         from orpheus.numerics.operator import TensorProductOperator
         from orpheus.sn.mesh.augmented_mesh import SNMesh
         from orpheus.numerics.quadrature import Quadrature
+        from tests.sn._test_helpers import local_positions
 
         mesh = Mesh1D(
             edges=np.linspace(0.0, 1.0, 5),
@@ -378,15 +387,31 @@ class Test188WiringContracts:
         quad = Quadrature.gauss_legendre(4)
         sn = SNMesh(mesh, quad, placeholder_materials())
 
+        discriminating = 0
         for face in ("xmin", "xmax"):
             assert isinstance(sn.bc[face], _BoundBoundaryOperator), face
             assert isinstance(sn.bc[face].inner, TensorProductOperator), face
             angular = sn.bc[face].inner.ops[0]
             assert isinstance(angular, PermutationOperator), face
-            # GL1D x-reflection pairs mu with -mu — the flip permutation.
-            np.testing.assert_array_equal(
-                angular.perm, quad.reflection_index("x"),
+            inflow = sn.angular_trace.inflow_indices_for_face(face)
+            outflow = sn.angular_trace.outflow_indices_for_face(face)
+            # GL1D x-reflection pairs mu with -mu — the flip permutation,
+            # narrowed to the face's half-traces.
+            expected = local_positions(
+                quad.reflection_index("x")[inflow], outflow,
             )
+            np.testing.assert_array_equal(angular.perm, expected)
+            if not np.array_equal(expected, np.arange(expected.size)):
+                discriminating += 1
             # The law that landed, and the legacy tag surface it feeds.
             assert isinstance(sn.bc[face].law, ReflectiveBoundary)
             assert sn.bc[face] == "reflective"
+        # ACTIVATION guard: without it this gate could silently decay into a
+        # fixture where the naive ``arange`` happens to be right, and stop
+        # testing the remap at all (vv Mode 8, class 7 — a decayed gate).
+        if discriminating == 0:
+            pytest.fail(
+                "no slab face has a reduced permutation that differs from "
+                "arange — this fixture no longer discriminates the reflective "
+                "narrowing's to_local remap."
+            )

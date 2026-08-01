@@ -179,6 +179,67 @@ def placeholder_materials(
     }
 
 
+# ── B3.2: face-ful method spaces for mesh-less realizer tests ────────
+
+
+def face_trace(quadrature, faces=("xmin", "xmax")):
+    r"""An :class:`AngularTraceSpace` over ``faces`` for a bare quadrature.
+
+    Campaign phase **B3.2** typed the SN boundary law :math:`\Gamma_+ \to
+    \Gamma_-`, so realizing one needs the face's OUTFLOW ordinates (its
+    domain) as well as its inflow ordinates (its codomain) — face-orientation
+    data a quadrature alone cannot supply. Every mesh-less realizer test
+    therefore needs a face, and this is the ONE place the trace is stood up
+    (Pattern 2: a per-file copy of the layout incantation is a drift habitat).
+
+    ``AngularTraceSpace.from_quadrature_and_layout`` is geometry-blind — it
+    derives the outward normals from the ``"{axis}{min|max}"`` face-name
+    convention — so no mesh is needed.
+    """
+    from orpheus.numerics.face_layout import FaceLayout
+    from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
+
+    layout = FaceLayout.from_named_shapes(
+        [(f, (int(quadrature.N),)) for f in faces]
+    )
+    return AngularTraceSpace.from_quadrature_and_layout(quadrature, layout)
+
+
+def local_positions(global_rows, index_set) -> np.ndarray:
+    r"""Positions of ``global_rows`` within ``index_set`` — by LINEAR SCAN.
+
+    The test-side reference for B3.2's ``sel → position-within-Γ_S`` remap.
+    Deliberately a DIFFERENT algorithm from production's
+    :meth:`TraceRestrictionOperator.to_local` (``np.searchsorted``, a binary
+    search that additionally requires a sorted haystack): a reference computed
+    by calling ``to_local`` would share the very code the remap gates exist to
+    check, making the cross-check procedural rather than structural.
+
+    Raises ``KeyError`` when a requested row is not in ``index_set`` — the
+    "two index sets were crossed" condition production reports as a
+    ``ValueError``. Callers that probe for it should catch ``KeyError``.
+    """
+    lookup = {int(k): i for i, k in enumerate(np.asarray(index_set))}
+    return np.array([lookup[int(k)] for k in np.asarray(global_rows)], dtype=int)
+
+
+def face_method_space(quadrature, face="xmax", faces=("xmin", "xmax")):
+    r"""A face-ful :class:`SNMethodSpace` carrying BOTH half-traces.
+
+    The B3.2 successor of ``SNMethodSpace.minimal(quadrature)`` for tests that
+    realize a vacuum or reflective law: ``minimal`` is faceless, so it can name
+    neither :math:`\Gamma_+` nor :math:`\Gamma_-` and the realizer refuses it
+    (loudly, by design). ``minimal`` remains correct for the laws that are
+    still full-face (white / albedo / periodic) and for dispatch-failure tests.
+    """
+    from orpheus.sn.mesh.method_space import SNMethodSpace
+
+    return SNMethodSpace.for_face(
+        quadrature=quadrature, face=face,
+        trace=face_trace(quadrature, faces),
+    )
+
+
 # ── Shared curvilinear / slab mesh builders ──────────────────────────
 #
 # Lifted verbatim from the legacy ``test_cylindrical.py`` /

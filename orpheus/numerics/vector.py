@@ -116,9 +116,33 @@ class Vector(Protocol):
     — NOT carrier utilities such as ``.copy()`` or ``.to_flat()``; those
     belong to the concrete leaf, not to this structural type.
 
-    Satisfied — without inheritance — by ``np.ndarray``, by every
-    :class:`~orpheus.numerics.field.Field` leaf, and by
-    :class:`~orpheus.transport.timed_full_field.TimedFullField`. The
+    Satisfied — without inheritance — by ``np.ndarray`` **at runtime**, by
+    every :class:`~orpheus.numerics.field.Field` leaf, and by
+    :class:`~orpheus.transport.timed_full_field.TimedFullField`.
+
+    .. warning::
+
+       **``np.ndarray`` does NOT satisfy this protocol STATICALLY** — measured
+       2026-07-31 against pyright + the shipped numpy stubs. The members here
+       are ``Self``-typed, and numpy's overloaded ``__add__`` will not bind to
+       ``Self``: the checker tries ``ndarray[_AnyShape, dtype[bool]]`` and
+       reports ``dtype[float64]`` is not a subtype of it. Consequences worth
+       knowing before you fight one of them:
+
+       * Operators that speak bare arrays are declared **unparameterized**
+         (``class PermutationOperator(LinearOperator)``), which sidesteps the
+         bind entirely — this is why they typecheck and is a deliberate
+         spelling, not an omission.
+       * A **generic** operator's callback hooks have no such escape. The one
+         instance in the tree (``ZeroOperator``'s ``codomain_zero`` /
+         ``transpose_zero`` used at the SN boundary trace) therefore carries a
+         narrowed ``# type: ignore[reportArgumentType]`` naming this gap.
+
+       Do not "fix" a call site by weakening the protocol; the gap is upstream
+       in numpy's stubs, and the runtime conformance the docstring claims is
+       genuine.
+
+    The
     algebra's ``apply`` / ``solve`` speak :class:`Vector`, never
     ``np.ndarray`` (which is confined to the scipy serialization
     boundary).

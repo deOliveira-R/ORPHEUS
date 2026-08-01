@@ -66,7 +66,7 @@ from orpheus.sn.operators.streaming import (
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
-from tests.sn._test_helpers import placeholder_materials
+from tests.sn._test_helpers import face_method_space, placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
 
@@ -125,11 +125,15 @@ class TestFullLeaves:
 
 
 def _boundary_method_space(n_ord: int = 4) -> SNMethodSpace:
-    """A method space carrying ``inflow_indices`` (needed by the vacuum
-    branch; harmless for the others — they read only ``quadrature``)."""
+    r"""A method space carrying BOTH half-traces.
+
+    B3.2 migration: a boundary law is typed :math:`\Gamma_+ \to \Gamma_-`, so
+    the vacuum and reflective branches need the face's **outflow** ordinates
+    (their domain) as well as its inflow ordinates (their codomain). Harmless
+    for the still-full-face laws — they read only ``quadrature``.
+    """
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    inflow = np.flatnonzero(quad.mu_x > 0)
-    return SNMethodSpace(quadrature=quad, face="xmin", inflow_indices=inflow)
+    return face_method_space(quad, face="xmin")
 
 
 # Every LINEAR boundary law + a representative amplitude per kind. Each

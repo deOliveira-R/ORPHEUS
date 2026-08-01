@@ -39,7 +39,6 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.numerics.operator import (
     IdentityOperator,
-    IncomingOrdinateMaskTensor,
     PeriodicWrapOperator,
     PermutationOperator,
     ScaledOperator,
@@ -50,6 +49,7 @@ from orpheus.sn.boundary.angular import AngularAverageOperator
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
+from tests.sn._test_helpers import face_method_space, face_trace
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -59,50 +59,65 @@ from orpheus.numerics.quadrature import Quadrature
 
 @pytest.mark.l1
 class TestRealizeVacuum:
-    """Vacuum realizes to :class:`IncomingOrdinateMaskTensor`.
+    r"""Vacuum realizes to the ZERO MAP :math:`\Gamma_+ \to \Gamma_-`.
 
-    SEMANTIC NOTE (plan §16A.5 risk register, §16A.10 trace
-    representation): the legacy ``VacuumInflow.apply`` returns
-    ``np.zeros_like(psi_out)`` (zeroes EVERY ordinate). The new realizer
-    zeroes ONLY the inflow ordinates and preserves the outflow trace.
-    This is the intentional Wave 8 semantic correction. Tests compare
-    the realized output against the EXPECTED §16A.10 behaviour, NOT
-    against the legacy 2-arg ``bc.apply(psi, quad)`` — the latter would
-    be the bit-equivalent test if the legacy semantics were the target,
-    which they are not for vacuum.
+    RE-POSED at campaign phase **B3.2** (C-1). The pre-B3.2 realization was an
+    :class:`IncomingOrdinateMaskTensor` — a FULL-FACE projector that zeroed the
+    inflow rows and *preserved* the outflow ones — and these tests asserted
+    that pass-through. Two campaign phases documented the preserved rows as
+    having "no consumer today"; B3.2 removes the question instead of answering
+    it, because with the law's domain narrowed to :math:`\Gamma_+` those rows
+    are not in the operator's domain at all.
+
+    Vacuum's entire content is :math:`R = 0`, so the honest object is the zero
+    map between the two half-traces. The assertions below therefore state:
+    the image is zero, it lives on :math:`\Gamma_-`, and the operator is NOT an
+    endomorphism of the face slot.
     """
 
-    def test_lebedev17_xmin_zeroes_only_inflow(self):
+    def test_lebedev17_xmin_is_the_zero_map_onto_gamma_minus(self):
         quad = Quadrature.lebedev(17)
         # xmin face: outward normal is -x, inflow is mu_x > 0 (into the domain).
-        inflow_indices = np.flatnonzero(quad.mu_x > 0)
-        space = SNMethodSpace(
-            quadrature=quad, face="xmin", inflow_indices=inflow_indices,
-        )
+        space = face_method_space(quad, face="xmin")
+        inflow_indices = space.inflow_indices
+        outflow_indices = space.outflow_indices
         rng = np.random.default_rng(42)
         psi = rng.uniform(0.5, 2.0, size=(quad.N, 4, 2))
         realizer = SNBoundaryRealizer()
         op = realizer.realize(VacuumInflow(), space)
-        out = op.apply(psi)
-        # Inflow rows: zero. Non-inflow rows: equal to input.
-        np.testing.assert_array_equal(out[inflow_indices], 0.0)
-        non_inflow = np.setdiff1d(np.arange(quad.N), inflow_indices)
-        np.testing.assert_array_equal(out[non_inflow], psi[non_inflow])
+        out = op.apply(psi[outflow_indices])
+        # The whole image is zero, and it is Γ_- shaped.
+        assert out.shape == (inflow_indices.size, 4, 2), (
+            f"vacuum emitted {out.shape}; the narrowed codomain is Γ₋, i.e. "
+            f"{(inflow_indices.size, 4, 2)}."
+        )
+        np.testing.assert_array_equal(out, 0.0)
+        # …and it is NOT an endomorphism of the face slot. |Γ₊| == |Γ₋| here
+        # (measured true for EVERY quadrature × face in the tree), so the shape
+        # check above cannot distinguish Γ₊ → Γ₋ from Γ₊ → Γ₊ — vv Mode 12.
+        # A full-face input must not produce a full-face image.
+        assert op.apply(psi).shape[0] != quad.N, (
+            "vacuum emitted a full-face image — it is still an endomorphism "
+            "of the whole face slot, not the zero map Γ₊ → Γ₋."
+        )
 
-    def test_lebedev17_ymax_zeroes_only_inflow(self):
+    def test_lebedev17_ymax_is_the_zero_map_onto_gamma_minus(self):
         quad = Quadrature.lebedev(17)
         # ymax face: outward normal is +y, inflow is mu_y < 0 (into the domain).
-        inflow_indices = np.flatnonzero(quad.mu_y < 0)
-        space = SNMethodSpace(
-            quadrature=quad, face="ymax", inflow_indices=inflow_indices,
+        space = face_method_space(
+            quad, face="ymax", faces=("xmin", "xmax", "ymin", "ymax"),
+        )
+        # Independent spelling of the face's orientation: Ω·n_ymax = +mu_y, so
+        # inflow ⟺ mu_y < 0. Pinning it here keeps the fixture honest about
+        # WHICH face it is testing, rather than trusting the helper.
+        np.testing.assert_array_equal(
+            space.inflow_indices, np.flatnonzero(quad.mu_y < -1e-12),
         )
         psi = np.arange(quad.N * 3, dtype=float).reshape(quad.N, 3)
-        realizer = SNBoundaryRealizer()
-        op = realizer.realize(VacuumInflow(), space)
-        out = op.apply(psi)
-        np.testing.assert_array_equal(out[inflow_indices], 0.0)
-        non_inflow = np.setdiff1d(np.arange(quad.N), inflow_indices)
-        np.testing.assert_array_equal(out[non_inflow], psi[non_inflow])
+        op = SNBoundaryRealizer().realize(VacuumInflow(), space)
+        out = op.apply(psi[space.outflow_indices])
+        assert out.shape == (space.inflow_indices.size, 3)
+        np.testing.assert_array_equal(out, 0.0)
 
     def test_vacuum_missing_inflow_indices_raises(self):
         """Without ``inflow_indices`` the realizer raises BoundaryError."""
@@ -113,27 +128,51 @@ class TestRealizeVacuum:
             realizer.realize(VacuumInflow(), space)
         assert excinfo.value.law == "vacuum"
 
-    def test_vacuum_returns_tensor_product(self):
-        """The vacuum dispatch returns a 2-factor :class:`TensorProductOperator`
-        ``(IncomingOrdinateMaskTensor, IdentityOperator)``.
+    def test_vacuum_missing_outflow_indices_raises(self):
+        r"""B3.2 negative: a law's DOMAIN is :math:`\Gamma_+`, so a method
+        space that cannot name the face's outflow ordinates cannot realize one.
 
-        Wave T step T.1 (2026-05-30): vacuum BC lifted from a bare
-        single-axis :class:`IncomingOrdinateMaskTensor` to the 2-factor
-        TP shape introduced by D-B+1 for specular reflection.  The
-        first factor still does the inflow-zeroing on the angular axis;
-        the second :class:`IdentityOperator` makes the trailing-axis
-        broadcast type-visible.
+        The sibling of the inflow negative above, and the reason
+        ``SNMethodSpace.minimal`` no longer suffices for vacuum or reflective:
+        face orientation is not derivable from a quadrature.
+        """
+        quad = Quadrature.lebedev(17)
+        inflow_only = SNMethodSpace(
+            quadrature=quad, face="xmin",
+            inflow_indices=np.flatnonzero(quad.mu_x > 1e-12),
+        )
+        with pytest.raises(BoundaryError, match="outflow_indices"):
+            SNBoundaryRealizer().realize(VacuumInflow(), inflow_only)
+
+    def test_vacuum_returns_zero_operator_with_both_space_hooks(self):
+        r"""The vacuum dispatch returns a :class:`ZeroOperator` carrying BOTH
+        space hooks — forward emits the zero of :math:`\Gamma_-`, transpose the
+        zero of :math:`\Gamma_+`.
+
+        RE-POSED (C-1) from the pre-B3.2 assertion
+        ``isinstance(op.ops[0], IncomingOrdinateMaskTensor)``. The type moved
+        because the CONTRACT moved; the leg is kept (not deleted) because
+        "which object realizes vacuum" is exactly what a future refactor could
+        silently regress.
+
+        The two hooks are asserted SEPARATELY and with different lengths where
+        possible: a zero map between two DIFFERENT spaces must emit the zero of
+        the space it lands in, and relying on the endomorphic ``0.0 * x`` echo
+        would be wrong in principle and merely lucky in practice.
         """
         quad = Quadrature.gauss_legendre(8)
-        inflow_indices = np.flatnonzero(quad.mu_x > 0)
-        space = SNMethodSpace(
-            quadrature=quad, face="xmin", inflow_indices=inflow_indices,
-        )
+        space = face_method_space(quad, face="xmin")
         op = SNBoundaryRealizer().realize(VacuumInflow(), space)
-        assert isinstance(op, TensorProductOperator)
-        assert len(op.ops) == 2
-        assert isinstance(op.ops[0], IncomingOrdinateMaskTensor)
-        assert isinstance(op.ops[1], IdentityOperator)
+        assert isinstance(op, ZeroOperator)
+        probe_plus = np.ones((space.outflow_indices.size, 3))
+        probe_minus = np.ones((space.inflow_indices.size, 3))
+        np.testing.assert_array_equal(
+            op.apply(probe_plus), np.zeros((space.inflow_indices.size, 3)),
+        )
+        np.testing.assert_array_equal(
+            op.apply_transpose(probe_minus),
+            np.zeros((space.outflow_indices.size, 3)),
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -146,77 +185,119 @@ class TestRealizeReflective:
     """Specular realizes to ``albedo * PermutationOperator(perm)``."""
 
     def test_specular_unit_albedo_lebedev_matches_hand_computed(self):
-        """At α=1 the realized op MUST bit-match the hand-computed
-        ``psi[reflection_index]`` gather.
+        r"""At α=1 the realized op MUST bit-match the hand-computed narrowed
+        gather ``psi[reflection_index][inflow]``.
 
-        Issue #186 (B3 + β2) rewrite: descriptors are no longer
-        callable, so the previous ``bc.apply(psi, quad)`` half cannot
-        be evaluated. The hand-computed gather is strictly stronger:
-        we assert the realised op's output against the structural
-        definition of specular reflection, not against another
-        implementation.
+        RE-POSED at **B3.2** (C-1): the pre-B3.2 reference was the FULL-face
+        gather ``psi[reflection_index]``. The narrowed reference is that SAME
+        retired expression, RESTRICTED to :math:`\Gamma_-` — which is precisely
+        the bit-identity claim the phase makes, so this leg doubles as the
+        law-level half of it.
+
+        Note what the reference does NOT use: ``to_local``. The expected value
+        is built from ``reflection_index`` and the inflow index set alone, so
+        an error in the production remap cannot cancel against the reference
+        (they share no code above the numpy line — ``algebra-of-record``
+        structural independence).
         """
         quad = Quadrature.lebedev(17)
         bc = ReflectiveBoundary(axis="x", albedo=1.0)
-        space = SNMethodSpace.minimal(quad)
+        space = face_method_space(quad, face="xmin")
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(7)
         psi = rng.uniform(-1.0, 1.0, size=(quad.N, 5, 3))
-        expected = psi[quad.reflection_index("x")]
-        np.testing.assert_array_equal(op.apply(psi), expected)
+        expected = psi[quad.reflection_index("x")][space.inflow_indices]
+        np.testing.assert_array_equal(
+            op.apply(psi[space.outflow_indices]), expected,
+        )
 
     def test_specular_unit_albedo_returns_tensor_product(self):
-        """At α=1 the dispatch returns a :class:`TensorProductOperator`
-        whose factors are ``(PermutationOperator, IdentityOperator)``.
+        r"""At α=1 the dispatch returns a :class:`TensorProductOperator`
+        whose factors are ``(PermutationOperator, IdentityOperator)`` — with
+        the permutation now on the **reduced** ordinate axis.
 
-        Depth B step D-B+1 (2026-05-27): the first production tensor-
-        network instance in ORPHEUS. Pre-D-B+1 the realiser returned a
-        bare :class:`PermutationOperator(perm, axis=0)`; the implicit
-        numpy broadcast across the group axis played the role of
-        ``I_group``. Promoting to a typed TP makes the §16A.10
-        ``B = G_patch ⊗ K_omega ⊗ K_g`` algebra type-visible without
-        changing the matvec output (the ``IdentityOperator.apply``
-        leaves the array untouched, so the fold reduces to the bare
-        permutation's ``np.take``).
+        Depth B step D-B+1 (2026-05-27): the first production tensor-network
+        instance in ORPHEUS. Pre-D-B+1 the realiser returned a bare
+        :class:`PermutationOperator(perm, axis=0)`; the implicit numpy
+        broadcast across the group axis played the role of ``I_group``.
+        Promoting to a typed TP makes the §16A.10
+        ``B = G_patch ⊗ K_omega ⊗ K_g`` algebra type-visible.
+
+        **B3.2** adds the size leg: the permutation's length is
+        :math:`|\Gamma_+|`, not ``quad.N``. That single assertion is what makes
+        the narrowing TYPE-VISIBLE on this object — without it, a revert to the
+        full-``N`` permutation would keep every structural claim here green.
         """
         quad = Quadrature.level_symmetric(4)
         bc = ReflectiveBoundary(axis="x", albedo=1.0)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        space = face_method_space(quad, face="xmin")
+        op = SNBoundaryRealizer().realize(bc, space)
         assert isinstance(op, TensorProductOperator)
         assert len(op.ops) == 2
         assert isinstance(op.ops[0], PermutationOperator)
         assert isinstance(op.ops[1], IdentityOperator)
+        assert op.ops[0].perm.size == space.outflow_indices.size < quad.N, (
+            f"the realized permutation has {op.ops[0].perm.size} entries; the "
+            f"narrowed law acts on Γ₊ ({space.outflow_indices.size} of "
+            f"{quad.N} ordinates)."
+        )
 
     def test_specular_partial_albedo_matches_hand_computed(self):
-        """At α=0.7 the realized op output equals ``0.7 * psi[reflection_index]``
-        bit-exactly.
+        r"""At α=0.7 the realized op output equals
+        ``0.7 * psi[reflection_index][inflow]`` bit-exactly.
 
-        Issue #186 (B3 + β2) rewrite: hand-computed RHS instead of
-        the legacy ``bc.apply``. ``ScaledOperator(0.7, P).apply(psi)``
-        first gathers ``psi[perm]`` (via the inner PermutationOperator)
-        then multiplies by 0.7 — identical to ``0.7 * psi[perm]``.
+        RE-POSED at B3.2 alongside its α=1 sibling — same retired reference,
+        restricted to :math:`\Gamma_-`.
         """
         quad = Quadrature.lebedev(17)
         bc = ReflectiveBoundary(axis="x", albedo=0.7)
-        space = SNMethodSpace.minimal(quad)
+        space = face_method_space(quad, face="xmin")
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(9)
         psi = rng.uniform(-1.0, 1.0, size=(quad.N, 5))
-        expected = 0.7 * psi[quad.reflection_index("x")]
-        np.testing.assert_array_equal(op.apply(psi), expected)
+        expected = 0.7 * psi[quad.reflection_index("x")][space.inflow_indices]
+        np.testing.assert_array_equal(
+            op.apply(psi[space.outflow_indices]), expected,
+        )
 
     def test_specular_partial_albedo_returns_scaled_tensor_product(self):
         """At α≠1 the dispatch returns ``ScaledOperator(α, TP)`` where
         TP is the 2-factor :class:`TensorProductOperator` from D-B+1."""
         quad = Quadrature.level_symmetric(4)
         bc = ReflectiveBoundary(axis="x", albedo=0.5)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        space = face_method_space(quad, face="xmin")
+        op = SNBoundaryRealizer().realize(bc, space)
         assert isinstance(op, ScaledOperator)
         assert op.scalar == 0.5
         assert isinstance(op.op, TensorProductOperator)
         assert len(op.op.ops) == 2
         assert isinstance(op.op.ops[0], PermutationOperator)
         assert isinstance(op.op.ops[1], IdentityOperator)
+        assert op.op.ops[0].perm.size == space.outflow_indices.size < quad.N
+
+    def test_specular_narrowing_needs_a_bijection_between_half_traces(self):
+        r"""B3.2 negative: a face where :math:`|\Gamma_-| \neq |\Gamma_+|` has
+        NO specular realization, and says so.
+
+        A specular mirror is a bijection between the two half-traces, so an
+        asymmetric face is not a narrowing edge case — it is an ill-posed
+        request. **[M]** No real quadrature × face pair in the tree produces
+        one (every one measured ``|I| == |O|``), so the guard is unreachable
+        from a mesh; a hand-built method space is the only way to exercise it,
+        and that is exactly why this negative exists — otherwise the branch
+        would ship with no test at all.
+        """
+        quad = Quadrature.gauss_legendre(8)
+        trace = face_trace(quad)
+        lopsided = SNMethodSpace(
+            quadrature=quad, face="xmax",
+            inflow_indices=trace.inflow_indices_for_face("xmax"),
+            outflow_indices=trace.outflow_indices_for_face("xmax")[:-1],
+        )
+        with pytest.raises(BoundaryError, match=r"BIJECTION"):
+            SNBoundaryRealizer().realize(
+                ReflectiveBoundary(axis="x", albedo=1.0), lopsided,
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -522,34 +603,50 @@ class TestVacuumTraceOrientationGuard:
 
     def test_correct_orientation_realizes(self):
         """Positive control: the true inflow set of each face realizes
-        clean through the SAME guarded path, both face sides."""
+        clean through the SAME guarded path, both face sides.
+
+        B3.2: the realized object is now the ``Γ₊ → Γ₋`` zero map, so the
+        type assertion moves from ``TensorProductOperator`` to
+        :class:`ZeroOperator`. The CLAIM — "the correctly-oriented face
+        realizes silently" — is unchanged, which is the point of the leg.
+        """
         quad = Quadrature.gauss_legendre(8)
+        # The face-side pin the pre-B3.2 spelling carried inline: xmax has
+        # outward normal +x̂ so Ω·n = +μ_x and inflow ⟺ μ_x < 0; xmin is the
+        # mirror image. Written out per face rather than as a signed formula —
+        # a sign convention compressed into an expression is exactly the kind
+        # of thing this test exists to catch.
         for face, inflow in (
-            ("xmax", np.flatnonzero(quad.mu_x < 0)),
-            ("xmin", np.flatnonzero(quad.mu_x > 0)),
+            ("xmax", np.flatnonzero(quad.mu_x < -1e-12)),
+            ("xmin", np.flatnonzero(quad.mu_x > +1e-12)),
         ):
-            op = SNBoundaryRealizer().realize(
-                VacuumInflow(),
-                SNMethodSpace(
-                    quadrature=quad, face=face, inflow_indices=inflow,
-                ),
-            )
-            assert isinstance(op, TensorProductOperator)
+            space = face_method_space(quad, face=face)
+            np.testing.assert_array_equal(space.inflow_indices, inflow)
+            op = SNBoundaryRealizer().realize(VacuumInflow(), space)
+            assert isinstance(op, ZeroOperator)
 
     def test_faceless_space_carries_no_orientation_truth(self):
-        """A quadrature-only method space with hand-supplied indices
-        has NO independent orientation encoding — the guard cannot
-        fire there (documented escape; the canonical
-        ``SNMesh.realize_boundary_law`` path always carries a face).
-        The realize must succeed, wrong indices and all: the caller
-        owns the claim."""
+        r"""A method space with hand-supplied half-traces and NO face name has
+        no independent orientation encoding — the guard cannot fire there
+        (documented escape; the canonical ``SNMesh.realize_boundary_law`` path
+        always carries a face). The realize must succeed, wrong indices and
+        all: the caller owns the claim.
+
+        B3.2 sharpens the fixture rather than the claim. Since a law's DOMAIN
+        is :math:`\Gamma_+`, a faceless space must now supply BOTH index sets
+        by hand — but supplying them is not supplying an *orientation truth*,
+        because nothing cross-checks them against a face normal. So the escape
+        survives verbatim: the deliberately-swapped inflow set (the OUTGOING
+        ordinates of a nominal xmax face) still realizes silently.
+        """
         quad = Quadrature.gauss_legendre(8)
         faceless = SNMethodSpace(
             quadrature=quad,
             inflow_indices=np.flatnonzero(quad.mu_x > 0),
+            outflow_indices=np.flatnonzero(quad.mu_x < 0),
         )
         op = SNBoundaryRealizer().realize(VacuumInflow(), faceless)
-        assert isinstance(op, TensorProductOperator)
+        assert isinstance(op, ZeroOperator)
 
     def test_unknown_face_name_fails_loud(self):
         """A face name outside the ``{axis}{min|max}`` convention is

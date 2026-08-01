@@ -130,6 +130,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -140,6 +141,7 @@ from orpheus.numerics.space import FunctionSpace
 
 if TYPE_CHECKING:
     from orpheus.numerics.face_layout import FaceLayout
+    from orpheus.numerics.operator import TraceRestrictionOperator
     from orpheus.numerics.quadrature import Quadrature
 
 
@@ -446,3 +448,64 @@ class AngularTraceSpace(FunctionSpace):
         """
         row = self.omega_dot_n[self._face_row(face)]
         return np.flatnonzero(row > +TANGENTIAL_EPS)
+
+    # ── The selectors, as OPERATORS: the trace maps γ± ────────────────
+
+    @cached_property
+    def _face_restrictions(
+        self,
+    ) -> "dict[tuple[str, str], TraceRestrictionOperator]":
+        r"""``(role, face) -> γ``, built once per space.
+
+        Built eagerly for every face because there are a handful of them and
+        :meth:`inflow_restriction` sits on the **per-sweep** path — rebuilding
+        one (with its uniqueness and sortedness validation) on every boundary
+        application would move real work into the hot loop for no benefit,
+        which is the shape of a performance regression that no correctness
+        gate would catch.
+        """
+        from orpheus.numerics.operator import TraceRestrictionOperator
+
+        n_ordinates = int(self.omega_dot_n.shape[1])
+        out: dict[tuple[str, str], TraceRestrictionOperator] = {}
+        for face in self.face_names:
+            for role, indices in (
+                ("inflow", self.inflow_indices_for_face(face)),
+                ("outflow", self.outflow_indices_for_face(face)),
+            ):
+                # ``np.flatnonzero`` yields sorted, unique indices, so the
+                # operator's guards are satisfied by construction here — they
+                # exist for hand-built index sets.
+                out[(role, face)] = TraceRestrictionOperator(
+                    indices, n_total=n_ordinates, axis=0,
+                )
+        return out
+
+    def outflow_restriction(self, face: str) -> "TraceRestrictionOperator":
+        r""":math:`\gamma_+` at ``face`` — the restriction onto :math:`\Gamma_+`.
+
+        The **domain** of every boundary law: a law consumes the outflow trace
+        and produces the inflow trace (:math:`\gamma_-\psi = R\,G\,\gamma_+\psi
+        + q`), so this is the operator that hands it its argument.
+
+        Its transpose is the scatter back into the full face slot. Note the
+        pair is NOT a partition of that slot: the third class, **tangential**
+        ordinates at :math:`|\Omega\cdot\hat n| \le \epsilon`, belongs to
+        neither restriction — which is why "not inflow" must never be spelled
+        as "outflow".
+        """
+        return self._face_restrictions[("outflow", self._checked_face(face))]
+
+    def inflow_restriction(self, face: str) -> "TraceRestrictionOperator":
+        r""":math:`\gamma_-` at ``face`` — the restriction onto :math:`\Gamma_-`.
+
+        The **codomain** of every boundary law. Its transpose
+        (:math:`\iota_-`) is what writes a law's image back into the full face
+        slot, leaving the outflow and tangential rows untouched at zero.
+        """
+        return self._face_restrictions[("inflow", self._checked_face(face))]
+
+    def _checked_face(self, face: str) -> str:
+        """Raise the layout's own error for an unknown face name."""
+        self._face_row(face)
+        return face

@@ -44,14 +44,14 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.numerics.operator import (
     IdentityOperator,
-    IncomingOrdinateMaskTensor,
     LinearOperator,
     PermutationOperator,
     TensorProductOperator,
+    ZeroOperator,
 )
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from tests.sn._test_helpers import placeholder_materials
+from tests.sn._test_helpers import local_positions, placeholder_materials
 
 
 pytestmark = pytest.mark.l1
@@ -101,11 +101,16 @@ def quad_1d():
 # ─────────────────────────────────────────────────────────────────────
 
 
-def test_2d_cartesian_vacuum_xmin_masks_only_inflow(quad_2d):
-    """Vacuum on xmin: the realized shim's apply zeros ONLY the inflow
-    ordinates per §16A.5 (mu_x > 0 ordinates entering the domain).
-    Outflow + tangential ordinates pass through unchanged. This is the
-    Wave-8 semantic correction relative to the legacy zeros-all body.
+def test_2d_cartesian_vacuum_xmin_is_the_zero_map(quad_2d):
+    r"""Vacuum on xmin: the realized shim maps :math:`\Gamma_+ \to \Gamma_-`
+    and its whole image is zero.
+
+    RE-POSED at campaign phase **B3.2** (C-1). The pre-B3.2 claim was
+    "zeros ONLY the inflow ordinates; outflow + tangential pass through
+    unchanged" — the ``IncomingOrdinateMaskTensor`` contract. With the law's
+    domain narrowed there is nothing to pass through: vacuum's entire content
+    is :math:`R = 0`, so it realizes as the honest zero map and the preserved
+    rows leave the picture rather than being justified.
     """
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
@@ -119,17 +124,24 @@ def test_2d_cartesian_vacuum_xmin_masks_only_inflow(quad_2d):
 
     rng = np.random.default_rng(42)
     psi = rng.uniform(0.5, 2.0, size=(quad_2d.N, 3, 2))
-    out = sn.bc["xmin"].apply(psi)
     inflow = np.flatnonzero(quad_2d.mu_x > 1e-12)
-    non_inflow = np.setdiff1d(np.arange(quad_2d.N), inflow)
-    np.testing.assert_array_equal(out[inflow], 0.0)
-    np.testing.assert_array_equal(out[non_inflow], psi[non_inflow])
+    outflow = np.flatnonzero(quad_2d.mu_x < -1e-12)
+    out = sn.bc["xmin"].apply(psi[outflow])
+    assert out.shape == (inflow.size, 3, 2), (
+        f"vacuum on xmin emitted {out.shape}; the narrowed codomain is Γ₋."
+    )
+    np.testing.assert_array_equal(out, 0.0)
 
 
-def test_2d_cartesian_reflective_ymax_returns_permutation(quad_2d):
-    """Reflective on ymax: the realized shim's apply returns
-    ``psi[ref]`` where ref = quad.reflection_index("y"). Equivalent
-    to the legacy ReflectiveBoundary(axis="y") output.
+def test_2d_cartesian_reflective_ymax_returns_narrowed_permutation(quad_2d):
+    r"""Reflective on ymax: the realized shim returns ``psi[ref][inflow]``,
+    the pre-B3.2 full-face gather RESTRICTED to :math:`\Gamma_-`.
+
+    RE-POSED at B3.2. The reference is the retired expression itself
+    (``np.take(psi, reflection_index("y"), 0)``) with the inflow rows selected
+    — which is exactly the bit-identity claim the phase makes at the
+    mesh-wired shim, and it is built without ``to_local``, so a remap error
+    cannot cancel against it.
     """
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
@@ -143,23 +155,31 @@ def test_2d_cartesian_reflective_ymax_returns_permutation(quad_2d):
 
     rng = np.random.default_rng(1)
     psi = rng.standard_normal(size=(quad_2d.N, 4, 2))
-    ref = quad_2d.reflection_index("y")
-    expected = psi[ref]
-    np.testing.assert_array_equal(sn.bc["ymax"].apply(psi), expected)
+    inflow = sn.angular_trace.inflow_indices_for_face("ymax")
+    outflow = sn.angular_trace.outflow_indices_for_face("ymax")
+    expected = psi[quad_2d.reflection_index("y")][inflow]
+    np.testing.assert_array_equal(sn.bc["ymax"].apply(psi[outflow]), expected)
 
 
 def test_2d_reflective_y_face_builds_y_axis_permutation(quad_2d):
-    """A y-face's reflective law reflects across the Y axis — structurally.
+    r"""A y-face's reflective law reflects across the Y axis — structurally.
 
     The pre-C4 ``_resolve_one`` mapped every non-y face to axis ``"x"``
     via a hand-listed membership test (``"y" if face in ("ymin",
     "ymax") else "x"``) — correct at d≤2 by string coincidence, but a
     z-face would have silently built the X-axis permutation (the wrong
     reflection partner — vv Mode-9 class). Post-C4 the axis IS the
-    label's own ``AXIS_NAMES[axis_index]``. Pin the d=2 observable:
-    the realized ymin permutation equals ``reflection_index("y")``,
-    and the x/y permutations differ under Lebedev (else the pin would
-    be vacuous).
+    label's own ``AXIS_NAMES[axis_index]``.
+
+    RE-POSED at **B3.2**: the realized permutation now lives on the REDUCED
+    ordinate axis, so the pinned value is
+    ``local_positions(reflection_index(axis)[inflow], outflow)`` rather than
+    ``reflection_index(axis)`` itself. The non-vacuity guard is re-posed with
+    it, and STRENGTHENED — the pre-B3.2 guard ("x and y reflection maps
+    differ") is no longer sufficient, because the narrowing could in principle
+    collapse two distinct full-face maps onto the same reduced one. The guard
+    asked here is the one that actually matters: on THIS face, does the WRONG
+    axis produce a different narrowed permutation (or refuse outright)?
     """
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
@@ -168,16 +188,32 @@ def test_2d_reflective_y_face_builds_y_axis_permutation(quad_2d):
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
     sn = SNMesh(mesh, quad_2d, placeholder_materials())
-    if np.array_equal(
-        quad_2d.reflection_index("x"), quad_2d.reflection_index("y")
+    for face, axis, wrong_axis in (
+        ("ymin", "y", "x"), ("ymax", "y", "x"), ("xmin", "x", "y"),
     ):
-        pytest.fail("vacuous pin: x and y reflection maps coincide")
-    for face, axis in (("ymin", "y"), ("ymax", "y"), ("xmin", "x")):
+        inflow = sn.angular_trace.inflow_indices_for_face(face)
+        outflow = sn.angular_trace.outflow_indices_for_face(face)
+        expected = local_positions(
+            quad_2d.reflection_index(axis)[inflow], outflow,
+        )
+        # Non-vacuity, per face and IN THE NARROWED COORDINATES: the wrong
+        # axis must be distinguishable here, else the pin proves nothing.
+        try:
+            wrong = local_positions(
+                quad_2d.reflection_index(wrong_axis)[inflow], outflow,
+            )
+        except KeyError:
+            pass  # the wrong axis maps Γ₋ off Γ₊ entirely — production refuses
+        else:
+            if np.array_equal(wrong, expected):
+                pytest.fail(
+                    f"vacuous pin at {face!r}: the {axis!r} and {wrong_axis!r} "
+                    f"reflection maps agree once narrowed to this face's "
+                    f"half-traces."
+                )
         perm = _angular_factor(sn.bc[face].inner)
         assert isinstance(perm, PermutationOperator)
-        np.testing.assert_array_equal(
-            perm.perm, quad_2d.reflection_index(axis),
-        )
+        np.testing.assert_array_equal(perm.perm, expected)
 
 
 def test_2d_cartesian_construction_populates_trace(quad_2d):
@@ -203,9 +239,12 @@ def test_2d_cartesian_construction_populates_trace(quad_2d):
 # ─────────────────────────────────────────────────────────────────────
 
 
-def test_1d_cartesian_vacuum_right_masks_only_inflow(quad_1d):
-    """1-D slab with vacuum on right: the realized shim zeros only the
-    inflow rows (mu_x < 0 at the right face).
+def test_1d_cartesian_vacuum_right_is_the_zero_map(quad_1d):
+    r"""1-D slab with vacuum on right: the realized shim is the zero map
+    :math:`\Gamma_+ \to \Gamma_-`.
+
+    RE-POSED at **B3.2** from "zeros only the inflow rows, passes the rest
+    through" — see the 2-D sibling for why the pass-through claim retired.
     """
     mesh = Mesh1D(
         edges=np.linspace(0, 2, 9),
@@ -217,11 +256,11 @@ def test_1d_cartesian_vacuum_right_masks_only_inflow(quad_1d):
     assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
     psi = np.arange(quad_1d.N * 2, dtype=float).reshape(quad_1d.N, 2)
-    out = sn.bc["xmax"].apply(psi)
     inflow = np.flatnonzero(quad_1d.mu_x < -1e-12)
-    non_inflow = np.setdiff1d(np.arange(quad_1d.N), inflow)
-    np.testing.assert_array_equal(out[inflow], 0.0)
-    np.testing.assert_array_equal(out[non_inflow], psi[non_inflow])
+    outflow = np.flatnonzero(quad_1d.mu_x > +1e-12)
+    out = sn.bc["xmax"].apply(psi[outflow])
+    assert out.shape == (inflow.size, 2)
+    np.testing.assert_array_equal(out, 0.0)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -298,15 +337,19 @@ def test_bc_dict_misses_and_retired_attributes_fail_loud(quad_1d):
 
 
 def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
-    """Spherical vacuum routes through :class:`SNBoundaryRealizer`. A
+    r"""Spherical vacuum routes through :class:`SNBoundaryRealizer`. A
     solid sphere has exactly ONE boundary — the outer radius
     (``xmax``); the pole r=0 is the angular closure's regularity
     condition, not a BC face. The unified :class:`AngularTraceSpace` therefore
     carries only the ``xmax`` face, and the ``bc`` dict has NO pole
-    entry (structurally absent). The realizer's vacuum branch returns
-    an :class:`IncomingOrdinateMaskTensor` over the per-face inflow
-    indices (mu_x < 0 at the outer face). Per §16A.5 the mask zeros
-    ONLY the inflow rows, leaving outflow rows untouched.
+    entry (structurally absent).
+
+    RE-POSED at **B3.2**: the realizer's vacuum branch returns the zero map
+    :math:`\Gamma_+ \to \Gamma_-` (a :class:`ZeroOperator`), not an
+    :class:`IncomingOrdinateMaskTensor` lifted into a tensor product. The
+    routing claim — curvilinear meshes go through the SAME realizer path as
+    Cartesian ones — is what this test is for and it is unchanged; only the
+    object at the end of that path moved.
     """
     mesh = Mesh1D(
         edges=np.linspace(0.1, 1.0, 6),
@@ -315,12 +358,11 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
         bc_right=BC("vacuum"),
     )
     sn = SNMesh(mesh, quad_1d, placeholder_materials())
-    # Realizer path: shim wraps a realized 1-arg op, post-T.1 lifted
-    # into ``IncomingOrdinateMaskTensor ⊗ Identity``.
+    # Realizer path: shim wraps a realized 1-arg op — since B3.2 the honest
+    # ``Γ₊ → Γ₋`` zero map (no tensor-product lift: there is no full-face
+    # projector left to decompose).
     assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
-    assert isinstance(
-        _angular_factor(sn.bc["xmax"].inner), IncomingOrdinateMaskTensor
-    )
+    assert isinstance(sn.bc["xmax"].inner, ZeroOperator)
     # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
     assert not hasattr(sn.bc["xmax"], "_quadrature")
     assert isinstance(sn.bc["xmax"].law, VacuumInflow)
@@ -338,12 +380,12 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
         expected_inflow,
     )
 
-    # §16A.5 inflow-only mask: zeros inflow rows, preserves outflow.
+    # B3.2: the zero map onto Γ₋ — the whole image, not a masked full face.
     psi = np.arange(quad_1d.N * 2, dtype=float).reshape(quad_1d.N, 2) + 1.0
-    out = sn.bc["xmax"].apply(psi)
-    non_inflow = np.setdiff1d(np.arange(quad_1d.N), expected_inflow)
-    np.testing.assert_array_equal(out[expected_inflow], 0.0)
-    np.testing.assert_array_equal(out[non_inflow], psi[non_inflow])
+    outflow = sn._trace.outflow_indices_for_face("xmax")
+    out = sn.bc["xmax"].apply(psi[outflow])
+    assert out.shape == (expected_inflow.size, 2)
+    np.testing.assert_array_equal(out, 0.0)
 
 
 def test_1d_cylindrical_one_boundary_outer_reflective():
@@ -353,8 +395,13 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     not an externally-imposed BC. So the ``bc`` dict has no pole
     entry, and only the outer reflective BC is realized. The
     :class:`ReflectiveBoundary` branch produces a
-    :class:`PermutationOperator` over ``quad.reflection_index("x")``;
-    the shim wraps it with no bound quadrature.
+    :class:`PermutationOperator`; the shim wraps it with no bound quadrature.
+
+    RE-POSED at **B3.2**: the permutation is on the REDUCED ordinate axis, so
+    its table is ``local_positions(reflection_index("x")[inflow], outflow)``
+    and its length is :math:`|\\Gamma_+|`. Both the structural pin and the
+    value pin move with it; the reference stays the retired full-face gather,
+    restricted.
     """
     mesh = Mesh1D(
         edges=np.linspace(0.1, 1.0, 6),
@@ -377,17 +424,22 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     assert isinstance(outer_perm, PermutationOperator)
     assert not hasattr(sn.bc["xmax"], "_quadrature")
     assert isinstance(sn.bc["xmax"].law, ReflectiveBoundary)
+    inflow = sn._trace.inflow_indices_for_face("xmax")
+    outflow = sn._trace.outflow_indices_for_face("xmax")
     np.testing.assert_array_equal(
-        outer_perm.perm, quad.reflection_index("x"),
+        outer_perm.perm,
+        local_positions(quad.reflection_index("x")[inflow], outflow),
     )
+    assert outer_perm.perm.size == outflow.size < quad.N
 
     # Bit-equivalence: the shim's 1-arg apply matches the
-    # ReflectiveBoundary semantics — psi[reflection_index].
+    # ReflectiveBoundary semantics — ``psi[reflection_index]`` RESTRICTED to
+    # Γ₋, which is the pre-B3.2 value this face's consumer actually read.
     rng = np.random.default_rng(7)
     psi = rng.standard_normal(size=(quad.N, 2))
     np.testing.assert_array_equal(
-        sn.bc["xmax"].apply(psi),
-        psi[quad.reflection_index("x")],
+        sn.bc["xmax"].apply(psi[outflow]),
+        psi[quad.reflection_index("x")][inflow],
     )
 
 
