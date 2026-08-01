@@ -1,47 +1,82 @@
 # Boundary-condition machinery — complete review
 
-> ## ⏸ COMPACTION POINT — cold-pickup anchor (2026-07-31)
+> ## ⏸ COMPACTION POINT — cold-pickup anchor (2026-08-01)
 >
-> **Mapping complete; B0, B1 and B2 landed. NEXT = B3.**
+> **B0, B1, B2 and B3.0–B3.4a are landed. NEXT = B3.4b.**
 >
-> B2's result block lives under §B2.2 — read it before B3/B4: it records the
-> two findings B4 must close (the unscaled corner swap; the `R ≠ 1` leakage
-> predicate) and the family-vs-value trap that bit twice.
+> ⚠ This block is rewritten at every compaction. An anchor still saying
+> "NEXT = X" after X has landed **lies forward** and costs a session. Trust
+> `git log`, never this file.
 >
-> **Verify against the tree in this order — never trust this file over git:**
-> 1. `git log --oneline main..HEAD` — **21** commits on
+> **Verify against the tree, in this order:**
+> 1. `git log --oneline main..HEAD` — **29** commits on
 >    `refactor/operator-strategy-layers`. The first 12 are the operator-strategy
->    **P0** phase (a different campaign sharing this branch — see
->    `.claude/plans/operator_strategy_realization_campaign.md`); the last 9 are
->    this boundary campaign, listed below. HEAD at this checkpoint is the plan
->    commit itself.
+>    **P0** phase (a different campaign sharing this branch —
+>    `.claude/plans/operator_strategy_realization_campaign.md`); the rest are this
+>    boundary campaign. HEAD is `91f73141` (**B3.4a**).
 > 2. `git status --porcelain` — clean EXCEPT
 >    `.claude/skills/vv-principles/{SKILL.md,error_catalog.md}`, which are
 >    **forbidden to commit** by standing policy and exist ONLY in the working
 >    tree. A `git checkout`/`restore`/`stash`/`clean` on those paths destroys
 >    them irreversibly.
-> 3. Gates, all green at HEAD: `python -O -m pytest tests/geometry
->    tests/sn/operators tests/diffusion` → **1273 passed, 7 skipped, 2 xfailed**;
->    `npx pyright orpheus/` → **1 error** (the ratchet floor, the accepted #288
->    residual — NOT a regression); `sphinx -E -W` → exit 0, **0 warnings**.
+> 3. Gates, all green at `91f73141`: full tree `python -O -m pytest tests -m
+>    "not slow"` → **6876 passed / 19 skipped / 85 xfailed / 0 failed**, exit 0;
+>    `npx pyright orpheus/` → **1** (the ratchet floor, the accepted #288
+>    residual — NOT a regression); `sphinx -E -W` → exit 0, **0 warnings**
+>    (`-E` is REQUIRED on any label move — lesson L36).
 >
-> **Landed this campaign:**
-> `ddc1ee10` retire `creates_sweep_cycle` · `1fd15f64` `BoundaryRealizer`
-> generic in its method space · `73627b71` reaction-naming verdict ·
-> `c512ab8e` this review + plan · `67a9b0a2` **B0** clean-before-extending ·
-> `37a3a47e` **B1** mint the factor Protocols · `a0fd17b4` **B1** populate all
-> seven laws · `668989fd` correct the B1 test's B2 warning.
+> **Design of record for ALL of B3** is `.claude/plans/
+> b3_domain_narrowing_crosswalk.md`. Before touching B3.4b read its **§11** (the
+> two B3.4 user rulings), **§12** (the B3.4b design), **§13** (the equivalence
+> measurement I got WRONG, and why it changes the argument) and **§14** (#325).
 >
-> **NEXT = B2, and its shape changed after the plan was written.** Read §B2.0
-> FIRST: `sn.bc[face]` is a realized-operator wrapper plus a *string* — the law
-> is discarded at `augmented_mesh.py:435`. Nothing can be repointed at
-> `law.geometry_map` until the wrapper carries the descriptor. The trap I
-> predicted (partial reflectors) is **resolved, not pending** — see §B2.1.
+> | phase | commit | what landed |
+> |---|---|---|
+> | B3.0 | `9e2139b4` | G is the deck transformation, R the kernel; response tier minted |
+> | B3.1 | `b39502f8` | `TraceRestrictionOperator` — the trace map γ± |
+> | B3.2 | `7f02de15` | the SN law's domain narrowed to Γ₊ (vacuum, reflective) |
+> | — | `b11a2ce3` | doc repair for every claim B3.0–B3.2 falsified |
+> | B3.4a | `91f73141` | white + prescribed inflow narrow; TWO mechanisms dissolve |
 >
-> **Rulings not to re-litigate:** rank-N is WIRED, not retired (user,
-> 2026-07-30) · `R` is the response factor, `B` the composite · `kind`'s
-> `"partial"` return is deliberate and B2 dissolves the question · no
-> `as_operator` on the factors until B4 brings its consumer.
+> **NEXT = B3.4b — albedo's re-emission closure.** Shape ruled by the user
+> 2026-08-01, specified in crosswalk §12: `AlbedoBoundary.geometry_map` stays
+> `IdentityMap()` **unconditionally**; a `reemission` closure selects the response
+> kernel, and the specular pairing lives in **R, not G**. Mint `SpecularReemission`
+> as the third response kernel. `reemission=None` ⇒ `ScalarResponse(α)` — complete
+> on a scalar trace (diffusion realizes it unchanged) and **REFUSED by SN** as
+> under-determined. Extract `_specular_operator` so reflective and albedo+specular
+> share ONE body: the phase must be a net REDUCTION in duplication, not three
+> spellings of two laws.
+>
+> **Then B3.4c** (periodic's partner-face channel, crosswalk §11.2), **then #325**
+> (symmetry-exact node generation, §14 — user-ruled to land before B4), **then B4**.
+>
+> **Filed this session:** **#324** (wire the SCC trace-digraph criterion into the
+> `B_lower`/`B_upper` splitting — the criterion already exists, UNWIRED, in
+> `derivations/discrete/sn/sweep_acyclicity.py`) and **#325**.
+>
+> **B2's result block (§B2.2) is still required reading before B4** — it records
+> the two findings B4 must close (the unscaled corner swap; the `R ≠ 1` leakage
+> predicate) and the family-vs-value trap that bit twice.
+>
+> **Rulings NOT to re-litigate** (carried forward across every compaction):
+> * rank-N composition is **WIRED, not retired** (user, 2026-07-30).
+> * `R` is the **response factor**; `B` is the realized **composite**. Do not let
+>   the two collide again.
+> * `kind`'s `"partial"` return is deliberate; B2 dissolved the question.
+> * **No `as_operator` on the factors until B4 brings its consumer** — minting a
+>   method with no caller and no test is the dead-capability pattern this campaign
+>   exists to remove.
+> * `G` carries the crossing `Γ₊ → Γ₋`; `R : Γ₋ → Γ₋` (B3.0). Membership is
+>   decided by multiplicativity **plus** "is it the deck transformation of an
+>   actual quotient of the physical domain?" — the second half is NOT optional
+>   (user, 2026-08-01): a specular *kernel* is multiplicative too, so
+>   multiplicativity alone cannot separate a polished wall from a symmetry plane.
+>   ⇒ **exactly one of `G`, `R` is non-trivial.**
+> * Corollary flagged, deliberately NOT acted on until **B5**:
+>   `ReflectiveBoundary(axis, albedo < 1)` is incoherent — a symmetry plane cannot
+>   absorb; that object is `AlbedoBoundary(α, specular)` wearing the geometry
+>   costume. Unreachable from a tag (`_law_from_tag` hard-codes `albedo=1.0`).
 
 **Status:** ✅ **MAPPING COMPLETE** — all four review quadrants closed and
 reconciled (diffusion arm · SN composite · law layer · test teeth). Every claim
