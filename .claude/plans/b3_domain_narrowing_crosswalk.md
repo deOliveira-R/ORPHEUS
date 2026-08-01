@@ -1235,3 +1235,115 @@ archaeology.
 
 **Own commit, after B3.4b** — a schema migration across 7 cases is not a tail of the
 closure carve. Tracked as task #21.
+
+---
+
+## 16. The snapshot re-anchoring — executed (user ruling, 2026-08-01)
+
+§15.13 recorded the ruling; this records what it turned out to mean. The headline is that
+the fix was NOT the `SNMethodSpace.minimal` symptom.
+
+### 16.1 The root defect was the generator's ROLE, not its plumbing
+
+`_build_payload` called `SNBoundaryRealizer().realize(...)` and froze `op.apply(psi_out)`.
+**The generator was a recorder of production output.** Two consequences, both realized:
+
+- the assertion was self-referential — "production still does what production did", which is
+  worth exactly what production was right;
+- it was structurally coupled to the realizer's signature, so it broke at B3.2 and again at
+  B3.4a. Twice is a pattern, not bad luck.
+
+**Inverted:** the generator computes `psi_in` from an expression written from the MATH and
+freezes that; it imports no realization code at all. The artefact IS the reference. The
+harness then asserts `realizer_output == frozen_reference` — an L1 statement instead of a
+regression lock — and the generator cannot be broken by a realizer change again, because it
+has no realizer coupling left to break.
+
+### 16.2 ⭐ Two caveats on the recipe (test-architect), both worth carrying
+
+**Caveat 1 — inversion's precondition is that the expression be TOTAL.** A recording pins
+every bit of the output; a derived reference pins only what the expression determines. All
+seven expressions here fix the entire array (zero / a gather / a broadcast average / their
+sum / a partner gather), so nothing was lost. But a partial expression ("the image is
+isotropic", magnitude unfixed) would trade a total drift-lock for a partial correctness
+claim. **Check totality before inverting a recorder.**
+
+**Caveat 2 — the inversion must be STRUCTURAL, not documentary, and this changed the
+design.** Once the reference is computable, the natural next step is to compute it in the
+test — which re-couples generator and production through one shared expression, so they
+drift *together* and the gate goes green on a shared mistake. The frozen file is the only
+barrier left. So the inversion is AST-asserted in both directions
+(`TestTheInversionIsStructural`): the generator imports nothing matching
+`realizer|method_space|orpheus.sn`, the harness pulls only `{CASES, case_by_id,
+BCEquivalenceCase}`, and on-disk artefacts ≡ registered cases. Without those three, one
+import silently undoes the ruling while every row keeps passing.
+
+### 16.3 `[M]` Migration quality — six of seven claims did not move
+
+Verified INDEPENDENTLY (main agent) by extracting the retired recordings from git and
+restricting them to the same `Γ₋`:
+
+| case | derived reference vs. the retired recording |
+|---|---|
+| `vacuum`, `specular_x`, `specular_y` | **bit-identical** (0 ULP) |
+| `white_xmax`, `white_xmin` | 1 ULP (`tensordot` vs broadcast-multiply-then-`sum`) |
+| `mixed` | 2 ULP |
+| `periodic` | 1.87e3 relative — **the point** |
+
+Only the provenance changed. That is the strongest possible evidence that the re-anchoring
+was a promotion in the evidence hierarchy rather than a re-baseline: the numbers are the
+same, the *reason to believe them* is different.
+
+### 16.4 Periodic — the ruling held, and one sharpening changed the fixture
+
+Anchored to the correct partner-face identity, `xfail(strict=True)` for B3.4c. `[M]`
+`--runxfail`: reds on its own `assert_array_equal`, 735/735 elements (100 %) mismatched — a
+value failure, not a setup error.
+
+**A single-face probe cannot state the requirement.** With one draw shared by both faces,
+"the partner's outflow" and "this face's outflow" are different rows of one array, and a
+reader can argue periodicity *identifies* the faces (it does — it is a quotient), so the
+identity looks defensible. The defect is only observable when the faces carry DIFFERENT
+data, which is the real sweep's situation. The artefact therefore carries **two
+independently-seeded probes**, with a live test asserting they discriminate. Config-blindness
+one level up: the convenient fixture nulls the exact term.
+
+Also: the xfail **cannot flip by itself** — B3.4c changes which half-trace the *composition
+supplies*, not the body — so a live companion pins that precisely (fed the PARTNER's `Γ₊`,
+the realized identity already reproduces the reference exactly). That is simultaneously the
+flip-proof and a body pin, not `x == x`.
+
+### 16.5 ⭐⭐ THE RECURRING HAZARD — index-order coincidences on symmetric quadratures
+
+Two independent findings this session are the same phenomenon, and it deserves a name.
+
+- **B3.4b (§15.11):** the retired positional pairing `inflow[j] ← outflow[j]` EQUALS the
+  specular pairing on `product(2,4)` and `level_symmetric(6)`, and differs on the slab GLs
+  and `lebedev(17)`.
+- **§16 mutation M1:** replacing the specular local remap with a bare `arange` is invisible
+  on LS4/LS6, because `perm[sorted(inflow)] == sorted(outflow)` holds there.
+
+**On a symmetric quadrature the sorted index order frequently coincides with the mirror
+permutation.** So every gate distinguishing *identity from permutation* — and every claim
+that a remap is the right one — is at risk of being blind on exactly the quadratures a test
+author reaches for first. Defences, both used here: pick a fixture where the mirror REVERSES
+order (`gauss_legendre` slab) or scrambles it (`lebedev`); and prefer a mutation that is
+coincidence-PROOF (M7 reverses the local perm) over one that merely differs (M1).
+
+### 16.6 Honest scope — one documented blind mutation
+
+M6 (`TANGENTIAL_EPS → 0.0`) reds **nothing** in this file, stated in the code rather than
+hidden: every quadrature in this case set carries its tangential cosines as exact `0.0`, so
+a strict `> 0.0` cut excludes them just as the band does. The discriminating quadrature is
+`product(2,4)`, which already lives in `test_reemission_closure.py`. Adding a case here
+would add a case and no coverage. **A blind mutation NAMED is a scope statement; a blind
+mutation unnoticed is a false coverage claim.**
+
+### 16.7 The two B3.4b closures were NOT added as cases — correctly
+
+`test_reemission_closure.py` already anchors both closures against hand-written independent
+expressions over 5 quadratures × 3 α, including the two disjoint discriminating fixture
+sets. The only thing a snapshot case would add is the frozen artefact's co-drift guard —
+delivered for the specular closure by ONE extra method on the existing `specular_x` case, at
+zero cost. Two new cases would be verbatim duplicate expressions: the Pattern-2 twin this
+campaign removes.

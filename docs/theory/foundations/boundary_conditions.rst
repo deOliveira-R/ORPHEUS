@@ -178,14 +178,15 @@ Key Facts
      (:mod:`tests.numerics`,
      :mod:`tests.geometry.test_boundary_trace_law`,
      :mod:`tests.geometry.test_bc_errors`).
-   - L1 realiser-output snapshot tests (the Wave-6 harness at
-     :mod:`tests.geometry.test_bc_equivalence_snapshot`, with the
-     legacy halves dropped post Issue #186 / C-B3.7). The
-     surviving ``test_realizer_*`` halves pin the realised-operator
-     output against committed ``.npz`` snapshots at ``nulp ≤ 4``
-     for non-vacuum BCs; the vacuum case pins the narrowed zero map
-     :math:`\Gamma_+ \to \Gamma_-` (re-posed at campaign phase B3.2,
-     replacing the §16A.5 inflow-row-only comparison).
+   - Foundation reference-image tests
+     (:mod:`tests.geometry.test_bc_equivalence_snapshot`), which
+     compare each realised operator against a **frozen,
+     independently-derived** reference image — see
+     :ref:`bc-numerical-evidence`. Re-anchored on 2026-08-01: the
+     committed ``.npz`` artefacts used to be recordings of production
+     output (a drift lock, worth what the recorded code was right);
+     they now carry an image computed from the law's own equation, so
+     the gate states correctness rather than stability.
    - L1 descriptor-tree algebra tests
      (:mod:`tests.geometry.test_law_composition`) pinning the
      :class:`LawSum` / :class:`LawScaled` closed-algebra contract
@@ -3142,8 +3143,10 @@ without it, the "perfect reflection" case
 :class:`~orpheus.geometry.boundary.ReflectiveBoundary` (pre-refactor
 ``SpecularBoundaryOperator(axis="x", albedo=1.0)``) would shift by
 one ULP under the realizer relative to its pre-refactor
-``np.take(psi_out, reflection_index, axis=0)`` body — see the
-Wave 6 snapshot harness for the bit-equivalence pin. The narrowing
+``np.take(psi_out, reflection_index, axis=0)`` body — see
+:ref:`bc-numerical-evidence` for the bit-equivalence pin (whose
+``specular_x_lebedev17`` row is still ``assert_array_equal``, now
+against the mirror isometry rather than a recording). The narrowing
 preserved that bit-identity and was **gated against the retired
 expression, not against the new code called twice**: the reference is
 materialised in numpy off the law *descriptor*
@@ -4046,13 +4049,16 @@ survives because both the law-tree and the operator-tree use the
 same Python ``+`` syntax; the runtime dispatch on type tells the
 reader (and the type checker) which algebra is in effect.
 
-The Wave 6 snapshot harness verifies that the bit-identity of the
-Marshak case ``0.3 * spec + 0.7 * white`` is **preserved** by the
-β2 transition: the realized
+The reference-image harness verifies that the Marshak case
+``0.3 * spec + 0.7 * white`` survived the β2 transition: the realized
 ``OperatorSum(ScaledOperator, ScaledOperator)`` reduction tree
-matches the β1-era output to the same ULP tolerance, because the
-operator-tree shape after :func:`realize_recursively` is
-algebraically identical.
+reproduces the derived convex combination
+:math:`0.3\,R_{\text{spec}} + 0.7\,R_{\text{diff}}` inside the
+reduction-order bound, because the operator-tree shape after
+:func:`realize_recursively` is algebraically identical. (Until the
+2026-08-01 re-anchoring the claim was the narrower one that the
+realized output matched the β1-era *recorded* output; see
+:ref:`bc-snapshot-reanchoring` for why the reference moved.)
 
 
 .. _bc-realize-recursively:
@@ -4633,12 +4639,14 @@ the descriptor-tree contract (foundation + L1 tests):
 * The absence of ``apply`` on any descriptor-tree node
   (``not hasattr(tree, "apply")``).
 
-The Wave-6 snapshot harness (now realizer-only — the legacy
-halves are gone) verifies that the realized output is
-bit-identical to the pre-B3 realizer-path output on every
-non-mixed case, and identical up to the documented ULP tolerance
-on the Marshak mixed case (the operator tree is structurally the
-same; only the route to it changed).
+The reference-image harness verifies that the realized output matches
+the independently-derived image on every case — bit-identically for
+vacuum and the two specular rows, and inside the reduction-order bound
+for the Lambertian and Marshak rows (the operator tree is structurally
+the same; only the route to it changed). Until the 2026-08-01
+re-anchoring the comparison was against the pre-B3 realizer-path
+*output*; :ref:`bc-snapshot-reanchoring` records why that was a drift
+lock rather than a reference, and what replaced it.
 
 Call-site contract
 ------------------
@@ -4681,74 +4689,156 @@ method does not exist.
 Numerical evidence
 ==================
 
-The Wave 6 snapshot harness
-(:mod:`tests.geometry.test_bc_equivalence_snapshot`) is the
-load-bearing equivalence pin for the realizer-vs-legacy migration.
-Eight snapshot cases pin pre-refactor outputs as ``.npz`` files;
-post-refactor outputs are compared at ``nulp ≤ 4`` (or ``nulp = 64``
-for cases where the reduction tree intentionally changed). The
-cases:
+The reference-image harness
+(:mod:`tests.geometry.test_bc_equivalence_snapshot`) is the widest
+mutation net in the boundary subsystem. Seven cases compare the
+realized operator against a frozen ``.npz`` image at a per-case
+tolerance.
 
-.. list-table:: Wave 6 BC equivalence snapshot cases
+.. _bc-snapshot-reanchoring:
+
+The 2026-08-01 re-anchoring — from recording to reference
+---------------------------------------------------------
+
+Until campaign phase **B3.4b** these artefacts were **recordings of
+production output**: the generator called
+``SNBoundaryRealizer().realize(...)`` and froze ``op.apply(psi_out)``.
+Two consequences followed mechanically. The assertion was
+``production == a recording of production`` — a regression LOCK, worth
+exactly what the recorded code was right, and unable to say the value
+is *correct* (``vv-principles`` §bit-identity criterion 2). And it
+broke on every signature change, which it did twice: at **B3.2**, when
+the SN law narrowed to :math:`\Gamma_+ \to \Gamma_-`, and at
+**B3.4a**.
+
+The interim repair kept the frozen full-face artefacts and *restricted*
+them, arguing that an artefact frozen before the narrowing is an
+independent statement. That is only **procedural** independence: it
+certifies *"the new path agrees with the old path"*, and the premise of
+the whole narrowing campaign is that the old path read the wrong
+half-trace.
+
+So every case was **re-anchored against an expression derived from the
+mathematics** — :eq:`affine-bc-form`, the mirror isometry
+:math:`\Omega \mapsto \Omega - 2(\Omega\cdot\hat n)\hat n`, and the
+Lambertian partial-current balance :math:`J^- = \alpha J^+`. The
+generator now imports nothing from
+:mod:`orpheus.sn.boundary.realizer`, which makes it refactor-proof by
+construction, and the artefact **IS** the reference rather than a
+recording.
+
+The file stays frozen for one reason: a reference the harness
+recomputed would let the generator's expression and production drift
+*together*. The committed artefact is the barrier — an expression
+change moves the gate only through a regeneration, which is a
+reviewable diff.
+
+**What the migration measured.** Against the retired pre-B3.2
+recordings restricted to :math:`\Gamma_-`: ``vacuum``, ``specular_x``
+and ``specular_y`` are **bit-identical**; ``white_xmax``,
+``white_xmin`` and ``mixed`` differ by **1–2 ULP** (reduction order
+only — the reference contracts with :func:`numpy.tensordot` where
+production runs a broadcast-multiply-then-``sum``); ``periodic``
+differs by **98 %**, by design. Six of seven claims did not move; what
+changed is where they come from.
+
+.. list-table:: BC reference-image cases
    :header-rows: 1
-   :widths: 28 28 18 26
+   :widths: 24 26 16 34
 
-   * - Snapshot
+   * - Case
      - BC
-     - Quadrature
-     - Tolerance
+     - Quadrature / face
+     - Reference, and its tolerance
    * - ``vacuum_lebedev17``
      - ``VacuumInflow()``
-     - Lebedev order 17
-     - the **zero map**: emission has :math:`\Gamma_-` shape and is
-       identically zero (re-posed at B3.2, replacing the
-       inflow-rows-only comparison)
-   * - ``albedo_05_lebedev17``
-     - ``AlbedoBoundary(0.5)``
-     - Lebedev order 17
-     - ``nulp ≤ 4``
+     - Lebedev 17, ``xmin``
+     - :math:`R = q = 0`, so the **zero map**: an image with
+       :math:`\Gamma_-` shape, identically zero.
+       ``assert_array_equal`` — no arithmetic is performed.
    * - ``specular_x_lebedev17``
      - ``ReflectiveBoundary(axis="x", albedo=1.0)``
-     - Lebedev order 17
-     - bit-identical (α=1 fast path)
+     - Lebedev 17, ``xmax``
+     - the mirror gather :math:`\psi^-(\Omega) = \psi^+(\Omega')`.
+       ``assert_array_equal`` — reduction depth 0.
    * - ``specular_y_partial_07_LS6``
      - ``ReflectiveBoundary(axis="y", albedo=0.7)``
-     - LevelSymmetricSN(6)
-     - ``nulp ≤ 4``
+     - LevelSymmetricSN(6), ``ymax``
+     - the same gather scaled by α — the α-fold row, and the only
+       one on a non-``x`` axis. ``assert_array_equal``.
    * - ``white_xmax_LS4``
      - ``WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)``
-     - LevelSymmetricSN(4)
-     - bit-identical (α=1 fast path)
+     - LevelSymmetricSN(4), ``xmax``
+     - isotropic re-emission with :math:`J^- = J^+` in the
+       :math:`w_n|\Omega_n\cdot\hat n|` measure.
+       ``rtol = |Γ₊|·ε``.
    * - ``white_xmin_partial_03_GL``
      - ``WhiteBoundary(axis="x", outward_sign=-1, albedo=0.3)``
-     - GaussLegendre1D(8)
-     - ``nulp ≤ 4``
-   * - ``periodic_lebedev17``
-     - ``PeriodicBoundary()``
-     - Lebedev order 17
-     - bit-identical (angular identity body)
+     - GaussLegendre1D(8), ``xmin``
+     - the same law at α = 0.3 on a quadrature whose :math:`\sum w`
+       is 2, not :math:`4\pi` — the canary against a hard-coded
+       normalisation. ``rtol = |Γ₊|·ε``.
    * - ``mixed_30spec_70white_LS4``
      - ``0.3 * spec + 0.7 * white`` (Wave-0 algebra)
-     - LevelSymmetricSN(4)
-     - ``nulp ≤ 64`` — re-posed onto :math:`\Gamma_+` at **B3.4a**
-       (both leaves are now narrowed)
+     - LevelSymmetricSN(4), ``xmax``
+     - the pointwise convex combination of the two images above.
+       ``rtol = (|Γ₊| + 2)·ε``.
+   * - ``periodic_lebedev17``
+     - ``PeriodicBoundary()``
+     - Lebedev 17, ``xmin`` ← ``xmax``
+     - the PARTNER face's outflow at the same ordinates.
+       ``assert_array_equal``, inside ``xfail(strict=True)``.
+
+Every tolerance above is **derived, not measured-and-rounded-up**. The
+old ``nulp = 4`` / ``nulp = 64`` constants encoded no claim; the bound
+now states one. Recursive summation of :math:`n` terms carries a
+relative error :math:`\le (n-1)\,u\,\kappa` with
+:math:`u = \varepsilon/2`; every summand in the Lambertian is positive
+(the probe is :math:`U(0,2)`, and :math:`w_n|\Omega_n\cdot\hat n| > 0`
+on :math:`\Gamma_+`), so :math:`\kappa = 1` and :math:`|\Gamma_+|\cdot
+\varepsilon` is that bound with room for the trailing division. The
+mixed row adds one rounding for its scaling and one for the sum.
+Measured against those bounds: 1.9e-16 (2.7e-15), 1.2e-16 (8.9e-16),
+3.2e-16 (3.1e-15).
+
+.. note::
+
+   **The periodic row is a deliberate strict xfail, not a passing
+   gate.** A translation identifies the two faces without touching
+   direction, so a particle leaving through ``xmax`` in direction
+   :math:`\Omega` re-enters at ``xmin`` in the SAME :math:`\Omega`:
+   :math:`\Gamma_-(\text{xmin})` and :math:`\Gamma_+(\text{xmax})` are
+   the same ordinate SET, and the law is a **two-face coupling**.
+   Production realizes it as a per-face angular identity, so the
+   narrowed composition
+   :math:`\iota_- \circ \text{law} \circ \gamma_+` hands it this
+   face's own :math:`\Gamma_+ = \{\mu_x < 0\}` and it feeds
+   outgoing-left flux back in as incoming-right flux — measured 98 %
+   relative error, an :math:`\mathcal{O}(1)` wrong answer.
+
+   The artefact therefore carries TWO probes, drawn from independent
+   seeds: with one shared draw a per-face endomorphism would look
+   correct on the rows that coincide. **B3.4c** builds the partner-face
+   wrap; the marker's deletion is forced by the XPASS(strict) failure,
+   which is this campaign's standing technique — the xfail set IS the
+   todo list. The body itself is already correct: a companion test
+   shows the identity reproduces the reference exactly when fed the
+   PARTNER's :math:`\Gamma_+`, so the defect is entirely in which
+   half-trace the composition supplies.
 
 .. note::
 
    **A narrowed row is re-posed onto** :math:`\Gamma_+`\ **, never
-   weakened.** The recipe B3.2 established for ``vacuum_lebedev17``,
-   ``specular_x_lebedev17`` and ``specular_y_partial_07_LS6``: feed the
-   realized law ``snapshot["psi_out"][space.outflow_indices]`` and
-   compare against the **frozen** pre-narrowing image *restricted* to
-   :math:`\Gamma_-`, ``snapshot["psi_in"][space.inflow_indices]``. The
-   reference still comes from the committed artefact, never from
-   re-running the new code, so the bit-identity claim is strictly the
-   same claim on a smaller index set. **B3.4a** applies the same recipe
-   to the two ``white_*`` rows and to the Marshak row; ``albedo_05``
-   and ``periodic`` keep passing the whole face slot from a
-   ``SNMethodSpace.minimal(quad)``, because those two realizations are
-   genuinely still full-\ :math:`N` endomorphisms, and they migrate at
-   **B3.4b** / **B3.4c**.
+   weakened.** The B3.2 / B3.4a recipe was to feed the realized law
+   ``snapshot["psi_out"][space.outflow_indices]`` and compare against
+   the frozen pre-narrowing image restricted to :math:`\Gamma_-`. The
+   2026-08-01 re-anchoring made that restriction unnecessary — the
+   artefacts are now stored on the narrowed spaces directly, with the
+   face and BOTH index sets alongside — and it kept the probe: each
+   stored ``psi_out`` is the same deterministic full-face draw the
+   retired artefacts used, restricted to :math:`\Gamma_+`. The
+   migration changed the schema and the reference; it never changed
+   what the operators are probed with.
 
    **The Marshak row stopped being an honest red at B3.4a.** While
    white was un-narrowed, ``0.3 * spec + 0.7 * white`` mixed a narrowed
@@ -4775,32 +4865,38 @@ cases:
       the algebra; until B3.4b / B3.4c land, a mixed tree containing
       albedo or periodic is unsound and shape-invisible (vv Mode 12).
 
-The 1-ULP tolerance for α=1 specular / white reflects the
-α=1.0 fast path returning the bare primitive (no
-``ScaledOperator`` wrap → same FP reduction tree as the legacy
-body). The 4-ULP tolerance for partial-albedo cases reflects the
-``ScaledOperator(α, primitive).apply(x) = α * primitive.apply(x)``
-multiplication being the single new floating-point operation per
-ordinate (one extra rounding step). The 64-ULP tolerance for the
-Marshak case reflects the
-:class:`OperatorSum` reduction order (the legacy ``MixedBoundaryOperator``
-loop summed left-to-right via accumulation; the post-Wave-11
-:class:`OperatorSum` binary tree adds in a different but
-mathematically equivalent order — see the
-``vv-principles`` skill's "bit-identity vs principled-equivalence"
-discussion for the general framing of this kind of FP-non-
-associativity drift).
+The specular rows are ``assert_array_equal`` and the choice is
+structural, not optimistic: a gather introduces no re-association and
+an α-fold is one multiplication of the same two floats, so the
+predicted drift is EXACTLY zero — a tolerance there would admit the
+failure mode the row exists to catch. (Before the re-anchoring these
+rows carried ``nulp ≤ 4``, on a reasoning about the ``ScaledOperator``
+wrapper's extra rounding step. That reasoning is right about the extra
+rounding and wrong about its effect: the reference performs the same
+multiplication, so both sides round identically.)
 
-The snapshot ``.npz`` files live at
-``tests/geometry/snapshots/bc_equivalence_*.npz`` and are committed
-to the repository. The generator script
+The ``.npz`` files live at
+``tests/geometry/snapshots/bc_equivalence_*.npz`` and are committed to
+the repository — the artefacts ARE the verification reference.
 ``tests/geometry/_generate_bc_equivalence_snapshots.py`` regenerates
-them on the legacy commit; the comparison test enforces
-equivalence on every subsequent commit. Wave 11 (``MixedBoundaryOperator``
-removal) regenerated the mixed snapshot — the new payload was
-**bit-identical** to the pre-Wave-11 payload because the realizer's
-deleted internal mixed-BC path was already composing via
-``OperatorSum``-of-``ScaledOperator``.
+them; since the re-anchoring, regeneration is legitimate only when the
+reference EXPRESSION or the probe changes, never to make a red go
+away — that would re-anchor the gate on the very code it gates, which
+is the shape the inversion removed.
+
+.. note::
+
+   **The** ``albedo_05_lebedev17`` **case was retired at B3.4b.** It
+   pinned ``psi_in == 0.5 * psi_out`` on the WHOLE FACE, an artefact of
+   a law SN no longer realizes: a bare ``AlbedoBoundary(α)`` is refused
+   because its :math:`R = \alpha I` is a :math:`\Gamma_+ \to \Gamma_+`
+   endomorphism and its :math:`G` supplies no crossing (see
+   :ref:`bc-method-realizability`). Its successor is the second method
+   on the ``specular_x_lebedev17`` case, which pins the same α-fold on
+   the same quadrature through the ``≡`` theorem
+   ``AlbedoBoundary(α, SpecularReturn(a)) ≡ ReflectiveBoundary(a, α)``
+   — and, since the re-anchoring, against the mirror isometry rather
+   than against a sibling implementation's recorded output.
 
 
 .. _bc-two-bc-applies-per-matvec:

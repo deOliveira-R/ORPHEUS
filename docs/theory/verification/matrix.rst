@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **7404**
+Total tests collected: **7440**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1211, 16.4%
-   L1, 1200, 16.2%
+   L0, 1211, 16.3%
+   L1, 1200, 16.1%
    L2, 64, 0.9%
    L3, 0, 0.0%
-   foundation, 4929, 66.6%
+   foundation, 4965, 66.7%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 7325
+   explicit, 7361
    class-name, 46
    func-name, 0
    case, 33
@@ -254,7 +254,7 @@ Module × level grid
    fields/test_facefield_hierarchy, 0, 0, 0, 0, 7, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
    frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
-   geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 8, 0
+   geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 50, 0, 0, 5, 0
    geometry/test_bound_compat, 13, 0, 0, 0, 0, 0

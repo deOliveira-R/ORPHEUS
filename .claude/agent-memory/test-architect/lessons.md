@@ -2331,3 +2331,106 @@ Every finding MEASURED 2026-08-01 (`scratch/b34b_verification_plan.md`; new gate
   re-baseline ladder satisfied by construction, and no self-generated baseline.
   The retired law's OWN artefact is unusable (its Γ₋ rows read ordinates the
   narrowed input never sees) ⇒ delete artefact + generator case together.
+  (SUPERSEDED for this harness by **L32** — the user ruled the whole file over
+  to derived references. The inherit-from-a-sibling recipe stays correct
+  whenever a derived expression is NOT available.)
+
+---
+
+## L32 — INVERT a snapshot generator from RECORDER to REFERENCE: the artefact stops being production's echo and becomes the math; the frozen FILE is what stops generator+production drifting together
+
+A snapshot generator that calls production and freezes its output is
+**self-referential** — the gate says `production == a recording of production`,
+which detects change and certifies nothing, and it BREAKS on every production
+signature change (this one broke twice: B3.2, then B3.4a). Restricting a
+pre-change artefact rescues *procedural* independence only (`vv` L11): it
+certifies "the new path agrees with the old path", worth exactly what the old
+path was right — and a narrowing campaign's whole premise is that the old path
+was wrong. The repair is to **compute the reference from the law's equation and
+freeze THAT**; the generator then imports nothing from the realization layer and
+cannot be broken by it again.
+
+- **The precondition on the recipe: the expression must be TOTAL.** A recording
+  pins every bit of the output; a derived reference pins only what the
+  expression determines. Check per case that the expression fixes the whole
+  array (all 7 did: `0`, a gather, a broadcast average, their sum, a partner
+  gather). If an expression is partial ("the image is isotropic", magnitude
+  unfixed), inverting TRADES a total drift lock for a partial correctness
+  claim — then keep the recording, or pair the two.
+- **Derive from the EQUATION, never by transcribing the implementation.** The
+  specular pairing came from the isometry `Ω ↦ Ω − 2(Ω·n̂)n̂`, realized by
+  matching flipped direction cosines back onto the ordinate table with EXACT
+  float equality (MEASURED exact + involutive on gl4/gl8/lebedev17/ls4/ls6/
+  product24) — never `quadrature.reflection_index`, which is production's own
+  table. Demanding an exact unique hit is what keeps it independent: a tolerant
+  nearest-match would agree with a WRONG table. The Lambertian came from
+  `J⁻ = αJ⁺` + isotropy (normalising over Γ₋), where production normalises over
+  Γ₊; assert at generation time that `Σ_Γ₊ w|Ω·n̂| == Σ_Γ₋ w|Ω·n̂|` within
+  reduction-order ULP so the choice cannot silently matter — and if it ever
+  fails, the derived one is the correct one.
+- **⭐ Once the reference is computable, the FROZEN FILE is the only thing left
+  standing between a wrong expression and a green gate.** If the harness
+  recomputed it, generator and production would drift TOGETHER through one
+  shared expression — a different self-reference. So the harness reads
+  `psi_in` off disk and imports ONLY the case registry; make that
+  **structural, not documentary**: an AST gate asserting (a) the generator
+  imports nothing matching `realizer|method_space|orpheus.sn`, (b) the harness
+  pulls only `{CASES, case_by_id, BCEquivalenceCase}`, (c) artefacts on disk ==
+  registered cases (no orphan). All three proven-red by feeding the predicates
+  a mutated source copy — never by editing a tracked file.
+- **Fold the duplicated case identity into the registry while you are there.**
+  Pre-migration the law + quadrature of every case were spelled TWICE
+  (generator and harness) with nothing keeping them in step. The clean field is
+  `compose: Callable[[Realize], Operator]` — a function OF the harness's
+  realization step, so `lambda realize: realize(Vacuum())` covers rank-1 and
+  `0.3*realize(a) + 0.7*realize(b)` covers rank-N, and the generator still
+  imports no realization code. NOT a stringly-typed `("WhiteBoundary", {...})`.
+- **Re-derive every tolerance from structure; the migration MEASURES its own
+  quality.** Gathers and α-folds are reduction-depth 0 ⟹ `array_equal` (a
+  tolerance there would admit the bug); an `n`-term positive-summand contraction
+  vs a `tensordot` is `κ=1`, so `|Γ₊|·ε` (the probe being `U(0,2)`, hence
+  non-negative, is what makes κ=1 — say so). Retire inherited `nulp=4`/`nulp=64`
+  folklore. Then compare the DERIVED reference against the retired recording:
+  MEASURED **bit-identical on 3 of 7**, **1–2 ULP on 3**, **98 % on 1** — the
+  outlier being exactly the case whose law production gets wrong. That table is
+  the migration's own evidence that six claims did not move, only their source.
+- **Keep the PROBE bit-identical across the migration** (draw full-face with the
+  same seed, then restrict to Γ₊). Free traceability: the stored rows are a
+  literal subset of what the retired artefacts probed with, so the change is
+  provably schema+reference and never the input.
+- **A two-face law cannot be probed with a one-face draw.** Periodic's reference
+  is the PARTNER face's outflow (`Γ₋(xmin) == Γ₊(xmax)` as ordinate sets —
+  assert it, do not assume). With ONE draw shared by both faces the defect is
+  unobservable/arguable (the faces ARE identified under the quotient, so the
+  identity looks defensible); use a SECOND independent seed and ship a LIVE test
+  asserting the two probes differ. Config-blindness, one level up: the
+  convenient single-draw fixture nulls the term.
+- **A strict xfail for a not-yet-built phase needs a FLIP-PROOF, because it will
+  not flip by itself when the fix changes the CALL rather than the body.**
+  Production's periodic op is an angular identity fed the wrong half-trace, so
+  after B3.4c the test's `apply` line changes and the marker is deleted by hand.
+  Ship a LIVE companion showing the body already reproduces the reference when
+  fed the partner's Γ₊ — it is simultaneously the flip-proof (it names exactly
+  what the phase changes) and a body pin (a scaling/permuting/averaging operator
+  fails it), and it is NOT `x == x`. Keep every premise (space cross-check,
+  pairing, probe activation) in LIVE tests so the xfail body has exactly ONE
+  failable statement; verify with `--runxfail` that it reds on THAT line.
+- **Do not add cases that duplicate an existing anchor.** The two B3.4b closures
+  were rejected as new cases: `test_reemission_closure.py` already anchors both
+  against hand-written expressions over 5 quadratures × 3 α, and the only thing
+  a case adds is the frozen artefact — already delivered for the specular
+  closure by one extra method on an existing case.
+- **Store the face and BOTH index sets on EVERY artefact** (pre-migration only
+  the vacuum case carried one). It makes each file self-describing AND turns the
+  Layer-1 classification into a frozen independent statement the harness
+  cross-checks. Honest scope: MEASURED, that cross-check is BLIND to the
+  `> 0.0` tangential twin on this case set (lebedev/LS/GL carry EXACT-zero
+  tangential cosines; only `product(2,4)` has round-off ones) — name the blind
+  spot and point at the file that does cover it, rather than adding a case.
+- **Mutation table (8 in-process monkeypatches, control 43 passed/1 xfailed):**
+  local-remap→`arange` (2 red), α-fold dropped (3), cosine weight dropped (3),
+  zero-map→echo (1), domain built from Γ₋ (6), local-perm reversed (4),
+  normal flipped (16), `TANGENTIAL_EPS→0` (0 — the documented blind). The
+  `arange` mutation is quadrature-coincidence-blind on ls4/ls6; a REVERSED
+  local perm is the coincidence-proof specular mutation — use it to give a
+  rank-N row's specular leaf its own red.
