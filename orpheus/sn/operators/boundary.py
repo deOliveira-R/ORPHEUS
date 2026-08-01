@@ -54,7 +54,10 @@ from typing import TYPE_CHECKING, NamedTuple, Optional
 
 import numpy as np
 
-from orpheus.geometry.boundary import PrescribedInflow
+from orpheus.geometry.boundary import (
+    PrescribedInflow,
+    law_permutes_ordinates,
+)
 from orpheus.numerics.operator import (
     BlockRole,
     LinearOperator,
@@ -111,7 +114,7 @@ def _has_ruled_corner_action(law: "BoundaryTraceLaw") -> bool:
       :math:`q` currently holds, and testing the source VALUE instead would
       quietly admit ``PrescribedInflow()`` at its default zero source;
     * then either :math:`R = 0` (nothing returns — the corner stays zero) or
-      :math:`G` **permutes ordinates** (a specular mirror pairs
+      **the composite is a specular pairing** (a mirror pairs
       :math:`\mu = +1` with :math:`\mu = -1` exactly, off-quadrature included,
       which is why the swap is expressible without the quadrature).
 
@@ -120,10 +123,32 @@ def _has_ruled_corner_action(law: "BoundaryTraceLaw") -> bool:
     spatial wrap needs the partner face's ray; an identity map pairs ordinate
     :math:`n` with itself, which is not a corner action at all.
 
+    Why the pairing is asked of BOTH tiers (B3.4b)
+    ----------------------------------------------
+
+    Until B3.4b this read ``law.geometry_map.permutes_ordinates`` alone, which
+    was complete while the *only* specular pairing lived in :math:`G`. The
+    user's 2026-08-01 ruling put one in :math:`R` too — a polished wall's
+    return is constitutive — so ``AlbedoBoundary(α, SpecularReturn(a))`` has
+    ``G = IdentityMap`` and would have been loud-deferred at the corner while
+    ``ReflectiveBoundary(a, α)``, which it equals as a matrix, is ruled. That
+    breaks the equivalence B3.4b asserts, in the one consumer that reads the
+    factors rather than the realized operator.
+
+    The pairing is therefore asked of each tier **in that tier's own
+    vocabulary**, not through a shared Protocol member. Adding
+    ``permutes_ordinates`` to :class:`BoundaryResponseKernel` would have been
+    tidier to read and is exactly wrong: :class:`SpecularReemission` already
+    carries ``is_adjointable``, so the extra member would make it satisfy
+    :class:`BoundaryGeometryMap` structurally — collapsing the tier
+    disjointness that ``tests/geometry/test_boundary_factors.py`` asserts
+    precisely to stop a response from posing as a geometry. That test is the
+    guard against the very conflation this campaign corrected, and a
+    convenience member is not worth disarming it.
+
     Until campaign phase B2 this was ``kind in _RULED_CORNER_KINDS`` against
     the frozenset ``{"vacuum", "reflective"}`` — the same admission, hard-coded
-    as tags because the pre-B2.0 shim discarded the law. Evaluated across all
-    seven registered laws the two agree exactly.
+    as tags because the pre-B2.0 shim discarded the law.
 
     .. note::
 
@@ -135,7 +160,9 @@ def _has_ruled_corner_action(law: "BoundaryTraceLaw") -> bool:
     """
     if isinstance(law, PrescribedInflow):
         return False
-    return law.geometry_map.permutes_ordinates or law.response_kernel.is_zero
+    return (
+        law_permutes_ordinates(law) or law.response_kernel.is_zero
+    )
 
 
 def _zero_bulk_source(mesh: "SNMesh"):
@@ -217,11 +244,19 @@ class SNBoundaryOperator(LinearOperator):
     ------------
 
     ``apply`` always. ``apply_transpose`` is advertised iff EVERY per-face law
-    advertises it — reflective (involution), vacuum, periodic and albedo do;
-    **white does NOT** (it is self-adjoint only under the ``|Ω·n|·w`` metric, so
-    its adjoint routes through ``B.H`` on the weighted trace space at O.2). The
+    advertises it — reflective (involution), vacuum and periodic do; **white
+    does NOT** (it is self-adjoint only under the ``|Ω·n|·w`` metric, so its
+    adjoint routes through ``B.H`` on the weighted trace space at O.2). The
     intersection rule keeps ``apply_transpose`` honest: it is reachable only when
     every block can honour it.
+
+    Since **B3.4b** an albedo face answers by its **re-emission closure**, not
+    by its class: a specular closure realizes to the same scaled permutation
+    reflective does (adjointable), a diffuse one to the same Lambertian white
+    uses (not adjointable), and the closure-free spelling never reaches here —
+    the realizer refuses it. The predicate below already computed this
+    correctly, since it reads each realized law's own ``is_adjointable``; it is
+    the enumeration in prose that had to stop naming classes.
 
     Parameters
     ----------
@@ -256,8 +291,11 @@ class SNBoundaryOperator(LinearOperator):
     @property
     def is_adjointable(self) -> bool:
         # B = ⊕ per-face laws; the composite adjoint exists iff EVERY face law
-        # is adjointable (reflective / vacuum / periodic / albedo are; white is
-        # NOT — self-adjoint only under |Ω·n|·w, routed via B.H). The per-face
+        # is adjointable (reflective / vacuum / periodic are; white is NOT —
+        # self-adjoint only under |Ω·n|·w, routed via B.H; an albedo face
+        # answers by its closure since B3.4b, specular yes / diffuse no).
+        # Reading each REALIZED law's own predicate rather than its class is
+        # what makes that automatic. The per-face
         # intersection rule, computed recursively like every composite
         # predicate. is_invertible inherits base False — NOT because the
         # reflection map is singular (a permutation is invertible), but
@@ -769,7 +807,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         out = RadialCharacteristicBoundarySourceSink.zeros_on(seed.mesh)
         # R = 0 ⇒ zero corner emission (the all-zero ``out`` falls through);
         # G permutes ⇒ the specular swap (the mirror of μ = +1 is exactly μ = −1).
-        if law.geometry_map.permutes_ordinates:
+        if law_permutes_ordinates(law):
             for level in seed.levels:
                 if method == "apply":
                     out.corner(level, -1)[...] = seed.corner(level, +1)

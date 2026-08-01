@@ -2208,3 +2208,126 @@ inherited reds of the white/prescribed-inflow narrowing (`AngularAverageOperator
   `tests/{sn,geometry,numerics,transport} -m "not slow"` — the same 12
   out-of-scope rows, so nothing else moved. Pair it with `-rs` (no
   skip-swallowed sentinel: 110 passed, 0 skipped, 0 xfailed).
+
+---
+
+## L31 — Verifying an `A ≡ B` theorem that holds BY SHARED BODY (B3.4b): the equivalence gate is designed-GREEN under a body bug, and two sibling routes through one assembly have DISJOINT discriminating fixtures
+
+B3.4b re-posed `AlbedoBoundary`'s specular pairing into `R` and routed the two
+completions through the bodies that already realize `ReflectiveBoundary` /
+`WhiteBoundary`, making `albedo(α, SpecularReturn(a)) ≡ reflective(a, α)` and
+`albedo(α, IsotropicReturn(a,s)) ≡ white(a,s,α)` **theorems by construction**.
+Every finding MEASURED 2026-08-01 (`scratch/b34b_verification_plan.md`; new gate
+`tests/geometry/test_reemission_closure.py`; harness selected by `ORPHEUS_B34B`).
+
+- **The design's own justification is the reason the gate cannot verify.** "The
+  two routes execute the same code, so the theorem holds" ⟹ a shared body
+  carries a SHARED bug and moves both sides identically. MEASURED: writing the
+  `to_local` remap as a bare `arange` left `TestEquivalenceTheorems` at
+  **60 passed / 0 failed** while the operator was wrong on 3 of 5 quadratures.
+  The `≡` gate catches ARGUMENT drift only (wrong axis / dropped α / wrong
+  `law_key`); the catcher is an **independent-expression anchor** written from
+  raw quadrature data (`reflection_index`, `weights × omega_dot_n`) importing
+  nothing from the realizer above the `np.take`/`np.tensordot` line. Ship BOTH
+  and say in the closeout which one is evidence.
+- **⭐ Two sibling routes through one assembly need COMPLEMENTARY fixtures —
+  neither list covers the other, and a "representative quadrature" serves
+  neither.** MEASURED: the specular remap mutation (`to_local`→`arange`)
+  DISCRIMINATES on `gauss_legendre(4/8)` + `lebedev(17)` and is BLIND on
+  `product(2,4)` + `level_symmetric(6)` (there `perm[sorted(inflow)] ==
+  sorted(outflow)`, so the local permutation IS `arange`); the diffuse
+  classification mutation (`TANGENTIAL_EPS`→`> 0.0`) DISCRIMINATES on
+  **`product(2,4)` ONLY** (mis-admits 2 ordinates) and is blind on all three
+  others. Parametrise both routes over the FULL list and keep the blind rows as
+  documented controls with an asserted fixture-table test (`if _id in
+  discriminating: assert not array_equal(local, arange)`) — so the day a
+  quadrature change makes the anchor blind, THAT reds instead of the anchor
+  silently becoming theatre.
+- **Folding N routes into one assembly EXPOSES latent crashes that were never
+  gated — the fold's own gate is net-new, not migrated.** MEASURED:
+  `ScaledOperator` refuses a zero scalar, and the pre-fold reflective/white arms
+  had only an `α == 1` fast path ⟹ `ReflectiveBoundary(axis, 0.0)` and
+  `WhiteBoundary(..., 0.0)` were LEGAL laws (α=0 passes every invariant) that
+  died in the numerics layer. Gate the fixed behaviour AND pin the asymmetry
+  with a **negative control** (`ScaledOperator(0.0, …)` still raises), else the
+  gate would also pass if someone had widened the numerics primitive instead.
+- **A refusal added to a law with per-amplitude fast paths MUST be parametrised
+  over α.** MEASURED: guarding the refusal with `and law.albedo not in (0.0,
+  1.0)` reds ONLY the α∈{0,1} rows — the exact hole that kept albedo un-narrowed
+  at both fast paths through two campaign phases. Same shape as L29's
+  "narrowing is per-branch".
+- **A `pytest.raises` on a refusal is teeth-less without MESSAGE legs.**
+  MEASURED: replacing the specific message with a generic one keeps
+  `exc.value.law == "albedo"` TRUE, so a bare `raises(BoundaryError)` + `law`
+  check stays green. Assert the substrings that name the COMPLETIONS and the
+  DEFECT; pair with a positive control (the completed law realizes), else an arm
+  that refused everything also passes (`vv` Mode-8 class 5).
+- **An "exactly one of X, Y is non-trivial" invariant: pose it over the whole
+  registry; carry a violator with a LANDING PHASE as `xfail(strict=True)` and a
+  PERMANENT one as a named positive assertion.** MEASURED two violators, not the
+  one the design named: `ReflectiveBoundary(α<1)` = 2 non-trivial (→ B5, xfail —
+  the XPASS forces the marker's deletion) and `AlbedoBoundary(1.0)` bare = ZERO
+  non-trivial (permanent — the degenerate factorisation a SCALAR trace forces;
+  an xfail with no unlock is a red that never flips, so assert it positively and
+  gate the union with an inventory-completeness leg). NEVER scope such a gate to
+  "tag-reachable laws": measured, `_law_from_tag` hard-codes `albedo=1.0`, so
+  that scoping silently drops the exact row the design wanted flagged.
+- **When a method REFUSES a spelling another method realizes, the second arm
+  needs an INERTNESS gate.** The sibling claim "on a scalar trace the closure has
+  nothing to fix" is a claim about the OTHER arm and nothing pins it: gate
+  `diffusion.realize(law(α, C)) ≡ diffusion.realize(law(α))` ∀C. MEASURED to red
+  under a `type(law.response_kernel)` dispatch — the one mutation that would
+  otherwise silently change every `BC("albedo", …)` answer.
+- **Method traps.** (1) A mutation can red a gate by RAISING rather than
+  comparing (a shape guard fires first) — that red is Mode-8-class-4-shaped
+  *inside the mutation*; name the attributable catcher separately. (2) NEVER
+  baseline against a tree being written: the same command read `32 failed`
+  mid-edit and `9 failed` once settled. (3) A snapshot GENERATOR silently rots
+  one phase behind its harness — measured, `_generate_bc_equivalence_snapshots`
+  raises on 6 of 8 cases while the harness's own failure message instructs the
+  reader to run it.
+- **⭐ The `≡` must ALSO hold where production reads the FACTORS, and THERE the
+  gate has teeth.** A realized-output `≡` gate is blind to a shared-body bug;
+  but the same two laws are also interrogated by predicates that read their
+  FACTORS, and those two interrogations share NOTHING. MEASURED: with a
+  specular pairing legal in `R`, four SN sites spelling
+  `law.geometry_map.permutes_ordinates` inline returned different answers for
+  two laws that realize to the SAME matrix (sweep-schedule `B_lower`/`B_upper`
+  split, DSA admission, ruled-corner, `_reflect_corner`) — a wrong fixed point,
+  not a slow one. Gate it as the EQUIVALENCE (not a hard-coded expected table,
+  which drifts with the design) + a NON-VACUITY leg pinning both answers
+  (`False`-for-everything is exactly the bug's shape) + a leg asserting the
+  RETIRED single-tier read DIVERGES, so a "simplification" back to it reds.
+- **Constructing a break-exactly-ONE-invariant mutant is a design problem, and
+  the obvious candidate usually breaks several.** For a specular-pairing table:
+  `np.roll(arange(N),1)` breaks measure AND sign AND involution, so the
+  earliest check fires and the row proves nothing about independence. And **no
+  ODD cycle can ever isolate the involution**: `a→b→c→a` forces
+  `sign(b)=−sign(a)`, `sign(c)=sign(a)`, `sign(a)=−sign(a)`. The working
+  construction is `π ∘ σ` (true mirror ∘ a swap of two SAME-sign SAME-measure
+  ordinates) — and it needs a DEGENERATE measure class, which
+  `gauss_legendre(8)` does not have. Carry the QUADRATURE per row, not shared.
+- **A refusal that stands on two different arguments must have its message
+  assertions KEYED to the argument.** `AlbedoBoundary(α)` bare is refused at
+  every α, but for α≠0 the defect is a pairing-by-array-position and for α=0 it
+  is a `VacuumInflow` twin (nothing returns ⟹ no pairing is missing). A blanket
+  "the message names both completions and the under-determination" pins a FALSE
+  reason on the α=0 row. Key each leg, and give the negative ("α=0 must NOT say
+  under-determined") a CONTROL that α≠0 does — else it is vacuously true.
+- **A generator can rot one phase behind its harness, and "fix the generator"
+  can be a SCHEMA question wearing a bug's clothes.** MEASURED: the BC-snapshot
+  generator raised on 6 of 8 cases (still `SNMethodSpace.minimal` for narrowed
+  laws) while the harness's own failure message told the reader to run it.
+  Giving it face-ful spaces only moves the failure to the SCHEMA — a narrowed
+  law cannot emit the FULL-FACE `psi_in` the frozen artefacts store, and
+  migrating the schema DESTROYS the property that makes those artefacts
+  valuable (frozen pre-narrowing ⟹ old-vs-new is independent). STOP and hand
+  the decision back; fix the false instruction in the error path meanwhile.
+- **Snapshot re-pose when a completion supersedes a retired spelling: inherit a
+  FROZEN artefact generated by the SIBLING law, do not regenerate.** MEASURED
+  `0.5 × specular_x_lebedev17["psi_in"][inflow]` is bit-identical (maxdiff 0.0)
+  to the albedo-with-specular-closure image, so the `≡` theorem gets pinned
+  against an artefact predating every line under test — criterion 2 of the
+  re-baseline ladder satisfied by construction, and no self-generated baseline.
+  The retired law's OWN artefact is unusable (its Γ₋ rows read ordinates the
+  narrowed input never sees) ⇒ delete artefact + generator case together.

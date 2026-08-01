@@ -70,6 +70,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
 )
 from orpheus.geometry.boundary._errors import ReflectionNotInvolutiveError
+from orpheus.numerics.face_layout import AXIS_NAMES
 from orpheus.numerics.quadrature import Quadrature
 # B3.4a: the prescribed-inflow legs below realize through the SN realizer
 # (they already imported ``SNBoundaryRealizer`` in-body), and a narrowed law
@@ -835,3 +836,235 @@ class TestSourceLivesOnIncomingTraceInvariant:
         op = IncomingSourceOperator(src, n_inflow=3)
         assert op.n_inflow == 3
         assert op.apply(np.ones((7, 2))).shape == (3, 2)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# B3.4b — ONE certification, TWO carriers of the specular pairing
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _non_involutive_but_otherwise_valid(
+    quadrature: Quadrature, *, axis: str,
+) -> np.ndarray:
+    r"""A table that breaks ONLY the involution (ERR-044).
+
+    Why not the obvious ``np.roll(arange(N), 1)``: an n-cycle rotation breaks
+    all three invariants at once (it pairs unequal weight classes, so ERR-042
+    fires FIRST in the aggregate and the row proves nothing about ERR-044's
+    independence). Worse, **no pure 3-cycle can ever be the ERR-044-only
+    mutant**: a cycle :math:`a \to b \to c \to a` needs
+    :math:`\mathrm{sign}(b) = -\mathrm{sign}(a)`,
+    :math:`\mathrm{sign}(c) = -\mathrm{sign}(b) = \mathrm{sign}(a)` and then
+    :math:`\mathrm{sign}(a) = -\mathrm{sign}(c) = -\mathrm{sign}(a)` — a
+    contradiction, so every odd cycle breaks ERR-045 too.
+
+    The construction that works is :math:`\pi \circ \sigma`, where :math:`\pi`
+    is the TRUE mirror and :math:`\sigma` swaps two ordinates of the SAME sign
+    and the SAME measure :math:`w|\mu_a|`:
+
+    * **measure** — :math:`m[\pi[\sigma[i]]] = m[\sigma[i]] = m[i]`, since
+      :math:`\sigma` stays inside a measure class and :math:`\pi` preserves it;
+    * **sign** — :math:`\mathrm{sign}(\pi[\sigma[i]]) = -\mathrm{sign}(i)`,
+      since :math:`\sigma` preserves sign and :math:`\pi` flips it;
+    * **involution** — BROKEN: for the swapped pair :math:`\{a, b\}`,
+      :math:`T[T[a]] = \pi[\sigma[\pi[b]]] = \pi[\pi[b]] = b \neq a`
+      (:math:`\sigma` does not touch :math:`\pi[b]`, which has the opposite
+      sign).
+    """
+    perm = quadrature.reflection_index(axis)
+    mu = quadrature.axis_cosines(AXIS_NAMES.index(axis))
+    measure = quadrature.weights * np.abs(mu)
+    # Group same-sign ordinates by measure; the first class with ≥2 members
+    # supplies the swap. Rounded because the class is a float coincidence of
+    # a symmetric node set, not an exact-compare question.
+    classes: dict[tuple[int, float], list[int]] = {}
+    for n in range(int(quadrature.N)):
+        classes.setdefault(
+            (int(np.sign(mu[n])), round(float(measure[n]), 12)), []
+        ).append(n)
+    for members in classes.values():
+        if len(members) >= 2:
+            a, b = members[0], members[1]
+            sigma = np.arange(int(quadrature.N))
+            sigma[a], sigma[b] = b, a
+            return perm[sigma]
+    raise AssertionError(
+        f"{quadrature!r} has no same-sign measure class with two members, so "
+        f"the ERR-044-only mutant is not constructible here — pick a "
+        f"quadrature with a degenerate measure class."
+    )
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-042", "ERR-044", "ERR-045")
+class TestSpecularPairingCertifiedOnBothCarriers:
+    r"""The three table invariants fire for BOTH laws that stand on the pairing.
+
+    Campaign phase **B3.4b** moved the specular pairing's certification out of
+    :class:`ReflectiveBoundary`'s methods and into
+    :mod:`~orpheus.geometry.boundary._specular`, because the 2026-08-01 ruling
+    gave :class:`AlbedoBoundary` a :class:`SpecularReturn` closure that realizes
+    through the SAME ``quadrature.reflection_index(axis)`` table — with the
+    pairing in :math:`R` instead of :math:`G`.
+
+    That module's central claim is *"one certification, two laws"*, and until
+    this class it was a **docstring claim with no test**: MEASURED
+    2026-08-01, deleting the
+    ``isinstance(self.reemission, SpecularReturn)`` clause from
+    ``AlbedoBoundary.assert_realizable`` left the entire B3.4b gate file
+    (``test_reemission_closure.py``, 178 tests) GREEN. A wrong table would have
+    been caught on the reflective route and **silently realized** on the albedo
+    one — exactly the twin-path failure this campaign exists to remove.
+
+    Structure: each broken table is wrong in exactly ONE invariant (the
+    independence the ERR-045 lesson demands), and each row asserts BOTH
+    carriers raise the SAME error type with their OWN ``law=`` attribution.
+    The attribution leg is what makes this more than a duplicate of the three
+    classes above — it proves the shared module reports the caller, not a
+    hard-coded ``"reflective"``.
+    """
+
+    #: ``(id, quadrature_factory, table_factory, error_type)``. Each table is
+    #: production-real except for the ONE property it breaks.
+    #:
+    #: The QUADRATURE is per-row, not shared, and that is load-bearing: the
+    #: ERR-044-only mutant needs a **degenerate measure class** (two same-sign
+    #: ordinates carrying equal ``w·|μ_x|``) to swap inside, and MEASURED,
+    #: ``gauss_legendre(8)`` has none — its four per-side measures are all
+    #: distinct. ``level_symmetric(6)`` supplies the degeneracy.
+    _BROKEN = [
+        # Neighbour-pair on GL-8: a perfect involution pairing UNEQUAL weight
+        # classes — ERR-042 only (the involution and sign checks stay green).
+        ("weight_class_mispairing",
+         lambda: Quadrature.gauss_legendre(n_ordinates=8),
+         lambda q: np.array([1, 0, 3, 2, 5, 4, 7, 6]),
+         BoundaryGeometryMapNotMeasurePreservingError),
+        # The identity table: every ordinate self-maps — trivially involutive
+        # and trivially measure-preserving, but every inflow ordinate maps to
+        # ITSELF instead of its outflow partner. ERR-045 only.
+        ("self_map_identity",
+         lambda: Quadrature.gauss_legendre(n_ordinates=8),
+         lambda q: np.arange(q.N),
+         ReflectionDidNotMapInflowToOutflowError),
+        # The true mirror composed with a swap of two SAME-SIGN, SAME-MEASURE
+        # ordinates: measure-preserving and sign-crossing, but NOT its own
+        # inverse. ERR-044 only. See :func:`_non_involutive_but_otherwise_valid`
+        # for why the obvious n-cycle will not do.
+        ("mirror_after_same_class_swap",
+         lambda: Quadrature.level_symmetric(sn_order=6),
+         lambda q: _non_involutive_but_otherwise_valid(q, axis="x"),
+         ReflectionNotInvolutiveError),
+    ]
+
+    #: The two carriers, with the tier each holds the pairing in.
+    def _carriers(self):
+        from orpheus.geometry.boundary import SpecularReturn
+
+        return [
+            ("reflective", ReflectiveBoundary(axis="x", albedo=1.0), "G"),
+            ("albedo", AlbedoBoundary(0.5, SpecularReturn(axis="x")), "R"),
+        ]
+
+    @pytest.mark.parametrize(
+        "table_id,build_quad,build_table,error_type", _BROKEN,
+        ids=[row[0] for row in _BROKEN],
+    )
+    def test_both_carriers_reject_the_same_broken_table(
+        self, table_id, build_quad, build_table, error_type,
+    ) -> None:
+        """A table broken in ONE invariant reddens BOTH laws' certification."""
+        quad = build_quad()
+        mutant = _TableQuad(quad, build_table(quad))
+        seen = {}
+        for law_id, law, tier in self._carriers():
+            with pytest.raises(error_type) as exc:
+                law.assert_realizable(mutant)  # type: ignore[arg-type]
+            seen[law_id] = exc.value.law
+        assert seen == {"reflective": "reflective", "albedo": "albedo"}, (
+            f"{table_id}: each carrier must attribute the failure to ITSELF; "
+            f"got {seen}. A hard-coded law_key in "
+            f"orpheus.geometry.boundary._specular would blame the wrong law "
+            f"and send a reader to the wrong file."
+        )
+
+    def test_the_real_table_certifies_on_both_carriers(self) -> None:
+        """POSITIVE control (``vv-principles`` anti-#11).
+
+        Without it the negatives above validate only the RAISING behaviour,
+        not the invariant claim: a certification that raised on every table
+        would pass all three rows.
+        """
+        for quad in (
+            Quadrature.gauss_legendre(n_ordinates=8),
+            Quadrature.lebedev(17),
+            Quadrature.level_symmetric(sn_order=6),
+        ):
+            for law_id, law, tier in self._carriers():
+                law.assert_realizable(quad)
+
+    def test_the_albedo_carrier_leaves_the_G_HOOK_a_no_op(self) -> None:
+        r"""The TIER claim, not just the check-fires claim.
+
+        ``AlbedoBoundary``'s :math:`G` **is** the identity map and **does**
+        preserve the measure, so the base template's polymorphic
+        ``assert_geometry_map_measure_preserving`` hook is correctly a no-op
+        here even on a table that is catastrophically broken — the pairing is
+        certified as a law-specific extension because it lives in :math:`R`.
+
+        This is the gate that reds if someone "closes the hole" by overriding
+        the :math:`G` hook instead of extending ``assert_realizable``: that
+        would re-assert the very conflation the 2026-08-01 ruling forbids
+        (a wall's constitutive return posing as a symmetry of the domain).
+        """
+        from orpheus.geometry.boundary import SpecularReturn
+
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
+        mutant = _TableQuad(quad, np.array([1, 0, 3, 2, 5, 4, 7, 6]))
+        law = AlbedoBoundary(0.5, SpecularReturn(axis="x"))
+        # The G hook is silent — G is IdentityMap, which fixes no geometry.
+        law.assert_geometry_map_measure_preserving(mutant)  # type: ignore[arg-type]
+        # …while the aggregate still reds, via the R-tier extension.
+        with pytest.raises(BoundaryGeometryMapNotMeasurePreservingError):
+            law.assert_realizable(mutant)  # type: ignore[arg-type]
+
+    def test_a_diffuse_closure_does_NOT_fire_the_pairing_checks(self) -> None:
+        """SCOPE control: only a SPECULAR closure stands on the table.
+
+        An ``IsotropicReturn`` closure realizes through the Lambertian average
+        and never touches ``reflection_index``, so a broken table must leave it
+        untouched. Without this leg, an ``assert_realizable`` that fired the
+        pairing checks unconditionally would pass every row above while
+        refusing perfectly good diffuse laws.
+        """
+        from orpheus.geometry.boundary import IsotropicReturn
+
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
+        mutant = _TableQuad(quad, np.roll(np.arange(quad.N), 1))
+        AlbedoBoundary(
+            0.5, IsotropicReturn(axis="x", outward_sign=+1),
+        ).assert_realizable(mutant)  # type: ignore[arg-type]
+        # …and the bare law likewise (no closure, no pairing).
+        AlbedoBoundary(0.5).assert_realizable(mutant)  # type: ignore[arg-type]
+
+    def test_raises_at_realize_time_on_the_albedo_route(self, monkeypatch) -> None:
+        """PRODUCTION-seam leg: the certification is wired at
+        ``SNBoundaryRealizer.realize``, not only reachable by hand.
+
+        The sibling ``TestReflectiveMeasurePreservingInvariant`` proves this
+        for the reflective route; B3.4b's new route needs its own, because the
+        realizer reaches ``assert_realizable`` through a different dispatch arm.
+        """
+        from orpheus.geometry.boundary import SpecularReturn
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
+        monkeypatch.setitem(
+            quad.reflection_partners, 0,
+            np.array([1, 0, 3, 2, 5, 4, 7, 6]),
+        )
+        with pytest.raises(BoundaryGeometryMapNotMeasurePreservingError) as exc:
+            SNBoundaryRealizer().realize(
+                AlbedoBoundary(0.5, SpecularReturn(axis="x")),
+                face_method_space(quad, face="xmax"),
+            )
+        assert exc.value.law == "albedo"

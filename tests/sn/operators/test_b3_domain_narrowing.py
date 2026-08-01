@@ -47,9 +47,11 @@ from orpheus.geometry import (
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     ConstantInflowSource,
+    IsotropicReturn,
     PeriodicBoundary,
     PrescribedInflow,
     ReflectiveBoundary,
+    SpecularReturn,
     VacuumInflow,
     WhiteBoundary,
     ZeroFluxBoundary,
@@ -254,25 +256,23 @@ class TestBitIdentityAgainstTheRetiredExpression:
 
 
 _B34_XFAIL = (
-    "B3.4b/c — this law still realizes FULL-FACE. B3.2 narrowed the two laws "
-    "SN reaches from a mesh ({vacuum, reflective}); B3.4a narrowed white and "
-    "prescribed_inflow. What remains is albedo — at EVERY α, since the α=0 "
-    "ZeroOperator and α=1 IdentityOperator fast paths are endomorphisms too, "
-    "so this is NOT limited to α ∉ {0,1} — and periodic. MEASURED: both "
-    "silently accept a Γ₊ input and echo it back, i.e. Γ₊ → Γ₊, the wrong "
-    "codomain, invisible to a shape check because |Γ₊| == |Γ₋| on every "
-    "fixture (vv Mode 12). Each is blocked on a DESIGN ruling, not on "
-    "plumbing: albedo is under-determined on an angular trace (R = α·I is a "
-    "Γ₊ → Γ₊ endomorphism and its G = IdentityMap supplies no crossing), so "
-    "B3.4b gives it an explicit re-emission closure carried in R; periodic's "
-    "G reads the PARTNER face's Γ₊, which B3.4c builds (#183, #189). Delete "
-    "this marker when the law narrows."
+    "B3.4c — PERIODIC still realizes FULL-FACE. B3.2 narrowed the two laws SN "
+    "reaches from a mesh ({vacuum, reflective}); B3.4a narrowed white and "
+    "prescribed_inflow; B3.4b narrowed albedo (see the completed rows above — "
+    "its bare spelling is REFUSED rather than narrowed, pinned by "
+    "test_bare_albedo_is_refused_outright). MEASURED: periodic silently "
+    "accepts a Γ₊ input and echoes it back, i.e. Γ₊ → Γ₊, the wrong codomain, "
+    "invisible to a shape check because |Γ₊| == |Γ₋| on every fixture (vv "
+    "Mode 12). It is blocked on a DESIGN ruling, not on plumbing: periodic's "
+    "G is a translation reading the PARTNER face's Γ₊, which B3.4c builds "
+    "(#183, #189). Delete this marker when the law narrows."
 )
 
 #: Every law in the registry, with a representative amplitude per kind.
 #: ``zero_flux`` is absent by construction — SN refuses it outright, which is
 #: pinned as its own negative below rather than as an xfail (a structural
-#: refusal is not a deferred narrowing).
+#: refusal is not a deferred narrowing). Since **B3.4b** the BARE albedo
+#: spelling is absent for the same reason, with its own negative.
 _LAWS = {
     "vacuum": (VacuumInflow(), False),
     "reflective_a1": (ReflectiveBoundary(axis="x", albedo=1.0), False),
@@ -283,9 +283,32 @@ _LAWS = {
     "white_a1": (WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0), False),
     "white_a03": (WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3), False),
     "prescribed": (PrescribedInflow(source=ConstantInflowSource(value=1.0)), False),
-    "albedo_0": (AlbedoBoundary(albedo=0.0), True),
-    "albedo_1": (AlbedoBoundary(albedo=1.0), True),
-    "albedo_05": (AlbedoBoundary(albedo=0.5), True),
+    # ── B3.4b — albedo, COMPLETED by a re-emission closure ────────────────
+    #
+    # These four replace the three ``albedo_*`` rows that stood here as
+    # ``xfail(strict=True)``. The flip is NOT bookkeeping: MEASURED
+    # 2026-08-01 with ``--runxfail``, under the refusal ALONE (i.e. if the
+    # rows had been left as they were) all three keep xfailing — but on a
+    # ``BoundaryError`` out of ``realize``, never reaching the documented
+    # endomorphism assertion. That is vv Mode-8 class 4, the MISATTRIBUTED
+    # strict xfail: the rows look like committed coverage of the narrowing,
+    # assert nothing about it, and — because they can never XPASS — the
+    # campaign's "the xfail set IS the todo list" mechanism silently stops
+    # working for exactly them.
+    #
+    # All three amplitudes are kept: they are three DIFFERENT production
+    # branches (``_narrowed_zero_operator`` / ``ScaledOperator`` / the bare
+    # tensor product), and the α=0 row is the only place in this module that
+    # reaches the narrowed zero map.
+    "albedo_specular_0": (AlbedoBoundary(0.0, SpecularReturn(axis="x")), False),
+    "albedo_specular_1": (AlbedoBoundary(1.0, SpecularReturn(axis="x")), False),
+    "albedo_specular_05": (AlbedoBoundary(0.5, SpecularReturn(axis="x")), False),
+    # The diffuse closure's axis / outward_sign must match the fixture face
+    # for the same reason white's must — the ERR-041 orientation cross-check
+    # is now parametrised over BOTH carriers.
+    "albedo_isotropic_05": (
+        AlbedoBoundary(0.5, IsotropicReturn(axis="x", outward_sign=+1)), False,
+    ),
     "periodic": (PeriodicBoundary(), True),
 }
 
@@ -367,7 +390,16 @@ class TestEveryLawsDomain:
         realization for a negative angular inflow, and says so.
 
         Pinned here so the parametrised gate's law inventory is provably
-        COMPLETE: registry = the ten rows above ⊎ ``zero_flux``.
+        COMPLETE: registry = the rows above ⊎ {``zero_flux``, bare ``albedo``},
+        the two spellings SN REFUSES rather than narrows.
+
+        ⚠ ORDERING TRIPWIRE. ``ZeroFluxBoundary`` also satisfies the albedo
+        refusal's premise — its ``G`` is the identity and its ``R`` is a
+        NON-ZERO scalar (:math:`\\mathcal{A} = -1`). The two refusals are
+        distinguished only by dispatch ORDER, so this assertion on
+        ``exc.value.law`` is what catches a future generalisation of the
+        albedo refusal into a factor-derived predicate placed above this arm:
+        the message would silently become the wrong one.
         """
         quad = Quadrature.gauss_legendre(8)
         with pytest.raises(BoundaryError) as exc:
@@ -375,6 +407,40 @@ class TestEveryLawsDomain:
                 ZeroFluxBoundary(), face_method_space(quad, face="xmax"),
             )
         assert exc.value.law == "zero_flux"
+
+    @pytest.mark.parametrize("alpha", [0.0, 0.5, 1.0])
+    def test_bare_albedo_is_refused_outright(self, alpha: float) -> None:
+        r"""A BARE ``AlbedoBoundary`` is not a deferred narrowing either — it
+        is under-determined on an angular trace, and SN says so.
+
+        **B3.4b**. This row replaces the three ``albedo_*`` strict xfails that
+        stood in :data:`_LAWS`: the claim changed from a DOMAIN claim
+        (":math:`\Gamma_+ \to \Gamma_-`") to a REFUSAL claim, because
+        :math:`R = \alpha I` with :math:`G = \mathrm{id}` names no pairing
+        between the two half-traces at all. Sited next to the ``zero_flux``
+        negative for the same reason that one is here: it is what keeps the
+        parametrised gate's inventory provably complete, so the disappearance
+        of three xfail rows cannot be mistaken for an oversight.
+
+        Parametrised over α because the three amplitudes were three DIFFERENT
+        pre-B3.4b branches (``ZeroOperator`` / ``IdentityOperator`` /
+        ``ScaledOperator``) — a refusal added only to the general branch would
+        leave both fast paths realizing full-face endomorphisms, which is
+        exactly how albedo stayed un-narrowed at α ∈ {0, 1} through B3.2.
+
+        The MESSAGE contract (naming both completions, naming the
+        array-position defect) lives in
+        ``tests/geometry/test_reemission_closure.py`` and is deliberately NOT
+        duplicated here — this row asserts only what this module is about:
+        that the law is refused rather than narrowed, and that the refusal is
+        attributed to it.
+        """
+        quad = Quadrature.gauss_legendre(8)
+        with pytest.raises(BoundaryError) as exc:
+            SNBoundaryRealizer().realize(
+                AlbedoBoundary(albedo=alpha), face_method_space(quad, face="xmax"),
+            )
+        assert exc.value.law == "albedo"
 
     def test_the_law_inventory_is_complete(self) -> None:
         """The gate covers EVERY registered law kind.

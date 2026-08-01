@@ -936,3 +936,302 @@ that actually checks spaces, and exact quadrature symmetry is worth having first
 B3.4b/c because those are mid-campaign boundary-algebra work and their new gates are built
 on `gauss_legendre` (no azimuth ⇒ untouched by #325), so the double-re-baseline risk is
 negligible.
+
+---
+
+## 15. ⭐ B3.4b AS EXECUTED — two defects the shared-body extraction exposed
+
+§12's design landed with **no change to its shape** — `geometry_map` is `IdentityMap()`
+unconditionally, the closure tier is amplitude-free, the two `≡` theorems hold because the
+routes execute one body. What §12 did *not* anticipate is that folding four call sites into
+two bodies would surface two live defects. Both are fixed in the same commit; both are the
+"clean before extending" rule paying out.
+
+### 15.1 ⚠ The specular pairing's certification was welded to the WRONG law
+
+`ReflectiveBoundary` certifies three **independent** invariants of
+`quadrature.reflection_index(axis)` — measure preservation (ERR-042), involution
+(ERR-044), inflow→outflow (ERR-045) — as its own methods. That was correct while reflective
+was the only law standing on that table.
+
+`AlbedoBoundary(α, SpecularReturn(axis))` realizes through **the same table**. Shipping §12
+as written would have meant: a wrong `reflection_index` table is **caught on the reflective
+route and silently realized on the albedo route**. That is exactly the twin-path failure
+this campaign exists to remove, and it would have been introduced BY the phase correcting
+the G/R conflation.
+
+`[M]` The three are genuinely independent — each passes on a table the other two reject
+(a cross-weight-class pairing survives involution + sign; a self-map survives involution +
+measure; a 3-cycle survives measure + sign). So no subset substitutes.
+
+**Fix:** the invariants moved to the *pairing*, `orpheus/geometry/boundary/_specular.py`,
+with `assert_specular_pairing_{measure_preserving,involutive,maps_inflow_to_outflow}` plus
+the aggregate `assert_specular_pairing_valid`. Reflective's three methods survive as
+one-line delegations (the measure one MUST stay a method — it is the polymorphic hook the
+base template fires among the universal five); albedo's `assert_realizable` fires the
+aggregate when its closure is specular.
+
+**Tier note, and it matters:** albedo does NOT override
+`assert_geometry_map_measure_preserving`. Its `G` *is* the identity and *does* preserve the
+measure, so that hook is honestly a no-op there; the pairing sits in `R`, so the check is a
+law-specific extension. Reading the geometry hook as "the pairing's check" would re-commit
+the very conflation the user's ruling forbids. The hook's NAME is now narrower than the
+concept — noted, not renamed: it is not false, and renaming a polymorphic hook with live
+overrides belongs to B4 where the realizer starts dispatching on factors.
+
+### 15.2 ⚠ α = 0 was UNREACHABLE on the geometry-tier laws — a live crash
+
+`ScaledOperator` refuses a zero scalar ("degenerate; use ZeroOperator explicitly"). The
+pre-B3.4b reflective and white arms both ended `return float(law.albedo) * base` with only
+an `α == 1.0` fast path. So `ReflectiveBoundary(axis, 0.0)` and `WhiteBoundary(..., 0.0)` —
+**legal laws**, α = 0 satisfies every invariant including sub-Markov — died in the numerics
+layer with a message about operator degeneracy instead of realizing the boundary they
+describe. Neither is tag-reachable, so no production path; it is a crash on a legal value
+that two arms carried independently and neither test suite probed.
+
+Only visible once the four routes shared one body. **Fix:** `_attenuated_kernel_operator`
+answers α = 0 with `_narrowed_zero_operator` — because a surface that returns nothing IS a
+vacuum, and now says so with the same object, honest space hooks and a working transpose.
+Vacuum's own arm was repointed at that helper too, so the narrowed zero map has one
+construction site instead of two.
+
+### 15.3 `[M]` Measured — the two `≡` theorems
+
+Bit-identical (`np.array_equal`, no tolerance) across **3 quadratures × 3 amplitudes**:
+
+| | α = 1.0 | α = 0.7 | α = 0.0 |
+|---|---|---|---|
+| `albedo+specular ≡ reflective` | ✅ | ✅ | ✅ |
+| `albedo+isotropic ≡ white` | ✅ | ✅ | ✅ |
+
+on `gauss_legendre(8)` (\|Γ₊\|=4), `level_symmetric(6)` (24), `lebedev(17)` (49). Bit-identity
+is the right gate here and needs no justification by measurement: the two routes execute the
+SAME construction, so any difference would be an argument-threading bug, not arithmetic.
+
+### 15.4 `[M]` Blast radius — 9 tests, ZERO production
+
+`AlbedoBoundary` is absent from `SNMesh.BOUNDARY_OPERATOR_REGISTRY`, so no `BC(...)` tag
+reaches the SN realizer and the §12.3 refusal costs nothing production-facing. Diffusion's
+registry keeps `"albedo"` and its whole suite is green.
+
+Measured full-suite: `tests/geometry` + `tests/diffusion` = 452 passed / **3 failed**;
+`tests/sn -m "not slow"` = 2488 passed / **6 failed**. All 9 are bare-`AlbedoBoundary`
+realizations through the SN realizer:
+
+| file | what | disposition |
+|---|---|---|
+| `test_sn_boundary_realizer.py::TestRealizeAlbedo` ×3 | pins Zero/Identity/Scaled-TP fast paths | the fast paths are gone — re-pose |
+| `test_operator_block_role.py` `_LINEAR_LAWS` albedo ×3 | block-role over every law | migrate to completed albedos |
+| `test_bc_equivalence_snapshot.py::TestAlbedo05Lebedev17Snapshot` | frozen full-face `0.5·ψ` | see §15.5 |
+| `test_boundary.py::test_albedo_bc_scales_outgoing` | α scaling on the full face | re-pose |
+| `test_boundary.py::test_albedo_zero_and_vacuum_agree_on_inflow_rows` | α=0 ≡ vacuum | **keep the claim** — §15.2 makes it literally true now |
+
+### 15.5 ⚠ The three strict-xfails now xfail for the WRONG reason — created BY this phase
+
+The `albedo_*` rows in `test_b3_domain_narrowing.py` carry `xfail(strict=True)` documenting
+*"realizes FULL-FACE … echoes a Γ₊ input back"*. Post-B3.4b they still xfail — but on a
+`BoundaryError` at **realize**, never reaching the assertion they document. That is
+`vv-principles` Mode-8 **class 4** (the misattributed strict-xfail), manufactured by this
+phase in the very file that tracks it.
+
+They must be **migrated, not flipped**: the row's law object becomes a completed albedo
+(which genuinely narrows, so the marker deletes), and whether a *bare* albedo still belongs
+in that gate at all is a separate question — its honest home is the refusal negative, not a
+domain row. `--runxfail` is the check that would have caught this and is mandatory before
+the commit.
+
+### 15.6 Retirement note — an axis-index twin NOT created
+
+`_AXIS_INDEX = {"x": 0, "y": 1, "z": 2}` was a `reflective.py` module constant, and
+`orpheus/sn/solver.py:1463` spells the same literal inline. The moved code uses
+`AXIS_NAMES.index(axis)` — the canonical single source — so B3.4b adds no third twin. The
+`solver.py` one survives; deduping it is a one-liner in a hot file with zero correctness
+gain, deliberately not bundled here.
+
+### 15.7 Dispatch reads the FACTOR, not the closure field
+
+First draft of the albedo arm dispatched on `isinstance(law.reemission, SpecularReturn)`.
+Corrected before commit: it dispatches on `law.response_kernel`
+(`SpecularReemission` / `LambertianReemission` / `ScalarResponse`).
+
+`reemission` is the field the law happens to store; `response_kernel` is the **affine
+form's tier**, which is the public surface B1/B3.0 built and the thing every realizer is
+supposed to consume. Reaching past it into a private field would have bypassed the
+abstraction this campaign exists to establish, in the phase that extends it. Three
+consequences, all good:
+
+- α is single-sourced at the point of use (`kernel.amplitude`, not `law.albedo`).
+- The certification in `assert_realizable` keys the same way, so a future closure producing
+  a `SpecularReemission` inherits the table checks automatically.
+- It **is** §12.2's B4 shape, already: B4 generalizes this branch's chain into the
+  realizer's ONE dispatch across all laws, rather than replacing it.
+
+`[M]` Re-verified after the switch: both `≡` theorems still bit-identical on all
+3 quadratures × 3 amplitudes; diffusion still `ScaledOperator(0.4)` for all three
+spellings; pyright back to the #288 floor of 1.
+
+### 15.8 ⚠ A THIRD defect — the `≡` broke at the curvilinear ray corner
+
+`_has_ruled_corner_action` (`orpheus/sn/operators/boundary.py`) decides whether a law's
+inflow at the off-quadrature `μ = ±1` ray can be written down. It read
+
+```python
+law.geometry_map.permutes_ordinates or law.response_kernel.is_zero
+```
+
+— complete while the only specular pairing lived in `G`. The user's ruling puts one in `R`,
+so `AlbedoBoundary(α, SpecularReturn(a))` has `G = IdentityMap` and was **loud-deferred at
+the corner while `ReflectiveBoundary(a, α)` — the same matrix — is ruled.**
+
+`[M]` Measured before the fix: `reflective(x, 0.7)` → `True`, `albedo(0.7, Specular(x))` →
+`False`. **The `≡` theorem was false in the one consumer that reads the FACTORS rather than
+the realized operator.** The realizer equivalence being bit-identical is exactly what would
+have hidden this: a gate on realized output cannot see a factor-reading consumer.
+
+**Fix:** ask the pairing of BOTH tiers,
+`isinstance(law.response_kernel, SpecularReemission)` added to the disjunction. `[M]` After:
+`albedo+specular` = `reflective` = True, `albedo+isotropic` = `white` = False, bare albedo
+False, across all ten law spellings.
+
+#### The tidier fix is exactly wrong — and the reason is a standing test
+
+The obvious move is `permutes_ordinates` as a `BoundaryResponseKernel` Protocol member, so
+the predicate reads both tiers uniformly with no `isinstance`. **Do not.**
+`SpecularReemission` already carries `is_adjointable`; adding `permutes_ordinates` gives it
+the complete member set of `BoundaryGeometryMap`, so it would satisfy that Protocol
+structurally. `tests/geometry/test_boundary_factors.py:180-186` asserts the two tiers are
+**disjoint** — precisely to stop a response from posing as a geometry, which is the
+conflation B3.0 corrected. A convenience member is not worth disarming that guard.
+
+**The generalizable lesson:** when a concept legitimately spans two tiers that a test keeps
+structurally disjoint, it must be asked of each tier **in that tier's own vocabulary**.
+Hoisting it to a shared Protocol member is how disjoint tiers silently merge.
+
+#### Where else does a factor-reading consumer exist?
+
+Audited: `_has_ruled_corner_action` was the one with a tier assumption. The composite
+`SNBoundaryOperator.is_adjointable` reads each REALIZED law's own `is_adjointable`, so it
+was already correct and only its prose enumeration ("reflective / vacuum / periodic /
+albedo are adjointable") was stale — albedo now answers by its closure, and the code always
+would have. Repaired in the same commit.
+
+### 15.9 The shared predicate — user ruling 2026-08-01, and the fourth defect
+
+§15.8 found ONE tier assumption. A systematic grep of every `.geometry_map` /
+`.response_kernel` consumer found **four**, all asking the same question of the `G` tier
+alone:
+
+| site | what it decides |
+|---|---|
+| `sn/loss_representation/sweep_schedule.py:280` | the reflecting-face set ⟹ the `B_lower`/`B_upper` schedule split (the LAG) |
+| `sn/acceleration/dsa.py:234` | DSA low-order admission |
+| `sn/operators/boundary.py` `_has_ruled_corner_action` | is the off-quadrature `μ = ±1` ray expressible |
+| `sn/operators/boundary.py` `_reflect_corner` | the swap itself |
+
+All four read `sn_mesh.bc[face].law`, and `AlbedoBoundary` is absent from
+`SNMesh.BOUNDARY_OPERATOR_REGISTRY` — so **none is reachable today**. Every one fires the
+day #189 registers the law.
+
+**User ruled: extract the shared predicate now** (over "fix only the corner one" and "defer
+all four to B4"). Landed as `law_permutes_ordinates(law)` in
+`orpheus/geometry/boundary/_base.py`, exported from the package, called from all four
+sites. `[M]` after: `albedo+specular` = `reflective` = True; `albedo+isotropic` = `white` =
+False; vacuum/periodic/bare-albedo unchanged.
+
+**Why a function and not a property or a Protocol member.** A property on
+`BoundaryTraceLaw` can be shadowed by a subclass, which reintroduces exactly the drift
+being removed; a module-level function has one body that cannot be overridden. And the
+Protocol route is affirmatively wrong — see §15.8.
+
+**The lesson is about latency, not about the predicate.** A known-false predicate sitting
+behind a registry gate is a planted landmine: the phase that makes it false is the only
+phase that will ever have the context to notice, and #189 will arrive with no reason to
+look here. "Not reachable" is a statement about today's registry, not about correctness.
+
+### 15.10 Two message-contract repairs (test-architect findings, verified)
+
+1. **The specular arm leaked an unattributed `ValueError`.** `SpecularReturn("y")` installed
+   on `xmax` died inside `TraceRestrictionOperator.to_local` with a raw index complaint,
+   while the diffuse sibling raised an attributed `BoundaryError` naming the mismatch. The
+   asymmetry pre-dates B3.4b for `ReflectiveBoundary(axis="y")` — but nothing could *declare*
+   an axis that disagreed with its installation face until the closure gave it one, so it was
+   unreachable in practice. Fixed by catching and re-raising with the semantic diagnosis;
+   `to_local` stays the SINGLE index authority (no second membership test to drift from it).
+2. **The α = 0 refusal cited the wrong reason.** At α = 0 nothing returns, so no pairing is
+   needed and the law is NOT under-determined — every closure would agree. It is refused for
+   a different reason: it is a `VacuumInflow` **twin**, and admitting it would give one
+   physical law two spellings with two realization paths. Refusing also keeps SN's albedo
+   admission one uniform rule rather than one turning on an exact float compare (realizing at
+   α = 0 while refusing at α = 1e-300 is a worse contract than refusing both). Both α = 0 and
+   α ≠ 0 now carry their own accurate message. `AlbedoBoundary(0.0, SpecularReturn(a))`
+   still realizes — to the narrowed zero map.
+
+### 15.11 ⭐ `[M]` The positional pairing was a CONFIGURATION-DEPENDENT ACCIDENT
+
+The sharpest correction of the phase, from the test-architect, reproduced independently.
+Comparing the old bare-albedo positional pairing (`inflow[j] ← α·outflow[j]`) against the
+specular one, on `xmax`:
+
+| quadrature | positional == specular |
+|---|---|
+| `product(2, 4)` | **True** |
+| `level_symmetric(6)` | **True** |
+| `gauss_legendre(4)` / `(8)` | False (the slab mirror reverses order) |
+| `lebedev(17)` | False |
+
+So pre-B3.4b a bare albedo behaved **exactly like a mirror on two of the tree's
+quadratures** and like nothing in particular on the others, silently. A user who validated
+on `level_symmetric` and ran on `lebedev` got different physics from the same law object.
+
+That upgrades the refusal's justification from "the pairing carries no geometry" to "the
+old answer was a coincidence of index order that *looked* defensible on half the fixture
+set". Written into `albedo.py` and the SN boundary theory page. It also generalizes: **a
+default that is right on some fixtures and wrong on others is more dangerous than one that
+is uniformly wrong**, because the fixture set decides whether anyone notices.
+
+### 15.12 ⚠ A shared body makes the `≡` gate BLIND to bugs in the shared body
+
+§12.2's "the theorems hold because the two routes execute the same code" is true and is
+exactly why the equivalence gate cannot be the phase's verification. `[M]` (test-architect):
+under a `to_local → arange` mutation the route-equivalence suite is **60 passed / 0 failed**
+while the operator is wrong on 3 of 5 quadratures — both routes are wrong *identically*.
+
+A1 (route equivalence) is **necessary and insufficient**. The catchers are the
+independent-expression anchors: the specular route checked against a hand-built mirror
+expectation, the diffuse route against a hand-built cosine-weighted average. Those must not
+be deleted later as redundant with A1, and the plan says so in place.
+
+Corollary, and the reason §15.9's gate matters: the factor-reading consumers do NOT share a
+body with the realizer, so an `≡` gate posed over THEM has teeth that A1 structurally
+cannot have.
+
+### 15.13 The snapshot generator — user ruling 2026-08-01
+
+`tests/geometry/_generate_bc_equivalence_snapshots.py` cannot regenerate 7 of its 8 cases.
+This is **inherited breakage from B3.2/B3.4a**, not B3.4b's (which takes it 6/8 → 7/8): the
+frozen `.npz` carry a **FULL-FACE pre-B3.2 `psi_in`**, which the current realizer cannot
+produce, and the consuming tests deliberately restrict that full-face array to `Γ₋` — which
+is exactly what made the artefacts an independent witness that the narrowing moved no values.
+
+Three options were put to the user. **Ruled: MIGRATE the schema and re-anchor each case
+against a structurally-independent expression** (over "retire the generator and freeze the
+artefacts" and "reconstruct the retired full-face path inside the generator"). All 7
+artefacts are invalidated by design.
+
+**Why this is the vv-correct answer and not merely the most thorough one.** A frozen
+snapshot of a retired code path is **procedurally** independent, not structurally so
+(`vv-principles` L11): it certifies "the new path agrees with the old path", which is
+worth exactly as much as the old path was right. The narrowing's whole premise is that the
+old path was reading the wrong half-trace — so the reference being preserved is a witness
+from a code path this campaign judged defective. Re-anchoring to a hand-built mirror
+gather / cosine-weighted average / zero map replaces "it still does what it did" with "it
+does what the math says", which is a promotion in the evidence hierarchy, not a lateral
+move.
+
+What is genuinely lost: the historical bit-identity witness across the narrowing. That
+claim has already been discharged — B3.2/B3.4a each proved it at landing time, and their
+proofs are recorded. A permanent artefact re-asserting a landed one-time claim is
+archaeology.
+
+**Own commit, after B3.4b** — a schema migration across 7 cases is not a tail of the
+closure carve. Tracked as task #21.

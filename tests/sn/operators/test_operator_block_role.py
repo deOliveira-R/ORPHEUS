@@ -41,9 +41,11 @@ import pytest
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
+    IsotropicReturn,
     NoSource,
     PeriodicBoundary,
     PrescribedInflow,
+    SpecularReturn,
     ReflectiveBoundary,
     VacuumInflow,
     WhiteBoundary,
@@ -165,9 +167,25 @@ _LINEAR_LAWS = {
     "white_albedo05": WhiteBoundary(
         axis=_FACE_AXIS, outward_sign=_FACE_OUTWARD_SIGN, albedo=0.5,
     ),
-    "albedo_0": AlbedoBoundary(albedo=0.0),
-    "albedo_1": AlbedoBoundary(albedo=1.0),
-    "albedo_03": AlbedoBoundary(albedo=0.3),
+    # ⚠ B3.4b — these three MIGRATED from the bare spelling
+    # ``AlbedoBoundary(albedo=α)``, which SN now REFUSES: with ``G = id`` and
+    # ``R = α·I`` nothing names a pairing between the two half-traces, so the
+    # law is under-determined on an angular trace. The completed spellings
+    # realize through the SAME bodies reflective/white do, which is why the
+    # role claim carries over unchanged.
+    #
+    # All three amplitudes are kept because they remain three DIFFERENT
+    # production branches — and this file is where the realized TYPE claim
+    # lives, so the α=0 row now pins ``ZeroOperator`` (the narrowed zero map
+    # B3.4b opened) rather than the retired full-face one.
+    "albedo_specular_0": AlbedoBoundary(0.0, SpecularReturn(axis=_FACE_AXIS)),
+    "albedo_specular_1": AlbedoBoundary(1.0, SpecularReturn(axis=_FACE_AXIS)),
+    # The diffuse closure carries its own orientation, and it MUST match
+    # _FACE for the same reason white's must — see the note above; B3.4b
+    # parametrised that cross-check over both carriers.
+    "albedo_isotropic_03": AlbedoBoundary(
+        0.3, IsotropicReturn(axis=_FACE_AXIS, outward_sign=_FACE_OUTWARD_SIGN),
+    ),
     "periodic": PeriodicBoundary(),
 }
 

@@ -31,8 +31,10 @@ from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
     BoundaryRealizer,
+    IsotropicReturn,
     PeriodicBoundary,
     ReflectiveBoundary,
+    SpecularReturn,
     VacuumAppliedToOutgoingTraceError,
     VacuumInflow,
     WhiteBoundary,
@@ -539,48 +541,150 @@ class TestWhiteOrientationGuard:
 
 @pytest.mark.l1
 class TestRealizeAlbedo:
-    """Albedo realizes to Zero / Identity / Scaled-Identity by α."""
+    r"""Albedo realizes through its re-emission CLOSURE — or is refused.
 
-    def test_albedo_zero_realizes_to_zero_operator(self):
-        quad = Quadrature.gauss_legendre(8)
+    **RE-POSED at campaign phase B3.4b.** These rows asserted the pre-B3.4b
+    dispatch: a BARE ``AlbedoBoundary(α)`` on a FACELESS ``SNMethodSpace``
+    returning ``ZeroOperator`` / ``IdentityOperator`` / ``ScaledOperator(α,
+    I & I)`` — three full-face ENDOMORPHISMS. The composite ``ι₋ ∘ law ∘ γ₊``
+    then read them positionally: MEASURED, inflow row ``j`` received ``α``
+    times outflow row ``j``, a pairing between two independently-sorted index
+    sets carrying no geometry at all. (And the coincidence was
+    quadrature-dependent — on ``product(2,4)`` and ``level_symmetric(6)`` that
+    positional pairing happens to EQUAL the specular one, on
+    ``gauss_legendre`` and ``lebedev(17)`` it does not.)
+
+    So the bare spelling is now REFUSED, and the three shape claims re-pose
+    onto the COMPLETED law, whose closure names the pairing.
+
+    Division of labour with ``tests/geometry/test_reemission_closure.py``
+    --------------------------------------------------------------------
+
+    That module owns the refusal's MESSAGE contract (both completions named,
+    the array-position defect named, attribution) and the ``≡`` theorems.
+    This class deliberately asserts something it does not: that the refusal
+    is reached **through the realizer's albedo arm specifically**, i.e. before
+    and independently of the FACE-data guard — which is the one thing a
+    faceless-vs-face-ful distinction can pin, and the reason the old rows
+    lived here in the first place.
+    """
+
+    #: A face-ful space; since B3.2 every narrowed law needs both half-traces.
+    @staticmethod
+    def _space(n_ord: int = 8):
+        return face_method_space(Quadrature.gauss_legendre(n_ord), face="xmax")
+
+    def test_albedo_zero_realizes_to_the_narrowed_zero_map(self):
+        r"""α=0 → ``ZeroOperator``, but now :math:`\Gamma_+ \to \Gamma_-`.
+
+        The claim SURVIVES the narrowing and changes shape: pre-B3.4b this was
+        an endomorphism of the whole face slot; now it emits ``|Γ₋|`` rows.
+        Note this branch could not be reached AT ALL before B3.4b for the
+        sibling laws — ``ScaledOperator`` refuses a zero scalar, so
+        ``ReflectiveBoundary(axis, 0.0)`` and ``WhiteBoundary(…, 0.0)`` were
+        legal laws that died in the numerics layer. The fold into
+        ``_attenuated_kernel_operator`` fixed all four routes at once.
+        """
+        space = self._space()
         op = SNBoundaryRealizer().realize(
-            AlbedoBoundary(0.0), SNMethodSpace.minimal(quad),
+            AlbedoBoundary(0.0, SpecularReturn(axis="x")), space,
         )
         assert isinstance(op, ZeroOperator)
-        psi = np.arange(quad.N * 4, dtype=float).reshape(quad.N, 4)
-        np.testing.assert_array_equal(op.apply(psi), 0.0)
-
-    def test_albedo_one_realizes_to_identity_operator(self):
-        quad = Quadrature.gauss_legendre(8)
-        op = SNBoundaryRealizer().realize(
-            AlbedoBoundary(1.0), SNMethodSpace.minimal(quad),
+        psi = np.arange(space.outflow_indices.size * 4, dtype=float).reshape(
+            space.outflow_indices.size, 4,
         )
-        assert isinstance(op, IdentityOperator)
-        psi = np.arange(quad.N * 4, dtype=float).reshape(quad.N, 4)
-        np.testing.assert_array_equal(op.apply(psi), psi)
+        image = op.apply(psi)
+        assert image.shape == (space.inflow_indices.size, 4)
+        np.testing.assert_array_equal(image, 0.0)
+
+    def test_albedo_one_realizes_to_the_bare_kernel_tensor_product(self):
+        r"""α=1 → the bare 2-factor TP of the closure's kernel.
+
+        Pre-B3.4b this returned a bare ``IdentityOperator`` — the spelling
+        that made the law an endomorphism. The α=1 fast path survives (no
+        ``ScaledOperator`` wrapper) but the inner factor is now the closure's
+        angular kernel, so the operator carries the pairing instead of
+        asserting there is none.
+        """
+        space = self._space()
+        op = SNBoundaryRealizer().realize(
+            AlbedoBoundary(1.0, SpecularReturn(axis="x")), space,
+        )
+        assert isinstance(op, TensorProductOperator)
+        assert len(op.ops) == 2
+        assert isinstance(op.ops[0], PermutationOperator)
+        assert isinstance(op.ops[1], IdentityOperator)
+        psi = np.arange(space.outflow_indices.size * 4, dtype=float).reshape(
+            space.outflow_indices.size, 4,
+        )
+        assert op.apply(psi).shape == (space.inflow_indices.size, 4)
 
     def test_albedo_half_realizes_to_scaled_tensor_product(self):
-        """At α=0.5 the dispatch returns
-        ``ScaledOperator(0.5, IdentityOperator() & IdentityOperator())``.
+        r"""α ∉ {0,1} → ``ScaledOperator(α, kernel & I)``.
 
-        Wave T step T.1 (2026-05-30): the inner identity lifts to a
-        2-factor TP (I & I), making the §16A.10 algebra type-visible
-        while the apply remains a no-op (both factors return ``x``
-        unchanged; the ``ScaledOperator`` wrapper supplies the α
-        multiplication).
+        The SHAPE claim the pre-B3.4b row made is intact — a ``ScaledOperator``
+        wrapping a 2-factor TP, the §16A.10 ``B = G_patch ⊗ K_ω ⊗ K_g``
+        algebra kept type-visible. What changed is the inner factor: an
+        ``IdentityOperator`` (no pairing) became the closure's angular kernel.
         """
-        quad = Quadrature.gauss_legendre(8)
+        space = self._space()
         op = SNBoundaryRealizer().realize(
-            AlbedoBoundary(0.5), SNMethodSpace.minimal(quad),
+            AlbedoBoundary(0.5, SpecularReturn(axis="x")), space,
         )
         assert isinstance(op, ScaledOperator)
         assert op.scalar == 0.5
         assert isinstance(op.op, TensorProductOperator)
         assert len(op.op.ops) == 2
-        assert isinstance(op.op.ops[0], IdentityOperator)
+        assert isinstance(op.op.ops[0], PermutationOperator)
         assert isinstance(op.op.ops[1], IdentityOperator)
-        psi = np.arange(quad.N * 4, dtype=float).reshape(quad.N, 4)
-        np.testing.assert_array_equal(op.apply(psi), 0.5 * psi)
+
+    def test_the_diffuse_closure_realizes_to_the_lambertian_kernel(self):
+        """The OTHER closure reaches the OTHER shared body.
+
+        Without this row the class would pin only the specular route and a
+        dispatch that ignored ``IsotropicReturn`` entirely would pass.
+        """
+        space = self._space()
+        op = SNBoundaryRealizer().realize(
+            AlbedoBoundary(0.5, IsotropicReturn(axis="x", outward_sign=+1)),
+            space,
+        )
+        assert isinstance(op, ScaledOperator)
+        assert isinstance(op.op, TensorProductOperator)
+        assert isinstance(op.op.ops[0], AngularAverageOperator)
+
+    def test_the_bare_spelling_is_refused_by_the_ALBEDO_ARM_not_the_face_guard(
+        self,
+    ):
+        r"""The refusal is reached on a FACE-FUL space — so it is the albedo
+        arm's own, not a fallout of the missing-face guard.
+
+        This is the leg that justifies keeping a refusal test HERE alongside
+        the message-contract one next door (Pattern 2: two gates, two
+        different claims). ``_outflow_restriction`` also raises
+        ``BoundaryError`` with ``law="albedo"``, so a refusal probed on a
+        FACELESS space cannot tell the two apart — and that weaker probe is
+        exactly what a reader migrating the old rows would reach for, since
+        the old rows used ``SNMethodSpace.minimal``.
+        """
+        space = self._space()          # face-ful: the face guard CANNOT fire
+        with pytest.raises(BoundaryError) as exc:
+            SNBoundaryRealizer().realize(AlbedoBoundary(0.5), space)
+        assert exc.value.law == "albedo"
+        assert "outflow_indices" not in str(exc.value), (
+            "the raise came from the missing-face guard, not the "
+            "angular-resolution refusal — this space HAS both half-traces, so "
+            "that guard firing would mean the arm never ran."
+        )
+        # CONTROL: the faceless space raises too, but for the OTHER reason —
+        # which is what makes the assertion above discriminating rather than
+        # decorative.
+        with pytest.raises(BoundaryError) as faceless:
+            SNBoundaryRealizer().realize(
+                AlbedoBoundary(0.5, SpecularReturn(axis="x")),
+                SNMethodSpace.minimal(Quadrature.gauss_legendre(8)),
+            )
+        assert "outflow_indices" in str(faceless.value)
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-"""Generate the BC-equivalence snapshot harness (Wave 6 / C6.1).
+r"""Generate the BC-equivalence snapshot harness (Wave 6 / C6.1).
 
 This script is the **safety net** for Waves 7–11 of the boundary-operator
 refactor (see ``.claude/plans/transient-giggling-cake.md``). It captures
@@ -36,7 +36,6 @@ principled-equivalence three criteria — see ``vv-principles`` skill):
   snapshot records BOTH the legacy zeros-all output AND the inflow
   indices so the post-Wave-8 test can switch to the
   principled-equivalent §16A.5 semantics.
-* ``albedo_05_lebedev17`` — single scalar multiplication; bit-exact.
 * ``specular_x_lebedev17`` — pure permutation; bit-exact.
 * ``specular_y_partial_07_LS6`` — multiplication then permutation;
   bit-exact.
@@ -49,6 +48,34 @@ principled-equivalence three criteria — see ``vv-principles`` skill):
 * ``mixed_30spec_70white_LS4`` — sum of two BCs; ``nulp=64`` covers
   the sum-of-products reduction tree change once Wave-0 ``OperatorSum``
   composes the realizer chain.
+
+.. warning::
+
+   **THIS GENERATOR CANNOT REGENERATE 6 OF ITS 7 CASES, and repairing it is a
+   DESIGN question, not a fix.** MEASURED 2026-08-01 (campaign phase B3.4b):
+   ``_build_payload`` raises for ``vacuum``, ``specular_x``, ``specular_y``,
+   ``white_xmax``, ``white_xmin`` and ``mixed`` — every law B3.2 / B3.4a
+   narrowed — because it still builds ``SNMethodSpace.minimal(quad)`` for laws
+   whose domain is now a particular face's :math:`\Gamma_+`. Only ``periodic``
+   still runs, and B3.4c retires that.
+
+   **Giving it face-ful spaces is NOT the repair.** It gets past the method
+   space and then fails on the SCHEMA: a narrowed law consumes
+   :math:`\Gamma_+` and emits :math:`\Gamma_-`, so ``op.apply(psi_out)`` on
+   the full face is a shape error, and the natural fix — store a
+   :math:`\Gamma_-`-shaped ``psi_in`` — would **invalidate every frozen
+   artefact**, because the harness deliberately consumes the FULL-FACE
+   pre-B3.2 ``psi_in`` and restricts it (``test_bc_equivalence_snapshot.py``
+   cases 3–6, each with its own note saying so).
+
+   That restriction is the artefacts' whole value: they were frozen BEFORE the
+   narrowing, so old-vs-new is a genuine independent statement rather than the
+   code checking itself. Regenerating them to a new schema would destroy
+   exactly that, which is why this is left BROKEN-AND-DOCUMENTED rather than
+   silently re-baselined. The choice — reconstruct the retired full-face
+   semantics here, migrate the schema and re-anchor every case against a
+   structurally-independent reference, or retire the generator and declare the
+   artefacts permanently frozen — belongs to the user.
 
 The snapshot directory ``tests/geometry/snapshots/`` is committed to
 the repository — the snapshots ARE the verification artefact.
@@ -69,7 +96,6 @@ from typing import Callable
 import numpy as np
 
 from orpheus.geometry.boundary import (
-    AlbedoBoundary,
     BoundaryTraceLaw,
     PeriodicBoundary,
     ReflectiveBoundary,
@@ -109,7 +135,7 @@ def _seed_from_case_id(case_id: str) -> int:
     return int.from_bytes(digest[:2], byteorder="big")
 
 
-def _generate_psi(quad: AngularQuadrature, case_id: str) -> np.ndarray:
+def _generate_psi(quad: Quadrature, case_id: str) -> np.ndarray:
     """Deterministic input for one snapshot case.
 
     ``np.random.default_rng(<seed>).uniform(0, 2, size=(N, 5, 3))`` per
@@ -144,7 +170,7 @@ class BCEquivalenceCase:
     case_id: str
     description: str
     build_bc: Callable[[], BoundaryTraceLaw] | None
-    build_quadrature: Callable[[], AngularQuadrature]
+    build_quadrature: Callable[[], Quadrature]
 
     @property
     def snapshot_path(self) -> Path:
@@ -161,12 +187,6 @@ CASES: tuple[BCEquivalenceCase, ...] = (
             "assertion."
         ),
         build_bc=lambda: VacuumInflow(),
-        build_quadrature=lambda: Quadrature.lebedev(17),
-    ),
-    BCEquivalenceCase(
-        case_id="albedo_05_lebedev17",
-        description="AlbedoBoundary(0.5) + LebedevSphere(17).",
-        build_bc=lambda: AlbedoBoundary(albedo=0.5),
         build_quadrature=lambda: Quadrature.lebedev(17),
     ),
     BCEquivalenceCase(
@@ -251,7 +271,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
 # ─── face metadata for the vacuum special case ───────────────────────
 
 
-def _xmin_inflow_indices(quad: AngularQuadrature) -> np.ndarray:
+def _xmin_inflow_indices(quad: Quadrature) -> np.ndarray:
     """Inflow ordinate indices for the ``xmin`` face.
 
     Convention (from :mod:`orpheus.numerics.spaces.angular_trace_space`): the ``xmin``
@@ -267,7 +287,7 @@ def _xmin_inflow_indices(quad: AngularQuadrature) -> np.ndarray:
 
 
 def _build_mixed_realized_apply(
-    quad: AngularQuadrature, psi_out: np.ndarray,
+    quad: Quadrature, psi_out: np.ndarray,
 ) -> np.ndarray:
     """Wave-11 Wave-0 ``OperatorSum``-composition for the mixed case.
 
@@ -336,10 +356,16 @@ def _build_payload(case: BCEquivalenceCase) -> dict:
         # Issue #186 special case: the snapshot's ``psi_in`` is the
         # Wave-0 ``OperatorSum``-composition of realised leaves
         # (currently only ``mixed_30spec_70white_LS4`` uses this path).
-        assert case.case_id == "mixed_30spec_70white_LS4", (
-            f"build_bc=None marker reserved for the mixed case; "
-            f"got case_id={case.case_id!r}."
-        )
+        if case.case_id != "mixed_30spec_70white_LS4":
+            # An explicit raise, NOT a bare ``assert``: this module is a
+            # generator, never COLLECTED by pytest, so its asserts are not
+            # AST-rewritten and ``python -O`` strips them to a no-op
+            # (``vv-principles`` Mode 8 — the hazard's genuine domain is
+            # exactly non-collected code like this).
+            raise AssertionError(
+                f"build_bc=None marker reserved for the mixed case; "
+                f"got case_id={case.case_id!r}."
+            )
         psi_in = _build_mixed_realized_apply(quad, psi_out)
     else:
         bc = case.build_bc()

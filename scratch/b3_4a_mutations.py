@@ -217,10 +217,14 @@ def _mutate_realizer(mut: str) -> None:
 
     if mut == "R1":
         # MUT: no orientation cross-check — build straight from the law.
+        # Signature updated at B3.4b: the helper now takes the declared
+        # orientation as primitives (so albedo+IsotropicReturn can reach the
+        # same body) instead of a WhiteBoundary.
         _r._checked_angular_average = (
-            lambda law, quadrature, method_space, gamma_out: (
+            lambda quadrature, method_space, gamma_out, *,
+            axis, outward_sign, law_key: (
                 _r.AngularAverageOperator.from_quadrature(
-                    quadrature, law.axis, law.outward_sign,
+                    quadrature, axis, outward_sign,
                 )
             )
         )

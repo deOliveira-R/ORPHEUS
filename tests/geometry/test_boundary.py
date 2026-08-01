@@ -28,9 +28,11 @@ import pytest
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
+    IsotropicReturn,
     PeriodicBoundary,
     BoundaryTraceLaw,
     ReflectiveBoundary,
+    SpecularReturn,
     VacuumInflow,
     WhiteBoundary,
     ZeroFluxBoundary,
@@ -58,11 +60,14 @@ def _realize_for_sn(bc, quad):
     Returns a 1-arg :class:`LinearOperator` whose ``apply(psi)`` matches
     the legacy 2-arg ``bc.apply(psi, quad)`` semantics.
 
-    B3.4a note: this helper is now for the laws that are STILL full-face —
-    **albedo and periodic only** (B3.4b / B3.4c). Vacuum and reflective
-    narrowed at B3.2, white and prescribed inflow at B3.4a; all four are typed
-    :math:`\\Gamma_+ \\to \\Gamma_-` and cannot be realized on a faceless
-    method space at all. They use :func:`_realize_narrowed_for_face_right`.
+    **B3.4b note: PERIODIC ONLY.** Vacuum and reflective narrowed at B3.2,
+    white and prescribed inflow at B3.4a, and albedo at B3.4b — all six are
+    typed :math:`\\Gamma_+ \\to \\Gamma_-` and cannot be realized on a faceless
+    method space at all; they use :func:`_realize_narrowed_for_face_right`.
+    (The previous note said "albedo and periodic only". That was true when it
+    was written and became false with B3.4b.) This helper retires with
+    **B3.4c**, when periodic narrows and nothing is left that a faceless
+    method space can realize.
     """
     realizer = SNBoundaryRealizer()
     method_space = SNMethodSpace.minimal(quad)
@@ -526,49 +531,75 @@ def test_periodic_bc_returns_input_unchanged() -> None:
 
 
 @pytest.mark.foundation
-def test_albedo_bc_scales_outgoing() -> None:
-    """``AlbedoBoundary(α).apply(ψ_out) == α·ψ_out``."""
+def test_albedo_bc_scales_the_flux_its_CLOSURE_pairs() -> None:
+    r"""``AlbedoBoundary(α, SpecularReturn(a))`` returns ``α`` of the MIRROR
+    partner's flux — not of the array-position partner's.
+
+    **RE-POSED at B3.4b.** This asserted ``psi_in == 0.5 * psi_out`` on the
+    whole face, which was the pre-narrowing endomorphism. That statement is
+    now unspellable: a bare albedo is refused, and the completed law is typed
+    :math:`\Gamma_+ \to \Gamma_-`, so "α times the outgoing flux" has to say
+    WHICH outgoing direction feeds each incoming one.
+
+    The slab is the DISCRIMINATING fixture and that is the whole point of
+    keeping this row here rather than folding it into the ≡ theorems: on
+    ``gauss_legendre`` the mirror REVERSES order (``perm[inflow] = [3, 2]`` →
+    local ``[1, 0]``), so the old positional reading and the specular reading
+    genuinely disagree. On ``product(2,4)`` / ``level_symmetric(6)`` they
+    coincide and this row would prove nothing (MEASURED 2026-08-01).
+    """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    psi_out = np.random.default_rng(6).standard_normal((quad.N, 2))
-    bc = AlbedoBoundary(albedo=0.5)
+    psi_full = np.random.default_rng(6).standard_normal((quad.N, 2))
+    inflow, outflow = _half_traces(quad)
+    bc = AlbedoBoundary(0.5, SpecularReturn(axis="x"))
 
-    psi_in = _realize_for_sn(bc, quad).apply(psi_out)
+    psi_in = _realize_narrowed_for_face_right(bc, quad).apply(psi_full[outflow])
 
-    np.testing.assert_array_equal(psi_in, 0.5 * psi_out)
+    perm = quad.reflection_index("x")
+    np.testing.assert_array_equal(psi_in, 0.5 * psi_full[perm[inflow]])
+    # …and the retired positional reading is DIFFERENT here, which is what
+    # makes the assertion above discriminating rather than a coincidence.
+    assert not np.array_equal(psi_in, 0.5 * psi_full[outflow]), (
+        "on this quadrature the mirror pairing and the array-position pairing "
+        "coincide, so this row cannot tell them apart — pick a slab or "
+        "lebedev fixture."
+    )
 
 
 @pytest.mark.foundation
-def test_albedo_zero_and_vacuum_agree_on_inflow_rows() -> None:
-    """``AlbedoBoundary(0)`` and vacuum agree on inflow rows.
+def test_albedo_zero_and_vacuum_are_THE_SAME_narrowed_zero_map() -> None:
+    r"""``AlbedoBoundary(0, closure)`` and vacuum are the same object.
 
-    Issue #176 / C176.2: migrated from the legacy zeros-all
-    equivalence (both BCs returned ``np.zeros_like(psi)`` via the
-    2-arg ``apply(psi, quad)`` direct call) to the §16A.5-correct
-    inflow-rows equivalence. The realizer's ``AlbedoBoundary(0)``
-    branch returns :class:`ZeroOperator` (zeros all rows); the
-    vacuum branch returns :class:`IncomingOrdinateMaskTensor`
-    (zeros only inflow rows). The two agree on the inflow rows
-    (both zero them) — that's the production-relevant
-    equivalence for SN sweeps that read inflow only.
+    **RE-POSED at B3.4b, and the claim STRENGTHENED.** Before the narrowing
+    these two lived on different domains (albedo(0) was a full-face
+    endomorphism), so the honest statement was the weaker "they agree on the
+    inflow rows". B3.4b's fold routes every α=0 kernel through
+    ``_narrowed_zero_operator`` — the same body vacuum uses — so the two are
+    now the SAME map :math:`\Gamma_+ \to \Gamma_-`, and that is what this
+    asserts: a perfectly absorbing surface IS a vacuum.
+
+    The non-zero probe matters (``vv-principles`` Mode 12): ``|Γ₊| == |Γ₋|``
+    on every quadrature in the tree, so shape alone cannot distinguish a
+    genuine two-space zero map from an endomorphic ``0.0 * x`` echo.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    psi_out = np.random.default_rng(7).standard_normal((quad.N, 2))
+    psi_full = np.random.default_rng(7).standard_normal((quad.N, 2))
     inflow, outflow = _half_traces(quad)
+    probe = psi_full[outflow]
 
-    # B3.2: the two laws now live on DIFFERENT domains — albedo(0) is still
-    # a full-face endomorphism (it is B3.4's work), vacuum is Γ₊ → Γ₋. So each
-    # is applied on its own domain, and the equivalence is asserted where it
-    # was always meant: on the inflow rows the SN sweep actually reads.
-    albedo_zero = _realize_for_sn(
-        AlbedoBoundary(albedo=0.0), quad,
-    ).apply(psi_out)
-    vacuum_realized = _realize_narrowed_for_face_right(
-        VacuumInflow(), quad,
-    ).apply(psi_out[outflow])
-
-    np.testing.assert_array_equal(albedo_zero[inflow], 0.0)
-    np.testing.assert_array_equal(vacuum_realized, 0.0)
-    np.testing.assert_array_equal(albedo_zero[inflow], vacuum_realized)
+    vacuum_image = _realize_narrowed_for_face_right(VacuumInflow(), quad).apply(probe)
+    for closure in (
+        SpecularReturn(axis="x"),
+        IsotropicReturn(axis="x", outward_sign=+1),
+    ):
+        albedo_image = _realize_narrowed_for_face_right(
+            AlbedoBoundary(0.0, closure), quad,
+        ).apply(probe)
+        assert albedo_image.shape == (inflow.size, 2)
+        np.testing.assert_array_equal(albedo_image, 0.0)
+        np.testing.assert_array_equal(albedo_image, vacuum_image)
+    # The probe is NOT zero — otherwise every row above is 0 == 0.
+    assert np.count_nonzero(probe)
 
 
 #: Shared reason for every gate blocked on B3.4 (Pattern 2 — one spelling of

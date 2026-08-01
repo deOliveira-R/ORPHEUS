@@ -118,7 +118,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.linalg import lu_factor, lu_solve
 
-from orpheus.geometry.boundary import PrescribedInflow
+from orpheus.geometry.boundary import (
+    PrescribedInflow,
+    law_permutes_ordinates,
+)
 from orpheus.numerics.operator import LinearOperator
 
 if TYPE_CHECKING:
@@ -231,7 +234,7 @@ class DSALowOrderSystem:
             type(law).__name__ for law in laws
             if isinstance(law, PrescribedInflow)
             or not (law.response_kernel.is_zero
-                    or law.geometry_map.permutes_ordinates)
+                    or law_permutes_ordinates(law))
         })
         if unsupported:
             raise NotImplementedError(

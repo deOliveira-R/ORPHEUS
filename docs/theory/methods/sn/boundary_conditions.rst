@@ -192,9 +192,15 @@ pushforward, angular average, spatial wrap) and :math:`A_\alpha` is a
 
    * :math:`G` is the **deck transformation** :math:`\Gamma_+ \to
      \Gamma_-` — the composition operator of a measure-preserving
-     bijection, decidable by **multiplicativity**;
+     bijection, and specifically one that is the deck transformation of
+     an **actual quotient** of the domain. Multiplicativity is
+     necessary but NOT sufficient: a specular *kernel* is a
+     permutation, hence multiplicative, and is still constitutive
+     (:ref:`bc-factor-roles`);
    * :math:`R` is the **constitutive response kernel** on
      :math:`\Gamma_-` — an amplitude or an angular kernel.
+
+   Whence **exactly one of** :math:`G`, :math:`R` **is non-trivial**.
 
    So the :math:`G_\alpha` of this section is **not** the :math:`G` of
    the affine form: it is the whole per-term map, whose honest name is
@@ -245,9 +251,11 @@ primitives are, with each law's affine factors alongside:
      - ``SpatialWrap(axis)``, ``ScalarResponse(1.0)``
      - 1 / no (Wave C/D)
    * - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
-     - identity in angle
+     - the **re-emission closure**'s pairing — specular or diffuse;
+       with no closure, unstated (see below)
      - albedo
-     - ``IdentityMap()``, ``ScalarResponse(α)``
+     - ``IdentityMap()`` always, and ``SpecularReemission(α, a)`` /
+       ``LambertianReemission(α, …)`` / ``ScalarResponse(α)`` by closure
      - 1 / no (building block)
    * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
      - 0
@@ -261,6 +269,104 @@ deck element**, not zero. The zero map is not a bijection, so it cannot
 be a geometry map at all; the vanishing belongs entirely to :math:`R`.
 Writing ":math:`R = G = 0`" spelled one fact twice, once in the wrong
 tier — corrected at B3.0.
+
+.. _bc-albedo-reemission-closure:
+
+Albedo's re-emission closure — and why SN refuses the bare law
+--------------------------------------------------------------
+
+A surface's re-emission law is a product of two **independent** degrees
+of freedom: *how much* of the arriving flux returns (:math:`\alpha`)
+and *in what angular shape*. Every shape admits every amplitude, so
+:class:`~orpheus.geometry.boundary.AlbedoBoundary` carries them as two
+parameters rather than as a menu of their product:
+
+.. code-block:: python
+
+   AlbedoBoundary(0.7, SpecularReturn(axis="x"))                     # polished
+   AlbedoBoundary(0.7, IsotropicReturn(axis="x", outward_sign=+1))   # matte
+   AlbedoBoundary(0.7)                                               # unstated
+
+The closure is **amplitude-free** by design: ``amplitude`` is a member
+of the response-kernel Protocol that the diffusion realizer reads, so
+the kernel must carry :math:`\alpha`; a closure carrying it too would
+give one number two homes. The law instantiates the shape at its own
+:attr:`~orpheus.geometry.boundary.AlbedoBoundary.albedo`.
+
+**The third spelling is complete for one method and under-determined
+for another** — the first bite of the
+:ref:`angular-resolution axis <bc-method-realizability>`:
+
+* A **scalar** trace has one boundary degree of freedom,
+  :math:`J^- = \alpha J^+`. There is no angular distribution to fix, so
+  the bare amplitude IS the whole law; the diffusion realizer reads it
+  and stops, and ``BC("albedo", albedo=…)`` means exactly what it
+  always meant.
+* An **angular** trace resolves the full hemisphere. There
+  :math:`R = \alpha\,I` is a map :math:`\Gamma_+ \to \Gamma_+`, and
+  :math:`G = \mathrm{id}` supplies no crossing to :math:`\Gamma_-`.
+  Nothing in the law says which outgoing direction feeds which incoming
+  one, and composing it anyway inside :math:`\iota_-\circ\text{law}\circ\gamma_+`
+  pairs incoming ordinate :math:`j` with outgoing ordinate :math:`j` —
+  an artefact of **array position**, not geometry. The SN realizer
+  therefore raises, naming the two completions, rather than choosing a
+  default.
+
+.. admonition:: Why the positional pairing is worse than meaningless
+   :class: warning
+
+   It is a **configuration-dependent accident**. Measured `[M]` on the
+   ``xmax`` face, comparing the positional pairing's index map against
+   the specular one:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 40 30
+
+      * - quadrature
+        - positional :math:`=` specular?
+      * - ``product(2, 4)``
+        - **True**
+      * - ``level_symmetric(6)``
+        - **True**
+      * - ``gauss_legendre(4)`` / ``(8)``
+        - False (the slab mirror reverses order)
+      * - ``lebedev(17)``
+        - False
+
+   So before the closure existed, a bare albedo behaved *exactly like a
+   mirror* on two of the tree's quadratures and like nothing in
+   particular on the others — silently, with no seam to notice. A user
+   who validated on ``level_symmetric`` and ran production on
+   ``lebedev`` got different physics from the same law object.
+
+   This is the strongest form of the argument for refusing: the old
+   answer was not a defensible default that the closure merely makes
+   explicit. It was a coincidence of index order that *looked*
+   defensible on the half of the fixture set where the coincidence
+   held.
+
+That is a refusal of an *incomplete spelling*, not of the law: both
+completions are fully built, and each routes through the same
+realization body as its geometry-tier twin —
+``AlbedoBoundary(α, SpecularReturn(a))`` through
+:class:`~orpheus.geometry.boundary.ReflectiveBoundary`'s, and
+``AlbedoBoundary(α, IsotropicReturn(a, s))`` through
+:class:`~orpheus.geometry.boundary.WhiteBoundary`'s.
+
+.. note::
+
+   **Where the pairing's invariants live.** The specular pairing
+   :math:`\pi = ` ``reflection_index(axis)`` carries three independent
+   invariants — measure preservation (ERR-042), involution (ERR-044)
+   and inflow :math:`\to` outflow (ERR-045). They were methods on
+   :class:`~orpheus.geometry.boundary.ReflectiveBoundary`, correct
+   while that was the only law standing on the table. With a specular
+   closure available on albedo they moved to the pairing itself
+   (``orpheus.geometry.boundary._specular``), so **both** carriers fire
+   the same certification. Leaving them where they were would have
+   meant a wrong table caught on one route and silently realized on the
+   other.
 
 The pre-Wave-7 names ``VacuumBoundaryOperator`` /
 ``SpecularBoundaryOperator`` / ``WhiteBoundaryOperator`` /

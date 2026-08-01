@@ -28,27 +28,105 @@ What separates :math:`G` from :math:`R` — the decidable criterion
 
 The two factors are not "the first thing that happens" and "the second thing
 that happens". They are **different kinds of mathematical object**, and the
-distinction is decidable:
+distinction is decidable — but it takes **two** tests, not one, and an earlier
+draft of this module shipped only the first.
+
+**The necessary test — multiplicativity.**
 
     :math:`G` is the **composition (Koopman) operator of a measure-preserving
     bijection of the boundary phase space** — :math:`(G\psi)(x) = \psi(g^{-1}x)`
     for some :math:`g` acting on :math:`\partial\Omega \times S^d`.
 
 Such operators are invertible, preserve the trace measure
-:math:`|\Omega\cdot\hat n|\,d\Omega\,dA`, form a **group**, and — the test that
-decides membership — are **multiplicative**:
+:math:`|\Omega\cdot\hat n|\,d\Omega\,dA`, form a **group**, and are
+**multiplicative**:
 
 .. math::
 
     G(\psi\,\varphi) \;=\; (G\psi)\,(G\varphi).
 
 A relabeling satisfies that identity. **An averaging operator never does.**
-Anything that fails multiplicativity is a kernel, and kernels are :math:`R`.
+Anything that *fails* multiplicativity is a kernel, and kernels are :math:`R`
+— which is what disqualifies the Lambertian average, and is exactly the
+argument phase B3 used to move it out of the geometry slot.
+
+**Why that test is not sufficient.** A *specular kernel* is a permutation,
+hence multiplicative too. So multiplicativity alone cannot separate
+
+* a polished wall that returns :math:`\alpha` of the flux specularly, from
+* a symmetry plane, across which the domain genuinely continues.
+
+Both relabel; only one is geometry. Reading multiplicativity as *the* criterion
+would put a surface's re-emission law in :math:`G`, and the two objects have
+nothing in common but their matrix.
+
+**The sufficient test — is it a quotient?**
+
+    :math:`G` is the deck transformation **of an actual quotient of the
+    physical domain**.
+
+A physical surface is not a quotient: the domain does *not* continue on the
+other side of it, so nothing is identified with anything and there is no deck
+group to be an element of. A surface's specular pairing is therefore
+**constitutive** — it is :math:`R`. This is the quotient table below, promoted
+from an observation to a test.
+
+**⇒ EXACTLY ONE of** :math:`G`, :math:`R` **is non-trivial**, which is this
+module's own sentence *"*:math:`R = I` *exactly when the BC is a pure symmetry
+statement adding no physics"* read as a law rather than as a remark. Its
+contrapositive is the useful direction: a law that asserts any physics at all
+has :math:`G = \mathrm{id}`.
 
 Physically: *a change of direction caused by the* **geometry** *is* :math:`G`;
 *a change of direction caused by the* **constitutive assumption of the BC** *is*
 :math:`R`. Absorption, diffusivity and accommodation are :math:`R`. Mirrors,
-translations and rotations are :math:`G`.
+translations and rotations are :math:`G` — but only when they are mirrors
+*of the domain*, not of a wall standing in it.
+
+.. list-table:: The law table this yields
+   :header-rows: 1
+   :widths: 34 22 22 22
+
+   * - law
+     - :math:`G`
+     - :math:`R`
+     - what it asserts
+   * - ``ReflectiveBoundary(axis)``
+     - :class:`SpecularMirror`
+     - :math:`I`
+     - a symmetry plane — a quotient, **zero physics**
+   * - ``PeriodicBoundary(axis)``
+     - :class:`SpatialWrap`
+     - :math:`I`
+     - a torus — a quotient
+   * - ``AlbedoBoundary(α, SpecularReturn)``
+     - :class:`IdentityMap`
+     - :class:`SpecularReemission`
+     - a **surface** returning :math:`\alpha` specularly
+   * - ``AlbedoBoundary(α, IsotropicReturn)``
+     - :class:`IdentityMap`
+     - :class:`LambertianReemission`
+     - a surface returning :math:`\alpha` diffusely
+   * - ``VacuumInflow``
+     - :class:`IdentityMap`
+     - :math:`0`
+     - a surface returning nothing
+
+:class:`SpecularReturn` and :class:`SpecularMirror` realize to the *same*
+permutation and are nonetheless different types. That is the **point**, not a
+smell: two types make "put a surface's response in the geometry slot"
+unspellable, which is the exact error this section corrects.
+
+.. note::
+
+   One row of the shipped code violates the law, deliberately and visibly:
+   :class:`~orpheus.geometry.boundary.ReflectiveBoundary` still accepts an
+   ``albedo`` parameter, so ``ReflectiveBoundary(axis, 0.7)`` has BOTH factors
+   non-trivial. A symmetry plane cannot absorb — that object is
+   ``AlbedoBoundary(0.7, SpecularReturn(axis))`` wearing the geometry costume.
+   It is unreachable from a ``BC(...)`` tag (the tag parser hard-codes
+   :math:`\alpha = 1`), so nothing production-facing rides on it; retiring the
+   parameter is campaign phase **B5**.
 
 The crossing :math:`\Gamma_+ \to \Gamma_-` is itself geometric
 --------------------------------------------------------------
@@ -154,16 +232,36 @@ Type-minting discipline
 ``coding-standards.md`` mints a type **iff** there are ≥2 non-isomorphic
 realizations AND a non-identity morphism is applied.
 
-The **response tier** now has two members and earns the split: a scalar
-amplitude and a rank-one angular kernel are not isomorphic, and B3 applies a
-genuine non-identity morphism to each (a multiplication versus a
-contract-then-broadcast). §16A.2's ``ZeroBoundaryResponse`` is still NOT minted
-— it would be an isomorphic singleton of :class:`ScalarResponse`, so
-:attr:`~ScalarResponse.is_zero` stays a property.
+The **response tier** now has three members and earns the split: a scalar
+amplitude, a rank-one angular kernel and an angular permutation are pairwise
+non-isomorphic, and each has a genuine non-identity morphism applied to it (a
+multiplication, a contract-then-broadcast, a gather). §16A.2's
+``ZeroBoundaryResponse`` is still NOT minted — it would be an isomorphic
+singleton of :class:`ScalarResponse`, so :attr:`~ScalarResponse.is_zero` stays
+a property.
 
 The **geometry tier** likewise: a mirror and a spatial wrap are genuinely
 non-isomorphic deck transformations, and :class:`IdentityMap` is the group's
 identity element rather than a fourth realization.
+
+The **closure tier** (:class:`ReemissionClosure`) is the newest and needs its
+own defence, because it is one indirection above the kernel it produces.
+
+A surface's re-emission law has **two independent degrees of freedom**: *how
+much* comes back (:math:`\alpha`) and *in what angular shape*. They vary
+independently — every shape admits every amplitude — so the elegant spelling
+takes them as two parameters and multiplies, rather than offering a menu of
+their product. :class:`SpecularReturn` and :class:`IsotropicReturn` are the
+amplitude-**free** shapes; :meth:`~ReemissionClosure.kernel` is the
+:math:`\alpha`-instantiation morphism that combines them. Two non-isomorphic
+members, a non-identity morphism actually applied: the mint is earned.
+
+The alternative — putting a fully-formed :class:`BoundaryResponseKernel` on the
+law — was rejected because :attr:`~BoundaryResponseKernel.amplitude` is a
+Protocol member the diffusion realizer already reads, so the kernel *must*
+carry :math:`\alpha`; a law carrying both would hold **two sources of one
+number**. Keeping the closure amplitude-free leaves :math:`\alpha` exactly
+where the tag parser already puts it — on the law.
 
 ``NullMap`` was retired in B3 for the same reason the Lambertian moved. It
 declared :math:`G = 0`, but **the zero map is not a bijection**, so it was never
@@ -182,10 +280,14 @@ __all__ = [
     "BoundaryGeometryMap",
     "BoundaryResponseKernel",
     "IdentityMap",
+    "IsotropicReturn",
     "LambertianReemission",
+    "ReemissionClosure",
     "ScalarResponse",
     "SpatialWrap",
     "SpecularMirror",
+    "SpecularReemission",
+    "SpecularReturn",
 ]
 
 
@@ -509,3 +611,169 @@ class LambertianReemission:
         # which makes the metric explicit rather than avoided — this flips
         # there, WITH its gate.
         return False
+
+
+@dataclass(frozen=True, slots=True)
+class SpecularReemission:
+    r""":math:`R = \alpha\,P_{\text{mirror}}` — **specular** re-emission.
+
+    A surface that returns :math:`\alpha` of the arriving flux into the
+    mirror-partner direction. Realized as the ordinate permutation
+    ``quadrature.reflection_index(axis)``, scaled by :math:`\alpha` — the same
+    matrix :class:`SpecularMirror` realizes to.
+
+    Why this is a **response** and not a geometry
+    ---------------------------------------------
+
+    It is the one kernel that passes the multiplicativity test — a permutation
+    is multiplicative — and it is still :math:`R`, which is why that test alone
+    was never sufficient (see this module's criterion section). The
+    discriminator is the quotient one:
+
+        A **symmetry plane** is a quotient of the domain. Nothing happens at
+        it; the flux simply continues, relabeled, and :math:`R = I` records
+        that no physics was asserted.
+
+        A **polished wall** is not a quotient. The domain stops there. That the
+        wall happens to return flux in the mirror direction is a *constitutive*
+        statement about the wall — as constitutive as a Lambertian surface's
+        diffuse return, and made in the same slot.
+
+    So ``AlbedoBoundary(α, SpecularReturn(axis))`` and
+    ``ReflectiveBoundary(axis, α)`` realize to the *same matrix* and assert
+    *different things*: the first says "a wall here reflects :math:`\alpha`",
+    the second says "the domain is symmetric about this plane, and (at
+    :math:`\alpha < 1`, incoherently) also absorbs". Only the first survives
+    the criterion at :math:`\alpha < 1`; the second's ``albedo`` parameter is
+    retired in phase **B5**.
+
+    The distinction is not academic. :attr:`permutes_ordinates` on the geometry
+    tier drives the SN sweep schedule — a *quotient* couples ordinates across
+    the sweep and can close a cycle; a *wall's* re-emission is an ordinary
+    boundary source term. Reading one as the other is how a sweep gets
+    needlessly lagged, or worse, wrongly not lagged.
+
+    Parameters
+    ----------
+    alpha : float
+        Fraction returned. Not clamped here — same rationale as
+        :class:`ScalarResponse`: the sub-Markov bound is a per-law invariant.
+    axis : str
+        Mirror axis, ``"x"`` / ``"y"`` / ``"z"``. The permutation itself needs
+        a quadrature, which is why this is a spec and not an operator.
+    """
+
+    alpha: float = 1.0
+    axis: str = "x"
+
+    @property
+    def amplitude(self) -> float:
+        return float(self.alpha)
+
+    @property
+    def is_zero(self) -> bool:
+        # Same exact-compare rationale as ScalarResponse.
+        return self.alpha == 0.0
+
+    @property
+    def is_adjointable(self) -> bool:
+        # TRUE, unlike the Lambertian's, and for a structural reason rather
+        # than an implementation one: a scaled permutation's transpose is the
+        # inverse permutation scaled by the same α, and an axis reflection is
+        # an involution, so the transpose is the forward action itself. No
+        # inner-product ambiguity to decline — it is symmetric under both the
+        # Euclidean and the cosine-weighted metric, because the permutation
+        # preserves |Ω·n| pointwise.
+        return True
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The re-emission closure tier — amplitude-free angular SHAPES
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@runtime_checkable
+class ReemissionClosure(Protocol):
+    r"""The angular **shape** in which a surface returns flux — no amplitude.
+
+    A re-emission law is a product of two independent choices: *how much*
+    returns (:math:`\alpha`) and *in what direction*. This tier carries the
+    second alone, and :meth:`kernel` combines it with the first.
+
+    Why a surface needs one at all
+    ------------------------------
+
+    :math:`R = \alpha\,I` — a bare amplitude with no shape — is **complete on a
+    scalar trace** and **incomplete on an angular one**. On a scalar trace
+    there is one degree of freedom, :math:`J^- = \alpha J^+`, and the angular
+    distribution has nothing to fix. On an angular trace :math:`\alpha\,I` is a
+    map :math:`\Gamma_+ \to \Gamma_+` — an endomorphism of the *outgoing*
+    hemisphere — while the law it must produce is
+    :math:`\Gamma_+ \to \Gamma_-`. The identity supplies no crossing, and
+    :class:`IdentityMap` (the geometry of every surface law) supplies none
+    either. Something must say which outgoing direction feeds which incoming
+    one; that something is this closure.
+
+    Composing it anyway, without a closure, is not an approximation — it is a
+    pairing by **array position**: incoming ordinate :math:`j` would receive
+    :math:`\alpha` times the :math:`j`-th outgoing ordinate, an artefact of
+    index order carrying no geometry. That is why the SN realizer refuses the
+    closure-free spelling instead of choosing a default for you.
+
+    This is the **angular-resolution** axis of the method-realizability
+    taxonomy (``bc-method-realizability`` in this package's ``__init__``)
+    biting for the first time: the same law is complete for one method and
+    under-determined for another, because the methods resolve different
+    coordinates.
+    """
+
+    def kernel(self, alpha: float) -> BoundaryResponseKernel:
+        r"""Instantiate this shape at amplitude :math:`\alpha`.
+
+        The law supplies :math:`\alpha` from its own field, so the number has
+        exactly one home.
+        """
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class SpecularReturn:
+    r"""Return into the **mirror-partner** direction — a polished surface.
+
+    Deliberately a different type from :class:`SpecularMirror`, which realizes
+    to the same permutation. The two are structurally identical and
+    semantically disjoint, and keeping them apart is what makes "a wall's
+    response in the geometry slot" unspellable — the exact conflation phase B3
+    found in the white law and the user's 2026-08-01 ruling generalized.
+    """
+
+    axis: str = "x"
+
+    def kernel(self, alpha: float) -> "SpecularReemission":
+        return SpecularReemission(alpha=alpha, axis=self.axis)
+
+
+@dataclass(frozen=True, slots=True)
+class IsotropicReturn:
+    r"""Return **diffusely** (Lambertian) — a matte surface.
+
+    Produces the same :class:`LambertianReemission`
+    :class:`~orpheus.geometry.boundary.WhiteBoundary` carries, which is what
+    makes ``AlbedoBoundary(α, IsotropicReturn(axis, sign))`` and
+    ``WhiteBoundary(axis, sign, α)`` the same law under two names — a genuine
+    duplication in the *declaration* vocabulary, and the reason both realize
+    through one shared body rather than two transcriptions.
+
+    Needs ``outward_sign`` as well as ``axis`` because a cosine-weighted
+    average is over a *hemisphere*, and which hemisphere is outgoing depends on
+    which end of the axis the face sits at. A mirror needs no sign: it swaps
+    the two hemispheres either way.
+    """
+
+    axis: str = "x"
+    outward_sign: int = +1
+
+    def kernel(self, alpha: float) -> "LambertianReemission":
+        return LambertianReemission(
+            alpha=alpha, axis=self.axis, outward_sign=self.outward_sign,
+        )

@@ -65,7 +65,69 @@ if TYPE_CHECKING:
     from ._composition import LawNode, LawScaled, LawSum
 
 
-__all__ = ["BoundaryTraceLaw"]
+__all__ = ["BoundaryTraceLaw", "law_permutes_ordinates"]
+
+
+def law_permutes_ordinates(law: "BoundaryTraceLaw") -> bool:
+    r"""Does this law's realized composite :math:`R\,G` permute the angular
+    index?
+
+    The question four production sites ask, and the reason it has one home.
+
+    Why a FUNCTION over both tiers, and not ``geometry_map.permutes_ordinates``
+    ---------------------------------------------------------------------------
+
+    Until campaign phase **B3.4b** every specular pairing lived in :math:`G`,
+    so the four callers each spelled ``law.geometry_map.permutes_ordinates``
+    inline and were right. The 2026-08-01 ruling put a pairing in :math:`R`
+    too — a polished wall's specular return is *constitutive*, not a symmetry
+    of the domain — so ``AlbedoBoundary(α, SpecularReturn(a))`` permutes
+    ordinates with ``G = IdentityMap``. Four inline spellings then became four
+    half-right answers, and since that law equals ``ReflectiveBoundary(a, α)``
+    as a matrix, each was a place where two identical operators behaved
+    differently:
+
+    * :func:`~orpheus.sn.loss_representation.sweep_schedule` — the reflecting-face
+      set, which decides the ``B_lower`` / ``B_upper`` schedule split. A face
+      that couples ordinate :math:`n` to its mirror partner needs lagging
+      whichever tier the pairing sits in.
+    * :mod:`~orpheus.sn.acceleration.dsa` — the low-order admission guard.
+    * ``_has_ruled_corner_action`` — whether the off-quadrature
+      :math:`\mu = \pm 1` ray is expressible.
+    * ``RadialCharacteristicBoundaryOperator._reflect_corner`` — the swap
+      itself.
+
+    Why not a shared Protocol member
+    --------------------------------
+
+    The tidy alternative — declare ``permutes_ordinates`` on
+    :class:`~orpheus.geometry.boundary.BoundaryResponseKernel` so both tiers
+    answer uniformly — is exactly wrong.
+    :class:`~orpheus.geometry.boundary.SpecularReemission` already carries
+    ``is_adjointable``; the extra member would complete
+    :class:`~orpheus.geometry.boundary.BoundaryGeometryMap`'s member set, so a
+    response would satisfy the geometry Protocol **structurally**.
+    ``tests/geometry/test_boundary_factors.py`` asserts those two tiers are
+    disjoint, precisely to stop a response from posing as a geometry — the
+    conflation phase B3.0 corrected. A convenience member is not worth
+    disarming that guard, so the pairing is asked of each tier in that tier's
+    own vocabulary and joined here.
+
+    .. note::
+
+       No shipped mesh can carry an albedo law yet
+       (``SNMesh.BOUNDARY_OPERATOR_REGISTRY`` omits it, and all four callers
+       read ``sn_mesh.bc[face].law``), so this is a **latent** correction: it
+       fires the day issue **#189** registers the law. It is made now because
+       B3.4b is what makes the four spellings wrong, and leaving a known-false
+       predicate behind a registry gate is how a landmine gets planted.
+    """
+    from ._factors import SpecularReemission
+
+    return bool(
+        law.geometry_map.permutes_ordinates
+        or isinstance(law.response_kernel, SpecularReemission)
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -198,41 +260,32 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
 
     @property
     def geometry_map(self) -> Any:
-        r"""The geometric operator :math:`G` (permutation,
-        pushforward, ...) — **currently unpopulated**.
+        r"""The deck transformation :math:`G : \Gamma_+ \to \Gamma_-`.
 
-        Returns ``None`` for every concrete law: no subclass
-        overrides this, and no production code reads it. The
-        realizers recover :math:`G` from the law's CLASS instead
-        (an ``isinstance`` ladder), and the five string-dispatch
-        sites that ask structural questions about :math:`G` —
-        "does it permute ordinates?", "is it adjointable?" — ask
-        them of the ``kind`` tag.
+        **Populated on every concrete law since campaign phase B1**, and read
+        by production: the sweep schedule's reflecting-face set, the DSA
+        admission guard, the ray-corner predicate and the diffusion realizer's
+        periodic refusal all ask it structural questions instead of comparing
+        ``kind`` strings (phase B2 moved them). The ``None`` here is the ABC's
+        default for a law that declares nothing; no shipped law uses it.
 
-        Campaign phase **B1** mints the typed
-        ``BoundaryGeometryMap`` specification (Grand Report v3
-        §16A.2) and populates this on all seven laws; **B2** then
-        moves those dispatch sites onto it. The declaration is kept
-        for that landing.
+        Membership is decided by the two tests in
+        :mod:`~orpheus.geometry.boundary._factors` — multiplicativity
+        (necessary) and *is it a quotient of the domain* (sufficient) — whence
+        exactly one of :math:`G`, :math:`R` is non-trivial.
         """
         return None
 
     @property
     def response_kernel(self) -> Any:
-        r"""The scalar amplitude / kernel :math:`R` (albedo, white
-        scaling) — **currently unpopulated**.
+        r"""The constitutive response :math:`R : \Gamma_- \to \Gamma_-`.
 
-        Returns ``None`` for every concrete law, as
-        :attr:`geometry_map` does. :math:`R` is nonetheless already
-        in use under another name: every law in the family has a
-        scalar response, and both realizers multiply by it as a bare
-        float read off ``law.albedo``.
-
-        Campaign phase **B1** mints the typed
-        ``BoundaryResponseKernel`` specification (Grand Report v3
-        §16A.2, with the :math:`\alpha \in [0, 1]` invariant of issue
-        #265) and populates this. The declaration is kept for that
-        landing.
+        **Populated on every concrete law since campaign phase B1.** The
+        diffusion realizer reads :attr:`~orpheus.geometry.boundary.ScalarResponse.amplitude`
+        as its entire first stage, the SN realizer dispatches the albedo family
+        on the kernel's TYPE (B3.4b), and the vacuum-detection sites read
+        ``is_zero``. Every one of them formerly reached ``law.albedo`` as a
+        bare float or compared a ``kind`` tag.
         """
         return None
 

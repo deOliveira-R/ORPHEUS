@@ -304,7 +304,10 @@ Which factor owns what — the decidable criterion
 
 The two factors are not "the first thing that happens" and "the second
 thing that happens". They are **different kinds of mathematical
-object**, and membership is decidable:
+object**, and membership is decidable — but it takes **two** tests, and
+the first published form of this section shipped only one.
+
+**The necessary test — multiplicativity.**
 
     :math:`G` is the **composition (Koopman) operator of a
     measure-preserving bijection of the boundary phase space** —
@@ -312,17 +315,52 @@ object**, and membership is decidable:
     :math:`\partial\Omega \times S^d`.
 
 Such operators are invertible, preserve the trace measure
-:math:`|\Omega\cdot\hat n|\,d\Omega\,dA`, form a **group**, and — the
-test that decides membership — are **multiplicative**:
-:math:`G(\psi\varphi) = (G\psi)(G\varphi)`. A relabeling satisfies that
-identity; **an averaging operator never does**. Anything failing
-multiplicativity is a kernel, and kernels are :math:`R`.
+:math:`|\Omega\cdot\hat n|\,d\Omega\,dA`, form a **group**, and are
+**multiplicative**: :math:`G(\psi\varphi) = (G\psi)(G\varphi)`. A
+relabeling satisfies that identity; **an averaging operator never
+does**. Anything *failing* multiplicativity is a kernel, and kernels
+are :math:`R` — the argument that moved the Lambertian out of the
+geometry slot at campaign phase B3.
+
+**Why that test is not sufficient.** A *specular kernel* is a
+permutation, hence multiplicative too. So multiplicativity alone cannot
+separate
+
+* a polished wall that returns :math:`\alpha` of the flux specularly,
+  from
+* a symmetry plane, across which the domain genuinely continues.
+
+Both relabel; only one is geometry. Reading multiplicativity as *the*
+criterion puts a surface's re-emission law in :math:`G`, and the two
+objects have nothing in common but their matrix.
+
+**The sufficient test — is it a quotient?**
+
+    :math:`G` is the deck transformation **of an actual quotient of the
+    physical domain** (:ref:`bc-factor-quotients`).
+
+A physical surface is not a quotient: the domain does *not* continue on
+the other side of it, so nothing is identified with anything and there
+is no deck group to be an element of. A surface's specular pairing is
+therefore **constitutive** — it is :math:`R`.
+
+.. admonition:: The law this yields
+   :class: important
+
+   **Exactly one of** :math:`G`, :math:`R` **is non-trivial.**
+
+   It is the contrapositive of *"*:math:`R = I` *exactly when the BC is
+   a pure symmetry statement adding no physics"* — a law that asserts
+   any physics at all has :math:`G = \mathrm{id}`. See
+   :ref:`bc-factor-quotients` for the table, and for the one shipped
+   row that violates it deliberately.
 
 Physically: a change of direction caused by the **geometry** is
 :math:`G`; a change of direction caused by the **constitutive
 assumption of the BC** is :math:`R`. Absorption, accommodation and
 diffusivity are :math:`R`. Mirrors, translations and rotations are
-:math:`G`.
+:math:`G` — but only when they are mirrors *of the domain*, not of a
+wall standing in it.
 
 **The crossing is geometric.** The specular mirror
 :math:`\Omega \mapsto \Omega - 2(\Omega\cdot\hat n)\hat n` is the unique
@@ -382,6 +420,65 @@ periodic — periodic is the free / covering-space case. And
 adding no physics. Vacuum, white and albedo are not symmetry statements
 at all, which is why their :math:`G` is the identity deck element and
 all their content sits in :math:`R`.
+
+Read as a *test* rather than as a remark, that sentence is the
+sufficient criterion of :ref:`bc-factor-roles`, and it partitions every
+implemented law:
+
+.. list-table:: Which tier owns each law's content
+   :header-rows: 1
+   :widths: 30 22 24 24
+
+   * - law
+     - :math:`G`
+     - :math:`R`
+     - what it asserts
+   * - ``ReflectiveBoundary(axis)``
+     - ``SpecularMirror``
+     - :math:`I`
+     - a symmetry plane — a quotient, **zero physics**
+   * - ``PeriodicBoundary(axis)``
+     - ``SpatialWrap``
+     - :math:`I`
+     - a torus — a quotient
+   * - ``AlbedoBoundary(α, SpecularReturn)``
+     - ``IdentityMap``
+     - ``SpecularReemission``
+     - a **surface** returning :math:`\alpha` specularly
+   * - ``AlbedoBoundary(α, IsotropicReturn)``
+     - ``IdentityMap``
+     - ``LambertianReemission``
+     - a surface returning :math:`\alpha` diffusely
+   * - ``WhiteBoundary(axis, sign, α)``
+     - ``IdentityMap``
+     - ``LambertianReemission``
+     - the same diffuse surface, under its traditional name
+   * - ``VacuumInflow``
+     - ``IdentityMap``
+     - :math:`0`
+     - a surface returning nothing
+
+Two entries realize to the *same matrix* as a geometry-tier law and are
+nonetheless different objects:
+``AlbedoBoundary(α, SpecularReturn(a))`` is
+``ReflectiveBoundary(a, α)``'s matrix, and
+``AlbedoBoundary(α, IsotropicReturn(a, s))`` is
+``WhiteBoundary(a, s, α)``'s. Keeping the *types* distinct is what
+makes "put a wall's response in the geometry slot" unspellable — the
+exact error this section's earlier form permitted. In the code the two
+routes share one realization body, so the equivalences hold by
+construction rather than by two transcriptions agreeing.
+
+.. warning::
+
+   **One shipped row violates the law, deliberately.**
+   :class:`~orpheus.geometry.boundary.ReflectiveBoundary` still accepts
+   an ``albedo`` parameter, so ``ReflectiveBoundary(axis, 0.7)`` has
+   BOTH factors non-trivial. A symmetry plane cannot absorb — that
+   object is ``AlbedoBoundary(0.7, SpecularReturn(axis))`` wearing the
+   geometry costume. It is unreachable from a ``BC(...)`` tag (the tag
+   parser hard-codes :math:`\alpha = 1`), so nothing production-facing
+   rides on it; retiring the parameter is campaign phase **B5**.
 .. note::
 
    **SN apply matvec honours the affine BC contract (Issue #168
@@ -486,6 +583,36 @@ and no amount of care in the realizer recovers it.
 So the dividing line is **scalar vs angular**, NOT trivial vs
 non-trivial. An :math:`\alpha = 0.37` albedo is "non-trivial" and lands
 in tier 1; a Lambertian is "simple" and lands in tier 2.
+
+.. admonition:: Tier 2, measured — the re-emission closure is INVISIBLE to
+                diffusion
+   :class: tip
+
+   Campaign phase B3.4b gave
+   :class:`~orpheus.geometry.boundary.AlbedoBoundary` an explicit
+   re-emission closure, which turns tier 2 from an argument into a
+   measurement. All three spellings realize identically on the scalar
+   trace `[M]`:
+
+   .. code-block:: text
+
+      AlbedoBoundary(0.4)                        -> ScaledOperator(0.4)
+      AlbedoBoundary(0.4, SpecularReturn("x"))   -> ScaledOperator(0.4)
+      AlbedoBoundary(0.4, IsotropicReturn(...))  -> ScaledOperator(0.4)
+
+   Three distinct laws, one image. The closure is not *ignored* by the
+   diffusion realizer — it is **annihilated by** :math:`\Pi`, exactly as
+   :eq:`bc-realizability-square` permits. The same three laws are
+   pairwise distinguishable under SN, where the closure selects a
+   permutation, a cosine-weighted average, or a refusal.
+
+   Read the refusal in this frame too: the SN realizer rejects the
+   closure-free spelling not because :math:`\alpha\,I` is *wrong* but
+   because it is **under-determined** at SN's resolution. Tier 1's
+   guarantee — "a scalar commutes with every projection" — is a statement
+   about laws that are *complete* upstairs. A bare :math:`\alpha` is not a
+   complete angular law; it is a complete *scalar* one, and the tier
+   argument applies only where its own hypothesis holds.
 
 .. _bc-equivariance:
 
@@ -2510,7 +2637,8 @@ The ABC ships:
 
    They are **read by production**: phase B2.2 repointed five sites
    from string comparison to
-   ``law.geometry_map.permutes_ordinates`` /
+   ``law_permutes_ordinates(law)`` (a function over BOTH tiers since
+   **B3.4b**, when a specular pairing became legal in :math:`R`) /
    ``law.response_kernel.is_zero`` /
    ``law.response_kernel.amplitude``, and the diffusion realizer's
    whole law → :math:`\mathcal{A}` table collapsed to the single read
@@ -3416,7 +3544,12 @@ what it passes through *both* faces of the realization:
   — had no choice but to re-derive it by comparing that string against
   literals. Handing ``law`` through makes the structural questions
   answerable at the object, which is what phase **B2.2** then did:
-  ``bc[face].law.geometry_map.permutes_ordinates``,
+  ``law_permutes_ordinates(bc[face].law)`` — spelled
+  ``bc[face].law.geometry_map.permutes_ordinates`` inline at each of the
+  four sites until **B3.4b** collapsed them into one function that asks
+  both factor tiers (a polished wall's specular return lives in
+  :math:`R`, so the geometry-tier read gave two identical operators
+  different answers) —
   ``bc[face].law.response_kernel.is_zero``, and — collapsing diffusion's
   five-arm ``isinstance`` ladder —
   ``bc[face].law.response_kernel.amplitude`` (named ``.scalar`` until

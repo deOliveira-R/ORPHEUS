@@ -89,6 +89,7 @@ from orpheus.geometry.boundary import (
     AlbedoBoundary,
     PeriodicBoundary,
     ReflectiveBoundary,
+    SpecularReturn,
     VacuumInflow,
     WhiteBoundary,
 )
@@ -111,8 +112,14 @@ pytestmark = [pytest.mark.foundation, pytest.mark.regression]
 
 _SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 _GENERATOR_HINT = (
-    "Run `python -m tests.geometry._generate_bc_equivalence_snapshots` "
-    "to create."
+    "The baseline CANNOT simply be regenerated: MEASURED 2026-08-01, "
+    "`python -m tests.geometry._generate_bc_equivalence_snapshots` raises on "
+    "6 of its 7 cases, because it still realizes through "
+    "`SNMethodSpace.minimal` for laws B3.2/B3.4a narrowed to Γ₊ → Γ₋ — and "
+    "giving it face-ful spaces only moves the failure to the SCHEMA (these "
+    "artefacts store a FULL-FACE psi_in, which a narrowed law cannot emit). "
+    "See that module's warning block. Recover the file from git history "
+    "instead; its value is precisely that it was frozen BEFORE the narrowing."
 )
 
 
@@ -200,37 +207,26 @@ class TestVacuumLebedev17Snapshot:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Case 2 — Albedo(0.5) × Lebedev(17)
+# Case 2 — RETIRED at B3.4b
 # ─────────────────────────────────────────────────────────────────────
-
-
-class TestAlbedo05Lebedev17Snapshot:
-    """Pure albedo: ``psi_in = 0.5 * psi_out``.
-
-    Realized as :class:`ScaledOperator(0.5, IdentityOperator())`. The
-    snapshot ``psi_in`` is the realiser-path output; the test pins
-    bit-equality against it.
-    """
-
-    case_id = "albedo_05_lebedev17"
-
-    @pytest.fixture(scope="class")
-    def snapshot(self) -> np.lib.npyio.NpzFile:
-        return _load_snapshot(self.case_id)
-
-    def test_realizer_apply_matches_snapshot(
-        self, snapshot: np.lib.npyio.NpzFile,
-    ) -> None:
-        """Realized ``ScaledOperator(0.5, IdentityOperator)`` is bit-exact.
-
-        Multiplication is the only operation; no reduction tree change.
-        ``assert_array_equal`` is the right gate.
-        """
-        quad = Quadrature.lebedev(17)
-        bc = AlbedoBoundary(albedo=0.5)
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
-        actual = op.apply(snapshot["psi_out"])
-        np.testing.assert_array_equal(actual, snapshot["psi_in"])
+#
+# ``TestAlbedo05Lebedev17Snapshot`` pinned ``psi_in == 0.5 * psi_out`` on the
+# WHOLE FACE — the artefact of a law SN no longer realizes. A bare
+# ``AlbedoBoundary(α)`` is now refused (its ``R = α·I`` is a Γ₊ → Γ₊
+# endomorphism and its ``G = IdentityMap`` supplies no crossing), so the claim
+# does not survive in any form.
+#
+# Its frozen ``psi_in`` is not re-usable either: MEASURED 2026-08-01, the
+# completed law ``AlbedoBoundary(0.5, SpecularReturn("x"))`` does NOT reproduce
+# ``psi_in[inflow]``, because those rows read the INFLOW ordinates the narrowed
+# input never sees. The baseline and its generator case were deleted together
+# rather than left orphaned (``coding-standards.md``: never let a superseded
+# path sit half-alive).
+#
+# The successor is ``TestSpecularXLebedev17Snapshot``'s second method below,
+# which pins the SAME α-fold on the SAME quadrature against a frozen artefact
+# generated PRE-B3.2 by a DIFFERENT law — strictly better provenance than
+# either the retired row or a regenerated one.
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -268,6 +264,38 @@ class TestSpecularXLebedev17Snapshot:
         np.testing.assert_array_equal(
             actual, snapshot["psi_in"][space.inflow_indices],
         )
+
+    def test_albedo_with_specular_closure_matches_the_same_frozen_image(
+        self, snapshot: np.lib.npyio.NpzFile,
+    ) -> None:
+        r"""**B3.4b** — the ``≡`` theorem, pinned at the FROZEN artefact.
+
+        ``AlbedoBoundary(α, SpecularReturn("x")) ≡ ReflectiveBoundary("x", α)``
+        as realized operators, so the albedo route's image is this very
+        ``psi_in`` — the PRE-B3.2 full-face specular image — restricted to
+        :math:`\Gamma_-` and scaled by α.
+
+        **Nothing is regenerated.** The reference is an artefact frozen before
+        the narrowing, produced by a DIFFERENT law, which makes it a genuinely
+        independent statement rather than a re-baseline: the retired
+        ``albedo_05_lebedev17`` case is replaced by a row whose reference
+        predates every line under test. (``vv-principles`` §bit-identity
+        criterion 2 — a baseline regenerated from the code it gates is not a
+        reference at any level, as this file's own B0.3 note already records.)
+
+        `[M]` bit-identical, maxdiff 0.0, on ``lebedev(17)`` — one of the two
+        quadratures where the specular pairing and the retired array-position
+        pairing genuinely DISAGREE, so the row discriminates.
+        """
+        quad = Quadrature.lebedev(17)
+        space = face_method_space(quad, face="xmax")
+        op = SNBoundaryRealizer().realize(
+            AlbedoBoundary(0.5, SpecularReturn(axis="x")), space,
+        )
+        actual = op.apply(snapshot["psi_out"][space.outflow_indices])
+        expected = 0.5 * snapshot["psi_in"][space.inflow_indices]
+        assert np.count_nonzero(expected), "vacuous comparison"
+        np.testing.assert_array_equal(actual, expected)
 
 
 # ─────────────────────────────────────────────────────────────────────

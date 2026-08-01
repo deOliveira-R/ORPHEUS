@@ -32,13 +32,18 @@ angular kernel for diffuse re-emission); and :math:`q \in \Gamma_-` is
 the optional **prescribed inflow source** (zero for the homogeneous
 case).
 
-Membership in :math:`G` is decidable by **multiplicativity** —
-:math:`G(\psi\varphi) = (G\psi)(G\varphi)` holds for a relabeling and
-never for an average, so anything failing it is a kernel and belongs to
-:math:`R`. Campaign phase **B3.0** corrected the split (the Lambertian
-average had been sitting in the geometry slot); see
-:ref:`bc-factor-roles` on the theory page and the ``_factors`` module
-docstring.
+Membership in :math:`G` takes **two** tests. Multiplicativity —
+:math:`G(\psi\varphi) = (G\psi)(G\varphi)` — is **necessary**: it holds
+for a relabeling and never for an average, so anything failing it is a
+kernel and belongs to :math:`R`. That is what campaign phase **B3.0**
+used to move the Lambertian out of the geometry slot. It is **not
+sufficient**: a specular *kernel* is a permutation, hence multiplicative,
+and is still constitutive. The sufficient test is the quotient one —
+:math:`G` is the deck transformation of an **actual quotient of the
+physical domain**, and a wall standing in the domain is not one (**B3.4b**,
+user ruling 2026-08-01). Whence **exactly one of** :math:`G`, :math:`R`
+**is non-trivial**. See :ref:`bc-factor-roles` on the theory page and the
+``_factors`` module docstring.
 
 Which methods can realize which laws — three tiers and three axes
 =================================================================
@@ -196,16 +201,18 @@ sole bridge. The canonical SN-realised representation per law.
    :math:`\Gamma_+`. The *composite* the realizer produces is
    :math:`R \circ G`, never called :math:`R`.
 
-* :class:`VacuumInflow` (registry key ``"vacuum"``) — the rank-0
-  case :math:`R = G = q = 0`. SN realises to
-  :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
-  with the per-face inflow indices; this zeroes **only the
-  inflow ordinates** and preserves the outflow trace (the §16A.5
-  trace-correct representation). The pre-refactor zeros-all
-  body that lived on the Option-A standalone ``apply`` path was
-  **deleted in Issue #186 / B3 + β2** — there is no longer an
-  alternate path; the inflow-only mask is the unique vacuum
-  semantics.
+* :class:`VacuumInflow` (registry key ``"vacuum"``) — the rank-0 case
+  :math:`R = 0`, :math:`q = 0`. :math:`G` is the **identity deck element**,
+  not zero: the zero map is not a bijection, so it cannot be a geometry map
+  at all, and ":math:`R = G = 0`" wrote one vanishing twice, once in the
+  wrong tier (corrected at B3.0; **this entry outlived that correction until
+  B3.4b**, the same two-phase lag the white entry had). SN realises to the
+  narrowed **zero map** :math:`\Gamma_+ \to \Gamma_-` — a
+  :class:`~orpheus.numerics.operator.ZeroOperator` carrying both space hooks,
+  so the forward emits the zero of :math:`\Gamma_-` and the transpose the
+  zero of :math:`\Gamma_+`. It was an ``IncomingOrdinateMaskTensor`` (a
+  full-face projector whose preserved rows the consumer discarded) until
+  **B3.2** narrowed the domain and left nothing for a projector to do.
 * :class:`ReflectiveBoundary(axis, albedo)` (registry key
   ``"reflective"``) — :math:`G = G_{\text{refl}}`, the ordinate
   permutation ``quadrature.reflection_index(axis)``; :math:`R =
@@ -236,12 +243,31 @@ sole bridge. The canonical SN-realised representation per law.
   is deliberately NOT a field, since which face is opposite depends on
   where the law is installed (configuration) while "wrap along x" is
   intrinsic.
-* :class:`AlbedoBoundary(albedo)` (registry key ``"albedo"``) —
-  :math:`G = I`, the angular identity; :math:`R = \alpha`. SN
-  realises the composite to
-  :class:`~orpheus.numerics.operator.ZeroOperator` (α=0),
-  :class:`~orpheus.numerics.operator.IdentityOperator` (α=1), or
-  ``ScaledOperator(α, IdentityOperator)`` (α ∉ {0, 1}).
+* :class:`AlbedoBoundary(albedo, reemission)` (registry key ``"albedo"``) —
+  an absorbing **surface**. :math:`G = ` :class:`IdentityMap` **always**: a
+  wall is not a quotient of the domain, so it fixes no geometry. All the
+  content is in :math:`R = \alpha\,C`, where the *re-emission closure*
+  :math:`C` names the angular shape of the return —
+  :class:`SpecularReturn(axis)` :math:`\Rightarrow`
+  :class:`SpecularReemission`, :class:`IsotropicReturn(axis, sign)`
+  :math:`\Rightarrow` :class:`LambertianReemission`, and no closure
+  :math:`\Rightarrow` :class:`ScalarResponse`. The closure is
+  amplitude-FREE so :math:`\alpha` has one home, on the law.
+
+  SN realises the two completions through the **same bodies** as the
+  geometry-tier laws (the pairing, and the Lambertian average), so
+  ``AlbedoBoundary(α, SpecularReturn(a)) ≡ ReflectiveBoundary(a, α)`` and
+  ``AlbedoBoundary(α, IsotropicReturn(a, s)) ≡ WhiteBoundary(a, s, α)`` as
+  matrices while asserting different physics. SN **REFUSES** the
+  closure-free spelling: :math:`\alpha\,I` is an endomorphism of
+  :math:`\Gamma_+` and :math:`G` supplies no crossing, so on an angular
+  trace nothing says which outgoing direction feeds which incoming one.
+  Diffusion realises that same object unchanged — on a scalar trace
+  :math:`J^- = \alpha J^+` is the complete law (**B3.4b**; the
+  angular-resolution axis of :ref:`bc-method-realizability`). Before B3.4b
+  the SN arm answered with full-face endomorphisms (``ZeroOperator`` /
+  ``IdentityOperator`` / ``α·(I & I)``) that the composite then read
+  positionally.
 * :class:`PrescribedInflow(source)` (registry key
   ``"prescribed_inflow"``, Wave 7 addition) — the rank-0 affine BC
   :math:`R = 0`, :math:`q \neq 0`. :math:`G` is the **identity deck
@@ -576,7 +602,7 @@ from __future__ import annotations
 # :mod:`orpheus.numerics.operator`).
 # ---------------------------------------------------------------------------
 
-from ._base import BoundaryTraceLaw
+from ._base import BoundaryTraceLaw, law_permutes_ordinates
 
 # ---------------------------------------------------------------------------
 # Issue #186 (B3 + β2) -- descriptor-tree composition. LawSum / LawScaled
@@ -591,10 +617,14 @@ from ._factors import (
     BoundaryGeometryMap,
     BoundaryResponseKernel,
     IdentityMap,
+    IsotropicReturn,
     LambertianReemission,
+    ReemissionClosure,
     ScalarResponse,
     SpatialWrap,
     SpecularMirror,
+    SpecularReemission,
+    SpecularReturn,
 )
 
 # ---------------------------------------------------------------------------
@@ -650,16 +680,26 @@ from .zero_flux import ZeroFluxBoundary
 __all__ = [
     # Abstract base
     "BoundaryTraceLaw",
+    # The composite question BOTH tiers can answer (B3.4b): does the
+    # realized R∘G permute the angular index? Four production sites ask
+    # it; it is a function, not a Protocol member, so the two factor
+    # tiers stay structurally disjoint.
+    "law_permutes_ordinates",
     # The affine form's two operator factors, as typed SPECIFICATIONS
     # (Grand Report v3 §16A.2; campaign phases B1 + B3). ``G : Γ₊ → Γ₋`` is the
     # DECK TRANSFORMATION — it carries the crossing, because the mirror that
     # exchanges the hemispheres is geometry — and ``R : Γ₋ → Γ₋`` is the
-    # CONSTITUTIVE response; the realized composite is ``B``. Membership is
-    # decidable by multiplicativity (``_factors`` docstring): a relabeling
-    # satisfies ``G(ψφ) = (Gψ)(Gφ)``, an average never does. B3 moved the
-    # Lambertian across that line (``HemisphericalAverage`` ->
-    # ``LambertianReemission``) and retired ``NullMap``, whose ``G = 0`` is not
-    # a bijection and merely respelled ``ScalarResponse(0.0)`` a tier too high.
+    # CONSTITUTIVE response; the realized composite is ``B``. Membership takes
+    # TWO tests (``_factors`` docstring): multiplicativity is NECESSARY — a
+    # relabeling satisfies ``G(ψφ) = (Gψ)(Gφ)``, an average never does, which
+    # is what moved the Lambertian across the line in B3
+    # (``HemisphericalAverage`` -> ``LambertianReemission``) and retired
+    # ``NullMap``, whose ``G = 0`` is not a bijection and merely respelled
+    # ``ScalarResponse(0.0)`` a tier too high. It is NOT sufficient: a specular
+    # kernel is a permutation, hence multiplicative, and still constitutive.
+    # The sufficient test is the quotient one — ``G`` is the deck
+    # transformation of an ACTUAL quotient of the domain — whence EXACTLY ONE
+    # of ``G``, ``R`` is non-trivial (B3.4b, user ruling 2026-08-01).
     "BoundaryGeometryMap",
     "BoundaryResponseKernel",
     "IdentityMap",
@@ -667,6 +707,14 @@ __all__ = [
     "ScalarResponse",
     "SpatialWrap",
     "SpecularMirror",
+    "SpecularReemission",
+    # The re-emission CLOSURE tier: amplitude-free angular shapes a surface
+    # law instantiates at its own α. ``AlbedoBoundary`` is the one consumer —
+    # its ``reemission`` field — and the shapes exist because α and the
+    # angular distribution are independent degrees of freedom (B3.4b).
+    "ReemissionClosure",
+    "IsotropicReturn",
+    "SpecularReturn",
     # Descriptor-tree composition (Issue #186)
     "LawNode",
     "LawScaled",

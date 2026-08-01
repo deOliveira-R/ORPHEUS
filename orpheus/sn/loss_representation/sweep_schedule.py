@@ -52,6 +52,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from orpheus.geometry.boundary import law_permutes_ordinates
 from orpheus.transport.mesh.axis import AXIS_NAMES
 from .sweep_graph import OctantLabel
 
@@ -277,5 +278,5 @@ def _reflective_faces(sn_mesh: "SNMesh") -> frozenset[str]:
     return frozenset(
         face
         for face in sn_mesh.angular_trace.layout.faces
-        if sn_mesh.bc[face].law.geometry_map.permutes_ordinates
+        if law_permutes_ordinates(sn_mesh.bc[face].law)
     )

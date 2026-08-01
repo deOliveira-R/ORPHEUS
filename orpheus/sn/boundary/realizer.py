@@ -56,12 +56,32 @@ suffices for the two laws below.
   wrote outflow rows nobody read. The law's declared ``axis``/``outward_sign``
   is cross-checked against the installation face's :math:`\Gamma_+` — see
   :func:`_checked_angular_average`.
-* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(0.0)` →
-  :class:`~orpheus.numerics.operator.ZeroOperator`.
-* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(1.0)` →
-  :class:`~orpheus.numerics.operator.IdentityOperator`.
-* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(α)` for α∉{0,1} →
-  ``α * IdentityOperator()``.
+* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(α, closure)` →
+  the SAME body its closure names, at **B3.4b**: a
+  :class:`~orpheus.geometry.boundary.SpecularReturn` routes to
+  :func:`_specular_kernel` (shared with reflective) and an
+  :class:`~orpheus.geometry.boundary.IsotropicReturn` to
+  :func:`_checked_angular_average` (shared with white). So
+  ``AlbedoBoundary(α, SpecularReturn(a)) ≡ ReflectiveBoundary(a, α)`` and
+  ``AlbedoBoundary(α, IsotropicReturn(a, s)) ≡ WhiteBoundary(a, s, α)`` as
+  matrices, by executing one construction rather than by two transcriptions
+  agreeing. The laws still assert different physics — a wall's constitutive
+  return versus a symmetry of the domain — which is the user's 2026-08-01
+  ruling: the specular pairing belongs to :math:`R`, and
+  ``AlbedoBoundary.geometry_map`` is ``IdentityMap()`` unconditionally.
+* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(α)` with **no**
+  closure → **REFUSED** (:class:`~orpheus.geometry.boundary.BoundaryError`).
+  Its response :math:`R = \alpha\,I` is an endomorphism of :math:`\Gamma_+` and
+  its :math:`G` supplies no crossing, so on an ANGULAR trace nothing says which
+  outgoing direction feeds which incoming one; composing it anyway pairs them
+  by array position. Pre-B3.4b that is exactly what happened — the arm returned
+  ``ZeroOperator`` / ``IdentityOperator`` / ``α·(I & I)``, full-face
+  endomorphisms which the ``ι₋ ∘ law ∘ γ₊`` composite then read positionally.
+  The refusal is of the **incomplete spelling**, not of the law: a SCALAR
+  method needs no closure (:math:`J^- = \alpha J^+` has one degree of freedom),
+  so the diffusion realizer takes the same object unchanged and
+  ``BC("albedo", albedo=…)`` is untouched. This is the method-realizability
+  taxonomy's **angular-resolution** axis biting for the first time.
 * :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundary` →
   :class:`~orpheus.numerics.operator.PeriodicWrapOperator`.
 * :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
@@ -120,9 +140,12 @@ from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
     BoundaryTraceLaw,
+    LambertianReemission,
     PeriodicBoundary,
     PrescribedInflow,
     ReflectiveBoundary,
+    ScalarResponse,
+    SpecularReemission,
     VacuumAppliedToOutgoingTraceError,
     VacuumInflow,
     WhiteBoundary,
@@ -213,46 +236,234 @@ def _outflow_restriction(
     )
 
 
-def _checked_angular_average(
-    law: "WhiteBoundary",
+def _narrowed_zero_operator(
+    method_space: "SNMethodSpace",
+    gamma_out: "TraceRestrictionOperator",
+    *,
+    law_key: str,
+) -> "ZeroOperator":
+    r"""The zero map :math:`\Gamma_+ \to \Gamma_-`, with both spaces named.
+
+    A zero map between two DIFFERENT spaces must emit the zero of the space it
+    lands in, not an echo of the one it came from — see
+    :class:`~orpheus.numerics.operator.ZeroOperator`'s own note. The forward
+    emits the zero of :math:`\Gamma_-`, the transpose the zero of
+    :math:`\Gamma_+`. Relying on the endomorphic ``0.0 * x`` echo would be
+    wrong in principle and merely lucky in practice: ``|Γ₊| == |Γ₋|`` on every
+    reachable fixture, so the shapes coincide — an accident, not a contract.
+
+    Two callers, one body: vacuum (whose response IS structurally zero) and any
+    re-emission law at :math:`\alpha = 0` (whose response *evaluates* to zero —
+    a perfectly absorbing wall is a vacuum, and says so with the same object).
+
+    Both half-traces are REQUIRED, and the demand is the whole point: a zero map
+    that does not know its codomain degenerates to exactly the endomorphic echo
+    described above.
+    """
+    if method_space.inflow_indices is None:
+        raise BoundaryError(
+            f"SNBoundaryRealizer cannot build the zero map for {law_key!r} "
+            f"without inflow_indices: the map is Γ₊ → Γ₋ and must emit the "
+            f"zero of Γ₋, which it cannot size. Construct via "
+            f"SNMethodSpace.for_face(quadrature=..., face=..., trace=...).",
+            law=law_key,
+        )
+    return ZeroOperator(
+        # ``reportArgumentType``: ``ZeroOperator`` is generic over ``Vector``,
+        # and MEASURED (2026-07-31, pyright + numpy stubs) ``np.ndarray`` does
+        # not satisfy that protocol statically — ``Self``-typed ``__add__``
+        # will not bind against numpy's overloads. The gap is upstream, not at
+        # this call site: every ndarray-level operator in ``numerics.operator``
+        # sidesteps it by being declared UNPARAMETERIZED
+        # (``PermutationOperator(LinearOperator)``), an option a generic's own
+        # hooks do not have. Runtime conformance is real; only the static bind
+        # fails.
+        codomain_zero=_zero_rows(  # type: ignore[reportArgumentType]
+            method_space.inflow_indices.size
+        ),
+        transpose_zero=_zero_rows(  # type: ignore[reportArgumentType]
+            gamma_out.n_restricted
+        ),
+    )
+
+
+def _attenuated_kernel_operator(
+    k_omega: "LinearOperator",
+    alpha: float,
+    *,
+    method_space: "SNMethodSpace",
+    gamma_out: "TraceRestrictionOperator",
+    law_key: str,
+) -> "LinearOperator":
+    r"""``α · (K_ω ⊗ K_g)``, stamped :attr:`BlockRole.BOUNDARY`.
+
+    The §16A.10 BC decomposition is ``B = G_patch ⊗ K_omega ⊗ K_g``; every
+    narrowed leaf this realizer builds is that shape with the group factor an
+    identity and the amplitude out front.
+
+    One body, because the assembly is genuinely one thing: before **B3.4b**
+    this pattern was written once in the reflective arm and once in the white
+    arm, and B3.4b's two albedo closures would have made four transcriptions of
+    it. All four kernel routes end here instead.
+
+    The three amplitude regimes, and why the ends are not merely optimizations
+    ------------------------------------------------------------------------
+
+    * :math:`\alpha = 1` returns the bare tensor product, so the fold reduces
+      to the angular kernel's own action with no ``ScaledOperator`` wrapper.
+      A convenience.
+    * :math:`\alpha = 0` returns :func:`_narrowed_zero_operator`, because a
+      surface that returns nothing IS a vacuum — the same object, honestly
+      typed, with a working transpose. **Not** a convenience: the general path
+      cannot express it, since
+      :class:`~orpheus.numerics.operator.ScaledOperator` refuses a zero scalar
+      as degenerate. Before B3.4b that refusal was reachable —
+      ``ReflectiveBoundary(axis, 0.0)`` and ``WhiteBoundary(..., 0.0)`` are
+      legal laws (:math:`\alpha = 0` satisfies every invariant, including
+      sub-Markov) and both died in the numerics layer with a message about
+      operator degeneracy rather than realizing the boundary they describe.
+      Folding the four routes into one body is what made that visible, and one
+      answer fixes all four.
+    * :math:`0 < \alpha < 1` takes the scaled path.
+
+    .. note::
+
+       At :math:`\alpha = 0` the caller has already built ``k_omega`` and this
+       function discards it. That is deliberate, and it is not the
+       compute-then-discard pattern this campaign removes: what is kept is the
+       **construction's validation**, not its value. Building the specular
+       kernel runs ``γ₊.to_local``, which refuses a mirror that sends an inflow
+       ordinate outside :math:`\Gamma_+` (ERR-045 at realization). Skipping it
+       would make *realizability itself* depend on the amplitude — a law that
+       refuses at :math:`\alpha = 0.001` and is accepted at :math:`\alpha = 0`
+       — and a declared-but-unrealizable pairing is a nonsense declaration at
+       every amplitude.
+    """
+    if alpha == 0.0:
+        return stamp_boundary_role(
+            _narrowed_zero_operator(method_space, gamma_out, law_key=law_key)
+        )
+    base = k_omega & IdentityOperator()  # 2-factor TensorProductOperator
+    if alpha == 1.0:
+        return stamp_boundary_role(base)
+    return stamp_boundary_role(float(alpha) * base)
+
+
+def _specular_kernel(
     quadrature: "Quadrature",
     method_space: "SNMethodSpace",
     gamma_out: "TraceRestrictionOperator",
+    *,
+    axis: str,
+    law_key: str,
+) -> "PermutationOperator":
+    r"""The specular pairing on :math:`\Gamma_+ \to \Gamma_-`, as a permutation
+    of the REDUCED ordinate axis.
+
+    The mirror sends the inflow ordinate ``inflow[j]`` to the outflow ordinate
+    ``perm[inflow[j]]`` (the ERR-045 invariant the law layer certifies at
+    realization: a reflection maps inflow to OUTFLOW, never to itself). So the
+    narrowed operator's row ``j`` reads the position of that outflow ordinate
+    INSIDE :math:`\Gamma_+` — which is exactly what ``γ₊.to_local`` computes,
+    and what a hand-written ``arange`` would get wrong: on a slab the mirror
+    REVERSES order, so ``perm[inflow] = [3, 2]`` maps to local ``[1, 0]``.
+
+    **Two laws reach this body** (B3.4b), carrying the pairing in different
+    tiers: :class:`~orpheus.geometry.boundary.ReflectiveBoundary` in :math:`G`
+    (a symmetry of the domain) and
+    :class:`~orpheus.geometry.boundary.AlbedoBoundary` with a
+    :class:`~orpheus.geometry.boundary.SpecularReturn` closure in :math:`R` (a
+    polished wall). They assert different physics and realize to the same
+    matrix — so they share this construction rather than agreeing by
+    transcription. ``law_key`` names the caller in the errors only.
+    """
+    inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
+    perm = quadrature.reflection_index(axis)
+    if inflow.size != gamma_out.n_restricted:
+        raise BoundaryError(
+            f"SNBoundaryRealizer cannot narrow a specular pairing at "
+            f"face {method_space.face!r}: |Γ₋| = {inflow.size} but "
+            f"|Γ₊| = {gamma_out.n_restricted}. A specular mirror is a "
+            f"BIJECTION between the two half-traces, so a face where "
+            f"they differ in size has no specular realization — which "
+            f"means the quadrature's tangential band has swallowed "
+            f"ordinates asymmetrically at this face.",
+            law=law_key,
+        )
+    # ``to_local`` raises if the mirror sent an inflow ordinate anywhere but
+    # Γ₊ — the ERR-045 violation, caught here as a crossed-index-set error
+    # rather than as silent wrong physics. It stays the SINGLE authority on
+    # that index question (no second membership test here to drift from it);
+    # what this arm adds is the semantic diagnosis, so the caller gets an
+    # attributed BoundaryError naming the two possible causes rather than a
+    # raw index complaint from a helper it never called. Symmetric with the
+    # diffuse arm's orientation cross-check — before B3.4b these two
+    # disagreed, because a law had no way to declare an axis that could
+    # disagree with its installation face until the closure gave it one.
+    try:
+        local_perm = gamma_out.to_local(perm[inflow])
+    except ValueError as exc:
+        raise BoundaryError(
+            f"A specular pairing about axis {axis!r} does not map Γ₋ into Γ₊ "
+            f"at face {method_space.face!r}. Two causes: the declared axis "
+            f"disagrees with the face the law is installed on — a mirror "
+            f"about 'y' on an x-face relabels WITHIN each half-trace instead "
+            f"of exchanging them, which is not a boundary law at all — or "
+            f"the quadrature's reflection table violates ERR-045 (an inflow "
+            f"ordinate whose partner is not outflow). The law-level "
+            f"certification catches the second at assert_realizable, so at "
+            f"this point the first is the likely one. Underlying: {exc}",
+            law=law_key,
+        ) from exc
+    return PermutationOperator(local_perm, axis=0)
+
+
+def _checked_angular_average(
+    quadrature: "Quadrature",
+    method_space: "SNMethodSpace",
+    gamma_out: "TraceRestrictionOperator",
+    *,
+    axis: str,
+    outward_sign: int,
+    law_key: str,
 ) -> "AngularAverageOperator":
-    r"""White's Lambertian kernel, with the law's ORIENTATION cross-checked
+    r"""The Lambertian kernel, with the DECLARED orientation cross-checked
     against the face it is being installed on (the ERR-041 pattern).
 
-    :class:`~orpheus.geometry.boundary.WhiteBoundary` declares its own
-    ``axis`` / ``outward_sign``; the method space independently names the
-    face. Those are two encodings of ONE orientation, and until B3.4a
-    nothing compared them — a white law declared for ``x`` and installed on
-    ``ymin`` averaged over the wrong hemisphere and reported nothing. The
-    check is the same shape as the vacuum arm's (``ERR-041``: swapped
-    inflow/outflow face annotation), against index SETS rather than sizes,
-    because ``|Γ₊| == |Γ₋|`` on every quadrature in the tree makes a size
-    comparison Mode-12 blind.
+    A diffuse law declares its own ``axis`` / ``outward_sign`` — on the law
+    itself for :class:`~orpheus.geometry.boundary.WhiteBoundary`, on the
+    closure for
+    :class:`~orpheus.geometry.boundary.AlbedoBoundary` +
+    :class:`~orpheus.geometry.boundary.IsotropicReturn` — while the method
+    space independently names the face. Those are two encodings of ONE
+    orientation, and until B3.4a nothing compared them: a white law declared
+    for ``x`` and installed on ``ymin`` averaged over the wrong hemisphere and
+    reported nothing. The check is the same shape as the vacuum arm's
+    (``ERR-041``: swapped inflow/outflow face annotation), against index SETS
+    rather than sizes, because ``|Γ₊| == |Γ₋|`` on every quadrature in the tree
+    makes a size comparison Mode-12 blind.
 
-    On the canonical ``SNMesh.realize_boundary_law`` path both encodings
-    derive from the same face label, so the guard is green by construction;
-    it bites on hand-built method spaces and on a mis-declared law.
+    On the canonical ``SNMesh.realize_boundary_law`` path both encodings derive
+    from the same face label, so the guard is green by construction; it bites
+    on hand-built method spaces and on a mis-declared law.
     """
-    law_face = f"{law.axis}{'max' if law.outward_sign == +1 else 'min'}"
-    omega_dot_n = build_omega_dot_n(quadrature, (law_face,))[0]
-    law_outflow = np.flatnonzero(omega_dot_n > +TANGENTIAL_EPS)
-    if not np.array_equal(law_outflow, gamma_out.indices):
+    declared_face = f"{axis}{'max' if outward_sign == +1 else 'min'}"
+    omega_dot_n = build_omega_dot_n(quadrature, (declared_face,))[0]
+    declared_outflow = np.flatnonzero(omega_dot_n > +TANGENTIAL_EPS)
+    if not np.array_equal(declared_outflow, gamma_out.indices):
         raise BoundaryError(
-            f"WhiteBoundary declares axis={law.axis!r}, "
-            f"outward_sign={law.outward_sign:+d} — i.e. the face "
-            f"{law_face!r}, whose Γ₊ is {law_outflow.tolist()} — but it is "
-            f"being installed where Γ₊ is "
+            f"A diffuse re-emission law declares axis={axis!r}, "
+            f"outward_sign={outward_sign:+d} — i.e. the face "
+            f"{declared_face!r}, whose Γ₊ is {declared_outflow.tolist()} — "
+            f"but it is being installed where Γ₊ is "
             f"{np.asarray(gamma_out.indices).tolist()} "
             f"(face={method_space.face!r}). The Lambertian averages over "
             f"the hemisphere its OWN orientation names, so a mismatch "
             f"averages the wrong ordinates silently.",
-            law="white",
+            law=law_key,
         )
     return AngularAverageOperator.from_quadrature(
-        quadrature, law.axis, law.outward_sign,
+        quadrature, axis, outward_sign,
     )
 
 
@@ -404,114 +615,131 @@ class SNBoundaryRealizer:
             # fixture, so the shapes coincide — an accident, not a contract).
             gamma_out = _outflow_restriction(method_space, "vacuum")
             return stamp_boundary_role(
-                ZeroOperator(
-                    # ``reportArgumentType``: ``ZeroOperator`` is generic over
-                    # ``Vector``, and MEASURED (2026-07-31, pyright + numpy
-                    # stubs) ``np.ndarray`` does not satisfy that protocol
-                    # statically — ``Self``-typed ``__add__`` will not bind
-                    # against numpy's overloads. The gap is upstream, not at
-                    # this call site: every ndarray-level operator in
-                    # ``numerics.operator`` sidesteps it by being declared
-                    # UNPARAMETERIZED (``PermutationOperator(LinearOperator)``),
-                    # an option a generic's own hooks do not have. Runtime
-                    # conformance is real; only the static bind fails.
-                    codomain_zero=_zero_rows(  # type: ignore[reportArgumentType]
-                        method_space.inflow_indices.size
-                    ),
-                    transpose_zero=_zero_rows(  # type: ignore[reportArgumentType]
-                        gamma_out.n_restricted
-                    ),
+                _narrowed_zero_operator(
+                    method_space, gamma_out, law_key="vacuum",
                 )
             )
 
         if isinstance(law, ReflectiveBoundary):
-            # B3.2 — the specular mirror, narrowed to Γ₊ → Γ₋.
-            #
-            # The mirror sends the inflow ordinate ``inflow[j]`` to the outflow
-            # ordinate ``perm[inflow[j]]`` (the ERR-045 invariant the law layer
-            # certifies at realization: a reflection maps inflow to OUTFLOW,
-            # never to itself). So the narrowed operator's row ``j`` reads the
-            # position of that outflow ordinate INSIDE Γ₊ — which is exactly
-            # what ``γ₊.to_local`` computes, and what a hand-written
-            # ``arange`` would get wrong: on a slab the mirror REVERSES order,
-            # so ``perm[inflow] = [3, 2]`` maps to local ``[1, 0]``.
+            # B3.2 — the specular mirror, narrowed to Γ₊ → Γ₋. The pairing
+            # itself is built by ``_specular_kernel``, which the albedo arm
+            # below also reaches: the mirror sits in this law's G (a symmetry
+            # of the domain) and in that law's R (a polished wall), and they
+            # realize to the same matrix.
             gamma_out = _outflow_restriction(method_space, "reflective")
-            inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
-            perm = quad.reflection_index(law.axis)
-            if inflow.size != gamma_out.n_restricted:
-                raise BoundaryError(
-                    f"SNBoundaryRealizer cannot narrow ReflectiveBoundary at "
-                    f"face {method_space.face!r}: |Γ₋| = {inflow.size} but "
-                    f"|Γ₊| = {gamma_out.n_restricted}. A specular mirror is a "
-                    f"BIJECTION between the two half-traces, so a face where "
-                    f"they differ in size has no specular realization — which "
-                    f"means the quadrature's tangential band has swallowed "
-                    f"ordinates asymmetrically at this face.",
-                    law="reflective",
-                )
-            # ``to_local`` raises if the mirror sent an inflow ordinate
-            # anywhere but Γ₊ — the ERR-045 violation, caught here as a
-            # crossed-index-set error rather than as silent wrong physics.
-            local_perm = gamma_out.to_local(perm[inflow])
-            # Depth B step D-B+1 — first production tensor-network instance.
-            # The grand-report §16A.10 BC decomposition is
-            # ``B = G_patch ⊗ K_omega ⊗ K_g``; for specular reflection the
-            # only non-trivial factor is the angular permutation. The
-            # group axis (and any face axis a higher layer composes) are
-            # identity. Pre-D-B+1 this was a single-axis
-            # ``PermutationOperator(perm, axis=0)`` whose implicit numpy
-            # broadcast played the role of ``I_group``; promoting to a
-            # ``TensorProductOperator`` makes the algebra type-visible
-            # so adjoint distributivity, composition distributivity,
-            # and (downstream) ``assert_separable`` light up without
-            # changing the matvec output.
-            # Depth B step D-B+1 — the §16A.10 BC decomposition
-            # ``B = G_patch ⊗ K_omega ⊗ K_g``; for specular reflection the only
-            # non-trivial factor is the angular permutation, now expressed on
-            # the REDUCED ordinate axis. The group axis (and any face axis a
-            # higher layer composes) are identity, which keeps adjoint and
-            # composition distributivity type-visible.
-            base = (
-                PermutationOperator(local_perm, axis=0) & IdentityOperator()
-            )  # 2-factor TensorProductOperator
-            if law.albedo == 1.0:
-                # Fast path: the bare permutation TP, whose fold
-                # ``IdentityOperator.apply(np.take(x, local_perm, axis=0))``
-                # reduces to the single gather.
-                return stamp_boundary_role(base)
-            return stamp_boundary_role(float(law.albedo) * base)
+            return _attenuated_kernel_operator(
+                _specular_kernel(
+                    quad, method_space, gamma_out,
+                    axis=law.axis, law_key="reflective",
+                ),
+                law.albedo,
+                method_space=method_space, gamma_out=gamma_out, law_key="reflective",
+            )
 
         if isinstance(law, WhiteBoundary):
             # B3.4a — the Lambertian kernel, narrowed to Γ₊ → Γ₋.
             #
-            # ``AngularAverageOperator`` now derives BOTH half-traces from
-            # the one face-name → signed-projection primitive, classified
-            # against ``TANGENTIAL_EPS`` — so its old private ``> 0.0``
-            # outflow test is gone, and with it the disagreement with the
-            # trace space on every quadrature carrying tangential ordinates.
+            # ``AngularAverageOperator`` derives BOTH half-traces from the one
+            # face-name → signed-projection primitive, classified against
+            # ``TANGENTIAL_EPS`` — so its old private ``> 0.0`` outflow test is
+            # gone, and with it the disagreement with the trace space on every
+            # quadrature carrying tangential ordinates.
             gamma_out = _outflow_restriction(method_space, "white")
-            base = (
-                _checked_angular_average(law, quad, method_space, gamma_out)
-                & IdentityOperator()
+            return _attenuated_kernel_operator(
+                _checked_angular_average(
+                    quad, method_space, gamma_out,
+                    axis=law.axis, outward_sign=law.outward_sign,
+                    law_key="white",
+                ),
+                law.albedo,
+                method_space=method_space, gamma_out=gamma_out, law_key="white",
             )
-            if law.albedo == 1.0:
-                return stamp_boundary_role(base)
-            return stamp_boundary_role(float(law.albedo) * base)
 
         if isinstance(law, AlbedoBoundary):
-            if law.albedo == 0.0:
-                return stamp_boundary_role(ZeroOperator())
-            if law.albedo == 1.0:
-                return stamp_boundary_role(IdentityOperator())
-            # Wave T step T.1 — albedo BC lift.  For α ∉ {0,1} the
-            # action is uniform attenuation across all axes; lifting
-            # the inner identity to a 2-factor TP (I & I) makes the
-            # §16A.10 algebra type-visible while remaining a no-op at
-            # the apply level (both IdentityOperator factors return
-            # ``x`` unchanged; the ``ScaledOperator`` wrapper supplies
-            # the α multiplication).
-            return stamp_boundary_role(
-                float(law.albedo) * (IdentityOperator() & IdentityOperator())
+            # B3.4b — a SURFACE returning α of the flux, in the angular shape
+            # its closure names. ``G`` is ``IdentityMap`` unconditionally (a
+            # wall is not a quotient of the domain), so the whole law is in
+            # ``R`` and both arms land in the same two bodies the
+            # geometry-tier laws use.
+            #
+            # Dispatch reads the FACTOR, not ``law.reemission``. The affine
+            # form's tier is the public surface the campaign built; the
+            # closure is the field the law happens to store, and reaching for
+            # it would bypass the abstraction. Reading ``response_kernel``
+            # also single-sources α (``kernel.amplitude``) and is the shape
+            # B4 generalizes: that phase turns this branch's isinstance chain
+            # into the realizer's ONE dispatch, over all laws.
+            gamma_out = _outflow_restriction(method_space, "albedo")
+            kernel = law.response_kernel
+            if isinstance(kernel, SpecularReemission):
+                return _attenuated_kernel_operator(
+                    _specular_kernel(
+                        quad, method_space, gamma_out,
+                        axis=kernel.axis, law_key="albedo",
+                    ),
+                    kernel.amplitude,
+                    method_space=method_space, gamma_out=gamma_out,
+                    law_key="albedo",
+                )
+            if isinstance(kernel, LambertianReemission):
+                return _attenuated_kernel_operator(
+                    _checked_angular_average(
+                        quad, method_space, gamma_out,
+                        axis=kernel.axis, outward_sign=kernel.outward_sign,
+                        law_key="albedo",
+                    ),
+                    kernel.amplitude,
+                    method_space=method_space, gamma_out=gamma_out,
+                    law_key="albedo",
+                )
+            if isinstance(kernel, ScalarResponse) and kernel.is_zero:
+                # α = 0 is NOT under-determined — nothing returns, so no
+                # pairing is needed and every closure would agree. It is
+                # refused for the other reason: it is a VacuumInflow twin, and
+                # admitting it would give one physical law two spellings with
+                # two realization paths. Refusing also keeps SN's albedo
+                # admission a single uniform rule ("state a closure"), rather
+                # than one that turns on an exact float compare — a law that
+                # realizes at α = 0 and refuses at α = 1e-300 is a worse
+                # contract than one that refuses both.
+                raise BoundaryError(
+                    f"SNBoundaryRealizer will not realize AlbedoBoundary"
+                    f"(albedo=0.0) with no re-emission closure: a surface "
+                    f"that returns nothing IS a vacuum, and VacuumInflow() "
+                    f"already spells it — with a narrowed zero map that "
+                    f"carries both space hooks and an honest transpose. Use "
+                    f"VacuumInflow(), or state a closure if you mean a "
+                    f"perfectly absorbing wall that should still certify its "
+                    f"pairing (AlbedoBoundary(0.0, SpecularReturn(axis=...)) "
+                    f"realizes, and to the same zero map).",
+                    law="albedo",
+                )
+            if isinstance(kernel, ScalarResponse):
+                raise BoundaryError(
+                    f"SNBoundaryRealizer cannot realize AlbedoBoundary"
+                    f"(albedo={law.albedo}) with no re-emission closure: on "
+                    f"an ANGULAR trace the law is under-determined. Its "
+                    f"response R = α·I is an endomorphism of Γ₊ and its "
+                    f"geometry G = IdentityMap supplies no crossing, so "
+                    f"nothing says which outgoing direction feeds which "
+                    f"incoming one — composing it anyway would pair them by "
+                    f"ARRAY POSITION, an artefact of index order carrying no "
+                    f"geometry. State the shape: "
+                    f"AlbedoBoundary({law.albedo}, SpecularReturn(axis=...)) "
+                    f"for a polished surface, or "
+                    f"AlbedoBoundary({law.albedo}, IsotropicReturn(axis=..., "
+                    f"outward_sign=...)) for a diffuse one. (A SCALAR method "
+                    f"needs no closure — α alone is the complete partial-"
+                    f"current law, which is why the diffusion realizer takes "
+                    f"this same object unchanged.)",
+                    law="albedo",
+                )
+            raise BoundaryError(
+                f"SNBoundaryRealizer cannot realize AlbedoBoundary whose "
+                f"response kernel is {kernel!r}: no realization body for that "
+                f"kernel. Realizable kernels: SpecularReemission, "
+                f"LambertianReemission.",
+                law="albedo",
             )
 
         if isinstance(law, PeriodicBoundary):

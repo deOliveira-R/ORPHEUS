@@ -15,8 +15,14 @@ a realized operator:
   could answer *"what were you declared as?"* but not *"what do you
   DO?"* — and every consumer needing the latter had to re-derive it
   from the tag. Carrying the law makes the structural questions
-  answerable at the object (``law.geometry_map.permutes_ordinates``,
+  answerable at the object (``law_permutes_ordinates(law)``,
   ``law.response_kernel.is_zero``) instead of by string comparison.
+
+  Note the first of those is a **function over both factor tiers**, not a
+  ``law.geometry_map`` read as it was until campaign phase **B3.4b**: a
+  specular pairing is legal in :math:`R` as well as :math:`G` (a polished
+  wall's return is constitutive), so asking the geometry tier alone gives
+  two identical operators different answers.
 
 * **String-equality compatibility** (``bc == "vacuum"``) via the
   :attr:`kind` property. Several SN-side tests and five production
