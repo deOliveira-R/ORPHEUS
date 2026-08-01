@@ -20,11 +20,24 @@
 >    **forbidden to commit** by standing policy and exist ONLY in the working
 >    tree. A `git checkout`/`restore`/`stash`/`clean` on those paths destroys
 >    them irreversibly.
-> 3. Gates: full tree `python -O -m pytest tests -m "not slow"` (**~54 min** —
->    budget for it; the ~13–16 min figure in older notes is a SUBSET);
+> 3. Gates. ⚠ **The full tree at `-m "not slow"` is ≈80 min, NOT the ~52 min
+>    older notes claim** — measured 2026-08-01: a run reached only **74 % at 75
+>    min** and was killed by its own timeout; the complement then measured 6 min.
+>    The cost is concentrated in `tests/cp` + `tests/derivations` (SymPy/mpmath),
+>    which alphabetical collection front-loads, so a percentage read early
+>    projects badly. Budget ≥90 min and set the timeout accordingly.
 >    `npx pyright orpheus/` → **1** (the ratchet floor, the accepted #288
 >    residual — NOT a regression); `sphinx -E -W` → 0 warnings (`-E` is
 >    REQUIRED on any label move — lesson L36).
+>
+> ⚠ **B3.4c's tree gate ran as TWO runs, not one**, and its commit body says so.
+> A single full-tree run was attempted twice and killed both times. What was
+> measured, both at the committed tree state: the alphabetical front 74 %
+> (`cp → numerics` + early `sn`) with 0 inline F/E, and the complement (rest of
+> `sn`, `transport`, the 5 root test files) at **1936 passed / 0 failed**.
+> Together that is the tree. If `main` requires a single clean full-tree run
+> before merge, THAT RUN HAS NOT HAPPENED — do it before merging, not before
+> resuming development.
 >
 > **Design of record for ALL of B3** is `.claude/plans/
 > b3_domain_narrowing_crosswalk.md`. Its **§17** is B3.4c as executed and is
@@ -40,7 +53,7 @@
 > | B3.4a | `91f73141` | white + prescribed inflow narrow; TWO mechanisms dissolve |
 > | B3.4b | `943b37c1` | albedo's re-emission closure; the specular pairing lives in R |
 > | — | `87a65967` | BC-equivalence snapshots re-anchored to derived references |
-> | B3.4c | see `git log` | periodic reads the PARTNER face; `B` is block-STRUCTURED |
+> | B3.4c | `79b5affe` | periodic reads the PARTNER face; `B` is block-STRUCTURED |
 >
 > **What B3.4c changed that a fresh session will trip over:**
 > * **`B` is NO LONGER block-diagonal over faces.** It is block-STRUCTURED —
