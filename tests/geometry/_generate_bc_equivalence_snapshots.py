@@ -502,9 +502,16 @@ def _periodic_image(ri: ReferenceInputs) -> np.ndarray:
 
     The load-bearing consequence: the image is a function of the PARTNER
     face's outflow and of nothing on this face. A law realized as a per-face
-    endomorphism cannot express it, however it permutes — which is why this
-    case's harness row is a strict xfail against B3.4c rather than a value the
-    current code happens to miss.
+    endomorphism cannot express it, however it permutes.
+
+    That is exactly what production did until campaign phase **B3.4c**, and it
+    is why this case shipped as a strict xfail: the composition fed every law
+    its own face's :math:`\Gamma_+`, so the row reddened at 98 % relative. Since
+    B3.4c the geometry factor names the partner
+    (:meth:`SpatialWrap.domain_face`) and the composition supplies it, the
+    marker is deleted, and the harness row is LIVE — it asks the law which face
+    to read and feeds the probe that answer names, so a regression selects the
+    wrong probe and reds again.
     """
     if ri.partner_face is None or ri.psi_out_partner is None:
         raise AssertionError(

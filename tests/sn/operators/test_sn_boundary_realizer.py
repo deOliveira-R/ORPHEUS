@@ -41,7 +41,6 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.numerics.operator import (
     IdentityOperator,
-    PeriodicWrapOperator,
     PermutationOperator,
     ScaledOperator,
     TensorProductOperator,
@@ -694,7 +693,8 @@ class TestRealizeAlbedo:
 
 @pytest.mark.l1
 class TestRealizePeriodic:
-    """Periodic realizes to :class:`PeriodicWrapOperator`."""
+    """Periodic realizes to the IDENTITY between the partner's Γ₊ and this
+    face's Γ₋ — the crossing lives in the channel, not in the operator."""
 
     def test_periodic_returns_tensor_product_and_passes_through(self):
         """Periodic realizes to a 2-factor :class:`TensorProductOperator`
@@ -707,18 +707,68 @@ class TestRealizePeriodic:
         Compare values, NOT identity: the TP fold returns a copy from
         the first factor and the :class:`IdentityOperator` second
         factor returns it unchanged.
+
+        **Re-posed at B3.4c** — the same migration B3.2 made for vacuum /
+        reflective and B3.4a for white / prescribed inflow, now that periodic
+        is the LAST law to narrow. The probe used to run on
+        ``SNMethodSpace.minimal(quad)``, a quadrature-only space with no face;
+        periodic's domain is a *different face's* :math:`\\Gamma_+`, so a
+        space that cannot name the installation face cannot name the partner
+        either, and the realizer refuses instead of guessing.
+
+        The pass-through claim is unchanged and is exactly what the identity
+        body means — but it is now the identity on the **narrowed** trace, so
+        the probe is :math:`\\Gamma_+`-shaped rather than full-face. That the
+        two shapes differ (49 of 74 ordinates on ``lebedev(17)``) is what
+        makes this a statement about the narrowed law rather than about an
+        endomorphism that happens to be the identity.
         """
         quad = Quadrature.lebedev(17)
-        op = SNBoundaryRealizer().realize(
-            PeriodicBoundary(), SNMethodSpace.minimal(quad),
-        )
+        space = face_method_space(quad, face="xmin")
+        op = SNBoundaryRealizer().realize(PeriodicBoundary(axis="x"), space)
         assert isinstance(op, TensorProductOperator)
         assert len(op.ops) == 2
-        assert isinstance(op.ops[0], PeriodicWrapOperator)
-        assert isinstance(op.ops[1], IdentityOperator)
+        assert all(isinstance(f, IdentityOperator) for f in op.ops)
+        n_domain = np.asarray(space.outflow_indices).size
+        assert n_domain != quad.N, (
+            "the probe must be narrower than the full face, or the shape "
+            "cannot distinguish a narrowed law from an endomorphism"
+        )
         rng = np.random.default_rng(3)
-        psi = rng.uniform(-1.0, 1.0, size=(quad.N, 5))
+        psi = rng.uniform(-1.0, 1.0, size=(n_domain, 5))
         np.testing.assert_array_equal(op.apply(psi), psi)
+
+    def test_periodic_without_a_face_is_refused(self):
+        r"""A quadrature-only space cannot name the partner, so it is refused.
+
+        Periodic is the ONLY law whose domain is a different face's
+        :math:`\Gamma_+`, which makes the face strictly more load-bearing here
+        than for any other law: vacuum needs it to size :math:`\Gamma_-`,
+        reflective to certify the pairing, and periodic to know *which face it
+        is reading at all*. Guessing would silently realize the pre-B3.4c
+        defect — a face returning its own outflow as its inflow.
+        """
+        with pytest.raises(BoundaryError, match="without a face"):
+            SNBoundaryRealizer().realize(
+                PeriodicBoundary(axis="x"),
+                SNMethodSpace.minimal(Quadrature.lebedev(17)),
+            )
+
+    def test_periodic_refuses_a_face_off_its_declared_axis(self):
+        r"""A wrap along ``y`` installed on an ``x`` face identifies nothing.
+
+        The ERR-041 mis-declaration class, in the geometry tier: the
+        translation :math:`x \mapsto x + L_y` does not carry an x-face
+        anywhere, so there is no partner to name. Answering with the
+        installation face would realize it as a bare identity on the wrong
+        half-trace — silently, since the shapes agree.
+        """
+        quad = Quadrature.level_symmetric(sn_order=6)
+        with pytest.raises(BoundaryError, match="installed on face 'xmin'"):
+            SNBoundaryRealizer().realize(
+                PeriodicBoundary(axis="y"),
+                face_method_space(quad, face="xmin"),
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────

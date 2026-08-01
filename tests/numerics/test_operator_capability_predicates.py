@@ -28,7 +28,6 @@ from orpheus.numerics.operator import (
     LinearOperator,
     MissingAdjoint,
     OperatorProduct,
-    PeriodicWrapOperator,
     PermutationOperator,
     ScaledOperator,
     TensorProductOperator,
@@ -64,7 +63,6 @@ _LEAVES = [
     DiagonalOperator(_CZ),                         # adjointable, NOT invertible (min|f|=0)
     PermutationOperator(np.array([1, 0, 2])),      # both
     IncomingOrdinateMaskTensor(np.array([0]), 3),  # adjointable, NOT invertible (rank-deficient)
-    PeriodicWrapOperator(),                        # adjointable, NOT invertible
     _ApplyOnly(),                                  # neither
 ]
 
@@ -189,7 +187,6 @@ _CONTRACT_ROWS = [
     ("Diagonal-singular", DiagonalOperator(_CZ), False, True, VALUE_RAISE),
     ("Permutation", PermutationOperator(np.array([1, 0, 2])), True, True, INVERTIBLE),
     ("Mask", IncomingOrdinateMaskTensor(np.array([0]), 3), False, True, STRUCTURAL_ABSENT),
-    ("PeriodicWrap", PeriodicWrapOperator(), False, True, STRUCTURAL_ABSENT),
     ("ApplyOnly", _ApplyOnly(), False, False, STRUCTURAL_ABSENT),
     # Composites — every arm of the recursive laws:
     ("Sum-leading-invertible", IdentityOperator() + DiagonalOperator(_C), True, True, INVERTIBLE),

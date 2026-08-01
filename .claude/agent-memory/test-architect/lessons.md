@@ -2434,3 +2434,99 @@ cannot be broken by it again.
   `arange` mutation is quadrature-coincidence-blind on ls4/ls6; a REVERSED
   local perm is the coincidence-proof specular mutation — use it to give a
   rank-N row's specular leaf its own red.
+
+---
+
+## L33 — When the phase's PRODUCTION lands while you plan: the deferred gate whose FLIP IS A NO-OP, and the green gate whose REASON decayed (B3.4c, periodic → the partner face)
+
+Two failure shapes, both measured, both new. The context: B3.4c narrows the SN
+periodic law so its domain is the PARTNER face's Γ₊ (`γ₋ψ|_f = γ₊ψ|_{f'}`), and
+its plan-of-record shipped a strict-xfail "todo list" naming the phase.
+
+### 1. ⭐ The MARKER WHOSE FLIP IS A NO-OP — a fifth Mode-8 class-4 shape
+
+L32 taught "an xfail for a not-yet-built phase needs a FLIP-PROOF because it
+will not flip by itself." That is right and it is not enough. The prescribed
+flip — *"when it lands, hand the operator the PARTNER's Γ₊ and delete the
+marker"* — turned the xfail into a **character-for-character duplicate of the
+LIVE flip-proof sibling next to it**, a row green BEFORE and AFTER the phase.
+Nothing about the edit is sensitive to whether the production change landed, so
+deleting the marker would signal "phase complete" while asserting nothing new.
+**MEASURED, decisively:** the production step landed mid-session and the row
+still red byte-identically — same 735/735, same first-mismatch values. So a
+"B3.4c gate" survived the entire B3.4c production change untouched.
+
+**The discriminator, and it is cheap:** *diff the xfail body against the live
+companion you shipped as its flip-proof.* If applying the documented edit makes
+them textually equal, the flip is ceremony. **Rule: an xfail's flip-edit must
+touch a statement whose VALUE the production change determines.** The repair
+here was to state the claim against the production ANSWER rather than a
+hard-coded face — `source = law.geometry_map.domain_face(face)`, then index the
+probe dict BY that answer, so a regression makes the gate select the wrong probe
+and red. And the composite-level claim (the thing the phase actually builds) is
+a NEW test in the operator's own file, never an edit of the law-level row: a
+harness that only ever realizes a law against a hand-built method space cannot
+state a claim about the COMPOSITION.
+
+### 2. ⭐ The gate that stays GREEN while its REASON becomes false
+
+`B` was documented block-DIAGONAL over faces; a wrap makes it block-STRUCTURED.
+Three test rows assert it — and `[M]` **all three stay green**, because every
+one is posed on a reflective-only fixture. What decays is the *justification*
+("`B` is block-diagonal over faces, **so** the face-subset reflect MUST be the
+exact restriction" — the Gauss-Seidel schedule's exactness argument). Nothing
+in the test, the tag, or CI notices; it is Mode-8 class 7 applied to a REASON
+rather than a fixture. **Rule: when a phase falsifies a structural claim, grep
+the claim's WORDS in tests/ as well as its symbols — the rows that assert it on
+a now-special-case fixture must be re-scoped from "`B`" to "these laws" IN THE
+SAME CHANGE, and the new structure gets its own positive gate.**
+
+### 3. The plan's OWN premises had already moved — steps 1/2/3/5/6 were on disk
+
+Five of seven plan steps were implemented, uncommitted, when the plan began, and
+step 4 landed mid-session. **Re-run `git status --porcelain -- orpheus/` at the
+START and again before every claim; stamp the plan with the tree state.** A
+verification plan written against a stale premise gates the wrong thing.
+
+### 4. Recipes worth keeping
+
+- **Ship the plan's gates as a RUNNABLE dry-run module**, not only as fenced
+  code. Transcribing them exposed two errors no amount of reading would: the
+  perturbation form `B(base+e) − B(base)` is NOT bit-exact (`[M]` 1 ULP, the
+  `(x+1)−x` cancellation — exploit LINEARITY with a zero base instead), and one
+  negative's refusal had moved from the realizer to the composite.
+- **When a tag registry refuses the law, the gate still exists one layer down.**
+  `BC("periodic")` raises (`SNMesh.BOUNDARY_OPERATOR_REGISTRY == {"vacuum",
+  "reflective"}`), but `sn.realize_boundary_law(law, face)` installs it — that
+  is the ONLY layer at which an end-to-end claim is stateable pre-#189, and it
+  must be named as such in the fixture's docstring.
+- **A predicate flip on a FACTOR may have zero downstream observable.** `[M]`
+  `SpatialWrap.is_adjointable: False → True` changed nothing: the composite
+  reads each REALIZED operator (identity body ⇒ already `True`). Gate the
+  factor, state the scope, and put the teeth on a transpose SUPPORT gate.
+- **Reciprocity `⟨Bx,y⟩ = ⟨x,Bᵀy⟩` is a CONSISTENCY check, not a correctness
+  one.** `[M]` the pre-fix operator reciprocated at rel 1.15e-16 because forward
+  and transpose were wrong the SAME way; reverting the fix does not red it. It
+  catches only the forward/transpose MISMATCH (`[M]` rel 1.5e-2…2.3e-1). Pair it
+  with an object-level SUPPORT gate (feed a state on Γ₋(f), assert the deposit
+  lands on Γ₊(f′) and the own face stays zero).
+- **A slab is the degenerate two-face case for any partner map** — "the
+  opposite face" and "the other face" coincide, so a 2-D companion is mandatory.
+  `[M]` a cross-axis partner is SHAPE-LEGAL (`|Γ₋(xmin)| = |Γ₊(ymax)| = 12` on
+  LS4) while the index sets differ, and a face-NAME permutation certification
+  passes it.
+- **Mutation battery (7 monkeypatches, control 95/95 green):** `domain_face →
+  face` (25 red), `face_opposite → identity` (18), suffix↔sign swapped (12),
+  revert the composition's source face (7), wrap body ×2 (6), factor
+  `is_adjointable → False` (2). **Three predicted blindnesses CONFIRMED:** the
+  revert does NOT red reciprocity; `face_opposite → identity` does NOT red the
+  involution row (the identity IS an involution — the NO-FIXED-POINT row is the
+  catcher); the suffix swap does NOT red either round-trip row (a bijection's
+  round-trip is invariant under relabelling both directions — a transcription of
+  the RETIRED expression is the catcher). A convention's round-trip is never
+  sufficient; pin the ABSOLUTE table.
+- **A same-sized-wrong-SET probe is the only way to gate "compare sets, not
+  sizes".** `[M]` `replace(space, inflow_indices=space.outflow_indices)` → the
+  real guard raises, a size comparison passes. No mesh produces that input, so
+  the discipline is otherwise an unverified claim however well its docstring
+  argues for it.

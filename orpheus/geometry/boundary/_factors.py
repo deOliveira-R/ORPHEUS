@@ -275,6 +275,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
+from orpheus.numerics.face_layout import AXIS_NAMES, face_normal, face_opposite
+
 
 __all__ = [
     "BoundaryGeometryMap",
@@ -336,10 +338,42 @@ class BoundaryGeometryMap(Protocol):
         For a genuine deck transformation this is a **theorem, not a choice**:
         the composition operator of a bijection :math:`g` is invertible with
         :math:`G^{-1} = G_{g^{-1}}`, and measure-preservation makes that
-        inverse the transpose. It is declared rather than derived only because
-        :class:`SpatialWrap` answers ``False`` while its realized
-        pushforward is still unbuilt (#183) — an implementation gap, not a
-        property of the map.
+        inverse the transpose. Every map here answers ``True``; the declaration
+        survives because a *future* map could be realized without one, and
+        because :class:`SpatialWrap` answered ``False`` until campaign phase
+        **B3.4c** built its pushforward — it was reporting an implementation
+        gap (#183), never a property of the map.
+        """
+        ...
+
+    def domain_face(self, face: str) -> str:
+        r"""Which face's :math:`\Gamma_+` this map's domain is, installed on ``face``.
+
+        Since **B3.2** an SN boundary law is typed :math:`\Gamma_+ \to
+        \Gamma_-`; this names *whose* :math:`\Gamma_+`. The answer is ``face``
+        itself for every map that acts within one face, and a DIFFERENT face
+        exactly when the deck transformation carries the crossing between two
+        faces of the fundamental domain — which today means
+        :class:`SpatialWrap` alone.
+
+        **Why the geometry tier owns this and the response tier cannot.** A
+        response is *constitutive* — a property of the material surface at this
+        face — so it answers to what arrives at this face and structurally
+        cannot reach another one. Crossing between faces is an act of the deck
+        group, which is B3.0's ruling (":math:`G` carries the crossing") read
+        one level up: :math:`G` carries the crossing in ANGLE for a mirror and
+        in SPACE for a wrap, and both are the same statement about which
+        :math:`\Gamma_+` the law consumes.
+
+        **Why it takes the installation face as an argument** rather than being
+        a stored field: which face is the partner depends on where the law is
+        installed — configuration — while the axis is intrinsic. That is the
+        same B0 rule that kept ``partner_face`` off :class:`SpatialWrap`.
+
+        A map whose declared axis cannot be reconciled with ``face`` MUST raise
+        rather than answer: a wrap along ``y`` installed on an ``x`` face
+        describes no identification at all, and silently returning ``face``
+        would realize it as a bare identity on the wrong half-trace.
         """
         ...
 
@@ -430,6 +464,11 @@ class IdentityMap:
     def is_adjointable(self) -> bool:
         return True
 
+    def domain_face(self, face: str) -> str:
+        # The identity deck element identifies nothing, so the law consumes
+        # the face it is installed on. Every constitutive law lands here.
+        return face
+
 
 @dataclass(frozen=True, slots=True)
 class SpecularMirror:
@@ -465,6 +504,20 @@ class SpecularMirror:
         # as ``argsort(perm)``, a genuine transpose rather than a
         # re-application. Measured exact: ‖T − Fᵀ‖∞ = 0.
         return True
+
+    def domain_face(self, face: str) -> str:
+        # The mirror FIXES the face (it is the plane's own isometry), so the
+        # crossing it carries is angular and stays within one face's slot:
+        # Γ₊(face) → Γ₋(face). Contrast SpatialWrap, whose action is free.
+        #
+        # No axis-vs-face reconciliation here. The mirror's declared axis IS
+        # checked against the installation face — but at realization, where a
+        # mismatch is diagnosed against the actual reflection table (a mirror
+        # about 'y' on an x-face relabels WITHIN each half-trace instead of
+        # exchanging them), and that check has the quadrature this one does
+        # not. A second, weaker name-only test here would be a twin that can
+        # disagree with it.
+        return face
 
 
 @dataclass(frozen=True, slots=True)
@@ -511,12 +564,67 @@ class SpatialWrap:
 
     @property
     def is_adjointable(self) -> bool:
-        # The translation IS adjointable as a map (see the Protocol's note —
-        # for a deck transformation this is a theorem). ``False`` reports an
-        # IMPLEMENTATION gap: the realized operator is currently an angular
-        # identity with the spatial pushforward unbuilt (#183). B3.4 builds it
-        # and this flips, WITH its gate.
-        return False
+        # The translation IS adjointable as a map — for a deck transformation
+        # that is a theorem (see the Protocol's note), and the realized form is
+        # now a genuine one: an identity between the PARTNER's Γ₊ and this
+        # face's Γ₋, whose transpose scatters the image back over the partner's
+        # Γ₊. Until campaign phase **B3.4c** this answered ``False`` to report
+        # the implementation gap (#183): the operator existed but was fed its
+        # own face's outflow, so there was no partner leg for a transpose to
+        # return along. B3.4c built the channel and this flipped, WITH its gate.
+        return True
+
+    def domain_face(self, face: str) -> str:
+        r"""The PARTNER face — the one datum that makes periodic periodic.
+
+        A wrap's law reads :math:`\gamma_-\psi|_f = \gamma_+\psi|_{f'}`: the
+        inflow here is the outflow *across the domain*. It is the only
+        :class:`BoundaryGeometryMap` whose answer is not ``face``, which is
+        exactly the sense in which a torus is a quotient and a wall is not.
+
+        The identification is well-posed because the two faces' outward normals
+        are opposite (:math:`\hat n_f = -\hat n_{f'}`): a direction OUTGOING at
+        :math:`f'` is INCOMING at :math:`f`, so :math:`\Gamma_+(f')` and
+        :math:`\Gamma_-(f)` are the same index set and the crossing costs
+        nothing. `[M]` measured 2026-08-01 as an exact set equality on
+        ``gauss_legendre(8)``, ``product(2,4)``, ``level_symmetric(6)`` and
+        ``lebedev(17)``, on both axis pairs. The realizer ASSERTS it rather
+        than assuming it — the user's B3.4c ruling was that the quotient
+        reading becomes a guard, not a mesh restructure.
+
+        Raises
+        ------
+        BoundaryError
+            If ``face`` does not lie on :attr:`axis`. A wrap along ``y``
+            installed on an ``x`` face identifies nothing — the translation
+            :math:`x \mapsto x + L_y` does not carry that face anywhere — and
+            answering ``face`` would silently realize it as a bare identity on
+            the wrong half-trace, which is the ERR-041 mis-declaration class
+            (the diffuse arm's orientation cross-check is the same shape).
+        """
+        from ._errors import BoundaryError
+
+        try:
+            axis_index, _sign = face_normal(face)
+        except ValueError as exc:
+            raise BoundaryError(
+                f"SpatialWrap(axis={self.axis!r}) cannot name a partner for "
+                f"face {face!r}: {exc}",
+                law="periodic",
+            ) from exc
+        if AXIS_NAMES[axis_index] != self.axis:
+            raise BoundaryError(
+                f"SpatialWrap declares axis={self.axis!r} but is installed on "
+                f"face {face!r}, which lies on axis "
+                f"{AXIS_NAMES[axis_index]!r}. A wrap identifies the two faces "
+                f"NORMAL to its own axis; it carries an {self.axis}-face to "
+                f"the opposite {self.axis}-face and says nothing about any "
+                f"other face, so there is no partner to name here. Declare "
+                f"PeriodicBoundary(axis={AXIS_NAMES[axis_index]!r}) if this "
+                f"face's axis is the periodic one.",
+                law="periodic",
+            )
+        return face_opposite(face)
 
 
 # ═══════════════════════════════════════════════════════════════════════

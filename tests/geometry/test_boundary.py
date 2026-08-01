@@ -53,27 +53,6 @@ from tests.sn._test_helpers import face_method_space
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _realize_for_sn(bc, quad):
-    """Realize a BC via the SN realizer with a minimal method space.
-
-    Used by tests that previously called ``bc.apply(psi, quad)`` directly.
-    Returns a 1-arg :class:`LinearOperator` whose ``apply(psi)`` matches
-    the legacy 2-arg ``bc.apply(psi, quad)`` semantics.
-
-    **B3.4b note: PERIODIC ONLY.** Vacuum and reflective narrowed at B3.2,
-    white and prescribed inflow at B3.4a, and albedo at B3.4b — all six are
-    typed :math:`\\Gamma_+ \\to \\Gamma_-` and cannot be realized on a faceless
-    method space at all; they use :func:`_realize_narrowed_for_face_right`.
-    (The previous note said "albedo and periodic only". That was true when it
-    was written and became false with B3.4b.) This helper retires with
-    **B3.4c**, when periodic narrows and nothing is left that a faceless
-    method space can realize.
-    """
-    realizer = SNBoundaryRealizer()
-    method_space = SNMethodSpace.minimal(quad)
-    return realizer.realize(bc, method_space)
-
-
 def _realize_narrowed_for_face_right(bc, quad):
     r"""Realize a NARROWED BC for the right face (outward normal :math:`+\hat x`).
 
@@ -511,23 +490,63 @@ def test_white_bc_z_axis_unsupported_on_1d_quadrature() -> None:
 
 @pytest.mark.foundation
 def test_periodic_bc_returns_input_unchanged() -> None:
-    """PeriodicBoundary is identity on the angular axis (smoke test).
+    r"""PeriodicBoundary is the identity on the ordinate index — and that is
+    EARNED by the partner identification, not assumed.
 
-    The spatial pushforward is the caller's responsibility; this
-    primitive only certifies that the angular structure is identity,
-    which is a no-op return of the (caller-supplied partner-face
-    outgoing) buffer.
+    RE-POSED at campaign phase **B3.4c**, the last of the narrowings (vacuum /
+    reflective at B3.2, white / prescribed inflow at B3.4a, albedo at B3.4b).
+    Two things about this test were false before it:
+
+    * it realized on a FACELESS method space, and its docstring said "the
+      spatial pushforward is the caller's responsibility". No caller ever had
+      that responsibility, and no mechanism existed for one to discharge it —
+      the composition fed every law its OWN face's :math:`\Gamma_+`, so
+      periodic returned a face's own outflow as its inflow. Since B3.4c the
+      channel is real (:meth:`SpatialWrap.domain_face` names the partner and
+      ``SNBoundaryOperator._face_domains`` supplies it), and a law that cannot
+      name its installation face is refused rather than realized;
+    * the probe was full-face, so "identity" was a statement about an
+      endomorphism. Narrowed, it is a statement about
+      :math:`\Gamma_+(f') \to \Gamma_-(f)` — a map between two DIFFERENT index
+      sets that happens to be the identity on the global ordinate index
+      because the faces' outward normals are opposite. The assertion below
+      pins that those two sets really are different-but-equal: disjoint from
+      :math:`\Gamma_+(f)`, equal to each other.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    psi_out = np.random.default_rng(5).standard_normal((quad.N, 3))
-    bc = PeriodicBoundary()
+    bc = PeriodicBoundary(axis="x")
+    inflow, outflow = _half_traces(quad)          # of the RIGHT face (xmax)
+    partner_outflow = np.flatnonzero(quad.mu_x < -1e-12)   # Γ₊ of xmin
 
-    psi_in = _realize_for_sn(bc, quad).apply(psi_out)
+    # The identification that makes the identity body correct, stated here
+    # independently of the realizer's own guard: xmax's Γ₋ IS xmin's Γ₊, and
+    # is NOT xmax's own Γ₊ (so the probe below discriminates).
+    np.testing.assert_array_equal(inflow, partner_outflow)
+    assert not set(inflow) & set(outflow)
 
-    np.testing.assert_array_equal(psi_in, psi_out)
-    # Returned array is a copy (independent of caller's buffer).
-    psi_in[0, 0] = 1e9
-    assert psi_out[0, 0] != 1e9
+    psi_partner_out = np.random.default_rng(5).standard_normal(
+        (partner_outflow.size, 3)
+    )
+    psi_in = _realize_narrowed_for_face_right(bc, quad).apply(psi_partner_out)
+
+    assert psi_in.shape == (inflow.size, 3)
+    np.testing.assert_array_equal(psi_in, psi_partner_out)
+    # ⚠ The "returned array is a copy" leg that stood here RETIRED at B3.4c
+    # with the leaf that guaranteed it. ``PeriodicWrapOperator``'s body was
+    # ``x.copy()``; the successor is a bare
+    # :class:`~orpheus.numerics.operator.IdentityOperator`, which returns its
+    # argument BY REFERENCE — deliberately, because it is algebra-closed
+    # (``I.inverse() is I``). So the retired leaf's claimed "project-wide
+    # convention that op.apply(psi) may be mutated freely" was never universal:
+    # ``IdentityOperator`` had always violated it.
+    #
+    # The contract that MATTERS is at the composition, and it is pinned there
+    # rather than dropped —
+    # ``test_sn_boundary_operator.py::TestPeriodicReadsThePartnerFace::
+    # test_the_output_never_aliases_the_input``. It holds for a structural
+    # reason: the trace restriction is fancy indexing (which copies) and the
+    # image is scattered into a freshly-zeroed sink, so no production caller
+    # ever hands the leaf a buffer it still owns.
 
 
 @pytest.mark.foundation
@@ -602,22 +621,25 @@ def test_albedo_zero_and_vacuum_are_THE_SAME_narrowed_zero_map() -> None:
     assert np.count_nonzero(probe)
 
 
-#: Shared reason for every gate blocked on B3.4 (Pattern 2 — one spelling of
-#: the debt, so the marker set reads as ONE todo item rather than N).
-_MIXED_LAW_XFAIL = (
-    "B3.4 — a NARROWED law cannot be summed with an UN-NARROWED one. Since "
-    "B3.2 reflective is typed Γ₊ → Γ₋ while white is still a full-face "
-    "endomorphism, so `α·spec + β·white` has mismatched factor shapes: "
-    "MEASURED, it raises on BOTH domains — on Γ₊ `AngularAverageOperator."
-    "apply: psi.shape[0] = 4, expected 8`, on the full face `operands could "
-    "not be broadcast together with shapes (4,2) (8,2)`. The mixed-BC "
-    "LINEARITY claim is unchanged and un-weakened; it is simply unstateable "
-    "until B3.4 narrows white / albedo / periodic (#183, #189). Delete this "
-    "marker then."
-)
+# The two mixed-law gates below carried ``xfail(strict=True)`` from B3.2 until
+# **B3.4c**, on the shared reason "a NARROWED law cannot be summed with an
+# UN-NARROWED one — white is still a full-face endomorphism". That debt is now
+# discharged: B3.4a narrowed white, B3.4b albedo, B3.4c periodic, so every law
+# is typed Γ₊ → Γ₋ and ``α·spec + β·white`` has matching factor shapes. The
+# markers are DELETED (an xfail that XPASSes is a failure, by design — the
+# marker set is the todo list, and this item is done).
+#
+# ⚠ The markers had also gone MISATTRIBUTED, which is why this is worth a note
+# rather than a silent deletion (vv Mode 8, class 4). From B3.4a onward they no
+# longer reddened for the documented reason: white WAS narrowed, and what
+# actually raised was the faceless ``_realize_for_sn`` helper handing it a
+# method space with no Γ₊ — a setup error, not the shape mismatch the reason
+# names. An xfail hides ANY failure, so the rows read as committed coverage of
+# "narrowing incomplete" while asserting nothing about it. Routing both
+# operands through the same face-carrying space is what makes the claim
+# stateable AND what makes the pass mean what it says.
 
 
-@pytest.mark.xfail(strict=True, reason=_MIXED_LAW_XFAIL)
 @pytest.mark.foundation
 def test_wave0_sum_of_realized_bcs_acts_as_weighted_sum() -> None:
     r"""Wave-11 replacement for ``MixedBoundaryOperator.apply`` linearity.
@@ -637,7 +659,7 @@ def test_wave0_sum_of_realized_bcs_acts_as_weighted_sum() -> None:
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
 
     spec_realized = _realize_narrowed_for_face_right(spec, quad)
-    white_realized = _realize_for_sn(white, quad)
+    white_realized = _realize_narrowed_for_face_right(white, quad)
     _, outflow = _half_traces(quad)
     psi_out = np.random.default_rng(8).standard_normal((outflow.size, 2))
     composed = 0.3 * spec_realized + 0.7 * white_realized
@@ -718,8 +740,12 @@ def test_sn_realizer_refuses_zero_flux() -> None:
     law (VacuumInflow) and to the diffusion realizer.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
+    # The refusal fires BEFORE any method-space read (it is a state-cone
+    # refusal, not a missing-data one), so a face-carrying space proves the
+    # point more strongly than a faceless one: the law is unrealizable even
+    # when everything needed to realize it is present.
     with pytest.raises(BoundaryError, match="VacuumInflow"):
-        _realize_for_sn(ZeroFluxBoundary(), quad)
+        _realize_narrowed_for_face_right(ZeroFluxBoundary(), quad)
 
 
 @pytest.mark.foundation
@@ -809,10 +835,6 @@ def test_specular_narrowed_law_composed_with_its_transpose_is_alpha_squared() ->
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=_MIXED_LAW_XFAIL,
-)
 @pytest.mark.foundation
 def test_operator_sum_of_bcs_acts_as_weighted_sum() -> None:
     r"""``0.7 * Specular + 0.3 * White`` realises the explicit weighted sum.
@@ -839,7 +861,7 @@ def test_operator_sum_of_bcs_acts_as_weighted_sum() -> None:
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
 
     spec_realized = _realize_narrowed_for_face_right(spec, quad)
-    white_realized = _realize_for_sn(white, quad)
+    white_realized = _realize_narrowed_for_face_right(white, quad)
     composed = 0.7 * spec_realized + 0.3 * white_realized
     expected = 0.7 * spec_realized.apply(psi_out) + 0.3 * white_realized.apply(psi_out)
 

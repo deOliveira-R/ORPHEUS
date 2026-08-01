@@ -1347,3 +1347,246 @@ sets. The only thing a snapshot case would add is the frozen artefact's co-drift
 delivered for the specular closure by ONE extra method on the existing `specular_x` case, at
 zero cost. Two new cases would be verbatim duplicate expressions: the Pattern-2 twin this
 campaign removes.
+
+---
+
+## 17. B3.4c — periodic's partner-face channel, as executed
+
+Executing §11.2. The user's ruling held exactly: **build the channel; assert the
+quotient at realization.** What follows is what that turned out to require.
+
+### 17.1 ⭐ The defect was never in the operator — it was in the composition
+
+`PeriodicWrapOperator`'s body was an identity, and that was **correct**. The
+wrong thing was `_reflect_trace` feeding every law *its own* face's `Γ₊`. So the
+whole of B3.4c is one line of routing plus the machinery that makes the routing
+statable:
+
+```
+γ₋ψ|_f  =  γ₊ψ|_{f'}        f' = G.domain_face(f)
+```
+
+`[M]` The identification `Γ₊(f') ≡ Γ₋(f)` holds as an exact index-set equality on
+`gauss_legendre(8)`, `product(2,4)`, `level_symmetric(6)`, `lebedev(17)`, both
+axis pairs — **and `Γ₋(f) ≠ Γ₊(f)` everywhere** (they are DISJOINT, not merely
+different), so a partner-fed identity is right and a self-fed one is provably
+wrong rather than arguably so.
+
+### 17.2 The shape: `G` names the face, the composition supplies it
+
+`BoundaryGeometryMap` gained **`domain_face(face) -> str`** — *whose `Γ₊` this
+law consumes*. `IdentityMap`/`SpecularMirror` answer `face`; `SpatialWrap`
+answers `face_opposite(face)` and **raises** on a face off its own axis.
+
+The geometry tier owns it, and the response tier structurally cannot:
+
+> A response is **constitutive** — a property of the material surface at this
+> face — so it answers to what arrives at this face and cannot reach another
+> one. Crossing between faces is an act of the deck group. That is B3.0's
+> "`G` carries the crossing" read one level up: `G` carries it in ANGLE for a
+> mirror and in SPACE for a wrap, and both are the same statement about which
+> `Γ₊` the law consumes.
+
+It takes the installation face as an ARGUMENT rather than being a stored field —
+the same B0 rule that kept `partner_face` off `SpatialWrap` (the partner is
+configuration; the axis is intrinsic).
+
+### 17.3 ⭐ `B` is block-STRUCTURED, and `_face_domains` is the block index
+
+`SNBoundaryOperator._face_domains` maps installation face → domain face. The
+pair is the `(row, column)` index of the block each law occupies: every
+constitutive law is **diagonal**, a quotient law is **off-diagonal**. That is
+the honest algebra, and it retires a claim the module had asserted six ways:
+*"`B` is block-diagonal over faces — it never mixes faces."* That was not a
+property of `B`; it was periodic being silently wrong.
+
+**The map is certified a PERMUTATION of the faces** — every face's `Γ₊` feeds
+exactly one law. This is the well-posedness statement, and it closes two
+ill-posed configurations that were previously silent:
+
+* a **half-declared pair** (`xmin` periodic, `xmax` vacuum): `Γ₊(xmax)` would
+  feed two laws and `Γ₊(xmin)` none — and the transpose's whole-slot writes
+  would collide;
+* a **partner that is not a boundary face**: a curvilinear mesh carries `xmax`
+  alone, so a wrap there names a slot the trace does not have.
+
+**The `faces=` restriction never depended on block-diagonality** (explorer,
+confirmed): `_reflect_trace` filters which OUTPUT faces are emitted on while the
+whole input trace stays in scope, so a face subset computes the exact block ROWS
+either way. Block-diagonality was *sufficient*, never *necessary* — ~8 docstrings
+stated the wrong reason for a right conclusion.
+
+### 17.4 Clean-before-extend: EIGHT transcriptions of one convention
+
+`opposite_face` needs the `(axis, sign) ↔ "{axis}{min|max}"` convention, which
+had **no home** and was transcribed at eight sites. Writing it standalone would
+have been a ninth. So the bijection landed first, in `numerics/face_layout.py`
+(which already owns `AXIS_NAMES` and calls itself the keeper of the face-name
+string world), and all eight repointed:
+
+| site | was |
+|---|---|
+| `numerics/spaces/angular_trace_space.py:181` | `_FACE_NORMALS` dict (the parse) |
+| `sn/boundary/angular.py:290` | `f"{axis}{'max' if sign == +1 else 'min'}"` |
+| `sn/boundary/realizer.py:450` | verbatim twin of the above |
+| `sn/loss_representation/sweep_schedule.py:252` | same, from an int axis |
+| `sn/loss_representation/__init__.py:731` | `_inflow_faces` |
+| `sn/loss_representation/__init__.py:740` | `_outflow_faces` — **literally `face_opposite ∘ _inflow_faces`**, transcribed |
+| `sn/solver.py:1462` | `{"x":0,"y":1,"z":2}[face[0]]` + a `face == "xmin"` sign test |
+| `transport/method.py:337` | `.endswith("max")` reverse parse, with the axis read separately |
+
+`[M]` **Bit-identical**, proven by re-implementing each retired expression and
+comparing over its ENTIRE input domain (all 6 faces; all 27 octant sign triples;
+all 3 axes × 2 signs; all 3 axis indices × 3 endpoints **including `"outer"`**,
+the many-to-one endpoint that renders as `max`).
+
+Two of those sites carried docstrings *pointing at* "the one primitive" that did
+not exist. That is the clean-before-extend signal in its purest form: the code
+had already named the missing abstraction and gone on transcribing.
+
+### 17.5 ⭐ The latent orientation bug — the same one B3.4a fixed for white
+
+`_law_from_tag` had arms for reflective/white/albedo then `return law_cls()`.
+`PeriodicBoundary` gained `axis` at B1 and was **never added**, so it sat in the
+fall-through — against that function's own `.. warning::` (*"A law that declares
+its own orientation MUST be listed here"*). The day #189 admits `"periodic"`,
+every face would have got `SpatialWrap(axis="x")`.
+
+Latent, not live (SN's registry admits only {vacuum, reflective}), and since
+B3.4c it would be LOUD rather than silent — `domain_face` refuses a face off its
+axis. Fixed at the producer anyway: a producer that emits a wrong law and leans
+on a downstream guard is the consumer-side bridge this codebase fixes at source
+(L18).
+
+### 17.6 `PeriodicWrapOperator` RETIRED (user ruling, 2026-08-01)
+
+The user asked the right question first: *does this retirement cover the future
+extension where we process periodic as a topological torus, preserving
+triangularity without lagging the cyclic part?*
+
+**No, it does not foreclose it** — measured, not argued:
+`derivations/discrete/sn/sweep_acyclicity.py:361-363` already builds periodic's
+trace edge as `TraceSlot(other_face, SAME ordinate, "inflow")`. That is exactly
+`_face_domains` + the identity body; it never mentions the operator type. Cyclic
+reduction / Sherman–Morrison needs the same datum (*which block is the
+back-edge* = *which is off-diagonal*).
+
+B3.4c in fact **unblocks** #324: `_face_domains` IS the face-level trace
+digraph's edge set. Before it, production carried no partner datum anywhere, so
+the SCC criterion had nothing to read — which is why it sat unwired.
+
+The one future needing a non-identity body is a **shifted or rotational**
+gluing, and `SpatialWrap`'s own docstring already assigns that to **#178
+`SymmetryBoundary`** — a deliberately different object, minted then with real
+content rather than resurrected from a placeholder.
+
+**Two predicate differences the "byte-for-byte identical body" framing missed**,
+both surfaced by measuring rather than assuming:
+
+* `is_invertible` **False → True**. Honest: `PeriodicWrapOperator`'s `False`
+  described the un-narrowed full-face pushforward; the narrowed law IS a
+  bijection `Γ₊(f') → Γ₋(f)`. `SNBoundaryOperator.is_invertible` is unaffected
+  (it inherits base `False` — `ι₋ ∘ law ∘ γ₊` is rank-deficient by
+  construction).
+* **Aliasing.** `PeriodicWrapOperator.apply` returned a COPY; `IdentityOperator`
+  returns its argument BY REFERENCE (deliberate — it is algebra-closed,
+  `I.inverse() is I`). `[M]` No live hazard: the only production caller feeds
+  `gamma_out.apply(...)`, which is fancy indexing and therefore already fresh.
+  Pinned anyway by a composition-level test, because the leaf that used to
+  guarantee it is gone.
+
+### 17.7 The already-red gate could NOT flip by its documented edit
+
+§16.4 prescribed *"hand the operator the PARTNER's `Γ₊` and delete the marker"*.
+The test-architect proved by measurement that this edit makes
+`test_delivers_the_partner_faces_outflow` a **character-for-character duplicate**
+of its live sibling `test_the_identity_body_is_correct_on_the_partner_half_trace`
+— the only textual difference between the two bodies would be
+`psi_out_partner` vs `psi_out`.
+
+The reason is exactly what §16.4 itself said: B3.4c changes which half-trace the
+**composition** supplies, not the body — so a *unit-level* test of the operator
+cannot state the change at all.
+
+**The honest re-pose asks the LAW to route.** The test builds a probe dict keyed
+by face, asks `geometry_map.domain_face(face)`, and feeds the probe that answer
+names. A regression of `domain_face` selects the wrong probe and reds at 98 %.
+The composite claim became a NEW class in `test_sn_boundary_operator.py`, never
+an edit of this one.
+
+The law is **captured from the registry's own `compose`** rather than
+re-spelled: a second spelling could name a different axis than the case realizes
+and the two would agree by coincidence.
+
+### 17.8 ⭐ Two strict-xfails had gone MISATTRIBUTED (vv Mode 8, class 4)
+
+`tests/geometry/test_boundary.py` carried two `xfail(strict=True)` rows on the
+shared reason *"a NARROWED law cannot be summed with an UN-NARROWED one — white
+is still a full-face endomorphism."*
+
+**White narrowed at B3.4a.** From that commit onward the rows no longer reddened
+for the documented reason: what actually raised was the faceless
+`_realize_for_sn` helper handing white a method space with no `Γ₊` — a *setup
+error*. An xfail hides ANY failure, so the rows read as committed coverage of
+"narrowing incomplete" while asserting nothing about it, and would have XPASSed
+the day the helper was fixed, falsely signalling the documented debt was
+discharged.
+
+Both markers deleted and both rows now pass LIVE, with white routed through the
+same face-carrying space as its summand. `_realize_for_sn` retired — its own
+docstring had predicted this ("retires with B3.4c, when periodic narrows and
+nothing is left that a faceless method space can realize").
+
+### 17.9 The adjointability two-sources-of-truth (§11.5 falsehood #4)
+
+`SpatialWrap.is_adjointable` said `False` while the operator realizing periodic
+answered `True`. Flipping the value is not the fix — **nothing compared them**,
+and `geometry_map.is_adjointable` had ZERO consumers, production or test. So the
+mutation "flip it back" was BLIND.
+
+Closed with a registry-wide gate: `G.is_adjointable and R.is_adjointable ==
+realized.is_adjointable`, over every law. `[M]` holds for 7 of 8. The exception
+is principled and is pinned as its own row: **`PrescribedInflow`** carries both
+factors trivially adjointable while its realized `IncomingSourceOperator`
+declines a transpose — because the factor pair describes the LINEAR part
+`R G γ₊ψ` and that law's entire content is the affine term `q`.
+
+A companion row asserts the law set exercises BOTH answers, so a uniform flip
+cannot pass.
+
+### 17.10 Mutation table
+
+| mutation | reds |
+|---|---|
+| `SpatialWrap.domain_face` → the installation face (the pre-B3.4c defect) | **6** |
+| the axis-coherence guard disabled | **1** |
+| `SpatialWrap.is_adjointable` → `False` | **1** (was 0 before §17.9) |
+
+**Named blind mutations** (a blind mutation named is a scope statement; unnoticed
+it is a false coverage claim):
+
+* Reverting the composition does **not** red Euclidean reciprocity — forward and
+  transpose are wrong the *same way*. `[M]` rel 1.15e-16. The reciprocity test
+  says so in its own docstring.
+* `face_opposite → identity` does **not** red the involution law — the identity
+  IS an involution. The **no-fixed-point** clause is what catches it, and it is
+  asserted separately for that reason.
+* Swapping the suffix↔sign convention does **not** red either round-trip row — a
+  bijection's round-trip is invariant under relabelling both directions. The
+  axis-preservation and sign-flip rows catch it.
+* `TANGENTIAL_EPS → 0.0` moves both half-traces symmetrically, so the
+  identification survives.
+
+### 17.11 What B3.4c did NOT do
+
+* **Register `"periodic"` in `SNMesh.BOUNDARY_OPERATOR_REGISTRY`** — that is
+  #189, and it now needs only the tag-spelling decision. The law, factor,
+  realizer, composition and gates are all correct and exercised through
+  `realize_boundary_law`, which is the same production arm the tag path reaches
+  one step later.
+* **Wire the SCC criterion** (#324). B3.4c makes it buildable (§17.6); periodic
+  still lags into `B_upper`, which is correct-but-not-minimal.
+  `SpatialWrap.permutes_ordinates` stays **`False`** — that is what keeps
+  periodic out of `_reflective_faces`, hence out of `B_lower`, hence the forward
+  substitution triangular. `tests/geometry/test_reemission_closure.py:1134-1141`
+  is the existing tripwire on that `False`.

@@ -485,24 +485,40 @@ at :ref:`bc-sweep-cycle`.
      -
      - ``α * <that TP>``
      - α ≠ 1
-   * - ``"periodic"`` — not yet narrowed (B3.4c)
+   * - ``"periodic"`` — **narrowed** (B3.4c)
      - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
-     - ``PeriodicWrapOperator() & IdentityOperator()`` (angular
-       identity; the spatial pushforward is unbuilt, issue #183)
+     - ``IdentityOperator() & IdentityOperator()``, fed the PARTNER
+       face's :math:`\Gamma_+`. The crossing lives in the channel
+       (:meth:`SpatialWrap.domain_face` names the partner; the composite
+       supplies it), so the action on the trace is the identity —
+       EARNED by the certified identification
+       :math:`\Gamma_+(f') \equiv \Gamma_-(f)`, not assumed
      - 1
-   * - ``"albedo"`` — not yet narrowed (B3.4b)
+   * - ``"albedo"`` — **narrowed** (B3.4b); the realized body is chosen
+       by the law's **re-emission closure**, not by its class
      - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
-     - :class:`~orpheus.numerics.operator.ZeroOperator` (bare — an
-       endomorphism, no space hooks)
-     - 0
+     - with :class:`~orpheus.geometry.boundary.SpecularReturn`: the SAME
+       narrowed permutation the reflective row above builds (one
+       construction, not two agreeing transcriptions)
+     - any
    * - ``"albedo"``
      -
-     - :class:`~orpheus.numerics.operator.IdentityOperator`
-     - 1
-   * - ``"albedo"``
+     - with :class:`~orpheus.geometry.boundary.IsotropicReturn`: the SAME
+       narrowed Lambertian the white row above builds
+     - any
+   * - ``"albedo"`` — closure-free spelling
      -
-     - ``α * (IdentityOperator() & IdentityOperator())``
-     - α ∉ {0, 1}
+     - **REFUSED**. On an ANGULAR trace the law is under-determined:
+       :math:`R = \alpha I` is an endomorphism of :math:`\Gamma_+` and
+       :math:`G = \mathrm{Id}` supplies no crossing, so nothing says which
+       outgoing direction feeds which incoming one. Until B3.4b this arm
+       returned the full-face endomorphisms
+       :class:`~orpheus.numerics.operator.ZeroOperator` /
+       :class:`~orpheus.numerics.operator.IdentityOperator` /
+       ``α·(I & I)``, which the composite then paired by ARRAY POSITION.
+       A **scalar** method needs no closure, which is why the diffusion
+       realizer takes the same object unchanged
+     - n/a
    * - ``"prescribed_inflow"`` — rank-0 **affine**, **narrowed**
        :math:`\Gamma_+ \to \Gamma_-` (B3.4a)
      - :class:`~orpheus.geometry.boundary.PrescribedInflow`

@@ -177,7 +177,6 @@ __all__ = [
     "PermutationOperator",
     "TraceRestrictionOperator",
     "IncomingOrdinateMaskTensor",
-    "PeriodicWrapOperator",
     "DiagonalOperator",
     "RankOneOperator",
     "outer",
@@ -2610,48 +2609,6 @@ class IncomingOrdinateMaskTensor(LinearOperator):
         return True  # M = M^T (self-adjoint projection)
 
     # is_invertible inherits the base ``False`` — the mask is rank-deficient.
-
-
-class PeriodicWrapOperator(LinearOperator):
-    r"""Spatial-pushforward operator for periodic boundaries.
-
-    Represents the angular trace map that connects opposite faces of
-    a periodic mesh. Currently the body is angular identity — this
-    matches the
-    :class:`~orpheus.geometry.boundary.PeriodicBoundary`
-    semantics, where the SN sweep handles the spatial wrap via its
-    own face-pair indexing and the BC operator only needs to pass
-    the angular trace through unchanged.
-
-    The type is reserved for a future spatial-pushforward extension
-    when the periodic map needs to act on a per-cell flux field
-    rather than a per-face angular trace (e.g. for coupling periodic
-    BCs into a curvilinear Krylov solve where spatial wrap is not
-    handled by sweep indexing). See follow-up issue
-    "BC: PeriodicWrapOperator spatial-pushforward implementation".
-
-    The identity body is self-adjoint (``apply_transpose`` echoes) and
-    the operator is structurally non-invertible AS POSED here (the wrap
-    is a boundary pushforward, not a solvable map) — no ``inverse()``
-    declared. The output is a fresh copy of
-    the input — matching the legacy
-    :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundary.apply`
-    aliasing-safety contract (``psi_out.copy()``) and the project-
-    wide convention that ``op.apply(psi)`` may be mutated freely by
-    the caller without affecting ``psi``.
-    """
-
-    def apply(self, x: np.ndarray) -> np.ndarray:
-        # Return a fresh copy — the caller-mutates-output
-        # safe-aliasing contract.
-        return np.asarray(x).copy()
-
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        return np.asarray(x).copy()
-
-    @property
-    def is_adjointable(self) -> bool:
-        return True  # identity body is self-adjoint
 
 
 class TensorProductOperator(LinearOperator):

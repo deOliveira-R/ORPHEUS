@@ -40,9 +40,22 @@ The per-face boundary laws already live on the
 :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` in the face-name-keyed ``bc`` dict
 (each entry a :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
 wrapping a realized law that carries :attr:`BlockRole.BOUNDARY`). The whole-trace
-``B`` is the block-diagonal composition over the mesh's true boundary faces: for
-each face present in the trace it applies that face's law to that face's slot.
-``B`` is therefore block-diagonal over faces — it never mixes faces.
+``B`` is the block composition over the mesh's true boundary faces: for each
+face present in the trace it applies that face's law, reading the half-trace of
+the face that law's GEOMETRY names. That is the installation face for every
+constitutive law — a surface responds to what arrives at its own face — so
+those laws occupy the DIAGONAL blocks. A quotient law is off-diagonal:
+:class:`~orpheus.geometry.boundary.PeriodicBoundary` reads its partner
+(``γ₋ψ|_f = γ₊ψ|_f'``), which is the whole of what makes it a torus
+identification rather than a wall. See
+:attr:`SNBoundaryOperator._face_domains`, which is that block index and is
+certified a PERMUTATION of the faces (every face's outflow feeds exactly one
+law).
+
+⚠ Before campaign phase **B3.4c** this said "``B`` is block-diagonal over
+faces — it never mixes faces", and the composition enforced it by feeding every
+law its own face's ``γ₊`` unconditionally. That was not a property of ``B``; it
+was periodic being silently wrong.
 
 See :ref:`operator-algebra` and :ref:`bc-extraction` for the block-matrix
 derivation and design rationale.
@@ -195,8 +208,9 @@ class SNBoundaryOperator(LinearOperator):
     r"""``B_a`` — System A's (trace) boundary law, the SN ``A_ss`` block.
 
     The boundary operator of the transport system (System A of the 2×2 coupled
-    block operator — bulk⊕trace): block-diagonal over the mesh's true boundary
-    faces, ``B_a.apply(ψ)`` returns a
+    block operator — bulk⊕trace): block-structured over the mesh's true
+    boundary faces (diagonal for every constitutive law, off-diagonal for a
+    quotient — see :attr:`_face_domains`), ``B_a.apply(ψ)`` returns a
     :class:`~orpheus.transport.full_field.FullField` with **zero bulk**
     and, on each face, the composition ``ι₋ ∘ law ∘ γ₊`` — the realized law
     consumes that face's **outflow** half-trace and produces its **inflow**
@@ -244,11 +258,24 @@ class SNBoundaryOperator(LinearOperator):
     ------------
 
     ``apply`` always. ``apply_transpose`` is advertised iff EVERY per-face law
-    advertises it — reflective (involution), vacuum and periodic do; **white
-    does NOT** (it is self-adjoint only under the ``|Ω·n|·w`` metric, so its
-    adjoint routes through ``B.H`` on the weighted trace space at O.2). The
-    intersection rule keeps ``apply_transpose`` honest: it is reachable only when
-    every block can honour it.
+    advertises it. The discriminator is the law's FACTORS, not its class: a
+    permutation and a zero map have honest Euclidean transposes, and a
+    Lambertian does not (it is self-adjoint only under the ``|Ω·n|·w`` metric,
+    so its adjoint routes through ``B.H`` on the weighted trace space at O.2).
+    The intersection rule keeps ``apply_transpose`` honest: it is reachable
+    only when every block can honour it.
+
+    Since **B3.4c** the factor tier and the realized operator agree on that
+    question, and a registry-wide gate holds them together
+    (``tests/geometry/test_bc_universal_invariants.py``). They had drifted:
+    ``SpatialWrap.is_adjointable`` declared ``False`` while the operator
+    realizing periodic answered ``True``, so a consumer got opposite answers
+    depending on which it asked — the declaration was reporting an unbuilt
+    partner channel (#183) in a slot whose contract is a property of the map.
+    B3.4c built the channel and the declaration became true. The one law that
+    legitimately sits outside the agreement is the AFFINE
+    :class:`~orpheus.geometry.boundary.PrescribedInflow`, whose content is the
+    source term the factor pair does not carry.
 
     Since **B3.4b** an albedo face answers by its **re-emission closure**, not
     by its class: a specular closure realizes to the same scaled permutation
@@ -287,6 +314,72 @@ class SNBoundaryOperator(LinearOperator):
             face: self.sn_mesh.bc[face]
             for face in self.sn_mesh.angular_trace.layout.faces
         }
+
+    @property
+    def _face_domains(self) -> dict[str, str]:
+        r"""Each boundary face → the face whose :math:`\Gamma_+` its law consumes.
+
+        **``B``'s block structure over faces, named.** Since B3.2 a realized law
+        is typed :math:`\Gamma_+ \to \Gamma_-`; this says *whose* :math:`\Gamma_+`,
+        so the pair ``(installation face, domain face)`` is the ``(row, column)``
+        index of the block the law occupies. Every constitutive law is on the
+        DIAGONAL (a surface responds to what arrives at its own face). Periodic
+        is OFF-diagonal — ``γ₋ψ|_f = γ₊ψ|_{f'}`` — which is the whole content of
+        being a quotient rather than a wall, and the reason **B3.4c** exists.
+
+        Before B3.4c :meth:`_reflect_trace` fed every law its own face's
+        :math:`\Gamma_+` unconditionally, so periodic returned a face's own
+        outflow as its inflow. The defect was invisible to a shape check
+        (``|Γ₊| == |Γ₋|`` everywhere) and to a single-face probe (with one draw
+        shared by both faces the identity looks defensible, since periodicity
+        DOES identify the faces) — it is observable only when the two faces
+        carry different data, which is the real sweep's situation.
+
+        The answer comes from the law's **geometry factor**, which is B3.0's
+        ruling read one level up: :math:`G` carries the crossing, in ANGLE for a
+        mirror and in SPACE for a wrap. A response kernel is constitutive and
+        structurally cannot reach another face, so it is never asked. Spelled
+        as the factor read rather than hidden behind a law-level helper,
+        because the spelling IS the ruling.
+
+        The map is certified a **permutation of the boundary faces**, which is
+        the well-posedness statement for the whole block: every face's
+        :math:`\Gamma_+` is consumed by exactly one law, so no outflow is read
+        twice and none is dropped. Two ill-posed configurations it refuses,
+        both silent before B3.4c:
+
+        * **A half-declared periodic pair** (``xmin`` periodic, ``xmax``
+          vacuum). A translation quotient is symmetric — a face cannot be glued
+          to a partner that is not glued back — and here
+          :math:`\Gamma_+(\texttt{xmax})` would feed two laws while
+          :math:`\Gamma_+(\texttt{xmin})` fed none. It also breaks the
+          transpose, whose whole-slot writes would then collide.
+        * **A periodic face whose partner is not a boundary face at all** — a
+          curvilinear mesh carries ``xmax`` alone, so a wrap installed there
+          names a partner the trace has no slot for.
+        """
+        faces = self.sn_mesh.angular_trace.layout.faces
+        domains = {
+            face: self.sn_mesh.bc[face].law.geometry_map.domain_face(face)
+            for face in faces
+        }
+        if sorted(domains.values()) != sorted(faces):
+            unknown = sorted(set(domains.values()) - set(faces))
+            detail = (
+                f"{unknown} name no face of this mesh"
+                if unknown
+                else "some face's Γ₊ is consumed twice and another's not at all"
+            )
+            raise ValueError(
+                f"SNBoundaryOperator: the per-face domain map {domains!r} is "
+                f"not a permutation of this mesh's boundary faces "
+                f"{sorted(faces)} — {detail}. Every face's outflow must feed "
+                f"exactly one law. A periodic pair must be declared on BOTH "
+                f"its faces: the translation quotient is symmetric, so a face "
+                f"glued to a partner that is not glued back is not an "
+                f"identification."
+            )
+        return domains
 
     @property
     def is_adjointable(self) -> bool:
@@ -387,9 +480,15 @@ class SNBoundaryOperator(LinearOperator):
         # a face subset restricts the reflection to those faces — the Phase 3
         # Gauss-Seidel octant-group schedule reflects only the just-swept
         # group's reflective OUTGOING faces, leaving the rest of the inflow
-        # trace untouched (zero in this returned sink).  ``B`` is block-diagonal
-        # over faces, so the subset action is the EXACT restriction (no
-        # cross-face coupling is dropped).
+        # trace untouched (zero in this returned sink).  The subset action is
+        # the EXACT restriction of ``B``'s block ROWS — and note the reason,
+        # because B3.4c falsified the one previously written here ("``B`` is
+        # block-diagonal over faces, so no cross-face coupling is dropped").
+        # Block-diagonality was SUFFICIENT for exactness but never NECESSARY:
+        # ``faces`` filters which OUTPUT faces are emitted on, while the whole
+        # input trace stays in scope, so an off-diagonal block (periodic) still
+        # reads its partner's half-trace and the restriction is exact for a
+        # quotient law too.
         #
         # ``rows`` (#226 step 2) restricts WITHIN a face: per face, only the
         # given ordinate rows of the codomain projection are emitted (a subset
@@ -410,14 +509,21 @@ class SNBoundaryOperator(LinearOperator):
             face_laws = {f: face_laws[f] for f in faces}
         if rows is not None:
             face_laws = {f: law for f, law in face_laws.items() if f in rows}
+        face_domains = self._face_domains
         for face, law in face_laws.items():
-            face_in = boundary.face_view(face)
             # B3.2 — the law's DOMAIN is Γ₊ and its CODOMAIN is Γ₋, so the
             # face action is the composition ``ι₋ ∘ law ∘ γ₊`` spelled out.
             # Nothing is computed and then thrown away: the outflow rows the
             # pre-B3.2 slice-write discarded are simply not in the domain.
-            gamma_out = trace.outflow_restriction(face)   # γ₊
-            gamma_in = trace.inflow_restriction(face)     # γ₋
+            #
+            # B3.4c — and the ``γ₊`` is the DOMAIN face's, which is this face
+            # for every law but periodic. The two names are distinct for the
+            # same reason ``B`` is a block matrix rather than a diagonal one;
+            # see :meth:`_face_domains`.
+            domain_face = face_domains[face]
+            face_in = boundary.face_view(domain_face)
+            gamma_out = trace.outflow_restriction(domain_face)   # γ₊(domain)
+            gamma_in = trace.inflow_restriction(face)            # γ₋(face)
             if method == "apply":
                 image = law.apply(gamma_out.apply(face_in))
                 if rows is None:
@@ -443,6 +549,14 @@ class SNBoundaryOperator(LinearOperator):
                 # additionally projects onto those inflow rows, which
                 # transposes to masking the input by them FIRST.
                 #
+                # B3.4c — the two legs read and write DIFFERENT face slots when
+                # the block is off-diagonal: the input is this face's Γ₋ and
+                # the image scatters over the DOMAIN face's Γ₊, mirroring the
+                # forward exactly. Whole-slot assignment stays safe because
+                # ``_face_domains`` is certified a permutation of the faces, so
+                # no two blocks scatter into one slot.
+                transposed_in = boundary.face_view(face)
+                #
                 # The checked bridge licenses the raw verb (spec §39.1) —
                 # unreachable-in-practice because :attr:`is_adjointable`
                 # gates the composite eagerly, but the per-face raise keeps
@@ -455,14 +569,14 @@ class SNBoundaryOperator(LinearOperator):
                         f"adjointable (see is_adjointable)."
                     )
                 if rows is None:
-                    restricted = gamma_in.apply(face_in)
+                    restricted = gamma_in.apply(transposed_in)
                 else:
                     sel = rows[face]
-                    masked = np.zeros_like(face_in)
-                    masked[sel] = face_in[sel]
+                    masked = np.zeros_like(transposed_in)
+                    masked[sel] = transposed_in[sel]
                     restricted = gamma_in.apply(masked)
-                out_boundary.face_view(face)[...] = gamma_out.apply_transpose(
-                    law.apply_transpose(restricted)
+                out_boundary.face_view(domain_face)[...] = (
+                    gamma_out.apply_transpose(law.apply_transpose(restricted))
                 )
         return out_boundary
 
@@ -542,8 +656,10 @@ class SNBoundaryOperator(LinearOperator):
         reflection to those faces: the octant-group G-S schedule reflects only
         the just-swept group's reflective OUTGOING faces between octant-group
         sweeps, so a later group reads the fresh reflected inflow (the
-        ``(L+C−B_lower)⁻¹`` forward substitution).  ``B`` is block-diagonal over
-        faces → the subset is the exact restriction.
+        ``(L+C−B_lower)⁻¹`` forward substitution).  The subset restricts
+        ``B``'s block ROWS and is exact because the whole input trace stays in
+        scope — NOT because ``B`` is block-diagonal, which since B3.4c it is
+        not (see :meth:`_reflect_trace`).
         """
         return self._reflect_trace(boundary, "apply", faces=faces)
 
@@ -616,8 +732,10 @@ class SNBoundaryOperator(LinearOperator):
                 trace.inflow_indices_for_face(face),
                 lower_rows.get(face, np.empty(0, dtype=np.intp)),
             )
-            # The same face set the block-diagonal law iterates (single
-            # source — the trace layout and ``bc`` share keys by construction).
+            # The same face set the per-face law iterates (single source —
+            # the trace layout and ``bc`` share keys by construction). These
+            # are the block ROWS; which COLUMN each reads is
+            # :attr:`_face_domains`, and the split partitions rows.
             for face in self._face_laws
         }
         return BoundarySplit(

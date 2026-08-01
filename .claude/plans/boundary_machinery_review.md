@@ -1,37 +1,35 @@
 # Boundary-condition machinery — complete review
 
-> ## ⏸ COMPACTION POINT — cold-pickup anchor (2026-08-01, third rewrite)
+> ## ⏸ COMPACTION POINT — cold-pickup anchor (2026-08-01, fourth rewrite)
 >
-> **B0, B1, B2 and B3.0–B3.4b are landed, plus the snapshot re-anchoring.
-> NEXT = B3.4c.**
+> **B0, B1, B2, B3.0–B3.4c and the snapshot re-anchoring are ALL landed.
+> B3.4 is COMPLETE — every law is narrowed. NEXT = #325, then B4.**
 >
 > ⚠ This block is rewritten at every compaction. An anchor still saying
 > "NEXT = X" after X has landed **lies forward** and costs a session — it has
 > now done so twice in this campaign. Trust `git log`, never this file.
 >
 > **Verify against the tree, in this order:**
-> 1. `git log --oneline main..HEAD` — **32** commits on
->    `refactor/operator-strategy-layers`. The first 12 are the operator-strategy
->    **P0** phase (a different campaign sharing this branch —
->    `.claude/plans/operator_strategy_realization_campaign.md`); the rest are this
->    boundary campaign. HEAD is `87a65967` (the snapshot re-anchoring).
+> 1. `git log --oneline main..HEAD` on `refactor/operator-strategy-layers`. The
+>    first 12 commits are the operator-strategy **P0** phase (a different
+>    campaign sharing this branch —
+>    `.claude/plans/operator_strategy_realization_campaign.md`); the rest are
+>    this boundary campaign.
 > 2. `git status --porcelain` — clean EXCEPT
 >    `.claude/skills/vv-principles/{SKILL.md,error_catalog.md}`, which are
 >    **forbidden to commit** by standing policy and exist ONLY in the working
 >    tree. A `git checkout`/`restore`/`stash`/`clean` on those paths destroys
 >    them irreversibly.
-> 3. Gates, all green at `87a65967`: full tree `python -O -m pytest tests -m
->    "not slow"` → **7115 passed / 19 skipped / 84 xfailed / 0 failed**, exit 0
->    (**54 min** — budget for it; the ~13–16 min figure in older notes is a
->    SUBSET); `npx pyright orpheus/` → **1** (the ratchet floor, the accepted
->    #288 residual — NOT a regression); `sphinx -E -W` → exit 0, **0 warnings**
->    (`-E` is REQUIRED on any label move — lesson L36).
+> 3. Gates: full tree `python -O -m pytest tests -m "not slow"` (**~54 min** —
+>    budget for it; the ~13–16 min figure in older notes is a SUBSET);
+>    `npx pyright orpheus/` → **1** (the ratchet floor, the accepted #288
+>    residual — NOT a regression); `sphinx -E -W` → 0 warnings (`-E` is
+>    REQUIRED on any label move — lesson L36).
 >
 > **Design of record for ALL of B3** is `.claude/plans/
-> b3_domain_narrowing_crosswalk.md`. Before touching B3.4c read its **§11.2**
-> (the periodic user ruling), **§11.3** (the SCC answer → #324) and **§16.4**
-> (the periodic gate that is now WAITING for B3.4c, and what will and will not
-> flip it).
+> b3_domain_narrowing_crosswalk.md`. Its **§17** is B3.4c as executed and is
+> the densest section in the file — read it before touching the boundary
+> composite.
 >
 > | phase | commit | what landed |
 > |---|---|---|
@@ -42,40 +40,35 @@
 > | B3.4a | `91f73141` | white + prescribed inflow narrow; TWO mechanisms dissolve |
 > | B3.4b | `943b37c1` | albedo's re-emission closure; the specular pairing lives in R |
 > | — | `87a65967` | BC-equivalence snapshots re-anchored to derived references |
+> | B3.4c | see `git log` | periodic reads the PARTNER face; `B` is block-STRUCTURED |
 >
-> **NEXT = B3.4c — periodic's partner-face channel.** Ruled by the user
-> 2026-08-01 (crosswalk §11.2): build the partner-face channel now; the quotient
-> reading is then ASSERTED at realization rather than baked into the mesh
-> topology, so `Γ₊(partner) ≡ Γ₋(face)` becomes a guard, not a restructure. MC
-> will need the same face-partner map. `[M]` that identification holds on every
-> quadrature in the tree.
->
-> **B3.4c already has its gate, written and red.**
-> `tests/geometry/test_bc_equivalence_snapshot.py`'s `periodic_lebedev17` case is
-> anchored to the CORRECT partner-face identity and carries
-> `xfail(strict=True)` naming B3.4c. Two things about it:
-> * it will **NOT flip by itself** — B3.4c changes which half-trace the
->   *composition supplies*, not the operator body, so the test's `apply` line
->   changes and the marker is deleted by hand. A live companion pins exactly
->   that (fed the PARTNER's Γ₊, the identity body already reproduces the
->   reference), so the deletion is proven-reachable rather than hoped for.
-> * its reference asserts `Γ₋(xmin) == Γ₊(xmax)` as index SETS, which holds for
->   an axis-aligned periodic pair. If B3.4c admits a shifted or rotational deck
->   transformation, that premise fails and the reference must change — the
->   generator raises with that message rather than fabricating a pairing.
+> **What B3.4c changed that a fresh session will trip over:**
+> * **`B` is NO LONGER block-diagonal over faces.** It is block-STRUCTURED —
+>   constitutive laws on the diagonal, a quotient law (periodic) off it.
+>   `SNBoundaryOperator._face_domains` is the `(row, column)` block index and is
+>   certified a **permutation of the faces**. Roughly eight docstrings used to
+>   assert block-diagonality; the `faces=` subset restriction never actually
+>   depended on it (it filters OUTPUT faces while the whole input trace stays in
+>   scope), so the conclusion survived and only the stated reason was wrong.
+> * **`PeriodicWrapOperator` is RETIRED** (user ruling). Periodic realizes to a
+>   bare `IdentityOperator`; the crossing lives in the CHANNEL. Do not
+>   resurrect it — a shifted or rotational gluing is **#178
+>   `SymmetryBoundary`**, a different object.
+> * **`_face_domains` IS the face-level trace digraph**, which is what **#324**
+>   (the SCC criterion) needs and never had. B3.4c unblocks it. Periodic still
+>   lags into `B_upper`; `SpatialWrap.permutes_ordinates` stays `False`, and
+>   that is what keeps the forward substitution triangular
+>   (`tests/geometry/test_reemission_closure.py:1134-1141` is the tripwire).
+> * **`periodic` is still NOT in `SNMesh.BOUNDARY_OPERATOR_REGISTRY`** (#189),
+>   so `BC("periodic")` refuses at parse. The law is installed via
+>   `sn_mesh.realize_boundary_law(...)`, the same production arm the tag path
+>   reaches one step later. Registering it now needs only the tag-spelling
+>   decision.
 >
 > **Then #325** (symmetry-exact node generation, crosswalk §14 — user-ruled to
 > land before B4), **then B4**. Also open: **B3.3** (retire
 > `IncomingOrdinateMaskTensor`) and **B3.5** (re-pose the C-1 gates, promote the
 > mutation harness).
->
-> **Filed out of this campaign:** **#324** (wire the SCC trace-digraph criterion
-> into the `B_lower`/`B_upper` splitting — it already exists, UNWIRED, in
-> `derivations/discrete/sn/sweep_acyclicity.py`, and production still decides the
-> split from a boolean on the boundary KIND) and **#325**. **#189** carries a
-> full B3.4b handoff comment: registering albedo now needs a TAG-SPELLING
-> decision, because `BC("albedo", albedo=…)` no longer describes a complete SN
-> law.
 >
 > **B2's result block (§B2.2) is still required reading before B4** — it records
 > the two findings B4 must close (the unscaled corner swap; the `R ≠ 1` leakage
@@ -106,6 +99,10 @@
 >   (B3.4b). Any predicate answering "adjointable / permutes / has a ruled
 >   corner" by class NAME is wrong; read the factors. `law_permutes_ordinates`
 >   is the one predicate for the permutation question and asks BOTH tiers.
+> * **The geometry tier answers "whose Γ₊ does this law consume?"** (B3.4c,
+>   `G.domain_face`). The response tier structurally cannot: a response is
+>   constitutive — a property of the surface at THIS face — so it can never
+>   reach another one. Crossing faces is an act of the deck group.
 > * **The snapshot generator must never import realization code** (2026-08-01).
 >   It computes references from the math; the harness imports only the case
 >   registry. Both directions are AST-asserted in

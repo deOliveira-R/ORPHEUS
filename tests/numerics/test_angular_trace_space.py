@@ -453,18 +453,29 @@ def test_trace_metric_group_independent():
 
 @pytest.mark.foundation
 def test_face_normals_z_derived_from_axis_names():
-    """The normal table carries all six axis-aligned faces (axis, sign).
+    """The normal parse carries all six axis-aligned faces (axis, sign).
 
     C5-G9: derived from AXIS_NAMES, not hand-listed — a table that
     silently lacked zmin/zmax was the pre-C5.3 d=3 blocker.
+
+    Migrated at **B3.4c**: the module-private ``_FACE_NORMALS`` dict this
+    asserted against was retired when the ``min``/``max`` ↔ sign convention
+    collapsed onto the one bijection in
+    :mod:`orpheus.numerics.face_layout`. The CLAIM is unchanged and is
+    asserted here against the primitive this module now reads (the bijection's
+    own laws — round-trip, involution — live in ``tests/numerics/
+    test_face_layout.py``); what moved is where the answer comes from.
     """
-    from orpheus.numerics.spaces.angular_trace_space import _FACE_NORMALS
+    from orpheus.numerics.face_layout import face_normal
+
     expected = {
         "xmin": (0, -1), "xmax": (0, +1),
         "ymin": (1, -1), "ymax": (1, +1),
         "zmin": (2, -1), "zmax": (2, +1),
     }
-    np.testing.assert_equal(_FACE_NORMALS, expected)
+    np.testing.assert_equal(
+        {face: face_normal(face) for face in expected}, expected,
+    )
 
 
 @pytest.mark.foundation

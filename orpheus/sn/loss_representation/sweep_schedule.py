@@ -53,7 +53,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.geometry.boundary import law_permutes_ordinates
-from orpheus.transport.mesh.axis import AXIS_NAMES
+from orpheus.numerics.face_layout import face_name
 from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
@@ -249,7 +249,7 @@ def _outgoing_faces(label: OctantLabel) -> tuple[str, ...]:
     of date when a third axis arrives.
     """
     return tuple(
-        f"{AXIS_NAMES[a]}{'max' if s > 0 else 'min'}"
+        face_name(a, +1 if s > 0 else -1)
         for a, s in enumerate(label.signs)
         if s != 0
     )

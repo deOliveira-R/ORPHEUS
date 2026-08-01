@@ -132,7 +132,7 @@ from ..sweep.scan import (
     ordinate_scan_transpose,
 )
 from ..sweep.cache import CollisionCache, GeometryCoefficients
-from orpheus.transport.mesh.axis import AXIS_NAMES
+from orpheus.numerics.face_layout import face_name, face_opposite
 from .sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,
@@ -728,18 +728,23 @@ def _inflow_faces(signs_eff: tuple[int, ...]) -> tuple[str, ...]:
     the WDD result is sign-independent).
     """
     return tuple(
-        f"{AXIS_NAMES[a]}min" if s >= 0 else f"{AXIS_NAMES[a]}max"
+        face_name(a, -1 if s >= 0 else +1)
         for a, s in enumerate(signs_eff)
     )
 
 
 def _outflow_faces(signs_eff: tuple[int, ...]) -> tuple[str, ...]:
-    """Per-axis domain faces an octant's streaming EXITS through (the
-    opposite of :func:`_inflow_faces`, axis by axis)."""
-    return tuple(
-        f"{AXIS_NAMES[a]}max" if s >= 0 else f"{AXIS_NAMES[a]}min"
-        for a, s in enumerate(signs_eff)
-    )
+    """Per-axis domain faces an octant's streaming EXITS through — the
+    face-by-face OPPOSITE of :func:`_inflow_faces`.
+
+    Since **B3.4c** that sentence is the implementation rather than a comment
+    beside a second transcription. The two functions had parallel bodies with
+    ``min``/``max`` swapped, which is a twin whose whole content is one word:
+    an octant entering at ``a``-min exits at ``a``-max, always, because those
+    are the two faces normal to ``a``. A sign flip in either body was a live
+    edit away from silently disagreeing with the other.
+    """
+    return tuple(face_opposite(face) for face in _inflow_faces(signs_eff))
 
 
 def _reverse_octant_traversal(

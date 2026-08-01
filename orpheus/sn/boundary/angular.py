@@ -25,7 +25,7 @@ import numpy as np
 from orpheus.numerics.operator import (
     LinearOperator,
 )
-from orpheus.numerics.face_layout import AXIS_NAMES
+from orpheus.numerics.face_layout import AXIS_NAMES, face_name
 from orpheus.numerics.spaces.angular_trace_space import (
     TANGENTIAL_EPS,
     build_omega_dot_n,
@@ -278,16 +278,15 @@ class AngularAverageOperator(LinearOperator):
             raise ValueError(
                 f"Unknown axis: {axis!r}; expected one of {AXIS_NAMES}"
             )
-        if outward_sign not in (+1, -1):
-            raise ValueError(
-                f"outward_sign must be +1 or -1; got {outward_sign}"
-            )
-        # (axis, outward_sign) IS a face normal — render it as the face
-        # NAME the one primitive speaks, rather than re-deriving mu_axis
-        # and its sign here. A quadrature with no genuine cosines on this
-        # axis is refused there, naming the rank mismatch between the face
-        # and the cubature.
-        face = f"{axis}{'max' if outward_sign == +1 else 'min'}"
+        # (axis, outward_sign) IS a face normal — render it through the face-
+        # name bijection rather than re-deriving mu_axis and its sign here. A
+        # quadrature with no genuine cosines on this axis is refused by
+        # ``build_omega_dot_n``, naming the rank mismatch between the face and
+        # the cubature; a bad ``outward_sign`` is refused by the renderer.
+        # (Until **B3.4c** the render was an inline conditional and the sign
+        # check a hand-written pair test — one of five transcriptions of the
+        # ``min``/``max`` ↔ sign convention.)
+        face = face_name(AXIS_NAMES.index(axis), outward_sign)
         omega_dot_n = build_omega_dot_n(quadrature, (face,))[0]
         outflow = np.flatnonzero(omega_dot_n > +TANGENTIAL_EPS)
         inflow = np.flatnonzero(omega_dot_n < -TANGENTIAL_EPS)

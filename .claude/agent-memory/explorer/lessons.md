@@ -248,6 +248,37 @@ the site.
 
 ---
 
+## L-012 -- On a "blast radius ahead of a carve" brief, run `git diff --stat` as the FIRST tool call — the carve may already be underway, and that flips the deliverable's shape
+
+During the B3.4c periodic/face-name audit (2026-08-01, `refactor/operator-strategy-layers`)
+the main session executed the carve **while I was auditing it**: 8 production
+files went clean → modified (+511/−76) across the dispatch, including the
+"primitive to be minted" (already minted), all five named transcription sites
+(already repointed), and the `apply_transpose` defect I had just written up as
+the top risk (already fixed). I discovered this by accident — an import probe
+caught `__all__` listing three names the module did not yet define, a transient
+mid-write state.
+
+This is L-007 (intra-session drift) one step earlier and with a bigger
+consequence. L-007 says *re-run the census before reporting*; L-012 says **run
+the diff BEFORE the census**, because on a pre-carve brief the premise "X is not
+yet built" is the thing most likely to be hours stale, and when it is, the
+deliverable is no longer a blast radius — it is a **done-vs-remaining
+reconciliation**, which is a different document.
+
+How to apply: for any brief phrased "ahead of a surgical carve / before we change
+X", open with `git status --short` + `git diff --stat` (and re-run both at the
+end). If the carve is underway: (1) keep the audit sections as taken — they are
+the record of what the carve was walking into — but (2) add a terminal
+reconciliation section that verifies each finding **by runtime probe against the
+final tree, not by reading the diff** (probes caught that `SpatialWrap.is_adjointable`
+flipped `False→True` while `permutes_ordinates` correctly did NOT — a distinction
+the diff hunk alone rendered ambiguous), and (3) lead the report with the
+still-open items, since the closed ones are now archaeology. The highest-value
+finding in such an audit is the item the carve did NOT reach.
+
+---
+
 ## L-011 -- A docstring that DELEGATES ("the sweep handles it", "whoever orchestrates it") is the highest-yield falsity shape — grep the named MECHANISM, never the named symbol
 
 Investigating the periodic-BC claim "*the SN sweep handles the spatial wrap via

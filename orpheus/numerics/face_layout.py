@@ -59,7 +59,16 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-__all__ = ["AXIS_NAMES", "FaceSlot", "FaceLayout", "face_streaming_normal"]
+__all__ = [
+    "AXIS_NAMES",
+    "FACE_NAMES",
+    "FaceSlot",
+    "FaceLayout",
+    "face_name",
+    "face_normal",
+    "face_opposite",
+    "face_streaming_normal",
+]
 
 #: The slot-key type of a :class:`FaceLayout` / :class:`FaceSlot`. The
 #: descriptor is key-generic: SN Cartesian spatial traces key faces by
@@ -89,6 +98,151 @@ K = TypeVar("K", bound=Hashable)
 #: #225, so the geometry-blind trace space could share it without an
 #: sn-ward import).
 AXIS_NAMES = ("x", "y", "z")
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The face-name bijection
+# ─────────────────────────────────────────────────────────────────────
+#
+# A boundary face of an axis-aligned mesh is completely described by its
+# OUTWARD NORMAL, and for an axis-aligned face that normal is sparse:
+# ``n_f = sign · ê_axis``. So ``(axis, outward_sign)`` and the face NAME
+# ``"{axis}{min|max}"`` are two encodings of one object, and the map between
+# them is a bijection.
+#
+# It lives here, beside :data:`AXIS_NAMES`, because this module is already the
+# keeper of the face-name string world and sits at the bottom of the dependency
+# graph (the trace space and :mod:`orpheus.transport.mesh.axis` both import
+# upward from it). Before campaign phase **B3.4c** the convention had no single
+# home and was transcribed at five sites — ``_FACE_NORMALS`` in the trace space
+# (the parse), two verbatim-twin ``f"{axis}{'max' if outward_sign == +1 else
+# 'min'}"`` renders in the SN boundary layer, one more in the sweep schedule,
+# and a ``face_name.endswith("max")`` reverse parse in the method registry.
+# Two of those sites carried a docstring pointing at "the one primitive" that
+# did not exist yet. B3.4c needed a SIXTH consumer (the periodic partner face),
+# which is what forced the collapse.
+
+#: Outward-normal sign per face-name suffix. The ``min`` face of an axis has
+#: the INWARD-pointing unit vector as its outward normal (:math:`-\hat e`),
+#: the ``max`` face the outward one — which is the whole content of the
+#: ``"{axis}{min|max}"`` convention, and the reason a bare string carries
+#: enough orientation to derive :math:`\Omega\cdot\hat n` from.
+_FACE_SUFFIX_SIGN: dict[str, int] = {"min": -1, "max": +1}
+
+#: The inverse map, DERIVED rather than transcribed — the two directions of
+#: one bijection must not be able to disagree.
+_FACE_SIGN_SUFFIX: dict[int, str] = {
+    sign: suffix for suffix, sign in _FACE_SUFFIX_SIGN.items()
+}
+
+
+def face_name(axis: int, outward_sign: int) -> str:
+    r"""Render ``(axis index, outward-normal sign)`` as the canonical face name.
+
+    The forward direction of the face-name bijection: ``(0, -1) -> "xmin"``.
+    Inverse of :func:`face_normal`.
+
+    Parameters
+    ----------
+    axis : int
+        Position of the axis in :data:`AXIS_NAMES`.
+    outward_sign : int
+        ``+1`` for the axis's ``max`` face, ``-1`` for its ``min`` face.
+
+    Raises
+    ------
+    ValueError
+        If ``axis`` is outside the named-axis inventory, or ``outward_sign``
+        is not ``±1``. Both are fail-loud rather than clamped: a caller that
+        does not know its own face's orientation cannot be handed a guess.
+
+    Examples
+    --------
+    >>> face_name(0, -1), face_name(1, +1)
+    ('xmin', 'ymax')
+    """
+    if not 0 <= axis < len(AXIS_NAMES):
+        raise ValueError(
+            f"face_name: axis index {axis} is outside the named-axis "
+            f"inventory {AXIS_NAMES}."
+        )
+    try:
+        suffix = _FACE_SIGN_SUFFIX[int(outward_sign)]
+    except KeyError:
+        raise ValueError(
+            f"face_name: outward_sign must be +1 (the axis's 'max' face) or "
+            f"-1 (its 'min' face); got {outward_sign!r}."
+        ) from None
+    return f"{AXIS_NAMES[axis]}{suffix}"
+
+
+def face_normal(face: str) -> tuple[int, int]:
+    r"""Parse a canonical face name into ``(axis index, outward-normal sign)``.
+
+    The reverse direction of the face-name bijection: ``"xmin" -> (0, -1)``.
+    Inverse of :func:`face_name`. The returned pair IS the face's outward
+    normal :math:`\hat n_f = \mathrm{sign}\cdot\hat e_{\rm axis}`, stored
+    sparsely — which is why
+    :func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n`
+    can derive the whole signed-projection table from face NAMES alone.
+
+    Raises
+    ------
+    ValueError
+        If ``face`` is not a canonical face name.
+
+    Examples
+    --------
+    >>> face_normal("xmin"), face_normal("ymax")
+    ((0, -1), (1, 1))
+    """
+    for suffix, sign in _FACE_SUFFIX_SIGN.items():
+        if face.endswith(suffix):
+            stem = face[: -len(suffix)]
+            if stem in AXIS_NAMES:
+                return AXIS_NAMES.index(stem), sign
+    raise ValueError(
+        f"Unknown face name {face!r}; valid faces are {sorted(FACE_NAMES)}"
+    )
+
+
+def face_opposite(face: str) -> str:
+    r"""The face across the domain: same axis, opposite outward normal.
+
+    ``"xmin" -> "xmax"``. An involution, and the only thing a *translation*
+    deck transformation needs to know about where it was installed — which is
+    why :class:`~orpheus.geometry.boundary.SpatialWrap` carries an ``axis``
+    rather than a partner face (the partner is configuration, the axis is
+    intrinsic).
+
+    The two faces' outward normals are opposite (:math:`\hat n_f =
+    -\hat n_{f'}`), so a direction OUTGOING at one is INCOMING at the other —
+    the reason a periodic pair's crossing comes for free, with
+    :math:`|\Omega\cdot\hat n|` preserved.
+
+    .. note::
+
+       This is the *geometric* opposite, not a gluing map. A non-opposite
+       identification — a hex partner, a rotational quotient — is a different
+       object and needs an explicit partner map (issue **#178**).
+
+    Examples
+    --------
+    >>> face_opposite("xmin"), face_opposite(face_opposite("xmin"))
+    ('xmax', 'xmin')
+    """
+    axis, sign = face_normal(face)
+    return face_name(axis, -sign)
+
+
+#: Every canonical face name, in axis-then-endpoint order. The inventory the
+#: bijection is total on; consumers listing "the valid faces" read it rather
+#: than re-deriving the product.
+FACE_NAMES: tuple[str, ...] = tuple(
+    face_name(axis, sign)
+    for axis in range(len(AXIS_NAMES))
+    for sign in (-1, +1)
+)
 
 
 @dataclass(frozen=True)

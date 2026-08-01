@@ -3095,13 +3095,18 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        narrowed**
      -
      - ``ScaledOperator(α, IdentityOperator() & IdentityOperator())``
-   * - :class:`PeriodicBoundary` — **not yet narrowed**
-     - ``PeriodicWrapOperator() & IdentityOperator()``
-       (today an angular identity; the spatial pushforward the
-       :class:`~orpheus.geometry.boundary.SpatialWrap` spec names is
-       unbuilt — issue **#183**, campaign phase B3.4c, which is also
-       what its domain narrowing waits on: periodic's :math:`G` reads
-       the PARTNER face's :math:`\Gamma_+`)
+   * - :class:`PeriodicBoundary` — **narrowed** (B3.4c)
+     - ``IdentityOperator() & IdentityOperator()``, consuming the
+       PARTNER face's :math:`\Gamma_+`. This is the one law whose domain
+       is a different face, and that IS what makes it a quotient rather
+       than a wall: :meth:`SpatialWrap.domain_face` names the partner and
+       :attr:`SNBoundaryOperator._face_domains` supplies it, so the
+       pushforward the spec names lives in the CHANNEL and the action on
+       the trace is the identity. Earned, not assumed — the realizer
+       certifies :math:`\Gamma_+(f') \equiv \Gamma_-(f)` (opposite
+       outward normals) before returning the identity body. Issue
+       **#183** was exactly this gap and closes here; the
+       ``PeriodicWrapOperator`` type retired with it
      - n/a (periodic has no α parameter)
    * - :class:`PrescribedInflow(source)` — rank-0 **affine**, not a
        linear law; **narrowed** (B3.4a)

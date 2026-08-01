@@ -675,21 +675,21 @@ class TestMixed30Spec70WhiteLS4Snapshot:
 # ─────────────────────────────────────────────────────────────────────
 
 
-_B34C_XFAIL = (
-    "B3.4c — periodic is a TWO-FACE coupling and production realizes it as a "
-    "per-face angular identity. A translation does not change direction, so a "
-    "particle leaving through xmax in direction Ω re-enters at xmin in the "
-    "SAME Ω: the inflow at xmin is the OUTFLOW AT XMAX, and Γ₋(xmin) = "
-    "Γ₊(xmax) as ordinate sets (asserted live, next door). The realized "
-    "operator instead returns the rows the narrowed composition ι₋ ∘ law ∘ γ₊ "
-    "hands it — this face's own Γ₊ = {μ_x < 0} — so it feeds outgoing-left "
-    "flux back in as incoming-right flux. MEASURED 2026-08-01: 98 % relative "
-    "error against the reference, i.e. an O(1) wrong answer, not a tolerance "
-    "question. B3.4c builds the partner-face wrap; when it lands, this test's "
-    "`_apply` line hands the operator the PARTNER's Γ₊ (the sibling test below "
-    "shows the body is already correct on that input) and this marker is "
-    "DELETED — the XPASS(strict) failure is the point."
-)
+# This case carried ``xfail(strict=True)`` from the re-anchoring until
+# **B3.4c** landed. The documented defect: periodic is a TWO-FACE coupling and
+# production realized it as a per-face angular identity, so the composition
+# ``ι₋ ∘ law ∘ γ₊`` handed it this face's own Γ₊ = {μ_x < 0} and it fed
+# outgoing-left flux back in as incoming-right flux — MEASURED 98 % relative
+# error, an O(1) wrong answer rather than a tolerance question.
+#
+# B3.4c built the partner-face channel and the marker is DELETED. Note what
+# replaced it, because a mechanical "swap the `apply` line to the partner
+# probe" would have produced a VERBATIM DUPLICATE of the live body-pin below:
+# B3.4c did not change the operator's body, it changed which half-trace the
+# composition supplies. So the re-posed gate asks the LAW which face to read
+# (``geometry_map.domain_face``) and feeds the probe that answer names. A
+# regression of ``domain_face`` back to the installation face now selects the
+# wrong probe and reds it, which is precisely the defect the xfail described.
 
 
 class TestPeriodicLebedev17Snapshot:
@@ -770,21 +770,46 @@ class TestPeriodicLebedev17Snapshot:
         actual = _realize(case, space).apply(snapshot["psi_out_partner"])
         np.testing.assert_array_equal(actual, snapshot["psi_in"])
 
-    @pytest.mark.xfail(strict=True, reason=_B34C_XFAIL)
     def test_delivers_the_partner_faces_outflow(self) -> None:
-        r"""The REQUIREMENT: :math:`\gamma_-\psi|_{\rm xmin}
-        = \gamma_+\psi|_{\rm xmax}`.
+        r"""The REQUIREMENT, live since **B3.4c**:
+        :math:`\gamma_-\psi|_{\rm xmin} = \gamma_+\psi|_{\rm xmax}`.
 
-        Exactly one statement in this body can fail, and it is the documented
-        one: the space cross-check, the pairing premise and the probe
-        activation all live in the LIVE tests above, so an incidental setup
-        error would red THOSE rather than be swallowed here
-        (``vv-principles`` Mode-8, the MISATTRIBUTED-strict-xfail class).
+        The probe is chosen by the LAW, not by this test: it asks
+        ``geometry_map.domain_face`` which face's :math:`\Gamma_+` the law
+        consumes and feeds the half-trace that answer names. That is the whole
+        thing B3.4c built, and asking it here is what keeps this from being a
+        second copy of the body-pin above — that one hard-codes the partner
+        probe to pin the *body*, this one lets the law route and so pins the
+        *routing*. If ``domain_face`` ever regresses to the installation face,
+        this selects ``psi_out`` and reds at 98 % relative error, which is the
+        exact defect its retired ``xfail(strict=True)`` documented.
         """
         case = case_by_id(self.case_id)
         snapshot = _load_snapshot(self.case_id)
         space = face_method_space(
             case.build_quadrature(), face=case.face, faces=case.faces,
         )
-        actual = _realize(case, space).apply(snapshot["psi_out"])
+        # The law comes from the REGISTRY's own composition, captured on the
+        # way through, never re-spelled here: a second spelling could name a
+        # different axis than the case realizes and the two would agree by
+        # coincidence (the Pattern-2 twin the case dataclass exists to kill).
+        composed_laws: list = []
+
+        def _capture(law):
+            composed_laws.append(law)
+            return SNBoundaryRealizer().realize(law, space)
+
+        operator = case.compose(_capture)
+        (law,) = composed_laws
+        probes = {
+            case.face: snapshot["psi_out"],
+            str(snapshot["partner_face"]): snapshot["psi_out_partner"],
+        }
+        domain_face = law.geometry_map.domain_face(case.face)
+        assert domain_face in probes, (
+            f"the law names {domain_face!r} as its domain face, which is "
+            f"neither this face nor its recorded partner — the artefact "
+            f"carries no probe for it."
+        )
+        actual = operator.apply(probes[domain_face])
         np.testing.assert_array_equal(actual, snapshot["psi_in"])

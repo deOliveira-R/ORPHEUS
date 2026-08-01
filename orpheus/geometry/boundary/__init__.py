@@ -236,10 +236,16 @@ sole bridge. The canonical SN-realised representation per law.
   :math:`G = ` :class:`SpatialWrap(axis)`, the translation carrying the
   partner face onto this one; :math:`R = 1` (a periodic face is loss-free
   by construction, and a pure symmetry statement adds no physics). SN
-  realises to :class:`~orpheus.numerics.operator.PeriodicWrapOperator`,
-  **which is an angular identity that does NOT read the partner face** —
-  the spatial pushforward the law names is unbuilt (issue #183, campaign
-  phase B3.4c). The law gained its ``axis`` field at B1; the partner face
+  realises (campaign phase **B3.4c**) to a bare
+  :class:`~orpheus.numerics.operator.IdentityOperator` fed the PARTNER
+  face's :math:`\Gamma_+`: :meth:`SpatialWrap.domain_face` names the partner
+  and the composition supplies it, so the pushforward lives in the CHANNEL and
+  the action on the trace is the identity — earned by the opposite-normals
+  identification :math:`\Gamma_+(f') \equiv \Gamma_-(f)`, which the realizer
+  certifies. (Until B3.4c it realised to a ``PeriodicWrapOperator`` that never
+  read the partner face; issue #183 was that gap, and the type retired with it
+  — its body was the identity and its content is now on the factor.) The law
+  gained its ``axis`` field at B1; the partner face
   is deliberately NOT a field, since which face is opposite depends on
   where the law is installed (configuration) while "wrap along x" is
   intrinsic.
@@ -550,7 +556,7 @@ Cross-references
   :class:`LinearOperator` composable with the rest of the algebra.
 * :mod:`orpheus.numerics.operator` — Wave-0 primitives
   (:class:`PermutationOperator`, :class:`IncomingOrdinateMaskTensor`,
-  :class:`PeriodicWrapOperator`, plus the
+  :class:`IdentityOperator`, :class:`ZeroOperator`, plus the
   :class:`OperatorSum` / :class:`ScaledOperator` composers that
   appear in the *operator* tree).
 * :mod:`._composition` — :class:`LawSum` / :class:`LawScaled` /

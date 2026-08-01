@@ -136,7 +136,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.face_layout import AXIS_NAMES, face_streaming_normal
+from orpheus.numerics.face_layout import (
+    AXIS_NAMES,
+    face_normal,
+    face_streaming_normal,
+)
 from orpheus.numerics.space import FunctionSpace
 
 if TYPE_CHECKING:
@@ -160,29 +164,21 @@ __all__ = ["AngularTraceSpace", "TANGENTIAL_EPS", "build_omega_dot_n"]
 TANGENTIAL_EPS: float = 4.0 * np.finfo(np.float64).eps
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Face → outward-normal table
-# ─────────────────────────────────────────────────────────────────────
-#
-# Each entry maps a face name to ``(axis_index, sign)`` where
-# ``axis_index`` selects ``(mu_x, mu_y, mu_z)[axis_index]`` and ``sign``
-# is the outward-normal sign (±1). The signed projection is
-# ``Ω · n = sign * mu[axis]``. This single table serves every supported
-# mesh: 1-D meshes use ``xmin`` / ``xmax`` (radial axis is the x-axis;
-# curvilinear has ``xmax`` only), 2-D Cartesian the four x/y faces,
+# The face → outward-normal parse is
+# :func:`~orpheus.numerics.face_layout.face_normal`: it returns the
+# ``(axis_index, sign)`` pair with ``axis_index`` selecting
+# ``(mu_x, mu_y, mu_z)[axis_index]`` and ``sign`` the outward-normal sign (±1),
+# so the signed projection is ``Ω · n = sign * mu[axis]``. One parse serves
+# every supported mesh: 1-D meshes use ``xmin`` / ``xmax`` (radial axis is the
+# x-axis; curvilinear has ``xmax`` only), 2-D Cartesian the four x/y faces,
 # 3-D Cartesian all six.
 #
-# C5.3 (#225): DERIVED from :data:`~orpheus.numerics.face_layout.AXIS_NAMES`
-# — the same crosswalk every face-name producer renders through
-# (``FaceLabel.face_name``, the sweep schedule, the walk) — instead of a
-# hand-listed 4-face transcription that silently lacked the z faces.
-# ``min`` is the −axis face (outward normal −ê_axis), ``max`` the +axis.
-
-_FACE_NORMALS: dict[str, tuple[int, int]] = {
-    f"{name}{suffix}": (axis, sign)
-    for axis, name in enumerate(AXIS_NAMES)
-    for suffix, sign in (("min", -1), ("max", +1))
-}
+# C5.3 (#225) derived the local ``_FACE_NORMALS`` table from
+# :data:`~orpheus.numerics.face_layout.AXIS_NAMES`, killing a hand-listed
+# 4-face transcription that silently lacked the z faces. Campaign phase
+# **B3.4c** finished the job: the ``min``/``max`` ↔ sign half of the
+# convention was still transcribed here AND at four other sites, so the table
+# moved next to ``AXIS_NAMES`` as a two-way bijection and this module reads it.
 
 
 def _quadrature_axis(quadrature: "Quadrature", axis: int) -> np.ndarray:
@@ -230,14 +226,8 @@ def build_omega_dot_n(
     """
     n_ord = int(quadrature.N)
     omega_dot_n = np.zeros((len(faces), n_ord), dtype=float)
-    for f_idx, face_name in enumerate(faces):
-        try:
-            axis, sign = _FACE_NORMALS[face_name]
-        except KeyError as exc:
-            raise ValueError(
-                f"Unknown face name {face_name!r}; valid faces are "
-                f"{sorted(_FACE_NORMALS)}"
-            ) from exc
+    for f_idx, face in enumerate(faces):
+        axis, sign = face_normal(face)
         # C5.5 (#225) fail-loud: a layout naming an axis-k FACE demands
         # GENUINE mu_k on the quadrature. Discriminate on VALUE, not
         # attribute presence — the per-axis cosines are properties that
@@ -251,7 +241,7 @@ def build_omega_dot_n(
         mu_axis = _quadrature_axis(quadrature, axis)
         if not np.any(mu_axis):
             raise ValueError(
-                f"Face {face_name!r} requires genuine "
+                f"Face {face!r} requires genuine "
                 f"mu_{AXIS_NAMES[axis]} cosines, but every ordinate of "
                 f"the quadrature has mu_{AXIS_NAMES[axis]} == 0 — a "
                 f"rank-mismatch between the face layout and the "

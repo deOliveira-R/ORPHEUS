@@ -45,6 +45,7 @@ from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
+from orpheus.numerics.face_layout import face_normal
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
@@ -1457,10 +1458,14 @@ class SNSolver:
         ``tests/sn/eigenvalue/test_keff_estimator_gate.py``.
         """
         mesh = self.sn_mesh
+        # One parse of the face name yields BOTH halves of its outward normal.
+        # Until **B3.4c** this read the axis off a hand-written ``{"x": 0, ...}``
+        # literal and the endpoint off a ``face == "xmin"`` compare — two
+        # transcriptions of a convention with a single home.
+        axis_index, outward_sign = face_normal(face)
         if mesh.ndim == 1:
             areas = mesh.areas
-            return float(areas[0] if face == "xmin" else areas[-1])
-        axis_index = {"x": 0, "y": 1, "z": 2}[face[0]]
+            return float(areas[-1] if outward_sign > 0 else areas[0])
         transverse_widths = (
             np.diff(np.asarray(mesh.axes[j].edges, dtype=float))
             for j in range(mesh.ndim)

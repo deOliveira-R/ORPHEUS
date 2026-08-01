@@ -64,6 +64,7 @@ import pytest
 from orpheus.geometry import (
     BC, Mesh1D, Mesh2D, Region, RegionMesh, StructuredGeometry,
 )
+from orpheus.geometry.boundary import PeriodicBoundary
 from orpheus.numerics.operator import (
     BlockRole,
     BoundaryOperator,
@@ -724,3 +725,123 @@ class TestFaceRestrictedReflect:
         boundary = _random_state(sn).boundary
         with pytest.raises(ValueError, match="boundary faces"):
             B.reflect_into_inflow(boundary, faces=["bogus_face"])
+
+
+# ─────────────────────────────────────────────────────────────────────
+# B3.4c — the partner-face channel
+# ─────────────────────────────────────────────────────────────────────
+
+
+class TestPeriodicReadsThePartnerFace:
+    r"""``B`` is block-STRUCTURED, and a quotient law sits off the diagonal.
+
+    The claim only exists at this level: the realized periodic operator is an
+    identity, so nothing about it is wrong in isolation — the defect B3.4c
+    fixed was in WHICH half-trace the composition hands it. Before B3.4c
+    :meth:`_reflect_trace` fed every law its own face's :math:`\Gamma_+`, so a
+    periodic face returned its own outflow as its inflow (MEASURED 98 %
+    relative against the partner-face reference).
+
+    Periodic is not in ``SNMesh.BOUNDARY_OPERATOR_REGISTRY`` (#189), so
+    ``BC("periodic")`` refuses at parse and the law is installed through the
+    method's own ``realize_boundary_law`` hook — the same production arm the
+    tag path would reach, one step later.
+    """
+
+    @staticmethod
+    def _periodic_slab(nx: int = 4, ng: int = 1) -> SNMesh:
+        sn = _sn("SLB", (BC.vacuum, BC.vacuum), nx=nx, ng=ng)
+        law = PeriodicBoundary(axis="x")
+        for face in ("xmin", "xmax"):
+            sn.bc[face] = sn.realize_boundary_law(law, face)
+        return sn
+
+    def test_the_domain_map_is_the_off_diagonal_swap(self) -> None:
+        """``_face_domains`` IS the block index — and it is the face-level
+        trace digraph the SCC criterion (#324) needs."""
+        B = SNBoundaryOperator(self._periodic_slab())
+        assert B._face_domains == {"xmin": "xmax", "xmax": "xmin"}
+
+    def test_each_face_receives_its_PARTNERS_outflow(self) -> None:
+        r"""The requirement: :math:`\gamma_-\psi|_f = \gamma_+\psi|_{f'}`.
+
+        The two faces carry INDEPENDENT random data — with a shared draw the
+        rows would coincide and a per-face endomorphism would look correct,
+        which is the whole reason the defect survived to B3.4c. The negative
+        leg (``!= own outflow``) is asserted too, so a fixture where the two
+        happen to agree cannot pass this vacuously.
+        """
+        sn = self._periodic_slab()
+        B = SNBoundaryOperator(sn)
+        trace = sn.angular_trace
+        psi = _random_state(sn, seed=11)
+        out = B.apply(psi)
+        for face, partner in (("xmin", "xmax"), ("xmax", "xmin")):
+            got = out.boundary.face_view(face)[
+                trace.inflow_indices_for_face(face)
+            ]
+            partner_out = psi.boundary.face_view(partner)[
+                trace.outflow_indices_for_face(partner)
+            ]
+            own_out = psi.boundary.face_view(face)[
+                trace.outflow_indices_for_face(face)
+            ]
+            np.testing.assert_array_equal(got, partner_out)
+            assert not np.array_equal(got, own_out), (
+                f"{face}: the partner's outflow equals this face's own, so "
+                f"the fixture cannot discriminate the pre-B3.4c defect."
+            )
+
+    def test_the_transpose_returns_along_the_same_channel(self) -> None:
+        r"""Euclidean reciprocity :math:`\langle Bx, y\rangle
+        = \langle x, B^\top y\rangle` on independently-seeded ``x`` and ``y``.
+
+        ⚠ This is NOT sufficient on its own and is not claimed to be: if the
+        forward reads the wrong face and the transpose scatters to the same
+        wrong face, reciprocity STILL holds (`[M]` — reverting the composition
+        leaves this green at 1.15e-16 relative). It pins that the two legs
+        agree; the leg above pins that they agree on the RIGHT face.
+        """
+        sn = self._periodic_slab()
+        B = SNBoundaryOperator(sn)
+        x = _random_state(sn, seed=11)
+        y = _random_state(sn, seed=29)
+        lhs = float(np.sum(B.apply(x).boundary.values * y.boundary.values))
+        rhs = float(
+            np.sum(x.boundary.values * B.apply_transpose(y).boundary.values)
+        )
+        assert lhs == rhs, f"<Bx,y> = {lhs!r} but <x,Bty> = {rhs!r}"
+
+    def test_a_half_declared_periodic_pair_is_refused(self) -> None:
+        """A face glued to a partner that is not glued back is not an
+        identification — and its whole-slot transpose writes would collide.
+
+        This is the well-posedness statement ``_face_domains`` certifies: every
+        face's :math:`\\Gamma_+` must feed exactly one law. Here ``xmax`` would
+        feed two (its own vacuum law and ``xmin``'s wrap) while ``xmin``'s fed
+        none.
+        """
+        sn = _sn("SLB", (BC.vacuum, BC.vacuum))
+        sn.bc["xmin"] = sn.realize_boundary_law(
+            PeriodicBoundary(axis="x"), "xmin",
+        )
+        with pytest.raises(ValueError, match="not a permutation"):
+            SNBoundaryOperator(sn)._face_domains
+
+    def test_the_output_never_aliases_the_input(self) -> None:
+        """The realized periodic body is now a bare ``IdentityOperator``, which
+        returns its argument BY REFERENCE — so the safe-aliasing contract has
+        to be earned by the composition rather than by the leaf.
+
+        It is: the trace restriction is fancy indexing, which copies, and the
+        image is scattered into a freshly-zeroed sink. Pinned because the leaf
+        that used to guarantee it (``PeriodicWrapOperator``, whose body was
+        ``x.copy()``) retired at B3.4c, and a future composition that passed a
+        view straight through would reintroduce the hazard silently.
+        """
+        sn = self._periodic_slab()
+        psi = _random_state(sn, seed=5)
+        before = psi.boundary.values.copy()
+        out = SNBoundaryOperator(sn).apply(psi)
+        out.boundary.values[...] = 1e9
+        np.testing.assert_array_equal(psi.boundary.values, before)

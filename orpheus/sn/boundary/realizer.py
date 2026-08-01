@@ -83,7 +83,8 @@ suffices for the two laws below.
   ``BC("albedo", albedo=…)`` is untouched. This is the method-realizability
   taxonomy's **angular-resolution** axis biting for the first time.
 * :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundary` →
-  :class:`~orpheus.numerics.operator.PeriodicWrapOperator`.
+  :class:`~orpheus.numerics.operator.IdentityOperator` (the crossing it
+  carries is the PARTNER-face channel, not an action on the trace).
 * :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
   :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator` — apply ignores
   the outgoing flux and asks the source spec to fill :math:`|\Gamma_-|` rows.
@@ -152,6 +153,7 @@ from orpheus.geometry.boundary import (
     ZeroFluxBoundary,
     stamp_boundary_role,
 )
+from orpheus.numerics.face_layout import AXIS_NAMES, face_name
 from orpheus.numerics.spaces.angular_trace_space import (
     TANGENTIAL_EPS,
     build_omega_dot_n,
@@ -159,7 +161,6 @@ from orpheus.numerics.spaces.angular_trace_space import (
 from orpheus.numerics.operator import (
     IdentityOperator,
     LinearOperator,
-    PeriodicWrapOperator,
     PermutationOperator,
     TraceRestrictionOperator,
     ZeroOperator,
@@ -172,6 +173,7 @@ from .angular import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from orpheus.geometry.boundary import SpatialWrap
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
@@ -418,6 +420,97 @@ def _specular_kernel(
     return PermutationOperator(local_perm, axis=0)
 
 
+def _assert_wrap_identification(
+    wrap: "SpatialWrap",
+    method_space: "SNMethodSpace",
+) -> str:
+    r"""Certify the quotient reading :math:`\Gamma_+(f') \equiv \Gamma_-(f)`,
+    and return the partner face.
+
+    The user's **B3.4c** ruling: build the partner-face channel now, and let
+    the quotient reading be *asserted at realization* rather than baked into
+    the mesh topology — so this identification is a guard, not a restructure.
+    (The alternative was to make the mesh carry a face-partner map, which
+    commits every mesh to a topology decision that belongs to a law.)
+
+    It is a geometric theorem, not a coincidence: the two faces' outward
+    normals are opposite, so a direction OUTGOING at :math:`f'` is INCOMING at
+    :math:`f`. `[M]` measured 2026-08-01 as an exact set equality on
+    ``gauss_legendre(8)``, ``product(2,4)``, ``level_symmetric(6)`` and
+    ``lebedev(17)``, on both axis pairs. It is asserted anyway, for the reason
+    every guard in this campaign is asserted: the theorem is about the
+    *continuous* normals, and what the realization needs is a statement about
+    THIS quadrature's classified index sets, which a tangential band or a
+    hand-built method space can break.
+
+    The comparison is against index SETS, never sizes — ``|Γ₊| == |Γ₋|`` on
+    every quadrature in the tree, so a size check is Mode-12 blind (the same
+    trap the diffuse arm's cross-check documents).
+
+    Both encodings are sourced independently: the installation face's
+    :math:`\Gamma_-` comes from the method space (built by the trace space),
+    the partner's :math:`\Gamma_+` from the one face-name → signed-projection
+    primitive applied to the name :meth:`SpatialWrap.domain_face` derives. That
+    is the ERR-041 discipline — two encodings of one orientation, compared.
+
+    The face demand is checked FIRST, ahead of the shared
+    :func:`_outflow_restriction`, so a faceless method space hears the reason
+    that is true of periodic and of no other law — *your domain is a different
+    face* — rather than the generic missing-``outflow_indices`` complaint every
+    narrowed law shares. Same data missing, but only one message tells the
+    caller what periodic actually needs.
+    """
+    face = method_space.face
+    if face is None:
+        raise BoundaryError(
+            "SNBoundaryRealizer cannot realize PeriodicBoundary without a "
+            "face: this is the one law whose DOMAIN is a DIFFERENT face's Γ₊ "
+            "(γ₋ψ|_f = γ₊ψ|_f'), so the partner cannot be named without "
+            "knowing where the law is installed. Construct via "
+            "SNMethodSpace.for_face(quadrature=..., face=..., trace=...).",
+            law="periodic",
+        )
+    if method_space.inflow_indices is None:
+        raise BoundaryError(
+            f"SNBoundaryRealizer cannot certify the periodic identification "
+            f"at face {face!r} without inflow_indices: the claim being "
+            f"checked is Γ₊(partner) == Γ₋(this face), and Γ₋ is the half "
+            f"the method space carries.",
+            law="periodic",
+        )
+    partner = wrap.domain_face(face)          # raises on a mis-declared axis
+    gamma_out = _outflow_restriction(method_space, "periodic")
+    omega_dot_n = build_omega_dot_n(method_space.quadrature, (partner,))[0]
+    partner_outflow = np.flatnonzero(omega_dot_n > +TANGENTIAL_EPS)
+    face_inflow = np.sort(
+        np.asarray(method_space.inflow_indices, dtype=np.intp)
+    )
+    if not np.array_equal(partner_outflow, face_inflow):
+        raise BoundaryError(
+            f"A periodic law on face {face!r} identifies it with partner "
+            f"{partner!r}, but Γ₊({partner}) = {partner_outflow.tolist()} is "
+            f"not Γ₋({face}) = {face_inflow.tolist()}. The wrap is realized as "
+            f"the identity on the ordinate index, which is sound only when the "
+            f"partner's outgoing directions ARE this face's incoming ones — "
+            f"the opposite-normals theorem. A mismatch means the two faces do "
+            f"not carry opposite normals as classified on this quadrature, so "
+            f"the pair is not a translation quotient and needs an explicit "
+            f"gluing map (issue #178).",
+            law="periodic",
+        )
+    if gamma_out.n_restricted != face_inflow.size:
+        raise BoundaryError(
+            f"A periodic law on face {face!r} has |Γ₊({face})| = "
+            f"{gamma_out.n_restricted} but |Γ₋({face})| = {face_inflow.size}. "
+            f"A translation quotient is a BIJECTION of half-traces, so a face "
+            f"where they differ in size has no periodic realization — the "
+            f"quadrature's tangential band has swallowed ordinates "
+            f"asymmetrically at this face.",
+            law="periodic",
+        )
+    return partner
+
+
 def _checked_angular_average(
     quadrature: "Quadrature",
     method_space: "SNMethodSpace",
@@ -447,7 +540,7 @@ def _checked_angular_average(
     from the same face label, so the guard is green by construction; it bites
     on hand-built method spaces and on a mis-declared law.
     """
-    declared_face = f"{axis}{'max' if outward_sign == +1 else 'min'}"
+    declared_face = face_name(AXIS_NAMES.index(axis), outward_sign)
     omega_dot_n = build_omega_dot_n(quadrature, (declared_face,))[0]
     declared_outflow = np.flatnonzero(omega_dot_n > +TANGENTIAL_EPS)
     if not np.array_equal(declared_outflow, gamma_out.indices):
@@ -743,15 +836,24 @@ class SNBoundaryRealizer:
             )
 
         if isinstance(law, PeriodicBoundary):
-            # Wave T step T.1 — periodic BC lift to 2-factor
-            # TensorProductOperator.  The current PeriodicWrapOperator
-            # body is identity-with-copy (the SN sweep handles the
-            # spatial wrap via its face-pair indexing); the TP wrap
-            # makes the §16A.10 algebra type-visible without changing
-            # the matvec output.  When PeriodicWrapOperator gains a
-            # non-trivial spatial-pushforward (follow-up issue), the
-            # second factor will carry that structure.
-            return stamp_boundary_role(PeriodicWrapOperator() & IdentityOperator())
+            # B3.4c — the torus quotient, narrowed to Γ₊(partner) → Γ₋(face).
+            #
+            # Periodic is the only law whose DOMAIN is not the face it is
+            # installed on: ``γ₋ψ|_f = γ₊ψ|_{f'}``. Which face f' is depends on
+            # where the law sits, so the geometry factor is asked
+            # (``G.domain_face``) rather than the partner being stored — and
+            # that call is also where a wrap declared for the wrong axis is
+            # refused. The composition supplies the partner's half-trace;
+            # ``SNBoundaryOperator._face_domains`` is the consumer.
+            _assert_wrap_identification(law.geometry_map, method_space)
+            # The body is the IDENTITY on the local index, and that is EARNED,
+            # not assumed: the guard above proves Γ₊(partner) and Γ₋(face) are
+            # the same global ordinate set, so ordinate n of the partner's
+            # outflow lands at ordinate n of this face's inflow with no
+            # relabelling. (It is a geometric theorem — the outward normals are
+            # opposite, so ``n_f = −n_f'`` sends outgoing to incoming — but a
+            # theorem the realization checks rather than trusts.)
+            return stamp_boundary_role(IdentityOperator() & IdentityOperator())
 
         if isinstance(law, PrescribedInflow):
             # B3.4a — the rank-0 affine source, narrowed to Γ₊ → Γ₋.

@@ -115,10 +115,12 @@ from orpheus.geometry import BC
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryTraceLaw,
+    PeriodicBoundary,
     ReflectiveBoundary,
     WhiteBoundary,
 )
 from orpheus.numerics.operator import LinearOperator
+from orpheus.numerics.face_layout import face_normal
 from orpheus.transport.mesh.axis import AXIS_NAMES, face_labels
 
 if TYPE_CHECKING:
@@ -326,15 +328,19 @@ def _law_from_tag(
         # so ``BC("white")`` refuses at parse. It would have fired the day #189
         # admits white, on every face except ``xmax``.
         #
-        # The sign is read off ``face_name``, NOT off ``endpoint``: a solid
+        # Both halves are read off ``face_name``, NOT off ``endpoint``: a solid
         # radial axis's single ``"outer"`` endpoint renders as the ``max``
         # face (the outer radius IS ``xmax``), so an ``endpoint == "max"``
         # test would hand a curvilinear outer face the INWARD normal. The
         # face name is the single-sourced crosswalk every other consumer —
-        # ``FaceLayout``, the trace space, ``build_omega_dot_n`` — keys on.
+        # ``FaceLayout``, the trace space, ``build_omega_dot_n`` — keys on, and
+        # ``face_normal`` is its parse. Until **B3.4c** the sign came from a
+        # hand-written ``.endswith("max")`` here while the axis came from
+        # ``label.axis_index`` — two independent reads of one datum, which is
+        # the shape a convention drift needs. One parse now yields both.
+        axis_index, outward_sign = face_normal(label.face_name)
         return WhiteBoundary(
-            axis=AXIS_NAMES[label.axis_index],
-            outward_sign=+1 if label.face_name.endswith("max") else -1,
+            axis=AXIS_NAMES[axis_index], outward_sign=outward_sign,
         )
     if law_cls is AlbedoBoundary:
         try:
@@ -344,4 +350,25 @@ def _law_from_tag(
                 f"BC('albedo') on face '{label.face_name}' requires an "
                 f"'albedo' parameter; got params={tag.params!r}."
             ) from exc
+    if law_cls is PeriodicBoundary:
+        # ⚠ B3.4c — the same latent orientation bug B3.4a fixed for white, one
+        # law later. ``PeriodicBoundary`` gained ``axis`` at B1 and was never
+        # listed here, so it fell through to the parameter-free ``law_cls()``
+        # below and every face — including a y-face — got the dataclass default
+        # ``axis="x"``. Latent, not live: SN's registry admits only {vacuum,
+        # reflective}, so ``BC("periodic")`` refuses at parse (#189). It would
+        # have fired the day #189 admits periodic, on every non-x face.
+        #
+        # A wrap's axis is not an accessory: it names WHICH pair of faces the
+        # translation identifies, so a wrong one points the law at a partner
+        # across the wrong axis. Since B3.4c that is loud rather than silent
+        # (``SpatialWrap.domain_face`` refuses a face off its own axis), but a
+        # producer that emits a wrong law and leans on a downstream guard is
+        # still the consumer-side bridge this codebase fixes at the producer.
+        #
+        # No ``outward_sign``: a wrap identifies BOTH faces of its axis
+        # symmetrically, so unlike white's hemisphere it has no orientation to
+        # get wrong beyond the axis itself.
+        axis_index, _outward_sign = face_normal(label.face_name)
+        return PeriodicBoundary(axis=AXIS_NAMES[axis_index])
     return law_cls()

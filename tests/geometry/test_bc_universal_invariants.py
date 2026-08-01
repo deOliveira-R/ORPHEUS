@@ -1068,3 +1068,127 @@ class TestSpecularPairingCertifiedOnBothCarriers:
                 face_method_space(quad, face="xmax"),
             )
         assert exc.value.law == "albedo"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# B3.4c — the factor tier's adjointability claim must match what the
+#         realizer actually builds
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l1
+class TestFactorAdjointabilityMatchesTheRealizedOperator:
+    r"""``G.is_adjointable and R.is_adjointable == realized.is_adjointable``.
+
+    Two independent encodings of one claim, compared — the ERR-041 discipline
+    applied to adjointability. The factor tier DECLARES whether the map it
+    names exposes an honest transpose; the realized operator ANSWERS from its
+    own composition tree. Nothing compared them before **B3.4c**, and they had
+    silently drifted apart: :class:`SpatialWrap` declared ``False`` while the
+    operator realizing it answered ``True``, so a consumer got opposite
+    answers depending on which one it asked. (The declaration was reporting an
+    implementation gap — #183, periodic's unbuilt partner channel — in a slot
+    whose contract is a property of the MAP. B3.4c built the channel, the
+    declaration became true, and this gate is what keeps the two tiers from
+    parting again.)
+
+    The conjunction is the right shape because the realized operator is
+    :math:`R \circ G`: a composition is Euclidean-adjointable exactly when both
+    factors are. It bites in both directions — a factor that over-claims
+    (``True`` with no realized transpose) and one that under-claims (the
+    B3.4c-era ``SpatialWrap``) are both red.
+    """
+
+    #: ``(law_id, law)`` over every law with a realizable SN arm. The albedo
+    #: rows carry both closures because since B3.4b an albedo face answers by
+    #: its CLOSURE, not its class — a specular closure is adjointable and a
+    #: diffuse one is not, so a single albedo row would pin only one arm.
+    def _laws(self):
+        from orpheus.geometry.boundary import IsotropicReturn, SpecularReturn
+
+        return [
+            ("vacuum", VacuumInflow()),
+            ("reflective", ReflectiveBoundary(axis="x", albedo=1.0)),
+            ("reflective_partial", ReflectiveBoundary(axis="x", albedo=0.5)),
+            ("white", WhiteBoundary(axis="x", outward_sign=-1, albedo=1.0)),
+            ("albedo_specular",
+             AlbedoBoundary(0.5, SpecularReturn(axis="x"))),
+            ("albedo_isotropic",
+             AlbedoBoundary(0.5, IsotropicReturn(axis="x", outward_sign=-1))),
+            ("periodic", PeriodicBoundary(axis="x")),
+        ]
+
+    def test_every_law_agrees_with_its_realization(self) -> None:
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+
+        quad = Quadrature.level_symmetric(sn_order=6)
+        space = face_method_space(
+            quad, face="xmin", faces=("xmin", "xmax", "ymin", "ymax"),
+        )
+        realizer = SNBoundaryRealizer()
+        disagreed = {}
+        for law_id, law in self._laws():
+            declared = (
+                law.geometry_map.is_adjointable
+                and law.response_kernel.is_adjointable
+            )
+            realized = realizer.realize(law, space).is_adjointable
+            if declared != realized:
+                disagreed[law_id] = (declared, realized)
+        assert not disagreed, (
+            f"the factor tier and the realized operator disagree on "
+            f"adjointability for {disagreed} (declared, realized). Whichever "
+            f"is wrong, a consumer reading one gets an answer the other "
+            f"contradicts — which is the two-sources-of-truth B3.4c closed "
+            f"for periodic."
+        )
+
+    def test_both_answers_are_actually_exercised(self) -> None:
+        """The row set must contain a ``True`` AND a ``False``.
+
+        Without this the agreement above is satisfied by a set that is all one
+        value, and a mutation flipping every declaration at once would pass.
+        White and the diffuse albedo closure supply the ``False`` (the
+        Lambertian is self-adjoint only under the cosine-weighted metric).
+        """
+        answers = {
+            law.geometry_map.is_adjointable
+            and law.response_kernel.is_adjointable
+            for _law_id, law in self._laws()
+        }
+        assert answers == {True, False}, (
+            f"the law set exercises only {answers}; a one-valued set makes "
+            f"the agreement gate blind to a uniform flip."
+        )
+
+    def test_prescribed_inflow_is_the_documented_exception(self) -> None:
+        r"""An AFFINE law is the one place the conjunction does NOT hold — and
+        it is a statement about the algebra, not a gap.
+
+        :class:`PrescribedInflow` carries both factors trivially adjointable
+        (:math:`G = \mathrm{id}`, :math:`R = 0`) while its realized
+        :class:`IncomingSourceOperator` declines a transpose. Nothing is
+        inconsistent: the factor pair describes the LINEAR part
+        :math:`R G \gamma_+\psi`, and this law's entire content is the affine
+        term :math:`q`, which the tier does not carry. Pinned as a row rather
+        than left out of the set above, so "prescribed inflow is missing" can
+        never be an oversight that hides a real drift.
+        """
+        from orpheus.geometry.boundary import PrescribedInflow
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+
+        law = PrescribedInflow()
+        assert law.geometry_map.is_adjointable
+        assert law.response_kernel.is_adjointable
+        quad = Quadrature.level_symmetric(sn_order=6)
+        realized = SNBoundaryRealizer().realize(
+            law,
+            face_method_space(
+                quad, face="xmin", faces=("xmin", "xmax", "ymin", "ymax"),
+            ),
+        )
+        assert not realized.is_adjointable, (
+            "IncomingSourceOperator advertised a transpose — if the affine "
+            "source became adjointable, this law joins the conjunction gate "
+            "above instead of standing outside it."
+        )
