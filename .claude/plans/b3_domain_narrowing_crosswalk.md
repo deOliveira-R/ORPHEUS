@@ -338,6 +338,44 @@ restriction cannot honour.
   those operators real spaces — B4 then composes `R ∘ G` under a guard that
   actually checks something.
 
+### 9.1 B3.1 RESULT ✅ — and the N8 trap has **two** sites, not one
+
+`TraceRestrictionOperator` landed with 18 tests (the first nine on its
+**defining laws**: `γι = I`, `ιγ = P` idempotent+symmetric, `ι = γᵀ`
+materialised, disjoint annihilation, three-way partition resolving `I`).
+pyright 1 (#288 floor); numerics 956 passed.
+
+**[M] Fitness probe on real meshes** — the narrowed composition
+`g_out.apply(full_face)[g_out.to_local(perm[inflow])]` is **bit-identical** to
+today's `np.take(full_face, perm, 0)[inflow]` on both fixtures:
+
+```
+SLB gauss_legendre(4): N=4 |in|=2 |out|=2 |tan|=0
+   perm[inflow]=[3, 2]  outflow=[2, 3]
+   local positions=[1, 0]  naive arange=[0, 1]      <-- DIFFER
+   bit-identical to today: True      TensorProduct fold ok: True
+CYL product(2,4):      N=8 |in|=2 |out|=2 |tan|=4
+   perm[inflow]=[0, 4]  outflow=[0, 4]
+   local positions=[0, 1]  naive arange=[0, 1]      <-- agree
+   bit-identical to today: True      TensorProduct fold ok: True
+```
+
+⭐ **The remap appears at TWO distinct sites, and they are discriminated by
+DIFFERENT fixtures — neither gate can be dropped:**
+
+| site | quantity remapped | naive `arange` is wrong on | agrees on |
+|---|---|---|---|
+| **reflective narrowing** (B3.2) | `perm[inflow]` → positions in `Γ₊` | **the SLAB** — the mirror *reverses* order, so `[3,2] → [1,0]` | CYL, where `perm[inflow]` happens to be `outflow` in order |
+| **schedule split** (`rows`, RG-5) | `sel ⊂ inflow` → positions in `Γ₋` | **2-D** — the lower-half rows are not a prefix of `inflow` | 1-D, where they are |
+
+The test-architect measured the second and reported the trap as "correct in
+1-D, wrong in 2-D". That is right *for the split*; for the **reflective**
+remap the slab is the discriminating fixture and 1-D is exactly where it
+bites. Recording both so a future reader does not conclude 1-D coverage is
+sufficient — or that 2-D coverage is.
+
+`to_local` on the operator is what makes both unspellable at the call site.
+
 ---
 
 ## 10. Watch item — a sixth dead-capability instance

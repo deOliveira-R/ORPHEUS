@@ -175,6 +175,7 @@ __all__ = [
     "IdentityOperator",
     "ZeroOperator",
     "PermutationOperator",
+    "TraceRestrictionOperator",
     "IncomingOrdinateMaskTensor",
     "PeriodicWrapOperator",
     "DiagonalOperator",
@@ -2275,6 +2276,214 @@ class PermutationOperator(LinearOperator):
         so :math:`(P^{-1})^{-1}` reproduces :attr:`perm` EXACTLY (§13 I2).
         """
         return PermutationOperator(self.inverse_perm, axis=self.axis)
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True
+
+
+class TraceRestrictionOperator(LinearOperator):
+    r"""Restriction onto an index subset along an axis:
+    :math:`(\gamma_S x)_i = x_{S(i)}`.
+
+    Given a **sorted, unique** index set
+    :math:`S \subset \{0, \ldots, N-1\}` of size :math:`m < N`, the apply
+    action gathers those entries along ``axis``, producing an array whose
+    length along that axis is :math:`m` rather than :math:`N`:
+
+    .. math::
+
+        \gamma_S : \mathbb{R}^N \to \mathbb{R}^m, \qquad
+        (\gamma_S\,x)_j \;=\; x_{S(j)}.
+
+    The transpose is the **scatter** — zeros everywhere, the input written
+    back into the selected rows:
+
+    .. math::
+
+        \iota_S = \gamma_S^{\mathsf T} : \mathbb{R}^m \to \mathbb{R}^N,
+        \qquad
+        (\iota_S\,y)_i \;=\;
+        \begin{cases} y_j & i = S(j) \\ 0 & i \notin S. \end{cases}
+
+    Relation to :class:`PermutationOperator` — a **sibling, not a
+    subclass**. The mechanism is the same ``np.take`` gather with a
+    non-square index array, but the algebra is different in kind: a
+    permutation is a bijection (invertible, involution-detectable, with an
+    algebra-closed :meth:`~PermutationOperator.inverse`), whereas a
+    restriction is **rank-deficient by construction** and has a scatter
+    transpose rather than an inverse. Inheriting would have promised
+    guarantees this type cannot honour.
+
+    Why it exists
+    -------------
+
+    These are the **trace operators** :math:`\gamma_\pm` of the affine
+    boundary form :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q` — the very
+    maps the theory page names, which the codebase had spelled three
+    different ways and typed as none of them. Every one of those spellings
+    is a composition of this operator and its transpose:
+
+    ================================================  ==================
+    spelling found in the boundary subsystem          is
+    ================================================  ==================
+    a slice-write ``out[sel] = full[sel]``             :math:`\iota_S \circ \gamma_S`
+    a dense diagonal multiply by an inflow mask        :math:`\iota_S \circ \gamma_S`
+    ``IncomingOrdinateMaskTensor`` (zeroes the inflow) :math:`I - \iota_S \circ \gamma_S`
+    ================================================  ==================
+
+    and the observation that ``P_in ∘ P_out = 0`` stops being a curiosity:
+    it is :math:`\gamma_- \circ \iota_+ = 0`, true because two disjoint
+    index sets have nothing to hand each other.
+
+    Guards, and what each one prevents
+    ----------------------------------
+
+    **Sorted** is not tidiness — it is what makes :meth:`to_local` correct.
+    Remapping a subset of global rows into positions within the restricted
+    space is ``searchsorted(indices, sel)``, which *requires* a sorted
+    haystack. The naive alternative ``arange(sel.size)`` is **exactly
+    correct in 1-D and wrong in 2-D** (in 1-D the selected rows happen to
+    be a prefix of the index set; in 2-D they are not), so a call site that
+    spelled it by hand would be gated only by 2-D end-to-end solves. Owning
+    both the guard and the remap here makes that whole failure mode
+    unspellable rather than merely tested for.
+
+    **Unique** because a repeated row is not a restriction — the transpose
+    would silently drop all but one contribution, and the pair would stop
+    satisfying :math:`\gamma_S \circ \iota_S = I`.
+
+    **The shape guard on apply** is the one a hand-rolled reduced
+    permutation does not have: fed a full-length input it returns a
+    same-shaped array of *wrong values*, with no raise. Measured. Here a
+    domain mismatch is a loud ``ValueError`` naming both lengths.
+
+    Structurally NON-invertible — the restriction discards rows — so it
+    declares no ``inverse()``; misuse is a static error rather than a
+    silent wrong answer. (A restriction covering *every* row is the
+    identity in disguise; use :class:`IdentityOperator` for that.)
+
+    Parameters
+    ----------
+    indices : np.ndarray
+        Sorted, unique row indices in ``[0, n_total)`` — the subspace this
+        operator restricts onto.
+    n_total : int
+        Length of the FULL axis, i.e. the domain's extent along ``axis``.
+    axis : int
+        Axis to gather along. Trailing axes broadcast, so this composes as
+        a :class:`TensorProductOperator` factor.
+    """
+
+    def __init__(
+        self, indices: np.ndarray, n_total: int, axis: int = 0,
+    ) -> None:
+        idx = np.asarray(indices, dtype=np.intp)
+        if idx.ndim != 1:
+            raise ValueError(
+                f"TraceRestrictionOperator indices must be 1-D; got shape "
+                f"{idx.shape}."
+            )
+        n_total = int(n_total)
+        if n_total <= 0:
+            raise ValueError(
+                f"TraceRestrictionOperator n_total must be positive; got "
+                f"{n_total}."
+            )
+        if idx.size and (idx.min() < 0 or idx.max() >= n_total):
+            raise ValueError(
+                f"TraceRestrictionOperator indices must lie in "
+                f"[0, {n_total}); got min={idx.min()}, max={idx.max()}."
+            )
+        if np.unique(idx).size != idx.size:
+            raise ValueError(
+                "TraceRestrictionOperator indices must be unique — a repeated "
+                "row is not a restriction: the scatter transpose would drop "
+                f"all but one contribution. Got {idx!r}."
+            )
+        if idx.size > 1 and not np.all(idx[1:] > idx[:-1]):
+            raise ValueError(
+                "TraceRestrictionOperator indices must be SORTED ascending — "
+                "`to_local` remaps via `searchsorted`, which requires it. Got "
+                f"{idx!r}; pass `np.sort(indices)`."
+            )
+        self.indices = idx
+        self.n_total = n_total
+        self.axis = int(axis)
+
+    @property
+    def n_restricted(self) -> int:
+        """Extent of the codomain along :attr:`axis`."""
+        return int(self.indices.size)
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        x = np.asarray(x)
+        if x.shape[self.axis] != self.n_total:
+            raise ValueError(
+                f"TraceRestrictionOperator.apply: input has "
+                f"{x.shape[self.axis]} rows along axis {self.axis}, but this "
+                f"restriction's DOMAIN is the full space of {self.n_total}. "
+                f"Passing the restricted space back in ("
+                f"{self.n_restricted} rows) is the likely mistake — the "
+                f"restriction consumes the full trace and emits the subspace, "
+                f"not the reverse."
+            )
+        return np.take(x, self.indices, axis=self.axis)
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        r"""The scatter :math:`\iota_S` — zeros, then write the selected rows."""
+        x = np.asarray(x)
+        if x.shape[self.axis] != self.n_restricted:
+            raise ValueError(
+                f"TraceRestrictionOperator.apply_transpose: input has "
+                f"{x.shape[self.axis]} rows along axis {self.axis}, but the "
+                f"scatter's DOMAIN is the restricted space of "
+                f"{self.n_restricted}. Passing the full space in "
+                f"({self.n_total} rows) is the likely mistake."
+            )
+        full_shape = list(x.shape)
+        full_shape[self.axis] = self.n_total
+        out = np.zeros(full_shape, dtype=x.dtype)
+        sel: list = [slice(None)] * x.ndim
+        sel[self.axis] = self.indices
+        out[tuple(sel)] = x
+        return out
+
+    def to_local(self, global_indices: np.ndarray) -> np.ndarray:
+        r"""Map global row indices to their positions in the restricted space.
+
+        For ``g`` a subset of :attr:`indices`, returns ``p`` with
+        ``self.indices[p] == g``. This is the remap every consumer of a
+        narrowed trace needs, and it lives here so that no call site can
+        reach for ``arange(g.size)`` — correct only when ``g`` happens to be
+        a prefix of the index set, which is the 1-D case and not the 2-D one.
+
+        Raises
+        ------
+        ValueError
+            If any requested row is not in this restriction's index set —
+            i.e. the caller asked for the position of something this
+            operator does not carry.
+        """
+        g = np.asarray(global_indices, dtype=np.intp)
+        outside = g[~np.isin(g, self.indices)]
+        if outside.size:
+            raise ValueError(
+                f"TraceRestrictionOperator.to_local: row(s) "
+                f"{np.unique(outside).tolist()} are not in this restriction's "
+                f"index set, so they have no position in the restricted "
+                f"space. This usually means two different index sets were "
+                f"crossed (an inflow row asked of an outflow restriction)."
+            )
+        return np.searchsorted(self.indices, g)
+
+    # NO ``inverse()``: a restriction is rank-deficient by construction.
+    # The transpose is the scatter, NOT an inverse — ``ι ∘ γ`` is the
+    # projector onto the subspace, not the identity on the full space.
+
+    @property
+    def is_invertible(self) -> bool:
+        return False
 
     @property
     def is_adjointable(self) -> bool:
