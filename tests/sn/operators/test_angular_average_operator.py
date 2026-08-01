@@ -1,9 +1,24 @@
 """Tests for AngularAverageOperator (Wave 1 / C1.1).
 
-The operator is the §15.2 geometric projection G_diff in the white
-BC tensor decomposition R_white = G_diff ⊗ α. It implements the
-cosine-weighted Lambertian average over an outgoing hemisphere; the
-incoming flux at a white surface equals α × (this average).
+The operator implements the cosine-weighted Lambertian average over an
+outgoing hemisphere; the incoming flux at a white surface equals
+α × (this average).
+
+**It is the RESPONSE, not a geometry.** Campaign phase B3.0 corrected
+the older reading — "the §15.2 geometric projection G_diff in the
+decomposition R_white = G_diff ⊗ α" — on a decidable criterion: a
+geometry map is the composition operator of a measure-preserving
+bijection, hence **multiplicative** (``G(ψφ) = (Gψ)(Gφ)``), and an
+average is never that. So white's factors are ``G = IdentityMap``
+(a white face fixes no geometry) and
+``R = LambertianReemission(α)``, which is what this operator realizes.
+
+The misreading was invisible for a structural reason worth keeping in
+mind here: a rank-one response **annihilates** ``G`` entirely
+(``R∘G = u ⊗ (Gᵀv)`` and the Lambertian's ``v = |Ω·n|`` is invariant
+under both the mirror and the periodic translation), so white's
+geometry slot had no observable consequence and the physics drifted
+into it. Nothing this file measures changed when the factors moved.
 """
 
 from __future__ import annotations

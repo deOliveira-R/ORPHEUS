@@ -807,7 +807,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **521** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **524** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-contraction-ratio``
@@ -837,9 +837,12 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``bc-extraction-two-residuals``
 - ``bc-extraction-variadic-matvec``
 - ``bc-extraction-within-group-decomposition``
+- ``bc-face-action-narrowed``
 - ``bc-face-name-key-identity``
 - ``bc-rank-n-tensor-decomposition``
+- ``bc-realizability-square``
 - ``bc-tensor-decomposition``
+- ``bc-trace-restriction-pair``
 - ``bessel-wronskian``
 - ``bickley-integral``
 - ``billiard-rank2-S``

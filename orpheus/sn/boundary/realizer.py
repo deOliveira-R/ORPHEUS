@@ -237,6 +237,16 @@ class SNBoundaryRealizer:
         through the (invariant) Protocol.
         """
         if isinstance(law, ZeroFluxBoundary):
+            # ── REFUSAL AXIS: state-cone / sign ──────────────────────────
+            # NOT an angular-resolution refusal and NOT a topological one —
+            # see `bc-method-realizability` in orpheus.geometry.boundary. SN resolves
+            # than diffusion does and couples faces just fine; what it cannot
+            # do is hold this VALUE. The diffusion trace is a signed partial
+            # current, so 𝒜 = −1 lives in its state space; the SN trace is an
+            # angular flux with ψ ≥ 0, and a negative inflow is outside that
+            # cone. The same law is realizable there and unrealizable here for
+            # a reason that has nothing to do with either method's fidelity.
+            #
             # #290 P3 (user ruling 3): φ_Γ = 0 is a diffusion-level
             # Dirichlet idealization — albedo 𝒜 = −1 in the
             # partial-current basis. A transport BC prescribes the

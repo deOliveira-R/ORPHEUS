@@ -173,16 +173,26 @@ shape choice.
        specular, white,
        albedo, periodic)
      - :class:`TensorProductOperator`
-       (single TP)
-     - ``IncomingOrdinateMaskTensor(...) &
-       IdentityOperator()`` for vacuum;
-       ``PermutationOperator(perm, axis=0) &
-       IdentityOperator()`` for specular
+       (single TP), or a bare
+       :class:`ZeroOperator` for
+       vacuum
+     - ``PermutationOperator(local_perm, axis=0) &
+       IdentityOperator()`` for specular, on the
+       **reduced** ordinate axis :math:`\Gamma_+`;
+       a two-hook ``ZeroOperator`` for vacuum
+       (:math:`\Gamma_+ \to \Gamma_-`, no TP at
+       all)
      - Each BC acts on the ordinate axis; the
        trailing group / face axes broadcast. Per
        §16A.10 ``B = G_patch ⊗ K_omega ⊗ K_g``
        with two factors degenerate to
-       :class:`IdentityOperator`.
+       :class:`IdentityOperator`. Since campaign
+       phase B3.2 the ordinate factor lives on
+       the law's **narrowed** domain
+       :math:`\Gamma_+`, not the full face
+       (:ref:`bc-domain-narrowing`); vacuum has
+       no non-trivial factor left to carry, so it
+       drops out of the TP form entirely.
    * - Fission (:math:`F`)
      - :class:`TensorProductOperator`
        (single rank-1 dyad)

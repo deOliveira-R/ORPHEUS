@@ -12,23 +12,23 @@ SN theory page's "Development history" section.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 41 lessons (L-001…L-041), read FIRST each dispatch.
+- [lessons.md](lessons.md) — 42 lessons (L-001…L-042), read FIRST each dispatch.
   The spine: a page is done when every cross-ref resolves against the LIVE tree,
   every claim's V&V level matches the skill verbatim, every retired symbol leaves
   no dangling ref, and the build's WARNING/ERROR/CRITICAL set is unchanged from
-  the `-E` baseline. Per-lesson detail is in lessons.md — do NOT re-summarize here.
-  Newest by number (one-line hooks; full detail in lessons.md):
-  - **L-041** — The DOC-ONLY "retire the false promises" B0 pass on a subsystem under structural restoration (boundary machinery, 18 items / 8 files): the job is make-the-claim-TRUE, not delete — for a declaration a LATER phase will populate, write measured-present + how-production-reaches-it-today + the phase that fills it. MEASURE the override lattice (`ast.parse` base bodies for statement counts; `getattr(Law,m).__func__ is not getattr(ABC,m).__func__` per law×method) instead of trusting a "where applicable" hedge — it turned one sentence into a per-row "*Intended* / *Implemented*" table (4/5 bases EMPTY, 2/5 overridden by NOBODY, 4/7 laws overriding nothing); also `grep 'raise <TypedError>'` — a "Pinned error" column can name an exception NEVER raised. The item's real scope is the CLAIM'S grep (the same false justification lived in a 2nd file; a docstring contradiction had a `#`-comment TWIN 400 lines away). A two-meanings-of-`R` collision resolves by splitting each bullet into `G = …`/`R = …` + ONE `.. note::` typing the convention; sibling modules using a DIFFERENT decomposition get FLAGGED not swept. An error string inside `raise` is EXECUTABLE — report, don't edit (tests `match=` on it). PROVE doc-only by AST (`ast.dump` docstring-stripped, HEAD vs now = IDENTICAL; on a user-co-edited file `ast.unparse`+`difflib` shows only THEIR hunk). Leave a brief item that is a later phase's verbatim acceptance-gate text. Verify every cited issue number (`gh issue view`). **The `-E -W` baseline is now ZERO** (AGENT.md's "1 warning" is stale).
-  - **L-040** — RETIRING a per-X flag from the docs (`creates_sweep_cycle`): the symbol-grep is the FLOOR — also grep the CONCEPT (a `list-table` column headed "Sweep-cycle flag" documents the field with no symbol in it; brief's 7 hits missed 17 cells). Dropping a column = header + every row cell + `:widths:`, verified in RENDERED HTML (`<col>`/`<th>`/`<td>` counts). PREFER replace-with-the-true-invariant over delete (the flag column → `Trace-edge family`, read off the replacement's algebra of record). The flag's JUSTIFICATION paragraph is the highest-risk prose and is usually independently FALSE (here "white is cycle-free" — `white|white` IS cyclic, per the gate's own docstring) → re-verify against the replacement, Cardinal Rule 1 beats minimal-diff. Choose option-(b) retired-note when a DESIGN LESSON exists; L-007 retitle-to-concept/KEEP-anchor makes it free (the cross-doc `:ref:` auto-picks the new title — verify in HTML). Ladder the note by increasing importance with the un-fixable reason LAST, sharpened by the "one value, two different facts" tell. Name the replacement's level from the gate's marks (`foundation`, no `verifies` — never upgrade in prose). The `-E` build regenerates `verification/matrix.rst` and absorbs SIBLING uncommitted work — report it, never revert (generated).
-  - **L-039** — AUTHORING a campaign-CAPSTONE theory page (a completed feature's WHOLE story) from an algebra-of-record + memos + error catalog (consistent DSA #2, `methods/sn/acceleration.rst`): source-read ROADMAP(rulings)→MEMO(nav+errata)→SymPy-of-record(correctness spine, READ don't transcribe)→prod-code→ERR-catalog(discoveries)→evidence-pack(SELECT tables); the narrative arc is Fourier-motivation→derivation→design→3-discoveries→evidence→scope/rulings. The sharp NEW call (extends L-004 to AUTHORING): an algebra-of-record page's SymPy-derivation-identity labels (Larsen 27/23a-f/28/Marshak/33) are verifies-COVERED via foundation+verifies (the peierls `test_case_method_*` precedent), NOT `vv-status documented`; reserve documented for pure-literature/structural labels with no tight gate (ρ_SI=c, 0.2247c, M=(I+𝒞)∘(L+C)⁻¹). Audit `testable = theory − documented`, so documented+verifies is muddy → clean-split (remove the directive, keep rationale as a plain comment, add verifies, re-audit 0-orphan). Migrate a gate-file's MEASURED-FACTS docstring → page evidence tier + shrink to a §-pointer keeping the test CONTRACT (enforcer f1). Brief numbers/paths/targets are HEURISTICS (verify vs evidence+tree): "Krylov 2554→21"=SI+DSA-refl in the pack; no `diffusion/` subdir; the drifted xref→the NEW page (not the brief's field_algebra); the field_algebra promise was already-fixed. 13 labels grep-collision-checked + page-prefixed; head authored as Write/Edit literals (no f-string over math).
-  - **L-038** — AUDITING a "is the terminal docs phase done?" charter (frame-projection P7): the answer is usually EFFECTIVELY-DONE — each earlier phase's doc-pass (P3/P5/P6) landed its slice INTO the eventual capstone, so the last phase was executed piecewise before it was reached. Verify by the page's OWN self-identification (grep the intro/notes for the phase tag — here a note literally titled "What shipped since (P3/P5/P7)" said "This page (P7) is the capstone"), NOT an open plan line (stale tracking artifact; trust git). The plan's task-`#N` ≠ GitHub issue-`#N` (plan's "#46–52" collided with unrelated TH/Kinetics issues; real trackers #268/#226/#281). Per-item method: locate label → READ (judge vs articulation std: rejected alts? structural WHY? honest seam?) → `-E -W` clean → grep-gate cross-doc `:ref:`/`:eq:` (the -W-BLIND class). A documented SEAM (#275 LeastSquaresFrame; anisotropic-order Σ_{s,ℓ}) is the OPPOSITE of a gap; a charter's "the condensation PAGE" correctly delivered as a SECTION of a shared page is DRY, not missing.
-  - **L-037** — FLIPPING a "documented-future seam" to LANDED across an existing rich page (#281 P6 frame.rst/sn.rst): the stale-status blast radius is the WHOLE page — grep `blocked|not built|pending|future seam|lands with P6` (brief named 3, grep found 7); a "one remaining not-built discipline is X" bullet must RE-POINT to the still-unbuilt sibling, not just drop X; the wrong (φ→φ*) rule hides in a LITERATURE-TABLE cell (tell = test φ*·1_R against an INDICATOR trial ⟹ bare-φ* `∫φ*Σ/∫φ*`, not bilinear — the fix is the PRODUCT weight φ*⊙φ); wired⟹no-sentinel VERIFIED against the LIVE test's stacked verifies() (not the brief) then fast-theory-scan (label_exists=True/documented=False); grow via `.. include::` the generated fragment + supporting math UNLABELED (0 net `:label:` change) + the ONE verifies-target label byte-identical.
-  - **L-036** — GROWING a thin honest-stub chapter to full at campaign close (A6/ch15 adjoint): flip the stub's stale "in flight" status (verify merge, not prose); PRESERVE the landed-earlier section verbatim (its `:label:`s are live wiring-backlog), grow AROUND it; RECONCILE a NEW canonical taxonomy that subsumes ≥2 sibling framings (walk-orientation⊂Euclidean, μ-reversal=continuous's signature) — reconcile, don't contradict; deferred-wire verifies-target labels UN-sentineled (tests wait for the label; audit is the main agent's separate gate) while definitional siblings get `vv-status documented`; correctness catches (no 1/k-fission+q* fusion; KEigenvalue's 1st arg is the RESOLVENT (L+C), not A_loss); Mode-12 EXACTNESS (k blind to factor-order/vector/**G-metric**; DROPS not blind — F†=F 1.488→0.153); xref: only non-`:noindex:` automodule links, solution.py has `:label:` docstrings so plain-text-by-convention is CORRECT.
-  - **L-035** — V7 orphan-slice adjudication (WIRE/SENTINEL/GAP): WIRE iff a test's PRIMARY assertion IS the equation vs a structurally-independent ref (sign-flip reds it); 3 SENTINEL shapes (schema/continuous-def/literature tested-under-a-DIFFERENT-label · native-vs-legacy bit-id · code-not-built); ROOT narrative page = all-SENTINEL (verified downstream under method labels); foundation-file resolve per-test (computed→WIRE, invariant→SENTINEL, module-foundation+class-verifies coexist); doc's named catcher beats a stale line-range (spectral test is Mode-12-blind — pin the OBJECT); fast `_scan_theory_equations` self-check, no pytest collection.
-  - **L-034** — #231 P2 rebalance CONTRACT-DENSE file classes (machinery/driver/ABC/mesh/contract-operator/ψ½): honest cut ≪ the teaching-operator pilot & that's CORRECT; cut SURFACE differs by class (comments dominate driver/mesh); automodule even `:noindex:` makes the `-E -W` gate live; a rebalance READ is a free staleness-audit.
-  - **L-033** — #231 P2 rebalance PILOT: teaching ALREADY TWIN → expect ZERO MOVED (Haiku MOVED-column is ~noise); CONTRACT = "would a file-local modifier err without this?"; docstring-only proven by token-invariance; not-`automodule`'d ⟹ no gate.
-  - **L-032** — #304 P10 `:label:` re-namespacing: label follows its heading's ruling; self-description oracle; delimiter-anchored COUNTED replace.
-  - **L-026…L-031** — #231 corpus split→de-dup→metadata→surface-taxonomy→`:label:`-backfill→bibtex-migration.
+  the `-E` baseline. **Per-lesson detail lives ONLY in lessons.md — never
+  re-summarize a lesson here.** Topic index of the newest:
+  - L-042 — audit the corpus against a just-landed multi-commit REFACTOR
+  - L-041 — DOC-ONLY "retire the false promises" B0 pass; prove doc-only by AST
+  - L-040 — retiring a per-X flag from the docs (grep the CONCEPT, not the symbol)
+  - L-039 — authoring a campaign-CAPSTONE theory page from an algebra-of-record
+  - L-038 — auditing an "is the terminal docs phase done?" charter
+  - L-037 — flipping a documented-future SEAM to LANDED across a rich page
+  - L-036 — growing a thin honest-stub chapter to full at campaign close
+  - L-035 — V7 orphan-slice adjudication (WIRE / SENTINEL / GAP)
+  - L-033/L-034 — #231 P2 code-prose rebalance: pilot, then contract-dense classes
+  - L-032 — `:label:` re-namespacing onto design families
+  - L-026…L-031 — #231 corpus split→de-dup→metadata→taxonomy→labels→bibtex
 
 ## 2. Active / doc-debt state — git-true
 
@@ -36,25 +36,22 @@ SN theory page's "Development history" section.
 once tracked is **MERGED to main** (git-verified); landed milestones live in
 the SN theory page's **"Development history"** section
 (`docs/theory/discrete_ordinates.rst`), behavioral lessons in `lessons.md`.
-The active track is the **#231 doc-architecture corpus** (see §3) — the
-`operator_algebra.rst` reframe + Phase-3 splits + Phase-4/5a cleanup; main
+The active track is the **#231 doc-architecture corpus** (see §3); main
 agent commits, I stage + gate.
 
-**DSA #2 docs close-out AUTHORED (uncommitted, on branch `feature/sn-dsa`,
-pending main-agent review + commit — 2026-07-27).** NEW capstone page
-`docs/theory/methods/sn/acceleration.rst` (consistent DSA — the whole-feature
-story; wired into the `methods/sn/index.rst` toctree after `solver`);
-verification/sn.rst DSA gate-table section; 13 `sn-dsa-*` labels (10
-verifies-covered via foundation+verifies, 3 documented); 12 `verifies()`
-markers across the DSA battery; `test_dsa_rate.py` measured-facts docstring
-migrated to the page; refs.bib +5 keys (Larsen1982a/Alcouffe1977/
-McCoyLarsen1982/Morel1982/AdamsMartin1992, each `% AWAITING ZOTERO BACK-PORT`);
-diffusion_1d.rst:517 xref repointed to the new page; slab_one_group.rst
-σ_r-fold cross-ref added; field_algebra.rst:528 was already-fixed (L-001).
-Gates green: `-E -W` 0-warning, audit 0-orphan/ERR 71/71, touched tests pass
-under `-O`. See [[lessons-L39]]. Only OTHER open SN branch: **#236**
-(`feature/sn-spatial-angular-product`, not a main ancestor); no pending #236
-doc work.
+**Uncommitted doc work awaiting main-agent review (verify with git before
+acting — these claims go stale):**
+
+- **Boundary B3.0–B3.2 doc repair** (branch `refactor/operator-strategy-layers`,
+  2026-07-31). 46 claims adjudicated across 6 `docs/theory/**` files; findings
+  table at `scratch/b3_doc_repair.md`. Added `bc-domain-narrowing` +
+  `bc-method-realizability` / `bc-equivariance` / `bc-refusal-axes` and three
+  `documented` eq-labels (matrix auto-regen 521→524). `-E -W` EXIT 0 / 0
+  warnings, unchanged from baseline. See [[lessons-L42]].
+- **DSA #2 docs close-out** (branch `feature/sn-dsa`, 2026-07-27). New capstone
+  `docs/theory/methods/sn/acceleration.rst` + verification/sn.rst gate table +
+  13 `sn-dsa-*` labels + 12 `verifies()` markers + refs.bib ×5 (each
+  `% AWAITING ZOTERO BACK-PORT`). See [[lessons-L39]].
 
 > Merge-status in memory goes STALE. Reconcile any "resume / in-flight / NOT
 > pushed" claim against `git merge-base --is-ancestor <hash> HEAD` before acting.
@@ -64,95 +61,56 @@ doc work.
 Each entry is a ONE-LINE pointer; the full recipe lives in the linked `feedback_*.md`.
 
 - **Landed-milestone record:** the SN theory page's "Development history" section
-  (`docs/theory/discrete_ordinates.rst`) — architectural-changelog of every landed
-  SN refactor. POINT here instead of re-listing merged campaigns.
-- [canonical-convention-page](feedback_canonical_convention_page.md) — 13-section
-  anatomy for a multi-PR migration's canonical theory page + sweep-audit keep/flip
-  rubric. Instance: `index_convention.rst`.
+  (`docs/theory/discrete_ordinates.rst`). POINT here instead of re-listing campaigns.
+- [canonical-convention-page](feedback_canonical_convention_page.md) — 13-section anatomy
+  for a multi-PR migration's canonical theory page + keep/flip rubric (`index_convention.rst`).
 - [canonical-axis-convention SSOT section](feedback_canonical_axis_convention_ssot_section.md)
-  — SSOT convention SECTION for a just-landed axis-flip enforced once at a data-ingest
-  boundary + the overloaded-"group" terminology note. Instance: energy group-0-fast
-  (`cross_section_data.rst`).
-- [double-category architecture insight](feedback_double_category_architecture_insight.md)
-  — 6-move recipe documenting a deep categorical framing of a SHIPPED type system
-  (0-ULP crosscheck = interchange-coherence witness; impossibility = numbered-obstruction
-  table). Instance: (Rep×Role) carrier grid, `operator_algebra.rst` (#268/#261).
-- [orientation-axis two-frames doc](feedback_orientation_axis_two_frames_doc.md) —
-  8-move recipe for a 2×2-face operator unification where ORIENTATION (fwd↔adjoint) is
-  the coherence axis, execution a non-free 3rd axis; Euclidean-transpose `.. warning::`;
-  swap law `A.H.inverse()≡A.inverse().H` as object identity. Instance: #280 Phase 2.5e
-  (`loss_representations.rst`).
-- [carrier-grid-typed-seam-layering](feedback_carrier_grid_typed_seam_layering.md) —
-  completed NxM typed-carrier grid + typed-seam layering (seam one layer up as a forced
-  constraint); completing one fused path silently stales a sibling "shared primitive"
-  claim. Instance: Frame P4 scattering grid (`operator_algebra.rst`).
-- [capstone-architecture-page](feedback_capstone_architecture_page.md) — shape for a
-  NEW capstone page documenting the LAYER above per-method pages (cross-ref-not-duplicate).
-  Instance: `loss_representations.rst`.
-- [capstone-completion-status-reaudit](feedback_capstone_completion_status_reaudit.md) —
-  the COMPLETION phase: re-audit every ship-state STATUS claim vs what merged since phase
-  N; document a designed-but-unbuilt sibling as a SEAM (literal not `:class:`); the
-  documented-future-seam `.. important::` block. Instance: frame-projection P7 (`frame.rst`).
-- [capstone-root-cause-ruling](feedback_capstone_root_cause_ruling.md) — 6-move recipe
-  retrofitting a capstone ruling that supplies the structural WHY (a theorem) behind a
-  split the docs only ASSERTED; literature as a negative-space table. Instance:
-  Funk-Hecke/Schur eigenbasis-ownership (#268, `frame.rst`).
+  — SSOT section for an axis-flip enforced at a data-ingest boundary (`cross_section_data.rst`).
+- [double-category architecture insight](feedback_double_category_architecture_insight.md) —
+  documenting a categorical framing of a SHIPPED type system; impossibility as an
+  obstruction table. Instance: (Rep×Role) carrier grid (#268/#261).
+- [orientation-axis two-frames doc](feedback_orientation_axis_two_frames_doc.md) — 2×2-face
+  operator unification with ORIENTATION as the coherence axis (#280 P2.5e).
+- [carrier-grid-typed-seam-layering](feedback_carrier_grid_typed_seam_layering.md) — NxM typed
+  grid + seam one layer up; completing one path silently stales a sibling claim (Frame P4).
+- [capstone-architecture-page](feedback_capstone_architecture_page.md) — a NEW page for the
+  LAYER above per-method pages (cross-ref, don't duplicate). `loss_representations.rst`.
+- [capstone-completion-status-reaudit](feedback_capstone_completion_status_reaudit.md) — the
+  COMPLETION phase: re-audit ship-state claims; document an unbuilt sibling as a SEAM (P7).
+- [capstone-root-cause-ruling](feedback_capstone_root_cause_ruling.md) — retrofitting the
+  structural WHY (a theorem) behind a split the docs only ASSERTED (#268 `frame.rst`).
 - [operator-classes→frame-faces re-homing](feedback_operator_classes_to_frame_faces_rehoming.md)
-  — doc-sweep when a refactor retires standalone M/R operator classes into two FACES of one
-  frame; records the #268 reversal (discipline is a TYPE; homog/cond are Petrov-Galerkin).
-  Instance: P1 discipline-type carve (#268).
+  — sweep when standalone operator classes retire into two FACES of one frame (#268 P1).
 - [operator-reification/retype doc pattern](feedback_operator_reification_retype_doc_pattern.md)
-  — 6-move recipe for a #226 carve reifying a duck-typed operator (matrix splitting; block
-  coisometry `analysis∘reconstruction=4π·I`, never `=I`/ERR-051). Instance: #226 step 2.
-- [named-family-member theory section](feedback_named_family_member_theory_section.md) —
-  6-move recipe for a NEW § documenting a named member of an invariant-keyed operator family
-  ("name = a promise backed by a test"); iterative-member V&V framing (L-010). Instance:
-  #226 step 4 GreenOperator (`operator_algebra.rst`).
+  — reifying a duck-typed operator; block coisometry `= 4π·I`, never `= I` (#226 step 2).
+- [named-family-member theory section](feedback_named_family_member_theory_section.md) — a NEW
+  § for a named member of an invariant-keyed operator family (#226 step 4 GreenOperator).
 - [step-5b first-consumer close-the-loop](feedback_issue_138_step5b_first_consumer_closeloop.md)
-  — recipe when a follow-on wires the FIRST production consumer of a verified-but-unwired
-  operator type; the spectral-invisibility→object-gate V&V unit (→ vv Mode 12). Instance:
-  #226 step 5b (`homogeneous.rst`).
-- [consumption-mode + capability-axis](feedback_consumption_mode_and_capability_axis.md) —
-  two-page recipe for a NEW consumption mode/capability axis on an operator algebra
-  (solve/apply/ASSEMBLE). Instance: stencil-assembly 2b (#272/#284/#282).
+  — wiring the FIRST consumer of a verified-but-unwired type; → vv Mode 12 (#226 step 5b).
+- [consumption-mode + capability-axis](feedback_consumption_mode_and_capability_axis.md) — a
+  NEW consumption mode on an operator algebra (solve/apply/ASSEMBLE) (#272/#284/#282).
 - [algebra-of-record stub→narrative](feedback_stub_to_rich_narrative_expansion.md) —
-  SymPy-module-as-canonical-source; per-geometry 6-subsection shape; stub/expand separation.
-  (Also `lessons.md` L5 + the `algebra-of-record` skill.)
-- [solver-replacement campaign close-out](feedback_solver_replacement_campaign_closeout.md)
-  — P8 recipe when a legacy "island" solver is replaced by the operator-algebra family
-  (theory overhaul + mis-named-law re-attribution + LIVE/MOOT history split). Instance: #290.
-- [type-confinement docstring sync](feedback_type_confinement_docstring_sync.md) —
-  code-final docstring sync to a carve confining a subtype to one role; keep-vs-flip rubric.
-  Instance: P4.5 W-C TimedFullField→FullField.
+  SymPy-module-as-canonical-source; stub/expand separation (also lessons L5).
+- [solver-replacement campaign close-out](feedback_solver_replacement_campaign_closeout.md) —
+  a legacy island solver replaced by the operator-algebra family; LIVE/MOOT split (#290 P8).
+- [type-confinement docstring sync](feedback_type_confinement_docstring_sync.md) — code-final
+  sync when a carve confines a subtype to one role (P4.5 W-C).
 - [Petrov-Galerkin homogenization reframe](feedback_petrov_galerkin_homogenization_reframe.md)
-  — THE LIVE recipe (#268 P3) reframing "flux-weighted homogenization" from forward-only
-  "Galerkin in L²(φV)" to honest PETROV-GALERKIN (test=φ·1_R ≠ trial=1_R; L²(φV)-fold is the
-  Galerkin DEGENERATE of the φ*≠φ bilinear ⟨φ*,Σφ⟩ case); 9-piece order. Instance:
-  `Solution.homogenize` (#268).
-- [Galerkin-natural-metric reframe](feedback_galerkin_natural_metric_reframe.md) —
-  **SUPERSEDED** by the PG-homogenization entry above (kept only for why-it-was-tried).
+  — THE LIVE recipe: flux-weighting is a TEST weight, not a measure (#268 P3). Supersedes
+  [Galerkin-natural-metric](feedback_galerkin_natural_metric_reframe.md) (why-it-was-tried only).
 - [domain-op + L2-promotion + asymmetry-law](feedback_domain_op_l2_promotion_asymmetry_law.md)
-  — 6-part section shape for a domain OPERATION (transform on a `Solution`, not a solver step)
-  born from an L2 promotion + data/behavior split; lead with THE preservation identity as the
-  verifies-target. Instance: `Solution.homogenize`+`MaterialMesh` (#267).
+  — section shape for a domain OPERATION born from an L2 promotion (#267).
 - [orbit-space terminology sweep](feedback_orbit_space_terminology.md) —
   add-aside-then-bridge-then-sweep for a precise math term replacing a loose code-name.
-- [auto-generated tables](feedback_autogen_tables.md) — registry-as-SSOT: `capability_rows()`
-  metadata fn + generator tool + `builder-inited` hook. (Also `lessons.md` L8.)
+- [auto-generated tables](feedback_autogen_tables.md) — registry-as-SSOT: metadata fn +
+  generator + `builder-inited` hook (also lessons L8).
 - [audit-then-edit partitions](feedback_audit_partition.md) — the KEEP/RELOCATE/TRIM/REMOVE
-  partition-table shape for a read-only doc-cleanup audit.
+  partition table for a read-only doc-cleanup audit.
 - [cross-solver unified-law doc architecture](feedback_cross_solver_unified_law_doc_architecture.md)
-  — ONE correctness LAW spanning N solver families: canonical derivation on the prototype page
-  + SHORT sibling spellings cross-ref'd; retired seam as "dead-by-DESIGN" backed by a
-  consistency theorem. Instance: k-estimator #259/#291.
-- **Doc-architecture redesign (#231, OPEN):** the standing target for any "modernize a
-  theory page" task — template, machine header, prose rebalancing, V&V slices, bibtex
-  (spec in the issue; coupled to Nexus semantic search). Phase 1a–1c DONE (L-022/L-023);
-  **Phase 2 code-prose rebalancing ACTIVE** — done: P2-A `scattering.py` PILOT
-  (teaching-operator, L-033), P2-B `sn/loss_representation/` (machinery, L-034), P2-C
-  `sn/solver.py`+`numerics/iteration.py` (driver, L-034), P2-D `numerics/operator.py`
-  (ABC, L-034), P2-G `sn/operators/{streaming,boundary}`+`sn/mesh/augmented_mesh`
-  (contract-heavy operator + MESH, L-034). Maps in `.claude/plans/phase2_code_prose/`.
-  Five file-classes calibrated (teaching-operator=aggressive TWIN-cut; machinery/driver/
-  mesh=small, COMMENTS dominate; ABC=leanest; contract-heavy-operator=small). Main agent
-  commits; I stage + gate.
+  — ONE law spanning N solver families: canonical derivation + short sibling spellings (#259/#291).
+- **Doc-architecture redesign (#231, OPEN):** the standing target for any "modernize a theory
+  page" task — template, machine header, prose rebalancing, V&V slices, bibtex (spec in the
+  issue). Phase 1a–1c DONE; **Phase 2 code-prose rebalancing ACTIVE** — P2-A/B/C/D/G done
+  (maps in `.claude/plans/phase2_code_prose/`). Five file-classes calibrated:
+  teaching-operator = aggressive TWIN-cut; machinery/driver/mesh = small, COMMENTS dominate;
+  ABC = leanest; contract-heavy-operator = small. Main agent commits; I stage + gate.

@@ -19,10 +19,19 @@ Key Facts
   transport equation's boundary trace:
   :math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q`, where
   :math:`\gamma_\pm` are the inflow / outflow trace operators,
-  :math:`G` is a geometric map (permutation, pushforward, angular
-  average), :math:`R` is a response amplitude (:term:`albedo`, sub-Markov
-  kernel), and :math:`q` is an optional prescribed inflow source.
-  See :eq:`affine-bc-form`.
+  :math:`G : \Gamma_+ \to \Gamma_-` is the **deck transformation**
+  (a specular mirror, a spatial wrap, a rotation — and it carries the
+  **crossing**, because the mirror that exchanges the hemispheres is
+  an ambient isometry), :math:`R : \Gamma_- \to \Gamma_-` is the
+  **constitutive response kernel** (an :term:`albedo` amplitude, or a
+  rank-one angular kernel for diffuse re-emission), and :math:`q` is
+  an optional prescribed inflow source. **Membership in** :math:`G`
+  **is decidable by multiplicativity** — :math:`G(\psi\varphi) =
+  (G\psi)(G\varphi)` holds for a relabeling and never for an average,
+  so an angular average is an :math:`R`, not a :math:`G`. See
+  :eq:`affine-bc-form` and :ref:`bc-factor-roles`; campaign phase B3.0
+  corrected the assignment (the Lambertian average had shipped in the
+  geometry slot).
 - The architecture has **three concrete layers**, connected by the
   kind-keyed law registry (#290 P7b dissolved the Wave-5 realizer
   registry — realizers are owned by their method-meshes):
@@ -101,23 +110,47 @@ Key Facts
   pre-refactor generic :class:`ValueError` raises; every one is
   pinned by a ``@pytest.mark.catches("ERR-NNN")`` decorator on the
   test that fires it.
-- **Vacuum semantic correction (§16A.5).** ``VacuumInflow`` realises
-  to :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`,
-  which zeroes **only the inflow ordinates** and preserves the
-  outflow trace. The pre-refactor ``VacuumBoundaryOperator.apply``
-  used ``np.zeros_like(psi_out)`` and zeroed everything; the §16A.10
-  inflow-only mask is the trace-correct representation.
-  **Post Issue #186 (2026-05-11)** the realizer-routed
-  inflow-only mask is the **sole** path to vacuum action — the
-  zeros-all body has been deleted along with every other
-  :meth:`apply` method on every concrete BC. The §16A.5
-  two-paths-divergence is therefore eliminated by design (no
-  second path remains). The realizer-routed mask is uniform across
-  every supported mesh (1-D Cartesian / spherical / cylindrical +
-  2-D Cartesian) since Issue #188 lifted the curvilinear deferral on
+- **A realized SN law's DOMAIN is** :math:`\Gamma_+` **(campaign phase
+  B3.2).** It consumes the outflow half-trace and produces the inflow
+  half-trace — exactly the shape :eq:`affine-bc-form` states and the
+  diffusion arm always had. The consumer composes
+  :math:`B_{\rm face} = \iota_- \circ \text{law} \circ \gamma_+`
+  (transpose :math:`\iota_+ \circ \text{law}^{\mathsf T} \circ
+  \gamma_-`) out of the trace restrictions
+  :class:`~orpheus.numerics.operator.TraceRestrictionOperator`; nothing
+  is computed and then discarded. Pre-B3.2 the law was handed the
+  **whole face slot** and the consumer threw the outflow rows away with
+  a slice-write — see :ref:`bc-domain-narrowing`, and
+  :ref:`bc-vacuum-semantic-correction` for what that removed.
+- **Vacuum realizes to the ZERO MAP** :math:`\Gamma_+ \to \Gamma_-`
+  (a :class:`~orpheus.numerics.operator.ZeroOperator` carrying both
+  space hooks). Vacuum's whole content is :math:`R = 0`; with the
+  domain narrowed there is nothing else to represent. Pre-B3.2 it
+  realized to an :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
+  — a full-face projector onto the *outflow* subspace whose preserved
+  rows the consumer then discarded. That mask, and the "which rows does
+  it preserve?" question two campaign phases had documented as having
+  "no consumer today", are gone from the vacuum path:
+  :ref:`bc-vacuum-semantic-correction`. The realizer path is uniform
+  across every supported mesh (1-D Cartesian / spherical / cylindrical
+  + 2-D Cartesian) since Issue #188 lifted the curvilinear deferral on
   the boundary trace space (then named ``InflowTraceSpace``; since
   #205 / #201 the unified
   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`).
+- **The face ordinate partition is THREE-way**, not two:
+  :math:`\{1..N\} = I_f \sqcup O_f \sqcup T_f` with
+  :math:`T_f = \{|\Omega\cdot\hat n| \le \texttt{TANGENTIAL\_EPS}\}`
+  (:eq:`ordinate-partition-inflow-outflow`). **"Not inflow" is NOT
+  "outflow".** Measured: a cylinder under ``product(n_mu=2, n_phi=4)``
+  carries **4 of 8** ordinates tangential at ``xmax``; ``gauss_legendre(5)``
+  carries 1; every ``lebedev`` carries 4–8; only ``gauss_legendre(4)``
+  is the clean two-way case — **the slab is the unrepresentative
+  fixture.** Measured too: :math:`|\Gamma_+| = |\Gamma_-|` on every
+  quadrature × face in the tree, so **a shape assertion cannot
+  distinguish** :math:`\Gamma_+ \to \Gamma_+` **from**
+  :math:`\Gamma_+ \to \Gamma_-` (a vv Mode-12 invariance-group
+  blindness — the measured functional has the error class in its
+  stabiliser).
 - **The realized boundary law is a first-class sibling operator**
   :math:`B` **in the SN algebra (Wave O steps O.4a.2 + O.4b, Issue
   #208).** For **every** SN geometry (1-D slab / sphere / cylinder and
@@ -150,8 +183,9 @@ Key Facts
      legacy halves dropped post Issue #186 / C-B3.7). The
      surviving ``test_realizer_*`` halves pin the realised-operator
      output against committed ``.npz`` snapshots at ``nulp ≤ 4``
-     for non-vacuum BCs (intentional semantic capture of the
-     §16A.5 inflow-only mask for vacuum).
+     for non-vacuum BCs; the vacuum case pins the narrowed zero map
+     :math:`\Gamma_+ \to \Gamma_-` (re-posed at campaign phase B3.2,
+     replacing the §16A.5 inflow-row-only comparison).
    - L1 descriptor-tree algebra tests
      (:mod:`tests.geometry.test_law_composition`) pinning the
      :class:`LawSum` / :class:`LawScaled` closed-algebra contract
@@ -370,6 +404,205 @@ all their content sits in :math:`R`.
    strengthening that audits **two** BC apply calls per matvec
    (Phase D Carlson context + Phase C trace law).
 
+.. _bc-method-realizability:
+
+When a law realizes in a method — the three tiers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A transport **method** is a *discretization of the trace* — a
+projection
+
+.. math::
+
+   \Pi \;:\; \Gamma \longrightarrow \Gamma_h
+
+onto whatever that method can represent on the boundary. SN keeps
+per-ordinate values on the quadrature; a P1 / diffusion closure keeps
+the two half-range moments :math:`(J^+, J^-)`; MoC keeps track angles;
+MC keeps nothing at all (it resolves the trace by sampling).
+
+Whether a boundary law **realizes** in a method is therefore not a
+question about the law's complexity. It is the question of whether the
+naturality square commutes:
+
+.. math::
+   :label: bc-realizability-square
+
+   \Pi \circ (R\,G) \;=\; (R_h\,G_h) \circ \Pi ,
+
+.. (vv-status rationale) Structural/definitional: the commuting square that
+   DEFINES "this law realizes in this method". It is the framing statement the
+   two shipped realizers' dispatch and refusals instantiate; the verifiable
+   content is per-realizer (the diffusion 𝒜-table pinned law-by-law in
+   ``tests/geometry/test_boundary_factors.py``, the SN narrowing pinned
+   bit-identical in ``tests/sn/operators/test_b3_domain_narrowing.py``), not a
+   solver claim of this equation's own.
+.. vv-status: bc-realizability-square documented
+
+i.e. *does discretizing the law's action agree with acting with the
+discretized law?* Three tiers follow, and the middle one is the one
+that surprises readers.
+
+**Tier 1 — exact and faithful.** :math:`R = \alpha I` for **any**
+:math:`\alpha`, not merely :math:`0` or :math:`1`. A scalar commutes
+with every linear projection, so :eq:`bc-realizability-square` holds
+identically, and :math:`\alpha` is *recoverable downstairs* — the
+projected law still carries the number that distinguishes it. This is
+the whole reason
+:class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+is one line: :math:`\mathcal{A} = \texttt{law.response\_kernel.amplitude}`.
+
+**Tier 2 — exact but NOT faithful.** The square commutes — the
+realization is *correct*, nothing is approximated — and the projection
+nonetheless **identifies laws that differ upstairs**. At P1, specular
+and Lambertian both give :math:`J^- = \alpha J^+`; diffusion simply
+cannot tell them apart. The diffusion realizer's own module docstring
+states it:
+
+    *"White coincides with reflective at P1 … specular and Lambertian
+    return differ only in the ANGULAR redistribution of the returned
+    particles, which the half-range* :math:`\ell = 0` *moments
+    integrate out — both preserve the returned current,*
+    :math:`J^- = \alpha J^+`. *The distinction is real in transport (SN
+    realizes them as a permutation vs a cosine-weighted average) and
+    vanishes in any P1-closed method by construction."*
+
+This is the same fact as :ref:`the rank-one theorem <bc-factor-roles>`
+read from the other side. Where the response destroys directional
+information, :math:`R \circ G = R` for **any** measure-preserving
+:math:`G` — upstairs, in the continuum. Tier 2 is the *method's*
+version of the same collapse: the projection, not the response, is what
+destroys the distinction. A reader who conflates "the realization is
+exact" with "the realization is a faithful record of the law" will
+mis-read the diffusion table's four identical-looking rows as a
+coincidence. They are not: they are the image of four distinct laws
+under a non-injective :math:`\Pi`.
+
+**Tier 3 — not exact.** The law's action depends on structure the
+method does not represent: an anisotropic response kernel below P1 is
+the canonical case. Here :eq:`bc-realizability-square` genuinely fails
+and no amount of care in the realizer recovers it.
+
+So the dividing line is **scalar vs angular**, NOT trivial vs
+non-trivial. An :math:`\alpha = 0.37` albedo is "non-trivial" and lands
+in tier 1; a Lambertian is "simple" and lands in tier 2.
+
+.. _bc-equivariance:
+
+Equivariance — when the deck transformation has a realization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:math:`G` is **method-independent as a geometric object** — the mirror
+:math:`\Omega \mapsto \Omega - 2(\Omega\cdot\hat n)\hat n` and the
+translation :math:`x \mapsto x + L` are ambient facts about the domain,
+not about the solver. Its **realization** :math:`G_h` is not. A
+discrete :math:`G_h` exists exactly when the discretization is
+**equivariant** under :math:`g`, i.e. when :math:`\Pi` intertwines the
+two:
+
+.. math::
+
+   \Pi \circ G \;=\; G_h \circ \Pi .
+
+And that condition splits cleanly by **which coordinate** :math:`g`
+touches:
+
+* **Specular acts on the ANGULAR coordinate.** So :math:`G_h` exists
+  only if the *quadrature* is symmetric under the reflection: there
+  must be an index map :math:`\pi` with
+  :math:`\Omega_{\pi(n)} = \Omega_n - 2(\Omega_n\cdot\hat n)\hat n` and
+  matching weights. That is precisely what the three reflective
+  invariants check —
+  :meth:`~orpheus.geometry.boundary.ReflectiveBoundary.assert_geometry_map_measure_preserving`
+  (**ERR-042**: the pushforward of the discrete face measure
+  :math:`m_n = w_n |\mu_{a,n}|` under :math:`\pi` is that measure,
+  :math:`m_{\pi(n)} = m_n`),
+  :meth:`~orpheus.geometry.boundary.ReflectiveBoundary.assert_is_involutive`
+  (**ERR-044**: :math:`\pi \circ \pi = \mathrm{id}`), and
+  :meth:`~orpheus.geometry.boundary.ReflectiveBoundary.assert_reflection_maps_inflow_to_outflow`
+  (**ERR-045**: every non-tangential ordinate's partner is
+  non-tangential with the opposite sign on the law's axis). Read them
+  correctly: they are **discretization-admits-the-symmetry** checks,
+  not physics checks. The physics — that specular reflection is an
+  isometry — is not in question; what is in question is whether *this
+  quadrature* can express it. All three are failure mode **#5 (index
+  error)** in the V&V taxonomy, and their independence is **measured,
+  not assumed**: the GL-8 neighbour-pair table passes involution while
+  redding the measure, and the identity table passes involution *and*
+  measure while redding only the inflow → outflow check. All three
+  fire at realization through
+  :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_realizable`,
+  so every :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` construction
+  certifies them.
+* **A spatial wrap acts only on the SPATIAL coordinate.** Ordinate
+  :math:`n` at face :math:`f'` feeds ordinate :math:`n` at face
+  :math:`f`, untouched — which is why
+  :class:`~orpheus.geometry.boundary.SpatialWrap` answers
+  ``permutes_ordinates = False``. **Every angular discretization is
+  therefore trivially equivariant under it.** Periodic is the more
+  method-agnostic of the two deck transformations, and for a sharper
+  reason than "it is a trace connection": there is no angular symmetry
+  requirement to fail.
+
+.. _bc-refusal-axes:
+
+Three independent axes of method-dependence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every realizer refusal in the codebase lies on exactly one of three
+axes. They are **independent** — a method can sit anywhere on each —
+and reading them as one axis ("this method is too coarse") is what kept
+the taxonomy invisible. Each shipped guard now names its axis in-place.
+
+.. list-table:: The three axes of method-dependence
+   :header-rows: 1
+   :widths: 20 38 42
+
+   * - axis
+     - question
+     - the refusal that shows it
+   * - **angular resolution**
+     - can the method represent :math:`R`'s angular structure?
+     - tier 3 above — an anisotropic :math:`R` below P1. (No shipped
+       law is anisotropic yet; albedo's missing re-emission closure is
+       the near case — see the census note under
+       :ref:`bc-law-layer`.)
+   * - **spatial / topological**
+     - can the method's operator express **cross-face** coupling?
+     - :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+       **refuses periodic** — "the one geometry P1 cannot integrate
+       away into a per-face albedo :math:`J^- = \mathcal{A} J^+`". Its
+       codomain is a per-face scalar, a block-diagonal object with no
+       slot for a face *pair*. **Nothing to do with angle**: as above,
+       a translation is trivially equivariant for every angular
+       discretization. A method could resolve angle perfectly and still
+       refuse this.
+   * - **state-cone / sign**
+     - is the value representable in the method's **state cone**?
+     - :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
+       **refuses zero-flux** — :math:`\mathcal{A} = -1` needs a
+       *signed* current, and the SN state is an angular flux with
+       :math:`\psi \ge 0`, which admits no negative angular inflow
+       (:math:`\psi \ge 0 \Rightarrow J^\pm \ge 0`). Diffusion realizes
+       the very same law without difficulty, as
+       ``ScaledOperator(-1.0, IdentityOperator())``.
+
+Note the shape of that table: on the topological axis diffusion refuses
+what SN accepts, and on the state-cone axis SN refuses what diffusion
+accepts. Neither method is "coarser". They are incomparable.
+
+:math:`q` **is a fourth thing, and not on any of these axes.** It is a
+**vector in** :math:`\Gamma_-`, not an operator, so the only question
+it asks of a method is whether :math:`\Gamma_-` is represented at the
+fidelity the source demands. Diffusion's refusal of
+:class:`~orpheus.geometry.boundary.PrescribedInflow` is therefore a
+**plumbing** refusal, not a representability one — :math:`\Gamma_-` on
+a scalar trace is one number per face, which the trace carries
+perfectly well. The realizer's guard says so in place: the refusal
+disappears the day the diffusion fixed-source arm is wired (#290 P5),
+**with no theory changing**. Stated explicitly so a future reader does
+not mis-file it beside the two structural refusals above.
+
 
 Layer 1 — trace structure
 -------------------------
@@ -407,10 +640,182 @@ exposes inflow / outflow as two directional **selectors** over it:
    :ref:`bc-trace-structure`).
 
 The signed-projection table is what the
-:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` reads to build
-the sparse vacuum-mask operator
-(:class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`) that
-zeros precisely the inflow ordinates at one face.
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` reads to name
+each face's two half-traces: the codomain :math:`\Gamma_-` it certifies
+the law against (ERR-041 / ERR-047) and — since campaign phase B3.2 —
+the **domain** :math:`\Gamma_+` it restricts the law to.
+
+
+.. _bc-domain-narrowing:
+
+The trace maps as operators — the narrowed domain
+-------------------------------------------------
+
+Until campaign phase **B3.2** the trace operators :math:`\gamma_\pm`
+existed on this page and in the affine form :eq:`affine-bc-form` but
+had **no type in the code**. They were spelled three different ways and
+typed as none of them, and the SN boundary law was consequently handed
+the *whole face slot* — all ``quad.N`` ordinate rows — with the outflow
+rows thrown away afterwards by a slice-write at the consumer. B3.1
+minted the missing primitive and B3.2 narrowed the law onto it.
+
+:class:`~orpheus.numerics.operator.TraceRestrictionOperator` is the
+gather / scatter pair. Given a **sorted, unique** index set
+:math:`S \subset \{0,\dots,N-1\}` of size :math:`m < N`:
+
+.. math::
+   :label: bc-trace-restriction-pair
+
+   \gamma_S : \mathbb{R}^N \to \mathbb{R}^m,\quad
+   (\gamma_S x)_j = x_{S(j)}
+   \qquad\text{and}\qquad
+   \iota_S = \gamma_S^{\mathsf T} : \mathbb{R}^m \to \mathbb{R}^N,\quad
+   (\iota_S y)_i =
+   \begin{cases} y_j & i = S(j) \\ 0 & i \notin S \end{cases}
+
+.. (vv-status rationale) Definitional: the gather/scatter pair that types the
+   affine form's γ±. Its DEFINING LAWS (γι = I, ιγ idempotent and symmetric,
+   ι materialised against the dense γᵀ, γ₋∘ι₊ = 0, and the three-way partition
+   resolving I) are pinned by the nine foundation tests opening
+   ``tests/numerics/test_trace_restriction_operator.py``; this equation states
+   the definition those tests verify, not a solver claim.
+.. vv-status: bc-trace-restriction-pair documented
+
+with :math:`\gamma_S \iota_S = I` on the restricted space and
+:math:`\iota_S \gamma_S = P_S` the orthogonal projector onto it. It is
+a **sibling of** :class:`~orpheus.numerics.operator.PermutationOperator`
+and deliberately **not a subclass**: same ``np.take`` mechanism with a
+non-square index array, but different algebra in kind — a permutation
+is a bijection (invertible, involution-detectable, algebra-closed
+:meth:`~orpheus.numerics.operator.PermutationOperator.inverse`) while a
+restriction is rank-deficient by construction and has a *scatter*
+transpose rather than an inverse. Inheriting would promise what the
+type cannot honour.
+
+The two named instances live on the trace space, cached per face
+(:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_restriction`
+:math:`= \gamma_+` and
+:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_restriction`
+:math:`= \gamma_-`), and the SN face action is their composition with
+the law:
+
+.. math::
+   :label: bc-face-action-narrowed
+
+   B_{\rm face} \;=\; \iota_- \circ \text{law} \circ \gamma_+ ,
+   \qquad
+   B_{\rm face}^{\mathsf T}
+   \;=\; \iota_+ \circ \text{law}^{\mathsf T} \circ \gamma_- .
+
+.. (vv-status rationale) Structural: the composition ``_reflect_trace`` spells
+   for every face. Its verifiable content is the B3.2 bit-identity gate —
+   the composition reproduces the retired full-face-then-slice expression
+   exactly (``np.array_equal``, against a numpy reference materialised off the
+   law DESCRIPTOR, over slab-asym / slab-sym / sphere / cyl ``product(2,4)`` /
+   2-D Cartesian LS4), in ``tests/sn/operators/test_b3_domain_narrowing.py``.
+   Not an independent solver claim.
+.. vv-status: bc-face-action-narrowed documented
+
+**Nothing is computed and then discarded.** The rows the pre-B3.2
+slice-write dropped are simply not in the operator's domain, so a
+non-zero outflow emission — which would corrupt the outflow-definition
+residual :math:`r_{\rm outflow}`, a quantity that carries no :math:`B`
+term at all — is now **unrepresentable** rather than projected away.
+That is the ``coding-elegance`` Pattern-4 form of what
+:ref:`bc-extraction-design-corrections` correction 2 previously
+achieved by projection.
+
+.. _bc-narrowing-what-it-removed:
+
+What the narrowing removed — three spellings, one pair
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every restriction-shaped expression the boundary review catalogued is a
+composition of :eq:`bc-trace-restriction-pair`, not a primitive of its
+own:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 46 24 30
+
+   * - spelling found in the subsystem
+     - is
+     - status
+   * - the slice-write ``out[sel] = full[sel]`` in ``_reflect_trace``
+     - :math:`\iota_- \circ \gamma_-` (:math:`= P_{\rm in}`)
+     - **dissolved** at B3.2 — the law's codomain *is*
+       :math:`\Gamma_-`, so :math:`\iota_-` is the honest scatter, not
+       a projection of a wider image
+   * - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`'s
+       dense inflow-mask multiply
+     - :math:`\iota_- \circ \gamma_-` (measured bit-identical to the
+       slice-write)
+     - retained — the rank-0 affine source is not a linear law
+   * - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
+     - :math:`I - \iota_- \circ \gamma_-`
+     - **off the vacuum path** at B3.2; the class itself retires at
+       B3.3 with its ten-test suite migrating
+
+and ``P_in ∘ P_out = 0`` stops being a curiosity: it is
+:math:`\gamma_- \circ \iota_+ = 0`, true because two disjoint index
+sets have nothing to hand each other.
+
+.. warning::
+
+   **Two traps the narrowing exposes, both measured.**
+
+   1. **The index remap is** ``searchsorted``, **not** ``arange``.
+      Mapping a subset of *global* rows into positions inside a
+      restricted space is
+      :meth:`~orpheus.numerics.operator.TraceRestrictionOperator.to_local`,
+      which needs a sorted index set — which is why sortedness is a
+      **construction guard**, not tidiness. The naive
+      ``arange(sel.size)`` is right only when the subset is a *prefix*
+      of the index set, and the two sites where the remap appears are
+      discriminated by **different, complementary fixtures**: the
+      reflective narrowing (``perm[inflow]`` into :math:`\Gamma_+`) is
+      wrong on the **slab**, where the mirror reverses order —
+      ``gauss_legendre(4)`` at ``xmax`` gives ``perm[inflow] = [3, 2]``
+      → local ``[1, 0]`` where ``arange`` says ``[0, 1]`` — and right
+      on the cylinder; the schedule split (a rows-subset into
+      :math:`\Gamma_-`) is wrong in **2-D**, where the lower-half rows
+      are not a prefix, and right in 1-D. **1-D coverage is not
+      sufficient and neither is 2-D.**
+   2. **A shape assertion cannot detect a mis-typed domain.** Measured:
+      :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature × face in the
+      tree, so an un-narrowed endomorphism :math:`\Gamma_+ \to \Gamma_+`
+      has *exactly the right output shape*. This is a textbook vv
+      **Mode 12** blindness — the measured functional (shape) has the
+      error class in its invariance group — and it is what let three
+      un-narrowed realizer arms survive B3.2's first pass. Only the
+      anti-Mode-12 leg, which interrogates the emitted operator's
+      declared spaces rather than its output shape, found them.
+
+**Only vacuum and reflective are narrowed today.** Measured at B3.2:
+the un-narrowed remainder is **six realizer rows across four law
+kinds** — ``white``, ``periodic``, and ``albedo`` at *three* separate
+rows (:math:`\alpha = 0` and :math:`\alpha = 1` take fast paths
+returning a bare :class:`~orpheus.numerics.operator.ZeroOperator` /
+:class:`~orpheus.numerics.operator.IdentityOperator`, which are
+**endomorphisms**, and :math:`\alpha \notin \{0,1\}` scales an
+identity), plus ``prescribed_inflow``, which now *raises* an ordinate-
+axis mismatch because its dense inflow mask covers all :math:`N` rows
+while :math:`\gamma_+` hands it :math:`|\Gamma_+|`. All six are
+unreachable in production — the SN registry admits only
+``{vacuum, reflective}`` — so the tree is green; they are pinned by
+strict xfails (B3.2 committed **16**, each ``--runxfail``-verified to
+red for *its own* documented reason, with the B3.4 subset proven to
+flip under a landing simulation). Campaign phase **B3.4** restructures
+the realizer around :math:`R \circ G` for all seven laws, which is the
+one place a per-law domain guard belongs: adding it now would be seven
+copies of what B3.4 collapses into one. Two consequences to carry
+meanwhile — a narrowed law **cannot compose with an un-narrowed one**
+(``0.3·specular + 0.7·white`` raises on both domains, so six mixed-BC
+gates are B3.4-blocked), and ``SNMethodSpace.minimal`` is now a
+**partial constructor**: a quadrature alone cannot name a *face's*
+:math:`\Gamma_+`, so it no longer suffices for vacuum or reflective.
+Face orientation is now a structural demand of realization, not an
+implementation detail.
 
 
 .. _bc-realizer-layer:
@@ -442,9 +847,16 @@ Why this third layer? Because the same affine law is realized by
 **structurally different** linear operators in each transport
 method:
 
-* SN realizes vacuum as a sparse per-ordinate
-  :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor` on
-  the inflow ordinates of the affected face.
+* SN realizes vacuum as the **zero map**
+  :math:`\Gamma_+ \to \Gamma_-` on that face's two half-traces (a
+  :class:`~orpheus.numerics.operator.ZeroOperator` carrying both space
+  hooks, so the forward emits the zero of :math:`\Gamma_-` and the
+  transpose the zero of :math:`\Gamma_+` — see
+  :ref:`bc-domain-narrowing`).
+* Diffusion realizes vacuum as the albedo-family
+  :math:`\mathcal{A} = 0`, i.e. the Marshak zero-incoming-current
+  condition :math:`J^- = 0` on the scalar partial-current trace — the
+  *same* law, a structurally different operator.
 * MoC realizes vacuum by zeroing the entering boundary fluxes of
   every track that intersects the face.
 * MC realizes vacuum by killing particle histories at the face.
@@ -738,25 +1150,54 @@ the pre-extraction matvec (the per-row sign is free because
 :math:`q.\text{outflow} \equiv 0` — the outflow trace is a pure
 definition with no source).
 
-**2.** :math:`B` **must project to the inflow row.**
-The realized per-face law is a **full-face operator**: a specular
+**2.** :math:`B` **must not emit on the outflow row** — first solved by
+projection, since B3.2 solved by **typing**.
+At the time of the extraction the realized per-face law was a
+**full-face operator**: a specular
 :class:`~orpheus.numerics.operator.PermutationOperator` for reflective,
 an :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` for
-white. Its permutation maps the input's *inflow* slots onto the
+white. Its permutation mapped the input's *inflow* slots onto the
 *output's outflow* slots (a spurious :math:`R\cdot\psi.\text{inflow}`),
-because the permutation is defined on the whole face, not just the
+because the permutation was defined on the whole face, not just the
 :math:`A_{ss}` :math:`V_{\rm outflow} \to V_{\rm inflow}` map. In the
 legacy sweep this was harmless — the sweep only ever read the
 inflow slots of ``bc.apply(face)``, discarding the outflow output.
 But as a sibling :math:`-B` on the direct-sum state, a non-zero
-outflow emission would corrupt the outflow-definition residual
-:math:`r_{\rm outflow}` (which must carry **no** :math:`B` term). The
-fix:
-:meth:`SNBoundaryOperator._apply_faces <orpheus.sn.operators.boundary.SNBoundaryOperator>`
-**projects** the emission onto the codomain row — ``apply`` writes the
-``inflow_indices_for_face`` slots; ``apply_transpose`` writes the
-``outflow_indices_for_face`` slots. *Empirically confirmed before the
-fix*: the outflow slots carried nonzero :math:`R\cdot\psi.\text{inflow}`.
+outflow emission corrupts the outflow-definition residual
+:math:`r_{\rm outflow}` (which must carry **no** :math:`B` term).
+*Empirically confirmed before the fix*: the outflow slots carried
+nonzero :math:`R\cdot\psi.\text{inflow}`.
+
+The extraction's fix was an **output projection** —
+``_reflect_trace`` wrote only the ``inflow_indices_for_face`` slots of
+the law's full-face image. Campaign phase **B3.2** replaced that with
+the honest domain: the law is typed :math:`\Gamma_+ \to \Gamma_-`, so
+the composition is :math:`\iota_-\circ\text{law}\circ\gamma_+` and the
+spurious emission is **unrepresentable** rather than projected away
+(:ref:`bc-domain-narrowing`, :eq:`bc-face-action-narrowed`). The
+diagnosis in this correction is what B3.2 acted on; only the remedy
+changed, from a mask at the consumer to a domain at the producer.
+
+.. warning::
+
+   **The transpose scatters over** :math:`\Gamma_+` **— never over**
+   :math:`\Gamma_-`. This trap **survives the narrowing** and is the
+   one piece of correction 2 that is still live discipline rather than
+   history. Because :math:`(\iota_-\circ\text{law}\circ\gamma_+)^{\mathsf T}
+   = \iota_+\circ\text{law}^{\mathsf T}\circ\gamma_-`, the transpose's
+   *input* is masked to the forward's codomain :math:`\Gamma_-` and its
+   *output* lands on :math:`\Gamma_+`. Scattering that output over
+   :math:`\Gamma_-` instead — "projecting :math:`\text{law}^{\mathsf T}`
+   onto the law's own codomain", which reads like the natural mirror of
+   the forward — extracts the operator's **diagonal block**. For vacuum
+   that spells a spurious :math:`+1` where the forward is the zero map.
+   It was caught **only** by the A2a grid-reciprocity arm on the
+   heterogeneous-**vacuum** sphere: off-diagonal permutation laws are
+   bit-identical under either spelling, so every reflective fixture
+   stayed green over the wrong one. (This Euclidean ``apply_transpose``
+   is the un-weighted shadow of the metric-correct Hilbert adjoint
+   ``B.H`` under :math:`|\Omega\cdot\hat n|\,w`; the two are separate —
+   see :ref:`g-adjoint`.)
 
 **3. The bare sweep seeds inflow from** :math:`\text{rhs.boundary}`,
 **not** :math:`\text{initial\_guess.boundary}`.
@@ -992,11 +1433,12 @@ The trace-only :math:`A_{ss}` leaf — :meth:`reflect_into_inflow`
 
 :math:`B` is the :math:`A_{ss}` block :math:`V_{\rm outflow} \to
 V_{\rm inflow}`: it maps the *outflow* trace to the *inflow* trace.
-Both delivery routes ultimately need the same per-face action — apply
-each face's realized law (the specular
-:class:`~orpheus.numerics.operator.PermutationOperator` for reflective,
-:class:`~orpheus.sn.boundary.angular.AngularAverageOperator` for
-white, zero for vacuum) and project onto the inflow row. To guarantee
+Both delivery routes ultimately need the same per-face action —
+restrict the face slot to :math:`\Gamma_+`, apply that face's realized
+law (a specular
+:class:`~orpheus.numerics.operator.PermutationOperator` on the
+**reduced** ordinate axis for reflective, the zero map for vacuum), and
+scatter the image back over :math:`\Gamma_-`. To guarantee
 they cannot drift, that action is the single
 :meth:`SNBoundaryOperator._reflect_trace <orpheus.sn.operators.boundary.SNBoundaryOperator>`
 core, and both the full-field forward action
@@ -1019,18 +1461,22 @@ trace and returns the boundary-only
 :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
 directly — no zero-bulk probe.
 
-The projection onto the inflow row is load-bearing: the realized law is
-a *full-face* operator (the specular permutation also maps the input
-inflow slots onto the *outflow* slots, :math:`R\,\psi.\text{inflow}`).
-The legacy in-sweep ``bc.apply`` only ever read the inflow slots of its
-output, so that spurious outflow emission was harmless. But as the
-sibling :math:`-B` reading the *whole* boundary block, a non-zero
-outflow emission would corrupt the outflow-definition residual
+Keeping :math:`B`'s emission off the outflow row is load-bearing: as
+the sibling :math:`-B` reading the *whole* boundary block, a non-zero
+outflow emission corrupts the outflow-definition residual
 :math:`r_{\rm outflow}` (which must carry **no** :math:`B` term —
-:ref:`bc-extraction-design-corrections`). So
+:ref:`bc-extraction-design-corrections`). The extraction achieved that
+by *projecting* a full-face law's image onto the inflow rows; since
+campaign phase **B3.2** it is achieved by *typing* — the realized law's
+domain is :math:`\Gamma_+` and its codomain is :math:`\Gamma_-`, so
 :meth:`_reflect_trace <orpheus.sn.operators.boundary.SNBoundaryOperator>`
-projects the forward action onto ``inflow_indices_for_face`` and the
-Euclidean transpose onto ``outflow_indices_for_face``.
+composes :math:`\iota_-\circ\text{law}\circ\gamma_+` and there is no
+wider image to project (:ref:`bc-domain-narrowing`). The transpose
+composes :math:`\iota_+\circ\text{law}^{\mathsf T}\circ\gamma_-`, so it
+masks its INPUT to :math:`\Gamma_-` and scatters its OUTPUT over
+:math:`\Gamma_+` — the asymmetry that
+:ref:`correction 2's warning <bc-extraction-design-corrections>`
+explains and that no reflective fixture can detect.
 
 
 .. _bc-extraction-scope:
@@ -1691,12 +2137,19 @@ sign predicate :eq:`trace-sign-predicate` then collapses to a
 This mask is the discrete realization of :math:`\Gamma_\pm`. It is
 the load-bearing primitive that downstream consumers need:
 
-* The SN realizer's vacuum branch reads
-  ``inflow_mask[f]`` for the specific face :math:`f` and converts
-  it to an integer array of ordinate indices via
-  :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`.
-  Those indices are the constructor argument to
-  :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`.
+* **The SN realizer reads BOTH masks**, one per half-trace: the
+  inflow indices
+  (:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`)
+  give a law's **codomain** :math:`\Gamma_-` and are cross-checked
+  against the face-name geometry (ERR-041); the outflow indices
+  (:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face`)
+  give its **domain** :math:`\Gamma_+`, restricted through the
+  :math:`\gamma_+` operator the same table builds
+  (:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_restriction`).
+  Both are carried on the method space as the ``inflow_indices`` /
+  ``outflow_indices`` **fields**, so a hand-built space can name its
+  own half-traces without a whole trace space
+  (:ref:`bc-domain-narrowing`).
 * The universal invariant
   :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
   uses the inflow mask to validate that a
@@ -1766,17 +2219,56 @@ return :class:`LawSum` / :class:`LawScaled` nodes, never operators.
 The ABC ships:
 
 1. Three properties named for the :eq:`affine-bc-form` factors:
-   ``geometry_map``, ``response_kernel``, ``source`` (defaulting to
-   ``None``, ``None``,
-   :class:`~orpheus.geometry.boundary.NoSource`). Only ``source`` is
-   populated today —
-   :class:`~orpheus.geometry.boundary.PrescribedInflow` overrides it
-   and the realizers read it. ``geometry_map`` and
-   ``response_kernel`` return the ABC's ``None`` on **every** law and
-   are read by nothing; the realizers recover :math:`G` from the
-   law's class and :math:`R` from ``law.albedo`` instead. The typed
-   ``G`` / ``R`` specification objects that fill them are the
-   restoration's next step.
+   ``geometry_map``, ``response_kernel``, ``source``. The ABC's
+   defaults are ``None``, ``None``,
+   :class:`~orpheus.geometry.boundary.NoSource`, but **all seven
+   concrete laws populate all three** since campaign phase B1 — the
+   two factor tiers are typed specifications
+   (:class:`~orpheus.geometry.boundary.IdentityMap` /
+   :class:`~orpheus.geometry.boundary.SpecularMirror` /
+   :class:`~orpheus.geometry.boundary.SpatialWrap` for :math:`G`;
+   :class:`~orpheus.geometry.boundary.ScalarResponse` /
+   :class:`~orpheus.geometry.boundary.LambertianReemission` for
+   :math:`R`), never realized matrices. Measured on the live tree:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 30 34 36
+
+      * - law
+        - ``geometry_map``
+        - ``response_kernel``
+      * - ``VacuumInflow``
+        - ``IdentityMap()``
+        - ``ScalarResponse(alpha=0.0)``
+      * - ``ReflectiveBoundary``
+        - ``SpecularMirror(axis)``
+        - ``ScalarResponse(alpha=albedo)``
+      * - ``WhiteBoundary``
+        - ``IdentityMap()``
+        - ``LambertianReemission(alpha, axis, outward_sign)``
+      * - ``AlbedoBoundary``
+        - ``IdentityMap()``
+        - ``ScalarResponse(alpha=albedo)``
+      * - ``PeriodicBoundary``
+        - ``SpatialWrap(axis)``
+        - ``ScalarResponse(alpha=1.0)``
+      * - ``ZeroFluxBoundary``
+        - ``IdentityMap()``
+        - ``ScalarResponse(alpha=-1.0)``
+      * - ``PrescribedInflow``
+        - ``IdentityMap()``
+        - ``ScalarResponse(alpha=0.0)`` (plus ``source``)
+
+   They are **read by production**: phase B2.2 repointed five sites
+   from string comparison to
+   ``law.geometry_map.permutes_ordinates`` /
+   ``law.response_kernel.is_zero`` /
+   ``law.response_kernel.amplitude``, and the diffusion realizer's
+   whole law → :math:`\mathcal{A}` table collapsed to the single read
+   ``law.response_kernel.amplitude``. The ABC keeps the ``None``
+   defaults, so the diffusion realizer guards against a subclass that
+   never populates them rather than dying on an ``AttributeError``.
 2. Five **universal** ``assert_*`` invariants and three **specific**
    invariants on the BCs that need them — but four of the five
    universals are empty and two of those are overridden by nobody.
@@ -1850,7 +2342,8 @@ distinction. Giving the relation tier its own type is issue **#177**.
      - same-face back-edge, all-to-all on the face
    * - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
      - ``"periodic"``
-     - spatial pushforward (caller-supplied)
+     - spatial wrap along ``axis``; the realizer derives the partner
+       face from the installation face
      - 1
      - 0
      - opposite-face **pair**, mutually feeding
@@ -2172,44 +2665,78 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
    * - Law
      - Realized representation (α = 1 fast path)
      - Realized representation (α ∉ {0, 1})
-   * - :class:`VacuumInflow`
-     - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
-       with the per-face ``inflow_indices`` from the method space's
-       :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
-       (selected by
-       :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`).
+   * - :class:`VacuumInflow` — **narrowed**
+     - the **zero map** :math:`\Gamma_+ \to \Gamma_-`: a
+       :class:`~orpheus.numerics.operator.ZeroOperator` whose
+       ``codomain_zero`` hook emits :math:`|\Gamma_-|` rows and whose
+       ``transpose_zero`` hook emits :math:`|\Gamma_+|` rows. The
+       symmetric space hooks are load-bearing: relying on the
+       endomorphic ``0.0 * x`` echo would be right only by accident
+       (:math:`|\Gamma_+| = |\Gamma_-|` on every reachable fixture — a
+       coincidence, not a contract).
      - n/a (vacuum has no α parameter)
-   * - :class:`ReflectiveBoundary(axis, α)`
-     - bare
-       :class:`~orpheus.numerics.operator.PermutationOperator`
-       with ``perm = quadrature.reflection_index(axis)``
-     - ``ScaledOperator(α, PermutationOperator(...))``
-   * - :class:`WhiteBoundary(axis, outward_sign, α)`
-     - bare
-       :meth:`~orpheus.sn.boundary.angular.AngularAverageOperator.from_quadrature`
-       (``from_quadrature(quad, axis, outward_sign)``)
-     - ``ScaledOperator(α, AngularAverageOperator(...))``
-   * - :class:`AlbedoBoundary(α)` with α=0
-     - :class:`~orpheus.numerics.operator.ZeroOperator`
+   * - :class:`ReflectiveBoundary(axis, α)` — **narrowed**
+     - ``PermutationOperator(local_perm, axis=0) & IdentityOperator()``
+       — a 2-factor
+       :class:`~orpheus.numerics.operator.TensorProductOperator` on the
+       **reduced** ordinate axis, with
+       ``local_perm = γ₊.to_local(quadrature.reflection_index(axis)[inflow])``.
+       Row :math:`j` reads the mirror of the :math:`j`-th inflow
+       ordinate *at that ordinate's position inside* :math:`\Gamma_+`;
+       ``to_local`` is mandatory because a slab mirror **reverses**
+       order. The ERR-045 inflow → outflow invariant is *consumed*
+       here rather than re-assumed — ``to_local`` raises if the mirror
+       sent an inflow ordinate anywhere but :math:`\Gamma_+`.
+     - ``ScaledOperator(α, <that TP>)``
+   * - :class:`WhiteBoundary(axis, outward_sign, α)` — **not yet
+       narrowed** (B3.4)
+     - ``AngularAverageOperator.from_quadrature(quad, axis,
+       outward_sign) & IdentityOperator()`` — a full-:math:`N`
+       **endomorphism**
+     - ``ScaledOperator(α, <that TP>)``
+   * - :class:`AlbedoBoundary(α)` with α=0 — **not yet narrowed**
+     - :class:`~orpheus.numerics.operator.ZeroOperator` (bare, so an
+       endomorphism — it carries no space hooks)
      -
-   * - :class:`AlbedoBoundary(α)` with α=1
-     - :class:`~orpheus.numerics.operator.IdentityOperator`
+   * - :class:`AlbedoBoundary(α)` with α=1 — **not yet narrowed**
+     - :class:`~orpheus.numerics.operator.IdentityOperator` (an
+       endomorphism by definition)
      -
-   * - :class:`AlbedoBoundary(α)` with α ∉ {0, 1}
+   * - :class:`AlbedoBoundary(α)` with α ∉ {0, 1} — **not yet
+       narrowed**
      -
-     - ``ScaledOperator(α, IdentityOperator())``
-   * - :class:`PeriodicBoundary`
-     - :class:`~orpheus.numerics.operator.PeriodicWrapOperator`
-       (today an angular identity; spatial-pushforward extension
-       pending — see "BC: PeriodicWrapOperator spatial-pushforward
-       implementation" follow-up, ``module:sn``)
+     - ``ScaledOperator(α, IdentityOperator() & IdentityOperator())``
+   * - :class:`PeriodicBoundary` — **not yet narrowed**
+     - ``PeriodicWrapOperator() & IdentityOperator()``
+       (today an angular identity; the spatial pushforward the
+       :class:`~orpheus.geometry.boundary.SpatialWrap` spec names is
+       unbuilt — issue **#183**, campaign phase B3.4)
      - n/a (periodic has no α parameter)
-   * - :class:`PrescribedInflow(source)`
+   * - :class:`PrescribedInflow(source)` — rank-0 **affine**, not a
+       linear law
      - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
-       (``IncomingSourceOperator(source)``)
        — :meth:`apply` ignores the outgoing flux and returns
-       ``source.evaluate(probe_inflow_trace)``
+       ``source.evaluate(probe_inflow_trace)`` masked to the face's
+       inflow ordinates (ERR-047). Since B3.2 this arm **raises** an
+       ordinate-axis mismatch when reached through the narrowed
+       consumer: its dense mask covers all :math:`N` rows while
+       :math:`\gamma_+` hands it :math:`|\Gamma_+|`. Unreachable in
+       production (the SN registry admits only
+       ``{vacuum, reflective}``); pinned by a strict xfail for B3.4.
      - n/a
+
+.. note::
+
+   **Only the first two rows are narrowed.** Since campaign phase
+   **B3.2** a realized SN law is typed :math:`\Gamma_+ \to \Gamma_-`
+   (:ref:`bc-domain-narrowing`), but that landed for ``vacuum`` and
+   ``reflective`` only — the rows flagged **not yet narrowed** still
+   emit full-:math:`N` endomorphisms. They are unreachable in
+   production and pinned by strict xfails; **B3.4** restructures the
+   realizer around :math:`R \circ G` for all seven laws. Note that a
+   shape assertion cannot tell the two typings apart —
+   :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature × face in the
+   tree — so read the *declared spaces*, not the output shape.
 
 The α = 1.0 fast paths return the **bare** primitive (no
 ``ScaledOperator`` wrap). This is load-bearing for bit-identity:
@@ -2218,7 +2745,17 @@ without it, the "perfect reflection" case
 ``SpecularBoundaryOperator(axis="x", albedo=1.0)``) would shift by
 one ULP under the realizer relative to its pre-refactor
 ``np.take(psi_out, reflection_index, axis=0)`` body — see the
-Wave 6 snapshot harness for the bit-equivalence pin.
+Wave 6 snapshot harness for the bit-equivalence pin. The narrowing
+preserved that bit-identity and was **gated against the retired
+expression, not against the new code called twice**: the reference is
+materialised in numpy off the law *descriptor*
+(``α·np.take(ψ, reflection_index(axis), 0)[inflow]``, transpose via
+``argsort`` rather than production's cached table), compared with
+``np.array_equal`` over slab-asymmetric, slab-symmetric, sphere,
+cylinder ``product(2,4)`` and 2-D Cartesian ``level_symmetric(4)``.
+The gate was falsified independently — forcing the naive ``arange``
+remap reds 6 rows across slab and sphere in both directions, with a
+positive control confirming 26 interceptions.
 
 The :class:`~orpheus.sn.mesh.method_space.SNMethodSpace` dataclass is the
 realizer's second argument. It carries:
@@ -2232,8 +2769,16 @@ realizer's second argument. It carries:
   face-name carve — :ref:`bc-face-name-carve` — every face is keyed by
   its canonical ``"{axis}{min|max}"`` name.)
 * :attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.inflow_indices` —
-  the per-face inflow ordinate indices for the vacuum branch
-  (derived from the held trace at :meth:`for_face` time).
+  the per-face inflow ordinate indices: a realized law's **codomain**
+  :math:`\Gamma_-` (derived from the held trace at :meth:`for_face`
+  time).
+* :attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.outflow_indices` —
+  its **domain** :math:`\Gamma_+`, added at campaign phase **B3.2** as
+  the sibling of ``inflow_indices``. The codomain has been a *field*
+  precisely so a hand-built space can name its own trace without a
+  whole trace space; a law's domain deserves the same. The realizer
+  raises a :class:`~orpheus.geometry.boundary.BoundaryError` naming
+  :meth:`for_face` when a narrowed law is realized without it.
 * :attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.mesh`,
   :attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.trace` — the
   (optional) spatial mesh and the single unified
@@ -2253,7 +2798,10 @@ driven by the shared
 :func:`~orpheus.transport.method.resolve_boundary_conditions` body,
 #290 P7b); the :meth:`SNMethodSpace.minimal` factory returns a
 quadrature-only method space for unit tests that don't need mesh +
-face metadata.
+face metadata. **Since B3.2** ``minimal`` is a *partial* constructor:
+a quadrature alone cannot name a particular face's :math:`\Gamma_+`,
+so it no longer suffices for the two narrowed laws, and after B3.4 it
+will realize nothing at all — a retirement candidate, not a fixture.
 
 
 .. _bc-dual-registry:
@@ -2369,7 +2917,7 @@ Worked example — end to end
 
 The following walks the
 ``BC("vacuum") → VacuumInflow → SNBoundaryRealizer.realize →
-IncomingOrdinateMaskTensor`` chain that
+ZeroOperator(Γ₊ → Γ₋)`` chain that
 :meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law`
 performs per face (driven by the shared
 :func:`~orpheus.transport.method.resolve_boundary_conditions` body) at
@@ -2460,8 +3008,8 @@ face (``axis=0``, outward normal :math:`-\hat x`, so
 ordinates are inflow at the left boundary, as expected.
 
 The :meth:`SNMethodSpace.for_face` factory takes the precomputed trace
-through a **single** ``trace=`` argument and extracts the per-face
-inflow indices for the requested face:
+through a **single** ``trace=`` argument and extracts **both** per-face
+half-trace index sets for the requested face:
 
 .. code-block:: python
 
@@ -2473,9 +3021,12 @@ inflow indices for the requested face:
        face="xmin",
        trace=self._trace,
    )
-   # for_face derives inflow_indices from the trace for this one face:
-   #   inflow_indices = trace.inflow_indices_for_face("xmin")
-   # i.e. the 1-D int array [n for n in range(N) if -mu_x[n] < -eps].
+   # for_face derives BOTH half-traces from the trace for this one face:
+   #   inflow_indices  = trace.inflow_indices_for_face("xmin")   # Γ₋, codomain
+   #   outflow_indices = trace.outflow_indices_for_face("xmin")  # Γ₊, domain
+   # i.e. the 1-D int arrays [n for n in range(N) if omega_dot_n[n] < -eps]
+   # and [... > +eps].  Neither is the complement of the other: the
+   # tangential band |omega_dot_n| <= eps belongs to neither.
 
 There is **one** trace object and **one** ``trace=`` parameter, not an
 ``inflow_trace`` / ``outflow_trace`` pair. The directional split lives
@@ -2522,23 +3073,49 @@ Instantiation is stateless:
 
    realized = SNBoundaryRealizer().realize(law, method_space)
 
-The realizer's vacuum branch fires:
+The realizer's vacuum branch fires — after the ERR-041 guard
+cross-checks the claimed ``inflow_indices`` against the signed
+projection the face NAME alone implies:
 
 .. code-block:: python
 
-   # Inside SNBoundaryRealizer.realize:
-   if isinstance(law, VacuumInflow):
-       return IncomingOrdinateMaskTensor(
-           inflow_indices=method_space.inflow_indices,
-           n_ordinates=quad.N,
-           axis=0,
+   # Inside SNBoundaryRealizer.realize, VacuumInflow arm (B3.2):
+   gamma_out = _outflow_restriction(method_space, "vacuum")   # γ₊
+   return stamp_boundary_role(
+       ZeroOperator(
+           codomain_zero=_zero_rows(method_space.inflow_indices.size),
+           transpose_zero=_zero_rows(gamma_out.n_restricted),
        )
+   )
 
-The returned ``realized`` is a
-:class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`,
-which is a self-adjoint, idempotent Wave-0 primitive that reports
-``is_adjointable = True`` (:math:`M = M^{\mathsf T}`) and
-``is_invertible = False`` (a rank-deficient projection — no inverse).
+The returned ``realized`` is the **zero map**
+:math:`\Gamma_+ \to \Gamma_-`: a
+:class:`~orpheus.numerics.operator.ZeroOperator` carrying **both**
+space hooks, so the forward emits the zero of :math:`\Gamma_-` and the
+transpose the zero of :math:`\Gamma_+`. It reports
+``is_adjointable = True`` and ``is_invertible = False``. Vacuum's whole
+content is :math:`R = 0`; with the domain narrowed there is nothing
+else to represent.
+
+.. note::
+
+   **What this replaced, and why the replacement is not a
+   simplification.** Pre-B3.2 this arm returned
+   ``IncomingOrdinateMaskTensor(inflow_indices=…, n_ordinates=quad.N)
+   & IdentityOperator()`` — a **full-face** operator that zeroed the
+   inflow rows and *preserved* the outflow rows, which the consumer
+   then discarded with a slice-write. Two campaign phases had
+   documented that survival as having "no consumer today". The
+   narrowing does not answer that question, it **removes** it: those
+   rows are no longer in the operator's domain.
+
+   The two space hooks are load-bearing, not ceremony. A
+   :class:`~orpheus.numerics.operator.ZeroOperator` with no hooks
+   returns ``0.0 * x`` — an *endomorphic echo* of its input's shape.
+   That would be right here only by accident, because
+   :math:`|\Gamma_+| = |\Gamma_-|` on every reachable fixture; the
+   hooks make the map between two genuinely different spaces
+   structural rather than lucky.
 
 .. _bc-step5-pair-with-law:
 
@@ -2569,7 +3146,12 @@ what it passes through *both* faces of the realization:
   ``bc[face].law.geometry_map.permutes_ordinates``,
   ``bc[face].law.response_kernel.is_zero``, and — collapsing diffusion's
   five-arm ``isinstance`` ladder —
-  ``bc[face].law.response_kernel.scalar``. The tag frozensets those
+  ``bc[face].law.response_kernel.amplitude`` (named ``.scalar`` until
+  B3.0 minted the kernel tier: with a rank-one
+  :class:`~orpheus.geometry.boundary.LambertianReemission` in play
+  "scalar" is actively wrong, while "amplitude" is true of both
+  realizations and is exactly the dimension-reduced view the diffusion
+  arm reads). The tag frozensets those
   sites keyed on (``_RULED_CORNER_KINDS``, ``_SUPPORTED_BC``, both
   ``{"vacuum", "reflective"}``) are retired;
 * a ``kind`` string tag, now a **read-through** of the law's registry
@@ -2644,19 +3226,48 @@ dead code.
 Step 6 — consumption by the sweep
 ---------------------------------
 
-At each sweep call site the resolved operator is applied with
-the uniform 1-arg interface:
+The resolved operator keeps the uniform 1-arg
+``apply(psi)`` interface, but **what it consumes changed twice**, and
+both changes matter to anyone reading old call sites:
 
 .. code-block:: python
 
-   psi_in = self.bc["xmin"].apply(psi_out_full)
-   # Shim forwards to IncomingOrdinateMaskTensor.apply, which zeros
-   # only the inflow ordinates; outflow rows pass through unchanged.
+   # Wave-8 era — the sweep called it, on the WHOLE face slot:
+   psi_in = sn_mesh.bc["xmin"].apply(psi_out_full)      # (N, ng)
 
-The downstream sweep reads ``psi_in[inflow_ord]`` only — every
-production call site was audited in Wave 8 (see the §16A.5
-compatibility-audit table in the Wave 8 close-out memo and the
-:ref:`bc-vacuum-semantic-correction` section below).
+   # Today — the sweep is BARE. The sole consumer is B's per-face
+   # composition, and the law's domain is Γ₊:
+   gamma_out = trace.outflow_restriction("xmin")        # γ₊
+   gamma_in  = trace.inflow_restriction("xmin")         # γ₋
+   image = sn_mesh.bc["xmin"].apply(gamma_out.apply(face_in))   # (|Γ₊|,…) → (|Γ₋|,…)
+   out_boundary.face_view("xmin")[...] = gamma_in.apply_transpose(image)
+
+Wave O step O.4a.2 / O.4b removed ``bc.apply`` from the sweep entirely
+for every geometry — the reflective coupling is delivered by the
+sibling :math:`-B` (:ref:`bc-extraction`) — and campaign phase B3.2
+narrowed the law's domain to :math:`\Gamma_+`
+(:ref:`bc-domain-narrowing`). The public ``sn_mesh.bc[face].apply``
+surface survives, so a caller can still reach a realized law directly;
+it must now hand it a :math:`\Gamma_+`-shaped argument.
+
+.. warning::
+
+   **A narrowed law does not yet validate its own domain.** Measured at
+   B3.2: fed a full-face input, both vacuum's
+   :class:`~orpheus.numerics.operator.ZeroOperator` and reflective's
+   :class:`~orpheus.numerics.operator.TensorProductOperator` return
+   :math:`|\Gamma_-|` rows of **wrong values with no raise**. The
+   construction guard lives on
+   :class:`~orpheus.numerics.operator.TraceRestrictionOperator` and
+   does not travel to the operator the realizer *emits*. This is
+   unreachable through
+   :meth:`_reflect_trace <orpheus.sn.operators.boundary.SNBoundaryOperator>`
+   — which always feeds a guarded ``γ₊.apply(...)`` — but **reachable
+   through** ``sn_mesh.bc[face].apply``. It is pinned by four strict
+   xfails and closes at **B3.4**, which restructures the realizer
+   around :math:`R \circ G` for all seven laws: that is the one place
+   the guard belongs, since adding it per-law now would be seven copies
+   of what B3.4 collapses into one.
 
 
 .. _bc-universal-invariants:
@@ -3189,11 +3800,24 @@ survived the move byte-identically, exactly as recorded.
 
 .. _bc-vacuum-semantic-correction:
 
-The vacuum semantic correction (§16A.5)
-=======================================
+The vacuum semantic correction (§16A.5) — and its dissolution at B3.2
+=====================================================================
 
-The most subtle design decision of the refactor concerns vacuum.
-Pre-Wave-7 the legacy ``VacuumBoundaryOperator.apply`` body was:
+.. important::
+
+   **Status (campaign phase B3.2, 2026-07-31).** This whole section is
+   now **history**. Vacuum realizes to the **zero map**
+   :math:`\Gamma_+ \to \Gamma_-`
+   (:ref:`bc-domain-narrowing`); the inflow-only mask, the outflow rows
+   it preserved, and the question of what preserving them was *for* are
+   all off the vacuum path. The section is kept because the reasoning
+   below is the reasoning a future session would otherwise re-derive —
+   and because the way it was resolved (by narrowing the domain rather
+   than by answering the question) is the more general lesson.
+
+The most subtle design decision of the trace-law refactor concerned
+vacuum. Pre-Wave-7 the legacy ``VacuumBoundaryOperator.apply`` body
+was:
 
 .. code-block:: python
 
@@ -3204,38 +3828,68 @@ This returns **all zeros**, including the outflow ordinates that
 the BC has no physical interpretation for (vacuum says nothing
 about :math:`\gamma_+ \psi`; it only sets :math:`\gamma_- \psi = 0`).
 
-The post-Wave-8 SN realizer's vacuum branch returns
-:class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor` —
-a sparse mask that zeros **only the inflow ordinates** and
-preserves the outflow trace. This is the §16A.10 trace-correct
-representation: the operator's apply is a projector onto the
-inflow ordinate subspace, which is the right algebraic object
-for the affine law :eq:`affine-bc-form` to read.
+The post-Wave-8 SN realizer's vacuum branch therefore returned an
+:class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor` — a
+sparse mask that zeroed **only the inflow ordinates** and preserved the
+outflow trace. That was read as the §16A.10 *trace-correct*
+representation: a projector onto the outflow ordinate subspace, which
+looked like the right algebraic object for the affine law
+:eq:`affine-bc-form` to read.
 
-Why this matters
-----------------
+Why it seemed to matter — and why each reason dissolved
+--------------------------------------------------------
 
-Three downstream consequences make the inflow-only mask the right
-contract:
+.. note::
 
-1. **Sensitivity adjoints.** A future adjoint sensitivity path
-   needs the outflow trace preserved to compute the response
-   of an outgoing-current functional to the inflow BC. The
-   zeros-all body would silently lose the gradient at the
-   boundary.
-2. **Compositional clarity.** The realized vacuum operator is
-   now self-adjoint and idempotent (it's a projector). The
-   zeros-all operator is also idempotent but is the
-   ``ZeroOperator`` projector, which is the wrong type tag
-   for "inflow-mask only".
-3. **Algebraic uniformity.** Every other rank-1 law (reflective,
-   white, albedo) acts on the **inflow ordinates only** and
-   leaves the outflow rows untouched. The legacy vacuum was
-   the asymmetric special case; the post-Wave-8 vacuum joins
-   the family.
+   **Retraction (2026-07-31, campaign phase B3.2).** The three
+   consequences below were the published justification for preserving
+   the outflow rows. **All three are now moot, and the first was
+   measurably false.** They are preserved verbatim in substance,
+   past-tensed, with each disposition stated — deleting them would
+   destroy the record of *why* a wrong contract looked right for two
+   campaign phases.
 
-The algebra: where the two semantics agree and where they diverge
--------------------------------------------------------------------
+Three downstream consequences were argued to make the inflow-only mask
+the right contract:
+
+1. **Sensitivity adjoints.** *The argument was:* a future adjoint
+   sensitivity path needs the outflow trace preserved to compute the
+   response of an outgoing-current functional to the inflow BC; the
+   zeros-all body would silently lose the gradient at the boundary.
+
+   **Disposition: the consumer was measured not to exist**, and B3.2
+   removed the preservation entirely. The rows are outside the
+   operator's domain now, so there is nothing to preserve. This was the
+   load-bearing justification and it was a *promise about a future
+   consumer* — precisely the "declared capability, no consumer" pattern
+   the boundary review catalogued five times in this subsystem. The
+   adjoint work that did land (#276, :ref:`g-adjoint`) reaches the
+   boundary through :math:`B^{\mathsf T}` and the metric-correct
+   ``B.H``, neither of which needs a vacuum law to echo its input.
+2. **Compositional clarity.** *The argument was:* the realized vacuum
+   operator is self-adjoint and idempotent — a projector — whereas the
+   zeros-all operator is the ``ZeroOperator`` projector, the wrong type
+   tag for "inflow-mask only".
+
+   **Disposition: inverted.** With the domain narrowed to
+   :math:`\Gamma_+`, the vacuum law is not an endomorphism at all, so
+   "idempotent" is not even a well-typed thing to ask of it — the
+   composite :math:`\text{law} \circ \text{law}` does not exist.
+   :class:`~orpheus.numerics.operator.ZeroOperator` is now exactly the
+   right type tag, carrying two space hooks rather than an echo.
+3. **Algebraic uniformity.** *The argument was:* every other rank-1 law
+   acts on the inflow ordinates only and leaves the outflow rows
+   untouched, so the legacy vacuum was the asymmetric special case.
+
+   **Disposition: the uniformity is real and B3.2 made it structural
+   rather than conventional.** Every law now *maps*
+   :math:`\Gamma_+ \to \Gamma_-`; "leaves the outflow rows untouched"
+   is no longer a behaviour a law could get wrong, because those rows
+   are not in its codomain. The observation was right; the mechanism
+   was one layer too shallow.
+
+The algebra: where the two legacy semantics agreed and where they diverged
+--------------------------------------------------------------------------
 
 Decompose the angular ordinate set at a given face :math:`f` as
 
@@ -3263,27 +3917,63 @@ are:
            \psi_{\text{out}}[n] & n \in O_f \cup T_f.
        \end{cases}
 
-.. (vv-status rationale) Structural/explanatory identity: contrasts the legacy
-   zeros-all vacuum with the trace-correct inflow-only mask (they agree on the
-   inflow set, diverge on the outflow set). The trace-correct inflow-only
-   semantics are pinned by the realizer snapshot gates
-   (``tests/geometry/test_bc_equivalence_snapshot.py``, the §16A.5 semantic
-   capture). An explanatory comparison, not a separate solver claim.
+.. (vv-status rationale) HISTORICAL structural/explanatory identity: contrasts
+   the two pre-B3.2 vacuum spellings (zeros-all vs the inflow-only mask) —
+   they agree on the inflow set and diverge on the outflow set. NEITHER is the
+   live realization: since campaign phase B3.2 vacuum realizes to the zero map
+   Γ₊ → Γ₋, and the live gate is the re-posed vacuum snapshot case in
+   ``tests/geometry/test_bc_equivalence_snapshot.py`` (asserts Γ₋ shape + all
+   zero). Kept as the record of a contract that looked right for two campaign
+   phases. An explanatory comparison, never a solver claim.
 .. vv-status: vacuum-legacy-vs-trace-correct documented
 
 The two functions agree **on** :math:`I_f` (both give 0) and
 **diverge** on :math:`O_f` (legacy gives 0, trace-correct gives
-:math:`\psi_{\text{out}}[n]`). They diverge on :math:`T_f` too
-in principle, but ORPHEUS's quadrature adapters carry every
-tangential ordinate at :math:`\mu = 0` so :math:`\psi_{\text{out}}[n] = 0`
-on :math:`T_f` for a properly-initialised flux — making the
-divergence physically restricted to :math:`O_f`.
+:math:`\psi_{\text{out}}[n]`). They diverge on :math:`T_f` too.
 
-The §16A.5 production-relevant subset is **the inflow rows**.
-Every SN sweep call site reads :math:`\psi_{\text{in}}[n]` only for
-:math:`n \in I_f` — outflow rows are never consumed downstream.
+.. warning::
+
+   **The published mitigation for** :math:`T_f` **was an
+   initialisation claim, not a structural guarantee — and the two
+   spellings of "outflow" genuinely differ.** This page previously
+   argued that ORPHEUS's quadrature adapters carry every tangential
+   ordinate at :math:`\mu = 0`, so :math:`\psi_{\text{out}}[n] = 0` on
+   :math:`T_f` "for a properly-initialised flux", making the divergence
+   physically restricted to :math:`O_f`. Two corrections, both
+   **measured** during the B3 crosswalk:
+
+   1. :math:`\mu_{\rm axis} \approx 0` is what *defines* a tangential
+      ordinate; it does not make :math:`\psi` vanish there. What is
+      true is weaker and conditional — the boundary operators write
+      **only** the inflow and outflow slots, so a zero-initialised
+      trace carrier keeps its tangential rows at zero. That is a
+      property of the *carrier's initialisation*, not of the algebra.
+      (The tangential rows do carry zero *weight* in the
+      :math:`|\Omega\cdot\hat n|\,w` trace metric, which is a separate
+      and genuinely structural fact — see :ref:`g-adjoint`.)
+   2. The mask preserved :math:`O_f \cup T_f` while
+      :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face`
+      selects **strict** :math:`O_f`. So
+      :math:`I - P_{\rm in} \neq P_{\rm out}`, and the mask was never a
+      projector onto :math:`\Gamma_+` — it is
+      :math:`I - \iota_-\gamma_-`, a different map whenever the
+      quadrature carries tangential ordinates, which is **every**
+      production quadrature except ``gauss_legendre(4)``. Measured on a
+      cylinder under ``product(n_mu=2, n_phi=4)``: **4 of 8** ordinates
+      at ``xmax`` are tangential.
+
+   Both corrections are moot for vacuum since B3.2 — the map is the
+   zero map on :math:`\Gamma_+` — but the second is *live discipline*
+   everywhere else: **never spell "not inflow" as "outflow"**.
+
+The §16A.5 production-relevant subset was **the inflow rows**.
+Every SN sweep call site read :math:`\psi_{\text{in}}[n]` only for
+:math:`n \in I_f` — outflow rows were never consumed downstream.
 The Wave 8 close-out audited all 13 ``bc.apply(...)`` sites in
-``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) and :mod:`orpheus.sn.operators.streaming`:
+``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) and :mod:`orpheus.sn.operators.streaming`
+(the file:line references below are frozen at that audit and do not
+resolve against the live tree — Wave O later removed ``bc.apply`` from
+the sweep entirely, see :ref:`bc-extraction`):
 
 * ``sweep.py:334,351`` (1-D slab) read
   ``psi_face_left_in[n_half + n]`` for positive-μ ordinates
@@ -3298,32 +3988,36 @@ The Wave 8 close-out audited all 13 ``bc.apply(...)`` sites in
 * ``operator.py:530`` (spherical FD matvec) gates on
   ``quad.mu_x[n] < -1e-15``.
 
-No call site reads :math:`\psi_{\text{in}}[n]` for
-:math:`n \in O_f`, so the two semantics produce **bit-identical
-observable output** for every existing production consumer.
-This is what makes the §16A.5 trace-correct representation a
-safe semantic upgrade: it strictly extends the correctness
-boundary (outflow rows are now correct under the new algebra
-where they were ill-defined under the old one) without changing
-any observable downstream value.
+No call site read :math:`\psi_{\text{in}}[n]` for
+:math:`n \in O_f`, so the two semantics produced **bit-identical
+observable output** for every production consumer of that era.
+That is what made the §16A.5 change a safe semantic upgrade — and,
+read a second time, it is exactly the evidence that the preserved
+outflow rows had **no consumer at all**. B3.2 acted on the second
+reading.
 
 Post Issue #188 + #176 (2026-05-11) the **realizer path is
 uniform** across every supported mesh — 1-D Cartesian, 1-D
-spherical, 1-D cylindrical, and 2-D Cartesian. The curvilinear
-sweeps now consume the realizer-routed
-:class:`IncomingOrdinateMaskTensor` exactly like the slab sweep
-does. **Empirical confirmation**: spherical 26/26 + cylindrical
-25/25 + MMS curvilinear 2/2 xfail (pre-existing ERR-026) green
-on C188.3 — the curvilinear sweeps were previously consuming the
-zeros-all legacy body via the bound-quadrature shim, and now
-consume the inflow-only-mask realizer output. Production result
-is bit-identical on inflow rows (the only rows the sweep reads),
-confirming the Wave 8 call-site audit empirically.
+spherical, 1-D cylindrical, and 2-D Cartesian; that uniformity
+survives B3.2 unchanged (every geometry's vacuum face realizes to the
+same zero map, every geometry's reflective face to a permutation on
+its own reduced axis). **Empirical confirmation at the time**:
+spherical 26/26 + cylindrical 25/25 + MMS curvilinear 2/2 xfail
+(pre-existing ERR-026) green on C188.3 — the curvilinear sweeps had
+been consuming the zeros-all legacy body via the bound-quadrature shim
+and moved onto the realizer output, bit-identical on inflow rows (the
+only rows the sweep read), confirming the Wave 8 call-site audit
+empirically.
 
-The Wave 6 snapshot harness gates this explicitly: the
-``vacuum_lebedev17`` case compares **inflow-row outputs only**,
-documenting the intentional semantic divergence in a comment
-adjacent to the test case.
+The Wave 6 snapshot harness gates the vacuum case explicitly, and its
+assertion was **re-posed, not weakened, at B3.2**: the
+``vacuum_lebedev17`` case now cross-checks the live ``inflow_indices``
+against the frozen snapshot's index set, feeds the realized law
+``psi_out[outflow_indices]``, and asserts *both* that the emission has
+:math:`\Gamma_-` shape and that it is identically zero — "the narrowed
+vacuum law is the ZERO map :math:`\Gamma_+ \to \Gamma_-`". The old
+inflow-rows-only comparison, which documented the intentional semantic
+divergence on the outflow rows, has nothing left to compare.
 
 "Option a" (Wave 7) — historical context, retired Issue #186
 -------------------------------------------------------------
@@ -3347,12 +4041,14 @@ path the refactor was retiring anyway.
 ``apply`` body has been **deleted**. :class:`VacuumInflow` (like
 every other concrete BC) is a pure descriptor with no ``apply``
 method; the only path to vacuum action is
-:func:`realize_recursively` or :class:`SNBoundaryRealizer`
-producing :class:`IncomingOrdinateMaskTensor` output. The
+:func:`realize_recursively` or :class:`SNBoundaryRealizer`. The
 **two-paths-divergence is therefore eliminated by design** — there
 is no longer a "second path" that could disagree with the realizer
-path. The §16A.5 inflow-only-mask body is the **unique** vacuum
-semantics in the post-#186 codebase.
+path. What that single path *produces* has since changed again: the
+§16A.5 inflow-only mask was the unique vacuum semantics from #186
+until campaign phase **B3.2**, which replaced it with the zero map
+:math:`\Gamma_+ \to \Gamma_-` (:ref:`bc-vacuum-semantic-correction`).
+The uniqueness claim is what survived; the operator behind it did not.
 
 This is the load-bearing architectural payoff of B3 + β2: the
 documentation no longer needs to caveat which path you're on,
@@ -3382,10 +4078,10 @@ remaining 2-arg ``apply`` affordance from the Wave-8/9 era into a
   periodic / prescribed-inflow / zero-flux) is now a **frozen
   dataclass** carrying only its parameters (axis, albedo, source,
   ...) and the relevant :meth:`assert_*` invariants. **No**
-  ``apply`` method on any concrete BC. Of the three affine-factor
-  properties, only :attr:`source` is ever overridden (by
-  prescribed-inflow); :attr:`geometry_map` and
-  :attr:`response_kernel` inherit the ABC's ``None`` on every law.
+  ``apply`` method on any concrete BC. All three affine-factor
+  properties are overridden on every concrete law since campaign
+  phase B1 — see the measured table under :ref:`bc-law-layer`; at the
+  time of Issue #186 only :attr:`source` was (by prescribed-inflow).
   :attr:`kind` is derived once on the ABC from the registry key,
   with :class:`~orpheus.geometry.boundary.ReflectiveBoundary` the
   single legitimate override (it reports ``"partial"`` at
@@ -3444,8 +4140,13 @@ three architectural costs that made Option A unsustainable:
    inflow rows (the production-relevant subset; see
    :ref:`bc-vacuum-semantic-correction`) but diverged on outflow
    rows. The divergence was harmless at every existing production
-   call site but was a documentation-burden landmine for future
-   adjoint-sensitivity consumers that read outflow rows.
+   call site; the cost argued at the time was a documentation-burden
+   landmine for *future adjoint-sensitivity consumers that read
+   outflow rows*. **That consumer was later measured not to exist**,
+   and B3.2 removed the outflow rows from the law's domain
+   altogether — so the cost was real (two paths, one contract) but the
+   reason given for it was not. The retirement of Option A stands on
+   costs 1 and 3.
 3. **Liskov violation.** The abstract
    :meth:`BoundaryTraceLaw.apply(self, psi_out)` was strict 1-arg
    (post Issue #176 / C176.4). The concrete
@@ -3490,10 +4191,11 @@ dataclasses) but is the architecturally-checkable form.
 
 **The vacuum two-paths-divergence is eliminated by design.** Under
 B3 + β2 there is no "direct path" any more — every consumer must
-realize the law before applying it, and realize-then-apply goes
-through the inflow-only-mask path. The Wave-6 snapshot harness's
-``vacuum_lebedev17`` case still pins inflow rows only (the
-intentional §16A.5 divergence is still there in the algebra), but
+realize the law before applying it, so there is exactly one vacuum
+semantics at any moment (the inflow-only mask until campaign phase
+B3.2, the zero map :math:`\Gamma_+ \to \Gamma_-` since). The Wave-6
+snapshot harness's ``vacuum_lebedev17`` case tracks whichever it is —
+it now pins the zero-map emission and its :math:`\Gamma_-` shape — and
 no caller can accidentally invoke the pre-§16A.5 zeros-all path
 because that path no longer exists in the code.
 
@@ -3579,8 +4281,9 @@ cases:
    * - ``vacuum_lebedev17``
      - ``VacuumInflow()``
      - Lebedev order 17
-     - inflow-rows-only
-       (intentional §16A.5 semantic divergence on outflow)
+     - the **zero map**: emission has :math:`\Gamma_-` shape and is
+       identically zero (re-posed at B3.2, replacing the
+       inflow-rows-only comparison)
    * - ``albedo_05_lebedev17``
      - ``AlbedoBoundary(0.5)``
      - Lebedev order 17
@@ -3608,7 +4311,36 @@ cases:
    * - ``mixed_30spec_70white_LS4``
      - ``0.3 * spec + 0.7 * white`` (Wave-0 algebra)
      - LevelSymmetricSN(4)
-     - ``nulp ≤ 64``
+     - ``nulp ≤ 64`` — **xfail(strict) pending B3.4**
+
+.. note::
+
+   **The three NARROWED rows were re-posed onto** :math:`\Gamma_+`
+   **at B3.2, not weakened.** ``vacuum_lebedev17``,
+   ``specular_x_lebedev17`` and ``specular_y_partial_07_LS6`` now feed
+   the realized law ``snapshot["psi_out"][space.outflow_indices]`` and
+   compare against the **frozen** pre-B3.2 image *restricted* to
+   :math:`\Gamma_-`, ``snapshot["psi_in"][space.inflow_indices]`` — so
+   the reference still comes from the committed artefact, never from
+   re-running the new code, and the bit-identity claim is strictly the
+   same claim on a smaller index set. The four un-narrowed rows
+   (``albedo_05``, both ``white_*``, ``periodic``) still build a
+   ``SNMethodSpace.minimal(quad)`` and pass the whole face slot,
+   because their realizations are still full-\ :math:`N`
+   endomorphisms; they migrate at **B3.4**.
+
+   The Marshak row is the one exception, and it is an **honest
+   red**: ``0.3 * spec + 0.7 * white`` mixes a *narrowed* leaf
+   (reflective, :math:`\Gamma_+ \to \Gamma_-`) with an *un-narrowed*
+   one (white, a full-\ :math:`N` endomorphism), so the sum's factors
+   have mismatched shapes and its ``apply`` raises — measured on a
+   :math:`\Gamma_+` probe as ``AngularAverageOperator.apply:
+   psi.shape[0] = |Γ₊|, expected N``. The rank-N composition claim is
+   **unchanged and un-weakened**; it is *unstateable* until B3.4
+   narrows white / albedo / periodic (#183, #189). It is pinned by
+   ``xfail(strict=True)``, which flips to an unexpected-pass the day
+   B3.4 lands and forces the marker's deletion — the marker set is the
+   phase's todo list, not a suppression.
 
 The 1-ULP tolerance for α=1 specular / white reflects the
 α=1.0 fast path returning the bare primitive (no
@@ -3642,6 +4374,22 @@ deleted internal mixed-BC path was already composing via
 
 Two BC apply calls per curvilinear matvec
 =========================================
+
+.. important::
+
+   **Historical — this describes the Phase-D-era curvilinear matvec,
+   which no longer exists.** Wave O step O.4a.2 deleted the keystone
+   re-apply and made the sweep read ``ψ.boundary.inflow`` as *given*, so
+   the matvec calls ``bc.apply`` **zero** times; the reflective coupling
+   moved to the sibling :math:`-B` (:ref:`bc-extraction`). The Gate-1.5
+   test named below was re-posed accordingly — it now pins the
+   0-call extraction *and* the emitted WDD outflow, and asserting both
+   together is what prevents a silent regression that re-absorbs the BC
+   into the matvec. The vacuum realization named in the two call
+   descriptions is likewise the pre-B3.2 one; see
+   :ref:`bc-vacuum-semantic-correction`. The section is kept because
+   the two-call decomposition it analyses is the reason the extraction
+   needed a capture-and-compare gate rather than a round-trip check.
 
 Phase C (:ref:`bc-trace-contract-respected-by-matvec`) established
 that the SN curvilinear matvec applies the BC trace law **once per
@@ -3691,8 +4439,8 @@ The two calls are **structurally distinct**:
 
 * **Call #1** is a Phase D-specific use of the BC operator as a
   *linear-in-ψ* construction of the inward-zero-weight ordinate's
-  outer-face flux.  For vacuum BC the
-  :class:`IncomingOrdinateMaskTensor` zeroes the inflow ordinate,
+  outer-face flux.  For vacuum BC the then-realized
+  :class:`IncomingOrdinateMaskTensor` zeroed the inflow ordinate,
   giving ``bc_outer_value = 0``; for reflective BC the
   :class:`PermutationOperator` mirrors outgoing :math:`\leftrightarrow`
   incoming, giving ``bc_outer_value = ψ_cell[N-1]`` (i.e. the
@@ -3757,13 +4505,13 @@ but wrong content — the test would still locate the canonical Phase
 C call provided its content matches the WDD reference.
 
 Both ``vacuum`` and ``reflective`` parametrised cases pass.  The
-``vacuum`` case is the load-bearing check because Call #1 produces
-non-trivial output under vacuum (the
-:class:`IncomingOrdinateMaskTensor` zeroes inflow ordinates, so the
-extracted ``bc_outer_value`` is zero — but the **input** to Call #1
-is the outer cell-centre value which is **not** zero on a non-trivial
-:math:`\psi`).  Locating Call #2 unambiguously requires content
-matching, not just shape matching.
+``vacuum`` case was the load-bearing check because Call #1 produced
+non-trivial output under vacuum (the then-realized
+:class:`IncomingOrdinateMaskTensor` zeroed inflow ordinates, so the
+extracted ``bc_outer_value`` was zero — but the **input** to Call #1
+was the outer cell-centre value, which is **not** zero on a
+non-trivial :math:`\psi`).  Locating Call #2 unambiguously required
+content matching, not just shape matching.
 
 
 .. _bc-three-bc-applies-per-sweep-iteration:

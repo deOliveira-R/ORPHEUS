@@ -2510,24 +2510,38 @@ class IncomingOrdinateMaskTensor(LinearOperator):
     Distinct from :class:`ZeroOperator` (which zeroes ALL entries):
     the sparse mask leaves the outflow trace bit-identical.
 
-    That preservation currently has **no consumer**. The only
-    production reader of a realized boundary law's image is
-    ``SNBoundaryOperator._reflect_trace``, and it writes just the
-    face's INFLOW rows — for EVERY law, not only vacuum — so the
-    preserved outflow rows are discarded on the way out. (The
-    composition is exactly ``P_inflow ∘ M`` with ``M`` projecting
-    onto the outflow subspace, i.e. zero.) The rows are not
-    read by anything else either: the ``outflow_indices_for_face``
-    consumers read the FIELD's trace, never ``B(ψ)``.
+    .. deprecated:: B3.2
 
-    Campaign phase **B3** narrows the SN law's domain to the outflow
-    trace :math:`\Gamma_+` (as the diffusion arm already does), after
-    which the untouched rows are outside the operator's domain and
-    the question dissolves rather than needing a justification.
+       **This class has no production consumer and retires in B3.3.**
+       Campaign phase B3.2 narrowed the SN boundary law's domain to
+       :math:`\Gamma_+`, so vacuum now realizes to the honest zero map
+       :math:`\Gamma_+ \to \Gamma_-` and the rows this mask preserved are
+       outside the operator's domain entirely. Use
+       :class:`TraceRestrictionOperator` — every spelling this class was
+       reached for is a composition of that restriction and its scatter.
+
+    .. warning::
+
+       **This mask is NOT "projection onto the outflow subspace"**, and
+       earlier revisions of this docstring said it was. **[M]** Measured on a
+       production cylinder mesh under ``Quadrature.product(n_mu=2, n_phi=4)``,
+       four of eight ordinates at ``xmax`` are **tangential**
+       (:math:`|\Omega\cdot\hat n| \le` ``TANGENTIAL_EPS``), and this mask
+       preserves them along with the outflow rows. So it is
+       :math:`I - P_{\text{in}}`, whose range is
+       :math:`\Gamma_+ \oplus \Gamma_{\text{tan}}` — strictly larger than
+       :math:`\Gamma_+`. The two coincide only where the quadrature carries
+       no tangential ordinate, which among the production quadratures is
+       ``gauss_legendre`` at even order and nothing else.
+
+       The face partition is **three-way**. "Not inflow" is not "outflow", and
+       a gate written on the two-way assumption is blind by construction.
 
     Self-adjoint (:math:`M = M^T = M^* = M^{1/2}`). Idempotent
-    (:math:`M^2 = M`) — projection onto the outflow subspace. The
-    apply action returns a copy; original input is unmodified.
+    (:math:`M^2 = M`) — the projection onto
+    :math:`\Gamma_+ \oplus \Gamma_{\text{tan}}` along
+    :math:`\Gamma_-`. The apply action returns a copy; original input is
+    unmodified.
 
     STRUCTURALLY non-invertible — the mask is rank-deficient (it
     projects) — so it declares no ``inverse()``; misuse is a static

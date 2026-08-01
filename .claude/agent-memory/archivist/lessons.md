@@ -3586,6 +3586,99 @@ later phase needs. Disciplines that held across 18 items in 8 files
 
 ---
 
+## L-042 — Auditing a corpus against a just-landed multi-commit REFACTOR: the phase-lag, the letter collision, and the retraction that INVERTS
+
+The successor task to L-041's doc-only B0 pass: three commits land
+(factor re-assignment · a new primitive · a domain narrowing) and you
+must find and fix every `docs/theory/**` claim they falsified. 46 claims
+adjudicated across 6 files; disciplines that were NOT already in L-041:
+
+- **A brief's lead can be directionally inverted — settle it with
+  `git show <fix>^:<path>`, not the ⚠ alone.** The lead said "the page
+  says `apply_transpose` writes the `outflow_indices_for_face` slots;
+  the code's ⚠ names that the WRONG spelling." Reading the ⚠ *precisely*:
+  the wrong spelling is scattering over the law's own **codomain**
+  (Γ₋); post-change the transpose genuinely DOES land on the Γ₊ rows,
+  so the sentence is incidentally true NOW. The doc was still wrong —
+  because it described an output **projection** that the PRE-change code
+  never performed either (it wrote the whole face). Only the pre-commit
+  body settled which of three readings was right. A ⚠ names a HAZARD,
+  not what the code did; when a lead claims "the doc documents a known
+  bug as the contract", read BOTH bodies.
+- **A phase-N doc pass leaves phase-(N−1)'s falsifications behind — audit
+  the PARAGRAPH FAMILY, not the commit's diff.** Phase B1 populated the
+  two factor properties on all seven laws and never touched the theory
+  page; B3.0's doc pass fixed only what B3.0 moved. Result: a correctly
+  re-typed G/R section sitting three screens from "`geometry_map` and
+  `response_kernel` return the ABC's `None` on **every** law and are read
+  by nothing". The reader cannot tell which phase staled what, so a
+  scoped-to-phase-N audit ships a self-contradicting page. Fix it and
+  FLAG the scope expansion. (The `-E -W` build is blind to all of it.)
+- **Replace an unfalsifiable inventory sentence with a MEASURED table**
+  (the L-041 override-lattice move, now for property VALUES): one
+  `python -c` over the seven laws printing `law.geometry_map` /
+  `law.response_kernel` turned the false sentence into a 7-row
+  ground-truth table the next reader can re-run.
+- **One letter, two decompositions, two pages — type them both in ONE
+  `.. warning::`.** The rank-N expansion `B = Σ G_α ⊗ A_α` (a sum over
+  TERMS) collides with the affine factorisation `R G` (a factorisation of
+  ONE term). Tell: a Marshak formula `R = c₁G_refl + c₂G_diff` that uses
+  `R` for the whole composite AND files a Lambertian average under `G`.
+  Fix = rename the colliding prose symbol (`R`→`B`), add ONE warning
+  stating both decompositions and naming the composite **`R ∘ G`, never
+  `R`**, then correct the mis-tiered rows. Extends L-041's same-module
+  collision to the cross-page case.
+- **A retraction can INVERT a claim, not just kill it — give each item its
+  own `**Disposition:**`.** Three published "why this matters"
+  consequences: #1 *measured not to exist* (the phantom future consumer —
+  the declared-capability-no-consumer pattern), #2 **inverted** (the
+  argument was "the realization is a self-adjoint idempotent projector";
+  once the domain narrows, the operator is not an endomorphism, so
+  idempotence is not even a well-typed question and the type tag the
+  argument rejected is now the right one), #3 *right observation, wrong
+  layer* (the uniformity was real; the mechanism was one layer too
+  shallow). Per-item dispositions preserve the intellectual content that
+  a blanket tombstone destroys — and #2's inversion is the single most
+  instructive line on the page.
+- **A "the gate still does X" claim is verified against the TEST BODY,
+  and you must COUNT the rows.** A snapshot suite's vacuum case had been
+  re-posed in the body while its class docstring still described the old
+  semantics (so quoting the docstring would have re-minted the falsehood
+  — L-001 in a test file). And only **3 of 7** cases were re-posed: the
+  un-narrowed four still feed the full face. My first draft said "every
+  case was re-posed" — a fresh falsehood, caught by reading all seven
+  bodies. Also: the mixed-BC row is an `xfail(strict=True)`; document it
+  as an **honest red that flips on the next phase**, never a suppression.
+- **Put the Mode-12 blindness IN the prose, beside every table of
+  realized operators.** Measured `|Γ₊| = |Γ₋|` on every quadrature × face
+  ⇒ a shape assertion cannot distinguish `Γ₊→Γ₊` from `Γ₊→Γ₋`. The next
+  reader's instinct is to "check" a typing claim by output shape; one
+  sentence ("read the *declared spaces*, never the output shape") is
+  worth more than the table it annotates. Same family: a three-way
+  partition (inflow ⊔ outflow ⊔ **tangential**) needs "**not inflow** is
+  NOT **outflow**" restated wherever a complement could be spelled.
+- **`python -c` every numeric constant a doc asserts.** A page said the
+  tangential band is "default `ε = 1e-12`"; measured
+  `TANGENTIAL_EPS = 4·np.finfo(float64).eps ≈ 8.9e-16` — four orders out,
+  never warned, pre-existing.
+- **A "mitigation" sentence can be a NON-SEQUITUR wearing a hedge.**
+  "The adapters carry every tangential ordinate at μ = 0 **so** ψ = 0
+  there for a properly-initialised flux": μ≈0 is the *definition* of
+  tangential, and it does not make ψ vanish. The honest weaker statement
+  (no operator writes tangential slots, so a zero-initialised carrier
+  keeps them zero) is an INITIALISATION property; the genuinely
+  structural neighbour (tangential rows carry zero *metric weight*) is a
+  different fact. Split them.
+- **The taxonomy the brief asks you to ADD may already exist in a
+  docstring the concurrent agent just wrote.** Grep the label before
+  authoring. Here `.. _bc-method-realizability:` was already DEFINED in a
+  package `__init__` docstring — inert only because that package is not
+  `automodule`'d. The project pattern is **page owns the label, docstring
+  `:ref:`s it**; use the same label name on the page so the two agree,
+  and report the latent duplicate rather than inventing a second name.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

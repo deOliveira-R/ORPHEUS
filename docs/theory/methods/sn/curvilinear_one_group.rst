@@ -2509,18 +2509,30 @@ cell centres. The boundary-edge sequence is:
        psi_face_out = 2.0 * psi_cell - psi_face_in          # WDD
        # ... walk ...
 
-The :class:`~orpheus.numerics.operator.LinearOperator` returned by
-:meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`
-internally consumes the outflow selector
-:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face`
-on the unified :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
-(the ordinate slots with :math:`\mu \cdot \hat n > 0` at the face)
-and writes only the inflow slots; the outflow slots in the output
-are unspecified by the §16A.3 contract and the matvec reads back
-only ``inflow_full[incoming_mask, :]``. This is the user's "ghost
-cell for higher-order boundary closure" idiom realised as a typed
-:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` vector
-defined by the realised BC operator — not extrapolated from
+.. note::
+
+   **The sketch above is the Wave-8-era shape, before two changes.**
+   It is kept because it shows the *sequence* — sweep, apply the trace
+   law at the boundary edge, seed the inward leg — which is what this
+   section is about. Two things about it are no longer literal:
+
+   * the sweep is **bare** since Wave O steps O.4a.2 / O.4b: it reads
+     the given inflow trace instead of calling ``bc_outer.apply``, and
+     the reflective coupling is delivered by the sibling :math:`-B`
+     (:ref:`bc-extraction`);
+   * the realized law's **domain is** :math:`\Gamma_+` since campaign
+     phase B3.2, so it is fed ``γ₊.apply(face_slot)`` — not the whole
+     face — and its image *is* :math:`\Gamma_-`, scattered back by
+     :math:`\iota_-` (:ref:`bc-domain-narrowing`).
+
+Under that typing there are no "outflow slots in the output" left to
+be unspecified: the emission has :math:`|\Gamma_-|` rows and the rows
+the old slice-write discarded are not in the operator's domain at all.
+What survives unchanged is the **idiom**: the inflow face trace is the
+user's "ghost cell for higher-order boundary closure", realised as a
+typed
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
+vector defined by the realised BC operator — not extrapolated from
 interior cell centres.
 
 **Gate 1.5** (foundation,

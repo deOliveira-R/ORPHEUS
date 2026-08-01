@@ -22,10 +22,16 @@ assertion is pinned per pytest invocation:
   snapshot at the per-case tolerance — protecting against post-Issue-#186
   numerical drift in the realiser bodies.
 
-The vacuum case carries its own 2-assertion structure (inflow rows
-zero; outflow rows pass through unchanged) because the §16A.5
-trace-correct semantics need both a zero-mask check AND a pass-through
-check; this is unrelated to the legacy/realiser split that was dropped.
+The vacuum case asserts the narrowed law's SHAPE and its VALUE: since
+campaign phase B3.2 the realized law is typed ``Γ₊ → Γ₋``, so vacuum is
+the honest zero map and there is no "outflow pass-through" half left to
+check — those rows are outside the operator's domain. (Pre-B3.2 this
+case carried a 2-assertion structure, a zero-mask check AND a
+pass-through check, because the §16A.5 realization was a full-face
+projector that preserved the outflow rows. The shape assertion replaced
+the second half, and it is load-bearing: |Γ₊| == |Γ₋| on every
+quadrature in the tree, so shape alone cannot catch a law that stayed
+an endomorphism — only paired with the value can it.)
 
 V&V tags
 --------
@@ -150,10 +156,11 @@ def _load_snapshot(case_id: str) -> np.lib.npyio.NpzFile:
 class TestVacuumLebedev17Snapshot:
     """Vacuum BC on Lebedev-17 quadrature.
 
-    The §16A.5 trace-correct realisation zeroes only the inflow
-    ordinates; outflow rows pass through unchanged. Two assertions
-    pin both halves of the mask action against the snapshot's
-    ``inflow_indices_xmin`` index set.
+    Since B3.2 the realized law is typed ``Γ₊ → Γ₋``, so vacuum is the
+    ZERO MAP: it consumes the outflow half-trace and emits |Γ₋| rows of
+    zeros. The snapshot's ``inflow_indices_xmin`` index set is the
+    independent statement of which ordinates those are, cross-checked
+    against the live derivation before either is used.
     """
 
     case_id = "vacuum_lebedev17"
@@ -165,13 +172,16 @@ class TestVacuumLebedev17Snapshot:
     def test_realizer_zeroes_only_inflow_per_section_16A5(
         self, snapshot: np.lib.npyio.NpzFile,
     ) -> None:
-        """Realizer (§16A.5 semantics) zeroes only the inflow ordinates.
+        """The narrowed vacuum law is the zero map ``Γ₊ → Γ₋``.
 
-        The realized :class:`IncomingOrdinateMaskTensor` masks only
-        inflow rows of the xmin face. Outflow rows pass through
-        unchanged. The snapshot records the inflow index set so this
-        assertion has a deterministic target without re-deriving the
-        index set at test time.
+        Pre-B3.2 this asserted the §16A.5 semantics — an
+        ``IncomingOrdinateMaskTensor`` zeroing the inflow rows while the
+        outflow rows passed through. The narrowing removed the second
+        half rather than changing it: the preserved rows left the
+        operator's domain, so vacuum's whole content is ``R = 0``.
+
+        The snapshot records the inflow index set so this assertion has
+        a deterministic target without re-deriving it at test time.
         """
         quad = Quadrature.lebedev(17)
         space = face_method_space(quad, face="xmin")

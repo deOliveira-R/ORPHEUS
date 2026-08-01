@@ -36,9 +36,21 @@ __all__ = ["AngularAverageOperator", "IncomingSourceOperator"]
 class AngularAverageOperator(LinearOperator):
     r"""Cosine-weighted Lambertian average over an outgoing hemisphere.
 
-    Realizes the geometric projection :math:`G_{\text{diff}}` in the
-    §15.2 sum-of-tensor-products form of the white boundary law
-    :math:`B_{\text{white}} = G_{\text{diff}} \otimes \alpha`.
+    Realizes the **response** factor :math:`R_{\text{diff}}` of the white
+    boundary law — in the §15.2 sum-of-tensor-products form,
+    :math:`B_{\text{white}} = R_{\text{diff}} \otimes \alpha`.
+
+    **Not a geometry, despite the older name.** Campaign phase **B3.0**
+    moved this out of the geometry tier on a decidable criterion: a
+    geometry map is the composition operator of a measure-preserving
+    bijection and is therefore **multiplicative**
+    (:math:`G(\psi\varphi) = (G\psi)(G\varphi)`), which an average never
+    is. White's factors are :class:`~orpheus.geometry.boundary.IdentityMap`
+    (a white face fixes no geometry) and
+    :class:`~orpheus.geometry.boundary.LambertianReemission` — the spec
+    this operator realizes. The misassignment survived because a rank-one
+    response annihilates :math:`G` entirely, so the slot it occupied had
+    no observable consequence.
 
     .. note::
 
@@ -247,8 +259,13 @@ class IncomingSourceOperator(LinearOperator):
 
         \gamma_- \psi \;=\; R\,G\,\gamma_+ \psi \;+\; q
 
-    for the rank-0 case where :math:`R = G = 0` and only the source
-    matters: :math:`\gamma_- \psi = q`. The :meth:`apply` IGNORES its
+    for the rank-0 case where :math:`R = 0` and only the source
+    matters: :math:`\gamma_- \psi = q`. (Campaign phase **B3.0**
+    corrected the older spelling ":math:`R = G = 0`" — it is the
+    RESPONSE that vanishes; :math:`G` is the identity deck element,
+    because the zero map is not a bijection and so cannot be a geometry
+    map at all. Writing both as zero spelled one vanishing twice, once
+    in the wrong tier.) The :meth:`apply` IGNORES its
     input and returns the source evaluated on a probe inflow trace
     matching the input shape. Used by the SN realizer for
     :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow`.

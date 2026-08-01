@@ -45,7 +45,7 @@ eigenvalue convention).
 The registry values are the law classes themselves, not factory
 functions. The pre-refactor ``_sn_vacuum_boundary_operator`` /
 ``_sn_reflective_boundary_operator`` factories were retired; their
-job is now done by :meth:`SNMesh._resolve_one`, which dispatches
+job is now done by :meth:`SNMesh.realize_boundary_law <orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law>`, which dispatches
 through :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
 **uniformly** for every supported mesh (1-D Cartesian, 1-D
 spherical, 1-D cylindrical, 2-D Cartesian) — see
@@ -163,7 +163,7 @@ Boundary conditions as tensor decompositions
 The boundary conditions used by :class:`SNMesh` are concrete instances
 of a more general tensor-decomposed framing, defined in
 :mod:`orpheus.geometry.boundary`. A boundary condition is a linear
-operator :math:`R` mapping the outgoing angular flux at a face to the
+operator :math:`B` mapping the outgoing angular flux at a face to the
 incoming angular flux:
 
 .. math::
@@ -178,48 +178,89 @@ incoming angular flux:
    rank-N primitives (vacuum/reflective/white) carry their own verification.
 .. vv-status: bc-tensor-decomposition documented
 
-where :math:`G_\alpha` is a **geometric operator** (permutation,
+where :math:`G_\alpha` is a **per-term operator** (permutation,
 pushforward, angular average, spatial wrap) and :math:`A_\alpha` is a
 **scalar amplitude** (typically an :term:`albedo` :math:`\in [0, 1]`).
 
+.. warning::
+
+   **Two decompositions, and the letters collide.** This is the §15.2
+   **rank-N expansion** :math:`B = \sum_\alpha G_\alpha \otimes
+   A_\alpha` — a sum over *terms*. The affine trace law
+   :eq:`affine-bc-form` is a **factorisation** of one term,
+   :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`, where
+
+   * :math:`G` is the **deck transformation** :math:`\Gamma_+ \to
+     \Gamma_-` — the composition operator of a measure-preserving
+     bijection, decidable by **multiplicativity**;
+   * :math:`R` is the **constitutive response kernel** on
+     :math:`\Gamma_-` — an amplitude or an angular kernel.
+
+   So the :math:`G_\alpha` of this section is **not** the :math:`G` of
+   the affine form: it is the whole per-term map, whose honest name is
+   the composite :math:`R \circ G` — never :math:`R` alone. Campaign
+   phase **B3.0** fixed one consequence of the collision in this very
+   table: the cosine-weighted hemispheric (Lambertian) average had
+   been filed as a *geometric* operator, and an average is not
+   multiplicative and not a bijection, so it is a **response kernel**
+   (:class:`~orpheus.geometry.boundary.LambertianReemission`). See
+   :ref:`bc-factor-roles` for the criterion and the rank-one theorem
+   that explains why the misfiling had no observable consequence.
+
 This is the same algebra Lewis & Miller (1984) §3.4 use to introduce
 boundary conditions in transport: every BC of practical interest is
-either rank-1 (one :math:`G \otimes A` term) or a finite linear
-combination of rank-1 primitives (rank-N). The implemented primitives
-are:
+either rank-1 (one :math:`G_\alpha \otimes A_\alpha` term) or a finite
+linear combination of rank-1 primitives (rank-N). The implemented
+primitives are, with each law's affine factors alongside:
 
 .. list-table:: Implemented :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` primitives (Wave 7 vocabulary)
-   :widths: 20 30 25 25
+   :widths: 18 24 12 24 22
    :header-rows: 1
 
    * - Class
-     - :math:`G_\alpha`
+     - :math:`G_\alpha` (the per-term map :math:`R \circ G`)
      - :math:`A_\alpha`
+     - affine factors :math:`(G,\;R)`
      - Rank / wired into ``solve_sn``
    * - :class:`~orpheus.geometry.boundary.VacuumInflow`
-     - :math:`0` (no operator)
+     - the zero map
      - 0
+     - ``IdentityMap()``, ``ScalarResponse(0.0)``
      - 0 / yes
    * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
      - permutation under reflection axis
      - albedo (1 = perfect)
+     - ``SpecularMirror(axis)``, ``ScalarResponse(α)``
      - 1 / yes
    * - :class:`~orpheus.geometry.boundary.WhiteBoundary`
-     - cosine-weighted hemispheric average
+     - cosine-weighted hemispheric average — a **response**, not a
+       geometry (B3.0)
      - albedo
+     - ``IdentityMap()``, ``LambertianReemission(α, …)``
      - 1 / no (Wave C)
    * - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
-     - spatial pushforward (caller-supplied)
+     - spatial wrap along ``axis``; the realizer derives the partner
+       face from the installation face
      - 1
+     - ``SpatialWrap(axis)``, ``ScalarResponse(1.0)``
      - 1 / no (Wave C/D)
    * - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
      - identity in angle
      - albedo
+     - ``IdentityMap()``, ``ScalarResponse(α)``
      - 1 / no (building block)
    * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
      - 0
      - 0
+     - ``IdentityMap()``, ``ScalarResponse(0.0)``, plus
+       :math:`q \in \Gamma_-`
      - 0 with :math:`q \neq 0` / no (rank-0 source-only affine BC)
+
+Note vacuum's and prescribed inflow's :math:`G`: it is the **identity
+deck element**, not zero. The zero map is not a bijection, so it cannot
+be a geometry map at all; the vanishing belongs entirely to :math:`R`.
+Writing ":math:`R = G = 0`" spelled one fact twice, once in the wrong
+tier — corrected at B3.0.
 
 The pre-Wave-7 names ``VacuumBoundaryOperator`` /
 ``SpecularBoundaryOperator`` / ``WhiteBoundaryOperator`` /
@@ -262,10 +303,18 @@ predecessor Option A and β1 forms (and why each was rejected) is
 at :ref:`bc-trace-law-descriptor-model`.
 
 The tensor framing pays off architecturally because partial-current
-Marshak boundaries (:math:`R = c_1 \, G_{\rm refl} + c_2 \, G_{\rm
-diff}`, Bell & Glasstone 1970 §1.5) and multi-region interface
-couplings are all instances of the same algebra: pick the geometric
-operators, pick the amplitudes, sum. New BCs are one
+Marshak boundaries (:math:`B = c_1 \, B_{\rm refl} + c_2 \, B_{\rm
+diff}` — a specular term plus a Lambertian term, Bell & Glasstone 1970
+§1.5) and multi-region interface couplings are all instances of the
+same algebra: pick the per-term maps, pick the amplitudes, sum. Each
+term still factors as :math:`R \circ G` internally, and what
+distinguishes the two terms of a Marshak mix is their **response**: a
+:class:`~orpheus.geometry.boundary.ScalarResponse` behind a
+:class:`~orpheus.geometry.boundary.SpecularMirror` for the specular
+term, a :class:`~orpheus.geometry.boundary.LambertianReemission` for
+the diffuse one — whose rank-one structure makes its own :math:`G`
+unobservable, which is why the diffuse term declares the identity deck
+element rather than a second mirror. New BCs are one
 :class:`BoundaryTraceLaw` subclass + one
 ``BOUNDARY_OPERATOR_REGISTRY`` entry away — no sweep edits per BC.
 
@@ -274,7 +323,7 @@ operators, pick the amplitudes, sum. New BCs are one
 SN BC resolution table
 ----------------------
 
-The :meth:`SNMesh._resolve_one` dispatch is summarized below.
+The :meth:`SNMesh.realize_boundary_law <orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law>` dispatch is summarized below.
 Each row maps the user-facing :class:`~orpheus.geometry.mesh.BC`
 kind string to (a) the resolved :class:`BoundaryTraceLaw`
 subclass and (b) the :class:`SNBoundaryRealizer.realize` output
@@ -300,36 +349,42 @@ at :ref:`bc-sweep-cycle`.
      - Law class
      - Realized SN operator
      - α
-   * - ``"vacuum"``
+   * - ``"vacuum"`` — **narrowed** :math:`\Gamma_+ \to \Gamma_-`
      - :class:`~orpheus.geometry.boundary.VacuumInflow`
-     - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
-       (per-face inflow indices)
+     - the **zero map**: a
+       :class:`~orpheus.numerics.operator.ZeroOperator` whose two
+       space hooks emit :math:`|\Gamma_-|` rows forward and
+       :math:`|\Gamma_+|` rows on the transpose
      - —
-   * - ``"reflective"``
+   * - ``"reflective"`` — **narrowed** :math:`\Gamma_+ \to \Gamma_-`
      - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
-     - :class:`~orpheus.numerics.operator.PermutationOperator`
-       (``quadrature.reflection_index(axis)``)
+     - ``PermutationOperator(local_perm) & IdentityOperator()`` on the
+       **reduced** ordinate axis, with ``local_perm =
+       γ₊.to_local(quadrature.reflection_index(axis)[inflow])``
      - 1 (fast path)
    * - ``"reflective"``
      -
-     - ``α * PermutationOperator``
+     - ``α * <that TP>``
        (:class:`~orpheus.numerics.operator.ScaledOperator`)
      - α ≠ 1
-   * - ``"white"``
+   * - ``"white"`` — not yet narrowed (B3.4)
      - :class:`~orpheus.geometry.boundary.WhiteBoundary`
-     - :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`
+     - ``AngularAverageOperator.from_quadrature(...) &
+       IdentityOperator()`` — full-\ :math:`N` endomorphism
      - 1 (fast path)
    * - ``"white"``
      -
-     - ``α * AngularAverageOperator``
+     - ``α * <that TP>``
      - α ≠ 1
-   * - ``"periodic"``
+   * - ``"periodic"`` — not yet narrowed (B3.4)
      - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
-     - :class:`~orpheus.numerics.operator.PeriodicWrapOperator`
+     - ``PeriodicWrapOperator() & IdentityOperator()`` (angular
+       identity; the spatial pushforward is unbuilt, issue #183)
      - 1
-   * - ``"albedo"``
+   * - ``"albedo"`` — not yet narrowed (B3.4)
      - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
-     - :class:`~orpheus.numerics.operator.ZeroOperator`
+     - :class:`~orpheus.numerics.operator.ZeroOperator` (bare — an
+       endomorphism, no space hooks)
      - 0
    * - ``"albedo"``
      -
@@ -337,15 +392,34 @@ at :ref:`bc-sweep-cycle`.
      - 1
    * - ``"albedo"``
      -
-     - ``α * IdentityOperator``
+     - ``α * (IdentityOperator() & IdentityOperator())``
      - α ∉ {0, 1}
-   * - ``"prescribed_inflow"``
+   * - ``"prescribed_inflow"`` — rank-0 **affine**
      - :class:`~orpheus.geometry.boundary.PrescribedInflow`
      - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
-       (source.evaluate; ignores outgoing flux)
+       (source.evaluate masked to :math:`\Gamma_-`; ignores outgoing
+       flux). **Raises** an ordinate-axis mismatch if reached through
+       the narrowed consumer — its dense mask covers all :math:`N`
+       rows while :math:`\gamma_+` supplies :math:`|\Gamma_+|`.
      - —
 
-The :meth:`SNMesh._resolve_one` dispatch constructs the resolved
+.. note::
+
+   **Since campaign phase B3.2 a realized SN law is typed**
+   :math:`\Gamma_+ \to \Gamma_-` — it consumes the outflow half-trace
+   and produces the inflow half-trace, and the consumer composes
+   :math:`\iota_-\circ\text{law}\circ\gamma_+`. That landed for
+   ``vacuum`` and ``reflective`` only; the rows marked *not yet
+   narrowed* still emit full-\ :math:`N` endomorphisms, are
+   **unreachable from this registry** (which admits only
+   ``{vacuum, reflective}``), and are pinned by strict xfails until
+   **B3.4** restructures the realizer around :math:`R \circ G` for all
+   seven laws. A shape assertion cannot tell the two typings apart —
+   :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature × face in the
+   tree — so read the *declared spaces*, never the output shape. Full
+   derivation at :ref:`bc-domain-narrowing`.
+
+The :meth:`SNMesh.realize_boundary_law <orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law>` dispatch constructs the resolved
 operator via :meth:`SNBoundaryRealizer.realize(law, method_space)`
 where the ``method_space`` is built by
 :meth:`SNMethodSpace.for_face` carrying the precomputed unified
@@ -411,6 +485,6 @@ This means the curvilinear sweep does not need an explicit boundary
 condition at :math:`r = 0` --- the geometry handles it naturally.
 Curvilinear sweeps currently only support reflective BCs on the outer
 face; this is enforced by the validation in
-:meth:`SNMesh._resolve_one`.
+:meth:`SNMesh.realize_boundary_law <orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law>`.
 
 

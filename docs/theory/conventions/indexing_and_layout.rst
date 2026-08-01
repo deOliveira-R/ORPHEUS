@@ -1103,25 +1103,33 @@ Boundary handling has its own type vocabulary
      - Role
    * - ``BoundaryTraceLaw``
      - :mod:`orpheus.geometry.boundary` per-BC modules
-     - The discrete BC's algebraic action
-       :math:`\psi^+_\Gamma = T(\psi^-_\Gamma)`
+     - The discrete BC's algebraic action — the affine map
+       :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`, i.e.
+       **outflow trace in, inflow trace out**
    * - ``BoundaryRealizer``
      - :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
-     - SN-side discretisation of the trace law
-   * - ``InflowTraceSpace`` /
-       ``OutflowTraceSpace``
-     - :mod:`orpheus.numerics.spaces.angular_trace_space`
-     - The :math:`\Gamma_-` and :math:`\Gamma_+` discrete trace
-       spaces
+     - SN-side discretisation of the trace law. Since campaign phase
+       B3.2 a realized SN law is typed :math:`\Gamma_+ \to \Gamma_-`
+       (see :ref:`bc-domain-narrowing`)
+   * - ``AngularTraceSpace``
+     - :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
+     - **One** space carrying the whole boundary, with inflow /
+       outflow as directional *selectors* over it (the per-direction
+       ``InflowTraceSpace`` / ``OutflowTraceSpace`` pair was collapsed
+       at #205 / #201). The ordinate set at a face is a **three-way**
+       partition — inflow ⊔ outflow ⊔ tangential
    * - ``VacuumInflow`` /
        ``ReflectiveBoundary``
      - :mod:`orpheus.geometry.boundary.vacuum` /
        :mod:`orpheus.geometry.boundary.reflective`
      - Physical BC kinds
    * - ``PermutationOperator`` /
-       ``IncomingOrdinateMaskTensor``
+       ``TraceRestrictionOperator``
      - :mod:`orpheus.numerics.operator`
-     - The discrete-ordinate face-permutation algebra
+     - The discrete-ordinate face-permutation algebra, and the
+       gather / scatter pair :math:`(\gamma_S, \iota_S)` that types
+       the trace maps. Siblings, never subclasses: a permutation is a
+       bijection, a restriction is rank-deficient
 
 Diagnostic and historical state
 -------------------------------

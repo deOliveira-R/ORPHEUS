@@ -3894,14 +3894,20 @@ methods), which carry a **per-face directional mask**:
 
 The mask has shape ``(n_faces, n_ordinates)`` boolean; the
 tangential band :math:`|\Omega_n \cdot \hat n_f| \leq \epsilon`
-(default ``ε = 1e-12``) is in neither half.
+(``TANGENTIAL_EPS = 4 * np.finfo(np.float64).eps``, i.e.
+:math:`\approx 8.9\times 10^{-16}`) is in neither half — so **"not
+inflow" is never "outflow"**, and the two index sets are disjoint but
+NOT exhaustive.
 
 Three consumers read the mask today:
 
-* The SN realizer's vacuum branch consumes
-  ``inflow_indices_for_face(face)`` to construct an
-  :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
-  with the per-face inflow indices.
+* The SN realizer consumes **both** selectors: ``inflow_indices_for_face(face)``
+  gives a realized law's codomain :math:`\Gamma_-`, and
+  ``outflow_indices_for_face(face)`` its **domain** :math:`\Gamma_+` —
+  restricted through the
+  :class:`~orpheus.numerics.operator.TraceRestrictionOperator` the same
+  table caches (campaign phase B3.2; see
+  :ref:`bc-domain-narrowing`).
 * The universal invariant
   :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
   uses the inflow mask to validate a

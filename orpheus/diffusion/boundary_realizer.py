@@ -45,8 +45,13 @@ The realization table (law → 𝒜 → operator)
    declares, and the reason the four value rows looked alike is now
    stated rather than coincidental: **at P1 the angular geometry map
    is integrated out of the half-range moments**, so a specular
-   mirror, a Lambertian average, an identity and a null map all leave
-   the same scalar on the partial-current trace. The two refusals are
+   mirror, a Lambertian re-emission and an identity deck element all
+   leave the same scalar on the partial-current trace. (This is the
+   tier-2 case of :ref:`bc-method-realizability`: the realization is
+   EXACT, and the projection is simply not FAITHFUL — P1 cannot tell
+   those laws apart, which is a different statement from approximating
+   any of them. A "null map" is not in the list because B3.0 retired
+   it: the zero map is not a bijection and so was never a geometry.) The two refusals are
    exactly the laws whose remaining factor is *not* a per-face scalar
    — a spatial relabeling and an affine source. Read the table as the
    physics; read ``response_kernel`` as the single source it is
@@ -268,6 +273,15 @@ class DiffusionBoundaryRealizer:
         # turn a refusal into a value on a path (#290 P5) that does not exist
         # yet. Measured while writing B2 — it is the trap in this collapse.
         if isinstance(law, PrescribedInflow):
+            # ── REFUSAL AXIS: none — this one is PLUMBING ────────────────
+            # Unlike the two structural refusals (SN's zero-flux, on the
+            # state-cone axis; the spatial wrap below, on the topological
+            # one), nothing about P1 makes a prescribed inflow
+            # unrepresentable: q is a VECTOR in Γ₋, and Γ₋ here is one
+            # number per face, which the trace carries perfectly well. This
+            # refusal disappears the day #290 P5 wires the fixed-source arm,
+            # with no theory changing. Stated so a future reader does not
+            # mistake it for a statement about diffusion's fidelity.
             raise BoundaryError(
                 f"DiffusionBoundaryRealizer cannot realize "
                 f"{type(law).__name__}: J⁻ = q is the rank-0 AFFINE law — "
@@ -279,6 +293,17 @@ class DiffusionBoundaryRealizer:
                 law=type(law).key or type(law).__name__,
             )
         if isinstance(law.geometry_map, SpatialWrap):
+            # ── REFUSAL AXIS: spatial / topological ──────────────────────
+            # NOT an angular-resolution refusal, which is the one a reader
+            # expects from a diffusion realizer. Periodic's deck
+            # transformation is a TRANSLATION: it acts on the spatial
+            # coordinate and leaves angle untouched, so every angular
+            # discretization is trivially equivariant under it and P1 loses
+            # nothing angularly. What blocks it is that the wrap couples a
+            # face to its OPPOSITE face, and this realizer's codomain is a
+            # per-face scalar 𝒜 — a block-diagonal object with no slot for
+            # cross-face coupling. A method could resolve angle perfectly and
+            # still refuse this.
             raise BoundaryError(
                 f"DiffusionBoundaryRealizer cannot realize "
                 f"{type(law).__name__}: its geometry map is a SPATIAL "

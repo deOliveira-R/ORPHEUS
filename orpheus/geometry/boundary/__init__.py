@@ -21,12 +21,103 @@ method-agnostic sense, a single affine map on the boundary trace
 
 where :math:`\gamma_\pm` are the **inflow / outflow trace operators**
 that restrict :math:`\psi(\mathbf{r}, \Omega)` to the directional
-halves of :math:`\partial\Omega`; :math:`G : \Gamma_+ \to \Gamma_+`
-is the **geometric map** (a permutation, pushforward, angular
-average, or spatial wrap); :math:`R : \Gamma_+ \to \Gamma_-` is the
-**response kernel** (a scalar amplitude in :math:`[0, 1]` for
-sub-Markov BCs); and :math:`q \in \Gamma_-` is the optional
-**prescribed inflow source** (zero for the homogeneous case).
+halves of :math:`\partial\Omega`; :math:`G : \Gamma_+ \to \Gamma_-`
+is the **deck transformation** (a mirror, a spatial wrap, a rotation —
+the composition operator of a measure-preserving bijection of the
+boundary phase space, which is why it carries the CROSSING: the mirror
+that exchanges the two hemispheres is an ambient isometry);
+:math:`R : \Gamma_- \to \Gamma_-` is the **constitutive response** (a
+scalar amplitude in :math:`[0, 1]` for sub-Markov BCs, or a rank-one
+angular kernel for diffuse re-emission); and :math:`q \in \Gamma_-` is
+the optional **prescribed inflow source** (zero for the homogeneous
+case).
+
+Membership in :math:`G` is decidable by **multiplicativity** —
+:math:`G(\psi\varphi) = (G\psi)(G\varphi)` holds for a relabeling and
+never for an average, so anything failing it is a kernel and belongs to
+:math:`R`. Campaign phase **B3.0** corrected the split (the Lambertian
+average had been sitting in the geometry slot); see
+:ref:`bc-factor-roles` on the theory page and the ``_factors`` module
+docstring.
+
+Which methods can realize which laws — three tiers and three axes
+=================================================================
+
+.. note::
+
+   The referenceable anchor for this taxonomy is ``bc-method-realizability`` on
+   the boundary theory page, which owns it. This module is not autodoc'd, so a
+   label defined here would never register — and would collide the day the
+   package is added to ``docs/api/geometry.rst``. What follows is the code-side
+   statement of the same content, sited here because it is what a reader of the
+   realizers actually has open.
+
+A transport method is a **discretization of the trace**, i.e. a
+projection :math:`\Pi : \Gamma \to \Gamma_h` (SN keeps ordinates, P1
+the half-range moments, MoC track angles, MC nothing at all). Whether a
+law realizes in a method is whether the naturality square commutes:
+:math:`\Pi \circ (R\,G) = (R_h\,G_h) \circ \Pi`. Three tiers:
+
+1. **Exact and faithful** — :math:`R = \alpha I` for **any**
+   :math:`\alpha`, not merely 0 or 1. Scalars commute with every linear
+   projection and :math:`\alpha` is recoverable downstairs. This is why
+   :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+   is one line.
+2. **Exact but NOT faithful** — the square commutes, the realization is
+   correct, and the projection nonetheless **identifies laws that differ
+   upstairs**. At P1 a specular mirror and a Lambertian average both give
+   :math:`J^- = \alpha J^+`: neither is approximated, P1 simply cannot
+   tell them apart. This is the same fact as "on a scalar trace
+   :math:`G` is forced to the identity by dimension", read from the
+   other side — and it is why a rank-one :math:`R` makes :math:`G`
+   unobservable.
+3. **Not exact** — the law's action depends on structure the method does
+   not represent (an anisotropic kernel below P1).
+
+So the dividing line is **scalar vs angular**, NOT trivial vs
+non-trivial.
+
+:math:`G` is method-independent *as a geometric object* but its
+realization is conditional on **equivariance**, and that condition
+splits by which coordinate the map touches. A specular mirror acts on
+the ANGULAR coordinate, so :math:`G_h` exists only if the quadrature is
+symmetric under the reflection — which is exactly what ERR-042
+(measure-preserving), ERR-044 (involutive) and ERR-045
+(inflow :math:`\to` outflow) verify: they are **discretization-admits-
+the-symmetry** checks, not physics checks. A spatial wrap acts only on
+the SPATIAL coordinate, so every angular discretization is trivially
+equivariant under it — periodic is the more method-agnostic of the two,
+for a sharper reason than "it is a trace connection".
+
+**Three INDEPENDENT axes** decide a refusal. Each realizer's guards name
+their axis explicitly, because reading them as one axis is what made
+this taxonomy invisible for so long:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 40 38
+
+   * - axis
+     - question
+     - the refusal that shows it
+   * - angular resolution
+     - can the method represent :math:`R`'s angular structure?
+     - tier 3 — an anisotropic :math:`R` below P1
+   * - spatial / topological
+     - can the method's operator express cross-face coupling?
+     - **diffusion refuses periodic** — its codomain is a per-face
+       scalar with no slot for a face pair. Nothing to do with angle.
+   * - state-cone / sign
+     - is the value representable in the method's state cone?
+     - **SN refuses zero-flux** — :math:`\mathcal{A} = -1` needs a
+       signed current, and :math:`\psi \ge 0` admits no negative
+       angular inflow.
+
+:math:`q` is a fourth thing entirely: a **vector in** :math:`\Gamma_-`,
+not an operator, so it needs :math:`\Gamma_-` represented at whatever
+fidelity the source demands. The diffusion arm refuses it for a
+**plumbing** reason (#290 P5 does not exist yet), not a representability
+one — that refusal will vanish with no theory changing.
 
 The §16A.3 decomposition splits this map into three concrete layers:
 
@@ -44,12 +135,14 @@ The §16A.3 decomposition splits this map into three concrete layers:
    :eq:`bc-affine-form-init` factors
    (:attr:`~BoundaryTraceLaw.geometry_map`,
    :attr:`~BoundaryTraceLaw.response_kernel`,
-   :attr:`~BoundaryTraceLaw.source`), but only :attr:`source` is
-   real today: :class:`PrescribedInflow` overrides it and the
-   realizers read it. :attr:`geometry_map` and
-   :attr:`response_kernel` return the ABC's ``None`` on **every**
-   law and are read by nothing — campaign phase **B1** mints the
-   typed ``G`` / ``R`` specification objects and populates them.
+   :attr:`~BoundaryTraceLaw.source`), and **all three are real and
+   read**: campaign phase **B1** minted the typed ``G`` / ``R``
+   specification objects and populated them on all seven concretes,
+   and **B2** repointed five production sites off ``law.kind`` string
+   comparisons onto them (the sweep schedule's reflective set, the
+   ruled-corner predicate, the solver's leakage list, DSA admission
+   and row selection, and the diffusion albedo). The ABC's ``None``
+   default survives only so a stub law is detectable as unpopulated.
    Method-agnostic.
 3. **Method realisation** —
    :class:`~orpheus.geometry.boundary.BoundaryRealizer` Protocol +

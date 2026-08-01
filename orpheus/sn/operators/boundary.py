@@ -171,13 +171,19 @@ class SNBoundaryOperator(LinearOperator):
     block operator — bulk⊕trace): block-diagonal over the mesh's true boundary
     faces, ``B_a.apply(ψ)`` returns a
     :class:`~orpheus.transport.full_field.FullField` with **zero bulk**
-    and, on each face, ``bc[<face>].apply(ψ.boundary.face_view(<face>))``
-    **projected onto that face's INFLOW ordinate rows** — ``B_face = P_inflow ∘
-    law``. The projection is not incidental: ``B`` is the ``A_ss`` block
-    ``V_outflow → V_inflow``, so the realized law (a full-face operator) must
-    not emit on the outflow rows, which carry no ``B`` term in the block matrix.
-    Every outflow row of the output is zero, for every law. See
-    :meth:`_reflect_trace` for the transpose's mirror-image discipline. It
+    and, on each face, the composition ``ι₋ ∘ law ∘ γ₊`` — the realized law
+    consumes that face's **outflow** half-trace and produces its **inflow**
+    half-trace, and the scatter writes the image back into the face slot.
+
+    Since campaign phase **B3.2** every outflow row of the output is zero
+    **by typing**: ``B`` is the ``A_ss`` block ``V_outflow → V_inflow``, and
+    the outflow rows — which carry no ``B`` term in the block matrix — are not
+    in the law's codomain to be emitted on. Pre-B3.2 the law was a *full-face*
+    operator and this class projected its image onto the inflow rows
+    (``B_face = P_inflow ∘ law``), discarding the rest; the mismatch between
+    that declared domain and the physics was the root defect the boundary
+    review identified. See :meth:`_reflect_trace` for the transpose's
+    mirror-image discipline. It
     composes as ``−B`` in ``(L_full + C − S − F − B)`` (acting on the same
     :class:`~orpheus.transport.full_field.FullField` carrier as ``L``/``C``/``S``/``F``).
 
@@ -255,9 +261,13 @@ class SNBoundaryOperator(LinearOperator):
         # intersection rule, computed recursively like every composite
         # predicate. is_invertible inherits base False — NOT because the
         # reflection map is singular (a permutation is invertible), but
-        # because ``B_face = P_inflow ∘ law`` is rank-deficient: the codomain
-        # projection kills the outflow rows, so B maps a full face slot onto
-        # the inflow subspace and cannot be inverted.
+        # because ``B_face = ι₋ ∘ law ∘ γ₊`` is rank-deficient BY
+        # CONSTRUCTION: ``γ₊`` discards the inflow and tangential rows on the
+        # way in and ``ι₋`` leaves the outflow and tangential rows at zero on
+        # the way out, so B maps a full face slot onto the inflow subspace and
+        # cannot be inverted. (Pre-B3.2 the same rank deficiency arose from a
+        # codomain projection applied to a full-face law; the narrowing moved
+        # it from something the consumer imposed to something the types say.)
         laws = self._face_laws.values()
         return bool(laws) and all(law.is_adjointable for law in laws)
 
