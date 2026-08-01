@@ -39,7 +39,7 @@ The realization table (law → 𝒜 → operator)
 .. note::
 
    **The table is derived, not transcribed** (campaign phase B2.2).
-   The first map is one line — ``𝒜 = law.response_kernel.scalar`` —
+   The first map is one line — ``𝒜 = law.response_kernel.amplitude`` —
    not the five-arm ``isinstance`` ladder it used to be. Every row
    below then falls out of the response factor each law already
    declares, and the reason the four value rows looked alike is now
@@ -221,7 +221,7 @@ class DiffusionBoundaryRealizer:
         Until campaign phase B2 this method was a five-arm
         ``isinstance`` ladder returning ``0.0`` / ``-1.0`` /
         ``float(law.albedo)``; every arm returned exactly
-        ``law.response_kernel.scalar``, which is why the B1 gate could
+        ``law.response_kernel.amplitude``, which is why the B1 gate could
         pin the two bit-identical law by law
         (``tests/geometry/test_boundary_factors.py``). Collapsing it
         states the reason the arms looked alike: **at P1 the angular
@@ -289,4 +289,4 @@ class DiffusionBoundaryRealizer:
                 f"diffusion consumer exists (#290 P4 seam).",
                 law=type(law).key or type(law).__name__,
             )
-        return response.scalar
+        return response.amplitude

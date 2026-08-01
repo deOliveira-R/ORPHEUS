@@ -34,9 +34,8 @@ from orpheus.geometry.boundary import (
     BoundaryGeometryMap,
     BoundaryResponseKernel,
     BoundaryTraceLaw,
-    HemisphericalAverage,
     IdentityMap,
-    NullMap,
+    LambertianReemission,
     PeriodicBoundary,
     PrescribedInflow,
     ReflectiveBoundary,
@@ -49,35 +48,52 @@ from orpheus.geometry.boundary import (
 )
 
 
-#: ``(law, expected geometry type, expected response scalar, test id)`` — one
-#: entry per production law. The parametrization below AND the
+#: ``(law, expected geometry type, expected response type, expected amplitude,
+#: test id)`` — one entry per production law. The parametrization below AND the
 #: registry-coverage check both derive from this single list, so they cannot
 #: drift apart.
+#:
+#: **B3 re-assigned two columns**, per the corrected G/R split
+#: (:ref:`bc-factor-roles`): ``G`` is the composition operator of a
+#: measure-preserving phase-space bijection — decidable by multiplicativity —
+#: and it carries the :math:`\Gamma_+ \to \Gamma_-` crossing, because the mirror
+#: that exchanges the hemispheres is geometry. Everything else is ``R``.
+#:
+#: * **white** moved its Lambertian average out of ``G`` (``HemisphericalAverage``,
+#:   retired) into ``R`` (:class:`LambertianReemission`). An average is neither
+#:   multiplicative nor a bijection, so it never belonged in the geometry tier.
+#: * **vacuum** and **prescribed_inflow** moved from ``NullMap`` (retired) to
+#:   :class:`IdentityMap`. ``G = 0`` is not a bijection, and their zero-ness is
+#:   already spelled once, correctly, as ``ScalarResponse(0.0)``.
+#:
+#: The response TYPE is now a parameter because the tier has two members — the
+#: split B1 declined to make while every response was a bare scalar.
 #:
 #: ``_stub_for_test`` is deliberately absent: it is a test fixture, and the
 #: registry-hygiene fixture in ``test_boundary_trace_law.py`` evicts it outside
 #: that module anyway.
-_LAW_SPECS: list[tuple[BoundaryTraceLaw, type, float, str]] = [
-    (VacuumInflow(), NullMap, 0.0, "vacuum"),
-    (ReflectiveBoundary(), SpecularMirror, 1.0, "reflective-a1"),
-    (ReflectiveBoundary(axis="y", albedo=0.7), SpecularMirror, 0.7,
-     "reflective-partial"),
-    (WhiteBoundary(axis="x", albedo=0.4), HemisphericalAverage, 0.4, "white"),
-    (AlbedoBoundary(albedo=0.25), IdentityMap, 0.25, "albedo"),
-    (PeriodicBoundary(), SpatialWrap, 1.0, "periodic"),
-    (PrescribedInflow(), NullMap, 0.0, "prescribed_inflow"),
-    (ZeroFluxBoundary(), IdentityMap, -1.0, "zero_flux"),
+_LAW_SPECS: list[tuple[BoundaryTraceLaw, type, type, float, str]] = [
+    (VacuumInflow(), IdentityMap, ScalarResponse, 0.0, "vacuum"),
+    (ReflectiveBoundary(), SpecularMirror, ScalarResponse, 1.0, "reflective-a1"),
+    (ReflectiveBoundary(axis="y", albedo=0.7), SpecularMirror, ScalarResponse,
+     0.7, "reflective-partial"),
+    (WhiteBoundary(axis="x", albedo=0.4), IdentityMap, LambertianReemission,
+     0.4, "white"),
+    (AlbedoBoundary(albedo=0.25), IdentityMap, ScalarResponse, 0.25, "albedo"),
+    (PeriodicBoundary(), SpatialWrap, ScalarResponse, 1.0, "periodic"),
+    (PrescribedInflow(), IdentityMap, ScalarResponse, 0.0, "prescribed_inflow"),
+    (ZeroFluxBoundary(), IdentityMap, ScalarResponse, -1.0, "zero_flux"),
 ]
 
 PRODUCTION_LAWS = [
-    pytest.param(law, geom, alpha, id=tid)
-    for law, geom, alpha, tid in _LAW_SPECS
+    pytest.param(law, geom, resp, alpha, id=tid)
+    for law, geom, resp, alpha, tid in _LAW_SPECS
 ]
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
-def test_every_production_law_states_both_factors(law, geom_cls, alpha) -> None:
+@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
+def test_every_production_law_states_both_factors(law, geom_cls, resp_cls, alpha) -> None:
     """No production law may report ``None`` for either factor.
 
     This is the whole of B1 as a single assertion. It reds if a new law ships
@@ -91,34 +107,34 @@ def test_every_production_law_states_both_factors(law, geom_cls, alpha) -> None:
             f"to dispatch on `law.kind` strings instead."
         )
     assert isinstance(law.geometry_map, geom_cls)
-    assert isinstance(law.response_kernel, ScalarResponse)
+    assert isinstance(law.response_kernel, resp_cls)
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
-def test_factors_satisfy_their_protocols(law, geom_cls, alpha) -> None:
+@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
+def test_factors_satisfy_their_protocols(law, geom_cls, resp_cls, alpha) -> None:
     """Structural conformance to the two Protocols, at runtime."""
     assert isinstance(law.geometry_map, BoundaryGeometryMap)
     assert isinstance(law.response_kernel, BoundaryResponseKernel)
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
-def test_response_scalar_is_the_declared_amplitude(law, geom_cls, alpha) -> None:
-    """``response_kernel.scalar`` is exactly the law's amplitude."""
-    scalar = law.response_kernel.scalar
+@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
+def test_response_scalar_is_the_declared_amplitude(law, geom_cls, resp_cls, alpha) -> None:
+    """``response_kernel.amplitude`` is exactly the law's amplitude."""
+    scalar = law.response_kernel.amplitude
     if scalar != alpha:
         pytest.fail(
-            f"{type(law).__name__}.response_kernel.scalar = {scalar!r}, "
+            f"{type(law).__name__}.response_kernel.amplitude = {scalar!r}, "
             f"expected exactly {alpha!r}. B1 is a pure addition — the minted "
             f"factor must NAME the existing number, never re-derive it."
         )
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
+@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
 def test_response_is_bit_identical_to_the_sn_realizer_float(
-    law, geom_cls, alpha,
+    law, geom_cls, resp_cls, alpha,
 ) -> None:
     r"""The SN arm multiplies by ``float(law.albedo)``; we must equal it.
 
@@ -132,7 +148,49 @@ def test_response_is_bit_identical_to_the_sn_realizer_float(
             f"structural (0 for the rank-0 laws, 1 for periodic), so there is "
             f"no realizer float to compare against."
         )
-    assert law.response_kernel.scalar == float(law.albedo)
+    assert law.response_kernel.amplitude == float(law.albedo)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
+def test_the_two_tiers_are_structurally_disjoint(
+    law, geom_cls, resp_cls, alpha,
+) -> None:
+    r"""No factor may satisfy BOTH Protocols — the B3 correction, as a gate.
+
+    Before B3 this could not have been asserted: ``HemisphericalAverage`` was a
+    Lambertian kernel WEARING the geometry surface, so the tiers overlapped by
+    construction and the type system had nothing to say about it. Now the two
+    Protocols carry disjoint members (``permutes_ordinates`` vs
+    ``amplitude``/``is_zero``), and this test is what makes that a **contract**
+    rather than an accident.
+
+    It reds the moment a response grows ``permutes_ordinates`` (the exact shape
+    of the retired misassignment — an averaging kernel re-entering the geometry
+    tier) or a deck transformation grows ``amplitude``, which would let the
+    crossing and the physics blur back together in the next law that ships.
+
+    Why it matters beyond hygiene: **B4 composes** :math:`R \circ G`. A factor
+    accepted by both tiers is one the composition can take in either slot, and
+    the wrong slot is silent — the rank-one theorem
+    (:ref:`bc-factor-roles`) says a rank-one response annihilates
+    :math:`G` entirely, so exactly the misassignment we just corrected produces
+    no observable error to catch it by.
+    """
+    assert not isinstance(law.geometry_map, BoundaryResponseKernel), (
+        f"{type(law).__name__}.geometry_map is a "
+        f"{type(law.geometry_map).__name__}, which ALSO satisfies "
+        f"BoundaryResponseKernel — a deck transformation must not carry a "
+        f"constitutive amplitude. The crossing is geometry; the physics is not."
+    )
+    assert not isinstance(law.response_kernel, BoundaryGeometryMap), (
+        f"{type(law).__name__}.response_kernel is a "
+        f"{type(law.response_kernel).__name__}, which ALSO satisfies "
+        f"BoundaryGeometryMap — this is the shape of the pre-B3 misassignment "
+        f"(a Lambertian average answering `permutes_ordinates`). Membership in "
+        f"the geometry tier is decided by multiplicativity: a relabeling "
+        f"satisfies G(ψφ) = (Gψ)(Gφ), an average never does."
+    )
 
 
 # ── RETIRED at B2.2, and why ──────────────────────────────────────────
@@ -140,7 +198,7 @@ def test_response_is_bit_identical_to_the_sn_realizer_float(
 # ``test_response_is_bit_identical_to_the_diffusion_partial_current_albedo``
 # lived here. It asserted
 #
-#     law.response_kernel.scalar == DiffusionBoundaryRealizer\
+#     law.response_kernel.amplitude == DiffusionBoundaryRealizer\
 #                                       ._partial_current_albedo(law)
 #
 # which was real evidence in B1: the realizer was a five-arm ``isinstance``
@@ -148,7 +206,7 @@ def test_response_is_bit_identical_to_the_sn_realizer_float(
 # proved the minted factor was a rename-and-lift of the number that ladder
 # already reached for, not a re-derivation.
 #
-# B2.2 collapsed the ladder onto ``law.response_kernel.scalar``. The assertion
+# B2.2 collapsed the ladder onto ``law.response_kernel.amplitude``. The assertion
 # is now ``x == x`` — it executes, it is green, and it can never red: the same
 # fires-but-cannot-fail family as a tautological companion guard
 # (``vv-principles`` Mode 8), arrived at not by bad authorship but by DECAY,
@@ -179,7 +237,7 @@ def test_every_registered_law_is_covered_by_this_file() -> None:
     # ReflectiveBoundary, which reports "partial" (see the B2 warning below);
     # compare on the registered class instead so this check is about coverage,
     # not about that wrinkle.
-    covered = {type(law).key for law, _, _, _ in _LAW_SPECS}
+    covered = {type(law).key for law, _, _, _, _ in _LAW_SPECS}
     missing = registered - covered
     if missing:
         pytest.fail(
@@ -189,8 +247,8 @@ def test_every_registered_law_is_covered_by_this_file() -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,alpha", PRODUCTION_LAWS)
-def test_factors_are_frozen(law, geom_cls, alpha) -> None:
+@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
+def test_factors_are_frozen(law, geom_cls, resp_cls, alpha) -> None:
     """A spec is a value; mutating one in place must be impossible."""
     import dataclasses
 
@@ -242,7 +300,7 @@ def test_specular_mirror_is_the_only_ordinate_permuting_geometry() -> None:
     """
     permuting_geoms = {
         type(law.geometry_map)
-        for law, _, _, _ in _LAW_SPECS
+        for law, _, _, _, _ in _LAW_SPECS
         if law.geometry_map.permutes_ordinates
     }
     assert permuting_geoms == {SpecularMirror}, (

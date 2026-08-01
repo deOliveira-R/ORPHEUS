@@ -2013,3 +2013,70 @@ before/after is apples-to-apples. The per-mutation red COUNTS are the real
 signal: `white_nocos` 11→13 and exactly +1 on each of the twelve error guards
 proved the repairs landed where designed, and every other count being unchanged
 proved nothing was disturbed.
+
+---
+
+## L29 — Verifying a DOMAIN NARROWING (an operator's domain shrinks from a superset to the honest half; SN boundary B3): the old gate does NOT go tautological, it stops RUNNING — and the narrowing's own new index remap is activated only in a regime the existing gate does not use
+
+The campaign shape: production hands a realized law the WHOLE slot and discards
+the unwanted rows on the way out (`full = law.apply(face_in); out[sel] =
+full[sel]`); the honest physics is `Γ₊ → Γ₋`, so the carve narrows the law's
+domain AND codomain. A sibling arm (diffusion) already does it right, so the
+carve is a domain narrowing against a worked in-repo precedent. Five reusable
+test-design facts, all MEASURED (boundary review §B3, 2026-07-31):
+
+- **The "will this gate go tautological?" question usually has a THIRD answer:
+  the gate BREAKS.** The reflex worry (`vv` Mode-8 signature-tautological) is
+  that "the discarded rows are zero" becomes unfalsifiable once the codomain no
+  longer contains them. MEASURED: it stays reddenable (a pass-through mutation
+  reds it with its original message) — but the gate never gets there, because
+  its *reference expression* (`bc.apply(whole_slot)`) feeds the narrowed
+  operator the wrong shape. **Always run the gate under a full-fidelity
+  simulation of the carve** (patch the REALIZER, not only the call site) — a
+  call-site-only simulation leaves the reference working and hides the break.
+  Diagnostic value: `realizer` mode reds 16 items, `narrow` mode reds 0.
+- **The gate's TEETH change even when the assertion survives.** After the
+  narrowing the original bug (the law's discarded image leaking) is
+  *unspellable* — strictly better than red (L24) — and what remains reddenable
+  is only the WRITE-TARGET family (wrong target / extra write). So the honest
+  re-pose is on the mechanism: `got[complement(codomain_rows)] == 0` plus a
+  SHAPE gate on the realized operator (`apply` maps `(n_dom,…)→(n_cod,…)`) plus
+  a `pytest.raises` NEGATIVE for the domain guard. Ship the shape gates as the
+  post-carve contract: they are RED pre-carve and GREEN post-carve, which is
+  the flip-proof the carve is measuring the right thing.
+- **A three-way index split hides in a two-way vocabulary.** The face slot is
+  `inflow ⊔ outflow ⊔ TANGENT` (`|Ω·n| ≤ ε` belongs to neither) — 4 of 8
+  ordinates on the product-quadrature fixture. The shipped gate asserted
+  `got[outflow] == 0` and was MEASURED BLIND to a tangent leak that the
+  widened `got[complement(inflow)] == 0` catches. Whenever a gate says "the
+  other rows are zero", check whether "other" is really the complement.
+- **The narrowing can introduce a NEW index remap whose activating regime the
+  existing gate does not use.** `out[sel] = full[sel]` needs no remap; after
+  narrowing, the image is indexed by position WITHIN the codomain, so a row
+  subset needs `searchsorted(codomain_rows, sel)`. The naive
+  `arange(sel.size)` is EXACTLY correct in 1-D (the schedule gives each face
+  wholly to one half) and WRONG in 2-D (a face's rows straddle both halves) —
+  and the boundary suite's split gate is built on a SPHERE, so it is blind;
+  the only catchers are end-to-end 2-D solves in another directory. **Before
+  the carve, enumerate the arithmetic the narrowing ADDS and ask which fixture
+  activates it** (§0.6, one level in from config-blindness: the blind axis is
+  the *dimension*, not the group count).
+- **Bit-identity here is `array_equal`, and a SECOND, independently-written
+  narrowed implementation is the strongest evidence.** The narrowing removes
+  rows from a gather — no reduction tree changes — so any nulp tolerance would
+  hide the bug class. Prove it twice: once with a wrapper
+  (`full.apply(embed(γ₊))[cod]`) and once with a genuinely reduced kernel (a
+  reduced permutation). sha256-identical on both, forward AND transpose, over
+  every reachable fixture. Also measure the laws that DON'T narrow neutrally
+  (SN's albedo/periodic realize as full-face identities → their narrowed action
+  is a DECISION, not a refactor) and ship those as `xfail(strict=True)` so the
+  decision cannot be forgotten when a later phase admits them.
+- **Method note that paid for itself twice.** (a) The reduced operator does NOT
+  validate its domain — `PermutationOperator(reduced_perm).apply(full_slot)`
+  silently truncates and returns wrong numbers (MEASURED), so "hand it the full
+  slot" stays spellable unless the carve adds a guard; the negative test for
+  that guard is a deliverable, not a nicety. (b) A first tangent-leak mutation
+  was VACUOUS (a permutation's image on the tangent rows is structurally zero
+  once the domain is `Γ₊`) — caught by the sha256 positive-control table before
+  any colour was read. Keep a per-variant hash table; it is cheap and it is the
+  only thing standing between you and a confident false "no gate catches this".

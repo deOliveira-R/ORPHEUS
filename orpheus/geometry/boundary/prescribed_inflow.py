@@ -36,7 +36,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ._base import BoundaryTraceLaw
-from ._factors import NullMap, ScalarResponse
+from ._factors import IdentityMap, ScalarResponse
 from ._source import InflowSourceSpec, NoSource
 
 
@@ -99,16 +99,22 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property
-    def geometry_map(self) -> "NullMap":
-        r""":math:`G = 0` — the inflow comes entirely from :math:`q`.
+    def geometry_map(self) -> "IdentityMap":
+        r""":math:`G = \mathrm{id}` — the inflow comes entirely from :math:`q`.
 
         Prescribed inflow is the rank-0 AFFINE case: unlike vacuum it has a
-        non-zero source, but like vacuum no outgoing flux is routed back. The
-        realized ``IncomingSourceOperator`` says exactly this — *"the rank-0
-        case where R = G = 0"* — so this property names a fact the operator
-        layer already documents.
+        non-zero source, but like vacuum no outgoing flux is routed back. That
+        routing is severed by the **response** (:math:`R = 0`), not by the deck
+        transformation — the law identifies no geometry, so :math:`G` is the
+        identity element.
+
+        **Corrected in B3.** This property previously returned ``NullMap``
+        (:math:`G = 0`). The realized ``IncomingSourceOperator`` describes
+        itself as *"the rank-0 case where R = G = 0"*, and that phrasing is the
+        same conflation: the zero map is not a bijection and so cannot be a
+        geometry map, and :math:`R = 0` alone already severs the routing.
         """
-        return NullMap()
+        return IdentityMap()
 
     @property
     def response_kernel(self) -> "ScalarResponse":

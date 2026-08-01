@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ._base import BoundaryTraceLaw
-from ._factors import NullMap, ScalarResponse
+from ._factors import IdentityMap, ScalarResponse
 
 
 __all__ = ["VacuumInflow"]
@@ -61,17 +61,26 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property
-    def geometry_map(self) -> "NullMap":
-        r""":math:`G = 0` — no outgoing flux returns.
+    def geometry_map(self) -> "IdentityMap":
+        r""":math:`G = \mathrm{id}` — a vacuum face fixes no geometry.
 
         Vacuum is the rank-0 corner of :math:`\gamma_-\psi = R\,G\,\gamma_+\psi
-        + q`: geometry, response AND source all vanish, so
-        :math:`\gamma_-\psi = 0`. That the realized SN operator is a *projector*
-        rather than the zero map is a representation choice at the operator
-        layer (it preserves the outflow rows), not a different law — and phase
-        **B3** narrows the domain so the two agree.
+        + q`, but the vanishing is the **response's** (:math:`R = 0`) and the
+        **source's** (:math:`q = 0`), not the deck transformation's: nothing is
+        identified with anything, so :math:`G` is the group's identity element
+        and :math:`\gamma_-\psi = 0` follows from :math:`R` alone.
+
+        **Corrected in B3.** This property previously returned ``NullMap``
+        (:math:`G = 0`) — but the zero map is not a bijection, so it was never
+        a geometry map at all, and it spelled vacuum's zero-ness a second time
+        in the wrong tier. ``ScalarResponse(0.0)`` below already says it once.
+
+        That the realized SN operator is a *projector* rather than the zero map
+        is a representation choice at the operator layer (it preserves the
+        outflow rows), not a different law — and phase **B3** narrows the domain
+        so the two agree.
         """
-        return NullMap()
+        return IdentityMap()
 
     @property
     def response_kernel(self) -> "ScalarResponse":

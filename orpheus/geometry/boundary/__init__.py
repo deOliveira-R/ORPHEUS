@@ -486,9 +486,8 @@ from ._composition import LawNode, LawScaled, LawSum
 from ._factors import (
     BoundaryGeometryMap,
     BoundaryResponseKernel,
-    HemisphericalAverage,
     IdentityMap,
-    NullMap,
+    LambertianReemission,
     ScalarResponse,
     SpatialWrap,
     SpecularMirror,
@@ -548,13 +547,19 @@ __all__ = [
     # Abstract base
     "BoundaryTraceLaw",
     # The affine form's two operator factors, as typed SPECIFICATIONS
-    # (Grand Report v3 §16A.2; campaign phase B1). ``G : Γ₊ → Γ₊`` is the
-    # geometry, ``R : Γ₊ → Γ₋`` the crossing; the realized composite is ``B``.
+    # (Grand Report v3 §16A.2; campaign phases B1 + B3). ``G : Γ₊ → Γ₋`` is the
+    # DECK TRANSFORMATION — it carries the crossing, because the mirror that
+    # exchanges the hemispheres is geometry — and ``R : Γ₋ → Γ₋`` is the
+    # CONSTITUTIVE response; the realized composite is ``B``. Membership is
+    # decidable by multiplicativity (``_factors`` docstring): a relabeling
+    # satisfies ``G(ψφ) = (Gψ)(Gφ)``, an average never does. B3 moved the
+    # Lambertian across that line (``HemisphericalAverage`` ->
+    # ``LambertianReemission``) and retired ``NullMap``, whose ``G = 0`` is not
+    # a bijection and merely respelled ``ScalarResponse(0.0)`` a tier too high.
     "BoundaryGeometryMap",
     "BoundaryResponseKernel",
-    "HemisphericalAverage",
     "IdentityMap",
-    "NullMap",
+    "LambertianReemission",
     "ScalarResponse",
     "SpatialWrap",
     "SpecularMirror",

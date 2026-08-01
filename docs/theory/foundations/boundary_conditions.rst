@@ -207,17 +207,21 @@ where:
   function space to the inflow / outflow boundary trace spaces
   :math:`\Gamma_\pm` (see :ref:`bc-trace-structure` below for the
   formal definition).
-* :math:`G : \Gamma_+ \to \Gamma_+` is the **geometric map** — a
-  measure-preserving permutation, pushforward, spatial wrap-around,
-  or hemispheric cosine-weighted average. It carries pure geometry
-  (it changes nothing about the physical interaction at the
-  boundary; it just relabels the angular fluxes that meet there).
-* :math:`R : \Gamma_+ \to \Gamma_-` is the **response kernel** — a
-  scalar amplitude in :math:`[0, 1]` for the standard sub-Markov BCs
-  (albedo, white, partial-current) or a full angular kernel in
-  general weak-form BCs (deferred; see the
+* :math:`G : \Gamma_+ \to \Gamma_-` is the **deck transformation** — a
+  measure-preserving permutation, pushforward, or spatial wrap-around.
+  It carries pure geometry (it changes nothing about the physical
+  interaction at the boundary; it just relabels the angular fluxes
+  that meet there). Note the codomain: :math:`G` carries the
+  **crossing**, because the mirror that exchanges the two hemispheres
+  is an ambient isometry — see :ref:`bc-factor-roles` below.
+* :math:`R : \Gamma_- \to \Gamma_-` is the **response kernel** — the
+  constitutive law. A scalar amplitude in :math:`[0, 1]` for the
+  standard sub-Markov BCs (albedo, partial-current), or a rank-one
+  angular kernel for diffuse (Lambertian) re-emission. The general
+  weak-form angular kernel remains deferred; see the
   :class:`~orpheus.geometry.boundary.BoundaryError` catalog and
-  Issue #175 close-out follow-ups).
+  Issue #175 close-out follow-ups.
+
 * :math:`q \in \Gamma_-` is the **prescribed inflow source** — a
   vector-valued quantity on :math:`\Gamma_-` only. The empty case
   :math:`q \equiv 0` is the homogeneous BC; the inhomogeneous case
@@ -238,10 +242,14 @@ Three remarks make this form load-bearing:
    homogeneous case (:math:`q \equiv 0`) and never give the affine
    form an explicit name; ORPHEUS does because two distinct rank-0
    cases (:class:`~orpheus.geometry.boundary.VacuumInflow` with
-   :math:`R = G = q = 0` and
+   :math:`R = q = 0` and
    :class:`~orpheus.geometry.boundary.PrescribedInflow` with
-   :math:`R = G = 0` but :math:`q \neq 0`) need a single uniform
-   contract.
+   :math:`R = 0` but :math:`q \neq 0`) need a single uniform
+   contract. Note that it is :math:`R` alone that vanishes in both:
+   :math:`G` is the **identity** deck element, not zero — the zero map
+   is not a bijection and so cannot be a geometry map at all. Writing
+   ":math:`R = G = 0`" spelled the same vanishing twice, once in the
+   wrong tier; campaign phase B3 corrected it.
 3. **The three operators are first-class.** The
    :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` ABC exposes
    :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.geometry_map`,
@@ -255,6 +263,91 @@ Three remarks make this form load-bearing:
    weak-form realizer might dispatch on the geometry / response /
    source independently.
 
+.. _bc-factor-roles:
+
+Which factor owns what — the decidable criterion
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The two factors are not "the first thing that happens" and "the second
+thing that happens". They are **different kinds of mathematical
+object**, and membership is decidable:
+
+    :math:`G` is the **composition (Koopman) operator of a
+    measure-preserving bijection of the boundary phase space** —
+    :math:`(G\psi)(x) = \psi(g^{-1}x)` for some :math:`g` acting on
+    :math:`\partial\Omega \times S^d`.
+
+Such operators are invertible, preserve the trace measure
+:math:`|\Omega\cdot\hat n|\,d\Omega\,dA`, form a **group**, and — the
+test that decides membership — are **multiplicative**:
+:math:`G(\psi\varphi) = (G\psi)(G\varphi)`. A relabeling satisfies that
+identity; **an averaging operator never does**. Anything failing
+multiplicativity is a kernel, and kernels are :math:`R`.
+
+Physically: a change of direction caused by the **geometry** is
+:math:`G`; a change of direction caused by the **constitutive
+assumption of the BC** is :math:`R`. Absorption, accommodation and
+diffusivity are :math:`R`. Mirrors, translations and rotations are
+:math:`G`.
+
+**The crossing is geometric.** The specular mirror
+:math:`\Omega \mapsto \Omega - 2(\Omega\cdot\hat n)\hat n` is the unique
+ambient isometry fixing the face; it exchanges the hemispheres and
+preserves :math:`|\Omega\cdot\hat n|`. So the passage from
+:math:`\Gamma_+` to :math:`\Gamma_-` is not something the *physics*
+does — it is something the *geometry* provides, which is why
+:math:`G` and not :math:`R` carries it.
+
+**Why a misassignment can hide — a theorem.** If :math:`R` is rank-one,
+:math:`R = u \otimes v`, then
+:math:`R \circ G = u \otimes (G^{\mathsf T} v)`. The Lambertian's
+:math:`v = |\Omega\cdot\hat n|` is invariant under both the mirror and
+the periodic translation, so :math:`R \circ G = R`:
+
+    :math:`G` is **unobservable exactly when** :math:`R` is rank-one.
+
+The white BC is precisely that case. Its :math:`G` slot therefore had
+no observable consequence, and the physics drifted into it — the
+cosine-weighted Lambertian average shipped as a geometry map until
+campaign phase B3 moved it to the response tier where it belongs. The
+same theorem is why that correction leaves the composite :math:`R\,G`
+unchanged by construction.
+
+.. _bc-factor-quotients:
+
+The quotient picture — which BC is the orbifold
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:math:`G` is the **deck transformation of the quotient by which the
+physical domain is represented**:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 30 20 32
+
+   * - BC
+     - quotient
+     - fixed points
+     - what it is
+   * - periodic
+     - :math:`\mathbb{R}^d/\Lambda` by a translation
+     - none — **free**
+     - a torus; a genuine **covering space**, a manifold
+   * - reflective
+     - by a reflection
+     - the mirror plane
+     - an **orbifold** (Thurston *reflector* boundary)
+   * - rotational (⅛-core)
+     - by a finite rotation
+     - the axis
+     - an **orbifold** (cone points)
+
+The orbifold label therefore attaches to **reflective**, not to
+periodic — periodic is the free / covering-space case. And
+:math:`R = I` **exactly when** the BC is a pure symmetry statement
+adding no physics. Vacuum, white and albedo are not symmetry statements
+at all, which is why their :math:`G` is the identity deck element and
+all their content sits in :math:`R`.
 .. note::
 
    **SN apply matvec honours the affine BC contract (Issue #168
@@ -1738,7 +1831,7 @@ distinction. Giving the relation tier its own type is issue **#177**.
      - Trace-edge family
    * - :class:`~orpheus.geometry.boundary.VacuumInflow`
      - ``"vacuum"``
-     - rank-0 (none)
+     - identity (fixes no geometry)
      - 0
      - 0
      - **none** — the inflow is data
@@ -1750,8 +1843,9 @@ distinction. Giving the relation tier its own type is issue **#177**.
      - same-face back-edge, mirror-partner map
    * - :class:`~orpheus.geometry.boundary.WhiteBoundary`
      - ``"white"``
-     - cosine-weighted hemispheric average (Lambertian)
-     - albedo
+     - identity (fixes no geometry)
+     - albedo × cosine-weighted hemispheric average (Lambertian) —
+       **rank-one**
      - 0
      - same-face back-edge, all-to-all on the face
    * - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
@@ -1762,15 +1856,16 @@ distinction. Giving the relation tier its own type is issue **#177**.
      - opposite-face **pair**, mutually feeding
    * - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
      - ``"albedo"``
-     - identity in angle
-     - albedo
+     - identity (fixes no geometry)
+     - albedo — **magnitude only**; the angular re-emission closure is
+       the gap (see the census note below)
      - 0
      - same-face back-edge for :math:`\alpha \neq 0` (degenerates
        to none at :math:`\alpha = 0`); not yet modelled in
        ``sweep_acyclicity``
    * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
      - ``"prescribed_inflow"``
-     - 0
+     - identity (fixes no geometry)
      - 0
      - :math:`q \in \Gamma_-`
      - **none** — the inflow is data
@@ -1785,15 +1880,32 @@ strongly-connected-component decomposition described under
 a second law feeds back the other way. The opposite-face pair is
 the exception — periodic closes a loop from a single law.
 
-Per-law rank census (each kernel read off the :math:`G_\alpha`
-column above): vacuum and prescribed inflow carry no response
-kernel (rank-0). White is **rank-1 in angle** — one isotropic
-re-entry mode, fed by the cosine-weighted (Lambertian) outflow
-average, written to every inflow ordinate. Reflective and albedo
-are **angular permutations** (axis-reflection and identity
-respectively, scaled by the albedo factor) — rank :math:`N/2` per
-slab face: structured, trace-sized, NOT rank-1. Periodic is a
-**spatial pushforward** pairing opposite faces. Marshak /
+Per-law rank census: vacuum and prescribed inflow carry no response
+kernel (rank-0) — the identity in their :math:`G_\alpha` column is the
+*deck* identity, i.e. "this law fixes no geometry", and the vanishing
+is :math:`R`'s. White is **rank-1 in angle** — one isotropic re-entry
+mode, fed by the cosine-weighted (Lambertian) outflow average, written
+to every inflow ordinate; the whole of it lives in :math:`R_\alpha`.
+Reflective is an **angular permutation** (the axis reflection, scaled
+by the albedo) — rank :math:`N/2` per slab face: structured,
+trace-sized, NOT rank-1.
+
+.. note:: **Albedo's angular closure is the one genuine gap.** Its
+   :math:`R_\alpha` states the *magnitude* with which flux returns but
+   not the *distribution*, and on an angular trace those are
+   independent — the scalar is complete only on a scalar
+   (partial-current) trace, where the distribution has no degrees of
+   freedom. Fixing the closure makes
+   :math:`\text{albedo}(\alpha, \text{isotropic}) \equiv
+   \text{white}(\alpha)` and
+   :math:`\text{albedo}(\alpha, \text{specular}) \equiv
+   \text{reflective}(\alpha)` **theorems** rather than coincidences,
+   with the specular closure moving its content across into
+   :math:`G_\alpha` — which is exactly what the
+   :ref:`membership criterion <bc-factor-roles>` predicts. Campaign
+   phase B3.4; issue **#189**.
+
+Periodic is a **spatial pushforward** pairing opposite faces. Marshak /
 partial-current boundaries are rank-N via the
 **descriptor-tree algebra** on the unrealised laws (:class:`LawSum`
 / :class:`LawScaled` over :class:`BoundaryTraceLaw` leaves) —

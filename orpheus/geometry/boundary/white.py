@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 from ._base import BoundaryTraceLaw
-from ._factors import HemisphericalAverage, ScalarResponse
+from ._factors import IdentityMap, LambertianReemission
 
 if TYPE_CHECKING:
     import numpy as np
@@ -87,20 +87,37 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property
-    def geometry_map(self) -> "HemisphericalAverage":
-        r""":math:`G = G_{\text{diff}}`, the cosine-weighted Lambertian average.
+    def geometry_map(self) -> "IdentityMap":
+        r""":math:`G = \mathrm{id}` — a white face fixes no geometry.
 
-        Rank-one in angle: contract the outgoing hemisphere against
-        :math:`|\Omega\cdot\hat n|\,w`, rebroadcast isotropically.
+        Diffuse re-emission is not a symmetry of the domain: nothing is
+        identified with anything, so the deck transformation is the group's
+        identity element and the crossing to :math:`\Gamma_-` is the face's own
+        canonical one.
+
+        **Corrected in B3.** This property previously returned
+        ``HemisphericalAverage`` — the Lambertian average, sitting in the
+        geometry slot. An average is not multiplicative and not a bijection, so
+        it fails the membership test for :math:`G`; it now lives in
+        :attr:`response_kernel` as :class:`LambertianReemission`, where the
+        physics belongs. The misassignment was unobservable because a rank-one
+        response annihilates :math:`G` entirely — see
+        :ref:`bc-factor-roles`, which is also why the correction
+        leaves the composite :math:`R\,G` unchanged by construction.
         """
-        return HemisphericalAverage(
-            axis=self.axis, outward_sign=self.outward_sign,
-        )
+        return IdentityMap()
 
     @property
-    def response_kernel(self) -> "ScalarResponse":
-        r""":math:`R = \alpha`, the white-current scaling."""
-        return ScalarResponse(self.albedo)
+    def response_kernel(self) -> "LambertianReemission":
+        r""":math:`R = \alpha\,G_{\text{diff}}` — attenuated diffuse re-emission.
+
+        Rank-one in angle: contract the returning hemisphere against
+        :math:`|\Omega\cdot\hat n|\,w`, rebroadcast isotropically, scale by the
+        albedo. The whole law is here; :attr:`geometry_map` is the identity.
+        """
+        return LambertianReemission(
+            alpha=self.albedo, axis=self.axis, outward_sign=self.outward_sign,
+        )
 
     # ------------------------------------------------------------------
     # §16A.12 universal invariants — Wave 7 / C7.6 overrides.

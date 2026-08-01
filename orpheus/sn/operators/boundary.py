@@ -709,7 +709,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
             raise NotImplementedError(
                 f"RadialCharacteristicBoundaryOperator: the outer-face law "
                 f"{type(law).__name__} (G={type(law.geometry_map).__name__}, "
-                f"R={law.response_kernel.scalar}) has no ruled corner action "
+                f"R={law.response_kernel.amplitude}) has no ruled corner action "
                 f"yet (white / albedo / periodic / a prescribed source at the "
                 f"off-quadrature μ = ±1 ray — loud-deferred, 2.5d "
                 f"plan-of-record)."

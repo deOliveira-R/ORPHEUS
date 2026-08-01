@@ -1063,22 +1063,51 @@ smell B2 removes.
 
 ## B3 — Narrow the SN law's domain to `Γ₊` *(the root fix — obeys C-1)*
 
+> **DESIGN OF RECORD: `.claude/plans/b3_domain_narrowing_crosswalk.md`** — the
+> mandatory pre-carve convention crosswalk (Pattern 7 / L17), carrying the
+> measured answers to every opening question and the **§7 G/R correction**. Read
+> it before touching code; the sub-step table is §8 there and tasks #10–#16 here.
+
 **[R]** The theory page types `G : Γ₊ → Γ₊`, `R : Γ₊ → Γ₋`. **[R]** Diffusion
 already hands its law exactly `trace.outflow_view(face)`. SN hands the whole face
 slot, and every symptom in §4 follows from that.
 
 - SN's realized law takes the **outflow trace**, returns the **inflow trace**.
 - The mask's dead outflow preservation, the `P_in ∘ P_out = 0` composition, and the
-  two `P_in` spellings + one `I − P_in` (§5) collapse into **one named projector**
-  — **[G]** a type that does not exist today, while the class named
-  `IncomingOrdinateMaskTensor` is documented as the *outflow* projector.
-- **C-1:** the 4 outflow-must-be-zero tests + the 2-D balance gate are **re-posed**
-  to state the narrowed contract. They are evidence of the old contract, not
-  obstacles — rewrite them, never delete them.
+  two `P_in` spellings + one `I − P_in` (§5) collapse into **one named restriction**
+  — **[G]** measured absent from all of `orpheus/numerics/`.
 
-**Gate:** the composite's output is **bit-identical** before/after (only the
-intermediate contract changes); the re-posed gates state the new domain; the
-mutation sweep still catches 30/31.
+### What the measurements changed (2026-07-31)
+
+- **§5 needs a fourth map.** **[M]** On a real CYL mesh (`product(2,4)`) **4 of 8
+  ordinates at `xmax` are tangential**, so `I − P_in ≠ P_out`; `P_out` is a map no
+  operator type spells, and the mask's *"projection onto the outflow subspace"*
+  docstring is **false**. The slab is the unrepresentative fixture.
+- **The narrowing cannot be a view.** The diffusion precedent does not transfer —
+  `OUTFLOW_ROW` is a constant index (a real view); the angular set is a
+  quadrature-dependent fancy index (a copy). **The restriction is an OPERATOR.**
+- **⭐ USER RULING — the G/R split is corrected inside B3.** `G` is the composition
+  operator of a measure-preserving phase-space bijection (decidable test:
+  **multiplicativity**); the crossing is geometric, so `G : Γ₊ → Γ₋` and
+  `R : Γ₋ → Γ₋`. The Lambertian average moves **out of `G` into `R`**, and the
+  **response-kernel tier is minted now**. `G` is unobservable exactly when `R` is
+  rank-one — the theorem that let white's misassignment survive.
+- **⭐ USER RULING — albedo and periodic are BUILT, not refused.** Albedo's gap is
+  an incomplete `R` (magnitude without angular distribution), not an empty `G`;
+  periodic's `G` is the translation reading the **partner** face's `Γ₊`.
+- **C-1:** the gates are **2 test functions / 5 items**, and the honest blast
+  radius is **16 items across 4 files** — **[M]** all signature breaks, zero value
+  breaks. They are **re-posed** (RG-1…RG-5), never deleted. Two teeth findings:
+  the outflow leg must **widen to `complement(inflow)`** or it is blind to the
+  tangential rows, and the narrowed operator owes an explicit **domain guard**
+  (a reduced permutation silently accepts a full-face input).
+
+**Gate:** the composite's output is **bit-identical** (`np.array_equal` — no
+reduction tree changes, so nulp would hide the bug class) on `{reflective,
+vacuum}` at mesh level, law level for `white`/`prescribed_inflow`; the re-posed
+gates state the new domain; **the mutation harness is promoted into the repo**
+(**[M]** it currently lives only in a job tmp dir, so the stated gate is
+unrunnable next session).
 
 ## B4 — Compose `R ∘ G` *(closes the `∘` gap at both layers)*
 

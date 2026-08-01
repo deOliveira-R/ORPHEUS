@@ -203,7 +203,7 @@ def test_shim_carries_the_law_it_was_realized_from():
     assert shim.law is law
     # The structural questions the string sites are really asking.
     assert shim.law.geometry_map.permutes_ordinates is True
-    assert shim.law.response_kernel.scalar == 0.7
+    assert shim.law.response_kernel.amplitude == 0.7
 
 
 def test_space_tags_forward_to_inner():

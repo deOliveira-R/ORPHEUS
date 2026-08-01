@@ -318,7 +318,7 @@ class TestRefusals:
         realizable cases (mirror of the SN fallthrough contract).
 
         This leg is what caught the B2.2 regression: collapsing the
-        ``isinstance`` ladder onto ``law.response_kernel.scalar``
+        ``isinstance`` ladder onto ``law.response_kernel.amplitude``
         deleted the ladder's final fallthrough ``raise``, so this
         object stopped getting a named :class:`BoundaryError` and
         started dying on a bare ``AttributeError`` deep in a factor
@@ -343,7 +343,7 @@ class TestRefusals:
         default to ``None``, pinned in
         ``tests/geometry/test_boundary_trace_law.py``). Since B2 diffusion
         realizes a law THROUGH its response factor, such a law has no 𝒜 at
-        all, and must be told so by name rather than crash on ``None.scalar``.
+        all, and must be told so by name rather than crash on ``None.amplitude``.
         """
         from orpheus.geometry.boundary import BoundaryTraceLaw
 

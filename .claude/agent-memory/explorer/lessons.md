@@ -206,6 +206,28 @@ usually executed by a different agent than the one that audited it.
 
 ---
 
+## L-010 -- "Complement" ≠ "the named sibling": a two-way selector split by a signed predicate has a THIRD bucket, and whether it is populated is DATA-dependent
+
+Asked to verify a measured claim that projector `M` "is the projector onto the outflow
+subspace" (i.e. `M == P_out`), the measurement reproduced on a slab and **failed on the
+production cylinder**. `M` is `I − P_in` *by construction*; `I − P_in == P_out` only when
+`inflow ∪ outflow` exhausts the index set. The trace's selectors are `< -eps` / `> +eps`
+over a signed projection, so ordinates with `|·| <= eps` (tangential/grazing) fall in
+NEITHER — and the CYL production quadrature has 4 of 8 there (Lebedev: always). Rank 18
+vs rank 6 on the same face. The original claim was true only on the geometry it was
+measured on.
+
+How to apply: when an audit hands you "X is the complement of Y, hence X == Z", (1) find
+the PREDICATE that defines the split and check whether it is exhaustive (a strict `<`/`>`
+pair with an epsilon never is), and (2) re-run the measurement across the **production
+data** that reaches it — enumerate the real quadratures / meshes / grids, not the one the
+first fixture used. The slab is the degenerate case for nearly every SN index question;
+CYL (`Quadrature.product`) and Lebedev are the discriminating ones. Same family as L-006
+(split the probe KINDS before proposing the collapse), one level up: split the SET
+partition before accepting an identity between two spellings.
+
+---
+
 ## L-006 -- A "shape probe" is not always a missing predicate — split boolean-presence from integer-width before proposing a typed swap
 
 Asked to collapse N value-based `arr.shape[-1] > 1`-style probes into one typed

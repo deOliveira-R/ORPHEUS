@@ -91,7 +91,7 @@ def _retired_diffusion_albedo(law: BoundaryTraceLaw) -> object:
     """``DiffusionBoundaryRealizer._partial_current_albedo``, as it was.
 
     The five-arm ``isinstance`` ladder B2 collapsed into
-    ``law.response_kernel.scalar``, transcribed from the pre-B2 source.
+    ``law.response_kernel.amplitude``, transcribed from the pre-B2 source.
     """
     if isinstance(law, VacuumInflow):
         return 0.0
@@ -370,8 +370,8 @@ class TestSpecMutationsPropagate:
     ) -> None:
         monkeypatch.setattr(law_cls, attr, property(lambda self: value))
         got = DiffusionBoundaryRealizer._partial_current_albedo(law_cls())
-        assert got == value.scalar, (
+        assert got == value.amplitude, (
             f"diffusion's 𝒜 for {law_cls.__name__} is {got!r}, not the law's "
-            f"response {value.scalar!r} — the ladder was collapsed onto "
+            f"response {value.amplitude!r} — the ladder was collapsed onto "
             f"`response_kernel`, so 𝒜 must track it."
         )
