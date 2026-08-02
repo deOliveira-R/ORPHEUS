@@ -21,18 +21,32 @@ Direction cosines per ordinate:
 Weight per ordinate: :math:`w = w_{\text{GL}}(\mu) \cdot (2\pi /
 n_\phi)`. Total weight sum: :math:`4\pi`.
 
-Symmetry: :math:`SO(2)` about the :math:`\mu_z` axis. The polar
-factor is :math:`SO(2)`-invariant trivially (it does not see
-:math:`\phi`); the azimuthal factor's :math:`n_\phi`-fold cyclic
-symmetry is a discrete subgroup of :math:`SO(2)`. The maximal
-continuous-rotation symmetry the discrete rule respects is
-:math:`SO(2)` only when :math:`n_\phi \to \infty`; for finite
-:math:`n_\phi` the rule is :math:`C_{n_\phi}`-invariant strictly.
-For the algebra-of-record, we tag :math:`SO(2)` as a conservative
-upper bound (the discrete rule is invariant under the continuous
-group only in a moment sense; a stricter consumer can use
-:meth:`SubgroupOfO3.is_invariant` to verify which exact group the
-discrete grid satisfies).
+Symmetry: :math:`D_{n_\phi h}`, of order :math:`4 n_\phi`. The
+:math:`n_\phi` equispaced azimuths are preserved by the cyclic
+rotations :math:`C_{n_\phi}` and by the vertical mirrors at
+:math:`k\pi/n_\phi`; the Gauss-Legendre :math:`\mu` nodes are
+symmetric about :math:`\mu = 0`, which supplies :math:`\sigma_h`.
+Together these generate :math:`D_{n_\phi h}` — and
+:func:`~orpheus.numerics.symmetry.maximal_invariance_groups`
+**computes** exactly that from the nodes, so the tag above is
+checked rather than asserted.
+
+.. note::
+
+   Until 2026-08-02 this rule tagged :math:`SO(2)` and this
+   paragraph defended it as "a conservative upper bound". Both
+   halves were wrong, in opposite directions. **No finite point set
+   on** :math:`S^2` **is** :math:`SO(2)`-**closed**, so the tag was
+   simply false — and for an *invariance* claim a larger group is a
+   **stronger** claim, so an upper bound is an over-claim, never a
+   conservative one. (Contrast ``degree_of_exactness``, where the
+   ``min`` genuinely *is* conservative: a lower degree is a weaker
+   claim.) The prose also undersold the truth in the other
+   direction, calling the rule ":math:`C_{n_\phi}`-invariant
+   strictly" — :math:`C_{n_\phi}` is an index-4 subgroup of the real
+   answer. The false tag was load-bearing: it was the only reason
+   the registry's geometry gate admitted this rule for a cylinder
+   (see :func:`~orpheus.numerics.quadrature.registry.select_quadrature`).
 
 References
 ----------
@@ -91,7 +105,7 @@ def product_mu_phi(
     DiscreteMeasure
         Nodes shape ``(n_mu * n_phi, 3)``, weights shape
         ``(n_mu * n_phi,)``, on ``space="S^2"``.
-        ``invariance_group=SubgroupOfO3.SO2``,
+        ``invariance_group=SubgroupOfO3.Dnh(n_phi)``,
         ``degree_of_exactness=min(2*n_mu-1, n_phi-1)``.
     LevelStructure
         Per-:math:`\mu`-level indexing metadata used by the
@@ -144,7 +158,14 @@ def product_mu_phi(
         nodes=nodes,
         weights=weights,
         support=SPACE_SPHERE,
-        invariance_group=SubgroupOfO3.SO2,
+        # D_{n_φ h}, NOT SO(2). The φ grid is a FINITE set of n_φ
+        # equispaced azimuths, so no continuous rotation preserves it —
+        # only the n_φ-fold cyclic rotations, the vertical mirrors at
+        # kπ/n_φ, and (because the GL μ nodes are symmetric) σ_h. The
+        # rule carried ``SO2`` until 2026-08-02: a claim no finite point
+        # set on S² can satisfy. See ``maximal_invariance_groups``, which
+        # computes this group from the nodes and pins the declaration.
+        invariance_group=SubgroupOfO3.Dnh(n_phi),
         degree_of_exactness=min(2 * n_mu - 1, n_phi - 1),
     )
     structure = LevelStructure(

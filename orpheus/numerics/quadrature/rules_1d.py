@@ -81,6 +81,15 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
         nodes=nodes,
         weights=weights,
         support=SPACE_INTERVAL_M11,
+        # SO(2) here is CORRECT, and correct for a different reason
+        # than a rule on S² would be: this measure lives on the
+        # QUOTIENT S²/SO(2) = [-1,1]. The tag names the group that was
+        # integrated out to produce the μ-marginal — the "spent" half
+        # of the geometry's symmetry, whose fiber action is the
+        # curvilinear α term. Do NOT "correct" this to a finite group
+        # by analogy with :func:`product_mu_phi` (whose SO(2) tag WAS
+        # false): SO(2) acts trivially on μ, so every measure on
+        # [-1,1] satisfies it, and here that triviality is the point.
         invariance_group=SubgroupOfO3.SO2,
         degree_of_exactness=2 * n - 1,
     )

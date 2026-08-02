@@ -1,10 +1,18 @@
 """Foundation tests for ``orpheus.numerics.quadrature.registry``.
 
-Verifies the four-stage selection chain (G → V → structural → minimum
-points) end-to-end on the four canonical geometry tags shipped today
-(``slab``, ``sphere``, ``cylinder``, ``cartesian2d``), plus the
-explainability log and the negative paths (no-rule-fits, unknown flags,
-unknown geometry).
+Verifies the five-stage selection chain (domain → symmetry → V →
+structural → minimum points) end-to-end on the four canonical geometry
+tags shipped today (``slab``, ``sphere``, ``cylinder``,
+``cartesian2d``), plus the explainability log and the negative paths
+(no-rule-fits, unknown flags, unknown geometry).
+
+Stages 0 and 1 are the two halves of :class:`AngularSymmetry`: the
+continuous isotropy the dimensional reduction SPENDS (which fixes the
+angular domain) and the discrete residual still OWED (which the rule
+must realize as an ordinate permutation). Before 2026-08-02 the table
+recorded only the spent half and compared it against a rule's declared
+group — a gate no discrete azimuthal rule can pass, which is why it
+only ever passed on a false declaration.
 
 The selection chain is a *software* invariant — it does not verify a
 physics equation in a Sphinx theory page — so the tests are tagged
@@ -21,7 +29,8 @@ import pytest
 
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import (
-    GEOMETRY_GROUPS,
+    GEOMETRY_ANGULAR_SYMMETRY,
+    AngularSymmetry,
     QuadratureSelectionError,
     QuadratureSpec,
     SelectionLog,
@@ -56,14 +65,18 @@ def test_registry_population() -> None:
 
 @pytest.mark.foundation
 def test_registry_specs_are_well_formed() -> None:
-    """Every spec must have callable inversion / node-count and a
-    valid :class:`SubgroupOfO3` invariance group."""
+    """Every spec must have callable inversion / node-count.
+
+    A spec deliberately carries NO invariance group: a rule's symmetry
+    is parameter-dependent, so a parameter-free field cannot state it
+    truthfully. The selector computes it from the built measure.
+    """
     for spec in quadrature_registry:
         assert isinstance(spec, QuadratureSpec)
         assert callable(spec.factory)
         assert callable(spec.degree_of_exactness_for)
         assert callable(spec.expected_node_count)
-        assert isinstance(spec.invariance_group, SubgroupOfO3)
+        assert not hasattr(spec, "invariance_group")
         assert isinstance(spec.parameters, dict)
         assert all(isinstance(t, type) for t in spec.parameters.values())
         # Structural-flags accessor must surface the four flags.
@@ -77,14 +90,32 @@ def test_registry_specs_are_well_formed() -> None:
 
 
 @pytest.mark.foundation
-def test_geometry_groups_table() -> None:
-    """The four geometries the selector handles must each carry a
-    well-defined :class:`SubgroupOfO3`."""
-    assert GEOMETRY_GROUPS == {
-        "slab": SubgroupOfO3.SO2,
-        "sphere": SubgroupOfO3.SO2,
-        "cylinder": SubgroupOfO3.SO2,
-        "cartesian2d": SubgroupOfO3.OctahedralOh,
+def test_geometry_angular_symmetry_table() -> None:
+    """Each geometry declares both halves of its angular symmetry.
+
+    The SPENT continuous half fixes the angular domain; the OWED
+    discrete half is what a quadrature must realize as an ordinate
+    permutation. Recording only the spent half (as this table did
+    until 2026-08-02) makes the selection gate unsatisfiable — no
+    finite point set on S^2 is SO(2)-closed.
+    """
+    assert GEOMETRY_ANGULAR_SYMMETRY == {
+        "slab": AngularSymmetry(
+            continuous_isotropy=SubgroupOfO3.SO2,
+            discrete_residual=SubgroupOfO3.Z2,
+        ),
+        "sphere": AngularSymmetry(
+            continuous_isotropy=SubgroupOfO3.SO2,
+            discrete_residual=SubgroupOfO3.Z2,
+        ),
+        "cylinder": AngularSymmetry(
+            continuous_isotropy=SubgroupOfO3.Trivial,
+            discrete_residual=SubgroupOfO3.Dnh(2),
+        ),
+        "cartesian2d": AngularSymmetry(
+            continuous_isotropy=SubgroupOfO3.Trivial,
+            discrete_residual=SubgroupOfO3.Dnh(2),
+        ),
     }
 
 
@@ -177,9 +208,8 @@ def test_product_invert() -> None:
 
 @pytest.mark.foundation
 def test_select_slab_returns_gauss_legendre() -> None:
-    """slab geometry is :math:`SO(2)`-invariant; only :math:`SO(2)`-tagged
-    rules pass the G stage. GL1D wins on minimum-points (8 << 16
-    GL × n_phi for the product rule)."""
+    """A slab discretises S^2/SO(2) = [-1,1], so GL1D is the only rule
+    on the right domain — the three S^2 rules fail stage 0."""
     measure, log = select_quadrature("slab", target_degree=15)
 
     assert isinstance(measure, DiscreteMeasure)
@@ -189,16 +219,22 @@ def test_select_slab_returns_gauss_legendre() -> None:
     assert measure.n_points == 8
     assert measure.degree_of_exactness == 15
     assert measure.invariance_group == SubgroupOfO3.SO2
-    # Lebedev and LS_N must have been rejected at the G stage.
+    # Every S^2 rule is rejected at the DOMAIN stage.
     rejected_names = {name for name, _ in log.rejected}
-    assert "LebedevSphere" in rejected_names
-    assert "LevelSymmetricSN" in rejected_names
+    assert rejected_names == {
+        "LebedevSphere",
+        "LevelSymmetricSN",
+        "ProductQuadrature",
+    }
 
 
 @pytest.mark.foundation
 def test_select_sphere_returns_gauss_legendre() -> None:
     """1-D radial spherical SN reduces to GL on :math:`\\mu_r` — the
-    geometry's group is :math:`SO(2)`, matching the slab path."""
+    same spent/owed split as the slab, so the same rule wins.
+
+    The spent half is not free here: its fiber action reappears in the
+    curvilinear sweep as the angular-redistribution alpha term."""
     measure, log = select_quadrature("sphere", target_degree=15)
 
     assert log.chosen_spec is not None
@@ -209,37 +245,82 @@ def test_select_sphere_returns_gauss_legendre() -> None:
 
 @pytest.mark.foundation
 def test_select_cylinder_with_level_structured_returns_product() -> None:
-    """Cylindrical SN sweep needs polar-level structure (Bailey 2009
-    Eq. 50). Among :math:`SO(2)`-tagged rules, only ProductQuadrature
-    has ``level_structured=True``."""
+    """Cylindrical SN sweep needs polar-level structure, and the
+    product rule supplies it — *when its azimuthal count is even*.
+
+    ``target_degree=5`` inverts to ``n_phi = 6``. D_2h needs mirror
+    planes at 0 and pi/2, and D_{n h} carries them at k*pi/n, so
+    ``n_phi`` even is exactly the admissibility condition.
+    """
     measure, log = select_quadrature(
-        "cylinder", target_degree=4, level_structured=True
+        "cylinder", target_degree=5, level_structured=True
     )
 
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "ProductQuadrature"
-    assert log.chosen_parameters == {"n_mu": 3, "n_phi": 5}
-    # GL1D should be rejected at the structural stage (no level
-    # structure), and Oh-invariant rules at the G stage.
-    rejected_names = {name for name, _ in log.rejected}
-    assert "GaussLegendre1D" in rejected_names
-    # Verify the rejection reason for GL1D mentions "structural".
+    assert log.chosen_parameters == {"n_mu": 3, "n_phi": 6}
+    # GL1D is rejected at the DOMAIN stage now, not the structural one:
+    # a mu-marginal cannot carry a cylinder's two angular DOF at all,
+    # which is a stronger and earlier objection than "no levels".
     gl_reason = next(
         reason for name, reason in log.rejected
         if name == "GaussLegendre1D"
     )
-    assert "structural" in gl_reason.lower()
+    assert "domain mismatch" in gl_reason
+
+
+@pytest.mark.foundation
+def test_select_cylinder_rejects_odd_azimuthal_product_rule() -> None:
+    """ERR-042, structurally: an odd-``n_phi`` product rule is NOT
+    invariant under the cylinder's owed D_2h, and the selector must
+    refuse it rather than hand back an asymmetric rule.
+
+    ``target_degree=4`` inverts to ``n_phi = 5``. The sigma_x mirror
+    sends phi -> 180 - phi, mapping the 0-degree node to 180 degrees,
+    which is not a node of a 5-fold grid. Before 2026-08-02 this rule
+    was ADMITTED here, on the strength of a false ``SO(2)`` tag.
+
+    The selector degrades gracefully: it falls back to a rule that
+    genuinely carries the symmetry, rather than failing.
+    """
+    _, log = select_quadrature(
+        "cylinder", target_degree=4, level_structured=True
+    )
+
+    assert log.chosen_spec is not None
+    assert log.chosen_spec.name == "LevelSymmetricSN"
+
+    product_reason = next(
+        reason for name, reason in log.rejected
+        if name == "ProductQuadrature"
+    )
+    assert "symmetry mismatch" in product_reason
+    assert "D_2h" in product_reason
+
+    # And the discriminator is parity, not degree: one step up in
+    # target degree makes n_phi even and the same rule admissible.
+    _, log_even = select_quadrature(
+        "cylinder", target_degree=5, level_structured=True
+    )
+    assert log_even.chosen_spec is not None
+    assert log_even.chosen_spec.name == "ProductQuadrature"
 
 
 @pytest.mark.foundation
 def test_select_cartesian2d_prefers_lebedev_over_ls_sn() -> None:
-    """2-D Cartesian carries :math:`O_h`. Both Lebedev and LS_N pass G
-    and V; Lebedev wins on minimum-points (14 nodes for order 5 vs.
-    48 nodes for LS_6).
+    """2-D Cartesian owes :math:`D_{2h}`. Lebedev, LS_N and the
+    even-``n_phi`` product rule all satisfy it; Lebedev wins on
+    minimum-points (14 nodes for order 5 vs 48 for LS_6, 18 for the
+    product rule).
 
-    The :class:`SelectionLog` must record this preference: LS_N is NOT
-    in the rejected list (it is a valid candidate, just more
-    expensive).
+    The :class:`SelectionLog` must record this preference: the losers
+    on cost are NOT in the rejected list.
+
+    Only GL1D is rejected, and on DOMAIN — a mu-marginal cannot serve
+    a geometry that keeps both angular degrees of freedom. Before
+    2026-08-02 the product rule was rejected here too, because the
+    table over-claimed :math:`O_h`: that demands the x<->z exchange,
+    never a symmetry of a z-uniform problem.
     """
     measure, log = select_quadrature("cartesian2d", target_degree=5)
 
@@ -248,13 +329,13 @@ def test_select_cartesian2d_prefers_lebedev_over_ls_sn() -> None:
     assert log.chosen_parameters == {"order": 5}
     assert measure.n_points == 14
 
-    # The :math:`SO(2)`-tagged rules (GL1D, Product) must be rejected
-    # at G. LS_N must NOT be rejected — it was a valid candidate that
-    # lost on cost.
     rejected_names = {name for name, _ in log.rejected}
-    assert "GaussLegendre1D" in rejected_names
-    assert "ProductQuadrature" in rejected_names
-    assert "LevelSymmetricSN" not in rejected_names
+    assert rejected_names == {"GaussLegendre1D"}
+    gl_reason = next(
+        reason for name, reason in log.rejected
+        if name == "GaussLegendre1D"
+    )
+    assert "domain mismatch" in gl_reason
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +352,13 @@ def test_log_records_geometry_metadata() -> None:
         "cylinder", target_degree=4, level_structured=True
     )
     assert log.geometry == "cylinder"
-    assert log.geometry_group == SubgroupOfO3.SO2
+    assert log.angular_symmetry == AngularSymmetry(
+        continuous_isotropy=SubgroupOfO3.Trivial,
+        discrete_residual=SubgroupOfO3.Dnh(2),
+    )
+    # Both halves are reconstructible from the log, so a reader can
+    # replay stages 0 and 1 without re-deriving the decomposition.
+    assert log.angular_symmetry.support == "S^2"
     assert log.target_degree == 4
     assert log.requested_flags == {"level_structured": True}
 
@@ -292,13 +379,17 @@ def test_log_summary_string_is_informative() -> None:
 @pytest.mark.foundation
 def test_log_rejected_list_carries_reasons() -> None:
     """Each rejection must come with a reason string identifying the
-    failing stage (G / V / structural)."""
+    failing stage (domain / symmetry / V / structural)."""
     _, log = select_quadrature("slab", target_degree=15)
+    assert log.rejected, "expected the S^2 rules to be rejected for a slab"
     for name, reason in log.rejected:
         assert isinstance(name, str)
         assert isinstance(reason, str)
-        # All rejections for slab are at G (Lebedev, LS_N).
-        assert "G mismatch" in reason
+        # Every slab rejection is at the DOMAIN stage: Lebedev, LS_N
+        # and the product rule all live on S^2, while a slab
+        # discretises the quotient S^2/SO(2) = [-1,1].
+        assert "domain mismatch" in reason
+        assert "[-1,1]" in reason
 
 
 @pytest.mark.foundation
@@ -368,22 +459,43 @@ def test_no_rule_fits_raises_with_log() -> None:
 
 
 @pytest.mark.foundation
-def test_incompatible_structural_flags_explainable() -> None:
-    """Asking for ``half_range_clean=True`` together with
-    ``level_structured=True`` on a slab geometry: the slab's
-    :math:`SO(2)` group rejects both Oh-tagged rules at G; the
-    remaining :math:`SO(2)`-tagged rules are GL1D (no level structure)
-    and ProductQuadrature (does have it). The selector picks Product;
-    log shows GL1D rejected at structural, Lebedev/LS_N rejected at G.
+def test_slab_cannot_supply_polar_levels_and_says_so() -> None:
+    """Asking a slab for ``level_structured=True`` is a category error,
+    and the log must be able to say why.
+
+    A slab discretises the quotient S^2/SO(2) = [-1,1]. Its angular
+    variable IS the polar axis, so there are no per-mu polar *levels*
+    to expose — a level structure is a fibration of S^2 over mu, and
+    the slab has already taken that quotient.
+
+    Every rule is therefore rejected, and the two rejection reasons
+    are the two different objections: the S^2 rules fail on DOMAIN,
+    and the one domain-admissible rule (GL1D) fails on the structural
+    flag. Before 2026-08-02 this returned ProductQuadrature — an S^2
+    rule handed to a 1-D solver, admitted only because the geometry
+    table compared spent-group to spent-group.
     """
-    measure, log = select_quadrature(
-        "slab",
-        target_degree=4,
-        level_structured=True,
-        half_range_clean=True,
-    )
-    assert log.chosen_spec is not None
-    assert log.chosen_spec.name == "ProductQuadrature"
+    with pytest.raises(QuadratureSelectionError) as excinfo:
+        select_quadrature(
+            "slab",
+            target_degree=4,
+            level_structured=True,
+            half_range_clean=True,
+        )
+
+    log = excinfo.value.log
+    assert log.chosen_spec is None
+    reasons = dict(log.rejected)
+    assert set(reasons) == {
+        "GaussLegendre1D",
+        "LebedevSphere",
+        "LevelSymmetricSN",
+        "ProductQuadrature",
+    }
+    assert "structural mismatch" in reasons["GaussLegendre1D"]
+    assert "level_structured" in reasons["GaussLegendre1D"]
+    for name in ("LebedevSphere", "LevelSymmetricSN", "ProductQuadrature"):
+        assert "domain mismatch" in reasons[name]
 
     # GL1D rejected at structural (no level structure).
     gl_reason = next(
@@ -395,11 +507,9 @@ def test_incompatible_structural_flags_explainable() -> None:
 
 @pytest.mark.foundation
 def test_truly_incompatible_flags_raises() -> None:
-    """Cylinder + ``axis_aligned=True``: among :math:`SO(2)`-tagged
-    rules, GL1D has axis_aligned=True but lacks level structure (which
-    the cylinder usually wants); Product has level_structured=True
-    but axis_aligned=False. Asking for BOTH at once leaves no
-    candidate and must raise."""
+    """Cylinder + ``axis_aligned=True`` + ``level_structured=True``:
+    no rule on S^2 carries both flags, so the request has no candidate
+    and must raise with a populated log."""
     with pytest.raises(QuadratureSelectionError) as excinfo:
         select_quadrature(
             "cylinder",
@@ -446,3 +556,120 @@ def test_registry_override_success_path() -> None:
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "LebedevSphere"
     assert measure.invariance_group == SubgroupOfO3.OctahedralOh
+
+
+# ---------------------------------------------------------------------------
+# AngularSymmetry — the type's own laws
+# ---------------------------------------------------------------------------
+#
+# The two halves are not interchangeable, and the failure they prevent is
+# specific: recording the SPENT half where the OWED one belongs produces a
+# gate that is unsatisfiable by construction. These gates pin both the
+# derivation (support from the spent group) and the discrimination (which
+# rules the owed group actually selects).
+
+
+@pytest.mark.foundation
+def test_support_is_derived_from_the_spent_group_not_declared() -> None:
+    """The angular domain IS the quotient S^2/G^0.
+
+    Deriving it rather than storing a second column is what keeps the
+    domain and the spent group from drifting apart — they are one fact,
+    so there is no state in which they can disagree.
+    """
+    assert AngularSymmetry(
+        continuous_isotropy=SubgroupOfO3.SO2,
+        discrete_residual=SubgroupOfO3.Z2,
+    ).support == "[-1,1]"
+
+    assert AngularSymmetry(
+        continuous_isotropy=SubgroupOfO3.Trivial,
+        discrete_residual=SubgroupOfO3.Dnh(2),
+    ).support == "S^2"
+
+    # An unmapped quotient must refuse loudly rather than guess: a wrong
+    # domain silently admits a rule of the wrong dimensionality.
+    with pytest.raises(NotImplementedError, match="S\\^2/"):
+        _ = AngularSymmetry(
+            continuous_isotropy=SubgroupOfO3.OctahedralOh,
+            discrete_residual=SubgroupOfO3.Z2,
+        ).support
+
+
+@pytest.mark.foundation
+def test_the_two_stages_are_independent_and_both_load_bearing() -> None:
+    """Neither conjunct subsumes the other — drop either and the gate
+    admits something wrong.
+
+    Measured, not assumed (the T18 lesson: before folding predicates
+    onto one primitive, measure what each actually selects):
+
+    * symmetry alone admits a Lebedev rule for a slab, because an
+      O_h-invariant rule certainly satisfies Z_2;
+    * domain alone admits an odd-``n_phi`` product rule for a cylinder,
+      because it does live on S^2.
+    """
+    slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
+    cylinder = GEOMETRY_ANGULAR_SYMMETRY["cylinder"]
+
+    lebedev = next(
+        s for s in quadrature_registry if s.name == "LebedevSphere"
+    ).build({"order": 5})
+    odd_product = next(
+        s for s in quadrature_registry if s.name == "ProductQuadrature"
+    ).build({"n_mu": 3, "n_phi": 5})
+
+    # Symmetry alone would let an S^2 rule serve a 1-D slab.
+    assert slab.admits_symmetry(lebedev)
+    assert not slab.admits_domain(lebedev)
+
+    # Domain alone would let an asymmetric rule serve a cylinder.
+    assert cylinder.admits_domain(odd_product)
+    assert not cylinder.admits_symmetry(odd_product)
+
+
+@pytest.mark.foundation
+def test_owed_symmetry_selects_by_azimuthal_parity() -> None:
+    """D_2h needs mirror planes at 0 AND pi/2; D_{n h} carries planes at
+    k*pi/n, so pi/2 is present iff n is even.
+
+    This is the whole content of the cylinder's admissibility rule, and
+    it is ERR-042 stated structurally instead of as a hand-written
+    guard.
+    """
+    cylinder = GEOMETRY_ANGULAR_SYMMETRY["cylinder"]
+    product = next(
+        s for s in quadrature_registry if s.name == "ProductQuadrature"
+    )
+    for n_phi in range(2, 10):
+        measure = product.build({"n_mu": 3, "n_phi": n_phi})
+        assert cylinder.admits_symmetry(measure) == (n_phi % 2 == 0), (
+            f"n_phi={n_phi}: parity is the discriminator"
+        )
+
+
+@pytest.mark.foundation
+def test_selector_asks_the_nodes_not_the_declared_tag() -> None:
+    """Stage 1 must not route through ``measure.invariance_group``.
+
+    A declaration may be true-but-not-maximal, and one shipped rule is:
+    ``gauss_legendre_on_mu`` declares SO(2), the group its domain was
+    quotiented BY. Z_2 is a reflection, hence not a subgroup of the
+    rotation group SO(2) — so a lattice query against the declared tag
+    would reject Gauss-Legendre for a slab, which is the one rule a
+    slab must accept. Asking the nodes directly cannot fail that way.
+    """
+    slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
+    gl = next(
+        s for s in quadrature_registry if s.name == "GaussLegendre1D"
+    ).build({"n": 8})
+
+    # The lattice route is the trap...
+    assert not slab.discrete_residual.is_subgroup_of(gl.invariance_group)
+    # ...and the nodes give the right answer.
+    assert slab.admits_symmetry(gl)
+
+    # End-to-end: the slab does get Gauss-Legendre.
+    _, log = select_quadrature("slab", target_degree=15)
+    assert log.chosen_spec is not None
+    assert log.chosen_spec.name == "GaussLegendre1D"

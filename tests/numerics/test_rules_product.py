@@ -36,7 +36,10 @@ def test_product_returns_measure_and_structure(n_mu: int, n_phi: int) -> None:
     assert m.nodes.shape == (n_mu * n_phi, 3)
     assert m.weights.shape == (n_mu * n_phi,)
     assert m.support == SPACE_SPHERE
-    assert m.invariance_group == SubgroupOfO3.SO2
+    # D_{n_phi h}, not SO(2): the phi grid is a FINITE set, so no
+    # continuous rotation preserves it. The rule carried SO2 until
+    # 2026-08-02 — a claim no finite point set on S^2 can satisfy.
+    assert m.invariance_group == SubgroupOfO3.Dnh(n_phi)
     assert m.degree_of_exactness == min(2 * n_mu - 1, n_phi - 1)
 
     assert isinstance(s, LevelStructure)

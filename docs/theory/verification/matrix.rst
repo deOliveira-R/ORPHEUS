@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **7459**
+Total tests collected: **7802**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1206, 16.2%
-   L1, 1205, 16.2%
-   L2, 64, 0.9%
+   L0, 1206, 15.5%
+   L1, 1230, 15.8%
+   L2, 64, 0.8%
    L3, 0, 0.0%
-   foundation, 4984, 66.8%
+   foundation, 5302, 68.0%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 7380
+   explicit, 7723
    class-name, 46
    func-name, 0
    case, 33
@@ -108,7 +108,9 @@ Module × level grid
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
+   curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
+   curvilinear/test_azimuthal_mirror_symmetry, 0, 5, 0, 0, 7, 0
    curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
    curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 12, 0
    curvilinear/test_cyl_sweep_regression, 4, 0, 4, 0, 0, 0
@@ -292,6 +294,7 @@ Module × level grid
    mms/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    mms/test_mms_ld_2d, 0, 11, 0, 0, 13, 0
    mms/test_mms_ld_slab, 0, 5, 0, 0, 2, 0
+   mms/test_mms_ordering_blindness, 0, 0, 0, 0, 10, 0
    mms/test_space_angle_separability, 0, 6, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
    moc/test_moc, 0, 3, 0, 0, 0, 0
@@ -319,7 +322,7 @@ Module × level grid
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 24, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
-   numerics/test_measure, 0, 16, 0, 0, 32, 0
+   numerics/test_measure, 0, 16, 0, 0, 36, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 11, 0
    numerics/test_operator, 0, 0, 0, 0, 58, 0
@@ -328,8 +331,9 @@ Module × level grid
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
    numerics/test_permutation_operator, 9, 2, 0, 0, 0, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 23, 0
-   numerics/test_registry, 0, 0, 0, 0, 37, 0
+   numerics/test_registry, 0, 0, 0, 0, 42, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
+   numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
    numerics/test_rules_1d, 0, 5, 0, 0, 16, 0
    numerics/test_rules_product, 0, 3, 0, 0, 14, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 29, 0
@@ -339,7 +343,7 @@ Module × level grid
    numerics/test_spatial_moment_space, 0, 0, 0, 0, 22, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
-   numerics/test_symmetry, 0, 0, 0, 0, 71, 0
+   numerics/test_symmetry, 0, 0, 0, 0, 96, 0
    numerics/test_tensor_product_operator, 25, 0, 0, 0, 0, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 18, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
@@ -439,7 +443,7 @@ Module × level grid
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 333, 0
+   test_layer_imports, 0, 0, 0, 0, 334, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -470,13 +474,13 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-unified``, 158
    ``one-group-kinf``, 147
    ``peierls-rank-n-bc-closure``, 124
+   ``alpha-recursion``, 115
    ``reflective-bc``, 113
-   ``alpha-recursion``, 103
    ``wdd-closure``, 103
    ``wdd-face``, 103
+   ``alpha-cylindrical``, 95
    ``collision-rate``, 94
    ``multigroup``, 83
-   ``alpha-cylindrical``, 75
    ``mm-weights``, 75
    ``ki3-def``, 64
    ``fission-matrix``, 63
@@ -1429,6 +1433,8 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-069``, 2
    ``ERR-070``, 4
    ``ERR-071``, 8
+   ``ERR-072``, 3
+   ``ERR-073``, 1
 
 Unmarked tests
 --------------

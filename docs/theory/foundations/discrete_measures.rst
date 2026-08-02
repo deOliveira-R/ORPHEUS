@@ -554,87 +554,151 @@ Formally, the selection criterion is
    ``test_truly_incompatible_flags_raises``). Tagged ``foundation``
    rather than carrying a verification ladder slot because the
    selection chain is a software invariant (the predicate
-   :math:`G_{\text{geom}} \subseteq G_Q \wedge \deg(Q) \ge d \wedge
+   :math:`\mathcal{D}_Q = S^2/G^0_{\text{geom}} \wedge
+   \Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q) \wedge
+   \deg(Q) \ge d \wedge
    F_{\text{req}} \subseteq F_Q`), not a physics-equation claim with
    an L0..L3 ladder slot — the ladder lives on the rules themselves
    (``test_rules_*.py``).
 .. vv-status: quadrature-selection-criterion documented
 
 where :math:`n(Q)` is the number of nodes,
-:math:`G_Q \subseteq O(3)` is the invariance group,
+:math:`\mathcal{D}_Q` is the domain the rule's nodes live on,
+:math:`\operatorname{Sym}(Q) \subseteq O(3)` is the group the rule's
+nodes are **computed** to be invariant under,
 :math:`\deg(Q)` is the polynomial-exactness degree, and
 :math:`F_Q \subseteq \{\text{positive\_weights}, \text{axis\_aligned},
 \text{level\_structured}, \text{half\_range\_clean}\}` is the rule's
 structural-flag set.
 
-Geometry → group assignment
----------------------------
+Geometry → angular-symmetry assignment
+--------------------------------------
 
 The selector's static geometry table
-(:data:`~orpheus.numerics.quadrature.registry.GEOMETRY_GROUPS`)
-encodes:
+(:data:`~orpheus.numerics.quadrature.registry.GEOMETRY_ANGULAR_SYMMETRY`)
+records **both halves** of each geometry's angular symmetry, because
+the two halves place two different demands on a quadrature.
+
+A geometry's symmetry group :math:`G` splits by how the action is
+used. The continuous part :math:`G^0` is **spent** by the dimensional
+reduction — a slab integrates the azimuth out analytically — and what
+it determines is the angular *domain*, the quotient :math:`S^2/G^0`.
+The finite residual :math:`\Gamma = G/G^0` is still **owed**: it
+cannot be integrated away, so a quadrature must realize it as a
+permutation of the ordinates. This is the half a reflecting boundary
+consumes — the face reflection maps ordinate :math:`m` to ordinate
+:math:`m'` exactly only when the node set is closed under it.
 
 .. list-table::
    :header-rows: 1
-   :widths: 22 14 64
+   :widths: 18 12 12 12 46
 
    * - Geometry
-     - :math:`G_{\text{geom}}`
+     - :math:`G^0` (spent)
+     - Domain :math:`S^2/G^0`
+     - :math:`\Gamma` (owed)
      - Rationale
    * - ``"slab"``
      - :math:`SO(2)`
-     - 1-D problem in :math:`z`; angular dependence reduces to
-       :math:`\mu = \cos\theta` only, with full azimuthal rotation
-       symmetry. The transverse :math:`Z_2` reflection is automatic
-       on a 1-D rule on :math:`[-1, 1]` with symmetric nodes
-       (Gauss-Legendre, Stoer-Bulirsch §3.6).
+     - :math:`[-1,1]`
+     - :math:`Z_2`
+     - 1-D in :math:`z`. Azimuthal rotation about the normal is
+       integrated out, leaving :math:`\mu = \cos\theta` alone. Owed is
+       :math:`\mu \to -\mu`, which pairs the two sweep senses;
+       Gauss-Legendre nodes are symmetric (Stoer-Bulirsch §3.6), so it
+       holds.
    * - ``"sphere"``
      - :math:`SO(2)`
-     - 1-D **radial** spherical SN reduces to GL on :math:`\mu_r`,
-       the cosine of the angle between ordinate and radial direction
+     - :math:`[-1,1]`
+     - :math:`Z_2`
+     - 1-D **radial** spherical SN reduces to GL on :math:`\mu_r`, the
+       cosine of the angle between ordinate and radial direction
        (Lewis & Miller 1993 §4.4). The continuous problem is
-       :math:`O(3)`-symmetric, but the discrete radial reduction
-       collapses azimuthal dependence, leaving :math:`SO(2)`. When
-       2-D / 3-D spherical SN lands, the table will gain
-       ``"sphere2d"`` / ``"sphere3d"`` entries tagged
-       :math:`O_h` / :math:`O(3)`.
+       :math:`O(3)`-symmetric; the radial reduction spends the azimuth
+       about :math:`\hat r`. Here the spent half is not free — its
+       fiber action reappears in the sweep as the
+       angular-redistribution :math:`\alpha` term.
    * - ``"cylinder"``
-     - :math:`SO(2)`
-     - Axisymmetric cylinder: :math:`\phi`-independence is
-       :math:`SO(2)`. The cylindrical SN sweep also requires per-:math:`\mu`
-       polar-level structure (Bailey et al. 2009 Eq. 50); request
-       this via the ``level_structured=True`` structural flag.
+     - trivial
+     - :math:`S^2`
+     - :math:`D_{2h}`
+     - An axisymmetric cylinder is :math:`\phi`-independent in
+       *space*, which does not reduce the *angular* domain: both
+       angular degrees of freedom survive. The cylindrical SN sweep
+       also requires per-:math:`\mu` polar-level structure; request it
+       via ``level_structured=True``.
    * - ``"cartesian2d"``
-     - :math:`O_h`
-     - 2-D Cartesian carries the full octahedral group. Conservatively
-       tagging :math:`O_h` (rather than :math:`D_{4h}`) accepts any
-       :math:`O_h`-invariant rule (Lebedev, level-symmetric :math:`S_N`).
+     - trivial
+     - :math:`S^2`
+     - :math:`D_{2h}`
+     - :math:`D_{2h} \cong (\mathbb{Z}_2)^3` is generated by the three
+       coordinate-plane mirrors, and its chambers are exactly the
+       octants the sweep decomposes into.
+
+.. admonition:: What this table looked like before 2026-08-02, and why
+                it could not work
+   :class: warning
+
+   The table held a single group per geometry, and it recorded the
+   **spent** half: ``slab``, ``sphere`` and ``cylinder`` all read
+   :math:`SO(2)`. That is a true statement about the *geometry* and a
+   useless one for *selecting a quadrature*, because **no finite point
+   set on** :math:`S^2` **is** :math:`SO(2)`-**closed**. The gate
+   :math:`G_{\text{geom}} \subseteq G_Q` was therefore unsatisfiable
+   by any discrete azimuthal rule, and could only ever pass on a false
+   declaration — which is exactly what it did: ``product_mu_phi``
+   advertised :math:`SO(2)`, and that single falsehood was the only
+   reason the gate admitted the product rule for a cylinder.
+
+   ``cartesian2d`` read :math:`O_h`, an over-claim by a factor of 6:
+   :math:`O_h` demands the :math:`x \leftrightarrow z` exchange and
+   the diagonal mirrors, which are symmetries of a *cube* and never of
+   a z-uniform problem. It rejected the even-:math:`n_\phi` product
+   rule, which genuinely does carry every symmetry that geometry
+   needs.
+
+   The two errors were compensating, which is why the selector looked
+   healthy: the rule-side field was doing double duty as a *domain*
+   tag and a *symmetry* tag, so a wrong domain answer and a wrong
+   symmetry answer cancelled. Splitting spent from owed, and computing
+   :math:`\operatorname{Sym}(Q)` from the nodes instead of reading a
+   declaration, makes the gate both satisfiable and discriminating.
 
 Worked examples
 ---------------
 
 The four canonical happy-path selections:
 
-* ``select_quadrature("slab", target_degree=15)``: only :math:`SO(2)`-
-  tagged rules survive G; among those, GL1D (n=8 → degree 15, 8 nodes)
-  beats ProductQuadrature (n_mu=8, n_phi=16 → 128 nodes) on cost. The
-  log records both Lebedev and LS_N rejected at G ("geometry SO2 is
-  not a subgroup of rule's invariance group Oh").
+* ``select_quadrature("slab", target_degree=15)``: the three
+  :math:`S^2` rules fail stage 0 ("geometry 'slab' discretises
+  :math:`[-1,1]` … but the rule's nodes live on :math:`S^2`"), leaving
+  GL1D (n=8 → degree 15, 8 nodes).
 
 * ``select_quadrature("sphere", target_degree=15)``: same path as
-  slab — radial spherical SN is :math:`SO(2)` after the 1-D reduction.
+  slab — identical spent/owed split after the 1-D radial reduction.
+
+* ``select_quadrature("cylinder", target_degree=5,
+  level_structured=True)``: ``ProductQuadrature`` with
+  ``n_mu=3, n_phi=6``. GL1D is rejected on *domain* (a
+  :math:`\mu`-marginal cannot carry two angular degrees of freedom),
+  which is a stronger and earlier objection than "no level structure".
 
 * ``select_quadrature("cylinder", target_degree=4,
-  level_structured=True)``: :math:`SO(2)` filter keeps GL1D and
-  Product; structural filter rejects GL1D (no level structure);
-  Product wins by default. Parameters: ``n_mu=3, n_phi=5`` (degree
-  :math:`\min(5, 4) = 4`).
+  level_structured=True)``: the inversion asks for ``n_phi=5``, and an
+  **odd** azimuthal count is not :math:`D_{2h}`-invariant —
+  :math:`\sigma_x` sends :math:`\phi \to 180^\circ - \phi`, mapping the
+  :math:`0^\circ` node onto :math:`180^\circ`, which is not a node of
+  a 5-fold grid. The selector refuses it and falls back to
+  ``LevelSymmetricSN``. This is ERR-042 expressed structurally rather
+  than as a hand-written guard, and it is the decisive behavioural
+  difference from the old table.
 
-* ``select_quadrature("cartesian2d", target_degree=5)``: :math:`O_h`
-  filter keeps Lebedev and LS_N; both pass V (Lebedev order 5 → 14
-  nodes, LS_6 → 48 nodes); Lebedev wins on cost. The log explicitly
-  shows LS_N as a *valid candidate that lost on cost*, not a rejection
-  — its name is absent from ``log.rejected``.
+* ``select_quadrature("cartesian2d", target_degree=5)``: Lebedev,
+  LS_N and the even-:math:`n_\phi` product rule all satisfy
+  :math:`D_{2h}`; Lebedev wins on cost (14 nodes vs 48 and 18). Only
+  GL1D is rejected, on domain. The log shows the cost losers as
+  *valid candidates that lost*, not rejections — their names are
+  absent from ``log.rejected``.
 
 Explainability log
 ------------------
@@ -649,14 +713,27 @@ the full decision provenance:
    measure, log = select_quadrature("cartesian2d", target_degree=5)
    print(log.summary())
    # select_quadrature(geometry='cartesian2d', target_degree=5)
-   # -> LebedevSphere({'order': 5}) [2 rejected]
+   # -> LebedevSphere({'order': 5}) [1 rejected]
 
    for name, reason in log.rejected:
        print(f"  - {name}: {reason}")
-   # - GaussLegendre1D: G mismatch: geometry Oh is not a subgroup
-   #   of rule's invariance group SO2
-   # - ProductQuadrature: G mismatch: geometry Oh is not a subgroup
-   #   of rule's invariance group SO2
+   # - GaussLegendre1D: domain mismatch: geometry 'cartesian2d'
+   #   discretises S^2 (= S^2/Trivial), but the rule's nodes live
+   #   on [-1,1]
+
+The rejection names its *stage*, and the stage is the diagnosis. A
+``domain mismatch`` says the rule is the wrong shape of object for
+this geometry; a ``symmetry mismatch`` says it is the right shape but
+breaks a symmetry the geometry needs, and names the group:
+
+.. code-block:: python
+
+   _, log = select_quadrature(
+       "cylinder", target_degree=4, level_structured=True
+   )
+   print(dict(log.rejected)["ProductQuadrature"])
+   # symmetry mismatch: geometry 'cylinder' owes D_2h, which the
+   # rule's nodes at {'n_mu': 3, 'n_phi': 5} are not invariant under
 
 When no rule fits the constraints, :func:`select_quadrature` raises
 :class:`~orpheus.numerics.quadrature.registry.QuadratureSelectionError`

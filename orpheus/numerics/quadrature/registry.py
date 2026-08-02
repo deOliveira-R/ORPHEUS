@@ -9,16 +9,37 @@ demands.
 Motivation
 ----------
 
-Quadrature selection is *fundamentally* a four-stage filter, in priority
+Quadrature selection is *fundamentally* a five-stage filter, in priority
 order:
 
+0. **Domain compatibility.**
+   :math:`\mathcal{D}_Q = S^2 / G^0_{\text{geom}}` — the rule's nodes
+   must live on the angular domain the geometry's *dimensional
+   reduction* left behind. A slab integrates :math:`\phi` out
+   analytically and wants a :math:`\mu`-marginal on :math:`[-1,1]`; a
+   cylinder retains both angular degrees of freedom and wants
+   :math:`S^2`. This stage is **not** a refinement of the symmetry
+   stage below — it is the other half of the same decomposition (see
+   :class:`AngularSymmetry`), and without it the symmetry stage alone
+   admits a Lebedev rule for a slab.
 1. **G compatibility** (symmetry).
-   :math:`G_{\text{geom}} \subseteq G_{\text{quad}}` — the rule's
-   invariance group must contain every symmetry of the geometry. A
-   quadrature with **less** symmetry imprints spurious low-order
-   asymmetry on a symmetric problem (Lebedev 1976, §1; Stiefel &
-   Fässler 1979 Ch. 5). A quadrature with **more** symmetry is fine —
+   :math:`\Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q)` — the
+   rule must be invariant under the geometry's *discrete residual*
+   symmetry, the half of its symmetry group that survives the
+   reduction and must therefore be realized as an ordinate
+   permutation. A quadrature with **less** symmetry imprints spurious
+   low-order asymmetry on a symmetric problem (Lebedev 1976, §1;
+   Stiefel & Fässler 1979 Ch. 5) and cannot represent a reflecting
+   boundary exactly. A quadrature with **more** symmetry is fine —
    the extra symmetry is unused, not violated.
+
+   :math:`\operatorname{Sym}(Q)` is **computed from the rule's nodes**
+   (:meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant`),
+   never read from a declared tag. A declared group is a claim with no
+   construction behind it, and the claim that used to sit here was
+   false: ``product_mu_phi`` advertised :math:`SO(2)`, which no finite
+   point set on :math:`S^2` can satisfy, and that falsehood was the
+   only reason this gate admitted the product rule for a cylinder.
 2. **V compatibility** (polynomial exactness, "vague" / Galerkin sense).
    :math:`\deg(Q) \ge d` — the rule's degree of exactness must reach at
    least the target. Most rules have a parameter-dependent degree
@@ -40,17 +61,32 @@ Formally,
    :label: quadrature-selection-criterion
 
    Q^{\star} \;=\; \arg\min\Bigl\{\, n(Q) \;:\;\;
-   G_{\text{geom}} \subseteq G_Q
+   \mathcal{D}_Q = S^2 / G^0_{\text{geom}}
+   \;\wedge\; \Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q)
    \;\wedge\; \deg(Q) \ge d
    \;\wedge\; F_{\text{req}} \subseteq F_Q
    \,\Bigr\},
 
 where :math:`n(Q)` is the number of nodes,
-:math:`G_Q \subseteq O(3)` is the invariance group,
+:math:`\mathcal{D}_Q` is the domain the rule's nodes live on,
+:math:`G^0_{\text{geom}}` and :math:`\Gamma_{\text{geom}}` are the
+continuous and discrete halves of the geometry's angular symmetry
+(:class:`AngularSymmetry`), :math:`\operatorname{Sym}(Q)` is the group
+the rule's nodes are actually invariant under,
 :math:`\deg(Q)` is the polynomial-exactness degree, and
 :math:`F_Q \subseteq \{\text{positive\_weights}, \text{axis\_aligned},
 \text{level\_structured}, \text{half\_range\_clean}\}` is the rule's
 structural-flag set.
+
+The conjunction is order-free, but the *evaluation* is not: the
+symmetry conjunct needs the rule's nodes, and the nodes need the
+parameters that only the V stage determines. So ``select_quadrature``
+evaluates V first, instantiates, and then applies stages 0 and 1. This
+is a real consequence of the theorem, not an implementation detail —
+a rule's invariance group is **parameter-dependent** (the product
+rule's is :math:`D_{n_\phi h}`), so no parameter-free field on
+:class:`QuadratureSpec` can express it, and the older design that
+tried to had to lie.
 
 The :func:`select_quadrature` function returns both the chosen measure
 **and** a :class:`SelectionLog` listing every rejected candidate with
@@ -70,58 +106,84 @@ modelling choice the user must own. The registry adds
 documentation artifact — every entry's docstring becomes a Sphinx
 table row narrating the trade-off.
 
-Geometry → symmetry-group assignment
-------------------------------------
+Geometry → angular-symmetry assignment
+--------------------------------------
 
-The geometries the registry handles today are tagged with the
-following native symmetry groups:
+Each geometry declares the two halves of its angular symmetry (see
+:class:`AngularSymmetry`): the continuous part :math:`G^0` that the
+dimensional reduction **spends**, and the discrete residual
+:math:`\Gamma` still **owed** to the quadrature.
 
 .. list-table::
    :header-rows: 1
-   :widths: 22 14 64
+   :widths: 18 12 12 12 46
 
    * - Geometry
-     - :math:`G_{\text{geom}}`
+     - :math:`G^0` (spent)
+     - Domain :math:`S^2/G^0`
+     - :math:`\Gamma` (owed)
      - Rationale
    * - ``"slab"``
      - :math:`SO(2)`
-     - 1-D problem in :math:`z`; the angular dependence reduces to
-       :math:`\mu = \cos\theta` only, with full azimuthal rotation
-       symmetry. The slab's transverse :math:`Z_2` reflection is
-       carried by the polar-cosine endpoints
-       :math:`\mu \to -\mu` and is automatic for any 1-D rule on
-       :math:`[-1, 1]` with symmetric nodes (Gauss-Legendre is
-       symmetric by Stoer-Bulirsch §3.6).
+     - :math:`[-1,1]`
+     - :math:`Z_2`
+     - 1-D in :math:`z`. Azimuthal rotation about the slab normal is
+       integrated out analytically, so the angular variable is
+       :math:`\mu = \cos\theta` alone. What remains owed is
+       :math:`\mu \to -\mu`, the reflection that pairs the two sweep
+       senses and that a reflecting end face consumes. Gauss-Legendre
+       nodes are symmetric (Stoer-Bulirsch §3.6), so it holds.
    * - ``"sphere"``
      - :math:`SO(2)`
+     - :math:`[-1,1]`
+     - :math:`Z_2`
      - The 1-D **radial** spherical SN reduces to GL on
        :math:`\mu_r = \cos\theta_r`, the cosine of the angle between
        the ordinate and the radial direction (Lewis & Miller 1993
-       §4.4). The continuous problem has :math:`O(3)` symmetry, but
-       the discrete radial reduction collapses azimuthal dependence,
-       leaving :math:`SO(2)` as the relevant group.
+       §4.4). The continuous problem has :math:`O(3)` symmetry; the
+       radial reduction spends the azimuth about :math:`\hat r` and
+       leaves the same :math:`Z_2` as the slab. Here the spent half is
+       not free — its fiber action reappears in the sweep as the
+       angular-redistribution :math:`\alpha` term.
    * - ``"cylinder"``
-     - :math:`SO(2)`
-     - Axisymmetric cylinder: :math:`\phi`-independence is
-       :math:`SO(2)` about the axial direction. The cylindrical SN
-       sweep additionally requires the rule to have **per-:math:`\mu`
-       polar-level structure** for the azimuthal redistribution
-       coefficients (Bailey et al. 2009 Eq. 50); request this via the
+     - trivial
+     - :math:`S^2`
+     - :math:`D_{2h}`
+     - An axisymmetric cylinder is :math:`\phi`-independent in
+       *space*, but that does not reduce the *angular* domain: both
+       angular degrees of freedom survive, so the rule must live on
+       :math:`S^2`. Owed is :math:`D_{2h}`, the coordinate-plane
+       mirrors. The cylindrical SN sweep additionally requires
+       per-:math:`\mu` polar-level structure for the azimuthal
+       redistribution coefficients; request it via the
        ``level_structured=True`` structural flag.
    * - ``"cartesian2d"``
-     - :math:`O_h`
-     - 2-D Cartesian (x-y) carries the full octahedral group when
-       both reflection axes are interchangeable. Conservatively
-       tagging :math:`O_h` (rather than just :math:`D_{4h}`) means
-       the selector accepts any :math:`O_h`-invariant rule —
-       Lebedev and level-symmetric :math:`S_N` both qualify.
+     - trivial
+     - :math:`S^2`
+     - :math:`D_{2h}`
+     - 2-D Cartesian (x-y). :math:`D_{2h} \cong (\mathbb{Z}_2)^3` is
+       generated by the three coordinate-plane mirrors, and its
+       chambers are exactly the octants the sweep decomposes into —
+       which is precisely the symmetry a reflecting :math:`x` or
+       :math:`y` face needs to be representable exactly.
 
-The judgment call is the spherical case: continuous spherical
-geometry is :math:`O(3)` but the **discrete-ordinate radial SN** is a
-1-D problem in :math:`\mu_r`, so :math:`SO(2)` is the right group at
-the discretisation level. When 2-D / 3-D spherical SN lands, this
-table will gain a ``"sphere2d"`` / ``"sphere3d"`` entry tagged
-:math:`O_h` or :math:`O(3)`.
+.. note::
+
+   Before 2026-08-02 this table held a single group per geometry and
+   recorded the **spent** half in it: ``slab``/``sphere``/``cylinder``
+   all read :math:`SO(2)`. That is a true statement *about the
+   geometry* and a useless one *for selecting a quadrature*, because
+   no finite point set on :math:`S^2` is :math:`SO(2)`-closed — the
+   gate :math:`G_{\text{geom}} \subseteq G_Q` was unsatisfiable by any
+   discrete azimuthal rule and could only ever pass on a false tag.
+   ``cartesian2d`` read :math:`O_h`, a 6× over-claim demanding the
+   :math:`x \leftrightarrow z` exchange, never a symmetry of a
+   z-uniform problem. Splitting spent from owed is what makes the gate
+   both satisfiable and discriminating.
+
+When 2-D / 3-D spherical SN lands, this table gains ``"sphere2d"`` /
+``"sphere3d"`` entries; both spend nothing continuously and owe at
+least :math:`D_{2h}`.
 
 References
 ----------
@@ -159,7 +221,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from ..measure import DiscreteMeasure
+from ..measure import SPACE_INTERVAL_M11, SPACE_SPHERE, DiscreteMeasure
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_mu
 from .rules_product import product_mu_phi
@@ -191,12 +253,22 @@ _LEBEDEV_ORDERS: tuple[int, ...] = (
 class QuadratureSpec:
     r"""Tagged registry entry for a single quadrature rule.
 
-    Each spec captures everything :func:`select_quadrature` needs to
-    reason about the rule **without** instantiating it: the invariance
-    group, the polynomial-exactness degree formula, the structural
-    flags, the parameter-inversion logic. The actual measure is built
-    lazily by ``factory(**parameters)`` once the selector has decided
-    which rule to use.
+    Each spec captures what :func:`select_quadrature` needs to *rank*
+    the rule without instantiating it: the polynomial-exactness degree
+    formula, the structural flags, the node-count formula, the
+    parameter-inversion logic.
+
+    It deliberately carries **no invariance group**. A rule's symmetry
+    is parameter-dependent (``product_mu_phi``'s is
+    :math:`D_{n_\phi h}`), so a parameter-free field cannot state it
+    truthfully — and the field that used to sit here declared
+    :math:`SO(2)`, which is false for every finite point set on
+    :math:`S^2`. The group is now **computed** from the instantiated
+    measure by
+    :meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant`.
+    The measure's own ``invariance_group`` metadata survives as the
+    single source of that tag (``DiscreteMeasure.phase`` reads it);
+    duplicating it here was a twin source of truth.
 
     Attributes
     ----------
@@ -212,10 +284,6 @@ class QuadratureSpec:
         :func:`level_symmetric_sn` and :func:`product_mu_phi`
         signatures that pair the measure with a
         :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`.
-    invariance_group : SubgroupOfO3
-        Group :math:`G_Q` under which the rule's measure is invariant.
-        Drives the **G compatibility** filter:
-        ``geometry_group.is_subgroup_of(invariance_group)``.
     parameters : dict[str, type]
         Parameter names and their types. The selector calls
         :meth:`degree_of_exactness_for` to invert the degree formula
@@ -263,7 +331,6 @@ class QuadratureSpec:
 
     name: str
     factory: Callable[..., Any]
-    invariance_group: SubgroupOfO3
     parameters: dict[str, type]
     degree_of_exactness_for: Callable[[int], dict[str, Any] | None]
     expected_node_count: Callable[[dict[str, Any]], int]
@@ -285,6 +352,19 @@ class QuadratureSpec:
             "level_structured": self.level_structured,
             "half_range_clean": self.half_range_clean,
         }
+
+    def build(self, parameters: dict[str, Any]) -> DiscreteMeasure:
+        """Instantiate the rule at ``parameters`` and return its measure.
+
+        The registered factories return either a
+        :class:`~orpheus.numerics.measure.DiscreteMeasure` or a
+        ``(measure, LevelStructure)`` pair. This is the **one** place
+        that unpacking happens — the selector needs a measure to ask
+        the domain and symmetry questions, and needs one again to
+        return the winner.
+        """
+        result = self.factory(**parameters)
+        return result[0] if isinstance(result, tuple) else result
 
 
 # ---------------------------------------------------------------------------
@@ -435,7 +515,6 @@ quadrature_registry: list[QuadratureSpec] = [
     QuadratureSpec(
         name="GaussLegendre1D",
         factory=gauss_legendre_on_mu,
-        invariance_group=SubgroupOfO3.SO2,
         parameters={"n": int},
         degree_of_exactness_for=_gl1d_invert,
         expected_node_count=_gl1d_node_count,
@@ -447,7 +526,6 @@ quadrature_registry: list[QuadratureSpec] = [
     QuadratureSpec(
         name="LebedevSphere",
         factory=lebedev_sphere,
-        invariance_group=SubgroupOfO3.OctahedralOh,
         parameters={"order": int},
         degree_of_exactness_for=_lebedev_invert,
         expected_node_count=_lebedev_node_count,
@@ -459,7 +537,6 @@ quadrature_registry: list[QuadratureSpec] = [
     QuadratureSpec(
         name="LevelSymmetricSN",
         factory=level_symmetric_sn,
-        invariance_group=SubgroupOfO3.OctahedralOh,
         parameters={"sn_order": int},
         degree_of_exactness_for=_ls_sn_invert,
         expected_node_count=_ls_sn_node_count,
@@ -471,7 +548,6 @@ quadrature_registry: list[QuadratureSpec] = [
     QuadratureSpec(
         name="ProductQuadrature",
         factory=product_mu_phi,
-        invariance_group=SubgroupOfO3.SO2,
         parameters={"n_mu": int, "n_phi": int},
         degree_of_exactness_for=_product_invert,
         expected_node_count=_product_node_count,
@@ -484,19 +560,128 @@ quadrature_registry: list[QuadratureSpec] = [
 
 
 # ---------------------------------------------------------------------------
-# Geometry → group lookup
+# Geometry → angular symmetry
 # ---------------------------------------------------------------------------
-#
-# Static table — see the module docstring "Geometry → symmetry-group
-# assignment" subsection for the rationale of each entry. New geometries
-# (hexagonal lattice, 2-D / 3-D spherical, …) are added here, not in the
-# selector itself.
 
-GEOMETRY_GROUPS: dict[str, SubgroupOfO3] = {
-    "slab": SubgroupOfO3.SO2,
-    "sphere": SubgroupOfO3.SO2,
-    "cylinder": SubgroupOfO3.SO2,
-    "cartesian2d": SubgroupOfO3.OctahedralOh,
+
+@dataclass(frozen=True)
+class AngularSymmetry:
+    r"""What a geometry demands of its angular discretisation.
+
+    A geometry's symmetry group :math:`G` does not act on the angular
+    variable as one undifferentiated thing. It splits by **how the
+    action is used**, and the two halves place two different demands
+    on a quadrature:
+
+    * :attr:`continuous_isotropy` :math:`G^0` — the continuous
+      subgroup that the dimensional reduction **spends**. A slab is
+      invariant under every rotation about :math:`z`, so
+      :math:`\psi` depends on :math:`\Omega` only through
+      :math:`\mu = \Omega\cdot\hat z`; the azimuth is integrated out
+      analytically and never discretised. What this half determines is
+      the *domain*: the angular variable lives on the quotient
+      :math:`S^2/G^0` (:attr:`support`). In curvilinear geometry its
+      non-trivial fiber action is what appears in the sweep as the
+      angular-redistribution (:math:`\alpha`) term — the reduction is
+      "paid for" there.
+    * :attr:`discrete_residual` :math:`\Gamma = G/G^0` — the finite
+      residual, still **owed**. It cannot be integrated away; it must
+      be realized as a permutation of the ordinates. This is the half
+      a reflecting boundary condition consumes: the face reflection
+      :math:`\sigma_{\hat n}` maps ordinate :math:`m` to ordinate
+      :math:`m'` *exactly* only if the node set is closed under
+      :math:`\sigma_{\hat n}`.
+
+    Splitting them is what makes the selection gate expressible. The
+    table this replaced recorded only :math:`G^0` and compared it to a
+    rule's declared group, which is unsatisfiable by construction — no
+    finite point set on :math:`S^2` is :math:`SO(2)`-closed — so the
+    gate could only ever pass on a false declaration, and did.
+
+    Attributes
+    ----------
+    continuous_isotropy : SubgroupOfO3
+        :math:`G^0`, the half spent by the reduction. Determines
+        :attr:`support`. Use
+        :attr:`SubgroupOfO3.Trivial` when the reduction spends nothing
+        (a 2-D or 3-D geometry retains both angular degrees of
+        freedom).
+    discrete_residual : SubgroupOfO3
+        :math:`\Gamma`, the finite half a quadrature must realize as
+        an ordinate permutation.
+    """
+
+    continuous_isotropy: SubgroupOfO3
+    discrete_residual: SubgroupOfO3
+
+    @property
+    def support(self) -> str:
+        r"""The angular domain :math:`S^2/G^0` — derived, not declared.
+
+        Returns the ``support`` tag a rule's measure must carry to be
+        admissible for this geometry. Deriving it (rather than storing
+        a second, independent column) keeps the domain and the spent
+        group from drifting apart: they are one fact.
+        """
+        spent = self.continuous_isotropy
+        if spent == SubgroupOfO3.SO2:
+            # S²/SO(2) — the polar marginal. The orbits of the axial
+            # rotation are the constant-μ circles, so the quotient is
+            # parameterised by μ alone.
+            return SPACE_INTERVAL_M11
+        if spent == SubgroupOfO3.Trivial:
+            return SPACE_SPHERE
+        raise NotImplementedError(
+            f"no angular domain is defined for the quotient S^2/{spent.name}; "
+            f"extend AngularSymmetry.support when a geometry first spends it"
+        )
+
+    def admits_domain(self, measure: DiscreteMeasure) -> bool:
+        """Stage 0 — does the rule live on this geometry's angular domain?"""
+        return measure.support == self.support
+
+    def admits_symmetry(self, measure: DiscreteMeasure) -> bool:
+        """Stage 1 — is the rule closed under the owed discrete symmetry?
+
+        Computed from the nodes, never read from a declared tag.
+        """
+        return self.discrete_residual.is_invariant(measure)
+
+
+# Static table — one entry per supported geometry. New geometries
+# (hexagonal lattice, 2-D / 3-D spherical, …) are added here, not in
+# the selector itself.
+#
+# `slab` / `sphere`: the 1-D reductions. Azimuthal symmetry about the
+#   local axis is spent, leaving a μ-marginal; what remains owed is the
+#   forward/backward reflection μ → −μ, which is what pairs the two
+#   sweep senses and what a reflecting end face consumes.
+# `cylinder` / `cartesian2d`: nothing continuous is spent — both
+#   angular degrees of freedom survive. Owed is D_2h ≅ (ℤ₂)³, the group
+#   generated by the three coordinate-plane mirrors, whose chambers are
+#   exactly the octants the sweep decomposes into.
+#
+# `cartesian2d` carried O_h before 2026-08-02, a 6× over-claim: O_h
+# demands the x↔z exchange and the diagonal mirrors, which are
+# symmetries of a *cube*, never of a z-uniform problem.
+
+GEOMETRY_ANGULAR_SYMMETRY: dict[str, AngularSymmetry] = {
+    "slab": AngularSymmetry(
+        continuous_isotropy=SubgroupOfO3.SO2,
+        discrete_residual=SubgroupOfO3.Z2,
+    ),
+    "sphere": AngularSymmetry(
+        continuous_isotropy=SubgroupOfO3.SO2,
+        discrete_residual=SubgroupOfO3.Z2,
+    ),
+    "cylinder": AngularSymmetry(
+        continuous_isotropy=SubgroupOfO3.Trivial,
+        discrete_residual=SubgroupOfO3.Dnh(2),
+    ),
+    "cartesian2d": AngularSymmetry(
+        continuous_isotropy=SubgroupOfO3.Trivial,
+        discrete_residual=SubgroupOfO3.Dnh(2),
+    ),
 }
 
 
@@ -519,9 +704,12 @@ class SelectionLog:
     ----------
     geometry : str
         The geometry tag from the original call.
-    geometry_group : SubgroupOfO3
-        The native symmetry group resolved from
-        :data:`GEOMETRY_GROUPS`.
+    angular_symmetry : AngularSymmetry
+        The geometry's angular symmetry — both halves — resolved from
+        :data:`GEOMETRY_ANGULAR_SYMMETRY`. Carries the required
+        ``support`` and the owed ``discrete_residual``, so a reader of
+        the log can reconstruct stages 0 and 1 without re-deriving
+        them.
     target_degree : int
         The polynomial-exactness target from the original call.
     requested_flags : dict[str, bool]
@@ -534,12 +722,12 @@ class SelectionLog:
         The parameter dict used to instantiate the chosen rule.
     rejected : list[tuple[str, str]]
         For each rejected spec, ``(spec.name, reason)``. The reason
-        string identifies the failing stage (G / V / structural) and
-        the missing predicate.
+        string identifies the failing stage (domain / symmetry / V /
+        structural) and the missing predicate.
     """
 
     geometry: str
-    geometry_group: SubgroupOfO3
+    angular_symmetry: AngularSymmetry
     target_degree: int
     requested_flags: dict[str, bool]
     chosen_spec: QuadratureSpec | None
@@ -600,7 +788,8 @@ def select_quadrature(
     Parameters
     ----------
     geometry : str
-        Geometry tag — one of the keys of :data:`GEOMETRY_GROUPS`
+        Geometry tag — one of the keys of
+        :data:`GEOMETRY_ANGULAR_SYMMETRY`
         (``"slab"``, ``"sphere"``, ``"cylinder"``, ``"cartesian2d"``).
         Case-sensitive. Unknown tags raise :class:`KeyError` immediately
         (this is a programming error, not a selection failure).
@@ -633,21 +822,21 @@ def select_quadrature(
     Raises
     ------
     KeyError
-        If ``geometry`` is not in :data:`GEOMETRY_GROUPS`.
+        If ``geometry`` is not in :data:`GEOMETRY_ANGULAR_SYMMETRY`.
     QuadratureSelectionError
         If no registered spec satisfies every stage. The exception's
         ``log`` attribute carries the full :class:`SelectionLog` for
         introspection.
     """
-    if geometry not in GEOMETRY_GROUPS:
+    if geometry not in GEOMETRY_ANGULAR_SYMMETRY:
         raise KeyError(
             f"unknown geometry {geometry!r}; expected one of "
-            f"{sorted(GEOMETRY_GROUPS.keys())}"
+            f"{sorted(GEOMETRY_ANGULAR_SYMMETRY.keys())}"
         )
     if registry is None:
         registry = quadrature_registry
 
-    geom_group = GEOMETRY_GROUPS[geometry]
+    angular_symmetry = GEOMETRY_ANGULAR_SYMMETRY[geometry]
 
     # Normalise the structural request: only True values are
     # constraints. (Passing flag=False is "don't care" — we never
@@ -670,25 +859,52 @@ def select_quadrature(
         )
 
     rejected: list[tuple[str, str]] = []
-    candidates: list[tuple[QuadratureSpec, dict[str, Any], int]] = []
+    # The measure rides along: stages 0/1 had to build it, so rebuilding
+    # the winner afterwards would be a second, divergence-capable
+    # construction of the same object.
+    candidates: list[
+        tuple[QuadratureSpec, dict[str, Any], int, DiscreteMeasure]
+    ] = []
 
     for spec in registry:
-        # ---- Stage 1: G compatibility ---------------------------------
-        if not geom_group.is_subgroup_of(spec.invariance_group):
-            rejected.append((
-                spec.name,
-                f"G mismatch: geometry {geom_group.name} is not a subgroup "
-                f"of rule's invariance group {spec.invariance_group.name}",
-            ))
-            continue
-
-        # ---- Stage 2: V compatibility ---------------------------------
+        # ---- Stage 2: V compatibility (FIRST — it fixes the
+        #      parameters, and stages 0 and 1 need the nodes) ----------
         params = spec.degree_of_exactness_for(target_degree)
         if params is None:
             rejected.append((
                 spec.name,
                 f"V mismatch: rule cannot reach target_degree="
                 f"{target_degree} with any supported parameters",
+            ))
+            continue
+
+        measure = spec.build(params)
+
+        # ---- Stage 0: angular domain ----------------------------------
+        if not angular_symmetry.admits_domain(measure):
+            rejected.append((
+                spec.name,
+                f"domain mismatch: geometry {geometry!r} discretises "
+                f"{angular_symmetry.support} (= S^2/"
+                f"{angular_symmetry.continuous_isotropy.name}), but the rule's "
+                f"nodes live on {measure.support}",
+            ))
+            continue
+
+        # ---- Stage 1: the owed discrete symmetry ----------------------
+        #
+        # Computed from the instantiated nodes. Note this is NOT
+        # `residual.is_subgroup_of(measure.invariance_group)`: a rule's
+        # declared tag need not be its MAXIMAL group (the 1-D rule
+        # declares SO(2), the group its domain was quotiented BY), so
+        # the lattice route would wrongly reject Gauss-Legendre for a
+        # slab. Asking the nodes directly cannot go wrong that way.
+        if not angular_symmetry.admits_symmetry(measure):
+            rejected.append((
+                spec.name,
+                f"symmetry mismatch: geometry {geometry!r} owes "
+                f"{angular_symmetry.discrete_residual.name}, which the rule's "
+                f"nodes at {params} are not invariant under",
             ))
             continue
 
@@ -708,7 +924,7 @@ def select_quadrature(
 
         # ---- Stage 4: cost (minimum points) tracked here -------------
         n_nodes = spec.expected_node_count(params)
-        candidates.append((spec, params, n_nodes))
+        candidates.append((spec, params, n_nodes, measure))
 
     def _selection_log(
         chosen_spec: QuadratureSpec | None,
@@ -726,7 +942,7 @@ def select_quadrature(
             chosen_parameters=chosen_parameters,
             rejected=rejected,
             geometry=geometry,
-            geometry_group=geom_group,
+            angular_symmetry=angular_symmetry,
             target_degree=target_degree,
             requested_flags=requested_flags,
         )
@@ -745,15 +961,7 @@ def select_quadrature(
     # registry order (stable sort), which puts the most specialised
     # rule first when costs match.
     candidates.sort(key=lambda c: c[2])
-    chosen_spec, chosen_params, _ = candidates[0]
-
-    # The registered factories return either a DiscreteMeasure or a
-    # (DiscreteMeasure, LevelStructure) tuple. Unpack uniformly.
-    result = chosen_spec.factory(**chosen_params)
-    if isinstance(result, tuple):
-        measure = result[0]
-    else:
-        measure = result
+    chosen_spec, chosen_params, _, measure = candidates[0]
 
     log = _selection_log(
         chosen_spec=chosen_spec, chosen_parameters=chosen_params,
@@ -762,7 +970,8 @@ def select_quadrature(
 
 
 __all__ = [
-    "GEOMETRY_GROUPS",
+    "AngularSymmetry",
+    "GEOMETRY_ANGULAR_SYMMETRY",
     "QuadratureSelectionError",
     "QuadratureSpec",
     "SelectionLog",

@@ -912,39 +912,75 @@ def test_invariance_is_downward_closed() -> None:
 
 
 @pytest.mark.foundation
-def test_product_symmetry_contradicts_its_registry_declaration() -> None:
-    r"""The computed answer convicts the declared one.
+def test_every_registry_rule_declares_a_symmetry_it_actually_has() -> None:
+    r"""Every shipped rule's ``invariance_group`` is a TRUE claim.
 
-    ``registry.py`` declares ``product -> invariance_group = SO2``. The walk
-    says :math:`D_{n_\varphi h}`, and :math:`SO(2)` is not among the groups
-    the rule carries -- nor could it be, since no finite point set with
-    off-axis nodes is :math:`SO(2)`-closed.
+    This gate replaces (2026-08-02) a characterization test that pinned the
+    opposite: the product rule declared :math:`SO(2)` while the walk said
+    :math:`D_{n_\varphi h}`, and that test existed to hold the contradiction
+    visible until the registry was re-posed. Its docstring predicted it would
+    "start passing for the opposite reason once the registry is re-posed" --
+    this is that re-posing, so the gate is inverted rather than deleted.
 
-    Kept as a live gate rather than a comment: it is the evidence that a
-    computed property cannot lie about its object where a declared tag can,
-    and it must start passing for the opposite reason once the registry is
-    re-posed (the declaration removed, not the fact changed).
+    The claim tested is deliberately WEAKER than equality with the computed
+    maximal group, because a declaration is allowed to be true-but-not-maximal
+    and one shipped rule genuinely is: ``gauss_legendre_on_mu`` declares
+    :math:`SO(2)`, the group its domain was quotiented BY. That tag is not an
+    over-claim -- :math:`SO(2)` acts trivially on :math:`\mu`, so the marginal
+    satisfies it -- and demanding maximality would wrongly convict it. What is
+    forbidden is a declaration the nodes do NOT satisfy, which is exactly what
+    :math:`SO(2)` on :math:`S^2` was.
     """
     from orpheus.numerics.quadrature.registry import quadrature_registry
+
+    checked: list[str] = []
+    for spec in quadrature_registry:
+        params = spec.degree_of_exactness_for(5)
+        assert params is not None, f"{spec.name} cannot reach degree 5"
+        measure = spec.build(params)
+        declared = measure.invariance_group
+        assert declared is not None, (
+            f"{spec.name} carries no invariance_group; DiscreteMeasure.phase "
+            f"reads it to classify the measure as angular"
+        )
+        assert declared.is_invariant(measure), (
+            f"{spec.name} at {params} declares {declared.name}, but its own "
+            f"nodes are not invariant under it -- a declared group with no "
+            f"construction behind it"
+        )
+        checked.append(spec.name)
+
+    assert set(checked) == {
+        "GaussLegendre1D",
+        "LebedevSphere",
+        "LevelSymmetricSN",
+        "ProductQuadrature",
+    }
+
+
+@pytest.mark.foundation
+def test_product_declares_the_group_the_walk_computes() -> None:
+    r"""The product rule's declaration is now the computed answer itself.
+
+    The one rule whose group is parameter-dependent is the one that lied, and
+    it lied because the spec field's type could not spell the dependence. With
+    the declaration moved onto the measure -- where ``n_phi`` is in scope --
+    declared and computed agree at every order, including the odd ones the
+    selection gate now rejects for a cylinder.
+    """
     from orpheus.numerics.symmetry import maximal_invariance_groups
 
-    declared = {
-        spec.name: spec.invariance_group
-        for spec in quadrature_registry
-        if "roduct" in spec.name
-    }
-    assert declared, "no product entry found in the registry"
-    assert any(g.name == SubgroupOfO3.SO2.name for g in declared.values()), (
-        "expected the product spec to declare SO2 -- if this fails the "
-        "registry was re-posed and this gate should be re-read, not deleted"
-    )
-
-    mu = _measure_from_sphere_quad(Quadrature.product(n_mu=4, n_phi=8))
-    carried = maximal_invariance_groups(mu)
-    assert [g.name for g in carried] == [SubgroupOfO3.Dnh(8).name]
-    assert not SubgroupOfO3.SO2.is_invariant(mu), (
-        "the declared SO2 is not a symmetry the rule actually has"
-    )
+    for n_phi in (2, 3, 4, 5, 6, 8):
+        mu = _measure_from_sphere_quad(
+            Quadrature.product(n_mu=4, n_phi=n_phi)
+        )
+        computed = maximal_invariance_groups(mu)
+        assert [g.name for g in computed] == [SubgroupOfO3.Dnh(n_phi).name], (
+            f"n_phi={n_phi}: walk says {[g.name for g in computed]}"
+        )
+        assert not SubgroupOfO3.SO2.is_invariant(mu), (
+            f"n_phi={n_phi}: no finite point set on S^2 is SO(2)-closed"
+        )
 
 
 # ============================================================================
