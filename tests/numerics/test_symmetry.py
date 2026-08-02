@@ -1105,3 +1105,119 @@ def test_orbit_stabilizer_theorem_holds_on_every_certificate() -> None:
                 f"{name}: node {i} has |Stab|={stab[i]} but "
                 f"{'is' if i in sigma else 'is not'} in Sigma"
             )
+
+
+# ============================================================================
+# Proper vs improper, and the 1-D polar-marginal action
+# ============================================================================
+
+
+@pytest.mark.foundation
+def test_z2_is_improper_so_it_is_not_inside_the_rotation_groups() -> None:
+    r""":math:`Z_2` is realized as :math:`\sigma_z`, ``det = -1``.
+
+    An improper element cannot lie in a proper-rotation group, so
+    :math:`Z_2 \not\le SO(2)` and :math:`Z_2 \not\le SO(3)`. The lattice
+    asserted the second until 2026-08-02, and it broke monotonicity on any
+    measure that is :math:`SO(3)`-invariant without being
+    reflection-symmetric.
+
+    The proper order-2 sibling is ``Cn(2)``, which IS inside both — that
+    distinction is the reason the two spellings exist, and it is exactly
+    what the false edge erased.
+    """
+    from orpheus.numerics.symmetry import _close_group, _realized_ops
+
+    dets = [
+        float(np.linalg.det(M))
+        for M in _close_group(_realized_ops(SubgroupOfO3.Z2._tag))  # type: ignore[arg-type]
+    ]
+    assert sorted(round(d) for d in dets) == [-1, 1], dets
+
+    assert not SubgroupOfO3.SO3.contains(SubgroupOfO3.Z2)
+    assert not SubgroupOfO3.SO2.contains(SubgroupOfO3.Z2)
+    assert SubgroupOfO3.O3.contains(SubgroupOfO3.Z2)
+    # The proper sibling behaves oppositely.
+    assert SubgroupOfO3.SO3.contains(SubgroupOfO3.Cn(2))
+    assert SubgroupOfO3.SO2.contains(SubgroupOfO3.Cn(2))
+
+
+@pytest.mark.foundation
+def test_so3_on_a_polar_marginal_requires_reflection_symmetry() -> None:
+    r""":math:`SO(3)` does not act trivially on a 1-D :math:`\mu`-measure.
+
+    :math:`SO(2)` and :math:`C_n` rotate about :math:`z` and leave the polar
+    cosine alone, so a 1-D measure is trivially invariant under them. But
+    :math:`R_x(\pi) \in SO(3)` induces :math:`\mu \to -\mu`, so an
+    :math:`SO(3)`-invariant polar marginal must be reflection-symmetric.
+
+    Returning ``True`` unconditionally made an asymmetric node set read
+    :math:`SO(3)`-invariant and :math:`Z_2`-non-invariant at once.
+    """
+    asymmetric = DiscreteMeasure(
+        nodes=np.array([-0.9, -0.1, 0.3]),
+        weights=np.ones(3),
+        support="[-1,1]",
+    )
+    symmetric = DiscreteMeasure(
+        nodes=np.array([-0.6, -0.2, 0.2, 0.6]),
+        weights=np.ones(4),
+        support="[-1,1]",
+    )
+
+    # Rotations about z genuinely are trivial here — both stay True.
+    assert SubgroupOfO3.SO2.is_invariant(asymmetric)
+    assert SubgroupOfO3.Cn(3).is_invariant(asymmetric)
+
+    assert not SubgroupOfO3.SO3.is_invariant(asymmetric)
+    assert SubgroupOfO3.SO3.is_invariant(symmetric)
+
+
+@pytest.mark.foundation
+def test_invariance_is_downward_closed_on_polar_marginals() -> None:
+    """The monotonicity law again, on the 1-D path.
+
+    The sphere-side gate cannot see 1-D bugs: that path never calls
+    ``_orbit_closure`` and has its own dispatch. Both defects fixed above
+    surface here as violations.
+    """
+    tags = [
+        SubgroupOfO3.Trivial, SubgroupOfO3.Z2, SubgroupOfO3.SO2,
+        SubgroupOfO3.Dinfh, SubgroupOfO3.OctahedralOh,
+        SubgroupOfO3.IcosahedralIh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
+        SubgroupOfO3.Cn(1), SubgroupOfO3.Cn(2), SubgroupOfO3.Cn(3),
+        SubgroupOfO3.Dnh(1), SubgroupOfO3.Dnh(2), SubgroupOfO3.Dnh(4),
+    ]
+    measures = {
+        "asymmetric": DiscreteMeasure(
+            nodes=np.array([-0.9, -0.1, 0.3]), weights=np.ones(3),
+            support="[-1,1]",
+        ),
+        "symmetric": DiscreteMeasure(
+            nodes=np.array([-0.6, -0.2, 0.2, 0.6]), weights=np.ones(4),
+            support="[-1,1]",
+        ),
+        "symmetric-nodes-unequal-weights": DiscreteMeasure(
+            nodes=np.array([-0.6, 0.6]), weights=np.array([1.0, 2.0]),
+            support="[-1,1]",
+        ),
+    }
+
+    violations: list[str] = []
+    checked = 0
+    for label, mu in measures.items():
+        invariant = {repr(t): t.is_invariant(mu) for t in tags}
+        for outer in tags:
+            for inner in tags:
+                if outer == inner or not outer.contains(inner):
+                    continue
+                checked += 1
+                if invariant[repr(outer)] and not invariant[repr(inner)]:
+                    violations.append(
+                        f"{label}: {outer.name}-invariant but not "
+                        f"{inner.name}-invariant"
+                    )
+    assert checked > 150, f"only {checked} pairs checked"
+    assert not violations, (
+        f"{len(violations)} violations:\n  " + "\n  ".join(violations[:10])
+    )

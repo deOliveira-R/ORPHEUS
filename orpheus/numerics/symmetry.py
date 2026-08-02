@@ -89,7 +89,7 @@ from typing import ClassVar, Iterable
 
 import numpy as np
 
-from .measure import DiscreteMeasure, SPACE_INTERVAL_M11, SPACE_SPHERE
+from .measure import DiscreteMeasure, SPACE_INTERVAL_M11
 
 
 # ---------------------------------------------------------------------------
@@ -210,12 +210,17 @@ _NAMED_LATTICE: set[tuple[_NamedSubgroup, _NamedSubgroup]] = {
     (_NamedSubgroup.Trivial, _NamedSubgroup.SO3),
     (_NamedSubgroup.Trivial, _NamedSubgroup.O3),
 
-    # Z2 ⊂ everything except SO2 (a continuous proper-rotation group
-    # has no order-2 reflection element).
+    # Z2 ⊂ everything except the PROPER-rotation groups SO2 and SO3.
+    # Z2 is REALIZED as sigma_z, det = -1 (see ``_realized_ops``), and an
+    # improper element cannot lie in a proper-rotation group. The
+    # ``(Z2, SO3)`` edge asserted otherwise until 2026-08-02, and it broke
+    # monotonicity on any measure that is SO3-invariant but not
+    # reflection-symmetric. The proper order-2 sibling is ``Cn(2)``, which
+    # IS inside SO2 and SO3 — that is the distinction the two spellings
+    # exist to carry.
     (_NamedSubgroup.Z2, _NamedSubgroup.Dinfh),
     (_NamedSubgroup.Z2, _NamedSubgroup.OctahedralOh),
     (_NamedSubgroup.Z2, _NamedSubgroup.IcosahedralIh),
-    (_NamedSubgroup.Z2, _NamedSubgroup.SO3),
     (_NamedSubgroup.Z2, _NamedSubgroup.O3),
 
     # SO2 ⊂ Dinfh, SO3, O3.
@@ -732,10 +737,17 @@ def _check_invariance_1d(tag, measure: DiscreteMeasure, atol: float) -> bool:
     """
     # SO(2), SO(3), Cn, Dnh (with n >= 1): trivially invariant on a 1-D
     # measure — the rotation axis is the (missing) angular coordinate.
+    # SO(2) and C_n rotate about z, which does NOT move the polar cosine —
+    # they act trivially on a 1-D mu-measure, so every such measure is
+    # invariant under them.
+    #
+    # SO(3) is NOT in this set, though it was until 2026-08-02. It contains
+    # R_x(pi), which induces mu -> -mu, so an SO(3)-invariant polar marginal
+    # must be reflection-symmetric. Returning True unconditionally broke
+    # monotonicity outright: an asymmetric mu-set read SO3-invariant and
+    # Z2-non-invariant simultaneously.
     rotational_only = (
-        (isinstance(tag, _NamedSubgroup) and tag in (
-            _NamedSubgroup.SO2, _NamedSubgroup.SO3,
-        ))
+        (isinstance(tag, _NamedSubgroup) and tag is _NamedSubgroup.SO2)
         or isinstance(tag, Cn)
     )
     if rotational_only:
@@ -747,6 +759,7 @@ def _check_invariance_1d(tag, measure: DiscreteMeasure, atol: float) -> bool:
     if isinstance(tag, _NamedSubgroup) and tag in (
         _NamedSubgroup.Z2,
         _NamedSubgroup.Dinfh,
+        _NamedSubgroup.SO3,
         _NamedSubgroup.O3,
         _NamedSubgroup.OctahedralOh,
         _NamedSubgroup.IcosahedralIh,
@@ -869,24 +882,6 @@ def _rotation_z(theta: float) -> np.ndarray:
         [c, -s, 0.0],
         [s,  c, 0.0],
         [0.0, 0.0, 1.0],
-    ])
-
-
-def _rotation_x(theta: float) -> np.ndarray:
-    c, s = np.cos(theta), np.sin(theta)
-    return np.array([
-        [1.0, 0.0, 0.0],
-        [0.0, c, -s],
-        [0.0, s, c],
-    ])
-
-
-def _rotation_y(theta: float) -> np.ndarray:
-    c, s = np.cos(theta), np.sin(theta)
-    return np.array([
-        [c, 0.0, s],
-        [0.0, 1.0, 0.0],
-        [-s, 0.0, c],
     ])
 
 
@@ -1096,6 +1091,16 @@ def _rotation_about_axis(axis: np.ndarray, theta: float) -> np.ndarray:
 # Orbit-closure check, and the certificate it produces
 # ---------------------------------------------------------------------------
 
+#: The node-match window is this multiple of ``atol``, which is the WEIGHT
+#: window. The asymmetry is deliberate and worth naming rather than leaving
+#: as a bare ``* 100``: a node coordinate is the accumulated result of a
+#: matrix product against a constructed direction cosine, so it carries more
+#: round-off than a weight, which is usually read straight from a table. Both
+#: windows are ABSOLUTE — for rules whose weights are O(1e-3) the weight test
+#: is correspondingly stricter in relative terms, which is a known
+#: characteristic of this check and not an accident of it.
+_NODE_WINDOW_FACTOR = 100.0
+
 
 @dataclass(frozen=True)
 class OrbitCertificate:
@@ -1248,7 +1253,7 @@ def _orbit_closure(
         # cannot.
         dist = np.linalg.norm(moved[:, None, :] - nodes[None, :, :], axis=2)
         pi = np.argmin(dist, axis=1)
-        if np.any(dist[index, pi] > atol * 100):
+        if np.any(dist[index, pi] > atol * _NODE_WINDOW_FACTOR):
             return None  # some image is not a node at all
         # The match must be a BIJECTION, not merely a same-weight partner
         # map: two sources landing on one target leaves a node unmatched,
