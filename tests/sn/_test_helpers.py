@@ -21,6 +21,7 @@ helper is for the geometry-only call sites.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -958,3 +959,120 @@ def energy_spectrum(sol) -> np.ndarray:
     sf = np.asarray(sol.scalar_flux.values)
     spec = sf.mean(axis=tuple(range(1, sf.ndim)))
     return spec / np.linalg.norm(spec)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Issue #326 — the per-level ordinate ORDERING as a controllable input
+# ══════════════════════════════════════════════════════════════════════
+#
+# ``rules_product.py`` orders each mu-level by ``np.argsort(mu_x)``.  The key
+# ``eta = mu_x = sin(theta) cos(phi)`` is 2-to-1 over ``phi in [0, 2pi)``, so
+# the azimuthal mirror pair ``(phi, 2pi - phi)`` ties and the level is NOT
+# totally ordered; the tie-break is a free input that measurably moves the
+# cylindrical answer (issue #326).  Three test modules need to VARY that input
+# with node VALUES held bit-identical, so the swap lives here once rather than
+# being re-spelled in each (Pattern 2 — a twin here would be a convention that
+# can drift between the gates that compare against each other).
+
+#: The per-level orderings #326 adjudicates.  ``None`` is production (no patch).
+PRODUCT_LEVEL_ORDERINGS = ("lexsort", "stable", "azimuthal")
+
+_PRODUCT_RULE_IMPORT_SITES = (
+    "orpheus.numerics.quadrature.rules_product",
+    "orpheus.numerics.quadrature.directional",
+)
+
+
+def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
+    """Build a ``product_mu_phi`` replacement with a chosen level ordering.
+
+    ``exact_nodes`` selects the node generator, and it MATTERS: with the
+    trig-evaluated ``np.cos(np.linspace(...))`` nodes production uses today,
+    the mirror pair's ``eta`` differ by ~1 ULP, so the "tie" is resolved by
+    ROUNDING NOISE before any tie-break rule can act and lexsort / stable /
+    quicksort all agree.  The tie-break only becomes a reachable free variable
+    once the nodes are algebraically exact (``roots_of_unity``, issue #325).
+    """
+    from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
+    from orpheus.numerics.quadrature.rules_sphere import LevelStructure
+    from orpheus.numerics.symmetry import SubgroupOfO3
+
+    if tie_break not in PRODUCT_LEVEL_ORDERINGS:
+        raise ValueError(
+            f"unknown ordering {tie_break!r}; expected one of "
+            f"{PRODUCT_LEVEL_ORDERINGS}"
+        )
+
+    def build(n_mu: int, n_phi: int):
+        mu_gl, w_gl = np.polynomial.legendre.leggauss(n_mu)
+        if exact_nodes:
+            from orpheus.numerics.roots_of_unity import roots_of_unity
+            cos_phi, sin_phi = roots_of_unity(np.arange(n_phi), n_phi)
+        else:
+            phi = np.linspace(0.0, 2.0 * np.pi, n_phi, endpoint=False)
+            cos_phi, sin_phi = np.cos(phi), np.sin(phi)
+        w_phi = 2.0 * np.pi / n_phi
+
+        n_total = n_mu * n_phi
+        eta, xi, mu_z, w = (np.empty(n_total) for _ in range(4))
+        level_indices: list[np.ndarray] = []
+        i = 0
+        for p in range(n_mu):
+            sin_theta = np.sqrt(1.0 - mu_gl[p] ** 2)
+            first = i
+            for m in range(n_phi):
+                eta[i], xi[i] = sin_theta * cos_phi[m], sin_theta * sin_phi[m]
+                mu_z[i], w[i] = mu_gl[p], w_gl[p] * w_phi
+                i += 1
+            level = np.arange(first, first + n_phi)
+            if tie_break == "lexsort":       # eta ascending, ties broken by xi
+                order = np.lexsort((xi[level], eta[level]))
+            elif tie_break == "stable":      # eta ascending, ties by phi order
+                order = np.argsort(eta[level], kind="stable")
+            else:                            # "azimuthal": omega increasing
+                order = np.arange(n_phi)
+            level_indices.append(level[order])
+
+        measure = DiscreteMeasure(
+            nodes=np.column_stack([eta, xi, mu_z]), weights=w,
+            support=SPACE_SPHERE, invariance_group=SubgroupOfO3.SO2,
+            degree_of_exactness=min(2 * n_mu - 1, n_phi - 1),
+        )
+        structure = LevelStructure(
+            n_levels=n_mu, level_indices=level_indices, level_mu=mu_gl
+        )
+        return measure, structure
+
+    return build
+
+
+@contextmanager
+def product_level_ordering(tie_break: str, *, exact_nodes: bool = True):
+    """Run the body with ``Quadrature.product``'s level ordering replaced.
+
+    In-process monkeypatch of ``product_mu_phi`` at every import site — no
+    tracked file is touched.  Build the ``Quadrature`` (and anything holding
+    one, e.g. an MMS case) INSIDE the block; objects constructed outside keep
+    the ordering they were born with.
+
+    Parameters
+    ----------
+    tie_break :
+        One of :data:`PRODUCT_LEVEL_ORDERINGS`.
+    exact_nodes :
+        ``True`` (default) uses the algebraically-exact ``roots_of_unity``
+        generator, which is what makes the tie-break reachable at all.
+    """
+    import importlib
+
+    replacement = _product_rule_with_ordering(tie_break, exact_nodes=exact_nodes)
+    saved = []
+    try:
+        for name in _PRODUCT_RULE_IMPORT_SITES:
+            module = importlib.import_module(name)
+            saved.append((module, module.product_mu_phi))
+            module.product_mu_phi = replacement
+        yield
+    finally:
+        for module, original in saved:
+            module.product_mu_phi = original
