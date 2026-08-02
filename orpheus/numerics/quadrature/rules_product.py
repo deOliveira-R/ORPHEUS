@@ -77,6 +77,7 @@ import numpy as np
 
 from ..measure import SPACE_SPHERE, DiscreteMeasure
 from ..symmetry import SubgroupOfO3
+from .rules_1d import gauss_legendre_on_mu
 from .rules_sphere import LevelStructure
 
 
@@ -134,8 +135,13 @@ def product_mu_phi(
     if n_phi < 1:
         raise ValueError(f"product_mu_phi requires n_phi >= 1, got n_phi={n_phi}")
 
-    # GL points in μ = cos(θ).
-    mu_gl, w_gl = np.polynomial.legendre.leggauss(n_mu)
+    # GL points in μ = cos(θ). The polar factor IS the slab rule — same
+    # construction, one source — rather than a third independent call to
+    # a Gauss-Legendre routine. Consolidated 2026-08-02; it had been
+    # `np.polynomial.legendre.leggauss(n_mu)`, which the audit found as
+    # a surviving twin of the two rules the campaign was retiring.
+    polar = gauss_legendre_on_mu(n_mu)
+    mu_gl, w_gl = polar.nodes, polar.weights
 
     # Equispaced φ in [0, 2π) — left-endpoints, matching the legacy
     # ProductQuadrature contract pinned by the regression snapshots.

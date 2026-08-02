@@ -21,10 +21,7 @@ References
 
 from __future__ import annotations
 
-import numpy as np
-
 from ..measure import (
-    SPACE_INTERVAL_M11,
     DiscreteMeasure,
 )
 from ..generating_measure import LEGENDRE
@@ -35,8 +32,13 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
     r"""N-point Gauss-Legendre rule on :math:`\mu \in [-1, 1]`.
 
     The nodes :math:`\mu_i` are the roots of the Legendre polynomial
-    :math:`P_n` and the weights are the Christoffel numbers — exactly
-    what :func:`numpy.polynomial.legendre.leggauss` returns.
+    :math:`P_n` and the weights are the Christoffel numbers. Built by
+    :meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.gauss`
+    on :data:`~orpheus.numerics.generating_measure.LEGENDRE` — the same
+    generic construction as every other Gauss family in the tree.
+    Agrees with :func:`numpy.polynomial.legendre.leggauss` to 1-4 ULP,
+    not bit-for-bit: numpy Newton-refines. Neither is "the" answer,
+    since the exact nodes are irrational.
 
     Polynomial exactness (Stoer & Bulirsch 2002, Theorem 3.6.20):
     integrates every polynomial of degree :math:`\le 2n - 1` exactly,
@@ -47,12 +49,15 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
     of :math:`[-1, 1]` (so the rule is unweighted in the classical
     sense).
 
-    Symmetry: :math:`SO(2)` — the rule is invariant under rotations
-    about the polar axis (these act trivially on
-    :math:`\mu`). Stronger symmetry would require nodes paired
-    :math:`(\mu_i, -\mu_i)` symmetrically; this happens to hold for
-    Gauss-Legendre but is not the maximal property we tag here, since
-    SN consumers care about :math:`SO(2)` for slab geometry.
+    Symmetry: the tag is :math:`SO(2)`, the group the polar marginal
+    was quotiented BY (see the note at the return statement). The
+    property SN consumers actually use is the reflection
+    :math:`\mu \to -\mu`, and that one holds **bit-exactly**: the
+    generic construction imposes it rather than inheriting it (`[M]`
+    defect 0.0 at every :math:`n`, where the previous route left
+    ~1e-16). So the slab's two sweep senses pair by integer index —
+    ``partner(i) = n - 1 - i`` is exact arithmetic, not a nearest-node
+    search.
 
     Parameters
     ----------
@@ -75,13 +80,21 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
     adapter that caches ``mu_x`` / ``mu_y`` / ``weights`` views of
     this measure.
     """
-    if n < 1:
-        raise ValueError(f"gauss_legendre_on_mu requires n >= 1, got n={n}")
-    nodes, weights = np.polynomial.legendre.leggauss(n)
-    return DiscreteMeasure(
-        nodes=nodes,
-        weights=weights,
-        support=SPACE_INTERVAL_M11,
+    # ONE construction. This is the Gauss rule for the Legendre measure,
+    # so it is built by asking that measure for it — the same generic
+    # Golub-Welsch body every other family goes through.
+    #
+    # It used to call `numpy.leggauss` instead. Both are correct; the two
+    # differ by 1-4 ULP in the nodes because numpy Newton-refines, and
+    # neither is "the" answer since the exact nodes are irrational. The
+    # tie-breaker is that the generic body imposes the reflection
+    # symmetry (see `GeneratingMeasure.gauss`), so `mu -> -mu` maps the
+    # node set onto itself BIT-EXACTLY and the slab's two sweep senses
+    # pair by index rather than by tolerance. Consolidating cost a
+    # deliberate re-baselining of the SN slab snapshots, taken
+    # 2026-08-02 (user ruling), and bought a single source of truth for
+    # every Gauss rule in the tree.
+    return LEGENDRE.gauss(n).with_metadata(
         # SO(2) here is CORRECT, and correct for a different reason
         # than a rule on S² would be: this measure lives on the
         # QUOTIENT S²/SO(2) = [-1,1]. The tag names the group that was
@@ -92,20 +105,6 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
         # false): SO(2) acts trivially on μ, so every measure on
         # [-1,1] satisfies it, and here that triviality is the point.
         invariance_group=SubgroupOfO3.SO2,
-        degree_of_exactness=2 * n - 1,
-        # Which integral that degree is a claim about: the unweighted
-        # one on [-1,1]. This rule IS the Gauss rule for the Legendre
-        # measure — the tag states the reference, not the code path, and
-        # the reference is the same whichever route computes the roots.
-        #
-        # The route here is deliberately NOT the generic Golub-Welsch
-        # body: `numpy.leggauss` Newton-refines, and `[M]` the two differ
-        # by 1-4 ULP in the nodes. Every SN slab snapshot is pinned to
-        # these bits (see the drift gate in tests/numerics/test_rules_1d.py),
-        # so switching construction is a deliberate re-baselining
-        # decision, not a cleanup. Tracked as an open item in the
-        # quadrature campaign plan.
-        generating_measure=LEGENDRE,
     )
 
 

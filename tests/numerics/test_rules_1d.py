@@ -84,32 +84,46 @@ def test_adapter_passes_the_rule_through_unmodified(n: int) -> None:
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("n", [2, 4, 8, 16, 32])
-def test_nodes_are_bit_identical_to_the_reference_implementation(
-    n: int,
-) -> None:
-    """The **load-bearing** drift contract, against an EXTERNAL source.
+def test_slab_rule_is_EXACTLY_reflection_symmetric(n: int) -> None:
+    r"""The load-bearing structural contract: :math:`\mu \to -\mu` maps
+    the node set onto itself **bit-exactly**.
 
-    Every SN regression snapshot built on a slab quadrature is pinned
-    to these exact bits. A change of construction that moves them —
-    swapping ``numpy.leggauss`` for the Golub-Welsch body in
-    :mod:`orpheus.numerics.generating_measure`, say, which `[M]` moves
-    nodes by 1-4 ULP — must therefore be a deliberate re-baselining
-    decision, not a silent side effect.
+    This replaced (2026-08-02) a gate that pinned the nodes bit-for-bit
+    against ``numpy.leggauss``. That gate did its job: when the rule was
+    consolidated onto the generic Golub-Welsch construction it went red
+    and forced the re-baseline to be a decision rather than a side
+    effect. Its premise is now spent — numpy is no longer the source —
+    so it is replaced by the invariant the SN slab path actually
+    depends on.
 
-    So this compares against ``numpy.polynomial.legendre.leggauss``
-    directly: a source that does NOT move when ORPHEUS changes, which
-    is what makes the comparison capable of failing.
+    Exactness here is what lets ``Quadrature.gauss_legendre`` build its
+    reflection partners as ``identity[::-1]`` — pure index arithmetic —
+    instead of a nearest-node search. `[M]` The previous construction
+    left a defect of ~1e-16; this one leaves 0.0.
+    """
+    m = gauss_legendre_on_mu(n)
+    np.testing.assert_array_equal(m.nodes, -m.nodes[::-1])
+    np.testing.assert_array_equal(m.weights, m.weights[::-1])
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize("n", [2, 4, 8, 16, 32])
+def test_nodes_agree_with_the_reference_implementation(n: int) -> None:
+    """Still pinned to numpy, but to a TOLERANCE, deliberately.
+
+    The two constructions differ by 1-4 ULP because numpy Newton-refines
+    after the same eigenproblem. Neither is exact — the true nodes are
+    irrational — so this asserts agreement, not identity. A drift beyond
+    a few ULP would mean one of the two stopped computing Gauss-Legendre
+    nodes, which is what this still catches.
     """
     m = gauss_legendre_on_mu(n)
     ref_nodes, ref_weights = np.polynomial.legendre.leggauss(n)
-    assert np.array_equal(m.nodes, ref_nodes), (
-        f"n={n}: slab quadrature nodes moved off the reference "
-        f"implementation; max delta "
-        f"{np.max(np.abs(m.nodes - ref_nodes)):.3e}. Every SN snapshot "
-        f"built on this rule is pinned to the old bits — re-baseline "
-        f"deliberately per vv-principles, do not relax this gate."
+    ulp = np.spacing(np.max(np.abs(ref_nodes)))
+    assert np.max(np.abs(np.sort(m.nodes) - np.sort(ref_nodes))) < 8 * ulp
+    np.testing.assert_allclose(
+        np.sort(m.weights), np.sort(ref_weights), atol=1e-14
     )
-    assert np.array_equal(m.weights, ref_weights)
 
 
 # ---------------------------------------------------------------------------
