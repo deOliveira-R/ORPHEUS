@@ -33,14 +33,19 @@
 >
 > **`[M]` Gate at this checkpoint — measured, not asserted:**
 > ```
-> tests/numerics                                1244 passed
-> tests/geometry + tests/diffusion + tests/data  909 passed, 4 skipped, 1 xfailed
+> tests/numerics                                1250 passed          (2:13)
 > tests/sn -m "not slow"                        2559 passed, 1 skipped,
->                                               116 deselected, 65 xfailed  (13:50)
-> npx pyright  symmetry.py / measure.py            0 errors
+>                                               116 deselected, 65 xfailed  (15:27)
+> sphinx -b html docs -W --keep-going           build succeeded
+> npx pyright numerics/quadrature/ symmetry.py     0 errors
 > ```
+> Earlier in the session, unaffected by the re-pose:
+> `tests/geometry + tests/diffusion + tests/data` 909 passed, 4 skipped, 1 xfailed.
+>
 > `tests/sn` is the real blast-radius check: `symmetry.py` has 91 external
-> callers and `measure.py` 163.
+> callers, `measure.py` 163, `product_mu_phi` 17. Its counts are **identical to
+> the pre-re-pose baseline** — which is the evidence that matters here: the change
+> altered which rules a *geometry* admits and changed no solver's behaviour.
 > ⚠ `tests/numerics/test_symmetry.py` now costs ~**80 s** (was ~5 s) — it verifies
 > the lattice, the walk, the certificate, `Σ`, orbit-stabilizer and 2 ERR
 > catchers. Budget it.
@@ -827,6 +832,44 @@ not a property of the word.
 machinery-in-waiting, so the re-pose changed test expectations only. **Measure the
 consumer set before escalating a change as user-facing.**
 
+### T18b — ⛔ The ε retirement is MIS-SCOPED: two of the three sites do not want `Σ`
+
+T18 concluded "pass `Dnh(2)` explicitly, not the full group". `[M]` **That half is
+confirmed exactly** — `Σ(D_2h)` reproduces the octant-zero set node-for-node on
+every rule tested (`product(4,4)` 16/16, `product(4,8)` 16/16,
+`level_symmetric(8)` 0/0, `lebedev(11)` 18/18). But measuring the *consumers*
+(not just the answer) shows the retirement as scoped would **lose information at
+one site and widen the answer at another**. L30, one level deeper than T18 saw.
+
+| site | what it actually asks | vs `Σ(D_2h)` |
+|---|---|---|
+| `_OCTANT_SIGN_EPS` | the **chamber LABEL** — a per-component sign vector driving `partition_by` | `Σ` is only its degenerate stratum |
+| `_MU_DIRECTION_EPS` | `Σ` under the **single mirror** `⟨σ_x⟩` (sweep-leg assignment) | strictly SMALLER — 8 vs 16/18 |
+| `TANGENTIAL_EPS` | the boundary's Γ₊/Γ₋/tangential split on a **face normal** | unrelated (T18 already carved it out) |
+
+**Why `_OCTANT_SIGN_EPS` cannot become `singular_set`.** `[M]` The predicate
+emits **8–26 distinct sign vectors**, not 2. It is the T14b **covector**, and the
+octants are the full-dimensional chambers; `Σ` is the union of the lower-
+dimensional cells. A boolean membership set cannot drive a partition into
+chambers. The primitive to extract here is the **chamber label**, not `Σ` — and
+that is Q5/Q7 business (the chamber/RANGE factorization), not a swap.
+
+**Why `_MU_DIRECTION_EPS` must not be folded onto it.** `[M]` `{|μ_x| < ε}` is a
+strict subset of `Σ(D_2h)` (8 vs 16 on `product(4,8)`, 8 vs 18 on `lebedev(11)`).
+Folding it would mislabel 8–10 ordinates as radially degenerate and put them on
+NO sweep leg. Its group is `⟨σ_x⟩`, rank one.
+
+**Bonus finding.** `product(4,4)` has **ZERO full-dimensional octants** — all 16
+nodes lie on walls, because `n_φ=4` puts every azimuth on a coordinate plane.
+Any consumer assuming "most ordinates are interior to an octant" is wrong for
+that rule.
+
+⟹ **The item is NOT a mechanical swap and is deliberately left open.** It
+re-enters as part of the chamber work, with `Dnh(2)` and `⟨σ_x⟩` as the two named
+groups. The general rule this sharpens: *measuring what a detector SELECTS is not
+enough — measure what its CONSUMER does with the answer.* A set and a labelling
+can agree on membership and still not be interchangeable.
+
 ### T17 — ⭐⭐ WALK the subgroup graph; stop declaring the symmetry group
 
 User ruling, 2026-08-02: *"when I was studying crystallography, there was a literal
@@ -1126,11 +1169,14 @@ implemented and **no `D_6h`-invariant rule in tree**.
      Membership is `π_M(i) == i`: integer, exact, `[M]` stable across
      `atol` 1e-15…1e-11. Expressible only on a G-invariant measure, so the
      quotient's precondition is enforced by construction.
-  3. ⬜ **Retire** `_OCTANT_SIGN_EPS` and `_MU_DIRECTION_EPS` — STILL OPEN, and
-     **T18 changed how**: pass **`Dnh(2)`** explicitly. A blind swap to "the
-     singular set" would silently WIDEN every classification, because `Σ` under a
-     rule's full group is strictly larger. `TANGENTIAL_EPS` survives as the
-     boundary's **matching** tolerance.
+  3. ⬜ **Retire** `_OCTANT_SIGN_EPS` and `_MU_DIRECTION_EPS` — **OPEN, and now
+     KNOWN MIS-SCOPED; see T18b.** T18's "pass `Dnh(2)`" is `[M]` confirmed as an
+     *answer* (Σ(D_2h) reproduces the octant-zero set exactly), but the two sites
+     do not want that answer: `_OCTANT_SIGN_EPS` needs the **chamber label** (8–26
+     distinct sign vectors — Σ is only its degenerate stratum), and
+     `_MU_DIRECTION_EPS` is Σ under the **single mirror `⟨σ_x⟩`**, strictly
+     smaller (8 vs 16–18). Deferred into the chamber work.
+     `TANGENTIAL_EPS` survives as the boundary's **matching** tolerance.
   4. **Fix what the correctness audit finds** in `symmetry.py` (user ruling: fix it
      while we are in the module). ✅ ERR-072, ERR-073, the computed lattice
      (T15b), `_vertical_mirrors` (T15c). ⬜ the `O2 → D_∞h` rename (T15d), the 1-D
