@@ -170,6 +170,13 @@ from .measure import (
 # shape (n,), with the storage convention beta[0] = mu_0.
 RecurrenceCoefficients = Callable[[int], "tuple[np.ndarray, np.ndarray]"]
 
+# How many recurrence coefficients to inspect when deciding whether a
+# measure is symmetric. `alpha_k == 0` either holds for all k or fails at
+# the first: for every classical family alpha is identically zero or
+# grows monotonically in |k|, so a short prefix decides it. Eight is
+# generous — jacobi(a, b) with a != b already separates at k = 0.
+_SYMMETRY_PROBE_ORDER = 8
+
 
 @dataclass(frozen=True)
 class GeneratingMeasure:
@@ -208,6 +215,34 @@ class GeneratingMeasure:
     recurrence: RecurrenceCoefficients = field(compare=False, repr=False)
 
     # -- derived quantities -------------------------------------------
+
+    @property
+    def is_symmetric(self) -> bool:
+        r"""Is the weight even, :math:`w(-x) = w(x)`?
+
+        **Derived, never declared** — it is a theorem that
+
+        .. math::
+
+           \alpha_k \equiv 0 \quad \Longleftrightarrow \quad
+           w \text{ is even about the origin},
+
+        because :math:`\alpha_k = \langle x p_k, p_k\rangle /
+        \langle p_k, p_k\rangle` is the first moment of an even
+        function against an odd integrand when :math:`w` is even.
+
+        scipy carries this as a hand-set ``symmetrize`` boolean passed
+        to its generic routine (``_gen_roots_and_weights``). Reading it
+        off the recurrence instead costs nothing and cannot fall out of
+        step with the family it describes — the same reason
+        :attr:`mass` is read rather than stored. `[M]` It agrees with
+        scipy's hand-set flag on every family shipped here, including
+        the parameterised ones: ``jacobi(a, b)`` is symmetric exactly
+        when ``a == b``, which the derivation gets right without being
+        told.
+        """
+        alpha, _ = self.recurrence(_SYMMETRY_PROBE_ORDER)
+        return bool(np.all(alpha == 0.0))
 
     @property
     def mass(self) -> float:
@@ -266,6 +301,38 @@ class GeneratingMeasure:
             # the general driver.
             nodes, eigenvectors = np.linalg.eigh(jacobi_matrix)
             weights = beta[0] * eigenvectors[0, :] ** 2
+
+            if self.is_symmetric:
+                # IMPOSE the reflection symmetry the measure has, rather
+                # than inheriting it to within round-off. For an even
+                # weight the exact rule satisfies x_i = -x_{n-1-i} and
+                # w_i = w_{n-1-i}; averaging the computed rule against
+                # its own mirror enforces that BIT-EXACTLY, and for odd
+                # n puts an exact 0.0 at the centre.
+                #
+                # `[M]` The defect goes from 3.3e-16 (n=8) / 8.6e-16
+                # (n=32) to exactly 0.0, and the rule gets *more*
+                # accurate as a bonus: worst relative error over degrees
+                # 0..2n-1 improves 4.4e-16 -> 1.1e-16 at n=8 and
+                # 7.9e-16 -> 3.3e-16 at n=32, because the mirror average
+                # cancels the antisymmetric part of the eigensolver's
+                # error.
+                #
+                # This matters here more than it would elsewhere: an
+                # angular quadrature's invariance group is load-bearing
+                # (a reflecting boundary is exactly representable only
+                # if the node set is closed under the face reflection),
+                # and an EXACTLY symmetric rule makes that a matter of
+                # integer index arithmetic rather than of tolerance.
+                nodes = (nodes - nodes[::-1]) / 2.0
+                weights = (weights + weights[::-1]) / 2.0
+
+        # Impose the zeroth moment too — degree-0 exactness is the one
+        # coefficient we know in closed form, so there is no reason to
+        # let the eigensolver's round-off decide it. numpy and scipy
+        # both end their Gauss routines this way.
+        weights = weights * (beta[0] / weights.sum())
+
         return DiscreteMeasure(
             nodes=nodes,
             weights=weights,

@@ -582,3 +582,123 @@ def test_remap_refuses_unbounded_families() -> None:
 def test_remap_requires_an_ordered_interval() -> None:
     with pytest.raises(ValueError, match="a < b"):
         LEGENDRE.on(1.0, 0.0)
+
+
+# ===========================================================================
+# foundation — symmetry is IMPOSED, and the condition for it is DERIVED
+# ===========================================================================
+#
+# Learned by reading numpy's `leggauss` and scipy's
+# `_gen_roots_and_weights`: both end with
+#     x = (x - x[::-1]) / 2 ;  w = (w + w[::-1]) / 2
+# for symmetric measures, and both rescale so sum(w) == mu_0. They impose
+# the structural properties rather than inheriting them to within
+# round-off. scipy passes `symmetrize` as a hand-set boolean; here the
+# condition is a theorem about the recurrence, so it is read off the data.
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(
+    ("label", "measure", "expected"),
+    [
+        ("legendre", LEGENDRE, True),
+        ("chebyshev_t", CHEBYSHEV_T, True),
+        ("chebyshev_u", CHEBYSHEV_U, True),
+        ("hermite", HERMITE, True),
+        ("laguerre(0)", laguerre(), False),
+        ("laguerre(1.5)", laguerre(1.5), False),
+        ("jacobi(2,2) a==b", jacobi(2.0, 2.0), True),
+        ("jacobi(0.5,0.5) a==b", jacobi(0.5, 0.5), True),
+        ("jacobi(1.5,2.25) a!=b", jacobi(1.5, 2.25), False),
+        ("jacobi(-0.5,0.75) a!=b", jacobi(-0.5, 0.75), False),
+    ],
+)
+def test_is_symmetric_is_derived_correctly(
+    label: str, measure: GeneratingMeasure, expected: bool
+) -> None:
+    r""":math:`\alpha_k \equiv 0 \iff w` is even — a theorem, not a flag.
+
+    The parameterised cases are the ones that matter: ``jacobi(a, b)``
+    is symmetric exactly when ``a == b``, and the derivation gets that
+    right without being told, which a declared flag could not.
+    """
+    assert measure.is_symmetric is expected
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(
+    ("label", "measure"),
+    [
+        ("legendre", LEGENDRE),
+        ("chebyshev_t", CHEBYSHEV_T),
+        ("chebyshev_u", CHEBYSHEV_U),
+        ("hermite", HERMITE),
+        ("jacobi(2,2)", jacobi(2.0, 2.0)),
+    ],
+)
+@pytest.mark.parametrize("n", [2, 7, 8, 16, 33])
+def test_symmetric_measures_give_EXACTLY_symmetric_rules(
+    label: str, measure: GeneratingMeasure, n: int
+) -> None:
+    r"""Bit-exact, not ``allclose``: :math:`x_i = -x_{n-1-i}` and
+    :math:`w_i = w_{n-1-i}` to the last bit.
+
+    This is the property an angular quadrature's invariance group rests
+    on. A reflecting boundary is exactly representable only if the node
+    set is closed under the face reflection; when the rule is exactly
+    symmetric that closure is integer index arithmetic rather than a
+    tolerance question — which is the whole thrust of the Sigma /
+    invariance-group machinery in
+    :mod:`orpheus.numerics.symmetry`.
+    """
+    rule = measure.gauss(n)
+    np.testing.assert_array_equal(rule.nodes, -rule.nodes[::-1])
+    np.testing.assert_array_equal(rule.weights, rule.weights[::-1])
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("n", [3, 7, 9, 33])
+def test_odd_order_symmetric_rules_have_an_exact_zero_node(n: int) -> None:
+    """The centre node of an odd symmetric rule is exactly ``0.0``.
+
+    Not ``1e-17``: a downstream degeneracy test that asks ``mu == 0``
+    (rather than ``abs(mu) < eps``) is then answerable, and the
+    ordinate sits exactly on the mirror rather than near it.
+    """
+    for measure in (LEGENDRE, CHEBYSHEV_T, HERMITE, jacobi(2.0, 2.0)):
+        rule = measure.gauss(n)
+        assert rule.nodes[n // 2] == 0.0, (
+            f"{measure.name} n={n}: centre node is "
+            f"{rule.nodes[n // 2]!r}, not exactly zero"
+        )
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("label", "measure"), ALL_FAMILIES)
+@pytest.mark.parametrize("n", [2, 8, 32])
+def test_mass_is_imposed_not_inherited(
+    label: str, measure: GeneratingMeasure, n: int
+) -> None:
+    r""":math:`\sum w_i = \mu_0` to within one rounding of the true
+    value, because the weights are rescaled to it.
+
+    Degree-0 exactness is the one coefficient known in closed form, so
+    there is no reason to let the eigensolver's round-off decide it.
+    """
+    rule = measure.gauss(n)
+    total = float(np.sum(rule.weights))
+    assert abs(total - measure.mass) <= 4.0 * np.spacing(measure.mass), (
+        f"{label} n={n}: sum(w) = {total!r} vs mass {measure.mass!r}"
+    )
+
+
+@pytest.mark.foundation
+def test_asymmetric_measures_are_not_symmetrised() -> None:
+    """Laguerre lives on a half-line; mirroring it would be nonsense.
+
+    The guard is the derived :attr:`is_symmetric`, so this checks the
+    derivation actually gates the transform.
+    """
+    rule = laguerre().gauss(8)
+    assert not np.allclose(rule.nodes, -rule.nodes[::-1])
+    assert np.all(rule.nodes > 0.0)
