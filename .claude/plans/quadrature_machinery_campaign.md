@@ -9,10 +9,13 @@
 > *test* of the design, not its purpose.
 >
 > **Branch** `refactor/operator-strategy-layers`. **Q0 LANDED; Q1 MERGED INTO Q2;
-> Q2 IS ~80 % LANDED** (2026-08-02). Everything committed and green.
-> **NEXT: the registry Stage-1 re-pose — and it NEEDS USER STEERING** (changing
-> `GEOMETRY_GROUPS` makes the cylinder REJECT odd-`n_φ` product rules; that
-> rejection is correct and IS ERR-042, but it is a live semantic change).
+> Q2 IS COMPLETE** (2026-08-02) — the Stage-1 re-pose landed at `e7d44f3c`.
+> Everything committed and green.
+> **NEXT: Q3** (the measure-parameterized Golub–Welsch rule).
+> Two Q2 items stay open by design, neither blocking: `align_to` (no consumer —
+> the gate wants literal containment, T15) and the consumer-side ε retirement
+> (`_OCTANT_SIGN_EPS` / `_MU_DIRECTION_EPS`, which must pass `Dnh(2)` explicitly
+> per T18, NOT the full group).
 >
 > | commit | what |
 > |---|---|
@@ -26,6 +29,7 @@
 > | `4fd0c7b3` | the 1-D polar-marginal action; `Z2` is improper; dead code retired |
 > | `e6f01d7e` | **`DiscreteMeasure.consolidate()`** — the second half of a quotient |
 > | `9915f15b` | the two sub-agent evidence reports + agent memory |
+> | `e7d44f3c` | **the Stage-1 re-pose** (T16/T16b) — `AngularSymmetry`, the computed gate, `product`'s false tag corrected |
 >
 > **`[M]` Gate at this checkpoint — measured, not asserted:**
 > ```
@@ -712,6 +716,10 @@ checks algebraic properties cannot see a CONVENTION error.**
 
 ### T16 — ⭐ The Stage-1 gate was fed the SPENT half of the symmetry group
 
+> **✅ LANDED `e7d44f3c`** (2026-08-02). Read T16b immediately after this section:
+> executing the derivation changed four of its conclusions, and the ⚠ below is the
+> reason — every number here was hand-derived by an agent with no shell.
+
 The derived answer to *"what replaces `G_geom ⊆ G_rule` once the checker is
 truthful?"* ⚠ **Derived, not executed** — the deriving agent had no shell, so
 every number in `scratch/q2_stage1_predicate_derivation.md` is hand-derived or
@@ -761,6 +769,63 @@ wrong layer.
 `φ_m = δ + 2πm/n` puts mirror planes at `δ + kπ/n`, so `D_2h ⊆ Sym` needs `n` even
 **and** `δ ≡ 0 mod π/n`. Stage 1 is the only conjunct in the machinery that can
 see the offset.
+
+### T16b — ⭐⭐ What EXECUTING T16 changed (and the general lesson)
+
+T16 was derived without a shell. Four of its conclusions moved when measured, and
+the direction of the movement is the lesson: **a derivation predicts the defect it
+was looking for; measurement finds the ones it was not.**
+
+**1. T16 predicted ONE behaviour change. `[M]` There are FIVE, and the one it
+predicted is not the load-bearing one.** Across target degrees 2–9:
+
+| change | conjunct | why it is a correction |
+|---|---|---|
+| slab/sphere **reject** `Product` | domain | an S² rule handed to a 1-D solver |
+| cylinder **rejects** `GaussLegendre1D` | domain | a μ-marginal cannot carry 2 angular DOF |
+| cylinder **admits** `Lebedev`/`LS_N` | symmetry | the `SO(2) ⊄ O_h` impossibility |
+| cylinder **rejects** `Product` at odd `n_φ` | symmetry | ERR-042 — *the predicted one* |
+| cartesian2d **admits** even-`n_φ` `Product` | symmetry | the `O_h` 6× over-claim |
+
+**2. The DOMAIN conjunct does most of the work, and a group-only gate has almost
+none.** `[M]` At `d=5` a group-only gate admits **every rule for every geometry**
+— 16/16 — because `Z₂` is satisfied by any symmetric rule and `D_2h` by every S²
+rule *and* by the 1-D marginal. T16 flagged the Stage-0 domain column
+parenthetically; it is in fact the conjunct that separates the geometries.
+
+**3. The root cause is one field doing two jobs.** `invariance_group` was
+carrying *domain* and *symmetry* at once — `SO2` meant "1-D-ish", `O_h` meant
+"on S²" — so a wrong domain answer and a wrong symmetry answer **cancelled**, and
+the selector looked healthy. That is why the false tag survived: it was load-
+bearing for a job it was not named for. Same family as the twin-errors-cancel
+pattern; the tell is a field whose *values* correlate with something other than
+its name.
+
+**4. `invariance_group_for(params)` was the wrong fix, and so was the lattice.**
+T17 already superseded the first. Measurement killed a second candidate: gating
+as `residual.is_subgroup_of(measure.invariance_group)` **rejects Gauss-Legendre
+for a slab**, because GL's tag `SO(2)` is *true but not maximal* (it names the
+group the domain was quotiented BY) and `Z₂` is a reflection, hence not in the
+rotation group `SO(2)`. ⟹ **the gate must ask the NODES, not the tag.** A
+declaration is allowed to be true-and-not-maximal; only a *computed* answer can
+be gated on.
+
+**5. A reasoning error worth keeping.** `rules_product.py` defended its `SO(2)`
+tag as *"a conservative upper bound"*. For an **invariance** claim a larger group
+is a **STRONGER** claim, so an upper bound is an over-claim — never conservative.
+(Contrast `degree_of_exactness`, where `min` genuinely is conservative: a lower
+degree is a weaker claim.) The same paragraph *also* undersold the truth, calling
+the rule "`C_{n_φ}`-invariant strictly" — an index-4 subgroup of the real answer.
+**Check which direction "conservative" runs for the specific claim type**; it is
+not a property of the word.
+
+**6. The reason Q2 stopped here was itself wrong.** The checkpoint warned this was
+"a live behaviour change in rule selection" needing a ruling. `[M]` Nexus:
+`select_quadrature` has **15 callers, all in `tests/numerics/test_registry.py`** —
+**zero production**. Production builds quadratures directly
+(`Quadrature.level_symmetric(order)`, `Quadrature.lebedev(...)`). The selector is
+machinery-in-waiting, so the re-pose changed test expectations only. **Measure the
+consumer set before escalating a change as user-facing.**
 
 ### T17 — ⭐⭐ WALK the subgroup graph; stop declaring the symmetry group
 
@@ -1085,18 +1150,24 @@ implemented and **no `D_6h`-invariant rule in tree**.
      `invariance_group`/`degree_of_exactness` (it changes no integral), unlike
      `pushforward`. **One method, not a class hierarchy** — as predicted.
   7. ⬜ **`align_to(K) -> Rotation | None`** — the subconjugacy certificate (T15).
-     Deliberately deferred: its only consumer is the Stage-1 re-pose, so it is
-     blocked on the same decision.
-  8. ⬜ **The registry Stage-1 re-pose** (T16) — **NEEDS STEERING**, see below.
+     STILL open, and now **genuinely unconsumed**: the Stage-1 re-pose landed
+     without needing it, because the gate wants *literal* containment in ONE
+     frame (T15). Re-orientation freedom is real but has no caller yet — this is
+     the honest "defer until a consumer exists" case, not a blocked one.
+  8. ✅ **The registry Stage-1 re-pose** (T16) — **LANDED `e7d44f3c`**. Executing
+     it moved four of T16's conclusions; see **T16b**. `AngularSymmetry` (spent +
+     owed, `support` derived as S²/G⁰), `GEOMETRY_ANGULAR_SYMMETRY`, Stage 0
+     (domain) + Stage 1 (symmetry **computed from nodes**), V evaluated first,
+     `QuadratureSpec.invariance_group` **retired**, and `product_mu_phi`'s false
+     `SO(2)` measure tag corrected to `Dnh(n_phi)`. `[M]` `tests/numerics` 1250
+     passed; `sphinx -W` clean; pyright 0.
 
-  **⚠ WHERE Q2 STOPS AND WHY.** The re-pose changes `GEOMETRY_GROUPS` from the
-  spent (continuous) half of the symmetry group to the owed (discrete) residual:
-  `slab, sphere → Z₂`; `cylinder, cartesian2d → D_2h`. Consequence, `[M]`
-  verified: the cylinder then **REJECTS odd-`n_φ` product rules**. That rejection
-  is mathematically right and *is* ERR-042 — but it is a live behaviour change in
-  rule selection, so it wants an explicit ruling rather than being slipped in.
-  Prerequisites are now all DONE (they were the blockers: the computed lattice,
-  `_vertical_mirrors`, the `D_∞h` rename).
+  **⚠ THE STOP-REASON RECORDED HERE WAS WRONG, and that is worth keeping.** The
+  previous checkpoint held Q2 open pending a user ruling because the re-pose was
+  "a live behaviour change in rule selection". `[M]` It is not: `select_quadrature`
+  has **15 callers, all tests** — production never calls it. The escalation was
+  written from the *shape* of the change (a selection gate) instead of from its
+  *consumer set*. **Measure who calls it before escalating.**
 - ⏸ **COMPACTION POINT**
 - **Q3 — The measure-parameterized rule** (T12 / T12b; absorbs gap 3 and T2).
   ONE Golub–Welsch body; the families become `(α, β, μ₀)` **data**, not
