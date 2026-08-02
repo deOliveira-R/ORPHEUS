@@ -27,9 +27,16 @@
 > | `e6f01d7e` | **`DiscreteMeasure.consolidate()`** — the second half of a quotient |
 > | `9915f15b` | the two sub-agent evidence reports + agent memory |
 >
-> **`[M]` Gate at this checkpoint:** `tests/numerics` **1244 passed**;
-> `tests/geometry`+`tests/diffusion`+`tests/data` **909 passed**, 4 skipped,
-> 1 xfailed; `npx pyright` on `symmetry.py` and `measure.py` **0 errors**.
+> **`[M]` Gate at this checkpoint — measured, not asserted:**
+> ```
+> tests/numerics                                1244 passed
+> tests/geometry + tests/diffusion + tests/data  909 passed, 4 skipped, 1 xfailed
+> tests/sn -m "not slow"                        2559 passed, 1 skipped,
+>                                               116 deselected, 65 xfailed  (13:50)
+> npx pyright  symmetry.py / measure.py            0 errors
+> ```
+> `tests/sn` is the real blast-radius check: `symmetry.py` has 91 external
+> callers and `measure.py` 163.
 > ⚠ `tests/numerics/test_symmetry.py` now costs ~**80 s** (was ~5 s) — it verifies
 > the lattice, the walk, the certificate, `Σ`, orbit-stabilizer and 2 ERR
 > catchers. Budget it.
