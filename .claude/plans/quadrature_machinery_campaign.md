@@ -8,36 +8,42 @@
 > bug. It happens to dissolve #326 when the machinery is right — that is the
 > *test* of the design, not its purpose.
 >
-> **Branch** `refactor/operator-strategy-layers`, **HEAD `1659d756`**, 35 commits
-> ahead of `main`. **NOTHING in this campaign is committed.** Landing it is
-> phase **Q0**, deliberately left as the first post-compaction action.
+> **Branch** `refactor/operator-strategy-layers`. **Q0 IS LANDED** (2026-08-02) —
+> the campaign's instrumentation is committed and is no longer a `git clean`
+> hazard. **Next phase is Q1.**
 >
-> **Uncommitted work — VERIFIED by `git status` at the compaction cut:**
->
-> | path | state |
+> | commit | what |
 > |---|---|
-> | `.claude/plans/quadrature_machinery_campaign.md` | NEW — this file |
-> | `orpheus/numerics/roots_of_unity.py` | NEW — #325's primitive. Doctests clean, `npx pyright` 0. **Not exported, no consumer repointed.** |
-> | `tests/numerics/test_roots_of_unity.py` | NEW — the primitive's defining laws |
-> | `tests/sn/sweep/curvilinear/test_alpha_closed_form.py` | NEW — 20 `l1` + 15 `foundation` |
-> | `tests/sn/sweep/curvilinear/test_azimuthal_mirror_symmetry.py` | NEW — 5 `l1` (**3 `xfail(strict=True)`** = the live defect) + 7 `foundation` |
-> | `tests/sn/verification/mms/test_mms_ordering_blindness.py` | NEW — 10 `foundation` |
-> | `tests/sn/_test_helpers.py` | MODIFIED — `product_level_ordering`, `PRODUCT_LEVEL_ORDERINGS` |
-> | `derivations/diagnostics/diag_326_*.py` (×3) | DELETED — promoted; zero remaining `.py` refs audited |
-> | 8 × `.claude/agent-memory/*/{MEMORY,lessons}.md` + 4 new topic files | MODIFIED/NEW — sub-agent memory, safe to commit |
+> | `1f9d4818` | **Q0** — `roots_of_unity` + the three promoted gates + `_test_helpers` |
+> | `49bd7314` | this plan + the 8 `scratch/` evidence reports + agent memory |
+> | `93287e57` | the boundary campaign's 13 orphaned evidence reports (already-landed work) |
+> | `35a1fdb1` | `.gitignore` the 215 MB local literature corpus |
 >
-> `[M]` **Gate at the compaction cut, verified not asserted:**
+> **What Q0 landed:**
+>
+> | path | note |
+> |---|---|
+> | `orpheus/numerics/roots_of_unity.py` | #325's primitive. `npx pyright` 0. **Not exported, no consumer repointed** — the repoint is **Q5**'s business (it touches the RANGE/RULE factorization) |
+> | `tests/numerics/test_roots_of_unity.py` | the primitive's defining laws |
+> | `tests/sn/sweep/curvilinear/test_alpha_closed_form.py` | 20 `l1` + 15 `foundation`; drives **production** `cylindrical_streaming` |
+> | `tests/sn/sweep/curvilinear/test_azimuthal_mirror_symmetry.py` | 5 `l1` (**3 `xfail(strict=True)`** = the live defect) + 7 `foundation` |
+> | `tests/sn/verification/mms/test_mms_ordering_blindness.py` | 10 `foundation` |
+> | `tests/sn/_test_helpers.py` | `product_level_ordering`, `PRODUCT_LEVEL_ORDERINGS` |
+>
+> `[M]` **Gate, re-verified at the Q0 commit — measured, not asserted:**
 > ```
-> 305 passed, 3 xfailed, 1 warning in 17.03s
+> 305 passed, 3 xfailed, 1 warning in 6.05s
+>
+> $ pytest --runxfail tests/sn/sweep/curvilinear/test_azimuthal_mirror_symmetry.py
+> E  assert 0.11908767547973154 < 1e-11
+> E  assert 0.05144789466670699 < 1e-11
+> E  assert 0.3083565899072802 < 1e-11
+> 3 failed, 9 passed
 > ```
-> (the four test files above; `--runxfail` reds the three for their own
-> documented reason — 11.9 % / 5.1 % / 30.8 % mirror defect).
+> Each xfail reds on **its own** documented assertion — not a swallowed setup
+> error (`vv-principles` Mode 8 class 4).
 >
-> ⚠ **The instrumentation is UNCOMMITTED and partly UNTRACKED.** A `git clean`
-> or `git checkout` would destroy it irrecoverably. Q0 first, before anything
-> that touches the index.
->
-> **Evidence reports** (all under `scratch/`, none committed):
+> **Evidence reports**, now committed under `scratch/`:
 > `quadrature_landscape_survey.md` (the 4-axis inventory + #327's discovery),
 > `issue325_main_agent_measurements.md`, `issue325_blast_radius.md`,
 > `issue325_verification_plan.md`, `issue326_alpha_theory.md`,
@@ -643,9 +649,10 @@ implemented and **no `D_6h`-invariant rule in tree**.
 > `feedback_compaction_points_in_campaign_plans`, ⏸ marks a compaction point:
 > **commit first, then checkpoint this file, then compact.**
 
-- **Q0 — Land what is already staged.** The three promoted gates + `roots_of_unity`
-  + `_test_helpers`. These are correct and independently valuable; they are the
-  campaign's instrumentation. Gate: the three files + `tests/numerics`.
+- ~~**Q0 — Land what is already staged.**~~ ✅ **DONE 2026-08-02, `1f9d4818`.** The
+  three promoted gates + `roots_of_unity` + `_test_helpers`, at
+  `305 passed, 3 xfailed`, with `--runxfail` confirming each xfail reds on its own
+  documented assertion. The plan + evidence + agent memory landed at `49bd7314`.
 - **Q1 — Name `Σ`, the orbifold singular set** (gap 1). Retire the six ad-hoc
   ε-detectors onto it. Highest reach ÷ cost.
 - **Q2 — Widen `_orbit_closure`** to return its certificate (L-013), and add
@@ -710,9 +717,10 @@ implemented and **no `D_6h`-invariant rule in tree**.
 
 ## 7. What is on hold, and why it is downstream
 
-- **#325** (symmetry-exact node generation) — the primitive is BUILT and staged.
-  Repointing its three consumers is Q5's business, because the repoint touches the
-  RANGE/RULE factorization.
+- **#325** (symmetry-exact node generation) — the primitive is BUILT and **landed**
+  (`1f9d4818`), but is **not exported and has no consumer**. Repointing its three
+  consumers is Q5's business, because the repoint touches the RANGE/RULE
+  factorization.
 - **#326** (the double-cover) — **do not fix it directly.** It is the campaign's
   acceptance test: when the machinery is right, the three `xfail(strict=True)`
   rows in `test_azimuthal_mirror_symmetry.py` XPASS and force their own deletion.
