@@ -527,14 +527,27 @@ def _close_group(ops: "list[np.ndarray]") -> "list[np.ndarray]":
     :math:`4n`). Orbit closure only needs generators, but containment
     needs the elements, so the closure is taken here.
     """
+    # Membership is a set lookup on the rounded entries, not a scan over
+    # the accumulated elements: the closure is O(|G|^2) products, and an
+    # O(|G|) scan inside each would make it cubic (~1.7M distance calls
+    # for I_h). Distinct elements of these groups are separated by far
+    # more than the 1e-9 granularity — the closest pair in C_n differs by
+    # 2*pi/n — so rounding cannot merge two of them. A rounding boundary
+    # could at worst SPLIT one element into two, which shows up
+    # immediately as a wrong group order.
+    def _key(M: np.ndarray) -> bytes:
+        return (np.round(M, 9) + 0.0).tobytes()  # +0.0 canonicalises -0.0
+
     elems: list[np.ndarray] = [np.eye(3)]
+    keys = {_key(np.eye(3))}
 
     def _seen(M: np.ndarray) -> bool:
-        return any(np.linalg.norm(M - E) < 1e-9 for E in elems)
+        return _key(M) in keys
 
     for M in ops:
         if not _seen(M):
             elems.append(M)
+            keys.add(_key(M))
 
     frontier = list(elems)
     while frontier:
@@ -544,6 +557,7 @@ def _close_group(ops: "list[np.ndarray]") -> "list[np.ndarray]":
                 C = A @ B
                 if not _seen(C):
                     elems.append(C)
+                    keys.add(_key(C))
                     fresh.append(C)
                     if len(elems) > _MAX_GROUP_ORDER:
                         raise ValueError(
@@ -789,7 +803,7 @@ def _check_invariance_3d(
             # Single reflection — pick z -> -z as a canonical
             # representative. (Any single reflection works; the choice
             # is convention.)
-            return _orbit_closure(nodes, weights, _reflections("z"), atol)
+            return _orbit_closure(nodes, weights, _reflections("z"), atol) is not None
 
         if tag is _NamedSubgroup.SO2:
             # DECIDED EXACTLY, never sampled (ERR-072).  A continuous
@@ -805,15 +819,15 @@ def _check_invariance_3d(
             # in-plane C₂ and σ_v act identically to σ_h (both send
             # (0,0,z) -> (0,0,-z)), so σ_h closure is the whole of the
             # remaining condition.  Both conjuncts exact.
-            return _is_axis_supported(nodes, atol) and _orbit_closure(
-                nodes, weights, _reflections("z"), atol
+            return _is_axis_supported(nodes, atol) and (
+                _orbit_closure(nodes, weights, _reflections("z"), atol) is not None
             )
 
         if tag is _NamedSubgroup.OctahedralOh:
-            return _orbit_closure(nodes, weights, _octahedral_ops(), atol)
+            return _orbit_closure(nodes, weights, _octahedral_ops(), atol) is not None
 
         if tag is _NamedSubgroup.IcosahedralIh:
-            return _orbit_closure(nodes, weights, _icosahedral_ops(), atol)
+            return _orbit_closure(nodes, weights, _icosahedral_ops(), atol) is not None
 
         if tag is _NamedSubgroup.SO3:
             # DECIDED EXACTLY (ERR-072).  Every SO(3) orbit of a
@@ -829,12 +843,12 @@ def _check_invariance_3d(
         # Cyclic group about z, n proper rotations.
         return _orbit_closure(
             nodes, weights, _cyclic_ops(tag.n), atol,
-        )
+        ) is not None
 
     if isinstance(tag, Dnh):
         # Dihedral D_nh: C_n + horizontal mirror + n vertical mirrors.
         ops = _cyclic_ops(tag.n) + _reflections("z") + _vertical_mirrors(tag.n)
-        return _orbit_closure(nodes, weights, ops, atol)
+        return _orbit_closure(nodes, weights, ops, atol) is not None
 
     return False
 
@@ -1079,8 +1093,110 @@ def _rotation_about_axis(axis: np.ndarray, theta: float) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
-# Orbit-closure check
+# Orbit-closure check, and the certificate it produces
 # ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class OrbitCertificate:
+    r"""The realized action of a group on a point set.
+
+    Returned by the closure check instead of a bare ``True``. The check
+    ALREADY computes, for each operator :math:`M` and node :math:`i`, the
+    index :math:`\pi_M(i)` with :math:`M x_i = x_{\pi_M(i)}` — it simply
+    discarded it. A ``-> bool`` predicate that internally builds the
+    permutation IS the missing primitive; widening the return type is
+    cheaper than minting a class to recompute it.
+
+    Everything below is a *reading* of the permutations, not new work:
+
+    * :attr:`singular_set` — the orbifold **singular set**
+      :math:`\Sigma = \{x : \mathrm{Stab}(x) \neq \{e\}\}`. Because
+      :math:`\pi_M(i) = i` means exactly :math:`M x_i = x_i`, i.e.
+      :math:`x_i \in \mathrm{Fix}(M)`, membership is an **integer
+      identity** — exact, with no tolerance. The only place a tolerance
+      enters is matching nodes while BUILDING :math:`\pi`, which is the
+      one place the question is honestly numerical.
+    * :attr:`stabilizer_order` — :math:`|\mathrm{Stab}(x_i)|`, the orbit
+      type; by orbit-stabilizer the orbit length is :math:`|G|` divided
+      by it.
+    * :meth:`orbits` — the :math:`G`-orbits themselves.
+
+    A certificate exists only for a :math:`G`-INVARIANT set, so
+    :math:`\Sigma` is unrepresentable without the closure proof — which is
+    the precondition ("the quotient is defined only on a G-invariant
+    measure") enforced by construction rather than by a comment.
+    """
+
+    operators: "tuple[np.ndarray, ...]"
+    permutations: "tuple[np.ndarray, ...]"
+
+    @property
+    def n_points(self) -> int:
+        return int(self.permutations[0].shape[0]) if self.permutations else 0
+
+    @property
+    def _non_identity(self) -> "list[np.ndarray]":
+        """The permutations of operators other than the identity.
+
+        The identity fixes every point, so including it would report the
+        whole set as singular.
+        """
+        return [
+            perm
+            for M, perm in zip(self.operators, self.permutations)
+            if not np.allclose(M, np.eye(3))
+        ]
+
+    @property
+    def singular_set(self) -> np.ndarray:
+        r"""Indices of the **singular points** — :math:`\Sigma`.
+
+        A point is singular iff some non-identity group element fixes it.
+        Under a reflection the fixed locus is a **mirror**; a point fixed
+        by two mirrors is a corner reflector; a point on a rotation axis
+        with no mirror is a cone point.
+        """
+        idx = np.arange(self.n_points)
+        fixed = np.zeros(self.n_points, dtype=bool)
+        for perm in self._non_identity:
+            fixed |= perm == idx
+        return np.flatnonzero(fixed)
+
+    @property
+    def stabilizer_order(self) -> np.ndarray:
+        r""":math:`|\mathrm{Stab}(x_i)|` for every node ``i``.
+
+        ``1`` exactly on the regular (free) points; the singular set is
+        ``> 1``. Meaningful only when the certificate was built from the
+        FULL group rather than a generating set.
+        """
+        idx = np.arange(self.n_points)
+        order = np.zeros(self.n_points, dtype=np.int64)
+        for perm in self.permutations:
+            order += (perm == idx).astype(np.int64)
+        return order
+
+    def orbits(self) -> "tuple[np.ndarray, ...]":
+        """The :math:`G`-orbits, as arrays of node indices."""
+        parent = list(range(self.n_points))
+
+        def find(a: int) -> int:
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
+
+        for perm in self.permutations:
+            for i, j in enumerate(perm):
+                ra, rb = find(i), find(int(j))
+                if ra != rb:
+                    parent[ra] = rb
+
+        buckets: "dict[int, list[int]]" = {}
+        for i in range(self.n_points):
+            buckets.setdefault(find(i), []).append(i)
+        return tuple(np.array(v, dtype=np.int64) for v in buckets.values())
 
 
 def _orbit_closure(
@@ -1088,7 +1204,7 @@ def _orbit_closure(
     weights: np.ndarray,
     ops: Iterable[np.ndarray],
     atol: float,
-) -> bool:
+) -> "OrbitCertificate | None":
     """Check that applying every operator ``M ∈ ops`` to ``nodes``
     yields the same multiset of (node, weight) pairs.
 
@@ -1109,52 +1225,42 @@ def _orbit_closure(
     duplicated position then carries twice the mass of its mirror
     image, and every one of the 48 match maps is non-injective.
     Since :math:`\\pi` maps an :math:`n`-set to an :math:`n`-set,
-    injectivity is equivalent to bijectivity, so tracking claimed
+    injectivity is equivalent to bijectivity, so counting distinct
     targets suffices. (ERR-073.)
 
-    Returns ``False`` at the first failure.
+    Returns ``None`` at the first failure, else the
+    :class:`OrbitCertificate` carrying every :math:`\\pi_M`.
     """
     n = nodes.shape[0]
-    # Pre-build a KD-tree-like index via lexicographic sort on rounded
-    # coordinates. For n in the 100s (Lebedev-17 has 110 nodes,
-    # LS_4 has 24, …) an O(n^2) match is fine; we use a binary-search
-    # on a sorted view for clarity.
-    rounded = np.round(nodes / atol).astype(np.int64) * atol  # quantise
-    # Build a dict keyed on the bytes of the quantised triple.
-    idx_of: dict[bytes, list[int]] = {}
-    for i in range(n):
-        key = rounded[i].tobytes()
-        idx_of.setdefault(key, []).append(i)
+    kept_ops: "list[np.ndarray]" = []
+    perms: "list[np.ndarray]" = []
+    index = np.arange(n)
 
     for M in ops:
         moved = nodes @ M.T
-        # ``claimed_by[j] = i`` once source i has matched target j. A
-        # second claim on the same j means the match is not injective,
-        # hence not a permutation — see the docstring (ERR-073).
-        claimed_by = np.full(n, -1, dtype=np.int64)
-        for i in range(n):
-            target = moved[i]
-            target_q = (np.round(target / atol).astype(np.int64) * atol).tobytes()
-            cands = idx_of.get(target_q, [])
-            if not cands:
-                # Fall back to a brute-force scan within tolerance —
-                # quantisation can put a near-grid-line node into the
-                # wrong bucket.
-                dists = np.linalg.norm(nodes - target, axis=1)
-                j = int(np.argmin(dists))
-                if dists[j] > atol * 100:
-                    return False
-            else:
-                # Pick the closest candidate (handles bucket collisions).
-                j = min(cands, key=lambda k: float(np.linalg.norm(nodes[k] - target)))
-                if np.linalg.norm(nodes[j] - target) > atol * 100:
-                    return False
-            if claimed_by[j] != -1:
-                return False
-            claimed_by[j] = i
-            if abs(weights[j] - weights[i]) > atol:
-                return False
-    return True
+        # Nearest-neighbour match, all sources at once. Node counts are
+        # small (Lebedev-17 is 110), so the (n, n) distance matrix is
+        # cheap and replaces a per-node Python loop.
+        #
+        # This supersedes a quantise-into-a-dict index with a
+        # brute-force fallback. That had two code paths for one match and
+        # they could disagree on which j they picked; one match rule
+        # cannot.
+        dist = np.linalg.norm(moved[:, None, :] - nodes[None, :, :], axis=2)
+        pi = np.argmin(dist, axis=1)
+        if np.any(dist[index, pi] > atol * 100):
+            return None  # some image is not a node at all
+        # The match must be a BIJECTION, not merely a same-weight partner
+        # map: two sources landing on one target leaves a node unmatched,
+        # and such a set is not G-invariant (ERR-073). n distinct targets
+        # out of n is exactly injectivity, hence bijectivity.
+        if np.unique(pi).size != n:
+            return None
+        if np.any(np.abs(weights[pi] - weights) > atol):
+            return None
+        kept_ops.append(M)
+        perms.append(pi.astype(np.int64))
+    return OrbitCertificate(operators=tuple(kept_ops), permutations=tuple(perms))
 
 
 # ---------------------------------------------------------------------------
@@ -1329,9 +1435,77 @@ def maximal_invariance_groups(
     return _maximal(accepted)
 
 
+def orbit_certificate(
+    measure: DiscreteMeasure,
+    group: "SubgroupOfO3",
+    *,
+    atol: float = 1e-13,
+) -> "OrbitCertificate | None":
+    r"""The realized action of ``group`` on ``measure``, or ``None``.
+
+    ``None`` when the measure is not ``group``-invariant, or when the group
+    is CONTINUOUS and so has no finite realization to permute nodes by. The
+    certificate is built from the group's ELEMENTS, not a generating set:
+    orbit closure only needs generators, but a point's stabilizer may be
+    generated by a non-generator, so :math:`\Sigma` needs them all.
+    """
+    ops = _realized_ops(group._tag)
+    if ops is None:
+        return None
+    nodes = measure.nodes
+    if nodes.ndim == 1 or nodes.shape[1] < 3:
+        return None
+    return _orbit_closure(nodes, measure.weights, _close_group(ops), atol)
+
+
+def singular_set(
+    measure: DiscreteMeasure,
+    group: "SubgroupOfO3",
+    *,
+    atol: float = 1e-13,
+) -> np.ndarray:
+    r"""The **singular set** :math:`\Sigma` of ``measure`` under ``group``.
+
+    Indices of the **singular points** — those whose stabilizer is
+    non-trivial, i.e. fixed by some non-identity group element. Under a
+    reflection the fixed locus is a **mirror**; a point on two mirrors is a
+    corner reflector; a point on a rotation axis with no mirror through it
+    is a cone point.
+
+    Membership is decided by :math:`\pi_M(i) = i` — an **integer identity**,
+    exact, with no tolerance. The three ad-hoc float comparisons the tree
+    grew for this question (``_OCTANT_SIGN_EPS``, ``_MU_DIRECTION_EPS``,
+    ``TANGENTIAL_EPS``) were all asking it numerically; measured across 29
+    production rules, the separation between "zero" and "nonzero" cosines is
+    a factor of :math:`2.7\times10^{13}`, so the tolerance was never doing
+    real work. The only honestly-numerical step is matching nodes while
+    BUILDING :math:`\pi`, which is ``atol``.
+
+    Raises
+    ------
+    ValueError
+        If ``measure`` is not ``group``-invariant. :math:`\Sigma` is defined
+        only on an invariant set — a quotient needs something to quotient —
+        so the illegal state is unrepresentable rather than silently
+        returning a wrong answer.
+    """
+    cert = orbit_certificate(measure, group, atol=atol)
+    if cert is None:
+        raise ValueError(
+            f"the singular set is defined only for a {group.name}-invariant "
+            f"measure with a finite realization; this measure is not "
+            f"{group.name}-invariant (or {group.name} is continuous, and a "
+            f"continuous group has no finite node permutation)"
+        )
+    return cert.singular_set
+
+
 __all__ = [
+    "OrbitCertificate",
     "SubgroupOfO3",
     "candidate_groups",
     "maximal_invariance_groups",
     "maximal_subgroups",
+    "orbit_certificate",
+    "singular_set",
 ]

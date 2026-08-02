@@ -945,3 +945,163 @@ def test_product_symmetry_contradicts_its_registry_declaration() -> None:
     assert not SubgroupOfO3.SO2.is_invariant(mu), (
         "the declared SO2 is not a symmetry the rule actually has"
     )
+
+
+# ============================================================================
+# The orbit certificate and the singular set Sigma
+# ============================================================================
+#
+# `_orbit_closure` always computed pi_M(i) with M x_i = x_{pi(i)} and threw it
+# away to return a bool. A `-> bool` predicate that internally builds the
+# permutation IS the missing primitive (L-013). Widening the return type gives
+# Sigma for free, because pi_M(i) == i MEANS x_i is in Fix(M).
+
+
+def _cert_rules() -> list[tuple[str, object]]:
+    return [
+        ("product(4,4)", Quadrature.product(n_mu=4, n_phi=4)),
+        ("product(4,8)", Quadrature.product(n_mu=4, n_phi=8)),
+        ("level_symmetric(8)", Quadrature.level_symmetric(sn_order=8)),
+        ("lebedev(11)", Quadrature.lebedev(order=11)),
+    ]
+
+
+@pytest.mark.foundation
+def test_singular_set_membership_is_exact_not_thresholded() -> None:
+    r""":math:`\Sigma` does not move when the tolerance moves.
+
+    Membership is :math:`\pi_M(i) = i`, an integer identity. The ad-hoc
+    float comparisons this replaces would each shift with their epsilon;
+    this must not, across four orders of magnitude.
+    """
+    from orpheus.numerics.symmetry import maximal_invariance_groups, singular_set
+
+    for name, q in _cert_rules():
+        mu = _measure_from_sphere_quad(q)
+        group = maximal_invariance_groups(mu)[0]
+        answers = {
+            atol: tuple(singular_set(mu, group, atol=atol).tolist())
+            for atol in (1e-15, 1e-13, 1e-11)
+        }
+        assert len(set(answers.values())) == 1, (
+            f"{name}: Sigma varies with atol -- {[(k, len(v)) for k, v in answers.items()]}"
+        )
+
+
+@pytest.mark.foundation
+def test_singular_set_under_d2h_reproduces_the_epsilon_detectors() -> None:
+    r"""The retirement warrant for the three ad-hoc epsilon detectors.
+
+    ``_OCTANT_SIGN_EPS``, ``_MU_DIRECTION_EPS`` and ``TANGENTIAL_EPS`` all ask
+    "is a direction cosine zero", i.e. does this node lie on a COORDINATE
+    mirror. That is :math:`\Sigma` under :math:`D_{2h}` — the group generated
+    by the three coordinate reflections, isomorphic to
+    :math:`(\mathbb{Z}_2)^3`, whose chambers are exactly the octants. Naming
+    the group is what makes the question precise; the epsilons could not say
+    WHICH mirrors they meant.
+
+    Exact agreement on every production rule is what licenses retiring them.
+    """
+    from orpheus.numerics.symmetry import singular_set
+
+    for name, q in _cert_rules() + [
+        ("lebedev(17)", Quadrature.lebedev(order=17)),
+        ("level_symmetric(16)", Quadrature.level_symmetric(sn_order=16)),
+    ]:
+        mu = _measure_from_sphere_quad(q)
+        nodes = np.column_stack([q.mu_x, q.mu_y, q.mu_z])
+        by_epsilon = np.flatnonzero((np.abs(nodes) < 1e-15).any(axis=1))
+        by_group = singular_set(mu, SubgroupOfO3.Dnh(2))
+        assert np.array_equal(np.sort(by_group), np.sort(by_epsilon)), (
+            f"{name}: Sigma|D_2h has {len(by_group)} points, the epsilon "
+            f"detector {len(by_epsilon)}"
+        )
+
+
+@pytest.mark.foundation
+def test_full_group_sigma_sees_diagonal_mirrors_the_epsilons_cannot() -> None:
+    r"""And why the retirement must NAME :math:`D_{2h}`, not just swap spelling.
+
+    :math:`\Sigma` under the rule's FULL symmetry group is strictly larger
+    whenever that group carries mirrors off the coordinate planes. A node on
+    the diagonal plane :math:`x = y` is singular with no zero coordinate, so
+    a cosine-magnitude test is structurally blind to it. Most starkly:
+    ``level_symmetric`` has NO node with a zero cosine, so the epsilon answer
+    is empty while 32 of its ordinates lie on :math:`O_h` mirrors.
+    """
+    from orpheus.numerics.symmetry import maximal_invariance_groups, singular_set
+
+    mu = _measure_from_sphere_quad(Quadrature.level_symmetric(sn_order=8))
+    coordinate_only = singular_set(mu, SubgroupOfO3.Dnh(2))
+    full = singular_set(mu, maximal_invariance_groups(mu)[0])
+    assert len(coordinate_only) == 0
+    assert len(full) > 0, "expected O_h diagonal mirrors to fix some ordinate"
+    assert set(coordinate_only.tolist()) <= set(full.tolist())
+
+    # product(4, n_phi) has n_phi vertical mirrors, only 2 of them coordinate
+    # planes, so Sigma grows with n_phi while the epsilon answer does not.
+    sizes = {}
+    for n_phi in (4, 8, 16):
+        m = _measure_from_sphere_quad(Quadrature.product(n_mu=4, n_phi=n_phi))
+        sizes[n_phi] = (
+            len(singular_set(m, SubgroupOfO3.Dnh(2))),
+            len(singular_set(m, maximal_invariance_groups(m)[0])),
+        )
+    assert [s[0] for s in sizes.values()] == [16, 16, 16], sizes
+    assert [s[1] for s in sizes.values()] == [16, 32, 64], sizes
+
+
+@pytest.mark.foundation
+def test_singular_set_requires_an_invariant_measure() -> None:
+    r""":math:`\Sigma` is unrepresentable without the closure proof.
+
+    A quotient needs something to quotient: the singular set is defined only
+    on a :math:`G`-invariant measure. Since the certificate exists only when
+    closure holds, the precondition is enforced by construction rather than
+    documented in a comment.
+    """
+    from orpheus.numerics.symmetry import singular_set
+
+    lopsided = DiscreteMeasure(
+        nodes=np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),
+        weights=np.array([1.0, 2.0]),
+        support="S^2",
+    )
+    with pytest.raises(ValueError, match="invariant"):
+        singular_set(lopsided, SubgroupOfO3.OctahedralOh)
+
+
+@pytest.mark.foundation
+def test_orbit_stabilizer_theorem_holds_on_every_certificate() -> None:
+    r"""The certificate's defining law: :math:`|Gx|\cdot|\mathrm{Stab}(x)| = |G|`.
+
+    An intrinsic property of the object, not of its use — if the
+    permutations were not a genuine group action this would fail, so it
+    independently re-checks the bijection requirement (ERR-073) on every
+    element rather than only on the duplicate-node witness.
+    """
+    from orpheus.numerics.symmetry import (
+        _close_group, _realized_ops, maximal_invariance_groups, orbit_certificate,
+    )
+
+    for name, q in _cert_rules():
+        mu = _measure_from_sphere_quad(q)
+        group = maximal_invariance_groups(mu)[0]
+        cert = orbit_certificate(mu, group)
+        assert cert is not None, name
+        order = len(_close_group(_realized_ops(group._tag)))  # type: ignore[arg-type]
+        stab = cert.stabilizer_order
+        for orbit in cert.orbits():
+            for i in orbit:
+                assert len(orbit) * int(stab[i]) == order, (
+                    f"{name}: orbit-stabilizer fails at node {i} -- "
+                    f"|orbit|={len(orbit)} |Stab|={stab[i]} |G|={order}"
+                )
+
+        # Stabilizer order is 1 exactly off Sigma.
+        sigma = set(cert.singular_set.tolist())
+        for i in range(cert.n_points):
+            assert (int(stab[i]) > 1) is (i in sigma), (
+                f"{name}: node {i} has |Stab|={stab[i]} but "
+                f"{'is' if i in sigma else 'is not'} in Sigma"
+            )
